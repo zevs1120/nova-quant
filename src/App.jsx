@@ -287,6 +287,8 @@ export default function App() {
     setAssetClass('US_STOCK');
     setMarket('US');
     setInvestorDemoEnabled(true);
+    setOnboardingDone(true);
+    setShowOnboarding(false);
     setMoreSection('menu');
     setActiveTab('today');
   };
@@ -308,6 +310,12 @@ export default function App() {
       setMarket('US');
     }
   }, [assetClass, market]);
+
+  useEffect(() => {
+    if (investorDemoEnabled && showOnboarding) {
+      setShowOnboarding(false);
+    }
+  }, [investorDemoEnabled, showOnboarding]);
 
   useEffect(() => {
     let mounted = true;
