@@ -1065,34 +1065,34 @@ export default function App() {
             {renderScreen()}
           </div>
         </main>
-
-        <nav
-          className="bottom-nav app-tabbar"
-          aria-label="Primary navigation"
-          style={{
-            gridTemplateColumns: 'repeat(4, minmax(0, 1fr))'
-          }}
-        >
-          {Object.entries(TAB_META).map(([key, value]) => (
-            <button
-              key={key}
-              type="button"
-              className={`tab-btn ${activeTab === key ? 'active' : ''}`}
-              onClick={() => {
-                setActiveTab(key);
-                if (key !== 'more') {
-                  resetMore();
-                } else {
-                  setMoreSection('menu');
-                }
-              }}
-            >
-              <span>{value.icon}</span>
-              <span>{value.label}</span>
-            </button>
-          ))}
-        </nav>
       </div>
+
+      <nav
+        className="bottom-nav app-tabbar"
+        aria-label="Primary navigation"
+        style={{
+          gridTemplateColumns: 'repeat(4, minmax(0, 1fr))'
+        }}
+      >
+        {Object.entries(TAB_META).map(([key, value]) => (
+          <button
+            key={key}
+            type="button"
+            className={`tab-btn ${activeTab === key ? 'active' : ''}`}
+            onClick={() => {
+              setActiveTab(key);
+              if (key !== 'more') {
+                resetMore();
+              } else {
+                setMoreSection('menu');
+              }
+            }}
+          >
+            <span>{value.icon}</span>
+            <span>{value.label}</span>
+          </button>
+        ))}
+      </nav>
 
       <AboutModal open={aboutOpen} onClose={() => setAboutOpen(false)} config={data.config} t={t} locale={locale} />
 
