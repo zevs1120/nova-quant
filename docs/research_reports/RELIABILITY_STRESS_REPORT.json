@@ -1,0 +1,516 @@
+{
+  "generated_at": "2026-03-08T00:00:00.000Z",
+  "framework_version": "reliability-stress-framework.v1",
+  "seed_id": "reliability_scenario_pack_v1",
+  "baseline_snapshot": {
+    "regime": "range",
+    "posture": "REDUCE",
+    "opportunities": 7,
+    "discovery_candidates": 56,
+    "promoted_candidates": 0
+  },
+  "scenarios": [
+    {
+      "scenario_id": "elevated_volatility",
+      "title": "Elevated Volatility Regime",
+      "category": "market_stress",
+      "severity": "high",
+      "checks": [
+        {
+          "module": "regime_engine",
+          "check_id": "classifies_volatility_stress",
+          "pass": true,
+          "value": "high_volatility",
+          "threshold": "high_volatility|risk_off",
+          "note": "Regime engine should react to elevated volatility input."
+        },
+        {
+          "module": "risk_bucket_system",
+          "check_id": "applies_defensive_posture",
+          "pass": true,
+          "value": "REDUCE",
+          "threshold": "REDUCE|SKIP",
+          "note": "Risk posture should become defensive under stress."
+        },
+        {
+          "module": "decision_layer",
+          "check_id": "degrades_gracefully_under_vol_stress",
+          "pass": true,
+          "value": {
+            "raw": 15,
+            "executable": 7
+          },
+          "threshold": "raw >= executable",
+          "note": "Product layer should remain structured while reducing executable density."
+        },
+        {
+          "module": "risk_bucket_system",
+          "check_id": "defensive_decision_ratio_under_stress",
+          "pass": true,
+          "value": 1,
+          "threshold": ">= 0.3",
+          "note": "Risk filter should reduce/block a meaningful share under elevated volatility."
+        }
+      ],
+      "metrics": {
+        "regime_primary": "high_volatility",
+        "posture": "REDUCE",
+        "blocked_ratio": 0,
+        "reduce_or_block_ratio": 1
+      },
+      "sensitive_families": [],
+      "status": "resilient",
+      "failed_count": 0,
+      "passed_count": 4,
+      "modules_touched": [
+        "regime_engine",
+        "risk_bucket_system",
+        "decision_layer"
+      ],
+      "failed_modules": [],
+      "first_failure": null,
+      "graceful_degradation": true
+    },
+    {
+      "scenario_id": "risk_off_regime",
+      "title": "Risk-Off Regime Shock",
+      "category": "market_stress",
+      "severity": "critical",
+      "checks": [
+        {
+          "module": "regime_engine",
+          "check_id": "classifies_risk_off",
+          "pass": true,
+          "value": "risk_off",
+          "threshold": "risk_off",
+          "note": "Risk-off shock should classify as risk_off."
+        },
+        {
+          "module": "risk_bucket_system",
+          "check_id": "skip_posture_enforced",
+          "pass": true,
+          "value": "SKIP",
+          "threshold": "SKIP",
+          "note": "Risk-off state should force SKIP posture."
+        },
+        {
+          "module": "risk_bucket_system",
+          "check_id": "no_trade_guidance_present",
+          "pass": true,
+          "value": "Most setups are blocked. A no-trade day is currently preferred.",
+          "threshold": "non-empty",
+          "note": "Risk module should provide explicit no-trade guidance."
+        }
+      ],
+      "metrics": {
+        "regime_primary": "risk_off",
+        "posture": "SKIP",
+        "no_trade_recommendation": "Most setups are blocked. A no-trade day is currently preferred."
+      },
+      "sensitive_families": [],
+      "status": "resilient",
+      "failed_count": 0,
+      "passed_count": 3,
+      "modules_touched": [
+        "regime_engine",
+        "risk_bucket_system"
+      ],
+      "failed_modules": [],
+      "first_failure": null,
+      "graceful_degradation": true
+    },
+    {
+      "scenario_id": "concentrated_exposure",
+      "title": "Concentrated Exposure Overload",
+      "category": "portfolio_stress",
+      "severity": "high",
+      "checks": [
+        {
+          "module": "risk_bucket_system",
+          "check_id": "budget_status_stressed",
+          "pass": true,
+          "value": "stressed",
+          "threshold": "stressed",
+          "note": "Concentrated setup should stress portfolio budget."
+        },
+        {
+          "module": "risk_bucket_system",
+          "check_id": "concentration_caps_triggered",
+          "pass": true,
+          "value": {
+            "market_concentration_pct": 112,
+            "market_concentration_cap_pct": 36,
+            "correlated_exposure_pct": 112,
+            "correlated_exposure_cap_pct": 22
+          },
+          "threshold": "concentration >= cap",
+          "note": "Concentration guardrails should fire under overloaded exposure."
+        },
+        {
+          "module": "decision_layer",
+          "check_id": "reduce_or_block_ratio_high",
+          "pass": true,
+          "value": 1,
+          "threshold": ">= 0.55",
+          "note": "Decision layer should reduce/block majority under concentration overload."
+        }
+      ],
+      "metrics": {
+        "budget_status": "stressed",
+        "concentration_pct": 112,
+        "concentration_cap_pct": 36
+      },
+      "sensitive_families": [],
+      "status": "resilient",
+      "failed_count": 0,
+      "passed_count": 3,
+      "modules_touched": [
+        "risk_bucket_system",
+        "decision_layer"
+      ],
+      "failed_modules": [],
+      "first_failure": null,
+      "graceful_degradation": true
+    },
+    {
+      "scenario_id": "high_slippage",
+      "title": "High Slippage Stress",
+      "category": "execution_stress",
+      "severity": "high",
+      "checks": [
+        {
+          "module": "walk_forward_validation",
+          "check_id": "harsh_execution_survival_ratio",
+          "pass": true,
+          "value": 1,
+          "threshold": ">= 0.5",
+          "note": "Validation should degrade but remain partially resilient under high slippage."
+        },
+        {
+          "module": "walk_forward_validation",
+          "check_id": "execution_profile_applied",
+          "pass": true,
+          "value": "exec-realism.backtest.high-slippage.v1",
+          "threshold": "non-empty profile_id",
+          "note": "Stress profile must be traceable in validation outputs."
+        }
+      ],
+      "metrics": {
+        "base_harsh_execution_survivors": 4,
+        "stressed_harsh_execution_survivors": 4,
+        "survival_ratio": 1
+      },
+      "sensitive_families": [
+        {
+          "strategy_family": "Mean Reversion",
+          "hit_count": 2,
+          "top_reasons": [
+            "risk_adjusted_return_too_low"
+          ]
+        }
+      ],
+      "status": "resilient",
+      "failed_count": 0,
+      "passed_count": 2,
+      "modules_touched": [
+        "walk_forward_validation"
+      ],
+      "failed_modules": [],
+      "first_failure": null,
+      "graceful_degradation": true
+    },
+    {
+      "scenario_id": "poor_fills",
+      "title": "Poor Fill Quality",
+      "category": "execution_stress",
+      "severity": "critical",
+      "checks": [
+        {
+          "module": "walk_forward_validation",
+          "check_id": "strict_fill_monotonicity",
+          "pass": true,
+          "value": {
+            "improved_count": 0,
+            "total": 4
+          },
+          "threshold": "improved_count <= floor(total/2)",
+          "note": "Strict-fill assumptions should not improve most strategies; if they do, realism model is brittle."
+        },
+        {
+          "module": "governance_workflow",
+          "check_id": "demotion_or_rollback_paths_present",
+          "pass": true,
+          "value": 1,
+          "threshold": "> 0",
+          "note": "Governance must remain operational and emit decision artifacts under poor fills."
+        },
+        {
+          "module": "walk_forward_validation",
+          "check_id": "profile_traceability_preserved",
+          "pass": true,
+          "value": "exec-realism.backtest.poor-fills.v1",
+          "threshold": "non-empty profile_id",
+          "note": "Validation traceability should remain intact under poor fill assumptions."
+        }
+      ],
+      "metrics": {
+        "strict_fill_monotonicity_ok": true,
+        "strict_fill_rows": [
+          {
+            "strategy_id": "champion",
+            "base": -0.002707,
+            "strict": -0.002826,
+            "delta": -0.000119
+          },
+          {
+            "strategy_id": "challenger-trend-heavy",
+            "base": -0.053907,
+            "strict": -0.05396,
+            "delta": -0.000053
+          },
+          {
+            "strategy_id": "challenger-mr-adaptive",
+            "base": -0.04549,
+            "strict": -0.045548,
+            "delta": -0.000058
+          },
+          {
+            "strategy_id": "challenger-risk-lean",
+            "base": -0.041994,
+            "strict": -0.042041,
+            "delta": -0.000047
+          }
+        ],
+        "governance_action_count": 1
+      },
+      "sensitive_families": [
+        {
+          "strategy_family": "Mean Reversion",
+          "hit_count": 1,
+          "top_reasons": [
+            "walkforward_positive_ratio_too_low",
+            "walkforward_avg_return_too_low"
+          ]
+        }
+      ],
+      "status": "resilient",
+      "failed_count": 0,
+      "passed_count": 3,
+      "modules_touched": [
+        "walk_forward_validation",
+        "governance_workflow"
+      ],
+      "failed_modules": [],
+      "first_failure": null,
+      "graceful_degradation": true
+    },
+    {
+      "scenario_id": "strategy_starvation",
+      "title": "Strategy Starvation",
+      "category": "discovery_stress",
+      "severity": "high",
+      "checks": [
+        {
+          "module": "discovery_engine",
+          "check_id": "starvation_detected",
+          "pass": true,
+          "value": 0,
+          "threshold": "<= 2 candidates",
+          "note": "Scenario should surface low-density starvation behavior."
+        },
+        {
+          "module": "discovery_engine",
+          "check_id": "starvation_diagnostics_present",
+          "pass": true,
+          "value": 8,
+          "threshold": "> 0 mapping failures",
+          "note": "Discovery should explain why candidate density collapsed."
+        }
+      ],
+      "metrics": {
+        "generated_candidates": 0,
+        "mapping_failures": 8
+      },
+      "sensitive_families": [],
+      "status": "resilient",
+      "failed_count": 0,
+      "passed_count": 2,
+      "modules_touched": [
+        "discovery_engine"
+      ],
+      "failed_modules": [],
+      "first_failure": null,
+      "graceful_degradation": true
+    },
+    {
+      "scenario_id": "strategy_crowding_fake_diversification",
+      "title": "Strategy Crowding / Fake Diversification",
+      "category": "portfolio_stress",
+      "severity": "high",
+      "checks": [
+        {
+          "module": "portfolio_simulation",
+          "check_id": "family_crowding_guard_enforced",
+          "pass": true,
+          "value": {
+            "top_family_exposure": 0.28,
+            "family_cap": 0.28,
+            "trimmed_families": 1
+          },
+          "threshold": "top_family_exposure <= family_cap + 0.01",
+          "note": "Crowding guard should cap family concentration under overloaded same-family strategies."
+        },
+        {
+          "module": "portfolio_simulation",
+          "check_id": "correlation_pressure_visible",
+          "pass": true,
+          "value": 0.6212,
+          "threshold": ">= 0.5",
+          "note": "Even with concentration guard, crowding pressure should still appear in pairwise correlation diagnostics."
+        }
+      ],
+      "metrics": {
+        "top_family_exposure": 0.28,
+        "diversification_score": 0.7591,
+        "avg_pairwise_correlation": 0.6212
+      },
+      "sensitive_families": [],
+      "status": "resilient",
+      "failed_count": 0,
+      "passed_count": 2,
+      "modules_touched": [
+        "portfolio_simulation"
+      ],
+      "failed_modules": [],
+      "first_failure": null,
+      "graceful_degradation": true
+    },
+    {
+      "scenario_id": "degraded_candidate_quality",
+      "title": "Degraded Candidate Quality",
+      "category": "discovery_stress",
+      "severity": "high",
+      "checks": [
+        {
+          "module": "discovery_engine",
+          "check_id": "promotion_rate_reduced_under_quality_degradation",
+          "pass": true,
+          "value": 0,
+          "threshold": "<= 1",
+          "note": "Stricter quality gates should materially reduce promotions."
+        },
+        {
+          "module": "discovery_engine",
+          "check_id": "rejection_rate_increases_under_quality_stress",
+          "pass": true,
+          "value": 1,
+          "threshold": ">= 0.4",
+          "note": "Degraded candidate quality should be rejected more often."
+        }
+      ],
+      "metrics": {
+        "baseline_promoted": 0,
+        "stressed_promoted": 0,
+        "rejection_rate": 1
+      },
+      "sensitive_families": [
+        {
+          "strategy_family": "Mean Reversion",
+          "failed_count": 32,
+          "promoted_count": 0,
+          "fail_to_promote_ratio": 32,
+          "top_reasons": [
+            "post_cost_return_too_weak",
+            "risk_adjusted_return_too_low",
+            "unrealistic_trade_frequency"
+          ]
+        },
+        {
+          "strategy_family": "Crypto-Native Families",
+          "failed_count": 24,
+          "promoted_count": 0,
+          "fail_to_promote_ratio": 24,
+          "top_reasons": [
+            "post_cost_return_too_weak",
+            "risk_adjusted_return_too_low",
+            "extremely_low_signal_count"
+          ]
+        }
+      ],
+      "status": "resilient",
+      "failed_count": 0,
+      "passed_count": 2,
+      "modules_touched": [
+        "discovery_engine"
+      ],
+      "failed_modules": [],
+      "first_failure": null,
+      "graceful_degradation": true
+    }
+  ],
+  "summary": {
+    "total_scenarios": 8,
+    "degraded_scenarios": 0,
+    "resilient_scenarios": 8,
+    "graceful_degradation_ratio": 1,
+    "first_failure_chain": [],
+    "weakest_modules": [
+      {
+        "module": "regime_engine",
+        "pass_count": 2,
+        "fail_count": 0,
+        "pass_rate": 1
+      },
+      {
+        "module": "risk_bucket_system",
+        "pass_count": 6,
+        "fail_count": 0,
+        "pass_rate": 1
+      },
+      {
+        "module": "decision_layer",
+        "pass_count": 2,
+        "fail_count": 0,
+        "pass_rate": 1
+      }
+    ],
+    "strongest_modules": [
+      {
+        "module": "regime_engine",
+        "pass_count": 2,
+        "fail_count": 0,
+        "pass_rate": 1
+      },
+      {
+        "module": "risk_bucket_system",
+        "pass_count": 6,
+        "fail_count": 0,
+        "pass_rate": 1
+      },
+      {
+        "module": "decision_layer",
+        "pass_count": 2,
+        "fail_count": 0,
+        "pass_rate": 1
+      }
+    ],
+    "strategy_family_sensitivity": [
+      {
+        "strategy_family": "Mean Reversion",
+        "hit_count": 4,
+        "scenario_ids": [
+          "high_slippage",
+          "poor_fills",
+          "degraded_candidate_quality"
+        ]
+      },
+      {
+        "strategy_family": "Crypto-Native Families",
+        "hit_count": 1,
+        "scenario_ids": [
+          "degraded_candidate_quality"
+        ]
+      }
+    ]
+  }
+}

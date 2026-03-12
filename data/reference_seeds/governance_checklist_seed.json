@@ -1,0 +1,81 @@
+{
+  "version": "2026-03-08",
+  "source": "docs/advanced_research_pack/governance/STRATEGY_AUDIT_CHECKLIST.md",
+  "checklist_sections": [
+    {
+      "id": "CHK-HYP",
+      "title": "hypothesis_and_template_quality",
+      "items": [
+        "hypothesis_clear_and_testable",
+        "template_matches_hypothesis",
+        "market_regime_compatibility_declared",
+        "holding_horizon_aligned"
+      ]
+    },
+    {
+      "id": "CHK-DATA",
+      "title": "feature_and_data_quality",
+      "items": [
+        "feature_relevance_confirmed",
+        "freshness_and_coverage_adequate",
+        "no_leakage_detected",
+        "missingness_risks_documented"
+      ]
+    },
+    {
+      "id": "CHK-VAL",
+      "title": "validation_quality",
+      "items": [
+        "sanity_passed",
+        "walk_forward_and_oos_viable",
+        "parameter_stability_acceptable",
+        "cost_stress_viable",
+        "regime_behavior_understood"
+      ]
+    },
+    {
+      "id": "CHK-RISK",
+      "title": "risk_and_execution_realism",
+      "items": [
+        "risk_bucket_justified",
+        "size_down_block_logic_defined",
+        "execution_assumptions_plausible",
+        "concentration_overlap_warnings_resolved"
+      ]
+    },
+    {
+      "id": "CHK-PORT",
+      "title": "portfolio_usefulness",
+      "items": [
+        "marginal_diversification_positive",
+        "correlation_with_prod_acceptable",
+        "cost_adjusted_marginal_value_positive"
+      ]
+    },
+    {
+      "id": "CHK-EXPLAIN",
+      "title": "explainability_and_product_readiness",
+      "items": [
+        "opportunity_fields_complete",
+        "rationale_evidence_grounded",
+        "risk_boundary_and_no_trade_guidance_clear"
+      ]
+    },
+    {
+      "id": "CHK-GOV",
+      "title": "governance_readiness",
+      "items": [
+        "evidence_chain_complete",
+        "promotion_rationale_recorded",
+        "rollback_retirement_conditions_defined",
+        "reviewer_metadata_present"
+      ]
+    }
+  ],
+  "score_bands": [
+    {"min": 90, "max": 100, "decision": "promotion_ready"},
+    {"min": 75, "max": 89, "decision": "hold_or_constrained_canary"},
+    {"min": 60, "max": 74, "decision": "shadow_only"},
+    {"min": 0, "max": 59, "decision": "reject_or_redesign"}
+  ]
+}

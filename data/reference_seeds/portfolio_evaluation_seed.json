@@ -1,0 +1,49 @@
+{
+  "version": "2026-03-08",
+  "source": "docs/advanced_research_pack/portfolio/PORTFOLIO_EVALUATION_FRAMEWORK.md",
+  "metric_groups": {
+    "return_quality": ["return", "expectancy_after_cost", "consistency"],
+    "risk_quality": ["max_drawdown", "volatility", "tail_risk_proxy"],
+    "execution_quality": ["turnover", "fill_conversion", "slippage_impact"],
+    "diversification_quality": ["correlation_dispersion", "family_balance", "regime_payoff_complementarity"],
+    "stability_quality": ["regime_stability", "degradation_trend"]
+  },
+  "marginal_contribution_fields": [
+    "return_delta",
+    "drawdown_delta",
+    "volatility_delta",
+    "diversification_delta",
+    "turnover_delta"
+  ],
+  "diagnostic_flags": [
+    {
+      "id": "PEF-001",
+      "name": "drawdown_concentration_high",
+      "trigger": "top_strategy_drawdown_share > threshold",
+      "action": "reduce_concentration_or_demote_candidate"
+    },
+    {
+      "id": "PEF-002",
+      "name": "diversification_quality_low",
+      "trigger": "correlation_cluster_density > threshold",
+      "action": "prioritize_uncorrelated_candidates"
+    },
+    {
+      "id": "PEF-003",
+      "name": "turnover_drag_high",
+      "trigger": "turnover_cost_ratio > threshold",
+      "action": "tighten_execution_filters_or_reduce_size"
+    },
+    {
+      "id": "PEF-004",
+      "name": "regime_instability",
+      "trigger": "performance_dispersion_across_regimes > threshold",
+      "action": "limit_posture_and_require_regime_specific_controls"
+    }
+  ],
+  "promotion_guidance": {
+    "require_positive_marginal_diversification": true,
+    "require_noncritical_risk_flags": true,
+    "require_cost_adjusted_viability": true
+  }
+}

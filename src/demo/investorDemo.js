@@ -1,0 +1,331 @@
+export const INVESTOR_DEMO_STATUS = 'DEMO_ONLY';
+
+export const INVESTOR_DEMO_PERFORMANCE = {
+  label: 'Investor demo sample',
+  range_label: 'This week',
+  total_assets: 120756.8,
+  daily_pnl_amount: 420.6,
+  daily_return: 0.0035,
+  return_7d: 0.037,
+  return_30d: 0.089,
+  cumulative_return: 0.246,
+  weekly_return: 0.037,
+  max_drawdown: 0.041,
+  win_rate: 0.674,
+  payoff_ratio: 1.62,
+  source_status: INVESTOR_DEMO_STATUS,
+  note: 'Demo sample for investor walkthroughs only. Not live, not paper, not a real track record.'
+};
+
+export const INVESTOR_DEMO_HOLDINGS = [
+  {
+    id: 'demo-holding-aapl',
+    symbol: 'AAPL',
+    asset_class: 'US_STOCK',
+    market: 'US',
+    sector: 'Technology',
+    quantity: 120,
+    weight_pct: 19.8,
+    cost_basis: 193.4,
+    current_price_override: 198.8,
+    confidence_level: 4,
+    note: 'Investor demo core'
+  },
+  {
+    id: 'demo-holding-nvda',
+    symbol: 'NVDA',
+    asset_class: 'US_STOCK',
+    market: 'US',
+    sector: 'Technology',
+    quantity: 80,
+    weight_pct: 8.5,
+    cost_basis: 121.3,
+    current_price_override: 128.6,
+    confidence_level: 4,
+    note: 'Investor demo growth'
+  },
+  {
+    id: 'demo-holding-spy',
+    symbol: 'SPY',
+    asset_class: 'US_STOCK',
+    market: 'US',
+    sector: 'Index ETF',
+    quantity: 110,
+    weight_pct: 47.3,
+    cost_basis: 504.1,
+    current_price_override: 519.2,
+    confidence_level: 4,
+    note: 'Investor demo market ETF'
+  },
+  {
+    id: 'demo-holding-btc',
+    symbol: 'BTC-USDT',
+    asset_class: 'CRYPTO',
+    market: 'CRYPTO',
+    sector: 'Crypto',
+    quantity: 0.42,
+    weight_pct: 24.4,
+    cost_basis: 67200,
+    current_price_override: 70240,
+    confidence_level: 3,
+    note: 'Investor demo crypto'
+  }
+];
+
+function minutesAgoIso(minutesAgo) {
+  return new Date(Date.now() - minutesAgo * 60_000).toISOString();
+}
+
+function buildSignal(base) {
+  const generatedAt = minutesAgoIso(base.minutesAgo);
+  const entryLow = Number.isFinite(Number(base.entry_low)) ? Number(base.entry_low) : Number(base.entry);
+  const entryHigh = Number.isFinite(Number(base.entry_high)) ? Number(base.entry_high) : Number(base.entry);
+  return {
+    signal_id: `demo-signal-${base.symbol.toLowerCase()}-${base.minutesAgo}`,
+    symbol: base.symbol,
+    market: base.market,
+    asset_class: base.asset_class,
+    direction: base.direction,
+    confidence: base.confidence,
+    conviction: base.confidence,
+    score: base.score,
+    timeframe: base.timeframe,
+    regime_id: base.regime_id,
+    thesis: base.thesis,
+    created_at: generatedAt,
+    generated_at: generatedAt,
+    status: base.status || 'NEW',
+    data_status: INVESTOR_DEMO_STATUS,
+    source_label: INVESTOR_DEMO_STATUS,
+    source_status: INVESTOR_DEMO_STATUS,
+    source_transparency: {
+      data_status: INVESTOR_DEMO_STATUS,
+      source_label: INVESTOR_DEMO_STATUS,
+      source_status: INVESTOR_DEMO_STATUS,
+      note: 'Investor demo signal'
+    },
+    actionable: base.status ? base.status === 'NEW' || base.status === 'TRIGGERED' : true,
+    entry_zone: {
+      low: entryLow,
+      high: entryHigh
+    },
+    stop_loss: {
+      type: 'DEMO',
+      price: base.stop,
+      rationale: 'Investor demo stop'
+    },
+    invalidation_level: base.stop,
+    take_profit_levels: [
+      {
+        price: base.target,
+        rationale: 'Investor demo target'
+      }
+    ],
+    position_advice: {
+      position_pct: base.position_pct,
+      note: 'Beginner-sized demo position'
+    },
+    explain_bullets: [base.thesis],
+    tags: ['demo_only:investor', `strategy_source:${base.strategy_source || 'AI quant strategy'}`],
+    freshness_label: `${base.minutesAgo}m ago`,
+    supporting_run_id: 'investor-demo-pack',
+    strategy_source: base.strategy_source || 'AI quant strategy',
+    demo_outcome_label: base.outcomeLabel || null,
+    demo_outcome_note: base.outcomeNote || null
+  };
+}
+
+export function buildInvestorDemoSignals(assetClass = 'US_STOCK') {
+  if (assetClass === 'CRYPTO') {
+    return [
+      buildSignal({
+        symbol: 'BTC-USDT',
+        market: 'CRYPTO',
+        asset_class: 'CRYPTO',
+        direction: 'LONG',
+        confidence: 0.78,
+        score: 82,
+        timeframe: '4h',
+        regime_id: 'RANGE_NORMAL',
+        thesis: 'The market cooled down and the rebound setup is cleaner than the rest of the crypto board.',
+        entry: 66850,
+        stop: 64880,
+        target: 69420,
+        position_pct: 12,
+        minutesAgo: 4,
+        strategy_source: 'AI quant strategy'
+      }),
+      buildSignal({
+        symbol: 'ETH-USDT',
+        market: 'CRYPTO',
+        asset_class: 'CRYPTO',
+        direction: 'LONG',
+        confidence: 0.73,
+        score: 76,
+        timeframe: '4h',
+        regime_id: 'RANGE_NORMAL',
+        thesis: 'The bounce stayed orderly after support held.',
+        entry: 3480,
+        stop: 3360,
+        target: 3645,
+        position_pct: 10,
+        minutesAgo: 185,
+        status: 'DONE',
+        outcomeLabel: 'Target reached',
+        outcomeNote: '+4.7%'
+      }),
+      buildSignal({
+        symbol: 'SOL-USDT',
+        market: 'CRYPTO',
+        asset_class: 'CRYPTO',
+        direction: 'WAIT',
+        confidence: 0.61,
+        score: 61,
+        timeframe: '4h',
+        regime_id: 'RANGE_NORMAL',
+        thesis: 'Momentum faded, so the safer call was to stay patient.',
+        entry: 176.5,
+        stop: 169.4,
+        target: 186.8,
+        position_pct: 0,
+        minutesAgo: 420,
+        status: 'DONE',
+        outcomeLabel: 'Stayed flat',
+        outcomeNote: 'No trade'
+      })
+    ];
+  }
+
+  return [
+    buildSignal({
+      symbol: 'AAPL',
+      market: 'US',
+      asset_class: 'US_STOCK',
+      direction: 'LONG',
+      confidence: 0.81,
+      score: 85,
+      timeframe: '1d',
+      regime_id: 'TREND_NORMAL',
+      thesis: 'The pullback stayed calm and buyers defended the key area, so this is the cleanest idea today.',
+      entry: 198.8,
+      entry_low: 198.4,
+      entry_high: 199.2,
+      stop: 193.6,
+      target: 206.4,
+      position_pct: 12,
+      minutesAgo: 3,
+      strategy_source: 'AI quant strategy'
+    }),
+    buildSignal({
+      symbol: 'NVDA',
+      market: 'US',
+      asset_class: 'US_STOCK',
+      direction: 'LONG',
+      confidence: 0.77,
+      score: 79,
+      timeframe: '1d',
+      regime_id: 'TREND_NORMAL',
+      thesis: 'The trend resumed after a light pullback and the follow-through stayed healthy.',
+      entry: 128.6,
+      entry_low: 128.2,
+      entry_high: 129.1,
+      stop: 123.8,
+      target: 136.2,
+      position_pct: 10,
+      minutesAgo: 190,
+      status: 'DONE',
+      outcomeLabel: 'Target reached',
+      outcomeNote: '+5.1%'
+    }),
+    buildSignal({
+      symbol: 'SPY',
+      market: 'US',
+      asset_class: 'US_STOCK',
+      direction: 'WAIT',
+      confidence: 0.66,
+      score: 67,
+      timeframe: '1d',
+      regime_id: 'TREND_NORMAL',
+      thesis: 'The market stayed supportive, but the cleaner reward setup was elsewhere.',
+      entry: 519.2,
+      entry_low: 518.5,
+      entry_high: 520.0,
+      stop: 511.8,
+      target: 528.5,
+      position_pct: 0,
+      minutesAgo: 420,
+      status: 'DONE',
+      outcomeLabel: 'Small win',
+      outcomeNote: '+1.4%'
+    }),
+    buildSignal({
+      symbol: 'MSFT',
+      market: 'US',
+      asset_class: 'US_STOCK',
+      direction: 'LONG',
+      confidence: 0.69,
+      score: 71,
+      timeframe: '1d',
+      regime_id: 'TREND_NORMAL',
+      thesis: 'The setup looked tradable, but size stayed small after a wider stop.',
+      entry: 427.4,
+      entry_low: 426.5,
+      entry_high: 428.3,
+      stop: 418.2,
+      target: 439.8,
+      position_pct: 8,
+      minutesAgo: 840,
+      status: 'DONE',
+      outcomeLabel: 'Stopped out',
+      outcomeNote: '-1.8%'
+    })
+  ];
+}
+
+export function buildInvestorDemoEnvironment(assetClass = 'US_STOCK') {
+  const signals = buildInvestorDemoSignals(assetClass);
+  const primary = signals[0] || null;
+  return {
+    signals,
+    evidence: {
+      top_signals: signals.slice(0, 3),
+      source_status: INVESTOR_DEMO_STATUS,
+      data_status: INVESTOR_DEMO_STATUS,
+      asof: new Date().toISOString(),
+      supporting_run_id: 'investor-demo-pack'
+    },
+    today: {
+      is_trading_day: true,
+      tradeability: 'can_trade',
+      why_today: ['One clean setup is enough. The goal is discipline, not activity.'],
+      suggested_gross_exposure_pct: 24,
+      suggested_net_exposure_pct: 18,
+      total_candidates: signals.length,
+      filtered_count: 5,
+      grade_counts: { A: 1, B: 2, C: 1 },
+      style_hint: 'calm trend',
+      best_signal_id: primary?.signal_id || null
+    },
+    safety: {
+      mode: 'normal risk',
+      safety_score: 74,
+      conclusion: 'Low risk today, one small position is acceptable.',
+      primary_risks: ['Keep size small and avoid chasing after the first move.']
+    },
+    insights: {
+      regime: { tag: 'Calm uptrend' },
+      volatility: { label: 'normal' },
+      breadth: { ratio: 0.61 }
+    },
+    performance: {
+      investor_demo: INVESTOR_DEMO_PERFORMANCE
+    },
+    config: {
+      runtime: {
+        source_status: INVESTOR_DEMO_STATUS,
+        data_status: INVESTOR_DEMO_STATUS,
+        source_label: INVESTOR_DEMO_STATUS
+      }
+    }
+  };
+}

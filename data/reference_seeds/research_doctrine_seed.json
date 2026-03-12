@@ -1,0 +1,61 @@
+{
+  "version": "2026-03-08",
+  "source": "docs/advanced_research_pack/methodology/RESEARCH_DOCTRINE.md",
+  "principles": [
+    {
+      "id": "DOC-001",
+      "title": "robustness_over_in_sample_beauty",
+      "description": "Prefer stable out-of-sample performance over strong in-sample metrics.",
+      "enforcement_hint": "penalize unstable walk-forward and high sensitivity candidates"
+    },
+    {
+      "id": "DOC-002",
+      "title": "transparency_over_magic",
+      "description": "Every recommendation must be explainable and traceable.",
+      "enforcement_hint": "require evidence_chain completeness before promotion"
+    },
+    {
+      "id": "DOC-003",
+      "title": "controlled_risk_over_signal_volume",
+      "description": "Do not increase trade count at the cost of risk discipline.",
+      "enforcement_hint": "apply risk bucket hard caps and no-trade conditions"
+    },
+    {
+      "id": "DOC-004",
+      "title": "portfolio_usefulness_over_isolated_metrics",
+      "description": "Strategy quality includes marginal portfolio impact.",
+      "enforcement_hint": "include diversification and concentration diagnostics in score"
+    },
+    {
+      "id": "DOC-005",
+      "title": "fast_rejection_of_weak_hypotheses",
+      "description": "Kill low-credibility candidates early.",
+      "enforcement_hint": "reject on sanity and fragility checks before expensive evaluation"
+    },
+    {
+      "id": "DOC-006",
+      "title": "regime_awareness",
+      "description": "Every strategy has compatible and suppressed regimes.",
+      "enforcement_hint": "require regime compatibility score in candidate evaluation"
+    },
+    {
+      "id": "DOC-007",
+      "title": "cost_aware_realism",
+      "description": "Use realistic slippage, fee, and funding assumptions.",
+      "enforcement_hint": "block promotion if stress-cost scenario fails"
+    },
+    {
+      "id": "DOC-008",
+      "title": "governance_discipline",
+      "description": "Lifecycle movement requires explicit evidence and audit trail.",
+      "enforcement_hint": "enforce stage-specific checklist and promotion history object"
+    }
+  ],
+  "stage_expectations": {
+    "DRAFT": ["hypothesis_clarity", "template_fit", "basic_sanity_pass"],
+    "SHADOW": ["oos_viability", "cost_stress_viability", "evidence_chain_complete"],
+    "CANARY": ["controlled_risk_behavior", "drawdown_control", "monitoring_readiness"],
+    "PROD": ["stable_realistic_performance", "portfolio_contribution", "rollback_ready"],
+    "RETIRED": ["degradation_confirmed_or_utility_exhausted"]
+  }
+}

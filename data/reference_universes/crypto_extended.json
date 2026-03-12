@@ -1,0 +1,182 @@
+{
+  "universe_id": "crypto_extended_v1",
+  "generated_at": "2026-03-08T00:00:00.000Z",
+  "description": "Extended liquid crypto perpetual markets for broader discovery testing.",
+  "instruments": [
+    {
+      "symbol": "BTCUSDT",
+      "market": "CRYPTO_PERP",
+      "category": "extended_perp",
+      "reason_for_inclusion": "Tradable liquidity plus diverse beta profiles to improve discovery breadth.",
+      "notes": "Part of crypto core."
+    },
+    {
+      "symbol": "ETHUSDT",
+      "market": "CRYPTO_PERP",
+      "category": "extended_perp",
+      "reason_for_inclusion": "Tradable liquidity plus diverse beta profiles to improve discovery breadth.",
+      "notes": "Part of crypto core."
+    },
+    {
+      "symbol": "SOLUSDT",
+      "market": "CRYPTO_PERP",
+      "category": "extended_perp",
+      "reason_for_inclusion": "Tradable liquidity plus diverse beta profiles to improve discovery breadth.",
+      "notes": "Part of crypto core."
+    },
+    {
+      "symbol": "BNBUSDT",
+      "market": "CRYPTO_PERP",
+      "category": "extended_perp",
+      "reason_for_inclusion": "Tradable liquidity plus diverse beta profiles to improve discovery breadth.",
+      "notes": "Part of crypto core."
+    },
+    {
+      "symbol": "XRPUSDT",
+      "market": "CRYPTO_PERP",
+      "category": "extended_perp",
+      "reason_for_inclusion": "Tradable liquidity plus diverse beta profiles to improve discovery breadth.",
+      "notes": "Part of crypto core."
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "market": "CRYPTO_PERP",
+      "category": "extended_perp",
+      "reason_for_inclusion": "Tradable liquidity plus diverse beta profiles to improve discovery breadth.",
+      "notes": "Part of crypto core."
+    },
+    {
+      "symbol": "ADAUSDT",
+      "market": "CRYPTO_PERP",
+      "category": "extended_perp",
+      "reason_for_inclusion": "Tradable liquidity plus diverse beta profiles to improve discovery breadth.",
+      "notes": "Part of crypto core."
+    },
+    {
+      "symbol": "TRXUSDT",
+      "market": "CRYPTO_PERP",
+      "category": "extended_perp",
+      "reason_for_inclusion": "Tradable liquidity plus diverse beta profiles to improve discovery breadth.",
+      "notes": "Part of crypto core."
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "market": "CRYPTO_PERP",
+      "category": "extended_perp",
+      "reason_for_inclusion": "Tradable liquidity plus diverse beta profiles to improve discovery breadth.",
+      "notes": "Part of crypto core."
+    },
+    {
+      "symbol": "LINKUSDT",
+      "market": "CRYPTO_PERP",
+      "category": "extended_perp",
+      "reason_for_inclusion": "Tradable liquidity plus diverse beta profiles to improve discovery breadth.",
+      "notes": "Part of crypto core."
+    },
+    {
+      "symbol": "LTCUSDT",
+      "market": "CRYPTO_PERP",
+      "category": "extended_perp",
+      "reason_for_inclusion": "Tradable liquidity plus diverse beta profiles to improve discovery breadth.",
+      "notes": "Part of crypto core."
+    },
+    {
+      "symbol": "TONUSDT",
+      "market": "CRYPTO_PERP",
+      "category": "extended_perp",
+      "reason_for_inclusion": "Tradable liquidity plus diverse beta profiles to improve discovery breadth.",
+      "notes": "Part of crypto core."
+    },
+    {
+      "symbol": "DOTUSDT",
+      "market": "CRYPTO_PERP",
+      "category": "extended_perp",
+      "reason_for_inclusion": "Tradable liquidity plus diverse beta profiles to improve discovery breadth.",
+      "notes": "Expansion-only for discovery breadth and rotation studies."
+    },
+    {
+      "symbol": "MATICUSDT",
+      "market": "CRYPTO_PERP",
+      "category": "extended_perp",
+      "reason_for_inclusion": "Tradable liquidity plus diverse beta profiles to improve discovery breadth.",
+      "notes": "Expansion-only for discovery breadth and rotation studies."
+    },
+    {
+      "symbol": "NEARUSDT",
+      "market": "CRYPTO_PERP",
+      "category": "extended_perp",
+      "reason_for_inclusion": "Tradable liquidity plus diverse beta profiles to improve discovery breadth.",
+      "notes": "Expansion-only for discovery breadth and rotation studies."
+    },
+    {
+      "symbol": "APTUSDT",
+      "market": "CRYPTO_PERP",
+      "category": "extended_perp",
+      "reason_for_inclusion": "Tradable liquidity plus diverse beta profiles to improve discovery breadth.",
+      "notes": "Expansion-only for discovery breadth and rotation studies."
+    },
+    {
+      "symbol": "ARBUSDT",
+      "market": "CRYPTO_PERP",
+      "category": "extended_perp",
+      "reason_for_inclusion": "Tradable liquidity plus diverse beta profiles to improve discovery breadth.",
+      "notes": "Expansion-only for discovery breadth and rotation studies."
+    },
+    {
+      "symbol": "OPUSDT",
+      "market": "CRYPTO_PERP",
+      "category": "extended_perp",
+      "reason_for_inclusion": "Tradable liquidity plus diverse beta profiles to improve discovery breadth.",
+      "notes": "Expansion-only for discovery breadth and rotation studies."
+    },
+    {
+      "symbol": "SUIUSDT",
+      "market": "CRYPTO_PERP",
+      "category": "extended_perp",
+      "reason_for_inclusion": "Tradable liquidity plus diverse beta profiles to improve discovery breadth.",
+      "notes": "Expansion-only for discovery breadth and rotation studies."
+    },
+    {
+      "symbol": "ATOMUSDT",
+      "market": "CRYPTO_PERP",
+      "category": "extended_perp",
+      "reason_for_inclusion": "Tradable liquidity plus diverse beta profiles to improve discovery breadth.",
+      "notes": "Expansion-only for discovery breadth and rotation studies."
+    },
+    {
+      "symbol": "ETCUSDT",
+      "market": "CRYPTO_PERP",
+      "category": "extended_perp",
+      "reason_for_inclusion": "Tradable liquidity plus diverse beta profiles to improve discovery breadth.",
+      "notes": "Expansion-only for discovery breadth and rotation studies."
+    },
+    {
+      "symbol": "FILUSDT",
+      "market": "CRYPTO_PERP",
+      "category": "extended_perp",
+      "reason_for_inclusion": "Tradable liquidity plus diverse beta profiles to improve discovery breadth.",
+      "notes": "Expansion-only for discovery breadth and rotation studies."
+    },
+    {
+      "symbol": "INJUSDT",
+      "market": "CRYPTO_PERP",
+      "category": "extended_perp",
+      "reason_for_inclusion": "Tradable liquidity plus diverse beta profiles to improve discovery breadth.",
+      "notes": "Expansion-only for discovery breadth and rotation studies."
+    },
+    {
+      "symbol": "AAVEUSDT",
+      "market": "CRYPTO_PERP",
+      "category": "extended_perp",
+      "reason_for_inclusion": "Tradable liquidity plus diverse beta profiles to improve discovery breadth.",
+      "notes": "Expansion-only for discovery breadth and rotation studies."
+    },
+    {
+      "symbol": "UNIUSDT",
+      "market": "CRYPTO_PERP",
+      "category": "extended_perp",
+      "reason_for_inclusion": "Tradable liquidity plus diverse beta profiles to improve discovery breadth.",
+      "notes": "Expansion-only for discovery breadth and rotation studies."
+    }
+  ]
+}

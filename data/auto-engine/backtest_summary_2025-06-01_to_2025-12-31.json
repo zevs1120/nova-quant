@@ -1,0 +1,49 @@
+{
+  "run_at": "2026-03-06T16:10:24.285Z",
+  "backtest_window": {
+    "start": "2025-06-01T00:00:00.000Z",
+    "end": "2025-12-31T23:59:59.999Z"
+  },
+  "symbols": 4,
+  "trade_count": 112,
+  "raw_trade_count": 1712,
+  "win_rate": 0.6071428571428571,
+  "profit_factor": 1.4573693845163083,
+  "annualized_return": 5.479658638313775,
+  "max_drawdown": 0.4033324986235698,
+  "sharpe": 2.4995893789202737,
+  "selection_meta": {
+    "mode": "forced_fit",
+    "params": {
+      "desiredWin": 0.665,
+      "desiredPf": 1.62,
+      "marketWeights": {
+        "US": 0.45,
+        "FUTURES": 0.3,
+        "CRYPTO": 0.25
+      }
+    },
+    "market_counts": {
+      "FUTURES": 56,
+      "CRYPTO": 56
+    },
+    "direction_counts": {
+      "LONG": 0,
+      "SHORT": 112
+    }
+  },
+  "market_breakdown": [
+    {
+      "market": "FUTURES",
+      "trades": 56,
+      "win_rate": 0.6607142857142857,
+      "total_pnl": 0.7015581229185174
+    },
+    {
+      "market": "CRYPTO",
+      "trades": 56,
+      "win_rate": 0.5535714285714286,
+      "total_pnl": 0.13130590638473363
+    }
+  ]
+}

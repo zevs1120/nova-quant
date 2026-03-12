@@ -1,0 +1,43 @@
+{
+  "database": {
+    "driver": "sqlite",
+    "path": "./data/quant.db"
+  },
+  "markets": {
+    "US": {
+      "venue": "STOOQ",
+      "symbols": ["SPY", "QQQ", "AAPL", "MSFT", "NVDA", "TSLA"]
+    },
+    "CRYPTO": {
+      "venue": "BINANCE_UM",
+      "symbols": ["BTCUSDT", "ETHUSDT"]
+    }
+  },
+  "timeframes": ["5m", "1h", "1d"],
+  "stooq": {
+    "baseUrl": "https://stooq.com",
+    "bulkPackCodes": {
+      "1d": "d_us_txt",
+      "1h": "h_us_txt",
+      "5m": "5_us_txt"
+    },
+    "timeoutMs": 120000,
+    "batchSize": 2000
+  },
+  "binancePublic": {
+    "baseUrl": "https://data.binance.vision",
+    "pathPrefix": "data/futures/um",
+    "startDate": "2020-01-01",
+    "lookbackDailyDays": 12,
+    "concurrency": 3
+  },
+  "binanceRest": {
+    "baseUrl": "https://fapi.binance.com",
+    "limit": 200,
+    "requestDelayMs": 250,
+    "retry": {
+      "attempts": 4,
+      "baseDelayMs": 600
+    }
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "trade_count": 302,
+  "win_rate": 0.6622516556291391,
+  "profit_factor": 1.6636997464277707,
+  "avg_hold_days": 2.569190313036545,
+  "long_count": 112,
+  "short_count": 190,
+  "gross_profit_return": 8.203675829904974,
+  "gross_loss_return": 4.930983398608779,
+  "total_return_sum": 3.2726924312961945,
+  "gross_profit_usd": 184112.4145700872,
+  "gross_loss_usd": 122180.72580853652,
+  "net_pnl_usd": 61931.688761550526,
+  "start_equity_usd": 300000,
+  "end_equity_usd": 361931.6887615504,
+  "max_drawdown": 0.03627460751834473,
+  "avg_position_pct": 0.07334880115923005,
+  "max_position_pct": 0.09904414409524066,
+  "min_position_pct": 0.04127318413674248,
+  "monthly": {
+    "2025-06": {
+      "trades": 43,
+      "wins": 28,
+      "ret_sum": 0.3901430542563672,
+      "pnl_usd": 2133.707936461741,
+      "longs": 18,
+      "shorts": 25
+    },
+    "2025-07": {
+      "trades": 43,
+      "wins": 28,
+      "ret_sum": 0.6906074090213318,
+      "pnl_usd": 7721.959470454284,
+      "longs": 22,
+      "shorts": 21
+    },
+    "2025-08": {
+      "trades": 43,
+      "wins": 27,
+      "ret_sum": 0.16908729916293724,
+      "pnl_usd": 588.0460270913003,
+      "longs": 14,
+      "shorts": 29
+    },
+    "2025-09": {
+      "trades": 43,
+      "wins": 28,
+      "ret_sum": 0.4244222703217513,
+      "pnl_usd": 13460.69361023021,
+      "longs": 14,
+      "shorts": 29
+    },
+    "2025-10": {
+      "trades": 43,
+      "wins": 28,
+      "ret_sum": 0.5552708923161832,
+      "pnl_usd": 11234.03534378516,
+      "longs": 14,
+      "shorts": 29
+    },
+    "2025-11": {
+      "trades": 43,
+      "wins": 30,
+      "ret_sum": 0.7919525838028304,
+      "pnl_usd": 25618.779960773278,
+      "longs": 15,
+      "shorts": 28
+    },
+    "2025-12": {
+      "trades": 44,
+      "wins": 31,
+      "ret_sum": 0.2512089224147934,
+      "pnl_usd": 1174.4664127545734,
+      "longs": 15,
+      "shorts": 29
+    }
+  }
+}

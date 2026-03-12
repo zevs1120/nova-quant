@@ -1,0 +1,35 @@
+{
+  "run_at": "2026-03-06T16:12:41.204Z",
+  "source": "cached_floor_guard_from_zh_csv",
+  "backtest_window": {
+    "start": "2025-06-01T00:00:00.000Z",
+    "end": "2025-12-31T23:59:59.999Z"
+  },
+  "trade_count": 800,
+  "win_rate": 0.685,
+  "profit_factor": 1.6801745057756987,
+  "max_drawdown": 0.983135454685672,
+  "market_breakdown": [
+    {
+      "market": "FUTURES",
+      "trades": 240,
+      "win_rate": 0.6833333333333333,
+      "total_pnl": 2.8097883704157227
+    },
+    {
+      "market": "CRYPTO",
+      "trades": 200,
+      "win_rate": 0.685,
+      "total_pnl": 2.2056507807294676
+    },
+    {
+      "market": "US",
+      "trades": 360,
+      "win_rate": 0.6861111111111111,
+      "total_pnl": 2.9983474813612667
+    }
+  ],
+  "direction_breakdown": {
+    "SHORT": 800
+  }
+}

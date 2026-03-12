@@ -1,0 +1,71 @@
+{
+  "seed_id": "feature_catalog_seed_v1",
+  "generated_at": "2026-03-08T00:00:00.000Z",
+  "source": "docs/research_materials/internal_seeds/FEATURE_CATALOG.md",
+  "feature_groups": [
+    {
+      "group_id": "trend_features",
+      "title": "Trend Features",
+      "purpose": "Detect directional persistence and continuation quality.",
+      "example_features": ["trend_strength", "ma_alignment", "breakout_distance", "trend_age", "multi_day_return"],
+      "data_source_dependency": ["OHLCV bars", "rolling returns", "session highs/lows"],
+      "typical_strategy_usage": ["breakout continuation", "pullback continuation", "multi-day continuation"]
+    },
+    {
+      "group_id": "volatility_features",
+      "title": "Volatility Features",
+      "purpose": "Measure expansion/compression state and risk regime stress.",
+      "example_features": ["atr_14", "vol_percentile", "realized_volatility", "iv_hv_spread", "range_expansion"],
+      "data_source_dependency": ["bar returns", "optional implied-vol feeds", "options snapshots"],
+      "typical_strategy_usage": ["volatility expansion continuation", "compression breakout", "risk posture sizing"]
+    },
+    {
+      "group_id": "range_reversion_features",
+      "title": "Range / Reversion Features",
+      "purpose": "Locate statistically stretched prices and likely normalization windows.",
+      "example_features": ["zscore_lookback", "percentile_rank", "vwap_deviation", "reversion_speed", "extension_threshold"],
+      "data_source_dependency": ["intraday bars", "rolling stats", "session VWAP"],
+      "typical_strategy_usage": ["oversold rebound", "overbought fade", "percentile mean reversion"]
+    },
+    {
+      "group_id": "cross_sectional_features",
+      "title": "Cross-Sectional Features",
+      "purpose": "Rank assets relative to peers for rotation and spread trades.",
+      "example_features": ["cross_asset_rank", "sector_relative_strength", "leader_laggard_spread", "rank_trend"],
+      "data_source_dependency": ["synchronized multi-asset returns", "sector mappings"],
+      "typical_strategy_usage": ["relative strength leader", "leader-laggard spread", "basket momentum"]
+    },
+    {
+      "group_id": "breadth_market_proxy_features",
+      "title": "Breadth / Market Proxy Features",
+      "purpose": "Infer market internals and risk-on/risk-off posture.",
+      "example_features": ["breadth_ratio", "risk_on_off_score", "sector_rotation_strength", "credit_stress_proxy"],
+      "data_source_dependency": ["index/ETF universes", "macro proxy feeds", "breadth calculations"],
+      "typical_strategy_usage": ["regime transition templates", "defensive rotation", "posture guardrails"]
+    },
+    {
+      "group_id": "crypto_carry_features",
+      "title": "Crypto Funding / Basis / OI Features",
+      "purpose": "Capture derivatives crowding, carry dislocations, and positioning shifts.",
+      "example_features": ["funding_rate", "funding_zscore", "basis_annualized", "open_interest_change", "spot_perp_spread"],
+      "data_source_dependency": ["Binance/Bybit/Deribit endpoints", "websocket streams"],
+      "typical_strategy_usage": ["funding dislocation reversion", "basis compression/expansion", "carry logic"]
+    },
+    {
+      "group_id": "liquidity_stress_features",
+      "title": "Liquidity Stress Features",
+      "purpose": "Detect execution fragility and liquidation-driven dislocations.",
+      "example_features": ["spread_bps", "liquidity_score", "order_imbalance", "liquidation_imbalance", "velocity_shock"],
+      "data_source_dependency": ["tick/quote streams", "order book depth", "trade prints"],
+      "typical_strategy_usage": ["liquidity shock reversal", "stress filters", "no-trade guards"]
+    },
+    {
+      "group_id": "execution_realism_features",
+      "title": "Execution Realism Features",
+      "purpose": "Convert theoretical signal quality into executable opportunity quality.",
+      "example_features": ["slippage_bps", "fill_probability", "queue_position_proxy", "unavailable_data_flag", "latency_ms"],
+      "data_source_dependency": ["execution simulator logs", "venue metadata", "data-health monitors"],
+      "typical_strategy_usage": ["risk bucket filtering", "candidate validation", "opportunity sizing decisions"]
+    }
+  ]
+}

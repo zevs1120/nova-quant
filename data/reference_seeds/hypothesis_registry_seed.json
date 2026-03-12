@@ -1,0 +1,2119 @@
+{
+  "seed_id": "hypothesis_registry_seed_v1",
+  "generated_at": "2026-03-08T00:00:00.000Z",
+  "total_hypotheses": 100,
+  "families": [
+    "Momentum / Trend",
+    "Mean Reversion",
+    "Regime Transition",
+    "Relative Strength / Rotation",
+    "Volatility / Compression / Expansion",
+    "Liquidity / Stress / Exhaustion",
+    "Crypto Funding / Basis / Carry",
+    "Event / Risk-Off / Panic Behavior",
+    "False Breakout / Failed Move",
+    "Multi-day continuation / multi-day exhaustion"
+  ],
+  "hypotheses": [
+    {
+      "hypothesis_id": "HYP-MOM-001",
+      "title": "Open-range breakout continuation",
+      "description": "When the session opens outside a recent balance area and volume confirms, follow-through often persists into later bars.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in momentum / trend conditions.",
+      "family": "Momentum / Trend",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "trend",
+      "expected_holding_horizon": "1-3 bars",
+      "suggested_strategy_family": "Momentum / Trend Following",
+      "suggested_template_candidates": [
+        "breakout_continuation",
+        "pullback_continuation"
+      ],
+      "required_feature_hints": [
+        "trend_strength",
+        "breakout_distance",
+        "volume_expansion",
+        "atr_14"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-MOM-002",
+      "title": "Post-earnings drift continuation",
+      "description": "Strong post-event directional gaps can keep trending as institutions rebalance over several sessions.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in momentum / trend conditions.",
+      "family": "Momentum / Trend",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "uptrend_normal",
+      "expected_holding_horizon": "2-5 bars",
+      "suggested_strategy_family": "Momentum / Trend Following",
+      "suggested_template_candidates": [
+        "pullback_continuation",
+        "trend_acceleration"
+      ],
+      "required_feature_hints": [
+        "breakout_distance",
+        "volume_expansion",
+        "atr_14",
+        "ma_alignment"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-MOM-003",
+      "title": "Multi-day higher-high persistence",
+      "description": "Assets printing clean higher highs and shallow pullbacks often continue while positioning remains under-owned.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in momentum / trend conditions.",
+      "family": "Momentum / Trend",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "uptrend_high_vol",
+      "expected_holding_horizon": "3-8 bars",
+      "suggested_strategy_family": "Momentum / Trend Following",
+      "suggested_template_candidates": [
+        "trend_acceleration",
+        "breakout_continuation"
+      ],
+      "required_feature_hints": [
+        "volume_expansion",
+        "atr_14",
+        "ma_alignment",
+        "trend_strength"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-MOM-004",
+      "title": "Volume-backed trend acceleration",
+      "description": "A trend leg that re-accelerates with expanding participation tends to sustain before mean reversion starts.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in momentum / trend conditions.",
+      "family": "Momentum / Trend",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "trend",
+      "expected_holding_horizon": "1-3 bars",
+      "suggested_strategy_family": "Momentum / Trend Following",
+      "suggested_template_candidates": [
+        "breakout_continuation",
+        "pullback_continuation"
+      ],
+      "required_feature_hints": [
+        "atr_14",
+        "ma_alignment",
+        "trend_strength",
+        "breakout_distance"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-MOM-005",
+      "title": "Trend resumption after volatility contraction",
+      "description": "A volatility squeeze inside an intact trend often resolves in the original direction when risk appetite returns.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in momentum / trend conditions.",
+      "family": "Momentum / Trend",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "uptrend_normal",
+      "expected_holding_horizon": "2-5 bars",
+      "suggested_strategy_family": "Momentum / Trend Following",
+      "suggested_template_candidates": [
+        "pullback_continuation",
+        "trend_acceleration"
+      ],
+      "required_feature_hints": [
+        "ma_alignment",
+        "trend_strength",
+        "breakout_distance",
+        "volume_expansion"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-MOM-006",
+      "title": "Leader breakout with weak laggards",
+      "description": "Top leadership names can continue outperforming while weaker peers fail to confirm, creating concentrated momentum edge.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in momentum / trend conditions.",
+      "family": "Momentum / Trend",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "uptrend_high_vol",
+      "expected_holding_horizon": "3-8 bars",
+      "suggested_strategy_family": "Momentum / Trend Following",
+      "suggested_template_candidates": [
+        "trend_acceleration",
+        "breakout_continuation"
+      ],
+      "required_feature_hints": [
+        "trend_strength",
+        "breakout_distance",
+        "volume_expansion",
+        "atr_14"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-MOM-007",
+      "title": "Sector thrust continuation",
+      "description": "When sector ETF breadth expands with synchronized breakouts, continuation setups tend to survive noise better.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in momentum / trend conditions.",
+      "family": "Momentum / Trend",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "trend",
+      "expected_holding_horizon": "1-3 bars",
+      "suggested_strategy_family": "Momentum / Trend Following",
+      "suggested_template_candidates": [
+        "breakout_continuation",
+        "pullback_continuation"
+      ],
+      "required_feature_hints": [
+        "breakout_distance",
+        "volume_expansion",
+        "atr_14",
+        "ma_alignment"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-MOM-008",
+      "title": "Late-day momentum carry",
+      "description": "Strong close location value can signal overnight continuation due to uncompleted institutional flow.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in momentum / trend conditions.",
+      "family": "Momentum / Trend",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "uptrend_normal",
+      "expected_holding_horizon": "2-5 bars",
+      "suggested_strategy_family": "Momentum / Trend Following",
+      "suggested_template_candidates": [
+        "pullback_continuation",
+        "trend_acceleration"
+      ],
+      "required_feature_hints": [
+        "volume_expansion",
+        "atr_14",
+        "ma_alignment",
+        "trend_strength"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-MOM-009",
+      "title": "Gap-and-go in risk-on windows",
+      "description": "In risk-on regimes, gap-up names with stable spread often produce cleaner continuation than average sessions.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in momentum / trend conditions.",
+      "family": "Momentum / Trend",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "uptrend_high_vol",
+      "expected_holding_horizon": "3-8 bars",
+      "suggested_strategy_family": "Momentum / Trend Following",
+      "suggested_template_candidates": [
+        "trend_acceleration",
+        "breakout_continuation"
+      ],
+      "required_feature_hints": [
+        "atr_14",
+        "ma_alignment",
+        "trend_strength",
+        "breakout_distance"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-MOM-010",
+      "title": "Trend persistence after shallow pullback",
+      "description": "Small retracements in high-quality trends can offer low-friction re-entry before another directional impulse.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in momentum / trend conditions.",
+      "family": "Momentum / Trend",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "trend",
+      "expected_holding_horizon": "1-3 bars",
+      "suggested_strategy_family": "Momentum / Trend Following",
+      "suggested_template_candidates": [
+        "breakout_continuation",
+        "pullback_continuation"
+      ],
+      "required_feature_hints": [
+        "ma_alignment",
+        "trend_strength",
+        "breakout_distance",
+        "volume_expansion"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-MRV-011",
+      "title": "Oversold rebound after panic wick",
+      "description": "Extreme downside extension with failed follow-through often snaps back once forced sellers are exhausted.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in mean reversion conditions.",
+      "family": "Mean Reversion",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "range",
+      "expected_holding_horizon": "1-2 bars",
+      "suggested_strategy_family": "Mean Reversion",
+      "suggested_template_candidates": [
+        "percentile_mean_reversion",
+        "oversold_rebound"
+      ],
+      "required_feature_hints": [
+        "zscore_lookback",
+        "percentile_rank",
+        "vwap_deviation",
+        "reversion_speed"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-MRV-012",
+      "title": "Overbought fade after failed breakout",
+      "description": "A failed upside breakout near local extremes can unwind quickly as breakout buyers are trapped.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in mean reversion conditions.",
+      "family": "Mean Reversion",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "range_normal",
+      "expected_holding_horizon": "1-4 bars",
+      "suggested_strategy_family": "Mean Reversion",
+      "suggested_template_candidates": [
+        "oversold_rebound",
+        "overbought_fade"
+      ],
+      "required_feature_hints": [
+        "percentile_rank",
+        "vwap_deviation",
+        "reversion_speed",
+        "liquidity_score"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-MRV-013",
+      "title": "VWAP reversion in balanced sessions",
+      "description": "When price deviates from session VWAP without structural news, short-horizon pullback toward value is common.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in mean reversion conditions.",
+      "family": "Mean Reversion",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "range_high_vol",
+      "expected_holding_horizon": "2-6 bars",
+      "suggested_strategy_family": "Mean Reversion",
+      "suggested_template_candidates": [
+        "overbought_fade",
+        "percentile_mean_reversion"
+      ],
+      "required_feature_hints": [
+        "vwap_deviation",
+        "reversion_speed",
+        "liquidity_score",
+        "zscore_lookback"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-MRV-014",
+      "title": "Percentile extreme normalization",
+      "description": "Tail percentile moves in stable regimes tend to partially normalize over the next few bars.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in mean reversion conditions.",
+      "family": "Mean Reversion",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "range",
+      "expected_holding_horizon": "1-2 bars",
+      "suggested_strategy_family": "Mean Reversion",
+      "suggested_template_candidates": [
+        "percentile_mean_reversion",
+        "oversold_rebound"
+      ],
+      "required_feature_hints": [
+        "reversion_speed",
+        "liquidity_score",
+        "zscore_lookback",
+        "percentile_rank"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-MRV-015",
+      "title": "Bid-ask imbalance reversal",
+      "description": "Short-lived order-book pressure can overshoot fair value and reverse once microstructure pressure fades.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in mean reversion conditions.",
+      "family": "Mean Reversion",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "range_normal",
+      "expected_holding_horizon": "1-4 bars",
+      "suggested_strategy_family": "Mean Reversion",
+      "suggested_template_candidates": [
+        "oversold_rebound",
+        "overbought_fade"
+      ],
+      "required_feature_hints": [
+        "liquidity_score",
+        "zscore_lookback",
+        "percentile_rank",
+        "vwap_deviation"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-MRV-016",
+      "title": "Intraday extension fade into close",
+      "description": "Late-session one-sided extensions frequently mean-revert into the close when participation thins.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in mean reversion conditions.",
+      "family": "Mean Reversion",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "range_high_vol",
+      "expected_holding_horizon": "2-6 bars",
+      "suggested_strategy_family": "Mean Reversion",
+      "suggested_template_candidates": [
+        "overbought_fade",
+        "percentile_mean_reversion"
+      ],
+      "required_feature_hints": [
+        "zscore_lookback",
+        "percentile_rank",
+        "vwap_deviation",
+        "reversion_speed"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-MRV-017",
+      "title": "Opening overreaction reversion",
+      "description": "Large open dislocations that fail to attract continuation flow often mean-revert by midday.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in mean reversion conditions.",
+      "family": "Mean Reversion",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "range",
+      "expected_holding_horizon": "1-2 bars",
+      "suggested_strategy_family": "Mean Reversion",
+      "suggested_template_candidates": [
+        "percentile_mean_reversion",
+        "oversold_rebound"
+      ],
+      "required_feature_hints": [
+        "percentile_rank",
+        "vwap_deviation",
+        "reversion_speed",
+        "liquidity_score"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-MRV-018",
+      "title": "Range edge rejection bounce",
+      "description": "Repeated rejection near known range boundaries can create reliable fade entries with tight invalidation.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in mean reversion conditions.",
+      "family": "Mean Reversion",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "range_normal",
+      "expected_holding_horizon": "1-4 bars",
+      "suggested_strategy_family": "Mean Reversion",
+      "suggested_template_candidates": [
+        "oversold_rebound",
+        "overbought_fade"
+      ],
+      "required_feature_hints": [
+        "vwap_deviation",
+        "reversion_speed",
+        "liquidity_score",
+        "zscore_lookback"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-MRV-019",
+      "title": "Volatility spike snapback",
+      "description": "A volatility shock that does not break structure often produces a quick reversion leg.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in mean reversion conditions.",
+      "family": "Mean Reversion",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "range_high_vol",
+      "expected_holding_horizon": "2-6 bars",
+      "suggested_strategy_family": "Mean Reversion",
+      "suggested_template_candidates": [
+        "overbought_fade",
+        "percentile_mean_reversion"
+      ],
+      "required_feature_hints": [
+        "reversion_speed",
+        "liquidity_score",
+        "zscore_lookback",
+        "percentile_rank"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-MRV-020",
+      "title": "Short-covering completion fade",
+      "description": "After a sharp squeeze, momentum exhaustion can produce a tradable fade once buy pressure decelerates.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in mean reversion conditions.",
+      "family": "Mean Reversion",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "range",
+      "expected_holding_horizon": "1-2 bars",
+      "suggested_strategy_family": "Mean Reversion",
+      "suggested_template_candidates": [
+        "percentile_mean_reversion",
+        "oversold_rebound"
+      ],
+      "required_feature_hints": [
+        "liquidity_score",
+        "zscore_lookback",
+        "percentile_rank",
+        "vwap_deviation"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-RGT-021",
+      "title": "Trend-to-range degradation",
+      "description": "As trend conviction falls and false breaks increase, continuation systems should be down-weighted.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in regime transition conditions.",
+      "family": "Regime Transition",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "transition",
+      "expected_holding_horizon": "1-4 bars",
+      "suggested_strategy_family": "Regime Transition",
+      "suggested_template_candidates": [
+        "trend_to_range_transition",
+        "volatility_regime_switch"
+      ],
+      "required_feature_hints": [
+        "trend_confidence",
+        "volatility_stress",
+        "breadth_decay",
+        "risk_on_off_score"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-RGT-022",
+      "title": "Range-to-trend ignition",
+      "description": "Compression followed by breadth thrust can mark the transition into a directional regime.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in regime transition conditions.",
+      "family": "Regime Transition",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "high_volatility",
+      "expected_holding_horizon": "2-6 bars",
+      "suggested_strategy_family": "Regime Transition",
+      "suggested_template_candidates": [
+        "volatility_regime_switch",
+        "risk_on_to_risk_off_transition"
+      ],
+      "required_feature_hints": [
+        "volatility_stress",
+        "breadth_decay",
+        "risk_on_off_score",
+        "cross_asset_stress"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-RGT-023",
+      "title": "Low-vol to high-vol regime flip",
+      "description": "A sudden jump in realized and implied volatility changes sizing and template viability.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in regime transition conditions.",
+      "family": "Regime Transition",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "risk_off",
+      "expected_holding_horizon": "3-10 bars",
+      "suggested_strategy_family": "Regime Transition",
+      "suggested_template_candidates": [
+        "risk_on_to_risk_off_transition",
+        "trend_to_range_transition"
+      ],
+      "required_feature_hints": [
+        "breadth_decay",
+        "risk_on_off_score",
+        "cross_asset_stress",
+        "trend_confidence"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-RGT-024",
+      "title": "Risk-on to risk-off migration",
+      "description": "Cross-asset stress signals can lead to abrupt posture shifts before price fully reflects risk-off behavior.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in regime transition conditions.",
+      "family": "Regime Transition",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "range_high_vol",
+      "expected_holding_horizon": "1-4 bars",
+      "suggested_strategy_family": "Regime Transition",
+      "suggested_template_candidates": [
+        "trend_to_range_transition",
+        "volatility_regime_switch"
+      ],
+      "required_feature_hints": [
+        "risk_on_off_score",
+        "cross_asset_stress",
+        "trend_confidence",
+        "volatility_stress"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-RGT-025",
+      "title": "Failed transition retrace",
+      "description": "Many transition attempts fail quickly; reversal capture can outperform delayed trend models.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in regime transition conditions.",
+      "family": "Regime Transition",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "transition",
+      "expected_holding_horizon": "2-6 bars",
+      "suggested_strategy_family": "Regime Transition",
+      "suggested_template_candidates": [
+        "volatility_regime_switch",
+        "risk_on_to_risk_off_transition"
+      ],
+      "required_feature_hints": [
+        "cross_asset_stress",
+        "trend_confidence",
+        "volatility_stress",
+        "breadth_decay"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-RGT-026",
+      "title": "Event-induced regime break",
+      "description": "Macro event windows can invalidate prior regime assumptions and require temporary rule overrides.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in regime transition conditions.",
+      "family": "Regime Transition",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "high_volatility",
+      "expected_holding_horizon": "3-10 bars",
+      "suggested_strategy_family": "Regime Transition",
+      "suggested_template_candidates": [
+        "risk_on_to_risk_off_transition",
+        "trend_to_range_transition"
+      ],
+      "required_feature_hints": [
+        "trend_confidence",
+        "volatility_stress",
+        "breadth_decay",
+        "risk_on_off_score"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-RGT-027",
+      "title": "Liquidity regime deterioration",
+      "description": "When liquidity thins and spreads widen, historical signal behavior can degrade fast.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in regime transition conditions.",
+      "family": "Regime Transition",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "risk_off",
+      "expected_holding_horizon": "1-4 bars",
+      "suggested_strategy_family": "Regime Transition",
+      "suggested_template_candidates": [
+        "trend_to_range_transition",
+        "volatility_regime_switch"
+      ],
+      "required_feature_hints": [
+        "volatility_stress",
+        "breadth_decay",
+        "risk_on_off_score",
+        "cross_asset_stress"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-RGT-028",
+      "title": "Correlation regime spike",
+      "description": "Correlation clusters rising toward one can reduce diversification value and require conflict filters.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in regime transition conditions.",
+      "family": "Regime Transition",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "range_high_vol",
+      "expected_holding_horizon": "2-6 bars",
+      "suggested_strategy_family": "Regime Transition",
+      "suggested_template_candidates": [
+        "volatility_regime_switch",
+        "risk_on_to_risk_off_transition"
+      ],
+      "required_feature_hints": [
+        "breadth_decay",
+        "risk_on_off_score",
+        "cross_asset_stress",
+        "trend_confidence"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-RGT-029",
+      "title": "Post-shock stabilization transition",
+      "description": "After shock phase ends, mean reversion edges may recover before trend signals normalize.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in regime transition conditions.",
+      "family": "Regime Transition",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "transition",
+      "expected_holding_horizon": "3-10 bars",
+      "suggested_strategy_family": "Regime Transition",
+      "suggested_template_candidates": [
+        "risk_on_to_risk_off_transition",
+        "trend_to_range_transition"
+      ],
+      "required_feature_hints": [
+        "risk_on_off_score",
+        "cross_asset_stress",
+        "trend_confidence",
+        "volatility_stress"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-RGT-030",
+      "title": "Volatility normalization handoff",
+      "description": "As vol drops from extremes, strategy preference should rotate from defensive to selective trend models.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in regime transition conditions.",
+      "family": "Regime Transition",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "high_volatility",
+      "expected_holding_horizon": "1-4 bars",
+      "suggested_strategy_family": "Regime Transition",
+      "suggested_template_candidates": [
+        "trend_to_range_transition",
+        "volatility_regime_switch"
+      ],
+      "required_feature_hints": [
+        "cross_asset_stress",
+        "trend_confidence",
+        "volatility_stress",
+        "breadth_decay"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-RSR-031",
+      "title": "Sector leadership persistence",
+      "description": "Sectors that gain leadership with improving breadth often keep leading for multiple rebalancing cycles.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in relative strength / rotation conditions.",
+      "family": "Relative Strength / Rotation",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "trend",
+      "expected_holding_horizon": "3-10 bars",
+      "suggested_strategy_family": "Relative Strength / Cross-Sectional",
+      "suggested_template_candidates": [
+        "relative_strength_leader",
+        "leader_laggard_spread"
+      ],
+      "required_feature_hints": [
+        "cross_asset_rank",
+        "sector_relative_strength",
+        "breadth_ratio",
+        "rank_trend"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-RSR-032",
+      "title": "Leader-laggard spread expansion",
+      "description": "Relative spreads between strong and weak names can widen before convergence begins.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in relative strength / rotation conditions.",
+      "family": "Relative Strength / Rotation",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "range_normal",
+      "expected_holding_horizon": "5-15 bars",
+      "suggested_strategy_family": "Relative Strength / Cross-Sectional",
+      "suggested_template_candidates": [
+        "leader_laggard_spread",
+        "basket_rank_momentum"
+      ],
+      "required_feature_hints": [
+        "sector_relative_strength",
+        "breadth_ratio",
+        "rank_trend",
+        "turnover_cost_proxy"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-RSR-033",
+      "title": "Rotation after macro surprise",
+      "description": "Macro shocks can rotate capital into new factor leaders with measurable lag.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in relative strength / rotation conditions.",
+      "family": "Relative Strength / Rotation",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "risk_recovery",
+      "expected_holding_horizon": "2-8 bars",
+      "suggested_strategy_family": "Relative Strength / Cross-Sectional",
+      "suggested_template_candidates": [
+        "basket_rank_momentum",
+        "relative_strength_leader"
+      ],
+      "required_feature_hints": [
+        "breadth_ratio",
+        "rank_trend",
+        "turnover_cost_proxy",
+        "cross_asset_rank"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-RSR-034",
+      "title": "Defensive-to-cyclical handoff",
+      "description": "When risk appetite improves, cyclical groups often outperform defensive groups in sequence.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in relative strength / rotation conditions.",
+      "family": "Relative Strength / Rotation",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "trend",
+      "expected_holding_horizon": "3-10 bars",
+      "suggested_strategy_family": "Relative Strength / Cross-Sectional",
+      "suggested_template_candidates": [
+        "relative_strength_leader",
+        "leader_laggard_spread"
+      ],
+      "required_feature_hints": [
+        "rank_trend",
+        "turnover_cost_proxy",
+        "cross_asset_rank",
+        "sector_relative_strength"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-RSR-035",
+      "title": "Cross-asset momentum alignment",
+      "description": "When equity and crypto leaders align, continuation conviction for aligned assets improves.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in relative strength / rotation conditions.",
+      "family": "Relative Strength / Rotation",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "range_normal",
+      "expected_holding_horizon": "5-15 bars",
+      "suggested_strategy_family": "Relative Strength / Cross-Sectional",
+      "suggested_template_candidates": [
+        "leader_laggard_spread",
+        "basket_rank_momentum"
+      ],
+      "required_feature_hints": [
+        "turnover_cost_proxy",
+        "cross_asset_rank",
+        "sector_relative_strength",
+        "breadth_ratio"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-RSR-036",
+      "title": "Rank persistence in low-vol uptrends",
+      "description": "In orderly trends, rank changes are slower and easier to exploit through periodic rebalance.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in relative strength / rotation conditions.",
+      "family": "Relative Strength / Rotation",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "risk_recovery",
+      "expected_holding_horizon": "2-8 bars",
+      "suggested_strategy_family": "Relative Strength / Cross-Sectional",
+      "suggested_template_candidates": [
+        "basket_rank_momentum",
+        "relative_strength_leader"
+      ],
+      "required_feature_hints": [
+        "cross_asset_rank",
+        "sector_relative_strength",
+        "breadth_ratio",
+        "rank_trend"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-RSR-037",
+      "title": "Breadth-backed relative breakouts",
+      "description": "Relative breakouts with breadth confirmation tend to be more durable than isolated outperformance.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in relative strength / rotation conditions.",
+      "family": "Relative Strength / Rotation",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "trend",
+      "expected_holding_horizon": "3-10 bars",
+      "suggested_strategy_family": "Relative Strength / Cross-Sectional",
+      "suggested_template_candidates": [
+        "relative_strength_leader",
+        "leader_laggard_spread"
+      ],
+      "required_feature_hints": [
+        "sector_relative_strength",
+        "breadth_ratio",
+        "rank_trend",
+        "turnover_cost_proxy"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-RSR-038",
+      "title": "Volatile rotation whipsaw filter",
+      "description": "Rapid rank reversals in stressed markets can be filtered using turnover and stability metrics.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in relative strength / rotation conditions.",
+      "family": "Relative Strength / Rotation",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "range_normal",
+      "expected_holding_horizon": "5-15 bars",
+      "suggested_strategy_family": "Relative Strength / Cross-Sectional",
+      "suggested_template_candidates": [
+        "leader_laggard_spread",
+        "basket_rank_momentum"
+      ],
+      "required_feature_hints": [
+        "breadth_ratio",
+        "rank_trend",
+        "turnover_cost_proxy",
+        "cross_asset_rank"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-RSR-039",
+      "title": "Size-factor rotation pulse",
+      "description": "Small-cap versus large-cap leadership shifts can signal broad style transitions.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in relative strength / rotation conditions.",
+      "family": "Relative Strength / Rotation",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "risk_recovery",
+      "expected_holding_horizon": "2-8 bars",
+      "suggested_strategy_family": "Relative Strength / Cross-Sectional",
+      "suggested_template_candidates": [
+        "basket_rank_momentum",
+        "relative_strength_leader"
+      ],
+      "required_feature_hints": [
+        "rank_trend",
+        "turnover_cost_proxy",
+        "cross_asset_rank",
+        "sector_relative_strength"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-RSR-040",
+      "title": "Crypto dominance rotation",
+      "description": "Rotation between majors and high-beta alts can produce cross-sectional long/short edges.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in relative strength / rotation conditions.",
+      "family": "Relative Strength / Rotation",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "trend",
+      "expected_holding_horizon": "3-10 bars",
+      "suggested_strategy_family": "Relative Strength / Cross-Sectional",
+      "suggested_template_candidates": [
+        "relative_strength_leader",
+        "leader_laggard_spread"
+      ],
+      "required_feature_hints": [
+        "turnover_cost_proxy",
+        "cross_asset_rank",
+        "sector_relative_strength",
+        "breadth_ratio"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-VOL-041",
+      "title": "Compression-to-expansion breakout",
+      "description": "Long compressions tend to release into directional expansion when catalyst flow appears.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in volatility / compression / expansion conditions.",
+      "family": "Volatility / Compression / Expansion",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "uptrend_high_vol",
+      "expected_holding_horizon": "1-4 bars",
+      "suggested_strategy_family": "Momentum / Trend Following",
+      "suggested_template_candidates": [
+        "volatility_compression_breakout",
+        "volatility_expansion_continuation"
+      ],
+      "required_feature_hints": [
+        "vol_percentile",
+        "atr_14",
+        "range_expansion",
+        "realized_volatility"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-VOL-042",
+      "title": "Post-expansion continuation",
+      "description": "First expansion leg can continue when realized volatility remains elevated but orderly.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in volatility / compression / expansion conditions.",
+      "family": "Volatility / Compression / Expansion",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "downtrend_high_vol",
+      "expected_holding_horizon": "2-6 bars",
+      "suggested_strategy_family": "Momentum / Trend Following",
+      "suggested_template_candidates": [
+        "volatility_expansion_continuation",
+        "range_break_expansion"
+      ],
+      "required_feature_hints": [
+        "atr_14",
+        "range_expansion",
+        "realized_volatility",
+        "iv_hv_spread"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-VOL-043",
+      "title": "False expansion fade",
+      "description": "When expansion starts without follow-through breadth, reversal probability rises quickly.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in volatility / compression / expansion conditions.",
+      "family": "Volatility / Compression / Expansion",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "range_high_vol",
+      "expected_holding_horizon": "1-3 bars",
+      "suggested_strategy_family": "Momentum / Trend Following",
+      "suggested_template_candidates": [
+        "range_break_expansion",
+        "volatility_compression_breakout"
+      ],
+      "required_feature_hints": [
+        "range_expansion",
+        "realized_volatility",
+        "iv_hv_spread",
+        "vol_percentile"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-VOL-044",
+      "title": "IV-RV divergence unwind",
+      "description": "Large implied-vs-realized gaps can signal upcoming repricing in directional or mean-reverting form.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in volatility / compression / expansion conditions.",
+      "family": "Volatility / Compression / Expansion",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "uptrend_high_vol",
+      "expected_holding_horizon": "1-4 bars",
+      "suggested_strategy_family": "Momentum / Trend Following",
+      "suggested_template_candidates": [
+        "volatility_compression_breakout",
+        "volatility_expansion_continuation"
+      ],
+      "required_feature_hints": [
+        "realized_volatility",
+        "iv_hv_spread",
+        "vol_percentile",
+        "atr_14"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-VOL-045",
+      "title": "Range expansion after macro print",
+      "description": "Macro data windows can trigger volatility regime shifts with asymmetric continuation potential.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in volatility / compression / expansion conditions.",
+      "family": "Volatility / Compression / Expansion",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "downtrend_high_vol",
+      "expected_holding_horizon": "2-6 bars",
+      "suggested_strategy_family": "Momentum / Trend Following",
+      "suggested_template_candidates": [
+        "volatility_expansion_continuation",
+        "range_break_expansion"
+      ],
+      "required_feature_hints": [
+        "iv_hv_spread",
+        "vol_percentile",
+        "atr_14",
+        "range_expansion"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-VOL-046",
+      "title": "Vol crush normalization",
+      "description": "After event volatility collapse, trend systems may underperform and reversion systems may improve.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in volatility / compression / expansion conditions.",
+      "family": "Volatility / Compression / Expansion",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "range_high_vol",
+      "expected_holding_horizon": "1-3 bars",
+      "suggested_strategy_family": "Momentum / Trend Following",
+      "suggested_template_candidates": [
+        "range_break_expansion",
+        "volatility_compression_breakout"
+      ],
+      "required_feature_hints": [
+        "vol_percentile",
+        "atr_14",
+        "range_expansion",
+        "realized_volatility"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-VOL-047",
+      "title": "Volatility clustering breakout filter",
+      "description": "Repeated high-vol clusters can improve hit rate for selective breakout setups.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in volatility / compression / expansion conditions.",
+      "family": "Volatility / Compression / Expansion",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "uptrend_high_vol",
+      "expected_holding_horizon": "1-4 bars",
+      "suggested_strategy_family": "Momentum / Trend Following",
+      "suggested_template_candidates": [
+        "volatility_compression_breakout",
+        "volatility_expansion_continuation"
+      ],
+      "required_feature_hints": [
+        "atr_14",
+        "range_expansion",
+        "realized_volatility",
+        "iv_hv_spread"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-VOL-048",
+      "title": "Compression at higher-timeframe level",
+      "description": "Compression against major level often resolves with larger than average follow-through.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in volatility / compression / expansion conditions.",
+      "family": "Volatility / Compression / Expansion",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "downtrend_high_vol",
+      "expected_holding_horizon": "2-6 bars",
+      "suggested_strategy_family": "Momentum / Trend Following",
+      "suggested_template_candidates": [
+        "volatility_expansion_continuation",
+        "range_break_expansion"
+      ],
+      "required_feature_hints": [
+        "range_expansion",
+        "realized_volatility",
+        "iv_hv_spread",
+        "vol_percentile"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-VOL-049",
+      "title": "Expansion exhaustion check",
+      "description": "Late-stage expansion with weak breadth often marks transition risk to failed continuation.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in volatility / compression / expansion conditions.",
+      "family": "Volatility / Compression / Expansion",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "range_high_vol",
+      "expected_holding_horizon": "1-3 bars",
+      "suggested_strategy_family": "Momentum / Trend Following",
+      "suggested_template_candidates": [
+        "range_break_expansion",
+        "volatility_compression_breakout"
+      ],
+      "required_feature_hints": [
+        "realized_volatility",
+        "iv_hv_spread",
+        "vol_percentile",
+        "atr_14"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-VOL-050",
+      "title": "Cross-asset volatility transmission",
+      "description": "Volatility spike in one risk asset class can propagate and create synchronized opportunities.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in volatility / compression / expansion conditions.",
+      "family": "Volatility / Compression / Expansion",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "uptrend_high_vol",
+      "expected_holding_horizon": "1-4 bars",
+      "suggested_strategy_family": "Momentum / Trend Following",
+      "suggested_template_candidates": [
+        "volatility_compression_breakout",
+        "volatility_expansion_continuation"
+      ],
+      "required_feature_hints": [
+        "iv_hv_spread",
+        "vol_percentile",
+        "atr_14",
+        "range_expansion"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-LIQ-051",
+      "title": "Liquidity vacuum snapback",
+      "description": "Temporary liquidity holes can produce outsized prints that normalize as books refill.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in liquidity / stress / exhaustion conditions.",
+      "family": "Liquidity / Stress / Exhaustion",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "high_volatility",
+      "expected_holding_horizon": "1-2 bars",
+      "suggested_strategy_family": "Regime Transition",
+      "suggested_template_candidates": [
+        "liquidity_shock_reversal",
+        "spread_stress_filter"
+      ],
+      "required_feature_hints": [
+        "spread_bps",
+        "liquidity_score",
+        "order_imbalance",
+        "trade_size_imbalance"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-LIQ-052",
+      "title": "Spread-widening risk filter",
+      "description": "Rapid spread widening often invalidates otherwise attractive entries due to execution drag.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in liquidity / stress / exhaustion conditions.",
+      "family": "Liquidity / Stress / Exhaustion",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "stress_risk_off",
+      "expected_holding_horizon": "1-5 bars",
+      "suggested_strategy_family": "Regime Transition",
+      "suggested_template_candidates": [
+        "spread_stress_filter",
+        "exhaustion_reversal"
+      ],
+      "required_feature_hints": [
+        "liquidity_score",
+        "order_imbalance",
+        "trade_size_imbalance",
+        "velocity_shock"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-LIQ-053",
+      "title": "Capitulation exhaustion rebound",
+      "description": "Panic liquidation bursts can be followed by sharp mean reversion once forced flow clears.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in liquidity / stress / exhaustion conditions.",
+      "family": "Liquidity / Stress / Exhaustion",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "range_high_vol",
+      "expected_holding_horizon": "2-8 bars",
+      "suggested_strategy_family": "Regime Transition",
+      "suggested_template_candidates": [
+        "exhaustion_reversal",
+        "liquidity_shock_reversal"
+      ],
+      "required_feature_hints": [
+        "order_imbalance",
+        "trade_size_imbalance",
+        "velocity_shock",
+        "spread_bps"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-LIQ-054",
+      "title": "Order-book refill continuation",
+      "description": "After stress, visible depth recovery can signal that continuation trades are again executable.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in liquidity / stress / exhaustion conditions.",
+      "family": "Liquidity / Stress / Exhaustion",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "high_volatility",
+      "expected_holding_horizon": "1-2 bars",
+      "suggested_strategy_family": "Regime Transition",
+      "suggested_template_candidates": [
+        "liquidity_shock_reversal",
+        "spread_stress_filter"
+      ],
+      "required_feature_hints": [
+        "trade_size_imbalance",
+        "velocity_shock",
+        "spread_bps",
+        "liquidity_score"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-LIQ-055",
+      "title": "Microstructure instability warning",
+      "description": "Erratic quote updates can precede execution slippage spikes and should gate signal activation.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in liquidity / stress / exhaustion conditions.",
+      "family": "Liquidity / Stress / Exhaustion",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "stress_risk_off",
+      "expected_holding_horizon": "1-5 bars",
+      "suggested_strategy_family": "Regime Transition",
+      "suggested_template_candidates": [
+        "spread_stress_filter",
+        "exhaustion_reversal"
+      ],
+      "required_feature_hints": [
+        "velocity_shock",
+        "spread_bps",
+        "liquidity_score",
+        "order_imbalance"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-LIQ-056",
+      "title": "Liquidity stress divergence",
+      "description": "Price making new lows while liquidity stress eases can imply downside exhaustion.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in liquidity / stress / exhaustion conditions.",
+      "family": "Liquidity / Stress / Exhaustion",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "range_high_vol",
+      "expected_holding_horizon": "2-8 bars",
+      "suggested_strategy_family": "Regime Transition",
+      "suggested_template_candidates": [
+        "exhaustion_reversal",
+        "liquidity_shock_reversal"
+      ],
+      "required_feature_hints": [
+        "spread_bps",
+        "liquidity_score",
+        "order_imbalance",
+        "trade_size_imbalance"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-LIQ-057",
+      "title": "Exhaustion after one-way flow",
+      "description": "Extended one-way tape with diminishing incremental impact often sets up short-horizon reversal.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in liquidity / stress / exhaustion conditions.",
+      "family": "Liquidity / Stress / Exhaustion",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "high_volatility",
+      "expected_holding_horizon": "1-2 bars",
+      "suggested_strategy_family": "Regime Transition",
+      "suggested_template_candidates": [
+        "liquidity_shock_reversal",
+        "spread_stress_filter"
+      ],
+      "required_feature_hints": [
+        "liquidity_score",
+        "order_imbalance",
+        "trade_size_imbalance",
+        "velocity_shock"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-LIQ-058",
+      "title": "Auction imbalance spillover",
+      "description": "Large imbalance conditions near close can distort overnight positioning and next-open behavior.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in liquidity / stress / exhaustion conditions.",
+      "family": "Liquidity / Stress / Exhaustion",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "stress_risk_off",
+      "expected_holding_horizon": "1-5 bars",
+      "suggested_strategy_family": "Regime Transition",
+      "suggested_template_candidates": [
+        "spread_stress_filter",
+        "exhaustion_reversal"
+      ],
+      "required_feature_hints": [
+        "order_imbalance",
+        "trade_size_imbalance",
+        "velocity_shock",
+        "spread_bps"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-LIQ-059",
+      "title": "Weekend crypto liquidity gap",
+      "description": "Off-peak liquidity regimes in crypto can amplify both false breaks and forced reversions.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in liquidity / stress / exhaustion conditions.",
+      "family": "Liquidity / Stress / Exhaustion",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "range_high_vol",
+      "expected_holding_horizon": "2-8 bars",
+      "suggested_strategy_family": "Regime Transition",
+      "suggested_template_candidates": [
+        "exhaustion_reversal",
+        "liquidity_shock_reversal"
+      ],
+      "required_feature_hints": [
+        "trade_size_imbalance",
+        "velocity_shock",
+        "spread_bps",
+        "liquidity_score"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-LIQ-060",
+      "title": "Depth shock persistence",
+      "description": "Some liquidity shocks persist across sessions and justify reducing aggressiveness in signal acceptance.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in liquidity / stress / exhaustion conditions.",
+      "family": "Liquidity / Stress / Exhaustion",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "high_volatility",
+      "expected_holding_horizon": "1-2 bars",
+      "suggested_strategy_family": "Regime Transition",
+      "suggested_template_candidates": [
+        "liquidity_shock_reversal",
+        "spread_stress_filter"
+      ],
+      "required_feature_hints": [
+        "velocity_shock",
+        "spread_bps",
+        "liquidity_score",
+        "order_imbalance"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-CRY-061",
+      "title": "Positive funding overcrowding unwind",
+      "description": "Extremely positive funding can indicate crowded longs vulnerable to rapid de-leveraging.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in crypto funding / basis / carry conditions.",
+      "family": "Crypto Funding / Basis / Carry",
+      "expected_market": "CRYPTO",
+      "expected_regime": "range",
+      "expected_holding_horizon": "2-8 bars",
+      "suggested_strategy_family": "Crypto-Native Families",
+      "suggested_template_candidates": [
+        "funding_dislocation_reversion",
+        "basis_compression"
+      ],
+      "required_feature_hints": [
+        "funding_rate",
+        "funding_zscore",
+        "basis_annualized",
+        "open_interest_change"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-CRY-062",
+      "title": "Negative funding squeeze rebound",
+      "description": "Deeply negative funding can set up upside squeeze when short crowding unwinds.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in crypto funding / basis / carry conditions.",
+      "family": "Crypto Funding / Basis / Carry",
+      "expected_market": "CRYPTO",
+      "expected_regime": "high_volatility",
+      "expected_holding_horizon": "3-12 bars",
+      "suggested_strategy_family": "Crypto-Native Families",
+      "suggested_template_candidates": [
+        "basis_compression",
+        "carry_rotation"
+      ],
+      "required_feature_hints": [
+        "funding_zscore",
+        "basis_annualized",
+        "open_interest_change",
+        "spot_perp_spread"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-CRY-063",
+      "title": "Basis compression mean reversion",
+      "description": "Large futures basis dislocations often normalize as carry arbitrage re-enters.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in crypto funding / basis / carry conditions.",
+      "family": "Crypto Funding / Basis / Carry",
+      "expected_market": "CRYPTO",
+      "expected_regime": "risk_off",
+      "expected_holding_horizon": "1-5 bars",
+      "suggested_strategy_family": "Crypto-Native Families",
+      "suggested_template_candidates": [
+        "carry_rotation",
+        "funding_dislocation_reversion"
+      ],
+      "required_feature_hints": [
+        "basis_annualized",
+        "open_interest_change",
+        "spot_perp_spread",
+        "funding_rate"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-CRY-064",
+      "title": "Carry decay after trend break",
+      "description": "Carry strategies weaken when directional trend breaks and funding regime flips abruptly.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in crypto funding / basis / carry conditions.",
+      "family": "Crypto Funding / Basis / Carry",
+      "expected_market": "CRYPTO",
+      "expected_regime": "trend",
+      "expected_holding_horizon": "2-8 bars",
+      "suggested_strategy_family": "Crypto-Native Families",
+      "suggested_template_candidates": [
+        "funding_dislocation_reversion",
+        "basis_compression"
+      ],
+      "required_feature_hints": [
+        "open_interest_change",
+        "spot_perp_spread",
+        "funding_rate",
+        "funding_zscore"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-CRY-065",
+      "title": "Open-interest surge quality filter",
+      "description": "Rising open interest with weak price response can signal fragile positioning.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in crypto funding / basis / carry conditions.",
+      "family": "Crypto Funding / Basis / Carry",
+      "expected_market": "CRYPTO",
+      "expected_regime": "range",
+      "expected_holding_horizon": "3-12 bars",
+      "suggested_strategy_family": "Crypto-Native Families",
+      "suggested_template_candidates": [
+        "basis_compression",
+        "carry_rotation"
+      ],
+      "required_feature_hints": [
+        "spot_perp_spread",
+        "funding_rate",
+        "funding_zscore",
+        "basis_annualized"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-CRY-066",
+      "title": "Perp-spot divergence convergence",
+      "description": "When perp price diverges from spot beyond typical bounds, convergence edges appear.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in crypto funding / basis / carry conditions.",
+      "family": "Crypto Funding / Basis / Carry",
+      "expected_market": "CRYPTO",
+      "expected_regime": "high_volatility",
+      "expected_holding_horizon": "1-5 bars",
+      "suggested_strategy_family": "Crypto-Native Families",
+      "suggested_template_candidates": [
+        "carry_rotation",
+        "funding_dislocation_reversion"
+      ],
+      "required_feature_hints": [
+        "funding_rate",
+        "funding_zscore",
+        "basis_annualized",
+        "open_interest_change"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-CRY-067",
+      "title": "Funding flip transition signal",
+      "description": "Funding sign flips can serve as early warning for risk posture adjustment.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in crypto funding / basis / carry conditions.",
+      "family": "Crypto Funding / Basis / Carry",
+      "expected_market": "CRYPTO",
+      "expected_regime": "risk_off",
+      "expected_holding_horizon": "2-8 bars",
+      "suggested_strategy_family": "Crypto-Native Families",
+      "suggested_template_candidates": [
+        "funding_dislocation_reversion",
+        "basis_compression"
+      ],
+      "required_feature_hints": [
+        "funding_zscore",
+        "basis_annualized",
+        "open_interest_change",
+        "spot_perp_spread"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-CRY-068",
+      "title": "Basis expansion continuation",
+      "description": "In strong risk-on windows, expanding basis can persist before mean reversion starts.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in crypto funding / basis / carry conditions.",
+      "family": "Crypto Funding / Basis / Carry",
+      "expected_market": "CRYPTO",
+      "expected_regime": "trend",
+      "expected_holding_horizon": "3-12 bars",
+      "suggested_strategy_family": "Crypto-Native Families",
+      "suggested_template_candidates": [
+        "basis_compression",
+        "carry_rotation"
+      ],
+      "required_feature_hints": [
+        "basis_annualized",
+        "open_interest_change",
+        "spot_perp_spread",
+        "funding_rate"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-CRY-069",
+      "title": "Cross-exchange funding stress",
+      "description": "Funding divergence across venues can flag local dislocations or latent market stress.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in crypto funding / basis / carry conditions.",
+      "family": "Crypto Funding / Basis / Carry",
+      "expected_market": "CRYPTO",
+      "expected_regime": "range",
+      "expected_holding_horizon": "1-5 bars",
+      "suggested_strategy_family": "Crypto-Native Families",
+      "suggested_template_candidates": [
+        "carry_rotation",
+        "funding_dislocation_reversion"
+      ],
+      "required_feature_hints": [
+        "open_interest_change",
+        "spot_perp_spread",
+        "funding_rate",
+        "funding_zscore"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-CRY-070",
+      "title": "Carry-adjusted breakout confirmation",
+      "description": "Breakouts confirmed by supportive carry/funding profiles can have higher persistence.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in crypto funding / basis / carry conditions.",
+      "family": "Crypto Funding / Basis / Carry",
+      "expected_market": "CRYPTO",
+      "expected_regime": "high_volatility",
+      "expected_holding_horizon": "2-8 bars",
+      "suggested_strategy_family": "Crypto-Native Families",
+      "suggested_template_candidates": [
+        "funding_dislocation_reversion",
+        "basis_compression"
+      ],
+      "required_feature_hints": [
+        "spot_perp_spread",
+        "funding_rate",
+        "funding_zscore",
+        "basis_annualized"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-EVT-071",
+      "title": "Macro surprise de-risking",
+      "description": "Unexpected macro prints can trigger immediate de-risking and cross-asset downside beta.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in event / risk-off / panic behavior conditions.",
+      "family": "Event / Risk-Off / Panic Behavior",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "risk_off",
+      "expected_holding_horizon": "1-3 bars",
+      "suggested_strategy_family": "Regime Transition",
+      "suggested_template_candidates": [
+        "event_shock_filter",
+        "panic_rebound"
+      ],
+      "required_feature_hints": [
+        "event_flag",
+        "volatility_stress",
+        "gap_size",
+        "breadth_collapse"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-EVT-072",
+      "title": "Panic low first-bounce setup",
+      "description": "After breadth collapse, first rebound attempts can be strong but fragile and need strict risk controls.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in event / risk-off / panic behavior conditions.",
+      "family": "Event / Risk-Off / Panic Behavior",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "stress_risk_off",
+      "expected_holding_horizon": "2-6 bars",
+      "suggested_strategy_family": "Regime Transition",
+      "suggested_template_candidates": [
+        "panic_rebound",
+        "defensive_rotation"
+      ],
+      "required_feature_hints": [
+        "volatility_stress",
+        "gap_size",
+        "breadth_collapse",
+        "credit_spread_proxy"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-EVT-073",
+      "title": "Defensive leadership confirmation",
+      "description": "A shift toward defensive sector leadership can validate sustained risk-off posture.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in event / risk-off / panic behavior conditions.",
+      "family": "Event / Risk-Off / Panic Behavior",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "high_volatility",
+      "expected_holding_horizon": "1-2 bars",
+      "suggested_strategy_family": "Regime Transition",
+      "suggested_template_candidates": [
+        "defensive_rotation",
+        "event_shock_filter"
+      ],
+      "required_feature_hints": [
+        "gap_size",
+        "breadth_collapse",
+        "credit_spread_proxy",
+        "event_flag"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-EVT-074",
+      "title": "Gap-down continuation under stress",
+      "description": "Gap-down moves in confirmed panic regimes tend to continue more often than fade.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in event / risk-off / panic behavior conditions.",
+      "family": "Event / Risk-Off / Panic Behavior",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "risk_off",
+      "expected_holding_horizon": "1-3 bars",
+      "suggested_strategy_family": "Regime Transition",
+      "suggested_template_candidates": [
+        "event_shock_filter",
+        "panic_rebound"
+      ],
+      "required_feature_hints": [
+        "breadth_collapse",
+        "credit_spread_proxy",
+        "event_flag",
+        "volatility_stress"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-EVT-075",
+      "title": "Risk-off exhaustion reversal",
+      "description": "Late-stage panic with stabilizing volatility can produce selective counter-trend rebounds.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in event / risk-off / panic behavior conditions.",
+      "family": "Event / Risk-Off / Panic Behavior",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "stress_risk_off",
+      "expected_holding_horizon": "2-6 bars",
+      "suggested_strategy_family": "Regime Transition",
+      "suggested_template_candidates": [
+        "panic_rebound",
+        "defensive_rotation"
+      ],
+      "required_feature_hints": [
+        "credit_spread_proxy",
+        "event_flag",
+        "volatility_stress",
+        "gap_size"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-EVT-076",
+      "title": "Policy headline whipsaw filter",
+      "description": "Headline-heavy sessions create fake moves and require stricter confirmation thresholds.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in event / risk-off / panic behavior conditions.",
+      "family": "Event / Risk-Off / Panic Behavior",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "high_volatility",
+      "expected_holding_horizon": "1-2 bars",
+      "suggested_strategy_family": "Regime Transition",
+      "suggested_template_candidates": [
+        "defensive_rotation",
+        "event_shock_filter"
+      ],
+      "required_feature_hints": [
+        "event_flag",
+        "volatility_stress",
+        "gap_size",
+        "breadth_collapse"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-EVT-077",
+      "title": "Cross-asset stress synchronization",
+      "description": "Synchronous weakness across equities, credit, and crypto indicates regime-level risk reduction.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in event / risk-off / panic behavior conditions.",
+      "family": "Event / Risk-Off / Panic Behavior",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "risk_off",
+      "expected_holding_horizon": "1-3 bars",
+      "suggested_strategy_family": "Regime Transition",
+      "suggested_template_candidates": [
+        "event_shock_filter",
+        "panic_rebound"
+      ],
+      "required_feature_hints": [
+        "volatility_stress",
+        "gap_size",
+        "breadth_collapse",
+        "credit_spread_proxy"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-EVT-078",
+      "title": "Flight-to-quality rotation",
+      "description": "Capital migration to high-quality defensives can be exploited via relative strength frameworks.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in event / risk-off / panic behavior conditions.",
+      "family": "Event / Risk-Off / Panic Behavior",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "stress_risk_off",
+      "expected_holding_horizon": "2-6 bars",
+      "suggested_strategy_family": "Regime Transition",
+      "suggested_template_candidates": [
+        "panic_rebound",
+        "defensive_rotation"
+      ],
+      "required_feature_hints": [
+        "gap_size",
+        "breadth_collapse",
+        "credit_spread_proxy",
+        "event_flag"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-EVT-079",
+      "title": "Event-volatility decay transition",
+      "description": "As event vol decays, strategy preference should rotate from defensive to selective opportunity-seeking.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in event / risk-off / panic behavior conditions.",
+      "family": "Event / Risk-Off / Panic Behavior",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "high_volatility",
+      "expected_holding_horizon": "1-2 bars",
+      "suggested_strategy_family": "Regime Transition",
+      "suggested_template_candidates": [
+        "defensive_rotation",
+        "event_shock_filter"
+      ],
+      "required_feature_hints": [
+        "breadth_collapse",
+        "credit_spread_proxy",
+        "event_flag",
+        "volatility_stress"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-EVT-080",
+      "title": "Panic liquidity cascade warning",
+      "description": "Rapid liquidity deterioration during panic can invalidate normal execution assumptions.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in event / risk-off / panic behavior conditions.",
+      "family": "Event / Risk-Off / Panic Behavior",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "risk_off",
+      "expected_holding_horizon": "1-3 bars",
+      "suggested_strategy_family": "Regime Transition",
+      "suggested_template_candidates": [
+        "event_shock_filter",
+        "panic_rebound"
+      ],
+      "required_feature_hints": [
+        "credit_spread_proxy",
+        "event_flag",
+        "volatility_stress",
+        "gap_size"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-FBR-081",
+      "title": "Failed upside breakout reversal",
+      "description": "Breakouts above resistance that lose follow-through quickly often reverse into prior range.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in false breakout / failed move conditions.",
+      "family": "False Breakout / Failed Move",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "range",
+      "expected_holding_horizon": "1-3 bars",
+      "suggested_strategy_family": "Mean Reversion",
+      "suggested_template_candidates": [
+        "false_breakout_fade",
+        "failed_trend_capture"
+      ],
+      "required_feature_hints": [
+        "breakout_failure_rate",
+        "retest_fail_signal",
+        "volume_divergence",
+        "trend_confidence"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-FBR-082",
+      "title": "Failed downside breakdown rebound",
+      "description": "Breakdowns below support with weak continuation can mean-revert sharply upward.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in false breakout / failed move conditions.",
+      "family": "False Breakout / Failed Move",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "range_high_vol",
+      "expected_holding_horizon": "1-5 bars",
+      "suggested_strategy_family": "Mean Reversion",
+      "suggested_template_candidates": [
+        "failed_trend_capture",
+        "retest_failure_reversal"
+      ],
+      "required_feature_hints": [
+        "retest_fail_signal",
+        "volume_divergence",
+        "trend_confidence",
+        "liquidity_pressure"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-FBR-083",
+      "title": "Retest rejection fade",
+      "description": "Price revisiting breakout level and failing to reclaim momentum often signals trap dynamics.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in false breakout / failed move conditions.",
+      "family": "False Breakout / Failed Move",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "downtrend_normal",
+      "expected_holding_horizon": "2-6 bars",
+      "suggested_strategy_family": "Mean Reversion",
+      "suggested_template_candidates": [
+        "retest_failure_reversal",
+        "false_breakout_fade"
+      ],
+      "required_feature_hints": [
+        "volume_divergence",
+        "trend_confidence",
+        "liquidity_pressure",
+        "breakout_failure_rate"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-FBR-084",
+      "title": "Low-volume breakout invalidation",
+      "description": "Breakouts lacking participation are prone to failure and reversal.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in false breakout / failed move conditions.",
+      "family": "False Breakout / Failed Move",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "range",
+      "expected_holding_horizon": "1-3 bars",
+      "suggested_strategy_family": "Mean Reversion",
+      "suggested_template_candidates": [
+        "false_breakout_fade",
+        "failed_trend_capture"
+      ],
+      "required_feature_hints": [
+        "trend_confidence",
+        "liquidity_pressure",
+        "breakout_failure_rate",
+        "retest_fail_signal"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-FBR-085",
+      "title": "Exhaustion spike trap",
+      "description": "One-bar exhaustion spikes frequently reverse when incremental buying interest disappears.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in false breakout / failed move conditions.",
+      "family": "False Breakout / Failed Move",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "range_high_vol",
+      "expected_holding_horizon": "1-5 bars",
+      "suggested_strategy_family": "Mean Reversion",
+      "suggested_template_candidates": [
+        "failed_trend_capture",
+        "retest_failure_reversal"
+      ],
+      "required_feature_hints": [
+        "liquidity_pressure",
+        "breakout_failure_rate",
+        "retest_fail_signal",
+        "volume_divergence"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-FBR-086",
+      "title": "Failed trend-day transition",
+      "description": "Intraday trend-day attempts that stall can morph into reversal profiles by session close.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in false breakout / failed move conditions.",
+      "family": "False Breakout / Failed Move",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "downtrend_normal",
+      "expected_holding_horizon": "2-6 bars",
+      "suggested_strategy_family": "Mean Reversion",
+      "suggested_template_candidates": [
+        "retest_failure_reversal",
+        "false_breakout_fade"
+      ],
+      "required_feature_hints": [
+        "breakout_failure_rate",
+        "retest_fail_signal",
+        "volume_divergence",
+        "trend_confidence"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-FBR-087",
+      "title": "Multi-attempt breakout fatigue",
+      "description": "Repeated failed breakout attempts weaken directional conviction and favor trap-fade setups.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in false breakout / failed move conditions.",
+      "family": "False Breakout / Failed Move",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "range",
+      "expected_holding_horizon": "1-3 bars",
+      "suggested_strategy_family": "Mean Reversion",
+      "suggested_template_candidates": [
+        "false_breakout_fade",
+        "failed_trend_capture"
+      ],
+      "required_feature_hints": [
+        "retest_fail_signal",
+        "volume_divergence",
+        "trend_confidence",
+        "liquidity_pressure"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-FBR-088",
+      "title": "Cross-asset confirmation failure",
+      "description": "A breakout unsupported by related assets has higher chance of rejection.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in false breakout / failed move conditions.",
+      "family": "False Breakout / Failed Move",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "range_high_vol",
+      "expected_holding_horizon": "1-5 bars",
+      "suggested_strategy_family": "Mean Reversion",
+      "suggested_template_candidates": [
+        "failed_trend_capture",
+        "retest_failure_reversal"
+      ],
+      "required_feature_hints": [
+        "volume_divergence",
+        "trend_confidence",
+        "liquidity_pressure",
+        "breakout_failure_rate"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-FBR-089",
+      "title": "Opening drive rejection",
+      "description": "Early drive that fails to hold can provide asymmetric reversal entries against trapped flow.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in false breakout / failed move conditions.",
+      "family": "False Breakout / Failed Move",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "downtrend_normal",
+      "expected_holding_horizon": "2-6 bars",
+      "suggested_strategy_family": "Mean Reversion",
+      "suggested_template_candidates": [
+        "retest_failure_reversal",
+        "false_breakout_fade"
+      ],
+      "required_feature_hints": [
+        "trend_confidence",
+        "liquidity_pressure",
+        "breakout_failure_rate",
+        "retest_fail_signal"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-FBR-090",
+      "title": "Volatility-expanded false move",
+      "description": "High-volatility environments create larger fake moves, but also larger reversal ranges.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in false breakout / failed move conditions.",
+      "family": "False Breakout / Failed Move",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "range",
+      "expected_holding_horizon": "1-3 bars",
+      "suggested_strategy_family": "Mean Reversion",
+      "suggested_template_candidates": [
+        "false_breakout_fade",
+        "failed_trend_capture"
+      ],
+      "required_feature_hints": [
+        "liquidity_pressure",
+        "breakout_failure_rate",
+        "retest_fail_signal",
+        "volume_divergence"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-MDE-091",
+      "title": "Three-day continuation follow-through",
+      "description": "Multi-session directional persistence often continues when pullbacks stay shallow.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in multi-day continuation / multi-day exhaustion conditions.",
+      "family": "Multi-day continuation / multi-day exhaustion",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "trend",
+      "expected_holding_horizon": "3-12 bars",
+      "suggested_strategy_family": "Momentum / Trend Following",
+      "suggested_template_candidates": [
+        "multi_day_continuation",
+        "multi_day_exhaustion_fade"
+      ],
+      "required_feature_hints": [
+        "multi_day_return",
+        "trend_age",
+        "distance_from_ma",
+        "volume_trend"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-MDE-092",
+      "title": "Extended run exhaustion fade",
+      "description": "After prolonged directional runs, marginal buyers/sellers can vanish and trigger reversion.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in multi-day continuation / multi-day exhaustion conditions.",
+      "family": "Multi-day continuation / multi-day exhaustion",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "uptrend_normal",
+      "expected_holding_horizon": "5-20 bars",
+      "suggested_strategy_family": "Momentum / Trend Following",
+      "suggested_template_candidates": [
+        "multi_day_exhaustion_fade",
+        "swing_retest_entry"
+      ],
+      "required_feature_hints": [
+        "trend_age",
+        "distance_from_ma",
+        "volume_trend",
+        "drawdown_from_peak"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-MDE-093",
+      "title": "Trend age decay model",
+      "description": "Older trends can keep working but require tighter confirmation and reduced size.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in multi-day continuation / multi-day exhaustion conditions.",
+      "family": "Multi-day continuation / multi-day exhaustion",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "downtrend_high_vol",
+      "expected_holding_horizon": "2-10 bars",
+      "suggested_strategy_family": "Momentum / Trend Following",
+      "suggested_template_candidates": [
+        "swing_retest_entry",
+        "multi_day_continuation"
+      ],
+      "required_feature_hints": [
+        "distance_from_ma",
+        "volume_trend",
+        "drawdown_from_peak",
+        "multi_day_return"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-MDE-094",
+      "title": "Multi-day breakout retest",
+      "description": "Breakouts that survive first retest often continue over subsequent sessions.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in multi-day continuation / multi-day exhaustion conditions.",
+      "family": "Multi-day continuation / multi-day exhaustion",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "range_normal",
+      "expected_holding_horizon": "3-12 bars",
+      "suggested_strategy_family": "Momentum / Trend Following",
+      "suggested_template_candidates": [
+        "multi_day_continuation",
+        "multi_day_exhaustion_fade"
+      ],
+      "required_feature_hints": [
+        "volume_trend",
+        "drawdown_from_peak",
+        "multi_day_return",
+        "trend_age"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-MDE-095",
+      "title": "Late-stage parabolic failure",
+      "description": "Parabolic multi-day advances can reverse abruptly after first failed continuation day.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in multi-day continuation / multi-day exhaustion conditions.",
+      "family": "Multi-day continuation / multi-day exhaustion",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "trend",
+      "expected_holding_horizon": "5-20 bars",
+      "suggested_strategy_family": "Momentum / Trend Following",
+      "suggested_template_candidates": [
+        "multi_day_exhaustion_fade",
+        "swing_retest_entry"
+      ],
+      "required_feature_hints": [
+        "drawdown_from_peak",
+        "multi_day_return",
+        "trend_age",
+        "distance_from_ma"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-MDE-096",
+      "title": "Multi-day pullback continuation",
+      "description": "Controlled pullbacks in a mature trend can provide higher-quality swing re-entry points.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in multi-day continuation / multi-day exhaustion conditions.",
+      "family": "Multi-day continuation / multi-day exhaustion",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "uptrend_normal",
+      "expected_holding_horizon": "2-10 bars",
+      "suggested_strategy_family": "Momentum / Trend Following",
+      "suggested_template_candidates": [
+        "swing_retest_entry",
+        "multi_day_continuation"
+      ],
+      "required_feature_hints": [
+        "multi_day_return",
+        "trend_age",
+        "distance_from_ma",
+        "volume_trend"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-MDE-097",
+      "title": "Gap sequence persistence",
+      "description": "Consecutive directional gaps can indicate institutional repricing still in progress.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in multi-day continuation / multi-day exhaustion conditions.",
+      "family": "Multi-day continuation / multi-day exhaustion",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "downtrend_high_vol",
+      "expected_holding_horizon": "3-12 bars",
+      "suggested_strategy_family": "Momentum / Trend Following",
+      "suggested_template_candidates": [
+        "multi_day_continuation",
+        "multi_day_exhaustion_fade"
+      ],
+      "required_feature_hints": [
+        "trend_age",
+        "distance_from_ma",
+        "volume_trend",
+        "drawdown_from_peak"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-MDE-098",
+      "title": "Exhaustion after breadth divergence",
+      "description": "When index trend persists but breadth deteriorates, exhaustion risk rises meaningfully.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in multi-day continuation / multi-day exhaustion conditions.",
+      "family": "Multi-day continuation / multi-day exhaustion",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "range_normal",
+      "expected_holding_horizon": "5-20 bars",
+      "suggested_strategy_family": "Momentum / Trend Following",
+      "suggested_template_candidates": [
+        "multi_day_exhaustion_fade",
+        "swing_retest_entry"
+      ],
+      "required_feature_hints": [
+        "distance_from_ma",
+        "volume_trend",
+        "drawdown_from_peak",
+        "multi_day_return"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-MDE-099",
+      "title": "Crypto weekend trend carry",
+      "description": "Weekend crypto flows can extend multi-day trends before weekday liquidity regime shifts.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in multi-day continuation / multi-day exhaustion conditions.",
+      "family": "Multi-day continuation / multi-day exhaustion",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "trend",
+      "expected_holding_horizon": "2-10 bars",
+      "suggested_strategy_family": "Momentum / Trend Following",
+      "suggested_template_candidates": [
+        "swing_retest_entry",
+        "multi_day_continuation"
+      ],
+      "required_feature_hints": [
+        "volume_trend",
+        "drawdown_from_peak",
+        "multi_day_return",
+        "trend_age"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-MDE-100",
+      "title": "Drawdown stabilization continuation",
+      "description": "After a trend pullback stabilizes with improving breadth, continuation odds recover.",
+      "economic_intuition": "The hypothesis assumes repeatable behavior driven by positioning, liquidity, and participant reaction patterns in multi-day continuation / multi-day exhaustion conditions.",
+      "family": "Multi-day continuation / multi-day exhaustion",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "uptrend_normal",
+      "expected_holding_horizon": "3-12 bars",
+      "suggested_strategy_family": "Momentum / Trend Following",
+      "suggested_template_candidates": [
+        "multi_day_continuation",
+        "multi_day_exhaustion_fade"
+      ],
+      "required_feature_hints": [
+        "drawdown_from_peak",
+        "multi_day_return",
+        "trend_age",
+        "distance_from_ma"
+      ]
+    }
+  ]
+}

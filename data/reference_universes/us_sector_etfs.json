@@ -1,0 +1,147 @@
+{
+  "universe_id": "us_sector_etfs_v1",
+  "generated_at": "2026-03-08T00:00:00.000Z",
+  "description": "Major US broad and sector ETFs for regime and rotation tracking.",
+  "instruments": [
+    {
+      "symbol": "SPY",
+      "market": "US_ETF",
+      "category": "broad_market_etf",
+      "reason_for_inclusion": "High-liquidity ETF proxy for regime, rotation, and exposure diagnostics.",
+      "notes": "Use for cross-sectional rotation baselines and macro risk posture estimation."
+    },
+    {
+      "symbol": "QQQ",
+      "market": "US_ETF",
+      "category": "broad_market_etf",
+      "reason_for_inclusion": "High-liquidity ETF proxy for regime, rotation, and exposure diagnostics.",
+      "notes": "Use for cross-sectional rotation baselines and macro risk posture estimation."
+    },
+    {
+      "symbol": "IWM",
+      "market": "US_ETF",
+      "category": "broad_market_etf",
+      "reason_for_inclusion": "High-liquidity ETF proxy for regime, rotation, and exposure diagnostics.",
+      "notes": "Use for cross-sectional rotation baselines and macro risk posture estimation."
+    },
+    {
+      "symbol": "DIA",
+      "market": "US_ETF",
+      "category": "broad_market_etf",
+      "reason_for_inclusion": "High-liquidity ETF proxy for regime, rotation, and exposure diagnostics.",
+      "notes": "Use for cross-sectional rotation baselines and macro risk posture estimation."
+    },
+    {
+      "symbol": "VTI",
+      "market": "US_ETF",
+      "category": "broad_market_etf",
+      "reason_for_inclusion": "High-liquidity ETF proxy for regime, rotation, and exposure diagnostics.",
+      "notes": "Use for cross-sectional rotation baselines and macro risk posture estimation."
+    },
+    {
+      "symbol": "XLK",
+      "market": "US_ETF",
+      "category": "sector_etf",
+      "reason_for_inclusion": "High-liquidity ETF proxy for regime, rotation, and exposure diagnostics.",
+      "notes": "Use for cross-sectional rotation baselines and macro risk posture estimation."
+    },
+    {
+      "symbol": "XLF",
+      "market": "US_ETF",
+      "category": "sector_etf",
+      "reason_for_inclusion": "High-liquidity ETF proxy for regime, rotation, and exposure diagnostics.",
+      "notes": "Use for cross-sectional rotation baselines and macro risk posture estimation."
+    },
+    {
+      "symbol": "XLE",
+      "market": "US_ETF",
+      "category": "sector_etf",
+      "reason_for_inclusion": "High-liquidity ETF proxy for regime, rotation, and exposure diagnostics.",
+      "notes": "Use for cross-sectional rotation baselines and macro risk posture estimation."
+    },
+    {
+      "symbol": "XLV",
+      "market": "US_ETF",
+      "category": "sector_etf",
+      "reason_for_inclusion": "High-liquidity ETF proxy for regime, rotation, and exposure diagnostics.",
+      "notes": "Use for cross-sectional rotation baselines and macro risk posture estimation."
+    },
+    {
+      "symbol": "XLI",
+      "market": "US_ETF",
+      "category": "sector_etf",
+      "reason_for_inclusion": "High-liquidity ETF proxy for regime, rotation, and exposure diagnostics.",
+      "notes": "Use for cross-sectional rotation baselines and macro risk posture estimation."
+    },
+    {
+      "symbol": "XLP",
+      "market": "US_ETF",
+      "category": "sector_etf",
+      "reason_for_inclusion": "High-liquidity ETF proxy for regime, rotation, and exposure diagnostics.",
+      "notes": "Use for cross-sectional rotation baselines and macro risk posture estimation."
+    },
+    {
+      "symbol": "XLY",
+      "market": "US_ETF",
+      "category": "sector_etf",
+      "reason_for_inclusion": "High-liquidity ETF proxy for regime, rotation, and exposure diagnostics.",
+      "notes": "Use for cross-sectional rotation baselines and macro risk posture estimation."
+    },
+    {
+      "symbol": "XLU",
+      "market": "US_ETF",
+      "category": "sector_etf",
+      "reason_for_inclusion": "High-liquidity ETF proxy for regime, rotation, and exposure diagnostics.",
+      "notes": "Use for cross-sectional rotation baselines and macro risk posture estimation."
+    },
+    {
+      "symbol": "XLB",
+      "market": "US_ETF",
+      "category": "sector_etf",
+      "reason_for_inclusion": "High-liquidity ETF proxy for regime, rotation, and exposure diagnostics.",
+      "notes": "Use for cross-sectional rotation baselines and macro risk posture estimation."
+    },
+    {
+      "symbol": "XLRE",
+      "market": "US_ETF",
+      "category": "sector_etf",
+      "reason_for_inclusion": "High-liquidity ETF proxy for regime, rotation, and exposure diagnostics.",
+      "notes": "Use for cross-sectional rotation baselines and macro risk posture estimation."
+    },
+    {
+      "symbol": "XLC",
+      "market": "US_ETF",
+      "category": "sector_etf",
+      "reason_for_inclusion": "High-liquidity ETF proxy for regime, rotation, and exposure diagnostics.",
+      "notes": "Use for cross-sectional rotation baselines and macro risk posture estimation."
+    },
+    {
+      "symbol": "SMH",
+      "market": "US_ETF",
+      "category": "broad_market_etf",
+      "reason_for_inclusion": "High-liquidity ETF proxy for regime, rotation, and exposure diagnostics.",
+      "notes": "Use for cross-sectional rotation baselines and macro risk posture estimation."
+    },
+    {
+      "symbol": "XBI",
+      "market": "US_ETF",
+      "category": "broad_market_etf",
+      "reason_for_inclusion": "High-liquidity ETF proxy for regime, rotation, and exposure diagnostics.",
+      "notes": "Use for cross-sectional rotation baselines and macro risk posture estimation."
+    },
+    {
+      "symbol": "KRE",
+      "market": "US_ETF",
+      "category": "broad_market_etf",
+      "reason_for_inclusion": "High-liquidity ETF proxy for regime, rotation, and exposure diagnostics.",
+      "notes": "Use for cross-sectional rotation baselines and macro risk posture estimation."
+    },
+    {
+      "symbol": "ARKK",
+      "market": "US_ETF",
+      "category": "broad_market_etf",
+      "reason_for_inclusion": "High-liquidity ETF proxy for regime, rotation, and exposure diagnostics.",
+      "notes": "Use for cross-sectional rotation baselines and macro risk posture estimation."
+    }
+  ]
+}

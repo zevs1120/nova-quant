@@ -1,0 +1,525 @@
+{
+  "universe_id": "us_equities_core_v1",
+  "generated_at": "2026-03-08T00:00:00.000Z",
+  "description": "Core liquid US equities for swing/tactical strategy research.",
+  "instruments": [
+    {
+      "symbol": "AAPL",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "MSFT",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "NVDA",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "AMZN",
+      "market": "US_EQUITY",
+      "category": "consumer_discretionary",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "GOOGL",
+      "market": "US_EQUITY",
+      "category": "communication_services",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "META",
+      "market": "US_EQUITY",
+      "category": "communication_services",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "TSLA",
+      "market": "US_EQUITY",
+      "category": "consumer_discretionary",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "BRK.B",
+      "market": "US_EQUITY",
+      "category": "financials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "LLY",
+      "market": "US_EQUITY",
+      "category": "health_care",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "JPM",
+      "market": "US_EQUITY",
+      "category": "financials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "V",
+      "market": "US_EQUITY",
+      "category": "financials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "MA",
+      "market": "US_EQUITY",
+      "category": "financials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "UNH",
+      "market": "US_EQUITY",
+      "category": "health_care",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "XOM",
+      "market": "US_EQUITY",
+      "category": "energy",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "AVGO",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "COST",
+      "market": "US_EQUITY",
+      "category": "consumer_staples",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "HD",
+      "market": "US_EQUITY",
+      "category": "consumer_discretionary",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "WMT",
+      "market": "US_EQUITY",
+      "category": "consumer_staples",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "PG",
+      "market": "US_EQUITY",
+      "category": "consumer_staples",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "JNJ",
+      "market": "US_EQUITY",
+      "category": "health_care",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "BAC",
+      "market": "US_EQUITY",
+      "category": "financials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "KO",
+      "market": "US_EQUITY",
+      "category": "consumer_staples",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "PEP",
+      "market": "US_EQUITY",
+      "category": "consumer_staples",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "MRK",
+      "market": "US_EQUITY",
+      "category": "health_care",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "ABBV",
+      "market": "US_EQUITY",
+      "category": "health_care",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "CVX",
+      "market": "US_EQUITY",
+      "category": "energy",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "ADBE",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "CRM",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "NFLX",
+      "market": "US_EQUITY",
+      "category": "communication_services",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "AMD",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "INTC",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "ORCL",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "QCOM",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "CSCO",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "TMO",
+      "market": "US_EQUITY",
+      "category": "health_care",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "MCD",
+      "market": "US_EQUITY",
+      "category": "consumer_discretionary",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "NKE",
+      "market": "US_EQUITY",
+      "category": "consumer_discretionary",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "DIS",
+      "market": "US_EQUITY",
+      "category": "communication_services",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "PFE",
+      "market": "US_EQUITY",
+      "category": "health_care",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "ABT",
+      "market": "US_EQUITY",
+      "category": "health_care",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "LIN",
+      "market": "US_EQUITY",
+      "category": "materials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "DHR",
+      "market": "US_EQUITY",
+      "category": "health_care",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "TXN",
+      "market": "US_EQUITY",
+      "category": "liquid_equity",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "AMGN",
+      "market": "US_EQUITY",
+      "category": "health_care",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "CAT",
+      "market": "US_EQUITY",
+      "category": "industrials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "GE",
+      "market": "US_EQUITY",
+      "category": "industrials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "GS",
+      "market": "US_EQUITY",
+      "category": "financials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "MS",
+      "market": "US_EQUITY",
+      "category": "financials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "BLK",
+      "market": "US_EQUITY",
+      "category": "financials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "SCHW",
+      "market": "US_EQUITY",
+      "category": "financials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "C",
+      "market": "US_EQUITY",
+      "category": "financials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "UBER",
+      "market": "US_EQUITY",
+      "category": "consumer_discretionary",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "PANW",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "SNOW",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "PLTR",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "SHOP",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "MU",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "INTU",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "NOW",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "BKNG",
+      "market": "US_EQUITY",
+      "category": "consumer_discretionary",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "DE",
+      "market": "US_EQUITY",
+      "category": "industrials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "BA",
+      "market": "US_EQUITY",
+      "category": "industrials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "RTX",
+      "market": "US_EQUITY",
+      "category": "industrials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "LMT",
+      "market": "US_EQUITY",
+      "category": "industrials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "SPGI",
+      "market": "US_EQUITY",
+      "category": "financials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "AXP",
+      "market": "US_EQUITY",
+      "category": "financials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "PYPL",
+      "market": "US_EQUITY",
+      "category": "financials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "SQ",
+      "market": "US_EQUITY",
+      "category": "financials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "AMAT",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "KLAC",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "LRCX",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "ANET",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "CRWD",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    },
+    {
+      "symbol": "FTNT",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Core universe: prioritize for production and paper-trading diagnostics."
+    }
+  ]
+}

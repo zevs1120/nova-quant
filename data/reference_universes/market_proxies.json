@@ -1,0 +1,147 @@
+{
+  "universe_id": "market_proxies_v1",
+  "generated_at": "2026-03-08T00:00:00.000Z",
+  "description": "Market and macro proxies used by regime inference and cross-asset context layers.",
+  "instruments": [
+    {
+      "symbol": "SPY",
+      "market": "US_ETF",
+      "category": "equity_index_proxy",
+      "reason_for_inclusion": "Useful macro or cross-asset proxy for regime inference and risk-on/risk-off classification.",
+      "notes": "Track trend, volatility, and cross-asset divergence to inform regime engine posture."
+    },
+    {
+      "symbol": "QQQ",
+      "market": "US_ETF",
+      "category": "growth_proxy",
+      "reason_for_inclusion": "Useful macro or cross-asset proxy for regime inference and risk-on/risk-off classification.",
+      "notes": "Track trend, volatility, and cross-asset divergence to inform regime engine posture."
+    },
+    {
+      "symbol": "IWM",
+      "market": "US_ETF",
+      "category": "small_cap_proxy",
+      "reason_for_inclusion": "Useful macro or cross-asset proxy for regime inference and risk-on/risk-off classification.",
+      "notes": "Track trend, volatility, and cross-asset divergence to inform regime engine posture."
+    },
+    {
+      "symbol": "DIA",
+      "market": "US_ETF",
+      "category": "value_proxy",
+      "reason_for_inclusion": "Useful macro or cross-asset proxy for regime inference and risk-on/risk-off classification.",
+      "notes": "Track trend, volatility, and cross-asset divergence to inform regime engine posture."
+    },
+    {
+      "symbol": "VIXY",
+      "market": "US_ETF",
+      "category": "volatility_proxy",
+      "reason_for_inclusion": "Useful macro or cross-asset proxy for regime inference and risk-on/risk-off classification.",
+      "notes": "Track trend, volatility, and cross-asset divergence to inform regime engine posture."
+    },
+    {
+      "symbol": "UVXY",
+      "market": "US_ETF",
+      "category": "short_volatility_proxy",
+      "reason_for_inclusion": "Useful macro or cross-asset proxy for regime inference and risk-on/risk-off classification.",
+      "notes": "Track trend, volatility, and cross-asset divergence to inform regime engine posture."
+    },
+    {
+      "symbol": "TLT",
+      "market": "US_ETF",
+      "category": "duration_proxy",
+      "reason_for_inclusion": "Useful macro or cross-asset proxy for regime inference and risk-on/risk-off classification.",
+      "notes": "Track trend, volatility, and cross-asset divergence to inform regime engine posture."
+    },
+    {
+      "symbol": "IEF",
+      "market": "US_ETF",
+      "category": "rates_proxy",
+      "reason_for_inclusion": "Useful macro or cross-asset proxy for regime inference and risk-on/risk-off classification.",
+      "notes": "Track trend, volatility, and cross-asset divergence to inform regime engine posture."
+    },
+    {
+      "symbol": "HYG",
+      "market": "US_ETF",
+      "category": "credit_risk_proxy",
+      "reason_for_inclusion": "Useful macro or cross-asset proxy for regime inference and risk-on/risk-off classification.",
+      "notes": "Track trend, volatility, and cross-asset divergence to inform regime engine posture."
+    },
+    {
+      "symbol": "LQD",
+      "market": "US_ETF",
+      "category": "investment_grade_proxy",
+      "reason_for_inclusion": "Useful macro or cross-asset proxy for regime inference and risk-on/risk-off classification.",
+      "notes": "Track trend, volatility, and cross-asset divergence to inform regime engine posture."
+    },
+    {
+      "symbol": "GLD",
+      "market": "US_ETF",
+      "category": "gold_proxy",
+      "reason_for_inclusion": "Useful macro or cross-asset proxy for regime inference and risk-on/risk-off classification.",
+      "notes": "Track trend, volatility, and cross-asset divergence to inform regime engine posture."
+    },
+    {
+      "symbol": "USO",
+      "market": "US_ETF",
+      "category": "oil_proxy",
+      "reason_for_inclusion": "Useful macro or cross-asset proxy for regime inference and risk-on/risk-off classification.",
+      "notes": "Track trend, volatility, and cross-asset divergence to inform regime engine posture."
+    },
+    {
+      "symbol": "DXY",
+      "market": "MACRO_INDEX",
+      "category": "usd_strength_proxy",
+      "reason_for_inclusion": "Useful macro or cross-asset proxy for regime inference and risk-on/risk-off classification.",
+      "notes": "Track trend, volatility, and cross-asset divergence to inform regime engine posture."
+    },
+    {
+      "symbol": "^VIX",
+      "market": "INDEX",
+      "category": "implied_vol_proxy",
+      "reason_for_inclusion": "Useful macro or cross-asset proxy for regime inference and risk-on/risk-off classification.",
+      "notes": "Track trend, volatility, and cross-asset divergence to inform regime engine posture."
+    },
+    {
+      "symbol": "BTCUSDT",
+      "market": "CRYPTO_SPOT",
+      "category": "crypto_risk_proxy",
+      "reason_for_inclusion": "Useful macro or cross-asset proxy for regime inference and risk-on/risk-off classification.",
+      "notes": "Track trend, volatility, and cross-asset divergence to inform regime engine posture."
+    },
+    {
+      "symbol": "ETHUSDT",
+      "market": "CRYPTO_SPOT",
+      "category": "crypto_beta_proxy",
+      "reason_for_inclusion": "Useful macro or cross-asset proxy for regime inference and risk-on/risk-off classification.",
+      "notes": "Track trend, volatility, and cross-asset divergence to inform regime engine posture."
+    },
+    {
+      "symbol": "XLF",
+      "market": "US_ETF",
+      "category": "financial_conditions_proxy",
+      "reason_for_inclusion": "Useful macro or cross-asset proxy for regime inference and risk-on/risk-off classification.",
+      "notes": "Track trend, volatility, and cross-asset divergence to inform regime engine posture."
+    },
+    {
+      "symbol": "XLK",
+      "market": "US_ETF",
+      "category": "tech_leadership_proxy",
+      "reason_for_inclusion": "Useful macro or cross-asset proxy for regime inference and risk-on/risk-off classification.",
+      "notes": "Track trend, volatility, and cross-asset divergence to inform regime engine posture."
+    },
+    {
+      "symbol": "XLE",
+      "market": "US_ETF",
+      "category": "energy_cycle_proxy",
+      "reason_for_inclusion": "Useful macro or cross-asset proxy for regime inference and risk-on/risk-off classification.",
+      "notes": "Track trend, volatility, and cross-asset divergence to inform regime engine posture."
+    },
+    {
+      "symbol": "KRE",
+      "market": "US_ETF",
+      "category": "regional_bank_stress_proxy",
+      "reason_for_inclusion": "Useful macro or cross-asset proxy for regime inference and risk-on/risk-off classification.",
+      "notes": "Track trend, volatility, and cross-asset divergence to inform regime engine posture."
+    }
+  ]
+}

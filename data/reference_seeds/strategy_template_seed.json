@@ -1,0 +1,731 @@
+{
+  "seed_id": "strategy_template_seed_v1",
+  "generated_at": "2026-03-08T00:00:00.000Z",
+  "total_templates": 32,
+  "families": [
+    "breakout continuation",
+    "pullback continuation",
+    "trend acceleration",
+    "percentile mean reversion",
+    "oversold rebound",
+    "overbought fade",
+    "relative strength leader",
+    "leader-laggard spread",
+    "volatility compression breakout",
+    "false breakout fade",
+    "trend exhaustion fade",
+    "funding dislocation reversion",
+    "basis compression",
+    "liquidity shock reversal",
+    "multi-day continuation",
+    "multi-day exhaustion"
+  ],
+  "templates": [
+    {
+      "template_id": "TPL-BREAKOUT-CONT-01",
+      "family": "breakout continuation",
+      "purpose": "Capture directional follow-through after structural breakout with participation confirmation.",
+      "entry_logic_structure": "Enter when price closes beyond breakout threshold and volume expansion filter passes.",
+      "exit_logic_structure": "Scale out at target ladder or momentum decay signal.",
+      "stop_logic_structure": "ATR-normalized stop below breakout retest level.",
+      "sizing_logic_hints": "Conviction-weighted size with regime multiplier and liquidity cap.",
+      "compatible_features": [
+        "breakout_distance",
+        "trend_strength",
+        "volume_expansion",
+        "atr_14"
+      ],
+      "compatible_regimes": [
+        "trend",
+        "uptrend_normal",
+        "uptrend_high_vol"
+      ],
+      "expected_trade_density": "medium",
+      "expected_holding_horizon": "2-8 bars",
+      "risk_profile": "directional_momentum"
+    },
+    {
+      "template_id": "TPL-BREAKOUT-CONT-02",
+      "family": "breakout continuation",
+      "purpose": "Trade second-leg continuation after successful breakout retest.",
+      "entry_logic_structure": "Enter on retest hold above breakout pivot with resumed momentum.",
+      "exit_logic_structure": "Exit on failed retest or trailing stop trigger.",
+      "stop_logic_structure": "Stop below retest low plus volatility buffer.",
+      "sizing_logic_hints": "Reduce size if breakout occurred in high spread conditions.",
+      "compatible_features": [
+        "retest_fail_signal",
+        "trend_strength",
+        "liquidity_score",
+        "vol_percentile"
+      ],
+      "compatible_regimes": [
+        "trend",
+        "risk_recovery"
+      ],
+      "expected_trade_density": "low_medium",
+      "expected_holding_horizon": "2-6 bars",
+      "risk_profile": "trend_retest"
+    },
+    {
+      "template_id": "TPL-PULLBACK-CONT-01",
+      "family": "pullback continuation",
+      "purpose": "Re-enter prevailing trend after controlled pullback.",
+      "entry_logic_structure": "Enter when pullback depth remains within configured ATR band and trend filter remains valid.",
+      "exit_logic_structure": "Exit at prior swing extension or trend invalidation.",
+      "stop_logic_structure": "Hard stop below pullback structure break.",
+      "sizing_logic_hints": "Increase size only when breadth and relative strength align.",
+      "compatible_features": [
+        "pullback_depth_atr",
+        "trend_strength",
+        "breadth_ratio",
+        "relative_strength"
+      ],
+      "compatible_regimes": [
+        "trend",
+        "uptrend_normal"
+      ],
+      "expected_trade_density": "medium",
+      "expected_holding_horizon": "3-10 bars",
+      "risk_profile": "trend_continuation"
+    },
+    {
+      "template_id": "TPL-PULLBACK-CONT-02",
+      "family": "pullback continuation",
+      "purpose": "Capture trend resumption after short-term mean reversion inside trend.",
+      "entry_logic_structure": "Enter when short-term reversion indicator resets while higher timeframe trend stays intact.",
+      "exit_logic_structure": "Exit on momentum divergence or time stop.",
+      "stop_logic_structure": "Stop at pullback low with adaptive volatility buffer.",
+      "sizing_logic_hints": "Use smaller size in mature trends with high trend age.",
+      "compatible_features": [
+        "zscore_lookback",
+        "trend_age",
+        "ma_alignment",
+        "volatility_stress"
+      ],
+      "compatible_regimes": [
+        "trend",
+        "uptrend_normal",
+        "downtrend_normal"
+      ],
+      "expected_trade_density": "medium",
+      "expected_holding_horizon": "2-7 bars",
+      "risk_profile": "trend_resumption"
+    },
+    {
+      "template_id": "TPL-TREND-ACCEL-01",
+      "family": "trend acceleration",
+      "purpose": "Capture acceleration phase when trend transitions from orderly to impulsive.",
+      "entry_logic_structure": "Enter on acceleration threshold breach with confirming range expansion.",
+      "exit_logic_structure": "Exit when acceleration decelerates below threshold.",
+      "stop_logic_structure": "Volatility-adjusted trailing stop.",
+      "sizing_logic_hints": "Size down in high turnover contexts.",
+      "compatible_features": [
+        "velocity_shock",
+        "range_expansion",
+        "trend_strength",
+        "turnover_cost_proxy"
+      ],
+      "compatible_regimes": [
+        "uptrend_high_vol",
+        "downtrend_high_vol"
+      ],
+      "expected_trade_density": "low",
+      "expected_holding_horizon": "1-4 bars",
+      "risk_profile": "fast_momentum"
+    },
+    {
+      "template_id": "TPL-TREND-ACCEL-02",
+      "family": "trend acceleration",
+      "purpose": "Trade continuation after acceleration survives first pullback.",
+      "entry_logic_structure": "Enter on first higher-low after acceleration spike.",
+      "exit_logic_structure": "Exit on failed higher-low or weakening thrust.",
+      "stop_logic_structure": "Stop below first pullback pivot.",
+      "sizing_logic_hints": "Use cap on notional concentration per theme.",
+      "compatible_features": [
+        "acceleration_shock",
+        "pullback_depth_atr",
+        "cross_asset_stress",
+        "theme_exposure"
+      ],
+      "compatible_regimes": [
+        "trend",
+        "uptrend_high_vol"
+      ],
+      "expected_trade_density": "low_medium",
+      "expected_holding_horizon": "2-5 bars",
+      "risk_profile": "impulse_follow"
+    },
+    {
+      "template_id": "TPL-PCTL-MR-01",
+      "family": "percentile mean reversion",
+      "purpose": "Fade statistically extreme percentile moves in balanced regimes.",
+      "entry_logic_structure": "Enter when percentile extreme and z-score trigger jointly fire.",
+      "exit_logic_structure": "Exit at mean reversion target or timeout.",
+      "stop_logic_structure": "Stop beyond extension threshold in continuation direction.",
+      "sizing_logic_hints": "Use smaller size for counter-trend entries.",
+      "compatible_features": [
+        "percentile_rank",
+        "zscore_lookback",
+        "reversion_speed",
+        "liquidity_score"
+      ],
+      "compatible_regimes": [
+        "range",
+        "range_normal"
+      ],
+      "expected_trade_density": "medium",
+      "expected_holding_horizon": "1-4 bars",
+      "risk_profile": "counter_trend"
+    },
+    {
+      "template_id": "TPL-PCTL-MR-02",
+      "family": "percentile mean reversion",
+      "purpose": "Capture partial mean reversion from tail percentile events.",
+      "entry_logic_structure": "Enter after extreme candle closes and next-bar failure to continue.",
+      "exit_logic_structure": "Exit on VWAP touch or predefined partial target.",
+      "stop_logic_structure": "Hard stop if continuation re-accelerates.",
+      "sizing_logic_hints": "Block setup under high spread stress.",
+      "compatible_features": [
+        "percentile_rank",
+        "vwap_deviation",
+        "spread_bps",
+        "vol_spike_score"
+      ],
+      "compatible_regimes": [
+        "range_high_vol",
+        "high_volatility"
+      ],
+      "expected_trade_density": "low_medium",
+      "expected_holding_horizon": "1-3 bars",
+      "risk_profile": "shock_reversion"
+    },
+    {
+      "template_id": "TPL-OVERSOLD-RB-01",
+      "family": "oversold rebound",
+      "purpose": "Buy post-capitulation rebounds after downside exhaustion.",
+      "entry_logic_structure": "Enter when downside extension and liquidation pressure peak then fade.",
+      "exit_logic_structure": "Exit on first resistance touch or failed bounce structure.",
+      "stop_logic_structure": "Stop below capitulation low.",
+      "sizing_logic_hints": "Allow reduced-size pilot then add on confirmation.",
+      "compatible_features": [
+        "drawdown_from_peak",
+        "liquidation_imbalance",
+        "recovery_momentum",
+        "volume_spike"
+      ],
+      "compatible_regimes": [
+        "range_high_vol",
+        "stress_risk_off"
+      ],
+      "expected_trade_density": "low",
+      "expected_holding_horizon": "1-3 bars",
+      "risk_profile": "panic_rebound"
+    },
+    {
+      "template_id": "TPL-OVERSOLD-RB-02",
+      "family": "oversold rebound",
+      "purpose": "Capture short-cover bounce when trend continuation fails at lows.",
+      "entry_logic_structure": "Enter on failed low break with positive delta divergence.",
+      "exit_logic_structure": "Exit on bounce exhaustion or time stop.",
+      "stop_logic_structure": "Stop at new breakdown confirmation.",
+      "sizing_logic_hints": "Limit gross exposure during risk-off sessions.",
+      "compatible_features": [
+        "retest_fail_signal",
+        "order_imbalance",
+        "risk_on_off_score",
+        "breadth_ratio"
+      ],
+      "compatible_regimes": [
+        "downtrend_high_vol",
+        "risk_off"
+      ],
+      "expected_trade_density": "low",
+      "expected_holding_horizon": "1-2 bars",
+      "risk_profile": "countertrend_snapback"
+    },
+    {
+      "template_id": "TPL-OVERBOUGHT-FADE-01",
+      "family": "overbought fade",
+      "purpose": "Fade overextended upside moves lacking broad confirmation.",
+      "entry_logic_structure": "Enter short when extension threshold and divergence filter pass.",
+      "exit_logic_structure": "Exit at reversion objective or volatility reset.",
+      "stop_logic_structure": "Stop above exhaustion wick.",
+      "sizing_logic_hints": "Keep size small in strong uptrend regimes.",
+      "compatible_features": [
+        "extension_threshold",
+        "volume_divergence",
+        "trend_confidence",
+        "vol_percentile"
+      ],
+      "compatible_regimes": [
+        "range",
+        "range_high_vol"
+      ],
+      "expected_trade_density": "low_medium",
+      "expected_holding_horizon": "1-4 bars",
+      "risk_profile": "counter_trend_fade"
+    },
+    {
+      "template_id": "TPL-OVERBOUGHT-FADE-02",
+      "family": "overbought fade",
+      "purpose": "Exploit failed continuation after parabolic intraday advance.",
+      "entry_logic_structure": "Enter on first lower-high after parabolic run.",
+      "exit_logic_structure": "Exit on VWAP or prior balance zone revisit.",
+      "stop_logic_structure": "Stop above parabolic high.",
+      "sizing_logic_hints": "Require strong liquidity and spread constraints.",
+      "compatible_features": [
+        "acceleration_shock",
+        "vwap_deviation",
+        "liquidity_score",
+        "spread_bps"
+      ],
+      "compatible_regimes": [
+        "high_volatility",
+        "range_high_vol"
+      ],
+      "expected_trade_density": "low",
+      "expected_holding_horizon": "1-3 bars",
+      "risk_profile": "exhaustion_fade"
+    },
+    {
+      "template_id": "TPL-RS-LEADER-01",
+      "family": "relative strength leader",
+      "purpose": "Long top-ranked leaders in persistent leadership environments.",
+      "entry_logic_structure": "Select top rank bucket and enter on pullback or breakout trigger.",
+      "exit_logic_structure": "Exit on rank decay below threshold.",
+      "stop_logic_structure": "Stop using rank-adjusted volatility stop.",
+      "sizing_logic_hints": "Allocate by rank score with turnover penalty.",
+      "compatible_features": [
+        "cross_asset_rank",
+        "sector_relative_strength",
+        "rank_trend",
+        "turnover_cost_proxy"
+      ],
+      "compatible_regimes": [
+        "trend",
+        "risk_recovery"
+      ],
+      "expected_trade_density": "medium",
+      "expected_holding_horizon": "3-12 bars",
+      "risk_profile": "cross_sectional_momentum"
+    },
+    {
+      "template_id": "TPL-RS-LEADER-02",
+      "family": "relative strength leader",
+      "purpose": "Capture leadership persistence in sector rotation cycles.",
+      "entry_logic_structure": "Rotate into top sector leaders with breadth confirmation.",
+      "exit_logic_structure": "Exit on sector momentum breakdown.",
+      "stop_logic_structure": "ETF-level stop by sector volatility.",
+      "sizing_logic_hints": "Sector caps to avoid concentration.",
+      "compatible_features": [
+        "sector_relative_strength",
+        "breadth_ratio",
+        "sector_rotation_strength",
+        "vol_percentile"
+      ],
+      "compatible_regimes": [
+        "trend",
+        "range_normal"
+      ],
+      "expected_trade_density": "low_medium",
+      "expected_holding_horizon": "5-15 bars",
+      "risk_profile": "sector_rotation"
+    },
+    {
+      "template_id": "TPL-LEADER-LAG-01",
+      "family": "leader-laggard spread",
+      "purpose": "Trade relative spread between leaders and laggards.",
+      "entry_logic_structure": "Enter spread when rank dispersion exceeds threshold.",
+      "exit_logic_structure": "Exit when spread converges to target band.",
+      "stop_logic_structure": "Stop on spread expansion beyond risk budget.",
+      "sizing_logic_hints": "Dollar-neutral sizing with beta adjustment.",
+      "compatible_features": [
+        "leader_laggard_spread",
+        "cross_rank",
+        "beta_adjusted_momentum",
+        "correlation_matrix"
+      ],
+      "compatible_regimes": [
+        "trend",
+        "range_normal"
+      ],
+      "expected_trade_density": "low",
+      "expected_holding_horizon": "3-10 bars",
+      "risk_profile": "relative_value_spread"
+    },
+    {
+      "template_id": "TPL-LEADER-LAG-02",
+      "family": "leader-laggard spread",
+      "purpose": "Capture laggard catch-up during recovery phases.",
+      "entry_logic_structure": "Long laggards/short leaders when recovery breadth expands sharply.",
+      "exit_logic_structure": "Exit as catch-up spread normalizes.",
+      "stop_logic_structure": "Stop on renewed leader acceleration.",
+      "sizing_logic_hints": "Reduce size if correlation regime spikes.",
+      "compatible_features": [
+        "breadth_thrust",
+        "relative_drawdown",
+        "cross_asset_rank",
+        "correlation_spike"
+      ],
+      "compatible_regimes": [
+        "risk_recovery",
+        "range_normal"
+      ],
+      "expected_trade_density": "low",
+      "expected_holding_horizon": "2-8 bars",
+      "risk_profile": "rotation_reversion"
+    },
+    {
+      "template_id": "TPL-VOL-COMP-BRK-01",
+      "family": "volatility compression breakout",
+      "purpose": "Exploit breakout after prolonged volatility contraction.",
+      "entry_logic_structure": "Enter on close outside compression band with directional filter.",
+      "exit_logic_structure": "Exit on failed expansion or target hit.",
+      "stop_logic_structure": "Stop inside compression range midpoint.",
+      "sizing_logic_hints": "Scale by compression duration and liquidity.",
+      "compatible_features": [
+        "vol_compression_score",
+        "range_width_pct",
+        "breakout_distance",
+        "liquidity_score"
+      ],
+      "compatible_regimes": [
+        "trend",
+        "range_normal"
+      ],
+      "expected_trade_density": "low_medium",
+      "expected_holding_horizon": "2-6 bars",
+      "risk_profile": "expansion_breakout"
+    },
+    {
+      "template_id": "TPL-VOL-COMP-BRK-02",
+      "family": "volatility compression breakout",
+      "purpose": "Trade post-event breakout from implied-vol crush setup.",
+      "entry_logic_structure": "Enter when post-event range narrows then breaks with volume confirmation.",
+      "exit_logic_structure": "Exit when expansion velocity drops below threshold.",
+      "stop_logic_structure": "Stop at failed break re-entry.",
+      "sizing_logic_hints": "Cap position under event risk windows.",
+      "compatible_features": [
+        "iv_hv_spread",
+        "volume_expansion",
+        "range_expansion",
+        "event_flag"
+      ],
+      "compatible_regimes": [
+        "range_normal",
+        "uptrend_normal"
+      ],
+      "expected_trade_density": "low",
+      "expected_holding_horizon": "1-5 bars",
+      "risk_profile": "event_transition"
+    },
+    {
+      "template_id": "TPL-FALSE-BRK-FADE-01",
+      "family": "false breakout fade",
+      "purpose": "Fade failed breakout attempts and trapped-flow unwinds.",
+      "entry_logic_structure": "Enter opposite direction after breakout fails to hold confirmation window.",
+      "exit_logic_structure": "Exit into prior value area or VWAP.",
+      "stop_logic_structure": "Stop at renewed breakout acceptance.",
+      "sizing_logic_hints": "Require liquidity filter and avoid news spikes.",
+      "compatible_features": [
+        "breakout_failure_rate",
+        "retest_fail_signal",
+        "vwap_deviation",
+        "news_shock_flag"
+      ],
+      "compatible_regimes": [
+        "range",
+        "range_high_vol"
+      ],
+      "expected_trade_density": "medium",
+      "expected_holding_horizon": "1-4 bars",
+      "risk_profile": "trap_reversal"
+    },
+    {
+      "template_id": "TPL-FALSE-BRK-FADE-02",
+      "family": "false breakout fade",
+      "purpose": "Capture breakdown failure rebound with trap confirmation.",
+      "entry_logic_structure": "Enter long on failed breakdown and immediate reclaim.",
+      "exit_logic_structure": "Exit at midpoint or upper range boundary.",
+      "stop_logic_structure": "Stop at failed reclaim low.",
+      "sizing_logic_hints": "Prioritize A-quality only under stressed volatility.",
+      "compatible_features": [
+        "breakdown_fail_signal",
+        "range_context",
+        "volume_divergence",
+        "volatility_stress"
+      ],
+      "compatible_regimes": [
+        "range_high_vol",
+        "downtrend_normal"
+      ],
+      "expected_trade_density": "low_medium",
+      "expected_holding_horizon": "1-3 bars",
+      "risk_profile": "failed_move_rebound"
+    },
+    {
+      "template_id": "TPL-TREND-EXH-FADE-01",
+      "family": "trend exhaustion fade",
+      "purpose": "Fade mature trends after acceleration exhaustion.",
+      "entry_logic_structure": "Enter against trend when exhaustion score and divergence both trigger.",
+      "exit_logic_structure": "Exit on first mean reversion target zone.",
+      "stop_logic_structure": "Stop beyond exhaustion extreme.",
+      "sizing_logic_hints": "Hard size cap due counter-trend risk.",
+      "compatible_features": [
+        "trend_age",
+        "acceleration_shock",
+        "breadth_divergence",
+        "distance_from_ma"
+      ],
+      "compatible_regimes": [
+        "uptrend_high_vol",
+        "downtrend_high_vol"
+      ],
+      "expected_trade_density": "low",
+      "expected_holding_horizon": "1-5 bars",
+      "risk_profile": "late_trend_reversal"
+    },
+    {
+      "template_id": "TPL-TREND-EXH-FADE-02",
+      "family": "trend exhaustion fade",
+      "purpose": "Capture reversal after failed final thrust in mature trends.",
+      "entry_logic_structure": "Enter after final thrust fails and structure breaks lower/higher.",
+      "exit_logic_structure": "Exit on first structural retrace completion.",
+      "stop_logic_structure": "Stop above/below final thrust extremum.",
+      "sizing_logic_hints": "Use only in high-quality liquidity names.",
+      "compatible_features": [
+        "final_thrust_score",
+        "structure_break",
+        "liquidity_score",
+        "spread_bps"
+      ],
+      "compatible_regimes": [
+        "high_volatility",
+        "range_high_vol"
+      ],
+      "expected_trade_density": "low",
+      "expected_holding_horizon": "1-4 bars",
+      "risk_profile": "exhaustion_reversal"
+    },
+    {
+      "template_id": "TPL-FUNDING-DISLOC-01",
+      "family": "funding dislocation reversion",
+      "purpose": "Trade normalization of extreme perpetual funding imbalances.",
+      "entry_logic_structure": "Enter against crowded side when funding z-score exceeds trigger.",
+      "exit_logic_structure": "Exit when funding normalizes or trend invalidates.",
+      "stop_logic_structure": "Stop on continuation with rising open interest.",
+      "sizing_logic_hints": "Reduce size in illiquid alt contracts.",
+      "compatible_features": [
+        "funding_zscore",
+        "open_interest_change",
+        "spot_perp_spread",
+        "liquidity_score"
+      ],
+      "compatible_regimes": [
+        "range",
+        "high_volatility"
+      ],
+      "expected_trade_density": "low_medium",
+      "expected_holding_horizon": "2-10 bars",
+      "risk_profile": "carry_reversion"
+    },
+    {
+      "template_id": "TPL-FUNDING-DISLOC-02",
+      "family": "funding dislocation reversion",
+      "purpose": "Capture short squeeze after deeply negative funding regime.",
+      "entry_logic_structure": "Enter long when negative funding and short crowding begin to unwind.",
+      "exit_logic_structure": "Exit at carry-neutral or momentum stall.",
+      "stop_logic_structure": "Stop if funding remains extreme and price weakens.",
+      "sizing_logic_hints": "Use progressive sizing with confirmation add-ons.",
+      "compatible_features": [
+        "funding_rate",
+        "short_ratio",
+        "open_interest_delta",
+        "price_momentum"
+      ],
+      "compatible_regimes": [
+        "risk_recovery",
+        "range_high_vol"
+      ],
+      "expected_trade_density": "low",
+      "expected_holding_horizon": "2-8 bars",
+      "risk_profile": "squeeze_reversion"
+    },
+    {
+      "template_id": "TPL-BASIS-COMP-01",
+      "family": "basis compression",
+      "purpose": "Exploit futures basis normalization after dislocation.",
+      "entry_logic_structure": "Enter when annualized basis deviates beyond historical bounds.",
+      "exit_logic_structure": "Exit as basis reverts toward carry equilibrium.",
+      "stop_logic_structure": "Stop if basis divergence expands further with confirming flow.",
+      "sizing_logic_hints": "Notional scaled by basis distance and liquidity.",
+      "compatible_features": [
+        "basis_annualized",
+        "term_structure",
+        "spot_perp_spread",
+        "oi_term_skew"
+      ],
+      "compatible_regimes": [
+        "range",
+        "trend"
+      ],
+      "expected_trade_density": "low",
+      "expected_holding_horizon": "3-12 bars",
+      "risk_profile": "basis_reversion"
+    },
+    {
+      "template_id": "TPL-BASIS-COMP-02",
+      "family": "basis compression",
+      "purpose": "Capture basis expansion continuation in strong risk-on cycles.",
+      "entry_logic_structure": "Enter with basis trend when carry remains supportive and stress low.",
+      "exit_logic_structure": "Exit on carry deterioration or volatility shock.",
+      "stop_logic_structure": "Stop if basis trend breaks below regime floor.",
+      "sizing_logic_hints": "Use capped leverage and venue liquidity checks.",
+      "compatible_features": [
+        "basis_trend",
+        "funding_trend",
+        "volatility_stress",
+        "liquidity_depth"
+      ],
+      "compatible_regimes": [
+        "trend",
+        "uptrend_normal"
+      ],
+      "expected_trade_density": "low",
+      "expected_holding_horizon": "2-8 bars",
+      "risk_profile": "carry_continuation"
+    },
+    {
+      "template_id": "TPL-LIQ-SHOCK-REV-01",
+      "family": "liquidity shock reversal",
+      "purpose": "Trade mean reversion after short-lived liquidity dislocation.",
+      "entry_logic_structure": "Enter once spread shock peaks and first stabilization signal appears.",
+      "exit_logic_structure": "Exit on return to normal microstructure regime.",
+      "stop_logic_structure": "Stop on renewed liquidity vacuum.",
+      "sizing_logic_hints": "Use strict max size and skip unavailable data windows.",
+      "compatible_features": [
+        "spread_bps",
+        "liquidity_score",
+        "order_imbalance",
+        "velocity_shock"
+      ],
+      "compatible_regimes": [
+        "high_volatility",
+        "stress_risk_off"
+      ],
+      "expected_trade_density": "low",
+      "expected_holding_horizon": "1-3 bars",
+      "risk_profile": "microstructure_reversion"
+    },
+    {
+      "template_id": "TPL-LIQ-SHOCK-REV-02",
+      "family": "liquidity shock reversal",
+      "purpose": "Capture bounce after forced-flow liquidation wave.",
+      "entry_logic_structure": "Enter after liquidation cluster dissipates and price reclaims micro support.",
+      "exit_logic_structure": "Exit on first resistance retest.",
+      "stop_logic_structure": "Stop on renewed liquidation spike.",
+      "sizing_logic_hints": "Allow only when execution quality score is acceptable.",
+      "compatible_features": [
+        "liquidation_imbalance",
+        "micro_support_reclaim",
+        "execution_quality_score",
+        "slippage_bps"
+      ],
+      "compatible_regimes": [
+        "stress_risk_off",
+        "range_high_vol"
+      ],
+      "expected_trade_density": "low",
+      "expected_holding_horizon": "1-2 bars",
+      "risk_profile": "panic_rebound"
+    },
+    {
+      "template_id": "TPL-MULTI-DAY-CONT-01",
+      "family": "multi-day continuation",
+      "purpose": "Exploit sustained multi-session trend persistence.",
+      "entry_logic_structure": "Enter on higher timeframe breakout with supportive daily trend score.",
+      "exit_logic_structure": "Exit on daily trend break or momentum decay.",
+      "stop_logic_structure": "Stop at multi-day swing invalidation.",
+      "sizing_logic_hints": "Use slower rebalance cadence to reduce turnover.",
+      "compatible_features": [
+        "multi_day_return",
+        "trend_strength_daily",
+        "breakout_distance",
+        "volume_trend"
+      ],
+      "compatible_regimes": [
+        "trend",
+        "uptrend_normal"
+      ],
+      "expected_trade_density": "low_medium",
+      "expected_holding_horizon": "5-20 bars",
+      "risk_profile": "swing_trend"
+    },
+    {
+      "template_id": "TPL-MULTI-DAY-CONT-02",
+      "family": "multi-day continuation",
+      "purpose": "Add exposure on orderly pullbacks during multi-day trend.",
+      "entry_logic_structure": "Enter on daily pullback support hold with intact trend structure.",
+      "exit_logic_structure": "Exit on support break or relative-strength decay.",
+      "stop_logic_structure": "Stop below daily pullback pivot.",
+      "sizing_logic_hints": "Scale entries across two tranches to reduce timing risk.",
+      "compatible_features": [
+        "daily_pullback_depth",
+        "support_hold_score",
+        "relative_strength",
+        "trend_age"
+      ],
+      "compatible_regimes": [
+        "trend",
+        "risk_recovery"
+      ],
+      "expected_trade_density": "low",
+      "expected_holding_horizon": "4-15 bars",
+      "risk_profile": "swing_pullback"
+    },
+    {
+      "template_id": "TPL-MULTI-DAY-EXH-01",
+      "family": "multi-day exhaustion",
+      "purpose": "Fade mature multi-day runs after broad divergence appears.",
+      "entry_logic_structure": "Enter opposite direction after trend extension and breadth divergence trigger.",
+      "exit_logic_structure": "Exit at first multi-day reversion objective.",
+      "stop_logic_structure": "Stop above trend climax high.",
+      "sizing_logic_hints": "Use half-size unless regime transition confirmation appears.",
+      "compatible_features": [
+        "trend_age",
+        "breadth_divergence",
+        "distance_from_ma",
+        "vol_spike_score"
+      ],
+      "compatible_regimes": [
+        "uptrend_high_vol",
+        "downtrend_high_vol"
+      ],
+      "expected_trade_density": "low",
+      "expected_holding_horizon": "2-8 bars",
+      "risk_profile": "swing_reversal"
+    },
+    {
+      "template_id": "TPL-MULTI-DAY-EXH-02",
+      "family": "multi-day exhaustion",
+      "purpose": "Capture reversal after failed continuation day in mature trend.",
+      "entry_logic_structure": "Enter after failed continuation candle closes back inside prior value zone.",
+      "exit_logic_structure": "Exit on swing mean reversion completion.",
+      "stop_logic_structure": "Stop at failed continuation extreme.",
+      "sizing_logic_hints": "Require elevated liquidity and low data-latency confidence.",
+      "compatible_features": [
+        "failed_continuation_flag",
+        "value_zone_reentry",
+        "liquidity_score",
+        "data_freshness"
+      ],
+      "compatible_regimes": [
+        "range_high_vol",
+        "high_volatility"
+      ],
+      "expected_trade_density": "low",
+      "expected_holding_horizon": "2-6 bars",
+      "risk_profile": "failed_move_swing"
+    }
+  ]
+}

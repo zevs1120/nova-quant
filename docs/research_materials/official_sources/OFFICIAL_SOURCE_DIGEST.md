@@ -1,0 +1,66 @@
+# Official Source Digest
+
+Last updated: 2026-03-08
+
+This digest normalizes official and primary-source documentation references for Nova Quant data, research workflow, and backtesting architecture.
+
+## A) US Equities / Options Data Sources
+
+| Source | What It Offers | Nova Quant Subsystem | Type | Markets | API Key / Access |
+|---|---|---|---|---|---|
+| [Polygon Docs](https://polygon.io/docs) | Canonical docs hub for stocks, options, forex, crypto, aggregates, snapshots, websocket streams | Data adapters, feature layer, signal generation, execution realism | Data | Equities + Options (+ other asset classes) | Polygon account + key required for practical API usage; entitlement depends on plan |
+| [Polygon Stocks WS Getting Started](https://polygon.io/docs/stocks/ws_getting-started) | How to authenticate and subscribe to stock websocket channels | Real-time ingest, event bus, intraday features | Data | Equities | Key + websocket entitlement required |
+| [Polygon Stocks WS Trades (A)](https://polygon.io/docs/stocks/ws_stocks_a) | Stock trade tick stream channel schema and subscription behavior | Tick features, liquidity stress, intraday microstructure metrics | Data | Equities | Key + real-time websocket access required |
+| [Polygon REST Stocks Overview](https://polygon.io/docs/rest/stocks/overview) | REST endpoint index for stock market data and reference endpoints | Daily batch sync, metadata ingestion, universe maintenance | Data | Equities | Key required; endpoint-level plan coverage applies |
+| [Polygon Options WS Trades (A)](https://polygon.io/docs/options/ws_options_a) | Options trade websocket channel and message format | Options flow features, volatility overlays, options-linked diagnostics | Data | Options | Key + options websocket entitlement required |
+| [Polygon Options WS Overview](https://polygon.io/docs/websocket/options/overview) | Options websocket overview and channel map | Options stream architecture and subscription design | Data | Options | Key + options stream plan required |
+
+## B) Crypto / Derivatives Data Sources
+
+| Source | What It Offers | Nova Quant Subsystem | Type | Markets | API Key / Access |
+|---|---|---|---|---|---|
+| [Binance Developers Portal](https://developers.binance.com/en) | Official Binance API docs entry for spot and derivatives | Exchange adapter baseline, market data normalization | Data | Crypto | Public market endpoints generally usable without key; trading/private endpoints need key |
+| [Binance Funding Rate History](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Get-Funding-Rate-History) | Historical funding rates for USDT-M futures | Funding features, carry/funding dislocation templates | Data | Crypto derivatives | Public market data endpoint (no signing for market data); rate limits apply |
+| [Binance Open Interest](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Open-Interest) | Latest symbol-level futures open interest | Positioning stress features, crowding proxies | Data | Crypto derivatives | Public market data endpoint; rate limits apply |
+| [Binance Open Interest Statistics](https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Open-Interest-Statistics) | OI stats over intervals for futures contracts | OI trend factors, transition diagnostics | Data | Crypto derivatives | Public market data endpoint; rate limits apply |
+| [Bybit V5 Intro](https://bybit-exchange.github.io/docs/v5/intro) | V5 API architecture, product categories, account modes | Bybit adapter design, category routing, contract schema mapping | Data | Crypto (spot/linear/inverse/options) | Public market endpoints usable without key; private/trading endpoints require auth |
+| [Bybit V5 Market Tickers](https://bybit-exchange.github.io/docs/v5/market/tickers) | Ticker endpoint for spot and derivatives markets | Real-time snapshots, regime/context features, opportunity enrichment | Data | Crypto | Public market endpoint; category parameter required |
+| [Bybit V5 Open Interest](https://bybit-exchange.github.io/docs/v5/market/open-interest) | Open-interest endpoint with interval controls | OI trend and crowding features | Data | Crypto derivatives | Public market endpoint |
+| [Bybit V5 Funding History](https://bybit-exchange.github.io/docs/v5/market/history-fund-rate) | Historical funding rates by symbol/category | Funding cycle analysis, carry templates | Data | Crypto derivatives | Public market endpoint |
+| [Deribit Public Ticker](https://docs.deribit.com/api-reference/market-data/public-ticker) | Public ticker for options/futures with mark/greeks/funding-related fields | Crypto derivatives state, options overlays, execution realism | Data | Crypto derivatives/options | Public endpoint (no auth for public data) |
+| [Deribit WS Ticker Subscription](https://docs.deribit.com/subscriptions/market-data/tickerinstrument_nameinterval) | Websocket ticker subscription with interval stream options | Streaming adapter, feature freshness improvements | Data | Crypto derivatives/options | Public subscription channel; websocket connection needed |
+| [Deribit Market Data Best Practices](https://docs.deribit.com/articles/market-data-collection-best-practices) | Official recommendations for robust market-data collection | Data reliability, ingestion guardrails, latency and reconnect policy | Workflow/Data | Crypto | No key needed for document; implement as ingestion SOP |
+
+## C) Research / Backtesting Framework References
+
+| Source | What It Offers | Nova Quant Subsystem | Type | Markets | Primary / Official |
+|---|---|---|---|---|---|
+| [Microsoft Qlib](https://github.com/microsoft/qlib) | AI-oriented quant research platform with workflow orchestration and experiment management | Research workflow references, experiment tracking ideas, pipeline discipline | Workflow + Research | Primarily equities (extensible) | Primary official repo |
+| [Qlib Workflow Example](https://github.com/microsoft/qlib/blob/main/examples/workflow_by_code.py) | Programmatic workflow example from data prep to model/strategy workflow | Discovery and validation job orchestration reference | Workflow | Equities-focused | Primary official file |
+| [vectorbt](https://vectorbt.dev/) | Vectorized backtesting and research tooling in Python | Validation design patterns, fast parameter evaluation references | Backtesting | Both (depends on data) | Official docs site |
+| [vectorbt Features](https://vectorbt.dev/getting-started/features/) | Feature overview: vectorization, indicators, portfolio simulation | Feature engineering and backtest architecture references | Backtesting | Both | Official docs page |
+| [vectorbt Usage](https://vectorbt.dev/getting-started/usage/) | Practical usage patterns and API workflows | Rapid prototyping and experimentation references | Backtesting/Workflow | Both | Official docs page |
+| [Backtrader](https://www.backtrader.com/) | Event-driven backtesting framework with strategy abstractions | Event-driven simulation references, broker/execution emulation patterns | Backtesting | Both (with adapters) | Official site |
+| [Backtrader Strategy Docs](https://www.backtrader.com/docu/strategy/) | Strategy lifecycle hooks and execution flow | Strategy template lifecycle and event sequencing references | Backtesting | Both | Official docs page |
+| [Zipline (ML4Trading)](https://zipline.ml4trading.io/) | Algorithmic trading library with pipeline and simulation components | Institutional-style backtest references and data pipeline design | Backtesting/Workflow | Mostly equities | Official documentation fork |
+| [Zipline Beginner Tutorial](https://zipline.ml4trading.io/beginner-tutorial) | Starter workflow for algorithm setup and execution | Onboarding reference for reproducible backtests | Backtesting | Equities | Official docs page |
+| [Zipline API Reference](https://zipline.ml4trading.io/api-reference.html) | Full API contract | Contract-level reference for strategy and data abstractions | Backtesting | Equities | Official docs page |
+
+## D) How Nova Quant Should Use These Sources
+
+1. **Data ingestion reality-first**
+- Use official market-data endpoints as canonical source contracts.
+- Normalize all outputs into Nova Quant data contracts before feature generation.
+
+2. **Research system references, not copy-paste architecture**
+- Use Qlib/vectorbt/backtrader/zipline as design references for workflow, validation, and auditability.
+- Keep Nova Quant’s own object model (`hypothesis -> template -> candidate -> validation -> governance`) as system of record.
+
+3. **Primary-source policy**
+- For production decisions, prioritize official endpoint docs over third-party summaries.
+- Keep versioned local digests in `docs/research_materials/official_sources/` and update when endpoint contracts change.
+
+## E) Primary Source Classification
+
+- All links above are official docs or official repositories.
+- No blog-only or secondary commentary sources are used in this digest.

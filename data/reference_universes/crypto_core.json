@@ -1,0 +1,91 @@
+{
+  "universe_id": "crypto_core_v1",
+  "generated_at": "2026-03-08T00:00:00.000Z",
+  "description": "Core liquid crypto perpetual markets for production-intended strategy research.",
+  "instruments": [
+    {
+      "symbol": "BTCUSDT",
+      "market": "CRYPTO_PERP",
+      "category": "major_perp",
+      "reason_for_inclusion": "Liquid perpetual market with strong derivatives participation for funding/basis/liquidity studies.",
+      "notes": "Prioritize for funding and open-interest feature pipelines."
+    },
+    {
+      "symbol": "ETHUSDT",
+      "market": "CRYPTO_PERP",
+      "category": "major_perp",
+      "reason_for_inclusion": "Liquid perpetual market with strong derivatives participation for funding/basis/liquidity studies.",
+      "notes": "Prioritize for funding and open-interest feature pipelines."
+    },
+    {
+      "symbol": "SOLUSDT",
+      "market": "CRYPTO_PERP",
+      "category": "high_beta_perp",
+      "reason_for_inclusion": "Liquid perpetual market with strong derivatives participation for funding/basis/liquidity studies.",
+      "notes": "Prioritize for funding and open-interest feature pipelines."
+    },
+    {
+      "symbol": "BNBUSDT",
+      "market": "CRYPTO_PERP",
+      "category": "exchange_beta_perp",
+      "reason_for_inclusion": "Liquid perpetual market with strong derivatives participation for funding/basis/liquidity studies.",
+      "notes": "Prioritize for funding and open-interest feature pipelines."
+    },
+    {
+      "symbol": "XRPUSDT",
+      "market": "CRYPTO_PERP",
+      "category": "large_alt_perp",
+      "reason_for_inclusion": "Liquid perpetual market with strong derivatives participation for funding/basis/liquidity studies.",
+      "notes": "Prioritize for funding and open-interest feature pipelines."
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "market": "CRYPTO_PERP",
+      "category": "sentiment_perp",
+      "reason_for_inclusion": "Liquid perpetual market with strong derivatives participation for funding/basis/liquidity studies.",
+      "notes": "Prioritize for funding and open-interest feature pipelines."
+    },
+    {
+      "symbol": "ADAUSDT",
+      "market": "CRYPTO_PERP",
+      "category": "large_alt_perp",
+      "reason_for_inclusion": "Liquid perpetual market with strong derivatives participation for funding/basis/liquidity studies.",
+      "notes": "Prioritize for funding and open-interest feature pipelines."
+    },
+    {
+      "symbol": "TRXUSDT",
+      "market": "CRYPTO_PERP",
+      "category": "large_alt_perp",
+      "reason_for_inclusion": "Liquid perpetual market with strong derivatives participation for funding/basis/liquidity studies.",
+      "notes": "Prioritize for funding and open-interest feature pipelines."
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "market": "CRYPTO_PERP",
+      "category": "high_beta_perp",
+      "reason_for_inclusion": "Liquid perpetual market with strong derivatives participation for funding/basis/liquidity studies.",
+      "notes": "Prioritize for funding and open-interest feature pipelines."
+    },
+    {
+      "symbol": "LINKUSDT",
+      "market": "CRYPTO_PERP",
+      "category": "infrastructure_perp",
+      "reason_for_inclusion": "Liquid perpetual market with strong derivatives participation for funding/basis/liquidity studies.",
+      "notes": "Prioritize for funding and open-interest feature pipelines."
+    },
+    {
+      "symbol": "LTCUSDT",
+      "market": "CRYPTO_PERP",
+      "category": "legacy_perp",
+      "reason_for_inclusion": "Liquid perpetual market with strong derivatives participation for funding/basis/liquidity studies.",
+      "notes": "Prioritize for funding and open-interest feature pipelines."
+    },
+    {
+      "symbol": "TONUSDT",
+      "market": "CRYPTO_PERP",
+      "category": "momentum_perp",
+      "reason_for_inclusion": "Liquid perpetual market with strong derivatives participation for funding/basis/liquidity studies.",
+      "notes": "Prioritize for funding and open-interest feature pipelines."
+    }
+  ]
+}

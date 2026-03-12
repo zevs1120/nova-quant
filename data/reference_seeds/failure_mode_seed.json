@@ -1,0 +1,73 @@
+{
+  "version": "2026-03-08",
+  "source": [
+    "docs/advanced_research_pack/failure_modes/QUANT_FAILURE_MODES.md",
+    "docs/advanced_research_pack/failure_modes/PRODUCT_FAILURE_MODES.md"
+  ],
+  "failure_modes": [
+    {
+      "id": "FM-QUANT-001",
+      "name": "signal_starvation",
+      "domain": "research",
+      "signals": ["low_executable_count", "high_filter_dropoff"],
+      "likely_causes": ["thresholds_too_strict", "small_universe", "stale_features"],
+      "recommended_actions": ["run_threshold_sensitivity", "review_shadow_log", "expand_quality_universe"]
+    },
+    {
+      "id": "FM-QUANT-002",
+      "name": "fake_diversification",
+      "domain": "portfolio",
+      "signals": ["high_strategy_correlation", "clustered_drawdowns"],
+      "likely_causes": ["parameter_duplication", "same_risk_driver"],
+      "recommended_actions": ["family_cap_adjustment", "correlation_penalty_in_scoring"]
+    },
+    {
+      "id": "FM-QUANT-003",
+      "name": "cost_blind_edge",
+      "domain": "validation",
+      "signals": ["gross_positive_net_negative", "cost_stress_failure"],
+      "likely_causes": ["optimistic_slippage", "turnover_excess"],
+      "recommended_actions": ["tighten_cost_gates", "downrank_turnover_heavy_templates"]
+    },
+    {
+      "id": "FM-QUANT-004",
+      "name": "regime_mismatch",
+      "domain": "research",
+      "signals": ["regime_slice_drawdown_spike", "compatibility_warnings"],
+      "likely_causes": ["weak_regime_filter", "confidence_misuse"],
+      "recommended_actions": ["enforce_regime_compatibility", "size_multiplier_recalibration"]
+    },
+    {
+      "id": "FM-QUANT-005",
+      "name": "governance_inertia",
+      "domain": "governance",
+      "signals": ["long_lived_underperformers", "missing_retirement_actions"],
+      "likely_causes": ["no_clear_demote_rules", "weak_review_rhythm"],
+      "recommended_actions": ["activate_retirement_triggers", "weekly_governance_review"]
+    },
+    {
+      "id": "FM-PROD-001",
+      "name": "ui_complexity_overload",
+      "domain": "product",
+      "signals": ["low_checkin_completion", "high_bounce_rate"],
+      "likely_causes": ["too_many_primary_tasks", "information_noise"],
+      "recommended_actions": ["enforce_single_primary_task", "reduce_default_density"]
+    },
+    {
+      "id": "FM-PROD-002",
+      "name": "non_executable_opportunity",
+      "domain": "product",
+      "signals": ["execution_rejection_after_recommendation", "user_action_mismatch"],
+      "likely_causes": ["missing_liquidity_checks", "stale_data_context"],
+      "recommended_actions": ["enrich_opportunity_contract", "enforce_pre_publish_checks"]
+    },
+    {
+      "id": "FM-PROD-003",
+      "name": "ungrounded_ai_output",
+      "domain": "copilot",
+      "signals": ["generic_explanations", "low_reference_density"],
+      "likely_causes": ["no_evidence_linking", "weak_structured_response"],
+      "recommended_actions": ["require_evidence_ids", "structured_answer_template"]
+    }
+  ]
+}

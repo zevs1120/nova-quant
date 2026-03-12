@@ -1,0 +1,1260 @@
+{
+  "universe_id": "us_equities_extended_v1",
+  "generated_at": "2026-03-08T00:00:00.000Z",
+  "description": "Expanded liquid US equities for broader cross-sectional and discovery workflows.",
+  "instruments": [
+    {
+      "symbol": "AAPL",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "MSFT",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "NVDA",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "AMZN",
+      "market": "US_EQUITY",
+      "category": "consumer_discretionary",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "GOOGL",
+      "market": "US_EQUITY",
+      "category": "communication_services",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "META",
+      "market": "US_EQUITY",
+      "category": "communication_services",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "TSLA",
+      "market": "US_EQUITY",
+      "category": "consumer_discretionary",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "BRK.B",
+      "market": "US_EQUITY",
+      "category": "financials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "LLY",
+      "market": "US_EQUITY",
+      "category": "health_care",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "JPM",
+      "market": "US_EQUITY",
+      "category": "financials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "V",
+      "market": "US_EQUITY",
+      "category": "financials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "MA",
+      "market": "US_EQUITY",
+      "category": "financials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "UNH",
+      "market": "US_EQUITY",
+      "category": "health_care",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "XOM",
+      "market": "US_EQUITY",
+      "category": "energy",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "AVGO",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "COST",
+      "market": "US_EQUITY",
+      "category": "consumer_staples",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "HD",
+      "market": "US_EQUITY",
+      "category": "consumer_discretionary",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "WMT",
+      "market": "US_EQUITY",
+      "category": "consumer_staples",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "PG",
+      "market": "US_EQUITY",
+      "category": "consumer_staples",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "JNJ",
+      "market": "US_EQUITY",
+      "category": "health_care",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "BAC",
+      "market": "US_EQUITY",
+      "category": "financials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "KO",
+      "market": "US_EQUITY",
+      "category": "consumer_staples",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "PEP",
+      "market": "US_EQUITY",
+      "category": "consumer_staples",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "MRK",
+      "market": "US_EQUITY",
+      "category": "health_care",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "ABBV",
+      "market": "US_EQUITY",
+      "category": "health_care",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "CVX",
+      "market": "US_EQUITY",
+      "category": "energy",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "ADBE",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "CRM",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "NFLX",
+      "market": "US_EQUITY",
+      "category": "communication_services",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "AMD",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "INTC",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "ORCL",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "QCOM",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "CSCO",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "TMO",
+      "market": "US_EQUITY",
+      "category": "health_care",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "MCD",
+      "market": "US_EQUITY",
+      "category": "consumer_discretionary",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "NKE",
+      "market": "US_EQUITY",
+      "category": "consumer_discretionary",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "DIS",
+      "market": "US_EQUITY",
+      "category": "communication_services",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "PFE",
+      "market": "US_EQUITY",
+      "category": "health_care",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "ABT",
+      "market": "US_EQUITY",
+      "category": "health_care",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "LIN",
+      "market": "US_EQUITY",
+      "category": "materials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "DHR",
+      "market": "US_EQUITY",
+      "category": "health_care",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "TXN",
+      "market": "US_EQUITY",
+      "category": "liquid_equity",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "AMGN",
+      "market": "US_EQUITY",
+      "category": "health_care",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "CAT",
+      "market": "US_EQUITY",
+      "category": "industrials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "GE",
+      "market": "US_EQUITY",
+      "category": "industrials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "GS",
+      "market": "US_EQUITY",
+      "category": "financials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "MS",
+      "market": "US_EQUITY",
+      "category": "financials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "BLK",
+      "market": "US_EQUITY",
+      "category": "financials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "SCHW",
+      "market": "US_EQUITY",
+      "category": "financials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "C",
+      "market": "US_EQUITY",
+      "category": "financials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "UBER",
+      "market": "US_EQUITY",
+      "category": "consumer_discretionary",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "PANW",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "SNOW",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "PLTR",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "SHOP",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "MU",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "INTU",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "NOW",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "BKNG",
+      "market": "US_EQUITY",
+      "category": "consumer_discretionary",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "DE",
+      "market": "US_EQUITY",
+      "category": "industrials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "BA",
+      "market": "US_EQUITY",
+      "category": "industrials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "RTX",
+      "market": "US_EQUITY",
+      "category": "industrials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "LMT",
+      "market": "US_EQUITY",
+      "category": "industrials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "SPGI",
+      "market": "US_EQUITY",
+      "category": "financials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "AXP",
+      "market": "US_EQUITY",
+      "category": "financials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "PYPL",
+      "market": "US_EQUITY",
+      "category": "financials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "SQ",
+      "market": "US_EQUITY",
+      "category": "financials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "AMAT",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "KLAC",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "LRCX",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "ANET",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "CRWD",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "FTNT",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Part of core universe."
+    },
+    {
+      "symbol": "TMUS",
+      "market": "US_EQUITY",
+      "category": "communication_services",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "VZ",
+      "market": "US_EQUITY",
+      "category": "communication_services",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "T",
+      "market": "US_EQUITY",
+      "category": "communication_services",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "CMCSA",
+      "market": "US_EQUITY",
+      "category": "communication_services",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "BMY",
+      "market": "US_EQUITY",
+      "category": "health_care",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "GILD",
+      "market": "US_EQUITY",
+      "category": "health_care",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "REGN",
+      "market": "US_EQUITY",
+      "category": "health_care",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "ISRG",
+      "market": "US_EQUITY",
+      "category": "health_care",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "MDT",
+      "market": "US_EQUITY",
+      "category": "health_care",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "SYK",
+      "market": "US_EQUITY",
+      "category": "health_care",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "HUM",
+      "market": "US_EQUITY",
+      "category": "health_care",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "CI",
+      "market": "US_EQUITY",
+      "category": "health_care",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "CVS",
+      "market": "US_EQUITY",
+      "category": "health_care",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "COP",
+      "market": "US_EQUITY",
+      "category": "energy",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "EOG",
+      "market": "US_EQUITY",
+      "category": "energy",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "OXY",
+      "market": "US_EQUITY",
+      "category": "energy",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "SLB",
+      "market": "US_EQUITY",
+      "category": "energy",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "MPC",
+      "market": "US_EQUITY",
+      "category": "energy",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "PSX",
+      "market": "US_EQUITY",
+      "category": "energy",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "VLO",
+      "market": "US_EQUITY",
+      "category": "energy",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "PM",
+      "market": "US_EQUITY",
+      "category": "consumer_staples",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "MO",
+      "market": "US_EQUITY",
+      "category": "consumer_staples",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "MDLZ",
+      "market": "US_EQUITY",
+      "category": "consumer_staples",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "CL",
+      "market": "US_EQUITY",
+      "category": "consumer_staples",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "GIS",
+      "market": "US_EQUITY",
+      "category": "consumer_staples",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "KR",
+      "market": "US_EQUITY",
+      "category": "consumer_staples",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "HON",
+      "market": "US_EQUITY",
+      "category": "industrials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "UPS",
+      "market": "US_EQUITY",
+      "category": "industrials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "UNP",
+      "market": "US_EQUITY",
+      "category": "industrials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "CSX",
+      "market": "US_EQUITY",
+      "category": "industrials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "NSC",
+      "market": "US_EQUITY",
+      "category": "industrials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "ETN",
+      "market": "US_EQUITY",
+      "category": "industrials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "PH",
+      "market": "US_EQUITY",
+      "category": "industrials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "MMM",
+      "market": "US_EQUITY",
+      "category": "industrials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "WM",
+      "market": "US_EQUITY",
+      "category": "industrials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "NEM",
+      "market": "US_EQUITY",
+      "category": "materials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "FCX",
+      "market": "US_EQUITY",
+      "category": "materials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "APD",
+      "market": "US_EQUITY",
+      "category": "materials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "ECL",
+      "market": "US_EQUITY",
+      "category": "materials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "COF",
+      "market": "US_EQUITY",
+      "category": "financials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "BX",
+      "market": "US_EQUITY",
+      "category": "financials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "KKR",
+      "market": "US_EQUITY",
+      "category": "financials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "CB",
+      "market": "US_EQUITY",
+      "category": "financials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "PGR",
+      "market": "US_EQUITY",
+      "category": "financials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "TRV",
+      "market": "US_EQUITY",
+      "category": "financials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "MET",
+      "market": "US_EQUITY",
+      "category": "financials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "ICE",
+      "market": "US_EQUITY",
+      "category": "financials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "CME",
+      "market": "US_EQUITY",
+      "category": "financials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "ADP",
+      "market": "US_EQUITY",
+      "category": "industrials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "MSCI",
+      "market": "US_EQUITY",
+      "category": "financials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "MCO",
+      "market": "US_EQUITY",
+      "category": "financials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "ROST",
+      "market": "US_EQUITY",
+      "category": "consumer_discretionary",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "SBUX",
+      "market": "US_EQUITY",
+      "category": "consumer_discretionary",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "LOW",
+      "market": "US_EQUITY",
+      "category": "consumer_discretionary",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "TGT",
+      "market": "US_EQUITY",
+      "category": "consumer_discretionary",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "MAR",
+      "market": "US_EQUITY",
+      "category": "consumer_discretionary",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "GM",
+      "market": "US_EQUITY",
+      "category": "consumer_discretionary",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "F",
+      "market": "US_EQUITY",
+      "category": "consumer_discretionary",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "ABNB",
+      "market": "US_EQUITY",
+      "category": "consumer_discretionary",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "DASH",
+      "market": "US_EQUITY",
+      "category": "consumer_discretionary",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "RCL",
+      "market": "US_EQUITY",
+      "category": "consumer_discretionary",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "CCL",
+      "market": "US_EQUITY",
+      "category": "consumer_discretionary",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "AAL",
+      "market": "US_EQUITY",
+      "category": "industrials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "DAL",
+      "market": "US_EQUITY",
+      "category": "industrials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "LUV",
+      "market": "US_EQUITY",
+      "category": "industrials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "RIVN",
+      "market": "US_EQUITY",
+      "category": "consumer_discretionary",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "LCID",
+      "market": "US_EQUITY",
+      "category": "consumer_discretionary",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "COIN",
+      "market": "US_EQUITY",
+      "category": "financials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "MARA",
+      "market": "US_EQUITY",
+      "category": "financials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "RIOT",
+      "market": "US_EQUITY",
+      "category": "financials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "SMCI",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "ARM",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "ASML",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "TSM",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "SAP",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "SONY",
+      "market": "US_EQUITY",
+      "category": "consumer_discretionary",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "BABA",
+      "market": "US_EQUITY",
+      "category": "consumer_discretionary",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "PDD",
+      "market": "US_EQUITY",
+      "category": "consumer_discretionary",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "JD",
+      "market": "US_EQUITY",
+      "category": "consumer_discretionary",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "PLD",
+      "market": "US_EQUITY",
+      "category": "real_estate",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "AMT",
+      "market": "US_EQUITY",
+      "category": "real_estate",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "EQIX",
+      "market": "US_EQUITY",
+      "category": "real_estate",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "O",
+      "market": "US_EQUITY",
+      "category": "real_estate",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "PSA",
+      "market": "US_EQUITY",
+      "category": "real_estate",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "CEG",
+      "market": "US_EQUITY",
+      "category": "utilities",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "NEE",
+      "market": "US_EQUITY",
+      "category": "utilities",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "SO",
+      "market": "US_EQUITY",
+      "category": "utilities",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "DUK",
+      "market": "US_EQUITY",
+      "category": "utilities",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "AEP",
+      "market": "US_EQUITY",
+      "category": "utilities",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "FDX",
+      "market": "US_EQUITY",
+      "category": "industrials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "NOC",
+      "market": "US_EQUITY",
+      "category": "industrials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "GD",
+      "market": "US_EQUITY",
+      "category": "industrials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "HWM",
+      "market": "US_EQUITY",
+      "category": "industrials",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "MDB",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "ZS",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "DDOG",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "NET",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "WDAY",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "TEAM",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "DOCU",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "OKTA",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "U",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "MRNA",
+      "market": "US_EQUITY",
+      "category": "health_care",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "ZM",
+      "market": "US_EQUITY",
+      "category": "technology",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    },
+    {
+      "symbol": "ROKU",
+      "market": "US_EQUITY",
+      "category": "communication_services",
+      "reason_for_inclusion": "High liquidity, strong institutional participation, and consistent use in tactical and cross-sectional research.",
+      "notes": "Expansion-only symbol for wider discovery coverage."
+    }
+  ]
+}

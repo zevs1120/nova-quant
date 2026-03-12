@@ -1,0 +1,128 @@
+{
+  "seed_id": "reliability_scenario_pack_v1",
+  "generated_at": "2026-03-09T00:00:00.000Z",
+  "description": "Deterministic reliability and adversarial stress scenarios for Nova Quant research core.",
+  "scenarios": [
+    {
+      "scenario_id": "elevated_volatility",
+      "title": "Elevated Volatility Regime",
+      "category": "market_stress",
+      "severity": "high",
+      "targets": ["regime_engine", "risk_bucket_system", "decision_layer"],
+      "parameters": {
+        "volatility_stress": 0.94,
+        "breadth_ratio": 0.44,
+        "risk_on_off_score": 0.48,
+        "risk_on_off_state": "Neutral",
+        "safety_mode": "trade light"
+      }
+    },
+    {
+      "scenario_id": "risk_off_regime",
+      "title": "Risk-Off Regime Shock",
+      "category": "market_stress",
+      "severity": "critical",
+      "targets": ["regime_engine", "risk_bucket_system", "decision_layer"],
+      "parameters": {
+        "volatility_stress": 0.9,
+        "breadth_ratio": 0.3,
+        "risk_on_off_score": 0.82,
+        "risk_on_off_state": "Risk-Off",
+        "safety_mode": "do not trade"
+      }
+    },
+    {
+      "scenario_id": "concentrated_exposure",
+      "title": "Concentrated Exposure Overload",
+      "category": "portfolio_stress",
+      "severity": "high",
+      "targets": ["risk_bucket_system", "decision_layer"],
+      "parameters": {
+        "signals_to_concentrate": 8,
+        "position_pct": 14,
+        "shared_sector": "CONCENTRATED_THEME"
+      }
+    },
+    {
+      "scenario_id": "high_slippage",
+      "title": "High Slippage Stress",
+      "category": "execution_stress",
+      "severity": "high",
+      "targets": ["walk_forward_validation", "candidate_validation"],
+      "parameters": {
+        "execution_profile_id": "exec-realism.backtest.high-slippage.v1",
+        "slippage_multiplier": 2.4,
+        "spread_multiplier": 1.9
+      }
+    },
+    {
+      "scenario_id": "poor_fills",
+      "title": "Poor Fill Quality",
+      "category": "execution_stress",
+      "severity": "critical",
+      "targets": ["walk_forward_validation", "candidate_validation"],
+      "parameters": {
+        "execution_profile_id": "exec-realism.backtest.poor-fills.v1",
+        "fill_entry": "conservative_fill",
+        "fill_exit": "conservative_fill",
+        "spread_multiplier": 2.3,
+        "slippage_multiplier": 2.6
+      }
+    },
+    {
+      "scenario_id": "strategy_starvation",
+      "title": "Strategy Starvation",
+      "category": "discovery_stress",
+      "severity": "high",
+      "targets": ["discovery_engine"],
+      "parameters": {
+        "max_candidates": 20,
+        "max_hypotheses": 8,
+        "max_templates_per_hypothesis": 4,
+        "min_feature_overlap": 99,
+        "market": "CRYPTO",
+        "family": "Relative Strength / Cross-Sectional"
+      }
+    },
+    {
+      "scenario_id": "strategy_crowding_fake_diversification",
+      "title": "Strategy Crowding / Fake Diversification",
+      "category": "portfolio_stress",
+      "severity": "high",
+      "targets": ["portfolio_simulation"],
+      "parameters": {
+        "crowded_strategy_count": 10,
+        "shared_template": "crowded_momentum_template",
+        "shared_asset": "SPY"
+      }
+    },
+    {
+      "scenario_id": "degraded_candidate_quality",
+      "title": "Degraded Candidate Quality",
+      "category": "discovery_stress",
+      "severity": "high",
+      "targets": ["discovery_engine", "governance_workflow"],
+      "parameters": {
+        "validation": {
+          "stage_2": {
+            "min_post_cost_return": 0.08,
+            "max_drawdown": 0.12,
+            "min_sharpe_proxy": 0.45
+          },
+          "stage_3": {
+            "min_parameter_stability_score": 0.72,
+            "min_regime_stability_score": 0.72,
+            "min_plus50_cost_return": 0.02
+          },
+          "stage_4": {
+            "min_positive_window_ratio": 0.8,
+            "min_avg_test_return": 0.015
+          },
+          "stage_5": {
+            "min_diversification_score": 0.62
+          }
+        }
+      }
+    }
+  ]
+}

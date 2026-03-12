@@ -1,0 +1,68 @@
+import { MarketRepository } from '../db/repository.js';
+import type { Timeframe } from '../types.js';
+import { logInfo, logWarn } from '../utils/log.js';
+import { timeframeToMs } from '../utils/time.js';
+import { detectGaps } from './normalize.js';
+import { fetchBinanceKlines } from './binanceIncremental.js';
+
+export async function validateAndRepair(params: {
+  repo: MarketRepository;
+  timeframes: Timeframe[];
+  lookbackBars: number;
+}): Promise<void> {
+  const assets = params.repo.listAssetIdsByMarket();
+
+  for (const asset of assets) {
+    for (const tf of params.timeframes) {
+      const latest = params.repo.getLatestTsOpen(asset.asset_id, tf);
+      if (!latest) continue;
+
+      const step = timeframeToMs(tf);
+      const start = latest - params.lookbackBars * step;
+      const tsList = params.repo.listBarsRange(asset.asset_id, tf, start, latest);
+      const gaps = detectGaps(tsList, tf);
+
+      if (!gaps.length) continue;
+
+      for (const gap of gaps) {
+        const detail = `Gap ${asset.symbol} ${tf}: from=${gap.from} to=${gap.to} missing=${gap.missingBars}`;
+        params.repo.logAnomaly({
+          assetId: asset.asset_id,
+          timeframe: tf,
+          tsOpen: gap.from,
+          anomalyType: 'MISSING_BARS',
+          detail
+        });
+
+        if (asset.market === 'CRYPTO' && asset.venue === 'BINANCE_UM') {
+          try {
+            const bars = await fetchBinanceKlines({
+              symbol: asset.symbol,
+              timeframe: tf,
+              startTime: gap.from - step,
+              endTime: gap.to + step,
+              limit: Math.max(100, gap.missingBars + 10)
+            });
+            if (bars.length) {
+              params.repo.upsertOhlcvBars(asset.asset_id, tf, bars, 'BINANCE_REPAIR');
+              logInfo('Gap repaired from Binance REST', { symbol: asset.symbol, timeframe: tf, inserted: bars.length });
+            }
+          } catch (error) {
+            logWarn('Failed gap repair from Binance REST', {
+              symbol: asset.symbol,
+              timeframe: tf,
+              error: error instanceof Error ? error.message : String(error)
+            });
+          }
+        } else {
+          logWarn('Gap detected (no automatic repair for this market yet)', {
+            symbol: asset.symbol,
+            market: asset.market,
+            timeframe: tf,
+            missingBars: gap.missingBars
+          });
+        }
+      }
+    }
+  }
+}
