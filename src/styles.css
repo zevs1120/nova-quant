@@ -4,7 +4,7 @@
   --surface-subtle: #f7f7f8;
   --surface-elevated: #f2f3f5;
   --surface-shell: rgba(255, 255, 255, 0.9);
-  --surface-toolbar: rgba(255, 255, 255, 0.82);
+  --surface-toolbar: rgba(255, 255, 255, 0.96);
   --surface-card-strong: rgba(255, 255, 255, 0.88);
   --border: rgba(0, 0, 0, 0.06);
   --text-primary: rgba(0, 0, 0, 0.92);
@@ -2890,26 +2890,6 @@ body.is-standalone .top-bar {
   padding-top: calc(var(--safe-top) + 12px);
 }
 
-.top-bar,
-.system-status-bar,
-.mode-strip {
-  position: sticky;
-  z-index: 12;
-}
-
-.top-bar {
-  top: 0;
-}
-
-.system-status-bar,
-.ai-status-bar {
-  top: 0;
-}
-
-.mode-strip {
-  top: 0;
-}
-
 .brand {
   font-size: 13px;
   letter-spacing: 1.2px;
@@ -3161,6 +3141,10 @@ body.keyboard-open .ai-input-dock {
 
 .screen-transition {
   animation-duration: 220ms;
+}
+
+.main-content-today {
+  padding-top: 16px;
 }
 
 .ai-tab-shell {
