@@ -3446,3 +3446,150 @@ body.keyboard-open .ai-input-dock {
     height: 10px;
   }
 }
+
+/* Final control-system unification */
+.glass-card,
+.holding-card,
+.status-box,
+.modal-card,
+.sheet-card,
+.chat-sheet {
+  border-radius: 16px;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+}
+
+.glass-card,
+.holding-card,
+.modal-card,
+.sheet-card,
+.chat-sheet {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.card-title {
+  font-size: 22px;
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+}
+
+.muted,
+.detail-label,
+.quick-access-desc,
+.status-line {
+  font-size: 14px;
+  line-height: 1.42;
+}
+
+.status-box {
+  padding: 18px;
+}
+
+.status-box h2 {
+  font-size: 22px;
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+}
+
+.primary-btn,
+.secondary-btn,
+.ghost-btn,
+.chat-input,
+.ai-input,
+.quick-access-row,
+.more-list-row,
+.chat-suggest-btn,
+.ai-chip {
+  transition:
+    transform 160ms var(--ease-spring),
+    background-color 180ms var(--ease-spring),
+    border-color 180ms var(--ease-spring),
+    box-shadow 180ms var(--ease-spring),
+    opacity 180ms var(--ease-spring);
+}
+
+.primary-btn,
+.secondary-btn,
+.ghost-btn {
+  min-height: 46px;
+  border-radius: 12px;
+  font-weight: 600;
+}
+
+.primary-btn {
+  background: #165dff;
+  color: #ffffff;
+  box-shadow: 0 8px 18px rgba(22, 93, 255, 0.2);
+}
+
+.secondary-btn,
+.ghost-btn {
+  background: rgba(247, 247, 248, 0.96);
+  border-color: rgba(15, 23, 42, 0.08);
+}
+
+.primary-btn:active,
+.secondary-btn:active,
+.ghost-btn:active,
+.quick-access-row:active,
+.more-list-row:active,
+.chat-suggest-btn:active,
+.ai-chip:active {
+  transform: scale(0.98);
+}
+
+.chat-input,
+.ai-input {
+  min-height: 46px;
+  border-radius: 14px;
+  padding: 11px 14px;
+}
+
+.empty-card,
+.ai-empty,
+.chat-empty {
+  border-radius: 16px;
+  border: 1px dashed rgba(15, 23, 42, 0.08);
+  background: rgba(247, 247, 248, 0.92);
+}
+
+.modal-card,
+.sheet-card,
+.chat-sheet {
+  padding: 18px;
+}
+
+.sheet-card,
+.chat-sheet {
+  border-radius: 24px 24px 18px 18px;
+}
+
+.chat-input-row,
+.ai-input-row {
+  gap: 10px;
+}
+
+.quick-access-row,
+.more-list-row {
+  min-height: 72px;
+}
+
+.more-list-row {
+  padding-top: 16px;
+  padding-bottom: 16px;
+}
+
+.detail-row {
+  padding-bottom: 10px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
