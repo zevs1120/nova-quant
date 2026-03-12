@@ -72,6 +72,14 @@ const initialData = {
 
 const EXPLICIT_DEMO_MODE = import.meta.env.VITE_DEMO_MODE === '1';
 
+function detectDisplayMode() {
+  if (typeof window === 'undefined') return 'browser';
+  if (window.matchMedia?.('(display-mode: standalone)').matches) return 'standalone';
+  if (window.matchMedia?.('(display-mode: fullscreen)').matches) return 'fullscreen';
+  if (window.navigator?.standalone) return 'standalone';
+  return 'browser';
+}
+
 async function fetchJson(url, options) {
   const response = await fetch(url, options);
   if (!response.ok) {
@@ -150,6 +158,7 @@ function calcStreak(rows = [], anchorKey, stepDays = 1) {
 }
 
 export default function App() {
+  const [displayMode, setDisplayMode] = useState(() => detectDisplayMode());
   const [activeTab, setActiveTab] = useState('today');
   const [moreSection, setMoreSection] = useState('menu');
   const [assetClass, setAssetClass] = useLocalStorage('nova-quant-asset-class', 'US_STOCK', {
@@ -417,6 +426,34 @@ export default function App() {
       clearInterval(refresh);
     };
   }, [assetClass, market, chatUserId, refreshNonce]);
+
+  useEffect(() => {
+    const syncDisplayMode = () => setDisplayMode(detectDisplayMode());
+
+    syncDisplayMode();
+    window.addEventListener('resize', syncDisplayMode, { passive: true });
+    window.addEventListener('orientationchange', syncDisplayMode, { passive: true });
+    window.visualViewport?.addEventListener('resize', syncDisplayMode, { passive: true });
+
+    const standaloneQuery = window.matchMedia?.('(display-mode: standalone)');
+    const fullscreenQuery = window.matchMedia?.('(display-mode: fullscreen)');
+    standaloneQuery?.addEventListener?.('change', syncDisplayMode);
+    fullscreenQuery?.addEventListener?.('change', syncDisplayMode);
+
+    return () => {
+      window.removeEventListener('resize', syncDisplayMode);
+      window.removeEventListener('orientationchange', syncDisplayMode);
+      window.visualViewport?.removeEventListener('resize', syncDisplayMode);
+      standaloneQuery?.removeEventListener?.('change', syncDisplayMode);
+      fullscreenQuery?.removeEventListener?.('change', syncDisplayMode);
+    };
+  }, []);
+
+  useEffect(() => {
+    const modalOpen = aboutOpen || showOnboarding;
+    document.body.classList.toggle('app-modal-open', modalOpen);
+    return () => document.body.classList.remove('app-modal-open');
+  }, [aboutOpen, showOnboarding]);
 
   useEffect(() => {
     if (!EXPLICIT_DEMO_MODE || !rawData) return;
@@ -978,8 +1015,8 @@ export default function App() {
       : TAB_META[activeTab]?.label || 'Today';
 
   return (
-    <div className="app-bg">
-      <div className="device-shell">
+    <div className={`app-bg app-bg-${displayMode}`}>
+      <div className={`device-shell device-shell-${displayMode}`} data-active-tab={activeTab}>
         <header className="top-bar">
           <div>
             <p className="brand">{t('app.brand')}</p>
@@ -1023,14 +1060,15 @@ export default function App() {
           </div>
         ) : null}
 
-        <main className="main-content">
+        <main className={`main-content main-content-${activeTab}`}>
           <div className="screen-transition" key={`${activeTab}-${moreSection}-${uiMode}`}>
             {renderScreen()}
           </div>
         </main>
 
         <nav
-          className="bottom-nav"
+          className="bottom-nav app-tabbar"
+          aria-label="Primary navigation"
           style={{
             gridTemplateColumns: 'repeat(4, minmax(0, 1fr))'
           }}
