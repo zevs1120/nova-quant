@@ -82,6 +82,15 @@ npm run build
 - `npm run build`
 - `npm run package:source` (build a diligence-ready clean source archive)
 
+## Vercel Deploy Notes
+
+- Frontend build: `npm run build`
+- Static output: `dist/`
+- API runtime: `api/[...route].ts` delegates to `src/server/api/app.ts`
+- On Vercel, SQLite defaults to `/tmp/nova-quant/quant.db` unless `DB_PATH` is explicitly provided
+- The Vercel runtime will auto-create schema on first cold start, but it will start with an empty ephemeral database unless you connect a persistent backend later
+- For investor walkthroughs, use the in-app `Demo Mode / 体验 Demo` switch after deploy
+
 ## Clean Source Package (For Advisors / DD)
 
 Create a clean source package:

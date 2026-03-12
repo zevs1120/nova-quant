@@ -30,3 +30,4 @@ __MACOSX/
 *.tar.gz
 npm-debug.log*
 yarn-error.log*
+.vercel

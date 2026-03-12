@@ -440,88 +440,86 @@ export default function TodayTab({
 
   return (
     <section className="stack-gap">
-      <article
-        className="glass-card beginner-best-suggestion"
-        role="button"
-        tabIndex={0}
-        onClick={() => featuredSignal && setActiveSignal(featuredSignal)}
-        onKeyDown={(event) => {
-          if ((event.key === 'Enter' || event.key === ' ') && featuredSignal) {
-            event.preventDefault();
-            setActiveSignal(featuredSignal);
-          }
-        }}
-      >
-        <div className="card-header">
-          <div>
-            <h3 className="card-title">Today&apos;s Best Action</h3>
-            <p className="muted">The clearest action card on the board right now.</p>
+      <section className="today-fold">
+        <article
+          className="glass-card beginner-best-suggestion today-action-card-compact"
+          role="button"
+          tabIndex={0}
+          onClick={() => featuredSignal && setActiveSignal(featuredSignal)}
+          onKeyDown={(event) => {
+            if ((event.key === 'Enter' || event.key === ' ') && featuredSignal) {
+              event.preventDefault();
+              setActiveSignal(featuredSignal);
+            }
+          }}
+        >
+          <div className="card-header today-action-header">
+            <div>
+              <h3 className="card-title">Today&apos;s Best Action</h3>
+              <p className="muted">The clearest move on the board right now.</p>
+            </div>
+            {featuredSignal ? <span className="badge badge-triggered">{confidenceText(featuredSignal)}</span> : null}
           </div>
-          {featuredSignal ? <span className="badge badge-triggered">{confidenceText(featuredSignal)}</span> : null}
-        </div>
-        {!featuredSignal ? (
-          <p className="muted status-line">No high-quality opportunity now. Wait for next clean setup.</p>
-        ) : (
-          <>
-            <p className="today-action-line">
-              {featuredSignal.symbol || '--'} · {featuredSignal._actionable ? String(signalDirection(featuredSignal)).toUpperCase() : 'WAIT'}
-            </p>
-            <div className="today-action-grid">
-              <div className="status-box">
-                <p className="muted">Buy Zone</p>
-                <h2>{entryRangeText(featuredSignal)}</h2>
+          {!featuredSignal ? (
+            <p className="muted status-line">No high-quality opportunity now. Wait for next clean setup.</p>
+          ) : (
+            <>
+              <p className="today-action-line">
+                {featuredSignal.symbol || '--'} · {featuredSignal._actionable ? String(signalDirection(featuredSignal)).toUpperCase() : 'WAIT'}
+              </p>
+              <div className="today-action-grid">
+                <div className="status-box">
+                  <p className="muted">Buy Zone</p>
+                  <h2>{entryRangeText(featuredSignal)}</h2>
+                </div>
+                <div className="status-box">
+                  <p className="muted">Size</p>
+                  <h2>{suggestedPositionText(featuredSignal)}</h2>
+                </div>
+                <div className="status-box">
+                  <p className="muted">Take profit</p>
+                  <h2>{takeProfitText(featuredSignal)}</h2>
+                </div>
+                <div className="status-box">
+                  <p className="muted">Stop loss</p>
+                  <h2>{stopLossText(featuredSignal)}</h2>
+                </div>
               </div>
-              <div className="status-box">
-                <p className="muted">Take profit</p>
-                <h2>{takeProfitText(featuredSignal)}</h2>
+              <p className="muted status-line">AI quant strategy · {generatedText(featuredSignal)}</p>
+              <div className="action-row today-action-row">
+                <button
+                  type="button"
+                  className="primary-btn today-action-cta"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    handleMainAction();
+                  }}
+                >
+                  {featuredSignal._actionable ? 'Take Action' : buttonText}
+                </button>
               </div>
-              <div className="status-box">
-                <p className="muted">Stop loss</p>
-                <h2>{stopLossText(featuredSignal)}</h2>
-              </div>
-              <div className="status-box">
-                <p className="muted">Suggested size</p>
-                <h2>{suggestedPositionText(featuredSignal)}</h2>
-              </div>
-            </div>
-            <p className="muted status-line">Signal strength: {confidenceText(featuredSignal)}</p>
-            <p className="muted status-line">
-              {strategySourceText(featuredSignal)} · Updated: {generatedText(featuredSignal)}
-            </p>
-            {sourceCaption(featuredSignal, investorDemoEnabled) ? (
-              <p className="muted status-line">{sourceCaption(featuredSignal, investorDemoEnabled)}</p>
-            ) : null}
-            <div className="action-row" style={{ marginTop: 12 }}>
-              <button
-                type="button"
-                className="primary-btn today-action-cta"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  handleMainAction();
-                }}
-              >
-                {featuredSignal._actionable ? 'Take Action' : buttonText}
-              </button>
-            </div>
-          </>
-        )}
-      </article>
+            </>
+          )}
+        </article>
 
-      <article className="glass-card beginner-today-overall">
-        <h3 className="card-title">{overall.headline}</h3>
-        <p className="muted status-line">{overall.subtitle}</p>
-      </article>
+        <div className="today-status-grid">
+          <article className="glass-card beginner-today-overall today-compact-info-card">
+            <h3 className="card-title">{overall.headline}</h3>
+            <p className="muted status-line">{overall.subtitle}</p>
+          </article>
 
-      <article className="glass-card beginner-risk-card">
-        <h3 className="card-title">Risk</h3>
-        <div className="simple-risk-track" aria-label={`Risk level ${risk.label}`}>
-          <div className={`simple-risk-fill simple-risk-${risk.level}`} />
+          <article className="glass-card beginner-risk-card today-compact-info-card">
+            <h3 className="card-title">Risk</h3>
+            <div className="simple-risk-track" aria-label={`Risk level ${risk.label}`}>
+              <div className={`simple-risk-fill simple-risk-${risk.level}`} />
+            </div>
+            <p className="status-line">
+              {risk.icon} {risk.label}
+            </p>
+            <p className="muted status-line">{risk.explanation}</p>
+          </article>
         </div>
-        <p className="status-line">
-          {risk.icon} {risk.label}
-        </p>
-        <p className="muted status-line">{risk.explanation}</p>
-      </article>
+      </section>
 
       {historySignals.length ? (
         <article className="glass-card">

@@ -996,14 +996,16 @@ export default function App() {
           </div>
         </header>
 
-        <SystemStatusBar
-          connected={hasLoaded && uiData?.config?.runtime?.source_status === 'DB_BACKED'}
-          riskMode={riskProfileKey}
-          uiMode={uiMode}
-          currency="USD"
-          t={t}
-          locale={locale}
-        />
+        {activeTab !== 'more' ? (
+          <SystemStatusBar
+            connected={hasLoaded && uiData?.config?.runtime?.source_status === 'DB_BACKED'}
+            riskMode={riskProfileKey}
+            uiMode={uiMode}
+            currency="USD"
+            t={t}
+            locale={locale}
+          />
+        ) : null}
 
         {activeTab !== 'more' ? (
           <div className="mode-strip">

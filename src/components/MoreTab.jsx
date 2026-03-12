@@ -169,59 +169,57 @@ export default function MoreTab({
   }
 
   return (
-    <section className="stack-gap">
-      <article className="glass-card">
-        <div className="more-list">
-          <button type="button" className="more-list-row" onClick={() => onSectionChange('group:review')}>
-            <span>
-              <span className="quick-access-title">Review</span>
-              <span className="quick-access-desc">Weekly recap &amp; discipline progress</span>
-            </span>
-            <span className="more-list-arrow">›</span>
-          </button>
-          <button type="button" className="more-list-row" onClick={() => onSectionChange('group:system')}>
-            <span>
-              <span className="quick-access-title">System</span>
-              <span className="quick-access-desc">Signals, safety &amp; performance</span>
-            </span>
-            <span className="more-list-arrow">›</span>
-          </button>
-          <button type="button" className="more-list-row" onClick={() => onSectionChange('group:market')}>
-            <span>
-              <span className="quick-access-title">Market Notes</span>
-              <span className="quick-access-desc">Broader market context</span>
-            </span>
-            <span className="more-list-arrow">›</span>
-          </button>
-          <button type="button" className="more-list-row" onClick={() => onSectionChange('settings')}>
-            <span>
-              <span className="quick-access-title">Settings</span>
-              <span className="quick-access-desc">App preferences &amp; mode</span>
-            </span>
-            <span className="more-list-arrow">›</span>
-          </button>
-          <button type="button" className="more-list-row" onClick={onOpenAbout}>
-            <span>
-              <span className="quick-access-title">About</span>
-              <span className="quick-access-desc">App info &amp; support</span>
-            </span>
-            <span className="more-list-arrow">›</span>
-          </button>
-          <button type="button" className="more-list-row" onClick={onToggleDemo}>
-            <span>
-              <span className="quick-access-title">Demo Mode</span>
-              <span className="quick-access-desc">Reset demo data &amp; walkthrough</span>
-            </span>
-            <span className={`badge ${investorDemoEnabled ? 'badge-triggered' : 'badge-neutral'}`}>
-              {investorDemoEnabled ? 'On' : 'Off'}
-            </span>
-          </button>
-        </div>
+    <section className="stack-gap more-screen">
+      <div className="more-list">
+        <button type="button" className="more-list-row" onClick={() => onSectionChange('group:review')}>
+          <span>
+            <span className="quick-access-title">Review</span>
+            <span className="quick-access-desc">Weekly recap &amp; discipline progress</span>
+          </span>
+          <span className="more-list-arrow">›</span>
+        </button>
+        <button type="button" className="more-list-row" onClick={() => onSectionChange('group:system')}>
+          <span>
+            <span className="quick-access-title">System</span>
+            <span className="quick-access-desc">Signals, safety &amp; performance</span>
+          </span>
+          <span className="more-list-arrow">›</span>
+        </button>
+        <button type="button" className="more-list-row" onClick={() => onSectionChange('group:market')}>
+          <span>
+            <span className="quick-access-title">Market Notes</span>
+            <span className="quick-access-desc">Broader market context</span>
+          </span>
+          <span className="more-list-arrow">›</span>
+        </button>
+        <button type="button" className="more-list-row" onClick={() => onSectionChange('settings')}>
+          <span>
+            <span className="quick-access-title">Settings</span>
+            <span className="quick-access-desc">App preferences &amp; mode</span>
+          </span>
+          <span className="more-list-arrow">›</span>
+        </button>
+        <button type="button" className="more-list-row" onClick={onOpenAbout}>
+          <span>
+            <span className="quick-access-title">About</span>
+            <span className="quick-access-desc">App info &amp; support</span>
+          </span>
+          <span className="more-list-arrow">›</span>
+        </button>
+        <button type="button" className="more-list-row" onClick={onToggleDemo}>
+          <span>
+            <span className="quick-access-title">Demo Mode</span>
+            <span className="quick-access-desc">Reset demo data &amp; walkthrough</span>
+          </span>
+          <span className={`badge ${investorDemoEnabled ? 'badge-triggered' : 'badge-neutral'}`}>
+            {investorDemoEnabled ? 'On' : 'Off'}
+          </span>
+        </button>
+      </div>
 
-        <p className="muted status-line">
-          Check-in streak: {discipline?.checkinStreak || 0} days · Weekly review streak: {discipline?.weeklyStreak || 0} weeks
-        </p>
-      </article>
+      <p className="muted status-line more-screen-meta">
+        Check-in streak: {discipline?.checkinStreak || 0} days · Weekly review streak: {discipline?.weeklyStreak || 0} weeks
+      </p>
     </section>
   );
 }

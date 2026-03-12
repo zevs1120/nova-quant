@@ -125,3 +125,27 @@ Excluded by default:
 - `node_modules`, `dist`, `build`, `coverage`, `artifacts`
 - `data/*.db`, `data/*.db-wal`, `data/*.db-shm`, `*.sqlite*`, `*.wal`, `*.shm`
 - `__MACOSX`, `.DS_Store`, local logs/tmp files
+
+## 11) Vercel Deployment
+
+Expected Vercel settings:
+
+- Framework preset: `Vite`
+- Build command: `npm run build`
+- Output directory: `dist`
+
+API path:
+
+- `api/[...route].ts` is the Vercel catch-all wrapper
+- It delegates all `/api/*` traffic to `src/server/api/app.ts`
+
+Database behavior on Vercel:
+
+- If `DB_PATH` is not set, the server defaults to `/tmp/nova-quant/quant.db`
+- Schema is auto-created on cold start
+- This database is ephemeral; it is suitable for demo/runtime continuity within a function lifecycle, not long-term persistence
+
+Recommended env for an investor demo deployment:
+
+- `VITE_DEMO_MODE=0` if you want API-first default runtime with explicit in-app demo switching
+- `VITE_DEMO_MODE=1` only if you want the entire app to open in explicit demo runtime by default
