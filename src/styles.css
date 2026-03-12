@@ -35,8 +35,9 @@
   --viewport-offset-top: 0px;
   --keyboard-inset: 0px;
   --shell-max-width: 460px;
-  --tabbar-height: 68px;
-  --tabbar-total-height: calc(var(--tabbar-height) + var(--safe-bottom) + 10px);
+  --tabbar-height: 54px;
+  --tabbar-safe-gap: max(6px, var(--safe-bottom));
+  --tabbar-total-height: calc(var(--tabbar-height) + var(--tabbar-safe-gap) + 10px);
   --shell-padding-x: 16px;
   --toolbar-blur: blur(22px) saturate(1.1);
   --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
@@ -3005,7 +3006,7 @@ body.is-standalone .top-bar {
   bottom: 0;
   transform: translateX(-50%);
   width: min(100%, var(--shell-max-width));
-  padding: 8px 12px calc(var(--safe-bottom) + 10px);
+  padding: 6px 10px var(--tabbar-safe-gap);
   background: rgba(255, 255, 255, 0.92);
   border-top: 1px solid rgba(15, 23, 42, 0.06);
   backdrop-filter: var(--toolbar-blur);
@@ -3035,10 +3036,11 @@ body.is-standalone .bottom-nav {
 }
 
 .tab-btn {
-  min-height: 58px;
+  min-height: var(--tabbar-height);
   border-radius: 14px;
   font-size: 12px;
   gap: 3px;
+  padding: 8px 4px 6px;
 }
 
 .tab-btn.active {
