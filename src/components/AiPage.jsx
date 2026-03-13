@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import Skeleton from './Skeleton';
 import { useNovaAssistant } from '../hooks/useNovaAssistant';
+import { useDemoAssistant } from '../hooks/useDemoAssistant';
 
 const COPILOT_SECTIONS = ['VERDICT', 'PLAN', 'WHY', 'RISK', 'EVIDENCE'];
 const QUICK_QUESTIONS = [
@@ -120,42 +121,13 @@ function CopilotStructuredReply({ message, onNavigate }) {
   );
 }
 
-export default function AiPage({ quantState, seedRequest, onNavigate, userId, baseContext }) {
+function AiConversationShell({ messages, input, setInput, streaming, error, sendMessage, onNavigate }) {
   const listRef = useRef(null);
-  const isDemoMode = Boolean(quantState?.performance?.investor_demo);
-  const {
-    messages,
-    input,
-    setInput,
-    streaming,
-    error,
-    sendMessage
-  } = useNovaAssistant({
-    userId,
-    seedRequest,
-    contextBase: {
-      page: 'ai',
-      market: baseContext?.market,
-      assetClass: baseContext?.assetClass,
-      timeframe: baseContext?.timeframe,
-      riskProfileKey: baseContext?.riskProfileKey,
-      uiMode: baseContext?.uiMode
-    }
-  });
 
   useEffect(() => {
     if (!listRef.current) return;
     listRef.current.scrollTop = listRef.current.scrollHeight;
   }, [messages, streaming]);
-
-  useEffect(() => {
-    if (!isDemoMode || messages.length) return;
-    void sendMessage('Why this signal?', {
-      page: 'today',
-      market: baseContext?.market,
-      assetClass: baseContext?.assetClass
-    });
-  }, [isDemoMode, messages.length, sendMessage, baseContext?.market, baseContext?.assetClass]);
 
   return (
     <section className="stack-gap ai-tab-shell">
@@ -225,5 +197,76 @@ export default function AiPage({ quantState, seedRequest, onNavigate, userId, ba
         </button>
       </form>
     </section>
+  );
+}
+
+function LiveAiConversation({ seedRequest, onNavigate, userId, baseContext }) {
+  const assistant = useNovaAssistant({
+    userId,
+    seedRequest,
+    contextBase: {
+      page: 'ai',
+      market: baseContext?.market,
+      assetClass: baseContext?.assetClass,
+      timeframe: baseContext?.timeframe,
+      riskProfileKey: baseContext?.riskProfileKey,
+      uiMode: baseContext?.uiMode
+    }
+  });
+
+  return <AiConversationShell {...assistant} onNavigate={onNavigate} />;
+}
+
+function DemoAiConversation({ quantState, seedRequest, onNavigate, userId, baseContext }) {
+  const assistant = useDemoAssistant({
+    userId,
+    seedRequest,
+    demoState: quantState,
+    contextBase: {
+      page: 'ai',
+      market: baseContext?.market,
+      assetClass: baseContext?.assetClass,
+      timeframe: baseContext?.timeframe,
+      riskProfileKey: baseContext?.riskProfileKey,
+      uiMode: baseContext?.uiMode
+    }
+  });
+  const { messages, sendMessage } = assistant;
+
+  useEffect(() => {
+    if (seedRequest?.message) return;
+    if (messages.length) return;
+    void sendMessage('Why this signal?', {
+      page: 'today',
+      market: baseContext?.market,
+      assetClass: baseContext?.assetClass
+    });
+  }, [seedRequest?.message, messages.length, sendMessage, baseContext?.market, baseContext?.assetClass]);
+
+  return <AiConversationShell {...assistant} onNavigate={onNavigate} />;
+}
+
+export default function AiPage({ quantState, seedRequest, onNavigate, userId, baseContext }) {
+  const isDemoMode = Boolean(quantState?.performance?.investor_demo);
+
+  if (isDemoMode) {
+    return (
+      <DemoAiConversation
+        quantState={quantState}
+        seedRequest={seedRequest}
+        onNavigate={onNavigate}
+        userId={userId}
+        baseContext={baseContext}
+      />
+    );
+  }
+
+  return (
+    <LiveAiConversation
+      seedRequest={seedRequest}
+      onNavigate={onNavigate}
+      userId={userId}
+      baseContext={baseContext}
+    />
   );
 }
