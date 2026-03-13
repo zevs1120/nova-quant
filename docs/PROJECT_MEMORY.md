@@ -238,6 +238,40 @@ Key reality changes:
 - `ChatAssistant`
 all route through `/api/chat` and share the same backend thread/memory/tooling service.
 
+## 14) AI-Native Research Assistant Upgrade (2026-03-14)
+
+Nova Assistant is now able to operate as a quant research assistant, not only as a page/signal explainer.
+
+New research primitives:
+- factor taxonomy registry
+- factor metadata cards
+- regime taxonomy registry
+- strategy metadata registry
+- cross-sectional model catalog
+- failed-idea / failed-experiment registry
+- research doctrine summary layer
+
+New assistant research capabilities:
+- explain why a signal exists using supporting/opposing factors
+- explain why there is currently no signal
+- compare factor behavior by regime
+- surface backtest integrity caveats
+- surface turnover and cost realism caveats
+- summarize research on a factor/strategy/regime topic
+
+Canonical research tool layer now lives in:
+- `src/server/research/knowledge.ts`
+- `src/server/research/tools.ts`
+
+Canonical assistant orchestration now includes research mode:
+- `general-coach`
+- `context-aware`
+- `research-assistant`
+
+Important honesty boundary:
+- factor definitions and interactions may come from taxonomy knowledge,
+- but measured factor-level performance is only stated as measured evidence when actual runtime/backtest artifacts exist.
+
 2. Thread persistence is now first-class.
 - chat threads persist in SQLite via:
   - `chat_threads`

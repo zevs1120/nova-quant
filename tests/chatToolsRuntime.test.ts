@@ -27,4 +27,20 @@ describe('chat tools runtime sourcing', () => {
     expect(bundle.statusSummary.length).toBeGreaterThan(0);
     expect(bundle.deterministicGuide).toBeTruthy();
   });
+
+  it('selects research tools for research-style questions', async () => {
+    const bundle = await buildContextBundle({
+      userId: 'guest-default',
+      context: {
+        market: 'US',
+        assetClass: 'US_STOCK'
+      },
+      message: 'Compare momentum by regime and tell me if this is overfit'
+    });
+
+    expect(bundle.researchContext.research_mode).toBe(true);
+    expect(bundle.researchContext.selected_tools).toContain('summarize_research_on_topic');
+    expect(bundle.researchContext.selected_tools).toContain('get_backtest_integrity_report');
+    expect(bundle.researchContext.selected_tools.length).toBeGreaterThan(2);
+  });
 });

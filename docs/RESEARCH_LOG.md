@@ -32,6 +32,31 @@ Last updated: 2026-03-14
 5. Relevance selection reduces prompt bloat and lowers the risk of assistant answers being driven by noisy low-priority JSON.
 6. Broader provider fallback materially improves robustness in real failure modes beyond rate limiting.
 
+## AI-Native Research Findings (2026-03-14)
+
+1. The assistant can now answer factor/strategy/regime questions using a dedicated research tool layer instead of general chat heuristics.
+2. Factor diagnostics are now structured around:
+- supporting factors
+- opposing factors
+- regime context
+- uncertainty
+- implementation caveats
+- next research action
+3. "Why no signal?" is now explainable as a research object instead of only a user-facing empty state.
+4. Backtest integrity and turnover/cost realism can now be surfaced directly in assistant answers and API responses.
+5. The research layer now distinguishes between:
+- taxonomy knowledge (definitions, expected failure modes, interactions)
+- measured evidence (runtime rows, backtest artifacts, registry results)
+6. Failed experiments are now usable as memory assets, not only missing strategy outcomes.
+
+## New Research Questions Enabled
+
+1. Which factors are actually supporting the current signal, and which factors push against it?
+2. Which factor families are likely to fail in the current regime even if the headline signal looks attractive?
+3. Is this backtest worth trusting, or does it show signs of overfit / low-sample fragility?
+4. Does turnover and cost drag make this idea unfit for production-like execution?
+5. Why is the system staying out right now, and is that because of factor weakness, regime mismatch, or risk posture?
+
 ## Persistent Risks
 
 1. Backtest behavior still shows realism and consistency concerns.

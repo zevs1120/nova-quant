@@ -31,6 +31,22 @@ import { checkRateLimit } from '../chat/rateLimit.js';
 import { getChatThreadMessages, listChatThreads, streamChat } from '../chat/service.js';
 import { logChatAudit } from '../chat/audit.js';
 import { createBrokerAdapter, createExchangeAdapter } from '../connect/adapters.js';
+import {
+  compareFactorPerformanceByRegimeTool,
+  explainWhyNoSignalTool,
+  explainWhySignalExistsTool,
+  getBacktestIntegrityReportTool,
+  getFactorCatalogTool,
+  getFactorDefinitionTool,
+  getFactorInteractionsTool,
+  getRegimeDiagnosticsTool,
+  getRegimeTaxonomyTool,
+  getStrategyRegistryTool,
+  getTurnoverCostReportTool,
+  listFailedExperimentsTool,
+  runFactorDiagnosticsTool,
+  summarizeResearchOnTopicTool
+} from '../research/tools.js';
 
 function parseMarket(value?: string): Market | undefined {
   if (!value) return undefined;
@@ -166,6 +182,112 @@ export function createApiApp() {
       assetClass
     });
     res.json(runtime);
+  });
+
+  app.get('/api/research/factors', (_req, res) => {
+    res.json(getFactorCatalogTool());
+  });
+
+  app.get('/api/research/factors/:id', (req, res) => {
+    res.json(getFactorDefinitionTool(String(req.params.id || '')));
+  });
+
+  app.get('/api/research/factors/:id/interactions', (req, res) => {
+    res.json(getFactorInteractionsTool(String(req.params.id || '')));
+  });
+
+  app.get('/api/research/strategies', (_req, res) => {
+    res.json(getStrategyRegistryTool());
+  });
+
+  app.get('/api/research/regimes', (_req, res) => {
+    res.json(getRegimeTaxonomyTool());
+  });
+
+  app.get('/api/research/diagnostics/regime', (req, res) => {
+    const userId = (req.query.userId as string | undefined) || 'guest-default';
+    const market = parseMarket(req.query.market as string | undefined);
+    const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
+    const symbol = (req.query.symbol as string | undefined)?.toUpperCase();
+    res.json(getRegimeDiagnosticsTool({ userId, market, assetClass, symbol }));
+  });
+
+  app.get('/api/research/diagnostics/factor', (req, res) => {
+    const userId = (req.query.userId as string | undefined) || 'guest-default';
+    const market = parseMarket(req.query.market as string | undefined);
+    const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
+    const signalId = (req.query.signalId as string | undefined) || undefined;
+    const symbol = (req.query.symbol as string | undefined)?.toUpperCase() || undefined;
+    const factorId = (req.query.factorId as string | undefined) || undefined;
+    res.json(
+      runFactorDiagnosticsTool({
+        userId,
+        market,
+        assetClass,
+        signalId,
+        symbol,
+        factorId
+      })
+    );
+  });
+
+  app.get('/api/research/backtest-integrity', (req, res) => {
+    const runId = (req.query.runId as string | undefined) || undefined;
+    res.json(getBacktestIntegrityReportTool({ runId }));
+  });
+
+  app.get('/api/research/turnover-cost', (req, res) => {
+    const runId = (req.query.runId as string | undefined) || undefined;
+    res.json(getTurnoverCostReportTool({ runId }));
+  });
+
+  app.get('/api/research/failed-experiments', (_req, res) => {
+    res.json(listFailedExperimentsTool());
+  });
+
+  app.get('/api/research/topic', (req, res) => {
+    const topic = String((req.query.topic as string | undefined) || '');
+    res.json(summarizeResearchOnTopicTool({ topic }));
+  });
+
+  app.get('/api/research/explain-signal', (req, res) => {
+    const userId = (req.query.userId as string | undefined) || 'guest-default';
+    const market = parseMarket(req.query.market as string | undefined);
+    const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
+    const signalId = (req.query.signalId as string | undefined) || undefined;
+    const symbol = (req.query.symbol as string | undefined)?.toUpperCase() || undefined;
+    res.json(
+      explainWhySignalExistsTool({
+        userId,
+        market,
+        assetClass,
+        signalId,
+        symbol
+      })
+    );
+  });
+
+  app.get('/api/research/explain-no-signal', (req, res) => {
+    const userId = (req.query.userId as string | undefined) || 'guest-default';
+    const market = parseMarket(req.query.market as string | undefined);
+    const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
+    res.json(explainWhyNoSignalTool({ userId, market, assetClass }));
+  });
+
+  app.get('/api/research/factors/:id/by-regime', (req, res) => {
+    const userId = (req.query.userId as string | undefined) || 'guest-default';
+    const market = parseMarket(req.query.market as string | undefined);
+    const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
+    const runId = (req.query.runId as string | undefined) || undefined;
+    res.json(
+      compareFactorPerformanceByRegimeTool({
+        userId,
+        market,
+        assetClass,
+        runId,
+        factorId: String(req.params.id || '')
+      })
+    );
   });
 
   app.post('/api/evidence/run', (req, res) => {
@@ -563,7 +685,7 @@ export function createApiApp() {
     res.setHeader('Cache-Control', 'no-cache, no-transform');
     res.setHeader('Connection', 'keep-alive');
 
-    let mode: 'general-coach' | 'context-aware' = context ? 'context-aware' : 'general-coach';
+    let mode: 'general-coach' | 'context-aware' | 'research-assistant' = context ? 'context-aware' : 'general-coach';
     let provider = 'unknown';
     let resolvedThreadId = threadId;
     let responseText = '';

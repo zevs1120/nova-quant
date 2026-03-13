@@ -43,10 +43,20 @@ export interface ToolContextBundle {
     performance_source: string;
     performance_status: string;
   };
+  researchContext: {
+    research_mode: boolean;
+    selected_tools: string[];
+    tool_results: Array<{
+      tool: string;
+      source_status: string;
+      data_status: string;
+      payload: unknown;
+    }>;
+  };
   hasExactSignalData: boolean;
 }
 
-export type ChatMode = 'general-coach' | 'context-aware';
+export type ChatMode = 'general-coach' | 'context-aware' | 'research-assistant';
 
 export type StreamEvent =
   | { type: 'meta'; mode: ChatMode; provider: string; threadId: string }

@@ -23,6 +23,27 @@ function getRepo(): MarketRepository {
 }
 
 function detectMode(input: ChatRequestInput): ChatMode {
+  const lower = String(input.message || '').toLowerCase();
+  if (
+    [
+      'factor',
+      'strategy',
+      'regime',
+      'backtest',
+      'overfit',
+      'overfitting',
+      'turnover',
+      'capacity',
+      'portfolio construction',
+      'cross-sectional',
+      'cross sectional',
+      'rank ic',
+      'research',
+      'failed experiment'
+    ].some((token) => lower.includes(token))
+  ) {
+    return 'research-assistant';
+  }
   if (
     input.context?.signalId ||
     input.context?.symbol ||

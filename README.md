@@ -123,6 +123,30 @@ Assistant boundaries:
 - It may explain signals, risk posture, positions, and evidence
 - It does **not** claim live fills, broker access, or realized performance when those do not exist
 
+## AI-Native Research Layer
+
+Nova Assistant now also supports a research mode aimed at quant research tasks rather than only
+signal explanation.
+
+Current research capabilities include:
+- factor taxonomy and definition retrieval
+- factor interaction lookup
+- strategy family registry lookup
+- regime diagnostics
+- factor diagnostics for current signals
+- factor-by-regime comparison
+- backtest integrity and overfit-risk style checks
+- turnover / cost drag review
+- failed experiment surfacing
+- research topic summarization
+
+This means Nova can now help with:
+- "Why does this signal exist?"
+- "Why is there no signal right now?"
+- "How does momentum usually behave across regimes?"
+- "Is this result likely to be overfit?"
+- "Does turnover erase the edge after costs?"
+
 ## Vercel Deploy Notes
 
 - Frontend build: `npm run build`
@@ -156,6 +180,7 @@ Default exclusions include local/runtime artifacts:
 
 - [`docs/SYSTEM_ARCHITECTURE.md`](docs/SYSTEM_ARCHITECTURE.md)
 - [`docs/NOVA_ASSISTANT_ARCHITECTURE.md`](docs/NOVA_ASSISTANT_ARCHITECTURE.md)
+- [`docs/RESEARCH_ASSISTANT_TOOLS.md`](docs/RESEARCH_ASSISTANT_TOOLS.md)
 - [`docs/TECHNICAL_DUE_DILIGENCE_GUIDE.md`](docs/TECHNICAL_DUE_DILIGENCE_GUIDE.md)
 - [`docs/RUNTIME_DATA_LINEAGE.md`](docs/RUNTIME_DATA_LINEAGE.md)
 - [`docs/REALISM_UPGRADE_SUMMARY.md`](docs/REALISM_UPGRADE_SUMMARY.md)

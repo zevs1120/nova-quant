@@ -1,5 +1,83 @@
 # Nova Quant Implementation Log
 
+## 2026-03-14 — AI-Native Research Assistant Upgrade
+
+### What was implemented
+1. Research knowledge layer
+- Added `src/server/research/knowledge.ts`
+- Introduced:
+  - factor taxonomy registry
+  - factor metadata cards
+  - regime taxonomy
+  - strategy metadata registry
+  - cross-sectional model catalog
+  - failed-idea registry
+  - doctrine summary layer
+
+2. Research assistant tool layer
+- Added `src/server/research/tools.ts`
+- New assistant tools:
+  - `get_factor_catalog`
+  - `get_factor_definition`
+  - `get_factor_interactions`
+  - `get_strategy_registry`
+  - `get_regime_taxonomy`
+  - `get_regime_diagnostics`
+  - `run_factor_diagnostics`
+  - `compare_factor_performance_by_regime`
+  - `get_backtest_integrity_report`
+  - `get_turnover_cost_report`
+  - `get_signal_evidence`
+  - `explain_why_signal_exists`
+  - `explain_why_no_signal`
+  - `list_failed_experiments`
+  - `summarize_research_on_topic`
+
+3. Canonical assistant research mode
+- `src/server/chat/service.ts` now routes research-heavy questions into `research-assistant` mode.
+- `src/server/chat/tools.ts` now selects research tools and includes them in the context bundle.
+- `src/server/chat/prompts.ts` now adds evidence-first research prompt assembly and stricter output expectations for research work.
+
+4. Research API surface
+- Added research endpoints under `/api/research/*` for factor catalog, factor detail, interactions, regimes, diagnostics, integrity review, turnover-cost review, failed experiments, and topic summaries.
+
+5. Tests
+- Added:
+  - `tests/researchKnowledge.test.ts`
+  - `tests/researchApi.test.ts`
+- Updated:
+  - `tests/chatToolsRuntime.test.ts`
+  - `tests/chatPrompt.test.ts`
+
+### Files changed
+- `src/server/research/knowledge.ts`
+- `src/server/research/tools.ts`
+- `src/server/chat/types.ts`
+- `src/server/chat/tools.ts`
+- `src/server/chat/service.ts`
+- `src/server/chat/prompts.ts`
+- `src/server/api/app.ts`
+- `tests/researchKnowledge.test.ts`
+- `tests/researchApi.test.ts`
+- `tests/chatToolsRuntime.test.ts`
+- `tests/chatPrompt.test.ts`
+- `README.md`
+- `docs/NOVA_ASSISTANT_ARCHITECTURE.md`
+- `docs/RESEARCH_ASSISTANT_TOOLS.md`
+- `docs/PROJECT_MEMORY.md`
+- `docs/RESEARCH_LOG.md`
+- `docs/NEXT_STEPS.md`
+
+### Verification
+- `npm run typecheck` ✅
+- `npm test` ✅
+- `npm run build` ✅
+
+### Open issues
+- Factor-level measured performance history is still lighter than taxonomy-level knowledge.
+- Research tool orchestration is service-controlled and prompt-routed; strict schema tool calling remains a next step.
+- Cross-sectional ML evaluation scaffolding exists as knowledge/catalog for now; deeper model-training artifacts are still a later phase.
+
 ## 2026-03-14 — Canonical Assistant + Reproducibility Upgrade
 
 ### What was implemented

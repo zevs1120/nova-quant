@@ -55,11 +55,20 @@ function formatHistory(history: ChatHistoryMessage[]): string[] {
   return history.slice(-6).map((item) => `- ${item.role.toUpperCase()}: ${item.content.slice(0, 280)}`);
 }
 
+function formatResearchTools(bundle: ToolContextBundle): string[] {
+  return (bundle.researchContext?.tool_results || []).map((row) => {
+    const payload = compactJson(row.payload);
+    return `- ${row.tool} | source ${row.source_status} | data ${row.data_status} | ${payload.slice(0, 900)}`;
+  });
+}
+
 export function buildSystemPrompt(mode: ChatMode, exactSignalData: boolean): string {
   const modeLine =
-    mode === 'context-aware'
-      ? 'Mode: Context-Aware. Prioritize evidence tied to the requested signal, page, market, and user context.'
-      : 'Mode: General Coach. Use product context when useful, but keep explanations beginner-safe and practical.';
+    mode === 'research-assistant'
+      ? 'Mode: Research Assistant. Behave like an AI-native quant research assistant. Prioritize factor logic, validation quality, regime context, implementation realism, and what should happen next in the research workflow.'
+      : mode === 'context-aware'
+        ? 'Mode: Context-Aware. Prioritize evidence tied to the requested signal, page, market, and user context.'
+        : 'Mode: General Coach. Use product context when useful, but keep explanations beginner-safe and practical.';
 
   const missingSignalInstruction =
     mode === 'context-aware' && !exactSignalData
@@ -81,14 +90,21 @@ export function buildSystemPrompt(mode: ChatMode, exactSignalData: boolean): str
     'EVIDENCE:',
     'Formatting rules:',
     '- VERDICT: one short line only.',
-    '- PLAN: 3-5 concise bullets. Include what to do next, risk boundary, and position size idea.',
-    '- WHY: exactly 3 bullets in plain language.',
+    mode === 'research-assistant'
+      ? '- PLAN: 3-5 concise bullets. Include the next research action and whether it is worthy of backtest / replay / paper.'
+      : '- PLAN: 3-5 concise bullets. Include what to do next, risk boundary, and position size idea.',
+    mode === 'research-assistant'
+      ? '- WHY: exactly 3 bullets focused on factors, regime fit, validation quality, or portfolio/execution realism.'
+      : '- WHY: exactly 3 bullets in plain language.',
     '- RISK: 2 bullets + 1 explicit line that says "Common failure modes / when NOT to trade".',
     '- EVIDENCE: only compact facts that are actually present in context.',
     '- Keep it mobile-friendly and do not dump raw JSON.',
     'Safety rules:',
     '- Do not fabricate performance, fills, live broker access, or hidden data.',
     '- Prefer "I do not have enough clean data" over guessing.',
+    mode === 'research-assistant'
+      ? '- When factor-level realized data is unavailable, explicitly separate taxonomy knowledge from measured evidence.'
+      : '- Keep explanations practical and evidence-aware.',
     '- End with the exact phrase: "educational, not financial advice".'
   ].join('\n');
 }
@@ -109,8 +125,10 @@ export function buildUserPrompt(input: {
     `MARKET / RISK SNAPSHOT\n- market ${line(input.contextBundle.marketTemperature?.regime_id || input.contextBundle.marketTemperature?.stance || '--')}\n- risk ${line(input.contextBundle.riskProfile?.profile_key || '--')}\n- status ${input.contextBundle.statusSummary.join(' | ')}`,
     `PERFORMANCE SUMMARY\n${formatPerformanceSummary(input.contextBundle.performanceSummary).join('\n')}`,
     `DETERMINISTIC GUIDANCE TOOL\n${line(input.contextBundle.deterministicGuide?.text || 'unavailable')}`,
+    `RESEARCH TOOLS\n${formatResearchTools(input.contextBundle).join('\n') || '- none'}`,
     `PRIORITIZED EVIDENCE\n${input.contextBundle.selectedEvidence.map((item) => `- ${item}`).join('\n') || '- none'}`,
     `SOURCE TRANSPARENCY\n${compactJson(input.contextBundle.sourceTransparency)}`,
+    `RESEARCH MODE\n${input.contextBundle.researchContext?.research_mode ? 'yes' : 'no'} | tools ${input.contextBundle.researchContext?.selected_tools?.join(', ') || 'none'}`,
     `EXACT SIGNAL DATA AVAILABLE\n${input.contextBundle.hasExactSignalData ? 'yes' : 'no'}`
   ];
 

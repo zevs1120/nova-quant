@@ -10,6 +10,23 @@ import {
 import { RUNTIME_STATUS } from '../runtimeStatus.js';
 import type { ChatContextInput, ToolContextBundle } from './types.js';
 import { answerWithRetrieval } from '../../quant/aiRetrieval.js';
+import {
+  compareFactorPerformanceByRegimeTool,
+  explainWhyNoSignalTool,
+  explainWhySignalExistsTool,
+  getBacktestIntegrityReportTool,
+  getFactorCatalogTool,
+  getFactorDefinitionTool,
+  getFactorInteractionsTool,
+  getRegimeDiagnosticsTool,
+  getRegimeTaxonomyTool,
+  getSignalEvidenceTool,
+  getStrategyRegistryTool,
+  getTurnoverCostReportTool,
+  listFailedExperimentsTool,
+  runFactorDiagnosticsTool,
+  summarizeResearchOnTopicTool
+} from '../research/tools.js';
 
 function inferAssetClass(context?: ChatContextInput): AssetClass | undefined {
   if (!context?.assetClass) return undefined;
@@ -59,6 +76,172 @@ function pickRelevantSignals(rows: unknown[], context?: ChatContextInput): Recor
     .filter((row): row is Record<string, unknown> => Boolean(row && typeof row === 'object'))
     .sort((a, b) => scoreSignalForContext(b, context) - scoreSignalForContext(a, context))
     .slice(0, 5);
+}
+
+function inferResearchTopic(message = ''): string | null {
+  const lower = String(message || '').toLowerCase();
+  const candidates = [
+    'value',
+    'momentum',
+    'quality',
+    'carry',
+    'low vol',
+    'reversal',
+    'breadth',
+    'regime',
+    'overfitting',
+    'turnover',
+    'portfolio',
+    'cross sectional',
+    'factor',
+    'strategy'
+  ];
+  return candidates.find((item) => lower.includes(item)) || null;
+}
+
+function inferFactorId(message = ''): string | undefined {
+  const lower = String(message || '').toLowerCase();
+  if (lower.includes('value')) return 'value';
+  if (lower.includes('momentum')) return 'momentum';
+  if (lower.includes('quality')) return 'quality';
+  if (lower.includes('carry')) return 'carry';
+  if (lower.includes('low vol') || lower.includes('low-vol') || lower.includes('defensive')) return 'low_vol';
+  if (lower.includes('reversal') || lower.includes('mean reversion')) return 'reversal';
+  if (lower.includes('breadth')) return 'breadth';
+  if (lower.includes('seasonality')) return 'seasonality';
+  if (lower.includes('liquidity')) return 'liquidity';
+  return undefined;
+}
+
+function shouldEnterResearchMode(message = ''): boolean {
+  const lower = String(message || '').toLowerCase();
+  return [
+    'factor',
+    'strategy',
+    'regime',
+    'backtest',
+    'overfit',
+    'overfitting',
+    'turnover',
+    'cost',
+    'capacity',
+    'portfolio construction',
+    'cross-sectional',
+    'cross sectional',
+    'ic',
+    'rank ic',
+    'research',
+    'why no signal',
+    'failed experiment'
+  ].some((token) => lower.includes(token));
+}
+
+async function buildResearchToolResults(args: {
+  userId: string;
+  context?: ChatContextInput;
+  message?: string;
+}): Promise<ToolContextBundle['researchContext']> {
+  const message = String(args.message || '');
+  if (!shouldEnterResearchMode(message)) {
+    return {
+      research_mode: false,
+      selected_tools: [],
+      tool_results: []
+    };
+  }
+
+  const factorId = inferFactorId(message);
+  const topic = inferResearchTopic(message) || message;
+  const selectedTools: string[] = [];
+  const toolResults: ToolContextBundle['researchContext']['tool_results'] = [];
+
+  const push = (tool: string, result: Record<string, unknown>) => {
+    selectedTools.push(tool);
+    toolResults.push({
+      tool,
+      source_status: String(result.source_status || RUNTIME_STATUS.INSUFFICIENT_DATA),
+      data_status: String(result.data_status || RUNTIME_STATUS.INSUFFICIENT_DATA),
+      payload: result
+    });
+  };
+
+  push('summarize_research_on_topic', summarizeResearchOnTopicTool({ topic }));
+  push('get_strategy_registry', getStrategyRegistryTool());
+  push('get_regime_taxonomy', getRegimeTaxonomyTool());
+  push('get_regime_diagnostics', getRegimeDiagnosticsTool({
+    userId: args.userId,
+    market: inferMarket(args.context),
+    assetClass: inferAssetClass(args.context),
+    symbol: args.context?.symbol
+  }));
+  push('get_backtest_integrity_report', getBacktestIntegrityReportTool({ runId: undefined }));
+  push('get_turnover_cost_report', getTurnoverCostReportTool({ runId: undefined }));
+  push('list_failed_experiments', listFailedExperimentsTool());
+
+  if (factorId) {
+    push('get_factor_catalog', getFactorCatalogTool());
+    push('get_factor_definition', getFactorDefinitionTool(factorId));
+    push('get_factor_interactions', getFactorInteractionsTool(factorId));
+    push(
+      'compare_factor_performance_by_regime',
+      compareFactorPerformanceByRegimeTool({
+        userId: args.userId,
+        factorId,
+        market: inferMarket(args.context),
+        assetClass: inferAssetClass(args.context)
+      })
+    );
+  }
+
+  if (args.context?.signalId || args.context?.symbol || /signal|why this/i.test(message)) {
+    push(
+      'get_signal_evidence',
+      getSignalEvidenceTool({
+        userId: args.userId,
+        signalId: args.context?.signalId,
+        symbol: args.context?.symbol,
+        market: inferMarket(args.context),
+        assetClass: inferAssetClass(args.context)
+      })
+    );
+    push(
+      'run_factor_diagnostics',
+      runFactorDiagnosticsTool({
+        userId: args.userId,
+        signalId: args.context?.signalId,
+        symbol: args.context?.symbol,
+        market: inferMarket(args.context),
+        assetClass: inferAssetClass(args.context)
+      })
+    );
+    push(
+      'explain_why_signal_exists',
+      explainWhySignalExistsTool({
+        userId: args.userId,
+        signalId: args.context?.signalId,
+        symbol: args.context?.symbol,
+        market: inferMarket(args.context),
+        assetClass: inferAssetClass(args.context)
+      })
+    );
+  }
+
+  if (/no signal|why no signal|why isn'?t there a signal|why there is no signal/i.test(message)) {
+    push(
+      'explain_why_no_signal',
+      explainWhyNoSignalTool({
+        userId: args.userId,
+        market: inferMarket(args.context),
+        assetClass: inferAssetClass(args.context)
+      })
+    );
+  }
+
+  return {
+    research_mode: true,
+    selected_tools: selectedTools,
+    tool_results: toolResults.slice(0, 8)
+  };
 }
 
 export async function getSignalCards(userId: string, assetClass?: string): Promise<unknown[]> {
@@ -174,6 +357,7 @@ export async function buildContextBundle(args: {
     : (runtime?.data?.velocity as Record<string, unknown> | null) || null;
   const riskProfile = await getRiskProfile(userId);
   const performanceSummary = await getPerformanceSummary(userId, market);
+  const researchContext = await buildResearchToolResults(args);
 
   const sourceTransparency = {
     signal_data_status: runtime?.source_status || RUNTIME_STATUS.INSUFFICIENT_DATA,
@@ -214,6 +398,7 @@ export async function buildContextBundle(args: {
       `performance ${sourceTransparency.performance_source}`
     ],
     sourceTransparency,
+    researchContext,
     hasExactSignalData: Boolean(signalDetail)
   };
 }

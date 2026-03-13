@@ -8,20 +8,24 @@ Last updated: 2026-03-14
 - Move from prompt-routed tool use toward explicit schema-validated function/tool execution.
 - Add assistant evaluation checks for unsupported claims and evidence citation coverage.
 
-2. Backtest realism correction
+2. Factor-level measured evidence depth
+- Persist factor-level diagnostics and by-regime results as first-class research artifacts instead of only taxonomy + latest backtest summaries.
+- Add rank-IC / quantile-spread / regime-sliced factor evaluation objects.
+
+3. Backtest realism correction
 - Fix daily-return pathology and turnover realism.
 - Align backtest and paper execution assumptions stage-by-stage.
 - Add diagnostics for where divergence originates.
 
-3. Shadow truth-path upgrade
+4. Shadow truth-path upgrade
 - Replace synthetic forward returns with realized bar-joined outcomes.
 - Add drawdown and outcome source metadata from true bars.
 
-4. Cost/slippage calibration
+5. Cost/slippage calibration
 - Add venue-aware slippage/fees/funding presets.
 - Integrate calibration profiles into validation stress suite.
 
-5. Governance hardening
+6. Governance hardening
 - Add promotion memo generation per stage transition.
 - Add reviewer identity and approval state.
 

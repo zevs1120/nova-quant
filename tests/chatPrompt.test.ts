@@ -15,4 +15,11 @@ describe('chat prompts', () => {
     const prompt = buildSystemPrompt('context-aware', false);
     expect(prompt).toContain('If exact signal detail is missing, say so clearly');
   });
+
+  it('upgrades instructions for research assistant mode', () => {
+    const prompt = buildSystemPrompt('research-assistant', false);
+    expect(prompt).toContain('Research Assistant');
+    expect(prompt).toContain('whether it is worthy of backtest / replay / paper');
+    expect(prompt).toContain('factor-level realized data is unavailable');
+  });
 });
