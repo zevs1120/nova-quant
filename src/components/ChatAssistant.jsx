@@ -1,15 +1,15 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-
-function randomId() {
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-}
+import { useEffect, useMemo, useRef } from 'react';
+import { useNovaAssistant } from '../hooks/useNovaAssistant';
 
 export default function ChatAssistant({ open, onClose, userId, seed, t }) {
-  const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState('');
-  const [streaming, setStreaming] = useState(false);
-  const [error, setError] = useState('');
   const listRef = useRef(null);
+  const { messages, input, setInput, streaming, error, sendMessage } = useNovaAssistant({
+    userId,
+    seedRequest: seed,
+    contextBase: {
+      page: 'ai'
+    }
+  });
 
   const suggestions = useMemo(
     () => [
@@ -24,95 +24,6 @@ export default function ChatAssistant({ open, onClose, userId, seed, t }) {
     if (!listRef.current) return;
     listRef.current.scrollTop = listRef.current.scrollHeight;
   }, [messages, streaming]);
-
-  useEffect(() => {
-    if (!open || !seed?.id || !seed?.message) return;
-    void sendMessage(seed.message, seed.context);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, seed?.id]);
-
-  const appendAssistantChunk = (id, delta) => {
-    setMessages((current) =>
-      current.map((item) =>
-        item.id === id ? { ...item, content: `${item.content}${delta}` } : item
-      )
-    );
-  };
-
-  const sendMessage = async (rawMessage, context) => {
-    const text = String(rawMessage || '').trim();
-    if (!text || streaming) return;
-
-    setError('');
-    setStreaming(true);
-
-    const userMsg = { id: randomId(), role: 'user', content: text };
-    const assistantId = randomId();
-    const assistantMsg = { id: assistantId, role: 'assistant', content: '' };
-
-    setMessages((current) => [...current, userMsg, assistantMsg]);
-    setInput('');
-
-    try {
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          userId,
-          message: text,
-          context
-        })
-      });
-
-      if (!response.ok) {
-        const errPayload = await response.json().catch(() => ({}));
-        throw new Error(errPayload.error || `HTTP ${response.status}`);
-      }
-
-      if (!response.body) {
-        throw new Error('No response body from /api/chat');
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const parts = buffer.split('\n');
-        buffer = parts.pop() || '';
-
-        for (const line of parts) {
-          const trimmed = line.trim();
-          if (!trimmed) continue;
-
-          try {
-            const event = JSON.parse(trimmed);
-            if (event.type === 'chunk' && event.delta) {
-              appendAssistantChunk(assistantId, event.delta);
-            }
-            if (event.type === 'error') {
-              setError(event.error || t('chat.errorFallback'));
-            }
-          } catch {
-            // Ignore malformed stream event.
-          }
-        }
-      }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : t('chat.errorFallback');
-      setError(msg);
-      appendAssistantChunk(assistantId, `${t('chat.errorPrefix')} ${msg}`);
-    } finally {
-      setStreaming(false);
-    }
-  };
-
   if (!open) return null;
 
   return (

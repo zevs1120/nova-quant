@@ -1,6 +1,6 @@
 # Nova Quant Research Log
 
-Last updated: 2026-03-09
+Last updated: 2026-03-14
 
 ## Current Research Questions
 
@@ -23,12 +23,23 @@ Last updated: 2026-03-09
 8. Automation loop now generates weekly summary, deterioration alerts, and candidate suggestions.
 9. Product-facing opportunity objects now have evidence + lineage contracts.
 
+## Assistant / Product Findings (2026-03-14)
+
+1. The product no longer exposes two separate AI brains; frontend AI entrypoints now share one canonical backend assistant path.
+2. Thread persistence materially improves follow-up quality because recent questions, risk profile, page context, and viewed signals can be reused coherently.
+3. Deterministic retrieval is still useful, but only as an evidence selector / fallback layer, not as a competing user-facing assistant.
+4. Prompt quality improved after replacing raw JSON dumping with sectioned evidence-first context assembly.
+5. Relevance selection reduces prompt bloat and lowers the risk of assistant answers being driven by noisy low-priority JSON.
+6. Broader provider fallback materially improves robustness in real failure modes beyond rate limiting.
+
 ## Persistent Risks
 
 1. Backtest behavior still shows realism and consistency concerns.
 2. Shadow outcomes still rely on synthetic forward proxies.
 3. Cost and slippage assumptions remain simplified.
 4. Governance approval is mostly system-generated and needs reviewer workflow.
+5. Assistant tool use is still prompt-routed rather than strict schema-based function calling.
+6. Some secondary research/portfolio outputs still carry older proxy-style assumptions and should continue moving toward replay-backed evidence.
 
 ## Immediate Research Priorities
 
@@ -37,6 +48,8 @@ Last updated: 2026-03-09
 3. Calibrate risk/funnel thresholds using rolling density targets.
 4. Add promotion memo artifacts and reviewer signatures.
 5. Build regression monitors for regime transition misclassification.
+6. Add stricter assistant response evaluation for evidence fidelity and unsupported-claim suppression.
+7. Promote replay-backed evidence summaries into more product surfaces so assistant references stay tied to canonical evidence paths.
 
 ## Session Update (2026-03-09, Credibility Remediation)
 

@@ -16,5 +16,6 @@ describe('package source script', () => {
     expect(payload.excludes).toContain('data/*.db');
     expect(payload.excludes).toContain('__MACOSX');
     expect(payload.excludes).toContain('.DS_Store');
+    expect(payload.excludes).toContain('.vercel');
   });
 });

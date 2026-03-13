@@ -75,6 +75,7 @@ CREATE TABLE IF NOT EXISTS basis_snapshots (
 CREATE TABLE IF NOT EXISTS chat_audit_logs (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id TEXT NOT NULL,
+  thread_id TEXT,
   mode TEXT NOT NULL,
   provider TEXT NOT NULL,
   message TEXT NOT NULL,
@@ -85,6 +86,33 @@ CREATE TABLE IF NOT EXISTS chat_audit_logs (
   duration_ms INTEGER NOT NULL,
   created_at INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS chat_threads (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  last_context_json TEXT,
+  last_message_preview TEXT,
+  created_at_ms INTEGER NOT NULL,
+  updated_at_ms INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_chat_threads_user ON chat_threads(user_id, updated_at_ms DESC);
+
+CREATE TABLE IF NOT EXISTS chat_messages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  thread_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  role TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'system', 'tool')),
+  content TEXT NOT NULL,
+  context_json TEXT,
+  provider TEXT,
+  status TEXT NOT NULL CHECK (status IN ('READY', 'ERROR')),
+  created_at_ms INTEGER NOT NULL,
+  FOREIGN KEY(thread_id) REFERENCES chat_threads(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_chat_messages_thread ON chat_messages(thread_id, created_at_ms DESC);
 
 CREATE TABLE IF NOT EXISTS signals (
   signal_id TEXT PRIMARY KEY,
@@ -449,6 +477,11 @@ CREATE INDEX IF NOT EXISTS idx_experiment_registry_lookup ON experiment_registry
 
 export function ensureSchema(db: Database.Database): void {
   db.exec(SCHEMA_SQL);
+  try {
+    db.prepare('SELECT thread_id FROM chat_audit_logs LIMIT 1').get();
+  } catch {
+    db.exec('ALTER TABLE chat_audit_logs ADD COLUMN thread_id TEXT;');
+  }
   try {
     db.prepare('SELECT asset_class FROM signals LIMIT 1').get();
   } catch {

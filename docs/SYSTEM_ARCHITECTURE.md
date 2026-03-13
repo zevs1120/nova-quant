@@ -1,6 +1,6 @@
 # Nova Quant System Architecture
 
-Last updated: 2026-03-12
+Last updated: 2026-03-14
 
 ## 1) Layer Overview
 
@@ -55,9 +55,15 @@ Last updated: 2026-03-12
   - `experiment_registry`
 
 8. **Chat/Copilot Layer**
-- Chat stream service: `src/server/chat/service.ts`.
+- Canonical assistant service: `src/server/chat/service.ts`.
 - Tool context builder: `src/server/chat/tools.ts`.
-- Tools now consume DB/shared query outputs; runtime mock fallbacks removed.
+- Prompt assembly: `src/server/chat/prompts.ts`.
+- Provider adapters: `src/server/chat/providers/*`.
+- Thread persistence:
+  - `chat_threads`
+  - `chat_messages`
+- Frontend AI entry now uses the canonical backend assistant rather than a separate local-only AI path.
+- Deterministic retrieval remains available, but only as a backend tool / fallback aid.
 
 9. **Connectivity Layer**
 - Adapter interfaces: `src/server/connect/adapters.ts`.
@@ -73,8 +79,14 @@ Last updated: 2026-03-12
 - writes `performance_snapshots`,
 - emits freshness/coverage metadata.
 4. `/api/runtime-state` and related `/api/*` endpoints read DB-backed objects and return transparent status.
-5. Frontend requests API endpoints and renders decision UX with `data_status/source_status`.
-6. Evidence endpoints expose canonical replay/paper chain:
+5. `/api/chat` uses:
+- user context,
+- recent thread memory,
+- evidence-aware tools,
+- provider fallback strategy,
+- deterministic internal fallback when no provider is available.
+6. Frontend requests API endpoints and renders decision UX with `data_status/source_status`.
+7. Evidence endpoints expose canonical replay/paper chain:
    - `/api/evidence/run`
    - `/api/evidence/signals/top`
    - `/api/evidence/backtests`
@@ -127,3 +139,24 @@ Semantics:
 - `source_label`: UI-facing label aligned with `data_status`.
 
 This prevents inconsistent messages such as overall `INSUFFICIENT_DATA` with misleading inner `DB_BACKED` labels.
+
+## 8) Canonical Nova Assistant Contract
+
+Nova Quant now has one user-facing AI brain:
+- `AiPage`
+- Ask Nova entry points
+- `ChatAssistant` fallback UI
+
+All of them use the same backend chat API and same thread store.
+
+Assistant capabilities:
+- multi-turn thread memory,
+- evidence-aware context selection,
+- internal tool access,
+- provider fallback,
+- honest deterministic fallback.
+
+Assistant non-goals:
+- no fabricated live broker access,
+- no invented realized performance,
+- no fake trade execution claims.

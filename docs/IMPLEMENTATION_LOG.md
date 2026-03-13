@@ -1,5 +1,85 @@
 # Nova Quant Implementation Log
 
+## 2026-03-14 — Canonical Assistant + Reproducibility Upgrade
+
+### What was implemented
+1. Unified AI entrypoints
+- `src/components/AiPage.jsx` now uses the backend canonical assistant.
+- `src/components/ChatAssistant.jsx` now uses the same assistant hook/path instead of separate logic.
+- New shared frontend hook: `src/hooks/useNovaAssistant.js`.
+
+2. Canonical Nova Assistant backend
+- `src/server/chat/service.ts` now owns:
+  - thread creation/restoration,
+  - recent-message memory,
+  - provider-chain execution,
+  - deterministic fallback,
+  - message persistence.
+- Added thread/message persistence via SQLite.
+
+3. Assistant tool/prompt improvements
+- `src/server/chat/tools.ts` now produces:
+  - relevance-filtered signal cards,
+  - deterministic retrieval guidance,
+  - selected evidence lines,
+  - status summary.
+- `src/server/chat/prompts.ts` now assembles sectioned prompts instead of raw JSON dumping.
+
+4. API surface changes
+- `/api/chat` accepts optional `threadId`.
+- Added:
+  - `GET /api/chat/threads`
+  - `GET /api/chat/threads/:id`
+
+5. Reproducibility and handoff
+- Added scripts:
+  - `clean`
+  - `lint`
+  - `test`
+  - `verify`
+- Added:
+  - `.npmignore`
+  - `.gitattributes`
+  - `scripts/check-repo-policy.mjs`
+  - `scripts/clean-worktree.mjs`
+  - `scripts/verify.mjs`
+- `vite.config.js` now excludes `artifacts/` and `node_modules/` from test discovery.
+
+### Files changed
+- `src/server/chat/service.ts`
+- `src/server/chat/tools.ts`
+- `src/server/chat/prompts.ts`
+- `src/server/chat/types.ts`
+- `src/server/chat/providers/errors.ts`
+- `src/server/chat/audit.ts`
+- `src/server/api/app.ts`
+- `src/server/db/schema.ts`
+- `src/server/db/repository.ts`
+- `src/server/types.ts`
+- `src/components/AiPage.jsx`
+- `src/components/ChatAssistant.jsx`
+- `src/hooks/useNovaAssistant.js`
+- `src/App.jsx`
+- `package.json`
+- `vite.config.js`
+- `README.md`
+- `docs/SYSTEM_ARCHITECTURE.md`
+- `docs/TECHNICAL_DUE_DILIGENCE_GUIDE.md`
+- `docs/NOVA_ASSISTANT_ARCHITECTURE.md`
+
+### Verification
+- `npm ci` ✅
+- `npm run typecheck` ✅
+- `npm test` ✅
+- `npm run build` ✅
+- `npm run verify` ✅
+- final handoff state cleaned with `npm run clean` ✅
+
+### Open issues
+- Assistant still uses prompt-based provider orchestration, not formal JSON tool-call schemas.
+- Frontend UI now uses one canonical assistant path, but deeper AI UX polish can continue later.
+- Production build still emits a chunk-size warning (`~502 kB` main bundle) and would benefit from deliberate code splitting.
+
 ## 2026-03-07 — Context Recovery + Architecture Alignment
 
 ### Scope

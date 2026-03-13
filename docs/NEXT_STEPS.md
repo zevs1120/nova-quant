@@ -1,38 +1,47 @@
 # Nova Quant Next Steps
 
-Last updated: 2026-03-09
+Last updated: 2026-03-14
 
 ## Immediate (highest priority)
 
-1. Backtest realism correction
+1. Assistant structured tool calling
+- Move from prompt-routed tool use toward explicit schema-validated function/tool execution.
+- Add assistant evaluation checks for unsupported claims and evidence citation coverage.
+
+2. Backtest realism correction
 - Fix daily-return pathology and turnover realism.
 - Align backtest and paper execution assumptions stage-by-stage.
 - Add diagnostics for where divergence originates.
 
-2. Shadow truth-path upgrade
+3. Shadow truth-path upgrade
 - Replace synthetic forward returns with realized bar-joined outcomes.
 - Add drawdown and outcome source metadata from true bars.
 
-3. Cost/slippage calibration
+4. Cost/slippage calibration
 - Add venue-aware slippage/fees/funding presets.
 - Integrate calibration profiles into validation stress suite.
 
-4. Governance hardening
+5. Governance hardening
 - Add promotion memo generation per stage transition.
 - Add reviewer identity and approval state.
 
 ## Near-Term
 
-1. Add API endpoints for research-core objects:
+1. Expand assistant product surfaces:
+- persist signal-detail ask context
+- add richer Quick Ask flows from cards/details
+- expose thread history in a lightweight user-visible way if product wants it later
+
+2. Add API endpoints for research-core objects:
 - regime state,
 - risk budgets,
 - funnel diagnostics,
 - governance actions,
 - product opportunity objects.
 
-2. Persist research-core snapshots for historical audit replay.
-3. Add automated threshold-tuning experiments tied to funnel starvation signals.
-4. Add regime transition confusion diagnostics and retraining triggers.
+3. Persist research-core snapshots for historical audit replay.
+4. Add automated threshold-tuning experiments tied to funnel starvation signals.
+5. Add regime transition confusion diagnostics and retraining triggers.
 
 ## Medium-Term
 
@@ -43,10 +52,11 @@ Last updated: 2026-03-09
 
 ## Acceptance Criteria for Next Milestone
 
-1. Backtest vs paper divergence is explainable at strategy/day stage level.
-2. Shadow strictness recommendations are based on realized forward outcomes.
-3. Governance actions include memo + reviewer + rollback path.
-4. At least one family shows stable OOS behavior under stressed assumptions.
+1. Assistant responses are evidence-aware, thread-persistent, and resilient to provider failures.
+2. Backtest vs paper divergence is explainable at strategy/day stage level.
+3. Shadow strictness recommendations are based on realized forward outcomes.
+4. Governance actions include memo + reviewer + rollback path.
+5. At least one family shows stable OOS behavior under stressed assumptions.
 
 ## Process Discipline (Mandatory)
 

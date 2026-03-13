@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import Skeleton from './Skeleton';
-import { answerWithRetrieval } from '../quant/aiRetrieval';
+import { useNovaAssistant } from '../hooks/useNovaAssistant';
 
 const COPILOT_SECTIONS = ['VERDICT', 'PLAN', 'WHY', 'RISK', 'EVIDENCE'];
 const QUICK_QUESTIONS = [
@@ -9,10 +9,6 @@ const QUICK_QUESTIONS = [
   'Should I enter now?',
   'Explain the strategy'
 ];
-
-function randomId() {
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-}
 
 function parseStructuredReply(raw) {
   const text = String(raw || '').trim();
@@ -124,38 +120,28 @@ function CopilotStructuredReply({ message, onNavigate }) {
   );
 }
 
-export default function AiPage({ locale, quantState, seedRequest, onNavigate }) {
-  const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState('');
-  const [streaming, setStreaming] = useState(false);
+export default function AiPage({ quantState, seedRequest, onNavigate, userId, baseContext }) {
   const listRef = useRef(null);
-  const seededRef = useRef(null);
-  const demoSeededRef = useRef(false);
   const isDemoMode = Boolean(quantState?.performance?.investor_demo);
-
-  const sendMessage = async (rawText) => {
-    const text = String(rawText || '').trim();
-    if (!text || streaming) return;
-
-    setStreaming(true);
-    setMessages((current) => [...current, { id: randomId(), role: 'user', content: text }]);
-    setInput('');
-
-    await new Promise((resolve) => setTimeout(resolve, 140));
-
-    const answer = answerWithRetrieval(text, quantState);
-    setMessages((current) => [
-      ...current,
-      {
-        id: randomId(),
-        role: 'assistant',
-        content: answer.text,
-        question: text,
-        nextStep: chooseNextStep(text)
-      }
-    ]);
-    setStreaming(false);
-  };
+  const {
+    messages,
+    input,
+    setInput,
+    streaming,
+    error,
+    sendMessage
+  } = useNovaAssistant({
+    userId,
+    seedRequest,
+    contextBase: {
+      page: 'ai',
+      market: baseContext?.market,
+      assetClass: baseContext?.assetClass,
+      timeframe: baseContext?.timeframe,
+      riskProfileKey: baseContext?.riskProfileKey,
+      uiMode: baseContext?.uiMode
+    }
+  });
 
   useEffect(() => {
     if (!listRef.current) return;
@@ -163,29 +149,13 @@ export default function AiPage({ locale, quantState, seedRequest, onNavigate }) 
   }, [messages, streaming]);
 
   useEffect(() => {
-    if (!seedRequest?.id || !seedRequest?.message) return;
-    if (seededRef.current === seedRequest.id) return;
-    seededRef.current = seedRequest.id;
-    void sendMessage(seedRequest.message);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seedRequest?.id, seedRequest?.message]);
-
-  useEffect(() => {
-    if (!isDemoMode || demoSeededRef.current || messages.length) return;
-    demoSeededRef.current = true;
-    const sampleQuestion = 'Why this signal?';
-    const sampleAnswer = answerWithRetrieval(sampleQuestion, quantState);
-    setMessages([
-      { id: randomId(), role: 'user', content: sampleQuestion },
-      {
-        id: randomId(),
-        role: 'assistant',
-        content: sampleAnswer.text,
-        question: sampleQuestion,
-        nextStep: chooseNextStep(sampleQuestion)
-      }
-    ]);
-  }, [isDemoMode, messages.length, quantState]);
+    if (!isDemoMode || messages.length) return;
+    void sendMessage('Why this signal?', {
+      page: 'today',
+      market: baseContext?.market,
+      assetClass: baseContext?.assetClass
+    });
+  }, [isDemoMode, messages.length, sendMessage, baseContext?.market, baseContext?.assetClass]);
 
   return (
     <section className="stack-gap ai-tab-shell">
@@ -229,6 +199,12 @@ export default function AiPage({ locale, quantState, seedRequest, onNavigate }) 
           {streaming ? <Skeleton lines={2} compact className="ai-response-skeleton" /> : null}
         </div>
       </article>
+
+      {error ? (
+        <article className="glass-card empty-card">
+          <p className="muted">{error}</p>
+        </article>
+      ) : null}
 
       <form
         className="ai-input-row ai-input-dock"

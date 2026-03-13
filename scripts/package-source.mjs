@@ -20,6 +20,7 @@ const EXCLUDES = [
   'coverage',
   'artifacts',
   'release',
+  '.vercel',
   '__MACOSX',
   '*.log',
   '*.tmp',

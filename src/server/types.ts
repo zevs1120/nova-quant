@@ -493,3 +493,25 @@ export interface ExperimentRegistryRecord {
   approved_at_ms: number | null;
   created_at_ms: number;
 }
+
+export interface ChatThreadRecord {
+  id: string;
+  user_id: string;
+  title: string;
+  last_context_json: string | null;
+  last_message_preview: string | null;
+  created_at_ms: number;
+  updated_at_ms: number;
+}
+
+export interface ChatMessageRecord {
+  id?: number;
+  thread_id: string;
+  user_id: string;
+  role: 'user' | 'assistant' | 'system' | 'tool';
+  content: string;
+  context_json: string | null;
+  provider: string | null;
+  status: 'READY' | 'ERROR';
+  created_at_ms: number;
+}

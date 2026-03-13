@@ -544,12 +544,20 @@ export default function App() {
     }));
   };
 
-  const askAi = (message) => {
+  const askAi = (message, context = {}) => {
     const text = String(message || '').trim();
     if (!text) return;
     setAiSeedRequest({
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      message: text
+      message: text,
+      context: {
+        page: activeTab === 'more' ? moreSection || 'more' : activeTab,
+        market,
+        assetClass,
+        riskProfileKey,
+        uiMode,
+        ...(context || {})
+      }
     });
     setActiveTab('ai');
   };
@@ -977,7 +985,20 @@ export default function App() {
     }
 
     if (activeTab === 'ai') {
-      return <AiPage t={t} locale={locale} quantState={aiState} seedRequest={aiSeedRequest} onNavigate={navigateFromAi} />;
+      return (
+        <AiPage
+          quantState={aiState}
+          seedRequest={aiSeedRequest}
+          onNavigate={navigateFromAi}
+          userId={chatUserId}
+          baseContext={{
+            market,
+            assetClass,
+            riskProfileKey,
+            uiMode
+          }}
+        />
+      );
     }
 
     if (activeTab === 'holdings') {

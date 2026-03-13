@@ -28,7 +28,7 @@ import {
   verifyPublicSignalsApiKey
 } from './queries.js';
 import { checkRateLimit } from '../chat/rateLimit.js';
-import { streamChat } from '../chat/service.js';
+import { getChatThreadMessages, listChatThreads, streamChat } from '../chat/service.js';
 import { logChatAudit } from '../chat/audit.js';
 import { createBrokerAdapter, createExchangeAdapter } from '../connect/adapters.js';
 
@@ -517,11 +517,22 @@ export function createApiApp() {
     const startedAt = Date.now();
     const body = req.body as {
       userId?: string;
+      threadId?: string;
       message?: string;
-      context?: { signalId?: string; symbol?: string; market?: Market; assetClass?: AssetClass; timeframe?: string };
+      context?: {
+        signalId?: string;
+        symbol?: string;
+        market?: Market;
+        assetClass?: AssetClass;
+        timeframe?: string;
+        page?: 'today' | 'ai' | 'holdings' | 'more' | 'signal-detail' | 'unknown';
+        riskProfileKey?: string;
+        uiMode?: string;
+      };
     };
     const userId = String(body?.userId || '').trim();
     const message = String(body?.message || '').trim();
+    const threadId = String(body?.threadId || '').trim() || undefined;
     const context = body?.context;
 
     if (!userId || !message) {
@@ -554,6 +565,7 @@ export function createApiApp() {
 
     let mode: 'general-coach' | 'context-aware' = context ? 'context-aware' : 'general-coach';
     let provider = 'unknown';
+    let resolvedThreadId = threadId;
     let responseText = '';
     let status: 'ok' | 'error' = 'ok';
     let errorText = '';
@@ -561,12 +573,14 @@ export function createApiApp() {
     try {
       for await (const event of streamChat({
         userId,
+        threadId,
         message,
         context
       })) {
         if (event.type === 'meta') {
           mode = event.mode;
           provider = event.provider;
+          resolvedThreadId = event.threadId || resolvedThreadId;
         } else if (event.type === 'chunk') {
           responseText += event.delta;
         } else if (event.type === 'error') {
@@ -585,6 +599,7 @@ export function createApiApp() {
         userId,
         mode,
         provider,
+        threadId: resolvedThreadId,
         message,
         contextJson: JSON.stringify(context ?? {}),
         status,
@@ -598,6 +613,29 @@ export function createApiApp() {
 
   app.post('/api/chat', handleChat);
   app.post('/api/ai-chat', handleChat);
+
+  app.get('/api/chat/threads', (req, res) => {
+    const userId = String((req.query.userId as string | undefined) || '').trim() || 'guest-default';
+    const limit = req.query.limit ? Number(req.query.limit) : 12;
+    const data = listChatThreads(userId, limit);
+    res.json({
+      userId,
+      count: data.length,
+      data
+    });
+  });
+
+  app.get('/api/chat/threads/:id', (req, res) => {
+    const userId = String((req.query.userId as string | undefined) || '').trim() || 'guest-default';
+    const threadId = String(req.params.id || '').trim();
+    const limit = req.query.limit ? Number(req.query.limit) : 40;
+    const payload = getChatThreadMessages(userId, threadId, limit);
+    if (!payload.thread) {
+      res.status(404).json({ error: 'Thread not found' });
+      return;
+    }
+    res.json(payload);
+  });
 
   return app;
 }

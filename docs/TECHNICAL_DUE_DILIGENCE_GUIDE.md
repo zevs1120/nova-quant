@@ -1,6 +1,6 @@
 # Technical Due Diligence Guide
 
-Last updated: 2026-03-12
+Last updated: 2026-03-14
 
 ## 1) What Nova Quant Is Today
 
@@ -24,6 +24,12 @@ It is **not** currently a broker-connected live trading stack.
   - metrics/artifacts
   - replay-vs-paper reconciliation
   - strategy/dataset/execution-profile lineage.
+- Canonical Nova Assistant records:
+  - `chat_threads`
+  - `chat_messages`
+  - `chat_audit_logs`
+  - evidence-aware tool context assembly
+  - deterministic fallback when provider access is unavailable
 
 ### Experimental/model-derived
 - Some advanced research core analytics remain model-derived.
@@ -43,6 +49,9 @@ Shared query/service path:
 - `src/server/api/queries.ts`
 - `src/server/quant/service.ts`
 - `src/server/quant/runtimeDerivation.ts`
+- `src/server/chat/service.ts`
+- `src/server/chat/tools.ts`
+- `src/server/chat/prompts.ts`
 
 Wrapper routes (`api/*.ts`) delegate to shared app layer.
 
@@ -73,19 +82,34 @@ Default connector posture is honest:
 Fresh clone baseline:
 
 ```bash
-npm install
+npm ci
+npm run clean
 npm run db:init
 npm run backfill -- --market CRYPTO --tf 1h
 npm run validate:data -- --tf 1h --lookbackBars 800
 npm run derive:runtime
 npm run api:data
 npm run dev
-npm run test:data
+npm test
+npm run lint
 npm run typecheck
 npm run build
+npm run verify
 ```
 
-## 8) Honest Limitations (Current)
+## 8) Canonical Assistant Reality
+
+The product now exposes one assistant path, not two separate AI personalities:
+- frontend AI page -> `/api/chat`
+- Ask Nova shortcuts -> `/api/chat`
+- legacy sheet UI -> `/api/chat`
+
+Provider behavior:
+- if a configured provider succeeds, Nova returns the provider-backed answer
+- if a provider times out / fails / returns malformed or empty output, Nova falls back to the next provider
+- if no provider is configured, Nova returns deterministic internal guidance with explicit honesty about the fallback mode
+
+## 9) Honest Limitations (Current)
 
 1. US daily/hourly bars may be incomplete until additional Stooq runs complete.
 2. Some research subsystems still use synthetic/model-derived internals for exploration.
@@ -93,7 +117,7 @@ npm run build
 4. Execution realism is still bar-level; no queue-level microstructure simulation.
 5. Strategy-level live broker execution remains unimplemented by design (honest disconnected connector posture).
 
-## 9) Canonical vs Historical Documentation
+## 10) Canonical vs Historical Documentation
 
 Canonical current-state documents:
 - `docs/SYSTEM_ARCHITECTURE.md`

@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "clean": "node scripts/clean-worktree.mjs",
+    "lint": "node scripts/check-repo-policy.mjs",
     "typecheck": "tsc --noEmit",
     "db:init": "tsx scripts/db-init.ts",
     "db:migrate": "tsx scripts/db-migrate.ts",
@@ -21,7 +23,9 @@
     "snapshot:backend-governance": "node scripts/build-backend-governance-snapshot.mjs",
     "stress:reliability": "node scripts/run-reliability-stress.mjs --out docs/research_reports/RELIABILITY_STRESS_REPORT.json",
     "api:data": "tsx src/server/apiServer.ts",
-    "test:data": "vitest run"
+    "test:data": "vitest run",
+    "test": "vitest run",
+    "verify": "node scripts/verify.mjs"
   },
   "dependencies": {
     "better-sqlite3": "^12.6.2",

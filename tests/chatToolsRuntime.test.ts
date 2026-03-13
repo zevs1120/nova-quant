@@ -16,12 +16,15 @@ describe('chat tools runtime sourcing', () => {
       userId: 'guest-default',
       context: {
         market: 'US'
-      }
+      },
+      message: 'Why this signal?'
     });
 
     expect(bundle).toBeTruthy();
     expect(bundle.sourceTransparency).toBeTruthy();
     expect(typeof bundle.sourceTransparency.signal_data_status).toBe('string');
     expect(Array.isArray(bundle.signalCards)).toBe(true);
+    expect(bundle.statusSummary.length).toBeGreaterThan(0);
+    expect(bundle.deterministicGuide).toBeTruthy();
   });
 });

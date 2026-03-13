@@ -1,0 +1,15 @@
+node_modules/
+dist/
+build/
+coverage/
+artifacts/
+release/
+.vercel/
+.DS_Store
+__MACOSX/
+data/*.db
+data/*.db-*
+data/*.sqlite
+data/*.sqlite-*
+*.wal
+*.shm

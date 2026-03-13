@@ -10,11 +10,12 @@ export function logChatAudit(record: ChatAuditRecord): void {
     db.prepare(
       `
         INSERT INTO chat_audit_logs(
-          user_id, mode, provider, message, context_json, status, error, response_preview, duration_ms, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          user_id, thread_id, mode, provider, message, context_json, status, error, response_preview, duration_ms, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `
     ).run(
       record.userId,
+      record.threadId ?? null,
       record.mode,
       record.provider,
       record.message,

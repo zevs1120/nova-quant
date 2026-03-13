@@ -1,21 +1,78 @@
-import type { ChatMode, ToolContextBundle } from './types.js';
+import type { ChatContextInput, ChatHistoryMessage, ChatMode, ToolContextBundle } from './types.js';
+
+function line(value: unknown): string {
+  return String(value ?? '').trim();
+}
+
+function compactJson(value: unknown): string {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return '';
+  }
+}
+
+function formatSignalCards(signalCards: unknown[]): string[] {
+  return signalCards
+    .filter((row): row is Record<string, unknown> => Boolean(row && typeof row === 'object'))
+    .map((row) => {
+      const symbol = line(row.symbol || '--');
+      const direction = line(row.direction || 'WAIT');
+      const confidence = Number(row.confidence ?? row.conviction ?? 0);
+      const grade = line(row.grade || '--');
+      const entryLow = line((row.entry_zone as Record<string, unknown> | undefined)?.low ?? row.entry_min ?? '--');
+      const entryHigh = line((row.entry_zone as Record<string, unknown> | undefined)?.high ?? row.entry_max ?? '--');
+      const status = line(row.data_status || row.source_label || row.source_status || 'INSUFFICIENT_DATA');
+      return `- ${symbol} ${direction} | conf ${confidence.toFixed(0)} | grade ${grade} | entry ${entryLow}-${entryHigh} | status ${status}`;
+    })
+    .slice(0, 5);
+}
+
+function formatSignalDetail(signalDetail: Record<string, unknown> | null): string[] {
+  if (!signalDetail) return ['- none'];
+  const entryZone = (signalDetail.entry_zone as Record<string, unknown> | undefined) || {};
+  const stopLoss = (signalDetail.stop_loss as Record<string, unknown> | undefined) || {};
+  return [
+    `- symbol ${line(signalDetail.symbol)} ${line(signalDetail.direction || 'WAIT')}`,
+    `- confidence ${String(signalDetail.confidence ?? '--')}, strategy ${line(signalDetail.strategy_id || signalDetail.strategy_family || '--')}`,
+    `- entry ${line(entryZone.low ?? signalDetail.entry_min ?? '--')} to ${line(entryZone.high ?? signalDetail.entry_max ?? '--')}`,
+    `- stop ${line(stopLoss.price ?? signalDetail.stop_loss ?? '--')}, invalidation ${line(signalDetail.invalidation_level ?? '--')}`
+  ];
+}
+
+function formatPerformanceSummary(performanceSummary: Record<string, unknown> | null): string[] {
+  const firstRecord = (performanceSummary?.records as Array<Record<string, unknown>> | undefined)?.[0];
+  const overall = firstRecord?.overall as Record<string, unknown> | undefined;
+  if (!overall) return ['- unavailable'];
+  return [
+    `- source ${line(overall.source_label || '--')} | sample ${line(overall.sample_size || '--')}`,
+    `- return ${line(overall.net_return ?? overall.total_return ?? '--')} | dd ${line(overall.max_drawdown ?? '--')}`,
+    `- sharpe ${line(overall.sharpe ?? '--')} | turnover ${line(overall.turnover ?? '--')}`
+  ];
+}
+
+function formatHistory(history: ChatHistoryMessage[]): string[] {
+  return history.slice(-6).map((item) => `- ${item.role.toUpperCase()}: ${item.content.slice(0, 280)}`);
+}
 
 export function buildSystemPrompt(mode: ChatMode, exactSignalData: boolean): string {
   const modeLine =
     mode === 'context-aware'
-      ? 'Mode: Context-Aware (use provided context first, generalize when missing).'
-      : 'Mode: General Coach (education first, plain-English guidance).';
+      ? 'Mode: Context-Aware. Prioritize evidence tied to the requested signal, page, market, and user context.'
+      : 'Mode: General Coach. Use product context when useful, but keep explanations beginner-safe and practical.';
 
   const missingSignalInstruction =
     mode === 'context-aware' && !exactSignalData
-      ? 'Start your answer with EXACTLY: "I don’t have your exact signal data yet, so here’s a general guideline."'
-      : 'If context exists, prioritize it over generic discussion.';
+      ? 'If exact signal detail is missing, say so clearly and downgrade to general guidance instead of pretending.'
+      : 'If exact signal detail exists, anchor the answer to it first.';
 
   return [
-    'You are Nova Quant Assistant for US options, US equities, and crypto.',
+    'You are Nova Assistant for Nova Quant.',
     modeLine,
     missingSignalInstruction,
-    'Tone: concise, practical, checklist-driven, plain English.',
+    'You are evidence-aware, honest, beginner-friendly, and action-oriented.',
+    'Never pretend live trading, broker connectivity, or realized performance exists when the evidence says otherwise.',
+    'If data is simulated, disconnected, withheld, or insufficient, say that plainly.',
     'Output protocol (MANDATORY): use these exact section headers in uppercase and this exact order:',
     'VERDICT:',
     'PLAN:',
@@ -23,20 +80,16 @@ export function buildSystemPrompt(mode: ChatMode, exactSignalData: boolean): str
     'RISK:',
     'EVIDENCE:',
     'Formatting rules:',
-    '- VERDICT: one line only (Trade / Reduce size / Skip).',
-    '- PLAN: 4-6 bullets with entry, stop/invalidation, TP, sizing.',
-    '- PLAN must explicitly include: What it means / Risk boundary / Position sizing idea.',
+    '- VERDICT: one short line only.',
+    '- PLAN: 3-5 concise bullets. Include what to do next, risk boundary, and position size idea.',
     '- WHY: exactly 3 bullets in plain language.',
-    '- RISK: 2 failure modes + 1 clear exit rule.',
-    '- Include this sentence exactly in RISK: "Common failure modes / when NOT to trade".',
-    '- EVIDENCE: compact metrics (sample size, regime, cost assumptions, temperature/vol if available).',
+    '- RISK: 2 bullets + 1 explicit line that says "Common failure modes / when NOT to trade".',
+    '- EVIDENCE: only compact facts that are actually present in context.',
+    '- Keep it mobile-friendly and do not dump raw JSON.',
     'Safety rules:',
-    '- Final disclaimer must state this exact phrase: "educational, not financial advice".',
-    '- Never promise profits or certainty.',
-    '- Avoid personalized investment advice or account-specific recommendations.',
-    '- Prefer scenario-based guidance and risk controls.',
-    '- If context includes asset_class, tailor execution/risk language to that asset class.',
-    'Keep total length short and mobile-friendly.'
+    '- Do not fabricate performance, fills, live broker access, or hidden data.',
+    '- Prefer "I do not have enough clean data" over guessing.',
+    '- End with the exact phrase: "educational, not financial advice".'
   ].join('\n');
 }
 
@@ -44,18 +97,22 @@ export function buildUserPrompt(input: {
   userMessage: string;
   mode: ChatMode;
   contextBundle: ToolContextBundle;
-  context: unknown;
+  context: ChatContextInput | undefined;
+  history: ChatHistoryMessage[];
 }): string {
-  return [
-    `User message: ${input.userMessage}`,
-    `Mode: ${input.mode}`,
-    `Context input: ${JSON.stringify(input.context ?? {})}`,
-    `Signal cards: ${JSON.stringify(input.contextBundle.signalCards).slice(0, 2400)}`,
-    `Signal detail: ${JSON.stringify(input.contextBundle.signalDetail).slice(0, 2400)}`,
-    `Market temperature: ${JSON.stringify(input.contextBundle.marketTemperature).slice(0, 1600)}`,
-    `Risk profile: ${JSON.stringify(input.contextBundle.riskProfile).slice(0, 1600)}`,
-    `Performance summary: ${JSON.stringify(input.contextBundle.performanceSummary).slice(0, 1800)}`,
-    `Source transparency: ${JSON.stringify(input.contextBundle.sourceTransparency).slice(0, 800)}`,
-    `Exact signal data available: ${input.contextBundle.hasExactSignalData ? 'yes' : 'no'}`
-  ].join('\n\n');
+  const sections = [
+    `USER REQUEST\n${input.userMessage}`,
+    `PAGE / TASK CONTEXT\n${compactJson(input.context || {}) || '{}'}`,
+    `RECENT THREAD MEMORY\n${formatHistory(input.history).join('\n') || '- none'}`,
+    `EXACT SIGNAL DETAIL\n${formatSignalDetail(input.contextBundle.signalDetail).join('\n')}`,
+    `TOP RELEVANT SIGNALS\n${formatSignalCards(input.contextBundle.signalCards).join('\n') || '- none'}`,
+    `MARKET / RISK SNAPSHOT\n- market ${line(input.contextBundle.marketTemperature?.regime_id || input.contextBundle.marketTemperature?.stance || '--')}\n- risk ${line(input.contextBundle.riskProfile?.profile_key || '--')}\n- status ${input.contextBundle.statusSummary.join(' | ')}`,
+    `PERFORMANCE SUMMARY\n${formatPerformanceSummary(input.contextBundle.performanceSummary).join('\n')}`,
+    `DETERMINISTIC GUIDANCE TOOL\n${line(input.contextBundle.deterministicGuide?.text || 'unavailable')}`,
+    `PRIORITIZED EVIDENCE\n${input.contextBundle.selectedEvidence.map((item) => `- ${item}`).join('\n') || '- none'}`,
+    `SOURCE TRANSPARENCY\n${compactJson(input.contextBundle.sourceTransparency)}`,
+    `EXACT SIGNAL DATA AVAILABLE\n${input.contextBundle.hasExactSignalData ? 'yes' : 'no'}`
+  ];
+
+  return sections.join('\n\n');
 }

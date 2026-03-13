@@ -6,6 +6,8 @@ import type {
   BacktestArtifactRecord,
   BacktestMetricRecord,
   BacktestRunRecord,
+  ChatMessageRecord,
+  ChatThreadRecord,
   DatasetVersionRecord,
   EvidenceStatus,
   ExecutionProfileRecord,
@@ -900,6 +902,87 @@ export class MarketRepository {
       meta_json: string | null;
       updated_at_ms: number;
     }>;
+  }
+
+  upsertChatThread(input: ChatThreadRecord): void {
+    this.db
+      .prepare(
+        `
+          INSERT INTO chat_threads(
+            id, user_id, title, last_context_json, last_message_preview, created_at_ms, updated_at_ms
+          ) VALUES(
+            @id, @user_id, @title, @last_context_json, @last_message_preview, @created_at_ms, @updated_at_ms
+          )
+          ON CONFLICT(id) DO UPDATE SET
+            title = excluded.title,
+            last_context_json = excluded.last_context_json,
+            last_message_preview = excluded.last_message_preview,
+            updated_at_ms = excluded.updated_at_ms
+        `
+      )
+      .run(input);
+  }
+
+  getChatThread(id: string, userId: string): ChatThreadRecord | null {
+    const row = this.db
+      .prepare(
+        `
+          SELECT id, user_id, title, last_context_json, last_message_preview, created_at_ms, updated_at_ms
+          FROM chat_threads
+          WHERE id = ? AND user_id = ?
+          LIMIT 1
+        `
+      )
+      .get(id, userId) as ChatThreadRecord | undefined;
+    return row ?? null;
+  }
+
+  listChatThreads(userId: string, limit = 20): ChatThreadRecord[] {
+    return this.db
+      .prepare(
+        `
+          SELECT id, user_id, title, last_context_json, last_message_preview, created_at_ms, updated_at_ms
+          FROM chat_threads
+          WHERE user_id = ?
+          ORDER BY updated_at_ms DESC
+          LIMIT ?
+        `
+      )
+      .all(userId, limit) as ChatThreadRecord[];
+  }
+
+  appendChatMessage(input: ChatMessageRecord): number {
+    const result = this.db
+      .prepare(
+        `
+          INSERT INTO chat_messages(
+            thread_id, user_id, role, content, context_json, provider, status, created_at_ms
+          ) VALUES(
+            @thread_id, @user_id, @role, @content, @context_json, @provider, @status, @created_at_ms
+          )
+        `
+      )
+      .run({
+        ...input,
+        context_json: input.context_json ?? null,
+        provider: input.provider ?? null
+      });
+    return Number(result.lastInsertRowid);
+  }
+
+  listChatMessages(threadId: string, limit = 20): ChatMessageRecord[] {
+    const rows = this.db
+      .prepare(
+        `
+          SELECT id, thread_id, user_id, role, content, context_json, provider, status, created_at_ms
+          FROM chat_messages
+          WHERE thread_id = ?
+          ORDER BY created_at_ms DESC
+          LIMIT ?
+        `
+      )
+      .all(threadId, limit) as ChatMessageRecord[];
+    return [...rows].reverse();
   }
 
   upsertStrategyVersion(input: StrategyVersionRecord): void {
