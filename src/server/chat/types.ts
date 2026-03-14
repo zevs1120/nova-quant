@@ -9,6 +9,24 @@ export interface ChatContextInput {
   page?: 'today' | 'ai' | 'holdings' | 'more' | 'signal-detail' | 'unknown';
   riskProfileKey?: string;
   uiMode?: string;
+  decisionSummary?: {
+    today_call?: string;
+    risk_posture?: string;
+    top_action_id?: string | null;
+    top_action_symbol?: string | null;
+    top_action_label?: string | null;
+    source_status?: string;
+    data_status?: string;
+  };
+  holdingsSummary?: {
+    holdings_count?: number;
+    total_weight_pct?: number;
+    aligned_weight_pct?: number;
+    unsupported_weight_pct?: number;
+    top1_pct?: number;
+    risk_level?: string;
+    recommendation?: string;
+  };
 }
 
 export interface ChatRequestInput {

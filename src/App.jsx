@@ -63,6 +63,7 @@ const initialData = {
   market_modules: [],
   analytics: {},
   research: null,
+  decision: null,
   today: null,
   safety: null,
   insights: null,
@@ -167,6 +168,7 @@ export default function App() {
   const [market, setMarket] = useState('US');
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(initialData);
+  const [decisionSnapshot, setDecisionSnapshot] = useState(null);
   const [rawData, setRawData] = useState(null);
   const [refreshNonce, setRefreshNonce] = useState(0);
   const [hasLoaded, setHasLoaded] = useState(false);
@@ -243,6 +245,7 @@ export default function App() {
         ...data.performance,
         investor_demo: INVESTOR_DEMO_PERFORMANCE
       },
+      decision: investorDemoEnvironment?.decision || data.decision,
       today: investorDemoEnvironment?.today || data.today,
       safety: investorDemoEnvironment?.safety || data.safety,
       insights: investorDemoEnvironment?.insights || data.insights,
@@ -265,6 +268,7 @@ export default function App() {
   const aiState = useMemo(
     () => ({
       ...uiData,
+      decision: decisionSnapshot || uiData.decision || null,
       user_context: {
         user_id: chatUserId,
         ui_mode: uiMode,
@@ -272,7 +276,7 @@ export default function App() {
         holdings_review: holdingsReview
       }
     }),
-    [uiData, chatUserId, uiMode, holdings, holdingsReview]
+    [uiData, decisionSnapshot, chatUserId, uiMode, holdings, holdingsReview]
   );
 
   const enableInvestorDemo = () => {
@@ -374,6 +378,7 @@ export default function App() {
         };
         const nextData = {
           ...runtimeData,
+          decision: runtimeData.decision || null,
           signals: Array.isArray(signals?.data) ? signals.data : runtimeData.signals || [],
           evidence: evidenceData,
           market_modules: Array.isArray(modules?.data) ? modules.data : runtimeData.market_modules || [],
@@ -411,6 +416,7 @@ export default function App() {
           }
         };
         setData(nextData);
+        setDecisionSnapshot(runtimeData.decision || null);
         setRawData({
           as_of: runtime?.asof || new Date().toISOString(),
           source_status: runtime?.source_status || 'INSUFFICIENT_DATA'
@@ -419,6 +425,7 @@ export default function App() {
       } catch {
         if (!mounted) return;
         setData(initialData);
+        setDecisionSnapshot(null);
         setRawData(null);
         setHasLoaded(false);
       } finally {
@@ -495,6 +502,32 @@ export default function App() {
       .catch(() => {});
   }, [riskProfileKey, chatUserId]);
 
+  useEffect(() => {
+    if (EXPLICIT_DEMO_MODE || !hasLoaded) return;
+    let cancelled = false;
+
+    void fetchJson('/api/decision/today', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: chatUserId,
+        market,
+        assetClass,
+        holdings
+      })
+    })
+      .then((payload) => {
+        if (!cancelled) setDecisionSnapshot(payload || null);
+      })
+      .catch(() => {
+        if (!cancelled) setDecisionSnapshot(uiData.decision || null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [EXPLICIT_DEMO_MODE, hasLoaded, chatUserId, market, assetClass, holdings, uiData.decision]);
+
   const lastUpdated = useMemo(() => {
     return uiData.config.last_updated || uiData.performance.last_updated || uiData.velocity.last_updated || null;
   }, [uiData]);
@@ -556,6 +589,24 @@ export default function App() {
         assetClass,
         riskProfileKey,
         uiMode,
+        decisionSummary: {
+          today_call: decisionSnapshot?.summary?.today_call?.headline || decisionSnapshot?.summary?.today_call || null,
+          risk_posture: decisionSnapshot?.summary?.risk_posture || decisionSnapshot?.risk_state?.posture || null,
+          top_action_id: decisionSnapshot?.top_action_id || null,
+          top_action_symbol: decisionSnapshot?.summary?.top_action_symbol || decisionSnapshot?.ranked_action_cards?.[0]?.symbol || null,
+          top_action_label: decisionSnapshot?.summary?.top_action_label || decisionSnapshot?.ranked_action_cards?.[0]?.action_label || null,
+          source_status: decisionSnapshot?.source_status || uiData?.config?.runtime?.source_status || 'INSUFFICIENT_DATA',
+          data_status: decisionSnapshot?.data_status || uiData?.config?.runtime?.data_status || 'INSUFFICIENT_DATA'
+        },
+        holdingsSummary: {
+          holdings_count: holdingsReview?.totals?.holdings_count ?? 0,
+          total_weight_pct: holdingsReview?.totals?.total_weight_pct ?? 0,
+          aligned_weight_pct: holdingsReview?.system_alignment?.aligned_weight_pct ?? 0,
+          unsupported_weight_pct: holdingsReview?.system_alignment?.unsupported_weight_pct ?? 0,
+          top1_pct: holdingsReview?.concentration?.top1_pct ?? 0,
+          risk_level: holdingsReview?.risk?.level || null,
+          recommendation: holdingsReview?.risk?.recommendation || holdingsReview?.key_advice || null
+        },
         ...(context || {})
       }
     });
@@ -959,6 +1010,7 @@ export default function App() {
           insights={uiData.insights}
           signals={uiData.signals}
           topSignalEvidence={uiData?.evidence?.top_signals || []}
+          decision={decisionSnapshot || uiData.decision || null}
           performance={uiData.performance}
           runtime={uiData?.config?.runtime || {}}
           trades={uiData?.trades || []}
@@ -995,7 +1047,25 @@ export default function App() {
             market,
             assetClass,
             riskProfileKey,
-            uiMode
+            uiMode,
+            decisionSummary: {
+              today_call: decisionSnapshot?.summary?.today_call?.headline || decisionSnapshot?.summary?.today_call || null,
+              risk_posture: decisionSnapshot?.summary?.risk_posture || decisionSnapshot?.risk_state?.posture || null,
+              top_action_id: decisionSnapshot?.top_action_id || null,
+              top_action_symbol: decisionSnapshot?.summary?.top_action_symbol || decisionSnapshot?.ranked_action_cards?.[0]?.symbol || null,
+              top_action_label: decisionSnapshot?.summary?.top_action_label || decisionSnapshot?.ranked_action_cards?.[0]?.action_label || null,
+              source_status: decisionSnapshot?.source_status || uiData?.config?.runtime?.source_status || 'INSUFFICIENT_DATA',
+              data_status: decisionSnapshot?.data_status || uiData?.config?.runtime?.data_status || 'INSUFFICIENT_DATA'
+            },
+            holdingsSummary: {
+              holdings_count: holdingsReview?.totals?.holdings_count ?? 0,
+              total_weight_pct: holdingsReview?.totals?.total_weight_pct ?? 0,
+              aligned_weight_pct: holdingsReview?.system_alignment?.aligned_weight_pct ?? 0,
+              unsupported_weight_pct: holdingsReview?.system_alignment?.unsupported_weight_pct ?? 0,
+              top1_pct: holdingsReview?.concentration?.top1_pct ?? 0,
+              risk_level: holdingsReview?.risk?.level || null,
+              recommendation: holdingsReview?.risk?.recommendation || holdingsReview?.key_advice || null
+            }
           }}
         />
       );

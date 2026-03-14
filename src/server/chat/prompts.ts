@@ -62,6 +62,26 @@ function formatResearchTools(bundle: ToolContextBundle): string[] {
   });
 }
 
+function formatDecisionSummary(context: ChatContextInput | undefined): string[] {
+  if (!context?.decisionSummary) return ['- unavailable'];
+  return [
+    `- today call ${line(context.decisionSummary.today_call || '--')}`,
+    `- risk posture ${line(context.decisionSummary.risk_posture || '--')}`,
+    `- top action ${line(context.decisionSummary.top_action_label || '--')} ${line(context.decisionSummary.top_action_symbol || '')}`.trim(),
+    `- transparency ${line(context.decisionSummary.source_status || '--')} / ${line(context.decisionSummary.data_status || '--')}`
+  ];
+}
+
+function formatHoldingsSummary(context: ChatContextInput | undefined): string[] {
+  if (!context?.holdingsSummary) return ['- unavailable'];
+  return [
+    `- holdings ${line(context.holdingsSummary.holdings_count || '--')} | total weight ${line(context.holdingsSummary.total_weight_pct || '--')}`,
+    `- aligned ${line(context.holdingsSummary.aligned_weight_pct || '--')} | unsupported ${line(context.holdingsSummary.unsupported_weight_pct || '--')}`,
+    `- top1 ${line(context.holdingsSummary.top1_pct || '--')} | risk ${line(context.holdingsSummary.risk_level || '--')}`,
+    `- recommendation ${line(context.holdingsSummary.recommendation || '--')}`
+  ];
+}
+
 export function buildSystemPrompt(mode: ChatMode, exactSignalData: boolean): string {
   const modeLine =
     mode === 'research-assistant'
@@ -123,6 +143,8 @@ export function buildUserPrompt(input: {
     `EXACT SIGNAL DETAIL\n${formatSignalDetail(input.contextBundle.signalDetail).join('\n')}`,
     `TOP RELEVANT SIGNALS\n${formatSignalCards(input.contextBundle.signalCards).join('\n') || '- none'}`,
     `MARKET / RISK SNAPSHOT\n- market ${line(input.contextBundle.marketTemperature?.regime_id || input.contextBundle.marketTemperature?.stance || '--')}\n- risk ${line(input.contextBundle.riskProfile?.profile_key || '--')}\n- status ${input.contextBundle.statusSummary.join(' | ')}`,
+    `DECISION SNAPSHOT\n${formatDecisionSummary(input.context).join('\n')}`,
+    `HOLDINGS SUMMARY\n${formatHoldingsSummary(input.context).join('\n')}`,
     `PERFORMANCE SUMMARY\n${formatPerformanceSummary(input.contextBundle.performanceSummary).join('\n')}`,
     `DETERMINISTIC GUIDANCE TOOL\n${line(input.contextBundle.deterministicGuide?.text || 'unavailable')}`,
     `RESEARCH TOOLS\n${formatResearchTools(input.contextBundle).join('\n') || '- none'}`,

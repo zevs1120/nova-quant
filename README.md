@@ -13,6 +13,7 @@ It is **not** a blind auto-trading bot and does **not** fabricate live performan
 - Deterministic fallback guidance when no LLM provider is configured
 - Runtime cache isolation by user + risk profile + market + asset class + timeframe + scope
 - Strict runtime status labels for `DB_BACKED`, `MODEL_DERIVED`, `INSUFFICIENT_DATA`, `DISCONNECTED`, `DEMO_ONLY`, and related states
+- Ranked action cards backed by decision snapshots, evidence bundles, and audit history
 - Clean handoff tooling that excludes local databases, build artifacts, cached node modules, and platform junk
 
 ## What Changed In This Runtime-Realism Upgrade
@@ -29,6 +30,7 @@ It is **not** a blind auto-trading bot and does **not** fabricate live performan
 Primary application layers:
 - `src/App.jsx`: mobile-first product shell and tab orchestration
 - `src/server/api/app.ts`: canonical API surface for frontend + evidence + assistant
+- `src/server/decision/engine.ts`: decision engine for risk-adjudicated, portfolio-aware action cards
 - `src/server/chat/service.ts`: canonical Nova Assistant service with threads, fallback, and evidence-aware prompt assembly
 - `src/server/chat/tools.ts`: deterministic internal tool layer (signals, market state, performance, risk, retrieval fallback)
 - `src/server/quant/service.ts`: quant runtime synchronization + cache isolation
@@ -41,9 +43,33 @@ Primary application layers:
 Primary backend source of truth:
 - `src/server/api/app.ts`
 - `src/server/api/queries.ts`
+- `src/server/decision/engine.ts`
 - `src/server/quant/service.ts`
 - `src/server/quant/runtimeDerivation.ts`
 - SQLite (`data/quant.db`)
+
+## Decision Engine
+
+Nova Quant now behaves as a decision system rather than a raw signal feed.
+
+Canonical chain:
+
+```text
+raw observations
+-> features / factors
+-> research signals
+-> eligible signals
+-> risk state + policy filter
+-> portfolio intent
+-> personalized action cards
+-> evidence bundle
+-> grounded assistant explanation
+```
+
+Key runtime surfaces:
+- `GET /api/runtime-state` includes a baseline `data.decision`
+- `POST /api/decision/today` builds a personalized decision snapshot using user holdings context
+- `GET /api/decision/audit` exposes persisted recommendation history for replay and review
 
 ## Runtime Status Labels
 
@@ -187,6 +213,7 @@ Default exclusions include local/runtime artifacts:
 
 - [`docs/SYSTEM_ARCHITECTURE.md`](docs/SYSTEM_ARCHITECTURE.md)
 - [`docs/NOVA_ASSISTANT_ARCHITECTURE.md`](docs/NOVA_ASSISTANT_ARCHITECTURE.md)
+- [`docs/DECISION_ENGINE.md`](docs/DECISION_ENGINE.md)
 - [`docs/QUANT_RESEARCH_DOCTRINE.md`](docs/QUANT_RESEARCH_DOCTRINE.md)
 - [`docs/RESEARCH_ASSISTANT_TOOLS.md`](docs/RESEARCH_ASSISTANT_TOOLS.md)
 - [`docs/TECHNICAL_DUE_DILIGENCE_GUIDE.md`](docs/TECHNICAL_DUE_DILIGENCE_GUIDE.md)

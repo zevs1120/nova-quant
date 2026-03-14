@@ -473,6 +473,30 @@ CREATE TABLE IF NOT EXISTS experiment_registry (
 );
 
 CREATE INDEX IF NOT EXISTS idx_experiment_registry_lookup ON experiment_registry(decision_status, created_at_ms DESC);
+
+CREATE TABLE IF NOT EXISTS decision_snapshots (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  market TEXT NOT NULL CHECK (market IN ('US', 'CRYPTO', 'ALL')),
+  asset_class TEXT NOT NULL CHECK (asset_class IN ('OPTIONS', 'US_STOCK', 'CRYPTO', 'ALL')),
+  snapshot_date TEXT NOT NULL,
+  context_hash TEXT NOT NULL,
+  source_status TEXT NOT NULL,
+  data_status TEXT NOT NULL,
+  risk_state_json TEXT NOT NULL,
+  portfolio_context_json TEXT NOT NULL,
+  actions_json TEXT NOT NULL,
+  summary_json TEXT NOT NULL,
+  top_action_id TEXT,
+  created_at_ms INTEGER NOT NULL,
+  updated_at_ms INTEGER NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_decision_snapshots_unique
+  ON decision_snapshots(user_id, market, asset_class, snapshot_date, context_hash);
+
+CREATE INDEX IF NOT EXISTS idx_decision_snapshots_lookup
+  ON decision_snapshots(user_id, updated_at_ms DESC);
 `;
 
 export function ensureSchema(db: Database.Database): void {

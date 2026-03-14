@@ -16,6 +16,10 @@ describe('api runtime state', () => {
     expect(res.body).toHaveProperty('data_transparency');
     expect(res.body.data).toHaveProperty('signals');
     expect(res.body.data).toHaveProperty('performance');
+    expect(res.body.data).toHaveProperty('decision');
+    expect(res.body.data.decision).toHaveProperty('ranked_action_cards');
+    expect(res.body.data.decision).toHaveProperty('risk_state');
+    expect(res.body.data.decision).toHaveProperty('summary');
     if (res.body.data_transparency?.data_status === 'INSUFFICIENT_DATA') {
       expect(res.body.data?.velocity?.source_label).toBe('INSUFFICIENT_DATA');
       expect(res.body.data?.config?.source_label).toBe('INSUFFICIENT_DATA');

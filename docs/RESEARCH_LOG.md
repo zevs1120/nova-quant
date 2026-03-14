@@ -52,6 +52,19 @@ Last updated: 2026-03-14
 8. Strategy evaluation and validation report objects now exist as explicit assistant/API outputs instead of being implied inside long-form chat responses.
 9. A formal cross-asset research doctrine now constrains what the assistant should and should not claim, especially around commodities-first ambition vs current runtime reality.
 
+## Decision-System Findings (2026-03-14)
+
+1. A useful signal is not yet a usable recommendation; a decision layer is required to adjudicate between signal quality, market regime, and portfolio context.
+2. Risk state becomes materially more useful once it is allowed to suppress or downgrade action, not merely decorate the UI.
+3. Personalized action semantics matter:
+- the same signal may imply `open_new_risk`, `add_on_strength`, `reduce_risk`, or `no_action`
+depending on current holdings.
+4. Assistant quality improves when grounded on explicit decision objects instead of inferring recommendation state from scattered runtime fields.
+5. Decision audit snapshots create a better research loop because recommendation outcomes can later be reviewed against:
+- assumed holdings context
+- risk posture
+- top-ranked evidence
+
 ## New Research Questions Enabled
 
 1. Which factors are actually supporting the current signal, and which factors push against it?

@@ -8,20 +8,31 @@ Last updated: 2026-03-14
 - Move from prompt-routed tool use toward explicit schema-validated function/tool execution.
 - Add assistant evaluation checks for unsupported claims and evidence citation coverage.
 
-2. Factor-level measured evidence depth
+2. Event intelligence hardening for decision engine
+- Replace partially derived event context with first-class earnings/macro/revision/calendar ingestion.
+- Feed event risk directly into decision posture, action ranking, and assistant explanation.
+
+3. Factor-level measured evidence depth
 - Persist factor-level diagnostics and by-regime results as first-class research artifacts instead of only taxonomy + latest backtest summaries.
 - Add rank-IC / quantile-spread / regime-sliced factor evaluation objects.
 
-3. Commodity futures runtime expansion (doctrine-aligned)
+4. Commodity futures runtime expansion (doctrine-aligned)
 - Add honest schema/runtime support for commodity futures research inputs without pretending current live execution support.
 - Reuse the same evidence, regime, risk, and assistant contracts rather than forking a separate futures-only stack.
 
-4. Backtest realism correction
+5. Decision outcome review loop
+- Join `decision_snapshots` with replay/paper/live-like outcomes so every top action can be audited as:
+  - correct but unfilled
+  - incorrect
+  - risk-avoiding no-action
+  - portfolio-protective downgrade
+
+6. Backtest realism correction
 - Fix daily-return pathology and turnover realism.
 - Align backtest and paper execution assumptions stage-by-stage.
 - Add diagnostics for where divergence originates.
 
-5. Research workflow persistence depth
+7. Research workflow persistence depth
 - Persist workflow plans, validation reports, and reject/ship rationale as first-class research artifacts rather than ephemeral tool outputs.
 - Add stronger experiment lineage from hypothesis/template/factor family into experiment registry.
 

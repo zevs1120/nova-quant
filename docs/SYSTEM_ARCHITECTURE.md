@@ -81,6 +81,21 @@ Last updated: 2026-03-14
 - Adapter interfaces: `src/server/connect/adapters.ts`.
 - Default behavior is honest disconnected/null-state unless credentials and provider integration are truly available.
 
+10. **Decision Engine Layer**
+- Canonical module: `src/server/decision/engine.ts`.
+- Converts eligible signals into:
+  - risk-adjudicated decisions,
+  - portfolio-intent-aware action cards,
+  - evidence bundles,
+  - persisted decision audit snapshots.
+- Primary outputs:
+  - `today_call`
+  - `risk_state`
+  - `portfolio_context`
+  - `ranked_action_cards`
+  - `evidence_summary`
+  - `audit`
+
 ## 2) Runtime Data Flow
 
 1. `npm run backfill` ingests raw bars into `assets` + `ohlcv`.
@@ -98,6 +113,18 @@ Last updated: 2026-03-14
 - provider fallback strategy,
 - deterministic internal fallback when no provider is available.
 6. Frontend requests API endpoints and renders decision UX with `data_status/source_status`.
+7. `POST /api/decision/today` combines:
+- current runtime state,
+- user risk profile,
+- existing holdings context,
+- recent execution pressure,
+- evidence-ranked signals,
+and persists a `decision_snapshot`.
+8. The assistant grounds on:
+- runtime decision summary,
+- holdings summary,
+- evidence bundle lines,
+- research tools when questions move beyond product explanation.
 7. Evidence endpoints expose canonical replay/paper chain:
    - `/api/evidence/run`
    - `/api/evidence/signals/top`
@@ -108,6 +135,7 @@ Last updated: 2026-03-14
 ## 3) Source of Truth Rules
 
 - Runtime truth path is **DB + ingestion + derived state**.
+- Decision truth path is **runtime state + risk/regime policy + portfolio context + evidence ranking**.
 - Backtest/replay/paper truth path is **Evidence Engine canonical replay**.
 - `public/mock/*` is not used as default runtime source.
 - If data is missing/stale, APIs return honest degraded status (`INSUFFICIENT_DATA`, `DISCONNECTED`) rather than synthetic substitution.
@@ -118,6 +146,7 @@ Last updated: 2026-03-14
 - `ohlcv`
 - `market_state`
 - `signals`
+- `decision_snapshots`
 - `executions`
 - `performance_snapshots`
 - `external_connections`

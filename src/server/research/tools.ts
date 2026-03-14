@@ -120,10 +120,14 @@ function currentRegimeSummary(args: ResearchToolArgs) {
     symbol: args.symbol
   });
   const firstRow = first(marketRows);
+  const firstRowObject = (firstRow || {}) as Record<string, unknown>;
+  const stateInsights = ((state?.data?.insights as Record<string, unknown> | undefined) || {}) as Record<string, unknown>;
+  const stateRegime = ((stateInsights.regime as Record<string, unknown> | undefined) || {}) as Record<string, unknown>;
+  const stateSafety = ((state?.data?.safety as Record<string, unknown> | undefined) || {}) as Record<string, unknown>;
   return {
     runtime: state,
-    regime_id: String(firstRow?.regime_id || state?.data?.insights?.regime?.tag || RUNTIME_STATUS.INSUFFICIENT_DATA),
-    stance: String(firstRow?.stance || state?.data?.safety?.conclusion || ''),
+    regime_id: String(firstRowObject.regime_id || stateRegime.tag || RUNTIME_STATUS.INSUFFICIENT_DATA),
+    stance: String(firstRowObject.stance || stateSafety.conclusion || ''),
     rows: marketRows
   };
 }

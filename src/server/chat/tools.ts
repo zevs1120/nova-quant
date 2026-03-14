@@ -354,6 +354,8 @@ function buildSelectedEvidence(args: {
   riskProfile: Record<string, unknown> | null;
   performanceSummary: Record<string, unknown> | null;
   sourceTransparency: ToolContextBundle['sourceTransparency'];
+  decisionSummary?: ChatContextInput['decisionSummary'];
+  holdingsSummary?: ChatContextInput['holdingsSummary'];
 }): string[] {
   const lines: string[] = [];
   const signal = args.signalDetail;
@@ -374,6 +376,16 @@ function buildSelectedEvidence(args: {
   }
   if (args.riskProfile) {
     lines.push(`risk profile ${String(args.riskProfile.profile_key || 'balanced')} with exposure cap ${String(args.riskProfile.exposure_cap ?? '--')}`);
+  }
+  if (args.decisionSummary) {
+    lines.push(
+      `decision ${String(args.decisionSummary.today_call || '--')} | posture ${String(args.decisionSummary.risk_posture || '--')} | top action ${String(args.decisionSummary.top_action_label || '--')} ${String(args.decisionSummary.top_action_symbol || '')}`.trim()
+    );
+  }
+  if (args.holdingsSummary) {
+    lines.push(
+      `holdings ${String(args.holdingsSummary.holdings_count ?? 0)} | total weight ${String(args.holdingsSummary.total_weight_pct ?? '--')} | risk ${String(args.holdingsSummary.risk_level || '--')}`
+    );
   }
   const firstRecord = (args.performanceSummary?.records as Array<Record<string, unknown>> | undefined)?.[0];
   const overall = firstRecord?.overall as Record<string, unknown> | undefined;
@@ -422,15 +434,16 @@ export async function buildContextBundle(args: {
   const researchContext = await buildResearchToolResults(args);
 
   const sourceTransparency = {
-    signal_data_status: runtime?.source_status || RUNTIME_STATUS.INSUFFICIENT_DATA,
-    market_state_status:
-      runtime?.data_transparency?.data_status || runtime?.source_status || RUNTIME_STATUS.INSUFFICIENT_DATA,
+    signal_data_status: String(runtime?.source_status || RUNTIME_STATUS.INSUFFICIENT_DATA),
+    market_state_status: String(
+      runtime?.data_transparency?.data_status || runtime?.source_status || RUNTIME_STATUS.INSUFFICIENT_DATA
+    ),
     performance_source: (() => {
       const firstRecord = (performanceSummary?.records as Array<Record<string, unknown>> | undefined)?.[0];
       const overall = firstRecord?.overall as Record<string, unknown> | undefined;
       return String(overall?.source_label || RUNTIME_STATUS.INSUFFICIENT_DATA);
     })(),
-    performance_status: runtime?.data_transparency?.data_status || RUNTIME_STATUS.INSUFFICIENT_DATA
+    performance_status: String(runtime?.data_transparency?.data_status || RUNTIME_STATUS.INSUFFICIENT_DATA)
   };
 
   return {
@@ -452,13 +465,16 @@ export async function buildContextBundle(args: {
       marketTemperature,
       riskProfile,
       performanceSummary,
-      sourceTransparency
+      sourceTransparency,
+      decisionSummary: context?.decisionSummary,
+      holdingsSummary: context?.holdingsSummary
     }),
     statusSummary: [
       `signals ${sourceTransparency.signal_data_status}`,
       `market ${sourceTransparency.market_state_status}`,
-      `performance ${sourceTransparency.performance_source}`
-    ],
+      `performance ${sourceTransparency.performance_source}`,
+      context?.decisionSummary?.today_call ? `decision ${context.decisionSummary.today_call}` : ''
+    ].filter(Boolean),
     sourceTransparency,
     researchContext,
     hasExactSignalData: Boolean(signalDetail)

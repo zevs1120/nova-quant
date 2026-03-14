@@ -1,5 +1,84 @@
 # Nova Quant Implementation Log
 
+## 2026-03-14 — Decision Engine + Action Evidence Upgrade
+
+### What was implemented
+1. Added a formal decision engine:
+- `src/server/decision/engine.ts`
+- Converts runtime/evidence signals into:
+  - `risk_state`
+  - `portfolio_context`
+  - `ranked_action_cards`
+  - `evidence_summary`
+  - `audit`
+
+2. Added decision persistence:
+- new DB table: `decision_snapshots`
+- repository support for:
+  - `upsertDecisionSnapshot`
+  - `getLatestDecisionSnapshot`
+  - `listDecisionSnapshots`
+
+3. Added decision APIs:
+- `POST /api/decision/today`
+- `GET /api/decision/audit`
+- `/api/runtime-state` now includes `data.decision`
+
+4. Grounded assistant on decision objects:
+- AI context now carries `decisionSummary` and `holdingsSummary`
+- assistant prompts now explicitly include decision snapshot and holdings summary sections
+- chat tool context now includes decision/holdings evidence lines
+
+5. Frontend decision wiring:
+- `App.jsx` now requests personalized decision snapshots
+- `TodayTab.jsx` now prefers backend decision-ranked actions over local-only signal ranking
+- action cards now expose:
+  - portfolio intent
+  - why now
+  - risk note
+  - evidence-backed ranking order
+
+6. Added tests:
+- `tests/decisionEngine.test.ts`
+- `tests/decisionApi.test.ts`
+- updated runtime/chat tests for decision grounding
+
+### Files changed
+- `src/server/decision/engine.ts`
+- `src/server/api/queries.ts`
+- `src/server/api/app.ts`
+- `src/server/chat/types.ts`
+- `src/server/chat/tools.ts`
+- `src/server/chat/prompts.ts`
+- `src/server/db/schema.ts`
+- `src/server/db/repository.ts`
+- `src/server/types.ts`
+- `src/App.jsx`
+- `src/components/AiPage.jsx`
+- `src/components/TodayTab.jsx`
+- `tests/decisionEngine.test.ts`
+- `tests/decisionApi.test.ts`
+- `tests/apiRuntimeState.test.ts`
+- `tests/chatToolsRuntime.test.ts`
+- `docs/DECISION_ENGINE.md`
+- `docs/DATA_CONTRACTS.md`
+- `README.md`
+- `docs/SYSTEM_ARCHITECTURE.md`
+- `docs/PROJECT_MEMORY.md`
+- `docs/RESEARCH_LOG.md`
+- `docs/NEXT_STEPS.md`
+
+### Verification
+- `npm run -s typecheck` ✅
+- targeted runtime/decision tests ✅
+- `npm run -s build` ✅
+- `npm run -s verify` ✅
+
+### Open issues
+- event intelligence is still partially derived rather than fully backed by macro/earnings feeds
+- personalized decision context currently comes from product-side holdings state, not connected custodial accounts
+- older secondary research modules still need migration toward the same decision/action schema
+
 ## 2026-03-14 — AI-Native Research Assistant Upgrade
 
 ### What was implemented

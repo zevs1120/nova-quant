@@ -15,7 +15,21 @@ describe('chat tools runtime sourcing', () => {
     const bundle = await buildContextBundle({
       userId: 'guest-default',
       context: {
-        market: 'US'
+        market: 'US',
+        decisionSummary: {
+          today_call: '今天适合试探，不适合激进',
+          risk_posture: 'PROBE',
+          top_action_symbol: 'AAPL',
+          top_action_label: 'Probe small',
+          source_status: 'DB_BACKED',
+          data_status: 'DB_BACKED'
+        },
+        holdingsSummary: {
+          holdings_count: 2,
+          total_weight_pct: 32,
+          risk_level: 'medium',
+          recommendation: 'Portfolio risk is active but manageable.'
+        }
       },
       message: 'Why this signal?'
     });
@@ -25,6 +39,8 @@ describe('chat tools runtime sourcing', () => {
     expect(typeof bundle.sourceTransparency.signal_data_status).toBe('string');
     expect(Array.isArray(bundle.signalCards)).toBe(true);
     expect(bundle.statusSummary.length).toBeGreaterThan(0);
+    expect(bundle.selectedEvidence.some((line) => line.includes('decision'))).toBe(true);
+    expect(bundle.selectedEvidence.some((line) => line.includes('holdings'))).toBe(true);
     expect(bundle.deterministicGuide).toBeTruthy();
   });
 

@@ -380,6 +380,67 @@ function sourceCaption(signal, investorDemoEnabled) {
   return null;
 }
 
+function buildSignalFromDecision(decision, now) {
+  const topAction = decision?.ranked_action_cards?.[0];
+  const signal = topAction?.signal_payload;
+  if (!signal) return null;
+  const dataStatus = normalizeDataStatus({
+    ...signal,
+    data_status: topAction?.data_status,
+    source_status: topAction?.source_status,
+    source_label: topAction?.source_label
+  });
+  return {
+    ...signal,
+    _actionable: Boolean(topAction?.eligible),
+    _dataStatus: dataStatus,
+    _freshness: signal?.freshness_label || freshnessLabel(signal, now),
+    strategy_source: topAction?.strategy_source || signal?.strategy_source || 'AI quant strategy',
+    action_label: topAction?.action_label || null,
+    portfolio_intent: topAction?.portfolio_intent || null,
+    risk_note: topAction?.risk_note || null,
+    brief_why_now: topAction?.brief_why_now || null,
+    evidence_bundle: topAction?.evidence_bundle || null
+  };
+}
+
+function overallFromDecision(decision) {
+  const call = decision?.today_call;
+  if (!call) return null;
+  return {
+    code: call?.code || 'WAIT',
+    headline: call?.headline || call?.summary || '⚠️ Better to wait',
+    subtitle: call?.subtitle || decision?.risk_state?.user_message || 'Decision snapshot available.'
+  };
+}
+
+function riskFromDecision(decision) {
+  const posture = String(decision?.risk_state?.posture || '').toUpperCase();
+  if (!posture) return null;
+  if (posture === 'DEFEND' || posture === 'WAIT') {
+    return {
+      level: 'danger',
+      icon: '🔴',
+      label: 'Dangerous',
+      explanation: decision?.risk_state?.user_message || 'High risk environment. Do not force trades.'
+    };
+  }
+  if (posture === 'PROBE') {
+    return {
+      level: 'medium',
+      icon: '🟡',
+      label: 'Medium',
+      explanation: decision?.risk_state?.user_message || 'Conditions are mixed. Keep risk low and selective.'
+    };
+  }
+  return {
+    level: 'safe',
+    icon: '🟢',
+    label: 'Safe',
+    explanation: decision?.risk_state?.user_message || 'Conditions allow selective action.'
+  };
+}
+
 export default function TodayTab({
   now,
   assetClass,
@@ -387,6 +448,7 @@ export default function TodayTab({
   safety,
   signals,
   topSignalEvidence,
+  decision,
   runtime,
   investorDemoEnabled,
   onAskAi,
@@ -401,23 +463,36 @@ export default function TodayTab({
     () => pickBestSignal(signals, topSignalEvidence, assetClass, now),
     [signals, topSignalEvidence, assetClass, now]
   );
+  const decisionSignal = useMemo(() => buildSignalFromDecision(decision, now), [decision, now]);
   const featuredSignal = useMemo(
-    () => bestSignal || (investorDemoEnabled ? buildDemoFallbackSignal(assetClass, now) : null),
-    [bestSignal, investorDemoEnabled, assetClass, now]
+    () => decisionSignal || bestSignal || (investorDemoEnabled ? buildDemoFallbackSignal(assetClass, now) : null),
+    [decisionSignal, bestSignal, investorDemoEnabled, assetClass, now]
   );
   const historySignals = useMemo(
     () => recentSignals(signals, topSignalEvidence, assetClass, now, featuredSignal),
     [signals, topSignalEvidence, assetClass, now, featuredSignal]
   );
+  const secondaryDecisionSignals = useMemo(
+    () =>
+      Array.isArray(decision?.ranked_action_cards)
+        ? decision.ranked_action_cards
+            .slice(1, 3)
+            .map((row) => buildSignalFromDecision({ ranked_action_cards: [row] }, now))
+            .filter(Boolean)
+        : [],
+    [decision, now]
+  );
 
-  const overall = deriveOverallStatus({
-    today,
-    safety,
-    runtime,
-    bestSignal: featuredSignal
-  });
+  const overall =
+    overallFromDecision(decision) ||
+    deriveOverallStatus({
+      today,
+      safety,
+      runtime,
+      bestSignal: featuredSignal
+    });
 
-  const risk = riskLevel(overall.code, featuredSignal);
+  const risk = riskFromDecision(decision) || riskLevel(overall.code, featuredSignal);
   const buttonText = mainButtonLabel(overall.code);
 
   if (activeSignal) {
@@ -467,6 +542,7 @@ export default function TodayTab({
               <p className="today-action-line">
                 {featuredSignal.symbol || '--'} · {featuredSignal._actionable ? String(signalDirection(featuredSignal)).toUpperCase() : 'WAIT'}
               </p>
+              {featuredSignal.brief_why_now ? <p className="muted status-line">{featuredSignal.brief_why_now}</p> : null}
               <div className="today-action-grid">
                 <div className="status-box">
                   <p className="muted">Buy Zone</p>
@@ -485,7 +561,11 @@ export default function TodayTab({
                   <h2>{stopLossText(featuredSignal)}</h2>
                 </div>
               </div>
-              <p className="muted status-line">AI quant strategy · {generatedText(featuredSignal)}</p>
+              <p className="muted status-line">
+                {strategySourceText(featuredSignal)} · {generatedText(featuredSignal)}
+                {featuredSignal?.portfolio_intent ? ` · ${String(featuredSignal.portfolio_intent).replace(/_/g, ' ')}` : ''}
+              </p>
+              {featuredSignal?.risk_note ? <p className="muted status-line">{featuredSignal.risk_note}</p> : null}
               <div className="action-row today-action-row">
                 <button
                   type="button"
@@ -521,16 +601,18 @@ export default function TodayTab({
         </div>
       </section>
 
-      {historySignals.length ? (
+      {(secondaryDecisionSignals.length || historySignals.length) ? (
         <article className="glass-card">
           <div className="card-header">
             <div>
-              <h3 className="card-title">Recent Signals</h3>
-              <p className="muted">Recent examples for demo walkthroughs.</p>
+              <h3 className="card-title">{secondaryDecisionSignals.length ? 'More Ranked Actions' : 'Recent Signals'}</h3>
+              <p className="muted">
+                {secondaryDecisionSignals.length ? 'Lower-priority actions after the top decision.' : 'Recent examples for demo walkthroughs.'}
+              </p>
             </div>
           </div>
           <div className="demo-history-list">
-            {historySignals.map((signal) => (
+            {(secondaryDecisionSignals.length ? secondaryDecisionSignals : historySignals).map((signal) => (
               <button
                 key={signal.signal_id}
                 type="button"

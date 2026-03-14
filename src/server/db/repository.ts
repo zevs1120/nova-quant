@@ -9,6 +9,7 @@ import type {
   ChatMessageRecord,
   ChatThreadRecord,
   DatasetVersionRecord,
+  DecisionSnapshotRecord,
   EvidenceStatus,
   ExecutionProfileRecord,
   ExecutionRecord,
@@ -1549,5 +1550,99 @@ export class MarketRepository {
         `
       )
       .all(limit) as ExperimentRegistryRecord[];
+  }
+
+  upsertDecisionSnapshot(input: DecisionSnapshotRecord): void {
+    this.db
+      .prepare(
+        `
+          INSERT INTO decision_snapshots(
+            id, user_id, market, asset_class, snapshot_date, context_hash, source_status, data_status,
+            risk_state_json, portfolio_context_json, actions_json, summary_json, top_action_id, created_at_ms, updated_at_ms
+          ) VALUES(
+            @id, @user_id, @market, @asset_class, @snapshot_date, @context_hash, @source_status, @data_status,
+            @risk_state_json, @portfolio_context_json, @actions_json, @summary_json, @top_action_id, @created_at_ms, @updated_at_ms
+          )
+          ON CONFLICT(id) DO UPDATE SET
+            user_id = excluded.user_id,
+            market = excluded.market,
+            asset_class = excluded.asset_class,
+            snapshot_date = excluded.snapshot_date,
+            context_hash = excluded.context_hash,
+            source_status = excluded.source_status,
+            data_status = excluded.data_status,
+            risk_state_json = excluded.risk_state_json,
+            portfolio_context_json = excluded.portfolio_context_json,
+            actions_json = excluded.actions_json,
+            summary_json = excluded.summary_json,
+            top_action_id = excluded.top_action_id,
+            updated_at_ms = excluded.updated_at_ms
+        `
+      )
+      .run(input);
+  }
+
+  getLatestDecisionSnapshot(params: {
+    userId: string;
+    market?: Market | 'ALL';
+    assetClass?: AssetClass | 'ALL';
+  }): DecisionSnapshotRecord | null {
+    const where = ['user_id = @user_id'];
+    const q: Record<string, unknown> = { user_id: params.userId };
+    if (params.market) {
+      where.push('market = @market');
+      q.market = params.market;
+    }
+    if (params.assetClass) {
+      where.push('asset_class = @asset_class');
+      q.asset_class = params.assetClass;
+    }
+    const row = this.db
+      .prepare(
+        `
+          SELECT
+            id, user_id, market, asset_class, snapshot_date, context_hash, source_status, data_status,
+            risk_state_json, portfolio_context_json, actions_json, summary_json, top_action_id, created_at_ms, updated_at_ms
+          FROM decision_snapshots
+          WHERE ${where.join(' AND ')}
+          ORDER BY updated_at_ms DESC
+          LIMIT 1
+        `
+      )
+      .get(q) as DecisionSnapshotRecord | undefined;
+    return row ?? null;
+  }
+
+  listDecisionSnapshots(params: {
+    userId: string;
+    market?: Market | 'ALL';
+    assetClass?: AssetClass | 'ALL';
+    limit?: number;
+  }): DecisionSnapshotRecord[] {
+    const where = ['user_id = @user_id'];
+    const q: Record<string, unknown> = { user_id: params.userId };
+    if (params.market) {
+      where.push('market = @market');
+      q.market = params.market;
+    }
+    if (params.assetClass) {
+      where.push('asset_class = @asset_class');
+      q.asset_class = params.assetClass;
+    }
+    if (params.limit) q.limit = params.limit;
+    const limitSql = params.limit ? 'LIMIT @limit' : '';
+    return this.db
+      .prepare(
+        `
+          SELECT
+            id, user_id, market, asset_class, snapshot_date, context_hash, source_status, data_status,
+            risk_state_json, portfolio_context_json, actions_json, summary_json, top_action_id, created_at_ms, updated_at_ms
+          FROM decision_snapshots
+          WHERE ${where.join(' AND ')}
+          ORDER BY updated_at_ms DESC
+          ${limitSql}
+        `
+      )
+      .all(q) as DecisionSnapshotRecord[];
   }
 }

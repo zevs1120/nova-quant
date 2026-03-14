@@ -258,6 +258,29 @@ New assistant research capabilities:
 - surface backtest integrity caveats
 - surface turnover and cost realism caveats
 - summarize research on a factor/strategy/regime topic
+
+## 15) Decision Engine Upgrade (2026-03-14)
+
+Nova Quant now has a first-class decision layer between runtime signals and the homepage.
+
+Key reality changes:
+1. The system now distinguishes:
+- research signal
+- eligible signal
+- risk-adjusted decision
+- portfolio-aware action
+- user-facing action card
+2. Risk state is now an explicit upper-layer adjudicator rather than only a display label.
+3. Personalized decision snapshots are persisted in `decision_snapshots`.
+4. Assistant grounding now includes:
+- decision summary
+- holdings summary
+- ranked action evidence
+5. Homepage action cards can now be driven by backend-ranked decision objects instead of only local signal ranking.
+
+Current honest limits:
+- event intelligence is partially derived from runtime state and not yet backed by full earnings/macro calendar ingestion
+- user holdings personalization is frontend-supplied context, not live broker-linked state
 - generate strategy evaluation report objects
 - generate validation report objects
 - surface experiment registry history as research memory

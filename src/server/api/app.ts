@@ -3,6 +3,7 @@ import { isoToMs } from '../utils/time.js';
 import type { AssetClass, Market, Timeframe } from '../types.js';
 import {
   ensureDefaultPublicSignalsApiKey,
+  getDecisionSnapshot,
   getRuntimeState,
   getEvidenceBacktestDetail,
   getEvidenceChampionStrategies,
@@ -11,6 +12,7 @@ import {
   getMarketState,
   getMarketModules,
   listEvidenceBacktests,
+  listDecisionAudit,
   listEvidenceReconciliation,
   listExternalConnections,
   getPerformanceSummary,
@@ -190,6 +192,40 @@ export function createApiApp() {
       assetClass
     });
     res.json(runtime);
+  });
+
+  app.post('/api/decision/today', (req, res) => {
+    const body = req.body as {
+      userId?: string;
+      market?: string;
+      assetClass?: string;
+      holdings?: Array<Record<string, unknown>>;
+    };
+    const market = parseMarket(body.market);
+    const assetClass = parseAssetClass(body.assetClass);
+    const userId = (body.userId as string | undefined) || 'guest-default';
+    const decision = getDecisionSnapshot({
+      userId,
+      market,
+      assetClass,
+      holdings: Array.isArray(body.holdings) ? (body.holdings as never) : []
+    });
+    res.json(decision);
+  });
+
+  app.get('/api/decision/audit', (req, res) => {
+    const market = parseMarket(req.query.market as string | undefined);
+    const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
+    const userId = (req.query.userId as string | undefined) || 'guest-default';
+    const limit = req.query.limit ? Number(req.query.limit) : 20;
+    res.json(
+      listDecisionAudit({
+        userId,
+        market,
+        assetClass,
+        limit
+      })
+    );
   });
 
   app.get('/api/research/factors', (_req, res) => {
@@ -718,6 +754,24 @@ export function createApiApp() {
         page?: 'today' | 'ai' | 'holdings' | 'more' | 'signal-detail' | 'unknown';
         riskProfileKey?: string;
         uiMode?: string;
+        decisionSummary?: {
+          today_call?: string;
+          risk_posture?: string;
+          top_action_id?: string | null;
+          top_action_symbol?: string | null;
+          top_action_label?: string | null;
+          source_status?: string;
+          data_status?: string;
+        };
+        holdingsSummary?: {
+          holdings_count?: number;
+          total_weight_pct?: number;
+          aligned_weight_pct?: number;
+          unsupported_weight_pct?: number;
+          top1_pct?: number;
+          risk_level?: string;
+          recommendation?: string;
+        };
       };
     };
     const userId = String(body?.userId || '').trim();

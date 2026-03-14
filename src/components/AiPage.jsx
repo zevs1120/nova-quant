@@ -210,7 +210,9 @@ function LiveAiConversation({ seedRequest, onNavigate, userId, baseContext }) {
       assetClass: baseContext?.assetClass,
       timeframe: baseContext?.timeframe,
       riskProfileKey: baseContext?.riskProfileKey,
-      uiMode: baseContext?.uiMode
+      uiMode: baseContext?.uiMode,
+      decisionSummary: baseContext?.decisionSummary,
+      holdingsSummary: baseContext?.holdingsSummary
     }
   });
 
@@ -228,7 +230,9 @@ function DemoAiConversation({ quantState, seedRequest, onNavigate, userId, baseC
       assetClass: baseContext?.assetClass,
       timeframe: baseContext?.timeframe,
       riskProfileKey: baseContext?.riskProfileKey,
-      uiMode: baseContext?.uiMode
+      uiMode: baseContext?.uiMode,
+      decisionSummary: baseContext?.decisionSummary,
+      holdingsSummary: baseContext?.holdingsSummary
     }
   });
   const { messages, sendMessage } = assistant;

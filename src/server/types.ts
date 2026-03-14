@@ -515,3 +515,34 @@ export interface ChatMessageRecord {
   status: 'READY' | 'ERROR';
   created_at_ms: number;
 }
+
+export interface UserHoldingInput {
+  id?: string;
+  symbol: string;
+  asset_class?: AssetClass | null;
+  market?: Market | null;
+  weight_pct?: number | null;
+  quantity?: number | null;
+  cost_basis?: number | null;
+  current_price?: number | null;
+  sector?: string | null;
+  note?: string | null;
+}
+
+export interface DecisionSnapshotRecord {
+  id: string;
+  user_id: string;
+  market: Market | 'ALL';
+  asset_class: AssetClass | 'ALL';
+  snapshot_date: string;
+  context_hash: string;
+  source_status: string;
+  data_status: string;
+  risk_state_json: string;
+  portfolio_context_json: string;
+  actions_json: string;
+  summary_json: string;
+  top_action_id: string | null;
+  created_at_ms: number;
+  updated_at_ms: number;
+}

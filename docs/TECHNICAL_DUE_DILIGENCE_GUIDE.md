@@ -30,6 +30,11 @@ It is **not** currently a broker-connected live trading stack.
   - `chat_audit_logs`
   - evidence-aware tool context assembly
   - deterministic fallback when provider access is unavailable
+- Canonical decision engine records:
+  - `decision_snapshots`
+  - ranked action cards
+  - evidence bundles
+  - personalized portfolio-context-aware recommendation snapshots
 
 ### Experimental/model-derived
 - Some advanced research core analytics remain model-derived.
@@ -49,6 +54,7 @@ Shared query/service path:
 - `src/server/api/queries.ts`
 - `src/server/quant/service.ts`
 - `src/server/quant/runtimeDerivation.ts`
+- `src/server/decision/engine.ts`
 - `src/server/chat/service.ts`
 - `src/server/chat/tools.ts`
 - `src/server/chat/prompts.ts`
@@ -61,6 +67,7 @@ Wrapper routes (`api/*.ts`) delegate to shared app layer.
 2. Do not present synthetic high-confidence metrics as realized truth.
 3. If sample size is too low, withhold metric (`null`, `insufficient_sample`).
 4. Always attach status/source metadata where possible.
+5. Recommendations are produced through a decision layer, not by passing raw signals straight to the homepage.
 
 ## 5) Validation and Performance Realism
 

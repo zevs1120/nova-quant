@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { getDb } from '../db/database.js';
 import { MarketRepository } from '../db/repository.js';
 import { ensureSchema } from '../db/schema.js';
-import type { AssetClass, ExecutionAction, ExecutionMode, Market, RiskProfileKey, SignalContract, Timeframe } from '../types.js';
+import type { AssetClass, ExecutionAction, ExecutionMode, Market, RiskProfileKey, SignalContract, Timeframe, UserHoldingInput } from '../types.js';
 import { createExecutionRecord, decodeSignalContract, ensureQuantData } from '../quant/service.js';
 import {
   getBacktestEvidenceDetail,
@@ -19,6 +19,7 @@ import {
   normalizeRuntimeStatus,
   withComponentStatus
 } from '../runtimeStatus.js';
+import { buildDecisionSnapshot } from '../decision/engine.js';
 
 const RISK_PROFILE_PRESETS = {
   conservative: {
@@ -390,11 +391,40 @@ function modeFromRiskProfile(profile?: { profile_key?: string | null }): string 
   return 'trade light';
 }
 
-export function getRuntimeState(args: {
+type RuntimeStateCore = {
+  repo: MarketRepository;
+  userId: string;
+  market: Market;
+  assetClass?: AssetClass;
+  state: ReturnType<typeof syncQuantState>;
+  risk: ReturnType<typeof getRiskProfile>;
+  signals: Record<string, unknown>[];
+  marketState: ReturnType<typeof getMarketState>;
+  modules: ReturnType<typeof getMarketModules>;
+  performance: ReturnType<typeof getPerformanceSummary>;
+  performanceSource: ReturnType<typeof derivePerformanceSourceStatus>;
+  hasPerformanceSample: boolean;
+  active: Record<string, unknown>[];
+  topSignal: Record<string, unknown> | null;
+  avgVol: number | null;
+  avgTemp: number | null;
+  avgRiskOff: number | null;
+  mode: string;
+  suggestedGross: number;
+  suggestedNet: number;
+  today: Record<string, unknown>;
+  safety: Record<string, unknown>;
+  insights: Record<string, unknown>;
+  runtimeStateStatus: string;
+  runtimeTransparency: Record<string, unknown>;
+};
+
+function loadRuntimeStateCore(args: {
   userId?: string;
   market?: Market;
   assetClass?: AssetClass;
-}) {
+}): RuntimeStateCore {
+  const repo = getRepo();
   const userId = args.userId || 'guest-default';
   const market = args.market || (args.assetClass === 'CRYPTO' ? 'CRYPTO' : 'US');
   const state = syncQuantState(userId, false, {
@@ -553,14 +583,234 @@ export function getRuntimeState(args: {
   };
 
   return {
-    asof: runtimeTransparency.as_of,
-    source_status: runtimeTransparency.source_status,
-    data_status: runtimeTransparency.data_status,
-    data_transparency: runtimeTransparency,
+    repo,
+    userId,
+    market,
+    assetClass: args.assetClass,
+    state,
+    risk,
+    signals,
+    marketState,
+    modules,
+    performance,
+    performanceSource,
+    hasPerformanceSample,
+    active,
+    topSignal,
+    avgVol,
+    avgTemp,
+    avgRiskOff,
+    mode,
+    suggestedGross,
+    suggestedNet,
+    today,
+    safety,
+    insights,
+    runtimeStateStatus,
+    runtimeTransparency
+  };
+}
+
+function parseJsonObject(text: string | null | undefined): Record<string, unknown> | null {
+  if (!text) return null;
+  try {
+    const value = JSON.parse(text) as Record<string, unknown>;
+    return value && typeof value === 'object' ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function snapshotDateKey(iso: string): string {
+  return String(iso || '').slice(0, 10);
+}
+
+function buildDecisionContextHash(args: {
+  userId: string;
+  market: Market;
+  assetClass?: AssetClass;
+  riskProfileKey?: string | null;
+  runtimeStatus: string;
+  holdings?: UserHoldingInput[];
+  topActions: Array<{ signal_id?: string; symbol?: string }>;
+}): string {
+  return createHash('sha256')
+    .update(
+      JSON.stringify({
+        userId: args.userId,
+        market: args.market,
+        assetClass: args.assetClass || 'ALL',
+        riskProfileKey: args.riskProfileKey || 'balanced',
+        runtimeStatus: args.runtimeStatus,
+        holdings: (args.holdings || []).map((row) => ({
+          symbol: row.symbol,
+          asset_class: row.asset_class,
+          market: row.market,
+          weight_pct: row.weight_pct,
+          quantity: row.quantity,
+          sector: row.sector
+        })),
+        topActions: args.topActions
+      })
+    )
+    .digest('hex');
+}
+
+function buildDecisionSnapshotFromCore(args: {
+  core: RuntimeStateCore;
+  holdings?: UserHoldingInput[];
+  persist?: boolean;
+}) {
+  const evidenceTop = getTopSignalEvidence(args.core.repo, {
+    userId: args.core.userId,
+    market: args.core.market,
+    assetClass: args.core.assetClass,
+    limit: 6
+  });
+  const previousRow = args.core.repo.getLatestDecisionSnapshot({
+    userId: args.core.userId,
+    market: args.core.market,
+    assetClass: args.core.assetClass || 'ALL'
+  });
+  const previousDecision = previousRow?.summary_json ? { summary: parseJsonObject(previousRow.summary_json) || {} } : null;
+  const decision = buildDecisionSnapshot({
+    userId: args.core.userId,
+    market: args.core.market,
+    assetClass: args.core.assetClass,
+    asOf: String(args.core.runtimeTransparency.as_of),
+    runtimeSourceStatus: String(args.core.runtimeTransparency.source_status),
+    riskProfile: args.core.risk,
+    signals: args.core.signals,
+    evidenceSignals: evidenceTop.records || [],
+    marketState: args.core.marketState,
+    executions: listExecutions({
+      userId: args.core.userId,
+      market: args.core.market,
+      limit: 60
+    }),
+    holdings: args.holdings,
+    previousDecision
+  });
+
+  if (args.persist) {
+    const snapshotDate = snapshotDateKey(String(args.core.runtimeTransparency.as_of));
+    const contextHash = buildDecisionContextHash({
+      userId: args.core.userId,
+      market: args.core.market,
+      assetClass: args.core.assetClass,
+      riskProfileKey: args.core.risk?.profile_key,
+      runtimeStatus: String(args.core.runtimeTransparency.source_status),
+      holdings: args.holdings,
+      topActions: (decision.ranked_action_cards || []).map((row: Record<string, unknown>) => ({
+        signal_id: String(row.signal_id || ''),
+        symbol: String(row.symbol || '')
+      }))
+    });
+    const snapshotId = `decision-${createHash('sha256')
+      .update(`${args.core.userId}:${args.core.market}:${args.core.assetClass || 'ALL'}:${snapshotDate}:${contextHash}`)
+      .digest('hex')
+      .slice(0, 24)}`;
+    const nowMs = Date.now();
+    args.core.repo.upsertDecisionSnapshot({
+      id: snapshotId,
+      user_id: args.core.userId,
+      market: args.core.market,
+      asset_class: args.core.assetClass || 'ALL',
+      snapshot_date: snapshotDate,
+      context_hash: contextHash,
+      source_status: String(decision.source_status || RUNTIME_STATUS.INSUFFICIENT_DATA),
+      data_status: String(decision.data_status || RUNTIME_STATUS.INSUFFICIENT_DATA),
+      risk_state_json: JSON.stringify(decision.risk_state || {}),
+      portfolio_context_json: JSON.stringify(decision.portfolio_context || {}),
+      actions_json: JSON.stringify(decision.ranked_action_cards || []),
+      summary_json: JSON.stringify(decision.summary || {}),
+      top_action_id: String(decision.top_action_id || '') || null,
+      created_at_ms: nowMs,
+      updated_at_ms: nowMs
+    });
+    return {
+      ...decision,
+      audit_snapshot_id: snapshotId
+    };
+  }
+
+  return decision;
+}
+
+export function getDecisionSnapshot(args: {
+  userId?: string;
+  market?: Market;
+  assetClass?: AssetClass;
+  holdings?: UserHoldingInput[];
+}) {
+  const core = loadRuntimeStateCore(args);
+  return buildDecisionSnapshotFromCore({
+    core,
+    holdings: args.holdings,
+    persist: true
+  });
+}
+
+export function listDecisionAudit(args: {
+  userId?: string;
+  market?: Market;
+  assetClass?: AssetClass;
+  limit?: number;
+}) {
+  const repo = getRepo();
+  const rows = repo.listDecisionSnapshots({
+    userId: args.userId || 'guest-default',
+    market: args.market,
+    assetClass: args.assetClass || undefined,
+    limit: args.limit || 20
+  });
+  return {
+    count: rows.length,
+    records: rows.map((row) => ({
+      id: row.id,
+      user_id: row.user_id,
+      market: row.market,
+      asset_class: row.asset_class,
+      snapshot_date: row.snapshot_date,
+      source_status: row.source_status,
+      data_status: row.data_status,
+      top_action_id: row.top_action_id,
+      summary: parseJsonObject(row.summary_json),
+      risk_state: parseJsonObject(row.risk_state_json),
+      portfolio_context: parseJsonObject(row.portfolio_context_json),
+      actions: (() => {
+        try {
+          return JSON.parse(row.actions_json || '[]');
+        } catch {
+          return [];
+        }
+      })(),
+      updated_at_ms: row.updated_at_ms
+    }))
+  };
+}
+
+export function getRuntimeState(args: {
+  userId?: string;
+  market?: Market;
+  assetClass?: AssetClass;
+}) {
+  const core = loadRuntimeStateCore(args);
+  const decision = buildDecisionSnapshotFromCore({
+    core,
+    persist: false
+  });
+
+  return {
+    asof: core.runtimeTransparency.as_of,
+    source_status: core.runtimeTransparency.source_status,
+    data_status: core.runtimeTransparency.data_status,
+    data_transparency: core.runtimeTransparency,
     data: {
-      signals,
-      performance,
-      trades: listExecutions({ userId, market, limit: 200 }).map((row) => ({
+      signals: core.signals,
+      performance: core.performance,
+      decision,
+      trades: listExecutions({ userId: core.userId, market: core.market, limit: 200 }).map((row) => ({
         ...row,
         time_in: new Date(row.created_at_ms).toISOString(),
         time_out: new Date(row.created_at_ms).toISOString(),
@@ -568,69 +818,69 @@ export function getRuntimeState(args: {
         exit: row.tp_price ?? row.entry_price
       })),
       velocity: {
-        as_of: runtimeTransparency.as_of,
-        market,
-        volatility_percentile: avgVol,
-        temperature_percentile: avgTemp,
-        risk_off_score: avgRiskOff,
+        as_of: core.runtimeTransparency.as_of,
+        market: core.market,
+        volatility_percentile: core.avgVol,
+        temperature_percentile: core.avgTemp,
+        risk_off_score: core.avgRiskOff,
         ...withComponentStatus({
-          overallDataStatus: normalizeRuntimeStatus(runtimeTransparency.data_status, RUNTIME_STATUS.INSUFFICIENT_DATA),
+          overallDataStatus: normalizeRuntimeStatus(core.runtimeTransparency.data_status, RUNTIME_STATUS.INSUFFICIENT_DATA),
           componentSourceStatus: RUNTIME_STATUS.MODEL_DERIVED
         })
       },
       config: {
-        last_updated: runtimeTransparency.as_of,
+        last_updated: core.runtimeTransparency.as_of,
         ...withComponentStatus({
-          overallDataStatus: normalizeRuntimeStatus(runtimeTransparency.data_status, RUNTIME_STATUS.INSUFFICIENT_DATA),
+          overallDataStatus: normalizeRuntimeStatus(core.runtimeTransparency.data_status, RUNTIME_STATUS.INSUFFICIENT_DATA),
           componentSourceStatus: RUNTIME_STATUS.MODEL_DERIVED
         }),
         risk_rules: {
-          per_trade_risk_pct: risk?.max_loss_per_trade ?? null,
-          daily_loss_pct: risk?.max_daily_loss ?? null,
-          max_dd_pct: risk?.max_drawdown ?? null,
-          exposure_cap_pct: risk?.exposure_cap ?? null,
+          per_trade_risk_pct: core.risk?.max_loss_per_trade ?? null,
+          daily_loss_pct: core.risk?.max_daily_loss ?? null,
+          max_dd_pct: core.risk?.max_drawdown ?? null,
+          exposure_cap_pct: core.risk?.exposure_cap ?? null,
           vol_switch: true
         },
         risk_status: {
-          current_risk_bucket: mode.toUpperCase(),
-          bucket_state: mode.toUpperCase(),
+          current_risk_bucket: core.mode.toUpperCase(),
+          bucket_state: core.mode.toUpperCase(),
           diagnostics: {
             daily_pnl_pct: null,
             max_dd_pct: null
           }
         },
-        runtime: runtimeTransparency
+        runtime: core.runtimeTransparency
       },
-      market_modules: modules,
+      market_modules: core.modules,
       analytics: {
-        source_status: runtimeTransparency.source_status,
-        runtime: runtimeTransparency,
+        source_status: core.runtimeTransparency.source_status,
+        runtime: core.runtimeTransparency,
         status_flags: {
-          runtime_source: runtimeTransparency.source_status,
-          performance_source: performanceSource,
-          has_performance_sample: hasPerformanceSample
+          runtime_source: core.runtimeTransparency.source_status,
+          performance_source: core.performanceSource,
+          has_performance_sample: core.hasPerformanceSample
         }
       },
       research: {
         ...withComponentStatus({
-          overallDataStatus: normalizeRuntimeStatus(runtimeTransparency.data_status, RUNTIME_STATUS.INSUFFICIENT_DATA),
+          overallDataStatus: normalizeRuntimeStatus(core.runtimeTransparency.data_status, RUNTIME_STATUS.INSUFFICIENT_DATA),
           componentSourceStatus: RUNTIME_STATUS.MODEL_DERIVED
         }),
         notes: [
-          runtimeTransparency.data_status === RUNTIME_STATUS.DB_BACKED
+          core.runtimeTransparency.data_status === RUNTIME_STATUS.DB_BACKED
             ? 'Runtime app state is DB-backed; advanced research modules remain experimental in this API path.'
             : 'Runtime app state is currently insufficient for high-confidence research overlays.'
         ]
       },
-      today,
-      safety,
-      insights,
+      today: core.today,
+      safety: core.safety,
+      insights: core.insights,
       ai: {
-        source_transparency: runtimeTransparency
+        source_transparency: core.runtimeTransparency
       },
       layers: {
         data_layer: {
-          instruments: marketState.map((row) => ({
+          instruments: core.marketState.map((row) => ({
             ticker: row.symbol,
             market: row.market,
             latest_close: null,
@@ -638,7 +888,7 @@ export function getRuntimeState(args: {
           }))
         },
         portfolio_layer: {
-          candidates: active.slice(0, 12).map((row) => ({
+          candidates: core.active.slice(0, 12).map((row) => ({
             ticker: row.symbol,
             direction: row.direction,
             grade: row.grade,
@@ -648,7 +898,7 @@ export function getRuntimeState(args: {
               entry_zone: row.entry_zone
             }
           })),
-          filtered_out: signals
+          filtered_out: core.signals
             .filter((row) => !['NEW', 'TRIGGERED'].includes(String(row.status)))
             .slice(0, 12)
             .map((row) => ({ ticker: row.symbol, reason: row.status }))

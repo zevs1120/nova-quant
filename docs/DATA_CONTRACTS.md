@@ -38,6 +38,73 @@ This file defines review-facing contracts used by research core.
 }
 ```
 
+## DecisionSnapshot (Decision Engine Output)
+
+```json
+{
+  "as_of": "2026-03-14T10:00:00.000Z",
+  "source_status": "DB_BACKED",
+  "data_status": "DB_BACKED",
+  "today_call": {
+    "code": "PROBE",
+    "headline": "今天适合试探，不适合激进",
+    "subtitle": "Only the clearest setup remains valid after the risk gate."
+  },
+  "risk_state": {
+    "posture": "PROBE",
+    "summary": "今天适合试探，不适合激进",
+    "simple_label": "可试探",
+    "user_message": "Take only the clearest setups and keep size controlled."
+  },
+  "portfolio_context": {
+    "availability": "PERSONALIZED",
+    "holdings_count": 3,
+    "total_weight_pct": 42.5,
+    "top1_pct": 18.0,
+    "same_symbol_weight_pct": 14.0,
+    "exposure_posture": "moderate",
+    "recommendation": "Portfolio risk is active but manageable. New exposure should be selective."
+  },
+  "ranked_action_cards": [
+    {
+      "action_id": "action-SIG-1",
+      "signal_id": "SIG-1",
+      "symbol": "AAPL",
+      "action": "add_on_strength",
+      "action_label": "Add on strength",
+      "portfolio_intent": "add_on_strength",
+      "confidence": 0.78,
+      "time_horizon": "days to weeks",
+      "brief_why_now": "Setup aligns with the current strategy under a still-usable regime.",
+      "risk_note": "Take only the clearest setups and keep size controlled.",
+      "eligible": true,
+      "evidence_bundle": {
+        "thesis": "Setup aligns with the current strategy under a still-usable regime.",
+        "supporting_factors": ["trend persistence"],
+        "opposing_factors": ["Portfolio concentration is already high."],
+        "regime_context": { "regime_id": "TREND" },
+        "event_context": { "availability": "DB_BACKED" },
+        "data_quality": { "source_status": "DB_BACKED", "data_status": "DB_BACKED" },
+        "implementation_caveats": ["Keep size small because posture is PROBE."],
+        "next_action": "add_on_strength",
+        "what_changed": "Top action changed from NVDA to AAPL."
+      }
+    }
+  ],
+  "evidence_summary": {
+    "top_action_thesis": "Setup aligns with the current strategy under a still-usable regime.",
+    "main_risk_driver": "Average volatility percentile 69.0.",
+    "personalized": true
+  },
+  "audit": {
+    "candidate_count": 8,
+    "actionable_count": 3,
+    "rejected_due_to_risk": 1,
+    "created_for_user": "guest-default"
+  }
+}
+```
+
 ## Signal Lifecycle Objects
 
 ```json
