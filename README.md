@@ -1,7 +1,7 @@
 # Nova Quant
 
 Nova Quant is an AI-native quantitative **decision** platform for US equities and crypto.
-Current app version: `0.2.0` (build `1`).
+Current app version: `0.3.0` (build `2`).
 
 It is designed to help self-directed traders reduce emotional trading and execute with discipline.
 It is **not** a blind auto-trading bot and does **not** fabricate live performance.
@@ -17,6 +17,7 @@ It is **not** a blind auto-trading bot and does **not** fabricate live performan
 - Ranked action cards backed by decision snapshots, evidence bundles, and audit history
 - Morning Check / wrap-up / widget / notification summaries grounded in backend engagement state
 - A unified copy operating system so homepage, action cards, notifications, widgets, wrap-up, and Nova Assistant all speak with one voice
+- A perception-layer system that makes NovaQuant feel like a judgment surface, not a traditional finance dashboard
 - Clean handoff tooling that excludes local databases, build artifacts, cached node modules, and platform junk
 
 ## What Changed In This Runtime-Realism Upgrade
@@ -110,6 +111,22 @@ This layer defines:
 - notification/widget guardrails
 - assistant voice rules
 - no-action completion language
+
+## Perception Layer
+
+NovaQuant now includes a dedicated perception layer designed to make the product feel like a new AI-native decision category rather than a better finance tool.
+
+Primary resources:
+- `docs/PERCEPTION_LAYER_DIFFERENTIATION.md`
+- `src/server/engagement/engine.ts`
+- `src/copy/novaCopySystem.js`
+- `src/components/TodayTab.jsx`
+
+This layer defines:
+- system-first judgment arrival lines
+- decision-presence summaries for the Today surface
+- state-driven emotional tone without hype
+- a stricter separation from dashboard-like finance product behavior
 
 ## Versioning
 

@@ -253,6 +253,86 @@ const COPY_LIBRARY = {
       DEFEND: ['If you are itching to do something, the market may be better at teaching than forgiving.'],
       WAIT: ['The tape has opinions today. None of them are binding on you.']
     },
+    perception: {
+      badge: 'System view',
+      ambientLabel: 'Decision climate',
+      arriving: {
+        ATTACK: [
+          'The system already narrowed the board. You only need the clean confirmation.',
+          'The first layer of thinking is done. What remains is disciplined focus.'
+        ],
+        PROBE: [
+          'The system found the narrow edge. Your job is to confirm it, not to widen it.',
+          'The board is already filtered. Keep the next move smaller than your curiosity.'
+        ],
+        DEFEND: [
+          'The system made the first risk read for you. What remains is keeping your hands steady.',
+          'Today arrived as a boundary, not as a request for more action.'
+        ],
+        WAIT: [
+          'The system read the noise and kept only the useful part: restraint.',
+          'The first judgment is already on the table. You do not need a second market to confirm it.'
+        ]
+      },
+      shifted: {
+        ATTACK: [
+          'The view sharpened. Take the updated read, not the mood you woke up with.'
+        ],
+        PROBE: [
+          'The tone moved. A fresh confirmation matters more than a faster reaction.'
+        ],
+        DEFEND: [
+          'The line moved. The useful action now is to notice that before you do anything else.'
+        ],
+        WAIT: [
+          'The day changed just enough to deserve another clean look, not a louder response.'
+        ]
+      },
+      anchored: {
+        ATTACK: [
+          'Today’s view is already anchored. You do not need to keep asking the market for permission.'
+        ],
+        PROBE: [
+          'The day is already calibrated. Let discipline do the rest of the work.'
+        ],
+        DEFEND: [
+          'Today is already anchored around restraint. That is a position, not an omission.'
+        ],
+        WAIT: [
+          'The quiet answer is already locked in. Nothing else needs to be forced into it.'
+        ]
+      },
+      focus: {
+        actionable: {
+          ATTACK: [
+            'The lead card already did the hard part: it reduced the whole market to one decision worth attention.'
+          ],
+          PROBE: [
+            'The lead card matters because it is the only place the day looks remotely clean.'
+          ],
+          DEFEND: [
+            'The lead card is mainly a control point. Respecting it matters more than chasing around it.'
+          ],
+          WAIT: [
+            'If a card is still on top today, its first job is to explain the boundary, not to trigger motion.'
+          ]
+        },
+        noAction: {
+          ATTACK: [
+            'Clarity improved, but not enough to earn a louder move.'
+          ],
+          PROBE: [
+            'The useful outcome today is that nothing earned the right to drag you around.'
+          ],
+          DEFEND: [
+            'Today’s cleanest result is that the system filtered out the unnecessary urge to do more.'
+          ],
+          WAIT: [
+            'The market still owes you a better reason than motion alone.'
+          ]
+        }
+      }
+    },
     noAction: {
       arrival: [
         'Today’s best action may already be on the table: wait well.',
@@ -515,6 +595,53 @@ const COPY_LIBRARY = {
       PROBE: ['一点把握，不等于全场明牌。'],
       DEFEND: ['今天如果你手痒，市场大概率更擅长教育而不是原谅。'],
       WAIT: ['今天市场意见很多，但没一句是你必须立刻签收的。']
+    },
+    perception: {
+      badge: '系统判断',
+      ambientLabel: '判断气候',
+      arriving: {
+        ATTACK: [
+          '系统已经先帮你缩小了选择面。你现在只需要做一次干净确认。',
+          '第一层判断已经完成，剩下的是克制地聚焦。'
+        ],
+        PROBE: [
+          '系统已经先筛出今天那条窄边。你要做的是确认，不是把它脑补成全场放行。'
+        ],
+        DEFEND: [
+          '系统已经先替你做了风险初判，接下来更重要的是把手稳住。',
+          '今天先递到你眼前的是边界，不是新的胆量测试。'
+        ],
+        WAIT: [
+          '系统已经先把噪音吞掉，留下来的有价值部分叫克制。',
+          '第一层判断已经在桌上了，你不需要再去市场里捞一个更吵的答案。'
+        ]
+      },
+      shifted: {
+        ATTACK: ['今天的判断变得更清楚了。先接住更新，再谈动作。'],
+        PROBE: ['气候动了，先校准，再反应。'],
+        DEFEND: ['边界变了。你现在最该做的，是先看见这件事。'],
+        WAIT: ['今天的留白有变化，值得回来重新确认一次。']
+      },
+      anchored: {
+        ATTACK: ['今天的判断已经锚定，不需要再反复向市场索取许可。'],
+        PROBE: ['今天已经校准过了，接下来交给纪律。'],
+        DEFEND: ['今天已经锚定在克制上，这不是空白，是立场。'],
+        WAIT: ['安静的答案已经定下来了，不需要再硬往里塞动作。']
+      },
+      focus: {
+        actionable: {
+          ATTACK: ['榜首卡片已经替你做了最难的事：把全市场缩成一个值得注意的判断对象。'],
+          PROBE: ['榜首卡片之所以重要，是因为今天真正勉强够干净的地方本来就不多。'],
+          DEFEND: ['榜首卡片更像控制点。尊重它，比围着它兴奋更重要。'],
+          WAIT: ['今天如果还有卡片留在榜首，它的第一价值也是解释边界，而不是制造动作。']
+        },
+        noAction: {
+          ATTACK: ['清晰度是回来了，但还没高到值得把动作一起放大。'],
+          PROBE: ['今天最有价值的结果，是没有一张卡真正获得拖着你走的资格。'],
+          DEFEND: ['今天系统替你筛掉的，正是那些本来不需要发生的冲动。'],
+          WAIT: ['市场还欠你一个比“有波动”更像样的理由。']
+        }
+      }
     },
     noAction: {
       arrival: ['今天最好的动作，也许已经摆在你面前：等得漂亮一点。'],
@@ -870,6 +997,40 @@ export function getWrapUpCopy({ locale = 'en', posture, ready, completed, seed =
     opening_line: guard(choose(lib.wrapUp.opening[normalizePosture(posture)], `wrap:opening:${seed}`, lib.wrapUp.opening[normalizePosture(posture)][0]), lib.wrapUp.opening[normalizePosture(posture)][0]),
     completion_feedback: guard(choose(lib.wrapUp.completion, `wrap:complete:${seed}`, lib.wrapUp.completion[0]), lib.wrapUp.completion[0]),
     no_action_line: noActionDay ? guard(choose(lib.wrapUp.noAction, `wrap:no-action:${seed}`, lib.wrapUp.noAction[0]), lib.wrapUp.noAction[0]) : null
+  };
+}
+
+export function getPerceptionLayerCopy({
+  locale = 'en',
+  posture,
+  seed = '',
+  status = 'arriving',
+  changed = false,
+  noActionDay = false
+}) {
+  const lib = library(locale);
+  const normalized = normalizePosture(posture);
+  const statusKey =
+    status === 'anchored' ? 'anchored' : changed ? 'shifted' : 'arriving';
+  const bucket = lib.perception[statusKey][normalized] || lib.perception.arriving[normalized];
+  const focusBucket = noActionDay
+    ? lib.perception.focus.noAction[normalized]
+    : lib.perception.focus.actionable[normalized];
+  const morning = getMorningCheckCopy({
+    posture: normalized,
+    status: statusKey === 'anchored' ? 'COMPLETED' : changed ? 'REFRESH_REQUIRED' : 'PENDING',
+    locale,
+    seed: `${seed}:perception`,
+    changed,
+    noActionDay
+  });
+  return {
+    badge: lib.perception.badge,
+    ambient_label: lib.perception.ambientLabel,
+    headline: guard(choose(bucket, `${normalized}:perception:${statusKey}:${seed}`, bucket[0]), bucket[0]),
+    focus_line: guard(choose(focusBucket, `${normalized}:perception:focus:${seed}`, focusBucket[0]), focusBucket[0]),
+    confirmation_line: statusKey === 'anchored' ? morning.completion_feedback : morning.ritual_line,
+    status: statusKey
   };
 }
 

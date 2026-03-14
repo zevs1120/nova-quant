@@ -22,6 +22,7 @@ describe('engagement api', () => {
     expect(stateRes.status).toBe(200);
     expect(stateRes.body).toHaveProperty('daily_check_state');
     expect(stateRes.body).toHaveProperty('habit_state');
+    expect(stateRes.body).toHaveProperty('perception_layer');
     expect(stateRes.body).toHaveProperty('widget_summary');
     expect(stateRes.body).toHaveProperty('notification_center');
     expect(stateRes.body).toHaveProperty('decision_snapshot_id');

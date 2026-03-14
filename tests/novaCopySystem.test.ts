@@ -9,6 +9,7 @@ import {
   getMorningCheckCopy,
   getNoActionCopy,
   getNotificationCopy,
+  getPerceptionLayerCopy,
   getTodayRiskCopy,
   getUiRegimeTone,
   getWidgetCopy
@@ -117,5 +118,20 @@ describe('nova copy system', () => {
     expect(discipline.behavior_quality).toBe('STEADY');
     expect(actionCopy.invalidation).toBeTruthy();
     expect(guardrails.rules.some((line) => line.includes('高风险日'))).toBe(true);
+  });
+
+  it('builds a perception-layer voice that feels system-first instead of dashboard-like', () => {
+    const perception = getPerceptionLayerCopy({
+      locale: 'zh',
+      posture: 'WAIT',
+      status: 'arriving',
+      noActionDay: true,
+      seed: 'perception'
+    });
+
+    expect(perception.badge).toBe('系统判断');
+    expect(perception.headline).toBeTruthy();
+    expect(perception.focus_line).toMatch(/系统|动作|市场|等待/);
+    expect(perception.headline).not.toContain('快冲');
   });
 });

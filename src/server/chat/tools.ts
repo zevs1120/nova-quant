@@ -392,6 +392,11 @@ function buildSelectedEvidence(args: {
     lines.push(
       `morning check ${String(args.engagementSummary.morning_check_status || '--')} | discipline ${String(args.engagementSummary.discipline_score ?? '--')} | wrap-up ${args.engagementSummary.wrap_up_ready ? 'ready' : 'not_ready'}`
     );
+    if (args.engagementSummary.perception_headline || args.engagementSummary.perception_focus) {
+      lines.push(
+        `perception ${String(args.engagementSummary.perception_status || '--')} | ${String(args.engagementSummary.perception_headline || '--')} | ${String(args.engagementSummary.perception_focus || '--')}`
+      );
+    }
   }
   const firstRecord = (args.performanceSummary?.records as Array<Record<string, unknown>> | undefined)?.[0];
   const overall = firstRecord?.overall as Record<string, unknown> | undefined;

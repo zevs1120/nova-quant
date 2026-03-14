@@ -62,6 +62,14 @@ export function getNotificationCopy(args: { category?: string; posture?: string;
 export function getWidgetCopy(args: { type: string; posture?: string; locale?: string; triggerType?: string; seed?: string }): { title: string; caption?: string; spark: string };
 export function getDisciplineCopy(args: { locale?: string; score?: number; noActionDay?: boolean; seed?: string }): { summary: string; no_action_value_line: string | null; behavior_quality: string };
 export function getWrapUpCopy(args: { locale?: string; posture?: string; ready: boolean; completed: boolean; seed?: string; noActionDay?: boolean }): { title: string; short_label: string; headline: string; opening_line: string; completion_feedback: string; no_action_line: string | null };
+export function getPerceptionLayerCopy(args: { locale?: string; posture?: string; seed?: string; status?: string; changed?: boolean; noActionDay?: boolean }): {
+  badge: string;
+  ambient_label: string;
+  headline: string;
+  focus_line: string;
+  confirmation_line: string;
+  status: string;
+};
 export function getAssistantVoiceGuide(args?: { locale?: string; posture?: string; userState?: string }): { opener: string; risk_explain: string; intercept: string; no_action: string; wrap: string; style_rules: string[] };
 export function getUiRegimeTone(args: { posture?: string; locale?: string }): {
   tone: string;

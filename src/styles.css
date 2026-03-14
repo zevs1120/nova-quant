@@ -3703,6 +3703,68 @@ body.keyboard-open .ai-input-dock {
   margin-top: 10px;
 }
 
+.decision-presence-strip {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(249, 250, 251, 0.9));
+}
+
+.presence-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.presence-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(var(--accent-rgb), 0.7);
+  box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0.16);
+}
+
+.presence-ambient-label {
+  font-size: 12px;
+  letter-spacing: 0.01em;
+}
+
+.presence-headline {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+
+.presence-focus,
+.presence-confirmation {
+  margin: 0;
+}
+
+.decision-presence-arriving .presence-dot,
+.decision-presence-shifted .presence-dot {
+  animation: presence-pulse 1800ms ease-out infinite;
+}
+
+.decision-presence-anchored .presence-dot {
+  opacity: 0.72;
+}
+
+.ui-tone-opportunity .decision-presence-strip {
+  background: linear-gradient(180deg, rgba(250, 255, 251, 0.96), rgba(247, 251, 249, 0.92));
+}
+
+.ui-tone-watchful .decision-presence-strip {
+  background: linear-gradient(180deg, rgba(255, 252, 247, 0.96), rgba(251, 249, 246, 0.92));
+}
+
+.ui-tone-defensive .decision-presence-strip {
+  background: linear-gradient(180deg, rgba(255, 249, 249, 0.96), rgba(251, 247, 247, 0.92));
+}
+
 .ritual-reveal {
   animation: ritual-arrive 420ms var(--ease-spring);
   transform-origin: 50% 100%;
@@ -3888,6 +3950,18 @@ body.keyboard-open .ai-input-dock {
   }
 }
 
+@keyframes presence-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0.16);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(var(--accent-rgb), 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -3906,6 +3980,11 @@ body.keyboard-open .ai-input-dock {
   .ui-motion-drift .today-action-card-compact,
   .ui-motion-hold .today-action-card-compact,
   .ui-motion-calm .today-action-card-compact {
+    animation: none !important;
+  }
+
+  .decision-presence-arriving .presence-dot,
+  .decision-presence-shifted .presence-dot {
     animation: none !important;
   }
 }

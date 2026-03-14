@@ -1,5 +1,35 @@
 # Nova Quant Implementation Log
 
+## 2026-03-15 — Perception Layer / New Category Surface Upgrade
+
+### What was implemented
+1. Added a backend-generated `perception_layer` object:
+- built inside `src/server/engagement/engine.ts`
+- grounded in:
+  - risk posture
+  - Morning Check status
+  - recommendation change state
+  - whether the day is effectively a no-action day
+
+2. Extended the unified copy system with system-first perception selectors:
+- `getPerceptionLayerCopy(...)`
+- headline, focus line, confirmation line, and ambient label now derive from real state instead of ad-hoc UI copy
+
+3. Upgraded the Today first fold so the product opens with a lightweight judgment-presence strip:
+- it now says, in effect, "the system already made the first cut"
+- keeps the homepage minimal
+- strengthens the feeling that the user is confirming a decision, not browsing a dashboard
+
+4. Added explicit perception-layer documentation:
+- `docs/PERCEPTION_LAYER_DIFFERENTIATION.md`
+- explains how NovaQuant differentiates from legacy finance products at the user-perception layer
+
+### Verification
+- `npm run -s typecheck` passed
+- engagement/copy/API regression tests passed
+- `npm run -s build` passed
+- `npm run -s verify` passed
+
 ## 2026-03-14 — Playful Interaction / Ritual Motion / Mature Personality Upgrade
 
 ### What was implemented

@@ -13,6 +13,7 @@ import {
   getMorningCheckCopy,
   getNoActionCopy,
   getNotificationCopy,
+  getPerceptionLayerCopy,
   getUiRegimeTone,
   getWidgetCopy,
   getWrapUpCopy
@@ -343,6 +344,43 @@ function buildWrapUp(args: {
   };
 }
 
+function buildPerceptionLayer(args: {
+  currentSummary: JsonObject;
+  dailyCheckState: ReturnType<typeof buildDailyCheckState>;
+  recommendationChange: ReturnType<typeof summarizeRecommendationChange>;
+  tone: ReturnType<typeof copyTone>;
+  locale?: string;
+}) {
+  const posture = String(args.currentSummary.risk_posture || 'WAIT');
+  const topSymbol = String(args.currentSummary.top_action_symbol || '');
+  const noActionDay = !topSymbol || posture === 'DEFEND' || posture === 'WAIT';
+  const status =
+    args.dailyCheckState.status === 'COMPLETED'
+      ? 'anchored'
+      : args.recommendationChange.changed
+        ? 'shifted'
+        : 'arriving';
+  const perceptionCopy = getPerceptionLayerCopy({
+    locale: args.locale,
+    posture,
+    seed: `${posture}:${topSymbol || 'none'}:${args.recommendationChange.change_type}`,
+    status,
+    changed: args.recommendationChange.changed,
+    noActionDay
+  });
+
+  return {
+    status,
+    badge: perceptionCopy.badge,
+    ambient_label: perceptionCopy.ambient_label,
+    headline: perceptionCopy.headline,
+    focus_line: perceptionCopy.focus_line,
+    confirmation_line: perceptionCopy.confirmation_line,
+    top_action_symbol: topSymbol || null,
+    no_action_day: noActionDay
+  };
+}
+
 function inQuietHours(hour: number, prefs: NotificationPreferenceRecord) {
   if (prefs.quiet_start_hour === null || prefs.quiet_end_hour === null) return false;
   const start = prefs.quiet_start_hour;
@@ -657,6 +695,13 @@ export function buildEngagementSnapshot(input: EngagementInput) {
     tone,
     locale: input.locale
   });
+  const perceptionLayer = buildPerceptionLayer({
+    currentSummary,
+    dailyCheckState,
+    recommendationChange,
+    tone,
+    locale: input.locale
+  });
 
   return {
     as_of: new Date().toISOString(),
@@ -665,6 +710,7 @@ export function buildEngagementSnapshot(input: EngagementInput) {
     daily_check_state: dailyCheckState,
     habit_state: habitState,
     daily_wrap_up: dailyWrapUp,
+    perception_layer: perceptionLayer,
     widget_summary: widgetSummary,
     notification_center: {
       active_count: notifications.length,

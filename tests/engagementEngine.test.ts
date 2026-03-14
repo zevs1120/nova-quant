@@ -85,6 +85,8 @@ describe('engagement engine', () => {
     expect(snapshot.widget_summary.state_widget.title).toBe('轻试探');
     expect(snapshot.widget_summary.state_widget.spark).toBeTruthy();
     expect(snapshot.notification_center.notifications.length).toBeGreaterThan(0);
+    expect(snapshot.perception_layer.badge).toBe('系统判断');
+    expect(snapshot.perception_layer.headline).toBeTruthy();
     expect(snapshot.ui_regime_state.tone).toBe('watchful');
     expect(snapshot.ui_regime_state.motion).toHaveProperty('entry');
   });
@@ -127,6 +129,7 @@ describe('engagement engine', () => {
     expect(snapshot.daily_wrap_up.ready).toBe(true);
     expect(snapshot.daily_wrap_up.completed).toBe(true);
     expect(snapshot.daily_wrap_up.opening_line).toBeTruthy();
+    expect(snapshot.perception_layer.status).toBe('anchored');
     expect(snapshot.recommendation_change.changed).toBe(true);
     expect(snapshot.recommendation_change.change_type).toBe('risk_shift');
   });

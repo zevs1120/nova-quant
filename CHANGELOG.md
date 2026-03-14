@@ -2,6 +2,12 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 0.3.0 (2026-03-15)
+- Release type: minor
+- Added a backend-generated perception layer so the product can express “system first, user confirms” with real state rather than decorative UI copy.
+- Upgraded the Today first fold with a decision-presence strip that makes the product feel more like a judgment surface and less like a dashboard.
+- Extended the copy operating system, engagement snapshot, assistant context, and docs to support category-level perception differentiation.
+
 ## 0.2.0 (2026-03-15)
 - Release type: minor
 - Added a unified copy operating system with a shared brand voice constitution, tone matrix, guardrails, and state-to-copy selectors.

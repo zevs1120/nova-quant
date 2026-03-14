@@ -89,6 +89,8 @@ function formatEngagementSummary(context: ChatContextInput | undefined): string[
     `- locale ${line(context.engagementSummary.locale || context.locale || '--')}`,
     `- morning check ${line(context.engagementSummary.morning_check_status || '--')} | ${line(context.engagementSummary.morning_check_label || '--')}`,
     `- ritual ${line(context.engagementSummary.morning_check_arrival || '--')} | ${line(context.engagementSummary.morning_check_ritual || '--')}`,
+    `- perception ${line(context.engagementSummary.perception_status || '--')} | ${line(context.engagementSummary.perception_headline || '--')}`,
+    `- perception focus ${line(context.engagementSummary.perception_focus || '--')} | ${line(context.engagementSummary.perception_confirmation || '--')}`,
     `- wrap-up ready ${String(Boolean(context.engagementSummary.wrap_up_ready))} | completed ${String(Boolean(context.engagementSummary.wrap_up_completed))}`,
     `- wrap tone ${line(context.engagementSummary.wrap_up_line || '--')}`,
     `- discipline ${line(context.engagementSummary.discipline_score || '--')} | quality ${line(context.engagementSummary.behavior_quality || '--')}`,

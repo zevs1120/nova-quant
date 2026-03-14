@@ -532,6 +532,7 @@ export default function TodayTab({
   const morningCheck = engagement?.daily_check_state || null;
   const wrapUp = engagement?.daily_wrap_up || null;
   const uiRegime = engagement?.ui_regime_state || null;
+  const perceptionLayer = engagement?.perception_layer || null;
   const recommendationChange = engagement?.recommendation_change || null;
   const noActionDay = !featuredSignal || !featuredSignal._actionable || overall.code === 'WAIT' || overall.code === 'DEFENSE' || overall.code === 'NO_TRADE';
   const posture = String(decision?.risk_state?.posture || decision?.summary?.risk_posture || 'WAIT').toUpperCase();
@@ -583,6 +584,23 @@ export default function TodayTab({
   return (
     <section className="stack-gap">
       <section className="today-fold">
+        {perceptionLayer ? (
+          <article
+            className={`glass-card decision-presence-strip ritual-card ritual-reveal decision-presence-${perceptionLayer.status || 'arriving'}`}
+          >
+            <div className="presence-badge-row">
+              <span className="presence-dot" aria-hidden="true" />
+              <span className="badge badge-neutral">{perceptionLayer.badge}</span>
+              <span className="muted status-line presence-ambient-label">{perceptionLayer.ambient_label}</span>
+            </div>
+            <p className="presence-headline">{perceptionLayer.headline}</p>
+            {perceptionLayer.focus_line ? <p className="presence-focus">{perceptionLayer.focus_line}</p> : null}
+            {perceptionLayer.confirmation_line ? (
+              <p className="muted status-line presence-confirmation">{perceptionLayer.confirmation_line}</p>
+            ) : null}
+          </article>
+        ) : null}
+
         <article
           className={`glass-card beginner-best-suggestion today-action-card-compact ritual-card ritual-reveal ritual-delay-1 ${noActionDay ? 'is-no-action-day' : 'is-action-day'} ${
             recommendationChange?.changed ? 'is-updated' : ''

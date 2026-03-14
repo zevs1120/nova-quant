@@ -1029,6 +1029,7 @@ export function getWidgetSummary(args: {
     as_of: snapshot.as_of,
     source_status: snapshot.source_status,
     data_status: snapshot.data_status,
+    perception_layer: snapshot.perception_layer,
     widget_summary: snapshot.widget_summary,
     ui_regime_state: snapshot.ui_regime_state,
     recommendation_change: snapshot.recommendation_change

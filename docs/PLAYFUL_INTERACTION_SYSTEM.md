@@ -37,6 +37,21 @@ It is not:
 - emotional pressure
 - FOMO copy
 
+## Perception Layer Principle
+
+The playful layer is not there to decorate the product.
+
+It exists to support a bigger product claim:
+
+> NovaQuant should feel like a judgment surface, not a finance dashboard.
+
+That means the first-open experience should communicate:
+
+- the system already did the first read
+- the user is here to confirm, not to scan everything
+- a no-action day is still complete
+- the product is alive because the market state is alive, not because the UI is noisy
+
 ## Motion Principles
 
 ### Why motion exists
