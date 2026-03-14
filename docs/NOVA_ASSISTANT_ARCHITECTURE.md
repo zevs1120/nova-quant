@@ -115,6 +115,7 @@ Current research tools include:
 - `get_factor_catalog`
 - `get_factor_definition`
 - `get_factor_interactions`
+- `get_factor_measured_report`
 - `get_factor_research_snapshot`
 - `get_strategy_registry`
 - `get_regime_taxonomy`
@@ -142,4 +143,5 @@ See also:
 - If a provider is unavailable, Nova says so.
 - If exact signal data is missing, Nova downgrades to general guidance.
 - If runtime data is insufficient, Nova says the evidence is incomplete.
+- If a factor can only be described from taxonomy knowledge, Nova must say that measured factor evidence is not yet available.
 - Nova does not invent live broker access, realized returns, or executed trades.

@@ -1696,3 +1696,42 @@ Implemented deterministic reliability and adversarial stress testing to move fro
   - `npm run typecheck` passed.
   - `npm run test:data` passed (34 files / 76 tests).
   - `npm run build` passed.
+
+## 2026-03-14 — Measured Factor Research Diagnostics + Research Tool Prioritization
+
+### Scope
+- Added first-class measured factor evaluation for OHLCV-supported factors.
+- Fixed research tool selection so factor/signal-specific tools are not silently dropped from assistant context.
+
+### Code Changes
+1. Added:
+- `src/server/research/factorMeasurements.ts`
+  - computes factor-level measured diagnostics:
+    - IC
+    - rank IC
+    - quantile spread
+    - hit rate
+    - turnover proxy
+    - regime-conditioned metrics
+
+2. Updated:
+- `src/server/research/evaluation.ts`
+  - factor snapshots now include measured factor report when available
+  - strategy evaluation can surface factor-level cross-sectional metrics when a factor is specified
+- `src/server/research/tools.ts`
+  - added `getFactorMeasuredReportTool()`
+  - factor-by-regime comparison now includes measured regime diagnostics when available
+- `src/server/api/app.ts`
+  - added `GET /api/research/factors/:id/measured`
+- `src/server/chat/tools.ts`
+  - replaced naive `slice(0, 8)` tool truncation with priority-based selection
+  - factor and signal specific tools now win budget before generic tools
+
+### Tests
+- Added `tests/factorMeasurements.test.ts`
+- Updated `tests/researchApi.test.ts`
+- Updated `tests/chatToolsRuntime.test.ts`
+- Verification:
+  - `npm run -s typecheck` passed
+  - targeted research tests passed (`5 files / 13 tests`)
+  - `npm run -s build` passed

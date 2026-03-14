@@ -31,6 +31,7 @@ import {
   buildStrategyEvaluationReport,
   buildValidationReport
 } from './evaluation.js';
+import { buildFactorMeasurementReport } from './factorMeasurements.js';
 
 type ResearchToolArgs = {
   userId?: string;
@@ -303,11 +304,18 @@ export function compareFactorPerformanceByRegimeTool(args: ResearchToolArgs) {
   const attributionByRegime = artifacts.get('attribution') as Record<string, unknown> | undefined;
   const byRegime = Array.isArray(attributionByRegime?.by_regime) ? attributionByRegime.by_regime as Array<Record<string, unknown>> : [];
   const relevantFamilies = familiesForFactor(args.factorId);
+  const measured = args.factorId
+    ? buildFactorMeasurementReport(getRepo(), {
+        factorId: args.factorId,
+        market: args.market,
+        assetClass: args.assetClass
+      })
+    : null;
 
   return {
     source_status: factor ? RUNTIME_STATUS.DB_BACKED : RUNTIME_STATUS.INSUFFICIENT_DATA,
     data_status: factor
-      ? byRegime.length
+      ? byRegime.length || measured?.report?.availability === 'measured'
         ? RUNTIME_STATUS.MODEL_DERIVED
         : RUNTIME_STATUS.INSUFFICIENT_DATA
       : RUNTIME_STATUS.INSUFFICIENT_DATA,
@@ -322,9 +330,12 @@ export function compareFactorPerformanceByRegimeTool(args: ResearchToolArgs) {
         : null,
       relevant_strategy_families: relevantFamilies,
       observed_regime_attribution: byRegime.slice(0, 8),
+      measured_regime_diagnostics: measured?.report?.regime_conditioned_metrics || [],
       note: byRegime.length
         ? 'Observed regime attribution comes from the latest backtest artifact and should be interpreted as strategy-level evidence, not pure factor truth.'
-        : 'Pure factor-level regime performance history is not persisted yet; returning taxonomy-guided expectations only.'
+        : measured?.report?.availability === 'measured'
+          ? 'Measured regime diagnostics come from current OHLCV-based factor evaluation. Treat them as research evidence, not deployable truth.'
+          : 'Pure factor-level regime performance history is not persisted yet; returning taxonomy-guided expectations only.'
     }
   };
 }
@@ -425,6 +436,14 @@ export function getExperimentRegistryTool() {
 export function getResearchWorkflowPlanTool(args: ResearchToolArgs) {
   return buildResearchWorkflowPlan({
     topic: args.topic,
+    factorId: args.factorId,
+    market: args.market,
+    assetClass: args.assetClass
+  });
+}
+
+export function getFactorMeasuredReportTool(args: ResearchToolArgs) {
+  return buildFactorMeasurementReport(getRepo(), {
     factorId: args.factorId,
     market: args.market,
     assetClass: args.assetClass

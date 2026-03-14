@@ -359,3 +359,14 @@ Last updated: 2026-03-14
 
 4. Replay validation hook
 - Feed Panda-selected factors into evidence replay artifacts to measure if adaptive overlays improve net outcomes versus baseline.
+
+## Added 2026-03-14 — Next Research-System Priorities
+
+1. Persist factor-level measured diagnostics
+- Store IC / rank IC / quantile spread / regime-conditioned factor reports as first-class research artifacts instead of on-demand only.
+
+2. Add richer measured factor coverage
+- Wire in fundamental, estimate, funding, basis, and futures term-structure history so `value`, `quality`, `carry`, and breadth-related research can graduate from `knowledge_only`.
+
+3. Add formal anti-overfitting diagnostics
+- Extend current heuristic layer with more formal PBO / deflated Sharpe / purged-validation style objects where the data structure supports it.

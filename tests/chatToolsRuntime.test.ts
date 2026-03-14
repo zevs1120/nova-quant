@@ -40,8 +40,8 @@ describe('chat tools runtime sourcing', () => {
 
     expect(bundle.researchContext.research_mode).toBe(true);
     expect(bundle.researchContext.selected_tools).toContain('summarize_research_on_topic');
-    expect(bundle.researchContext.selected_tools).toContain('get_backtest_integrity_report');
-    expect(bundle.researchContext.selected_tools).toContain('get_strategy_evaluation_report');
+    expect(bundle.researchContext.selected_tools).toContain('get_factor_measured_report');
+    expect(bundle.researchContext.selected_tools).toContain('compare_factor_performance_by_regime');
     expect(bundle.researchContext.selected_tools).toContain('get_research_workflow_plan');
     expect(bundle.researchContext.selected_tools.length).toBeGreaterThan(2);
   });

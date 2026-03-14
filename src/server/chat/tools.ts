@@ -20,6 +20,7 @@ import {
   getFactorCatalogTool,
   getFactorDefinitionTool,
   getFactorInteractionsTool,
+  getFactorMeasuredReportTool,
   getFactorResearchSnapshotTool,
   getRegimeDiagnosticsTool,
   getRegimeTaxonomyTool,
@@ -162,122 +163,146 @@ async function buildResearchToolResults(args: {
 
   const factorId = inferFactorId(message);
   const topic = inferResearchTopic(message) || message;
-  const selectedTools: string[] = [];
-  const toolResults: ToolContextBundle['researchContext']['tool_results'] = [];
-
-  const push = (tool: string, result: Record<string, unknown>) => {
-    selectedTools.push(tool);
-    toolResults.push({
-      tool,
-      source_status: String(result.source_status || RUNTIME_STATUS.INSUFFICIENT_DATA),
-      data_status: String(result.data_status || RUNTIME_STATUS.INSUFFICIENT_DATA),
-      payload: result
-    });
+  const market = inferMarket(args.context);
+  const assetClass = inferAssetClass(args.context);
+  const candidates: Array<{
+    tool: string;
+    priority: number;
+    result: Record<string, unknown>;
+  }> = [];
+  const addCandidate = (tool: string, priority: number, result: Record<string, unknown>) => {
+    candidates.push({ tool, priority, result });
   };
 
-  push('summarize_research_on_topic', summarizeResearchOnTopicTool({ topic }));
-  push('get_research_doctrine', getResearchDoctrineTool());
-  push('get_strategy_registry', getStrategyRegistryTool());
-  push('get_regime_taxonomy', getRegimeTaxonomyTool());
-  push('get_regime_diagnostics', getRegimeDiagnosticsTool({
+  addCandidate('summarize_research_on_topic', 72, summarizeResearchOnTopicTool({ topic }));
+  addCandidate('get_research_doctrine', 56, getResearchDoctrineTool());
+  addCandidate('get_regime_diagnostics', 78, getRegimeDiagnosticsTool({
     userId: args.userId,
-    market: inferMarket(args.context),
-    assetClass: inferAssetClass(args.context),
+    market,
+    assetClass,
     symbol: args.context?.symbol
   }));
-  push('get_backtest_integrity_report', getBacktestIntegrityReportTool({ runId: undefined }));
-  push('get_strategy_evaluation_report', getStrategyEvaluationReportTool({
-    runId: undefined,
-    market: inferMarket(args.context),
-    assetClass: inferAssetClass(args.context)
-  }));
-  push('get_validation_report', getValidationReportTool({
-    runId: undefined,
-    market: inferMarket(args.context),
-    assetClass: inferAssetClass(args.context)
-  }));
-  push('get_turnover_cost_report', getTurnoverCostReportTool({ runId: undefined }));
-  push('get_experiment_registry', getExperimentRegistryTool());
-  push('get_research_memory', getResearchMemoryTool());
-  push('get_research_workflow_plan', getResearchWorkflowPlanTool({
+  addCandidate('get_research_workflow_plan', 68, getResearchWorkflowPlanTool({
     topic,
     factorId,
-    market: inferMarket(args.context),
-    assetClass: inferAssetClass(args.context)
+    market,
+    assetClass
   }));
-  push('list_failed_experiments', listFailedExperimentsTool());
+  addCandidate('get_strategy_evaluation_report', 62, getStrategyEvaluationReportTool({
+    runId: undefined,
+    market,
+    assetClass
+  }));
+  addCandidate('get_validation_report', 60, getValidationReportTool({
+    runId: undefined,
+    market,
+    assetClass
+  }));
+  addCandidate('get_backtest_integrity_report', 58, getBacktestIntegrityReportTool({ runId: undefined }));
+  addCandidate('get_turnover_cost_report', 57, getTurnoverCostReportTool({ runId: undefined }));
+  addCandidate('get_strategy_registry', 48, getStrategyRegistryTool());
+  addCandidate('get_regime_taxonomy', 44, getRegimeTaxonomyTool());
+  addCandidate('get_experiment_registry', 50, getExperimentRegistryTool());
+  addCandidate('get_research_memory', 52, getResearchMemoryTool());
+  addCandidate('list_failed_experiments', 46, listFailedExperimentsTool());
 
   if (factorId) {
-    push('get_factor_catalog', getFactorCatalogTool());
-    push('get_factor_definition', getFactorDefinitionTool(factorId));
-    push('get_factor_interactions', getFactorInteractionsTool(factorId));
-    push(
+    addCandidate('get_factor_definition', 96, getFactorDefinitionTool(factorId));
+    addCandidate('get_factor_interactions', 92, getFactorInteractionsTool(factorId));
+    addCandidate('get_factor_measured_report', 95, getFactorMeasuredReportTool({
+      factorId,
+      market,
+      assetClass
+    }));
+    addCandidate(
       'compare_factor_performance_by_regime',
+      90,
       compareFactorPerformanceByRegimeTool({
         userId: args.userId,
         factorId,
-        market: inferMarket(args.context),
-        assetClass: inferAssetClass(args.context)
+        market,
+        assetClass
       })
     );
-    push(
+    addCandidate(
       'get_factor_research_snapshot',
+      88,
       getFactorResearchSnapshotTool({
         factorId,
-        market: inferMarket(args.context),
-        assetClass: inferAssetClass(args.context)
+        market,
+        assetClass
       })
     );
+    addCandidate('get_factor_catalog', 40, getFactorCatalogTool());
   }
 
   if (args.context?.signalId || args.context?.symbol || /signal|why this/i.test(message)) {
-    push(
+    addCandidate(
       'get_signal_evidence',
+      94,
       getSignalEvidenceTool({
         userId: args.userId,
         signalId: args.context?.signalId,
         symbol: args.context?.symbol,
-        market: inferMarket(args.context),
-        assetClass: inferAssetClass(args.context)
+        market,
+        assetClass
       })
     );
-    push(
+    addCandidate(
       'run_factor_diagnostics',
+      93,
       runFactorDiagnosticsTool({
         userId: args.userId,
         signalId: args.context?.signalId,
         symbol: args.context?.symbol,
-        market: inferMarket(args.context),
-        assetClass: inferAssetClass(args.context)
+        market,
+        assetClass
       })
     );
-    push(
+    addCandidate(
       'explain_why_signal_exists',
+      91,
       explainWhySignalExistsTool({
         userId: args.userId,
         signalId: args.context?.signalId,
         symbol: args.context?.symbol,
-        market: inferMarket(args.context),
-        assetClass: inferAssetClass(args.context)
+        market,
+        assetClass
       })
     );
   }
 
   if (/no signal|why no signal|why isn'?t there a signal|why there is no signal/i.test(message)) {
-    push(
+    addCandidate(
       'explain_why_no_signal',
+      95,
       explainWhyNoSignalTool({
         userId: args.userId,
-        market: inferMarket(args.context),
-        assetClass: inferAssetClass(args.context)
+        market,
+        assetClass
       })
     );
   }
 
+  const deduped = new Map<string, { tool: string; priority: number; result: Record<string, unknown> }>();
+  for (const candidate of candidates) {
+    const existing = deduped.get(candidate.tool);
+    if (!existing || candidate.priority > existing.priority) deduped.set(candidate.tool, candidate);
+  }
+
+  const ordered = [...deduped.values()]
+    .sort((a, b) => b.priority - a.priority)
+    .slice(0, 8);
+
   return {
     research_mode: true,
-    selected_tools: selectedTools,
-    tool_results: toolResults.slice(0, 8)
+    selected_tools: ordered.map((item) => item.tool),
+    tool_results: ordered.map((item) => ({
+      tool: item.tool,
+      source_status: String(item.result.source_status || RUNTIME_STATUS.INSUFFICIENT_DATA),
+      data_status: String(item.result.data_status || RUNTIME_STATUS.INSUFFICIENT_DATA),
+      payload: item.result
+    }))
   };
 }
 

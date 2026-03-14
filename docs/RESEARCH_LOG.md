@@ -352,3 +352,19 @@ Interpretation:
 4. Integration remains honest:
 - insufficient bars -> Panda learning status degrades cleanly (`INSUFFICIENT_DATA`),
 - no mock or synthetic fill paths were introduced.
+
+## 2026-03-14 — Research Layer Findings: Measured Factor Diagnostics
+
+1. Taxonomy-only research was no longer enough.
+- The assistant could describe factors and workflows, but lacked measured factor objects for current OHLCV-backed proxies.
+
+2. The first measurable factor set is now explicit.
+- `momentum`, `low_vol`, `reversal`, `seasonality` can now produce measured diagnostics from existing daily bars.
+
+3. Factor measurement remains intentionally incomplete where data is missing.
+- `value`, `quality`, `carry`, `size`, `sentiment`, `revision`, and broader breadth-style studies still need richer source data before they can be treated as measured factor evidence.
+
+4. Assistant context assembly had a real prioritization bug.
+- Research mode previously collected many tools and then truncated them with `slice(0, 8)`.
+- This could drop the exact factor-specific tool a question needed.
+- The tool layer is now prioritized so local relevance beats generic background context.

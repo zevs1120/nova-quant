@@ -111,6 +111,7 @@ Current tool inventory:
 - `get_factor_catalog`
 - `get_factor_definition`
 - `get_factor_interactions`
+- `get_factor_measured_report`
 - `get_factor_research_snapshot`
 - `get_strategy_registry`
 - `get_regime_taxonomy`
@@ -138,6 +139,7 @@ Measured / runtime-backed examples:
 
 - current signal metadata
 - current regime diagnostics from `market_state`
+- OHLCV-backed factor measurement reports for currently supported measured factors (`momentum`, `low_vol`, `reversal`, `seasonality`)
 - latest backtest integrity summary
 - turnover / cost drag from evidence metrics
 - strategy evaluation summaries from the latest canonical evidence run
@@ -178,6 +180,7 @@ The `PLAN` section should explicitly say whether the idea is worth:
 What is already usable:
 
 - factor/strategy/regime knowledge retrieval
+- measured factor diagnostics for OHLCV-supported factors
 - signal-level factor diagnostics
 - no-signal explanation
 - strategy evaluation report objects
@@ -189,7 +192,7 @@ What is already usable:
 
 What is still partial:
 
-- factor-level realized performance history
+- factor-level realized performance history beyond OHLCV-supported proxies
 - deeper PBO / deflated Sharpe style diagnostics
 - richer cross-sectional model evaluation objects
 - stricter structured tool-calling schemas

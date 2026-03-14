@@ -18,6 +18,10 @@ describe('research api contracts', () => {
     const factorRes = await request(app).get('/api/research/factors/momentum');
     expect(factorRes.status).toBe(200);
     expect(factorRes.body.factor?.factor_id).toBe('momentum');
+
+    const measuredRes = await request(app).get('/api/research/factors/momentum/measured').query({ market: 'US' });
+    expect(measuredRes.status).toBe(200);
+    expect(measuredRes.body).toHaveProperty('report');
   });
 
   it('serves research topic summaries and regime diagnostics', async () => {

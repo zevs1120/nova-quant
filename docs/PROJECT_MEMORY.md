@@ -597,3 +597,34 @@ Integrated Panda AI core modules into backend runtime derivation without fronten
 5. Tests added:
 - `tests/pandaEngine.test.ts`
 - `tests/runtimeDerivation.test.ts` now validates auto-learning tags are present when signals exist.
+
+## 20) Measured Factor Research Layer (2026-03-14)
+
+Nova Quant now has a first measured factor evaluation layer on top of the existing research taxonomy.
+
+1. New module:
+- `src/server/research/factorMeasurements.ts`
+- Computes cross-sectional measured diagnostics from current OHLCV coverage for supported factors.
+
+2. Currently measured factors:
+- `momentum`
+- `low_vol`
+- `reversal`
+- `seasonality`
+
+3. Current measured outputs:
+- IC
+- rank IC
+- quantile spread
+- hit rate
+- turnover proxy
+- regime-conditioned breakdown
+
+4. Honesty boundary:
+- factors that require fundamentals / alt data / term structure remain `knowledge_only`
+- this includes current `value`, `quality`, `carry`, `breadth`, `size`, `sentiment`, `revision`, `liquidity`
+- assistant must explicitly separate taxonomy knowledge from measured evidence
+
+5. Assistant context quality improved:
+- factor/signal-specific research tools are now prioritized before generic research tools
+- fixed prior truncation issue where factor tools could be dropped by `slice(0, 8)`

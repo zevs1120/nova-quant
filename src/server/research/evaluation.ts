@@ -3,6 +3,7 @@ import { getBacktestEvidenceDetail, getChampionStrategies, listBacktestEvidence 
 import { RUNTIME_STATUS, normalizeRuntimeStatus } from '../runtimeStatus.js';
 import type { AssetClass, Market } from '../types.js';
 import { getFactorDefinition } from './knowledge.js';
+import { buildFactorMeasurementReport } from './factorMeasurements.js';
 
 type ResearchEvaluationArgs = {
   runId?: string;
@@ -129,6 +130,8 @@ export function buildStrategyEvaluationReport(repo: MarketRepository, args: Rese
   const metrics = detail.metrics as unknown as Record<string, unknown>;
   const overfit = overfitDiagnostics(metrics, realismStress);
 
+  const factorMeasurement = args.factorId ? buildFactorMeasurementReport(repo, args) : null;
+
   return {
     source_status: wrap.source_status,
     data_status: wrap.data_status,
@@ -149,12 +152,14 @@ export function buildStrategyEvaluationReport(repo: MarketRepository, args: Rese
         sample_size: safeNumber(metrics.sample_size)
       },
       cross_sectional_metrics: {
-        ic: null,
-        rank_ic: null,
-        return_spread: null,
-        quantile_spread: null,
-        availability: 'not_persisted_yet',
-        note: 'Cross-sectional factor metrics are not yet persisted as first-class research artifacts.'
+        ic: factorMeasurement?.report?.measured_metrics?.ic ?? null,
+        rank_ic: factorMeasurement?.report?.measured_metrics?.rank_ic ?? null,
+        return_spread: factorMeasurement?.report?.measured_metrics?.quantile_spread ?? null,
+        quantile_spread: factorMeasurement?.report?.measured_metrics?.quantile_spread ?? null,
+        availability: factorMeasurement?.report?.availability || 'not_persisted_yet',
+        note:
+          factorMeasurement?.report?.notes?.[0] ||
+          'Cross-sectional factor metrics are not yet persisted as first-class research artifacts.'
       },
       regime_breakdown: regimeBreakdownFromAttribution(attribution),
       sensitivity_analysis: {
@@ -318,11 +323,17 @@ export function buildFactorResearchSnapshot(repo: MarketRepository, args: Resear
   const wrap = run ? getBacktestEvidenceDetail(repo, run.id) : null;
   const artifacts = wrap?.detail ? artifactMap(wrap.detail) : new Map<string, unknown>();
   const attribution = (artifacts.get('attribution') as Record<string, unknown> | undefined) || null;
+  const measured = args.factorId ? buildFactorMeasurementReport(repo, args) : null;
 
   return {
-    source_status: evaluation.source_status,
-    data_status: evaluation.data_status,
-    snapshot: factorRegimeView(attribution, args.factorId)
+    source_status:
+      measured?.report?.availability === 'measured' ? measured.source_status : evaluation.source_status,
+    data_status:
+      measured?.report?.availability === 'measured' ? measured.data_status : evaluation.data_status,
+    snapshot: {
+      ...factorRegimeView(attribution, args.factorId),
+      measured_factor_report: measured?.report || null
+    }
   };
 }
 

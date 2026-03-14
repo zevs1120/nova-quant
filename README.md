@@ -131,6 +131,7 @@ signal explanation.
 Current research capabilities include:
 - factor taxonomy and definition retrieval
 - factor interaction lookup
+- measured factor evaluation for OHLCV-supported factors
 - strategy family registry lookup
 - regime diagnostics
 - factor diagnostics for current signals

@@ -41,6 +41,7 @@ import {
   getFactorCatalogTool,
   getFactorDefinitionTool,
   getFactorInteractionsTool,
+  getFactorMeasuredReportTool,
   getFactorResearchSnapshotTool,
   getRegimeDiagnosticsTool,
   getRegimeTaxonomyTool,
@@ -205,6 +206,18 @@ export function createApiApp() {
 
   app.get('/api/research/factors/:id/interactions', (req, res) => {
     res.json(getFactorInteractionsTool(String(req.params.id || '')));
+  });
+
+  app.get('/api/research/factors/:id/measured', (req, res) => {
+    const market = parseMarket(req.query.market as string | undefined);
+    const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
+    res.json(
+      getFactorMeasuredReportTool({
+        factorId: String(req.params.id || ''),
+        market,
+        assetClass
+      })
+    );
   });
 
   app.get('/api/research/strategies', (_req, res) => {
