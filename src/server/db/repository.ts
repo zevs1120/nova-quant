@@ -11,16 +11,20 @@ import type {
   DatasetVersionRecord,
   DecisionSnapshotRecord,
   EvidenceStatus,
+  EvalRegistryRecord,
   ExecutionProfileRecord,
   ExecutionRecord,
   ExperimentRegistryRecord,
   FeatureSnapshotRecord,
   Market,
   MarketStateRecord,
+  ModelVersionRecord,
   NotificationEventRecord,
   NotificationPreferenceRecord,
   NormalizedBar,
   PerformanceSnapshotRecord,
+  PromptVersionRecord,
+  RecommendationReviewRecord,
   ReplayPaperReconciliationRecord,
   SignalContract,
   SignalRecord,
@@ -29,6 +33,8 @@ import type {
   StrategyVersionRecord,
   Timeframe,
   UniverseSnapshotRecord,
+  WorkflowRunRecord,
+  AuditEventRecord,
   UserRitualEventRecord,
   UserRiskProfileRecord
 } from '../types.js';
@@ -1101,6 +1107,42 @@ export class MarketRepository {
     return row ?? null;
   }
 
+  listDatasetVersions(params?: {
+    market?: Market | 'ALL';
+    assetClass?: AssetClass | 'ALL';
+    timeframe?: string;
+    limit?: number;
+  }): DatasetVersionRecord[] {
+    const where: string[] = [];
+    const q: Record<string, unknown> = {};
+    if (params?.market) {
+      where.push('market = @market');
+      q.market = params.market;
+    }
+    if (params?.assetClass) {
+      where.push('asset_class = @asset_class');
+      q.asset_class = params.assetClass;
+    }
+    if (params?.timeframe) {
+      where.push('timeframe = @timeframe');
+      q.timeframe = params.timeframe;
+    }
+    if (params?.limit) q.limit = params.limit;
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    const limitSql = params?.limit ? 'LIMIT @limit' : '';
+    return this.db
+      .prepare(
+        `
+          SELECT id, market, asset_class, timeframe, source_bundle_hash, coverage_summary_json, freshness_summary_json, notes, created_at_ms
+          FROM dataset_versions
+          ${whereSql}
+          ORDER BY created_at_ms DESC
+          ${limitSql}
+        `
+      )
+      .all(q) as DatasetVersionRecord[];
+  }
+
   upsertUniverseSnapshot(input: UniverseSnapshotRecord): void {
     this.db
       .prepare(
@@ -1130,6 +1172,42 @@ export class MarketRepository {
     return row ?? null;
   }
 
+  listUniverseSnapshots(params?: {
+    datasetVersionId?: string;
+    market?: Market | 'ALL';
+    assetClass?: AssetClass | 'ALL';
+    limit?: number;
+  }): UniverseSnapshotRecord[] {
+    const where: string[] = [];
+    const q: Record<string, unknown> = {};
+    if (params?.datasetVersionId) {
+      where.push('dataset_version_id = @dataset_version_id');
+      q.dataset_version_id = params.datasetVersionId;
+    }
+    if (params?.market) {
+      where.push('market = @market');
+      q.market = params.market;
+    }
+    if (params?.assetClass) {
+      where.push('asset_class = @asset_class');
+      q.asset_class = params.assetClass;
+    }
+    if (params?.limit) q.limit = params.limit;
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    const limitSql = params?.limit ? 'LIMIT @limit' : '';
+    return this.db
+      .prepare(
+        `
+          SELECT id, dataset_version_id, snapshot_ts_ms, market, asset_class, members_json, created_at_ms
+          FROM universe_snapshots
+          ${whereSql}
+          ORDER BY snapshot_ts_ms DESC
+          ${limitSql}
+        `
+      )
+      .all(q) as UniverseSnapshotRecord[];
+  }
+
   upsertFeatureSnapshot(input: FeatureSnapshotRecord): void {
     this.db
       .prepare(
@@ -1146,6 +1224,37 @@ export class MarketRepository {
         `
       )
       .run(input);
+  }
+
+  listFeatureSnapshots(params?: {
+    datasetVersionId?: string;
+    featureVersion?: string;
+    limit?: number;
+  }): FeatureSnapshotRecord[] {
+    const where: string[] = [];
+    const q: Record<string, unknown> = {};
+    if (params?.datasetVersionId) {
+      where.push('dataset_version_id = @dataset_version_id');
+      q.dataset_version_id = params.datasetVersionId;
+    }
+    if (params?.featureVersion) {
+      where.push('feature_version = @feature_version');
+      q.feature_version = params.featureVersion;
+    }
+    if (params?.limit) q.limit = params.limit;
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    const limitSql = params?.limit ? 'LIMIT @limit' : '';
+    return this.db
+      .prepare(
+        `
+          SELECT id, dataset_version_id, feature_version, snapshot_ts_ms, feature_hash, metadata_json, created_at_ms
+          FROM feature_snapshots
+          ${whereSql}
+          ORDER BY snapshot_ts_ms DESC
+          ${limitSql}
+        `
+      )
+      .all(q) as FeatureSnapshotRecord[];
   }
 
   upsertExecutionProfile(input: ExecutionProfileRecord): void {
@@ -1553,6 +1662,301 @@ export class MarketRepository {
         `
       )
       .all(limit) as ExperimentRegistryRecord[];
+  }
+
+  upsertModelVersion(input: ModelVersionRecord): void {
+    this.db
+      .prepare(
+        `
+          INSERT INTO model_versions(
+            id, model_key, provider, endpoint, task_scope, semantic_version, status, config_json, created_at_ms, updated_at_ms
+          ) VALUES(
+            @id, @model_key, @provider, @endpoint, @task_scope, @semantic_version, @status, @config_json, @created_at_ms, @updated_at_ms
+          )
+          ON CONFLICT(id) DO UPDATE SET
+            model_key = excluded.model_key,
+            provider = excluded.provider,
+            endpoint = excluded.endpoint,
+            task_scope = excluded.task_scope,
+            semantic_version = excluded.semantic_version,
+            status = excluded.status,
+            config_json = excluded.config_json,
+            updated_at_ms = excluded.updated_at_ms
+        `
+      )
+      .run(input);
+  }
+
+  listModelVersions(params?: { modelKey?: string; status?: string; limit?: number }): ModelVersionRecord[] {
+    const where: string[] = [];
+    const q: Record<string, unknown> = {};
+    if (params?.modelKey) {
+      where.push('model_key = @model_key');
+      q.model_key = params.modelKey;
+    }
+    if (params?.status) {
+      where.push('status = @status');
+      q.status = params.status;
+    }
+    if (params?.limit) q.limit = params.limit;
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    const limitSql = params?.limit ? 'LIMIT @limit' : '';
+    return this.db
+      .prepare(
+        `
+          SELECT id, model_key, provider, endpoint, task_scope, semantic_version, status, config_json, created_at_ms, updated_at_ms
+          FROM model_versions
+          ${whereSql}
+          ORDER BY updated_at_ms DESC
+          ${limitSql}
+        `
+      )
+      .all(q) as ModelVersionRecord[];
+  }
+
+  upsertPromptVersion(input: PromptVersionRecord): void {
+    this.db
+      .prepare(
+        `
+          INSERT INTO prompt_versions(
+            id, task_key, semantic_version, prompt_hash, prompt_text, status, created_at_ms, updated_at_ms
+          ) VALUES(
+            @id, @task_key, @semantic_version, @prompt_hash, @prompt_text, @status, @created_at_ms, @updated_at_ms
+          )
+          ON CONFLICT(id) DO UPDATE SET
+            task_key = excluded.task_key,
+            semantic_version = excluded.semantic_version,
+            prompt_hash = excluded.prompt_hash,
+            prompt_text = excluded.prompt_text,
+            status = excluded.status,
+            updated_at_ms = excluded.updated_at_ms
+        `
+      )
+      .run(input);
+  }
+
+  listPromptVersions(params?: { taskKey?: string; status?: string; limit?: number }): PromptVersionRecord[] {
+    const where: string[] = [];
+    const q: Record<string, unknown> = {};
+    if (params?.taskKey) {
+      where.push('task_key = @task_key');
+      q.task_key = params.taskKey;
+    }
+    if (params?.status) {
+      where.push('status = @status');
+      q.status = params.status;
+    }
+    if (params?.limit) q.limit = params.limit;
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    const limitSql = params?.limit ? 'LIMIT @limit' : '';
+    return this.db
+      .prepare(
+        `
+          SELECT id, task_key, semantic_version, prompt_hash, prompt_text, status, created_at_ms, updated_at_ms
+          FROM prompt_versions
+          ${whereSql}
+          ORDER BY updated_at_ms DESC
+          ${limitSql}
+        `
+      )
+      .all(q) as PromptVersionRecord[];
+  }
+
+  upsertEvalRecord(input: EvalRegistryRecord): void {
+    this.db
+      .prepare(
+        `
+          INSERT INTO eval_registry(
+            id, eval_type, subject_type, subject_id, subject_version, score_json, notes, created_at_ms
+          ) VALUES(
+            @id, @eval_type, @subject_type, @subject_id, @subject_version, @score_json, @notes, @created_at_ms
+          )
+          ON CONFLICT(id) DO UPDATE SET
+            eval_type = excluded.eval_type,
+            subject_type = excluded.subject_type,
+            subject_id = excluded.subject_id,
+            subject_version = excluded.subject_version,
+            score_json = excluded.score_json,
+            notes = excluded.notes
+        `
+      )
+      .run(input);
+  }
+
+  listEvalRecords(params?: { subjectType?: string; evalType?: string; limit?: number }): EvalRegistryRecord[] {
+    const where: string[] = [];
+    const q: Record<string, unknown> = {};
+    if (params?.subjectType) {
+      where.push('subject_type = @subject_type');
+      q.subject_type = params.subjectType;
+    }
+    if (params?.evalType) {
+      where.push('eval_type = @eval_type');
+      q.eval_type = params.evalType;
+    }
+    if (params?.limit) q.limit = params.limit;
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    const limitSql = params?.limit ? 'LIMIT @limit' : '';
+    return this.db
+      .prepare(
+        `
+          SELECT id, eval_type, subject_type, subject_id, subject_version, score_json, notes, created_at_ms
+          FROM eval_registry
+          ${whereSql}
+          ORDER BY created_at_ms DESC
+          ${limitSql}
+        `
+      )
+      .all(q) as EvalRegistryRecord[];
+  }
+
+  upsertWorkflowRun(input: WorkflowRunRecord): void {
+    this.db
+      .prepare(
+        `
+          INSERT INTO workflow_runs(
+            id, workflow_key, workflow_version, trigger_type, status, trace_id, input_json, output_json, attempt_count,
+            started_at_ms, updated_at_ms, completed_at_ms
+          ) VALUES(
+            @id, @workflow_key, @workflow_version, @trigger_type, @status, @trace_id, @input_json, @output_json, @attempt_count,
+            @started_at_ms, @updated_at_ms, @completed_at_ms
+          )
+          ON CONFLICT(id) DO UPDATE SET
+            workflow_key = excluded.workflow_key,
+            workflow_version = excluded.workflow_version,
+            trigger_type = excluded.trigger_type,
+            status = excluded.status,
+            trace_id = excluded.trace_id,
+            input_json = excluded.input_json,
+            output_json = excluded.output_json,
+            attempt_count = excluded.attempt_count,
+            updated_at_ms = excluded.updated_at_ms,
+            completed_at_ms = excluded.completed_at_ms
+        `
+      )
+      .run(input);
+  }
+
+  listWorkflowRuns(params?: { workflowKey?: string; status?: string; limit?: number }): WorkflowRunRecord[] {
+    const where: string[] = [];
+    const q: Record<string, unknown> = {};
+    if (params?.workflowKey) {
+      where.push('workflow_key = @workflow_key');
+      q.workflow_key = params.workflowKey;
+    }
+    if (params?.status) {
+      where.push('status = @status');
+      q.status = params.status;
+    }
+    if (params?.limit) q.limit = params.limit;
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    const limitSql = params?.limit ? 'LIMIT @limit' : '';
+    return this.db
+      .prepare(
+        `
+          SELECT
+            id, workflow_key, workflow_version, trigger_type, status, trace_id, input_json, output_json, attempt_count,
+            started_at_ms, updated_at_ms, completed_at_ms
+          FROM workflow_runs
+          ${whereSql}
+          ORDER BY updated_at_ms DESC
+          ${limitSql}
+        `
+      )
+      .all(q) as WorkflowRunRecord[];
+  }
+
+  insertAuditEvent(input: AuditEventRecord): void {
+    this.db
+      .prepare(
+        `
+          INSERT INTO audit_events(
+            trace_id, scope, event_type, user_id, entity_type, entity_id, payload_json, created_at_ms
+          ) VALUES(
+            @trace_id, @scope, @event_type, @user_id, @entity_type, @entity_id, @payload_json, @created_at_ms
+          )
+        `
+      )
+      .run(input);
+  }
+
+  listAuditEvents(params?: { traceId?: string; entityType?: string; entityId?: string; limit?: number }): AuditEventRecord[] {
+    const where: string[] = [];
+    const q: Record<string, unknown> = {};
+    if (params?.traceId) {
+      where.push('trace_id = @trace_id');
+      q.trace_id = params.traceId;
+    }
+    if (params?.entityType) {
+      where.push('entity_type = @entity_type');
+      q.entity_type = params.entityType;
+    }
+    if (params?.entityId) {
+      where.push('entity_id = @entity_id');
+      q.entity_id = params.entityId;
+    }
+    if (params?.limit) q.limit = params.limit;
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    const limitSql = params?.limit ? 'LIMIT @limit' : '';
+    return this.db
+      .prepare(
+        `
+          SELECT id, trace_id, scope, event_type, user_id, entity_type, entity_id, payload_json, created_at_ms
+          FROM audit_events
+          ${whereSql}
+          ORDER BY created_at_ms DESC
+          ${limitSql}
+        `
+      )
+      .all(q) as AuditEventRecord[];
+  }
+
+  upsertRecommendationReview(input: RecommendationReviewRecord): void {
+    this.db
+      .prepare(
+        `
+          INSERT INTO recommendation_reviews(
+            id, decision_snapshot_id, action_id, review_type, score, notes, payload_json, created_at_ms
+          ) VALUES(
+            @id, @decision_snapshot_id, @action_id, @review_type, @score, @notes, @payload_json, @created_at_ms
+          )
+          ON CONFLICT(id) DO UPDATE SET
+            decision_snapshot_id = excluded.decision_snapshot_id,
+            action_id = excluded.action_id,
+            review_type = excluded.review_type,
+            score = excluded.score,
+            notes = excluded.notes,
+            payload_json = excluded.payload_json
+        `
+      )
+      .run(input);
+  }
+
+  listRecommendationReviews(params?: { decisionSnapshotId?: string; reviewType?: string; limit?: number }): RecommendationReviewRecord[] {
+    const where: string[] = [];
+    const q: Record<string, unknown> = {};
+    if (params?.decisionSnapshotId) {
+      where.push('decision_snapshot_id = @decision_snapshot_id');
+      q.decision_snapshot_id = params.decisionSnapshotId;
+    }
+    if (params?.reviewType) {
+      where.push('review_type = @review_type');
+      q.review_type = params.reviewType;
+    }
+    if (params?.limit) q.limit = params.limit;
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    const limitSql = params?.limit ? 'LIMIT @limit' : '';
+    return this.db
+      .prepare(
+        `
+          SELECT id, decision_snapshot_id, action_id, review_type, score, notes, payload_json, created_at_ms
+          FROM recommendation_reviews
+          ${whereSql}
+          ORDER BY created_at_ms DESC
+          ${limitSql}
+        `
+      )
+      .all(q) as RecommendationReviewRecord[];
   }
 
   upsertDecisionSnapshot(input: DecisionSnapshotRecord): void {

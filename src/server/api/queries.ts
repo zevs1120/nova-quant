@@ -21,6 +21,8 @@ import {
 } from '../runtimeStatus.js';
 import { buildDecisionSnapshot } from '../decision/engine.js';
 import { buildEngagementSnapshot, defaultNotificationPreferences } from '../engagement/engine.js';
+import { buildBackendBackboneSummary } from '../backbone/service.js';
+import { createTraceId, recordAuditEvent } from '../observability/spine.js';
 
 const RISK_PROFILE_PRESETS = {
   conservative: {
@@ -765,9 +767,27 @@ function buildDecisionSnapshotFromCore(args: {
       created_at_ms: nowMs,
       updated_at_ms: nowMs
     });
+    const traceId = createTraceId('decision');
+    recordAuditEvent(args.core.repo, {
+      traceId,
+      scope: 'decision_engine',
+      eventType: 'decision_snapshot_generated',
+      userId: args.core.userId,
+      entityType: 'decision_snapshot',
+      entityId: snapshotId,
+      payload: {
+        market: args.core.market,
+        asset_class: args.core.assetClass || 'ALL',
+        top_action_id: decision.top_action_id || null,
+        ranked_action_count: Array.isArray(decision.ranked_action_cards) ? decision.ranked_action_cards.length : 0,
+        source_status: decision.source_status || RUNTIME_STATUS.INSUFFICIENT_DATA,
+        data_status: decision.data_status || RUNTIME_STATUS.INSUFFICIENT_DATA
+      }
+    });
     return {
       ...decision,
-      audit_snapshot_id: snapshotId
+      audit_snapshot_id: snapshotId,
+      trace_id: traceId
     };
   }
 
@@ -1241,6 +1261,14 @@ export function getRuntimeState(args: {
       }
     }
   };
+}
+
+export function getBackendBackbone(args: {
+  userId?: string;
+  market?: Market;
+  assetClass?: AssetClass;
+}) {
+  return buildBackendBackboneSummary(args);
 }
 
 export function runEvidence(args: {

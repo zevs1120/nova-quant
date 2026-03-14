@@ -474,6 +474,93 @@ CREATE TABLE IF NOT EXISTS experiment_registry (
 
 CREATE INDEX IF NOT EXISTS idx_experiment_registry_lookup ON experiment_registry(decision_status, created_at_ms DESC);
 
+CREATE TABLE IF NOT EXISTS model_versions (
+  id TEXT PRIMARY KEY,
+  model_key TEXT NOT NULL,
+  provider TEXT NOT NULL,
+  endpoint TEXT,
+  task_scope TEXT NOT NULL,
+  semantic_version TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('active', 'challenger', 'deprecated')),
+  config_json TEXT NOT NULL,
+  created_at_ms INTEGER NOT NULL,
+  updated_at_ms INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_model_versions_lookup ON model_versions(model_key, status, updated_at_ms DESC);
+
+CREATE TABLE IF NOT EXISTS prompt_versions (
+  id TEXT PRIMARY KEY,
+  task_key TEXT NOT NULL,
+  semantic_version TEXT NOT NULL,
+  prompt_hash TEXT NOT NULL,
+  prompt_text TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('active', 'challenger', 'archived')),
+  created_at_ms INTEGER NOT NULL,
+  updated_at_ms INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_prompt_versions_lookup ON prompt_versions(task_key, status, updated_at_ms DESC);
+
+CREATE TABLE IF NOT EXISTS eval_registry (
+  id TEXT PRIMARY KEY,
+  eval_type TEXT NOT NULL,
+  subject_type TEXT NOT NULL,
+  subject_id TEXT NOT NULL,
+  subject_version TEXT,
+  score_json TEXT NOT NULL,
+  notes TEXT,
+  created_at_ms INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_eval_registry_lookup ON eval_registry(subject_type, eval_type, created_at_ms DESC);
+
+CREATE TABLE IF NOT EXISTS workflow_runs (
+  id TEXT PRIMARY KEY,
+  workflow_key TEXT NOT NULL,
+  workflow_version TEXT NOT NULL,
+  trigger_type TEXT NOT NULL CHECK (trigger_type IN ('scheduled', 'manual', 'shadow', 'replay')),
+  status TEXT NOT NULL CHECK (status IN ('PLANNED', 'RUNNING', 'SUCCEEDED', 'FAILED', 'PAUSED')),
+  trace_id TEXT,
+  input_json TEXT NOT NULL,
+  output_json TEXT,
+  attempt_count INTEGER NOT NULL DEFAULT 0,
+  started_at_ms INTEGER NOT NULL,
+  updated_at_ms INTEGER NOT NULL,
+  completed_at_ms INTEGER
+);
+
+CREATE INDEX IF NOT EXISTS idx_workflow_runs_lookup ON workflow_runs(workflow_key, status, updated_at_ms DESC);
+
+CREATE TABLE IF NOT EXISTS audit_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  trace_id TEXT NOT NULL,
+  scope TEXT NOT NULL,
+  event_type TEXT NOT NULL,
+  user_id TEXT,
+  entity_type TEXT NOT NULL,
+  entity_id TEXT,
+  payload_json TEXT NOT NULL,
+  created_at_ms INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_events_trace ON audit_events(trace_id, created_at_ms DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_events_entity ON audit_events(entity_type, entity_id, created_at_ms DESC);
+
+CREATE TABLE IF NOT EXISTS recommendation_reviews (
+  id TEXT PRIMARY KEY,
+  decision_snapshot_id TEXT NOT NULL,
+  action_id TEXT,
+  review_type TEXT NOT NULL CHECK (review_type IN ('OUTCOME', 'NO_ACTION_VALUE', 'EXPLANATION')),
+  score REAL,
+  notes TEXT,
+  payload_json TEXT NOT NULL,
+  created_at_ms INTEGER NOT NULL,
+  FOREIGN KEY(decision_snapshot_id) REFERENCES decision_snapshots(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_recommendation_reviews_lookup ON recommendation_reviews(decision_snapshot_id, review_type, created_at_ms DESC);
+
 CREATE TABLE IF NOT EXISTS decision_snapshots (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,

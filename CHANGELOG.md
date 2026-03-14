@@ -2,6 +2,13 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 1.0.0 (2026-03-15)
+- Release type: major
+- Added a professional backend backbone that unifies research, risk governance, decision, portfolio allocation, evidence review, local Nova LLM ops, workflows, registries, and observability.
+- Added canonical backend domain contracts plus a new `/api/backbone/summary` inspection surface for institutional-grade architecture visibility.
+- Added local-first Nova model routing, prompt/model registries, durable workflow blueprints, audit-event tracing, scorecards, and feature-platform contracts without pushing the frontend toward terminal-style complexity.
+- Added open-source borrow mapping, architecture, compliance, and implementation-truth documentation for diligence-ready provenance.
+
 ## 0.3.0 (2026-03-15)
 - Release type: minor
 - Added a backend-generated perception layer so the product can express “system first, user confirms” with real state rather than decorative UI copy.

@@ -1,23 +1,31 @@
-export function logInfo(message: string, meta?: Record<string, unknown>): void {
-  if (meta) {
-    console.log(`[INFO] ${message}`, meta);
+type LogMeta = Record<string, unknown> & {
+  trace_id?: string;
+  scope?: string;
+  event_type?: string;
+};
+
+function emit(level: 'INFO' | 'WARN' | 'ERROR', message: string, meta?: LogMeta): void {
+  const prefix = `[${level}] ${message}`;
+  if (!meta) {
+    const logger = level === 'ERROR' ? console.error : level === 'WARN' ? console.warn : console.log;
+    logger(prefix);
     return;
   }
-  console.log(`[INFO] ${message}`);
+  const logger = level === 'ERROR' ? console.error : level === 'WARN' ? console.warn : console.log;
+  logger(prefix, {
+    ...meta,
+    ts: new Date().toISOString()
+  });
+}
+
+export function logInfo(message: string, meta?: Record<string, unknown>): void {
+  emit('INFO', message, meta);
 }
 
 export function logWarn(message: string, meta?: Record<string, unknown>): void {
-  if (meta) {
-    console.warn(`[WARN] ${message}`, meta);
-    return;
-  }
-  console.warn(`[WARN] ${message}`);
+  emit('WARN', message, meta);
 }
 
 export function logError(message: string, meta?: Record<string, unknown>): void {
-  if (meta) {
-    console.error(`[ERROR] ${message}`, meta);
-    return;
-  }
-  console.error(`[ERROR] ${message}`);
+  emit('ERROR', message, meta);
 }

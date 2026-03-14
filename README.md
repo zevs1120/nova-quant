@@ -1,7 +1,7 @@
 # Nova Quant
 
 Nova Quant is an AI-native quantitative **decision** platform for US equities and crypto.
-Current app version: `0.3.0` (build `2`).
+Current app version: `1.0.0` (build `3`).
 
 It is designed to help self-directed traders reduce emotional trading and execute with discipline.
 It is **not** a blind auto-trading bot and does **not** fabricate live performance.
@@ -18,6 +18,7 @@ It is **not** a blind auto-trading bot and does **not** fabricate live performan
 - Morning Check / wrap-up / widget / notification summaries grounded in backend engagement state
 - A unified copy operating system so homepage, action cards, notifications, widgets, wrap-up, and Nova Assistant all speak with one voice
 - A perception-layer system that makes NovaQuant feel like a judgment surface, not a traditional finance dashboard
+- A professional backend backbone that unifies research, risk, decision, portfolio, evidence, local Nova LLM ops, workflows, registries, and observability
 - Clean handoff tooling that excludes local databases, build artifacts, cached node modules, and platform junk
 
 ## What Changed In This Runtime-Realism Upgrade
@@ -40,7 +41,33 @@ Primary application layers:
 - `src/server/quant/service.ts`: quant runtime synchronization + cache isolation
 - `src/server/quant/runtimeDerivation.ts`: DB-backed runtime derivation
 - `src/server/evidence/engine.ts`: replay / backtest / evidence engine
+- `src/server/backbone/service.ts`: unified backend backbone summary spanning research, risk, decision, registries, workflows, observability, portfolio, and review
 - SQLite (`data/quant.db` at runtime, excluded from handoff packages)
+
+## Backend Backbone
+
+NovaQuant now exposes a proper backend backbone rather than a loose collection of subsystems.
+
+Canonical inspection surface:
+- `GET /api/backbone/summary`
+
+New backbone modules:
+- `src/server/domain/contracts.ts`
+- `src/server/feature/platform.ts`
+- `src/server/research/kernel.ts`
+- `src/server/registry/service.ts`
+- `src/server/ai/llmOps.ts`
+- `src/server/workflows/durable.ts`
+- `src/server/observability/spine.ts`
+- `src/server/risk/governance.ts`
+- `src/server/portfolio/allocator.ts`
+- `src/server/evals/scorecards.ts`
+
+Reference docs:
+- `docs/OPEN_SOURCE_BORROW_MAP.md`
+- `docs/NOVAQUANT_BACKEND_ARCHITECTURE_AFTER_REFACTOR.md`
+- `docs/WHAT_WAS_ACTUALLY_IMPLEMENTED.md`
+- `docs/LICENSE_AND_COMPLIANCE_NOTES.md`
 
 ## Source of Truth
 

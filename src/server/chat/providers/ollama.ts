@@ -1,35 +1,53 @@
+import os from 'node:os';
 import type { ProviderAdapter, ProviderRequest } from '../types.js';
-import { ProviderError } from './errors.js';
+import { ProviderError, ProviderNetworkError, ProviderRateLimitError } from './errors.js';
 
-const DEFAULT_OLLAMA_URL = process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434';
-const DEFAULT_OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'llama3.1:8b';
+const OLLAMA_OPENAI_BASE = (process.env.OLLAMA_OPENAI_BASE_URL || process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434/v1').replace(/\/$/, '');
+const OLLAMA_CHAT_ENDPOINT = `${OLLAMA_OPENAI_BASE}/chat/completions`;
 
-function consumeLines(buffer: string): { lines: string[]; remainder: string } {
+function resolveDefaultModel(): string {
+  if (process.env.OLLAMA_MODEL) return process.env.OLLAMA_MODEL;
+  const tier = String(process.env.NOVA_MEMORY_TIER || '').toLowerCase();
+  if (tier === 'compact') return 'qwen3:4b';
+  if (tier === 'full') return 'qwen3:8b';
+  const memoryGb = Math.round(os.totalmem() / (1024 ** 3));
+  return memoryGb >= 24 ? 'qwen3:8b' : 'qwen3:4b';
+}
+
+const DEFAULT_OLLAMA_MODEL = resolveDefaultModel();
+
+function consumeSse(buffer: string): { lines: string[]; remainder: string } {
   const parts = buffer.split('\n');
-  return { lines: parts.slice(0, -1), remainder: parts[parts.length - 1] ?? '' };
+  const remainder = parts.pop() ?? '';
+  return { lines: parts, remainder };
 }
 
 export class OllamaProvider implements ProviderAdapter {
   readonly name = 'ollama' as const;
 
   async *stream(req: ProviderRequest): AsyncGenerator<string> {
-    const endpoint = `${DEFAULT_OLLAMA_URL.replace(/\/$/, '')}/api/chat`;
+    let response: Response;
+    try {
+      response = await fetch(OLLAMA_CHAT_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: DEFAULT_OLLAMA_MODEL,
+          messages: req.messages,
+          temperature: req.temperature ?? 0.2,
+          max_tokens: req.maxTokens ?? 700,
+          stream: true
+        })
+      });
+    } catch (error) {
+      throw new ProviderNetworkError(error instanceof Error ? error.message : 'Ollama network error');
+    }
 
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: DEFAULT_OLLAMA_MODEL,
-        messages: req.messages,
-        stream: true,
-        options: {
-          temperature: req.temperature ?? 0.25
-        }
-      })
-    });
-
+    if (response.status === 429) {
+      throw new ProviderRateLimitError('Ollama rate limited (429)');
+    }
     if (!response.ok || !response.body) {
       const err = await response.text().catch(() => '');
       throw new ProviderError(`Ollama request failed (${response.status}): ${err}`);
@@ -42,26 +60,23 @@ export class OllamaProvider implements ProviderAdapter {
     while (true) {
       const { value, done } = await reader.read();
       if (done) break;
-
       buffer += decoder.decode(value, { stream: true });
-      const { lines, remainder } = consumeLines(buffer);
+      const { lines, remainder } = consumeSse(buffer);
       buffer = remainder;
 
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed) continue;
-
+      for (const lineRaw of lines) {
+        const line = lineRaw.trim();
+        if (!line || !line.startsWith('data:')) continue;
+        const data = line.slice(5).trim();
+        if (data === '[DONE]') return;
         try {
-          const parsed = JSON.parse(trimmed) as {
-            done?: boolean;
-            message?: { content?: string };
+          const parsed = JSON.parse(data) as {
+            choices?: Array<{ delta?: { content?: string } }>;
           };
-
-          if (parsed.done) return;
-          const delta = parsed.message?.content;
+          const delta = parsed.choices?.[0]?.delta?.content;
           if (delta) yield delta;
         } catch {
-          // ignore malformed line
+          // ignore malformed chunks from local runtime
         }
       }
     }

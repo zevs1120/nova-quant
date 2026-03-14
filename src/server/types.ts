@@ -494,6 +494,79 @@ export interface ExperimentRegistryRecord {
   created_at_ms: number;
 }
 
+export interface ModelVersionRecord {
+  id: string;
+  model_key: string;
+  provider: string;
+  endpoint: string | null;
+  task_scope: string;
+  semantic_version: string;
+  status: 'active' | 'challenger' | 'deprecated';
+  config_json: string;
+  created_at_ms: number;
+  updated_at_ms: number;
+}
+
+export interface PromptVersionRecord {
+  id: string;
+  task_key: string;
+  semantic_version: string;
+  prompt_hash: string;
+  prompt_text: string;
+  status: 'active' | 'challenger' | 'archived';
+  created_at_ms: number;
+  updated_at_ms: number;
+}
+
+export interface EvalRegistryRecord {
+  id: string;
+  eval_type: string;
+  subject_type: string;
+  subject_id: string;
+  subject_version: string | null;
+  score_json: string;
+  notes: string | null;
+  created_at_ms: number;
+}
+
+export interface WorkflowRunRecord {
+  id: string;
+  workflow_key: string;
+  workflow_version: string;
+  trigger_type: 'scheduled' | 'manual' | 'shadow' | 'replay';
+  status: 'PLANNED' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'PAUSED';
+  trace_id: string | null;
+  input_json: string;
+  output_json: string | null;
+  attempt_count: number;
+  started_at_ms: number;
+  updated_at_ms: number;
+  completed_at_ms: number | null;
+}
+
+export interface AuditEventRecord {
+  id?: number;
+  trace_id: string;
+  scope: string;
+  event_type: string;
+  user_id: string | null;
+  entity_type: string;
+  entity_id: string | null;
+  payload_json: string;
+  created_at_ms: number;
+}
+
+export interface RecommendationReviewRecord {
+  id: string;
+  decision_snapshot_id: string;
+  action_id: string | null;
+  review_type: 'OUTCOME' | 'NO_ACTION_VALUE' | 'EXPLANATION';
+  score: number | null;
+  notes: string | null;
+  payload_json: string;
+  created_at_ms: number;
+}
+
 export interface ChatThreadRecord {
   id: string;
   user_id: string;

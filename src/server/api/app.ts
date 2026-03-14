@@ -7,6 +7,7 @@ import {
   completeWrapUp,
   confirmRiskBoundary,
   ensureDefaultPublicSignalsApiKey,
+  getBackendBackbone,
   getEngagementState,
   getDecisionSnapshot,
   getRuntimeState,
@@ -201,6 +202,19 @@ export function createApiApp() {
       assetClass
     });
     res.json(runtime);
+  });
+
+  app.get('/api/backbone/summary', (req, res) => {
+    const market = parseMarket(req.query.market as string | undefined);
+    const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
+    const userId = (req.query.userId as string | undefined) || 'guest-default';
+    res.json(
+      getBackendBackbone({
+        userId,
+        market,
+        assetClass
+      })
+    );
   });
 
   app.post('/api/decision/today', (req, res) => {
