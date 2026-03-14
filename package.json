@@ -1,7 +1,7 @@
 {
   "name": "nova-quant",
   "private": true,
-  "version": "1.0.0",
+  "version": "2.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -15,6 +15,7 @@
     "version:patch": "node scripts/version-manager.mjs patch",
     "db:init": "tsx scripts/db-init.ts",
     "db:migrate": "tsx scripts/db-migrate.ts",
+    "nova:export-mlx": "tsx scripts/export-nova-mlx-data.ts --only-included",
     "backfill": "tsx scripts/backfill.ts",
     "update:binance": "tsx scripts/update-binance.ts --once",
     "worker:binance": "tsx scripts/update-binance.ts",

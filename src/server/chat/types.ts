@@ -110,6 +110,7 @@ export interface ProviderRequest {
   messages: ProviderMessage[];
   temperature?: number;
   maxTokens?: number;
+  model?: string;
 }
 
 export interface ProviderAdapter {

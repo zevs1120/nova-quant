@@ -7,11 +7,7 @@ import { OllamaProvider } from './ollama.js';
 export type ProviderName = 'groq' | 'gemini' | 'openai' | 'ollama';
 
 export function getProviderOrder(): ProviderName[] {
-  const preferred = (process.env.AI_PROVIDER || process.env.CHAT_PROVIDER || 'ollama').toLowerCase() as ProviderName;
-  if (preferred === 'gemini') return ['gemini', 'groq', 'openai', 'ollama'];
-  if (preferred === 'openai') return ['openai', 'groq', 'gemini', 'ollama'];
-  if (preferred === 'ollama') return ['ollama', 'groq', 'gemini', 'openai'];
-  return ['ollama', 'groq', 'gemini', 'openai'];
+  return ['ollama'];
 }
 
 export function createProvider(name: ProviderName): ProviderAdapter {
@@ -22,8 +18,5 @@ export function createProvider(name: ProviderName): ProviderAdapter {
 }
 
 export function isProviderConfigured(name: ProviderName): boolean {
-  if (name === 'groq') return Boolean(process.env.GROQ_API_KEY);
-  if (name === 'gemini') return Boolean(process.env.GEMINI_API_KEY);
-  if (name === 'openai') return Boolean(process.env.OPENAI_API_KEY);
-  return true;
+  return name === 'ollama';
 }

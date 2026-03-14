@@ -639,6 +639,59 @@ CREATE TABLE IF NOT EXISTS user_notification_preferences (
   quiet_end_hour INTEGER,
   updated_at_ms INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS nova_task_runs (
+  id TEXT PRIMARY KEY,
+  user_id TEXT,
+  thread_id TEXT,
+  task_type TEXT NOT NULL CHECK (
+    task_type IN (
+      'risk_regime_explanation',
+      'daily_stance_generation',
+      'action_card_generation',
+      'daily_wrap_up_generation',
+      'assistant_grounded_answer',
+      'fast_classification',
+      'retrieval_embedding'
+    )
+  ),
+  route_alias TEXT NOT NULL,
+  model_name TEXT NOT NULL,
+  endpoint TEXT NOT NULL,
+  trace_id TEXT,
+  prompt_version_id TEXT,
+  parent_run_id TEXT,
+  input_json TEXT NOT NULL,
+  context_json TEXT NOT NULL,
+  output_json TEXT,
+  status TEXT NOT NULL CHECK (status IN ('SUCCEEDED', 'FAILED', 'SKIPPED')),
+  error TEXT,
+  created_at_ms INTEGER NOT NULL,
+  updated_at_ms INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_nova_task_runs_lookup
+  ON nova_task_runs(task_type, created_at_ms DESC);
+CREATE INDEX IF NOT EXISTS idx_nova_task_runs_user
+  ON nova_task_runs(user_id, created_at_ms DESC);
+CREATE INDEX IF NOT EXISTS idx_nova_task_runs_thread
+  ON nova_task_runs(thread_id, created_at_ms DESC);
+
+CREATE TABLE IF NOT EXISTS nova_review_labels (
+  id TEXT PRIMARY KEY,
+  run_id TEXT NOT NULL,
+  reviewer_id TEXT NOT NULL,
+  label TEXT NOT NULL,
+  score REAL,
+  notes TEXT,
+  include_in_training INTEGER NOT NULL DEFAULT 0,
+  created_at_ms INTEGER NOT NULL,
+  updated_at_ms INTEGER NOT NULL,
+  FOREIGN KEY(run_id) REFERENCES nova_task_runs(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_nova_review_labels_run
+  ON nova_review_labels(run_id, updated_at_ms DESC);
 `;
 
 export function ensureSchema(db: Database.Database): void {

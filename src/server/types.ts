@@ -672,3 +672,46 @@ export interface NotificationPreferenceRecord {
   quiet_end_hour: number | null;
   updated_at_ms: number;
 }
+
+export type NovaTaskType =
+  | 'risk_regime_explanation'
+  | 'daily_stance_generation'
+  | 'action_card_generation'
+  | 'daily_wrap_up_generation'
+  | 'assistant_grounded_answer'
+  | 'fast_classification'
+  | 'retrieval_embedding';
+
+export type NovaTaskRunStatus = 'SUCCEEDED' | 'FAILED' | 'SKIPPED';
+
+export interface NovaTaskRunRecord {
+  id: string;
+  user_id: string | null;
+  thread_id: string | null;
+  task_type: NovaTaskType;
+  route_alias: string;
+  model_name: string;
+  endpoint: string;
+  trace_id: string | null;
+  prompt_version_id: string | null;
+  parent_run_id: string | null;
+  input_json: string;
+  context_json: string;
+  output_json: string | null;
+  status: NovaTaskRunStatus;
+  error: string | null;
+  created_at_ms: number;
+  updated_at_ms: number;
+}
+
+export interface NovaReviewLabelRecord {
+  id: string;
+  run_id: string;
+  reviewer_id: string;
+  label: string;
+  score: number | null;
+  notes: string | null;
+  include_in_training: number;
+  created_at_ms: number;
+  updated_at_ms: number;
+}

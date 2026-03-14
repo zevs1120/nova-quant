@@ -12,6 +12,7 @@ import {
   ProviderTimeoutError,
   shouldFallbackProviderError
 } from './providers/errors.js';
+import { resolveNovaRoute } from '../ai/llmOps.js';
 
 const MAX_HISTORY_TURNS = 8;
 const PROVIDER_TIMEOUT_MS = Number(process.env.AI_PROVIDER_TIMEOUT_MS || 18_000);
@@ -209,6 +210,7 @@ async function runProviderChain(args: {
   for (let i = 0; i < providerOrder.length; i += 1) {
     const providerName = providerOrder[i];
     const provider = createProvider(providerName);
+    const route = resolveNovaRoute('assistant_grounded_answer');
     const providerMessages: ProviderMessage[] = [
       { role: 'system', content: systemPrompt },
       ...historyToProviderMessages(args.history),
@@ -220,6 +222,7 @@ async function runProviderChain(args: {
       for await (const chunk of withTimeout(
         provider.stream({
           messages: providerMessages,
+          model: route.model,
           temperature: 0.2,
           maxTokens: 750
         }),

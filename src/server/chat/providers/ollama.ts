@@ -34,7 +34,7 @@ export class OllamaProvider implements ProviderAdapter {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          model: DEFAULT_OLLAMA_MODEL,
+          model: req.model || DEFAULT_OLLAMA_MODEL,
           messages: req.messages,
           temperature: req.temperature ?? 0.2,
           max_tokens: req.maxTokens ?? 700,

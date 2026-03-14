@@ -23,6 +23,8 @@ export function getConfig(): AppConfig {
   const config = readConfigFile(DEFAULT_CONFIG_PATH);
   if (process.env.DB_PATH) {
     config.database.path = process.env.DB_PATH;
+  } else if (process.env.VITEST_WORKER_ID) {
+    config.database.path = path.join(process.cwd(), '.tmp', `nova-quant-test-${process.env.VITEST_WORKER_ID}.db`);
   } else if (process.env.VERCEL === '1') {
     // Vercel serverless functions can only write to the ephemeral /tmp volume.
     config.database.path = '/tmp/nova-quant/quant.db';

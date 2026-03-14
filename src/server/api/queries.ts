@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { getDb } from '../db/database.js';
 import { MarketRepository } from '../db/repository.js';
 import { ensureSchema } from '../db/schema.js';
-import type { AssetClass, ExecutionAction, ExecutionMode, Market, RiskProfileKey, SignalContract, Timeframe, UserHoldingInput } from '../types.js';
+import type { AssetClass, DecisionSnapshotRecord, ExecutionAction, ExecutionMode, Market, RiskProfileKey, SignalContract, Timeframe, UserHoldingInput } from '../types.js';
 import { createExecutionRecord, decodeSignalContract, ensureQuantData } from '../quant/service.js';
 import {
   getBacktestEvidenceDetail,
@@ -23,6 +23,10 @@ import { buildDecisionSnapshot } from '../decision/engine.js';
 import { buildEngagementSnapshot, defaultNotificationPreferences } from '../engagement/engine.js';
 import { buildBackendBackboneSummary } from '../backbone/service.js';
 import { createTraceId, recordAuditEvent } from '../observability/spine.js';
+import { applyLocalNovaDecisionLanguage, applyLocalNovaWrapUpLanguage, logNovaAssistantAnswer } from '../nova/service.js';
+import { buildMlxLmTrainingDataset } from '../nova/training.js';
+import { getNovaModelPlan, getNovaRoutingPolicies, getNovaLocalEndpoint } from '../ai/llmOps.js';
+import { labelNovaRun } from '../nova/service.js';
 
 const RISK_PROFILE_PRESETS = {
   conservative: {
@@ -624,6 +628,16 @@ function parseJsonObject(text: string | null | undefined): Record<string, unknow
   }
 }
 
+function parseJsonArray(text: string | null | undefined): Array<Record<string, unknown>> {
+  if (!text) return [];
+  try {
+    const value = JSON.parse(text) as unknown;
+    return Array.isArray(value) ? (value as Array<Record<string, unknown>>) : [];
+  } catch {
+    return [];
+  }
+}
+
 function snapshotDateKey(iso: string): string {
   return String(iso || '').slice(0, 10);
 }
@@ -662,6 +676,24 @@ function parseOptionalJson(text: string | null | undefined): Record<string, unkn
   }
 }
 
+function decisionSnapshotFromRow(row: DecisionSnapshotRecord) {
+  const summary = parseJsonObject(row.summary_json) || {};
+  return {
+    as_of: new Date(row.updated_at_ms).toISOString(),
+    source_status: row.source_status,
+    data_status: row.data_status,
+    today_call: summary.today_call || null,
+    risk_state: parseJsonObject(row.risk_state_json) || {},
+    portfolio_context: parseJsonObject(row.portfolio_context_json) || {},
+    ranked_action_cards: parseJsonArray(row.actions_json),
+    top_action_id: row.top_action_id,
+    summary,
+    audit_snapshot_id: row.id,
+    trace_id: null,
+    from_cache: true
+  };
+}
+
 function buildDecisionContextHash(args: {
   userId: string;
   market: Market;
@@ -693,10 +725,72 @@ function buildDecisionContextHash(args: {
     .digest('hex');
 }
 
+function persistDecisionSnapshot(args: {
+  core: RuntimeStateCore;
+  decision: Record<string, unknown>;
+  holdings?: UserHoldingInput[];
+}) {
+  const snapshotDate = snapshotDateKey(String(args.core.runtimeTransparency.as_of));
+  const contextHash = buildDecisionContextHash({
+    userId: args.core.userId,
+    market: args.core.market,
+    assetClass: args.core.assetClass,
+    riskProfileKey: args.core.risk?.profile_key,
+    runtimeStatus: String(args.core.runtimeTransparency.source_status),
+    holdings: args.holdings,
+    topActions: ((args.decision.ranked_action_cards as Array<Record<string, unknown>> | undefined) || []).map((row) => ({
+      signal_id: String(row.signal_id || ''),
+      symbol: String(row.symbol || '')
+    }))
+  });
+  const snapshotId = `decision-${createHash('sha256')
+    .update(`${args.core.userId}:${args.core.market}:${args.core.assetClass || 'ALL'}:${snapshotDate}:${contextHash}`)
+    .digest('hex')
+    .slice(0, 24)}`;
+  const nowMs = Date.now();
+  args.core.repo.upsertDecisionSnapshot({
+    id: snapshotId,
+    user_id: args.core.userId,
+    market: args.core.market,
+    asset_class: args.core.assetClass || 'ALL',
+    snapshot_date: snapshotDate,
+    context_hash: contextHash,
+    source_status: String(args.decision.source_status || RUNTIME_STATUS.INSUFFICIENT_DATA),
+    data_status: String(args.decision.data_status || RUNTIME_STATUS.INSUFFICIENT_DATA),
+    risk_state_json: JSON.stringify(args.decision.risk_state || {}),
+    portfolio_context_json: JSON.stringify(args.decision.portfolio_context || {}),
+    actions_json: JSON.stringify(args.decision.ranked_action_cards || []),
+    summary_json: JSON.stringify(args.decision.summary || {}),
+    top_action_id: String(args.decision.top_action_id || '') || null,
+    created_at_ms: nowMs,
+    updated_at_ms: nowMs
+  });
+  const traceId = createTraceId('decision');
+  recordAuditEvent(args.core.repo, {
+    traceId,
+    scope: 'decision_engine',
+    eventType: 'decision_snapshot_generated',
+    userId: args.core.userId,
+    entityType: 'decision_snapshot',
+    entityId: snapshotId,
+    payload: {
+      market: args.core.market,
+      asset_class: args.core.assetClass || 'ALL',
+      top_action_id: args.decision.top_action_id || null,
+      ranked_action_count: Array.isArray(args.decision.ranked_action_cards) ? args.decision.ranked_action_cards.length : 0,
+      source_status: args.decision.source_status || RUNTIME_STATUS.INSUFFICIENT_DATA,
+      data_status: args.decision.data_status || RUNTIME_STATUS.INSUFFICIENT_DATA
+    }
+  });
+  return {
+    snapshotId,
+    traceId
+  };
+}
+
 function buildDecisionSnapshotFromCore(args: {
   core: RuntimeStateCore;
   holdings?: UserHoldingInput[];
-  persist?: boolean;
   locale?: string;
 }) {
   const evidenceTop = getTopSignalEvidence(args.core.repo, {
@@ -731,70 +825,10 @@ function buildDecisionSnapshotFromCore(args: {
     previousDecision
   });
 
-  if (args.persist) {
-    const snapshotDate = snapshotDateKey(String(args.core.runtimeTransparency.as_of));
-    const contextHash = buildDecisionContextHash({
-      userId: args.core.userId,
-      market: args.core.market,
-      assetClass: args.core.assetClass,
-      riskProfileKey: args.core.risk?.profile_key,
-      runtimeStatus: String(args.core.runtimeTransparency.source_status),
-      holdings: args.holdings,
-      topActions: (decision.ranked_action_cards || []).map((row: Record<string, unknown>) => ({
-        signal_id: String(row.signal_id || ''),
-        symbol: String(row.symbol || '')
-      }))
-    });
-    const snapshotId = `decision-${createHash('sha256')
-      .update(`${args.core.userId}:${args.core.market}:${args.core.assetClass || 'ALL'}:${snapshotDate}:${contextHash}`)
-      .digest('hex')
-      .slice(0, 24)}`;
-    const nowMs = Date.now();
-    args.core.repo.upsertDecisionSnapshot({
-      id: snapshotId,
-      user_id: args.core.userId,
-      market: args.core.market,
-      asset_class: args.core.assetClass || 'ALL',
-      snapshot_date: snapshotDate,
-      context_hash: contextHash,
-      source_status: String(decision.source_status || RUNTIME_STATUS.INSUFFICIENT_DATA),
-      data_status: String(decision.data_status || RUNTIME_STATUS.INSUFFICIENT_DATA),
-      risk_state_json: JSON.stringify(decision.risk_state || {}),
-      portfolio_context_json: JSON.stringify(decision.portfolio_context || {}),
-      actions_json: JSON.stringify(decision.ranked_action_cards || []),
-      summary_json: JSON.stringify(decision.summary || {}),
-      top_action_id: String(decision.top_action_id || '') || null,
-      created_at_ms: nowMs,
-      updated_at_ms: nowMs
-    });
-    const traceId = createTraceId('decision');
-    recordAuditEvent(args.core.repo, {
-      traceId,
-      scope: 'decision_engine',
-      eventType: 'decision_snapshot_generated',
-      userId: args.core.userId,
-      entityType: 'decision_snapshot',
-      entityId: snapshotId,
-      payload: {
-        market: args.core.market,
-        asset_class: args.core.assetClass || 'ALL',
-        top_action_id: decision.top_action_id || null,
-        ranked_action_count: Array.isArray(decision.ranked_action_cards) ? decision.ranked_action_cards.length : 0,
-        source_status: decision.source_status || RUNTIME_STATUS.INSUFFICIENT_DATA,
-        data_status: decision.data_status || RUNTIME_STATUS.INSUFFICIENT_DATA
-      }
-    });
-    return {
-      ...decision,
-      audit_snapshot_id: snapshotId,
-      trace_id: traceId
-    };
-  }
-
   return decision;
 }
 
-export function getDecisionSnapshot(args: {
+export async function getDecisionSnapshot(args: {
   userId?: string;
   market?: Market;
   assetClass?: AssetClass;
@@ -802,22 +836,72 @@ export function getDecisionSnapshot(args: {
   locale?: string;
 }) {
   const core = loadRuntimeStateCore(args);
-  return buildDecisionSnapshotFromCore({
+  const deterministic = buildDecisionSnapshotFromCore({
     core,
     holdings: args.holdings,
-    persist: true,
     locale: args.locale
   });
+  const snapshotDate = snapshotDateKey(String(core.runtimeTransparency.as_of));
+  const contextHash = buildDecisionContextHash({
+    userId: core.userId,
+    market: core.market,
+    assetClass: core.assetClass,
+    riskProfileKey: core.risk?.profile_key,
+    runtimeStatus: String(core.runtimeTransparency.source_status),
+    holdings: args.holdings,
+    topActions: ((deterministic.ranked_action_cards as Array<Record<string, unknown>> | undefined) || []).map((row) => ({
+      signal_id: String(row.signal_id || ''),
+      symbol: String(row.symbol || '')
+    }))
+  });
+  const latest = core.repo.getLatestDecisionSnapshot({
+    userId: core.userId,
+    market: core.market,
+    assetClass: core.assetClass || 'ALL'
+  });
+  const latestSummary = parseJsonObject(latest?.summary_json);
+  const latestNovaMeta =
+    latestSummary?.nova_local && typeof latestSummary.nova_local === 'object'
+      ? (latestSummary.nova_local as Record<string, unknown>)
+      : null;
+  const cachedNovaApplied = Boolean(latestNovaMeta?.applied);
+  const cachedNovaAttempted = Boolean(latestNovaMeta?.attempted);
+  const cachedNovaFreshFailure =
+    cachedNovaAttempted && !cachedNovaApplied && latest ? Date.now() - latest.updated_at_ms < 5 * 60 * 1000 : false;
+  if (
+    latest &&
+    latest.snapshot_date === snapshotDate &&
+    latest.context_hash === contextHash &&
+    (cachedNovaApplied || cachedNovaFreshFailure || String(process.env.NOVA_DISABLE_LOCAL_GENERATION || '') === '1')
+  ) {
+    return decisionSnapshotFromRow(latest);
+  }
+  const enriched = await applyLocalNovaDecisionLanguage({
+    repo: core.repo,
+    userId: core.userId,
+    locale: args.locale,
+    decision: deterministic as Record<string, unknown>
+  });
+  const persisted = persistDecisionSnapshot({
+    core,
+    decision: enriched,
+    holdings: args.holdings
+  });
+  return {
+    ...enriched,
+    audit_snapshot_id: persisted.snapshotId,
+    trace_id: persisted.traceId
+  };
 }
 
-function getDecisionRowsForEngagement(args: {
+async function getDecisionRowsForEngagement(args: {
   userId?: string;
   market?: Market;
   assetClass?: AssetClass;
   holdings?: UserHoldingInput[];
   locale?: string;
 }) {
-  getDecisionSnapshot(args);
+  await getDecisionSnapshot(args);
   const repo = getRepo();
   const rows = repo.listDecisionSnapshots({
     userId: args.userId || 'guest-default',
@@ -845,7 +929,7 @@ function resolveNotificationPreferences(repo: MarketRepository, userId: string) 
   return defaults;
 }
 
-export function getEngagementState(args: {
+export async function getEngagementState(args: {
   userId?: string;
   market?: Market;
   assetClass?: AssetClass;
@@ -858,7 +942,7 @@ export function getEngagementState(args: {
   const userId = args.userId || 'guest-default';
   const market = args.market || 'US';
   const assetClass = args.assetClass || 'ALL';
-  const { current, previous } = getDecisionRowsForEngagement(args);
+  const { current, previous } = await getDecisionRowsForEngagement(args);
   const preferences = resolveNotificationPreferences(repo, userId);
   const rituals = repo.listUserRitualEvents({
     userId,
@@ -892,10 +976,22 @@ export function getEngagementState(args: {
     limit: 12
   });
 
+  const enrichedSnapshot = await applyLocalNovaWrapUpLanguage({
+    repo,
+    userId,
+    locale: args.locale,
+    engagement: snapshot,
+    decision: {
+      today_call: parseOptionalJson(current?.summary_json)?.today_call || null,
+      risk_state: parseOptionalJson(current?.risk_state_json) || {},
+      ranked_action_cards: parseJsonArray(current?.actions_json)
+    }
+  });
+
   return {
-    ...snapshot,
+    ...enrichedSnapshot,
     notification_center: {
-      ...snapshot.notification_center,
+      ...((enrichedSnapshot.notification_center as Record<string, unknown>) || {}),
       notifications: serializeNotificationRows(persistedNotifications)
     },
     decision_snapshot_id: current?.id || null
@@ -915,7 +1011,7 @@ function buildRitualEventId(args: {
     .slice(0, 20)}`;
 }
 
-function recordRitualEvent(args: {
+async function recordRitualEvent(args: {
   userId?: string;
   market?: Market;
   assetClass?: AssetClass;
@@ -931,7 +1027,7 @@ function recordRitualEvent(args: {
   const market = args.market || 'US';
   const assetClass = args.assetClass || 'ALL';
   const eventDate = localDateOrToday(args.localDate);
-  const { current } = getDecisionRowsForEngagement(args);
+  const { current } = await getDecisionRowsForEngagement(args);
   const summary = parseOptionalJson(current?.summary_json);
   const nowMs = Date.now();
 
@@ -971,7 +1067,7 @@ function recordRitualEvent(args: {
   });
 }
 
-export function completeMorningCheck(args: {
+export async function completeMorningCheck(args: {
   userId?: string;
   market?: Market;
   assetClass?: AssetClass;
@@ -987,7 +1083,7 @@ export function completeMorningCheck(args: {
   });
 }
 
-export function confirmRiskBoundary(args: {
+export async function confirmRiskBoundary(args: {
   userId?: string;
   market?: Market;
   assetClass?: AssetClass;
@@ -1003,7 +1099,7 @@ export function confirmRiskBoundary(args: {
   });
 }
 
-export function completeWrapUp(args: {
+export async function completeWrapUp(args: {
   userId?: string;
   market?: Market;
   assetClass?: AssetClass;
@@ -1019,7 +1115,7 @@ export function completeWrapUp(args: {
   });
 }
 
-export function completeWeeklyReview(args: {
+export async function completeWeeklyReview(args: {
   userId?: string;
   market?: Market;
   assetClass?: AssetClass;
@@ -1035,7 +1131,7 @@ export function completeWeeklyReview(args: {
   });
 }
 
-export function getWidgetSummary(args: {
+export async function getWidgetSummary(args: {
   userId?: string;
   market?: Market;
   assetClass?: AssetClass;
@@ -1044,7 +1140,7 @@ export function getWidgetSummary(args: {
   holdings?: UserHoldingInput[];
   locale?: string;
 }) {
-  const snapshot = getEngagementState(args);
+  const snapshot = await getEngagementState(args);
   return {
     as_of: snapshot.as_of,
     source_status: snapshot.source_status,
@@ -1056,7 +1152,7 @@ export function getWidgetSummary(args: {
   };
 }
 
-export function getNotificationPreview(args: {
+export async function getNotificationPreview(args: {
   userId?: string;
   market?: Market;
   assetClass?: AssetClass;
@@ -1065,7 +1161,7 @@ export function getNotificationPreview(args: {
   holdings?: UserHoldingInput[];
   locale?: string;
 }) {
-  const snapshot = getEngagementState(args);
+  const snapshot = await getEngagementState(args);
   return {
     as_of: snapshot.as_of,
     source_status: snapshot.source_status,
@@ -1104,6 +1200,90 @@ export function setNotificationPreferencesState(args: {
   };
   repo.upsertUserNotificationPreferences(next);
   return next;
+}
+
+export function getNovaRuntimeState() {
+  return {
+    endpoint: getNovaLocalEndpoint(),
+    plan: getNovaModelPlan(),
+    routing: getNovaRoutingPolicies(),
+    local_only: true
+  };
+}
+
+export function listNovaRuns(args?: {
+  userId?: string;
+  threadId?: string;
+  taskType?: string;
+  status?: string;
+  limit?: number;
+}) {
+  const repo = getRepo();
+  const rows = repo.listNovaTaskRuns({
+    userId: args?.userId,
+    threadId: args?.threadId,
+    taskType: args?.taskType,
+    status: args?.status,
+    limit: args?.limit || 60
+  });
+  return {
+    count: rows.length,
+    records: rows.map((row) => ({
+      ...row,
+      input: parseOptionalJson(row.input_json),
+      context: parseOptionalJson(row.context_json),
+      output: parseOptionalJson(row.output_json)
+    }))
+  };
+}
+
+export function createNovaReviewLabel(args: {
+  runId: string;
+  reviewerId?: string;
+  label: string;
+  score?: number | null;
+  notes?: string | null;
+  includeInTraining?: boolean;
+}) {
+  const repo = getRepo();
+  return labelNovaRun({
+    repo,
+    runId: args.runId,
+    reviewerId: args.reviewerId || 'manual-review',
+    label: args.label,
+    score: args.score,
+    notes: args.notes,
+    includeInTraining: args.includeInTraining
+  });
+}
+
+export function exportNovaTrainingDataset(args?: { onlyIncluded?: boolean; limit?: number }) {
+  const repo = getRepo();
+  return buildMlxLmTrainingDataset(repo, args);
+}
+
+export async function recordNovaAssistantRun(args: {
+  userId: string;
+  threadId?: string;
+  context?: Record<string, unknown>;
+  message: string;
+  responseText: string;
+  provider: string;
+  status: 'SUCCEEDED' | 'FAILED';
+  error?: string;
+}) {
+  const repo = getRepo();
+  await logNovaAssistantAnswer({
+    repo,
+    userId: args.userId,
+    threadId: args.threadId,
+    context: args.context || {},
+    message: args.message,
+    responseText: args.responseText,
+    provider: args.provider,
+    status: args.status,
+    error: args.error
+  });
 }
 
 export function listDecisionAudit(args: {
@@ -1152,8 +1332,7 @@ export function getRuntimeState(args: {
 }) {
   const core = loadRuntimeStateCore(args);
   const decision = buildDecisionSnapshotFromCore({
-    core,
-    persist: false
+    core
   });
 
   return {

@@ -21,6 +21,8 @@ import type {
   ModelVersionRecord,
   NotificationEventRecord,
   NotificationPreferenceRecord,
+  NovaReviewLabelRecord,
+  NovaTaskRunRecord,
   NormalizedBar,
   PerformanceSnapshotRecord,
   PromptVersionRecord,
@@ -2215,5 +2217,146 @@ export class MarketRepository {
         `
       )
       .all(q) as NotificationEventRecord[];
+  }
+
+  upsertNovaTaskRun(input: NovaTaskRunRecord): void {
+    this.db
+      .prepare(
+        `
+          INSERT INTO nova_task_runs(
+            id, user_id, thread_id, task_type, route_alias, model_name, endpoint, trace_id, prompt_version_id,
+            parent_run_id, input_json, context_json, output_json, status, error, created_at_ms, updated_at_ms
+          ) VALUES(
+            @id, @user_id, @thread_id, @task_type, @route_alias, @model_name, @endpoint, @trace_id, @prompt_version_id,
+            @parent_run_id, @input_json, @context_json, @output_json, @status, @error, @created_at_ms, @updated_at_ms
+          )
+          ON CONFLICT(id) DO UPDATE SET
+            user_id = excluded.user_id,
+            thread_id = excluded.thread_id,
+            task_type = excluded.task_type,
+            route_alias = excluded.route_alias,
+            model_name = excluded.model_name,
+            endpoint = excluded.endpoint,
+            trace_id = excluded.trace_id,
+            prompt_version_id = excluded.prompt_version_id,
+            parent_run_id = excluded.parent_run_id,
+            input_json = excluded.input_json,
+            context_json = excluded.context_json,
+            output_json = excluded.output_json,
+            status = excluded.status,
+            error = excluded.error,
+            updated_at_ms = excluded.updated_at_ms
+        `
+      )
+      .run(input);
+  }
+
+  listNovaTaskRuns(params?: {
+    userId?: string;
+    threadId?: string;
+    taskType?: string;
+    status?: string;
+    limit?: number;
+  }): NovaTaskRunRecord[] {
+    const where: string[] = [];
+    const q: Record<string, unknown> = {};
+    if (params?.userId) {
+      where.push('user_id = @user_id');
+      q.user_id = params.userId;
+    }
+    if (params?.threadId) {
+      where.push('thread_id = @thread_id');
+      q.thread_id = params.threadId;
+    }
+    if (params?.taskType) {
+      where.push('task_type = @task_type');
+      q.task_type = params.taskType;
+    }
+    if (params?.status) {
+      where.push('status = @status');
+      q.status = params.status;
+    }
+    if (params?.limit) q.limit = params.limit;
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    const limitSql = params?.limit ? 'LIMIT @limit' : '';
+    return this.db
+      .prepare(
+        `
+          SELECT
+            id, user_id, thread_id, task_type, route_alias, model_name, endpoint, trace_id, prompt_version_id,
+            parent_run_id, input_json, context_json, output_json, status, error, created_at_ms, updated_at_ms
+          FROM nova_task_runs
+          ${whereSql}
+          ORDER BY created_at_ms DESC
+          ${limitSql}
+        `
+      )
+      .all(q) as NovaTaskRunRecord[];
+  }
+
+  getNovaTaskRun(runId: string): NovaTaskRunRecord | null {
+    const row = this.db
+      .prepare(
+        `
+          SELECT
+            id, user_id, thread_id, task_type, route_alias, model_name, endpoint, trace_id, prompt_version_id,
+            parent_run_id, input_json, context_json, output_json, status, error, created_at_ms, updated_at_ms
+          FROM nova_task_runs
+          WHERE id = ?
+          LIMIT 1
+        `
+      )
+      .get(runId) as NovaTaskRunRecord | undefined;
+    return row ?? null;
+  }
+
+  upsertNovaReviewLabel(input: NovaReviewLabelRecord): void {
+    this.db
+      .prepare(
+        `
+          INSERT INTO nova_review_labels(
+            id, run_id, reviewer_id, label, score, notes, include_in_training, created_at_ms, updated_at_ms
+          ) VALUES(
+            @id, @run_id, @reviewer_id, @label, @score, @notes, @include_in_training, @created_at_ms, @updated_at_ms
+          )
+          ON CONFLICT(id) DO UPDATE SET
+            run_id = excluded.run_id,
+            reviewer_id = excluded.reviewer_id,
+            label = excluded.label,
+            score = excluded.score,
+            notes = excluded.notes,
+            include_in_training = excluded.include_in_training,
+            updated_at_ms = excluded.updated_at_ms
+        `
+      )
+      .run(input);
+  }
+
+  listNovaReviewLabels(params?: { runId?: string; includeInTraining?: boolean; limit?: number }): NovaReviewLabelRecord[] {
+    const where: string[] = [];
+    const q: Record<string, unknown> = {};
+    if (params?.runId) {
+      where.push('run_id = @run_id');
+      q.run_id = params.runId;
+    }
+    if (typeof params?.includeInTraining === 'boolean') {
+      where.push('include_in_training = @include_in_training');
+      q.include_in_training = params.includeInTraining ? 1 : 0;
+    }
+    if (params?.limit) q.limit = params.limit;
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    const limitSql = params?.limit ? 'LIMIT @limit' : '';
+    return this.db
+      .prepare(
+        `
+          SELECT
+            id, run_id, reviewer_id, label, score, notes, include_in_training, created_at_ms, updated_at_ms
+          FROM nova_review_labels
+          ${whereSql}
+          ORDER BY updated_at_ms DESC
+          ${limitSql}
+        `
+      )
+      .all(q) as NovaReviewLabelRecord[];
   }
 }

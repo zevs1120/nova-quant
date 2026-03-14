@@ -14,6 +14,14 @@ export type NovaTaskRoute =
   | 'assistant_grounded_answer'
   | 'retrieval_embedding';
 
+export type NovaRouteResolution = {
+  task: NovaTaskRoute;
+  alias: NovaModelAlias;
+  model: string;
+  reason: string;
+  endpoint: string;
+};
+
 function totalMemoryGb(): number {
   return Math.round(os.totalmem() / (1024 ** 3));
 }
@@ -101,6 +109,24 @@ export function getNovaRoutingPolicies(): Array<{
   ];
 }
 
+export function resolveNovaRoute(task: NovaTaskRoute): NovaRouteResolution {
+  const match = getNovaRoutingPolicies().find((row) => row.task === task);
+  if (match) {
+    return {
+      ...match,
+      endpoint: getNovaLocalEndpoint()
+    };
+  }
+  const plan = getNovaModelPlan();
+  return {
+    task,
+    alias: 'Nova-Core',
+    model: plan.models['Nova-Core'] || 'qwen3:4b',
+    reason: 'Fallback to Nova-Core when no explicit route is defined.',
+    endpoint: getNovaLocalEndpoint()
+  };
+}
+
 export function getPromptPackDefinitions(): Array<{
   task_key: string;
   semantic_version: string;
@@ -131,6 +157,18 @@ export function getPromptPackDefinitions(): Array<{
       semantic_version: '1.0.0',
       status: 'active',
       prompt_text: 'Answer as Nova, citing current decision, risk, holdings, evidence, and ritual context without sounding like a chatbot.'
+    },
+    {
+      task_key: 'daily-wrap-up-writer',
+      semantic_version: '1.0.0',
+      status: 'active',
+      prompt_text: 'Write the daily wrap-up as a grounded end-of-day decision summary with tomorrow watchpoints and no hype.'
+    },
+    {
+      task_key: 'nova-fast-classifier',
+      semantic_version: '1.0.0',
+      status: 'active',
+      prompt_text: 'Classify short user prompts into risk, decision, follow-up, or research buckets using terse local inference.'
     },
     {
       task_key: 'research-assistant',
@@ -191,6 +229,8 @@ export function ensureLlmOpsRegistry(repo: MarketRepository): void {
 
 export function buildLlmOpsSummary(repo: MarketRepository) {
   ensureLlmOpsRegistry(repo);
+  const recentRuns = repo.listNovaTaskRuns({ limit: 40 });
+  const labels = repo.listNovaReviewLabels({ limit: 80 });
   return {
     runtime: {
       endpoint: getNovaLocalEndpoint(),
@@ -203,6 +243,13 @@ export function buildLlmOpsSummary(repo: MarketRepository) {
     trace_schema: {
       trace_keys: ['trace_id', 'thread_id', 'model_key', 'prompt_version', 'decision_snapshot_id', 'user_id'],
       evaluation_hooks: ['manual_annotation', 'review_replay', 'explanation_quality', 'fallback_reason']
+    },
+    local_growth_loop: {
+      recent_task_runs: recentRuns.length,
+      successful_runs: recentRuns.filter((row) => row.status === 'SUCCEEDED').length,
+      failed_runs: recentRuns.filter((row) => row.status === 'FAILED').length,
+      labeled_samples: labels.length,
+      training_ready_samples: labels.filter((row) => row.include_in_training === 1).length
     }
   };
 }

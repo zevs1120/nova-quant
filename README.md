@@ -1,7 +1,7 @@
 # Nova Quant
 
 Nova Quant is an AI-native quantitative **decision** platform for US equities and crypto.
-Current app version: `1.0.0` (build `3`).
+Current app version: `2.0.0` (build `4`).
 
 It is designed to help self-directed traders reduce emotional trading and execute with discipline.
 It is **not** a blind auto-trading bot and does **not** fabricate live performance.
@@ -19,6 +19,7 @@ It is **not** a blind auto-trading bot and does **not** fabricate live performan
 - A unified copy operating system so homepage, action cards, notifications, widgets, wrap-up, and Nova Assistant all speak with one voice
 - A perception-layer system that makes NovaQuant feel like a judgment surface, not a traditional finance dashboard
 - A professional backend backbone that unifies research, risk, decision, portfolio, evidence, local Nova LLM ops, workflows, registries, and observability
+- A single-machine **local Nova** runtime on Apple Silicon via Ollama, with model routing, task logging, review labels, and MLX-LM export
 - Clean handoff tooling that excludes local databases, build artifacts, cached node modules, and platform junk
 
 ## What Changed In This Runtime-Realism Upgrade
@@ -62,12 +63,41 @@ New backbone modules:
 - `src/server/risk/governance.ts`
 - `src/server/portfolio/allocator.ts`
 - `src/server/evals/scorecards.ts`
+- `src/server/nova/router.ts`
+- `src/server/nova/client.ts`
+- `src/server/nova/service.ts`
+- `src/server/nova/training.ts`
 
 Reference docs:
 - `docs/OPEN_SOURCE_BORROW_MAP.md`
 - `docs/NOVAQUANT_BACKEND_ARCHITECTURE_AFTER_REFACTOR.md`
 - `docs/WHAT_WAS_ACTUALLY_IMPLEMENTED.md`
 - `docs/LICENSE_AND_COMPLIANCE_NOTES.md`
+- `docs/NOVA_LOCAL_STACK.md`
+- `docs/NOVA_TRAINING_LOOP.md`
+
+## Local Nova Runtime
+
+Nova now defaults to a **local-only Ollama runtime** on macOS / Apple Silicon.
+
+Endpoint:
+- `http://127.0.0.1:11434/v1`
+
+Default routing:
+- `Nova-Core` -> decision reasoning / action cards / grounded assistant answers
+- `Nova-Scout` -> fast classification / state tagging
+- `Nova-Retrieve` -> embeddings / retrieval
+
+Primary APIs:
+- `GET /api/nova/runtime`
+- `GET /api/nova/runs`
+- `POST /api/nova/review-label`
+- `GET /api/nova/training/export`
+
+This keeps the product grounded:
+- structured decision / risk / evidence objects remain canonical
+- local Nova generates concise language and explanations on top of those objects
+- if Ollama is unavailable, the runtime falls back to deterministic copy instead of fabricating output
 
 ## Source of Truth
 

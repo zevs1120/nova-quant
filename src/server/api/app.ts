@@ -8,8 +8,11 @@ import {
   confirmRiskBoundary,
   ensureDefaultPublicSignalsApiKey,
   getBackendBackbone,
+  createNovaReviewLabel,
   getEngagementState,
   getDecisionSnapshot,
+  exportNovaTrainingDataset,
+  getNovaRuntimeState,
   getRuntimeState,
   getEvidenceBacktestDetail,
   getEvidenceChampionStrategies,
@@ -20,6 +23,7 @@ import {
   getNotificationPreferencesState,
   getNotificationPreview,
   listEvidenceBacktests,
+  listNovaRuns,
   listDecisionAudit,
   listEvidenceReconciliation,
   listExternalConnections,
@@ -31,6 +35,7 @@ import {
   listExecutions,
   listSignalContracts,
   queryOhlcv,
+  recordNovaAssistantRun,
   runEvidence,
   setNotificationPreferencesState,
   getWidgetSummary,
@@ -217,7 +222,66 @@ export function createApiApp() {
     );
   });
 
-  app.post('/api/decision/today', (req, res) => {
+  app.get('/api/nova/runtime', (_req, res) => {
+    res.json(getNovaRuntimeState());
+  });
+
+  app.get('/api/nova/runs', (req, res) => {
+    const userId = (req.query.userId as string | undefined) || undefined;
+    const threadId = (req.query.threadId as string | undefined) || undefined;
+    const taskType = (req.query.taskType as string | undefined) || undefined;
+    const status = (req.query.status as string | undefined) || undefined;
+    const limit = req.query.limit ? Number(req.query.limit) : 60;
+    res.json(
+      listNovaRuns({
+        userId,
+        threadId,
+        taskType,
+        status,
+        limit
+      })
+    );
+  });
+
+  app.post('/api/nova/review-label', (req, res) => {
+    const body = (req.body || {}) as {
+      runId?: string;
+      reviewerId?: string;
+      label?: string;
+      score?: number;
+      notes?: string;
+      includeInTraining?: boolean;
+    };
+    const runId = String(body.runId || '').trim();
+    const label = String(body.label || '').trim();
+    if (!runId || !label) {
+      res.status(400).json({ error: 'runId and label are required' });
+      return;
+    }
+    res.json(
+      createNovaReviewLabel({
+        runId,
+        reviewerId: body.reviewerId,
+        label,
+        score: body.score,
+        notes: body.notes,
+        includeInTraining: Boolean(body.includeInTraining)
+      })
+    );
+  });
+
+  app.get('/api/nova/training/export', (req, res) => {
+    const onlyIncluded = String(req.query.onlyIncluded || '').toLowerCase() === 'true';
+    const limit = req.query.limit ? Number(req.query.limit) : 500;
+    res.json(
+      exportNovaTrainingDataset({
+        onlyIncluded,
+        limit
+      })
+    );
+  });
+
+  app.post('/api/decision/today', async (req, res) => {
     const body = req.body as {
       userId?: string;
       market?: string;
@@ -228,7 +292,7 @@ export function createApiApp() {
     const market = parseMarket(body.market);
     const assetClass = parseAssetClass(body.assetClass);
     const userId = (body.userId as string | undefined) || 'guest-default';
-    const decision = getDecisionSnapshot({
+    const decision = await getDecisionSnapshot({
       userId,
       market,
       assetClass,
@@ -253,7 +317,7 @@ export function createApiApp() {
     );
   });
 
-  app.post('/api/engagement/state', (req, res) => {
+  app.post('/api/engagement/state', async (req, res) => {
     const body = (req.body || {}) as {
       userId?: string;
       market?: string;
@@ -267,7 +331,7 @@ export function createApiApp() {
     const assetClass = parseAssetClass(body.assetClass);
     const userId = body.userId || 'guest-default';
     res.json(
-      getEngagementState({
+      await getEngagementState({
         userId,
         market,
         assetClass,
@@ -279,7 +343,7 @@ export function createApiApp() {
     );
   });
 
-  app.post('/api/engagement/morning-check', (req, res) => {
+  app.post('/api/engagement/morning-check', async (req, res) => {
     const body = (req.body || {}) as {
       userId?: string;
       market?: string;
@@ -290,7 +354,7 @@ export function createApiApp() {
       holdings?: Array<Record<string, unknown>>;
     };
     res.json(
-      completeMorningCheck({
+      await completeMorningCheck({
         userId: body.userId,
         market: parseMarket(body.market),
         assetClass: parseAssetClass(body.assetClass),
@@ -302,7 +366,7 @@ export function createApiApp() {
     );
   });
 
-  app.post('/api/engagement/boundary', (req, res) => {
+  app.post('/api/engagement/boundary', async (req, res) => {
     const body = (req.body || {}) as {
       userId?: string;
       market?: string;
@@ -313,7 +377,7 @@ export function createApiApp() {
       holdings?: Array<Record<string, unknown>>;
     };
     res.json(
-      confirmRiskBoundary({
+      await confirmRiskBoundary({
         userId: body.userId,
         market: parseMarket(body.market),
         assetClass: parseAssetClass(body.assetClass),
@@ -325,7 +389,7 @@ export function createApiApp() {
     );
   });
 
-  app.post('/api/engagement/wrap-up', (req, res) => {
+  app.post('/api/engagement/wrap-up', async (req, res) => {
     const body = (req.body || {}) as {
       userId?: string;
       market?: string;
@@ -336,7 +400,7 @@ export function createApiApp() {
       holdings?: Array<Record<string, unknown>>;
     };
     res.json(
-      completeWrapUp({
+      await completeWrapUp({
         userId: body.userId,
         market: parseMarket(body.market),
         assetClass: parseAssetClass(body.assetClass),
@@ -348,7 +412,7 @@ export function createApiApp() {
     );
   });
 
-  app.post('/api/engagement/weekly-review', (req, res) => {
+  app.post('/api/engagement/weekly-review', async (req, res) => {
     const body = (req.body || {}) as {
       userId?: string;
       market?: string;
@@ -359,7 +423,7 @@ export function createApiApp() {
       holdings?: Array<Record<string, unknown>>;
     };
     res.json(
-      completeWeeklyReview({
+      await completeWeeklyReview({
         userId: body.userId,
         market: parseMarket(body.market),
         assetClass: parseAssetClass(body.assetClass),
@@ -371,7 +435,7 @@ export function createApiApp() {
     );
   });
 
-  app.get('/api/widgets/summary', (req, res) => {
+  app.get('/api/widgets/summary', async (req, res) => {
     const market = parseMarket(req.query.market as string | undefined);
     const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
     const userId = (req.query.userId as string | undefined) || 'guest-default';
@@ -379,7 +443,7 @@ export function createApiApp() {
     const localHour = req.query.localHour ? Number(req.query.localHour) : undefined;
     const locale = req.query.locale as string | undefined;
     res.json(
-      getWidgetSummary({
+      await getWidgetSummary({
         userId,
         market,
         assetClass,
@@ -390,7 +454,7 @@ export function createApiApp() {
     );
   });
 
-  app.get('/api/notifications/preview', (req, res) => {
+  app.get('/api/notifications/preview', async (req, res) => {
     const market = parseMarket(req.query.market as string | undefined);
     const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
     const userId = (req.query.userId as string | undefined) || 'guest-default';
@@ -398,7 +462,7 @@ export function createApiApp() {
     const localHour = req.query.localHour ? Number(req.query.localHour) : undefined;
     const locale = req.query.locale as string | undefined;
     res.json(
-      getNotificationPreview({
+      await getNotificationPreview({
         userId,
         market,
         assetClass,
@@ -1069,6 +1133,16 @@ export function createApiApp() {
         error: errorText || undefined,
         responsePreview: responseText.slice(0, 1200),
         durationMs: Date.now() - startedAt
+      });
+      await recordNovaAssistantRun({
+        userId,
+        threadId: resolvedThreadId,
+        context: (context || {}) as Record<string, unknown>,
+        message,
+        responseText,
+        provider,
+        status: status === 'ok' ? 'SUCCEEDED' : 'FAILED',
+        error: errorText || undefined
       });
       res.end();
     }
