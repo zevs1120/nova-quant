@@ -1,4 +1,5 @@
 import { buildSampleMarketData } from './sampleData.js';
+import { APP_BUILD_NUMBER, APP_VERSION } from '../config/version.js';
 import {
   annualizedVolatility,
   clamp,
@@ -1574,7 +1575,8 @@ function buildAiLayer(todayLayer, safetyLayer, insightsLayer, portfolio) {
 function buildConfig(asOf, profileKey, safetyLayer, strategyConfig) {
   const profile = RISK_PROFILES[profileKey] || RISK_PROFILES.balanced;
   return {
-    app_version: '1.0.0',
+    app_version: APP_VERSION,
+    build_number: APP_BUILD_NUMBER,
     team: 'Nova Quant Research',
     disclaimer:
       'Educational prototype. Contains sample and simulated outputs, not live trading advice or broker-connected execution.',

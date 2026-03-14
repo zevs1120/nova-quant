@@ -1,4 +1,5 @@
 import type { ChatContextInput, ChatHistoryMessage, ChatMode, ToolContextBundle } from './types.js';
+import { getAssistantVoiceGuide, getBrandVoiceConstitution } from '../../copy/novaCopySystem.js';
 
 function line(value: unknown): string {
   return String(value ?? '').trim();
@@ -85,6 +86,7 @@ function formatHoldingsSummary(context: ChatContextInput | undefined): string[] 
 function formatEngagementSummary(context: ChatContextInput | undefined): string[] {
   if (!context?.engagementSummary) return ['- unavailable'];
   return [
+    `- locale ${line(context.engagementSummary.locale || context.locale || '--')}`,
     `- morning check ${line(context.engagementSummary.morning_check_status || '--')} | ${line(context.engagementSummary.morning_check_label || '--')}`,
     `- ritual ${line(context.engagementSummary.morning_check_arrival || '--')} | ${line(context.engagementSummary.morning_check_ritual || '--')}`,
     `- wrap-up ready ${String(Boolean(context.engagementSummary.wrap_up_ready))} | completed ${String(Boolean(context.engagementSummary.wrap_up_completed))}`,
@@ -96,6 +98,8 @@ function formatEngagementSummary(context: ChatContextInput | undefined): string[
 }
 
 export function buildSystemPrompt(mode: ChatMode, exactSignalData: boolean): string {
+  const constitution = getBrandVoiceConstitution('en');
+  const assistantTone = getAssistantVoiceGuide({ locale: 'en', posture: 'WAIT', userState: 'default' });
   const modeLine =
     mode === 'research-assistant'
       ? 'Mode: Research Assistant. Behave like an AI-native quant research assistant. Prioritize factor logic, validation quality, regime context, implementation realism, and what should happen next in the research workflow.'
@@ -113,7 +117,12 @@ export function buildSystemPrompt(mode: ChatMode, exactSignalData: boolean): str
     modeLine,
     missingSignalInstruction,
     'You are evidence-aware, honest, beginner-friendly, and action-oriented.',
-    'Your tone is calm, sharp, restrained, and a little alive. You may use a small amount of dry wit, but never become cute, salesy, or theatrical.',
+    `Brand constitution: ${constitution.identity}`,
+    `Voice principles: ${constitution.principles.join(' | ')}`,
+    `Assistant opener reference: ${assistantTone.opener}`,
+    `Risk explanation reference: ${assistantTone.risk_explain}`,
+    `Impulse interception reference: ${assistantTone.intercept}`,
+    'Your tone is calm, sharp, restrained, and a little alive. You may use a small amount of dry wit, but never become cute, salesy, theatrical, or sales-driven.',
     'When risk is high, sound like you are protecting the user from unnecessary action. When no action is best, make that feel deliberate and intelligent, not empty.',
     'Never pretend live trading, broker connectivity, or realized performance exists when the evidence says otherwise.',
     'If data is simulated, disconnected, withheld, or insufficient, say that plainly.',
@@ -137,6 +146,7 @@ export function buildSystemPrompt(mode: ChatMode, exactSignalData: boolean): str
     'Safety rules:',
     '- Do not fabricate performance, fills, live broker access, or hidden data.',
     '- Prefer "I do not have enough clean data" over guessing.',
+    `- Forbidden language includes: ${constitution.banned_phrases.join(', ')}.`,
     mode === 'research-assistant'
       ? '- When factor-level realized data is unavailable, explicitly separate taxonomy knowledge from measured evidence.\n- Prefer economically grounded factor logic over retail technical indicators.\n- Keep risk control and implementation realism ahead of return-chasing.\n- Do not imply commodity futures runtime support unless the evidence explicitly shows it.'
       : '- Keep explanations practical and evidence-aware.',

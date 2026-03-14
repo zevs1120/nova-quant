@@ -514,6 +514,7 @@ export default function App() {
         userId: chatUserId,
         market,
         assetClass,
+        locale: lang,
         holdings
       })
     })
@@ -527,7 +528,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [EXPLICIT_DEMO_MODE, hasLoaded, chatUserId, market, assetClass, holdings, uiData.decision]);
+  }, [EXPLICIT_DEMO_MODE, hasLoaded, chatUserId, market, assetClass, holdings, lang, uiData.decision]);
 
   useEffect(() => {
     if (!decisionSnapshot || EXPLICIT_DEMO_MODE || !hasLoaded) return;
@@ -600,6 +601,7 @@ export default function App() {
           assetClass,
           localDate: todayKey,
           localHour: now.getHours(),
+          locale: lang,
           holdings
         })
       });
@@ -609,7 +611,7 @@ export default function App() {
       setEngagementState(null);
       return null;
     }
-  }, [assetClass, chatUserId, hasLoaded, holdings, market, now, todayKey]);
+  }, [assetClass, chatUserId, hasLoaded, holdings, lang, market, now, todayKey]);
 
   const markDailyCheckin = useCallback(async () => {
     syncLocalDisciplineLog((current) => ({
@@ -627,6 +629,7 @@ export default function App() {
           assetClass,
           localDate: todayKey,
           localHour: now.getHours(),
+          locale: lang,
           holdings
         })
       });
@@ -634,7 +637,7 @@ export default function App() {
     } catch {
       void loadEngagementState();
     }
-  }, [assetClass, chatUserId, holdings, loadEngagementState, market, now, syncLocalDisciplineLog, todayKey]);
+  }, [assetClass, chatUserId, holdings, lang, loadEngagementState, market, now, syncLocalDisciplineLog, todayKey]);
 
   const markBoundaryKept = useCallback(async () => {
     syncLocalDisciplineLog((current) => ({
@@ -652,6 +655,7 @@ export default function App() {
           assetClass,
           localDate: todayKey,
           localHour: now.getHours(),
+          locale: lang,
           holdings
         })
       });
@@ -659,7 +663,7 @@ export default function App() {
     } catch {
       void loadEngagementState();
     }
-  }, [assetClass, chatUserId, holdings, loadEngagementState, market, now, syncLocalDisciplineLog, todayKey]);
+  }, [assetClass, chatUserId, holdings, lang, loadEngagementState, market, now, syncLocalDisciplineLog, todayKey]);
 
   const markWrapUpComplete = useCallback(async () => {
     if (EXPLICIT_DEMO_MODE) return;
@@ -673,6 +677,7 @@ export default function App() {
           assetClass,
           localDate: todayKey,
           localHour: now.getHours(),
+          locale: lang,
           holdings
         })
       });
@@ -680,7 +685,7 @@ export default function App() {
     } catch {
       void loadEngagementState();
     }
-  }, [assetClass, chatUserId, holdings, loadEngagementState, market, now, todayKey]);
+  }, [assetClass, chatUserId, holdings, lang, loadEngagementState, market, now, todayKey]);
 
   const markWeeklyReviewed = useCallback(async () => {
     syncLocalDisciplineLog((current) => ({
@@ -698,6 +703,7 @@ export default function App() {
           assetClass,
           localDate: todayKey,
           localHour: now.getHours(),
+          locale: lang,
           holdings
         })
       });
@@ -705,7 +711,7 @@ export default function App() {
     } catch {
       void loadEngagementState();
     }
-  }, [assetClass, chatUserId, currentWeekKey, holdings, loadEngagementState, market, now, syncLocalDisciplineLog, todayKey]);
+  }, [assetClass, chatUserId, currentWeekKey, holdings, lang, loadEngagementState, market, now, syncLocalDisciplineLog, todayKey]);
 
   const askAi = (message, context = {}) => {
     const text = String(message || '').trim();
@@ -715,6 +721,7 @@ export default function App() {
       message: text,
       context: {
         page: activeTab === 'more' ? moreSection || 'more' : activeTab,
+        locale: lang,
         market,
         assetClass,
         riskProfileKey,
@@ -738,6 +745,7 @@ export default function App() {
           recommendation: holdingsReview?.risk?.recommendation || holdingsReview?.key_advice || null
         },
         engagementSummary: {
+          locale: lang,
           morning_check_status: engagementState?.daily_check_state?.status || null,
           morning_check_label: engagementState?.daily_check_state?.headline || null,
           morning_check_arrival: engagementState?.daily_check_state?.arrival_line || engagementState?.ui_regime_state?.arrival_line || null,
@@ -1113,40 +1121,52 @@ export default function App() {
           <article className="glass-card posture-card">
             <h3 className="card-title">Discipline Progress</h3>
             <p className="daily-brief-conclusion">
-              {engagementState?.habit_state?.summary || '你在训练的是判断节奏，不是交易频率。'}
+              {engagementState?.habit_state?.summary ||
+                (locale.startsWith('zh')
+                  ? '你在训练的是判断节奏，不是交易频率。'
+                  : 'You are training decision rhythm, not trading frequency.')}
             </p>
 
             <div className="status-grid-3">
               <div className="status-box">
                 <p className="muted">Daily Check-in</p>
-                <h2>{discipline.checkinStreak} 天</h2>
+                <h2>{discipline.checkinStreak}{locale.startsWith('zh') ? ' 天' : ' days'}</h2>
               </div>
               <div className="status-box">
                 <p className="muted">Weekly Review</p>
-                <h2>{discipline.weeklyStreak} 周</h2>
+                <h2>{discipline.weeklyStreak}{locale.startsWith('zh') ? ' 周' : ' weeks'}</h2>
               </div>
               <div className="status-box">
                 <p className="muted">Risk Boundary</p>
-                <h2>{discipline.boundaryStreak} 天</h2>
+                <h2>{discipline.boundaryStreak}{locale.startsWith('zh') ? ' 天' : ' days'}</h2>
               </div>
             </div>
 
             <ul className="bullet-list">
-              <li>{engagementState?.daily_check_state?.headline || (discipline.checkedToday ? '今天已完成判断校准。' : '今天还未完成判断校准。')}</li>
-              <li>{discipline.boundaryToday ? '今天已确认风险边界。' : '今天还未确认风险边界。'}</li>
-              <li>{discipline.reviewedThisWeek ? '本周复盘已完成。' : '本周还未完成复盘。'}</li>
+              <li>
+                {engagementState?.daily_check_state?.headline ||
+                  (discipline.checkedToday
+                    ? locale.startsWith('zh')
+                      ? '今天已完成判断校准。'
+                      : 'Today’s view has already been confirmed.'
+                    : locale.startsWith('zh')
+                      ? '今天还未完成判断校准。'
+                      : 'Today’s view is still waiting for confirmation.')}
+              </li>
+              <li>{discipline.boundaryToday ? (locale.startsWith('zh') ? '今天已确认风险边界。' : 'Today’s risk boundary has been confirmed.') : (locale.startsWith('zh') ? '今天还未确认风险边界。' : 'Today’s risk boundary is still unconfirmed.')}</li>
+              <li>{discipline.reviewedThisWeek ? (locale.startsWith('zh') ? '本周复盘已完成。' : 'This week’s review is complete.') : (locale.startsWith('zh') ? '本周还未完成复盘。' : 'This week’s review is still open.')}</li>
               {discipline.noActionValueLine ? <li>{discipline.noActionValueLine}</li> : null}
             </ul>
 
             <div className="action-row">
               <button type="button" className="primary-btn" onClick={markDailyCheckin}>
-                完成今日 Check-in
+                {locale.startsWith('zh') ? '完成今日 Check-in' : 'Complete today’s check-in'}
               </button>
               <button type="button" className="secondary-btn" onClick={markBoundaryKept}>
-                记录风险边界执行
+                {locale.startsWith('zh') ? '记录风险边界执行' : 'Record boundary discipline'}
               </button>
               <button type="button" className="secondary-btn" onClick={markWeeklyReviewed}>
-                标记本周复盘完成
+                {locale.startsWith('zh') ? '标记本周复盘完成' : 'Mark weekly review done'}
               </button>
             </div>
           </article>
@@ -1156,7 +1176,11 @@ export default function App() {
               <div className="card-header">
                 <div>
                   <h3 className="card-title">Widget Preview</h3>
-                  <p className="muted status-line">桌面和锁屏摘要会围绕判断，而不是围绕行情刺激。</p>
+                  <p className="muted status-line">
+                    {locale.startsWith('zh')
+                      ? '桌面和锁屏摘要会围绕判断，而不是围绕行情刺激。'
+                      : 'Home and lock-screen summaries stay centered on judgment, not market stimulation.'}
+                  </p>
                 </div>
               </div>
               <div className="status-grid-3">
@@ -1177,7 +1201,11 @@ export default function App() {
               <div className="card-header">
                 <div>
                   <h3 className="card-title">Notification Preview</h3>
-                  <p className="muted status-line">这些消息的目的都是提醒你回来确认，而不是催你交易。</p>
+                  <p className="muted status-line">
+                    {locale.startsWith('zh')
+                      ? '这些消息的目的都是提醒你回来确认，而不是催你交易。'
+                      : 'These messages invite a calm return to confirm, not a push to trade.'}
+                  </p>
                 </div>
                 <span className="badge badge-neutral">{engagementState.notification_center.active_count || 0}</span>
               </div>
@@ -1216,7 +1244,7 @@ export default function App() {
               </ul>
               <div className="action-row">
                 <button type="button" className="primary-btn" onClick={markWrapUpComplete}>
-                  完成今日复盘
+                  {locale.startsWith('zh') ? '完成今日复盘' : 'Complete today’s wrap-up'}
                 </button>
                 <button type="button" className="secondary-btn" onClick={() => askAi('What mattered most in today’s wrap-up?')}>
                   Ask Nova
@@ -1366,6 +1394,7 @@ export default function App() {
               recommendation: holdingsReview?.risk?.recommendation || holdingsReview?.key_advice || null
             },
             engagementSummary: {
+              locale: lang,
               morning_check_status: engagementState?.daily_check_state?.status || null,
               morning_check_label: engagementState?.daily_check_state?.headline || null,
               morning_check_arrival: engagementState?.daily_check_state?.arrival_line || engagementState?.ui_regime_state?.arrival_line || null,

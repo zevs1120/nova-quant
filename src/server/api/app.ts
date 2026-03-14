@@ -208,6 +208,7 @@ export function createApiApp() {
       userId?: string;
       market?: string;
       assetClass?: string;
+      locale?: string;
       holdings?: Array<Record<string, unknown>>;
     };
     const market = parseMarket(body.market);
@@ -217,7 +218,8 @@ export function createApiApp() {
       userId,
       market,
       assetClass,
-      holdings: Array.isArray(body.holdings) ? (body.holdings as never) : []
+      holdings: Array.isArray(body.holdings) ? (body.holdings as never) : [],
+      locale: body.locale
     });
     res.json(decision);
   });
@@ -244,6 +246,7 @@ export function createApiApp() {
       assetClass?: string;
       localDate?: string;
       localHour?: number;
+      locale?: string;
       holdings?: Array<Record<string, unknown>>;
     };
     const market = parseMarket(body.market);
@@ -256,7 +259,8 @@ export function createApiApp() {
         assetClass,
         localDate: body.localDate,
         localHour: Number(body.localHour),
-        holdings: Array.isArray(body.holdings) ? (body.holdings as never) : []
+        holdings: Array.isArray(body.holdings) ? (body.holdings as never) : [],
+        locale: body.locale
       })
     );
   });
@@ -268,6 +272,7 @@ export function createApiApp() {
       assetClass?: string;
       localDate?: string;
       localHour?: number;
+      locale?: string;
       holdings?: Array<Record<string, unknown>>;
     };
     res.json(
@@ -277,7 +282,8 @@ export function createApiApp() {
         assetClass: parseAssetClass(body.assetClass),
         localDate: body.localDate,
         localHour: Number(body.localHour),
-        holdings: Array.isArray(body.holdings) ? (body.holdings as never) : []
+        holdings: Array.isArray(body.holdings) ? (body.holdings as never) : [],
+        locale: body.locale
       })
     );
   });
@@ -289,6 +295,7 @@ export function createApiApp() {
       assetClass?: string;
       localDate?: string;
       localHour?: number;
+      locale?: string;
       holdings?: Array<Record<string, unknown>>;
     };
     res.json(
@@ -298,7 +305,8 @@ export function createApiApp() {
         assetClass: parseAssetClass(body.assetClass),
         localDate: body.localDate,
         localHour: Number(body.localHour),
-        holdings: Array.isArray(body.holdings) ? (body.holdings as never) : []
+        holdings: Array.isArray(body.holdings) ? (body.holdings as never) : [],
+        locale: body.locale
       })
     );
   });
@@ -310,6 +318,7 @@ export function createApiApp() {
       assetClass?: string;
       localDate?: string;
       localHour?: number;
+      locale?: string;
       holdings?: Array<Record<string, unknown>>;
     };
     res.json(
@@ -319,7 +328,8 @@ export function createApiApp() {
         assetClass: parseAssetClass(body.assetClass),
         localDate: body.localDate,
         localHour: Number(body.localHour),
-        holdings: Array.isArray(body.holdings) ? (body.holdings as never) : []
+        holdings: Array.isArray(body.holdings) ? (body.holdings as never) : [],
+        locale: body.locale
       })
     );
   });
@@ -331,6 +341,7 @@ export function createApiApp() {
       assetClass?: string;
       localDate?: string;
       localHour?: number;
+      locale?: string;
       holdings?: Array<Record<string, unknown>>;
     };
     res.json(
@@ -340,7 +351,8 @@ export function createApiApp() {
         assetClass: parseAssetClass(body.assetClass),
         localDate: body.localDate,
         localHour: Number(body.localHour),
-        holdings: Array.isArray(body.holdings) ? (body.holdings as never) : []
+        holdings: Array.isArray(body.holdings) ? (body.holdings as never) : [],
+        locale: body.locale
       })
     );
   });
@@ -351,13 +363,15 @@ export function createApiApp() {
     const userId = (req.query.userId as string | undefined) || 'guest-default';
     const localDate = req.query.localDate as string | undefined;
     const localHour = req.query.localHour ? Number(req.query.localHour) : undefined;
+    const locale = req.query.locale as string | undefined;
     res.json(
       getWidgetSummary({
         userId,
         market,
         assetClass,
         localDate,
-        localHour
+        localHour,
+        locale
       })
     );
   });
@@ -368,13 +382,15 @@ export function createApiApp() {
     const userId = (req.query.userId as string | undefined) || 'guest-default';
     const localDate = req.query.localDate as string | undefined;
     const localHour = req.query.localHour ? Number(req.query.localHour) : undefined;
+    const locale = req.query.locale as string | undefined;
     res.json(
       getNotificationPreview({
         userId,
         market,
         assetClass,
         localDate,
-        localHour
+        localHour,
+        locale
       })
     );
   });

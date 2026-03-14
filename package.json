@@ -1,7 +1,7 @@
 {
   "name": "nova-quant",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,6 +10,9 @@
     "clean": "node scripts/clean-worktree.mjs",
     "lint": "node scripts/check-repo-policy.mjs",
     "typecheck": "tsc --noEmit",
+    "version:major": "node scripts/version-manager.mjs major",
+    "version:minor": "node scripts/version-manager.mjs minor",
+    "version:patch": "node scripts/version-manager.mjs patch",
     "db:init": "tsx scripts/db-init.ts",
     "db:migrate": "tsx scripts/db-migrate.ts",
     "backfill": "tsx scripts/backfill.ts",

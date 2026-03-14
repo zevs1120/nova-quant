@@ -1,6 +1,7 @@
 # Nova Quant
 
 Nova Quant is an AI-native quantitative **decision** platform for US equities and crypto.
+Current app version: `0.2.0` (build `1`).
 
 It is designed to help self-directed traders reduce emotional trading and execute with discipline.
 It is **not** a blind auto-trading bot and does **not** fabricate live performance.
@@ -15,6 +16,7 @@ It is **not** a blind auto-trading bot and does **not** fabricate live performan
 - Strict runtime status labels for `DB_BACKED`, `MODEL_DERIVED`, `INSUFFICIENT_DATA`, `DISCONNECTED`, `DEMO_ONLY`, and related states
 - Ranked action cards backed by decision snapshots, evidence bundles, and audit history
 - Morning Check / wrap-up / widget / notification summaries grounded in backend engagement state
+- A unified copy operating system so homepage, action cards, notifications, widgets, wrap-up, and Nova Assistant all speak with one voice
 - Clean handoff tooling that excludes local databases, build artifacts, cached node modules, and platform junk
 
 ## What Changed In This Runtime-Realism Upgrade
@@ -91,6 +93,37 @@ These objects drive:
 - evening wrap-up
 - widget preview summaries
 - notification reasons and cadence
+
+## Copy Operating System
+
+NovaQuant now includes a structured copy/persona layer rather than scattered UI strings.
+
+Primary resources:
+- `src/copy/novaCopySystem.js`
+- `src/copy/novaCopySystem.d.ts`
+- `docs/COPY_OPERATING_SYSTEM.md`
+
+This layer defines:
+- brand voice constitution
+- tone matrix by posture and user state
+- state-to-copy selectors
+- notification/widget guardrails
+- assistant voice rules
+- no-action completion language
+
+## Versioning
+
+NovaQuant now uses a single SemVer source synchronized across package metadata, runtime config, About, and changelog.
+
+Commands:
+- `npm run version:major`
+- `npm run version:minor`
+- `npm run version:patch`
+
+Version metadata source:
+- `package.json`
+- `src/config/version.js`
+- `CHANGELOG.md`
 
 ## Runtime Status Labels
 

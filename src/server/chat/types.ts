@@ -1,6 +1,7 @@
 import type { AssetClass, Market } from '../types.js';
 
 export interface ChatContextInput {
+  locale?: string;
   signalId?: string;
   symbol?: string;
   market?: Market;
@@ -28,6 +29,7 @@ export interface ChatContextInput {
     recommendation?: string;
   };
   engagementSummary?: {
+    locale?: string;
     morning_check_status?: string | null;
     morning_check_label?: string | null;
     morning_check_arrival?: string | null;

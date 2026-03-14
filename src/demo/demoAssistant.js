@@ -1,3 +1,5 @@
+import { getAssistantVoiceGuide, getNoActionCopy } from '../copy/novaCopySystem.js';
+
 function safeNumber(value, fallback = null) {
   const num = Number(value);
   return Number.isFinite(num) ? num : fallback;
@@ -81,13 +83,17 @@ export function buildDemoAssistantReply(question, state, context = {}) {
   const primaryEvidence = buildEvidenceLine(signal, state);
   const strategySource = signal?.strategy_source || 'AI quant strategy';
   const positionPct = safeNumber(signal?.position_advice?.position_pct, null);
+  const posture = state?.decision?.risk_state?.posture || state?.decision?.summary?.risk_posture || 'WAIT';
+  const locale = context?.locale || 'en';
+  const voice = getAssistantVoiceGuide({ locale, posture, userState: intent });
+  const noAction = getNoActionCopy({ locale, posture, seed: String(signal?.symbol || 'demo') });
 
   if (intent === 'holdings') {
     const biggest = holdings[0];
     return structured({
       verdict: biggest
-        ? `${biggest.symbol || 'Your portfolio'} is still manageable. The real point is not adding chaos on top of it.`
-        : 'The demo portfolio is intentionally controlled. That restraint is part of the story, not a missing feature.',
+        ? `${voice.opener} ${biggest.symbol || 'Your portfolio'} is still manageable. The real point is not adding chaos on top of it.`
+        : `${voice.opener} The demo portfolio is intentionally controlled. That restraint is part of the story, not a missing feature.`,
       plan: biggest
         ? [
             `Keep ${biggest.symbol || 'the largest position'} if it still matches the system direction.`,
@@ -125,7 +131,7 @@ export function buildDemoAssistantReply(question, state, context = {}) {
         'Safe does not mean guaranteed.',
         'The correct move can still be to wait if price leaves the planned zone.'
       ],
-      evidence: [primaryEvidence]
+      evidence: [primaryEvidence, voice.risk_explain]
     });
   }
 
@@ -136,8 +142,8 @@ export function buildDemoAssistantReply(question, state, context = {}) {
     const sl = safeNumber(signal?.stop_loss?.price ?? signal?.invalidation_level, null);
     return structured({
       verdict: signal
-        ? `Yes, but only if ${signal.symbol} stays in the planned entry zone.`
-        : 'Wait. The demo does not have a clean active setup right now.',
+        ? `${voice.opener} Yes, but only if ${signal.symbol} stays in the planned entry zone.`
+        : `${voice.no_action} ${noAction.completion}`,
       plan: [
         entryLow !== null && entryHigh !== null
           ? `Only enter between ${formatPrice(entryLow)} and ${formatPrice(entryHigh)}.`
@@ -173,15 +179,15 @@ export function buildDemoAssistantReply(question, state, context = {}) {
         'The demo shows a controlled example, not a live promise.',
         'Risk controls still matter more than confidence labels.'
       ],
-      evidence: [primaryEvidence]
+      evidence: [primaryEvidence, voice.risk_explain]
     });
   }
 
   if (intent === 'signal') {
     return structured({
       verdict: signal
-        ? `${signal.symbol} is the main demo signal because it is the cleanest action card available right now.`
-        : 'There is no strong enough demo signal at the moment.',
+        ? `${voice.opener} ${signal.symbol} is the main demo signal because it is the cleanest action card available right now.`
+        : `${voice.no_action} ${noAction.notify}`,
       plan: [
         signal ? `Focus on ${signal.symbol} instead of spreading attention across too many names.` : 'Wait for the next clean setup.',
         'Use the card as the full plan: entry, target, stop, and size.',
@@ -196,14 +202,14 @@ export function buildDemoAssistantReply(question, state, context = {}) {
         'High confidence still requires small size.',
         'A clean setup can fail, so the stop remains part of the plan.'
       ],
-      evidence: [primaryEvidence]
+      evidence: [primaryEvidence, voice.intercept]
     });
   }
 
   return structured({
     verdict: signal
-      ? `The current demo idea is ${signal.symbol} ${String(signal.direction || 'WAIT').toUpperCase()}, with a clear plan and small size.`
-      : 'The current demo is in wait mode.',
+      ? `${voice.opener} The current demo idea is ${signal.symbol} ${String(signal.direction || 'WAIT').toUpperCase()}, with a clear plan and small size.`
+      : `${voice.no_action} ${noAction.completion}`,
     plan: [
       'Start from the main action card.',
       'Check the risk box before doing anything.',
@@ -215,6 +221,6 @@ export function buildDemoAssistantReply(question, state, context = {}) {
       context?.page ? `This answer is anchored to the ${context.page} screen context.` : 'This answer is anchored to the current demo context.'
     ],
     risk: ['This is a demo walkthrough, not a live trading session.'],
-    evidence: [primaryEvidence]
+    evidence: [primaryEvidence, voice.wrap]
   });
 }

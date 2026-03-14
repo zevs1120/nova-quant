@@ -70,6 +70,7 @@ describe('engagement engine', () => {
       assetClass: 'US_STOCK',
       localDate: '2026-03-14',
       localHour: 9,
+      locale: 'zh',
       decisionRow: decisionRow(),
       previousDecisionRow: null,
       ritualEvents: [],
@@ -79,9 +80,9 @@ describe('engagement engine', () => {
     expect(snapshot.daily_check_state.status).toBe('PENDING');
     expect(snapshot.daily_check_state.arrival_line).toContain('今天');
     expect(snapshot.daily_check_state.ritual_line).toBeTruthy();
-    expect(snapshot.daily_check_state.cta_label).toBe('Confirm today');
+    expect(snapshot.daily_check_state.cta_label).toBe('确认今天判断');
     expect(snapshot.habit_state.checkedToday).toBe(false);
-    expect(snapshot.widget_summary.state_widget.title).toContain('今天');
+    expect(snapshot.widget_summary.state_widget.title).toBe('轻试探');
     expect(snapshot.widget_summary.state_widget.spark).toBeTruthy();
     expect(snapshot.notification_center.notifications.length).toBeGreaterThan(0);
     expect(snapshot.ui_regime_state.tone).toBe('watchful');
@@ -100,6 +101,7 @@ describe('engagement engine', () => {
       assetClass: 'US_STOCK',
       localDate: '2026-03-14',
       localHour: 20,
+      locale: 'zh',
       decisionRow: decisionRow(),
       previousDecisionRow: decisionRow({
         id: 'decision-prev',

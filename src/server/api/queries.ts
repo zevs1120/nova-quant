@@ -695,6 +695,7 @@ function buildDecisionSnapshotFromCore(args: {
   core: RuntimeStateCore;
   holdings?: UserHoldingInput[];
   persist?: boolean;
+  locale?: string;
 }) {
   const evidenceTop = getTopSignalEvidence(args.core.repo, {
     userId: args.core.userId,
@@ -713,6 +714,7 @@ function buildDecisionSnapshotFromCore(args: {
     market: args.core.market,
     assetClass: args.core.assetClass,
     asOf: String(args.core.runtimeTransparency.as_of),
+    locale: args.locale,
     runtimeSourceStatus: String(args.core.runtimeTransparency.source_status),
     riskProfile: args.core.risk,
     signals: args.core.signals,
@@ -777,12 +779,14 @@ export function getDecisionSnapshot(args: {
   market?: Market;
   assetClass?: AssetClass;
   holdings?: UserHoldingInput[];
+  locale?: string;
 }) {
   const core = loadRuntimeStateCore(args);
   return buildDecisionSnapshotFromCore({
     core,
     holdings: args.holdings,
-    persist: true
+    persist: true,
+    locale: args.locale
   });
 }
 
@@ -791,6 +795,7 @@ function getDecisionRowsForEngagement(args: {
   market?: Market;
   assetClass?: AssetClass;
   holdings?: UserHoldingInput[];
+  locale?: string;
 }) {
   getDecisionSnapshot(args);
   const repo = getRepo();
@@ -827,6 +832,7 @@ export function getEngagementState(args: {
   localDate?: string;
   localHour?: number;
   holdings?: UserHoldingInput[];
+  locale?: string;
 }) {
   const repo = getRepo();
   const userId = args.userId || 'guest-default';
@@ -847,6 +853,7 @@ export function getEngagementState(args: {
     assetClass,
     localDate: localDateOrToday(args.localDate),
     localHour: localHourOrNow(args.localHour),
+    locale: args.locale,
     decisionRow: current,
     previousDecisionRow: previous,
     ritualEvents: rituals,
@@ -894,6 +901,7 @@ function recordRitualEvent(args: {
   assetClass?: AssetClass;
   localDate?: string;
   localHour?: number;
+  locale?: string;
   eventType: 'MORNING_CHECK_COMPLETED' | 'RISK_BOUNDARY_CONFIRMED' | 'WRAP_UP_COMPLETED' | 'WEEKLY_REVIEW_COMPLETED';
   reason?: Record<string, unknown>;
   holdings?: UserHoldingInput[];
@@ -938,7 +946,8 @@ function recordRitualEvent(args: {
     assetClass: assetClass === 'ALL' ? undefined : assetClass,
     localDate: eventDate,
     localHour: args.localHour,
-    holdings: args.holdings
+    holdings: args.holdings,
+    locale: args.locale
   });
 }
 
@@ -949,6 +958,7 @@ export function completeMorningCheck(args: {
   localDate?: string;
   localHour?: number;
   holdings?: UserHoldingInput[];
+  locale?: string;
 }) {
   return recordRitualEvent({
     ...args,
@@ -964,6 +974,7 @@ export function confirmRiskBoundary(args: {
   localDate?: string;
   localHour?: number;
   holdings?: UserHoldingInput[];
+  locale?: string;
 }) {
   return recordRitualEvent({
     ...args,
@@ -979,6 +990,7 @@ export function completeWrapUp(args: {
   localDate?: string;
   localHour?: number;
   holdings?: UserHoldingInput[];
+  locale?: string;
 }) {
   return recordRitualEvent({
     ...args,
@@ -994,6 +1006,7 @@ export function completeWeeklyReview(args: {
   localDate?: string;
   localHour?: number;
   holdings?: UserHoldingInput[];
+  locale?: string;
 }) {
   return recordRitualEvent({
     ...args,
@@ -1009,6 +1022,7 @@ export function getWidgetSummary(args: {
   localDate?: string;
   localHour?: number;
   holdings?: UserHoldingInput[];
+  locale?: string;
 }) {
   const snapshot = getEngagementState(args);
   return {
@@ -1028,6 +1042,7 @@ export function getNotificationPreview(args: {
   localDate?: string;
   localHour?: number;
   holdings?: UserHoldingInput[];
+  locale?: string;
 }) {
   const snapshot = getEngagementState(args);
   return {

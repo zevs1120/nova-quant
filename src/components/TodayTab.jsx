@@ -1,5 +1,12 @@
 import { useMemo, useState } from 'react';
 import SignalDetail from './SignalDetail';
+import {
+  getActionCardCopy,
+  getDailyStanceCopy,
+  getMorningCheckCopy,
+  getNoActionCopy,
+  getTodayRiskCopy
+} from '../copy/novaCopySystem.js';
 
 const ACTIVE_SIGNAL_STATUS = new Set(['NEW', 'TRIGGERED']);
 const DATA_STATUS_PENALTY = {
@@ -155,88 +162,101 @@ function recentSignals(signals, evidenceSignals, assetClass, now, bestSignal) {
     .slice(0, 3);
 }
 
-function suggestionSubtitle(bestSignal) {
-  if (!bestSignal) return 'No clear setup yet. Wait for cleaner conditions.';
-  if (!bestSignal._actionable) return 'Signal exists, but not actionable right now.';
-  if (bestSignal.direction === 'SHORT') return 'Risk is elevated. Keep position small and strict.';
-  return 'Low risk today, small position allowed.';
+function suggestionSubtitle(bestSignal, locale) {
+  if (!bestSignal) {
+    return locale === 'zh' ? '暂时没有足够干净的动作，先等更清楚的条件。' : 'No clean setup yet. Better conditions are worth waiting for.';
+  }
+  if (!bestSignal._actionable) {
+    return locale === 'zh' ? '信号存在，但还不值得执行。' : 'There is a signal, but not an executable one yet.';
+  }
+  if (bestSignal.direction === 'SHORT') {
+    return locale === 'zh' ? '风险仍偏高，只允许小而严格的动作。' : 'Risk is still elevated. Keep size small and execution strict.';
+  }
+  return locale === 'zh' ? '今天可以看动作，但仓位仍然要轻。' : 'Selective action is workable today. Size still stays light.';
 }
 
 function deriveOverallStatus(args) {
-  const { today, safety, runtime, bestSignal } = args;
+  const { today, safety, runtime, bestSignal, locale } = args;
   const mode = String(safety?.mode || '').toLowerCase();
   const runtimeStatus = String(runtime?.source_status || '').toUpperCase();
   if (today?.is_trading_day === false) {
     return {
       code: 'NO_TRADE',
-      headline: '❌ Not suitable to trade',
-      subtitle: 'Market is closed. Focus on review only.'
+      headline: locale === 'zh' ? '❌ 今天不适合动作' : '❌ Not suitable to trade',
+      subtitle: locale === 'zh' ? '市场已休市，今天更适合复盘。' : 'The market is closed. Today is better used for review.'
     };
   }
   if (mode.includes('do not trade') || mode.includes('defense')) {
     return {
       code: 'DEFENSE',
-      headline: '🛡 Defense mode (market risk high)',
+      headline: locale === 'zh' ? '🛡 今天优先防守' : '🛡 Defense mode (market risk high)',
       subtitle: safety?.primary_risks?.[0] || 'Risk pressure is high. Capital protection first.'
     };
   }
   if (runtimeStatus === 'INSUFFICIENT_DATA' || runtimeStatus === 'WITHHELD') {
     return {
       code: 'WAIT',
-      headline: '⚠️ Better to wait',
-      subtitle: 'Data quality is limited. Wait for better signal clarity.'
+      headline: locale === 'zh' ? '⚠️ 更适合等待' : '⚠️ Better to wait',
+      subtitle: locale === 'zh' ? '当前数据边界不够干净，先等更清楚的判断。' : 'Data quality is limited. Wait for better signal clarity.'
     };
   }
   if (!bestSignal) {
     return {
       code: 'WAIT',
-      headline: '⚠️ Better to wait',
-      subtitle: 'No high-quality opportunity at the moment.'
+      headline: locale === 'zh' ? '⚠️ 更适合等待' : '⚠️ Better to wait',
+      subtitle: locale === 'zh' ? '现在没有足够高质量的动作。' : 'No high-quality opportunity at the moment.'
     };
   }
   if (!bestSignal._actionable) {
     return {
       code: 'WAIT',
-      headline: '⚠️ Better to wait',
-      subtitle: bestSignal._dataStatus === 'WITHHELD' ? 'Signal is withheld due to low sample quality.' : 'Signal is not ready for execution.'
+      headline: locale === 'zh' ? '⚠️ 更适合等待' : '⚠️ Better to wait',
+      subtitle:
+        bestSignal._dataStatus === 'WITHHELD'
+          ? locale === 'zh'
+            ? '信号因样本质量不足而被保留。'
+            : 'The signal is withheld because sample quality is still weak.'
+          : locale === 'zh'
+            ? '信号还没到执行时点。'
+            : 'The signal is not ready for execution.'
     };
   }
   if (String(bestSignal?.regime_id || '').toUpperCase() === 'RISK_OFF') {
     return {
       code: 'DEFENSE',
-      headline: '🛡 Defense mode (market risk high)',
-      subtitle: 'Market risk remains high. Only small defensive actions.'
+      headline: locale === 'zh' ? '🛡 今天优先防守' : '🛡 Defense mode (market risk high)',
+      subtitle: locale === 'zh' ? '风险仍偏高，只适合防守型小动作。' : 'Market risk remains high. Only small defensive actions.'
     };
   }
   return {
     code: 'TRADE',
-    headline: '✅ Can trade today',
-    subtitle: suggestionSubtitle(bestSignal)
+    headline: locale === 'zh' ? '✅ 今天可以动作' : '✅ Can trade today',
+    subtitle: suggestionSubtitle(bestSignal, locale)
   };
 }
 
-function riskLevel(overallCode, bestSignal) {
+function riskLevel(overallCode, bestSignal, locale) {
   if (overallCode === 'DEFENSE' || overallCode === 'NO_TRADE') {
     return {
       level: 'danger',
       icon: '🔴',
-      label: 'Dangerous',
-      explanation: 'High risk environment. Do not force trades.'
+      label: locale === 'zh' ? '危险' : 'Dangerous',
+      explanation: locale === 'zh' ? '风险环境偏高，不要强行动作。' : 'High risk environment. Do not force trades.'
     };
   }
   if (!bestSignal || !bestSignal._actionable || ['EXPERIMENTAL', 'WITHHELD', 'INSUFFICIENT_DATA'].includes(bestSignal._dataStatus)) {
     return {
       level: 'medium',
       icon: '🟡',
-      label: 'Medium',
-      explanation: 'Conditions are mixed. Keep risk low and be selective.'
+      label: locale === 'zh' ? '中等' : 'Medium',
+      explanation: locale === 'zh' ? '条件偏混合，保持低风险和高选择性。' : 'Conditions are mixed. Keep risk low and be selective.'
     };
   }
   return {
     level: 'safe',
     icon: '🟢',
-    label: 'Safe',
-    explanation: 'Setup quality is acceptable. Small position only.'
+    label: locale === 'zh' ? '稳' : 'Safe',
+    explanation: locale === 'zh' ? '条件尚可，但仍只适合小仓位。' : 'Setup quality is acceptable. Small position only.'
   };
 }
 
@@ -372,19 +392,21 @@ function buildDemoFallbackSignal(assetClass, now) {
   };
 }
 
-function mainButtonLabel(overallCode) {
-  if (overallCode === 'TRADE') return 'Follow Strategy';
-  if (overallCode === 'DEFENSE' || overallCode === 'NO_TRADE') return 'View Defense Plan';
-  return 'Wait for Next Opportunity';
+function mainButtonLabel(overallCode, locale) {
+  if (overallCode === 'TRADE') return locale === 'zh' ? '按计划动作' : 'Follow strategy';
+  if (overallCode === 'DEFENSE' || overallCode === 'NO_TRADE') return locale === 'zh' ? '查看防守计划' : 'View defense plan';
+  return locale === 'zh' ? '等待下一次清晰机会' : 'Wait for the next clean opportunity';
 }
 
-function sourceCaption(signal, investorDemoEnabled) {
+function sourceCaption(signal, investorDemoEnabled, locale) {
   if (!signal) return null;
   if (signal._dataStatus === 'DEMO_ONLY') {
-    return 'Source: DEMO_ONLY fallback signal for investor walkthrough.';
+    return locale === 'zh' ? '来源：DEMO_ONLY 演示信号，仅用于 investor walkthrough。' : 'Source: DEMO_ONLY fallback signal for investor walkthrough.';
   }
   if (investorDemoEnabled) {
-    return 'Source: live signal path is still being used while demo holdings are on.';
+    return locale === 'zh'
+      ? '来源：当前仍在使用真实信号路径，只是持仓切到 demo。'
+      : 'Source: the live signal path is still being used while demo holdings are on.';
   }
   return null;
 }
@@ -413,40 +435,40 @@ function buildSignalFromDecision(decision, now) {
   };
 }
 
-function overallFromDecision(decision) {
+function overallFromDecision(decision, locale) {
   const call = decision?.today_call;
   if (!call) return null;
   return {
     code: call?.code || 'WAIT',
-    headline: call?.headline || call?.summary || '⚠️ Better to wait',
-    subtitle: call?.subtitle || decision?.risk_state?.user_message || 'Decision snapshot available.'
+    headline: call?.headline || call?.summary || (locale === 'zh' ? '⚠️ 更适合等待' : '⚠️ Better to wait'),
+    subtitle: call?.subtitle || decision?.risk_state?.user_message || (locale === 'zh' ? '决策快照已生成。' : 'Decision snapshot available.')
   };
 }
 
-function riskFromDecision(decision) {
+function riskFromDecision(decision, locale) {
   const posture = String(decision?.risk_state?.posture || '').toUpperCase();
   if (!posture) return null;
   if (posture === 'DEFEND' || posture === 'WAIT') {
     return {
       level: 'danger',
       icon: '🔴',
-      label: 'Dangerous',
-      explanation: decision?.risk_state?.user_message || 'High risk environment. Do not force trades.'
+      label: locale === 'zh' ? '危险' : 'Dangerous',
+      explanation: decision?.risk_state?.user_message || (locale === 'zh' ? '高风险环境下，不要强行动作。' : 'High risk environment. Do not force trades.')
     };
   }
   if (posture === 'PROBE') {
     return {
       level: 'medium',
       icon: '🟡',
-      label: 'Medium',
-      explanation: decision?.risk_state?.user_message || 'Conditions are mixed. Keep risk low and selective.'
+      label: locale === 'zh' ? '中等' : 'Medium',
+      explanation: decision?.risk_state?.user_message || (locale === 'zh' ? '条件偏混合，保持低风险和高选择性。' : 'Conditions are mixed. Keep risk low and selective.')
     };
   }
   return {
     level: 'safe',
     icon: '🟢',
-    label: 'Safe',
-    explanation: decision?.risk_state?.user_message || 'Conditions allow selective action.'
+    label: locale === 'zh' ? '稳' : 'Safe',
+    explanation: decision?.risk_state?.user_message || (locale === 'zh' ? '条件允许选择性动作。' : 'Conditions allow selective action.')
   };
 }
 
@@ -460,6 +482,7 @@ export default function TodayTab({
   decision,
   engagement,
   runtime,
+  locale = 'en',
   investorDemoEnabled,
   onAskAi,
   onPaperExecute,
@@ -495,34 +518,47 @@ export default function TodayTab({
   );
 
   const overall =
-    overallFromDecision(decision) ||
+    overallFromDecision(decision, locale) ||
     deriveOverallStatus({
       today,
       safety,
       runtime,
-      bestSignal: featuredSignal
+      bestSignal: featuredSignal,
+      locale
     });
 
-  const risk = riskFromDecision(decision) || riskLevel(overall.code, featuredSignal);
-  const buttonText = mainButtonLabel(overall.code);
+  const risk = riskFromDecision(decision, locale) || riskLevel(overall.code, featuredSignal, locale);
+  const buttonText = mainButtonLabel(overall.code, locale);
   const morningCheck = engagement?.daily_check_state || null;
   const wrapUp = engagement?.daily_wrap_up || null;
   const uiRegime = engagement?.ui_regime_state || null;
   const recommendationChange = engagement?.recommendation_change || null;
   const noActionDay = !featuredSignal || !featuredSignal._actionable || overall.code === 'WAIT' || overall.code === 'DEFENSE' || overall.code === 'NO_TRADE';
+  const posture = String(decision?.risk_state?.posture || decision?.summary?.risk_posture || 'WAIT').toUpperCase();
+  const actionCopy = getActionCardCopy({
+    posture,
+    locale,
+    seed: `${featuredSignal?.symbol || 'none'}:${recommendationChange?.change_type || 'stable'}`,
+    actionState: noActionDay ? 'watch-only' : 'actionable'
+  });
+  const noActionCopy = getNoActionCopy({
+    locale,
+    posture,
+    seed: `${featuredSignal?.symbol || 'none'}:${morningCheck?.status || 'pending'}`
+  });
   const actionCardLead = noActionDay
-    ? uiRegime?.protective_line || morningCheck?.arrival_line || '今天的重点不是找动作，而是把边界看清。'
-    : morningCheck?.arrival_line || uiRegime?.arrival_line || '今天的结论已经到了，先确认，再动手。';
+    ? uiRegime?.protective_line || morningCheck?.arrival_line || noActionCopy.arrival
+    : morningCheck?.arrival_line || uiRegime?.arrival_line || actionCopy.why_now;
   const actionCardSubline = recommendationChange?.changed
     ? recommendationChange.summary
     : noActionDay
-      ? morningCheck?.ritual_line || uiRegime?.ritual_line || '今天先看清，比急着表态更值钱。'
-      : featuredSignal?.brief_why_now || morningCheck?.ritual_line || '这张卡排第一，不代表今天要放大动作。';
+      ? morningCheck?.ritual_line || uiRegime?.ritual_line || noActionCopy.notify
+      : featuredSignal?.brief_why_now || morningCheck?.ritual_line || actionCopy.caution;
   const actionStateBadges = [
-    featuredSignal ? { key: 'rank', label: 'Rank #1', tone: 'badge-neutral' } : null,
-    recommendationChange?.changed ? { key: 'change', label: 'Updated', tone: 'badge-medium' } : null,
-    morningCheck?.status === 'COMPLETED' ? { key: 'checked', label: 'Checked', tone: 'badge-triggered' } : null,
-    noActionDay ? { key: 'restraint', label: 'No rush', tone: 'badge-neutral' } : null
+    featuredSignal ? { key: 'rank', label: actionCopy.badges.rank, tone: 'badge-neutral' } : null,
+    recommendationChange?.changed ? { key: 'change', label: actionCopy.badges.updated, tone: 'badge-medium' } : null,
+    morningCheck?.status === 'COMPLETED' ? { key: 'checked', label: actionCopy.badges.checked, tone: 'badge-triggered' } : null,
+    noActionDay ? { key: 'restraint', label: actionCopy.badges.restraint, tone: 'badge-neutral' } : null
   ].filter(Boolean);
 
   if (activeSignal) {
@@ -569,7 +605,7 @@ export default function TodayTab({
         >
           <div className="card-header today-action-header">
             <div>
-              <h3 className="card-title">Today&apos;s Best Action</h3>
+              <h3 className="card-title">{actionCopy.title}</h3>
               <p className="muted">{actionCardLead}</p>
             </div>
             <div className="signal-badge-row">
@@ -584,7 +620,7 @@ export default function TodayTab({
           <p className="ritual-kicker">{actionCardSubline}</p>
           {!featuredSignal ? (
             <p className="muted status-line">
-              {uiRegime?.completion_line || 'No high-quality opportunity now. Waiting is the cleanest action on the board.'}
+              {uiRegime?.completion_line || noActionCopy.completion}
             </p>
           ) : (
             <>
@@ -594,24 +630,24 @@ export default function TodayTab({
               <p className="muted status-line">
                 {featuredSignal.brief_why_now ||
                   (noActionDay
-                    ? uiRegime?.humor_line || '市场给了波动，但没给出需要你立刻处理的确定性。'
-                    : '这张卡现在最值得看，但不值得你失去纪律。')}
+                    ? uiRegime?.humor_line || noActionCopy.notify
+                    : actionCopy.why_now)}
               </p>
               <div className="today-action-grid">
                 <div className="status-box">
-                  <p className="muted">Buy Zone</p>
+                  <p className="muted">{locale === 'zh' ? '入场区间' : 'Buy Zone'}</p>
                   <h2>{entryRangeText(featuredSignal)}</h2>
                 </div>
                 <div className="status-box">
-                  <p className="muted">Size</p>
+                  <p className="muted">{locale === 'zh' ? '仓位' : 'Size'}</p>
                   <h2>{suggestedPositionText(featuredSignal)}</h2>
                 </div>
                 <div className="status-box">
-                  <p className="muted">Take profit</p>
+                  <p className="muted">{locale === 'zh' ? '止盈' : 'Take profit'}</p>
                   <h2>{takeProfitText(featuredSignal)}</h2>
                 </div>
                 <div className="status-box">
-                  <p className="muted">Stop loss</p>
+                  <p className="muted">{locale === 'zh' ? '止损' : 'Stop loss'}</p>
                   <h2>{stopLossText(featuredSignal)}</h2>
                 </div>
               </div>
@@ -622,8 +658,8 @@ export default function TodayTab({
               <p className="muted status-line">
                 {featuredSignal?.risk_note ||
                   (noActionDay
-                    ? morningCheck?.completion_feedback || uiRegime?.protective_line || '今天系统更重视边界，而不是新风险。'
-                    : uiRegime?.humor_line || '可以看，但别把一点把握误读成全场明牌。')}
+                    ? morningCheck?.completion_feedback || uiRegime?.protective_line || noActionCopy.arrival
+                    : uiRegime?.humor_line || actionCopy.caution)}
               </p>
               <div className="action-row today-action-row">
                 <button
@@ -634,15 +670,15 @@ export default function TodayTab({
                     handleMainAction();
                   }}
                 >
-                  {featuredSignal._actionable ? 'Take Action' : buttonText}
+                  {featuredSignal._actionable ? (locale === 'zh' ? '按计划动作' : 'Take action') : buttonText}
                 </button>
               </div>
               <p className="muted status-line action-card-footnote">
                 {morningCheck?.status === 'COMPLETED'
                   ? morningCheck.completion_feedback
                   : noActionDay
-                    ? uiRegime?.completion_line || '今天最重要的动作，可能已经在你没有追出去的时候完成了。'
-                    : morningCheck?.ritual_line || '先确认，再决定要不要把风险放大。'}
+                    ? uiRegime?.completion_line || noActionCopy.completion
+                    : morningCheck?.ritual_line || actionCopy.caution}
               </p>
             </>
           )}
@@ -656,7 +692,7 @@ export default function TodayTab({
           </article>
 
           <article className={`glass-card beginner-risk-card today-compact-info-card state-card state-card-${uiRegime?.tone || 'quiet'}`}>
-            <h3 className="card-title">Risk</h3>
+            <h3 className="card-title">{actionCopy.risk_title}</h3>
             <div className="simple-risk-track" aria-label={`Risk level ${risk.label}`}>
               <div className={`simple-risk-fill simple-risk-${risk.level}`} />
             </div>
@@ -717,9 +753,15 @@ export default function TodayTab({
         <article className="glass-card">
           <div className="card-header">
             <div>
-              <h3 className="card-title">{secondaryDecisionSignals.length ? 'More Ranked Actions' : 'Recent Signals'}</h3>
+              <h3 className="card-title">{secondaryDecisionSignals.length ? actionCopy.more_ranked_title : actionCopy.recent_signals_title}</h3>
               <p className="muted">
-                {secondaryDecisionSignals.length ? 'Lower-priority actions after the top decision.' : 'Recent examples for demo walkthroughs.'}
+                {secondaryDecisionSignals.length
+                  ? locale === 'zh'
+                    ? '排在榜首之后的次级动作。'
+                    : 'Lower-priority actions after the top decision.'
+                  : locale === 'zh'
+                    ? '用于 investor walkthrough 的最近示例。'
+                    : 'Recent examples for the investor walkthrough.'}
               </p>
             </div>
           </div>
@@ -772,7 +814,7 @@ export default function TodayTab({
                 onOpenWeekly?.();
               }}
             >
-              Open Wrap-Up
+              {actionCopy.open_wrap_label}
             </button>
             <button
               type="button"
@@ -782,7 +824,7 @@ export default function TodayTab({
                 onAskAi?.('What mattered most today?', { page: 'today', focus: 'wrap_up' });
               }}
             >
-              Ask Nova
+              {actionCopy.ask_nova_label}
             </button>
           </div>
           {wrapUp.completion_feedback ? <p className="muted status-line">{wrapUp.completion_feedback}</p> : null}

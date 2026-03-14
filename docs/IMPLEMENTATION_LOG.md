@@ -1913,3 +1913,25 @@ Implemented deterministic reliability and adversarial stress testing to move fro
   - `npm run -s typecheck` passed
   - targeted research tests passed (`5 files / 13 tests`)
   - `npm run -s build` passed
+## 2026-03-15 — Copy Operating System + Version Management
+
+1. Added a unified copy operating system:
+   - brand voice constitution
+   - tone matrix
+   - state-to-copy selectors
+   - notification/widget/assistant guardrails
+   - shared English/Chinese template library
+2. Wired the copy system into:
+   - decision engine
+   - engagement engine
+   - Today surface
+   - Nova Assistant prompt layer
+   - demo assistant
+3. Added regression coverage:
+   - `tests/novaCopySystem.test.ts`
+   - updated engagement tests for locale-aware copy
+4. Added first-class version management:
+   - single runtime version source in `src/config/version.js`
+   - `scripts/version-manager.mjs`
+   - `CHANGELOG.md`
+   - About modal now shows version + build

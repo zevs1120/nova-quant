@@ -664,3 +664,9 @@ Nova Quant now has a first measured factor evaluation layer on top of the existi
 5. Assistant context quality improved:
 - factor/signal-specific research tools are now prioritized before generic research tools
 - fixed prior truncation issue where factor tools could be dropped by `slice(0, 8)`
+- 2026-03-15: NovaQuant now has a shared copy/persona operating system in `src/copy/novaCopySystem.js`.
+  It is the canonical source for brand voice, tone matrix, no-action completion language,
+  notification/widget phrasing, assistant voice rules, and copy guardrails.
+- 2026-03-15: Versioning is now formalized with SemVer + build number:
+  `package.json` + `src/config/version.js` + `CHANGELOG.md` + `scripts/version-manager.mjs`.
+  About reads runtime version metadata instead of a dead string.

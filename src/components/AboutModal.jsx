@@ -14,6 +14,11 @@ export default function AboutModal({ open, onClose, config, t, locale }) {
         </div>
 
         <p className="muted">{t('about.disclaimer', undefined, config.disclaimer)}</p>
+        <p className="status-line">
+          {locale?.startsWith('zh')
+            ? '一个把“今天该不该动”压缩成清晰判断的 AI 决策系统。'
+            : 'An AI decision system built to reduce the day to one clear judgment.'}
+        </p>
         <div className="detail-list">
           <div className="detail-row">
             <span className="detail-label">{t('about.team')}</span>
@@ -23,6 +28,12 @@ export default function AboutModal({ open, onClose, config, t, locale }) {
             <span className="detail-label">{t('about.appVersion')}</span>
             <span className="detail-value">{config.app_version}</span>
           </div>
+          {config.build_number ? (
+            <div className="detail-row">
+              <span className="detail-label">Build</span>
+              <span className="detail-value">{config.build_number}</span>
+            </div>
+          ) : null}
           <div className="detail-row">
             <span className="detail-label">{t('about.dataUpdated')}</span>
             <span className="detail-value">{formatDateTime(config.last_updated, locale)}</span>

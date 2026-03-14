@@ -8,6 +8,15 @@ import type {
   UserRitualEventRecord
 } from '../types.js';
 import { RUNTIME_STATUS, normalizeRuntimeStatus } from '../runtimeStatus.js';
+import {
+  getDisciplineCopy,
+  getMorningCheckCopy,
+  getNoActionCopy,
+  getNotificationCopy,
+  getUiRegimeTone,
+  getWidgetCopy,
+  getWrapUpCopy
+} from '../../copy/novaCopySystem.js';
 
 type JsonObject = Record<string, unknown>;
 
@@ -63,93 +72,34 @@ function weekStartKey(dateKey: string): string {
   return base.toISOString().slice(0, 10);
 }
 
-function copyTone(posture: string) {
-  const upper = String(posture || '').toUpperCase();
-  if (upper === 'ATTACK') {
-    return {
-      tone: 'opportunity',
-      accent: 'safe',
-      user_label: '可行动',
-      widget_label: '可试探进攻',
-      completion: '今天的重点不是多做，而是只做最清楚的那一下。',
-      noActionValue: '今天有机会，但依然不需要急。',
-      arrival: '今天的结论已经到了，轮到你确认，不轮到你兴奋。',
-      ritual: '先确认，再动手。今天不需要证明判断力。',
-      humor: '市场给了机会，但还没给你放大自信的许可。',
-      protective: '先把手从加仓键上挪开，结论会比冲动更快到位。',
-      wrap: '把今天收束好，明天的判断会更利落。',
-      motion: {
-        entry: 'clear',
-        settle: 'confident',
-        emphasis: 'crisp',
-        pulse: 'brief'
-      }
-    };
-  }
-  if (upper === 'PROBE') {
-    return {
-      tone: 'watchful',
-      accent: 'medium',
-      user_label: '可试探',
-      widget_label: '轻试探',
-      completion: '今天更像校准判断，不像放大风险。',
-      noActionValue: '今天真正值钱的，是保持选择性。',
-      arrival: '今天的气候更适合校准，不适合放大情绪。',
-      ritual: '看一眼结论，够了。今天不是信息吃到撑的日子。',
-      humor: '可以试探，但别把一点把握误读成全场明牌。',
-      protective: '今天市场会递给你几个看起来像机会的东西，先别急着签收。',
-      wrap: '今天的价值可能不在动作，而在没有让自己失真。',
-      motion: {
-        entry: 'measured',
-        settle: 'watchful',
-        emphasis: 'soft',
-        pulse: 'gentle'
-      }
-    };
-  }
-  if (upper === 'DEFEND') {
-    return {
-      tone: 'defensive',
-      accent: 'caution',
-      user_label: '优先防守',
-      widget_label: '偏防守',
-      completion: '今天完成判断，比贸然动作更有价值。',
-      noActionValue: '系统今天在保护你，而不是催你出手。',
-      arrival: '今天的结论不是兴奋，而是边界。',
-      ritual: '先确认风险，再确认自己不需要逞强。',
-      humor: '今天如果你想证明什么，市场大概率不会配合。',
-      protective: '这不是退缩，是把不必要的风险挡在门外。',
-      wrap: '今天最好的动作，可能已经在你没有追出去的那一刻完成了。',
-      motion: {
-        entry: 'steady',
-        settle: 'guarded',
-        emphasis: 'contained',
-        pulse: 'low'
-      }
-    };
-  }
+function copyTone(posture: string, locale?: string) {
+  const uiTone = getUiRegimeTone({
+    posture,
+    locale
+  });
+  const noAction = getNoActionCopy({
+    locale,
+    posture,
+    seed: `${posture}:engagement`
+  });
   return {
-    tone: 'quiet',
-    accent: 'neutral',
-    user_label: '先等待',
-    widget_label: '先确认',
-    completion: '今天先确认，不急着证明什么。',
-    noActionValue: '无动作本身就是有效判断。',
-    arrival: '今天的状态更像留白，不像进攻。',
-    ritual: '把今天先看清，比急着解释市场更重要。',
-    humor: '今天市场说了很多话，但没说出一句值得你立刻相信的。',
-    protective: '别把空白误会成无聊。很多错误都从填满空白开始。',
-    wrap: '今天如果你没有乱动，这一天已经很完整。',
-    motion: {
-      entry: 'quiet',
-      settle: 'calm',
-      emphasis: 'minimal',
-      pulse: 'none'
-    }
+    tone: uiTone.tone,
+    accent: uiTone.accent,
+    user_label: uiTone.label,
+    widget_label: uiTone.widget_label,
+    completion: uiTone.completion_line,
+    noActionValue: noAction.completion,
+    arrival: uiTone.arrival_line,
+    ritual: uiTone.ritual_line,
+    humor: uiTone.humor_line,
+    protective: uiTone.protective_line,
+    wrap: uiTone.wrap_line,
+    motion: uiTone.motion
   };
 }
 
-function summarizeRecommendationChange(current: JsonObject, previous: JsonObject | null) {
+function summarizeRecommendationChange(current: JsonObject, previous: JsonObject | null, locale?: string) {
+  const isZh = locale === 'zh';
   const currentRisk = String(current.risk_posture || '');
   const currentSymbol = String(current.top_action_symbol || '');
   const currentLabel = String(current.top_action_label || '');
@@ -157,7 +107,7 @@ function summarizeRecommendationChange(current: JsonObject, previous: JsonObject
     return {
       changed: false,
       change_type: 'initial_snapshot',
-      summary: '今天的判断已更新，你只需要回来确认一次。',
+      summary: isZh ? '今天的判断已更新，你只需要回来确认一次。' : 'Today’s view is set. One clean check is enough.',
       previous: null,
       current: {
         risk_posture: currentRisk,
@@ -175,7 +125,9 @@ function summarizeRecommendationChange(current: JsonObject, previous: JsonObject
     return {
       changed: true,
       change_type: 'risk_shift',
-      summary: `判断从 ${prevRisk || '未知'} 切到了 ${currentRisk || '未知'}。`,
+      summary: isZh
+        ? `判断从 ${prevRisk || '未知'} 切到了 ${currentRisk || '未知'}。`
+        : `The posture moved from ${prevRisk || 'unknown'} to ${currentRisk || 'unknown'}.`,
       previous: { risk_posture: prevRisk, top_action_symbol: prevSymbol, top_action_label: prevLabel },
       current: { risk_posture: currentRisk, top_action_symbol: currentSymbol, top_action_label: currentLabel }
     };
@@ -185,7 +137,9 @@ function summarizeRecommendationChange(current: JsonObject, previous: JsonObject
     return {
       changed: true,
       change_type: 'top_action_shift',
-      summary: `最重要的卡片从 ${prevSymbol || '无'} 变成了 ${currentSymbol || '无'}。`,
+      summary: isZh
+        ? `最重要的卡片从 ${prevSymbol || '无'} 变成了 ${currentSymbol || '无'}。`
+        : `The lead card changed from ${prevSymbol || 'none'} to ${currentSymbol || 'none'}.`,
       previous: { risk_posture: prevRisk, top_action_symbol: prevSymbol, top_action_label: prevLabel },
       current: { risk_posture: currentRisk, top_action_symbol: currentSymbol, top_action_label: currentLabel }
     };
@@ -194,7 +148,9 @@ function summarizeRecommendationChange(current: JsonObject, previous: JsonObject
   return {
     changed: false,
     change_type: 'stable',
-    summary: '核心判断没有明显变，今天更重要的是确认而不是频繁切换。',
+    summary: isZh
+      ? '核心判断没有明显变，今天更重要的是确认而不是频繁切换。'
+      : 'The core view held. Today is more about confirmation than constant switching.',
     previous: { risk_posture: prevRisk, top_action_symbol: prevSymbol, top_action_label: prevLabel },
     current: { risk_posture: currentRisk, top_action_symbol: currentSymbol, top_action_label: currentLabel }
   };
@@ -220,6 +176,7 @@ type EngagementInput = {
   assetClass: AssetClass | 'ALL';
   localDate: string;
   localHour: number;
+  locale?: string;
   decisionRow: DecisionSnapshotRecord | null;
   previousDecisionRow: DecisionSnapshotRecord | null;
   ritualEvents: UserRitualEventRecord[];
@@ -233,6 +190,7 @@ function buildDailyCheckState(args: {
   recommendationChange: ReturnType<typeof summarizeRecommendationChange>;
   rituals: UserRitualEventRecord[];
   tone: ReturnType<typeof copyTone>;
+  locale?: string;
 }) {
   const todayEvent = args.rituals.find(
     (row) => row.event_type === 'MORNING_CHECK_COMPLETED' && row.event_date === args.localDate
@@ -243,35 +201,30 @@ function buildDailyCheckState(args: {
   const recordedFingerprint = `${String(recorded.risk_posture || '--')}:${String(recorded.top_action_id || '--')}`;
   const refreshRequired = Boolean(todayEvent && currentFingerprint !== recordedFingerprint);
   const status = !todayEvent ? 'PENDING' : refreshRequired ? 'REFRESH_REQUIRED' : 'COMPLETED';
+  const noActionDay = ['WAIT', 'DEFEND'].includes(String(args.decisionSummary.risk_posture || '').toUpperCase());
+  const copy = getMorningCheckCopy({
+    posture: String(args.decisionSummary.risk_posture || 'WAIT'),
+    status,
+    locale: args.locale,
+    seed: `${args.localDate}:${currentFingerprint}`,
+    changed: args.recommendationChange.changed,
+    noActionDay
+  });
 
   return {
     status,
-    title: 'Morning Check',
-    short_label: status === 'COMPLETED' ? '已确认' : status === 'REFRESH_REQUIRED' ? '需重看' : '待确认',
-    headline:
-      status === 'COMPLETED'
-        ? '今日判断已确认'
-        : status === 'REFRESH_REQUIRED'
-        ? '判断有变化，建议重看'
-        : '今天先确认，再决定',
-    prompt:
-      args.localHour < 11
-        ? '不用研究很久，只要确认今天该不该动。'
-        : '今天还没完成判断确认，先看结论，再决定要不要动。 ',
+    title: copy.title,
+    short_label: copy.short_label,
+    headline: copy.headline,
+    prompt: copy.prompt,
     why_now: String(todayCall.subtitle || args.recommendationChange.summary || ''),
-    arrival_line: args.tone.arrival,
-    ritual_line: args.tone.ritual,
-    humor_line: status === 'COMPLETED' ? args.tone.completion : args.tone.humor,
-    cta_label:
-      status === 'COMPLETED' ? 'Today noted' : status === 'REFRESH_REQUIRED' ? 'Re-check today' : 'Confirm today',
-    ai_cta_label: status === 'REFRESH_REQUIRED' ? 'What changed?' : 'Why this view?',
+    arrival_line: copy.arrival_line,
+    ritual_line: copy.ritual_line,
+    humor_line: status === 'COMPLETED' ? copy.completion_feedback : copy.humor_line,
+    cta_label: copy.cta_label,
+    ai_cta_label: copy.ai_cta_label,
     completed_at_ms: todayEvent?.updated_at_ms || null,
-    completion_feedback:
-      status === 'COMPLETED'
-        ? args.tone.completion
-        : status === 'REFRESH_REQUIRED'
-        ? '系统已经更新了判断，值得回来重新确认一次。'
-        : '你今天最重要的动作，是先确认判断。'
+    completion_feedback: status === 'REFRESH_REQUIRED' ? copy.changed_line || copy.completion_feedback : copy.completion_feedback
   };
 }
 
@@ -279,6 +232,7 @@ function buildHabitState(args: {
   localDate: string;
   rituals: UserRitualEventRecord[];
   tone: ReturnType<typeof copyTone>;
+  locale?: string;
 }) {
   const morningDays = uniqueDays(args.rituals, 'MORNING_CHECK_COMPLETED');
   const boundaryDays = uniqueDays(args.rituals, 'RISK_BOUNDARY_CONFIRMED');
@@ -300,6 +254,12 @@ function buildHabitState(args: {
     35,
     Math.min(96, 45 + morningStreak * 4 + boundaryStreak * 3 + wrapStreak * 2 + weeklyStreak * 2)
   );
+  const disciplineCopy = getDisciplineCopy({
+    locale: args.locale,
+    score: disciplineScore,
+    noActionDay: true,
+    seed: `${args.localDate}:${disciplineScore}`
+  });
 
   return {
     checkinStreak: morningStreak,
@@ -311,15 +271,9 @@ function buildHabitState(args: {
     wrapUpToday: wrapDays.includes(args.localDate),
     reviewedThisWeek: weeklyKeys.includes(currentWeekKey),
     discipline_score: disciplineScore,
-    behavior_quality:
-      disciplineScore >= 82 ? 'STEADY' : disciplineScore >= 64 ? 'BUILDING' : 'EARLY',
-    summary:
-      disciplineScore >= 82
-        ? '你在形成稳定的判断节奏。'
-        : disciplineScore >= 64
-          ? '习惯正在成形，重点是持续回来确认。'
-          : '现在最重要的不是动作，而是建立确认节奏。',
-    no_action_value_line: args.tone.noActionValue
+    behavior_quality: disciplineCopy.behavior_quality,
+    summary: disciplineCopy.summary,
+    no_action_value_line: disciplineCopy.no_action_value_line || args.tone.noActionValue
   };
 }
 
@@ -330,6 +284,7 @@ function buildWrapUp(args: {
   previousSummary: JsonObject | null;
   tone: ReturnType<typeof copyTone>;
   rituals: UserRitualEventRecord[];
+  locale?: string;
 }) {
   const ready = args.localHour >= 18;
   const completed = args.rituals.some(
@@ -342,19 +297,34 @@ function buildWrapUp(args: {
 
   const mostImportant =
     previousRisk && previousRisk !== currentRisk
-      ? `今天最重要的变化不是行情本身，而是判断从 ${previousRisk} 切到了 ${currentRisk}。`
+      ? args.locale === 'zh'
+        ? `今天最重要的变化不是行情本身，而是判断从 ${previousRisk} 切到了 ${currentRisk}。`
+        : `The main change today was not price alone, but the posture shifting from ${previousRisk} to ${currentRisk}.`
       : currentSymbol
-        ? `今天最重要的卡仍然是 ${currentSymbol}，但重点是理解它为什么排第一。`
-        : '今天没有值得强行动作的卡，最有价值的是没有被迫表态。';
+        ? args.locale === 'zh'
+          ? `今天最重要的卡仍然是 ${currentSymbol}，但重点是理解它为什么排第一。`
+          : `${currentSymbol} remained the lead card today. The useful question is why it stayed there.`
+        : args.locale === 'zh'
+          ? '今天没有值得强行动作的卡，最有价值的是没有被迫表态。'
+          : 'No card earned force today. The value was in not forcing an answer.';
+  const noActionDay = !currentSymbol || currentRisk === 'DEFEND' || currentRisk === 'WAIT';
+  const wrapCopy = getWrapUpCopy({
+    locale: args.locale,
+    posture: currentRisk || 'WAIT',
+    ready,
+    completed,
+    seed: `${args.localDate}:${currentRisk}:${currentSymbol}`,
+    noActionDay
+  });
 
   return {
     ready,
     completed,
-    title: 'Evening Wrap-Up',
-    short_label: completed ? '已复盘' : ready ? '可复盘' : '稍后',
-    headline: completed ? '今天的复盘已完成' : '今晚值得看一眼复盘',
-    summary: mostImportant,
-    opening_line: args.tone.wrap,
+    title: wrapCopy.title,
+    short_label: wrapCopy.short_label,
+    headline: wrapCopy.headline,
+    summary: noActionDay && wrapCopy.no_action_line ? wrapCopy.no_action_line : mostImportant,
+    opening_line: wrapCopy.opening_line,
     lessons: [
       args.tone.noActionValue,
       currentSymbol
@@ -363,9 +333,13 @@ function buildWrapUp(args: {
     ],
     tomorrow_watch:
       currentRisk === 'DEFEND'
-        ? '明天优先观察风险是否真正回落，而不是寻找新刺激。'
-        : '明天优先观察最重要的那张卡是否仍留在榜首。',
-    completion_feedback: completed ? '复盘完成。你在强化的是判断，而不是冲动。' : '晚间复盘会告诉你今天最值得记住的是什么。'
+        ? args.locale === 'zh'
+          ? '明天优先观察风险是否真正回落，而不是寻找新刺激。'
+          : 'Tomorrow, watch whether risk actually cools instead of hunting for fresh excitement.'
+        : args.locale === 'zh'
+          ? '明天优先观察最重要的那张卡是否仍留在榜首。'
+          : 'Tomorrow, watch whether the lead card still deserves the top slot.',
+    completion_feedback: wrapCopy.completion_feedback
   };
 }
 
@@ -437,12 +411,19 @@ function buildNotificationCandidates(args: {
   currentSummary: JsonObject;
   currentPortfolio: JsonObject;
   prefs: NotificationPreferenceRecord;
+  locale?: string;
 }) {
   const quiet = inQuietHours(args.localHour, args.prefs);
   const notifications: NotificationEventRecord[] = [];
   const todayCall = (args.currentSummary.today_call as JsonObject | undefined) || {};
 
   if (args.prefs.morning_enabled && args.dailyCheckState.status !== 'COMPLETED') {
+    const rhythmCopy = getNotificationCopy({
+      category: 'RHYTHM',
+      posture: String(args.currentSummary.risk_posture || 'WAIT'),
+      locale: args.locale,
+      seed: `${args.localDate}:rhythm`
+    });
     notifications.push(
       buildNotificationCandidate({
         userId: args.userId,
@@ -450,11 +431,13 @@ function buildNotificationCandidates(args: {
         assetClass: args.assetClass,
         category: 'RHYTHM',
         triggerType: 'morning_check_due',
-        title: '今早判断已更新',
+        title: rhythmCopy.title,
         body:
           quiet
-            ? '判断已经更新。安静时段后再回来确认，也完全来得及。'
-            : `${String(todayCall.headline || '今天的判断已经到了')}。先确认，再决定。`,
+            ? args.locale === 'zh'
+              ? '判断已经更新。安静时段后再回来确认，也完全来得及。'
+              : 'The view is updated. A calm check after quiet hours is still perfectly on time.'
+            : rhythmCopy.body,
         tone: 'calm',
         actionTarget: 'today',
         reason: {
@@ -467,6 +450,13 @@ function buildNotificationCandidates(args: {
   }
 
   if (args.recommendationChange.changed && args.prefs.state_shift_enabled) {
+    const stateShiftCopy = getNotificationCopy({
+      category: 'STATE_SHIFT',
+      posture: String(args.currentSummary.risk_posture || 'WAIT'),
+      locale: args.locale,
+      triggerType: String(args.recommendationChange.change_type),
+      seed: `${args.localDate}:${args.recommendationChange.change_type}`
+    });
     notifications.push(
       buildNotificationCandidate({
         userId: args.userId,
@@ -474,11 +464,8 @@ function buildNotificationCandidates(args: {
         assetClass: args.assetClass,
         category: 'STATE_SHIFT',
         triggerType: String(args.recommendationChange.change_type),
-        title: args.recommendationChange.change_type === 'risk_shift' ? '今天的气候变了' : '榜首卡片换人了',
-        body:
-          args.recommendationChange.change_type === 'risk_shift'
-            ? `${args.recommendationChange.summary} 先重新校准，不急着延续昨天。`
-            : `${args.recommendationChange.summary} 这更像判断更新，不像行情噪音。`,
+        title: stateShiftCopy.title,
+        body: `${args.recommendationChange.summary} ${stateShiftCopy.body}`,
         tone: 'measured',
         actionTarget: 'today',
         reason: args.recommendationChange as unknown as JsonObject
@@ -490,6 +477,13 @@ function buildNotificationCandidates(args: {
     const posture = String(args.currentSummary.risk_posture || '').toUpperCase();
     const top1 = Number(args.currentPortfolio.top1_pct || 0);
     if (posture === 'DEFEND' || posture === 'WAIT' || top1 >= 25) {
+      const protectiveCopy = getNotificationCopy({
+        category: 'PROTECTIVE',
+        posture,
+        locale: args.locale,
+        overlap: top1 >= 25,
+        seed: `${args.localDate}:protective:${top1}`
+      });
       notifications.push(
         buildNotificationCandidate({
           userId: args.userId,
@@ -497,13 +491,8 @@ function buildNotificationCandidates(args: {
           assetClass: args.assetClass,
           category: 'PROTECTIVE',
           triggerType: posture === 'DEFEND' || posture === 'WAIT' ? 'protective_posture' : 'concentration_warning',
-          title: '现在更值得做的是克制',
-          body:
-            posture === 'DEFEND' || posture === 'WAIT'
-              ? todayCall.subtitle
-                ? String(todayCall.subtitle)
-                : '今天不是加大风险暴露的好时点。'
-              : '你当前的曝险已经不轻，新增动作更应该谨慎。',
+          title: protectiveCopy.title,
+          body: posture === 'DEFEND' || posture === 'WAIT' ? protectiveCopy.body : protectiveCopy.body,
           tone: 'protective',
           actionTarget: 'ai',
           reason: {
@@ -517,6 +506,12 @@ function buildNotificationCandidates(args: {
   }
 
   if (args.prefs.wrap_up_enabled && args.wrapUp.ready && !args.wrapUp.completed) {
+    const wrapCopy = getNotificationCopy({
+      category: 'WRAP_UP',
+      posture: String(args.currentSummary.risk_posture || 'WAIT'),
+      locale: args.locale,
+      seed: `${args.localDate}:wrap`
+    });
     notifications.push(
       buildNotificationCandidate({
         userId: args.userId,
@@ -524,8 +519,8 @@ function buildNotificationCandidates(args: {
         assetClass: args.assetClass,
         category: 'WRAP_UP',
         triggerType: 'daily_wrap_up_ready',
-        title: '今晚的复盘已经准备好',
-        body: `${args.wrapUp.opening_line} 今晚值得看一眼的，是今天的判断到底收束到了哪里。`,
+        title: wrapCopy.title,
+        body: `${args.wrapUp.opening_line} ${wrapCopy.body}`,
         tone: 'reflective',
         actionTarget: 'more:weekly',
         reason: {
@@ -546,33 +541,65 @@ function buildWidgetSummary(args: {
   currentSummary: JsonObject;
   wrapUp: ReturnType<typeof buildWrapUp>;
   tone: ReturnType<typeof copyTone>;
+  locale?: string;
 }) {
   const todayCall = (args.currentSummary.today_call as JsonObject | undefined) || {};
   const topSymbol = String(args.currentSummary.top_action_symbol || '--');
   const topLabel = String(args.currentSummary.top_action_label || 'Wait');
+  const posture = String(args.currentSummary.risk_posture || 'WAIT');
+  const stateCopy = getWidgetCopy({
+    type: 'state',
+    posture,
+    locale: args.locale,
+    seed: `${posture}:state:${topSymbol}`
+  });
+  const actionCopy = getWidgetCopy({
+    type: 'action',
+    posture,
+    locale: args.locale,
+    seed: `${posture}:action:${topSymbol}`
+  });
+  const changeCopy = getWidgetCopy({
+    type: 'change',
+    posture,
+    locale: args.locale,
+    triggerType: args.recommendationChange.change_type,
+    seed: `${posture}:change:${topSymbol}`
+  });
   return {
     state_widget: {
       kind: 'STATE_MINIMAL',
-      title: String(args.currentSummary.risk_summary || todayCall.headline || '先确认'),
+      title: stateCopy.title,
       subtitle: args.dailyCheckState.headline,
-      caption: args.tone.widget_label,
-      spark: args.dailyCheckState.ritual_line,
+      caption: stateCopy.caption || args.tone.widget_label,
+      spark: stateCopy.spark || args.dailyCheckState.ritual_line,
       deep_link: 'today'
     },
     action_widget: {
       kind: 'TOP_ACTION',
-      title: topSymbol === '--' ? '今天没有高优先级动作' : `${topSymbol} · ${topLabel}`,
+      title:
+        topSymbol === '--'
+          ? args.locale === 'zh'
+            ? '今天没有高优先级动作'
+            : 'No top-priority action today'
+          : `${topSymbol} · ${topLabel}`,
       subtitle: String(todayCall.subtitle || args.currentSummary.user_message || ''),
       caution: args.tone.noActionValue,
-      spark: args.tone.humor,
+      spark: actionCopy.spark || args.tone.humor,
       deep_link: 'today'
     },
     change_widget: {
       kind: 'CHANGE_ALERT',
-      title: args.recommendationChange.changed ? '判断有变化' : '判断保持稳定',
+      title: changeCopy.title,
       subtitle: args.recommendationChange.summary,
-      caption: args.wrapUp.ready ? '今晚可复盘' : '回来确认一次就够了',
-      spark: args.recommendationChange.changed ? args.tone.arrival : args.tone.noActionValue,
+      caption: args.wrapUp.ready
+        ? args.locale === 'zh'
+          ? '今晚可复盘'
+          : 'Wrap-up ready tonight'
+        : args.locale === 'zh'
+          ? '回来确认一次就够了'
+          : 'One calm check is enough',
+      spark: changeCopy.spark || (args.recommendationChange.changed ? args.tone.arrival : args.tone.noActionValue),
       deep_link: args.recommendationChange.changed ? 'today' : 'ai'
     }
   };
@@ -582,20 +609,22 @@ export function buildEngagementSnapshot(input: EngagementInput) {
   const currentSummary = parseJson(input.decisionRow?.summary_json);
   const previousSummary = input.previousDecisionRow ? parseJson(input.previousDecisionRow.summary_json) : null;
   const currentPortfolio = parseJson(input.decisionRow?.portfolio_context_json);
-  const tone = copyTone(String(currentSummary.risk_posture || 'WAIT'));
-  const recommendationChange = summarizeRecommendationChange(currentSummary, previousSummary);
+  const tone = copyTone(String(currentSummary.risk_posture || 'WAIT'), input.locale);
+  const recommendationChange = summarizeRecommendationChange(currentSummary, previousSummary, input.locale);
   const dailyCheckState = buildDailyCheckState({
     localDate: input.localDate,
     localHour: input.localHour,
     decisionSummary: currentSummary,
     recommendationChange,
     rituals: input.ritualEvents,
-    tone
+    tone,
+    locale: input.locale
   });
   const habitState = buildHabitState({
     localDate: input.localDate,
     rituals: input.ritualEvents,
-    tone
+    tone,
+    locale: input.locale
   });
   const dailyWrapUp = buildWrapUp({
     localDate: input.localDate,
@@ -603,7 +632,8 @@ export function buildEngagementSnapshot(input: EngagementInput) {
     currentSummary,
     previousSummary,
     tone,
-    rituals: input.ritualEvents
+    rituals: input.ritualEvents,
+    locale: input.locale
   });
   const notifications = buildNotificationCandidates({
     userId: input.userId,
@@ -616,14 +646,16 @@ export function buildEngagementSnapshot(input: EngagementInput) {
     recommendationChange,
     currentSummary,
     currentPortfolio,
-    prefs: input.notificationPreferences
+    prefs: input.notificationPreferences,
+    locale: input.locale
   });
   const widgetSummary = buildWidgetSummary({
     dailyCheckState,
     recommendationChange,
     currentSummary,
     wrapUp: dailyWrapUp,
-    tone
+    tone,
+    locale: input.locale
   });
 
   return {

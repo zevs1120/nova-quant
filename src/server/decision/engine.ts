@@ -7,6 +7,11 @@ import type {
   UserRiskProfileRecord
 } from '../types.js';
 import { RUNTIME_STATUS, normalizeRuntimeStatus } from '../runtimeStatus.js';
+import {
+  getDailyStanceCopy,
+  getPortfolioActionLabel,
+  getTodayRiskCopy
+} from '../../copy/novaCopySystem.js';
 
 type UiSignal = Record<string, unknown>;
 type EvidenceSignal = Record<string, unknown>;
@@ -44,6 +49,7 @@ type DecisionEngineInput = {
   market: Market;
   assetClass?: AssetClass;
   asOf: string;
+  locale?: string;
   runtimeSourceStatus: string;
   riskProfile: UserRiskProfileRecord | null;
   signals: UiSignal[];
@@ -310,6 +316,7 @@ function deriveRiskState(args: {
   runtimeSourceStatus: string;
   riskProfile: UserRiskProfileRecord | null;
   executions?: ExecutionRecord[];
+  locale?: string;
 }) {
   const rows = args.marketState || [];
   const avg = (field: keyof MarketStateRecord, fallback: number | null = null) => {
@@ -343,32 +350,26 @@ function deriveRiskState(args: {
     posture = 'ATTACK';
   }
 
-  const summary =
-    posture === 'ATTACK'
-      ? '今天可进攻'
-      : posture === 'PROBE'
-        ? '今天适合试探，不适合激进'
-        : posture === 'DEFEND'
-          ? '今天优先防守'
-          : '今天不建议做高风险动作';
-
-  const simpleLabel =
-    posture === 'ATTACK' ? '可行动' : posture === 'PROBE' ? '可试探' : posture === 'DEFEND' ? '要防守' : '先等待';
+  const summary = getDailyStanceCopy({
+    posture,
+    locale: args.locale,
+    variant: posture === 'DEFEND' || posture === 'WAIT' ? 'restrained' : 'standard',
+    seed: `${posture}:${avgVol ?? 'na'}:${avgRiskOff ?? 'na'}`
+  });
+  const riskCopy = getTodayRiskCopy({
+    posture,
+    locale: args.locale,
+    changed: false,
+    seed: `${posture}:${avgVol ?? 'na'}:${avgRiskOff ?? 'na'}`
+  });
 
   return {
     source_status: normalizeRuntimeStatus(args.runtimeSourceStatus, RUNTIME_STATUS.INSUFFICIENT_DATA),
     data_status: normalizeRuntimeStatus(args.runtimeSourceStatus, RUNTIME_STATUS.INSUFFICIENT_DATA),
     posture,
     summary,
-    simple_label: simpleLabel,
-    user_message:
-      posture === 'ATTACK'
-        ? 'Risk conditions allow selective action.'
-        : posture === 'PROBE'
-          ? 'Take only the clearest setups and keep size controlled.'
-          : posture === 'DEFEND'
-            ? 'Capital protection is the priority today.'
-            : 'Data or market conditions are not clean enough for high-risk actions.',
+    simple_label: riskCopy.label,
+    user_message: riskCopy.explanation,
     drivers: [
       avgVol === null ? 'Volatility regime unavailable.' : `Average volatility percentile ${avgVol.toFixed(1)}.`,
       avgRiskOff === null ? 'Risk-off regime unavailable.' : `Average risk-off score ${avgRiskOff.toFixed(2)}.`,
@@ -397,13 +398,14 @@ function buildActionIntent(args: {
   riskPosture: 'ATTACK' | 'PROBE' | 'DEFEND' | 'WAIT';
   portfolioContext: ReturnType<typeof buildPortfolioContext>;
   holdingWeight: number;
+  locale?: string;
 }) {
   const direction = directionText(args.signal.direction);
   const actionable = isActionable(args.signal);
   if (!actionable) {
     return {
       action: 'watch_only',
-      action_label: 'Watch only',
+      action_label: getPortfolioActionLabel('watch_only', args.locale),
       eligible: false,
       rationale: 'Evidence exists, but the setup is not executable right now.'
     };
@@ -411,7 +413,7 @@ function buildActionIntent(args: {
   if (direction === 'SHORT' && args.holdingWeight > 0) {
     return {
       action: 'reduce_risk',
-      action_label: 'Reduce risk',
+      action_label: getPortfolioActionLabel('reduce_risk', args.locale),
       eligible: true,
       rationale: 'You already hold this exposure and the system is now leaning against it.'
     };
@@ -419,7 +421,7 @@ function buildActionIntent(args: {
   if (args.riskPosture === 'DEFEND') {
     return {
       action: args.holdingWeight > 0 ? 'defensive_hold' : 'no_action',
-      action_label: args.holdingWeight > 0 ? 'Defensive hold' : 'Wait',
+      action_label: getPortfolioActionLabel(args.holdingWeight > 0 ? 'defensive_hold' : 'no_action', args.locale),
       eligible: args.holdingWeight > 0,
       rationale: 'Risk posture is defensive, so new directional risk should be limited.'
     };
@@ -428,14 +430,14 @@ function buildActionIntent(args: {
     if (args.holdingWeight >= 18) {
       return {
         action: 'defensive_hold',
-        action_label: 'Hold / do not add',
+        action_label: getPortfolioActionLabel('defensive_hold', args.locale),
         eligible: true,
         rationale: 'You already carry a meaningful position here. Protect the existing exposure first.'
       };
     }
     return {
       action: 'add_on_strength',
-      action_label: 'Add on strength',
+      action_label: getPortfolioActionLabel('add_on_strength', args.locale),
       eligible: true,
       rationale: 'The setup is aligned with an existing position and portfolio exposure is still manageable.'
     };
@@ -443,7 +445,7 @@ function buildActionIntent(args: {
   if (direction === 'SHORT' && args.portfolioContext.total_weight_pct > 30) {
     return {
       action: 'hedge',
-      action_label: 'Hedge / de-risk',
+      action_label: getPortfolioActionLabel('hedge', args.locale),
       eligible: true,
       rationale: 'The short setup can be used as a portfolio hedge against existing long exposure.'
     };
@@ -451,14 +453,14 @@ function buildActionIntent(args: {
   if (args.riskPosture === 'PROBE') {
     return {
       action: 'open_new_risk',
-      action_label: 'Probe small',
+      action_label: getPortfolioActionLabel('open_new_risk', args.locale),
       eligible: true,
       rationale: 'Conditions allow only selective new exposure. Keep size small.'
     };
   }
   return {
     action: 'open_new_risk',
-    action_label: 'Open new risk',
+    action_label: getPortfolioActionLabel('open_new_risk', args.locale),
     eligible: true,
     rationale: 'Risk posture allows a fresh position if the setup remains valid.'
   };
@@ -575,6 +577,7 @@ function buildNoActionCard(args: {
   riskState: ReturnType<typeof deriveRiskState>;
   portfolioContext: ReturnType<typeof buildPortfolioContext>;
   overallStatus: string;
+  locale?: string;
 }) {
   const status = alignTransparency({
     overallStatus: args.overallStatus,
@@ -588,7 +591,7 @@ function buildNoActionCard(args: {
     market: 'ALL' as const,
     asset_class: 'ALL' as const,
     action: 'no_action',
-    action_label: args.riskState.posture === 'DEFEND' ? 'Wait / defend' : 'Wait',
+    action_label: getPortfolioActionLabel('no_action', args.locale),
     portfolio_intent: 'no_action',
     confidence: 0,
     conviction_label: 'Low',
@@ -637,7 +640,8 @@ export function buildDecisionSnapshot(input: DecisionEngineInput) {
     marketState: input.marketState || [],
     runtimeSourceStatus: overallStatus,
     riskProfile: input.riskProfile,
-    executions: input.executions
+    executions: input.executions,
+    locale: input.locale
   });
 
   const portfolioContextBase = buildPortfolioContext({
@@ -664,7 +668,8 @@ export function buildDecisionSnapshot(input: DecisionEngineInput) {
         signal,
         riskPosture: riskState.posture,
         portfolioContext: portfolioContextBase,
-        holdingWeight
+        holdingWeight,
+        locale: input.locale
       });
       const evidenceBundle = buildEvidenceBundle({
         signal,
@@ -726,7 +731,8 @@ export function buildDecisionSnapshot(input: DecisionEngineInput) {
         asOf: input.asOf,
         riskState,
         portfolioContext: portfolioContextBase,
-        overallStatus
+        overallStatus,
+        locale: input.locale
       })
     );
   }
