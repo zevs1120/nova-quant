@@ -26,7 +26,7 @@ export default function AboutModal({ open, onClose, config, t, locale }) {
           </div>
           <div className="detail-row">
             <span className="detail-label">{t('about.appVersion')}</span>
-            <span className="detail-value">{config.app_version}</span>
+            <span className="detail-value">{config.app_version_label || config.app_version}</span>
           </div>
           {config.build_number ? (
             <div className="detail-row">

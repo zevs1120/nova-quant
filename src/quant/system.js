@@ -1,5 +1,5 @@
 import { buildSampleMarketData } from './sampleData.js';
-import { APP_BUILD_NUMBER, APP_VERSION } from '../config/version.js';
+import { APP_BUILD_NUMBER, APP_VERSION, APP_VERSION_LABEL } from '../config/version.js';
 import {
   annualizedVolatility,
   clamp,
@@ -17,7 +17,7 @@ import {
   sum
 } from './math.js';
 
-const PIPELINE_VERSION = 'nova-quant-v1.0.0';
+const PIPELINE_VERSION = `nova-quant-v${APP_VERSION}`;
 
 const RISK_PROFILES = {
   conservative: {
@@ -1576,6 +1576,7 @@ function buildConfig(asOf, profileKey, safetyLayer, strategyConfig) {
   const profile = RISK_PROFILES[profileKey] || RISK_PROFILES.balanced;
   return {
     app_version: APP_VERSION,
+    app_version_label: APP_VERSION_LABEL,
     build_number: APP_BUILD_NUMBER,
     team: 'Nova Quant Research',
     disclaimer:

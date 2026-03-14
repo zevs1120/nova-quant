@@ -1,7 +1,7 @@
 {
   "name": "nova-quant",
   "private": true,
-  "version": "2.0.0",
+  "version": "2.0.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,6 +10,7 @@
     "clean": "node scripts/clean-worktree.mjs",
     "lint": "node scripts/check-repo-policy.mjs",
     "typecheck": "tsc --noEmit",
+    "version:current": "node scripts/version-manager.mjs current",
     "version:major": "node scripts/version-manager.mjs major",
     "version:minor": "node scripts/version-manager.mjs minor",
     "version:patch": "node scripts/version-manager.mjs patch",

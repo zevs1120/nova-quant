@@ -2,6 +2,12 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 2.0.1 (2026-03-14)
+- Release type: patch
+- Hardened version management into a single package.json-driven release flow with generated runtime metadata.
+- Added version:current, README sync, changelog summaries, and About/runtime version consistency updates.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
 ## 2.0.0 (2026-03-14)
 - Release type: major
 - Moved Nova onto a single-machine Apple Silicon local stack via Ollama at `http://127.0.0.1:11434/v1`.
