@@ -1,5 +1,45 @@
 # Nova Quant Implementation Log
 
+## 2026-03-14 — Playful Interaction / Ritual Motion / Mature Personality Upgrade
+
+### What was implemented
+1. Extended the engagement engine so ritual state now carries richer arrival/copy/motion fields:
+- `arrival_line`
+- `ritual_line`
+- `humor_line`
+- `cta_label`
+- `ai_cta_label`
+- `opening_line`
+- widget `spark`
+- `ui_regime_state.motion`
+
+2. Upgraded Today into a more ritualized Morning Check surface without breaking the minimal homepage:
+- top action card now reflects:
+  - updated vs stable
+  - no-action day vs action day
+  - checked vs refresh-needed
+- Morning Check now feels like a small completion ritual rather than a plain utility card.
+
+3. Added state-driven motion/tone rules in the shared stylesheet:
+- `ui-tone-*`
+- `ui-motion-*`
+- ritual reveal timing
+- subtle no-action / defensive / watchful / opportunity differences
+
+4. Improved assistant tone grounding:
+- prompts now explicitly allow calm, dry wit
+- responses should make restraint feel intelligent, not empty
+- demo assistant wording is more characteristic and less generic
+
+5. Added interaction spec:
+- `docs/PLAYFUL_INTERACTION_SYSTEM.md`
+
+### Verification
+- `npm run -s typecheck` passed
+- engagement/research/assistant tests passed
+- `npm run -s build` passed
+- `npm run -s verify` passed
+
 ## 2026-03-14 — Engagement / Morning Check / Calm Recall Upgrade
 
 ### What was implemented

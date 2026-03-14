@@ -72,7 +72,18 @@ function copyTone(posture: string) {
       user_label: '可行动',
       widget_label: '可试探进攻',
       completion: '今天的重点不是多做，而是只做最清楚的那一下。',
-      noActionValue: '今天有机会，但依然不需要急。'
+      noActionValue: '今天有机会，但依然不需要急。',
+      arrival: '今天的结论已经到了，轮到你确认，不轮到你兴奋。',
+      ritual: '先确认，再动手。今天不需要证明判断力。',
+      humor: '市场给了机会，但还没给你放大自信的许可。',
+      protective: '先把手从加仓键上挪开，结论会比冲动更快到位。',
+      wrap: '把今天收束好，明天的判断会更利落。',
+      motion: {
+        entry: 'clear',
+        settle: 'confident',
+        emphasis: 'crisp',
+        pulse: 'brief'
+      }
     };
   }
   if (upper === 'PROBE') {
@@ -82,7 +93,18 @@ function copyTone(posture: string) {
       user_label: '可试探',
       widget_label: '轻试探',
       completion: '今天更像校准判断，不像放大风险。',
-      noActionValue: '今天真正值钱的，是保持选择性。'
+      noActionValue: '今天真正值钱的，是保持选择性。',
+      arrival: '今天的气候更适合校准，不适合放大情绪。',
+      ritual: '看一眼结论，够了。今天不是信息吃到撑的日子。',
+      humor: '可以试探，但别把一点把握误读成全场明牌。',
+      protective: '今天市场会递给你几个看起来像机会的东西，先别急着签收。',
+      wrap: '今天的价值可能不在动作，而在没有让自己失真。',
+      motion: {
+        entry: 'measured',
+        settle: 'watchful',
+        emphasis: 'soft',
+        pulse: 'gentle'
+      }
     };
   }
   if (upper === 'DEFEND') {
@@ -92,7 +114,18 @@ function copyTone(posture: string) {
       user_label: '优先防守',
       widget_label: '偏防守',
       completion: '今天完成判断，比贸然动作更有价值。',
-      noActionValue: '系统今天在保护你，而不是催你出手。'
+      noActionValue: '系统今天在保护你，而不是催你出手。',
+      arrival: '今天的结论不是兴奋，而是边界。',
+      ritual: '先确认风险，再确认自己不需要逞强。',
+      humor: '今天如果你想证明什么，市场大概率不会配合。',
+      protective: '这不是退缩，是把不必要的风险挡在门外。',
+      wrap: '今天最好的动作，可能已经在你没有追出去的那一刻完成了。',
+      motion: {
+        entry: 'steady',
+        settle: 'guarded',
+        emphasis: 'contained',
+        pulse: 'low'
+      }
     };
   }
   return {
@@ -101,7 +134,18 @@ function copyTone(posture: string) {
     user_label: '先等待',
     widget_label: '先确认',
     completion: '今天先确认，不急着证明什么。',
-    noActionValue: '无动作本身就是有效判断。'
+    noActionValue: '无动作本身就是有效判断。',
+    arrival: '今天的状态更像留白，不像进攻。',
+    ritual: '把今天先看清，比急着解释市场更重要。',
+    humor: '今天市场说了很多话，但没说出一句值得你立刻相信的。',
+    protective: '别把空白误会成无聊。很多错误都从填满空白开始。',
+    wrap: '今天如果你没有乱动，这一天已经很完整。',
+    motion: {
+      entry: 'quiet',
+      settle: 'calm',
+      emphasis: 'minimal',
+      pulse: 'none'
+    }
   };
 }
 
@@ -215,6 +259,12 @@ function buildDailyCheckState(args: {
         ? '不用研究很久，只要确认今天该不该动。'
         : '今天还没完成判断确认，先看结论，再决定要不要动。 ',
     why_now: String(todayCall.subtitle || args.recommendationChange.summary || ''),
+    arrival_line: args.tone.arrival,
+    ritual_line: args.tone.ritual,
+    humor_line: status === 'COMPLETED' ? args.tone.completion : args.tone.humor,
+    cta_label:
+      status === 'COMPLETED' ? 'Today noted' : status === 'REFRESH_REQUIRED' ? 'Re-check today' : 'Confirm today',
+    ai_cta_label: status === 'REFRESH_REQUIRED' ? 'What changed?' : 'Why this view?',
     completed_at_ms: todayEvent?.updated_at_ms || null,
     completion_feedback:
       status === 'COMPLETED'
@@ -304,6 +354,7 @@ function buildWrapUp(args: {
     short_label: completed ? '已复盘' : ready ? '可复盘' : '稍后',
     headline: completed ? '今天的复盘已完成' : '今晚值得看一眼复盘',
     summary: mostImportant,
+    opening_line: args.tone.wrap,
     lessons: [
       args.tone.noActionValue,
       currentSymbol
@@ -389,6 +440,7 @@ function buildNotificationCandidates(args: {
 }) {
   const quiet = inQuietHours(args.localHour, args.prefs);
   const notifications: NotificationEventRecord[] = [];
+  const todayCall = (args.currentSummary.today_call as JsonObject | undefined) || {};
 
   if (args.prefs.morning_enabled && args.dailyCheckState.status !== 'COMPLETED') {
     notifications.push(
@@ -399,7 +451,10 @@ function buildNotificationCandidates(args: {
         category: 'RHYTHM',
         triggerType: 'morning_check_due',
         title: '今早判断已更新',
-        body: quiet ? '系统已更新今天的判断，安静时段后再回来确认也可以。' : '今天先回来确认一次，不急着动作。',
+        body:
+          quiet
+            ? '判断已经更新。安静时段后再回来确认，也完全来得及。'
+            : `${String(todayCall.headline || '今天的判断已经到了')}。先确认，再决定。`,
         tone: 'calm',
         actionTarget: 'today',
         reason: {
@@ -419,8 +474,11 @@ function buildNotificationCandidates(args: {
         assetClass: args.assetClass,
         category: 'STATE_SHIFT',
         triggerType: String(args.recommendationChange.change_type),
-        title: '系统更新了判断',
-        body: args.recommendationChange.summary,
+        title: args.recommendationChange.change_type === 'risk_shift' ? '今天的气候变了' : '榜首卡片换人了',
+        body:
+          args.recommendationChange.change_type === 'risk_shift'
+            ? `${args.recommendationChange.summary} 先重新校准，不急着延续昨天。`
+            : `${args.recommendationChange.summary} 这更像判断更新，不像行情噪音。`,
         tone: 'measured',
         actionTarget: 'today',
         reason: args.recommendationChange as unknown as JsonObject
@@ -442,7 +500,9 @@ function buildNotificationCandidates(args: {
           title: '现在更值得做的是克制',
           body:
             posture === 'DEFEND' || posture === 'WAIT'
-              ? '今天不是加大风险暴露的好时点。'
+              ? todayCall.subtitle
+                ? String(todayCall.subtitle)
+                : '今天不是加大风险暴露的好时点。'
               : '你当前的曝险已经不轻，新增动作更应该谨慎。',
           tone: 'protective',
           actionTarget: 'ai',
@@ -465,7 +525,7 @@ function buildNotificationCandidates(args: {
         category: 'WRAP_UP',
         triggerType: 'daily_wrap_up_ready',
         title: '今晚的复盘已经准备好',
-        body: '今天最有价值的，不一定是哪张卡，而是判断有没有变。',
+        body: `${args.wrapUp.opening_line} 今晚值得看一眼的，是今天的判断到底收束到了哪里。`,
         tone: 'reflective',
         actionTarget: 'more:weekly',
         reason: {
@@ -496,6 +556,7 @@ function buildWidgetSummary(args: {
       title: String(args.currentSummary.risk_summary || todayCall.headline || '先确认'),
       subtitle: args.dailyCheckState.headline,
       caption: args.tone.widget_label,
+      spark: args.dailyCheckState.ritual_line,
       deep_link: 'today'
     },
     action_widget: {
@@ -503,6 +564,7 @@ function buildWidgetSummary(args: {
       title: topSymbol === '--' ? '今天没有高优先级动作' : `${topSymbol} · ${topLabel}`,
       subtitle: String(todayCall.subtitle || args.currentSummary.user_message || ''),
       caution: args.tone.noActionValue,
+      spark: args.tone.humor,
       deep_link: 'today'
     },
     change_widget: {
@@ -510,6 +572,7 @@ function buildWidgetSummary(args: {
       title: args.recommendationChange.changed ? '判断有变化' : '判断保持稳定',
       subtitle: args.recommendationChange.summary,
       caption: args.wrapUp.ready ? '今晚可复盘' : '回来确认一次就够了',
+      spark: args.recommendationChange.changed ? args.tone.arrival : args.tone.noActionValue,
       deep_link: args.recommendationChange.changed ? 'today' : 'ai'
     }
   };
@@ -581,8 +644,15 @@ export function buildEngagementSnapshot(input: EngagementInput) {
       tone: tone.tone,
       accent: tone.accent,
       label: tone.user_label,
+      arrival_line: tone.arrival,
+      humor_line: tone.humor,
+      ritual_line: tone.ritual,
+      completion_line: tone.completion,
+      protective_line: tone.protective,
+      wrap_line: tone.wrap,
       card_emphasis: tone.tone === 'opportunity' ? 'elevated' : tone.tone === 'defensive' ? 'guarded' : 'steady',
-      motion_profile: tone.tone === 'opportunity' ? 'lift' : tone.tone === 'defensive' ? 'hold' : 'calm'
+      motion_profile: tone.tone === 'opportunity' ? 'lift' : tone.tone === 'defensive' ? 'hold' : tone.tone === 'watchful' ? 'drift' : 'calm',
+      motion: tone.motion
     },
     notification_preferences: input.notificationPreferences
   };

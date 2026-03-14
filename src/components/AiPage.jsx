@@ -153,8 +153,8 @@ function AiConversationShell({ messages, input, setInput, streaming, error, send
         <div className="ai-thread ai-tab-thread" ref={listRef}>
           {!messages.length ? (
             <article className="ai-empty">
-              <p>Start with one simple question.</p>
-              <p className="muted">Try “Why this signal?” or “Is this safe today?”</p>
+              <p>Start with today&apos;s one useful question.</p>
+              <p className="muted">Try “Why this signal?” or “Is this safe today?” Nova will keep it clear, not noisy.</p>
             </article>
           ) : (
             messages.map((item) =>

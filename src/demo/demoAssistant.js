@@ -86,8 +86,8 @@ export function buildDemoAssistantReply(question, state, context = {}) {
     const biggest = holdings[0];
     return structured({
       verdict: biggest
-        ? `${biggest.symbol || 'Your portfolio'} looks manageable, but the main focus is still keeping position sizes modest.`
-        : 'The demo portfolio is small and controlled, which is the main point to show an investor.',
+        ? `${biggest.symbol || 'Your portfolio'} is still manageable. The real point is not adding chaos on top of it.`
+        : 'The demo portfolio is intentionally controlled. That restraint is part of the story, not a missing feature.',
       plan: biggest
         ? [
             `Keep ${biggest.symbol || 'the largest position'} if it still matches the system direction.`,
@@ -117,7 +117,7 @@ export function buildDemoAssistantReply(question, state, context = {}) {
         'If the price jumps away from the buy zone, wait instead of chasing.'
       ],
       why: [
-        'The demo always keeps position size modest for beginner safety.',
+        'The demo keeps size modest on purpose. Confidence is not a license to get loud.',
         'Risk comes first because this product is built to reduce emotional mistakes.',
         signal ? `${signal.symbol} is shown because it is the cleanest setup in the demo pack today.` : 'There is no active demo signal right now.'
       ],

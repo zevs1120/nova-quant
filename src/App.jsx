@@ -740,11 +740,15 @@ export default function App() {
         engagementSummary: {
           morning_check_status: engagementState?.daily_check_state?.status || null,
           morning_check_label: engagementState?.daily_check_state?.headline || null,
+          morning_check_arrival: engagementState?.daily_check_state?.arrival_line || engagementState?.ui_regime_state?.arrival_line || null,
+          morning_check_ritual: engagementState?.daily_check_state?.ritual_line || engagementState?.ui_regime_state?.ritual_line || null,
           wrap_up_ready: Boolean(engagementState?.daily_wrap_up?.ready),
           wrap_up_completed: Boolean(engagementState?.daily_wrap_up?.completed),
+          wrap_up_line: engagementState?.daily_wrap_up?.opening_line || engagementState?.ui_regime_state?.wrap_line || null,
           discipline_score: Number(engagementState?.habit_state?.discipline_score || 0) || null,
           behavior_quality: engagementState?.habit_state?.behavior_quality || null,
-          recommendation_change: engagementState?.recommendation_change?.summary || null
+          recommendation_change: engagementState?.recommendation_change?.summary || null,
+          ui_tone: engagementState?.ui_regime_state?.tone || null
         },
         ...(context || {})
       }
@@ -1161,6 +1165,7 @@ export default function App() {
                     <p className="muted">{widget.kind.replace(/_/g, ' ')}</p>
                     <h2>{widget.title}</h2>
                     <p className="muted status-line">{widget.subtitle}</p>
+                    {widget.spark ? <p className="status-line widget-spark-line">{widget.spark}</p> : null}
                   </div>
                 ))}
               </div>
@@ -1181,6 +1186,7 @@ export default function App() {
                   <div key={item.id} className="quick-access-row notification-preview-row">
                     <span className="quick-access-title">{item.title}</span>
                     <span className="quick-access-desc">{item.body}</span>
+                    <span className="muted status-line notification-tone-line">{item.tone}</span>
                   </div>
                 ))}
               </div>
@@ -1198,6 +1204,9 @@ export default function App() {
                   {engagementState.daily_wrap_up.short_label}
                 </span>
               </div>
+              {engagementState.daily_wrap_up.opening_line ? (
+                <p className="status-line ritual-kicker">{engagementState.daily_wrap_up.opening_line}</p>
+              ) : null}
               <p className="daily-brief-conclusion">{engagementState.daily_wrap_up.summary}</p>
               <ul className="bullet-list">
                 {(engagementState.daily_wrap_up.lessons || []).map((line) => (
@@ -1359,11 +1368,15 @@ export default function App() {
             engagementSummary: {
               morning_check_status: engagementState?.daily_check_state?.status || null,
               morning_check_label: engagementState?.daily_check_state?.headline || null,
+              morning_check_arrival: engagementState?.daily_check_state?.arrival_line || engagementState?.ui_regime_state?.arrival_line || null,
+              morning_check_ritual: engagementState?.daily_check_state?.ritual_line || engagementState?.ui_regime_state?.ritual_line || null,
               wrap_up_ready: Boolean(engagementState?.daily_wrap_up?.ready),
               wrap_up_completed: Boolean(engagementState?.daily_wrap_up?.completed),
+              wrap_up_line: engagementState?.daily_wrap_up?.opening_line || engagementState?.ui_regime_state?.wrap_line || null,
               discipline_score: Number(engagementState?.habit_state?.discipline_score || 0) || null,
               behavior_quality: engagementState?.habit_state?.behavior_quality || null,
-              recommendation_change: engagementState?.recommendation_change?.summary || null
+              recommendation_change: engagementState?.recommendation_change?.summary || null,
+              ui_tone: engagementState?.ui_regime_state?.tone || null
             }
           }}
         />
@@ -1414,10 +1427,15 @@ export default function App() {
       : TAB_META[activeTab]?.label || 'Today';
 
   const appTone = engagementState?.ui_regime_state?.tone || 'quiet';
+  const motionProfile = engagementState?.ui_regime_state?.motion_profile || 'calm';
+  const dailyCheckState = String(engagementState?.daily_check_state?.status || 'PENDING').toLowerCase();
 
   return (
     <div className={`app-bg app-bg-${displayMode} app-tone-${appTone}`}>
-      <div className={`device-shell device-shell-${displayMode} ui-tone-${appTone}`} data-active-tab={activeTab}>
+      <div
+        className={`device-shell device-shell-${displayMode} ui-tone-${appTone} ui-motion-${motionProfile} daily-check-${dailyCheckState}`}
+        data-active-tab={activeTab}
+      >
         <header className="top-bar">
           <div>
             <p className="brand">{t('app.brand')}</p>

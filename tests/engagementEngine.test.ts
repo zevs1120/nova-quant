@@ -77,10 +77,15 @@ describe('engagement engine', () => {
     });
 
     expect(snapshot.daily_check_state.status).toBe('PENDING');
+    expect(snapshot.daily_check_state.arrival_line).toContain('今天');
+    expect(snapshot.daily_check_state.ritual_line).toBeTruthy();
+    expect(snapshot.daily_check_state.cta_label).toBe('Confirm today');
     expect(snapshot.habit_state.checkedToday).toBe(false);
     expect(snapshot.widget_summary.state_widget.title).toContain('今天');
+    expect(snapshot.widget_summary.state_widget.spark).toBeTruthy();
     expect(snapshot.notification_center.notifications.length).toBeGreaterThan(0);
     expect(snapshot.ui_regime_state.tone).toBe('watchful');
+    expect(snapshot.ui_regime_state.motion).toHaveProperty('entry');
   });
 
   it('marks completed states and exposes wrap-up once the day is late enough', () => {
@@ -115,9 +120,11 @@ describe('engagement engine', () => {
     });
 
     expect(snapshot.daily_check_state.status).toBe('COMPLETED');
+    expect(snapshot.daily_check_state.humor_line).toBeTruthy();
     expect(snapshot.habit_state.checkedToday).toBe(true);
     expect(snapshot.daily_wrap_up.ready).toBe(true);
     expect(snapshot.daily_wrap_up.completed).toBe(true);
+    expect(snapshot.daily_wrap_up.opening_line).toBeTruthy();
     expect(snapshot.recommendation_change.changed).toBe(true);
     expect(snapshot.recommendation_change.change_type).toBe('risk_shift');
   });

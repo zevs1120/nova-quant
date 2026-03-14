@@ -30,11 +30,15 @@ export interface ChatContextInput {
   engagementSummary?: {
     morning_check_status?: string | null;
     morning_check_label?: string | null;
+    morning_check_arrival?: string | null;
+    morning_check_ritual?: string | null;
     wrap_up_ready?: boolean;
     wrap_up_completed?: boolean;
+    wrap_up_line?: string | null;
     discipline_score?: number | null;
     behavior_quality?: string | null;
     recommendation_change?: string | null;
+    ui_tone?: string | null;
   };
 }
 

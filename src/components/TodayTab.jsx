@@ -294,6 +294,15 @@ function strategySourceText(signal) {
   return signal?.strategy_source || 'AI quant strategy';
 }
 
+function triggerFeedback(kind = 'soft') {
+  if (typeof navigator === 'undefined' || typeof navigator.vibrate !== 'function') return;
+  if (kind === 'confirm') {
+    navigator.vibrate([8, 22, 10]);
+    return;
+  }
+  navigator.vibrate(8);
+}
+
 function buildDemoFallbackSignal(assetClass, now) {
   const generatedAt = new Date(now.getTime() - 4 * 60 * 1000).toISOString();
   if (assetClass === 'CRYPTO') {
@@ -498,12 +507,30 @@ export default function TodayTab({
   const buttonText = mainButtonLabel(overall.code);
   const morningCheck = engagement?.daily_check_state || null;
   const wrapUp = engagement?.daily_wrap_up || null;
+  const uiRegime = engagement?.ui_regime_state || null;
+  const recommendationChange = engagement?.recommendation_change || null;
+  const noActionDay = !featuredSignal || !featuredSignal._actionable || overall.code === 'WAIT' || overall.code === 'DEFENSE' || overall.code === 'NO_TRADE';
+  const actionCardLead = noActionDay
+    ? uiRegime?.protective_line || morningCheck?.arrival_line || '今天的重点不是找动作，而是把边界看清。'
+    : morningCheck?.arrival_line || uiRegime?.arrival_line || '今天的结论已经到了，先确认，再动手。';
+  const actionCardSubline = recommendationChange?.changed
+    ? recommendationChange.summary
+    : noActionDay
+      ? morningCheck?.ritual_line || uiRegime?.ritual_line || '今天先看清，比急着表态更值钱。'
+      : featuredSignal?.brief_why_now || morningCheck?.ritual_line || '这张卡排第一，不代表今天要放大动作。';
+  const actionStateBadges = [
+    featuredSignal ? { key: 'rank', label: 'Rank #1', tone: 'badge-neutral' } : null,
+    recommendationChange?.changed ? { key: 'change', label: 'Updated', tone: 'badge-medium' } : null,
+    morningCheck?.status === 'COMPLETED' ? { key: 'checked', label: 'Checked', tone: 'badge-triggered' } : null,
+    noActionDay ? { key: 'restraint', label: 'No rush', tone: 'badge-neutral' } : null
+  ].filter(Boolean);
 
   if (activeSignal) {
     return <SignalDetail signal={activeSignal} onBack={() => setActiveSignal(null)} t={(key, _v, fallback) => fallback || key} />;
   }
 
   const handleMainAction = () => {
+    triggerFeedback(overall.code === 'TRADE' ? 'confirm' : 'soft');
     if (overall.code === 'TRADE' && featuredSignal && featuredSignal._actionable) {
       onCompleteCheckIn?.();
       onPaperExecute?.(featuredSignal);
@@ -521,13 +548,21 @@ export default function TodayTab({
     <section className="stack-gap">
       <section className="today-fold">
         <article
-          className="glass-card beginner-best-suggestion today-action-card-compact"
+          className={`glass-card beginner-best-suggestion today-action-card-compact ritual-card ritual-reveal ritual-delay-1 ${noActionDay ? 'is-no-action-day' : 'is-action-day'} ${
+            recommendationChange?.changed ? 'is-updated' : ''
+          } ${morningCheck?.status === 'COMPLETED' ? 'is-confirmed' : ''}`}
           role="button"
           tabIndex={0}
-          onClick={() => featuredSignal && setActiveSignal(featuredSignal)}
+          onClick={() => {
+            if (featuredSignal) {
+              triggerFeedback('soft');
+              setActiveSignal(featuredSignal);
+            }
+          }}
           onKeyDown={(event) => {
             if ((event.key === 'Enter' || event.key === ' ') && featuredSignal) {
               event.preventDefault();
+              triggerFeedback('soft');
               setActiveSignal(featuredSignal);
             }
           }}
@@ -535,18 +570,33 @@ export default function TodayTab({
           <div className="card-header today-action-header">
             <div>
               <h3 className="card-title">Today&apos;s Best Action</h3>
-              <p className="muted">The clearest move on the board right now.</p>
+              <p className="muted">{actionCardLead}</p>
             </div>
-            {featuredSignal ? <span className="badge badge-triggered">{confidenceText(featuredSignal)}</span> : null}
+            <div className="signal-badge-row">
+              {featuredSignal ? <span className={`badge ${noActionDay ? 'badge-neutral' : 'badge-triggered'}`}>{confidenceText(featuredSignal)}</span> : null}
+              {actionStateBadges.map((item) => (
+                <span key={item.key} className={`badge ${item.tone}`}>
+                  {item.label}
+                </span>
+              ))}
+            </div>
           </div>
+          <p className="ritual-kicker">{actionCardSubline}</p>
           {!featuredSignal ? (
-            <p className="muted status-line">No high-quality opportunity now. Wait for next clean setup.</p>
+            <p className="muted status-line">
+              {uiRegime?.completion_line || 'No high-quality opportunity now. Waiting is the cleanest action on the board.'}
+            </p>
           ) : (
             <>
               <p className="today-action-line">
                 {featuredSignal.symbol || '--'} · {featuredSignal._actionable ? String(signalDirection(featuredSignal)).toUpperCase() : 'WAIT'}
               </p>
-              {featuredSignal.brief_why_now ? <p className="muted status-line">{featuredSignal.brief_why_now}</p> : null}
+              <p className="muted status-line">
+                {featuredSignal.brief_why_now ||
+                  (noActionDay
+                    ? uiRegime?.humor_line || '市场给了波动，但没给出需要你立刻处理的确定性。'
+                    : '这张卡现在最值得看，但不值得你失去纪律。')}
+              </p>
               <div className="today-action-grid">
                 <div className="status-box">
                   <p className="muted">Buy Zone</p>
@@ -569,7 +619,12 @@ export default function TodayTab({
                 {strategySourceText(featuredSignal)} · {generatedText(featuredSignal)}
                 {featuredSignal?.portfolio_intent ? ` · ${String(featuredSignal.portfolio_intent).replace(/_/g, ' ')}` : ''}
               </p>
-              {featuredSignal?.risk_note ? <p className="muted status-line">{featuredSignal.risk_note}</p> : null}
+              <p className="muted status-line">
+                {featuredSignal?.risk_note ||
+                  (noActionDay
+                    ? morningCheck?.completion_feedback || uiRegime?.protective_line || '今天系统更重视边界，而不是新风险。'
+                    : uiRegime?.humor_line || '可以看，但别把一点把握误读成全场明牌。')}
+              </p>
               <div className="action-row today-action-row">
                 <button
                   type="button"
@@ -582,17 +637,25 @@ export default function TodayTab({
                   {featuredSignal._actionable ? 'Take Action' : buttonText}
                 </button>
               </div>
+              <p className="muted status-line action-card-footnote">
+                {morningCheck?.status === 'COMPLETED'
+                  ? morningCheck.completion_feedback
+                  : noActionDay
+                    ? uiRegime?.completion_line || '今天最重要的动作，可能已经在你没有追出去的时候完成了。'
+                    : morningCheck?.ritual_line || '先确认，再决定要不要把风险放大。'}
+              </p>
             </>
           )}
         </article>
 
-        <div className="today-status-grid">
-          <article className="glass-card beginner-today-overall today-compact-info-card">
+        <div className="today-status-grid ritual-delay-2">
+          <article className={`glass-card beginner-today-overall today-compact-info-card state-card state-card-${uiRegime?.tone || 'quiet'}`}>
             <h3 className="card-title">{overall.headline}</h3>
             <p className="muted status-line">{overall.subtitle}</p>
+            {uiRegime?.arrival_line ? <p className="ritual-kicker">{uiRegime.arrival_line}</p> : null}
           </article>
 
-          <article className="glass-card beginner-risk-card today-compact-info-card">
+          <article className={`glass-card beginner-risk-card today-compact-info-card state-card state-card-${uiRegime?.tone || 'quiet'}`}>
             <h3 className="card-title">Risk</h3>
             <div className="simple-risk-track" aria-label={`Risk level ${risk.label}`}>
               <div className={`simple-risk-fill simple-risk-${risk.level}`} />
@@ -601,11 +664,14 @@ export default function TodayTab({
               {risk.icon} {risk.label}
             </p>
             <p className="muted status-line">{risk.explanation}</p>
+            {uiRegime?.ritual_line ? <p className="ritual-kicker">{uiRegime.ritual_line}</p> : null}
           </article>
         </div>
 
         {morningCheck ? (
-          <article className="glass-card morning-check-card">
+          <article
+            className={`glass-card morning-check-card ritual-card ritual-delay-3 morning-check-${String(morningCheck.status || '').toLowerCase()}`}
+          >
             <div className="card-header">
               <div>
                 <h3 className="card-title">{morningCheck.title}</h3>
@@ -615,16 +681,33 @@ export default function TodayTab({
                 {morningCheck.short_label}
               </span>
             </div>
+            {morningCheck.arrival_line ? <p className="ritual-kicker">{morningCheck.arrival_line}</p> : null}
             <p className="daily-brief-conclusion">{morningCheck.prompt}</p>
+            {morningCheck.ritual_line ? <p className="status-line">{morningCheck.ritual_line}</p> : null}
             {morningCheck.why_now ? <p className="muted status-line">{morningCheck.why_now}</p> : null}
             <div className="action-row">
-              <button type="button" className="primary-btn" onClick={() => onCompleteCheckIn?.()}>
-                {morningCheck.status === 'COMPLETED' ? 'Checked for today' : morningCheck.status === 'REFRESH_REQUIRED' ? 'Review updated view' : 'Confirm today’s view'}
+              <button
+                type="button"
+                className="primary-btn"
+                onClick={() => {
+                  triggerFeedback('confirm');
+                  onCompleteCheckIn?.();
+                }}
+              >
+                {morningCheck.cta_label || (morningCheck.status === 'COMPLETED' ? 'Checked for today' : morningCheck.status === 'REFRESH_REQUIRED' ? 'Review updated view' : 'Confirm today’s view')}
               </button>
-              <button type="button" className="secondary-btn" onClick={() => onAskAi?.('Why today’s view?', { page: 'today', focus: 'morning_check' })}>
-                Ask Nova
+              <button
+                type="button"
+                className="secondary-btn"
+                onClick={() => {
+                  triggerFeedback('soft');
+                  onAskAi?.('Why today’s view?', { page: 'today', focus: 'morning_check' });
+                }}
+              >
+                {morningCheck.ai_cta_label || 'Ask Nova'}
               </button>
             </div>
+            {morningCheck.humor_line ? <p className="ritual-kicker">{morningCheck.humor_line}</p> : null}
             {morningCheck.completion_feedback ? <p className="muted status-line">{morningCheck.completion_feedback}</p> : null}
           </article>
         ) : null}
@@ -645,8 +728,11 @@ export default function TodayTab({
               <button
                 key={signal.signal_id}
                 type="button"
-                className="demo-history-row"
-                onClick={() => setActiveSignal(signal)}
+                className={`demo-history-row ${signal.symbol === recommendationChange?.current?.top_action_symbol ? 'is-promoted' : ''}`}
+                onClick={() => {
+                  triggerFeedback('soft');
+                  setActiveSignal(signal);
+                }}
               >
                 <div>
                   <p className="quick-access-title">{signal.symbol}</p>
@@ -667,7 +753,7 @@ export default function TodayTab({
       ) : null}
 
       {wrapUp?.ready ? (
-        <article className="glass-card wrap-up-card">
+        <article className={`glass-card wrap-up-card ritual-card ritual-delay-4 ${wrapUp.completed ? 'is-confirmed' : ''}`}>
           <div className="card-header">
             <div>
               <h3 className="card-title">{wrapUp.title}</h3>
@@ -675,15 +761,31 @@ export default function TodayTab({
             </div>
             <span className={`badge ${wrapUp.completed ? 'badge-triggered' : 'badge-neutral'}`}>{wrapUp.short_label}</span>
           </div>
+          {wrapUp.opening_line ? <p className="ritual-kicker">{wrapUp.opening_line}</p> : null}
           <p className="muted status-line">{wrapUp.summary}</p>
           <div className="action-row">
-            <button type="button" className="secondary-btn" onClick={() => onOpenWeekly?.()}>
+            <button
+              type="button"
+              className="secondary-btn"
+              onClick={() => {
+                triggerFeedback('soft');
+                onOpenWeekly?.();
+              }}
+            >
               Open Wrap-Up
             </button>
-            <button type="button" className="secondary-btn" onClick={() => onAskAi?.('What mattered most today?', { page: 'today', focus: 'wrap_up' })}>
+            <button
+              type="button"
+              className="secondary-btn"
+              onClick={() => {
+                triggerFeedback('soft');
+                onAskAi?.('What mattered most today?', { page: 'today', focus: 'wrap_up' });
+              }}
+            >
               Ask Nova
             </button>
           </div>
+          {wrapUp.completion_feedback ? <p className="muted status-line">{wrapUp.completion_feedback}</p> : null}
         </article>
       ) : null}
     </section>

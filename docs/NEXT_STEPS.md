@@ -7,6 +7,7 @@ Last updated: 2026-03-14
 1. Native notification / widget delivery
 - Keep the current backend contracts (`widget_summary`, `notification_center`) and connect them to actual iOS/Android delivery layers when a native shell exists.
 - Preserve the current calm, non-FOMO notification philosophy.
+- Preserve the playful-but-restrained tone and motion rules from `docs/PLAYFUL_INTERACTION_SYSTEM.md`.
 
 2. Assistant structured tool calling
 - Move from prompt-routed tool use toward explicit schema-validated function/tool execution.

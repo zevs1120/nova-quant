@@ -49,6 +49,7 @@ describe('engagement api', () => {
     expect(widgetRes.status).toBe(200);
     expect(widgetRes.body).toHaveProperty('widget_summary');
     expect(widgetRes.body.widget_summary).toHaveProperty('state_widget');
+    expect(widgetRes.body.widget_summary.state_widget.spark).toBeTruthy();
 
     const prefsRes = await request(app).post('/api/notification-preferences').send({
       userId,
@@ -71,5 +72,6 @@ describe('engagement api', () => {
     expect(previewRes.status).toBe(200);
     expect(previewRes.body.notification_center).toHaveProperty('notifications');
     expect(Array.isArray(previewRes.body.notification_center.notifications)).toBe(true);
+    expect(previewRes.body.notification_center.notifications[0]).toHaveProperty('tone');
   });
 });

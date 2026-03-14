@@ -3651,6 +3651,243 @@ body.keyboard-open .ai-input-dock {
   padding-bottom: 10px;
 }
 
+/* NovaQuant playful interaction system: mature, restrained, state-driven */
+.ritual-card,
+.state-card,
+.widget-preview-box,
+.notification-preview-row,
+.demo-history-row {
+  position: relative;
+  overflow: hidden;
+}
+
+.ritual-card::before,
+.state-card::before,
+.widget-preview-box::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(var(--accent-rgb), 0.18), rgba(var(--accent-rgb), 0));
+  opacity: 0.72;
+  pointer-events: none;
+}
+
+.ui-tone-opportunity .ritual-card::before,
+.ui-tone-opportunity .state-card::before,
+.ui-tone-opportunity .widget-preview-box::before {
+  background: linear-gradient(90deg, rgba(34, 197, 94, 0.26), rgba(34, 197, 94, 0));
+}
+
+.ui-tone-watchful .ritual-card::before,
+.ui-tone-watchful .state-card::before,
+.ui-tone-watchful .widget-preview-box::before {
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.28), rgba(245, 158, 11, 0));
+}
+
+.ui-tone-defensive .ritual-card::before,
+.ui-tone-defensive .state-card::before,
+.ui-tone-defensive .widget-preview-box::before {
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.22), rgba(239, 68, 68, 0));
+}
+
+.ritual-kicker {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  letter-spacing: 0.01em;
+  color: var(--text-secondary);
+}
+
+.action-card-footnote {
+  margin-top: 10px;
+}
+
+.ritual-reveal {
+  animation: ritual-arrive 420ms var(--ease-spring);
+  transform-origin: 50% 100%;
+}
+
+.ritual-delay-1 {
+  animation-delay: 20ms;
+}
+
+.ritual-delay-2 {
+  animation: ritual-arrive 460ms var(--ease-spring);
+  animation-delay: 60ms;
+}
+
+.ritual-delay-3 {
+  animation: ritual-arrive 500ms var(--ease-spring);
+  animation-delay: 100ms;
+}
+
+.ritual-delay-4 {
+  animation: ritual-arrive 540ms var(--ease-spring);
+  animation-delay: 140ms;
+}
+
+.morning-check-refresh_required {
+  border-color: rgba(245, 158, 11, 0.18);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03), 0 14px 30px rgba(245, 158, 11, 0.08);
+}
+
+.morning-check-completed {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(247, 249, 248, 0.94));
+}
+
+.today-action-card-compact.is-confirmed {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03), 0 16px 30px rgba(15, 23, 42, 0.05);
+}
+
+.today-action-card-compact.is-updated {
+  border-color: rgba(var(--accent-rgb), 0.18);
+}
+
+.today-action-card-compact.is-no-action-day {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(248, 249, 250, 0.96));
+}
+
+.today-action-card-compact.is-action-day {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(250, 251, 255, 0.96));
+}
+
+.state-card-opportunity .simple-risk-track,
+.ui-tone-opportunity .simple-risk-track {
+  background: rgba(34, 197, 94, 0.12);
+}
+
+.state-card-watchful .simple-risk-track,
+.ui-tone-watchful .simple-risk-track {
+  background: rgba(245, 158, 11, 0.12);
+}
+
+.state-card-defensive .simple-risk-track,
+.ui-tone-defensive .simple-risk-track {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.ui-motion-lift .today-action-card-compact {
+  animation: card-lift-in 420ms var(--ease-spring);
+}
+
+.ui-motion-drift .today-action-card-compact {
+  animation: card-drift-in 420ms var(--ease-spring);
+}
+
+.ui-motion-hold .today-action-card-compact {
+  animation: card-hold-in 360ms var(--ease-spring);
+}
+
+.ui-motion-calm .today-action-card-compact {
+  animation: ritual-arrive 360ms var(--ease-spring);
+}
+
+.ui-tone-opportunity .badge-triggered {
+  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.06), 0 8px 18px rgba(34, 197, 94, 0.08);
+}
+
+.ui-tone-watchful .badge-medium {
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.05), 0 6px 14px rgba(245, 158, 11, 0.08);
+}
+
+.ui-tone-defensive .badge-neutral,
+.ui-tone-defensive .badge-medium {
+  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.03), 0 6px 12px rgba(239, 68, 68, 0.06);
+}
+
+.widget-spark-line {
+  margin-top: 8px;
+  color: var(--text-primary);
+}
+
+.notification-tone-line {
+  text-transform: capitalize;
+}
+
+.demo-history-row.is-promoted {
+  border-color: rgba(var(--accent-rgb), 0.18);
+}
+
+.demo-history-row.is-promoted::after {
+  content: "now in focus";
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  font-size: 11px;
+  color: var(--accent);
+}
+
+.quick-access-row.notification-preview-row {
+  gap: 6px;
+}
+
+.ui-tone-opportunity .top-bar,
+.ui-tone-opportunity .system-status-bar,
+.ui-tone-opportunity .mode-strip {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.97), rgba(250, 253, 250, 0.93));
+}
+
+.ui-tone-watchful .top-bar,
+.ui-tone-watchful .system-status-bar,
+.ui-tone-watchful .mode-strip {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.97), rgba(255, 252, 247, 0.94));
+}
+
+.ui-tone-defensive .top-bar,
+.ui-tone-defensive .system-status-bar,
+.ui-tone-defensive .mode-strip {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.97), rgba(252, 248, 248, 0.94));
+}
+
+.daily-check-completed .bottom-nav {
+  box-shadow: 0 -10px 24px rgba(15, 23, 42, 0.05);
+}
+
+@keyframes ritual-arrive {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.995);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes card-lift-in {
+  0% {
+    opacity: 0;
+    transform: translateY(12px) scale(0.992);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes card-drift-in {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes card-hold-in {
+  0% {
+    opacity: 0;
+    transform: translateY(6px) scale(0.998);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -3659,5 +3896,16 @@ body.keyboard-open .ai-input-dock {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+
+  .ritual-reveal,
+  .ritual-delay-2,
+  .ritual-delay-3,
+  .ritual-delay-4,
+  .ui-motion-lift .today-action-card-compact,
+  .ui-motion-drift .today-action-card-compact,
+  .ui-motion-hold .today-action-card-compact,
+  .ui-motion-calm .today-action-card-compact {
+    animation: none !important;
   }
 }

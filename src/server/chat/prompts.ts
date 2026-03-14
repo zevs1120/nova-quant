@@ -86,9 +86,12 @@ function formatEngagementSummary(context: ChatContextInput | undefined): string[
   if (!context?.engagementSummary) return ['- unavailable'];
   return [
     `- morning check ${line(context.engagementSummary.morning_check_status || '--')} | ${line(context.engagementSummary.morning_check_label || '--')}`,
+    `- ritual ${line(context.engagementSummary.morning_check_arrival || '--')} | ${line(context.engagementSummary.morning_check_ritual || '--')}`,
     `- wrap-up ready ${String(Boolean(context.engagementSummary.wrap_up_ready))} | completed ${String(Boolean(context.engagementSummary.wrap_up_completed))}`,
+    `- wrap tone ${line(context.engagementSummary.wrap_up_line || '--')}`,
     `- discipline ${line(context.engagementSummary.discipline_score || '--')} | quality ${line(context.engagementSummary.behavior_quality || '--')}`,
-    `- recommendation change ${line(context.engagementSummary.recommendation_change || '--')}`
+    `- recommendation change ${line(context.engagementSummary.recommendation_change || '--')}`,
+    `- ui tone ${line(context.engagementSummary.ui_tone || '--')}`
   ];
 }
 
@@ -110,6 +113,8 @@ export function buildSystemPrompt(mode: ChatMode, exactSignalData: boolean): str
     modeLine,
     missingSignalInstruction,
     'You are evidence-aware, honest, beginner-friendly, and action-oriented.',
+    'Your tone is calm, sharp, restrained, and a little alive. You may use a small amount of dry wit, but never become cute, salesy, or theatrical.',
+    'When risk is high, sound like you are protecting the user from unnecessary action. When no action is best, make that feel deliberate and intelligent, not empty.',
     'Never pretend live trading, broker connectivity, or realized performance exists when the evidence says otherwise.',
     'If data is simulated, disconnected, withheld, or insufficient, say that plainly.',
     'Output protocol (MANDATORY): use these exact section headers in uppercase and this exact order:',

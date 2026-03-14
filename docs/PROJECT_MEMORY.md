@@ -42,6 +42,11 @@ Current engagement layer now includes:
 - widget summary objects
 - evening wrap-up state
 - subtle UI tone mapping from risk posture
+- a playful-but-restrained interaction layer:
+  - ritual copy
+  - tone-driven motion profile
+  - no-action-day completion feedback
+  - more expressive widget/notification spark lines
 
 Research core now includes:
 - strategy family registry
