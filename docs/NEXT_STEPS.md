@@ -12,24 +12,28 @@ Last updated: 2026-03-14
 - Persist factor-level diagnostics and by-regime results as first-class research artifacts instead of only taxonomy + latest backtest summaries.
 - Add rank-IC / quantile-spread / regime-sliced factor evaluation objects.
 
-3. Backtest realism correction
+3. Commodity futures runtime expansion (doctrine-aligned)
+- Add honest schema/runtime support for commodity futures research inputs without pretending current live execution support.
+- Reuse the same evidence, regime, risk, and assistant contracts rather than forking a separate futures-only stack.
+
+4. Backtest realism correction
 - Fix daily-return pathology and turnover realism.
 - Align backtest and paper execution assumptions stage-by-stage.
 - Add diagnostics for where divergence originates.
 
-4. Research workflow persistence depth
+5. Research workflow persistence depth
 - Persist workflow plans, validation reports, and reject/ship rationale as first-class research artifacts rather than ephemeral tool outputs.
 - Add stronger experiment lineage from hypothesis/template/factor family into experiment registry.
 
-5. Shadow truth-path upgrade
+6. Shadow truth-path upgrade
 - Replace synthetic forward returns with realized bar-joined outcomes.
 - Add drawdown and outcome source metadata from true bars.
 
-6. Cost/slippage calibration
+7. Cost/slippage calibration
 - Add venue-aware slippage/fees/funding presets.
 - Integrate calibration profiles into validation stress suite.
 
-7. Governance hardening
+8. Governance hardening
 - Add promotion memo generation per stage transition.
 - Add reviewer identity and approval state.
 

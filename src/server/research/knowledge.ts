@@ -85,6 +85,22 @@ export interface FailedIdeaRecord {
   source: string;
 }
 
+export interface ResearchDoctrineProfile {
+  doctrine_id: string;
+  title: string;
+  mission: string;
+  market_scope: {
+    priority: string[];
+    current_runtime_support: string[];
+    notes: string[];
+  };
+  strategy_principles: string[];
+  risk_principles: string[];
+  assistant_principles: string[];
+  prohibited_shortcuts: string[];
+  current_boundaries: string[];
+}
+
 const FACTOR_CARDS: FactorCard[] = [
   {
     factor_id: 'value',
@@ -315,6 +331,51 @@ const MODEL_CATALOG: ResearchModelCard[] = [
   }
 ];
 
+const RESEARCH_DOCTRINE_PROFILE: ResearchDoctrineProfile = {
+  doctrine_id: 'nova-cross-asset-research-doctrine.v1',
+  title: 'Nova Quant Cross-Asset Research Doctrine',
+  mission:
+    'Build an AI-native quant research platform that can study factors, strategies, regime behavior, and execution realism across asset classes without faking live capability or overstating evidence.',
+  market_scope: {
+    priority: ['COMMODITY_FUTURES', 'US_STOCK', 'CRYPTO'],
+    current_runtime_support: ['US_STOCK', 'OPTIONS', 'CRYPTO'],
+    notes: [
+      'Commodity futures are the intended lead research expansion track, but they are not yet wired into the current runtime/API market model.',
+      'Cross-asset research should stay unified in logic even where execution adapters are not yet implemented.'
+    ]
+  },
+  strategy_principles: [
+    'Risk control is a hard boundary and must be optimized before return enhancement.',
+    'Core factors must be economically grounded; retail technical indicators are not valid as standalone primary factors.',
+    'Trend and arbitrage logic should be fused through shared state and evidence, not bolted together as static sub-strategies.',
+    'Cross-asset signals must be interpretable in a shared risk-adjusted expected-return frame.',
+    'Portfolio construction must explicitly account for turnover, costs, exposure, and capacity.'
+  ],
+  risk_principles: [
+    'Do not promote signals that break hard risk budgets even if expected return looks attractive.',
+    'Execution realism, slippage, funding, and turnover are first-class research inputs.',
+    'Backtest beauty without robustness or implementation realism is not acceptable evidence.',
+    'Tail-risk and regime-shift behavior must be reviewed before strategy promotion.'
+  ],
+  assistant_principles: [
+    'Answer with evidence before confidence.',
+    'Separate measured evidence from taxonomy knowledge.',
+    'State uncertainty explicitly when data or validation coverage is incomplete.',
+    'Always include the next research action, not just an explanation.'
+  ],
+  prohibited_shortcuts: [
+    'No fabricated live trading or broker connectivity claims.',
+    'No presentation of simulated results as realized outcomes.',
+    'No future-leakage or unrealistic backtest assumptions.',
+    'No MA/RSI/MACD-style indicators presented as primary factor research.'
+  ],
+  current_boundaries: [
+    'Factor-level IC / rank-IC / quantile-spread persistence is not yet implemented as a first-class artifact.',
+    'Structured schema-level tool calling remains a next step; current orchestration is service-controlled.',
+    'Commodity futures runtime support is not yet present in the live API/runtime contract.'
+  ]
+};
+
 const COMBINED_REGIME_DESCRIPTIONS: Record<string, string> = {
   uptrend_normal: 'Trend is healthy and volatility is contained.',
   uptrend_high_vol: 'Trend exists, but volatility is high enough to require smaller size.',
@@ -433,6 +494,10 @@ export function listResearchDoctrinePrinciples() {
     description: String(row.description || ''),
     enforcement_hint: String(row.enforcement_hint || '')
   }));
+}
+
+export function getResearchDoctrineProfile(): ResearchDoctrineProfile {
+  return RESEARCH_DOCTRINE_PROFILE;
 }
 
 export function summarizeTopicHits(topic: string) {

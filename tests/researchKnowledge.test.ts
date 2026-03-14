@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   getFactorDefinition,
+  getResearchDoctrineProfile,
   listCrossSectionalModelCatalog,
   listFactorCatalog,
   listRegimeTaxonomy,
@@ -33,5 +34,12 @@ describe('research knowledge layer', () => {
     expect(regimes.some((row) => row.regime_id === 'stress_risk_off')).toBe(true);
     expect(strategies.length).toBeGreaterThan(0);
     expect(models.some((row) => row.model_id === 'linear_baseline')).toBe(true);
+  });
+
+  it('exposes the Nova cross-asset research doctrine profile', () => {
+    const doctrine = getResearchDoctrineProfile();
+    expect(doctrine.doctrine_id).toContain('doctrine');
+    expect(doctrine.market_scope.priority[0]).toBe('COMMODITY_FUTURES');
+    expect(doctrine.prohibited_shortcuts.some((row) => row.includes('RSI'))).toBe(true);
   });
 });

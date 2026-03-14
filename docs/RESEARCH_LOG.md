@@ -50,6 +50,7 @@ Last updated: 2026-03-14
 6. Failed experiments are now usable as memory assets, not only missing strategy outcomes.
 7. Research workflow planning is now first-class: the assistant can suggest the next concrete step from hypothesis to feature construction to validation to portfolio mapping.
 8. Strategy evaluation and validation report objects now exist as explicit assistant/API outputs instead of being implied inside long-form chat responses.
+9. A formal cross-asset research doctrine now constrains what the assistant should and should not claim, especially around commodities-first ambition vs current runtime reality.
 
 ## New Research Questions Enabled
 

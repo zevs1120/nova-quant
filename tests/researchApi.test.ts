@@ -6,6 +6,10 @@ describe('research api contracts', () => {
   it('serves factor catalog and factor definitions', async () => {
     const app = createApiApp();
 
+    const doctrineRes = await request(app).get('/api/research/doctrine');
+    expect(doctrineRes.status).toBe(200);
+    expect(doctrineRes.body.doctrine?.market_scope?.priority?.[0]).toBe('COMMODITY_FUTURES');
+
     const catalogRes = await request(app).get('/api/research/factors');
     expect(catalogRes.status).toBe(200);
     expect(Array.isArray(catalogRes.body.records)).toBe(true);

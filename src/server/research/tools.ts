@@ -13,6 +13,7 @@ import type { AssetClass, Market, SignalContract } from '../types.js';
 import {
   getFactorDefinition,
   getFactorInteractions,
+  getResearchDoctrineProfile,
   listCrossSectionalModelCatalog,
   listFailedIdeasRegistry,
   listFactorCatalog,
@@ -153,6 +154,14 @@ export function getFactorCatalogTool() {
     source_status: RUNTIME_STATUS.DB_BACKED,
     data_status: RUNTIME_STATUS.MODEL_DERIVED,
     records: listFactorCatalog()
+  };
+}
+
+export function getResearchDoctrineTool() {
+  return {
+    source_status: RUNTIME_STATUS.DB_BACKED,
+    data_status: RUNTIME_STATUS.MODEL_DERIVED,
+    doctrine: getResearchDoctrineProfile()
   };
 }
 

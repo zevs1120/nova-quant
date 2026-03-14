@@ -36,6 +36,7 @@ import {
   explainWhyNoSignalTool,
   explainWhySignalExistsTool,
   getBacktestIntegrityReportTool,
+  getResearchDoctrineTool,
   getExperimentRegistryTool,
   getFactorCatalogTool,
   getFactorDefinitionTool,
@@ -192,6 +193,10 @@ export function createApiApp() {
 
   app.get('/api/research/factors', (_req, res) => {
     res.json(getFactorCatalogTool());
+  });
+
+  app.get('/api/research/doctrine', (_req, res) => {
+    res.json(getResearchDoctrineTool());
   });
 
   app.get('/api/research/factors/:id', (req, res) => {

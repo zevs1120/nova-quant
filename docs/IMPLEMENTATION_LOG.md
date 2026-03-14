@@ -102,6 +102,38 @@
 - Research tool orchestration is service-controlled and prompt-routed; strict schema tool calling remains a next step.
 - Cross-sectional ML evaluation scaffolding exists as knowledge/catalog for now; deeper model-training artifacts are still a later phase.
 
+## 2026-03-14 — Cross-Asset Research Doctrine Integration
+
+### What was implemented
+1. Added an explicit research doctrine profile to the knowledge layer.
+2. Exposed the doctrine through a dedicated assistant tool and research API endpoint.
+3. Updated research-assistant prompt rules so answers follow:
+- economically grounded factor logic,
+- risk-first reasoning,
+- honesty about runtime support boundaries,
+- no reliance on retail indicators as primary factor logic.
+4. Added canonical doctrine documentation:
+- `docs/QUANT_RESEARCH_DOCTRINE.md`
+
+### Files changed
+- `src/server/research/knowledge.ts`
+- `src/server/research/tools.ts`
+- `src/server/chat/tools.ts`
+- `src/server/chat/prompts.ts`
+- `src/server/api/app.ts`
+- `docs/QUANT_RESEARCH_DOCTRINE.md`
+- `docs/RESEARCH_ASSISTANT_TOOLS.md`
+- `README.md`
+- `docs/PROJECT_MEMORY.md`
+
+### Verification
+- `npm run typecheck` ✅
+- targeted research-tool tests ✅
+
+### Open issues
+- Doctrine now constrains assistant and research tooling, but does not magically imply commodity futures runtime support.
+- Commodity futures remain a target research scope, not a falsely claimed live product capability.
+
 ## 2026-03-14 — Canonical Assistant + Reproducibility Upgrade
 
 ### What was implemented

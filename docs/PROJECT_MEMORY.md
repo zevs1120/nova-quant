@@ -276,6 +276,23 @@ Important honesty boundary:
 - factor definitions and interactions may come from taxonomy knowledge,
 - but measured factor-level performance is only stated as measured evidence when actual runtime/backtest artifacts exist.
 
+## 15) Cross-Asset Research Doctrine Integration (2026-03-14)
+
+Nova now carries an explicit cross-asset research doctrine instead of leaving research philosophy implicit.
+
+Key doctrine points now wired into knowledge + assistant:
+- commodity futures are the intended lead research expansion track
+- current runtime support still honestly centers on US equities, options, and crypto
+- economically grounded factors are preferred over retail technical indicators
+- risk control and implementation realism outrank return-chasing
+- assistant research answers must separate measured evidence from taxonomy knowledge
+- no fabricated live capability, no simulated-as-real phrasing, no unrealistic backtest shortcuts
+
+Canonical files:
+- `docs/QUANT_RESEARCH_DOCTRINE.md`
+- `src/server/research/knowledge.ts`
+- `src/server/research/tools.ts`
+
 2. Thread persistence is now first-class.
 - chat threads persist in SQLite via:
   - `chat_threads`

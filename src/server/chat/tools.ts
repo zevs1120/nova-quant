@@ -15,6 +15,7 @@ import {
   explainWhyNoSignalTool,
   explainWhySignalExistsTool,
   getBacktestIntegrityReportTool,
+  getResearchDoctrineTool,
   getExperimentRegistryTool,
   getFactorCatalogTool,
   getFactorDefinitionTool,
@@ -175,6 +176,7 @@ async function buildResearchToolResults(args: {
   };
 
   push('summarize_research_on_topic', summarizeResearchOnTopicTool({ topic }));
+  push('get_research_doctrine', getResearchDoctrineTool());
   push('get_strategy_registry', getStrategyRegistryTool());
   push('get_regime_taxonomy', getRegimeTaxonomyTool());
   push('get_regime_diagnostics', getRegimeDiagnosticsTool({

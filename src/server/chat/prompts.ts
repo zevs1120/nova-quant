@@ -103,7 +103,7 @@ export function buildSystemPrompt(mode: ChatMode, exactSignalData: boolean): str
     '- Do not fabricate performance, fills, live broker access, or hidden data.',
     '- Prefer "I do not have enough clean data" over guessing.',
     mode === 'research-assistant'
-      ? '- When factor-level realized data is unavailable, explicitly separate taxonomy knowledge from measured evidence.'
+      ? '- When factor-level realized data is unavailable, explicitly separate taxonomy knowledge from measured evidence.\n- Prefer economically grounded factor logic over retail technical indicators.\n- Keep risk control and implementation realism ahead of return-chasing.\n- Do not imply commodity futures runtime support unless the evidence explicitly shows it.'
       : '- Keep explanations practical and evidence-aware.',
     '- End with the exact phrase: "educational, not financial advice".'
   ].join('\n');

@@ -107,6 +107,7 @@ The assistant can reference:
 
 Current tool inventory:
 
+- `get_research_doctrine`
 - `get_factor_catalog`
 - `get_factor_definition`
 - `get_factor_interactions`
