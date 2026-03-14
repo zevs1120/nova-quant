@@ -96,6 +96,21 @@ Last updated: 2026-03-14
   - `evidence_summary`
   - `audit`
 
+11. **Engagement Layer**
+- Canonical module: `src/server/engagement/engine.ts`.
+- Converts persisted decision snapshots into:
+  - `daily_check_state`
+  - `habit_state`
+  - `daily_wrap_up`
+  - `widget_summary`
+  - `notification_center`
+  - `ui_regime_state`
+  - `notification_preferences`
+- Persistence:
+  - `user_ritual_events`
+  - `notification_events`
+  - `user_notification_preferences`
+
 ## 2) Runtime Data Flow
 
 1. `npm run backfill` ingests raw bars into `assets` + `ohlcv`.
@@ -123,8 +138,14 @@ and persists a `decision_snapshot`.
 8. The assistant grounds on:
 - runtime decision summary,
 - holdings summary,
+- engagement rhythm summary,
 - evidence bundle lines,
 - research tools when questions move beyond product explanation.
+9. The engagement layer turns those objects into calm habit surfaces:
+   - Morning Check
+   - protective reminders
+   - widget summaries
+   - evening wrap-up
 7. Evidence endpoints expose canonical replay/paper chain:
    - `/api/evidence/run`
    - `/api/evidence/signals/top`

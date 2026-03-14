@@ -17,6 +17,8 @@ import type {
   FeatureSnapshotRecord,
   Market,
   MarketStateRecord,
+  NotificationEventRecord,
+  NotificationPreferenceRecord,
   NormalizedBar,
   PerformanceSnapshotRecord,
   ReplayPaperReconciliationRecord,
@@ -27,6 +29,7 @@ import type {
   StrategyVersionRecord,
   Timeframe,
   UniverseSnapshotRecord,
+  UserRitualEventRecord,
   UserRiskProfileRecord
 } from '../types.js';
 
@@ -1644,5 +1647,169 @@ export class MarketRepository {
         `
       )
       .all(q) as DecisionSnapshotRecord[];
+  }
+
+  upsertUserRitualEvent(input: UserRitualEventRecord): void {
+    this.db
+      .prepare(
+        `
+          INSERT INTO user_ritual_events(
+            id, user_id, market, asset_class, event_date, week_key, event_type, snapshot_id, reason_json, created_at_ms, updated_at_ms
+          ) VALUES(
+            @id, @user_id, @market, @asset_class, @event_date, @week_key, @event_type, @snapshot_id, @reason_json, @created_at_ms, @updated_at_ms
+          )
+          ON CONFLICT(user_id, market, asset_class, event_date, event_type) DO UPDATE SET
+            week_key = excluded.week_key,
+            snapshot_id = excluded.snapshot_id,
+            reason_json = excluded.reason_json,
+            updated_at_ms = excluded.updated_at_ms
+        `
+      )
+      .run(input);
+  }
+
+  listUserRitualEvents(params: {
+    userId: string;
+    market?: Market | 'ALL';
+    assetClass?: AssetClass | 'ALL';
+    fromDate?: string;
+    toDate?: string;
+    limit?: number;
+  }): UserRitualEventRecord[] {
+    const where = ['user_id = @user_id'];
+    const q: Record<string, unknown> = { user_id: params.userId };
+    if (params.market) {
+      where.push('market = @market');
+      q.market = params.market;
+    }
+    if (params.assetClass) {
+      where.push('asset_class = @asset_class');
+      q.asset_class = params.assetClass;
+    }
+    if (params.fromDate) {
+      where.push('event_date >= @from_date');
+      q.from_date = params.fromDate;
+    }
+    if (params.toDate) {
+      where.push('event_date <= @to_date');
+      q.to_date = params.toDate;
+    }
+    if (params.limit) q.limit = params.limit;
+    const limitSql = params.limit ? 'LIMIT @limit' : '';
+    return this.db
+      .prepare(
+        `
+          SELECT
+            id, user_id, market, asset_class, event_date, week_key, event_type, snapshot_id, reason_json, created_at_ms, updated_at_ms
+          FROM user_ritual_events
+          WHERE ${where.join(' AND ')}
+          ORDER BY updated_at_ms DESC
+          ${limitSql}
+        `
+      )
+      .all(q) as UserRitualEventRecord[];
+  }
+
+  getUserNotificationPreferences(userId: string): NotificationPreferenceRecord | null {
+    const row = this.db
+      .prepare(
+        `
+          SELECT
+            user_id, morning_enabled, state_shift_enabled, protective_enabled, wrap_up_enabled,
+            frequency, quiet_start_hour, quiet_end_hour, updated_at_ms
+          FROM user_notification_preferences
+          WHERE user_id = ?
+          LIMIT 1
+        `
+      )
+      .get(userId) as NotificationPreferenceRecord | undefined;
+    return row ?? null;
+  }
+
+  upsertUserNotificationPreferences(input: NotificationPreferenceRecord): void {
+    this.db
+      .prepare(
+        `
+          INSERT INTO user_notification_preferences(
+            user_id, morning_enabled, state_shift_enabled, protective_enabled, wrap_up_enabled,
+            frequency, quiet_start_hour, quiet_end_hour, updated_at_ms
+          ) VALUES(
+            @user_id, @morning_enabled, @state_shift_enabled, @protective_enabled, @wrap_up_enabled,
+            @frequency, @quiet_start_hour, @quiet_end_hour, @updated_at_ms
+          )
+          ON CONFLICT(user_id) DO UPDATE SET
+            morning_enabled = excluded.morning_enabled,
+            state_shift_enabled = excluded.state_shift_enabled,
+            protective_enabled = excluded.protective_enabled,
+            wrap_up_enabled = excluded.wrap_up_enabled,
+            frequency = excluded.frequency,
+            quiet_start_hour = excluded.quiet_start_hour,
+            quiet_end_hour = excluded.quiet_end_hour,
+            updated_at_ms = excluded.updated_at_ms
+        `
+      )
+      .run(input);
+  }
+
+  upsertNotificationEvent(input: NotificationEventRecord): void {
+    this.db
+      .prepare(
+        `
+          INSERT INTO notification_events(
+            id, user_id, market, asset_class, category, trigger_type, fingerprint, title, body, tone, status,
+            action_target, reason_json, created_at_ms, updated_at_ms
+          ) VALUES(
+            @id, @user_id, @market, @asset_class, @category, @trigger_type, @fingerprint, @title, @body, @tone, @status,
+            @action_target, @reason_json, @created_at_ms, @updated_at_ms
+          )
+          ON CONFLICT(fingerprint) DO UPDATE SET
+            title = excluded.title,
+            body = excluded.body,
+            tone = excluded.tone,
+            status = excluded.status,
+            action_target = excluded.action_target,
+            reason_json = excluded.reason_json,
+            updated_at_ms = excluded.updated_at_ms
+        `
+      )
+      .run(input);
+  }
+
+  listNotificationEvents(params: {
+    userId: string;
+    market?: Market | 'ALL';
+    assetClass?: AssetClass | 'ALL';
+    status?: string;
+    limit?: number;
+  }): NotificationEventRecord[] {
+    const where = ['user_id = @user_id'];
+    const q: Record<string, unknown> = { user_id: params.userId };
+    if (params.market) {
+      where.push('market = @market');
+      q.market = params.market;
+    }
+    if (params.assetClass) {
+      where.push('asset_class = @asset_class');
+      q.asset_class = params.assetClass;
+    }
+    if (params.status) {
+      where.push('status = @status');
+      q.status = params.status;
+    }
+    if (params.limit) q.limit = params.limit;
+    const limitSql = params.limit ? 'LIMIT @limit' : '';
+    return this.db
+      .prepare(
+        `
+          SELECT
+            id, user_id, market, asset_class, category, trigger_type, fingerprint, title, body, tone, status,
+            action_target, reason_json, created_at_ms, updated_at_ms
+          FROM notification_events
+          WHERE ${where.join(' AND ')}
+          ORDER BY updated_at_ms DESC
+          ${limitSql}
+        `
+      )
+      .all(q) as NotificationEventRecord[];
   }
 }

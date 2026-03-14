@@ -2,7 +2,12 @@ import express from 'express';
 import { isoToMs } from '../utils/time.js';
 import type { AssetClass, Market, Timeframe } from '../types.js';
 import {
+  completeMorningCheck,
+  completeWeeklyReview,
+  completeWrapUp,
+  confirmRiskBoundary,
   ensureDefaultPublicSignalsApiKey,
+  getEngagementState,
   getDecisionSnapshot,
   getRuntimeState,
   getEvidenceBacktestDetail,
@@ -11,6 +16,8 @@ import {
   getEvidenceTopSignals,
   getMarketState,
   getMarketModules,
+  getNotificationPreferencesState,
+  getNotificationPreview,
   listEvidenceBacktests,
   listDecisionAudit,
   listEvidenceReconciliation,
@@ -24,6 +31,8 @@ import {
   listSignalContracts,
   queryOhlcv,
   runEvidence,
+  setNotificationPreferencesState,
+  getWidgetSummary,
   syncQuantState,
   upsertExecution,
   upsertExternalConnection,
@@ -224,6 +233,186 @@ export function createApiApp() {
         market,
         assetClass,
         limit
+      })
+    );
+  });
+
+  app.post('/api/engagement/state', (req, res) => {
+    const body = (req.body || {}) as {
+      userId?: string;
+      market?: string;
+      assetClass?: string;
+      localDate?: string;
+      localHour?: number;
+      holdings?: Array<Record<string, unknown>>;
+    };
+    const market = parseMarket(body.market);
+    const assetClass = parseAssetClass(body.assetClass);
+    const userId = body.userId || 'guest-default';
+    res.json(
+      getEngagementState({
+        userId,
+        market,
+        assetClass,
+        localDate: body.localDate,
+        localHour: Number(body.localHour),
+        holdings: Array.isArray(body.holdings) ? (body.holdings as never) : []
+      })
+    );
+  });
+
+  app.post('/api/engagement/morning-check', (req, res) => {
+    const body = (req.body || {}) as {
+      userId?: string;
+      market?: string;
+      assetClass?: string;
+      localDate?: string;
+      localHour?: number;
+      holdings?: Array<Record<string, unknown>>;
+    };
+    res.json(
+      completeMorningCheck({
+        userId: body.userId,
+        market: parseMarket(body.market),
+        assetClass: parseAssetClass(body.assetClass),
+        localDate: body.localDate,
+        localHour: Number(body.localHour),
+        holdings: Array.isArray(body.holdings) ? (body.holdings as never) : []
+      })
+    );
+  });
+
+  app.post('/api/engagement/boundary', (req, res) => {
+    const body = (req.body || {}) as {
+      userId?: string;
+      market?: string;
+      assetClass?: string;
+      localDate?: string;
+      localHour?: number;
+      holdings?: Array<Record<string, unknown>>;
+    };
+    res.json(
+      confirmRiskBoundary({
+        userId: body.userId,
+        market: parseMarket(body.market),
+        assetClass: parseAssetClass(body.assetClass),
+        localDate: body.localDate,
+        localHour: Number(body.localHour),
+        holdings: Array.isArray(body.holdings) ? (body.holdings as never) : []
+      })
+    );
+  });
+
+  app.post('/api/engagement/wrap-up', (req, res) => {
+    const body = (req.body || {}) as {
+      userId?: string;
+      market?: string;
+      assetClass?: string;
+      localDate?: string;
+      localHour?: number;
+      holdings?: Array<Record<string, unknown>>;
+    };
+    res.json(
+      completeWrapUp({
+        userId: body.userId,
+        market: parseMarket(body.market),
+        assetClass: parseAssetClass(body.assetClass),
+        localDate: body.localDate,
+        localHour: Number(body.localHour),
+        holdings: Array.isArray(body.holdings) ? (body.holdings as never) : []
+      })
+    );
+  });
+
+  app.post('/api/engagement/weekly-review', (req, res) => {
+    const body = (req.body || {}) as {
+      userId?: string;
+      market?: string;
+      assetClass?: string;
+      localDate?: string;
+      localHour?: number;
+      holdings?: Array<Record<string, unknown>>;
+    };
+    res.json(
+      completeWeeklyReview({
+        userId: body.userId,
+        market: parseMarket(body.market),
+        assetClass: parseAssetClass(body.assetClass),
+        localDate: body.localDate,
+        localHour: Number(body.localHour),
+        holdings: Array.isArray(body.holdings) ? (body.holdings as never) : []
+      })
+    );
+  });
+
+  app.get('/api/widgets/summary', (req, res) => {
+    const market = parseMarket(req.query.market as string | undefined);
+    const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
+    const userId = (req.query.userId as string | undefined) || 'guest-default';
+    const localDate = req.query.localDate as string | undefined;
+    const localHour = req.query.localHour ? Number(req.query.localHour) : undefined;
+    res.json(
+      getWidgetSummary({
+        userId,
+        market,
+        assetClass,
+        localDate,
+        localHour
+      })
+    );
+  });
+
+  app.get('/api/notifications/preview', (req, res) => {
+    const market = parseMarket(req.query.market as string | undefined);
+    const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
+    const userId = (req.query.userId as string | undefined) || 'guest-default';
+    const localDate = req.query.localDate as string | undefined;
+    const localHour = req.query.localHour ? Number(req.query.localHour) : undefined;
+    res.json(
+      getNotificationPreview({
+        userId,
+        market,
+        assetClass,
+        localDate,
+        localHour
+      })
+    );
+  });
+
+  app.get('/api/notification-preferences', (req, res) => {
+    const userId = (req.query.userId as string | undefined) || 'guest-default';
+    res.json(getNotificationPreferencesState(userId));
+  });
+
+  app.post('/api/notification-preferences', (req, res) => {
+    const body = (req.body || {}) as {
+      userId?: string;
+      morning_enabled?: number | boolean;
+      state_shift_enabled?: number | boolean;
+      protective_enabled?: number | boolean;
+      wrap_up_enabled?: number | boolean;
+      frequency?: 'LOW' | 'NORMAL';
+      quiet_start_hour?: number | null;
+      quiet_end_hour?: number | null;
+    };
+    res.json(
+      setNotificationPreferencesState({
+        userId: body.userId,
+        updates: {
+          morning_enabled:
+            body.morning_enabled === undefined ? undefined : Number(Boolean(body.morning_enabled)),
+          state_shift_enabled:
+            body.state_shift_enabled === undefined ? undefined : Number(Boolean(body.state_shift_enabled)),
+          protective_enabled:
+            body.protective_enabled === undefined ? undefined : Number(Boolean(body.protective_enabled)),
+          wrap_up_enabled:
+            body.wrap_up_enabled === undefined ? undefined : Number(Boolean(body.wrap_up_enabled)),
+          frequency: body.frequency,
+          quiet_start_hour:
+            body.quiet_start_hour === undefined ? undefined : body.quiet_start_hour === null ? null : Number(body.quiet_start_hour),
+          quiet_end_hour:
+            body.quiet_end_hour === undefined ? undefined : body.quiet_end_hour === null ? null : Number(body.quiet_end_hour)
+        }
       })
     );
   });

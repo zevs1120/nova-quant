@@ -302,6 +302,74 @@ select {
   backdrop-filter: blur(16px);
 }
 
+.app-tone-opportunity {
+  background: radial-gradient(circle at 50% -8%, rgba(34, 197, 94, 0.06), transparent 36%),
+    linear-gradient(180deg, #fbfbfc 0%, #f5f7f6 100%);
+}
+
+.app-tone-watchful {
+  background: radial-gradient(circle at 50% -8%, rgba(245, 158, 11, 0.06), transparent 34%),
+    linear-gradient(180deg, #fbfbfc 0%, #f7f6f3 100%);
+}
+
+.app-tone-defensive {
+  background: radial-gradient(circle at 50% -8%, rgba(239, 68, 68, 0.055), transparent 36%),
+    linear-gradient(180deg, #fbfbfc 0%, #f8f5f5 100%);
+}
+
+.ui-tone-opportunity .top-bar,
+.ui-tone-opportunity .system-status-bar,
+.ui-tone-opportunity .mode-strip {
+  border-bottom-color: rgba(34, 197, 94, 0.08);
+}
+
+.ui-tone-watchful .top-bar,
+.ui-tone-watchful .system-status-bar,
+.ui-tone-watchful .mode-strip {
+  border-bottom-color: rgba(245, 158, 11, 0.1);
+}
+
+.ui-tone-defensive .top-bar,
+.ui-tone-defensive .system-status-bar,
+.ui-tone-defensive .mode-strip {
+  border-bottom-color: rgba(239, 68, 68, 0.08);
+}
+
+.morning-check-card,
+.wrap-up-card {
+  gap: 10px;
+}
+
+.widget-preview-box {
+  text-align: left;
+  align-items: flex-start;
+}
+
+.notification-preview-row {
+  cursor: default;
+}
+
+.preference-toggle {
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 220ms var(--ease-spring), background 220ms var(--ease-spring), transform 220ms var(--ease-spring);
+}
+
+.preference-toggle.is-on {
+  border-color: rgba(var(--accent-rgb), 0.18);
+  background: rgba(var(--accent-rgb), 0.06);
+}
+
+.preference-toggle.is-off {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.secondary-btn.is-selected {
+  border-color: rgba(var(--accent-rgb), 0.22);
+  color: var(--accent);
+  background: rgba(var(--accent-rgb), 0.08);
+}
+
 .glass-card,
 .signal-card,
 .skeleton-card {

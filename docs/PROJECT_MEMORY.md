@@ -35,6 +35,14 @@ Current engineering reproducibility baseline:
 - package scripts now include `clean`, `lint`, `test`, and `verify`
 - repo handoff policy now excludes local runtime artifacts through `.gitignore`, `.npmignore`, `.gitattributes`, and `package:source`
 
+Current engagement layer now includes:
+- backend-grounded Morning Check state
+- discipline / habit state
+- calm notification candidates
+- widget summary objects
+- evening wrap-up state
+- subtle UI tone mapping from risk posture
+
 Research core now includes:
 - strategy family registry
 - strategy discovery engine (hypothesis -> template -> candidate -> validation -> scoring -> promotion)

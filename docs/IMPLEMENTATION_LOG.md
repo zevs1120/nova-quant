@@ -1,5 +1,64 @@
 # Nova Quant Implementation Log
 
+## 2026-03-14 — Engagement / Morning Check / Calm Recall Upgrade
+
+### What was implemented
+1. Added a backend engagement engine:
+- `src/server/engagement/engine.ts`
+- Converts decision snapshots into:
+  - `daily_check_state`
+  - `habit_state`
+  - `daily_wrap_up`
+  - `widget_summary`
+  - `notification_center`
+  - `ui_regime_state`
+  - `notification_preferences`
+
+2. Added persistence for ritual and recall state:
+- new DB tables:
+  - `user_ritual_events`
+  - `notification_events`
+  - `user_notification_preferences`
+
+3. Added engagement APIs:
+- `POST /api/engagement/state`
+- `POST /api/engagement/morning-check`
+- `POST /api/engagement/boundary`
+- `POST /api/engagement/wrap-up`
+- `POST /api/engagement/weekly-review`
+- `GET /api/widgets/summary`
+- `GET /api/notifications/preview`
+- `GET /api/notification-preferences`
+- `POST /api/notification-preferences`
+
+4. Wired frontend to backend engagement state:
+- `App.jsx` now loads engagement snapshots after decision snapshots
+- Morning Check / wrap-up / discipline actions now update backend ritual state
+- AI context now carries engagement rhythm summary
+
+5. Upgraded homepage and More surfaces:
+- `TodayTab.jsx` now shows a compact Morning Check card
+- wrap-up readiness is surfaced as a lightweight follow-up card
+- `More -> Discipline` now shows widget preview, notification preview, wrap-up state, and backend-grounded discipline state
+- settings now includes calm recall / notification cadence controls
+
+6. Added subtle state-driven UI tone:
+- opportunity / watchful / defensive / quiet tone classes now derive from engagement posture
+
+7. Added tests:
+- `tests/engagementEngine.test.ts`
+- `tests/engagementApi.test.ts`
+
+### Verification
+- `npm run -s typecheck` ✅
+- targeted engagement/runtime/chat tests ✅
+- `npm run -s build` ✅
+
+### Open issues
+- widget and notification delivery are currently preview/data-layer contracts, not native mobile delivery
+- demo mode still uses local fallback behavior where the explicit demo runtime bypasses backend APIs
+- engagement scoring is behavior-aware, but not yet linked to explicit outcome-quality feedback
+
 ## 2026-03-14 — Decision Engine + Action Evidence Upgrade
 
 ### What was implemented

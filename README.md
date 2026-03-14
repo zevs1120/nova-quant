@@ -14,6 +14,7 @@ It is **not** a blind auto-trading bot and does **not** fabricate live performan
 - Runtime cache isolation by user + risk profile + market + asset class + timeframe + scope
 - Strict runtime status labels for `DB_BACKED`, `MODEL_DERIVED`, `INSUFFICIENT_DATA`, `DISCONNECTED`, `DEMO_ONLY`, and related states
 - Ranked action cards backed by decision snapshots, evidence bundles, and audit history
+- Morning Check / wrap-up / widget / notification summaries grounded in backend engagement state
 - Clean handoff tooling that excludes local databases, build artifacts, cached node modules, and platform junk
 
 ## What Changed In This Runtime-Realism Upgrade
@@ -70,6 +71,26 @@ Key runtime surfaces:
 - `GET /api/runtime-state` includes a baseline `data.decision`
 - `POST /api/decision/today` builds a personalized decision snapshot using user holdings context
 - `GET /api/decision/audit` exposes persisted recommendation history for replay and review
+
+## Engagement System
+
+Nova Quant now also exposes a lightweight engagement layer built around calm decision rituals rather than high-frequency trading prompts.
+
+Core engagement surfaces:
+- `POST /api/engagement/state`
+- `POST /api/engagement/morning-check`
+- `POST /api/engagement/boundary`
+- `POST /api/engagement/wrap-up`
+- `POST /api/engagement/weekly-review`
+- `GET /api/widgets/summary`
+- `GET /api/notifications/preview`
+
+These objects drive:
+- Morning Check state
+- discipline / habit state
+- evening wrap-up
+- widget preview summaries
+- notification reasons and cadence
 
 ## Runtime Status Labels
 
@@ -214,6 +235,7 @@ Default exclusions include local/runtime artifacts:
 - [`docs/SYSTEM_ARCHITECTURE.md`](docs/SYSTEM_ARCHITECTURE.md)
 - [`docs/NOVA_ASSISTANT_ARCHITECTURE.md`](docs/NOVA_ASSISTANT_ARCHITECTURE.md)
 - [`docs/DECISION_ENGINE.md`](docs/DECISION_ENGINE.md)
+- [`docs/ENGAGEMENT_SYSTEM.md`](docs/ENGAGEMENT_SYSTEM.md)
 - [`docs/QUANT_RESEARCH_DOCTRINE.md`](docs/QUANT_RESEARCH_DOCTRINE.md)
 - [`docs/RESEARCH_ASSISTANT_TOOLS.md`](docs/RESEARCH_ASSISTANT_TOOLS.md)
 - [`docs/TECHNICAL_DUE_DILIGENCE_GUIDE.md`](docs/TECHNICAL_DUE_DILIGENCE_GUIDE.md)

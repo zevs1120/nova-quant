@@ -449,11 +449,13 @@ export default function TodayTab({
   signals,
   topSignalEvidence,
   decision,
+  engagement,
   runtime,
   investorDemoEnabled,
   onAskAi,
   onPaperExecute,
   onOpenSignals,
+  onOpenWeekly,
   onConfirmBoundary,
   onCompleteCheckIn
 }) {
@@ -494,6 +496,8 @@ export default function TodayTab({
 
   const risk = riskFromDecision(decision) || riskLevel(overall.code, featuredSignal);
   const buttonText = mainButtonLabel(overall.code);
+  const morningCheck = engagement?.daily_check_state || null;
+  const wrapUp = engagement?.daily_wrap_up || null;
 
   if (activeSignal) {
     return <SignalDetail signal={activeSignal} onBack={() => setActiveSignal(null)} t={(key, _v, fallback) => fallback || key} />;
@@ -599,6 +603,31 @@ export default function TodayTab({
             <p className="muted status-line">{risk.explanation}</p>
           </article>
         </div>
+
+        {morningCheck ? (
+          <article className="glass-card morning-check-card">
+            <div className="card-header">
+              <div>
+                <h3 className="card-title">{morningCheck.title}</h3>
+                <p className="muted status-line">{morningCheck.headline}</p>
+              </div>
+              <span className={`badge ${morningCheck.status === 'COMPLETED' ? 'badge-triggered' : morningCheck.status === 'REFRESH_REQUIRED' ? 'badge-medium' : 'badge-neutral'}`}>
+                {morningCheck.short_label}
+              </span>
+            </div>
+            <p className="daily-brief-conclusion">{morningCheck.prompt}</p>
+            {morningCheck.why_now ? <p className="muted status-line">{morningCheck.why_now}</p> : null}
+            <div className="action-row">
+              <button type="button" className="primary-btn" onClick={() => onCompleteCheckIn?.()}>
+                {morningCheck.status === 'COMPLETED' ? 'Checked for today' : morningCheck.status === 'REFRESH_REQUIRED' ? 'Review updated view' : 'Confirm today’s view'}
+              </button>
+              <button type="button" className="secondary-btn" onClick={() => onAskAi?.('Why today’s view?', { page: 'today', focus: 'morning_check' })}>
+                Ask Nova
+              </button>
+            </div>
+            {morningCheck.completion_feedback ? <p className="muted status-line">{morningCheck.completion_feedback}</p> : null}
+          </article>
+        ) : null}
       </section>
 
       {(secondaryDecisionSignals.length || historySignals.length) ? (
@@ -633,6 +662,27 @@ export default function TodayTab({
                 </div>
               </button>
             ))}
+          </div>
+        </article>
+      ) : null}
+
+      {wrapUp?.ready ? (
+        <article className="glass-card wrap-up-card">
+          <div className="card-header">
+            <div>
+              <h3 className="card-title">{wrapUp.title}</h3>
+              <p className="muted status-line">{wrapUp.headline}</p>
+            </div>
+            <span className={`badge ${wrapUp.completed ? 'badge-triggered' : 'badge-neutral'}`}>{wrapUp.short_label}</span>
+          </div>
+          <p className="muted status-line">{wrapUp.summary}</p>
+          <div className="action-row">
+            <button type="button" className="secondary-btn" onClick={() => onOpenWeekly?.()}>
+              Open Wrap-Up
+            </button>
+            <button type="button" className="secondary-btn" onClick={() => onAskAi?.('What mattered most today?', { page: 'today', focus: 'wrap_up' })}>
+              Ask Nova
+            </button>
           </div>
         </article>
       ) : null}

@@ -497,6 +497,61 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_decision_snapshots_unique
 
 CREATE INDEX IF NOT EXISTS idx_decision_snapshots_lookup
   ON decision_snapshots(user_id, updated_at_ms DESC);
+
+CREATE TABLE IF NOT EXISTS user_ritual_events (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  market TEXT NOT NULL CHECK (market IN ('US', 'CRYPTO', 'ALL')),
+  asset_class TEXT NOT NULL CHECK (asset_class IN ('OPTIONS', 'US_STOCK', 'CRYPTO', 'ALL')),
+  event_date TEXT NOT NULL,
+  week_key TEXT,
+  event_type TEXT NOT NULL CHECK (
+    event_type IN ('MORNING_CHECK_COMPLETED', 'RISK_BOUNDARY_CONFIRMED', 'WRAP_UP_COMPLETED', 'WEEKLY_REVIEW_COMPLETED')
+  ),
+  snapshot_id TEXT,
+  reason_json TEXT NOT NULL,
+  created_at_ms INTEGER NOT NULL,
+  updated_at_ms INTEGER NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_user_ritual_events_unique
+  ON user_ritual_events(user_id, market, asset_class, event_date, event_type);
+
+CREATE INDEX IF NOT EXISTS idx_user_ritual_events_lookup
+  ON user_ritual_events(user_id, event_date DESC, updated_at_ms DESC);
+
+CREATE TABLE IF NOT EXISTS notification_events (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  market TEXT NOT NULL CHECK (market IN ('US', 'CRYPTO', 'ALL')),
+  asset_class TEXT NOT NULL CHECK (asset_class IN ('OPTIONS', 'US_STOCK', 'CRYPTO', 'ALL')),
+  category TEXT NOT NULL CHECK (category IN ('RHYTHM', 'STATE_SHIFT', 'PROTECTIVE', 'WRAP_UP')),
+  trigger_type TEXT NOT NULL,
+  fingerprint TEXT NOT NULL UNIQUE,
+  title TEXT NOT NULL,
+  body TEXT NOT NULL,
+  tone TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('ACTIVE', 'SEEN', 'DISMISSED')),
+  action_target TEXT,
+  reason_json TEXT NOT NULL,
+  created_at_ms INTEGER NOT NULL,
+  updated_at_ms INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_notification_events_lookup
+  ON notification_events(user_id, updated_at_ms DESC);
+
+CREATE TABLE IF NOT EXISTS user_notification_preferences (
+  user_id TEXT PRIMARY KEY,
+  morning_enabled INTEGER NOT NULL DEFAULT 1,
+  state_shift_enabled INTEGER NOT NULL DEFAULT 1,
+  protective_enabled INTEGER NOT NULL DEFAULT 1,
+  wrap_up_enabled INTEGER NOT NULL DEFAULT 1,
+  frequency TEXT NOT NULL DEFAULT 'NORMAL' CHECK (frequency IN ('LOW', 'NORMAL')),
+  quiet_start_hour INTEGER,
+  quiet_end_hour INTEGER,
+  updated_at_ms INTEGER NOT NULL
+);
 `;
 
 export function ensureSchema(db: Database.Database): void {

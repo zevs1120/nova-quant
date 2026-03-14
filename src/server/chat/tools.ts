@@ -356,6 +356,7 @@ function buildSelectedEvidence(args: {
   sourceTransparency: ToolContextBundle['sourceTransparency'];
   decisionSummary?: ChatContextInput['decisionSummary'];
   holdingsSummary?: ChatContextInput['holdingsSummary'];
+  engagementSummary?: ChatContextInput['engagementSummary'];
 }): string[] {
   const lines: string[] = [];
   const signal = args.signalDetail;
@@ -385,6 +386,11 @@ function buildSelectedEvidence(args: {
   if (args.holdingsSummary) {
     lines.push(
       `holdings ${String(args.holdingsSummary.holdings_count ?? 0)} | total weight ${String(args.holdingsSummary.total_weight_pct ?? '--')} | risk ${String(args.holdingsSummary.risk_level || '--')}`
+    );
+  }
+  if (args.engagementSummary) {
+    lines.push(
+      `morning check ${String(args.engagementSummary.morning_check_status || '--')} | discipline ${String(args.engagementSummary.discipline_score ?? '--')} | wrap-up ${args.engagementSummary.wrap_up_ready ? 'ready' : 'not_ready'}`
     );
   }
   const firstRecord = (args.performanceSummary?.records as Array<Record<string, unknown>> | undefined)?.[0];
@@ -467,13 +473,15 @@ export async function buildContextBundle(args: {
       performanceSummary,
       sourceTransparency,
       decisionSummary: context?.decisionSummary,
-      holdingsSummary: context?.holdingsSummary
+      holdingsSummary: context?.holdingsSummary,
+      engagementSummary: context?.engagementSummary
     }),
     statusSummary: [
       `signals ${sourceTransparency.signal_data_status}`,
       `market ${sourceTransparency.market_state_status}`,
       `performance ${sourceTransparency.performance_source}`,
-      context?.decisionSummary?.today_call ? `decision ${context.decisionSummary.today_call}` : ''
+      context?.decisionSummary?.today_call ? `decision ${context.decisionSummary.today_call}` : '',
+      context?.engagementSummary?.morning_check_status ? `check ${context.engagementSummary.morning_check_status}` : ''
     ].filter(Boolean),
     sourceTransparency,
     researchContext,

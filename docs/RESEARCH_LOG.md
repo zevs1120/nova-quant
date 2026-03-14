@@ -65,6 +65,19 @@ depending on current holdings.
 - risk posture
 - top-ranked evidence
 
+## Engagement-System Findings (2026-03-14)
+
+1. Calm recall works better when it is grounded on decision changes, not on price noise.
+2. A meaningful "daily check" requires a fingerprint of today's actual judgment; otherwise completion state quickly becomes fake.
+3. The right habit target is not "open the app more", but "return once to confirm whether the posture changed".
+4. Notification quality improves when the system can say exactly why it is recalling the user:
+- morning confirmation due
+- risk posture changed
+- top action changed
+- wrap-up is ready
+5. Widget summaries should behave like compact investment committee notes, not like mini stock terminals.
+6. Discipline systems are stronger when they reward restraint, boundary keeping, and review cadence rather than trade count.
+
 ## New Research Questions Enabled
 
 1. Which factors are actually supporting the current signal, and which factors push against it?

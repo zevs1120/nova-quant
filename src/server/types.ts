@@ -546,3 +546,56 @@ export interface DecisionSnapshotRecord {
   created_at_ms: number;
   updated_at_ms: number;
 }
+
+export type UserRitualEventType =
+  | 'MORNING_CHECK_COMPLETED'
+  | 'RISK_BOUNDARY_CONFIRMED'
+  | 'WRAP_UP_COMPLETED'
+  | 'WEEKLY_REVIEW_COMPLETED';
+
+export interface UserRitualEventRecord {
+  id: string;
+  user_id: string;
+  market: Market | 'ALL';
+  asset_class: AssetClass | 'ALL';
+  event_date: string;
+  week_key: string | null;
+  event_type: UserRitualEventType;
+  snapshot_id: string | null;
+  reason_json: string;
+  created_at_ms: number;
+  updated_at_ms: number;
+}
+
+export type NotificationCategory = 'RHYTHM' | 'STATE_SHIFT' | 'PROTECTIVE' | 'WRAP_UP';
+export type NotificationStatus = 'ACTIVE' | 'SEEN' | 'DISMISSED';
+
+export interface NotificationEventRecord {
+  id: string;
+  user_id: string;
+  market: Market | 'ALL';
+  asset_class: AssetClass | 'ALL';
+  category: NotificationCategory;
+  trigger_type: string;
+  fingerprint: string;
+  title: string;
+  body: string;
+  tone: string;
+  status: NotificationStatus;
+  action_target: string | null;
+  reason_json: string;
+  created_at_ms: number;
+  updated_at_ms: number;
+}
+
+export interface NotificationPreferenceRecord {
+  user_id: string;
+  morning_enabled: number;
+  state_shift_enabled: number;
+  protective_enabled: number;
+  wrap_up_enabled: number;
+  frequency: 'LOW' | 'NORMAL';
+  quiet_start_hour: number | null;
+  quiet_end_hour: number | null;
+  updated_at_ms: number;
+}

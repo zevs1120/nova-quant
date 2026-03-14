@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import AboutModal from './components/AboutModal';
 import AiPage from './components/AiPage';
 import HoldingsTab from './components/HoldingsTab';
@@ -220,6 +220,7 @@ export default function App() {
     { legacyKeys: ['quant-demo-discipline-log'] }
   );
   const [aiSeedRequest, setAiSeedRequest] = useState(null);
+  const [engagementState, setEngagementState] = useState(null);
 
   const t = useMemo(() => createTranslator(lang), [lang]);
   const locale = useMemo(() => getLocale(lang), [lang]);
@@ -528,6 +529,11 @@ export default function App() {
     };
   }, [EXPLICIT_DEMO_MODE, hasLoaded, chatUserId, market, assetClass, holdings, uiData.decision]);
 
+  useEffect(() => {
+    if (!decisionSnapshot || EXPLICIT_DEMO_MODE || !hasLoaded) return;
+    void loadEngagementState();
+  }, [decisionSnapshot?.audit_snapshot_id, EXPLICIT_DEMO_MODE, hasLoaded, loadEngagementState]);
+
   const lastUpdated = useMemo(() => {
     return uiData.config.last_updated || uiData.performance.last_updated || uiData.velocity.last_updated || null;
   }, [uiData]);
@@ -541,7 +547,7 @@ export default function App() {
   const todayKey = localDateKey(now);
   const currentWeekKey = weekStartKey(now);
 
-  const discipline = useMemo(() => {
+  const localDiscipline = useMemo(() => {
     const checkins = disciplineLog?.checkins || [];
     const boundary = disciplineLog?.boundary_kept || [];
     const weekly = disciplineLog?.weekly_reviews || [];
@@ -556,26 +562,150 @@ export default function App() {
     };
   }, [disciplineLog, todayKey, currentWeekKey]);
 
-  const markDailyCheckin = () => {
-    setDisciplineLog((current) => ({
+  const discipline = useMemo(() => {
+    const habit = engagementState?.habit_state;
+    if (!habit) return localDiscipline;
+    return {
+      checkedToday: Boolean(habit.checkedToday),
+      boundaryToday: Boolean(habit.boundaryToday),
+      reviewedThisWeek: Boolean(habit.reviewedThisWeek),
+      checkinStreak: Number(habit.checkinStreak || 0),
+      boundaryStreak: Number(habit.boundaryStreak || 0),
+      weeklyStreak: Number(habit.weeklyStreak || 0),
+      wrapUpToday: Boolean(habit.wrapUpToday),
+      wrapUpStreak: Number(habit.wrapUpStreak || 0),
+      disciplineScore: Number(habit.discipline_score || 0),
+      behaviorQuality: habit.behavior_quality || null,
+      summary: habit.summary || null,
+      noActionValueLine: habit.no_action_value_line || null
+    };
+  }, [engagementState, localDiscipline]);
+
+  const syncLocalDisciplineLog = useCallback(
+    (updater) => {
+      setDisciplineLog((current) => updater(current || { checkins: [], boundary_kept: [], weekly_reviews: [] }));
+    },
+    [setDisciplineLog]
+  );
+
+  const loadEngagementState = useCallback(async () => {
+    if (EXPLICIT_DEMO_MODE || !hasLoaded) return null;
+    try {
+      const payload = await fetchJson('/api/engagement/state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: chatUserId,
+          market,
+          assetClass,
+          localDate: todayKey,
+          localHour: now.getHours(),
+          holdings
+        })
+      });
+      setEngagementState(payload || null);
+      return payload || null;
+    } catch {
+      setEngagementState(null);
+      return null;
+    }
+  }, [assetClass, chatUserId, hasLoaded, holdings, market, now, todayKey]);
+
+  const markDailyCheckin = useCallback(async () => {
+    syncLocalDisciplineLog((current) => ({
       ...current,
       checkins: addUniqueKey(current?.checkins || [], todayKey)
     }));
-  };
+    if (EXPLICIT_DEMO_MODE) return;
+    try {
+      const payload = await fetchJson('/api/engagement/morning-check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: chatUserId,
+          market,
+          assetClass,
+          localDate: todayKey,
+          localHour: now.getHours(),
+          holdings
+        })
+      });
+      setEngagementState(payload || null);
+    } catch {
+      void loadEngagementState();
+    }
+  }, [assetClass, chatUserId, holdings, loadEngagementState, market, now, syncLocalDisciplineLog, todayKey]);
 
-  const markBoundaryKept = () => {
-    setDisciplineLog((current) => ({
+  const markBoundaryKept = useCallback(async () => {
+    syncLocalDisciplineLog((current) => ({
       ...current,
       boundary_kept: addUniqueKey(current?.boundary_kept || [], todayKey)
     }));
-  };
+    if (EXPLICIT_DEMO_MODE) return;
+    try {
+      const payload = await fetchJson('/api/engagement/boundary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: chatUserId,
+          market,
+          assetClass,
+          localDate: todayKey,
+          localHour: now.getHours(),
+          holdings
+        })
+      });
+      setEngagementState(payload || null);
+    } catch {
+      void loadEngagementState();
+    }
+  }, [assetClass, chatUserId, holdings, loadEngagementState, market, now, syncLocalDisciplineLog, todayKey]);
 
-  const markWeeklyReviewed = () => {
-    setDisciplineLog((current) => ({
+  const markWrapUpComplete = useCallback(async () => {
+    if (EXPLICIT_DEMO_MODE) return;
+    try {
+      const payload = await fetchJson('/api/engagement/wrap-up', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: chatUserId,
+          market,
+          assetClass,
+          localDate: todayKey,
+          localHour: now.getHours(),
+          holdings
+        })
+      });
+      setEngagementState(payload || null);
+    } catch {
+      void loadEngagementState();
+    }
+  }, [assetClass, chatUserId, holdings, loadEngagementState, market, now, todayKey]);
+
+  const markWeeklyReviewed = useCallback(async () => {
+    syncLocalDisciplineLog((current) => ({
       ...current,
       weekly_reviews: addUniqueKey(current?.weekly_reviews || [], currentWeekKey)
     }));
-  };
+    if (EXPLICIT_DEMO_MODE) return;
+    try {
+      const payload = await fetchJson('/api/engagement/weekly-review', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: chatUserId,
+          market,
+          assetClass,
+          localDate: todayKey,
+          localHour: now.getHours(),
+          holdings
+        })
+      });
+      setEngagementState(payload || null);
+    } catch {
+      void loadEngagementState();
+    }
+  }, [assetClass, chatUserId, currentWeekKey, holdings, loadEngagementState, market, now, syncLocalDisciplineLog, todayKey]);
 
   const askAi = (message, context = {}) => {
     const text = String(message || '').trim();
@@ -606,6 +736,15 @@ export default function App() {
           top1_pct: holdingsReview?.concentration?.top1_pct ?? 0,
           risk_level: holdingsReview?.risk?.level || null,
           recommendation: holdingsReview?.risk?.recommendation || holdingsReview?.key_advice || null
+        },
+        engagementSummary: {
+          morning_check_status: engagementState?.daily_check_state?.status || null,
+          morning_check_label: engagementState?.daily_check_state?.headline || null,
+          wrap_up_ready: Boolean(engagementState?.daily_wrap_up?.ready),
+          wrap_up_completed: Boolean(engagementState?.daily_wrap_up?.completed),
+          discipline_score: Number(engagementState?.habit_state?.discipline_score || 0) || null,
+          behavior_quality: engagementState?.habit_state?.behavior_quality || null,
+          recommendation_change: engagementState?.recommendation_change?.summary || null
         },
         ...(context || {})
       }
@@ -745,6 +884,33 @@ export default function App() {
   };
 
   const renderSettings = () => {
+    const notificationPrefs = engagementState?.notification_preferences;
+
+    const togglePreference = async (field, nextValue) => {
+      if (EXPLICIT_DEMO_MODE) return;
+      try {
+        const payload = await fetchJson('/api/notification-preferences', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: chatUserId,
+            [field]: nextValue
+          })
+        });
+        setEngagementState((current) =>
+          current
+            ? {
+                ...current,
+                notification_preferences: payload
+              }
+            : current
+        );
+        void loadEngagementState();
+      } catch {
+        void loadEngagementState();
+      }
+    };
+
     return (
       <section className="stack-gap">
         <article className="glass-card">
@@ -834,6 +1000,57 @@ export default function App() {
             </button>
           </div>
         </article>
+
+        <article className="glass-card">
+          <div className="card-header">
+            <div>
+              <h3 className="card-title">Recall Style</h3>
+              <p className="muted status-line">
+                Nova only nudges when today&apos;s judgment, protection, or wrap-up is worth confirming.
+              </p>
+            </div>
+            <span className="badge badge-neutral">{notificationPrefs?.frequency || 'NORMAL'}</span>
+          </div>
+
+          <div className="status-grid-2" style={{ marginTop: 10 }}>
+            {[
+              ['morning_enabled', 'Morning check'],
+              ['state_shift_enabled', 'Judgment shifts'],
+              ['protective_enabled', 'Protective reminders'],
+              ['wrap_up_enabled', 'Evening wrap-up']
+            ].map(([field, label]) => {
+              const enabled = Boolean(notificationPrefs?.[field]);
+              return (
+                <button
+                  key={field}
+                  type="button"
+                  className={`status-box preference-toggle ${enabled ? 'is-on' : 'is-off'}`}
+                  onClick={() => togglePreference(field, enabled ? 0 : 1)}
+                >
+                  <p className="muted">{label}</p>
+                  <h2>{enabled ? 'On' : 'Off'}</h2>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="action-row" style={{ marginTop: 10 }}>
+            <button
+              type="button"
+              className={`secondary-btn ${notificationPrefs?.frequency === 'LOW' ? 'is-selected' : ''}`}
+              onClick={() => togglePreference('frequency', 'LOW')}
+            >
+              Quiet cadence
+            </button>
+            <button
+              type="button"
+              className={`secondary-btn ${notificationPrefs?.frequency !== 'LOW' ? 'is-selected' : ''}`}
+              onClick={() => togglePreference('frequency', 'NORMAL')}
+            >
+              Normal cadence
+            </button>
+          </div>
+        </article>
       </section>
     );
   };
@@ -891,7 +1108,9 @@ export default function App() {
         <section className="stack-gap">
           <article className="glass-card posture-card">
             <h3 className="card-title">Discipline Progress</h3>
-            <p className="daily-brief-conclusion">你在训练的是判断节奏，不是交易频率。</p>
+            <p className="daily-brief-conclusion">
+              {engagementState?.habit_state?.summary || '你在训练的是判断节奏，不是交易频率。'}
+            </p>
 
             <div className="status-grid-3">
               <div className="status-box">
@@ -909,9 +1128,10 @@ export default function App() {
             </div>
 
             <ul className="bullet-list">
-              <li>{discipline.checkedToday ? '今天已完成判断校准。' : '今天还未完成判断校准。'}</li>
+              <li>{engagementState?.daily_check_state?.headline || (discipline.checkedToday ? '今天已完成判断校准。' : '今天还未完成判断校准。')}</li>
               <li>{discipline.boundaryToday ? '今天已确认风险边界。' : '今天还未确认风险边界。'}</li>
               <li>{discipline.reviewedThisWeek ? '本周复盘已完成。' : '本周还未完成复盘。'}</li>
+              {discipline.noActionValueLine ? <li>{discipline.noActionValueLine}</li> : null}
             </ul>
 
             <div className="action-row">
@@ -926,6 +1146,75 @@ export default function App() {
               </button>
             </div>
           </article>
+
+          {engagementState?.widget_summary ? (
+            <article className="glass-card">
+              <div className="card-header">
+                <div>
+                  <h3 className="card-title">Widget Preview</h3>
+                  <p className="muted status-line">桌面和锁屏摘要会围绕判断，而不是围绕行情刺激。</p>
+                </div>
+              </div>
+              <div className="status-grid-3">
+                {Object.values(engagementState.widget_summary).map((widget) => (
+                  <div key={widget.kind} className="status-box widget-preview-box">
+                    <p className="muted">{widget.kind.replace(/_/g, ' ')}</p>
+                    <h2>{widget.title}</h2>
+                    <p className="muted status-line">{widget.subtitle}</p>
+                  </div>
+                ))}
+              </div>
+            </article>
+          ) : null}
+
+          {engagementState?.notification_center?.notifications?.length ? (
+            <article className="glass-card">
+              <div className="card-header">
+                <div>
+                  <h3 className="card-title">Notification Preview</h3>
+                  <p className="muted status-line">这些消息的目的都是提醒你回来确认，而不是催你交易。</p>
+                </div>
+                <span className="badge badge-neutral">{engagementState.notification_center.active_count || 0}</span>
+              </div>
+              <div className="quick-access-list" style={{ marginTop: 8 }}>
+                {engagementState.notification_center.notifications.slice(0, 4).map((item) => (
+                  <div key={item.id} className="quick-access-row notification-preview-row">
+                    <span className="quick-access-title">{item.title}</span>
+                    <span className="quick-access-desc">{item.body}</span>
+                  </div>
+                ))}
+              </div>
+            </article>
+          ) : null}
+
+          {engagementState?.daily_wrap_up ? (
+            <article className="glass-card">
+              <div className="card-header">
+                <div>
+                  <h3 className="card-title">{engagementState.daily_wrap_up.title}</h3>
+                  <p className="muted status-line">{engagementState.daily_wrap_up.headline}</p>
+                </div>
+                <span className={`badge ${engagementState.daily_wrap_up.completed ? 'badge-triggered' : 'badge-neutral'}`}>
+                  {engagementState.daily_wrap_up.short_label}
+                </span>
+              </div>
+              <p className="daily-brief-conclusion">{engagementState.daily_wrap_up.summary}</p>
+              <ul className="bullet-list">
+                {(engagementState.daily_wrap_up.lessons || []).map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+                <li>{engagementState.daily_wrap_up.tomorrow_watch}</li>
+              </ul>
+              <div className="action-row">
+                <button type="button" className="primary-btn" onClick={markWrapUpComplete}>
+                  完成今日复盘
+                </button>
+                <button type="button" className="secondary-btn" onClick={() => askAi('What mattered most in today’s wrap-up?')}>
+                  Ask Nova
+                </button>
+              </div>
+            </article>
+          ) : null}
         </section>
       );
     }
@@ -1019,6 +1308,7 @@ export default function App() {
           uiMode={uiMode}
           locale={locale}
           discipline={discipline}
+          engagement={engagementState}
           investorDemoEnabled={investorDemoEnabled}
           onCompleteCheckIn={markDailyCheckin}
           onConfirmBoundary={markBoundaryKept}
@@ -1065,6 +1355,15 @@ export default function App() {
               top1_pct: holdingsReview?.concentration?.top1_pct ?? 0,
               risk_level: holdingsReview?.risk?.level || null,
               recommendation: holdingsReview?.risk?.recommendation || holdingsReview?.key_advice || null
+            },
+            engagementSummary: {
+              morning_check_status: engagementState?.daily_check_state?.status || null,
+              morning_check_label: engagementState?.daily_check_state?.headline || null,
+              wrap_up_ready: Boolean(engagementState?.daily_wrap_up?.ready),
+              wrap_up_completed: Boolean(engagementState?.daily_wrap_up?.completed),
+              discipline_score: Number(engagementState?.habit_state?.discipline_score || 0) || null,
+              behavior_quality: engagementState?.habit_state?.behavior_quality || null,
+              recommendation_change: engagementState?.recommendation_change?.summary || null
             }
           }}
         />
@@ -1094,6 +1393,7 @@ export default function App() {
         onSectionChange={setMoreSection}
         uiMode={uiMode}
         discipline={discipline}
+        engagement={engagementState}
         renderSection={renderMoreSection}
         investorDemoEnabled={investorDemoEnabled}
         onToggleDemo={() => {
@@ -1113,9 +1413,11 @@ export default function App() {
       ? MORE_TITLES[moreSection] || TAB_META.more.label
       : TAB_META[activeTab]?.label || 'Today';
 
+  const appTone = engagementState?.ui_regime_state?.tone || 'quiet';
+
   return (
-    <div className={`app-bg app-bg-${displayMode}`}>
-      <div className={`device-shell device-shell-${displayMode}`} data-active-tab={activeTab}>
+    <div className={`app-bg app-bg-${displayMode} app-tone-${appTone}`}>
+      <div className={`device-shell device-shell-${displayMode} ui-tone-${appTone}`} data-active-tab={activeTab}>
         <header className="top-bar">
           <div>
             <p className="brand">{t('app.brand')}</p>

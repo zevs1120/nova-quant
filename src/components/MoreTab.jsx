@@ -107,6 +107,7 @@ export default function MoreTab({
   onSectionChange,
   uiMode,
   discipline,
+  engagement,
   renderSection,
   investorDemoEnabled,
   onToggleDemo,
@@ -218,7 +219,12 @@ export default function MoreTab({
       </div>
 
       <p className="muted status-line more-screen-meta">
-        Check-in streak: {discipline?.checkinStreak || 0} days · Weekly review streak: {discipline?.weeklyStreak || 0} weeks
+        {engagement?.daily_check_state?.status === 'COMPLETED'
+          ? 'Today already checked'
+          : engagement?.daily_check_state?.status === 'REFRESH_REQUIRED'
+            ? 'Today’s view changed'
+            : 'Morning check pending'}{' '}
+        · Check-in streak: {discipline?.checkinStreak || 0} days · Weekly review streak: {discipline?.weeklyStreak || 0} weeks
       </p>
     </section>
   );

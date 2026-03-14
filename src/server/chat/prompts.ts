@@ -82,6 +82,16 @@ function formatHoldingsSummary(context: ChatContextInput | undefined): string[] 
   ];
 }
 
+function formatEngagementSummary(context: ChatContextInput | undefined): string[] {
+  if (!context?.engagementSummary) return ['- unavailable'];
+  return [
+    `- morning check ${line(context.engagementSummary.morning_check_status || '--')} | ${line(context.engagementSummary.morning_check_label || '--')}`,
+    `- wrap-up ready ${String(Boolean(context.engagementSummary.wrap_up_ready))} | completed ${String(Boolean(context.engagementSummary.wrap_up_completed))}`,
+    `- discipline ${line(context.engagementSummary.discipline_score || '--')} | quality ${line(context.engagementSummary.behavior_quality || '--')}`,
+    `- recommendation change ${line(context.engagementSummary.recommendation_change || '--')}`
+  ];
+}
+
 export function buildSystemPrompt(mode: ChatMode, exactSignalData: boolean): string {
   const modeLine =
     mode === 'research-assistant'
@@ -145,6 +155,7 @@ export function buildUserPrompt(input: {
     `MARKET / RISK SNAPSHOT\n- market ${line(input.contextBundle.marketTemperature?.regime_id || input.contextBundle.marketTemperature?.stance || '--')}\n- risk ${line(input.contextBundle.riskProfile?.profile_key || '--')}\n- status ${input.contextBundle.statusSummary.join(' | ')}`,
     `DECISION SNAPSHOT\n${formatDecisionSummary(input.context).join('\n')}`,
     `HOLDINGS SUMMARY\n${formatHoldingsSummary(input.context).join('\n')}`,
+    `ENGAGEMENT RHYTHM\n${formatEngagementSummary(input.context).join('\n')}`,
     `PERFORMANCE SUMMARY\n${formatPerformanceSummary(input.contextBundle.performanceSummary).join('\n')}`,
     `DETERMINISTIC GUIDANCE TOOL\n${line(input.contextBundle.deterministicGuide?.text || 'unavailable')}`,
     `RESEARCH TOOLS\n${formatResearchTools(input.contextBundle).join('\n') || '- none'}`,

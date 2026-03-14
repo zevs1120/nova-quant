@@ -27,6 +27,15 @@ export interface ChatContextInput {
     risk_level?: string;
     recommendation?: string;
   };
+  engagementSummary?: {
+    morning_check_status?: string | null;
+    morning_check_label?: string | null;
+    wrap_up_ready?: boolean;
+    wrap_up_completed?: boolean;
+    discipline_score?: number | null;
+    behavior_quality?: string | null;
+    recommendation_change?: string | null;
+  };
 }
 
 export interface ChatRequestInput {
