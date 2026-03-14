@@ -135,6 +135,10 @@ Current research capabilities include:
 - regime diagnostics
 - factor diagnostics for current signals
 - factor-by-regime comparison
+- strategy evaluation reports
+- validation report objects
+- experiment registry memory
+- research workflow planning
 - backtest integrity and overfit-risk style checks
 - turnover / cost drag review
 - failed experiment surfacing
@@ -146,6 +150,8 @@ This means Nova can now help with:
 - "How does momentum usually behave across regimes?"
 - "Is this result likely to be overfit?"
 - "Does turnover erase the edge after costs?"
+- "What should the next research workflow look like?"
+- "Which experiments were rejected, and why?"
 
 ## Vercel Deploy Notes
 

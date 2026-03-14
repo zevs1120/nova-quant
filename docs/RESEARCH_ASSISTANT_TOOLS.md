@@ -110,16 +110,22 @@ Current tool inventory:
 - `get_factor_catalog`
 - `get_factor_definition`
 - `get_factor_interactions`
+- `get_factor_research_snapshot`
 - `get_strategy_registry`
 - `get_regime_taxonomy`
 - `get_regime_diagnostics`
 - `run_factor_diagnostics`
 - `compare_factor_performance_by_regime`
+- `get_strategy_evaluation_report`
+- `get_validation_report`
 - `get_backtest_integrity_report`
 - `get_turnover_cost_report`
 - `get_signal_evidence`
 - `explain_why_signal_exists`
 - `explain_why_no_signal`
+- `get_experiment_registry`
+- `get_research_memory`
+- `get_research_workflow_plan`
 - `list_failed_experiments`
 - `summarize_research_on_topic`
 
@@ -133,6 +139,8 @@ Measured / runtime-backed examples:
 - current regime diagnostics from `market_state`
 - latest backtest integrity summary
 - turnover / cost drag from evidence metrics
+- strategy evaluation summaries from the latest canonical evidence run
+- experiment registry history from `experiment_registry`
 - recent failed experiments from registry when available
 
 Taxonomy-guided / knowledge-backed examples:
@@ -171,6 +179,10 @@ What is already usable:
 - factor/strategy/regime knowledge retrieval
 - signal-level factor diagnostics
 - no-signal explanation
+- strategy evaluation report objects
+- validation report objects
+- research workflow planning
+- experiment registry memory view
 - integrity / turnover / cost review
 - failed experiment surfacing
 

@@ -17,15 +17,19 @@ Last updated: 2026-03-14
 - Align backtest and paper execution assumptions stage-by-stage.
 - Add diagnostics for where divergence originates.
 
-4. Shadow truth-path upgrade
+4. Research workflow persistence depth
+- Persist workflow plans, validation reports, and reject/ship rationale as first-class research artifacts rather than ephemeral tool outputs.
+- Add stronger experiment lineage from hypothesis/template/factor family into experiment registry.
+
+5. Shadow truth-path upgrade
 - Replace synthetic forward returns with realized bar-joined outcomes.
 - Add drawdown and outcome source metadata from true bars.
 
-5. Cost/slippage calibration
+6. Cost/slippage calibration
 - Add venue-aware slippage/fees/funding presets.
 - Integrate calibration profiles into validation stress suite.
 
-6. Governance hardening
+7. Governance hardening
 - Add promotion memo generation per stage transition.
 - Add reviewer identity and approval state.
 

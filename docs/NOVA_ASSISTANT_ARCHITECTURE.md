@@ -45,6 +45,10 @@ That lets the same Nova Assistant answer research questions about:
 - factor interactions
 - regime fit
 - strategy metadata
+- strategy evaluation reports
+- validation report objects
+- experiment history / failed ideas
+- research workflow next steps
 - backtest integrity
 - turnover / cost realism
 - failed experiments
@@ -111,16 +115,22 @@ Current research tools include:
 - `get_factor_catalog`
 - `get_factor_definition`
 - `get_factor_interactions`
+- `get_factor_research_snapshot`
 - `get_strategy_registry`
 - `get_regime_taxonomy`
 - `get_regime_diagnostics`
 - `run_factor_diagnostics`
 - `compare_factor_performance_by_regime`
+- `get_strategy_evaluation_report`
+- `get_validation_report`
 - `get_backtest_integrity_report`
 - `get_turnover_cost_report`
 - `get_signal_evidence`
 - `explain_why_signal_exists`
 - `explain_why_no_signal`
+- `get_experiment_registry`
+- `get_research_memory`
+- `get_research_workflow_plan`
 - `list_failed_experiments`
 - `summarize_research_on_topic`
 

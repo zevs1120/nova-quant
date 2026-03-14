@@ -48,6 +48,8 @@ Last updated: 2026-03-14
 - taxonomy knowledge (definitions, expected failure modes, interactions)
 - measured evidence (runtime rows, backtest artifacts, registry results)
 6. Failed experiments are now usable as memory assets, not only missing strategy outcomes.
+7. Research workflow planning is now first-class: the assistant can suggest the next concrete step from hypothesis to feature construction to validation to portfolio mapping.
+8. Strategy evaluation and validation report objects now exist as explicit assistant/API outputs instead of being implied inside long-form chat responses.
 
 ## New Research Questions Enabled
 
@@ -56,6 +58,8 @@ Last updated: 2026-03-14
 3. Is this backtest worth trusting, or does it show signs of overfit / low-sample fragility?
 4. Does turnover and cost drag make this idea unfit for production-like execution?
 5. Why is the system staying out right now, and is that because of factor weakness, regime mismatch, or risk posture?
+6. What should the next research step be before this idea deserves replay or paper?
+7. Which past experiments were rejected for structural reasons versus temporary evidence weakness?
 
 ## Persistent Risks
 

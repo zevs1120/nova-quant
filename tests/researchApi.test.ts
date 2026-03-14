@@ -33,4 +33,20 @@ describe('research api contracts', () => {
     expect(regimeRes.body.diagnostics).toBeTruthy();
     expect(regimeRes.body.diagnostics).toHaveProperty('current_regime');
   });
+
+  it('serves evaluation, workflow, and experiment registry endpoints', async () => {
+    const app = createApiApp();
+
+    const evaluationRes = await request(app).get('/api/research/evaluation/strategy');
+    expect(evaluationRes.status).toBe(200);
+    expect(evaluationRes.body).toHaveProperty('report');
+
+    const workflowRes = await request(app).get('/api/research/workflow').query({ topic: 'momentum' });
+    expect(workflowRes.status).toBe(200);
+    expect(workflowRes.body.workflow?.stages?.length).toBeGreaterThanOrEqual(5);
+
+    const experimentsRes = await request(app).get('/api/research/experiments');
+    expect(experimentsRes.status).toBe(200);
+    expect(Array.isArray(experimentsRes.body.records)).toBe(true);
+  });
 });

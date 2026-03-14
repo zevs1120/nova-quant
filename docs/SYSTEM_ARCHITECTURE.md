@@ -59,11 +59,23 @@ Last updated: 2026-03-14
 - Tool context builder: `src/server/chat/tools.ts`.
 - Prompt assembly: `src/server/chat/prompts.ts`.
 - Provider adapters: `src/server/chat/providers/*`.
+- Research knowledge + evaluation layer:
+  - `src/server/research/knowledge.ts`
+  - `src/server/research/tools.ts`
+  - `src/server/research/evaluation.ts`
 - Thread persistence:
   - `chat_threads`
   - `chat_messages`
 - Frontend AI entry now uses the canonical backend assistant rather than a separate local-only AI path.
 - Deterministic retrieval remains available, but only as a backend tool / fallback aid.
+- Research mode now exposes:
+  - factor taxonomy and interactions
+  - strategy metadata
+  - regime diagnostics
+  - strategy evaluation reports
+  - validation report objects
+  - experiment registry memory
+  - research workflow plans
 
 9. **Connectivity Layer**
 - Adapter interfaces: `src/server/connect/adapters.ts`.

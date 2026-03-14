@@ -22,6 +22,14 @@ import {
   summarizeTopicHits,
   type FactorCard
 } from './knowledge.js';
+import {
+  buildExperimentRegistryView,
+  buildFactorResearchSnapshot,
+  buildResearchWorkflowPlan,
+  listResearchMemory,
+  buildStrategyEvaluationReport,
+  buildValidationReport
+} from './evaluation.js';
 
 type ResearchToolArgs = {
   userId?: string;
@@ -354,6 +362,22 @@ export function getBacktestIntegrityReportTool(args: ResearchToolArgs) {
   };
 }
 
+export function getStrategyEvaluationReportTool(args: ResearchToolArgs) {
+  return buildStrategyEvaluationReport(getRepo(), {
+    runId: args.runId,
+    market: args.market,
+    assetClass: args.assetClass
+  });
+}
+
+export function getValidationReportTool(args: ResearchToolArgs) {
+  return buildValidationReport(getRepo(), {
+    runId: args.runId,
+    market: args.market,
+    assetClass: args.assetClass
+  });
+}
+
 export function getTurnoverCostReportTool(args: ResearchToolArgs) {
   const wrap = latestBacktestDetail(args.runId);
   const detail = wrap.detail;
@@ -383,6 +407,28 @@ export function getTurnoverCostReportTool(args: ResearchToolArgs) {
           : 'Re-test under harsher spread/slippage assumptions.'
     }
   };
+}
+
+export function getExperimentRegistryTool() {
+  return buildExperimentRegistryView(getRepo());
+}
+
+export function getResearchWorkflowPlanTool(args: ResearchToolArgs) {
+  return buildResearchWorkflowPlan({
+    topic: args.topic,
+    factorId: args.factorId,
+    market: args.market,
+    assetClass: args.assetClass
+  });
+}
+
+export function getFactorResearchSnapshotTool(args: ResearchToolArgs) {
+  return buildFactorResearchSnapshot(getRepo(), {
+    runId: args.runId,
+    factorId: args.factorId,
+    market: args.market,
+    assetClass: args.assetClass
+  });
 }
 
 export function getSignalEvidenceTool(args: ResearchToolArgs) {
@@ -480,7 +526,12 @@ export function summarizeResearchOnTopicTool(args: ResearchToolArgs) {
       models: hits.models.slice(0, 3),
       failed_ideas: hits.failed_ideas.slice(0, 3),
       doctrine: listResearchDoctrinePrinciples().slice(0, 5),
-      cross_sectional_models: listCrossSectionalModelCatalog().slice(0, 4)
+      cross_sectional_models: listCrossSectionalModelCatalog().slice(0, 4),
+      workflow_hint: buildResearchWorkflowPlan({ topic }).workflow
     }
   };
+}
+
+export function getResearchMemoryTool() {
+  return listResearchMemory(getRepo());
 }

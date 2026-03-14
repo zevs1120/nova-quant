@@ -15,14 +15,20 @@ import {
   explainWhyNoSignalTool,
   explainWhySignalExistsTool,
   getBacktestIntegrityReportTool,
+  getExperimentRegistryTool,
   getFactorCatalogTool,
   getFactorDefinitionTool,
   getFactorInteractionsTool,
+  getFactorResearchSnapshotTool,
   getRegimeDiagnosticsTool,
   getRegimeTaxonomyTool,
+  getResearchMemoryTool,
+  getResearchWorkflowPlanTool,
+  getStrategyEvaluationReportTool,
   getSignalEvidenceTool,
   getStrategyRegistryTool,
   getTurnoverCostReportTool,
+  getValidationReportTool,
   listFailedExperimentsTool,
   runFactorDiagnosticsTool,
   summarizeResearchOnTopicTool
@@ -120,6 +126,9 @@ function shouldEnterResearchMode(message = ''): boolean {
     'strategy',
     'regime',
     'backtest',
+    'experiment',
+    'validation',
+    'workflow',
     'overfit',
     'overfitting',
     'turnover',
@@ -175,7 +184,25 @@ async function buildResearchToolResults(args: {
     symbol: args.context?.symbol
   }));
   push('get_backtest_integrity_report', getBacktestIntegrityReportTool({ runId: undefined }));
+  push('get_strategy_evaluation_report', getStrategyEvaluationReportTool({
+    runId: undefined,
+    market: inferMarket(args.context),
+    assetClass: inferAssetClass(args.context)
+  }));
+  push('get_validation_report', getValidationReportTool({
+    runId: undefined,
+    market: inferMarket(args.context),
+    assetClass: inferAssetClass(args.context)
+  }));
   push('get_turnover_cost_report', getTurnoverCostReportTool({ runId: undefined }));
+  push('get_experiment_registry', getExperimentRegistryTool());
+  push('get_research_memory', getResearchMemoryTool());
+  push('get_research_workflow_plan', getResearchWorkflowPlanTool({
+    topic,
+    factorId,
+    market: inferMarket(args.context),
+    assetClass: inferAssetClass(args.context)
+  }));
   push('list_failed_experiments', listFailedExperimentsTool());
 
   if (factorId) {
@@ -186,6 +213,14 @@ async function buildResearchToolResults(args: {
       'compare_factor_performance_by_regime',
       compareFactorPerformanceByRegimeTool({
         userId: args.userId,
+        factorId,
+        market: inferMarket(args.context),
+        assetClass: inferAssetClass(args.context)
+      })
+    );
+    push(
+      'get_factor_research_snapshot',
+      getFactorResearchSnapshotTool({
         factorId,
         market: inferMarket(args.context),
         assetClass: inferAssetClass(args.context)

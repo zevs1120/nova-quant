@@ -258,6 +258,10 @@ New assistant research capabilities:
 - surface backtest integrity caveats
 - surface turnover and cost realism caveats
 - summarize research on a factor/strategy/regime topic
+- generate strategy evaluation report objects
+- generate validation report objects
+- surface experiment registry history as research memory
+- propose next-step research workflow plans
 
 Canonical research tool layer now lives in:
 - `src/server/research/knowledge.ts`

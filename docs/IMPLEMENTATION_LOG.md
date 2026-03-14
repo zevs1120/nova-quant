@@ -25,26 +25,50 @@
   - `get_regime_diagnostics`
   - `run_factor_diagnostics`
   - `compare_factor_performance_by_regime`
+  - `get_strategy_evaluation_report`
+  - `get_validation_report`
   - `get_backtest_integrity_report`
   - `get_turnover_cost_report`
   - `get_signal_evidence`
   - `explain_why_signal_exists`
   - `explain_why_no_signal`
+  - `get_experiment_registry`
+  - `get_research_memory`
+  - `get_research_workflow_plan`
   - `list_failed_experiments`
   - `summarize_research_on_topic`
 
-3. Canonical assistant research mode
+3. Evaluation and workflow layer
+- Added `src/server/research/evaluation.ts`
+- Introduced:
+  - strategy evaluation report objects
+  - validation report objects
+  - experiment registry view
+  - factor research snapshot
+  - research workflow plan objects
+  - research memory view
+
+4. Canonical assistant research mode
 - `src/server/chat/service.ts` now routes research-heavy questions into `research-assistant` mode.
 - `src/server/chat/tools.ts` now selects research tools and includes them in the context bundle.
 - `src/server/chat/prompts.ts` now adds evidence-first research prompt assembly and stricter output expectations for research work.
 
-4. Research API surface
+5. Research API surface
 - Added research endpoints under `/api/research/*` for factor catalog, factor detail, interactions, regimes, diagnostics, integrity review, turnover-cost review, failed experiments, and topic summaries.
 
-5. Tests
+- Added evaluation/workflow/memory endpoints:
+  - `/api/research/evaluation/strategy`
+  - `/api/research/validation-report`
+  - `/api/research/experiments`
+  - `/api/research/memory`
+  - `/api/research/workflow`
+  - `/api/research/factors/:id/snapshot`
+
+6. Tests
 - Added:
   - `tests/researchKnowledge.test.ts`
   - `tests/researchApi.test.ts`
+  - `tests/researchEvaluation.test.ts`
 - Updated:
   - `tests/chatToolsRuntime.test.ts`
   - `tests/chatPrompt.test.ts`

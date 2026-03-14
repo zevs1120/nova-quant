@@ -36,13 +36,19 @@ import {
   explainWhyNoSignalTool,
   explainWhySignalExistsTool,
   getBacktestIntegrityReportTool,
+  getExperimentRegistryTool,
   getFactorCatalogTool,
   getFactorDefinitionTool,
   getFactorInteractionsTool,
+  getFactorResearchSnapshotTool,
   getRegimeDiagnosticsTool,
   getRegimeTaxonomyTool,
+  getResearchMemoryTool,
+  getResearchWorkflowPlanTool,
+  getStrategyEvaluationReportTool,
   getStrategyRegistryTool,
   getTurnoverCostReportTool,
+  getValidationReportTool,
   listFailedExperimentsTool,
   runFactorDiagnosticsTool,
   summarizeResearchOnTopicTool
@@ -236,6 +242,20 @@ export function createApiApp() {
     res.json(getBacktestIntegrityReportTool({ runId }));
   });
 
+  app.get('/api/research/evaluation/strategy', (req, res) => {
+    const runId = (req.query.runId as string | undefined) || undefined;
+    const market = parseMarket(req.query.market as string | undefined);
+    const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
+    res.json(getStrategyEvaluationReportTool({ runId, market, assetClass }));
+  });
+
+  app.get('/api/research/validation-report', (req, res) => {
+    const runId = (req.query.runId as string | undefined) || undefined;
+    const market = parseMarket(req.query.market as string | undefined);
+    const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
+    res.json(getValidationReportTool({ runId, market, assetClass }));
+  });
+
   app.get('/api/research/turnover-cost', (req, res) => {
     const runId = (req.query.runId as string | undefined) || undefined;
     res.json(getTurnoverCostReportTool({ runId }));
@@ -243,6 +263,22 @@ export function createApiApp() {
 
   app.get('/api/research/failed-experiments', (_req, res) => {
     res.json(listFailedExperimentsTool());
+  });
+
+  app.get('/api/research/experiments', (_req, res) => {
+    res.json(getExperimentRegistryTool());
+  });
+
+  app.get('/api/research/memory', (_req, res) => {
+    res.json(getResearchMemoryTool());
+  });
+
+  app.get('/api/research/workflow', (req, res) => {
+    const topic = String((req.query.topic as string | undefined) || '');
+    const factorId = (req.query.factorId as string | undefined) || undefined;
+    const market = parseMarket(req.query.market as string | undefined);
+    const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
+    res.json(getResearchWorkflowPlanTool({ topic, factorId, market, assetClass }));
   });
 
   app.get('/api/research/topic', (req, res) => {
@@ -286,6 +322,20 @@ export function createApiApp() {
         assetClass,
         runId,
         factorId: String(req.params.id || '')
+      })
+    );
+  });
+
+  app.get('/api/research/factors/:id/snapshot', (req, res) => {
+    const market = parseMarket(req.query.market as string | undefined);
+    const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
+    const runId = (req.query.runId as string | undefined) || undefined;
+    res.json(
+      getFactorResearchSnapshotTool({
+        runId,
+        factorId: String(req.params.id || ''),
+        market,
+        assetClass
       })
     );
   });
