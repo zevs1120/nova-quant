@@ -1492,15 +1492,6 @@ export default function App() {
             <h1 className="headline">{heading}</h1>
             <p className="top-bar-note">{headingNote}</p>
           </div>
-
-          <div className="top-actions">
-            <button type="button" className="ghost-btn" onClick={() => setActiveTab('ai')}>
-              Ask Nova
-            </button>
-            <button type="button" className="ghost-btn" onClick={() => setAboutOpen(true)}>
-              About
-            </button>
-          </div>
         </header>
 
         {activeTab !== 'more' ? (
