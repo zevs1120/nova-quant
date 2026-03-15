@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import request from 'supertest';
 import { createApiApp } from '../src/server/api/app.js';
 import { resolveBusinessTask } from '../src/server/nova/router.js';
@@ -13,6 +13,10 @@ function readNdjsonText(response: { body?: unknown; text?: string }) {
 }
 
 describe('nova local stack', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it('routes local tasks to the expected Nova aliases', () => {
     expect(resolveBusinessTask('action_card').alias).toBe('Nova-Core');
     expect(resolveBusinessTask('assistant_answer').alias).toBe('Nova-Core');
@@ -81,5 +85,55 @@ describe('nova local stack', () => {
     expect(runtimeRes.status).toBe(200);
     expect(runtimeRes.body.endpoint).toContain('127.0.0.1:11434');
     expect(runtimeRes.body.local_only).toBe(true);
+  });
+
+  it('bypasses local Nova in Vercel runtime and falls back deterministically', async () => {
+    vi.stubEnv('VERCEL', '1');
+    vi.stubEnv('NOVA_DISABLE_LOCAL_GENERATION', '');
+    vi.stubEnv('NOVA_FORCE_LOCAL_GENERATION', '');
+
+    const app = createApiApp();
+    const userId = `nova-vercel-${Date.now()}`;
+
+    const decisionRes = await request(app)
+      .post('/api/decision/today')
+      .send({
+        userId,
+        market: 'US',
+        assetClass: 'US_STOCK'
+      });
+
+    expect(decisionRes.status).toBe(200);
+    expect(decisionRes.body.summary.nova_local.skipped).toBe(true);
+
+    const runtimeRes = await request(app).get('/api/nova/runtime');
+    expect(runtimeRes.status).toBe(200);
+    expect(runtimeRes.body.local_only).toBe(false);
+    expect(runtimeRes.body.mode).toBe('deterministic-fallback');
+
+    const chatRes = await request(app)
+      .post('/api/chat')
+      .send({
+        userId,
+        message: 'Why does today look cautious?',
+        context: {
+          page: 'today',
+          market: 'US',
+          assetClass: 'US_STOCK'
+        }
+      })
+      .buffer(true)
+      .parse((res, done) => {
+        let text = '';
+        res.setEncoding('utf8');
+        res.on('data', (chunk) => {
+          text += chunk;
+        });
+        res.on('end', () => done(null, text));
+      });
+
+    expect(chatRes.status).toBe(200);
+    const events = readNdjsonText(chatRes);
+    expect(events.some((row) => row.type === 'meta' && row.provider === 'deterministic')).toBe(true);
   });
 });

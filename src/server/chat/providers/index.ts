@@ -3,6 +3,7 @@ import { GroqProvider } from './groq.js';
 import { GeminiProvider } from './gemini.js';
 import { OpenAIProvider } from './openai.js';
 import { OllamaProvider } from './ollama.js';
+import { isLocalNovaEnabled } from '../../ai/llmOps.js';
 
 export type ProviderName = 'groq' | 'gemini' | 'openai' | 'ollama';
 
@@ -18,5 +19,5 @@ export function createProvider(name: ProviderName): ProviderAdapter {
 }
 
 export function isProviderConfigured(name: ProviderName): boolean {
-  return name === 'ollama';
+  return name === 'ollama' && isLocalNovaEnabled();
 }

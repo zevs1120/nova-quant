@@ -21,19 +21,29 @@ import type {
   ModelVersionRecord,
   NotificationEventRecord,
   NotificationPreferenceRecord,
+  OutcomeReviewRecord,
   NovaReviewLabelRecord,
   NovaTaskRunRecord,
+  ActionSnapshotRecord,
+  ComplianceLogRecord,
+  DecisionIntelligenceDatasetRecord,
   NormalizedBar,
   PerformanceSnapshotRecord,
   PromptVersionRecord,
   RecommendationReviewRecord,
   ReplayPaperReconciliationRecord,
+  SandboxRunRecord,
   SignalContract,
   SignalRecord,
   SignalSnapshotRecord,
   SignalStatus,
   StrategyVersionRecord,
   Timeframe,
+  ExternalSurfaceRecord,
+  EvidenceSnapshotRecord,
+  MarketStateSnapshotRecord,
+  UserResponseEventRecord,
+  UserStateSnapshotRecord,
   UniverseSnapshotRecord,
   WorkflowRunRecord,
   AuditEventRecord,
@@ -2358,5 +2368,550 @@ export class MarketRepository {
         `
       )
       .all(q) as NovaReviewLabelRecord[];
+  }
+
+  upsertMarketStateSnapshot(input: MarketStateSnapshotRecord): void {
+    this.db
+      .prepare(
+        `
+          INSERT INTO market_state_snapshots(
+            id, user_id, market, asset_class, snapshot_date, decision_snapshot_id, regime_id, risk_posture,
+            style_climate, event_context_json, drivers_json, source_status, data_status, created_at_ms, updated_at_ms
+          ) VALUES(
+            @id, @user_id, @market, @asset_class, @snapshot_date, @decision_snapshot_id, @regime_id, @risk_posture,
+            @style_climate, @event_context_json, @drivers_json, @source_status, @data_status, @created_at_ms, @updated_at_ms
+          )
+          ON CONFLICT(id) DO UPDATE SET
+            decision_snapshot_id = excluded.decision_snapshot_id,
+            regime_id = excluded.regime_id,
+            risk_posture = excluded.risk_posture,
+            style_climate = excluded.style_climate,
+            event_context_json = excluded.event_context_json,
+            drivers_json = excluded.drivers_json,
+            source_status = excluded.source_status,
+            data_status = excluded.data_status,
+            updated_at_ms = excluded.updated_at_ms
+        `
+      )
+      .run(input);
+  }
+
+  listMarketStateSnapshots(params: { userId: string; market?: Market | 'ALL'; assetClass?: AssetClass | 'ALL'; limit?: number }): MarketStateSnapshotRecord[] {
+    const where = ['user_id = @user_id'];
+    const q: Record<string, unknown> = { user_id: params.userId };
+    if (params.market) {
+      where.push('market = @market');
+      q.market = params.market;
+    }
+    if (params.assetClass) {
+      where.push('asset_class = @asset_class');
+      q.asset_class = params.assetClass;
+    }
+    if (params.limit) q.limit = params.limit;
+    const limitSql = params.limit ? 'LIMIT @limit' : '';
+    return this.db
+      .prepare(
+        `
+          SELECT id, user_id, market, asset_class, snapshot_date, decision_snapshot_id, regime_id, risk_posture,
+                 style_climate, event_context_json, drivers_json, source_status, data_status, created_at_ms, updated_at_ms
+          FROM market_state_snapshots
+          WHERE ${where.join(' AND ')}
+          ORDER BY updated_at_ms DESC
+          ${limitSql}
+        `
+      )
+      .all(q) as MarketStateSnapshotRecord[];
+  }
+
+  upsertEvidenceSnapshot(input: EvidenceSnapshotRecord): void {
+    this.db
+      .prepare(
+        `
+          INSERT INTO evidence_snapshots(
+            id, decision_snapshot_id, user_id, action_id, thesis, supporting_factors_json, opposing_factors_json,
+            regime_context_json, ranking_reason, invalidation_conditions_json, similar_case_json, change_summary_json,
+            horizon, source_status, data_status, model_version_id, prompt_version_id, payload_json, created_at_ms, updated_at_ms
+          ) VALUES(
+            @id, @decision_snapshot_id, @user_id, @action_id, @thesis, @supporting_factors_json, @opposing_factors_json,
+            @regime_context_json, @ranking_reason, @invalidation_conditions_json, @similar_case_json, @change_summary_json,
+            @horizon, @source_status, @data_status, @model_version_id, @prompt_version_id, @payload_json, @created_at_ms, @updated_at_ms
+          )
+          ON CONFLICT(id) DO UPDATE SET
+            thesis = excluded.thesis,
+            supporting_factors_json = excluded.supporting_factors_json,
+            opposing_factors_json = excluded.opposing_factors_json,
+            regime_context_json = excluded.regime_context_json,
+            ranking_reason = excluded.ranking_reason,
+            invalidation_conditions_json = excluded.invalidation_conditions_json,
+            similar_case_json = excluded.similar_case_json,
+            change_summary_json = excluded.change_summary_json,
+            horizon = excluded.horizon,
+            source_status = excluded.source_status,
+            data_status = excluded.data_status,
+            model_version_id = excluded.model_version_id,
+            prompt_version_id = excluded.prompt_version_id,
+            payload_json = excluded.payload_json,
+            updated_at_ms = excluded.updated_at_ms
+        `
+      )
+      .run(input);
+  }
+
+  listEvidenceSnapshots(params: { decisionSnapshotId?: string; actionId?: string; limit?: number }): EvidenceSnapshotRecord[] {
+    const where: string[] = [];
+    const q: Record<string, unknown> = {};
+    if (params.decisionSnapshotId) {
+      where.push('decision_snapshot_id = @decision_snapshot_id');
+      q.decision_snapshot_id = params.decisionSnapshotId;
+    }
+    if (params.actionId) {
+      where.push('action_id = @action_id');
+      q.action_id = params.actionId;
+    }
+    if (params.limit) q.limit = params.limit;
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    const limitSql = params.limit ? 'LIMIT @limit' : '';
+    return this.db
+      .prepare(
+        `
+          SELECT id, decision_snapshot_id, user_id, action_id, thesis, supporting_factors_json, opposing_factors_json,
+                 regime_context_json, ranking_reason, invalidation_conditions_json, similar_case_json, change_summary_json,
+                 horizon, source_status, data_status, model_version_id, prompt_version_id, payload_json, created_at_ms, updated_at_ms
+          FROM evidence_snapshots
+          ${whereSql}
+          ORDER BY updated_at_ms DESC
+          ${limitSql}
+        `
+      )
+      .all(q) as EvidenceSnapshotRecord[];
+  }
+
+  upsertActionSnapshot(input: ActionSnapshotRecord): void {
+    this.db
+      .prepare(
+        `
+          INSERT INTO action_snapshots(
+            id, decision_snapshot_id, user_id, action_id, signal_id, symbol, rank, action_label, action_state,
+            portfolio_intent, conviction, why_now, caution, invalidation, horizon, evidence_snapshot_id,
+            payload_json, created_at_ms, updated_at_ms
+          ) VALUES(
+            @id, @decision_snapshot_id, @user_id, @action_id, @signal_id, @symbol, @rank, @action_label, @action_state,
+            @portfolio_intent, @conviction, @why_now, @caution, @invalidation, @horizon, @evidence_snapshot_id,
+            @payload_json, @created_at_ms, @updated_at_ms
+          )
+          ON CONFLICT(id) DO UPDATE SET
+            signal_id = excluded.signal_id,
+            symbol = excluded.symbol,
+            rank = excluded.rank,
+            action_label = excluded.action_label,
+            action_state = excluded.action_state,
+            portfolio_intent = excluded.portfolio_intent,
+            conviction = excluded.conviction,
+            why_now = excluded.why_now,
+            caution = excluded.caution,
+            invalidation = excluded.invalidation,
+            horizon = excluded.horizon,
+            evidence_snapshot_id = excluded.evidence_snapshot_id,
+            payload_json = excluded.payload_json,
+            updated_at_ms = excluded.updated_at_ms
+        `
+      )
+      .run(input);
+  }
+
+  listActionSnapshots(params: { decisionSnapshotId?: string; userId?: string; limit?: number }): ActionSnapshotRecord[] {
+    const where: string[] = [];
+    const q: Record<string, unknown> = {};
+    if (params.decisionSnapshotId) {
+      where.push('decision_snapshot_id = @decision_snapshot_id');
+      q.decision_snapshot_id = params.decisionSnapshotId;
+    }
+    if (params.userId) {
+      where.push('user_id = @user_id');
+      q.user_id = params.userId;
+    }
+    if (params.limit) q.limit = params.limit;
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    const limitSql = params.limit ? 'LIMIT @limit' : '';
+    return this.db
+      .prepare(
+        `
+          SELECT id, decision_snapshot_id, user_id, action_id, signal_id, symbol, rank, action_label, action_state,
+                 portfolio_intent, conviction, why_now, caution, invalidation, horizon, evidence_snapshot_id,
+                 payload_json, created_at_ms, updated_at_ms
+          FROM action_snapshots
+          ${whereSql}
+          ORDER BY rank ASC, updated_at_ms DESC
+          ${limitSql}
+        `
+      )
+      .all(q) as ActionSnapshotRecord[];
+  }
+
+  upsertUserResponseEvent(input: UserResponseEventRecord): void {
+    this.db
+      .prepare(
+        `
+          INSERT INTO user_response_events(
+            id, user_id, market, asset_class, decision_snapshot_id, action_id, thread_id, event_type,
+            event_date, payload_json, created_at_ms, updated_at_ms
+          ) VALUES(
+            @id, @user_id, @market, @asset_class, @decision_snapshot_id, @action_id, @thread_id, @event_type,
+            @event_date, @payload_json, @created_at_ms, @updated_at_ms
+          )
+          ON CONFLICT(id) DO UPDATE SET
+            decision_snapshot_id = excluded.decision_snapshot_id,
+            action_id = excluded.action_id,
+            thread_id = excluded.thread_id,
+            payload_json = excluded.payload_json,
+            updated_at_ms = excluded.updated_at_ms
+        `
+      )
+      .run(input);
+  }
+
+  listUserResponseEvents(params: {
+    userId: string;
+    eventType?: string;
+    decisionSnapshotId?: string;
+    fromDate?: string;
+    limit?: number;
+  }): UserResponseEventRecord[] {
+    const where = ['user_id = @user_id'];
+    const q: Record<string, unknown> = { user_id: params.userId };
+    if (params.eventType) {
+      where.push('event_type = @event_type');
+      q.event_type = params.eventType;
+    }
+    if (params.decisionSnapshotId) {
+      where.push('decision_snapshot_id = @decision_snapshot_id');
+      q.decision_snapshot_id = params.decisionSnapshotId;
+    }
+    if (params.fromDate) {
+      where.push('event_date >= @from_date');
+      q.from_date = params.fromDate;
+    }
+    if (params.limit) q.limit = params.limit;
+    const limitSql = params.limit ? 'LIMIT @limit' : '';
+    return this.db
+      .prepare(
+        `
+          SELECT id, user_id, market, asset_class, decision_snapshot_id, action_id, thread_id, event_type,
+                 event_date, payload_json, created_at_ms, updated_at_ms
+          FROM user_response_events
+          WHERE ${where.join(' AND ')}
+          ORDER BY updated_at_ms DESC
+          ${limitSql}
+        `
+      )
+      .all(q) as UserResponseEventRecord[];
+  }
+
+  upsertOutcomeReview(input: OutcomeReviewRecord): void {
+    this.db
+      .prepare(
+        `
+          INSERT INTO outcome_reviews(
+            id, user_id, market, asset_class, decision_snapshot_id, action_id, review_kind,
+            score, verdict, summary, payload_json, created_at_ms, updated_at_ms
+          ) VALUES(
+            @id, @user_id, @market, @asset_class, @decision_snapshot_id, @action_id, @review_kind,
+            @score, @verdict, @summary, @payload_json, @created_at_ms, @updated_at_ms
+          )
+          ON CONFLICT(id) DO UPDATE SET
+            score = excluded.score,
+            verdict = excluded.verdict,
+            summary = excluded.summary,
+            payload_json = excluded.payload_json,
+            updated_at_ms = excluded.updated_at_ms
+        `
+      )
+      .run(input);
+  }
+
+  listOutcomeReviews(params?: { decisionSnapshotId?: string; reviewKind?: string; userId?: string; limit?: number }): OutcomeReviewRecord[] {
+    const where: string[] = [];
+    const q: Record<string, unknown> = {};
+    if (params?.decisionSnapshotId) {
+      where.push('decision_snapshot_id = @decision_snapshot_id');
+      q.decision_snapshot_id = params.decisionSnapshotId;
+    }
+    if (params?.reviewKind) {
+      where.push('review_kind = @review_kind');
+      q.review_kind = params.reviewKind;
+    }
+    if (params?.userId) {
+      where.push('user_id = @user_id');
+      q.user_id = params.userId;
+    }
+    if (params?.limit) q.limit = params.limit;
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    const limitSql = params?.limit ? 'LIMIT @limit' : '';
+    return this.db
+      .prepare(
+        `
+          SELECT id, user_id, market, asset_class, decision_snapshot_id, action_id, review_kind,
+                 score, verdict, summary, payload_json, created_at_ms, updated_at_ms
+          FROM outcome_reviews
+          ${whereSql}
+          ORDER BY updated_at_ms DESC
+          ${limitSql}
+        `
+      )
+      .all(q) as OutcomeReviewRecord[];
+  }
+
+  upsertUserStateSnapshot(input: UserStateSnapshotRecord): void {
+    this.db
+      .prepare(
+        `
+          INSERT INTO user_state_snapshots(
+            id, user_id, market, asset_class, snapshot_date, portfolio_state_json, discipline_state_json,
+            behavioral_pattern_json, impulse_risk_json, trust_state_json, decision_profile_json,
+            personalization_context_json, created_at_ms, updated_at_ms
+          ) VALUES(
+            @id, @user_id, @market, @asset_class, @snapshot_date, @portfolio_state_json, @discipline_state_json,
+            @behavioral_pattern_json, @impulse_risk_json, @trust_state_json, @decision_profile_json,
+            @personalization_context_json, @created_at_ms, @updated_at_ms
+          )
+          ON CONFLICT(user_id, market, asset_class, snapshot_date) DO UPDATE SET
+            portfolio_state_json = excluded.portfolio_state_json,
+            discipline_state_json = excluded.discipline_state_json,
+            behavioral_pattern_json = excluded.behavioral_pattern_json,
+            impulse_risk_json = excluded.impulse_risk_json,
+            trust_state_json = excluded.trust_state_json,
+            decision_profile_json = excluded.decision_profile_json,
+            personalization_context_json = excluded.personalization_context_json,
+            updated_at_ms = excluded.updated_at_ms
+        `
+      )
+      .run(input);
+  }
+
+  getLatestUserStateSnapshot(params: { userId: string; market?: Market | 'ALL'; assetClass?: AssetClass | 'ALL' }): UserStateSnapshotRecord | null {
+    const where = ['user_id = @user_id'];
+    const q: Record<string, unknown> = { user_id: params.userId };
+    if (params.market) {
+      where.push('market = @market');
+      q.market = params.market;
+    }
+    if (params.assetClass) {
+      where.push('asset_class = @asset_class');
+      q.asset_class = params.assetClass;
+    }
+    const row = this.db
+      .prepare(
+        `
+          SELECT id, user_id, market, asset_class, snapshot_date, portfolio_state_json, discipline_state_json,
+                 behavioral_pattern_json, impulse_risk_json, trust_state_json, decision_profile_json,
+                 personalization_context_json, created_at_ms, updated_at_ms
+          FROM user_state_snapshots
+          WHERE ${where.join(' AND ')}
+          ORDER BY updated_at_ms DESC
+          LIMIT 1
+        `
+      )
+      .get(q) as UserStateSnapshotRecord | undefined;
+    return row ?? null;
+  }
+
+  upsertDecisionIntelligenceDatasetRecord(input: DecisionIntelligenceDatasetRecord): void {
+    this.db
+      .prepare(
+        `
+          INSERT INTO decision_intelligence_dataset(
+            id, user_id, market, asset_class, decision_snapshot_id, market_state_snapshot_id, user_state_snapshot_id,
+            label_state, export_ready, payload_json, created_at_ms, updated_at_ms
+          ) VALUES(
+            @id, @user_id, @market, @asset_class, @decision_snapshot_id, @market_state_snapshot_id, @user_state_snapshot_id,
+            @label_state, @export_ready, @payload_json, @created_at_ms, @updated_at_ms
+          )
+          ON CONFLICT(id) DO UPDATE SET
+            market_state_snapshot_id = excluded.market_state_snapshot_id,
+            user_state_snapshot_id = excluded.user_state_snapshot_id,
+            label_state = excluded.label_state,
+            export_ready = excluded.export_ready,
+            payload_json = excluded.payload_json,
+            updated_at_ms = excluded.updated_at_ms
+        `
+      )
+      .run(input);
+  }
+
+  listDecisionIntelligenceDataset(params: { userId?: string; market?: Market | 'ALL'; assetClass?: AssetClass | 'ALL'; labelState?: string; limit?: number }): DecisionIntelligenceDatasetRecord[] {
+    const where: string[] = [];
+    const q: Record<string, unknown> = {};
+    if (params.userId) {
+      where.push('user_id = @user_id');
+      q.user_id = params.userId;
+    }
+    if (params.market) {
+      where.push('market = @market');
+      q.market = params.market;
+    }
+    if (params.assetClass) {
+      where.push('asset_class = @asset_class');
+      q.asset_class = params.assetClass;
+    }
+    if (params.labelState) {
+      where.push('label_state = @label_state');
+      q.label_state = params.labelState;
+    }
+    if (params.limit) q.limit = params.limit;
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    const limitSql = params.limit ? 'LIMIT @limit' : '';
+    return this.db
+      .prepare(
+        `
+          SELECT id, user_id, market, asset_class, decision_snapshot_id, market_state_snapshot_id, user_state_snapshot_id,
+                 label_state, export_ready, payload_json, created_at_ms, updated_at_ms
+          FROM decision_intelligence_dataset
+          ${whereSql}
+          ORDER BY updated_at_ms DESC
+          ${limitSql}
+        `
+      )
+      .all(q) as DecisionIntelligenceDatasetRecord[];
+  }
+
+  upsertSandboxRun(input: SandboxRunRecord): void {
+    this.db
+      .prepare(
+        `
+          INSERT INTO sandbox_runs(
+            id, user_id, decision_snapshot_id, action_id, scenario_type, input_json, result_json, created_at_ms, updated_at_ms
+          ) VALUES(
+            @id, @user_id, @decision_snapshot_id, @action_id, @scenario_type, @input_json, @result_json, @created_at_ms, @updated_at_ms
+          )
+          ON CONFLICT(id) DO UPDATE SET
+            result_json = excluded.result_json,
+            updated_at_ms = excluded.updated_at_ms
+        `
+      )
+      .run(input);
+  }
+
+  listSandboxRuns(params: { userId: string; decisionSnapshotId?: string; limit?: number }): SandboxRunRecord[] {
+    const where = ['user_id = @user_id'];
+    const q: Record<string, unknown> = { user_id: params.userId };
+    if (params.decisionSnapshotId) {
+      where.push('decision_snapshot_id = @decision_snapshot_id');
+      q.decision_snapshot_id = params.decisionSnapshotId;
+    }
+    if (params.limit) q.limit = params.limit;
+    const limitSql = params.limit ? 'LIMIT @limit' : '';
+    return this.db
+      .prepare(
+        `
+          SELECT id, user_id, decision_snapshot_id, action_id, scenario_type, input_json, result_json, created_at_ms, updated_at_ms
+          FROM sandbox_runs
+          WHERE ${where.join(' AND ')}
+          ORDER BY updated_at_ms DESC
+          ${limitSql}
+        `
+      )
+      .all(q) as SandboxRunRecord[];
+  }
+
+  upsertExternalSurface(input: ExternalSurfaceRecord): void {
+    this.db
+      .prepare(
+        `
+          INSERT INTO external_surfaces(
+            id, surface_type, market, asset_class, source_decision_snapshot_id, share_key, status, payload_json, created_at_ms, updated_at_ms
+          ) VALUES(
+            @id, @surface_type, @market, @asset_class, @source_decision_snapshot_id, @share_key, @status, @payload_json, @created_at_ms, @updated_at_ms
+          )
+          ON CONFLICT(id) DO UPDATE SET
+            source_decision_snapshot_id = excluded.source_decision_snapshot_id,
+            share_key = excluded.share_key,
+            status = excluded.status,
+            payload_json = excluded.payload_json,
+            updated_at_ms = excluded.updated_at_ms
+        `
+      )
+      .run(input);
+  }
+
+  listExternalSurfaces(params?: { surfaceType?: string; market?: Market | 'ALL'; assetClass?: AssetClass | 'ALL'; limit?: number }): ExternalSurfaceRecord[] {
+    const where: string[] = [];
+    const q: Record<string, unknown> = {};
+    if (params?.surfaceType) {
+      where.push('surface_type = @surface_type');
+      q.surface_type = params.surfaceType;
+    }
+    if (params?.market) {
+      where.push('market = @market');
+      q.market = params.market;
+    }
+    if (params?.assetClass) {
+      where.push('asset_class = @asset_class');
+      q.asset_class = params.assetClass;
+    }
+    if (params?.limit) q.limit = params.limit;
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    const limitSql = params?.limit ? 'LIMIT @limit' : '';
+    return this.db
+      .prepare(
+        `
+          SELECT id, surface_type, market, asset_class, source_decision_snapshot_id, share_key, status, payload_json, created_at_ms, updated_at_ms
+          FROM external_surfaces
+          ${whereSql}
+          ORDER BY updated_at_ms DESC
+          ${limitSql}
+        `
+      )
+      .all(q) as ExternalSurfaceRecord[];
+  }
+
+  upsertComplianceLog(input: ComplianceLogRecord): void {
+    this.db
+      .prepare(
+        `
+          INSERT INTO compliance_logs(
+            id, log_type, user_id, decision_snapshot_id, action_id, evidence_snapshot_id, model_version_id,
+            prompt_version_id, policy_version, trace_id, payload_json, created_at_ms, updated_at_ms
+          ) VALUES(
+            @id, @log_type, @user_id, @decision_snapshot_id, @action_id, @evidence_snapshot_id, @model_version_id,
+            @prompt_version_id, @policy_version, @trace_id, @payload_json, @created_at_ms, @updated_at_ms
+          )
+          ON CONFLICT(id) DO UPDATE SET
+            payload_json = excluded.payload_json,
+            updated_at_ms = excluded.updated_at_ms
+        `
+      )
+      .run(input);
+  }
+
+  listComplianceLogs(params?: { logType?: string; userId?: string; decisionSnapshotId?: string; limit?: number }): ComplianceLogRecord[] {
+    const where: string[] = [];
+    const q: Record<string, unknown> = {};
+    if (params?.logType) {
+      where.push('log_type = @log_type');
+      q.log_type = params.logType;
+    }
+    if (params?.userId) {
+      where.push('user_id = @user_id');
+      q.user_id = params.userId;
+    }
+    if (params?.decisionSnapshotId) {
+      where.push('decision_snapshot_id = @decision_snapshot_id');
+      q.decision_snapshot_id = params.decisionSnapshotId;
+    }
+    if (params?.limit) q.limit = params.limit;
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    const limitSql = params?.limit ? 'LIMIT @limit' : '';
+    return this.db
+      .prepare(
+        `
+          SELECT id, log_type, user_id, decision_snapshot_id, action_id, evidence_snapshot_id, model_version_id,
+                 prompt_version_id, policy_version, trace_id, payload_json, created_at_ms, updated_at_ms
+          FROM compliance_logs
+          ${whereSql}
+          ORDER BY updated_at_ms DESC
+          ${limitSql}
+        `
+      )
+      .all(q) as ComplianceLogRecord[];
   }
 }

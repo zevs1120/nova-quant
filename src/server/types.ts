@@ -715,3 +715,375 @@ export interface NovaReviewLabelRecord {
   created_at_ms: number;
   updated_at_ms: number;
 }
+
+export interface MarketStateSnapshotRecord {
+  id: string;
+  user_id: string;
+  market: Market | 'ALL';
+  asset_class: AssetClass | 'ALL';
+  snapshot_date: string;
+  decision_snapshot_id: string | null;
+  regime_id: string | null;
+  risk_posture: string | null;
+  style_climate: string | null;
+  event_context_json: string;
+  drivers_json: string;
+  source_status: string;
+  data_status: string;
+  created_at_ms: number;
+  updated_at_ms: number;
+}
+
+export interface ActionSnapshotRecord {
+  id: string;
+  decision_snapshot_id: string;
+  user_id: string;
+  action_id: string;
+  signal_id: string | null;
+  symbol: string | null;
+  rank: number;
+  action_label: string;
+  action_state: string;
+  portfolio_intent: string | null;
+  conviction: number | null;
+  why_now: string | null;
+  caution: string | null;
+  invalidation: string | null;
+  horizon: string | null;
+  evidence_snapshot_id: string | null;
+  payload_json: string;
+  created_at_ms: number;
+  updated_at_ms: number;
+}
+
+export interface EvidenceSnapshotRecord {
+  id: string;
+  decision_snapshot_id: string;
+  user_id: string;
+  action_id: string;
+  thesis: string | null;
+  supporting_factors_json: string;
+  opposing_factors_json: string;
+  regime_context_json: string;
+  ranking_reason: string | null;
+  invalidation_conditions_json: string;
+  similar_case_json: string;
+  change_summary_json: string;
+  horizon: string | null;
+  source_status: string;
+  data_status: string;
+  model_version_id: string | null;
+  prompt_version_id: string | null;
+  payload_json: string;
+  created_at_ms: number;
+  updated_at_ms: number;
+}
+
+export type UserResponseEventType =
+  | 'APP_OPEN'
+  | 'MORNING_CHECK_COMPLETED'
+  | 'ACTION_VIEWED'
+  | 'ACTION_CONFIRMED'
+  | 'AI_FOLLOW_UP'
+  | 'RECOMMENDATION_ACCEPTED'
+  | 'RECOMMENDATION_IGNORED'
+  | 'HIGH_RISK_OVERRIDE'
+  | 'WRAP_UP_COMPLETED'
+  | 'NOTIFICATION_OPENED';
+
+export interface UserResponseEventRecord {
+  id: string;
+  user_id: string;
+  market: Market | 'ALL';
+  asset_class: AssetClass | 'ALL';
+  decision_snapshot_id: string | null;
+  action_id: string | null;
+  thread_id: string | null;
+  event_type: UserResponseEventType;
+  event_date: string;
+  payload_json: string;
+  created_at_ms: number;
+  updated_at_ms: number;
+}
+
+export type OutcomeReviewKind = 'OUTCOME' | 'FAILURE' | 'NO_ACTION_VALUE' | 'EXPLANATION_EFFECTIVENESS';
+
+export interface OutcomeReviewRecord {
+  id: string;
+  user_id: string | null;
+  market: Market | 'ALL';
+  asset_class: AssetClass | 'ALL';
+  decision_snapshot_id: string;
+  action_id: string | null;
+  review_kind: OutcomeReviewKind;
+  score: number | null;
+  verdict: string;
+  summary: string;
+  payload_json: string;
+  created_at_ms: number;
+  updated_at_ms: number;
+}
+
+export interface UserStateSnapshotRecord {
+  id: string;
+  user_id: string;
+  market: Market | 'ALL';
+  asset_class: AssetClass | 'ALL';
+  snapshot_date: string;
+  portfolio_state_json: string;
+  discipline_state_json: string;
+  behavioral_pattern_json: string;
+  impulse_risk_json: string;
+  trust_state_json: string;
+  decision_profile_json: string;
+  personalization_context_json: string;
+  created_at_ms: number;
+  updated_at_ms: number;
+}
+
+export interface DecisionIntelligenceDatasetRecord {
+  id: string;
+  user_id: string;
+  market: Market | 'ALL';
+  asset_class: AssetClass | 'ALL';
+  decision_snapshot_id: string;
+  market_state_snapshot_id: string | null;
+  user_state_snapshot_id: string | null;
+  label_state: 'PENDING' | 'REVIEWED' | 'TRAINING_READY' | 'WITHHELD';
+  export_ready: number;
+  payload_json: string;
+  created_at_ms: number;
+  updated_at_ms: number;
+}
+
+export interface SandboxRunRecord {
+  id: string;
+  user_id: string;
+  decision_snapshot_id: string;
+  action_id: string | null;
+  scenario_type: 'ACCEPT_ACTION' | 'WAIT' | 'ADVERSE_MOVE' | 'FAVORABLE_MOVE' | 'OVERLAP_CHECK';
+  input_json: string;
+  result_json: string;
+  created_at_ms: number;
+  updated_at_ms: number;
+}
+
+export type ExternalSurfaceType = 'PUBLIC_DECISION' | 'SHARE_CARD' | 'DEMO_SURFACE' | 'BETA_GATE';
+
+export interface ExternalSurfaceRecord {
+  id: string;
+  surface_type: ExternalSurfaceType;
+  market: Market | 'ALL';
+  asset_class: AssetClass | 'ALL';
+  source_decision_snapshot_id: string | null;
+  share_key: string | null;
+  status: string;
+  payload_json: string;
+  created_at_ms: number;
+  updated_at_ms: number;
+}
+
+export type ComplianceLogType = 'RECOMMENDATION' | 'EVIDENCE' | 'PROMPT_EXECUTION' | 'POLICY_DECISION';
+
+export interface ComplianceLogRecord {
+  id: string;
+  log_type: ComplianceLogType;
+  user_id: string | null;
+  decision_snapshot_id: string | null;
+  action_id: string | null;
+  evidence_snapshot_id: string | null;
+  model_version_id: string | null;
+  prompt_version_id: string | null;
+  policy_version: string | null;
+  trace_id: string | null;
+  payload_json: string;
+  created_at_ms: number;
+  updated_at_ms: number;
+}
+
+export type AccessScope = 'PUBLIC' | 'USER' | 'INTERNAL' | 'ADMIN';
+
+export interface ComplianceBoundaryNote {
+  boundary: string;
+  scope: AccessScope;
+  note: string;
+}
+
+export interface UserIsolationBoundary {
+  access_scope: AccessScope;
+  user_scoped: boolean;
+  retrieval_scoped: boolean;
+  cache_scoped: boolean;
+  audit_scope: string;
+}
+
+export interface PortfolioState {
+  holdings_count: number;
+  total_weight_pct: number;
+  concentration_pct: number | null;
+  overlap_risk: 'low' | 'medium' | 'high';
+  beta_exposure: number | null;
+  sector_concentration: Array<{ sector: string; weight_pct: number }>;
+  style_bias: string[];
+}
+
+export interface DisciplineState {
+  discipline_score: number;
+  discipline_stability: number;
+  morning_check_streak: number;
+  wrap_up_completion_rate: number;
+  restraint_rate: number;
+}
+
+export interface BehavioralPattern {
+  viewing_style: 'confirm_then_leave' | 'high_frequency_observer' | 'deliberate_reviewer' | 'unclear';
+  action_preference: 'watch_first' | 'act_on_conviction' | 'event_sensitive' | 'unclear';
+  preferred_horizon: 'short' | 'medium' | 'mixed';
+  notification_responsiveness: 'low' | 'medium' | 'high';
+}
+
+export interface ImpulseRiskState {
+  level: 'low' | 'medium' | 'high';
+  override_events: number;
+  chase_risk: 'low' | 'medium' | 'high';
+  note: string;
+}
+
+export interface TrustState {
+  level: 'fragile' | 'steady' | 'strong';
+  ai_follow_up_rate: number;
+  explanation_acceptance: number | null;
+  note: string;
+}
+
+export interface PersonalizationContext {
+  caution_intensity: 'soft' | 'firm' | 'protective';
+  explanation_style: 'concise' | 'measured' | 'more_context';
+  recall_tone: 'quiet' | 'standard' | 'protective';
+  no_action_framing: 'completion' | 'discipline' | 'protection';
+  action_language_bias: 'neutral' | 'guarded' | 'probing';
+}
+
+export interface UserDecisionProfile {
+  style: 'conservative' | 'balanced' | 'opportunistic' | 'watchful';
+  decision_edge: 'risk_control' | 'confirmation' | 'event_timing' | 'unclear';
+  recommendation_boundary: 'tight' | 'moderate' | 'wide';
+}
+
+export interface UserState {
+  user_id: string;
+  market: Market | 'ALL';
+  asset_class: AssetClass | 'ALL';
+  snapshot_date: string;
+  portfolio_state: PortfolioState;
+  discipline_state: DisciplineState;
+  behavioral_pattern: BehavioralPattern;
+  impulse_risk_state: ImpulseRiskState;
+  trust_state: TrustState;
+  personalization_context: PersonalizationContext;
+  decision_profile: UserDecisionProfile;
+}
+
+export interface ScenarioConstraint {
+  max_additional_risk_pct?: number | null;
+  max_sector_overlap_pct?: number | null;
+  forbid_same_symbol_add?: boolean;
+}
+
+export interface ScenarioInput {
+  scenario_type: 'ACCEPT_ACTION' | 'WAIT' | 'ADVERSE_MOVE' | 'FAVORABLE_MOVE' | 'OVERLAP_CHECK';
+  decision_snapshot_id: string;
+  action_id?: string | null;
+  constraints?: ScenarioConstraint;
+}
+
+export interface PortfolioImpactProjection {
+  overlap_delta_pct: number | null;
+  beta_delta: number | null;
+  concentration_delta_pct: number | null;
+  resulting_posture: string;
+  note: string;
+}
+
+export interface InvalidationPath {
+  first_trigger: string | null;
+  first_break_reason: string;
+  risk_escalation: string;
+}
+
+export interface UpgradeCondition {
+  label: string;
+  threshold: string;
+  why_it_matters: string;
+}
+
+export interface WaitValueProjection {
+  wait_value: 'high' | 'medium' | 'low';
+  reason: string;
+  next_triggers: string[];
+}
+
+export interface ScenarioProjection {
+  verdict: string;
+  summary: string;
+  upside_path: string[];
+  downside_path: string[];
+}
+
+export interface DecisionSandboxResult {
+  scenario_input: ScenarioInput;
+  projection: ScenarioProjection;
+  portfolio_impact: PortfolioImpactProjection;
+  invalidation_path: InvalidationPath;
+  upgrade_conditions: UpgradeCondition[];
+  wait_value_projection: WaitValueProjection | null;
+}
+
+export interface PublicDecisionSnapshot {
+  snapshot_date: string;
+  market: Market | 'ALL';
+  asset_class: AssetClass | 'ALL';
+  today_risk: string;
+  daily_stance: string;
+  top_action: {
+    action_label: string;
+    symbol: string | null;
+    confidence: number | null;
+    caution: string | null;
+  } | null;
+  public_note: string;
+}
+
+export interface ShareableCardPayload {
+  card_type: 'TODAY_RISK' | 'DAILY_WRAP' | 'NO_ACTION_VALUE' | 'TOP_ACTION';
+  title: string;
+  subtitle: string;
+  body: string[];
+  footer: string;
+}
+
+export interface DemoSurfacePayload {
+  headline: string;
+  system_state: Record<string, unknown>;
+  risk: Record<string, unknown>;
+  action_card: Record<string, unknown> | null;
+  evidence: Record<string, unknown> | null;
+  category_note: string;
+}
+
+export interface ExternalSummaryObject {
+  public_surface: PublicDecisionSnapshot;
+  shareable_cards: ShareableCardPayload[];
+  demo_surface: DemoSurfacePayload;
+}
+
+export interface ShareLinkState {
+  share_key: string;
+  share_type: 'TODAY_RISK' | 'DAILY_WRAP' | 'TOP_ACTION';
+  active: boolean;
+}
+
+export interface BetaGateState {
+  state: 'CLOSED' | 'WAITLIST' | 'INVITE_ONLY' | 'OPEN';
+  note: string;
+}

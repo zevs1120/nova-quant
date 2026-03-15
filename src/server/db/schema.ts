@@ -692,6 +692,232 @@ CREATE TABLE IF NOT EXISTS nova_review_labels (
 
 CREATE INDEX IF NOT EXISTS idx_nova_review_labels_run
   ON nova_review_labels(run_id, updated_at_ms DESC);
+
+CREATE TABLE IF NOT EXISTS market_state_snapshots (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  market TEXT NOT NULL CHECK (market IN ('US', 'CRYPTO', 'ALL')),
+  asset_class TEXT NOT NULL CHECK (asset_class IN ('OPTIONS', 'US_STOCK', 'CRYPTO', 'ALL')),
+  snapshot_date TEXT NOT NULL,
+  decision_snapshot_id TEXT,
+  regime_id TEXT,
+  risk_posture TEXT,
+  style_climate TEXT,
+  event_context_json TEXT NOT NULL,
+  drivers_json TEXT NOT NULL,
+  source_status TEXT NOT NULL,
+  data_status TEXT NOT NULL,
+  created_at_ms INTEGER NOT NULL,
+  updated_at_ms INTEGER NOT NULL,
+  FOREIGN KEY(decision_snapshot_id) REFERENCES decision_snapshots(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_market_state_snapshots_lookup
+  ON market_state_snapshots(user_id, market, asset_class, updated_at_ms DESC);
+
+CREATE TABLE IF NOT EXISTS evidence_snapshots (
+  id TEXT PRIMARY KEY,
+  decision_snapshot_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  action_id TEXT NOT NULL,
+  thesis TEXT,
+  supporting_factors_json TEXT NOT NULL,
+  opposing_factors_json TEXT NOT NULL,
+  regime_context_json TEXT NOT NULL,
+  ranking_reason TEXT,
+  invalidation_conditions_json TEXT NOT NULL,
+  similar_case_json TEXT NOT NULL,
+  change_summary_json TEXT NOT NULL,
+  horizon TEXT,
+  source_status TEXT NOT NULL,
+  data_status TEXT NOT NULL,
+  model_version_id TEXT,
+  prompt_version_id TEXT,
+  payload_json TEXT NOT NULL,
+  created_at_ms INTEGER NOT NULL,
+  updated_at_ms INTEGER NOT NULL,
+  FOREIGN KEY(decision_snapshot_id) REFERENCES decision_snapshots(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_evidence_snapshots_lookup
+  ON evidence_snapshots(decision_snapshot_id, action_id, updated_at_ms DESC);
+
+CREATE TABLE IF NOT EXISTS action_snapshots (
+  id TEXT PRIMARY KEY,
+  decision_snapshot_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  action_id TEXT NOT NULL,
+  signal_id TEXT,
+  symbol TEXT,
+  rank INTEGER NOT NULL,
+  action_label TEXT NOT NULL,
+  action_state TEXT NOT NULL,
+  portfolio_intent TEXT,
+  conviction REAL,
+  why_now TEXT,
+  caution TEXT,
+  invalidation TEXT,
+  horizon TEXT,
+  evidence_snapshot_id TEXT,
+  payload_json TEXT NOT NULL,
+  created_at_ms INTEGER NOT NULL,
+  updated_at_ms INTEGER NOT NULL,
+  FOREIGN KEY(decision_snapshot_id) REFERENCES decision_snapshots(id) ON DELETE CASCADE,
+  FOREIGN KEY(evidence_snapshot_id) REFERENCES evidence_snapshots(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_action_snapshots_lookup
+  ON action_snapshots(decision_snapshot_id, rank, updated_at_ms DESC);
+
+CREATE TABLE IF NOT EXISTS user_response_events (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  market TEXT NOT NULL CHECK (market IN ('US', 'CRYPTO', 'ALL')),
+  asset_class TEXT NOT NULL CHECK (asset_class IN ('OPTIONS', 'US_STOCK', 'CRYPTO', 'ALL')),
+  decision_snapshot_id TEXT,
+  action_id TEXT,
+  thread_id TEXT,
+  event_type TEXT NOT NULL CHECK (
+    event_type IN (
+      'APP_OPEN',
+      'MORNING_CHECK_COMPLETED',
+      'ACTION_VIEWED',
+      'ACTION_CONFIRMED',
+      'AI_FOLLOW_UP',
+      'RECOMMENDATION_ACCEPTED',
+      'RECOMMENDATION_IGNORED',
+      'HIGH_RISK_OVERRIDE',
+      'WRAP_UP_COMPLETED',
+      'NOTIFICATION_OPENED'
+    )
+  ),
+  event_date TEXT NOT NULL,
+  payload_json TEXT NOT NULL,
+  created_at_ms INTEGER NOT NULL,
+  updated_at_ms INTEGER NOT NULL,
+  FOREIGN KEY(decision_snapshot_id) REFERENCES decision_snapshots(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_response_events_lookup
+  ON user_response_events(user_id, event_date DESC, updated_at_ms DESC);
+
+CREATE TABLE IF NOT EXISTS outcome_reviews (
+  id TEXT PRIMARY KEY,
+  user_id TEXT,
+  market TEXT NOT NULL CHECK (market IN ('US', 'CRYPTO', 'ALL')),
+  asset_class TEXT NOT NULL CHECK (asset_class IN ('OPTIONS', 'US_STOCK', 'CRYPTO', 'ALL')),
+  decision_snapshot_id TEXT NOT NULL,
+  action_id TEXT,
+  review_kind TEXT NOT NULL CHECK (review_kind IN ('OUTCOME', 'FAILURE', 'NO_ACTION_VALUE', 'EXPLANATION_EFFECTIVENESS')),
+  score REAL,
+  verdict TEXT NOT NULL,
+  summary TEXT NOT NULL,
+  payload_json TEXT NOT NULL,
+  created_at_ms INTEGER NOT NULL,
+  updated_at_ms INTEGER NOT NULL,
+  FOREIGN KEY(decision_snapshot_id) REFERENCES decision_snapshots(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_outcome_reviews_lookup
+  ON outcome_reviews(decision_snapshot_id, review_kind, updated_at_ms DESC);
+
+CREATE TABLE IF NOT EXISTS user_state_snapshots (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  market TEXT NOT NULL CHECK (market IN ('US', 'CRYPTO', 'ALL')),
+  asset_class TEXT NOT NULL CHECK (asset_class IN ('OPTIONS', 'US_STOCK', 'CRYPTO', 'ALL')),
+  snapshot_date TEXT NOT NULL,
+  portfolio_state_json TEXT NOT NULL,
+  discipline_state_json TEXT NOT NULL,
+  behavioral_pattern_json TEXT NOT NULL,
+  impulse_risk_json TEXT NOT NULL,
+  trust_state_json TEXT NOT NULL,
+  decision_profile_json TEXT NOT NULL,
+  personalization_context_json TEXT NOT NULL,
+  created_at_ms INTEGER NOT NULL,
+  updated_at_ms INTEGER NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_user_state_snapshots_unique
+  ON user_state_snapshots(user_id, market, asset_class, snapshot_date);
+
+CREATE INDEX IF NOT EXISTS idx_user_state_snapshots_lookup
+  ON user_state_snapshots(user_id, updated_at_ms DESC);
+
+CREATE TABLE IF NOT EXISTS decision_intelligence_dataset (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  market TEXT NOT NULL CHECK (market IN ('US', 'CRYPTO', 'ALL')),
+  asset_class TEXT NOT NULL CHECK (asset_class IN ('OPTIONS', 'US_STOCK', 'CRYPTO', 'ALL')),
+  decision_snapshot_id TEXT NOT NULL,
+  market_state_snapshot_id TEXT,
+  user_state_snapshot_id TEXT,
+  label_state TEXT NOT NULL CHECK (label_state IN ('PENDING', 'REVIEWED', 'TRAINING_READY', 'WITHHELD')),
+  export_ready INTEGER NOT NULL DEFAULT 0,
+  payload_json TEXT NOT NULL,
+  created_at_ms INTEGER NOT NULL,
+  updated_at_ms INTEGER NOT NULL,
+  FOREIGN KEY(decision_snapshot_id) REFERENCES decision_snapshots(id) ON DELETE CASCADE,
+  FOREIGN KEY(market_state_snapshot_id) REFERENCES market_state_snapshots(id) ON DELETE SET NULL,
+  FOREIGN KEY(user_state_snapshot_id) REFERENCES user_state_snapshots(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_decision_intelligence_dataset_lookup
+  ON decision_intelligence_dataset(user_id, market, asset_class, updated_at_ms DESC);
+
+CREATE TABLE IF NOT EXISTS sandbox_runs (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  decision_snapshot_id TEXT NOT NULL,
+  action_id TEXT,
+  scenario_type TEXT NOT NULL CHECK (scenario_type IN ('ACCEPT_ACTION', 'WAIT', 'ADVERSE_MOVE', 'FAVORABLE_MOVE', 'OVERLAP_CHECK')),
+  input_json TEXT NOT NULL,
+  result_json TEXT NOT NULL,
+  created_at_ms INTEGER NOT NULL,
+  updated_at_ms INTEGER NOT NULL,
+  FOREIGN KEY(decision_snapshot_id) REFERENCES decision_snapshots(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_sandbox_runs_lookup
+  ON sandbox_runs(user_id, decision_snapshot_id, updated_at_ms DESC);
+
+CREATE TABLE IF NOT EXISTS external_surfaces (
+  id TEXT PRIMARY KEY,
+  surface_type TEXT NOT NULL CHECK (surface_type IN ('PUBLIC_DECISION', 'SHARE_CARD', 'DEMO_SURFACE', 'BETA_GATE')),
+  market TEXT NOT NULL CHECK (market IN ('US', 'CRYPTO', 'ALL')),
+  asset_class TEXT NOT NULL CHECK (asset_class IN ('OPTIONS', 'US_STOCK', 'CRYPTO', 'ALL')),
+  source_decision_snapshot_id TEXT,
+  share_key TEXT,
+  status TEXT NOT NULL,
+  payload_json TEXT NOT NULL,
+  created_at_ms INTEGER NOT NULL,
+  updated_at_ms INTEGER NOT NULL,
+  FOREIGN KEY(source_decision_snapshot_id) REFERENCES decision_snapshots(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_external_surfaces_lookup
+  ON external_surfaces(surface_type, market, asset_class, updated_at_ms DESC);
+
+CREATE TABLE IF NOT EXISTS compliance_logs (
+  id TEXT PRIMARY KEY,
+  log_type TEXT NOT NULL CHECK (log_type IN ('RECOMMENDATION', 'EVIDENCE', 'PROMPT_EXECUTION', 'POLICY_DECISION')),
+  user_id TEXT,
+  decision_snapshot_id TEXT,
+  action_id TEXT,
+  evidence_snapshot_id TEXT,
+  model_version_id TEXT,
+  prompt_version_id TEXT,
+  policy_version TEXT,
+  trace_id TEXT,
+  payload_json TEXT NOT NULL,
+  created_at_ms INTEGER NOT NULL,
+  updated_at_ms INTEGER NOT NULL,
+  FOREIGN KEY(decision_snapshot_id) REFERENCES decision_snapshots(id) ON DELETE SET NULL,
+  FOREIGN KEY(evidence_snapshot_id) REFERENCES evidence_snapshots(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_compliance_logs_lookup
+  ON compliance_logs(log_type, user_id, updated_at_ms DESC);
 `;
 
 export function ensureSchema(db: Database.Database): void {

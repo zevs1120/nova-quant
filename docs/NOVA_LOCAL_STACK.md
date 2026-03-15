@@ -62,6 +62,7 @@ deterministically first. Nova is used as a grounded generation layer on top of t
 ## Operational Notes
 
 - If Ollama is unavailable, decision surfaces fall back to deterministic copy rather than failing the product.
+- Vercel/serverless runtimes automatically bypass local Nova generation because they cannot reach `127.0.0.1:11434`; they now fall back immediately instead of spending the function budget on doomed local retries.
 - Cached decision snapshots are reused only when the same context has already been generated with Nova or local generation is explicitly disabled.
 - This avoids pinning the app to a weaker fallback if Ollama comes online later in the same session/day.
 

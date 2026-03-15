@@ -25,7 +25,7 @@ import { buildBackendBackboneSummary } from '../backbone/service.js';
 import { createTraceId, recordAuditEvent } from '../observability/spine.js';
 import { applyLocalNovaDecisionLanguage, applyLocalNovaWrapUpLanguage, logNovaAssistantAnswer } from '../nova/service.js';
 import { buildMlxLmTrainingDataset } from '../nova/training.js';
-import { getNovaModelPlan, getNovaRoutingPolicies, getNovaLocalEndpoint } from '../ai/llmOps.js';
+import { getNovaModelPlan, getNovaRoutingPolicies, getNovaLocalEndpoint, getNovaRuntimeMode, isLocalNovaEnabled } from '../ai/llmOps.js';
 import { labelNovaRun } from '../nova/service.js';
 
 const RISK_PROFILE_PRESETS = {
@@ -1207,7 +1207,11 @@ export function getNovaRuntimeState() {
     endpoint: getNovaLocalEndpoint(),
     plan: getNovaModelPlan(),
     routing: getNovaRoutingPolicies(),
-    local_only: true
+    local_only: isLocalNovaEnabled(),
+    mode: getNovaRuntimeMode(),
+    availability_reason: isLocalNovaEnabled()
+      ? 'Local Ollama is enabled for this runtime.'
+      : 'Local Ollama is bypassed here; deterministic fallback remains available.'
   };
 }
 

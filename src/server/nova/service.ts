@@ -4,6 +4,7 @@ import type { NovaReviewLabelRecord, NovaTaskRunRecord, NovaTaskType } from '../
 import { createTraceId, recordAuditEvent } from '../observability/spine.js';
 import { runNovaChatCompletion, runNovaEmbedding } from './client.js';
 import { resolveBusinessTask, type NovaBusinessTask } from './router.js';
+import { isLocalNovaEnabled } from '../ai/llmOps.js';
 
 type JsonObject = Record<string, unknown>;
 
@@ -44,7 +45,7 @@ function findPromptVersionId(repo: MarketRepository, taskKey: string): string | 
 }
 
 function shouldSkipLocalNova(): boolean {
-  return String(process.env.NOVA_DISABLE_LOCAL_GENERATION || '').trim() === '1';
+  return !isLocalNovaEnabled();
 }
 
 function taskTypeForBusinessTask(task: NovaBusinessTask): NovaTaskType {

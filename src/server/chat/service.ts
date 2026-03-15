@@ -170,10 +170,18 @@ function appendAssistantMessage(repo: MarketRepository, args: {
 }
 
 function buildDeterministicFallback(contextBundle: Awaited<ReturnType<typeof buildContextBundle>>): string | null {
-  if (!contextBundle.deterministicGuide?.text) return null;
-  const note = 'Provider unavailable. Using internal evidence fallback.';
-  const text = contextBundle.deterministicGuide.text.trim();
-  if (!text) return null;
+  const note = 'Local Nova unavailable in this runtime. Using internal evidence fallback.';
+  const text = contextBundle.deterministicGuide?.text?.trim();
+  if (!text) {
+    const evidence = [
+      ...contextBundle.statusSummary.slice(0, 2),
+      ...contextBundle.selectedEvidence.slice(0, 3)
+    ].filter(Boolean);
+    if (!evidence.length) {
+      return `${note}\n\nAsk about Today Risk, the top action card, or your current holdings context for a grounded answer.`;
+    }
+    return `${note}\n\nVERDICT: Grounding is available, but language generation is running in fallback mode.\n\nEVIDENCE:\n- ${evidence.join('\n- ')}`;
+  }
   if (text.includes('VERDICT:')) {
     return text.replace('VERDICT:', `VERDICT: ${note} `);
   }

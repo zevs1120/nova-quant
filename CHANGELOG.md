@@ -2,6 +2,16 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 2.1.0 (2026-03-15)
+- Release type: minor
+- Add decision-intelligence data model scaffolding across types, schema, and repository, while restoring Vercel availability by bypassing local Ollama in serverless runtimes.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
+## 2.0.2 (2026-03-15)
+- Release type: patch
+- Restore Vercel availability by bypassing local Ollama in serverless runtimes and falling back immediately to deterministic evidence-backed responses.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
 ## 2.0.1 (2026-03-14)
 - Release type: patch
 - Hardened version management into a single package.json-driven release flow with generated runtime metadata.

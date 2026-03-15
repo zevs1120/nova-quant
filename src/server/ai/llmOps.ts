@@ -22,6 +22,8 @@ export type NovaRouteResolution = {
   endpoint: string;
 };
 
+export type NovaRuntimeMode = 'local-ollama' | 'deterministic-fallback';
+
 function totalMemoryGb(): number {
   return Math.round(os.totalmem() / (1024 ** 3));
 }
@@ -34,6 +36,23 @@ export function detectNovaMemoryTier(): 'compact' | 'full' {
 
 export function getNovaLocalEndpoint(): string {
   return process.env.OLLAMA_OPENAI_BASE_URL || process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434/v1';
+}
+
+export function isLocalNovaEnabled(): boolean {
+  const disabled = String(process.env.NOVA_DISABLE_LOCAL_GENERATION || '').trim();
+  if (disabled === '1' || disabled.toLowerCase() === 'true') return false;
+
+  const forced = String(process.env.NOVA_FORCE_LOCAL_GENERATION || '').trim();
+  if (forced === '1' || forced.toLowerCase() === 'true') return true;
+
+  // Vercel serverless cannot reach the Mac-local Ollama daemon on 127.0.0.1.
+  if (process.env.VERCEL === '1') return false;
+
+  return true;
+}
+
+export function getNovaRuntimeMode(): NovaRuntimeMode {
+  return isLocalNovaEnabled() ? 'local-ollama' : 'deterministic-fallback';
 }
 
 export function getNovaModelPlan() {
@@ -235,7 +254,11 @@ export function buildLlmOpsSummary(repo: MarketRepository) {
     runtime: {
       endpoint: getNovaLocalEndpoint(),
       memory_tier: detectNovaMemoryTier(),
-      local_only: true
+      local_only: isLocalNovaEnabled(),
+      mode: getNovaRuntimeMode(),
+      availability_reason: isLocalNovaEnabled()
+        ? 'Local Ollama expected to be reachable from this runtime.'
+        : 'Local Ollama bypassed in this runtime; deterministic fallback is used instead.'
     },
     routing_policies: getNovaRoutingPolicies(),
     model_registry: repo.listModelVersions({ limit: 12 }).map(toModelVersionContract),
