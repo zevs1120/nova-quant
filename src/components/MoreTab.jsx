@@ -126,9 +126,6 @@ export default function MoreTab({
               <h3 className="card-title">{currentGroup.title}</h3>
               <p className="muted">{currentGroup.description}</p>
             </div>
-            <button type="button" className="ghost-btn" onClick={() => onSectionChange('menu')}>
-              ← Back
-            </button>
           </div>
         </article>
 
@@ -160,9 +157,6 @@ export default function MoreTab({
               <h3 className="card-title">{sectionLabel(section, uiMode)}</h3>
               <p className="muted">This stays in More so the main tabs remain simple.</p>
             </div>
-            <button type="button" className="ghost-btn" onClick={() => onSectionChange('menu')}>
-              ← Back
-            </button>
           </div>
         </article>
         {renderSection(section)}

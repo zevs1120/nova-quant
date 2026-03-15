@@ -25,9 +25,9 @@ import {
 } from './demo/investorDemo';
 
 const TAB_META = {
-  today: { icon: '◉', label: 'Today' },
-  ai: { icon: '✦', label: 'AI' },
-  holdings: { icon: '▣', label: 'Holdings' },
+  today: { icon: '🏠', label: 'Today' },
+  ai: { icon: '✨', label: 'AI' },
+  holdings: { icon: '📊', label: 'Holdings' },
   more: { icon: '⋯', label: 'More' }
 };
 
@@ -45,6 +45,18 @@ const MORE_TITLES = {
   data: 'Data Status',
   settings: 'Settings',
   advanced: 'Advanced'
+};
+
+const MORE_PARENTS = {
+  weekly: 'group:review',
+  discipline: 'group:review',
+  signals: 'group:system',
+  performance: 'group:system',
+  safety: 'group:system',
+  data: 'group:system',
+  insights: 'group:market',
+  settings: 'group:settings',
+  advanced: 'group:settings'
 };
 
 const initialData = {
@@ -161,7 +173,7 @@ function calcStreak(rows = [], anchorKey, stepDays = 1) {
 export default function App() {
   const [displayMode, setDisplayMode] = useState(() => detectDisplayMode());
   const [activeTab, setActiveTab] = useState('today');
-  const [moreSection, setMoreSection] = useState('menu');
+  const [moreStack, setMoreStack] = useState(['menu']);
   const [assetClass, setAssetClass] = useLocalStorage('nova-quant-asset-class', 'US_STOCK', {
     legacyKeys: ['quant-demo-asset-class']
   });
@@ -221,6 +233,7 @@ export default function App() {
   );
   const [aiSeedRequest, setAiSeedRequest] = useState(null);
   const [engagementState, setEngagementState] = useState(null);
+  const moreSection = moreStack[moreStack.length - 1] || 'menu';
 
   const t = useMemo(() => createTranslator(lang), [lang]);
   const locale = useMemo(() => getLocale(lang), [lang]);
@@ -772,12 +785,11 @@ export default function App() {
     if (!target) return;
     if (target.startsWith('more:')) {
       const section = target.split(':')[1] || 'menu';
-      setMoreSection(section);
-      setActiveTab('more');
+      openMoreSection(section);
       return;
     }
     setActiveTab(target);
-    if (target !== 'more') setMoreSection('menu');
+    if (target !== 'more') setMoreStack(['menu']);
   };
 
   const recordExecution = async ({ signal, mode, action }) => {
@@ -818,14 +830,40 @@ export default function App() {
     }
   };
 
-  const resetMore = () => {
-    setMoreSection('menu');
-  };
+  const buildMoreStack = useCallback((section) => {
+    if (!section || section === 'menu') return ['menu'];
+    if (section.startsWith('group:')) return ['menu', section];
+    const parent = MORE_PARENTS[section];
+    return parent ? ['menu', parent, section] : ['menu', section];
+  }, []);
 
-  const openMoreSection = (section) => {
-    setMoreSection(section);
-    setActiveTab('more');
-  };
+  const resetMore = useCallback(() => {
+    setMoreStack(['menu']);
+  }, []);
+
+  const openMoreSection = useCallback(
+    (section) => {
+      setMoreStack(buildMoreStack(section));
+      setActiveTab('more');
+    },
+    [buildMoreStack]
+  );
+
+  const pushMoreSection = useCallback((section) => {
+    if (!section || section === 'menu') {
+      setMoreStack(['menu']);
+      return;
+    }
+    setMoreStack((current) => {
+      const currentTop = current[current.length - 1];
+      if (currentTop === section) return current;
+      return [...current, section];
+    });
+  }, []);
+
+  const popMoreSection = useCallback(() => {
+    setMoreStack((current) => (current.length > 1 ? current.slice(0, -1) : current));
+  }, []);
 
   const renderDataStatus = () => {
     const runtime = data?.config?.runtime || {};
@@ -1440,7 +1478,7 @@ export default function App() {
     return (
       <MoreTab
         section={moreSection}
-        onSectionChange={setMoreSection}
+        onSectionChange={pushMoreSection}
         uiMode={uiMode}
         discipline={discipline}
         engagement={engagementState}
@@ -1463,6 +1501,12 @@ export default function App() {
     activeTab === 'more' && moreSection !== 'menu'
       ? MORE_TITLES[moreSection] || TAB_META.more.label
       : TAB_META[activeTab]?.label || 'Today';
+  const canGoBackInTopBar = activeTab === 'more' && moreStack.length > 1;
+  const previousMoreSection = canGoBackInTopBar ? moreStack[moreStack.length - 2] : null;
+  const topBarBackLabel =
+    previousMoreSection && previousMoreSection !== 'menu'
+      ? MORE_TITLES[previousMoreSection] || TAB_META.more.label
+      : TAB_META.more.label;
 
   const appTone = engagementState?.ui_regime_state?.tone || 'quiet';
   const motionProfile = engagementState?.ui_regime_state?.motion_profile || 'calm';
@@ -1487,10 +1531,20 @@ export default function App() {
         data-active-tab={activeTab}
       >
         <header className="top-bar">
-          <div>
+          <div className="top-bar-leading">
+            {canGoBackInTopBar ? (
+              <button type="button" className="ios-nav-back top-bar-back" onClick={popMoreSection} aria-label={`Back to ${topBarBackLabel}`}>
+                <span className="ios-back-chevron" aria-hidden="true">
+                  ‹
+                </span>
+                <span className="ios-back-label">{topBarBackLabel}</span>
+              </button>
+            ) : null}
+            <div>
             <p className="brand">{t('app.brand')}</p>
             <h1 className="headline">{heading}</h1>
             <p className="top-bar-note">{headingNote}</p>
+            </div>
           </div>
         </header>
 
@@ -1545,7 +1599,7 @@ export default function App() {
               if (key !== 'more') {
                 resetMore();
               } else {
-                setMoreSection('menu');
+                setMoreStack(['menu']);
               }
             }}
           >
