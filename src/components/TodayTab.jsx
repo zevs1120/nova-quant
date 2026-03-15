@@ -561,6 +561,24 @@ export default function TodayTab({
     morningCheck?.status === 'COMPLETED' ? { key: 'checked', label: actionCopy.badges.checked, tone: 'badge-triggered' } : null,
     noActionDay ? { key: 'restraint', label: actionCopy.badges.restraint, tone: 'badge-neutral' } : null
   ].filter(Boolean);
+  const heroEyebrow = noActionDay
+    ? locale === 'zh'
+      ? '今日判断'
+      : 'Today’s call'
+    : actionCopy.title;
+  const heroSupport = recommendationChange?.changed
+    ? recommendationChange.summary
+    : noActionDay
+      ? uiRegime?.completion_line || noActionCopy.completion
+      : overall.subtitle;
+  const heroSignalMeta = featuredSignal
+    ? `${featuredSignal._actionable ? String(signalDirection(featuredSignal)).toUpperCase() : 'WAIT'}${
+        featuredSignal?.portfolio_intent ? ` · ${String(featuredSignal.portfolio_intent).replace(/_/g, ' ')}` : ''
+      }`
+    : locale === 'zh'
+      ? '等待更清楚的条件'
+      : 'Wait for cleaner conditions';
+  const sourceLine = sourceCaption(featuredSignal, investorDemoEnabled, locale);
 
   if (activeSignal) {
     return <SignalDetail signal={activeSignal} onBack={() => setActiveSignal(null)} t={(key, _v, fallback) => fallback || key} />;
@@ -621,10 +639,10 @@ export default function TodayTab({
             }
           }}
         >
-          <div className="card-header today-action-header">
+          <div className="today-hero-meta">
             <div>
-              <h3 className="card-title">{actionCopy.title}</h3>
-              <p className="muted">{actionCardLead}</p>
+              <p className="today-hero-eyebrow">{heroEyebrow}</p>
+              <h2 className="today-hero-title">{overall.headline}</h2>
             </div>
             <div className="signal-badge-row">
               {featuredSignal ? <span className={`badge ${noActionDay ? 'badge-neutral' : 'badge-triggered'}`}>{confidenceText(featuredSignal)}</span> : null}
@@ -635,6 +653,7 @@ export default function TodayTab({
               ))}
             </div>
           </div>
+          <p className="today-hero-subtitle">{actionCardLead}</p>
           <p className="ritual-kicker">{actionCardSubline}</p>
           {!featuredSignal ? (
             <p className="muted status-line">
@@ -642,43 +661,66 @@ export default function TodayTab({
             </p>
           ) : (
             <>
-              <p className="today-action-line">
-                {featuredSignal.symbol || '--'} · {featuredSignal._actionable ? String(signalDirection(featuredSignal)).toUpperCase() : 'WAIT'}
-              </p>
-              <p className="muted status-line">
-                {featuredSignal.brief_why_now ||
-                  (noActionDay
-                    ? uiRegime?.humor_line || noActionCopy.notify
-                    : actionCopy.why_now)}
-              </p>
-              <div className="today-action-grid">
-                <div className="status-box">
-                  <p className="muted">{locale === 'zh' ? '入场区间' : 'Buy Zone'}</p>
-                  <h2>{entryRangeText(featuredSignal)}</h2>
+              <div className="today-hero-signal-row">
+                <div className="today-hero-signal-copy">
+                  <p className="today-action-line">{featuredSignal.symbol || '--'}</p>
+                  <p className="today-hero-symbol-meta">{heroSignalMeta}</p>
                 </div>
-                <div className="status-box">
-                  <p className="muted">{locale === 'zh' ? '仓位' : 'Size'}</p>
-                  <h2>{suggestedPositionText(featuredSignal)}</h2>
-                </div>
-                <div className="status-box">
-                  <p className="muted">{locale === 'zh' ? '止盈' : 'Take profit'}</p>
-                  <h2>{takeProfitText(featuredSignal)}</h2>
-                </div>
-                <div className="status-box">
-                  <p className="muted">{locale === 'zh' ? '止损' : 'Stop loss'}</p>
-                  <h2>{stopLossText(featuredSignal)}</h2>
+                <div className="today-hero-confidence-stack">
+                  <span className="today-hero-confidence">{confidenceText(featuredSignal)}</span>
+                  <span className="muted status-line">{generatedText(featuredSignal)}</span>
                 </div>
               </div>
-              <p className="muted status-line">
-                {strategySourceText(featuredSignal)} · {generatedText(featuredSignal)}
-                {featuredSignal?.portfolio_intent ? ` · ${String(featuredSignal.portfolio_intent).replace(/_/g, ' ')}` : ''}
-              </p>
-              <p className="muted status-line">
-                {featuredSignal?.risk_note ||
-                  (noActionDay
-                    ? morningCheck?.completion_feedback || uiRegime?.protective_line || noActionCopy.arrival
-                    : uiRegime?.humor_line || actionCopy.caution)}
-              </p>
+
+              {noActionDay ? (
+                <div className="today-no-action-panel">
+                  <p className="today-no-action-line">{uiRegime?.completion_line || noActionCopy.completion}</p>
+                  <p className="muted status-line">
+                    {featuredSignal?.risk_note ||
+                      morningCheck?.completion_feedback ||
+                      uiRegime?.protective_line ||
+                      noActionCopy.notify}
+                  </p>
+                </div>
+              ) : (
+                <div className="today-action-grid">
+                  <div className="status-box today-hero-stat-box">
+                    <p className="muted">{locale === 'zh' ? '入场区间' : 'Entry range'}</p>
+                    <h2>{entryRangeText(featuredSignal)}</h2>
+                  </div>
+                  <div className="status-box today-hero-stat-box">
+                    <p className="muted">{locale === 'zh' ? '建议仓位' : 'Sizing'}</p>
+                    <h2>{suggestedPositionText(featuredSignal)}</h2>
+                  </div>
+                  <div className="status-box today-hero-stat-box">
+                    <p className="muted">{locale === 'zh' ? '止盈' : 'Target'}</p>
+                    <h2>{takeProfitText(featuredSignal)}</h2>
+                  </div>
+                  <div className="status-box today-hero-stat-box">
+                    <p className="muted">{locale === 'zh' ? '失效线' : 'Risk line'}</p>
+                    <h2>{stopLossText(featuredSignal)}</h2>
+                  </div>
+                </div>
+              )}
+
+              <div className="today-hero-notes">
+                <p className="muted status-line">
+                  {strategySourceText(featuredSignal)} · {generatedText(featuredSignal)}
+                </p>
+                <p className="muted status-line">
+                  {featuredSignal?.brief_why_now ||
+                    (noActionDay
+                      ? uiRegime?.humor_line || noActionCopy.notify
+                      : actionCopy.why_now)}
+                </p>
+                <p className="muted status-line">
+                  {featuredSignal?.risk_note ||
+                    (noActionDay
+                      ? morningCheck?.completion_feedback || uiRegime?.protective_line || noActionCopy.arrival
+                      : uiRegime?.humor_line || actionCopy.caution)}
+                </p>
+              </div>
+
               <div className="action-row today-action-row">
                 <button
                   type="button"
@@ -689,6 +731,20 @@ export default function TodayTab({
                   }}
                 >
                   {featuredSignal._actionable ? (locale === 'zh' ? '按计划动作' : 'Take action') : buttonText}
+                </button>
+                <button
+                  type="button"
+                  className="secondary-btn today-action-secondary"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    triggerFeedback('soft');
+                    onAskAi?.(noActionDay ? 'Why is waiting the better move today?' : 'Why is this the top action today?', {
+                      page: 'today',
+                      focus: noActionDay ? 'restraint' : 'top_action'
+                    });
+                  }}
+                >
+                  {actionCopy.ask_nova_label}
                 </button>
               </div>
               <p className="muted status-line action-card-footnote">
@@ -704,9 +760,10 @@ export default function TodayTab({
 
         <div className="today-status-grid ritual-delay-2">
           <article className={`glass-card beginner-today-overall today-compact-info-card state-card state-card-${uiRegime?.tone || 'quiet'}`}>
-            <h3 className="card-title">{overall.headline}</h3>
-            <p className="muted status-line">{overall.subtitle}</p>
-            {uiRegime?.arrival_line ? <p className="ritual-kicker">{uiRegime.arrival_line}</p> : null}
+            <p className="ritual-kicker">{locale === 'zh' ? '今天重点' : 'Focus today'}</p>
+            <h3 className="card-title">{heroSupport}</h3>
+            <p className="muted status-line">{actionCardSubline}</p>
+            {sourceLine ? <p className="muted status-line">{sourceLine}</p> : uiRegime?.arrival_line ? <p className="ritual-kicker">{uiRegime.arrival_line}</p> : null}
           </article>
 
           <article className={`glass-card beginner-risk-card today-compact-info-card state-card state-card-${uiRegime?.tone || 'quiet'}`}>

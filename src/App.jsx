@@ -1444,6 +1444,7 @@ export default function App() {
         uiMode={uiMode}
         discipline={discipline}
         engagement={engagementState}
+        appMeta={uiData?.config || {}}
         renderSection={renderMoreSection}
         investorDemoEnabled={investorDemoEnabled}
         onToggleDemo={() => {
@@ -1466,6 +1467,18 @@ export default function App() {
   const appTone = engagementState?.ui_regime_state?.tone || 'quiet';
   const motionProfile = engagementState?.ui_regime_state?.motion_profile || 'calm';
   const dailyCheckState = String(engagementState?.daily_check_state?.status || 'PENDING').toLowerCase();
+  const headingNote =
+    activeTab === 'today'
+      ? engagementState?.perception_layer?.focus_line ||
+        engagementState?.daily_check_state?.headline ||
+        'One clear judgment before the noise.'
+      : activeTab === 'ai'
+        ? 'Ask the system what changed, not the tape what to chase.'
+        : activeTab === 'holdings'
+          ? 'Portfolio context, without terminal clutter.'
+          : activeTab === 'more' && moreSection === 'menu'
+            ? 'Everything else lives here so Today can stay clean.'
+            : 'A quieter layer behind the main decision surface.';
 
   return (
     <div className={`app-bg app-bg-${displayMode} app-tone-${appTone}`}>
@@ -1477,11 +1490,12 @@ export default function App() {
           <div>
             <p className="brand">{t('app.brand')}</p>
             <h1 className="headline">{heading}</h1>
+            <p className="top-bar-note">{headingNote}</p>
           </div>
 
           <div className="top-actions">
             <button type="button" className="ghost-btn" onClick={() => setActiveTab('ai')}>
-              Ask AI
+              Ask Nova
             </button>
             <button type="button" className="ghost-btn" onClick={() => setAboutOpen(true)}>
               About

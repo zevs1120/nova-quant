@@ -108,6 +108,7 @@ export default function MoreTab({
   uiMode,
   discipline,
   engagement,
+  appMeta,
   renderSection,
   investorDemoEnabled,
   onToggleDemo,
@@ -171,6 +172,17 @@ export default function MoreTab({
 
   return (
     <section className="stack-gap more-screen">
+      <article className="glass-card more-overview-card">
+        <p className="ritual-kicker">System surfaces</p>
+        <div className="card-header">
+          <div>
+            <h3 className="card-title">More</h3>
+            <p className="muted">Research, settings, and review live here so Today can stay brutally simple.</p>
+          </div>
+          <span className="badge badge-neutral">{uiMode}</span>
+        </div>
+      </article>
+
       <div className="more-list">
         <button type="button" className="more-list-row" onClick={() => onSectionChange('group:review')}>
           <span>
@@ -217,6 +229,20 @@ export default function MoreTab({
           </span>
         </button>
       </div>
+
+      <article className="glass-card more-version-card">
+        <div className="card-header">
+          <div>
+            <h3 className="card-title">NovaQuant</h3>
+            <p className="muted">A decision surface first. Everything else exists to support that judgment.</p>
+          </div>
+          <span className="badge badge-neutral">{appMeta?.app_version_label || '--'}</span>
+        </div>
+        <p className="status-line more-version-line">
+          Version {appMeta?.app_version || '--'}
+          {appMeta?.build_number ? ` · Build ${appMeta.build_number}` : ''}
+        </p>
+      </article>
 
       <p className="muted status-line more-screen-meta">
         {engagement?.daily_check_state?.status === 'COMPLETED'

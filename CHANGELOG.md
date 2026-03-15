@@ -2,6 +2,11 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 2.2.0 (2026-03-15)
+- Release type: minor
+- Rework the front-end shell, Today hierarchy, and More surfaces for a stronger product-grade decision experience
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
 ## 2.1.1 (2026-03-15)
 - Release type: patch
 - Fix blank page caused by App render-order TDZ in Today boot sequence
