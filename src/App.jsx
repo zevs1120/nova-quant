@@ -503,6 +503,33 @@ export default function App() {
       .catch(() => {});
   }, [riskProfileKey, chatUserId]);
 
+  const todayKey = localDateKey(now);
+  const currentWeekKey = weekStartKey(now);
+
+  const loadEngagementState = useCallback(async () => {
+    if (EXPLICIT_DEMO_MODE || !hasLoaded) return null;
+    try {
+      const payload = await fetchJson('/api/engagement/state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: chatUserId,
+          market,
+          assetClass,
+          localDate: todayKey,
+          localHour: now.getHours(),
+          locale: lang,
+          holdings
+        })
+      });
+      setEngagementState(payload || null);
+      return payload || null;
+    } catch {
+      setEngagementState(null);
+      return null;
+    }
+  }, [assetClass, chatUserId, hasLoaded, holdings, lang, market, now, todayKey]);
+
   useEffect(() => {
     if (EXPLICIT_DEMO_MODE || !hasLoaded) return;
     let cancelled = false;
@@ -545,9 +572,6 @@ export default function App() {
     return 'NQ v1.0.0';
   }, [uiData.config]);
 
-  const todayKey = localDateKey(now);
-  const currentWeekKey = weekStartKey(now);
-
   const localDiscipline = useMemo(() => {
     const checkins = disciplineLog?.checkins || [];
     const boundary = disciplineLog?.boundary_kept || [];
@@ -588,30 +612,6 @@ export default function App() {
     },
     [setDisciplineLog]
   );
-
-  const loadEngagementState = useCallback(async () => {
-    if (EXPLICIT_DEMO_MODE || !hasLoaded) return null;
-    try {
-      const payload = await fetchJson('/api/engagement/state', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: chatUserId,
-          market,
-          assetClass,
-          localDate: todayKey,
-          localHour: now.getHours(),
-          locale: lang,
-          holdings
-        })
-      });
-      setEngagementState(payload || null);
-      return payload || null;
-    } catch {
-      setEngagementState(null);
-      return null;
-    }
-  }, [assetClass, chatUserId, hasLoaded, holdings, lang, market, now, todayKey]);
 
   const markDailyCheckin = useCallback(async () => {
     syncLocalDisciplineLog((current) => ({
