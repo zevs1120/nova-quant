@@ -2,6 +2,11 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 2.4.0 (2026-03-16)
+- Release type: minor
+- Refresh the UI design system with a warmer premium palette, stronger component tokens, polished mobile navigation chrome, elevated card styling, and more approachable yet disciplined interaction states inspired by Composer and Duolingo.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
 ## 2.3.0 (2026-03-16)
 - Release type: minor
 - Standardize iOS-style navigation by removing duplicate top bars in More, introducing native-feeling back treatment for nested views, and unifying signal detail back behavior across Today and Signals.
