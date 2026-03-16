@@ -1,7 +1,7 @@
 {
   "name": "nova-quant",
   "private": true,
-  "version": "4.2.0",
+  "version": "4.2.2",
   "type": "module",
   "scripts": {
     "dev": "vite",

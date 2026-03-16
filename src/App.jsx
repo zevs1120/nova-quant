@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import AboutModal from './components/AboutModal';
 import AiPage from './components/AiPage';
+import novaLogo from './assets/nova.png';
 import HoldingsTab from './components/HoldingsTab';
 import MarketTab from './components/MarketTab';
 import MoreTab from './components/MoreTab';
@@ -1503,26 +1504,9 @@ export default function App() {
       ? MORE_TITLES[previousMoreSection] || TAB_META.more.label
       : TAB_META.more.label;
   const topBarMode = canGoBackInTopBar ? 'detail' : 'root';
-  const heading =
-    activeTab === 'more' && moreSection !== 'menu'
-      ? MORE_TITLES[moreSection] || TAB_META.more.label
-      : TAB_META[activeTab]?.label || 'Today';
-
   const appTone = engagementState?.ui_regime_state?.tone || 'quiet';
   const motionProfile = engagementState?.ui_regime_state?.motion_profile || 'calm';
   const dailyCheckState = String(engagementState?.daily_check_state?.status || 'PENDING').toLowerCase();
-  const headingNote =
-    activeTab === 'today'
-      ? engagementState?.perception_layer?.focus_line ||
-        engagementState?.daily_check_state?.headline ||
-        'Open, check the call, then get on with your day.'
-      : activeTab === 'ai'
-        ? ''
-        : activeTab === 'holdings'
-          ? 'See your risk without reading a terminal.'
-          : activeTab === 'more' && moreSection === 'menu'
-            ? 'Everything else lives here so the main screen stays simple.'
-            : 'A quieter layer behind today’s call.';
 
   return (
     <div className={`app-bg app-bg-${displayMode} app-tone-${appTone}`}>
@@ -1540,12 +1524,11 @@ export default function App() {
                 <span className="ios-back-label">{topBarBackLabel}</span>
               </button>
             ) : null}
-            <div className={`top-bar-copy ${canGoBackInTopBar ? 'top-bar-copy-detail' : 'top-bar-copy-root'}`}>
-              {!canGoBackInTopBar ? <p className="brand">{t('app.brand')}</p> : null}
-              <h1 className="headline">{heading}</h1>
-              {!canGoBackInTopBar && headingNote ? <p className="top-bar-note">{headingNote}</p> : null}
-            </div>
           </div>
+          <div className="top-bar-logo-wrap" aria-label="Nova Quant">
+            <img src={novaLogo} alt="Nova Quant" className="top-bar-logo" />
+          </div>
+          {canGoBackInTopBar ? <div className="top-bar-spacer" aria-hidden="true" /> : null}
         </header>
 
         <main className={`main-content main-content-${activeTab}`}>

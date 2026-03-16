@@ -4027,24 +4027,63 @@ body.keyboard-open .ai-input-dock {
 }
 
 .top-bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding-top: calc(var(--safe-top) + 16px);
   padding-bottom: 14px;
 }
 
 .top-bar-root {
-  min-height: 104px;
+  min-height: 92px;
 }
 
 .top-bar-detail {
-  min-height: 62px;
+  min-height: 72px;
   padding-top: calc(var(--safe-top) + 10px);
   padding-bottom: 10px;
 }
 
 .top-bar-leading {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 12px;
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(calc(-50% + (var(--safe-top) * 0.15)));
+  z-index: 2;
+}
+
+.top-bar-logo-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding-inline: 16px;
+  max-width: min(62vw, 240px);
+}
+
+.top-bar-logo {
+  display: block;
+  width: auto;
+  height: 34px;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+.top-bar-detail .top-bar-logo {
+  height: 28px;
+}
+
+.top-bar-spacer {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  width: 54px;
+  height: 32px;
+  transform: translateY(calc(-50% + (var(--safe-top) * 0.15)));
 }
 
 .top-bar-copy {
@@ -6366,7 +6405,7 @@ body {
 /* AI page rebuild: ChatGPT + iMessage mobile conversation */
 .main-content-ai {
   padding-top: 0;
-  padding-bottom: calc(var(--tabbar-total-height) + 132px);
+  padding-bottom: calc(var(--tabbar-total-height) + 168px);
 }
 
 .ai-page-shell {
@@ -6605,11 +6644,12 @@ body {
 }
 
 .ai-composer-shell {
-  position: sticky;
-  bottom: calc(var(--tabbar-total-height) - 4px);
-  left: 0;
-  right: 0;
-  z-index: 4;
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--tabbar-total-height) + 8px);
+  transform: translateX(-50%);
+  width: min(calc(100% - 24px), calc(var(--shell-max-width) - 24px));
+  z-index: 45;
   padding-top: 10px;
   background: linear-gradient(180deg, rgba(246, 243, 238, 0) 0%, rgba(246, 243, 238, 0.88) 24%, rgba(246, 243, 238, 0.98) 48%);
   backdrop-filter: blur(12px);
@@ -6720,12 +6760,12 @@ body {
 }
 
 body.keyboard-open .ai-composer-shell {
-  bottom: calc(var(--safe-bottom) + 6px);
+  bottom: max(8px, calc(var(--keyboard-inset) + 8px));
 }
 
 @media (max-width: 640px) {
   .main-content-ai {
-    padding-bottom: calc(var(--tabbar-total-height) + 126px);
+    padding-bottom: calc(var(--tabbar-total-height) + 164px);
   }
 
   .ai-empty-stage {

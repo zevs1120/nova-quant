@@ -2,6 +2,16 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 4.2.2 (2026-03-16)
+- Release type: patch
+- Replace the top-bar copy with a centered Nova logo and keep only the iOS back action where needed.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
+## 4.2.1 (2026-03-16)
+- Release type: patch
+- Fix the AI chat composer so it stays pinned above the tab bar instead of drifting inside the message flow.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
 ## 4.2.0 (2026-03-16)
 - Release type: minor
 - Rebuild the mobile AI page around a ChatGPT + iMessage conversation layout with a sticky composer, suggestion chips, and lighter assistant message structure.
