@@ -662,6 +662,50 @@ export default function TodayTab({
           : featuredSignal?.risk_note || risk.explanation
     }
   ];
+  const fitnessRings = [
+    {
+      key: 'stance',
+      label: locale === 'zh' ? '动作' : 'Move',
+      progress: temperaturePercent(overall.code),
+      tone: overall.code === 'TRADE' ? 'go' : overall.code === 'WAIT' ? 'watch' : 'hold',
+      value: noActionDay
+        ? locale === 'zh'
+          ? '先等'
+          : 'Wait'
+        : locale === 'zh'
+          ? '可动'
+          : 'Ready'
+    },
+    {
+      key: 'size',
+      label: locale === 'zh' ? '仓位' : 'Size',
+      progress: noActionDay ? 22 : trendPercent(featuredSignal),
+      tone: noActionDay ? 'calm' : 'go',
+      value:
+        noActionDay
+          ? locale === 'zh'
+            ? '轻'
+            : 'Light'
+          : Number(featuredSignal?.position_advice?.position_pct ?? featuredSignal?.position_size_pct ?? 0) >= 14
+            ? locale === 'zh'
+              ? '正常'
+              : 'Normal'
+            : locale === 'zh'
+              ? '轻'
+              : 'Light'
+    },
+    {
+      key: 'risk',
+      label: locale === 'zh' ? '风险' : 'Risk',
+      progress: simpleRiskPercent(risk.level),
+      tone: risk.level === 'danger' ? 'hold' : risk.level === 'medium' ? 'watch' : 'go',
+      value: risk.level === 'danger' ? (locale === 'zh' ? '高' : 'High') : risk.level === 'medium' ? (locale === 'zh' ? '中' : 'Mid') : (locale === 'zh' ? '低' : 'Low')
+    }
+  ];
+  const heroPromptLine =
+    locale === 'zh'
+      ? `今天先记住：${coachPlan[2]?.value || risk.explanation}`
+      : `Keep this in mind first: ${coachPlan[2]?.value || risk.explanation}`;
 
   if (activeSignal) {
     return (
@@ -692,25 +736,8 @@ export default function TodayTab({
   return (
     <section className="stack-gap">
       <section className="today-fold">
-        {perceptionLayer ? (
-          <article
-            className={`glass-card decision-presence-strip ritual-card ritual-reveal decision-presence-${perceptionLayer.status || 'arriving'}`}
-          >
-            <div className="presence-badge-row">
-              <span className="presence-dot" aria-hidden="true" />
-              <span className="badge badge-neutral">{perceptionLayer.badge}</span>
-              <span className="muted status-line presence-ambient-label">{perceptionLayer.ambient_label}</span>
-            </div>
-            <p className="presence-headline">{perceptionLayer.headline}</p>
-            {perceptionLayer.focus_line ? <p className="presence-focus">{perceptionLayer.focus_line}</p> : null}
-            {perceptionLayer.confirmation_line ? (
-              <p className="muted status-line presence-confirmation">{perceptionLayer.confirmation_line}</p>
-            ) : null}
-          </article>
-        ) : null}
-
         <article
-          className={`glass-card beginner-best-suggestion today-action-card-compact ritual-card ritual-reveal ritual-delay-1 ${noActionDay ? 'is-no-action-day' : 'is-action-day'} ${
+          className={`glass-card beginner-best-suggestion today-action-card-compact today-command-card ritual-card ritual-reveal ritual-delay-1 ${noActionDay ? 'is-no-action-day' : 'is-action-day'} ${
             recommendationChange?.changed ? 'is-updated' : ''
           } ${morningCheck?.status === 'COMPLETED' ? 'is-confirmed' : ''}`}
           role="button"
@@ -729,10 +756,10 @@ export default function TodayTab({
             }
           }}
         >
-          <div className="today-hero-meta">
-            <div>
-              <p className="today-hero-eyebrow">{heroEyebrow}</p>
-              <h2 className="today-hero-title">{overall.headline}</h2>
+          <div className="today-command-top">
+            <div className="today-command-status">
+              {perceptionLayer?.badge ? <span className="badge badge-neutral">{perceptionLayer.badge}</span> : null}
+              {perceptionLayer?.ambient_label ? <span className="muted status-line">{perceptionLayer.ambient_label}</span> : null}
             </div>
             <div className="signal-badge-row">
               {featuredSignal ? <span className={`badge ${noActionDay ? 'badge-neutral' : 'badge-triggered'}`}>{confidenceText(featuredSignal)}</span> : null}
@@ -743,7 +770,32 @@ export default function TodayTab({
               ))}
             </div>
           </div>
-          <p className="today-hero-subtitle">{actionCardLead}</p>
+
+          <div className="today-command-main">
+            <div className="today-command-copy">
+              <p className="today-hero-eyebrow">{heroEyebrow}</p>
+              <h2 className="today-hero-title">{overall.headline}</h2>
+              <p className="today-hero-subtitle">{actionCardLead}</p>
+              <p className="today-command-prompt">{heroPromptLine}</p>
+            </div>
+            <div className="today-ring-cluster" aria-label={locale === 'zh' ? '今日状态环' : 'Today state rings'}>
+              {fitnessRings.map((ring) => (
+                <div
+                  key={ring.key}
+                  className={`today-ring-card today-ring-${ring.tone}`}
+                  style={{ '--ring-progress': `${ring.progress}%` }}
+                >
+                  <div className="today-ring-shell">
+                    <div className="today-ring-core">
+                      <span className="today-ring-value">{ring.value}</span>
+                    </div>
+                  </div>
+                  <span className="today-ring-label">{ring.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <p className="ritual-kicker">{actionCardSubline}</p>
           <div className="stance-rail" aria-label={locale === 'zh' ? '今日立场' : 'Today stance'}>
             {stanceRail.map((item) => (

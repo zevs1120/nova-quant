@@ -4565,6 +4565,114 @@ body.keyboard-open .ai-input-dock {
   padding: 22px;
 }
 
+.today-command-card {
+  padding: 22px 22px 20px;
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at 80% 20%, rgba(22, 86, 217, 0.08), transparent 28%),
+    radial-gradient(circle at 18% 82%, rgba(46, 125, 105, 0.09), transparent 26%),
+    linear-gradient(180deg, rgba(255, 252, 248, 0.98), rgba(249, 245, 239, 0.98));
+}
+
+.today-command-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.today-command-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.today-command-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(220px, 0.8fr);
+  gap: 18px;
+  align-items: center;
+}
+
+.today-command-copy {
+  min-width: 0;
+}
+
+.today-command-prompt {
+  margin: 14px 0 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: rgba(23, 28, 36, 0.68);
+  max-width: 34ch;
+}
+
+.today-ring-cluster {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  align-items: start;
+}
+
+.today-ring-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.today-ring-shell {
+  --ring-size: 78px;
+  width: var(--ring-size);
+  height: var(--ring-size);
+  border-radius: 50%;
+  padding: 7px;
+  background:
+    conic-gradient(var(--ring-color, rgba(22, 86, 217, 0.85)) 0 var(--ring-progress), rgba(23, 28, 36, 0.09) var(--ring-progress) 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.55),
+    0 12px 24px rgba(15, 23, 42, 0.08);
+}
+
+.today-ring-core {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 252, 248, 0.95);
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.04);
+}
+
+.today-ring-value {
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.today-ring-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.today-ring-go {
+  --ring-color: rgba(46, 125, 105, 0.92);
+}
+
+.today-ring-watch {
+  --ring-color: rgba(234, 136, 24, 0.9);
+}
+
+.today-ring-hold,
+.today-ring-calm {
+  --ring-color: rgba(22, 86, 217, 0.86);
+}
+
 .today-hero-eyebrow {
   margin: 0;
   font-size: 11px;
@@ -4849,6 +4957,29 @@ body.keyboard-open .ai-input-dock {
 }
 
 @media (max-width: 640px) {
+  .today-command-card {
+    padding: 18px 18px 17px;
+    border-radius: 24px;
+  }
+
+  .today-command-top {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .today-command-main {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .today-ring-cluster {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .today-ring-shell {
+    --ring-size: 68px;
+  }
+
   .today-action-row {
     grid-template-columns: 1fr;
   }

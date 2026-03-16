@@ -2,6 +2,11 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 3.0.0 (2026-03-16)
+- Release type: major
+- Rebuild the home screen into a bold, Apple Fitness-inspired action panel with a single hero command card, ring-based state cues, and a stronger consumer decision coach feel. Remove the extra perception card from the top fold so the first screen lands on today's call immediately.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
 ## 2.5.2 (2026-03-16)
 - Release type: patch
 - Remove the persistent top status layer and recast the Today screen around a stronger action stance, coach-style plan pills, and a cleaner follow-through card so the app feels less like a finance panel and more like a decisive consumer product.
