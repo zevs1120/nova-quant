@@ -156,9 +156,8 @@ export default function MoreTab({
         <div className="card-header">
           <div>
             <h3 className="card-title">More</h3>
-            <p className="muted">Research, settings, and review live here so Today can stay brutally simple.</p>
+            <p className="muted">Everything secondary lives here so Today can stay simple and decisive.</p>
           </div>
-          <span className="badge badge-neutral">{uiMode}</span>
         </div>
       </article>
 
@@ -187,7 +186,7 @@ export default function MoreTab({
         <button type="button" className="more-list-row" onClick={() => onSectionChange('settings')}>
           <span>
             <span className="quick-access-title">Settings</span>
-            <span className="quick-access-desc">App preferences &amp; mode</span>
+            <span className="quick-access-desc">App preferences</span>
           </span>
           <span className="more-list-arrow">›</span>
         </button>

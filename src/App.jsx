@@ -1553,27 +1553,10 @@ export default function App() {
           <SystemStatusBar
             connected={hasLoaded && uiData?.config?.runtime?.source_status === 'DB_BACKED'}
             riskMode={riskProfileKey}
-            uiMode={uiMode}
             currency="USD"
             t={t}
             locale={locale}
           />
-        ) : null}
-
-        {activeTab !== 'more' ? (
-          <div className="mode-strip">
-            <SegmentedControl
-              label={t('app.userMode', undefined, 'Mode')}
-              options={[
-                { label: t('mode.beginner', undefined, 'Beginner'), value: 'beginner' },
-                { label: t('mode.standard', undefined, 'Standard'), value: 'standard' },
-                { label: t('mode.advanced', undefined, 'Advanced'), value: 'advanced' }
-              ]}
-              value={uiMode}
-              onChange={setUiMode}
-              compact
-            />
-          </div>
         ) : null}
 
         <main className={`main-content main-content-${activeTab}`}>

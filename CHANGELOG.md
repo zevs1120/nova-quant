@@ -2,6 +2,11 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 2.5.1 (2026-03-16)
+- Release type: patch
+- Remove the always-visible mode selector from daily surfaces, stop exposing mode in the status bar, and simplify More copy so the app feels less like a configurable finance tool and more like an opinionated consumer product.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
 ## 2.5.0 (2026-03-16)
 - Release type: minor
 - Reframe the app as a consumer decision coach: simplify Today into a stronger action-first panel, replace emoji-like financial affordances with cleaner navigation cues, soften Signal cards, and refresh AI/onboarding surfaces to feel more approachable and habit-forming without changing core functionality.
