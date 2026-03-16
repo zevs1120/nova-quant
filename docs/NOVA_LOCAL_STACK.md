@@ -87,9 +87,24 @@ Run Ollama locally, then start NovaQuant:
 
 ```bash
 npm ci
+npm run nova:health
 npm run api:data
 npm run dev
 ```
+
+Health and readiness surfaces:
+
+- `npm run nova:health`
+- `GET /api/nova/runtime`
+- `GET /api/nova/health`
+
+`nova:health` checks:
+
+- whether this runtime should use local Nova or deterministic fallback
+- whether `http://127.0.0.1:11434/v1` is reachable
+- which required models are present
+- which `ollama pull ...` commands are still missing
+- which training/export commands are ready next
 
 If you need to temporarily disable local Nova generation:
 

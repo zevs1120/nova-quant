@@ -1,5 +1,6 @@
 import type { MarketRepository } from '../db/repository.js';
-import type { NovaReviewLabelRecord, NovaTaskRunRecord } from '../types.js';
+import type { NovaReviewLabelRecord, NovaTaskRunRecord, NovaTaskType } from '../types.js';
+import { DEFAULT_NOVA_MLX_TASK_TYPES, normalizeNovaMlxTaskTypes } from './mlx.js';
 
 type JsonObject = Record<string, unknown>;
 
@@ -49,7 +50,15 @@ function indexLabels(labels: NovaReviewLabelRecord[]) {
   return map;
 }
 
-export function buildMlxLmTrainingDataset(repo: MarketRepository, args?: { onlyIncluded?: boolean; limit?: number }) {
+export function buildMlxLmTrainingDataset(
+  repo: MarketRepository,
+  args?: {
+    onlyIncluded?: boolean;
+    limit?: number;
+    taskTypes?: ReadonlyArray<NovaTaskType>;
+  }
+) {
+  const taskTypes = normalizeNovaMlxTaskTypes(args?.taskTypes || DEFAULT_NOVA_MLX_TASK_TYPES);
   const runs = repo.listNovaTaskRuns({
     status: 'SUCCEEDED',
     limit: args?.limit || 500
@@ -61,6 +70,7 @@ export function buildMlxLmTrainingDataset(repo: MarketRepository, args?: { onlyI
   const labelsByRun = indexLabels(labels);
 
   const records = runs
+    .filter((run) => taskTypes.includes(run.task_type))
     .filter((run) => {
       if (!args?.onlyIncluded) return true;
       return (labelsByRun.get(run.id) || []).some((label) => label.include_in_training === 1);
@@ -91,6 +101,7 @@ export function buildMlxLmTrainingDataset(repo: MarketRepository, args?: { onlyI
   return {
     format: 'mlx-lm-chat-jsonl',
     count: records.length,
+    task_types: taskTypes,
     records
   };
 }

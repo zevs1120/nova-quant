@@ -2,6 +2,11 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 4.1.0 (2026-03-16)
+- Release type: minor
+- Add local Nova health checks, MLX-LM LoRA bootstrap, and first-wave training task filtering.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
 ## 4.0.1 (2026-03-16)
 - Release type: patch
 - Shift the rebuilt home screen back to a light Apple Fitness-inspired palette: keep the new structure and rings, but replace the dark hero and support surfaces with bright layered cards, softer cream backgrounds, and more playful multicolor accents.

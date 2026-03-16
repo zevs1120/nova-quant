@@ -26,6 +26,7 @@ import { createTraceId, recordAuditEvent } from '../observability/spine.js';
 import { applyLocalNovaDecisionLanguage, applyLocalNovaWrapUpLanguage, logNovaAssistantAnswer } from '../nova/service.js';
 import { buildMlxLmTrainingDataset } from '../nova/training.js';
 import { getNovaModelPlan, getNovaRoutingPolicies, getNovaLocalEndpoint, getNovaRuntimeMode, isLocalNovaEnabled } from '../ai/llmOps.js';
+import { inspectNovaHealth } from '../nova/health.js';
 import { labelNovaRun } from '../nova/service.js';
 
 const RISK_PROFILE_PRESETS = {
@@ -1213,6 +1214,10 @@ export function getNovaRuntimeState() {
       ? 'Local Ollama is enabled for this runtime.'
       : 'Local Ollama is bypassed here; deterministic fallback remains available.'
   };
+}
+
+export async function getNovaHealthState() {
+  return await inspectNovaHealth();
 }
 
 export function listNovaRuns(args?: {

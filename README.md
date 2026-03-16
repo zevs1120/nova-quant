@@ -1,7 +1,7 @@
 # Nova Quant
 
 Nova Quant is an AI-native quantitative **decision** platform for US equities and crypto.
-Current app version: `4.0.1` (build `19`).
+Current app version: `4.1.0` (build `20`).
 Versioning policy: `package.json` is canonical, `src/config/version.js` is the generated runtime mirror, and release history lives in `CHANGELOG.md` / `docs/VERSIONING.md`.
 
 It is designed to help self-directed traders reduce emotional trading and execute with discipline.
@@ -91,9 +91,15 @@ Default routing:
 
 Primary APIs:
 - `GET /api/nova/runtime`
+- `GET /api/nova/health`
 - `GET /api/nova/runs`
 - `POST /api/nova/review-label`
 - `GET /api/nova/training/export`
+
+Local operator commands:
+- `npm run nova:health`
+- `npm run nova:export-mlx`
+- `npm run nova:train:lora`
 
 This keeps the product grounded:
 - structured decision / risk / evidence objects remain canonical

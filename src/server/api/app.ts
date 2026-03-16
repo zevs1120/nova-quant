@@ -12,6 +12,7 @@ import {
   getEngagementState,
   getDecisionSnapshot,
   exportNovaTrainingDataset,
+  getNovaHealthState,
   getNovaRuntimeState,
   getRuntimeState,
   getEvidenceBacktestDetail,
@@ -224,6 +225,10 @@ export function createApiApp() {
 
   app.get('/api/nova/runtime', (_req, res) => {
     res.json(getNovaRuntimeState());
+  });
+
+  app.get('/api/nova/health', async (_req, res) => {
+    res.json(await getNovaHealthState());
   });
 
   app.get('/api/nova/runs', (req, res) => {

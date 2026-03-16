@@ -51,6 +51,12 @@ Export command:
 npm run nova:export-mlx
 ```
 
+By default, the export now stays inside the first-wave local fine-tune scope:
+
+1. risk / regime explanation
+2. action card generation
+3. grounded assistant answers
+
 Manual export variants:
 
 ```bash
@@ -80,6 +86,34 @@ The initial LoRA / low-rank tuning set should focus only on:
 3. grounded assistant answers
 
 This keeps the first local Nova iteration narrow, stable, and aligned with the product.
+
+## MLX-LM Execution Entry
+
+Dry-run the local LoRA training plan:
+
+```bash
+npm run nova:train:lora
+```
+
+Actually execute the local MLX-LM run once `mlx-lm` is installed:
+
+```bash
+npm run nova:train:lora -- --execute
+```
+
+Useful flags:
+
+```bash
+npm run nova:train:lora -- --allow-unlabeled --limit 800
+npm run nova:train:lora -- --include-task assistant_grounded_answer --execute
+```
+
+The training runner:
+
+- exports a chat-format dataset to `artifacts/training/`
+- keeps the default task scope aligned with the first three training tasks
+- builds a LoRA command around the current local Nova core model tier
+- runs only when `python3` and `mlx_lm` are available locally
 
 ## Why This Matters
 
