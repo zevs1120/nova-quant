@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import SignalDetail from './SignalDetail';
 import {
   getActionCardCopy,
@@ -554,6 +554,7 @@ export default function TodayTab({
   onCompleteCheckIn
 }) {
   const [activeSignal, setActiveSignal] = useState(null);
+  const [tempoMode, setTempoMode] = useState('normal');
 
   const bestSignal = useMemo(
     () => pickBestSignal(signals, topSignalEvidence, assetClass, now),
@@ -617,12 +618,6 @@ export default function TodayTab({
     : noActionDay
       ? morningCheck?.ritual_line || uiRegime?.ritual_line || noActionCopy.notify
       : featuredSignal?.brief_why_now || morningCheck?.ritual_line || actionCopy.caution;
-  const actionStateBadges = [
-    featuredSignal ? { key: 'rank', label: actionCopy.badges.rank, tone: 'badge-neutral' } : null,
-    recommendationChange?.changed ? { key: 'change', label: actionCopy.badges.updated, tone: 'badge-medium' } : null,
-    morningCheck?.status === 'COMPLETED' ? { key: 'checked', label: actionCopy.badges.checked, tone: 'badge-triggered' } : null,
-    noActionDay ? { key: 'restraint', label: actionCopy.badges.restraint, tone: 'badge-neutral' } : null
-  ].filter(Boolean);
   const heroEyebrow = noActionDay
     ? locale === 'zh'
       ? '今日判断'
@@ -706,6 +701,46 @@ export default function TodayTab({
     locale === 'zh'
       ? `今天先记住：${coachPlan[2]?.value || risk.explanation}`
       : `Keep this in mind first: ${coachPlan[2]?.value || risk.explanation}`;
+  const tempoOptions =
+    locale === 'zh'
+      ? [
+          { key: 'light', label: '保守一点', note: noActionDay ? '今天先稳住，别抢动作。' : '只试一点，别把仓位放大。' },
+          { key: 'normal', label: '正常节奏', note: noActionDay ? '先等条件更清楚。' : '按计划做，别临场上头。' },
+          { key: 'push', label: '更主动', note: noActionDay ? '今天不适合发力，先把手收回来。' : '只有完全顺的时候才加一点。' }
+        ]
+      : [
+          { key: 'light', label: 'Take it light', note: noActionDay ? 'Keep your hands off the gas today.' : 'Take a feeler, not a full swing.' },
+          { key: 'normal', label: 'Stay normal', note: noActionDay ? 'Wait for the setup to earn your attention.' : 'Follow the plan. Don’t improvise.' },
+          { key: 'push', label: 'Lean in', note: noActionDay ? 'Today is not a push day. Keep it holstered.' : 'Lean only if it stays clean.' }
+        ];
+  const tempoIndex = Math.max(
+    0,
+    tempoOptions.findIndex((item) => item.key === tempoMode)
+  );
+  const tempoCopy = tempoOptions[tempoIndex] || tempoOptions[1];
+  const actionBandLabel =
+    overall.code === 'TRADE'
+      ? locale === 'zh'
+        ? '可以动作'
+        : 'Actionable'
+      : overall.code === 'WAIT'
+        ? locale === 'zh'
+          ? '更适合等'
+          : 'Wait mode'
+        : locale === 'zh'
+          ? '优先防守'
+          : 'Defense first';
+  const tempoAskPrompt = noActionDay
+    ? `Explain why waiting is the better move today for a ${tempoMode} pace.`
+    : `Give me today's action plan in plain words for a ${tempoMode} pace.`;
+
+  useEffect(() => {
+    if (noActionDay) {
+      setTempoMode('light');
+      return;
+    }
+    setTempoMode((current) => (current === 'light' || current === 'normal' || current === 'push' ? current : 'normal'));
+  }, [noActionDay]);
 
   if (activeSignal) {
     return (
@@ -734,10 +769,10 @@ export default function TodayTab({
   };
 
   return (
-    <section className="stack-gap">
+    <section className="stack-gap today-screen-redesign">
       <section className="today-fold">
         <article
-          className={`glass-card beginner-best-suggestion today-action-card-compact today-command-card ritual-card ritual-reveal ritual-delay-1 ${noActionDay ? 'is-no-action-day' : 'is-action-day'} ${
+          className={`glass-card beginner-best-suggestion today-action-card-compact today-command-card today-fitness-hero ritual-card ritual-reveal ritual-delay-1 ${noActionDay ? 'is-no-action-day' : 'is-action-day'} ${
             recommendationChange?.changed ? 'is-updated' : ''
           } ${morningCheck?.status === 'COMPLETED' ? 'is-confirmed' : ''}`}
           role="button"
@@ -761,14 +796,7 @@ export default function TodayTab({
               {perceptionLayer?.badge ? <span className="badge badge-neutral">{perceptionLayer.badge}</span> : null}
               {perceptionLayer?.ambient_label ? <span className="muted status-line">{perceptionLayer.ambient_label}</span> : null}
             </div>
-            <div className="signal-badge-row">
-              {featuredSignal ? <span className={`badge ${noActionDay ? 'badge-neutral' : 'badge-triggered'}`}>{confidenceText(featuredSignal)}</span> : null}
-              {actionStateBadges.map((item) => (
-                <span key={item.key} className={`badge ${item.tone}`}>
-                  {item.label}
-                </span>
-              ))}
-            </div>
+            <span className={`today-fitness-band today-band-${overall.code.toLowerCase()}`}>{actionBandLabel}</span>
           </div>
 
           <div className="today-command-main">
@@ -794,6 +822,33 @@ export default function TodayTab({
                 </div>
               ))}
             </div>
+          </div>
+
+          <div className="today-fitness-dial">
+            <div className="today-fitness-dial-head">
+              <p className="today-fitness-dial-kicker">{locale === 'zh' ? '今天的动作节奏' : 'Pick today’s pace'}</p>
+              {featuredSignal ? (
+                <span className={`badge ${noActionDay ? 'badge-neutral' : 'badge-triggered'}`}>{confidenceText(featuredSignal)}</span>
+              ) : null}
+            </div>
+            <div className="today-fitness-segment" style={{ '--tempo-index': tempoIndex }}>
+              <span className="today-fitness-segment-thumb" aria-hidden="true" />
+              {tempoOptions.map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  className={`today-fitness-segment-btn ${tempoMode === item.key ? 'active' : ''}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    triggerFeedback('soft');
+                    setTempoMode(item.key);
+                  }}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+            <p className="today-fitness-dial-note">{tempoCopy.note}</p>
           </div>
 
           <p className="ritual-kicker">{actionCardSubline}</p>
@@ -877,9 +932,10 @@ export default function TodayTab({
                   onClick={(event) => {
                     event.stopPropagation();
                     triggerFeedback('soft');
-                    onAskAi?.(noActionDay ? 'Why is waiting the better move today?' : 'Why is this the top action today?', {
+                    onAskAi?.(tempoAskPrompt, {
                       page: 'today',
-                      focus: noActionDay ? 'restraint' : 'top_action'
+                      focus: noActionDay ? 'restraint' : 'top_action',
+                      tempo: tempoMode
                     });
                   }}
                 >
@@ -897,7 +953,7 @@ export default function TodayTab({
           )}
         </article>
 
-        <article className={`glass-card today-follow-through-card ritual-delay-2 state-card state-card-${uiRegime?.tone || 'quiet'}`}>
+        <article className={`glass-card today-follow-through-card today-support-card ritual-delay-2 state-card state-card-${uiRegime?.tone || 'quiet'}`}>
           <div className="today-follow-through-head">
             <div>
               <p className="ritual-kicker">{locale === 'zh' ? '为什么是这个结论' : 'Why this is the call'}</p>
@@ -931,7 +987,7 @@ export default function TodayTab({
 
         {morningCheck ? (
           <article
-            className={`glass-card morning-check-card ritual-card ritual-delay-3 morning-check-${String(morningCheck.status || '').toLowerCase()}`}
+            className={`glass-card morning-check-card today-support-card ritual-card ritual-delay-3 morning-check-${String(morningCheck.status || '').toLowerCase()}`}
           >
             <div className="card-header">
               <div>
@@ -975,7 +1031,7 @@ export default function TodayTab({
       </section>
 
       {(secondaryDecisionSignals.length || historySignals.length) ? (
-        <article className="glass-card">
+        <article className="glass-card today-support-card">
           <div className="card-header">
             <div>
               <h3 className="card-title">{secondaryDecisionSignals.length ? actionCopy.more_ranked_title : actionCopy.recent_signals_title}</h3>
@@ -1020,7 +1076,7 @@ export default function TodayTab({
       ) : null}
 
       {wrapUp?.ready ? (
-        <article className={`glass-card wrap-up-card ritual-card ritual-delay-4 ${wrapUp.completed ? 'is-confirmed' : ''}`}>
+        <article className={`glass-card wrap-up-card today-support-card ritual-card ritual-delay-4 ${wrapUp.completed ? 'is-confirmed' : ''}`}>
           <div className="card-header">
             <div>
               <h3 className="card-title">{wrapUp.title}</h3>

@@ -2,6 +2,11 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 4.0.0 (2026-03-16)
+- Release type: major
+- Completely rebuild the home screen into an Apple Fitness-inspired action surface with a dark energized palette, a dominant hero decision card, ring-based state cues, a pace selector, and simplified coach-first follow-through so the product no longer reads like a finance dashboard.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
 ## 3.1.0 (2026-03-16)
 - Release type: minor
 - Redesign the AI tab to align much more closely with ChatGPT mobile: remove the intro card, turn the empty state into a centered prompt stage, keep 'what to ask' as lightweight prompt chips, simplify the top bar, and make the thread and composer feel like a native chat product.
