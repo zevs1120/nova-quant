@@ -123,6 +123,7 @@ function CopilotStructuredReply({ message, onNavigate }) {
 
 function AiConversationShell({ messages, input, setInput, streaming, error, sendMessage, onNavigate }) {
   const listRef = useRef(null);
+  const hasMessages = messages.length > 0;
 
   useEffect(() => {
     if (!listRef.current) return;
@@ -130,33 +131,30 @@ function AiConversationShell({ messages, input, setInput, streaming, error, send
   }, [messages, streaming]);
 
   return (
-    <section className="stack-gap ai-tab-shell">
-      <article className="glass-card ai-coach-intro">
-        <p className="ritual-kicker">Nova Coach</p>
-        <h3 className="card-title">Ask one useful question.</h3>
-        <p className="muted status-line">Short answers. Clear actions. No market theater.</p>
-        <div className="ai-chip-cluster" style={{ marginTop: 10 }}>
-          {QUICK_QUESTIONS.map((prompt) => (
-            <button
-              key={prompt}
-              type="button"
-              className="ai-chip"
-              onClick={() => {
-                void sendMessage(prompt);
-              }}
-            >
-              {prompt}
-            </button>
-          ))}
-        </div>
-      </article>
-
-      <article className="glass-card ai-chat-panel ai-tab-chat-panel">
+    <section className={`stack-gap ai-tab-shell ${hasMessages ? 'ai-has-thread' : 'ai-is-empty'}`}>
+      <article className="ai-chat-panel ai-tab-chat-panel">
         <div className="ai-thread ai-tab-thread" ref={listRef}>
-          {!messages.length ? (
-            <article className="ai-empty">
-              <p>Start with the question you would ask a calm coach.</p>
-              <p className="muted">Nova will tell you whether to act, wait, or cool down. No jargon, no drama.</p>
+          {!hasMessages ? (
+            <article className="ai-empty ai-empty-chatgpt">
+              <div className="ai-empty-copy">
+                <p className="ai-empty-kicker">Nova</p>
+                <h2 className="ai-empty-title">What should we figure out today?</h2>
+                <p className="muted ai-empty-body">Ask in plain words. You will get the short version first.</p>
+              </div>
+              <div className="ai-chip-cluster ai-chip-cluster-prompt">
+                {QUICK_QUESTIONS.map((prompt) => (
+                  <button
+                    key={prompt}
+                    type="button"
+                    className="ai-chip ai-chip-prompt"
+                    onClick={() => {
+                      void sendMessage(prompt);
+                    }}
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
             </article>
           ) : (
             messages.map((item) =>
@@ -175,7 +173,7 @@ function AiConversationShell({ messages, input, setInput, streaming, error, send
       </article>
 
       {error ? (
-        <article className="glass-card empty-card">
+        <article className="glass-card empty-card ai-error-card">
           <p className="muted">{error}</p>
         </article>
       ) : null}
@@ -187,6 +185,22 @@ function AiConversationShell({ messages, input, setInput, streaming, error, send
           void sendMessage(input);
         }}
       >
+        {hasMessages ? (
+          <div className="ai-chip-cluster ai-inline-prompts">
+            {QUICK_QUESTIONS.slice(0, 3).map((prompt) => (
+              <button
+                key={prompt}
+                type="button"
+                className="ai-chip ai-chip-inline"
+                onClick={() => {
+                  void sendMessage(prompt);
+                }}
+              >
+                {prompt}
+              </button>
+            ))}
+          </div>
+        ) : null}
         <input
           value={input}
           onChange={(event) => setInput(event.target.value)}

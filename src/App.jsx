@@ -25,7 +25,7 @@ import {
 
 const TAB_META = {
   today: { icon: '◎', label: 'Today' },
-  ai: { icon: '✦', label: 'Coach' },
+  ai: { icon: '✦', label: 'Nova' },
   holdings: { icon: '◌', label: 'Holdings' },
   more: { icon: '···', label: 'More' }
 };
@@ -1517,7 +1517,7 @@ export default function App() {
         engagementState?.daily_check_state?.headline ||
         'Open, check the call, then get on with your day.'
       : activeTab === 'ai'
-        ? 'Ask what matters today. Skip the noise.'
+        ? ''
         : activeTab === 'holdings'
           ? 'See your risk without reading a terminal.'
           : activeTab === 'more' && moreSection === 'menu'
@@ -1543,7 +1543,7 @@ export default function App() {
             <div className={`top-bar-copy ${canGoBackInTopBar ? 'top-bar-copy-detail' : 'top-bar-copy-root'}`}>
               {!canGoBackInTopBar ? <p className="brand">{t('app.brand')}</p> : null}
               <h1 className="headline">{heading}</h1>
-              {!canGoBackInTopBar ? <p className="top-bar-note">{headingNote}</p> : null}
+              {!canGoBackInTopBar && headingNote ? <p className="top-bar-note">{headingNote}</p> : null}
             </div>
           </div>
         </header>
