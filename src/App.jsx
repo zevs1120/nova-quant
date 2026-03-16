@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import AboutModal from './components/AboutModal';
 import AiPage from './components/AiPage';
-import novaLogo from './assets/nova.png';
+import novaLogo from './assets/novaquant2.png';
 import HoldingsTab from './components/HoldingsTab';
 import MarketTab from './components/MarketTab';
 import MoreTab from './components/MoreTab';

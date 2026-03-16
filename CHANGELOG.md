@@ -2,6 +2,11 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 4.2.3 (2026-03-16)
+- Release type: patch
+- Swap the top-bar logo to the updated novaquant2 artwork.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
 ## 4.2.2 (2026-03-16)
 - Release type: patch
 - Replace the top-bar copy with a centered Nova logo and keep only the iOS back action where needed.
