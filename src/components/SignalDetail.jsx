@@ -10,7 +10,7 @@ function infoRow(label, value) {
   );
 }
 
-export default function SignalDetail({ signal, onBack, t }) {
+export default function SignalDetail({ signal, onBack, t, backLabel = 'Back' }) {
   const [copied, setCopied] = useState(false);
 
   const entryMin = signal.entry_zone?.low ?? signal.entry_zone?.min ?? signal.entry_min;
@@ -83,9 +83,16 @@ export default function SignalDetail({ signal, onBack, t }) {
 
   return (
     <section className="detail-screen">
-      <button type="button" className="ghost-btn" onClick={onBack}>
-        ← {t('signals.backToSignals')}
-      </button>
+      <div className="detail-nav-bar">
+        <button type="button" className="ios-nav-back detail-nav-back" onClick={onBack} aria-label={`Back to ${backLabel}`}>
+          <span className="ios-back-chevron" aria-hidden="true">
+            ‹
+          </span>
+          <span className="ios-back-label">{backLabel}</span>
+        </button>
+        <p className="detail-nav-title">{signal.symbol}</p>
+        <span className="detail-nav-spacer" aria-hidden="true" />
+      </div>
 
       <article className="glass-card">
         <div className="signal-row">

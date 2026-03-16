@@ -581,7 +581,14 @@ export default function TodayTab({
   const sourceLine = sourceCaption(featuredSignal, investorDemoEnabled, locale);
 
   if (activeSignal) {
-    return <SignalDetail signal={activeSignal} onBack={() => setActiveSignal(null)} t={(key, _v, fallback) => fallback || key} />;
+    return (
+      <SignalDetail
+        signal={activeSignal}
+        onBack={() => setActiveSignal(null)}
+        t={(key, _v, fallback) => fallback || key}
+        backLabel={locale === 'zh' ? '今天' : 'Today'}
+      />
+    );
   }
 
   const handleMainAction = () => {

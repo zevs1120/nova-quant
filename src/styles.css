@@ -1135,6 +1135,33 @@ td {
   gap: 12px;
 }
 
+.detail-nav-bar {
+  display: grid;
+  grid-template-columns: minmax(88px, auto) 1fr minmax(88px, auto);
+  align-items: center;
+  min-height: 34px;
+  margin-bottom: 2px;
+}
+
+.detail-nav-back {
+  justify-self: start;
+}
+
+.detail-nav-title {
+  margin: 0;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+
+.detail-nav-spacer {
+  justify-self: end;
+  width: 88px;
+  height: 1px;
+}
+
 .detail-list {
   display: flex;
   flex-direction: column;
@@ -3982,6 +4009,32 @@ body.keyboard-open .ai-input-dock {
   padding-bottom: 14px;
 }
 
+.top-bar-root {
+  min-height: 104px;
+}
+
+.top-bar-detail {
+  min-height: 62px;
+  padding-top: calc(var(--safe-top) + 10px);
+  padding-bottom: 10px;
+}
+
+.top-bar-leading {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.top-bar-copy {
+  min-width: 0;
+}
+
+.top-bar-copy-detail {
+  display: flex;
+  align-items: center;
+  min-height: 34px;
+}
+
 .brand {
   font-size: 12px;
   letter-spacing: 1.6px;
@@ -3993,12 +4046,48 @@ body.keyboard-open .ai-input-dock {
   letter-spacing: -0.04em;
 }
 
+.top-bar-detail .headline {
+  margin: 0;
+  font-size: 18px;
+  letter-spacing: -0.02em;
+}
+
 .top-bar-note {
   margin: 6px 0 0;
   max-width: 280px;
   color: var(--text-secondary);
   font-size: 13px;
   line-height: 1.35;
+}
+
+.ios-nav-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.ios-back-chevron {
+  font-size: 24px;
+  line-height: 1;
+  transform: translateY(-1px);
+}
+
+.ios-back-label {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.top-bar-back {
+  flex-shrink: 0;
+  margin-top: 1px;
 }
 
 .top-actions .ghost-btn {
@@ -4235,6 +4324,18 @@ body.keyboard-open .ai-input-dock {
 
 .more-list-row .quick-access-desc {
   margin-top: 4px;
+}
+
+.more-detail-screen {
+  padding-top: 4px;
+}
+
+.more-detail-note {
+  padding-inline: 4px;
+}
+
+.more-detail-card {
+  margin-top: -2px;
 }
 
 @media (max-width: 640px) {

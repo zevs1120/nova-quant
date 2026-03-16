@@ -119,17 +119,9 @@ export default function MoreTab({
 
   if (currentGroup) {
     return (
-      <section className="stack-gap">
-        <article className="glass-card">
-          <div className="card-header">
-            <div>
-              <h3 className="card-title">{currentGroup.title}</h3>
-              <p className="muted">{currentGroup.description}</p>
-            </div>
-          </div>
-        </article>
-
-        <article className="glass-card">
+      <section className="stack-gap more-detail-screen">
+        <p className="muted status-line more-detail-note">{currentGroup.description}</p>
+        <article className="glass-card more-detail-card">
           <div className="quick-access-list">
             {currentGroup.items.map((item) => (
               <button
@@ -150,15 +142,8 @@ export default function MoreTab({
 
   if (section !== 'menu') {
     return (
-      <section className="stack-gap">
-        <article className="glass-card">
-          <div className="card-header">
-            <div>
-              <h3 className="card-title">{sectionLabel(section, uiMode)}</h3>
-              <p className="muted">This stays in More so the main tabs remain simple.</p>
-            </div>
-          </div>
-        </article>
+      <section className="stack-gap more-detail-screen">
+        <p className="muted status-line more-detail-note">This stays in More so Today can stay focused on the decision itself.</p>
         {renderSection(section)}
       </section>
     );

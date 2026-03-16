@@ -234,7 +234,7 @@ export default function SignalsTab({
   }, [alphaLibrary]);
 
   if (activeSignal) {
-    return <SignalDetail signal={activeSignal} onBack={() => setActiveSignal(null)} t={t} />;
+    return <SignalDetail signal={activeSignal} onBack={() => setActiveSignal(null)} t={t} backLabel="Signals" />;
   }
 
   return (

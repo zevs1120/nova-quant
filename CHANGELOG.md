@@ -2,6 +2,11 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 2.3.0 (2026-03-16)
+- Release type: minor
+- Standardize iOS-style navigation by removing duplicate top bars in More, introducing native-feeling back treatment for nested views, and unifying signal detail back behavior across Today and Signals.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
 ## 2.2.1 (2026-03-15)
 - Release type: patch
 - Remove redundant Ask Nova and About buttons from the top bar

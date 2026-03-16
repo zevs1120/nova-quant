@@ -1497,16 +1497,17 @@ export default function App() {
     );
   };
 
-  const heading =
-    activeTab === 'more' && moreSection !== 'menu'
-      ? MORE_TITLES[moreSection] || TAB_META.more.label
-      : TAB_META[activeTab]?.label || 'Today';
   const canGoBackInTopBar = activeTab === 'more' && moreStack.length > 1;
   const previousMoreSection = canGoBackInTopBar ? moreStack[moreStack.length - 2] : null;
   const topBarBackLabel =
     previousMoreSection && previousMoreSection !== 'menu'
       ? MORE_TITLES[previousMoreSection] || TAB_META.more.label
       : TAB_META.more.label;
+  const topBarMode = canGoBackInTopBar ? 'detail' : 'root';
+  const heading =
+    activeTab === 'more' && moreSection !== 'menu'
+      ? MORE_TITLES[moreSection] || TAB_META.more.label
+      : TAB_META[activeTab]?.label || 'Today';
 
   const appTone = engagementState?.ui_regime_state?.tone || 'quiet';
   const motionProfile = engagementState?.ui_regime_state?.motion_profile || 'calm';
@@ -1530,7 +1531,7 @@ export default function App() {
         className={`device-shell device-shell-${displayMode} ui-tone-${appTone} ui-motion-${motionProfile} daily-check-${dailyCheckState}`}
         data-active-tab={activeTab}
       >
-        <header className="top-bar">
+        <header className={`top-bar top-bar-${topBarMode}`}>
           <div className="top-bar-leading">
             {canGoBackInTopBar ? (
               <button type="button" className="ios-nav-back top-bar-back" onClick={popMoreSection} aria-label={`Back to ${topBarBackLabel}`}>
@@ -1540,10 +1541,10 @@ export default function App() {
                 <span className="ios-back-label">{topBarBackLabel}</span>
               </button>
             ) : null}
-            <div>
-            <p className="brand">{t('app.brand')}</p>
-            <h1 className="headline">{heading}</h1>
-            <p className="top-bar-note">{headingNote}</p>
+            <div className={`top-bar-copy ${canGoBackInTopBar ? 'top-bar-copy-detail' : 'top-bar-copy-root'}`}>
+              {!canGoBackInTopBar ? <p className="brand">{t('app.brand')}</p> : null}
+              <h1 className="headline">{heading}</h1>
+              {!canGoBackInTopBar ? <p className="top-bar-note">{headingNote}</p> : null}
             </div>
           </div>
         </header>
