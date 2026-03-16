@@ -4031,18 +4031,18 @@ body.keyboard-open .ai-input-dock {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding-top: calc(var(--safe-top) + 16px);
-  padding-bottom: 14px;
+  padding-top: calc(var(--safe-top) + 10px);
+  padding-bottom: 10px;
 }
 
 .top-bar-root {
-  min-height: 236px;
+  min-height: 142px;
 }
 
 .top-bar-detail {
-  min-height: 192px;
-  padding-top: calc(var(--safe-top) + 12px);
-  padding-bottom: 12px;
+  min-height: 104px;
+  padding-top: calc(var(--safe-top) + 8px);
+  padding-bottom: 8px;
 }
 
 .top-bar-leading {
@@ -4060,29 +4060,29 @@ body.keyboard-open .ai-input-dock {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 180px;
-  padding-inline: 12px;
-  max-width: min(88vw, 420px);
+  min-height: 96px;
+  padding-inline: 10px;
+  max-width: min(78vw, 300px);
 }
 
 .top-bar-logo {
   display: block;
   width: auto;
-  height: 170px;
+  height: 96px;
   max-width: 100%;
   object-fit: contain;
 }
 
 .top-bar-detail .top-bar-logo {
-  height: 142px;
+  height: 72px;
 }
 
 .top-bar-spacer {
   position: absolute;
   right: 16px;
   top: 50%;
-  width: 64px;
-  height: 40px;
+  width: 58px;
+  height: 34px;
   transform: translateY(calc(-50% + (var(--safe-top) * 0.15)));
 }
 

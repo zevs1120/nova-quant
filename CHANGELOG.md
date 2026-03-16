@@ -2,6 +2,11 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 4.2.5 (2026-03-16)
+- Release type: patch
+- Reduce the top-bar logo scale and tighten the header height for a thinner brand bar.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
 ## 4.2.4 (2026-03-16)
 - Release type: patch
 - Increase the centered top-bar logo to a much larger brand-led presentation.
