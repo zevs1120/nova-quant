@@ -2,6 +2,11 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 2.5.0 (2026-03-16)
+- Release type: minor
+- Reframe the app as a consumer decision coach: simplify Today into a stronger action-first panel, replace emoji-like financial affordances with cleaner navigation cues, soften Signal cards, and refresh AI/onboarding surfaces to feel more approachable and habit-forming without changing core functionality.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
 ## 2.4.0 (2026-03-16)
 - Release type: minor
 - Refresh the UI design system with a warmer premium palette, stronger component tokens, polished mobile navigation chrome, elevated card styling, and more approachable yet disciplined interaction states inspired by Composer and Duolingo.

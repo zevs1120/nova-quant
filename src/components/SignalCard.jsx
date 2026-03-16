@@ -52,6 +52,16 @@ function confidencePct(level) {
   return Math.max(5, Math.min(100, (Number(level) / 5) * 100));
 }
 
+function coachMode(signal, t) {
+  const size = Number(signal.position_advice?.position_pct ?? signal.position_size_pct ?? 0);
+  if (String(signal.status).toUpperCase() !== 'TRIGGERED' && String(signal.status).toUpperCase() !== 'NEW') {
+    return t('signals.watchOnly', undefined, 'Watch first');
+  }
+  if (size >= 14) return t('signals.normalRiskHint', undefined, 'Normal size');
+  if (size > 0) return t('signals.lightRiskHint', undefined, 'Light size');
+  return t('signals.waitHint', undefined, 'Wait');
+}
+
 export default function SignalCard({
   signal,
   onSelect,
@@ -112,27 +122,19 @@ export default function SignalCard({
         </p>
       </div>
 
-      <div className="plan-grid">
-        <div className="plan-cell">
-          <span className="detail-label">{t('signals.entryZone')}</span>
-          <span className="detail-value">
-            {formatNumber(entryLow, 2, locale)} - {formatNumber(entryHigh, 2, locale)}
-          </span>
-        </div>
-        <div className="plan-cell">
-          <span className="detail-label">{t('signals.stopLoss')}</span>
-          <span className="detail-value">{formatNumber(stop, 2, locale)}</span>
-        </div>
-        <div className="plan-cell">
-          <span className="detail-label">{t('signals.takeProfit')}</span>
-          <span className="detail-value">
-            {formatNumber(tp1, 2, locale)} / {formatNumber(tp2, 2, locale)}
-          </span>
-        </div>
+      <div className="signal-simple-plan">
         <div className="plan-cell">
           <span className="detail-label">{t('signals.positionSize')}</span>
+          <span className="detail-value">{coachMode(signal, t)}</span>
+        </div>
+        <div className="plan-cell">
+          <span className="detail-label">{t('signals.timeframe', undefined, 'Timing')}</span>
+          <span className="detail-value">{formatNumber(horizon, 1, locale)}d</span>
+        </div>
+        <div className="plan-cell plan-cell-wide">
+          <span className="detail-label">{t('signals.riskLine', undefined, 'Risk line')}</span>
           <span className="detail-value">
-            {formatNumber(size, 2, locale)}% · {formatNumber(horizon, 2, locale)}d
+            {Number.isFinite(stop) ? formatNumber(stop, 2, locale) : '--'} · {t('signals.stopEarlyHint', undefined, 'get out if it breaks')}
           </span>
         </div>
       </div>
@@ -155,7 +157,7 @@ export default function SignalCard({
 
       {bullets.length ? (
         <ul className="bullet-list signal-bullet-list">
-          {bullets.map((line, index) => (
+          {bullets.slice(0, 2).map((line, index) => (
             <li key={`${line}-${index}`}>{line}</li>
           ))}
         </ul>

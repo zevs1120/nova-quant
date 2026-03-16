@@ -17,38 +17,59 @@ export default function OnboardingFlow({ open, t, onComplete }) {
 
   return (
     <div className="modal-backdrop">
-      <section className="modal-card">
+      <section className="modal-card onboarding-card">
+        <p className="ritual-kicker">Get set up</p>
         <h3 className="card-title">{t('onboarding.title')}</h3>
-        <p className="muted">{t('onboarding.step', { n: step })}</p>
+        <p className="muted onboarding-subtitle">
+          {step === 1
+            ? 'Pick the market you want help with first.'
+            : step === 2
+              ? 'Tell Nova how cautious you want it to be.'
+              : 'Choose a few names so the app feels alive from day one.'}
+        </p>
+        <div className="onboarding-progress" aria-hidden="true">
+          {[1, 2, 3].map((item) => (
+            <span key={item} className={`onboarding-progress-dot ${item <= step ? 'active' : ''}`} />
+          ))}
+        </div>
 
         {step === 1 ? (
-          <div className="stack-gap">
-            <button type="button" className={`pill-btn ${market === 'US' ? 'active' : ''}`} onClick={() => setMarket('US')}>
+          <div className="stack-gap onboarding-choice-grid">
+            <button type="button" className={`pill-btn onboarding-choice ${market === 'US' ? 'active' : ''}`} onClick={() => setMarket('US')}>
               {t('common.usStocks')}
+              <span className="onboarding-choice-note">Follow familiar names and daily moves.</span>
             </button>
             <button
               type="button"
-              className={`pill-btn ${market === 'CRYPTO' ? 'active' : ''}`}
+              className={`pill-btn onboarding-choice ${market === 'CRYPTO' ? 'active' : ''}`}
               onClick={() => {
                 setMarket('CRYPTO');
                 setWatchlist(['BTC-USDT', 'ETH-USDT']);
               }}
             >
               {t('common.crypto')}
+              <span className="onboarding-choice-note">Higher noise, faster moves, tighter discipline.</span>
             </button>
           </div>
         ) : null}
 
         {step === 2 ? (
-          <div className="stack-gap">
+          <div className="stack-gap onboarding-choice-grid">
             {['conservative', 'balanced', 'aggressive'].map((item) => (
               <button
                 key={item}
                 type="button"
-                className={`pill-btn ${riskProfile === item ? 'active' : ''}`}
+                className={`pill-btn onboarding-choice ${riskProfile === item ? 'active' : ''}`}
                 onClick={() => setRiskProfile(item)}
               >
                 {t(`onboarding.profile.${item}`)}
+                <span className="onboarding-choice-note">
+                  {item === 'conservative'
+                    ? 'More waiting. Less regret.'
+                    : item === 'balanced'
+                      ? 'A steady middle ground.'
+                      : 'More ideas, with a firmer hand on the brakes.'}
+                </span>
               </button>
             ))}
           </div>
@@ -57,12 +78,12 @@ export default function OnboardingFlow({ open, t, onComplete }) {
         {step === 3 ? (
           <div className="stack-gap">
             <p className="muted">{t('onboarding.pickWatchlist')}</p>
-            <div className="filter-buttons">
+            <div className="filter-buttons onboarding-symbol-grid">
               {symbols.map((symbol) => (
                 <button
                   key={symbol}
                   type="button"
-                  className={`pill-btn ${watchlist.includes(symbol) ? 'active' : ''}`}
+                  className={`pill-btn onboarding-symbol-chip ${watchlist.includes(symbol) ? 'active' : ''}`}
                   onClick={() =>
                     setWatchlist((current) =>
                       current.includes(symbol) ? current.filter((item) => item !== symbol) : [...current, symbol]
@@ -106,4 +127,3 @@ export default function OnboardingFlow({ open, t, onComplete }) {
     </div>
   );
 }
-

@@ -25,10 +25,10 @@ import {
 } from './demo/investorDemo';
 
 const TAB_META = {
-  today: { icon: '🏠', label: 'Today' },
-  ai: { icon: '✨', label: 'AI' },
-  holdings: { icon: '📊', label: 'Holdings' },
-  more: { icon: '⋯', label: 'More' }
+  today: { icon: '◎', label: 'Today' },
+  ai: { icon: '✦', label: 'Coach' },
+  holdings: { icon: '◌', label: 'Holdings' },
+  more: { icon: '···', label: 'More' }
 };
 
 const MORE_TITLES = {
@@ -1516,14 +1516,14 @@ export default function App() {
     activeTab === 'today'
       ? engagementState?.perception_layer?.focus_line ||
         engagementState?.daily_check_state?.headline ||
-        'One clear judgment before the noise.'
+        'Open, check the call, then get on with your day.'
       : activeTab === 'ai'
-        ? 'Ask the system what changed, not the tape what to chase.'
+        ? 'Ask what matters today. Skip the noise.'
         : activeTab === 'holdings'
-          ? 'Portfolio context, without terminal clutter.'
+          ? 'See your risk without reading a terminal.'
           : activeTab === 'more' && moreSection === 'menu'
-            ? 'Everything else lives here so Today can stay clean.'
-            : 'A quieter layer behind the main decision surface.';
+            ? 'Everything else lives here so the main screen stays simple.'
+            : 'A quieter layer behind today’s call.';
 
   return (
     <div className={`app-bg app-bg-${displayMode} app-tone-${appTone}`}>

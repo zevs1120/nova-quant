@@ -472,6 +472,68 @@ function riskFromDecision(decision, locale) {
   };
 }
 
+function simpleRiskPercent(level) {
+  if (level === 'danger') return 82;
+  if (level === 'medium') return 56;
+  return 28;
+}
+
+function trendPercent(signal) {
+  const confidence = Number(signal?.confidence ?? signal?.conviction ?? 0);
+  if (!Number.isFinite(confidence)) return 36;
+  return Math.max(24, Math.min(88, Math.round(confidence * 100)));
+}
+
+function temperaturePercent(code) {
+  if (code === 'DEFENSE' || code === 'NO_TRADE') return 26;
+  if (code === 'WAIT') return 48;
+  return 74;
+}
+
+function actionStanceLabel(code, locale) {
+  if (code === 'DEFENSE' || code === 'NO_TRADE') {
+    return locale === 'zh' ? '先降低风险' : 'Dial risk down';
+  }
+  if (code === 'WAIT') {
+    return locale === 'zh' ? '先别急，等位置' : 'Wait for a cleaner spot';
+  }
+  return locale === 'zh' ? '可以试一点，但别太重' : 'You can try a little, not a lot';
+}
+
+function actionModeLabel(signal, noActionDay, locale) {
+  if (noActionDay || !signal?._actionable) {
+    return locale === 'zh' ? '今天以等待为主' : 'Today is mostly a wait';
+  }
+  const size = Number(signal?.position_advice?.position_pct ?? signal?.position_size_pct ?? 0);
+  if (size >= 14) return locale === 'zh' ? '正常仓位，但别激进' : 'Normal size, stay disciplined';
+  if (size > 0) return locale === 'zh' ? '轻仓试一点' : 'Light size only';
+  return locale === 'zh' ? '先看，不急着上' : 'Watch first, move later';
+}
+
+function stanceSteps(overallCode, locale) {
+  const active = overallCode === 'TRADE' ? 'move' : overallCode === 'WAIT' ? 'watch' : 'protect';
+  const copy =
+    locale === 'zh'
+      ? {
+          protect: '先稳住',
+          watch: '先观察',
+          probe: '轻仓试探',
+          move: '按计划动作'
+        }
+      : {
+          protect: 'Hold back',
+          watch: 'Stay watchful',
+          probe: 'Probe light',
+          move: 'Move on plan'
+        };
+  return [
+    { key: 'protect', label: copy.protect, active: active === 'protect' },
+    { key: 'watch', label: copy.watch, active: active === 'watch' },
+    { key: 'probe', label: copy.probe, active: active === 'move' || active === 'watch' ? false : active === 'probe' },
+    { key: 'move', label: copy.move, active: active === 'move' }
+  ];
+}
+
 export default function TodayTab({
   now,
   assetClass,
@@ -579,6 +641,27 @@ export default function TodayTab({
       ? '等待更清楚的条件'
       : 'Wait for cleaner conditions';
   const sourceLine = sourceCaption(featuredSignal, investorDemoEnabled, locale);
+  const stanceRail = stanceSteps(overall.code, locale);
+  const simpleStats = [
+    {
+      key: 'temperature',
+      label: locale === 'zh' ? '市场温度' : 'Market mood',
+      value: actionStanceLabel(overall.code, locale),
+      percent: temperaturePercent(overall.code)
+    },
+    {
+      key: 'trend',
+      label: locale === 'zh' ? '趋势力度' : 'Trend pull',
+      value: noActionDay ? (locale === 'zh' ? '现在还不够顺' : 'Not clean enough yet') : actionModeLabel(featuredSignal, noActionDay, locale),
+      percent: trendPercent(featuredSignal)
+    },
+    {
+      key: 'risk',
+      label: locale === 'zh' ? '风险等级' : 'Risk level',
+      value: risk.explanation,
+      percent: simpleRiskPercent(risk.level)
+    }
+  ];
 
   if (activeSignal) {
     return (
@@ -662,6 +745,13 @@ export default function TodayTab({
           </div>
           <p className="today-hero-subtitle">{actionCardLead}</p>
           <p className="ritual-kicker">{actionCardSubline}</p>
+          <div className="stance-rail" aria-label={locale === 'zh' ? '今日立场' : 'Today stance'}>
+            {stanceRail.map((item) => (
+              <span key={item.key} className={`stance-step ${item.active ? 'active' : ''}`}>
+                {item.label}
+              </span>
+            ))}
+          </div>
           {!featuredSignal ? (
             <p className="muted status-line">
               {uiRegime?.completion_line || noActionCopy.completion}
@@ -690,29 +780,22 @@ export default function TodayTab({
                   </p>
                 </div>
               ) : (
-                <div className="today-action-grid">
-                  <div className="status-box today-hero-stat-box">
-                    <p className="muted">{locale === 'zh' ? '入场区间' : 'Entry range'}</p>
-                    <h2>{entryRangeText(featuredSignal)}</h2>
-                  </div>
-                  <div className="status-box today-hero-stat-box">
-                    <p className="muted">{locale === 'zh' ? '建议仓位' : 'Sizing'}</p>
-                    <h2>{suggestedPositionText(featuredSignal)}</h2>
-                  </div>
-                  <div className="status-box today-hero-stat-box">
-                    <p className="muted">{locale === 'zh' ? '止盈' : 'Target'}</p>
-                    <h2>{takeProfitText(featuredSignal)}</h2>
-                  </div>
-                  <div className="status-box today-hero-stat-box">
-                    <p className="muted">{locale === 'zh' ? '失效线' : 'Risk line'}</p>
-                    <h2>{stopLossText(featuredSignal)}</h2>
-                  </div>
+                <div className="today-simple-stats">
+                  {simpleStats.map((item) => (
+                    <div key={item.key} className="status-box today-hero-stat-box today-simple-stat-box">
+                      <p className="muted">{item.label}</p>
+                      <div className="today-simple-meter" aria-hidden="true">
+                        <div className="today-simple-meter-fill" style={{ width: `${item.percent}%` }} />
+                      </div>
+                      <p className="today-simple-stat-copy">{item.value}</p>
+                    </div>
+                  ))}
                 </div>
               )}
 
               <div className="today-hero-notes">
                 <p className="muted status-line">
-                  {strategySourceText(featuredSignal)} · {generatedText(featuredSignal)}
+                  {locale === 'zh' ? '今天计划' : 'Today’s plan'} · {actionModeLabel(featuredSignal, noActionDay, locale)}
                 </p>
                 <p className="muted status-line">
                   {featuredSignal?.brief_why_now ||
@@ -737,7 +820,7 @@ export default function TodayTab({
                     handleMainAction();
                   }}
                 >
-                  {featuredSignal._actionable ? (locale === 'zh' ? '按计划动作' : 'Take action') : buttonText}
+                  {featuredSignal._actionable ? (locale === 'zh' ? '生成今日计划' : 'Make today’s plan') : buttonText}
                 </button>
                 <button
                   type="button"
@@ -751,7 +834,7 @@ export default function TodayTab({
                     });
                   }}
                 >
-                  {actionCopy.ask_nova_label}
+                  {locale === 'zh' ? '问问 Nova' : 'Ask Nova'}
                 </button>
               </div>
               <p className="muted status-line action-card-footnote">

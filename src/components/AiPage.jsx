@@ -5,10 +5,10 @@ import { useDemoAssistant } from '../hooks/useDemoAssistant';
 
 const COPILOT_SECTIONS = ['VERDICT', 'PLAN', 'WHY', 'RISK', 'EVIDENCE'];
 const QUICK_QUESTIONS = [
-  'Why this signal?',
-  'Is this safe today?',
-  'Should I enter now?',
-  'Explain the strategy'
+  'What should I do today?',
+  'Is it safe to try anything?',
+  'Why are we waiting?',
+  'Give me the simple version'
 ];
 
 function parseStructuredReply(raw) {
@@ -131,8 +131,10 @@ function AiConversationShell({ messages, input, setInput, streaming, error, send
 
   return (
     <section className="stack-gap ai-tab-shell">
-      <article className="glass-card">
-        <h3 className="card-title">Quick questions</h3>
+      <article className="glass-card ai-coach-intro">
+        <p className="ritual-kicker">Nova Coach</p>
+        <h3 className="card-title">Ask one useful question.</h3>
+        <p className="muted status-line">Short answers. Clear actions. No market theater.</p>
         <div className="ai-chip-cluster" style={{ marginTop: 10 }}>
           {QUICK_QUESTIONS.map((prompt) => (
             <button
@@ -153,8 +155,8 @@ function AiConversationShell({ messages, input, setInput, streaming, error, send
         <div className="ai-thread ai-tab-thread" ref={listRef}>
           {!messages.length ? (
             <article className="ai-empty">
-              <p>Start with today&apos;s one useful question.</p>
-              <p className="muted">Try “Why this signal?” or “Is this safe today?” Nova will keep it clear, not noisy.</p>
+              <p>Start with the question you would ask a calm coach.</p>
+              <p className="muted">Nova will tell you whether to act, wait, or cool down. No jargon, no drama.</p>
             </article>
           ) : (
             messages.map((item) =>
@@ -189,11 +191,11 @@ function AiConversationShell({ messages, input, setInput, streaming, error, send
           value={input}
           onChange={(event) => setInput(event.target.value)}
           className="ai-input"
-          placeholder="Ask Nova in plain words"
+          placeholder="Ask in plain words"
           disabled={streaming}
         />
         <button type="submit" className="primary-btn ai-send" disabled={streaming || !input.trim()}>
-          {streaming ? 'Thinking' : 'Send'}
+          {streaming ? 'Thinking' : 'Ask'}
         </button>
       </form>
     </section>
