@@ -2,6 +2,11 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 4.0.1 (2026-03-16)
+- Release type: patch
+- Shift the rebuilt home screen back to a light Apple Fitness-inspired palette: keep the new structure and rings, but replace the dark hero and support surfaces with bright layered cards, softer cream backgrounds, and more playful multicolor accents.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
 ## 4.0.0 (2026-03-16)
 - Release type: major
 - Completely rebuild the home screen into an Apple Fitness-inspired action surface with a dark energized palette, a dominant hero decision card, ring-based state cues, a pace selector, and simplified coach-first follow-through so the product no longer reads like a finance dashboard.
