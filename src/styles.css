@@ -4036,13 +4036,13 @@ body.keyboard-open .ai-input-dock {
 }
 
 .top-bar-root {
-  min-height: 92px;
+  min-height: 236px;
 }
 
 .top-bar-detail {
-  min-height: 72px;
-  padding-top: calc(var(--safe-top) + 10px);
-  padding-bottom: 10px;
+  min-height: 192px;
+  padding-top: calc(var(--safe-top) + 12px);
+  padding-bottom: 12px;
 }
 
 .top-bar-leading {
@@ -4060,29 +4060,29 @@ body.keyboard-open .ai-input-dock {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 40px;
-  padding-inline: 16px;
-  max-width: min(62vw, 240px);
+  min-height: 180px;
+  padding-inline: 12px;
+  max-width: min(88vw, 420px);
 }
 
 .top-bar-logo {
   display: block;
   width: auto;
-  height: 34px;
+  height: 170px;
   max-width: 100%;
   object-fit: contain;
 }
 
 .top-bar-detail .top-bar-logo {
-  height: 28px;
+  height: 142px;
 }
 
 .top-bar-spacer {
   position: absolute;
   right: 16px;
   top: 50%;
-  width: 54px;
-  height: 32px;
+  width: 64px;
+  height: 40px;
   transform: translateY(calc(-50% + (var(--safe-top) * 0.15)));
 }
 
