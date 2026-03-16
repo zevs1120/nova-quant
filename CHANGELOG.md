@@ -2,6 +2,11 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 2.5.2 (2026-03-16)
+- Release type: patch
+- Remove the persistent top status layer and recast the Today screen around a stronger action stance, coach-style plan pills, and a cleaner follow-through card so the app feels less like a finance panel and more like a decisive consumer product.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
 ## 2.5.1 (2026-03-16)
 - Release type: patch
 - Remove the always-visible mode selector from daily surfaces, stop exposing mode in the status bar, and simplify More copy so the app feels less like a configurable finance tool and more like an opinionated consumer product.

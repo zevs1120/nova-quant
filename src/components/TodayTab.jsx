@@ -642,24 +642,24 @@ export default function TodayTab({
       : 'Wait for cleaner conditions';
   const sourceLine = sourceCaption(featuredSignal, investorDemoEnabled, locale);
   const stanceRail = stanceSteps(overall.code, locale);
-  const simpleStats = [
+  const coachPlan = [
     {
-      key: 'temperature',
-      label: locale === 'zh' ? '市场温度' : 'Market mood',
-      value: actionStanceLabel(overall.code, locale),
-      percent: temperaturePercent(overall.code)
+      key: 'stance',
+      label: locale === 'zh' ? '今天怎么站位' : 'Today’s stance',
+      value: actionStanceLabel(overall.code, locale)
     },
     {
-      key: 'trend',
-      label: locale === 'zh' ? '趋势力度' : 'Trend pull',
-      value: noActionDay ? (locale === 'zh' ? '现在还不够顺' : 'Not clean enough yet') : actionModeLabel(featuredSignal, noActionDay, locale),
-      percent: trendPercent(featuredSignal)
+      key: 'size',
+      label: locale === 'zh' ? '仓位节奏' : 'Sizing',
+      value: actionModeLabel(featuredSignal, noActionDay, locale)
     },
     {
       key: 'risk',
-      label: locale === 'zh' ? '风险等级' : 'Risk level',
-      value: risk.explanation,
-      percent: simpleRiskPercent(risk.level)
+      label: locale === 'zh' ? '先记住什么' : 'Keep in mind',
+      value:
+        noActionDay
+          ? uiRegime?.protective_line || noActionCopy.notify
+          : featuredSignal?.risk_note || risk.explanation
     }
   ];
 
@@ -780,14 +780,11 @@ export default function TodayTab({
                   </p>
                 </div>
               ) : (
-                <div className="today-simple-stats">
-                  {simpleStats.map((item) => (
-                    <div key={item.key} className="status-box today-hero-stat-box today-simple-stat-box">
-                      <p className="muted">{item.label}</p>
-                      <div className="today-simple-meter" aria-hidden="true">
-                        <div className="today-simple-meter-fill" style={{ width: `${item.percent}%` }} />
-                      </div>
-                      <p className="today-simple-stat-copy">{item.value}</p>
+                <div className="today-coach-plan">
+                  {coachPlan.map((item) => (
+                    <div key={item.key} className="today-coach-pill">
+                      <p className="today-coach-pill-label">{item.label}</p>
+                      <p className="today-coach-pill-value">{item.value}</p>
                     </div>
                   ))}
                 </div>
@@ -848,26 +845,37 @@ export default function TodayTab({
           )}
         </article>
 
-        <div className="today-status-grid ritual-delay-2">
-          <article className={`glass-card beginner-today-overall today-compact-info-card state-card state-card-${uiRegime?.tone || 'quiet'}`}>
-            <p className="ritual-kicker">{locale === 'zh' ? '今天重点' : 'Focus today'}</p>
-            <h3 className="card-title">{heroSupport}</h3>
-            <p className="muted status-line">{actionCardSubline}</p>
-            {sourceLine ? <p className="muted status-line">{sourceLine}</p> : uiRegime?.arrival_line ? <p className="ritual-kicker">{uiRegime.arrival_line}</p> : null}
-          </article>
-
-          <article className={`glass-card beginner-risk-card today-compact-info-card state-card state-card-${uiRegime?.tone || 'quiet'}`}>
-            <h3 className="card-title">{actionCopy.risk_title}</h3>
-            <div className="simple-risk-track" aria-label={`Risk level ${risk.label}`}>
-              <div className={`simple-risk-fill simple-risk-${risk.level}`} />
+        <article className={`glass-card today-follow-through-card ritual-delay-2 state-card state-card-${uiRegime?.tone || 'quiet'}`}>
+          <div className="today-follow-through-head">
+            <div>
+              <p className="ritual-kicker">{locale === 'zh' ? '为什么是这个结论' : 'Why this is the call'}</p>
+              <h3 className="card-title">{heroSupport}</h3>
             </div>
-            <p className="status-line">
+            <span className={`badge ${risk.level === 'safe' ? 'badge-triggered' : risk.level === 'medium' ? 'badge-medium' : 'badge-neutral'}`}>
               {risk.icon} {risk.label}
-            </p>
-            <p className="muted status-line">{risk.explanation}</p>
-            {uiRegime?.ritual_line ? <p className="ritual-kicker">{uiRegime.ritual_line}</p> : null}
-          </article>
-        </div>
+            </span>
+          </div>
+          <p className="muted status-line">{actionCardSubline}</p>
+          <div className="today-follow-through-grid">
+            <div className="today-follow-through-item">
+              <p className="today-follow-through-label">{locale === 'zh' ? '为什么现在看它' : 'Why now'}</p>
+              <p className="today-follow-through-value">
+                {featuredSignal?.brief_why_now ||
+                  (noActionDay ? uiRegime?.humor_line || noActionCopy.notify : actionCopy.why_now)}
+              </p>
+            </div>
+            <div className="today-follow-through-item">
+              <p className="today-follow-through-label">{locale === 'zh' ? '别忘了什么' : 'What keeps us honest'}</p>
+              <p className="today-follow-through-value">
+                {featuredSignal?.risk_note ||
+                  (noActionDay
+                    ? morningCheck?.completion_feedback || uiRegime?.protective_line || noActionCopy.arrival
+                    : uiRegime?.humor_line || actionCopy.caution)}
+              </p>
+            </div>
+          </div>
+          {sourceLine ? <p className="muted status-line today-follow-through-source">{sourceLine}</p> : null}
+        </article>
 
         {morningCheck ? (
           <article

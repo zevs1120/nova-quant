@@ -3519,6 +3519,16 @@ body.keyboard-open .ai-input-dock {
     gap: 2px;
   }
 
+  .today-coach-plan,
+  .today-follow-through-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .today-coach-pill,
+  .today-follow-through-item {
+    padding: 11px 12px 12px;
+  }
+
   .today-action-grid .status-box .muted {
     font-size: 12px;
     line-height: 1.2;
@@ -4152,6 +4162,84 @@ body.keyboard-open .ai-input-dock {
 
 .today-fold {
   gap: 12px;
+}
+
+.today-coach-plan {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.today-coach-pill {
+  padding: 12px 12px 13px;
+  border-radius: 18px;
+  background: rgba(245, 247, 250, 0.9);
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.05);
+}
+
+.today-coach-pill-label {
+  margin: 0 0 6px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.today-coach-pill-value {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.35;
+  font-weight: 600;
+}
+
+.today-follow-through-card {
+  padding: 18px 18px 16px;
+  border-radius: 22px;
+}
+
+.today-follow-through-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.today-follow-through-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.today-follow-through-item {
+  padding: 12px 12px 13px;
+  border-radius: 18px;
+  background: rgba(247, 249, 251, 0.92);
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.05);
+}
+
+.today-follow-through-label {
+  margin: 0 0 6px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.today-follow-through-value {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.42;
+  font-weight: 600;
+}
+
+.today-follow-through-source {
+  margin-top: 12px;
 }
 
 .decision-presence-strip {

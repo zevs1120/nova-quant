@@ -11,7 +11,6 @@ import RiskTab from './components/RiskTab';
 import SegmentedControl from './components/SegmentedControl';
 import Skeleton from './components/Skeleton';
 import SignalsTab from './components/SignalsTab';
-import SystemStatusBar from './components/SystemStatusBar';
 import TodayTab from './components/TodayTab';
 import WeeklyReviewTab from './components/WeeklyReviewTab';
 import { runQuantPipeline } from './engines/pipeline';
@@ -1548,16 +1547,6 @@ export default function App() {
             </div>
           </div>
         </header>
-
-        {activeTab !== 'more' ? (
-          <SystemStatusBar
-            connected={hasLoaded && uiData?.config?.runtime?.source_status === 'DB_BACKED'}
-            riskMode={riskProfileKey}
-            currency="USD"
-            t={t}
-            locale={locale}
-          />
-        ) : null}
 
         <main className={`main-content main-content-${activeTab}`}>
           <div className="screen-transition" key={`${activeTab}-${moreSection}-${uiMode}`}>
