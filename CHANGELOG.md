@@ -2,6 +2,11 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 4.2.0 (2026-03-16)
+- Release type: minor
+- Rebuild the mobile AI page around a ChatGPT + iMessage conversation layout with a sticky composer, suggestion chips, and lighter assistant message structure.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
 ## 4.1.0 (2026-03-16)
 - Release type: minor
 - Add local Nova health checks, MLX-LM LoRA bootstrap, and first-wave training task filtering.

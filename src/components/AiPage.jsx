@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Skeleton from './Skeleton';
 import { useNovaAssistant } from '../hooks/useNovaAssistant';
 import { useDemoAssistant } from '../hooks/useDemoAssistant';
@@ -8,7 +8,7 @@ const QUICK_QUESTIONS = [
   'What should I do today?',
   'Is it safe to try anything?',
   'Why are we waiting?',
-  'Give me the simple version'
+  'Should I enter now?'
 ];
 
 function parseStructuredReply(raw) {
@@ -25,19 +25,28 @@ function parseStructuredReply(raw) {
       if (headingMatch[2]) sections[current] = `${sections[current]}${headingMatch[2]}\n`;
       continue;
     }
-    if (current) sections[current] = `${sections[current] || ''}${line}\n`;
+    if (current) {
+      sections[current] = `${sections[current] || ''}${line}\n`;
+    } else {
+      sections.VERDICT = `${sections.VERDICT || ''}${line}\n`;
+    }
   }
 
   const normalized = Object.fromEntries(COPILOT_SECTIONS.map((key) => [key, String(sections[key] || '').trim()]));
-  const hasCore = normalized.VERDICT && normalized.PLAN && normalized.WHY && normalized.RISK;
-  if (!hasCore) return null;
-  return normalized;
+  return Object.values(normalized).some(Boolean) ? normalized : null;
 }
 
 function splitList(text) {
   return String(text || '')
     .split('\n')
     .map((item) => item.replace(/^\s*[-*•\d.)]+\s*/, '').trim())
+    .filter(Boolean);
+}
+
+function splitParagraphs(text) {
+  return String(text || '')
+    .split(/\n\s*\n/)
+    .map((paragraph) => paragraph.trim())
     .filter(Boolean);
 }
 
@@ -52,72 +61,189 @@ function chooseNextStep(question = '') {
   if (text.includes('risk') || text.includes('safe') || text.includes('风险')) {
     return { target: 'more:safety', label: 'Open Safety' };
   }
-  return { target: 'today', label: 'Back to Today' };
+  return { target: 'today', label: 'Open Today' };
 }
 
-function CopilotStructuredReply({ message, onNavigate }) {
+function AssistantResponseSection({ title, lines }) {
+  if (!lines.length) return null;
+  return (
+    <section className="ai-response-section">
+      <p className="ai-response-section-title">{title}</p>
+      <div className="ai-response-section-body">
+        {lines.map((line, index) => (
+          <p key={`${title}-${index}`}>{line}</p>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function AssistantMessage({ message, onNavigate }) {
   const parsed = parseStructuredReply(message.content);
   const nextStep = message.nextStep || chooseNextStep(message.question);
+  const [expanded, setExpanded] = useState(false);
 
   if (!parsed) {
+    const paragraphs = splitParagraphs(message.content);
+    const lead = paragraphs[0] || message.content;
+    const rest = paragraphs.slice(1);
+    const visible = expanded ? rest : rest.slice(0, 1);
+    const showToggle = rest.length > 1;
+
     return (
-      <article className="ai-bubble ai-assistant ai-rich-bubble">
-        <p className="ai-rich-verdict">{message.content}</p>
-        <div className="action-row" style={{ marginTop: 8 }}>
-          <button type="button" className="quick-ask-btn" onClick={() => onNavigate?.(nextStep.target)}>
-            {nextStep.label}
-          </button>
+      <article className="ai-message ai-message-assistant">
+        <div className="ai-message-avatar" aria-hidden="true">
+          ✦
+        </div>
+        <div className="ai-message-body">
+          <div className="ai-assistant-card">
+            <p className="ai-assistant-lead">{lead}</p>
+            {visible.map((paragraph, index) => (
+              <p key={`fallback-${index}`} className="ai-assistant-copy">
+                {paragraph}
+              </p>
+            ))}
+            {showToggle ? (
+              <button type="button" className="ai-inline-toggle" onClick={() => setExpanded((value) => !value)}>
+                {expanded ? 'Show less' : 'Show more'}
+              </button>
+            ) : null}
+            <div className="ai-assistant-footer">
+              <button type="button" className="ai-inline-link" onClick={() => onNavigate?.(nextStep.target)}>
+                {nextStep.label}
+              </button>
+            </div>
+          </div>
         </div>
       </article>
     );
   }
 
-  const reasonLines = splitList(parsed.WHY).slice(0, 3);
-  const actionLines = splitList(parsed.PLAN).slice(0, 3);
-  const riskLines = splitList(parsed.RISK).slice(0, 2);
-  const evidenceLines = splitList(parsed.EVIDENCE).slice(0, 2);
+  const verdict = splitParagraphs(parsed.VERDICT)[0] || parsed.VERDICT;
+  const planLines = splitList(parsed.PLAN).slice(0, expanded ? 5 : 3);
+  const whyLines = splitList(parsed.WHY).slice(0, expanded ? 4 : 2);
+  const riskLines = splitList(parsed.RISK).slice(0, expanded ? 4 : 2);
+  const evidenceLines = splitList(parsed.EVIDENCE).slice(0, expanded ? 3 : 1);
+  const hasExtraContent =
+    splitList(parsed.PLAN).length > 3 ||
+    splitList(parsed.WHY).length > 2 ||
+    splitList(parsed.RISK).length > 2 ||
+    splitList(parsed.EVIDENCE).length > 1;
 
   return (
-    <article className="ai-bubble ai-assistant ai-rich-bubble">
-      <p className="ai-rich-verdict">{parsed.VERDICT}</p>
-
-      <div className="ai-rich-block">
-        <p className="ai-rich-label">What to do</p>
-        <ul className="ai-mini-list">
-          {actionLines.map((line, index) => (
-            <li key={`plan-${index}`}>{line}</li>
-          ))}
-        </ul>
+    <article className="ai-message ai-message-assistant">
+      <div className="ai-message-avatar" aria-hidden="true">
+        ✦
       </div>
+      <div className="ai-message-body">
+        <div className="ai-assistant-card">
+          <section className="ai-response-section ai-response-section-lead">
+            <p className="ai-response-section-title">Today’s call</p>
+            <p className="ai-assistant-lead">{verdict}</p>
+          </section>
 
-      <div className="ai-rich-block">
-        <p className="ai-rich-label">Why</p>
-        <ul className="ai-mini-list">
-          {reasonLines.map((line, index) => (
-            <li key={`why-${index}`}>{line}</li>
-          ))}
-        </ul>
+          <AssistantResponseSection title="What to do" lines={planLines} />
+          <AssistantResponseSection title="Why" lines={whyLines} />
+          <AssistantResponseSection title="Risk" lines={riskLines} />
+
+          {hasExtraContent ? (
+            <button type="button" className="ai-inline-toggle" onClick={() => setExpanded((value) => !value)}>
+              {expanded ? 'Hide detail' : 'Show detail'}
+            </button>
+          ) : null}
+
+          {expanded && evidenceLines.length ? (
+            <section className="ai-response-section ai-response-section-evidence">
+              <p className="ai-response-section-title">Source</p>
+              <div className="ai-response-section-body">
+                {evidenceLines.map((line, index) => (
+                  <p key={`evidence-${index}`}>{line}</p>
+                ))}
+              </div>
+            </section>
+          ) : null}
+
+          <div className="ai-assistant-footer">
+            <button type="button" className="ai-inline-link" onClick={() => onNavigate?.(nextStep.target)}>
+              {nextStep.label}
+            </button>
+          </div>
+        </div>
       </div>
-
-      <div className="ai-rich-block">
-        <p className="ai-rich-label">Keep in mind</p>
-        <ul className="ai-mini-list">
-          {riskLines.map((line, index) => (
-            <li key={`risk-${index}`}>{line}</li>
-          ))}
-        </ul>
-      </div>
-
-      <div className="action-row">
-        <button type="button" className="quick-ask-btn" onClick={() => onNavigate?.(nextStep.target)}>
-          {nextStep.label}
-        </button>
-      </div>
-
-      {evidenceLines.length ? (
-        <p className="muted status-line">Source: {evidenceLines.join(' ')}</p>
-      ) : null}
     </article>
+  );
+}
+
+function UserMessage({ content }) {
+  return (
+    <article className="ai-message ai-message-user">
+      <div className="ai-message-body">
+        <div className="ai-user-bubble">{content}</div>
+      </div>
+    </article>
+  );
+}
+
+function Composer({ input, setInput, streaming, sendMessage, hasMessages }) {
+  const textareaRef = useRef(null);
+
+  useEffect(() => {
+    if (!textareaRef.current) return;
+    textareaRef.current.style.height = '0px';
+    const nextHeight = Math.min(textareaRef.current.scrollHeight, 132);
+    textareaRef.current.style.height = `${Math.max(nextHeight, 22)}px`;
+  }, [input]);
+
+  const canSend = Boolean(input.trim()) && !streaming;
+
+  return (
+    <div className="ai-composer-shell">
+      <div className={`ai-suggestion-row ${hasMessages ? 'has-thread' : 'is-empty'}`}>
+        {QUICK_QUESTIONS.map((prompt) => (
+          <button
+            key={prompt}
+            type="button"
+            className="ai-suggestion-chip"
+            onClick={() => {
+              setInput(prompt);
+            }}
+          >
+            {prompt}
+          </button>
+        ))}
+      </div>
+
+      <form
+        className="ai-composer"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (!canSend) return;
+          void sendMessage(input);
+        }}
+      >
+        <div className="ai-composer-field">
+          <textarea
+            ref={textareaRef}
+            value={input}
+            onChange={(event) => setInput(event.target.value)}
+            className="ai-composer-input"
+            placeholder="Ask in plain words"
+            rows={1}
+            disabled={streaming}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                if (!canSend) return;
+                void sendMessage(input);
+              }
+            }}
+          />
+          <button type="submit" className="ai-composer-send" disabled={!canSend}>
+            {streaming ? '…' : '↑'}
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }
 
@@ -130,88 +256,72 @@ function AiConversationShell({ messages, input, setInput, streaming, error, send
     listRef.current.scrollTop = listRef.current.scrollHeight;
   }, [messages, streaming]);
 
-  return (
-    <section className={`stack-gap ai-tab-shell ${hasMessages ? 'ai-has-thread' : 'ai-is-empty'}`}>
-      <article className="ai-chat-panel ai-tab-chat-panel">
-        <div className="ai-thread ai-tab-thread" ref={listRef}>
-          {!hasMessages ? (
-            <article className="ai-empty ai-empty-chatgpt">
-              <div className="ai-empty-copy">
-                <p className="ai-empty-kicker">Nova</p>
-                <h2 className="ai-empty-title">What should we figure out today?</h2>
-                <p className="muted ai-empty-body">Ask in plain words. You will get the short version first.</p>
-              </div>
-              <div className="ai-chip-cluster ai-chip-cluster-prompt">
-                {QUICK_QUESTIONS.map((prompt) => (
-                  <button
-                    key={prompt}
-                    type="button"
-                    className="ai-chip ai-chip-prompt"
-                    onClick={() => {
-                      void sendMessage(prompt);
-                    }}
-                  >
-                    {prompt}
-                  </button>
-                ))}
-              </div>
-            </article>
-          ) : (
-            messages.map((item) =>
-              item.role === 'assistant' ? (
-                <CopilotStructuredReply key={item.id} message={item} onNavigate={onNavigate} />
-              ) : (
-                <article key={item.id} className={`ai-bubble ai-${item.role}`}>
-                  {item.content}
-                </article>
-              )
-            )
-          )}
+  const starterQuestions = useMemo(() => QUICK_QUESTIONS.slice(0, 4), []);
 
-          {streaming ? <Skeleton lines={2} compact className="ai-response-skeleton" /> : null}
-        </div>
-      </article>
+  return (
+    <section className={`ai-page-shell ${hasMessages ? 'ai-page-thread' : 'ai-page-empty'}`}>
+      <div className="ai-thread-scroll" ref={listRef}>
+        {!hasMessages ? (
+          <section className="ai-empty-stage">
+            <div className="ai-empty-stage-copy">
+              <p className="ai-empty-badge">Nova</p>
+              <h1 className="ai-empty-heading">Ask what today means.</h1>
+              <p className="ai-empty-subheading">Short questions work best. We will give you the call first, then the reason.</p>
+            </div>
+            <div className="ai-starter-stack">
+              {starterQuestions.map((prompt) => (
+                <button
+                  key={prompt}
+                  type="button"
+                  className="ai-starter-card"
+                  onClick={() => {
+                    setInput(prompt);
+                  }}
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+          </section>
+        ) : (
+          <div className="ai-thread-stack">
+            {messages.map((item) =>
+              item.role === 'assistant' ? (
+                <AssistantMessage key={item.id} message={item} onNavigate={onNavigate} />
+              ) : (
+                <UserMessage key={item.id} content={item.content} />
+              )
+            )}
+
+            {streaming ? (
+              <article className="ai-message ai-message-assistant">
+                <div className="ai-message-avatar" aria-hidden="true">
+                  ✦
+                </div>
+                <div className="ai-message-body">
+                  <div className="ai-assistant-card ai-assistant-loading">
+                    <Skeleton lines={2} compact className="ai-response-skeleton" />
+                  </div>
+                </div>
+              </article>
+            ) : null}
+          </div>
+        )}
+      </div>
 
       {error ? (
-        <article className="glass-card empty-card ai-error-card">
-          <p className="muted">{error}</p>
-        </article>
+        <div className="ai-error-toast" role="status">
+          {error}
+        </div>
       ) : null}
 
-      <form
-        className="ai-input-row ai-input-dock"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void sendMessage(input);
-        }}
-      >
-        {hasMessages ? (
-          <div className="ai-chip-cluster ai-inline-prompts">
-            {QUICK_QUESTIONS.slice(0, 3).map((prompt) => (
-              <button
-                key={prompt}
-                type="button"
-                className="ai-chip ai-chip-inline"
-                onClick={() => {
-                  void sendMessage(prompt);
-                }}
-              >
-                {prompt}
-              </button>
-            ))}
-          </div>
-        ) : null}
-        <input
-          value={input}
-          onChange={(event) => setInput(event.target.value)}
-          className="ai-input"
-          placeholder="Ask in plain words"
-          disabled={streaming}
-        />
-        <button type="submit" className="primary-btn ai-send" disabled={streaming || !input.trim()}>
-          {streaming ? 'Thinking' : 'Ask'}
-        </button>
-      </form>
+      <Composer
+        input={input}
+        setInput={setInput}
+        streaming={streaming}
+        sendMessage={sendMessage}
+        hasMessages={hasMessages}
+      />
     </section>
   );
 }
@@ -256,7 +366,7 @@ function DemoAiConversation({ quantState, seedRequest, onNavigate, userId, baseC
   useEffect(() => {
     if (seedRequest?.message) return;
     if (messages.length) return;
-    void sendMessage('Why this signal?', {
+    void sendMessage('What should I do today?', {
       page: 'today',
       market: baseContext?.market,
       assetClass: baseContext?.assetClass
