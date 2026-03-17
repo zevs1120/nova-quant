@@ -636,7 +636,6 @@ export default function TodayTab({
       ? '等待更清楚的条件'
       : 'Wait for cleaner conditions';
   const sourceLine = sourceCaption(featuredSignal, investorDemoEnabled, locale);
-  const stanceRail = stanceSteps(overall.code, locale);
   const coachPlan = [
     {
       key: 'stance',
@@ -718,6 +717,31 @@ export default function TodayTab({
     tempoOptions.findIndex((item) => item.key === tempoMode)
   );
   const tempoCopy = tempoOptions[tempoIndex] || tempoOptions[1];
+  const todayDateLabel = useMemo(
+    () =>
+      now.toLocaleDateString(locale === 'zh' ? 'zh-CN' : 'en-US', {
+        month: locale === 'zh' ? 'long' : 'short',
+        day: 'numeric',
+        weekday: 'long'
+      }),
+    [now, locale]
+  );
+  const quickTiles = [
+    {
+      key: 'mind',
+      label: locale === 'zh' ? '先记住什么' : 'Keep in mind',
+      value: coachPlan[2]?.value,
+      tone: 'mint'
+    },
+    {
+      key: 'why',
+      label: locale === 'zh' ? '为什么现在看它' : 'Why now',
+      value:
+        featuredSignal?.brief_why_now ||
+        (noActionDay ? uiRegime?.humor_line || noActionCopy.notify : actionCopy.why_now),
+      tone: 'sky'
+    }
+  ];
   const actionBandLabel =
     overall.code === 'TRADE'
       ? locale === 'zh'
@@ -733,6 +757,13 @@ export default function TodayTab({
   const tempoAskPrompt = noActionDay
     ? `Explain why waiting is the better move today for a ${tempoMode} pace.`
     : `Give me today's action plan in plain words for a ${tempoMode} pace.`;
+  const sectionIntro = noActionDay
+    ? locale === 'zh'
+      ? '先确认今天不需要冲动动作。'
+      : 'Confirm that today does not need a forced move.'
+    : locale === 'zh'
+      ? '先抓住今天最重要的动作节奏。'
+      : 'Catch the single most important move first.';
 
   useEffect(() => {
     if (noActionDay) {
@@ -770,6 +801,15 @@ export default function TodayTab({
 
   return (
     <section className="stack-gap today-screen-redesign">
+      <section className="today-summary-header">
+        <div>
+          <p className="today-summary-date">{todayDateLabel}</p>
+          <h1 className="today-summary-title">{locale === 'zh' ? '今日行动' : 'Today'}</h1>
+          <p className="today-summary-subtitle">{sectionIntro}</p>
+        </div>
+        <span className={`today-summary-status today-summary-status-${overall.code.toLowerCase()}`}>{actionBandLabel}</span>
+      </section>
+
       <section className="today-fold">
         <article
           className={`glass-card beginner-best-suggestion today-action-card-compact today-command-card today-fitness-hero ritual-card ritual-reveal ritual-delay-1 ${noActionDay ? 'is-no-action-day' : 'is-action-day'} ${
@@ -791,37 +831,54 @@ export default function TodayTab({
             }
           }}
         >
-          <div className="today-command-top">
-            <div className="today-command-status">
-              {perceptionLayer?.badge ? <span className="badge badge-neutral">{perceptionLayer.badge}</span> : null}
-              {perceptionLayer?.ambient_label ? <span className="muted status-line">{perceptionLayer.ambient_label}</span> : null}
+          <div className="today-pop-summary-card">
+            <div className="today-command-top">
+              <div className="today-command-status">
+                {perceptionLayer?.badge ? <span className="badge badge-neutral">{perceptionLayer.badge}</span> : null}
+                {perceptionLayer?.ambient_label ? <span className="muted status-line">{perceptionLayer.ambient_label}</span> : null}
+              </div>
+              <span className={`today-fitness-band today-band-${overall.code.toLowerCase()}`}>{actionBandLabel}</span>
             </div>
-            <span className={`today-fitness-band today-band-${overall.code.toLowerCase()}`}>{actionBandLabel}</span>
+
+            <div className="today-command-main">
+              <div className="today-ring-cluster" aria-label={locale === 'zh' ? '今日状态环' : 'Today state rings'}>
+                {fitnessRings.map((ring) => (
+                  <div
+                    key={ring.key}
+                    className={`today-ring-card today-ring-${ring.tone}`}
+                    style={{ '--ring-progress': `${ring.progress}%` }}
+                  >
+                    <div className="today-ring-shell">
+                      <div className="today-ring-core">
+                        <span className="today-ring-value">{ring.value}</span>
+                      </div>
+                    </div>
+                    <span className="today-ring-label">{ring.label}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="today-command-copy">
+                <p className="today-hero-eyebrow">{heroEyebrow}</p>
+                <h2 className="today-hero-title">{overall.headline}</h2>
+                <p className="today-hero-subtitle">{actionCardLead}</p>
+                <p className="today-command-prompt">{heroPromptLine}</p>
+              </div>
+            </div>
+
+            <div className="today-pop-progress" aria-hidden="true">
+              <span className={`today-pop-progress-lead tone-${overall.code === 'TRADE' ? 'mint' : overall.code === 'WAIT' ? 'amber' : 'violet'}`} />
+              <span className="today-pop-progress-rest" />
+            </div>
           </div>
 
-          <div className="today-command-main">
-            <div className="today-command-copy">
-              <p className="today-hero-eyebrow">{heroEyebrow}</p>
-              <h2 className="today-hero-title">{overall.headline}</h2>
-              <p className="today-hero-subtitle">{actionCardLead}</p>
-              <p className="today-command-prompt">{heroPromptLine}</p>
-            </div>
-            <div className="today-ring-cluster" aria-label={locale === 'zh' ? '今日状态环' : 'Today state rings'}>
-              {fitnessRings.map((ring) => (
-                <div
-                  key={ring.key}
-                  className={`today-ring-card today-ring-${ring.tone}`}
-                  style={{ '--ring-progress': `${ring.progress}%` }}
-                >
-                  <div className="today-ring-shell">
-                    <div className="today-ring-core">
-                      <span className="today-ring-value">{ring.value}</span>
-                    </div>
-                  </div>
-                  <span className="today-ring-label">{ring.label}</span>
-                </div>
-              ))}
-            </div>
+          <div className="today-quick-grid">
+            {quickTiles.map((item) => (
+              <div key={item.key} className={`today-quick-card today-quick-card-${item.tone}`}>
+                <p className="today-quick-card-label">{item.label}</p>
+                <p className="today-quick-card-value">{item.value}</p>
+              </div>
+            ))}
           </div>
 
           <div className="today-fitness-dial">
@@ -852,13 +909,6 @@ export default function TodayTab({
           </div>
 
           <p className="ritual-kicker">{actionCardSubline}</p>
-          <div className="stance-rail" aria-label={locale === 'zh' ? '今日立场' : 'Today stance'}>
-            {stanceRail.map((item) => (
-              <span key={item.key} className={`stance-step ${item.active ? 'active' : ''}`}>
-                {item.label}
-              </span>
-            ))}
-          </div>
           {!featuredSignal ? (
             <p className="muted status-line">
               {uiRegime?.completion_line || noActionCopy.completion}
@@ -953,81 +1003,83 @@ export default function TodayTab({
           )}
         </article>
 
-        <article className={`glass-card today-follow-through-card today-support-card ritual-delay-2 state-card state-card-${uiRegime?.tone || 'quiet'}`}>
-          <div className="today-follow-through-head">
-            <div>
-              <p className="ritual-kicker">{locale === 'zh' ? '为什么是这个结论' : 'Why this is the call'}</p>
-              <h3 className="card-title">{heroSupport}</h3>
-            </div>
-            <span className={`badge ${risk.level === 'safe' ? 'badge-triggered' : risk.level === 'medium' ? 'badge-medium' : 'badge-neutral'}`}>
-              {risk.icon} {risk.label}
-            </span>
-          </div>
-          <p className="muted status-line">{actionCardSubline}</p>
-          <div className="today-follow-through-grid">
-            <div className="today-follow-through-item">
-              <p className="today-follow-through-label">{locale === 'zh' ? '为什么现在看它' : 'Why now'}</p>
-              <p className="today-follow-through-value">
-                {featuredSignal?.brief_why_now ||
-                  (noActionDay ? uiRegime?.humor_line || noActionCopy.notify : actionCopy.why_now)}
-              </p>
-            </div>
-            <div className="today-follow-through-item">
-              <p className="today-follow-through-label">{locale === 'zh' ? '别忘了什么' : 'What keeps us honest'}</p>
-              <p className="today-follow-through-value">
-                {featuredSignal?.risk_note ||
-                  (noActionDay
-                    ? morningCheck?.completion_feedback || uiRegime?.protective_line || noActionCopy.arrival
-                    : uiRegime?.humor_line || actionCopy.caution)}
-              </p>
-            </div>
-          </div>
-          {sourceLine ? <p className="muted status-line today-follow-through-source">{sourceLine}</p> : null}
-        </article>
-
-        {morningCheck ? (
-          <article
-            className={`glass-card morning-check-card today-support-card ritual-card ritual-delay-3 morning-check-${String(morningCheck.status || '').toLowerCase()}`}
-          >
-            <div className="card-header">
+        <section className="today-secondary-grid">
+          <article className={`glass-card today-follow-through-card today-support-card ritual-delay-2 state-card state-card-${uiRegime?.tone || 'quiet'}`}>
+            <div className="today-follow-through-head">
               <div>
-                <h3 className="card-title">{morningCheck.title}</h3>
-                <p className="muted status-line">{morningCheck.headline}</p>
+                <p className="ritual-kicker">{locale === 'zh' ? '为什么是这个结论' : 'Why this is the call'}</p>
+                <h3 className="card-title">{heroSupport}</h3>
               </div>
-              <span className={`badge ${morningCheck.status === 'COMPLETED' ? 'badge-triggered' : morningCheck.status === 'REFRESH_REQUIRED' ? 'badge-medium' : 'badge-neutral'}`}>
-                {morningCheck.short_label}
+              <span className={`badge ${risk.level === 'safe' ? 'badge-triggered' : risk.level === 'medium' ? 'badge-medium' : 'badge-neutral'}`}>
+                {risk.icon} {risk.label}
               </span>
             </div>
-            {morningCheck.arrival_line ? <p className="ritual-kicker">{morningCheck.arrival_line}</p> : null}
-            <p className="daily-brief-conclusion">{morningCheck.prompt}</p>
-            {morningCheck.ritual_line ? <p className="status-line">{morningCheck.ritual_line}</p> : null}
-            {morningCheck.why_now ? <p className="muted status-line">{morningCheck.why_now}</p> : null}
-            <div className="action-row">
-              <button
-                type="button"
-                className="primary-btn"
-                onClick={() => {
-                  triggerFeedback('confirm');
-                  onCompleteCheckIn?.();
-                }}
-              >
-                {morningCheck.cta_label || (morningCheck.status === 'COMPLETED' ? 'Checked for today' : morningCheck.status === 'REFRESH_REQUIRED' ? 'Review updated view' : 'Confirm today’s view')}
-              </button>
-              <button
-                type="button"
-                className="secondary-btn"
-                onClick={() => {
-                  triggerFeedback('soft');
-                  onAskAi?.('Why today’s view?', { page: 'today', focus: 'morning_check' });
-                }}
-              >
-                {morningCheck.ai_cta_label || 'Ask Nova'}
-              </button>
+            <p className="muted status-line">{actionCardSubline}</p>
+            <div className="today-follow-through-grid">
+              <div className="today-follow-through-item">
+                <p className="today-follow-through-label">{locale === 'zh' ? '为什么现在看它' : 'Why now'}</p>
+                <p className="today-follow-through-value">
+                  {featuredSignal?.brief_why_now ||
+                    (noActionDay ? uiRegime?.humor_line || noActionCopy.notify : actionCopy.why_now)}
+                </p>
+              </div>
+              <div className="today-follow-through-item">
+                <p className="today-follow-through-label">{locale === 'zh' ? '别忘了什么' : 'What keeps us honest'}</p>
+                <p className="today-follow-through-value">
+                  {featuredSignal?.risk_note ||
+                    (noActionDay
+                      ? morningCheck?.completion_feedback || uiRegime?.protective_line || noActionCopy.arrival
+                      : uiRegime?.humor_line || actionCopy.caution)}
+                </p>
+              </div>
             </div>
-            {morningCheck.humor_line ? <p className="ritual-kicker">{morningCheck.humor_line}</p> : null}
-            {morningCheck.completion_feedback ? <p className="muted status-line">{morningCheck.completion_feedback}</p> : null}
+            {sourceLine ? <p className="muted status-line today-follow-through-source">{sourceLine}</p> : null}
           </article>
-        ) : null}
+
+          {morningCheck ? (
+            <article
+              className={`glass-card morning-check-card today-support-card ritual-card ritual-delay-3 morning-check-${String(morningCheck.status || '').toLowerCase()}`}
+            >
+              <div className="card-header">
+                <div>
+                  <h3 className="card-title">{morningCheck.title}</h3>
+                  <p className="muted status-line">{morningCheck.headline}</p>
+                </div>
+                <span className={`badge ${morningCheck.status === 'COMPLETED' ? 'badge-triggered' : morningCheck.status === 'REFRESH_REQUIRED' ? 'badge-medium' : 'badge-neutral'}`}>
+                  {morningCheck.short_label}
+                </span>
+              </div>
+              {morningCheck.arrival_line ? <p className="ritual-kicker">{morningCheck.arrival_line}</p> : null}
+              <p className="daily-brief-conclusion">{morningCheck.prompt}</p>
+              {morningCheck.ritual_line ? <p className="status-line">{morningCheck.ritual_line}</p> : null}
+              {morningCheck.why_now ? <p className="muted status-line">{morningCheck.why_now}</p> : null}
+              <div className="action-row">
+                <button
+                  type="button"
+                  className="primary-btn"
+                  onClick={() => {
+                    triggerFeedback('confirm');
+                    onCompleteCheckIn?.();
+                  }}
+                >
+                  {morningCheck.cta_label || (morningCheck.status === 'COMPLETED' ? 'Checked for today' : morningCheck.status === 'REFRESH_REQUIRED' ? 'Review updated view' : 'Confirm today’s view')}
+                </button>
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  onClick={() => {
+                    triggerFeedback('soft');
+                    onAskAi?.('Why today’s view?', { page: 'today', focus: 'morning_check' });
+                  }}
+                >
+                  {morningCheck.ai_cta_label || 'Ask Nova'}
+                </button>
+              </div>
+              {morningCheck.humor_line ? <p className="ritual-kicker">{morningCheck.humor_line}</p> : null}
+              {morningCheck.completion_feedback ? <p className="muted status-line">{morningCheck.completion_feedback}</p> : null}
+            </article>
+          ) : null}
+        </section>
       </section>
 
       {(secondaryDecisionSignals.length || historySignals.length) ? (

@@ -2,6 +2,26 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 4.4.0 (2026-03-17)
+- Release type: minor
+- Add a scroll-condensing top bar that crossfades into the Nova2 logo and tighten the home hero into a rings-first layout with compact secondary cards.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
+## 4.3.1 (2026-03-17)
+- Release type: patch
+- Swap the top-bar logo to the new NOVA1 artwork while keeping the thinner header and redesigned home surface.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
+## 4.3.0 (2026-03-17)
+- Release type: minor
+- Rework the home screen into a lighter pop editorial surface with a new hero card, summary header, and colorful action tiles while keeping the thinner top bar.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
+## 4.2.6 (2026-03-16)
+- Release type: patch
+- Trim another 40px+ from the top bar and reduce the centered logo height for a thinner header.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
 ## 4.2.5 (2026-03-16)
 - Release type: patch
 - Reduce the top-bar logo scale and tighten the header height for a thinner brand bar.

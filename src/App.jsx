@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AboutModal from './components/AboutModal';
 import AiPage from './components/AiPage';
-import novaLogo from './assets/novaquant2.png';
+import novaLogo from './assets/NOVA1.png';
+import novaLogoCompact from './assets/Nova2.png';
 import HoldingsTab from './components/HoldingsTab';
 import MarketTab from './components/MarketTab';
 import MoreTab from './components/MoreTab';
@@ -1507,6 +1508,21 @@ export default function App() {
   const appTone = engagementState?.ui_regime_state?.tone || 'quiet';
   const motionProfile = engagementState?.ui_regime_state?.motion_profile || 'calm';
   const dailyCheckState = String(engagementState?.daily_check_state?.status || 'PENDING').toLowerCase();
+  const [topBarCondensed, setTopBarCondensed] = useState(false);
+  const mainContentRef = useRef(null);
+
+  useEffect(() => {
+    const node = mainContentRef.current;
+    if (!node) return undefined;
+
+    const handleScroll = () => {
+      setTopBarCondensed(node.scrollTop > 28);
+    };
+
+    handleScroll();
+    node.addEventListener('scroll', handleScroll, { passive: true });
+    return () => node.removeEventListener('scroll', handleScroll);
+  }, [activeTab, moreSection]);
 
   return (
     <div className={`app-bg app-bg-${displayMode} app-tone-${appTone}`}>
@@ -1514,7 +1530,7 @@ export default function App() {
         className={`device-shell device-shell-${displayMode} ui-tone-${appTone} ui-motion-${motionProfile} daily-check-${dailyCheckState}`}
         data-active-tab={activeTab}
       >
-        <header className={`top-bar top-bar-${topBarMode}`}>
+        <header className={`top-bar top-bar-${topBarMode} ${topBarCondensed ? 'is-condensed' : ''}`}>
           <div className="top-bar-leading">
             {canGoBackInTopBar ? (
               <button type="button" className="ios-nav-back top-bar-back" onClick={popMoreSection} aria-label={`Back to ${topBarBackLabel}`}>
@@ -1526,12 +1542,13 @@ export default function App() {
             ) : null}
           </div>
           <div className="top-bar-logo-wrap" aria-label="Nova Quant">
-            <img src={novaLogo} alt="Nova Quant" className="top-bar-logo" />
+            <img src={novaLogo} alt="Nova Quant" className={`top-bar-logo top-bar-logo-expanded ${topBarCondensed ? 'is-hidden' : ''}`} />
+            <img src={novaLogoCompact} alt="Nova Quant" className={`top-bar-logo top-bar-logo-compact ${topBarCondensed ? 'is-visible' : ''}`} />
           </div>
           {canGoBackInTopBar ? <div className="top-bar-spacer" aria-hidden="true" /> : null}
         </header>
 
-        <main className={`main-content main-content-${activeTab}`}>
+        <main ref={mainContentRef} className={`main-content main-content-${activeTab}`}>
           <div className="screen-transition" key={`${activeTab}-${moreSection}-${uiMode}`}>
             {renderScreen()}
           </div>
