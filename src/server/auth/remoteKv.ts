@@ -6,6 +6,7 @@ type RemoteRedisConfig = {
 };
 
 const REMOTE_PREFIX = 'nq:auth';
+const REMOTE_FETCH_TIMEOUT_MS = 3000;
 
 function getRemoteRedisConfig(): RemoteRedisConfig | null {
   const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL || '';
@@ -32,9 +33,28 @@ function getRequiredRemoteRedisConfig(): RemoteRedisConfig {
 type RedisSuccess<T> = { result: T };
 type RedisFailure = { error: string };
 
+async function fetchRemoteRedis(url: string, init: RequestInit) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REMOTE_FETCH_TIMEOUT_MS);
+  try {
+    return await fetch(url, {
+      ...init,
+      signal: controller.signal
+    });
+  } catch (error) {
+    const message = String((error as Error)?.message || error || '');
+    if ((error as Error)?.name === 'AbortError') {
+      throw new Error('REMOTE_AUTH_STORE_TIMEOUT');
+    }
+    throw new Error(`REMOTE_AUTH_STORE_UNREACHABLE:${message}`);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function runRedisCommand<T>(command: RedisScalar[]): Promise<T | null> {
   const config = getRequiredRemoteRedisConfig();
-  const response = await fetch(config.url, {
+  const response = await fetchRemoteRedis(config.url, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${config.token}`,
@@ -52,7 +72,7 @@ async function runRedisCommand<T>(command: RedisScalar[]): Promise<T | null> {
 
 async function runRedisPipeline(commands: RedisScalar[][]): Promise<Array<{ result?: unknown; error?: string }>> {
   const config = getRequiredRemoteRedisConfig();
-  const response = await fetch(`${config.url}/pipeline`, {
+  const response = await fetchRemoteRedis(`${config.url}/pipeline`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${config.token}`,

@@ -63,7 +63,7 @@ type AssetSearchResult = {
   market: Market;
   assetClass: AssetClass;
   venue: string | null;
-  source: 'live' | 'reference';
+  source: 'live' | 'reference' | 'remote';
   score: number;
 };
 
@@ -81,7 +81,7 @@ type SearchCandidate = {
   venue: string | null;
   name: string;
   hint: string;
-  source: 'live' | 'reference';
+  source: 'live' | 'reference' | 'remote';
   aliases: string[];
 };
 
@@ -125,6 +125,103 @@ const commonCryptoNames: Record<string, string[]> = {
 };
 
 let cachedReferenceSearchUniverse: SearchCandidate[] | null = null;
+const remoteSearchCache = new Map<string, { expiresAt: number; results: SearchCandidate[] }>();
+const REMOTE_SEARCH_TTL_MS = 1000 * 60 * 8;
+const REMOTE_SEARCH_TIMEOUT_MS = 3200;
+const SEC_UNIVERSE_TTL_MS = 1000 * 60 * 60 * 24;
+let cachedSecUniverse: { expiresAt: number; results: SearchCandidate[] } | null = null;
+
+function getAlphaVantageApiKey(): string {
+  return String(
+    process.env.ALPHA_VANTAGE_API_KEY ||
+      process.env.ALPHAVANTAGE_API_KEY ||
+      process.env.NOVA_SEARCH_ALPHA_VANTAGE_KEY ||
+      ''
+  ).trim();
+}
+
+function getCoinGeckoApiKey(): string {
+  return String(
+    process.env.COINGECKO_DEMO_API_KEY ||
+      process.env.COINGECKO_API_KEY ||
+      process.env.COINGECKO_PRO_API_KEY ||
+      ''
+  ).trim();
+}
+
+function getSearchUserAgent(): string {
+  return String(process.env.BROWSE_SEARCH_USER_AGENT || 'NovaQuant/1.0 support@novaquant.local').trim();
+}
+
+async function fetchJsonWithTimeout(url: string, init: RequestInit = {}, timeoutMs = REMOTE_SEARCH_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, {
+      ...init,
+      signal: controller.signal
+    });
+    if (!response.ok) {
+      throw new Error(`Request failed (${response.status})`);
+    }
+    return response.json();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function cacheRemoteSearch(key: string, results: SearchCandidate[]) {
+  remoteSearchCache.set(key, {
+    expiresAt: Date.now() + REMOTE_SEARCH_TTL_MS,
+    results
+  });
+}
+
+function readRemoteSearchCache(key: string): SearchCandidate[] | null {
+  const hit = remoteSearchCache.get(key);
+  if (!hit) return null;
+  if (hit.expiresAt < Date.now()) {
+    remoteSearchCache.delete(key);
+    return null;
+  }
+  return hit.results;
+}
+
+async function getSecSearchUniverse(): Promise<SearchCandidate[]> {
+  if (cachedSecUniverse && cachedSecUniverse.expiresAt > Date.now()) {
+    return cachedSecUniverse.results;
+  }
+
+  try {
+    const payload = (await fetchJsonWithTimeout('https://www.sec.gov/files/company_tickers.json', {
+      headers: {
+        'user-agent': getSearchUserAgent(),
+        accept: 'application/json'
+      }
+    })) as Record<string, { ticker?: string; title?: string }>;
+
+    const results = Object.values(payload || {})
+      .map((row) =>
+        buildRemoteEquityCandidate({
+          symbol: String(row?.ticker || '').toUpperCase(),
+          name: String(row?.title || '').trim(),
+          type: 'Equity',
+          region: 'United States',
+          exchange: 'SEC',
+          currency: 'USD'
+        })
+      )
+      .filter((candidate) => candidate.symbol);
+
+    cachedSecUniverse = {
+      expiresAt: Date.now() + SEC_UNIVERSE_TTL_MS,
+      results
+    };
+    return results;
+  } catch {
+    return [];
+  }
+}
 
 function getRepo(): MarketRepository {
   const db = getDb();
@@ -228,6 +325,157 @@ function buildReferenceAssetCandidate(item: ReferenceUniverseInstrument): Search
   };
 }
 
+function buildRemoteEquityCandidate(input: {
+  symbol: string;
+  name: string;
+  region?: string;
+  exchange?: string;
+  currency?: string;
+  type?: string;
+}): SearchCandidate {
+  const symbol = String(input.symbol || '').toUpperCase();
+  const region = String(input.region || '').trim();
+  const exchange = String(input.exchange || '').trim();
+  const type = String(input.type || '').trim();
+  const currency = String(input.currency || '').trim();
+  const aliases = [symbol, input.name, region, exchange, type, ...(commonEquityAliases[symbol] || [])].filter(Boolean) as string[];
+  const hintParts = [type || 'Equity', region, exchange, currency].filter(Boolean);
+
+  return {
+    symbol,
+    market: 'US',
+    assetClass: 'US_STOCK',
+    venue: exchange || null,
+    name: String(input.name || symbol).trim() || symbol,
+    hint: hintParts.join(' · '),
+    source: 'remote',
+    aliases
+  };
+}
+
+function buildRemoteCryptoCandidate(input: {
+  symbol: string;
+  name: string;
+  rank?: number | null;
+}): SearchCandidate {
+  const symbol = String(input.symbol || '').toUpperCase();
+  const aliases = [symbol, input.name, ...(commonCryptoNames[symbol] || [])].filter(Boolean) as string[];
+  const rank =
+    Number.isFinite(Number(input.rank)) && Number(input.rank) > 0 ? `Rank #${Number(input.rank)}` : 'Crypto asset';
+
+  return {
+    symbol,
+    market: 'CRYPTO',
+    assetClass: 'CRYPTO',
+    venue: null,
+    name: String(input.name || symbol).trim() || symbol,
+    hint: rank,
+    source: 'remote',
+    aliases
+  };
+}
+
+async function searchAlphaVantageEquities(query: string, limit: number): Promise<SearchCandidate[]> {
+  const apiKey = getAlphaVantageApiKey();
+  if (!apiKey) return [];
+
+  const cacheKey = `alpha:${normalizeSearchText(query)}:${limit}`;
+  const cached = readRemoteSearchCache(cacheKey);
+  if (cached) return cached;
+
+  try {
+    const url = new URL('https://www.alphavantage.co/query');
+    url.searchParams.set('function', 'SYMBOL_SEARCH');
+    url.searchParams.set('keywords', query);
+    url.searchParams.set('apikey', apiKey);
+
+    const payload = (await fetchJsonWithTimeout(url.toString())) as {
+      bestMatches?: Array<Record<string, string>>;
+    };
+
+    const results = (payload.bestMatches || [])
+      .map((row) =>
+        buildRemoteEquityCandidate({
+          symbol: row['1. symbol'],
+          name: row['2. name'],
+          type: row['3. type'],
+          region: row['4. region'],
+          exchange: row['4. region'] === 'United States' ? 'US' : row['4. region'],
+          currency: row['8. currency']
+        })
+      )
+      .filter((candidate) => candidate.symbol)
+      .slice(0, limit);
+
+    cacheRemoteSearch(cacheKey, results);
+    return results;
+  } catch {
+    return [];
+  }
+}
+
+async function searchCoinGeckoCrypto(query: string, limit: number): Promise<SearchCandidate[]> {
+  const cacheKey = `coingecko:${normalizeSearchText(query)}:${limit}`;
+  const cached = readRemoteSearchCache(cacheKey);
+  if (cached) return cached;
+
+  const headers: Record<string, string> = {};
+  const apiKey = getCoinGeckoApiKey();
+  if (apiKey) headers['x-cg-demo-api-key'] = apiKey;
+
+  try {
+    const url = new URL('https://api.coingecko.com/api/v3/search');
+    url.searchParams.set('query', query);
+    const payload = (await fetchJsonWithTimeout(url.toString(), { headers })) as {
+      coins?: Array<{ symbol?: string; name?: string; market_cap_rank?: number | null }>;
+    };
+
+    const results = (payload.coins || [])
+      .map((row) =>
+        buildRemoteCryptoCandidate({
+          symbol: row.symbol || '',
+          name: row.name || '',
+          rank: row.market_cap_rank
+        })
+      )
+      .filter((candidate) => candidate.symbol)
+      .slice(0, limit);
+
+    cacheRemoteSearch(cacheKey, results);
+    return results;
+  } catch {
+    return [];
+  }
+}
+
+async function searchRemoteAssets(query: string, limit: number, market?: Market): Promise<SearchCandidate[]> {
+  if (query.trim().length < 2) return [];
+
+  const tasks: Promise<SearchCandidate[]>[] = [];
+  if (!market || market === 'US') {
+    tasks.push(getSecSearchUniverse());
+    tasks.push(searchAlphaVantageEquities(query, limit));
+  }
+  if (!market || market === 'CRYPTO') {
+    tasks.push(searchCoinGeckoCrypto(query, limit));
+  }
+
+  if (!tasks.length) return [];
+
+  const settled = await Promise.allSettled(tasks);
+  const merged = new Map<string, SearchCandidate>();
+  settled.forEach((row) => {
+    if (row.status !== 'fulfilled') return;
+    row.value
+      .filter((candidate) => scoreAssetCandidate(query, candidate) > 0)
+      .forEach((candidate) => {
+        const key = `${candidate.market}:${candidate.symbol}`;
+        if (!merged.has(key)) merged.set(key, candidate);
+      });
+  });
+  return Array.from(merged.values()).slice(0, limit * 3);
+}
+
 function getReferenceSearchUniverse(): SearchCandidate[] {
   if (cachedReferenceSearchUniverse) return cachedReferenceSearchUniverse;
   const byKey = new Map<string, SearchCandidate>();
@@ -299,7 +547,7 @@ export function listAssets(market?: Market) {
   return repo.listAssets(market);
 }
 
-export function searchAssets(args: { query: string; limit?: number; market?: Market }) {
+export async function searchAssets(args: { query: string; limit?: number; market?: Market }) {
   const query = String(args.query || '').trim();
   if (!query) return [];
 
@@ -310,6 +558,15 @@ export function searchAssets(args: { query: string; limit?: number; market?: Mar
   for (const asset of repo.listAssets(args.market)) {
     const candidate = buildLiveAssetCandidate(asset);
     candidates.set(`${candidate.market}:${candidate.symbol}`, candidate);
+  }
+
+  const remoteCandidates = await searchRemoteAssets(query, limit, args.market);
+  for (const candidate of remoteCandidates) {
+    const key = `${candidate.market}:${candidate.symbol}`;
+    const existing = candidates.get(key);
+    if (!existing || existing.source === 'reference') {
+      candidates.set(key, candidate);
+    }
   }
 
   for (const candidate of getReferenceSearchUniverse()) {

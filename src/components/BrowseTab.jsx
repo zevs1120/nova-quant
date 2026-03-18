@@ -124,7 +124,7 @@ function normalizeQuery(value) {
 function BrowseResultRow({ item, locale, labels }) {
   const isZh = locale?.startsWith('zh');
   const marketLabel = item.market === 'CRYPTO' ? (isZh ? '加密' : 'Crypto') : isZh ? '美股' : 'Stock';
-  const sourceLabel = item.source === 'live' ? labels.live : labels.reference;
+  const sourceLabel = item.source === 'live' ? labels.live : item.source === 'remote' ? labels.remote : labels.reference;
   const subtitle = item.name && item.name !== item.symbol ? item.name : item.hint;
 
   return (
@@ -155,13 +155,14 @@ export default function BrowseTab({ locale, marketInstruments = [], signals = []
   const labels = useMemo(
     () => ({
       title: isZh ? '发现' : 'Browse',
-      search: isZh ? '搜索股票或加密货币' : 'Search stocks or crypto',
+      search: isZh ? '搜索股票、公司名或加密货币' : 'Search stocks, companies, or crypto',
       results: isZh ? '搜索结果' : 'Results',
-      noResults: isZh ? '暂时没找到这个代码，试试 ticker 或主流加密符号。' : 'Nothing matched yet. Try a ticker or crypto symbol.',
+      noResults: isZh ? '暂时没找到，试试 ticker、公司名或币名。' : 'Nothing matched yet. Try a ticker, company name, or crypto name.',
       offline: isZh ? '搜索暂时不可用，请稍后重试。' : 'Search is temporarily unavailable.',
       loading: isZh ? '正在搜索…' : 'Searching…',
       clear: isZh ? '清除' : 'Clear',
       live: isZh ? '实时池' : 'Live',
+      remote: isZh ? '市场' : 'Market',
       reference: isZh ? '扩展池' : 'Universe',
       categories: [
         { key: 'now', label: isZh ? '现在' : 'Now' },

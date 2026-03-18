@@ -2,6 +2,16 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 9.2.0 (2026-03-18)
+- Release type: minor
+- Turn Browse into a real market search surface by merging external stock and crypto search providers with the existing live asset pool. Also fail fast when deployed auth cannot reach its remote store and surface a clearer login error.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
+## 9.1.1 (2026-03-18)
+- Release type: patch
+- Fail fast when deployed auth cannot reach the remote session store and surface a clearer login error.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
 ## 9.1.0 (2026-03-18)
 - Release type: minor
 - Add real Browse search for stocks and crypto using live assets plus extended fallback universes.

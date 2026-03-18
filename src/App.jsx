@@ -88,7 +88,9 @@ function classifyAuthError(error, locale) {
     return zh ? '账号或密码错误。' : 'The email or password is incorrect.';
   }
   if (message.includes('(503)')) {
-    return zh ? '登录服务暂时不可用。请稍后再试。' : 'The login service is temporarily unavailable.';
+    return zh
+      ? '登录服务当前未连上远端账户存储。请检查线上认证配置后再试。'
+      : 'The login service cannot reach its remote auth store right now.';
   }
   return zh
     ? isLocalAuthRuntime()

@@ -57,6 +57,10 @@ function sendAuthServiceError(res: BasicResponse, error: unknown) {
     res.status(503).json({ ok: false, error: 'AUTH_STORE_NOT_CONFIGURED' });
     return;
   }
+  if (message.includes('REMOTE_AUTH_STORE_TIMEOUT') || message.includes('REMOTE_AUTH_STORE_UNREACHABLE')) {
+    res.status(503).json({ ok: false, error: 'AUTH_STORE_UNREACHABLE' });
+    return;
+  }
   res.status(500).json({ ok: false, error: 'AUTH_SERVICE_ERROR' });
 }
 

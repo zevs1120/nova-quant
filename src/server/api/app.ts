@@ -151,7 +151,7 @@ export function createApiApp() {
     res.json({ market: market ?? 'ALL', count: assets.length, data: assets });
   });
 
-  app.get('/api/assets/search', (req, res) => {
+  app.get('/api/assets/search', async (req, res) => {
     const market = parseMarket(req.query.market as string | undefined);
     if (req.query.market && !market) {
       res.status(400).json({ error: 'Invalid market, use US or CRYPTO' });
@@ -159,7 +159,7 @@ export function createApiApp() {
     }
     const query = String(req.query.q || '');
     const limit = req.query.limit ? Number(req.query.limit) : 24;
-    const results = searchAssets({
+    const results = await searchAssets({
       query,
       limit,
       market

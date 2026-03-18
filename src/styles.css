@@ -9723,6 +9723,11 @@ body.keyboard-open .ai-composer-shell {
   color: rgba(0, 117, 165, 0.88);
 }
 
+.browse-result-tag-remote {
+  background: rgba(255, 75, 156, 0.1);
+  color: rgba(182, 33, 112, 0.86);
+}
+
 .browse-result-tag-reference {
   background: rgba(83, 96, 255, 0.1);
   color: rgba(64, 74, 177, 0.86);
