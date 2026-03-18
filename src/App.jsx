@@ -76,6 +76,17 @@ function normalizeEmail(value) {
   return String(value || '').trim().toLowerCase();
 }
 
+function classifyAuthError(error, locale) {
+  const zh = locale?.startsWith('zh');
+  const message = String(error?.message || '');
+  if (message.includes('(401)')) {
+    return zh ? '账号或密码错误。' : 'The email or password is incorrect.';
+  }
+  return zh
+    ? '登录服务未连接。请先启动本地 API：npm run api:data'
+    : 'The login service is offline. Start the local API first: npm run api:data';
+}
+
 const initialData = {
   signals: [],
   evidence: {
@@ -1805,10 +1816,10 @@ export default function App() {
             });
             applyAuthenticatedProfile(payload.user, payload.state || null);
             return { ok: true };
-          } catch {
+          } catch (error) {
             return {
               ok: false,
-              error: locale?.startsWith('zh') ? '邮箱或密码不正确。' : 'The email or password is incorrect.'
+              error: classifyAuthError(error, locale)
             };
           }
         }}
@@ -1824,10 +1835,17 @@ export default function App() {
               codeHint: payload.codeHint || null,
               expiresInMinutes: payload.expiresInMinutes || 15
             };
-          } catch {
+          } catch (error) {
             return {
               ok: false,
-              error: locale?.startsWith('zh') ? '暂时没法发送重置码，请稍后再试。' : 'We could not send a reset code just now.'
+              error:
+                String(error?.message || '').includes('(404)') || String(error?.message || '').includes('(500)')
+                  ? locale?.startsWith('zh')
+                    ? '重置服务未连接。请先启动本地 API：npm run api:data'
+                    : 'The reset service is offline. Start the local API first: npm run api:data'
+                  : locale?.startsWith('zh')
+                    ? '暂时没法发送重置码，请稍后再试。'
+                    : 'We could not send a reset code just now.'
             };
           }
         }}
@@ -1839,10 +1857,17 @@ export default function App() {
               body: JSON.stringify({ email, code, newPassword })
             });
             return { ok: true };
-          } catch {
+          } catch (error) {
             return {
               ok: false,
-              error: locale?.startsWith('zh') ? '重置码无效，或密码不符合要求。' : 'The reset code is invalid, or the password is too weak.'
+              error:
+                String(error?.message || '').includes('(400)')
+                  ? locale?.startsWith('zh')
+                    ? '重置码无效，或密码不符合要求。'
+                    : 'The reset code is invalid, or the password is too weak.'
+                  : locale?.startsWith('zh')
+                    ? '重置服务未连接。请先启动本地 API：npm run api:data'
+                    : 'The reset service is offline. Start the local API first: npm run api:data'
             };
           }
         }}

@@ -1,7 +1,7 @@
 # Nova Quant
 
 Nova Quant is an AI-native quantitative **decision** platform for US equities and crypto.
-Current app version: `8.0.0` (build `43`).
+Current app version: `8.0.1` (build `44`).
 Versioning policy: `package.json` is canonical, `src/config/version.js` is the generated runtime mirror, and release history lives in `CHANGELOG.md` / `docs/VERSIONING.md`.
 
 It is designed to help self-directed traders reduce emotional trading and execute with discipline.

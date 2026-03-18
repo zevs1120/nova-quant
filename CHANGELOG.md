@@ -2,6 +2,11 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 8.0.1 (2026-03-18)
+- Release type: patch
+- Clarify login failures by separating invalid credentials from offline local auth service.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
 ## 8.0.0 (2026-03-18)
 - Release type: major
 - Add SQLite-backed auth, session cookies, password reset, and synced user state.
