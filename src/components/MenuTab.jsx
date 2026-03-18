@@ -39,6 +39,10 @@ function localeCopy(locale) {
     invite: zh ? '奖励 / 邀请好友' : 'Rewards / Invite Friends',
     vipRedeem: zh ? 'VIP 兑换' : 'Redeem VIP',
     history: zh ? '积分明细 / 规则 / 历史' : 'History / rules / activity',
+    recentActivity: zh ? '最近积分动态' : 'Recent Activity',
+    rulesFaq: zh ? '规则 / 常见问题' : 'Rules / FAQ',
+    pointsRate: zh ? '1000 积分 = 1 天 VIP' : '1000 pts = 1 day VIP',
+    pointsUse: zh ? '你现在最值得做的是继续拿判断换积分。' : 'The best next move is to trade judgment for points.',
     reviewDescription: zh ? '本周总结和纪律记录。' : 'Weekly recap and discipline rhythm.',
     systemDescription: zh ? '系统状态、信号、安全和数据。' : 'Signals, safety, performance, and data.',
     marketDescription: zh ? '更宽的市场背景和观察。' : 'Broader context and market notes.',
@@ -100,6 +104,24 @@ function pointsHint(points, locale) {
   return locale?.startsWith('zh') ? '即将过期' : 'Expiring soon';
 }
 
+function pointsActivity(points, locale) {
+  const zh = locale?.startsWith('zh');
+  return [
+    {
+      title: points?.status === 'gain' ? '+200' : zh ? '今天 +120' : '+120 today',
+      desc: zh ? 'Morning Check + 一次 AI 提问。' : 'Morning Check plus one AI question.'
+    },
+    {
+      title: zh ? `即将过期 ${Number(points?.expiringSoon || 0).toLocaleString(locale)} 积分` : `${Number(points?.expiringSoon || 0).toLocaleString(locale)} pts expiring`,
+      desc: zh ? '先换 VIP，别让它白白过期。' : 'Redeem VIP before those points expire.'
+    },
+    {
+      title: zh ? `本月 VIP ${points?.vipDays || 0} 天` : `VIP ${points?.vipDays || 0}d this month`,
+      desc: zh ? '已经换到的高级天数会继续累计。' : 'Your redeemed VIP days keep stacking up.'
+    }
+  ];
+}
+
 export default function MenuTab({
   section,
   locale,
@@ -115,45 +137,91 @@ export default function MenuTab({
   const group = MENU_GROUPS.find((item) => item.key === section);
 
   if (section === 'points') {
+    const activity = pointsActivity(points, locale);
     return (
       <section className="stack-gap menu-screen">
-        <div className="menu-hero">
-          <p className="menu-hero-kicker">{copy.pointsHub}</p>
-          <h1 className="menu-points-balance">{formatPoints(points.balance, locale)}</h1>
-          <div className="menu-points-meta">
-            <span>{copy.expiring}: {formatPoints(points.expiringSoon, locale)}</span>
-            <span>{copy.vipDays}: {points.vipDays}</span>
+        <div className="points-hub-hero">
+          <div className="points-hub-hero-copy">
+            <p className="menu-hero-kicker">{copy.pointsHub}</p>
+            <h1 className="menu-points-balance">{formatPoints(points.balance, locale)}</h1>
+            <p className="points-hub-hero-note">{copy.pointsUse}</p>
+          </div>
+          <div className="points-hub-meta-grid">
+            <div className="points-hub-meta-box">
+              <span className="points-hub-meta-label">{copy.expiring}</span>
+              <strong>{formatPoints(points.expiringSoon, locale)}</strong>
+            </div>
+            <div className="points-hub-meta-box">
+              <span className="points-hub-meta-label">{copy.vipDays}</span>
+              <strong>{points.vipDays}</strong>
+            </div>
+            <div className="points-hub-meta-box points-hub-meta-box-wide">
+              <span className="points-hub-meta-label">{copy.pointsRate}</span>
+              <strong>{copy.vipRedeem}</strong>
+            </div>
           </div>
         </div>
 
-        <div className="menu-points-actions">
-          <button type="button" className="menu-primary-tile" onClick={() => onSectionChange('prediction-games')}>
+        <div className="points-hub-primary-grid">
+          <button type="button" className="points-hub-primary-card" onClick={() => onSectionChange('prediction-games')}>
             <span className="menu-primary-title">{copy.games}</span>
             <span className="menu-primary-copy">{copy.predictionCopy}</span>
           </button>
-          <button type="button" className="menu-primary-tile menu-primary-tile-accent" onClick={() => onSectionChange('rewards')}>
+          <button type="button" className="points-hub-primary-card points-hub-primary-card-accent" onClick={() => onSectionChange('rewards')}>
             <span className="menu-primary-title">{copy.invite}</span>
             <span className="menu-primary-copy">{copy.rewardsCopy}</span>
           </button>
         </div>
 
-        <div className="menu-group-list">
+        <div className="points-hub-surface">
+          <div className="points-hub-section-head">
+            <h2>{copy.vipRedeem}</h2>
+            <span className="points-hub-inline-rate">{copy.pointsRate}</span>
+          </div>
           <button type="button" className="menu-list-row" onClick={() => onSectionChange('rewards')}>
             <span>
               <span className="menu-list-title">{copy.vipRedeem}</span>
-              <span className="menu-list-desc">{locale?.startsWith('zh') ? '用积分兑换更多 VIP 天数。' : 'Trade points for more VIP days.'}</span>
-            </span>
-            <span className="menu-list-arrow">›</span>
-          </button>
-          <button type="button" className="menu-list-row" onClick={() => onSectionChange('points-history')}>
-            <span>
-              <span className="menu-list-title">{copy.history}</span>
               <span className="menu-list-desc">
-                {appMeta?.app_version ? `${appMeta.app_version}` : locale?.startsWith('zh') ? '查看积分变动与规则。' : 'See point activity and rules.'}
+                {locale?.startsWith('zh') ? '先把快过期的积分换成 VIP。' : 'Turn expiring points into VIP first.'}
               </span>
             </span>
             <span className="menu-list-arrow">›</span>
           </button>
+        </div>
+
+        <div className="points-hub-surface">
+          <div className="points-hub-section-head">
+            <h2>{copy.recentActivity}</h2>
+          </div>
+          <div className="menu-group-list">
+            {activity.map((item) => (
+              <div key={item.title} className="menu-list-row static">
+                <span>
+                  <span className="menu-list-title">{item.title}</span>
+                  <span className="menu-list-desc">{item.desc}</span>
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="points-hub-surface">
+          <div className="points-hub-section-head">
+            <h2>{copy.rulesFaq}</h2>
+          </div>
+          <div className="menu-group-list">
+            <button type="button" className="menu-list-row" onClick={() => onSectionChange('points-history')}>
+              <span>
+                <span className="menu-list-title">{copy.history}</span>
+                <span className="menu-list-desc">
+                  {locale?.startsWith('zh')
+                    ? '查看积分明细、规则和 VIP 兑换历史。'
+                    : 'See point rules, activity, and VIP history.'}
+                </span>
+              </span>
+              <span className="menu-list-arrow">›</span>
+            </button>
+          </div>
         </div>
       </section>
     );

@@ -2,6 +2,21 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 7.1.0 (2026-03-18)
+- Release type: minor
+- Add local demo authentication with a seeded test account and real login/logout flow.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
+## 7.0.0 (2026-03-18)
+- Release type: major
+- Rebuild onboarding into a four-scene editorial intro and a quieter three-step sign up flow.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
+## 6.1.0 (2026-03-18)
+- Release type: minor
+- Turn Points Hub into a full platform rewards home with balance hero, game and invite actions, VIP redemption, activity, and rules.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
 ## 6.0.0 (2026-03-18)
 - Release type: major
 - Refactor navigation into Today, Nova, Browse, and My with a full-screen Menu and Points Hub.

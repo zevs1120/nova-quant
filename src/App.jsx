@@ -72,6 +72,29 @@ function buildMenuTitles(locale) {
   };
 }
 
+const SEEDED_AUTH_ACCOUNTS = [
+  {
+    email: 'zevs1120@gmail.com',
+    password: 'Zevs1120',
+    name: 'Zevs',
+    tradeMode: 'active',
+    broker: 'Robinhood'
+  }
+];
+
+function normalizeEmail(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function ensureSeededAccounts(accounts = []) {
+  const normalized = Array.isArray(accounts) ? [...accounts] : [];
+  for (const seed of SEEDED_AUTH_ACCOUNTS) {
+    const exists = normalized.some((account) => normalizeEmail(account?.email) === normalizeEmail(seed.email));
+    if (!exists) normalized.push(seed);
+  }
+  return normalized;
+}
+
 const initialData = {
   signals: [],
   evidence: {
@@ -214,10 +237,18 @@ export default function App() {
   const [uiMode, setUiMode] = useLocalStorage('nova-quant-ui-mode', 'standard', {
     legacyKeys: ['quant-demo-ui-mode']
   });
+  const [userProfile, setUserProfile] = useLocalStorage('nova-quant-user-profile', {
+    email: '',
+    name: '',
+    tradeMode: 'starter',
+    broker: 'Robinhood'
+  });
+  const [authAccounts, setAuthAccounts] = useLocalStorage('nova-quant-auth-accounts', SEEDED_AUTH_ACCOUNTS);
+  const [authSession, setAuthSession] = useLocalStorage('nova-quant-auth-session', null);
   const [onboardingDone, setOnboardingDone] = useLocalStorage('nova-quant-onboarding-done', false, {
     legacyKeys: ['quant-demo-onboarding-done']
   });
-  const [showOnboarding, setShowOnboarding] = useState(!onboardingDone);
+  const [showOnboarding, setShowOnboarding] = useState(!authSession);
   const [lang, setLang] = useLocalStorage('nova-quant-lang', getDefaultLang(), {
     legacyKeys: ['quant-demo-lang']
   });
@@ -266,6 +297,14 @@ export default function App() {
     () => (investorDemoEnabled ? buildInvestorDemoEnvironment(assetClass) : null),
     [investorDemoEnabled, assetClass]
   );
+
+  useEffect(() => {
+    setAuthAccounts((current) => ensureSeededAccounts(current));
+  }, [setAuthAccounts]);
+
+  useEffect(() => {
+    setShowOnboarding(!authSession);
+  }, [authSession]);
 
   const uiData = useMemo(() => {
     if (!investorDemoEnabled) return data;
@@ -334,6 +373,39 @@ export default function App() {
     setMyStack(['portfolio']);
     setActiveTab('today');
   };
+
+  const applyAuthenticatedProfile = useCallback(
+    (account) => {
+      const tradeModeMap = {
+        starter: 'beginner',
+        active: 'standard',
+        deep: 'advanced'
+      };
+      setUserProfile({
+        email: account.email,
+        name: account.name,
+        tradeMode: account.tradeMode,
+        broker: account.broker
+      });
+      setAuthSession({
+        email: normalizeEmail(account.email),
+        name: account.name,
+        loggedInAt: new Date().toISOString()
+      });
+      setUiMode(tradeModeMap[account.tradeMode] || 'standard');
+      setRiskProfileKey(account.tradeMode === 'deep' ? 'aggressive' : account.tradeMode === 'starter' ? 'conservative' : 'balanced');
+      if (!watchlist?.length) {
+        setWatchlist(['SPY', 'QQQ', 'AAPL']);
+      }
+      setAssetClass('US_STOCK');
+      setMarket('US');
+      setOnboardingDone(true);
+      setShowOnboarding(false);
+      setActiveTab('today');
+      setMyStack(['portfolio']);
+    },
+    [setActiveTab, setAssetClass, setAuthSession, setMyStack, setOnboardingDone, setRiskProfileKey, setShowOnboarding, setUiMode, setUserProfile, setWatchlist, watchlist]
+  );
 
   const clearInvestorDemo = () => {
     const restore = Array.isArray(investorDemoHoldingsBackup) ? investorDemoHoldingsBackup : [];
@@ -1531,7 +1603,11 @@ export default function App() {
         <MenuTab
           section={mySection}
           locale={locale}
-          username={chatUserId.startsWith('guest-') ? `@${chatUserId.slice(6)}` : chatUserId}
+          username={
+            userProfile?.name ||
+            authSession?.name ||
+            (chatUserId.startsWith('guest-') ? `@${chatUserId.slice(6)}` : chatUserId)
+          }
           points={pointsState}
           onSectionChange={pushMySection}
           onOpenAbout={() => setAboutOpen(true)}
@@ -1540,6 +1616,13 @@ export default function App() {
             setHoldings([]);
             setWatchlist([]);
             setExecutions([]);
+            setAuthSession(null);
+            setUserProfile({
+              email: '',
+              name: '',
+              tradeMode: 'starter',
+              broker: 'Robinhood'
+            });
             setShowOnboarding(true);
             setActiveTab('today');
             setMyStack(['portfolio']);
@@ -1640,14 +1723,42 @@ export default function App() {
 
       <OnboardingFlow
         open={showOnboarding}
-        t={t}
-        onComplete={(payload) => {
-          setMarket(payload.market);
-          setAssetClass(payload.market === 'CRYPTO' ? 'CRYPTO' : 'US_STOCK');
-          setWatchlist(payload.watchlist);
-          setRiskProfileKey(payload.riskProfile);
-          setOnboardingDone(true);
-          setShowOnboarding(false);
+        locale={locale}
+        profile={userProfile}
+        initialMode={onboardingDone ? 'login' : 'intro'}
+        onLogin={async ({ email, password }) => {
+          const normalizedEmail = normalizeEmail(email);
+          const account = ensureSeededAccounts(authAccounts).find(
+            (item) => normalizeEmail(item?.email) === normalizedEmail && String(item?.password || '') === String(password || '')
+          );
+          if (!account) {
+            return {
+              ok: false,
+              error: locale?.startsWith('zh') ? '邮箱或密码不正确。' : 'The email or password is incorrect.'
+            };
+          }
+          applyAuthenticatedProfile(account);
+          return { ok: true };
+        }}
+        onComplete={async (payload) => {
+          const normalizedEmail = normalizeEmail(payload.email);
+          const existing = ensureSeededAccounts(authAccounts).some((item) => normalizeEmail(item?.email) === normalizedEmail);
+          if (existing) {
+            return {
+              ok: false,
+              error: locale?.startsWith('zh') ? '这个邮箱已经存在，请直接登录。' : 'That email already exists. Please log in instead.'
+            };
+          }
+          const nextAccount = {
+            email: normalizedEmail,
+            password: String(payload.password || ''),
+            name: payload.name,
+            tradeMode: payload.tradeMode,
+            broker: payload.broker
+          };
+          setAuthAccounts((current) => [...ensureSeededAccounts(current), nextAccount]);
+          applyAuthenticatedProfile(nextAccount);
+          return { ok: true };
         }}
       />
     </div>
