@@ -1,7 +1,7 @@
 # Nova Quant
 
 Nova Quant is an AI-native quantitative **decision** platform for US equities and crypto.
-Current app version: `9.0.0` (build `46`).
+Current app version: `9.1.0` (build `47`).
 Versioning policy: `package.json` is canonical, `src/config/version.js` is the generated runtime mirror, and release history lives in `CHANGELOG.md` / `docs/VERSIONING.md`.
 Internet auth on deployed/serverless environments requires a persistent Redis-backed auth store via `KV_REST_API_URL` + `KV_REST_API_TOKEN` or `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN`. Without one of those pairs, `/api/auth/*` returns `AUTH_STORE_NOT_CONFIGURED`.
 

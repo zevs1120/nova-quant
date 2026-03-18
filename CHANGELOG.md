@@ -2,6 +2,11 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 9.1.0 (2026-03-18)
+- Release type: minor
+- Add real Browse search for stocks and crypto using live assets plus extended fallback universes.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
 ## 9.0.0 (2026-03-18)
 - Release type: major
 - Split deployed auth into lightweight Vercel handlers backed by a persistent Redis-compatible store.

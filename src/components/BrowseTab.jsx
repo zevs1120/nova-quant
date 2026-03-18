@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { formatNumber } from '../utils/format';
 
 function asNumber(value) {
@@ -47,7 +47,6 @@ function toneForChange(change) {
 
 function prettyPrice(value, locale) {
   if (!Number.isFinite(value)) return '--';
-  if (Math.abs(value) >= 1000) return formatNumber(value, 2, locale);
   return formatNumber(value, 2, locale);
 }
 
@@ -118,14 +117,52 @@ function EarningsRow({ item }) {
   );
 }
 
+function normalizeQuery(value) {
+  return String(value || '').trim();
+}
+
+function BrowseResultRow({ item, locale, labels }) {
+  const isZh = locale?.startsWith('zh');
+  const marketLabel = item.market === 'CRYPTO' ? (isZh ? '加密' : 'Crypto') : isZh ? '美股' : 'Stock';
+  const sourceLabel = item.source === 'live' ? labels.live : labels.reference;
+  const subtitle = item.name && item.name !== item.symbol ? item.name : item.hint;
+
+  return (
+    <article className="browse-result-row">
+      <div className="browse-result-copy">
+        <div className="browse-result-headline">
+          <p className="browse-result-symbol">{item.symbol}</p>
+          <div className="browse-result-tags">
+            <span className="browse-result-tag">{marketLabel}</span>
+            <span className={`browse-result-tag browse-result-tag-${item.source}`}>{sourceLabel}</span>
+          </div>
+        </div>
+        <p className="browse-result-subtitle">{subtitle}</p>
+      </div>
+    </article>
+  );
+}
+
 export default function BrowseTab({ locale, marketInstruments = [], signals = [], insights = {} }) {
   const [category, setCategory] = useState('now');
+  const [searchValue, setSearchValue] = useState('');
+  const [searchState, setSearchState] = useState('idle');
+  const [searchResults, setSearchResults] = useState([]);
   const isZh = locale?.startsWith('zh');
+  const trimmedQuery = normalizeQuery(searchValue);
+  const showSearchResults = trimmedQuery.length > 0;
 
   const labels = useMemo(
     () => ({
       title: isZh ? '发现' : 'Browse',
-      search: isZh ? '搜索 NovaQuant' : 'Search NovaQuant',
+      search: isZh ? '搜索股票或加密货币' : 'Search stocks or crypto',
+      results: isZh ? '搜索结果' : 'Results',
+      noResults: isZh ? '暂时没找到这个代码，试试 ticker 或主流加密符号。' : 'Nothing matched yet. Try a ticker or crypto symbol.',
+      offline: isZh ? '搜索暂时不可用，请稍后重试。' : 'Search is temporarily unavailable.',
+      loading: isZh ? '正在搜索…' : 'Searching…',
+      clear: isZh ? '清除' : 'Clear',
+      live: isZh ? '实时池' : 'Live',
+      reference: isZh ? '扩展池' : 'Universe',
       categories: [
         { key: 'now', label: isZh ? '现在' : 'Now' },
         { key: 'macro', label: isZh ? '宏观' : 'Macro' },
@@ -140,6 +177,43 @@ export default function BrowseTab({ locale, marketInstruments = [], signals = []
     }),
     [isZh]
   );
+
+  useEffect(() => {
+    if (!showSearchResults) {
+      setSearchState('idle');
+      setSearchResults([]);
+      return undefined;
+    }
+
+    let cancelled = false;
+    setSearchState('loading');
+    const timer = window.setTimeout(async () => {
+      try {
+        const response = await fetch(
+          `/api/assets/search?q=${encodeURIComponent(trimmedQuery)}&limit=24`,
+          {
+            credentials: 'same-origin'
+          }
+        );
+        if (!response.ok) {
+          throw new Error(`search failed (${response.status})`);
+        }
+        const payload = await response.json();
+        if (cancelled) return;
+        setSearchResults(Array.isArray(payload?.data) ? payload.data : []);
+        setSearchState('ready');
+      } catch {
+        if (cancelled) return;
+        setSearchResults([]);
+        setSearchState('error');
+      }
+    }, 180);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [showSearchResults, trimmedQuery]);
 
   const instruments = useMemo(
     () =>
@@ -182,7 +256,9 @@ export default function BrowseTab({ locale, marketInstruments = [], signals = []
         });
       }
     });
-    return selected.length ? selected.slice(0, 3) : nonCrypto.slice(0, 3).map((item) => ({ ...item, display: item.ticker, contract: `/${item.ticker}` }));
+    return selected.length
+      ? selected.slice(0, 3)
+      : nonCrypto.slice(0, 3).map((item) => ({ ...item, display: item.ticker, contract: `/${item.ticker}` }));
   }, [instruments, isZh, nonCrypto]);
 
   const topMovers = useMemo(() => {
@@ -246,87 +322,131 @@ export default function BrowseTab({ locale, marketInstruments = [], signals = []
         <h1 className="browse-title">{labels.title}</h1>
       </header>
 
-      <button type="button" className="browse-search-shell" aria-label={labels.search}>
+      <label className={`browse-search-shell ${showSearchResults ? 'active' : ''}`}>
         <SearchGlyph />
-        <span>{labels.search}</span>
-      </button>
-
-      <div className="browse-category-row" role="tablist" aria-label={labels.title}>
-        {labels.categories.map((item) => (
-          <button
-            key={item.key}
-            type="button"
-            role="tab"
-            aria-selected={category === item.key}
-            className={`browse-category-pill ${category === item.key ? 'active' : ''}`}
-            onClick={() => setCategory(item.key)}
-          >
-            {item.label}
+        <input
+          type="search"
+          value={searchValue}
+          onChange={(event) => setSearchValue(event.target.value)}
+          className="browse-search-input"
+          placeholder={labels.search}
+          autoCapitalize="off"
+          autoCorrect="off"
+          spellCheck="false"
+          enterKeyHint="search"
+          aria-label={labels.search}
+        />
+        {searchValue ? (
+          <button type="button" className="browse-search-clear" onClick={() => setSearchValue('')} aria-label={labels.clear}>
+            ×
           </button>
-        ))}
-      </div>
+        ) : null}
+      </label>
 
-      {!showSports ? (
-        <>
-          <section className="browse-section">
-            <div className="browse-section-head">
-              <h2>{labels.futures}</h2>
-            </div>
-            <div className="browse-futures-row">
-              {(showCryptoFocus ? crypto.slice(0, 3) : futuresMarkets).map((item) => (
-                <FuturesCard key={item.ticker} item={item} locale={locale} />
-              ))}
-            </div>
-          </section>
-
-          <section className="browse-section">
-            <div className="browse-section-head">
-              <h2>{showCryptoFocus ? labels.cryptoMovers : labels.movers}</h2>
-            </div>
-            <div className="browse-movers-grid">
-              {(showCryptoFocus ? cryptoMovers : topMovers).map((item) => (
-                <MoverChip key={`${item.symbol}-${item.change}`} item={item} locale={locale} />
-              ))}
-            </div>
-          </section>
-
-          <section className="browse-section">
-            <div className="browse-section-head">
-              <h2>{labels.cryptoMovers}</h2>
-            </div>
-            <div className="browse-movers-grid">
-              {cryptoMovers.map((item) => (
-                <MoverChip key={`crypto-${item.symbol}`} item={item} locale={locale} />
-              ))}
-            </div>
-          </section>
-
-          <section className="browse-section">
-            <div className="browse-section-head">
-              <h2>{labels.earnings}</h2>
-            </div>
-            <div className="browse-earnings-list">
-              {(showMacroFocus ? earningsRows.slice(0, 3) : earningsRows).map((item) => (
-                <EarningsRow key={`${item.symbol}-${item.time}`} item={item} />
-              ))}
-            </div>
-          </section>
-        </>
-      ) : (
-        <section className="browse-section">
+      {showSearchResults ? (
+        <section className="browse-section browse-search-results">
           <div className="browse-section-head">
-            <h2>{isZh ? 'Sports' : 'Sports'}</h2>
+            <h2>{labels.results}</h2>
+            {searchState === 'ready' ? <span className="browse-search-count">{searchResults.length}</span> : null}
           </div>
-          {sportsRows.length ? (
-            <div className="browse-movers-grid">
-              {sportsRows.map((item) => (
-                <MoverChip key={`sports-${item.symbol}`} item={item} locale={locale} />
+
+          {searchState === 'loading' ? <div className="browse-search-empty">{labels.loading}</div> : null}
+          {searchState === 'error' ? <div className="browse-search-empty">{labels.offline}</div> : null}
+          {searchState === 'ready' && !searchResults.length ? <div className="browse-search-empty">{labels.noResults}</div> : null}
+
+          {searchState === 'ready' && searchResults.length ? (
+            <div className="browse-results-list">
+              {searchResults.map((item) => (
+                <BrowseResultRow
+                  key={`${item.market}:${item.symbol}:${item.source}`}
+                  item={item}
+                  locale={locale}
+                  labels={labels}
+                />
               ))}
             </div>
-          ) : (
-            <div className="browse-sports-empty">{labels.noSports}</div>
-          )}
+          ) : null}
         </section>
+      ) : (
+        <>
+          <div className="browse-category-row" role="tablist" aria-label={labels.title}>
+            {labels.categories.map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                role="tab"
+                aria-selected={category === item.key}
+                className={`browse-category-pill ${category === item.key ? 'active' : ''}`}
+                onClick={() => setCategory(item.key)}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+
+          {!showSports ? (
+            <>
+              <section className="browse-section">
+                <div className="browse-section-head">
+                  <h2>{labels.futures}</h2>
+                </div>
+                <div className="browse-futures-row">
+                  {(showCryptoFocus ? crypto.slice(0, 3) : futuresMarkets).map((item) => (
+                    <FuturesCard key={item.ticker} item={item} locale={locale} />
+                  ))}
+                </div>
+              </section>
+
+              <section className="browse-section">
+                <div className="browse-section-head">
+                  <h2>{showCryptoFocus ? labels.cryptoMovers : labels.movers}</h2>
+                </div>
+                <div className="browse-movers-grid">
+                  {(showCryptoFocus ? cryptoMovers : topMovers).map((item) => (
+                    <MoverChip key={`${item.symbol}-${item.change}`} item={item} locale={locale} />
+                  ))}
+                </div>
+              </section>
+
+              <section className="browse-section">
+                <div className="browse-section-head">
+                  <h2>{labels.cryptoMovers}</h2>
+                </div>
+                <div className="browse-movers-grid">
+                  {cryptoMovers.map((item) => (
+                    <MoverChip key={`crypto-${item.symbol}`} item={item} locale={locale} />
+                  ))}
+                </div>
+              </section>
+
+              <section className="browse-section">
+                <div className="browse-section-head">
+                  <h2>{labels.earnings}</h2>
+                </div>
+                <div className="browse-earnings-list">
+                  {(showMacroFocus ? earningsRows.slice(0, 3) : earningsRows).map((item) => (
+                    <EarningsRow key={`${item.symbol}-${item.time}`} item={item} />
+                  ))}
+                </div>
+              </section>
+            </>
+          ) : (
+            <section className="browse-section">
+              <div className="browse-section-head">
+                <h2>Sports</h2>
+              </div>
+              {sportsRows.length ? (
+                <div className="browse-movers-grid">
+                  {sportsRows.map((item) => (
+                    <MoverChip key={`sports-${item.symbol}`} item={item} locale={locale} />
+                  ))}
+                </div>
+              ) : (
+                <div className="browse-sports-empty">{labels.noSports}</div>
+              )}
+            </section>
+          )}
+        </>
       )}
     </section>
   );

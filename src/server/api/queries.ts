@@ -1,4 +1,7 @@
 import { createHash } from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { getDb } from '../db/database.js';
 import { MarketRepository } from '../db/repository.js';
 import { ensureSchema } from '../db/schema.js';
@@ -53,10 +56,234 @@ const RISK_PROFILE_PRESETS = {
   }
 } as const;
 
+type AssetSearchResult = {
+  symbol: string;
+  name: string;
+  hint: string;
+  market: Market;
+  assetClass: AssetClass;
+  venue: string | null;
+  source: 'live' | 'reference';
+  score: number;
+};
+
+type ReferenceUniverseInstrument = {
+  symbol: string;
+  market: string;
+  category?: string;
+  notes?: string;
+};
+
+type SearchCandidate = {
+  symbol: string;
+  market: Market;
+  assetClass: AssetClass;
+  venue: string | null;
+  name: string;
+  hint: string;
+  source: 'live' | 'reference';
+  aliases: string[];
+};
+
+const referenceUniverseFiles = [
+  'us_equities_extended.json',
+  'us_equities_core.json',
+  'us_sector_etfs.json',
+  'market_proxies.json',
+  'crypto_core.json'
+];
+
+const commonEquityAliases: Record<string, string[]> = {
+  AAPL: ['apple'],
+  MSFT: ['microsoft'],
+  NVDA: ['nvidia'],
+  AMZN: ['amazon'],
+  GOOGL: ['google', 'alphabet'],
+  META: ['meta', 'facebook'],
+  TSLA: ['tesla'],
+  NFLX: ['netflix'],
+  AMD: ['amd', 'advanced micro devices'],
+  PLTR: ['palantir'],
+  COIN: ['coinbase'],
+  UBER: ['uber'],
+  'BRK.B': ['berkshire', 'berkshire hathaway']
+};
+
+const commonCryptoNames: Record<string, string[]> = {
+  BTC: ['bitcoin', 'btc'],
+  ETH: ['ethereum', 'eth'],
+  SOL: ['solana', 'sol'],
+  BNB: ['bnb', 'binance coin'],
+  XRP: ['xrp', 'ripple'],
+  DOGE: ['dogecoin', 'doge'],
+  ADA: ['cardano', 'ada'],
+  TRX: ['tron', 'trx'],
+  AVAX: ['avalanche', 'avax'],
+  LINK: ['chainlink', 'link'],
+  LTC: ['litecoin', 'ltc'],
+  TON: ['ton', 'the open network']
+};
+
+let cachedReferenceSearchUniverse: SearchCandidate[] | null = null;
+
 function getRepo(): MarketRepository {
   const db = getDb();
   ensureSchema(db);
   return new MarketRepository(db);
+}
+
+function normalizeSearchText(value: unknown): string {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9.]+/g, '');
+}
+
+function sentenceCase(value: string): string {
+  return value
+    .split(/[_\s-]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(' ');
+}
+
+function parseCryptoBaseQuote(symbol: string): { base: string; quote: string } | null {
+  const upper = String(symbol || '').toUpperCase();
+  if (upper.endsWith('USDT') && upper.length > 4) {
+    return { base: upper.slice(0, -4), quote: 'USDT' };
+  }
+  return null;
+}
+
+function searchUniverseDir(): string {
+  const queriesDir = path.dirname(fileURLToPath(import.meta.url));
+  return path.resolve(queriesDir, '../../../data/reference_universes');
+}
+
+function buildLiveAssetCandidate(asset: ReturnType<MarketRepository['listAssets']>[number]): SearchCandidate {
+  const market = asset.market === 'CRYPTO' ? 'CRYPTO' : 'US';
+  const assetClass = market === 'CRYPTO' ? 'CRYPTO' : 'US_STOCK';
+  const cryptoPair = parseCryptoBaseQuote(asset.symbol);
+  const base = asset.base || cryptoPair?.base || null;
+  const quote = asset.quote || cryptoPair?.quote || null;
+  const aliases = [
+    asset.symbol,
+    base,
+    quote ? `${base || ''}${quote}` : null,
+    base && quote ? `${base}/${quote}` : null,
+    ...(base ? commonCryptoNames[base] || [] : []),
+    ...(commonEquityAliases[asset.symbol] || [])
+  ].filter(Boolean) as string[];
+
+  return {
+    symbol: asset.symbol,
+    market,
+    assetClass,
+    venue: asset.venue,
+    name:
+      market === 'CRYPTO'
+        ? `${base || asset.symbol}${quote ? ` / ${quote}` : ''}`
+        : asset.symbol,
+    hint:
+      market === 'CRYPTO'
+        ? `Crypto${asset.venue ? ` · ${asset.venue}` : ''}`
+        : `US stock${asset.venue ? ` · ${asset.venue}` : ''}`,
+    source: 'live',
+    aliases
+  };
+}
+
+function buildReferenceAssetCandidate(item: ReferenceUniverseInstrument): SearchCandidate {
+  const isCrypto = String(item.market || '').toUpperCase().includes('CRYPTO');
+  const market: Market = isCrypto ? 'CRYPTO' : 'US';
+  const assetClass: AssetClass = isCrypto ? 'CRYPTO' : 'US_STOCK';
+  const pair = parseCryptoBaseQuote(item.symbol);
+  const base = pair?.base || null;
+  const quote = pair?.quote || null;
+  const aliases = [
+    item.symbol,
+    base,
+    quote ? `${base || ''}${quote}` : null,
+    base && quote ? `${base}/${quote}` : null,
+    item.category,
+    ...(base ? commonCryptoNames[base] || [] : []),
+    ...(commonEquityAliases[item.symbol] || [])
+  ].filter(Boolean) as string[];
+
+  return {
+    symbol: item.symbol,
+    market,
+    assetClass,
+    venue: null,
+    name:
+      market === 'CRYPTO'
+        ? `${base || item.symbol}${quote ? ` / ${quote}` : ''}`
+        : item.symbol,
+    hint:
+      market === 'CRYPTO'
+        ? sentenceCase(item.category || 'crypto')
+        : sentenceCase(item.category || 'US equity'),
+    source: 'reference',
+    aliases
+  };
+}
+
+function getReferenceSearchUniverse(): SearchCandidate[] {
+  if (cachedReferenceSearchUniverse) return cachedReferenceSearchUniverse;
+  const byKey = new Map<string, SearchCandidate>();
+  for (const file of referenceUniverseFiles) {
+    const filePath = path.join(searchUniverseDir(), file);
+    if (!fs.existsSync(filePath)) continue;
+    const payload = JSON.parse(fs.readFileSync(filePath, 'utf8')) as { instruments?: ReferenceUniverseInstrument[] };
+    for (const item of payload.instruments || []) {
+      if (!item?.symbol) continue;
+      const candidate = buildReferenceAssetCandidate(item);
+      const key = `${candidate.market}:${candidate.symbol}`;
+      if (!byKey.has(key)) {
+        byKey.set(key, candidate);
+      }
+    }
+  }
+  cachedReferenceSearchUniverse = Array.from(byKey.values());
+  return cachedReferenceSearchUniverse;
+}
+
+function scoreAssetCandidate(query: string, candidate: SearchCandidate): number {
+  const normalizedQuery = normalizeSearchText(query);
+  if (!normalizedQuery) return 0;
+  const symbol = normalizeSearchText(candidate.symbol);
+  let score = 0;
+
+  if (symbol === normalizedQuery) score = 1200;
+  else if (symbol.startsWith(normalizedQuery)) score = 980;
+  else if (symbol.includes(normalizedQuery)) score = 760;
+
+  for (const alias of candidate.aliases) {
+    const normalizedAlias = normalizeSearchText(alias);
+    if (!normalizedAlias) continue;
+    if (normalizedAlias === normalizedQuery) score = Math.max(score, 1120);
+    else if (normalizedAlias.startsWith(normalizedQuery)) score = Math.max(score, 900);
+    else if (normalizedAlias.includes(normalizedQuery)) score = Math.max(score, 640);
+  }
+
+  if (candidate.market === 'CRYPTO' && symbol.endsWith(`${normalizedQuery}usdt`)) {
+    score = Math.max(score, 940);
+  }
+
+  return score;
+}
+
+function toSearchResult(candidate: SearchCandidate, score: number): AssetSearchResult {
+  return {
+    symbol: candidate.symbol,
+    name: candidate.name,
+    hint: candidate.hint,
+    market: candidate.market,
+    assetClass: candidate.assetClass,
+    venue: candidate.venue,
+    source: candidate.source,
+    score
+  };
 }
 
 type RuntimeSyncContext = {
@@ -70,6 +297,42 @@ type RuntimeSyncContext = {
 export function listAssets(market?: Market) {
   const repo = getRepo();
   return repo.listAssets(market);
+}
+
+export function searchAssets(args: { query: string; limit?: number; market?: Market }) {
+  const query = String(args.query || '').trim();
+  if (!query) return [];
+
+  const limit = Math.max(1, Math.min(Number(args.limit || 24), 50));
+  const repo = getRepo();
+  const candidates = new Map<string, SearchCandidate>();
+
+  for (const asset of repo.listAssets(args.market)) {
+    const candidate = buildLiveAssetCandidate(asset);
+    candidates.set(`${candidate.market}:${candidate.symbol}`, candidate);
+  }
+
+  for (const candidate of getReferenceSearchUniverse()) {
+    if (args.market && candidate.market !== args.market) continue;
+    const key = `${candidate.market}:${candidate.symbol}`;
+    if (!candidates.has(key)) {
+      candidates.set(key, candidate);
+    }
+  }
+
+  return Array.from(candidates.values())
+    .map((candidate) => ({
+      candidate,
+      score: scoreAssetCandidate(query, candidate)
+    }))
+    .filter((item) => item.score > 0)
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      if (a.candidate.source !== b.candidate.source) return a.candidate.source === 'live' ? -1 : 1;
+      return a.candidate.symbol.localeCompare(b.candidate.symbol);
+    })
+    .slice(0, limit)
+    .map(({ candidate, score }) => toSearchResult(candidate, score));
 }
 
 export function queryOhlcv(args: {

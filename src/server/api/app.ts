@@ -43,6 +43,7 @@ import {
   setRiskProfile,
   getSignalContract,
   listAssets,
+  searchAssets,
   listExecutions,
   listSignalContracts,
   queryOhlcv,
@@ -148,6 +149,27 @@ export function createApiApp() {
 
     const assets = listAssets(market);
     res.json({ market: market ?? 'ALL', count: assets.length, data: assets });
+  });
+
+  app.get('/api/assets/search', (req, res) => {
+    const market = parseMarket(req.query.market as string | undefined);
+    if (req.query.market && !market) {
+      res.status(400).json({ error: 'Invalid market, use US or CRYPTO' });
+      return;
+    }
+    const query = String(req.query.q || '');
+    const limit = req.query.limit ? Number(req.query.limit) : 24;
+    const results = searchAssets({
+      query,
+      limit,
+      market
+    });
+    res.json({
+      query,
+      market: market ?? 'ALL',
+      count: results.length,
+      data: results
+    });
   });
 
   app.get('/api/signals', (req, res) => {
