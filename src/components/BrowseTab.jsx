@@ -56,6 +56,11 @@ function pctText(value, locale) {
   return `${sign}${formatNumber(value * 100, 2, locale)}%`;
 }
 
+function latestClose(instrument) {
+  const bars = barsForInstrument(instrument, 2);
+  return bars[bars.length - 1]?.close ?? null;
+}
+
 function SearchGlyph() {
   return (
     <svg viewBox="0 0 20 20" className="browse-search-glyph" aria-hidden="true">
@@ -121,14 +126,14 @@ function normalizeQuery(value) {
   return String(value || '').trim();
 }
 
-function BrowseResultRow({ item, locale, labels }) {
+function BrowseResultRow({ item, locale, labels, onOpen }) {
   const isZh = locale?.startsWith('zh');
   const marketLabel = item.market === 'CRYPTO' ? (isZh ? '加密' : 'Crypto') : isZh ? '美股' : 'Stock';
   const sourceLabel = item.source === 'live' ? labels.live : item.source === 'remote' ? labels.remote : labels.reference;
   const subtitle = item.name && item.name !== item.symbol ? item.name : item.hint;
 
   return (
-    <article className="browse-result-row">
+    <button type="button" className="browse-result-row" onClick={() => onOpen?.(item)}>
       <div className="browse-result-copy">
         <div className="browse-result-headline">
           <p className="browse-result-symbol">{item.symbol}</p>
@@ -139,18 +144,35 @@ function BrowseResultRow({ item, locale, labels }) {
         </div>
         <p className="browse-result-subtitle">{subtitle}</p>
       </div>
-    </article>
+      <span className="browse-result-chevron" aria-hidden="true">
+        ›
+      </span>
+    </button>
   );
 }
 
-export default function BrowseTab({ locale, marketInstruments = [], signals = [], insights = {} }) {
+export default function BrowseTab({
+  locale,
+  marketInstruments = [],
+  signals = [],
+  insights = {},
+  watchlist = [],
+  setWatchlist,
+  onOpenMy
+}) {
   const [category, setCategory] = useState('now');
   const [searchValue, setSearchValue] = useState('');
   const [searchState, setSearchState] = useState('idle');
   const [searchResults, setSearchResults] = useState([]);
+  const [activeResult, setActiveResult] = useState(null);
+  const [detailState, setDetailState] = useState({ loading: false, values: [], latest: null, change: null });
   const isZh = locale?.startsWith('zh');
   const trimmedQuery = normalizeQuery(searchValue);
   const showSearchResults = trimmedQuery.length > 0;
+  const normalizedWatchlist = useMemo(
+    () => (watchlist || []).map((item) => String(item || '').trim().toUpperCase()),
+    [watchlist]
+  );
 
   const labels = useMemo(
     () => ({
@@ -161,9 +183,16 @@ export default function BrowseTab({ locale, marketInstruments = [], signals = []
       offline: isZh ? '搜索暂时不可用，请稍后重试。' : 'Search is temporarily unavailable.',
       loading: isZh ? '正在搜索…' : 'Searching…',
       clear: isZh ? '清除' : 'Clear',
+      back: isZh ? '发现' : 'Browse',
       live: isZh ? '实时池' : 'Live',
       remote: isZh ? '市场' : 'Market',
       reference: isZh ? '扩展池' : 'Universe',
+      addToWatchlist: isZh ? '加入观察列表' : 'Add to Watchlist',
+      watched: isZh ? '已在观察列表' : 'In Watchlist',
+      openMy: isZh ? '打开我的观察列表' : 'Open My Watchlist',
+      unavailable: isZh ? '实时价格稍后补上' : 'Live pricing will land here when data is available.',
+      whatThisIs: isZh ? '这是什么' : 'What this is',
+      whyItShows: isZh ? '为什么会出现' : 'Why it surfaced',
       categories: [
         { key: 'now', label: isZh ? '现在' : 'Now' },
         { key: 'macro', label: isZh ? '宏观' : 'Macro' },
@@ -215,6 +244,60 @@ export default function BrowseTab({ locale, marketInstruments = [], signals = []
       window.clearTimeout(timer);
     };
   }, [showSearchResults, trimmedQuery]);
+
+  useEffect(() => {
+    if (!activeResult) {
+      setDetailState({ loading: false, values: [], latest: null, change: null });
+      return undefined;
+    }
+
+    const localInstrument = instruments.find((item) => item.ticker === String(activeResult.symbol || '').toUpperCase());
+    if (localInstrument) {
+      const values = barsForInstrument(localInstrument, 30).map((point) => point.close);
+      setDetailState({
+        loading: false,
+        values,
+        latest: latestClose(localInstrument),
+        change: pctChangeFromBars(localInstrument)
+      });
+      return undefined;
+    }
+
+    let cancelled = false;
+    setDetailState({ loading: true, values: [], latest: null, change: null });
+    void fetch(
+      `/api/ohlcv?market=${encodeURIComponent(activeResult.market)}&symbol=${encodeURIComponent(activeResult.symbol)}&tf=1d&limit=30`,
+      {
+        credentials: 'same-origin'
+      }
+    )
+      .then(async (response) => {
+        if (!response.ok) throw new Error(`ohlcv failed (${response.status})`);
+        return response.json();
+      })
+      .then((payload) => {
+        if (cancelled) return;
+        const values = Array.isArray(payload?.data)
+          ? payload.data.map((row) => asNumber(row?.close)).filter((value) => Number.isFinite(value))
+          : [];
+        const latest = values.length ? values[values.length - 1] : null;
+        const change = values.length >= 2 && values[0] ? (values[values.length - 1] - values[0]) / values[0] : null;
+        setDetailState({
+          loading: false,
+          values,
+          latest,
+          change
+        });
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setDetailState({ loading: false, values: [], latest: null, change: null });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeResult, instruments]);
 
   const instruments = useMemo(
     () =>
@@ -316,6 +399,82 @@ export default function BrowseTab({ locale, marketInstruments = [], signals = []
   const showSports = category === 'sports';
   const showCryptoFocus = category === 'crypto';
   const showMacroFocus = category === 'macro';
+  const isWatched = activeResult ? normalizedWatchlist.includes(String(activeResult.symbol || '').toUpperCase()) : false;
+  const detailTone = toneForChange(detailState.change);
+
+  if (activeResult) {
+    return (
+      <section className="stack-gap browse-screen browse-detail-screen">
+        <div className="detail-nav-bar">
+          <button type="button" className="ios-nav-back detail-nav-back" onClick={() => setActiveResult(null)} aria-label={labels.back}>
+            <span className="ios-back-chevron" aria-hidden="true">
+              ‹
+            </span>
+            <span className="ios-back-label">{labels.back}</span>
+          </button>
+          <p className="detail-nav-title">{activeResult.symbol}</p>
+          <span className="detail-nav-spacer" aria-hidden="true" />
+        </div>
+
+        <section className="browse-asset-hero">
+          <div className="browse-asset-headline">
+            <div>
+              <p className="browse-asset-kicker">{activeResult.market === 'CRYPTO' ? (isZh ? '加密货币' : 'Crypto') : isZh ? '股票' : 'Stock'}</p>
+              <h1 className="browse-asset-symbol">{activeResult.symbol}</h1>
+              <p className="browse-asset-name">{activeResult.name || activeResult.hint}</p>
+            </div>
+            <div className="browse-asset-tags">
+              <span className={`browse-result-tag browse-result-tag-${activeResult.source}`}>{activeResult.source === 'live' ? labels.live : activeResult.source === 'remote' ? labels.remote : labels.reference}</span>
+            </div>
+          </div>
+
+          {detailState.values.length >= 2 ? (
+            <div className="browse-asset-chart">
+              <BrowseMiniChart values={detailState.values} tone={detailTone} />
+            </div>
+          ) : (
+            <div className="browse-asset-empty">{labels.unavailable}</div>
+          )}
+
+          <div className="browse-asset-quote">
+            <p className="browse-asset-price">{prettyPrice(detailState.latest, locale)}</p>
+            <p className={`browse-asset-change ${detailTone}`}>{pctText(detailState.change, locale)}</p>
+          </div>
+
+          <div className="browse-asset-actions">
+            <button
+              type="button"
+              className={`primary-btn browse-watch-button ${isWatched ? 'is-active' : ''}`}
+              onClick={() =>
+                setWatchlist?.((current) => {
+                  const symbol = String(activeResult.symbol || '').toUpperCase();
+                  return current.includes(symbol) ? current : [...current, symbol];
+                })
+              }
+            >
+              {isWatched ? labels.watched : labels.addToWatchlist}
+            </button>
+            {isWatched ? (
+              <button type="button" className="secondary-btn browse-watch-secondary" onClick={() => onOpenMy?.()}>
+                {labels.openMy}
+              </button>
+            ) : null}
+          </div>
+        </section>
+
+        <section className="browse-detail-grid">
+          <article className="browse-detail-card">
+            <p className="browse-detail-label">{labels.whatThisIs}</p>
+            <p className="browse-detail-copy">{activeResult.market === 'CRYPTO' ? activeResult.name : `${activeResult.name}${activeResult.venue ? ` · ${activeResult.venue}` : ''}`}</p>
+          </article>
+          <article className="browse-detail-card">
+            <p className="browse-detail-label">{labels.whyItShows}</p>
+            <p className="browse-detail-copy">{activeResult.hint || labels.unavailable}</p>
+          </article>
+        </section>
+      </section>
+    );
+  }
 
   return (
     <section className="stack-gap browse-screen">
@@ -363,6 +522,7 @@ export default function BrowseTab({ locale, marketInstruments = [], signals = []
                   item={item}
                   locale={locale}
                   labels={labels}
+                  onOpen={setActiveResult}
                 />
               ))}
             </div>

@@ -1667,6 +1667,12 @@ export default function App() {
           marketInstruments={uiData?.layers?.data_layer?.instruments || []}
           signals={uiData?.signals || []}
           insights={uiData?.insights || {}}
+          watchlist={watchlist}
+          setWatchlist={setWatchlist}
+          onOpenMy={() => {
+            setActiveTab('my');
+            setMyStack(['portfolio']);
+          }}
         />
       );
     }

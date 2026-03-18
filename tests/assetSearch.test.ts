@@ -44,6 +44,37 @@ describe('asset search providers', () => {
     expect(results.some((row) => row.symbol === 'IONQ' && row.source === 'remote')).toBe(true);
   });
 
+  it('ranks company-name matches near the top', async () => {
+    delete process.env.ALPHA_VANTAGE_API_KEY;
+    delete process.env.COINGECKO_DEMO_API_KEY;
+
+    globalThis.fetch = vi.fn(async () => {
+      return {
+        ok: true,
+        async json() {
+          return {
+            0: {
+              ticker: 'TSLA',
+              title: 'Tesla, Inc.'
+            },
+            1: {
+              ticker: 'TLSA',
+              title: 'Tiziana Life Sciences Ltd'
+            }
+          };
+        }
+      } as Response;
+    }) as typeof fetch;
+
+    const results = await searchAssets({
+      query: 'tesla',
+      market: 'US',
+      limit: 10
+    });
+
+    expect(results[0]?.symbol).toBe('TSLA');
+  });
+
   it('includes remote equity results from Alpha Vantage', async () => {
     process.env.ALPHA_VANTAGE_API_KEY = 'test-alpha';
     delete process.env.COINGECKO_DEMO_API_KEY;

@@ -500,11 +500,20 @@ function scoreAssetCandidate(query: string, candidate: SearchCandidate): number 
   const normalizedQuery = normalizeSearchText(query);
   if (!normalizedQuery) return 0;
   const symbol = normalizeSearchText(candidate.symbol);
+  const name = normalizeSearchText(candidate.name);
+  const hint = normalizeSearchText(candidate.hint);
   let score = 0;
 
   if (symbol === normalizedQuery) score = 1200;
   else if (symbol.startsWith(normalizedQuery)) score = 980;
   else if (symbol.includes(normalizedQuery)) score = 760;
+
+  if (name === normalizedQuery) score = Math.max(score, 1180);
+  else if (name.startsWith(normalizedQuery)) score = Math.max(score, 1040);
+  else if (name.includes(normalizedQuery)) score = Math.max(score, 820);
+
+  if (hint.startsWith(normalizedQuery)) score = Math.max(score, 520);
+  else if (hint.includes(normalizedQuery)) score = Math.max(score, 420);
 
   for (const alias of candidate.aliases) {
     const normalizedAlias = normalizeSearchText(alias);
@@ -585,7 +594,10 @@ export async function searchAssets(args: { query: string; limit?: number; market
     .filter((item) => item.score > 0)
     .sort((a, b) => {
       if (b.score !== a.score) return b.score - a.score;
-      if (a.candidate.source !== b.candidate.source) return a.candidate.source === 'live' ? -1 : 1;
+      if (a.candidate.source !== b.candidate.source) {
+        const rank = { live: 0, remote: 1, reference: 2 };
+        return rank[a.candidate.source] - rank[b.candidate.source];
+      }
       return a.candidate.symbol.localeCompare(b.candidate.symbol);
     })
     .slice(0, limit)

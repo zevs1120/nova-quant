@@ -2,6 +2,16 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 9.3.0 (2026-03-18)
+- Release type: minor
+- Make Browse feel closer to Robinhood discovery: search results now open a native asset detail screen, users can add symbols to Watchlist from search, and stock/crypto ranking now prioritizes company and coin-name matches. Also refresh the installed app icon set with the NOVA3 artwork.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
+## 9.2.1 (2026-03-18)
+- Release type: patch
+- Refresh the installed app icon set to use the new NOVA3 artwork for apple-touch-icon and PWA home-screen icons.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
 ## 9.2.0 (2026-03-18)
 - Release type: minor
 - Turn Browse into a real market search surface by merging external stock and crypto search providers with the existing live asset pool. Also fail fast when deployed auth cannot reach its remote store and surface a clearer login error.
