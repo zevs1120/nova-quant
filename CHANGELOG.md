@@ -2,6 +2,12 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 9.0.0 (2026-03-18)
+- Release type: major
+- Split deployed auth into lightweight Vercel handlers backed by a persistent Redis-compatible store.
+- Keep SQLite auth for local development while requiring a real remote auth store on internet deployments.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
 ## 8.0.2 (2026-03-18)
 - Release type: patch
 - Fix bottom-tab navigation being reset by auth session hydration.

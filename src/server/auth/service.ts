@@ -1,5 +1,23 @@
 import { createHash, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import { getDb } from '../db/database.js';
+import {
+  hasRemoteAuthStore,
+  remoteDeleteKey,
+  remoteDeleteKeys,
+  remoteGetJson,
+  remoteGetString,
+  remotePasswordResetKey,
+  remoteSessionKey,
+  remoteSetAdd,
+  remoteSetJson,
+  remoteSetMembers,
+  remoteSetRemove,
+  remoteSetString,
+  remoteUserIdByEmailKey,
+  remoteUserKey,
+  remoteUserSessionsKey,
+  remoteUserStateKey
+} from './remoteKv.js';
 
 const SESSION_COOKIE_NAME = 'novaquant_session';
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30;
@@ -55,7 +73,7 @@ type AuthUserRow = {
   last_login_at_ms: number | null;
 };
 
-type AuthSessionRow = {
+type RemoteSessionRecord = {
   session_id: string;
   user_id: string;
   session_token_hash: string;
@@ -66,6 +84,17 @@ type AuthSessionRow = {
   created_at_ms: number;
   updated_at_ms: number;
   last_seen_at_ms: number;
+};
+
+type RemoteResetRecord = {
+  reset_id: string;
+  user_id: string;
+  email: string;
+  code_hash: string;
+  expires_at_ms: number;
+  used_at_ms: number | null;
+  created_at_ms: number;
+  updated_at_ms: number;
 };
 
 function nowMs() {
@@ -128,6 +157,14 @@ function defaultUserState(): AuthUserState {
   };
 }
 
+function buildInitialUserState(tradeMode: AuthTradeMode): AuthUserState {
+  return {
+    ...defaultUserState(),
+    uiMode: tradeMode === 'starter' ? 'beginner' : tradeMode === 'deep' ? 'advanced' : 'standard',
+    riskProfileKey: tradeMode === 'deep' ? 'aggressive' : tradeMode === 'starter' ? 'conservative' : 'balanced'
+  };
+}
+
 function mapPublicUser(row: AuthUserRow): PublicAuthUser {
   return {
     userId: row.user_id,
@@ -141,7 +178,17 @@ function mapPublicUser(row: AuthUserRow): PublicAuthUser {
   };
 }
 
-function ensureSeededUser() {
+function shouldRequireRemoteAuthStore() {
+  return process.env.VERCEL === '1';
+}
+
+function assertAuthStoreReady() {
+  if (shouldRequireRemoteAuthStore() && !hasRemoteAuthStore()) {
+    throw new Error('REMOTE_AUTH_STORE_NOT_CONFIGURED');
+  }
+}
+
+function ensureSeededUserLocal() {
   const db = getDb();
   const email = normalizeEmail(SEEDED_USER.email);
   const existing = db.prepare('SELECT user_id FROM auth_users WHERE email = ? LIMIT 1').get(email) as { user_id: string } | undefined;
@@ -166,37 +213,108 @@ function ensureSeededUser() {
     updated_at_ms: ts,
     last_login_at_ms: null
   });
+  const initialState = buildInitialUserState(SEEDED_USER.tradeMode);
   db.prepare(
     `INSERT INTO auth_user_state_sync(
       user_id, asset_class, market, ui_mode, risk_profile_key, watchlist_json, holdings_json, executions_json, discipline_log_json, updated_at_ms
     ) VALUES (
-      @user_id, 'US_STOCK', 'US', 'standard', 'balanced', '[]', '[]', '[]', '{"checkins":[],"boundary_kept":[],"weekly_reviews":[]}', @updated_at_ms
+      @user_id, @asset_class, @market, @ui_mode, @risk_profile_key, @watchlist_json, @holdings_json, @executions_json, @discipline_log_json, @updated_at_ms
     )`
   ).run({
     user_id: userId,
+    asset_class: initialState.assetClass,
+    market: initialState.market,
+    ui_mode: initialState.uiMode,
+    risk_profile_key: initialState.riskProfileKey,
+    watchlist_json: JSON.stringify(initialState.watchlist),
+    holdings_json: JSON.stringify(initialState.holdings),
+    executions_json: JSON.stringify(initialState.executions),
+    discipline_log_json: JSON.stringify(initialState.disciplineLog),
     updated_at_ms: ts
   });
 }
 
-function getUserByEmail(email: string): AuthUserRow | null {
-  ensureSeededUser();
-  const row = getDb().prepare(
-    `SELECT user_id, email, password_hash, name, trade_mode, broker, locale, created_at_ms, updated_at_ms, last_login_at_ms
-     FROM auth_users WHERE email = ? LIMIT 1`
-  ).get(normalizeEmail(email)) as AuthUserRow | undefined;
+async function ensureSeededUserRemote() {
+  const email = normalizeEmail(SEEDED_USER.email);
+  const existingUserId = await remoteGetString(remoteUserIdByEmailKey(email));
+  if (existingUserId) return;
+
+  const ts = nowMs();
+  const userId = createId('usr');
+  const user: AuthUserRow = {
+    user_id: userId,
+    email,
+    password_hash: hashPassword(SEEDED_USER.password),
+    name: SEEDED_USER.name,
+    trade_mode: SEEDED_USER.tradeMode,
+    broker: SEEDED_USER.broker,
+    locale: SEEDED_USER.locale,
+    created_at_ms: ts,
+    updated_at_ms: ts,
+    last_login_at_ms: null
+  };
+  const state = buildInitialUserState(SEEDED_USER.tradeMode);
+  const reserved = await remoteSetString(remoteUserIdByEmailKey(email), userId, { nx: true });
+  if (!reserved) return;
+  try {
+    await remoteSetJson(remoteUserKey(userId), user);
+    await remoteSetJson(remoteUserStateKey(userId), state);
+  } catch (error) {
+    await remoteDeleteKey(remoteUserIdByEmailKey(email));
+    throw error;
+  }
+}
+
+async function ensureSeededUser() {
+  assertAuthStoreReady();
+  if (hasRemoteAuthStore()) {
+    await ensureSeededUserRemote();
+    return;
+  }
+  ensureSeededUserLocal();
+}
+
+function getUserByEmailLocal(email: string): AuthUserRow | null {
+  ensureSeededUserLocal();
+  const row = getDb()
+    .prepare(
+      `SELECT user_id, email, password_hash, name, trade_mode, broker, locale, created_at_ms, updated_at_ms, last_login_at_ms
+       FROM auth_users WHERE email = ? LIMIT 1`
+    )
+    .get(normalizeEmail(email)) as AuthUserRow | undefined;
   return row ?? null;
 }
 
-function getUserById(userId: string): AuthUserRow | null {
-  ensureSeededUser();
-  const row = getDb().prepare(
-    `SELECT user_id, email, password_hash, name, trade_mode, broker, locale, created_at_ms, updated_at_ms, last_login_at_ms
-     FROM auth_users WHERE user_id = ? LIMIT 1`
-  ).get(userId) as AuthUserRow | undefined;
+async function getUserByEmail(email: string): Promise<AuthUserRow | null> {
+  await ensureSeededUser();
+  if (hasRemoteAuthStore()) {
+    const userId = await remoteGetString(remoteUserIdByEmailKey(normalizeEmail(email)));
+    if (!userId) return null;
+    return (await remoteGetJson<AuthUserRow>(remoteUserKey(userId))) || null;
+  }
+  return getUserByEmailLocal(email);
+}
+
+function getUserByIdLocal(userId: string): AuthUserRow | null {
+  ensureSeededUserLocal();
+  const row = getDb()
+    .prepare(
+      `SELECT user_id, email, password_hash, name, trade_mode, broker, locale, created_at_ms, updated_at_ms, last_login_at_ms
+       FROM auth_users WHERE user_id = ? LIMIT 1`
+    )
+    .get(userId) as AuthUserRow | undefined;
   return row ?? null;
 }
 
-function createSession(args: { userId: string; userAgent?: string | null; ipAddress?: string | null }) {
+async function getUserById(userId: string): Promise<AuthUserRow | null> {
+  await ensureSeededUser();
+  if (hasRemoteAuthStore()) {
+    return (await remoteGetJson<AuthUserRow>(remoteUserKey(userId))) || null;
+  }
+  return getUserByIdLocal(userId);
+}
+
+function createSessionLocal(args: { userId: string; userAgent?: string | null; ipAddress?: string | null }) {
   const db = getDb();
   const token = randomBytes(24).toString('hex');
   const ts = nowMs();
@@ -221,101 +339,164 @@ function createSession(args: { userId: string; userAgent?: string | null; ipAddr
   return token;
 }
 
+async function createSession(args: { userId: string; userAgent?: string | null; ipAddress?: string | null }) {
+  if (!hasRemoteAuthStore()) {
+    return createSessionLocal(args);
+  }
+  const token = randomBytes(24).toString('hex');
+  const ts = nowMs();
+  const sessionId = createId('sess');
+  const tokenHash = hashToken(token);
+  const record: RemoteSessionRecord = {
+    session_id: sessionId,
+    user_id: args.userId,
+    session_token_hash: tokenHash,
+    user_agent: args.userAgent || null,
+    ip_address: args.ipAddress || null,
+    expires_at_ms: ts + SESSION_TTL_MS,
+    revoked_at_ms: null,
+    created_at_ms: ts,
+    updated_at_ms: ts,
+    last_seen_at_ms: ts
+  };
+  await remoteSetJson(remoteSessionKey(tokenHash), record, { px: SESSION_TTL_MS });
+  await remoteSetAdd(remoteUserSessionsKey(args.userId), tokenHash);
+  return token;
+}
+
 export function getSessionCookieName() {
   return SESSION_COOKIE_NAME;
 }
 
 export function getAuthCookieHeader(token: string) {
   const maxAge = Math.floor(SESSION_TTL_MS / 1000);
-  return `${SESSION_COOKIE_NAME}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}`;
+  const secure = process.env.VERCEL === '1' || process.env.NODE_ENV === 'production';
+  return `${SESSION_COOKIE_NAME}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure ? '; Secure' : ''}`;
 }
 
 export function clearAuthCookieHeader() {
-  return `${SESSION_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`;
+  const secure = process.env.VERCEL === '1' || process.env.NODE_ENV === 'production';
+  return `${SESSION_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure ? '; Secure' : ''}`;
 }
 
-export function getAuthSession(token: string | null | undefined): { user: PublicAuthUser; state: AuthUserState } | null {
+export async function getAuthSession(token: string | null | undefined): Promise<{ user: PublicAuthUser; state: AuthUserState } | null> {
   if (!token) return null;
-  ensureSeededUser();
-  const db = getDb();
+  await ensureSeededUser();
+
+  if (!hasRemoteAuthStore()) {
+    const db = getDb();
+    const now = nowMs();
+    const row = db.prepare(
+      `SELECT
+         s.session_id,
+         s.user_id,
+         s.session_token_hash,
+         s.user_agent,
+         s.ip_address,
+         s.expires_at_ms,
+         s.revoked_at_ms,
+         s.created_at_ms,
+         s.updated_at_ms,
+         s.last_seen_at_ms,
+         u.email,
+         u.password_hash,
+         u.name,
+         u.trade_mode,
+         u.broker,
+         u.locale,
+         u.created_at_ms AS user_created_at_ms,
+         u.updated_at_ms AS user_updated_at_ms,
+         u.last_login_at_ms,
+         sync.asset_class,
+         sync.market,
+         sync.ui_mode,
+         sync.risk_profile_key,
+         sync.watchlist_json,
+         sync.holdings_json,
+         sync.executions_json,
+         sync.discipline_log_json
+       FROM auth_sessions s
+       JOIN auth_users u ON u.user_id = s.user_id
+       LEFT JOIN auth_user_state_sync sync ON sync.user_id = u.user_id
+       WHERE s.session_token_hash = ? AND s.revoked_at_ms IS NULL AND s.expires_at_ms > ?
+       LIMIT 1`
+    ).get(hashToken(token), now) as (RemoteSessionRecord &
+      AuthUserRow & {
+        user_created_at_ms: number;
+        user_updated_at_ms: number;
+        asset_class: string | null;
+        market: string | null;
+        ui_mode: string | null;
+        risk_profile_key: string | null;
+        watchlist_json: string | null;
+        holdings_json: string | null;
+        executions_json: string | null;
+        discipline_log_json: string | null;
+      }) | undefined;
+    if (!row) return null;
+    db.prepare('UPDATE auth_sessions SET updated_at_ms = ?, last_seen_at_ms = ? WHERE session_id = ?').run(now, now, row.session_id);
+    return {
+      user: {
+        userId: row.user_id,
+        email: row.email,
+        name: row.name,
+        tradeMode: row.trade_mode,
+        broker: row.broker,
+        locale: row.locale,
+        createdAtMs: row.user_created_at_ms,
+        lastLoginAtMs: row.last_login_at_ms ?? null
+      },
+      state: {
+        assetClass: row.asset_class || 'US_STOCK',
+        market: row.market || 'US',
+        uiMode: row.ui_mode || 'standard',
+        riskProfileKey: row.risk_profile_key || 'balanced',
+        watchlist: parseJson(row.watchlist_json, [] as string[]),
+        holdings: parseJson(row.holdings_json, [] as unknown[]),
+        executions: parseJson(row.executions_json, [] as unknown[]),
+        disciplineLog: parseJson(row.discipline_log_json, defaultUserState().disciplineLog)
+      }
+    };
+  }
+
+  const tokenHash = hashToken(token);
+  const session = await remoteGetJson<RemoteSessionRecord>(remoteSessionKey(tokenHash));
   const now = nowMs();
-  const row = db.prepare(
-    `SELECT
-       s.session_id,
-       s.user_id,
-       s.session_token_hash,
-       s.user_agent,
-       s.ip_address,
-       s.expires_at_ms,
-       s.revoked_at_ms,
-       s.created_at_ms,
-       s.updated_at_ms,
-       s.last_seen_at_ms,
-       u.email,
-       u.password_hash,
-       u.name,
-       u.trade_mode,
-       u.broker,
-       u.locale,
-       u.created_at_ms AS user_created_at_ms,
-       u.updated_at_ms AS user_updated_at_ms,
-       u.last_login_at_ms,
-       sync.asset_class,
-       sync.market,
-       sync.ui_mode,
-       sync.risk_profile_key,
-       sync.watchlist_json,
-       sync.holdings_json,
-       sync.executions_json,
-       sync.discipline_log_json
-     FROM auth_sessions s
-     JOIN auth_users u ON u.user_id = s.user_id
-     LEFT JOIN auth_user_state_sync sync ON sync.user_id = u.user_id
-     WHERE s.session_token_hash = ? AND s.revoked_at_ms IS NULL AND s.expires_at_ms > ?
-     LIMIT 1`
-  ).get(hashToken(token), now) as (AuthSessionRow &
-    AuthUserRow & {
-      user_created_at_ms: number;
-      user_updated_at_ms: number;
-      asset_class: string | null;
-      market: string | null;
-      ui_mode: string | null;
-      risk_profile_key: string | null;
-      watchlist_json: string | null;
-      holdings_json: string | null;
-      executions_json: string | null;
-      discipline_log_json: string | null;
-    }) | undefined;
-  if (!row) return null;
-  db.prepare('UPDATE auth_sessions SET updated_at_ms = ?, last_seen_at_ms = ? WHERE session_id = ?').run(now, now, row.session_id);
-  return {
-    user: {
-      userId: row.user_id,
-      email: row.email,
-      name: row.name,
-      tradeMode: row.trade_mode,
-      broker: row.broker,
-      locale: row.locale,
-      createdAtMs: row.user_created_at_ms,
-      lastLoginAtMs: row.last_login_at_ms ?? null
-    },
-    state: {
-      assetClass: row.asset_class || 'US_STOCK',
-      market: row.market || 'US',
-      uiMode: row.ui_mode || 'standard',
-      riskProfileKey: row.risk_profile_key || 'balanced',
-      watchlist: parseJson(row.watchlist_json, [] as string[]),
-      holdings: parseJson(row.holdings_json, [] as unknown[]),
-      executions: parseJson(row.executions_json, [] as unknown[]),
-      disciplineLog: parseJson(
-        row.discipline_log_json,
-        defaultUserState().disciplineLog
-      )
+  if (!session || session.revoked_at_ms || session.expires_at_ms <= now) {
+    if (session?.user_id) {
+      await remoteSetRemove(remoteUserSessionsKey(session.user_id), tokenHash);
     }
+    await remoteDeleteKey(remoteSessionKey(tokenHash));
+    return null;
+  }
+
+  const [user, state] = await Promise.all([
+    getUserById(session.user_id),
+    getAuthUserState(session.user_id)
+  ]);
+  if (!user) {
+    await remoteDeleteKey(remoteSessionKey(tokenHash));
+    return null;
+  }
+
+  const remainingTtl = Math.max(session.expires_at_ms - now, 1_000);
+  await remoteSetJson(
+    remoteSessionKey(tokenHash),
+    {
+      ...session,
+      updated_at_ms: now,
+      last_seen_at_ms: now
+    },
+    { px: remainingTtl }
+  );
+
+  return {
+    user: mapPublicUser(user),
+    state
   };
 }
 
-export function signupAuthUser(args: {
+export async function signupAuthUser(args: {
   email: string;
   password: string;
   name: string;
@@ -325,7 +506,7 @@ export function signupAuthUser(args: {
   userAgent?: string | null;
   ipAddress?: string | null;
 }) {
-  ensureSeededUser();
+  await ensureSeededUser();
   const email = normalizeEmail(args.email);
   const password = String(args.password || '');
   if (!/\S+@\S+\.\S+/.test(email)) {
@@ -334,19 +515,69 @@ export function signupAuthUser(args: {
   if (password.length < 8) {
     return { ok: false as const, error: 'WEAK_PASSWORD' };
   }
-  if (getUserByEmail(email)) {
-    return { ok: false as const, error: 'EMAIL_EXISTS' };
+  if (!hasRemoteAuthStore()) {
+    if (getUserByEmailLocal(email)) {
+      return { ok: false as const, error: 'EMAIL_EXISTS' };
+    }
+    const ts = nowMs();
+    const db = getDb();
+    const userId = createId('usr');
+    const state = buildInitialUserState(args.tradeMode);
+    db.prepare(
+      `INSERT INTO auth_users(
+        user_id, email, password_hash, name, trade_mode, broker, locale, created_at_ms, updated_at_ms, last_login_at_ms
+      ) VALUES (
+        @user_id, @email, @password_hash, @name, @trade_mode, @broker, @locale, @created_at_ms, @updated_at_ms, @last_login_at_ms
+      )`
+    ).run({
+      user_id: userId,
+      email,
+      password_hash: hashPassword(password),
+      name: String(args.name || '').trim() || 'NovaQuant User',
+      trade_mode: args.tradeMode,
+      broker: String(args.broker || 'Other'),
+      locale: args.locale || null,
+      created_at_ms: ts,
+      updated_at_ms: ts,
+      last_login_at_ms: ts
+    });
+    db.prepare(
+      `INSERT INTO auth_user_state_sync(
+        user_id, asset_class, market, ui_mode, risk_profile_key, watchlist_json, holdings_json, executions_json, discipline_log_json, updated_at_ms
+      ) VALUES (
+        @user_id, @asset_class, @market, @ui_mode, @risk_profile_key, @watchlist_json, @holdings_json, @executions_json, @discipline_log_json, @updated_at_ms
+      )`
+    ).run({
+      user_id: userId,
+      asset_class: state.assetClass,
+      market: state.market,
+      ui_mode: state.uiMode,
+      risk_profile_key: state.riskProfileKey,
+      watchlist_json: JSON.stringify(state.watchlist),
+      holdings_json: JSON.stringify(state.holdings),
+      executions_json: JSON.stringify(state.executions),
+      discipline_log_json: JSON.stringify(state.disciplineLog),
+      updated_at_ms: ts
+    });
+    const user = getUserByIdLocal(userId);
+    if (!user) return { ok: false as const, error: 'SIGNUP_FAILED' };
+    const sessionToken = await createSession({
+      userId,
+      userAgent: args.userAgent,
+      ipAddress: args.ipAddress
+    });
+    return {
+      ok: true as const,
+      user: mapPublicUser(user),
+      state,
+      sessionToken
+    };
   }
+
   const ts = nowMs();
-  const db = getDb();
   const userId = createId('usr');
-  db.prepare(
-    `INSERT INTO auth_users(
-      user_id, email, password_hash, name, trade_mode, broker, locale, created_at_ms, updated_at_ms, last_login_at_ms
-    ) VALUES (
-      @user_id, @email, @password_hash, @name, @trade_mode, @broker, @locale, @created_at_ms, @updated_at_ms, @last_login_at_ms
-    )`
-  ).run({
+  const state = buildInitialUserState(args.tradeMode);
+  const user: AuthUserRow = {
     user_id: userId,
     email,
     password_hash: hashPassword(password),
@@ -357,80 +588,119 @@ export function signupAuthUser(args: {
     created_at_ms: ts,
     updated_at_ms: ts,
     last_login_at_ms: ts
-  });
-  db.prepare(
-    `INSERT INTO auth_user_state_sync(
-      user_id, asset_class, market, ui_mode, risk_profile_key, watchlist_json, holdings_json, executions_json, discipline_log_json, updated_at_ms
-    ) VALUES (
-      @user_id, 'US_STOCK', 'US', @ui_mode, @risk_profile_key, '[]', '[]', '[]', '{"checkins":[],"boundary_kept":[],"weekly_reviews":[]}', @updated_at_ms
-    )`
-  ).run({
-    user_id: userId,
-    ui_mode: args.tradeMode === 'starter' ? 'beginner' : args.tradeMode === 'deep' ? 'advanced' : 'standard',
-    risk_profile_key: args.tradeMode === 'deep' ? 'aggressive' : args.tradeMode === 'starter' ? 'conservative' : 'balanced',
-    updated_at_ms: ts
-  });
-  const user = getUserById(userId);
-  if (!user) return { ok: false as const, error: 'SIGNUP_FAILED' };
-  const sessionToken = createSession({
-    userId,
-    userAgent: args.userAgent,
-    ipAddress: args.ipAddress
-  });
-  return {
-    ok: true as const,
-    user: mapPublicUser(user),
-    state: defaultUserState(),
-    sessionToken
   };
+
+  const reserved = await remoteSetString(remoteUserIdByEmailKey(email), userId, { nx: true });
+  if (!reserved) {
+    return { ok: false as const, error: 'EMAIL_EXISTS' };
+  }
+  try {
+    await remoteSetJson(remoteUserKey(userId), user);
+    await remoteSetJson(remoteUserStateKey(userId), state);
+    const sessionToken = await createSession({
+      userId,
+      userAgent: args.userAgent,
+      ipAddress: args.ipAddress
+    });
+    return {
+      ok: true as const,
+      user: mapPublicUser(user),
+      state,
+      sessionToken
+    };
+  } catch (error) {
+    await remoteDeleteKeys([remoteUserIdByEmailKey(email), remoteUserKey(userId), remoteUserStateKey(userId)]);
+    throw error;
+  }
 }
 
-export function loginAuthUser(args: {
+export async function loginAuthUser(args: {
   email: string;
   password: string;
   userAgent?: string | null;
   ipAddress?: string | null;
 }) {
-  ensureSeededUser();
-  const user = getUserByEmail(args.email);
+  await ensureSeededUser();
+  const user = await getUserByEmail(args.email);
   if (!user || !verifyPassword(String(args.password || ''), user.password_hash)) {
     return { ok: false as const, error: 'INVALID_CREDENTIALS' };
   }
   const ts = nowMs();
-  getDb().prepare('UPDATE auth_users SET last_login_at_ms = ?, updated_at_ms = ? WHERE user_id = ?').run(ts, ts, user.user_id);
-  const sessionToken = createSession({
+  const updatedUser: AuthUserRow = {
+    ...user,
+    updated_at_ms: ts,
+    last_login_at_ms: ts
+  };
+
+  if (hasRemoteAuthStore()) {
+    await remoteSetJson(remoteUserKey(user.user_id), updatedUser);
+  } else {
+    getDb().prepare('UPDATE auth_users SET last_login_at_ms = ?, updated_at_ms = ? WHERE user_id = ?').run(ts, ts, user.user_id);
+  }
+
+  const sessionToken = await createSession({
     userId: user.user_id,
     userAgent: args.userAgent,
     ipAddress: args.ipAddress
   });
-  const currentUser = getUserById(user.user_id);
-  const session = getAuthSession(sessionToken);
+  const state = await getAuthUserState(user.user_id);
   return {
     ok: true as const,
-    user: mapPublicUser(currentUser || user),
-    state: session?.state || defaultUserState(),
+    user: mapPublicUser(updatedUser),
+    state,
     sessionToken
   };
 }
 
-export function logoutAuthSession(token: string | null | undefined) {
+export async function logoutAuthSession(token: string | null | undefined) {
   if (!token) return;
+  const tokenHash = hashToken(token);
+  if (hasRemoteAuthStore()) {
+    const session = await remoteGetJson<RemoteSessionRecord>(remoteSessionKey(tokenHash));
+    if (session?.user_id) {
+      await remoteSetRemove(remoteUserSessionsKey(session.user_id), tokenHash);
+    }
+    await remoteDeleteKey(remoteSessionKey(tokenHash));
+    return;
+  }
   const ts = nowMs();
   getDb()
     .prepare('UPDATE auth_sessions SET revoked_at_ms = ?, updated_at_ms = ? WHERE session_token_hash = ? AND revoked_at_ms IS NULL')
-    .run(ts, ts, hashToken(token));
+    .run(ts, ts, tokenHash);
 }
 
-export function createPasswordReset(args: { email: string }) {
-  ensureSeededUser();
+export async function createPasswordReset(args: { email: string }) {
+  await ensureSeededUser();
   const email = normalizeEmail(args.email);
-  const user = getUserByEmail(email);
+  const user = await getUserByEmail(email);
   if (!user) {
     return { ok: true as const, codeHint: null, expiresInMinutes: Math.floor(RESET_TTL_MS / 60000) };
   }
-  const db = getDb();
+
   const ts = nowMs();
   const code = String(Math.floor(100000 + Math.random() * 900000));
+  const exposeCodeHint = process.env.VERCEL !== '1' && process.env.NODE_ENV !== 'production';
+
+  if (hasRemoteAuthStore()) {
+    const reset: RemoteResetRecord = {
+      reset_id: createId('rst'),
+      user_id: user.user_id,
+      email,
+      code_hash: hashResetCode(code),
+      expires_at_ms: ts + RESET_TTL_MS,
+      used_at_ms: null,
+      created_at_ms: ts,
+      updated_at_ms: ts
+    };
+    await remoteSetJson(remotePasswordResetKey(user.user_id), reset, { px: RESET_TTL_MS });
+    return {
+      ok: true as const,
+      codeHint: exposeCodeHint ? code : null,
+      expiresInMinutes: Math.floor(RESET_TTL_MS / 60000)
+    };
+  }
+
+  const db = getDb();
   db.prepare('UPDATE auth_password_resets SET used_at_ms = ?, updated_at_ms = ? WHERE user_id = ? AND used_at_ms IS NULL').run(ts, ts, user.user_id);
   db.prepare(
     `INSERT INTO auth_password_resets(
@@ -449,18 +719,37 @@ export function createPasswordReset(args: { email: string }) {
   });
   return {
     ok: true as const,
-    codeHint: code,
+    codeHint: exposeCodeHint ? code : null,
     expiresInMinutes: Math.floor(RESET_TTL_MS / 60000)
   };
 }
 
-export function resetPasswordWithCode(args: { email: string; code: string; newPassword: string }) {
-  ensureSeededUser();
+export async function resetPasswordWithCode(args: { email: string; code: string; newPassword: string }) {
+  await ensureSeededUser();
   const email = normalizeEmail(args.email);
-  const user = getUserByEmail(email);
+  const user = await getUserByEmail(email);
   if (!user) return { ok: false as const, error: 'INVALID_RESET' };
   if (String(args.newPassword || '').length < 8) return { ok: false as const, error: 'WEAK_PASSWORD' };
   const ts = nowMs();
+
+  if (hasRemoteAuthStore()) {
+    const row = await remoteGetJson<RemoteResetRecord>(remotePasswordResetKey(user.user_id));
+    if (!row || row.used_at_ms || row.expires_at_ms < ts || row.code_hash !== hashResetCode(args.code)) {
+      return { ok: false as const, error: 'INVALID_RESET' };
+    }
+    const updatedUser: AuthUserRow = {
+      ...user,
+      password_hash: hashPassword(args.newPassword),
+      updated_at_ms: ts
+    };
+    await remoteSetJson(remoteUserKey(user.user_id), updatedUser);
+    await remoteSetJson(remotePasswordResetKey(user.user_id), { ...row, used_at_ms: ts, updated_at_ms: ts }, { px: Math.max(row.expires_at_ms - ts, 1_000) });
+    const sessionHashes = await remoteSetMembers(remoteUserSessionsKey(user.user_id));
+    await Promise.all(sessionHashes.map((sessionHash) => remoteDeleteKey(remoteSessionKey(sessionHash))));
+    await remoteDeleteKey(remoteUserSessionsKey(user.user_id));
+    return { ok: true as const };
+  }
+
   const db = getDb();
   const row = db.prepare(
     `SELECT reset_id, code_hash, expires_at_ms, used_at_ms
@@ -478,22 +767,27 @@ export function resetPasswordWithCode(args: { email: string; code: string; newPa
   return { ok: true as const };
 }
 
-export function getAuthUserState(userId: string): AuthUserState {
-  ensureSeededUser();
-  const row = getDb().prepare(
-    `SELECT asset_class, market, ui_mode, risk_profile_key, watchlist_json, holdings_json, executions_json, discipline_log_json
-     FROM auth_user_state_sync
-     WHERE user_id = ? LIMIT 1`
-  ).get(userId) as {
-    asset_class: string;
-    market: string;
-    ui_mode: string;
-    risk_profile_key: string;
-    watchlist_json: string;
-    holdings_json: string;
-    executions_json: string;
-    discipline_log_json: string;
-  } | undefined;
+export async function getAuthUserState(userId: string): Promise<AuthUserState> {
+  await ensureSeededUser();
+  if (hasRemoteAuthStore()) {
+    return (await remoteGetJson<AuthUserState>(remoteUserStateKey(userId))) || defaultUserState();
+  }
+  const row = getDb()
+    .prepare(
+      `SELECT asset_class, market, ui_mode, risk_profile_key, watchlist_json, holdings_json, executions_json, discipline_log_json
+       FROM auth_user_state_sync
+       WHERE user_id = ? LIMIT 1`
+    )
+    .get(userId) as {
+      asset_class: string;
+      market: string;
+      ui_mode: string;
+      risk_profile_key: string;
+      watchlist_json: string;
+      holdings_json: string;
+      executions_json: string;
+      discipline_log_json: string;
+    } | undefined;
   if (!row) return defaultUserState();
   return {
     assetClass: row.asset_class || 'US_STOCK',
@@ -507,9 +801,9 @@ export function getAuthUserState(userId: string): AuthUserState {
   };
 }
 
-export function upsertAuthUserState(userId: string, input: Partial<AuthUserState>) {
-  ensureSeededUser();
-  const current = getAuthUserState(userId);
+export async function upsertAuthUserState(userId: string, input: Partial<AuthUserState>) {
+  await ensureSeededUser();
+  const current = await getAuthUserState(userId);
   const next: AuthUserState = {
     assetClass: String(input.assetClass || current.assetClass || 'US_STOCK'),
     market: String(input.market || current.market || 'US'),
@@ -520,6 +814,12 @@ export function upsertAuthUserState(userId: string, input: Partial<AuthUserState
     executions: Array.isArray(input.executions) ? input.executions : current.executions,
     disciplineLog: input.disciplineLog || current.disciplineLog
   };
+
+  if (hasRemoteAuthStore()) {
+    await remoteSetJson(remoteUserStateKey(userId), next);
+    return next;
+  }
+
   getDb().prepare(
     `INSERT INTO auth_user_state_sync(
       user_id, asset_class, market, ui_mode, risk_profile_key, watchlist_json, holdings_json, executions_json, discipline_log_json, updated_at_ms
@@ -550,4 +850,3 @@ export function upsertAuthUserState(userId: string, input: Partial<AuthUserState
   });
   return next;
 }
-

@@ -76,15 +76,27 @@ function normalizeEmail(value) {
   return String(value || '').trim().toLowerCase();
 }
 
+function isLocalAuthRuntime() {
+  if (typeof window === 'undefined') return false;
+  return ['localhost', '127.0.0.1'].includes(window.location.hostname);
+}
+
 function classifyAuthError(error, locale) {
   const zh = locale?.startsWith('zh');
   const message = String(error?.message || '');
   if (message.includes('(401)')) {
     return zh ? '账号或密码错误。' : 'The email or password is incorrect.';
   }
+  if (message.includes('(503)')) {
+    return zh ? '登录服务暂时不可用。请稍后再试。' : 'The login service is temporarily unavailable.';
+  }
   return zh
-    ? '登录服务未连接。请先启动本地 API：npm run api:data'
-    : 'The login service is offline. Start the local API first: npm run api:data';
+    ? isLocalAuthRuntime()
+      ? '登录服务未连接。请先启动本地 API：npm run api:data'
+      : '登录服务暂时不可用。请稍后再试。'
+    : isLocalAuthRuntime()
+      ? 'The login service is offline. Start the local API first: npm run api:data'
+      : 'The login service is temporarily unavailable.';
 }
 
 const initialData = {
@@ -1843,10 +1855,16 @@ export default function App() {
             return {
               ok: false,
               error:
-                String(error?.message || '').includes('(404)') || String(error?.message || '').includes('(500)')
+                String(error?.message || '').includes('(404)') ||
+                String(error?.message || '').includes('(500)') ||
+                String(error?.message || '').includes('(503)')
                   ? locale?.startsWith('zh')
-                    ? '重置服务未连接。请先启动本地 API：npm run api:data'
-                    : 'The reset service is offline. Start the local API first: npm run api:data'
+                    ? isLocalAuthRuntime()
+                      ? '重置服务未连接。请先启动本地 API：npm run api:data'
+                      : '重置服务暂时不可用。请稍后再试。'
+                    : isLocalAuthRuntime()
+                      ? 'The reset service is offline. Start the local API first: npm run api:data'
+                      : 'The reset service is temporarily unavailable.'
                   : locale?.startsWith('zh')
                     ? '暂时没法发送重置码，请稍后再试。'
                     : 'We could not send a reset code just now.'
@@ -1870,8 +1888,12 @@ export default function App() {
                     ? '重置码无效，或密码不符合要求。'
                     : 'The reset code is invalid, or the password is too weak.'
                   : locale?.startsWith('zh')
-                    ? '重置服务未连接。请先启动本地 API：npm run api:data'
-                    : 'The reset service is offline. Start the local API first: npm run api:data'
+                    ? isLocalAuthRuntime()
+                      ? '重置服务未连接。请先启动本地 API：npm run api:data'
+                      : '重置服务暂时不可用。请稍后再试。'
+                    : isLocalAuthRuntime()
+                      ? 'The reset service is offline. Start the local API first: npm run api:data'
+                      : 'The reset service is temporarily unavailable.'
             };
           }
         }}
@@ -1891,10 +1913,21 @@ export default function App() {
             });
             applyAuthenticatedProfile(response.user, response.state || null, { resetNavigation: true });
             return { ok: true };
-          } catch {
+          } catch (error) {
+            const message = String(error?.message || '');
             return {
               ok: false,
-              error: locale?.startsWith('zh') ? '这个邮箱已经存在，或注册信息无效。' : 'That email already exists, or the signup details are invalid.'
+              error: message.includes('(400)')
+                ? locale?.startsWith('zh')
+                  ? '这个邮箱已经存在，或注册信息无效。'
+                  : 'That email already exists, or the signup details are invalid.'
+                : locale?.startsWith('zh')
+                  ? isLocalAuthRuntime()
+                    ? '注册服务未连接。请先启动本地 API：npm run api:data'
+                    : '注册服务暂时不可用。请稍后再试。'
+                  : isLocalAuthRuntime()
+                    ? 'The signup service is offline. Start the local API first: npm run api:data'
+                    : 'The signup service is temporarily unavailable.'
             };
           }
         }}
