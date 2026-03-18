@@ -2,6 +2,11 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 6.0.0 (2026-03-18)
+- Release type: major
+- Refactor navigation into Today, Nova, Browse, and My with a full-screen Menu and Points Hub.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
 ## 5.1.1 (2026-03-18)
 - Release type: patch
 - Use real historical bars for Holdings demo curves whenever market data is available

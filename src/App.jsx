@@ -3,9 +3,10 @@ import AboutModal from './components/AboutModal';
 import AiPage from './components/AiPage';
 import novaLogo from './assets/NOVA1.png';
 import novaLogoCompact from './assets/Nova2.png';
+import BrowseTab from './components/BrowseTab';
 import HoldingsTab from './components/HoldingsTab';
 import MarketTab from './components/MarketTab';
-import MoreTab from './components/MoreTab';
+import MenuTab from './components/MenuTab';
 import OnboardingFlow from './components/OnboardingFlow';
 import ProofTab from './components/ProofTab';
 import ResearchTab from './components/ResearchTab';
@@ -25,30 +26,7 @@ import {
   INVESTOR_DEMO_PERFORMANCE
 } from './demo/investorDemo';
 
-const TAB_META = {
-  today: { icon: '◎', label: 'Today' },
-  ai: { icon: '✦', label: 'Nova' },
-  holdings: { icon: '◌', label: 'Holdings' },
-  more: { icon: '···', label: 'More' }
-};
-
-const MORE_TITLES = {
-  'group:review': 'Review',
-  'group:system': 'System',
-  'group:market': 'Market Notes',
-  'group:settings': 'Settings',
-  signals: 'Signals Hub',
-  weekly: 'Weekly Review',
-  discipline: 'Discipline Progress',
-  performance: 'Performance',
-  safety: 'Safety',
-  insights: 'Insights',
-  data: 'Data Status',
-  settings: 'Settings',
-  advanced: 'Advanced'
-};
-
-const MORE_PARENTS = {
+const MENU_PARENTS = {
   weekly: 'group:review',
   discipline: 'group:review',
   signals: 'group:system',
@@ -59,6 +37,40 @@ const MORE_PARENTS = {
   settings: 'group:settings',
   advanced: 'group:settings'
 };
+
+function buildTabMeta(locale) {
+  const zh = locale?.startsWith('zh');
+  return {
+    today: { icon: '◎', label: zh ? '今日' : 'Today' },
+    ai: { icon: '✦', label: 'Nova' },
+    browse: { icon: '⌕', label: zh ? '发现' : 'Browse' },
+    my: { icon: '◌', label: zh ? '我的' : 'My' }
+  };
+}
+
+function buildMenuTitles(locale) {
+  const zh = locale?.startsWith('zh');
+  return {
+    menu: zh ? '菜单' : 'Menu',
+    points: zh ? '积分中心' : 'Points Hub',
+    'prediction-games': zh ? '预测游戏' : 'Prediction Games',
+    rewards: zh ? '奖励 / 邀请好友' : 'Rewards / Invite Friends',
+    'points-history': zh ? '积分明细' : 'Points History',
+    'group:review': zh ? '复盘' : 'Review',
+    'group:system': zh ? '系统' : 'System',
+    'group:market': zh ? '市场笔记' : 'Market Notes',
+    'group:settings': zh ? '设置' : 'Settings',
+    signals: zh ? '信号总览' : 'Signals',
+    weekly: zh ? '周复盘' : 'Weekly Review',
+    discipline: zh ? '纪律进度' : 'Discipline Progress',
+    performance: zh ? '表现证明' : 'Performance',
+    safety: zh ? '安全边界' : 'Safety',
+    insights: zh ? '市场洞察' : 'Insights',
+    data: zh ? '数据状态' : 'Data Status',
+    settings: zh ? '设置' : 'Settings',
+    advanced: zh ? '高级' : 'Advanced'
+  };
+}
 
 const initialData = {
   signals: [],
@@ -174,7 +186,7 @@ function calcStreak(rows = [], anchorKey, stepDays = 1) {
 export default function App() {
   const [displayMode, setDisplayMode] = useState(() => detectDisplayMode());
   const [activeTab, setActiveTab] = useState('today');
-  const [moreStack, setMoreStack] = useState(['menu']);
+  const [myStack, setMyStack] = useState(['portfolio']);
   const [assetClass, setAssetClass] = useLocalStorage('nova-quant-asset-class', 'US_STOCK', {
     legacyKeys: ['quant-demo-asset-class']
   });
@@ -234,10 +246,21 @@ export default function App() {
   );
   const [aiSeedRequest, setAiSeedRequest] = useState(null);
   const [engagementState, setEngagementState] = useState(null);
-  const moreSection = moreStack[moreStack.length - 1] || 'menu';
+  const mySection = myStack[myStack.length - 1] || 'portfolio';
 
   const t = useMemo(() => createTranslator(lang), [lang]);
   const locale = useMemo(() => getLocale(lang), [lang]);
+  const tabMeta = useMemo(() => buildTabMeta(locale), [locale]);
+  const menuTitles = useMemo(() => buildMenuTitles(locale), [locale]);
+  const [pointsState] = useLocalStorage(
+    'nova-quant-points-state',
+    {
+      balance: 1240,
+      status: 'expiring',
+      expiringSoon: 180,
+      vipDays: 1
+    }
+  );
 
   const investorDemoEnvironment = useMemo(
     () => (investorDemoEnabled ? buildInvestorDemoEnvironment(assetClass) : null),
@@ -308,7 +331,7 @@ export default function App() {
     setInvestorDemoEnabled(true);
     setOnboardingDone(true);
     setShowOnboarding(false);
-    setMoreSection('menu');
+    setMyStack(['portfolio']);
     setActiveTab('today');
   };
 
@@ -734,7 +757,7 @@ export default function App() {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       message: text,
       context: {
-        page: activeTab === 'more' ? moreSection || 'more' : activeTab,
+        page: activeTab === 'my' ? mySection || 'my' : activeTab,
         locale: lang,
         market,
         assetClass,
@@ -784,13 +807,22 @@ export default function App() {
 
   const navigateFromAi = (target) => {
     if (!target) return;
-    if (target.startsWith('more:')) {
+    if (target === 'holdings') {
+      setActiveTab('my');
+      setMyStack(['portfolio']);
+      return;
+    }
+    if (target === 'more') {
+      openMySection('menu');
+      return;
+    }
+    if (target.startsWith('more:') || target.startsWith('menu:') || target.startsWith('my:')) {
       const section = target.split(':')[1] || 'menu';
-      openMoreSection(section);
+      openMySection(section);
       return;
     }
     setActiveTab(target);
-    if (target !== 'more') setMoreStack(['menu']);
+    if (target !== 'my') setMyStack(['portfolio']);
   };
 
   const recordExecution = async ({ signal, mode, action }) => {
@@ -831,39 +863,40 @@ export default function App() {
     }
   };
 
-  const buildMoreStack = useCallback((section) => {
-    if (!section || section === 'menu') return ['menu'];
-    if (section.startsWith('group:')) return ['menu', section];
-    const parent = MORE_PARENTS[section];
-    return parent ? ['menu', parent, section] : ['menu', section];
+  const buildMyStack = useCallback((section) => {
+    if (!section || section === 'portfolio') return ['portfolio'];
+    if (section === 'menu') return ['portfolio', 'menu'];
+    if (section.startsWith('group:')) return ['portfolio', 'menu', section];
+    const parent = MENU_PARENTS[section];
+    return parent ? ['portfolio', 'menu', parent, section] : ['portfolio', 'menu', section];
   }, []);
 
-  const resetMore = useCallback(() => {
-    setMoreStack(['menu']);
+  const resetMy = useCallback(() => {
+    setMyStack(['portfolio']);
   }, []);
 
-  const openMoreSection = useCallback(
+  const openMySection = useCallback(
     (section) => {
-      setMoreStack(buildMoreStack(section));
-      setActiveTab('more');
+      setMyStack(buildMyStack(section));
+      setActiveTab('my');
     },
-    [buildMoreStack]
+    [buildMyStack]
   );
 
-  const pushMoreSection = useCallback((section) => {
-    if (!section || section === 'menu') {
-      setMoreStack(['menu']);
+  const pushMySection = useCallback((section) => {
+    if (!section || section === 'portfolio') {
+      setMyStack(['portfolio']);
       return;
     }
-    setMoreStack((current) => {
+    setMyStack((current) => {
       const currentTop = current[current.length - 1];
       if (currentTop === section) return current;
       return [...current, section];
     });
   }, []);
 
-  const popMoreSection = useCallback(() => {
-    setMoreStack((current) => (current.length > 1 ? current.slice(0, -1) : current));
+  const popMySection = useCallback(() => {
+    setMyStack((current) => (current.length > 1 ? current.slice(0, -1) : current));
   }, []);
 
   const renderDataStatus = () => {
@@ -1110,7 +1143,7 @@ export default function App() {
     );
   };
 
-  const renderMoreSection = (section) => {
+  const renderMenuSection = (section) => {
     if (section === 'signals') {
       return !hasLoaded && loading ? (
         <Skeleton lines={6} />
@@ -1392,10 +1425,13 @@ export default function App() {
           investorDemoEnabled={investorDemoEnabled}
           onCompleteCheckIn={markDailyCheckin}
           onConfirmBoundary={markBoundaryKept}
-          onOpenHoldings={() => setActiveTab('holdings')}
+          onOpenHoldings={() => {
+            setActiveTab('my');
+            setMyStack(['portfolio']);
+          }}
           onAskAi={askAi}
-          onOpenWeekly={() => openMoreSection('weekly')}
-          onOpenSignals={() => openMoreSection('signals')}
+          onOpenWeekly={() => openMySection('weekly')}
+          onOpenSignals={() => openMySection('signals')}
           onToggleWatchlist={(symbol) =>
             setWatchlist((current) =>
               current.includes(symbol) ? current.filter((item) => item !== symbol) : [...current, symbol]
@@ -1459,7 +1495,18 @@ export default function App() {
       );
     }
 
-    if (activeTab === 'holdings') {
+    if (activeTab === 'browse') {
+      return (
+        <BrowseTab
+          locale={locale}
+          marketInstruments={uiData?.layers?.data_layer?.instruments || []}
+          signals={uiData?.signals || []}
+          insights={uiData?.insights || {}}
+        />
+      );
+    }
+
+    if (activeTab === 'my' && mySection === 'portfolio') {
       return (
         <HoldingsTab
           holdings={holdings}
@@ -1474,38 +1521,43 @@ export default function App() {
           onLoadInvestorDemo={enableInvestorDemo}
           onClearInvestorDemo={clearInvestorDemo}
           onExplain={(message) => askAi(message)}
+          onOpenMenu={() => openMySection('menu')}
         />
       );
     }
 
-    return (
-      <MoreTab
-        section={moreSection}
-        onSectionChange={pushMoreSection}
-        uiMode={uiMode}
-        discipline={discipline}
-        engagement={engagementState}
-        appMeta={uiData?.config || {}}
-        renderSection={renderMoreSection}
-        investorDemoEnabled={investorDemoEnabled}
-        onToggleDemo={() => {
-          if (investorDemoEnabled) {
+    if (activeTab === 'my' && ['menu', 'points', 'prediction-games', 'rewards', 'points-history', 'group:review', 'group:system', 'group:market', 'group:settings'].includes(mySection)) {
+      return (
+        <MenuTab
+          section={mySection}
+          locale={locale}
+          username={chatUserId.startsWith('guest-') ? `@${chatUserId.slice(6)}` : chatUserId}
+          points={pointsState}
+          onSectionChange={pushMySection}
+          onOpenAbout={() => setAboutOpen(true)}
+          onLogout={() => {
             clearInvestorDemo();
-          } else {
-            enableInvestorDemo();
-          }
-        }}
-        onOpenAbout={() => setAboutOpen(true)}
-      />
-    );
+            setHoldings([]);
+            setWatchlist([]);
+            setExecutions([]);
+            setShowOnboarding(true);
+            setActiveTab('today');
+            setMyStack(['portfolio']);
+          }}
+          appMeta={uiData?.config || {}}
+        />
+      );
+    }
+
+    return renderMenuSection(mySection);
   };
 
-  const canGoBackInTopBar = activeTab === 'more' && moreStack.length > 1;
-  const previousMoreSection = canGoBackInTopBar ? moreStack[moreStack.length - 2] : null;
+  const canGoBackInTopBar = activeTab === 'my' && myStack.length > 1;
+  const previousMySection = canGoBackInTopBar ? myStack[myStack.length - 2] : null;
   const topBarBackLabel =
-    previousMoreSection && previousMoreSection !== 'menu'
-      ? MORE_TITLES[previousMoreSection] || TAB_META.more.label
-      : TAB_META.more.label;
+    previousMySection && previousMySection !== 'portfolio'
+      ? menuTitles[previousMySection] || tabMeta.my.label
+      : tabMeta.my.label;
   const topBarMode = canGoBackInTopBar ? 'detail' : 'root';
   const appTone = engagementState?.ui_regime_state?.tone || 'quiet';
   const motionProfile = engagementState?.ui_regime_state?.motion_profile || 'calm';
@@ -1524,7 +1576,7 @@ export default function App() {
     handleScroll();
     node.addEventListener('scroll', handleScroll, { passive: true });
     return () => node.removeEventListener('scroll', handleScroll);
-  }, [activeTab, moreSection]);
+  }, [activeTab, mySection]);
 
   return (
     <div className={`app-bg app-bg-${displayMode} app-tone-${appTone}`}>
@@ -1535,7 +1587,7 @@ export default function App() {
         <header className={`top-bar top-bar-${topBarMode} ${topBarCondensed ? 'is-condensed' : ''}`}>
           <div className="top-bar-leading">
             {canGoBackInTopBar ? (
-              <button type="button" className="ios-nav-back top-bar-back" onClick={popMoreSection} aria-label={`Back to ${topBarBackLabel}`}>
+              <button type="button" className="ios-nav-back top-bar-back" onClick={popMySection} aria-label={`Back to ${topBarBackLabel}`}>
                 <span className="ios-back-chevron" aria-hidden="true">
                   ‹
                 </span>
@@ -1551,7 +1603,7 @@ export default function App() {
         </header>
 
         <main ref={mainContentRef} className={`main-content main-content-${activeTab}`}>
-          <div className="screen-transition" key={`${activeTab}-${moreSection}-${uiMode}`}>
+          <div className="screen-transition" key={`${activeTab}-${mySection}-${uiMode}`}>
             {renderScreen()}
           </div>
         </main>
@@ -1564,17 +1616,17 @@ export default function App() {
           gridTemplateColumns: 'repeat(4, minmax(0, 1fr))'
         }}
       >
-        {Object.entries(TAB_META).map(([key, value]) => (
+        {Object.entries(tabMeta).map(([key, value]) => (
           <button
             key={key}
             type="button"
             className={`tab-btn ${activeTab === key ? 'active' : ''}`}
             onClick={() => {
               setActiveTab(key);
-              if (key !== 'more') {
-                resetMore();
+              if (key !== 'my') {
+                resetMy();
               } else {
-                setMoreStack(['menu']);
+                setMyStack(['portfolio']);
               }
             }}
           >

@@ -199,7 +199,8 @@ export default function HoldingsTab({
   investorDemoEnabled,
   onLoadInvestorDemo,
   onClearInvestorDemo,
-  onExplain
+  onExplain,
+  onOpenMenu
 }) {
   const [surfaceTab, setSurfaceTab] = useState('holdings');
   const [range, setRange] = useState('1M');
@@ -292,7 +293,19 @@ export default function HoldingsTab({
               {totalPnlAmount} <span>({totalPnlPct})</span>
             </p>
           </div>
-          {investorDemoEnabled ? <span className="holdings-overview-demo">{locale === 'zh' ? '演示' : 'Demo'}</span> : null}
+          <div className="holdings-overview-actions">
+            {investorDemoEnabled ? <span className="holdings-overview-demo">{locale === 'zh' ? '演示' : 'Demo'}</span> : null}
+            <button
+              type="button"
+              className="holdings-menu-button"
+              onClick={onOpenMenu}
+              aria-label={locale === 'zh' ? '打开菜单' : 'Open menu'}
+            >
+              <span />
+              <span />
+              <span />
+            </button>
+          </div>
         </div>
 
         <div className="holdings-overview-chart">
