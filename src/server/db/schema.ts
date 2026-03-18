@@ -918,6 +918,66 @@ CREATE TABLE IF NOT EXISTS compliance_logs (
 
 CREATE INDEX IF NOT EXISTS idx_compliance_logs_lookup
   ON compliance_logs(log_type, user_id, updated_at_ms DESC);
+
+CREATE TABLE IF NOT EXISTS auth_users (
+  user_id TEXT PRIMARY KEY,
+  email TEXT NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL,
+  name TEXT NOT NULL,
+  trade_mode TEXT NOT NULL CHECK (trade_mode IN ('starter', 'active', 'deep')),
+  broker TEXT NOT NULL,
+  locale TEXT,
+  created_at_ms INTEGER NOT NULL,
+  updated_at_ms INTEGER NOT NULL,
+  last_login_at_ms INTEGER
+);
+
+CREATE INDEX IF NOT EXISTS idx_auth_users_email ON auth_users(email);
+
+CREATE TABLE IF NOT EXISTS auth_sessions (
+  session_id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  session_token_hash TEXT NOT NULL UNIQUE,
+  user_agent TEXT,
+  ip_address TEXT,
+  expires_at_ms INTEGER NOT NULL,
+  revoked_at_ms INTEGER,
+  created_at_ms INTEGER NOT NULL,
+  updated_at_ms INTEGER NOT NULL,
+  last_seen_at_ms INTEGER NOT NULL,
+  FOREIGN KEY(user_id) REFERENCES auth_users(user_id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_auth_sessions_user ON auth_sessions(user_id, updated_at_ms DESC);
+CREATE INDEX IF NOT EXISTS idx_auth_sessions_token ON auth_sessions(session_token_hash);
+
+CREATE TABLE IF NOT EXISTS auth_password_resets (
+  reset_id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  email TEXT NOT NULL,
+  code_hash TEXT NOT NULL,
+  expires_at_ms INTEGER NOT NULL,
+  used_at_ms INTEGER,
+  created_at_ms INTEGER NOT NULL,
+  updated_at_ms INTEGER NOT NULL,
+  FOREIGN KEY(user_id) REFERENCES auth_users(user_id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_auth_password_resets_user ON auth_password_resets(user_id, created_at_ms DESC);
+
+CREATE TABLE IF NOT EXISTS auth_user_state_sync (
+  user_id TEXT PRIMARY KEY,
+  asset_class TEXT NOT NULL DEFAULT 'US_STOCK',
+  market TEXT NOT NULL DEFAULT 'US',
+  ui_mode TEXT NOT NULL DEFAULT 'standard',
+  risk_profile_key TEXT NOT NULL DEFAULT 'balanced',
+  watchlist_json TEXT NOT NULL DEFAULT '[]',
+  holdings_json TEXT NOT NULL DEFAULT '[]',
+  executions_json TEXT NOT NULL DEFAULT '[]',
+  discipline_log_json TEXT NOT NULL DEFAULT '{"checkins":[],"boundary_kept":[],"weekly_reviews":[]}',
+  updated_at_ms INTEGER NOT NULL,
+  FOREIGN KEY(user_id) REFERENCES auth_users(user_id) ON DELETE CASCADE
+);
 `;
 
 export function ensureSchema(db: Database.Database): void {

@@ -10573,9 +10573,57 @@ body.keyboard-open .ai-composer-shell {
   margin: 0;
 }
 
+.signup-inline-action {
+  justify-self: start;
+  margin-top: -8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: rgba(74, 105, 240, 0.92);
+  font-size: 14px;
+  line-height: 1.25;
+  font-weight: 650;
+}
+
+.signup-inline-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.signup-input-shell-flex {
+  min-width: 0;
+}
+
+.signup-inline-cta {
+  min-height: 54px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(18, 24, 35, 0.92);
+  color: #fff;
+  font-size: 15px;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.signup-inline-cta:disabled {
+  opacity: 0.45;
+}
+
 .signup-error {
   margin: -10px 0 0;
   color: rgba(203, 57, 115, 0.92);
+  font-size: 14px;
+  line-height: 1.45;
+  font-weight: 620;
+}
+
+.signup-success {
+  margin: -10px 0 0;
+  color: rgba(32, 110, 92, 0.92);
   font-size: 14px;
   line-height: 1.45;
   font-weight: 620;

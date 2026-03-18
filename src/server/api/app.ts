@@ -1,6 +1,20 @@
 import express from 'express';
+import type { Request } from 'express';
 import { isoToMs } from '../utils/time.js';
 import type { AssetClass, Market, Timeframe } from '../types.js';
+import {
+  clearAuthCookieHeader,
+  createPasswordReset,
+  getAuthCookieHeader,
+  getAuthSession,
+  getAuthUserState,
+  getSessionCookieName,
+  loginAuthUser,
+  logoutAuthSession,
+  resetPasswordWithCode,
+  signupAuthUser,
+  upsertAuthUserState
+} from '../auth/service.js';
 import {
   completeMorningCheck,
   completeWeeklyReview,
@@ -111,6 +125,25 @@ function parseSignalStatus(value?: string): 'ALL' | 'NEW' | 'TRIGGERED' | 'EXPIR
   return undefined;
 }
 
+function parseCookies(req: Request) {
+  const header = req.header('cookie') || '';
+  return header.split(';').reduce<Record<string, string>>((acc, item) => {
+    const [key, ...rest] = item.trim().split('=');
+    if (!key) return acc;
+    acc[key] = decodeURIComponent(rest.join('=') || '');
+    return acc;
+  }, {});
+}
+
+function authSessionFromRequest(req: Request) {
+  const cookies = parseCookies(req);
+  return getAuthSession(cookies[getSessionCookieName()]);
+}
+
+function requestIp(req: Request) {
+  return (req.ip || req.socket?.remoteAddress || '').slice(0, 120) || null;
+}
+
 export function createApiApp() {
   const app = express();
   app.use(express.json({ limit: '1mb' }));
@@ -118,6 +151,147 @@ export function createApiApp() {
 
   app.get('/healthz', (_req, res) => {
     res.json({ ok: true, ts: Date.now() });
+  });
+
+  app.get('/api/auth/session', (req, res) => {
+    const session = authSessionFromRequest(req);
+    if (!session) {
+      res.json({ authenticated: false });
+      return;
+    }
+    res.json({
+      authenticated: true,
+      user: session.user,
+      state: session.state
+    });
+  });
+
+  app.post('/api/auth/signup', (req, res) => {
+    const body = (req.body || {}) as {
+      email?: string;
+      password?: string;
+      name?: string;
+      tradeMode?: 'starter' | 'active' | 'deep';
+      broker?: string;
+      locale?: string;
+    };
+    const result = signupAuthUser({
+      email: String(body.email || ''),
+      password: String(body.password || ''),
+      name: String(body.name || ''),
+      tradeMode: (body.tradeMode || 'starter') as 'starter' | 'active' | 'deep',
+      broker: String(body.broker || 'Other'),
+      locale: body.locale || null,
+      userAgent: req.header('user-agent') || null,
+      ipAddress: requestIp(req)
+    });
+    if (!result.ok) {
+      res.status(400).json({ ok: false, error: result.error });
+      return;
+    }
+    res.setHeader('Set-Cookie', getAuthCookieHeader(result.sessionToken));
+    res.json({
+      ok: true,
+      authenticated: true,
+      user: result.user,
+      state: result.state
+    });
+  });
+
+  app.post('/api/auth/login', (req, res) => {
+    const body = (req.body || {}) as { email?: string; password?: string };
+    const result = loginAuthUser({
+      email: String(body.email || ''),
+      password: String(body.password || ''),
+      userAgent: req.header('user-agent') || null,
+      ipAddress: requestIp(req)
+    });
+    if (!result.ok) {
+      res.status(401).json({ ok: false, error: result.error });
+      return;
+    }
+    res.setHeader('Set-Cookie', getAuthCookieHeader(result.sessionToken));
+    res.json({
+      ok: true,
+      authenticated: true,
+      user: result.user,
+      state: result.state
+    });
+  });
+
+  app.post('/api/auth/logout', (req, res) => {
+    const cookies = parseCookies(req);
+    logoutAuthSession(cookies[getSessionCookieName()]);
+    res.setHeader('Set-Cookie', clearAuthCookieHeader());
+    res.json({ ok: true });
+  });
+
+  app.post('/api/auth/forgot-password', (req, res) => {
+    const body = (req.body || {}) as { email?: string };
+    const result = createPasswordReset({
+      email: String(body.email || '')
+    });
+    res.json({
+      ok: true,
+      expiresInMinutes: result.expiresInMinutes,
+      codeHint: result.codeHint || null
+    });
+  });
+
+  app.post('/api/auth/reset-password', (req, res) => {
+    const body = (req.body || {}) as { email?: string; code?: string; newPassword?: string };
+    const result = resetPasswordWithCode({
+      email: String(body.email || ''),
+      code: String(body.code || ''),
+      newPassword: String(body.newPassword || '')
+    });
+    if (!result.ok) {
+      res.status(400).json({ ok: false, error: result.error });
+      return;
+    }
+    res.json({ ok: true });
+  });
+
+  app.get('/api/auth/profile', (req, res) => {
+    const session = authSessionFromRequest(req);
+    if (!session) {
+      res.status(401).json({ ok: false, error: 'UNAUTHENTICATED' });
+      return;
+    }
+    res.json({
+      ok: true,
+      user: session.user,
+      state: getAuthUserState(session.user.userId)
+    });
+  });
+
+  app.post('/api/auth/profile', (req, res) => {
+    const session = authSessionFromRequest(req);
+    if (!session) {
+      res.status(401).json({ ok: false, error: 'UNAUTHENTICATED' });
+      return;
+    }
+    const body = (req.body || {}) as {
+      assetClass?: string;
+      market?: string;
+      uiMode?: string;
+      riskProfileKey?: string;
+      watchlist?: string[];
+      holdings?: unknown[];
+      executions?: unknown[];
+      disciplineLog?: { checkins: string[]; boundary_kept: string[]; weekly_reviews: string[] };
+    };
+    const state = upsertAuthUserState(session.user.userId, {
+      assetClass: body.assetClass,
+      market: body.market,
+      uiMode: body.uiMode,
+      riskProfileKey: body.riskProfileKey,
+      watchlist: body.watchlist,
+      holdings: body.holdings,
+      executions: body.executions,
+      disciplineLog: body.disciplineLog
+    });
+    res.json({ ok: true, state });
   });
 
   app.get('/api/assets', (req, res) => {

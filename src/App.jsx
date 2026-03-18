@@ -72,27 +72,8 @@ function buildMenuTitles(locale) {
   };
 }
 
-const SEEDED_AUTH_ACCOUNTS = [
-  {
-    email: 'zevs1120@gmail.com',
-    password: 'Zevs1120',
-    name: 'Zevs',
-    tradeMode: 'active',
-    broker: 'Robinhood'
-  }
-];
-
 function normalizeEmail(value) {
   return String(value || '').trim().toLowerCase();
-}
-
-function ensureSeededAccounts(accounts = []) {
-  const normalized = Array.isArray(accounts) ? [...accounts] : [];
-  for (const seed of SEEDED_AUTH_ACCOUNTS) {
-    const exists = normalized.some((account) => normalizeEmail(account?.email) === normalizeEmail(seed.email));
-    if (!exists) normalized.push(seed);
-  }
-  return normalized;
 }
 
 const initialData = {
@@ -130,7 +111,10 @@ function detectDisplayMode() {
 }
 
 async function fetchJson(url, options) {
-  const response = await fetch(url, options);
+  const response = await fetch(url, {
+    credentials: 'same-origin',
+    ...(options || {})
+  });
   if (!response.ok) {
     throw new Error(`${url} failed (${response.status})`);
   }
@@ -243,7 +227,6 @@ export default function App() {
     tradeMode: 'starter',
     broker: 'Robinhood'
   });
-  const [authAccounts, setAuthAccounts] = useLocalStorage('nova-quant-auth-accounts', SEEDED_AUTH_ACCOUNTS);
   const [authSession, setAuthSession] = useLocalStorage('nova-quant-auth-session', null);
   const [onboardingDone, setOnboardingDone] = useLocalStorage('nova-quant-onboarding-done', false, {
     legacyKeys: ['quant-demo-onboarding-done']
@@ -297,14 +280,13 @@ export default function App() {
     () => (investorDemoEnabled ? buildInvestorDemoEnvironment(assetClass) : null),
     [investorDemoEnabled, assetClass]
   );
-
-  useEffect(() => {
-    setAuthAccounts((current) => ensureSeededAccounts(current));
-  }, [setAuthAccounts]);
+  const lastProfileSyncRef = useRef('');
 
   useEffect(() => {
     setShowOnboarding(!authSession);
   }, [authSession]);
+
+  const effectiveUserId = authSession?.userId || chatUserId;
 
   const uiData = useMemo(() => {
     if (!investorDemoEnabled) return data;
@@ -347,13 +329,13 @@ export default function App() {
       ...uiData,
       decision: decisionSnapshot || uiData.decision || null,
       user_context: {
-        user_id: chatUserId,
+        user_id: effectiveUserId,
         ui_mode: uiMode,
         holdings,
         holdings_review: holdingsReview
       }
     }),
-    [uiData, decisionSnapshot, chatUserId, uiMode, holdings, holdingsReview]
+    [uiData, decisionSnapshot, effectiveUserId, uiMode, holdings, holdingsReview]
   );
 
   const enableInvestorDemo = () => {
@@ -375,7 +357,7 @@ export default function App() {
   };
 
   const applyAuthenticatedProfile = useCallback(
-    (account) => {
+    (account, syncedState = null) => {
       const tradeModeMap = {
         starter: 'beginner',
         active: 'standard',
@@ -388,24 +370,106 @@ export default function App() {
         broker: account.broker
       });
       setAuthSession({
+        userId: account.userId,
         email: normalizeEmail(account.email),
         name: account.name,
+        tradeMode: account.tradeMode,
+        broker: account.broker,
         loggedInAt: new Date().toISOString()
       });
-      setUiMode(tradeModeMap[account.tradeMode] || 'standard');
-      setRiskProfileKey(account.tradeMode === 'deep' ? 'aggressive' : account.tradeMode === 'starter' ? 'conservative' : 'balanced');
-      if (!watchlist?.length) {
-        setWatchlist(['SPY', 'QQQ', 'AAPL']);
-      }
-      setAssetClass('US_STOCK');
-      setMarket('US');
+      setUiMode(syncedState?.uiMode || tradeModeMap[account.tradeMode] || 'standard');
+      setRiskProfileKey(
+        syncedState?.riskProfileKey ||
+          (account.tradeMode === 'deep' ? 'aggressive' : account.tradeMode === 'starter' ? 'conservative' : 'balanced')
+      );
+      setWatchlist(Array.isArray(syncedState?.watchlist) ? syncedState.watchlist : watchlist?.length ? watchlist : ['SPY', 'QQQ', 'AAPL']);
+      setHoldings(Array.isArray(syncedState?.holdings) ? syncedState.holdings : []);
+      setExecutions(Array.isArray(syncedState?.executions) ? syncedState.executions : []);
+      if (syncedState?.disciplineLog) setDisciplineLog(syncedState.disciplineLog);
+      setAssetClass(syncedState?.assetClass || 'US_STOCK');
+      setMarket(syncedState?.market || 'US');
       setOnboardingDone(true);
       setShowOnboarding(false);
       setActiveTab('today');
       setMyStack(['portfolio']);
     },
-    [setActiveTab, setAssetClass, setAuthSession, setMyStack, setOnboardingDone, setRiskProfileKey, setShowOnboarding, setUiMode, setUserProfile, setWatchlist, watchlist]
+    [
+      setActiveTab,
+      setAssetClass,
+      setAuthSession,
+      setDisciplineLog,
+      setExecutions,
+      setHoldings,
+      setMarket,
+      setMyStack,
+      setOnboardingDone,
+      setRiskProfileKey,
+      setShowOnboarding,
+      setUiMode,
+      setUserProfile,
+      setWatchlist,
+      watchlist
+    ]
   );
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetchJson('/api/auth/session')
+      .then((payload) => {
+        if (cancelled) return;
+        if (payload?.authenticated && payload?.user) {
+          applyAuthenticatedProfile(payload.user, payload.state || null);
+          return;
+        }
+        setAuthSession(null);
+        if (onboardingDone) setShowOnboarding(true);
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [applyAuthenticatedProfile, onboardingDone, setAuthSession]);
+
+  useEffect(() => {
+    if (!authSession?.userId) return undefined;
+
+    const payload = {
+      assetClass,
+      market,
+      uiMode,
+      riskProfileKey,
+      watchlist,
+      holdings,
+      executions,
+      disciplineLog
+    };
+    const serialized = JSON.stringify(payload);
+    if (lastProfileSyncRef.current === serialized) return undefined;
+
+    const timer = window.setTimeout(() => {
+      lastProfileSyncRef.current = serialized;
+      void fetchJson('/api/auth/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: serialized
+      }).catch(() => {
+        lastProfileSyncRef.current = '';
+      });
+    }, 350);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    assetClass,
+    authSession?.userId,
+    disciplineLog,
+    executions,
+    holdings,
+    market,
+    riskProfileKey,
+    uiMode,
+    watchlist
+  ]);
 
   const clearInvestorDemo = () => {
     const restore = Array.isArray(investorDemoHoldingsBackup) ? investorDemoHoldingsBackup : [];
@@ -446,7 +510,7 @@ export default function App() {
         }
 
         const query = new URLSearchParams({
-          userId: chatUserId,
+          userId: effectiveUserId,
           market,
           assetClass
         });
@@ -470,9 +534,9 @@ export default function App() {
           fetchJson(`/api/market-state?${query.toString()}`),
           fetchJson(`/api/performance?${query.toString()}`),
           fetchJson(`/api/market/modules?${query.toString()}`),
-          fetchJson(`/api/risk-profile?userId=${chatUserId}`),
-          fetchJson(`/api/connect/broker?userId=${chatUserId}&provider=ALPACA`),
-          fetchJson(`/api/connect/exchange?userId=${chatUserId}&provider=BINANCE`)
+          fetchJson(`/api/risk-profile?userId=${effectiveUserId}`),
+          fetchJson(`/api/connect/broker?userId=${effectiveUserId}&provider=ALPACA`),
+          fetchJson(`/api/connect/exchange?userId=${effectiveUserId}&provider=BINANCE`)
         ]);
 
         if (!mounted) return;
@@ -550,7 +614,7 @@ export default function App() {
       mounted = false;
       clearInterval(refresh);
     };
-  }, [assetClass, market, chatUserId, refreshNonce]);
+  }, [assetClass, market, effectiveUserId, refreshNonce]);
 
   useEffect(() => {
     const syncDisplayMode = () => setDisplayMode(detectDisplayMode());
@@ -604,13 +668,13 @@ export default function App() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        userId: chatUserId,
+        userId: effectiveUserId,
         profileKey: riskProfileKey
       })
     })
       .then(() => setRefreshNonce((current) => current + 1))
       .catch(() => {});
-  }, [riskProfileKey, chatUserId]);
+  }, [riskProfileKey, effectiveUserId]);
 
   const todayKey = localDateKey(now);
   const currentWeekKey = weekStartKey(now);
@@ -622,7 +686,7 @@ export default function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: chatUserId,
+          userId: effectiveUserId,
           market,
           assetClass,
           localDate: todayKey,
@@ -637,7 +701,7 @@ export default function App() {
       setEngagementState(null);
       return null;
     }
-  }, [assetClass, chatUserId, hasLoaded, holdings, lang, market, now, todayKey]);
+  }, [assetClass, effectiveUserId, hasLoaded, holdings, lang, market, now, todayKey]);
 
   useEffect(() => {
     if (EXPLICIT_DEMO_MODE || !hasLoaded) return;
@@ -647,7 +711,7 @@ export default function App() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        userId: chatUserId,
+        userId: effectiveUserId,
         market,
         assetClass,
         locale: lang,
@@ -664,7 +728,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [EXPLICIT_DEMO_MODE, hasLoaded, chatUserId, market, assetClass, holdings, lang, uiData.decision]);
+  }, [EXPLICIT_DEMO_MODE, hasLoaded, effectiveUserId, market, assetClass, holdings, lang, uiData.decision]);
 
   useEffect(() => {
     if (!decisionSnapshot || EXPLICIT_DEMO_MODE || !hasLoaded) return;
@@ -733,7 +797,7 @@ export default function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: chatUserId,
+          userId: effectiveUserId,
           market,
           assetClass,
           localDate: todayKey,
@@ -746,7 +810,7 @@ export default function App() {
     } catch {
       void loadEngagementState();
     }
-  }, [assetClass, chatUserId, holdings, lang, loadEngagementState, market, now, syncLocalDisciplineLog, todayKey]);
+  }, [assetClass, effectiveUserId, holdings, lang, loadEngagementState, market, now, syncLocalDisciplineLog, todayKey]);
 
   const markBoundaryKept = useCallback(async () => {
     syncLocalDisciplineLog((current) => ({
@@ -759,7 +823,7 @@ export default function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: chatUserId,
+          userId: effectiveUserId,
           market,
           assetClass,
           localDate: todayKey,
@@ -772,7 +836,7 @@ export default function App() {
     } catch {
       void loadEngagementState();
     }
-  }, [assetClass, chatUserId, holdings, lang, loadEngagementState, market, now, syncLocalDisciplineLog, todayKey]);
+  }, [assetClass, effectiveUserId, holdings, lang, loadEngagementState, market, now, syncLocalDisciplineLog, todayKey]);
 
   const markWrapUpComplete = useCallback(async () => {
     if (EXPLICIT_DEMO_MODE) return;
@@ -781,7 +845,7 @@ export default function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: chatUserId,
+          userId: effectiveUserId,
           market,
           assetClass,
           localDate: todayKey,
@@ -794,7 +858,7 @@ export default function App() {
     } catch {
       void loadEngagementState();
     }
-  }, [assetClass, chatUserId, holdings, lang, loadEngagementState, market, now, todayKey]);
+  }, [assetClass, effectiveUserId, holdings, lang, loadEngagementState, market, now, todayKey]);
 
   const markWeeklyReviewed = useCallback(async () => {
     syncLocalDisciplineLog((current) => ({
@@ -807,7 +871,7 @@ export default function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: chatUserId,
+          userId: effectiveUserId,
           market,
           assetClass,
           localDate: todayKey,
@@ -820,7 +884,7 @@ export default function App() {
     } catch {
       void loadEngagementState();
     }
-  }, [assetClass, chatUserId, currentWeekKey, holdings, lang, loadEngagementState, market, now, syncLocalDisciplineLog, todayKey]);
+  }, [assetClass, effectiveUserId, currentWeekKey, holdings, lang, loadEngagementState, market, now, syncLocalDisciplineLog, todayKey]);
 
   const askAi = (message, context = {}) => {
     const text = String(message || '').trim();
@@ -922,7 +986,7 @@ export default function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: chatUserId,
+          userId: effectiveUserId,
           signalId: signal.signal_id,
           mode,
           action,
@@ -1053,7 +1117,7 @@ export default function App() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            userId: chatUserId,
+            userId: effectiveUserId,
             [field]: nextValue
           })
         });
@@ -1520,7 +1584,7 @@ export default function App() {
           quantState={aiState}
           seedRequest={aiSeedRequest}
           onNavigate={navigateFromAi}
-          userId={chatUserId}
+          userId={effectiveUserId}
           baseContext={{
             market,
             assetClass,
@@ -1612,10 +1676,16 @@ export default function App() {
           onSectionChange={pushMySection}
           onOpenAbout={() => setAboutOpen(true)}
           onLogout={() => {
+            void fetchJson('/api/auth/logout', { method: 'POST' }).catch(() => {});
             clearInvestorDemo();
             setHoldings([]);
             setWatchlist([]);
             setExecutions([]);
+            setDisciplineLog({
+              checkins: [],
+              boundary_kept: [],
+              weekly_reviews: []
+            });
             setAuthSession(null);
             setUserProfile({
               email: '',
@@ -1727,38 +1797,77 @@ export default function App() {
         profile={userProfile}
         initialMode={onboardingDone ? 'login' : 'intro'}
         onLogin={async ({ email, password }) => {
-          const normalizedEmail = normalizeEmail(email);
-          const account = ensureSeededAccounts(authAccounts).find(
-            (item) => normalizeEmail(item?.email) === normalizedEmail && String(item?.password || '') === String(password || '')
-          );
-          if (!account) {
+          try {
+            const payload = await fetchJson('/api/auth/login', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email, password })
+            });
+            applyAuthenticatedProfile(payload.user, payload.state || null);
+            return { ok: true };
+          } catch {
             return {
               ok: false,
               error: locale?.startsWith('zh') ? '邮箱或密码不正确。' : 'The email or password is incorrect.'
             };
           }
-          applyAuthenticatedProfile(account);
-          return { ok: true };
         }}
-        onComplete={async (payload) => {
-          const normalizedEmail = normalizeEmail(payload.email);
-          const existing = ensureSeededAccounts(authAccounts).some((item) => normalizeEmail(item?.email) === normalizedEmail);
-          if (existing) {
+        onRequestReset={async ({ email }) => {
+          try {
+            const payload = await fetchJson('/api/auth/forgot-password', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email })
+            });
+            return {
+              ok: true,
+              codeHint: payload.codeHint || null,
+              expiresInMinutes: payload.expiresInMinutes || 15
+            };
+          } catch {
             return {
               ok: false,
-              error: locale?.startsWith('zh') ? '这个邮箱已经存在，请直接登录。' : 'That email already exists. Please log in instead.'
+              error: locale?.startsWith('zh') ? '暂时没法发送重置码，请稍后再试。' : 'We could not send a reset code just now.'
             };
           }
-          const nextAccount = {
-            email: normalizedEmail,
-            password: String(payload.password || ''),
-            name: payload.name,
-            tradeMode: payload.tradeMode,
-            broker: payload.broker
-          };
-          setAuthAccounts((current) => [...ensureSeededAccounts(current), nextAccount]);
-          applyAuthenticatedProfile(nextAccount);
-          return { ok: true };
+        }}
+        onResetPassword={async ({ email, code, newPassword }) => {
+          try {
+            await fetchJson('/api/auth/reset-password', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email, code, newPassword })
+            });
+            return { ok: true };
+          } catch {
+            return {
+              ok: false,
+              error: locale?.startsWith('zh') ? '重置码无效，或密码不符合要求。' : 'The reset code is invalid, or the password is too weak.'
+            };
+          }
+        }}
+        onComplete={async (payload) => {
+          try {
+            const response = await fetchJson('/api/auth/signup', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                email: payload.email,
+                password: payload.password,
+                name: payload.name,
+                tradeMode: payload.tradeMode,
+                broker: payload.broker,
+                locale
+              })
+            });
+            applyAuthenticatedProfile(response.user, response.state || null);
+            return { ok: true };
+          } catch {
+            return {
+              ok: false,
+              error: locale?.startsWith('zh') ? '这个邮箱已经存在，或注册信息无效。' : 'That email already exists, or the signup details are invalid.'
+            };
+          }
         }}
       />
     </div>

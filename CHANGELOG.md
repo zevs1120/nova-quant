@@ -2,6 +2,11 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 8.0.0 (2026-03-18)
+- Release type: major
+- Add SQLite-backed auth, session cookies, password reset, and synced user state.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
 ## 7.1.0 (2026-03-18)
 - Release type: minor
 - Add local demo authentication with a seeded test account and real login/logout flow.
