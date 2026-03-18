@@ -112,6 +112,7 @@ const initialData = {
 };
 
 const EXPLICIT_DEMO_MODE = import.meta.env.VITE_DEMO_MODE === '1';
+const DEFAULT_AUTH_WATCHLIST = Object.freeze(['SPY', 'QQQ', 'AAPL']);
 
 function detectDisplayMode() {
   if (typeof window === 'undefined') return 'browser';
@@ -368,7 +369,8 @@ export default function App() {
   };
 
   const applyAuthenticatedProfile = useCallback(
-    (account, syncedState = null) => {
+    (account, syncedState = null, options = {}) => {
+      const { resetNavigation = false } = options;
       const tradeModeMap = {
         starter: 'beginner',
         active: 'standard',
@@ -393,7 +395,7 @@ export default function App() {
         syncedState?.riskProfileKey ||
           (account.tradeMode === 'deep' ? 'aggressive' : account.tradeMode === 'starter' ? 'conservative' : 'balanced')
       );
-      setWatchlist(Array.isArray(syncedState?.watchlist) ? syncedState.watchlist : watchlist?.length ? watchlist : ['SPY', 'QQQ', 'AAPL']);
+      setWatchlist(Array.isArray(syncedState?.watchlist) ? syncedState.watchlist : DEFAULT_AUTH_WATCHLIST);
       setHoldings(Array.isArray(syncedState?.holdings) ? syncedState.holdings : []);
       setExecutions(Array.isArray(syncedState?.executions) ? syncedState.executions : []);
       if (syncedState?.disciplineLog) setDisciplineLog(syncedState.disciplineLog);
@@ -401,8 +403,10 @@ export default function App() {
       setMarket(syncedState?.market || 'US');
       setOnboardingDone(true);
       setShowOnboarding(false);
-      setActiveTab('today');
-      setMyStack(['portfolio']);
+      if (resetNavigation) {
+        setActiveTab('today');
+        setMyStack(['portfolio']);
+      }
     },
     [
       setActiveTab,
@@ -418,18 +422,18 @@ export default function App() {
       setShowOnboarding,
       setUiMode,
       setUserProfile,
-      setWatchlist,
-      watchlist
+      setWatchlist
     ]
   );
 
   useEffect(() => {
+    if (authSession !== null) return undefined;
     let cancelled = false;
     void fetchJson('/api/auth/session')
       .then((payload) => {
         if (cancelled) return;
         if (payload?.authenticated && payload?.user) {
-          applyAuthenticatedProfile(payload.user, payload.state || null);
+          applyAuthenticatedProfile(payload.user, payload.state || null, { resetNavigation: false });
           return;
         }
         setAuthSession(null);
@@ -440,7 +444,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [applyAuthenticatedProfile, onboardingDone, setAuthSession]);
+  }, [applyAuthenticatedProfile, authSession, onboardingDone, setAuthSession]);
 
   useEffect(() => {
     if (!authSession?.userId) return undefined;
@@ -1814,7 +1818,7 @@ export default function App() {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ email, password })
             });
-            applyAuthenticatedProfile(payload.user, payload.state || null);
+            applyAuthenticatedProfile(payload.user, payload.state || null, { resetNavigation: true });
             return { ok: true };
           } catch (error) {
             return {
@@ -1885,7 +1889,7 @@ export default function App() {
                 locale
               })
             });
-            applyAuthenticatedProfile(response.user, response.state || null);
+            applyAuthenticatedProfile(response.user, response.state || null, { resetNavigation: true });
             return { ok: true };
           } catch {
             return {

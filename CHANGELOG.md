@@ -2,6 +2,11 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 8.0.2 (2026-03-18)
+- Release type: patch
+- Fix bottom-tab navigation being reset by auth session hydration.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
 ## 8.0.1 (2026-03-18)
 - Release type: patch
 - Clarify login failures by separating invalid credentials from offline local auth service.
