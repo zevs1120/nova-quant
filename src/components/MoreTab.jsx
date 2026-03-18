@@ -119,30 +119,34 @@ export default function MoreTab({
 
   if (currentGroup) {
     return (
-      <section className="stack-gap more-detail-screen">
-        <p className="muted status-line more-detail-note">{currentGroup.description}</p>
-        <article className="glass-card more-detail-card">
-          <div className="quick-access-list">
-            {currentGroup.items.map((item) => (
-              <button
-                key={item.key}
-                type="button"
-                className="quick-access-row"
-                onClick={() => onSectionChange(item.key)}
-              >
+      <section className="stack-gap more-detail-screen more-native-screen">
+        <div className="more-group-header">
+          <p className="more-group-title">{currentGroup.title}</p>
+          <p className="more-group-caption">{currentGroup.description}</p>
+        </div>
+        <div className="more-group-list">
+          {currentGroup.items.map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              className="more-list-row more-native-row"
+              onClick={() => onSectionChange(item.key)}
+            >
+              <span>
                 <span className="quick-access-title">{item.title}</span>
                 <span className="quick-access-desc">{item.description}</span>
-              </button>
-            ))}
-          </div>
-        </article>
+              </span>
+              <span className="more-list-arrow">›</span>
+            </button>
+          ))}
+        </div>
       </section>
     );
   }
 
   if (section !== 'menu') {
     return (
-      <section className="stack-gap more-detail-screen">
+      <section className="stack-gap more-detail-screen more-native-screen">
         <p className="muted status-line more-detail-note">This stays in More so Today can stay focused on the decision itself.</p>
         {renderSection(section)}
       </section>
@@ -150,77 +154,61 @@ export default function MoreTab({
   }
 
   return (
-    <section className="stack-gap more-screen">
-      <article className="glass-card more-overview-card">
-        <p className="ritual-kicker">System surfaces</p>
-        <div className="card-header">
-          <div>
-            <h3 className="card-title">More</h3>
-            <p className="muted">Everything secondary lives here so Today can stay simple and decisive.</p>
+    <section className="stack-gap more-screen more-native-screen">
+      {groups.map((group) => (
+        <section key={group.key} className="more-group">
+          <div className="more-group-header">
+            <p className="more-group-title">{group.title}</p>
+            <p className="more-group-caption">{group.description}</p>
           </div>
-        </div>
-      </article>
+          <div className="more-group-list">
+            {group.items.map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                className="more-list-row more-native-row"
+                onClick={() => onSectionChange(item.key)}
+              >
+                <span>
+                  <span className="quick-access-title">{item.title}</span>
+                  <span className="quick-access-desc">{item.description}</span>
+                </span>
+                <span className="more-list-arrow">›</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      ))}
 
-      <div className="more-list">
-        <button type="button" className="more-list-row" onClick={() => onSectionChange('group:review')}>
-          <span>
-            <span className="quick-access-title">Review</span>
-            <span className="quick-access-desc">Weekly recap &amp; discipline progress</span>
-          </span>
-          <span className="more-list-arrow">›</span>
-        </button>
-        <button type="button" className="more-list-row" onClick={() => onSectionChange('group:system')}>
-          <span>
-            <span className="quick-access-title">System</span>
-            <span className="quick-access-desc">Signals, safety &amp; performance</span>
-          </span>
-          <span className="more-list-arrow">›</span>
-        </button>
-        <button type="button" className="more-list-row" onClick={() => onSectionChange('group:market')}>
-          <span>
-            <span className="quick-access-title">Market Notes</span>
-            <span className="quick-access-desc">Broader market context</span>
-          </span>
-          <span className="more-list-arrow">›</span>
-        </button>
-        <button type="button" className="more-list-row" onClick={() => onSectionChange('settings')}>
-          <span>
-            <span className="quick-access-title">Settings</span>
-            <span className="quick-access-desc">App preferences</span>
-          </span>
-          <span className="more-list-arrow">›</span>
-        </button>
-        <button type="button" className="more-list-row" onClick={onOpenAbout}>
-          <span>
-            <span className="quick-access-title">About</span>
-            <span className="quick-access-desc">App info &amp; support</span>
-          </span>
-          <span className="more-list-arrow">›</span>
-        </button>
-        <button type="button" className="more-list-row" onClick={onToggleDemo}>
-          <span>
-            <span className="quick-access-title">Demo Mode</span>
-            <span className="quick-access-desc">Reset demo data &amp; walkthrough</span>
-          </span>
-          <span className={`badge ${investorDemoEnabled ? 'badge-triggered' : 'badge-neutral'}`}>
-            {investorDemoEnabled ? 'On' : 'Off'}
-          </span>
-        </button>
+      <section className="more-group">
+        <div className="more-group-header">
+          <p className="more-group-title">App</p>
+          <p className="more-group-caption">Info, demo tools, and app version.</p>
+        </div>
+        <div className="more-group-list">
+          <button type="button" className="more-list-row more-native-row" onClick={onOpenAbout}>
+            <span>
+              <span className="quick-access-title">About</span>
+              <span className="quick-access-desc">App info and support</span>
+            </span>
+            <span className="more-list-arrow">›</span>
+          </button>
+          <button type="button" className="more-list-row more-native-row" onClick={onToggleDemo}>
+            <span>
+              <span className="quick-access-title">Demo Mode</span>
+              <span className="quick-access-desc">Investor walkthrough and sample data</span>
+            </span>
+            <span className={`badge ${investorDemoEnabled ? 'badge-triggered' : 'badge-neutral'}`}>
+              {investorDemoEnabled ? 'On' : 'Off'}
+            </span>
+          </button>
+        </div>
+      </section>
+
+      <div className="more-version-inline">
+        <span>NovaQuant {appMeta?.app_version || '--'}</span>
+        {appMeta?.build_number ? <span>Build {appMeta.build_number}</span> : null}
       </div>
-
-      <article className="glass-card more-version-card">
-        <div className="card-header">
-          <div>
-            <h3 className="card-title">NovaQuant</h3>
-            <p className="muted">A decision surface first. Everything else exists to support that judgment.</p>
-          </div>
-          <span className="badge badge-neutral">{appMeta?.app_version_label || '--'}</span>
-        </div>
-        <p className="status-line more-version-line">
-          Version {appMeta?.app_version || '--'}
-          {appMeta?.build_number ? ` · Build ${appMeta.build_number}` : ''}
-        </p>
-      </article>
 
       <p className="muted status-line more-screen-meta">
         {engagement?.daily_check_state?.status === 'COMPLETED'

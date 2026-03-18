@@ -1,11 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import SignalDetail from './SignalDetail';
 import {
   getActionCardCopy,
-  getDailyStanceCopy,
-  getMorningCheckCopy,
   getNoActionCopy,
-  getTodayRiskCopy
 } from '../copy/novaCopySystem.js';
 
 const ACTIVE_SIGNAL_STATUS = new Set(['NEW', 'TRIGGERED']);
@@ -182,35 +179,35 @@ function deriveOverallStatus(args) {
   if (today?.is_trading_day === false) {
     return {
       code: 'NO_TRADE',
-      headline: locale === 'zh' ? '❌ 今天不适合动作' : '❌ Not suitable to trade',
+      headline: locale === 'zh' ? '今天不适合动作' : 'Do not trade today',
       subtitle: locale === 'zh' ? '市场已休市，今天更适合复盘。' : 'The market is closed. Today is better used for review.'
     };
   }
   if (mode.includes('do not trade') || mode.includes('defense')) {
     return {
       code: 'DEFENSE',
-      headline: locale === 'zh' ? '🛡 今天优先防守' : '🛡 Defense mode (market risk high)',
+      headline: locale === 'zh' ? '今天先防守' : 'Defend first today',
       subtitle: safety?.primary_risks?.[0] || 'Risk pressure is high. Capital protection first.'
     };
   }
   if (runtimeStatus === 'INSUFFICIENT_DATA' || runtimeStatus === 'WITHHELD') {
     return {
       code: 'WAIT',
-      headline: locale === 'zh' ? '⚠️ 更适合等待' : '⚠️ Better to wait',
+      headline: locale === 'zh' ? '今天先等等' : 'Wait today',
       subtitle: locale === 'zh' ? '当前数据边界不够干净，先等更清楚的判断。' : 'Data quality is limited. Wait for better signal clarity.'
     };
   }
   if (!bestSignal) {
     return {
       code: 'WAIT',
-      headline: locale === 'zh' ? '⚠️ 更适合等待' : '⚠️ Better to wait',
+      headline: locale === 'zh' ? '今天先等等' : 'Wait today',
       subtitle: locale === 'zh' ? '现在没有足够高质量的动作。' : 'No high-quality opportunity at the moment.'
     };
   }
   if (!bestSignal._actionable) {
     return {
       code: 'WAIT',
-      headline: locale === 'zh' ? '⚠️ 更适合等待' : '⚠️ Better to wait',
+      headline: locale === 'zh' ? '今天先等等' : 'Wait today',
       subtitle:
         bestSignal._dataStatus === 'WITHHELD'
           ? locale === 'zh'
@@ -224,13 +221,13 @@ function deriveOverallStatus(args) {
   if (String(bestSignal?.regime_id || '').toUpperCase() === 'RISK_OFF') {
     return {
       code: 'DEFENSE',
-      headline: locale === 'zh' ? '🛡 今天优先防守' : '🛡 Defense mode (market risk high)',
+      headline: locale === 'zh' ? '今天先防守' : 'Defend first today',
       subtitle: locale === 'zh' ? '风险仍偏高，只适合防守型小动作。' : 'Market risk remains high. Only small defensive actions.'
     };
   }
   return {
     code: 'TRADE',
-    headline: locale === 'zh' ? '✅ 今天可以动作' : '✅ Can trade today',
+    headline: locale === 'zh' ? '今天可以动作' : 'Can trade today',
     subtitle: suggestionSubtitle(bestSignal, locale)
   };
 }
@@ -323,6 +320,23 @@ function triggerFeedback(kind = 'soft') {
   navigator.vibrate(8);
 }
 
+function DecisionMark({ code }) {
+  const tone = code === 'TRADE' ? 'trade' : code === 'WAIT' ? 'wait' : 'defense';
+  return (
+    <span className={`decision-mark decision-mark-${tone}`} aria-hidden="true">
+      <svg viewBox="0 0 20 20" className="decision-mark-icon" focusable="false">
+        {code === 'TRADE' ? (
+          <path d="M4.5 10.5 8 14l7.5-8" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" />
+        ) : code === 'WAIT' ? (
+          <path d="M5 10h10" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" />
+        ) : (
+          <path d="M10 4.5v11M4.5 10h11" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" />
+        )}
+      </svg>
+    </span>
+  );
+}
+
 function buildDemoFallbackSignal(assetClass, now) {
   const generatedAt = new Date(now.getTime() - 4 * 60 * 1000).toISOString();
   if (assetClass === 'CRYPTO') {
@@ -392,25 +406,6 @@ function buildDemoFallbackSignal(assetClass, now) {
   };
 }
 
-function mainButtonLabel(overallCode, locale) {
-  if (overallCode === 'TRADE') return locale === 'zh' ? '按计划动作' : 'Follow strategy';
-  if (overallCode === 'DEFENSE' || overallCode === 'NO_TRADE') return locale === 'zh' ? '查看防守计划' : 'View defense plan';
-  return locale === 'zh' ? '等待下一次清晰机会' : 'Wait for the next clean opportunity';
-}
-
-function sourceCaption(signal, investorDemoEnabled, locale) {
-  if (!signal) return null;
-  if (signal._dataStatus === 'DEMO_ONLY') {
-    return locale === 'zh' ? '来源：DEMO_ONLY 演示信号，仅用于 investor walkthrough。' : 'Source: DEMO_ONLY fallback signal for investor walkthrough.';
-  }
-  if (investorDemoEnabled) {
-    return locale === 'zh'
-      ? '来源：当前仍在使用真实信号路径，只是持仓切到 demo。'
-      : 'Source: the live signal path is still being used while demo holdings are on.';
-  }
-  return null;
-}
-
 function buildSignalFromDecision(decision, now) {
   const topAction = decision?.ranked_action_cards?.[0];
   const signal = topAction?.signal_payload;
@@ -472,68 +467,6 @@ function riskFromDecision(decision, locale) {
   };
 }
 
-function simpleRiskPercent(level) {
-  if (level === 'danger') return 82;
-  if (level === 'medium') return 56;
-  return 28;
-}
-
-function trendPercent(signal) {
-  const confidence = Number(signal?.confidence ?? signal?.conviction ?? 0);
-  if (!Number.isFinite(confidence)) return 36;
-  return Math.max(24, Math.min(88, Math.round(confidence * 100)));
-}
-
-function temperaturePercent(code) {
-  if (code === 'DEFENSE' || code === 'NO_TRADE') return 26;
-  if (code === 'WAIT') return 48;
-  return 74;
-}
-
-function actionStanceLabel(code, locale) {
-  if (code === 'DEFENSE' || code === 'NO_TRADE') {
-    return locale === 'zh' ? '先降低风险' : 'Dial risk down';
-  }
-  if (code === 'WAIT') {
-    return locale === 'zh' ? '先别急，等位置' : 'Wait for a cleaner spot';
-  }
-  return locale === 'zh' ? '可以试一点，但别太重' : 'You can try a little, not a lot';
-}
-
-function actionModeLabel(signal, noActionDay, locale) {
-  if (noActionDay || !signal?._actionable) {
-    return locale === 'zh' ? '今天以等待为主' : 'Today is mostly a wait';
-  }
-  const size = Number(signal?.position_advice?.position_pct ?? signal?.position_size_pct ?? 0);
-  if (size >= 14) return locale === 'zh' ? '正常仓位，但别激进' : 'Normal size, stay disciplined';
-  if (size > 0) return locale === 'zh' ? '轻仓试一点' : 'Light size only';
-  return locale === 'zh' ? '先看，不急着上' : 'Watch first, move later';
-}
-
-function stanceSteps(overallCode, locale) {
-  const active = overallCode === 'TRADE' ? 'move' : overallCode === 'WAIT' ? 'watch' : 'protect';
-  const copy =
-    locale === 'zh'
-      ? {
-          protect: '先稳住',
-          watch: '先观察',
-          probe: '轻仓试探',
-          move: '按计划动作'
-        }
-      : {
-          protect: 'Hold back',
-          watch: 'Stay watchful',
-          probe: 'Probe light',
-          move: 'Move on plan'
-        };
-  return [
-    { key: 'protect', label: copy.protect, active: active === 'protect' },
-    { key: 'watch', label: copy.watch, active: active === 'watch' },
-    { key: 'probe', label: copy.probe, active: active === 'move' || active === 'watch' ? false : active === 'probe' },
-    { key: 'move', label: copy.move, active: active === 'move' }
-  ];
-}
-
 export default function TodayTab({
   now,
   assetClass,
@@ -554,7 +487,6 @@ export default function TodayTab({
   onCompleteCheckIn
 }) {
   const [activeSignal, setActiveSignal] = useState(null);
-  const [tempoMode, setTempoMode] = useState('normal');
 
   const bestSignal = useMemo(
     () => pickBestSignal(signals, topSignalEvidence, assetClass, now),
@@ -565,21 +497,6 @@ export default function TodayTab({
     () => decisionSignal || bestSignal || (investorDemoEnabled ? buildDemoFallbackSignal(assetClass, now) : null),
     [decisionSignal, bestSignal, investorDemoEnabled, assetClass, now]
   );
-  const historySignals = useMemo(
-    () => recentSignals(signals, topSignalEvidence, assetClass, now, featuredSignal),
-    [signals, topSignalEvidence, assetClass, now, featuredSignal]
-  );
-  const secondaryDecisionSignals = useMemo(
-    () =>
-      Array.isArray(decision?.ranked_action_cards)
-        ? decision.ranked_action_cards
-            .slice(1, 3)
-            .map((row) => buildSignalFromDecision({ ranked_action_cards: [row] }, now))
-            .filter(Boolean)
-        : [],
-    [decision, now]
-  );
-
   const overall =
     overallFromDecision(decision, locale) ||
     deriveOverallStatus({
@@ -591,11 +508,8 @@ export default function TodayTab({
     });
 
   const risk = riskFromDecision(decision, locale) || riskLevel(overall.code, featuredSignal, locale);
-  const buttonText = mainButtonLabel(overall.code, locale);
   const morningCheck = engagement?.daily_check_state || null;
-  const wrapUp = engagement?.daily_wrap_up || null;
   const uiRegime = engagement?.ui_regime_state || null;
-  const perceptionLayer = engagement?.perception_layer || null;
   const recommendationChange = engagement?.recommendation_change || null;
   const noActionDay = !featuredSignal || !featuredSignal._actionable || overall.code === 'WAIT' || overall.code === 'DEFENSE' || overall.code === 'NO_TRADE';
   const posture = String(decision?.risk_state?.posture || decision?.summary?.risk_posture || 'WAIT').toUpperCase();
@@ -610,113 +524,6 @@ export default function TodayTab({
     posture,
     seed: `${featuredSignal?.symbol || 'none'}:${morningCheck?.status || 'pending'}`
   });
-  const actionCardLead = noActionDay
-    ? uiRegime?.protective_line || morningCheck?.arrival_line || noActionCopy.arrival
-    : morningCheck?.arrival_line || uiRegime?.arrival_line || actionCopy.why_now;
-  const actionCardSubline = recommendationChange?.changed
-    ? recommendationChange.summary
-    : noActionDay
-      ? morningCheck?.ritual_line || uiRegime?.ritual_line || noActionCopy.notify
-      : featuredSignal?.brief_why_now || morningCheck?.ritual_line || actionCopy.caution;
-  const heroEyebrow = noActionDay
-    ? locale === 'zh'
-      ? '今日判断'
-      : 'Today’s call'
-    : actionCopy.title;
-  const heroSupport = recommendationChange?.changed
-    ? recommendationChange.summary
-    : noActionDay
-      ? uiRegime?.completion_line || noActionCopy.completion
-      : overall.subtitle;
-  const heroSignalMeta = featuredSignal
-    ? `${featuredSignal._actionable ? String(signalDirection(featuredSignal)).toUpperCase() : 'WAIT'}${
-        featuredSignal?.portfolio_intent ? ` · ${String(featuredSignal.portfolio_intent).replace(/_/g, ' ')}` : ''
-      }`
-    : locale === 'zh'
-      ? '等待更清楚的条件'
-      : 'Wait for cleaner conditions';
-  const sourceLine = sourceCaption(featuredSignal, investorDemoEnabled, locale);
-  const coachPlan = [
-    {
-      key: 'stance',
-      label: locale === 'zh' ? '今天怎么站位' : 'Today’s stance',
-      value: actionStanceLabel(overall.code, locale)
-    },
-    {
-      key: 'size',
-      label: locale === 'zh' ? '仓位节奏' : 'Sizing',
-      value: actionModeLabel(featuredSignal, noActionDay, locale)
-    },
-    {
-      key: 'risk',
-      label: locale === 'zh' ? '先记住什么' : 'Keep in mind',
-      value:
-        noActionDay
-          ? uiRegime?.protective_line || noActionCopy.notify
-          : featuredSignal?.risk_note || risk.explanation
-    }
-  ];
-  const fitnessRings = [
-    {
-      key: 'stance',
-      label: locale === 'zh' ? '动作' : 'Move',
-      progress: temperaturePercent(overall.code),
-      tone: overall.code === 'TRADE' ? 'go' : overall.code === 'WAIT' ? 'watch' : 'hold',
-      value: noActionDay
-        ? locale === 'zh'
-          ? '先等'
-          : 'Wait'
-        : locale === 'zh'
-          ? '可动'
-          : 'Ready'
-    },
-    {
-      key: 'size',
-      label: locale === 'zh' ? '仓位' : 'Size',
-      progress: noActionDay ? 22 : trendPercent(featuredSignal),
-      tone: noActionDay ? 'calm' : 'go',
-      value:
-        noActionDay
-          ? locale === 'zh'
-            ? '轻'
-            : 'Light'
-          : Number(featuredSignal?.position_advice?.position_pct ?? featuredSignal?.position_size_pct ?? 0) >= 14
-            ? locale === 'zh'
-              ? '正常'
-              : 'Normal'
-            : locale === 'zh'
-              ? '轻'
-              : 'Light'
-    },
-    {
-      key: 'risk',
-      label: locale === 'zh' ? '风险' : 'Risk',
-      progress: simpleRiskPercent(risk.level),
-      tone: risk.level === 'danger' ? 'hold' : risk.level === 'medium' ? 'watch' : 'go',
-      value: risk.level === 'danger' ? (locale === 'zh' ? '高' : 'High') : risk.level === 'medium' ? (locale === 'zh' ? '中' : 'Mid') : (locale === 'zh' ? '低' : 'Low')
-    }
-  ];
-  const heroPromptLine =
-    locale === 'zh'
-      ? `今天先记住：${coachPlan[2]?.value || risk.explanation}`
-      : `Keep this in mind first: ${coachPlan[2]?.value || risk.explanation}`;
-  const tempoOptions =
-    locale === 'zh'
-      ? [
-          { key: 'light', label: '保守一点', note: noActionDay ? '今天先稳住，别抢动作。' : '只试一点，别把仓位放大。' },
-          { key: 'normal', label: '正常节奏', note: noActionDay ? '先等条件更清楚。' : '按计划做，别临场上头。' },
-          { key: 'push', label: '更主动', note: noActionDay ? '今天不适合发力，先把手收回来。' : '只有完全顺的时候才加一点。' }
-        ]
-      : [
-          { key: 'light', label: 'Take it light', note: noActionDay ? 'Keep your hands off the gas today.' : 'Take a feeler, not a full swing.' },
-          { key: 'normal', label: 'Stay normal', note: noActionDay ? 'Wait for the setup to earn your attention.' : 'Follow the plan. Don’t improvise.' },
-          { key: 'push', label: 'Lean in', note: noActionDay ? 'Today is not a push day. Keep it holstered.' : 'Lean only if it stays clean.' }
-        ];
-  const tempoIndex = Math.max(
-    0,
-    tempoOptions.findIndex((item) => item.key === tempoMode)
-  );
-  const tempoCopy = tempoOptions[tempoIndex] || tempoOptions[1];
   const todayDateLabel = useMemo(
     () =>
       now.toLocaleDateString(locale === 'zh' ? 'zh-CN' : 'en-US', {
@@ -730,7 +537,10 @@ export default function TodayTab({
     {
       key: 'mind',
       label: locale === 'zh' ? '先记住什么' : 'Keep in mind',
-      value: coachPlan[2]?.value,
+      value:
+        noActionDay
+          ? uiRegime?.protective_line || noActionCopy.notify
+          : featuredSignal?.risk_note || risk.explanation,
       tone: 'mint'
     },
     {
@@ -751,27 +561,81 @@ export default function TodayTab({
         ? locale === 'zh'
           ? '更适合等'
           : 'Wait mode'
-        : locale === 'zh'
+      : locale === 'zh'
           ? '优先防守'
           : 'Defense first';
-  const tempoAskPrompt = noActionDay
-    ? `Explain why waiting is the better move today for a ${tempoMode} pace.`
-    : `Give me today's action plan in plain words for a ${tempoMode} pace.`;
-  const sectionIntro = noActionDay
+  const setupScoreLabel = featuredSignal ? `${locale === 'zh' ? '把握' : 'Conviction'} ${confidenceText(featuredSignal)}` : null;
+  const convictionValue = featuredSignal ? confidenceText(featuredSignal) : (locale === 'zh' ? '等待' : 'Waiting');
+  const actionDirectionLabel = noActionDay
     ? locale === 'zh'
-      ? '先确认今天不需要冲动动作。'
-      : 'Confirm that today does not need a forced move.'
+      ? '先观察'
+      : 'Watch only'
+    : String(featuredSignal?.direction || '').toUpperCase() === 'SHORT'
+      ? locale === 'zh'
+        ? '偏防守'
+        : 'Reduce risk'
+      : locale === 'zh'
+        ? '可以买入'
+        : 'Buy setup';
+  const positionSizeLabel = noActionDay
+    ? locale === 'zh'
+      ? '先空仓'
+      : 'Stay in cash'
+    : suggestedPositionText(featuredSignal);
+  const riskChipLabel =
+    risk.level === 'safe'
+      ? locale === 'zh'
+        ? '低风险'
+        : 'Low risk'
+      : risk.level === 'medium'
+        ? locale === 'zh'
+          ? '中风险'
+          : 'Medium risk'
+        : locale === 'zh'
+          ? '高风险'
+          : 'High risk';
+  const actionWhyLine = noActionDay
+    ? uiRegime?.completion_line || noActionCopy.completion
+    : featuredSignal?.brief_why_now || actionCopy.why_now;
+  const climate = overall.code === 'TRADE'
+    ? {
+        name: locale === 'zh' ? '窗口打开' : 'Open lane',
+        line: locale === 'zh' ? '今天可以动，但节奏要轻。' : 'Tradable today. Keep the size light.',
+        tone: 'trade'
+      }
+    : overall.code === 'WAIT'
+      ? {
+          name: locale === 'zh' ? '天气偏混' : 'Mixed skies',
+          line: locale === 'zh' ? '先等，不要抢第一下。' : 'Wait first. Do not force the first move.',
+          tone: 'wait'
+        }
+      : overall.code === 'NO_TRADE'
+        ? {
+            name: locale === 'zh' ? '今天休市' : 'Market closed',
+            line: locale === 'zh' ? '今天不做动作，只做复盘。' : 'No trading today. Use it for review.',
+            tone: 'closed'
+          }
+        : {
+            name: locale === 'zh' ? '风暴预警' : 'Storm watch',
+            line: locale === 'zh' ? '先防守，不要扩张风险。' : 'Defend first. Do not add risk.',
+            tone: 'defense'
+          };
+  const climateBand = [
+    overall.code === 'TRADE' ? 'high' : overall.code === 'WAIT' ? 'mid' : 'low',
+    noActionDay ? 'low' : Number(featuredSignal?.position_advice?.position_pct ?? 0) >= 14 ? 'high' : 'mid',
+    risk.level === 'safe' ? 'low' : risk.level === 'medium' ? 'mid' : 'high'
+  ];
+  const todayPickSymbol = featuredSignal?.symbol || (locale === 'zh' ? '现金' : 'Cash');
+  const actionCardKicker = noActionDay
+    ? locale === 'zh'
+      ? '今日观察'
+      : 'Today watch'
     : locale === 'zh'
-      ? '先抓住今天最重要的动作节奏。'
-      : 'Catch the single most important move first.';
-
-  useEffect(() => {
-    if (noActionDay) {
-      setTempoMode('light');
-      return;
-    }
-    setTempoMode((current) => (current === 'light' || current === 'normal' || current === 'push' ? current : 'normal'));
-  }, [noActionDay]);
+      ? '今日主选'
+      : 'Today pick';
+  const askPrompt = noActionDay
+    ? (locale === 'zh' ? '为什么今天应该先等？' : 'Why should I wait today?')
+    : (locale === 'zh' ? '用人话告诉我今天怎么买。' : 'Tell me how to take this trade in plain words.');
 
   if (activeSignal) {
     return (
@@ -800,21 +664,30 @@ export default function TodayTab({
   };
 
   return (
-    <section className="stack-gap today-screen-redesign">
+    <section className="stack-gap today-screen-redesign today-screen-native">
       <section className="today-summary-header">
-        <div>
+        <div className="today-summary-copy">
           <p className="today-summary-date">{todayDateLabel}</p>
           <h1 className="today-summary-title">{locale === 'zh' ? '今日行动' : 'Today'}</h1>
-          <p className="today-summary-subtitle">{sectionIntro}</p>
         </div>
         <span className={`today-summary-status today-summary-status-${overall.code.toLowerCase()}`}>{actionBandLabel}</span>
       </section>
 
-      <section className="today-fold">
+      <section className="today-screen-flow">
+        <article className={`glass-card today-climate-strip today-climate-${climate.tone}`}>
+          <div className="today-climate-copy">
+            <p className="today-climate-name">{climate.name}</p>
+            <p className="today-climate-line">{climate.line}</p>
+          </div>
+          <div className="today-climate-band" aria-hidden="true">
+            {climateBand.map((level, index) => (
+              <span key={`${level}-${index}`} className={`today-climate-pill today-climate-pill-${level}`} />
+            ))}
+          </div>
+        </article>
+
         <article
-          className={`glass-card beginner-best-suggestion today-action-card-compact today-command-card today-fitness-hero ritual-card ritual-reveal ritual-delay-1 ${noActionDay ? 'is-no-action-day' : 'is-action-day'} ${
-            recommendationChange?.changed ? 'is-updated' : ''
-          } ${morningCheck?.status === 'COMPLETED' ? 'is-confirmed' : ''}`}
+          className={`glass-card today-action-card today-action-card-${climate.tone}`}
           role="button"
           tabIndex={0}
           onClick={() => {
@@ -831,338 +704,79 @@ export default function TodayTab({
             }
           }}
         >
-          <div className="today-pop-summary-card">
-            <div className="today-command-top">
-              <div className="today-command-status">
-                {perceptionLayer?.badge ? <span className="badge badge-neutral">{perceptionLayer.badge}</span> : null}
-                {perceptionLayer?.ambient_label ? <span className="muted status-line">{perceptionLayer.ambient_label}</span> : null}
-              </div>
-              <span className={`today-fitness-band today-band-${overall.code.toLowerCase()}`}>{actionBandLabel}</span>
+          <div className="today-action-card-head">
+            <span className="today-action-kicker">{actionCardKicker}</span>
+            {setupScoreLabel ? <span className="today-action-tag">{setupScoreLabel}</span> : null}
+          </div>
+
+          <div className="today-action-main">
+            <div className="today-action-symbol-block">
+              <h2 className="today-action-symbol">{todayPickSymbol}</h2>
+              <p className="today-action-direction">{actionDirectionLabel}</p>
             </div>
+            <DecisionMark code={overall.code} />
+          </div>
 
-            <div className="today-command-main">
-              <div className="today-ring-cluster" aria-label={locale === 'zh' ? '今日状态环' : 'Today state rings'}>
-                {fitnessRings.map((ring) => (
-                  <div
-                    key={ring.key}
-                    className={`today-ring-card today-ring-${ring.tone}`}
-                    style={{ '--ring-progress': `${ring.progress}%` }}
-                  >
-                    <div className="today-ring-shell">
-                      <div className="today-ring-core">
-                        <span className="today-ring-value">{ring.value}</span>
-                      </div>
-                    </div>
-                    <span className="today-ring-label">{ring.label}</span>
-                  </div>
-                ))}
-              </div>
-
-              <div className="today-command-copy">
-                <p className="today-hero-eyebrow">{heroEyebrow}</p>
-                <h2 className="today-hero-title">{overall.headline}</h2>
-                <p className="today-hero-subtitle">{actionCardLead}</p>
-                <p className="today-command-prompt">{heroPromptLine}</p>
-              </div>
+          <div className="today-action-stats">
+            <div className="today-action-stat">
+              <span className="today-action-stat-label">{locale === 'zh' ? '把握' : 'Conviction'}</span>
+              <span className="today-action-stat-value">{convictionValue}</span>
             </div>
-
-            <div className="today-pop-progress" aria-hidden="true">
-              <span className={`today-pop-progress-lead tone-${overall.code === 'TRADE' ? 'mint' : overall.code === 'WAIT' ? 'amber' : 'violet'}`} />
-              <span className="today-pop-progress-rest" />
+            <div className="today-action-stat">
+              <span className="today-action-stat-label">{locale === 'zh' ? '仓位' : 'Size'}</span>
+              <span className="today-action-stat-value">{positionSizeLabel}</span>
+            </div>
+            <div className="today-action-stat">
+              <span className="today-action-stat-label">{locale === 'zh' ? '风险' : 'Risk'}</span>
+              <span className="today-action-stat-value">{riskChipLabel}</span>
             </div>
           </div>
 
-          <div className="today-quick-grid">
-            {quickTiles.map((item) => (
-              <div key={item.key} className={`today-quick-card today-quick-card-${item.tone}`}>
-                <p className="today-quick-card-label">{item.label}</p>
-                <p className="today-quick-card-value">{item.value}</p>
-              </div>
-            ))}
+          <p className="today-action-why">{actionWhyLine}</p>
+
+          <div className="today-action-links">
+            <button
+              type="button"
+              className="today-action-link"
+              onClick={(event) => {
+                event.stopPropagation();
+                handleMainAction();
+              }}
+            >
+              {overall.code === 'TRADE' && featuredSignal && featuredSignal._actionable
+                ? locale === 'zh'
+                  ? '打开计划'
+                  : 'Open plan'
+                : locale === 'zh'
+                  ? '查看理由'
+                  : 'See why'}
+            </button>
+            <button
+              type="button"
+              className="today-action-link"
+              onClick={(event) => {
+                event.stopPropagation();
+                triggerFeedback('soft');
+                onAskAi?.(askPrompt, {
+                  page: 'today',
+                  focus: noActionDay ? 'restraint' : 'top_action'
+                });
+              }}
+            >
+              {locale === 'zh' ? '问 Nova' : 'Ask Nova'}
+            </button>
           </div>
-
-          <div className="today-fitness-dial">
-            <div className="today-fitness-dial-head">
-              <p className="today-fitness-dial-kicker">{locale === 'zh' ? '今天的动作节奏' : 'Pick today’s pace'}</p>
-              {featuredSignal ? (
-                <span className={`badge ${noActionDay ? 'badge-neutral' : 'badge-triggered'}`}>{confidenceText(featuredSignal)}</span>
-              ) : null}
-            </div>
-            <div className="today-fitness-segment" style={{ '--tempo-index': tempoIndex }}>
-              <span className="today-fitness-segment-thumb" aria-hidden="true" />
-              {tempoOptions.map((item) => (
-                <button
-                  key={item.key}
-                  type="button"
-                  className={`today-fitness-segment-btn ${tempoMode === item.key ? 'active' : ''}`}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    triggerFeedback('soft');
-                    setTempoMode(item.key);
-                  }}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
-            <p className="today-fitness-dial-note">{tempoCopy.note}</p>
-          </div>
-
-          <p className="ritual-kicker">{actionCardSubline}</p>
-          {!featuredSignal ? (
-            <p className="muted status-line">
-              {uiRegime?.completion_line || noActionCopy.completion}
-            </p>
-          ) : (
-            <>
-              <div className="today-hero-signal-row">
-                <div className="today-hero-signal-copy">
-                  <p className="today-action-line">{featuredSignal.symbol || '--'}</p>
-                  <p className="today-hero-symbol-meta">{heroSignalMeta}</p>
-                </div>
-                <div className="today-hero-confidence-stack">
-                  <span className="today-hero-confidence">{confidenceText(featuredSignal)}</span>
-                  <span className="muted status-line">{generatedText(featuredSignal)}</span>
-                </div>
-              </div>
-
-              {noActionDay ? (
-                <div className="today-no-action-panel">
-                  <p className="today-no-action-line">{uiRegime?.completion_line || noActionCopy.completion}</p>
-                  <p className="muted status-line">
-                    {featuredSignal?.risk_note ||
-                      morningCheck?.completion_feedback ||
-                      uiRegime?.protective_line ||
-                      noActionCopy.notify}
-                  </p>
-                </div>
-              ) : (
-                <div className="today-coach-plan">
-                  {coachPlan.map((item) => (
-                    <div key={item.key} className="today-coach-pill">
-                      <p className="today-coach-pill-label">{item.label}</p>
-                      <p className="today-coach-pill-value">{item.value}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <div className="today-hero-notes">
-                <p className="muted status-line">
-                  {locale === 'zh' ? '今天计划' : 'Today’s plan'} · {actionModeLabel(featuredSignal, noActionDay, locale)}
-                </p>
-                <p className="muted status-line">
-                  {featuredSignal?.brief_why_now ||
-                    (noActionDay
-                      ? uiRegime?.humor_line || noActionCopy.notify
-                      : actionCopy.why_now)}
-                </p>
-                <p className="muted status-line">
-                  {featuredSignal?.risk_note ||
-                    (noActionDay
-                      ? morningCheck?.completion_feedback || uiRegime?.protective_line || noActionCopy.arrival
-                      : uiRegime?.humor_line || actionCopy.caution)}
-                </p>
-              </div>
-
-              <div className="action-row today-action-row">
-                <button
-                  type="button"
-                  className="primary-btn today-action-cta"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    handleMainAction();
-                  }}
-                >
-                  {featuredSignal._actionable ? (locale === 'zh' ? '生成今日计划' : 'Make today’s plan') : buttonText}
-                </button>
-                <button
-                  type="button"
-                  className="secondary-btn today-action-secondary"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    triggerFeedback('soft');
-                    onAskAi?.(tempoAskPrompt, {
-                      page: 'today',
-                      focus: noActionDay ? 'restraint' : 'top_action',
-                      tempo: tempoMode
-                    });
-                  }}
-                >
-                  {locale === 'zh' ? '问问 Nova' : 'Ask Nova'}
-                </button>
-              </div>
-              <p className="muted status-line action-card-footnote">
-                {morningCheck?.status === 'COMPLETED'
-                  ? morningCheck.completion_feedback
-                  : noActionDay
-                    ? uiRegime?.completion_line || noActionCopy.completion
-                    : morningCheck?.ritual_line || actionCopy.caution}
-              </p>
-            </>
-          )}
         </article>
 
-        <section className="today-secondary-grid">
-          <article className={`glass-card today-follow-through-card today-support-card ritual-delay-2 state-card state-card-${uiRegime?.tone || 'quiet'}`}>
-            <div className="today-follow-through-head">
-              <div>
-                <p className="ritual-kicker">{locale === 'zh' ? '为什么是这个结论' : 'Why this is the call'}</p>
-                <h3 className="card-title">{heroSupport}</h3>
-              </div>
-              <span className={`badge ${risk.level === 'safe' ? 'badge-triggered' : risk.level === 'medium' ? 'badge-medium' : 'badge-neutral'}`}>
-                {risk.icon} {risk.label}
-              </span>
-            </div>
-            <p className="muted status-line">{actionCardSubline}</p>
-            <div className="today-follow-through-grid">
-              <div className="today-follow-through-item">
-                <p className="today-follow-through-label">{locale === 'zh' ? '为什么现在看它' : 'Why now'}</p>
-                <p className="today-follow-through-value">
-                  {featuredSignal?.brief_why_now ||
-                    (noActionDay ? uiRegime?.humor_line || noActionCopy.notify : actionCopy.why_now)}
-                </p>
-              </div>
-              <div className="today-follow-through-item">
-                <p className="today-follow-through-label">{locale === 'zh' ? '别忘了什么' : 'What keeps us honest'}</p>
-                <p className="today-follow-through-value">
-                  {featuredSignal?.risk_note ||
-                    (noActionDay
-                      ? morningCheck?.completion_feedback || uiRegime?.protective_line || noActionCopy.arrival
-                      : uiRegime?.humor_line || actionCopy.caution)}
-                </p>
-              </div>
-            </div>
-            {sourceLine ? <p className="muted status-line today-follow-through-source">{sourceLine}</p> : null}
-          </article>
-
-          {morningCheck ? (
-            <article
-              className={`glass-card morning-check-card today-support-card ritual-card ritual-delay-3 morning-check-${String(morningCheck.status || '').toLowerCase()}`}
-            >
-              <div className="card-header">
-                <div>
-                  <h3 className="card-title">{morningCheck.title}</h3>
-                  <p className="muted status-line">{morningCheck.headline}</p>
-                </div>
-                <span className={`badge ${morningCheck.status === 'COMPLETED' ? 'badge-triggered' : morningCheck.status === 'REFRESH_REQUIRED' ? 'badge-medium' : 'badge-neutral'}`}>
-                  {morningCheck.short_label}
-                </span>
-              </div>
-              {morningCheck.arrival_line ? <p className="ritual-kicker">{morningCheck.arrival_line}</p> : null}
-              <p className="daily-brief-conclusion">{morningCheck.prompt}</p>
-              {morningCheck.ritual_line ? <p className="status-line">{morningCheck.ritual_line}</p> : null}
-              {morningCheck.why_now ? <p className="muted status-line">{morningCheck.why_now}</p> : null}
-              <div className="action-row">
-                <button
-                  type="button"
-                  className="primary-btn"
-                  onClick={() => {
-                    triggerFeedback('confirm');
-                    onCompleteCheckIn?.();
-                  }}
-                >
-                  {morningCheck.cta_label || (morningCheck.status === 'COMPLETED' ? 'Checked for today' : morningCheck.status === 'REFRESH_REQUIRED' ? 'Review updated view' : 'Confirm today’s view')}
-                </button>
-                <button
-                  type="button"
-                  className="secondary-btn"
-                  onClick={() => {
-                    triggerFeedback('soft');
-                    onAskAi?.('Why today’s view?', { page: 'today', focus: 'morning_check' });
-                  }}
-                >
-                  {morningCheck.ai_cta_label || 'Ask Nova'}
-                </button>
-              </div>
-              {morningCheck.humor_line ? <p className="ritual-kicker">{morningCheck.humor_line}</p> : null}
-              {morningCheck.completion_feedback ? <p className="muted status-line">{morningCheck.completion_feedback}</p> : null}
+        <section className="today-summary-grid">
+          {quickTiles.map((item) => (
+            <article key={item.key} className={`glass-card today-summary-card today-summary-card-${item.tone}`}>
+              <p className="today-summary-card-label">{item.label}</p>
+              <p className="today-summary-card-value">{item.value}</p>
             </article>
-          ) : null}
+          ))}
         </section>
       </section>
-
-      {(secondaryDecisionSignals.length || historySignals.length) ? (
-        <article className="glass-card today-support-card">
-          <div className="card-header">
-            <div>
-              <h3 className="card-title">{secondaryDecisionSignals.length ? actionCopy.more_ranked_title : actionCopy.recent_signals_title}</h3>
-              <p className="muted">
-                {secondaryDecisionSignals.length
-                  ? locale === 'zh'
-                    ? '排在榜首之后的次级动作。'
-                    : 'Lower-priority actions after the top decision.'
-                  : locale === 'zh'
-                    ? '用于 investor walkthrough 的最近示例。'
-                    : 'Recent examples for the investor walkthrough.'}
-              </p>
-            </div>
-          </div>
-          <div className="demo-history-list">
-            {(secondaryDecisionSignals.length ? secondaryDecisionSignals : historySignals).map((signal) => (
-              <button
-                key={signal.signal_id}
-                type="button"
-                className={`demo-history-row ${signal.symbol === recommendationChange?.current?.top_action_symbol ? 'is-promoted' : ''}`}
-                onClick={() => {
-                  triggerFeedback('soft');
-                  setActiveSignal(signal);
-                }}
-              >
-                <div>
-                  <p className="quick-access-title">{signal.symbol}</p>
-                  <p className="quick-access-desc">
-                    {signalDirection(signal)} · {generatedText(signal)}
-                  </p>
-                </div>
-                <div className="demo-history-meta">
-                  <span className={`badge ${String(signal.demo_outcome_label || '').toLowerCase().includes('stop') ? 'badge-expired' : 'badge-triggered'}`}>
-                    {signal.demo_outcome_label || confidenceText(signal)}
-                  </span>
-                  {signal.demo_outcome_note ? <span className="quick-access-desc">{signal.demo_outcome_note}</span> : null}
-                </div>
-              </button>
-            ))}
-          </div>
-        </article>
-      ) : null}
-
-      {wrapUp?.ready ? (
-        <article className={`glass-card wrap-up-card today-support-card ritual-card ritual-delay-4 ${wrapUp.completed ? 'is-confirmed' : ''}`}>
-          <div className="card-header">
-            <div>
-              <h3 className="card-title">{wrapUp.title}</h3>
-              <p className="muted status-line">{wrapUp.headline}</p>
-            </div>
-            <span className={`badge ${wrapUp.completed ? 'badge-triggered' : 'badge-neutral'}`}>{wrapUp.short_label}</span>
-          </div>
-          {wrapUp.opening_line ? <p className="ritual-kicker">{wrapUp.opening_line}</p> : null}
-          <p className="muted status-line">{wrapUp.summary}</p>
-          <div className="action-row">
-            <button
-              type="button"
-              className="secondary-btn"
-              onClick={() => {
-                triggerFeedback('soft');
-                onOpenWeekly?.();
-              }}
-            >
-              {actionCopy.open_wrap_label}
-            </button>
-            <button
-              type="button"
-              className="secondary-btn"
-              onClick={() => {
-                triggerFeedback('soft');
-                onAskAi?.('What mattered most today?', { page: 'today', focus: 'wrap_up' });
-              }}
-            >
-              {actionCopy.ask_nova_label}
-            </button>
-          </div>
-          {wrapUp.completion_feedback ? <p className="muted status-line">{wrapUp.completion_feedback}</p> : null}
-        </article>
-      ) : null}
     </section>
   );
 }

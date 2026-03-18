@@ -1465,6 +1465,8 @@ export default function App() {
           holdings={holdings}
           setHoldings={setHoldings}
           holdingsReview={holdingsReview}
+          watchlist={watchlist}
+          marketInstruments={uiData?.layers?.data_layer?.instruments || []}
           uiMode={uiMode}
           t={t}
           locale={locale}

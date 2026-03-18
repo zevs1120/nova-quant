@@ -2,6 +2,46 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 5.1.1 (2026-03-18)
+- Release type: patch
+- Use real historical bars for Holdings demo curves whenever market data is available
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
+## 5.1.0 (2026-03-18)
+- Release type: minor
+- Redesign the Holdings page around a Robinhood-style portfolio overview and a lighter NovaQuant list surface
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
+## 5.0.1 (2026-03-18)
+- Release type: patch
+- Fix Today page white screen caused by undefined conviction value
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
+## 5.0.0 (2026-03-17)
+- Release type: major
+- Rebuild the Today screen around a single-glance decision layout
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
+## 4.6.0 (2026-03-17)
+- Release type: minor
+- Refactor Today, Holdings, and More into lighter native-feeling mobile surfaces while keeping the AI tab in a ChatGPT plus iMessage conversation style.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
+## 4.5.2 (2026-03-17)
+- Release type: patch
+- Refine the home tab bar into a slimmer, more native-feeling mobile navigation with lighter glass and subtler active states.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
+## 4.5.1 (2026-03-17)
+- Release type: patch
+- Redesign the home hero ring row for mobile readability, improving ring contrast and separating MOVE / SIZE / RISK labels from Ready / Light / Low states.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
+## 4.5.0 (2026-03-17)
+- Release type: minor
+- Turn the home hero into a swipeable two-page card, moving the action card into the second page and adding a scroll-condensing top bar that crossfades into the Nova2 logo.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
 ## 4.4.0 (2026-03-17)
 - Release type: minor
 - Add a scroll-condensing top bar that crossfades into the Nova2 logo and tighten the home hero into a rings-first layout with compact secondary cards.
