@@ -143,6 +143,12 @@ const INSTITUTIONAL_REQUIREMENTS = Object.freeze({
     min_evidence_completeness: 0.68,
     require_replay_backed: true,
     require_execution_profile: true,
+    require_execution_tracking_sample: false,
+    min_execution_tracking_sample: 0,
+    min_execution_tracking_score: 0,
+    min_execution_capture_rate: 0,
+    max_avg_abs_fill_gap_bps: Infinity,
+    max_win_rate_drift: Infinity,
     min_oos_positive_ratio: 0.48,
     require_survive_costs: true,
     require_survive_harsh_execution: true,
@@ -156,6 +162,12 @@ const INSTITUTIONAL_REQUIREMENTS = Object.freeze({
     min_evidence_completeness: 0.76,
     require_replay_backed: true,
     require_execution_profile: true,
+    require_execution_tracking_sample: true,
+    min_execution_tracking_sample: 2,
+    min_execution_tracking_score: 0.55,
+    min_execution_capture_rate: 0.35,
+    max_avg_abs_fill_gap_bps: 42,
+    max_win_rate_drift: 0.12,
     min_oos_positive_ratio: 0.55,
     require_survive_costs: true,
     require_survive_harsh_execution: true,
@@ -169,6 +181,12 @@ const INSTITUTIONAL_REQUIREMENTS = Object.freeze({
     min_evidence_completeness: 0.84,
     require_replay_backed: true,
     require_execution_profile: true,
+    require_execution_tracking_sample: true,
+    min_execution_tracking_sample: 4,
+    min_execution_tracking_score: 0.72,
+    min_execution_capture_rate: 0.5,
+    max_avg_abs_fill_gap_bps: 28,
+    max_win_rate_drift: 0.08,
     min_oos_positive_ratio: 0.6,
     require_survive_costs: true,
     require_survive_harsh_execution: true,
@@ -250,6 +268,10 @@ function walkforwardById(walkforward = {}) {
   return new Map((walkforward?.strategies || []).map((item) => [item.strategy_id, item]));
 }
 
+function executionDriftByStrategy(executionDrift = {}) {
+  return new Map((executionDrift?.by_strategy || []).map((item) => [item.strategy_id, item]));
+}
+
 function evidenceSummaryFor({ strategyId, walkforwardRow, version, family, template }) {
   const fieldCoverage = {
     strategy_id_present: Boolean(strategyId),
@@ -319,7 +341,8 @@ function evaluateInstitutionalReadiness({
   validationSummary,
   monitoringSummary,
   operationalConfidence,
-  diversification
+  diversification,
+  executionDriftSummary
 }) {
   const requirements = institutionalRequirementsFor(targetStage);
   if (!requirements) {
@@ -377,6 +400,36 @@ function evaluateInstitutionalReadiness({
     {
       id: 'critical_concern_budget',
       pass: safe(monitoringSummary?.critical_count, 0) <= safe(requirements.max_critical_concerns, 0)
+    },
+    {
+      id: 'execution_tracking_sample',
+      pass:
+        !requirements.require_execution_tracking_sample ||
+        safe(executionDriftSummary?.matched_trade_count, 0) >= safe(requirements.min_execution_tracking_sample, 0)
+    },
+    {
+      id: 'execution_capture_rate',
+      pass:
+        !requirements.require_execution_tracking_sample ||
+        safe(executionDriftSummary?.capture_rate, 0) >= safe(requirements.min_execution_capture_rate, 0)
+    },
+    {
+      id: 'execution_tracking_score',
+      pass:
+        !requirements.require_execution_tracking_sample ||
+        safe(executionDriftSummary?.score, 0) >= safe(requirements.min_execution_tracking_score, 0)
+    },
+    {
+      id: 'fill_gap_discipline',
+      pass:
+        !requirements.require_execution_tracking_sample ||
+        safe(executionDriftSummary?.avg_abs_fill_gap_bps, Infinity) <= safe(requirements.max_avg_abs_fill_gap_bps, Infinity)
+    },
+    {
+      id: 'win_rate_tracking',
+      pass:
+        !requirements.require_execution_tracking_sample ||
+        Math.abs(safe(executionDriftSummary?.win_rate_drift, Infinity)) <= safe(requirements.max_win_rate_drift, Infinity)
     }
   ];
 
@@ -394,7 +447,7 @@ function evaluateInstitutionalReadiness({
   };
 }
 
-function degradationSignals(walkforwardRow = {}, signalCount = 0) {
+function degradationSignals(walkforwardRow = {}, signalCount = 0, executionDriftSummary = {}) {
   const reasons = [];
   if (walkforwardRow?.degradation_tracking?.trend === 'degrading') reasons.push('return_degradation');
   if (!walkforwardRow?.verdict?.survives_after_costs) reasons.push('cost_fragility');
@@ -402,6 +455,15 @@ function degradationSignals(walkforwardRow = {}, signalCount = 0) {
   if (!walkforwardRow?.verdict?.strict_fill_monotonicity) reasons.push('strict_fill_monotonicity_failure');
   if (walkforwardRow?.verdict?.regime_dependent) reasons.push('regime_dependency');
   if (signalCount <= 2) reasons.push('low_signal_density');
+  if (executionDriftSummary?.status === 'watch') reasons.push('replay_paper_drift_watch');
+  if (executionDriftSummary?.status === 'breach') reasons.push('replay_paper_drift_breach');
+  if (executionDriftSummary?.status === 'insufficient_sample') reasons.push('execution_tracking_insufficient');
+  if (
+    safe(executionDriftSummary?.matched_trade_count, 0) > 0 &&
+    safe(executionDriftSummary?.capture_rate, 1) < 0.35
+  ) {
+    reasons.push('execution_capture_shortfall');
+  }
 
   return {
     status: reasons.length ? 'warning' : 'healthy',
@@ -417,8 +479,15 @@ function scoreOperationalConfidence({ validationSummary, evidenceSummary, divers
   const evidence = safe(evidenceSummary?.completeness_score, 0);
   const div = Math.max(0, Math.min(1, safe(diversification, 0)));
   const degradePenalty = degradation.status === 'warning' ? 0.14 : 0;
+  const driftPenalty = degradation.reasons.includes('replay_paper_drift_breach')
+    ? 0.12
+    : degradation.reasons.includes('replay_paper_drift_watch')
+      ? 0.06
+      : degradation.reasons.includes('execution_tracking_insufficient')
+        ? 0.04
+        : 0;
   const base = 0.2 * oos + 0.16 * costs + 0.14 * harsh + 0.18 * stable + 0.2 * evidence + 0.12 * div;
-  return round(Math.max(0, Math.min(1, base - degradePenalty)), 4);
+  return round(Math.max(0, Math.min(1, base - degradePenalty - driftPenalty)), 4);
 }
 
 function stageCheckRows({
@@ -428,7 +497,8 @@ function stageCheckRows({
   validationSummary,
   monitoringSummary,
   operationalConfidence,
-  institutionalReadiness
+  institutionalReadiness,
+  executionDriftSummary
 }) {
   const checks = [];
   const thresholds = stageSpec?.evidence_thresholds || {};
@@ -523,6 +593,14 @@ function stageCheckRows({
     pass: monitoringSummary.critical_count === 0
   });
   checks.push({
+    check_id: 'execution_drift_watch',
+    category: 'monitoring',
+    required: stage === 'CANARY' || stage === 'PROD',
+    threshold: 'aligned_or_watch',
+    value: executionDriftSummary?.status || 'unavailable',
+    pass: ['aligned', 'watch'].includes(String(executionDriftSummary?.status || ''))
+  });
+  checks.push({
     check_id: `institutional_grade_ready_for_${String(institutionalReadiness?.target_stage || stage).toLowerCase()}`,
     category: 'institutional',
     required: stage === 'SHADOW' || stage === 'CANARY' || stage === 'PROD',
@@ -546,6 +624,7 @@ function buildEvidenceLinks(strategyId, checks = []) {
   }
   links.push(`walk_forward_validation.strategies.${strategyId}.execution_realism`);
   links.push(`walk_forward_validation.strategies.${strategyId}.out_of_sample_summary`);
+  links.push(`execution_drift_monitor.by_strategy.${strategyId}`);
   return [...new Set(links)];
 }
 
@@ -573,7 +652,9 @@ function decideAction({
   const degradationReasons = monitoringSummary?.degradation_signals?.reasons || [];
   const executionCredibilityBreak =
     degradationReasons.includes('harsh_execution_fragility') ||
-    degradationReasons.includes('strict_fill_monotonicity_failure');
+    degradationReasons.includes('strict_fill_monotonicity_failure') ||
+    degradationReasons.includes('replay_paper_drift_breach') ||
+    degradationReasons.includes('execution_capture_shortfall');
 
   if (stage === 'RETIRED') {
     return { action: 'HOLD', to_stage: 'RETIRED', rationale: 'Strategy is retired and archived.' };
@@ -794,6 +875,7 @@ export function buildStrategyGovernanceLifecycle({
   walkforward = {},
   funnelDiagnostics = {},
   signals = [],
+  executionDrift = {},
   reviewer = 'system-generated'
 } = {}) {
   const baseRows = collectStrategyRows(research);
@@ -802,6 +884,7 @@ export function buildStrategyGovernanceLifecycle({
   const versionRegistry = research?.governance?.version_registry || [];
   const previousByStrategy = priorRecordByStrategy(research);
   const wfByStrategy = walkforwardById(walkforward);
+  const driftByStrategy = executionDriftByStrategy(executionDrift);
 
   const provisionalRows = baseRows.map((row) => {
     const strategyId = row.strategy_id;
@@ -811,6 +894,27 @@ export function buildStrategyGovernanceLifecycle({
     const template = metaByStrategy.get(strategyId)?.template || strategyId;
     const signalFrequency = safe(frequency[strategyId], 0);
     const diversity = diversificationValue(strategyId, research);
+    const driftSummary = driftByStrategy.get(strategyId) || {
+      strategy_id: strategyId,
+      matched_trade_count: 0,
+      replay_triggered_count: 0,
+      actual_trade_count: 0,
+      capture_rate: 0,
+      avg_abs_fill_gap_bps: null,
+      avg_abs_pnl_gap_pct: null,
+      avg_abs_hold_gap_days: null,
+      breach_count: 0,
+      watch_count: 0,
+      score: 0,
+      status:
+        executionDrift?.institutional_gate?.status === 'insufficient_sample'
+          ? 'insufficient_sample'
+          : 'unavailable',
+      blockers:
+        executionDrift?.institutional_gate?.status === 'insufficient_sample'
+          ? ['insufficient_execution_tracking_sample']
+          : []
+    };
 
     const evidenceSummary = evidenceSummaryFor({
       strategyId,
@@ -820,17 +924,27 @@ export function buildStrategyGovernanceLifecycle({
       template
     });
     const validationSummary = validationSummaryFor(walkforwardRow);
-    const degradation = degradationSignals(walkforwardRow, signalFrequency);
+    const degradation = degradationSignals(walkforwardRow, signalFrequency, driftSummary);
+    const criticalReasons = degradation.reasons.filter((item) =>
+      [
+        'harsh_execution_fragility',
+        'strict_fill_monotonicity_failure',
+        'return_degradation',
+        'cost_fragility',
+        'replay_paper_drift_breach',
+        'execution_capture_shortfall'
+      ].includes(item)
+    );
     const monitoringSummary = {
       signal_frequency: signalFrequency,
+      execution_drift: driftSummary,
       degradation_signals: degradation,
       warning_count: degradation.status === 'warning' ? degradation.reasons.length : 0,
-      critical_count: degradation.reasons.filter((item) =>
-        ['harsh_execution_fragility', 'strict_fill_monotonicity_failure', 'return_degradation', 'cost_fragility'].includes(item)
-      ).length,
+      critical_count: criticalReasons.length,
       retire_recommended:
         (degradation.reasons.includes('harsh_execution_fragility') && degradation.reasons.includes('cost_fragility')) ||
-        (degradation.reasons.includes('return_degradation') && signalFrequency <= 1)
+        (degradation.reasons.includes('return_degradation') && signalFrequency <= 1) ||
+        (degradation.reasons.includes('replay_paper_drift_breach') && degradation.reasons.includes('harsh_execution_fragility'))
     };
 
     const operationalConfidence = scoreOperationalConfidence({
@@ -845,7 +959,8 @@ export function buildStrategyGovernanceLifecycle({
       validationSummary,
       monitoringSummary,
       operationalConfidence,
-      diversification: diversity
+      diversification: diversity,
+      executionDriftSummary: driftSummary
     });
 
     const stageSpec = STAGE_WORKFLOW[row.stage] || STAGE_WORKFLOW.DRAFT;
@@ -856,7 +971,8 @@ export function buildStrategyGovernanceLifecycle({
       validationSummary,
       monitoringSummary,
       operationalConfidence,
-      institutionalReadiness
+      institutionalReadiness,
+      executionDriftSummary: driftSummary
     });
 
     return {
@@ -873,6 +989,7 @@ export function buildStrategyGovernanceLifecycle({
       evidence_summary: evidenceSummary,
       validation_summary: validationSummary,
       monitoring_summary: monitoringSummary,
+      execution_drift_summary: driftSummary,
       institutional_readiness: institutionalReadiness,
       operational_confidence: operationalConfidence,
       diversification_value: round(diversity, 4),
@@ -1002,7 +1119,8 @@ export function buildStrategyGovernanceLifecycle({
           change_log_size: row.change_log_size,
           execution_realism_profile: row.validation_summary.execution_assumption_profile?.profile_id || null,
           institutional_target_stage: row.institutional_readiness?.target_stage || null,
-          institutional_blocker_count: row.institutional_readiness?.blockers?.length || 0
+          institutional_blocker_count: row.institutional_readiness?.blockers?.length || 0,
+          execution_drift_status: row.monitoring_summary.execution_drift?.status || 'unavailable'
         },
         generated_at: asOf
       };
@@ -1054,6 +1172,13 @@ export function buildStrategyGovernanceLifecycle({
         .map(([blocker, count]) => ({ blocker, count }))
         .sort((a, b) => b.count - a.count);
     })()
+  };
+  const executionDriftOverview = {
+    institutional_gate: executionDrift?.institutional_gate || null,
+    coverage: executionDrift?.coverage || null,
+    by_strategy: executionDrift?.by_strategy || [],
+    by_market: executionDrift?.by_market || [],
+    top_blockers: executionDrift?.institutional_gate?.blockers || []
   };
 
   const rollbackLogic = {
@@ -1130,6 +1255,7 @@ export function buildStrategyGovernanceLifecycle({
       .sort((a, b) => b.operational_confidence - a.operational_confidence),
     rollback_logic: rollbackLogic,
     institutional_readiness: institutionalSummary,
+    execution_drift_overview: executionDriftOverview,
     retirement_watchlist: strategyRecords
       .filter((item) => item.monitoring_summary.retire_recommended || item.action === 'RETIRE')
       .map((item) => ({
@@ -1150,6 +1276,7 @@ export function buildStrategyGovernanceLifecycle({
       average_operational_confidence: round(safeMean(strategyRecords.map((item) => item.operational_confidence)), 4),
       average_institutional_readiness: institutionalSummary.average_readiness_score,
       institutional_prod_ready_count: institutionalSummary.ready_for_prod_count,
+      execution_drift_status: executionDrift?.institutional_gate?.status || 'unavailable',
       observed_pipeline_bottleneck: funnelDiagnostics?.bottleneck?.stage || 'unknown'
     }
   };
