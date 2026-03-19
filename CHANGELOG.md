@@ -2,6 +2,11 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 10.0.1 (2026-03-19)
+- Release type: patch
+- Add institutional-readiness gates to strategy governance and make runtime-state API tests independent of sandbox port binding.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
 ## 10.0.0 (2026-03-19)
 - Release type: major
 - Separate live, paper, replay, backtest, and demo evidence modes across the runtime, decision, and proof surfaces.

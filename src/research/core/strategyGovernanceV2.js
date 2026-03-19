@@ -138,6 +138,48 @@ const STAGE_WORKFLOW = Object.freeze({
   }
 });
 
+const INSTITUTIONAL_REQUIREMENTS = Object.freeze({
+  SHADOW: {
+    min_evidence_completeness: 0.68,
+    require_replay_backed: true,
+    require_execution_profile: true,
+    min_oos_positive_ratio: 0.48,
+    require_survive_costs: true,
+    require_survive_harsh_execution: true,
+    require_strict_fill_monotonicity: true,
+    require_stable: true,
+    min_operational_confidence: 0.58,
+    min_diversification_value: 0.03,
+    max_critical_concerns: 1
+  },
+  CANARY: {
+    min_evidence_completeness: 0.76,
+    require_replay_backed: true,
+    require_execution_profile: true,
+    min_oos_positive_ratio: 0.55,
+    require_survive_costs: true,
+    require_survive_harsh_execution: true,
+    require_strict_fill_monotonicity: true,
+    require_stable: true,
+    min_operational_confidence: 0.68,
+    min_diversification_value: 0.06,
+    max_critical_concerns: 0
+  },
+  PROD: {
+    min_evidence_completeness: 0.84,
+    require_replay_backed: true,
+    require_execution_profile: true,
+    min_oos_positive_ratio: 0.6,
+    require_survive_costs: true,
+    require_survive_harsh_execution: true,
+    require_strict_fill_monotonicity: true,
+    require_stable: true,
+    min_operational_confidence: 0.74,
+    min_diversification_value: 0.1,
+    max_critical_concerns: 0
+  }
+});
+
 function safe(value, fallback = 0) {
   const n = Number(value);
   return Number.isFinite(n) ? n : fallback;
@@ -150,6 +192,13 @@ function toLifecycleStage(stage) {
   if (normalized === 'testing' || normalized === 'challenger' || normalized === 'shadow') return 'SHADOW';
   if (normalized === 'retired' || normalized === 'retire') return 'RETIRED';
   return 'DRAFT';
+}
+
+function nextLifecycleStage(stage) {
+  if (stage === 'DRAFT') return 'SHADOW';
+  if (stage === 'SHADOW') return 'CANARY';
+  if (stage === 'CANARY') return 'PROD';
+  return stage;
 }
 
 function collectStrategyRows(research = {}) {
@@ -260,6 +309,91 @@ function validationSummaryFor(walkforwardRow = {}) {
   };
 }
 
+function institutionalRequirementsFor(stage) {
+  return INSTITUTIONAL_REQUIREMENTS[stage] || null;
+}
+
+function evaluateInstitutionalReadiness({
+  targetStage,
+  evidenceSummary,
+  validationSummary,
+  monitoringSummary,
+  operationalConfidence,
+  diversification
+}) {
+  const requirements = institutionalRequirementsFor(targetStage);
+  if (!requirements) {
+    return {
+      target_stage: targetStage,
+      requirements: null,
+      score: 0,
+      pass: false,
+      blockers: ['institutional_requirements_not_defined'],
+      strengths: []
+    };
+  }
+
+  const checks = [
+    {
+      id: 'evidence_completeness',
+      pass: safe(evidenceSummary?.completeness_score, 0) >= safe(requirements.min_evidence_completeness, 0)
+    },
+    {
+      id: 'replay_backed',
+      pass: !requirements.require_replay_backed || Boolean(evidenceSummary?.field_coverage?.replay_backed)
+    },
+    {
+      id: 'execution_profile',
+      pass: !requirements.require_execution_profile || Boolean(evidenceSummary?.field_coverage?.execution_profile_present)
+    },
+    {
+      id: 'oos_positive_ratio',
+      pass: safe(validationSummary?.oos_positive_ratio, 0) >= safe(requirements.min_oos_positive_ratio, 0)
+    },
+    {
+      id: 'survive_costs',
+      pass: !requirements.require_survive_costs || Boolean(validationSummary?.survives_after_costs)
+    },
+    {
+      id: 'survive_harsh_execution',
+      pass: !requirements.require_survive_harsh_execution || Boolean(validationSummary?.survives_after_harsh_execution)
+    },
+    {
+      id: 'strict_fill_monotonicity',
+      pass: !requirements.require_strict_fill_monotonicity || Boolean(validationSummary?.strict_fill_monotonicity)
+    },
+    {
+      id: 'stable_validation',
+      pass: !requirements.require_stable || Boolean(validationSummary?.stable)
+    },
+    {
+      id: 'operational_confidence',
+      pass: safe(operationalConfidence, 0) >= safe(requirements.min_operational_confidence, 0)
+    },
+    {
+      id: 'diversification_value',
+      pass: safe(diversification, 0) >= safe(requirements.min_diversification_value, 0)
+    },
+    {
+      id: 'critical_concern_budget',
+      pass: safe(monitoringSummary?.critical_count, 0) <= safe(requirements.max_critical_concerns, 0)
+    }
+  ];
+
+  const passCount = checks.filter((row) => row.pass).length;
+  const blockers = checks.filter((row) => !row.pass).map((row) => row.id);
+  const strengths = checks.filter((row) => row.pass).map((row) => row.id);
+
+  return {
+    target_stage: targetStage,
+    requirements,
+    score: round(passCount / Math.max(checks.length, 1), 4),
+    pass: blockers.length === 0,
+    blockers,
+    strengths
+  };
+}
+
 function degradationSignals(walkforwardRow = {}, signalCount = 0) {
   const reasons = [];
   if (walkforwardRow?.degradation_tracking?.trend === 'degrading') reasons.push('return_degradation');
@@ -293,7 +427,8 @@ function stageCheckRows({
   evidenceSummary,
   validationSummary,
   monitoringSummary,
-  operationalConfidence
+  operationalConfidence,
+  institutionalReadiness
 }) {
   const checks = [];
   const thresholds = stageSpec?.evidence_thresholds || {};
@@ -387,6 +522,14 @@ function stageCheckRows({
     value: monitoringSummary.critical_count,
     pass: monitoringSummary.critical_count === 0
   });
+  checks.push({
+    check_id: `institutional_grade_ready_for_${String(institutionalReadiness?.target_stage || stage).toLowerCase()}`,
+    category: 'institutional',
+    required: stage === 'SHADOW' || stage === 'CANARY' || stage === 'PROD',
+    threshold: true,
+    value: institutionalReadiness?.score ?? 0,
+    pass: Boolean(institutionalReadiness?.pass)
+  });
   return checks;
 }
 
@@ -419,12 +562,14 @@ function decideAction({
   monitoringSummary,
   validationSummary,
   operationalConfidence,
+  institutionalReadiness,
   rollbackCandidate,
   strategyId
 }) {
   const severe = monitoringSummary.critical_count >= 2 || operationalConfidence < 0.3;
   const retireRecommended = monitoringSummary.retire_recommended;
   const allRequiredPass = requiredUnmet.length === 0;
+  const institutionalFail = !institutionalReadiness?.pass;
   const degradationReasons = monitoringSummary?.degradation_signals?.reasons || [];
   const executionCredibilityBreak =
     degradationReasons.includes('harsh_execution_fragility') ||
@@ -455,6 +600,13 @@ function decideAction({
         action: 'ROLLBACK',
         to_stage: 'CANARY',
         rationale: `Rollback due to execution realism credibility break; standby canary=${rollbackCandidate}.`
+      };
+    }
+    if (institutionalFail) {
+      return {
+        action: 'DEMOTE',
+        to_stage: 'CANARY',
+        rationale: `Production strategy fails institutional readiness for PROD: ${(institutionalReadiness?.blockers || []).join(', ')}.`
       };
     }
     if (severe || monitoringSummary.warning_count > 0 || validationSummary.status === 'fail') {
@@ -687,6 +839,14 @@ export function buildStrategyGovernanceLifecycle({
       diversification: diversity,
       degradation
     });
+    const institutionalReadiness = evaluateInstitutionalReadiness({
+      targetStage: nextLifecycleStage(row.stage),
+      evidenceSummary,
+      validationSummary,
+      monitoringSummary,
+      operationalConfidence,
+      diversification: diversity
+    });
 
     const stageSpec = STAGE_WORKFLOW[row.stage] || STAGE_WORKFLOW.DRAFT;
     const checks = stageCheckRows({
@@ -695,7 +855,8 @@ export function buildStrategyGovernanceLifecycle({
       evidenceSummary,
       validationSummary,
       monitoringSummary,
-      operationalConfidence
+      operationalConfidence,
+      institutionalReadiness
     });
 
     return {
@@ -712,6 +873,7 @@ export function buildStrategyGovernanceLifecycle({
       evidence_summary: evidenceSummary,
       validation_summary: validationSummary,
       monitoring_summary: monitoringSummary,
+      institutional_readiness: institutionalReadiness,
       operational_confidence: operationalConfidence,
       diversification_value: round(diversity, 4),
       stage_requirements: stageSpec,
@@ -733,6 +895,7 @@ export function buildStrategyGovernanceLifecycle({
         monitoringSummary: row.monitoring_summary,
         validationSummary: row.validation_summary,
         operationalConfidence: row.operational_confidence,
+        institutionalReadiness: row.institutional_readiness,
         rollbackCandidate,
         strategyId: row.strategy_id
       });
@@ -813,6 +976,7 @@ export function buildStrategyGovernanceLifecycle({
         evidence_summary: row.evidence_summary,
         validation_summary: row.validation_summary,
         monitoring_summary: row.monitoring_summary,
+        institutional_readiness: row.institutional_readiness,
         approval_state: review.approval_state,
         review_status: review.approval_state,
         latest_review: review,
@@ -836,7 +1000,9 @@ export function buildStrategyGovernanceLifecycle({
         governance_metadata: {
           source_stage: row.source_stage,
           change_log_size: row.change_log_size,
-          execution_realism_profile: row.validation_summary.execution_assumption_profile?.profile_id || null
+          execution_realism_profile: row.validation_summary.execution_assumption_profile?.profile_id || null,
+          institutional_target_stage: row.institutional_readiness?.target_stage || null,
+          institutional_blocker_count: row.institutional_readiness?.blockers?.length || 0
         },
         generated_at: asOf
       };
@@ -870,6 +1036,25 @@ export function buildStrategyGovernanceLifecycle({
     unresolved_concern_count: row.unresolved_concerns.length,
     last_review_timestamp: row.latest_review.review_timestamp
   }));
+
+  const institutionalSummary = {
+    target_profiles: INSTITUTIONAL_REQUIREMENTS,
+    ready_for_shadow_count: strategyRecords.filter((item) => item.institutional_readiness?.target_stage === 'SHADOW' && item.institutional_readiness?.pass).length,
+    ready_for_canary_count: strategyRecords.filter((item) => item.institutional_readiness?.target_stage === 'CANARY' && item.institutional_readiness?.pass).length,
+    ready_for_prod_count: strategyRecords.filter((item) => item.institutional_readiness?.target_stage === 'PROD' && item.institutional_readiness?.pass).length,
+    average_readiness_score: round(safeMean(strategyRecords.map((item) => item.institutional_readiness?.score || 0)), 4),
+    common_blockers: (() => {
+      const counts = new Map();
+      for (const row of strategyRecords) {
+        for (const blocker of row.institutional_readiness?.blockers || []) {
+          counts.set(blocker, (counts.get(blocker) || 0) + 1);
+        }
+      }
+      return [...counts.entries()]
+        .map(([blocker, count]) => ({ blocker, count }))
+        .sort((a, b) => b.count - a.count);
+    })()
+  };
 
   const rollbackLogic = {
     current_prod: strategyRecords.find((item) => item.current_stage === 'PROD')?.strategy_id || null,
@@ -944,6 +1129,7 @@ export function buildStrategyGovernanceLifecycle({
       }))
       .sort((a, b) => b.operational_confidence - a.operational_confidence),
     rollback_logic: rollbackLogic,
+    institutional_readiness: institutionalSummary,
     retirement_watchlist: strategyRecords
       .filter((item) => item.monitoring_summary.retire_recommended || item.action === 'RETIRE')
       .map((item) => ({
@@ -962,6 +1148,8 @@ export function buildStrategyGovernanceLifecycle({
       rollback_count: rollbackDecisions.length,
       retirement_count: retirementDecisions.length,
       average_operational_confidence: round(safeMean(strategyRecords.map((item) => item.operational_confidence)), 4),
+      average_institutional_readiness: institutionalSummary.average_readiness_score,
+      institutional_prod_ready_count: institutionalSummary.ready_for_prod_count,
       observed_pipeline_bottleneck: funnelDiagnostics?.bottleneck?.stage || 'unknown'
     }
   };

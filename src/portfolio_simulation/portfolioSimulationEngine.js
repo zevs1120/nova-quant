@@ -12,6 +12,20 @@ function safe(value, fallback = 0) {
   return Number.isFinite(n) ? n : fallback;
 }
 
+const INSTITUTIONAL_PORTFOLIO_LIMITS = Object.freeze({
+  max_strategy_weight: 0.11,
+  max_market_exposure: {
+    US: 0.82,
+    CRYPTO: 0.34
+  },
+  max_top3_weight: 0.34,
+  max_portfolio_drawdown: 0.12,
+  max_family_drawdown_share: 0.48,
+  min_diversification_score: 0.58,
+  min_worst_case_sharpe: 0,
+  max_cash_buffer: 0.18
+});
+
 function normalizeWeights(rows = [], totalCap = 1) {
   const raw = rows.map((row) => ({
     ...row,
@@ -34,6 +48,15 @@ function familyExposure(rows = []) {
   for (const row of rows) {
     const family = row.strategy_family || 'unknown';
     map.set(family, (map.get(family) || 0) + safe(row.weight, 0));
+  }
+  return map;
+}
+
+function genericExposure(rows = [], field = 'market_hint') {
+  const map = new Map();
+  for (const row of rows) {
+    const key = row[field] || 'unknown';
+    map.set(key, (map.get(key) || 0) + safe(row.weight, 0));
   }
   return map;
 }
@@ -139,6 +162,86 @@ function applyFamilyCrowdingGuard(rows = [], familyCap = 0.32) {
     },
     family_exposure_before: toExposureRows(exposureBeforeMap),
     family_exposure_after: toExposureRows(exposureAfterMap)
+  };
+}
+
+function applyInstitutionalRiskGuard(rows = [], limits = INSTITUTIONAL_PORTFOLIO_LIMITS) {
+  if (!rows.length) {
+    return {
+      strategy_rows: [],
+      summary: {
+        max_strategy_weight: safe(limits.max_strategy_weight, 0),
+        total_allocated_before: 0,
+        total_allocated_after: 0,
+        unallocated_cash_buffer: 0,
+        trimmed_strategy_count: 0,
+        market_caps_applied: limits.max_market_exposure || {}
+      },
+      market_exposure_before: [],
+      market_exposure_after: [],
+      trimmed_strategies: []
+    };
+  }
+
+  const working = rows.map((row) => ({
+    ...row,
+    base_weight: safe(row.weight, 0),
+    weight: safe(row.weight, 0)
+  }));
+  const totalBefore = working.reduce((acc, row) => acc + row.weight, 0);
+  const trimmedStrategies = [];
+
+  for (const row of working) {
+    const maxStrategyWeight = safe(limits.max_strategy_weight, 1);
+    if (row.weight <= maxStrategyWeight) continue;
+    const before = row.weight;
+    row.weight = maxStrategyWeight;
+    trimmedStrategies.push({
+      strategy_id: row.strategy_id,
+      reason: 'max_strategy_weight',
+      before: round(before, 6),
+      after: round(row.weight, 6),
+      trimmed: round(before - row.weight, 6)
+    });
+  }
+
+  const marketExposureBefore = genericExposure(working, 'market_hint');
+  for (const [market, exposure] of marketExposureBefore.entries()) {
+    const cap = safe(limits.max_market_exposure?.[market], 1);
+    if (exposure <= cap) continue;
+    const scale = cap / exposure;
+    for (const row of working) {
+      if ((row.market_hint || 'unknown') !== market) continue;
+      const before = row.weight;
+      row.weight *= scale;
+      trimmedStrategies.push({
+        strategy_id: row.strategy_id,
+        reason: `market_cap_${market}`,
+        before: round(before, 6),
+        after: round(row.weight, 6),
+        trimmed: round(before - row.weight, 6)
+      });
+    }
+  }
+
+  const totalAfter = working.reduce((acc, row) => acc + row.weight, 0);
+  return {
+    strategy_rows: working.map((row) => ({
+      ...row,
+      weight: round(row.weight, 6),
+      institutional_adjustment: round(row.weight - row.base_weight, 6)
+    })),
+    summary: {
+      max_strategy_weight: round(safe(limits.max_strategy_weight, 0), 6),
+      total_allocated_before: round(totalBefore, 6),
+      total_allocated_after: round(totalAfter, 6),
+      unallocated_cash_buffer: round(Math.max(0, totalBefore - totalAfter), 6),
+      trimmed_strategy_count: trimmedStrategies.length,
+      market_caps_applied: limits.max_market_exposure || {}
+    },
+    market_exposure_before: toExposureRows(marketExposureBefore, 'market_hint'),
+    market_exposure_after: toExposureRows(genericExposure(working, 'market_hint'), 'market_hint'),
+    trimmed_strategies: trimmedStrategies
   };
 }
 
@@ -347,6 +450,191 @@ function marginalImpact(rows = [], corrMatrix = [], baseMetrics = {}) {
   return impacts.sort((a, b) => Math.abs(b.delta_expected_return) - Math.abs(a.delta_expected_return));
 }
 
+function tailRiskSummary(path = {}) {
+  const returns = path?.returns || [];
+  if (!returns.length) {
+    return {
+      worst_period_return: 0,
+      avg_left_tail_return: 0,
+      left_tail_observations: 0
+    };
+  }
+  const sorted = returns.slice().sort((a, b) => a - b);
+  const tailCount = Math.max(1, Math.ceil(sorted.length * 0.05));
+  const leftTail = sorted.slice(0, tailCount);
+  return {
+    worst_period_return: round(sorted[0], 6),
+    avg_left_tail_return: round(mean(leftTail), 6),
+    left_tail_observations: leftTail.length
+  };
+}
+
+function drawdownConcentration(rows = [], corrMatrix = [], regimeState = {}) {
+  if (!rows.length) {
+    return {
+      strategy_rows: [],
+      by_family: [],
+      by_market: [],
+      top_strategy_share: 0,
+      top_family_share: 0,
+      top_market_share: 0,
+      concentration_status: 'unknown'
+    };
+  }
+
+  const corrByStrategy = new Map(corrMatrix.map((row) => [row.strategy_id, row.correlations || {}]));
+  const currentRegime = String(regimeState?.state?.primary || 'unknown').toLowerCase();
+  const strategyRows = rows.map((row) => {
+    const corrRow = corrByStrategy.get(row.strategy_id) || {};
+    const corrValues = Object.entries(corrRow)
+      .filter(([other]) => other !== row.strategy_id)
+      .map(([, value]) => safe(value, 0));
+    const avgCorr = corrValues.length ? mean(corrValues) : 0;
+    const regimeMismatch = (row.compatible_regimes || []).length
+      ? !(row.compatible_regimes || []).some((item) => String(item).toLowerCase().includes(currentRegime))
+      : false;
+    const stressLossProxy =
+      row.weight *
+      (safe(row.expected_volatility, 0) * 1.8 + Math.max(0, safe(row.turnover, 0) - 0.22) * 0.08) *
+      (1 + avgCorr * 0.55) *
+      (regimeMismatch ? 1.22 : 1);
+    return {
+      strategy_id: row.strategy_id,
+      strategy_family: row.strategy_family,
+      market_hint: row.market_hint,
+      stress_loss_proxy: round(stressLossProxy, 6)
+    };
+  });
+
+  const totalStress = strategyRows.reduce((acc, row) => acc + row.stress_loss_proxy, 0) || 1;
+  const familyMap = new Map();
+  const marketMap = new Map();
+  for (const row of strategyRows) {
+    familyMap.set(row.strategy_family, (familyMap.get(row.strategy_family) || 0) + row.stress_loss_proxy);
+    marketMap.set(row.market_hint, (marketMap.get(row.market_hint) || 0) + row.stress_loss_proxy);
+  }
+  const byFamily = [...familyMap.entries()]
+    .map(([strategy_family, stress_loss_proxy]) => ({
+      strategy_family,
+      stress_loss_proxy: round(stress_loss_proxy, 6),
+      share: round(stress_loss_proxy / totalStress, 6)
+    }))
+    .sort((a, b) => b.share - a.share);
+  const byMarket = [...marketMap.entries()]
+    .map(([market_hint, stress_loss_proxy]) => ({
+      market_hint,
+      stress_loss_proxy: round(stress_loss_proxy, 6),
+      share: round(stress_loss_proxy / totalStress, 6)
+    }))
+    .sort((a, b) => b.share - a.share);
+  const rankedStrategies = strategyRows
+    .map((row) => ({
+      ...row,
+      share: round(row.stress_loss_proxy / totalStress, 6)
+    }))
+    .sort((a, b) => b.share - a.share);
+
+  const topStrategyShare = safe(rankedStrategies[0]?.share, 0);
+  const topFamilyShare = safe(byFamily[0]?.share, 0);
+  const topMarketShare = safe(byMarket[0]?.share, 0);
+
+  return {
+    strategy_rows: rankedStrategies,
+    by_family: byFamily,
+    by_market: byMarket,
+    top_strategy_share: round(topStrategyShare, 6),
+    top_family_share: round(topFamilyShare, 6),
+    top_market_share: round(topMarketShare, 6),
+    concentration_status:
+      topFamilyShare > 0.48 || topStrategyShare > 0.18 ? 'fragile' : topFamilyShare > 0.38 ? 'watch' : 'controlled'
+  };
+}
+
+function buildInstitutionalScorecard({
+  metrics = {},
+  diversification = {},
+  crowdingGuard = {},
+  institutionalGuard = {},
+  scenarioDiagnostics = [],
+  drawdownRisk = {},
+  allocationRows = [],
+  limits = INSTITUTIONAL_PORTFOLIO_LIMITS
+}) {
+  const maxFamilyExposure = Math.max(
+    0,
+    ...(crowdingGuard.family_exposure_after || []).map((row) => safe(row.exposure, 0))
+  );
+  const maxStrategyWeight = Math.max(0, ...allocationRows.map((row) => safe(row.weight, 0)));
+  const top3Weight = allocationRows
+    .map((row) => safe(row.weight, 0))
+    .sort((a, b) => b - a)
+    .slice(0, 3)
+    .reduce((acc, value) => acc + value, 0);
+  const worstScenarioSharpe = scenarioDiagnostics.length
+    ? Math.min(...scenarioDiagnostics.map((row) => safe(row.sharpe, 0)))
+    : 0;
+
+  const checks = [
+    {
+      id: 'diversification_score',
+      threshold: safe(limits.min_diversification_score, 0),
+      value: safe(diversification.diversification_score, 0),
+      pass: safe(diversification.diversification_score, 0) >= safe(limits.min_diversification_score, 0)
+    },
+    {
+      id: 'family_crowding',
+      threshold: safe(crowdingGuard.summary?.family_cap, 0),
+      value: maxFamilyExposure,
+      pass: maxFamilyExposure <= safe(crowdingGuard.summary?.family_cap, 1) + 0.0005
+    },
+    {
+      id: 'strategy_weight_cap',
+      threshold: safe(limits.max_strategy_weight, 1),
+      value: maxStrategyWeight,
+      pass: maxStrategyWeight <= safe(limits.max_strategy_weight, 1) + 0.0005
+    },
+    {
+      id: 'top3_weight',
+      threshold: safe(limits.max_top3_weight, 1),
+      value: top3Weight,
+      pass: top3Weight <= safe(limits.max_top3_weight, 1) + 0.0005
+    },
+    {
+      id: 'portfolio_drawdown',
+      threshold: safe(limits.max_portfolio_drawdown, 1),
+      value: safe(metrics.drawdown, 0),
+      pass: safe(metrics.drawdown, 0) <= safe(limits.max_portfolio_drawdown, 1)
+    },
+    {
+      id: 'family_drawdown_share',
+      threshold: safe(limits.max_family_drawdown_share, 1),
+      value: safe(drawdownRisk.top_family_share, 0),
+      pass: safe(drawdownRisk.top_family_share, 0) <= safe(limits.max_family_drawdown_share, 1)
+    },
+    {
+      id: 'worst_case_sharpe',
+      threshold: safe(limits.min_worst_case_sharpe, 0),
+      value: worstScenarioSharpe,
+      pass: worstScenarioSharpe >= safe(limits.min_worst_case_sharpe, 0)
+    },
+    {
+      id: 'cash_buffer',
+      threshold: safe(limits.max_cash_buffer, 1),
+      value: safe(institutionalGuard.summary?.unallocated_cash_buffer, 0),
+      pass: safe(institutionalGuard.summary?.unallocated_cash_buffer, 0) <= safe(limits.max_cash_buffer, 1)
+    }
+  ];
+
+  const passCount = checks.filter((row) => row.pass).length;
+  return {
+    limits,
+    checks,
+    score: round(passCount / Math.max(1, checks.length), 4),
+    verdict: passCount === checks.length ? 'institutional_ready' : passCount >= checks.length - 2 ? 'watch' : 'not_ready',
+    blockers: checks.filter((row) => !row.pass).map((row) => row.id)
+  };
+}
+
 function stabilityAcrossRegimes(rows = [], baseVol = 0) {
   const profiles = [
     { regime: 'trend', return_mul: 1.05, vol_mul: 0.92 },
@@ -422,7 +710,8 @@ export function buildPortfolioSimulationEngine({
     executionRealismProfile: executionProfile
   });
   const crowdingGuard = applyFamilyCrowdingGuard(strategies, deriveFamilyCap(riskBucketSystem));
-  const guardedStrategies = crowdingGuard.strategy_rows;
+  const institutionalGuard = applyInstitutionalRiskGuard(crowdingGuard.strategy_rows, INSTITUTIONAL_PORTFOLIO_LIMITS);
+  const guardedStrategies = institutionalGuard.strategy_rows;
   const corrMatrix = buildCorrelationMatrix(guardedStrategies);
   const path = simulatePortfolioPath(guardedStrategies, 90);
 
@@ -454,9 +743,21 @@ export function buildPortfolioSimulationEngine({
   const diversification = diversificationContribution(guardedStrategies, corrMatrix);
   const marginal = marginalImpact(guardedStrategies, corrMatrix, baseMetrics);
   const stability = stabilityAcrossRegimes(guardedStrategies, volatility);
+  const drawdownRisk = drawdownConcentration(guardedStrategies, corrMatrix, regimeState);
   const scenarioDiagnostics = buildExecutionSensitivityScenarios(executionProfile)
     .filter((row) => !row.test_only)
     .map((scenario) => scenarioPortfolioMetrics(scenarioAdjustedStrategies(guardedStrategies, scenario), scenario));
+  const institutionalScorecard = buildInstitutionalScorecard({
+    metrics: baseMetrics,
+    diversification,
+    crowdingGuard,
+    institutionalGuard,
+    scenarioDiagnostics,
+    drawdownRisk,
+    allocationRows: guardedStrategies,
+    limits: INSTITUTIONAL_PORTFOLIO_LIMITS
+  });
+  const tailRisk = tailRiskSummary(path);
 
   return {
     generated_at: asOf,
@@ -464,9 +765,10 @@ export function buildPortfolioSimulationEngine({
     portfolio_type: 'multi_strategy_multi_asset_risk_budgeted',
     allocation: {
       strategy_rows: guardedStrategies,
-      capital_allocation_rule: 'quality-weighted + regime-aware + risk-budget-capped + family-crowding-guard',
+      capital_allocation_rule: 'quality-weighted + regime-aware + risk-budget-capped + family-crowding-guard + institutional-risk-guard',
       total_allocated_weight: round(guardedStrategies.reduce((acc, row) => acc + row.weight, 0), 6),
-      crowding_guard: crowdingGuard.summary
+      crowding_guard: crowdingGuard.summary,
+      institutional_risk_guard: institutionalGuard.summary
     },
     metrics: baseMetrics,
     exposures: {
@@ -481,16 +783,25 @@ export function buildPortfolioSimulationEngine({
         family_exposure_after: crowdingGuard.family_exposure_after,
         summary: crowdingGuard.summary
       },
+      institutional_risk_guard: {
+        market_exposure_before: institutionalGuard.market_exposure_before,
+        market_exposure_after: institutionalGuard.market_exposure_after,
+        trimmed_strategies: institutionalGuard.trimmed_strategies,
+        summary: institutionalGuard.summary
+      },
       marginal_strategy_impact: marginal,
       strategy_correlation_matrix: corrMatrix,
+      drawdown_concentration: drawdownRisk,
       portfolio_stability_across_regimes: stability,
+      institutional_scorecard: institutionalScorecard,
       execution_realism: {
         assumption_profile: {
           profile_id: executionProfile.profile_id,
           mode: executionProfile.mode
         },
         scenario_sensitivity: scenarioDiagnostics
-      }
+      },
+      tail_risk: tailRisk
     },
     path: {
       returns: path.returns,
