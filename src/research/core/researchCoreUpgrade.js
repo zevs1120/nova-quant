@@ -12,6 +12,7 @@ import { buildResearchEvidenceSystem } from '../evidence/evidenceSystem.js';
 import { buildPortfolioSimulationEngine } from '../../portfolio_simulation/portfolioSimulationEngine.js';
 import { buildAiResearchCopilot } from '../copilot/aiResearchCopilot.js';
 import { buildWeeklyResearchCycle } from '../weekly_cycle/weeklyResearchCycle.js';
+import { buildExecutionDriftMonitor } from '../validation/executionDriftMonitor.js';
 
 export function buildResearchCoreUpgrade({
   asOf = new Date().toISOString(),
@@ -79,13 +80,20 @@ export function buildResearchCoreUpgrade({
     tradeLevelBuckets: riskBuckets.trade_level_buckets,
     replayValidation: walkForward?.replay_validation
   });
+  const executionDriftMonitor = buildExecutionDriftMonitor({
+    asOf,
+    replayValidation: walkForward?.replay_validation,
+    trades,
+    signals
+  });
 
   const strategyGovernance = buildStrategyGovernanceLifecycle({
     asOf,
     research,
     walkforward: walkForward,
     funnelDiagnostics: signalFunnel,
-    signals
+    signals,
+    executionDrift: executionDriftMonitor
   });
   const discoveryConfigWithDefaults = {
     ...(discoveryConfig || {}),
@@ -120,6 +128,7 @@ export function buildResearchCoreUpgrade({
     regimeState: regimeEngine,
     riskBucketSystem: riskBuckets,
     opportunities: featureSignalLayer.opportunity_objects,
+    executionDrift: executionDriftMonitor,
     executionRealism: {
       mode: 'paper',
       profile: walkForward?.config?.execution_realism_profile || {}
@@ -169,6 +178,7 @@ export function buildResearchCoreUpgrade({
       signal_funnel_diagnostics: 'MODEL_DERIVED',
       shadow_opportunity_log: 'EXPERIMENTAL',
       walk_forward_validation: 'EXPERIMENTAL',
+      execution_drift_monitor: 'MODEL_DERIVED',
       strategy_governance: 'MODEL_DERIVED',
       strategy_discovery_engine: 'MODEL_DERIVED',
       research_evidence_system: 'MODEL_DERIVED',
@@ -186,6 +196,7 @@ export function buildResearchCoreUpgrade({
     signal_funnel_diagnostics: signalFunnel,
     shadow_opportunity_log: shadowLog,
     walk_forward_validation: walkForward,
+    execution_drift_monitor: executionDriftMonitor,
     strategy_governance: strategyGovernance,
     strategy_discovery_engine: strategyDiscovery,
     research_evidence_system: researchEvidence,

@@ -1,5 +1,6 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import net from 'node:net';
+import { pathToFileURL } from 'node:url';
 import { getDb } from '../src/server/db/database.js';
 import { MarketRepository } from '../src/server/db/repository.js';
 import { ensureSchema } from '../src/server/db/schema.js';
@@ -34,7 +35,7 @@ const DEFAULTS: AutoBackendOptions = {
   once: false
 };
 
-function parseArgs(argv: string[]): AutoBackendOptions {
+export function parseAutoBackendArgs(argv: string[]): AutoBackendOptions {
   const out = { ...DEFAULTS };
   for (let i = 0; i < argv.length; i += 1) {
     const token = argv[i];
@@ -129,7 +130,7 @@ function spawnManaged(label: string, command: string, args: string[], env?: Node
   return child;
 }
 
-async function runInitialization(userId: string) {
+export async function runAutoBackendInitialization(userId: string) {
   const db = getDb();
   ensureSchema(db);
   const repo = new MarketRepository(db);
@@ -198,7 +199,7 @@ async function runInitialization(userId: string) {
   }
 }
 
-async function runMaintenanceCycle(args: {
+export async function runAutoBackendMaintenanceCycle(args: {
   userId: string;
   cycle: number;
   refreshUs: boolean;
@@ -270,8 +271,8 @@ async function runMaintenanceCycle(args: {
   }
 }
 
-async function main() {
-  const options = parseArgs(process.argv.slice(2));
+export async function runAutoBackend(argv = process.argv.slice(2)) {
+  const options = parseAutoBackendArgs(argv);
   const children: ChildProcess[] = [];
   let shuttingDown = false;
 
@@ -291,7 +292,7 @@ async function main() {
   log('booting automation', options);
 
   if (!options.skipInit) {
-    await runInitialization(options.userId);
+    await runAutoBackendInitialization(options.userId);
   } else {
     log('initialization skipped by flag');
   }
@@ -357,7 +358,7 @@ async function main() {
       const refreshUs = cycle % usRefreshEveryCycles === 0;
       const runEvolution = cycle % retrainEveryCycles === 0;
       if (cycle % options.validateEvery === 0 || refreshUs || runEvolution) {
-        await runMaintenanceCycle({
+        await runAutoBackendMaintenanceCycle({
           userId: options.userId,
           cycle,
           refreshUs,
@@ -384,7 +385,11 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error('[auto-backend] fatal', error);
-  process.exitCode = 1;
-});
+const isEntrypoint = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (isEntrypoint) {
+  runAutoBackend().catch((error) => {
+    console.error('[auto-backend] fatal', error);
+    process.exitCode = 1;
+  });
+}

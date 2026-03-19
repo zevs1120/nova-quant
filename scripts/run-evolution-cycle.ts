@@ -1,10 +1,11 @@
+import { pathToFileURL } from 'node:url';
 import { getDb } from '../src/server/db/database.js';
 import { MarketRepository } from '../src/server/db/repository.js';
 import { ensureSchema } from '../src/server/db/schema.js';
 import { ensureQuantData } from '../src/server/quant/service.js';
 import { runEvolutionCycle } from '../src/server/quant/evolution.js';
 
-function parseArgs(argv: string[]) {
+export function parseArgs(argv: string[]) {
   const out = {
     userId: 'guest-default'
   };
@@ -18,8 +19,8 @@ function parseArgs(argv: string[]) {
   return out;
 }
 
-async function main() {
-  const args = parseArgs(process.argv.slice(2));
+export async function runEvolutionCycleCli(argv = process.argv.slice(2)) {
+  const args = parseArgs(argv);
   const db = getDb();
   ensureSchema(db);
   const repo = new MarketRepository(db);
@@ -46,7 +47,11 @@ async function main() {
   );
 }
 
-main().catch((error) => {
-  console.error('[evolution-cycle] fatal', error);
-  process.exitCode = 1;
-});
+const isEntrypoint = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (isEntrypoint) {
+  runEvolutionCycleCli().catch((error) => {
+    console.error('[evolution-cycle] fatal', error);
+    process.exitCode = 1;
+  });
+}

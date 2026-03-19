@@ -771,11 +771,16 @@ function replaySignal({
     slippage_assumption_used: {
       market: entryAssumption.market,
       volatility_bucket: entryAssumption.volatility_bucket,
+      session_state: entryAssumption.session_state,
+      liquidity_bucket: entryAssumption.liquidity_bucket,
       entry_bps: entryAssumption.entry_slippage_bps,
       exit_bps: exitAssumption.exit_slippage_bps,
       spread_bps: round((safe(entryAssumption.spread_bps) + safe(exitAssumption.spread_bps)) / 2, 6),
       fee_bps: round((safe(entryAssumption.fee_bps_per_side) + safe(exitAssumption.fee_bps_per_side)) / 2, 6),
-      funding_bps_per_day: round(fundingBpsPerDay, 6)
+      funding_bps_per_day: round(fundingBpsPerDay, 6),
+      borrow_bps_per_day: round(borrowBpsPerDay, 6),
+      latency_slippage_bps: round((safe(entryAssumption.latency_slippage_bps, 0) + safe(exitAssumption.latency_slippage_bps, 0)) / 2, 6),
+      partial_fill_probability: fillRatio
     },
     assumption_profile: {
       profile_id: entryAssumption.profile_id,
@@ -786,8 +791,16 @@ function replaySignal({
       bars: holdingBars,
       days
     },
+    effective_position_size_pct: round(safe(baseRecord.position_size_pct, 0) * fillRatio, 6),
     realized_pnl_pre_cost_pct: round(grossReturn, 6),
     realized_pnl_pct: round(netReturn, 6),
+    execution_quality_summary: {
+      session_state: entryAssumption.session_state,
+      liquidity_bucket: entryAssumption.liquidity_bucket,
+      partial_fill_probability: fillRatio,
+      borrow_bps_per_day: round(borrowBpsPerDay, 6),
+      latency_slippage_bps: round((safe(entryAssumption.latency_slippage_bps, 0) + safe(exitAssumption.latency_slippage_bps, 0)) / 2, 6)
+    },
     drawdown_path: clippedPath,
     drawdown_summary: {
       max_drawdown_pct: round(maxDd * -1, 6),
@@ -798,11 +811,17 @@ function replaySignal({
       end_date: bars[endIdx]?.date || signalDate
     },
     cost_realism_notes: entryAssumption.realism_notes || [],
-    fill_realism_notes: [`Entry policy=${entryAssumption.fill_policy.entry}`, `Exit policy=${exitAssumption.fill_policy.exit}`],
+    fill_realism_notes: [
+      `Entry policy=${entryAssumption.fill_policy.entry}`,
+      `Exit policy=${exitAssumption.fill_policy.exit}`,
+      `Expected fill ratio=${fillRatio}`
+    ],
     funding_realism_notes: [
       entryAssumption.market === 'CRYPTO'
         ? `Funding drag applied: ${round(fundingDrag, 6)} return units over ${days} day(s).`
-        : 'No funding drag applied for US equities.'
+        : borrowDrag > 0
+          ? `Borrow drag applied: ${round(borrowDrag, 6)} return units over ${days} day(s).`
+          : 'No funding drag applied for US equities.'
     ]
   };
 
@@ -831,7 +850,9 @@ function replaySignal({
         pnl_post_cost_pct: out.realized_pnl_pct,
         holding_bars: holdingBars,
         intrabar_priority: cfg.intrabar_priority,
-        funding_drag_pct: round(fundingDrag, 6)
+        funding_drag_pct: round(fundingDrag, 6),
+        borrow_drag_pct: round(borrowDrag, 6),
+        effective_fill_ratio: fillRatio
       }
     }
   ];
@@ -849,6 +870,8 @@ function toOutcomeMap(records = []) {
         replay_entry_event: row.replay_entry_event,
         replay_exit_event: row.replay_exit_event,
         realized_pnl_pct: row.realized_pnl_pct,
+        effective_position_size_pct: row.effective_position_size_pct,
+        execution_quality_summary: row.execution_quality_summary,
         drawdown_summary: row.drawdown_summary,
         forward_performance: row.forward_performance
       }
