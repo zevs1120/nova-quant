@@ -197,8 +197,6 @@ export default function HoldingsTab({
   marketInstruments = [],
   locale,
   investorDemoEnabled,
-  onLoadInvestorDemo,
-  onClearInvestorDemo,
   onExplain,
   onOpenMenu
 }) {
@@ -353,8 +351,8 @@ export default function HoldingsTab({
             <p className="holdings-empty-copy">
               {surfaceTab === 'holdings'
                 ? locale === 'zh'
-                  ? '先加载示例仓位，Nova 才能按 Robinhood 熟悉的方式帮你读组合。'
-                  : 'Load a sample portfolio first so Nova can read it like a familiar holdings page.'
+                  ? '先加载一些仓位，Nova 才能开始帮你读组合。'
+                  : 'Load a few holdings first so Nova can start reading the portfolio.'
                 : locale === 'zh'
                   ? '先在 Today 页把标的加入观察。'
                   : 'Add names from Today first.'}
@@ -370,14 +368,6 @@ export default function HoldingsTab({
                 >
                   {locale === 'zh' ? '加载示例' : 'Load example'}
                 </button>
-                <button type="button" className="secondary-btn" onClick={onLoadInvestorDemo}>
-                  {locale === 'zh' ? '投资人演示' : 'Investor demo'}
-                </button>
-                {investorDemoEnabled ? (
-                  <button type="button" className="secondary-btn" onClick={onClearInvestorDemo}>
-                    {locale === 'zh' ? '清除演示' : 'Clear demo'}
-                  </button>
-                ) : null}
               </div>
             ) : null}
           </div>

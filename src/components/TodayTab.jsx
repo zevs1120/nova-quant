@@ -4,6 +4,7 @@ import {
   getActionCardCopy,
   getNoActionCopy,
 } from '../copy/novaCopySystem.js';
+import { describeEvidenceMode } from '../utils/provenance';
 
 const ACTIVE_SIGNAL_STATUS = new Set(['NEW', 'TRIGGERED']);
 const DATA_STATUS_PENALTY = {
@@ -597,6 +598,17 @@ export default function TodayTab({
   const actionWhyLine = noActionDay
     ? uiRegime?.completion_line || noActionCopy.completion
     : featuredSignal?.brief_why_now || actionCopy.why_now;
+  const provenance = useMemo(
+    () =>
+      describeEvidenceMode({
+        locale,
+        sourceStatus: decision?.source_status || featuredSignal?.source_status || runtime?.source_status,
+        dataStatus: decision?.data_status || featuredSignal?._dataStatus || runtime?.data_status,
+        sourceType: featuredSignal?.source_type || decision?.source_type || runtime?.source_type
+      }),
+    [decision?.data_status, decision?.source_status, decision?.source_type, featuredSignal?._dataStatus, featuredSignal?.source_status, featuredSignal?.source_type, locale, runtime?.data_status, runtime?.source_status, runtime?.source_type]
+  );
+  const provenanceFreshness = featuredSignal ? generatedText(featuredSignal) : null;
   const climate = overall.code === 'TRADE'
     ? {
         name: locale === 'zh' ? '窗口打开' : 'Open lane',
@@ -674,6 +686,19 @@ export default function TodayTab({
       </section>
 
       <section className="today-screen-flow">
+        <article className={`today-provenance-strip today-provenance-strip-${provenance.tone}`}>
+          <div className="today-provenance-copy">
+            <div className="today-provenance-head">
+              <span className="today-provenance-badge">{provenance.label}</span>
+              {provenanceFreshness ? <span className="today-provenance-meta">{provenanceFreshness}</span> : null}
+            </div>
+            <p className="today-provenance-note">{provenance.note}</p>
+          </div>
+          <span className="today-provenance-watermark" aria-hidden="true">
+            {provenance.watermark}
+          </span>
+        </article>
+
         <article className={`glass-card today-climate-strip today-climate-${climate.tone}`}>
           <div className="today-climate-copy">
             <p className="today-climate-name">{climate.name}</p>

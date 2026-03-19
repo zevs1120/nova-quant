@@ -14,6 +14,7 @@ import SegmentedControl from './SegmentedControl';
 import KpiCard from './KpiCard';
 import Skeleton from './Skeleton';
 import { formatDateTime, formatNumber, formatPercent } from '../utils/format';
+import { describeEvidenceMode } from '../utils/provenance';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, Filler);
 
@@ -148,6 +149,54 @@ export default function ProofTab({
 
   const monthly = marketBucket.monthly || [];
   const stats = marketBucket.stats || null;
+  const proofProvenance = useMemo(() => {
+    const sourceType = marketBucket.source_type || sourceTab;
+    if (sourceTab === 'backtest') {
+      return describeEvidenceMode({
+        locale,
+        sourceStatus: 'BACKTEST_ONLY',
+        dataStatus: 'BACKTEST_ONLY',
+        sourceType
+      });
+    }
+
+    if (sourceTab === 'paper') {
+      return describeEvidenceMode({
+        locale,
+        sourceStatus: 'PAPER_ONLY',
+        dataStatus: 'PAPER_ONLY',
+        sourceType
+      });
+    }
+
+    if (sourceTab === 'live' && marketBucket.available === false) {
+      return describeEvidenceMode({
+        locale,
+        sourceStatus: 'WITHHELD',
+        dataStatus: 'INSUFFICIENT_DATA',
+        sourceType
+      });
+    }
+
+    return describeEvidenceMode({
+      locale,
+      sourceStatus: 'REALIZED',
+      dataStatus: 'REALIZED',
+      sourceType
+    });
+  }, [locale, marketBucket.available, marketBucket.source_type, sourceTab]);
+  const demoProvenance = useMemo(
+    () =>
+      investorDemoSummary
+        ? describeEvidenceMode({
+            locale,
+            sourceStatus: investorDemoSummary.source_status || 'DEMO_ONLY',
+            dataStatus: investorDemoSummary.source_status || 'DEMO_ONLY',
+            sourceType: 'demo'
+          })
+        : null,
+    [investorDemoSummary, locale]
+  );
 
   const chartData = useMemo(() => {
     if (!monthly.length) return null;
@@ -274,12 +323,21 @@ export default function ProofTab({
         <>
           <article className="glass-card">
             <div className="card-header">
-              <h3 className="card-title">Performance Proof</h3>
-              <span className={`badge ${sourceTab === 'live' ? 'badge-medium' : 'badge-triggered'}`}>
-                {marketBucket.label}
+              <div>
+                <h3 className="card-title">Performance Proof</h3>
+                <div className="proof-provenance-head">
+                  <span className={`proof-provenance-badge proof-provenance-badge-${proofProvenance.tone}`}>
+                    {proofProvenance.label}
+                  </span>
+                  <span className="proof-provenance-meta">{marketBucket.label}</span>
+                </div>
+              </div>
+              <span className="proof-provenance-watermark" aria-hidden="true">
+                {proofProvenance.watermark}
               </span>
             </div>
-            <p className="muted">{sourceDescription}</p>
+            <p className="muted">{proofProvenance.note}</p>
+            <p className="muted status-line">{sourceDescription}</p>
             <p className="muted status-line">source_type: {marketBucket.source_type || '--'}</p>
             <p className="muted status-line">{marketBucket.data_origin_note || '--'}</p>
           </article>
@@ -289,9 +347,11 @@ export default function ProofTab({
               <div className="card-header">
                 <div>
                   <h3 className="card-title">Demo Asset Overview</h3>
-                  <p className="muted">For walkthroughs only. This card is not a real track record.</p>
+                  <p className="muted">{demoProvenance?.note || 'For walkthroughs only. This card is not a real track record.'}</p>
                 </div>
-                <span className="badge badge-medium">{investorDemoSummary.source_status}</span>
+                <span className={`proof-provenance-badge proof-provenance-badge-${demoProvenance?.tone || 'demo'}`}>
+                  {demoProvenance?.label || investorDemoSummary.source_status}
+                </span>
               </div>
 
               <div className="status-grid-3">
@@ -356,8 +416,16 @@ export default function ProofTab({
                   <article className="glass-card">
                     <div className="card-header">
                       <h3 className="card-title">Equity & Drawdown</h3>
+                      <span className={`proof-provenance-badge proof-provenance-badge-${proofProvenance.tone}`}>
+                        {proofProvenance.label}
+                      </span>
                     </div>
-                    <div className="chart-wrap">{chartData ? <Line data={chartData} options={chartOptions} /> : null}</div>
+                    <div className="chart-wrap proof-chart-wrap">
+                      <span className="proof-chart-watermark" aria-hidden="true">
+                        {proofProvenance.watermark}
+                      </span>
+                      {chartData ? <Line data={chartData} options={chartOptions} /> : null}
+                    </div>
                   </article>
 
                   <article className="glass-card">

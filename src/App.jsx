@@ -25,6 +25,7 @@ import {
   INVESTOR_DEMO_HOLDINGS,
   INVESTOR_DEMO_PERFORMANCE
 } from './demo/investorDemo';
+import { DEMO_ENTRY_ENABLED, FORCE_DEMO_BUILD, isDemoRuntime as getIsDemoRuntime } from './demo/runtime';
 
 const MENU_PARENTS = {
   weekly: 'group:review',
@@ -125,7 +126,6 @@ const initialData = {
   layers: {}
 };
 
-const EXPLICIT_DEMO_MODE = import.meta.env.VITE_DEMO_MODE === '1';
 const DEFAULT_AUTH_WATCHLIST = Object.freeze(['SPY', 'QQQ', 'AAPL']);
 
 function detectDisplayMode() {
@@ -306,6 +306,7 @@ export default function App() {
     () => (investorDemoEnabled ? buildInvestorDemoEnvironment(assetClass) : null),
     [investorDemoEnabled, assetClass]
   );
+  const isDemoRuntime = getIsDemoRuntime(investorDemoEnabled);
   const lastProfileSyncRef = useRef('');
 
   useEffect(() => {
@@ -369,7 +370,9 @@ export default function App() {
       setInvestorDemoHoldingsBackup(Array.isArray(holdings) ? holdings : []);
       setInvestorDemoUiBackup({
         assetClass,
-        market
+        market,
+        watchlist: Array.isArray(watchlist) ? watchlist : [],
+        executions: Array.isArray(executions) ? executions : []
       });
     }
     setHoldings(INVESTOR_DEMO_HOLDINGS);
@@ -461,7 +464,7 @@ export default function App() {
   }, [applyAuthenticatedProfile, authSession, onboardingDone, setAuthSession]);
 
   useEffect(() => {
-    if (!authSession?.userId) return undefined;
+    if (!authSession?.userId || investorDemoEnabled) return undefined;
 
     const payload = {
       assetClass,
@@ -494,6 +497,7 @@ export default function App() {
     disciplineLog,
     executions,
     holdings,
+    investorDemoEnabled,
     market,
     riskProfileKey,
     uiMode,
@@ -506,6 +510,8 @@ export default function App() {
     setHoldings(restore);
     if (investorDemoUiBackup?.assetClass) setAssetClass(investorDemoUiBackup.assetClass);
     if (investorDemoUiBackup?.market) setMarket(investorDemoUiBackup.market);
+    if (Array.isArray(investorDemoUiBackup?.watchlist)) setWatchlist(investorDemoUiBackup.watchlist);
+    if (Array.isArray(investorDemoUiBackup?.executions)) setExecutions(investorDemoUiBackup.executions);
     setInvestorDemoHoldingsBackup(null);
     setInvestorDemoUiBackup(null);
   };
@@ -530,7 +536,7 @@ export default function App() {
     async function load({ silent = false } = {}) {
       if (!silent) setLoading(true);
       try {
-        if (EXPLICIT_DEMO_MODE) {
+        if (FORCE_DEMO_BUILD) {
           await new Promise((resolve) => setTimeout(resolve, 280));
           if (!mounted) return;
           setRawData({ as_of: new Date().toISOString() });
@@ -674,7 +680,7 @@ export default function App() {
   }, [aboutOpen, showOnboarding]);
 
   useEffect(() => {
-    if (!EXPLICIT_DEMO_MODE || !rawData) return;
+    if (!FORCE_DEMO_BUILD || !rawData) return;
     const executionTrades = executions.map(mapExecutionToTrade);
     const modeled = runQuantPipeline({
       ...rawData,
@@ -692,7 +698,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (EXPLICIT_DEMO_MODE) return;
+    if (isDemoRuntime) return;
     void fetchJson('/api/risk-profile', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -703,13 +709,13 @@ export default function App() {
     })
       .then(() => setRefreshNonce((current) => current + 1))
       .catch(() => {});
-  }, [riskProfileKey, effectiveUserId]);
+  }, [riskProfileKey, effectiveUserId, isDemoRuntime]);
 
   const todayKey = localDateKey(now);
   const currentWeekKey = weekStartKey(now);
 
   const loadEngagementState = useCallback(async () => {
-    if (EXPLICIT_DEMO_MODE || !hasLoaded) return null;
+    if (isDemoRuntime || !hasLoaded) return null;
     try {
       const payload = await fetchJson('/api/engagement/state', {
         method: 'POST',
@@ -730,10 +736,10 @@ export default function App() {
       setEngagementState(null);
       return null;
     }
-  }, [assetClass, effectiveUserId, hasLoaded, holdings, lang, market, now, todayKey]);
+  }, [assetClass, effectiveUserId, hasLoaded, holdings, isDemoRuntime, lang, market, now, todayKey]);
 
   useEffect(() => {
-    if (EXPLICIT_DEMO_MODE || !hasLoaded) return;
+    if (isDemoRuntime || !hasLoaded) return;
     let cancelled = false;
 
     void fetchJson('/api/decision/today', {
@@ -757,12 +763,12 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [EXPLICIT_DEMO_MODE, hasLoaded, effectiveUserId, market, assetClass, holdings, lang, uiData.decision]);
+  }, [isDemoRuntime, hasLoaded, effectiveUserId, market, assetClass, holdings, lang, uiData.decision]);
 
   useEffect(() => {
-    if (!decisionSnapshot || EXPLICIT_DEMO_MODE || !hasLoaded) return;
+    if (!decisionSnapshot || isDemoRuntime || !hasLoaded) return;
     void loadEngagementState();
-  }, [decisionSnapshot?.audit_snapshot_id, EXPLICIT_DEMO_MODE, hasLoaded, loadEngagementState]);
+  }, [decisionSnapshot?.audit_snapshot_id, isDemoRuntime, hasLoaded, loadEngagementState]);
 
   const lastUpdated = useMemo(() => {
     return uiData.config.last_updated || uiData.performance.last_updated || uiData.velocity.last_updated || null;
@@ -820,7 +826,7 @@ export default function App() {
       ...current,
       checkins: addUniqueKey(current?.checkins || [], todayKey)
     }));
-    if (EXPLICIT_DEMO_MODE) return;
+    if (isDemoRuntime) return;
     try {
       const payload = await fetchJson('/api/engagement/morning-check', {
         method: 'POST',
@@ -839,14 +845,14 @@ export default function App() {
     } catch {
       void loadEngagementState();
     }
-  }, [assetClass, effectiveUserId, holdings, lang, loadEngagementState, market, now, syncLocalDisciplineLog, todayKey]);
+  }, [assetClass, effectiveUserId, holdings, isDemoRuntime, lang, loadEngagementState, market, now, syncLocalDisciplineLog, todayKey]);
 
   const markBoundaryKept = useCallback(async () => {
     syncLocalDisciplineLog((current) => ({
       ...current,
       boundary_kept: addUniqueKey(current?.boundary_kept || [], todayKey)
     }));
-    if (EXPLICIT_DEMO_MODE) return;
+    if (isDemoRuntime) return;
     try {
       const payload = await fetchJson('/api/engagement/boundary', {
         method: 'POST',
@@ -865,10 +871,10 @@ export default function App() {
     } catch {
       void loadEngagementState();
     }
-  }, [assetClass, effectiveUserId, holdings, lang, loadEngagementState, market, now, syncLocalDisciplineLog, todayKey]);
+  }, [assetClass, effectiveUserId, holdings, isDemoRuntime, lang, loadEngagementState, market, now, syncLocalDisciplineLog, todayKey]);
 
   const markWrapUpComplete = useCallback(async () => {
-    if (EXPLICIT_DEMO_MODE) return;
+    if (isDemoRuntime) return;
     try {
       const payload = await fetchJson('/api/engagement/wrap-up', {
         method: 'POST',
@@ -887,14 +893,14 @@ export default function App() {
     } catch {
       void loadEngagementState();
     }
-  }, [assetClass, effectiveUserId, holdings, lang, loadEngagementState, market, now, todayKey]);
+  }, [assetClass, effectiveUserId, holdings, isDemoRuntime, lang, loadEngagementState, market, now, todayKey]);
 
   const markWeeklyReviewed = useCallback(async () => {
     syncLocalDisciplineLog((current) => ({
       ...current,
       weekly_reviews: addUniqueKey(current?.weekly_reviews || [], currentWeekKey)
     }));
-    if (EXPLICIT_DEMO_MODE) return;
+    if (isDemoRuntime) return;
     try {
       const payload = await fetchJson('/api/engagement/weekly-review', {
         method: 'POST',
@@ -913,7 +919,7 @@ export default function App() {
     } catch {
       void loadEngagementState();
     }
-  }, [assetClass, effectiveUserId, currentWeekKey, holdings, lang, loadEngagementState, market, now, syncLocalDisciplineLog, todayKey]);
+  }, [assetClass, effectiveUserId, currentWeekKey, holdings, isDemoRuntime, lang, loadEngagementState, market, now, syncLocalDisciplineLog, todayKey]);
 
   const askAi = (message, context = {}) => {
     const text = String(message || '').trim();
@@ -1006,7 +1012,7 @@ export default function App() {
       tp_price: signal.take_profit_levels?.[0]?.price ?? signal.take_profit,
       pnl_pct: action === 'DONE' ? Number(signal.quick_pnl_pct ?? 0.6) : 0
     };
-    if (EXPLICIT_DEMO_MODE) {
+    if (isDemoRuntime) {
       setExecutions((current) => [payload, ...current].slice(0, 200));
       return;
     }
@@ -1140,7 +1146,7 @@ export default function App() {
     const notificationPrefs = engagementState?.notification_preferences;
 
     const togglePreference = async (field, nextValue) => {
-      if (EXPLICIT_DEMO_MODE) return;
+      if (isDemoRuntime) return;
       try {
         const payload = await fetchJson('/api/notification-preferences', {
           method: 'POST',
@@ -1221,35 +1227,6 @@ export default function App() {
             </button>
             <button type="button" className="secondary-btn" onClick={() => setAboutOpen(true)}>
               About & Compliance
-            </button>
-          </div>
-        </article>
-
-        <article className="glass-card">
-          <div className="card-header">
-            <div>
-              <h3 className="card-title">Demo Mode / 体验 Demo</h3>
-              <p className="muted status-line">
-                Enter a full demo environment with demo signals, demo holdings, and demo performance. No login and no real account connection.
-              </p>
-            </div>
-            <span className={`badge ${investorDemoEnabled ? 'badge-medium' : 'badge-neutral'}`}>
-              {investorDemoEnabled ? 'DEMO_ONLY' : 'OFF'}
-            </span>
-          </div>
-
-          <ul className="bullet-list">
-            <li>One tap enters the full demo environment and lands back on Today.</li>
-            <li>Home, AI, Holdings, and Performance all stay clickable and consistent.</li>
-            <li>Demo metrics 3.7% / 4.1% / 67.4% / 1.62 are clearly marked as demo only.</li>
-          </ul>
-
-          <div className="action-row" style={{ marginTop: 10 }}>
-            <button type="button" className="primary-btn" onClick={enableInvestorDemo}>
-              Demo Mode / 体验 Demo
-            </button>
-            <button type="button" className="secondary-btn" onClick={clearInvestorDemo} disabled={!investorDemoEnabled}>
-              Exit Demo
             </button>
           </div>
         </article>
@@ -1689,8 +1666,6 @@ export default function App() {
           t={t}
           locale={locale}
           investorDemoEnabled={investorDemoEnabled}
-          onLoadInvestorDemo={enableInvestorDemo}
-          onClearInvestorDemo={clearInvestorDemo}
           onExplain={(message) => askAi(message)}
           onOpenMenu={() => openMySection('menu')}
         />
@@ -1709,6 +1684,15 @@ export default function App() {
           }
           points={pointsState}
           onSectionChange={pushMySection}
+          showDemoEntry={DEMO_ENTRY_ENABLED}
+          demoEnabled={investorDemoEnabled}
+          onToggleDemo={() => {
+            if (investorDemoEnabled) {
+              clearInvestorDemo();
+              return;
+            }
+            enableInvestorDemo();
+          }}
           onOpenAbout={() => setAboutOpen(true)}
           onLogout={() => {
             void fetchJson('/api/auth/logout', { method: 'POST' }).catch(() => {});

@@ -12,7 +12,16 @@ import type {
 } from '../types.js';
 import { MarketRepository } from '../db/repository.js';
 import { RUNTIME_STATUS, type RuntimeStatus } from '../runtimeStatus.js';
-import { buildPandaAdaptiveDecision, type PandaAdaptiveDecision } from './pandaEngine.js';
+import {
+  buildPandaAdaptiveDecision,
+  resolvePandaModelConfig,
+  type PandaAdaptiveDecision,
+  type PandaModelRuntimeConfig
+} from './pandaEngine.js';
+import { createConfidenceCalibrator } from '../confidence/calibration.js';
+import { buildEvidenceLineage } from '../evidence/lineage.js';
+import { buildNewsContext } from '../news/provider.js';
+import type { NewsItemRecord } from '../types.js';
 
 const MS_HOUR = 3600_000;
 
@@ -23,6 +32,15 @@ type NumericBar = {
   low: number;
   close: number;
   volume: number;
+};
+
+type SignalNewsContext = {
+  symbol: string;
+  headline_count: number;
+  tone: 'POSITIVE' | 'NEGATIVE' | 'MIXED' | 'NEUTRAL' | 'NONE';
+  top_headlines: string[];
+  updated_at: string | null;
+  source: string;
 };
 
 function clamp(value: number, min: number, max: number): number {
@@ -45,6 +63,29 @@ function timeframeForMarket(market: Market): Timeframe {
 
 function assetClassForMarket(market: Market): AssetClass {
   return market === 'CRYPTO' ? 'CRYPTO' : 'US_STOCK';
+}
+
+function pandaModelKeyForMarket(market: Market): string {
+  return `panda-runtime-${market.toLowerCase()}`;
+}
+
+function loadActivePandaModel(repo: MarketRepository, market: Market): {
+  modelId: string | null;
+  semanticVersion: string;
+  config: PandaModelRuntimeConfig;
+} {
+  const model =
+    repo
+      .listModelVersions({
+        modelKey: pandaModelKeyForMarket(market),
+        limit: 20
+      })
+      .find((row) => row.status === 'active') || null;
+  return {
+    modelId: model?.id ?? null,
+    semanticVersion: model?.semantic_version || 'runtime-bars-rules.v1',
+    config: resolvePandaModelConfig(model ? JSON.parse(model.config_json || '{}') : { modelKey: pandaModelKeyForMarket(market) })
+  };
 }
 
 function sortBars(rows: NumericBar[]): NumericBar[] {
@@ -504,6 +545,7 @@ function buildSignal(args: {
   riskProfile: UserRiskProfileRecord;
   nowMs: number;
   adaptive?: AdaptiveTuning;
+  strategyVersion?: string;
 }): SignalContract {
   const { market, asset, timeframe, stats, hit, riskProfile, nowMs, adaptive } = args;
   const atr = Math.max(0.0001, stats.latestAtr || stats.latest.close * 0.01);
@@ -588,7 +630,7 @@ function buildSignal(args: {
     timeframe,
     strategy_id: hit.id,
     strategy_family: hit.family,
-    strategy_version: 'runtime-bars-rules.v1',
+    strategy_version: args.strategyVersion || 'runtime-bars-rules.v1',
     regime_id: stats.regimeId,
     temperature_percentile: round(stats.tempPct, 2),
     volatility_percentile: round(stats.volPct, 2),
@@ -817,6 +859,43 @@ function buildCoverageSummary(args: {
   };
 }
 
+function summarizeNews(repo: MarketRepository, market: Market, symbol: string): SignalNewsContext {
+  const rows = repo.listNewsItems({
+    market,
+    symbol,
+    limit: 5,
+    sinceMs: Date.now() - 1000 * 60 * 60 * 48
+  });
+  return buildNewsContext(rows as NewsItemRecord[], symbol);
+}
+
+function adjustRuleForNews(rule: RuleHit, news: SignalNewsContext): RuleHit {
+  if (!news.headline_count || news.tone === 'NONE' || news.tone === 'NEUTRAL') {
+    return rule;
+  }
+  let adjusted = rule.confidence;
+  const direction = rule.direction;
+  if (news.tone === 'POSITIVE') {
+    adjusted += direction === 'LONG' ? 0.04 : -0.05;
+  } else if (news.tone === 'NEGATIVE') {
+    adjusted += direction === 'SHORT' ? 0.04 : -0.06;
+  } else if (news.tone === 'MIXED') {
+    adjusted -= 0.02;
+  }
+  return {
+    ...rule,
+    confidence: clamp(adjusted, 0.22, 0.94),
+    rationale: [
+      ...rule.rationale,
+      news.tone === 'POSITIVE'
+        ? 'Recent headline tone is supportive.'
+        : news.tone === 'NEGATIVE'
+          ? 'Recent headline tone is adverse.'
+          : 'Recent headline flow is mixed, so conviction is trimmed.'
+    ]
+  };
+}
+
 export function deriveRuntimeState(params: {
   repo: MarketRepository;
   userId: string;
@@ -844,6 +923,11 @@ export function deriveRuntimeState(params: {
   const derivedSignals: Array<SignalContract & Record<string, unknown>> = [];
   const activeSignalIds: string[] = [];
   const performanceHistoryByMarket = deriveMarketPerformanceHistory(repo, userId);
+  const activePandaModelByMarket: Record<Market, ReturnType<typeof loadActivePandaModel>> = {
+    US: loadActivePandaModel(repo, 'US'),
+    CRYPTO: loadActivePandaModel(repo, 'CRYPTO')
+  };
+  const calibrator = createConfidenceCalibrator({ repo, userId });
 
   const freshnessRows: Array<Record<string, unknown>> = [];
   let assetsWithBars = 0;
@@ -892,11 +976,13 @@ export function deriveRuntimeState(params: {
     });
 
     const baselineRule = selectRule(ctx);
+    const activeModel = activePandaModelByMarket[target.market];
     const pandaDecision = buildPandaAdaptiveDecision({
       market: target.market,
       bars,
       performanceHistory: performanceHistoryByMarket[target.market] || [],
-      riskProfile
+      riskProfile,
+      modelConfig: activeModel.config
     });
     const adaptiveTuning = buildAdaptiveTuning(pandaDecision);
     let ruleHit: RuleHit | null = baselineRule;
@@ -904,6 +990,10 @@ export function deriveRuntimeState(params: {
       ruleHit = fallbackRuleFromPanda(ctx, pandaDecision);
     } else {
       ruleHit = mergeRuleWithPanda(ruleHit, pandaDecision);
+    }
+    const newsContext = summarizeNews(repo, target.market, target.symbol);
+    if (ruleHit) {
+      ruleHit = adjustRuleForNews(ruleHit, newsContext);
     }
 
     const eventStats = {
@@ -917,7 +1007,11 @@ export function deriveRuntimeState(params: {
       zscore: round(ctx.zScore, 4),
       vol_impulse: round(ctx.volImpulse, 4),
       signal_candidate: ruleHit?.id || null,
+      news_context: newsContext,
       panda: {
+        active_model_id: activeModel.modelId,
+        active_model_version: activeModel.semanticVersion,
+        safe_mode: activeModel.config.safeMode,
         signal: pandaDecision.signal,
         confidence: pandaDecision.confidence,
         top_factors: pandaDecision.topFactors,
@@ -948,6 +1042,7 @@ export function deriveRuntimeState(params: {
       updated_at_ms: nowMs
     });
 
+    if (activeModel.config.safeMode) continue;
     if (!ruleHit || ctx.riskOffScore >= 0.8) continue;
     if (adaptiveTuning.learningStatus === 'READY' && !adaptiveTuning.riskAllowed) continue;
     if (ruleHit.confidence < 0.4) continue;
@@ -960,7 +1055,8 @@ export function deriveRuntimeState(params: {
       hit: ruleHit,
       riskProfile,
       nowMs,
-      adaptive: adaptiveTuning
+      adaptive: adaptiveTuning,
+      strategyVersion: activeModel.semanticVersion
     });
 
     const sampled = parseRuleSampleFromSignal(signal, bars);
@@ -970,12 +1066,33 @@ export function deriveRuntimeState(params: {
       sample_size: sampled.sampleSize,
       expected_max_dd_est: sampled.expectedMaxDd ?? undefined
     };
+    const calibration = calibrator.calibrateSignal(signal as SignalContract & Record<string, unknown>);
+    signal.confidence = calibration.calibrated_confidence;
+    signal.confidence_details = calibration;
+    signal.position_advice.position_pct = round(
+      clamp(signal.position_advice.position_pct * calibration.sizing_multiplier, 0.35, riskProfile.exposure_cap),
+      2
+    );
+    signal.position_advice.rationale = `Position scaled by calibrated confidence (${Math.round(
+      calibration.calibrated_confidence * 100
+    )}%), execution reliability, and user risk profile cap.`;
+    signal.lineage = buildEvidenceLineage({
+      runtimeStatus: freshnessStatus,
+      performanceStatus: RUNTIME_STATUS.INSUFFICIENT_DATA,
+      replayEvidenceAvailable: false,
+      paperEvidenceAvailable: false,
+      sourceStatus: freshnessStatus,
+      dataStatus: freshnessStatus
+    });
+    signal.news_context = newsContext;
 
     const statusLabel = sourceStatusForSignal(sampled.sampleSize);
     signal.tags = [
       ...signal.tags.filter((tag) => !String(tag).startsWith('status:')),
       `status:${statusLabel}`,
-      `sample_size:${sampled.sampleSize}`
+      `sample_size:${sampled.sampleSize}`,
+      `calibration_bucket:${calibration.calibration_bucket}`,
+      `news_tone:${newsContext.tone.toLowerCase()}`
     ];
 
     const withUi = withUiFields(signal);

@@ -3,6 +3,7 @@ import type {
   ExecutionRecord,
   Market,
   MarketStateRecord,
+  SignalContract,
   UserHoldingInput,
   UserRiskProfileRecord
 } from '../types.js';
@@ -12,6 +13,8 @@ import {
   getPortfolioActionLabel,
   getTodayRiskCopy
 } from '../../copy/novaCopySystem.js';
+import { buildEvidenceLineage } from '../evidence/lineage.js';
+import { evaluateRiskGovernor, type RiskGovernorOutcome } from '../risk/governor.js';
 
 type UiSignal = Record<string, unknown>;
 type EvidenceSignal = Record<string, unknown>;
@@ -25,6 +28,7 @@ type ActionCard = {
   action_label: string;
   portfolio_intent: string;
   confidence: number;
+  calibrated_confidence?: number;
   conviction_label: string;
   time_horizon: string;
   time_horizon_days: number | null;
@@ -33,6 +37,10 @@ type ActionCard = {
   risk_note: string;
   eligible: boolean;
   ranking_score: number;
+  recommended_position_pct?: number | null;
+  confidence_details?: Record<string, unknown> | null;
+  governor?: RiskGovernorOutcome;
+  evidence_lineage?: Record<string, unknown>;
   entry_zone: unknown;
   stop_loss: unknown;
   take_profit: unknown;
@@ -51,6 +59,8 @@ type DecisionEngineInput = {
   asOf: string;
   locale?: string;
   runtimeSourceStatus: string;
+  performanceSourceStatus?: string;
+  demoMode?: boolean;
   riskProfile: UserRiskProfileRecord | null;
   signals: UiSignal[];
   evidenceSignals: EvidenceSignal[];
@@ -398,6 +408,7 @@ function buildActionIntent(args: {
   riskPosture: 'ATTACK' | 'PROBE' | 'DEFEND' | 'WAIT';
   portfolioContext: ReturnType<typeof buildPortfolioContext>;
   holdingWeight: number;
+  governor: RiskGovernorOutcome;
   locale?: string;
 }) {
   const direction = directionText(args.signal.direction);
@@ -408,6 +419,14 @@ function buildActionIntent(args: {
       action_label: getPortfolioActionLabel('watch_only', args.locale),
       eligible: false,
       rationale: 'Evidence exists, but the setup is not executable right now.'
+    };
+  }
+  if (!args.governor.allowed) {
+    return {
+      action: 'no_action',
+      action_label: getPortfolioActionLabel('no_action', args.locale),
+      eligible: false,
+      rationale: args.governor.block_reason || 'Portfolio risk governor blocked the action.'
     };
   }
   if (direction === 'SHORT' && args.holdingWeight > 0) {
@@ -480,6 +499,9 @@ function buildEvidenceBundle(args: {
   riskState: ReturnType<typeof deriveRiskState>;
   previousDecision?: Record<string, unknown> | null;
   actionIntent: ReturnType<typeof buildActionIntent>;
+  governor: RiskGovernorOutcome;
+  performanceSourceStatus?: string;
+  demoMode?: boolean;
 }) {
   const regimeRow = args.regimeRow;
   const eventContext = buildEventContext(regimeRow);
@@ -510,6 +532,17 @@ function buildEvidenceBundle(args: {
         : 'No prior personalized decision snapshot is available for comparison.';
 
   const horizon = inferHorizon(args.signal);
+  const confidenceDetails = (args.signal.confidence_details as Record<string, unknown> | undefined) || {};
+  const newsContext = (args.signal.news_context as Record<string, unknown> | undefined) || {};
+  const lineage = buildEvidenceLineage({
+    runtimeStatus: args.signal.source_status || args.signal.data_status || RUNTIME_STATUS.INSUFFICIENT_DATA,
+    performanceStatus: args.performanceSourceStatus || RUNTIME_STATUS.INSUFFICIENT_DATA,
+    replayEvidenceAvailable: args.signal.replay_paper_evidence_available,
+    paperEvidenceAvailable: false,
+    sourceStatus: args.signal.source_status,
+    dataStatus: args.signal.data_status,
+    demo: args.demoMode
+  });
   return {
     thesis: buildWhyNow(args.signal, args.riskState),
     supporting_factors: supportingFactors,
@@ -530,13 +563,18 @@ function buildEvidenceBundle(args: {
     confidence: {
       conviction: Number(toNumber(args.signal.confidence, 0) || 0),
       uncertainty:
-        opposingFactors.length >= 3 ? 'HIGH' : opposingFactors.length >= 2 ? 'MEDIUM' : 'LOW'
+        opposingFactors.length >= 3 ? 'HIGH' : opposingFactors.length >= 2 ? 'MEDIUM' : 'LOW',
+      calibration: confidenceDetails
     },
+    evidence_lineage: lineage,
+    news_context: newsContext,
+    governor: args.governor,
     implementation_caveats: [
       `Entry only if price remains inside ${String((args.signal.entry_zone as Record<string, unknown> | undefined)?.low ?? '--')} - ${String((args.signal.entry_zone as Record<string, unknown> | undefined)?.high ?? '--')}.`,
       `Stop / invalidation sits near ${String((args.signal.stop_loss as Record<string, unknown> | undefined)?.price ?? args.signal.invalidation_level ?? '--')}.`,
       `Expected horizon: ${horizon.label}.`,
-      args.actionIntent.rationale
+      args.actionIntent.rationale,
+      ...args.governor.reasons
     ].slice(0, 4),
     next_action: args.actionIntent.action,
     what_changed: whatChanged,
@@ -549,6 +587,7 @@ function rankCard(args: {
   riskState: ReturnType<typeof deriveRiskState>;
   intent: ReturnType<typeof buildActionIntent>;
   holdingWeight: number;
+  governor: RiskGovernorOutcome;
 }) {
   const score = Number(toNumber(args.signal.score, 0) || 0);
   const confidence = Number(toNumber(args.signal.confidence, 0) || 0);
@@ -569,7 +608,16 @@ function rankCard(args: {
               ? 6
               : -8;
   const holdingBonus = args.holdingWeight > 0 && args.intent.action === 'reduce_risk' ? 10 : 0;
-  return score + confidence * 35 + intentBonus + holdingBonus - posturePenalty - freshnessPenalty - dataPenalty(String(args.signal.data_status || ''));
+  const governorPenalty =
+    !args.governor.allowed
+      ? 45
+      : args.governor.governor_mode === 'DERISK'
+        ? 14
+        : args.governor.governor_mode === 'CAUTION'
+          ? 8
+          : 0;
+  const governorBoost = args.governor.allowed ? args.governor.size_multiplier * 6 : 0;
+  return score + confidence * 35 + intentBonus + holdingBonus + governorBoost - governorPenalty - posturePenalty - freshnessPenalty - dataPenalty(String(args.signal.data_status || ''));
 }
 
 function buildNoActionCard(args: {
@@ -577,8 +625,10 @@ function buildNoActionCard(args: {
   riskState: ReturnType<typeof deriveRiskState>;
   portfolioContext: ReturnType<typeof buildPortfolioContext>;
   overallStatus: string;
+  performanceSourceStatus?: string;
+  demoMode?: boolean;
   locale?: string;
-}) {
+}): ActionCard {
   const status = alignTransparency({
     overallStatus: args.overallStatus,
     componentSourceStatus: args.overallStatus,
@@ -602,6 +652,24 @@ function buildNoActionCard(args: {
     risk_note: args.riskState.user_message,
     eligible: false,
     ranking_score: -999,
+    recommended_position_pct: 0,
+    confidence_details: null,
+    governor: {
+      governor_mode: 'BLOCKED',
+      allowed: false,
+      size_multiplier: 0,
+      risk_budget_remaining: Number(args.portfolioContext.total_weight_pct || 0),
+      block_reason: 'No action ranks above the current opportunity set.',
+      reasons: ['No higher-priority action passed the risk gate.'],
+      overlays: ['no_action_default']
+    },
+    evidence_lineage: buildEvidenceLineage({
+      runtimeStatus: args.overallStatus,
+      performanceStatus: args.performanceSourceStatus,
+      sourceStatus: args.overallStatus,
+      dataStatus: args.overallStatus,
+      demo: args.demoMode
+    }),
     entry_zone: null,
     stop_loss: null,
     take_profit: null,
@@ -664,11 +732,20 @@ export function buildDecisionSnapshot(input: DecisionEngineInput) {
     .map((signal) => {
       const symbol = String(signal.symbol || '').toUpperCase();
       const holdingWeight = Number(holdingsBySymbol.get(symbol)?.weight_pct || 0);
+      const governor = evaluateRiskGovernor({
+        signal: signal as unknown as SignalContract & Record<string, unknown>,
+        marketState: input.marketState || [],
+        executions: input.executions,
+        holdings: input.holdings,
+        riskProfile: input.riskProfile,
+        calibratedConfidence: toNumber((signal.confidence_details as Record<string, unknown> | undefined)?.calibrated_confidence, null)
+      });
       const intent = buildActionIntent({
         signal,
         riskPosture: riskState.posture,
         portfolioContext: portfolioContextBase,
         holdingWeight,
+        governor,
         locale: input.locale
       });
       const evidenceBundle = buildEvidenceBundle({
@@ -677,14 +754,30 @@ export function buildDecisionSnapshot(input: DecisionEngineInput) {
         portfolioContext: portfolioContextBase,
         riskState,
         previousDecision: input.previousDecision,
-        actionIntent: intent
+        actionIntent: intent,
+        governor,
+        performanceSourceStatus: input.performanceSourceStatus,
+        demoMode: input.demoMode
       });
       const horizon = inferHorizon(signal);
       const rankingScore = rankCard({
         signal,
         riskState,
         intent,
-        holdingWeight
+        holdingWeight,
+        governor
+      });
+      const basePositionPct = toNumber((signal.position_advice as Record<string, unknown> | undefined)?.position_pct, null);
+      const finalPositionPct =
+        basePositionPct === null ? null : Number((basePositionPct * governor.size_multiplier).toFixed(2));
+      const evidenceLineage = buildEvidenceLineage({
+        runtimeStatus: input.runtimeSourceStatus,
+        performanceStatus: input.performanceSourceStatus,
+        replayEvidenceAvailable: signal.replay_paper_evidence_available,
+        paperEvidenceAvailable: false,
+        sourceStatus: signal.source_status,
+        dataStatus: signal.data_status,
+        demo: input.demoMode
       });
       return {
         action_id: `action-${String(signal.signal_id || symbol || Math.random()).replace(/[^a-zA-Z0-9_-]/g, '-')}`,
@@ -702,15 +795,20 @@ export function buildDecisionSnapshot(input: DecisionEngineInput) {
         action_label: intent.action_label,
         portfolio_intent: intent.action,
         confidence: Number(toNumber(signal.confidence, 0) || 0),
+        calibrated_confidence: toNumber((signal.confidence_details as Record<string, unknown> | undefined)?.calibrated_confidence, null) || Number(toNumber(signal.confidence, 0) || 0),
         conviction_label:
           (toNumber(signal.confidence, 0) || 0) >= 0.75 ? 'High' : (toNumber(signal.confidence, 0) || 0) >= 0.58 ? 'Medium' : 'Low',
         time_horizon: horizon.label,
         time_horizon_days: horizon.days,
         brief_why_now: evidenceBundle.thesis,
-        brief_caution: evidenceBundle.implementation_caveats[0] || intent.rationale,
+        brief_caution: governor.block_reason || evidenceBundle.implementation_caveats[0] || intent.rationale,
         risk_note: riskState.user_message,
-        eligible: intent.eligible,
+        eligible: intent.eligible && governor.allowed,
         ranking_score: Number(rankingScore.toFixed(2)),
+        recommended_position_pct: finalPositionPct,
+        confidence_details: (signal.confidence_details as Record<string, unknown> | undefined) || null,
+        governor,
+        evidence_lineage: evidenceLineage,
         entry_zone: signal.entry_zone || null,
         stop_loss: signal.stop_loss || null,
         take_profit: asArray<Record<string, unknown>>(signal.take_profit_levels)[0] || null,
@@ -732,6 +830,8 @@ export function buildDecisionSnapshot(input: DecisionEngineInput) {
         riskState,
         portfolioContext: portfolioContextBase,
         overallStatus,
+        performanceSourceStatus: input.performanceSourceStatus,
+        demoMode: input.demoMode,
         locale: input.locale
       })
     );
@@ -764,6 +864,8 @@ export function buildDecisionSnapshot(input: DecisionEngineInput) {
     risk_posture: riskState.posture,
     risk_summary: riskState.summary,
     user_message: riskState.user_message,
+    evidence_mode: String((topAction.evidence_lineage as Record<string, unknown> | undefined)?.display_mode || 'UNAVAILABLE'),
+    performance_mode: String((topAction.evidence_lineage as Record<string, unknown> | undefined)?.performance_mode || 'UNAVAILABLE'),
     source_status: overallStatus,
     data_status: overallStatus
   };
@@ -772,6 +874,8 @@ export function buildDecisionSnapshot(input: DecisionEngineInput) {
     as_of: input.asOf,
     source_status: overallStatus,
     data_status: overallStatus,
+    evidence_mode: summary.evidence_mode,
+    performance_mode: summary.performance_mode,
     today_call: todayCall,
     risk_state: riskState,
     portfolio_context: portfolioContext,

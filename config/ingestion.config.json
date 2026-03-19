@@ -24,6 +24,20 @@
     "timeoutMs": 120000,
     "batchSize": 2000
   },
+  "yahoo": {
+    "baseUrl": "https://query1.finance.yahoo.com",
+    "range": "10y",
+    "intervals": {
+      "1d": "1d"
+    },
+    "timeoutMs": 30000,
+    "concurrency": 2
+  },
+  "nasdaq": {
+    "baseUrl": "https://api.nasdaq.com/api",
+    "limit": 120,
+    "timeoutMs": 30000
+  },
   "binancePublic": {
     "baseUrl": "https://data.binance.vision",
     "pathPrefix": "data/futures/um",

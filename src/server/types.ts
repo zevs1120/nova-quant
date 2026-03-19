@@ -5,6 +5,7 @@ export type SignalDirection = 'LONG' | 'SHORT' | 'FLAT';
 export type SignalStatus = 'NEW' | 'TRIGGERED' | 'EXPIRED' | 'INVALIDATED' | 'CLOSED';
 export type RiskProfileKey = 'conservative' | 'balanced' | 'aggressive';
 export type ExecutionMode = 'PAPER' | 'LIVE';
+export type EvidenceMode = 'LIVE' | 'PAPER' | 'REPLAY' | 'BACKTEST' | 'DEMO' | 'MIXED' | 'UNAVAILABLE';
 export type ExecutionAction = 'EXECUTE' | 'DONE' | 'CLOSE';
 
 export interface Asset {
@@ -132,6 +133,23 @@ export interface SignalContract {
   direction: SignalDirection;
   strength: number;
   confidence: number;
+  confidence_details?: {
+    raw_confidence: number;
+    calibrated_confidence: number;
+    direction_confidence: number;
+    return_confidence: number;
+    execution_confidence: number;
+    risk_confidence: number;
+    calibration_bucket: string;
+    calibration_sample_size: number;
+    bucket_win_rate: number;
+    bucket_avg_pnl_pct: number;
+    bucket_avg_loss_pct: number;
+    brier_score: number;
+    ece: number;
+    sizing_multiplier: number;
+    sizing_band: 'tiny' | 'light' | 'base' | 'press';
+  };
   entry_zone: {
     low: number;
     high: number;
@@ -158,6 +176,11 @@ export interface SignalContract {
     leverage_cap: number;
     risk_bucket_applied: string;
     rationale: string;
+    governor_mode?: 'NORMAL' | 'CAUTION' | 'DERISK' | 'BLOCKED';
+    governor_reason?: string | null;
+    governor_overlays?: string[];
+    governor_size_multiplier?: number;
+    risk_budget_remaining?: number;
   };
   cost_model: {
     fee_bps: number;
@@ -175,6 +198,23 @@ export interface SignalContract {
   explain_bullets: string[];
   execution_checklist: string[];
   tags: string[];
+  lineage?: {
+    market_data_mode: EvidenceMode;
+    performance_mode: EvidenceMode;
+    validation_mode: EvidenceMode;
+    display_mode: EvidenceMode;
+    source_status: string;
+    data_status: string;
+    demo: boolean;
+  };
+  news_context?: {
+    symbol: string;
+    headline_count: number;
+    tone: 'POSITIVE' | 'NEGATIVE' | 'MIXED' | 'NEUTRAL' | 'NONE';
+    top_headlines: string[];
+    updated_at: string | null;
+    source: string;
+  };
   status: SignalStatus;
   payload: SignalPayload;
   references?: {
@@ -297,6 +337,20 @@ export interface PerformanceSnapshotRecord {
   updated_at_ms: number;
 }
 
+export interface NewsItemRecord {
+  id: string;
+  market: Market | 'ALL';
+  symbol: string;
+  headline: string;
+  source: string;
+  url: string | null;
+  published_at_ms: number;
+  sentiment_label: 'POSITIVE' | 'NEGATIVE' | 'MIXED' | 'NEUTRAL';
+  relevance_score: number;
+  payload_json: string;
+  updated_at_ms: number;
+}
+
 export interface AppConfig {
   database: {
     driver: 'sqlite';
@@ -318,6 +372,18 @@ export interface AppConfig {
     bulkPackCodes: Partial<Record<Timeframe, string>>;
     timeoutMs: number;
     batchSize: number;
+  };
+  yahoo: {
+    baseUrl: string;
+    range: string;
+    intervals: Partial<Record<Timeframe, string>>;
+    timeoutMs: number;
+    concurrency: number;
+  };
+  nasdaq: {
+    baseUrl: string;
+    limit: number;
+    timeoutMs: number;
   };
   binancePublic: {
     baseUrl: string;
@@ -609,6 +675,8 @@ export interface DecisionSnapshotRecord {
   asset_class: AssetClass | 'ALL';
   snapshot_date: string;
   context_hash: string;
+  evidence_mode: EvidenceMode;
+  performance_mode: EvidenceMode;
   source_status: string;
   data_status: string;
   risk_state_json: string;

@@ -31,6 +31,8 @@ import { buildMlxLmTrainingDataset } from '../nova/training.js';
 import { getNovaModelPlan, getNovaRoutingPolicies, getNovaLocalEndpoint, getNovaRuntimeMode, isLocalNovaEnabled } from '../ai/llmOps.js';
 import { inspectNovaHealth } from '../nova/health.js';
 import { labelNovaRun } from '../nova/service.js';
+import { ensureFreshNewsForUniverse } from '../news/provider.js';
+import { buildEvidenceLineage } from '../evidence/lineage.js';
 
 const RISK_PROFILE_PRESETS = {
   conservative: {
@@ -963,11 +965,12 @@ function loadRuntimeStateCore(args: {
   userId?: string;
   market?: Market;
   assetClass?: AssetClass;
+  forceSync?: boolean;
 }): RuntimeStateCore {
   const repo = getRepo();
   const userId = args.userId || 'guest-default';
   const market = args.market || (args.assetClass === 'CRYPTO' ? 'CRYPTO' : 'US');
-  const state = syncQuantState(userId, false, {
+  const state = syncQuantState(userId, Boolean(args.forceSync), {
     market: args.market,
     assetClass: args.assetClass
   });
@@ -1029,6 +1032,9 @@ function loadRuntimeStateCore(args: {
       topSignal
         ? `Top setup ${String(topSignal.symbol)} from ${String(topSignal.strategy_id)} under ${String(topSignal.regime_id)}.`
         : 'No high-quality setup passed rule filters today.',
+      topSignal && typeof topSignal.news_context === 'object'
+        ? `News tone: ${String((topSignal.news_context as Record<string, unknown>).tone || 'NONE').toLowerCase()}.`
+        : 'No fresh news context is attached to the current top setup.',
       avgVol === null ? 'Volatility percentile unavailable due to insufficient bars.' : `Average volatility percentile: ${avgVol.toFixed(1)}.`,
       avgRiskOff === null ? 'Risk-off score unavailable.' : `Average risk-off score: ${avgRiskOff.toFixed(2)}.`
     ]
@@ -1106,10 +1112,19 @@ function loadRuntimeStateCore(args: {
   };
 
   const runtimeStateStatus = normalizeRuntimeStatus(state.sourceStatus, RUNTIME_STATUS.INSUFFICIENT_DATA);
+  const runtimeLineage = buildEvidenceLineage({
+    runtimeStatus: runtimeStateStatus,
+    performanceStatus: performanceSource,
+    sourceStatus: runtimeStateStatus,
+    dataStatus: runtimeStateStatus
+  });
   const runtimeTransparency = {
     as_of: new Date(state.asofMs).toISOString(),
     source_status: runtimeStateStatus,
     data_status: runtimeStateStatus,
+    evidence_mode: runtimeLineage.display_mode,
+    performance_mode: runtimeLineage.performance_mode,
+    validation_mode: runtimeLineage.validation_mode,
     freshness_summary: state.freshnessSummary,
     coverage_summary: state.coverageSummary,
     db_backed: runtimeStateStatus === RUNTIME_STATUS.DB_BACKED,
@@ -1213,6 +1228,8 @@ function decisionSnapshotFromRow(row: DecisionSnapshotRecord) {
   const summary = parseJsonObject(row.summary_json) || {};
   return {
     as_of: new Date(row.updated_at_ms).toISOString(),
+    evidence_mode: row.evidence_mode,
+    performance_mode: row.performance_mode,
     source_status: row.source_status,
     data_status: row.data_status,
     today_call: summary.today_call || null,
@@ -1288,6 +1305,8 @@ function persistDecisionSnapshot(args: {
     asset_class: args.core.assetClass || 'ALL',
     snapshot_date: snapshotDate,
     context_hash: contextHash,
+    evidence_mode: (String(args.decision.evidence_mode || 'UNAVAILABLE') as import('../types.js').EvidenceMode),
+    performance_mode: (String(args.decision.performance_mode || 'UNAVAILABLE') as import('../types.js').EvidenceMode),
     source_status: String(args.decision.source_status || RUNTIME_STATUS.INSUFFICIENT_DATA),
     data_status: String(args.decision.data_status || RUNTIME_STATUS.INSUFFICIENT_DATA),
     risk_state_json: JSON.stringify(args.decision.risk_state || {}),
@@ -1311,6 +1330,8 @@ function persistDecisionSnapshot(args: {
       asset_class: args.core.assetClass || 'ALL',
       top_action_id: args.decision.top_action_id || null,
       ranked_action_count: Array.isArray(args.decision.ranked_action_cards) ? args.decision.ranked_action_cards.length : 0,
+      evidence_mode: args.decision.evidence_mode || 'UNAVAILABLE',
+      performance_mode: args.decision.performance_mode || 'UNAVAILABLE',
       source_status: args.decision.source_status || RUNTIME_STATUS.INSUFFICIENT_DATA,
       data_status: args.decision.data_status || RUNTIME_STATUS.INSUFFICIENT_DATA
     }
@@ -1345,6 +1366,7 @@ function buildDecisionSnapshotFromCore(args: {
     asOf: String(args.core.runtimeTransparency.as_of),
     locale: args.locale,
     runtimeSourceStatus: String(args.core.runtimeTransparency.source_status),
+    performanceSourceStatus: String(args.core.performanceSource || RUNTIME_STATUS.INSUFFICIENT_DATA),
     riskProfile: args.core.risk,
     signals: args.core.signals,
     evidenceSignals: evidenceTop.records || [],
@@ -1368,7 +1390,12 @@ export async function getDecisionSnapshot(args: {
   holdings?: UserHoldingInput[];
   locale?: string;
 }) {
-  const core = loadRuntimeStateCore(args);
+  const repo = getRepo();
+  await ensureFreshNewsForUniverse({ repo, market: args.market || 'ALL' });
+  const core = loadRuntimeStateCore({
+    ...args,
+    forceSync: true
+  });
   const deterministic = buildDecisionSnapshotFromCore({
     core,
     holdings: args.holdings,

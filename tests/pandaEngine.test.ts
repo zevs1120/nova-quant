@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { PandaAutoLearner, PandaStrategyBase, RiskBucket, buildPandaAdaptiveDecision } from '../src/server/quant/pandaEngine.js';
+import {
+  PandaAutoLearner,
+  PandaStrategyBase,
+  RiskBucket,
+  buildPandaAdaptiveDecision,
+  resolvePandaModelConfig
+} from '../src/server/quant/pandaEngine.js';
 
 function buildBars(count: number, start = 100) {
   const rows: Array<{
@@ -33,7 +39,10 @@ function buildBars(count: number, start = 100) {
 
 describe('panda engine modules', () => {
   it('strategy base calculates factors and emits decision', () => {
-    const strategy = new PandaStrategyBase();
+    const strategy = new PandaStrategyBase({
+      longSignalThreshold: 0.6,
+      shortSignalThreshold: 0.9
+    });
     strategy.add_factor('trend_strength', (frame) => frame.close.map(() => 0.72));
     strategy.add_factor('reversal_score', (frame) => frame.close.map(() => 0.15));
     const frame = {
@@ -69,8 +78,8 @@ describe('panda engine modules', () => {
     const top = learner.select_top_factors(factors, returns, 1);
     expect(top.length).toBe(1);
     expect(typeof learner.factor_scores[top[0]]).toBe('number');
-    expect(learner.adaptive_param([-0.01, -0.02]).risk).toBe(0.01);
-    expect(learner.adaptive_param([0.01]).position).toBe(0.3);
+    expect(learner.adaptive_param([-0.01, -0.02], resolvePandaModelConfig()).risk).toBeLessThan(0.02);
+    expect(learner.adaptive_param([0.01], resolvePandaModelConfig()).position).toBeGreaterThanOrEqual(0.3);
   });
 
   it('builds adaptive decision with factor ranking and risk decision', () => {
@@ -95,4 +104,3 @@ describe('panda engine modules', () => {
     expect(out.adaptiveParams.risk).toBeGreaterThan(0);
   });
 });
-

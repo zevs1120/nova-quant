@@ -18,6 +18,7 @@ import type {
   FeatureSnapshotRecord,
   Market,
   MarketStateRecord,
+  NewsItemRecord,
   ModelVersionRecord,
   NotificationEventRecord,
   NotificationPreferenceRecord,
@@ -177,14 +178,24 @@ export class MarketRepository {
     if (params.start !== undefined) where.push('ts_open >= @start');
     if (params.end !== undefined) where.push('ts_open <= @end');
     const limitSql = params.limit ? 'LIMIT @limit' : '';
-
-    const sql = `
-      SELECT ts_open, open, high, low, close, volume, source
-      FROM ohlcv
-      WHERE ${where.join(' AND ')}
-      ORDER BY ts_open ASC
-      ${limitSql}
-    `;
+    const sql = params.limit
+      ? `
+          SELECT ts_open, open, high, low, close, volume, source
+          FROM (
+            SELECT ts_open, open, high, low, close, volume, source
+            FROM ohlcv
+            WHERE ${where.join(' AND ')}
+            ORDER BY ts_open DESC
+            ${limitSql}
+          )
+          ORDER BY ts_open ASC
+        `
+      : `
+          SELECT ts_open, open, high, low, close, volume, source
+          FROM ohlcv
+          WHERE ${where.join(' AND ')}
+          ORDER BY ts_open ASC
+        `;
 
     return this.db.prepare(sql).all({
       asset_id: params.assetId,
@@ -784,6 +795,68 @@ export class MarketRepository {
     `
       )
       .all(q) as PerformanceSnapshotRecord[];
+  }
+
+  upsertNewsItem(record: NewsItemRecord): void {
+    this.db
+      .prepare(
+        `
+          INSERT INTO news_items(
+            id, market, symbol, headline, source, url, published_at_ms, sentiment_label, relevance_score, payload_json, updated_at_ms
+          ) VALUES(
+            @id, @market, @symbol, @headline, @source, @url, @published_at_ms, @sentiment_label, @relevance_score, @payload_json, @updated_at_ms
+          )
+          ON CONFLICT(id) DO UPDATE SET
+            headline = excluded.headline,
+            source = excluded.source,
+            url = excluded.url,
+            published_at_ms = excluded.published_at_ms,
+            sentiment_label = excluded.sentiment_label,
+            relevance_score = excluded.relevance_score,
+            payload_json = excluded.payload_json,
+            updated_at_ms = excluded.updated_at_ms
+        `
+      )
+      .run(record);
+  }
+
+  upsertNewsItems(rows: NewsItemRecord[]): void {
+    const tx = this.db.transaction((records: NewsItemRecord[]) => {
+      for (const record of records) this.upsertNewsItem(record);
+    });
+    tx(rows);
+  }
+
+  listNewsItems(params?: { market?: Market | 'ALL'; symbol?: string; limit?: number; sinceMs?: number }): NewsItemRecord[] {
+    const where: string[] = [];
+    const q: Record<string, unknown> = {};
+    if (params?.market) {
+      where.push('market = @market');
+      q.market = params.market;
+    }
+    if (params?.symbol) {
+      where.push('symbol = @symbol');
+      q.symbol = params.symbol.toUpperCase();
+    }
+    if (Number.isFinite(params?.sinceMs)) {
+      where.push('published_at_ms >= @since_ms');
+      q.since_ms = params?.sinceMs;
+    }
+    if (params?.limit) q.limit = params.limit;
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    const limitSql = params?.limit ? 'LIMIT @limit' : '';
+    return this.db
+      .prepare(
+        `
+          SELECT
+            id, market, symbol, headline, source, url, published_at_ms, sentiment_label, relevance_score, payload_json, updated_at_ms
+          FROM news_items
+          ${whereSql}
+          ORDER BY published_at_ms DESC, updated_at_ms DESC
+          ${limitSql}
+        `
+      )
+      .all(q) as NewsItemRecord[];
   }
 
   upsertApiKey(input: {
@@ -1976,10 +2049,10 @@ export class MarketRepository {
       .prepare(
         `
           INSERT INTO decision_snapshots(
-            id, user_id, market, asset_class, snapshot_date, context_hash, source_status, data_status,
+            id, user_id, market, asset_class, snapshot_date, context_hash, evidence_mode, performance_mode, source_status, data_status,
             risk_state_json, portfolio_context_json, actions_json, summary_json, top_action_id, created_at_ms, updated_at_ms
           ) VALUES(
-            @id, @user_id, @market, @asset_class, @snapshot_date, @context_hash, @source_status, @data_status,
+            @id, @user_id, @market, @asset_class, @snapshot_date, @context_hash, @evidence_mode, @performance_mode, @source_status, @data_status,
             @risk_state_json, @portfolio_context_json, @actions_json, @summary_json, @top_action_id, @created_at_ms, @updated_at_ms
           )
           ON CONFLICT(id) DO UPDATE SET
@@ -1988,6 +2061,8 @@ export class MarketRepository {
             asset_class = excluded.asset_class,
             snapshot_date = excluded.snapshot_date,
             context_hash = excluded.context_hash,
+            evidence_mode = excluded.evidence_mode,
+            performance_mode = excluded.performance_mode,
             source_status = excluded.source_status,
             data_status = excluded.data_status,
             risk_state_json = excluded.risk_state_json,
@@ -2020,7 +2095,7 @@ export class MarketRepository {
       .prepare(
         `
           SELECT
-            id, user_id, market, asset_class, snapshot_date, context_hash, source_status, data_status,
+            id, user_id, market, asset_class, snapshot_date, context_hash, evidence_mode, performance_mode, source_status, data_status,
             risk_state_json, portfolio_context_json, actions_json, summary_json, top_action_id, created_at_ms, updated_at_ms
           FROM decision_snapshots
           WHERE ${where.join(' AND ')}
@@ -2054,7 +2129,7 @@ export class MarketRepository {
       .prepare(
         `
           SELECT
-            id, user_id, market, asset_class, snapshot_date, context_hash, source_status, data_status,
+            id, user_id, market, asset_class, snapshot_date, context_hash, evidence_mode, performance_mode, source_status, data_status,
             risk_state_json, portfolio_context_json, actions_json, summary_json, top_action_id, created_at_ms, updated_at_ms
           FROM decision_snapshots
           WHERE ${where.join(' AND ')}

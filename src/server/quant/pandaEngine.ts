@@ -1,6 +1,6 @@
 import type { Market, UserRiskProfileRecord } from '../types.js';
 
-type NumericBar = {
+export type NumericBar = {
   ts_open: number;
   open: number;
   high: number;
@@ -10,8 +10,37 @@ type NumericBar = {
 };
 
 type PandaFrame = Record<string, number[]>;
-
 type PandaFactorFn = (frame: PandaFrame) => number[];
+
+export const PANDA_FACTOR_NAMES = [
+  'trend_strength',
+  'reversal_score',
+  'volume_impulse',
+  'volatility_score',
+  'momentum_5'
+] as const;
+
+export type PandaFactorName = (typeof PANDA_FACTOR_NAMES)[number];
+
+export interface PandaModelRuntimeConfig {
+  modelKey: string | null;
+  enabledFactors: PandaFactorName[];
+  topFactorCount: number;
+  factorLookaheadBars: number;
+  minSampleBars: number;
+  longSignalThreshold: number;
+  shortSignalThreshold: number;
+  reversalOverrideThreshold: number;
+  riskBase: number;
+  positionBase: number;
+  stopLossBasePct: number;
+  safeMode: boolean;
+  regimeBias: 'balanced' | 'trend' | 'meanreversion';
+  factorWeights: Partial<Record<PandaFactorName, number>>;
+  promotedAtMs: number | null;
+  rollbackTargetId: string | null;
+  notes: string | null;
+}
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -122,15 +151,248 @@ function lastValue(values: number[]): number {
   return safeNumber(values[values.length - 1]);
 }
 
+function trendStrengthFactor(frame: PandaFrame): number[] {
+  const close = frame.close || [];
+  const emaFast = emaSeries(close, 10);
+  const emaSlow = emaSeries(close, 30);
+  return close.map((price, i) => {
+    const slow = Math.max(1e-9, emaSlow[i] || price || 1);
+    const spread = Math.abs((emaFast[i] - emaSlow[i]) / slow);
+    const anchor = Math.abs((price - emaSlow[i]) / slow);
+    return clamp(spread * 18 + anchor * 8, 0, 1);
+  });
+}
+
+function reversalScoreFactor(frame: PandaFrame): number[] {
+  const close = frame.close || [];
+  const mean20 = rollingMean(close, 20);
+  const std20 = rollingStd(close, 20);
+  const momentum5 = close.map((value, i) => {
+    const prev = close[Math.max(0, i - 5)] || value;
+    return prev > 0 ? (value - prev) / prev : 0;
+  });
+  return close.map((value, i) => {
+    const z = (value - (mean20[i] || value)) / Math.max(std20[i] || 1e-9, 1e-9);
+    const contra = momentum5[i] < 0 ? Math.abs(z) : 0;
+    return clamp(contra / 2.2, 0, 1);
+  });
+}
+
+function volumeImpulseFactor(frame: PandaFrame): number[] {
+  const vol = frame.volume || [];
+  const base = rollingMean(vol, 20);
+  return vol.map((value, i) => clamp(value / Math.max(base[i] || 1, 1), 0, 4));
+}
+
+function volatilityFactor(frame: PandaFrame): number[] {
+  const close = frame.close || [];
+  const rets = close.map((value, i) => {
+    if (i === 0) return 0;
+    const prev = close[i - 1];
+    return prev > 0 ? value / prev - 1 : 0;
+  });
+  const vol = rollingStd(rets, 20);
+  return vol.map((value) => clamp(value * 20, 0, 1));
+}
+
+function momentum5Factor(frame: PandaFrame): number[] {
+  const close = frame.close || [];
+  return close.map((value, i) => {
+    const prev = close[Math.max(0, i - 5)] || value;
+    return clamp(prev > 0 ? ((value - prev) / prev) * 5 : 0, -1, 1);
+  });
+}
+
+export const PANDA_FACTOR_BUILDERS: Record<PandaFactorName, PandaFactorFn> = {
+  trend_strength: trendStrengthFactor,
+  reversal_score: reversalScoreFactor,
+  volume_impulse: volumeImpulseFactor,
+  volatility_score: volatilityFactor,
+  momentum_5: momentum5Factor
+};
+
+export function resolvePandaModelConfig(config?: Partial<PandaModelRuntimeConfig> | null): PandaModelRuntimeConfig {
+  const enabledFactorsRaw = Array.isArray(config?.enabledFactors)
+    ? config!.enabledFactors.filter((item): item is PandaFactorName => PANDA_FACTOR_NAMES.includes(item as PandaFactorName))
+    : [...PANDA_FACTOR_NAMES];
+  const enabledFactors = enabledFactorsRaw.length ? enabledFactorsRaw : [...PANDA_FACTOR_NAMES];
+
+  return {
+    modelKey: typeof config?.modelKey === 'string' ? config.modelKey : null,
+    enabledFactors,
+    topFactorCount: Math.max(1, Math.min(enabledFactors.length, Math.round(safeNumber(config?.topFactorCount, 4)))),
+    factorLookaheadBars: Math.max(1, Math.min(8, Math.round(safeNumber(config?.factorLookaheadBars, 1)))),
+    minSampleBars: Math.max(40, Math.round(safeNumber(config?.minSampleBars, 40))),
+    longSignalThreshold: clamp(safeNumber(config?.longSignalThreshold, 0.82), 0.45, 1.8),
+    shortSignalThreshold: clamp(safeNumber(config?.shortSignalThreshold, 0.78), 0.45, 1.8),
+    reversalOverrideThreshold: clamp(safeNumber(config?.reversalOverrideThreshold, 0.82), 0.5, 1),
+    riskBase: clamp(safeNumber(config?.riskBase, 0.02), 0.005, 0.03),
+    positionBase: clamp(safeNumber(config?.positionBase, 0.3), 0.1, 0.35),
+    stopLossBasePct: clamp(safeNumber(config?.stopLossBasePct, 0.05), 0.01, 0.12),
+    safeMode: Boolean(config?.safeMode),
+    regimeBias:
+      config?.regimeBias === 'trend' || config?.regimeBias === 'meanreversion' ? config.regimeBias : 'balanced',
+    factorWeights: { ...(config?.factorWeights || {}) },
+    promotedAtMs: config?.promotedAtMs ?? null,
+    rollbackTargetId: typeof config?.rollbackTargetId === 'string' ? config.rollbackTargetId : null,
+    notes: typeof config?.notes === 'string' ? config.notes : null
+  };
+}
+
+function normalizeVolumeImpulse(value: number): number {
+  return clamp((safeNumber(value) - 1) / 1.6, 0, 1);
+}
+
+function normalizeMomentum(value: number): { positive: number; negative: number } {
+  return {
+    positive: clamp(safeNumber(value), 0, 1),
+    negative: clamp(-safeNumber(value), 0, 1)
+  };
+}
+
+function resolveFactorWeights(config: PandaModelRuntimeConfig, topFactors: string[] = []): Record<PandaFactorName, number> {
+  const base: Record<PandaFactorName, number> = {
+    trend_strength: 1,
+    reversal_score: 1,
+    volume_impulse: 0.6,
+    volatility_score: 0.45,
+    momentum_5: 0.8
+  };
+
+  if (config.regimeBias === 'trend') {
+    base.trend_strength *= 1.18;
+    base.momentum_5 *= 1.12;
+    base.reversal_score *= 0.82;
+  } else if (config.regimeBias === 'meanreversion') {
+    base.reversal_score *= 1.24;
+    base.volatility_score *= 0.92;
+    base.trend_strength *= 0.8;
+  }
+
+  for (const factorName of PANDA_FACTOR_NAMES) {
+    if (!config.enabledFactors.includes(factorName)) {
+      base[factorName] = 0;
+      continue;
+    }
+    const override = config.factorWeights[factorName];
+    if (Number.isFinite(override)) {
+      base[factorName] *= clamp(Number(override), 0, 4);
+    }
+    if (topFactors.includes(factorName)) {
+      base[factorName] *= 1.05;
+    }
+  }
+  return base;
+}
+
+export function buildPandaFactorFrame(
+  bars: NumericBar[],
+  factorNames: PandaFactorName[] = [...PANDA_FACTOR_NAMES]
+): PandaFrame {
+  const frame = toFrame(bars);
+  for (const factorName of factorNames) {
+    frame[factorName] = PANDA_FACTOR_BUILDERS[factorName](frame);
+  }
+  return frame;
+}
+
+export function rankPandaFactors(args: {
+  frame: PandaFrame;
+  factorNames: PandaFactorName[];
+  lookaheadBars: number;
+  topFactorCount: number;
+}): { factorScores: Record<string, number>; topFactors: string[] } {
+  const returns = forwardReturns(args.frame.close || [], args.lookaheadBars);
+  const scored = Object.fromEntries(
+    args.factorNames.map((name) => [name, Math.abs(correlation(args.frame[name] || [], returns))])
+  ) as Record<string, number>;
+  const topFactors = Object.entries(scored)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, Math.max(1, args.topFactorCount))
+    .map(([name]) => name);
+  return {
+    factorScores: scored,
+    topFactors
+  };
+}
+
+function computeSignalBreakdown(args: {
+  frame: PandaFrame;
+  config: PandaModelRuntimeConfig;
+  topFactors?: string[];
+}): {
+  signal: number;
+  confidence: number;
+  longScore: number;
+  shortScore: number;
+  trendLatest: number;
+  reversalLatest: number;
+  volatilityLatest: number;
+} {
+  const trendLatest = lastValue(args.frame.trend_strength || []);
+  const reversalLatest = lastValue(args.frame.reversal_score || []);
+  const volumeLatest = normalizeVolumeImpulse(lastValue(args.frame.volume_impulse || []));
+  const volatilityLatest = lastValue(args.frame.volatility_score || []);
+  const momentum = normalizeMomentum(lastValue(args.frame.momentum_5 || []));
+  const weights = resolveFactorWeights(args.config, args.topFactors || []);
+
+  const longScore =
+    weights.trend_strength * trendLatest +
+    weights.momentum_5 * momentum.positive +
+    weights.volume_impulse * volumeLatest -
+    weights.volatility_score * volatilityLatest * 0.35;
+  const shortScore =
+    weights.reversal_score * reversalLatest +
+    weights.momentum_5 * momentum.negative +
+    weights.volatility_score * volatilityLatest * 0.25;
+
+  let signal = 0;
+  if (!args.config.safeMode) {
+    if (
+      shortScore >= args.config.shortSignalThreshold &&
+      shortScore >= longScore + 0.04
+    ) {
+      signal = -1;
+    } else if (
+      reversalLatest >= args.config.reversalOverrideThreshold &&
+      shortScore >= args.config.shortSignalThreshold - 0.05
+    ) {
+      signal = -1;
+    } else if (
+      longScore >= args.config.longSignalThreshold &&
+      longScore >= shortScore + 0.04
+    ) {
+      signal = 1;
+    }
+  }
+
+  const scoreAnchor = signal > 0 ? longScore : signal < 0 ? shortScore : Math.max(longScore, shortScore);
+  const scoreGap = Math.abs(longScore - shortScore);
+  const confidence =
+    signal === 0
+      ? clamp(0.18 + scoreAnchor * 0.18, 0, 0.58)
+      : clamp(0.42 + scoreAnchor * 0.24 + scoreGap * 0.14, 0, 1);
+
+  return {
+    signal,
+    confidence: round(confidence, 4),
+    longScore: round(longScore, 6),
+    shortScore: round(shortScore, 6),
+    trendLatest: round(trendLatest, 6),
+    reversalLatest: round(reversalLatest, 6),
+    volatilityLatest: round(volatilityLatest, 6)
+  };
+}
+
 export class PandaStrategyBase {
   factors: Record<string, PandaFactorFn>;
   signals: Record<string, unknown>;
   params: Record<string, unknown>;
 
-  constructor() {
+  constructor(config?: Partial<PandaModelRuntimeConfig>) {
     this.factors = {};
     this.signals = {};
-    this.params = {};
+    this.params = { config: resolvePandaModelConfig(config) };
   }
 
   add_factor(name: string, func: PandaFactorFn) {
@@ -146,12 +408,8 @@ export class PandaStrategyBase {
   }
 
   generate_signal(frame: PandaFrame): number {
-    const trend = lastValue(frame.trend_strength || []);
-    const reversal = lastValue(frame.reversal_score || []);
-    let signal = 0;
-    if (trend > 0.6) signal = 1;
-    if (reversal > 0.8) signal = -1;
-    return signal;
+    const config = resolvePandaModelConfig(this.params.config as Partial<PandaModelRuntimeConfig>);
+    return computeSignalBreakdown({ frame, config }).signal;
   }
 
   decision(frame: PandaFrame): { signal: number; frame: PandaFrame } {
@@ -220,8 +478,7 @@ export class PandaAutoLearner {
   }
 
   score_factor(factor_series: number[], returns: number[]): number {
-    const ic = correlation(factor_series, returns);
-    return Math.abs(ic);
+    return Math.abs(correlation(factor_series, returns));
   }
 
   select_top_factors(factor_dict: Record<string, number[]>, returns: number[], top_n = 5): string[] {
@@ -235,58 +492,30 @@ export class PandaAutoLearner {
       .map(([name]) => name);
   }
 
-  adaptive_param(performance_history: number[]): { risk: number; position: number } {
+  adaptive_param(
+    performance_history: number[],
+    config: PandaModelRuntimeConfig
+  ): { risk: number; position: number } {
     if (!performance_history.length) {
-      return { risk: 0.02, position: 0.3 };
+      return { risk: config.riskBase, position: config.positionBase };
     }
-    const latest = performance_history[performance_history.length - 1];
-    if (latest < 0) return { risk: 0.01, position: 0.2 };
-    return { risk: 0.02, position: 0.3 };
+    const trailing = performance_history.slice(-12);
+    const latest = trailing[trailing.length - 1];
+    const avg = average(trailing);
+    if (latest < 0 || avg < 0) {
+      return {
+        risk: clamp(config.riskBase * 0.65, 0.005, 0.03),
+        position: clamp(config.positionBase * 0.72, 0.1, 0.35)
+      };
+    }
+    if (avg > 0.01) {
+      return {
+        risk: clamp(config.riskBase * 1.08, 0.005, 0.03),
+        position: clamp(config.positionBase * 1.05, 0.1, 0.35)
+      };
+    }
+    return { risk: config.riskBase, position: config.positionBase };
   }
-}
-
-function trendStrengthFactor(frame: PandaFrame): number[] {
-  const close = frame.close || [];
-  const emaFast = emaSeries(close, 10);
-  const emaSlow = emaSeries(close, 30);
-  return close.map((price, i) => {
-    const slow = Math.max(1e-9, emaSlow[i] || price || 1);
-    const spread = Math.abs((emaFast[i] - emaSlow[i]) / slow);
-    const anchor = Math.abs((price - emaSlow[i]) / slow);
-    return clamp(spread * 18 + anchor * 8, 0, 1);
-  });
-}
-
-function reversalScoreFactor(frame: PandaFrame): number[] {
-  const close = frame.close || [];
-  const mean20 = rollingMean(close, 20);
-  const std20 = rollingStd(close, 20);
-  const momentum5 = close.map((value, i) => {
-    const prev = close[Math.max(0, i - 5)] || value;
-    return prev > 0 ? (value - prev) / prev : 0;
-  });
-  return close.map((value, i) => {
-    const z = (value - (mean20[i] || value)) / Math.max(std20[i] || 1e-9, 1e-9);
-    const contra = momentum5[i] < 0 ? Math.abs(z) : 0;
-    return clamp(contra / 2.2, 0, 1);
-  });
-}
-
-function volumeImpulseFactor(frame: PandaFrame): number[] {
-  const vol = frame.volume || [];
-  const base = rollingMean(vol, 20);
-  return vol.map((value, i) => clamp(value / Math.max(base[i] || 1, 1), 0, 4));
-}
-
-function volatilityFactor(frame: PandaFrame): number[] {
-  const close = frame.close || [];
-  const rets = close.map((value, i) => {
-    if (i === 0) return 0;
-    const prev = close[i - 1];
-    return prev > 0 ? value / prev - 1 : 0;
-  });
-  const vol = rollingStd(rets, 20);
-  return vol.map((value) => clamp(value * 20, 0, 1));
 }
 
 export type PandaAdaptiveDecision = {
@@ -315,16 +544,18 @@ export function buildPandaAdaptiveDecision(args: {
   performanceHistory: number[];
   riskProfile: UserRiskProfileRecord;
   capital?: number;
+  modelConfig?: Partial<PandaModelRuntimeConfig> | null;
 }): PandaAdaptiveDecision {
+  const config = resolvePandaModelConfig(args.modelConfig);
   const capital = Math.max(10_000, safeNumber(args.capital, 100_000));
   const sampleSize = args.bars.length;
-  if (sampleSize < 40) {
+  if (sampleSize < config.minSampleBars) {
     return {
       signal: 0,
       confidence: 0,
       topFactors: [],
       factorScores: {},
-      adaptiveParams: { risk: 0.02, position: 0.3 },
+      adaptiveParams: { risk: config.riskBase, position: config.positionBase },
       risk: {
         allowed: false,
         reason: 'insufficient_data',
@@ -340,37 +571,28 @@ export function buildPandaAdaptiveDecision(args: {
     };
   }
 
-  const frame = toFrame(args.bars);
-  const strategy = new PandaStrategyBase();
-  strategy.add_factor('trend_strength', trendStrengthFactor);
-  strategy.add_factor('reversal_score', reversalScoreFactor);
-  strategy.add_factor('volume_impulse', volumeImpulseFactor);
-  strategy.add_factor('volatility_score', volatilityFactor);
-  strategy.add_factor('momentum_5', (nextFrame) => {
-    const close = nextFrame.close || [];
-    return close.map((value, i) => {
-      const prev = close[Math.max(0, i - 5)] || value;
-      return clamp(prev > 0 ? ((value - prev) / prev) * 5 : 0, -1, 1);
-    });
+  const frame = buildPandaFactorFrame(args.bars, config.enabledFactors);
+  const learner = new PandaAutoLearner();
+  const fwdReturns = forwardReturns(frame.close || [], config.factorLookaheadBars);
+  const factorDict = Object.fromEntries(
+    config.enabledFactors.map((name) => [name, frame[name] || []])
+  ) as Record<string, number[]>;
+  const topFactors = learner.select_top_factors(factorDict, fwdReturns, config.topFactorCount);
+  const adaptiveParams = learner.adaptive_param(args.performanceHistory || [], config);
+  const decision = computeSignalBreakdown({
+    frame,
+    config,
+    topFactors
   });
 
-  const decision = strategy.decision(frame);
-  const learner = new PandaAutoLearner();
-  const fwdReturns = forwardReturns(decision.frame.close || [], 1);
-  const factorDict = Object.fromEntries(
-    Object.keys(strategy.factors).map((name) => [name, decision.frame[name] || []])
-  ) as Record<string, number[]>;
-  const topFactors = learner.select_top_factors(factorDict, fwdReturns, 4);
-  const adaptiveParams = learner.adaptive_param(args.performanceHistory || []);
-
-  const volatility = safeNumber(lastValue(decision.frame.volatility_score || []), 0.02);
-  const latestPrice = Math.max(1e-6, lastValue(decision.frame.close || []));
+  const volatility = safeNumber(lastValue(frame.volatility_score || []), 0.02);
+  const latestPrice = Math.max(1e-6, lastValue(frame.close || []));
 
   const riskBucket = new RiskBucket(
     clamp(adaptiveParams.risk, 0.005, 0.03),
     clamp(adaptiveParams.position, 0.1, 0.35),
     clamp(args.riskProfile.max_drawdown / 100, 0.05, 0.35),
-    clamp(0.035 + volatility * 0.6, 0.01, 0.12)
+    clamp(config.stopLossBasePct + volatility * 0.55, 0.01, 0.12)
   );
 
   let equity = 1;
@@ -381,24 +603,19 @@ export function buildPandaAdaptiveDecision(args: {
 
   const suggestedShares = riskBucket.calc_position_size(capital, latestPrice, volatility);
   const suggestedPositionPct = clamp((suggestedShares * latestPrice) / capital, 0, riskBucket.max_position_ratio) * 100;
-  const [allowed, reason] = riskBucket.is_trade_allowed(
+  let [allowed, reason] = riskBucket.is_trade_allowed(
     decision.signal,
     capital,
     suggestedPositionPct / 100 * capital * 0.98
   );
-
-  const trendLatest = lastValue(decision.frame.trend_strength || []);
-  const reversalLatest = lastValue(decision.frame.reversal_score || []);
-  const confidence =
-    decision.signal > 0
-      ? clamp(0.45 + trendLatest * 0.45, 0, 1)
-      : decision.signal < 0
-        ? clamp(0.45 + reversalLatest * 0.45, 0, 1)
-        : clamp(Math.max(trendLatest, reversalLatest) * 0.6, 0, 1);
+  if (config.safeMode) {
+    allowed = false;
+    reason = 'safe_mode';
+  }
 
   return {
-    signal: decision.signal,
-    confidence: round(confidence, 4),
+    signal: config.safeMode ? 0 : decision.signal,
+    confidence: config.safeMode ? 0 : decision.confidence,
     topFactors,
     factorScores: learner.factor_scores,
     adaptiveParams,

@@ -2,6 +2,23 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 10.0.0 (2026-03-19)
+- Release type: major
+- Separate live, paper, replay, backtest, and demo evidence modes across the runtime, decision, and proof surfaces.
+- Add confidence calibration, portfolio-level risk governor, and news context to the decision pipeline.
+- Isolate demo mode from the production path so demo state no longer contaminates real user flows.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
+## 9.4.1 (2026-03-19)
+- Release type: patch
+- Isolate demo mode from the production path and add explicit Today/Proof provenance labels and watermarks so live, paper, backtest, and demo evidence do not blur together.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
+## 9.4.0 (2026-03-19)
+- Release type: minor
+- Harden the production path by isolating demo mode to a small Menu entry and preventing demo state from syncing into real user flows.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
 ## 9.3.0 (2026-03-18)
 - Release type: minor
 - Make Browse feel closer to Robinhood discovery: search results now open a native asset detail screen, users can add symbols to Watchlist from search, and stock/crypto ranking now prioritizes company and coin-name matches. Also refresh the installed app icon set with the NOVA3 artwork.

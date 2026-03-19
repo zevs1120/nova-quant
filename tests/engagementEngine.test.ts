@@ -11,6 +11,8 @@ function decisionRow(overrides: Partial<DecisionSnapshotRecord> = {}): DecisionS
     asset_class: 'US_STOCK',
     snapshot_date: '2026-03-14',
     context_hash: 'ctx',
+    evidence_mode: 'UNAVAILABLE',
+    performance_mode: 'UNAVAILABLE',
     source_status: 'DB_BACKED',
     data_status: 'DB_BACKED',
     risk_state_json: JSON.stringify({

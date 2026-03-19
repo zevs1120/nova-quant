@@ -243,6 +243,22 @@ CREATE TABLE IF NOT EXISTS performance_snapshots (
 
 CREATE INDEX IF NOT EXISTS idx_performance_snapshots ON performance_snapshots(market, range, segment_type, sample_size DESC);
 
+CREATE TABLE IF NOT EXISTS news_items (
+  id TEXT PRIMARY KEY,
+  market TEXT NOT NULL CHECK (market IN ('US', 'CRYPTO', 'ALL')),
+  symbol TEXT NOT NULL,
+  headline TEXT NOT NULL,
+  source TEXT NOT NULL,
+  url TEXT,
+  published_at_ms INTEGER NOT NULL,
+  sentiment_label TEXT NOT NULL CHECK (sentiment_label IN ('POSITIVE', 'NEGATIVE', 'MIXED', 'NEUTRAL')),
+  relevance_score REAL NOT NULL DEFAULT 0,
+  payload_json TEXT NOT NULL,
+  updated_at_ms INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_news_items_lookup ON news_items(market, symbol, published_at_ms DESC);
+
 CREATE TABLE IF NOT EXISTS api_keys (
   key_id TEXT PRIMARY KEY,
   key_hash TEXT NOT NULL UNIQUE,
@@ -568,6 +584,8 @@ CREATE TABLE IF NOT EXISTS decision_snapshots (
   asset_class TEXT NOT NULL CHECK (asset_class IN ('OPTIONS', 'US_STOCK', 'CRYPTO', 'ALL')),
   snapshot_date TEXT NOT NULL,
   context_hash TEXT NOT NULL,
+  evidence_mode TEXT NOT NULL DEFAULT 'UNAVAILABLE',
+  performance_mode TEXT NOT NULL DEFAULT 'UNAVAILABLE',
   source_status TEXT NOT NULL,
   data_status TEXT NOT NULL,
   risk_state_json TEXT NOT NULL,
@@ -998,5 +1016,15 @@ export function ensureSchema(db: Database.Database): void {
         ELSE 'US_STOCK'
       END
     `);
+  }
+  try {
+    db.prepare('SELECT evidence_mode FROM decision_snapshots LIMIT 1').get();
+  } catch {
+    db.exec("ALTER TABLE decision_snapshots ADD COLUMN evidence_mode TEXT NOT NULL DEFAULT 'UNAVAILABLE';");
+  }
+  try {
+    db.prepare('SELECT performance_mode FROM decision_snapshots LIMIT 1').get();
+  } catch {
+    db.exec("ALTER TABLE decision_snapshots ADD COLUMN performance_mode TEXT NOT NULL DEFAULT 'UNAVAILABLE';");
   }
 }

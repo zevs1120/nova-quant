@@ -128,6 +128,9 @@ export default function MenuTab({
   username,
   points,
   onSectionChange,
+  showDemoEntry = false,
+  demoEnabled = false,
+  onToggleDemo,
   onOpenAbout,
   onLogout,
   appMeta
@@ -369,6 +372,17 @@ export default function MenuTab({
           { key: 'group:system', title: copy.system, desc: copy.systemDescription },
           { key: 'group:market', title: copy.marketNotes, desc: copy.marketDescription },
           { key: 'group:settings', title: copy.settings, desc: copy.settingsDescription },
+          ...(showDemoEntry
+            ? [
+                {
+                  key: 'demo',
+                  title: locale?.startsWith('zh') ? '演示模式' : 'Demo Mode',
+                  desc: locale?.startsWith('zh')
+                    ? '用样例数据走完整个平台，不影响真实账户路径。'
+                    : 'Run a sample-data walkthrough without touching the real account path.'
+                }
+              ]
+            : []),
           { key: 'about', title: copy.about, desc: locale?.startsWith('zh') ? '版本、支持与合规信息。' : 'Version, support, and compliance.' },
           { key: 'logout', title: copy.logout, desc: locale?.startsWith('zh') ? '退出当前本地会话。' : 'Leave the current local session.' }
         ].map((item) => {
@@ -377,6 +391,8 @@ export default function MenuTab({
               ? onOpenAbout
               : item.key === 'logout'
                 ? onLogout
+                : item.key === 'demo'
+                  ? onToggleDemo
                 : () => onSectionChange(item.key);
           return (
             <button key={item.key} type="button" className="menu-list-row" onClick={onClick}>
@@ -384,7 +400,9 @@ export default function MenuTab({
                 <span className="menu-list-title">{item.title}</span>
                 <span className="menu-list-desc">{item.desc}</span>
               </span>
-              <span className="menu-list-arrow">{item.key === 'logout' ? '⤴' : '›'}</span>
+              <span className="menu-list-arrow">
+                {item.key === 'logout' ? '⤴' : item.key === 'demo' ? (demoEnabled ? 'On' : 'Off') : '›'}
+              </span>
             </button>
           );
         })}
