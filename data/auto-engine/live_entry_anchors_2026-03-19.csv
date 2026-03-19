@@ -1,0 +1,6 @@
+symbol,market,strategy_id,direction,entry_ts_utc,entry_px,source,source_url,source_note
+QQQ,US,BREADTH_PRESSURE_SHORT,SHORT,2026-03-19T14:30:37Z,589.58,Google Finance,https://www.google.com/finance/quote/QQQ%3ANASDAQ,"Verified quote timestamp shown on page: Mar 19, 2026, 10:30:37 AM GMT-4."
+AAPL,US,EQ_PULLBACK,LONG,2026-03-19T15:10:45Z,249.92,Google Finance,https://www.google.com/finance/quote/AAPL%3ANASDAQ,"Verified quote timestamp shown on page: Mar 19, 2026, 11:10:45 AM GMT-4."
+SPY,US,INDEX_HEDGE_OVERLAY,SHORT,2026-03-19T15:31:33Z,656.99,Google Finance,https://www.google.com/finance/quote/SPY%3ANYSEARCA,"Verified quote timestamp shown on page: Mar 19, 2026, 11:31:33 AM GMT-4."
+NVDA,US,FALSE_BREAK_CAPTURE,SHORT,2026-03-19T15:58:30Z,178.19,Google Finance,https://www.google.com/finance/quote/NVDA%3ANASDAQ,"Verified quote timestamp shown on page: Mar 19, 2026, 11:58:30 AM GMT-4."
+BTCUSDT,CRYPTO,CARRY_TREND,LONG,2026-03-19T16:02:04Z,69934.43,Binance Spot,https://www.binance.com/en/trade/BTC_USDT?type=spot,Spot quote captured from the Binance BTC/USDT page at access time.

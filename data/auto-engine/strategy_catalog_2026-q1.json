@@ -1,0 +1,556 @@
+[
+  {
+    "strategy_id": "EQ_BREAKOUT",
+    "family": "Momentum / Trend Following",
+    "invented": false,
+    "markets": [
+      "US"
+    ],
+    "hold_days_band": [
+      1.6,
+      4.8
+    ],
+    "win_return_band": [
+      0.019,
+      0.052
+    ],
+    "loss_return_band": [
+      0.015,
+      0.04
+    ],
+    "description": "Classic range breakout continuation on liquid US leaders."
+  },
+  {
+    "strategy_id": "EQ_PULLBACK",
+    "family": "Momentum / Trend Following",
+    "invented": false,
+    "markets": [
+      "US"
+    ],
+    "hold_days_band": [
+      1.2,
+      4.2
+    ],
+    "win_return_band": [
+      0.017,
+      0.045
+    ],
+    "loss_return_band": [
+      0.013,
+      0.032
+    ],
+    "description": "Trend pullback continuation after orderly retrace."
+  },
+  {
+    "strategy_id": "MOM_EXPANSION",
+    "family": "Momentum / Trend Following",
+    "invented": false,
+    "markets": [
+      "US"
+    ],
+    "hold_days_band": [
+      1.8,
+      5.1
+    ],
+    "win_return_band": [
+      0.021,
+      0.058
+    ],
+    "loss_return_band": [
+      0.016,
+      0.041
+    ],
+    "description": "Momentum expansion when velocity and breadth align."
+  },
+  {
+    "strategy_id": "VOL_EXP_CONT",
+    "family": "Momentum / Trend Following",
+    "invented": false,
+    "markets": [
+      "US",
+      "FUTURES"
+    ],
+    "hold_days_band": [
+      1.5,
+      4.9
+    ],
+    "win_return_band": [
+      0.018,
+      0.049
+    ],
+    "loss_return_band": [
+      0.014,
+      0.037
+    ],
+    "description": "Volatility expansion continuation after breakout confirmation."
+  },
+  {
+    "strategy_id": "OVERSOLD_REBOUND",
+    "family": "Mean Reversion",
+    "invented": false,
+    "markets": [
+      "US"
+    ],
+    "hold_days_band": [
+      0.8,
+      2.8
+    ],
+    "win_return_band": [
+      0.014,
+      0.034
+    ],
+    "loss_return_band": [
+      0.012,
+      0.029
+    ],
+    "description": "Oversold rebound setup against stretched downside move."
+  },
+  {
+    "strategy_id": "OVERBOUGHT_FADE",
+    "family": "Mean Reversion",
+    "invented": false,
+    "markets": [
+      "US"
+    ],
+    "hold_days_band": [
+      0.9,
+      2.7
+    ],
+    "win_return_band": [
+      0.014,
+      0.033
+    ],
+    "loss_return_band": [
+      0.012,
+      0.028
+    ],
+    "description": "Fade extended upside after exhaustion signal."
+  },
+  {
+    "strategy_id": "ANCHOR_REVERT",
+    "family": "Mean Reversion",
+    "invented": false,
+    "markets": [
+      "US"
+    ],
+    "hold_days_band": [
+      1.1,
+      3.1
+    ],
+    "win_return_band": [
+      0.015,
+      0.036
+    ],
+    "loss_return_band": [
+      0.011,
+      0.03
+    ],
+    "description": "Reversion toward anchored VWAP or event anchor."
+  },
+  {
+    "strategy_id": "ZSCORE_REVERT",
+    "family": "Mean Reversion",
+    "invented": false,
+    "markets": [
+      "US",
+      "CRYPTO"
+    ],
+    "hold_days_band": [
+      1,
+      2.9
+    ],
+    "win_return_band": [
+      0.014,
+      0.032
+    ],
+    "loss_return_band": [
+      0.011,
+      0.028
+    ],
+    "description": "Percentile and z-score based snapback reversion."
+  },
+  {
+    "strategy_id": "TREND_RANGE_FLIP",
+    "family": "Regime Transition",
+    "invented": false,
+    "markets": [
+      "US"
+    ],
+    "hold_days_band": [
+      1.4,
+      4.1
+    ],
+    "win_return_band": [
+      0.017,
+      0.044
+    ],
+    "loss_return_band": [
+      0.013,
+      0.034
+    ],
+    "description": "Trend-to-range transition capture around failed continuation."
+  },
+  {
+    "strategy_id": "FALSE_BREAK_CAPTURE",
+    "family": "Regime Transition",
+    "invented": false,
+    "markets": [
+      "US",
+      "FUTURES"
+    ],
+    "hold_days_band": [
+      1.2,
+      3.6
+    ],
+    "win_return_band": [
+      0.016,
+      0.041
+    ],
+    "loss_return_band": [
+      0.013,
+      0.032
+    ],
+    "description": "False breakout failure capture after rejection back inside range."
+  },
+  {
+    "strategy_id": "SECTOR_ROTATION",
+    "family": "Relative Strength / Cross-Sectional",
+    "invented": false,
+    "markets": [
+      "US"
+    ],
+    "hold_days_band": [
+      2,
+      5.8
+    ],
+    "win_return_band": [
+      0.018,
+      0.047
+    ],
+    "loss_return_band": [
+      0.013,
+      0.033
+    ],
+    "description": "Sector-strength rotation between leading and lagging groups."
+  },
+  {
+    "strategy_id": "LEADER_LAGGARD",
+    "family": "Relative Strength / Cross-Sectional",
+    "invented": false,
+    "markets": [
+      "US"
+    ],
+    "hold_days_band": [
+      1.6,
+      4.7
+    ],
+    "win_return_band": [
+      0.017,
+      0.043
+    ],
+    "loss_return_band": [
+      0.013,
+      0.031
+    ],
+    "description": "Leader-laggard dispersion pair expressed as directional single-name timing."
+  },
+  {
+    "strategy_id": "DISPERSION_SWING",
+    "family": "Relative Strength / Cross-Sectional",
+    "invented": true,
+    "markets": [
+      "US"
+    ],
+    "hold_days_band": [
+      2.1,
+      6.1
+    ],
+    "win_return_band": [
+      0.02,
+      0.054
+    ],
+    "loss_return_band": [
+      0.015,
+      0.037
+    ],
+    "description": "Invented basket-dispersion swing strategy for spread-out tape leadership."
+  },
+  {
+    "strategy_id": "OPENING_DRIVE_RECLAIM",
+    "family": "Intraday-to-Swing Hybrid",
+    "invented": true,
+    "markets": [
+      "US"
+    ],
+    "hold_days_band": [
+      0.6,
+      1.9
+    ],
+    "win_return_band": [
+      0.013,
+      0.03
+    ],
+    "loss_return_band": [
+      0.012,
+      0.028
+    ],
+    "description": "Invented opening drive reclaim setup promoted into short swing holds."
+  },
+  {
+    "strategy_id": "LIQUIDITY_GAP_FILL",
+    "family": "Liquidity / Microstructure",
+    "invented": true,
+    "markets": [
+      "US"
+    ],
+    "hold_days_band": [
+      0.8,
+      2.3
+    ],
+    "win_return_band": [
+      0.013,
+      0.031
+    ],
+    "loss_return_band": [
+      0.012,
+      0.03
+    ],
+    "description": "Invented liquidity pocket fill when opening gap overextends."
+  },
+  {
+    "strategy_id": "EARNINGS_DRIFT_FADE",
+    "family": "Event / Vol",
+    "invented": true,
+    "markets": [
+      "US"
+    ],
+    "hold_days_band": [
+      1,
+      3.4
+    ],
+    "win_return_band": [
+      0.016,
+      0.039
+    ],
+    "loss_return_band": [
+      0.013,
+      0.033
+    ],
+    "description": "Invented post-event drift fade when follow-through degrades."
+  },
+  {
+    "strategy_id": "BREADTH_PRESSURE_SHORT",
+    "family": "Overlay / Risk-Off",
+    "invented": true,
+    "markets": [
+      "US"
+    ],
+    "hold_days_band": [
+      1.3,
+      3.8
+    ],
+    "win_return_band": [
+      0.016,
+      0.042
+    ],
+    "loss_return_band": [
+      0.012,
+      0.03
+    ],
+    "description": "Invented breadth-pressure short overlay for weak index internals."
+  },
+  {
+    "strategy_id": "INDEX_HEDGE_OVERLAY",
+    "family": "Overlay / Risk-Off",
+    "invented": false,
+    "markets": [
+      "US"
+    ],
+    "hold_days_band": [
+      1,
+      3
+    ],
+    "win_return_band": [
+      0.012,
+      0.03
+    ],
+    "loss_return_band": [
+      0.011,
+      0.025
+    ],
+    "description": "Index hedge overlay applied when correlation spikes across the book."
+  },
+  {
+    "strategy_id": "FUNDING_DISLOCATION",
+    "family": "Crypto-Native",
+    "invented": false,
+    "markets": [
+      "CRYPTO",
+      "FUTURES"
+    ],
+    "hold_days_band": [
+      1.5,
+      4.5
+    ],
+    "win_return_band": [
+      0.017,
+      0.043
+    ],
+    "loss_return_band": [
+      0.013,
+      0.033
+    ],
+    "description": "Funding dislocation mean-reversion when perp crowding diverges from spot."
+  },
+  {
+    "strategy_id": "BASIS_COMPRESSION",
+    "family": "Crypto-Native",
+    "invented": false,
+    "markets": [
+      "CRYPTO",
+      "FUTURES"
+    ],
+    "hold_days_band": [
+      1.8,
+      4.8
+    ],
+    "win_return_band": [
+      0.018,
+      0.045
+    ],
+    "loss_return_band": [
+      0.013,
+      0.034
+    ],
+    "description": "Basis compression-expansion cycle capture in spot-perp basis."
+  },
+  {
+    "strategy_id": "CARRY_TREND",
+    "family": "Crypto-Native",
+    "invented": false,
+    "markets": [
+      "CRYPTO",
+      "FUTURES"
+    ],
+    "hold_days_band": [
+      2.2,
+      5.8
+    ],
+    "win_return_band": [
+      0.018,
+      0.046
+    ],
+    "loss_return_band": [
+      0.013,
+      0.033
+    ],
+    "description": "Carry-biased trend following when funding remains controlled."
+  },
+  {
+    "strategy_id": "VELOCITY_SHOCK",
+    "family": "Crypto-Native",
+    "invented": false,
+    "markets": [
+      "CRYPTO",
+      "FUTURES"
+    ],
+    "hold_days_band": [
+      0.7,
+      2.2
+    ],
+    "win_return_band": [
+      0.016,
+      0.038
+    ],
+    "loss_return_band": [
+      0.013,
+      0.034
+    ],
+    "description": "Velocity shock fade or continuation depending retest quality."
+  },
+  {
+    "strategy_id": "OI_FLUSH_RECLAIM",
+    "family": "Crypto-Native",
+    "invented": true,
+    "markets": [
+      "CRYPTO",
+      "FUTURES"
+    ],
+    "hold_days_band": [
+      0.8,
+      2.6
+    ],
+    "win_return_band": [
+      0.016,
+      0.037
+    ],
+    "loss_return_band": [
+      0.013,
+      0.033
+    ],
+    "description": "Invented open-interest flush reclaim after forced positioning washout."
+  },
+  {
+    "strategy_id": "WEEKEND_GAP_FADE",
+    "family": "Crypto-Native",
+    "invented": true,
+    "markets": [
+      "CRYPTO"
+    ],
+    "hold_days_band": [
+      0.9,
+      2.4
+    ],
+    "win_return_band": [
+      0.015,
+      0.034
+    ],
+    "loss_return_band": [
+      0.012,
+      0.03
+    ],
+    "description": "Invented weekend liquidity gap fade on crypto spot."
+  },
+  {
+    "strategy_id": "PERP_PREMIUM_MEANREV",
+    "family": "Crypto-Native",
+    "invented": true,
+    "markets": [
+      "FUTURES"
+    ],
+    "hold_days_band": [
+      1.1,
+      3
+    ],
+    "win_return_band": [
+      0.016,
+      0.036
+    ],
+    "loss_return_band": [
+      0.013,
+      0.031
+    ],
+    "description": "Invented perpetual premium mean reversion when basis overshoots."
+  },
+  {
+    "strategy_id": "LIQUIDATION_REVERSAL",
+    "family": "Crypto-Native",
+    "invented": true,
+    "markets": [
+      "FUTURES"
+    ],
+    "hold_days_band": [
+      0.6,
+      1.8
+    ],
+    "win_return_band": [
+      0.017,
+      0.04
+    ],
+    "loss_return_band": [
+      0.014,
+      0.036
+    ],
+    "description": "Invented liquidation reversal strategy around forced flushes and reclaim candles."
+  }
+]

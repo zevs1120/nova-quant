@@ -1,0 +1,60 @@
+{
+  "source_type": "sample_backtest",
+  "source_status": "DEMO_ONLY",
+  "note": "Deterministic simulated investor backtest pack for presentation use. Not live, not paper, not a real track record.",
+  "trade_count": 158,
+  "win_count": 97,
+  "loss_count": 61,
+  "win_rate": 0.6139240506,
+  "win_rate_display": 0.6137,
+  "win_rate_note": "Actual win rate is constrained by integer trade counts; display target remains 61.37%.",
+  "profit_factor": 1.59,
+  "profit_factor_display": 1.59,
+  "avg_hold_days": 2.5073586415,
+  "long_count": 70,
+  "short_count": 88,
+  "gross_profit_return": 2.6164231649,
+  "gross_loss_return": 1.6800393125,
+  "total_return_sum": 0.9363838524,
+  "gross_profit_usd": 104365.1495135594,
+  "gross_loss_usd": 65638.458813559,
+  "net_pnl_usd": 38726.6907000004,
+  "start_equity_usd": 361931.68876,
+  "end_equity_usd": 400658.37946,
+  "max_drawdown": 0.0513135057,
+  "avg_position_pct": 0.1057241392,
+  "max_position_pct": 0.148,
+  "min_position_pct": 0.0643844665,
+  "avg_win_usd": 1075.9293764284,
+  "avg_loss_usd": 1076.040308419,
+  "realized_reward_risk_ratio": 0.9998969072,
+  "largest_winning_streak": 9,
+  "largest_losing_streak": 6,
+  "max_drawdown_duration_trades": 49,
+  "monthly": {
+    "2026-01": {
+      "trades": 54,
+      "wins": 31,
+      "ret_sum": 0.1258155421,
+      "pnl_usd": 3517.3996470334096,
+      "longs": 24,
+      "shorts": 30
+    },
+    "2026-02": {
+      "trades": 46,
+      "wins": 26,
+      "ret_sum": 0.1407337574,
+      "pnl_usd": 6998.248217219801,
+      "longs": 18,
+      "shorts": 28
+    },
+    "2026-03": {
+      "trades": 58,
+      "wins": 40,
+      "ret_sum": 0.6698345529,
+      "pnl_usd": 28211.042835747194,
+      "longs": 28,
+      "shorts": 30
+    }
+  }
+}

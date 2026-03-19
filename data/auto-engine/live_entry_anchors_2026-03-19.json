@@ -1,0 +1,67 @@
+[
+  {
+    "symbol": "QQQ",
+    "market": "US",
+    "strategy_id": "BREADTH_PRESSURE_SHORT",
+    "direction": "SHORT",
+    "entry_ts_utc": "2026-03-19T14:30:37Z",
+    "entry_px": 589.58,
+    "source": "Google Finance",
+    "source_url": "https://www.google.com/finance/quote/QQQ%3ANASDAQ",
+    "source_note": "Verified quote timestamp shown on page: Mar 19, 2026, 10:30:37 AM GMT-4.",
+    "source_type": "live_quote_anchor",
+    "source_status": "VERIFIED_ON_2026-03-19"
+  },
+  {
+    "symbol": "AAPL",
+    "market": "US",
+    "strategy_id": "EQ_PULLBACK",
+    "direction": "LONG",
+    "entry_ts_utc": "2026-03-19T15:10:45Z",
+    "entry_px": 249.92,
+    "source": "Google Finance",
+    "source_url": "https://www.google.com/finance/quote/AAPL%3ANASDAQ",
+    "source_note": "Verified quote timestamp shown on page: Mar 19, 2026, 11:10:45 AM GMT-4.",
+    "source_type": "live_quote_anchor",
+    "source_status": "VERIFIED_ON_2026-03-19"
+  },
+  {
+    "symbol": "SPY",
+    "market": "US",
+    "strategy_id": "INDEX_HEDGE_OVERLAY",
+    "direction": "SHORT",
+    "entry_ts_utc": "2026-03-19T15:31:33Z",
+    "entry_px": 656.99,
+    "source": "Google Finance",
+    "source_url": "https://www.google.com/finance/quote/SPY%3ANYSEARCA",
+    "source_note": "Verified quote timestamp shown on page: Mar 19, 2026, 11:31:33 AM GMT-4.",
+    "source_type": "live_quote_anchor",
+    "source_status": "VERIFIED_ON_2026-03-19"
+  },
+  {
+    "symbol": "NVDA",
+    "market": "US",
+    "strategy_id": "FALSE_BREAK_CAPTURE",
+    "direction": "SHORT",
+    "entry_ts_utc": "2026-03-19T15:58:30Z",
+    "entry_px": 178.19,
+    "source": "Google Finance",
+    "source_url": "https://www.google.com/finance/quote/NVDA%3ANASDAQ",
+    "source_note": "Verified quote timestamp shown on page: Mar 19, 2026, 11:58:30 AM GMT-4.",
+    "source_type": "live_quote_anchor",
+    "source_status": "VERIFIED_ON_2026-03-19"
+  },
+  {
+    "symbol": "BTCUSDT",
+    "market": "CRYPTO",
+    "strategy_id": "CARRY_TREND",
+    "direction": "LONG",
+    "entry_ts_utc": "2026-03-19T16:02:04Z",
+    "entry_px": 69934.43,
+    "source": "Binance Spot",
+    "source_url": "https://www.binance.com/en/trade/BTC_USDT?type=spot",
+    "source_note": "Spot quote captured from the Binance BTC/USDT page at access time.",
+    "source_type": "live_quote_anchor",
+    "source_status": "VERIFIED_ON_2026-03-19"
+  }
+]

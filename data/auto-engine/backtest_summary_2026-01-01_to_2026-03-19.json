@@ -1,0 +1,103 @@
+{
+  "source_type": "sample_backtest",
+  "source_status": "DEMO_ONLY",
+  "note": "Deterministic simulated backtest summary generated to a requested target profile.",
+  "run_at": "2026-03-19T16:43:47.294Z",
+  "backtest_window": {
+    "start": "2026-01-01T00:00:00.000Z",
+    "end": "2026-03-19T23:59:59.999Z"
+  },
+  "symbols": 62,
+  "trade_count": 158,
+  "win_count": 97,
+  "loss_count": 61,
+  "raw_trade_count": 1140,
+  "win_rate": 0.6139240506,
+  "win_rate_display": 0.6137,
+  "profit_factor": 1.59,
+  "annualized_return": 0.5994592692,
+  "max_drawdown": 0.0513135057,
+  "sharpe": 3.5426440737,
+  "selection_meta": {
+    "mode": "target_profile_simulated",
+    "params": {
+      "desiredWin": 0.6137,
+      "desiredPf": 1.59,
+      "startEquityUsd": 361931.68876,
+      "universeBias": "US_heavy_with_BTC_USDT_core"
+    },
+    "market_counts": {
+      "FUTURES": 10,
+      "CRYPTO": 8,
+      "US": 140
+    },
+    "direction_counts": {
+      "LONG": 70,
+      "SHORT": 88
+    }
+  },
+  "market_breakdown": [
+    {
+      "market": "FUTURES",
+      "trades": 10,
+      "win_rate": 0.4,
+      "total_pnl": -0.1286032432
+    },
+    {
+      "market": "CRYPTO",
+      "trades": 8,
+      "win_rate": 0.375,
+      "total_pnl": -0.0670576969
+    },
+    {
+      "market": "US",
+      "trades": 140,
+      "win_rate": 0.6428571429,
+      "total_pnl": 1.1320447925
+    }
+  ],
+  "phase_breakdown": [
+    {
+      "phase_id": "JAN_SELL_PRESSURE",
+      "trades": 26,
+      "win_rate": 0.4230769231,
+      "total_pnl": -0.4471057211
+    },
+    {
+      "phase_id": "JAN_SHORT_COVER",
+      "trades": 28,
+      "win_rate": 0.7142857143,
+      "total_pnl": 0.5729212632
+    },
+    {
+      "phase_id": "FEB_MACRO_BREAK",
+      "trades": 22,
+      "win_rate": 0.4545454545,
+      "total_pnl": -0.208542037
+    },
+    {
+      "phase_id": "FEB_DISPERSION_RECOVERY",
+      "trades": 18,
+      "win_rate": 0.7222222222,
+      "total_pnl": 0.3967372173
+    },
+    {
+      "phase_id": "LATE_FEB_RISK_OFF",
+      "trades": 24,
+      "win_rate": 0.4166666667,
+      "total_pnl": -0.2642280148
+    },
+    {
+      "phase_id": "MAR_RECOVERY",
+      "trades": 25,
+      "win_rate": 0.84,
+      "total_pnl": 0.6980671987
+    },
+    {
+      "phase_id": "MAR_EVENT_VOL",
+      "trades": 15,
+      "win_rate": 0.8,
+      "total_pnl": 0.1885339461
+    }
+  ]
+}
