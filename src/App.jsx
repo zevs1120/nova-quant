@@ -680,6 +680,12 @@ export default function App() {
   }, [aboutOpen, showOnboarding]);
 
   useEffect(() => {
+    const standalone = displayMode === 'standalone' || displayMode === 'fullscreen';
+    document.body.classList.toggle('is-standalone', standalone);
+    return () => document.body.classList.remove('is-standalone');
+  }, [displayMode]);
+
+  useEffect(() => {
     if (!FORCE_DEMO_BUILD || !rawData) return;
     const executionTrades = executions.map(mapExecutionToTrade);
     const modeled = runQuantPipeline({
@@ -1565,6 +1571,8 @@ export default function App() {
           discipline={discipline}
           engagement={engagementState}
           investorDemoEnabled={investorDemoEnabled}
+          brokerProfile={userProfile}
+          brokerConnection={uiData?.config?.runtime?.connectivity?.broker || null}
           onCompleteCheckIn={markDailyCheckin}
           onConfirmBoundary={markBoundaryKept}
           onOpenHoldings={() => {

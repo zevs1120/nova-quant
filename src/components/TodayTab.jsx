@@ -1,10 +1,12 @@
 import { useMemo, useState } from 'react';
 import SignalDetail from './SignalDetail';
+import TradeTicketSheet from './TradeTicketSheet';
 import {
   getActionCardCopy,
   getNoActionCopy,
 } from '../copy/novaCopySystem.js';
 import { describeEvidenceMode } from '../utils/provenance';
+import { buildNovaTradeQuestion, buildTradeIntent } from '../utils/tradeIntent';
 
 const ACTIVE_SIGNAL_STATUS = new Set(['NEW', 'TRIGGERED']);
 const DATA_STATUS_PENALTY = {
@@ -505,6 +507,8 @@ export default function TodayTab({
   runtime,
   locale = 'en',
   investorDemoEnabled,
+  brokerProfile,
+  brokerConnection,
   onAskAi,
   onPaperExecute,
   onOpenSignals,
@@ -513,6 +517,7 @@ export default function TodayTab({
   onCompleteCheckIn
 }) {
   const [activeSignal, setActiveSignal] = useState(null);
+  const [tradeSignal, setTradeSignal] = useState(null);
 
   const bestSignal = useMemo(
     () => pickBestSignal(signals, topSignalEvidence, assetClass, now),
@@ -633,6 +638,9 @@ export default function TodayTab({
       }),
     [decision?.data_status, decision?.source_status, decision?.source_type, featuredSignal?._dataStatus, featuredSignal?.source_status, featuredSignal?.source_type, locale, runtime?.data_status, runtime?.source_status, runtime?.source_type]
   );
+  const showProvenance =
+    Boolean(provenance?.label && provenance?.note) &&
+    !['INSUFFICIENT_DATA', 'WITHHELD'].includes(String(provenance?.mode || '').toUpperCase());
   const provenanceFreshness = featuredSignal ? generatedText(featuredSignal) : null;
   const trustFacts = [
     {
@@ -690,25 +698,69 @@ export default function TodayTab({
   const askPrompt = noActionDay
     ? (locale === 'zh' ? '为什么今天应该先等？' : 'Why should I wait today?')
     : (locale === 'zh' ? '用人话告诉我今天怎么买。' : 'Tell me how to take this trade in plain words.');
+  const tradeIntent = useMemo(
+    () => (tradeSignal ? buildTradeIntent(tradeSignal, { broker: brokerProfile?.broker, brokerSnapshot: brokerConnection }) : null),
+    [tradeSignal, brokerProfile?.broker, brokerConnection]
+  );
+
+  const openTradeTicket = (signal) => {
+    if (!signal) return;
+    triggerFeedback('confirm');
+    setTradeSignal(signal);
+  };
+
+  const askNovaAboutSignal = (signal, intent = null) => {
+    if (!signal) return;
+    const nextIntent = intent || buildTradeIntent(signal, { broker: brokerProfile?.broker, brokerSnapshot: brokerConnection });
+    onAskAi?.(buildNovaTradeQuestion(signal, nextIntent, locale), {
+      page: 'today',
+      focus: 'execution',
+      signalId: signal.signal_id,
+      symbol: signal.symbol,
+      market: signal.market,
+      assetClass: signal.asset_class || (signal.market === 'CRYPTO' ? 'CRYPTO' : 'US_STOCK'),
+      timeframe: signal.timeframe,
+      decisionSummary: {
+        top_action_id: signal.signal_id,
+        top_action_symbol: signal.symbol,
+        top_action_label: signal.action_label || signal.strategy_source || 'Action card'
+      }
+    });
+  };
 
   if (activeSignal) {
     return (
-      <SignalDetail
-        signal={activeSignal}
-        onBack={() => setActiveSignal(null)}
-        t={(key, _v, fallback) => fallback || key}
-        backLabel={locale === 'zh' ? '今天' : 'Today'}
-      />
+      <>
+        <SignalDetail
+          signal={activeSignal}
+          locale={locale}
+          onBack={() => setActiveSignal(null)}
+          onOpenTradeTicket={() => openTradeTicket(activeSignal)}
+          onAskAi={() => askNovaAboutSignal(activeSignal)}
+          onPaperExecute={() => onPaperExecute?.(activeSignal)}
+          t={(key, _v, fallback) => fallback || key}
+          backLabel={locale === 'zh' ? '今天' : 'Today'}
+        />
+        <TradeTicketSheet
+          open={Boolean(tradeSignal)}
+          signal={tradeSignal}
+          intent={tradeIntent}
+          locale={locale}
+          onClose={() => setTradeSignal(null)}
+          onAskAi={(signal, intent) => askNovaAboutSignal(signal, intent)}
+          onPaperExecute={onPaperExecute}
+        />
+      </>
     );
   }
 
   const handleMainAction = () => {
-    triggerFeedback(overall.code === 'TRADE' ? 'confirm' : 'soft');
     if (overall.code === 'TRADE' && featuredSignal && featuredSignal._actionable) {
       onCompleteCheckIn?.();
-      onPaperExecute?.(featuredSignal);
+      openTradeTicket(featuredSignal);
       return;
     }
+    triggerFeedback('soft');
     if (overall.code === 'DEFENSE' || overall.code === 'NO_TRADE') {
       onConfirmBoundary?.();
       onAskAi?.('Give me today defense plan in simple actions.');
@@ -728,18 +780,20 @@ export default function TodayTab({
       </section>
 
       <section className="today-screen-flow">
-        <article className={`today-provenance-strip today-provenance-strip-${provenance.tone}`}>
-          <div className="today-provenance-copy">
-            <div className="today-provenance-head">
-              <span className="today-provenance-badge">{provenance.label}</span>
-              {provenanceFreshness ? <span className="today-provenance-meta">{provenanceFreshness}</span> : null}
+        {showProvenance ? (
+          <article className={`today-provenance-strip today-provenance-strip-${provenance.tone}`}>
+            <div className="today-provenance-copy">
+              <div className="today-provenance-head">
+                <span className="today-provenance-badge">{provenance.label}</span>
+                {provenanceFreshness ? <span className="today-provenance-meta">{provenanceFreshness}</span> : null}
+              </div>
+              <p className="today-provenance-note">{provenance.note}</p>
             </div>
-            <p className="today-provenance-note">{provenance.note}</p>
-          </div>
-          <span className="today-provenance-watermark" aria-hidden="true">
-            {provenance.watermark}
-          </span>
-        </article>
+            <span className="today-provenance-watermark" aria-hidden="true">
+              {provenance.watermark}
+            </span>
+          </article>
+        ) : null}
 
         <article className={`glass-card today-climate-strip today-climate-${climate.tone}`}>
           <div className="today-climate-copy">
@@ -821,8 +875,8 @@ export default function TodayTab({
             >
               {overall.code === 'TRADE' && featuredSignal && featuredSignal._actionable
                 ? locale === 'zh'
-                  ? '打开计划'
-                  : 'Open plan'
+                  ? '打开交易票据'
+                  : 'Open ticket'
                 : locale === 'zh'
                   ? '查看理由'
                   : 'See why'}
@@ -833,6 +887,10 @@ export default function TodayTab({
               onClick={(event) => {
                 event.stopPropagation();
                 triggerFeedback('soft');
+                if (!noActionDay && featuredSignal) {
+                  askNovaAboutSignal(featuredSignal);
+                  return;
+                }
                 onAskAi?.(askPrompt, {
                   page: 'today',
                   focus: noActionDay ? 'restraint' : 'top_action'
@@ -853,6 +911,16 @@ export default function TodayTab({
           ))}
         </section>
       </section>
+
+      <TradeTicketSheet
+        open={Boolean(tradeSignal)}
+        signal={tradeSignal}
+        intent={tradeIntent}
+        locale={locale}
+        onClose={() => setTradeSignal(null)}
+        onAskAi={(signal, intent) => askNovaAboutSignal(signal, intent)}
+        onPaperExecute={onPaperExecute}
+      />
     </section>
   );
 }

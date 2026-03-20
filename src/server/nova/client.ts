@@ -15,15 +15,16 @@ type NovaEmbeddingArgs = {
   input: string;
 };
 
-const DEFAULT_TIMEOUT_MS = Number(process.env.NOVA_LOCAL_TIMEOUT_MS || 4500);
+const DEFAULT_LOCAL_TIMEOUT_MS = Number(process.env.NOVA_LOCAL_TIMEOUT_MS || 4500);
+const DEFAULT_CLOUD_TIMEOUT_MS = Number(process.env.NOVA_CLOUD_TIMEOUT_MS || 20000);
 const GROQ_OPENAI_BASE_URL = 'https://api.groq.com/openai/v1';
 const DEFAULT_GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.1-8b-instant';
 const GEMINI_API_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 const DEFAULT_GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemma-3-27b-it';
 
-function withTimeoutInit(init: RequestInit) {
+function withTimeoutInit(init: RequestInit, timeoutMs: number) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   return {
     init: {
       ...init,
@@ -64,6 +65,16 @@ function shouldUseGeminiTextRoute(): boolean {
   const disabled = String(process.env.NOVA_DISABLE_GEMINI || '').trim().toLowerCase();
   if (disabled === '1' || disabled === 'true') return false;
   return Boolean(String(process.env.GEMINI_API_KEY || '').trim());
+}
+
+function humanizeFetchError(error: unknown, provider = 'Nova'): Error {
+  if (error instanceof Error) {
+    if (error.name === 'AbortError' || String(error.message || '').toLowerCase().includes('aborted')) {
+      return new Error(`${provider} request timed out. Please try again.`);
+    }
+    return error;
+  }
+  return new Error(`${provider} request failed.`);
 }
 
 export async function runNovaChatCompletion(args: NovaChatArgs) {
@@ -111,8 +122,10 @@ export async function runNovaChatCompletion(args: NovaChatArgs) {
           maxOutputTokens: args.maxTokens ?? 500
         }
       })
-    });
-    const response = await fetch(endpoint, init).finally(clear);
+    }, DEFAULT_CLOUD_TIMEOUT_MS);
+    const response = await fetch(endpoint, init).catch((error) => {
+      throw humanizeFetchError(error, 'Gemini');
+    }).finally(clear);
 
     if (!response.ok) {
       const text = await response.text().catch(() => '');
@@ -151,8 +164,10 @@ export async function runNovaChatCompletion(args: NovaChatArgs) {
       max_tokens: args.maxTokens ?? 500,
       stream: false
     })
-  });
-  const response = await fetch(endpoint, init).finally(clear);
+  }, useGroq ? DEFAULT_CLOUD_TIMEOUT_MS : DEFAULT_LOCAL_TIMEOUT_MS);
+  const response = await fetch(endpoint, init).catch((error) => {
+    throw humanizeFetchError(error, effectiveRoute.provider === 'groq' ? 'Groq' : 'Nova');
+  }).finally(clear);
 
   if (!response.ok) {
     const text = await response.text().catch(() => '');
@@ -187,8 +202,10 @@ export async function runNovaEmbedding(args: NovaEmbeddingArgs) {
       model: route.model,
       input: args.input
     })
-  });
-  const response = await fetch(endpoint, init).finally(clear);
+  }, route.provider === 'openai' ? DEFAULT_CLOUD_TIMEOUT_MS : DEFAULT_LOCAL_TIMEOUT_MS);
+  const response = await fetch(endpoint, init).catch((error) => {
+    throw humanizeFetchError(error, 'Nova embedding');
+  }).finally(clear);
 
   if (!response.ok) {
     const text = await response.text().catch(() => '');

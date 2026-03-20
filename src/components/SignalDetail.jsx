@@ -10,8 +10,18 @@ function infoRow(label, value) {
   );
 }
 
-export default function SignalDetail({ signal, onBack, t, backLabel = 'Back' }) {
+export default function SignalDetail({
+  signal,
+  locale = 'en',
+  onBack,
+  onOpenTradeTicket,
+  onAskAi,
+  onPaperExecute,
+  t,
+  backLabel = 'Back'
+}) {
   const [copied, setCopied] = useState(false);
+  const isZh = String(locale || '').startsWith('zh');
 
   const entryMin = signal.entry_zone?.low ?? signal.entry_zone?.min ?? signal.entry_min;
   const entryMax = signal.entry_zone?.high ?? signal.entry_zone?.max ?? signal.entry_max;
@@ -183,6 +193,11 @@ export default function SignalDetail({ signal, onBack, t, backLabel = 'Back' }) 
       ) : null}
 
       <div className="action-row">
+        {onOpenTradeTicket ? (
+          <button type="button" className="primary-btn" onClick={onOpenTradeTicket}>
+            {isZh ? '打开交易票据' : 'Open trade ticket'}
+          </button>
+        ) : null}
         <button type="button" className="primary-btn" onClick={handleCopy}>
           {copied ? t('common.copied') : t('signals.copyParams')}
         </button>
@@ -190,6 +205,21 @@ export default function SignalDetail({ signal, onBack, t, backLabel = 'Back' }) 
           {t('signals.shareLink')}
         </button>
       </div>
+
+      {onAskAi || onPaperExecute ? (
+        <div className="action-row">
+          {onAskAi ? (
+            <button type="button" className="secondary-btn" onClick={onAskAi}>
+              {isZh ? '问 Nova 这笔怎么做' : 'Ask Nova about this setup'}
+            </button>
+          ) : null}
+          {onPaperExecute ? (
+            <button type="button" className="ghost-btn" onClick={onPaperExecute}>
+              {isZh ? '记录为纸面执行' : 'Save as paper execution'}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
     </section>
   );
 }

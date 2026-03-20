@@ -49,8 +49,8 @@
   --keyboard-inset: 0px;
   --shell-max-width: 460px;
   --tabbar-height: 48px;
-  --tabbar-safe-gap: max(4px, var(--safe-bottom));
-  --tabbar-total-height: calc(var(--tabbar-height) + var(--tabbar-safe-gap) + 18px);
+  --tabbar-safe-gap: max(0px, var(--safe-bottom));
+  --tabbar-total-height: calc(var(--tabbar-height) + var(--tabbar-safe-gap) + 8px);
   --shell-padding-x: 16px;
   --toolbar-blur: blur(22px) saturate(1.1);
   --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
@@ -255,7 +255,7 @@ select {
 .main-content {
   min-height: 0;
   overflow-y: auto;
-  padding: 12px var(--shell-padding-x) calc(var(--tabbar-total-height) + 16px);
+  padding: 12px var(--shell-padding-x) calc(var(--tabbar-total-height) + 8px);
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
   scroll-padding-top: 14px;
@@ -2969,6 +2969,25 @@ body.is-standalone .top-bar {
   padding-top: calc(var(--safe-top) + 12px);
 }
 
+body.is-standalone {
+  --tabbar-safe-gap: var(--safe-bottom);
+  --tabbar-total-height: calc(var(--tabbar-height) + var(--safe-bottom) + 4px);
+}
+
+body.is-standalone .main-content {
+  padding-bottom: calc(var(--tabbar-total-height) + 4px);
+}
+
+body.is-standalone .main-content-ai {
+  padding-bottom: calc(var(--tabbar-total-height) + 72px);
+}
+
+body.is-standalone .bottom-nav,
+body.is-standalone .bottom-nav.app-tabbar {
+  padding-bottom: max(var(--safe-bottom), 0px);
+  box-shadow: 0 -6px 14px rgba(20, 24, 33, 0.03);
+}
+
 .brand {
   font-size: 13px;
   letter-spacing: 1.2px;
@@ -3253,7 +3272,7 @@ body.keyboard-open .ai-input-dock {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  padding-bottom: calc(var(--tabbar-total-height) + 18px);
+  padding-bottom: calc(var(--tabbar-total-height) + 8px);
 }
 
 .main-content-today {
@@ -3261,7 +3280,7 @@ body.keyboard-open .ai-input-dock {
 }
 
 .main-content-ai {
-  padding-bottom: calc(var(--tabbar-total-height) + 116px);
+  padding-bottom: calc(var(--tabbar-total-height) + 92px);
 }
 
 .main-content-more {
@@ -7849,7 +7868,7 @@ body.keyboard-open .ai-composer-shell {
 }
 
 .bottom-nav.app-tabbar {
-  padding: 5px 6px calc(var(--tabbar-safe-gap) + 4px);
+  padding: 5px 6px calc(var(--tabbar-safe-gap) + 2px);
   background: rgba(255, 251, 246, 0.76);
   backdrop-filter: blur(18px) saturate(1.04);
   border-top: 1px solid rgba(23, 28, 36, 0.035);
@@ -11837,4 +11856,70 @@ body.keyboard-open .ai-composer-shell {
   .signup-input {
     font-size: 22px;
   }
+}
+
+.trade-ticket-sheet {
+  display: grid;
+  gap: 16px;
+}
+
+.trade-ticket-banner {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(37, 99, 235, 0.06);
+  border: 1px solid rgba(37, 99, 235, 0.12);
+}
+
+.trade-ticket-kicker {
+  margin: 0 0 6px;
+  font-size: 0.74rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.trade-ticket-symbol {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.2;
+}
+
+.trade-ticket-notes,
+.trade-ticket-checklist {
+  display: grid;
+  gap: 12px;
+}
+
+.trade-ticket-note-block {
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.025);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.trade-ticket-note-label {
+  margin: 0 0 6px;
+  font-size: 0.74rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.trade-ticket-note-copy {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.trade-ticket-actions {
+  width: 100%;
+}
+
+.trade-ticket-actions .primary-btn,
+.trade-ticket-actions .secondary-btn,
+.trade-ticket-actions .ghost-btn {
+  flex: 1 1 0;
 }
