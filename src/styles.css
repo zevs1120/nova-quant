@@ -14390,9 +14390,12 @@ body.is-standalone {
 
 body.is-standalone {
   --tabbar-bottom-inset: clamp(12px, var(--safe-bottom), 34px);
+  background: #fcfaf6;
 }
 
 .app-bg,
+body.is-standalone,
+body.is-standalone #root,
 body.is-standalone .app-bg {
   background: #fcfaf6;
 }
@@ -14402,11 +14405,26 @@ body.is-standalone .app-bg {
   grid-template-rows: auto minmax(0, 1fr) auto;
 }
 
+body.is-standalone .app-bg {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  min-height: 100svh;
+  height: 100svh;
+  min-height: 100dvh;
+  height: 100dvh;
+  overflow: hidden;
+  display: block;
+}
+
 body.is-standalone .device-shell {
+  position: absolute;
+  inset: 0;
+  margin: 0;
   width: 100%;
   max-width: 100%;
-  min-height: var(--app-height);
-  height: var(--app-height);
+  min-height: 100%;
+  height: 100%;
   border: 0;
   border-radius: 0;
   box-shadow: none;

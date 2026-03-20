@@ -24,8 +24,9 @@ function applyAppEnvironment() {
     const viewportWidth = vv?.width || window.innerWidth || 0;
     const offsetTop = vv?.offsetTop || 0;
     const keyboardInset = Math.max(0, (window.innerHeight || viewportHeight) - viewportHeight - offsetTop);
+    const layoutHeight = Math.max(window.innerHeight || 0, viewportHeight + offsetTop, document.documentElement?.clientHeight || 0);
 
-    root.style.setProperty('--app-height', `${window.innerHeight || viewportHeight}px`);
+    root.style.setProperty('--app-height', `${layoutHeight}px`);
     root.style.setProperty('--visual-height', `${viewportHeight}px`);
     root.style.setProperty('--visual-width', `${viewportWidth}px`);
     root.style.setProperty('--viewport-offset-top', `${offsetTop}px`);
