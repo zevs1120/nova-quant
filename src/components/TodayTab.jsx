@@ -869,12 +869,12 @@ export default function TodayTab({
             </div>
           </div>
 
-          <div className="today-action-trust-grid">
+          <div className="today-action-context-row">
             {trustFacts.map((item) => (
-              <div key={item.key} className="today-action-trust-item">
-                <span className="today-action-trust-label">{item.label}</span>
-                <span className="today-action-trust-value">{item.value}</span>
-              </div>
+              <span key={item.key} className="today-action-context-pill">
+                <span className="today-action-context-label">{item.label}</span>
+                <span className="today-action-context-value">{item.value}</span>
+              </span>
             ))}
           </div>
 
