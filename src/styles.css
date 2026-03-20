@@ -14386,11 +14386,15 @@ body.is-standalone {
   --tabbar-content-height: 56px;
   --tabbar-bottom-inset: clamp(8px, var(--safe-bottom), 34px);
   --tabbar-total-height: calc(var(--tabbar-content-height) + var(--tabbar-bottom-inset) + 8px);
+  --native-tabbar-safe: max(env(safe-area-inset-bottom, 0px), 10px);
+  --native-tabbar-height: 72px;
+  --native-tabbar-reserve: calc(var(--native-tabbar-height) + var(--native-tabbar-safe));
 }
 
 body.is-standalone {
   --tabbar-bottom-inset: clamp(12px, var(--safe-bottom), 34px);
   background: #fcfaf6;
+  --native-tabbar-safe: max(env(safe-area-inset-bottom, 0px), 12px);
 }
 
 .app-bg,
@@ -14433,135 +14437,123 @@ body.is-standalone .device-shell {
 
 .main-content,
 body.is-standalone .main-content {
-  padding-bottom: 12px;
+  padding-bottom: calc(var(--native-tabbar-reserve) + 10px);
 }
 
 .main-content-today,
 body.is-standalone .main-content-today {
   padding-top: 8px;
-  padding-bottom: 18px;
+  padding-bottom: calc(var(--native-tabbar-reserve) + 14px);
 }
 
 .main-content-ai,
 body.is-standalone .main-content-ai {
-  padding-bottom: calc(var(--tabbar-total-height) + 168px);
+  padding-bottom: calc(var(--native-tabbar-reserve) + 164px);
 }
 
-.bottom-nav,
-body.is-standalone .bottom-nav {
-  position: relative;
-  left: auto;
-  right: auto;
-  bottom: auto;
-  width: 100%;
-  transform: none;
-  flex: 0 0 auto;
-  padding: 0;
-  background: transparent;
-  border-top: 0;
-  box-shadow: none;
-  backdrop-filter: none;
+.ai-composer-shell {
+  bottom: calc(var(--native-tabbar-reserve) + 10px);
 }
 
-.bottom-nav.app-tabbar,
-body.is-standalone .bottom-nav.app-tabbar {
-  display: block;
-  min-height: auto;
-  overflow: visible;
-  padding: 8px 12px var(--tabbar-bottom-inset);
-  background: linear-gradient(180deg, rgba(252, 250, 246, 0.82), rgba(252, 250, 246, 0.95) 28%, #fcfaf6 100%);
-  border-top: 1px solid rgba(23, 28, 36, 0.08);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78);
-  backdrop-filter: blur(20px) saturate(1.03);
+.ai-thread-scroll {
+  padding-bottom: calc(var(--native-tabbar-reserve) + 110px);
+  scroll-padding-bottom: calc(var(--native-tabbar-reserve) + 110px);
 }
 
-.bottom-nav.app-tabbar::before {
-  display: none;
+.ai-thread-end {
+  scroll-margin-bottom: calc(var(--native-tabbar-reserve) + 110px);
 }
 
-.app-tabbar-inner {
+.native-tabbar {
+  position: fixed;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  z-index: 60;
+  width: min(100%, var(--shell-max-width));
+  height: var(--native-tabbar-reserve);
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   align-items: stretch;
-  gap: 2px;
-  min-height: var(--tabbar-content-height);
+  padding: 0 10px;
+  background: rgba(252, 250, 246, 0.96);
+  border-top: 1px solid rgba(23, 28, 36, 0.08);
+  backdrop-filter: blur(18px) saturate(1.02);
+  box-shadow: 0 -6px 20px rgba(20, 24, 33, 0.04);
 }
 
-.tab-btn {
-  min-height: var(--tabbar-content-height);
-  justify-content: center;
+body.is-standalone .native-tabbar {
+  width: 100%;
+}
+
+.native-tabbar-button {
+  min-width: 0;
+  min-height: 100%;
+  border: 0;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 4px;
-  padding: 6px 2px 4px;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  color: rgba(23, 28, 36, 0.42);
+  padding: 4px 2px 0;
+  color: rgba(23, 28, 36, 0.4);
+  transition: color 180ms var(--ease-spring);
 }
 
-.tab-btn:hover,
-.tab-btn:active {
-  background: transparent;
+.native-tabbar-button:active {
   transform: none;
-  box-shadow: none;
 }
 
-.tab-btn.active {
-  background: transparent;
-  box-shadow: none;
-  color: #1f7a67;
+.native-tabbar-button.is-active {
+  color: #171c24;
 }
 
-.tab-btn-icon {
+.native-tabbar-icon-wrap {
   width: 24px;
   height: 24px;
   display: inline-grid;
   place-items: center;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
 }
 
-.tab-btn-icon-svg {
-  width: 21px;
-  height: 21px;
+.native-tabbar-icon-svg {
+  width: 22px;
+  height: 22px;
 }
 
-.tab-btn-label {
+.native-tabbar-label {
   font-size: 11px;
   line-height: 1.1;
   font-weight: 700;
   letter-spacing: -0.01em;
 }
 
-.tab-btn.active .tab-btn-icon,
-.tab-btn.active .tab-btn-label {
-  color: currentColor;
+.native-tabbar-button.is-active .native-tabbar-icon-wrap {
+  color: #171c24;
 }
 
-body.keyboard-open .bottom-nav {
-  opacity: 1;
-  pointer-events: auto;
-  transform: none;
+body.keyboard-open .native-tabbar {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%) translateY(calc(100% + 8px));
 }
 
 @media (max-width: 640px) {
-  .bottom-nav.app-tabbar,
-  body.is-standalone .bottom-nav.app-tabbar {
-    padding-inline: 10px;
-  }
-
   .main-content-ai,
   body.is-standalone .main-content-ai {
-    padding-bottom: calc(var(--tabbar-total-height) + 164px);
+    padding-bottom: calc(var(--native-tabbar-reserve) + 156px);
   }
 
-  .tab-btn {
-    min-height: 54px;
+  .ai-composer-shell {
+    bottom: calc(var(--native-tabbar-reserve) + 8px);
   }
 
-  .tab-btn-icon-svg {
-    width: 20px;
-    height: 20px;
+  .native-tabbar {
+    padding-inline: 8px;
+  }
+
+  .native-tabbar-icon-svg {
+    width: 21px;
+    height: 21px;
   }
 }
