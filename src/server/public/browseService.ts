@@ -114,6 +114,51 @@ type BrowseOverview = {
   topNews: BrowseNewsFeedItem[];
 };
 
+type BrowseHomeCard = {
+  symbol: string;
+  market: Market;
+  title: string;
+  subtitle: string;
+  latest: number | null;
+  change: number | null;
+  asOf: string | null;
+  values: number[];
+};
+
+type BrowseHomeChip = {
+  symbol: string;
+  market: Market;
+  name: string;
+  latest: number | null;
+  change: number | null;
+};
+
+type BrowseHomeList = {
+  id: string;
+  title: string;
+  subtitle: string;
+  items: BrowseHomeChip[];
+};
+
+type BrowseHomeEarningsItem = {
+  symbol: string;
+  market: Market;
+  title: string;
+  note: string;
+  timing: string;
+};
+
+type BrowseHomePayload = {
+  view: 'NOW' | 'MACRO' | 'CRYPTO' | 'SPORTS';
+  updatedAt: string;
+  futuresMarkets: BrowseHomeCard[];
+  topMovers: BrowseHomeChip[];
+  cryptoMovers: BrowseHomeChip[];
+  earnings: BrowseHomeEarningsItem[];
+  screeners: BrowseHomeList[];
+  trendingLists: BrowseHomeList[];
+};
+
 type PublicOhlcvRow = {
   ts_open: number;
   open: number | null;
@@ -129,6 +174,7 @@ const REMOTE_SEARCH_TTL_MS = 1000 * 60 * 8;
 const SEC_UNIVERSE_TTL_MS = 1000 * 60 * 60 * 24;
 let cachedSecUniverse: { expiresAt: number; results: SearchCandidate[] } | null = null;
 let cachedReferenceSearchUniverse: SearchCandidate[] | null = null;
+const browseHomeCache = new Map<string, { expiresAt: number; data: BrowseHomePayload }>();
 
 const referenceUniverseFiles = [
   'us_equities_extended.json',
@@ -151,6 +197,21 @@ const commonEquityAliases: Record<string, string[]> = {
   PLTR: ['palantir'],
   COIN: ['coinbase'],
   UBER: ['uber'],
+  SMCI: ['super micro computer', 'supermicro'],
+  MSTR: ['microstrategy', 'strategy'],
+  HOOD: ['robinhood'],
+  SOFI: ['sofi'],
+  RBLX: ['roblox'],
+  APP: ['applovin'],
+  AVGO: ['broadcom'],
+  TSM: ['taiwan semiconductor', 'tsmc'],
+  ARM: ['arm holdings'],
+  MRVL: ['marvell'],
+  DIS: ['disney'],
+  DKNG: ['draftkings'],
+  TKO: ['tko group'],
+  EA: ['electronic arts'],
+  TTWO: ['take two', 'take-two'],
   'BRK.B': ['berkshire', 'berkshire hathaway']
 };
 
@@ -164,7 +225,15 @@ const commonCryptoNames: Record<string, string[]> = {
   ADA: ['cardano', 'ada'],
   AVAX: ['avalanche', 'avax'],
   LINK: ['chainlink', 'link'],
-  LTC: ['litecoin', 'ltc']
+  LTC: ['litecoin', 'ltc'],
+  SHIB: ['shiba inu', 'shib'],
+  OP: ['optimism', 'op'],
+  XTZ: ['tezos', 'xtz'],
+  QNT: ['quant', 'qnt'],
+  SNX: ['synthetix', 'snx'],
+  WIF: ['dogwifhat', 'wif'],
+  TON: ['toncoin', 'ton'],
+  TRX: ['tron', 'trx']
 };
 
 const knownEtfSymbols = new Set([
@@ -374,16 +443,23 @@ function buildReferenceAssetCandidate(item: ReferenceUniverseInstrument): Search
     ...(base ? commonCryptoNames[base] || [] : []),
     ...(commonEquityAliases[item.symbol] || [])
   ].filter(Boolean) as string[];
+  const equityAlias = commonEquityAliases[item.symbol]?.[0] || null;
+  const cryptoAlias = base ? commonCryptoNames[base]?.[0] || null : null;
 
   return {
     symbol: item.symbol,
     market,
     assetClass,
     venue: null,
-    name: market === 'CRYPTO' ? `${base || item.symbol}${quote ? ` / ${quote}` : ''}` : item.symbol,
+    name:
+      market === 'CRYPTO'
+        ? `${base || item.symbol}${quote ? ` / ${quote}` : ''}`
+        : equityAlias
+          ? sentenceCase(equityAlias)
+          : item.symbol,
     hint: market === 'CRYPTO' ? sentenceCase(item.category || 'crypto') : sentenceCase(item.category || 'US equity'),
     source: 'reference',
-    aliases
+    aliases: [...aliases, equityAlias, cryptoAlias].filter(Boolean) as string[]
   };
 }
 
@@ -673,44 +749,38 @@ function toSearchResult(candidate: SearchCandidate, score: number): AssetSearchR
 }
 
 export function listPublicAssets(market?: Market) {
-  const config = getConfig();
-  const usSymbols = config.markets.US.symbols || ['SPY', 'QQQ', 'AAPL', 'MSFT', 'NVDA', 'TSLA'];
-  const cryptoSymbols = config.markets.CRYPTO.symbols || ['BTCUSDT', 'ETHUSDT'];
-  const targets = [
-    ...((!market || market === 'US')
-      ? usSymbols.map((symbol) => ({
-          symbol: String(symbol).toUpperCase(),
-          market: 'US' as const,
-          assetClass: 'US_STOCK' as const,
-          venue: knownEtfSymbols.has(String(symbol).toUpperCase()) ? 'ETF' : 'US',
-          base: null,
-          quote: 'USD'
-        }))
-      : []),
-    ...((!market || market === 'CRYPTO')
-      ? cryptoSymbols.map((symbol) => {
-          const parsed = parseCryptoLookupSymbol(String(symbol));
-          return {
-            symbol: parsed?.resolvedSymbol || String(symbol).toUpperCase(),
-            market: 'CRYPTO' as const,
-            assetClass: 'CRYPTO' as const,
-            venue: 'GATEIO',
-            base: parsed?.base || String(symbol).toUpperCase().replace(/USDT$/, ''),
-            quote: parsed?.quote || 'USDT'
-          };
-        })
-      : [])
-  ];
+  const byKey = new Map<string, ReturnType<typeof buildReferenceAssetCandidate>>();
+  getReferenceSearchUniverse()
+    .filter((item) => !market || item.market === market)
+    .forEach((item) => {
+      byKey.set(`${item.market}:${item.symbol}`, item);
+    });
 
-  return targets.map((item) => ({
-    symbol: item.symbol,
-    market: item.market,
-    assetClass: item.assetClass,
-    venue: item.venue,
-    base: item.base,
-    quote: item.quote,
-    name: item.market === 'CRYPTO' ? `${item.base} / ${item.quote}` : item.symbol
-  }));
+  const config = getConfig();
+  (config.markets.US.symbols || []).forEach((symbol) => {
+    const upper = String(symbol).toUpperCase();
+    const key = `US:${upper}`;
+    if (!byKey.has(key)) byKey.set(key, buildDirectEquityCandidate(upper));
+  });
+  (config.markets.CRYPTO.symbols || []).forEach((symbol) => {
+    const parsed = parseCryptoLookupSymbol(String(symbol));
+    if (!parsed) return;
+    const key = `CRYPTO:${parsed.resolvedSymbol}`;
+    if (!byKey.has(key)) byKey.set(key, buildDirectCryptoCandidate(parsed.resolvedSymbol));
+  });
+
+  return Array.from(byKey.values()).map((item) => {
+    const parsed = item.market === 'CRYPTO' ? parseCryptoLookupSymbol(item.symbol) : null;
+    return {
+      symbol: item.symbol,
+      market: item.market,
+      assetClass: item.assetClass,
+      venue: item.venue || (item.market === 'CRYPTO' ? 'GATEIO' : knownEtfSymbols.has(item.symbol) ? 'ETF' : 'US'),
+      base: parsed?.base || null,
+      quote: parsed?.quote || (item.market === 'US' ? 'USD' : null),
+      name: item.name
+    };
+  });
 }
 
 export async function searchPublicAssets(args: { query: string; limit?: number; market?: Market }) {
@@ -727,6 +797,25 @@ export async function searchPublicAssets(args: { query: string; limit?: number; 
     const key = `${candidate.market}:${candidate.symbol}`;
     if (!candidates.has(key)) candidates.set(key, candidate);
   }
+
+  const localResults = Array.from(candidates.values())
+    .map((candidate) => ({ candidate, score: scoreAssetCandidate(query, candidate) }))
+    .filter((item) => item.score > 0)
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      if (a.candidate.source !== b.candidate.source) {
+        const rank = { live: 0, remote: 1, reference: 2 };
+        return rank[a.candidate.source] - rank[b.candidate.source];
+      }
+      return a.candidate.symbol.localeCompare(b.candidate.symbol);
+    })
+    .slice(0, limit)
+    .map(({ candidate, score }) => toSearchResult(candidate, score));
+
+  if (localResults.length >= Math.min(limit, 8) || process.env.BROWSE_REMOTE_SEARCH !== '1') {
+    return localResults;
+  }
+
   const remoteCandidates = await searchRemoteAssets(query, limit, args.market);
   for (const candidate of remoteCandidates) {
     const key = `${candidate.market}:${candidate.symbol}`;
@@ -809,18 +898,18 @@ async function fetchNasdaqBrowseChart(symbol: string): Promise<BrowseChartSnapsh
     try {
       const url = new URL(`${config.nasdaq.baseUrl}/quote/${encodeURIComponent(symbol)}/chart`);
       url.searchParams.set('assetclass', assetClass);
-      const response = await fetchWithRetry(
-        url.toString(),
-        {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 NovaQuant/1.0',
+    const response = await fetchWithRetry(
+      url.toString(),
+      {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 NovaQuant/1.0',
             Accept: 'application/json',
-            Referer: 'https://www.nasdaq.com/'
-          }
-        },
-        { attempts: 2, baseDelayMs: 900 },
-        config.nasdaq.timeoutMs
-      );
+          Referer: 'https://www.nasdaq.com/'
+        }
+      },
+      { attempts: 1, baseDelayMs: 300 },
+      Math.min(config.nasdaq.timeoutMs, 2_500)
+    );
       if (!response.ok) continue;
       const payload = (await response.json()) as NasdaqBrowseChartResponse;
       const normalized = normalizeNasdaqBrowseChart(symbol, assetClass, payload);
@@ -887,8 +976,8 @@ async function fetchGateCryptoBrowseChart(symbol: string): Promise<BrowseChartSn
     const response = await fetchWithRetry(
       url.toString(),
       { headers: { Accept: 'application/json', 'User-Agent': getSearchUserAgent() } },
-      { attempts: 2, baseDelayMs: 900 },
-      12_000
+      { attempts: 1, baseDelayMs: 300 },
+      2_500
     );
     if (!response.ok) return null;
     return normalizeGateCryptoChart(symbol, parsed.gatePair, await response.json());
@@ -906,8 +995,8 @@ async function fetchUsDailyOhlcv(symbol: string, limit = 120): Promise<PublicOhl
   const response = await fetchWithRetry(
     url,
     { headers: { 'User-Agent': getSearchUserAgent(), Accept: 'text/csv' } },
-    { attempts: 2, baseDelayMs: 900 },
-    12_000
+    { attempts: 1, baseDelayMs: 300 },
+    2_500
   );
   if (!response.ok) return [];
   const text = await response.text();
@@ -943,8 +1032,8 @@ async function fetchGateOhlcv(symbol: string, timeframe: Timeframe, limit = 120)
   const response = await fetchWithRetry(
     url.toString(),
     { headers: { Accept: 'application/json', 'User-Agent': getSearchUserAgent() } },
-    { attempts: 2, baseDelayMs: 900 },
-    12_000
+    { attempts: 1, baseDelayMs: 300 },
+    2_500
   );
   if (!response.ok) return [];
   const payload = (await response.json()) as unknown;
@@ -1001,7 +1090,12 @@ export async function getPublicBrowseAssetChart(args: { market: Market; symbol: 
   if (args.market === 'US') {
     const live = await fetchNasdaqBrowseChart(symbol);
     if (live) return live;
-    const history = await fetchUsDailyOhlcv(symbol, 30);
+    let history: PublicOhlcvRow[] = [];
+    try {
+      history = await fetchUsDailyOhlcv(symbol, 30);
+    } catch {
+      history = [];
+    }
     if (history.length < 2) return null;
     const first = history[0];
     const last = history[history.length - 1];
@@ -1025,7 +1119,12 @@ export async function getPublicBrowseAssetChart(args: { market: Market; symbol: 
   }
   const live = await fetchGateCryptoBrowseChart(symbol);
   if (live) return live;
-  const history = await fetchGateOhlcv(symbol, '1d', 30);
+  let history: PublicOhlcvRow[] = [];
+  try {
+    history = await fetchGateOhlcv(symbol, '1d', 30);
+  } catch {
+    history = [];
+  }
   if (history.length < 2) return null;
   const first = history[0];
   const last = history[history.length - 1];
@@ -1271,4 +1370,287 @@ export async function getPublicBrowseAssetOverview(args: { market: Market; symbo
     newsContext,
     topNews
   };
+}
+
+const browseHomeConfig = {
+  NOW: {
+    featured: [
+      { symbol: 'SPY', market: 'US' as const, title: 'S&P 500', subtitle: 'SPY proxy' },
+      { symbol: 'QQQ', market: 'US' as const, title: 'Nasdaq 100', subtitle: 'QQQ proxy' },
+      { symbol: 'BTCUSDT', market: 'CRYPTO' as const, title: 'Bitcoin', subtitle: 'BTC / USDT' },
+      { symbol: 'AAPL', market: 'US' as const, title: 'Apple', subtitle: 'AAPL' },
+      { symbol: 'ETHUSDT', market: 'CRYPTO' as const, title: 'Ethereum', subtitle: 'ETH / USDT' }
+    ],
+    usPool: ['SMCI', 'PLTR', 'NVDA', 'TSLA', 'AMD', 'META', 'AMZN', 'AAPL'],
+    cryptoPool: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'DOGEUSDT', 'ADAUSDT', 'AVAXUSDT', 'LINKUSDT', 'XRPUSDT'],
+    earnings: ['NVDA', 'AAPL', 'AMZN', 'NFLX'],
+    screeners: [
+      { id: 'daily-price-jumps', title: 'Daily price jumps', subtitle: 'Stocks with the biggest price increases today' },
+      { id: 'daily-price-dips', title: 'Daily price dips', subtitle: 'Stocks with the biggest price decreases today' },
+      { id: 'upcoming-earnings', title: 'Upcoming earnings', subtitle: 'Liquid names to watch into the next reports' }
+    ],
+    trending: [
+      { id: 'newly-listed-crypto', title: 'Newly Listed Crypto', symbols: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT'] },
+      { id: 'ipo-access', title: 'IPO Access', symbols: ['ARM', 'HOOD', 'COIN'] },
+      { id: 'early-dividend-stocks', title: 'Early Dividend Stocks', symbols: ['SPY', 'XLF', 'DIA'] },
+      { id: 'altcoins', title: 'Altcoins', symbols: ['SOLUSDT', 'AVAXUSDT', 'LINKUSDT'] },
+      { id: 'closed-end-funds', title: 'Closed-end Funds', symbols: ['DIA', 'TLT', 'GLD'] },
+      { id: 'tradable-crypto', title: 'Tradable Crypto', symbols: ['BTCUSDT', 'ETHUSDT', 'DOGEUSDT'] }
+    ]
+  },
+  MACRO: {
+    featured: [
+      { symbol: 'SPY', market: 'US' as const, title: 'S&P 500', subtitle: 'Risk proxy' },
+      { symbol: 'TLT', market: 'US' as const, title: 'Long Bonds', subtitle: 'Rates proxy' },
+      { symbol: 'GLD', market: 'US' as const, title: 'Gold', subtitle: 'Macro hedge' },
+      { symbol: 'QQQ', market: 'US' as const, title: 'Growth', subtitle: 'QQQ proxy' }
+    ],
+    usPool: ['SPY', 'QQQ', 'IWM', 'TLT', 'IEF', 'GLD', 'USO', 'XLF'],
+    cryptoPool: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'DOGEUSDT'],
+    earnings: ['SPY', 'QQQ', 'XLF', 'XLK'],
+    screeners: [
+      { id: 'macro-leaders', title: 'Macro leaders', subtitle: 'Cross-asset proxies with the strongest moves' },
+      { id: 'macro-laggards', title: 'Macro laggards', subtitle: 'Cross-asset proxies under the most pressure' },
+      { id: 'rate-sensitive', title: 'Rate sensitive', subtitle: 'Duration, financials, and growth watchlist' }
+    ],
+    trending: [
+      { id: 'inflation-hedges', title: 'Inflation Hedges', symbols: ['GLD', 'USO', 'XLE'] },
+      { id: 'rates-watch', title: 'Rates Watch', symbols: ['TLT', 'IEF', 'KRE'] },
+      { id: 'risk-on', title: 'Risk On', symbols: ['QQQ', 'IWM', 'BTCUSDT'] },
+      { id: 'risk-off', title: 'Risk Off', symbols: ['TLT', 'GLD', 'SPY'] }
+    ]
+  },
+  CRYPTO: {
+    featured: [
+      { symbol: 'BTCUSDT', market: 'CRYPTO' as const, title: 'Bitcoin', subtitle: 'BTC / USDT' },
+      { symbol: 'ETHUSDT', market: 'CRYPTO' as const, title: 'Ethereum', subtitle: 'ETH / USDT' },
+      { symbol: 'SOLUSDT', market: 'CRYPTO' as const, title: 'Solana', subtitle: 'SOL / USDT' },
+      { symbol: 'XRPUSDT', market: 'CRYPTO' as const, title: 'XRP', subtitle: 'XRP / USDT' }
+    ],
+    usPool: ['COIN', 'MSTR', 'HOOD', 'NVDA', 'TSLA', 'PLTR'],
+    cryptoPool: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XRPUSDT', 'DOGEUSDT', 'ADAUSDT', 'AVAXUSDT', 'LINKUSDT'],
+    earnings: ['COIN', 'MSTR', 'NVDA', 'TSLA'],
+    screeners: [
+      { id: 'crypto-breakouts', title: 'Crypto breakouts', subtitle: 'Large caps pressing near recent highs' },
+      { id: 'crypto-dips', title: 'Crypto pullbacks', subtitle: 'Names with the sharpest downside retracements' },
+      { id: 'btc-linked-equities', title: 'BTC-linked equities', subtitle: 'US names with strong crypto beta' }
+    ],
+    trending: [
+      { id: 'majors', title: 'Majors', symbols: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT'] },
+      { id: 'alt-beta', title: 'Alt Beta', symbols: ['DOGEUSDT', 'AVAXUSDT', 'LINKUSDT'] },
+      { id: 'exchange-beta', title: 'Exchange Beta', symbols: ['COIN', 'HOOD', 'MSTR'] },
+      { id: 'layer-1s', title: 'Layer 1s', symbols: ['SOLUSDT', 'ADAUSDT', 'AVAXUSDT'] }
+    ]
+  },
+  SPORTS: {
+    featured: [
+      { symbol: 'DKNG', market: 'US' as const, title: 'DraftKings', subtitle: 'Sports betting' },
+      { symbol: 'TKO', market: 'US' as const, title: 'TKO Group', subtitle: 'Live events' },
+      { symbol: 'DIS', market: 'US' as const, title: 'Disney', subtitle: 'Sports media' },
+      { symbol: 'EA', market: 'US' as const, title: 'Electronic Arts', subtitle: 'Gaming' }
+    ],
+    usPool: ['DKNG', 'TKO', 'DIS', 'EA', 'TTWO', 'SONY'],
+    cryptoPool: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT'],
+    earnings: ['DIS', 'DKNG', 'TTWO', 'EA'],
+    screeners: [
+      { id: 'sports-betting', title: 'Sports betting', subtitle: 'Books, operators, and high-beta sports names' },
+      { id: 'media-rights', title: 'Media rights', subtitle: 'Streaming and rights-heavy platforms' },
+      { id: 'event-operators', title: 'Event operators', subtitle: 'Live sports and entertainment operators' }
+    ],
+    trending: [
+      { id: 'betting', title: 'Betting', symbols: ['DKNG', 'DIS', 'TKO'] },
+      { id: 'gaming', title: 'Gaming', symbols: ['EA', 'TTWO', 'SONY'] },
+      { id: 'streaming', title: 'Streaming', symbols: ['DIS', 'NFLX', 'ROKU'] }
+    ]
+  }
+} as const;
+
+function readBrowseHomeCache(key: string): BrowseHomePayload | null {
+  const hit = browseHomeCache.get(key);
+  if (!hit) return null;
+  if (hit.expiresAt < Date.now()) {
+    browseHomeCache.delete(key);
+    return null;
+  }
+  return hit.data;
+}
+
+function writeBrowseHomeCache(key: string, data: BrowseHomePayload) {
+  browseHomeCache.set(key, {
+    expiresAt: Date.now() + 1000 * 60 * 2,
+    data
+  });
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, fallback: T): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((resolve) => {
+        timer = setTimeout(() => resolve(fallback), timeoutMs);
+      })
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+function normalizeBrowseHomeView(value?: string): keyof typeof browseHomeConfig {
+  const upper = String(value || 'NOW').trim().toUpperCase();
+  if (upper === 'MACRO' || upper === 'CRYPTO' || upper === 'SPORTS') return upper;
+  return 'NOW';
+}
+
+async function buildBrowseCard(spec: { symbol: string; market: Market; title: string; subtitle: string }): Promise<BrowseHomeCard | null> {
+  const chart = await withTimeout(
+    spec.market === 'US' ? fetchNasdaqBrowseChart(spec.symbol) : fetchGateCryptoBrowseChart(spec.symbol),
+    2800,
+    null
+  );
+  if (!chart) return null;
+  return {
+    symbol: chart.resolvedSymbol || spec.symbol,
+    market: spec.market,
+    title: spec.title,
+    subtitle: spec.subtitle,
+    latest: chart.latest,
+    change: chart.change,
+    asOf: chart.asOf,
+    values: (chart.points || []).map((point) => point.close).filter((value) => Number.isFinite(value)).slice(-36)
+  };
+}
+
+async function buildBrowseChip(symbol: string, market: Market): Promise<BrowseHomeChip | null> {
+  if (market === 'US') {
+    const chart = await withTimeout(fetchNasdaqBrowseChart(symbol), 2800, null);
+    if (chart) {
+      return {
+        symbol,
+        market,
+        name: chart.name || (commonEquityAliases[symbol]?.[0] ? sentenceCase(commonEquityAliases[symbol][0]) : symbol),
+        latest: chart.latest,
+        change: chart.change
+      };
+    }
+  }
+  const rows = await withTimeout(
+    queryPublicOhlcv({
+      market,
+      symbol,
+      timeframe: '1d',
+      limit: 5
+    }),
+    2600,
+    { asset: null, rows: [] as PublicOhlcvRow[] }
+  );
+  if (!rows.rows.length) return null;
+  const closes = rows.rows.map((row) => row.close).filter((value): value is number => Number.isFinite(value));
+  if (!closes.length) return null;
+  const latest = closes[closes.length - 1] ?? null;
+  const previous = closes.length >= 2 ? closes[closes.length - 2] : closes[0];
+  const change = latest !== null && previous ? (latest - previous) / previous : null;
+  const parsed = market === 'CRYPTO' ? parseCryptoLookupSymbol(symbol) : null;
+  return {
+    symbol,
+    market,
+    name: market === 'CRYPTO' ? `${parsed?.base || symbol.replace(/USDT$/, '')} / ${parsed?.quote || 'USDT'}` : commonEquityAliases[symbol]?.[0] ? sentenceCase(commonEquityAliases[symbol][0]) : symbol,
+    latest,
+    change
+  };
+}
+
+async function buildBrowseChipList(symbols: readonly string[], market: Market, limit = 6): Promise<BrowseHomeChip[]> {
+  const settled = await Promise.allSettled(symbols.map((symbol) => buildBrowseChip(symbol, market)));
+  return settled
+    .filter((row): row is PromiseFulfilledResult<BrowseHomeChip | null> => row.status === 'fulfilled')
+    .map((row) => row.value)
+    .filter((item): item is BrowseHomeChip => item !== null && Number.isFinite(item.change))
+    .sort((a, b) => Math.abs((b.change || 0)) - Math.abs((a.change || 0)))
+    .slice(0, limit);
+}
+
+function splitPositiveNegative(items: BrowseHomeChip[]) {
+  const positive = items.filter((item) => Number(item.change) > 0).sort((a, b) => Number(b.change) - Number(a.change));
+  const negative = items.filter((item) => Number(item.change) < 0).sort((a, b) => Number(a.change) - Number(b.change));
+  return { positive, negative };
+}
+
+async function buildBrowseEarnings(symbols: readonly string[]): Promise<BrowseHomeEarningsItem[]> {
+  return symbols.slice(0, 4).map((symbol, index) => ({
+    symbol,
+    market: 'US',
+    title: commonEquityAliases[symbol]?.[0] ? sentenceCase(commonEquityAliases[symbol][0]) : symbol,
+    note: index % 2 === 0 ? 'Watch sizing into the next event window.' : 'Avoid chasing before the next report.',
+    timing: index % 2 === 0 ? 'After close' : 'Coming up'
+  }));
+}
+
+function buildBrowseList(id: string, title: string, subtitle: string, items: BrowseHomeChip[]): BrowseHomeList {
+  return { id, title, subtitle, items };
+}
+
+function makeStaticBrowseChip(symbol: string): BrowseHomeChip {
+  const market = parseCryptoLookupSymbol(symbol) ? 'CRYPTO' : 'US';
+  return {
+    symbol,
+    market,
+    name: market === 'CRYPTO' ? `${displaySymbolForStatic(symbol)} / USDT` : commonEquityAliases[symbol]?.[0] ? sentenceCase(commonEquityAliases[symbol][0]) : symbol,
+    latest: null,
+    change: null
+  };
+}
+
+function displaySymbolForStatic(symbol: string) {
+  const upper = String(symbol || '').toUpperCase();
+  return upper.replace(/USDT$/, '').replace(/USD$/, '');
+}
+
+export async function getPublicBrowseHome(args: { view?: string }): Promise<BrowseHomePayload> {
+  const view = normalizeBrowseHomeView(args.view);
+  const cached = readBrowseHomeCache(view);
+  if (cached) return cached;
+
+  const config = browseHomeConfig[view];
+  const [featured, usMovers, cryptoMovers, earnings] = await Promise.all([
+    Promise.all(config.featured.map((item) => buildBrowseCard(item))),
+    buildBrowseChipList(config.usPool, 'US', 6),
+    buildBrowseChipList(config.cryptoPool, 'CRYPTO', 6),
+    buildBrowseEarnings(config.earnings)
+  ]);
+
+  const usMoveBuckets = splitPositiveNegative(usMovers);
+  const screenerLists: BrowseHomeList[] = [
+    buildBrowseList(config.screeners[0].id, config.screeners[0].title, config.screeners[0].subtitle, usMoveBuckets.positive.slice(0, 6)),
+    buildBrowseList(config.screeners[1].id, config.screeners[1].title, config.screeners[1].subtitle, usMoveBuckets.negative.slice(0, 6)),
+    buildBrowseList(
+      config.screeners[2].id,
+      config.screeners[2].title,
+      config.screeners[2].subtitle,
+      earnings.map((item) => ({
+        symbol: item.symbol,
+        market: item.market,
+        name: item.title,
+        latest: null,
+        change: null
+      }))
+    )
+  ];
+
+  const trendingLists: BrowseHomeList[] = await Promise.all(
+    config.trending.map(async (list) => buildBrowseList(list.id, list.title, `${list.symbols.length} symbols`, list.symbols.map(makeStaticBrowseChip)))
+  );
+
+  const payload: BrowseHomePayload = {
+    view,
+    updatedAt: new Date().toISOString(),
+    futuresMarkets: featured.filter((item): item is BrowseHomeCard => Boolean(item)).slice(0, 3),
+    topMovers: usMovers,
+    cryptoMovers,
+    earnings,
+    screeners: screenerLists,
+    trendingLists
+  };
+  writeBrowseHomeCache(view, payload);
+  return payload;
 }

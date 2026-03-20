@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import {
   getPublicBrowseAssetChart,
+  getPublicBrowseHome,
   getPublicBrowseAssetOverview,
   getPublicBrowseNewsFeed,
   listPublicAssets,
@@ -86,6 +87,13 @@ async function handlePublicBrowseRoute(req: VercelRequest, res: VercelResponse, 
       return true;
     }
     const data = await getPublicBrowseAssetChart({ market, symbol });
+    res.status(200).json(data);
+    return true;
+  }
+
+  if (path === '/api/browse/home' && req.method === 'GET') {
+    const view = String(req.query.view || 'NOW');
+    const data = await getPublicBrowseHome({ view });
     res.status(200).json(data);
     return true;
   }
