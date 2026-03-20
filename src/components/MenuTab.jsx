@@ -756,74 +756,84 @@ export default function MenuTab({
   }
 
   return (
-    <section className="stack-gap menu-screen">
-      <div className="menu-page-head">
-        <h1>{copy.menu}</h1>
-      </div>
-
-      <div className="menu-group-list">
-        {[
-          { key: 'support', title: copy.supportRootTitle, desc: copy.supportRootCopy },
-          { key: 'rewards', title: copy.rewards, desc: copy.rewardsRootCopy },
-          { key: 'security-privacy', title: copy.securityPrivacy, desc: copy.securityPrivacyCopy },
-          { key: 'settings', title: copy.settings, desc: locale?.startsWith('zh') ? '通知、偏好、账户与模式。' : 'Notifications, preferences, account, and mode.' }
-        ].map((item) => (
-          <button key={item.key} type="button" className="menu-list-row" onClick={() => onSectionChange(item.key)}>
-            <span>
-              <span className="menu-list-title">{item.title}</span>
-              <span className="menu-list-desc">{item.desc}</span>
+    <section className="stack-gap menu-screen menu-root-screen">
+      <div className="menu-root-main">
+        <div className="menu-identity-row menu-identity-row-plain">
+          <div className="menu-identity-copy">
+            <p className="menu-identity-kicker">{copy.username}</p>
+            <p className="menu-identity-value">{username}</p>
+          </div>
+          <button type="button" className="points-pill" onClick={() => onSectionChange('points')}>
+            <span className="points-pill-balance">
+              {manualAvailable ? formatPoints(points.balance, locale) : copy.pointsHub}
             </span>
-            <span className="menu-list-arrow">›</span>
+            <span className="points-pill-hint">
+              {manualAvailable
+                ? pointsHint(points, locale)
+                : locale?.startsWith('zh')
+                  ? '查看积分'
+                  : 'Open points'}
+            </span>
           </button>
-        ))}
-      </div>
-
-      <div className="menu-identity-row menu-identity-row-plain">
-        <div className="menu-identity-copy">
-          <p className="menu-identity-kicker">{copy.username}</p>
-          <p className="menu-identity-value">{username}</p>
         </div>
-      </div>
 
-      <button type="button" className="menu-outline-cta menu-outline-cta-logout" onClick={onLogout}>
-        {copy.logout}
-      </button>
-
-      <div className="menu-utility-section">
-        <p className="menu-utility-kicker">{isZh ? 'NovaQuant 工具' : 'NovaQuant tools'}</p>
         <div className="menu-group-list">
           {[
-            { key: 'points', title: copy.pointsHub, desc: locale?.startsWith('zh') ? '积分、VIP 与活动记录。' : 'Points, VIP, and activity history.' },
-            { key: 'group:review', title: copy.review, desc: copy.reviewDescription },
-            { key: 'group:system', title: copy.system, desc: copy.systemDescription },
-            { key: 'group:market', title: copy.marketNotes, desc: copy.marketDescription },
-            ...(showDemoEntry
-              ? [
-                  {
-                    key: 'demo',
-                    title: locale?.startsWith('zh') ? '演示模式' : 'Demo Mode',
-                    desc: locale?.startsWith('zh')
-                      ? '用样例数据走完整个平台，不影响真实账户路径。'
-                      : 'Run a sample-data walkthrough without touching the real account path.'
-                  }
-                ]
-              : []),
-            { key: 'about', title: copy.about, desc: locale?.startsWith('zh') ? '版本、支持与合规信息。' : 'Version, support, and compliance.' }
-          ].map((item) => {
-            const onClick = item.key === 'about' ? onOpenAbout : item.key === 'demo' ? onToggleDemo : () => onSectionChange(item.key);
-            return (
-              <button key={item.key} type="button" className="menu-list-row" onClick={onClick}>
-                <span>
-                  <span className="menu-list-title">{item.title}</span>
-                  <span className="menu-list-desc">{item.desc}</span>
-                </span>
-                <span className="menu-list-arrow">{item.key === 'demo' ? (demoEnabled ? 'On' : 'Off') : '›'}</span>
-              </button>
-            );
-          })}
+            { key: 'support', title: copy.supportRootTitle, desc: copy.supportRootCopy },
+            { key: 'rewards', title: copy.rewards, desc: copy.rewardsRootCopy },
+            { key: 'security-privacy', title: copy.securityPrivacy, desc: copy.securityPrivacyCopy },
+            { key: 'settings', title: copy.settings, desc: locale?.startsWith('zh') ? '通知、偏好、账户与模式。' : 'Notifications, preferences, account, and mode.' }
+          ].map((item) => (
+            <button key={item.key} type="button" className="menu-list-row" onClick={() => onSectionChange(item.key)}>
+              <span>
+                <span className="menu-list-title">{item.title}</span>
+                <span className="menu-list-desc">{item.desc}</span>
+              </span>
+              <span className="menu-list-arrow">›</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="menu-utility-section">
+          <p className="menu-utility-kicker">{isZh ? 'NovaQuant 工具' : 'NovaQuant tools'}</p>
+          <div className="menu-group-list">
+            {[
+              { key: 'group:review', title: copy.review, desc: copy.reviewDescription },
+              { key: 'group:system', title: copy.system, desc: copy.systemDescription },
+              { key: 'group:market', title: copy.marketNotes, desc: copy.marketDescription },
+              ...(showDemoEntry
+                ? [
+                    {
+                      key: 'demo',
+                      title: locale?.startsWith('zh') ? '演示模式' : 'Demo Mode',
+                      desc: locale?.startsWith('zh')
+                        ? '用样例数据走完整个平台，不影响真实账户路径。'
+                        : 'Run a sample-data walkthrough without touching the real account path.'
+                    }
+                  ]
+                : []),
+              { key: 'about', title: copy.about, desc: locale?.startsWith('zh') ? '版本、支持与合规信息。' : 'Version, support, and compliance.' }
+            ].map((item) => {
+              const onClick = item.key === 'about' ? onOpenAbout : item.key === 'demo' ? onToggleDemo : () => onSectionChange(item.key);
+              return (
+                <button key={item.key} type="button" className="menu-list-row" onClick={onClick}>
+                  <span>
+                    <span className="menu-list-title">{item.title}</span>
+                    <span className="menu-list-desc">{item.desc}</span>
+                  </span>
+                  <span className="menu-list-arrow">{item.key === 'demo' ? (demoEnabled ? 'On' : 'Off') : '›'}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
+      <div className="menu-root-footer">
+        <button type="button" className="menu-outline-cta menu-outline-cta-logout" onClick={onLogout}>
+          {copy.logout}
+        </button>
+      </div>
     </section>
   );
 }

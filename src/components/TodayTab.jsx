@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import SignalDetail from './SignalDetail';
 import TradeTicketSheet from './TradeTicketSheet';
 import { describeEvidenceMode } from '../utils/provenance';
@@ -523,6 +523,87 @@ function buildSignalFromDecision(decision, now) {
   };
 }
 
+function buildSignalsFromDecision(decision, now) {
+  return (decision?.ranked_action_cards || [])
+    .map((card, index) => {
+      const signal = card?.signal_payload;
+      if (!signal) return null;
+      const dataStatus = normalizeDataStatus({
+        ...signal,
+        data_status: card?.data_status,
+        source_status: card?.source_status,
+        source_label: card?.source_label
+      });
+      return {
+        ...signal,
+        _actionable: Boolean(card?.eligible),
+        _dataStatus: dataStatus,
+        _freshness: signal?.freshness_label || freshnessLabel(signal, now),
+        strategy_source: card?.strategy_source || signal?.strategy_source || 'AI quant strategy',
+        action_label: card?.action_label || null,
+        portfolio_intent: card?.portfolio_intent || null,
+        risk_note: card?.risk_note || null,
+        brief_why_now: card?.brief_why_now || null,
+        evidence_bundle: card?.evidence_bundle || null,
+        ranking_score: Number(card?.ranking_score || signal?.score || 0),
+        _cardActionId: card?.action_id || `decision-card-${index + 1}`,
+        _cardTone: card?.eligible ? 'live' : 'watch'
+      };
+    })
+    .filter(Boolean);
+}
+
+function buildSignalRail(signals, evidenceSignals, assetClass, now, limit = 10) {
+  const merged = mergeEvidenceSignals(signals, evidenceSignals);
+  return (merged || [])
+    .filter((item) => {
+      const signalAsset = item.asset_class || (item.market === 'CRYPTO' ? 'CRYPTO' : 'US_STOCK');
+      return signalAsset === assetClass;
+    })
+    .map((item) => ({
+      ...item,
+      _rank: rankSignal(item, now),
+      _dataStatus: normalizeDataStatus(item),
+      _actionable: isActionable(item),
+      _freshness: item?.freshness_label || freshnessLabel(item, now),
+      ranking_score: rankSignal(item, now),
+      _cardActionId: item?.signal_id || `${item?.symbol || 'signal'}-${item?.created_at || item?.generated_at || 'na'}`,
+      _cardTone: isActionable(item) ? 'live' : 'watch'
+    }))
+    .sort((a, b) => b._rank - a._rank)
+    .slice(0, limit);
+}
+
+function signalCardId(signal) {
+  return signal?._cardActionId || signal?.signal_id || `${signal?.symbol || 'signal'}-${signal?.created_at || signal?.generated_at || 'na'}`;
+}
+
+function signalQuotaForTradeMode(tradeMode) {
+  const mode = String(tradeMode || '').toLowerCase();
+  if (mode === 'deep') return 12;
+  if (mode === 'active') return 8;
+  return 4;
+}
+
+function signalConfidenceScore(signal) {
+  const calibrated = Number(signal?.calibrated_confidence);
+  if (Number.isFinite(calibrated)) return calibrated;
+  const confidence = Number(signal?.confidence ?? signal?.conviction);
+  if (Number.isFinite(confidence)) return confidence;
+  return -1;
+}
+
+function sortSignalsForDisplay(list = []) {
+  return [...list].sort((a, b) => {
+    const confidenceDelta = signalConfidenceScore(b) - signalConfidenceScore(a);
+    if (Math.abs(confidenceDelta) > 0.0001) return confidenceDelta;
+    const rankDelta = Number(b?.ranking_score || b?._rank || 0) - Number(a?.ranking_score || a?._rank || 0);
+    if (Math.abs(rankDelta) > 0.001) return rankDelta;
+    const freshnessDelta = timestampMs(b?.created_at || b?.generated_at || 0) - timestampMs(a?.created_at || a?.generated_at || 0);
+    return freshnessDelta;
+  });
+}
+
 function overallFromDecision(decision, locale) {
   const call = decision?.today_call;
   if (!call) return null;
@@ -592,18 +673,44 @@ export default function TodayTab({
   onConfirmBoundary,
   onCompleteCheckIn
 }) {
+  const [selectedSignalId, setSelectedSignalId] = useState(null);
   const [activeSignal, setActiveSignal] = useState(null);
   const [tradeSignal, setTradeSignal] = useState(null);
+  const actionCarouselRef = useRef(null);
+  const desiredSignalCount = useMemo(() => signalQuotaForTradeMode(brokerProfile?.tradeMode), [brokerProfile?.tradeMode]);
 
   const bestSignal = useMemo(
     () => pickBestSignal(signals, topSignalEvidence, assetClass, now),
     [signals, topSignalEvidence, assetClass, now]
   );
-  const decisionSignal = useMemo(() => buildSignalFromDecision(decision, now), [decision, now]);
-  const featuredSignal = useMemo(
-    () => decisionSignal || bestSignal || (investorDemoEnabled ? buildDemoFallbackSignal(assetClass, now) : null),
-    [decisionSignal, bestSignal, investorDemoEnabled, assetClass, now]
+  const decisionSignals = useMemo(() => buildSignalsFromDecision(decision, now), [decision, now]);
+  const fallbackSignals = useMemo(
+    () => buildSignalRail(signals, topSignalEvidence, assetClass, now, desiredSignalCount),
+    [signals, topSignalEvidence, assetClass, now, desiredSignalCount]
   );
+  const actionSignals = useMemo(() => {
+    if (decisionSignals.length) return decisionSignals;
+    if (fallbackSignals.length) return fallbackSignals.slice(0, desiredSignalCount);
+    return investorDemoEnabled ? [buildDemoFallbackSignal(assetClass, now)] : [];
+  }, [decisionSignals, fallbackSignals, desiredSignalCount, investorDemoEnabled, assetClass, now]);
+  const carouselSignals = useMemo(() => sortSignalsForDisplay(actionSignals), [actionSignals]);
+
+  useEffect(() => {
+    if (!carouselSignals.length) {
+      if (selectedSignalId !== null) setSelectedSignalId(null);
+      return;
+    }
+    if (!selectedSignalId || !carouselSignals.some((signal) => signalCardId(signal) === selectedSignalId)) {
+      setSelectedSignalId(signalCardId(carouselSignals[0]));
+    }
+  }, [carouselSignals, selectedSignalId]);
+
+  const featuredSignal = useMemo(() => {
+    if (carouselSignals.length) {
+      return carouselSignals.find((signal) => signalCardId(signal) === selectedSignalId) || carouselSignals[0];
+    }
+    return buildSignalFromDecision(decision, now) || bestSignal || (investorDemoEnabled ? buildDemoFallbackSignal(assetClass, now) : null);
+  }, [carouselSignals, selectedSignalId, decision, now, bestSignal, investorDemoEnabled, assetClass]);
   const overall =
     overallFromDecision(decision, locale) ||
     deriveOverallStatus({
@@ -655,53 +762,6 @@ export default function TodayTab({
       tone: 'mint'
     }
   ];
-  const actionBandLabel =
-    overall.code === 'TRADE'
-      ? locale === 'zh'
-        ? '可以动作'
-        : 'Actionable'
-      : overall.code === 'UNAVAILABLE'
-        ? locale === 'zh'
-          ? '系统未就绪'
-          : 'Unavailable'
-      : overall.code === 'WAIT'
-        ? locale === 'zh'
-          ? '更适合等'
-          : 'Wait mode'
-      : locale === 'zh'
-          ? '优先防守'
-          : 'Defense first';
-  const actionStateTone = overall.code.toLowerCase();
-  const convictionValue = featuredSignal ? confidenceText(featuredSignal) : (locale === 'zh' ? '等待' : 'Waiting');
-  const actionDirectionLabel = noActionDay
-    ? locale === 'zh'
-      ? '先观察'
-      : 'Watch only'
-    : String(featuredSignal?.direction || '').toUpperCase() === 'SHORT'
-      ? locale === 'zh'
-        ? '偏防守'
-        : 'Reduce risk'
-      : locale === 'zh'
-        ? '可以买入'
-        : 'Buy setup';
-  const positionSizeLabel = noActionDay
-    ? locale === 'zh'
-      ? '先空仓'
-      : 'Stay in cash'
-    : suggestedPositionText(featuredSignal);
-  const riskChipLabel =
-    risk.level === 'safe'
-      ? locale === 'zh'
-        ? '低风险'
-        : 'Low risk'
-      : risk.level === 'medium'
-        ? locale === 'zh'
-        ? '中风险'
-          : 'Medium risk'
-        : locale === 'zh'
-          ? '高风险'
-          : 'High risk';
-  const actionMetaLine = buildActionMetaText({ locale, signal: featuredSignal, provenance });
   const trustFacts = [
     {
       key: 'source',
@@ -753,7 +813,6 @@ export default function TodayTab({
     noActionDay ? 'low' : Number(featuredSignal?.position_advice?.position_pct ?? 0) >= 14 ? 'high' : 'mid',
     risk.level === 'safe' ? 'low' : risk.level === 'medium' ? 'mid' : 'high'
   ];
-  const todayPickSymbol = featuredSignal?.symbol || (locale === 'zh' ? '现金' : 'Cash');
   const actionCardKicker = noActionDay
     ? locale === 'zh'
       ? '今日观察'
@@ -820,10 +879,17 @@ export default function TodayTab({
     );
   }
 
-  const handleMainAction = () => {
-    if (overall.code === 'TRADE' && featuredSignal && featuredSignal._actionable) {
+  const handleSignalAction = (signal) => {
+    const signalBlocked =
+      !signal ||
+      !signal._actionable ||
+      overall.code === 'WAIT' ||
+      overall.code === 'DEFENSE' ||
+      overall.code === 'NO_TRADE' ||
+      overall.code === 'UNAVAILABLE';
+    if (!signalBlocked) {
       onCompleteCheckIn?.();
-      openTradeTicket(featuredSignal);
+      openTradeTicket(signal);
       return;
     }
     triggerFeedback('soft');
@@ -837,6 +903,38 @@ export default function TodayTab({
       return;
     }
     onOpenSignals?.();
+  };
+
+  const scrollToCardIndex = (index) => {
+    const node = actionCarouselRef.current;
+    const targetSignal = carouselSignals[index];
+    if (!node || !targetSignal) return;
+    const target = node.children[index];
+    if (!(target instanceof HTMLElement)) return;
+    node.scrollTo({ left: target.offsetLeft, behavior: 'smooth' });
+    setSelectedSignalId(signalCardId(targetSignal));
+  };
+
+  const handleCarouselScroll = () => {
+    const node = actionCarouselRef.current;
+    if (!node || !carouselSignals.length) return;
+    const children = Array.from(node.children);
+    if (!children.length) return;
+    let bestIndex = 0;
+    let bestDistance = Number.POSITIVE_INFINITY;
+    children.forEach((child, index) => {
+      if (!(child instanceof HTMLElement)) return;
+      const distance = Math.abs(child.offsetLeft - node.scrollLeft);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestIndex = index;
+      }
+    });
+    const nextSignal = carouselSignals[bestIndex];
+    if (nextSignal) {
+      const nextId = signalCardId(nextSignal);
+      if (nextId !== selectedSignalId) setSelectedSignalId(nextId);
+    }
   };
 
   return (
@@ -861,99 +959,181 @@ export default function TodayTab({
           </div>
         </article>
 
-        <article
-          className={`glass-card today-action-card today-action-card-${climate.tone}`}
-          role="button"
-          tabIndex={0}
-          onClick={() => {
-            if (featuredSignal) {
-              triggerFeedback('soft');
-              setActiveSignal(featuredSignal);
-            }
-          }}
-          onKeyDown={(event) => {
-            if ((event.key === 'Enter' || event.key === ' ') && featuredSignal) {
-              event.preventDefault();
-              triggerFeedback('soft');
-              setActiveSignal(featuredSignal);
-            }
-          }}
-        >
-          <div className="today-action-card-head">
-            <span className="today-action-kicker">{actionCardKicker}</span>
-            <span className={`today-action-tag today-action-tag-${actionStateTone}`}>{actionBandLabel}</span>
-          </div>
+        {carouselSignals.length > 0 ? (
+          <section className="today-action-carousel">
+            <div className="today-action-track" ref={actionCarouselRef} onScroll={handleCarouselScroll}>
+              {carouselSignals.map((signal, index) => {
+                const signalId = signalCardId(signal);
+                const selected = signalId === signalCardId(featuredSignal);
+                const signalBlocked =
+                  !signal ||
+                  !signal._actionable ||
+                  overall.code === 'WAIT' ||
+                  overall.code === 'DEFENSE' ||
+                  overall.code === 'NO_TRADE' ||
+                  overall.code === 'UNAVAILABLE';
+                const signalDirectionValue = String(signal?.direction || '').toUpperCase();
+                const signalTone = !signal?._actionable ? 'wait' : signalDirectionValue === 'SHORT' ? 'defense' : 'trade';
+                const signalActionBandLabel = signalBlocked
+                  ? overall.code === 'DEFENSE' || signalDirectionValue === 'SHORT'
+                    ? locale === 'zh'
+                      ? '优先防守'
+                      : 'Defense first'
+                    : locale === 'zh'
+                      ? '先观察'
+                      : 'Watch first'
+                  : locale === 'zh'
+                    ? '可以动作'
+                    : 'Actionable';
+                const signalDirectionLabel = signalBlocked
+                  ? locale === 'zh'
+                    ? '先观察'
+                    : 'Watch only'
+                  : signalDirectionValue === 'SHORT'
+                    ? locale === 'zh'
+                      ? '偏防守'
+                      : 'Reduce risk'
+                    : locale === 'zh'
+                      ? '可以买入'
+                      : 'Buy setup';
+                const signalPositionLabel = signalBlocked
+                  ? locale === 'zh'
+                    ? '先空仓'
+                    : 'Stay in cash'
+                  : suggestedPositionText(signal);
+                const signalRiskLabel =
+                  risk.level === 'safe'
+                    ? locale === 'zh'
+                      ? '低风险'
+                      : 'Low risk'
+                    : risk.level === 'medium'
+                      ? locale === 'zh'
+                        ? '中风险'
+                        : 'Medium risk'
+                      : locale === 'zh'
+                        ? '高风险'
+                        : 'High risk';
+                const signalMetaLine = buildActionMetaText({ locale, signal, provenance });
+                return (
+                  <article
+                    key={signalId}
+                    className={`glass-card today-action-card today-action-card-${signalTone} today-action-slide${selected ? ' is-selected' : ''}`}
+                    onClick={() => {
+                      triggerFeedback('soft');
+                      setSelectedSignalId(signalId);
+                      setActiveSignal(signal);
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        triggerFeedback('soft');
+                        setSelectedSignalId(signalId);
+                        setActiveSignal(signal);
+                      }
+                    }}
+                  >
+                    <div className="today-action-card-head">
+                      <span className="today-action-kicker">
+                        {actionCardKicker} {String(index + 1).padStart(2, '0')}
+                      </span>
+                      <span className={`today-action-tag today-action-tag-${signalTone}`}>{signalActionBandLabel}</span>
+                    </div>
 
-          <div className="today-action-main">
-            <div className="today-action-symbol-block">
-              <h2 className="today-action-symbol">{todayPickSymbol}</h2>
-              <p className="today-action-direction">{actionDirectionLabel}</p>
-              <p className="today-action-meta">{actionMetaLine}</p>
-            </div>
-            <DecisionMark code={overall.code} />
-          </div>
+                    <div className="today-action-main">
+                      <div className="today-action-symbol-block">
+                        <h2 className="today-action-symbol">{signal?.symbol || todayPickSymbol}</h2>
+                        <p className="today-action-direction">{signalDirectionLabel}</p>
+                        <p className="today-action-meta">{signalMetaLine}</p>
+                      </div>
+                      <DecisionMark code={signalBlocked ? overall.code : 'TRADE'} />
+                    </div>
 
-          <div className="today-action-stats">
-            <div className="today-action-stat">
-              <span className="today-action-stat-label">{locale === 'zh' ? '把握' : 'Conviction'}</span>
-              <span className="today-action-stat-value">{convictionValue}</span>
-            </div>
-            <div className="today-action-stat">
-              <span className="today-action-stat-label">{locale === 'zh' ? '仓位' : 'Size'}</span>
-              <span className="today-action-stat-value">{positionSizeLabel}</span>
-            </div>
-            <div className="today-action-stat">
-              <span className="today-action-stat-label">{locale === 'zh' ? '风险' : 'Risk'}</span>
-              <span className="today-action-stat-value">{riskChipLabel}</span>
-            </div>
-          </div>
+                    <div className="today-action-stats">
+                      <div className="today-action-stat">
+                        <span className="today-action-stat-label">{locale === 'zh' ? '把握' : 'Conviction'}</span>
+                        <span className="today-action-stat-value">{confidenceText(signal)}</span>
+                      </div>
+                      <div className="today-action-stat">
+                        <span className="today-action-stat-label">{locale === 'zh' ? '仓位' : 'Size'}</span>
+                        <span className="today-action-stat-value">{signalPositionLabel}</span>
+                      </div>
+                      <div className="today-action-stat">
+                        <span className="today-action-stat-label">{locale === 'zh' ? '风险' : 'Risk'}</span>
+                        <span className="today-action-stat-value">{signalRiskLabel}</span>
+                      </div>
+                    </div>
 
-          <div className="today-action-context-row">
-            {trustFacts.map((item) => (
-              <span key={item.key} className="today-action-context-pill">
-                <span className="today-action-context-label">{item.label}</span>
-                <span className="today-action-context-value">{item.value}</span>
-              </span>
-            ))}
-          </div>
+                    <div className="today-action-context-row">
+                      {trustFacts.map((item) => (
+                        <span key={`${signalId}-${item.key}`} className="today-action-context-pill">
+                          <span className="today-action-context-label">{item.label}</span>
+                          <span className="today-action-context-value">{item.value}</span>
+                        </span>
+                      ))}
+                    </div>
 
-          <div className="today-action-links">
-            <button
-              type="button"
-              className="today-action-link today-action-link-primary"
-              onClick={(event) => {
-                event.stopPropagation();
-                handleMainAction();
-              }}
-            >
-              {overall.code === 'TRADE' && featuredSignal && featuredSignal._actionable
-                ? locale === 'zh'
-                  ? '打开交易票据'
-                  : 'Open ticket'
-                : locale === 'zh'
-                  ? '查看理由'
-                  : 'See why'}
-            </button>
-            <button
-              type="button"
-              className="today-action-link today-action-link-secondary"
-              onClick={(event) => {
-                event.stopPropagation();
-                triggerFeedback('soft');
-                if (!noActionDay && featuredSignal) {
-                  askNovaAboutSignal(featuredSignal);
-                  return;
-                }
-                onAskAi?.(askPrompt, {
-                  page: 'today',
-                  focus: noActionDay ? 'restraint' : 'top_action'
-                });
-              }}
-            >
-              {locale === 'zh' ? '问 Nova' : 'Ask Nova'}
-            </button>
-          </div>
-        </article>
+                    <div className="today-action-links">
+                      <button
+                        type="button"
+                        className="today-action-link today-action-link-primary"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleSignalAction(signal);
+                        }}
+                      >
+                        {!signalBlocked
+                          ? locale === 'zh'
+                            ? '打开交易票据'
+                            : 'Open ticket'
+                          : locale === 'zh'
+                            ? '查看理由'
+                            : 'See why'}
+                      </button>
+                      <button
+                        type="button"
+                        className="today-action-link today-action-link-secondary"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          triggerFeedback('soft');
+                          if (!signalBlocked) {
+                            askNovaAboutSignal(signal);
+                            return;
+                          }
+                          onAskAi?.(askPrompt, {
+                            page: 'today',
+                            focus: signalBlocked ? 'restraint' : 'top_action'
+                          });
+                        }}
+                      >
+                        {locale === 'zh' ? '问 Nova' : 'Ask Nova'}
+                      </button>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+
+            {carouselSignals.length > 1 ? (
+              <div className="today-action-dots" aria-label={locale === 'zh' ? '行动卡位置' : 'Signal position'}>
+                {carouselSignals.map((signal, index) => {
+                  const selected = signalCardId(signal) === signalCardId(featuredSignal);
+                  return (
+                    <button
+                      key={`dot-${signalCardId(signal)}`}
+                      type="button"
+                      className={`today-action-dot${selected ? ' is-active' : ''}`}
+                      aria-label={locale === 'zh' ? `查看第 ${index + 1} 张卡` : `Open card ${index + 1}`}
+                      aria-pressed={selected}
+                      onClick={() => scrollToCardIndex(index)}
+                    />
+                  );
+                })}
+              </div>
+            ) : null}
+          </section>
+        ) : null}
 
         <section className="today-summary-grid">
           {quickTiles.map((item) => (

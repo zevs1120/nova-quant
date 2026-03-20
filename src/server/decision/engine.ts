@@ -704,6 +704,84 @@ function buildNoActionCard(args: {
   };
 }
 
+function determineActionCardLimit(riskProfile?: UserRiskProfileRecord | null) {
+  const key = String(riskProfile?.profile_key || 'balanced').toLowerCase();
+  if (key === 'aggressive') return 12;
+  if (key === 'conservative') return 8;
+  return 10;
+}
+
+function countBy<T>(rows: T[], getKey: (row: T) => string) {
+  return rows.reduce<Map<string, number>>((acc, row) => {
+    const key = getKey(row);
+    if (!key) return acc;
+    acc.set(key, (acc.get(key) || 0) + 1);
+    return acc;
+  }, new Map());
+}
+
+function adjustedCardScore(card: ActionCard, selected: ActionCard[]) {
+  const selectedSymbols = countBy(selected, (row) => String(row.symbol || ''));
+  const selectedStrategies = countBy(selected, (row) => String(row.strategy_source || ''));
+  const selectedMarkets = countBy(selected, (row) => String(row.market || ''));
+  const selectedActions = countBy(selected, (row) => String(row.action || ''));
+  const selectedDirections = countBy(
+    selected,
+    (row) => String((row.signal_payload as Record<string, unknown> | null)?.direction || '').toUpperCase()
+  );
+  const sameSymbolCount = selectedSymbols.get(String(card.symbol || '')) || 0;
+  const sameStrategyCount = selectedStrategies.get(String(card.strategy_source || '')) || 0;
+  const sameMarketCount = selectedMarkets.get(String(card.market || '')) || 0;
+  const sameActionCount = selectedActions.get(String(card.action || '')) || 0;
+  const directionKey = String((card.signal_payload as Record<string, unknown> | null)?.direction || '').toUpperCase();
+  const sameDirectionCount = selectedDirections.get(directionKey) || 0;
+
+  let adjusted = card.ranking_score;
+  if (sameSymbolCount > 0) adjusted -= 220;
+  adjusted -= sameStrategyCount * 22;
+  adjusted -= sameMarketCount * 4;
+  adjusted -= sameActionCount * 5;
+  adjusted -= sameDirectionCount >= 2 ? (sameDirectionCount - 1) * 4 : 0;
+
+  if (!sameStrategyCount) adjusted += 8;
+  if (!sameMarketCount) adjusted += 6;
+  if (!sameActionCount) adjusted += 4;
+  if (directionKey && !sameDirectionCount) adjusted += 4;
+
+  return adjusted;
+}
+
+function selectDiversifiedActionCards(ranked: ActionCard[], maxCards: number) {
+  const selected: ActionCard[] = [];
+  const pools = [
+    ranked.filter((row) => row.eligible && row.signal_payload),
+    ranked.filter((row) => !row.eligible && row.signal_payload)
+  ];
+
+  for (const pool of pools) {
+    const remaining = [...pool];
+    while (remaining.length && selected.length < maxCards) {
+      const seenSymbols = new Set(selected.map((row) => String(row.symbol || '')).filter(Boolean));
+      const unseenSymbolPool = remaining.filter((row) => !seenSymbols.has(String(row.symbol || '')));
+      const candidatePool = unseenSymbolPool.length ? unseenSymbolPool : remaining;
+      let bestIndex = 0;
+      let bestScore = -Infinity;
+      candidatePool.forEach((candidate) => {
+        const index = remaining.findIndex((row) => row.action_id === candidate.action_id);
+        const score = adjustedCardScore(candidate, selected);
+        if (score > bestScore) {
+          bestScore = score;
+          bestIndex = index;
+        }
+      });
+      selected.push(remaining.splice(bestIndex, 1)[0]);
+    }
+    if (selected.length >= maxCards) break;
+  }
+
+  return selected;
+}
+
 export function buildDecisionSnapshot(input: DecisionEngineInput) {
   const overallStatus = normalizeRuntimeStatus(input.runtimeSourceStatus, RUNTIME_STATUS.INSUFFICIENT_DATA);
   const mergedSignals = mergeSignals(input.signals || [], input.evidenceSignals || [], overallStatus);
@@ -826,7 +904,7 @@ export function buildDecisionSnapshot(input: DecisionEngineInput) {
     })
     .sort((a, b) => b.ranking_score - a.ranking_score);
 
-  const rankedActionCards = ranked.slice(0, 3);
+  const rankedActionCards = selectDiversifiedActionCards(ranked, determineActionCardLimit(input.riskProfile));
   if (!rankedActionCards.length || !rankedActionCards[0]?.eligible) {
     const noActionReasonCode =
       overallStatus !== RUNTIME_STATUS.DB_BACKED
@@ -941,7 +1019,7 @@ export function buildDecisionSnapshot(input: DecisionEngineInput) {
     audit: {
       candidate_count: mergedSignals.length,
       actionable_count: actionableSignals.length,
-      rejected_due_to_risk: actionableSignals.length - rankedActionCards.filter((row) => row.eligible).length,
+      rejected_due_to_risk: actionableSignals.length - ranked.filter((row) => row.eligible).length,
       previous_top_action_symbol: String(((input.previousDecision?.summary as Record<string, unknown> | undefined) || {}).top_action_symbol || ''),
       created_for_user: input.userId
     },

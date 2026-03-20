@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { formatNumber } from '../utils/format';
 import { fetchApiJson } from '../utils/api';
 import {
@@ -482,6 +482,7 @@ export default function BrowseTab({
   });
   const [detailOverview, setDetailOverview] = useState(null);
   const [detailNews, setDetailNews] = useState([]);
+  const handledBackTokenRef = useRef(topBarBackToken);
   const selectedKey = selectedAsset ? `${selectedAsset.market}:${selectedAsset.symbol}` : '';
   const watchedSymbols = useMemo(() => (watchlist || []).map((item) => normalizeSymbol(item)), [watchlist]);
   const detailNewsChangeMap = useMemo(() => {
@@ -517,7 +518,12 @@ export default function BrowseTab({
   const homeState = homeStateByCategory[category] || { loading: true, error: '', data: null };
 
   useEffect(() => {
-    if (!topBarBackToken) return;
+    if (!topBarBackToken) {
+      handledBackTokenRef.current = 0;
+      return;
+    }
+    if (handledBackTokenRef.current === topBarBackToken) return;
+    handledBackTokenRef.current = topBarBackToken;
     if (selectedAsset) {
       setSelectedAsset(null);
       return;

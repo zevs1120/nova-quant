@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+
 export default function TradeTicketSheet({
   open,
   signal,
@@ -7,6 +9,14 @@ export default function TradeTicketSheet({
   onAskAi,
   onPaperExecute
 }) {
+  useEffect(() => {
+    if (!open || typeof document === 'undefined') return undefined;
+    document.body.classList.add('app-modal-open');
+    return () => {
+      document.body.classList.remove('app-modal-open');
+    };
+  }, [open]);
+
   if (!open || !signal || !intent) return null;
 
   const isZh = String(locale || '').startsWith('zh');

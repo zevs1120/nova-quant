@@ -2138,7 +2138,7 @@ export default function App() {
   const canGoBackInBrowseTopBar = activeTab === 'browse' && browseTopBarState.canGoBack;
   const canGoBackInTopBar = canGoBackInMyTopBar || canGoBackInBrowseTopBar;
   const showHoldingsMenuAction = activeTab === 'my' && mySection === 'portfolio';
-  const showBrowseTopBarTitle = activeTab === 'browse';
+  const showCenterTopBarTitle = activeTab === 'browse' || activeTab === 'ai' || activeTab === 'my';
   const previousMySection = canGoBackInMyTopBar ? myStack[myStack.length - 2] : null;
   const topBarBackLabel =
     canGoBackInBrowseTopBar
@@ -2146,6 +2146,18 @@ export default function App() {
       : previousMySection && previousMySection !== 'portfolio'
         ? menuTitles[previousMySection] || tabMeta.my.label
         : tabMeta.my.label;
+  const topBarCenterTitle =
+    activeTab === 'browse'
+      ? browseTopBarState.title || tabMeta.browse.label
+      : activeTab === 'ai'
+        ? 'Ask Nova'
+        : activeTab === 'my'
+          ? mySection === 'portfolio'
+            ? 'Holdings'
+            : mySection === 'menu'
+              ? 'Menu'
+              : menuTitles[mySection] || tabMeta.my.label
+          : '';
   const topBarMode = canGoBackInTopBar ? 'detail' : 'root';
   const appTone = engagementState?.ui_regime_state?.tone || 'quiet';
   const motionProfile = engagementState?.ui_regime_state?.motion_profile || 'calm';
@@ -2228,9 +2240,9 @@ export default function App() {
               </button>
             ) : null}
           </div>
-          {showBrowseTopBarTitle ? (
-            <div className="top-bar-center-title" aria-label="Browse">
-              {browseTopBarState.title || tabMeta.browse.label}
+          {showCenterTopBarTitle ? (
+            <div className="top-bar-center-title" aria-label={topBarCenterTitle}>
+              {topBarCenterTitle}
             </div>
           ) : (
             <div className="top-bar-logo-wrap" aria-label="Nova Quant">
