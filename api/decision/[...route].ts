@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getDecisionSnapshot } from '../../src/server/api/queries.js';
+import { getRuntimeState } from '../../src/server/api/queries.js';
 
 function resolveRoute(req: VercelRequest): string {
   const dynamic = req.query.route;
@@ -41,13 +41,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const assetClass = parseAssetClass(body.assetClass);
     const userId = String(body.userId || '').trim() || 'guest-default';
 
-    const decision = await getDecisionSnapshot({
+    const runtime = getRuntimeState({
       userId,
       market,
-      assetClass,
-      holdings: Array.isArray(body.holdings) ? (body.holdings as never) : [],
-      locale: String(body.locale || '').trim() || undefined
+      assetClass
     });
+    const decision = runtime?.data?.decision || null;
     res.status(200).json(decision);
     return;
   }

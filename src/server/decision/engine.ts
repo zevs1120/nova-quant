@@ -155,12 +155,14 @@ function isStrategyBackedSource(source: string): boolean {
   return true;
 }
 
-function isPublicationReadyStatus(status: string): boolean {
+function isPublicationReadyStatus(status: string, sourceStatus?: string): boolean {
   const normalized = normalizeRuntimeStatus(status, RUNTIME_STATUS.INSUFFICIENT_DATA);
+  const normalizedSource = normalizeRuntimeStatus(sourceStatus, RUNTIME_STATUS.INSUFFICIENT_DATA);
   return (
     normalized === RUNTIME_STATUS.DB_BACKED ||
     normalized === RUNTIME_STATUS.MODEL_DERIVED ||
-    normalized === RUNTIME_STATUS.PAPER_ONLY
+    normalized === RUNTIME_STATUS.PAPER_ONLY ||
+    (normalized === RUNTIME_STATUS.EXPERIMENTAL && normalizedSource === RUNTIME_STATUS.DB_BACKED)
   );
 }
 
@@ -181,7 +183,8 @@ function evaluatePublicationGate(args: {
   }
 
   const dataStatus = String(args.signal.data_status || args.signal.source_label || args.signal.source_status || '');
-  if (!isPublicationReadyStatus(dataStatus)) {
+  const sourceStatus = String(args.signal.source_status || args.signal.source_label || args.signal.data_status || '');
+  if (!isPublicationReadyStatus(dataStatus, sourceStatus)) {
     return {
       strategyBacked: true,
       publishable: false,
