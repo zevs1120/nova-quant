@@ -14828,8 +14828,9 @@ body.keyboard-open .bottom-nav {
 .today-action-dots {
   display: inline-flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   gap: 8px;
+  width: 100%;
   max-width: 100%;
   overflow-x: auto;
   padding: 0 2px 2px;

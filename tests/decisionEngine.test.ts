@@ -114,4 +114,26 @@ describe('decision engine', () => {
     expect(out.today_call.code).toBe('WAIT');
     expect(out.ranked_action_cards[0].action).toBe('no_action');
   });
+
+  it('publishes only strategy-backed action cards', () => {
+    const out = buildDecisionSnapshot({
+      userId: 'decision-user',
+      market: 'US',
+      assetClass: 'US_STOCK',
+      asOf: new Date().toISOString(),
+      runtimeSourceStatus: 'DB_BACKED',
+      riskProfile: riskProfile('balanced'),
+      signals: [
+        signal({ signal_id: 'SIG-REAL-1', symbol: 'AAPL', strategy_id: 'EQ_SWING', strategy_family: 'Momentum / Trend' }),
+        signal({ signal_id: 'SIG-FAKE-1', symbol: 'MSFT', strategy_id: null, strategy_family: null, confidence: 0.92, score: 91 })
+      ],
+      evidenceSignals: [],
+      marketState: [marketState(), marketState({ symbol: 'MSFT' })],
+      holdings: []
+    });
+
+    expect(out.audit.strategy_backed_count).toBe(1);
+    expect(out.ranked_action_cards.some((row) => row.symbol === 'MSFT')).toBe(false);
+    expect(out.ranked_action_cards[0].publication_status).toBe('ACTIONABLE');
+  });
 });

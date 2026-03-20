@@ -45,6 +45,10 @@ type ActionCard = {
   stop_loss: unknown;
   take_profit: unknown;
   strategy_source: string;
+  strategy_backed: boolean;
+  risk_bucket: RiskGovernorOutcome['governor_mode'];
+  publication_status: 'ACTIONABLE' | 'WATCH' | 'REJECTED';
+  publication_reason: string | null;
   source_status: string;
   data_status: string;
   source_label: string;
@@ -135,6 +139,104 @@ function dataPenalty(status: string): number {
   if (normalized === RUNTIME_STATUS.DEMO_ONLY) return 24;
   if (normalized === RUNTIME_STATUS.WITHHELD) return 36;
   return 42;
+}
+
+function strategySourceForSignal(signal: UiSignal): string {
+  const raw = String(signal.strategy_id || signal.strategy_family || '').trim();
+  return raw || 'unknown';
+}
+
+function isStrategyBackedSource(source: string): boolean {
+  const normalized = String(source || '').trim().toLowerCase();
+  if (!normalized || normalized === 'unknown') return false;
+  if (normalized.startsWith('decision_engine.')) return false;
+  if (normalized.includes('demo')) return false;
+  if (normalized.includes('fallback')) return false;
+  return true;
+}
+
+function isPublicationReadyStatus(status: string): boolean {
+  const normalized = normalizeRuntimeStatus(status, RUNTIME_STATUS.INSUFFICIENT_DATA);
+  return (
+    normalized === RUNTIME_STATUS.DB_BACKED ||
+    normalized === RUNTIME_STATUS.MODEL_DERIVED ||
+    normalized === RUNTIME_STATUS.PAPER_ONLY
+  );
+}
+
+function evaluatePublicationGate(args: {
+  signal: UiSignal;
+  intent: ReturnType<typeof buildActionIntent>;
+  governor: RiskGovernorOutcome;
+  strategySource: string;
+}) {
+  const strategyBacked = isStrategyBackedSource(args.strategySource);
+  if (!strategyBacked) {
+    return {
+      strategyBacked: false,
+      publishable: false,
+      status: 'REJECTED' as const,
+      reason: 'Signal is not linked to a registered strategy family.'
+    };
+  }
+
+  const dataStatus = String(args.signal.data_status || args.signal.source_label || args.signal.source_status || '');
+  if (!isPublicationReadyStatus(dataStatus)) {
+    return {
+      strategyBacked: true,
+      publishable: false,
+      status: 'REJECTED' as const,
+      reason: `Signal data status ${normalizeRuntimeStatus(dataStatus, RUNTIME_STATUS.INSUFFICIENT_DATA)} is not publishable.`
+    };
+  }
+
+  const confidence =
+    toNumber((args.signal.confidence_details as Record<string, unknown> | undefined)?.calibrated_confidence, null) ??
+    toNumber(args.signal.confidence, 0) ??
+    0;
+  if (confidence < 0.55) {
+    return {
+      strategyBacked: true,
+      publishable: false,
+      status: 'WATCH' as const,
+      reason: 'Calibrated confidence is below the deploy threshold.'
+    };
+  }
+
+  const sampleSize = toNumber((args.signal.expected_metrics as Record<string, unknown> | undefined)?.sample_size, null);
+  if (sampleSize !== null && sampleSize < 12) {
+    return {
+      strategyBacked: true,
+      publishable: false,
+      status: 'WATCH' as const,
+      reason: 'Historical sample is still too thin for a production action card.'
+    };
+  }
+
+  if (!args.intent.eligible) {
+    return {
+      strategyBacked: true,
+      publishable: false,
+      status: 'WATCH' as const,
+      reason: args.intent.rationale
+    };
+  }
+
+  if (!args.governor.allowed) {
+    return {
+      strategyBacked: true,
+      publishable: false,
+      status: 'WATCH' as const,
+      reason: args.governor.block_reason || 'Risk governor blocked the action.'
+    };
+  }
+
+  return {
+    strategyBacked: true,
+    publishable: true,
+    status: 'ACTIONABLE' as const,
+    reason: null
+  };
 }
 
 function directionText(value: unknown): 'LONG' | 'SHORT' | 'WAIT' {
@@ -588,6 +690,7 @@ function rankCard(args: {
   intent: ReturnType<typeof buildActionIntent>;
   holdingWeight: number;
   governor: RiskGovernorOutcome;
+  publicationGate: ReturnType<typeof evaluatePublicationGate>;
 }) {
   const score = Number(toNumber(args.signal.score, 0) || 0);
   const confidence = Number(toNumber(args.signal.confidence, 0) || 0);
@@ -617,7 +720,23 @@ function rankCard(args: {
           ? 8
           : 0;
   const governorBoost = args.governor.allowed ? args.governor.size_multiplier * 6 : 0;
-  return score + confidence * 35 + intentBonus + holdingBonus + governorBoost - governorPenalty - posturePenalty - freshnessPenalty - dataPenalty(String(args.signal.data_status || ''));
+  const strategyPenalty = args.publicationGate.strategyBacked ? 0 : 120;
+  const publicationPenalty = args.publicationGate.publishable ? 0 : args.publicationGate.status === 'WATCH' ? 18 : 64;
+  const publicationBoost = args.publicationGate.publishable ? 12 : 0;
+  return (
+    score +
+    confidence * 35 +
+    intentBonus +
+    holdingBonus +
+    governorBoost +
+    publicationBoost -
+    governorPenalty -
+    strategyPenalty -
+    publicationPenalty -
+    posturePenalty -
+    freshnessPenalty -
+    dataPenalty(String(args.signal.data_status || ''))
+  );
 }
 
 function buildNoActionCard(args: {
@@ -677,6 +796,10 @@ function buildNoActionCard(args: {
     stop_loss: null,
     take_profit: null,
     strategy_source: 'decision_engine.no_action',
+    strategy_backed: false,
+    risk_bucket: 'BLOCKED',
+    publication_status: 'REJECTED',
+    publication_reason: reasonText,
     source_status: status.source_status,
     data_status: status.data_status,
     source_label: status.source_label,
@@ -753,9 +876,10 @@ function adjustedCardScore(card: ActionCard, selected: ActionCard[]) {
 
 function selectDiversifiedActionCards(ranked: ActionCard[], maxCards: number) {
   const selected: ActionCard[] = [];
+  const strategyBacked = ranked.filter((row) => row.strategy_backed && row.signal_payload);
   const pools = [
-    ranked.filter((row) => row.eligible && row.signal_payload),
-    ranked.filter((row) => !row.eligible && row.signal_payload)
+    strategyBacked.filter((row) => row.eligible),
+    strategyBacked.filter((row) => !row.eligible)
   ];
 
   for (const pool of pools) {
@@ -830,6 +954,13 @@ export function buildDecisionSnapshot(input: DecisionEngineInput) {
         governor,
         locale: input.locale
       });
+      const strategySource = strategySourceForSignal(signal);
+      const publicationGate = evaluatePublicationGate({
+        signal,
+        intent,
+        governor,
+        strategySource
+      });
       const evidenceBundle = buildEvidenceBundle({
         signal,
         regimeRow: regimeBySymbol.get(symbol) || null,
@@ -847,7 +978,8 @@ export function buildDecisionSnapshot(input: DecisionEngineInput) {
         riskState,
         intent,
         holdingWeight,
-        governor
+        governor,
+        publicationGate
       });
       const basePositionPct = toNumber((signal.position_advice as Record<string, unknown> | undefined)?.position_pct, null);
       const finalPositionPct =
@@ -883,9 +1015,10 @@ export function buildDecisionSnapshot(input: DecisionEngineInput) {
         time_horizon: horizon.label,
         time_horizon_days: horizon.days,
         brief_why_now: evidenceBundle.thesis,
-        brief_caution: governor.block_reason || evidenceBundle.implementation_caveats[0] || intent.rationale,
+        brief_caution:
+          publicationGate.reason || governor.block_reason || evidenceBundle.implementation_caveats[0] || intent.rationale,
         risk_note: riskState.user_message,
-        eligible: intent.eligible && governor.allowed,
+        eligible: publicationGate.publishable,
         ranking_score: Number(rankingScore.toFixed(2)),
         recommended_position_pct: finalPositionPct,
         confidence_details: (signal.confidence_details as Record<string, unknown> | undefined) || null,
@@ -894,7 +1027,11 @@ export function buildDecisionSnapshot(input: DecisionEngineInput) {
         entry_zone: signal.entry_zone || null,
         stop_loss: signal.stop_loss || null,
         take_profit: asArray<Record<string, unknown>>(signal.take_profit_levels)[0] || null,
-        strategy_source: String(signal.strategy_id || signal.strategy_family || 'unknown'),
+        strategy_source: strategySource,
+        strategy_backed: publicationGate.strategyBacked,
+        risk_bucket: governor.governor_mode,
+        publication_status: publicationGate.status,
+        publication_reason: publicationGate.reason,
         source_status: String(signal.source_status || overallStatus),
         data_status: String(signal.data_status || overallStatus),
         source_label: String(signal.source_label || signal.data_status || overallStatus),
@@ -1019,6 +1156,8 @@ export function buildDecisionSnapshot(input: DecisionEngineInput) {
     audit: {
       candidate_count: mergedSignals.length,
       actionable_count: actionableSignals.length,
+      strategy_backed_count: ranked.filter((row) => row.strategy_backed).length,
+      publishable_count: ranked.filter((row) => row.publication_status === 'ACTIONABLE').length,
       rejected_due_to_risk: actionableSignals.length - ranked.filter((row) => row.eligible).length,
       previous_top_action_symbol: String(((input.previousDecision?.summary as Record<string, unknown> | undefined) || {}).top_action_symbol || ''),
       created_for_user: input.userId
