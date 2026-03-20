@@ -8,6 +8,7 @@ import { buildCandidateGenerator } from '../../research/discovery/candidateGener
 import { buildCandidateValidationPipeline } from '../../research/discovery/candidateValidation.js';
 import { buildCandidateScoring } from '../../research/discovery/candidateScoring.js';
 import { loadDiscoverySeedRuntime } from '../../research/discovery/seedRuntime.js';
+import { formatStructuredAssistantReply } from '../../utils/assistantLanguage.js';
 
 type JsonObject = Record<string, unknown>;
 type StrategyCandidate = Record<string, unknown>;
@@ -237,53 +238,69 @@ function validateAndScore(candidates: StrategyCandidate[]) {
   return { validation, scoring };
 }
 
-function formatStrategyLabReply(result: Awaited<ReturnType<typeof generateGovernedNovaStrategies>>) {
+function formatStrategyLabReply(result: Awaited<ReturnType<typeof generateGovernedNovaStrategies>>, locale = 'en') {
+  const zh = String(locale || '').toLowerCase().startsWith('zh');
   const rows = result.selected_candidates;
   if (!rows.length) {
-    return [
-      'VERDICT: No candidate is clean enough to act on yet.',
-      'PLAN:',
-      '- Keep current live strategies unchanged.',
-      '- Re-run discovery with tighter constraints or better evidence.',
-      '- Prefer no new strategy over weak strategy.',
-      'WHY:',
-      '- The candidate pool did not pass quality and governance gates strongly enough.',
-      '- Strategy generation is allowed to return nothing when robustness is weak.',
-      '- This keeps research discipline ahead of novelty.',
-      'RISK:',
-      '- Common failure modes / when NOT to trade',
-      '- Do not promote AI ideas directly into live runtime without validation.',
-      '- Weak candidate pools often hide cost or regime fragility.',
-      'EVIDENCE:',
-      `- provider ${result.provider}`,
-      `- source ${result.source}`,
-      `- pool ${result.pool_summary.total_candidates} candidates`,
-      'educational, not financial advice'
-    ].join('\n');
+    return formatStructuredAssistantReply({
+      language: locale,
+      verdict: zh ? '当前还没有足够干净、值得行动的候选策略。' : 'No candidate is clean enough to act on yet.',
+      plan: zh
+        ? ['先保持当前在线策略不变。', '用更严的约束或更好的证据重新跑 discovery。', '宁可没有新策略，也不要上弱策略。']
+        : [
+            'Keep current live strategies unchanged.',
+            'Re-run discovery with tighter constraints or better evidence.',
+            'Prefer no new strategy over weak strategy.'
+          ],
+      why: zh
+        ? ['当前候选池没有足够强地通过质量和治理门槛。', '当稳健性不足时，策略生成本来就应该允许返回空。', '这能让研究纪律优先于新奇感。']
+        : [
+            'The candidate pool did not pass quality and governance gates strongly enough.',
+            'Strategy generation is allowed to return nothing when robustness is weak.',
+            'This keeps research discipline ahead of novelty.'
+          ],
+      risk: zh
+        ? ['常见失效模式 / 什么情况下不要做', '没有验证前，不要把 AI 想法直接推进到 live runtime。', '候选池偏弱时，往往隐藏着成本或市场状态脆弱性。']
+        : [
+            'Common failure modes / when NOT to trade',
+            'Do not promote AI ideas directly into live runtime without validation.',
+            'Weak candidate pools often hide cost or regime fragility.'
+          ],
+      evidence: [
+        `provider ${result.provider}`,
+        `source ${result.source}`,
+        zh ? `候选池 ${result.pool_summary.total_candidates} 个候选` : `pool ${result.pool_summary.total_candidates} candidates`
+      ]
+    });
   }
 
   const top = rows[0];
-  return [
-    `VERDICT: Best governed candidate: ${top.strategy_id} (${top.strategy_family}).`,
-    'PLAN:',
-    ...rows
+  return formatStructuredAssistantReply({
+    language: locale,
+    verdict: zh
+      ? `当前治理后最优候选是：${top.strategy_id}（${top.strategy_family}）。`
+      : `Best governed candidate: ${top.strategy_id} (${top.strategy_family}).`,
+    plan: rows
       .slice(0, 3)
-      .map(
-        (row: StrategySelectionRow) =>
-          `- ${String(row.strategy_id || 'unknown')}: ${row.recommendation} | score ${String(row.candidate_quality_score_pct || 'n/a')} | next ${String(row.next_stage || 'unknown')}`
+      .map((row: StrategySelectionRow) =>
+        zh
+          ? `${String(row.strategy_id || 'unknown')}：${row.recommendation} | 分数 ${String(row.candidate_quality_score_pct || 'n/a')} | 下一步 ${String(row.next_stage || 'unknown')}`
+          : `${String(row.strategy_id || 'unknown')}: ${row.recommendation} | score ${String(row.candidate_quality_score_pct || 'n/a')} | next ${String(row.next_stage || 'unknown')}`
       ),
-    'WHY:',
-    ...(result.why.length ? result.why.slice(0, 3).map((line) => `- ${line}`) : [`- ${result.portfolio_fit}`, `- ${result.risk_note}`, '- Candidates were revalidated after AI tuning.']),
-    'RISK:',
-    '- Common failure modes / when NOT to trade',
-    `- ${result.risk_note}`,
-    '- Do not promote ideas that remain HOLD_FOR_RETEST or REJECT.',
-    'EVIDENCE:',
-    `- provider ${result.provider}`,
-    `- source ${result.source}`,
-    `- promoted ${result.governance_summary.promotable_count} | hold ${result.governance_summary.hold_count} | reject ${result.governance_summary.reject_count}`,
-    'educational, not financial advice'
-  ].join('\n');
+    why: result.why.length
+      ? result.why.slice(0, 3)
+      : zh
+        ? [result.portfolio_fit, result.risk_note, '这些候选在 AI 调优后又做了一次验证。']
+        : [result.portfolio_fit, result.risk_note, 'Candidates were revalidated after AI tuning.'],
+    risk: zh
+      ? ['常见失效模式 / 什么情况下不要做', result.risk_note, '仍处于 HOLD_FOR_RETEST 或 REJECT 的想法不要推进。']
+      : ['Common failure modes / when NOT to trade', result.risk_note, 'Do not promote ideas that remain HOLD_FOR_RETEST or REJECT.'],
+    evidence: [
+      `provider ${result.provider}`,
+      `source ${result.source}`,
+      `promoted ${result.governance_summary.promotable_count} | hold ${result.governance_summary.hold_count} | reject ${result.governance_summary.reject_count}`
+    ]
+  });
 }
 
 export async function generateGovernedNovaStrategies(args: StrategyLabArgs) {
@@ -484,7 +501,7 @@ export async function generateGovernedNovaStrategyReply(args: StrategyLabArgs) {
   const result = await generateGovernedNovaStrategies(args);
   return {
     provider: result.provider,
-    text: formatStrategyLabReply(result),
+    text: formatStrategyLabReply(result, args.locale || 'en'),
     result
   };
 }

@@ -2,14 +2,49 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Skeleton from './Skeleton';
 import { useNovaAssistant } from '../hooks/useNovaAssistant';
 import { useDemoAssistant } from '../hooks/useDemoAssistant';
+import { parseAssistantSectionHeading } from '../utils/assistantLanguage';
 
 const COPILOT_SECTIONS = ['VERDICT', 'PLAN', 'WHY', 'RISK', 'EVIDENCE'];
-const QUICK_QUESTIONS = [
-  'What should I do today?',
-  'Is it safe to try anything?',
-  'Why are we waiting?',
-  'Should I enter now?'
-];
+
+function buildAiCopy(locale = 'en-US') {
+  const lang = String(locale || '').toLowerCase().startsWith('zh') ? 'zh' : 'en';
+  return {
+    quickQuestions:
+      lang === 'zh'
+        ? ['我今天该怎么做？', '现在适合出手吗？', '为什么我们还在等？', '我现在应该进场吗？']
+        : ['What should I do today?', 'Is it safe to try anything?', 'Why are we waiting?', 'Should I enter now?'],
+    nextStep: {
+      holdings: lang === 'zh' ? '打开持仓' : 'Open Holdings',
+      weekly: lang === 'zh' ? '打开周复盘' : 'Open Weekly Review',
+      safety: lang === 'zh' ? '打开安全页' : 'Open Safety',
+      today: lang === 'zh' ? '打开今日' : 'Open Today'
+    },
+    fallback: {
+      showLess: lang === 'zh' ? '收起' : 'Show less',
+      showMore: lang === 'zh' ? '展开' : 'Show more',
+      hideDetail: lang === 'zh' ? '收起细节' : 'Hide detail',
+      showDetail: lang === 'zh' ? '展开细节' : 'Show detail'
+    },
+    sections: {
+      verdict: lang === 'zh' ? '今日判断' : 'Today’s call',
+      plan: lang === 'zh' ? '该怎么做' : 'What to do',
+      why: lang === 'zh' ? '为什么' : 'Why',
+      risk: lang === 'zh' ? '风险' : 'Risk',
+      evidence: lang === 'zh' ? '证据' : 'Source'
+    },
+    composerPlaceholder: lang === 'zh' ? '直接用自然语言问我' : 'Ask in plain words',
+    emptyBadge: 'Nova',
+    emptyHeading: lang === 'zh' ? '问我，今天到底意味着什么。' : 'Ask what today means.',
+    emptySubheading:
+      lang === 'zh' ? '短问题就可以。我们会先告诉你判断，再告诉你原因。' : 'Short questions work best. We will give you the call first, then the reason.',
+    autoQuestion: lang === 'zh' ? '我今天该怎么做？' : 'What should I do today?',
+    aiError: {
+      failed: lang === 'zh' ? '生成回答失败' : 'Failed to generate response',
+      preparing: lang === 'zh' ? '我在准备回答时遇到了一点问题。' : 'I hit a problem while preparing an answer.'
+    },
+    locale: lang
+  };
+}
 
 function parseStructuredReply(raw) {
   const text = String(raw || '').trim();
@@ -18,11 +53,11 @@ function parseStructuredReply(raw) {
   let current = null;
 
   for (const line of text.split('\n')) {
-    const headingMatch = line.match(/^(?:\s*#{1,3}\s*)?(VERDICT|PLAN|WHY|RISK|EVIDENCE)\s*[:：-]?\s*(.*)$/i);
+    const headingMatch = parseAssistantSectionHeading(line);
     if (headingMatch) {
-      current = headingMatch[1].toUpperCase();
+      current = headingMatch.key.toUpperCase();
       sections[current] = sections[current] || '';
-      if (headingMatch[2]) sections[current] = `${sections[current]}${headingMatch[2]}\n`;
+      if (headingMatch.rest) sections[current] = `${sections[current]}${headingMatch.rest}\n`;
       continue;
     }
     if (current) {
@@ -50,18 +85,18 @@ function splitParagraphs(text) {
     .filter(Boolean);
 }
 
-function chooseNextStep(question = '') {
+function chooseNextStep(question = '', copy = buildAiCopy()) {
   const text = String(question || '').toLowerCase();
   if (text.includes('holding') || text.includes('portfolio') || text.includes('持仓')) {
-    return { target: 'holdings', label: 'Open Holdings' };
+    return { target: 'holdings', label: copy.nextStep.holdings };
   }
   if (text.includes('week') || text.includes('weekly') || text.includes('下周')) {
-    return { target: 'more:weekly', label: 'Open Weekly Review' };
+    return { target: 'more:weekly', label: copy.nextStep.weekly };
   }
   if (text.includes('risk') || text.includes('safe') || text.includes('风险')) {
-    return { target: 'more:safety', label: 'Open Safety' };
+    return { target: 'more:safety', label: copy.nextStep.safety };
   }
-  return { target: 'today', label: 'Open Today' };
+  return { target: 'today', label: copy.nextStep.today };
 }
 
 function AssistantResponseSection({ title, lines }) {
@@ -78,9 +113,9 @@ function AssistantResponseSection({ title, lines }) {
   );
 }
 
-function AssistantMessage({ message, onNavigate }) {
+function AssistantMessage({ message, onNavigate, copy }) {
   const parsed = parseStructuredReply(message.content);
-  const nextStep = message.nextStep || chooseNextStep(message.question);
+  const nextStep = message.nextStep || chooseNextStep(message.question, copy);
   const [expanded, setExpanded] = useState(false);
 
   if (!parsed) {
@@ -105,7 +140,7 @@ function AssistantMessage({ message, onNavigate }) {
             ))}
             {showToggle ? (
               <button type="button" className="ai-inline-toggle" onClick={() => setExpanded((value) => !value)}>
-                {expanded ? 'Show less' : 'Show more'}
+                {expanded ? copy.fallback.showLess : copy.fallback.showMore}
               </button>
             ) : null}
             <div className="ai-assistant-footer">
@@ -138,23 +173,23 @@ function AssistantMessage({ message, onNavigate }) {
       <div className="ai-message-body">
         <div className="ai-assistant-card">
           <section className="ai-response-section ai-response-section-lead">
-            <p className="ai-response-section-title">Today’s call</p>
+            <p className="ai-response-section-title">{copy.sections.verdict}</p>
             <p className="ai-assistant-lead">{verdict}</p>
           </section>
 
-          <AssistantResponseSection title="What to do" lines={planLines} />
-          <AssistantResponseSection title="Why" lines={whyLines} />
-          <AssistantResponseSection title="Risk" lines={riskLines} />
+          <AssistantResponseSection title={copy.sections.plan} lines={planLines} />
+          <AssistantResponseSection title={copy.sections.why} lines={whyLines} />
+          <AssistantResponseSection title={copy.sections.risk} lines={riskLines} />
 
           {hasExtraContent ? (
             <button type="button" className="ai-inline-toggle" onClick={() => setExpanded((value) => !value)}>
-              {expanded ? 'Hide detail' : 'Show detail'}
+              {expanded ? copy.fallback.hideDetail : copy.fallback.showDetail}
             </button>
           ) : null}
 
           {expanded && evidenceLines.length ? (
             <section className="ai-response-section ai-response-section-evidence">
-              <p className="ai-response-section-title">Source</p>
+              <p className="ai-response-section-title">{copy.sections.evidence}</p>
               <div className="ai-response-section-body">
                 {evidenceLines.map((line, index) => (
                   <p key={`evidence-${index}`}>{line}</p>
@@ -184,7 +219,7 @@ function UserMessage({ content }) {
   );
 }
 
-function Composer({ input, setInput, streaming, sendMessage, hasMessages }) {
+function Composer({ input, setInput, streaming, sendMessage, hasMessages, copy }) {
   const textareaRef = useRef(null);
 
   useEffect(() => {
@@ -199,7 +234,7 @@ function Composer({ input, setInput, streaming, sendMessage, hasMessages }) {
   return (
     <div className="ai-composer-shell">
       <div className={`ai-suggestion-row ${hasMessages ? 'has-thread' : 'is-empty'}`}>
-        {QUICK_QUESTIONS.map((prompt) => (
+        {copy.quickQuestions.map((prompt) => (
           <button
             key={prompt}
             type="button"
@@ -227,7 +262,7 @@ function Composer({ input, setInput, streaming, sendMessage, hasMessages }) {
             value={input}
             onChange={(event) => setInput(event.target.value)}
             className="ai-composer-input"
-            placeholder="Ask in plain words"
+            placeholder={copy.composerPlaceholder}
             rows={1}
             disabled={streaming}
             onKeyDown={(event) => {
@@ -247,16 +282,17 @@ function Composer({ input, setInput, streaming, sendMessage, hasMessages }) {
   );
 }
 
-function AiConversationShell({ messages, input, setInput, streaming, error, sendMessage, onNavigate }) {
+function AiConversationShell({ messages, input, setInput, streaming, error, sendMessage, onNavigate, locale }) {
   const listRef = useRef(null);
   const hasMessages = messages.length > 0;
+  const copy = useMemo(() => buildAiCopy(locale), [locale]);
 
   useEffect(() => {
     if (!listRef.current) return;
     listRef.current.scrollTop = listRef.current.scrollHeight;
   }, [messages, streaming]);
 
-  const starterQuestions = useMemo(() => QUICK_QUESTIONS.slice(0, 4), []);
+  const starterQuestions = useMemo(() => copy.quickQuestions.slice(0, 4), [copy]);
 
   return (
     <section className={`ai-page-shell ${hasMessages ? 'ai-page-thread' : 'ai-page-empty'}`}>
@@ -264,9 +300,9 @@ function AiConversationShell({ messages, input, setInput, streaming, error, send
         {!hasMessages ? (
           <section className="ai-empty-stage">
             <div className="ai-empty-stage-copy">
-              <p className="ai-empty-badge">Nova</p>
-              <h1 className="ai-empty-heading">Ask what today means.</h1>
-              <p className="ai-empty-subheading">Short questions work best. We will give you the call first, then the reason.</p>
+              <p className="ai-empty-badge">{copy.emptyBadge}</p>
+              <h1 className="ai-empty-heading">{copy.emptyHeading}</h1>
+              <p className="ai-empty-subheading">{copy.emptySubheading}</p>
             </div>
             <div className="ai-starter-stack">
               {starterQuestions.map((prompt) => (
@@ -287,7 +323,7 @@ function AiConversationShell({ messages, input, setInput, streaming, error, send
           <div className="ai-thread-stack">
             {messages.map((item) =>
               item.role === 'assistant' ? (
-                <AssistantMessage key={item.id} message={item} onNavigate={onNavigate} />
+                <AssistantMessage key={item.id} message={item} onNavigate={onNavigate} copy={copy} />
               ) : (
                 <UserMessage key={item.id} content={item.content} />
               )
@@ -321,12 +357,13 @@ function AiConversationShell({ messages, input, setInput, streaming, error, send
         streaming={streaming}
         sendMessage={sendMessage}
         hasMessages={hasMessages}
+        copy={copy}
       />
     </section>
   );
 }
 
-function LiveAiConversation({ seedRequest, onNavigate, userId, baseContext }) {
+function LiveAiConversation({ seedRequest, onNavigate, userId, baseContext, locale }) {
   const assistant = useNovaAssistant({
     userId,
     seedRequest,
@@ -335,6 +372,7 @@ function LiveAiConversation({ seedRequest, onNavigate, userId, baseContext }) {
       market: baseContext?.market,
       assetClass: baseContext?.assetClass,
       timeframe: baseContext?.timeframe,
+      locale: baseContext?.locale,
       riskProfileKey: baseContext?.riskProfileKey,
       uiMode: baseContext?.uiMode,
       decisionSummary: baseContext?.decisionSummary,
@@ -342,10 +380,11 @@ function LiveAiConversation({ seedRequest, onNavigate, userId, baseContext }) {
     }
   });
 
-  return <AiConversationShell {...assistant} onNavigate={onNavigate} />;
+  return <AiConversationShell {...assistant} onNavigate={onNavigate} locale={locale} />;
 }
 
-function DemoAiConversation({ quantState, seedRequest, onNavigate, userId, baseContext }) {
+function DemoAiConversation({ quantState, seedRequest, onNavigate, userId, baseContext, locale }) {
+  const copy = useMemo(() => buildAiCopy(locale), [locale]);
   const assistant = useDemoAssistant({
     userId,
     seedRequest,
@@ -355,6 +394,7 @@ function DemoAiConversation({ quantState, seedRequest, onNavigate, userId, baseC
       market: baseContext?.market,
       assetClass: baseContext?.assetClass,
       timeframe: baseContext?.timeframe,
+      locale: baseContext?.locale,
       riskProfileKey: baseContext?.riskProfileKey,
       uiMode: baseContext?.uiMode,
       decisionSummary: baseContext?.decisionSummary,
@@ -366,17 +406,17 @@ function DemoAiConversation({ quantState, seedRequest, onNavigate, userId, baseC
   useEffect(() => {
     if (seedRequest?.message) return;
     if (messages.length) return;
-    void sendMessage('What should I do today?', {
+    void sendMessage(copy.autoQuestion, {
       page: 'today',
       market: baseContext?.market,
       assetClass: baseContext?.assetClass
     });
-  }, [seedRequest?.message, messages.length, sendMessage, baseContext?.market, baseContext?.assetClass]);
+  }, [seedRequest?.message, messages.length, sendMessage, baseContext?.market, baseContext?.assetClass, copy.autoQuestion]);
 
-  return <AiConversationShell {...assistant} onNavigate={onNavigate} />;
+  return <AiConversationShell {...assistant} onNavigate={onNavigate} locale={locale} />;
 }
 
-export default function AiPage({ quantState, seedRequest, onNavigate, userId, baseContext }) {
+export default function AiPage({ quantState, seedRequest, onNavigate, userId, baseContext, locale }) {
   const isDemoMode = Boolean(quantState?.performance?.investor_demo);
 
   if (isDemoMode) {
@@ -387,6 +427,7 @@ export default function AiPage({ quantState, seedRequest, onNavigate, userId, ba
         onNavigate={onNavigate}
         userId={userId}
         baseContext={baseContext}
+        locale={locale}
       />
     );
   }
@@ -397,6 +438,7 @@ export default function AiPage({ quantState, seedRequest, onNavigate, userId, ba
       onNavigate={onNavigate}
       userId={userId}
       baseContext={baseContext}
+      locale={locale}
     />
   );
 }

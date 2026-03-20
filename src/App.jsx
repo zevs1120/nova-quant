@@ -1599,7 +1599,9 @@ export default function App() {
           seedRequest={aiSeedRequest}
           onNavigate={navigateFromAi}
           userId={effectiveUserId}
+          locale={locale}
           baseContext={{
+            locale: lang,
             market,
             assetClass,
             riskProfileKey,

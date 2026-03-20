@@ -31,4 +31,14 @@ describe('demoAssistant', () => {
     expect(reply).toContain('AAPL');
     expect(reply).toContain('demo');
   });
+
+  it('returns Chinese structured sections when the question is Chinese', () => {
+    const state = buildInvestorDemoEnvironment('US_STOCK');
+    const reply = buildDemoAssistantReply('我今天该怎么做？', state, { page: 'today', locale: 'zh' });
+
+    expect(reply).toContain('结论:');
+    expect(reply).toContain('行动:');
+    expect(reply).toContain('风险:');
+    expect(reply).toContain('仅供教育参考，不构成投资建议');
+  });
 });

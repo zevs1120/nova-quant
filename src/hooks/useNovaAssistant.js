@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocalStorage } from './useLocalStorage';
+import { detectMessageLanguage } from '../utils/assistantLanguage';
 
 function randomId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -73,6 +74,7 @@ export function useNovaAssistant({ userId, seedRequest, contextBase }) {
     async (rawText, contextOverride = {}) => {
       const text = String(rawText || '').trim();
       if (!text || streaming || !userId) return;
+      const language = detectMessageLanguage(text, contextBase?.locale || 'en');
 
       setError('');
       setStreaming(true);
@@ -143,7 +145,7 @@ export function useNovaAssistant({ userId, seedRequest, contextBase }) {
                 appendChunk(event.delta);
               }
               if (event.type === 'error') {
-                setError(event.error || 'Failed to generate response');
+                setError(language === 'zh' ? `生成回答失败：${event.error || '请稍后重试。'}` : event.error || 'Failed to generate response');
               }
             } catch {
               // Ignore malformed stream chunks.
@@ -152,11 +154,11 @@ export function useNovaAssistant({ userId, seedRequest, contextBase }) {
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to generate response';
-        setError(message);
+        setError(language === 'zh' ? `生成回答失败：${message}` : message);
         setMessages((current) =>
           current.map((item) =>
             item.id === assistantId
-              ? { ...item, content: `I hit a problem while preparing an answer.\n\n${message}` }
+              ? { ...item, content: language === 'zh' ? `我在准备回答时遇到了一点问题。\n\n${message}` : `I hit a problem while preparing an answer.\n\n${message}` }
               : item
           )
         );

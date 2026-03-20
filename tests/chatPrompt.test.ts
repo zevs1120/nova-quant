@@ -22,4 +22,12 @@ describe('chat prompts', () => {
     expect(prompt).toContain('whether it is worthy of backtest / replay / paper');
     expect(prompt).toContain('factor-level realized data is unavailable');
   });
+
+  it('switches prompt protocol to Chinese when reply language is zh', () => {
+    const prompt = buildSystemPrompt('general-coach', false, 'zh');
+    expect(prompt).toContain('你是 Nova Quant 的 Nova Assistant');
+    expect(prompt).toContain('结论:');
+    expect(prompt).toContain('行动:');
+    expect(prompt).toContain('仅供教育参考，不构成投资建议');
+  });
 });
