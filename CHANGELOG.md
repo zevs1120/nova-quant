@@ -2,6 +2,11 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 10.1.0 (2026-03-20)
+- Release type: minor
+- Promote execution drift monitoring into research and portfolio governance, and add a unified local dev stack plus richer Browse detail/feed surfaces.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
 ## 10.0.2 (2026-03-20)
 - Release type: patch
 - Surface evidence mode, execution boundary, and risk gate directly in Today and Proof by default.

@@ -23,7 +23,9 @@ const INSTITUTIONAL_PORTFOLIO_LIMITS = Object.freeze({
   max_family_drawdown_share: 0.48,
   min_diversification_score: 0.58,
   min_worst_case_sharpe: 0,
-  max_cash_buffer: 0.18
+  max_cash_buffer: 0.18,
+  min_execution_tracking_coverage: 0.18,
+  max_execution_tracking_breaches: 0
 });
 
 function normalizeWeights(rows = [], totalCap = 1) {
@@ -41,6 +43,10 @@ function normalizeWeights(rows = [], totalCap = 1) {
 function deriveFamilyCap(riskBucketSystem = {}) {
   const correlatedCapPct = safe(riskBucketSystem?.user_risk_bucket?.correlated_exposure_cap_pct, 22);
   return round(clamp((correlatedCapPct + 6) / 100, 0.2, 0.45), 6);
+}
+
+function executionTrackingByStrategy(executionDrift = {}) {
+  return new Map((executionDrift?.by_strategy || []).map((row) => [row.strategy_id, row]));
 }
 
 function familyExposure(rows = []) {
@@ -249,12 +255,14 @@ function defaultStrategyRows({
   evidenceSystem = {},
   regimeState = {},
   riskBucketSystem = {},
-  executionRealismProfile = {}
+  executionRealismProfile = {},
+  executionDrift = {}
 }) {
   const evidenceRows = evidenceSystem?.strategies || [];
   const posture = regimeState?.state?.recommended_user_posture || 'REDUCE';
   const regimeMultiplier = safe(regimeState?.state?.default_sizing_multiplier, 0.8);
   const exposureCap = safe(riskBucketSystem?.user_risk_bucket?.total_exposure_cap_pct, 52) / 100;
+  const driftByStrategy = executionTrackingByStrategy(executionDrift);
 
   const filtered = evidenceRows
     .filter((row) => {
@@ -287,6 +295,13 @@ function defaultStrategyRows({
       if (String(row.governance_state?.current_stage || '').toUpperCase() === 'PROD') allocationMultiplier *= 1.18;
       if (String(row.governance_state?.current_stage || '').toUpperCase() === 'DEGRADE') allocationMultiplier *= 0.62;
 
+      const executionTracking = driftByStrategy.get(row.strategy_id) || null;
+      if (executionTracking?.status === 'breach') allocationMultiplier *= 0.58;
+      else if (executionTracking?.status === 'watch') allocationMultiplier *= 0.82;
+      else if (executionTracking?.status === 'aligned' && safe(executionTracking?.matched_trade_count, 0) >= 3) {
+        allocationMultiplier *= 1.03;
+      }
+
       return {
         strategy_id: row.strategy_id,
         candidate_id: row.candidate_id,
@@ -299,7 +314,11 @@ function defaultStrategyRows({
         allocation_multiplier: round(clamp(allocationMultiplier, 0.15, 1.35), 6),
         compatible_regimes: row.regime_performance?.expected_regimes || [],
         execution_assumption: executionAssumption,
-        baseline_cost_drag_pct: baselineCostDrag
+        baseline_cost_drag_pct: baselineCostDrag,
+        execution_tracking_status: executionTracking?.status || 'unavailable',
+        execution_tracking_matched_trades: safe(executionTracking?.matched_trade_count, 0),
+        execution_tracking_capture_rate: safe(executionTracking?.capture_rate, 0),
+        execution_tracking_fill_gap_bps: executionTracking?.avg_abs_fill_gap_bps ?? null
       };
     });
 
@@ -550,11 +569,50 @@ function drawdownConcentration(rows = [], corrMatrix = [], regimeState = {}) {
   };
 }
 
+function executionTrackingDiagnostics(rows = [], executionDrift = {}) {
+  const driftByStrategy = executionTrackingByStrategy(executionDrift);
+  const trackedRows = rows.map((row) => {
+    const drift = driftByStrategy.get(row.strategy_id) || null;
+    return {
+      strategy_id: row.strategy_id,
+      strategy_family: row.strategy_family,
+      weight: round(safe(row.weight, 0), 6),
+      status: drift?.status || 'unavailable',
+      matched_trade_count: safe(drift?.matched_trade_count, 0),
+      capture_rate: round(safe(drift?.capture_rate, 0), 6),
+      avg_abs_fill_gap_bps: drift?.avg_abs_fill_gap_bps ?? null,
+      blockers: drift?.blockers || []
+    };
+  });
+  const withCoverage = trackedRows.filter((row) => row.matched_trade_count > 0);
+  return {
+    overall_status: executionDrift?.institutional_gate?.status || 'unavailable',
+    overall_score: safe(executionDrift?.institutional_gate?.score, 0),
+    coverage_ratio: round(withCoverage.length / Math.max(trackedRows.length, 1), 6),
+    tracked_strategy_count: withCoverage.length,
+    breach_count: trackedRows.filter((row) => row.status === 'breach').length,
+    watch_count: trackedRows.filter((row) => row.status === 'watch').length,
+    aligned_count: trackedRows.filter((row) => row.status === 'aligned').length,
+    avg_capture_rate: withCoverage.length ? round(mean(withCoverage.map((row) => row.capture_rate)), 6) : 0,
+    avg_abs_fill_gap_bps: withCoverage.length
+      ? round(mean(withCoverage.map((row) => safe(row.avg_abs_fill_gap_bps, 0))), 6)
+      : null,
+    allocation_weight_under_watch: round(
+      trackedRows
+        .filter((row) => row.status === 'watch' || row.status === 'breach')
+        .reduce((acc, row) => acc + safe(row.weight, 0), 0),
+      6
+    ),
+    by_strategy: trackedRows
+  };
+}
+
 function buildInstitutionalScorecard({
   metrics = {},
   diversification = {},
   crowdingGuard = {},
   institutionalGuard = {},
+  executionTracking = {},
   scenarioDiagnostics = [],
   drawdownRisk = {},
   allocationRows = [],
@@ -622,6 +680,18 @@ function buildInstitutionalScorecard({
       threshold: safe(limits.max_cash_buffer, 1),
       value: safe(institutionalGuard.summary?.unallocated_cash_buffer, 0),
       pass: safe(institutionalGuard.summary?.unallocated_cash_buffer, 0) <= safe(limits.max_cash_buffer, 1)
+    },
+    {
+      id: 'execution_tracking_coverage',
+      threshold: safe(limits.min_execution_tracking_coverage, 0),
+      value: safe(executionTracking.coverage_ratio, 0),
+      pass: safe(executionTracking.coverage_ratio, 0) >= safe(limits.min_execution_tracking_coverage, 0)
+    },
+    {
+      id: 'execution_tracking_breaches',
+      threshold: safe(limits.max_execution_tracking_breaches, 0),
+      value: safe(executionTracking.breach_count, 0),
+      pass: safe(executionTracking.breach_count, 0) <= safe(limits.max_execution_tracking_breaches, 0)
     }
   ];
 
@@ -696,6 +766,7 @@ export function buildPortfolioSimulationEngine({
   regimeState = {},
   riskBucketSystem = {},
   opportunities = [],
+  executionDrift = {},
   executionRealism = {}
 } = {}) {
   const executionProfile = resolveExecutionRealismProfile({
@@ -707,7 +778,8 @@ export function buildPortfolioSimulationEngine({
     evidenceSystem,
     regimeState,
     riskBucketSystem,
-    executionRealismProfile: executionProfile
+    executionRealismProfile: executionProfile,
+    executionDrift
   });
   const crowdingGuard = applyFamilyCrowdingGuard(strategies, deriveFamilyCap(riskBucketSystem));
   const institutionalGuard = applyInstitutionalRiskGuard(crowdingGuard.strategy_rows, INSTITUTIONAL_PORTFOLIO_LIMITS);
@@ -744,6 +816,7 @@ export function buildPortfolioSimulationEngine({
   const marginal = marginalImpact(guardedStrategies, corrMatrix, baseMetrics);
   const stability = stabilityAcrossRegimes(guardedStrategies, volatility);
   const drawdownRisk = drawdownConcentration(guardedStrategies, corrMatrix, regimeState);
+  const executionTracking = executionTrackingDiagnostics(guardedStrategies, executionDrift);
   const scenarioDiagnostics = buildExecutionSensitivityScenarios(executionProfile)
     .filter((row) => !row.test_only)
     .map((scenario) => scenarioPortfolioMetrics(scenarioAdjustedStrategies(guardedStrategies, scenario), scenario));
@@ -752,6 +825,7 @@ export function buildPortfolioSimulationEngine({
     diversification,
     crowdingGuard,
     institutionalGuard,
+    executionTracking,
     scenarioDiagnostics,
     drawdownRisk,
     allocationRows: guardedStrategies,
@@ -765,7 +839,7 @@ export function buildPortfolioSimulationEngine({
     portfolio_type: 'multi_strategy_multi_asset_risk_budgeted',
     allocation: {
       strategy_rows: guardedStrategies,
-      capital_allocation_rule: 'quality-weighted + regime-aware + risk-budget-capped + family-crowding-guard + institutional-risk-guard',
+      capital_allocation_rule: 'quality-weighted + regime-aware + execution-tracking-aware + risk-budget-capped + family-crowding-guard + institutional-risk-guard',
       total_allocated_weight: round(guardedStrategies.reduce((acc, row) => acc + row.weight, 0), 6),
       crowding_guard: crowdingGuard.summary,
       institutional_risk_guard: institutionalGuard.summary
@@ -792,6 +866,7 @@ export function buildPortfolioSimulationEngine({
       marginal_strategy_impact: marginal,
       strategy_correlation_matrix: corrMatrix,
       drawdown_concentration: drawdownRisk,
+      execution_tracking: executionTracking,
       portfolio_stability_across_regimes: stability,
       institutional_scorecard: institutionalScorecard,
       execution_realism: {

@@ -5,6 +5,7 @@ export { buildSignalFunnelDiagnosticsV2 } from './signalFunnelDiagnosticsV2.js';
 export { buildShadowOpportunityLog } from './shadowOpportunityLog.js';
 export { buildWalkForwardValidation } from './walkForwardValidation.js';
 export { buildHistoricalReplayValidation } from '../validation/historicalReplayValidation.js';
+export { buildExecutionDriftMonitor } from '../validation/executionDriftMonitor.js';
 export { buildStrategyGovernanceLifecycle, GOVERNANCE_LIFECYCLE } from './strategyGovernanceV2.js';
 export { buildFeatureSignalLayer } from './featureSignalLayer.js';
 export { buildResearchAutomationLoop } from './researchAutomationLoop.js';

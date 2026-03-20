@@ -494,6 +494,12 @@ function aggregateByKey(rows = [], key = 'strategy_id', fallback = 'unknown', th
       const holdValues = matched.map((row) => safe(row.hold_gap_days, NaN)).filter(Number.isFinite).map(Math.abs);
       const matchedCount = matched.length;
       const captureRate = replayTriggered.length ? matchedCount / replayTriggered.length : 0;
+      const replayWinRate = matchedCount
+        ? matched.filter((row) => safe(row.expected_return, -1) > 0).length / matchedCount
+        : null;
+      const actualWinRate = matchedCount
+        ? matched.filter((row) => safe(row.actual_return, -1) > 0).length / matchedCount
+        : null;
       const summary = {
         [key]: group,
         matched_trade_count: matchedCount,
@@ -503,6 +509,8 @@ function aggregateByKey(rows = [], key = 'strategy_id', fallback = 'unknown', th
         avg_abs_fill_gap_bps: fillValues.length ? round(mean(fillValues), 6) : null,
         avg_abs_pnl_gap_pct: pnlValues.length ? round(mean(pnlValues), 6) : null,
         avg_abs_hold_gap_days: holdValues.length ? round(mean(holdValues), 6) : null,
+        win_rate_drift:
+          replayWinRate === null || actualWinRate === null ? null : round(actualWinRate - replayWinRate, 6),
         breach_count: matched.filter((row) => row.status === 'breach').length,
         watch_count: matched.filter((row) => row.status === 'watch').length,
         status:
@@ -525,6 +533,13 @@ function aggregateByKey(rows = [], key = 'strategy_id', fallback = 'unknown', th
       if (summary.capture_rate < safe(thresholds.min_capture_rate, 0)) {
         summary.blockers.push('capture_rate_shortfall');
       }
+      if (Math.abs(summary.win_rate_drift ?? 0) > safe(thresholds.max_win_rate_drift, Infinity)) {
+        summary.blockers.push('win_rate_tracking_error');
+      }
+      summary.score = round(
+        1 - Math.min(1, summary.blockers.length / 4 + (summary.status === 'breach' ? 0.35 : summary.status === 'watch' ? 0.15 : 0)),
+        4
+      );
       return summary;
     })
     .sort((a, b) => {

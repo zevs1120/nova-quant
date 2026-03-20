@@ -132,6 +132,8 @@ export function runQuantPipeline(raw = {}) {
           signal_lifecycle_executable: researchCore?.feature_signal_layer?.quality_summary?.executable_count || 0,
           product_opportunity_count: researchCore?.product_opportunities?.length || 0,
           walk_forward_evaluated: researchCore?.walk_forward_validation?.summary?.evaluated_strategies || 0,
+          execution_drift_status: researchCore?.execution_drift_monitor?.institutional_gate?.status || '--',
+          execution_drift_score: researchCore?.execution_drift_monitor?.institutional_gate?.score || 0,
           governance_decisions: researchCore?.strategy_governance?.decisions?.length || 0,
           discovery_generated_candidates: researchCore?.strategy_discovery_engine?.summary?.generated_candidates || 0,
           discovery_promoted_to_shadow: researchCore?.strategy_discovery_engine?.summary?.promoted_to_shadow || 0,

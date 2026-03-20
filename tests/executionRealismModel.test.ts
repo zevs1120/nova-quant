@@ -15,15 +15,18 @@ describe('execution realism model', () => {
     const profile = resolveExecutionRealismProfile({ mode: 'replay' });
     const assumption = resolveExecutionAssumptions({
       profile,
-      signal: { market: 'CRYPTO', volatility_percentile: 92 },
+      signal: { market: 'CRYPTO', volatility_percentile: 92, created_at: '2026-03-08T03:00:00.000Z' },
       mode: 'replay'
     });
 
     expect(assumption.market).toBe('CRYPTO');
     expect(assumption.volatility_bucket).toBe('stress');
+    expect(assumption.session_state).toBeTruthy();
+    expect(assumption.liquidity_bucket).toBeTruthy();
     expect(assumption.fill_policy.entry).toBeTruthy();
     expect(assumption.entry_slippage_bps).toBeGreaterThan(0);
     expect(assumption.spread_bps).toBeGreaterThan(0);
+    expect(assumption.partial_fill_probability).toBeGreaterThan(0);
   });
 
   it('applies cost and scenario stress consistently', () => {
@@ -60,5 +63,30 @@ describe('execution realism model', () => {
     });
     expect(longEntry).toBeGreaterThan(100);
     expect(longExit).toBeLessThan(100);
+  });
+
+  it('adds contextual borrow and liquidity stress for fragile short execution', () => {
+    const profile = resolveExecutionRealismProfile({ mode: 'replay' });
+    const assumption = resolveExecutionAssumptions({
+      profile,
+      signal: {
+        market: 'US',
+        direction: 'SHORT',
+        created_at: '2026-03-10T12:40:00.000Z',
+        liquidity_score: 0.18
+      },
+      bar: {
+        high: 101,
+        low: 98,
+        close: 99,
+        volume: 120000
+      },
+      mode: 'replay'
+    });
+
+    expect(assumption.session_state).toBe('premarket');
+    expect(assumption.liquidity_bucket).toBe('fragile');
+    expect(assumption.borrow_bps_per_day).toBeGreaterThan(0);
+    expect(assumption.partial_fill_probability).toBeLessThan(0.9);
   });
 });

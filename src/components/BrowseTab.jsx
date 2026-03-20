@@ -133,7 +133,9 @@ function toFeedRowFromNews(item, locale) {
     body: [item?.source, Number.isFinite(Number(item?.relevance)) ? `Rel ${formatNumber(Number(item.relevance) * 100, 0, locale)}%` : null]
       .filter(Boolean)
       .join(' · '),
-    minutesAgo
+    minutesAgo,
+    url: item?.url || null,
+    source: item?.source || null
   };
 }
 
@@ -264,20 +266,34 @@ function StoryCard({ item, onOpen }) {
 }
 
 function FeedRow({ item, locale, onOpen }) {
+  const isZh = locale?.startsWith('zh');
   return (
-    <button type="button" className="browse-feed-row" onClick={() => onOpen?.(item.symbol)}>
-      <div className="browse-feed-copy">
-        <div className="browse-feed-head">
-          <p className="browse-feed-title">{item.title}</p>
-          <span className="browse-result-tag browse-result-tag-reference">{item.badge}</span>
+    <article className="browse-feed-row">
+      <button type="button" className="browse-feed-main" onClick={() => onOpen?.(item.symbol)}>
+        <div className="browse-feed-copy">
+          <div className="browse-feed-head">
+            <p className="browse-feed-title">{item.title}</p>
+            <span className="browse-result-tag browse-result-tag-reference">{item.badge}</span>
+          </div>
+          <p className="browse-feed-body">{item.body}</p>
         </div>
-        <p className="browse-feed-body">{item.body}</p>
-      </div>
-      <div className="browse-feed-meta">
-        <span className="browse-feed-symbol">{item.symbol}</span>
-        <span className="browse-feed-time">{minutesAgoLabel(item.minutesAgo, locale)}</span>
-      </div>
-    </button>
+        <div className="browse-feed-meta">
+          <span className="browse-feed-symbol">{item.symbol}</span>
+          <span className="browse-feed-time">{minutesAgoLabel(item.minutesAgo, locale)}</span>
+        </div>
+      </button>
+      {item.url ? (
+        <a
+          className="browse-feed-link"
+          href={item.url}
+          target="_blank"
+          rel="noreferrer"
+          onClick={(event) => event.stopPropagation()}
+        >
+          {item.source || (isZh ? '来源' : 'Source')}
+        </a>
+      ) : null}
+    </article>
   );
 }
 
@@ -1160,6 +1176,33 @@ export default function BrowseTab({
     if (!detailOverview) return [];
     return [
       {
+        label: isZh ? '最新收盘' : 'Last close',
+        value: compactPrice(detailOverview.tradingStats?.latestClose, locale),
+        footnote:
+          Number.isFinite(detailOverview.tradingStats?.changePct)
+            ? `${isZh ? '日变动' : 'Daily change'} ${pctText(detailOverview.tradingStats.changePct, locale)}`
+            : null
+      },
+      {
+        label: isZh ? '均量 30D' : '30D avg volume',
+        value: detailOverview.fundamentals?.find((item) => item.label === '30D avg volume')?.value || '--',
+        footnote:
+          detailOverview.fundamentals?.find((item) => item.label === 'Latest volume')?.value
+            ? `${isZh ? '最新成交量' : 'Latest volume'} ${detailOverview.fundamentals.find((item) => item.label === 'Latest volume')?.value}`
+            : null
+      },
+      {
+        label: isZh ? '回看区间' : 'Lookback range',
+        value:
+          Number.isFinite(detailOverview.tradingStats?.rangeLow) && Number.isFinite(detailOverview.tradingStats?.rangeHigh)
+            ? `${compactPrice(detailOverview.tradingStats.rangeLow, locale)} - ${compactPrice(detailOverview.tradingStats.rangeHigh, locale)}`
+            : '--',
+        footnote:
+          Number.isFinite(detailOverview.tradingStats?.barsAvailable)
+            ? `${detailOverview.tradingStats.barsAvailable} ${isZh ? '根日线' : 'daily bars'}`
+            : null
+      },
+      {
         label: isZh ? '资产类型' : 'Asset type',
         value: detailOverview.assetType,
         footnote: detailOverview.profile?.proxyType || null
@@ -1480,7 +1523,7 @@ export default function BrowseTab({
               <h2>{labels.assetBasics}</h2>
             </div>
             <div className="browse-detail-grid">
-              {overviewFactCards.slice(0, 8).map((item) => (
+              {overviewFactCards.map((item) => (
                 <OverviewFactCard key={`${detailOverview.symbol}-${item.label}`} label={item.label} value={item.value} footnote={item.footnote} />
               ))}
               <OverviewFactCard

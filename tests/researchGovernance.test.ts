@@ -17,6 +17,7 @@ describe('research governance outputs', () => {
     expect(research.registry_system?.strategy_registry?.length).toBeGreaterThan(0);
     expect(research.promotion_decisions?.length).toBeGreaterThan(0);
     expect(research.paper_ops?.daily_runs?.length).toBeGreaterThan(0);
+    expect(research.research_core?.execution_drift_monitor?.institutional_gate).toBeTruthy();
   });
 
   it('keeps governance contract checks passing', () => {

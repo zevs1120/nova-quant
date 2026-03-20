@@ -27,8 +27,12 @@ describe('historical replay validation', () => {
     expect(sample.replay_exit_event).toBeTruthy();
     expect(sample.fill_assumption_used).toBeTruthy();
     expect(sample.slippage_assumption_used).toBeTruthy();
+    expect(sample.slippage_assumption_used?.session_state).toBeTruthy();
+    expect(sample.slippage_assumption_used?.liquidity_bucket).toBeTruthy();
     expect(sample.assumption_profile?.profile_id).toBeTruthy();
     expect(sample.realized_holding_duration).toBeTruthy();
+    expect(sample.effective_position_size_pct).toBeTypeOf('number');
+    expect(sample.execution_quality_summary?.partial_fill_probability).toBeTypeOf('number');
     expect(sample.forward_performance).toBeTruthy();
     expect(sample.lifecycle_events?.length).toBeGreaterThan(1);
   });

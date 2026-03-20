@@ -28,6 +28,7 @@ describe('strategy governance workflow hardening', () => {
     expect(sample.version).toBeTruthy();
     expect(sample.evidence_summary).toBeTruthy();
     expect(sample.validation_summary).toBeTruthy();
+    expect(sample.monitoring_summary?.execution_drift).toBeTruthy();
     expect(sample.institutional_readiness).toBeTruthy();
     expect(sample.institutional_readiness.target_stage).toBeTruthy();
     expect(Array.isArray(sample.institutional_readiness.blockers)).toBe(true);
@@ -59,6 +60,7 @@ describe('strategy governance workflow hardening', () => {
     expect(first.review_status).toBeTruthy();
     expect(first.next_eligible_action).toBeTruthy();
     expect(governance?.institutional_readiness?.target_profiles?.PROD).toBeTruthy();
+    expect(governance?.execution_drift_overview?.institutional_gate).toBeTruthy();
     expect(governance?.institutional_readiness?.average_readiness_score).toBeTypeOf('number');
   });
 });

@@ -24,6 +24,7 @@ describe('portfolio simulation engine', () => {
     expect(sim?.diagnostics?.strategy_correlation_matrix?.length).toBeGreaterThan(0);
     expect(sim?.diagnostics?.portfolio_stability_across_regimes?.length).toBeGreaterThan(0);
     expect(sim?.diagnostics?.drawdown_concentration?.by_family?.length).toBeGreaterThan(0);
+    expect(sim?.diagnostics?.execution_tracking?.by_strategy?.length).toBeGreaterThan(0);
     expect(sim?.diagnostics?.institutional_scorecard?.checks?.length).toBeGreaterThan(0);
     expect(sim?.diagnostics?.tail_risk?.worst_period_return).toBeTypeOf('number');
     expect(sim?.diagnostics?.execution_realism?.assumption_profile?.profile_id).toBeTruthy();
@@ -51,5 +52,6 @@ describe('portfolio simulation engine', () => {
       Number(sim?.allocation?.institutional_risk_guard?.max_strategy_weight || 1) + 0.0005
     );
     expect(sim?.diagnostics?.institutional_risk_guard?.market_exposure_after?.length).toBeGreaterThan(0);
+    expect(sim?.allocation?.strategy_rows?.[0]?.execution_tracking_status).toBeTruthy();
   });
 });

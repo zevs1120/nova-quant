@@ -10296,6 +10296,32 @@ body.keyboard-open .ai-composer-shell {
     0 10px 24px rgba(20, 24, 33, 0.04);
 }
 
+.browse-feed-main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+
+.browse-feed-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(18, 24, 35, 0.06);
+  color: rgba(64, 74, 177, 0.94);
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 760;
+  text-decoration: none;
+}
+
 .browse-feed-copy,
 .browse-feed-title,
 .browse-feed-body,
@@ -11197,6 +11223,15 @@ body.keyboard-open .ai-composer-shell {
   .browse-collection-grid,
   .browse-hero-metrics {
     grid-template-columns: 1fr;
+  }
+
+  .browse-feed-row,
+  .browse-feed-main {
+    flex-direction: column;
+  }
+
+  .browse-feed-link {
+    align-self: flex-start;
   }
 
   .holdings-overview-actions {
