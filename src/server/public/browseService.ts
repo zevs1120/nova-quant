@@ -1434,13 +1434,13 @@ export async function getPublicBrowseAssetOverview(args: { market: Market; symbo
 }
 
 const browseHomeConfig = {
-  NOW: {
+  STOCK: {
     featured: [
-      { symbol: 'SPY', market: 'US' as const, title: 'S&P 500', subtitle: 'SPY proxy' },
-      { symbol: 'QQQ', market: 'US' as const, title: 'Nasdaq 100', subtitle: 'QQQ proxy' },
-      { symbol: 'BTCUSDT', market: 'CRYPTO' as const, title: 'Bitcoin', subtitle: 'BTC / USDT' },
-      { symbol: 'AAPL', market: 'US' as const, title: 'Apple', subtitle: 'AAPL' },
-      { symbol: 'ETHUSDT', market: 'CRYPTO' as const, title: 'Ethereum', subtitle: 'ETH / USDT' }
+      { symbol: 'AAPL', market: 'US' as const, title: 'Apple', subtitle: 'Large-cap tech' },
+      { symbol: 'NVDA', market: 'US' as const, title: 'NVIDIA', subtitle: 'AI leader' },
+      { symbol: 'MSFT', market: 'US' as const, title: 'Microsoft', subtitle: 'Mega-cap software' },
+      { symbol: 'AMZN', market: 'US' as const, title: 'Amazon', subtitle: 'Consumer + cloud' },
+      { symbol: 'META', market: 'US' as const, title: 'Meta', subtitle: 'Platform leader' }
     ],
     usPool: ['SMCI', 'PLTR', 'NVDA', 'TSLA', 'AMD', 'META', 'AMZN', 'AAPL'],
     cryptoPool: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'DOGEUSDT', 'ADAUSDT', 'AVAXUSDT', 'LINKUSDT', 'XRPUSDT'],
@@ -1457,28 +1457,6 @@ const browseHomeConfig = {
       { id: 'altcoins', title: 'Altcoins', symbols: ['SOLUSDT', 'AVAXUSDT', 'LINKUSDT'] },
       { id: 'closed-end-funds', title: 'Closed-end Funds', symbols: ['DIA', 'TLT', 'GLD'] },
       { id: 'tradable-crypto', title: 'Tradable Crypto', symbols: ['BTCUSDT', 'ETHUSDT', 'DOGEUSDT'] }
-    ]
-  },
-  MACRO: {
-    featured: [
-      { symbol: 'SPY', market: 'US' as const, title: 'S&P 500', subtitle: 'Risk proxy' },
-      { symbol: 'TLT', market: 'US' as const, title: 'Long Bonds', subtitle: 'Rates proxy' },
-      { symbol: 'GLD', market: 'US' as const, title: 'Gold', subtitle: 'Macro hedge' },
-      { symbol: 'QQQ', market: 'US' as const, title: 'Growth', subtitle: 'QQQ proxy' }
-    ],
-    usPool: ['SPY', 'QQQ', 'IWM', 'TLT', 'IEF', 'GLD', 'USO', 'XLF'],
-    cryptoPool: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'DOGEUSDT'],
-    earnings: ['SPY', 'QQQ', 'XLF', 'XLK'],
-    screeners: [
-      { id: 'macro-leaders', title: 'Macro leaders', subtitle: 'Cross-asset proxies with the strongest moves' },
-      { id: 'macro-laggards', title: 'Macro laggards', subtitle: 'Cross-asset proxies under the most pressure' },
-      { id: 'rate-sensitive', title: 'Rate sensitive', subtitle: 'Duration, financials, and growth watchlist' }
-    ],
-    trending: [
-      { id: 'inflation-hedges', title: 'Inflation Hedges', symbols: ['GLD', 'USO', 'XLE'] },
-      { id: 'rates-watch', title: 'Rates Watch', symbols: ['TLT', 'IEF', 'KRE'] },
-      { id: 'risk-on', title: 'Risk On', symbols: ['QQQ', 'IWM', 'BTCUSDT'] },
-      { id: 'risk-off', title: 'Risk Off', symbols: ['TLT', 'GLD', 'SPY'] }
     ]
   },
   CRYPTO: {
@@ -1501,27 +1479,6 @@ const browseHomeConfig = {
       { id: 'alt-beta', title: 'Alt Beta', symbols: ['DOGEUSDT', 'AVAXUSDT', 'LINKUSDT'] },
       { id: 'exchange-beta', title: 'Exchange Beta', symbols: ['COIN', 'HOOD', 'MSTR'] },
       { id: 'layer-1s', title: 'Layer 1s', symbols: ['SOLUSDT', 'ADAUSDT', 'AVAXUSDT'] }
-    ]
-  },
-  SPORTS: {
-    featured: [
-      { symbol: 'DKNG', market: 'US' as const, title: 'DraftKings', subtitle: 'Sports betting' },
-      { symbol: 'TKO', market: 'US' as const, title: 'TKO Group', subtitle: 'Live events' },
-      { symbol: 'DIS', market: 'US' as const, title: 'Disney', subtitle: 'Sports media' },
-      { symbol: 'EA', market: 'US' as const, title: 'Electronic Arts', subtitle: 'Gaming' }
-    ],
-    usPool: ['DKNG', 'TKO', 'DIS', 'EA', 'TTWO', 'SONY'],
-    cryptoPool: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT'],
-    earnings: ['DIS', 'DKNG', 'TTWO', 'EA'],
-    screeners: [
-      { id: 'sports-betting', title: 'Sports betting', subtitle: 'Books, operators, and high-beta sports names' },
-      { id: 'media-rights', title: 'Media rights', subtitle: 'Streaming and rights-heavy platforms' },
-      { id: 'event-operators', title: 'Event operators', subtitle: 'Live sports and entertainment operators' }
-    ],
-    trending: [
-      { id: 'betting', title: 'Betting', symbols: ['DKNG', 'DIS', 'TKO'] },
-      { id: 'gaming', title: 'Gaming', symbols: ['EA', 'TTWO', 'SONY'] },
-      { id: 'streaming', title: 'Streaming', symbols: ['DIS', 'NFLX', 'ROKU'] }
     ]
   }
 } as const;
@@ -1558,9 +1515,10 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, fallback: 
 }
 
 function normalizeBrowseHomeView(value?: string): keyof typeof browseHomeConfig {
-  const upper = String(value || 'NOW').trim().toUpperCase();
-  if (upper === 'MACRO' || upper === 'CRYPTO' || upper === 'SPORTS') return upper;
-  return 'NOW';
+  const upper = String(value || 'STOCK').trim().toUpperCase();
+  if (upper === 'CRYPTO') return upper;
+  if (upper === 'NOW') return 'STOCK';
+  return 'STOCK';
 }
 
 async function buildBrowseCard(spec: { symbol: string; market: Market; title: string; subtitle: string }): Promise<BrowseHomeCard | null> {

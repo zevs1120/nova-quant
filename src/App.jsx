@@ -2084,6 +2084,7 @@ export default function App() {
 
   const canGoBackInTopBar = activeTab === 'my' && myStack.length > 1;
   const showHoldingsMenuAction = activeTab === 'my' && mySection === 'portfolio';
+  const showBrowseTopBarTitle = activeTab === 'browse' && !canGoBackInTopBar;
   const previousMySection = canGoBackInTopBar ? myStack[myStack.length - 2] : null;
   const topBarBackLabel =
     previousMySection && previousMySection !== 'portfolio'
@@ -2126,10 +2127,16 @@ export default function App() {
               </button>
             ) : null}
           </div>
-          <div className="top-bar-logo-wrap" aria-label="Nova Quant">
-            <img src={novaLogo} alt="Nova Quant" className={`top-bar-logo top-bar-logo-expanded ${topBarCondensed ? 'is-hidden' : ''}`} />
-            <img src={novaLogoCompact} alt="Nova Quant" className={`top-bar-logo top-bar-logo-compact ${topBarCondensed ? 'is-visible' : ''}`} />
-          </div>
+          {showBrowseTopBarTitle ? (
+            <div className="top-bar-center-title" aria-label="Browse">
+              Browse
+            </div>
+          ) : (
+            <div className="top-bar-logo-wrap" aria-label="Nova Quant">
+              <img src={novaLogo} alt="Nova Quant" className={`top-bar-logo top-bar-logo-expanded ${topBarCondensed ? 'is-hidden' : ''}`} />
+              <img src={novaLogoCompact} alt="Nova Quant" className={`top-bar-logo top-bar-logo-compact ${topBarCondensed ? 'is-visible' : ''}`} />
+            </div>
+          )}
           {showHoldingsMenuAction ? (
             <button
               type="button"

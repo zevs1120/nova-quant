@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { formatNumber } from '../utils/format';
 import { fetchApiJson } from '../utils/api';
 
-const CATEGORY_KEYS = ['NOW', 'MACRO', 'CRYPTO', 'SPORTS'];
+const CATEGORY_KEYS = ['STOCK', 'CRYPTO'];
 const DETAIL_RANGES = ['1D', '1W', '1M', '3M'];
 const HOME_POLL_MS = 1000;
 const DETAIL_POLL_MS = 1000;
@@ -257,16 +257,13 @@ export default function BrowseTab({ locale, signals = [], watchlist = [], setWat
   const copy = useMemo(
     () => ({
       title: 'Browse',
-      searchPlaceholder: isZh ? '搜索股票、ETF 或加密货币' : 'Search Robinhood...',
+      searchPlaceholder: isZh ? '搜索股票或加密货币' : 'Search stocks or crypto',
       categories: {
-        NOW: isZh ? '现在' : 'Now',
-        MACRO: isZh ? '宏观' : 'Macro',
-        CRYPTO: isZh ? '加密' : 'Crypto',
-        SPORTS: isZh ? '体育' : 'Sports'
+        STOCK: isZh ? '股票' : 'Stock',
+        CRYPTO: isZh ? '加密' : 'Crypto'
       },
-      futures: isZh ? '市场焦点' : 'Futures markets',
+      featured: isZh ? '精选标的' : 'Featured choices',
       topMovers: isZh ? '涨跌榜' : 'Top movers',
-      cryptoMovers: isZh ? '加密异动' : 'Crypto movers',
       earnings: isZh ? '财报关注' : 'Earnings',
       showMore: isZh ? '查看更多' : 'Show more',
       screeners: isZh ? '股票筛选器' : 'Stock screeners',
@@ -299,7 +296,7 @@ export default function BrowseTab({ locale, signals = [], watchlist = [], setWat
     [isZh]
   );
 
-  const [category, setCategory] = useState('NOW');
+  const [category, setCategory] = useState('STOCK');
   const [homeState, setHomeState] = useState({ loading: true, error: '', data: null });
   const [query, setQuery] = useState('');
   const [searchState, setSearchState] = useState('idle');
@@ -589,12 +586,10 @@ export default function BrowseTab({ locale, signals = [], watchlist = [], setWat
 
   function renderHome() {
     const data = homeState.data;
+    const isCryptoCategory = category === 'CRYPTO';
+    const moverItems = isCryptoCategory ? data?.cryptoMovers || [] : data?.topMovers || [];
     return (
       <section className="stack-gap browse-rh-screen">
-        <header className="browse-rh-top">
-          <h1>{copy.title}</h1>
-        </header>
-
         <section className="browse-rh-search-shell">
           <SearchIcon />
           <input
@@ -644,7 +639,7 @@ export default function BrowseTab({ locale, signals = [], watchlist = [], setWat
             {data ? (
               <>
                 <section className="browse-rh-section">
-                  <SectionHeader title={copy.futures} />
+                  <SectionHeader title={copy.featured} />
                   <div className="browse-rh-market-row">
                     {(data.futuresMarkets || []).map((item) => (
                       <MarketCard key={`${item.market}-${item.symbol}`} item={item} locale={locale} onOpen={openItem} />
@@ -655,36 +650,29 @@ export default function BrowseTab({ locale, signals = [], watchlist = [], setWat
                 <section className="browse-rh-section">
                   <SectionHeader title={copy.topMovers} />
                   <div className="browse-rh-chip-grid">
-                    {(data.topMovers || []).map((item) => (
+                    {moverItems.map((item) => (
                       <MoverChip key={`move-${item.symbol}`} item={item} locale={locale} onOpen={openItem} />
                     ))}
                   </div>
                 </section>
 
-                <section className="browse-rh-section">
-                  <SectionHeader title={copy.cryptoMovers} />
-                  <div className="browse-rh-chip-grid">
-                    {(data.cryptoMovers || []).map((item) => (
-                      <MoverChip key={`crypto-${item.symbol}`} item={item} locale={locale} onOpen={openItem} />
-                    ))}
-                  </div>
-                </section>
-
-                <section className="browse-rh-section">
-                  <SectionHeader title={copy.earnings} />
-                  <div className="browse-rh-list">
-                    {(data.earnings || []).map((item) => (
-                      <EarningsRow key={`earn-${item.symbol}`} item={item} onOpen={openItem} />
-                    ))}
-                    {todaySignalSymbols.map((item) => (
-                      <EarningsRow
-                        key={`signal-${item.symbol}`}
-                        item={{ ...item, note: item.title, timing: 'Today signal' }}
-                        onOpen={openItem}
-                      />
-                    ))}
-                  </div>
-                </section>
+                {!isCryptoCategory ? (
+                  <section className="browse-rh-section">
+                    <SectionHeader title={copy.earnings} />
+                    <div className="browse-rh-list">
+                      {(data.earnings || []).map((item) => (
+                        <EarningsRow key={`earn-${item.symbol}`} item={item} onOpen={openItem} />
+                      ))}
+                      {todaySignalSymbols.map((item) => (
+                        <EarningsRow
+                          key={`signal-${item.symbol}`}
+                          item={{ ...item, note: item.title, timing: 'Today signal' }}
+                          onOpen={openItem}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                ) : null}
 
                 <button type="button" className="browse-rh-expand" onClick={() => setActiveList({ type: 'screeners', title: copy.screeners, lists: data.screeners || [] })}>
                   <span>{copy.showMore}</span>

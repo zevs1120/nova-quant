@@ -4094,6 +4094,18 @@ body.keyboard-open .ai-input-dock {
   transition: min-height 220ms var(--ease-spring), max-width 220ms var(--ease-spring);
 }
 
+.top-bar-center-title {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding-inline: 12px;
+  color: #171c24;
+  font-size: 19px;
+  font-weight: 620;
+  letter-spacing: -0.03em;
+}
+
 .top-bar-logo {
   position: absolute;
   inset: 50% auto auto 50%;
@@ -4151,6 +4163,11 @@ body.keyboard-open .ai-input-dock {
   min-height: 22px;
   width: min(34vw, 98px);
   max-width: min(34vw, 98px);
+}
+
+.top-bar.is-condensed .top-bar-center-title {
+  min-height: 22px;
+  font-size: 17px;
 }
 
 .top-bar-root.is-condensed .top-bar-logo,
