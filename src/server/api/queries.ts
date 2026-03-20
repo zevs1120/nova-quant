@@ -16,6 +16,7 @@ import {
   listReconciliationEvidence,
   runEvidenceEngine
 } from '../evidence/engine.js';
+import { getConfig } from '../config.js';
 import {
   RUNTIME_STATUS,
   derivePerformanceSourceStatus,
@@ -33,6 +34,7 @@ import { inspectNovaHealth } from '../nova/health.js';
 import { labelNovaRun } from '../nova/service.js';
 import { ensureFreshNewsForUniverse } from '../news/provider.js';
 import { buildEvidenceLineage } from '../evidence/lineage.js';
+import { fetchWithRetry } from '../utils/http.js';
 
 const RISK_PROFILE_PRESETS = {
   conservative: {
@@ -87,6 +89,30 @@ type SearchCandidate = {
   aliases: string[];
 };
 
+type BrowseChartPoint = {
+  ts: number;
+  close: number;
+  label?: string | null;
+};
+
+type BrowseChartSnapshot = {
+  requestedSymbol: string;
+  resolvedSymbol: string;
+  market: Market;
+  name: string;
+  venue: string | null;
+  currency: string;
+  source: string;
+  sourceStatus: 'LIVE' | 'CACHED';
+  timeframe: string;
+  asOf: string | null;
+  latest: number | null;
+  previousClose: number | null;
+  change: number | null;
+  points: BrowseChartPoint[];
+  note: string;
+};
+
 const referenceUniverseFiles = [
   'us_equities_extended.json',
   'us_equities_core.json',
@@ -125,6 +151,37 @@ const commonCryptoNames: Record<string, string[]> = {
   LTC: ['litecoin', 'ltc'],
   TON: ['ton', 'the open network']
 };
+
+const knownEtfSymbols = new Set([
+  'SPY',
+  'QQQ',
+  'IWM',
+  'DIA',
+  'ARKK',
+  'XLK',
+  'XLF',
+  'XLE',
+  'XLV',
+  'XLI',
+  'XLY',
+  'XLP',
+  'XLB',
+  'XLRE',
+  'XLU',
+  'XLC',
+  'SMH',
+  'SOXX',
+  'VTI',
+  'VOO'
+]);
+
+const cryptoAliasLookup = Object.entries(commonCryptoNames).reduce<Record<string, string>>((acc, [symbol, aliases]) => {
+  acc[normalizeSearchText(symbol)] = symbol;
+  aliases.forEach((alias) => {
+    acc[normalizeSearchText(alias)] = symbol;
+  });
+  return acc;
+}, {});
 
 let cachedReferenceSearchUniverse: SearchCandidate[] | null = null;
 const remoteSearchCache = new Map<string, { expiresAt: number; results: SearchCandidate[] }>();
@@ -246,6 +303,87 @@ function sentenceCase(value: string): string {
     .join(' ');
 }
 
+function parseNumericValue(value: unknown): number | null {
+  const next = Number(
+    String(value ?? '')
+      .replace(/[$,%\s,]/g, '')
+      .trim()
+  );
+  return Number.isFinite(next) ? next : null;
+}
+
+function isBrowseChartPoint(value: unknown): value is BrowseChartPoint {
+  if (!value || typeof value !== 'object') return false;
+  const point = value as BrowseChartPoint;
+  return Number.isFinite(point.ts) && Number.isFinite(point.close);
+}
+
+function buildDirectEquityCandidate(symbolInput: string): SearchCandidate {
+  const symbol = String(symbolInput || '').trim().toUpperCase();
+  return {
+    symbol,
+    market: 'US',
+    assetClass: 'US_STOCK',
+    venue: null,
+    name: symbol,
+    hint: 'Direct ticker lookup',
+    source: 'remote',
+    aliases: [symbol]
+  };
+}
+
+function buildDirectCryptoCandidate(symbolInput: string): SearchCandidate {
+  const pair = parseCryptoLookupSymbol(symbolInput);
+  const base = pair?.base || String(symbolInput || '').trim().toUpperCase();
+  const quote = pair?.quote || 'USDT';
+  const symbol = pair?.resolvedSymbol || base;
+  return {
+    symbol,
+    market: 'CRYPTO',
+    assetClass: 'CRYPTO',
+    venue: 'GATEIO',
+    name: `${base} / ${quote}`,
+    hint: 'Direct crypto lookup',
+    source: 'remote',
+    aliases: [symbol, base, `${base}${quote}`, `${base}/${quote}`, symbolInput, ...(commonCryptoNames[base] || [])]
+  };
+}
+
+function buildHeuristicSearchCandidates(query: string, market?: Market): SearchCandidate[] {
+  const trimmed = String(query || '').trim();
+  const compact = trimmed.toUpperCase().replace(/\s+/g, '');
+  const normalized = normalizeSearchText(trimmed);
+  const isAllUpperOrLower = trimmed === compact || trimmed === compact.toLowerCase();
+  const candidates = new Map<string, SearchCandidate>();
+
+  if (!compact) return [];
+
+  if (
+    (!market || market === 'US') &&
+    /^[A-Z][A-Z0-9.]{0,9}$/.test(compact) &&
+    isAllUpperOrLower &&
+    !compact.includes('/') &&
+    !compact.includes('-') &&
+    !compact.endsWith('USDT') &&
+    !compact.endsWith('USD') &&
+    !cryptoAliasLookup[normalized]
+  ) {
+    const candidate = buildDirectEquityCandidate(compact);
+    candidates.set(`${candidate.market}:${candidate.symbol}`, candidate);
+  }
+
+  const cryptoSymbol = cryptoAliasLookup[normalized] || compact;
+  if (
+    (!market || market === 'CRYPTO') &&
+    (Boolean(cryptoAliasLookup[normalized]) || /[/_-]/.test(compact) || compact.endsWith('USDT') || compact.endsWith('USD'))
+  ) {
+    const candidate = buildDirectCryptoCandidate(cryptoSymbol);
+    candidates.set(`${candidate.market}:${candidate.symbol}`, candidate);
+  }
+
+  return Array.from(candidates.values());
+}
+
 function parseCryptoBaseQuote(symbol: string): { base: string; quote: string } | null {
   const upper = String(symbol || '').toUpperCase();
   if (upper.endsWith('USDT') && upper.length > 4) {
@@ -257,6 +395,38 @@ function parseCryptoBaseQuote(symbol: string): { base: string; quote: string } |
 function searchUniverseDir(): string {
   const queriesDir = path.dirname(fileURLToPath(import.meta.url));
   return path.resolve(queriesDir, '../../../data/reference_universes');
+}
+
+function parseCryptoLookupSymbol(value: string): { base: string; quote: string; resolvedSymbol: string; gatePair: string } | null {
+  const compact = String(value || '')
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, '')
+    .replace('/', '_')
+    .replace('-', '_');
+
+  const exactPair = compact.match(/^([A-Z0-9]{2,15})_?(USDT|USD)$/);
+  if (exactPair) {
+    const [, base, quote] = exactPair;
+    return {
+      base,
+      quote,
+      resolvedSymbol: `${base}${quote}`,
+      gatePair: `${base}_${quote}`
+    };
+  }
+
+  const alias = cryptoAliasLookup[normalizeSearchText(compact)];
+  if (alias) {
+    return {
+      base: alias,
+      quote: 'USDT',
+      resolvedSymbol: `${alias}USDT`,
+      gatePair: `${alias}_USDT`
+    };
+  }
+
+  return null;
 }
 
 function buildLiveAssetCandidate(asset: ReturnType<MarketRepository['listAssets']>[number]): SearchCandidate {
@@ -520,7 +690,9 @@ function scoreAssetCandidate(query: string, candidate: SearchCandidate): number 
   for (const alias of candidate.aliases) {
     const normalizedAlias = normalizeSearchText(alias);
     if (!normalizedAlias) continue;
-    if (normalizedAlias === normalizedQuery) score = Math.max(score, 1120);
+    if (normalizedAlias === normalizedQuery) {
+      score = Math.max(score, candidate.market === 'CRYPTO' ? 1210 : 1120);
+    }
     else if (normalizedAlias.startsWith(normalizedQuery)) score = Math.max(score, 900);
     else if (normalizedAlias.includes(normalizedQuery)) score = Math.max(score, 640);
   }
@@ -571,6 +743,10 @@ export async function searchAssets(args: { query: string; limit?: number; market
     candidates.set(`${candidate.market}:${candidate.symbol}`, candidate);
   }
 
+  for (const candidate of buildHeuristicSearchCandidates(query, args.market)) {
+    candidates.set(`${candidate.market}:${candidate.symbol}`, candidate);
+  }
+
   const remoteCandidates = await searchRemoteAssets(query, limit, args.market);
   for (const candidate of remoteCandidates) {
     const key = `${candidate.market}:${candidate.symbol}`;
@@ -604,6 +780,258 @@ export async function searchAssets(args: { query: string; limit?: number; market
     })
     .slice(0, limit)
     .map(({ candidate, score }) => toSearchResult(candidate, score));
+}
+
+type NasdaqBrowseChartResponse = {
+  data?: {
+    symbol?: string;
+    company?: string;
+    timeAsOf?: string;
+    lastSalePrice?: string;
+    previousClose?: string;
+    exchange?: string;
+    chart?: Array<{
+      x?: number;
+      y?: number | string;
+      z?: {
+        dateTime?: string;
+        value?: string;
+      } | null;
+    }>;
+  } | null;
+};
+
+function assetClassesForBrowseSymbol(symbol: string): Array<'stocks' | 'etf'> {
+  return knownEtfSymbols.has(String(symbol || '').toUpperCase()) ? ['etf', 'stocks'] : ['stocks', 'etf'];
+}
+
+function normalizeNasdaqBrowseChart(
+  requestedSymbol: string,
+  assetClass: 'stocks' | 'etf',
+  payload: NasdaqBrowseChartResponse
+): BrowseChartSnapshot | null {
+  const data = payload.data;
+  const points = (data?.chart || []).reduce<BrowseChartPoint[]>((acc, point) => {
+    const ts = Number(point?.x);
+    const close = parseNumericValue(point?.y ?? point?.z?.value);
+    if (!Number.isFinite(ts) || close === null) return acc;
+    acc.push({
+      ts,
+      close,
+      label: point?.z?.dateTime || null
+    });
+    return acc;
+  }, []);
+
+  const lastPoint = points[points.length - 1] || null;
+  const firstPoint = points[0] || null;
+  const latest = parseNumericValue(data?.lastSalePrice) ?? lastPoint?.close ?? null;
+  const previousClose = parseNumericValue(data?.previousClose);
+  const change =
+    latest !== null && previousClose !== null && previousClose
+      ? (latest - previousClose) / previousClose
+      : points.length >= 2 && firstPoint?.close
+        ? ((lastPoint?.close || 0) - firstPoint.close) / firstPoint.close
+        : null;
+
+  if (!Number.isFinite(latest) && points.length < 2) return null;
+
+  return {
+    requestedSymbol,
+    resolvedSymbol: String(data?.symbol || requestedSymbol).toUpperCase(),
+    market: 'US',
+    name: String(data?.company || requestedSymbol).trim() || requestedSymbol,
+    venue: data?.exchange ? String(data.exchange) : assetClass === 'etf' ? 'ETF' : 'US',
+    currency: 'USD',
+    source: 'Nasdaq',
+    sourceStatus: 'LIVE',
+    timeframe: '1m',
+    asOf: lastPoint ? new Date(lastPoint.ts).toISOString() : null,
+    latest,
+    previousClose,
+    change,
+    points,
+    note: 'Today intraday chart from Nasdaq'
+  };
+}
+
+async function fetchNasdaqBrowseChart(symbol: string): Promise<BrowseChartSnapshot | null> {
+  const config = getConfig();
+  for (const assetClass of assetClassesForBrowseSymbol(symbol)) {
+    try {
+      const url = new URL(`${config.nasdaq.baseUrl}/quote/${encodeURIComponent(symbol)}/chart`);
+      url.searchParams.set('assetclass', assetClass);
+      const response = await fetchWithRetry(
+        url.toString(),
+        {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 NovaQuant/1.0',
+            Accept: 'application/json',
+            Referer: 'https://www.nasdaq.com/'
+          }
+        },
+        { attempts: 2, baseDelayMs: 900 },
+        config.nasdaq.timeoutMs
+      );
+      if (!response.ok) continue;
+      const payload = (await response.json()) as NasdaqBrowseChartResponse;
+      const normalized = normalizeNasdaqBrowseChart(symbol, assetClass, payload);
+      if (normalized) return normalized;
+    } catch {
+      // Try the next asset class or fallback.
+    }
+  }
+  return null;
+}
+
+function startOfLocalDayUnixSeconds(nowMs = Date.now()): number {
+  const local = new Date(nowMs);
+  local.setHours(0, 0, 0, 0);
+  return Math.floor(local.getTime() / 1000);
+}
+
+function normalizeGateCryptoChart(requestedSymbol: string, pair: string, payload: unknown): BrowseChartSnapshot | null {
+  if (!Array.isArray(payload)) return null;
+
+  const points = payload
+    .reduce<BrowseChartPoint[]>((acc, row) => {
+      if (!Array.isArray(row) || row.length < 3) return acc;
+      const ts = Number(row[0]) * 1000;
+      const close = parseNumericValue(row[2]);
+      if (!Number.isFinite(ts) || close === null) return acc;
+      acc.push({ ts, close, label: null });
+      return acc;
+    }, [])
+    .sort((a, b) => a.ts - b.ts);
+
+  if (points.length < 2) return null;
+
+  const [base, quote = 'USDT'] = pair.split('_');
+  const lastPoint = points[points.length - 1] || null;
+  const firstPoint = points[0] || null;
+  const latest = lastPoint?.close ?? null;
+  const first = firstPoint?.close ?? null;
+  const change = latest !== null && first !== null && first ? (latest - first) / first : null;
+
+  return {
+    requestedSymbol,
+    resolvedSymbol: `${base}${quote}`,
+    market: 'CRYPTO',
+    name: `${base} / ${quote}`,
+    venue: 'GATEIO',
+    currency: quote,
+    source: 'Gate.io spot',
+    sourceStatus: 'LIVE',
+    timeframe: '5m',
+    asOf: lastPoint ? new Date(lastPoint.ts).toISOString() : null,
+    latest,
+    previousClose: first,
+    change,
+    points,
+    note: 'Today intraday chart from Gate.io spot'
+  };
+}
+
+async function fetchGateCryptoBrowseChart(symbol: string): Promise<BrowseChartSnapshot | null> {
+  const parsed = parseCryptoLookupSymbol(symbol);
+  if (!parsed) return null;
+
+  try {
+    const url = new URL('https://api.gateio.ws/api/v4/spot/candlesticks');
+    url.searchParams.set('currency_pair', parsed.gatePair);
+    url.searchParams.set('interval', '5m');
+    url.searchParams.set('from', String(startOfLocalDayUnixSeconds()));
+    url.searchParams.set('limit', '400');
+
+    const response = await fetchWithRetry(
+      url.toString(),
+      {
+        headers: {
+          Accept: 'application/json',
+          'User-Agent': getSearchUserAgent()
+        }
+      },
+      { attempts: 2, baseDelayMs: 900 },
+      12_000
+    );
+    if (!response.ok) return null;
+    const payload = (await response.json()) as unknown;
+    return normalizeGateCryptoChart(symbol, parsed.gatePair, payload);
+  } catch {
+    return null;
+  }
+}
+
+function buildLocalBrowseChart(args: { market: Market; symbol: string }): BrowseChartSnapshot | null {
+  const repo = getRepo();
+  const directSymbol = String(args.symbol || '').trim().toUpperCase();
+  const cryptoResolved = args.market === 'CRYPTO' ? parseCryptoLookupSymbol(directSymbol)?.resolvedSymbol || directSymbol : directSymbol;
+  const symbol = args.market === 'CRYPTO' ? cryptoResolved : directSymbol;
+  const asset = repo.getAssetBySymbol(args.market, symbol);
+  if (!asset) return null;
+
+  const timeframes: Timeframe[] = args.market === 'CRYPTO' ? ['5m', '1h', '1d'] : ['1h', '1d'];
+  for (const timeframe of timeframes) {
+    const limit = timeframe === '5m' ? 288 : timeframe === '1h' ? 72 : 90;
+    const rows = repo.getOhlcv({
+      assetId: asset.asset_id,
+      timeframe,
+      limit
+    });
+    const points = rows.reduce<BrowseChartPoint[]>((acc, row) => {
+      const ts = Number(row.ts_open);
+      const close = parseNumericValue(row.close);
+      if (!Number.isFinite(ts) || close === null) return acc;
+      acc.push({ ts, close, label: null });
+      return acc;
+    }, []);
+
+    if (points.length < 2) continue;
+
+    const lastPoint = points[points.length - 1] || null;
+    const firstPoint = points[0] || null;
+    const latest = lastPoint?.close ?? null;
+    const first = firstPoint?.close ?? null;
+    const change = latest !== null && first !== null && first ? (latest - first) / first : null;
+    const name =
+      args.market === 'CRYPTO'
+        ? `${asset.base || parseCryptoBaseQuote(asset.symbol)?.base || asset.symbol} / ${
+            asset.quote || parseCryptoBaseQuote(asset.symbol)?.quote || 'USDT'
+          }`
+        : asset.symbol;
+
+    return {
+      requestedSymbol: directSymbol,
+      resolvedSymbol: asset.symbol,
+      market: args.market,
+      name,
+      venue: asset.venue,
+      currency: asset.quote || 'USD',
+      source: `Local cache${rows[rows.length - 1]?.source ? ` · ${rows[rows.length - 1].source}` : ''}`,
+      sourceStatus: 'CACHED',
+      timeframe,
+      asOf: lastPoint ? new Date(lastPoint.ts).toISOString() : null,
+      latest,
+      previousClose: first,
+      change,
+      points,
+      note: 'Latest cached market data from local store'
+    };
+  }
+
+  return null;
+}
+
+export async function getBrowseAssetChart(args: { market: Market; symbol: string }): Promise<BrowseChartSnapshot | null> {
+  const market = args.market;
+  const symbol = String(args.symbol || '').trim().toUpperCase();
+  if (!symbol) return null;
+
+  if (market === 'US') {
+    return (await fetchNasdaqBrowseChart(symbol)) || buildLocalBrowseChart({ market, symbol });
+  }
+
+  return (await fetchGateCryptoBrowseChart(symbol)) || buildLocalBrowseChart({ market, symbol });
 }
 
 export function queryOhlcv(args: {

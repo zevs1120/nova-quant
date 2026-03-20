@@ -41,6 +41,7 @@ import {
   getPerformanceSummary,
   getRiskProfile,
   setRiskProfile,
+  getBrowseAssetChart,
   getSignalContract,
   listAssets,
   searchAssets,
@@ -169,6 +170,33 @@ export function createApiApp() {
       market: market ?? 'ALL',
       count: results.length,
       data: results
+    });
+  });
+
+  app.get('/api/browse/chart', async (req, res) => {
+    const market = parseMarket(req.query.market as string | undefined);
+    const symbol = (req.query.symbol as string | undefined)?.toUpperCase();
+
+    if (!market || !symbol) {
+      res.status(400).json({ error: 'Required query params: market, symbol' });
+      return;
+    }
+
+    const data = await getBrowseAssetChart({
+      market,
+      symbol
+    });
+
+    if (!data) {
+      res.status(404).json({ error: 'Browse chart unavailable' });
+      return;
+    }
+
+    res.json({
+      market,
+      symbol,
+      count: data.points.length,
+      data
     });
   });
 

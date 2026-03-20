@@ -61,6 +61,18 @@ function latestClose(instrument) {
   return bars[bars.length - 1]?.close ?? null;
 }
 
+function formatAsOfLabel(value, locale) {
+  if (!value) return '--';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '--';
+  return date.toLocaleString(locale || undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
 function SearchGlyph() {
   return (
     <svg viewBox="0 0 20 20" className="browse-search-glyph" aria-hidden="true">
@@ -165,7 +177,17 @@ export default function BrowseTab({
   const [searchState, setSearchState] = useState('idle');
   const [searchResults, setSearchResults] = useState([]);
   const [activeResult, setActiveResult] = useState(null);
-  const [detailState, setDetailState] = useState({ loading: false, values: [], latest: null, change: null });
+  const [detailState, setDetailState] = useState({
+    loading: false,
+    values: [],
+    latest: null,
+    change: null,
+    asOf: null,
+    source: null,
+    sourceStatus: null,
+    note: '',
+    resolvedSymbol: null
+  });
   const isZh = locale?.startsWith('zh');
   const trimmedQuery = normalizeQuery(searchValue);
   const showSearchResults = trimmedQuery.length > 0;
@@ -190,9 +212,16 @@ export default function BrowseTab({
       addToWatchlist: isZh ? '加入观察列表' : 'Add to Watchlist',
       watched: isZh ? '已在观察列表' : 'In Watchlist',
       openMy: isZh ? '打开我的观察列表' : 'Open My Watchlist',
-      unavailable: isZh ? '实时价格稍后补上' : 'Live pricing will land here when data is available.',
+      unavailable: isZh ? '暂时拿不到这只标的的图表数据。' : 'Chart data is temporarily unavailable for this asset.',
+      loadingDetail: isZh ? '正在拉取今天的走势…' : "Loading today's chart…",
       whatThisIs: isZh ? '这是什么' : 'What this is',
       whyItShows: isZh ? '为什么会出现' : 'Why it surfaced',
+      todayTrend: isZh ? '今日走势' : 'Today',
+      dataSource: isZh ? '数据来源' : 'Data source',
+      lastUpdated: isZh ? '最后更新' : 'Last updated',
+      liveStatus: isZh ? '实时状态' : 'Status',
+      liveNow: isZh ? '实时 / 当日分时' : 'Live intraday',
+      cached: isZh ? '缓存 / 最近可用' : 'Latest cached',
       categories: [
         { key: 'now', label: isZh ? '现在' : 'Now' },
         { key: 'macro', label: isZh ? '宏观' : 'Macro' },
@@ -247,26 +276,35 @@ export default function BrowseTab({
 
   useEffect(() => {
     if (!activeResult) {
-      setDetailState({ loading: false, values: [], latest: null, change: null });
-      return undefined;
-    }
-
-    const localInstrument = instruments.find((item) => item.ticker === String(activeResult.symbol || '').toUpperCase());
-    if (localInstrument) {
-      const values = barsForInstrument(localInstrument, 30).map((point) => point.close);
       setDetailState({
         loading: false,
-        values,
-        latest: latestClose(localInstrument),
-        change: pctChangeFromBars(localInstrument)
+        values: [],
+        latest: null,
+        change: null,
+        asOf: null,
+        source: null,
+        sourceStatus: null,
+        note: '',
+        resolvedSymbol: null
       });
       return undefined;
     }
 
     let cancelled = false;
-    setDetailState({ loading: true, values: [], latest: null, change: null });
+    setDetailState((current) => ({
+      ...current,
+      loading: true,
+      values: [],
+      latest: null,
+      change: null,
+      asOf: null,
+      source: null,
+      sourceStatus: null,
+      note: '',
+      resolvedSymbol: null
+    }));
     void fetch(
-      `/api/ohlcv?market=${encodeURIComponent(activeResult.market)}&symbol=${encodeURIComponent(activeResult.symbol)}&tf=1d&limit=30`,
+      `/api/browse/chart?market=${encodeURIComponent(activeResult.market)}&symbol=${encodeURIComponent(activeResult.symbol)}`,
       {
         credentials: 'same-origin'
       }
@@ -277,27 +315,41 @@ export default function BrowseTab({
       })
       .then((payload) => {
         if (cancelled) return;
-        const values = Array.isArray(payload?.data)
-          ? payload.data.map((row) => asNumber(row?.close)).filter((value) => Number.isFinite(value))
+        const chart = payload?.data || {};
+        const values = Array.isArray(chart?.points)
+          ? chart.points.map((point) => asNumber(point?.close)).filter((value) => Number.isFinite(value))
           : [];
-        const latest = values.length ? values[values.length - 1] : null;
-        const change = values.length >= 2 && values[0] ? (values[values.length - 1] - values[0]) / values[0] : null;
         setDetailState({
           loading: false,
           values,
-          latest,
-          change
+          latest: asNumber(chart?.latest),
+          change: asNumber(chart?.change),
+          asOf: chart?.asOf || null,
+          source: chart?.source || null,
+          sourceStatus: chart?.sourceStatus || null,
+          note: chart?.note || '',
+          resolvedSymbol: chart?.resolvedSymbol || null
         });
       })
       .catch(() => {
         if (cancelled) return;
-        setDetailState({ loading: false, values: [], latest: null, change: null });
+        setDetailState({
+          loading: false,
+          values: [],
+          latest: null,
+          change: null,
+          asOf: null,
+          source: null,
+          sourceStatus: null,
+          note: '',
+          resolvedSymbol: null
+        });
       });
 
     return () => {
       cancelled = true;
     };
-  }, [activeResult, instruments]);
+  }, [activeResult]);
 
   const instruments = useMemo(
     () =>
@@ -399,8 +451,12 @@ export default function BrowseTab({
   const showSports = category === 'sports';
   const showCryptoFocus = category === 'crypto';
   const showMacroFocus = category === 'macro';
-  const isWatched = activeResult ? normalizedWatchlist.includes(String(activeResult.symbol || '').toUpperCase()) : false;
+  const watchSymbol = String(detailState.resolvedSymbol || activeResult?.symbol || '').toUpperCase();
+  const isWatched = Boolean(activeResult && watchSymbol && normalizedWatchlist.includes(watchSymbol));
   const detailTone = toneForChange(detailState.change);
+  const detailSourceStatusLabel = detailState.sourceStatus === 'LIVE' ? labels.liveNow : labels.cached;
+  const detailSourceText = detailState.source || '--';
+  const detailAsOfText = formatAsOfLabel(detailState.asOf, locale);
 
   if (activeResult) {
     return (
@@ -433,7 +489,7 @@ export default function BrowseTab({
               <BrowseMiniChart values={detailState.values} tone={detailTone} />
             </div>
           ) : (
-            <div className="browse-asset-empty">{labels.unavailable}</div>
+            <div className="browse-asset-empty">{detailState.loading ? labels.loadingDetail : labels.unavailable}</div>
           )}
 
           <div className="browse-asset-quote">
@@ -447,8 +503,8 @@ export default function BrowseTab({
               className={`primary-btn browse-watch-button ${isWatched ? 'is-active' : ''}`}
               onClick={() =>
                 setWatchlist?.((current) => {
-                  const symbol = String(activeResult.symbol || '').toUpperCase();
-                  return current.includes(symbol) ? current : [...current, symbol];
+                  const safeCurrent = Array.isArray(current) ? current : [];
+                  return safeCurrent.includes(watchSymbol) ? safeCurrent : [...safeCurrent, watchSymbol];
                 })
               }
             >
@@ -465,7 +521,27 @@ export default function BrowseTab({
         <section className="browse-detail-grid">
           <article className="browse-detail-card">
             <p className="browse-detail-label">{labels.whatThisIs}</p>
-            <p className="browse-detail-copy">{activeResult.market === 'CRYPTO' ? activeResult.name : `${activeResult.name}${activeResult.venue ? ` · ${activeResult.venue}` : ''}`}</p>
+            <p className="browse-detail-copy">
+              {activeResult.market === 'CRYPTO'
+                ? `${activeResult.name}${detailState.resolvedSymbol ? ` · ${detailState.resolvedSymbol}` : ''}`
+                : `${activeResult.name}${activeResult.venue ? ` · ${activeResult.venue}` : ''}`}
+            </p>
+          </article>
+          <article className="browse-detail-card">
+            <p className="browse-detail-label">{labels.todayTrend}</p>
+            <p className="browse-detail-copy">{detailState.note || labels.unavailable}</p>
+          </article>
+          <article className="browse-detail-card">
+            <p className="browse-detail-label">{labels.dataSource}</p>
+            <p className="browse-detail-copy">{detailSourceText}</p>
+          </article>
+          <article className="browse-detail-card">
+            <p className="browse-detail-label">{labels.lastUpdated}</p>
+            <p className="browse-detail-copy">{detailAsOfText}</p>
+          </article>
+          <article className="browse-detail-card">
+            <p className="browse-detail-label">{labels.liveStatus}</p>
+            <p className="browse-detail-copy">{detailSourceStatusLabel}</p>
           </article>
           <article className="browse-detail-card">
             <p className="browse-detail-label">{labels.whyItShows}</p>
