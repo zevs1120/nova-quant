@@ -100,6 +100,7 @@ type SearchCandidate = {
   hint: string;
   source: 'live' | 'reference' | 'remote';
   aliases: string[];
+  heuristicDirect?: boolean;
 };
 
 type BrowseChartPoint = {
@@ -450,7 +451,8 @@ function buildDirectEquityCandidate(symbolInput: string): SearchCandidate {
     name: symbol,
     hint: 'Direct ticker lookup',
     source: 'remote',
-    aliases: [symbol]
+    aliases: [symbol],
+    heuristicDirect: true
   };
 }
 
@@ -467,7 +469,8 @@ function buildDirectCryptoCandidate(symbolInput: string): SearchCandidate {
     name: `${base} / ${quote}`,
     hint: 'Direct crypto lookup',
     source: 'remote',
-    aliases: [symbol, base, `${base}${quote}`, `${base}/${quote}`, symbolInput, ...(commonCryptoNames[base] || [])]
+    aliases: [symbol, base, `${base}${quote}`, `${base}/${quote}`, symbolInput, ...(commonCryptoNames[base] || [])],
+    heuristicDirect: true
   };
 }
 
@@ -799,15 +802,17 @@ function scoreAssetCandidate(query: string, candidate: SearchCandidate): number 
   const symbol = normalizeSearchText(candidate.symbol);
   const name = normalizeSearchText(candidate.name);
   const hint = normalizeSearchText(candidate.hint);
+  const exactHeuristicPenalty = candidate.heuristicDirect ? 260 : 0;
+  const prefixHeuristicPenalty = candidate.heuristicDirect ? 120 : 0;
   let score = 0;
 
-  if (symbol === normalizedQuery) score = 1200;
-  else if (symbol.startsWith(normalizedQuery)) score = 980;
-  else if (symbol.includes(normalizedQuery)) score = 760;
+  if (symbol === normalizedQuery) score = 1200 - exactHeuristicPenalty;
+  else if (symbol.startsWith(normalizedQuery)) score = 980 - prefixHeuristicPenalty;
+  else if (symbol.includes(normalizedQuery)) score = 760 - prefixHeuristicPenalty;
 
-  if (name === normalizedQuery) score = Math.max(score, 1180);
-  else if (name.startsWith(normalizedQuery)) score = Math.max(score, 1040);
-  else if (name.includes(normalizedQuery)) score = Math.max(score, 820);
+  if (name === normalizedQuery) score = Math.max(score, 1180 - exactHeuristicPenalty);
+  else if (name.startsWith(normalizedQuery)) score = Math.max(score, 1040 - prefixHeuristicPenalty);
+  else if (name.includes(normalizedQuery)) score = Math.max(score, 820 - prefixHeuristicPenalty);
 
   if (hint.startsWith(normalizedQuery)) score = Math.max(score, 520);
   else if (hint.includes(normalizedQuery)) score = Math.max(score, 420);
@@ -816,10 +821,10 @@ function scoreAssetCandidate(query: string, candidate: SearchCandidate): number 
     const normalizedAlias = normalizeSearchText(alias);
     if (!normalizedAlias) continue;
     if (normalizedAlias === normalizedQuery) {
-      score = Math.max(score, candidate.market === 'CRYPTO' ? 1210 : 1120);
+      score = Math.max(score, (candidate.market === 'CRYPTO' ? 1210 : 1120) - exactHeuristicPenalty);
     }
-    else if (normalizedAlias.startsWith(normalizedQuery)) score = Math.max(score, 900);
-    else if (normalizedAlias.includes(normalizedQuery)) score = Math.max(score, 640);
+    else if (normalizedAlias.startsWith(normalizedQuery)) score = Math.max(score, 900 - prefixHeuristicPenalty);
+    else if (normalizedAlias.includes(normalizedQuery)) score = Math.max(score, 640 - prefixHeuristicPenalty);
   }
 
   if (candidate.market === 'CRYPTO' && symbol.endsWith(`${normalizedQuery}usdt`)) {
@@ -2228,6 +2233,7 @@ export async function getEngagementState(args: {
     ...enrichedSnapshot,
     notification_center: {
       ...((enrichedSnapshot.notification_center as Record<string, unknown>) || {}),
+      active_count: persistedNotifications.length,
       notifications: serializeNotificationRows(persistedNotifications)
     },
     decision_snapshot_id: current?.id || null

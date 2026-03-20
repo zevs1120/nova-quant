@@ -961,7 +961,7 @@ async function fetchGateOhlcv(symbol: string, timeframe: Timeframe, limit = 120)
         open: parseNumericValue(row[5])
       } satisfies PublicOhlcvRow;
     })
-    .filter((row): row is PublicOhlcvRow => Boolean(row) && Number.isFinite(row.ts_open) && row.close !== null)
+    .filter((row): row is PublicOhlcvRow => row !== null && Number.isFinite(row.ts_open) && row.close !== null)
     .sort((a, b) => a.ts_open - b.ts_open);
 }
 

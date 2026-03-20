@@ -43,6 +43,17 @@ type SignalNewsContext = {
   source: string;
 };
 
+type StrategyFactoryCandidate = {
+  strategyId: string;
+  strategyFamily: string;
+  recommendation: string;
+  nextStage: string | null;
+  candidateQualityScorePct: number;
+  supportingFeatures: string[];
+  portfolioFit: string;
+  riskNote: string;
+};
+
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
@@ -55,6 +66,20 @@ function round(value: number, digits = 4): number {
 function toNum(value: unknown): number {
   const n = Number(value);
   return Number.isFinite(n) ? n : 0;
+}
+
+function parseJsonObject(value: string | null | undefined): Record<string, unknown> {
+  if (!value) return {};
+  try {
+    const parsed = JSON.parse(value) as Record<string, unknown>;
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function parseJsonArray<T = unknown>(value: unknown): T[] {
+  return Array.isArray(value) ? (value as T[]) : [];
 }
 
 function timeframeForMarket(market: Market): Timeframe {
@@ -859,6 +884,114 @@ function buildCoverageSummary(args: {
   };
 }
 
+function loadStrategyFactoryCandidates(repo: MarketRepository, market: Market): StrategyFactoryCandidate[] {
+  const recentRuns = repo.listWorkflowRuns({
+    workflowKey: 'nova_strategy_lab',
+    status: 'SUCCEEDED',
+    limit: 12
+  });
+  const freshCutoff = Date.now() - 24 * MS_HOUR;
+
+  for (const run of recentRuns) {
+    if ((run.completed_at_ms || run.updated_at_ms || 0) < freshCutoff) continue;
+    const input = parseJsonObject(run.input_json);
+    const constraints = input.constraints && typeof input.constraints === 'object' ? (input.constraints as Record<string, unknown>) : {};
+    const runMarket = String(constraints.market || input.market || '').toUpperCase();
+    if (runMarket && runMarket !== market) continue;
+
+    const output = parseJsonObject(run.output_json);
+    const rows = parseJsonArray<Record<string, unknown>>(output.selected_candidates);
+    const promoted = rows
+      .filter((row) => String(row.recommendation || '').toUpperCase() === 'PROMOTE_TO_SHADOW')
+      .map((row) => ({
+        strategyId: String(row.strategy_id || '').trim(),
+        strategyFamily: String(row.strategy_family || '').trim() || 'Nova Factory',
+        recommendation: String(row.recommendation || ''),
+        nextStage: String(row.next_stage || '').trim() || null,
+        candidateQualityScorePct: toNum(row.candidate_quality_score_pct),
+        supportingFeatures: parseJsonArray<string>(row.supporting_features).map((item) => String(item)),
+        portfolioFit: String(output.portfolio_fit || ''),
+        riskNote: String(output.risk_note || '')
+      }))
+      .filter((row) => row.strategyId)
+      .slice(0, 3);
+
+    if (promoted.length) return promoted;
+  }
+
+  return [];
+}
+
+function familyBias(candidate: StrategyFactoryCandidate, signal: SignalContract & Record<string, unknown>): number {
+  const family = candidate.strategyFamily.toLowerCase();
+  if (family.includes('momentum') || family.includes('trend')) {
+    return signal.regime_id === 'TREND' ? 12 : signal.direction === 'LONG' ? 4 : 0;
+  }
+  if (family.includes('mean reversion')) {
+    return signal.regime_id === 'RANGE' ? 12 : 0;
+  }
+  if (family.includes('crypto')) {
+    return signal.market === 'CRYPTO' ? 10 : 0;
+  }
+  return 2;
+}
+
+function buildStrategyFactorySignals(args: {
+  market: Market;
+  nowMs: number;
+  baseSignals: Array<SignalContract & Record<string, unknown>>;
+  candidates: StrategyFactoryCandidate[];
+}): Array<SignalContract & Record<string, unknown>> {
+  const usedSymbols = new Set<string>();
+  const overlays: Array<SignalContract & Record<string, unknown>> = [];
+
+  for (const candidate of args.candidates) {
+    const base = [...args.baseSignals]
+      .filter((signal) => signal.market === args.market && signal.status === 'NEW' && !usedSymbols.has(signal.symbol))
+      .sort((a, b) => b.score + familyBias(candidate, b) - (a.score + familyBias(candidate, a)))[0];
+    if (!base) continue;
+
+    usedSymbols.add(base.symbol);
+    const candidateStrength = clamp(candidate.candidateQualityScorePct / 100, 0.45, 0.96);
+    const confidence = round(clamp(base.confidence * 0.82 + candidateStrength * 0.18, 0.35, 0.97), 4);
+    const score = round(clamp(base.score * 0.82 + candidate.candidateQualityScorePct * 0.24, 35, 98), 2);
+    const signalId = `SIG-${args.market}-${base.symbol}-${candidate.strategyId}`.slice(0, 96);
+
+    overlays.push(
+      withUiFields({
+        ...base,
+        id: signalId,
+        created_at: new Date(args.nowMs).toISOString(),
+        strategy_id: candidate.strategyId,
+        strategy_family: candidate.strategyFamily,
+        strategy_version: `nova-factory.${candidate.nextStage || 'shadow'}`,
+        confidence,
+        strength: round(confidence * 100, 2),
+        score,
+        explain_bullets: [
+          `Promoted from Nova Strategy Lab with ${Math.round(candidate.candidateQualityScorePct)} quality score.`,
+          candidate.portfolioFit || 'Selected to complement the current runtime lineup.',
+          ...base.explain_bullets.slice(0, 3)
+        ],
+        execution_checklist: [
+          'Factory-promoted card: confirm the setup still matches the current tape before acting.',
+          candidate.riskNote || 'Treat factory promotions as governed ideas, not blind automation.',
+          ...base.execution_checklist.slice(0, 4)
+        ],
+        tags: [
+          ...base.tags.filter((tag) => !String(tag).startsWith('source:')),
+          'source:nova_factory',
+          `factory_stage:${String(candidate.nextStage || 'shadow').toLowerCase()}`,
+          `factory_quality:${Math.round(candidate.candidateQualityScorePct)}`,
+          ...candidate.supportingFeatures.slice(0, 3).map((feature) => `factory_feature:${String(feature).toLowerCase().replace(/\s+/g, '_')}`)
+        ]
+      })
+    );
+  }
+
+  return overlays;
+}
+
 function summarizeNews(repo: MarketRepository, market: Market, symbol: string): SignalNewsContext {
   const rows = repo.listNewsItems({
     market,
@@ -1117,6 +1250,27 @@ export function deriveRuntimeState(params: {
     generatedSignals: derivedSignals.length,
     stateRows: marketStateRows.length
   });
+
+  const factorySignals = [
+    ...buildStrategyFactorySignals({
+      market: 'US',
+      nowMs,
+      baseSignals: derivedSignals,
+      candidates: loadStrategyFactoryCandidates(repo, 'US')
+    }),
+    ...buildStrategyFactorySignals({
+      market: 'CRYPTO',
+      nowMs,
+      baseSignals: derivedSignals,
+      candidates: loadStrategyFactoryCandidates(repo, 'CRYPTO')
+    })
+  ];
+
+  if (factorySignals.length) {
+    derivedSignals.push(...factorySignals);
+    activeSignalIds.push(...factorySignals.map((signal) => signal.id));
+    coverageSummary.generated_signals = derivedSignals.length;
+  }
 
   const sourceStatus = assetsWithBars > 0 ? RUNTIME_STATUS.DB_BACKED : RUNTIME_STATUS.INSUFFICIENT_DATA;
 

@@ -127,6 +127,50 @@ const initialData = {
 };
 
 const DEFAULT_AUTH_WATCHLIST = Object.freeze(['SPY', 'QQQ', 'AAPL']);
+const DEMO_MANUAL_STATE = Object.freeze({
+  available: true,
+  mode: 'DEMO',
+  reason: null,
+  summary: {
+    balance: 1240,
+    expiringSoon: 180,
+    vipDays: 1,
+    vipDaysRedeemed: 1
+  },
+  referrals: {
+    inviteCode: 'DEMO-NOVA',
+    referredByCode: null,
+    total: 3,
+    rewarded: 2
+  },
+  ledger: [
+    {
+      id: 'demo-ledger-1',
+      eventType: 'MORNING_CHECK',
+      pointsDelta: 120,
+      balanceAfter: 1240,
+      title: '+120',
+      description: 'Morning Check plus one AI question.',
+      createdAt: new Date().toISOString()
+    }
+  ],
+  rewards: [
+    {
+      id: 'vip-1d',
+      kind: 'vip_day',
+      title: 'Redeem 1 VIP day',
+      description: '1000 points unlocks one more VIP day.',
+      costPoints: 1000,
+      enabled: true
+    }
+  ],
+  predictions: [],
+  rules: {
+    vipRedeemPoints: 1000,
+    referralRewardPoints: 200,
+    defaultPredictionStake: 100
+  }
+});
 
 function detectDisplayMode() {
   if (typeof window === 'undefined') return 'browser';
@@ -202,6 +246,61 @@ function addUniqueKey(rows = [], key) {
   if (!key) return rows;
   if (rows.includes(key)) return rows;
   return [...rows, key].sort();
+}
+
+function toNumber(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function deriveConnectedHoldings({ brokerSnapshot, exchangeSnapshot }) {
+  const brokerPositions = Array.isArray(brokerSnapshot?.positions) ? brokerSnapshot.positions : [];
+  const exchangeBalances = Array.isArray(exchangeSnapshot?.balances) ? exchangeSnapshot.balances : [];
+  const rows = [];
+
+  const brokerTotal = brokerPositions.reduce((sum, row) => sum + Math.max(0, Number(row?.market_value || 0)), 0);
+  for (const row of brokerPositions) {
+    const symbol = String(row?.symbol || '').trim().toUpperCase();
+    const marketValue = Number(row?.market_value || 0);
+    const quantity = Number(row?.qty || 0);
+    if (!symbol || !(quantity > 0)) continue;
+    rows.push({
+      id: `broker-${symbol}`,
+      symbol,
+      asset_class: 'US_STOCK',
+      market: 'US',
+      quantity,
+      cost_basis: toNumber(row?.avg_entry_price),
+      current_price: toNumber(row?.current_price),
+      weight_pct: brokerTotal > 0 && marketValue > 0 ? (marketValue / brokerTotal) * 100 : null,
+      note: 'Broker'
+    });
+  }
+
+  const pricedExchangeBalances = exchangeBalances
+    .map((row) => ({
+      asset: String(row?.asset || '').trim().toUpperCase(),
+      total: Number(row?.total || Number(row?.free || 0) + Number(row?.locked || 0)),
+      mark_price: toNumber(row?.mark_price),
+      market_value: Number(row?.market_value || 0)
+    }))
+    .filter((row) => row.asset && row.asset !== 'USDT' && row.total > 0);
+  const exchangeTotal = pricedExchangeBalances.reduce((sum, row) => sum + Math.max(0, row.market_value || 0), 0);
+
+  for (const row of pricedExchangeBalances) {
+    rows.push({
+      id: `exchange-${row.asset}`,
+      symbol: `${row.asset}-USDT`,
+      asset_class: 'CRYPTO',
+      market: 'CRYPTO',
+      quantity: row.total,
+      current_price: row.mark_price,
+      weight_pct: exchangeTotal > 0 && row.market_value > 0 ? (row.market_value / exchangeTotal) * 100 : null,
+      note: 'Exchange'
+    });
+  }
+
+  return rows;
 }
 
 function calcStreak(rows = [], anchorKey, stepDays = 1) {
@@ -286,21 +385,13 @@ export default function App() {
   );
   const [aiSeedRequest, setAiSeedRequest] = useState(null);
   const [engagementState, setEngagementState] = useState(null);
+  const [manualState, setManualState] = useState(DEMO_MANUAL_STATE);
   const mySection = myStack[myStack.length - 1] || 'portfolio';
 
   const t = useMemo(() => createTranslator(lang), [lang]);
   const locale = useMemo(() => getLocale(lang), [lang]);
   const tabMeta = useMemo(() => buildTabMeta(locale), [locale]);
   const menuTitles = useMemo(() => buildMenuTitles(locale), [locale]);
-  const [pointsState] = useLocalStorage(
-    'nova-quant-points-state',
-    {
-      balance: 1240,
-      status: 'expiring',
-      expiringSoon: 180,
-      vipDays: 1
-    }
-  );
 
   const investorDemoEnvironment = useMemo(
     () => (investorDemoEnabled ? buildInvestorDemoEnvironment(assetClass) : null),
@@ -346,9 +437,59 @@ export default function App() {
     };
   }, [investorDemoEnabled, investorDemoEnvironment, data]);
 
+  const connectedHoldings = useMemo(
+    () =>
+      deriveConnectedHoldings({
+        brokerSnapshot: uiData?.config?.runtime?.connectivity?.broker || null,
+        exchangeSnapshot: uiData?.config?.runtime?.connectivity?.exchange || null
+      }),
+    [uiData?.config?.runtime?.connectivity?.broker, uiData?.config?.runtime?.connectivity?.exchange]
+  );
+
+  const holdingsSource = useMemo(() => {
+    if (investorDemoEnabled) {
+      return {
+        kind: 'DEMO',
+        connected: true,
+        available: true,
+        message: 'Demo holdings enabled.'
+      };
+    }
+    const broker = uiData?.config?.runtime?.connectivity?.broker || null;
+    const exchange = uiData?.config?.runtime?.connectivity?.exchange || null;
+    const connected = Boolean(broker?.can_read_positions || exchange?.can_read_positions);
+    if (connected) {
+      return {
+        kind:
+          connectedHoldings.some((row) => row.market === 'US') && connectedHoldings.some((row) => row.market === 'CRYPTO')
+            ? 'MERGED'
+            : broker?.can_read_positions
+              ? 'BROKER'
+              : 'EXCHANGE',
+        connected: true,
+        available: true,
+        message:
+          connectedHoldings.length > 0
+            ? 'Live read-only holdings loaded from connected accounts.'
+            : 'Connected accounts are live, but no open holdings were reported.'
+      };
+    }
+    return {
+      kind: 'UNAVAILABLE',
+      connected: false,
+      available: false,
+      message: broker?.message || exchange?.message || 'Connect a broker or exchange to load real holdings.'
+    };
+  }, [connectedHoldings, investorDemoEnabled, uiData?.config?.runtime?.connectivity?.broker, uiData?.config?.runtime?.connectivity?.exchange]);
+
+  const effectiveHoldings = useMemo(() => {
+    if (investorDemoEnabled) return holdings;
+    return connectedHoldings;
+  }, [connectedHoldings, holdings, investorDemoEnabled]);
+
   const holdingsReview = useMemo(
-    () => buildHoldingsReview({ holdings, state: uiData }),
-    [holdings, uiData]
+    () => buildHoldingsReview({ holdings: effectiveHoldings, state: uiData }),
+    [effectiveHoldings, uiData]
   );
 
   const aiState = useMemo(
@@ -358,11 +499,11 @@ export default function App() {
       user_context: {
         user_id: effectiveUserId,
         ui_mode: uiMode,
-        holdings,
+        holdings: effectiveHoldings,
         holdings_review: holdingsReview
       }
     }),
-    [uiData, decisionSnapshot, effectiveUserId, uiMode, holdings, holdingsReview]
+    [uiData, decisionSnapshot, effectiveUserId, uiMode, effectiveHoldings, holdingsReview]
   );
 
   const enableInvestorDemo = () => {
@@ -464,6 +605,55 @@ export default function App() {
   }, [applyAuthenticatedProfile, authSession, onboardingDone, setAuthSession]);
 
   useEffect(() => {
+    if (isDemoRuntime) {
+      setManualState(DEMO_MANUAL_STATE);
+      return undefined;
+    }
+    let cancelled = false;
+    void fetchJson(`/api/manual/state?userId=${encodeURIComponent(effectiveUserId)}`)
+      .then((payload) => {
+        if (!cancelled) setManualState(payload || null);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setManualState({
+            ...DEMO_MANUAL_STATE,
+            available: false,
+            mode: 'REAL',
+            reason: 'MANUAL_UNAVAILABLE',
+            summary: {
+              balance: 0,
+              expiringSoon: 0,
+              vipDays: 0,
+              vipDaysRedeemed: 0
+            },
+            referrals: {
+              inviteCode: null,
+              referredByCode: null,
+              total: 0,
+              rewarded: 0
+            },
+            ledger: [],
+            rewards: [
+              {
+                id: 'vip-1d',
+                kind: 'vip_day',
+                title: 'Redeem 1 VIP day',
+                description: '1000 points unlocks one more VIP day.',
+                costPoints: 1000,
+                enabled: false
+              }
+            ],
+            predictions: []
+          });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [effectiveUserId, isDemoRuntime]);
+
+  useEffect(() => {
     if (!authSession?.userId || investorDemoEnabled) return undefined;
 
     const payload = {
@@ -472,7 +662,7 @@ export default function App() {
       uiMode,
       riskProfileKey,
       watchlist,
-      holdings,
+      holdings: effectiveHoldings,
       executions,
       disciplineLog
     };
@@ -495,8 +685,8 @@ export default function App() {
     assetClass,
     authSession?.userId,
     disciplineLog,
+    effectiveHoldings,
     executions,
-    holdings,
     investorDemoEnabled,
     market,
     riskProfileKey,
@@ -733,7 +923,7 @@ export default function App() {
           localDate: todayKey,
           localHour: now.getHours(),
           locale: lang,
-          holdings
+          holdings: effectiveHoldings
         })
       });
       setEngagementState(payload || null);
@@ -742,7 +932,7 @@ export default function App() {
       setEngagementState(null);
       return null;
     }
-  }, [assetClass, effectiveUserId, hasLoaded, holdings, isDemoRuntime, lang, market, now, todayKey]);
+  }, [assetClass, effectiveUserId, hasLoaded, effectiveHoldings, isDemoRuntime, lang, market, now, todayKey]);
 
   useEffect(() => {
     if (isDemoRuntime || !hasLoaded) return;
@@ -756,7 +946,7 @@ export default function App() {
         market,
         assetClass,
         locale: lang,
-        holdings
+        holdings: effectiveHoldings
       })
     })
       .then((payload) => {
@@ -769,7 +959,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [isDemoRuntime, hasLoaded, effectiveUserId, market, assetClass, holdings, lang, uiData.decision]);
+  }, [isDemoRuntime, hasLoaded, effectiveUserId, market, assetClass, effectiveHoldings, lang, uiData.decision]);
 
   useEffect(() => {
     if (!decisionSnapshot || isDemoRuntime || !hasLoaded) return;
@@ -844,14 +1034,14 @@ export default function App() {
           localDate: todayKey,
           localHour: now.getHours(),
           locale: lang,
-          holdings
+          holdings: effectiveHoldings
         })
       });
       setEngagementState(payload || null);
     } catch {
       void loadEngagementState();
     }
-  }, [assetClass, effectiveUserId, holdings, isDemoRuntime, lang, loadEngagementState, market, now, syncLocalDisciplineLog, todayKey]);
+  }, [assetClass, effectiveUserId, effectiveHoldings, isDemoRuntime, lang, loadEngagementState, market, now, syncLocalDisciplineLog, todayKey]);
 
   const markBoundaryKept = useCallback(async () => {
     syncLocalDisciplineLog((current) => ({
@@ -870,14 +1060,14 @@ export default function App() {
           localDate: todayKey,
           localHour: now.getHours(),
           locale: lang,
-          holdings
+          holdings: effectiveHoldings
         })
       });
       setEngagementState(payload || null);
     } catch {
       void loadEngagementState();
     }
-  }, [assetClass, effectiveUserId, holdings, isDemoRuntime, lang, loadEngagementState, market, now, syncLocalDisciplineLog, todayKey]);
+  }, [assetClass, effectiveUserId, effectiveHoldings, isDemoRuntime, lang, loadEngagementState, market, now, syncLocalDisciplineLog, todayKey]);
 
   const markWrapUpComplete = useCallback(async () => {
     if (isDemoRuntime) return;
@@ -892,14 +1082,14 @@ export default function App() {
           localDate: todayKey,
           localHour: now.getHours(),
           locale: lang,
-          holdings
+          holdings: effectiveHoldings
         })
       });
       setEngagementState(payload || null);
     } catch {
       void loadEngagementState();
     }
-  }, [assetClass, effectiveUserId, holdings, isDemoRuntime, lang, loadEngagementState, market, now, todayKey]);
+  }, [assetClass, effectiveUserId, effectiveHoldings, isDemoRuntime, lang, loadEngagementState, market, now, todayKey]);
 
   const markWeeklyReviewed = useCallback(async () => {
     syncLocalDisciplineLog((current) => ({
@@ -918,14 +1108,14 @@ export default function App() {
           localDate: todayKey,
           localHour: now.getHours(),
           locale: lang,
-          holdings
+          holdings: effectiveHoldings
         })
       });
       setEngagementState(payload || null);
     } catch {
       void loadEngagementState();
     }
-  }, [assetClass, effectiveUserId, currentWeekKey, holdings, isDemoRuntime, lang, loadEngagementState, market, now, syncLocalDisciplineLog, todayKey]);
+  }, [assetClass, effectiveUserId, currentWeekKey, effectiveHoldings, isDemoRuntime, lang, loadEngagementState, market, now, syncLocalDisciplineLog, todayKey]);
 
   const askAi = (message, context = {}) => {
     const text = String(message || '').trim();
@@ -1039,6 +1229,51 @@ export default function App() {
       // Keep UI resilient; failed writes are surfaced by stale state.
     }
   };
+
+  const refreshManualState = useCallback(async () => {
+    if (isDemoRuntime) {
+      setManualState(DEMO_MANUAL_STATE);
+      return DEMO_MANUAL_STATE;
+    }
+    const payload = await fetchJson(`/api/manual/state?userId=${encodeURIComponent(effectiveUserId)}`);
+    setManualState(payload || null);
+    return payload || null;
+  }, [effectiveUserId, isDemoRuntime]);
+
+  const redeemVipDay = useCallback(
+    async (days = 1) => {
+      if (isDemoRuntime) {
+        setManualState((current) => {
+          const base = current || DEMO_MANUAL_STATE;
+          return {
+            ...base,
+            summary: {
+              ...base.summary,
+              balance: Math.max(0, Number(base.summary.balance || 0) - days * 1000),
+              vipDays: Number(base.summary.vipDays || 0) + days,
+              vipDaysRedeemed: Number(base.summary.vipDaysRedeemed || 0) + days
+            }
+          };
+        });
+        return;
+      }
+      try {
+        const payload = await fetchJson('/api/manual/rewards/redeem', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: effectiveUserId,
+            days
+          })
+        });
+        if (payload?.data) setManualState(payload.data);
+        else await refreshManualState();
+      } catch {
+        await refreshManualState().catch(() => {});
+      }
+    },
+    [effectiveUserId, isDemoRuntime, refreshManualState]
+  );
 
   const buildMyStack = useCallback((section) => {
     if (!section || section === 'portfolio') return ['portfolio'];
@@ -1667,7 +1902,7 @@ export default function App() {
     if (activeTab === 'my' && mySection === 'portfolio') {
       return (
         <HoldingsTab
-          holdings={holdings}
+          holdings={effectiveHoldings}
           setHoldings={setHoldings}
           holdingsReview={holdingsReview}
           watchlist={watchlist}
@@ -1676,6 +1911,7 @@ export default function App() {
           t={t}
           locale={locale}
           investorDemoEnabled={investorDemoEnabled}
+          holdingsSource={holdingsSource}
           onExplain={(message) => askAi(message)}
           onOpenMenu={() => openMySection('menu')}
         />
@@ -1692,7 +1928,7 @@ export default function App() {
             authSession?.name ||
             (chatUserId.startsWith('guest-') ? `@${chatUserId.slice(6)}` : chatUserId)
           }
-          points={pointsState}
+          manualState={manualState}
           onSectionChange={pushMySection}
           showDemoEntry={DEMO_ENTRY_ENABLED}
           demoEnabled={investorDemoEnabled}
@@ -1703,6 +1939,7 @@ export default function App() {
             }
             enableInvestorDemo();
           }}
+          onRedeemVip={redeemVipDay}
           onOpenAbout={() => setAboutOpen(true)}
           onLogout={() => {
             void fetchJson('/api/auth/logout', { method: 'POST' }).catch(() => {});

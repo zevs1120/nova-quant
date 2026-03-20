@@ -16,6 +16,8 @@ import type {
 } from '../types.js';
 import { MarketRepository } from '../db/repository.js';
 import { deliverSignalToDiscord } from '../delivery/discord.js';
+import { deliverSignalToInternalInbox } from '../delivery/inbox.js';
+import { generateGovernedNovaStrategies } from '../nova/strategyLab.js';
 import { deriveRuntimeState } from './runtimeDerivation.js';
 
 const STRATEGY_TEMPLATE_VERSION = 'strategy-templates-2026-03-04.1';
@@ -502,6 +504,60 @@ function pruneExpiredCache(nowMs: number) {
       cacheByKey.delete(key);
     }
   }
+}
+
+const strategyFactoryRefreshLocks = new Set<string>();
+
+function defaultStrategyFactoryPrompt(market: Market, riskProfileKey: string) {
+  return market === 'CRYPTO'
+    ? `Generate governed crypto strategies for ${riskProfileKey} risk that can ship as daily signal cards with explicit risk controls and liquid symbols.`
+    : `Generate governed US equity strategies for ${riskProfileKey} risk that can ship as daily signal cards with explicit risk controls and liquid symbols.`;
+}
+
+function maybeRefreshStrategyFactory(args: {
+  repo: MarketRepository;
+  userId: string;
+  market: Market;
+  riskProfileKey: string;
+}) {
+  const lockKey = `${args.userId}:${args.market}`;
+  if (strategyFactoryRefreshLocks.has(lockKey)) return;
+
+  const latestRun = args.repo
+    .listWorkflowRuns({
+      workflowKey: 'nova_strategy_lab',
+      status: 'SUCCEEDED',
+      limit: 10
+    })
+    .find((row) => {
+      try {
+        const input = JSON.parse(row.input_json || '{}') as Record<string, unknown>;
+        const constraints =
+          input.constraints && typeof input.constraints === 'object'
+            ? (input.constraints as Record<string, unknown>)
+            : {};
+        return String(constraints.market || input.market || '').toUpperCase() === args.market;
+      } catch {
+        return false;
+      }
+    });
+
+  const lastUpdatedMs = latestRun?.completed_at_ms || latestRun?.updated_at_ms || 0;
+  if (lastUpdatedMs && Date.now() - lastUpdatedMs < 6 * 3600_000) return;
+
+  strategyFactoryRefreshLocks.add(lockKey);
+  void generateGovernedNovaStrategies({
+    repo: args.repo,
+    userId: args.userId,
+    prompt: defaultStrategyFactoryPrompt(args.market, args.riskProfileKey),
+    market: args.market,
+    riskProfile: args.riskProfileKey,
+    maxCandidates: 8
+  })
+    .catch(() => {})
+    .finally(() => {
+      strategyFactoryRefreshLocks.delete(lockKey);
+    });
 }
 
 export function __resetQuantDataCacheForTests() {
@@ -1131,6 +1187,19 @@ export function ensureQuantData(
     riskProfile
   });
 
+  maybeRefreshStrategyFactory({
+    repo,
+    userId,
+    market: 'US',
+    riskProfileKey: riskProfile.profile_key
+  });
+  maybeRefreshStrategyFactory({
+    repo,
+    userId,
+    market: 'CRYPTO',
+    riskProfileKey: riskProfile.profile_key
+  });
+
   const contracts = derived.signals as SignalContract[];
 
   const existing = new Map(repo.listSignals({ limit: 500 }).map((row) => [row.signal_id, row.status]));
@@ -1138,6 +1207,12 @@ export function ensureQuantData(
     const prev = existing.get(signal.id);
     if (!prev) {
       repo.appendSignalEvent(signal.id, 'CREATED', { status: signal.status });
+      deliverSignalToInternalInbox({
+        repo,
+        userId,
+        signal,
+        eventType: 'CREATED'
+      });
       void deliverSignalToDiscord({
         repo,
         signal,
@@ -1145,6 +1220,12 @@ export function ensureQuantData(
       });
     } else if (prev !== signal.status) {
       repo.appendSignalEvent(signal.id, 'STATUS_CHANGED', { from: prev, to: signal.status });
+      deliverSignalToInternalInbox({
+        repo,
+        userId,
+        signal,
+        eventType: 'STATUS_CHANGED'
+      });
       void deliverSignalToDiscord({
         repo,
         signal,

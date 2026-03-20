@@ -867,7 +867,7 @@ export default function TodayTab({
           <div className="today-action-links">
             <button
               type="button"
-              className="today-action-link"
+              className="today-action-link today-action-link-primary"
               onClick={(event) => {
                 event.stopPropagation();
                 handleMainAction();
@@ -883,7 +883,7 @@ export default function TodayTab({
             </button>
             <button
               type="button"
-              className="today-action-link"
+              className="today-action-link today-action-link-secondary"
               onClick={(event) => {
                 event.stopPropagation();
                 triggerFeedback('soft');

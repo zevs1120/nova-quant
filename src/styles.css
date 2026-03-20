@@ -11924,3 +11924,602 @@ body.keyboard-open .ai-composer-shell {
 .trade-ticket-actions .ghost-btn {
   flex: 1 1 0;
 }
+
+/* Commercial mobile polish pass */
+.app-bg {
+  background:
+    radial-gradient(circle at 14% 0%, rgba(46, 125, 105, 0.08), transparent 28%),
+    radial-gradient(circle at 86% 0%, rgba(22, 86, 217, 0.08), transparent 26%),
+    linear-gradient(180deg, #f7f3ed 0%, #eee7de 100%);
+}
+
+body.is-standalone .app-bg {
+  background: linear-gradient(180deg, #f7f3ed 0%, #eee7de 100%);
+}
+
+.device-shell {
+  background: linear-gradient(180deg, rgba(255, 252, 247, 0.98) 0%, rgba(249, 244, 236, 0.95) 100%);
+  box-shadow:
+    0 28px 70px rgba(20, 24, 33, 0.12),
+    0 4px 14px rgba(20, 24, 33, 0.05);
+}
+
+.top-bar {
+  padding-top: calc(var(--safe-top) + 4px);
+  padding-bottom: 8px;
+  background: linear-gradient(180deg, rgba(255, 251, 246, 0.94), rgba(255, 250, 244, 0.8));
+  backdrop-filter: blur(26px) saturate(1.08);
+  border-bottom: 1px solid rgba(23, 28, 36, 0.05);
+}
+
+.top-bar-root {
+  min-height: 52px;
+}
+
+.top-bar-detail {
+  min-height: 42px;
+}
+
+.top-bar-logo-wrap {
+  min-height: 30px;
+  width: min(44vw, 138px);
+  max-width: min(44vw, 138px);
+}
+
+.top-bar-logo {
+  height: 30px;
+}
+
+.top-bar-root.is-condensed,
+.top-bar-detail.is-condensed {
+  background: rgba(252, 248, 243, 0.86);
+  box-shadow: 0 10px 24px rgba(20, 24, 33, 0.05);
+}
+
+.main-content {
+  padding-top: 10px;
+}
+
+.glass-card,
+.holding-card,
+.modal-card,
+.sheet-card,
+.chat-sheet,
+.more-list {
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(251, 247, 241, 0.92));
+  box-shadow:
+    0 18px 34px rgba(20, 24, 33, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.84);
+}
+
+.primary-btn,
+.secondary-btn,
+.ghost-btn,
+.info-btn,
+.pill-btn {
+  min-height: 48px;
+  border-radius: 18px;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  backdrop-filter: blur(16px);
+}
+
+.primary-btn {
+  background: linear-gradient(180deg, #2a8a72 0%, #1f6d5a 100%);
+  border-color: rgba(31, 109, 90, 0.32);
+  box-shadow: 0 12px 26px rgba(31, 109, 90, 0.22);
+}
+
+.secondary-btn,
+.ghost-btn,
+.info-btn,
+.pill-btn {
+  background: rgba(255, 255, 255, 0.72);
+  border-color: rgba(23, 28, 36, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.84);
+}
+
+.bottom-nav.app-tabbar {
+  overflow: hidden;
+  padding: 8px 10px calc(var(--tabbar-safe-gap) + 4px);
+  background: linear-gradient(180deg, rgba(255, 252, 248, 0.84), rgba(249, 244, 237, 0.96));
+  backdrop-filter: blur(28px) saturate(1.1);
+  border-top: 1px solid rgba(23, 28, 36, 0.045);
+  box-shadow: 0 -14px 34px rgba(20, 24, 33, 0.07);
+}
+
+.bottom-nav.app-tabbar::before {
+  content: '';
+  position: absolute;
+  inset: 0 14px auto;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.84), transparent);
+  pointer-events: none;
+}
+
+.tab-btn {
+  position: relative;
+  min-height: 52px;
+  border-radius: 18px;
+  gap: 4px;
+  color: rgba(23, 28, 36, 0.52);
+}
+
+.tab-btn span:first-child {
+  width: 28px;
+  height: 28px;
+  border-radius: 12px;
+  font-size: 16px;
+}
+
+.tab-btn span:last-child {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.tab-btn.active {
+  background: rgba(255, 255, 255, 0.58);
+  box-shadow:
+    inset 0 0 0 1px rgba(23, 28, 36, 0.04),
+    0 10px 20px rgba(20, 24, 33, 0.045);
+}
+
+.tab-btn.active span:first-child {
+  background: linear-gradient(180deg, rgba(46, 125, 105, 0.18), rgba(22, 86, 217, 0.08));
+  color: #165b4b;
+  box-shadow:
+    inset 0 0 0 1px rgba(22, 91, 75, 0.08),
+    0 6px 14px rgba(22, 91, 75, 0.1);
+}
+
+.today-screen-native {
+  gap: 14px;
+}
+
+.today-summary-header {
+  padding: 2px 4px 0;
+  gap: 12px;
+}
+
+.today-summary-date {
+  margin: 0 0 4px;
+  color: rgba(23, 28, 36, 0.42);
+  font-size: 13px;
+  font-weight: 720;
+  letter-spacing: -0.01em;
+}
+
+.today-summary-title {
+  font-size: clamp(32px, 7.2vw, 40px);
+  line-height: 0.94;
+}
+
+.today-summary-status {
+  min-height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(23, 28, 36, 0.06);
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: none;
+  letter-spacing: 0.11em;
+}
+
+.today-summary-status-trade {
+  background: rgba(46, 125, 105, 0.14);
+  color: #1f5b4c;
+}
+
+.today-summary-status-wait {
+  background: rgba(43, 121, 233, 0.12);
+  color: #245ccf;
+}
+
+.today-summary-status-defense,
+.today-summary-status-no_trade {
+  background: rgba(23, 28, 36, 0.09);
+  color: rgba(23, 28, 36, 0.72);
+}
+
+.today-screen-flow {
+  gap: 14px;
+}
+
+.today-provenance-strip {
+  padding: 12px 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.68);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.74), rgba(249, 245, 239, 0.82));
+  box-shadow:
+    0 10px 22px rgba(20, 24, 33, 0.035),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.today-provenance-note {
+  color: rgba(23, 28, 36, 0.64);
+}
+
+.today-climate-strip {
+  padding: 14px 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.68);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.74), rgba(250, 246, 240, 0.84));
+  box-shadow:
+    0 12px 24px rgba(20, 24, 33, 0.035),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.today-climate-trade {
+  background:
+    radial-gradient(circle at right top, rgba(46, 125, 105, 0.14), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(245, 250, 247, 0.88));
+}
+
+.today-climate-wait {
+  background:
+    radial-gradient(circle at right top, rgba(75, 168, 255, 0.14), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(245, 248, 252, 0.88));
+}
+
+.today-climate-defense,
+.today-climate-closed {
+  background:
+    radial-gradient(circle at right top, rgba(23, 28, 36, 0.08), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(246, 246, 248, 0.88));
+}
+
+.today-climate-name {
+  font-size: 16px;
+  font-weight: 790;
+}
+
+.today-climate-pill {
+  width: 26px;
+  height: 8px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3);
+}
+
+.today-climate-pill-high {
+  background: linear-gradient(90deg, #23866f, #47c6a1);
+}
+
+.today-climate-pill-mid {
+  background: linear-gradient(90deg, #4f96ff, #89bfff);
+}
+
+.today-climate-pill-low {
+  background: rgba(23, 28, 36, 0.13);
+}
+
+.today-action-card {
+  gap: 16px;
+  padding: 18px;
+  border-radius: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background:
+    radial-gradient(circle at top right, rgba(46, 125, 105, 0.1), transparent 32%),
+    radial-gradient(circle at bottom left, rgba(79, 150, 255, 0.1), transparent 36%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(251, 247, 241, 0.98));
+  box-shadow:
+    0 18px 34px rgba(20, 24, 33, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92);
+  cursor: pointer;
+  transition:
+    transform 180ms var(--ease-spring),
+    box-shadow 220ms var(--ease-spring),
+    border-color 220ms var(--ease-spring);
+}
+
+.today-action-card:hover,
+.today-action-card:focus-visible {
+  border-color: rgba(23, 28, 36, 0.08);
+  box-shadow:
+    0 22px 40px rgba(20, 24, 33, 0.065),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92);
+}
+
+.today-action-card:active {
+  transform: scale(0.992);
+}
+
+.today-action-card:focus-visible {
+  outline: none;
+}
+
+.today-action-card-trade {
+  background:
+    radial-gradient(circle at top right, rgba(46, 125, 105, 0.16), transparent 32%),
+    radial-gradient(circle at bottom left, rgba(79, 150, 255, 0.12), transparent 36%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(247, 251, 248, 0.98));
+}
+
+.today-action-card-wait {
+  background:
+    radial-gradient(circle at top right, rgba(79, 150, 255, 0.14), transparent 32%),
+    radial-gradient(circle at bottom left, rgba(113, 186, 255, 0.1), transparent 36%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(246, 249, 253, 0.98));
+}
+
+.today-action-card-defense,
+.today-action-card-closed {
+  background:
+    radial-gradient(circle at top right, rgba(23, 28, 36, 0.08), transparent 32%),
+    radial-gradient(circle at bottom left, rgba(120, 127, 141, 0.08), transparent 36%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(247, 247, 249, 0.98));
+}
+
+.today-action-card::after {
+  inset: auto 18px 0;
+  height: 6px;
+  background: linear-gradient(90deg, #23866f 0%, #52c7ab 52%, #89bfff 100%);
+}
+
+.today-action-kicker,
+.today-action-tag {
+  min-height: 25px;
+  padding: 0 10px;
+  letter-spacing: 0.11em;
+}
+
+.today-action-kicker {
+  background: rgba(255, 255, 255, 0.62);
+  color: rgba(23, 28, 36, 0.58);
+  box-shadow: inset 0 0 0 1px rgba(23, 28, 36, 0.05);
+}
+
+.today-action-tag {
+  background: rgba(23, 28, 36, 0.08);
+  color: rgba(23, 28, 36, 0.72);
+}
+
+.today-action-symbol {
+  font-size: clamp(38px, 10vw, 50px);
+  letter-spacing: -0.07em;
+}
+
+.today-action-direction {
+  margin-top: 10px;
+  color: rgba(23, 28, 36, 0.7);
+  font-size: 16px;
+}
+
+.today-action-stats,
+.today-action-trust-grid {
+  gap: 10px;
+}
+
+.today-action-stat,
+.today-action-trust-item {
+  background: rgba(255, 255, 255, 0.64);
+  box-shadow:
+    inset 0 0 0 1px rgba(23, 28, 36, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.today-action-stat {
+  padding: 11px 10px;
+  border-radius: 18px;
+}
+
+.today-action-trust-item {
+  padding: 10px;
+  border-radius: 16px;
+}
+
+.today-action-stat-value {
+  font-size: 16px;
+  letter-spacing: -0.02em;
+}
+
+.today-action-trust-value {
+  font-size: 13px;
+  font-weight: 720;
+}
+
+.today-action-why {
+  color: rgba(23, 28, 36, 0.66);
+}
+
+.today-action-links {
+  gap: 10px;
+}
+
+.today-action-link {
+  min-height: 42px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(23, 28, 36, 0.08);
+  background: rgba(255, 255, 255, 0.64);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.76),
+    0 8px 18px rgba(20, 24, 33, 0.03);
+  transition:
+    transform 160ms var(--ease-spring),
+    box-shadow 180ms var(--ease-spring),
+    background-color 180ms var(--ease-spring),
+    color 180ms var(--ease-spring);
+}
+
+.today-action-link:active {
+  transform: scale(0.985);
+}
+
+.today-action-link-primary {
+  background: linear-gradient(180deg, #171c24 0%, #252c37 100%);
+  border-color: rgba(23, 28, 36, 0.12);
+  color: #ffffff;
+  box-shadow: 0 12px 22px rgba(20, 24, 33, 0.12);
+}
+
+.today-action-link-secondary {
+  color: #245ccf;
+}
+
+.today-summary-grid {
+  gap: 12px;
+}
+
+.today-summary-card {
+  position: relative;
+  overflow: hidden;
+  min-height: 120px;
+  padding: 16px;
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(250, 245, 239, 0.9));
+  box-shadow:
+    0 12px 22px rgba(20, 24, 33, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.88);
+}
+
+.today-summary-card::before {
+  content: '';
+  position: absolute;
+  inset: 16px auto 16px 0;
+  width: 4px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(46, 125, 105, 0.62), rgba(46, 125, 105, 0));
+}
+
+.today-summary-card-sky::before {
+  background: linear-gradient(180deg, rgba(43, 121, 233, 0.62), rgba(43, 121, 233, 0));
+}
+
+.today-summary-card-label {
+  padding-left: 6px;
+}
+
+.today-summary-card-value {
+  margin-top: 12px;
+  padding-left: 6px;
+  font-size: 15px;
+  font-weight: 680;
+  line-height: 1.5;
+}
+
+.main-content-browse,
+.main-content-my {
+  padding-top: 8px;
+}
+
+.browse-screen,
+.menu-screen {
+  padding-inline: 16px;
+}
+
+.browse-search-shell {
+  min-height: 52px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.64);
+  color: rgba(22, 28, 39, 0.52);
+  box-shadow:
+    inset 0 0 0 1px rgba(18, 26, 39, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.84);
+}
+
+.browse-search-shell.active {
+  background: rgba(255, 253, 250, 0.98);
+  box-shadow:
+    inset 0 0 0 1px rgba(46, 125, 105, 0.12),
+    0 10px 22px rgba(20, 24, 33, 0.04);
+}
+
+.browse-hero-card {
+  padding: 22px 20px 20px;
+  border-radius: 30px;
+  background:
+    radial-gradient(circle at top left, rgba(46, 125, 105, 0.14), transparent 38%),
+    radial-gradient(circle at right center, rgba(79, 150, 255, 0.12), transparent 36%),
+    linear-gradient(150deg, rgba(255, 253, 250, 0.99), rgba(248, 246, 241, 0.96));
+  box-shadow:
+    inset 0 0 0 1px rgba(18, 26, 39, 0.05),
+    0 18px 34px rgba(20, 24, 33, 0.05);
+}
+
+.browse-hero-metric {
+  border: 1px solid rgba(255, 255, 255, 0.68);
+  background: rgba(255, 255, 255, 0.74);
+}
+
+.menu-hero {
+  gap: 12px;
+  padding: 6px 2px 4px;
+}
+
+.menu-primary-tile {
+  padding: 20px;
+  border-radius: 26px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(249, 245, 239, 0.96));
+  box-shadow:
+    inset 0 0 0 1px rgba(18, 26, 39, 0.05),
+    0 14px 28px rgba(20, 24, 33, 0.04);
+}
+
+.menu-primary-tile-accent {
+  background:
+    radial-gradient(circle at top right, rgba(46, 125, 105, 0.12), transparent 36%),
+    radial-gradient(circle at left bottom, rgba(79, 150, 255, 0.1), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(248, 244, 238, 0.98));
+}
+
+.points-hub-hero {
+  padding: 22px;
+  border-radius: 30px;
+  background:
+    radial-gradient(circle at top right, rgba(46, 125, 105, 0.14), transparent 38%),
+    radial-gradient(circle at left center, rgba(79, 150, 255, 0.12), transparent 34%),
+    linear-gradient(180deg, rgba(255, 253, 250, 0.98), rgba(249, 245, 239, 0.98));
+  box-shadow:
+    inset 0 0 0 1px rgba(18, 26, 39, 0.05),
+    0 16px 30px rgba(20, 24, 33, 0.045);
+}
+
+@media (max-width: 640px) {
+  .top-bar-logo-wrap {
+    width: min(48vw, 132px);
+    max-width: min(48vw, 132px);
+  }
+
+  .bottom-nav.app-tabbar {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  .tab-btn {
+    min-height: 50px;
+  }
+
+  .today-summary-header {
+    padding-inline: 2px;
+  }
+
+  .today-action-card,
+  .today-climate-strip,
+  .today-provenance-strip,
+  .today-summary-card {
+    padding-left: 15px;
+    padding-right: 15px;
+  }
+
+  .today-action-symbol {
+    font-size: 40px;
+  }
+
+  .today-action-stats,
+  .today-action-trust-grid {
+    gap: 8px;
+  }
+
+  .today-action-stat,
+  .today-action-trust-item {
+    padding: 9px;
+  }
+
+  .browse-screen,
+  .menu-screen {
+    padding-inline: 14px;
+  }
+}

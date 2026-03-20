@@ -197,6 +197,7 @@ export default function HoldingsTab({
   marketInstruments = [],
   locale,
   investorDemoEnabled,
+  holdingsSource,
   onExplain,
   onOpenMenu
 }) {
@@ -234,11 +235,12 @@ export default function HoldingsTab({
   const overviewSeries = useMemo(() => {
     const realSeries = realPortfolioSeries(rows, instrumentMap, range);
     if (realSeries.length >= 2) return realSeries;
+    if (!investorDemoEnabled) return [];
     const base = Number(totals.total_market_value || rows.length * 1000 || 1000);
     const delta = Number(totals.estimated_unrealized_pnl_pct || 0);
     const seed = rows.reduce((sum, row) => sum + hashSeed(row.symbol), 0) + hashSeed(range);
     return buildSeries(base, delta, seed, 28);
-  }, [rows, totals.total_market_value, totals.estimated_unrealized_pnl_pct, instrumentMap, range]);
+  }, [rows, totals.total_market_value, totals.estimated_unrealized_pnl_pct, instrumentMap, investorDemoEnabled, range]);
 
   const listRows = useMemo(
     () =>
@@ -250,15 +252,17 @@ export default function HoldingsTab({
           sparkline:
             realSeries.length >= 2
               ? realSeries
-              : buildSeries(
-                  Number(row.market_value || row.current_price || 1),
-                  Number(row.pnl_pct || 0),
-                  hashSeed(`${row.symbol}:${range}`),
-                  14
-                )
+              : investorDemoEnabled
+                ? buildSeries(
+                    Number(row.market_value || row.current_price || 1),
+                    Number(row.pnl_pct || 0),
+                    hashSeed(`${row.symbol}:${range}`),
+                    14
+                  )
+                : []
         };
       }),
-    [rows, locale, instrumentMap, range]
+    [rows, locale, instrumentMap, investorDemoEnabled, range]
   );
 
   const watchlistRows = useMemo(() => {
@@ -273,10 +277,10 @@ export default function HoldingsTab({
         return {
           symbol,
           label: locale === 'zh' ? '观察中' : 'Watching',
-          sparkline: realSeries.length >= 2 ? realSeries : buildSeries(100, 0, hashSeed(`${symbol}:watch`), 14)
+          sparkline: realSeries.length >= 2 ? realSeries : investorDemoEnabled ? buildSeries(100, 0, hashSeed(`${symbol}:watch`), 14) : []
         };
       });
-  }, [watchlist, rows, locale, instrumentMap, range]);
+  }, [watchlist, rows, locale, instrumentMap, investorDemoEnabled, range]);
 
   const emptyList = surfaceTab === 'holdings' ? !listRows.length : !watchlistRows.length;
 
@@ -290,6 +294,9 @@ export default function HoldingsTab({
             <p className={`holdings-overview-pnl ${totalPnlTone}`}>
               {totalPnlAmount} <span>({totalPnlPct})</span>
             </p>
+            {holdingsSource?.message ? (
+              <p className="muted status-line">{locale === 'zh' ? `来源：${holdingsSource.message}` : `Source: ${holdingsSource.message}`}</p>
+            ) : null}
           </div>
           <div className="holdings-overview-actions">
             {investorDemoEnabled ? <span className="holdings-overview-demo">{locale === 'zh' ? '演示' : 'Demo'}</span> : null}
@@ -342,8 +349,12 @@ export default function HoldingsTab({
             <p className="holdings-empty-title">
               {surfaceTab === 'holdings'
                 ? locale === 'zh'
-                  ? '还没有持仓。'
-                  : 'No holdings yet.'
+                  ? holdingsSource?.connected
+                    ? '当前没有真实持仓。'
+                    : '还没有连接真实持仓源。'
+                  : holdingsSource?.connected
+                    ? 'No live holdings right now.'
+                    : 'No live holdings source connected yet.'
                 : locale === 'zh'
                   ? '观察列表还是空的。'
                   : 'Your watchlist is empty.'}
@@ -351,23 +362,29 @@ export default function HoldingsTab({
             <p className="holdings-empty-copy">
               {surfaceTab === 'holdings'
                 ? locale === 'zh'
-                  ? '先加载一些仓位，Nova 才能开始帮你读组合。'
-                  : 'Load a few holdings first so Nova can start reading the portfolio.'
+                  ? holdingsSource?.connected
+                    ? '已连接真实账户，但当前没有回传持仓。'
+                    : '先连接 broker 或 exchange，Nova 才能读取真实组合。'
+                  : holdingsSource?.connected
+                    ? 'Your connected accounts reported no open positions.'
+                    : 'Connect a broker or exchange so Nova can read real holdings.'
                 : locale === 'zh'
                   ? '先在 Today 页把标的加入观察。'
                   : 'Add names from Today first.'}
             </p>
             {surfaceTab === 'holdings' ? (
               <div className="action-row holdings-empty-actions">
-                <button
-                  type="button"
-                  className="primary-btn"
-                  onClick={() =>
-                    setHoldings(SAMPLE_HOLDINGS_TEMPLATE.map((item, index) => ({ ...item, id: `example-${index + 1}` })))
-                  }
-                >
-                  {locale === 'zh' ? '加载示例' : 'Load example'}
-                </button>
+                {investorDemoEnabled ? (
+                  <button
+                    type="button"
+                    className="primary-btn"
+                    onClick={() =>
+                      setHoldings(SAMPLE_HOLDINGS_TEMPLATE.map((item, index) => ({ ...item, id: `example-${index + 1}` })))
+                    }
+                  >
+                    {locale === 'zh' ? '加载示例' : 'Load example'}
+                  </button>
+                ) : null}
               </div>
             ) : null}
           </div>
