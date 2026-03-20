@@ -40,7 +40,8 @@
   --space-7: 32px;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
-  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-bottom-raw: env(safe-area-inset-bottom, 0px);
+  --safe-bottom: clamp(0px, var(--safe-bottom-raw), 34px);
   --safe-left: env(safe-area-inset-left, 0px);
   --app-height: 100dvh;
   --visual-height: 100dvh;
@@ -49,7 +50,7 @@
   --keyboard-inset: 0px;
   --shell-max-width: 460px;
   --tabbar-height: 48px;
-  --tabbar-safe-gap: max(0px, var(--safe-bottom));
+  --tabbar-safe-gap: clamp(0px, var(--safe-bottom), 20px);
   --tabbar-total-height: calc(var(--tabbar-height) + var(--tabbar-safe-gap) + 8px);
   --shell-padding-x: 16px;
   --toolbar-blur: blur(22px) saturate(1.1);
@@ -2970,8 +2971,8 @@ body.is-standalone .top-bar {
 }
 
 body.is-standalone {
-  --tabbar-safe-gap: var(--safe-bottom);
-  --tabbar-total-height: calc(var(--tabbar-height) + var(--safe-bottom) + 4px);
+  --tabbar-safe-gap: clamp(10px, var(--safe-bottom), 20px);
+  --tabbar-total-height: calc(var(--tabbar-height) + var(--tabbar-safe-gap) + 8px);
 }
 
 body.is-standalone .main-content {
@@ -2984,7 +2985,7 @@ body.is-standalone .main-content-ai {
 
 body.is-standalone .bottom-nav,
 body.is-standalone .bottom-nav.app-tabbar {
-  padding-bottom: max(var(--safe-bottom), 0px);
+  padding-bottom: calc(var(--tabbar-safe-gap) + 2px);
   box-shadow: 0 -6px 14px rgba(20, 24, 33, 0.03);
 }
 
