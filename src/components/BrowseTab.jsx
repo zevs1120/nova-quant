@@ -7,12 +7,43 @@ const DETAIL_RANGES = ['1D', '1W', '1M', '3M'];
 const HOME_POLL_MS = 1000;
 const DETAIL_POLL_MS = 1000;
 const DETAIL_META_POLL_MS = 30000;
+const CLIENT_HOME_CACHE_TTL_MS = 4000;
 const DETAIL_RANGE_CONFIG = {
   '1D': { live: true },
   '1W': { tf: '1d', limit: 7 },
   '1M': { tf: '1d', limit: 30 },
   '3M': { tf: '1d', limit: 90 }
 };
+const homeClientCache = new Map();
+
+function getCachedHomePayload(view) {
+  const hit = homeClientCache.get(view);
+  if (!hit) return null;
+  if (hit.expiresAt < Date.now()) {
+    homeClientCache.delete(view);
+    return null;
+  }
+  return hit.data;
+}
+
+function writeCachedHomePayload(view, data) {
+  homeClientCache.set(view, {
+    expiresAt: Date.now() + CLIENT_HOME_CACHE_TTL_MS,
+    data
+  });
+}
+
+function buildInitialHomeState() {
+  return CATEGORY_KEYS.reduce((acc, key) => {
+    const cached = getCachedHomePayload(key);
+    acc[key] = {
+      loading: !cached,
+      error: '',
+      data: cached
+    };
+    return acc;
+  }, {});
+}
 
 function toNumber(value) {
   const next = Number(value);
@@ -304,7 +335,7 @@ export default function BrowseTab({
   );
 
   const [category, setCategory] = useState('STOCK');
-  const [homeState, setHomeState] = useState({ loading: true, error: '', data: null });
+  const [homeStateByCategory, setHomeStateByCategory] = useState(() => buildInitialHomeState());
   const [query, setQuery] = useState('');
   const [searchState, setSearchState] = useState('idle');
   const [searchResults, setSearchResults] = useState([]);
@@ -351,6 +382,8 @@ export default function BrowseTab({
     });
   }, [activeList, copy.title, onTopBarStateChange, selectedAsset]);
 
+  const homeState = homeStateByCategory[category] || { loading: true, error: '', data: null };
+
   useEffect(() => {
     if (!topBarBackToken) return;
     if (selectedAsset) {
@@ -366,39 +399,67 @@ export default function BrowseTab({
     if (query.trim() || selectedAsset || activeList) return undefined;
 
     let cancelled = false;
-    let inFlight = false;
-    const loadHome = async (initial = false) => {
-      if (inFlight) return;
-      inFlight = true;
+    const inFlight = new Map();
+    const loadHome = async (view, initial = false) => {
+      if (inFlight.has(view)) return inFlight.get(view);
       if (initial) {
-        setHomeState((current) => ({
-          loading: !current.data,
-          error: '',
-          data: current.data
-        }));
+        setHomeStateByCategory((current) => {
+          const next = current[view] || { loading: true, error: '', data: null };
+          return {
+            ...current,
+            [view]: {
+              loading: !next.data,
+              error: '',
+              data: next.data
+            }
+          };
+        });
       }
+      const request = (async () => {
       try {
-        const payload = await fetchApiJson(`/api/browse/home?view=${category}`, { cache: 'no-store' });
+          const payload = await fetchApiJson(`/api/browse/home?view=${view}`, { cache: 'no-store' });
         if (cancelled) return;
-        setHomeState({ loading: false, error: '', data: payload || null });
+          writeCachedHomePayload(view, payload || null);
+          setHomeStateByCategory((current) => ({
+            ...current,
+            [view]: {
+              loading: false,
+              error: '',
+              data: payload || null
+            }
+          }));
       } catch {
         if (cancelled) return;
-        setHomeState((current) =>
-          current.data ? { ...current, loading: false } : { loading: false, error: copy.detailError, data: null }
-        );
+          setHomeStateByCategory((current) => {
+            const prev = current[view] || { loading: false, error: '', data: null };
+            return {
+              ...current,
+              [view]: prev.data
+                ? { ...prev, loading: false }
+                : { loading: false, error: copy.detailError, data: null }
+            };
+          });
       } finally {
-        inFlight = false;
-      }
+          inFlight.delete(view);
+        }
+      })();
+      inFlight.set(view, request);
+      return request;
     };
 
-    void loadHome(true);
+    void loadHome(category, true).then(() => {
+      const inactiveViews = CATEGORY_KEYS.filter((view) => view !== category && !getCachedHomePayload(view));
+      inactiveViews.forEach((view) => {
+        void loadHome(view, false);
+      });
+    });
     const intervalId = window.setInterval(() => {
       if (!isPageVisible()) return;
-      void loadHome(false);
+      void loadHome(category, false);
     }, HOME_POLL_MS);
     const handleVisibility = () => {
       if (!isPageVisible()) return;
-      void loadHome(false);
+      void loadHome(category, false);
     };
     document.addEventListener('visibilitychange', handleVisibility);
     return () => {

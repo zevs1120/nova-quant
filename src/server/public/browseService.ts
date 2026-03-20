@@ -176,6 +176,8 @@ const SEC_UNIVERSE_TTL_MS = 1000 * 60 * 60 * 24;
 let cachedSecUniverse: { expiresAt: number; results: SearchCandidate[] } | null = null;
 let cachedReferenceSearchUniverse: SearchCandidate[] | null = null;
 const browseHomeCache = new Map<string, { expiresAt: number; data: BrowseHomePayload }>();
+const browseChartCache = new Map<string, { expiresAt: number; data: BrowseChartSnapshot | null }>();
+const browseChartInflight = new Map<string, Promise<BrowseChartSnapshot | null>>();
 const DEFAULT_PUBLIC_US_SYMBOLS = ['SPY', 'QQQ', 'AAPL', 'MSFT', 'NVDA', 'TSLA', 'AMZN', 'NFLX', 'COIN', 'MSTR', 'HOOD', 'PLTR'];
 const DEFAULT_PUBLIC_CRYPTO_SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XRPUSDT', 'DOGEUSDT', 'ADAUSDT', 'AVAXUSDT', 'LINKUSDT'];
 const DEFAULT_PUBLIC_NASDAQ_BASE_URL = 'https://api.nasdaq.com/api';
@@ -1208,32 +1210,87 @@ export async function queryPublicOhlcv(args: {
 export async function getPublicBrowseAssetChart(args: { market: Market; symbol: string }): Promise<BrowseChartSnapshot | null> {
   const symbol = String(args.symbol || '').trim().toUpperCase();
   if (!symbol) return null;
-  if (args.market === 'US') {
-    const live = await fetchNasdaqBrowseChart(symbol);
-    if (live) return live;
-    const local = queryLocalOhlcv({ market: 'US', symbol, timeframe: '1d', limit: 30 });
+  const cacheKey = `${args.market}:${symbol}`;
+  const cached = readBrowseChartCache(cacheKey);
+  if (cached !== undefined) return cached;
+  const inflight = browseChartInflight.get(cacheKey);
+  if (inflight) return inflight;
+
+  const request = (async () => {
+    if (args.market === 'US') {
+      const live = await fetchNasdaqBrowseChart(symbol);
+      if (live) {
+        writeBrowseChartCache(cacheKey, live);
+        return live;
+      }
+      const local = queryLocalOhlcv({ market: 'US', symbol, timeframe: '1d', limit: 30 });
+      let history: PublicOhlcvRow[] = local.rows;
+      if (history.length < 2) {
+        try {
+          history = await fetchUsDailyOhlcv(symbol, 30);
+        } catch {
+          history = [];
+        }
+      }
+      if (history.length < 2) {
+        history = getStaticUsFallbackRows(symbol, 30);
+      }
+      if (history.length < 2) {
+        writeBrowseChartCache(cacheKey, null);
+        return null;
+      }
+      const first = history[0];
+      const last = history[history.length - 1];
+      const snapshot = {
+        requestedSymbol: symbol,
+        resolvedSymbol: symbol,
+        market: 'US',
+        name: symbol,
+        venue: knownEtfSymbols.has(symbol) ? 'ETF' : 'US',
+        currency: 'USD',
+        source: 'Stooq daily',
+        sourceStatus: 'CACHED',
+        timeframe: '1d',
+        asOf: new Date(last.ts_open).toISOString(),
+        latest: last.close,
+        previousClose: first.close,
+        change: last.close !== null && first.close !== null && first.close ? (last.close - first.close) / first.close : null,
+        points: history.map((row) => ({ ts: row.ts_open, close: row.close || 0, label: null })),
+        note: 'Latest cached daily chart from Stooq'
+      } satisfies BrowseChartSnapshot;
+      writeBrowseChartCache(cacheKey, snapshot);
+      return snapshot;
+    }
+
+    const live = await fetchGateCryptoBrowseChart(symbol);
+    if (live) {
+      writeBrowseChartCache(cacheKey, live);
+      return live;
+    }
+    const local = queryLocalOhlcv({ market: 'CRYPTO', symbol, timeframe: '1d', limit: 30 });
     let history: PublicOhlcvRow[] = local.rows;
     if (history.length < 2) {
       try {
-        history = await fetchUsDailyOhlcv(symbol, 30);
+        history = await fetchGateOhlcv(symbol, '1d', 30);
       } catch {
         history = [];
       }
     }
     if (history.length < 2) {
-      history = getStaticUsFallbackRows(symbol, 30);
+      writeBrowseChartCache(cacheKey, null);
+      return null;
     }
-    if (history.length < 2) return null;
     const first = history[0];
     const last = history[history.length - 1];
-    return {
+    const parsed = parseCryptoLookupSymbol(symbol);
+    const snapshot = {
       requestedSymbol: symbol,
-      resolvedSymbol: symbol,
-      market: 'US',
-      name: symbol,
-      venue: knownEtfSymbols.has(symbol) ? 'ETF' : 'US',
-      currency: 'USD',
-      source: 'Stooq daily',
+      resolvedSymbol: parsed?.resolvedSymbol || symbol,
+      market: 'CRYPTO',
+      name: `${parsed?.base || symbol} / ${parsed?.quote || 'USDT'}`,
+      venue: 'GATEIO',
+      currency: parsed?.quote || 'USDT',
+      source: 'Gate.io daily',
       sourceStatus: 'CACHED',
       timeframe: '1d',
       asOf: new Date(last.ts_open).toISOString(),
@@ -1241,41 +1298,16 @@ export async function getPublicBrowseAssetChart(args: { market: Market; symbol: 
       previousClose: first.close,
       change: last.close !== null && first.close !== null && first.close ? (last.close - first.close) / first.close : null,
       points: history.map((row) => ({ ts: row.ts_open, close: row.close || 0, label: null })),
-      note: 'Latest cached daily chart from Stooq'
-    };
-  }
-  const live = await fetchGateCryptoBrowseChart(symbol);
-  if (live) return live;
-  const local = queryLocalOhlcv({ market: 'CRYPTO', symbol, timeframe: '1d', limit: 30 });
-  let history: PublicOhlcvRow[] = local.rows;
-  if (history.length < 2) {
-    try {
-      history = await fetchGateOhlcv(symbol, '1d', 30);
-    } catch {
-      history = [];
-    }
-  }
-  if (history.length < 2) return null;
-  const first = history[0];
-  const last = history[history.length - 1];
-  const parsed = parseCryptoLookupSymbol(symbol);
-  return {
-    requestedSymbol: symbol,
-    resolvedSymbol: parsed?.resolvedSymbol || symbol,
-    market: 'CRYPTO',
-    name: `${parsed?.base || symbol} / ${parsed?.quote || 'USDT'}`,
-    venue: 'GATEIO',
-    currency: parsed?.quote || 'USDT',
-    source: 'Gate.io daily',
-    sourceStatus: 'CACHED',
-    timeframe: '1d',
-    asOf: new Date(last.ts_open).toISOString(),
-    latest: last.close,
-    previousClose: first.close,
-    change: last.close !== null && first.close !== null && first.close ? (last.close - first.close) / first.close : null,
-    points: history.map((row) => ({ ts: row.ts_open, close: row.close || 0, label: null })),
-    note: 'Latest cached daily chart from Gate.io'
-  };
+      note: 'Latest cached daily chart from Gate.io'
+    } satisfies BrowseChartSnapshot;
+    writeBrowseChartCache(cacheKey, snapshot);
+    return snapshot;
+  })().finally(() => {
+    browseChartInflight.delete(cacheKey);
+  });
+
+  browseChartInflight.set(cacheKey, request);
+  return request;
 }
 
 function decodeXml(value: string): string {
@@ -1569,6 +1601,24 @@ function writeBrowseHomeCache(key: string, data: BrowseHomePayload) {
   });
 }
 
+function readBrowseChartCache(key: string): BrowseChartSnapshot | null | undefined {
+  const hit = browseChartCache.get(key);
+  if (!hit) return undefined;
+  if (hit.expiresAt < Date.now()) {
+    browseChartCache.delete(key);
+    return undefined;
+  }
+  return hit.data;
+}
+
+function writeBrowseChartCache(key: string, data: BrowseChartSnapshot | null) {
+  const ttlMs = data?.sourceStatus === 'LIVE' ? 900 : 12_000;
+  browseChartCache.set(key, {
+    expiresAt: Date.now() + ttlMs,
+    data
+  });
+}
+
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, fallback: T): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | null = null;
   try {
@@ -1591,8 +1641,33 @@ function normalizeBrowseHomeView(value?: string): keyof typeof browseHomeConfig 
 }
 
 async function buildBrowseCard(spec: { symbol: string; market: Market; title: string; subtitle: string }): Promise<BrowseHomeCard | null> {
-  const chart = await withTimeout(getPublicBrowseAssetChart({ market: spec.market, symbol: spec.symbol }), 3200, null);
-  if (!chart) return null;
+  const chart = await withTimeout(getPublicBrowseAssetChart({ market: spec.market, symbol: spec.symbol }), 1200, null);
+  if (!chart) {
+    const history = await withTimeout(
+      queryPublicOhlcv({
+        market: spec.market,
+        symbol: spec.symbol,
+        timeframe: '1d',
+        limit: 36
+      }),
+      800,
+      { asset: null, rows: [] as PublicOhlcvRow[] }
+    );
+    const closes = history.rows.map((row) => row.close).filter((value): value is number => Number.isFinite(value));
+    if (closes.length < 2) return null;
+    const latest = closes[closes.length - 1] ?? null;
+    const first = closes[0] ?? null;
+    return {
+      symbol: spec.symbol,
+      market: spec.market,
+      title: spec.title,
+      subtitle: spec.subtitle,
+      latest,
+      change: latest !== null && first ? (latest - first) / first : null,
+      asOf: new Date(Number(history.rows[history.rows.length - 1]?.ts_open || Date.now())).toISOString(),
+      values: closes.slice(-36)
+    };
+  }
   return {
     symbol: chart.resolvedSymbol || spec.symbol,
     market: spec.market,
@@ -1606,7 +1681,7 @@ async function buildBrowseCard(spec: { symbol: string; market: Market; title: st
 }
 
 async function buildBrowseChip(symbol: string, market: Market): Promise<BrowseHomeChip | null> {
-  const chart = await withTimeout(getPublicBrowseAssetChart({ market, symbol }), 3200, null);
+  const chart = await withTimeout(getPublicBrowseAssetChart({ market, symbol }), 900, null);
   if (chart && Number.isFinite(chart.change)) {
     return {
       symbol,
@@ -1694,28 +1769,30 @@ export async function getPublicBrowseHome(args: { view?: string }): Promise<Brow
   if (cached) return cached;
 
   const config = browseHomeConfig[view];
-  const [featured, usMovers, cryptoMovers, earnings] = await Promise.all([
-    Promise.all(config.featured.map((item) => buildBrowseCard(item))),
-    buildBrowseChipList(config.usPool, 'US', 6),
-    buildBrowseChipList(config.cryptoPool, 'CRYPTO', 6),
-    buildBrowseEarnings(config.earnings)
+  const isCryptoView = view === 'CRYPTO';
+  const [featured, primaryMovers, earnings] = await Promise.all([
+    Promise.all(config.featured.slice(0, 3).map((item) => buildBrowseCard(item))),
+    isCryptoView ? buildBrowseChipList(config.cryptoPool, 'CRYPTO', 6) : buildBrowseChipList(config.usPool, 'US', 6),
+    isCryptoView ? Promise.resolve([] as BrowseHomeEarningsItem[]) : buildBrowseEarnings(config.earnings)
   ]);
 
-  const usMoveBuckets = splitPositiveNegative(usMovers);
+  const moveBuckets = splitPositiveNegative(primaryMovers);
   const screenerLists: BrowseHomeList[] = [
-    buildBrowseList(config.screeners[0].id, config.screeners[0].title, config.screeners[0].subtitle, usMoveBuckets.positive.slice(0, 6)),
-    buildBrowseList(config.screeners[1].id, config.screeners[1].title, config.screeners[1].subtitle, usMoveBuckets.negative.slice(0, 6)),
+    buildBrowseList(config.screeners[0].id, config.screeners[0].title, config.screeners[0].subtitle, moveBuckets.positive.slice(0, 6)),
+    buildBrowseList(config.screeners[1].id, config.screeners[1].title, config.screeners[1].subtitle, moveBuckets.negative.slice(0, 6)),
     buildBrowseList(
       config.screeners[2].id,
       config.screeners[2].title,
       config.screeners[2].subtitle,
-      earnings.map((item) => ({
-        symbol: item.symbol,
-        market: item.market,
-        name: item.title,
-        latest: null,
-        change: null
-      }))
+      isCryptoView
+        ? config.usPool.slice(0, 4).map((symbol) => makeStaticBrowseChip(symbol))
+        : earnings.map((item) => ({
+            symbol: item.symbol,
+            market: item.market,
+            name: item.title,
+            latest: null,
+            change: null
+          }))
     )
   ];
 
@@ -1727,8 +1804,8 @@ export async function getPublicBrowseHome(args: { view?: string }): Promise<Brow
     view,
     updatedAt: new Date().toISOString(),
     futuresMarkets: featured.filter((item): item is BrowseHomeCard => Boolean(item)).slice(0, 3),
-    topMovers: usMovers,
-    cryptoMovers,
+    topMovers: isCryptoView ? [] : primaryMovers,
+    cryptoMovers: isCryptoView ? primaryMovers : [],
     earnings,
     screeners: screenerLists,
     trendingLists
