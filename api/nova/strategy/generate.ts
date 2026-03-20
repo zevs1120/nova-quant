@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { generateGovernedNovaStrategies } from '../../../../src/server/nova/strategyLab.js';
-import { createNoopNovaRepo } from '../../../../src/server/nova/noopRepo.js';
+import { generateGovernedNovaStrategies } from '../../../src/server/nova/strategyLab.js';
+import { createNoopNovaRepo } from '../../../src/server/nova/noopRepo.js';
 
 function parseMarket(value?: string): 'US' | 'CRYPTO' | undefined {
   if (!value) return undefined;
