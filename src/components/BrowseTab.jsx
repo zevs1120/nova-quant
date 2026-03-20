@@ -4,6 +4,9 @@ import { fetchApiJson } from '../utils/api';
 
 const CATEGORY_KEYS = ['NOW', 'MACRO', 'CRYPTO', 'SPORTS'];
 const DETAIL_RANGES = ['1D', '1W', '1M', '3M'];
+const HOME_POLL_MS = 1000;
+const DETAIL_POLL_MS = 1000;
+const DETAIL_META_POLL_MS = 30000;
 const DETAIL_RANGE_CONFIG = {
   '1D': { live: true },
   '1W': { tf: '1d', limit: 7 },
@@ -51,7 +54,8 @@ function formatAsOf(value, locale) {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
+    second: '2-digit'
   });
 }
 
@@ -244,6 +248,10 @@ function buildSelection(item) {
   };
 }
 
+function isPageVisible() {
+  return typeof document === 'undefined' || document.visibilityState === 'visible';
+}
+
 export default function BrowseTab({ locale, signals = [], watchlist = [], setWatchlist }) {
   const isZh = locale?.startsWith('zh');
   const copy = useMemo(
@@ -313,6 +321,7 @@ export default function BrowseTab({ locale, signals = [], watchlist = [], setWat
   });
   const [detailOverview, setDetailOverview] = useState(null);
   const [detailNews, setDetailNews] = useState([]);
+  const selectedKey = selectedAsset ? `${selectedAsset.market}:${selectedAsset.symbol}` : '';
   const watchedSymbols = useMemo(() => (watchlist || []).map((item) => normalizeSymbol(item)), [watchlist]);
   const todaySignalSymbols = useMemo(
     () =>
@@ -328,21 +337,50 @@ export default function BrowseTab({ locale, signals = [], watchlist = [], setWat
   );
 
   useEffect(() => {
+    if (query.trim() || selectedAsset || activeList) return undefined;
+
     let cancelled = false;
-    setHomeState({ loading: true, error: '', data: null });
-    fetchApiJson(`/api/browse/home?view=${category}`)
-      .then((payload) => {
+    let inFlight = false;
+    const loadHome = async (initial = false) => {
+      if (inFlight) return;
+      inFlight = true;
+      if (initial) {
+        setHomeState((current) => ({
+          loading: !current.data,
+          error: '',
+          data: current.data
+        }));
+      }
+      try {
+        const payload = await fetchApiJson(`/api/browse/home?view=${category}`, { cache: 'no-store' });
         if (cancelled) return;
         setHomeState({ loading: false, error: '', data: payload || null });
-      })
-      .catch(() => {
+      } catch {
         if (cancelled) return;
-        setHomeState({ loading: false, error: copy.detailError, data: null });
-      });
+        setHomeState((current) =>
+          current.data ? { ...current, loading: false } : { loading: false, error: copy.detailError, data: null }
+        );
+      } finally {
+        inFlight = false;
+      }
+    };
+
+    void loadHome(true);
+    const intervalId = window.setInterval(() => {
+      if (!isPageVisible()) return;
+      void loadHome(false);
+    }, HOME_POLL_MS);
+    const handleVisibility = () => {
+      if (!isPageVisible()) return;
+      void loadHome(false);
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
     return () => {
       cancelled = true;
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, [category, copy.detailError]);
+  }, [activeList, category, copy.detailError, query, selectedKey, selectedAsset]);
 
   useEffect(() => {
     const trimmed = query.trim();
@@ -357,7 +395,7 @@ export default function BrowseTab({ locale, signals = [], watchlist = [], setWat
     const timer = window.setTimeout(async () => {
       setSearchState('loading');
       try {
-        const payload = await fetchApiJson(`/api/assets/search?q=${encodeURIComponent(trimmed)}&limit=18`);
+        const payload = await fetchApiJson(`/api/assets/search?q=${encodeURIComponent(trimmed)}&limit=18`, { cache: 'no-store' });
         if (cancelled) return;
         setSearchResults(Array.isArray(payload?.data) ? payload.data : []);
         setSearchHealth(payload?.health || null);
@@ -395,20 +433,33 @@ export default function BrowseTab({ locale, signals = [], watchlist = [], setWat
     }
 
     let cancelled = false;
+    let inFlight = false;
     const config = DETAIL_RANGE_CONFIG[detailRange];
-    setDetailState((current) => ({ ...current, loading: true, error: '' }));
-    const chartPromise = config.live
-      ? fetchApiJson(`/api/browse/chart?market=${selectedAsset.market}&symbol=${encodeURIComponent(selectedAsset.symbol)}`)
-      : fetchApiJson(
-          `/api/ohlcv?market=${selectedAsset.market}&symbol=${encodeURIComponent(selectedAsset.symbol)}&tf=${config.tf}&limit=${config.limit}`
-        );
-
-    Promise.all([
-      chartPromise,
-      fetchApiJson(`/api/browse/overview?market=${selectedAsset.market}&symbol=${encodeURIComponent(selectedAsset.symbol)}`).catch(() => null),
-      fetchApiJson(`/api/browse/news?market=${selectedAsset.market}&symbol=${encodeURIComponent(selectedAsset.symbol)}&limit=6`).catch(() => null)
-    ])
-      .then(([chartPayload, overviewPayload, newsPayload]) => {
+    const loadChart = async (initial = false) => {
+      if (inFlight) return;
+      inFlight = true;
+      if (initial) {
+        setDetailState({
+          loading: true,
+          error: '',
+          values: [],
+          latest: null,
+          change: null,
+          low: null,
+          high: null,
+          asOf: null,
+          source: null
+        });
+      }
+      try {
+        const chartPayload = config.live
+          ? await fetchApiJson(`/api/browse/chart?market=${selectedAsset.market}&symbol=${encodeURIComponent(selectedAsset.symbol)}`, {
+              cache: 'no-store'
+            })
+          : await fetchApiJson(
+              `/api/ohlcv?market=${selectedAsset.market}&symbol=${encodeURIComponent(selectedAsset.symbol)}&tf=${config.tf}&limit=${config.limit}`,
+              { cache: 'no-store' }
+            );
         if (cancelled) return;
         const values = config.live
           ? (chartPayload?.points || []).map((point) => toNumber(point?.close)).filter((value) => Number.isFinite(value))
@@ -430,30 +481,94 @@ export default function BrowseTab({ locale, signals = [], watchlist = [], setWat
               : null,
           source: config.live ? chartPayload?.source || null : 'Historical OHLCV'
         });
-        setDetailOverview(overviewPayload || null);
-        setDetailNews(Array.isArray(newsPayload?.data) ? newsPayload.data : []);
-      })
-      .catch(() => {
+      } catch {
         if (cancelled) return;
-        setDetailState({
-          loading: false,
-          error: copy.detailError,
-          values: [],
-          latest: null,
-          change: null,
-          low: null,
-          high: null,
-          asOf: null,
-          source: null
-        });
-        setDetailOverview(null);
-        setDetailNews([]);
-      });
+        setDetailState((current) =>
+          current.values.length && !initial
+            ? { ...current, loading: false }
+            : {
+                loading: false,
+                error: copy.detailError,
+                values: [],
+                latest: null,
+                change: null,
+                low: null,
+                high: null,
+                asOf: null,
+                source: null
+              }
+        );
+      } finally {
+        inFlight = false;
+      }
+    };
+
+    void loadChart(true);
+    let intervalId = null;
+    const handleVisibility = () => {
+      if (!isPageVisible()) return;
+      void loadChart(false);
+    };
+    if (config.live) {
+      intervalId = window.setInterval(() => {
+        if (!isPageVisible()) return;
+        void loadChart(false);
+      }, DETAIL_POLL_MS);
+      document.addEventListener('visibilitychange', handleVisibility);
+    }
 
     return () => {
       cancelled = true;
+      if (intervalId) window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, [copy.detailError, detailRange, selectedAsset]);
+  }, [copy.detailError, detailRange, selectedAsset, selectedKey]);
+
+  useEffect(() => {
+    if (!selectedAsset) {
+      setDetailOverview(null);
+      setDetailNews([]);
+      return undefined;
+    }
+
+    let cancelled = false;
+    let inFlight = false;
+    const loadMeta = async () => {
+      if (inFlight) return;
+      inFlight = true;
+      try {
+        const [overviewPayload, newsPayload] = await Promise.all([
+          fetchApiJson(`/api/browse/overview?market=${selectedAsset.market}&symbol=${encodeURIComponent(selectedAsset.symbol)}`, {
+            cache: 'no-store'
+          }).catch(() => null),
+          fetchApiJson(`/api/browse/news?market=${selectedAsset.market}&symbol=${encodeURIComponent(selectedAsset.symbol)}&limit=6`, {
+            cache: 'no-store'
+          }).catch(() => null)
+        ]);
+        if (cancelled) return;
+        setDetailOverview(overviewPayload || null);
+        setDetailNews(Array.isArray(newsPayload?.data) ? newsPayload.data : []);
+      } finally {
+        inFlight = false;
+      }
+    };
+
+    void loadMeta();
+    const intervalId = window.setInterval(() => {
+      if (!isPageVisible()) return;
+      void loadMeta();
+    }, DETAIL_META_POLL_MS);
+    const handleVisibility = () => {
+      if (!isPageVisible()) return;
+      void loadMeta();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [selectedAsset, selectedKey]);
 
   function openItem(item) {
     const next = buildSelection(item);

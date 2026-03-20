@@ -1,10 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getPublicBrowseAssetOverview } from '../../src/server/public/browseService.js';
-import { applyPublicCors, handlePublicOptions, parseMarket } from '../../src/server/public/vercel.js';
+import { applyPublicCors, applyRealtimeResponseHeaders, handlePublicOptions, parseMarket } from '../../src/server/public/vercel.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handlePublicOptions(req, res)) return;
   applyPublicCors(req, res);
+  applyRealtimeResponseHeaders(res);
   const market = parseMarket(req.query.market as string | undefined);
   const symbol = String(req.query.symbol || '').trim().toUpperCase();
   if (!market || !symbol) {

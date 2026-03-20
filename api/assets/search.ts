@@ -1,10 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { searchPublicAssets } from '../../src/server/public/browseService.js';
-import { applyPublicCors, handlePublicOptions, parseMarket } from '../../src/server/public/vercel.js';
+import { applyPublicCors, applyRealtimeResponseHeaders, handlePublicOptions, parseMarket } from '../../src/server/public/vercel.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handlePublicOptions(req, res)) return;
   applyPublicCors(req, res);
+  applyRealtimeResponseHeaders(res);
   const market = parseMarket(req.query.market as string | undefined);
   if (req.query.market && !market) {
     res.status(400).json({ error: 'Invalid market, use US or CRYPTO' });

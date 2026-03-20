@@ -8,6 +8,12 @@ export function applyPublicCors(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Max-Age', '600');
 }
 
+export function applyRealtimeResponseHeaders(res: VercelResponse) {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0, s-maxage=0');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+}
+
 export function handlePublicOptions(req: VercelRequest, res: VercelResponse) {
   applyPublicCors(req, res);
   if (req.method === 'OPTIONS') {

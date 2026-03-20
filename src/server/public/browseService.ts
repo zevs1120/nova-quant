@@ -1538,7 +1538,7 @@ function readBrowseHomeCache(key: string): BrowseHomePayload | null {
 
 function writeBrowseHomeCache(key: string, data: BrowseHomePayload) {
   browseHomeCache.set(key, {
-    expiresAt: Date.now() + 1000 * 60 * 2,
+    expiresAt: Date.now() + 1000,
     data
   });
 }
