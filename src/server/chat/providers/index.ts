@@ -3,12 +3,22 @@ import { GroqProvider } from './groq.js';
 import { GeminiProvider } from './gemini.js';
 import { OpenAIProvider } from './openai.js';
 import { OllamaProvider } from './ollama.js';
-import { isLocalNovaEnabled } from '../../ai/llmOps.js';
+import { getNovaRuntimeMode, isCloudNovaEnabled, isLocalNovaEnabled } from '../../ai/llmOps.js';
 
 export type ProviderName = 'groq' | 'gemini' | 'openai' | 'ollama';
 
 export function getProviderOrder(): ProviderName[] {
-  return ['ollama'];
+  const mode = getNovaRuntimeMode();
+  if (mode === 'cloud-openai-compatible') {
+    return isLocalNovaEnabled() ? ['openai', 'ollama'] : ['openai'];
+  }
+  if (mode === 'local-ollama') {
+    return isCloudNovaEnabled() ? ['ollama', 'openai'] : ['ollama'];
+  }
+  const ordered: ProviderName[] = [];
+  if (isCloudNovaEnabled()) ordered.push('openai');
+  if (isLocalNovaEnabled()) ordered.push('ollama');
+  return ordered;
 }
 
 export function createProvider(name: ProviderName): ProviderAdapter {
@@ -19,5 +29,8 @@ export function createProvider(name: ProviderName): ProviderAdapter {
 }
 
 export function isProviderConfigured(name: ProviderName): boolean {
-  return name === 'ollama' && isLocalNovaEnabled();
+  if (name === 'ollama') return isLocalNovaEnabled();
+  if (name === 'openai') return isCloudNovaEnabled();
+  if (name === 'groq') return Boolean(String(process.env.GROQ_API_KEY || '').trim());
+  return Boolean(String(process.env.GEMINI_API_KEY || '').trim());
 }

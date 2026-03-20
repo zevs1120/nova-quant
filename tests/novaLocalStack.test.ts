@@ -136,4 +136,78 @@ describe('nova local stack', () => {
     const events = readNdjsonText(chatRes);
     expect(events.some((row) => row.type === 'meta' && row.provider === 'deterministic')).toBe(true);
   });
+
+  it('generates governed strategies through the API even in fallback mode', async () => {
+    vi.stubEnv('VERCEL', '1');
+    vi.stubEnv('NOVA_DISABLE_LOCAL_GENERATION', '');
+    vi.stubEnv('NOVA_FORCE_LOCAL_GENERATION', '');
+
+    const app = createApiApp();
+    const res = await request(app).post('/api/nova/strategy/generate').send({
+      userId: `nova-strategy-${Date.now()}`,
+      prompt: 'Generate a conservative crypto swing strategy with trend bias and clear risk notes',
+      market: 'CRYPTO',
+      riskProfile: 'conservative',
+      maxCandidates: 6
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body.workflow_id).toBeTruthy();
+    expect(Array.isArray(res.body.selected_candidates)).toBe(true);
+    expect(typeof res.body.provider).toBe('string');
+    expect(['nova-generated', 'deterministic-ranked']).toContain(res.body.source);
+  });
+
+  it('builds a nova training flywheel manifest through the API', async () => {
+    vi.stubEnv('VERCEL', '1');
+    vi.stubEnv('NOVA_DISABLE_LOCAL_GENERATION', '');
+    vi.stubEnv('NOVA_FORCE_LOCAL_GENERATION', '');
+
+    const app = createApiApp();
+    const userId = `nova-flywheel-${Date.now()}`;
+
+    const labelSeedRes = await request(app)
+      .post('/api/chat')
+      .send({
+        userId,
+        message: 'Explain today risk posture in plain English'
+      })
+      .buffer(true)
+      .parse((res, done) => {
+        let text = '';
+        res.setEncoding('utf8');
+        res.on('data', (chunk) => {
+          text += chunk;
+        });
+        res.on('end', () => done(null, text));
+      });
+    expect(labelSeedRes.status).toBe(200);
+
+    const runsRes = await request(app).get('/api/nova/runs').query({
+      userId,
+      limit: 20
+    });
+    const run = runsRes.body.records.find((row: { task_type?: string }) => row.task_type === 'assistant_grounded_answer');
+    expect(run?.id).toBeTruthy();
+
+    const labelRes = await request(app).post('/api/nova/review-label').send({
+      runId: run.id,
+      reviewerId: 'test-reviewer',
+      label: 'train',
+      score: 0.88,
+      includeInTraining: true
+    });
+    expect(labelRes.status).toBe(200);
+
+    const flywheelRes = await request(app).post('/api/nova/training/flywheel').send({
+      userId,
+      trainer: 'mlx-lora',
+      onlyIncluded: true,
+      limit: 20
+    });
+    expect(flywheelRes.status).toBe(200);
+    expect(flywheelRes.body.workflow_id).toBeTruthy();
+    expect(flywheelRes.body.training_plan?.trainer).toBe('mlx-lora');
+    expect(flywheelRes.body.manifest_path).toContain('artifacts/training');
+  });
 });

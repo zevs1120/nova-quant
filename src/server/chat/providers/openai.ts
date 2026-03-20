@@ -14,19 +14,21 @@ export class OpenAIProvider implements ProviderAdapter {
   readonly name = 'openai' as const;
 
   async *stream(req: ProviderRequest): AsyncGenerator<string> {
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey = req.apiKey || process.env.OPENAI_API_KEY;
     if (!apiKey) {
       throw new ProviderError('OPENAI_API_KEY is missing');
     }
+    const endpoint = req.endpoint || OPENAI_ENDPOINT;
 
-    const response = await fetch(OPENAI_ENDPOINT, {
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        ...(req.headers || {})
       },
       body: JSON.stringify({
-        model: DEFAULT_MODEL,
+        model: req.model || DEFAULT_MODEL,
         messages: req.messages,
         temperature: req.temperature ?? 0.2,
         max_tokens: req.maxTokens ?? 700,
@@ -71,4 +73,3 @@ export class OpenAIProvider implements ProviderAdapter {
     }
   }
 }
-

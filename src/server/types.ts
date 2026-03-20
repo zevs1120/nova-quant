@@ -747,6 +747,7 @@ export type NovaTaskType =
   | 'action_card_generation'
   | 'daily_wrap_up_generation'
   | 'assistant_grounded_answer'
+  | 'strategy_candidate_generation'
   | 'fast_classification'
   | 'retrieval_embedding';
 

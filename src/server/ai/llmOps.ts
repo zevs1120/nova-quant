@@ -12,17 +12,21 @@ export type NovaTaskRoute =
   | 'decision_reasoning'
   | 'action_card_generation'
   | 'assistant_grounded_answer'
+  | 'strategy_generation'
   | 'retrieval_embedding';
 
 export type NovaRouteResolution = {
   task: NovaTaskRoute;
   alias: NovaModelAlias;
+  provider: 'ollama' | 'openai';
   model: string;
   reason: string;
   endpoint: string;
+  apiKey: string | null;
+  headers?: Record<string, string>;
 };
 
-export type NovaRuntimeMode = 'local-ollama' | 'deterministic-fallback';
+export type NovaRuntimeMode = 'local-ollama' | 'cloud-openai-compatible' | 'deterministic-fallback';
 
 function totalMemoryGb(): number {
   return Math.round(os.totalmem() / (1024 ** 3));
@@ -38,6 +42,21 @@ export function getNovaLocalEndpoint(): string {
   return process.env.OLLAMA_OPENAI_BASE_URL || process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434/v1';
 }
 
+export function getNovaCloudEndpoint(): string {
+  const explicit = String(process.env.NOVA_CLOUD_OPENAI_BASE_URL || '').trim();
+  if (explicit) return explicit;
+  const compat = String(process.env.OPENAI_BASE_URL || '').trim();
+  if (compat) return compat;
+  return 'https://api.openai.com/v1';
+}
+
+export function getNovaCloudApiKey(): string | null {
+  const explicit = String(process.env.NOVA_CLOUD_API_KEY || '').trim();
+  if (explicit) return explicit;
+  const fallback = String(process.env.OPENAI_API_KEY || '').trim();
+  return fallback || null;
+}
+
 export function isLocalNovaEnabled(): boolean {
   const disabled = String(process.env.NOVA_DISABLE_LOCAL_GENERATION || '').trim();
   if (disabled === '1' || disabled.toLowerCase() === 'true') return false;
@@ -51,17 +70,57 @@ export function isLocalNovaEnabled(): boolean {
   return true;
 }
 
-export function getNovaRuntimeMode(): NovaRuntimeMode {
-  return isLocalNovaEnabled() ? 'local-ollama' : 'deterministic-fallback';
+export function isCloudNovaEnabled(): boolean {
+  const disabled = String(process.env.NOVA_DISABLE_CLOUD_GENERATION || '').trim().toLowerCase();
+  if (disabled === '1' || disabled === 'true') return false;
+
+  const forced = String(process.env.NOVA_FORCE_CLOUD_GENERATION || '').trim().toLowerCase();
+  if (forced === '1' || forced === 'true') return true;
+
+  return Boolean(getNovaCloudApiKey());
 }
 
-export function getNovaModelPlan() {
+export function getNovaRuntimeMode(): NovaRuntimeMode {
+  const explicit = String(process.env.NOVA_RUNTIME_MODE || '').trim().toLowerCase();
+  if (explicit === 'local' || explicit === 'local-ollama') return 'local-ollama';
+  if (explicit === 'cloud' || explicit === 'cloud-openai-compatible') return 'cloud-openai-compatible';
+  if (explicit === 'fallback' || explicit === 'deterministic-fallback') return 'deterministic-fallback';
+
+  const preferCloud = String(process.env.NOVA_PREFER_CLOUD || '').trim().toLowerCase();
+  if ((preferCloud === '1' || preferCloud === 'true') && isCloudNovaEnabled()) {
+    return 'cloud-openai-compatible';
+  }
+  if (isLocalNovaEnabled()) return 'local-ollama';
+  if (isCloudNovaEnabled()) return 'cloud-openai-compatible';
+  return 'deterministic-fallback';
+}
+
+function buildNovaModelPlan(mode: NovaRuntimeMode) {
   const tier = detectNovaMemoryTier();
+  if (mode === 'cloud-openai-compatible') {
+    const endpoint = getNovaCloudEndpoint();
+    return {
+      tier,
+      mode,
+      endpoint,
+      provider: 'openai' as const,
+      local_only: false,
+      models: {
+        'Nova-Core': process.env.NOVA_CORE_MODEL || (tier === 'compact' ? 'Qwen/Qwen3-4B-Instruct' : 'Qwen/Qwen3-8B-Instruct'),
+        'Nova-Scout': process.env.NOVA_SCOUT_MODEL || (tier === 'compact' ? 'Qwen/Qwen3-1.7B-Instruct' : 'Qwen/Qwen3-4B-Instruct'),
+        'Nova-Retrieve': process.env.NOVA_RETRIEVE_MODEL || 'BAAI/bge-m3',
+        'Nova-Challenger': process.env.NOVA_CHALLENGER_MODEL || 'Qwen/Qwen3-14B-Instruct'
+      } as Record<NovaModelAlias, string | undefined>
+    };
+  }
   const endpoint = getNovaLocalEndpoint();
   if (tier === 'compact') {
     return {
       tier,
+      mode,
       endpoint,
+      provider: 'ollama' as const,
+      local_only: mode !== 'deterministic-fallback',
       models: {
         'Nova-Core': 'qwen3:4b',
         'Nova-Scout': 'qwen3:1.7b',
@@ -71,7 +130,10 @@ export function getNovaModelPlan() {
   }
   return {
     tier,
+    mode,
     endpoint,
+    provider: 'ollama' as const,
+    local_only: mode !== 'deterministic-fallback',
     models: {
       'Nova-Core': 'qwen3:8b',
       'Nova-Scout': 'qwen3:4b',
@@ -81,68 +143,141 @@ export function getNovaModelPlan() {
   };
 }
 
-export function getNovaRoutingPolicies(): Array<{
+export function getNovaModelPlan() {
+  return buildNovaModelPlan(getNovaRuntimeMode());
+}
+
+function buildRoutingPoliciesForPlan(plan: ReturnType<typeof buildNovaModelPlan>): Array<{
   task: NovaTaskRoute;
   alias: NovaModelAlias;
+  provider: 'ollama' | 'openai';
   model: string;
   reason: string;
 }> {
-  const plan = getNovaModelPlan();
+  const localFallbacks = {
+    core: 'qwen3:4b',
+    scout: 'qwen3:1.7b',
+    retrieve: 'qwen3-embedding:0.6b'
+  };
+  const cloudFallbacks = {
+    core: 'Qwen/Qwen3-4B-Instruct',
+    scout: 'Qwen/Qwen3-1.7B-Instruct',
+    retrieve: 'BAAI/bge-m3',
+    challenger: 'Qwen/Qwen3-14B-Instruct'
+  };
+  const fallbacks = plan.provider === 'openai' ? cloudFallbacks : localFallbacks;
+  const strategyGeneratorAlias = plan.models['Nova-Challenger'] ? 'Nova-Challenger' : 'Nova-Core';
   return [
     {
       task: 'fast_classification',
       alias: 'Nova-Scout',
-      model: plan.models['Nova-Scout'] || 'qwen3:1.7b',
+      provider: plan.provider,
+      model: plan.models['Nova-Scout'] || fallbacks.scout,
       reason: 'Low-latency classification and tagging.'
     },
     {
       task: 'state_tagging',
       alias: 'Nova-Scout',
-      model: plan.models['Nova-Scout'] || 'qwen3:1.7b',
+      provider: plan.provider,
+      model: plan.models['Nova-Scout'] || fallbacks.scout,
       reason: 'Fast regime and state labeling before deeper reasoning.'
     },
     {
       task: 'decision_reasoning',
       alias: 'Nova-Core',
-      model: plan.models['Nova-Core'] || 'qwen3:4b',
+      provider: plan.provider,
+      model: plan.models['Nova-Core'] || fallbacks.core,
       reason: 'Primary decision and explanation model for Today Risk and stance.'
     },
     {
       task: 'action_card_generation',
       alias: 'Nova-Core',
-      model: plan.models['Nova-Core'] || 'qwen3:4b',
+      provider: plan.provider,
+      model: plan.models['Nova-Core'] || fallbacks.core,
       reason: 'Action-card ranking and explanation need stronger grounded reasoning.'
     },
     {
       task: 'assistant_grounded_answer',
       alias: 'Nova-Core',
-      model: plan.models['Nova-Core'] || 'qwen3:4b',
+      provider: plan.provider,
+      model: plan.models['Nova-Core'] || fallbacks.core,
       reason: 'Assistant should sound like the system, not a lightweight classifier.'
+    },
+    {
+      task: 'strategy_generation',
+      alias: strategyGeneratorAlias,
+      provider: plan.provider,
+      model:
+        plan.models[strategyGeneratorAlias] ||
+        plan.models['Nova-Core'] ||
+        (plan.provider === 'openai' ? cloudFallbacks.core : localFallbacks.core),
+      reason: 'AI strategy generation runs on the strongest available Nova route, gated by research validation.'
     },
     {
       task: 'retrieval_embedding',
       alias: 'Nova-Retrieve',
-      model: plan.models['Nova-Retrieve'] || 'qwen3-embedding:0.6b',
+      provider: plan.provider,
+      model: plan.models['Nova-Retrieve'] || fallbacks.retrieve,
       reason: 'Dedicated embedding route for retrieval and memory indexing.'
     }
   ];
 }
 
+export function getNovaRoutingPolicies(): Array<{
+  task: NovaTaskRoute;
+  alias: NovaModelAlias;
+  provider: 'ollama' | 'openai';
+  model: string;
+  reason: string;
+}> {
+  return buildRoutingPoliciesForPlan(getNovaModelPlan());
+}
+
 export function resolveNovaRoute(task: NovaTaskRoute): NovaRouteResolution {
-  const match = getNovaRoutingPolicies().find((row) => row.task === task);
+  const plan = getNovaModelPlan();
+  const match = buildRoutingPoliciesForPlan(plan).find((row) => row.task === task);
+  const endpoint = plan.provider === 'openai' ? getNovaCloudEndpoint() : getNovaLocalEndpoint();
+  const apiKey = plan.provider === 'openai' ? getNovaCloudApiKey() : null;
   if (match) {
     return {
       ...match,
-      endpoint: getNovaLocalEndpoint()
+      endpoint,
+      apiKey
     };
   }
-  const plan = getNovaModelPlan();
   return {
     task,
     alias: 'Nova-Core',
+    provider: plan.provider,
     model: plan.models['Nova-Core'] || 'qwen3:4b',
     reason: 'Fallback to Nova-Core when no explicit route is defined.',
-    endpoint: getNovaLocalEndpoint()
+    endpoint,
+    apiKey
+  };
+}
+
+export function resolveNovaRouteForProvider(task: NovaTaskRoute, provider: 'ollama' | 'openai'): NovaRouteResolution {
+  const plan = buildNovaModelPlan(provider === 'openai' ? 'cloud-openai-compatible' : 'local-ollama');
+  const match = buildRoutingPoliciesForPlan(plan).find((row) => row.task === task);
+  const endpoint = provider === 'openai' ? getNovaCloudEndpoint() : getNovaLocalEndpoint();
+  const apiKey = provider === 'openai' ? getNovaCloudApiKey() : null;
+  if (match) {
+    return {
+      ...match,
+      endpoint,
+      apiKey
+    };
+  }
+  return {
+    task,
+    alias: 'Nova-Core',
+    provider,
+    model:
+      plan.models['Nova-Core'] ||
+      (provider === 'openai' ? 'Qwen/Qwen3-4B-Instruct' : 'qwen3:4b'),
+    reason: 'Fallback to Nova-Core when no explicit route is defined.',
+    endpoint,
+    apiKey
   };
 }
 
@@ -194,17 +329,25 @@ export function getPromptPackDefinitions(): Array<{
       semantic_version: '1.0.0',
       status: 'challenger',
       prompt_text: 'Operate as a quant research assistant with factor, validation, workflow, and implementation-realism awareness.'
+    },
+    {
+      task_key: 'strategy-lab-generator',
+      semantic_version: '1.0.0',
+      status: 'active',
+      prompt_text:
+        'Select and tune discovery candidates into governed AI strategy proposals. Prefer traceable, validation-aware strategies over clever but fragile ideas.'
     }
   ];
 }
 
 function modelRecord(alias: NovaModelAlias, modelName: string): ModelVersionRecord {
   const now = Date.now();
+  const plan = getNovaModelPlan();
   return {
     id: `model-${alias.toLowerCase()}`,
     model_key: alias,
-    provider: 'ollama',
-    endpoint: getNovaLocalEndpoint(),
+    provider: plan.provider === 'openai' ? 'openai-compatible' : 'ollama',
+    endpoint: plan.endpoint,
     task_scope: getNovaRoutingPolicies()
       .filter((row) => row.alias === alias)
       .map((row) => row.task)
@@ -213,8 +356,9 @@ function modelRecord(alias: NovaModelAlias, modelName: string): ModelVersionReco
     status: alias === 'Nova-Challenger' ? 'challenger' : 'active',
     config_json: JSON.stringify({
       model: modelName,
-      local_only: true,
-      memory_tier: detectNovaMemoryTier()
+      local_only: plan.local_only,
+      memory_tier: detectNovaMemoryTier(),
+      runtime_mode: plan.mode
     }),
     created_at_ms: now,
     updated_at_ms: now
@@ -250,15 +394,20 @@ export function buildLlmOpsSummary(repo: MarketRepository) {
   ensureLlmOpsRegistry(repo);
   const recentRuns = repo.listNovaTaskRuns({ limit: 40 });
   const labels = repo.listNovaReviewLabels({ limit: 80 });
+  const plan = getNovaModelPlan();
   return {
     runtime: {
-      endpoint: getNovaLocalEndpoint(),
+      endpoint: plan.endpoint,
       memory_tier: detectNovaMemoryTier(),
-      local_only: isLocalNovaEnabled(),
+      local_only: plan.local_only,
+      cloud_enabled: isCloudNovaEnabled(),
       mode: getNovaRuntimeMode(),
-      availability_reason: isLocalNovaEnabled()
-        ? 'Local Ollama expected to be reachable from this runtime.'
-        : 'Local Ollama bypassed in this runtime; deterministic fallback is used instead.'
+      availability_reason:
+        getNovaRuntimeMode() === 'local-ollama'
+          ? 'Local Ollama is the active Nova runtime.'
+          : getNovaRuntimeMode() === 'cloud-openai-compatible'
+            ? 'Cloud OpenAI-compatible inference is the active Nova runtime.'
+            : 'No live Nova provider is configured; deterministic fallback is used instead.'
     },
     routing_policies: getNovaRoutingPolicies(),
     model_registry: repo.listModelVersions({ limit: 12 }).map(toModelVersionContract),

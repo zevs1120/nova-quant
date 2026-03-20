@@ -5,7 +5,18 @@ import { fileURLToPath } from 'node:url';
 import { getDb } from '../db/database.js';
 import { MarketRepository } from '../db/repository.js';
 import { ensureSchema } from '../db/schema.js';
-import type { AssetClass, DecisionSnapshotRecord, ExecutionAction, ExecutionMode, Market, RiskProfileKey, SignalContract, Timeframe, UserHoldingInput } from '../types.js';
+import type {
+  AssetClass,
+  DecisionSnapshotRecord,
+  ExecutionAction,
+  ExecutionMode,
+  Market,
+  NovaTaskType,
+  RiskProfileKey,
+  SignalContract,
+  Timeframe,
+  UserHoldingInput
+} from '../types.js';
 import { createExecutionRecord, decodeSignalContract, ensureQuantData } from '../quant/service.js';
 import {
   getBacktestEvidenceDetail,
@@ -29,9 +40,11 @@ import { buildBackendBackboneSummary } from '../backbone/service.js';
 import { createTraceId, recordAuditEvent } from '../observability/spine.js';
 import { applyLocalNovaDecisionLanguage, applyLocalNovaWrapUpLanguage, logNovaAssistantAnswer } from '../nova/service.js';
 import { buildMlxLmTrainingDataset } from '../nova/training.js';
-import { getNovaModelPlan, getNovaRoutingPolicies, getNovaLocalEndpoint, getNovaRuntimeMode, isLocalNovaEnabled } from '../ai/llmOps.js';
+import { getNovaModelPlan, getNovaRoutingPolicies, getNovaRuntimeMode } from '../ai/llmOps.js';
 import { inspectNovaHealth } from '../nova/health.js';
 import { labelNovaRun } from '../nova/service.js';
+import { runNovaTrainingFlywheel, type NovaTrainerKind } from '../nova/flywheel.js';
+import { generateGovernedNovaStrategies } from '../nova/strategyLab.js';
 import { ensureFreshNewsForUniverse } from '../news/provider.js';
 import { buildEvidenceLineage } from '../evidence/lineage.js';
 import { fetchWithRetry } from '../utils/http.js';
@@ -375,7 +388,10 @@ function buildHeuristicSearchCandidates(query: string, market?: Market): SearchC
   const cryptoSymbol = cryptoAliasLookup[normalized] || compact;
   if (
     (!market || market === 'CRYPTO') &&
-    (Boolean(cryptoAliasLookup[normalized]) || /[/_-]/.test(compact) || compact.endsWith('USDT') || compact.endsWith('USD'))
+    (Boolean(cryptoAliasLookup[normalized]) ||
+      /[/_-]/.test(compact) ||
+      compact.endsWith('USDT') ||
+      compact.endsWith('USD'))
   ) {
     const candidate = buildDirectCryptoCandidate(cryptoSymbol);
     candidates.set(`${candidate.market}:${candidate.symbol}`, candidate);
@@ -812,16 +828,16 @@ function normalizeNasdaqBrowseChart(
 ): BrowseChartSnapshot | null {
   const data = payload.data;
   const points = (data?.chart || []).reduce<BrowseChartPoint[]>((acc, point) => {
-    const ts = Number(point?.x);
-    const close = parseNumericValue(point?.y ?? point?.z?.value);
-    if (!Number.isFinite(ts) || close === null) return acc;
-    acc.push({
-      ts,
-      close,
-      label: point?.z?.dateTime || null
-    });
-    return acc;
-  }, []);
+      const ts = Number(point?.x);
+      const close = parseNumericValue(point?.y ?? point?.z?.value);
+      if (!Number.isFinite(ts) || close === null) return acc;
+      acc.push({
+        ts,
+        close,
+        label: point?.z?.dateTime || null
+      });
+      return acc;
+    }, []);
 
   const lastPoint = points[points.length - 1] || null;
   const firstPoint = points[0] || null;
@@ -979,12 +995,12 @@ function buildLocalBrowseChart(args: { market: Market; symbol: string }): Browse
       limit
     });
     const points = rows.reduce<BrowseChartPoint[]>((acc, row) => {
-      const ts = Number(row.ts_open);
-      const close = parseNumericValue(row.close);
-      if (!Number.isFinite(ts) || close === null) return acc;
-      acc.push({ ts, close, label: null });
-      return acc;
-    }, []);
+        const ts = Number(row.ts_open);
+        const close = parseNumericValue(row.close);
+        if (!Number.isFinite(ts) || close === null) return acc;
+        acc.push({ ts, close, label: null });
+        return acc;
+      }, []);
 
     if (points.length < 2) continue;
 
@@ -2191,15 +2207,21 @@ export function setNotificationPreferencesState(args: {
 }
 
 export function getNovaRuntimeState() {
+  const plan = getNovaModelPlan();
+  const mode = getNovaRuntimeMode();
   return {
-    endpoint: getNovaLocalEndpoint(),
-    plan: getNovaModelPlan(),
+    endpoint: plan.endpoint,
+    plan,
     routing: getNovaRoutingPolicies(),
-    local_only: isLocalNovaEnabled(),
-    mode: getNovaRuntimeMode(),
-    availability_reason: isLocalNovaEnabled()
-      ? 'Local Ollama is enabled for this runtime.'
-      : 'Local Ollama is bypassed here; deterministic fallback remains available.'
+    provider: plan.provider,
+    local_only: plan.local_only,
+    mode,
+    availability_reason:
+      mode === 'local-ollama'
+        ? 'Local Ollama is the active Nova runtime.'
+        : mode === 'cloud-openai-compatible'
+          ? 'Cloud OpenAI-compatible inference is the active Nova runtime.'
+          : 'No live Nova provider is configured; deterministic fallback remains available.'
   };
 }
 
@@ -2256,6 +2278,44 @@ export function createNovaReviewLabel(args: {
 export function exportNovaTrainingDataset(args?: { onlyIncluded?: boolean; limit?: number }) {
   const repo = getRepo();
   return buildMlxLmTrainingDataset(repo, args);
+}
+
+export async function runNovaTrainingFlywheelNow(args?: {
+  userId?: string;
+  trainer?: NovaTrainerKind;
+  onlyIncluded?: boolean;
+  limit?: number;
+  taskTypes?: NovaTaskType[];
+}) {
+  const repo = getRepo();
+  return await runNovaTrainingFlywheel({
+    repo,
+    userId: args?.userId || null,
+    trainer: args?.trainer,
+    onlyIncluded: args?.onlyIncluded,
+    limit: args?.limit,
+    taskTypes: args?.taskTypes
+  });
+}
+
+export async function runNovaStrategyGeneration(args: {
+  userId?: string;
+  prompt: string;
+  locale?: string;
+  market?: Market;
+  riskProfile?: string;
+  maxCandidates?: number;
+}) {
+  const repo = getRepo();
+  return await generateGovernedNovaStrategies({
+    repo,
+    userId: args.userId || null,
+    prompt: args.prompt,
+    locale: args.locale || 'en',
+    market: args.market || null,
+    riskProfile: args.riskProfile || null,
+    maxCandidates: args.maxCandidates
+  });
 }
 
 export async function recordNovaAssistantRun(args: {

@@ -26,12 +26,14 @@ export class OllamaProvider implements ProviderAdapter {
   readonly name = 'ollama' as const;
 
   async *stream(req: ProviderRequest): AsyncGenerator<string> {
+    const endpoint = String(req.endpoint || OLLAMA_CHAT_ENDPOINT).replace(/\/$/, '');
     let response: Response;
     try {
-      response = await fetch(OLLAMA_CHAT_ENDPOINT, {
+      response = await fetch(endpoint.endsWith('/chat/completions') ? endpoint : `${endpoint}/chat/completions`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...(req.headers || {})
         },
         body: JSON.stringify({
           model: req.model || DEFAULT_OLLAMA_MODEL,

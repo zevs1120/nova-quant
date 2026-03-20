@@ -111,6 +111,9 @@ export interface ProviderRequest {
   temperature?: number;
   maxTokens?: number;
   model?: string;
+  endpoint?: string;
+  apiKey?: string | null;
+  headers?: Record<string, string>;
 }
 
 export interface ProviderAdapter {

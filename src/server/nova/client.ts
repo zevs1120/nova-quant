@@ -44,7 +44,9 @@ export async function runNovaChatCompletion(args: NovaChatArgs) {
   const { init, clear } = withTimeoutInit({
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      ...(route.apiKey ? { Authorization: `Bearer ${route.apiKey}` } : {}),
+      ...(route.headers || {})
     },
     body: JSON.stringify({
       model: route.model,
@@ -61,7 +63,7 @@ export async function runNovaChatCompletion(args: NovaChatArgs) {
 
   if (!response.ok) {
     const text = await response.text().catch(() => '');
-    throw new Error(`Local Nova request failed (${response.status}): ${text}`);
+    throw new Error(`Nova request failed (${response.status}): ${text}`);
   }
 
   const raw = (await response.json()) as Record<string, unknown>;
@@ -84,7 +86,9 @@ export async function runNovaEmbedding(args: NovaEmbeddingArgs) {
   const { init, clear } = withTimeoutInit({
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      ...(route.apiKey ? { Authorization: `Bearer ${route.apiKey}` } : {}),
+      ...(route.headers || {})
     },
     body: JSON.stringify({
       model: route.model,
@@ -95,7 +99,7 @@ export async function runNovaEmbedding(args: NovaEmbeddingArgs) {
 
   if (!response.ok) {
     const text = await response.text().catch(() => '');
-    throw new Error(`Local Nova embedding request failed (${response.status}): ${text}`);
+    throw new Error(`Nova embedding request failed (${response.status}): ${text}`);
   }
 
   const raw = (await response.json()) as {

@@ -4,7 +4,7 @@ import type { NovaReviewLabelRecord, NovaTaskRunRecord, NovaTaskType } from '../
 import { createTraceId, recordAuditEvent } from '../observability/spine.js';
 import { runNovaChatCompletion, runNovaEmbedding } from './client.js';
 import { resolveBusinessTask, type NovaBusinessTask } from './router.js';
-import { isLocalNovaEnabled } from '../ai/llmOps.js';
+import { getNovaRuntimeMode, isLocalNovaEnabled } from '../ai/llmOps.js';
 
 type JsonObject = Record<string, unknown>;
 
@@ -45,7 +45,7 @@ function findPromptVersionId(repo: MarketRepository, taskKey: string): string | 
 }
 
 function shouldSkipLocalNova(): boolean {
-  return !isLocalNovaEnabled();
+  return getNovaRuntimeMode() === 'deterministic-fallback';
 }
 
 function taskTypeForBusinessTask(task: NovaBusinessTask): NovaTaskType {
@@ -54,11 +54,12 @@ function taskTypeForBusinessTask(task: NovaBusinessTask): NovaTaskType {
   if (task === 'action_card') return 'action_card_generation';
   if (task === 'daily_wrap_up') return 'daily_wrap_up_generation';
   if (task === 'assistant_answer') return 'assistant_grounded_answer';
+  if (task === 'strategy_lab') return 'strategy_candidate_generation';
   if (task === 'fast_classification') return 'fast_classification';
   return 'retrieval_embedding';
 }
 
-async function runLoggedNovaTextTask(args: {
+export async function runLoggedNovaTextTask(args: {
   repo: MarketRepository;
   userId?: string | null;
   threadId?: string | null;
@@ -96,7 +97,7 @@ async function runLoggedNovaTextTask(args: {
       context_json: JSON.stringify(args.context),
       output_json: null,
       status: 'SKIPPED',
-      error: 'NOVA_DISABLE_LOCAL_GENERATION=1',
+      error: 'Nova runtime is in deterministic fallback mode.',
       created_at_ms: nowMs,
       updated_at_ms: nowMs
     });

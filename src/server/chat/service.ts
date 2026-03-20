@@ -12,7 +12,8 @@ import {
   ProviderTimeoutError,
   shouldFallbackProviderError
 } from './providers/errors.js';
-import { resolveNovaRoute } from '../ai/llmOps.js';
+import { resolveNovaRoute, resolveNovaRouteForProvider } from '../ai/llmOps.js';
+import { generateGovernedNovaStrategyReply } from '../nova/strategyLab.js';
 
 const MAX_HISTORY_TURNS = 8;
 const PROVIDER_TIMEOUT_MS = Number(process.env.AI_PROVIDER_TIMEOUT_MS || 18_000);
@@ -188,6 +189,18 @@ function buildDeterministicFallback(contextBundle: Awaited<ReturnType<typeof bui
   return `${note}\n\n${text}`;
 }
 
+function isStrategyGenerationRequest(input: ChatRequestInput, mode: ChatMode): boolean {
+  const lower = String(input.message || '').toLowerCase();
+  const explicitRequest =
+    (lower.includes('strategy') || lower.includes('alpha')) &&
+    ['generate', 'build', 'create', 'design', 'propose', 'draft', 'idea'].some((token) => lower.includes(token));
+  const portfolioIntent =
+    lower.includes('portfolio fit') ||
+    lower.includes('candidate strategy') ||
+    lower.includes('trading idea');
+  return explicitRequest || (mode === 'research-assistant' && portfolioIntent);
+}
+
 async function runProviderChain(args: {
   input: ChatRequestInput;
   threadId: string;
@@ -195,7 +208,10 @@ async function runProviderChain(args: {
   history: ChatHistoryMessage[];
   contextBundle: Awaited<ReturnType<typeof buildContextBundle>>;
 }): Promise<{ provider: string; text: string; mode: ChatMode }> {
-  const providerOrder = getProviderOrder().filter((name) => isProviderConfigured(name));
+  const primaryRoute = resolveNovaRoute('assistant_grounded_answer');
+  const providerOrder = [primaryRoute.provider, ...getProviderOrder()]
+    .filter((name, index, rows) => rows.indexOf(name) === index)
+    .filter((name) => isProviderConfigured(name));
   const systemPrompt = buildSystemPrompt(args.mode, args.contextBundle.hasExactSignalData);
   const userPrompt = buildUserPrompt({
     userMessage: args.input.message,
@@ -218,7 +234,7 @@ async function runProviderChain(args: {
   for (let i = 0; i < providerOrder.length; i += 1) {
     const providerName = providerOrder[i];
     const provider = createProvider(providerName);
-    const route = resolveNovaRoute('assistant_grounded_answer');
+    const route = resolveNovaRouteForProvider('assistant_grounded_answer', providerName === 'openai' ? 'openai' : 'ollama');
     const providerMessages: ProviderMessage[] = [
       { role: 'system', content: systemPrompt },
       ...historyToProviderMessages(args.history),
@@ -231,6 +247,9 @@ async function runProviderChain(args: {
         provider.stream({
           messages: providerMessages,
           model: route.model,
+          endpoint: route.endpoint,
+          apiKey: route.apiKey,
+          headers: route.headers,
           temperature: 0.2,
           maxTokens: 750
         }),
@@ -307,13 +326,41 @@ export async function* streamChat(input: ChatRequestInput): AsyncGenerator<Strea
   yield { type: 'meta', mode, provider: 'preparing', threadId: thread.id };
 
   try {
-    const result = await runProviderChain({
-      input,
-      threadId: thread.id,
-      mode,
-      history,
-      contextBundle
-    });
+    let result: { provider: string; text: string; mode: ChatMode };
+    if (isStrategyGenerationRequest(input, mode)) {
+      try {
+        const reply = await generateGovernedNovaStrategyReply({
+          repo,
+          userId: input.userId,
+          prompt: input.message,
+          locale: input.context?.locale || 'en',
+          market: input.context?.market,
+          riskProfile: input.context?.riskProfileKey || null,
+          maxCandidates: 12
+        });
+        result = {
+          provider: reply.provider,
+          text: reply.text,
+          mode: 'research-assistant'
+        };
+      } catch {
+        result = await runProviderChain({
+          input,
+          threadId: thread.id,
+          mode,
+          history,
+          contextBundle
+        });
+      }
+    } else {
+      result = await runProviderChain({
+        input,
+        threadId: thread.id,
+        mode,
+        history,
+        contextBundle
+      });
+    }
 
     yield { type: 'meta', mode: result.mode, provider: result.provider, threadId: thread.id };
     yield { type: 'chunk', delta: result.text };

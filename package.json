@@ -4,7 +4,8 @@
   "version": "10.0.2",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "node scripts/dev-stack.mjs",
+    "dev:web": "vite",
     "build": "vite build",
     "preview": "vite preview",
     "clean": "node scripts/clean-worktree.mjs",
@@ -19,6 +20,8 @@
     "nova:health": "tsx scripts/check-nova-local.ts",
     "nova:export-mlx": "tsx scripts/export-nova-mlx-data.ts --only-included",
     "nova:train:lora": "tsx scripts/run-nova-mlx-train.ts",
+    "nova:flywheel": "tsx scripts/run-nova-flywheel.ts",
+    "nova:strategy": "tsx scripts/run-nova-strategy-lab.ts",
     "backfill": "tsx scripts/backfill.ts",
     "update:binance": "tsx scripts/update-binance.ts --once",
     "worker:binance": "tsx scripts/update-binance.ts",

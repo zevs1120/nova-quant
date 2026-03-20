@@ -3,6 +3,18 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "functions": {
+    "api/chat.ts": {
+      "memory": 1024,
+      "maxDuration": 30
+    },
+    "api/ai-chat.ts": {
+      "memory": 1024,
+      "maxDuration": 30
+    },
+    "api/nova/**/*.ts": {
+      "memory": 1024,
+      "maxDuration": 30
+    },
     "api/[...route].ts": {
       "memory": 1024,
       "maxDuration": 10

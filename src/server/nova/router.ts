@@ -7,6 +7,7 @@ export type NovaBusinessTask =
   | 'action_card'
   | 'daily_wrap_up'
   | 'assistant_answer'
+  | 'strategy_lab'
   | 'fast_classification'
   | 'retrieval';
 
@@ -15,6 +16,7 @@ export function mapBusinessTaskToRoute(task: NovaBusinessTask): NovaTaskRoute {
   if (task === 'retrieval') return 'retrieval_embedding';
   if (task === 'action_card') return 'action_card_generation';
   if (task === 'assistant_answer') return 'assistant_grounded_answer';
+  if (task === 'strategy_lab') return 'strategy_generation';
   return 'decision_reasoning';
 }
 

@@ -1,6 +1,6 @@
 import express from 'express';
 import { isoToMs } from '../utils/time.js';
-import type { AssetClass, Market, Timeframe } from '../types.js';
+import type { AssetClass, Market, NovaTaskType, Timeframe } from '../types.js';
 import {
   handleAuthLogin,
   handleAuthLogout,
@@ -41,8 +41,8 @@ import {
   getPerformanceSummary,
   getRiskProfile,
   setRiskProfile,
-  getBrowseAssetChart,
   getSignalContract,
+  getBrowseAssetChart,
   listAssets,
   searchAssets,
   listExecutions,
@@ -50,6 +50,8 @@ import {
   queryOhlcv,
   recordNovaAssistantRun,
   runEvidence,
+  runNovaStrategyGeneration,
+  runNovaTrainingFlywheelNow,
   setNotificationPreferencesState,
   getWidgetSummary,
   syncQuantState,
@@ -126,6 +128,23 @@ function parseSignalStatus(value?: string): 'ALL' | 'NEW' | 'TRIGGERED' | 'EXPIR
 export function createApiApp() {
   const app = express();
   app.use(express.json({ limit: '1mb' }));
+  app.use((req, res, next) => {
+    const allowPublicBrowse = req.path === '/api/assets/search' || req.path === '/api/browse/chart';
+    if (!allowPublicBrowse) {
+      next();
+      return;
+    }
+    res.setHeader('Access-Control-Allow-Origin', req.header('origin') || '*');
+    res.setHeader('Vary', 'Origin');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Max-Age', '600');
+    if (req.method === 'OPTIONS') {
+      res.status(204).end();
+      return;
+    }
+    next();
+  });
   ensureDefaultPublicSignalsApiKey();
 
   app.get('/healthz', (_req, res) => {
@@ -351,6 +370,64 @@ export function createApiApp() {
       exportNovaTrainingDataset({
         onlyIncluded,
         limit
+      })
+    );
+  });
+
+  app.post('/api/nova/training/flywheel', async (req, res) => {
+    const body = (req.body || {}) as {
+      userId?: string;
+      trainer?: string;
+      onlyIncluded?: boolean;
+      limit?: number;
+      taskTypes?: string[];
+    };
+    const trainer = String(body.trainer || 'unsloth-lora').trim();
+    if (!['mlx-lora', 'unsloth-lora', 'axolotl-qlora'].includes(trainer)) {
+      res.status(400).json({ error: 'trainer must be mlx-lora, unsloth-lora, or axolotl-qlora' });
+      return;
+    }
+    const taskTypes = Array.isArray(body.taskTypes)
+      ? body.taskTypes.map((value) => String(value).trim()).filter(Boolean)
+      : undefined;
+    res.json(
+      await runNovaTrainingFlywheelNow({
+        userId: String(body.userId || '').trim() || undefined,
+        trainer: trainer as 'mlx-lora' | 'unsloth-lora' | 'axolotl-qlora',
+        onlyIncluded: body.onlyIncluded !== false,
+        limit: Number.isFinite(Number(body.limit)) ? Number(body.limit) : undefined,
+        taskTypes: taskTypes as NovaTaskType[] | undefined
+      })
+    );
+  });
+
+  app.post('/api/nova/strategy/generate', async (req, res) => {
+    const body = (req.body || {}) as {
+      userId?: string;
+      prompt?: string;
+      locale?: string;
+      market?: string;
+      riskProfile?: string;
+      maxCandidates?: number;
+    };
+    const prompt = String(body.prompt || '').trim();
+    const market = parseMarket(body.market);
+    if (!prompt) {
+      res.status(400).json({ error: 'prompt is required' });
+      return;
+    }
+    if (body.market && !market) {
+      res.status(400).json({ error: 'Invalid market, use US or CRYPTO' });
+      return;
+    }
+    res.json(
+      await runNovaStrategyGeneration({
+        userId: String(body.userId || '').trim() || undefined,
+        prompt,
+        locale: String(body.locale || '').trim() || undefined,
+        market,
+        riskProfile: String(body.riskProfile || '').trim() || undefined,
+        maxCandidates: Number.isFinite(Number(body.maxCandidates)) ? Number(body.maxCandidates) : undefined
       })
     );
   });

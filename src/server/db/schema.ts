@@ -670,7 +670,8 @@ CREATE TABLE IF NOT EXISTS nova_task_runs (
       'daily_wrap_up_generation',
       'assistant_grounded_answer',
       'fast_classification',
-      'retrieval_embedding'
+      'retrieval_embedding',
+      'strategy_candidate_generation'
     )
   ),
   route_alias TEXT NOT NULL,
@@ -1000,6 +1001,96 @@ CREATE TABLE IF NOT EXISTS auth_user_state_sync (
 
 export function ensureSchema(db: Database.Database): void {
   db.exec(SCHEMA_SQL);
+  try {
+    const novaTaskRunsRow = db
+      .prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'nova_task_runs'")
+      .get() as { sql?: string } | undefined;
+    const novaTaskRunsSql = String(novaTaskRunsRow?.sql || '');
+    if (!novaTaskRunsSql.includes("'strategy_candidate_generation'")) {
+      db.exec('PRAGMA foreign_keys = OFF;');
+      db.exec('BEGIN;');
+      db.exec('ALTER TABLE nova_review_labels RENAME TO nova_review_labels_old;');
+      db.exec('ALTER TABLE nova_task_runs RENAME TO nova_task_runs_old;');
+      db.exec(`
+        CREATE TABLE nova_task_runs (
+          id TEXT PRIMARY KEY,
+          user_id TEXT,
+          thread_id TEXT,
+          task_type TEXT NOT NULL CHECK (
+            task_type IN (
+              'risk_regime_explanation',
+              'daily_stance_generation',
+              'action_card_generation',
+              'daily_wrap_up_generation',
+              'assistant_grounded_answer',
+              'fast_classification',
+              'retrieval_embedding',
+              'strategy_candidate_generation'
+            )
+          ),
+          route_alias TEXT NOT NULL,
+          model_name TEXT NOT NULL,
+          endpoint TEXT NOT NULL,
+          trace_id TEXT,
+          prompt_version_id TEXT,
+          parent_run_id TEXT,
+          input_json TEXT NOT NULL,
+          context_json TEXT NOT NULL,
+          output_json TEXT,
+          status TEXT NOT NULL CHECK (status IN ('SUCCEEDED', 'FAILED', 'SKIPPED')),
+          error TEXT,
+          created_at_ms INTEGER NOT NULL,
+          updated_at_ms INTEGER NOT NULL
+        );
+      `);
+      db.exec(`
+        INSERT INTO nova_task_runs(
+          id, user_id, thread_id, task_type, route_alias, model_name, endpoint, trace_id, prompt_version_id,
+          parent_run_id, input_json, context_json, output_json, status, error, created_at_ms, updated_at_ms
+        )
+        SELECT
+          id, user_id, thread_id, task_type, route_alias, model_name, endpoint, trace_id, prompt_version_id,
+          parent_run_id, input_json, context_json, output_json, status, error, created_at_ms, updated_at_ms
+        FROM nova_task_runs_old;
+      `);
+      db.exec('CREATE INDEX IF NOT EXISTS idx_nova_task_runs_lookup ON nova_task_runs(task_type, created_at_ms DESC);');
+      db.exec('CREATE INDEX IF NOT EXISTS idx_nova_task_runs_user ON nova_task_runs(user_id, created_at_ms DESC);');
+      db.exec('CREATE INDEX IF NOT EXISTS idx_nova_task_runs_thread ON nova_task_runs(thread_id, created_at_ms DESC);');
+      db.exec(`
+        CREATE TABLE nova_review_labels (
+          id TEXT PRIMARY KEY,
+          run_id TEXT NOT NULL,
+          reviewer_id TEXT NOT NULL,
+          label TEXT NOT NULL,
+          score REAL,
+          notes TEXT,
+          include_in_training INTEGER NOT NULL DEFAULT 0,
+          created_at_ms INTEGER NOT NULL,
+          updated_at_ms INTEGER NOT NULL,
+          FOREIGN KEY(run_id) REFERENCES nova_task_runs(id) ON DELETE CASCADE
+        );
+      `);
+      db.exec(`
+        INSERT INTO nova_review_labels(
+          id, run_id, reviewer_id, label, score, notes, include_in_training, created_at_ms, updated_at_ms
+        )
+        SELECT
+          id, run_id, reviewer_id, label, score, notes, include_in_training, created_at_ms, updated_at_ms
+        FROM nova_review_labels_old;
+      `);
+      db.exec('CREATE INDEX IF NOT EXISTS idx_nova_review_labels_run ON nova_review_labels(run_id, updated_at_ms DESC);');
+      db.exec('DROP TABLE nova_review_labels_old;');
+      db.exec('DROP TABLE nova_task_runs_old;');
+      db.exec('COMMIT;');
+      db.exec('PRAGMA foreign_keys = ON;');
+    }
+  } catch {
+    try {
+      db.exec('ROLLBACK;');
+    } catch {}
+    db.exec('PRAGMA foreign_keys = ON;');
+    throw new Error('Failed to migrate nova_task_runs for strategy candidate support.');
+  }
   try {
     db.prepare('SELECT thread_id FROM chat_audit_logs LIMIT 1').get();
   } catch {
