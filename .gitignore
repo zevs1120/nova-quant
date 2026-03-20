@@ -24,6 +24,7 @@ data/*.sqlite-*
 *.tmp
 .DS_Store
 __MACOSX/
+*.textClipping
 *.tgz
 *.zip
 *.tar
