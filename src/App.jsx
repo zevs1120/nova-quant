@@ -20,6 +20,7 @@ import { runQuantPipeline } from './engines/pipeline';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { createTranslator, getDefaultLang, getLocale } from './i18n';
 import { buildHoldingsReview } from './research/holdingsAnalyzer';
+import { fetchApiJson } from './utils/api';
 import {
   buildInvestorDemoEnvironment,
   INVESTOR_DEMO_HOLDINGS,
@@ -227,6 +228,10 @@ function detectDisplayMode() {
 }
 
 async function fetchJson(url, options) {
+  const method = String(options?.method || 'GET').toUpperCase();
+  if (method === 'GET') {
+    return fetchApiJson(url, options);
+  }
   const response = await fetch(url, {
     credentials: 'same-origin',
     ...(options || {})

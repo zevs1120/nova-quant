@@ -48,6 +48,7 @@ import { generateGovernedNovaStrategies } from '../nova/strategyLab.js';
 import { buildNewsContext, ensureFreshNewsForSymbol, ensureFreshNewsForUniverse } from '../news/provider.js';
 import { buildEvidenceLineage } from '../evidence/lineage.js';
 import { fetchWithRetry } from '../utils/http.js';
+import { getPublicBrowseHome } from '../public/browseService.js';
 
 const RISK_PROFILE_PRESETS = {
   conservative: {
@@ -910,6 +911,45 @@ export async function searchAssets(args: { query: string; limit?: number; market
     })
     .slice(0, limit)
     .map(({ candidate, score }) => toSearchResult(candidate, score));
+}
+
+export function getSearchHealth(args?: { market?: Market; query?: string; resultCount?: number }) {
+  const repo = getRepo();
+  const liveAssets = repo.listAssets(args?.market).length;
+  const referenceAssets = getReferenceSearchUniverse().filter((candidate) => !args?.market || candidate.market === args.market).length;
+  const query = String(args?.query || '').trim();
+  const resultCount = Number(args?.resultCount || 0);
+  const status =
+    resultCount > 0
+      ? 'READY'
+      : liveAssets > 0 || referenceAssets > 0
+        ? 'DEGRADED'
+        : 'UNAVAILABLE';
+  const reason =
+    resultCount > 0
+      ? null
+      : !query
+        ? 'QUERY_EMPTY'
+        : liveAssets === 0 && referenceAssets === 0
+          ? 'NO_ASSET_UNIVERSE'
+          : 'NO_MATCHES';
+
+  return {
+    status,
+    reason,
+    market: args?.market || 'ALL',
+    query: query || null,
+    result_count: resultCount,
+    live_asset_count: liveAssets,
+    reference_asset_count: referenceAssets,
+    remote_lookup_enabled: query.length >= 2
+  };
+}
+
+export async function getBrowseHomePayload(args?: { view?: string }) {
+  return await getPublicBrowseHome({
+    view: args?.view
+  });
 }
 
 type NasdaqBrowseChartResponse = {
@@ -2732,6 +2772,71 @@ export function getRuntimeState(args: {
             .map((row) => ({ ticker: row.symbol, reason: row.status }))
         }
       }
+    }
+  };
+}
+
+export async function getControlPlaneStatus(args?: { userId?: string }) {
+  const repo = getRepo();
+  const userId = args?.userId || 'guest-default';
+  const markets: Market[] = ['US', 'CRYPTO'];
+  const runtime = markets.map((market) => {
+    const core = loadRuntimeStateCore({
+      userId,
+      market
+    });
+    const decision = buildDecisionSnapshotFromCore({
+      core
+    });
+    const topAction = ((decision.ranked_action_cards as Array<Record<string, unknown>> | undefined) || [])[0] || null;
+    return {
+      market,
+      as_of: core.runtimeTransparency.as_of,
+      source_status: core.runtimeTransparency.source_status,
+      data_status: core.runtimeTransparency.data_status,
+      signal_count: core.signals.length,
+      active_signal_count: core.active.length,
+      decision_code: String((decision.today_call as Record<string, unknown> | undefined)?.code || 'WAIT'),
+      top_action_symbol: topAction ? String(topAction.symbol || '') || null : null,
+      top_action_label: topAction ? String(topAction.action_label || '') || null : null,
+      coverage: core.runtimeTransparency.coverage_summary || null,
+      freshness: core.runtimeTransparency.freshness_summary || null
+    };
+  });
+
+  const activeNotifications = repo.listNotificationEvents({
+    userId,
+    status: 'ACTIVE',
+    limit: 50
+  });
+  const workflowRuns = repo.listWorkflowRuns({
+    workflowKey: 'nova_strategy_lab',
+    status: 'SUCCEEDED',
+    limit: 10
+  });
+  const latestStrategyLabRun = workflowRuns[0] || null;
+  const browseHome = await getBrowseHomePayload({
+    view: 'NOW'
+  }).catch(() => null);
+
+  return {
+    as_of: new Date().toISOString(),
+    search: {
+      ...getSearchHealth(),
+      query_path: '/api/assets/search',
+      browse_home_status: browseHome ? 'READY' : 'UNAVAILABLE',
+      browse_home_featured_count: browseHome?.futuresMarkets?.length || 0,
+      browse_home_movers_count: browseHome?.topMovers?.length || 0
+    },
+    runtime,
+    strategy_factory: {
+      latest_run_at: latestStrategyLabRun ? new Date(latestStrategyLabRun.updated_at_ms).toISOString() : null,
+      latest_status: latestStrategyLabRun?.status || 'IDLE',
+      recent_run_count: workflowRuns.length
+    },
+    delivery: {
+      active_notification_count: activeNotifications.length,
+      latest_notification_at: activeNotifications[0] ? new Date(activeNotifications[0].updated_at_ms).toISOString() : null
     }
   };
 }

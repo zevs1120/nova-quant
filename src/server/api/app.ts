@@ -18,6 +18,8 @@ import {
   confirmRiskBoundary,
   ensureDefaultPublicSignalsApiKey,
   getBackendBackbone,
+  getBrowseHomePayload,
+  getControlPlaneStatus,
   createNovaReviewLabel,
   getEngagementState,
   getDecisionSnapshot,
@@ -45,6 +47,7 @@ import {
   getBrowseAssetOverview,
   getBrowseAssetChart,
   getBrowseNewsFeed,
+  getSearchHealth,
   listAssets,
   searchAssets,
   listExecutions,
@@ -61,6 +64,7 @@ import {
   upsertExternalConnection,
   verifyPublicSignalsApiKey
 } from './queries.js';
+import { claimManualReferral, getManualDashboard, redeemManualVipDay, submitManualPredictionEntry } from '../manual/service.js';
 import { checkRateLimit } from '../chat/rateLimit.js';
 import { getChatThreadMessages, listChatThreads, streamChat } from '../chat/service.js';
 import { logChatAudit } from '../chat/audit.js';
@@ -131,14 +135,27 @@ export function createApiApp() {
   const app = express();
   app.use(express.json({ limit: '1mb' }));
   app.use((req, res, next) => {
-    const allowPublicBrowse =
+    const allowCrossOriginRead =
+      req.path === '/api/auth/session' ||
+      req.path === '/api/manual/state' ||
       req.path === '/api/assets' ||
       req.path === '/api/assets/search' ||
       req.path === '/api/browse/chart' ||
+      req.path === '/api/browse/home' ||
       req.path === '/api/browse/news' ||
       req.path === '/api/browse/overview' ||
-      req.path === '/api/ohlcv';
-    if (!allowPublicBrowse) {
+      req.path === '/api/ohlcv' ||
+      req.path === '/api/runtime-state' ||
+      req.path === '/api/signals' ||
+      req.path === '/api/evidence/signals/top' ||
+      req.path === '/api/market-state' ||
+      req.path === '/api/performance' ||
+      req.path === '/api/market/modules' ||
+      req.path === '/api/risk-profile' ||
+      req.path === '/api/control-plane/status' ||
+      req.path === '/api/connect/broker' ||
+      req.path === '/api/connect/exchange';
+    if (!(allowCrossOriginRead && (req.method === 'GET' || req.method === 'OPTIONS'))) {
       next();
       return;
     }
@@ -196,8 +213,68 @@ export function createApiApp() {
       query,
       market: market ?? 'ALL',
       count: results.length,
-      data: results
+      data: results,
+      health: getSearchHealth({
+        market,
+        query,
+        resultCount: results.length
+      })
     });
+  });
+
+  app.get('/api/manual/state', (req, res) => {
+    const userId = (req.query.userId as string | undefined) || '';
+    res.json(getManualDashboard(userId));
+  });
+
+  app.post('/api/manual/rewards/redeem', (req, res) => {
+    const body = req.body as { userId?: string; days?: number };
+    const result = redeemManualVipDay({
+      userId: String(body.userId || ''),
+      days: body.days
+    });
+    if (!result.ok) {
+      res.status(result.error === 'AUTH_REQUIRED' ? 401 : 400).json(result);
+      return;
+    }
+    res.json(result);
+  });
+
+  app.post('/api/manual/referrals/claim', (req, res) => {
+    const body = req.body as { userId?: string; inviteCode?: string };
+    const result = claimManualReferral({
+      userId: String(body.userId || ''),
+      inviteCode: String(body.inviteCode || '')
+    });
+    if (!result.ok) {
+      res.status(result.error === 'AUTH_REQUIRED' ? 401 : 400).json(result);
+      return;
+    }
+    res.json(result);
+  });
+
+  app.post('/api/manual/predictions/entry', (req, res) => {
+    const body = req.body as { userId?: string; marketId?: string; selectedOption?: string; pointsStaked?: number };
+    const result = submitManualPredictionEntry({
+      userId: String(body.userId || ''),
+      marketId: String(body.marketId || ''),
+      selectedOption: String(body.selectedOption || ''),
+      pointsStaked: body.pointsStaked
+    });
+    if (!result.ok) {
+      res.status(result.error === 'AUTH_REQUIRED' ? 401 : 400).json(result);
+      return;
+    }
+    res.json(result);
+  });
+
+  app.get('/api/browse/home', async (req, res) => {
+    const view = req.query.view as string | undefined;
+    res.json(
+      await getBrowseHomePayload({
+        view
+      })
+    );
   });
 
   app.get('/api/browse/chart', async (req, res) => {
@@ -347,6 +424,15 @@ export function createApiApp() {
       assetClass
     });
     res.json(runtime);
+  });
+
+  app.get('/api/control-plane/status', async (req, res) => {
+    const userId = (req.query.userId as string | undefined) || 'guest-default';
+    res.json(
+      await getControlPlaneStatus({
+        userId
+      })
+    );
   });
 
   app.get('/api/backbone/summary', (req, res) => {
@@ -1005,7 +1091,7 @@ export function createApiApp() {
       res.status(400).json({ error: 'signalId is required' });
       return;
     }
-    if (!['PAPER', 'LIVE'].includes(mode) || !['EXECUTE', 'DONE', 'CLOSE'].includes(action)) {
+    if (!['PAPER'].includes(mode) || !['EXECUTE', 'DONE', 'CLOSE'].includes(action)) {
       res.status(400).json({ error: 'Invalid mode/action' });
       return;
     }

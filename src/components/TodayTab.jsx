@@ -323,6 +323,9 @@ function executionBoundaryLabel(mode, locale) {
 
 function riskGuardLabel(overallCode, riskLevelValue, locale) {
   const zh = locale === 'zh';
+  if (overallCode === 'UNAVAILABLE') {
+    return zh ? '系统未就绪' : 'System unavailable';
+  }
   if (overallCode === 'DEFENSE' || overallCode === 'NO_TRADE') {
     return zh ? '防守优先' : 'Defense first';
   }
@@ -337,6 +340,11 @@ function riskGuardLabel(overallCode, riskLevelValue, locale) {
 
 function buildKeepInMindText({ locale, signal, noActionDay, overallCode, provenance, riskLevelValue }) {
   const zh = locale === 'zh';
+  if (overallCode === 'UNAVAILABLE') {
+    return zh
+      ? '当前不是交易判断问题，而是系统运行状态还不够完整。先看数据状态和运行状态，不要凭空下单。'
+      : 'This is not a trade-quality issue. The system runtime is not complete enough yet, so check data and runtime status before acting.';
+  }
   if (!signal) {
     return zh
       ? '当前没有任何标的通过执行过滤。保持空仓，等下一次更干净的数据快照。'
@@ -406,7 +414,7 @@ function triggerFeedback(kind = 'soft') {
 }
 
 function DecisionMark({ code }) {
-  const tone = code === 'TRADE' ? 'trade' : code === 'WAIT' ? 'wait' : 'defense';
+  const tone = code === 'TRADE' ? 'trade' : code === 'WAIT' ? 'wait' : code === 'UNAVAILABLE' ? 'wait' : 'defense';
   return (
     <span className={`decision-mark decision-mark-${tone}`} aria-hidden="true">
       <svg viewBox="0 0 20 20" className="decision-mark-icon" focusable="false">
@@ -527,6 +535,17 @@ function overallFromDecision(decision, locale) {
 
 function riskFromDecision(decision, locale) {
   const posture = String(decision?.risk_state?.posture || '').toUpperCase();
+  const callCode = String(decision?.today_call?.code || '').toUpperCase();
+  if (callCode === 'UNAVAILABLE') {
+    return {
+      level: 'danger',
+      icon: '🔴',
+      label: locale === 'zh' ? '未就绪' : 'Unavailable',
+      explanation:
+        decision?.today_call?.subtitle ||
+        (locale === 'zh' ? '系统运行状态还不完整，当前不应做交易动作。' : 'System runtime is incomplete, so no trading action should be taken.')
+    };
+  }
   if (!posture) return null;
   if (posture === 'DEFEND' || posture === 'WAIT') {
     return {
@@ -596,7 +615,13 @@ export default function TodayTab({
     });
 
   const risk = riskFromDecision(decision, locale) || riskLevel(overall.code, featuredSignal, locale);
-  const noActionDay = !featuredSignal || !featuredSignal._actionable || overall.code === 'WAIT' || overall.code === 'DEFENSE' || overall.code === 'NO_TRADE';
+  const noActionDay =
+    !featuredSignal ||
+    !featuredSignal._actionable ||
+    overall.code === 'WAIT' ||
+    overall.code === 'DEFENSE' ||
+    overall.code === 'NO_TRADE' ||
+    overall.code === 'UNAVAILABLE';
   const todayDateLabel = useMemo(
     () =>
       now.toLocaleDateString(locale === 'zh' ? 'zh-CN' : 'en-US', {
@@ -635,6 +660,10 @@ export default function TodayTab({
       ? locale === 'zh'
         ? '可以动作'
         : 'Actionable'
+      : overall.code === 'UNAVAILABLE'
+        ? locale === 'zh'
+          ? '系统未就绪'
+          : 'Unavailable'
       : overall.code === 'WAIT'
         ? locale === 'zh'
           ? '更适合等'
@@ -696,7 +725,13 @@ export default function TodayTab({
         line: locale === 'zh' ? '今天可以动，但节奏要轻。' : 'Tradable today. Keep the size light.',
         tone: 'trade'
       }
-    : overall.code === 'WAIT'
+    : overall.code === 'UNAVAILABLE'
+      ? {
+          name: locale === 'zh' ? '系统离线' : 'System offline',
+          line: locale === 'zh' ? '先修运行链路，不要把空结果当成现金信号。' : 'Fix the runtime path first. Do not mistake empty output for a cash signal.',
+          tone: 'wait'
+        }
+      : overall.code === 'WAIT'
       ? {
           name: locale === 'zh' ? '天气偏混' : 'Mixed skies',
           line: locale === 'zh' ? '先等，不要抢第一下。' : 'Wait first. Do not force the first move.',
@@ -714,7 +749,7 @@ export default function TodayTab({
             tone: 'defense'
           };
   const climateBand = [
-    overall.code === 'TRADE' ? 'high' : overall.code === 'WAIT' ? 'mid' : 'low',
+    overall.code === 'TRADE' ? 'high' : overall.code === 'WAIT' || overall.code === 'UNAVAILABLE' ? 'mid' : 'low',
     noActionDay ? 'low' : Number(featuredSignal?.position_advice?.position_pct ?? 0) >= 14 ? 'high' : 'mid',
     risk.level === 'safe' ? 'low' : risk.level === 'medium' ? 'mid' : 'high'
   ];
@@ -792,6 +827,10 @@ export default function TodayTab({
       return;
     }
     triggerFeedback('soft');
+    if (overall.code === 'UNAVAILABLE') {
+      onOpenSignals?.();
+      return;
+    }
     if (overall.code === 'DEFENSE' || overall.code === 'NO_TRADE') {
       onConfirmBoundary?.();
       onAskAi?.('Give me today defense plan in simple actions.');

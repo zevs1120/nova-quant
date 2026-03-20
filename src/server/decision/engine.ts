@@ -628,12 +628,15 @@ function buildNoActionCard(args: {
   performanceSourceStatus?: string;
   demoMode?: boolean;
   locale?: string;
+  reasonCode?: string;
+  reasonText?: string;
 }): ActionCard {
   const status = alignTransparency({
     overallStatus: args.overallStatus,
     componentSourceStatus: args.overallStatus,
     componentDataStatus: args.overallStatus
   });
+  const reasonText = args.reasonText || 'No action ranks above the current opportunity set.';
   return {
     action_id: 'action-wait',
     signal_id: null,
@@ -659,9 +662,9 @@ function buildNoActionCard(args: {
       allowed: false,
       size_multiplier: 0,
       risk_budget_remaining: Number(args.portfolioContext.total_weight_pct || 0),
-      block_reason: 'No action ranks above the current opportunity set.',
-      reasons: ['No higher-priority action passed the risk gate.'],
-      overlays: ['no_action_default']
+      block_reason: reasonText,
+      reasons: [reasonText],
+      overlays: [String(args.reasonCode || 'no_action_default').toLowerCase()]
     },
     evidence_lineage: buildEvidenceLineage({
       runtimeStatus: args.overallStatus,
@@ -679,7 +682,7 @@ function buildNoActionCard(args: {
     source_label: status.source_label,
     signal_payload: null,
     evidence_bundle: {
-      thesis: 'No action ranks above the current opportunity set.',
+      thesis: reasonText,
       supporting_factors: [],
       opposing_factors: [...args.riskState.drivers],
       regime_context: args.riskState.machine,
@@ -693,9 +696,9 @@ function buildNoActionCard(args: {
         conviction: 0,
         uncertainty: 'HIGH'
       },
-      implementation_caveats: ['Wait for cleaner evidence or lower-risk conditions.'],
+      implementation_caveats: [reasonText, 'Wait for cleaner evidence or lower-risk conditions.'].filter(Boolean),
       next_action: 'wait',
-      what_changed: 'No higher-priority action passed the risk gate.',
+      what_changed: reasonText,
       generated_at: args.asOf
     }
   };
@@ -704,6 +707,7 @@ function buildNoActionCard(args: {
 export function buildDecisionSnapshot(input: DecisionEngineInput) {
   const overallStatus = normalizeRuntimeStatus(input.runtimeSourceStatus, RUNTIME_STATUS.INSUFFICIENT_DATA);
   const mergedSignals = mergeSignals(input.signals || [], input.evidenceSignals || [], overallStatus);
+  const actionableSignals = mergedSignals.filter(isActionable);
   const riskState = deriveRiskState({
     marketState: input.marketState || [],
     runtimeSourceStatus: overallStatus,
@@ -824,6 +828,22 @@ export function buildDecisionSnapshot(input: DecisionEngineInput) {
 
   const rankedActionCards = ranked.slice(0, 3);
   if (!rankedActionCards.length || !rankedActionCards[0]?.eligible) {
+    const noActionReasonCode =
+      overallStatus !== RUNTIME_STATUS.DB_BACKED
+        ? 'SYSTEM_UNAVAILABLE'
+        : mergedSignals.length === 0
+          ? 'NO_SIGNAL_POOL'
+          : actionableSignals.length === 0
+            ? 'NO_ELIGIBLE_SIGNALS'
+            : 'RISK_FILTERED';
+    const noActionReasonText =
+      noActionReasonCode === 'SYSTEM_UNAVAILABLE'
+        ? 'Runtime data is not DB-backed yet, so the system cannot publish a trade card.'
+        : noActionReasonCode === 'NO_SIGNAL_POOL'
+          ? 'Runtime completed, but the signal pool is empty.'
+          : noActionReasonCode === 'NO_ELIGIBLE_SIGNALS'
+            ? 'Signals exist, but none cleared the execution filter.'
+            : 'Higher-risk candidates were blocked by the risk governor.';
     rankedActionCards.unshift(
       buildNoActionCard({
         asOf: input.asOf,
@@ -832,7 +852,9 @@ export function buildDecisionSnapshot(input: DecisionEngineInput) {
         overallStatus,
         performanceSourceStatus: input.performanceSourceStatus,
         demoMode: input.demoMode,
-        locale: input.locale
+        locale: input.locale,
+        reasonCode: noActionReasonCode,
+        reasonText: noActionReasonText
       })
     );
   }
@@ -844,17 +866,46 @@ export function buildDecisionSnapshot(input: DecisionEngineInput) {
     riskPosture: riskState.posture
   });
   const todayCall =
-    topAction.action === 'no_action'
+    topAction.action === 'no_action' && overallStatus !== RUNTIME_STATUS.DB_BACKED
       ? {
-          code: 'WAIT',
-          headline: riskState.summary,
-          subtitle: riskState.user_message
+          code: 'UNAVAILABLE',
+          headline: input.locale === 'zh' ? '系统还没跑起来' : 'System unavailable',
+          subtitle:
+            topAction.governor?.block_reason ||
+            (input.locale === 'zh'
+              ? '运行时还不是 DB-backed，当前不能给出可执行动作卡。'
+              : 'Runtime is not DB-backed yet, so no executable action card can be published.')
         }
-      : {
-          code: riskState.posture === 'ATTACK' ? 'TRADE' : riskState.posture === 'PROBE' ? 'PROBE' : 'DEFENSE',
-          headline: riskState.summary,
-          subtitle: topAction.brief_why_now
-        };
+      : topAction.action === 'no_action' && mergedSignals.length === 0
+        ? {
+            code: 'WAIT',
+            headline: input.locale === 'zh' ? '今天没有候选信号' : 'No signals today',
+            subtitle:
+              topAction.governor?.block_reason ||
+              (input.locale === 'zh'
+                ? '运行时已执行，但当前信号池为空。'
+                : 'Runtime completed, but the signal pool is empty.')
+          }
+        : topAction.action === 'no_action'
+          ? {
+              code: 'WAIT',
+              headline: input.locale === 'zh' ? '今天先等等' : 'Wait today',
+              subtitle: topAction.governor?.block_reason || riskState.user_message
+            }
+          : {
+              code: riskState.posture === 'ATTACK' ? 'TRADE' : riskState.posture === 'PROBE' ? 'PROBE' : 'DEFENSE',
+              headline: riskState.summary,
+              subtitle: topAction.brief_why_now
+            };
+
+  const decisionState =
+    todayCall.code === 'UNAVAILABLE'
+      ? 'SYSTEM_UNAVAILABLE'
+      : topAction.action === 'no_action' && mergedSignals.length === 0
+        ? 'NO_SIGNAL_POOL'
+        : topAction.action === 'no_action'
+          ? 'WAIT'
+          : 'ACTIONABLE';
 
   const summary = {
     today_call: todayCall,
@@ -866,6 +917,7 @@ export function buildDecisionSnapshot(input: DecisionEngineInput) {
     user_message: riskState.user_message,
     evidence_mode: String((topAction.evidence_lineage as Record<string, unknown> | undefined)?.display_mode || 'UNAVAILABLE'),
     performance_mode: String((topAction.evidence_lineage as Record<string, unknown> | undefined)?.performance_mode || 'UNAVAILABLE'),
+    decision_state: decisionState,
     source_status: overallStatus,
     data_status: overallStatus
   };
@@ -888,8 +940,8 @@ export function buildDecisionSnapshot(input: DecisionEngineInput) {
     },
     audit: {
       candidate_count: mergedSignals.length,
-      actionable_count: mergedSignals.filter(isActionable).length,
-      rejected_due_to_risk: mergedSignals.filter((row) => isActionable(row)).length - rankedActionCards.filter((row) => row.eligible).length,
+      actionable_count: actionableSignals.length,
+      rejected_due_to_risk: actionableSignals.length - rankedActionCards.filter((row) => row.eligible).length,
       previous_top_action_symbol: String(((input.previousDecision?.summary as Record<string, unknown> | undefined) || {}).top_action_symbol || ''),
       created_for_user: input.userId
     },

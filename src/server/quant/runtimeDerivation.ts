@@ -1233,10 +1233,6 @@ export function deriveRuntimeState(params: {
     activeSignalIds.push(signal.id);
   }
 
-  repo.upsertMarketStates(marketStateRows);
-  repo.upsertSignals(derivedSignals);
-  repo.expireSignalsNotIn(activeSignalIds);
-
   const performance = buildPerformanceSnapshotsFromExecutions({
     repo,
     userId,
@@ -1271,6 +1267,10 @@ export function deriveRuntimeState(params: {
     activeSignalIds.push(...factorySignals.map((signal) => signal.id));
     coverageSummary.generated_signals = derivedSignals.length;
   }
+
+  repo.upsertMarketStates(marketStateRows);
+  repo.upsertSignals(derivedSignals);
+  repo.expireSignalsNotIn(activeSignalIds);
 
   const sourceStatus = assetsWithBars > 0 ? RUNTIME_STATUS.DB_BACKED : RUNTIME_STATUS.INSUFFICIENT_DATA;
 
