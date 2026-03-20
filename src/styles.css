@@ -10274,13 +10274,17 @@ body.keyboard-open .ai-composer-shell {
 }
 
 .browse-feed-list,
-.browse-member-list {
+.browse-member-list,
+.browse-news-grid,
+.browse-info-card-grid {
   display: grid;
   gap: 10px;
 }
 
 .browse-feed-row,
-.browse-member-row {
+.browse-member-row,
+.browse-news-card,
+.browse-info-card {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -10294,6 +10298,12 @@ body.keyboard-open .ai-composer-shell {
   box-shadow:
     inset 0 0 0 1px rgba(18, 26, 39, 0.05),
     0 10px 24px rgba(20, 24, 33, 0.04);
+}
+
+.browse-news-card,
+.browse-info-card {
+  display: grid;
+  gap: 14px;
 }
 
 .browse-feed-main {
@@ -10327,13 +10337,102 @@ body.keyboard-open .ai-composer-shell {
 .browse-feed-body,
 .browse-feed-symbol,
 .browse-feed-time,
+.browse-news-title,
+.browse-news-summary,
+.browse-news-source,
 .browse-member-symbol,
 .browse-member-caption,
 .browse-member-price,
 .browse-member-change,
+.browse-info-card-title,
+.browse-info-card-subtitle,
+.browse-info-card-label,
+.browse-info-card-note,
+.browse-info-card-value,
 .browse-collection-hero-title,
 .browse-collection-hero-subtitle {
   margin: 0;
+}
+
+.browse-news-card-head,
+.browse-news-card-meta,
+.browse-news-actions,
+.browse-info-card-head,
+.browse-info-card-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.browse-news-card-meta,
+.browse-news-actions,
+.browse-info-card-head {
+  flex-wrap: wrap;
+}
+
+.browse-news-source,
+.browse-info-card-label {
+  color: rgba(22, 28, 39, 0.48);
+  font-size: 12px;
+  line-height: 1.2;
+  font-weight: 760;
+}
+
+.browse-news-symbol-chip,
+.browse-news-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(18, 24, 35, 0.06);
+  color: rgba(22, 28, 39, 0.72);
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 760;
+  text-decoration: none;
+}
+
+.browse-news-action-primary {
+  background: rgba(83, 96, 255, 0.14);
+  color: rgba(64, 74, 177, 0.94);
+}
+
+.browse-news-title,
+.browse-info-card-title {
+  color: rgba(18, 24, 35, 0.97);
+  font-size: 20px;
+  line-height: 1.12;
+  font-weight: 760;
+}
+
+.browse-news-summary,
+.browse-info-card-subtitle,
+.browse-info-card-note {
+  color: rgba(22, 28, 39, 0.54);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.browse-info-card-list {
+  display: grid;
+  gap: 12px;
+}
+
+.browse-info-card-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.browse-info-card-value {
+  color: rgba(18, 24, 35, 0.95);
+  font-size: 15px;
+  line-height: 1.2;
+  font-weight: 740;
+  text-align: right;
 }
 
 .browse-feed-copy {

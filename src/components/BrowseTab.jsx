@@ -297,12 +297,64 @@ function FeedRow({ item, locale, onOpen }) {
   );
 }
 
+function NewsCard({ item, locale, labels, onOpen }) {
+  const isZh = locale?.startsWith('zh');
+  const sourceText = [item.source || null, minutesAgoLabel(item.minutesAgo, locale)].filter(Boolean).join(' · ');
+  return (
+    <article className="browse-news-card">
+      <div className="browse-news-card-head">
+        <div className="browse-news-card-meta">
+          <span className="browse-news-source">{sourceText || '--'}</span>
+          <span className="browse-result-tag browse-result-tag-reference">{item.badge}</span>
+        </div>
+        <button type="button" className="browse-news-symbol-chip" onClick={() => onOpen?.(item.symbol)}>
+          {item.symbol}
+        </button>
+      </div>
+      <h3 className="browse-news-title">{item.title}</h3>
+      <p className="browse-news-summary">{item.body || (isZh ? '查看原始来源获取完整内容。' : 'Open the original source for the full story.')}</p>
+      <div className="browse-news-actions">
+        <button type="button" className="browse-news-action" onClick={() => onOpen?.(item.symbol)}>
+          {labels.viewAsset}
+        </button>
+        {item.url ? (
+          <a className="browse-news-action browse-news-action-primary" href={item.url} target="_blank" rel="noreferrer">
+            {labels.readSource}
+          </a>
+        ) : null}
+      </div>
+    </article>
+  );
+}
+
 function OverviewFactCard({ label, value, footnote }) {
   return (
     <article className="browse-detail-card browse-detail-card-compact">
       <p className="browse-detail-label">{label}</p>
       <p className="browse-detail-copy">{value || '--'}</p>
       {footnote ? <p className="browse-detail-note">{footnote}</p> : null}
+    </article>
+  );
+}
+
+function InfoBlockCard({ title, subtitle, items = [] }) {
+  return (
+    <article className="browse-info-card">
+      <div className="browse-info-card-head">
+        <p className="browse-info-card-title">{title}</p>
+        {subtitle ? <p className="browse-info-card-subtitle">{subtitle}</p> : null}
+      </div>
+      <div className="browse-info-card-list">
+        {items.map((item) => (
+          <div key={`${title}-${item.label}`} className="browse-info-card-row">
+            <div className="browse-info-card-copy">
+              <p className="browse-info-card-label">{item.label}</p>
+              {item.note ? <p className="browse-info-card-note">{item.note}</p> : null}
+            </div>
+            <p className="browse-info-card-value">{item.value || '--'}</p>
+          </div>
+        ))}
+      </div>
     </article>
   );
 }
@@ -522,6 +574,12 @@ export default function BrowseTab({
       topNews: isZh ? '相关新闻' : 'Top news',
       relatedEtfs: isZh ? '相关 ETF' : 'Related ETFs',
       derivatives: isZh ? '期权 / 衍生品入口' : 'Options / derivatives',
+      marketStats: isZh ? '市场统计' : 'Market stats',
+      tradingProfile: isZh ? '交易画像' : 'Trading profile',
+      researchContext: isZh ? '研究语境' : 'Research context',
+      eventWindow: isZh ? '事件窗口' : 'Event window',
+      readSource: isZh ? '阅读原文' : 'Read source',
+      viewAsset: isZh ? '查看标的' : 'View asset',
       categories: [
         { key: 'now', label: isZh ? '现在' : 'Now' },
         { key: 'macro', label: isZh ? '宏观' : 'Macro' },
@@ -1265,6 +1323,95 @@ export default function BrowseTab({
     const rows = detailNews.length ? detailNews : detailOverview?.topNews || [];
     return rows.map((item) => toFeedRowFromNews(item, locale));
   }, [detailNews, detailOverview?.topNews, locale]);
+  const marketStatsRows = useMemo(() => {
+    if (!detailOverview) return [];
+    return [
+      {
+        label: isZh ? '最新收盘' : 'Last close',
+        value: compactPrice(detailOverview.tradingStats?.latestClose, locale),
+        note:
+          Number.isFinite(detailOverview.tradingStats?.changePct)
+            ? `${isZh ? '较前收' : 'Vs prev close'} ${pctText(detailOverview.tradingStats.changePct, locale)}`
+            : null
+      },
+      {
+        label: isZh ? '30 日均量' : '30D average volume',
+        value: detailOverview.fundamentals?.find((item) => item.label === '30D avg volume')?.value || '--',
+        note: detailOverview.fundamentals?.find((item) => item.label === 'Latest volume')?.value
+          ? `${isZh ? '最新量' : 'Latest'} ${detailOverview.fundamentals.find((item) => item.label === 'Latest volume')?.value}`
+          : null
+      },
+      {
+        label: isZh ? '回看高低点' : 'Lookback range',
+        value:
+          Number.isFinite(detailOverview.tradingStats?.rangeLow) && Number.isFinite(detailOverview.tradingStats?.rangeHigh)
+            ? `${compactPrice(detailOverview.tradingStats.rangeLow, locale)} - ${compactPrice(detailOverview.tradingStats.rangeHigh, locale)}`
+            : '--',
+        note:
+          Number.isFinite(detailOverview.tradingStats?.barsAvailable)
+            ? `${detailOverview.tradingStats.barsAvailable} ${isZh ? '根日线' : 'daily bars'}`
+            : null
+      }
+    ];
+  }, [detailOverview, isZh, locale]);
+  const tradingProfileRows = useMemo(() => {
+    if (!detailOverview) return [];
+    return [
+      {
+        label: isZh ? '资产类型' : 'Asset type',
+        value: detailOverview.assetType,
+        note: detailOverview.profile?.proxyType || null
+      },
+      {
+        label: isZh ? '交易场所' : 'Trading venue',
+        value: detailOverview.profile?.tradingVenue || '--',
+        note: detailOverview.profile?.tradingSchedule || null
+      },
+      {
+        label: isZh ? '计价货币' : 'Quote currency',
+        value: detailOverview.profile?.quoteCurrency || '--',
+        note: detailOverview.currency || null
+      }
+    ];
+  }, [detailOverview, isZh]);
+  const researchContextRows = useMemo(() => {
+    if (!detailOverview) return [];
+    return [
+      {
+        label: isZh ? '新闻倾向' : 'News tone',
+        value:
+          detailOverview.newsContext?.tone === 'POSITIVE'
+            ? isZh
+              ? '偏利好'
+              : 'Positive'
+            : detailOverview.newsContext?.tone === 'NEGATIVE'
+              ? isZh
+                ? '偏利空'
+                : 'Negative'
+              : detailOverview.newsContext?.tone === 'MIXED'
+                ? isZh
+                  ? '分化'
+                  : 'Mixed'
+                : isZh
+                  ? '中性'
+                  : 'Neutral',
+        note:
+          detailOverview.newsContext?.headline_count > 0
+            ? `${detailOverview.newsContext.headline_count} ${isZh ? '条相关标题' : 'related headlines'}`
+            : null
+      },
+      {
+        label: labels.eventWindow,
+        value: detailOverview.earnings?.status || '--',
+        note: detailOverview.earnings?.note || null
+      },
+      {
+        label: isZh ? '图表状态' : 'Chart status',
+        value: detailSourceStatusLabel,
+        note: detailSourceText
+      }
+    ];
+  }, [detailOverview, detailSourceStatusLabel, detailSourceText, isZh, labels.eventWindow]);
 
   const watchSymbol = String(detailState.resolvedSymbol || activeResult?.symbol || '').toUpperCase();
   const isWatched = Boolean(activeResult && watchSymbol && normalizedWatchlist.includes(watchSymbol));
@@ -1526,11 +1673,11 @@ export default function BrowseTab({
               {overviewFactCards.map((item) => (
                 <OverviewFactCard key={`${detailOverview.symbol}-${item.label}`} label={item.label} value={item.value} footnote={item.footnote} />
               ))}
-              <OverviewFactCard
-                label={isZh ? '财报/事件窗口' : 'Earnings / event window'}
-                value={detailOverview.earnings?.status || '--'}
-                footnote={detailOverview.earnings?.note || null}
-              />
+            </div>
+            <div className="browse-info-card-grid">
+              <InfoBlockCard title={labels.marketStats} subtitle={isZh ? '价格、量能和观察区间' : 'Price, liquidity, and lookback range'} items={marketStatsRows} />
+              <InfoBlockCard title={labels.tradingProfile} subtitle={isZh ? '交易方式与标的画像' : 'How this asset trades'} items={tradingProfileRows} />
+              <InfoBlockCard title={labels.researchContext} subtitle={isZh ? '新闻、事件和数据语境' : 'News, events, and data context'} items={researchContextRows} />
             </div>
           </section>
         ) : null}
@@ -1553,9 +1700,9 @@ export default function BrowseTab({
             <div className="browse-section-head">
               <h2>{labels.topNews}</h2>
             </div>
-            <div className="browse-feed-list">
+            <div className="browse-news-grid">
               {detailNewsRows.map((item) => (
-                <FeedRow key={`detail-news-${activeResult.symbol}-${item.title}`} item={item} locale={locale} onOpen={openSymbolResult} />
+                <NewsCard key={`detail-news-${activeResult.symbol}-${item.title}`} item={item} locale={locale} labels={labels} onOpen={openSymbolResult} />
               ))}
             </div>
           </section>
