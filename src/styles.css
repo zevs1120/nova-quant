@@ -8516,14 +8516,18 @@ body.keyboard-open .ai-composer-shell {
 
 .today-summary-header {
   display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
+  align-items: flex-start;
+  justify-content: flex-start;
   gap: 12px;
   padding: 2px 2px 0;
+  width: 100%;
 }
 
 .today-summary-copy {
   min-width: 0;
+  width: 100%;
+  text-align: left;
+  align-self: stretch;
 }
 
 .today-summary-date {
@@ -15858,9 +15862,9 @@ body.keyboard-open .native-tabbar {
 /* Final Nova chat shell correction */
 body,
 body.is-standalone {
-  --native-tabbar-bottom-pad: max(6px, clamp(0px, var(--native-tabbar-safe), 14px));
-  --native-tabbar-height: 50px;
-  --native-tabbar-reserve: calc(var(--native-tabbar-height) + var(--native-tabbar-bottom-pad) + 2px);
+  --native-tabbar-bottom-pad: max(0px, clamp(0px, var(--native-tabbar-safe), 6px));
+  --native-tabbar-height: 46px;
+  --native-tabbar-reserve: calc(var(--native-tabbar-height) + var(--native-tabbar-bottom-pad));
 }
 
 .main-content-ai,
@@ -15932,14 +15936,14 @@ body.is-standalone .main-content-ai {
 .native-tabbar {
   height: auto;
   min-height: var(--native-tabbar-reserve);
-  padding: 4px 8px var(--native-tabbar-bottom-pad);
+  padding: 2px 8px var(--native-tabbar-bottom-pad);
   align-items: end;
 }
 
 .native-tabbar-button {
   min-height: var(--native-tabbar-height);
   gap: 3px;
-  padding: 4px 2px 2px;
+  padding: 2px 2px 1px;
 }
 
 .native-tabbar-icon-wrap {

@@ -343,7 +343,25 @@ function mergeSignals(signals: UiSignal[], evidenceSignals: EvidenceSignal[], ov
     };
   });
 
-  const untouched = signals.filter((row) => !merged.some((item) => String(item.signal_id || '') === String(row.signal_id || row.id || '')));
+  const untouched = signals
+    .filter((row) => !merged.some((item) => String(item.signal_id || '') === String(row.signal_id || row.id || '')))
+    .map((row) => {
+      const status = alignTransparency({
+        overallStatus,
+        componentSourceStatus: row.source_status || row.source_label || overallStatus,
+        componentDataStatus: row.data_status || row.source_label || row.source_status || overallStatus
+      });
+      return {
+        ...row,
+        source_status: status.source_status,
+        data_status: status.data_status,
+        source_label: status.source_label,
+        source_transparency: {
+          ...((row.source_transparency as Record<string, unknown> | undefined) || {}),
+          ...status
+        }
+      };
+    });
   return [...merged, ...untouched];
 }
 
