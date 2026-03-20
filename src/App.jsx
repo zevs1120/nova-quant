@@ -100,9 +100,14 @@ function buildMenuTitles(locale) {
   const zh = locale?.startsWith('zh');
   return {
     menu: zh ? '菜单' : 'Menu',
+    support: zh ? '支持' : 'Support',
+    'help-center': zh ? '帮助中心' : 'Help Center',
+    'support-chats': zh ? '支持会话' : 'Support Chats',
+    disclosures: zh ? '披露与说明' : 'Disclosures',
     points: zh ? '积分中心' : 'Points Hub',
     'prediction-games': zh ? '预测游戏' : 'Prediction Games',
     rewards: zh ? '奖励 / 邀请好友' : 'Rewards / Invite Friends',
+    'security-privacy': zh ? '安全与隐私' : 'Security & Privacy',
     'points-history': zh ? '积分明细' : 'Points History',
     'group:review': zh ? '复盘' : 'Review',
     'group:system': zh ? '系统' : 'System',
@@ -2058,7 +2063,25 @@ export default function App() {
       );
     }
 
-    if (activeTab === 'my' && ['menu', 'points', 'prediction-games', 'rewards', 'points-history', 'group:review', 'group:system', 'group:market', 'group:settings'].includes(mySection)) {
+    if (
+      activeTab === 'my' &&
+      [
+        'menu',
+        'support',
+        'help-center',
+        'support-chats',
+        'disclosures',
+        'points',
+        'prediction-games',
+        'rewards',
+        'security-privacy',
+        'points-history',
+        'group:review',
+        'group:system',
+        'group:market',
+        'group:settings'
+      ].includes(mySection)
+    ) {
       return (
         <MenuTab
           section={mySection}

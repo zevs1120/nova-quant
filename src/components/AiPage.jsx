@@ -304,9 +304,10 @@ function AiConversationShell({ messages, input, setInput, streaming, error, send
   const copy = useMemo(() => buildAiCopy(locale), [locale]);
 
   useEffect(() => {
-    if (!listRef.current || !endRef.current) return undefined;
+    if (!listRef.current) return undefined;
     const frame = window.requestAnimationFrame(() => {
-      endRef.current?.scrollIntoView({ block: 'end' });
+      const thread = listRef.current;
+      thread.scrollTop = thread.scrollHeight;
     });
     return () => window.cancelAnimationFrame(frame);
   }, [messages, streaming]);
