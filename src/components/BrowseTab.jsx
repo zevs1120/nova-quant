@@ -90,6 +90,47 @@ function formatAsOf(value, locale) {
   });
 }
 
+function formatRelativeTime(value, locale) {
+  if (!value) return '--';
+  const date = new Date(value);
+  const time = date.getTime();
+  if (Number.isNaN(time)) return '--';
+  const diffMs = Math.max(0, Date.now() - time);
+  const minutes = Math.max(1, Math.round(diffMs / 60000));
+  const isZh = String(locale || '').startsWith('zh');
+  if (minutes < 60) return isZh ? `${minutes} 分钟前` : `${minutes}m`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return isZh ? `${hours} 小时前` : `${hours}h`;
+  const days = Math.round(hours / 24);
+  return isZh ? `${days} 天前` : `${days}d`;
+}
+
+function hashString(value) {
+  return Array.from(String(value || '')).reduce((acc, char) => ((acc << 5) - acc + char.charCodeAt(0)) | 0, 0);
+}
+
+function buildNewsArtStyle(item) {
+  const seed = Math.abs(hashString(`${item?.symbol || ''}:${item?.source || ''}:${item?.headline || ''}`));
+  const hue = seed % 360;
+  return {
+    '--browse-news-a': `hsla(${hue}, 76%, 82%, 0.98)`,
+    '--browse-news-b': `hsla(${(hue + 34) % 360}, 72%, 69%, 0.92)`,
+    '--browse-news-c': `hsla(${(hue + 88) % 360}, 66%, 34%, 0.96)`
+  };
+}
+
+function newsSourceLabel(item) {
+  const raw = String(item?.publisher || item?.source || '').trim();
+  if (!raw) return 'News';
+  if (raw === 'google_news_rss') return 'Google News';
+  return raw;
+}
+
+function newsSourceInitial(item) {
+  const label = newsSourceLabel(item);
+  return label.charAt(0).toUpperCase() || 'N';
+}
+
 function toneClass(value) {
   if (!Number.isFinite(value)) return 'neutral';
   if (value > 0) return 'positive';
@@ -238,23 +279,116 @@ function ResultRow({ item, locale, onOpen }) {
   );
 }
 
-function NewsRow({ item, locale, onOpen }) {
+function NewsVisual({ item, variant = 'thumb' }) {
   return (
-    <article className="browse-rh-news-row">
-      <button type="button" className="browse-rh-news-main" onClick={() => onOpen(item)}>
-        <div className="browse-rh-news-head">
-          <span className="browse-rh-news-symbol">{displaySymbol(item.symbol, item.market)}</span>
-          <span className="browse-rh-news-source">{item.source || '--'}</span>
+    <div className={`browse-rh-news-visual browse-rh-news-visual-${variant}`} style={buildNewsArtStyle(item)} aria-hidden="true">
+      {item.imageUrl ? <img className="browse-rh-news-image" src={item.imageUrl} alt="" loading="lazy" referrerPolicy="no-referrer" /> : null}
+      <div className="browse-rh-news-visual-fallback">
+        <span className="browse-rh-news-visual-symbol">{displaySymbol(item.symbol, item.market)}</span>
+        <span className="browse-rh-news-visual-source">{newsSourceLabel(item)}</span>
+      </div>
+    </div>
+  );
+}
+
+function NewsMeta({ item, locale }) {
+  return (
+    <div className="browse-rh-news-meta">
+      <span className="browse-rh-news-meta-mark">{newsSourceInitial(item)}</span>
+      <span className="browse-rh-news-meta-source">{newsSourceLabel(item)}</span>
+      <span className="browse-rh-news-meta-time" title={formatAsOf(item.publishedAt, locale)}>
+        {formatRelativeTime(item.publishedAt, locale)}
+      </span>
+    </div>
+  );
+}
+
+function NewsAssetPill({ item, locale, onOpen, changeMap = {} }) {
+  const symbol = normalizeSymbol(item.symbol);
+  const change = changeMap[symbol] ?? null;
+  return (
+    <button type="button" className="browse-rh-news-asset-pill" onClick={() => onOpen(item)}>
+      <span className="browse-rh-news-asset-symbol">{displaySymbol(item.symbol, item.market)}</span>
+      {Number.isFinite(change) ? <span className={`browse-rh-news-asset-change ${toneClass(change)}`}>{percentText(change, locale)}</span> : null}
+    </button>
+  );
+}
+
+function NewsPrimaryAction({ item, className, onOpen, children }) {
+  if (item.url) {
+    return (
+      <a className={className} href={item.url} target="_blank" rel="noreferrer">
+        {children}
+      </a>
+    );
+  }
+  return (
+    <button type="button" className={className} onClick={() => onOpen(item)}>
+      {children}
+    </button>
+  );
+}
+
+function NewsFeaturedCard({ item, locale, onOpen, changeMap = {}, readLabel }) {
+  return (
+    <article className="browse-rh-news-feature">
+      <NewsPrimaryAction item={item} onOpen={onOpen} className="browse-rh-news-feature-main">
+        <NewsMeta item={item} locale={locale} />
+        <h3 className="browse-rh-news-feature-title">{item.headline}</h3>
+        <NewsVisual item={item} variant="hero" />
+      </NewsPrimaryAction>
+      <div className="browse-rh-news-footer">
+        <div className="browse-rh-news-pill-strip">
+          <NewsAssetPill item={item} locale={locale} onOpen={onOpen} changeMap={changeMap} />
         </div>
-        <h3 className="browse-rh-news-title">{item.headline}</h3>
-        <p className="browse-rh-news-time">{formatAsOf(item.publishedAt, locale)}</p>
-      </button>
-      {item.url ? (
-        <a className="browse-rh-news-link" href={item.url} target="_blank" rel="noreferrer">
-          Open
-        </a>
-      ) : null}
+        {item.url ? (
+          <a className="browse-rh-news-link" href={item.url} target="_blank" rel="noreferrer">
+            {readLabel}
+          </a>
+        ) : null}
+      </div>
     </article>
+  );
+}
+
+function NewsStoryRow({ item, locale, onOpen, changeMap = {}, readLabel }) {
+  return (
+    <article className="browse-rh-news-story">
+      <NewsPrimaryAction item={item} onOpen={onOpen} className="browse-rh-news-story-main">
+        <div className="browse-rh-news-story-copy">
+          <NewsMeta item={item} locale={locale} />
+          <h4 className="browse-rh-news-story-title">{item.headline}</h4>
+        </div>
+        <NewsVisual item={item} variant="thumb" />
+      </NewsPrimaryAction>
+      <div className="browse-rh-news-footer">
+        <div className="browse-rh-news-pill-strip">
+          <NewsAssetPill item={item} locale={locale} onOpen={onOpen} changeMap={changeMap} />
+        </div>
+        {item.url ? (
+          <a className="browse-rh-news-link" href={item.url} target="_blank" rel="noreferrer">
+            {readLabel}
+          </a>
+        ) : null}
+      </div>
+    </article>
+  );
+}
+
+function NewsFeed({ items, locale, onOpen, changeMap = {}, readLabel }) {
+  if (!items.length) return null;
+  const [featured, ...rest] = items;
+  return (
+    <div className="browse-rh-news-feed">
+      <NewsFeaturedCard item={featured} locale={locale} onOpen={onOpen} changeMap={changeMap} readLabel={readLabel} />
+      {rest.length ? (
+        <div className="browse-rh-news-stack">
+          {rest.map((item) => (
+            <NewsStoryRow key={item.id || `${item.symbol}-${item.headline}`} item={item} locale={locale} onOpen={onOpen} changeMap={changeMap} readLabel={readLabel} />
+          ))}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -320,6 +454,8 @@ export default function BrowseTab({
       derivatives: isZh ? '期权 / 衍生品' : 'Options / derivatives',
       fundamentals: isZh ? '基本面 / 概览' : 'Basics',
       topNews: isZh ? '相关新闻' : 'Top news',
+      noNews: isZh ? '暂无相关新闻' : 'No news yet.',
+      readStory: isZh ? '阅读原文' : 'Read story',
       addWatch: isZh ? '加入观察列表' : 'Add to watchlist',
       removeWatch: isZh ? '移出观察列表' : 'Remove from watchlist',
       latest: isZh ? '最新价' : 'Last',
@@ -358,6 +494,12 @@ export default function BrowseTab({
   const [detailNews, setDetailNews] = useState([]);
   const selectedKey = selectedAsset ? `${selectedAsset.market}:${selectedAsset.symbol}` : '';
   const watchedSymbols = useMemo(() => (watchlist || []).map((item) => normalizeSymbol(item)), [watchlist]);
+  const detailNewsChangeMap = useMemo(() => {
+    if (!selectedAsset) return {};
+    const symbol = normalizeSymbol(selectedAsset.symbol);
+    const change = Number.isFinite(detailState.change) ? detailState.change : detailOverview?.tradingStats?.changePct ?? null;
+    return { [symbol]: change };
+  }, [detailOverview?.tradingStats?.changePct, detailState.change, selectedAsset]);
   const todaySignalSymbols = useMemo(
     () =>
       (signals || [])
@@ -918,13 +1060,9 @@ export default function BrowseTab({
         <section className="browse-rh-section">
           <SectionHeader title={copy.topNews} />
           {detailNews.length ? (
-            <div className="browse-rh-list">
-              {detailNews.map((item) => (
-                <NewsRow key={item.id || `${item.symbol}-${item.headline}`} item={item} locale={locale} onOpen={openItem} />
-              ))}
-            </div>
+            <NewsFeed items={detailNews} locale={locale} onOpen={openItem} changeMap={detailNewsChangeMap} readLabel={copy.readStory} />
           ) : (
-            <div className="browse-rh-empty">No news</div>
+            <div className="browse-rh-empty">{copy.noNews}</div>
           )}
         </section>
       </section>

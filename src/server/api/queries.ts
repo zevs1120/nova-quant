@@ -134,10 +134,14 @@ type BrowseNewsFeedItem = {
   symbol: string;
   headline: string;
   source: string;
+  publisher?: string | null;
+  sourceUrl?: string | null;
   url: string | null;
   publishedAt: string | null;
   sentiment: 'POSITIVE' | 'NEGATIVE' | 'MIXED' | 'NEUTRAL';
   relevance: number;
+  summary?: string | null;
+  imageUrl?: string | null;
 };
 
 type BrowseAssetOverview = {
@@ -402,16 +406,26 @@ function formatCompactMetric(value: number | null, digits = 2): string {
 }
 
 function normalizeBrowseNewsItem(row: import('../types.js').NewsItemRecord): BrowseNewsFeedItem {
+  let payload: Record<string, unknown> | null = null;
+  try {
+    payload = row.payload_json ? JSON.parse(row.payload_json) : null;
+  } catch {
+    payload = null;
+  }
   return {
     id: row.id,
     market: row.market === 'CRYPTO' ? 'CRYPTO' : 'US',
     symbol: String(row.symbol || '').toUpperCase(),
     headline: row.headline,
     source: row.source,
+    publisher: typeof payload?.publisher === 'string' ? payload.publisher : row.source,
+    sourceUrl: typeof payload?.sourceUrl === 'string' ? payload.sourceUrl : null,
     url: row.url || null,
     publishedAt: Number.isFinite(row.published_at_ms) ? new Date(row.published_at_ms).toISOString() : null,
     sentiment: row.sentiment_label,
-    relevance: Number(row.relevance_score || 0)
+    relevance: Number(row.relevance_score || 0),
+    summary: typeof payload?.summary === 'string' ? payload.summary : null,
+    imageUrl: typeof payload?.imageUrl === 'string' ? payload.imageUrl : null
   };
 }
 

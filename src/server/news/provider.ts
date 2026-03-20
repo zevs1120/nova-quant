@@ -51,26 +51,107 @@ function scoreHeadline(headline: string): { sentiment: NewsItemRecord['sentiment
   return { sentiment: pos + neg > 0 ? 'MIXED' : 'NEUTRAL', relevance: pos + neg > 0 ? relevance : 0.35 };
 }
 
+function stripHtml(value: string): string {
+  return String(value || '')
+    .replace(/<img[\s\S]*?>/gi, ' ')
+    .replace(/<a[\s\S]*?>/gi, ' ')
+    .replace(/<\/a>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function splitHeadlinePublisher(title: string): { headline: string; publisher: string | null } {
+  const parts = String(title || '')
+    .split(/\s+-\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (parts.length < 2) {
+    return {
+      headline: String(title || '').trim(),
+      publisher: null
+    };
+  }
+  const publisher = parts[parts.length - 1] || null;
+  if (!publisher || publisher.length > 72) {
+    return {
+      headline: String(title || '').trim(),
+      publisher: null
+    };
+  }
+  return {
+    headline: parts.slice(0, -1).join(' - ').trim(),
+    publisher
+  };
+}
+
+function parseSourceUrl(item: string): string | null {
+  const match = item.match(/<source[^>]*url="([^"]+)"/i);
+  return match?.[1] ? decodeXml(match[1]) : null;
+}
+
+function sourceHostLabel(value: string | null): string | null {
+  if (!value) return null;
+  try {
+    const hostname = new URL(value).hostname.replace(/^www\./i, '');
+    return hostname || null;
+  } catch {
+    return null;
+  }
+}
+
+function extractDescriptionParts(item: string): { summary: string | null; imageUrl: string | null } {
+  const descriptionRaw = item.match(/<description>([\s\S]*?)<\/description>/i)?.[1] || '';
+  const description = decodeXml(descriptionRaw);
+  const imageUrl =
+    decodeXml(item.match(/<media:content[^>]*url="([^"]+)"/i)?.[1] || '') ||
+    decodeXml(item.match(/<media:thumbnail[^>]*url="([^"]+)"/i)?.[1] || '') ||
+    decodeXml(item.match(/<enclosure[^>]*url="([^"]+)"/i)?.[1] || '') ||
+    decodeXml(description.match(/<img[^>]+src="([^"]+)"/i)?.[1] || '') ||
+    null;
+  const summary = stripHtml(description)
+    .replace(/\s*Continue reading.*$/i, '')
+    .slice(0, 220)
+    .trim();
+  return {
+    summary: summary || null,
+    imageUrl
+  };
+}
+
 function parseGoogleNewsRss(xml: string, market: Market, symbol: string): NewsItemRecord[] {
   const items = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)].slice(0, 6);
   const now = Date.now();
   return items.map((match, index) => {
     const item = match[1] || '';
-    const title = decodeXml(item.match(/<title>([\s\S]*?)<\/title>/)?.[1] || `${symbol} news`);
+    const rawTitle = decodeXml(item.match(/<title>([\s\S]*?)<\/title>/)?.[1] || `${symbol} news`);
+    const titleParts = splitHeadlinePublisher(rawTitle);
     const link = decodeXml(item.match(/<link>([\s\S]*?)<\/link>/)?.[1] || '');
     const pubDate = Date.parse(decodeXml(item.match(/<pubDate>([\s\S]*?)<\/pubDate>/)?.[1] || '')) || now - index * 60_000;
-    const scored = scoreHeadline(title);
+    const sourceUrl = parseSourceUrl(item);
+    const sourceTag = decodeXml(item.match(/<source[^>]*>([\s\S]*?)<\/source>/i)?.[1] || '');
+    const description = extractDescriptionParts(item);
+    const source = sourceTag || titleParts.publisher || sourceHostLabel(sourceUrl) || 'Google News';
+    const scored = scoreHeadline(titleParts.headline);
     return {
-      id: `news-${createHash('sha1').update(`${market}:${symbol}:${title}:${pubDate}`).digest('hex').slice(0, 24)}`,
+      id: `news-${createHash('sha1').update(`${market}:${symbol}:${rawTitle}:${pubDate}`).digest('hex').slice(0, 24)}`,
       market,
       symbol,
-      headline: title,
-      source: 'google_news_rss',
+      headline: titleParts.headline || rawTitle,
+      source,
       url: link || null,
       published_at_ms: pubDate,
       sentiment_label: scored.sentiment,
       relevance_score: Number(scored.relevance.toFixed(4)),
-      payload_json: JSON.stringify({ provider: 'google_news_rss', symbol, market }),
+      payload_json: JSON.stringify({
+        provider: 'google_news_rss',
+        symbol,
+        market,
+        publisher: source,
+        sourceUrl,
+        summary: description.summary,
+        imageUrl: description.imageUrl
+      }),
       updated_at_ms: now
     } satisfies NewsItemRecord;
   });
