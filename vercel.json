@@ -7,13 +7,25 @@
       "memory": 1024,
       "maxDuration": 30
     },
-    "api/ai-chat.ts": {
+    "api/auth/[...route].ts": {
       "memory": 1024,
       "maxDuration": 30
     },
-    "api/nova/**/*.ts": {
+    "api/nova/[...route].ts": {
       "memory": 1024,
       "maxDuration": 30
+    },
+    "api/assets/**/*.ts": {
+      "memory": 1024,
+      "maxDuration": 10
+    },
+    "api/browse/**/*.ts": {
+      "memory": 1024,
+      "maxDuration": 10
+    },
+    "api/ohlcv.ts": {
+      "memory": 1024,
+      "maxDuration": 10
     },
     "api/[...route].ts": {
       "memory": 1024,

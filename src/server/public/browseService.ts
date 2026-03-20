@@ -2,6 +2,8 @@ import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { getDb } from '../db/database.js';
+import { MarketRepository } from '../db/repository.js';
 import type { AssetClass, Market, Timeframe } from '../types.js';
 import { getConfig } from '../config.js';
 import { fetchWithRetry } from '../utils/http.js';
@@ -872,7 +874,8 @@ function normalizeNasdaqBrowseChart(requestedSymbol: string, assetClass: 'stocks
       : points.length >= 2 && firstPoint?.close
         ? ((lastPoint?.close || 0) - firstPoint.close) / firstPoint.close
         : null;
-  if (!Number.isFinite(latest) && points.length < 2) return null;
+  if (points.length < 2) return null;
+  if (!Number.isFinite(latest)) return null;
   return {
     requestedSymbol,
     resolvedSymbol: String(data?.symbol || requestedSymbol).toUpperCase(),
@@ -925,6 +928,45 @@ function startOfLocalDayUnixSeconds(nowMs = Date.now()): number {
   const local = new Date(nowMs);
   local.setHours(0, 0, 0, 0);
   return Math.floor(local.getTime() / 1000);
+}
+
+let browseRepoSingleton: MarketRepository | null = null;
+
+function getBrowseRepo() {
+  if (browseRepoSingleton) return browseRepoSingleton;
+  browseRepoSingleton = new MarketRepository(getDb());
+  return browseRepoSingleton;
+}
+
+function queryLocalOhlcv(args: {
+  market: Market;
+  symbol: string;
+  timeframe: Timeframe;
+  start?: number;
+  end?: number;
+  limit?: number;
+}): { asset: ReturnType<MarketRepository['getAssetBySymbol']>; rows: PublicOhlcvRow[] } {
+  const repo = getBrowseRepo();
+  const asset = repo.getAssetBySymbol(args.market, args.symbol);
+  if (!asset) return { asset: null, rows: [] };
+  const rows = repo
+    .getOhlcv({
+      assetId: asset.asset_id,
+      timeframe: args.timeframe,
+      start: args.start,
+      end: args.end,
+      limit: args.limit
+    })
+    .map((row) => ({
+      ts_open: Number(row.ts_open),
+      open: parseNumericValue(row.open),
+      high: parseNumericValue(row.high),
+      low: parseNumericValue(row.low),
+      close: parseNumericValue(row.close),
+      volume: parseNumericValue(row.volume)
+    }))
+    .filter((row) => Number.isFinite(row.ts_open) && row.close !== null);
+  return { asset, rows };
 }
 
 function normalizeGateCryptoChart(requestedSymbol: string, pair: string, payload: unknown): BrowseChartSnapshot | null {
@@ -1064,6 +1106,19 @@ export async function queryPublicOhlcv(args: {
   const market = args.market;
   const timeframe = args.timeframe;
   const limit = Math.max(2, Math.min(Number(args.limit || 120), 500));
+  const local = queryLocalOhlcv({ market, symbol, timeframe, limit });
+  if (local.asset && local.rows.length) {
+    return {
+      asset: {
+        symbol,
+        market,
+        venue: local.asset.venue || (market === 'CRYPTO' ? 'GATEIO' : knownEtfSymbols.has(symbol) ? 'ETF' : 'US'),
+        base: local.asset.base ?? (market === 'CRYPTO' ? parseCryptoLookupSymbol(symbol)?.base || symbol : null),
+        quote: local.asset.quote ?? (market === 'CRYPTO' ? parseCryptoLookupSymbol(symbol)?.quote || 'USDT' : 'USD')
+      },
+      rows: local.rows
+    };
+  }
   const rows =
     market === 'CRYPTO'
       ? await fetchGateOhlcv(symbol, timeframe, limit)
@@ -1090,11 +1145,14 @@ export async function getPublicBrowseAssetChart(args: { market: Market; symbol: 
   if (args.market === 'US') {
     const live = await fetchNasdaqBrowseChart(symbol);
     if (live) return live;
-    let history: PublicOhlcvRow[] = [];
-    try {
-      history = await fetchUsDailyOhlcv(symbol, 30);
-    } catch {
-      history = [];
+    const local = queryLocalOhlcv({ market: 'US', symbol, timeframe: '1d', limit: 30 });
+    let history: PublicOhlcvRow[] = local.rows;
+    if (history.length < 2) {
+      try {
+        history = await fetchUsDailyOhlcv(symbol, 30);
+      } catch {
+        history = [];
+      }
     }
     if (history.length < 2) return null;
     const first = history[0];
@@ -1119,11 +1177,14 @@ export async function getPublicBrowseAssetChart(args: { market: Market; symbol: 
   }
   const live = await fetchGateCryptoBrowseChart(symbol);
   if (live) return live;
-  let history: PublicOhlcvRow[] = [];
-  try {
-    history = await fetchGateOhlcv(symbol, '1d', 30);
-  } catch {
-    history = [];
+  const local = queryLocalOhlcv({ market: 'CRYPTO', symbol, timeframe: '1d', limit: 30 });
+  let history: PublicOhlcvRow[] = local.rows;
+  if (history.length < 2) {
+    try {
+      history = await fetchGateOhlcv(symbol, '1d', 30);
+    } catch {
+      history = [];
+    }
   }
   if (history.length < 2) return null;
   const first = history[0];
@@ -1503,11 +1564,7 @@ function normalizeBrowseHomeView(value?: string): keyof typeof browseHomeConfig 
 }
 
 async function buildBrowseCard(spec: { symbol: string; market: Market; title: string; subtitle: string }): Promise<BrowseHomeCard | null> {
-  const chart = await withTimeout(
-    spec.market === 'US' ? fetchNasdaqBrowseChart(spec.symbol) : fetchGateCryptoBrowseChart(spec.symbol),
-    2800,
-    null
-  );
+  const chart = await withTimeout(getPublicBrowseAssetChart({ market: spec.market, symbol: spec.symbol }), 3200, null);
   if (!chart) return null;
   return {
     symbol: chart.resolvedSymbol || spec.symbol,
@@ -1522,17 +1579,15 @@ async function buildBrowseCard(spec: { symbol: string; market: Market; title: st
 }
 
 async function buildBrowseChip(symbol: string, market: Market): Promise<BrowseHomeChip | null> {
-  if (market === 'US') {
-    const chart = await withTimeout(fetchNasdaqBrowseChart(symbol), 2800, null);
-    if (chart) {
-      return {
-        symbol,
-        market,
-        name: chart.name || (commonEquityAliases[symbol]?.[0] ? sentenceCase(commonEquityAliases[symbol][0]) : symbol),
-        latest: chart.latest,
-        change: chart.change
-      };
-    }
+  const chart = await withTimeout(getPublicBrowseAssetChart({ market, symbol }), 3200, null);
+  if (chart && Number.isFinite(chart.change)) {
+    return {
+      symbol,
+      market,
+      name: chart.name || (market === 'CRYPTO' ? `${displaySymbolForStatic(symbol)} / USDT` : commonEquityAliases[symbol]?.[0] ? sentenceCase(commonEquityAliases[symbol][0]) : symbol),
+      latest: chart.latest,
+      change: chart.change
+    };
   }
   const rows = await withTimeout(
     queryPublicOhlcv({
