@@ -49,6 +49,16 @@ function buildTabMeta(locale) {
   };
 }
 
+function TopBarMenuGlyph() {
+  return (
+    <svg viewBox="0 0 20 20" className="top-bar-action-icon" focusable="false" aria-hidden="true">
+      <path d="M4 5.75h12" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+      <path d="M6.25 10h9.75" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+      <path d="M4 14.25h12" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function buildMenuTitles(locale) {
   const zh = locale?.startsWith('zh');
   return {
@@ -1913,7 +1923,6 @@ export default function App() {
           investorDemoEnabled={investorDemoEnabled}
           holdingsSource={holdingsSource}
           onExplain={(message) => askAi(message)}
-          onOpenMenu={() => openMySection('menu')}
         />
       );
     }
@@ -1972,6 +1981,7 @@ export default function App() {
   };
 
   const canGoBackInTopBar = activeTab === 'my' && myStack.length > 1;
+  const showHoldingsMenuAction = activeTab === 'my' && mySection === 'portfolio';
   const previousMySection = canGoBackInTopBar ? myStack[myStack.length - 2] : null;
   const topBarBackLabel =
     previousMySection && previousMySection !== 'portfolio'
@@ -2018,7 +2028,18 @@ export default function App() {
             <img src={novaLogo} alt="Nova Quant" className={`top-bar-logo top-bar-logo-expanded ${topBarCondensed ? 'is-hidden' : ''}`} />
             <img src={novaLogoCompact} alt="Nova Quant" className={`top-bar-logo top-bar-logo-compact ${topBarCondensed ? 'is-visible' : ''}`} />
           </div>
-          {canGoBackInTopBar ? <div className="top-bar-spacer" aria-hidden="true" /> : null}
+          {showHoldingsMenuAction ? (
+            <button
+              type="button"
+              className="top-bar-action-button"
+              aria-label={locale === 'zh' ? '打开菜单' : 'Open menu'}
+              onClick={() => openMySection('menu')}
+            >
+              <TopBarMenuGlyph />
+            </button>
+          ) : canGoBackInTopBar ? (
+            <div className="top-bar-spacer" aria-hidden="true" />
+          ) : null}
         </header>
 
         <main ref={mainContentRef} className={`main-content main-content-${activeTab}`}>

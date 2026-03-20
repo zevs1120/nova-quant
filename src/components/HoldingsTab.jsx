@@ -198,8 +198,7 @@ export default function HoldingsTab({
   locale,
   investorDemoEnabled,
   holdingsSource,
-  onExplain,
-  onOpenMenu
+  onExplain
 }) {
   const [surfaceTab, setSurfaceTab] = useState('holdings');
   const [range, setRange] = useState('1M');
@@ -298,19 +297,11 @@ export default function HoldingsTab({
               <p className="muted status-line">{locale === 'zh' ? `来源：${holdingsSource.message}` : `Source: ${holdingsSource.message}`}</p>
             ) : null}
           </div>
-          <div className="holdings-overview-actions">
-            {investorDemoEnabled ? <span className="holdings-overview-demo">{locale === 'zh' ? '演示' : 'Demo'}</span> : null}
-            <button
-              type="button"
-              className="holdings-menu-button"
-              onClick={onOpenMenu}
-              aria-label={locale === 'zh' ? '打开菜单' : 'Open menu'}
-            >
-              <span />
-              <span />
-              <span />
-            </button>
-          </div>
+          {investorDemoEnabled ? (
+            <div className="holdings-overview-actions">
+              <span className="holdings-overview-demo">{locale === 'zh' ? '演示' : 'Demo'}</span>
+            </div>
+          ) : null}
         </div>
 
         <div className="holdings-overview-chart">

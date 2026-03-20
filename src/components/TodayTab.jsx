@@ -1,10 +1,6 @@
 import { useMemo, useState } from 'react';
 import SignalDetail from './SignalDetail';
 import TradeTicketSheet from './TradeTicketSheet';
-import {
-  getActionCardCopy,
-  getNoActionCopy,
-} from '../copy/novaCopySystem.js';
 import { describeEvidenceMode } from '../utils/provenance';
 import { buildNovaTradeQuestion, buildTradeIntent } from '../utils/tradeIntent';
 
@@ -339,6 +335,67 @@ function riskGuardLabel(overallCode, riskLevelValue, locale) {
   return zh ? '先别加风险' : 'Do not add risk';
 }
 
+function buildKeepInMindText({ locale, signal, noActionDay, overallCode, provenance, riskLevelValue }) {
+  const zh = locale === 'zh';
+  if (!signal) {
+    return zh
+      ? '当前没有任何标的通过执行过滤。保持空仓，等下一次更干净的数据快照。'
+      : 'No symbol cleared the execution filter. Stay in cash and wait for the next cleaner snapshot.';
+  }
+
+  const size = suggestedPositionText(signal);
+  const stop = stopLossText(signal);
+  const source = provenance?.label || strategySourceText(signal);
+  const riskGate = riskGuardLabel(overallCode, riskLevelValue, locale);
+
+  if (noActionDay) {
+    return zh
+      ? `风险约束仍然是“${riskGate}”。来源是 ${source}，在执行边界放开前不要新增仓位。`
+      : `The risk gate stays "${riskGate}." Source quality is ${source}, so do not add exposure before execution clears.`;
+  }
+
+  return zh
+    ? `仓位上限维持在 ${size}。失效位参考 ${stop === '--' ? '系统未给出' : stop}，不允许放大风险。`
+    : `Size stays capped at ${size}. Invalidation sits near ${stop === '--' ? 'the system boundary' : stop}, so do not oversize this trade.`;
+}
+
+function buildWhyNowText({ locale, signal, noActionDay, provenance }) {
+  const zh = locale === 'zh';
+  if (!signal) {
+    return zh
+      ? '这次没有任何设置通过系统排序和质量过滤，所以今天不给执行卡。'
+      : 'No setup survived the system ranking and quality filters, so today does not get an execution card.';
+  }
+
+  const symbol = signal.symbol || (zh ? '当前主选' : 'Top setup');
+  const conviction = confidenceText(signal);
+  const entry = entryRangeText(signal);
+  const target = takeProfitText(signal);
+  const freshness = generatedText(signal);
+  const boundary = executionBoundaryLabel(provenance?.mode, locale);
+
+  if (noActionDay) {
+    return zh
+      ? `${symbol} 仍是当前最强候选，但执行边界是 ${boundary}。把握 ${conviction}，最近更新 ${freshness}。`
+      : `${symbol} is still the top-ranked candidate, but execution remains ${boundary.toLowerCase()}. Conviction is ${conviction}, refreshed ${freshness}.`;
+  }
+
+  return zh
+    ? `${symbol} 目前排在最前。入场区 ${entry === '--' ? '待确认' : entry}，第一目标 ${target === '--' ? '待确认' : target}，最近更新 ${freshness}。`
+    : `${symbol} is the top-ranked setup. Entry sits at ${entry === '--' ? 'pending confirmation' : entry}, first target ${target === '--' ? 'pending confirmation' : target}, refreshed ${freshness}.`;
+}
+
+function buildActionMetaText({ locale, signal, provenance }) {
+  const parts = [
+    provenance?.label || null,
+    signal ? generatedText(signal) : null,
+    signal ? strategySourceText(signal) : null
+  ].filter((item) => item && item !== '--');
+
+  if (parts.length) return parts.join(' • ');
+  return locale === 'zh' ? '等待下一次系统快照' : 'Waiting for the next system snapshot';
+}
+
 function triggerFeedback(kind = 'soft') {
   if (typeof navigator === 'undefined' || typeof navigator.vibrate !== 'function') return;
   if (kind === 'confirm') {
@@ -539,22 +596,7 @@ export default function TodayTab({
     });
 
   const risk = riskFromDecision(decision, locale) || riskLevel(overall.code, featuredSignal, locale);
-  const morningCheck = engagement?.daily_check_state || null;
-  const uiRegime = engagement?.ui_regime_state || null;
-  const recommendationChange = engagement?.recommendation_change || null;
   const noActionDay = !featuredSignal || !featuredSignal._actionable || overall.code === 'WAIT' || overall.code === 'DEFENSE' || overall.code === 'NO_TRADE';
-  const posture = String(decision?.risk_state?.posture || decision?.summary?.risk_posture || 'WAIT').toUpperCase();
-  const actionCopy = getActionCardCopy({
-    posture,
-    locale,
-    seed: `${featuredSignal?.symbol || 'none'}:${recommendationChange?.change_type || 'stable'}`,
-    actionState: noActionDay ? 'watch-only' : 'actionable'
-  });
-  const noActionCopy = getNoActionCopy({
-    locale,
-    posture,
-    seed: `${featuredSignal?.symbol || 'none'}:${morningCheck?.status || 'pending'}`
-  });
   const todayDateLabel = useMemo(
     () =>
       now.toLocaleDateString(locale === 'zh' ? 'zh-CN' : 'en-US', {
@@ -564,23 +606,28 @@ export default function TodayTab({
       }),
     [now, locale]
   );
+  const provenance = useMemo(
+    () =>
+      describeEvidenceMode({
+        locale,
+        sourceStatus: decision?.source_status || featuredSignal?.source_status || runtime?.source_status,
+        dataStatus: decision?.data_status || featuredSignal?._dataStatus || runtime?.data_status,
+        sourceType: featuredSignal?.source_type || decision?.source_type || runtime?.source_type
+      }),
+    [decision?.data_status, decision?.source_status, decision?.source_type, featuredSignal?._dataStatus, featuredSignal?.source_status, featuredSignal?.source_type, locale, runtime?.data_status, runtime?.source_status, runtime?.source_type]
+  );
   const quickTiles = [
-    {
-      key: 'mind',
-      label: locale === 'zh' ? '先记住什么' : 'Keep in mind',
-      value:
-        noActionDay
-          ? uiRegime?.protective_line || noActionCopy.notify
-          : featuredSignal?.risk_note || risk.explanation,
-      tone: 'mint'
-    },
     {
       key: 'why',
       label: locale === 'zh' ? '为什么现在看它' : 'Why now',
-      value:
-        featuredSignal?.brief_why_now ||
-        (noActionDay ? uiRegime?.humor_line || noActionCopy.notify : actionCopy.why_now),
+      value: buildWhyNowText({ locale, signal: featuredSignal, noActionDay, provenance }),
       tone: 'sky'
+    },
+    {
+      key: 'mind',
+      label: locale === 'zh' ? '先记住什么' : 'Keep in mind',
+      value: buildKeepInMindText({ locale, signal: featuredSignal, noActionDay, overallCode: overall.code, provenance, riskLevelValue: risk.level }),
+      tone: 'mint'
     }
   ];
   const actionBandLabel =
@@ -595,7 +642,7 @@ export default function TodayTab({
       : locale === 'zh'
           ? '优先防守'
           : 'Defense first';
-  const setupScoreLabel = featuredSignal ? `${locale === 'zh' ? '把握' : 'Conviction'} ${confidenceText(featuredSignal)}` : null;
+  const actionStateTone = overall.code.toLowerCase();
   const convictionValue = featuredSignal ? confidenceText(featuredSignal) : (locale === 'zh' ? '等待' : 'Waiting');
   const actionDirectionLabel = noActionDay
     ? locale === 'zh'
@@ -620,28 +667,12 @@ export default function TodayTab({
         : 'Low risk'
       : risk.level === 'medium'
         ? locale === 'zh'
-          ? '中风险'
+        ? '中风险'
           : 'Medium risk'
         : locale === 'zh'
           ? '高风险'
           : 'High risk';
-  const actionWhyLine = noActionDay
-    ? uiRegime?.completion_line || noActionCopy.completion
-    : featuredSignal?.brief_why_now || actionCopy.why_now;
-  const provenance = useMemo(
-    () =>
-      describeEvidenceMode({
-        locale,
-        sourceStatus: decision?.source_status || featuredSignal?.source_status || runtime?.source_status,
-        dataStatus: decision?.data_status || featuredSignal?._dataStatus || runtime?.data_status,
-        sourceType: featuredSignal?.source_type || decision?.source_type || runtime?.source_type
-      }),
-    [decision?.data_status, decision?.source_status, decision?.source_type, featuredSignal?._dataStatus, featuredSignal?.source_status, featuredSignal?.source_type, locale, runtime?.data_status, runtime?.source_status, runtime?.source_type]
-  );
-  const showProvenance =
-    Boolean(provenance?.label && provenance?.note) &&
-    !['INSUFFICIENT_DATA', 'WITHHELD'].includes(String(provenance?.mode || '').toUpperCase());
-  const provenanceFreshness = featuredSignal ? generatedText(featuredSignal) : null;
+  const actionMetaLine = buildActionMetaText({ locale, signal: featuredSignal, provenance });
   const trustFacts = [
     {
       key: 'source',
@@ -776,25 +807,9 @@ export default function TodayTab({
           <p className="today-summary-date">{todayDateLabel}</p>
           <h1 className="today-summary-title">{locale === 'zh' ? '今日行动' : 'Today'}</h1>
         </div>
-        <span className={`today-summary-status today-summary-status-${overall.code.toLowerCase()}`}>{actionBandLabel}</span>
       </section>
 
       <section className="today-screen-flow">
-        {showProvenance ? (
-          <article className={`today-provenance-strip today-provenance-strip-${provenance.tone}`}>
-            <div className="today-provenance-copy">
-              <div className="today-provenance-head">
-                <span className="today-provenance-badge">{provenance.label}</span>
-                {provenanceFreshness ? <span className="today-provenance-meta">{provenanceFreshness}</span> : null}
-              </div>
-              <p className="today-provenance-note">{provenance.note}</p>
-            </div>
-            <span className="today-provenance-watermark" aria-hidden="true">
-              {provenance.watermark}
-            </span>
-          </article>
-        ) : null}
-
         <article className={`glass-card today-climate-strip today-climate-${climate.tone}`}>
           <div className="today-climate-copy">
             <p className="today-climate-name">{climate.name}</p>
@@ -827,13 +842,14 @@ export default function TodayTab({
         >
           <div className="today-action-card-head">
             <span className="today-action-kicker">{actionCardKicker}</span>
-            {setupScoreLabel ? <span className="today-action-tag">{setupScoreLabel}</span> : null}
+            <span className={`today-action-tag today-action-tag-${actionStateTone}`}>{actionBandLabel}</span>
           </div>
 
           <div className="today-action-main">
             <div className="today-action-symbol-block">
               <h2 className="today-action-symbol">{todayPickSymbol}</h2>
               <p className="today-action-direction">{actionDirectionLabel}</p>
+              <p className="today-action-meta">{actionMetaLine}</p>
             </div>
             <DecisionMark code={overall.code} />
           </div>
@@ -861,8 +877,6 @@ export default function TodayTab({
               </div>
             ))}
           </div>
-
-          <p className="today-action-why">{actionWhyLine}</p>
 
           <div className="today-action-links">
             <button

@@ -114,6 +114,21 @@ function AssistantResponseSection({ title, lines }) {
 }
 
 function AssistantMessage({ message, onNavigate, copy }) {
+  if (!String(message.content || '').trim()) {
+    return (
+      <article className="ai-message ai-message-assistant">
+        <div className="ai-message-avatar" aria-hidden="true">
+          ✦
+        </div>
+        <div className="ai-message-body">
+          <div className="ai-assistant-card ai-assistant-loading">
+            <Skeleton lines={2} compact className="ai-response-skeleton" />
+          </div>
+        </div>
+      </article>
+    );
+  }
+
   const parsed = parseStructuredReply(message.content);
   const nextStep = message.nextStep || chooseNextStep(message.question, copy);
   const [expanded, setExpanded] = useState(false);
@@ -284,39 +299,32 @@ function Composer({ input, setInput, streaming, sendMessage, hasMessages, copy }
 
 function AiConversationShell({ messages, input, setInput, streaming, error, sendMessage, onNavigate, locale }) {
   const listRef = useRef(null);
+  const endRef = useRef(null);
   const hasMessages = messages.length > 0;
   const copy = useMemo(() => buildAiCopy(locale), [locale]);
 
   useEffect(() => {
-    if (!listRef.current) return;
-    listRef.current.scrollTop = listRef.current.scrollHeight;
+    if (!listRef.current || !endRef.current) return undefined;
+    const frame = window.requestAnimationFrame(() => {
+      endRef.current?.scrollIntoView({ block: 'end' });
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, [messages, streaming]);
-
-  const starterQuestions = useMemo(() => copy.quickQuestions.slice(0, 4), [copy]);
 
   return (
     <section className={`ai-page-shell ${hasMessages ? 'ai-page-thread' : 'ai-page-empty'}`}>
       <div className="ai-thread-scroll" ref={listRef}>
         {!hasMessages ? (
           <section className="ai-empty-stage">
-            <div className="ai-empty-stage-copy">
-              <p className="ai-empty-badge">{copy.emptyBadge}</p>
-              <h1 className="ai-empty-heading">{copy.emptyHeading}</h1>
-              <p className="ai-empty-subheading">{copy.emptySubheading}</p>
-            </div>
-            <div className="ai-starter-stack">
-              {starterQuestions.map((prompt) => (
-                <button
-                  key={prompt}
-                  type="button"
-                  className="ai-starter-card"
-                  onClick={() => {
-                    setInput(prompt);
-                  }}
-                >
-                  {prompt}
-                </button>
-              ))}
+            <div className="ai-empty-stage-panel">
+              <div className="ai-empty-stage-mark" aria-hidden="true">
+                ✦
+              </div>
+              <div className="ai-empty-stage-copy">
+                <p className="ai-empty-badge">{copy.emptyBadge}</p>
+                <h1 className="ai-empty-heading">{copy.emptyHeading}</h1>
+                <p className="ai-empty-subheading">{copy.emptySubheading}</p>
+              </div>
             </div>
           </section>
         ) : (
@@ -328,19 +336,7 @@ function AiConversationShell({ messages, input, setInput, streaming, error, send
                 <UserMessage key={item.id} content={item.content} />
               )
             )}
-
-            {streaming ? (
-              <article className="ai-message ai-message-assistant">
-                <div className="ai-message-avatar" aria-hidden="true">
-                  ✦
-                </div>
-                <div className="ai-message-body">
-                  <div className="ai-assistant-card ai-assistant-loading">
-                    <Skeleton lines={2} compact className="ai-response-skeleton" />
-                  </div>
-                </div>
-              </article>
-            ) : null}
+            <div ref={endRef} className="ai-thread-end" aria-hidden="true" />
           </div>
         )}
       </div>
