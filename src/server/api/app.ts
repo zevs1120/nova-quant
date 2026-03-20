@@ -42,7 +42,9 @@ import {
   getRiskProfile,
   setRiskProfile,
   getSignalContract,
+  getBrowseAssetOverview,
   getBrowseAssetChart,
+  getBrowseNewsFeed,
   listAssets,
   searchAssets,
   listExecutions,
@@ -129,7 +131,11 @@ export function createApiApp() {
   const app = express();
   app.use(express.json({ limit: '1mb' }));
   app.use((req, res, next) => {
-    const allowPublicBrowse = req.path === '/api/assets/search' || req.path === '/api/browse/chart';
+    const allowPublicBrowse =
+      req.path === '/api/assets/search' ||
+      req.path === '/api/browse/chart' ||
+      req.path === '/api/browse/news' ||
+      req.path === '/api/browse/overview';
     if (!allowPublicBrowse) {
       next();
       return;
@@ -215,6 +221,49 @@ export function createApiApp() {
       market,
       symbol,
       count: data.points.length,
+      data
+    });
+  });
+
+  app.get('/api/browse/news', async (req, res) => {
+    const market = req.query.market ? parseMarket(req.query.market as string | undefined) : 'ALL';
+    if (req.query.market && !market) {
+      res.status(400).json({ error: 'Invalid market, use US or CRYPTO' });
+      return;
+    }
+    const symbol = (req.query.symbol as string | undefined)?.toUpperCase();
+    const limit = req.query.limit ? Number(req.query.limit) : 8;
+    const data = await getBrowseNewsFeed({
+      market,
+      symbol,
+      limit
+    });
+    res.json({
+      market,
+      symbol: symbol || null,
+      count: data.length,
+      data
+    });
+  });
+
+  app.get('/api/browse/overview', async (req, res) => {
+    const market = parseMarket(req.query.market as string | undefined);
+    const symbol = (req.query.symbol as string | undefined)?.toUpperCase();
+    if (!market || !symbol) {
+      res.status(400).json({ error: 'Required query params: market, symbol' });
+      return;
+    }
+    const data = await getBrowseAssetOverview({
+      market,
+      symbol
+    });
+    if (!data) {
+      res.status(404).json({ error: 'Browse overview unavailable' });
+      return;
+    }
+    res.json({
+      market,
+      symbol,
       data
     });
   });

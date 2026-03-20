@@ -110,6 +110,18 @@ async function fetchGoogleNewsItems(market: Market, symbol: string): Promise<New
   return parseGoogleNewsRss(xml, market, normalizeSymbol(symbol));
 }
 
+export async function ensureFreshNewsForSymbol(args: { repo: MarketRepository; market: Market; symbol: string }) {
+  const symbol = normalizeSymbol(args.symbol);
+  const latest = args.repo.listNewsItems({ market: args.market, symbol, limit: 1 })[0] || null;
+  if (latest && Date.now() - latest.updated_at_ms < NEWS_TTL_MS) return;
+  try {
+    const rows = await fetchGoogleNewsItems(args.market, symbol);
+    if (rows.length) args.repo.upsertNewsItems(rows);
+  } catch {
+    // leave stale news in place if fetch fails
+  }
+}
+
 export function buildNewsContext(rows: NewsItemRecord[], symbol: string) {
   const top = rows.slice(0, 3);
   const toneCounts = top.reduce(
@@ -148,14 +160,11 @@ export async function ensureFreshNewsForUniverse(args: { repo: MarketRepository;
 
   await Promise.all(
     targets.map(async (target) => {
-      const latest = args.repo.listNewsItems({ market: target.market, symbol: target.symbol, limit: 1 })[0] || null;
-      if (latest && Date.now() - latest.updated_at_ms < NEWS_TTL_MS) return;
-      try {
-        const rows = await fetchGoogleNewsItems(target.market, target.symbol);
-        if (rows.length) args.repo.upsertNewsItems(rows);
-      } catch {
-        // leave stale news in place if fetch fails
-      }
+      await ensureFreshNewsForSymbol({
+        repo: args.repo,
+        market: target.market,
+        symbol: target.symbol
+      });
     })
   );
 }

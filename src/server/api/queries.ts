@@ -45,7 +45,7 @@ import { inspectNovaHealth } from '../nova/health.js';
 import { labelNovaRun } from '../nova/service.js';
 import { runNovaTrainingFlywheel, type NovaTrainerKind } from '../nova/flywheel.js';
 import { generateGovernedNovaStrategies } from '../nova/strategyLab.js';
-import { ensureFreshNewsForUniverse } from '../news/provider.js';
+import { buildNewsContext, ensureFreshNewsForSymbol, ensureFreshNewsForUniverse } from '../news/provider.js';
 import { buildEvidenceLineage } from '../evidence/lineage.js';
 import { fetchWithRetry } from '../utils/http.js';
 
@@ -126,6 +126,52 @@ type BrowseChartSnapshot = {
   note: string;
 };
 
+type BrowseNewsFeedItem = {
+  id: string;
+  market: Market;
+  symbol: string;
+  headline: string;
+  source: string;
+  url: string | null;
+  publishedAt: string | null;
+  sentiment: 'POSITIVE' | 'NEGATIVE' | 'MIXED' | 'NEUTRAL';
+  relevance: number;
+};
+
+type BrowseAssetOverview = {
+  symbol: string;
+  market: Market;
+  name: string;
+  venue: string | null;
+  currency: string;
+  assetType: string;
+  profile: {
+    tradingVenue: string | null;
+    quoteCurrency: string;
+    tradingSchedule: string;
+    proxyType: string;
+  };
+  tradingStats: {
+    latestClose: number | null;
+    previousClose: number | null;
+    changePct: number | null;
+    rangeHigh: number | null;
+    rangeLow: number | null;
+    avgVolume30d: number | null;
+    latestVolume: number | null;
+    barsAvailable: number;
+  };
+  fundamentals: Array<{ label: string; value: string; source: 'derived' | 'live' | 'reference' }>;
+  earnings: {
+    status: string;
+    note: string;
+  };
+  relatedEtfs: string[];
+  optionEntries: Array<{ label: string; description: string }>;
+  newsContext: ReturnType<typeof buildNewsContext>;
+  topNews: BrowseNewsFeedItem[];
+};
+
 const referenceUniverseFiles = [
   'us_equities_extended.json',
   'us_equities_core.json',
@@ -187,6 +233,25 @@ const knownEtfSymbols = new Set([
   'VTI',
   'VOO'
 ]);
+
+const relatedEtfMap: Record<string, string[]> = {
+  AAPL: ['QQQ', 'XLK', 'VTI'],
+  MSFT: ['QQQ', 'XLK', 'VUG'],
+  NVDA: ['SMH', 'SOXX', 'QQQ'],
+  AMD: ['SMH', 'SOXX', 'XLK'],
+  META: ['XLC', 'QQQ', 'VUG'],
+  AMZN: ['XLY', 'QQQ', 'VTI'],
+  GOOGL: ['XLC', 'QQQ', 'VUG'],
+  TSLA: ['XLY', 'ARKK', 'QQQ'],
+  NFLX: ['XLC', 'QQQ', 'VUG'],
+  COIN: ['ARKK', 'IBIT', 'VGT'],
+  BTC: ['IBIT', 'FBTC', 'ARKB'],
+  BTCUSDT: ['IBIT', 'FBTC', 'ARKB'],
+  ETH: ['ETHA', 'ETHE', 'QQQ'],
+  ETHUSDT: ['ETHA', 'ETHE', 'QQQ'],
+  SOL: ['ARKK', 'QQQ', 'SMH'],
+  SOLUSDT: ['ARKK', 'QQQ', 'SMH']
+};
 
 const cryptoAliasLookup = Object.entries(commonCryptoNames).reduce<Record<string, string>>((acc, [symbol, aliases]) => {
   acc[normalizeSearchText(symbol)] = symbol;
@@ -323,6 +388,50 @@ function parseNumericValue(value: unknown): number | null {
       .trim()
   );
   return Number.isFinite(next) ? next : null;
+}
+
+function formatCompactMetric(value: number | null, digits = 2): string {
+  if (!Number.isFinite(value)) return '--';
+  const abs = Math.abs(value as number);
+  if (abs >= 1_000_000_000) return `${((value as number) / 1_000_000_000).toFixed(2)}B`;
+  if (abs >= 1_000_000) return `${((value as number) / 1_000_000).toFixed(2)}M`;
+  if (abs >= 1_000) return `${((value as number) / 1_000).toFixed(1)}K`;
+  return Number(value).toFixed(digits);
+}
+
+function normalizeBrowseNewsItem(row: import('../types.js').NewsItemRecord): BrowseNewsFeedItem {
+  return {
+    id: row.id,
+    market: row.market === 'CRYPTO' ? 'CRYPTO' : 'US',
+    symbol: String(row.symbol || '').toUpperCase(),
+    headline: row.headline,
+    source: row.source,
+    url: row.url || null,
+    publishedAt: Number.isFinite(row.published_at_ms) ? new Date(row.published_at_ms).toISOString() : null,
+    sentiment: row.sentiment_label,
+    relevance: Number(row.relevance_score || 0)
+  };
+}
+
+function deriveRelatedEtfs(symbol: string, market: Market): string[] {
+  const upper = String(symbol || '').toUpperCase();
+  if (relatedEtfMap[upper]?.length) return relatedEtfMap[upper];
+  if (market === 'CRYPTO') return ['IBIT', 'FBTC', 'ARKB'];
+  return ['SPY', 'QQQ', 'VTI'];
+}
+
+function deriveOptionEntries(args: { market: Market; symbol: string }): Array<{ label: string; description: string }> {
+  if (args.market !== 'US') {
+    return [
+      { label: 'Perps', description: 'Perpetual/futures execution context' },
+      { label: 'Basis', description: 'Cross-venue basis and carry view' }
+    ];
+  }
+  return [
+    { label: 'Calls', description: `${args.symbol} bullish directional options entry` },
+    { label: 'Puts', description: `${args.symbol} downside hedge and event protection` },
+    { label: 'Flow', description: 'Watch unusual flow and implied vol shifts' }
+  ];
 }
 
 function isBrowseChartPoint(value: unknown): value is BrowseChartPoint {
@@ -1048,6 +1157,129 @@ export async function getBrowseAssetChart(args: { market: Market; symbol: string
   }
 
   return (await fetchGateCryptoBrowseChart(symbol)) || buildLocalBrowseChart({ market, symbol });
+}
+
+export async function getBrowseNewsFeed(args: { market?: Market | 'ALL'; symbol?: string; limit?: number }) {
+  const repo = getRepo();
+  const symbol = String(args.symbol || '').trim().toUpperCase();
+  const market = args.market || 'ALL';
+  if (symbol && market !== 'ALL') {
+    await ensureFreshNewsForSymbol({
+      repo,
+      market,
+      symbol
+    });
+  } else {
+    await ensureFreshNewsForUniverse({
+      repo,
+      market
+    });
+  }
+  const rows = repo.listNewsItems({
+    market: market === 'ALL' ? undefined : market,
+    symbol: symbol || undefined,
+    limit: args.limit || 8
+  });
+  return rows.map(normalizeBrowseNewsItem);
+}
+
+export async function getBrowseAssetOverview(args: { market: Market; symbol: string }): Promise<BrowseAssetOverview | null> {
+  const repo = getRepo();
+  const symbol = String(args.symbol || '').trim().toUpperCase();
+  if (!symbol) return null;
+
+  const asset = repo.getAssetBySymbol(args.market, args.market === 'CRYPTO' ? parseCryptoLookupSymbol(symbol)?.resolvedSymbol || symbol : symbol);
+  if (!asset) return null;
+
+  const history = repo.getOhlcv({
+    assetId: asset.asset_id,
+    timeframe: '1d',
+    limit: args.market === 'CRYPTO' ? 180 : 260
+  });
+  const closes = history.map((row) => parseNumericValue(row.close)).filter((value): value is number => Number.isFinite(value));
+  const highs = history.map((row) => parseNumericValue(row.high)).filter((value): value is number => Number.isFinite(value));
+  const lows = history.map((row) => parseNumericValue(row.low)).filter((value): value is number => Number.isFinite(value));
+  const volumes = history.map((row) => parseNumericValue(row.volume)).filter((value): value is number => Number.isFinite(value));
+  const latestClose = closes[closes.length - 1] ?? null;
+  const previousClose = closes.length >= 2 ? closes[closes.length - 2] : null;
+  const changePct = latestClose !== null && previousClose !== null && previousClose ? (latestClose - previousClose) / previousClose : null;
+  const rangeHigh = highs.length ? Math.max(...highs) : null;
+  const rangeLow = lows.length ? Math.min(...lows) : null;
+  const latestVolume = volumes[volumes.length - 1] ?? null;
+  const avgVolume30d = volumes.length ? volumes.slice(-30).reduce((sum, value) => sum + value, 0) / Math.max(1, Math.min(30, volumes.length)) : null;
+  const assetType = args.market === 'CRYPTO' ? 'Crypto spot' : knownEtfSymbols.has(asset.symbol) ? 'ETF' : 'US equity';
+  const quoteCurrency = asset.quote || (args.market === 'CRYPTO' ? 'USDT' : 'USD');
+  const newsRows = await getBrowseNewsFeed({
+    market: args.market,
+    symbol: asset.symbol,
+    limit: 6
+  });
+  const newsContext = buildNewsContext(
+    repo.listNewsItems({
+      market: args.market,
+      symbol: asset.symbol,
+      limit: 6
+    }),
+    asset.symbol
+  );
+
+  const earnings =
+    args.market === 'US'
+      ? {
+          status: 'Watch',
+          note: knownEtfSymbols.has(asset.symbol)
+            ? 'ETF basket does not have a single earnings event; watch top-weight constituents instead.'
+            : 'No direct calendar feed is wired yet; use news and signal context around earnings windows.'
+        }
+      : {
+          status: '24/7',
+          note: 'Crypto does not follow quarterly earnings; monitor exchange, ETF-flow, and funding headlines instead.'
+        };
+
+  return {
+    symbol: asset.symbol,
+    market: args.market,
+    name:
+      args.market === 'CRYPTO'
+        ? `${asset.base || parseCryptoBaseQuote(asset.symbol)?.base || asset.symbol} / ${
+            asset.quote || parseCryptoBaseQuote(asset.symbol)?.quote || 'USDT'
+          }`
+        : asset.symbol,
+    venue: asset.venue,
+    currency: quoteCurrency,
+    assetType,
+    profile: {
+      tradingVenue: asset.venue,
+      quoteCurrency,
+      tradingSchedule: args.market === 'CRYPTO' ? '24/7 continuous' : 'US session + pre/post market',
+      proxyType: assetType
+    },
+    tradingStats: {
+      latestClose,
+      previousClose,
+      changePct,
+      rangeHigh,
+      rangeLow,
+      avgVolume30d,
+      latestVolume,
+      barsAvailable: history.length
+    },
+    fundamentals: [
+      { label: 'Asset type', value: assetType, source: 'reference' },
+      { label: '52W / lookback high', value: formatCompactMetric(rangeHigh), source: 'derived' },
+      { label: '52W / lookback low', value: formatCompactMetric(rangeLow), source: 'derived' },
+      { label: '30D avg volume', value: formatCompactMetric(avgVolume30d), source: 'derived' },
+      { label: 'Latest volume', value: formatCompactMetric(latestVolume), source: 'derived' }
+    ],
+    earnings,
+    relatedEtfs: deriveRelatedEtfs(asset.symbol, args.market),
+    optionEntries: deriveOptionEntries({
+      market: args.market,
+      symbol: asset.symbol
+    }),
+    newsContext,
+    topNews: newsRows
+  };
 }
 
 export function queryOhlcv(args: {
