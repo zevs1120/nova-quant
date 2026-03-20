@@ -168,7 +168,8 @@ const initialData = {
   safety: null,
   insights: null,
   ai: null,
-  layers: {}
+  layers: {},
+  control_plane: null
 };
 
 const DEFAULT_AUTH_WATCHLIST = Object.freeze(['SPY', 'QQQ', 'AAPL']);
@@ -794,6 +795,7 @@ export default function App() {
           performance,
           modules,
           riskProfile,
+          controlPlane,
           brokerConnection,
           exchangeConnection
         ] = await Promise.all([
@@ -805,6 +807,7 @@ export default function App() {
           fetchJson(`/api/performance?${query.toString()}`),
           fetchJson(`/api/market/modules?${query.toString()}`),
           fetchJson(`/api/risk-profile?userId=${effectiveUserId}`),
+          fetchJson(`/api/control-plane/status?userId=${effectiveUserId}`).catch(() => null),
           fetchJson(`/api/connect/broker?userId=${effectiveUserId}&provider=ALPACA`),
           fetchJson(`/api/connect/exchange?userId=${effectiveUserId}&provider=BINANCE`)
         ]);
@@ -827,6 +830,7 @@ export default function App() {
           evidence: evidenceData,
           market_modules: Array.isArray(modules?.data) ? modules.data : runtimeData.market_modules || [],
           performance: performance || runtimeData.performance || initialData.performance,
+          control_plane: controlPlane || runtimeData.control_plane || null,
           config: {
             ...(runtimeData.config || {}),
             last_updated:
@@ -848,7 +852,8 @@ export default function App() {
               connectivity: {
                 broker: brokerConnection?.snapshot || null,
                 exchange: exchangeConnection?.snapshot || null
-              }
+              },
+              control_plane: controlPlane || null
             },
             risk_rules: {
               ...(runtimeData.config?.risk_rules || {}),
@@ -1358,6 +1363,7 @@ export default function App() {
 
   const renderDataStatus = () => {
     const runtime = data?.config?.runtime || {};
+    const controlPlane = runtime?.control_plane || data?.control_plane || null;
     const freshnessRows = runtime?.freshness_summary?.rows || [];
     const coverage = runtime?.coverage_summary || {};
     const topIssues = [];
@@ -1369,6 +1375,12 @@ export default function App() {
     }
     if ((coverage?.assets_with_bars || 0) === 0) {
       topIssues.push('尚未检测到可用 bars，请先执行 backfill + derive:runtime。');
+    }
+    if (controlPlane?.search?.status === 'UNAVAILABLE') {
+      topIssues.push('搜索资产库未就绪，Browse 搜索会表现为空。');
+    }
+    if (Array.isArray(controlPlane?.runtime) && controlPlane.runtime.every((row) => Number(row?.active_signal_count || 0) === 0)) {
+      topIssues.push('两个市场当前都没有 active signals，所以 Today 会退回等待态。');
     }
 
     return (
@@ -1396,6 +1408,56 @@ export default function App() {
             ))}
           </ul>
         </article>
+
+        {controlPlane ? (
+          <article className="glass-card">
+            <h3 className="card-title">Control Plane</h3>
+            <p className="muted status-line">As of: {controlPlane.as_of || '--'}</p>
+            <div className="status-grid-3">
+              <div className="status-box">
+                <p className="muted">Search</p>
+                <h2>{controlPlane.search?.status || '--'}</h2>
+                <p className="muted status-line">
+                  {controlPlane.search?.live_asset_count ?? '--'} live / {controlPlane.search?.reference_asset_count ?? '--'} reference
+                </p>
+              </div>
+              <div className="status-box">
+                <p className="muted">Strategy Factory</p>
+                <h2>{controlPlane.strategy_factory?.latest_status || '--'}</h2>
+                <p className="muted status-line">{controlPlane.strategy_factory?.latest_run_at || 'No run yet'}</p>
+              </div>
+              <div className="status-box">
+                <p className="muted">Delivery</p>
+                <h2>{controlPlane.delivery?.active_notification_count ?? '--'}</h2>
+                <p className="muted status-line">{controlPlane.delivery?.latest_notification_at || 'No delivery yet'}</p>
+              </div>
+            </div>
+            <div className="table-wrap" style={{ marginTop: 12 }}>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Market</th>
+                    <th>Runtime</th>
+                    <th>Signals</th>
+                    <th>Decision</th>
+                    <th>Top</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(controlPlane.runtime || []).map((row) => (
+                    <tr key={row.market}>
+                      <td>{row.market}</td>
+                      <td>{row.source_status}</td>
+                      <td>{row.active_signal_count}/{row.signal_count}</td>
+                      <td>{row.decision_code}</td>
+                      <td>{row.top_action_symbol || '--'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </article>
+        ) : null}
 
         <article className="glass-card">
           <h3 className="card-title">Source Freshness</h3>
@@ -2085,30 +2147,30 @@ export default function App() {
         <nav
           className="bottom-nav app-tabbar"
           aria-label="Primary navigation"
-          style={{
-            gridTemplateColumns: 'repeat(4, minmax(0, 1fr))'
-          }}
         >
-          {Object.entries(tabMeta).map(([key, value]) => (
-            <button
-              key={key}
-              type="button"
-              className={`tab-btn ${activeTab === key ? 'active' : ''}`}
-              onClick={() => {
-                setActiveTab(key);
-                if (key !== 'my') {
-                  resetMy();
-                } else {
-                  setMyStack(['portfolio']);
-                }
-              }}
-            >
-              <span>
-                <TabBarIcon name={value.icon} />
-              </span>
-              <span>{value.label}</span>
-            </button>
-          ))}
+          <div className="app-tabbar-inner">
+            {Object.entries(tabMeta).map(([key, value]) => (
+              <button
+                key={key}
+                type="button"
+                className={`tab-btn ${activeTab === key ? 'active' : ''}`}
+                aria-current={activeTab === key ? 'page' : undefined}
+                onClick={() => {
+                  setActiveTab(key);
+                  if (key !== 'my') {
+                    resetMy();
+                  } else {
+                    setMyStack(['portfolio']);
+                  }
+                }}
+              >
+                <span className="tab-btn-icon">
+                  <TabBarIcon name={value.icon} />
+                </span>
+                <span className="tab-btn-label">{value.label}</span>
+              </button>
+            ))}
+          </div>
         </nav>
       </div>
 
