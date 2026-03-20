@@ -5,7 +5,6 @@ import { fileURLToPath } from 'node:url';
 import { getDb } from '../db/database.js';
 import { MarketRepository } from '../db/repository.js';
 import type { AssetClass, Market, Timeframe } from '../types.js';
-import { getConfig } from '../config.js';
 import { fetchWithRetry } from '../utils/http.js';
 
 type AssetSearchResult = {
@@ -151,7 +150,7 @@ type BrowseHomeEarningsItem = {
 };
 
 type BrowseHomePayload = {
-  view: 'NOW' | 'MACRO' | 'CRYPTO' | 'SPORTS';
+  view: 'STOCK' | 'CRYPTO';
   updatedAt: string;
   futuresMarkets: BrowseHomeCard[];
   topMovers: BrowseHomeChip[];
@@ -177,6 +176,10 @@ const SEC_UNIVERSE_TTL_MS = 1000 * 60 * 60 * 24;
 let cachedSecUniverse: { expiresAt: number; results: SearchCandidate[] } | null = null;
 let cachedReferenceSearchUniverse: SearchCandidate[] | null = null;
 const browseHomeCache = new Map<string, { expiresAt: number; data: BrowseHomePayload }>();
+const DEFAULT_PUBLIC_US_SYMBOLS = ['SPY', 'QQQ', 'AAPL', 'MSFT', 'NVDA', 'TSLA', 'AMZN', 'NFLX', 'COIN', 'MSTR', 'HOOD', 'PLTR'];
+const DEFAULT_PUBLIC_CRYPTO_SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XRPUSDT', 'DOGEUSDT', 'ADAUSDT', 'AVAXUSDT', 'LINKUSDT'];
+const DEFAULT_PUBLIC_NASDAQ_BASE_URL = 'https://api.nasdaq.com/api';
+const DEFAULT_PUBLIC_NASDAQ_TIMEOUT_MS = 2_500;
 
 const referenceUniverseFiles = [
   'us_equities_extended.json',
@@ -335,6 +338,29 @@ function sentenceCase(value: string): string {
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
     .join(' ');
+}
+
+function readPublicSymbolsEnv(value: string | undefined, fallback: readonly string[]): string[] {
+  const parsed = String(value || '')
+    .split(',')
+    .map((item) => item.trim().toUpperCase())
+    .filter(Boolean);
+  return parsed.length ? parsed : [...fallback];
+}
+
+function getPublicUniverseSymbols(market: Market): string[] {
+  if (market === 'US') {
+    return readPublicSymbolsEnv(process.env.US_SYMBOLS, DEFAULT_PUBLIC_US_SYMBOLS);
+  }
+  return readPublicSymbolsEnv(process.env.CRYPTO_SYMBOLS, DEFAULT_PUBLIC_CRYPTO_SYMBOLS);
+}
+
+function getPublicNasdaqConfig() {
+  const timeoutMs = Number(process.env.NASDAQ_TIMEOUT_MS || DEFAULT_PUBLIC_NASDAQ_TIMEOUT_MS);
+  return {
+    baseUrl: String(process.env.NASDAQ_BASE_URL || DEFAULT_PUBLIC_NASDAQ_BASE_URL).trim() || DEFAULT_PUBLIC_NASDAQ_BASE_URL,
+    timeoutMs: Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : DEFAULT_PUBLIC_NASDAQ_TIMEOUT_MS
+  };
 }
 
 function parseNumericValue(value: unknown): number | null {
@@ -779,13 +805,12 @@ export function listPublicAssets(market?: Market) {
       byKey.set(`${item.market}:${item.symbol}`, item);
     });
 
-  const config = getConfig();
-  (config.markets.US.symbols || []).forEach((symbol) => {
+  getPublicUniverseSymbols('US').forEach((symbol) => {
     const upper = String(symbol).toUpperCase();
     const key = `US:${upper}`;
     if (!byKey.has(key)) byKey.set(key, buildDirectEquityCandidate(upper));
   });
-  (config.markets.CRYPTO.symbols || []).forEach((symbol) => {
+  getPublicUniverseSymbols('CRYPTO').forEach((symbol) => {
     const parsed = parseCryptoLookupSymbol(String(symbol));
     if (!parsed) return;
     const key = `CRYPTO:${parsed.resolvedSymbol}`;
@@ -917,10 +942,10 @@ function normalizeNasdaqBrowseChart(requestedSymbol: string, assetClass: 'stocks
 }
 
 async function fetchNasdaqBrowseChart(symbol: string): Promise<BrowseChartSnapshot | null> {
-  const config = getConfig();
+  const config = getPublicNasdaqConfig();
   for (const assetClass of assetClassesForBrowseSymbol(symbol)) {
     try {
-      const url = new URL(`${config.nasdaq.baseUrl}/quote/${encodeURIComponent(symbol)}/chart`);
+      const url = new URL(`${config.baseUrl}/quote/${encodeURIComponent(symbol)}/chart`);
       url.searchParams.set('assetclass', assetClass);
     const response = await fetchWithRetry(
       url.toString(),
@@ -932,7 +957,7 @@ async function fetchNasdaqBrowseChart(symbol: string): Promise<BrowseChartSnapsh
         }
       },
       { attempts: 1, baseDelayMs: 300 },
-      Math.min(config.nasdaq.timeoutMs, 2_500)
+      Math.min(config.timeoutMs, 2_500)
     );
       if (!response.ok) continue;
       const payload = (await response.json()) as NasdaqBrowseChartResponse;
@@ -1329,8 +1354,8 @@ export async function getPublicBrowseNewsFeed(args: { market?: Market | 'ALL'; s
   const targets: Array<{ market: Market; symbol: string }> = args.symbol && market !== 'ALL'
     ? [{ market, symbol: String(args.symbol || '').toUpperCase() }]
     : [
-        ...getConfig().markets.US.symbols.slice(0, 4).map((symbol) => ({ market: 'US' as const, symbol: String(symbol).toUpperCase() })),
-        ...getConfig().markets.CRYPTO.symbols.slice(0, 3).map((symbol) => ({ market: 'CRYPTO' as const, symbol: String(symbol).toUpperCase() }))
+        ...getPublicUniverseSymbols('US').slice(0, 4).map((symbol) => ({ market: 'US' as const, symbol: String(symbol).toUpperCase() })),
+        ...getPublicUniverseSymbols('CRYPTO').slice(0, 3).map((symbol) => ({ market: 'CRYPTO' as const, symbol: String(symbol).toUpperCase() }))
       ].filter((row) => market === 'ALL' || row.market === market);
 
   const settled = await Promise.allSettled(
