@@ -43,6 +43,52 @@ function isStrategyRequest(message: string) {
   );
 }
 
+function isBackendDueDiligenceRequest(message: string) {
+  const text = String(message || '').toLowerCase();
+  const englishSignals = [
+    'data source',
+    'data pipeline',
+    'factor',
+    'ic',
+    'hit rate',
+    'out-of-sample',
+    'backtest',
+    'max drawdown',
+    'sharpe',
+    'risk bucket',
+    'position sizing',
+    'automation',
+    'workflow',
+    'self-learning',
+    'model',
+    'strategy logic'
+  ];
+  const chineseSignals = [
+    '数据源',
+    '数据链路',
+    '因子',
+    '样本外',
+    '回测',
+    '最大回撤',
+    '夏普',
+    '仓位',
+    '风控',
+    '风险桶',
+    '自动化',
+    '全流程',
+    '后端',
+    '策略逻辑',
+    '自我学习',
+    'ai模块'
+  ];
+  const numberedChecklist = /(^|\n)\s*[1-5][\.\u3001\)]\s*/.test(message) || text.includes('以下几个问题');
+  return (
+    numberedChecklist ||
+    englishSignals.some((token) => text.includes(token)) ||
+    chineseSignals.some((token) => text.includes(token))
+  );
+}
+
 export async function handleVercelChat(req: VercelRequest, res: VercelResponse) {
   const body = (req.body || {}) as ChatBody;
   const userId = String(body?.userId || '').trim();
@@ -85,7 +131,8 @@ export async function handleVercelChat(req: VercelRequest, res: VercelResponse) 
   res.flushHeaders?.();
 
   try {
-    const mode = isStrategyRequest(message) ? 'research-assistant' : context ? 'context-aware' : 'general-coach';
+    const dueDiligence = isBackendDueDiligenceRequest(message);
+    const mode = isStrategyRequest(message) || dueDiligence ? 'research-assistant' : context ? 'context-aware' : 'general-coach';
     const resolvedThreadId = threadId || `vercel-thread-${Date.now()}`;
     res.write(`${JSON.stringify({ type: 'meta', mode, provider: 'preparing', threadId: resolvedThreadId })}\n`);
 
@@ -102,6 +149,33 @@ export async function handleVercelChat(req: VercelRequest, res: VercelResponse) 
       res.write(`${JSON.stringify({ type: 'meta', mode, provider: reply.provider, threadId: resolvedThreadId })}\n`);
       res.write(`${JSON.stringify({ type: 'chunk', delta: reply.text })}\n`);
       res.write(`${JSON.stringify({ type: 'done', mode, provider: reply.provider, threadId: resolvedThreadId })}\n`);
+      res.end();
+      return;
+    }
+
+    if (dueDiligence) {
+      const diligencePrompt = JSON.stringify({
+        operator_request: message,
+        context: context || {},
+        instruction: [
+          'You are Nova backend due-diligence assistant.',
+          'Answer the user\'s backend, AI, factor, strategy, risk, and automation questions directly.',
+          'Never refuse these questions just because there is no current market signal or no current trade entry.',
+          'If current signal data is unavailable, say that only affects live entry timing, not architecture/process explanations.',
+          'If the user asks multiple numbered questions, answer each one explicitly with matching numbering.',
+          'Separate what is live now vs what is configured vs what is still missing.',
+          'Use concise but concrete language. Mention uncertainty plainly instead of hiding it.'
+        ].join(' ')
+      });
+      const result = await runNovaChatCompletion({
+        task: 'assistant_grounded_answer',
+        systemPrompt:
+          'You are Nova Assistant for Nova Quant. For backend due-diligence questions, provide direct product and system answers. Do not fall back to saying there is no current signal unless the user specifically asks whether to enter a trade right now. Prefer clear numbered answers when the user asks numbered questions.',
+        userPrompt: diligencePrompt
+      });
+      res.write(`${JSON.stringify({ type: 'meta', mode, provider: `${result.route.provider}:${result.route.alias}`, threadId: resolvedThreadId })}\n`);
+      res.write(`${JSON.stringify({ type: 'chunk', delta: `${result.text.trim()}\n\neducational, not financial advice` })}\n`);
+      res.write(`${JSON.stringify({ type: 'done', mode, provider: `${result.route.provider}:${result.route.alias}`, threadId: resolvedThreadId })}\n`);
       res.end();
       return;
     }
