@@ -8,16 +8,14 @@ import { getNovaRuntimeMode, isCloudNovaEnabled, isLocalNovaEnabled } from '../.
 export type ProviderName = 'groq' | 'gemini' | 'openai' | 'ollama';
 
 export function getProviderOrder(): ProviderName[] {
-  const mode = getNovaRuntimeMode();
-  if (mode === 'cloud-openai-compatible') {
-    return isLocalNovaEnabled() ? ['openai', 'ollama'] : ['openai'];
-  }
-  if (mode === 'local-ollama') {
-    return isCloudNovaEnabled() ? ['ollama', 'openai'] : ['ollama'];
-  }
   const ordered: ProviderName[] = [];
-  if (isCloudNovaEnabled()) ordered.push('openai');
+  const mode = getNovaRuntimeMode();
+
+  // Free-first default for Nova chat: Groq/Gemini first, then local Ollama, then paid cloud.
+  if (Boolean(String(process.env.GROQ_API_KEY || '').trim())) ordered.push('groq');
+  if (Boolean(String(process.env.GEMINI_API_KEY || '').trim())) ordered.push('gemini');
   if (isLocalNovaEnabled()) ordered.push('ollama');
+  if (mode === 'cloud-openai-compatible' || isCloudNovaEnabled()) ordered.push('openai');
   return ordered;
 }
 

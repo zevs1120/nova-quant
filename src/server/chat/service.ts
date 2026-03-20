@@ -12,7 +12,7 @@ import {
   ProviderTimeoutError,
   shouldFallbackProviderError
 } from './providers/errors.js';
-import { resolveNovaRoute, resolveNovaRouteForProvider } from '../ai/llmOps.js';
+import { resolveNovaRouteForProvider } from '../ai/llmOps.js';
 import { generateGovernedNovaStrategyReply } from '../nova/strategyLab.js';
 
 const MAX_HISTORY_TURNS = 8;
@@ -328,10 +328,7 @@ async function runProviderChain(args: {
   history: ChatHistoryMessage[];
   contextBundle: Awaited<ReturnType<typeof buildContextBundle>>;
 }): Promise<{ provider: string; text: string; mode: ChatMode }> {
-  const primaryRoute = resolveNovaRoute('assistant_grounded_answer');
-  const providerOrder = [primaryRoute.provider, ...getProviderOrder()]
-    .filter((name, index, rows) => rows.indexOf(name) === index)
-    .filter((name) => isProviderConfigured(name));
+  const providerOrder = getProviderOrder().filter((name, index, rows) => rows.indexOf(name) === index).filter((name) => isProviderConfigured(name));
   const systemPrompt = buildSystemPrompt(args.mode, args.contextBundle.hasExactSignalData);
   const userPrompt = buildUserPrompt({
     userMessage: args.input.message,
@@ -359,7 +356,10 @@ async function runProviderChain(args: {
   for (let i = 0; i < providerOrder.length; i += 1) {
     const providerName = providerOrder[i];
     const provider = createProvider(providerName);
-    const route = resolveNovaRouteForProvider('assistant_grounded_answer', providerName === 'openai' ? 'openai' : 'ollama');
+    const route = resolveNovaRouteForProvider(
+      'assistant_grounded_answer',
+      providerName === 'openai' ? 'openai' : providerName === 'gemini' ? 'gemini' : 'ollama'
+    );
     const providerMessages: ProviderMessage[] = [
       { role: 'system', content: systemPrompt },
       ...historyToProviderMessages(args.history),

@@ -1,7 +1,7 @@
 import type { ProviderAdapter, ProviderRequest } from '../types.js';
 import { ProviderError, ProviderRateLimitError } from './errors.js';
 
-const DEFAULT_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+const DEFAULT_MODEL = process.env.GEMINI_MODEL || 'gemma-3-27b-it';
 const STREAM_ENDPOINT = (model: string, apiKey: string) =>
   `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${apiKey}`;
 const SYNC_ENDPOINT = (model: string, apiKey: string) =>
@@ -38,8 +38,9 @@ export class GeminiProvider implements ProviderAdapter {
       throw new ProviderError('GEMINI_API_KEY is missing');
     }
 
+    const model = req.model || DEFAULT_MODEL;
     const prompt = toGeminiPrompt(req);
-    const streamRes = await fetch(STREAM_ENDPOINT(DEFAULT_MODEL, apiKey), {
+    const streamRes = await fetch(STREAM_ENDPOINT(model, apiKey), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -83,7 +84,7 @@ export class GeminiProvider implements ProviderAdapter {
       return;
     }
 
-    const syncRes = await fetch(SYNC_ENDPOINT(DEFAULT_MODEL, apiKey), {
+    const syncRes = await fetch(SYNC_ENDPOINT(model, apiKey), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -109,4 +110,3 @@ export class GeminiProvider implements ProviderAdapter {
     yield text;
   }
 }
-

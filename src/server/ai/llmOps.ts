@@ -18,7 +18,7 @@ export type NovaTaskRoute =
 export type NovaRouteResolution = {
   task: NovaTaskRoute;
   alias: NovaModelAlias;
-  provider: 'ollama' | 'openai';
+  provider: 'ollama' | 'openai' | 'groq' | 'gemini';
   model: string;
   reason: string;
   endpoint: string;
@@ -150,7 +150,7 @@ export function getNovaModelPlan() {
 function buildRoutingPoliciesForPlan(plan: ReturnType<typeof buildNovaModelPlan>): Array<{
   task: NovaTaskRoute;
   alias: NovaModelAlias;
-  provider: 'ollama' | 'openai';
+  provider: 'ollama' | 'openai' | 'groq' | 'gemini';
   model: string;
   reason: string;
 }> {
@@ -226,7 +226,7 @@ function buildRoutingPoliciesForPlan(plan: ReturnType<typeof buildNovaModelPlan>
 export function getNovaRoutingPolicies(): Array<{
   task: NovaTaskRoute;
   alias: NovaModelAlias;
-  provider: 'ollama' | 'openai';
+  provider: 'ollama' | 'openai' | 'groq' | 'gemini';
   model: string;
   reason: string;
 }> {
@@ -256,14 +256,22 @@ export function resolveNovaRoute(task: NovaTaskRoute): NovaRouteResolution {
   };
 }
 
-export function resolveNovaRouteForProvider(task: NovaTaskRoute, provider: 'ollama' | 'openai'): NovaRouteResolution {
-  const plan = buildNovaModelPlan(provider === 'openai' ? 'cloud-openai-compatible' : 'local-ollama');
+export function resolveNovaRouteForProvider(task: NovaTaskRoute, provider: 'ollama' | 'openai' | 'gemini'): NovaRouteResolution {
+  const plan = buildNovaModelPlan(provider === 'ollama' ? 'local-ollama' : 'cloud-openai-compatible');
   const match = buildRoutingPoliciesForPlan(plan).find((row) => row.task === task);
-  const endpoint = provider === 'openai' ? getNovaCloudEndpoint() : getNovaLocalEndpoint();
-  const apiKey = provider === 'openai' ? getNovaCloudApiKey() : null;
+  const endpoint = provider === 'ollama' ? getNovaLocalEndpoint() : getNovaCloudEndpoint();
+  const apiKey =
+    provider === 'openai'
+      ? getNovaCloudApiKey()
+      : provider === 'gemini'
+        ? String(process.env.GEMINI_API_KEY || '').trim() || null
+        : null;
+  const modelOverride = provider === 'gemini' ? String(process.env.GEMINI_MODEL || '').trim() || 'gemma-3-27b-it' : null;
   if (match) {
     return {
       ...match,
+      provider,
+      model: modelOverride || match.model,
       endpoint,
       apiKey
     };
@@ -273,8 +281,9 @@ export function resolveNovaRouteForProvider(task: NovaTaskRoute, provider: 'olla
     alias: 'Nova-Core',
     provider,
     model:
+      modelOverride ||
       plan.models['Nova-Core'] ||
-      (provider === 'openai' ? 'Qwen/Qwen3-4B-Instruct' : 'qwen3:4b'),
+      (provider === 'openai' || provider === 'gemini' ? 'Qwen/Qwen3-4B-Instruct' : 'qwen3:4b'),
     reason: 'Fallback to Nova-Core when no explicit route is defined.',
     endpoint,
     apiKey
