@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { runNovaStrategyGeneration } from '../../../../src/server/api/queries.js';
+import { generateGovernedNovaStrategies } from '../../../../src/server/nova/strategyLab.js';
+import { createNoopNovaRepo } from '../../../../src/server/nova/noopRepo.js';
 
 function parseMarket(value?: string): 'US' | 'CRYPTO' | undefined {
   if (!value) return undefined;
@@ -30,7 +31,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   res.status(200).json(
-    await runNovaStrategyGeneration({
+    await generateGovernedNovaStrategies({
+      repo: createNoopNovaRepo() as any,
       userId: String(body.userId || '').trim() || undefined,
       prompt,
       locale: String(body.locale || '').trim() || undefined,

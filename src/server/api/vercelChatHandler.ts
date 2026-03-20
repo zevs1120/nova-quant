@@ -1,9 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { checkRateLimit } from '../chat/rateLimit.js';
-import { streamChat } from '../chat/service.js';
-import { logChatAudit } from '../chat/audit.js';
-import { recordNovaAssistantRun } from './queries.js';
 import type { AssetClass, Market } from '../types.js';
+import { runNovaChatCompletion } from '../nova/client.js';
+import { generateGovernedNovaStrategyReply } from '../nova/strategyLab.js';
+import { createNoopNovaRepo } from '../nova/noopRepo.js';
 
 type ChatBody = {
   userId?: string;
@@ -35,8 +35,15 @@ function parseAssetClass(value?: string): AssetClass | undefined {
   return undefined;
 }
 
+function isStrategyRequest(message: string) {
+  const lower = String(message || '').toLowerCase();
+  return (
+    (lower.includes('strategy') || lower.includes('alpha')) &&
+    ['generate', 'build', 'create', 'design', 'propose', 'draft', 'idea'].some((token) => lower.includes(token))
+  );
+}
+
 export async function handleVercelChat(req: VercelRequest, res: VercelResponse) {
-  const startedAt = Date.now();
   const body = (req.body || {}) as ChatBody;
   const userId = String(body?.userId || '').trim();
   const message = String(body?.message || '').trim();
@@ -64,15 +71,6 @@ export async function handleVercelChat(req: VercelRequest, res: VercelResponse) 
 
   const rate = checkRateLimit(userId);
   if (!rate.allowed) {
-    logChatAudit({
-      userId,
-      mode: context ? 'context-aware' : 'general-coach',
-      provider: 'none',
-      message,
-      contextJson: JSON.stringify(context ?? {}),
-      status: 'rate_limited',
-      durationMs: Date.now() - startedAt
-    });
     res.status(429).json({
       error: 'Rate limit exceeded',
       resetAt: rate.resetAt
@@ -86,60 +84,47 @@ export async function handleVercelChat(req: VercelRequest, res: VercelResponse) 
   res.setHeader('Connection', 'keep-alive');
   res.flushHeaders?.();
 
-  let mode: 'general-coach' | 'context-aware' | 'research-assistant' = context ? 'context-aware' : 'general-coach';
-  let provider = 'unknown';
-  let resolvedThreadId = threadId;
-  let responseText = '';
-  let status: 'ok' | 'error' = 'ok';
-  let errorText = '';
-
   try {
-    for await (const event of streamChat({
-      userId,
-      threadId,
-      message,
-      context
-    })) {
-      if (event.type === 'meta') {
-        mode = event.mode;
-        provider = event.provider;
-        resolvedThreadId = event.threadId || resolvedThreadId;
-      } else if (event.type === 'chunk') {
-        responseText += event.delta;
-      } else if (event.type === 'error') {
-        status = 'error';
-        errorText = event.error;
-      }
+    const mode = isStrategyRequest(message) ? 'research-assistant' : context ? 'context-aware' : 'general-coach';
+    const resolvedThreadId = threadId || `vercel-thread-${Date.now()}`;
+    res.write(`${JSON.stringify({ type: 'meta', mode, provider: 'preparing', threadId: resolvedThreadId })}\n`);
 
-      res.write(`${JSON.stringify(event)}\n`);
+    if (isStrategyRequest(message)) {
+      const reply = await generateGovernedNovaStrategyReply({
+        repo: createNoopNovaRepo() as any,
+        userId,
+        prompt: message,
+        locale: context?.locale || 'en',
+        market: context?.market === 'US' || context?.market === 'CRYPTO' ? context.market : undefined,
+        riskProfile: context?.riskProfileKey,
+        maxCandidates: 8
+      });
+      res.write(`${JSON.stringify({ type: 'meta', mode, provider: reply.provider, threadId: resolvedThreadId })}\n`);
+      res.write(`${JSON.stringify({ type: 'chunk', delta: reply.text })}\n`);
+      res.write(`${JSON.stringify({ type: 'done', mode, provider: reply.provider, threadId: resolvedThreadId })}\n`);
+      res.end();
+      return;
     }
+
+    const prompt = JSON.stringify({
+      user_request: message,
+      context: context || {},
+      instruction:
+        'You are Nova Assistant. Be concise, evidence-aware, and practical. Use section headers VERDICT, PLAN, WHY, RISK, EVIDENCE. End with: educational, not financial advice.'
+    });
+    const result = await runNovaChatCompletion({
+      task: 'assistant_grounded_answer',
+      systemPrompt:
+        'You are Nova Assistant for Nova Quant. Keep tone calm, useful, and risk-aware. Do not fabricate hidden data. If context is incomplete, say so plainly.',
+      userPrompt: prompt
+    });
+    res.write(`${JSON.stringify({ type: 'meta', mode, provider: `${result.route.provider}:${result.route.alias}`, threadId: resolvedThreadId })}\n`);
+    res.write(`${JSON.stringify({ type: 'chunk', delta: `${result.text.trim()}\n\neducational, not financial advice` })}\n`);
+    res.write(`${JSON.stringify({ type: 'done', mode, provider: `${result.route.provider}:${result.route.alias}`, threadId: resolvedThreadId })}\n`);
+    res.end();
   } catch (error) {
-    status = 'error';
-    errorText = error instanceof Error ? error.message : String(error);
+    const errorText = error instanceof Error ? error.message : String(error);
     res.write(`${JSON.stringify({ type: 'error', error: errorText })}\n`);
-  } finally {
-    logChatAudit({
-      userId,
-      mode,
-      provider,
-      threadId: resolvedThreadId,
-      message,
-      contextJson: JSON.stringify(context ?? {}),
-      status,
-      error: errorText || undefined,
-      responsePreview: responseText.slice(0, 1200),
-      durationMs: Date.now() - startedAt
-    });
-    await recordNovaAssistantRun({
-      userId,
-      threadId: resolvedThreadId,
-      context: (context || {}) as Record<string, unknown>,
-      message,
-      responseText,
-      provider,
-      status: status === 'ok' ? 'SUCCEEDED' : 'FAILED',
-      error: errorText || undefined
-    });
     res.end();
   }
 }
