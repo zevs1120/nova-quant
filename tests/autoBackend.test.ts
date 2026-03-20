@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseAutoBackendArgs, runAutoBackend } from '../scripts/auto-backend.ts';
+import { parseAutoBackendArgs, runAutoBackend } from '../scripts/auto-backend.js';
 
 describe('auto-backend automation entrypoints', () => {
   it('parses operator flags into a predictable automation config', () => {

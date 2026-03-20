@@ -290,6 +290,40 @@ export default function ProofTab({
       : sourceTab === 'paper'
         ? 'Simulated/Paper: order/position ledger driven by generated signal plans.'
         : 'Live: upcoming only, intentionally not fabricated.';
+  const proofFacts = [
+    {
+      key: 'mode',
+      label: 'Mode',
+      value: proofProvenance.label
+    },
+    {
+      key: 'execution',
+      label: 'Execution',
+      value:
+        sourceTab === 'live'
+          ? marketBucket.available === false
+            ? 'Unavailable'
+            : 'Broker-linked'
+          : sourceTab === 'paper'
+            ? 'Simulated ledger'
+            : 'Historical replay'
+    },
+    {
+      key: 'origin',
+      label: 'Origin',
+      value: marketBucket.source_type || '--'
+    },
+    {
+      key: 'use',
+      label: 'Use',
+      value:
+        sourceTab === 'live'
+          ? 'Live review only'
+          : sourceTab === 'paper'
+            ? 'Validate execution logic'
+            : 'Research only'
+    }
+  ];
 
   return (
     <section className="stack-gap">
@@ -336,9 +370,16 @@ export default function ProofTab({
                 {proofProvenance.watermark}
               </span>
             </div>
+            <div className="proof-truth-grid">
+              {proofFacts.map((item) => (
+                <div key={item.key} className="proof-truth-item">
+                  <span className="proof-truth-label">{item.label}</span>
+                  <span className="proof-truth-value">{item.value}</span>
+                </div>
+              ))}
+            </div>
             <p className="muted">{proofProvenance.note}</p>
             <p className="muted status-line">{sourceDescription}</p>
-            <p className="muted status-line">source_type: {marketBucket.source_type || '--'}</p>
             <p className="muted status-line">{marketBucket.data_origin_note || '--'}</p>
           </article>
 

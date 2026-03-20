@@ -312,6 +312,31 @@ function strategySourceText(signal) {
   return signal?.strategy_source || 'AI quant strategy';
 }
 
+function executionBoundaryLabel(mode, locale) {
+  const zh = locale === 'zh';
+  if (mode === 'REALIZED') return zh ? '已成交' : 'Realized';
+  if (mode === 'DB_BACKED') return zh ? '数据库快照' : 'DB snapshot';
+  if (mode === 'PAPER_ONLY') return zh ? '仅纸面' : 'Paper only';
+  if (mode === 'BACKTEST_ONLY') return zh ? '仅回测' : 'Backtest only';
+  if (mode === 'DEMO_ONLY') return zh ? '仅演示' : 'Demo only';
+  if (mode === 'WITHHELD' || mode === 'INSUFFICIENT_DATA') return zh ? '禁止执行' : 'Do not act';
+  return zh ? '模型推导' : 'Model-derived';
+}
+
+function riskGuardLabel(overallCode, riskLevelValue, locale) {
+  const zh = locale === 'zh';
+  if (overallCode === 'DEFENSE' || overallCode === 'NO_TRADE') {
+    return zh ? '防守优先' : 'Defense first';
+  }
+  if (riskLevelValue === 'medium') {
+    return zh ? '只做轻仓' : 'Light size only';
+  }
+  if (riskLevelValue === 'safe') {
+    return zh ? '可小仓动作' : 'Small size allowed';
+  }
+  return zh ? '先别加风险' : 'Do not add risk';
+}
+
 function triggerFeedback(kind = 'soft') {
   if (typeof navigator === 'undefined' || typeof navigator.vibrate !== 'function') return;
   if (kind === 'confirm') {
@@ -609,6 +634,23 @@ export default function TodayTab({
     [decision?.data_status, decision?.source_status, decision?.source_type, featuredSignal?._dataStatus, featuredSignal?.source_status, featuredSignal?.source_type, locale, runtime?.data_status, runtime?.source_status, runtime?.source_type]
   );
   const provenanceFreshness = featuredSignal ? generatedText(featuredSignal) : null;
+  const trustFacts = [
+    {
+      key: 'source',
+      label: locale === 'zh' ? '来源' : 'Source',
+      value: provenance.label
+    },
+    {
+      key: 'execution',
+      label: locale === 'zh' ? '执行边界' : 'Execution',
+      value: executionBoundaryLabel(provenance.mode, locale)
+    },
+    {
+      key: 'guard',
+      label: locale === 'zh' ? '风险约束' : 'Risk gate',
+      value: riskGuardLabel(overall.code, risk.level, locale)
+    }
+  ];
   const climate = overall.code === 'TRADE'
     ? {
         name: locale === 'zh' ? '窗口打开' : 'Open lane',
@@ -755,6 +797,15 @@ export default function TodayTab({
               <span className="today-action-stat-label">{locale === 'zh' ? '风险' : 'Risk'}</span>
               <span className="today-action-stat-value">{riskChipLabel}</span>
             </div>
+          </div>
+
+          <div className="today-action-trust-grid">
+            {trustFacts.map((item) => (
+              <div key={item.key} className="today-action-trust-item">
+                <span className="today-action-trust-label">{item.label}</span>
+                <span className="today-action-trust-value">{item.value}</span>
+              </div>
+            ))}
           </div>
 
           <p className="today-action-why">{actionWhyLine}</p>

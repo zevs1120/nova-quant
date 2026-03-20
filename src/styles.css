@@ -9237,6 +9237,37 @@ body.keyboard-open .ai-composer-shell {
   -webkit-line-clamp: 2;
 }
 
+.today-action-trust-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.today-action-trust-item {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 9px 10px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.52);
+  box-shadow: inset 0 0 0 1px rgba(23, 28, 36, 0.035);
+}
+
+.today-action-trust-label {
+  color: rgba(23, 28, 36, 0.46);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.today-action-trust-value {
+  color: #171c24;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
 .today-action-links {
   display: flex;
   align-items: center;
@@ -9303,6 +9334,38 @@ body.keyboard-open .ai-composer-shell {
   position: relative;
 }
 
+.proof-truth-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.proof-truth-item {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 11px 12px;
+  border-radius: 16px;
+  background: rgba(250, 251, 255, 0.74);
+  box-shadow: inset 0 0 0 1px rgba(23, 28, 36, 0.04);
+}
+
+.proof-truth-label {
+  color: rgba(23, 28, 36, 0.44);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.proof-truth-value {
+  color: #171c24;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
 .proof-chart-watermark {
   position: absolute;
   top: 10px;
@@ -9342,6 +9405,11 @@ body.keyboard-open .ai-composer-shell {
 
   .today-action-stat-value {
     font-size: 14px;
+  }
+
+  .today-action-trust-grid,
+  .proof-truth-grid {
+    grid-template-columns: 1fr;
   }
 
   .today-provenance-watermark,
