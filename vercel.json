@@ -15,6 +15,10 @@
       "memory": 1024,
       "maxDuration": 30
     },
+    "api/decision/[...route].ts": {
+      "memory": 1024,
+      "maxDuration": 30
+    },
     "api/assets/**/*.ts": {
       "memory": 1024,
       "maxDuration": 10
