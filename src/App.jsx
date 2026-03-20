@@ -370,6 +370,12 @@ export default function App() {
   const [displayMode, setDisplayMode] = useState(() => detectDisplayMode());
   const [activeTab, setActiveTab] = useState('today');
   const [myStack, setMyStack] = useState(['portfolio']);
+  const [browseTopBarState, setBrowseTopBarState] = useState({
+    canGoBack: false,
+    title: 'Browse',
+    backLabel: 'Browse'
+  });
+  const [browseBackToken, setBrowseBackToken] = useState(0);
   const [assetClass, setAssetClass] = useLocalStorage('nova-quant-asset-class', 'US_STOCK', {
     legacyKeys: ['quant-demo-asset-class']
   });
@@ -1998,15 +2004,27 @@ export default function App() {
       return (
         <BrowseTab
           locale={locale}
-          marketInstruments={uiData?.layers?.data_layer?.instruments || []}
           signals={uiData?.signals || []}
-          insights={uiData?.insights || {}}
           watchlist={watchlist}
           setWatchlist={setWatchlist}
-          onOpenMy={() => {
-            setActiveTab('my');
-            setMyStack(['portfolio']);
-          }}
+          topBarBackToken={browseBackToken}
+          onTopBarStateChange={(nextState) =>
+            setBrowseTopBarState((current) => {
+              const normalized = {
+                canGoBack: Boolean(nextState?.canGoBack),
+                title: String(nextState?.title || tabMeta.browse.label),
+                backLabel: String(nextState?.backLabel || tabMeta.browse.label)
+              };
+              if (
+                current.canGoBack === normalized.canGoBack &&
+                current.title === normalized.title &&
+                current.backLabel === normalized.backLabel
+              ) {
+                return current;
+              }
+              return normalized;
+            })
+          }
         />
       );
     }
@@ -2082,14 +2100,18 @@ export default function App() {
     return renderMenuSection(mySection);
   };
 
-  const canGoBackInTopBar = activeTab === 'my' && myStack.length > 1;
+  const canGoBackInMyTopBar = activeTab === 'my' && myStack.length > 1;
+  const canGoBackInBrowseTopBar = activeTab === 'browse' && browseTopBarState.canGoBack;
+  const canGoBackInTopBar = canGoBackInMyTopBar || canGoBackInBrowseTopBar;
   const showHoldingsMenuAction = activeTab === 'my' && mySection === 'portfolio';
-  const showBrowseTopBarTitle = activeTab === 'browse' && !canGoBackInTopBar;
-  const previousMySection = canGoBackInTopBar ? myStack[myStack.length - 2] : null;
+  const showBrowseTopBarTitle = activeTab === 'browse';
+  const previousMySection = canGoBackInMyTopBar ? myStack[myStack.length - 2] : null;
   const topBarBackLabel =
-    previousMySection && previousMySection !== 'portfolio'
-      ? menuTitles[previousMySection] || tabMeta.my.label
-      : tabMeta.my.label;
+    canGoBackInBrowseTopBar
+      ? browseTopBarState.backLabel
+      : previousMySection && previousMySection !== 'portfolio'
+        ? menuTitles[previousMySection] || tabMeta.my.label
+        : tabMeta.my.label;
   const topBarMode = canGoBackInTopBar ? 'detail' : 'root';
   const appTone = engagementState?.ui_regime_state?.tone || 'quiet';
   const motionProfile = engagementState?.ui_regime_state?.motion_profile || 'calm';
@@ -2110,6 +2132,15 @@ export default function App() {
     return () => node.removeEventListener('scroll', handleScroll);
   }, [activeTab, mySection]);
 
+  useEffect(() => {
+    if (activeTab !== 'browse') return;
+    setBrowseTopBarState({
+      canGoBack: false,
+      title: tabMeta.browse.label,
+      backLabel: tabMeta.browse.label
+    });
+  }, [activeTab, tabMeta.browse.label]);
+
   return (
     <div className={`app-bg app-bg-${displayMode} app-tone-${appTone}`}>
       <div
@@ -2118,8 +2149,20 @@ export default function App() {
       >
         <header className={`top-bar top-bar-${topBarMode} ${topBarCondensed ? 'is-condensed' : ''}`}>
           <div className="top-bar-leading">
-            {canGoBackInTopBar ? (
+            {canGoBackInMyTopBar ? (
               <button type="button" className="ios-nav-back top-bar-back" onClick={popMySection} aria-label={`Back to ${topBarBackLabel}`}>
+                <span className="ios-back-chevron" aria-hidden="true">
+                  ‹
+                </span>
+                <span className="ios-back-label">{topBarBackLabel}</span>
+              </button>
+            ) : canGoBackInBrowseTopBar ? (
+              <button
+                type="button"
+                className="ios-nav-back top-bar-back"
+                onClick={() => setBrowseBackToken((current) => current + 1)}
+                aria-label={`Back to ${topBarBackLabel}`}
+              >
                 <span className="ios-back-chevron" aria-hidden="true">
                   ‹
                 </span>
@@ -2129,7 +2172,7 @@ export default function App() {
           </div>
           {showBrowseTopBarTitle ? (
             <div className="top-bar-center-title" aria-label="Browse">
-              Browse
+              {browseTopBarState.title || tabMeta.browse.label}
             </div>
           ) : (
             <div className="top-bar-logo-wrap" aria-label="Nova Quant">

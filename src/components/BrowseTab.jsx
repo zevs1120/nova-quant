@@ -252,11 +252,18 @@ function isPageVisible() {
   return typeof document === 'undefined' || document.visibilityState === 'visible';
 }
 
-export default function BrowseTab({ locale, signals = [], watchlist = [], setWatchlist }) {
+export default function BrowseTab({
+  locale,
+  signals = [],
+  watchlist = [],
+  setWatchlist,
+  topBarBackToken = 0,
+  onTopBarStateChange
+}) {
   const isZh = locale?.startsWith('zh');
   const copy = useMemo(
     () => ({
-      title: 'Browse',
+      title: isZh ? '发现' : 'Browse',
       searchPlaceholder: isZh ? '搜索股票或加密货币' : 'Search stocks or crypto',
       categories: {
         STOCK: isZh ? '股票' : 'Stock',
@@ -332,6 +339,28 @@ export default function BrowseTab({ locale, signals = [], watchlist = [], setWat
         .filter((item) => item.symbol),
     [signals]
   );
+
+  useEffect(() => {
+    if (typeof onTopBarStateChange !== 'function') return;
+    onTopBarStateChange({
+      canGoBack: Boolean(selectedAsset || activeList),
+      title: selectedAsset
+        ? displaySymbol(selectedAsset.symbol, selectedAsset.market)
+        : activeList?.title || copy.title,
+      backLabel: copy.title
+    });
+  }, [activeList, copy.title, onTopBarStateChange, selectedAsset]);
+
+  useEffect(() => {
+    if (!topBarBackToken) return;
+    if (selectedAsset) {
+      setSelectedAsset(null);
+      return;
+    }
+    if (activeList) {
+      setActiveList(null);
+    }
+  }, [activeList, selectedAsset, topBarBackToken]);
 
   useEffect(() => {
     if (query.trim() || selectedAsset || activeList) return undefined;
@@ -714,12 +743,6 @@ export default function BrowseTab({ locale, signals = [], watchlist = [], setWat
     const items = activeList?.items || [];
     return (
       <section className="stack-gap browse-rh-screen">
-        <button type="button" className="browse-rh-back" onClick={() => setActiveList(null)}>
-          ← {copy.back}
-        </button>
-        <header className="browse-rh-list-header">
-          <h1>{activeList?.title || copy.title}</h1>
-        </header>
         {items.length ? (
           <div className="browse-rh-list">
             {items.map((item) => (
@@ -741,10 +764,6 @@ export default function BrowseTab({ locale, signals = [], watchlist = [], setWat
     const watched = watchedSymbols.includes(normalizeSymbol(selectedAsset?.symbol));
     return (
       <section className="stack-gap browse-rh-screen browse-rh-detail-screen">
-        <button type="button" className="browse-rh-back" onClick={() => setSelectedAsset(null)}>
-          ← {copy.back}
-        </button>
-
         <section className="browse-rh-detail-hero">
           <div className="browse-rh-detail-head">
             <div>
