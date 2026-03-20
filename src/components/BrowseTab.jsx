@@ -1,41 +1,31 @@
 import { useEffect, useMemo, useState } from 'react';
 import { formatNumber } from '../utils/format';
 import { fetchApiJson } from '../utils/api';
+import {
+  primeBrowseDetailSelections,
+  readBrowseDetailSnapshot,
+  readBrowseHomeSnapshot,
+  searchBrowseUniverseLocal,
+  warmBrowseDetailSnapshot,
+  warmBrowseHomeSnapshot,
+  warmBrowseUniverseSnapshot
+} from '../utils/browseWarmup';
 
 const CATEGORY_KEYS = ['STOCK', 'CRYPTO'];
 const DETAIL_RANGES = ['1D', '1W', '1M', '3M'];
 const HOME_POLL_MS = 1000;
 const DETAIL_POLL_MS = 1000;
 const DETAIL_META_POLL_MS = 30000;
-const CLIENT_HOME_CACHE_TTL_MS = 4000;
 const DETAIL_RANGE_CONFIG = {
   '1D': { live: true },
   '1W': { tf: '1d', limit: 7 },
   '1M': { tf: '1d', limit: 30 },
   '3M': { tf: '1d', limit: 90 }
 };
-const homeClientCache = new Map();
-
-function getCachedHomePayload(view) {
-  const hit = homeClientCache.get(view);
-  if (!hit) return null;
-  if (hit.expiresAt < Date.now()) {
-    homeClientCache.delete(view);
-    return null;
-  }
-  return hit.data;
-}
-
-function writeCachedHomePayload(view, data) {
-  homeClientCache.set(view, {
-    expiresAt: Date.now() + CLIENT_HOME_CACHE_TTL_MS,
-    data
-  });
-}
 
 function buildInitialHomeState() {
   return CATEGORY_KEYS.reduce((acc, key) => {
-    const cached = getCachedHomePayload(key);
+    const cached = readBrowseHomeSnapshot(key);
     acc[key] = {
       loading: !cached,
       error: '',
@@ -558,10 +548,12 @@ export default function BrowseTab({
         });
       }
       const request = (async () => {
-      try {
-          const payload = await fetchApiJson(`/api/browse/home?view=${view}`, { cache: 'no-store' });
-        if (cancelled) return;
-          writeCachedHomePayload(view, payload || null);
+        try {
+          const payload = await warmBrowseHomeSnapshot(view, { force: !initial });
+          if (cancelled) return;
+          if (payload) {
+            primeBrowseDetailSelections([...(payload.futuresMarkets || []), ...((view === 'CRYPTO' ? payload.cryptoMovers : payload.topMovers) || [])]);
+          }
           setHomeStateByCategory((current) => ({
             ...current,
             [view]: {
@@ -570,8 +562,8 @@ export default function BrowseTab({
               data: payload || null
             }
           }));
-      } catch {
-        if (cancelled) return;
+        } catch {
+          if (cancelled) return;
           setHomeStateByCategory((current) => {
             const prev = current[view] || { loading: false, error: '', data: null };
             return {
@@ -581,7 +573,7 @@ export default function BrowseTab({
                 : { loading: false, error: copy.detailError, data: null }
             };
           });
-      } finally {
+        } finally {
           inFlight.delete(view);
         }
       })();
@@ -590,7 +582,7 @@ export default function BrowseTab({
     };
 
     void loadHome(category, true).then(() => {
-      const inactiveViews = CATEGORY_KEYS.filter((view) => view !== category && !getCachedHomePayload(view));
+      const inactiveViews = CATEGORY_KEYS.filter((view) => view !== category && !readBrowseHomeSnapshot(view));
       inactiveViews.forEach((view) => {
         void loadHome(view, false);
       });
@@ -621,9 +613,18 @@ export default function BrowseTab({
     }
 
     let cancelled = false;
-    const timer = window.setTimeout(async () => {
+    const localResults = searchBrowseUniverseLocal(trimmed, { limit: 18 });
+    if (localResults.length) {
+      setSearchResults(localResults);
+      setSearchHealth(null);
+      setSearchState('ready');
+    } else {
       setSearchState('loading');
+    }
+    const timer = window.setTimeout(async () => {
       try {
+        void warmBrowseUniverseSnapshot('US');
+        void warmBrowseUniverseSnapshot('CRYPTO');
         const payload = await fetchApiJson(`/api/assets/search?q=${encodeURIComponent(trimmed)}&limit=18`, { cache: 'no-store' });
         if (cancelled) return;
         setSearchResults(Array.isArray(payload?.data) ? payload.data : []);
@@ -659,6 +660,26 @@ export default function BrowseTab({
       setDetailOverview(null);
       setDetailNews([]);
       return undefined;
+    }
+
+    const seededDetail = readBrowseDetailSnapshot(selectedAsset);
+    if (seededDetail?.chart) {
+      const seededValues = Array.isArray(seededDetail.chart?.points)
+        ? seededDetail.chart.points.map((point) => toNumber(point?.close)).filter((value) => Number.isFinite(value))
+        : [];
+      setDetailState({
+        loading: false,
+        error: seededValues.length ? '' : copy.detailError,
+        values: seededValues,
+        latest: toNumber(seededDetail.chart?.latest),
+        change: toNumber(seededDetail.chart?.change),
+        low: seededValues.length ? Math.min(...seededValues) : null,
+        high: seededValues.length ? Math.max(...seededValues) : null,
+        asOf: seededDetail.chart?.asOf || null,
+        source: seededDetail.chart?.source || null
+      });
+      setDetailOverview(seededDetail.overview || null);
+      setDetailNews(Array.isArray(seededDetail.news) ? seededDetail.news : []);
     }
 
     let cancelled = false;
@@ -766,6 +787,7 @@ export default function BrowseTab({
       if (inFlight) return;
       inFlight = true;
       try {
+        const seeded = await warmBrowseDetailSnapshot(selectedAsset, { force: false }).catch(() => null);
         const [overviewPayload, newsPayload] = await Promise.all([
           fetchApiJson(`/api/browse/overview?market=${selectedAsset.market}&symbol=${encodeURIComponent(selectedAsset.symbol)}`, {
             cache: 'no-store'
@@ -775,8 +797,8 @@ export default function BrowseTab({
           }).catch(() => null)
         ]);
         if (cancelled) return;
-        setDetailOverview(overviewPayload || null);
-        setDetailNews(Array.isArray(newsPayload?.data) ? newsPayload.data : []);
+        setDetailOverview(overviewPayload || seeded?.overview || null);
+        setDetailNews(Array.isArray(newsPayload?.data) ? newsPayload.data : Array.isArray(seeded?.news) ? seeded.news : []);
       } finally {
         inFlight = false;
       }

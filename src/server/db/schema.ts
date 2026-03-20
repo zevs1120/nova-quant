@@ -997,6 +997,81 @@ CREATE TABLE IF NOT EXISTS auth_user_state_sync (
   updated_at_ms INTEGER NOT NULL,
   FOREIGN KEY(user_id) REFERENCES auth_users(user_id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS manual_user_state (
+  user_id TEXT PRIMARY KEY,
+  invite_code TEXT NOT NULL UNIQUE,
+  referred_by_code TEXT,
+  vip_days_balance INTEGER NOT NULL DEFAULT 0,
+  vip_days_redeemed_total INTEGER NOT NULL DEFAULT 0,
+  updated_at_ms INTEGER NOT NULL,
+  FOREIGN KEY(user_id) REFERENCES auth_users(user_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS manual_points_ledger (
+  entry_id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  event_type TEXT NOT NULL,
+  points_delta INTEGER NOT NULL,
+  balance_after INTEGER NOT NULL,
+  metadata_json TEXT NOT NULL DEFAULT '{}',
+  created_at_ms INTEGER NOT NULL,
+  FOREIGN KEY(user_id) REFERENCES auth_users(user_id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_manual_points_ledger_user ON manual_points_ledger(user_id, created_at_ms DESC);
+
+CREATE TABLE IF NOT EXISTS manual_referrals (
+  referral_id TEXT PRIMARY KEY,
+  inviter_user_id TEXT NOT NULL,
+  invite_code TEXT NOT NULL,
+  referred_user_id TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('REWARDED', 'CANCELLED')),
+  reward_points INTEGER NOT NULL DEFAULT 0,
+  created_at_ms INTEGER NOT NULL,
+  updated_at_ms INTEGER NOT NULL,
+  UNIQUE(inviter_user_id, referred_user_id),
+  FOREIGN KEY(inviter_user_id) REFERENCES auth_users(user_id) ON DELETE CASCADE,
+  FOREIGN KEY(referred_user_id) REFERENCES auth_users(user_id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_manual_referrals_inviter ON manual_referrals(inviter_user_id, created_at_ms DESC);
+CREATE INDEX IF NOT EXISTS idx_manual_referrals_referred ON manual_referrals(referred_user_id, created_at_ms DESC);
+
+CREATE TABLE IF NOT EXISTS manual_prediction_markets (
+  market_id TEXT PRIMARY KEY,
+  prompt TEXT NOT NULL,
+  market TEXT,
+  symbol TEXT,
+  options_json TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('OPEN', 'LOCKED', 'RESOLVED', 'CANCELLED')),
+  correct_option TEXT,
+  closes_at_ms INTEGER NOT NULL,
+  resolves_at_ms INTEGER,
+  settled_at_ms INTEGER,
+  metadata_json TEXT NOT NULL DEFAULT '{}',
+  created_at_ms INTEGER NOT NULL,
+  updated_at_ms INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_manual_prediction_markets_status ON manual_prediction_markets(status, closes_at_ms DESC);
+
+CREATE TABLE IF NOT EXISTS manual_prediction_entries (
+  entry_id TEXT PRIMARY KEY,
+  market_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  selected_option TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('OPEN', 'WON', 'LOST', 'CANCELLED')),
+  points_staked INTEGER NOT NULL DEFAULT 0,
+  points_awarded INTEGER NOT NULL DEFAULT 0,
+  created_at_ms INTEGER NOT NULL,
+  updated_at_ms INTEGER NOT NULL,
+  UNIQUE(market_id, user_id),
+  FOREIGN KEY(market_id) REFERENCES manual_prediction_markets(market_id) ON DELETE CASCADE,
+  FOREIGN KEY(user_id) REFERENCES auth_users(user_id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_manual_prediction_entries_user ON manual_prediction_entries(user_id, created_at_ms DESC);
 `;
 
 export function ensureSchema(db: Database.Database): void {

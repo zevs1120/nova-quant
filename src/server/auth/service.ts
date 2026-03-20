@@ -23,15 +23,6 @@ const SESSION_COOKIE_NAME = 'novaquant_session';
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30;
 const RESET_TTL_MS = 1000 * 60 * 15;
 
-const SEEDED_USER = {
-  email: 'zevs1120@gmail.com',
-  password: 'Zevs1120',
-  name: 'Zevs',
-  tradeMode: 'active',
-  broker: 'Robinhood',
-  locale: 'en'
-} as const;
-
 export type AuthTradeMode = 'starter' | 'active' | 'deep';
 
 export type PublicAuthUser = {
@@ -103,6 +94,26 @@ function nowMs() {
 
 function normalizeEmail(value: string) {
   return String(value || '').trim().toLowerCase();
+}
+
+function normalizeTradeMode(value: string | null | undefined): AuthTradeMode {
+  if (value === 'starter' || value === 'deep') return value;
+  return 'active';
+}
+
+function getSeededUserConfig() {
+  if (process.env.NOVA_ENABLE_SEEDED_DEMO_USER !== '1') return null;
+  const email = normalizeEmail(process.env.NOVA_SEEDED_DEMO_EMAIL || '');
+  const password = String(process.env.NOVA_SEEDED_DEMO_PASSWORD || '');
+  if (!email || !password) return null;
+  return {
+    email,
+    password,
+    name: String(process.env.NOVA_SEEDED_DEMO_NAME || 'Nova Demo'),
+    tradeMode: normalizeTradeMode(process.env.NOVA_SEEDED_DEMO_TRADE_MODE),
+    broker: String(process.env.NOVA_SEEDED_DEMO_BROKER || 'Robinhood'),
+    locale: String(process.env.NOVA_SEEDED_DEMO_LOCALE || 'en')
+  };
 }
 
 function createId(prefix: string) {
@@ -189,9 +200,12 @@ function assertAuthStoreReady() {
 }
 
 function ensureSeededUserLocal() {
+  const seededUser = getSeededUserConfig();
+  if (!seededUser) return;
   const db = getDb();
-  const email = normalizeEmail(SEEDED_USER.email);
-  const existing = db.prepare('SELECT user_id FROM auth_users WHERE email = ? LIMIT 1').get(email) as { user_id: string } | undefined;
+  const existing = db
+    .prepare('SELECT user_id FROM auth_users WHERE email = ? LIMIT 1')
+    .get(seededUser.email) as { user_id: string } | undefined;
   if (existing) return;
   const ts = nowMs();
   const userId = createId('usr');
@@ -203,17 +217,17 @@ function ensureSeededUserLocal() {
     )`
   ).run({
     user_id: userId,
-    email,
-    password_hash: hashPassword(SEEDED_USER.password),
-    name: SEEDED_USER.name,
-    trade_mode: SEEDED_USER.tradeMode,
-    broker: SEEDED_USER.broker,
-    locale: SEEDED_USER.locale,
+    email: seededUser.email,
+    password_hash: hashPassword(seededUser.password),
+    name: seededUser.name,
+    trade_mode: seededUser.tradeMode,
+    broker: seededUser.broker,
+    locale: seededUser.locale,
     created_at_ms: ts,
     updated_at_ms: ts,
     last_login_at_ms: null
   });
-  const initialState = buildInitialUserState(SEEDED_USER.tradeMode);
+  const initialState = buildInitialUserState(seededUser.tradeMode);
   db.prepare(
     `INSERT INTO auth_user_state_sync(
       user_id, asset_class, market, ui_mode, risk_profile_key, watchlist_json, holdings_json, executions_json, discipline_log_json, updated_at_ms
@@ -235,32 +249,33 @@ function ensureSeededUserLocal() {
 }
 
 async function ensureSeededUserRemote() {
-  const email = normalizeEmail(SEEDED_USER.email);
-  const existingUserId = await remoteGetString(remoteUserIdByEmailKey(email));
+  const seededUser = getSeededUserConfig();
+  if (!seededUser) return;
+  const existingUserId = await remoteGetString(remoteUserIdByEmailKey(seededUser.email));
   if (existingUserId) return;
 
   const ts = nowMs();
   const userId = createId('usr');
   const user: AuthUserRow = {
     user_id: userId,
-    email,
-    password_hash: hashPassword(SEEDED_USER.password),
-    name: SEEDED_USER.name,
-    trade_mode: SEEDED_USER.tradeMode,
-    broker: SEEDED_USER.broker,
-    locale: SEEDED_USER.locale,
+    email: seededUser.email,
+    password_hash: hashPassword(seededUser.password),
+    name: seededUser.name,
+    trade_mode: seededUser.tradeMode,
+    broker: seededUser.broker,
+    locale: seededUser.locale,
     created_at_ms: ts,
     updated_at_ms: ts,
     last_login_at_ms: null
   };
-  const state = buildInitialUserState(SEEDED_USER.tradeMode);
-  const reserved = await remoteSetString(remoteUserIdByEmailKey(email), userId, { nx: true });
+  const state = buildInitialUserState(seededUser.tradeMode);
+  const reserved = await remoteSetString(remoteUserIdByEmailKey(seededUser.email), userId, { nx: true });
   if (!reserved) return;
   try {
     await remoteSetJson(remoteUserKey(userId), user);
     await remoteSetJson(remoteUserStateKey(userId), state);
   } catch (error) {
-    await remoteDeleteKey(remoteUserIdByEmailKey(email));
+    await remoteDeleteKey(remoteUserIdByEmailKey(seededUser.email));
     throw error;
   }
 }

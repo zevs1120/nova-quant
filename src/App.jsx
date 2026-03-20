@@ -21,6 +21,7 @@ import { useLocalStorage } from './hooks/useLocalStorage';
 import { createTranslator, getDefaultLang, getLocale } from './i18n';
 import { buildHoldingsReview } from './research/holdingsAnalyzer';
 import { fetchApiJson } from './utils/api';
+import { primeBrowseHomeBundle, primeBrowseUniverseBundle } from './utils/browseWarmup';
 import {
   buildInvestorDemoEnvironment,
   INVESTOR_DEMO_HOLDINGS,
@@ -258,6 +259,16 @@ function mapExecutionToTrade(execution) {
     signal_id: execution.signal_id || execution.signalId,
     source: execution.mode || 'PAPER'
   };
+}
+
+function runWhenIdle(task) {
+  if (typeof window === 'undefined') return () => {};
+  if (typeof window.requestIdleCallback === 'function') {
+    const id = window.requestIdleCallback(task, { timeout: 1200 });
+    return () => window.cancelIdleCallback?.(id);
+  }
+  const id = window.setTimeout(task, 180);
+  return () => window.clearTimeout(id);
 }
 
 function pad(n) {
@@ -2140,6 +2151,30 @@ export default function App() {
       backLabel: tabMeta.browse.label
     });
   }, [activeTab, tabMeta.browse.label]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const warmBrowse = () => {
+      primeBrowseHomeBundle();
+      primeBrowseUniverseBundle();
+    };
+    warmBrowse();
+    const cancelIdle = runWhenIdle(warmBrowse);
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState !== 'visible') return;
+      warmBrowse();
+    }, 15000);
+    const handleVisibility = () => {
+      if (document.visibilityState !== 'visible') return;
+      warmBrowse();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      cancelIdle();
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, []);
 
   return (
     <div className={`app-bg app-bg-${displayMode} app-tone-${appTone}`}>

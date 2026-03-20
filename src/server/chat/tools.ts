@@ -126,7 +126,7 @@ function inferRequestedAsset(args: {
   ];
 
   const normalizedMessage = normalizeLookup(message);
-  const tokenMatches = upper.match(/\b[A-Z]{2,8}\b/g) || [];
+  const tokenMatches: string[] = upper.match(/\b[A-Z]{2,8}\b/g) || [];
   let best: { symbol: string; market: Market; assetClass: AssetClass; score: number } | null = null;
 
   for (const candidate of allCandidates) {

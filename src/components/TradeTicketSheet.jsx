@@ -10,6 +10,20 @@ export default function TradeTicketSheet({
   if (!open || !signal || !intent) return null;
 
   const isZh = String(locale || '').startsWith('zh');
+  const handoffLabel = intent.handoffPrefillsTicket
+    ? isZh
+      ? `跳转 ${intent.broker} 下单页`
+      : `Open ${intent.broker} ticket`
+    : isZh
+      ? `打开 ${intent.broker}`
+      : `Open ${intent.broker}`;
+  const handoffHint = intent.handoffPrefillsTicket
+    ? isZh
+      ? '会尽量带上方向、价格和风控参数。'
+      : 'Will carry side, price, and risk fields when the broker template supports it.'
+    : isZh
+      ? '会打开券商页面，同时保留可复制票据。'
+      : 'Opens the broker surface and keeps the ticket ready to copy.';
 
   const handleCopy = async () => {
     try {
@@ -43,9 +57,7 @@ export default function TradeTicketSheet({
           </div>
           <span className={`today-summary-status today-summary-status-${intent.canOpenBroker ? 'trade' : 'wait'}`}>
             {intent.canOpenBroker
-              ? isZh
-                ? `打开 ${intent.broker}`
-                : `Open ${intent.broker}`
+              ? handoffLabel
               : isZh
                 ? '复制票据'
                 : 'Copy ticket'}
@@ -83,8 +95,14 @@ export default function TradeTicketSheet({
           </div>
         </div>
 
-        {intent.whyNow || intent.riskNote ? (
+        {intent.canOpenBroker || intent.whyNow || intent.riskNote ? (
           <div className="trade-ticket-notes">
+            {intent.canOpenBroker ? (
+              <div className="trade-ticket-note-block">
+                <p className="trade-ticket-note-label">{isZh ? '券商跳转' : 'Broker handoff'}</p>
+                <p className="trade-ticket-note-copy">{handoffHint}</p>
+              </div>
+            ) : null}
             {intent.whyNow ? (
               <div className="trade-ticket-note-block">
                 <p className="trade-ticket-note-label">{isZh ? '为什么是现在' : 'Why now'}</p>
@@ -115,12 +133,12 @@ export default function TradeTicketSheet({
           {intent.canOpenBroker ? (
             <a
               className="primary-btn"
-              href={intent.brokerLaunchUrl}
+              href={intent.brokerHandoffUrl}
               target="_blank"
               rel="noreferrer"
               onClick={() => onPaperExecute?.(signal)}
             >
-              {isZh ? `打开 ${intent.broker}` : `Open ${intent.broker}`}
+              {handoffLabel}
             </a>
           ) : (
             <button type="button" className="primary-btn" onClick={handleCopy}>

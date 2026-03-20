@@ -324,11 +324,6 @@ export default function OnboardingFlow({
                   onChange={(event) => setLoginPassword(event.target.value)}
                 />
               </div>
-              <p className="signup-note">
-                {locale?.startsWith('zh')
-                  ? '测试账号：zevs1120@gmail.com / Zevs1120'
-                  : 'Demo account: zevs1120@gmail.com / Zevs1120'}
-              </p>
               <button
                 type="button"
                 className="signup-inline-action"

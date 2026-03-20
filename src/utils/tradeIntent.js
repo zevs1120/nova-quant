@@ -12,6 +12,10 @@ function normalizedBroker(value) {
   return String(value || 'Robinhood').trim();
 }
 
+function normalizedBrokerKey(value) {
+  return normalizedBroker(value).toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+
 function inferAssetClass(signal = {}) {
   if (signal.asset_class) return signal.asset_class;
   if (signal.market === 'CRYPTO') return 'CRYPTO';
@@ -32,24 +36,94 @@ function baseCryptoSymbol(symbol = '') {
     .replace(/USD$/, '');
 }
 
-function brokerLaunchUrl({ broker, signal }) {
-  const selected = normalizedBroker(broker).toLowerCase();
+function toParamValue(value) {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? String(round(value, 4)) : '';
+  }
+  return String(value);
+}
+
+function brokerSide(side = '') {
+  const normalized = String(side || '').trim().toUpperCase();
+  if (normalized === 'SHORT' || normalized === 'SELL') return 'sell';
+  return 'buy';
+}
+
+function applyUrlTemplate(template, context) {
+  return String(template || '').replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_match, key) =>
+    encodeURIComponent(toParamValue(context[key]))
+  );
+}
+
+function readConfiguredBrokerTemplates() {
+  const raw = import.meta.env?.VITE_BROKER_HANDOFF_TEMPLATES;
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+const DEFAULT_BROKER_HANDOFFS = {
+  robinhood: {
+    kind: 'asset_page',
+    label: 'Robinhood',
+    stockUrl: 'https://robinhood.com/us/en/stocks/{{symbol}}/',
+    cryptoUrl: 'https://robinhood.com/us/en/crypto/{{baseSymbol}}/'
+  }
+};
+
+function resolveBrokerTemplate(broker) {
+  const configured = readConfiguredBrokerTemplates();
+  const key = normalizedBrokerKey(broker);
+  return configured[key] || configured[normalizedBroker(broker)] || DEFAULT_BROKER_HANDOFFS[key] || null;
+}
+
+function buildBrokerHandoff({ broker, signal, intent }) {
   const assetClass = inferAssetClass(signal);
   const symbol = String(signal?.symbol || '').trim().toUpperCase();
 
   if (!symbol) return null;
+  const template = resolveBrokerTemplate(broker);
+  if (!template) return null;
 
-  if (selected === 'robinhood') {
-    if (assetClass === 'US_STOCK') {
-      return `https://robinhood.com/us/en/stocks/${encodeURIComponent(symbol)}/`;
-    }
-    if (assetClass === 'CRYPTO') {
-      const base = baseCryptoSymbol(symbol);
-      if (base) return `https://robinhood.com/us/en/crypto/${encodeURIComponent(base)}/`;
-    }
-  }
+  const context = {
+    broker: normalizedBroker(broker),
+    symbol,
+    baseSymbol: baseCryptoSymbol(symbol),
+    market: intent.market,
+    assetClass,
+    side: intent.side,
+    brokerSide: brokerSide(intent.side),
+    orderType: intent.orderType,
+    orderTypeLower: String(intent.orderType || '').toLowerCase(),
+    entryLow: intent.entryLow,
+    entryHigh: intent.entryHigh,
+    entryMid: intent.entryMid,
+    stopLoss: intent.stopLoss,
+    invalidation: intent.invalidation,
+    sizePct: intent.sizePct,
+    target1: intent.targets?.[0]?.price ?? null,
+    target2: intent.targets?.[1]?.price ?? null,
+    target3: intent.targets?.[2]?.price ?? null,
+    signalId: intent.signalId,
+    strategyId: intent.strategyId
+  };
 
-  return null;
+  const templateUrl =
+    (assetClass === 'CRYPTO' ? template.cryptoUrl : template.stockUrl) ||
+    template.url ||
+    null;
+  if (!templateUrl) return null;
+
+  return {
+    url: applyUrlTemplate(templateUrl, context),
+    kind: template.kind === 'prefilled_ticket' ? 'prefilled_ticket' : 'asset_page',
+    brokerLabel: template.label || normalizedBroker(broker)
+  };
 }
 
 function positionLabel(sizePct) {
@@ -109,10 +183,6 @@ export function buildTradeIntent(signal = {}, options = {}) {
         : `${entryLow.toFixed(2)} - ${entryHigh.toFixed(2)}`
       : '--';
 
-  const launchUrl = brokerLaunchUrl({ broker, signal });
-  const brokerSnapshot = options.brokerSnapshot || null;
-  const canTradeApi = Boolean(brokerSnapshot?.provider === 'ALPACA' && brokerSnapshot?.can_trade);
-
   const intent = {
     id: `${String(signal?.signal_id || signal?.symbol || 'intent')}-intent`,
     signalId: signal?.signal_id || null,
@@ -139,12 +209,21 @@ export function buildTradeIntent(signal = {}, options = {}) {
     riskNote: signal?.risk_note || signal?.brief_caution || null,
     invalidation: signal?.invalidation_level ?? stopLoss,
     broker,
-    brokerLaunchUrl: launchUrl,
-    canOpenBroker: Boolean(launchUrl),
-    canTradeApi,
+    brokerHandoffUrl: null,
+    brokerHandoffKind: 'copy_only',
+    canOpenBroker: false,
+    handoffPrefillsTicket: false,
     checklist: Array.isArray(signal?.execution_checklist) ? signal.execution_checklist : [],
     copyText: ''
   };
+
+  const brokerHandoff = buildBrokerHandoff({ broker, signal, intent });
+  if (brokerHandoff?.url) {
+    intent.brokerHandoffUrl = brokerHandoff.url;
+    intent.brokerHandoffKind = brokerHandoff.kind;
+    intent.canOpenBroker = true;
+    intent.handoffPrefillsTicket = brokerHandoff.kind === 'prefilled_ticket';
+  }
 
   intent.copyText = copyPayload(intent);
   return intent;
