@@ -132,10 +132,12 @@ export function createApiApp() {
   app.use(express.json({ limit: '1mb' }));
   app.use((req, res, next) => {
     const allowPublicBrowse =
+      req.path === '/api/assets' ||
       req.path === '/api/assets/search' ||
       req.path === '/api/browse/chart' ||
       req.path === '/api/browse/news' ||
-      req.path === '/api/browse/overview';
+      req.path === '/api/browse/overview' ||
+      req.path === '/api/ohlcv';
     if (!allowPublicBrowse) {
       next();
       return;

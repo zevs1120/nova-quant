@@ -61,4 +61,21 @@ describe('chat tools runtime sourcing', () => {
     expect(bundle.researchContext.selected_tools).toContain('get_research_workflow_plan');
     expect(bundle.researchContext.selected_tools.length).toBeGreaterThan(2);
   });
+
+  it('infers requested crypto symbols from plain-language prompts', async () => {
+    const bundle = await buildContextBundle({
+      userId: 'guest-default',
+      context: {
+        page: 'ai',
+        market: 'CRYPTO',
+        assetClass: 'CRYPTO'
+      },
+      message: 'Review BTC-USDT. Should I keep it, trim it, or sell it?'
+    });
+
+    expect(bundle.requestedSymbol).toBe('BTC');
+    expect(bundle.requestedMarket).toBe('CRYPTO');
+    expect(bundle.selectedEvidence.length).toBeGreaterThan(0);
+    expect(Array.isArray(bundle.signalCards)).toBe(true);
+  });
 });

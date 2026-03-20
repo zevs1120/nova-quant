@@ -189,6 +189,126 @@ function buildDeterministicFallback(contextBundle: Awaited<ReturnType<typeof bui
   return `${note}\n\n${text}`;
 }
 
+function preferredSignal(bundle: Awaited<ReturnType<typeof buildContextBundle>>): Record<string, unknown> | null {
+  if (bundle.signalDetail) return bundle.signalDetail;
+  return ((bundle.signalCards || [])[0] as Record<string, unknown> | undefined) || null;
+}
+
+function inferQuestionIntent(message: string) {
+  const lower = String(message || '').toLowerCase();
+  return {
+    asksEntry: /enter|entry|buy now|should i buy|should i enter|jump in|add now/.test(lower),
+    asksHoldDecision: /keep|trim|sell|hold|reduce|cut/.test(lower),
+    asksRisk: /safe|risk|danger|try anything/.test(lower),
+    asksWhyWait: /why are we waiting|why wait|why no signal|why not now/.test(lower)
+  };
+}
+
+function buildGroundedDeterministicReply(args: {
+  input: ChatRequestInput;
+  mode: ChatMode;
+  contextBundle: Awaited<ReturnType<typeof buildContextBundle>>;
+}): string {
+  const bundle = args.contextBundle;
+  const anchor = preferredSignal(bundle);
+  const requestedSymbol = bundle.requestedSymbol || String(args.input.context?.symbol || '').toUpperCase() || null;
+  const anchorSymbol = String(anchor?.symbol || '').toUpperCase() || null;
+  const anchorDirection = String(anchor?.direction || 'WAIT').toUpperCase();
+  const anchorStatus = String(anchor?.status || '').toUpperCase();
+  const anchorConfidence = Number(anchor?.confidence ?? anchor?.conviction ?? 0);
+  const marketRegime = String(bundle.marketTemperature?.regime_id || bundle.marketTemperature?.stance || 'unknown');
+  const temperature = Number(bundle.marketTemperature?.temperature_percentile);
+  const riskProfile = String(bundle.riskProfile?.profile_key || 'balanced');
+  const entryZone = (anchor?.entry_zone as Record<string, unknown> | undefined) || {};
+  const entryLow = entryZone.low ?? anchor?.entry_min ?? null;
+  const entryHigh = entryZone.high ?? anchor?.entry_max ?? null;
+  const intent = inferQuestionIntent(args.input.message);
+  const targetLabel = requestedSymbol || anchorSymbol || 'this asset';
+  const exactSignal = Boolean(bundle.signalDetail);
+  const hasActionableSignal = Boolean(anchor && ['NEW', 'TRIGGERED'].includes(anchorStatus));
+  const signalMismatch = requestedSymbol && anchorSymbol && requestedSymbol !== anchorSymbol;
+
+  let verdict = `No clean ${targetLabel} trade is ready right now.`;
+  if (exactSignal && hasActionableSignal && anchorDirection === 'LONG') {
+    verdict = `${targetLabel} is actionable on the long side, but only inside the planned entry zone.`;
+  } else if (exactSignal && hasActionableSignal && anchorDirection === 'SHORT') {
+    verdict = `${targetLabel} is not a clean long hold here; risk is skewed to trim or stay defensive.`;
+  } else if (intent.asksHoldDecision && requestedSymbol) {
+    verdict =
+      temperature >= 70
+        ? `For ${requestedSymbol}, default to hold smaller or trim, not add, until volatility cools.`
+        : `For ${requestedSymbol}, keep only the size you can defend; I do not have a fresh add signal.`;
+  } else if (intent.asksEntry && exactSignal && hasActionableSignal) {
+    verdict = `${targetLabel} has a setup, but the edge is in disciplined entry, not urgency.`;
+  } else if (intent.asksWhyWait) {
+    verdict = `We are waiting because the current edge is not clean enough to justify forcing risk.`;
+  } else if (signalMismatch && anchorSymbol) {
+    verdict = `${requestedSymbol} does not have a specific live setup in the book; the clearest nearby setup is ${anchorSymbol} ${anchorDirection}.`;
+  }
+
+  const plan: string[] = [];
+  if (intent.asksHoldDecision && requestedSymbol) {
+    plan.push(`Do not add to ${requestedSymbol} here unless a fresh signal appears.`);
+    plan.push(`If ${requestedSymbol} is oversized versus your normal risk, trim it back to starter size.`);
+    plan.push('Only keep full size if you already have a clear invalidation level and can respect it.');
+  } else if (intent.asksEntry) {
+    if (exactSignal && hasActionableSignal && entryLow !== null && entryHigh !== null) {
+      plan.push(`Wait for ${targetLabel} to trade inside ${entryLow} to ${entryHigh}; do not chase above the zone.`);
+    } else {
+      plan.push(`Do not force a fresh ${targetLabel} entry while the setup is still unconfirmed.`);
+    }
+    plan.push(`Keep risk profile aligned with ${riskProfile}; this is a day for controlled size, not hero size.`);
+    plan.push('If you cannot define the stop before entry, skip the trade.');
+  } else {
+    plan.push(`Treat ${targetLabel} as watchlist-first until the setup is cleaner.`);
+    plan.push(`Match position size to the ${riskProfile} risk budget rather than to conviction alone.`);
+    plan.push('Use Today and Safety to confirm whether the market posture still supports action.');
+  }
+
+  const why = [
+    exactSignal
+      ? `${targetLabel} ${anchorDirection} is the exact tracked setup, with confidence ${anchorConfidence ? anchorConfidence.toFixed(2) : '--'} and status ${anchorStatus || '--'}.`
+      : `${targetLabel} does not have an exact active signal in the current book, so the answer should stay conservative.`,
+    `Market regime reads ${marketRegime}${Number.isFinite(temperature) ? ` with temperature ${temperature.toFixed(0)}` : ''}, which matters more than impulse on timing questions.`,
+    signalMismatch && anchorSymbol
+      ? `The nearest actionable crypto/equity signal is ${anchorSymbol} ${anchorDirection}, which tells us the engine is seeing edge elsewhere, not specifically in ${requestedSymbol}.`
+      : `Risk posture is anchored to the ${riskProfile} profile, so the default is controlled exposure rather than “do something” pressure.`
+  ];
+
+  const risk = [
+    'High-vol or thin-confirmation entries can look fine for a few bars and still fail fast once momentum fades.',
+    'If you are asking for permission to act before you can state the invalidation, the trade is probably not ready.',
+    `Common failure modes / when NOT to trade: do not add without a fresh trigger, do not average into weakness, and do not override the risk budget just because the asset is familiar.`
+  ];
+
+  const evidence = [
+    requestedSymbol ? `requested symbol ${requestedSymbol}` : null,
+    exactSignal && anchorSymbol ? `exact signal ${anchorSymbol} ${anchorDirection} status ${anchorStatus}` : null,
+    !exactSignal && anchorSymbol ? `top available signal ${anchorSymbol} ${anchorDirection} status ${anchorStatus}` : null,
+    `market regime ${marketRegime}`,
+    Number.isFinite(temperature) ? `temperature ${temperature.toFixed(0)}` : null,
+    `risk profile ${riskProfile}`,
+    ...bundle.selectedEvidence.slice(0, 3)
+  ].filter(Boolean);
+
+  return [
+    `VERDICT:\n${verdict}`,
+    `PLAN:\n- ${plan.join('\n- ')}`,
+    `WHY:\n- ${why.join('\n- ')}`,
+    `RISK:\n- ${risk.join('\n- ')}`,
+    `EVIDENCE:\n- ${evidence.join('\n- ')}`,
+    'educational, not financial advice'
+  ].join('\n\n');
+}
+
+function isLowValueAssistantReply(text: string, bundle: Awaited<ReturnType<typeof buildContextBundle>>): boolean {
+  const lower = String(text || '').toLowerCase();
+  const generic =
+    /insufficient data|cannot advise|no specific entry|not advisable to .*try anything|cannot provide a specific recommendation/.test(lower);
+  if (!generic) return false;
+  return Boolean(bundle.selectedEvidence.length || bundle.signalCards.length || bundle.marketTemperature || bundle.requestedSymbol);
+}
+
 function isStrategyGenerationRequest(input: ChatRequestInput, mode: ChatMode): boolean {
   const lower = String(input.message || '').toLowerCase();
   const explicitRequest =
@@ -222,9 +342,14 @@ async function runProviderChain(args: {
   });
 
   if (!providerOrder.length) {
-    const deterministic = buildDeterministicFallback(args.contextBundle);
+    const deterministic =
+      buildGroundedDeterministicReply({
+        input: args.input,
+        mode: args.mode,
+        contextBundle: args.contextBundle
+      }) || buildDeterministicFallback(args.contextBundle);
     if (deterministic) {
-      return { provider: 'deterministic', text: `${deterministic}\n\neducational, not financial advice`, mode: args.mode };
+      return { provider: 'deterministic', text: deterministic, mode: args.mode };
     }
     throw new Error('No provider configured and no deterministic fallback available.');
   }
@@ -262,6 +387,18 @@ async function runProviderChain(args: {
         throw new ProviderEmptyResponseError(`${provider.name} returned empty response`);
       }
 
+      if (isLowValueAssistantReply(text, args.contextBundle)) {
+        return {
+          provider: 'deterministic',
+          text: buildGroundedDeterministicReply({
+            input: args.input,
+            mode: args.mode,
+            contextBundle: args.contextBundle
+          }),
+          mode: args.mode
+        };
+      }
+
       return {
         provider: provider.name,
         text: `${text.trim()}\n\neducational, not financial advice`,
@@ -278,11 +415,16 @@ async function runProviderChain(args: {
     }
   }
 
-  const deterministic = buildDeterministicFallback(args.contextBundle);
+  const deterministic =
+    buildGroundedDeterministicReply({
+      input: args.input,
+      mode: args.mode,
+      contextBundle: args.contextBundle
+    }) || buildDeterministicFallback(args.contextBundle);
   if (deterministic) {
     return {
       provider: 'deterministic',
-      text: `${deterministic}\n\nProvider fallback notes: ${providerErrors.join(' | ')}\n\neducational, not financial advice`.trim(),
+      text: deterministic,
       mode: args.mode
     };
   }

@@ -5,6 +5,7 @@ import {
   getRiskProfile as getRiskProfileQuery,
   getRuntimeState,
   getSignalContract,
+  listAssets,
   listSignalContracts
 } from '../api/queries.js';
 import { RUNTIME_STATUS } from '../runtimeStatus.js';
@@ -50,6 +51,111 @@ function inferMarket(context?: ChatContextInput): Market | undefined {
   if (context?.assetClass === 'CRYPTO') return 'CRYPTO';
   if (context?.assetClass === 'US_STOCK' || context?.assetClass === 'OPTIONS') return 'US';
   return undefined;
+}
+
+const ASSET_ALIASES: Array<{ symbol: string; market: Market; assetClass: AssetClass; aliases: string[] }> = [
+  { symbol: 'BTC', market: 'CRYPTO', assetClass: 'CRYPTO', aliases: ['btc', 'bitcoin', 'btcusdt', 'btc-usdt', 'xbt'] },
+  { symbol: 'ETH', market: 'CRYPTO', assetClass: 'CRYPTO', aliases: ['eth', 'ethereum', 'ethusdt', 'eth-usdt'] },
+  { symbol: 'SOL', market: 'CRYPTO', assetClass: 'CRYPTO', aliases: ['sol', 'solana', 'solusdt', 'sol-usdt'] },
+  { symbol: 'AAPL', market: 'US', assetClass: 'US_STOCK', aliases: ['aapl', 'apple'] },
+  { symbol: 'NVDA', market: 'US', assetClass: 'US_STOCK', aliases: ['nvda', 'nvidia'] },
+  { symbol: 'TSLA', market: 'US', assetClass: 'US_STOCK', aliases: ['tsla', 'tesla'] },
+  { symbol: 'MSFT', market: 'US', assetClass: 'US_STOCK', aliases: ['msft', 'microsoft'] },
+  { symbol: 'SPY', market: 'US', assetClass: 'US_STOCK', aliases: ['spy', 's&p500', 'sp500', 's&p 500'] },
+  { symbol: 'QQQ', market: 'US', assetClass: 'US_STOCK', aliases: ['qqq', 'nasdaq', 'nasdaq100', 'nasdaq 100'] }
+];
+
+function normalizeLookup(value: unknown): string {
+  return String(value || '')
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '');
+}
+
+function normalizeCandidateSymbol(symbol: unknown, market?: Market): string {
+  const upper = normalizeLookup(symbol);
+  if (market === 'CRYPTO' && upper.endsWith('USDT')) return upper.slice(0, -4);
+  if (market === 'CRYPTO' && upper.endsWith('USD')) return upper.slice(0, -3);
+  return upper;
+}
+
+function inferRequestedAsset(args: {
+  message?: string;
+  context?: ChatContextInput;
+  signalCards?: unknown[];
+}): { symbol: string | null; market: Market | null; assetClass: AssetClass | null } {
+  const contextMarket = inferMarket(args.context);
+  const contextAssetClass = inferAssetClass(args.context);
+  const explicitSymbol = normalizeCandidateSymbol(args.context?.symbol, contextMarket || undefined);
+  if (explicitSymbol) {
+    return {
+      symbol: explicitSymbol,
+      market: contextMarket || (contextAssetClass === 'CRYPTO' ? 'CRYPTO' : 'US'),
+      assetClass: contextAssetClass || (contextMarket === 'CRYPTO' ? 'CRYPTO' : 'US_STOCK')
+    };
+  }
+
+  const message = String(args.message || '');
+  const upper = message.toUpperCase();
+  const pairMatch = upper.match(/\b([A-Z]{2,8})\s*[-/]\s*(USDT|USD)\b/);
+  if (pairMatch) {
+    return {
+      symbol: normalizeCandidateSymbol(pairMatch[1], 'CRYPTO'),
+      market: 'CRYPTO',
+      assetClass: 'CRYPTO'
+    };
+  }
+
+  const allCandidates = [
+    ...ASSET_ALIASES,
+    ...(args.signalCards || [])
+      .filter((row): row is Record<string, unknown> => Boolean(row && typeof row === 'object'))
+      .map((row) => ({
+        symbol: normalizeCandidateSymbol(row.symbol, String(row.market || '').toUpperCase() === 'CRYPTO' ? 'CRYPTO' : 'US'),
+        market: String(row.market || '').toUpperCase() === 'CRYPTO' ? ('CRYPTO' as const) : ('US' as const),
+        assetClass: String(row.asset_class || '').toUpperCase() === 'CRYPTO' ? ('CRYPTO' as const) : ('US_STOCK' as const),
+        aliases: [String(row.symbol || '')]
+      })),
+    ...listAssets()
+      .map((asset) => ({
+        symbol: normalizeCandidateSymbol(asset.symbol, asset.market === 'CRYPTO' ? 'CRYPTO' : 'US'),
+        market: asset.market === 'CRYPTO' ? ('CRYPTO' as const) : ('US' as const),
+        assetClass: asset.market === 'CRYPTO' ? ('CRYPTO' as const) : ('US_STOCK' as const),
+        aliases: [asset.symbol, asset.base || '', asset.symbol?.replace('USDT', '') || '']
+      }))
+  ];
+
+  const normalizedMessage = normalizeLookup(message);
+  const tokenMatches = upper.match(/\b[A-Z]{2,8}\b/g) || [];
+  let best: { symbol: string; market: Market; assetClass: AssetClass; score: number } | null = null;
+
+  for (const candidate of allCandidates) {
+    const aliases = [...candidate.aliases, candidate.symbol].map((item) => normalizeLookup(item)).filter(Boolean);
+    let score = 0;
+    for (const alias of aliases) {
+      if (!alias) continue;
+      if (tokenMatches.includes(alias)) score = Math.max(score, 100);
+      if (normalizedMessage.includes(alias)) score = Math.max(score, 80);
+    }
+    if (contextMarket && candidate.market === contextMarket) score += 8;
+    if (!best || score > best.score) {
+      best = score > 0 ? { symbol: candidate.symbol, market: candidate.market, assetClass: candidate.assetClass, score } : best;
+    }
+  }
+
+  if (!best) {
+    return {
+      symbol: null,
+      market: contextMarket || null,
+      assetClass: contextAssetClass || null
+    };
+  }
+
+  return {
+    symbol: best.symbol,
+    market: best.market,
+    assetClass: best.assetClass
+  };
 }
 
 function normalizeDataStatus(row: Record<string, unknown> | null | undefined): string {
@@ -414,8 +520,15 @@ export async function buildContextBundle(args: {
   message?: string;
 }): Promise<ToolContextBundle> {
   const { userId, context } = args;
-  const market = inferMarket(context);
-  const assetClass = inferAssetClass(context);
+  const seedSignalCards = pickRelevantSignals(await getSignalCards(userId, inferAssetClass(context)), context);
+  const inferredAsset = inferRequestedAsset({
+    message: args.message,
+    context,
+    signalCards: seedSignalCards
+  });
+  const market = inferMarket(context) || inferredAsset.market || undefined;
+  const assetClass = inferAssetClass(context) || inferredAsset.assetClass || undefined;
+  const requestedSymbol = normalizeCandidateSymbol(context?.symbol || inferredAsset.symbol, market || undefined) || null;
 
   const runtime = getRuntimeState({
     userId,
@@ -423,22 +536,26 @@ export async function buildContextBundle(args: {
     assetClass
   });
 
-  const signalCards = pickRelevantSignals(await getSignalCards(userId, assetClass), context);
+  const signalCards = pickRelevantSignals(await getSignalCards(userId, assetClass), {
+    ...(context || {}),
+    symbol: requestedSymbol || context?.symbol
+  });
 
   let signalDetail: Record<string, unknown> | null = null;
   if (context?.signalId) {
     signalDetail = await getSignalDetail(context.signalId, userId);
   }
-  if (!signalDetail && context?.symbol) {
+  if (!signalDetail && requestedSymbol) {
     signalDetail =
       (signalCards.find((item) => {
-        const symbol = String(item.symbol || '').toUpperCase();
-        return symbol === context.symbol?.toUpperCase();
+        const signalMarket = String(item.market || '').toUpperCase() === 'CRYPTO' ? 'CRYPTO' : 'US';
+        const symbol = normalizeCandidateSymbol(item.symbol, signalMarket);
+        return symbol === requestedSymbol;
       }) as Record<string, unknown> | undefined) || null;
   }
 
   const marketTemperature = market
-    ? await getMarketTemperature(userId, market, context?.symbol)
+    ? await getMarketTemperature(userId, market, requestedSymbol || undefined)
     : (runtime?.data?.velocity as Record<string, unknown> | null) || null;
   const riskProfile = await getRiskProfile(userId);
   const performanceSummary = await getPerformanceSummary(userId, market);
@@ -458,6 +575,9 @@ export async function buildContextBundle(args: {
   };
 
   return {
+    requestedSymbol,
+    requestedMarket: market || null,
+    requestedAssetClass: assetClass || null,
     signalCards,
     signalDetail,
     marketTemperature,

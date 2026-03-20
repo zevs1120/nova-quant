@@ -62,6 +62,9 @@ export interface ChatHistoryMessage {
 }
 
 export interface ToolContextBundle {
+  requestedSymbol: string | null;
+  requestedMarket: Market | null;
+  requestedAssetClass: AssetClass | null;
   signalCards: unknown[];
   signalDetail: Record<string, unknown> | null;
   marketTemperature: Record<string, unknown> | null;

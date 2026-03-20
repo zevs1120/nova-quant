@@ -435,6 +435,36 @@ function normalizeQuery(value) {
   return String(value || '').trim();
 }
 
+function normalizeBrowseLookupSymbol(value) {
+  return String(value || '')
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '');
+}
+
+function toFallbackInstrument(asset, rows = []) {
+  const market = String(asset?.market || '').toUpperCase() === 'CRYPTO' ? 'CRYPTO' : 'US';
+  const rawSymbol = String(asset?.symbol || '').toUpperCase();
+  const ticker = market === 'CRYPTO' ? rawSymbol.replace(/USDT$/i, '').replace(/USD$/i, '') || rawSymbol : rawSymbol;
+  return {
+    ticker,
+    symbol: rawSymbol,
+    market,
+    venue: asset?.venue || null,
+    assetClass: market === 'CRYPTO' ? 'CRYPTO' : 'US_STOCK',
+    asset_class: market === 'CRYPTO' ? 'CRYPTO' : 'US_STOCK',
+    base: asset?.base || (market === 'CRYPTO' ? ticker : null),
+    quote: asset?.quote || (market === 'CRYPTO' ? 'USDT' : 'USD'),
+    name: market === 'CRYPTO' ? `${asset?.base || ticker} / ${asset?.quote || 'USDT'}` : rawSymbol,
+    sector: market === 'CRYPTO' ? 'Crypto' : 'US',
+    latest_close: asNumber(rows[rows.length - 1]?.close),
+    bars: rows.map((row) => ({
+      close: asNumber(row?.close),
+      date: String(row?.ts_open || row?.ts || '')
+    }))
+  };
+}
+
 function BrowseResultRow({ item, locale, labels, onOpen }) {
   const isZh = locale?.startsWith('zh');
   const marketLabel = item.market === 'CRYPTO' ? (isZh ? '加密' : 'Crypto') : isZh ? '美股' : 'Stock';
@@ -473,6 +503,7 @@ export default function BrowseTab({
   const [searchValue, setSearchValue] = useState('');
   const [searchState, setSearchState] = useState('idle');
   const [searchResults, setSearchResults] = useState([]);
+  const [fallbackInstruments, setFallbackInstruments] = useState([]);
   const [activeResult, setActiveResult] = useState(null);
   const [activeCollectionKey, setActiveCollectionKey] = useState(null);
   const [collectionSort, setCollectionSort] = useState('move');
@@ -622,6 +653,50 @@ export default function BrowseTab({
       window.clearTimeout(timer);
     };
   }, [showSearchResults, trimmedQuery]);
+
+  useEffect(() => {
+    const hasChartablePropInstruments = Array.isArray(marketInstruments)
+      ? marketInstruments.some((item) => barsForInstrument(item, 3).length >= 2)
+      : false;
+    if (hasChartablePropInstruments) {
+      setFallbackInstruments([]);
+      return undefined;
+    }
+
+    let cancelled = false;
+    Promise.all([
+      fetchApiJson('/api/assets?market=US').catch(() => ({ data: [] })),
+      fetchApiJson('/api/assets?market=CRYPTO').catch(() => ({ data: [] }))
+    ])
+      .then(async ([usAssetsPayload, cryptoAssetsPayload]) => {
+        const assets = [...(usAssetsPayload?.data || []), ...(cryptoAssetsPayload?.data || [])];
+        const hydrated = await Promise.all(
+          assets.map(async (asset) => {
+            const market = String(asset?.market || '').toUpperCase() === 'CRYPTO' ? 'CRYPTO' : 'US';
+            const symbol = String(asset?.symbol || '').toUpperCase();
+            if (!symbol) return null;
+            try {
+              const payload = await fetchApiJson(`/api/ohlcv?market=${market}&symbol=${encodeURIComponent(symbol)}&tf=1d&limit=30`);
+              const rows = Array.isArray(payload?.data) ? payload.data : [];
+              if (rows.length < 2) return null;
+              return toFallbackInstrument(asset, rows);
+            } catch {
+              return null;
+            }
+          })
+        );
+        if (cancelled) return;
+        setFallbackInstruments(hydrated.filter(Boolean));
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setFallbackInstruments([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [marketInstruments]);
 
   useEffect(() => {
     let cancelled = false;
@@ -779,15 +854,24 @@ export default function BrowseTab({
     };
   }, [activeResult]);
 
-  const instruments = useMemo(
-    () =>
-      (marketInstruments || []).map((item) => ({
+  const instruments = useMemo(() => {
+    const merged = new Map();
+    [...(fallbackInstruments || []), ...(marketInstruments || [])].forEach((item) => {
+      const normalizedItem = {
         ...item,
-        ticker: String(item?.ticker || '').toUpperCase(),
+        ticker: String(item?.ticker || item?.symbol || '').toUpperCase(),
         assetClass: String(item?.asset_class || item?.assetClass || '').toUpperCase()
-      })),
-    [marketInstruments]
-  );
+      };
+      const key = normalizeBrowseLookupSymbol(normalizedItem.symbol || normalizedItem.ticker);
+      const existing = merged.get(key);
+      const nextBars = barsForInstrument(normalizedItem, 3).length;
+      const existingBars = existing ? barsForInstrument(existing, 3).length : 0;
+      if (!existing || nextBars >= existingBars) {
+        merged.set(key, normalizedItem);
+      }
+    });
+    return Array.from(merged.values()).filter((item) => item?.ticker);
+  }, [fallbackInstruments, marketInstruments]);
 
   const buildBrowseDetailItem = useCallback(
     (instrument) => {
@@ -808,7 +892,7 @@ export default function BrowseTab({
 
       return {
         market,
-        symbol: instrument.ticker,
+        symbol: instrument.symbol || instrument.ticker,
         name: displayName,
         hint:
           market === 'CRYPTO'
@@ -831,12 +915,16 @@ export default function BrowseTab({
   );
 
   const browseDetailMap = useMemo(
-    () =>
-      new Map(
-        instruments
-          .map((item) => [item.ticker, buildBrowseDetailItem(item)])
-          .filter((entry) => entry[0] && entry[1])
-      ),
+    () => {
+      const next = new Map();
+      instruments.forEach((item) => {
+        const detail = buildBrowseDetailItem(item);
+        if (!detail) return;
+        next.set(normalizeBrowseLookupSymbol(item.ticker), detail);
+        if (item.symbol) next.set(normalizeBrowseLookupSymbol(item.symbol), detail);
+      });
+      return next;
+    },
     [buildBrowseDetailItem, instruments]
   );
 
@@ -853,7 +941,7 @@ export default function BrowseTab({
 
   const openSymbolResult = useCallback(
     (symbol, marketHint) => {
-      const normalizedSymbol = String(symbol || '').trim().toUpperCase();
+      const normalizedSymbol = normalizeBrowseLookupSymbol(symbol);
       if (!normalizedSymbol) return;
       const next = browseDetailMap.get(normalizedSymbol);
       if (next) {
