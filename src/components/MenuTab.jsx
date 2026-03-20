@@ -1,3 +1,5 @@
+import React from 'react';
+
 const MENU_GROUPS = [
   {
     key: 'group:review',
@@ -126,11 +128,12 @@ export default function MenuTab({
   section,
   locale,
   username,
-  points,
+  manualState,
   onSectionChange,
   showDemoEntry = false,
   demoEnabled = false,
   onToggleDemo,
+  onRedeemVip,
   onOpenAbout,
   onLogout,
   appMeta
@@ -138,8 +141,32 @@ export default function MenuTab({
   const copy = localeCopy(locale);
   const catalog = itemCatalog(locale);
   const group = MENU_GROUPS.find((item) => item.key === section);
+  const manualAvailable = Boolean(manualState?.available || demoEnabled);
+  const points = manualState?.summary || { balance: 0, expiringSoon: 0, vipDays: 0, vipDaysRedeemed: 0 };
+  const ledger = Array.isArray(manualState?.ledger) ? manualState.ledger : [];
+  const predictions = Array.isArray(manualState?.predictions) ? manualState.predictions : [];
+  const rewards = Array.isArray(manualState?.rewards) ? manualState.rewards : [];
+  const referrals = manualState?.referrals || { inviteCode: null, referredByCode: null, total: 0, rewarded: 0 };
+
+  const renderManualUnavailable = () => (
+    <section className="stack-gap menu-screen">
+      <div className="menu-page-head">
+        <h1>{copy.pointsHub}</h1>
+        <p>
+          {manualState?.reason === 'AUTH_REQUIRED'
+            ? locale?.startsWith('zh')
+              ? '真实模式下，积分、邀请和预测记录只对已登录账户开放。'
+              : 'In real mode, points, referrals, and prediction history are only available for signed-in accounts.'
+            : locale?.startsWith('zh')
+              ? '这部分当前不可用。'
+              : 'This surface is currently unavailable.'}
+        </p>
+      </div>
+    </section>
+  );
 
   if (section === 'points') {
+    if (!manualAvailable) return renderManualUnavailable();
     const activity = pointsActivity(points, locale);
     return (
       <section className="stack-gap menu-screen">
@@ -181,15 +208,37 @@ export default function MenuTab({
             <h2>{copy.vipRedeem}</h2>
             <span className="points-hub-inline-rate">{copy.pointsRate}</span>
           </div>
-          <button type="button" className="menu-list-row" onClick={() => onSectionChange('rewards')}>
-            <span>
-              <span className="menu-list-title">{copy.vipRedeem}</span>
-              <span className="menu-list-desc">
-                {locale?.startsWith('zh') ? '先把快过期的积分换成 VIP。' : 'Turn expiring points into VIP first.'}
+          {(rewards.length
+            ? rewards
+            : [
+                {
+                  id: 'vip-1d',
+                  kind: 'vip_day',
+                  title: copy.vipRedeem,
+                  description: locale?.startsWith('zh') ? '先把快过期的积分换成 VIP。' : 'Turn expiring points into VIP first.',
+                  costPoints: 1000,
+                  enabled: false
+                }
+              ]).map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className="menu-list-row"
+              onClick={() => {
+                if (item.kind === 'vip_day' && item.enabled) {
+                  onRedeemVip?.(1);
+                  return;
+                }
+                onSectionChange('rewards');
+              }}
+            >
+              <span>
+                <span className="menu-list-title">{item.title}</span>
+                <span className="menu-list-desc">{item.description}</span>
               </span>
-            </span>
-            <span className="menu-list-arrow">›</span>
-          </button>
+              <span className="menu-list-arrow">{item.kind === 'vip_day' ? `${item.costPoints}` : '›'}</span>
+            </button>
+          ))}
         </div>
 
         <div className="points-hub-surface">
@@ -197,7 +246,13 @@ export default function MenuTab({
             <h2>{copy.recentActivity}</h2>
           </div>
           <div className="menu-group-list">
-            {activity.map((item) => (
+            {(ledger.length
+              ? ledger.map((item) => ({
+                  title: `${item.pointsDelta > 0 ? '+' : ''}${item.pointsDelta}`,
+                  desc: item.description || item.title
+                }))
+              : activity
+            ).map((item) => (
               <div key={item.title} className="menu-list-row static">
                 <span>
                   <span className="menu-list-title">{item.title}</span>
@@ -231,6 +286,7 @@ export default function MenuTab({
   }
 
   if (section === 'prediction-games') {
+    if (!manualAvailable) return renderManualUnavailable();
     return (
       <section className="stack-gap menu-screen">
         <div className="menu-page-head">
@@ -238,14 +294,22 @@ export default function MenuTab({
           <p>{copy.predictionCopy}</p>
         </div>
         <div className="menu-points-actions">
-          {[
-            locale?.startsWith('zh')
-              ? { title: '今天会继续涨吗？', copy: '押方向，别押情绪。' }
-              : { title: 'Will today keep moving?', copy: 'Bet on direction, not on adrenaline.' },
-            locale?.startsWith('zh')
-              ? { title: '这张卡今晚会升级吗？', copy: '围绕判断变化拿分。' }
-              : { title: 'Will tonight upgrade the card?', copy: 'Earn on judgment changes.' }
-          ].map((item) => (
+          {(predictions.length
+            ? predictions.map((item) => ({
+                title: item.prompt,
+                copy: item.entry
+                  ? locale?.startsWith('zh')
+                    ? `已选择 ${item.entry.selectedOption} · ${item.entry.pointsStaked} 积分`
+                    : `${item.entry.selectedOption} selected · ${item.entry.pointsStaked} pts`
+                  : locale?.startsWith('zh')
+                    ? '等待题目开放或结算。'
+                    : 'Waiting for entry or settlement.'
+              }))
+            : [
+                locale?.startsWith('zh')
+                  ? { title: '当前没有正在进行的真实题目', copy: '新题目上线后会直接出现在这里。' }
+                  : { title: 'No live rounds right now', copy: 'New prediction markets will appear here as soon as they are published.' }
+              ]).map((item) => (
             <article key={item.title} className="menu-primary-tile">
               <span className="menu-primary-title">{item.title}</span>
               <span className="menu-primary-copy">{item.copy}</span>
@@ -257,6 +321,7 @@ export default function MenuTab({
   }
 
   if (section === 'rewards' || section === 'points-history') {
+    if (!manualAvailable) return renderManualUnavailable();
     const isHistory = section === 'points-history';
     return (
       <section className="stack-gap menu-screen">
@@ -272,24 +337,33 @@ export default function MenuTab({
         </div>
         <div className="menu-group-list">
           {(isHistory
-            ? [
-                {
-                  title: locale?.startsWith('zh') ? '今天 +200' : '+200 today',
-                  desc: locale?.startsWith('zh') ? '完成 Morning Check 和一条预测。' : 'Morning Check plus one prediction.'
-                },
-                {
-                  title: locale?.startsWith('zh') ? 'VIP 1天' : 'VIP 1d',
-                  desc: locale?.startsWith('zh') ? '本月已兑换 1 天。' : 'Redeemed once this month.'
-                }
-              ]
+            ? (ledger.length
+                ? ledger.map((item) => ({
+                    title: `${item.pointsDelta > 0 ? '+' : ''}${item.pointsDelta}`,
+                    desc: item.description || item.title
+                  }))
+                : [
+                    {
+                      title: locale?.startsWith('zh') ? '暂无积分流水' : 'No point activity yet',
+                      desc: locale?.startsWith('zh') ? '真实事件发生后会记在这里。' : 'Real point activity will appear here once it happens.'
+                    }
+                  ])
             : [
                 {
                   title: locale?.startsWith('zh') ? '邀请好友' : 'Invite friends',
-                  desc: locale?.startsWith('zh') ? '邀请成功即可拿额外积分。' : 'Invite friends to unlock extra points.'
+                  desc: referrals.inviteCode
+                    ? locale?.startsWith('zh')
+                      ? `邀请码 ${referrals.inviteCode} · 已邀请 ${referrals.total} 人`
+                      : `Code ${referrals.inviteCode} · ${referrals.total} referrals`
+                    : locale?.startsWith('zh')
+                      ? '登录后生成邀请码。'
+                      : 'Sign in to generate your invite code.'
                 },
                 {
                   title: locale?.startsWith('zh') ? '兑换 VIP' : 'Redeem VIP',
-                  desc: locale?.startsWith('zh') ? '把积分换成更多高级天数。' : 'Turn points into more premium days.'
+                  desc: locale?.startsWith('zh')
+                    ? `已兑换 ${points.vipDaysRedeemed || 0} 天，当前余额 ${points.vipDays || 0} 天。`
+                    : `${points.vipDaysRedeemed || 0} days redeemed, ${points.vipDays || 0} days available.`
                 }
               ]
           ).map((item) => (
