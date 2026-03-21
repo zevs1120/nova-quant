@@ -1,15 +1,15 @@
 function detectDefaultApiBase() {
-  if (typeof window === 'undefined') return 'https://novaquant.cloud';
+  if (typeof window === 'undefined') return '';
   const envBase = String(import.meta.env.VITE_ADMIN_API_BASE || '').trim();
   if (envBase) return envBase.replace(/\/+$/, '');
   const { protocol, hostname } = window.location;
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
     return 'http://127.0.0.1:8787';
   }
-  if (hostname.startsWith('admin.')) {
-    return `${protocol}//${hostname.replace(/^admin\./, '')}`;
+  if (hostname.endsWith('.vercel.app') || hostname.startsWith('admin.')) {
+    return '';
   }
-  return window.location.origin;
+  return `${protocol}//${hostname}`;
 }
 
 const API_BASE = detectDefaultApiBase();

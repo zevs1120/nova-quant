@@ -4,7 +4,7 @@ export default function Sidebar({ items, activeId, onSelect }) {
       <div className="admin-sidebar-brand">
         <p className="admin-eyebrow">NovaQuant / MARVIX</p>
         <h1>管理后台</h1>
-        <p className="admin-muted">给运营、投资人沟通和 Alpha 治理看的统一驾驶舱。</p>
+        <p className="admin-muted">用户、策略、AI、数据与执行的统一控制台。</p>
       </div>
       <nav className="admin-nav">
         {items.map((item, index) => (
@@ -22,15 +22,6 @@ export default function Sidebar({ items, activeId, onSelect }) {
           </button>
         ))}
       </nav>
-
-      <section className="admin-sidebar-note">
-        <p className="admin-sidebar-note-title">投资人一眼看懂</p>
-        <ul className="admin-sidebar-note-list">
-          <li>先发现，再回测，再影子运行。</li>
-          <li>不让新策略直接动正式资金。</li>
-          <li>后台、前台、算力三层分离。</li>
-        </ul>
-      </section>
     </aside>
   );
 }

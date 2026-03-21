@@ -9,9 +9,7 @@ export default function AdminLogin({ loading, error, onSubmit, apiBase }) {
       <section className="admin-login-card">
         <p className="admin-eyebrow">NovaQuant 管理后台</p>
         <h1>受限访问</h1>
-        <p className="admin-muted">
-          这个后台仅供运营与管理使用。请使用具备 `ADMIN` 角色的账号登录。
-        </p>
+        <p className="admin-muted">请使用具备管理员权限的账号登录。</p>
 
         <form
           className="admin-login-form"
@@ -51,7 +49,7 @@ export default function AdminLogin({ loading, error, onSubmit, apiBase }) {
           </button>
         </form>
 
-        <p className="admin-footnote">API 地址：{apiBase}</p>
+        <p className="admin-footnote">{apiBase ? `当前接口源：${apiBase}` : '当前接口源：同域代理'}</p>
       </section>
     </div>
   );

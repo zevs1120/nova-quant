@@ -22,22 +22,6 @@ function RingMeter({ value, label, note, accent }) {
   );
 }
 
-function GuardrailBars({ rows }) {
-  return (
-    <div className="guardrail-bars">
-      {rows.map((item) => (
-        <div key={item.label} className="guardrail-item">
-          <div className="guardrail-bar-track">
-            <span className="guardrail-bar-fill" style={{ height: `${item.value}%` }} />
-          </div>
-          <strong>{Math.round(Number(item.value || 0))}</strong>
-          <span>{item.label}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function LifecycleStack({ rows }) {
   const total = rows.reduce((sum, item) => sum + Number(item.value || 0), 0) || 1;
   const palette = ['#c8b089', '#ef8d56', '#1f1f1f', '#5e7f69', '#7a6e61', '#d8cfc1', '#b86e54'];
@@ -65,22 +49,20 @@ function LifecycleStack({ rows }) {
   );
 }
 
-function StoryProgress({ rows }) {
+function MixBars({ rows }) {
+  const total = rows.reduce((sum, item) => sum + Number(item.value || 0), 0) || 1;
   return (
-    <div className="story-list">
+    <div className="mix-bar-list">
       {rows.map((item) => (
-        <article key={item.title} className="story-item">
-          <div className="story-item-header">
-            <div>
-              <strong>{item.title}</strong>
-              <p>{item.description}</p>
-            </div>
+        <div key={item.label} className="mix-bar-row">
+          <div className="mix-bar-labels">
+            <strong>{item.label}</strong>
             <span>{item.value}</span>
           </div>
-          <div className="story-progress">
-            <span style={{ width: `${item.progress}%` }} />
+          <div className="mix-bar-track">
+            <span className="mix-bar-fill" style={{ width: `${(Number(item.value || 0) / total) * 100}%` }} />
           </div>
-        </article>
+        </div>
       ))}
     </div>
   );
@@ -116,6 +98,7 @@ export default function OverviewPage() {
   }
 
   const headline = data?.headline_metrics || {};
+  const activeUserRatio = headline.total_users ? (Number(headline.active_users_7d || 0) / Number(headline.total_users || 1)) * 100 : 0;
   const stats = [
     {
       label: '注册用户',
@@ -143,40 +126,32 @@ export default function OverviewPage() {
     }
   ];
 
-  const storyRows = (data?.data_story || []).map((item, index) => ({
-    title: item.label,
-    description: item.detail,
-    value: item.value,
-    progress: [86, 72, 79][index] || 68
-  }));
-
   const topSymbols = (data?.top_symbols || []).slice(0, 5);
 
   return (
     <section className="page-grid overview-page">
       <section className="hero-board">
         <div className="hero-copy-card">
-          <p className="admin-eyebrow">Investor View</p>
-          <h3>把用户、策略、因子和 AI 一次性放进同一张可读总览</h3>
-          <p className="hero-summary">
-            这里展示的不是原始日志，而是运营层、策略层和 AI 层的压缩视图。投资人可以一眼看出用户增长、策略发现、风控闸门和 AI 活跃度是不是在同步推进。
-          </p>
+          <p className="admin-eyebrow">Overview</p>
+          <h3>平台运行总览</h3>
+          <p className="hero-summary">这里汇总当前用户规模、信号活跃度、Alpha 生命周期、AI 运行情况和最新工作流状态。</p>
 
-          <div className="hero-chip-row">
-            <span className="hero-chip">用户数据已接入</span>
-            <span className="hero-chip">Alpha 生命周期已接入</span>
-            <span className="hero-chip">信号执行已接入</span>
-            <span className="hero-chip">因子 / AI 已接入</span>
+          <div className="source-card-grid">
+            {(data?.data_story || []).map((item) => (
+              <article key={item.label} className="source-card">
+                <strong>{item.label}</strong>
+                <p>{item.detail}</p>
+                <p><strong>{item.value}</strong></p>
+              </article>
+            ))}
           </div>
-
-          <StoryProgress rows={storyRows} />
         </div>
 
         <div className="hero-visual-card">
           <RingMeter
-            value={Math.min(100, ((headline.shadow_candidates || 0) + (headline.canary_candidates || 0) * 2) * 12)}
-            label="策略治理指数"
-            note="新发现的策略大部分仍停留在 SHADOW / CANARY，说明系统没有绕过风控闸门。"
+            value={activeUserRatio}
+            label="近 7 天活跃率"
+            note={`活跃用户 ${headline.active_users_7d || 0} / 总用户 ${headline.total_users || 0}`}
             accent="#ef8d56"
           />
 
@@ -187,7 +162,7 @@ export default function OverviewPage() {
             </article>
             <article className="mini-note-card tone-dark">
               <p>策略层</p>
-              <strong>{headline.active_signals || 0} 条在线信号，{headline.shadow_candidates || 0} 个影子候选</strong>
+              <strong>{headline.active_signals || 0} 条在线信号，{headline.shadow_candidates || 0} 个 Shadow 候选</strong>
             </article>
             <article className="mini-note-card tone-soft">
               <p>AI 层</p>
@@ -209,23 +184,31 @@ export default function OverviewPage() {
             <h3>Alpha 生命周期分布</h3>
             <span className="status-pill is-green">来自真实后台数据</span>
           </div>
-          <p className="panel-copy">如果系统健康，绝大多数新想法会停留在 DRAFT / SHADOW，真正进入 PROD 的比例必须极低。</p>
           <LifecycleStack rows={data?.alpha_lifecycle || []} />
         </article>
 
         <article className="panel">
           <div className="panel-header">
-            <h3>风险闸门强度</h3>
-            <span className="status-pill is-blue">治理视图</span>
+            <h3>用户交易模式</h3>
+            <span className="status-pill is-blue">用户分层</span>
           </div>
-          <p className="panel-copy">把复杂的模型治理问题压缩成 5 个投资人能读懂的闸门强度指标。</p>
-          <GuardrailBars rows={data?.guardrails || []} />
+          <MixBars rows={data?.user_mix || []} />
         </article>
 
         <article className="panel">
           <div className="panel-header">
+            <h3>信号方向分布</h3>
+            <span className="status-pill is-amber">Signal mix</span>
+          </div>
+          <MixBars rows={data?.signal_direction_mix || []} />
+        </article>
+      </section>
+
+      <section className="page-grid two-up">
+        <article className="panel">
+          <div className="panel-header">
             <h3>当前最活跃标的</h3>
-            <span className="status-pill is-amber">信号热度</span>
+            <span className="status-pill is-slate">信号热度</span>
           </div>
           <div className="source-card-grid">
             {topSymbols.map((item) => (
@@ -240,24 +223,6 @@ export default function OverviewPage() {
                 <p>当前没有可展示的实时信号热度。</p>
               </article>
             ) : null}
-          </div>
-        </article>
-      </section>
-
-      <section className="page-grid two-up">
-        <article className="panel">
-          <div className="panel-header">
-            <h3>用户 / AI / 数据三层摘要</h3>
-            <span className="status-pill is-slate">后台一页解释</span>
-          </div>
-          <div className="source-card-grid">
-            {(data?.data_story || []).map((item) => (
-              <article key={item.label} className="source-card">
-                <strong>{item.label}</strong>
-                <p>{item.detail}</p>
-                <p><strong>{item.value}</strong></p>
-              </article>
-            ))}
           </div>
         </article>
 
