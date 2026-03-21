@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import type { MarketRepository } from '../db/repository.js';
 import type { ModelVersionRecord, NovaTaskType } from '../types.js';
@@ -9,6 +10,7 @@ import { buildNovaMlxLoraPlan, getDefaultNovaMlxBaseModel, renderNovaShellComman
 import { getNovaModelPlan } from '../ai/llmOps.js';
 
 export type NovaTrainerKind = 'mlx-lora' | 'unsloth-lora' | 'axolotl-qlora';
+export const MIN_AUTOMATIC_TRAINING_ROWS = 8;
 
 type FlywheelArgs = {
   repo: MarketRepository;
@@ -17,6 +19,8 @@ type FlywheelArgs = {
   onlyIncluded?: boolean;
   limit?: number;
   taskTypes?: ReadonlyArray<NovaTaskType>;
+  triggerType?: 'scheduled' | 'manual' | 'shadow' | 'replay';
+  executeWhenReady?: boolean;
 };
 
 function safeNumber(value: unknown, fallback = 0): number {
@@ -36,7 +40,20 @@ function cleanModelNameForPath(value: string) {
 
 function resolveBaseModel() {
   const plan = getNovaModelPlan();
-  return plan.models['Nova-Core'] || getDefaultNovaMlxBaseModel();
+  const configured = String(plan.models['Nova-Core'] || '').trim();
+  if (!configured) return getDefaultNovaMlxBaseModel();
+  if (configured.includes('/')) return configured;
+  return getDefaultNovaMlxBaseModel();
+}
+
+function detectMlxLmAvailability() {
+  const probe = spawnSync('python3', ['-c', 'import mlx_lm'], {
+    encoding: 'utf8'
+  });
+  return {
+    ok: probe.status === 0,
+    error: probe.status === 0 ? null : (probe.stderr || probe.stdout || 'mlx_lm import failed').trim()
+  };
 }
 
 function buildOpenSourceTrainerPlan(args: {
@@ -157,6 +174,7 @@ export async function runNovaTrainingFlywheel(args: FlywheelArgs) {
   const workflowId = `workflow-nova-flywheel-${randomUUID().slice(0, 12)}`;
   const traceId = createTraceId('nova-flywheel');
   const trainer = args.trainer || 'unsloth-lora';
+  const triggerType = args.triggerType || 'manual';
   const dateKey = new Date(now).toISOString().slice(0, 10);
   const artifactsDir = path.join(process.cwd(), 'artifacts', 'training', `nova-flywheel-${dateKey}`);
   ensureDir(artifactsDir);
@@ -165,14 +183,15 @@ export async function runNovaTrainingFlywheel(args: FlywheelArgs) {
     id: workflowId,
     workflow_key: 'nova_training_flywheel',
     workflow_version: 'nova-training-flywheel.v1',
-    trigger_type: 'manual',
+    trigger_type: triggerType,
     status: 'RUNNING',
     trace_id: traceId,
     input_json: JSON.stringify({
       trainer,
       only_included: args.onlyIncluded !== false,
       limit: args.limit || 500,
-      task_types: args.taskTypes || null
+      task_types: args.taskTypes || null,
+      execute_when_ready: args.executeWhenReady === true
     }),
     output_json: null,
     attempt_count: 1,
@@ -226,6 +245,36 @@ export async function runNovaTrainingFlywheel(args: FlywheelArgs) {
     challengerModelId = challenger.id;
   }
 
+  const execution = {
+    attempted: false,
+    executed: false,
+    success: false,
+    reason: 'execution_not_requested',
+    exit_code: null as number | null
+  };
+
+  if (args.executeWhenReady && dataset.count > 0) {
+    execution.attempted = true;
+    if (dataset.count < MIN_AUTOMATIC_TRAINING_ROWS) {
+      execution.reason = `insufficient_training_rows:${dataset.count}`;
+    } else if (trainer !== 'mlx-lora') {
+      execution.reason = 'automatic_execution_supported_only_for_mlx_lora';
+    } else {
+      const mlx = detectMlxLmAvailability();
+      if (!mlx.ok) {
+        execution.reason = `mlx_lm_unavailable:${mlx.error || 'unknown'}`;
+      } else {
+        const child = spawnSync(plan.command[0], plan.command.slice(1), {
+          stdio: 'inherit'
+        });
+        execution.executed = true;
+        execution.exit_code = child.status ?? null;
+        execution.success = child.status === 0;
+        execution.reason = child.status === 0 ? 'completed' : 'command_failed';
+      }
+    }
+  }
+
   const result = {
     workflow_id: workflowId,
     trace_id: traceId,
@@ -238,21 +287,23 @@ export async function runNovaTrainingFlywheel(args: FlywheelArgs) {
     training_plan: plan,
     manifest_path: manifestPath,
     challenger_model_id: challengerModelId,
-    ready_for_training: dataset.count > 0
+    ready_for_training: dataset.count > 0,
+    execution
   };
 
   args.repo.upsertWorkflowRun({
     id: workflowId,
     workflow_key: 'nova_training_flywheel',
     workflow_version: 'nova-training-flywheel.v1',
-    trigger_type: 'manual',
+    trigger_type: triggerType,
     status: 'SUCCEEDED',
     trace_id: traceId,
     input_json: JSON.stringify({
       trainer,
       only_included: args.onlyIncluded !== false,
       limit: args.limit || 500,
-      task_types: args.taskTypes || null
+      task_types: args.taskTypes || null,
+      execute_when_ready: args.executeWhenReady === true
     }),
     output_json: JSON.stringify(result),
     attempt_count: 1,

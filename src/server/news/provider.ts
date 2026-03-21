@@ -1,10 +1,12 @@
 import { createHash } from 'node:crypto';
+import pLimit from 'p-limit';
 import type { Market, NewsItemRecord } from '../types.js';
 import type { MarketRepository } from '../db/repository.js';
 import { getConfig } from '../config.js';
 
 const NEWS_TTL_MS = 1000 * 60 * 90;
 const NEWS_TIMEOUT_MS = 2600;
+const NEWS_CONCURRENCY = 4;
 const positiveTokens = ['beat', 'surge', 'growth', 'record', 'bullish', 'upgrade', 'approval', 'partnership', 'launch', 'buyback'];
 const negativeTokens = ['miss', 'drop', 'lawsuit', 'downgrade', 'risk', 'probe', 'ban', 'hack', 'fraud', 'delay', 'cuts'];
 
@@ -194,12 +196,37 @@ async function fetchGoogleNewsItems(market: Market, symbol: string): Promise<New
 export async function ensureFreshNewsForSymbol(args: { repo: MarketRepository; market: Market; symbol: string }) {
   const symbol = normalizeSymbol(args.symbol);
   const latest = args.repo.listNewsItems({ market: args.market, symbol, limit: 1 })[0] || null;
-  if (latest && Date.now() - latest.updated_at_ms < NEWS_TTL_MS) return;
+  if (latest && Date.now() - latest.updated_at_ms < NEWS_TTL_MS) {
+    return {
+      market: args.market,
+      symbol,
+      fetched: false,
+      skipped: true,
+      rows_upserted: 0,
+      error: null
+    };
+  }
   try {
     const rows = await fetchGoogleNewsItems(args.market, symbol);
     if (rows.length) args.repo.upsertNewsItems(rows);
+    return {
+      market: args.market,
+      symbol,
+      fetched: true,
+      skipped: false,
+      rows_upserted: rows.length,
+      error: null
+    };
   } catch {
     // leave stale news in place if fetch fails
+    return {
+      market: args.market,
+      symbol,
+      fetched: false,
+      skipped: false,
+      rows_upserted: 0,
+      error: 'fetch_failed'
+    };
   }
 }
 
@@ -239,13 +266,25 @@ export async function ensureFreshNewsForUniverse(args: { repo: MarketRepository;
     ...config.markets.CRYPTO.symbols.map((symbol) => ({ market: 'CRYPTO' as const, symbol }))
   ].filter((row) => !args.market || args.market === 'ALL' || row.market === args.market);
 
-  await Promise.all(
-    targets.map(async (target) => {
-      await ensureFreshNewsForSymbol({
-        repo: args.repo,
-        market: target.market,
-        symbol: target.symbol
-      });
-    })
+  const limit = pLimit(NEWS_CONCURRENCY);
+  const results = await Promise.all(
+    targets.map((target) =>
+      limit(() =>
+        ensureFreshNewsForSymbol({
+          repo: args.repo,
+          market: target.market,
+          symbol: target.symbol
+        })
+      )
+    )
   );
+
+  return {
+    market: args.market || 'ALL',
+    targets: targets.length,
+    refreshed_symbols: results.filter((row) => row.fetched).length,
+    skipped_symbols: results.filter((row) => row.skipped).length,
+    rows_upserted: results.reduce((acc, row) => acc + Number(row.rows_upserted || 0), 0),
+    errors: results.filter((row) => row.error).map((row) => ({ market: row.market, symbol: row.symbol, error: row.error }))
+  };
 }

@@ -5,6 +5,8 @@ import { getDb } from '../src/server/db/database.js';
 import { MarketRepository } from '../src/server/db/repository.js';
 import { ensureSchema } from '../src/server/db/schema.js';
 import { runBackfillCli } from '../src/server/jobs/backfill.js';
+import { runFreeDataFlywheel } from '../src/server/jobs/freeData.js';
+import { runNovaTrainingFlywheel, type NovaTrainerKind } from '../src/server/nova/flywheel.js';
 import { runValidationCli } from '../src/server/jobs/validate.js';
 import { runEvolutionCycle } from '../src/server/quant/evolution.js';
 import { ensureQuantData } from '../src/server/quant/service.js';
@@ -16,9 +18,15 @@ type AutoBackendOptions = {
   validateEvery: number;
   usRefreshHours: number;
   retrainHours: number;
+  trainEveryHours: number;
+  trainer: NovaTrainerKind;
+  trainingLimit: number;
+  executeTraining: boolean;
+  supervisorCheckSec: number;
   skipInit: boolean;
   skipApi: boolean;
   skipWorker: boolean;
+  skipTraining: boolean;
   once: boolean;
 };
 
@@ -29,9 +37,15 @@ const DEFAULTS: AutoBackendOptions = {
   validateEvery: 6,
   usRefreshHours: 6,
   retrainHours: 24,
+  trainEveryHours: 24,
+  trainer: 'mlx-lora',
+  trainingLimit: 500,
+  executeTraining: false,
+  supervisorCheckSec: 20,
   skipInit: false,
   skipApi: false,
   skipWorker: false,
+  skipTraining: false,
   once: false
 };
 
@@ -51,9 +65,15 @@ export function parseAutoBackendArgs(argv: string[]): AutoBackendOptions {
     if (key === 'validate-every' && next) out.validateEvery = Math.max(1, Number(next) || out.validateEvery);
     if (key === 'us-refresh-hours' && next) out.usRefreshHours = Math.max(1, Number(next) || out.usRefreshHours);
     if (key === 'retrain-hours' && next) out.retrainHours = Math.max(1, Number(next) || out.retrainHours);
+    if (key === 'train-hours' && next) out.trainEveryHours = Math.max(1, Number(next) || out.trainEveryHours);
+    if (key === 'trainer' && next) out.trainer = String(next).trim() as NovaTrainerKind;
+    if (key === 'training-limit' && next) out.trainingLimit = Math.max(1, Number(next) || out.trainingLimit);
+    if (key === 'supervisor-check-sec' && next) out.supervisorCheckSec = Math.max(5, Number(next) || out.supervisorCheckSec);
+    if (key === 'execute-training') out.executeTraining = true;
     if (key === 'skip-init') out.skipInit = true;
     if (key === 'skip-api') out.skipApi = true;
     if (key === 'skip-worker') out.skipWorker = true;
+    if (key === 'skip-training') out.skipTraining = true;
     if (key === 'once') out.once = true;
 
     if (consumeNext) i += 1;
@@ -130,7 +150,77 @@ function spawnManaged(label: string, command: string, args: string[], env?: Node
   return child;
 }
 
-export async function runAutoBackendInitialization(userId: string) {
+type ManagedChildren = {
+  api: ChildProcess | null;
+  worker: ChildProcess | null;
+};
+
+async function ensureManagedProcesses(options: AutoBackendOptions, managed: ManagedChildren) {
+  if (!options.skipApi) {
+    const apiRunning = await isPortListening(options.apiPort);
+    if (!apiRunning && !managed.api) {
+      managed.api = spawnManaged(
+        'api',
+        process.execPath,
+        ['--import', 'tsx', 'src/server/apiServer.ts'],
+        { PORT: String(options.apiPort) }
+      );
+      managed.api.once('exit', () => {
+        managed.api = null;
+      });
+      managed.api.once('error', () => {
+        managed.api = null;
+      });
+      await sleep(1500);
+    }
+  }
+
+  if (!options.skipWorker) {
+    const workerRunning = await isWorkerLikelyRunning();
+    if (!workerRunning && !managed.worker) {
+      managed.worker = spawnManaged(
+        'binance-worker',
+        process.execPath,
+        ['--import', 'tsx', 'scripts/update-binance.ts', '--tf', '1h']
+      );
+      managed.worker.once('exit', () => {
+        managed.worker = null;
+      });
+      managed.worker.once('error', () => {
+        managed.worker = null;
+      });
+      await sleep(1200);
+    }
+  }
+}
+
+async function runNovaTrainingCycle(args: {
+  repo: MarketRepository;
+  userId: string;
+  trainer: NovaTrainerKind;
+  trainingLimit: number;
+  executeTraining: boolean;
+  triggerType: 'scheduled' | 'manual';
+}) {
+  const result = await runNovaTrainingFlywheel({
+    repo: args.repo,
+    userId: args.userId,
+    trainer: args.trainer,
+    onlyIncluded: true,
+    limit: args.trainingLimit,
+    triggerType: args.triggerType,
+    executeWhenReady: args.executeTraining
+  });
+  log('nova training flywheel finished', {
+    trainer: result.training_plan.trainer,
+    dataset_count: result.dataset_count,
+    ready_for_training: result.ready_for_training,
+    execution: result.execution
+  });
+  return result;
+}
+
+export async function runAutoBackendInitialization(options: AutoBackendOptions) {
   const db = getDb();
   ensureSchema(db);
   const repo = new MarketRepository(db);
@@ -153,6 +243,24 @@ export async function runAutoBackendInitialization(userId: string) {
     });
   }
 
+  log('free data flywheel starting', { market: 'ALL' });
+  try {
+    const freeData = await runFreeDataFlywheel({
+      repo,
+      market: 'ALL',
+      userId: options.userId,
+      triggerType: 'manual'
+    });
+    log('free data flywheel finished', {
+      news: freeData.news,
+      crypto_structure: freeData.crypto_structure
+    });
+  } catch (error) {
+    warn('free data flywheel failed; continuing to validation', {
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+
   log('validation starting', { timeframes: '1d,1h' });
   try {
     await runValidationCli(['--tf', '1d,1h', '--lookbackBars', '800']);
@@ -162,18 +270,18 @@ export async function runAutoBackendInitialization(userId: string) {
     });
   }
 
-  log('runtime derivation starting', { userId });
-  let snapshot = ensureQuantData(repo, userId, true);
+  log('runtime derivation starting', { userId: options.userId });
+  let snapshot = ensureQuantData(repo, options.userId, true);
   log('runtime derivation finished', {
     source_status: snapshot.sourceStatus,
     signals: snapshot.signals.length,
     market_state_rows: snapshot.marketState.length
   });
 
-  log('evolution cycle starting', { userId });
+  log('evolution cycle starting', { userId: options.userId });
   const evolution = await runEvolutionCycle({
     repo,
-    userId,
+    userId: options.userId,
     runtimeSnapshot: {
       sourceStatus: snapshot.sourceStatus,
       freshnessSummary: snapshot.freshnessSummary,
@@ -190,12 +298,29 @@ export async function runAutoBackendInitialization(userId: string) {
     }))
   });
   if (evolution.markets.some((row) => row.promoted || row.rolledBack || row.safeMode)) {
-    snapshot = ensureQuantData(repo, userId, true);
+    snapshot = ensureQuantData(repo, options.userId, true);
     log('runtime derivation refreshed after evolution', {
       source_status: snapshot.sourceStatus,
       signals: snapshot.signals.length,
       market_state_rows: snapshot.marketState.length
     });
+  }
+
+  if (!options.skipTraining) {
+    try {
+      await runNovaTrainingCycle({
+        repo,
+        userId: options.userId,
+        trainer: options.trainer,
+        trainingLimit: options.trainingLimit,
+        executeTraining: options.executeTraining,
+        triggerType: 'manual'
+      });
+    } catch (error) {
+      warn('nova training flywheel failed during initialization', {
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
   }
 }
 
@@ -204,6 +329,11 @@ export async function runAutoBackendMaintenanceCycle(args: {
   cycle: number;
   refreshUs: boolean;
   runEvolution: boolean;
+  runTraining: boolean;
+  trainer: NovaTrainerKind;
+  trainingLimit: number;
+  executeTraining: boolean;
+  skipTraining: boolean;
 }) {
   const db = getDb();
   ensureSchema(db);
@@ -219,6 +349,25 @@ export async function runAutoBackendMaintenanceCycle(args: {
         error: error instanceof Error ? error.message : String(error)
       });
     }
+  }
+
+  try {
+    const freeData = await runFreeDataFlywheel({
+      repo,
+      market: 'ALL',
+      userId: args.userId,
+      triggerType: 'scheduled'
+    });
+    log('scheduled free data flywheel finished', {
+      cycle: args.cycle,
+      news: freeData.news,
+      crypto_structure: freeData.crypto_structure
+    });
+  } catch (error) {
+    warn('scheduled free data flywheel failed; continuing', {
+      cycle: args.cycle,
+      error: error instanceof Error ? error.message : String(error)
+    });
   }
 
   log('scheduled validation starting', { cycle: args.cycle, timeframes: '1d,1h' });
@@ -269,20 +418,37 @@ export async function runAutoBackendMaintenanceCycle(args: {
       });
     }
   }
+
+  if (args.runTraining && !args.skipTraining) {
+    try {
+      await runNovaTrainingCycle({
+        repo,
+        userId: args.userId,
+        trainer: args.trainer,
+        trainingLimit: args.trainingLimit,
+        executeTraining: args.executeTraining,
+        triggerType: 'scheduled'
+      });
+    } catch (error) {
+      warn('scheduled nova training flywheel failed', {
+        cycle: args.cycle,
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  }
 }
 
 export async function runAutoBackend(argv = process.argv.slice(2)) {
   const options = parseAutoBackendArgs(argv);
-  const children: ChildProcess[] = [];
+  const managed: ManagedChildren = { api: null, worker: null };
   let shuttingDown = false;
 
   const cleanup = () => {
     if (shuttingDown) return;
     shuttingDown = true;
     log('shutting down children');
-    for (const child of children) {
-      if (!child.killed) child.kill('SIGTERM');
-    }
+    if (managed.api && !managed.api.killed) managed.api.kill('SIGTERM');
+    if (managed.worker && !managed.worker.killed) managed.worker.kill('SIGTERM');
   };
 
   process.on('SIGINT', cleanup);
@@ -292,47 +458,22 @@ export async function runAutoBackend(argv = process.argv.slice(2)) {
   log('booting automation', options);
 
   if (!options.skipInit) {
-    await runAutoBackendInitialization(options.userId);
+    await runAutoBackendInitialization(options);
   } else {
     log('initialization skipped by flag');
   }
 
-  if (!options.skipApi) {
-    const apiRunning = await isPortListening(options.apiPort);
-    if (apiRunning) {
-      log('api already running, skipping launch', { port: options.apiPort });
-    } else {
-      children.push(
-        spawnManaged(
-          'api',
-          process.execPath,
-          ['--import', 'tsx', 'src/server/apiServer.ts'],
-          { PORT: String(options.apiPort) }
-        )
-      );
-      await sleep(1500);
-    }
-  } else {
+  if (options.skipApi) {
     log('api launch skipped by flag');
   }
-
-  if (!options.skipWorker) {
-    const workerRunning = await isWorkerLikelyRunning();
-    if (workerRunning) {
-      log('binance worker already running, skipping launch');
-    } else {
-      children.push(
-        spawnManaged(
-          'binance-worker',
-          process.execPath,
-          ['--import', 'tsx', 'scripts/update-binance.ts', '--tf', '1h']
-        )
-      );
-      await sleep(1200);
-    }
-  } else {
+  if (options.skipWorker) {
     log('binance worker skipped by flag');
   }
+  if (options.skipTraining) {
+    log('nova training flywheel skipped by flag');
+  }
+
+  await ensureManagedProcesses(options, managed);
 
   if (options.once) {
     log('once mode complete');
@@ -347,6 +488,23 @@ export async function runAutoBackend(argv = process.argv.slice(2)) {
     1,
     Math.round((options.retrainHours * 3600) / options.deriveIntervalSec)
   );
+  const trainEveryCycles = Math.max(
+    1,
+    Math.round((options.trainEveryHours * 3600) / options.deriveIntervalSec)
+  );
+
+  const supervisor = (async () => {
+    while (!shuttingDown) {
+      try {
+        await ensureManagedProcesses(options, managed);
+      } catch (error) {
+        warn('managed process supervisor failed', {
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+      await sleep(options.supervisorCheckSec * 1000);
+    }
+  })();
 
   let cycle = 0;
   while (!shuttingDown) {
@@ -357,12 +515,18 @@ export async function runAutoBackend(argv = process.argv.slice(2)) {
     try {
       const refreshUs = cycle % usRefreshEveryCycles === 0;
       const runEvolution = cycle % retrainEveryCycles === 0;
-      if (cycle % options.validateEvery === 0 || refreshUs || runEvolution) {
+      const runTraining = cycle % trainEveryCycles === 0;
+      if (cycle % options.validateEvery === 0 || refreshUs || runEvolution || runTraining) {
         await runAutoBackendMaintenanceCycle({
           userId: options.userId,
           cycle,
           refreshUs,
-          runEvolution
+          runEvolution,
+          runTraining,
+          trainer: options.trainer,
+          trainingLimit: options.trainingLimit,
+          executeTraining: options.executeTraining,
+          skipTraining: options.skipTraining
         });
       } else {
         const db = getDb();
@@ -383,6 +547,8 @@ export async function runAutoBackend(argv = process.argv.slice(2)) {
       });
     }
   }
+
+  await supervisor;
 }
 
 const isEntrypoint = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;

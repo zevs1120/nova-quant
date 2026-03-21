@@ -26,6 +26,7 @@ describe('nova mlx training plan', () => {
     expect(plan.tasks).toEqual(['assistant_grounded_answer']);
     expect(plan.command[0]).toBe('python3');
     expect(plan.command).toContain('--adapter-path');
-    expect(renderNovaShellCommand(plan.command)).toContain('mlx_lm.lora');
+    expect(plan.command).toContain('--num-layers');
+    expect(renderNovaShellCommand(plan.command)).toContain('mlx_lm lora');
   });
 });

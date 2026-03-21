@@ -20,6 +20,7 @@ import {
   getBackendBackbone,
   getBrowseHomePayload,
   getControlPlaneStatus,
+  getFlywheelStatus,
   createNovaReviewLabel,
   getEngagementState,
   getDecisionSnapshot,
@@ -153,6 +154,7 @@ export function createApiApp() {
       req.path === '/api/market/modules' ||
       req.path === '/api/risk-profile' ||
       req.path === '/api/control-plane/status' ||
+      req.path === '/api/control-plane/flywheel' ||
       req.path === '/api/connect/broker' ||
       req.path === '/api/connect/exchange';
     if (!(allowCrossOriginRead && (req.method === 'GET' || req.method === 'OPTIONS'))) {
@@ -430,6 +432,15 @@ export function createApiApp() {
     const userId = (req.query.userId as string | undefined) || 'guest-default';
     res.json(
       await getControlPlaneStatus({
+        userId
+      })
+    );
+  });
+
+  app.get('/api/control-plane/flywheel', async (req, res) => {
+    const userId = (req.query.userId as string | undefined) || 'guest-default';
+    res.json(
+      await getFlywheelStatus({
         userId
       })
     );

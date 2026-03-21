@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.novaquant.auto-backend</string>
+  <key>WorkingDirectory</key>
+  <string>/Users/qiao/Downloads/nova-quant</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/zsh</string>
+    <string>-lc</string>
+    <string>'npm' 'run' 'auto:backend' '--' '--user' 'guest-default' '--port' '8787' '--derive-interval-sec' '300' '--validate-every' '6' '--us-refresh-hours' '6' '--retrain-hours' '24' '--train-hours' '24' '--trainer' 'mlx-lora' '--training-limit' '500' '--supervisor-check-sec' '20' '--execute-training'</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>ProcessType</key>
+  <string>Background</string>
+  <key>StandardOutPath</key>
+  <string>/Users/qiao/Downloads/nova-quant/logs/auto-backend/stdout.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/qiao/Downloads/nova-quant/logs/auto-backend/stderr.log</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>HOME</key>
+    <string>/Users/qiao</string>
+  </dict>
+</dict>
+</plist>

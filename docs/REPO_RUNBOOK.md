@@ -47,6 +47,47 @@ Runtime check:
 curl "http://127.0.0.1:8787/api/runtime-state?userId=guest-default&market=US&assetClass=US_STOCK"
 ```
 
+## 4.1) Unattended Auto Backend
+
+Continuous backend loop:
+
+```bash
+npm run auto:backend
+```
+
+Generate macOS `launchd` service plist:
+
+```bash
+npm run auto:backend:launchd
+```
+
+Install and start the macOS background service:
+
+```bash
+npm run auto:backend:install
+```
+
+Inspect service status:
+
+```bash
+npm run auto:backend:status
+```
+
+Remove the service:
+
+```bash
+npm run auto:backend:uninstall
+```
+
+Default unattended loop behavior:
+
+- refreshes US/crypto market data
+- refreshes free news + crypto funding/basis structure data
+- validates runtime data quality
+- keeps API + worker processes supervised and auto-restarted
+- runs scheduled quant evolution
+- runs scheduled Nova training flywheel and, if `mlx_lm` is installed locally plus `--execute-training` is enabled, executes MLX LoRA training directly
+
 ## 5) Start Frontend
 
 ```bash

@@ -45,6 +45,22 @@ export interface OhlcvRow extends NormalizedBar {
   ingest_at: number;
 }
 
+export interface FundingRateRow {
+  asset_id: number;
+  ts_open: number;
+  funding_rate: string;
+  source: string;
+  ingest_at: number;
+}
+
+export interface BasisSnapshotRow {
+  asset_id: number;
+  ts_open: number;
+  basis_bps: string;
+  source: string;
+  ingest_at: number;
+}
+
 export interface OhlcvQuery {
   market: Market;
   symbol: string;
@@ -397,6 +413,11 @@ export interface AppConfig {
     limit: number;
     requestDelayMs: number;
     retry: RetryConfig;
+  };
+  binanceDerivatives?: {
+    historyLimit: number;
+    requestDelayMs: number;
+    timeoutMs: number;
   };
 }
 

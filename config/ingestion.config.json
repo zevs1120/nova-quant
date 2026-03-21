@@ -6,11 +6,36 @@
   "markets": {
     "US": {
       "venue": "STOOQ",
-      "symbols": ["SPY", "QQQ", "AAPL", "MSFT", "NVDA", "TSLA"]
+      "symbols": [
+        "SPY",
+        "QQQ",
+        "IWM",
+        "DIA",
+        "XLK",
+        "XLF",
+        "XLE",
+        "XLV",
+        "SMH",
+        "SOXX",
+        "TLT",
+        "GLD",
+        "AAPL",
+        "MSFT",
+        "NVDA",
+        "AMZN",
+        "GOOGL",
+        "META",
+        "TSLA",
+        "AMD",
+        "AVGO",
+        "NFLX",
+        "JPM",
+        "GS"
+      ]
     },
     "CRYPTO": {
       "venue": "BINANCE_UM",
-      "symbols": ["BTCUSDT", "ETHUSDT"]
+      "symbols": ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT", "DOGEUSDT", "LINKUSDT"]
     }
   },
   "timeframes": ["5m", "1h", "1d"],
@@ -53,5 +78,10 @@
       "attempts": 4,
       "baseDelayMs": 600
     }
+  },
+  "binanceDerivatives": {
+    "historyLimit": 90,
+    "requestDelayMs": 180,
+    "timeoutMs": 12000
   }
 }

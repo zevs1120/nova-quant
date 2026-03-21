@@ -49,6 +49,24 @@ describe('derive runtime state', () => {
     const now = Date.now();
     repo.upsertOhlcvBars(us.asset_id, '1d', buildTrendBars(now - 120 * 86_400_000, 86_400_000, 450, 120), 'TEST');
     repo.upsertOhlcvBars(crypto.asset_id, '1h', buildTrendBars(now - 240 * 3_600_000, 3_600_000, 65000, 240), 'TEST');
+    repo.upsertFundingRates(
+      crypto.asset_id,
+      [
+        { ts_open: now - 24 * 3_600_000, funding_rate: '0.0001' },
+        { ts_open: now - 16 * 3_600_000, funding_rate: '0.0002' },
+        { ts_open: now - 8 * 3_600_000, funding_rate: '0.0003' }
+      ],
+      'TEST'
+    );
+    repo.upsertBasisSnapshots(
+      crypto.asset_id,
+      [
+        { ts_open: now - 12 * 3_600_000, basis_bps: '4.5' },
+        { ts_open: now - 6 * 3_600_000, basis_bps: '7.5' },
+        { ts_open: now - 2 * 3_600_000, basis_bps: '12' }
+      ],
+      'TEST'
+    );
 
     repo.upsertUserRiskProfile({
       user_id: 'test-user',
@@ -81,6 +99,13 @@ describe('derive runtime state', () => {
     expect(runtime.coverageSummary).toBeTruthy();
     expect(runtime.performanceSnapshots.length).toBeGreaterThan(0);
     expect(Array.isArray(runtime.signals)).toBe(true);
+    const cryptoState = runtime.marketState.find((row) => row.market === 'CRYPTO' && row.symbol === 'BTCUSDT');
+    expect(cryptoState).toBeTruthy();
+    const eventStats = JSON.parse(String(cryptoState?.event_stats_json || '{}')) as Record<string, unknown>;
+    const micro = (eventStats.crypto_microstructure || {}) as Record<string, unknown>;
+    expect(micro.fundingRateCurrent).toBe(0.0003);
+    expect(micro.fundingRate24h).toBe(0.0006);
+    expect(micro.basisBps).toBe(12);
     if (runtime.signals.length > 0) {
       const tagBlob = runtime.signals.flatMap((row) => row.tags || []);
       expect(tagBlob.some((tag) => String(tag).startsWith('auto_learning:'))).toBe(true);

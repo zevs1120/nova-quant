@@ -54,6 +54,15 @@ type StrategyFactoryCandidate = {
   riskNote: string;
 };
 
+type CryptoMarketMicrostructure = {
+  fundingRateCurrent: number;
+  fundingRate8h: number;
+  fundingRate24h: number;
+  basisBps: number;
+  basisPercentile: number;
+  fundingState: 'NEUTRAL' | 'EXTREME';
+};
+
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
@@ -571,6 +580,7 @@ function buildSignal(args: {
   nowMs: number;
   adaptive?: AdaptiveTuning;
   strategyVersion?: string;
+  cryptoMicrostructure?: CryptoMarketMicrostructure | null;
 }): SignalContract {
   const { market, asset, timeframe, stats, hit, riskProfile, nowMs, adaptive } = args;
   const atr = Math.max(0.0001, stats.latestAtr || stats.latest.close * 0.01);
@@ -611,6 +621,14 @@ function buildSignal(args: {
   const signalId = `SIG-${market}-${asset.symbol}-${hit.id}`;
   const createdAt = new Date(nowMs).toISOString();
   const expiresAt = new Date(nowMs + (timeframe === '1d' ? 2 : 12) * MS_HOUR).toISOString();
+  const cryptoData = args.cryptoMicrostructure || {
+    fundingRateCurrent: 0,
+    fundingRate8h: 0,
+    fundingRate24h: 0,
+    basisBps: 0,
+    basisPercentile: 50,
+    fundingState: 'NEUTRAL' as const
+  };
 
   const payload: SignalPayload =
     market === 'CRYPTO'
@@ -618,18 +636,18 @@ function buildSignal(args: {
           kind: 'CRYPTO',
           data: {
             venue: 'BINANCE',
-            instrument_type: 'SPOT',
+            instrument_type: args.cryptoMicrostructure ? 'PERP' : 'SPOT',
             perp_metrics: {
-              funding_rate_current: 0,
-              funding_rate_8h: 0,
-              funding_rate_24h: 0,
-              basis_bps: 0,
-              basis_percentile: 50
+              funding_rate_current: cryptoData.fundingRateCurrent,
+              funding_rate_8h: cryptoData.fundingRate8h,
+              funding_rate_24h: cryptoData.fundingRate24h,
+              basis_bps: cryptoData.basisBps,
+              basis_percentile: cryptoData.basisPercentile
             },
             flow_state: {
               spot_led_breakout: hit.id.includes('BREAKOUT'),
-              perp_led_breakout: false,
-              funding_state: 'NEUTRAL'
+              perp_led_breakout: Math.abs(cryptoData.basisBps) >= 6 || Math.abs(cryptoData.fundingRateCurrent) >= 0.0008,
+              funding_state: cryptoData.fundingState
             },
             leverage_suggestion: {
               suggested_leverage: 1,
@@ -703,8 +721,8 @@ function buildSignal(args: {
       fee_bps: market === 'CRYPTO' ? 4 : 1.5,
       spread_bps: market === 'CRYPTO' ? 3.5 : 1,
       slippage_bps: market === 'CRYPTO' ? 4.5 : 1.8,
-      funding_est_bps: market === 'CRYPTO' ? 0 : undefined,
-      basis_est: 0
+      funding_est_bps: market === 'CRYPTO' ? round(Math.abs(cryptoData.fundingRate24h) * 10_000, 2) : undefined,
+      basis_est: market === 'CRYPTO' ? round(Math.abs(cryptoData.basisBps), 2) : 0
     },
     expected_metrics: {
       expected_R: 0,
@@ -1002,6 +1020,31 @@ function summarizeNews(repo: MarketRepository, market: Market, symbol: string): 
   return buildNewsContext(rows as NewsItemRecord[], symbol);
 }
 
+function loadCryptoMicrostructure(repo: MarketRepository, assetId: number): CryptoMarketMicrostructure {
+  const fundingRows = repo.listFundingRates({ assetId, limit: 24 });
+  const basisRows = repo.listBasisSnapshots({ assetId, limit: 96 });
+
+  const fundingValues = fundingRows
+    .map((row) => Number(row.funding_rate))
+    .filter((value) => Number.isFinite(value));
+  const basisValues = basisRows
+    .map((row) => Number(row.basis_bps))
+    .filter((value) => Number.isFinite(value));
+
+  const fundingRateCurrent = fundingValues.length ? fundingValues[fundingValues.length - 1] : 0;
+  const fundingRate24h = fundingValues.slice(-3).reduce((acc, value) => acc + value, 0);
+  const basisBps = basisValues.length ? basisValues[basisValues.length - 1] : 0;
+
+  return {
+    fundingRateCurrent: round(fundingRateCurrent, 8),
+    fundingRate8h: round(fundingRateCurrent, 8),
+    fundingRate24h: round(fundingRate24h, 8),
+    basisBps: round(basisBps, 4),
+    basisPercentile: basisValues.length ? percentileRank(basisValues, basisBps) : 50,
+    fundingState: Math.abs(fundingRateCurrent) >= 0.0008 ? 'EXTREME' : 'NEUTRAL'
+  };
+}
+
 function adjustRuleForNews(rule: RuleHit, news: SignalNewsContext): RuleHit {
   if (!news.headline_count || news.tone === 'NONE' || news.tone === 'NEUTRAL') {
     return rule;
@@ -1125,6 +1168,7 @@ export function deriveRuntimeState(params: {
       ruleHit = mergeRuleWithPanda(ruleHit, pandaDecision);
     }
     const newsContext = summarizeNews(repo, target.market, target.symbol);
+    const cryptoMicrostructure = target.market === 'CRYPTO' ? loadCryptoMicrostructure(repo, asset.asset_id) : null;
     if (ruleHit) {
       ruleHit = adjustRuleForNews(ruleHit, newsContext);
     }
@@ -1141,6 +1185,7 @@ export function deriveRuntimeState(params: {
       vol_impulse: round(ctx.volImpulse, 4),
       signal_candidate: ruleHit?.id || null,
       news_context: newsContext,
+      crypto_microstructure: cryptoMicrostructure,
       panda: {
         active_model_id: activeModel.modelId,
         active_model_version: activeModel.semanticVersion,
@@ -1189,7 +1234,8 @@ export function deriveRuntimeState(params: {
       riskProfile,
       nowMs,
       adaptive: adaptiveTuning,
-      strategyVersion: activeModel.semanticVersion
+      strategyVersion: activeModel.semanticVersion,
+      cryptoMicrostructure
     });
 
     const sampled = parseRuleSampleFromSignal(signal, bars);

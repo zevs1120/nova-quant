@@ -15,7 +15,8 @@ import type {
   RiskProfileKey,
   SignalContract,
   Timeframe,
-  UserHoldingInput
+  UserHoldingInput,
+  WorkflowRunRecord
 } from '../types.js';
 import { createExecutionRecord, decodeSignalContract, ensureQuantData } from '../quant/service.js';
 import {
@@ -43,7 +44,7 @@ import { buildMlxLmTrainingDataset } from '../nova/training.js';
 import { getNovaModelPlan, getNovaRoutingPolicies, getNovaRuntimeMode } from '../ai/llmOps.js';
 import { inspectNovaHealth } from '../nova/health.js';
 import { labelNovaRun } from '../nova/service.js';
-import { runNovaTrainingFlywheel, type NovaTrainerKind } from '../nova/flywheel.js';
+import { MIN_AUTOMATIC_TRAINING_ROWS, runNovaTrainingFlywheel, type NovaTrainerKind } from '../nova/flywheel.js';
 import { generateGovernedNovaStrategies } from '../nova/strategyLab.js';
 import { buildNewsContext, ensureFreshNewsForSymbol, ensureFreshNewsForUniverse } from '../news/provider.js';
 import { buildEvidenceLineage } from '../evidence/lineage.js';
@@ -2790,6 +2791,235 @@ export function getRuntimeState(args: {
   };
 }
 
+function parseJsonValue(text: string | null | undefined): unknown {
+  if (!text) return null;
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+function asObject(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
+
+function asArray(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function toIso(value: unknown): string | null {
+  const ts = Number(value);
+  if (!Number.isFinite(ts) || ts <= 0) return null;
+  return new Date(ts).toISOString();
+}
+
+function toCount(value: unknown): number {
+  const next = Number(value);
+  return Number.isFinite(next) ? next : 0;
+}
+
+function workflowRunBase(run: WorkflowRunRecord) {
+  return {
+    id: run.id,
+    status: run.status,
+    trigger_type: run.trigger_type,
+    started_at: toIso(run.started_at_ms),
+    updated_at: toIso(run.updated_at_ms),
+    completed_at: toIso(run.completed_at_ms)
+  };
+}
+
+function summarizeFreeDataRun(run: WorkflowRunRecord) {
+  const output = asObject(parseJsonValue(run.output_json));
+  const news = asObject(output.news);
+  const crypto = asObject(output.crypto_structure);
+  const highlights = asArray(crypto.symbols)
+    .map((row) => asObject(row))
+    .slice(0, 6)
+    .map((row) => ({
+      symbol: String(row.symbol || ''),
+      funding_inserted: toCount(row.funding_inserted),
+      basis_inserted: toCount(row.basis_inserted),
+      latest_funding_rate: Number.isFinite(Number(row.latest_funding_rate)) ? Number(row.latest_funding_rate) : null,
+      latest_basis_bps: Number.isFinite(Number(row.latest_basis_bps)) ? Number(row.latest_basis_bps) : null
+    }))
+    .filter((row) => row.symbol);
+
+  return {
+    ...workflowRunBase(run),
+    workflow_key: run.workflow_key,
+    market: typeof output.market === 'string' ? output.market : 'ALL',
+    news: {
+      targets: toCount(news.targets),
+      refreshed_symbols: toCount(news.refreshed_symbols),
+      skipped_symbols: toCount(news.skipped_symbols),
+      rows_upserted: toCount(news.rows_upserted),
+      error_count: asArray(news.errors).length
+    },
+    crypto_structure: {
+      symbols_processed: toCount(crypto.symbols_processed),
+      funding_points: toCount(crypto.funding_points),
+      basis_points: toCount(crypto.basis_points),
+      latest_funding_symbols: toCount(crypto.latest_funding_symbols),
+      latest_basis_symbols: toCount(crypto.latest_basis_symbols),
+      highlights
+    }
+  };
+}
+
+function summarizeEvolutionRun(run: WorkflowRunRecord) {
+  const markets = asArray(parseJsonValue(run.output_json))
+    .map((row) => asObject(row))
+    .map((row) => ({
+      market: typeof row.market === 'string' ? row.market : 'UNKNOWN',
+      factor_eval_count: toCount(row.factorEvalCount),
+      promoted: Boolean(row.promoted),
+      rolled_back: Boolean(row.rolledBack),
+      safe_mode: Boolean(row.safeMode),
+      active_model_id: typeof row.activeModelId === 'string' ? row.activeModelId : null,
+      challenger_model_id: typeof row.challengerModelId === 'string' ? row.challengerModelId : null,
+      summary: typeof row.summary === 'string' ? row.summary : ''
+    }));
+
+  return {
+    ...workflowRunBase(run),
+    workflow_key: run.workflow_key,
+    promoted_count: markets.filter((row) => row.promoted).length,
+    rollback_count: markets.filter((row) => row.rolled_back).length,
+    safe_mode_count: markets.filter((row) => row.safe_mode).length,
+    markets
+  };
+}
+
+function summarizeTrainingRun(run: WorkflowRunRecord) {
+  const output = asObject(parseJsonValue(run.output_json));
+  const execution = asObject(output.execution);
+  return {
+    ...workflowRunBase(run),
+    workflow_key: run.workflow_key,
+    trainer: typeof output.trainer === 'string' ? output.trainer : null,
+    dataset_count: toCount(output.dataset_count),
+    ready_for_training: Boolean(output.ready_for_training),
+    manifest_path: typeof output.manifest_path === 'string' ? output.manifest_path : null,
+    task_types: asArray(output.task_types).map((row) => String(row || '')).filter(Boolean),
+    execution: {
+      attempted: Boolean(execution.attempted),
+      executed: Boolean(execution.executed),
+      success: Boolean(execution.success),
+      reason: typeof execution.reason === 'string' ? execution.reason : null,
+      exit_code: Number.isFinite(Number(execution.exit_code)) ? Number(execution.exit_code) : null
+    }
+  };
+}
+
+function summarizeRecentNews(repo: MarketRepository) {
+  return repo.listNewsItems({ limit: 8 }).map((row) => ({
+    id: row.id,
+    market: row.market,
+    symbol: row.symbol,
+    headline: row.headline,
+    source: row.source,
+    sentiment: row.sentiment_label,
+    published_at: toIso(row.published_at_ms),
+    updated_at: toIso(row.updated_at_ms)
+  }));
+}
+
+function buildFlywheelStatus(repo: MarketRepository) {
+  const freeDataRuns = repo.listWorkflowRuns({
+    workflowKey: 'free_data_flywheel',
+    limit: 6
+  });
+  const evolutionRuns = repo.listWorkflowRuns({
+    workflowKey: 'quant_evolution_cycle',
+    limit: 6
+  });
+  const trainingRuns = repo.listWorkflowRuns({
+    workflowKey: 'nova_training_flywheel',
+    limit: 6
+  });
+
+  const latestTrainingSummary = trainingRuns[0] ? summarizeTrainingRun(trainingRuns[0]) : null;
+  const liveTrainingDataset = buildMlxLmTrainingDataset(repo, {
+    onlyIncluded: true,
+    limit: 500
+  });
+  const currentDatasetCount = latestTrainingSummary?.dataset_count ?? liveTrainingDataset.count;
+
+  const recentActivity = [
+    ...freeDataRuns.slice(0, 2).map((run) => {
+      const summary = summarizeFreeDataRun(run);
+      return {
+        workflow_key: run.workflow_key,
+        label: 'Free Data Refresh',
+        status: summary.status,
+        updated_at: summary.updated_at,
+        detail: `${summary.news.refreshed_symbols} news refreshes · ${summary.crypto_structure.symbols_processed} crypto symbols`
+      };
+    }),
+    ...evolutionRuns.slice(0, 2).map((run) => {
+      const summary = summarizeEvolutionRun(run);
+      return {
+        workflow_key: run.workflow_key,
+        label: 'Quant Evolution',
+        status: summary.status,
+        updated_at: summary.updated_at,
+        detail: `${summary.promoted_count} promoted · ${summary.rollback_count} rolled back · ${summary.safe_mode_count} safe mode`
+      };
+    }),
+    ...trainingRuns.slice(0, 2).map((run) => {
+      const summary = summarizeTrainingRun(run);
+      return {
+        workflow_key: run.workflow_key,
+        label: 'Nova Training',
+        status: summary.status,
+        updated_at: summary.updated_at,
+        detail: `${summary.dataset_count} samples · ${summary.execution.reason || 'no execution detail'}`
+      };
+    })
+  ]
+    .filter((row) => row.updated_at)
+    .sort((a, b) => String(b.updated_at).localeCompare(String(a.updated_at)));
+
+  return {
+    as_of: new Date().toISOString(),
+    last_activity_at: recentActivity[0]?.updated_at || null,
+    recent_activity: recentActivity,
+    free_data: {
+      latest_status: freeDataRuns[0]?.status || 'IDLE',
+      latest_run_at: toIso(freeDataRuns[0]?.updated_at_ms),
+      latest_trigger_type: freeDataRuns[0]?.trigger_type || null,
+      recent_runs: freeDataRuns.map(summarizeFreeDataRun),
+      recent_news: summarizeRecentNews(repo)
+    },
+    evolution: {
+      latest_status: evolutionRuns[0]?.status || 'IDLE',
+      latest_run_at: toIso(evolutionRuns[0]?.updated_at_ms),
+      latest_trigger_type: evolutionRuns[0]?.trigger_type || null,
+      recent_runs: evolutionRuns.map(summarizeEvolutionRun)
+    },
+    training: {
+      latest_status: trainingRuns[0]?.status || 'IDLE',
+      latest_run_at: toIso(trainingRuns[0]?.updated_at_ms),
+      latest_trigger_type: trainingRuns[0]?.trigger_type || null,
+      current_dataset_count: currentDatasetCount,
+      current_dataset_source: latestTrainingSummary?.dataset_count !== undefined ? 'latest_training_run' : 'live_scan',
+      minimum_training_rows: MIN_AUTOMATIC_TRAINING_ROWS,
+      ready_for_training: currentDatasetCount >= MIN_AUTOMATIC_TRAINING_ROWS,
+      latest_execution_reason: latestTrainingSummary?.execution.reason || null,
+      latest_execution_success: latestTrainingSummary ? latestTrainingSummary.execution.success : null,
+      task_types: latestTrainingSummary?.task_types?.length ? latestTrainingSummary.task_types : liveTrainingDataset.task_types,
+      recent_runs: trainingRuns.map(summarizeTrainingRun)
+    }
+  };
+}
+
+export async function getFlywheelStatus(_args?: { userId?: string }) {
+  const repo = getRepo();
+  return buildFlywheelStatus(repo);
+}
+
 export async function getControlPlaneStatus(args?: { userId?: string }) {
   const repo = getRepo();
   const userId = args?.userId || 'guest-default';
@@ -2832,6 +3062,7 @@ export async function getControlPlaneStatus(args?: { userId?: string }) {
   const browseHome = await getBrowseHomePayload({
     view: 'NOW'
   }).catch(() => null);
+  const flywheel = buildFlywheelStatus(repo);
 
   return {
     as_of: new Date().toISOString(),
@@ -2848,6 +3079,7 @@ export async function getControlPlaneStatus(args?: { userId?: string }) {
       latest_status: latestStrategyLabRun?.status || 'IDLE',
       recent_run_count: workflowRuns.length
     },
+    flywheel,
     delivery: {
       active_notification_count: activeNotifications.length,
       latest_notification_at: activeNotifications[0] ? new Date(activeNotifications[0].updated_at_ms).toISOString() : null

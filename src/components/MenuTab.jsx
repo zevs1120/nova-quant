@@ -7,7 +7,7 @@ const MENU_GROUPS = [
   },
   {
     key: 'group:system',
-    items: ['signals', 'performance', 'safety', 'data']
+    items: ['signals', 'performance', 'safety', 'data', 'learning']
   },
   {
     key: 'group:market',
@@ -52,7 +52,7 @@ function localeCopy(locale) {
     pointsRate: zh ? '1000 积分 = 1 天 VIP' : '1000 pts = 1 day VIP',
     pointsUse: zh ? '你现在最值得做的是继续拿判断换积分。' : 'The best next move is to trade judgment for points.',
     reviewDescription: zh ? '本周总结和纪律记录。' : 'Weekly recap and discipline rhythm.',
-    systemDescription: zh ? '系统状态、信号、安全和数据。' : 'Signals, safety, performance, and data.',
+    systemDescription: zh ? '系统状态、信号、安全、数据和学习飞轮。' : 'Signals, safety, performance, data, and the learning loop.',
     marketDescription: zh ? '更宽的市场背景和观察。' : 'Broader context and market notes.',
     settingsDescription: zh ? '语言、偏好和模式设置。' : 'Language, preferences, and modes.',
     username: zh ? '用户名' : 'Username'
@@ -108,6 +108,10 @@ function itemCatalog(locale) {
     data: {
       title: zh ? '数据状态' : 'Data Status',
       description: zh ? '新鲜度、覆盖率和缺口。' : 'Freshness, coverage, and missing data.'
+    },
+    learning: {
+      title: zh ? '学习飞轮' : 'Learning Loop',
+      description: zh ? '最近抓取、演化和训练样本。' : 'Recent ingestion, evolution, and training samples.'
     },
     insights: {
       title: zh ? '市场洞察' : 'Insights',

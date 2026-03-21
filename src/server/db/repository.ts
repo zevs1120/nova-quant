@@ -29,6 +29,8 @@ import type {
   ComplianceLogRecord,
   DecisionIntelligenceDatasetRecord,
   NormalizedBar,
+  FundingRateRow,
+  BasisSnapshotRow,
   PerformanceSnapshotRecord,
   PromptVersionRecord,
   RecommendationReviewRecord,
@@ -157,6 +159,168 @@ export class MarketRepository {
 
     tx(bars);
     return bars.length;
+  }
+
+  upsertFundingRates(assetId: number, rows: Array<{ ts_open: number; funding_rate: string }>, source: string): number {
+    if (!rows.length) return 0;
+
+    const ingestAt = nowMs();
+    const stmt = this.db.prepare(`
+      INSERT INTO funding_rates(asset_id, ts_open, funding_rate, source, ingest_at)
+      VALUES(@asset_id, @ts_open, @funding_rate, @source, @ingest_at)
+      ON CONFLICT(asset_id, ts_open) DO UPDATE SET
+        funding_rate = excluded.funding_rate,
+        source = excluded.source,
+        ingest_at = excluded.ingest_at
+    `);
+
+    const tx = this.db.transaction((records: Array<{ ts_open: number; funding_rate: string }>) => {
+      for (const row of records) {
+        stmt.run({
+          asset_id: assetId,
+          ts_open: row.ts_open,
+          funding_rate: row.funding_rate,
+          source,
+          ingest_at: ingestAt
+        });
+      }
+    });
+
+    tx(rows);
+    return rows.length;
+  }
+
+  listFundingRates(params: {
+    assetId: number;
+    start?: number;
+    end?: number;
+    limit?: number;
+  }): FundingRateRow[] {
+    const where: string[] = ['asset_id = @asset_id'];
+    if (params.start !== undefined) where.push('ts_open >= @start');
+    if (params.end !== undefined) where.push('ts_open <= @end');
+    const limitSql = params.limit ? 'LIMIT @limit' : '';
+    const sql = params.limit
+      ? `
+          SELECT asset_id, ts_open, funding_rate, source, ingest_at
+          FROM (
+            SELECT asset_id, ts_open, funding_rate, source, ingest_at
+            FROM funding_rates
+            WHERE ${where.join(' AND ')}
+            ORDER BY ts_open DESC
+            ${limitSql}
+          )
+          ORDER BY ts_open ASC
+        `
+      : `
+          SELECT asset_id, ts_open, funding_rate, source, ingest_at
+          FROM funding_rates
+          WHERE ${where.join(' AND ')}
+          ORDER BY ts_open ASC
+        `;
+
+    return this.db.prepare(sql).all({
+      asset_id: params.assetId,
+      start: params.start,
+      end: params.end,
+      limit: params.limit
+    }) as FundingRateRow[];
+  }
+
+  getLatestFundingRate(assetId: number): FundingRateRow | null {
+    const row = this.db
+      .prepare(
+        `
+          SELECT asset_id, ts_open, funding_rate, source, ingest_at
+          FROM funding_rates
+          WHERE asset_id = ?
+          ORDER BY ts_open DESC
+          LIMIT 1
+        `
+      )
+      .get(assetId) as FundingRateRow | undefined;
+    return row ?? null;
+  }
+
+  upsertBasisSnapshots(assetId: number, rows: Array<{ ts_open: number; basis_bps: string }>, source: string): number {
+    if (!rows.length) return 0;
+
+    const ingestAt = nowMs();
+    const stmt = this.db.prepare(`
+      INSERT INTO basis_snapshots(asset_id, ts_open, basis_bps, source, ingest_at)
+      VALUES(@asset_id, @ts_open, @basis_bps, @source, @ingest_at)
+      ON CONFLICT(asset_id, ts_open) DO UPDATE SET
+        basis_bps = excluded.basis_bps,
+        source = excluded.source,
+        ingest_at = excluded.ingest_at
+    `);
+
+    const tx = this.db.transaction((records: Array<{ ts_open: number; basis_bps: string }>) => {
+      for (const row of records) {
+        stmt.run({
+          asset_id: assetId,
+          ts_open: row.ts_open,
+          basis_bps: row.basis_bps,
+          source,
+          ingest_at: ingestAt
+        });
+      }
+    });
+
+    tx(rows);
+    return rows.length;
+  }
+
+  listBasisSnapshots(params: {
+    assetId: number;
+    start?: number;
+    end?: number;
+    limit?: number;
+  }): BasisSnapshotRow[] {
+    const where: string[] = ['asset_id = @asset_id'];
+    if (params.start !== undefined) where.push('ts_open >= @start');
+    if (params.end !== undefined) where.push('ts_open <= @end');
+    const limitSql = params.limit ? 'LIMIT @limit' : '';
+    const sql = params.limit
+      ? `
+          SELECT asset_id, ts_open, basis_bps, source, ingest_at
+          FROM (
+            SELECT asset_id, ts_open, basis_bps, source, ingest_at
+            FROM basis_snapshots
+            WHERE ${where.join(' AND ')}
+            ORDER BY ts_open DESC
+            ${limitSql}
+          )
+          ORDER BY ts_open ASC
+        `
+      : `
+          SELECT asset_id, ts_open, basis_bps, source, ingest_at
+          FROM basis_snapshots
+          WHERE ${where.join(' AND ')}
+          ORDER BY ts_open ASC
+        `;
+
+    return this.db.prepare(sql).all({
+      asset_id: params.assetId,
+      start: params.start,
+      end: params.end,
+      limit: params.limit
+    }) as BasisSnapshotRow[];
+  }
+
+  getLatestBasisSnapshot(assetId: number): BasisSnapshotRow | null {
+    const row = this.db
+      .prepare(
+        `
+          SELECT asset_id, ts_open, basis_bps, source, ingest_at
+          FROM basis_snapshots
+          WHERE asset_id = ?
+          ORDER BY ts_open DESC
+          LIMIT 1
+        `
+      )
+      .get(assetId) as BasisSnapshotRow | undefined;
+    return row ?? null;
   }
 
   getOhlcv(params: {

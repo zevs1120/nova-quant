@@ -72,7 +72,8 @@ export function buildNovaMlxLoraPlan(args?: Partial<{
     command: [
       'python3',
       '-m',
-      'mlx_lm.lora',
+      'mlx_lm',
+      'lora',
       '--model',
       baseModel,
       '--train',
@@ -86,7 +87,7 @@ export function buildNovaMlxLoraPlan(args?: Partial<{
       String(batchSize),
       '--learning-rate',
       String(learningRate),
-      '--lora-layers',
+      '--num-layers',
       String(loraLayers)
     ]
   };
