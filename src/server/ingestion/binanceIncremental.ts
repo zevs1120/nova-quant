@@ -6,6 +6,20 @@ import { logInfo, logWarn } from '../utils/log.js';
 import { sleep, timeframeToMs } from '../utils/time.js';
 import { normalizeBars } from './normalize.js';
 
+const BINANCE_BLOCK_COOLDOWN_MS = 1000 * 60 * 60 * 6;
+let binanceRestBlockedUntilMs = 0;
+
+class BinanceRestError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly url: string
+  ) {
+    super(message);
+    this.name = 'BinanceRestError';
+  }
+}
+
 function inferBaseQuote(symbol: string): { base: string; quote: string } {
   const quoteCandidates = ['USDT', 'USDC', 'BUSD', 'BTC', 'ETH'];
   for (const quote of quoteCandidates) {
@@ -63,11 +77,20 @@ export async function fetchBinanceKlines(params: {
   const url = buildKlineUrl(params.symbol, params.timeframe, params.limit, params.startTime, params.endTime);
   const res = await fetchWithRetry(url, {}, cfg.binanceRest.retry);
   if (!res.ok) {
-    throw new Error(`Binance REST failed: ${res.status} (${url})`);
+    throw new BinanceRestError(`Binance REST failed: ${res.status} (${url})`, res.status, url);
   }
 
   const payload = await res.json();
   return parseKlinesPayload(payload);
+}
+
+export function isBinanceAccessBlockedError(error: unknown): boolean {
+  if (error instanceof BinanceRestError) return error.status === 451;
+  return /Binance REST failed:\s*451\b/.test(String(error instanceof Error ? error.message : error || ''));
+}
+
+export function resetBinanceAccessBlockForTests() {
+  binanceRestBlockedUntilMs = 0;
 }
 
 export async function updateBinanceIncremental(params: {
@@ -78,6 +101,9 @@ export async function updateBinanceIncremental(params: {
 }): Promise<void> {
   const cfg = getConfig();
   const limit = params.limit ?? cfg.binanceRest.limit;
+  if (Date.now() < binanceRestBlockedUntilMs) {
+    return;
+  }
 
   for (const symbol of params.symbols) {
     const { base, quote } = inferBaseQuote(symbol);
@@ -116,6 +142,16 @@ export async function updateBinanceIncremental(params: {
           latestTs: bars.length ? bars[bars.length - 1].ts_open : latest
         });
       } catch (error) {
+        if (isBinanceAccessBlockedError(error)) {
+          binanceRestBlockedUntilMs = Date.now() + BINANCE_BLOCK_COOLDOWN_MS;
+          logWarn('Binance futures REST is region-blocked; skipping incremental crypto worker for a cooldown window', {
+            symbol,
+            timeframe,
+            cooldown_hours: BINANCE_BLOCK_COOLDOWN_MS / (1000 * 60 * 60),
+            error: error instanceof Error ? error.message : String(error)
+          });
+          return;
+        }
         logWarn('Incremental update failed', {
           symbol,
           timeframe,

@@ -3,7 +3,7 @@ import type { Timeframe } from '../types.js';
 import { logInfo, logWarn } from '../utils/log.js';
 import { timeframeToMs } from '../utils/time.js';
 import { detectGaps } from './normalize.js';
-import { fetchBinanceKlines } from './binanceIncremental.js';
+import { fetchBinanceKlines, isBinanceAccessBlockedError } from './binanceIncremental.js';
 
 export async function validateAndRepair(params: {
   repo: MarketRepository;
@@ -11,6 +11,7 @@ export async function validateAndRepair(params: {
   lookbackBars: number;
 }): Promise<void> {
   const assets = params.repo.listAssetIdsByMarket();
+  let binanceRepairBlocked = false;
 
   for (const asset of assets) {
     for (const tf of params.timeframes) {
@@ -35,6 +36,7 @@ export async function validateAndRepair(params: {
         });
 
         if (asset.market === 'CRYPTO' && asset.venue === 'BINANCE_UM') {
+          if (binanceRepairBlocked) continue;
           try {
             const bars = await fetchBinanceKlines({
               symbol: asset.symbol,
@@ -48,6 +50,15 @@ export async function validateAndRepair(params: {
               logInfo('Gap repaired from Binance REST', { symbol: asset.symbol, timeframe: tf, inserted: bars.length });
             }
           } catch (error) {
+            if (isBinanceAccessBlockedError(error)) {
+              binanceRepairBlocked = true;
+              logWarn('Binance futures REST is region-blocked; skipping automatic crypto gap repair for this run', {
+                symbol: asset.symbol,
+                timeframe: tf,
+                error: error instanceof Error ? error.message : String(error)
+              });
+              continue;
+            }
             logWarn('Failed gap repair from Binance REST', {
               symbol: asset.symbol,
               timeframe: tf,

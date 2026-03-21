@@ -82,6 +82,8 @@ export function buildPrivateMarvixOpsReport(repo: MarketRepository) {
     .map((row) => {
       const output = parseJson(row.output_json);
       const news = output.news && typeof output.news === 'object' ? (output.news as JsonObject) : null;
+      const fundamentals = output.fundamentals && typeof output.fundamentals === 'object' ? (output.fundamentals as JsonObject) : null;
+      const options = output.options && typeof output.options === 'object' ? (output.options as JsonObject) : null;
       return {
         id: row.id,
         workflow_key: row.workflow_key,
@@ -94,7 +96,9 @@ export function buildPrivateMarvixOpsReport(repo: MarketRepository) {
           row.workflow_key === 'free_data_flywheel'
             ? {
                 refreshed_symbols: news?.refreshed_symbols ?? null,
-                rows_upserted: news?.rows_upserted ?? null
+                rows_upserted: news?.rows_upserted ?? null,
+                fundamentals_rows_upserted: fundamentals?.rows_upserted ?? null,
+                options_rows_upserted: options?.rows_upserted ?? null
               }
             : row.workflow_key === 'nova_training_flywheel'
               ? {

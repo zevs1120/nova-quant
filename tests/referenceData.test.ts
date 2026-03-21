@@ -135,6 +135,52 @@ describe('hosted reference data ingestion', () => {
     expect(payload.summary.iv_skew).toBeCloseTo(-0.04, 6);
   });
 
+  it('falls back to the root Yahoo options payload when dated option calls are unavailable', async () => {
+    const db = new Database(':memory:');
+    ensureSchema(db);
+    const repo = new MarketRepository(db);
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string | URL) => {
+        const url = String(input);
+        if (url.includes('/v7/finance/options/AAPL') && !url.includes('date=')) {
+          return makeJsonResponse({
+            optionChain: {
+              result: [
+                {
+                  expirationDates: [1_760_000_000],
+                  quote: { regularMarketPrice: 188.5 },
+                  options: [
+                    {
+                      expirationDate: 1_760_000_000,
+                      calls: [
+                        { contractSymbol: 'AAPL-C1', impliedVolatility: 0.22, openInterest: 1200, volume: 180 }
+                      ],
+                      puts: [
+                        { contractSymbol: 'AAPL-P1', impliedVolatility: 0.26, openInterest: 1500, volume: 160 }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          });
+        }
+        return new Response('blocked', { status: 500 });
+      })
+    );
+
+    const result = await ensureFreshOptionsForSymbol({
+      repo,
+      market: 'US',
+      symbol: 'AAPL'
+    });
+
+    expect(result.fetched).toBe(true);
+    expect(result.rows_upserted).toBe(1);
+  });
+
   it('merges Google, Finnhub, and NewsAPI headlines before Gemini analysis', async () => {
     const db = new Database(':memory:');
     ensureSchema(db);

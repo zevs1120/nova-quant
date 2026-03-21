@@ -1,4 +1,6 @@
+import pLimit from 'p-limit';
 import type { Market, NewsItemRecord } from '../types.js';
+import { fetchWithRetry } from '../utils/http.js';
 
 type GeminiHeadlineFactor = {
   id: string;
@@ -27,6 +29,7 @@ type GeminiBatchFactors = {
 type JsonObject = Record<string, unknown>;
 
 const GEMINI_API_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
+const geminiNewsFactorQueue = pLimit(Math.max(1, Number(process.env.GEMINI_NEWS_CONCURRENCY || 1)));
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
@@ -176,24 +179,30 @@ export async function analyzeNewsBatchWithGemini(args: {
     })
   ].join('\n');
 
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      contents: [
-        {
-          role: 'user',
-          parts: [{ text: prompt }]
+  const response = await fetchWithRetry(
+    endpoint,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: prompt }]
+          }
+        ],
+        generationConfig: {
+          temperature: 0.1,
+          maxOutputTokens: 900,
+          responseMimeType: 'application/json'
         }
-      ],
-      generationConfig: {
-        temperature: 0.1,
-        maxOutputTokens: 900
-      }
-    })
-  });
+      })
+    },
+    { attempts: 3, baseDelayMs: 1_500 },
+    20_000
+  );
 
   if (!response.ok) {
     return null;
@@ -201,7 +210,9 @@ export async function analyzeNewsBatchWithGemini(args: {
 
   const json = (await response.json()) as unknown;
   const text = extractGeminiText(json);
-  const parsed = firstJsonObject(text);
+  const parsed =
+    firstJsonObject(text) ||
+    ((json && typeof json === 'object' && !Array.isArray(json) && 'summary' in (json as JsonObject) ? (json as JsonObject) : null));
   if (!parsed) return null;
   return normalizeFactors(parsed, args.market, args.symbol);
 }
@@ -211,28 +222,30 @@ export async function enrichNewsRowsWithGeminiFactors(args: {
   symbol: string;
   rows: NewsItemRecord[];
 }): Promise<NewsItemRecord[]> {
-  const analysis = await analyzeNewsBatchWithGemini(args).catch(() => null);
-  if (!analysis) return args.rows;
+  return geminiNewsFactorQueue(async () => {
+    const analysis = await analyzeNewsBatchWithGemini(args).catch(() => null);
+    if (!analysis) return args.rows;
 
-  const itemById = new Map(analysis.items.map((row) => [row.id, row] as const));
-  const now = Date.now();
-  return args.rows.map((row) => {
-    const payload = parsePayload(row.payload_json);
-    const headlineFactor = itemById.get(row.id) || null;
-    const nextPayload = {
-      ...payload,
-      gemini_analysis: {
-        batch: analysis,
-        headline: headlineFactor
-      }
-    };
-    return {
-      ...row,
-      sentiment_label: headlineFactor ? sentimentLabelFromScore(headlineFactor.sentiment_score) : row.sentiment_label,
-      relevance_score: headlineFactor ? headlineFactor.relevance_score : row.relevance_score,
-      payload_json: JSON.stringify(nextPayload),
-      updated_at_ms: now
-    };
+    const itemById = new Map(analysis.items.map((row) => [row.id, row] as const));
+    const now = Date.now();
+    return args.rows.map((row) => {
+      const payload = parsePayload(row.payload_json);
+      const headlineFactor = itemById.get(row.id) || null;
+      const nextPayload = {
+        ...payload,
+        gemini_analysis: {
+          batch: analysis,
+          headline: headlineFactor
+        }
+      };
+      return {
+        ...row,
+        sentiment_label: headlineFactor ? sentimentLabelFromScore(headlineFactor.sentiment_score) : row.sentiment_label,
+        relevance_score: headlineFactor ? headlineFactor.relevance_score : row.relevance_score,
+        payload_json: JSON.stringify(nextPayload),
+        updated_at_ms: now
+      };
+    });
   });
 }
 

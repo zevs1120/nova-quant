@@ -16,7 +16,10 @@ type JsonObject = Record<string, unknown>;
 const ALPHA_VANTAGE_BASE_URL = 'https://www.alphavantage.co/query';
 const FINNHUB_BASE_URL = 'https://finnhub.io/api/v1';
 const NEWSAPI_BASE_URL = 'https://newsapi.org/v2';
-const YAHOO_OPTIONS_BASE_URL = 'https://query2.finance.yahoo.com/v7/finance/options';
+const YAHOO_OPTIONS_BASE_URLS = [
+  'https://query2.finance.yahoo.com/v7/finance/options',
+  'https://query1.finance.yahoo.com/v7/finance/options'
+];
 
 function hashId(parts: Array<string | number | null | undefined>) {
   return createHash('sha1')
@@ -360,16 +363,57 @@ function summarizeContracts(symbol: string, expiryEpochSeconds: number, spotPric
 }
 
 async function fetchYahooOptionChain(symbol: string, expiryEpochSeconds?: number): Promise<YahooOptionsResponse> {
-  const url = new URL(`${YAHOO_OPTIONS_BASE_URL}/${encodeURIComponent(symbol)}`);
-  if (Number.isFinite(expiryEpochSeconds)) {
-    url.searchParams.set('date', String(expiryEpochSeconds));
-  }
-  return (await fetchJson(url.toString(), {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 NovaQuant/1.0',
-      Accept: 'application/json'
+  let lastError: unknown = null;
+  for (const baseUrl of YAHOO_OPTIONS_BASE_URLS) {
+    try {
+      const url = new URL(`${baseUrl}/${encodeURIComponent(symbol)}`);
+      if (Number.isFinite(expiryEpochSeconds)) {
+        url.searchParams.set('date', String(expiryEpochSeconds));
+      }
+      return (await fetchJson(url.toString(), {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 NovaQuant/1.0',
+          Accept: 'application/json'
+        }
+      })) as YahooOptionsResponse;
+    } catch (error) {
+      lastError = error;
     }
-  })) as YahooOptionsResponse;
+  }
+  throw (lastError instanceof Error ? lastError : new Error('Yahoo options fetch failed'));
+}
+
+function snapshotFromYahooOptionsPayload(args: {
+  symbol: string;
+  now: number;
+  payload: YahooOptionsResponse | null;
+}): OptionChainSnapshotRecord | null {
+  const primary = args.payload?.optionChain?.result?.[0];
+  const optionEntry = primary?.options?.[0];
+  if (!primary || !optionEntry) return null;
+  const spot = safeNumber(primary.quote?.regularMarketPrice);
+  const expiryEpochSeconds = Number(optionEntry.expirationDate);
+  const summary = summarizeContracts(
+    args.symbol,
+    expiryEpochSeconds,
+    spot,
+    Array.isArray(optionEntry.calls) ? optionEntry.calls : [],
+    Array.isArray(optionEntry.puts) ? optionEntry.puts : []
+  );
+  return {
+    id: `opt-${hashId(['yahoo-options', args.symbol, summary.expiration_date, args.now])}`,
+    market: 'US',
+    symbol: args.symbol,
+    expiration_date: summary.expiration_date,
+    snapshot_ts_ms: args.now,
+    source: 'YAHOO_OPTIONS',
+    payload_json: JSON.stringify({
+      provider: 'yahoo_options',
+      fetched_at: new Date(args.now).toISOString(),
+      summary
+    }),
+    updated_at_ms: args.now
+  };
 }
 
 export async function fetchYahooOptionSnapshots(symbol: string, maxExpirations = 2): Promise<OptionChainSnapshotRecord[]> {
@@ -379,38 +423,34 @@ export async function fetchYahooOptionSnapshots(symbol: string, maxExpirations =
   if (!primary) return [];
 
   const expirations = Array.isArray(primary.expirationDates) ? primary.expirationDates.slice(0, maxExpirations) : [];
-  const spot = safeNumber(primary.quote?.regularMarketPrice);
   const now = Date.now();
   const snapshots: OptionChainSnapshotRecord[] = [];
-
-  for (const expiryEpochSeconds of expirations) {
-    const payload = await fetchYahooOptionChain(normalized, expiryEpochSeconds).catch(() => null);
-    const optionEntry = payload?.optionChain?.result?.[0]?.options?.[0];
-    if (!optionEntry) continue;
-    const summary = summarizeContracts(
-      normalized,
-      Number(optionEntry.expirationDate || expiryEpochSeconds),
-      spot,
-      Array.isArray(optionEntry.calls) ? optionEntry.calls : [],
-      Array.isArray(optionEntry.puts) ? optionEntry.puts : []
-    );
-    snapshots.push({
-      id: `opt-${hashId(['yahoo-options', normalized, summary.expiration_date, now])}`,
-      market: 'US',
-      symbol: normalized,
-      expiration_date: summary.expiration_date,
-      snapshot_ts_ms: now,
-      source: 'YAHOO_OPTIONS',
-      payload_json: JSON.stringify({
-        provider: 'yahoo_options',
-        fetched_at: new Date(now).toISOString(),
-        summary
-      }),
-      updated_at_ms: now
-    });
+  const rootSnapshot = snapshotFromYahooOptionsPayload({
+    symbol: normalized,
+    now,
+    payload: root
+  });
+  if (rootSnapshot) {
+    snapshots.push(rootSnapshot);
   }
 
-  return snapshots;
+  for (const expiryEpochSeconds of expirations) {
+    if (rootSnapshot?.expiration_date === toDateFromEpochSeconds(expiryEpochSeconds)) continue;
+    const payload = await fetchYahooOptionChain(normalized, expiryEpochSeconds).catch(() => null);
+    const snapshot = snapshotFromYahooOptionsPayload({
+      symbol: normalized,
+      now,
+      payload
+    });
+    if (snapshot) snapshots.push(snapshot);
+  }
+
+  const deduped = new Map<string, OptionChainSnapshotRecord>();
+  for (const row of snapshots) {
+    const key = `${row.symbol}:${row.expiration_date || 'none'}`;
+    if (!deduped.has(key)) deduped.set(key, row);
+  }
+  return [...deduped.values()];
 }
 
 export async function backfillAlphaVantageDaily(params: {
