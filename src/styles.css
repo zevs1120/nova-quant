@@ -14811,6 +14811,8 @@ body.keyboard-open .bottom-nav {
   overscroll-behavior-x: contain;
   scroll-snap-type: x mandatory;
   scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
   padding: 2px 1px 4px;
 }
 
@@ -14820,6 +14822,8 @@ body.keyboard-open .bottom-nav {
 
 .today-action-slide {
   scroll-snap-align: start;
+  scroll-snap-stop: always;
+  touch-action: pan-x;
 }
 
 .today-action-slide.is-selected {

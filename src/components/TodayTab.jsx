@@ -677,6 +677,12 @@ export default function TodayTab({
   const [activeSignal, setActiveSignal] = useState(null);
   const [tradeSignal, setTradeSignal] = useState(null);
   const actionCarouselRef = useRef(null);
+  const swipeGestureRef = useRef({
+    startX: 0,
+    startY: 0,
+    dragging: false,
+    suppressTapUntil: 0
+  });
   const desiredSignalCount = useMemo(() => signalQuotaForTradeMode(brokerProfile?.tradeMode), [brokerProfile?.tradeMode]);
 
   const bestSignal = useMemo(
@@ -937,6 +943,36 @@ export default function TodayTab({
     }
   };
 
+  const markGestureStart = (clientX, clientY) => {
+    swipeGestureRef.current.startX = clientX;
+    swipeGestureRef.current.startY = clientY;
+    swipeGestureRef.current.dragging = false;
+  };
+
+  const markGestureMove = (clientX, clientY) => {
+    const dx = Math.abs(clientX - swipeGestureRef.current.startX);
+    const dy = Math.abs(clientY - swipeGestureRef.current.startY);
+    if (dx > 14 && dx > dy) {
+      swipeGestureRef.current.dragging = true;
+      swipeGestureRef.current.suppressTapUntil = Date.now() + 280;
+    }
+  };
+
+  const clearGesture = () => {
+    swipeGestureRef.current.startX = 0;
+    swipeGestureRef.current.startY = 0;
+    swipeGestureRef.current.dragging = false;
+  };
+
+  const shouldSuppressTap = () => swipeGestureRef.current.dragging || swipeGestureRef.current.suppressTapUntil > Date.now();
+
+  const openSignalDetail = (signal, signalId) => {
+    if (shouldSuppressTap()) return;
+    triggerFeedback('soft');
+    setSelectedSignalId(signalId);
+    setActiveSignal(signal);
+  };
+
   return (
     <section className="stack-gap today-screen-redesign today-screen-native">
       <section className="today-summary-header">
@@ -1018,19 +1054,31 @@ export default function TodayTab({
                   <article
                     key={signalId}
                     className={`glass-card today-action-card today-action-card-${signalTone} today-action-slide${selected ? ' is-selected' : ''}`}
-                    onClick={() => {
-                      triggerFeedback('soft');
-                      setSelectedSignalId(signalId);
-                      setActiveSignal(signal);
-                    }}
+                    onClick={() => openSignalDetail(signal, signalId)}
                     role="button"
                     tabIndex={0}
+                    onTouchStart={(event) => {
+                      const touch = event.touches?.[0];
+                      if (!touch) return;
+                      markGestureStart(touch.clientX, touch.clientY);
+                    }}
+                    onTouchMove={(event) => {
+                      const touch = event.touches?.[0];
+                      if (!touch) return;
+                      markGestureMove(touch.clientX, touch.clientY);
+                    }}
+                    onTouchEnd={() => {
+                      window.setTimeout(() => {
+                        clearGesture();
+                      }, 0);
+                    }}
+                    onTouchCancel={() => {
+                      clearGesture();
+                    }}
                     onKeyDown={(event) => {
                       if (event.key === 'Enter' || event.key === ' ') {
                         event.preventDefault();
-                        triggerFeedback('soft');
-                        setSelectedSignalId(signalId);
-                        setActiveSignal(signal);
+                        openSignalDetail(signal, signalId);
                       }
                     }}
                   >
