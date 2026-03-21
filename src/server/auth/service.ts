@@ -64,6 +64,16 @@ type AuthUserRow = {
   last_login_at_ms: number | null;
 };
 
+type SeededUserConfig = {
+  email: string;
+  password: string;
+  name: string;
+  tradeMode: AuthTradeMode;
+  broker: string;
+  locale: string;
+  initialState?: Partial<AuthUserState>;
+};
+
 type RemoteSessionRecord = {
   session_id: string;
   user_id: string;
@@ -101,19 +111,62 @@ function normalizeTradeMode(value: string | null | undefined): AuthTradeMode {
   return 'active';
 }
 
-function getSeededUserConfig() {
-  if (process.env.NOVA_ENABLE_SEEDED_DEMO_USER !== '1') return null;
-  const email = normalizeEmail(process.env.NOVA_SEEDED_DEMO_EMAIL || '');
-  const password = String(process.env.NOVA_SEEDED_DEMO_PASSWORD || '');
-  if (!email || !password) return null;
+function mergeSeededUserState(user: SeededUserConfig): AuthUserState {
+  const base = buildInitialUserState(user.tradeMode);
+  const next = user.initialState || {};
   return {
-    email,
-    password,
-    name: String(process.env.NOVA_SEEDED_DEMO_NAME || 'Nova Demo'),
-    tradeMode: normalizeTradeMode(process.env.NOVA_SEEDED_DEMO_TRADE_MODE),
-    broker: String(process.env.NOVA_SEEDED_DEMO_BROKER || 'Robinhood'),
-    locale: String(process.env.NOVA_SEEDED_DEMO_LOCALE || 'en')
+    ...base,
+    ...next,
+    watchlist: Array.isArray(next.watchlist) ? next.watchlist : base.watchlist,
+    holdings: Array.isArray(next.holdings) ? next.holdings : base.holdings,
+    executions: Array.isArray(next.executions) ? next.executions : base.executions,
+    disciplineLog: next.disciplineLog || base.disciplineLog
   };
+}
+
+function getSeededUserConfigs(): SeededUserConfig[] {
+  const seededUsers: SeededUserConfig[] = [];
+
+  if (process.env.NOVA_DISABLE_TEST_ACCOUNT !== '1') {
+    seededUsers.push({
+      email: 'test',
+      password: 'test',
+      name: 'Test Account',
+      tradeMode: 'deep',
+      broker: 'Robinhood',
+      locale: 'zh',
+      initialState: {
+        watchlist: ['SPY', 'QQQ', 'AAPL'],
+        assetClass: 'US_STOCK',
+        market: 'US'
+      }
+    });
+  }
+
+  if (process.env.NOVA_ENABLE_SEEDED_DEMO_USER === '1') {
+    const email = normalizeEmail(process.env.NOVA_SEEDED_DEMO_EMAIL || '');
+    const password = String(process.env.NOVA_SEEDED_DEMO_PASSWORD || '');
+    if (email && password) {
+      seededUsers.push({
+        email,
+        password,
+        name: String(process.env.NOVA_SEEDED_DEMO_NAME || 'Nova Demo'),
+        tradeMode: normalizeTradeMode(process.env.NOVA_SEEDED_DEMO_TRADE_MODE),
+        broker: String(process.env.NOVA_SEEDED_DEMO_BROKER || 'Robinhood'),
+        locale: String(process.env.NOVA_SEEDED_DEMO_LOCALE || 'en')
+      });
+    }
+  }
+
+  const deduped = new Map<string, SeededUserConfig>();
+  seededUsers.forEach((user) => {
+    if (!user.email || !user.password) return;
+    deduped.set(normalizeEmail(user.email), {
+      ...user,
+      email: normalizeEmail(user.email)
+    });
+  });
+  return Array.from(deduped.values());
 }
 
 function createId(prefix: string) {
@@ -200,83 +253,83 @@ function assertAuthStoreReady() {
 }
 
 function ensureSeededUserLocal() {
-  const seededUser = getSeededUserConfig();
-  if (!seededUser) return;
   const db = getDb();
-  const existing = db
-    .prepare('SELECT user_id FROM auth_users WHERE email = ? LIMIT 1')
-    .get(seededUser.email) as { user_id: string } | undefined;
-  if (existing) return;
-  const ts = nowMs();
-  const userId = createId('usr');
-  db.prepare(
-    `INSERT INTO auth_users(
-      user_id, email, password_hash, name, trade_mode, broker, locale, created_at_ms, updated_at_ms, last_login_at_ms
-    ) VALUES (
-      @user_id, @email, @password_hash, @name, @trade_mode, @broker, @locale, @created_at_ms, @updated_at_ms, @last_login_at_ms
-    )`
-  ).run({
-    user_id: userId,
-    email: seededUser.email,
-    password_hash: hashPassword(seededUser.password),
-    name: seededUser.name,
-    trade_mode: seededUser.tradeMode,
-    broker: seededUser.broker,
-    locale: seededUser.locale,
-    created_at_ms: ts,
-    updated_at_ms: ts,
-    last_login_at_ms: null
-  });
-  const initialState = buildInitialUserState(seededUser.tradeMode);
-  db.prepare(
-    `INSERT INTO auth_user_state_sync(
-      user_id, asset_class, market, ui_mode, risk_profile_key, watchlist_json, holdings_json, executions_json, discipline_log_json, updated_at_ms
-    ) VALUES (
-      @user_id, @asset_class, @market, @ui_mode, @risk_profile_key, @watchlist_json, @holdings_json, @executions_json, @discipline_log_json, @updated_at_ms
-    )`
-  ).run({
-    user_id: userId,
-    asset_class: initialState.assetClass,
-    market: initialState.market,
-    ui_mode: initialState.uiMode,
-    risk_profile_key: initialState.riskProfileKey,
-    watchlist_json: JSON.stringify(initialState.watchlist),
-    holdings_json: JSON.stringify(initialState.holdings),
-    executions_json: JSON.stringify(initialState.executions),
-    discipline_log_json: JSON.stringify(initialState.disciplineLog),
-    updated_at_ms: ts
-  });
+  for (const seededUser of getSeededUserConfigs()) {
+    const existing = db
+      .prepare('SELECT user_id FROM auth_users WHERE email = ? LIMIT 1')
+      .get(seededUser.email) as { user_id: string } | undefined;
+    if (existing) continue;
+    const ts = nowMs();
+    const userId = createId('usr');
+    db.prepare(
+      `INSERT INTO auth_users(
+        user_id, email, password_hash, name, trade_mode, broker, locale, created_at_ms, updated_at_ms, last_login_at_ms
+      ) VALUES (
+        @user_id, @email, @password_hash, @name, @trade_mode, @broker, @locale, @created_at_ms, @updated_at_ms, @last_login_at_ms
+      )`
+    ).run({
+      user_id: userId,
+      email: seededUser.email,
+      password_hash: hashPassword(seededUser.password),
+      name: seededUser.name,
+      trade_mode: seededUser.tradeMode,
+      broker: seededUser.broker,
+      locale: seededUser.locale,
+      created_at_ms: ts,
+      updated_at_ms: ts,
+      last_login_at_ms: null
+    });
+    const initialState = mergeSeededUserState(seededUser);
+    db.prepare(
+      `INSERT INTO auth_user_state_sync(
+        user_id, asset_class, market, ui_mode, risk_profile_key, watchlist_json, holdings_json, executions_json, discipline_log_json, updated_at_ms
+      ) VALUES (
+        @user_id, @asset_class, @market, @ui_mode, @risk_profile_key, @watchlist_json, @holdings_json, @executions_json, @discipline_log_json, @updated_at_ms
+      )`
+    ).run({
+      user_id: userId,
+      asset_class: initialState.assetClass,
+      market: initialState.market,
+      ui_mode: initialState.uiMode,
+      risk_profile_key: initialState.riskProfileKey,
+      watchlist_json: JSON.stringify(initialState.watchlist),
+      holdings_json: JSON.stringify(initialState.holdings),
+      executions_json: JSON.stringify(initialState.executions),
+      discipline_log_json: JSON.stringify(initialState.disciplineLog),
+      updated_at_ms: ts
+    });
+  }
 }
 
 async function ensureSeededUserRemote() {
-  const seededUser = getSeededUserConfig();
-  if (!seededUser) return;
-  const existingUserId = await remoteGetString(remoteUserIdByEmailKey(seededUser.email));
-  if (existingUserId) return;
+  for (const seededUser of getSeededUserConfigs()) {
+    const existingUserId = await remoteGetString(remoteUserIdByEmailKey(seededUser.email));
+    if (existingUserId) continue;
 
-  const ts = nowMs();
-  const userId = createId('usr');
-  const user: AuthUserRow = {
-    user_id: userId,
-    email: seededUser.email,
-    password_hash: hashPassword(seededUser.password),
-    name: seededUser.name,
-    trade_mode: seededUser.tradeMode,
-    broker: seededUser.broker,
-    locale: seededUser.locale,
-    created_at_ms: ts,
-    updated_at_ms: ts,
-    last_login_at_ms: null
-  };
-  const state = buildInitialUserState(seededUser.tradeMode);
-  const reserved = await remoteSetString(remoteUserIdByEmailKey(seededUser.email), userId, { nx: true });
-  if (!reserved) return;
-  try {
-    await remoteSetJson(remoteUserKey(userId), user);
-    await remoteSetJson(remoteUserStateKey(userId), state);
-  } catch (error) {
-    await remoteDeleteKey(remoteUserIdByEmailKey(seededUser.email));
-    throw error;
+    const ts = nowMs();
+    const userId = createId('usr');
+    const user: AuthUserRow = {
+      user_id: userId,
+      email: seededUser.email,
+      password_hash: hashPassword(seededUser.password),
+      name: seededUser.name,
+      trade_mode: seededUser.tradeMode,
+      broker: seededUser.broker,
+      locale: seededUser.locale,
+      created_at_ms: ts,
+      updated_at_ms: ts,
+      last_login_at_ms: null
+    };
+    const state = mergeSeededUserState(seededUser);
+    const reserved = await remoteSetString(remoteUserIdByEmailKey(seededUser.email), userId, { nx: true });
+    if (!reserved) continue;
+    try {
+      await remoteSetJson(remoteUserKey(userId), user);
+      await remoteSetJson(remoteUserStateKey(userId), state);
+    } catch (error) {
+      await remoteDeleteKey(remoteUserIdByEmailKey(seededUser.email));
+      throw error;
+    }
   }
 }
 

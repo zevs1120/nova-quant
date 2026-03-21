@@ -227,7 +227,9 @@ export default function OnboardingFlow({
 
   const emailValid = /\S+@\S+\.\S+/.test(email);
   const passwordValid = String(password).trim().length >= 8;
-  const loginReady = /\S+@\S+\.\S+/.test(loginEmail) && String(loginPassword).trim().length >= 8;
+  const normalizedLoginIdentifier = String(loginEmail || '').trim().toLowerCase();
+  const testAccountLogin = normalizedLoginIdentifier === 'test' && String(loginPassword || '') === 'test';
+  const loginReady = (/\S+@\S+\.\S+/.test(loginEmail) && String(loginPassword).trim().length >= 8) || testAccountLogin;
   const resetCodeReady = /\S+@\S+\.\S+/.test(resetEmail) && String(resetCode).trim().length >= 6 && String(resetPasswordValue).trim().length >= 8;
   const canContinue =
     signupStep === 0
@@ -306,10 +308,10 @@ export default function OnboardingFlow({
               <div className="signup-input-shell">
                 <input
                   className="signup-input"
-                  type="email"
+                  type="text"
                   inputMode="email"
-                  autoComplete="email"
-                  placeholder={copy.emailPlaceholder}
+                  autoComplete="username"
+                  placeholder={locale?.startsWith('zh') ? '输入邮箱或 test' : 'Enter email or test'}
                   value={loginEmail}
                   onChange={(event) => setLoginEmail(event.target.value)}
                 />
