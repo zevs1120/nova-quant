@@ -133,17 +133,21 @@ describe('control plane flywheel status', () => {
 
     const status = await getControlPlaneStatus({ userId });
     expect(status.flywheel).toBeTruthy();
+    expect(status.execution_governance).toBeTruthy();
+    expect(status.execution_governance.kill_switch.active).toBe(false);
     expect(status.flywheel.training.current_dataset_count).toBe(2);
     expect(status.flywheel.training.minimum_training_rows).toBe(8);
     expect(status.flywheel.training.latest_execution_reason).toBe('insufficient_training_rows:2');
 
     const freeRun = status.flywheel.free_data.recent_runs.find((row: { id?: string }) => row.id === `workflow-free-${baseTs}`);
     expect(freeRun).toBeTruthy();
+    if (!freeRun) throw new Error('expected free data run');
     expect(freeRun.news.refreshed_symbols).toBe(5);
     expect(freeRun.crypto_structure.funding_points).toBe(18);
 
     const evolutionRun = status.flywheel.evolution.recent_runs.find((row: { id?: string }) => row.id === `workflow-evo-${baseTs}`);
     expect(evolutionRun).toBeTruthy();
+    if (!evolutionRun) throw new Error('expected evolution run');
     expect(evolutionRun.promoted_count).toBe(1);
     expect(evolutionRun.safe_mode_count).toBe(1);
 

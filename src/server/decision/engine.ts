@@ -141,6 +141,34 @@ function dataPenalty(status: string): number {
   return 42;
 }
 
+function factoryPromotionBoost(signal: UiSignal): number {
+  const tags = asArray<string>(signal.tags).map((row) => String(row));
+  const isFactory = tags.includes('source:nova_factory');
+  if (!isFactory) return 0;
+
+  const metadata =
+    signal.factory_metadata && typeof signal.factory_metadata === 'object'
+      ? (signal.factory_metadata as Record<string, unknown>)
+      : {};
+  const qualityFromMeta = toNumber(metadata.quality_score_pct, null);
+  const qualityFromTag = tags
+    .map((tag) => tag.match(/^factory_quality:(\d+(?:\.\d+)?)$/i))
+    .find(Boolean);
+  const quality = qualityFromMeta ?? (qualityFromTag ? Number(qualityFromTag[1]) : 0) ?? 0;
+  const refsFromMeta = asArray(metadata.public_reference_ids).length;
+  const refsFromTag = tags
+    .map((tag) => tag.match(/^factory_refs:(\d+)$/i))
+    .find(Boolean);
+  const refs = refsFromMeta || (refsFromTag ? Number(refsFromTag[1]) : 0) || 0;
+  const stage = String(metadata.next_stage || tags.find((tag) => tag.startsWith('factory_stage:'))?.split(':')[1] || '').toLowerCase();
+  const regimeFit = tags.includes('factory_regime_fit:matched');
+
+  return Math.min(
+    18,
+    quality * 0.07 + refs * 1.5 + (stage === 'shadow' ? 3.5 : 1.5) + (regimeFit ? 4 : 0)
+  );
+}
+
 function strategySourceForSignal(signal: UiSignal): string {
   const raw = String(signal.strategy_id || signal.strategy_family || '').trim();
   return raw || 'unknown';
@@ -744,6 +772,7 @@ function rankCard(args: {
   const strategyPenalty = args.publicationGate.strategyBacked ? 0 : 120;
   const publicationPenalty = args.publicationGate.publishable ? 0 : args.publicationGate.status === 'WATCH' ? 18 : 64;
   const publicationBoost = args.publicationGate.publishable ? 12 : 0;
+  const factoryBoost = factoryPromotionBoost(args.signal);
   return (
     score +
     confidence * 35 +
@@ -756,7 +785,8 @@ function rankCard(args: {
     publicationPenalty -
     posturePenalty -
     freshnessPenalty -
-    dataPenalty(String(args.signal.data_status || ''))
+    dataPenalty(String(args.signal.data_status || '')) +
+    factoryBoost
   );
 }
 

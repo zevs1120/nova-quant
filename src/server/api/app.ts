@@ -20,7 +20,9 @@ import {
   getBackendBackbone,
   getBrowseHomePayload,
   getControlPlaneStatus,
+  getExecutionGovernance,
   getFlywheelStatus,
+  getLiveOrderStatus,
   createNovaReviewLabel,
   getEngagementState,
   getDecisionSnapshot,
@@ -59,10 +61,12 @@ import {
   runEvidence,
   runNovaStrategyGeneration,
   runNovaTrainingFlywheelNow,
+  submitExecution,
+  setExecutionKillSwitch,
   setNotificationPreferencesState,
   getWidgetSummary,
   syncQuantState,
-  upsertExecution,
+  cancelLiveOrder,
   upsertExternalConnection,
   verifyPublicSignalsApiKey
 } from './queries.js';
@@ -1099,7 +1103,7 @@ export function createApiApp() {
     res.json({ data, executions });
   });
 
-  app.post('/api/executions', (req, res) => {
+  app.post('/api/executions', async (req, res) => {
     const body = req.body as {
       userId?: string;
       signalId?: string;
@@ -1107,6 +1111,12 @@ export function createApiApp() {
       action?: 'EXECUTE' | 'DONE' | 'CLOSE';
       note?: string;
       pnlPct?: number | null;
+      provider?: string;
+      qty?: number | null;
+      notional?: number | null;
+      orderType?: 'MARKET' | 'LIMIT';
+      limitPrice?: number | null;
+      timeInForce?: 'DAY' | 'GTC' | 'IOC' | 'FOK';
     };
     const userId = String(body.userId || '').trim() || 'guest-default';
     const signalId = String(body.signalId || '').trim();
@@ -1116,24 +1126,122 @@ export function createApiApp() {
       res.status(400).json({ error: 'signalId is required' });
       return;
     }
-    if (!['PAPER'].includes(mode) || !['EXECUTE', 'DONE', 'CLOSE'].includes(action)) {
+    if (!['PAPER', 'LIVE'].includes(mode) || !['EXECUTE', 'DONE', 'CLOSE'].includes(action)) {
       res.status(400).json({ error: 'Invalid mode/action' });
       return;
     }
 
-    const result = upsertExecution({
+    const result = await submitExecution({
       userId,
       signalId,
       mode,
       action,
       note: body.note,
-      pnlPct: body.pnlPct
+      pnlPct: body.pnlPct,
+      provider: body.provider,
+      qty: body.qty,
+      notional: body.notional,
+      orderType: body.orderType,
+      limitPrice: body.limitPrice,
+      timeInForce: body.timeInForce
     });
-    if (!result.ok) {
-      res.status(404).json({ error: result.error });
+    if (!result.ok || !result.executionId) {
+      res.status(mode === 'LIVE' ? 400 : 404).json({
+        error: 'error' in result ? result.error : 'Execution failed',
+        governance: 'governance' in result ? result.governance : undefined
+      });
       return;
     }
-    res.json({ ok: true, executionId: result.executionId });
+    res.json({
+      ok: true,
+      executionId: result.executionId,
+      shadowExecutionId: 'shadowExecutionId' in result ? result.shadowExecutionId : undefined,
+      order: 'order' in result ? result.order : undefined,
+      governance: 'governance' in result ? result.governance : undefined
+    });
+  });
+
+  app.get('/api/executions/governance', async (req, res) => {
+    const userId = (req.query.userId as string | undefined) || 'guest-default';
+    const provider = (req.query.provider as string | undefined) || undefined;
+    const limit = req.query.limit ? Number(req.query.limit) : undefined;
+    const refreshOrders = String(req.query.refresh || '').toLowerCase() === 'true' || req.query.refresh === '1';
+    const result = await getExecutionGovernance({
+      userId,
+      provider,
+      limit,
+      refreshOrders
+    });
+    res.json(result);
+  });
+
+  app.get('/api/executions/reconciliation', async (req, res) => {
+    const userId = (req.query.userId as string | undefined) || 'guest-default';
+    const provider = (req.query.provider as string | undefined) || undefined;
+    const limit = req.query.limit ? Number(req.query.limit) : undefined;
+    const refreshOrders = String(req.query.refresh || '').toLowerCase() === 'true' || req.query.refresh === '1';
+    const result = await getExecutionGovernance({
+      userId,
+      provider,
+      limit,
+      refreshOrders
+    });
+    res.json(result.reconciliation);
+  });
+
+  app.post('/api/executions/kill-switch', async (req, res) => {
+    const body = (req.body || {}) as {
+      userId?: string;
+      enabled?: boolean;
+      reason?: string;
+      provider?: string;
+    };
+    if (typeof body.enabled !== 'boolean') {
+      res.status(400).json({ error: 'enabled must be a boolean' });
+      return;
+    }
+    const result = await setExecutionKillSwitch({
+      userId: body.userId || 'guest-default',
+      enabled: body.enabled,
+      reason: body.reason,
+      provider: body.provider
+    });
+    res.json({ ok: true, data: result });
+  });
+
+  app.get('/api/executions/orders/:provider/:orderId', async (req, res) => {
+    const provider = String(req.params.provider || '').trim().toUpperCase();
+    const orderId = String(req.params.orderId || '').trim();
+    const clientOrderId = (req.query.clientOrderId as string | undefined) || undefined;
+    const symbol = (req.query.symbol as string | undefined)?.toUpperCase() || undefined;
+    const result = await getLiveOrderStatus({
+      provider,
+      orderId,
+      clientOrderId,
+      symbol
+    });
+    if (!result.ok) {
+      res.status(400).json({ error: result.error });
+      return;
+    }
+    res.json({ ok: true, order: result.order });
+  });
+
+  app.post('/api/executions/orders/:provider/:orderId/cancel', async (req, res) => {
+    const provider = String(req.params.provider || '').trim().toUpperCase();
+    const orderId = String(req.params.orderId || '').trim();
+    const body = (req.body || {}) as { clientOrderId?: string; symbol?: string };
+    const result = await cancelLiveOrder({
+      provider,
+      orderId,
+      clientOrderId: body.clientOrderId,
+      symbol: body.symbol ? String(body.symbol).toUpperCase() : undefined
+    });
+    if (!result.ok) {
+      res.status(400).json({ error: result.error });
+      return;
+    }
+    res.json({ ok: true, order: result.order });
   });
 
   app.get('/api/executions', (req, res) => {

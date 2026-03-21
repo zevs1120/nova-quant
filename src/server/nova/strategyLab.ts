@@ -25,6 +25,12 @@ type StrategySelectionRow = {
   template_name: unknown;
   parameter_set: unknown;
   supporting_features: unknown;
+  supported_asset_classes: unknown;
+  compatible_regimes: unknown;
+  quality_prior_score: unknown;
+  generation_mode: unknown;
+  candidate_source_metadata: unknown;
+  traceability: unknown;
 };
 
 type StrategyLabArgs = {
@@ -436,7 +442,13 @@ export async function generateGovernedNovaStrategies(args: StrategyLabArgs) {
       next_stage: scoreRow.next_stage,
       rejection_reasons: scoreRow.rejection_reasons || [],
       parameter_set: candidate.parameter_set || {},
-      supporting_features: candidate.supporting_features || []
+      supporting_features: candidate.supporting_features || [],
+      supported_asset_classes: candidate.supported_asset_classes || [],
+      compatible_regimes: candidate.compatible_regimes || [],
+      quality_prior_score: candidate.quality_prior_score ?? null,
+      generation_mode: candidate.generation_mode || null,
+      candidate_source_metadata: candidate.candidate_source_metadata || {},
+      traceability: candidate.traceability || {}
     };
   });
 
