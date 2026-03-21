@@ -4,6 +4,13 @@ import {
   handleAdminLogout,
   handleAdminSession
 } from '../../src/server/api/authHandlers.js';
+import {
+  handleAdminAlphas,
+  handleAdminOverview,
+  handleAdminSignals,
+  handleAdminSystem,
+  handleAdminUsers
+} from '../../src/server/api/adminHandlers.js';
 
 function resolveRoute(req: VercelRequest): string {
   const dynamic = req.query.route;
@@ -43,6 +50,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (route === 'session' && req.method === 'GET') {
     await handleAdminSession(req as any, res as any);
+    return;
+  }
+  if (route === 'overview' && req.method === 'GET') {
+    await handleAdminOverview(req as any, res as any);
+    return;
+  }
+  if (route === 'users' && req.method === 'GET') {
+    await handleAdminUsers(req as any, res as any);
+    return;
+  }
+  if (route === 'alphas' && req.method === 'GET') {
+    await handleAdminAlphas(req as any, res as any);
+    return;
+  }
+  if (route === 'signals' && req.method === 'GET') {
+    await handleAdminSignals(req as any, res as any);
+    return;
+  }
+  if (route === 'system' && req.method === 'GET') {
+    await handleAdminSystem(req as any, res as any);
     return;
   }
   if (route === 'login' && req.method === 'POST') {

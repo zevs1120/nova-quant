@@ -49,6 +49,36 @@ export function getAdminSession() {
   });
 }
 
+export function getAdminOverview() {
+  return adminRequest('/api/admin/overview', {
+    method: 'GET'
+  });
+}
+
+export function getAdminUsers() {
+  return adminRequest('/api/admin/users', {
+    method: 'GET'
+  });
+}
+
+export function getAdminAlphas() {
+  return adminRequest('/api/admin/alphas', {
+    method: 'GET'
+  });
+}
+
+export function getAdminSignals() {
+  return adminRequest('/api/admin/signals', {
+    method: 'GET'
+  });
+}
+
+export function getAdminSystem() {
+  return adminRequest('/api/admin/system', {
+    method: 'GET'
+  });
+}
+
 export function loginAdmin(args) {
   return adminRequest('/api/admin/login', {
     method: 'POST',

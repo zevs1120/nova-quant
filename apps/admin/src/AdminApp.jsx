@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
 import { ADMIN_NAVIGATION } from './config/navigation';
-import { PLANNED_ADMIN_APIS } from './services/plannedApi';
 import OverviewPage from './pages/OverviewPage';
 import UsersPage from './pages/UsersPage';
 import AlphaLabPage from './pages/AlphaLabPage';
@@ -102,35 +101,6 @@ export default function AdminApp() {
         />
 
         {renderPage(active)}
-
-        <section className="panel">
-          <div className="panel-header">
-            <h3>管理员 API 规划</h3>
-            <span className="status-pill is-slate">下一步实施</span>
-          </div>
-          <div className="table-wrap">
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th>路由</th>
-                  <th>用途</th>
-                  <th>状态</th>
-                </tr>
-              </thead>
-              <tbody>
-                {PLANNED_ADMIN_APIS.map((row) => (
-                  <tr key={row.route}>
-                    <td>{row.route}</td>
-                    <td>{row.purpose}</td>
-                    <td>
-                      <span className="status-pill is-slate">{row.status}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
       </main>
     </div>
   );

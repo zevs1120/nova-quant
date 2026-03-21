@@ -15,6 +15,13 @@ import {
   handleResetPassword
 } from './authHandlers.js';
 import {
+  handleAdminAlphas,
+  handleAdminOverview,
+  handleAdminSignals,
+  handleAdminSystem,
+  handleAdminUsers
+} from './adminHandlers.js';
+import {
   completeMorningCheck,
   completeWeeklyReview,
   completeWrapUp,
@@ -224,6 +231,11 @@ export function createApiApp() {
   app.get('/api/admin/session', handleAdminSession);
   app.post('/api/admin/login', handleAdminLogin);
   app.post('/api/admin/logout', handleAdminLogout);
+  app.get('/api/admin/overview', handleAdminOverview);
+  app.get('/api/admin/users', handleAdminUsers);
+  app.get('/api/admin/alphas', handleAdminAlphas);
+  app.get('/api/admin/signals', handleAdminSignals);
+  app.get('/api/admin/system', handleAdminSystem);
 
   app.get('/api/auth/session', handleAuthSession);
   app.post('/api/auth/signup', handleAuthSignup);

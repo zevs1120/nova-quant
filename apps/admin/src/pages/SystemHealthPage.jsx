@@ -1,38 +1,217 @@
-const healthRows = [
-  ['行情数据', 'K 线、数据新鲜度、覆盖范围、过期计数'],
-  ['新闻链路', '抓取成功率、因子化状态、供应商回退'],
-  ['基本面', 'Alpha Vantage + Finnhub 刷新状态'],
-  ['期权', 'CBOE / Yahoo 快照可用性'],
-  ['模型', 'Marvix worker、Gemini 健康、当前运行模式'],
-  ['任务', 'free_data、training flywheel、alpha discovery、shadow monitoring']
-];
+import StatCard from '../components/StatCard';
+import useAdminResource from '../hooks/useAdminResource';
+import { getAdminSystem } from '../services/adminApi';
+
+function MixBars({ rows, formatter }) {
+  const total = rows.reduce((sum, item) => sum + Number(item.value || 0), 0) || 1;
+  return (
+    <div className="mix-bar-list">
+      {rows.map((item) => (
+        <div key={item.label} className="mix-bar-row">
+          <div className="mix-bar-labels">
+            <strong>{item.label}</strong>
+            <span>{formatter ? formatter(item.value) : item.value}</span>
+          </div>
+          <div className="mix-bar-track">
+            <span className="mix-bar-fill" style={{ width: `${(Number(item.value || 0) / total) * 100}%` }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function SystemHealthPage() {
-  return (
-    <section className="page-grid">
+  const { data, loading, error } = useAdminResource(getAdminSystem, []);
+
+  if (loading) {
+    return (
       <section className="panel">
         <div className="panel-header">
-          <h3>系统健康</h3>
-          <span className="status-pill is-slate">已映射私有运维</span>
+          <h3>正在加载系统健康数据</h3>
+          <span className="status-pill is-slate">稍候</span>
         </div>
-        <div className="table-wrap">
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>领域</th>
-                <th>目标可见性</th>
-              </tr>
-            </thead>
-            <tbody>
-              {healthRows.map(([area, description]) => (
-                <tr key={area}>
-                  <td>{area}</td>
-                  <td>{description}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      </section>
+    );
+  }
+
+  if (error) {
+    return (
+      <section className="panel">
+        <div className="panel-header">
+          <h3>系统健康数据加载失败</h3>
+          <span className="status-pill is-red">异常</span>
         </div>
+        <p className="panel-copy">{error}</p>
+      </section>
+    );
+  }
+
+  const runtime = data?.runtime || {};
+  const workflowSummary = data?.workflow_summary || {};
+  const aiSummary = data?.ai_summary || {};
+  const dataSummary = data?.data_summary || {};
+
+  const stats = [
+    {
+      label: '模型运行模式',
+      value: `${runtime.provider || 'unknown'} / ${runtime.mode || 'unknown'}`,
+      detail: '说明管理后台当前看到的推理供应商和运行模式。',
+      tone: 'blue'
+    },
+    {
+      label: '后台工作流',
+      value: `${workflowSummary.total || 0} 次`,
+      detail: '最近 free_data、training、alpha discovery、shadow runner 等任务汇总。',
+      tone: 'green'
+    },
+    {
+      label: '新闻与因子',
+      value: `${dataSummary.news_items_72h || 0} / ${dataSummary.news_factor_count || 0}`,
+      detail: '前者是 72 小时新闻量，后者是已结构化的新闻因子量。',
+      tone: 'amber'
+    },
+    {
+      label: 'AI 调用',
+      value: `${aiSummary.total || 0} 次`,
+      detail: '最近 Nova / Marvix AI 任务运行统计。',
+      tone: 'red'
+    }
+  ];
+
+  return (
+    <section className="page-grid">
+      <div className="stats-grid">
+        {stats.map((item) => (
+          <StatCard key={item.label} {...item} />
+        ))}
+      </div>
+
+      <section className="page-grid two-up">
+        <article className="panel">
+          <div className="panel-header">
+            <h3>工作流状态分布</h3>
+            <span className="status-pill is-green">Workflow status</span>
+          </div>
+          <MixBars rows={workflowSummary.by_status || []} />
+        </article>
+
+        <article className="panel">
+          <div className="panel-header">
+            <h3>工作流类型分布</h3>
+            <span className="status-pill is-blue">Workflow mix</span>
+          </div>
+          <MixBars rows={workflowSummary.by_workflow || []} />
+        </article>
+      </section>
+
+      <section className="page-grid two-up">
+        <article className="panel">
+          <div className="panel-header">
+            <h3>新闻源覆盖</h3>
+            <span className="status-pill is-amber">Source mix</span>
+          </div>
+          <MixBars rows={dataSummary.source_mix || []} />
+        </article>
+
+        <article className="panel">
+          <div className="panel-header">
+            <h3>因子标签覆盖</h3>
+            <span className="status-pill is-slate">Factor tags</span>
+          </div>
+          <MixBars rows={dataSummary.factor_tag_mix || []} />
+        </article>
+      </section>
+
+      <section className="page-grid two-up">
+        <article className="panel">
+          <div className="panel-header">
+            <h3>模型路由与别名</h3>
+            <span className="status-pill is-blue">Runtime routes</span>
+          </div>
+          <div className="health-route-list">
+            {(runtime.routes || []).map((row) => (
+              <div key={`${row.task}-${row.alias}`} className="health-route-item">
+                <div>
+                  <strong>{row.task}</strong>
+                  <p>{row.reason}</p>
+                </div>
+                <div className="candidate-timeline-meta">
+                  <span className="status-pill is-slate">{row.alias}</span>
+                  <span>{row.provider}/{row.model}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </article>
+
+        <article className="panel">
+          <div className="panel-header">
+            <h3>参考数据快照</h3>
+            <span className="status-pill is-green">Data freshness</span>
+          </div>
+          <div className="source-card-grid">
+            <article className="source-card">
+              <strong>基本面快照</strong>
+              <p>当前展示 {dataSummary.fundamentals_count || 0} 条最近记录。</p>
+            </article>
+            <article className="source-card">
+              <strong>期权快照</strong>
+              <p>当前展示 {dataSummary.option_chain_count || 0} 条最近记录。</p>
+            </article>
+            <article className="source-card">
+              <strong>新闻因子</strong>
+              <p>当前沉淀 {dataSummary.news_factor_count || 0} 条可供策略层使用的结构化因子。</p>
+            </article>
+          </div>
+        </article>
+      </section>
+
+      <section className="page-grid two-up">
+        <article className="panel">
+          <div className="panel-header">
+            <h3>最近新闻因子</h3>
+            <span className="status-pill is-amber">Factor feed</span>
+          </div>
+          <div className="news-factor-list">
+            {(data?.recent_news_factors || []).map((row) => (
+              <article key={row.id} className="news-factor-card">
+                <strong>{row.symbol} · {row.source}</strong>
+                <p>{row.factor_summary || row.headline}</p>
+                <div className="news-factor-tags">
+                  {(row.factor_tags || []).slice(0, 6).map((tag) => (
+                    <span key={tag} className="tag-chip">{tag}</span>
+                  ))}
+                  {!row.factor_tags?.length ? <span className="tag-chip">无标签</span> : null}
+                </div>
+              </article>
+            ))}
+            {!data?.recent_news_factors?.length ? <p className="panel-copy">当前没有结构化新闻因子。</p> : null}
+          </div>
+        </article>
+
+        <article className="panel">
+          <div className="panel-header">
+            <h3>最近 AI 任务</h3>
+            <span className="status-pill is-blue">AI task tape</span>
+          </div>
+          <div className="candidate-timeline">
+            {(data?.recent_nova_runs || []).map((row) => (
+              <div key={row.id} className="candidate-timeline-item">
+                <div>
+                  <strong>{row.task_type}</strong>
+                  <p>{row.route_alias || 'unrouted'} · {row.model_name || 'model-unknown'}</p>
+                </div>
+                <div className="candidate-timeline-meta">
+                  <span className={`status-pill ${row.status === 'SUCCEEDED' ? 'is-green' : row.status === 'FAILED' ? 'is-red' : 'is-slate'}`}>
+                    {row.status}
+                  </span>
+                  <span>{row.created_at}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </article>
       </section>
     </section>
   );
