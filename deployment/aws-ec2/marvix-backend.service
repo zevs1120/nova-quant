@@ -1,0 +1,17 @@
+[Unit]
+Description=Marvix backend automation worker on AWS EC2
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/nova-quant
+Environment=NODE_ENV=production
+Environment=PORT=8787
+Environment=SERVE_WEB_DIST=0
+EnvironmentFile=/etc/novaquant/marvix-backend.env
+ExecStart=/usr/bin/env npm run auto:backend -- --user guest-default
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

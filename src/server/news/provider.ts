@@ -3,6 +3,7 @@ import pLimit from 'p-limit';
 import type { Market, NewsItemRecord } from '../types.js';
 import type { MarketRepository } from '../db/repository.js';
 import { getConfig } from '../config.js';
+import { enrichNewsRowsWithGeminiFactors } from './geminiFactors.js';
 
 const NEWS_TTL_MS = 1000 * 60 * 90;
 const NEWS_TIMEOUT_MS = 2600;
@@ -30,6 +31,26 @@ const cryptoAliases: Record<string, string[]> = {
 
 function normalizeSymbol(symbol: string): string {
   return String(symbol || '').trim().toUpperCase();
+}
+
+function parsePayloadJson(text: string | null | undefined): Record<string, unknown> {
+  if (!text) return {};
+  try {
+    const parsed = JSON.parse(text) as Record<string, unknown>;
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function safeNumber(value: unknown): number | null {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function round(value: number, digits = 4): number {
+  const p = 10 ** digits;
+  return Math.round(value * p) / p;
 }
 
 function decodeXml(value: string): string {
@@ -207,7 +228,12 @@ export async function ensureFreshNewsForSymbol(args: { repo: MarketRepository; m
     };
   }
   try {
-    const rows = await fetchGoogleNewsItems(args.market, symbol);
+    const rawRows = await fetchGoogleNewsItems(args.market, symbol);
+    const rows = await enrichNewsRowsWithGeminiFactors({
+      market: args.market,
+      symbol,
+      rows: rawRows
+    }).catch(() => rawRows);
     if (rows.length) args.repo.upsertNewsItems(rows);
     return {
       market: args.market,
@@ -249,13 +275,59 @@ export function buildNewsContext(rows: NewsItemRecord[], symbol: string) {
           : top.length
             ? 'NEUTRAL'
             : 'NONE';
+  const payloads = top.map((row) => parsePayloadJson(row.payload_json));
+  const geminiBatch = payloads
+    .map((payload) => {
+      const analysis = payload.gemini_analysis;
+      if (!analysis || typeof analysis !== 'object') return null;
+      const batch = (analysis as Record<string, unknown>).batch;
+      return batch && typeof batch === 'object' ? (batch as Record<string, unknown>) : null;
+    })
+    .find(Boolean);
+  const geminiHeadlineScores = payloads
+    .map((payload) => {
+      const analysis = payload.gemini_analysis;
+      if (!analysis || typeof analysis !== 'object') return null;
+      const headline = (analysis as Record<string, unknown>).headline;
+      return headline && typeof headline === 'object' ? (headline as Record<string, unknown>) : null;
+    })
+    .filter(Boolean) as Array<Record<string, unknown>>;
+  const factorScoreValues = geminiHeadlineScores
+    .map((row) => safeNumber(row.sentiment_score))
+    .filter((value): value is number => value !== null);
+  const factorScore =
+    factorScoreValues.length > 0
+      ? round(factorScoreValues.reduce((acc, value) => acc + value, 0) / factorScoreValues.length)
+      : safeNumber(geminiBatch?.sentiment_score);
+  const eventRiskScore = Math.max(
+    safeNumber(geminiBatch?.event_risk_score) || 0,
+    ...geminiHeadlineScores.map((row) => safeNumber(row.relevance_score) || 0)
+  );
+  const macroPolicyScore = safeNumber(geminiBatch?.macro_policy_score);
+  const earningsImpactScore = safeNumber(geminiBatch?.earnings_impact_score);
+  const factorTags = Array.isArray(geminiBatch?.factor_tags)
+    ? geminiBatch.factor_tags.map((item) => String(item || '').trim()).filter(Boolean).slice(0, 8)
+    : [];
+  const factorSummary = typeof geminiBatch?.summary === 'string' ? geminiBatch.summary.trim() : null;
+  const tradingBias = typeof geminiBatch?.trading_bias === 'string' ? String(geminiBatch.trading_bias).trim().toUpperCase() : null;
   return {
     symbol: normalizeSymbol(symbol),
     headline_count: rows.length,
     tone,
     top_headlines: top.map((row) => row.headline),
     updated_at: top[0] ? new Date(top[0].updated_at_ms).toISOString() : null,
-    source: top[0]?.source || 'none'
+    source: top[0]?.source || 'none',
+    factor_score: factorScore,
+    event_risk_score: eventRiskScore ? round(eventRiskScore) : null,
+    macro_policy_score: macroPolicyScore !== null ? round(macroPolicyScore) : null,
+    earnings_impact_score: earningsImpactScore !== null ? round(earningsImpactScore) : null,
+    factor_tags: factorTags,
+    factor_summary: factorSummary,
+    analysis_provider: geminiBatch ? 'gemini' : null,
+    trading_bias:
+      tradingBias === 'BULLISH' || tradingBias === 'BEARISH' || tradingBias === 'MIXED' || tradingBias === 'NEUTRAL'
+        ? tradingBias
+        : null
   } as const;
 }
 

@@ -41,6 +41,14 @@ type SignalNewsContext = {
   top_headlines: string[];
   updated_at: string | null;
   source: string;
+  factor_score?: number | null;
+  event_risk_score?: number | null;
+  macro_policy_score?: number | null;
+  earnings_impact_score?: number | null;
+  factor_tags?: string[];
+  factor_summary?: string | null;
+  analysis_provider?: string | null;
+  trading_bias?: 'BULLISH' | 'BEARISH' | 'MIXED' | 'NEUTRAL' | null;
 };
 
 type StrategyFactoryCandidate = {
@@ -1047,7 +1055,9 @@ function loadCryptoMicrostructure(repo: MarketRepository, assetId: number): Cryp
 
 function adjustRuleForNews(rule: RuleHit, news: SignalNewsContext): RuleHit {
   if (!news.headline_count || news.tone === 'NONE' || news.tone === 'NEUTRAL') {
-    return rule;
+    if (!Number.isFinite(Number(news.factor_score || NaN))) {
+      return rule;
+    }
   }
   let adjusted = rule.confidence;
   const direction = rule.direction;
@@ -1058,6 +1068,16 @@ function adjustRuleForNews(rule: RuleHit, news: SignalNewsContext): RuleHit {
   } else if (news.tone === 'MIXED') {
     adjusted -= 0.02;
   }
+  const factorScore = Number(news.factor_score);
+  if (Number.isFinite(factorScore)) {
+    adjusted += direction === 'LONG' ? factorScore * 0.08 : -factorScore * 0.08;
+  }
+  if (Number(news.event_risk_score || 0) >= 0.75) {
+    adjusted -= 0.025;
+  }
+  if (Number(news.macro_policy_score || 0) >= 0.7) {
+    adjusted -= 0.015;
+  }
   return {
     ...rule,
     confidence: clamp(adjusted, 0.22, 0.94),
@@ -1067,8 +1087,12 @@ function adjustRuleForNews(rule: RuleHit, news: SignalNewsContext): RuleHit {
         ? 'Recent headline tone is supportive.'
         : news.tone === 'NEGATIVE'
           ? 'Recent headline tone is adverse.'
-          : 'Recent headline flow is mixed, so conviction is trimmed.'
-    ]
+          : news.tone === 'MIXED'
+            ? 'Recent headline flow is mixed, so conviction is trimmed.'
+            : 'Recent Gemini-derived news factors are shaping conviction.',
+      news.factor_summary ? news.factor_summary : null,
+      Number(news.event_risk_score || 0) >= 0.75 ? 'Event-risk score is elevated, so risk is trimmed.' : null
+    ].filter(Boolean) as string[]
   };
 }
 

@@ -11,9 +11,10 @@ export function getProviderOrder(): ProviderName[] {
   const ordered: ProviderName[] = [];
   const mode = getNovaRuntimeMode();
 
-  // Free-first default for Nova chat: Groq/Gemini first, then local Ollama, then paid cloud.
-  if (Boolean(String(process.env.GROQ_API_KEY || '').trim())) ordered.push('groq');
+  // Explanation/chat prefers Gemini first so the public assistant layer stays aligned
+  // with the EC2 architecture where Marvix handles decision logic and Gemini handles explanation.
   if (Boolean(String(process.env.GEMINI_API_KEY || '').trim())) ordered.push('gemini');
+  if (Boolean(String(process.env.GROQ_API_KEY || '').trim())) ordered.push('groq');
   if (isLocalNovaEnabled()) ordered.push('ollama');
   if (mode === 'cloud-openai-compatible' || isCloudNovaEnabled()) ordered.push('openai');
   return ordered;

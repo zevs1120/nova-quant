@@ -67,6 +67,40 @@ describe('derive runtime state', () => {
       ],
       'TEST'
     );
+    repo.upsertNewsItems([
+      {
+        id: 'news-spy-1',
+        market: 'US',
+        symbol: 'SPY',
+        headline: 'Fed tone cools and broad equity risk appetite improves',
+        source: 'Example Wire',
+        url: null,
+        published_at_ms: now - 30 * 60_000,
+        sentiment_label: 'POSITIVE',
+        relevance_score: 0.84,
+        payload_json: JSON.stringify({
+          provider: 'google_news_rss',
+          summary: 'Risk appetite improved after a softer macro tone.',
+          gemini_analysis: {
+            batch: {
+              provider: 'gemini',
+              summary: 'Macro tone is supportive but still event-sensitive.',
+              sentiment_score: 0.44,
+              event_risk_score: 0.39,
+              macro_policy_score: 0.71,
+              earnings_impact_score: 0.12,
+              trading_bias: 'BULLISH',
+              factor_tags: ['macro', 'risk_on']
+            },
+            headline: {
+              sentiment_score: 0.44,
+              relevance_score: 0.84
+            }
+          }
+        }),
+        updated_at_ms: now - 20 * 60_000
+      }
+    ]);
 
     repo.upsertUserRiskProfile({
       user_id: 'test-user',
@@ -110,6 +144,9 @@ describe('derive runtime state', () => {
       const tagBlob = runtime.signals.flatMap((row) => row.tags || []);
       expect(tagBlob.some((tag) => String(tag).startsWith('auto_learning:'))).toBe(true);
       expect(tagBlob.some((tag) => String(tag).startsWith('factor:'))).toBe(true);
+      const signalWithNews = runtime.signals.find((row) => (row.news_context?.headline_count || 0) > 0);
+      expect(signalWithNews?.news_context?.analysis_provider).toBe('gemini');
+      expect(signalWithNews?.news_context?.factor_tags).toContain('macro');
     }
   });
 });

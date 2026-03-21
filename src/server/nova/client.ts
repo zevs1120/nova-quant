@@ -18,9 +18,20 @@ type NovaEmbeddingArgs = {
 const DEFAULT_LOCAL_TIMEOUT_MS = Number(process.env.NOVA_LOCAL_TIMEOUT_MS || 4500);
 const DEFAULT_CLOUD_TIMEOUT_MS = Number(process.env.NOVA_CLOUD_TIMEOUT_MS || 20000);
 const GROQ_OPENAI_BASE_URL = 'https://api.groq.com/openai/v1';
-const DEFAULT_GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.1-8b-instant';
 const GEMINI_API_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
-const DEFAULT_GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemma-3-27b-it';
+const GEMINI_EXPLANATION_TASKS: ReadonlySet<NovaTaskRoute> = new Set([
+  'assistant_grounded_answer',
+  'decision_reasoning',
+  'action_card_generation'
+]);
+
+function getDefaultGroqModel() {
+  return process.env.GROQ_MODEL || 'llama-3.1-8b-instant';
+}
+
+function getDefaultGeminiModel() {
+  return process.env.GEMINI_MODEL || 'gemma-3-27b-it';
+}
 
 function withTimeoutInit(init: RequestInit, timeoutMs: number) {
   const controller = new AbortController();
@@ -67,6 +78,10 @@ function shouldUseGeminiTextRoute(): boolean {
   return Boolean(String(process.env.GEMINI_API_KEY || '').trim());
 }
 
+function shouldUseHostedExplainer(task: NovaTaskRoute): boolean {
+  return GEMINI_EXPLANATION_TASKS.has(task);
+}
+
 function humanizeFetchError(error: unknown, provider = 'Nova'): Error {
   if (error instanceof Error) {
     if (error.name === 'AbortError' || String(error.message || '').toLowerCase().includes('aborted')) {
@@ -79,13 +94,13 @@ function humanizeFetchError(error: unknown, provider = 'Nova'): Error {
 
 export async function runNovaChatCompletion(args: NovaChatArgs) {
   const route = resolveNovaRoute(args.task);
-  const useGroq = shouldUseGroqTextRoute();
-  const useGemini = !useGroq && shouldUseGeminiTextRoute();
+  const useGemini = shouldUseHostedExplainer(args.task) && shouldUseGeminiTextRoute();
+  const useGroq = !useGemini && shouldUseHostedExplainer(args.task) && shouldUseGroqTextRoute();
   const effectiveRoute = useGroq
     ? {
         ...route,
         provider: 'groq' as const,
-        model: DEFAULT_GROQ_MODEL,
+        model: getDefaultGroqModel(),
         endpoint: GROQ_OPENAI_BASE_URL,
         apiKey: String(process.env.GROQ_API_KEY || '').trim()
       }
@@ -93,7 +108,7 @@ export async function runNovaChatCompletion(args: NovaChatArgs) {
       ? {
           ...route,
           provider: 'gemini' as const,
-          model: DEFAULT_GEMINI_MODEL,
+          model: getDefaultGeminiModel(),
           endpoint: GEMINI_API_BASE_URL,
           apiKey: String(process.env.GEMINI_API_KEY || '').trim()
         }

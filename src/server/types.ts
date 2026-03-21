@@ -230,6 +230,14 @@ export interface SignalContract {
     top_headlines: string[];
     updated_at: string | null;
     source: string;
+    factor_score?: number | null;
+    event_risk_score?: number | null;
+    macro_policy_score?: number | null;
+    earnings_impact_score?: number | null;
+    factor_tags?: string[];
+    factor_summary?: string | null;
+    analysis_provider?: string | null;
+    trading_bias?: 'BULLISH' | 'BEARISH' | 'MIXED' | 'NEUTRAL' | null;
   };
   status: SignalStatus;
   payload: SignalPayload;
