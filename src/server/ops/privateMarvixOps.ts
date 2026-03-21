@@ -98,7 +98,9 @@ export function buildPrivateMarvixOpsReport(repo: MarketRepository) {
                 refreshed_symbols: news?.refreshed_symbols ?? null,
                 rows_upserted: news?.rows_upserted ?? null,
                 fundamentals_rows_upserted: fundamentals?.rows_upserted ?? null,
-                options_rows_upserted: options?.rows_upserted ?? null
+                options_rows_upserted: options?.rows_upserted ?? null,
+                fundamentals_errors: Array.isArray(fundamentals?.errors) ? fundamentals.errors.slice(0, 3) : [],
+                options_errors: Array.isArray(options?.errors) ? options.errors.slice(0, 3) : []
               }
             : row.workflow_key === 'nova_training_flywheel'
               ? {

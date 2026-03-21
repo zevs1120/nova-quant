@@ -30,6 +30,7 @@ type JsonObject = Record<string, unknown>;
 
 const GEMINI_API_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 const geminiNewsFactorQueue = pLimit(Math.max(1, Number(process.env.GEMINI_NEWS_CONCURRENCY || 1)));
+let nextGeminiNewsRequestAtMs = 0;
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
@@ -179,42 +180,73 @@ export async function analyzeNewsBatchWithGemini(args: {
     })
   ].join('\n');
 
-  const response = await fetchWithRetry(
-    endpoint,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: 'user',
-            parts: [{ text: prompt }]
-          }
-        ],
-        generationConfig: {
-          temperature: 0.1,
-          maxOutputTokens: 900,
-          responseMimeType: 'application/json'
-        }
-      })
-    },
-    { attempts: 3, baseDelayMs: 1_500 },
-    20_000
-  );
+  const waitMs = Math.max(0, nextGeminiNewsRequestAtMs - Date.now());
+  if (waitMs > 0) {
+    await new Promise((resolve) => setTimeout(resolve, waitMs));
+  }
+  nextGeminiNewsRequestAtMs = Date.now() + 1250;
 
-  if (!response.ok) {
-    return null;
+  const requestPayloads = [
+    {
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: prompt }]
+        }
+      ],
+      generationConfig: {
+        temperature: 0.1,
+        maxOutputTokens: 900,
+        responseMimeType: 'application/json'
+      }
+    },
+    {
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            {
+              text: `${prompt}\nReturn only a single JSON object. Do not wrap it in markdown.`
+            }
+          ]
+        }
+      ],
+      generationConfig: {
+        temperature: 0.1,
+        maxOutputTokens: 900
+      }
+    }
+  ];
+
+  for (const body of requestPayloads) {
+    const response = await fetchWithRetry(
+      endpoint,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
+      },
+      { attempts: 3, baseDelayMs: 1_500 },
+      20_000
+    );
+
+    if (!response.ok) {
+      continue;
+    }
+
+    const json = (await response.json()) as unknown;
+    const text = extractGeminiText(json);
+    const parsed =
+      firstJsonObject(text) ||
+      ((json && typeof json === 'object' && !Array.isArray(json) && 'summary' in (json as JsonObject) ? (json as JsonObject) : null));
+    if (parsed) {
+      return normalizeFactors(parsed, args.market, args.symbol);
+    }
   }
 
-  const json = (await response.json()) as unknown;
-  const text = extractGeminiText(json);
-  const parsed =
-    firstJsonObject(text) ||
-    ((json && typeof json === 'object' && !Array.isArray(json) && 'summary' in (json as JsonObject) ? (json as JsonObject) : null));
-  if (!parsed) return null;
-  return normalizeFactors(parsed, args.market, args.symbol);
+  return null;
 }
 
 export async function enrichNewsRowsWithGeminiFactors(args: {

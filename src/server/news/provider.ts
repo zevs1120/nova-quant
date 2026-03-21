@@ -4,6 +4,7 @@ import type { Market, NewsItemRecord } from '../types.js';
 import type { MarketRepository } from '../db/repository.js';
 import { getConfig } from '../config.js';
 import { fetchFinnhubNewsItems, fetchNewsApiItems } from '../ingestion/hostedData.js';
+import { logWarn } from '../utils/log.js';
 import { enrichNewsRowsWithGeminiFactors } from './geminiFactors.js';
 
 const NEWS_TTL_MS = 1000 * 60 * 90;
@@ -254,6 +255,17 @@ export async function ensureFreshNewsForSymbol(args: { repo: MarketRepository; m
       symbol,
       rows: rawRows
     }).catch(() => rawRows);
+    const geminiRows = rows.filter((row) => {
+      const payload = parsePayloadJson(row.payload_json);
+      return Boolean(payload.gemini_analysis && typeof payload.gemini_analysis === 'object');
+    }).length;
+    if (String(process.env.GEMINI_API_KEY || '').trim() && rows.length > 0 && geminiRows === 0) {
+      logWarn('Gemini news factor enrichment produced no structured factor rows', {
+        market: args.market,
+        symbol,
+        rows: rows.length
+      });
+    }
     if (rows.length) args.repo.upsertNewsItems(rows);
     return {
       market: args.market,

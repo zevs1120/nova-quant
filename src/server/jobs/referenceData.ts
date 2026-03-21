@@ -6,6 +6,7 @@ import {
   fetchFinnhubFundamentalSnapshot,
   fetchYahooOptionSnapshots
 } from '../ingestion/hostedData.js';
+import { logWarn } from '../utils/log.js';
 
 const FUNDAMENTALS_TTL_MS = 1000 * 60 * 60 * 24;
 const OPTIONS_TTL_MS = 1000 * 60 * 60 * 6;
@@ -102,15 +103,23 @@ export async function ensureFreshOptionsForSymbol(args: {
     };
   }
 
-  const rows = await fetchYahooOptionSnapshots(symbol).catch(() => []);
+  let fetchError: string | null = null;
+  const rows = await fetchYahooOptionSnapshots(symbol).catch((error) => {
+    fetchError = error instanceof Error ? error.message : String(error);
+    return [];
+  });
   if (!rows.length) {
+    logWarn('Yahoo option-chain refresh produced no rows', {
+      symbol,
+      error: fetchError || 'fetch_failed'
+    });
     return {
       market: 'US' as const,
       symbol,
       fetched: false,
       skipped: false,
       rows_upserted: 0,
-      error: 'fetch_failed'
+      error: fetchError || 'fetch_failed'
     };
   }
 
