@@ -7,7 +7,7 @@ import type { ModelVersionRecord, NovaTaskType } from '../types.js';
 import { createTraceId, recordAuditEvent } from '../observability/spine.js';
 import { buildMlxLmTrainingDataset } from './training.js';
 import { buildNovaMlxLoraPlan, getDefaultNovaMlxBaseModel, renderNovaShellCommand } from './mlx.js';
-import { getNovaModelPlan } from '../ai/llmOps.js';
+import { MARVIX_MODEL_ALIASES, getNovaModelPlan } from '../ai/llmOps.js';
 
 export type NovaTrainerKind = 'mlx-lora' | 'unsloth-lora' | 'axolotl-qlora';
 export const MIN_AUTOMATIC_TRAINING_ROWS = 8;
@@ -40,7 +40,7 @@ function cleanModelNameForPath(value: string) {
 
 function resolveBaseModel() {
   const plan = getNovaModelPlan();
-  const configured = String(plan.models['Nova-Core'] || '').trim();
+  const configured = String(plan.models[MARVIX_MODEL_ALIASES.core] || '').trim();
   if (!configured) return getDefaultNovaMlxBaseModel();
   if (configured.includes('/')) return configured;
   return getDefaultNovaMlxBaseModel();
@@ -131,8 +131,8 @@ function buildChallengerModelRecord(args: {
   const now = Date.now();
   const semanticVersion = `flywheel-${new Date(now).toISOString().slice(0, 10)}-${String(args.datasetCount).padStart(3, '0')}`;
   return {
-    id: `model-nova-challenger-${randomUUID().slice(0, 10)}`,
-    model_key: 'Nova-Challenger',
+    id: `model-marvix-challenger-${randomUUID().slice(0, 10)}`,
+    model_key: MARVIX_MODEL_ALIASES.challenger,
     provider: 'fine-tune-plan',
     endpoint: null,
     task_scope: 'assistant_grounded_answer,action_card_generation,risk_regime_explanation,strategy_candidate_generation',

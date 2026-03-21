@@ -39,6 +39,7 @@
     "snapshot:multi-asset": "node scripts/build-multi-asset-snapshot.mjs",
     "snapshot:backend-governance": "node scripts/build-backend-governance-snapshot.mjs",
     "stress:reliability": "node scripts/run-reliability-stress.mjs --out docs/research_reports/RELIABILITY_STRESS_REPORT.json",
+    "start:api": "tsx src/server/apiServer.ts",
     "api:data": "tsx src/server/apiServer.ts",
     "test:data": "vitest run",
     "test": "vitest run",

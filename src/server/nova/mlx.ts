@@ -1,6 +1,6 @@
 import path from 'node:path';
 import type { NovaTaskType } from '../types.js';
-import { getNovaModelPlan } from '../ai/llmOps.js';
+import { MARVIX_MODEL_ALIASES, getNovaModelPlan } from '../ai/llmOps.js';
 
 export const DEFAULT_NOVA_MLX_TASK_TYPES: NovaTaskType[] = [
   'risk_regime_explanation',
@@ -25,7 +25,7 @@ export function normalizeNovaMlxTaskTypes(taskTypes?: ReadonlyArray<string>) {
 }
 
 export function getDefaultNovaMlxBaseModel() {
-  const ollamaModel = getNovaModelPlan().models['Nova-Core'] || 'qwen3:4b';
+  const ollamaModel = getNovaModelPlan().models[MARVIX_MODEL_ALIASES.core] || 'qwen3:4b';
   return OLLAMA_TO_MLX_MODEL[ollamaModel] || 'Qwen/Qwen3-4B-Instruct';
 }
 

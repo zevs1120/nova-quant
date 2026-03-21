@@ -178,8 +178,8 @@ function appendAssistantMessage(repo: MarketRepository, args: {
 function buildDeterministicFallback(contextBundle: Awaited<ReturnType<typeof buildContextBundle>>, language = 'en'): string | null {
   const note =
     language === 'zh'
-      ? '当前运行环境里的本地 Nova 不可用，已切换到内部证据兜底。'
-      : 'Local Nova unavailable in this runtime. Using internal evidence fallback.';
+      ? '当前运行环境里的本地 Marvix 不可用，已切换到内部证据兜底。'
+      : 'Local Marvix unavailable in this runtime. Using internal evidence fallback.';
   const text = contextBundle.deterministicGuide?.text?.trim();
   if (!text) {
     const evidence = [

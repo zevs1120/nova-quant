@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import request from 'supertest';
 import { createApiApp } from '../src/server/api/app.js';
+import { MARVIX_MODEL_ALIASES } from '../src/server/ai/llmOps.js';
 import { resolveBusinessTask } from '../src/server/nova/router.js';
 
 function readNdjsonText(response: { body?: unknown; text?: string }) {
@@ -18,10 +19,10 @@ describe('nova local stack', () => {
   });
 
   it('routes local tasks to the expected Nova aliases', () => {
-    expect(resolveBusinessTask('action_card').alias).toBe('Nova-Core');
-    expect(resolveBusinessTask('assistant_answer').alias).toBe('Nova-Core');
-    expect(resolveBusinessTask('fast_classification').alias).toBe('Nova-Scout');
-    expect(resolveBusinessTask('retrieval').alias).toBe('Nova-Retrieve');
+    expect(resolveBusinessTask('action_card').alias).toBe(MARVIX_MODEL_ALIASES.core);
+    expect(resolveBusinessTask('assistant_answer').alias).toBe(MARVIX_MODEL_ALIASES.core);
+    expect(resolveBusinessTask('fast_classification').alias).toBe(MARVIX_MODEL_ALIASES.scout);
+    expect(resolveBusinessTask('retrieval').alias).toBe(MARVIX_MODEL_ALIASES.retrieve);
   });
 
   it('records assistant runs and exports MLX-LM training records', async () => {

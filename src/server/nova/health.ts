@@ -1,7 +1,9 @@
 import {
+  MARVIX_MODEL_ALIASES,
   detectNovaMemoryTier,
   getNovaLocalEndpoint,
   getNovaModelPlan,
+  getNovaRuntimeAvailabilityReason,
   getNovaRuntimeMode,
   isLocalNovaEnabled,
   type NovaModelAlias,
@@ -45,9 +47,9 @@ function cleanEndpoint(endpoint: string) {
 }
 
 function getModelRole(alias: NovaModelAlias) {
-  if (alias === 'Nova-Scout') return 'Fast classification and tagging.';
-  if (alias === 'Nova-Retrieve') return 'Embedding and retrieval memory.';
-  if (alias === 'Nova-Challenger') return 'Optional offline challenger for side-by-side evals.';
+  if (alias === MARVIX_MODEL_ALIASES.scout) return 'Fast classification and tagging.';
+  if (alias === MARVIX_MODEL_ALIASES.retrieve) return 'Embedding and retrieval memory.';
+  if (alias === MARVIX_MODEL_ALIASES.challenger) return 'Optional offline challenger for side-by-side evals.';
   return 'Primary reasoning, action-card language, and grounded explanation.';
 }
 
@@ -94,7 +96,7 @@ export async function inspectNovaHealth(): Promise<NovaHealthState> {
       reachability.latency_ms = Date.now() - startedAt;
     }
   } else {
-    reachability.error = 'Local Nova is bypassed in this runtime.';
+    reachability.error = 'Local Marvix inference is bypassed in this runtime.';
   }
 
   const expectedModels = Object.entries(plan.models)
@@ -103,7 +105,7 @@ export async function inspectNovaHealth(): Promise<NovaHealthState> {
       alias: alias as NovaModelAlias,
       model: String(model),
       role: getModelRole(alias as NovaModelAlias),
-      required: alias !== 'Nova-Challenger',
+      required: alias !== MARVIX_MODEL_ALIASES.challenger,
       available: availableModels.includes(String(model))
     }));
 
@@ -114,8 +116,8 @@ export async function inspectNovaHealth(): Promise<NovaHealthState> {
     local_only: localOnly,
     memory_tier: plan.tier,
     availability_reason: localOnly
-      ? 'Nova is expected to run through the Mac-local Ollama daemon.'
-      : 'Local Ollama is bypassed in this runtime, so deterministic fallback remains active.',
+      ? 'Marvix is expected to run through the host-local Ollama daemon.'
+      : getNovaRuntimeAvailabilityReason(getNovaRuntimeMode()),
     reachability,
     expected_models: expectedModels,
     available_models: availableModels,

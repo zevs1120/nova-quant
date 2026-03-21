@@ -4,7 +4,14 @@ import type { MarketRepository } from '../db/repository.js';
 import type { ModelVersionRecord, PromptVersionRecord } from '../types.js';
 import { toModelVersionContract, toPromptVersionContract } from '../domain/contracts.js';
 
-export type NovaModelAlias = 'Nova-Core' | 'Nova-Scout' | 'Nova-Retrieve' | 'Nova-Challenger';
+export const MARVIX_MODEL_ALIASES = {
+  core: 'Marvix-Core',
+  scout: 'Marvix-Scout',
+  retrieve: 'Marvix-Retrieve',
+  challenger: 'Marvix-Challenger'
+} as const;
+
+export type NovaModelAlias = typeof MARVIX_MODEL_ALIASES[keyof typeof MARVIX_MODEL_ALIASES];
 
 export type NovaTaskRoute =
   | 'fast_classification'
@@ -95,6 +102,12 @@ export function getNovaRuntimeMode(): NovaRuntimeMode {
   return 'deterministic-fallback';
 }
 
+export function getNovaRuntimeAvailabilityReason(mode = getNovaRuntimeMode()) {
+  if (mode === 'local-ollama') return 'Local Ollama is the active Marvix runtime.';
+  if (mode === 'cloud-openai-compatible') return 'Cloud OpenAI-compatible inference is the active Marvix runtime.';
+  return 'No live Marvix provider is configured; deterministic fallback remains available.';
+}
+
 function buildNovaModelPlan(mode: NovaRuntimeMode) {
   const tier = detectNovaMemoryTier();
   if (mode === 'cloud-openai-compatible') {
@@ -106,10 +119,10 @@ function buildNovaModelPlan(mode: NovaRuntimeMode) {
       provider: 'openai' as const,
       local_only: false,
       models: {
-        'Nova-Core': process.env.NOVA_CORE_MODEL || (tier === 'compact' ? 'Qwen/Qwen3-4B-Instruct' : 'Qwen/Qwen3-8B-Instruct'),
-        'Nova-Scout': process.env.NOVA_SCOUT_MODEL || (tier === 'compact' ? 'Qwen/Qwen3-1.7B-Instruct' : 'Qwen/Qwen3-4B-Instruct'),
-        'Nova-Retrieve': process.env.NOVA_RETRIEVE_MODEL || 'BAAI/bge-m3',
-        'Nova-Challenger': process.env.NOVA_CHALLENGER_MODEL || 'Qwen/Qwen3-14B-Instruct'
+        [MARVIX_MODEL_ALIASES.core]: process.env.NOVA_CORE_MODEL || (tier === 'compact' ? 'Qwen/Qwen3-4B-Instruct' : 'Qwen/Qwen3-8B-Instruct'),
+        [MARVIX_MODEL_ALIASES.scout]: process.env.NOVA_SCOUT_MODEL || (tier === 'compact' ? 'Qwen/Qwen3-1.7B-Instruct' : 'Qwen/Qwen3-4B-Instruct'),
+        [MARVIX_MODEL_ALIASES.retrieve]: process.env.NOVA_RETRIEVE_MODEL || 'BAAI/bge-m3',
+        [MARVIX_MODEL_ALIASES.challenger]: process.env.NOVA_CHALLENGER_MODEL || 'Qwen/Qwen3-14B-Instruct'
       } as Record<NovaModelAlias, string | undefined>
     };
   }
@@ -122,9 +135,9 @@ function buildNovaModelPlan(mode: NovaRuntimeMode) {
       provider: 'ollama' as const,
       local_only: mode !== 'deterministic-fallback',
       models: {
-        'Nova-Core': 'qwen3:4b',
-        'Nova-Scout': 'qwen3:1.7b',
-        'Nova-Retrieve': 'qwen3-embedding:0.6b'
+        [MARVIX_MODEL_ALIASES.core]: 'qwen3:4b',
+        [MARVIX_MODEL_ALIASES.scout]: 'qwen3:1.7b',
+        [MARVIX_MODEL_ALIASES.retrieve]: 'qwen3-embedding:0.6b'
       } as Record<NovaModelAlias, string | undefined>
     };
   }
@@ -135,10 +148,10 @@ function buildNovaModelPlan(mode: NovaRuntimeMode) {
     provider: 'ollama' as const,
     local_only: mode !== 'deterministic-fallback',
     models: {
-      'Nova-Core': 'qwen3:8b',
-      'Nova-Scout': 'qwen3:4b',
-      'Nova-Retrieve': 'qwen3-embedding:0.6b',
-      'Nova-Challenger': 'qwen3:14b'
+      [MARVIX_MODEL_ALIASES.core]: 'qwen3:8b',
+      [MARVIX_MODEL_ALIASES.scout]: 'qwen3:4b',
+      [MARVIX_MODEL_ALIASES.retrieve]: 'qwen3-embedding:0.6b',
+      [MARVIX_MODEL_ALIASES.challenger]: 'qwen3:14b'
     } as Record<NovaModelAlias, string | undefined>
   };
 }
@@ -166,41 +179,41 @@ function buildRoutingPoliciesForPlan(plan: ReturnType<typeof buildNovaModelPlan>
     challenger: 'Qwen/Qwen3-14B-Instruct'
   };
   const fallbacks = plan.provider === 'openai' ? cloudFallbacks : localFallbacks;
-  const strategyGeneratorAlias = plan.models['Nova-Challenger'] ? 'Nova-Challenger' : 'Nova-Core';
+  const strategyGeneratorAlias = plan.models[MARVIX_MODEL_ALIASES.challenger] ? MARVIX_MODEL_ALIASES.challenger : MARVIX_MODEL_ALIASES.core;
   return [
     {
       task: 'fast_classification',
-      alias: 'Nova-Scout',
+      alias: MARVIX_MODEL_ALIASES.scout,
       provider: plan.provider,
-      model: plan.models['Nova-Scout'] || fallbacks.scout,
+      model: plan.models[MARVIX_MODEL_ALIASES.scout] || fallbacks.scout,
       reason: 'Low-latency classification and tagging.'
     },
     {
       task: 'state_tagging',
-      alias: 'Nova-Scout',
+      alias: MARVIX_MODEL_ALIASES.scout,
       provider: plan.provider,
-      model: plan.models['Nova-Scout'] || fallbacks.scout,
+      model: plan.models[MARVIX_MODEL_ALIASES.scout] || fallbacks.scout,
       reason: 'Fast regime and state labeling before deeper reasoning.'
     },
     {
       task: 'decision_reasoning',
-      alias: 'Nova-Core',
+      alias: MARVIX_MODEL_ALIASES.core,
       provider: plan.provider,
-      model: plan.models['Nova-Core'] || fallbacks.core,
+      model: plan.models[MARVIX_MODEL_ALIASES.core] || fallbacks.core,
       reason: 'Primary decision and explanation model for Today Risk and stance.'
     },
     {
       task: 'action_card_generation',
-      alias: 'Nova-Core',
+      alias: MARVIX_MODEL_ALIASES.core,
       provider: plan.provider,
-      model: plan.models['Nova-Core'] || fallbacks.core,
+      model: plan.models[MARVIX_MODEL_ALIASES.core] || fallbacks.core,
       reason: 'Action-card ranking and explanation need stronger grounded reasoning.'
     },
     {
       task: 'assistant_grounded_answer',
-      alias: 'Nova-Core',
+      alias: MARVIX_MODEL_ALIASES.core,
       provider: plan.provider,
-      model: plan.models['Nova-Core'] || fallbacks.core,
+      model: plan.models[MARVIX_MODEL_ALIASES.core] || fallbacks.core,
       reason: 'Assistant should sound like the system, not a lightweight classifier.'
     },
     {
@@ -209,15 +222,15 @@ function buildRoutingPoliciesForPlan(plan: ReturnType<typeof buildNovaModelPlan>
       provider: plan.provider,
       model:
         plan.models[strategyGeneratorAlias] ||
-        plan.models['Nova-Core'] ||
+        plan.models[MARVIX_MODEL_ALIASES.core] ||
         (plan.provider === 'openai' ? cloudFallbacks.core : localFallbacks.core),
-      reason: 'AI strategy generation runs on the strongest available Nova route, gated by research validation.'
+      reason: 'AI strategy generation runs on the strongest available Marvix route, gated by research validation.'
     },
     {
       task: 'retrieval_embedding',
-      alias: 'Nova-Retrieve',
+      alias: MARVIX_MODEL_ALIASES.retrieve,
       provider: plan.provider,
-      model: plan.models['Nova-Retrieve'] || fallbacks.retrieve,
+      model: plan.models[MARVIX_MODEL_ALIASES.retrieve] || fallbacks.retrieve,
       reason: 'Dedicated embedding route for retrieval and memory indexing.'
     }
   ];
@@ -247,10 +260,10 @@ export function resolveNovaRoute(task: NovaTaskRoute): NovaRouteResolution {
   }
   return {
     task,
-    alias: 'Nova-Core',
+    alias: MARVIX_MODEL_ALIASES.core,
     provider: plan.provider,
-    model: plan.models['Nova-Core'] || 'qwen3:4b',
-    reason: 'Fallback to Nova-Core when no explicit route is defined.',
+    model: plan.models[MARVIX_MODEL_ALIASES.core] || 'qwen3:4b',
+    reason: 'Fallback to Marvix-Core when no explicit route is defined.',
     endpoint,
     apiKey
   };
@@ -278,13 +291,13 @@ export function resolveNovaRouteForProvider(task: NovaTaskRoute, provider: 'olla
   }
   return {
     task,
-    alias: 'Nova-Core',
+    alias: MARVIX_MODEL_ALIASES.core,
     provider,
     model:
       modelOverride ||
-      plan.models['Nova-Core'] ||
+      plan.models[MARVIX_MODEL_ALIASES.core] ||
       (provider === 'openai' || provider === 'gemini' ? 'Qwen/Qwen3-4B-Instruct' : 'qwen3:4b'),
-    reason: 'Fallback to Nova-Core when no explicit route is defined.',
+    reason: 'Fallback to Marvix-Core when no explicit route is defined.',
     endpoint,
     apiKey
   };
@@ -362,7 +375,7 @@ function modelRecord(alias: NovaModelAlias, modelName: string): ModelVersionReco
       .map((row) => row.task)
       .join(','),
     semantic_version: '1.0.0',
-    status: alias === 'Nova-Challenger' ? 'challenger' : 'active',
+    status: alias === MARVIX_MODEL_ALIASES.challenger ? 'challenger' : 'active',
     config_json: JSON.stringify({
       model: modelName,
       local_only: plan.local_only,
@@ -411,12 +424,7 @@ export function buildLlmOpsSummary(repo: MarketRepository) {
       local_only: plan.local_only,
       cloud_enabled: isCloudNovaEnabled(),
       mode: getNovaRuntimeMode(),
-      availability_reason:
-        getNovaRuntimeMode() === 'local-ollama'
-          ? 'Local Ollama is the active Nova runtime.'
-          : getNovaRuntimeMode() === 'cloud-openai-compatible'
-            ? 'Cloud OpenAI-compatible inference is the active Nova runtime.'
-            : 'No live Nova provider is configured; deterministic fallback is used instead.'
+      availability_reason: getNovaRuntimeAvailabilityReason(getNovaRuntimeMode())
     },
     routing_policies: getNovaRoutingPolicies(),
     model_registry: repo.listModelVersions({ limit: 12 }).map(toModelVersionContract),

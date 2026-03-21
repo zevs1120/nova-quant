@@ -1,6 +1,6 @@
-# Cloud Nova Runtime
+# Cloud Marvix Runtime
 
-Nova can now run in three modes:
+Nova Assistant now runs on the Marvix model family in three modes:
 
 - `local-ollama`
 - `cloud-openai-compatible`
@@ -24,6 +24,18 @@ NOVA_SCOUT_MODEL=Qwen/Qwen3-4B-Instruct
 NOVA_RETRIEVE_MODEL=BAAI/bge-m3
 NOVA_CHALLENGER_MODEL=Qwen/Qwen3-14B-Instruct
 ```
+
+Public model aliases surfaced by runtime APIs:
+
+- `Marvix-Core`
+- `Marvix-Scout`
+- `Marvix-Retrieve`
+- `Marvix-Challenger`
+
+Compatibility note:
+
+- existing runtime endpoints stay under `/api/nova/*`
+- only the exposed model-family naming changes from `Nova-*` to `Marvix-*`
 
 ## Supported runtime surfaces
 
@@ -69,6 +81,7 @@ If `tsx` IPC is restricted in your runtime, prefer `node --import tsx ...`.
 
 ## Recommended cloud deployment
 
-- Run the API separately from model inference.
+- For a single-host VPS setup, see `docs/VULTR_DEPLOYMENT.md`.
+- Run the API separately from model inference when traffic grows.
 - Point `NOVA_CLOUD_OPENAI_BASE_URL` at a vLLM or other OpenAI-compatible endpoint.
-- Keep `Nova-Core`, `Nova-Scout`, and `Nova-Challenger` on separate model aliases when traffic grows.
+- Keep `Marvix-Core`, `Marvix-Scout`, and `Marvix-Challenger` on separate model aliases when traffic grows.

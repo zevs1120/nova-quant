@@ -1,6 +1,6 @@
-# Nova Local Stack
+# Marvix Local Stack
 
-Nova now runs on a **single Apple Silicon Mac** with a local-only inference path.
+Nova Assistant now runs on the **Marvix** model family on a single Apple Silicon Mac with a local-only inference path.
 
 ## Runtime Principles
 
@@ -8,31 +8,31 @@ Nova now runs on a **single Apple Silicon Mac** with a local-only inference path
 - No cloud dependency in the default assistant path
 - One local endpoint: `http://127.0.0.1:11434/v1`
 - Structured decision objects remain the source of truth
-- Local Nova rewrites and explains grounded system state instead of inventing facts
+- Local Marvix rewrites and explains grounded system state instead of inventing facts
 
 ## Model Routing
 
 Unified memory aware defaults:
 
 - Compact memory tier
-  - `Nova-Core = qwen3:4b`
-  - `Nova-Scout = qwen3:1.7b`
-  - `Nova-Retrieve = qwen3-embedding:0.6b`
+  - `Marvix-Core = qwen3:4b`
+  - `Marvix-Scout = qwen3:1.7b`
+  - `Marvix-Retrieve = qwen3-embedding:0.6b`
 - Full memory tier
-  - `Nova-Core = qwen3:8b`
-  - `Nova-Scout = qwen3:4b`
-  - `Nova-Retrieve = qwen3-embedding:0.6b`
+  - `Marvix-Core = qwen3:8b`
+  - `Marvix-Scout = qwen3:4b`
+  - `Marvix-Retrieve = qwen3-embedding:0.6b`
   - optional challenger `qwen3:14b`
 
 Task router:
 
-- fast classification / tagging -> `Nova-Scout`
-- core reasoning / Today Risk / stance / wrap-up / action card language -> `Nova-Core`
-- retrieval embeddings -> `Nova-Retrieve`
+ - fast classification / tagging -> `Marvix-Scout`
+ - core reasoning / Today Risk / stance / wrap-up / action card language -> `Marvix-Core`
+ - retrieval embeddings -> `Marvix-Retrieve`
 
 ## Implemented Local Surfaces
 
-Local Nova now powers:
+Local Marvix now powers:
 
 - Today Risk language
 - one-line daily stance language
@@ -47,7 +47,7 @@ The system still computes:
 - evidence bundles
 - portfolio context
 
-deterministically first. Nova is used as a grounded generation layer on top of those objects.
+deterministically first. Marvix is used as a grounded generation layer on top of those objects.
 
 ## Main Files
 
@@ -62,8 +62,8 @@ deterministically first. Nova is used as a grounded generation layer on top of t
 ## Operational Notes
 
 - If Ollama is unavailable, decision surfaces fall back to deterministic copy rather than failing the product.
-- Vercel/serverless runtimes automatically bypass local Nova generation because they cannot reach `127.0.0.1:11434`; they now fall back immediately instead of spending the function budget on doomed local retries.
-- Cached decision snapshots are reused only when the same context has already been generated with Nova or local generation is explicitly disabled.
+- Vercel/serverless runtimes automatically bypass local Marvix generation because they cannot reach `127.0.0.1:11434`; they now fall back immediately instead of spending the function budget on doomed local retries.
+- Cached decision snapshots are reused only when the same context has already been generated with Marvix or local generation is explicitly disabled.
 - This avoids pinning the app to a weaker fallback if Ollama comes online later in the same session/day.
 
 ## Local Setup
@@ -100,7 +100,7 @@ Health and readiness surfaces:
 
 `nova:health` checks:
 
-- whether this runtime should use local Nova or deterministic fallback
+- whether this runtime should use local Marvix or deterministic fallback
 - whether `http://127.0.0.1:11434/v1` is reachable
 - which required models are present
 - which `ollama pull ...` commands are still missing

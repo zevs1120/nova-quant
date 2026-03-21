@@ -1,0 +1,17 @@
+[Unit]
+Description=Marvix standalone API and web server on AWS EC2
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/nova-quant
+Environment=NODE_ENV=production
+Environment=PORT=8787
+Environment=SERVE_WEB_DIST=1
+EnvironmentFile=/etc/novaquant/marvix.env
+ExecStart=/usr/bin/env npm run start:api
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

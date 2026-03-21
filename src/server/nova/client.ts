@@ -166,18 +166,18 @@ export async function runNovaChatCompletion(args: NovaChatArgs) {
     })
   }, useGroq ? DEFAULT_CLOUD_TIMEOUT_MS : DEFAULT_LOCAL_TIMEOUT_MS);
   const response = await fetch(endpoint, init).catch((error) => {
-    throw humanizeFetchError(error, effectiveRoute.provider === 'groq' ? 'Groq' : 'Nova');
+    throw humanizeFetchError(error, effectiveRoute.provider === 'groq' ? 'Groq' : 'Marvix');
   }).finally(clear);
 
   if (!response.ok) {
     const text = await response.text().catch(() => '');
-    throw new Error(`Nova request failed (${response.status}): ${text}`);
+    throw new Error(`Marvix request failed (${response.status}): ${text}`);
   }
 
   const raw = (await response.json()) as Record<string, unknown>;
   const text = extractContent(raw).trim();
   if (!text) {
-    throw new Error('Local Nova returned an empty response.');
+    throw new Error('Local Marvix returned an empty response.');
   }
 
   return {
@@ -204,12 +204,12 @@ export async function runNovaEmbedding(args: NovaEmbeddingArgs) {
     })
   }, route.provider === 'openai' ? DEFAULT_CLOUD_TIMEOUT_MS : DEFAULT_LOCAL_TIMEOUT_MS);
   const response = await fetch(endpoint, init).catch((error) => {
-    throw humanizeFetchError(error, 'Nova embedding');
+    throw humanizeFetchError(error, 'Marvix embedding');
   }).finally(clear);
 
   if (!response.ok) {
     const text = await response.text().catch(() => '');
-    throw new Error(`Nova embedding request failed (${response.status}): ${text}`);
+    throw new Error(`Marvix embedding request failed (${response.status}): ${text}`);
   }
 
   const raw = (await response.json()) as {

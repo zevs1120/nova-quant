@@ -79,17 +79,17 @@ Reference docs:
 - `docs/NOVA_LOCAL_STACK.md`
 - `docs/NOVA_TRAINING_LOOP.md`
 
-## Local Nova Runtime
+## Local Marvix Runtime
 
-Nova now defaults to a **local-only Ollama runtime** on macOS / Apple Silicon.
+Nova Assistant now defaults to the **Marvix** model family on a local-only Ollama runtime for macOS / Apple Silicon.
 
 Endpoint:
 - `http://127.0.0.1:11434/v1`
 
 Default routing:
-- `Nova-Core` -> decision reasoning / action cards / grounded assistant answers
-- `Nova-Scout` -> fast classification / state tagging
-- `Nova-Retrieve` -> embeddings / retrieval
+- `Marvix-Core` -> decision reasoning / action cards / grounded assistant answers
+- `Marvix-Scout` -> fast classification / state tagging
+- `Marvix-Retrieve` -> embeddings / retrieval
 
 Primary APIs:
 - `GET /api/nova/runtime`
@@ -105,8 +105,16 @@ Local operator commands:
 
 This keeps the product grounded:
 - structured decision / risk / evidence objects remain canonical
-- local Nova generates concise language and explanations on top of those objects
+- local Marvix generates concise language and explanations on top of those objects
 - if Ollama is unavailable, the runtime falls back to deterministic copy instead of fabricating output
+
+Compatibility note:
+- public model aliases now surface as `Marvix-*`
+- existing `/api/nova/*` paths stay in place so current clients do not break
+
+VPS deployment:
+- see `docs/AWS_EC2_DEPLOYMENT.md` for the recommended EC2 single-host setup using `SERVE_WEB_DIST=1` + `npm run start:api`
+- `docs/VULTR_DEPLOYMENT.md` remains available if you want a generic VPS path later
 
 ## Source of Truth
 
