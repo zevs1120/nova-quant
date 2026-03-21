@@ -50,6 +50,7 @@ import { buildNewsContext, ensureFreshNewsForSymbol, ensureFreshNewsForUniverse 
 import { buildEvidenceLineage } from '../evidence/lineage.js';
 import { fetchWithRetry } from '../utils/http.js';
 import { getPublicBrowseHome } from '../public/browseService.js';
+import { buildPrivateMarvixOpsReport } from '../ops/privateMarvixOps.js';
 
 const RISK_PROFILE_PRESETS = {
   conservative: {
@@ -2511,6 +2512,10 @@ export function getNovaRuntimeState() {
     mode,
     availability_reason: getNovaRuntimeAvailabilityReason(mode)
   };
+}
+
+export function getPrivateMarvixOps() {
+  return buildPrivateMarvixOpsReport(getRepo());
 }
 
 export async function getNovaHealthState() {

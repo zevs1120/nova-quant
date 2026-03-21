@@ -22,6 +22,7 @@
     "nova:train:lora": "tsx scripts/run-nova-mlx-train.ts",
     "nova:flywheel": "tsx scripts/run-nova-flywheel.ts",
     "nova:strategy": "tsx scripts/run-nova-strategy-lab.ts",
+    "marvix:ops": "tsx scripts/show-marvix-ops.ts",
     "backfill": "tsx scripts/backfill.ts",
     "update:binance": "tsx scripts/update-binance.ts --once",
     "worker:binance": "tsx scripts/update-binance.ts",

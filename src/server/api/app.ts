@@ -26,6 +26,7 @@ import {
   getDecisionSnapshot,
   exportNovaTrainingDataset,
   getNovaHealthState,
+  getPrivateMarvixOps,
   getNovaRuntimeState,
   getRuntimeState,
   getEvidenceBacktestDetail,
@@ -94,6 +95,7 @@ import {
   runFactorDiagnosticsTool,
   summarizeResearchOnTopicTool
 } from '../research/tools.js';
+import { isLoopbackAddress } from '../ops/privateMarvixOps.js';
 
 function parseMarket(value?: string): Market | undefined {
   if (!value) return undefined;
@@ -135,6 +137,14 @@ function parseSignalStatus(value?: string): 'ALL' | 'NEW' | 'TRIGGERED' | 'EXPIR
 export function createApiApp() {
   const app = express();
   app.use(express.json({ limit: '1mb' }));
+  const requireLoopbackOnly = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const remote = req.socket.remoteAddress || req.ip || null;
+    if (!isLoopbackAddress(remote)) {
+      res.status(403).json({ error: 'Private Marvix ops endpoint is loopback-only.' });
+      return;
+    }
+    next();
+  };
   app.use((req, res, next) => {
     const allowCrossOriginRead =
       req.path === '/api/auth/session' ||
@@ -176,6 +186,10 @@ export function createApiApp() {
 
   app.get('/healthz', (_req, res) => {
     res.json({ ok: true, ts: Date.now() });
+  });
+
+  app.get('/api/internal/marvix/ops', requireLoopbackOnly, (_req, res) => {
+    res.json(getPrivateMarvixOps());
   });
 
   app.get('/api/auth/session', handleAuthSession);
