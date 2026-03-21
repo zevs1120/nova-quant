@@ -30,7 +30,9 @@ import type {
   DecisionIntelligenceDatasetRecord,
   NormalizedBar,
   FundingRateRow,
+  FundamentalSnapshotRecord,
   BasisSnapshotRow,
+  OptionChainSnapshotRecord,
   PerformanceSnapshotRecord,
   PromptVersionRecord,
   RecommendationReviewRecord,
@@ -1021,6 +1023,115 @@ export class MarketRepository {
         `
       )
       .all(q) as NewsItemRecord[];
+  }
+
+  upsertFundamentalSnapshot(record: FundamentalSnapshotRecord): void {
+    this.db
+      .prepare(
+        `
+          INSERT INTO fundamental_snapshots(
+            id, market, symbol, source, asof_date, payload_json, updated_at_ms
+          ) VALUES(
+            @id, @market, @symbol, @source, @asof_date, @payload_json, @updated_at_ms
+          )
+          ON CONFLICT(id) DO UPDATE SET
+            source = excluded.source,
+            asof_date = excluded.asof_date,
+            payload_json = excluded.payload_json,
+            updated_at_ms = excluded.updated_at_ms
+        `
+      )
+      .run(record);
+  }
+
+  upsertFundamentalSnapshots(rows: FundamentalSnapshotRecord[]): void {
+    const tx = this.db.transaction((records: FundamentalSnapshotRecord[]) => {
+      for (const record of records) this.upsertFundamentalSnapshot(record);
+    });
+    tx(rows);
+  }
+
+  listFundamentalSnapshots(params?: { market?: Market; symbol?: string; limit?: number }): FundamentalSnapshotRecord[] {
+    const where: string[] = [];
+    const q: Record<string, unknown> = {};
+    if (params?.market) {
+      where.push('market = @market');
+      q.market = params.market;
+    }
+    if (params?.symbol) {
+      where.push('symbol = @symbol');
+      q.symbol = params.symbol.toUpperCase();
+    }
+    if (params?.limit) q.limit = params.limit;
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    const limitSql = params?.limit ? 'LIMIT @limit' : '';
+    return this.db
+      .prepare(
+        `
+          SELECT
+            id, market, symbol, source, asof_date, payload_json, updated_at_ms
+          FROM fundamental_snapshots
+          ${whereSql}
+          ORDER BY updated_at_ms DESC
+          ${limitSql}
+        `
+      )
+      .all(q) as FundamentalSnapshotRecord[];
+  }
+
+  upsertOptionChainSnapshot(record: OptionChainSnapshotRecord): void {
+    this.db
+      .prepare(
+        `
+          INSERT INTO option_chain_snapshots(
+            id, market, symbol, expiration_date, snapshot_ts_ms, source, payload_json, updated_at_ms
+          ) VALUES(
+            @id, @market, @symbol, @expiration_date, @snapshot_ts_ms, @source, @payload_json, @updated_at_ms
+          )
+          ON CONFLICT(id) DO UPDATE SET
+            expiration_date = excluded.expiration_date,
+            snapshot_ts_ms = excluded.snapshot_ts_ms,
+            source = excluded.source,
+            payload_json = excluded.payload_json,
+            updated_at_ms = excluded.updated_at_ms
+        `
+      )
+      .run(record);
+  }
+
+  upsertOptionChainSnapshots(rows: OptionChainSnapshotRecord[]): void {
+    const tx = this.db.transaction((records: OptionChainSnapshotRecord[]) => {
+      for (const record of records) this.upsertOptionChainSnapshot(record);
+    });
+    tx(rows);
+  }
+
+  listOptionChainSnapshots(params?: { market?: Market; symbol?: string; limit?: number }): OptionChainSnapshotRecord[] {
+    const where: string[] = [];
+    const q: Record<string, unknown> = {};
+    if (params?.market) {
+      where.push('market = @market');
+      q.market = params.market;
+    }
+    if (params?.symbol) {
+      where.push('symbol = @symbol');
+      q.symbol = params.symbol.toUpperCase();
+    }
+    if (params?.limit) q.limit = params.limit;
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    const limitSql = params?.limit ? 'LIMIT @limit' : '';
+    return this.db
+      .prepare(
+        `
+          SELECT
+            id, market, symbol, expiration_date, snapshot_ts_ms, source, payload_json, updated_at_ms
+          FROM option_chain_snapshots
+          ${whereSql}
+          ORDER BY snapshot_ts_ms DESC, updated_at_ms DESC
+          ${limitSql}
+        `
+      )
+      .all(q) as OptionChainSnapshotRecord[];
   }
 
   upsertApiKey(input: {

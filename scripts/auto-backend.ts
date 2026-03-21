@@ -253,6 +253,8 @@ export async function runAutoBackendInitialization(options: AutoBackendOptions) 
     });
     log('free data flywheel finished', {
       news: freeData.news,
+      fundamentals: freeData.fundamentals,
+      options: freeData.options,
       crypto_structure: freeData.crypto_structure
     });
   } catch (error) {
@@ -361,6 +363,8 @@ export async function runAutoBackendMaintenanceCycle(args: {
     log('scheduled free data flywheel finished', {
       cycle: args.cycle,
       news: freeData.news,
+      fundamentals: freeData.fundamentals,
+      options: freeData.options,
       crypto_structure: freeData.crypto_structure
     });
   } catch (error) {

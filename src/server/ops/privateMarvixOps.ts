@@ -108,6 +108,34 @@ export function buildPrivateMarvixOpsReport(repo: MarketRepository) {
       };
     });
 
+  const fundamentals = repo.listFundamentalSnapshots({ market: 'US', limit: 12 }).map((row) => {
+    const payload = parseJson(row.payload_json);
+    return {
+      id: row.id,
+      symbol: row.symbol,
+      source: row.source,
+      asof_date: row.asof_date,
+      updated_at: toIso(row.updated_at_ms),
+      keys: Object.keys(payload).slice(0, 8)
+    };
+  });
+
+  const optionChains = repo.listOptionChainSnapshots({ market: 'US', limit: 12 }).map((row) => {
+    const payload = parseJson(row.payload_json);
+    const summary = payload.summary && typeof payload.summary === 'object' ? (payload.summary as JsonObject) : null;
+    return {
+      id: row.id,
+      symbol: row.symbol,
+      source: row.source,
+      expiration_date: row.expiration_date,
+      snapshot_at: toIso(row.snapshot_ts_ms),
+      contracts_count: summary?.contracts_count ?? null,
+      total_open_interest: summary?.total_open_interest ?? null,
+      total_volume: summary?.total_volume ?? null,
+      iv_skew: summary?.iv_skew ?? null
+    };
+  });
+
   const novaRuns = repo.listNovaTaskRuns({ limit: 12 }).map((row) => ({
     id: row.id,
     task_type: row.task_type,
@@ -132,6 +160,10 @@ export function buildPrivateMarvixOpsReport(repo: MarketRepository) {
     },
     workflows: workflowRuns,
     recent_news_factors: recentNewsFactors,
+    reference_data: {
+      fundamentals,
+      option_chains: optionChains
+    },
     active_signals: topSignals,
     recent_nova_runs: novaRuns
   };

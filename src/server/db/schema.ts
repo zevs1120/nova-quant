@@ -259,6 +259,33 @@ CREATE TABLE IF NOT EXISTS news_items (
 
 CREATE INDEX IF NOT EXISTS idx_news_items_lookup ON news_items(market, symbol, published_at_ms DESC);
 
+CREATE TABLE IF NOT EXISTS fundamental_snapshots (
+  id TEXT PRIMARY KEY,
+  market TEXT NOT NULL CHECK (market IN ('US', 'CRYPTO')),
+  symbol TEXT NOT NULL,
+  source TEXT NOT NULL,
+  asof_date TEXT NOT NULL,
+  payload_json TEXT NOT NULL,
+  updated_at_ms INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_fundamental_snapshots_lookup
+  ON fundamental_snapshots(market, symbol, updated_at_ms DESC);
+
+CREATE TABLE IF NOT EXISTS option_chain_snapshots (
+  id TEXT PRIMARY KEY,
+  market TEXT NOT NULL CHECK (market IN ('US', 'CRYPTO')),
+  symbol TEXT NOT NULL,
+  expiration_date TEXT,
+  snapshot_ts_ms INTEGER NOT NULL,
+  source TEXT NOT NULL,
+  payload_json TEXT NOT NULL,
+  updated_at_ms INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_option_chain_snapshots_lookup
+  ON option_chain_snapshots(market, symbol, snapshot_ts_ms DESC);
+
 CREATE TABLE IF NOT EXISTS api_keys (
   key_id TEXT PRIMARY KEY,
   key_hash TEXT NOT NULL UNIQUE,

@@ -20,6 +20,14 @@ Target flow:
 
 `market data + Gemini-analyzed news -> Marvix -> trade instruction -> Gemini explanation`
 
+Current free data sources wired toward that flow:
+
+- US price bars: Stooq, Yahoo Finance public chart path, Nasdaq fallback, Alpha Vantage daily fallback
+- Crypto price bars: Binance public market data
+- US fundamentals: Alpha Vantage + Finnhub
+- News: Google News RSS + Finnhub News + NewsAPI, then Gemini factor extraction
+- Options: Yahoo Finance public option-chain snapshots
+
 ## What Is Already Implemented
 
 - Marvix model aliases are exposed in runtime surfaces (`Marvix-Core`, `Marvix-Scout`, `Marvix-Retrieve`, `Marvix-Challenger`).
@@ -27,6 +35,7 @@ Target flow:
 - The training flywheel exports MLX-LM style chat datasets and writes challenger training plans/manifests.
 - Gemini is already available as the explanation/chat provider on the backend assistant surface.
 - When `GEMINI_API_KEY` is configured, fetched news is now enriched into structured factor payloads before runtime derivation uses it.
+- Free-data refresh now also stores US fundamentals snapshots and Yahoo option-chain summaries for Marvix training/reference use.
 - Strategy generation is now kept on the configured Marvix route instead of being silently hijacked by Gemini when a Gemini key is present.
 
 ## What Is Still Missing

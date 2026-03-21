@@ -70,10 +70,47 @@ describe('private Marvix ops report', () => {
       }
     ]);
 
+    repo.upsertFundamentalSnapshots([
+      {
+        id: 'fund-aapl-1',
+        market: 'US',
+        symbol: 'AAPL',
+        source: 'FINNHUB',
+        asof_date: '2026-03-21',
+        payload_json: JSON.stringify({
+          provider: 'finnhub',
+          metrics: { peTTM: 28.1 }
+        }),
+        updated_at_ms: now - 25_000
+      }
+    ]);
+
+    repo.upsertOptionChainSnapshots([
+      {
+        id: 'opt-aapl-1',
+        market: 'US',
+        symbol: 'AAPL',
+        expiration_date: '2026-04-17',
+        snapshot_ts_ms: now - 20_000,
+        source: 'YAHOO_OPTIONS',
+        payload_json: JSON.stringify({
+          summary: {
+            contracts_count: 24,
+            total_open_interest: 12000,
+            total_volume: 1800,
+            iv_skew: -0.03
+          }
+        }),
+        updated_at_ms: now - 20_000
+      }
+    ]);
+
     const report = buildPrivateMarvixOpsReport(repo);
     expect(report.visibility).toBe('private-loopback-only');
     expect(report.workflows[0]?.workflow_key).toBe('free_data_flywheel');
     expect(report.recent_news_factors[0]?.analysis_provider).toBe('gemini');
     expect(report.recent_news_factors[0]?.factor_tags).toContain('product_cycle');
+    expect(report.reference_data.fundamentals[0]?.symbol).toBe('AAPL');
+    expect(report.reference_data.option_chains[0]?.source).toBe('YAHOO_OPTIONS');
   });
 });

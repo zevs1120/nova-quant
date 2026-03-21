@@ -4,6 +4,7 @@ import type { Market } from '../types.js';
 import { MarketRepository } from '../db/repository.js';
 import { syncBinanceDerivatives } from '../ingestion/binanceDerivatives.js';
 import { ensureFreshNewsForUniverse } from '../news/provider.js';
+import { refreshTrainingReferenceData } from './referenceData.js';
 import { createTraceId, recordAuditEvent } from '../observability/spine.js';
 
 export async function runFreeDataFlywheel(args: {
@@ -13,6 +14,8 @@ export async function runFreeDataFlywheel(args: {
   userId?: string | null;
   refreshNews?: boolean;
   refreshCryptoStructure?: boolean;
+  refreshFundamentals?: boolean;
+  refreshOptions?: boolean;
   cryptoSymbols?: string[];
 }) {
   const market = args.market || 'ALL';
@@ -31,6 +34,8 @@ export async function runFreeDataFlywheel(args: {
       market,
       refresh_news: args.refreshNews !== false,
       refresh_crypto_structure: args.refreshCryptoStructure !== false,
+      refresh_fundamentals: args.refreshFundamentals !== false,
+      refresh_options: args.refreshOptions !== false,
       crypto_symbols: args.cryptoSymbols || null
     }),
     output_json: null,
@@ -42,6 +47,16 @@ export async function runFreeDataFlywheel(args: {
 
   try {
     const cfg = getConfig();
+    const referenceData =
+      args.refreshFundamentals === false && args.refreshOptions === false
+        ? null
+        : await refreshTrainingReferenceData({
+            repo: args.repo,
+            market,
+            usSymbols: cfg.markets.US.symbols,
+            refreshFundamentals: args.refreshFundamentals !== false,
+            refreshOptions: args.refreshOptions !== false
+          });
     const output = {
       workflow_id: workflowId,
       trace_id: traceId,
@@ -53,6 +68,14 @@ export async function runFreeDataFlywheel(args: {
               repo: args.repo,
               market
             }),
+      fundamentals:
+        args.refreshFundamentals === false || market === 'CRYPTO'
+          ? { skipped: true }
+          : referenceData?.fundamentals || { skipped: true },
+      options:
+        args.refreshOptions === false || market === 'CRYPTO'
+          ? { skipped: true }
+          : referenceData?.options || { skipped: true },
       crypto_structure:
         args.refreshCryptoStructure === false || market === 'US'
           ? { skipped: true }
@@ -73,6 +96,8 @@ export async function runFreeDataFlywheel(args: {
         market,
         refresh_news: args.refreshNews !== false,
         refresh_crypto_structure: args.refreshCryptoStructure !== false,
+        refresh_fundamentals: args.refreshFundamentals !== false,
+        refresh_options: args.refreshOptions !== false,
         crypto_symbols: args.cryptoSymbols || null
       }),
       output_json: JSON.stringify(output),
@@ -105,6 +130,8 @@ export async function runFreeDataFlywheel(args: {
         market,
         refresh_news: args.refreshNews !== false,
         refresh_crypto_structure: args.refreshCryptoStructure !== false,
+        refresh_fundamentals: args.refreshFundamentals !== false,
+        refresh_options: args.refreshOptions !== false,
         crypto_symbols: args.cryptoSymbols || null
       }),
       output_json: JSON.stringify({

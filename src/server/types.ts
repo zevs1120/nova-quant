@@ -375,6 +375,27 @@ export interface NewsItemRecord {
   updated_at_ms: number;
 }
 
+export interface FundamentalSnapshotRecord {
+  id: string;
+  market: Market;
+  symbol: string;
+  source: string;
+  asof_date: string;
+  payload_json: string;
+  updated_at_ms: number;
+}
+
+export interface OptionChainSnapshotRecord {
+  id: string;
+  market: Market;
+  symbol: string;
+  expiration_date: string | null;
+  snapshot_ts_ms: number;
+  source: string;
+  payload_json: string;
+  updated_at_ms: number;
+}
+
 export interface AppConfig {
   database: {
     driver: 'sqlite';

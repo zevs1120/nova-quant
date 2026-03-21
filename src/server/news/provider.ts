@@ -3,6 +3,7 @@ import pLimit from 'p-limit';
 import type { Market, NewsItemRecord } from '../types.js';
 import type { MarketRepository } from '../db/repository.js';
 import { getConfig } from '../config.js';
+import { fetchFinnhubNewsItems, fetchNewsApiItems } from '../ingestion/hostedData.js';
 import { enrichNewsRowsWithGeminiFactors } from './geminiFactors.js';
 
 const NEWS_TTL_MS = 1000 * 60 * 90;
@@ -214,6 +215,25 @@ async function fetchGoogleNewsItems(market: Market, symbol: string): Promise<New
   return parseGoogleNewsRss(xml, market, normalizeSymbol(symbol));
 }
 
+function dedupeNewsRows(rows: NewsItemRecord[]): NewsItemRecord[] {
+  const deduped = new Map<string, NewsItemRecord>();
+  for (const row of rows.sort((a, b) => b.published_at_ms - a.published_at_ms)) {
+    const key = `${normalizeSymbol(row.symbol)}::${String(row.url || '').trim().toLowerCase()}::${row.headline.trim().toLowerCase()}`;
+    if (!deduped.has(key)) deduped.set(key, row);
+  }
+  return [...deduped.values()].sort((a, b) => b.published_at_ms - a.published_at_ms).slice(0, 12);
+}
+
+async function fetchMultiSourceNewsItems(market: Market, symbol: string): Promise<NewsItemRecord[]> {
+  const query = market === 'CRYPTO' ? `${aliasQuery(market, symbol)} crypto` : `${aliasQuery(market, symbol)} stock`;
+  const googleRows = await fetchGoogleNewsItems(market, symbol).catch(() => []);
+  const finnhubRows = await fetchFinnhubNewsItems(market, symbol).catch(() => []);
+  const mergedPrimary = dedupeNewsRows([...googleRows, ...finnhubRows]);
+  if (mergedPrimary.length >= 6) return mergedPrimary;
+  const newsApiRows = await fetchNewsApiItems(market, symbol, query).catch(() => []);
+  return dedupeNewsRows([...mergedPrimary, ...newsApiRows]);
+}
+
 export async function ensureFreshNewsForSymbol(args: { repo: MarketRepository; market: Market; symbol: string }) {
   const symbol = normalizeSymbol(args.symbol);
   const latest = args.repo.listNewsItems({ market: args.market, symbol, limit: 1 })[0] || null;
@@ -228,7 +248,7 @@ export async function ensureFreshNewsForSymbol(args: { repo: MarketRepository; m
     };
   }
   try {
-    const rawRows = await fetchGoogleNewsItems(args.market, symbol);
+    const rawRows = await fetchMultiSourceNewsItems(args.market, symbol);
     const rows = await enrichNewsRowsWithGeminiFactors({
       market: args.market,
       symbol,

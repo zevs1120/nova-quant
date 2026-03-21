@@ -25,6 +25,7 @@ Typical shape:
 - keep `marvix.service` available for localhost-only API checks on `127.0.0.1:8787`
 - close inbound `80` and `443` in the Security Group
 - keep only inbound `22` from your IP
+- use EC2 to refresh Marvix training inputs from free market/news/reference feeds
 
 See also `docs/MARVIX_SYSTEM_ARCHITECTURE.md`.
 
@@ -93,13 +94,26 @@ sudo cp deployment/aws-ec2/marvix-backend.env.example /etc/novaquant/marvix-back
 sudo nano /etc/novaquant/marvix-backend.env
 ```
 
-Minimum values to set:
+Minimum values to set for backend-only Marvix:
 
-- `NOVA_RUNTIME_MODE=cloud-openai-compatible`
-- `NOVA_CLOUD_OPENAI_BASE_URL`
-- `NOVA_CLOUD_API_KEY`
+- `NOVA_RUNTIME_MODE=deterministic-fallback`
+- `NOVA_DISABLE_LOCAL_GENERATION=1`
+- `NOVA_DISABLE_GROQ=1`
 - `DB_PATH=/opt/nova-quant/data/quant.db`
-- your auth/session persistence secrets
+- `GEMINI_API_KEY`
+
+Optional but recommended free-data keys for the new Marvix training-input pipeline:
+
+- `ALPHA_VANTAGE_API_KEY`
+- `FINNHUB_API_KEY`
+- `NEWSAPI_API_KEY`
+
+Those keys now enable:
+
+- US daily fallback bars from Alpha Vantage when other free equity backfills fail
+- US fundamentals snapshots from Alpha Vantage + Finnhub
+- multi-source finance news from Google News RSS + Finnhub News + NewsAPI
+- US option-chain summaries from Yahoo Finance public options endpoints
 
 ## Systemd Service
 

@@ -3,6 +3,7 @@ import { getDb } from '../db/database.js';
 import { MarketRepository } from '../db/repository.js';
 import { ensureSchema } from '../db/schema.js';
 import { backfillBinancePublic } from '../ingestion/binancePublic.js';
+import { backfillAlphaVantageDaily } from '../ingestion/hostedData.js';
 import { backfillNasdaqHistorical } from '../ingestion/nasdaq.js';
 import { backfillStooqBulk } from '../ingestion/stooq.js';
 import { backfillYahooChart } from '../ingestion/yahoo.js';
@@ -51,11 +52,27 @@ export async function runBackfillCli(argv: string[]): Promise<void> {
               timeframe: tf,
               error: fallbackError instanceof Error ? fallbackError.message : String(fallbackError)
             });
-            await backfillNasdaqHistorical({
-              timeframe: tf,
-              repo,
-              symbols: cfg.markets.US.symbols
-            });
+            try {
+              await backfillNasdaqHistorical({
+                timeframe: tf,
+                repo,
+                symbols: cfg.markets.US.symbols
+              });
+            } catch (nasdaqError) {
+              if (tf === '1d' && String(process.env.ALPHA_VANTAGE_API_KEY || '').trim()) {
+                logWarn('Nasdaq fallback failed; switching to Alpha Vantage daily fallback', {
+                  timeframe: tf,
+                  error: nasdaqError instanceof Error ? nasdaqError.message : String(nasdaqError)
+                });
+                await backfillAlphaVantageDaily({
+                  timeframe: tf,
+                  repo,
+                  symbols: cfg.markets.US.symbols
+                });
+              } else {
+                throw nasdaqError;
+              }
+            }
           }
         } else {
           logWarn('US backfill failed for timeframe; continuing without fallback', {
