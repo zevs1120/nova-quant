@@ -22,6 +22,15 @@ type BasicResponse = {
   json: (body: unknown) => void;
 };
 
+function respondAdminError(res: BasicResponse, code: string, error: unknown) {
+  const detail = error instanceof Error ? error.message : String(error || code);
+  res.status(500).json({
+    ok: false,
+    error: code,
+    detail
+  });
+}
+
 function getHeader(req: BasicRequest, name: string) {
   if (typeof req.header === 'function') {
     return req.header(name) || '';
@@ -55,64 +64,84 @@ async function authorizeAdmin(req: BasicRequest, res: BasicResponse) {
 export async function handleAdminOverview(req: BasicRequest, res: BasicResponse) {
   const session = await authorizeAdmin(req, res);
   if (!session) return;
-  res.json({
-    ok: true,
-    session: {
-      user: session.user,
-      roles: session.roles
-    },
-    data: buildAdminOverviewSnapshot()
-  });
+  try {
+    res.json({
+      ok: true,
+      session: {
+        user: session.user,
+        roles: session.roles
+      },
+      data: buildAdminOverviewSnapshot()
+    });
+  } catch (error) {
+    respondAdminError(res, 'ADMIN_OVERVIEW_FAILED', error);
+  }
 }
 
 export async function handleAdminUsers(req: BasicRequest, res: BasicResponse) {
   const session = await authorizeAdmin(req, res);
   if (!session) return;
-  res.json({
-    ok: true,
-    session: {
-      user: session.user,
-      roles: session.roles
-    },
-    data: buildAdminUsersSnapshot()
-  });
+  try {
+    res.json({
+      ok: true,
+      session: {
+        user: session.user,
+        roles: session.roles
+      },
+      data: buildAdminUsersSnapshot()
+    });
+  } catch (error) {
+    respondAdminError(res, 'ADMIN_USERS_FAILED', error);
+  }
 }
 
 export async function handleAdminAlphas(req: BasicRequest, res: BasicResponse) {
   const session = await authorizeAdmin(req, res);
   if (!session) return;
-  res.json({
-    ok: true,
-    session: {
-      user: session.user,
-      roles: session.roles
-    },
-    data: buildAdminAlphaSnapshot()
-  });
+  try {
+    res.json({
+      ok: true,
+      session: {
+        user: session.user,
+        roles: session.roles
+      },
+      data: buildAdminAlphaSnapshot()
+    });
+  } catch (error) {
+    respondAdminError(res, 'ADMIN_ALPHAS_FAILED', error);
+  }
 }
 
 export async function handleAdminSignals(req: BasicRequest, res: BasicResponse) {
   const session = await authorizeAdmin(req, res);
   if (!session) return;
-  res.json({
-    ok: true,
-    session: {
-      user: session.user,
-      roles: session.roles
-    },
-    data: buildAdminSignalsSnapshot()
-  });
+  try {
+    res.json({
+      ok: true,
+      session: {
+        user: session.user,
+        roles: session.roles
+      },
+      data: buildAdminSignalsSnapshot()
+    });
+  } catch (error) {
+    respondAdminError(res, 'ADMIN_SIGNALS_FAILED', error);
+  }
 }
 
 export async function handleAdminSystem(req: BasicRequest, res: BasicResponse) {
   const session = await authorizeAdmin(req, res);
   if (!session) return;
-  res.json({
-    ok: true,
-    session: {
-      user: session.user,
-      roles: session.roles
-    },
-    data: buildAdminSystemSnapshot()
-  });
+  try {
+    res.json({
+      ok: true,
+      session: {
+        user: session.user,
+        roles: session.roles
+      },
+      data: buildAdminSystemSnapshot()
+    });
+  } catch (error) {
+    respondAdminError(res, 'ADMIN_SYSTEM_FAILED', error);
+  }
 }

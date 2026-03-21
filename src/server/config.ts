@@ -7,12 +7,105 @@ dotenv.config();
 
 const DEFAULT_CONFIG_PATH = process.env.INGEST_CONFIG_PATH || 'config/ingestion.config.json';
 
+function buildFallbackConfig(): AppConfig {
+  return {
+    database: {
+      driver: 'sqlite',
+      path: './data/quant.db'
+    },
+    markets: {
+      US: {
+        venue: 'STOOQ',
+        symbols: ['SPY', 'QQQ', 'AAPL', 'MSFT', 'NVDA']
+      },
+      CRYPTO: {
+        venue: 'BINANCE_UM',
+        symbols: ['BTCUSDT', 'ETHUSDT']
+      }
+    },
+    timeframes: ['5m', '1h', '1d'],
+    stooq: {
+      baseUrl: 'https://stooq.com',
+      bulkPackCodes: {
+        '1d': 'd_us_txt',
+        '1h': 'h_us_txt',
+        '5m': '5_us_txt'
+      },
+      timeoutMs: 120000,
+      batchSize: 2000
+    },
+    yahoo: {
+      baseUrl: 'https://query1.finance.yahoo.com',
+      range: '10y',
+      intervals: {
+        '1d': '1d'
+      },
+      timeoutMs: 30000,
+      concurrency: 2
+    },
+    nasdaq: {
+      baseUrl: 'https://api.nasdaq.com/api',
+      limit: 120,
+      timeoutMs: 30000
+    },
+    binancePublic: {
+      baseUrl: 'https://data.binance.vision',
+      pathPrefix: 'data/futures/um',
+      startDate: '2020-01-01',
+      lookbackDailyDays: 12,
+      concurrency: 3
+    },
+    binanceRest: {
+      baseUrl: 'https://fapi.binance.com',
+      limit: 200,
+      requestDelayMs: 250,
+      retry: {
+        attempts: 4,
+        baseDelayMs: 600
+      }
+    },
+    binanceDerivatives: {
+      historyLimit: 90,
+      requestDelayMs: 180,
+      timeoutMs: 12000
+    },
+    alphaDiscovery: {
+      enabled: true,
+      schedule: 'every-12-hours',
+      maxCandidatesPerCycle: 18,
+      searchBudget: 8,
+      minAcceptanceScore: 0.74,
+      shadowPromotionThresholds: {
+        minSampleSize: 16,
+        minSharpe: 0.45,
+        minExpectancy: 0.0015,
+        maxDrawdown: 0.18,
+        maxCorrelation: 0.72,
+        minApprovalRate: 0.45
+      },
+      retirementThresholds: {
+        minExpectancy: -0.002,
+        maxDrawdown: 0.22,
+        decayStreakLimit: 3
+      }
+    }
+  };
+}
+
 function readConfigFile(configPath: string): AppConfig {
   const absolute = path.isAbsolute(configPath)
     ? configPath
     : path.join(process.cwd(), configPath);
-  const text = fs.readFileSync(absolute, 'utf-8');
-  return JSON.parse(text) as AppConfig;
+  try {
+    const text = fs.readFileSync(absolute, 'utf-8');
+    return JSON.parse(text) as AppConfig;
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException | undefined)?.code || '';
+    if (code === 'ENOENT' || process.env.VERCEL === '1') {
+      return buildFallbackConfig();
+    }
+    throw error;
+  }
 }
 
 let cached: AppConfig | null = null;
