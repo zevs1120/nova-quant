@@ -45,3 +45,17 @@ Do not point the public admin UI directly at `/api/internal/marvix/ops`. That ro
 3. Bind the project to `admin.novaquant.cloud`.
 4. Add admin-specific environment variables.
 5. Protect admin access with app-level admin auth and Vercel deployment protection.
+
+## Admin auth environment
+
+The admin frontend is hosted on `admin.novaquant.cloud`, but the admin auth APIs live on the main project domain.
+
+Main project environment variables:
+
+- `NOVA_ADMIN_EMAILS=you@example.com,operator@example.com`
+- `NOVA_OWNER_EMAIL=you@example.com` (optional single-owner fallback)
+- `NOVA_ADMIN_ALLOWED_ORIGINS=https://admin.novaquant.cloud`
+
+Admin frontend environment variables:
+
+- `VITE_ADMIN_API_BASE=https://novaquant.cloud`

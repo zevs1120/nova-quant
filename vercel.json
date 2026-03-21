@@ -11,6 +11,10 @@
       "memory": 1024,
       "maxDuration": 30
     },
+    "api/admin/[...route].ts": {
+      "memory": 1024,
+      "maxDuration": 30
+    },
     "api/nova/[...route].ts": {
       "memory": 1024,
       "maxDuration": 30

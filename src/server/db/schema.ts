@@ -1069,6 +1069,18 @@ CREATE TABLE IF NOT EXISTS auth_users (
 
 CREATE INDEX IF NOT EXISTS idx_auth_users_email ON auth_users(email);
 
+CREATE TABLE IF NOT EXISTS auth_user_roles (
+  user_id TEXT NOT NULL,
+  role TEXT NOT NULL CHECK (role IN ('ADMIN', 'OPERATOR', 'SUPPORT')),
+  granted_at_ms INTEGER NOT NULL,
+  granted_by_user_id TEXT,
+  PRIMARY KEY(user_id, role),
+  FOREIGN KEY(user_id) REFERENCES auth_users(user_id) ON DELETE CASCADE,
+  FOREIGN KEY(granted_by_user_id) REFERENCES auth_users(user_id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_auth_user_roles_role ON auth_user_roles(role, granted_at_ms DESC);
+
 CREATE TABLE IF NOT EXISTS auth_sessions (
   session_id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,

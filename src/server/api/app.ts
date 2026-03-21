@@ -2,6 +2,9 @@ import express from 'express';
 import { isoToMs } from '../utils/time.js';
 import type { AssetClass, Market, NovaTaskType, Timeframe } from '../types.js';
 import {
+  handleAdminLogin,
+  handleAdminLogout,
+  handleAdminSession,
   handleAuthLogin,
   handleAuthLogout,
   handleAuthSession,
@@ -141,6 +144,12 @@ function parseSignalStatus(value?: string): 'ALL' | 'NEW' | 'TRIGGERED' | 'EXPIR
 export function createApiApp() {
   const app = express();
   app.use(express.json({ limit: '1mb' }));
+  const adminAllowedOrigins = new Set(
+    String(process.env.NOVA_ADMIN_ALLOWED_ORIGINS || 'https://admin.novaquant.cloud,http://localhost:4174,http://127.0.0.1:4174')
+      .split(',')
+      .map((row) => String(row || '').trim())
+      .filter(Boolean)
+  );
   const requireLoopbackOnly = (req: express.Request, res: express.Response, next: express.NextFunction) => {
     const remote = req.socket.remoteAddress || req.ip || null;
     if (!isLoopbackAddress(remote)) {
@@ -150,6 +159,22 @@ export function createApiApp() {
     next();
   };
   app.use((req, res, next) => {
+    const origin = req.header('origin') || '';
+    const isAdminApi = req.path.startsWith('/api/admin/');
+    if (isAdminApi && origin && adminAllowedOrigins.has(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Vary', 'Origin');
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
+      res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+      res.setHeader('Access-Control-Max-Age', '600');
+      if (req.method === 'OPTIONS') {
+        res.status(204).end();
+        return;
+      }
+      next();
+      return;
+    }
     const allowCrossOriginRead =
       req.path === '/api/auth/session' ||
       req.path === '/api/manual/state' ||
@@ -195,6 +220,10 @@ export function createApiApp() {
   app.get('/api/internal/marvix/ops', requireLoopbackOnly, (_req, res) => {
     res.json(getPrivateMarvixOps());
   });
+
+  app.get('/api/admin/session', handleAdminSession);
+  app.post('/api/admin/login', handleAdminLogin);
+  app.post('/api/admin/logout', handleAdminLogout);
 
   app.get('/api/auth/session', handleAuthSession);
   app.post('/api/auth/signup', handleAuthSignup);

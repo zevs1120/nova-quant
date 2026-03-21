@@ -13,6 +13,7 @@ import {
   remoteSetMembers,
   remoteSetRemove,
   remoteSetString,
+  remoteUserRolesKey,
   remoteUserIdByEmailKey,
   remoteUserKey,
   remoteUserSessionsKey,
@@ -20,10 +21,12 @@ import {
 } from './remoteKv.js';
 
 const SESSION_COOKIE_NAME = 'novaquant_session';
+const ADMIN_SESSION_COOKIE_NAME = 'novaquant_admin_session';
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30;
 const RESET_TTL_MS = 1000 * 60 * 15;
 
 export type AuthTradeMode = 'starter' | 'active' | 'deep';
+export type AuthRole = 'ADMIN' | 'OPERATOR' | 'SUPPORT';
 
 export type PublicAuthUser = {
   userId: string;
@@ -62,6 +65,13 @@ type AuthUserRow = {
   created_at_ms: number;
   updated_at_ms: number;
   last_login_at_ms: number | null;
+};
+
+type AuthUserRoleRow = {
+  user_id: string;
+  role: AuthRole;
+  granted_at_ms: number;
+  granted_by_user_id: string | null;
 };
 
 type SeededUserConfig = {
@@ -109,6 +119,25 @@ function normalizeEmail(value: string) {
 function normalizeTradeMode(value: string | null | undefined): AuthTradeMode {
   if (value === 'starter' || value === 'deep') return value;
   return 'active';
+}
+
+function normalizeRole(value: string | null | undefined): AuthRole | null {
+  const next = String(value || '').trim().toUpperCase();
+  if (next === 'ADMIN' || next === 'OPERATOR' || next === 'SUPPORT') return next;
+  return null;
+}
+
+function configuredAdminEmails() {
+  const raw = [process.env.NOVA_ADMIN_EMAILS || '', process.env.NOVA_OWNER_EMAIL || '']
+    .join(',')
+    .split(',')
+    .map((row) => normalizeEmail(row))
+    .filter(Boolean);
+  return new Set(raw);
+}
+
+function isConfiguredAdminEmail(email: string) {
+  return configuredAdminEmails().has(normalizeEmail(email));
 }
 
 function mergeSeededUserState(user: SeededUserConfig): AuthUserState {
@@ -193,6 +222,16 @@ function hashToken(token: string) {
 
 function hashResetCode(code: string) {
   return createHash('sha256').update(`reset:${String(code || '')}`).digest('hex');
+}
+
+function buildCookieHeader(name: string, token: string, maxAgeSeconds: number) {
+  const secure = process.env.VERCEL === '1' || process.env.NODE_ENV === 'production';
+  return `${name}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAgeSeconds}${secure ? '; Secure' : ''}`;
+}
+
+function clearCookieHeader(name: string) {
+  const secure = process.env.VERCEL === '1' || process.env.NODE_ENV === 'production';
+  return `${name}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure ? '; Secure' : ''}`;
 }
 
 function parseJson<T>(value: string | null | undefined, fallback: T): T {
@@ -382,6 +421,93 @@ async function getUserById(userId: string): Promise<AuthUserRow | null> {
   return getUserByIdLocal(userId);
 }
 
+function listAuthUserRoleRowsLocal(userId: string): AuthUserRoleRow[] {
+  return (
+    (getDb()
+      .prepare(
+        `SELECT user_id, role, granted_at_ms, granted_by_user_id
+         FROM auth_user_roles
+         WHERE user_id = ?
+         ORDER BY granted_at_ms DESC`
+      )
+      .all(userId) as AuthUserRoleRow[] | undefined) || []
+  ).map((row) => ({
+    ...row,
+    role: normalizeRole(row.role) || 'SUPPORT'
+  }));
+}
+
+async function listAuthUserRoleRows(userId: string): Promise<AuthUserRoleRow[]> {
+  await ensureSeededUser();
+  if (hasRemoteAuthStore()) {
+    const rows = (await remoteGetJson<AuthUserRoleRow[]>(remoteUserRolesKey(userId))) || [];
+    return rows
+      .map((row) => ({
+        user_id: String(row.user_id || userId),
+        role: normalizeRole(row.role) || null,
+        granted_at_ms: Number(row.granted_at_ms || 0),
+        granted_by_user_id: row.granted_by_user_id ? String(row.granted_by_user_id) : null
+      }))
+      .filter((row): row is AuthUserRoleRow => Boolean(row.role))
+      .sort((a, b) => b.granted_at_ms - a.granted_at_ms);
+  }
+  return listAuthUserRoleRowsLocal(userId);
+}
+
+async function upsertAuthUserRole(args: { userId: string; role: AuthRole; grantedByUserId?: string | null }) {
+  await ensureSeededUser();
+  const ts = nowMs();
+  if (hasRemoteAuthStore()) {
+    const current = (await remoteGetJson<AuthUserRoleRow[]>(remoteUserRolesKey(args.userId))) || [];
+    const next = current
+      .map((row) => ({
+        user_id: String(row.user_id || args.userId),
+        role: normalizeRole(row.role) || null,
+        granted_at_ms: Number(row.granted_at_ms || 0),
+        granted_by_user_id: row.granted_by_user_id ? String(row.granted_by_user_id) : null
+      }))
+      .filter((row): row is AuthUserRoleRow => Boolean(row.role));
+    const existing = next.find((row) => row.role === args.role);
+    if (existing) {
+      existing.granted_at_ms = existing.granted_at_ms || ts;
+      existing.granted_by_user_id = existing.granted_by_user_id || args.grantedByUserId || null;
+    } else {
+      next.push({
+        user_id: args.userId,
+        role: args.role,
+        granted_at_ms: ts,
+        granted_by_user_id: args.grantedByUserId || null
+      });
+    }
+    await remoteSetJson(remoteUserRolesKey(args.userId), next);
+    return;
+  }
+  getDb()
+    .prepare(
+      `INSERT INTO auth_user_roles(user_id, role, granted_at_ms, granted_by_user_id)
+       VALUES (@user_id, @role, @granted_at_ms, @granted_by_user_id)
+       ON CONFLICT(user_id, role) DO UPDATE SET
+         granted_by_user_id = COALESCE(auth_user_roles.granted_by_user_id, excluded.granted_by_user_id)`
+    )
+    .run({
+      user_id: args.userId,
+      role: args.role,
+      granted_at_ms: ts,
+      granted_by_user_id: args.grantedByUserId || null
+    });
+}
+
+async function syncConfiguredAdminRole(user: AuthUserRow | PublicAuthUser | null | undefined) {
+  if (!user) return;
+  const userId = 'userId' in user ? user.userId : user.user_id;
+  const email = user.email;
+  if (!isConfiguredAdminEmail(email)) return;
+  await upsertAuthUserRole({
+    userId,
+    role: 'ADMIN'
+  });
+}
+
 function createSessionLocal(args: { userId: string; userAgent?: string | null; ipAddress?: string | null }) {
   const db = getDb();
   const token = randomBytes(24).toString('hex');
@@ -438,13 +564,24 @@ export function getSessionCookieName() {
 
 export function getAuthCookieHeader(token: string) {
   const maxAge = Math.floor(SESSION_TTL_MS / 1000);
-  const secure = process.env.VERCEL === '1' || process.env.NODE_ENV === 'production';
-  return `${SESSION_COOKIE_NAME}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure ? '; Secure' : ''}`;
+  return buildCookieHeader(SESSION_COOKIE_NAME, token, maxAge);
 }
 
 export function clearAuthCookieHeader() {
-  const secure = process.env.VERCEL === '1' || process.env.NODE_ENV === 'production';
-  return `${SESSION_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure ? '; Secure' : ''}`;
+  return clearCookieHeader(SESSION_COOKIE_NAME);
+}
+
+export function getAdminSessionCookieName() {
+  return ADMIN_SESSION_COOKIE_NAME;
+}
+
+export function getAdminAuthCookieHeader(token: string) {
+  const maxAge = Math.floor(SESSION_TTL_MS / 1000);
+  return buildCookieHeader(ADMIN_SESSION_COOKIE_NAME, token, maxAge);
+}
+
+export function clearAdminAuthCookieHeader() {
+  return clearCookieHeader(ADMIN_SESSION_COOKIE_NAME);
 }
 
 export async function getAuthSession(token: string | null | undefined): Promise<{ user: PublicAuthUser; state: AuthUserState } | null> {
@@ -629,6 +766,7 @@ export async function signupAuthUser(args: {
     });
     const user = getUserByIdLocal(userId);
     if (!user) return { ok: false as const, error: 'SIGNUP_FAILED' };
+    await syncConfiguredAdminRole(user);
     const sessionToken = await createSession({
       userId,
       userAgent: args.userAgent,
@@ -665,6 +803,7 @@ export async function signupAuthUser(args: {
   try {
     await remoteSetJson(remoteUserKey(userId), user);
     await remoteSetJson(remoteUserStateKey(userId), state);
+    await syncConfiguredAdminRole(user);
     const sessionToken = await createSession({
       userId,
       userAgent: args.userAgent,
@@ -705,6 +844,7 @@ export async function loginAuthUser(args: {
   } else {
     getDb().prepare('UPDATE auth_users SET last_login_at_ms = ?, updated_at_ms = ? WHERE user_id = ?').run(ts, ts, user.user_id);
   }
+  await syncConfiguredAdminRole(updatedUser);
 
   const sessionToken = await createSession({
     userId: user.user_id,
@@ -717,6 +857,27 @@ export async function loginAuthUser(args: {
     user: mapPublicUser(updatedUser),
     state,
     sessionToken
+  };
+}
+
+export async function loginAdminUser(args: {
+  email: string;
+  password: string;
+  userAgent?: string | null;
+  ipAddress?: string | null;
+}) {
+  const result = await loginAuthUser(args);
+  if (!result.ok) return result;
+  const roles = (await listAuthUserRoleRows(result.user.userId)).map((row) => row.role);
+  if (!roles.includes('ADMIN')) {
+    await logoutAuthSession(result.sessionToken);
+    return { ok: false as const, error: 'ADMIN_ACCESS_DENIED' };
+  }
+  return {
+    ok: true as const,
+    user: result.user,
+    roles,
+    sessionToken: result.sessionToken
   };
 }
 
@@ -735,6 +896,18 @@ export async function logoutAuthSession(token: string | null | undefined) {
   getDb()
     .prepare('UPDATE auth_sessions SET revoked_at_ms = ?, updated_at_ms = ? WHERE session_token_hash = ? AND revoked_at_ms IS NULL')
     .run(ts, ts, tokenHash);
+}
+
+export async function getAdminSession(token: string | null | undefined): Promise<{ user: PublicAuthUser; roles: AuthRole[] } | null> {
+  const session = await getAuthSession(token);
+  if (!session) return null;
+  await syncConfiguredAdminRole(session.user);
+  const roles = (await listAuthUserRoleRows(session.user.userId)).map((row) => row.role);
+  if (!roles.includes('ADMIN')) return null;
+  return {
+    user: session.user,
+    roles
+  };
 }
 
 export async function createPasswordReset(args: { email: string }) {

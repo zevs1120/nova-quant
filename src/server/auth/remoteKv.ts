@@ -103,6 +103,10 @@ export function remoteUserStateKey(userId: string) {
   return namespaced(`state:${userId}`);
 }
 
+export function remoteUserRolesKey(userId: string) {
+  return namespaced(`roles:${userId}`);
+}
+
 export function remoteSessionKey(tokenHash: string) {
   return namespaced(`session:${tokenHash}`);
 }

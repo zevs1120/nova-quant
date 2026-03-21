@@ -131,6 +131,30 @@ textarea {
   justify-content: flex-end;
 }
 
+.admin-ghost-btn,
+.admin-primary-btn {
+  border-radius: 999px;
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  cursor: pointer;
+  color: inherit;
+}
+
+.admin-ghost-btn {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.admin-primary-btn {
+  background: linear-gradient(135deg, #1d66b3, #248c7e);
+  border-color: rgba(255, 255, 255, 0.06);
+  font-weight: 600;
+}
+
+.admin-primary-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .page-grid {
   display: grid;
   gap: 18px;
@@ -191,6 +215,58 @@ textarea {
 
 .panel {
   padding: 20px 22px;
+}
+
+.admin-login-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.admin-login-card {
+  width: min(460px, 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 24px;
+  background: rgba(9, 18, 31, 0.82);
+  backdrop-filter: blur(18px);
+  padding: 28px;
+}
+
+.admin-login-card h1 {
+  margin: 0 0 10px;
+}
+
+.admin-login-form {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.admin-field {
+  display: grid;
+  gap: 8px;
+  color: #dbe4f1;
+}
+
+.admin-field input {
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: inherit;
+  padding: 12px 14px;
+}
+
+.admin-error {
+  margin: 0;
+  color: #ffb6b6;
+}
+
+.admin-footnote {
+  margin: 16px 0 0;
+  color: #8da0bb;
+  font-size: 12px;
 }
 
 .panel-header {

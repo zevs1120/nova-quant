@@ -1,9 +1,13 @@
 import {
+  clearAdminAuthCookieHeader,
   clearAuthCookieHeader,
   createPasswordReset,
+  getAdminAuthCookieHeader,
+  getAdminSession,
   getAuthSession,
   getAuthUserState,
   getAuthCookieHeader,
+  loginAdminUser,
   loginAuthUser,
   logoutAuthSession,
   resetPasswordWithCode,
@@ -82,6 +86,25 @@ export async function handleAuthSession(req: BasicRequest, res: BasicResponse) {
   }
 }
 
+export async function handleAdminSession(req: BasicRequest, res: BasicResponse) {
+  try {
+    const cookies = parseCookies(req);
+    const session = await getAdminSession(cookies.novaquant_admin_session);
+    if (!session) {
+      res.status(401).json({ authenticated: false, authorized: false });
+      return;
+    }
+    res.json({
+      authenticated: true,
+      authorized: true,
+      user: session.user,
+      roles: session.roles
+    });
+  } catch (error) {
+    sendAuthServiceError(res, error);
+  }
+}
+
 export async function handleAuthSignup(req: BasicRequest, res: BasicResponse) {
   try {
     const body = (req.body || {}) as {
@@ -118,6 +141,32 @@ export async function handleAuthSignup(req: BasicRequest, res: BasicResponse) {
   }
 }
 
+export async function handleAdminLogin(req: BasicRequest, res: BasicResponse) {
+  try {
+    const body = (req.body || {}) as { email?: string; password?: string };
+    const result = await loginAdminUser({
+      email: String(body.email || ''),
+      password: String(body.password || ''),
+      userAgent: getHeader(req, 'user-agent') || null,
+      ipAddress: requestIp(req)
+    });
+    if (!result.ok) {
+      res.status(result.error === 'INVALID_CREDENTIALS' ? 401 : 403).json({ ok: false, error: result.error });
+      return;
+    }
+    res.setHeader('Set-Cookie', getAdminAuthCookieHeader(result.sessionToken));
+    res.json({
+      ok: true,
+      authenticated: true,
+      authorized: true,
+      user: result.user,
+      roles: result.roles
+    });
+  } catch (error) {
+    sendAuthServiceError(res, error);
+  }
+}
+
 export async function handleAuthLogin(req: BasicRequest, res: BasicResponse) {
   try {
     const body = (req.body || {}) as { email?: string; password?: string };
@@ -138,6 +187,17 @@ export async function handleAuthLogin(req: BasicRequest, res: BasicResponse) {
       user: result.user,
       state: result.state
     });
+  } catch (error) {
+    sendAuthServiceError(res, error);
+  }
+}
+
+export async function handleAdminLogout(req: BasicRequest, res: BasicResponse) {
+  try {
+    const cookies = parseCookies(req);
+    await logoutAuthSession(cookies.novaquant_admin_session);
+    res.setHeader('Set-Cookie', clearAdminAuthCookieHeader());
+    res.json({ ok: true });
   } catch (error) {
     sendAuthServiceError(res, error);
   }
