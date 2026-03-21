@@ -1,32 +1,32 @@
 export const PLANNED_ADMIN_APIS = [
   {
     route: '/api/admin/session',
-    purpose: 'Admin auth session and role validation',
-    status: 'planned'
+    purpose: '管理员会话与角色校验',
+    status: '已完成'
   },
   {
     route: '/api/admin/overview',
-    purpose: 'Top-level KPIs, alpha lifecycle counts, runtime health',
-    status: 'planned'
+    purpose: '核心指标、Alpha 生命周期统计、运行健康',
+    status: '待开发'
   },
   {
     route: '/api/admin/users',
-    purpose: 'Registered users, plan status, risk profile, last login',
-    status: 'planned'
+    purpose: '注册用户、套餐状态、风险档案、最近登录',
+    status: '待开发'
   },
   {
     route: '/api/admin/alphas',
-    purpose: 'Candidate registry, evaluations, shadow and canary review',
-    status: 'planned'
+    purpose: '候选注册表、评估结果、Shadow 与 Canary 复核',
+    status: '待开发'
   },
   {
     route: '/api/admin/signals',
-    purpose: 'Signal inventory, execution mode, order and paper tracking',
-    status: 'planned'
+    purpose: '信号库存、执行模式、订单与模拟跟踪',
+    status: '待开发'
   },
   {
     route: '/api/admin/system',
-    purpose: 'Data source health, worker status, model/provider health',
-    status: 'planned'
+    purpose: '数据源健康、Worker 状态、模型与供应商健康',
+    status: '待开发'
   }
 ];

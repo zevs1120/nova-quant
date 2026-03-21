@@ -3,8 +3,8 @@ export default function Sidebar({ items, activeId, onSelect }) {
     <aside className="admin-sidebar">
       <div className="admin-sidebar-brand">
         <p className="admin-eyebrow">NovaQuant</p>
-        <h1>Admin Panel</h1>
-        <p className="admin-muted">Separate control surface for ops, alpha governance, and users.</p>
+        <h1>管理后台</h1>
+        <p className="admin-muted">面向运营、Alpha 治理与用户管理的独立控制台。</p>
       </div>
       <nav className="admin-nav">
         {items.map((item) => (

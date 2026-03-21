@@ -56,9 +56,9 @@ export default function AdminApp() {
     return (
       <div className="admin-login-shell">
         <section className="admin-login-card">
-          <p className="admin-eyebrow">NovaQuant Admin</p>
-          <h1>Checking admin session</h1>
-          <p className="admin-muted">Verifying access against the protected admin API.</p>
+          <p className="admin-eyebrow">NovaQuant 管理后台</p>
+          <h1>正在检查管理员会话</h1>
+          <p className="admin-muted">正在通过受保护的管理员 API 验证访问权限。</p>
         </section>
       </div>
     );
@@ -78,7 +78,7 @@ export default function AdminApp() {
             setSession(payload);
           } catch (error) {
             const code = String(error?.message || 'ADMIN_ACCESS_DENIED');
-            setAuthError(code === 'INVALID_CREDENTIALS' ? 'Invalid credentials.' : 'Admin access denied.');
+            setAuthError(code === 'INVALID_CREDENTIALS' ? '邮箱或密码错误。' : '当前账号没有管理员权限。');
           } finally {
             setAuthLoading(false);
           }
@@ -105,16 +105,16 @@ export default function AdminApp() {
 
         <section className="panel">
           <div className="panel-header">
-            <h3>Planned Admin API Surface</h3>
-            <span className="status-pill is-slate">Next implementation step</span>
+            <h3>管理员 API 规划</h3>
+            <span className="status-pill is-slate">下一步实施</span>
           </div>
           <div className="table-wrap">
             <table className="admin-table">
               <thead>
                 <tr>
-                  <th>Route</th>
-                  <th>Purpose</th>
-                  <th>Status</th>
+                  <th>路由</th>
+                  <th>用途</th>
+                  <th>状态</th>
                 </tr>
               </thead>
               <tbody>

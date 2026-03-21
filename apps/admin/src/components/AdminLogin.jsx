@@ -7,10 +7,10 @@ export default function AdminLogin({ loading, error, onSubmit, apiBase }) {
   return (
     <div className="admin-login-shell">
       <section className="admin-login-card">
-        <p className="admin-eyebrow">NovaQuant Admin</p>
-        <h1>Restricted access</h1>
+        <p className="admin-eyebrow">NovaQuant 管理后台</p>
+        <h1>受限访问</h1>
         <p className="admin-muted">
-          This surface is for operator workflows only. Sign in with an account that has the `ADMIN` role.
+          这个后台仅供运营与管理使用。请使用具备 `ADMIN` 角色的账号登录。
         </p>
 
         <form
@@ -21,7 +21,7 @@ export default function AdminLogin({ loading, error, onSubmit, apiBase }) {
           }}
         >
           <label className="admin-field">
-            <span>Email</span>
+            <span>邮箱</span>
             <input
               type="email"
               autoComplete="username"
@@ -33,7 +33,7 @@ export default function AdminLogin({ loading, error, onSubmit, apiBase }) {
           </label>
 
           <label className="admin-field">
-            <span>Password</span>
+            <span>密码</span>
             <input
               type="password"
               autoComplete="current-password"
@@ -47,11 +47,11 @@ export default function AdminLogin({ loading, error, onSubmit, apiBase }) {
           {error ? <p className="admin-error">{error}</p> : null}
 
           <button type="submit" className="admin-primary-btn" disabled={loading || !email || !password}>
-            {loading ? 'Checking access…' : 'Admin sign in'}
+            {loading ? '正在校验权限…' : '管理员登录'}
           </button>
         </form>
 
-        <p className="admin-footnote">API base: {apiBase}</p>
+        <p className="admin-footnote">API 地址：{apiBase}</p>
       </section>
     </div>
   );

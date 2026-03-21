@@ -2,28 +2,28 @@ import StatCard from '../components/StatCard';
 
 const stats = [
   {
-    label: 'Primary Surface',
+    label: '主后台域名',
     value: 'admin.novaquant.cloud',
-    detail: 'Separate deploy target from the user-facing app.',
+    detail: '与用户前台独立部署、独立访问。',
     tone: 'blue'
   },
   {
-    label: 'Backend Compute',
+    label: '后台算力',
     value: 'EC2 + Marvix',
-    detail: 'Workers, discovery loop, data jobs, and private ops stay off the admin frontend.',
+    detail: 'Worker、发现循环、数据任务和私有运维仍在 EC2 上运行。',
     tone: 'green'
   },
   {
-    label: 'Promotion Guard',
+    label: '晋升护栏',
     value: 'SHADOW → CANARY',
-    detail: 'No autonomous direct production promotion.',
+    detail: '不会自动直接推到正式生产。',
     tone: 'amber'
   },
   {
-    label: 'Admin Auth',
-    value: 'Required',
-    detail: 'Separate admin session and role gate still needs wiring.',
-    tone: 'red'
+    label: '管理员认证',
+    value: '已启用',
+    detail: '独立 admin session 与角色校验已接入。',
+    tone: 'green'
   }
 ];
 
@@ -38,14 +38,14 @@ export default function OverviewPage() {
 
       <section className="panel">
         <div className="panel-header">
-          <h3>Initial Admin Surface</h3>
-          <span className="status-pill is-blue">Phase 1</span>
+          <h3>后台一期定位</h3>
+          <span className="status-pill is-blue">第一阶段</span>
         </div>
         <ul className="bullet-list">
-          <li>User-facing app and admin panel stay on separate subdomains.</li>
-          <li>Admin panel reads admin-only APIs, not loopback-only EC2 routes.</li>
-          <li>Alpha lifecycle and shadow metrics belong in admin, not in public product UI.</li>
-          <li>EC2 remains the compute plane; Vercel remains the delivery plane.</li>
+          <li>用户前台和管理后台保持独立子域名。</li>
+          <li>管理后台读取管理员 API，不直接暴露仅限本机的 EC2 私有接口。</li>
+          <li>Alpha 生命周期与 Shadow 指标只放在后台，不进入公开产品界面。</li>
+          <li>EC2 继续负责计算与任务，Vercel 继续负责交付前端。</li>
         </ul>
       </section>
     </section>

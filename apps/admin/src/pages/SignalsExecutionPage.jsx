@@ -3,27 +3,27 @@ export default function SignalsExecutionPage() {
     <section className="page-grid two-up">
       <section className="panel">
         <div className="panel-header">
-          <h3>Signals</h3>
-          <span className="status-pill is-blue">Planned</span>
+          <h3>信号视图</h3>
+          <span className="status-pill is-blue">规划中</span>
         </div>
         <ul className="bullet-list">
-          <li>Current ranked action cards.</li>
-          <li>Top symbols and confidence changes.</li>
-          <li>Alpha overlay impact on confidence and sizing.</li>
-          <li>Watch-only vs actionable segmentation.</li>
+          <li>当前排序后的行动卡片。</li>
+          <li>重点标的与置信度变化。</li>
+          <li>Alpha overlay 对置信度和仓位的影响。</li>
+          <li>仅观察与可执行信号的分层。</li>
         </ul>
       </section>
 
       <section className="panel">
         <div className="panel-header">
-          <h3>Execution</h3>
-          <span className="status-pill is-red">Needs admin API</span>
+          <h3>执行视图</h3>
+          <span className="status-pill is-red">需要管理 API</span>
         </div>
         <ul className="bullet-list">
-          <li>Paper / live / shadow execution split.</li>
-          <li>Kill-switch state and reconciliation errors.</li>
-          <li>Provider health for Alpaca / Binance or future brokers.</li>
-          <li>Manual intervention log for operator actions.</li>
+          <li>Paper / Live / Shadow 执行拆分。</li>
+          <li>Kill switch 状态与对账错误。</li>
+          <li>Alpaca、Binance 与未来券商的连接健康。</li>
+          <li>人工干预与运营操作日志。</li>
         </ul>
       </section>
     </section>

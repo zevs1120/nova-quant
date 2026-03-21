@@ -8,9 +8,9 @@ export default function Topbar({ title, subtitle, session, onLogout }) {
       </div>
       <div className="admin-topbar-status">
         {session?.user?.email ? <span className="status-pill is-slate">{session.user.email}</span> : null}
-        <span className="status-pill is-amber">Scaffold</span>
+        <span className="status-pill is-amber">后台骨架</span>
         <button type="button" className="admin-ghost-btn" onClick={() => onLogout?.()}>
-          Log out
+          退出登录
         </button>
       </div>
     </header>
