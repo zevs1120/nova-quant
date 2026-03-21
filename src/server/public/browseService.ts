@@ -1243,8 +1243,8 @@ export async function getPublicBrowseAssetChart(args: { market: Market; symbol: 
         writeBrowseChartCache(cacheKey, null);
         return null;
       }
-      const first = history[0];
       const last = history[history.length - 1];
+      const { latest, previousClose } = latestAndPreviousClose(history);
       const snapshot = {
         requestedSymbol: symbol,
         resolvedSymbol: symbol,
@@ -1256,9 +1256,9 @@ export async function getPublicBrowseAssetChart(args: { market: Market; symbol: 
         sourceStatus: 'CACHED',
         timeframe: '1d',
         asOf: new Date(last.ts_open).toISOString(),
-        latest: last.close,
-        previousClose: first.close,
-        change: last.close !== null && first.close !== null && first.close ? (last.close - first.close) / first.close : null,
+        latest,
+        previousClose,
+        change: percentChangeFromPrevious(latest, previousClose),
         points: history.map((row) => ({ ts: row.ts_open, close: row.close || 0, label: null })),
         note: 'Latest cached daily chart from Stooq'
       } satisfies BrowseChartSnapshot;
@@ -1284,8 +1284,8 @@ export async function getPublicBrowseAssetChart(args: { market: Market; symbol: 
       writeBrowseChartCache(cacheKey, null);
       return null;
     }
-    const first = history[0];
     const last = history[history.length - 1];
+    const { latest, previousClose } = latestAndPreviousClose(history);
     const parsed = parseCryptoLookupSymbol(symbol);
     const snapshot = {
       requestedSymbol: symbol,
@@ -1298,9 +1298,9 @@ export async function getPublicBrowseAssetChart(args: { market: Market; symbol: 
       sourceStatus: 'CACHED',
       timeframe: '1d',
       asOf: new Date(last.ts_open).toISOString(),
-      latest: last.close,
-      previousClose: first.close,
-      change: last.close !== null && first.close !== null && first.close ? (last.close - first.close) / first.close : null,
+      latest,
+      previousClose,
+      change: percentChangeFromPrevious(latest, previousClose),
       points: history.map((row) => ({ ts: row.ts_open, close: row.close || 0, label: null })),
       note: 'Latest cached daily chart from Gate.io'
     } satisfies BrowseChartSnapshot;
@@ -1693,7 +1693,7 @@ function readBrowseChartCache(key: string): BrowseChartSnapshot | null | undefin
 }
 
 function writeBrowseChartCache(key: string, data: BrowseChartSnapshot | null) {
-  const ttlMs = data?.sourceStatus === 'LIVE' ? 900 : 12_000;
+  const ttlMs = data?.sourceStatus === 'LIVE' ? 5_000 : 12_000;
   browseChartCache.set(key, {
     expiresAt: Date.now() + ttlMs,
     data
@@ -1721,6 +1721,18 @@ function normalizeBrowseHomeView(value?: string): keyof typeof browseHomeConfig 
   return 'STOCK';
 }
 
+function latestAndPreviousClose(rows: PublicOhlcvRow[]) {
+  const closes = rows.map((row) => row.close).filter((value): value is number => Number.isFinite(value));
+  const latest = closes[closes.length - 1] ?? null;
+  const previousClose = closes.length >= 2 ? closes[closes.length - 2] : null;
+  return { latest, previousClose, closes };
+}
+
+function percentChangeFromPrevious(latest: number | null, previousClose: number | null) {
+  if (latest === null || previousClose === null || !previousClose) return null;
+  return (latest - previousClose) / previousClose;
+}
+
 async function buildBrowseCard(spec: { symbol: string; market: Market; title: string; subtitle: string }): Promise<BrowseHomeCard | null> {
   const chart = await withTimeout(getPublicBrowseAssetChart({ market: spec.market, symbol: spec.symbol }), 1200, null);
   if (!chart) {
@@ -1734,17 +1746,15 @@ async function buildBrowseCard(spec: { symbol: string; market: Market; title: st
       800,
       { asset: null, rows: [] as PublicOhlcvRow[] }
     );
-    const closes = history.rows.map((row) => row.close).filter((value): value is number => Number.isFinite(value));
+    const { latest, previousClose, closes } = latestAndPreviousClose(history.rows);
     if (closes.length < 2) return null;
-    const latest = closes[closes.length - 1] ?? null;
-    const first = closes[0] ?? null;
     return {
       symbol: spec.symbol,
       market: spec.market,
       title: spec.title,
       subtitle: spec.subtitle,
       latest,
-      change: latest !== null && first ? (latest - first) / first : null,
+      change: percentChangeFromPrevious(latest, previousClose),
       asOf: new Date(Number(history.rows[history.rows.length - 1]?.ts_open || Date.now())).toISOString(),
       values: closes.slice(-36)
     };
