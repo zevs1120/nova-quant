@@ -204,6 +204,7 @@ describe('news provider with Gemini factors', () => {
 
     expect(result.fetched).toBe(true);
     expect(result.rows_upserted).toBe(1);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     const rows = repo.listNewsItems({ market: 'US', symbol: 'AAPL', limit: 5 });
     const payload = JSON.parse(rows[0].payload_json) as Record<string, any>;
     expect(payload.gemini_analysis.batch.trading_bias).toBe('BULLISH');

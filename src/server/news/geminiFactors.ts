@@ -1,5 +1,6 @@
 import pLimit from 'p-limit';
 import type { Market, NewsItemRecord } from '../types.js';
+import { runNovaChatCompletion } from '../nova/client.js';
 import { fetchWithRetry } from '../utils/http.js';
 
 type GeminiHeadlineFactor = {
@@ -179,6 +180,27 @@ export async function analyzeNewsBatchWithGemini(args: {
       headlines: items
     })
   ].join('\n');
+
+  try {
+    const completion = await runNovaChatCompletion({
+      task: 'assistant_grounded_answer',
+      systemPrompt: [
+        'You are a quant news factor extraction engine for Marvix.',
+        'Return exactly one JSON object and nothing else.',
+        'Valid top-level keys: summary, sentiment_score, event_risk_score, macro_policy_score, earnings_impact_score, trading_bias, factor_tags, items.',
+        'items must contain objects with keys: id, sentiment_score, relevance_score, event_type, impact_horizon, thesis.'
+      ].join(' '),
+      userPrompt: prompt,
+      temperature: 0.1,
+      maxTokens: 900
+    });
+    const parsed = firstJsonObject(completion.text);
+    if (parsed) {
+      return normalizeFactors(parsed, args.market, args.symbol);
+    }
+  } catch {
+    // fall back to the direct Gemini request below
+  }
 
   const waitMs = Math.max(0, nextGeminiNewsRequestAtMs - Date.now());
   if (waitMs > 0) {

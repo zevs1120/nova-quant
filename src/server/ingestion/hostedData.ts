@@ -337,6 +337,23 @@ type YahooOptionsResponse = {
   };
 };
 
+type CboeOptionsContract = {
+  option?: string;
+  iv?: number | string;
+  open_interest?: number | string;
+  volume?: number | string;
+  delta?: number | string;
+  gamma?: number | string;
+};
+
+type CboeOptionsResponse = {
+  timestamp?: string;
+  data?: {
+    options?: CboeOptionsContract[];
+    current_price?: number | string;
+  };
+};
+
 function summarizeContracts(symbol: string, expiryEpochSeconds: number, spotPrice: number, calls: YahooOptionsContract[], puts: YahooOptionsContract[]) {
   const callIvs = calls.map((row) => safeNumber(row.impliedVolatility)).filter((row) => Number.isFinite(row));
   const putIvs = puts.map((row) => safeNumber(row.impliedVolatility)).filter((row) => Number.isFinite(row));
@@ -385,6 +402,82 @@ async function fetchYahooOptionChain(symbol: string, expiryEpochSeconds?: number
   throw (lastError instanceof Error ? lastError : new Error('Yahoo options fetch failed'));
 }
 
+async function fetchCboeOptionSnapshot(symbol: string): Promise<OptionChainSnapshotRecord | null> {
+  const normalized = normalizeSymbol(symbol);
+  const url = `https://cdn.cboe.com/api/global/delayed_quotes/options/${encodeURIComponent(normalized)}.json`;
+  const payload = (await fetchJson(
+    url,
+    {
+      headers: {
+        Referer: 'https://www.cboe.com/',
+        'User-Agent': 'Mozilla/5.0 NovaQuant/1.0',
+        Accept: 'application/json'
+      }
+    },
+    20_000
+  )) as CboeOptionsResponse;
+
+  const options = Array.isArray(payload?.data?.options) ? payload.data.options : [];
+  if (!options.length) return null;
+
+  const clean = options.filter((row) => Number.isFinite(Number(row.iv)) && Number.isFinite(Number(row.open_interest)));
+  if (!clean.length) return null;
+
+  const spot = safeNumber(payload?.data?.current_price);
+  let ivNum = 0;
+  let ivDen = 0;
+  let totalOi = 0;
+  let totalVol = 0;
+  let absDeltaNum = 0;
+  let absDeltaDen = 0;
+  let gammaExposure = 0;
+
+  for (const row of clean) {
+    const iv = Number(row.iv || 0);
+    const oi = Number(row.open_interest || 0);
+    const vol = Number(row.volume || 0);
+    const weight = Math.max(oi, vol, 1);
+    totalOi += Math.max(0, oi);
+    totalVol += Math.max(0, vol);
+    ivNum += iv * weight;
+    ivDen += weight;
+    absDeltaNum += Math.abs(Number(row.delta || 0)) * weight;
+    absDeltaDen += weight;
+    gammaExposure += Number(row.gamma || 0) * oi * 100 * Math.max(Number(spot || 0), 0) ** 2;
+  }
+
+  const now = Date.now();
+  return {
+    id: `opt-${hashId(['cboe-options', normalized, now])}`,
+    market: 'US',
+    symbol: normalized,
+    expiration_date: null,
+    snapshot_ts_ms: now,
+    source: 'CBOE_OPTIONS',
+    payload_json: JSON.stringify({
+      provider: 'cboe_options',
+      fetched_at: new Date(now).toISOString(),
+      summary: {
+        underlying_symbol: normalized,
+        spot_price: Number.isFinite(spot) ? round(spot, 4) : null,
+        expiration_date: null,
+        contracts_count: clean.length,
+        average_call_iv: ivDen ? round(ivNum / ivDen, 6) : null,
+        average_put_iv: null,
+        iv_skew: null,
+        total_open_interest: totalOi,
+        call_open_interest: null,
+        put_open_interest: null,
+        total_volume: totalVol,
+        put_call_open_interest_ratio: null,
+        avg_abs_delta: absDeltaDen ? round(absDeltaNum / absDeltaDen, 6) : null,
+        gamma_exposure: Number.isFinite(gammaExposure) ? round(gammaExposure, 2) : null
+      }
+    }),
+    updated_at_ms: now
+  };
+}
+
 function snapshotFromYahooOptionsPayload(args: {
   symbol: string;
   now: number;
@@ -427,6 +520,11 @@ export async function fetchYahooOptionSnapshots(symbol: string, maxExpirations =
   });
   const primary = root?.optionChain?.result?.[0];
   if (!primary) {
+    const rootMessage = rootError instanceof Error ? rootError.message : String(rootError || '');
+    if (rootMessage.includes('(401)')) {
+      const fallback = await fetchCboeOptionSnapshot(normalized).catch(() => null);
+      if (fallback) return [fallback];
+    }
     throw (rootError instanceof Error ? rootError : new Error(`Yahoo options root response missing result for ${normalized}`));
   }
 

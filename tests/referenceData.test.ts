@@ -201,6 +201,46 @@ describe('hosted reference data ingestion', () => {
     expect(result.error).toContain('401');
   });
 
+  it('falls back to a CBOE option snapshot when Yahoo returns 401', async () => {
+    const db = new Database(':memory:');
+    ensureSchema(db);
+    const repo = new MarketRepository(db);
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string | URL) => {
+        const url = String(input);
+        if (url.includes('finance.yahoo.com')) {
+          return new Response('blocked', { status: 401 });
+        }
+        if (url.includes('cdn.cboe.com')) {
+          return makeJsonResponse({
+            data: {
+              current_price: 500.25,
+              options: [
+                { option: 'SPY240101C00500000', iv: 0.21, open_interest: 1000, volume: 120, delta: 0.45, gamma: 0.01 },
+                { option: 'SPY240101P00500000', iv: 0.24, open_interest: 1300, volume: 110, delta: -0.42, gamma: 0.012 }
+              ]
+            }
+          });
+        }
+        throw new Error(`Unhandled URL ${url}`);
+      })
+    );
+
+    const result = await ensureFreshOptionsForSymbol({
+      repo,
+      market: 'US',
+      symbol: 'SPY'
+    });
+
+    expect(result.fetched).toBe(true);
+    expect(result.rows_upserted).toBe(1);
+    const snapshots = repo.listOptionChainSnapshots({ market: 'US', symbol: 'SPY', limit: 5 });
+    expect(snapshots).toHaveLength(1);
+    expect(snapshots[0].source).toBe('CBOE_OPTIONS');
+  });
+
   it('merges Google, Finnhub, and NewsAPI headlines before Gemini analysis', async () => {
     const db = new Database(':memory:');
     ensureSchema(db);
