@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getRuntimeState } from '../../src/server/api/queries.js';
+import { getPublicTodayDecision } from '../../src/server/public/todayDecisionService.js';
 
 function resolveRoute(req: VercelRequest): string {
   const dynamic = req.query.route;
@@ -41,12 +41,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const assetClass = parseAssetClass(body.assetClass);
     const userId = String(body.userId || '').trim() || 'guest-default';
 
-    const runtime = getRuntimeState({
+    const decision = await getPublicTodayDecision({
       userId,
       market,
-      assetClass
+      assetClass,
+      locale: String(body.locale || '').trim() || undefined
     });
-    const decision = runtime?.data?.decision || null;
     res.status(200).json(decision);
     return;
   }
