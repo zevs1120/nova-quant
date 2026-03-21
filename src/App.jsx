@@ -248,6 +248,10 @@ async function fetchJson(url, options) {
   return response.json();
 }
 
+function settledValue(result, fallback = null) {
+  return result?.status === 'fulfilled' ? result.value : fallback;
+}
+
 function mapExecutionToTrade(execution) {
   const baseTime = execution.created_at || new Date().toISOString();
   const pnl = Number(execution.pnl_pct ?? execution.pnlPct ?? 0);
@@ -814,18 +818,18 @@ export default function App() {
         });
 
         const [
-          runtime,
-          assets,
-          signals,
-          evidenceTopSignals,
-          marketState,
-          performance,
-          modules,
-          riskProfile,
-          controlPlane,
-          brokerConnection,
-          exchangeConnection
-        ] = await Promise.all([
+          runtimeResult,
+          assetsResult,
+          signalsResult,
+          evidenceTopSignalsResult,
+          marketStateResult,
+          performanceResult,
+          modulesResult,
+          riskProfileResult,
+          controlPlaneResult,
+          brokerConnectionResult,
+          exchangeConnectionResult
+        ] = await Promise.allSettled([
           fetchJson(`/api/runtime-state?${query.toString()}`),
           fetchJson(`/api/assets?market=${market}`),
           fetchJson(`/api/signals?${query.toString()}&limit=60`),
@@ -840,6 +844,17 @@ export default function App() {
         ]);
 
         if (!mounted) return;
+        const runtime = settledValue(runtimeResult, null);
+        const assets = settledValue(assetsResult, null);
+        const signals = settledValue(signalsResult, null);
+        const evidenceTopSignals = settledValue(evidenceTopSignalsResult, null);
+        const marketState = settledValue(marketStateResult, null);
+        const performance = settledValue(performanceResult, null);
+        const modules = settledValue(modulesResult, null);
+        const riskProfile = settledValue(riskProfileResult, null);
+        const controlPlane = settledValue(controlPlaneResult, null);
+        const brokerConnection = settledValue(brokerConnectionResult, null);
+        const exchangeConnection = settledValue(exchangeConnectionResult, null);
         const runtimeData = runtime?.data || initialData;
         const evidenceData = {
           top_signals: Array.isArray(evidenceTopSignals?.records) ? evidenceTopSignals.records : [],
@@ -892,7 +907,6 @@ export default function App() {
           }
         };
         setData(nextData);
-        setDecisionSnapshot(runtimeData.decision || null);
         setRawData({
           as_of: runtime?.asof || new Date().toISOString(),
           source_status: runtime?.source_status || 'INSUFFICIENT_DATA'
@@ -901,9 +915,8 @@ export default function App() {
       } catch {
         if (!mounted) return;
         setData(initialData);
-        setDecisionSnapshot(null);
         setRawData(null);
-        setHasLoaded(false);
+        setHasLoaded(true);
       } finally {
         if (mounted && !silent) setLoading(false);
       }
@@ -1012,7 +1025,7 @@ export default function App() {
   }, [assetClass, effectiveUserId, hasLoaded, effectiveHoldings, isDemoRuntime, lang, market, now, todayKey]);
 
   useEffect(() => {
-    if (isDemoRuntime || !hasLoaded) return;
+    if (isDemoRuntime) return;
     let cancelled = false;
 
     void fetchJson('/api/decision/today', {
@@ -1030,13 +1043,15 @@ export default function App() {
         if (!cancelled) setDecisionSnapshot(payload || null);
       })
       .catch(() => {
-        if (!cancelled) setDecisionSnapshot(uiData.decision || null);
+        if (!cancelled) {
+          setDecisionSnapshot((current) => current || uiData.decision || null);
+        }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [isDemoRuntime, hasLoaded, effectiveUserId, market, assetClass, effectiveHoldings, lang, uiData.decision]);
+  }, [isDemoRuntime, effectiveUserId, market, assetClass, effectiveHoldings, lang, uiData.decision]);
 
   useEffect(() => {
     if (!decisionSnapshot || isDemoRuntime || !hasLoaded) return;

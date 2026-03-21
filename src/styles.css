@@ -16290,3 +16290,47 @@ body.is-standalone .app-bg {
   background: rgba(85, 104, 255, 0.1);
   color: #5168ff;
 }
+
+.today-screen-redesign,
+.today-screen-flow {
+  overflow-x: clip;
+}
+
+.today-summary-header {
+  width: 100%;
+  justify-content: flex-start !important;
+  align-items: flex-start !important;
+  text-align: left !important;
+}
+
+.today-summary-copy {
+  width: 100%;
+  align-items: flex-start !important;
+  text-align: left !important;
+  margin-inline: 0 !important;
+}
+
+.today-summary-title,
+.today-summary-date {
+  text-align: left !important;
+}
+
+.today-action-dots {
+  justify-content: center !important;
+}
+
+:root {
+  --native-tabbar-bottom-pad: max(0px, min(env(safe-area-inset-bottom, 0px), 4px));
+  --native-tabbar-height: 44px;
+  --native-tabbar-reserve: calc(var(--native-tabbar-height) + var(--native-tabbar-bottom-pad));
+}
+
+.native-tabbar {
+  height: var(--native-tabbar-reserve) !important;
+  min-height: var(--native-tabbar-reserve) !important;
+  padding: 2px 8px var(--native-tabbar-bottom-pad) !important;
+}
+
+.native-tabbar-button {
+  min-height: var(--native-tabbar-height) !important;
+}
