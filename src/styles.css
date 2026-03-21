@@ -11509,6 +11509,221 @@ body.keyboard-open .ai-composer-shell {
   font-weight: 760;
 }
 
+.menu-setting-surface {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at top right, rgba(255, 87, 155, 0.08), transparent 34%),
+    radial-gradient(circle at left center, rgba(65, 214, 255, 0.12), transparent 30%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(250, 246, 241, 0.92));
+  box-shadow:
+    inset 0 0 0 1px rgba(18, 26, 39, 0.05),
+    0 12px 28px rgba(20, 24, 33, 0.05);
+}
+
+.menu-setting-highlight {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.76);
+  box-shadow: inset 0 0 0 1px rgba(18, 26, 39, 0.04);
+}
+
+.menu-setting-kicker {
+  margin: 0;
+  color: rgba(22, 28, 39, 0.46);
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.menu-setting-highlight strong,
+.menu-detail-bullet strong,
+.menu-choice-copy strong,
+.menu-policy-section h2 {
+  color: rgba(18, 24, 35, 0.96);
+}
+
+.menu-setting-highlight strong {
+  font-size: 18px;
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+}
+
+.menu-setting-highlight p,
+.menu-detail-bullet span,
+.menu-choice-copy span,
+.menu-policy-section p {
+  margin: 0;
+  color: rgba(22, 28, 39, 0.58);
+}
+
+.menu-setting-highlight p,
+.menu-detail-bullet span,
+.menu-choice-copy span {
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.menu-detail-bullets,
+.menu-choice-stack,
+.menu-toggle-stack,
+.menu-policy-shell {
+  display: grid;
+  gap: 12px;
+}
+
+.menu-detail-bullet {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.74);
+  box-shadow: inset 0 0 0 1px rgba(18, 26, 39, 0.04);
+}
+
+.menu-detail-bullet strong,
+.menu-choice-copy strong,
+.menu-policy-section h2 {
+  font-size: 17px;
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+  font-weight: 740;
+}
+
+.menu-choice-card,
+.menu-toggle-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  width: 100%;
+  padding: 16px;
+  border: 1px solid rgba(18, 26, 39, 0.06);
+  border-radius: 24px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(250, 246, 241, 0.9));
+  text-align: left;
+  box-shadow:
+    0 10px 24px rgba(20, 24, 33, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.84);
+}
+
+.menu-choice-card.is-selected,
+.menu-toggle-card:focus-visible {
+  border-color: rgba(65, 93, 255, 0.16);
+  background:
+    linear-gradient(135deg, rgba(65, 214, 255, 0.12), rgba(65, 93, 255, 0.08), rgba(255, 87, 155, 0.12));
+  box-shadow:
+    0 14px 28px rgba(20, 24, 33, 0.05),
+    inset 0 0 0 1px rgba(65, 93, 255, 0.08);
+}
+
+.menu-choice-copy {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.menu-choice-radio {
+  position: relative;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(18, 26, 39, 0.18);
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.menu-choice-radio.is-selected {
+  border-color: rgba(65, 93, 255, 0.26);
+  box-shadow: 0 0 0 6px rgba(65, 214, 255, 0.08);
+}
+
+.menu-choice-radio.is-selected::after {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #39c6ff, #4465ff, #f65ea8);
+}
+
+.menu-toggle-card .preference-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 54px;
+  height: 32px;
+  padding: 3px;
+  border: 1px solid rgba(18, 26, 39, 0.08);
+  border-radius: 999px;
+  background: rgba(237, 240, 246, 0.9);
+}
+
+.menu-toggle-card .preference-toggle span {
+  display: block;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 6px 12px rgba(20, 24, 33, 0.14);
+  transform: translateX(0);
+  transition: transform 220ms var(--ease-spring), background 220ms var(--ease-spring);
+}
+
+.menu-toggle-card .preference-toggle.is-on {
+  background: linear-gradient(135deg, rgba(57, 198, 255, 0.22), rgba(68, 101, 255, 0.2), rgba(246, 94, 168, 0.2));
+  border-color: rgba(65, 93, 255, 0.16);
+}
+
+.menu-toggle-card .preference-toggle.is-on span {
+  transform: translateX(21px);
+  background: linear-gradient(135deg, #39c6ff, #4465ff, #f65ea8);
+}
+
+.menu-inline-link {
+  padding: 0 4px 2px;
+  border: 0;
+  background: transparent;
+  color: rgba(53, 84, 218, 0.92);
+  font-size: 14px;
+  line-height: 1.5;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-color: rgba(53, 84, 218, 0.3);
+  text-underline-offset: 4px;
+}
+
+.menu-policy-shell {
+  gap: 14px;
+}
+
+.menu-policy-section {
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+  border-radius: 24px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(251, 247, 241, 0.92));
+  box-shadow:
+    inset 0 0 0 1px rgba(18, 26, 39, 0.04),
+    0 12px 24px rgba(20, 24, 33, 0.035);
+}
+
+.menu-policy-section h2 {
+  margin: 0;
+}
+
+.menu-policy-section p {
+  font-size: 14px;
+  line-height: 1.56;
+}
+
 .menu-hero {
   display: grid;
   gap: 10px;
