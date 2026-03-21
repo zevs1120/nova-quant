@@ -1,0 +1,256 @@
+{
+  "seed_id": "public_strategy_template_seed_v1",
+  "generated_at": "2026-03-21T00:00:00.000Z",
+  "total_templates": 9,
+  "families": [
+    "time series momentum",
+    "post earnings announcement drift",
+    "short-term reversal",
+    "pairs trading",
+    "cross-sectional value quality",
+    "betting against beta defensive",
+    "factor momentum overlay",
+    "funding carry capture",
+    "crypto attention momentum"
+  ],
+  "templates": [
+    {
+      "template_id": "TPL-PUBLIC-TSMOM-01",
+      "family": "time series momentum",
+      "purpose": "Capture persistence in medium-horizon trend signals with lower churn than fast breakout systems.",
+      "entry_logic_structure": "Enter when fast and slow return windows align, trend slope is positive, and volatility remains below the crowding cap.",
+      "exit_logic_structure": "Exit on trend break, risk-off regime change, or momentum decay below threshold.",
+      "stop_logic_structure": "ATR-normalized stop with slower trailing logic than breakout templates.",
+      "sizing_logic_hints": "Use volatility-scaled size and cap exposure when trend age becomes extended.",
+      "compatible_features": [
+        "ret_20d",
+        "ret_60d",
+        "trend_slope",
+        "volatility_filter"
+      ],
+      "compatible_regimes": [
+        "trend",
+        "uptrend_normal",
+        "risk_recovery"
+      ],
+      "expected_trade_density": "low_medium",
+      "expected_holding_horizon": "5-20 bars",
+      "risk_profile": "systematic_trend",
+      "public_reference_ids": [
+        "aqr_trend_following",
+        "aqr_vme",
+        "ff_data_library"
+      ]
+    },
+    {
+      "template_id": "TPL-PUBLIC-PEAD-01",
+      "family": "post earnings announcement drift",
+      "purpose": "Follow liquid post-earnings winners while the drift window remains open.",
+      "entry_logic_structure": "Enter after large earnings surprise gap if relative strength and post-event volume remain supportive on day one.",
+      "exit_logic_structure": "Exit on gap fill, drift decay, or predefined holding window expiration.",
+      "stop_logic_structure": "Stop below post-event support or prior day low.",
+      "sizing_logic_hints": "Use smaller size immediately after gap day and add only if trend structure remains orderly.",
+      "compatible_features": [
+        "event_gap_strength",
+        "post_event_volume",
+        "relative_strength",
+        "analyst_revision_proxy"
+      ],
+      "compatible_regimes": [
+        "trend",
+        "risk_recovery"
+      ],
+      "expected_trade_density": "low",
+      "expected_holding_horizon": "3-15 bars",
+      "risk_profile": "event_continuation",
+      "public_reference_ids": [
+        "nber_pead"
+      ]
+    },
+    {
+      "template_id": "TPL-PUBLIC-REV-01",
+      "family": "short-term reversal",
+      "purpose": "Fade temporary overreaction where short-horizon flow outruns the broader regime.",
+      "entry_logic_structure": "Enter contra move after one-day or five-day stretch reaches threshold and liquidity remains sufficient.",
+      "exit_logic_structure": "Exit at partial mean reversion target, VWAP reset, or timeout.",
+      "stop_logic_structure": "Hard stop if extension re-accelerates in the original direction.",
+      "sizing_logic_hints": "Keep size small because this strategy trades against local trend pressure.",
+      "compatible_features": [
+        "ret_1d",
+        "ret_5d",
+        "liquidity_score",
+        "intraday_extension"
+      ],
+      "compatible_regimes": [
+        "range",
+        "range_normal",
+        "range_high_vol"
+      ],
+      "expected_trade_density": "medium",
+      "expected_holding_horizon": "1-3 bars",
+      "risk_profile": "short_horizon_reversal",
+      "public_reference_ids": [
+        "ff_data_library",
+        "nber_pairs_trading"
+      ]
+    },
+    {
+      "template_id": "TPL-PUBLIC-PAIR-01",
+      "family": "pairs trading",
+      "purpose": "Exploit temporary spread dislocations in stable relative-value pairs.",
+      "entry_logic_structure": "Enter when pair spread exceeds z-score threshold while common-factor alignment and liquidity remain healthy.",
+      "exit_logic_structure": "Exit when spread normalizes or holding window expires.",
+      "stop_logic_structure": "Stop if spread keeps widening and structural divergence is confirmed.",
+      "sizing_logic_hints": "Size pair legs by beta balance and liquidity, not headline conviction.",
+      "compatible_features": [
+        "spread_zscore",
+        "cointegration_proxy",
+        "beta_balance",
+        "liquidity_score"
+      ],
+      "compatible_regimes": [
+        "range",
+        "range_normal"
+      ],
+      "expected_trade_density": "low_medium",
+      "expected_holding_horizon": "2-10 bars",
+      "risk_profile": "relative_value_reversion",
+      "public_reference_ids": [
+        "nber_pairs_trading"
+      ]
+    },
+    {
+      "template_id": "TPL-PUBLIC-VQ-01",
+      "family": "cross-sectional value quality",
+      "purpose": "Rank and rotate into cheaper high-quality names instead of treating value and quality separately.",
+      "entry_logic_structure": "Select top-ranked basket by blended value-quality score with profitability and investment discipline filters.",
+      "exit_logic_structure": "Rebalance on cadence or exit when composite rank falls below threshold.",
+      "stop_logic_structure": "Portfolio-level risk budget and sector cap replace tight single-name stops.",
+      "sizing_logic_hints": "Weight by rank while penalizing crowding and turnover.",
+      "compatible_features": [
+        "value_rank",
+        "quality_rank",
+        "profitability_proxy",
+        "investment_discipline_proxy"
+      ],
+      "compatible_regimes": [
+        "trend",
+        "range_normal",
+        "risk_recovery"
+      ],
+      "expected_trade_density": "low",
+      "expected_holding_horizon": "10-40 bars",
+      "risk_profile": "value_quality_rank",
+      "public_reference_ids": [
+        "ff_5_factor",
+        "aqr_qmj",
+        "aqr_vme"
+      ]
+    },
+    {
+      "template_id": "TPL-PUBLIC-BAB-01",
+      "family": "betting against beta defensive",
+      "purpose": "Favor low-beta, shallower-drawdown baskets when the market is paying too much for high-octane upside.",
+      "entry_logic_structure": "Select lower-beta basket when beta dispersion is wide and sector balance remains acceptable.",
+      "exit_logic_structure": "Rebalance on cadence or exit when risk-on regime strongly reasserts itself.",
+      "stop_logic_structure": "Use portfolio drawdown and exposure caps rather than tight tactical stops.",
+      "sizing_logic_hints": "Size to volatility parity and keep concentration low.",
+      "compatible_features": [
+        "beta_rank",
+        "realized_volatility",
+        "drawdown_rank",
+        "sector_balance"
+      ],
+      "compatible_regimes": [
+        "risk_off",
+        "range_normal",
+        "high_volatility"
+      ],
+      "expected_trade_density": "low",
+      "expected_holding_horizon": "5-20 bars",
+      "risk_profile": "defensive_low_beta",
+      "public_reference_ids": [
+        "aqr_bab"
+      ]
+    },
+    {
+      "template_id": "TPL-PUBLIC-FMOM-01",
+      "family": "factor momentum overlay",
+      "purpose": "Tilt allocation toward recently winning factors and strategy families while the persistence window remains intact.",
+      "entry_logic_structure": "Increase weight on families whose factor return rank and dispersion remain supportive across the latest rebalance window.",
+      "exit_logic_structure": "Reduce overlay when factor leadership flips or crowding breaches cap.",
+      "stop_logic_structure": "Overlay only; it cannot override hard execution or portfolio risk boundaries.",
+      "sizing_logic_hints": "Keep overlay weight capped and secondary to base signal quality.",
+      "compatible_features": [
+        "factor_return_rank",
+        "factor_dispersion",
+        "crowding_proxy",
+        "breadth_confirmation"
+      ],
+      "compatible_regimes": [
+        "trend",
+        "transition",
+        "risk_recovery"
+      ],
+      "expected_trade_density": "overlay",
+      "expected_holding_horizon": "3-12 bars",
+      "risk_profile": "factor_rotation",
+      "public_reference_ids": [
+        "aqr_factor_momentum"
+      ]
+    },
+    {
+      "template_id": "TPL-PUBLIC-CARRY-01",
+      "family": "funding carry capture",
+      "purpose": "Capture crypto carry when funding and basis remain supportive without obvious stress compression.",
+      "entry_logic_structure": "Enter when carry score is positive, basis confirms, and funding is not yet at squeeze levels.",
+      "exit_logic_structure": "Exit when carry decays, basis compresses, or market stress spikes.",
+      "stop_logic_structure": "Use stress-trigger exit and leverage cap before directional stop logic.",
+      "sizing_logic_hints": "Size off carry quality and sharply reduce exposure under risk-off pressure.",
+      "compatible_features": [
+        "funding_rate",
+        "basis_annualized",
+        "carry_score",
+        "basis_term_structure"
+      ],
+      "compatible_regimes": [
+        "range",
+        "range_normal",
+        "risk_recovery",
+        "trend"
+      ],
+      "expected_trade_density": "low_medium",
+      "expected_holding_horizon": "4-20 bars",
+      "risk_profile": "systematic_carry",
+      "public_reference_ids": [
+        "aqr_vme"
+      ]
+    },
+    {
+      "template_id": "TPL-PUBLIC-ATTN-01",
+      "family": "crypto attention momentum",
+      "purpose": "Follow short attention-driven continuation bursts in liquid crypto names while crowding remains contained.",
+      "entry_logic_structure": "Enter when attention shock, relative strength, and volume expansion align before funding fully catches up.",
+      "exit_logic_structure": "Exit on attention decay, loss of relative strength, or adverse funding acceleration.",
+      "stop_logic_structure": "Tight stop because attention-led bursts can reverse quickly.",
+      "sizing_logic_hints": "Use smaller size than systematic trend or carry strategies.",
+      "compatible_features": [
+        "news_shock_proxy",
+        "volume_expansion",
+        "relative_strength",
+        "funding_acceleration"
+      ],
+      "compatible_regimes": [
+        "trend",
+        "uptrend_high_vol",
+        "risk_recovery"
+      ],
+      "expected_trade_density": "medium",
+      "expected_holding_horizon": "1-6 bars",
+      "risk_profile": "attention_momentum",
+      "public_reference_ids": [
+        "aqr_trend_following"
+      ]
+    }
+  ]
+}

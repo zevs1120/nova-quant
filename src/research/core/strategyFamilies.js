@@ -88,6 +88,57 @@ const FAMILY_REGISTRY = Object.freeze([
         risk_profile: 'vol_expansion_follow',
         activation_conditions: ['volatility expansion and direction alignment'],
         lifecycle_stage: LIFECYCLE_STAGE.SHADOW
+      },
+      {
+        strategy_template_name: 'time_series_momentum',
+        supported_asset_classes: ['US_STOCK', 'CRYPTO'],
+        required_inputs: ['ret_20d', 'ret_60d', 'trend_slope', 'volatility_filter'],
+        tunable_parameters: [
+          { name: 'lookback_fast_bars', default: 20, min: 10, max: 80 },
+          { name: 'lookback_slow_bars', default: 60, min: 20, max: 180 },
+          { name: 'volatility_filter_cap', default: 0.8, min: 0.45, max: 0.98 }
+        ],
+        compatible_regimes: ['trend', 'uptrend_normal', 'uptrend_high_vol', 'downtrend_normal'],
+        expected_holding_horizon: '5-20 bars',
+        cost_sensitivity_assumptions: 'Medium; turnover is lower than fast breakout logic but crowding still matters.',
+        risk_profile: 'systematic_trend',
+        activation_conditions: ['multi-horizon trend remains aligned and regime is not risk_off'],
+        lifecycle_stage: LIFECYCLE_STAGE.PROD,
+        public_reference_ids: ['aqr_trend_following', 'aqr_vme', 'ff_data_library']
+      },
+      {
+        strategy_template_name: 'post_earnings_drift_follow',
+        supported_asset_classes: ['US_STOCK'],
+        required_inputs: ['event_gap_strength', 'post_event_volume', 'relative_strength', 'analyst_revision_proxy'],
+        tunable_parameters: [
+          { name: 'gap_floor_pct', default: 0.035, min: 0.01, max: 0.12 },
+          { name: 'post_event_hold_days', default: 5, min: 2, max: 20 },
+          { name: 'volume_confirmation_ratio', default: 1.5, min: 1, max: 4 }
+        ],
+        compatible_regimes: ['trend', 'risk_recovery', 'uptrend_normal'],
+        expected_holding_horizon: '3-15 bars',
+        cost_sensitivity_assumptions: 'Medium; best in liquid names where post-event slippage is manageable.',
+        risk_profile: 'event_continuation',
+        activation_conditions: ['event shock is strong and relative strength remains intact after the gap'],
+        lifecycle_stage: LIFECYCLE_STAGE.CANARY,
+        public_reference_ids: ['nber_pead']
+      },
+      {
+        strategy_template_name: 'multi_horizon_trend_barbell',
+        supported_asset_classes: ['US_STOCK', 'CRYPTO'],
+        required_inputs: ['ret_20d', 'ret_120d', 'trend_age', 'breadth_confirmation'],
+        tunable_parameters: [
+          { name: 'fast_weight', default: 0.45, min: 0.2, max: 0.7 },
+          { name: 'slow_weight', default: 0.55, min: 0.3, max: 0.8 },
+          { name: 'trend_age_cap', default: 80, min: 20, max: 180 }
+        ],
+        compatible_regimes: ['trend', 'uptrend_normal', 'risk_recovery'],
+        expected_holding_horizon: '5-25 bars',
+        cost_sensitivity_assumptions: 'Medium-low in liquid names; designed to cut churn relative to fast-only systems.',
+        risk_profile: 'trend_barbell',
+        activation_conditions: ['short and medium-horizon trend signals agree and breadth does not deteriorate'],
+        lifecycle_stage: LIFECYCLE_STAGE.SHADOW,
+        public_reference_ids: ['aqr_trend_following', 'aqr_vme']
       }
     ]
   },
@@ -173,6 +224,40 @@ const FAMILY_REGISTRY = Object.freeze([
         risk_profile: 'percentile_reversion',
         activation_conditions: ['percentile and z-score jointly extreme'],
         lifecycle_stage: LIFECYCLE_STAGE.CANARY
+      },
+      {
+        strategy_template_name: 'short_term_reversal',
+        supported_asset_classes: ['US_STOCK'],
+        required_inputs: ['ret_1d', 'ret_5d', 'liquidity_score', 'intraday_extension'],
+        tunable_parameters: [
+          { name: 'one_day_reversal_floor', default: 0.03, min: 0.01, max: 0.12 },
+          { name: 'max_hold_days', default: 3, min: 1, max: 8 },
+          { name: 'liquidity_floor', default: 0.55, min: 0.2, max: 0.95 }
+        ],
+        compatible_regimes: ['range', 'range_normal', 'range_high_vol'],
+        expected_holding_horizon: '1-3 bars',
+        cost_sensitivity_assumptions: 'High; reversal alpha disappears quickly once spreads widen.',
+        risk_profile: 'short_horizon_reversal',
+        activation_conditions: ['short-horizon move is stretched but not backed by structural trend confirmation'],
+        lifecycle_stage: LIFECYCLE_STAGE.CANARY,
+        public_reference_ids: ['ff_data_library', 'nber_pairs_trading']
+      },
+      {
+        strategy_template_name: 'pairs_spread_reversion',
+        supported_asset_classes: ['US_STOCK', 'CRYPTO'],
+        required_inputs: ['spread_zscore', 'cointegration_proxy', 'beta_balance', 'liquidity_score'],
+        tunable_parameters: [
+          { name: 'spread_entry_z', default: 2.0, min: 1, max: 4 },
+          { name: 'spread_exit_z', default: 0.4, min: 0.1, max: 1.5 },
+          { name: 'max_pair_hold_bars', default: 10, min: 2, max: 30 }
+        ],
+        compatible_regimes: ['range', 'range_normal', 'range_high_vol'],
+        expected_holding_horizon: '2-10 bars',
+        cost_sensitivity_assumptions: 'Medium-high; borrow, spread, and slippage assumptions matter.',
+        risk_profile: 'relative_value_reversion',
+        activation_conditions: ['pair spread is statistically stretched while residual trend remains weak'],
+        lifecycle_stage: LIFECYCLE_STAGE.CANARY,
+        public_reference_ids: ['nber_pairs_trading']
       }
     ]
   },
@@ -311,6 +396,57 @@ const FAMILY_REGISTRY = Object.freeze([
         risk_profile: 'relative_pair',
         activation_conditions: ['leader-laggard spread reaches statistically significant extreme'],
         lifecycle_stage: LIFECYCLE_STAGE.CANARY
+      },
+      {
+        strategy_template_name: 'cross_sectional_value_quality',
+        supported_asset_classes: ['US_STOCK'],
+        required_inputs: ['value_rank', 'quality_rank', 'profitability_proxy', 'investment_discipline_proxy'],
+        tunable_parameters: [
+          { name: 'top_decile_cutoff', default: 0.15, min: 0.05, max: 0.35 },
+          { name: 'rebalance_days', default: 20, min: 5, max: 60 },
+          { name: 'quality_weight', default: 0.55, min: 0.2, max: 0.8 }
+        ],
+        compatible_regimes: ['trend', 'range_normal', 'risk_recovery'],
+        expected_holding_horizon: '10-40 bars',
+        cost_sensitivity_assumptions: 'Low-medium; turnover is manageable when rebalanced on slower cadence.',
+        risk_profile: 'value_quality_rank',
+        activation_conditions: ['cheap and high-quality names remain supported by healthy breadth'],
+        lifecycle_stage: LIFECYCLE_STAGE.CANARY,
+        public_reference_ids: ['ff_5_factor', 'aqr_qmj', 'aqr_vme']
+      },
+      {
+        strategy_template_name: 'betting_against_beta_defensive',
+        supported_asset_classes: ['US_STOCK'],
+        required_inputs: ['beta_rank', 'realized_volatility', 'drawdown_rank', 'sector_balance'],
+        tunable_parameters: [
+          { name: 'low_beta_cutoff', default: 0.3, min: 0.1, max: 0.5 },
+          { name: 'rebalance_days', default: 10, min: 3, max: 30 },
+          { name: 'sector_cap_pct', default: 25, min: 10, max: 40 }
+        ],
+        compatible_regimes: ['risk_off', 'range_normal', 'high_volatility', 'risk_recovery'],
+        expected_holding_horizon: '5-20 bars',
+        cost_sensitivity_assumptions: 'Low in liquid large caps and ETFs; suited to defensive rotation.',
+        risk_profile: 'defensive_low_beta',
+        activation_conditions: ['beta dispersion is wide and defensive basket remains liquid'],
+        lifecycle_stage: LIFECYCLE_STAGE.CANARY,
+        public_reference_ids: ['aqr_bab']
+      },
+      {
+        strategy_template_name: 'factor_momentum_rotation',
+        supported_asset_classes: ['US_STOCK', 'CRYPTO'],
+        required_inputs: ['factor_return_rank', 'factor_dispersion', 'crowding_proxy', 'breadth_confirmation'],
+        tunable_parameters: [
+          { name: 'factor_rank_cutoff', default: 0.3, min: 0.1, max: 0.5 },
+          { name: 'rebalance_days', default: 5, min: 1, max: 20 },
+          { name: 'crowding_cap', default: 0.75, min: 0.4, max: 0.95 }
+        ],
+        compatible_regimes: ['trend', 'risk_recovery', 'transition'],
+        expected_holding_horizon: '3-12 bars',
+        cost_sensitivity_assumptions: 'Medium; factor rotations can churn if crowding rises too far.',
+        risk_profile: 'factor_rotation',
+        activation_conditions: ['winning factors remain persistent while breadth stays healthy'],
+        lifecycle_stage: LIFECYCLE_STAGE.SHADOW,
+        public_reference_ids: ['aqr_factor_momentum']
       }
     ]
   },
@@ -412,6 +548,40 @@ const FAMILY_REGISTRY = Object.freeze([
         risk_profile: 'stress_defensive',
         activation_conditions: ['stress detected but not full market dislocation'],
         lifecycle_stage: LIFECYCLE_STAGE.CANARY
+      },
+      {
+        strategy_template_name: 'funding_basis_carry_capture',
+        supported_asset_classes: ['CRYPTO'],
+        required_inputs: ['funding_rate', 'basis_annualized', 'carry_score', 'basis_term_structure'],
+        tunable_parameters: [
+          { name: 'carry_score_floor', default: 0.58, min: 0.35, max: 0.95 },
+          { name: 'basis_confirmation_bps', default: 12, min: 3, max: 80 },
+          { name: 'max_hold_bars', default: 12, min: 2, max: 40 }
+        ],
+        compatible_regimes: ['range', 'range_normal', 'risk_recovery', 'trend'],
+        expected_holding_horizon: '4-20 bars',
+        cost_sensitivity_assumptions: 'Medium-high; carry must dominate fees, spread, and basis mean reversion risk.',
+        risk_profile: 'systematic_carry',
+        activation_conditions: ['carry remains positive and market stress is not compressing the basis aggressively'],
+        lifecycle_stage: LIFECYCLE_STAGE.CANARY,
+        public_reference_ids: ['aqr_vme']
+      },
+      {
+        strategy_template_name: 'crypto_attention_momentum',
+        supported_asset_classes: ['CRYPTO'],
+        required_inputs: ['news_shock_proxy', 'volume_expansion', 'relative_strength', 'funding_acceleration'],
+        tunable_parameters: [
+          { name: 'attention_score_floor', default: 0.65, min: 0.35, max: 0.98 },
+          { name: 'holding_bars', default: 4, min: 1, max: 12 },
+          { name: 'funding_acceleration_cap', default: 0.8, min: 0.2, max: 0.98 }
+        ],
+        compatible_regimes: ['trend', 'uptrend_high_vol', 'risk_recovery'],
+        expected_holding_horizon: '1-6 bars',
+        cost_sensitivity_assumptions: 'High; attention bursts decay quickly and require tight execution discipline.',
+        risk_profile: 'attention_momentum',
+        activation_conditions: ['attention shock aligns with relative strength and funding is not yet fully crowded'],
+        lifecycle_stage: LIFECYCLE_STAGE.SHADOW,
+        public_reference_ids: ['aqr_trend_following']
       }
     ]
   },
@@ -473,6 +643,36 @@ const FAMILY_REGISTRY = Object.freeze([
         risk_profile: 'vol_surface_overlay',
         activation_conditions: ['future compatible overlay feature'],
         lifecycle_stage: LIFECYCLE_STAGE.DRAFT
+      },
+      {
+        strategy_template_name: 'turn_of_month_overlay',
+        supported_asset_classes: ['US_STOCK'],
+        required_inputs: ['calendar_proximity', 'seasonality_score', 'breadth_confirmation'],
+        tunable_parameters: [
+          { name: 'tom_window_days', default: 4, min: 2, max: 8 }
+        ],
+        compatible_regimes: ['trend', 'range_normal', 'risk_recovery'],
+        expected_holding_horizon: 'overlay',
+        cost_sensitivity_assumptions: 'Low; overlay is only meant to tilt entry timing, not replace signal quality.',
+        risk_profile: 'calendar_overlay',
+        activation_conditions: ['calendar tailwind is present and core signal already passed quality gates'],
+        lifecycle_stage: LIFECYCLE_STAGE.DRAFT,
+        public_reference_ids: ['ff_data_library']
+      },
+      {
+        strategy_template_name: 'factor_rotation_overlay',
+        supported_asset_classes: ['US_STOCK', 'CRYPTO'],
+        required_inputs: ['factor_return_rank', 'factor_dispersion', 'regime_transition_score'],
+        tunable_parameters: [
+          { name: 'factor_overlay_weight_cap', default: 0.2, min: 0.05, max: 0.4 }
+        ],
+        compatible_regimes: ['trend', 'transition', 'risk_recovery'],
+        expected_holding_horizon: 'overlay',
+        cost_sensitivity_assumptions: 'Low as a sizing overlay, but should not override hard risk controls.',
+        risk_profile: 'factor_overlay',
+        activation_conditions: ['factor leadership is persistent enough to justify tilting toward compatible families'],
+        lifecycle_stage: LIFECYCLE_STAGE.DRAFT,
+        public_reference_ids: ['aqr_factor_momentum']
       }
     ]
   }

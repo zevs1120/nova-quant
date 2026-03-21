@@ -113,6 +113,53 @@ describe('derive runtime state', () => {
       updated_at_ms: now
     });
 
+    repo.upsertWorkflowRun({
+      id: `workflow-factory-${now}`,
+      workflow_key: 'nova_strategy_lab',
+      workflow_version: 'nova-strategy-lab.test',
+      trigger_type: 'manual',
+      status: 'SUCCEEDED',
+      trace_id: `trace-factory-${now}`,
+      input_json: JSON.stringify({
+        market: 'US',
+        constraints: { market: 'US' }
+      }),
+      output_json: JSON.stringify({
+        portfolio_fit: 'Promote public template-backed momentum ideas when trend regime is already live.',
+        risk_note: 'Keep new factory cards in shadow posture until execution drift remains contained.',
+        selected_candidates: [
+          {
+            candidate_id: 'cand-public-tsmom',
+            strategy_id: 'SD-TIME_SERIES_MOMENTUM-TS1',
+            strategy_family: 'Momentum / Trend Following',
+            template_name: 'Time-Series Momentum Template',
+            template_id: 'time_series_momentum',
+            recommendation: 'PROMOTE_TO_SHADOW',
+            next_stage: 'shadow',
+            candidate_quality_score_pct: 88,
+            supporting_features: ['trend_strength', 'volume_expansion', 'seasonality'],
+            supported_asset_classes: ['US_STOCK'],
+            compatible_regimes: ['trend'],
+            quality_prior_score: 0.81,
+            generation_mode: 'conservative',
+            public_reference_ids: ['aqr_trend_following', 'aqr_vme'],
+            candidate_source_metadata: {
+              template_source: {
+                public_reference_ids: ['aqr_trend_following', 'aqr_vme']
+              },
+              mapping_quality: {
+                feature_overlap_count: 3
+              }
+            }
+          }
+        ]
+      }),
+      attempt_count: 1,
+      started_at_ms: now - 1_000,
+      updated_at_ms: now - 500,
+      completed_at_ms: now - 500
+    });
+
     const runtime = deriveRuntimeState({
       repo,
       userId: 'test-user',
@@ -144,6 +191,10 @@ describe('derive runtime state', () => {
       const tagBlob = runtime.signals.flatMap((row) => row.tags || []);
       expect(tagBlob.some((tag) => String(tag).startsWith('auto_learning:'))).toBe(true);
       expect(tagBlob.some((tag) => String(tag).startsWith('factor:'))).toBe(true);
+      expect(tagBlob.includes('source:nova_factory')).toBe(true);
+      const factorySignal = runtime.signals.find((row) => row.tags?.includes('source:nova_factory'));
+      expect(factorySignal).toBeTruthy();
+      expect((factorySignal as Record<string, any>)?.factory_metadata?.template_name).toBe('Time-Series Momentum Template');
       const signalWithNews = runtime.signals.find((row) => (row.news_context?.headline_count || 0) > 0);
       expect(signalWithNews?.news_context?.analysis_provider).toBe('gemini');
       expect(signalWithNews?.news_context?.factor_tags).toContain('macro');

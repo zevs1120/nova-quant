@@ -1,0 +1,235 @@
+{
+  "seed_id": "public_hypothesis_registry_seed_v1",
+  "generated_at": "2026-03-21T00:00:00.000Z",
+  "total_hypotheses": 9,
+  "families": [
+    "time series momentum",
+    "post earnings announcement drift",
+    "short-term reversal",
+    "pairs trading",
+    "cross-sectional value quality",
+    "betting against beta defensive",
+    "factor momentum overlay",
+    "funding carry capture",
+    "crypto attention momentum"
+  ],
+  "hypotheses": [
+    {
+      "hypothesis_id": "HYP-PUBLIC-TSMOM-001",
+      "title": "Time-series momentum persists across liquid assets",
+      "description": "Assets with aligned medium-horizon returns and trend slope tend to keep drifting before regime change forces a reversal.",
+      "economic_intuition": "Trend persistence reflects slow-moving positioning, information diffusion, and convex risk management flows.",
+      "family": "time series momentum",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "trend uptrend_normal risk_recovery",
+      "expected_holding_horizon": "5-20 bars",
+      "suggested_strategy_family": "Momentum / Trend Following",
+      "suggested_template_candidates": [
+        "time_series_momentum",
+        "multi_horizon_trend_barbell"
+      ],
+      "required_feature_hints": [
+        "ret_20d",
+        "ret_60d",
+        "trend_slope",
+        "volatility_filter"
+      ],
+      "public_reference_ids": [
+        "aqr_trend_following",
+        "aqr_vme",
+        "ff_data_library"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-PUBLIC-PEAD-001",
+      "title": "Post-earnings announcement drift survives the first gap",
+      "description": "Large earnings surprises can keep drifting for several sessions when institutions continue to rebalance after the initial gap.",
+      "economic_intuition": "Investor inattention and staggered institutional response can delay full price adjustment after earnings news.",
+      "family": "post earnings announcement drift",
+      "expected_market": "US_EQUITY",
+      "expected_regime": "trend risk_recovery",
+      "expected_holding_horizon": "3-15 bars",
+      "suggested_strategy_family": "Momentum / Trend Following",
+      "suggested_template_candidates": [
+        "post_earnings_drift_follow"
+      ],
+      "required_feature_hints": [
+        "event_gap_strength",
+        "post_event_volume",
+        "relative_strength",
+        "analyst_revision_proxy"
+      ],
+      "public_reference_ids": [
+        "nber_pead"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-PUBLIC-REV-001",
+      "title": "Short-horizon overreaction mean reverts in balanced regimes",
+      "description": "One-day or one-week stretches often mean-revert when the move is flow-driven rather than regime-confirming.",
+      "economic_intuition": "Temporary liquidity imbalances and crowded short-horizon positioning can overshoot and snap back once urgency subsides.",
+      "family": "short-term reversal",
+      "expected_market": "US_EQUITY",
+      "expected_regime": "range range_normal range_high_vol",
+      "expected_holding_horizon": "1-3 bars",
+      "suggested_strategy_family": "Mean Reversion",
+      "suggested_template_candidates": [
+        "short_term_reversal",
+        "percentile_mean_reversion"
+      ],
+      "required_feature_hints": [
+        "ret_1d",
+        "ret_5d",
+        "liquidity_score",
+        "intraday_extension"
+      ],
+      "public_reference_ids": [
+        "ff_data_library",
+        "nber_pairs_trading"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-PUBLIC-PAIR-001",
+      "title": "Relative-value spreads mean revert after statistical dislocation",
+      "description": "Pairs with stable co-movement can revert after temporary spread shocks once forced flow and event noise fade.",
+      "economic_intuition": "Relative-value dislocations can close when common-factor exposure dominates idiosyncratic pressure.",
+      "family": "pairs trading",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "range range_normal",
+      "expected_holding_horizon": "2-10 bars",
+      "suggested_strategy_family": "Mean Reversion",
+      "suggested_template_candidates": [
+        "pairs_spread_reversion",
+        "leader_laggard_pair"
+      ],
+      "required_feature_hints": [
+        "spread_zscore",
+        "cointegration_proxy",
+        "beta_balance",
+        "liquidity_score"
+      ],
+      "public_reference_ids": [
+        "nber_pairs_trading"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-PUBLIC-VQ-001",
+      "title": "Cheap high-quality names outperform expensive low-quality peers",
+      "description": "Cross-sectional ranking improves when value and quality are blended instead of traded as isolated signals.",
+      "economic_intuition": "High quality reduces the left tail of pure value while value prevents overpaying for defensive franchises.",
+      "family": "cross-sectional value quality",
+      "expected_market": "US_EQUITY",
+      "expected_regime": "risk_recovery range_normal trend",
+      "expected_holding_horizon": "10-40 bars",
+      "suggested_strategy_family": "Relative Strength / Cross-Sectional",
+      "suggested_template_candidates": [
+        "cross_sectional_value_quality"
+      ],
+      "required_feature_hints": [
+        "value_rank",
+        "quality_rank",
+        "profitability_proxy",
+        "investment_discipline_proxy"
+      ],
+      "public_reference_ids": [
+        "ff_5_factor",
+        "aqr_qmj",
+        "aqr_vme"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-PUBLIC-BAB-001",
+      "title": "Low-beta defensive baskets earn better risk-adjusted returns",
+      "description": "Low-beta names can outperform on a risk-adjusted basis when leverage constraints and crowding distort pricing.",
+      "economic_intuition": "Leverage-constrained investors overpay for high-beta upside, leaving a persistent low-risk premium.",
+      "family": "betting against beta defensive",
+      "expected_market": "US_EQUITY",
+      "expected_regime": "high_volatility risk_off range_normal",
+      "expected_holding_horizon": "5-20 bars",
+      "suggested_strategy_family": "Relative Strength / Cross-Sectional",
+      "suggested_template_candidates": [
+        "betting_against_beta_defensive"
+      ],
+      "required_feature_hints": [
+        "beta_rank",
+        "realized_volatility",
+        "drawdown_rank",
+        "sector_balance"
+      ],
+      "public_reference_ids": [
+        "aqr_bab"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-PUBLIC-FMOM-001",
+      "title": "Winning factors keep winning over short horizons",
+      "description": "Recent leadership among factors themselves can persist, improving family rotation and overlay decisions.",
+      "economic_intuition": "Factor crowding and institutional rebalancing can create medium-horizon persistence in factor returns.",
+      "family": "factor momentum overlay",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "trend transition risk_recovery",
+      "expected_holding_horizon": "3-12 bars",
+      "suggested_strategy_family": "Relative Strength / Cross-Sectional",
+      "suggested_template_candidates": [
+        "factor_momentum_rotation",
+        "factor_rotation_overlay"
+      ],
+      "required_feature_hints": [
+        "factor_return_rank",
+        "factor_dispersion",
+        "crowding_proxy",
+        "breadth_confirmation"
+      ],
+      "public_reference_ids": [
+        "aqr_factor_momentum"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-PUBLIC-CARRY-001",
+      "title": "Crypto funding and basis carry persists until stress forces compression",
+      "description": "Positive carry regimes can remain tradable until funding becomes too crowded or the basis compresses violently.",
+      "economic_intuition": "Yield-like premia embedded in perp funding and basis can persist when positioning is orderly and liquidity is healthy.",
+      "family": "funding carry capture",
+      "expected_market": "CRYPTO",
+      "expected_regime": "range range_normal risk_recovery trend",
+      "expected_holding_horizon": "4-20 bars",
+      "suggested_strategy_family": "Crypto-Native Families",
+      "suggested_template_candidates": [
+        "funding_basis_carry_capture",
+        "carry_oriented_setup"
+      ],
+      "required_feature_hints": [
+        "funding_rate",
+        "basis_annualized",
+        "carry_score",
+        "basis_term_structure"
+      ],
+      "public_reference_ids": [
+        "aqr_vme"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-PUBLIC-ATTN-001",
+      "title": "Crypto attention shocks can propagate into short trend bursts",
+      "description": "Fresh attention bursts in liquid crypto majors can create short-lived continuation before funding fully catches up.",
+      "economic_intuition": "Attention, social flow, and exchange-specific liquidity can reinforce directional moves for a few bars.",
+      "family": "crypto attention momentum",
+      "expected_market": "CRYPTO",
+      "expected_regime": "trend uptrend_high_vol risk_recovery",
+      "expected_holding_horizon": "1-6 bars",
+      "suggested_strategy_family": "Crypto-Native Families",
+      "suggested_template_candidates": [
+        "crypto_attention_momentum"
+      ],
+      "required_feature_hints": [
+        "news_shock_proxy",
+        "volume_expansion",
+        "relative_strength",
+        "funding_acceleration"
+      ],
+      "public_reference_ids": [
+        "aqr_trend_following"
+      ]
+    }
+  ]
+}

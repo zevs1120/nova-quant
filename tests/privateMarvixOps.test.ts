@@ -2,7 +2,111 @@ import Database from 'better-sqlite3';
 import { describe, expect, it } from 'vitest';
 import { ensureSchema } from '../src/server/db/schema.js';
 import { MarketRepository } from '../src/server/db/repository.js';
+import type { SignalContract } from '../src/server/types.js';
+import { persistAlphaCandidate, type AutonomousAlphaCandidate } from '../src/server/alpha_registry/index.js';
 import { buildPrivateMarvixOpsReport, isLoopbackAddress } from '../src/server/ops/privateMarvixOps.js';
+
+function buildCandidate(id: string): AutonomousAlphaCandidate {
+  return {
+    id,
+    thesis: 'Alpha overlay test candidate',
+    family: 'confidence_calibration_overlay',
+    formula: { overlay: 'confidence' },
+    params: { confidence_cutoff: 0.6 },
+    feature_dependencies: ['trend_strength', 'volume_expansion'],
+    regime_constraints: ['trend'],
+    compatible_markets: ['US'],
+    intended_holding_period: '2-6 bars',
+    entry_logic: { trigger: 'overlay' },
+    exit_logic: { mode: 'overlay' },
+    sizing_hint: { path: 'confidence_modifier' },
+    required_inputs: ['trend_strength'],
+    complexity_score: 0.94,
+    integration_path: 'confidence_modifier',
+    created_at: new Date().toISOString(),
+    source: 'autonomous_discovery',
+    strategy_candidate: null
+  };
+}
+
+function buildSignal(id: string, symbol = 'AAPL'): SignalContract {
+  const now = new Date().toISOString();
+  const later = new Date(Date.now() + 86_400_000).toISOString();
+  return {
+    id,
+    created_at: now,
+    expires_at: later,
+    asset_class: 'US_STOCK',
+    market: 'US',
+    symbol,
+    timeframe: '1d',
+    strategy_id: 'TREND_PULLBACK',
+    strategy_family: 'Momentum / Trend Following',
+    strategy_version: 'test.v1',
+    regime_id: 'TREND',
+    temperature_percentile: 63,
+    volatility_percentile: 51,
+    direction: 'LONG',
+    strength: 74,
+    confidence: 0.69,
+    entry_zone: {
+      low: 100,
+      high: 101,
+      method: 'LIMIT'
+    },
+    invalidation_level: 97,
+    stop_loss: {
+      type: 'ATR',
+      price: 97,
+      rationale: 'test stop'
+    },
+    take_profit_levels: [
+      {
+        price: 104,
+        size_pct: 0.6,
+        rationale: 'tp1'
+      },
+      {
+        price: 107,
+        size_pct: 0.4,
+        rationale: 'tp2'
+      }
+    ],
+    trailing_rule: {
+      type: 'EMA',
+      params: { ema_fast: 10, ema_slow: 30 }
+    },
+    position_advice: {
+      position_pct: 5,
+      leverage_cap: 1,
+      risk_bucket_applied: 'BASE',
+      rationale: 'test sizing'
+    },
+    cost_model: {
+      fee_bps: 1.5,
+      spread_bps: 1,
+      slippage_bps: 1.8
+    },
+    expected_metrics: {
+      expected_R: 1.1,
+      hit_rate_est: 0.54,
+      sample_size: 16
+    },
+    explain_bullets: ['test signal'],
+    execution_checklist: ['check data'],
+    tags: ['status:DB_BACKED'],
+    status: 'NEW',
+    payload: {
+      kind: 'STOCK_SWING',
+      data: {
+        horizon: 'MEDIUM',
+        catalysts: ['test']
+      }
+    },
+    score: 79,
+    payload_version: '1'
+  };
+}
 
 describe('private Marvix ops report', () => {
   it('accepts only loopback addresses for private ops access', () => {
@@ -105,6 +209,47 @@ describe('private Marvix ops report', () => {
       }
     ]);
 
+    persistAlphaCandidate(repo, {
+      candidate: buildCandidate('alpha-ops-1'),
+      status: 'SHADOW',
+      acceptanceScore: 0.81
+    });
+    repo.upsertSignals([buildSignal('sig-aapl-1', 'AAPL')]);
+    repo.insertAlphaEvaluation({
+      id: 'alpha-eval-ops-1',
+      alpha_candidate_id: 'alpha-ops-1',
+      workflow_run_id: 'workflow-alpha-discovery-1',
+      backtest_run_id: 'alpha-backtest-ops-1',
+      evaluation_status: 'PASS',
+      acceptance_score: 0.81,
+      metrics_json: JSON.stringify({
+        correlation_to_active: 0.22,
+        stability_score: 0.71
+      }),
+      rejection_reasons_json: JSON.stringify([]),
+      notes: 'ready for shadow',
+      created_at_ms: now - 10_000
+    });
+    repo.upsertAlphaShadowObservations([
+      {
+        id: 'alpha-shadow-ops-1',
+        alpha_candidate_id: 'alpha-ops-1',
+        workflow_run_id: 'workflow-alpha-shadow-1',
+        signal_id: 'sig-aapl-1',
+        market: 'US',
+        symbol: 'AAPL',
+        shadow_action: 'BOOST',
+        alignment_score: 0.79,
+        adjusted_confidence: 0.73,
+        suggested_weight_multiplier: 1.05,
+        realized_pnl_pct: 0.82,
+        realized_source: 'paper',
+        payload_json: JSON.stringify({}),
+        created_at_ms: now - 8_000,
+        updated_at_ms: now - 8_000
+      }
+    ]);
+
     const report = buildPrivateMarvixOpsReport(repo);
     expect(report.visibility).toBe('private-loopback-only');
     expect(report.workflows[0]?.workflow_key).toBe('free_data_flywheel');
@@ -112,5 +257,7 @@ describe('private Marvix ops report', () => {
     expect(report.recent_news_factors[0]?.factor_tags).toContain('product_cycle');
     expect(report.reference_data.fundamentals[0]?.symbol).toBe('AAPL');
     expect(report.reference_data.option_chains[0]?.source).toBe('YAHOO_OPTIONS');
+    expect(report.alpha_inventory.SHADOW).toBe(1);
+    expect(report.alpha_top_candidates[0]?.id).toBe('alpha-ops-1');
   });
 });

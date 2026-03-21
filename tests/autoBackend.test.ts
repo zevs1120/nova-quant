@@ -25,9 +25,12 @@ describe('auto-backend automation entrypoints', () => {
       '--execute-training',
       '--supervisor-check-sec',
       '15',
+      '--discovery-hours',
+      '8',
       '--skip-api',
       '--skip-worker',
       '--skip-training',
+      '--skip-discovery',
       '--once'
     ]);
 
@@ -42,15 +45,17 @@ describe('auto-backend automation entrypoints', () => {
     expect(args.trainingLimit).toBe(700);
     expect(args.executeTraining).toBe(true);
     expect(args.supervisorCheckSec).toBe(15);
+    expect(args.discoveryEveryHours).toBe(8);
     expect(args.skipApi).toBe(true);
     expect(args.skipWorker).toBe(true);
     expect(args.skipTraining).toBe(true);
+    expect(args.skipDiscovery).toBe(true);
     expect(args.once).toBe(true);
   });
 
   it('supports a no-side-effect once mode for smoke testing automation startup', async () => {
     await expect(
-      runAutoBackend(['--once', '--skip-init', '--skip-api', '--skip-worker', '--skip-training'])
+      runAutoBackend(['--once', '--skip-init', '--skip-api', '--skip-worker', '--skip-training', '--skip-discovery'])
     ).resolves.toBeUndefined();
   });
 });

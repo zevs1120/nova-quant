@@ -8,6 +8,8 @@ import { runBackfillCli } from '../src/server/jobs/backfill.js';
 import { runFreeDataFlywheel } from '../src/server/jobs/freeData.js';
 import { runNovaTrainingFlywheel, type NovaTrainerKind } from '../src/server/nova/flywheel.js';
 import { runValidationCli } from '../src/server/jobs/validate.js';
+import { readAlphaDiscoveryConfig, runAlphaDiscoveryCycle } from '../src/server/alpha_discovery/index.js';
+import { runAlphaShadowMonitoringCycle } from '../src/server/alpha_promotion_guard/index.js';
 import { runEvolutionCycle } from '../src/server/quant/evolution.js';
 import { ensureQuantData } from '../src/server/quant/service.js';
 
@@ -23,12 +25,16 @@ type AutoBackendOptions = {
   trainingLimit: number;
   executeTraining: boolean;
   supervisorCheckSec: number;
+  discoveryEveryHours: number;
   skipInit: boolean;
   skipApi: boolean;
   skipWorker: boolean;
   skipTraining: boolean;
+  skipDiscovery: boolean;
   once: boolean;
 };
+
+const DISCOVERY_DEFAULTS = readAlphaDiscoveryConfig();
 
 const DEFAULTS: AutoBackendOptions = {
   userId: 'guest-default',
@@ -42,10 +48,12 @@ const DEFAULTS: AutoBackendOptions = {
   trainingLimit: 500,
   executeTraining: false,
   supervisorCheckSec: 20,
+  discoveryEveryHours: DISCOVERY_DEFAULTS.intervalHours,
   skipInit: false,
   skipApi: false,
   skipWorker: false,
   skipTraining: false,
+  skipDiscovery: false,
   once: false
 };
 
@@ -69,11 +77,13 @@ export function parseAutoBackendArgs(argv: string[]): AutoBackendOptions {
     if (key === 'trainer' && next) out.trainer = String(next).trim() as NovaTrainerKind;
     if (key === 'training-limit' && next) out.trainingLimit = Math.max(1, Number(next) || out.trainingLimit);
     if (key === 'supervisor-check-sec' && next) out.supervisorCheckSec = Math.max(5, Number(next) || out.supervisorCheckSec);
+    if (key === 'discovery-hours' && next) out.discoveryEveryHours = Math.max(1, Number(next) || out.discoveryEveryHours);
     if (key === 'execute-training') out.executeTraining = true;
     if (key === 'skip-init') out.skipInit = true;
     if (key === 'skip-api') out.skipApi = true;
     if (key === 'skip-worker') out.skipWorker = true;
     if (key === 'skip-training') out.skipTraining = true;
+    if (key === 'skip-discovery') out.skipDiscovery = true;
     if (key === 'once') out.once = true;
 
     if (consumeNext) i += 1;
@@ -324,6 +334,28 @@ export async function runAutoBackendInitialization(options: AutoBackendOptions) 
       });
     }
   }
+
+  if (!options.skipDiscovery) {
+    try {
+      const discovery = await runAlphaDiscoveryCycle({
+        repo,
+        userId: options.userId,
+        triggerType: 'manual'
+      });
+      log('alpha discovery cycle finished', {
+        accepted: (discovery as Record<string, unknown>)?.evaluation_summary
+          ? ((discovery as Record<string, unknown>).evaluation_summary as Record<string, unknown>).accepted
+          : null,
+        rejected: (discovery as Record<string, unknown>)?.evaluation_summary
+          ? ((discovery as Record<string, unknown>).evaluation_summary as Record<string, unknown>).rejected
+          : null
+      });
+    } catch (error) {
+      warn('alpha discovery cycle failed during initialization', {
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  }
 }
 
 export async function runAutoBackendMaintenanceCycle(args: {
@@ -332,10 +364,12 @@ export async function runAutoBackendMaintenanceCycle(args: {
   refreshUs: boolean;
   runEvolution: boolean;
   runTraining: boolean;
+  runDiscovery: boolean;
   trainer: NovaTrainerKind;
   trainingLimit: number;
   executeTraining: boolean;
   skipTraining: boolean;
+  skipDiscovery: boolean;
 }) {
   const db = getDb();
   ensureSchema(db);
@@ -440,6 +474,60 @@ export async function runAutoBackendMaintenanceCycle(args: {
       });
     }
   }
+
+  if (!args.skipDiscovery && args.runDiscovery) {
+    try {
+      const discovery = await runAlphaDiscoveryCycle({
+        repo,
+        userId: args.userId,
+        triggerType: 'scheduled'
+      });
+      log('scheduled alpha discovery finished', {
+        cycle: args.cycle,
+        accepted: (discovery as Record<string, unknown>)?.evaluation_summary
+          ? ((discovery as Record<string, unknown>).evaluation_summary as Record<string, unknown>).accepted
+          : null,
+        rejected: (discovery as Record<string, unknown>)?.evaluation_summary
+          ? ((discovery as Record<string, unknown>).evaluation_summary as Record<string, unknown>).rejected
+          : null
+      });
+    } catch (error) {
+      warn('scheduled alpha discovery failed', {
+        cycle: args.cycle,
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+    return;
+  }
+
+  if (!args.skipDiscovery) {
+    try {
+      const discoveryConfig = readAlphaDiscoveryConfig();
+      const shadow = await runAlphaShadowMonitoringCycle({
+        repo,
+        userId: args.userId,
+        triggerType: 'shadow',
+        thresholds: {
+          minAcceptanceScore: discoveryConfig.minAcceptanceScore,
+          maxCorrelationToActive: discoveryConfig.maxCorrelationToActive,
+          shadowPromotion: discoveryConfig.shadowPromotionThresholds,
+          retirement: discoveryConfig.retirementThresholds,
+          allowProdPromotion: discoveryConfig.allowProdPromotion
+        }
+      });
+      log('scheduled alpha shadow monitoring finished', {
+        cycle: args.cycle,
+        candidates_processed: shadow.shadow.candidates_processed,
+        promoted_to_canary: shadow.promotion.promoted_to_canary.length,
+        retired: shadow.promotion.retired.length
+      });
+    } catch (error) {
+      warn('scheduled alpha shadow monitoring failed', {
+        cycle: args.cycle,
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  }
 }
 
 export async function runAutoBackend(argv = process.argv.slice(2)) {
@@ -476,6 +564,9 @@ export async function runAutoBackend(argv = process.argv.slice(2)) {
   if (options.skipTraining) {
     log('nova training flywheel skipped by flag');
   }
+  if (options.skipDiscovery) {
+    log('alpha discovery loop skipped by flag');
+  }
 
   await ensureManagedProcesses(options, managed);
 
@@ -495,6 +586,10 @@ export async function runAutoBackend(argv = process.argv.slice(2)) {
   const trainEveryCycles = Math.max(
     1,
     Math.round((options.trainEveryHours * 3600) / options.deriveIntervalSec)
+  );
+  const discoveryEveryCycles = Math.max(
+    1,
+    Math.round((options.discoveryEveryHours * 3600) / options.deriveIntervalSec)
   );
 
   const supervisor = (async () => {
@@ -520,17 +615,20 @@ export async function runAutoBackend(argv = process.argv.slice(2)) {
       const refreshUs = cycle % usRefreshEveryCycles === 0;
       const runEvolution = cycle % retrainEveryCycles === 0;
       const runTraining = cycle % trainEveryCycles === 0;
-      if (cycle % options.validateEvery === 0 || refreshUs || runEvolution || runTraining) {
+      const runDiscovery = cycle % discoveryEveryCycles === 0;
+      if (cycle % options.validateEvery === 0 || refreshUs || runEvolution || runTraining || runDiscovery) {
         await runAutoBackendMaintenanceCycle({
           userId: options.userId,
           cycle,
           refreshUs,
           runEvolution,
           runTraining,
+          runDiscovery,
           trainer: options.trainer,
           trainingLimit: options.trainingLimit,
           executeTraining: options.executeTraining,
-          skipTraining: options.skipTraining
+          skipTraining: options.skipTraining,
+          skipDiscovery: options.skipDiscovery
         });
       } else {
         const db = getDb();
@@ -543,6 +641,28 @@ export async function runAutoBackend(argv = process.argv.slice(2)) {
           signals: snapshot.signals.length,
           market_state_rows: snapshot.marketState.length
         });
+        if (!options.skipDiscovery) {
+          try {
+            const discoveryConfig = readAlphaDiscoveryConfig();
+            await runAlphaShadowMonitoringCycle({
+              repo,
+              userId: options.userId,
+              triggerType: 'shadow',
+              thresholds: {
+                minAcceptanceScore: discoveryConfig.minAcceptanceScore,
+                maxCorrelationToActive: discoveryConfig.maxCorrelationToActive,
+                shadowPromotion: discoveryConfig.shadowPromotionThresholds,
+                retirement: discoveryConfig.retirementThresholds,
+                allowProdPromotion: discoveryConfig.allowProdPromotion
+              }
+            });
+          } catch (error) {
+            warn('background alpha shadow monitoring failed', {
+              cycle,
+              error: error instanceof Error ? error.message : String(error)
+            });
+          }
+        }
       }
     } catch (error) {
       log('maintenance cycle failed', {

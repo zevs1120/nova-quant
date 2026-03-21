@@ -21,6 +21,7 @@ import {
 import { createConfidenceCalibrator } from '../confidence/calibration.js';
 import { buildEvidenceLineage } from '../evidence/lineage.js';
 import { buildNewsContext } from '../news/provider.js';
+import { applyAlphaRuntimeOverlays } from '../alpha_shadow_runner/index.js';
 import type { NewsItemRecord } from '../types.js';
 
 const MS_HOUR = 3600_000;
@@ -60,6 +61,14 @@ type StrategyFactoryCandidate = {
   supportingFeatures: string[];
   portfolioFit: string;
   riskNote: string;
+  templateName: string | null;
+  templateId: string | null;
+  supportedAssetClasses: string[];
+  compatibleRegimes: string[];
+  qualityPriorScore: number;
+  generationMode: string | null;
+  publicReferenceIds: string[];
+  featureOverlapCount: number;
 };
 
 type CryptoMarketMicrostructure = {
@@ -97,6 +106,14 @@ function parseJsonObject(value: string | null | undefined): Record<string, unkno
 
 function parseJsonArray<T = unknown>(value: unknown): T[] {
   return Array.isArray(value) ? (value as T[]) : [];
+}
+
+function tagValue(value: unknown): string {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
 }
 
 function timeframeForMarket(market: Market): Timeframe {
@@ -929,18 +946,47 @@ function loadStrategyFactoryCandidates(repo: MarketRepository, market: Market): 
     const rows = parseJsonArray<Record<string, unknown>>(output.selected_candidates);
     const promoted = rows
       .filter((row) => String(row.recommendation || '').toUpperCase() === 'PROMOTE_TO_SHADOW')
-      .map((row) => ({
-        strategyId: String(row.strategy_id || '').trim(),
-        strategyFamily: String(row.strategy_family || '').trim() || 'Nova Factory',
-        recommendation: String(row.recommendation || ''),
-        nextStage: String(row.next_stage || '').trim() || null,
-        candidateQualityScorePct: toNum(row.candidate_quality_score_pct),
-        supportingFeatures: parseJsonArray<string>(row.supporting_features).map((item) => String(item)),
-        portfolioFit: String(output.portfolio_fit || ''),
-        riskNote: String(output.risk_note || '')
-      }))
+      .map((row) => {
+        const metadata = row.candidate_source_metadata && typeof row.candidate_source_metadata === 'object'
+          ? (row.candidate_source_metadata as Record<string, unknown>)
+          : {};
+        const templateSource =
+          metadata.template_source && typeof metadata.template_source === 'object'
+            ? (metadata.template_source as Record<string, unknown>)
+            : {};
+        const mappingQuality =
+          metadata.mapping_quality && typeof metadata.mapping_quality === 'object'
+            ? (metadata.mapping_quality as Record<string, unknown>)
+            : {};
+        const publicReferenceIds = [
+          ...parseJsonArray<string>(row.public_reference_ids),
+          ...parseJsonArray<string>(templateSource.public_reference_ids)
+        ]
+          .map((item) => String(item || '').trim())
+          .filter(Boolean);
+        return {
+          strategyId: String(row.strategy_id || '').trim(),
+          strategyFamily: String(row.strategy_family || '').trim() || 'Nova Factory',
+          recommendation: String(row.recommendation || ''),
+          nextStage: String(row.next_stage || '').trim() || null,
+          candidateQualityScorePct: toNum(row.candidate_quality_score_pct),
+          supportingFeatures: parseJsonArray<string>(row.supporting_features).map((item) => String(item)),
+          portfolioFit: String(output.portfolio_fit || ''),
+          riskNote: String(output.risk_note || ''),
+          templateName: String(row.template_name || '').trim() || null,
+          templateId:
+            String(templateSource.seed_key || templateSource.seed_id || row.template_id || '')
+              .trim() || null,
+          supportedAssetClasses: parseJsonArray<string>(row.supported_asset_classes).map((item) => String(item).toUpperCase()),
+          compatibleRegimes: parseJsonArray<string>(row.compatible_regimes).map((item) => String(item).toLowerCase()),
+          qualityPriorScore: toNum(row.quality_prior_score),
+          generationMode: String(row.generation_mode || '').trim() || null,
+          publicReferenceIds: [...new Set(publicReferenceIds)],
+          featureOverlapCount: Math.max(0, Math.round(toNum(mappingQuality.feature_overlap_count)))
+        };
+      })
       .filter((row) => row.strategyId)
-      .slice(0, 3);
+      .slice(0, 4);
 
     if (promoted.length) return promoted;
   }
@@ -950,16 +996,25 @@ function loadStrategyFactoryCandidates(repo: MarketRepository, market: Market): 
 
 function familyBias(candidate: StrategyFactoryCandidate, signal: SignalContract & Record<string, unknown>): number {
   const family = candidate.strategyFamily.toLowerCase();
+  const signalRegime = String(signal.regime_id || '').toLowerCase();
+  const regimeFit = candidate.compatibleRegimes.some((item) => item === signalRegime || signalRegime.includes(item));
+  const assetFit = candidate.supportedAssetClasses.includes(String(signal.asset_class || '').toUpperCase());
+  let bias = 2;
+  if (regimeFit) bias += 8;
+  if (assetFit) bias += 4;
+  if (candidate.publicReferenceIds.length) bias += Math.min(4, candidate.publicReferenceIds.length);
+  if (candidate.qualityPriorScore >= 0.68) bias += 3;
+  if (candidate.featureOverlapCount > 0) bias += Math.min(4, candidate.featureOverlapCount);
   if (family.includes('momentum') || family.includes('trend')) {
-    return signal.regime_id === 'TREND' ? 12 : signal.direction === 'LONG' ? 4 : 0;
+    return bias + (signal.regime_id === 'TREND' ? 12 : signal.direction === 'LONG' ? 4 : 0);
   }
   if (family.includes('mean reversion')) {
-    return signal.regime_id === 'RANGE' ? 12 : 0;
+    return bias + (signal.regime_id === 'RANGE' ? 12 : 0);
   }
   if (family.includes('crypto')) {
-    return signal.market === 'CRYPTO' ? 10 : 0;
+    return bias + (signal.market === 'CRYPTO' ? 10 : 0);
   }
-  return 2;
+  return bias;
 }
 
 function buildStrategyFactorySignals(args: {
@@ -979,12 +1034,47 @@ function buildStrategyFactorySignals(args: {
 
     usedSymbols.add(base.symbol);
     const candidateStrength = clamp(candidate.candidateQualityScorePct / 100, 0.45, 0.96);
-    const confidence = round(clamp(base.confidence * 0.82 + candidateStrength * 0.18, 0.35, 0.97), 4);
-    const score = round(clamp(base.score * 0.82 + candidate.candidateQualityScorePct * 0.24, 35, 98), 2);
+    const regimeFit = candidate.compatibleRegimes.some((item) => item === String(base.regime_id || '').toLowerCase());
+    const researchBackedBoost = Math.min(6, candidate.publicReferenceIds.length * 1.5);
+    const confidence = round(
+      clamp(
+        base.confidence * 0.76 +
+          candidateStrength * 0.2 +
+          (regimeFit ? 0.04 : 0) +
+          researchBackedBoost / 200,
+        0.35,
+        0.97
+      ),
+      4
+    );
+    const score = round(
+      clamp(
+        base.score * 0.7 +
+          candidate.candidateQualityScorePct * 0.26 +
+          familyBias(candidate, base) +
+          (regimeFit ? 8 : 0) +
+          researchBackedBoost,
+        35,
+        99
+      ),
+      2
+    );
     const signalId = `SIG-${args.market}-${base.symbol}-${candidate.strategyId}`.slice(0, 96);
+    const factoryMetadata = {
+      source: 'nova_strategy_lab',
+      template_name: candidate.templateName,
+      template_id: candidate.templateId,
+      next_stage: candidate.nextStage || 'shadow',
+      quality_score_pct: Math.round(candidate.candidateQualityScorePct),
+      quality_prior_score: round(candidate.qualityPriorScore, 4),
+      generation_mode: candidate.generationMode,
+      supported_asset_classes: candidate.supportedAssetClasses,
+      compatible_regimes: candidate.compatibleRegimes,
+      supporting_features: candidate.supportingFeatures.slice(0, 6),
+      public_reference_ids: candidate.publicReferenceIds
+    };
 
-    overlays.push(
-      withUiFields({
+    const overlay = withUiFields({
         ...base,
         id: signalId,
         created_at: new Date(args.nowMs).toISOString(),
@@ -996,6 +1086,10 @@ function buildStrategyFactorySignals(args: {
         score,
         explain_bullets: [
           `Promoted from Nova Strategy Lab with ${Math.round(candidate.candidateQualityScorePct)} quality score.`,
+          candidate.templateName ? `Template: ${candidate.templateName}.` : 'Template-backed promotion from the public strategy library.',
+          candidate.publicReferenceIds.length
+            ? `Research anchors: ${candidate.publicReferenceIds.slice(0, 3).join(', ')}.`
+            : 'Promotion is supported by runtime discovery and governance checks.',
           candidate.portfolioFit || 'Selected to complement the current runtime lineup.',
           ...base.explain_bullets.slice(0, 3)
         ],
@@ -1009,10 +1103,19 @@ function buildStrategyFactorySignals(args: {
           'source:nova_factory',
           `factory_stage:${String(candidate.nextStage || 'shadow').toLowerCase()}`,
           `factory_quality:${Math.round(candidate.candidateQualityScorePct)}`,
+          `factory_regime_fit:${regimeFit ? 'matched' : 'indirect'}`,
+          `factory_refs:${candidate.publicReferenceIds.length}`,
+          `factory_generation:${tagValue(candidate.generationMode || 'unknown')}`,
+          ...(candidate.templateName ? [`factory_template:${tagValue(candidate.templateName)}`] : []),
+          ...candidate.publicReferenceIds.slice(0, 2).map((id) => `factory_ref:${tagValue(id)}`),
           ...candidate.supportingFeatures.slice(0, 3).map((feature) => `factory_feature:${String(feature).toLowerCase().replace(/\s+/g, '_')}`)
         ]
-      })
-    );
+      });
+
+    overlays.push({
+      ...overlay,
+      factory_metadata: factoryMetadata
+    });
   }
 
   return overlays;
@@ -1279,6 +1382,43 @@ export function deriveRuntimeState(params: {
     signal.position_advice.rationale = `Position scaled by calibrated confidence (${Math.round(
       calibration.calibrated_confidence * 100
     )}%), execution reliability, and user risk profile cap.`;
+    const alphaOverlay = applyAlphaRuntimeOverlays({
+      repo,
+      signal
+    });
+    const overlaidConfidence = round(
+      clamp(
+        alphaOverlay.block
+          ? Math.min(signal.confidence, 0.35) * alphaOverlay.confidence_multiplier
+          : signal.confidence * alphaOverlay.confidence_multiplier,
+        0.05,
+        0.98
+      ),
+      4
+    );
+    signal.confidence = overlaidConfidence;
+    signal.position_advice.position_pct = round(
+      clamp(
+        signal.position_advice.position_pct *
+          alphaOverlay.weight_multiplier *
+          (alphaOverlay.block ? 0.35 : 1),
+        alphaOverlay.block ? 0.05 : 0.35,
+        riskProfile.exposure_cap
+      ),
+      2
+    );
+    signal.position_advice.rationale = alphaOverlay.applied_candidates.length
+      ? `${signal.position_advice.rationale} Alpha overlays applied (${alphaOverlay.applied_candidates.length}) and still routed through the risk governor.`
+      : signal.position_advice.rationale;
+    (signal as SignalContract & Record<string, unknown>).alpha_overlay = alphaOverlay;
+    signal.confidence_details = {
+      ...calibration,
+      calibrated_confidence: overlaidConfidence,
+      alpha_overlay_applied: alphaOverlay.applied_candidates.length > 0,
+      alpha_overlay_blocked: alphaOverlay.block,
+      alpha_overlay_notes: alphaOverlay.notes,
+      alpha_overlay_candidates: alphaOverlay.applied_candidates
+    } as typeof calibration & Record<string, unknown>;
     signal.lineage = buildEvidenceLineage({
       runtimeStatus: freshnessStatus,
       performanceStatus: RUNTIME_STATUS.INSUFFICIENT_DATA,
@@ -1295,8 +1435,18 @@ export function deriveRuntimeState(params: {
       `status:${statusLabel}`,
       `sample_size:${sampled.sampleSize}`,
       `calibration_bucket:${calibration.calibration_bucket}`,
-      `news_tone:${newsContext.tone.toLowerCase()}`
+      `news_tone:${newsContext.tone.toLowerCase()}`,
+      alphaOverlay.applied_candidates.length ? `alpha_overlay:active` : `alpha_overlay:none`,
+      alphaOverlay.block ? 'alpha_overlay:block' : 'alpha_overlay:pass'
     ];
+    if (alphaOverlay.applied_candidates.length) {
+      signal.explain_bullets = [
+        ...signal.explain_bullets,
+        alphaOverlay.block
+          ? 'Mature alpha overlay downgraded this setup before it reached portfolio risk gating.'
+          : 'Mature alpha overlay adjusted confidence/weight before portfolio risk gating.'
+      ];
+    }
 
     const withUi = withUiFields(signal);
     derivedSignals.push(withUi);

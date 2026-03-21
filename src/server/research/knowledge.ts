@@ -1,6 +1,7 @@
 import doctrineSeed from '../../../data/reference_seeds/research_doctrine_seed.json' with { type: 'json' };
 import failureModeSeed from '../../../data/reference_seeds/failure_mode_seed.json' with { type: 'json' };
 import { buildStrategyFamilyRegistry, REGIME_POLICY } from '../../research/core/index.js';
+import { resolvePublicResearchReferences, type ResearchReference } from './publicReferences.js';
 
 type RegimePolicyRow = {
   preferred_strategy_families: string[];
@@ -20,6 +21,8 @@ type StrategyTemplateMetadata = {
   validation_requirements: string[];
   compatible_filters: string[];
   governance_hooks: string[];
+  public_reference_ids?: string[];
+  public_references?: ResearchReference[];
 };
 
 type StrategyFamilyMetadata = {
@@ -56,6 +59,8 @@ export interface FactorCard {
   typical_holding_horizon: string;
   turnover_sensitivity: 'low' | 'medium' | 'high';
   implementation_sensitivity: string;
+  public_reference_ids: string[];
+  public_references?: ResearchReference[];
 }
 
 export interface RegimeTaxonomyEntry {
@@ -116,7 +121,8 @@ const FACTOR_CARDS: FactorCard[] = [
     },
     typical_holding_horizon: '1-12 months',
     turnover_sensitivity: 'low',
-    implementation_sensitivity: 'requires patient holding periods and strong accounting hygiene'
+    implementation_sensitivity: 'requires patient holding periods and strong accounting hygiene',
+    public_reference_ids: ['ff_3_factor', 'ff_5_factor', 'aqr_vme']
   },
   {
     factor_id: 'momentum',
@@ -132,7 +138,8 @@ const FACTOR_CARDS: FactorCard[] = [
     },
     typical_holding_horizon: '1 week to 6 months',
     turnover_sensitivity: 'high',
-    implementation_sensitivity: 'cost-aware sizing and crowding checks are critical'
+    implementation_sensitivity: 'cost-aware sizing and crowding checks are critical',
+    public_reference_ids: ['ff_data_library', 'aqr_vme', 'aqr_trend_following']
   },
   {
     factor_id: 'quality',
@@ -148,7 +155,8 @@ const FACTOR_CARDS: FactorCard[] = [
     },
     typical_holding_horizon: '1-12 months',
     turnover_sensitivity: 'low',
-    implementation_sensitivity: 'best used as a portfolio ballast or stock-selection filter'
+    implementation_sensitivity: 'best used as a portfolio ballast or stock-selection filter',
+    public_reference_ids: ['ff_5_factor', 'aqr_qmj']
   },
   {
     factor_id: 'carry',
@@ -164,7 +172,8 @@ const FACTOR_CARDS: FactorCard[] = [
     },
     typical_holding_horizon: 'days to quarters',
     turnover_sensitivity: 'medium',
-    implementation_sensitivity: 'execution and financing assumptions matter materially'
+    implementation_sensitivity: 'execution and financing assumptions matter materially',
+    public_reference_ids: ['aqr_vme']
   },
   {
     factor_id: 'low_vol',
@@ -180,7 +189,8 @@ const FACTOR_CARDS: FactorCard[] = [
     },
     typical_holding_horizon: '2 weeks to 12 months',
     turnover_sensitivity: 'low',
-    implementation_sensitivity: 'works best as a portfolio construction overlay rather than a standalone trigger'
+    implementation_sensitivity: 'works best as a portfolio construction overlay rather than a standalone trigger',
+    public_reference_ids: ['aqr_bab']
   },
   {
     factor_id: 'liquidity',
@@ -196,7 +206,8 @@ const FACTOR_CARDS: FactorCard[] = [
     },
     typical_holding_horizon: 'all horizons',
     turnover_sensitivity: 'high',
-    implementation_sensitivity: 'primarily an implementation and capacity filter'
+    implementation_sensitivity: 'primarily an implementation and capacity filter',
+    public_reference_ids: ['nber_pairs_trading']
   },
   {
     factor_id: 'size',
@@ -212,7 +223,8 @@ const FACTOR_CARDS: FactorCard[] = [
     },
     typical_holding_horizon: '1-6 months',
     turnover_sensitivity: 'medium',
-    implementation_sensitivity: 'capacity and slippage matter more than on large-cap universes'
+    implementation_sensitivity: 'capacity and slippage matter more than on large-cap universes',
+    public_reference_ids: ['ff_3_factor', 'ff_5_factor']
   },
   {
     factor_id: 'seasonality',
@@ -228,7 +240,8 @@ const FACTOR_CARDS: FactorCard[] = [
     },
     typical_holding_horizon: 'days to weeks',
     turnover_sensitivity: 'medium',
-    implementation_sensitivity: 'requires strong anti-overfitting discipline'
+    implementation_sensitivity: 'requires strong anti-overfitting discipline',
+    public_reference_ids: ['ff_data_library']
   },
   {
     factor_id: 'reversal',
@@ -244,7 +257,8 @@ const FACTOR_CARDS: FactorCard[] = [
     },
     typical_holding_horizon: 'intraday to 5 days',
     turnover_sensitivity: 'high',
-    implementation_sensitivity: 'requires strict fill and slippage realism'
+    implementation_sensitivity: 'requires strict fill and slippage realism',
+    public_reference_ids: ['nber_pairs_trading']
   },
   {
     factor_id: 'sentiment',
@@ -260,7 +274,8 @@ const FACTOR_CARDS: FactorCard[] = [
     },
     typical_holding_horizon: 'days to weeks',
     turnover_sensitivity: 'medium',
-    implementation_sensitivity: 'best as an overlay until the data source is production-grade'
+    implementation_sensitivity: 'best as an overlay until the data source is production-grade',
+    public_reference_ids: ['nber_pead']
   },
   {
     factor_id: 'revision',
@@ -276,7 +291,8 @@ const FACTOR_CARDS: FactorCard[] = [
     },
     typical_holding_horizon: 'weeks to quarters',
     turnover_sensitivity: 'medium',
-    implementation_sensitivity: 'more useful once external estimate data is wired'
+    implementation_sensitivity: 'more useful once external estimate data is wired',
+    public_reference_ids: ['ff_5_factor', 'nber_pead']
   },
   {
     factor_id: 'breadth',
@@ -292,9 +308,17 @@ const FACTOR_CARDS: FactorCard[] = [
     },
     typical_holding_horizon: 'days to months',
     turnover_sensitivity: 'low',
-    implementation_sensitivity: 'best used for regime conditioning and portfolio stance'
+    implementation_sensitivity: 'best used for regime conditioning and portfolio stance',
+    public_reference_ids: ['aqr_trend_following', 'aqr_factor_momentum']
   }
 ];
+
+function withFactorReferences(card: FactorCard): FactorCard {
+  return {
+    ...card,
+    public_references: resolvePublicResearchReferences(card.public_reference_ids)
+  };
+}
 
 const MODEL_CATALOG: ResearchModelCard[] = [
   {
@@ -400,7 +424,8 @@ const FAILED_IDEAS: FailedIdeaRecord[] = failureEntries.slice(0, 8).map((row, in
 function factorById(factorId: string | undefined | null): FactorCard | null {
   if (!factorId) return null;
   const normalized = String(factorId).trim().toLowerCase().replace(/[\s/]+/g, '_');
-  return FACTOR_CARDS.find((card) => card.factor_id === normalized) || null;
+  const card = FACTOR_CARDS.find((row) => row.factor_id === normalized);
+  return card ? withFactorReferences(card) : null;
 }
 
 export function listFactorCatalog() {
@@ -411,7 +436,9 @@ export function listFactorCatalog() {
     definition: card.definition,
     asset_classes: card.asset_classes,
     typical_holding_horizon: card.typical_holding_horizon,
-    turnover_sensitivity: card.turnover_sensitivity
+    turnover_sensitivity: card.turnover_sensitivity,
+    public_reference_ids: card.public_reference_ids,
+    public_references: resolvePublicResearchReferences(card.public_reference_ids)
   }));
 }
 
@@ -477,7 +504,9 @@ export function listStrategyMetadata() {
       cost_sensitivity_assumptions: template.cost_sensitivity_assumptions,
       validation_requirements: template.validation_requirements,
       compatible_filters: template.compatible_filters,
-      governance_hooks: template.governance_hooks
+      governance_hooks: template.governance_hooks,
+      public_reference_ids: template.public_reference_ids || [],
+      public_references: resolvePublicResearchReferences(template.public_reference_ids || [])
     }))
   }));
 }

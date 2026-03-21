@@ -1,5 +1,9 @@
 import type Database from 'better-sqlite3';
 import type {
+  AlphaCandidateRecord,
+  AlphaEvaluationRecord,
+  AlphaLifecycleEventRecord,
+  AlphaShadowObservationRecord,
   Asset,
   AssetClass,
   AssetInput,
@@ -1132,6 +1136,277 @@ export class MarketRepository {
         `
       )
       .all(q) as OptionChainSnapshotRecord[];
+  }
+
+  upsertAlphaCandidate(input: AlphaCandidateRecord): void {
+    this.db
+      .prepare(
+        `
+          INSERT INTO alpha_candidates(
+            id, thesis, family, formula_json, params_json, feature_dependencies_json, regime_constraints_json,
+            compatible_markets_json, holding_period, entry_logic_json, exit_logic_json, sizing_hint_json, integration_path,
+            complexity_score, source, status, parent_alpha_id, acceptance_score, last_evaluation_id, last_rejection_reason,
+            last_promotion_reason, metadata_json, created_at_ms, updated_at_ms
+          ) VALUES(
+            @id, @thesis, @family, @formula_json, @params_json, @feature_dependencies_json, @regime_constraints_json,
+            @compatible_markets_json, @holding_period, @entry_logic_json, @exit_logic_json, @sizing_hint_json, @integration_path,
+            @complexity_score, @source, @status, @parent_alpha_id, @acceptance_score, @last_evaluation_id, @last_rejection_reason,
+            @last_promotion_reason, @metadata_json, @created_at_ms, @updated_at_ms
+          )
+          ON CONFLICT(id) DO UPDATE SET
+            thesis = excluded.thesis,
+            family = excluded.family,
+            formula_json = excluded.formula_json,
+            params_json = excluded.params_json,
+            feature_dependencies_json = excluded.feature_dependencies_json,
+            regime_constraints_json = excluded.regime_constraints_json,
+            compatible_markets_json = excluded.compatible_markets_json,
+            holding_period = excluded.holding_period,
+            entry_logic_json = excluded.entry_logic_json,
+            exit_logic_json = excluded.exit_logic_json,
+            sizing_hint_json = excluded.sizing_hint_json,
+            integration_path = excluded.integration_path,
+            complexity_score = excluded.complexity_score,
+            source = excluded.source,
+            status = excluded.status,
+            parent_alpha_id = excluded.parent_alpha_id,
+            acceptance_score = excluded.acceptance_score,
+            last_evaluation_id = excluded.last_evaluation_id,
+            last_rejection_reason = excluded.last_rejection_reason,
+            last_promotion_reason = excluded.last_promotion_reason,
+            metadata_json = excluded.metadata_json,
+            updated_at_ms = excluded.updated_at_ms
+        `
+      )
+      .run(input);
+  }
+
+  getAlphaCandidate(id: string): AlphaCandidateRecord | null {
+    const row = this.db
+      .prepare(
+        `
+          SELECT
+            id, thesis, family, formula_json, params_json, feature_dependencies_json, regime_constraints_json,
+            compatible_markets_json, holding_period, entry_logic_json, exit_logic_json, sizing_hint_json, integration_path,
+            complexity_score, source, status, parent_alpha_id, acceptance_score, last_evaluation_id, last_rejection_reason,
+            last_promotion_reason, metadata_json, created_at_ms, updated_at_ms
+          FROM alpha_candidates
+          WHERE id = ?
+          LIMIT 1
+        `
+      )
+      .get(id) as AlphaCandidateRecord | undefined;
+    return row ?? null;
+  }
+
+  listAlphaCandidates(params?: {
+    status?: AlphaCandidateRecord['status'] | 'ALL';
+    family?: string;
+    source?: string;
+    limit?: number;
+  }): AlphaCandidateRecord[] {
+    const where: string[] = [];
+    const q: Record<string, unknown> = {};
+    if (params?.status && params.status !== 'ALL') {
+      where.push('status = @status');
+      q.status = params.status;
+    }
+    if (params?.family) {
+      where.push('family = @family');
+      q.family = params.family;
+    }
+    if (params?.source) {
+      where.push('source = @source');
+      q.source = params.source;
+    }
+    if (params?.limit) q.limit = params.limit;
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    const limitSql = params?.limit ? 'LIMIT @limit' : '';
+    return this.db
+      .prepare(
+        `
+          SELECT
+            id, thesis, family, formula_json, params_json, feature_dependencies_json, regime_constraints_json,
+            compatible_markets_json, holding_period, entry_logic_json, exit_logic_json, sizing_hint_json, integration_path,
+            complexity_score, source, status, parent_alpha_id, acceptance_score, last_evaluation_id, last_rejection_reason,
+            last_promotion_reason, metadata_json, created_at_ms, updated_at_ms
+          FROM alpha_candidates
+          ${whereSql}
+          ORDER BY updated_at_ms DESC, acceptance_score DESC
+          ${limitSql}
+        `
+      )
+      .all(q) as AlphaCandidateRecord[];
+  }
+
+  insertAlphaEvaluation(input: AlphaEvaluationRecord): void {
+    this.db
+      .prepare(
+        `
+          INSERT INTO alpha_evaluations(
+            id, alpha_candidate_id, workflow_run_id, backtest_run_id, evaluation_status, acceptance_score,
+            metrics_json, rejection_reasons_json, notes, created_at_ms
+          ) VALUES(
+            @id, @alpha_candidate_id, @workflow_run_id, @backtest_run_id, @evaluation_status, @acceptance_score,
+            @metrics_json, @rejection_reasons_json, @notes, @created_at_ms
+          )
+        `
+      )
+      .run(input);
+  }
+
+  listAlphaEvaluations(params?: {
+    alphaCandidateId?: string;
+    evaluationStatus?: AlphaEvaluationRecord['evaluation_status'];
+    limit?: number;
+  }): AlphaEvaluationRecord[] {
+    const where: string[] = [];
+    const q: Record<string, unknown> = {};
+    if (params?.alphaCandidateId) {
+      where.push('alpha_candidate_id = @alpha_candidate_id');
+      q.alpha_candidate_id = params.alphaCandidateId;
+    }
+    if (params?.evaluationStatus) {
+      where.push('evaluation_status = @evaluation_status');
+      q.evaluation_status = params.evaluationStatus;
+    }
+    if (params?.limit) q.limit = params.limit;
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    const limitSql = params?.limit ? 'LIMIT @limit' : '';
+    return this.db
+      .prepare(
+        `
+          SELECT
+            id, alpha_candidate_id, workflow_run_id, backtest_run_id, evaluation_status, acceptance_score,
+            metrics_json, rejection_reasons_json, notes, created_at_ms
+          FROM alpha_evaluations
+          ${whereSql}
+          ORDER BY created_at_ms DESC
+          ${limitSql}
+        `
+      )
+      .all(q) as AlphaEvaluationRecord[];
+  }
+
+  getLatestAlphaEvaluation(alphaCandidateId: string): AlphaEvaluationRecord | null {
+    const row = this.db
+      .prepare(
+        `
+          SELECT
+            id, alpha_candidate_id, workflow_run_id, backtest_run_id, evaluation_status, acceptance_score,
+            metrics_json, rejection_reasons_json, notes, created_at_ms
+          FROM alpha_evaluations
+          WHERE alpha_candidate_id = ?
+          ORDER BY created_at_ms DESC
+          LIMIT 1
+        `
+      )
+      .get(alphaCandidateId) as AlphaEvaluationRecord | undefined;
+    return row ?? null;
+  }
+
+  upsertAlphaShadowObservation(input: AlphaShadowObservationRecord): void {
+    this.db
+      .prepare(
+        `
+          INSERT INTO alpha_shadow_observations(
+            id, alpha_candidate_id, workflow_run_id, signal_id, market, symbol, shadow_action, alignment_score,
+            adjusted_confidence, suggested_weight_multiplier, realized_pnl_pct, realized_source, payload_json, created_at_ms, updated_at_ms
+          ) VALUES(
+            @id, @alpha_candidate_id, @workflow_run_id, @signal_id, @market, @symbol, @shadow_action, @alignment_score,
+            @adjusted_confidence, @suggested_weight_multiplier, @realized_pnl_pct, @realized_source, @payload_json, @created_at_ms, @updated_at_ms
+          )
+          ON CONFLICT(alpha_candidate_id, signal_id) DO UPDATE SET
+            workflow_run_id = excluded.workflow_run_id,
+            shadow_action = excluded.shadow_action,
+            alignment_score = excluded.alignment_score,
+            adjusted_confidence = excluded.adjusted_confidence,
+            suggested_weight_multiplier = excluded.suggested_weight_multiplier,
+            realized_pnl_pct = excluded.realized_pnl_pct,
+            realized_source = excluded.realized_source,
+            payload_json = excluded.payload_json,
+            updated_at_ms = excluded.updated_at_ms
+        `
+      )
+      .run(input);
+  }
+
+  upsertAlphaShadowObservations(rows: AlphaShadowObservationRecord[]): void {
+    const tx = this.db.transaction((records: AlphaShadowObservationRecord[]) => {
+      for (const row of records) this.upsertAlphaShadowObservation(row);
+    });
+    tx(rows);
+  }
+
+  listAlphaShadowObservations(params?: {
+    alphaCandidateId?: string;
+    signalId?: string;
+    limit?: number;
+  }): AlphaShadowObservationRecord[] {
+    const where: string[] = [];
+    const q: Record<string, unknown> = {};
+    if (params?.alphaCandidateId) {
+      where.push('alpha_candidate_id = @alpha_candidate_id');
+      q.alpha_candidate_id = params.alphaCandidateId;
+    }
+    if (params?.signalId) {
+      where.push('signal_id = @signal_id');
+      q.signal_id = params.signalId;
+    }
+    if (params?.limit) q.limit = params.limit;
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    const limitSql = params?.limit ? 'LIMIT @limit' : '';
+    return this.db
+      .prepare(
+        `
+          SELECT
+            id, alpha_candidate_id, workflow_run_id, signal_id, market, symbol, shadow_action, alignment_score,
+            adjusted_confidence, suggested_weight_multiplier, realized_pnl_pct, realized_source, payload_json, created_at_ms, updated_at_ms
+          FROM alpha_shadow_observations
+          ${whereSql}
+          ORDER BY updated_at_ms DESC
+          ${limitSql}
+        `
+      )
+      .all(q) as AlphaShadowObservationRecord[];
+  }
+
+  insertAlphaLifecycleEvent(input: AlphaLifecycleEventRecord): void {
+    this.db
+      .prepare(
+        `
+          INSERT INTO alpha_lifecycle_events(
+            id, alpha_candidate_id, from_status, to_status, reason, payload_json, created_at_ms
+          ) VALUES(
+            @id, @alpha_candidate_id, @from_status, @to_status, @reason, @payload_json, @created_at_ms
+          )
+        `
+      )
+      .run(input);
+  }
+
+  listAlphaLifecycleEvents(params?: { alphaCandidateId?: string; limit?: number }): AlphaLifecycleEventRecord[] {
+    const where: string[] = [];
+    const q: Record<string, unknown> = {};
+    if (params?.alphaCandidateId) {
+      where.push('alpha_candidate_id = @alpha_candidate_id');
+      q.alpha_candidate_id = params.alphaCandidateId;
+    }
+    if (params?.limit) q.limit = params.limit;
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    const limitSql = params?.limit ? 'LIMIT @limit' : '';
+    return this.db
+      .prepare(
+        `
+          SELECT
+            id, alpha_candidate_id, from_status, to_status, reason, payload_json, created_at_ms
+          FROM alpha_lifecycle_events
+          ${whereSql}
+          ORDER BY created_at_ms DESC
+          ${limitSql}
+        `
+      )
+      .all(q) as AlphaLifecycleEventRecord[];
   }
 
   upsertApiKey(input: {

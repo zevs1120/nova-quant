@@ -1,5 +1,7 @@
 import hypothesisSeedRaw from '../../../data/reference_seeds/hypothesis_registry_seed.json' with { type: 'json' };
 import templateSeedRaw from '../../../data/reference_seeds/strategy_template_seed.json' with { type: 'json' };
+import publicHypothesisSeedRaw from '../../../data/reference_seeds/public_hypothesis_registry_seed.json' with { type: 'json' };
+import publicTemplateSeedRaw from '../../../data/reference_seeds/public_strategy_template_seed.json' with { type: 'json' };
 import featureCatalogSeedRaw from '../../../data/reference_seeds/feature_catalog_seed.json' with { type: 'json' };
 import researchDoctrineSeedRaw from '../../../data/reference_seeds/research_doctrine_seed.json' with { type: 'json' };
 import governanceChecklistSeedRaw from '../../../data/reference_seeds/governance_checklist_seed.json' with { type: 'json' };
@@ -33,7 +35,16 @@ const STRATEGY_FAMILY_MAP = Object.freeze({
   'volatility compression breakout': 'Regime Transition',
   'funding dislocation reversion': 'Crypto-Native Families',
   'basis compression': 'Crypto-Native Families',
-  'liquidity shock reversal': 'Crypto-Native Families'
+  'liquidity shock reversal': 'Crypto-Native Families',
+  'time series momentum': 'Momentum / Trend Following',
+  'post earnings announcement drift': 'Momentum / Trend Following',
+  'short-term reversal': 'Mean Reversion',
+  'pairs trading': 'Mean Reversion',
+  'cross-sectional value quality': 'Relative Strength / Cross-Sectional',
+  'betting against beta defensive': 'Relative Strength / Cross-Sectional',
+  'factor momentum overlay': 'Relative Strength / Cross-Sectional',
+  'funding carry capture': 'Crypto-Native Families',
+  'crypto attention momentum': 'Crypto-Native Families'
 });
 
 const REGIME_ALIAS = Object.freeze({
@@ -168,6 +179,41 @@ function defaultParameterRangesByFamily(family = '') {
       leverage_cap: { min: 1.0, max: 2.2, step: 0.1 }
     };
   }
+  if (key.includes('time_series_momentum')) {
+    return {
+      lookback_fast_bars: { min: 10, max: 80, step: 5 },
+      lookback_slow_bars: { min: 20, max: 180, step: 10 },
+      volatility_filter_cap: { min: 0.45, max: 0.98, step: 0.05 }
+    };
+  }
+  if (key.includes('pairs')) {
+    return {
+      spread_entry_z: { min: 1.0, max: 4.0, step: 0.25 },
+      spread_exit_z: { min: 0.1, max: 1.5, step: 0.1 },
+      max_pair_hold_bars: { min: 2, max: 30, step: 1 }
+    };
+  }
+  if (key.includes('value_quality') || (key.includes('value') && key.includes('quality'))) {
+    return {
+      top_decile_cutoff: { min: 0.05, max: 0.35, step: 0.05 },
+      rebalance_days: { min: 5, max: 60, step: 5 },
+      quality_weight: { min: 0.2, max: 0.8, step: 0.05 }
+    };
+  }
+  if (key.includes('beta')) {
+    return {
+      low_beta_cutoff: { min: 0.1, max: 0.5, step: 0.05 },
+      rebalance_days: { min: 3, max: 30, step: 1 },
+      sector_cap_pct: { min: 10, max: 40, step: 5 }
+    };
+  }
+  if (key.includes('factor_momentum')) {
+    return {
+      factor_rank_cutoff: { min: 0.1, max: 0.5, step: 0.05 },
+      rebalance_days: { min: 1, max: 20, step: 1 },
+      crowding_cap: { min: 0.4, max: 0.95, step: 0.05 }
+    };
+  }
   if (key.includes('liquidity') || key.includes('stress')) {
     return {
       spread_cap_bps: { min: 6, max: 60, step: 2 },
@@ -205,7 +251,10 @@ function normalizeHypothesis(seedRow = {}, index = 0, seedId = 'unknown') {
       source_type: 'seed_runtime',
       seed_id: seedId,
       seed_index: index,
-      seed_file: 'data/reference_seeds/hypothesis_registry_seed.json'
+      seed_file: seedId.startsWith('public_')
+        ? 'data/reference_seeds/public_hypothesis_registry_seed.json'
+        : 'data/reference_seeds/hypothesis_registry_seed.json',
+      public_reference_ids: asArray(seedRow.public_reference_ids).map(String)
     }
   };
 }
@@ -242,7 +291,10 @@ function normalizeTemplate(seedRow = {}, index = 0, seedId = 'unknown') {
       source_type: 'seed_runtime',
       seed_id: seedId,
       seed_index: index,
-      seed_file: 'data/reference_seeds/strategy_template_seed.json'
+      seed_file: seedId.startsWith('public_')
+        ? 'data/reference_seeds/public_strategy_template_seed.json'
+        : 'data/reference_seeds/strategy_template_seed.json',
+      public_reference_ids: asArray(seedRow.public_reference_ids).map(String)
     }
   };
 }
@@ -285,28 +337,46 @@ export function loadDiscoverySeedRuntime({
 } = {}) {
   const hypothesisSeed = resolveSeed(seedOverrides.hypothesis_seed, hypothesisSeedRaw);
   const templateSeed = resolveSeed(seedOverrides.template_seed, templateSeedRaw);
+  const publicHypothesisSeed = resolveSeed(seedOverrides.public_hypothesis_seed, publicHypothesisSeedRaw);
+  const publicTemplateSeed = resolveSeed(seedOverrides.public_template_seed, publicTemplateSeedRaw);
   const featureSeed = resolveSeed(seedOverrides.feature_catalog_seed, featureCatalogSeedRaw);
   const doctrineSeed = resolveSeed(seedOverrides.research_doctrine_seed, researchDoctrineSeedRaw);
   const checklistSeed = resolveSeed(seedOverrides.governance_checklist_seed, governanceChecklistSeedRaw);
 
-  const normalizedHypotheses = asArray(hypothesisSeed.hypotheses).map((row, idx) =>
-    normalizeHypothesis(row, idx, hypothesisSeed.seed_id || 'hypothesis_seed')
-  );
-  const normalizedTemplates = asArray(templateSeed.templates).map((row, idx) =>
-    normalizeTemplate(row, idx, templateSeed.seed_id || 'template_seed')
-  );
+  const normalizedHypotheses = [
+    ...asArray(hypothesisSeed.hypotheses).map((row, idx) =>
+      normalizeHypothesis(row, idx, hypothesisSeed.seed_id || 'hypothesis_seed')
+    ),
+    ...asArray(publicHypothesisSeed.hypotheses).map((row, idx) =>
+      normalizeHypothesis(row, idx, publicHypothesisSeed.seed_id || 'public_hypothesis_seed')
+    )
+  ];
+  const normalizedTemplates = [
+    ...asArray(templateSeed.templates).map((row, idx) =>
+      normalizeTemplate(row, idx, templateSeed.seed_id || 'template_seed')
+    ),
+    ...asArray(publicTemplateSeed.templates).map((row, idx) =>
+      normalizeTemplate(row, idx, publicTemplateSeed.seed_id || 'public_template_seed')
+    )
+  ];
   const featureCatalog = buildFeatureCatalogIndex(featureSeed);
 
   return {
     loaded_at: new Date().toISOString(),
-    runtime_version: 'discovery-seed-runtime.v1',
+    runtime_version: 'discovery-seed-runtime.v2',
     hypothesis_seed: {
       seed_id: hypothesisSeed.seed_id || 'hypothesis_seed',
-      total: normalizedHypotheses.length
+      total: asArray(hypothesisSeed.hypotheses).length,
+      public_seed_id: publicHypothesisSeed.seed_id || 'public_hypothesis_seed',
+      public_total: asArray(publicHypothesisSeed.hypotheses).length,
+      merged_total: normalizedHypotheses.length
     },
     template_seed: {
       seed_id: templateSeed.seed_id || 'template_seed',
-      total: normalizedTemplates.length
+      total: asArray(templateSeed.templates).length,
+      public_seed_id: publicTemplateSeed.seed_id || 'public_template_seed',
+      public_total: asArray(publicTemplateSeed.templates).length,
+      merged_total: normalizedTemplates.length
     },
     feature_catalog_seed: {
       seed_id: featureCatalog.seed_id,

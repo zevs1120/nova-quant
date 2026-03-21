@@ -396,6 +396,82 @@ export interface OptionChainSnapshotRecord {
   updated_at_ms: number;
 }
 
+export type AlphaIntegrationPath =
+  | 'signal_input'
+  | 'confidence_modifier'
+  | 'regime_activation_hint'
+  | 'portfolio_weight_suggestion';
+
+export type AlphaLifecycleState = 'DRAFT' | 'BACKTEST_PASS' | 'SHADOW' | 'CANARY' | 'PROD' | 'RETIRED' | 'REJECTED';
+
+export interface AlphaCandidateRecord {
+  id: string;
+  thesis: string;
+  family: string;
+  formula_json: string;
+  params_json: string;
+  feature_dependencies_json: string;
+  regime_constraints_json: string;
+  compatible_markets_json: string;
+  holding_period: string;
+  entry_logic_json: string;
+  exit_logic_json: string;
+  sizing_hint_json: string;
+  integration_path: AlphaIntegrationPath;
+  complexity_score: number;
+  source: string;
+  status: AlphaLifecycleState;
+  parent_alpha_id: string | null;
+  acceptance_score: number | null;
+  last_evaluation_id: string | null;
+  last_rejection_reason: string | null;
+  last_promotion_reason: string | null;
+  metadata_json: string;
+  created_at_ms: number;
+  updated_at_ms: number;
+}
+
+export interface AlphaEvaluationRecord {
+  id: string;
+  alpha_candidate_id: string;
+  workflow_run_id: string | null;
+  backtest_run_id: string | null;
+  evaluation_status: 'PASS' | 'WATCH' | 'REJECT';
+  acceptance_score: number;
+  metrics_json: string;
+  rejection_reasons_json: string;
+  notes: string | null;
+  created_at_ms: number;
+}
+
+export interface AlphaShadowObservationRecord {
+  id: string;
+  alpha_candidate_id: string;
+  workflow_run_id: string | null;
+  signal_id: string;
+  market: Market;
+  symbol: string;
+  shadow_action: 'APPROVE' | 'BLOCK' | 'BOOST' | 'CUT' | 'WATCH';
+  alignment_score: number;
+  adjusted_confidence: number | null;
+  suggested_weight_multiplier: number | null;
+  realized_pnl_pct: number | null;
+  realized_source: string | null;
+  payload_json: string;
+  created_at_ms: number;
+  updated_at_ms: number;
+}
+
+export interface AlphaLifecycleEventRecord {
+  id: string;
+  alpha_candidate_id: string;
+  from_status: AlphaLifecycleState | null;
+  to_status: AlphaLifecycleState;
+  reason: string | null;
+  payload_json: string;
+  created_at_ms: number;
+}
+
 export interface AppConfig {
   database: {
     driver: 'sqlite';
@@ -447,6 +523,26 @@ export interface AppConfig {
     historyLimit: number;
     requestDelayMs: number;
     timeoutMs: number;
+  };
+  alphaDiscovery?: {
+    enabled?: boolean;
+    schedule?: string;
+    maxCandidatesPerCycle?: number;
+    searchBudget?: number;
+    minAcceptanceScore?: number;
+    shadowPromotionThresholds?: {
+      minSampleSize?: number;
+      minSharpe?: number;
+      minExpectancy?: number;
+      maxDrawdown?: number;
+      maxCorrelation?: number;
+      minApprovalRate?: number;
+    };
+    retirementThresholds?: {
+      minExpectancy?: number;
+      maxDrawdown?: number;
+      decayStreakLimit?: number;
+    };
   };
 }
 

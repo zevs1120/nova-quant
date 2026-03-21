@@ -3,7 +3,7 @@ import { RUNTIME_STATUS } from '../runtimeStatus.js';
 import type { Asset, AssetClass, Market, Timeframe } from '../types.js';
 import { getFactorDefinition, type FactorCard, type FactorFamilyId } from './knowledge.js';
 
-type SupportedMeasuredFactorId = 'momentum' | 'low_vol' | 'reversal' | 'seasonality';
+type SupportedMeasuredFactorId = 'momentum' | 'low_vol' | 'reversal' | 'seasonality' | 'carry' | 'liquidity';
 
 type FactorMeasurementArgs = {
   factorId?: string;
@@ -121,6 +121,31 @@ function avgDollarVolume(closes: number[], volumes: number[], endIndex: number, 
   return mean(values);
 }
 
+function rollingMean(values: Array<number | null>, endIndex: number, window: number): number | null {
+  const start = Math.max(0, endIndex - window + 1);
+  const bucket = values.slice(start, endIndex + 1).filter((value): value is number => value !== null && Number.isFinite(value));
+  return bucket.length ? mean(bucket) : null;
+}
+
+function alignLatestSeries<T>(
+  points: Array<{ ts_open: number }>,
+  rows: T[],
+  valueAt: (row: T) => number | null,
+  tsAt: (row: T) => number
+): Array<number | null> {
+  const ordered = [...rows].sort((a, b) => tsAt(a) - tsAt(b));
+  let cursor = 0;
+  let latest: number | null = null;
+  return points.map((point) => {
+    while (cursor < ordered.length && tsAt(ordered[cursor]) <= point.ts_open) {
+      const value = valueAt(ordered[cursor]);
+      latest = value !== null && Number.isFinite(value) ? value : latest;
+      cursor += 1;
+    }
+    return latest;
+  });
+}
+
 function clamp(num: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, num));
 }
@@ -174,9 +199,8 @@ function measuredFactorSupport(factorId: FactorFamilyId): {
       };
     case 'carry':
       return {
-        measurable: false,
-        reason: 'Funding / basis time series are not yet exposed as first-class research inputs in the current repository interface.',
-        implementation_note: 'Carry remains knowledge-first until persistent funding / basis history is wired into factor evaluation.',
+        measurable: true,
+        implementation_note: 'Measured from aligned funding-rate and basis history using the repository funding/basis store for crypto assets.',
         default_horizon_bars: 20
       };
     case 'value':
@@ -199,9 +223,8 @@ function measuredFactorSupport(factorId: FactorFamilyId): {
       };
     case 'liquidity':
       return {
-        measurable: false,
-        reason: 'Liquidity is primarily an implementation and capacity filter here, not yet a measured alpha factor with stable sign assumptions.',
-        implementation_note: 'Current store can estimate dollar volume, but not stable execution-side alpha efficacy by liquidity bucket.',
+        measurable: true,
+        implementation_note: 'Measured from rolling dollar volume and illiquidity penalty proxies derived from OHLCV history.',
         default_horizon_bars: 5
       };
     default:
@@ -214,7 +237,32 @@ function measuredFactorSupport(factorId: FactorFamilyId): {
   }
 }
 
-function computeFeatureSeries(factorId: SupportedMeasuredFactorId, closes: number[], volumes: number[], horizon: number): Array<number | null> {
+function computeFeatureSeries(args: {
+  factorId: SupportedMeasuredFactorId;
+  asset: Asset;
+  repo: MarketRepository;
+  rows: ReturnType<MarketRepository['getOhlcv']>;
+  closes: number[];
+  volumes: number[];
+}): Array<number | null> {
+  const { factorId, asset, repo, rows, closes, volumes } = args;
+
+  if (factorId === 'carry') {
+    const startTs = rows[0]?.ts_open;
+    const endTs = rows.length ? rows[rows.length - 1].ts_open : undefined;
+    const fundingRows = repo.listFundingRates({ assetId: asset.asset_id, start: startTs, end: endTs });
+    const basisRows = repo.listBasisSnapshots({ assetId: asset.asset_id, start: startTs, end: endTs });
+    const alignedFunding = alignLatestSeries(rows, fundingRows, (row) => toNumber(row.funding_rate), (row) => row.ts_open);
+    const alignedBasis = alignLatestSeries(rows, basisRows, (row) => toNumber(row.basis_bps), (row) => row.ts_open);
+
+    return rows.map((_, index) => {
+      const fundingMean = rollingMean(alignedFunding, index, 6);
+      const basisMean = rollingMean(alignedBasis, index, 6);
+      if (fundingMean === null && basisMean === null) return null;
+      return (fundingMean ?? 0) * 10_000 * 0.6 + (basisMean ?? 0) * 0.4;
+    });
+  }
+
   return closes.map((_, index) => {
     switch (factorId) {
       case 'momentum': {
@@ -234,10 +282,15 @@ function computeFeatureSeries(factorId: SupportedMeasuredFactorId, closes: numbe
       }
       case 'seasonality': {
         if (index < 21) return null;
-        const ret1 = pctChange(closes[index], closes[index - 1]);
         const prev1 = pctChange(closes[index - 20], closes[index - 21]);
-        if (ret1 === null || prev1 === null) return null;
         return prev1;
+      }
+      case 'liquidity': {
+        const adv = avgDollarVolume(closes, volumes, index, 20);
+        const ret1 = index >= 1 ? pctChange(closes[index], closes[index - 1]) : null;
+        if (adv === null || ret1 === null) return null;
+        const illiquidity = Math.abs(ret1) / Math.max(adv, 1);
+        return Math.log10(Math.max(adv, 1)) - Math.log10(1 + illiquidity * 1_000_000_000);
       }
       default:
         return null;
@@ -245,10 +298,23 @@ function computeFeatureSeries(factorId: SupportedMeasuredFactorId, closes: numbe
   });
 }
 
-function buildAssetObservations(asset: Asset, rows: ReturnType<MarketRepository['getOhlcv']>, factorId: SupportedMeasuredFactorId, forwardHorizon: number): AssetFeaturePoint[] {
+function buildAssetObservations(
+  repo: MarketRepository,
+  asset: Asset,
+  rows: ReturnType<MarketRepository['getOhlcv']>,
+  factorId: SupportedMeasuredFactorId,
+  forwardHorizon: number
+): AssetFeaturePoint[] {
   const closes = rows.map((row) => toNumber(row.close) ?? Number.NaN);
   const volumes = rows.map((row) => toNumber(row.volume) ?? Number.NaN);
-  const features = computeFeatureSeries(factorId, closes, volumes, forwardHorizon);
+  const features = computeFeatureSeries({
+    factorId,
+    asset,
+    repo,
+    rows,
+    closes,
+    volumes
+  });
   const observations: AssetFeaturePoint[] = [];
 
   for (let index = 0; index < rows.length - forwardHorizon; index += 1) {
@@ -388,7 +454,7 @@ export function buildFactorMeasurementReport(repo: MarketRepository, args: Facto
       limit: lookbackBars
     });
     if (rows.length < Math.max(90, forwardHorizon + 30)) continue;
-    const observations = buildAssetObservations(asset, rows, measurableFactorId, forwardHorizon);
+    const observations = buildAssetObservations(repo, asset, rows, measurableFactorId, forwardHorizon);
     if (observations.length < 20) continue;
     assetCount += 1;
     coverageStart = coverageStart === null ? observations[0].ts : Math.min(coverageStart, observations[0].ts);

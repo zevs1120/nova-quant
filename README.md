@@ -116,6 +116,54 @@ VPS deployment:
 - see `docs/AWS_EC2_DEPLOYMENT.md` for the recommended EC2 single-host setup using `SERVE_WEB_DIST=1` + `npm run start:api`
 - `docs/VULTR_DEPLOYMENT.md` remains available if you want a generic VPS path later
 
+## Autonomous Alpha Discovery
+
+MARVIX now includes an autonomous alpha discovery loop for controlled research deployment on EC2.
+
+What it does:
+- generates candidate alpha ideas from seeded hypotheses + templates
+- mutates/refines them with a simplicity and robustness bias
+- runs proxy backtest evaluation and hard rejection gates
+- registers every candidate with lifecycle + evaluation history
+- promotes accepted candidates to `SHADOW` only
+- logs shadow outcomes and only promotes to `CANARY` if shadow thresholds pass
+- never auto-promotes newly discovered alpha straight to full production capital
+
+Primary modules:
+- `src/server/alpha_discovery/index.ts`
+- `src/server/alpha_registry/index.ts`
+- `src/server/alpha_evaluator/index.ts`
+- `src/server/alpha_mutation/index.ts`
+- `src/server/alpha_shadow_runner/index.ts`
+- `src/server/alpha_promotion_guard/index.ts`
+
+Operator commands:
+- `npm run alpha:discover`
+- `npm run marvix:ops`
+- `npm run auto:backend`
+
+Key environment variables:
+- `NOVA_ALPHA_DISCOVERY_ENABLED`
+- `NOVA_ALPHA_DISCOVERY_INTERVAL_HOURS`
+- `NOVA_ALPHA_DISCOVERY_MAX_CANDIDATES`
+- `NOVA_ALPHA_DISCOVERY_SEARCH_BUDGET`
+- `NOVA_ALPHA_DISCOVERY_MIN_ACCEPTANCE_SCORE`
+- `NOVA_ALPHA_SHADOW_MIN_SAMPLE_SIZE`
+- `NOVA_ALPHA_SHADOW_MIN_SHARPE`
+- `NOVA_ALPHA_SHADOW_MIN_EXPECTANCY`
+- `NOVA_ALPHA_RETIRE_MAX_DRAWDOWN`
+- `NOVA_ALPHA_ALLOW_PROD_PROMOTION`
+
+Results live in SQLite tables:
+- `alpha_candidates`
+- `alpha_evaluations`
+- `alpha_shadow_observations`
+- `alpha_lifecycle_events`
+
+Private inspection:
+- `GET /api/internal/marvix/ops`
+- loopback-only, intended for EC2 operator access rather than end-user UI
+
 ## Source of Truth
 
 Primary backend source of truth:

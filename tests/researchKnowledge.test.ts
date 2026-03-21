@@ -24,6 +24,7 @@ describe('research knowledge layer', () => {
     expect(factor?.title).toBe('Momentum');
     expect(factor?.proxies.length).toBeGreaterThan(0);
     expect(factor?.failure_modes.length).toBeGreaterThan(0);
+    expect((factor?.public_references || []).length).toBeGreaterThan(0);
   });
 
   it('includes regime taxonomy, strategy metadata, and cross-sectional model catalog', () => {
@@ -33,6 +34,11 @@ describe('research knowledge layer', () => {
 
     expect(regimes.some((row) => row.regime_id === 'stress_risk_off')).toBe(true);
     expect(strategies.length).toBeGreaterThan(0);
+    expect(
+      strategies.some((family) =>
+        family.templates.some((template) => template.strategy_template_name === 'time_series_momentum')
+      )
+    ).toBe(true);
     expect(models.some((row) => row.model_id === 'linear_baseline')).toBe(true);
   });
 

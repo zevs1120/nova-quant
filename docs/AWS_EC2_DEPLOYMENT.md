@@ -115,6 +115,19 @@ Those keys now enable:
 - multi-source finance news from Google News RSS + Finnhub News + NewsAPI
 - US option-chain summaries from Yahoo Finance public options endpoints
 
+Autonomous alpha discovery controls:
+
+- `NOVA_ALPHA_DISCOVERY_ENABLED=1`
+- `NOVA_ALPHA_DISCOVERY_INTERVAL_HOURS=12`
+- `NOVA_ALPHA_DISCOVERY_MAX_CANDIDATES=18`
+- `NOVA_ALPHA_DISCOVERY_SEARCH_BUDGET=8`
+- `NOVA_ALPHA_DISCOVERY_MIN_ACCEPTANCE_SCORE=0.74`
+- `NOVA_ALPHA_SHADOW_MIN_SAMPLE_SIZE=16`
+- `NOVA_ALPHA_SHADOW_MIN_SHARPE=0.45`
+- `NOVA_ALPHA_SHADOW_MIN_EXPECTANCY=0.0015`
+- `NOVA_ALPHA_RETIRE_MAX_DRAWDOWN=0.22`
+- `NOVA_ALPHA_ALLOW_PROD_PROMOTION=0`
+
 ## Systemd Service
 
 ```bash
@@ -164,6 +177,53 @@ npm ci
 npm run build
 sudo systemctl restart marvix
 ```
+
+Backend-only worker refresh:
+
+```bash
+sudo systemctl restart marvix-backend
+```
+
+## Autonomous Alpha Discovery On EC2
+
+Run a one-shot discovery cycle:
+
+```bash
+cd /opt/nova-quant
+npm run alpha:discover -- --user guest-default
+```
+
+The long-running worker path is still:
+
+```bash
+sudo systemctl status marvix-backend --no-pager
+```
+
+`marvix-backend.service` now does three related jobs:
+
+- refreshes free market/reference/news data
+- refreshes runtime state and research evolution
+- advances the autonomous alpha discovery + shadow monitoring loop
+
+Results are stored in the main SQLite database:
+
+- `alpha_candidates`
+- `alpha_evaluations`
+- `alpha_shadow_observations`
+- `alpha_lifecycle_events`
+
+Inspect SHADOW candidates and lifecycle state from the box itself:
+
+```bash
+curl -s http://127.0.0.1:8787/api/internal/marvix/ops | head -c 12000
+```
+
+Look for:
+
+- `alpha_inventory`
+- `alpha_top_candidates`
+- `alpha_decaying_candidates`
+- `alpha_state_transitions`
 
 ## Quick Checks
 

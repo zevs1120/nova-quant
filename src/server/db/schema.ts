@@ -286,6 +286,95 @@ CREATE TABLE IF NOT EXISTS option_chain_snapshots (
 CREATE INDEX IF NOT EXISTS idx_option_chain_snapshots_lookup
   ON option_chain_snapshots(market, symbol, snapshot_ts_ms DESC);
 
+CREATE TABLE IF NOT EXISTS alpha_candidates (
+  id TEXT PRIMARY KEY,
+  thesis TEXT NOT NULL,
+  family TEXT NOT NULL,
+  formula_json TEXT NOT NULL,
+  params_json TEXT NOT NULL,
+  feature_dependencies_json TEXT NOT NULL,
+  regime_constraints_json TEXT NOT NULL,
+  compatible_markets_json TEXT NOT NULL,
+  holding_period TEXT NOT NULL,
+  entry_logic_json TEXT NOT NULL,
+  exit_logic_json TEXT NOT NULL,
+  sizing_hint_json TEXT NOT NULL,
+  integration_path TEXT NOT NULL CHECK (
+    integration_path IN ('signal_input', 'confidence_modifier', 'regime_activation_hint', 'portfolio_weight_suggestion')
+  ),
+  complexity_score REAL NOT NULL,
+  source TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('DRAFT', 'BACKTEST_PASS', 'SHADOW', 'CANARY', 'PROD', 'RETIRED', 'REJECTED')),
+  parent_alpha_id TEXT,
+  acceptance_score REAL,
+  last_evaluation_id TEXT,
+  last_rejection_reason TEXT,
+  last_promotion_reason TEXT,
+  metadata_json TEXT NOT NULL,
+  created_at_ms INTEGER NOT NULL,
+  updated_at_ms INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_alpha_candidates_lookup
+  ON alpha_candidates(status, acceptance_score DESC, updated_at_ms DESC);
+CREATE INDEX IF NOT EXISTS idx_alpha_candidates_family
+  ON alpha_candidates(family, status, updated_at_ms DESC);
+
+CREATE TABLE IF NOT EXISTS alpha_evaluations (
+  id TEXT PRIMARY KEY,
+  alpha_candidate_id TEXT NOT NULL,
+  workflow_run_id TEXT,
+  backtest_run_id TEXT,
+  evaluation_status TEXT NOT NULL CHECK (evaluation_status IN ('PASS', 'WATCH', 'REJECT')),
+  acceptance_score REAL NOT NULL,
+  metrics_json TEXT NOT NULL,
+  rejection_reasons_json TEXT NOT NULL,
+  notes TEXT,
+  created_at_ms INTEGER NOT NULL,
+  FOREIGN KEY(alpha_candidate_id) REFERENCES alpha_candidates(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_alpha_evaluations_lookup
+  ON alpha_evaluations(alpha_candidate_id, created_at_ms DESC);
+
+CREATE TABLE IF NOT EXISTS alpha_shadow_observations (
+  id TEXT PRIMARY KEY,
+  alpha_candidate_id TEXT NOT NULL,
+  workflow_run_id TEXT,
+  signal_id TEXT NOT NULL,
+  market TEXT NOT NULL CHECK (market IN ('US', 'CRYPTO')),
+  symbol TEXT NOT NULL,
+  shadow_action TEXT NOT NULL CHECK (shadow_action IN ('APPROVE', 'BLOCK', 'BOOST', 'CUT', 'WATCH')),
+  alignment_score REAL NOT NULL,
+  adjusted_confidence REAL,
+  suggested_weight_multiplier REAL,
+  realized_pnl_pct REAL,
+  realized_source TEXT,
+  payload_json TEXT NOT NULL,
+  created_at_ms INTEGER NOT NULL,
+  updated_at_ms INTEGER NOT NULL,
+  FOREIGN KEY(alpha_candidate_id) REFERENCES alpha_candidates(id) ON DELETE CASCADE,
+  FOREIGN KEY(signal_id) REFERENCES signals(signal_id) ON DELETE CASCADE,
+  UNIQUE(alpha_candidate_id, signal_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_alpha_shadow_lookup
+  ON alpha_shadow_observations(alpha_candidate_id, updated_at_ms DESC);
+
+CREATE TABLE IF NOT EXISTS alpha_lifecycle_events (
+  id TEXT PRIMARY KEY,
+  alpha_candidate_id TEXT NOT NULL,
+  from_status TEXT,
+  to_status TEXT NOT NULL CHECK (to_status IN ('DRAFT', 'BACKTEST_PASS', 'SHADOW', 'CANARY', 'PROD', 'RETIRED', 'REJECTED')),
+  reason TEXT,
+  payload_json TEXT NOT NULL,
+  created_at_ms INTEGER NOT NULL,
+  FOREIGN KEY(alpha_candidate_id) REFERENCES alpha_candidates(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_alpha_lifecycle_events_lookup
+  ON alpha_lifecycle_events(alpha_candidate_id, created_at_ms DESC);
+
 CREATE TABLE IF NOT EXISTS api_keys (
   key_id TEXT PRIMARY KEY,
   key_hash TEXT NOT NULL UNIQUE,

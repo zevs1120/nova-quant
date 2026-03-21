@@ -28,6 +28,20 @@ function series(start: number, dailyRate: number, count: number): NormalizedBar[
   return rows;
 }
 
+function carrySeries(start: number, dailyRate: number, fundingRate: number, basisBps: number, count: number) {
+  return {
+    bars: series(start, dailyRate, count),
+    funding: Array.from({ length: count }, (_, index) => ({
+      ts_open: Date.UTC(2025, 0, 1 + index),
+      funding_rate: fundingRate.toFixed(6)
+    })),
+    basis: Array.from({ length: count }, (_, index) => ({
+      ts_open: Date.UTC(2025, 0, 1 + index),
+      basis_bps: basisBps.toFixed(4)
+    }))
+  };
+}
+
 describe('factor measurement research layer', () => {
   it('computes measured momentum diagnostics from aligned cross-sectional bars', () => {
     const repo = buildRepo();
@@ -68,5 +82,33 @@ describe('factor measurement research layer', () => {
     expect(result.report?.availability).toBe('knowledge_only');
     expect(result.report?.measured_metrics).toBeNull();
     expect(result.report?.notes?.[0]).toContain('fundamental');
+  });
+
+  it('computes measured carry diagnostics from funding and basis history', () => {
+    const repo = buildRepo();
+    const assets = [
+      { symbol: 'BTCUSDT', rate: 0.005, funding: 0.0009, basis: 18 },
+      { symbol: 'ETHUSDT', rate: 0.0038, funding: 0.0006, basis: 12 },
+      { symbol: 'SOLUSDT', rate: 0.0018, funding: 0.0002, basis: 4 },
+      { symbol: 'ADAUSDT', rate: -0.0008, funding: -0.0004, basis: -6 }
+    ];
+
+    for (const item of assets) {
+      const asset = repo.upsertAsset({ symbol: item.symbol, market: 'CRYPTO', venue: 'TEST', status: 'ACTIVE' });
+      const payload = carrySeries(100, item.rate, item.funding, item.basis, 220);
+      repo.upsertOhlcvBars(asset.asset_id, '1d', payload.bars, 'test_seed');
+      repo.upsertFundingRates(asset.asset_id, payload.funding, 'test_seed');
+      repo.upsertBasisSnapshots(asset.asset_id, payload.basis, 'test_seed');
+    }
+
+    const result = buildFactorMeasurementReport(repo, {
+      factorId: 'carry',
+      market: 'CRYPTO',
+      assetClass: 'CRYPTO'
+    });
+
+    expect(result.report?.availability).toBe('measured');
+    expect((result.report?.measured_metrics?.sample_dates || 0) > 20).toBe(true);
+    expect((result.report?.measured_metrics?.ic || 0) > 0).toBe(true);
   });
 });

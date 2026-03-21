@@ -1,6 +1,7 @@
 import type { MarketRepository } from '../db/repository.js';
 import { decodeSignalContract } from '../quant/service.js';
 import { getNovaModelPlan, getNovaRoutingPolicies, getNovaRuntimeMode } from '../ai/llmOps.js';
+import { buildAlphaRegistrySummary } from '../alpha_registry/index.js';
 
 type JsonObject = Record<string, unknown>;
 
@@ -25,7 +26,13 @@ export function isLoopbackAddress(address: string | null | undefined): boolean {
 
 export function buildPrivateMarvixOpsReport(repo: MarketRepository) {
   const now = Date.now();
-  const workflowKeys = new Set(['free_data_flywheel', 'nova_training_flywheel', 'nova_strategy_lab']);
+  const workflowKeys = new Set([
+    'free_data_flywheel',
+    'nova_training_flywheel',
+    'nova_strategy_lab',
+    'alpha_discovery_loop',
+    'alpha_shadow_runner'
+  ]);
   const newsRows = repo.listNewsItems({ limit: 24, sinceMs: now - 1000 * 60 * 60 * 72 });
   const recentNewsFactors = newsRows
     .map((row) => {
@@ -107,6 +114,24 @@ export function buildPrivateMarvixOpsReport(repo: MarketRepository) {
                   dataset_count: output.dataset_count ?? null,
                   ready_for_training: output.ready_for_training ?? null
                 }
+              : row.workflow_key === 'alpha_discovery_loop'
+                ? {
+                    accepted: (output.evaluation_summary as JsonObject | undefined)?.accepted ?? null,
+                    rejected: (output.evaluation_summary as JsonObject | undefined)?.rejected ?? null,
+                    top_candidates: Array.isArray((output.alpha_registry as JsonObject | undefined)?.top_candidates)
+                      ? ((output.alpha_registry as JsonObject).top_candidates as unknown[]).length
+                      : null
+                  }
+                : row.workflow_key === 'alpha_shadow_runner'
+                  ? {
+                      candidates_processed: (output.shadow as JsonObject | undefined)?.candidates_processed ?? null,
+                      promoted_to_canary: Array.isArray((output.promotion as JsonObject | undefined)?.promoted_to_canary)
+                        ? ((output.promotion as JsonObject).promoted_to_canary as unknown[]).length
+                        : null,
+                      retired: Array.isArray((output.promotion as JsonObject | undefined)?.retired)
+                        ? ((output.promotion as JsonObject).retired as unknown[]).length
+                        : null
+                    }
               : {
                   selected_count: Array.isArray(output.selected_candidates) ? output.selected_candidates.length : null,
                   provider: output.provider ?? null
@@ -153,6 +178,7 @@ export function buildPrivateMarvixOpsReport(repo: MarketRepository) {
   }));
 
   const plan = getNovaModelPlan();
+  const alphaRegistry = buildAlphaRegistrySummary(repo);
 
   return {
     generated_at: new Date(now).toISOString(),
@@ -165,6 +191,11 @@ export function buildPrivateMarvixOpsReport(repo: MarketRepository) {
       routes: getNovaRoutingPolicies()
     },
     workflows: workflowRuns,
+    alpha_inventory: alphaRegistry.counts,
+    alpha_top_candidates: alphaRegistry.top_candidates.slice(0, 8),
+    alpha_decaying_candidates: alphaRegistry.decaying_candidates.slice(0, 8),
+    alpha_correlation_map: alphaRegistry.correlation_map.slice(0, 12),
+    alpha_state_transitions: alphaRegistry.state_transitions.slice(0, 12),
     recent_news_factors: recentNewsFactors,
     reference_data: {
       fundamentals,

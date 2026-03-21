@@ -1,0 +1,246 @@
+import Database from 'better-sqlite3';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { ensureSchema } from '../src/server/db/schema.js';
+import { MarketRepository } from '../src/server/db/repository.js';
+import type { SignalContract } from '../src/server/types.js';
+import { runAlphaDiscoveryCycle } from '../src/server/alpha_discovery/index.js';
+import { persistAlphaCandidate, type AutonomousAlphaCandidate } from '../src/server/alpha_registry/index.js';
+import { reviewAlphaShadowCandidates } from '../src/server/alpha_promotion_guard/index.js';
+
+function buildCandidate(id: string): AutonomousAlphaCandidate {
+  return {
+    id,
+    thesis: 'Volume-filtered trend continuation candidate',
+    family: 'trend_continuation_refinement',
+    formula: {
+      template_id: 'TMP-BREAKOUT-CONT'
+    },
+    params: {
+      breakout_percentile: 0.85,
+      trend_lookback: 30
+    },
+    feature_dependencies: ['trend_strength', 'volume_expansion', 'breakout_distance'],
+    regime_constraints: ['trend'],
+    compatible_markets: ['US'],
+    intended_holding_period: '2-6 bars',
+    entry_logic: {
+      trigger: 'breakout_with_volume'
+    },
+    exit_logic: {
+      stop: 'atr_trail'
+    },
+    sizing_hint: {
+      path: 'signal_input'
+    },
+    required_inputs: ['trend_strength', 'volume_expansion'],
+    complexity_score: 1.02,
+    integration_path: 'signal_input',
+    created_at: new Date().toISOString(),
+    source: 'autonomous_discovery',
+    strategy_candidate: null
+  };
+}
+
+function buildSignal(id: string, symbol = 'AAPL'): SignalContract {
+  const now = new Date().toISOString();
+  const later = new Date(Date.now() + 86_400_000).toISOString();
+  return {
+    id,
+    created_at: now,
+    expires_at: later,
+    asset_class: 'US_STOCK',
+    market: 'US',
+    symbol,
+    timeframe: '1d',
+    strategy_id: 'TREND_PULLBACK',
+    strategy_family: 'Momentum / Trend Following',
+    strategy_version: 'test.v1',
+    regime_id: 'TREND',
+    temperature_percentile: 64,
+    volatility_percentile: 54,
+    direction: 'LONG',
+    strength: 72,
+    confidence: 0.68,
+    entry_zone: {
+      low: 100,
+      high: 101,
+      method: 'LIMIT'
+    },
+    invalidation_level: 97,
+    stop_loss: {
+      type: 'ATR',
+      price: 97,
+      rationale: 'test stop'
+    },
+    take_profit_levels: [
+      {
+        price: 104,
+        size_pct: 0.6,
+        rationale: 'tp1'
+      },
+      {
+        price: 107,
+        size_pct: 0.4,
+        rationale: 'tp2'
+      }
+    ],
+    trailing_rule: {
+      type: 'EMA',
+      params: { ema_fast: 10, ema_slow: 30 }
+    },
+    position_advice: {
+      position_pct: 5,
+      leverage_cap: 1,
+      risk_bucket_applied: 'BASE',
+      rationale: 'test sizing'
+    },
+    cost_model: {
+      fee_bps: 1.5,
+      spread_bps: 1,
+      slippage_bps: 1.8
+    },
+    expected_metrics: {
+      expected_R: 1.2,
+      hit_rate_est: 0.55,
+      sample_size: 20
+    },
+    explain_bullets: ['test signal'],
+    execution_checklist: ['check data'],
+    tags: ['status:DB_BACKED'],
+    status: 'NEW',
+    payload: {
+      kind: 'STOCK_SWING',
+      data: {
+        horizon: 'MEDIUM',
+        catalysts: ['test']
+      }
+    },
+    score: 78,
+    payload_version: '1'
+  };
+}
+
+describe('alpha discovery loop', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('registers and evaluates autonomous alpha candidates without direct prod promotion', async () => {
+    vi.stubEnv('NOVA_ALPHA_DISCOVERY_ENABLED', '1');
+    vi.stubEnv('NOVA_ALPHA_DISCOVERY_MAX_CANDIDATES', '6');
+    vi.stubEnv('NOVA_ALPHA_DISCOVERY_SEARCH_BUDGET', '2');
+
+    const db = new Database(':memory:');
+    ensureSchema(db);
+    const repo = new MarketRepository(db);
+
+    repo.upsertMarketStates([
+      {
+        market: 'US',
+        symbol: 'AAPL',
+        timeframe: '1d',
+        snapshot_ts_ms: Date.now(),
+        regime_id: 'TREND',
+        trend_strength: 0.72,
+        temperature_percentile: 68,
+        volatility_percentile: 55,
+        risk_off_score: 0.22,
+        stance: 'Trend regime',
+        event_stats_json: JSON.stringify({}),
+        assumptions_json: JSON.stringify({}),
+        updated_at_ms: Date.now()
+      }
+    ]);
+
+    const result = await runAlphaDiscoveryCycle({
+      repo,
+      userId: 'alpha-user',
+      triggerType: 'manual'
+    });
+
+    const candidates = repo.listAlphaCandidates({ limit: 80 });
+    const evaluations = repo.listAlphaEvaluations({ limit: 80 });
+
+    expect((result as Record<string, unknown>).generation_summary).toBeTruthy();
+    expect(candidates.length).toBeGreaterThan(0);
+    expect(evaluations.length).toBeGreaterThan(0);
+    expect(candidates.some((row) => row.status === 'PROD')).toBe(false);
+    expect(candidates.some((row) => row.status === 'SHADOW' || row.status === 'REJECTED' || row.status === 'DRAFT')).toBe(true);
+  });
+
+  it('promotes passing shadow candidates to CANARY but not PROD by default', () => {
+    const db = new Database(':memory:');
+    ensureSchema(db);
+    const repo = new MarketRepository(db);
+    const now = Date.now();
+
+    const candidate = buildCandidate('alpha-shadow-pass');
+    persistAlphaCandidate(repo, {
+      candidate,
+      status: 'SHADOW',
+      acceptanceScore: 0.82
+    });
+    repo.upsertSignals(Array.from({ length: 18 }).map((_, index) => buildSignal(`signal-shadow-pass-${index}`, 'AAPL')));
+    repo.insertAlphaEvaluation({
+      id: 'alpha-eval-pass',
+      alpha_candidate_id: candidate.id,
+      workflow_run_id: 'workflow-alpha-discovery-test',
+      backtest_run_id: 'alpha-backtest-shadow-pass',
+      evaluation_status: 'PASS',
+      acceptance_score: 0.82,
+      metrics_json: JSON.stringify({
+        correlation_to_active: 0.24,
+        sharpe: 0.92,
+        net_pnl: 0.08
+      }),
+      rejection_reasons_json: JSON.stringify([]),
+      notes: 'passed',
+      created_at_ms: now
+    });
+    repo.upsertAlphaShadowObservations(
+      Array.from({ length: 18 }).map((_, index) => ({
+        id: `shadow-${index}`,
+        alpha_candidate_id: candidate.id,
+        workflow_run_id: 'workflow-alpha-shadow-test',
+        signal_id: `signal-shadow-pass-${index}`,
+        market: 'US',
+        symbol: 'AAPL',
+        shadow_action: 'APPROVE',
+        alignment_score: 0.78,
+        adjusted_confidence: 0.72,
+        suggested_weight_multiplier: 1.04,
+        realized_pnl_pct: index % 4 === 0 ? -0.2 : 0.9,
+        realized_source: 'paper',
+        payload_json: JSON.stringify({}),
+        created_at_ms: now + index,
+        updated_at_ms: now + index
+      }))
+    );
+
+    const review = reviewAlphaShadowCandidates({
+      repo,
+      thresholds: {
+        minAcceptanceScore: 0.74,
+        maxCorrelationToActive: 0.72,
+        shadowPromotion: {
+          minSampleSize: 16,
+          minSharpe: 0.2,
+          minExpectancy: 0.001,
+          maxDrawdown: 0.25,
+          minApprovalRate: 0.45,
+          maxBacktestDegradation: 0.55
+        },
+        retirement: {
+          minExpectancy: -0.01,
+          maxDrawdown: 0.3,
+          decayStreakLimit: 4
+        },
+        allowProdPromotion: false
+      }
+    });
+
+    expect(review.promoted_to_canary).toContain(candidate.id);
+    expect(review.promoted_to_prod).toEqual([]);
+    expect(repo.getAlphaCandidate(candidate.id)?.status).toBe('CANARY');
+  });
+});
