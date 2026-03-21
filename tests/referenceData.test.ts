@@ -181,6 +181,26 @@ describe('hosted reference data ingestion', () => {
     expect(result.rows_upserted).toBe(1);
   });
 
+  it('surfaces Yahoo option fetch errors instead of a generic fetch_failed marker', async () => {
+    const db = new Database(':memory:');
+    ensureSchema(db);
+    const repo = new MarketRepository(db);
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('blocked', { status: 401 }))
+    );
+
+    const result = await ensureFreshOptionsForSymbol({
+      repo,
+      market: 'US',
+      symbol: 'SPY'
+    });
+
+    expect(result.fetched).toBe(false);
+    expect(result.error).toContain('401');
+  });
+
   it('merges Google, Finnhub, and NewsAPI headlines before Gemini analysis', async () => {
     const db = new Database(':memory:');
     ensureSchema(db);

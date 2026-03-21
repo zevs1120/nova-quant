@@ -45,6 +45,11 @@ function parsePayloadJson(text: string | null | undefined): Record<string, unkno
   }
 }
 
+function hasGeminiAnalysis(row: NewsItemRecord): boolean {
+  const payload = parsePayloadJson(row.payload_json);
+  return Boolean(payload.gemini_analysis && typeof payload.gemini_analysis === 'object');
+}
+
 function safeNumber(value: unknown): number | null {
   const n = Number(value);
   return Number.isFinite(n) ? n : null;
@@ -239,6 +244,36 @@ export async function ensureFreshNewsForSymbol(args: { repo: MarketRepository; m
   const symbol = normalizeSymbol(args.symbol);
   const latest = args.repo.listNewsItems({ market: args.market, symbol, limit: 1 })[0] || null;
   if (latest && Date.now() - latest.updated_at_ms < NEWS_TTL_MS) {
+    const cachedRows = args.repo.listNewsItems({ market: args.market, symbol, limit: 12 });
+    const needsGeminiBackfill =
+      String(process.env.GEMINI_API_KEY || '').trim() &&
+      cachedRows.length > 0 &&
+      cachedRows.some((row) => !hasGeminiAnalysis(row));
+    if (needsGeminiBackfill) {
+      const rows = await enrichNewsRowsWithGeminiFactors({
+        market: args.market,
+        symbol,
+        rows: cachedRows
+      }).catch(() => cachedRows);
+      const geminiRows = rows.filter((row) => hasGeminiAnalysis(row)).length;
+      if (geminiRows === 0) {
+        logWarn('Gemini news factor enrichment produced no structured factor rows', {
+          market: args.market,
+          symbol,
+          rows: rows.length,
+          source: 'cache_backfill'
+        });
+      }
+      args.repo.upsertNewsItems(rows);
+      return {
+        market: args.market,
+        symbol,
+        fetched: geminiRows > 0,
+        skipped: geminiRows === 0,
+        rows_upserted: geminiRows > 0 ? rows.length : 0,
+        error: null
+      };
+    }
     return {
       market: args.market,
       symbol,
