@@ -2,6 +2,7 @@ import pLimit from 'p-limit';
 import type { Market, NewsItemRecord } from '../types.js';
 import { runNovaChatCompletion } from '../nova/client.js';
 import { fetchWithRetry } from '../utils/http.js';
+import { logWarn } from '../utils/log.js';
 
 type GeminiHeadlineFactor = {
   id: string;
@@ -143,6 +144,35 @@ function parsePayload(text: string | null | undefined): JsonObject {
   }
 }
 
+async function sanitizeGeminiFactorsText(args: {
+  market: Market;
+  symbol: string;
+  rawText: string;
+}): Promise<GeminiBatchFactors | null> {
+  const rawText = String(args.rawText || '').trim();
+  if (!rawText) return null;
+
+  const completion = await runNovaChatCompletion({
+    task: 'assistant_grounded_answer',
+    systemPrompt: [
+      'Convert the provided news-analysis text into exactly one strict JSON object.',
+      'Return JSON only.',
+      'Allowed keys: summary, sentiment_score, event_risk_score, macro_policy_score, earnings_impact_score, trading_bias, factor_tags, items.',
+      'Each item must contain: id, sentiment_score, relevance_score, event_type, impact_horizon, thesis.'
+    ].join(' '),
+    userPrompt: JSON.stringify({
+      market: args.market,
+      symbol: args.symbol,
+      raw_text: rawText
+    }),
+    temperature: 0,
+    maxTokens: 900
+  });
+
+  const parsed = firstJsonObject(completion.text);
+  return parsed ? normalizeFactors(parsed, args.market, args.symbol) : null;
+}
+
 export async function analyzeNewsBatchWithGemini(args: {
   market: Market;
   symbol: string;
@@ -180,6 +210,7 @@ export async function analyzeNewsBatchWithGemini(args: {
       headlines: items
     })
   ].join('\n');
+  let lastUnparsedText = '';
 
   try {
     const completion = await runNovaChatCompletion({
@@ -197,6 +228,15 @@ export async function analyzeNewsBatchWithGemini(args: {
     const parsed = firstJsonObject(completion.text);
     if (parsed) {
       return normalizeFactors(parsed, args.market, args.symbol);
+    }
+    lastUnparsedText = String(completion.text || '').trim();
+    const sanitized = await sanitizeGeminiFactorsText({
+      market: args.market,
+      symbol: args.symbol,
+      rawText: lastUnparsedText
+    }).catch(() => null);
+    if (sanitized) {
+      return sanitized;
     }
   } catch {
     // fall back to the direct Gemini request below
@@ -266,6 +306,25 @@ export async function analyzeNewsBatchWithGemini(args: {
     if (parsed) {
       return normalizeFactors(parsed, args.market, args.symbol);
     }
+    if (text.trim()) {
+      lastUnparsedText = text.trim();
+      const sanitized = await sanitizeGeminiFactorsText({
+        market: args.market,
+        symbol: args.symbol,
+        rawText: lastUnparsedText
+      }).catch(() => null);
+      if (sanitized) {
+        return sanitized;
+      }
+    }
+  }
+
+  if (lastUnparsedText) {
+    logWarn('Gemini factor parser could not coerce response into structured JSON', {
+      market: args.market,
+      symbol: args.symbol,
+      sample: lastUnparsedText.slice(0, 180)
+    });
   }
 
   return null;

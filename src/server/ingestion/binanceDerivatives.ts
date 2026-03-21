@@ -4,6 +4,9 @@ import { fetchWithRetry } from '../utils/http.js';
 import { logInfo, logWarn } from '../utils/log.js';
 import { sleep } from '../utils/time.js';
 
+const BINANCE_DERIVATIVES_BLOCK_COOLDOWN_MS = 1000 * 60 * 60 * 6;
+let binanceDerivativesBlockedUntilMs = 0;
+
 type FundingRatePayloadRow = {
   fundingRate?: string;
   fundingTime?: number | string;
@@ -103,6 +106,14 @@ function basisBpsFromPremium(payload: PremiumIndexPayload): number | null {
   return round(((mark / index) - 1) * 10_000, 4);
 }
 
+function isBinanceBlockedError(error: unknown): boolean {
+  return /\b451\b/.test(String(error instanceof Error ? error.message : error || ''));
+}
+
+export function resetBinanceDerivativesBlockForTests() {
+  binanceDerivativesBlockedUntilMs = 0;
+}
+
 export async function syncBinanceDerivatives(params: {
   repo: MarketRepository;
   symbols: string[];
@@ -122,6 +133,10 @@ export async function syncBinanceDerivatives(params: {
       latest_basis_bps: number | null;
     }>
   };
+
+  if (Date.now() < binanceDerivativesBlockedUntilMs) {
+    return summary;
+  }
 
   for (const rawSymbol of params.symbols) {
     const symbol = String(rawSymbol || '').trim().toUpperCase();
@@ -149,6 +164,15 @@ export async function syncBinanceDerivatives(params: {
         latestFundingRate = safeNumber(fundingRows[fundingRows.length - 1]?.funding_rate);
       }
     } catch (error) {
+      if (isBinanceBlockedError(error)) {
+        binanceDerivativesBlockedUntilMs = Date.now() + BINANCE_DERIVATIVES_BLOCK_COOLDOWN_MS;
+        logWarn('Binance derivatives REST is region-blocked; skipping funding/premium sync for a cooldown window', {
+          symbol,
+          cooldown_hours: BINANCE_DERIVATIVES_BLOCK_COOLDOWN_MS / (1000 * 60 * 60),
+          error: error instanceof Error ? error.message : String(error)
+        });
+        return summary;
+      }
       logWarn('Funding history sync failed', {
         symbol,
         error: error instanceof Error ? error.message : String(error)
@@ -192,6 +216,15 @@ export async function syncBinanceDerivatives(params: {
         latestFundingRate = round(lastFundingRate, 8);
       }
     } catch (error) {
+      if (isBinanceBlockedError(error)) {
+        binanceDerivativesBlockedUntilMs = Date.now() + BINANCE_DERIVATIVES_BLOCK_COOLDOWN_MS;
+        logWarn('Binance derivatives REST is region-blocked; skipping funding/premium sync for a cooldown window', {
+          symbol,
+          cooldown_hours: BINANCE_DERIVATIVES_BLOCK_COOLDOWN_MS / (1000 * 60 * 60),
+          error: error instanceof Error ? error.message : String(error)
+        });
+        return summary;
+      }
       logWarn('Premium index sync failed', {
         symbol,
         error: error instanceof Error ? error.message : String(error)
