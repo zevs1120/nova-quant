@@ -1,17 +1,17 @@
 function detectDefaultApiBase() {
   if (typeof window === 'undefined') return '';
   const envBase = String(import.meta.env.VITE_ADMIN_API_BASE || import.meta.env.VITE_API_BASE_URL || '').trim();
-  if (envBase) return envBase.replace(/\/+$/, '');
   const { protocol, hostname } = window.location;
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return 'http://127.0.0.1:8787';
+    return envBase ? envBase.replace(/\/+$/, '') : 'http://127.0.0.1:8787';
   }
   if (hostname === 'api.novaquant.cloud') {
     return '';
   }
   if (hostname === 'admin.novaquant.cloud' || hostname === 'novaquant.cloud' || hostname.endsWith('.novaquant.cloud')) {
-    return 'https://api.novaquant.cloud';
+    return '';
   }
+  if (envBase) return envBase.replace(/\/+$/, '');
   return `${protocol}//api.novaquant.cloud`;
 }
 

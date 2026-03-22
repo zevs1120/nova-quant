@@ -40,7 +40,7 @@ function runtimeApiBases() {
   }
 
   if (hostname === 'novaquant.cloud' || hostname === 'admin.novaquant.cloud' || hostname.endsWith('.novaquant.cloud')) {
-    return unique([...envBases, 'https://api.novaquant.cloud']);
+    return unique(['', ...envBases, 'https://api.novaquant.cloud']);
   }
 
   return unique([...envBases, 'https://api.novaquant.cloud']);
