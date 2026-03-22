@@ -510,6 +510,7 @@ export async function runAutoBackendMaintenanceCycle(args: {
         thresholds: {
           minAcceptanceScore: discoveryConfig.minAcceptanceScore,
           maxCorrelationToActive: discoveryConfig.maxCorrelationToActive,
+          shadowAdmission: discoveryConfig.shadowAdmissionThresholds,
           shadowPromotion: discoveryConfig.shadowPromotionThresholds,
           retirement: discoveryConfig.retirementThresholds,
           allowProdPromotion: discoveryConfig.allowProdPromotion
@@ -651,6 +652,7 @@ export async function runAutoBackend(argv = process.argv.slice(2)) {
               thresholds: {
                 minAcceptanceScore: discoveryConfig.minAcceptanceScore,
                 maxCorrelationToActive: discoveryConfig.maxCorrelationToActive,
+                shadowAdmission: discoveryConfig.shadowAdmissionThresholds,
                 shadowPromotion: discoveryConfig.shadowPromotionThresholds,
                 retirement: discoveryConfig.retirementThresholds,
                 allowProdPromotion: discoveryConfig.allowProdPromotion

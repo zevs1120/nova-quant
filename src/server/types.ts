@@ -530,6 +530,10 @@ export interface AppConfig {
     maxCandidatesPerCycle?: number;
     searchBudget?: number;
     minAcceptanceScore?: number;
+    shadowAdmissionThresholds?: {
+      minAcceptanceScore?: number;
+      maxDrawdown?: number;
+    };
     shadowPromotionThresholds?: {
       minSampleSize?: number;
       minSharpe?: number;

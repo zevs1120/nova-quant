@@ -476,6 +476,8 @@ export function buildAdminSystemSnapshot() {
         max_candidates_per_cycle: discoveryConfig.maxCandidatesPerCycle,
         search_budget: discoveryConfig.searchBudget,
         min_acceptance_score: discoveryConfig.minAcceptanceScore,
+        shadow_admission_min_acceptance_score: discoveryConfig.shadowAdmissionThresholds.minAcceptanceScore,
+        shadow_admission_max_drawdown: discoveryConfig.shadowAdmissionThresholds.maxDrawdown,
         max_correlation_to_active: discoveryConfig.maxCorrelationToActive
       },
       news_pipeline: {

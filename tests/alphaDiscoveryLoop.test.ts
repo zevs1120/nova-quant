@@ -5,7 +5,7 @@ import { MarketRepository } from '../src/server/db/repository.js';
 import type { SignalContract } from '../src/server/types.js';
 import { runAlphaDiscoveryCycle } from '../src/server/alpha_discovery/index.js';
 import { persistAlphaCandidate, type AutonomousAlphaCandidate } from '../src/server/alpha_registry/index.js';
-import { reviewAlphaShadowCandidates } from '../src/server/alpha_promotion_guard/index.js';
+import { reviewAlphaBacktestOutcomes, reviewAlphaShadowCandidates } from '../src/server/alpha_promotion_guard/index.js';
 
 function buildCandidate(id: string): AutonomousAlphaCandidate {
   return {
@@ -222,6 +222,10 @@ describe('alpha discovery loop', () => {
       thresholds: {
         minAcceptanceScore: 0.74,
         maxCorrelationToActive: 0.72,
+        shadowAdmission: {
+          minAcceptanceScore: 0.58,
+          maxDrawdown: 0.28
+        },
         shadowPromotion: {
           minSampleSize: 16,
           minSharpe: 0.2,
@@ -242,5 +246,77 @@ describe('alpha discovery loop', () => {
     expect(review.promoted_to_canary).toContain(candidate.id);
     expect(review.promoted_to_prod).toEqual([]);
     expect(repo.getAlphaCandidate(candidate.id)?.status).toBe('CANARY');
+  });
+
+  it('admits watch-level candidates into SHADOW through the relaxed shadow admission gate', () => {
+    const db = new Database(':memory:');
+    ensureSchema(db);
+    const repo = new MarketRepository(db);
+    const now = Date.now();
+
+    const candidate = buildCandidate('alpha-shadow-admission');
+    persistAlphaCandidate(repo, {
+      candidate,
+      status: 'DRAFT',
+      acceptanceScore: 0.6
+    });
+
+    const evaluationId = 'alpha-eval-shadow-admission';
+    const review = reviewAlphaBacktestOutcomes({
+      repo,
+      evaluated: [
+        {
+          candidate: {
+            id: candidate.id,
+            integration_path: 'signal_input'
+          },
+          evaluation: {
+            id: evaluationId,
+            alpha_candidate_id: candidate.id,
+            workflow_run_id: 'workflow-alpha-discovery-test',
+            backtest_run_id: 'alpha-backtest-shadow-admission',
+            evaluation_status: 'WATCH',
+            acceptance_score: 0.6,
+            metrics_json: '{}',
+            rejection_reasons_json: '[]',
+            notes: 'watch but admissible',
+            created_at_ms: now
+          },
+          metrics: {
+            correlation_to_active: 0.22,
+            max_drawdown: 0.24,
+            sharpe: 0.64,
+            net_pnl: 0.032
+          },
+          rejectionReasons: [],
+          recommendedState: 'DRAFT'
+        }
+      ],
+      thresholds: {
+        minAcceptanceScore: 0.66,
+        maxCorrelationToActive: 0.8,
+        shadowAdmission: {
+          minAcceptanceScore: 0.58,
+          maxDrawdown: 0.28
+        },
+        shadowPromotion: {
+          minSampleSize: 12,
+          minSharpe: 0.45,
+          minExpectancy: 0.0015,
+          maxDrawdown: 0.18,
+          minApprovalRate: 0.45,
+          maxBacktestDegradation: 0.45
+        },
+        retirement: {
+          minExpectancy: -0.002,
+          maxDrawdown: 0.22,
+          decayStreakLimit: 3
+        },
+        allowProdPromotion: false
+      }
+    });
+
+    expect(review.accepted).toEqual([candidate.id]);
+    expect(repo.getAlphaCandidate(candidate.id)?.status).toBe('SHADOW');
   });
 });

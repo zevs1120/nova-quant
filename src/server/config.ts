@@ -75,6 +75,10 @@ function buildFallbackConfig(): AppConfig {
       maxCandidatesPerCycle: 32,
       searchBudget: 18,
       minAcceptanceScore: 0.66,
+      shadowAdmissionThresholds: {
+        minAcceptanceScore: 0.58,
+        maxDrawdown: 0.28
+      },
       shadowPromotionThresholds: {
         minSampleSize: 12,
         minSharpe: 0.45,

@@ -32,6 +32,10 @@ export type AlphaDiscoveryConfig = {
   maxCorrelationToActive: number;
   simplicityBias: number;
   allowProdPromotion: boolean;
+  shadowAdmissionThresholds: {
+    minAcceptanceScore: number;
+    maxDrawdown: number;
+  };
   shadowPromotionThresholds: {
     minSampleSize: number;
     minSharpe: number;
@@ -339,6 +343,7 @@ function activeLifecycleState(status: AlphaLifecycleState) {
 
 export function readAlphaDiscoveryConfig(config = getConfig()): AlphaDiscoveryConfig {
   const fileConfig = config.alphaDiscovery || {};
+  const admissionConfig = fileConfig.shadowAdmissionThresholds || {};
   const shadowConfig = fileConfig.shadowPromotionThresholds || {};
   const retirementConfig = fileConfig.retirementThresholds || {};
   const schedule =
@@ -380,6 +385,20 @@ export function readAlphaDiscoveryConfig(config = getConfig()): AlphaDiscoveryCo
     ),
     simplicityBias: parseNumberEnv(process.env.NOVA_ALPHA_DISCOVERY_SIMPLICITY_BIAS, 1.15, 0.4, 2),
     allowProdPromotion: parseBooleanEnv(process.env.NOVA_ALPHA_ALLOW_PROD_PROMOTION, false),
+    shadowAdmissionThresholds: {
+      minAcceptanceScore: parseNumberEnv(
+        process.env.NOVA_ALPHA_SHADOW_ADMISSION_MIN_ACCEPTANCE_SCORE,
+        Number(admissionConfig.minAcceptanceScore || Math.max(0.54, Number(fileConfig.minAcceptanceScore || 0.66) - 0.08)),
+        0.3,
+        1
+      ),
+      maxDrawdown: parseNumberEnv(
+        process.env.NOVA_ALPHA_SHADOW_ADMISSION_MAX_DRAWDOWN,
+        Number(admissionConfig.maxDrawdown || 0.28),
+        0.05,
+        1
+      )
+    },
     shadowPromotionThresholds: {
       minSampleSize: parseNumberEnv(
         process.env.NOVA_ALPHA_SHADOW_MIN_SAMPLE_SIZE,
@@ -542,6 +561,7 @@ export async function runAlphaDiscoveryCycle(args: {
       thresholds: {
         minAcceptanceScore: config.minAcceptanceScore,
         maxCorrelationToActive: config.maxCorrelationToActive,
+        shadowAdmission: config.shadowAdmissionThresholds,
         shadowPromotion: config.shadowPromotionThresholds,
         retirement: config.retirementThresholds,
         allowProdPromotion: config.allowProdPromotion
@@ -554,6 +574,7 @@ export async function runAlphaDiscoveryCycle(args: {
       thresholds: {
         minAcceptanceScore: config.minAcceptanceScore,
         maxCorrelationToActive: config.maxCorrelationToActive,
+        shadowAdmission: config.shadowAdmissionThresholds,
         shadowPromotion: config.shadowPromotionThresholds,
         retirement: config.retirementThresholds,
         allowProdPromotion: config.allowProdPromotion
@@ -584,7 +605,9 @@ export async function runAlphaDiscoveryCycle(args: {
         interval_hours: config.intervalHours,
         max_candidates_per_cycle: config.maxCandidatesPerCycle,
         search_budget: config.searchBudget,
-        min_acceptance_score: config.minAcceptanceScore
+        min_acceptance_score: config.minAcceptanceScore,
+        shadow_admission_min_acceptance_score: config.shadowAdmissionThresholds.minAcceptanceScore,
+        shadow_admission_max_drawdown: config.shadowAdmissionThresholds.maxDrawdown
       },
       discovery_context: universe.context,
       generation_summary: {

@@ -8,6 +8,10 @@ import { createTraceId, recordAuditEvent } from '../observability/spine.js';
 type GuardThresholds = {
   minAcceptanceScore: number;
   maxCorrelationToActive: number;
+  shadowAdmission: {
+    minAcceptanceScore: number;
+    maxDrawdown: number;
+  };
   shadowPromotion: {
     minSampleSize: number;
     minSharpe: number;
@@ -146,10 +150,9 @@ export function reviewAlphaBacktestOutcomes(args: {
   for (const item of args.evaluated) {
     const correlationHit = item.metrics.correlation_to_active > args.thresholds.maxCorrelationToActive;
     const drawdownHit =
-      item.metrics.max_drawdown !== null && item.metrics.max_drawdown > args.thresholds.shadowPromotion.maxDrawdown;
+      item.metrics.max_drawdown !== null && item.metrics.max_drawdown > args.thresholds.shadowAdmission.maxDrawdown;
 
     if (
-      item.recommendedState === 'REJECTED' ||
       item.evaluation.evaluation_status === 'REJECT' ||
       correlationHit ||
       drawdownHit
@@ -176,15 +179,14 @@ export function reviewAlphaBacktestOutcomes(args: {
     }
 
     if (
-      item.evaluation.evaluation_status === 'PASS' &&
-      item.evaluation.acceptance_score >= args.thresholds.minAcceptanceScore &&
-      item.recommendedState === 'BACKTEST_PASS'
+      item.evaluation.acceptance_score >= args.thresholds.shadowAdmission.minAcceptanceScore &&
+      (item.recommendedState === 'BACKTEST_PASS' || item.evaluation.evaluation_status === 'WATCH')
     ) {
       transitionAlphaCandidate(args.repo, {
         alphaCandidateId: item.candidate.id,
         toStatus: 'BACKTEST_PASS',
         reason: buildPromotionReason([
-          'passed_proxy_backtest_acceptance_gate',
+          item.evaluation.evaluation_status === 'PASS' ? 'passed_proxy_backtest_acceptance_gate' : 'admitted_to_shadow_via_relaxed_shadow_admission_gate',
           `acceptance_score=${round(item.evaluation.acceptance_score, 4)}`,
           `integration_path=${item.candidate.integration_path}`
         ]),
