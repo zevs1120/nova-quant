@@ -1,6 +1,6 @@
 # NovaQuant Server
 
-`server/` 是纯 API 层的独立 Vercel 项目。
+`server/` 是纯 API 层的架构边界。
 
 职责：
 
@@ -17,6 +17,12 @@
 推荐域名：
 
 - `https://api.novaquant.cloud`
+
+当前最稳的 Vercel 部署方式：
+
+- API 项目直接从仓库根目录部署
+- 原因是当前 serverless 路由仍然位于仓库根目录的 `/api`
+- `server/` 保留为清晰的架构分层和后续完全抽离的目标目录
 
 推荐环境变量：
 
