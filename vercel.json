@@ -1,5 +1,15 @@
 {
+  "rewrites": [
+    {
+      "source": "/healthz",
+      "destination": "/api/healthz"
+    }
+  ],
   "functions": {
+    "api/healthz.ts": {
+      "memory": 256,
+      "maxDuration": 5
+    },
     "api/chat.ts": {
       "memory": 1024,
       "maxDuration": 30
