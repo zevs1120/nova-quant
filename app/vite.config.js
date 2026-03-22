@@ -5,6 +5,7 @@ import react from '@vitejs/plugin-react';
 const repoRoot = path.resolve(__dirname, '..');
 
 export default defineConfig({
+  root: __dirname,
   plugins: [react()],
   server: {
     fs: {
