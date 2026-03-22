@@ -6,6 +6,7 @@ import type { SignalContract } from '../src/server/types.js';
 import { runAlphaDiscoveryCycle } from '../src/server/alpha_discovery/index.js';
 import { persistAlphaCandidate, type AutonomousAlphaCandidate } from '../src/server/alpha_registry/index.js';
 import { reviewAlphaBacktestOutcomes, reviewAlphaShadowCandidates } from '../src/server/alpha_promotion_guard/index.js';
+import { runAlphaShadowCycle, summarizeAlphaShadowPerformance } from '../src/server/alpha_shadow_runner/index.js';
 
 function buildCandidate(id: string): AutonomousAlphaCandidate {
   return {
@@ -118,6 +119,20 @@ function buildSignal(id: string, symbol = 'AAPL'): SignalContract {
     score: 78,
     payload_version: '1'
   };
+}
+
+function buildBars(startMs: number, count: number, startPrice = 100) {
+  return Array.from({ length: count }).map((_, index) => {
+    const base = startPrice + index;
+    return {
+      ts_open: startMs + index * 86_400_000,
+      open: String(base),
+      high: String(base + 5),
+      low: String(base - 3),
+      close: String(base + 2),
+      volume: String(1_000_000 + index * 10_000)
+    };
+  });
 }
 
 describe('alpha discovery loop', () => {
@@ -318,5 +333,63 @@ describe('alpha discovery loop', () => {
 
     expect(review.accepted).toEqual([candidate.id]);
     expect(repo.getAlphaCandidate(candidate.id)?.status).toBe('SHADOW');
+  });
+
+  it('derives realized shadow pnl from OHLCV replay when no execution exists', () => {
+    const db = new Database(':memory:');
+    ensureSchema(db);
+    const repo = new MarketRepository(db);
+    const now = Date.now();
+
+    const asset = repo.upsertAsset({
+      symbol: 'AAPL',
+      market: 'US',
+      venue: 'TEST',
+      status: 'ACTIVE'
+    });
+    repo.upsertOhlcvBars(
+      asset.asset_id,
+      '1d',
+      [
+        { ts_open: now - 10 * 86_400_000, open: '99', high: '101', low: '98.5', close: '100', volume: '1000000' },
+        { ts_open: now - 9 * 86_400_000, open: '100', high: '102', low: '99.2', close: '101.2', volume: '1000000' },
+        { ts_open: now - 8 * 86_400_000, open: '101.2', high: '104.6', low: '100.8', close: '104.1', volume: '1000000' },
+        ...buildBars(now - 7 * 86_400_000, 8, 105)
+      ],
+      'TEST'
+    );
+
+    const candidate = buildCandidate('alpha-shadow-replay');
+    persistAlphaCandidate(repo, {
+      candidate,
+      status: 'SHADOW',
+      acceptanceScore: 0.64
+    });
+
+    const signal = buildSignal('signal-shadow-replay', 'AAPL');
+    signal.created_at = new Date(now - 8 * 86_400_000).toISOString();
+    signal.expires_at = new Date(now - 2 * 86_400_000).toISOString();
+    signal.status = 'EXPIRED';
+    signal.entry_zone.low = 100;
+    signal.entry_zone.high = 101;
+    signal.stop_loss.price = 97;
+    signal.take_profit_levels[0].price = 104;
+    repo.upsertSignal(signal);
+
+    const result = runAlphaShadowCycle({
+      repo,
+      workflowRunId: 'workflow-alpha-shadow-replay',
+      userId: 'guest-default'
+    });
+
+    expect(result.candidates_processed).toBe(1);
+    const summary = summarizeAlphaShadowPerformance(repo, candidate.id);
+    expect(summary.sample_size).toBe(1);
+    expect(summary.expectancy).not.toBeNull();
+
+    const rows = repo.listAlphaShadowObservations({ alphaCandidateId: candidate.id, signalId: signal.id });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.realized_source).toBe('ohlcv_replay');
+    expect(Number(rows[0]?.realized_pnl_pct)).toBeGreaterThan(0);
   });
 });

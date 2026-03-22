@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { AlphaCandidateRecord, AlphaShadowObservationRecord, ExecutionRecord, Market, SignalContract } from '../types.js';
+import type { AlphaCandidateRecord, AlphaShadowObservationRecord, ExecutionRecord, Market, SignalContract, Timeframe } from '../types.js';
 import type { MarketRepository } from '../db/repository.js';
 import { decodeSignalContract } from '../quant/service.js';
 import { parseAlphaCandidateRecord } from '../alpha_registry/index.js';
@@ -36,6 +36,132 @@ function round(value: number, digits = 6): number {
 
 function latestExecutionForSignal(executions: ExecutionRecord[], signalId: string) {
   return executions.find((row) => row.signal_id === signalId && (row.action === 'DONE' || row.action === 'CLOSE')) || null;
+}
+
+function timeframeToMs(timeframe: string): number {
+  const raw = String(timeframe || '').trim().toLowerCase();
+  const value = Number.parseInt(raw, 10);
+  if (!Number.isFinite(value) || value <= 0) return 86_400_000;
+  if (raw.endsWith('m')) return value * 60_000;
+  if (raw.endsWith('h')) return value * 3_600_000;
+  if (raw.endsWith('d')) return value * 86_400_000;
+  return 86_400_000;
+}
+
+function normalizeTimeframe(timeframe: string): Timeframe | null {
+  const normalized = String(timeframe || '').trim();
+  if (normalized === '1m' || normalized === '5m' || normalized === '15m' || normalized === '1h' || normalized === '1d') {
+    return normalized;
+  }
+  return null;
+}
+
+function replayHorizonBars(candidate: ReturnType<typeof parseAlphaCandidateRecord>, signal: SignalContract): number {
+  const matches = String(candidate.intended_holding_period || '')
+    .match(/\d+/g)
+    ?.map((item) => Number.parseInt(item, 10))
+    .filter((item) => Number.isFinite(item) && item > 0);
+  if (matches?.length) return Math.max(...matches);
+  const tf = String(signal.timeframe || '').toLowerCase();
+  if (tf.endsWith('d')) return 6;
+  if (tf.endsWith('h')) return 12;
+  if (tf.endsWith('m')) return 24;
+  return 8;
+}
+
+function deriveReplayPnlPct(args: {
+  repo: MarketRepository;
+  candidate: ReturnType<typeof parseAlphaCandidateRecord>;
+  signal: SignalContract;
+}): number | null {
+  const asset = args.repo.getAssetBySymbol(args.signal.market, args.signal.symbol);
+  if (!asset) return null;
+
+  const createdAtMs = Date.parse(args.signal.created_at);
+  if (!Number.isFinite(createdAtMs)) return null;
+
+  const timeframeMs = timeframeToMs(args.signal.timeframe);
+  const normalizedTimeframe = normalizeTimeframe(args.signal.timeframe);
+  if (!normalizedTimeframe) return null;
+  const horizonBars = replayHorizonBars(args.candidate, args.signal);
+  const lookbackStart = Math.max(0, createdAtMs - timeframeMs);
+  const bars = args.repo
+    .getOhlcv({
+      assetId: asset.asset_id,
+      timeframe: normalizedTimeframe,
+      start: lookbackStart,
+      limit: Math.max(horizonBars + 8, 24)
+    })
+    .map((row) => ({
+      ts_open: row.ts_open,
+      open: Number(row.open),
+      high: Number(row.high),
+      low: Number(row.low),
+      close: Number(row.close)
+    }))
+    .filter((row) => Number.isFinite(row.close) && row.close > 0);
+
+  if (!bars.length) return null;
+
+  const bounds = {
+    low: Math.min(args.signal.entry_zone.low, args.signal.entry_zone.high),
+    high: Math.max(args.signal.entry_zone.low, args.signal.entry_zone.high)
+  };
+  const isShort = String(args.signal.direction).toUpperCase() === 'SHORT';
+  const stop = Number(args.signal.stop_loss.price);
+  const takeProfit = Number(args.signal.take_profit_levels?.[0]?.price ?? NaN);
+
+  const firstEligibleIndex = bars.findIndex((bar) => bar.ts_open + timeframeMs >= createdAtMs);
+  if (firstEligibleIndex < 0) return null;
+
+  let entryIndex = -1;
+  let entryPrice = 0;
+  for (let index = firstEligibleIndex; index < bars.length; index += 1) {
+    const bar = bars[index];
+    const marketEntry = String(args.signal.entry_zone.method).toUpperCase() === 'MARKET';
+    const touched = bar.low <= bounds.high && bar.high >= bounds.low;
+    if (!marketEntry && !touched) continue;
+    entryIndex = index;
+    entryPrice = marketEntry ? Number(bar.open || bar.close) : (bounds.low + bounds.high) / 2;
+    break;
+  }
+
+  if (entryIndex < 0 || !Number.isFinite(entryPrice) || entryPrice <= 0) return null;
+
+  const lastResolvableIndex = Math.min(entryIndex + horizonBars, bars.length - 1);
+  const isMature =
+    bars.length - 1 >= entryIndex + horizonBars ||
+    (Date.parse(args.signal.expires_at) || 0) <= Date.now() ||
+    !['NEW', 'TRIGGERED'].includes(String(args.signal.status || '').toUpperCase());
+
+  if (!isMature) return null;
+
+  let exitPrice: number | null = null;
+  for (let index = entryIndex; index <= lastResolvableIndex; index += 1) {
+    const bar = bars[index];
+    const stopHit = Number.isFinite(stop) ? (isShort ? bar.high >= stop : bar.low <= stop) : false;
+    const takeProfitHit = Number.isFinite(takeProfit) ? (isShort ? bar.low <= takeProfit : bar.high >= takeProfit) : false;
+    if (stopHit && takeProfitHit) {
+      exitPrice = stop;
+      break;
+    }
+    if (stopHit) {
+      exitPrice = stop;
+      break;
+    }
+    if (takeProfitHit) {
+      exitPrice = takeProfit;
+      break;
+    }
+  }
+
+  if (!Number.isFinite(exitPrice)) {
+    exitPrice = bars[lastResolvableIndex]?.close ?? null;
+  }
+  if (!Number.isFinite(exitPrice) || !exitPrice || !entryPrice) return null;
+
+  const pnlPct = isShort ? ((entryPrice - exitPrice) / entryPrice) * 100 : ((exitPrice - entryPrice) / entryPrice) * 100;
+  return round(pnlPct, 4);
 }
 
 function featureResonance(candidateFeatures: string[], signal: SignalContract) {
@@ -224,7 +350,9 @@ export function runAlphaShadowCycle(args: {
   userId: string;
 }) {
   const shadowCandidates = args.repo.listAlphaCandidates({ status: 'SHADOW', limit: 120 });
-  const signalRows = args.repo.listSignals({ status: 'NEW', limit: 120 });
+  const signalRows = args.repo
+    .listSignals({ status: 'ALL', limit: 180 })
+    .filter((row) => row.created_at_ms >= Date.now() - 21 * 86_400_000);
   const signals = signalRows.map((row) => decodeSignalContract(row)).filter((row): row is SignalContract => Boolean(row));
   const executions = args.repo.listExecutions({ userId: args.userId, limit: 400 });
   const observations: AlphaShadowObservationRecord[] = [];
@@ -235,6 +363,7 @@ export function runAlphaShadowCycle(args: {
       if (!candidate.compatible_markets.includes(signal.market)) continue;
       const decision = decideShadowAction(candidate, signal);
       const execution = latestExecutionForSignal(executions, signal.id);
+      const replayPnlPct = execution?.pnl_pct ?? deriveReplayPnlPct({ repo: args.repo, candidate, signal });
       observations.push({
         id: `alpha-shadow-${randomUUID()}`,
         alpha_candidate_id: row.id,
@@ -246,8 +375,8 @@ export function runAlphaShadowCycle(args: {
         alignment_score: round(decision.alignment, 4),
         adjusted_confidence: decision.adjustedConfidence ?? null,
         suggested_weight_multiplier: decision.suggestedWeightMultiplier ?? null,
-        realized_pnl_pct: execution?.pnl_pct ?? null,
-        realized_source: execution?.mode ?? null,
+        realized_pnl_pct: replayPnlPct,
+        realized_source: execution?.mode ?? (replayPnlPct !== null ? 'ohlcv_replay' : null),
         payload_json: JSON.stringify({
           alpha_family: candidate.family,
           integration_path: candidate.integration_path,
