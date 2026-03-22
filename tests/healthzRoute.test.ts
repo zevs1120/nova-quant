@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import handler from '../api/[...route].ts';
+import handler from '../api/index.ts';
 
 function createMockResponse() {
   return {

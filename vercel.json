@@ -2,15 +2,19 @@
   "rewrites": [
     {
       "source": "/",
-      "destination": "/api/healthz"
+      "destination": "/api?route=healthz"
     },
     {
       "source": "/healthz",
-      "destination": "/api/healthz"
+      "destination": "/api?route=healthz"
+    },
+    {
+      "source": "/api/:route*",
+      "destination": "/api?route=:route*"
     }
   ],
   "functions": {
-    "api/[...route].ts": {
+    "api/index.ts": {
       "memory": 1024,
       "maxDuration": 30
     }

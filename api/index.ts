@@ -48,7 +48,7 @@ function resolveApiPath(req: VercelRequest) {
   }
   const url = String(req.url || '');
   const [pathname = ''] = url.split('?');
-  return pathname;
+  return pathname === '/api' ? '/api' : pathname;
 }
 
 function buildForwardUrl(req: VercelRequest, path: string) {
@@ -71,7 +71,7 @@ async function handlePublicBrowseRoute(req: VercelRequest, res: VercelResponse, 
   if (handlePublicOptions(req, res)) return true;
   applyPublicCors(req, res);
 
-  if (path === '/api/healthz' && req.method === 'GET') {
+  if ((path === '/api' || path === '/api/healthz') && req.method === 'GET') {
     res.status(200).json({
       ok: true,
       service: 'novaquant-api',
