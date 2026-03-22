@@ -55,6 +55,15 @@ async function handlePublicBrowseRoute(req: VercelRequest, res: VercelResponse, 
   if (handlePublicOptions(req, res)) return true;
   applyPublicCors(req, res);
 
+  if (path === '/api/healthz' && req.method === 'GET') {
+    res.status(200).json({
+      ok: true,
+      service: 'novaquant-api',
+      ts: Date.now()
+    });
+    return true;
+  }
+
   if (path === '/api/assets' && req.method === 'GET') {
     const market = parseMarket(req.query.market as string | undefined);
     if (req.query.market && !market) {

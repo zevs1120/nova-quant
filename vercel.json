@@ -6,45 +6,9 @@
     }
   ],
   "functions": {
-    "api/healthz.ts": {
-      "memory": 256,
-      "maxDuration": 5
-    },
-    "api/chat.ts": {
-      "memory": 1024,
-      "maxDuration": 30
-    },
-    "api/auth/[...route].ts": {
-      "memory": 1024,
-      "maxDuration": 30
-    },
-    "api/admin/[...route].ts": {
-      "memory": 1024,
-      "maxDuration": 30
-    },
-    "api/nova/[...route].ts": {
-      "memory": 1024,
-      "maxDuration": 30
-    },
-    "api/decision/[...route].ts": {
-      "memory": 1024,
-      "maxDuration": 30
-    },
-    "api/assets/**/*.ts": {
-      "memory": 1024,
-      "maxDuration": 10
-    },
-    "api/browse/**/*.ts": {
-      "memory": 1024,
-      "maxDuration": 10
-    },
-    "api/ohlcv.ts": {
-      "memory": 1024,
-      "maxDuration": 10
-    },
     "api/[...route].ts": {
       "memory": 1024,
-      "maxDuration": 10
+      "maxDuration": 30
     }
   }
 }
