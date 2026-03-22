@@ -487,5 +487,7 @@ describe('admin data api', () => {
     expect((signals.body as { data: { summary: { active_signals: number } } }).data.summary.active_signals).toBeGreaterThanOrEqual(1);
     expect((system.body as { data: { data_summary: { option_chain_count: number; fundamentals_count: number } } }).data.data_summary.option_chain_count).toBeGreaterThanOrEqual(1);
     expect((system.body as { data: { data_summary: { option_chain_count: number; fundamentals_count: number } } }).data.data_summary.fundamentals_count).toBeGreaterThanOrEqual(1);
+    expect((system.body as { data: { throughput_controls: { alpha_discovery: { max_candidates_per_cycle: number } } } }).data.throughput_controls.alpha_discovery.max_candidates_per_cycle).toBeGreaterThan(0);
+    expect((system.body as { data: { throughput_controls: { news_pipeline: { ttl_minutes: number } } } }).data.throughput_controls.news_pipeline.ttl_minutes).toBeGreaterThan(0);
   });
 });

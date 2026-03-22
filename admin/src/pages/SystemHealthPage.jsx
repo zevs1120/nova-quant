@@ -51,6 +51,9 @@ export default function SystemHealthPage() {
   const workflowSummary = data?.workflow_summary || {};
   const aiSummary = data?.ai_summary || {};
   const dataSummary = data?.data_summary || {};
+  const throughputControls = data?.throughput_controls || {};
+  const throughputRecent = data?.throughput_recent || {};
+  const diagnostics = data?.diagnostics || [];
 
   const stats = [
     {
@@ -68,7 +71,7 @@ export default function SystemHealthPage() {
     {
       label: '新闻与因子',
       value: `${dataSummary.news_items_72h || 0} / ${dataSummary.news_factor_count || 0}`,
-      detail: '前者是 72 小时新闻量，后者是已结构化的新闻因子量。',
+      detail: `前者是 72 小时新闻量，后者是已结构化的新闻因子量，覆盖率 ${dataSummary.news_factor_coverage_pct || 0}%。`,
       tone: 'amber'
     },
     {
@@ -102,6 +105,75 @@ export default function SystemHealthPage() {
             <span className="status-pill is-blue">Workflow mix</span>
           </div>
           <MixBars rows={workflowSummary.by_workflow || []} />
+        </article>
+      </section>
+
+      <section className="page-grid two-up">
+        <article className="panel">
+          <div className="panel-header">
+            <h3>研究吞吐控制面板</h3>
+            <span className="status-pill is-blue">Throughput controls</span>
+          </div>
+          <div className="source-card-grid">
+            <article className="source-card">
+              <strong>Alpha Discovery</strong>
+              <p>间隔 {throughputControls.alpha_discovery?.interval_hours || 0} 小时，每轮 {throughputControls.alpha_discovery?.max_candidates_per_cycle || 0} 个候选，搜索预算 {throughputControls.alpha_discovery?.search_budget || 0}。</p>
+            </article>
+            <article className="source-card">
+              <strong>新闻刷新</strong>
+              <p>TTL {throughputControls.news_pipeline?.ttl_minutes || 0} 分钟，并发 {throughputControls.news_pipeline?.refresh_concurrency || 0}，扩展阈值 {throughputControls.news_pipeline?.min_rows_for_expansion || 0} 条。</p>
+            </article>
+            <article className="source-card">
+              <strong>Gemini 因子化</strong>
+              <p>并发 {throughputControls.news_pipeline?.gemini_factor_concurrency || 0}，最小间隔 {throughputControls.news_pipeline?.gemini_request_gap_ms || 0}ms。</p>
+            </article>
+            <article className="source-card">
+              <strong>Heuristic 回退</strong>
+              <p>{throughputControls.news_pipeline?.heuristic_factor_fallback ? '已开启，Gemini 失败时仍结构化新闻因子。' : '已关闭，仅依赖 Gemini。'}</p>
+            </article>
+          </div>
+        </article>
+
+        <article className="panel">
+          <div className="panel-header">
+            <h3>最近一轮产出</h3>
+            <span className="status-pill is-green">Pipeline output</span>
+          </div>
+          <div className="source-card-grid">
+            <article className="source-card">
+              <strong>Free data</strong>
+              <p>新闻刷新 {throughputRecent.latest_free_data?.refreshed_symbols ?? 0} 个标的，新闻写入 {throughputRecent.latest_free_data?.rows_upserted ?? 0} 条。</p>
+            </article>
+            <article className="source-card">
+              <strong>Alpha discovery</strong>
+              <p>接受 {throughputRecent.latest_alpha_discovery?.accepted ?? 0} 个，拒绝 {throughputRecent.latest_alpha_discovery?.rejected ?? 0} 个。</p>
+            </article>
+            <article className="source-card">
+              <strong>Shadow runner</strong>
+              <p>处理 {throughputRecent.latest_shadow_monitoring?.candidates_processed ?? 0} 个，晋升 Canary {throughputRecent.latest_shadow_monitoring?.promoted_to_canary ?? 0} 个。</p>
+            </article>
+          </div>
+        </article>
+      </section>
+
+      <section className="page-grid">
+        <article className="panel">
+          <div className="panel-header">
+            <h3>诊断结论</h3>
+            <span className="status-pill is-amber">Diagnostics</span>
+          </div>
+          <div className="health-route-list">
+            {diagnostics.map((row) => (
+              <div key={row.title} className="health-route-item">
+                <div>
+                  <strong>{row.title}</strong>
+                  <p>{row.detail}</p>
+                </div>
+                <span className={`status-pill ${row.severity === 'WARN' ? 'is-red' : 'is-blue'}`}>{row.severity}</span>
+              </div>
+            ))}
+            {!diagnostics.length ? <p className="panel-copy">当前没有明显瓶颈告警。</p> : null}
+          </div>
         </article>
       </section>
 

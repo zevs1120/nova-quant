@@ -14,7 +14,7 @@ type GeminiHeadlineFactor = {
 };
 
 type GeminiBatchFactors = {
-  provider: 'gemini';
+  provider: 'gemini' | 'heuristic';
   symbol: string;
   market: Market;
   generated_at: string;
@@ -31,8 +31,27 @@ type GeminiBatchFactors = {
 type JsonObject = Record<string, unknown>;
 
 const GEMINI_API_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
-const geminiNewsFactorQueue = pLimit(Math.max(1, Number(process.env.GEMINI_NEWS_CONCURRENCY || 1)));
+const GEMINI_NEWS_CONCURRENCY = Math.max(1, Number(process.env.GEMINI_NEWS_CONCURRENCY || 3));
+const GEMINI_NEWS_MIN_REQUEST_GAP_MS = Math.max(0, Number(process.env.GEMINI_NEWS_MIN_REQUEST_GAP_MS || 350));
+const GEMINI_NEWS_MAX_HEADLINES = Math.max(3, Number(process.env.GEMINI_NEWS_MAX_HEADLINES || 5));
+const geminiNewsFactorQueue = pLimit(GEMINI_NEWS_CONCURRENCY);
 let nextGeminiNewsRequestAtMs = 0;
+
+const positiveTokens = ['beat', 'surge', 'growth', 'record', 'bullish', 'upgrade', 'approval', 'partnership', 'launch', 'buyback', 'wins', 'expands'];
+const negativeTokens = ['miss', 'drop', 'lawsuit', 'downgrade', 'risk', 'probe', 'ban', 'hack', 'fraud', 'delay', 'cuts', 'warning', 'recall'];
+
+const eventTypeMap: Array<{ type: string; tags: string[] }> = [
+  { type: 'earnings', tags: ['earnings', 'guidance', 'revenue', 'eps', 'outlook', 'forecast'] },
+  { type: 'analyst_rating', tags: ['upgrade', 'downgrade', 'target', 'analyst'] },
+  { type: 'product_launch', tags: ['launch', 'release', 'product', 'chip', 'iphone', 'platform'] },
+  { type: 'partnership', tags: ['partnership', 'deal', 'agreement', 'collaboration'] },
+  { type: 'merger_acquisition', tags: ['acquisition', 'merger', 'buyout', 'takeover'] },
+  { type: 'regulation', tags: ['regulation', 'regulator', 'antitrust', 'ban', 'approval', 'sec', 'ftc'] },
+  { type: 'legal', tags: ['lawsuit', 'court', 'settlement', 'probe', 'investigation'] },
+  { type: 'cybersecurity', tags: ['hack', 'breach', 'cyber', 'security'] },
+  { type: 'macro', tags: ['fed', 'rates', 'inflation', 'tariff', 'macro', 'policy'] },
+  { type: 'adoption', tags: ['adoption', 'demand', 'sales', 'orders', 'customers'] }
+];
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
@@ -94,6 +113,119 @@ function normalizeHorizon(value: unknown): GeminiHeadlineFactor['impact_horizon'
   const lower = String(value || '').trim().toLowerCase();
   if (lower === 'immediate' || lower === 'near_term' || lower === 'medium_term') return lower;
   return 'near_term';
+}
+
+function structuredFactorsEnabled() {
+  return String(process.env.NOVA_NEWS_HEURISTIC_FACTORS_ENABLED || '1').trim().toLowerCase() !== '0';
+}
+
+function scoreHeadlineSentiment(text: string, baseLabel: NewsItemRecord['sentiment_label']) {
+  const lower = text.toLowerCase();
+  const pos = positiveTokens.filter((token) => lower.includes(token)).length;
+  const neg = negativeTokens.filter((token) => lower.includes(token)).length;
+  const labelBase =
+    baseLabel === 'POSITIVE' ? 0.28 : baseLabel === 'NEGATIVE' ? -0.28 : baseLabel === 'MIXED' ? 0.04 : 0;
+  return round(clamp(labelBase + pos * 0.12 - neg * 0.14, -1, 1));
+}
+
+function detectEventType(text: string) {
+  const lower = text.toLowerCase();
+  for (const rule of eventTypeMap) {
+    if (rule.tags.some((tag) => lower.includes(tag))) {
+      return rule.type;
+    }
+  }
+  return 'other';
+}
+
+function eventTypeToHorizon(eventType: string): GeminiHeadlineFactor['impact_horizon'] {
+  if (eventType === 'earnings' || eventType === 'analyst_rating' || eventType === 'legal' || eventType === 'regulation') {
+    return 'immediate';
+  }
+  if (eventType === 'product_launch' || eventType === 'partnership' || eventType === 'adoption') {
+    return 'medium_term';
+  }
+  return 'near_term';
+}
+
+function buildHeuristicNewsBatchFactors(args: {
+  market: Market;
+  symbol: string;
+  rows: NewsItemRecord[];
+}): GeminiBatchFactors | null {
+  const items = args.rows.slice(0, GEMINI_NEWS_MAX_HEADLINES).map((row) => {
+    const payload = parsePayload(row.payload_json);
+    const summary = typeof payload.summary === 'string' ? payload.summary : '';
+    const text = `${row.headline} ${summary}`.trim();
+    const eventType = detectEventType(text);
+    const sentimentScore = scoreHeadlineSentiment(text, row.sentiment_label);
+    const relevanceScore = round(clamp(Math.max(Number(row.relevance_score || 0), eventType === 'other' ? 0.35 : 0.48), 0, 1));
+    return {
+      id: row.id,
+      sentiment_score: sentimentScore,
+      relevance_score: relevanceScore,
+      event_type: eventType,
+      impact_horizon: eventTypeToHorizon(eventType),
+      thesis: (summary || row.headline).trim().slice(0, 180)
+    } satisfies GeminiHeadlineFactor;
+  });
+  if (!items.length) return null;
+
+  const avgSentiment = items.reduce((sum, row) => sum + row.sentiment_score, 0) / items.length;
+  const riskEventTypes = new Set(['legal', 'regulation', 'cybersecurity', 'macro', 'merger_acquisition']);
+  const macroTypes = new Set(['macro', 'regulation']);
+  const earningsTypes = new Set(['earnings', 'analyst_rating']);
+  const eventRiskScore = round(
+    clamp(
+      Math.max(...items.map((row) => (riskEventTypes.has(row.event_type) ? row.relevance_score : row.relevance_score * 0.55))),
+      0,
+      1
+    )
+  );
+  const macroPolicyScore = round(
+    clamp(
+      items.filter((row) => macroTypes.has(row.event_type)).reduce((sum, row) => sum + row.relevance_score, 0) /
+        Math.max(1, items.filter((row) => macroTypes.has(row.event_type)).length),
+      0,
+      1
+    )
+  );
+  const earningsImpactScore = round(
+    clamp(
+      items.filter((row) => earningsTypes.has(row.event_type)).reduce((sum, row) => sum + row.relevance_score, 0) /
+        Math.max(1, items.filter((row) => earningsTypes.has(row.event_type)).length),
+      0,
+      1
+    )
+  );
+  const factorTags = Array.from(new Set(items.map((row) => row.event_type).filter((row) => row !== 'other'))).slice(0, 8);
+  const positiveCount = items.filter((row) => row.sentiment_score >= 0.18).length;
+  const negativeCount = items.filter((row) => row.sentiment_score <= -0.18).length;
+  const tradingBias =
+    avgSentiment >= 0.16 ? 'BULLISH' : avgSentiment <= -0.16 ? 'BEARISH' : positiveCount && negativeCount ? 'MIXED' : 'NEUTRAL';
+  const biasLabel =
+    tradingBias === 'BULLISH'
+      ? 'headline flow is constructive'
+      : tradingBias === 'BEARISH'
+        ? 'headline flow is deteriorating'
+        : tradingBias === 'MIXED'
+          ? 'headline flow is mixed'
+          : 'headline flow is balanced';
+
+  return {
+    provider: 'heuristic',
+    symbol: args.symbol,
+    market: args.market,
+    generated_at: new Date().toISOString(),
+    summary: `${args.symbol} ${biasLabel}; dominant drivers: ${factorTags.length ? factorTags.join(', ') : 'general news flow'}.`,
+    sentiment_score: round(avgSentiment),
+    event_risk_score: eventRiskScore,
+    macro_policy_score: macroPolicyScore,
+    earnings_impact_score: earningsImpactScore,
+    trading_bias: tradingBias,
+    factor_tags: factorTags,
+    items
+  };
 }
 
 function normalizeFactors(raw: JsonObject, market: Market, symbol: string): GeminiBatchFactors {
@@ -246,7 +378,7 @@ export async function analyzeNewsBatchWithGemini(args: {
   if (waitMs > 0) {
     await new Promise((resolve) => setTimeout(resolve, waitMs));
   }
-  nextGeminiNewsRequestAtMs = Date.now() + 1250;
+  nextGeminiNewsRequestAtMs = Date.now() + GEMINI_NEWS_MIN_REQUEST_GAP_MS;
 
   const requestPayloads = [
     {
@@ -336,7 +468,9 @@ export async function enrichNewsRowsWithGeminiFactors(args: {
   rows: NewsItemRecord[];
 }): Promise<NewsItemRecord[]> {
   return geminiNewsFactorQueue(async () => {
-    const analysis = await analyzeNewsBatchWithGemini(args).catch(() => null);
+    const analysis =
+      (await analyzeNewsBatchWithGemini(args).catch(() => null)) ||
+      (structuredFactorsEnabled() ? buildHeuristicNewsBatchFactors(args) : null);
     if (!analysis) return args.rows;
 
     const itemById = new Map(analysis.items.map((row) => [row.id, row] as const));

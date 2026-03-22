@@ -6,6 +6,8 @@ import { buildPrivateMarvixOpsReport } from '../ops/privateMarvixOps.js';
 import { buildAlphaRegistrySummary } from '../alpha_registry/index.js';
 import { decodeSignalContract } from '../quant/service.js';
 import type { NovaTaskRunRecord } from '../types.js';
+import { readAlphaDiscoveryConfig } from '../alpha_discovery/index.js';
+import { readNewsPipelineConfig } from '../news/provider.js';
 
 type JsonObject = Record<string, unknown>;
 
@@ -413,6 +415,8 @@ export function buildAdminSignalsSnapshot() {
 export function buildAdminSystemSnapshot() {
   const repo = getRepo();
   const ops = buildPrivateMarvixOpsReport(repo);
+  const discoveryConfig = readAlphaDiscoveryConfig();
+  const newsPipeline = readNewsPipelineConfig();
   const newsItems = repo.listNewsItems({ limit: 60, sinceMs: Date.now() - 1000 * 60 * 60 * 72 });
   const factorTagMix = countBy(
     ops.recent_news_factors.flatMap((row) => (Array.isArray(row.factor_tags) ? row.factor_tags : [])),
@@ -420,6 +424,33 @@ export function buildAdminSystemSnapshot() {
   );
   const sourceMix = countBy(newsItems, (row) => row.source);
   const novaRuns = repo.listNovaTaskRuns({ limit: 60 });
+  const latestFreeData = ops.workflows.find((row) => row.workflow_key === 'free_data_flywheel') || null;
+  const latestDiscovery = ops.workflows.find((row) => row.workflow_key === 'alpha_discovery_loop') || null;
+  const latestShadow = ops.workflows.find((row) => row.workflow_key === 'alpha_shadow_runner') || null;
+  const factorCoveragePct = newsItems.length ? round((ops.recent_news_factors.length / newsItems.length) * 100, 1) : 0;
+  const diagnostics: Array<{ severity: 'INFO' | 'WARN'; title: string; detail: string }> = [];
+
+  if (newsItems.length >= 6 && ops.recent_news_factors.length === 0) {
+    diagnostics.push({
+      severity: 'WARN',
+      title: '新闻有流入，但结构化因子产出偏低',
+      detail: `近 72 小时新闻 ${newsItems.length} 条，但结构化因子为 0。当前已启用 heuristic 回退，仍建议继续观察 Gemini 与 NewsAPI 覆盖。`
+    });
+  }
+  if (discoveryConfig.intervalHours >= 8 || discoveryConfig.searchBudget <= 10) {
+    diagnostics.push({
+      severity: 'WARN',
+      title: 'Alpha 发现节奏偏保守',
+      detail: `当前 discovery 间隔 ${discoveryConfig.intervalHours} 小时，搜索预算 ${discoveryConfig.searchBudget}，更适合稳态筛选而不是高产探索。`
+    });
+  }
+  if (factorCoveragePct >= 25) {
+    diagnostics.push({
+      severity: 'INFO',
+      title: '新闻因子链已经开始沉淀',
+      detail: `近 72 小时结构化覆盖率 ${factorCoveragePct}% ，说明新闻到因子的主链正在工作。`
+    });
+  }
 
   return {
     generated_at: new Date().toISOString(),
@@ -433,11 +464,36 @@ export function buildAdminSystemSnapshot() {
     data_summary: {
       news_items_72h: newsItems.length,
       news_factor_count: ops.recent_news_factors.length,
+      news_factor_coverage_pct: factorCoveragePct,
       fundamentals_count: ops.reference_data.fundamentals.length,
       option_chain_count: ops.reference_data.option_chains.length,
       source_mix: sourceMix,
       factor_tag_mix: factorTagMix
     },
+    throughput_controls: {
+      alpha_discovery: {
+        interval_hours: discoveryConfig.intervalHours,
+        max_candidates_per_cycle: discoveryConfig.maxCandidatesPerCycle,
+        search_budget: discoveryConfig.searchBudget,
+        min_acceptance_score: discoveryConfig.minAcceptanceScore,
+        max_correlation_to_active: discoveryConfig.maxCorrelationToActive
+      },
+      news_pipeline: {
+        ttl_minutes: newsPipeline.ttl_minutes,
+        refresh_concurrency: newsPipeline.refresh_concurrency,
+        min_rows_for_expansion: newsPipeline.min_rows_for_expansion,
+        google_limit: newsPipeline.google_limit,
+        heuristic_factor_fallback: newsPipeline.heuristic_factor_fallback,
+        gemini_factor_concurrency: Math.max(1, Number(process.env.GEMINI_NEWS_CONCURRENCY || 3)),
+        gemini_request_gap_ms: Math.max(0, Number(process.env.GEMINI_NEWS_MIN_REQUEST_GAP_MS || 350))
+      }
+    },
+    throughput_recent: {
+      latest_free_data: latestFreeData?.summary || null,
+      latest_alpha_discovery: latestDiscovery?.summary || null,
+      latest_shadow_monitoring: latestShadow?.summary || null
+    },
+    diagnostics,
     workflows: ops.workflows,
     recent_news_factors: ops.recent_news_factors,
     reference_data: ops.reference_data,
@@ -488,7 +544,7 @@ export function buildAdminOverviewSnapshot() {
       {
         label: '因子与 AI 层',
         value: `${system.data_summary.news_factor_count} 条新闻因子`,
-        detail: `最近 AI 运行 ${system.ai_summary.total} 次，新闻源 ${system.data_summary.news_items_72h} 条。`
+        detail: `最近 AI 运行 ${system.ai_summary.total} 次，新闻源 ${system.data_summary.news_items_72h} 条，结构化覆盖 ${system.data_summary.news_factor_coverage_pct}%。`
       }
     ],
     guardrails: [

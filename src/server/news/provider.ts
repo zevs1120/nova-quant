@@ -7,9 +7,12 @@ import { fetchFinnhubNewsItems, fetchNewsApiItems } from '../ingestion/hostedDat
 import { logWarn } from '../utils/log.js';
 import { enrichNewsRowsWithGeminiFactors } from './geminiFactors.js';
 
-const NEWS_TTL_MS = 1000 * 60 * 90;
+const NEWS_TTL_MINUTES = Math.max(5, Number(process.env.NOVA_NEWS_TTL_MINUTES || 30));
+const NEWS_TTL_MS = 1000 * 60 * NEWS_TTL_MINUTES;
 const NEWS_TIMEOUT_MS = 2600;
-const NEWS_CONCURRENCY = 4;
+const NEWS_CONCURRENCY = Math.max(1, Number(process.env.NOVA_NEWS_CONCURRENCY || 6));
+const NEWS_MIN_ROWS_FOR_EXPANSION = Math.max(4, Number(process.env.NOVA_NEWS_MIN_ROWS_FOR_EXPANSION || 8));
+const GOOGLE_NEWS_ITEM_LIMIT = Math.max(4, Number(process.env.NOVA_NEWS_GOOGLE_LIMIT || 8));
 const positiveTokens = ['beat', 'surge', 'growth', 'record', 'bullish', 'upgrade', 'approval', 'partnership', 'launch', 'buyback'];
 const negativeTokens = ['miss', 'drop', 'lawsuit', 'downgrade', 'risk', 'probe', 'ban', 'hack', 'fraud', 'delay', 'cuts'];
 
@@ -43,6 +46,16 @@ function parsePayloadJson(text: string | null | undefined): Record<string, unkno
   } catch {
     return {};
   }
+}
+
+export function readNewsPipelineConfig() {
+  return {
+    ttl_minutes: NEWS_TTL_MINUTES,
+    refresh_concurrency: NEWS_CONCURRENCY,
+    min_rows_for_expansion: NEWS_MIN_ROWS_FOR_EXPANSION,
+    google_limit: GOOGLE_NEWS_ITEM_LIMIT,
+    heuristic_factor_fallback: String(process.env.NOVA_NEWS_HEURISTIC_FACTORS_ENABLED || '1').trim().toLowerCase() !== '0'
+  };
 }
 
 function hasGeminiAnalysis(row: NewsItemRecord): boolean {
@@ -150,7 +163,7 @@ function extractDescriptionParts(item: string): { summary: string | null; imageU
 }
 
 function parseGoogleNewsRss(xml: string, market: Market, symbol: string): NewsItemRecord[] {
-  const items = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)].slice(0, 6);
+  const items = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)].slice(0, GOOGLE_NEWS_ITEM_LIMIT);
   const now = Date.now();
   return items.map((match, index) => {
     const item = match[1] || '';
@@ -232,10 +245,12 @@ function dedupeNewsRows(rows: NewsItemRecord[]): NewsItemRecord[] {
 
 async function fetchMultiSourceNewsItems(market: Market, symbol: string): Promise<NewsItemRecord[]> {
   const query = market === 'CRYPTO' ? `${aliasQuery(market, symbol)} crypto` : `${aliasQuery(market, symbol)} stock`;
-  const googleRows = await fetchGoogleNewsItems(market, symbol).catch(() => []);
-  const finnhubRows = await fetchFinnhubNewsItems(market, symbol).catch(() => []);
+  const [googleRows, finnhubRows] = await Promise.all([
+    fetchGoogleNewsItems(market, symbol).catch(() => []),
+    fetchFinnhubNewsItems(market, symbol).catch(() => [])
+  ]);
   const mergedPrimary = dedupeNewsRows([...googleRows, ...finnhubRows]);
-  if (mergedPrimary.length >= 6) return mergedPrimary;
+  if (mergedPrimary.length >= NEWS_MIN_ROWS_FOR_EXPANSION) return mergedPrimary;
   const newsApiRows = await fetchNewsApiItems(market, symbol, query).catch(() => []);
   return dedupeNewsRows([...mergedPrimary, ...newsApiRows]);
 }

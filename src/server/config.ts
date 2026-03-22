@@ -71,16 +71,16 @@ function buildFallbackConfig(): AppConfig {
     },
     alphaDiscovery: {
       enabled: true,
-      schedule: 'every-12-hours',
-      maxCandidatesPerCycle: 18,
-      searchBudget: 8,
-      minAcceptanceScore: 0.74,
+      schedule: 'every-4-hours',
+      maxCandidatesPerCycle: 32,
+      searchBudget: 18,
+      minAcceptanceScore: 0.66,
       shadowPromotionThresholds: {
-        minSampleSize: 16,
+        minSampleSize: 12,
         minSharpe: 0.45,
         minExpectancy: 0.0015,
         maxDrawdown: 0.18,
-        maxCorrelation: 0.72,
+        maxCorrelation: 0.8,
         minApprovalRate: 0.45
       },
       retirementThresholds: {
