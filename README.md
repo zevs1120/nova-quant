@@ -9,6 +9,27 @@ Browse search can now merge external market results into `/api/assets/search`. B
 It is designed to help self-directed traders reduce emotional trading and execute with discipline.
 It is **not** a blind auto-trading bot and does **not** fabricate live performance.
 
+## Monorepo Deployment Layout
+
+This repository now supports a strict four-part deployment layout:
+
+- `app/`: user-facing H5 frontend on Vercel
+- `server/`: pure API layer on Vercel
+- `admin/`: internal control dashboard on Vercel
+- `model/`: EC2-side model boundary and signal contract
+
+Production domains should be split as:
+
+- `https://novaquant.cloud` -> `app/`
+- `https://api.novaquant.cloud` -> `server/`
+- `https://admin.novaquant.cloud` -> `admin/`
+
+Runtime rules:
+
+- `app/` and `admin/` call API only
+- `server/` is the only layer allowed to read/write the database
+- `model/` pushes standardized signals to `server/` and does not touch user data
+
 ## What This Repository Now Guarantees
 
 - Fresh-environment friendly: `npm ci`, `npm run typecheck`, `npm test`, `npm run build`, and `npm run verify`

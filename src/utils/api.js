@@ -17,6 +17,10 @@ function unique(values) {
   return next;
 }
 
+function isLocalHost(hostname) {
+  return hostname === 'localhost' || hostname === '127.0.0.1';
+}
+
 function runtimeApiBases() {
   const envBases = unique([
     trimTrailingSlash(import.meta.env?.VITE_API_BASE_URL),
@@ -25,14 +29,21 @@ function runtimeApiBases() {
 
   if (typeof window === 'undefined') return envBases;
 
-  const localBases = [];
   const hostname = String(window.location?.hostname || '');
-  const protocol = String(window.location?.protocol || '');
-  if (protocol === 'file:' || hostname === 'localhost' || hostname === '127.0.0.1') {
-    localBases.push('http://127.0.0.1:8787', 'http://localhost:8787');
+  const protocol = String(window.location?.protocol || 'https:');
+  if (protocol === 'file:' || isLocalHost(hostname)) {
+    return unique([...envBases, 'http://127.0.0.1:8787', 'http://localhost:8787', '']);
   }
 
-  return unique([...envBases, ...localBases]);
+  if (hostname === 'api.novaquant.cloud') {
+    return unique([...envBases, '']);
+  }
+
+  if (hostname === 'novaquant.cloud' || hostname === 'admin.novaquant.cloud' || hostname.endsWith('.novaquant.cloud')) {
+    return unique([...envBases, 'https://api.novaquant.cloud']);
+  }
+
+  return unique([...envBases, 'https://api.novaquant.cloud']);
 }
 
 export function buildApiUrl(path, base = '') {
@@ -41,28 +52,37 @@ export function buildApiUrl(path, base = '') {
   return `${trimTrailingSlash(base)}${normalizedPath}`;
 }
 
-export async function fetchApiJson(path, options = {}) {
-  const candidates = unique([cachedApiBase, '', ...runtimeApiBases()]);
+export function resolveApiUrl(path) {
+  return buildApiUrl(path, cachedApiBase ?? runtimeApiBases()[0] ?? '');
+}
+
+export async function fetchApi(path, options = {}) {
+  const candidates = unique([cachedApiBase, ...runtimeApiBases()]);
   let lastError = null;
 
   for (const base of candidates) {
-    const isCrossOrigin = Boolean(base);
     const url = buildApiUrl(path, base);
     try {
       const response = await fetch(url, {
         ...options,
-        mode: isCrossOrigin ? 'cors' : options.mode,
-        credentials: options.credentials ?? (isCrossOrigin ? 'omit' : 'same-origin')
+        mode: base ? 'cors' : options.mode,
+        credentials: options.credentials ?? 'include'
       });
-      if (!response.ok) {
-        throw new Error(`${url} failed (${response.status})`);
-      }
       cachedApiBase = base;
-      return response.json();
+      return response;
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
     }
   }
 
   throw lastError || new Error(`Unable to reach API for ${path}`);
+}
+
+export async function fetchApiJson(path, options = {}) {
+  const response = await fetchApi(path, options);
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
+    throw new Error(payload?.error || `${resolveApiUrl(path)} failed (${response.status})`);
+  }
+  return response.json();
 }

@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://api.novaquant.cloud/schemas/model-signal.schema.json",
+  "title": "NovaQuant Model Signal",
+  "type": "object",
+  "required": [
+    "market",
+    "symbol",
+    "side",
+    "entry",
+    "stop",
+    "take1",
+    "risk",
+    "strategy",
+    "time"
+  ],
+  "properties": {
+    "market": {
+      "type": "string",
+      "enum": ["US", "CRYPTO"]
+    },
+    "symbol": {
+      "type": "string",
+      "minLength": 1
+    },
+    "side": {
+      "type": "string",
+      "enum": ["LONG", "SHORT"]
+    },
+    "entry": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "stop": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "take1": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "take2": {
+      "type": ["number", "null"],
+      "exclusiveMinimum": 0
+    },
+    "risk": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "strategy": {
+      "type": "string",
+      "minLength": 1
+    },
+    "time": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "additionalProperties": false
+}

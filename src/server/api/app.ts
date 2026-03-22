@@ -21,6 +21,7 @@ import {
   handleAdminSystem,
   handleAdminUsers
 } from './adminHandlers.js';
+import { handleModelHeartbeat, handleModelSignalIngest } from './modelHandlers.js';
 import {
   completeMorningCheck,
   completeWeeklyReview,
@@ -151,12 +152,25 @@ function parseSignalStatus(value?: string): 'ALL' | 'NEW' | 'TRIGGERED' | 'EXPIR
 export function createApiApp() {
   const app = express();
   app.use(express.json({ limit: '1mb' }));
-  const adminAllowedOrigins = new Set(
-    String(process.env.NOVA_ADMIN_ALLOWED_ORIGINS || 'https://admin.novaquant.cloud,http://localhost:4174,http://127.0.0.1:4174')
+  const appAllowedOrigins = new Set(
+    String(
+      process.env.NOVA_APP_ALLOWED_ORIGINS ||
+        'https://novaquant.cloud,http://localhost:4173,http://127.0.0.1:4173,http://localhost:5173,http://127.0.0.1:5173'
+    )
       .split(',')
       .map((row) => String(row || '').trim())
       .filter(Boolean)
   );
+  const adminAllowedOrigins = new Set(
+    String(
+      process.env.NOVA_ADMIN_ALLOWED_ORIGINS ||
+        'https://admin.novaquant.cloud,http://localhost:4174,http://127.0.0.1:4174,http://localhost:5174,http://127.0.0.1:5174'
+    )
+      .split(',')
+      .map((row) => String(row || '').trim())
+      .filter(Boolean)
+  );
+  const firstPartyOrigins = new Set([...appAllowedOrigins, ...adminAllowedOrigins]);
   const requireLoopbackOnly = (req: express.Request, res: express.Response, next: express.NextFunction) => {
     const remote = req.socket.remoteAddress || req.ip || null;
     if (!isLoopbackAddress(remote)) {
@@ -167,8 +181,8 @@ export function createApiApp() {
   };
   app.use((req, res, next) => {
     const origin = req.header('origin') || '';
-    const isAdminApi = req.path.startsWith('/api/admin/');
-    if (isAdminApi && origin && adminAllowedOrigins.has(origin)) {
+    const isFirstPartyApi = req.path.startsWith('/api/') && origin && firstPartyOrigins.has(origin);
+    if (isFirstPartyApi) {
       res.setHeader('Access-Control-Allow-Origin', origin);
       res.setHeader('Vary', 'Origin');
       res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -236,6 +250,9 @@ export function createApiApp() {
   app.get('/api/admin/alphas', handleAdminAlphas);
   app.get('/api/admin/signals', handleAdminSignals);
   app.get('/api/admin/system', handleAdminSystem);
+
+  app.post('/api/model/signals/ingest', handleModelSignalIngest);
+  app.post('/api/model/heartbeat', handleModelHeartbeat);
 
   app.get('/api/auth/session', handleAuthSession);
   app.post('/api/auth/signup', handleAuthSignup);

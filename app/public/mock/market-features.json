@@ -1,0 +1,77 @@
+{
+  "last_updated": "2026-03-05T13:30:00Z",
+  "modules": [
+    {
+      "id": "md-ai-trend",
+      "market": "US",
+      "asset_class": "US_STOCK",
+      "title": "AI Trend Forecasts",
+      "summary": "Top trend continuation cluster is Tech + Semis.",
+      "metric": "Bullish breadth 68%"
+    },
+    {
+      "id": "md-options-flow",
+      "market": "US",
+      "asset_class": "OPTIONS",
+      "title": "Real-time Options Order Flow",
+      "summary": "Call/put imbalance elevated in index weekly contracts.",
+      "metric": "Flow score +1.37"
+    },
+    {
+      "id": "md-dark-pool",
+      "market": "US",
+      "asset_class": "US_STOCK",
+      "title": "Dark Pool Activity",
+      "summary": "Notional prints concentrated in mega-cap support bands.",
+      "metric": "DP ratio 1.21"
+    },
+    {
+      "id": "md-sentiment-mtf",
+      "market": "US",
+      "asset_class": "US_STOCK",
+      "title": "Sentiment Multi-Timeframe",
+      "summary": "Short-term sentiment cooled while medium-term remains constructive.",
+      "metric": "5D 54 / 20D 63"
+    },
+    {
+      "id": "md-sector-rank",
+      "market": "US",
+      "asset_class": "US_STOCK",
+      "title": "Sector Performance Ranking",
+      "summary": "Leadership: Semis > Software > Industrials.",
+      "metric": "Top sector +2.8%"
+    },
+    {
+      "id": "md-earnings-cal",
+      "market": "US",
+      "asset_class": "US_STOCK",
+      "title": "Earnings Calendar",
+      "summary": "Near-term catalysts elevated for AI hardware names.",
+      "metric": "Next 48h: 6 key events"
+    },
+    {
+      "id": "cr-funding-basis",
+      "market": "CRYPTO",
+      "asset_class": "CRYPTO",
+      "title": "Funding & Basis Dashboard",
+      "summary": "Funding neutral-to-positive, basis percentile rising but not crowded.",
+      "metric": "State: Carry-favorable"
+    },
+    {
+      "id": "cr-regime",
+      "market": "CRYPTO",
+      "asset_class": "CRYPTO",
+      "title": "Crypto Sentiment / Regime",
+      "summary": "BTC risk-on gauge stable; Nasdaq correlation moderate.",
+      "metric": "Risk-on gauge 0.62"
+    },
+    {
+      "id": "cr-ex-health",
+      "market": "CRYPTO",
+      "asset_class": "CRYPTO",
+      "title": "Exchange Health",
+      "summary": "Spreads normal on majors; volatility spikes contained.",
+      "metric": "Liquidity: Medium-High"
+    }
+  ]
+}

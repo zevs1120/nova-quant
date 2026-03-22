@@ -1,0 +1,30 @@
+{
+  "current": 1.23,
+  "percentile": 0.92,
+  "regime": "RISK_ON",
+  "stats": {
+    "n_events": 27,
+    "next_7d_up_prob": 0.63,
+    "avg_move": 0.018,
+    "avg_dd": 0.012
+  },
+  "rule_summary": "When velocity is extreme, we size down first and only re-risk after normalization.",
+  "how_used": [
+    "High percentile above 90th: reduce gross exposure by one risk bucket.",
+    "Falling back below threshold: restore base sizing in two steps.",
+    "If volatility stays extreme: no chasing, only defensive entries."
+  ],
+  "last_updated": "2026-03-01T10:28:00Z",
+  "rule_summary_en": "When velocity is extreme, we size down first and only re-risk after normalization.",
+  "rule_summary_zh": "当速度指标处于极端区间时，先降风险，再等待归一后逐步恢复仓位。",
+  "how_used_en": [
+    "High percentile above 90th: reduce gross exposure by one risk bucket.",
+    "Falling back below threshold: restore base sizing in two steps.",
+    "If volatility stays extreme: no chasing, only defensive entries."
+  ],
+  "how_used_zh": [
+    "分位数超过 90%：总风险敞口下调一个风险桶。",
+    "指标回落至阈值下方：分两步恢复基础仓位。",
+    "若极端波动持续：只做防守型入场，不追涨杀跌。"
+  ]
+}

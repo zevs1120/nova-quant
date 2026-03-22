@@ -1,18 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocalStorage } from './useLocalStorage';
 import { detectMessageLanguage } from '../utils/assistantLanguage';
+import { fetchApi, fetchApiJson } from '../utils/api';
 
 function randomId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-}
-
-async function fetchJson(url, options) {
-  const response = await fetch(url, options);
-  if (!response.ok) {
-    const payload = await response.json().catch(() => ({}));
-    throw new Error(payload.error || `${url} failed (${response.status})`);
-  }
-  return response.json();
 }
 
 function normalizeMessages(rows = []) {
@@ -88,11 +80,12 @@ export function useNovaAssistant({ userId, seedRequest, contextBase }) {
       ]);
 
       try {
-        const response = await fetch('/api/chat', {
+        const response = await fetchApi('/api/chat', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           },
+          credentials: 'include',
           body: JSON.stringify({
             userId,
             threadId: activeThreadId || undefined,

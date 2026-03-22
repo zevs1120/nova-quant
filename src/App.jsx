@@ -20,7 +20,7 @@ import { runQuantPipeline } from './engines/pipeline';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { createTranslator, getDefaultLang, getLocale } from './i18n';
 import { buildHoldingsReview } from './research/holdingsAnalyzer';
-import { fetchApiJson } from './utils/api';
+import { fetchApi, fetchApiJson } from './utils/api';
 import { primeBrowseHomeBundle, primeBrowseUniverseBundle } from './utils/browseWarmup';
 import {
   buildInvestorDemoEnvironment,
@@ -248,12 +248,8 @@ function detectDisplayMode() {
 }
 
 async function fetchJson(url, options) {
-  const method = String(options?.method || 'GET').toUpperCase();
-  if (method === 'GET') {
-    return fetchApiJson(url, options);
-  }
-  const response = await fetch(url, {
-    credentials: 'same-origin',
+  const response = await fetchApi(url, {
+    credentials: 'include',
     ...(options || {})
   });
   if (!response.ok) {
