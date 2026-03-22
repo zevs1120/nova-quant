@@ -151,10 +151,14 @@ function isLocalAuthRuntime() {
 function classifyAuthError(error, locale) {
   const zh = locale?.startsWith('zh');
   const message = String(error?.message || '');
-  if (message.includes('(401)')) {
+  if (message.includes('(401)') || message.includes('INVALID_CREDENTIALS')) {
     return zh ? '账号或密码错误。' : 'The email or password is incorrect.';
   }
-  if (message.includes('(503)')) {
+  if (
+    message.includes('(503)') ||
+    message.includes('AUTH_STORE_NOT_CONFIGURED') ||
+    message.includes('AUTH_STORE_UNREACHABLE')
+  ) {
     return zh
       ? '登录服务当前未连上远端账户存储。请检查线上认证配置后再试。'
       : 'The login service cannot reach its remote auth store right now.';
@@ -2651,12 +2655,15 @@ export default function App() {
               expiresInMinutes: payload.expiresInMinutes || 15
             };
           } catch (error) {
+            const message = String(error?.message || '');
             return {
               ok: false,
               error:
-                String(error?.message || '').includes('(404)') ||
-                String(error?.message || '').includes('(500)') ||
-                String(error?.message || '').includes('(503)')
+                message.includes('(404)') ||
+                message.includes('(500)') ||
+                message.includes('(503)') ||
+                message.includes('AUTH_STORE_NOT_CONFIGURED') ||
+                message.includes('AUTH_STORE_UNREACHABLE')
                   ? locale?.startsWith('zh')
                     ? isLocalAuthRuntime()
                       ? '重置服务未连接。请先启动本地 API：npm run api:data'
@@ -2679,14 +2686,23 @@ export default function App() {
             });
             return { ok: true };
           } catch (error) {
+            const message = String(error?.message || '');
             return {
               ok: false,
               error:
-                String(error?.message || '').includes('(400)')
+                message.includes('(400)') ||
+                message.includes('INVALID_RESET_CODE') ||
+                message.includes('WEAK_PASSWORD')
                   ? locale?.startsWith('zh')
                     ? '重置码无效，或密码不符合要求。'
                     : 'The reset code is invalid, or the password is too weak.'
-                  : locale?.startsWith('zh')
+                  : message.includes('(503)') ||
+                      message.includes('AUTH_STORE_NOT_CONFIGURED') ||
+                      message.includes('AUTH_STORE_UNREACHABLE')
+                    ? locale?.startsWith('zh')
+                      ? '重置服务当前未连上远端账户存储。请检查线上认证配置后再试。'
+                      : 'The reset service cannot reach its remote auth store right now.'
+                    : locale?.startsWith('zh')
                     ? isLocalAuthRuntime()
                       ? '重置服务未连接。请先启动本地 API：npm run api:data'
                       : '重置服务暂时不可用。请稍后再试。'
@@ -2716,10 +2732,20 @@ export default function App() {
             const message = String(error?.message || '');
             return {
               ok: false,
-              error: message.includes('(400)')
+              error:
+                message.includes('(400)') ||
+                message.includes('EMAIL_EXISTS') ||
+                message.includes('INVALID_EMAIL') ||
+                message.includes('WEAK_PASSWORD')
                 ? locale?.startsWith('zh')
                   ? '这个邮箱已经存在，或注册信息无效。'
                   : 'That email already exists, or the signup details are invalid.'
+                : message.includes('(503)') ||
+                    message.includes('AUTH_STORE_NOT_CONFIGURED') ||
+                    message.includes('AUTH_STORE_UNREACHABLE')
+                  ? locale?.startsWith('zh')
+                    ? '注册服务当前未连上远端账户存储。请检查线上认证配置后再试。'
+                    : 'The signup service cannot reach its remote auth store right now.'
                 : locale?.startsWith('zh')
                   ? isLocalAuthRuntime()
                     ? '注册服务未连接。请先启动本地 API：npm run api:data'

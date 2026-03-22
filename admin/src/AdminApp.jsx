@@ -77,7 +77,13 @@ export default function AdminApp() {
             setSession(payload);
           } catch (error) {
             const code = String(error?.message || 'ADMIN_ACCESS_DENIED');
-            setAuthError(code === 'INVALID_CREDENTIALS' ? '邮箱或密码错误。' : '当前账号没有管理员权限。');
+            setAuthError(
+              code === 'INVALID_CREDENTIALS'
+                ? '邮箱或密码错误。'
+                : code === 'AUTH_STORE_NOT_CONFIGURED' || code === 'AUTH_STORE_UNREACHABLE' || code === 'AUTH_SERVICE_ERROR'
+                  ? '管理员登录服务当前未连上认证存储。'
+                  : '当前账号没有管理员权限。'
+            );
           } finally {
             setAuthLoading(false);
           }
