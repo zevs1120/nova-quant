@@ -16,11 +16,27 @@ function buildFallbackConfig(): AppConfig {
     markets: {
       US: {
         venue: 'STOOQ',
-        symbols: ['SPY', 'QQQ', 'AAPL', 'MSFT', 'NVDA']
+        symbols: [
+          'SPY', 'QQQ', 'IWM', 'DIA', 'XLK', 'XLF', 'XLE', 'XLV', 'XLI', 'XLY',
+          'XLP', 'XLU', 'XLB', 'XLC', 'SMH', 'SOXX', 'TLT', 'GLD', 'SLV', 'AAPL',
+          'MSFT', 'NVDA', 'AMZN', 'GOOGL', 'META', 'TSLA', 'AMD', 'AVGO', 'NFLX', 'JPM',
+          'GS', 'BAC', 'WFC', 'MS', 'COIN', 'MSTR', 'PLTR', 'CRM', 'ORCL', 'MU', 'UBER'
+        ]
       },
       CRYPTO: {
         venue: 'BINANCE_UM',
-        symbols: ['BTCUSDT', 'ETHUSDT']
+        symbols: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'ADAUSDT', 'DOGEUSDT', 'LINKUSDT', 'AVAXUSDT', 'SUIUSDT']
+      }
+    },
+    serviceEnvelope: {
+      targetActiveClients: 50,
+      targetDailySymbols: 50,
+      targetDailyActionCards: {
+        conservative: 10,
+        balanced: 12,
+        aggressive: 15,
+        min: 10,
+        max: 15
       }
     },
     timeframes: ['5m', '1h', '1d'],
@@ -72,15 +88,24 @@ function buildFallbackConfig(): AppConfig {
     alphaDiscovery: {
       enabled: true,
       schedule: 'every-4-hours',
-      maxCandidatesPerCycle: 32,
-      searchBudget: 18,
-      minAcceptanceScore: 0.66,
+      maxCandidatesPerCycle: 64,
+      searchBudget: 36,
+      minAcceptanceScore: 0.64,
+      familyCoverageTargets: {
+        trend_continuation_refinement: 18,
+        mean_reversion_refinement: 8,
+        volatility_expansion_compression: 8,
+        liquidity_volume_regime_filter: 12,
+        cross_asset_lead_lag: 6,
+        funding_basis_perp_structure: 6,
+        confidence_calibration_overlay: 6
+      },
       shadowAdmissionThresholds: {
-        minAcceptanceScore: 0.58,
+        minAcceptanceScore: 0.56,
         maxDrawdown: 0.28
       },
       shadowPromotionThresholds: {
-        minSampleSize: 12,
+        minSampleSize: 10,
         minSharpe: 0.45,
         minExpectancy: 0.0015,
         maxDrawdown: 0.18,

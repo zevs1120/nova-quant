@@ -29,6 +29,7 @@ export type AlphaDiscoveryConfig = {
   maxCandidatesPerCycle: number;
   searchBudget: number;
   minAcceptanceScore: number;
+  familyCoverageTargets: Record<string, number>;
   maxCorrelationToActive: number;
   simplicityBias: number;
   allowProdPromotion: boolean;
@@ -251,6 +252,37 @@ function dedupeCandidates(candidates: AutonomousAlphaCandidate[]) {
   return [...byId.values()];
 }
 
+function rebalanceCandidateFamilies(candidates: AutonomousAlphaCandidate[], targets: Record<string, number>, limit: number) {
+  const grouped = new Map<string, AutonomousAlphaCandidate[]>();
+  for (const candidate of candidates) {
+    const family = String(candidate.family || 'unknown');
+    if (!grouped.has(family)) grouped.set(family, []);
+    grouped.get(family)!.push(candidate);
+  }
+
+  const selected: AutonomousAlphaCandidate[] = [];
+  const seen = new Set<string>();
+
+  for (const [family, desired] of Object.entries(targets || {})) {
+    const bucket = grouped.get(family) || [];
+    for (const candidate of bucket.slice(0, Math.max(0, Number(desired || 0)))) {
+      if (seen.has(candidate.id)) continue;
+      selected.push(candidate);
+      seen.add(candidate.id);
+      if (selected.length >= limit) return selected;
+    }
+  }
+
+  for (const candidate of candidates) {
+    if (seen.has(candidate.id)) continue;
+    selected.push(candidate);
+    seen.add(candidate.id);
+    if (selected.length >= limit) break;
+  }
+
+  return selected;
+}
+
 function dominantRegime(repo: MarketRepository) {
   const rows = repo.listMarketState();
   const counts = new Map<string, number>();
@@ -324,16 +356,16 @@ function buildDiscoveryUniverse(repo: MarketRepository, config: AlphaDiscoveryCo
     remainingBudget -= next.length;
   }
 
+  const candidateLimit = config.maxCandidatesPerCycle + config.searchBudget + overlaySeeds.length;
+  const deduped = dedupeCandidates([...baseCandidates, ...overlaySeeds, ...mutations]);
+
   return {
     context,
     seedRuntime,
     hypothesisRegistry,
     templateRegistry,
     generated,
-    candidates: dedupeCandidates([...baseCandidates, ...overlaySeeds, ...mutations]).slice(
-      0,
-      config.maxCandidatesPerCycle + config.searchBudget + overlaySeeds.length
-    )
+    candidates: rebalanceCandidateFamilies(deduped, config.familyCoverageTargets, candidateLimit)
   };
 }
 
@@ -373,10 +405,26 @@ export function readAlphaDiscoveryConfig(config = getConfig()): AlphaDiscoveryCo
     ),
     minAcceptanceScore: parseNumberEnv(
       process.env.NOVA_ALPHA_DISCOVERY_MIN_ACCEPTANCE_SCORE,
-      Number(fileConfig.minAcceptanceScore || 0.74),
+      Number(fileConfig.minAcceptanceScore || 0.64),
       0.3,
       1
     ),
+    familyCoverageTargets: Object.keys(fileConfig.familyCoverageTargets || {}).length
+      ? Object.fromEntries(
+          Object.entries(fileConfig.familyCoverageTargets || {}).map(([family, value]) => [
+            family,
+            parseNumberEnv(undefined, Number(value || 0), 0, 64)
+          ])
+        )
+      : {
+          trend_continuation_refinement: 18,
+          mean_reversion_refinement: 8,
+          volatility_expansion_compression: 8,
+          liquidity_volume_regime_filter: 12,
+          cross_asset_lead_lag: 6,
+          funding_basis_perp_structure: 6,
+          confidence_calibration_overlay: 6
+        },
     maxCorrelationToActive: parseNumberEnv(
       process.env.NOVA_ALPHA_DISCOVERY_MAX_CORRELATION,
       Number(shadowConfig.maxCorrelation || 0.72),

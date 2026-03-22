@@ -524,12 +524,24 @@ export interface AppConfig {
     requestDelayMs: number;
     timeoutMs: number;
   };
+  serviceEnvelope?: {
+    targetActiveClients?: number;
+    targetDailySymbols?: number;
+    targetDailyActionCards?: {
+      conservative?: number;
+      balanced?: number;
+      aggressive?: number;
+      min?: number;
+      max?: number;
+    };
+  };
   alphaDiscovery?: {
     enabled?: boolean;
     schedule?: string;
     maxCandidatesPerCycle?: number;
     searchBudget?: number;
     minAcceptanceScore?: number;
+    familyCoverageTargets?: Record<string, number>;
     shadowAdmissionThresholds?: {
       minAcceptanceScore?: number;
       maxDrawdown?: number;

@@ -116,8 +116,16 @@ export default function SystemHealthPage() {
           </div>
           <div className="source-card-grid">
             <article className="source-card">
+              <strong>服务容量目标</strong>
+              <p>目标客户 {throughputControls.service_envelope?.target_active_clients || 0} 人，目标标的 {throughputControls.service_envelope?.target_daily_symbols || 0} 个，行动卡 {throughputControls.service_envelope?.action_cards?.conservative || 0}/{throughputControls.service_envelope?.action_cards?.balanced || 0}/{throughputControls.service_envelope?.action_cards?.aggressive || 0}。</p>
+            </article>
+            <article className="source-card">
               <strong>Alpha Discovery</strong>
               <p>间隔 {throughputControls.alpha_discovery?.interval_hours || 0} 小时，每轮 {throughputControls.alpha_discovery?.max_candidates_per_cycle || 0} 个候选，搜索预算 {throughputControls.alpha_discovery?.search_budget || 0}。</p>
+            </article>
+            <article className="source-card">
+              <strong>Family 配额</strong>
+              <p>{Object.entries(throughputControls.alpha_discovery?.family_coverage_targets || {}).map(([family, value]) => `${family}:${value}`).join(' / ') || '未配置'}</p>
             </article>
             <article className="source-card">
               <strong>新闻刷新</strong>

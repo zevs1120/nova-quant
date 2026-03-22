@@ -8,6 +8,7 @@ import { decodeSignalContract } from '../quant/service.js';
 import type { NovaTaskRunRecord } from '../types.js';
 import { readAlphaDiscoveryConfig } from '../alpha_discovery/index.js';
 import { readNewsPipelineConfig } from '../news/provider.js';
+import { getConfig } from '../config.js';
 
 type JsonObject = Record<string, unknown>;
 
@@ -414,6 +415,7 @@ export function buildAdminSignalsSnapshot() {
 
 export function buildAdminSystemSnapshot() {
   const repo = getRepo();
+  const config = getConfig();
   const ops = buildPrivateMarvixOpsReport(repo);
   const discoveryConfig = readAlphaDiscoveryConfig();
   const newsPipeline = readNewsPipelineConfig();
@@ -471,11 +473,23 @@ export function buildAdminSystemSnapshot() {
       factor_tag_mix: factorTagMix
     },
     throughput_controls: {
+      service_envelope: {
+        target_active_clients: config.serviceEnvelope?.targetActiveClients || 50,
+        target_daily_symbols: config.serviceEnvelope?.targetDailySymbols || 50,
+        us_symbol_universe: config.markets.US.symbols.length,
+        crypto_symbol_universe: config.markets.CRYPTO.symbols.length,
+        action_cards: {
+          conservative: Number(process.env.NOVA_ACTION_CARD_LIMIT_CONSERVATIVE || config.serviceEnvelope?.targetDailyActionCards?.conservative || 10),
+          balanced: Number(process.env.NOVA_ACTION_CARD_LIMIT_BALANCED || config.serviceEnvelope?.targetDailyActionCards?.balanced || 12),
+          aggressive: Number(process.env.NOVA_ACTION_CARD_LIMIT_AGGRESSIVE || config.serviceEnvelope?.targetDailyActionCards?.aggressive || 15)
+        }
+      },
       alpha_discovery: {
         interval_hours: discoveryConfig.intervalHours,
         max_candidates_per_cycle: discoveryConfig.maxCandidatesPerCycle,
         search_budget: discoveryConfig.searchBudget,
         min_acceptance_score: discoveryConfig.minAcceptanceScore,
+        family_coverage_targets: discoveryConfig.familyCoverageTargets,
         shadow_admission_min_acceptance_score: discoveryConfig.shadowAdmissionThresholds.minAcceptanceScore,
         shadow_admission_max_drawdown: discoveryConfig.shadowAdmissionThresholds.maxDrawdown,
         max_correlation_to_active: discoveryConfig.maxCorrelationToActive

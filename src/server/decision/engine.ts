@@ -8,6 +8,7 @@ import type {
   UserRiskProfileRecord
 } from '../types.js';
 import { RUNTIME_STATUS, normalizeRuntimeStatus } from '../runtimeStatus.js';
+import { getConfig } from '../config.js';
 import {
   getDailyStanceCopy,
   getPortfolioActionLabel,
@@ -879,10 +880,15 @@ function buildNoActionCard(args: {
 }
 
 function determineActionCardLimit(riskProfile?: UserRiskProfileRecord | null) {
+  const config = getConfig();
+  const target = config.serviceEnvelope?.targetDailyActionCards || {};
   const key = String(riskProfile?.profile_key || 'balanced').toLowerCase();
-  if (key === 'aggressive') return 12;
-  if (key === 'conservative') return 8;
-  return 10;
+  const conservative = Math.max(6, Math.min(20, Number(process.env.NOVA_ACTION_CARD_LIMIT_CONSERVATIVE || target.conservative || target.min || 10)));
+  const balanced = Math.max(conservative, Math.min(20, Number(process.env.NOVA_ACTION_CARD_LIMIT_BALANCED || target.balanced || 12)));
+  const aggressive = Math.max(balanced, Math.min(24, Number(process.env.NOVA_ACTION_CARD_LIMIT_AGGRESSIVE || target.aggressive || target.max || 15)));
+  if (key === 'aggressive') return aggressive;
+  if (key === 'conservative') return conservative;
+  return balanced;
 }
 
 function countBy<T>(rows: T[], getKey: (row: T) => string) {
