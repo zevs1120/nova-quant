@@ -51,6 +51,22 @@ function resolveApiPath(req: VercelRequest) {
   return pathname;
 }
 
+function buildForwardUrl(req: VercelRequest, path: string) {
+  const params = new URLSearchParams();
+  Object.entries(req.query || {}).forEach(([key, value]) => {
+    if (key === 'route' || value == null) return;
+    if (Array.isArray(value)) {
+      value.forEach((item) => {
+        if (item != null) params.append(key, String(item));
+      });
+      return;
+    }
+    params.append(key, String(value));
+  });
+  const query = params.toString();
+  return query ? `${path}?${query}` : path;
+}
+
 async function handlePublicBrowseRoute(req: VercelRequest, res: VercelResponse, path: string) {
   if (handlePublicOptions(req, res)) return true;
   applyPublicCors(req, res);
@@ -169,6 +185,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (await handlePublicBrowseRoute(req, res, path)) {
     return;
   }
+  req.url = buildForwardUrl(req, path);
   const { createApiApp } = await import('../src/server/api/app.js');
   const app = createApiApp();
   return app(req as any, res as any);
