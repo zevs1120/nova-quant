@@ -149,6 +149,20 @@ function parseSignalStatus(value?: string): 'ALL' | 'NEW' | 'TRIGGERED' | 'EXPIR
   return undefined;
 }
 
+function resolveApiRequestPath(req: express.Request) {
+  if (req.path && req.path !== '/api') {
+    return req.path;
+  }
+  const route = req.query?.route;
+  if (Array.isArray(route) && route.length) {
+    return `/api/${route.map((value) => String(value || '')).filter(Boolean).join('/')}`;
+  }
+  if (typeof route === 'string' && route) {
+    return `/api/${route}`;
+  }
+  return req.path || '/';
+}
+
 export function createApiApp() {
   const app = express();
   app.use(express.json({ limit: '1mb' }));
@@ -181,7 +195,8 @@ export function createApiApp() {
   };
   app.use((req, res, next) => {
     const origin = req.header('origin') || '';
-    const isFirstPartyApi = req.path.startsWith('/api/') && origin && firstPartyOrigins.has(origin);
+    const apiPath = resolveApiRequestPath(req);
+    const isFirstPartyApi = apiPath.startsWith('/api/') && origin && firstPartyOrigins.has(origin);
     if (isFirstPartyApi) {
       res.setHeader('Access-Control-Allow-Origin', origin);
       res.setHeader('Vary', 'Origin');
@@ -197,26 +212,26 @@ export function createApiApp() {
       return;
     }
     const allowCrossOriginRead =
-      req.path === '/api/auth/session' ||
-      req.path === '/api/manual/state' ||
-      req.path === '/api/assets' ||
-      req.path === '/api/assets/search' ||
-      req.path === '/api/browse/chart' ||
-      req.path === '/api/browse/home' ||
-      req.path === '/api/browse/news' ||
-      req.path === '/api/browse/overview' ||
-      req.path === '/api/ohlcv' ||
-      req.path === '/api/runtime-state' ||
-      req.path === '/api/signals' ||
-      req.path === '/api/evidence/signals/top' ||
-      req.path === '/api/market-state' ||
-      req.path === '/api/performance' ||
-      req.path === '/api/market/modules' ||
-      req.path === '/api/risk-profile' ||
-      req.path === '/api/control-plane/status' ||
-      req.path === '/api/control-plane/flywheel' ||
-      req.path === '/api/connect/broker' ||
-      req.path === '/api/connect/exchange';
+      apiPath === '/api/auth/session' ||
+      apiPath === '/api/manual/state' ||
+      apiPath === '/api/assets' ||
+      apiPath === '/api/assets/search' ||
+      apiPath === '/api/browse/chart' ||
+      apiPath === '/api/browse/home' ||
+      apiPath === '/api/browse/news' ||
+      apiPath === '/api/browse/overview' ||
+      apiPath === '/api/ohlcv' ||
+      apiPath === '/api/runtime-state' ||
+      apiPath === '/api/signals' ||
+      apiPath === '/api/evidence/signals/top' ||
+      apiPath === '/api/market-state' ||
+      apiPath === '/api/performance' ||
+      apiPath === '/api/market/modules' ||
+      apiPath === '/api/risk-profile' ||
+      apiPath === '/api/control-plane/status' ||
+      apiPath === '/api/control-plane/flywheel' ||
+      apiPath === '/api/connect/broker' ||
+      apiPath === '/api/connect/exchange';
     if (!(allowCrossOriginRead && (req.method === 'GET' || req.method === 'OPTIONS'))) {
       next();
       return;
