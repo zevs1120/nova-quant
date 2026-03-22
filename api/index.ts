@@ -19,11 +19,8 @@ function applyPublicCors(req: VercelRequest, res: VercelResponse) {
 
 function handlePublicOptions(req: VercelRequest, res: VercelResponse) {
   applyPublicCors(req, res);
-  if (req.method === 'OPTIONS') {
-    res.status(204).end();
-    return true;
-  }
-  return false;
+  res.status(204).end();
+  return true;
 }
 
 function parseMarket(value?: string) {
@@ -68,8 +65,25 @@ function buildForwardUrl(req: VercelRequest, path: string) {
 }
 
 async function handlePublicBrowseRoute(req: VercelRequest, res: VercelResponse, path: string) {
-  if (handlePublicOptions(req, res)) return true;
-  applyPublicCors(req, res);
+  const publicOptionEligible =
+    path === '/api' ||
+    path === '/api/healthz' ||
+    path === '/api/assets' ||
+    path === '/api/assets/search' ||
+    path === '/api/browse/chart' ||
+    path === '/api/browse/home' ||
+    path === '/api/browse/news' ||
+    path === '/api/browse/overview' ||
+    path === '/api/ohlcv';
+
+  if (req.method === 'OPTIONS') {
+    if (!publicOptionEligible) return false;
+    return handlePublicOptions(req, res);
+  }
+
+  if (publicOptionEligible) {
+    applyPublicCors(req, res);
+  }
 
   if ((path === '/api' || path === '/api/healthz') && req.method === 'GET') {
     res.status(200).json({
