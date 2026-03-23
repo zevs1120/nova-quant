@@ -1,8 +1,21 @@
 # Repository Overview
 
-Last updated: 2026-03-12
+Last updated: 2026-03-23
 
 This document explains the purpose of each major Nova Quant module for rapid onboarding and technical diligence.
+
+## Deployment layout (monorepo)
+
+See root [`README.md`](../README.md) for full detail. Summary:
+
+| Path | Role |
+|------|------|
+| `app/` | User-facing H5 frontend (e.g. `novaquant.cloud`) |
+| `server/` | API-focused deploy package; implementation lives in root `src/server/` + [`api/`](../api/) |
+| `admin/` | Internal control dashboard (e.g. `admin.novaquant.cloud`) |
+| `model/` | EC2-side model boundary; pushes signals to `POST /api/model/signals/ingest` only |
+
+**Local dev** usually runs from the **repo root** (`npm run dev` → API on `8787` + Vite). Database defaults to `data/quant.db` (see `src/server/config.ts` / `DB_PATH`).
 
 ## Top-Level Review Modules
 
@@ -33,7 +46,8 @@ This document explains the purpose of each major Nova Quant module for rapid onb
 - `src/server/evidence/`: canonical backtest/replay/paper evidence orchestration and API-facing evidence views
 
 ## Portfolio simulation
-- `src/portfolio_simulation/`: multi-strategy portfolio simulation and diagnostics
+- `portfolio_simulation/`: review README and entrypoints for portfolio simulation
+- `src/portfolio_simulation/`: multi-strategy portfolio simulation engine implementation
 
 ## AI research copilot
 - `src/research/copilot/`: diagnostics-aware research action suggestions
@@ -52,6 +66,8 @@ This document explains the purpose of each major Nova Quant module for rapid onb
 
 ## Key Documentation
 
+- `docs/REPO_RUNBOOK.md`
+- `docs/VERSIONING.md`
 - `docs/SYSTEM_ARCHITECTURE.md`
 - `docs/DATA_CONTRACTS.md`
 - `docs/STRATEGY_REGISTRY.md`

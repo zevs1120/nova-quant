@@ -1,5 +1,9 @@
 # NovaQuant Backend Architecture After Refactor
 
+Last updated: 2026-03-23
+
+Implementation lives primarily under **`src/server/`** with HTTP entry at **`src/server/api/app.ts`**. Split deploy packages (`server/`, `api/`) reuse this tree; see [`REPOSITORY_OVERVIEW.md`](REPOSITORY_OVERVIEW.md).
+
 ## Intent
 
 NovaQuant is no longer organized as a loose collection of signal logic plus an assistant wrapper.

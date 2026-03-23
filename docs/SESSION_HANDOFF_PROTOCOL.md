@@ -1,6 +1,6 @@
 # Session Handoff Protocol
 
-Last updated: 2026-03-08
+Last updated: 2026-03-23
 
 ## Objective
 
@@ -15,6 +15,8 @@ After each major implementation block, update at minimum:
 - `docs/NEXT_STEPS.md`
 
 Also update any affected domain docs (for example `STRATEGY_REGISTRY.md`, `ASSUMPTIONS.md`, `SIGNAL_FUNNEL.md`, `DATA_CONTRACTS.md`) if contracts or behavior changed.
+
+If the change touches **deploy surfaces**, note explicitly whether it affects root `src/`, `app/`, `admin/`, `server/`, `api/`, or `model/` (see `docs/REPOSITORY_OVERVIEW.md`).
 
 ## Required Block Summary Content
 

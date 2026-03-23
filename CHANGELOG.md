@@ -2,6 +2,12 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 10.1.1 (2026-03-23)
+- Release type: patch
+- Normalize documentation against the repo: monorepo deploy layout, local dev (npm ci, npm run dev stack), REPOSITORY_OVERVIEW/REPO_RUNBOOK/VERSIONING cross-links.
+- Replace stale absolute-path links in research/copy/decision indexes; clarify api/, admin/, model/ READMEs; align SYSTEM_ARCHITECTURE tabs and TECHNICAL_DUE_DILIGENCE_GUIDE with optional LIVE routing and honest defaults.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
 ## 10.1.0 (2026-03-20)
 - Release type: minor
 - Promote execution drift monitoring into research and portfolio governance, and add a unified local dev stack plus richer Browse detail/feed surfaces.

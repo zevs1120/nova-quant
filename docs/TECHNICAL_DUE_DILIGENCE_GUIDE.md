@@ -1,13 +1,12 @@
 # Technical Due Diligence Guide
 
-Last updated: 2026-03-14
+Last updated: 2026-03-23
 
 ## 1) What Nova Quant Is Today
 
-Nova Quant is an early-stage AI-native quantitative decision platform.
-It supports research + paper-trading style decision outputs for US equities and crypto.
+Nova Quant is an AI-native quantitative **decision** platform for US equities and crypto: research outputs, paper-style execution records, evidence/replay, and assistant-grounded explanations.
 
-It is **not** currently a broker-connected live trading stack.
+**Live broker/exchange routing** exists in code paths behind explicit **credentials** and **feature flags** (see `src/server/connect/adapters.ts`, `POST /api/executions` with `mode: LIVE`). Default posture remains **honest disconnected / paper** when nothing is configured—this is product intent, not absence of implementation.
 
 ## 2) What Is Real vs Experimental
 
@@ -40,10 +39,10 @@ It is **not** currently a broker-connected live trading stack.
 - Some advanced research core analytics remain model-derived.
 - Portfolio simulation and some discovery outputs are research-grade and not live execution proof.
 
-### Not yet implemented
-- Real broker position/balance sync in production path.
-- Live order routing.
-- Tick-level execution simulation.
+### Not production-complete (typical diligence caveats)
+
+- End-to-end **production** broker OAuth/onboarding and operational hardening are not implied by the presence of adapters alone.
+- Tick-level / queue-level execution simulation (microstructure) is out of scope for the current bar-based stack.
 
 ## 3) Current Source-of-Truth Design
 
@@ -120,18 +119,21 @@ Provider behavior:
 
 1. US daily/hourly bars may be incomplete until additional Stooq runs complete.
 2. Some research subsystems still use synthetic/model-derived internals for exploration.
-3. Live broker adapters are interface-ready but intentionally not faked in runtime.
-4. Execution realism is still bar-level; no queue-level microstructure simulation.
-5. Strategy-level live broker execution remains unimplemented by design (honest disconnected connector posture).
+3. Connectors and live routing **do not fabricate** balances or fills; without credentials/flags the UI/API should surface `DISCONNECTED` / `NO_CREDENTIALS` style states.
+4. Execution realism is bar-level; no tick/queue microstructure simulation in the default stack.
+5. Treat **optional** live routing as operationally sensitive: kill-switch, governance, and reconciliation APIs exist—production readiness still depends on deployment, keys, and process.
 
 ## 10) Canonical vs Historical Documentation
 
 Canonical current-state documents:
+
+- `docs/REPOSITORY_OVERVIEW.md`
 - `docs/SYSTEM_ARCHITECTURE.md`
 - `docs/TECHNICAL_DUE_DILIGENCE_GUIDE.md`
 - `docs/RUNTIME_DATA_LINEAGE.md`
 - `docs/REALISM_UPGRADE_SUMMARY.md`
 - `docs/REPO_RUNBOOK.md`
+- `docs/VERSIONING.md`
 
 Historical review snapshots are archived under:
 - `docs/archive/`

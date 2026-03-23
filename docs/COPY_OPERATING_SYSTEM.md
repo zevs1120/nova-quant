@@ -1,5 +1,7 @@
 # NovaQuant Copy Operating System
 
+Last updated: 2026-03-23
+
 ## Purpose
 
 NovaQuant copy is not decorative writing. It is part of the decision system.
@@ -92,7 +94,7 @@ Tone is driven by a small matrix that product, backend, frontend, and assistant 
 
 The canonical mappings live in:
 
-- [/Users/qiao/Downloads/nova-quant/src/copy/novaCopySystem.js](/Users/qiao/Downloads/nova-quant/src/copy/novaCopySystem.js)
+- [`src/copy/novaCopySystem.js`](../src/copy/novaCopySystem.js)
 
 Primary selectors:
 
@@ -188,17 +190,17 @@ Bad examples:
 The copy operating system is wired into:
 
 - decision engine:
-  - [/Users/qiao/Downloads/nova-quant/src/server/decision/engine.ts](/Users/qiao/Downloads/nova-quant/src/server/decision/engine.ts)
+  - [`src/server/decision/engine.ts`](../src/server/decision/engine.ts)
 - engagement engine:
-  - [/Users/qiao/Downloads/nova-quant/src/server/engagement/engine.ts](/Users/qiao/Downloads/nova-quant/src/server/engagement/engine.ts)
+  - [`src/server/engagement/engine.ts`](../src/server/engagement/engine.ts)
 - assistant prompts:
-  - [/Users/qiao/Downloads/nova-quant/src/server/chat/prompts.ts](/Users/qiao/Downloads/nova-quant/src/server/chat/prompts.ts)
+  - [`src/server/chat/prompts.ts`](../src/server/chat/prompts.ts)
 - assistant types/context:
-  - [/Users/qiao/Downloads/nova-quant/src/server/chat/types.ts](/Users/qiao/Downloads/nova-quant/src/server/chat/types.ts)
+  - [`src/server/chat/types.ts`](../src/server/chat/types.ts)
 - homepage rendering:
-  - [/Users/qiao/Downloads/nova-quant/src/components/TodayTab.jsx](/Users/qiao/Downloads/nova-quant/src/components/TodayTab.jsx)
+  - [`src/components/TodayTab.jsx`](../src/components/TodayTab.jsx)
 - app locale plumbing:
-  - [/Users/qiao/Downloads/nova-quant/src/App.jsx](/Users/qiao/Downloads/nova-quant/src/App.jsx)
+  - [`src/App.jsx`](../src/App.jsx)
 
 ## What This Avoids
 

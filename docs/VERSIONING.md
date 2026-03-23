@@ -1,6 +1,8 @@
 # NovaQuant Versioning
 
-NovaQuant uses semantic versioning for product releases and a monotonically increasing build number for internal runtime tracking.
+Last updated: 2026-03-23
+
+Nova Quant (product; also styled **NovaQuant** in code and URLs) uses semantic versioning for product releases and a monotonically increasing build number for internal runtime tracking.
 
 ## Canonical Source
 

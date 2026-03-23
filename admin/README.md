@@ -1,5 +1,7 @@
 # NovaQuant Admin
 
+Last updated: 2026-03-23
+
 This directory is the dedicated control dashboard for `admin.novaquant.cloud`.
 
 ## Deployment model
@@ -12,25 +14,18 @@ This directory is the dedicated control dashboard for `admin.novaquant.cloud`.
 
 ## Current scope
 
-This project is the internal dashboard surface. It gives us:
+This project is the internal dashboard surface. It provides:
 
-- a separate deployable Vite app
-- a visual information architecture for the first five admin surfaces
-- live `/api/admin/*` integration through the API layer
+- a separate deployable Vite app (root directory **`admin/`** on Vercel)
+- implemented pages: **Overview**, **Users**, **Alpha Lab**, **Signals & Execution**, **System Health**
+- live **`/api/admin/*`** integration against the shared backend (`src/server/api/app.ts`)
 
-## Planned first-release pages
+## Admin API contracts (implemented)
 
-1. `Overview`
-2. `Users`
-3. `Alpha Lab`
-4. `Signals & Execution`
-5. `System Health`
-
-## Planned API contracts
-
-The app should eventually read from dedicated admin-only endpoints:
+Session and data routes used by the dashboard:
 
 - `GET /api/admin/session`
+- `POST /api/admin/login` / `POST /api/admin/logout`
 - `GET /api/admin/overview`
 - `GET /api/admin/users`
 - `GET /api/admin/alphas`

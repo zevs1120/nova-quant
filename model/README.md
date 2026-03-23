@@ -1,6 +1,8 @@
 # NovaQuant Model
 
-`model/` 表示部署在 AWS EC2 的模型服务边界。
+Last updated: 2026-03-23
+
+`model/` 表示部署在 AWS EC2 的模型服务边界。与本仓库后端的 HTTP 契约草案见同目录 [`signal.schema.json`](signal.schema.json)（若与 `POST /api/model/signals/ingest` 的实现不一致，以 **`src/server/api/modelHandlers.ts`** 与运行中校验为准）。
 
 职责：
 

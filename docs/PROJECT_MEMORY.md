@@ -1,6 +1,6 @@
 # Nova Quant Project Memory
 
-Last updated: 2026-03-14 (Asia/Shanghai)
+Last updated: 2026-03-23 (Asia/Shanghai)
 
 ## 1) Mission
 
@@ -24,6 +24,8 @@ Nova Quant is:
 ## 3) Current Architecture Reality
 
 Core runtime remains in `src/` and is orchestrated by `src/engines/pipeline.js`.
+
+Production deploy is split across `app/`, `server/`, `admin/`, and `model/` (see root `README.md` and `docs/REPOSITORY_OVERVIEW.md`). **Local development** still typically uses the **root** `package.json` (`npm run dev` → API + Vite).
 
 Current canonical product AI path:
 - `AiPage` / Ask Nova / Chat sheet now share one backend assistant path via `/api/chat`

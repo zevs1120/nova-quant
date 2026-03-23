@@ -1,6 +1,6 @@
 # Nova Quant Next Steps
 
-Last updated: 2026-03-14
+Last updated: 2026-03-23
 
 ## Immediate (highest priority)
 

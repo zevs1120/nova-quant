@@ -1,8 +1,10 @@
 # Advanced Research Pack Index
 
-Last updated: 2026-03-08
+Last updated: 2026-03-23
 
 This index is the master entry for Nova Quant's higher-order research knowledge pack.
+
+For repository layout and where code lives, see [`../REPOSITORY_OVERVIEW.md`](../REPOSITORY_OVERVIEW.md).
 
 ## Purpose
 
@@ -22,7 +24,7 @@ This advanced pack adds doctrine and operating standards so those inputs are use
 ## Portfolio Intelligence
 - `portfolio/PORTFOLIO_CONSTRUCTION_THEORY.md`
   - Defines portfolio-level design logic across strategies/families/regimes.
-  - Should influence: `src/portfolio_simulation/portfolioSimulationEngine.js`, risk allocation rules.
+  - Should influence: `src/portfolio_simulation/portfolioSimulationEngine.js` (and review notes under `portfolio_simulation/`), risk allocation rules.
 - `portfolio/PORTFOLIO_EVALUATION_FRAMEWORK.md`
   - Defines portfolio-quality scoring and failure analysis.
   - Should influence: weekly cycle reports and copilot portfolio diagnostics.

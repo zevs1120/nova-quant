@@ -1,19 +1,24 @@
 # Repo Runbook
 
-Last updated: 2026-03-12
+Last updated: 2026-03-23
 
 ## 1) Prerequisites
 
 - Node.js 20+
 - npm 10+
-- Network access for ingestion (Stooq/Binance)
+- Network access for ingestion (Stooq/Binance public endpoints)
+- Native toolchain for `better-sqlite3` (standard on macOS with Xcode CLT)
 
 ## 2) First-time Setup
 
+Fresh clone / CI-style install:
+
 ```bash
-npm install
+npm ci
 npm run db:init
 ```
+
+For ad-hoc local work, `npm install` is acceptable; releases and diligence should prefer `npm ci`.
 
 ## 3) Pull Data (small reproducible path)
 
@@ -88,13 +93,17 @@ Default unattended loop behavior:
 - runs scheduled quant evolution
 - runs scheduled Nova training flywheel and, if `mlx_lm` is installed locally plus `--execute-training` is enabled, executes MLX LoRA training directly
 
-## 5) Start Frontend
+## 5) Start Frontend (with API)
+
+From the **repository root**, a single command starts both processes:
 
 ```bash
 npm run dev
 ```
 
-Vite proxies `/api` to backend (default target: `http://127.0.0.1:8787`).
+This runs `scripts/dev-stack.mjs`: `npm run api:data` plus `npm run dev:web` (Vite). Vite proxies `/api` to the backend (default `http://127.0.0.1:8787`, overridable via `VITE_API_PROXY_TARGET`).
+
+Split deploy apps (`app/`, `admin/`, `server/` packages) use their own `package.json` scripts but share the same canonical implementation under root `src/server/`.
 
 ## 6) Quality Gates
 

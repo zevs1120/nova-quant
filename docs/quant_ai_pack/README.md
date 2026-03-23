@@ -19,7 +19,10 @@ This pack is designed so an AI coding agent can continuously evolve your product
 - `13_guardrails_and_disclaimers.md` — product/risk/compliance guardrails
 
 ## How to use
-1. Put this folder into your repo under `/docs/ai_quant_pack/`
-2. Ask Codex to treat these files as the product and research constitution
-3. Make Codex work in small PR-sized chunks with explicit acceptance criteria
-4. Require every major change to update validation, audit logs, and docs together
+
+This repository already vendors the pack at **`docs/quant_ai_pack/`** (this directory).
+
+1. Point coding agents at `docs/quant_ai_pack/` plus `docs/REPOSITORY_OVERVIEW.md` for ground truth paths.
+2. Treat these files as the product and research constitution alongside `docs/QUANT_RESEARCH_DOCTRINE.md`.
+3. Work in small PR-sized chunks with explicit acceptance criteria.
+4. Require major changes to update validation, audit logs, and docs together.

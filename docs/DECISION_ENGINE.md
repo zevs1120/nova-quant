@@ -1,6 +1,6 @@
 # Nova Quant Decision Engine
 
-Last updated: 2026-03-14
+Last updated: 2026-03-23
 
 Nova Quant is not a raw signal feed. The product homepage is intentionally minimal because
 the backend now makes an explicit decision before anything reaches the user.
@@ -27,7 +27,8 @@ raw observations
 ## Runtime Objects
 
 Main implementation:
-- `/Users/qiao/Downloads/nova-quant/src/server/decision/engine.ts`
+
+- [`src/server/decision/engine.ts`](../src/server/decision/engine.ts)
 
 Primary API surfaces:
 - `POST /api/decision/today`

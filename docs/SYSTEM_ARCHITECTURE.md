@@ -1,13 +1,14 @@
 # Nova Quant System Architecture
 
-Last updated: 2026-03-14
+Last updated: 2026-03-23
 
 ## 1) Layer Overview
 
 1. **Frontend (React/Vite)**
-- `src/App.jsx` and UI tabs (`Today`, `AI`, `Holdings`, `More`).
-- Default runtime path is now API-first (`/api/*`).
-- Local pipeline path is retained only as explicit demo mode (`VITE_DEMO_MODE=1`).
+- `src/App.jsx`: mobile-first shell; bottom navigation **Today**, **Nova** (AI), **Browse**, **My**.
+- Deeper surfaces (holdings, signals, weekly review, menu/settings, risk, research, etc.) are reached from **My**, menus, or in-tab navigation—not separate bottom tabs.
+- Default runtime path is API-first (`/api/*` via Vite proxy in local dev).
+- Local pipeline / demo paths are gated by explicit demo and investor-demo switches (see `src/demo/` and env flags in README).
 
 2. **API Layer**
 - Canonical API app: `src/server/api/app.ts`.
