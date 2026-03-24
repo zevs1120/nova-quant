@@ -167,17 +167,25 @@ function ensureManualUserState(userId: string) {
     inviteCode = `${buildInviteCode(userId)}${randomBytes(2).toString('hex').toUpperCase()}`;
   }
 
-  db.prepare(
-    `INSERT INTO manual_user_state(
-      user_id, invite_code, referred_by_code, vip_days_balance, vip_days_redeemed_total, updated_at_ms
-    ) VALUES(
-      @user_id, @invite_code, NULL, 0, 0, @updated_at_ms
-    )`
-  ).run({
-    user_id: userId,
-    invite_code: inviteCode,
-    updated_at_ms: ts
-  });
+  try {
+    db.prepare(
+      `INSERT INTO manual_user_state(
+        user_id, invite_code, referred_by_code, vip_days_balance, vip_days_redeemed_total, updated_at_ms
+      ) VALUES(
+        @user_id, @invite_code, NULL, 0, 0, @updated_at_ms
+      )`
+    ).run({
+      user_id: userId,
+      invite_code: inviteCode,
+      updated_at_ms: ts
+    });
+  } catch (error) {
+    const message = String((error as Error)?.message || error || '');
+    if (message.includes('FOREIGN KEY constraint failed')) {
+      return null;
+    }
+    throw error;
+  }
 
   return {
     user_id: userId,
@@ -208,7 +216,7 @@ function appendPointsLedger(args: {
   pointsDelta: number;
   metadata?: LedgerMetadata;
 }) {
-  ensureManualUserState(args.userId);
+  if (!ensureManualUserState(args.userId)) return 0;
   const db = getManualDb();
   const balanceBefore = currentPointsBalance(args.userId);
   const balanceAfter = balanceBefore + Math.trunc(args.pointsDelta);
@@ -327,6 +335,7 @@ export function getManualDashboard(userId: string | null | undefined): ManualDas
   const normalizedUserId = String(userId).trim();
   const db = getManualDb();
   const userState = ensureManualUserState(normalizedUserId);
+  if (!userState) return defaultDashboard(null);
   const balance = currentPointsBalance(normalizedUserId);
   const referralCounts = db
     .prepare(
@@ -413,6 +422,7 @@ export function claimManualReferral(args: { userId: string; inviteCode: string }
 
   const db = getManualDb();
   const currentUserState = ensureManualUserState(userId);
+  if (!currentUserState) return { ok: false as const, error: 'AUTH_REQUIRED' };
   if (currentUserState.invite_code === inviteCode) return { ok: false as const, error: 'SELF_REFERRAL_NOT_ALLOWED' };
   if (currentUserState.referred_by_code) return { ok: false as const, error: 'REFERRAL_ALREADY_CLAIMED' };
 
