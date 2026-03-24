@@ -329,8 +329,12 @@ function buildWrapUp(args: {
     lessons: [
       args.tone.noActionValue,
       currentSymbol
-        ? `今天最值得理解的是 ${currentSymbol} 的前提和失效条件。`
-        : '今天系统更重视风险姿态，而不是新机会。'
+        ? args.locale === 'zh'
+          ? `今天最值得理解的是 ${currentSymbol} 的前提和失效条件。`
+          : `The most useful thing today is to understand the premise and invalidation for ${currentSymbol}.`
+        : args.locale === 'zh'
+          ? '今天系统更重视风险姿态，而不是新机会。'
+          : 'Today the system prioritized risk posture over new opportunities.'
     ],
     tomorrow_watch:
       currentRisk === 'DEFEND'

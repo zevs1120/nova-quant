@@ -381,8 +381,13 @@ async function ensureSeededUser() {
   ensureSeededUserLocal();
 }
 
+let _localSeedDone = false;
+
 function getUserByEmailLocal(email: string): AuthUserRow | null {
-  ensureSeededUserLocal();
+  if (!_localSeedDone) {
+    ensureSeededUserLocal();
+    _localSeedDone = true;
+  }
   const row = getDb()
     .prepare(
       `SELECT user_id, email, password_hash, name, trade_mode, broker, locale, created_at_ms, updated_at_ms, last_login_at_ms
@@ -403,7 +408,10 @@ async function getUserByEmail(email: string): Promise<AuthUserRow | null> {
 }
 
 function getUserByIdLocal(userId: string): AuthUserRow | null {
-  ensureSeededUserLocal();
+  if (!_localSeedDone) {
+    ensureSeededUserLocal();
+    _localSeedDone = true;
+  }
   const row = getDb()
     .prepare(
       `SELECT user_id, email, password_hash, name, trade_mode, broker, locale, created_at_ms, updated_at_ms, last_login_at_ms

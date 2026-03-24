@@ -9,6 +9,11 @@ import {
 } from './strategyTemplates.js';
 import { getSeriesKey } from './velocityEngine.js';
 
+function safeNum(value, fallback = 0) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
 function inferTimeframe(signal, template) {
   return signal.timeframe || template.default_timeframe || (signal.market === 'CRYPTO' ? '4H' : '1D');
 }
@@ -81,8 +86,8 @@ function inferStatus(rawStatus, expiresAtMs) {
 }
 
 function computeExpectedR(signal, entryMid, tp) {
-  const stop = Number(signal.stop_loss);
-  const takeProfit = Number(tp);
+  const stop = safeNum(signal.stop_loss, entryMid);
+  const takeProfit = safeNum(tp, entryMid);
 
   if (signal.direction === 'LONG') {
     const risk = Math.max(entryMid - stop, 1e-6);
@@ -224,9 +229,21 @@ function buildExecutionChecklist({ signal, assetClass, entryMethod, entryMin, en
   return lines;
 }
 
+function computeNearestFridayExpiry(daysOut = 7) {
+  const now = new Date();
+  now.setDate(now.getDate() + daysOut);
+  const dayOfWeek = now.getDay();
+  const daysToFriday = (5 - dayOfWeek + 7) % 7 || 7;
+  now.setDate(now.getDate() + daysToFriday);
+  return now.toISOString().slice(0, 10);
+}
+
 function buildAssetPayload({ signal, assetClass, entryMid, strategyId }) {
   if (assetClass === 'OPTIONS') {
     const put = signal.direction === 'SHORT';
+    const expiry = computeNearestFridayExpiry(7);
+    const expiryDate = new Date(expiry + 'T00:00:00Z');
+    const dte = Math.max(1, Math.round((expiryDate.getTime() - Date.now()) / (24 * 3600 * 1000)));
     return {
       kind: 'OPTIONS_INTRADAY',
       data: {
@@ -237,9 +254,9 @@ function buildAssetPayload({ signal, assetClass, entryMid, strategyId }) {
         },
         option_contract: {
           side: put ? 'PUT' : 'CALL',
-          expiry: '2026-06-21',
+          expiry,
           strike: Math.round(entryMid),
-          dte: 6,
+          dte,
           contract_symbol: signal.symbol
         },
         time_stop: {
@@ -248,7 +265,7 @@ function buildAssetPayload({ signal, assetClass, entryMid, strategyId }) {
         },
         greeks_iv: {
           delta: round(put ? -0.35 : 0.35, 2),
-          iv_percentile: round(48 + (Number(signal.confidence || 3) - 3) * 8, 2),
+          iv_percentile: round(48 + (safeNum(signal.confidence, 3) - 3) * 8, 2),
           expected_move: round(entryMid * 0.012, 2)
         }
       }
@@ -301,23 +318,25 @@ function resolveExpiresAt(signal) {
 
 function resolveConflicts(sortedSignals) {
   const chosenByKey = new Map();
-  for (const signal of sortedSignals) {
+  return sortedSignals.map((signal) => {
     const key = `${signal.market}|${signal.symbol}|${signal.timeframe}`;
     const previous = chosenByKey.get(key);
     if (!previous) {
       chosenByKey.set(key, signal);
-      continue;
+      return signal;
     }
-    if (previous.direction === signal.direction) continue;
-    if (signal.status === 'TRIGGERED') continue;
-    signal.status = 'INVALIDATED';
-    signal.tags = [...signal.tags, 'conflict-muted'];
-    signal.explain_bullets = [
-      `Signal muted due to higher-score opposite setup (${previous.id}).`,
-      ...signal.explain_bullets.slice(0, 4)
-    ];
-  }
-  return sortedSignals;
+    if (previous.direction === signal.direction) return signal;
+    if (signal.status === 'TRIGGERED') return signal;
+    return {
+      ...signal,
+      status: 'INVALIDATED',
+      tags: [...signal.tags, 'conflict-muted'],
+      explain_bullets: [
+        `Signal muted due to higher-score opposite setup (${previous.id}).`,
+        ...signal.explain_bullets.slice(0, 4)
+      ]
+    };
+  });
 }
 
 export function runSignalEngine({ signals, velocityState, regimeState, riskState }) {
@@ -522,6 +541,6 @@ export function runSignalEngine({ signals, velocityState, regimeState, riskState
   });
 
   return resolveConflicts(
-    [...contracts].sort((a, b) => b.score - a.score || new Date(b.created_at) - new Date(a.created_at))
+    [...contracts].sort((a, b) => b.score - a.score || new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
   );
 }

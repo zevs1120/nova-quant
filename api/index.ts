@@ -455,15 +455,17 @@ async function handlePublicBrowseRoute(req: VercelRequest, res: VercelResponse, 
   if (path === '/api/decision/today' && req.method === 'POST') {
     const body = parseJsonBody(req);
     const holdings = Array.isArray(body.holdings) ? body.holdings : [];
+    const market = parseMarket(String(body.market || req.query.market || '')) || 'US';
+    const assetClass = parseAssetClass(String(body.assetClass || req.query.assetClass || '')) || (market === 'CRYPTO' ? 'CRYPTO' : 'US_STOCK');
+    const userId = String(body.userId || req.query.userId || 'guest-default');
+    const locale = typeof body.locale === 'string' ? body.locale : undefined;
     if (!holdings.length) {
-      const market = parseMarket(String(body.market || req.query.market || '')) || 'US';
-      const assetClass = parseAssetClass(String(body.assetClass || req.query.assetClass || '')) || (market === 'CRYPTO' ? 'CRYPTO' : 'US_STOCK');
-      const userId = String(body.userId || req.query.userId || 'guest-default');
-      const locale = typeof body.locale === 'string' ? body.locale : undefined;
       const decision = await getPublicTodayDecision({ market, assetClass, userId, locale });
       res.status(200).json(decision);
       return true;
     }
+    // Holdings provided — let the full Express app handle personalized decision
+    return false;
   }
 
   return false;

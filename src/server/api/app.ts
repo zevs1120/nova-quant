@@ -1669,5 +1669,19 @@ export function createApiApp() {
     res.json(payload);
   });
 
+
+  // Global error handler — catches unhandled errors from sync routes and prevents hanging requests.
+  // Note: Express 4 does NOT automatically catch rejected promises in async handlers.
+  app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    const message = err?.message || 'Internal server error';
+    const status = (err as Error & { status?: number }).status || 500;
+    if (status >= 500) {
+      console.error('[api] unhandled route error:', message);
+    }
+    if (!res.headersSent) {
+      res.status(status).json({ error: message });
+    }
+  });
+
   return app;
 }

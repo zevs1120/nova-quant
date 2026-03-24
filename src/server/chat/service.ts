@@ -20,7 +20,7 @@ import {
   formatStructuredAssistantReply
 } from '../../utils/assistantLanguage.js';
 
-const MAX_HISTORY_TURNS = 8;
+const MAX_HISTORY_TURNS = 4;
 const PROVIDER_TIMEOUT_MS = Number(process.env.AI_PROVIDER_TIMEOUT_MS || 18_000);
 
 function getRepo(): MarketRepository {
@@ -100,15 +100,19 @@ async function* withTimeout(stream: AsyncGenerator<string>, timeoutMs: number): 
   const iterator = stream[Symbol.asyncIterator]();
   while (true) {
     const next = iterator.next();
+    let handle: ReturnType<typeof setTimeout> | undefined;
     const timer = new Promise<IteratorResult<string>>((_, reject) => {
-      const handle = setTimeout(() => {
-        clearTimeout(handle);
+      handle = setTimeout(() => {
         reject(new ProviderTimeoutError(`Provider timed out after ${timeoutMs}ms`));
       }, timeoutMs);
     });
-    const result = await Promise.race([next, timer]);
-    if (result.done) return;
-    yield result.value;
+    try {
+      const result = await Promise.race([next, timer]);
+      if (result.done) return;
+      yield result.value;
+    } finally {
+      if (handle !== undefined) clearTimeout(handle);
+    }
   }
 }
 

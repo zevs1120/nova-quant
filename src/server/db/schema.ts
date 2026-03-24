@@ -679,20 +679,6 @@ CREATE TABLE IF NOT EXISTS audit_events (
 CREATE INDEX IF NOT EXISTS idx_audit_events_trace ON audit_events(trace_id, created_at_ms DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_events_entity ON audit_events(entity_type, entity_id, created_at_ms DESC);
 
-CREATE TABLE IF NOT EXISTS recommendation_reviews (
-  id TEXT PRIMARY KEY,
-  decision_snapshot_id TEXT NOT NULL,
-  action_id TEXT,
-  review_type TEXT NOT NULL CHECK (review_type IN ('OUTCOME', 'NO_ACTION_VALUE', 'EXPLANATION')),
-  score REAL,
-  notes TEXT,
-  payload_json TEXT NOT NULL,
-  created_at_ms INTEGER NOT NULL,
-  FOREIGN KEY(decision_snapshot_id) REFERENCES decision_snapshots(id) ON DELETE CASCADE
-);
-
-CREATE INDEX IF NOT EXISTS idx_recommendation_reviews_lookup ON recommendation_reviews(decision_snapshot_id, review_type, created_at_ms DESC);
-
 CREATE TABLE IF NOT EXISTS decision_snapshots (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,
@@ -718,6 +704,20 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_decision_snapshots_unique
 
 CREATE INDEX IF NOT EXISTS idx_decision_snapshots_lookup
   ON decision_snapshots(user_id, updated_at_ms DESC);
+
+CREATE TABLE IF NOT EXISTS recommendation_reviews (
+  id TEXT PRIMARY KEY,
+  decision_snapshot_id TEXT NOT NULL,
+  action_id TEXT,
+  review_type TEXT NOT NULL CHECK (review_type IN ('OUTCOME', 'NO_ACTION_VALUE', 'EXPLANATION')),
+  score REAL,
+  notes TEXT,
+  payload_json TEXT NOT NULL,
+  created_at_ms INTEGER NOT NULL,
+  FOREIGN KEY(decision_snapshot_id) REFERENCES decision_snapshots(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_recommendation_reviews_lookup ON recommendation_reviews(decision_snapshot_id, review_type, created_at_ms DESC);
 
 CREATE TABLE IF NOT EXISTS user_ritual_events (
   id TEXT PRIMARY KEY,

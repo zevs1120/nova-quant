@@ -1155,6 +1155,7 @@ export function ensureQuantData(
     assetClass?: AssetClass | 'ALL';
     timeframe?: string;
     universeScope?: string;
+    allowBackgroundStrategyRefresh?: boolean;
   }
 ): QuantDataSnapshot {
   const riskProfile = riskProfileForUser(repo, userId, context?.riskProfileKey);

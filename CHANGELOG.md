@@ -2,6 +2,23 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 10.1.3 (2026-03-24)
+- Release type: patch
+- Comprehensive code audit and bug fix sprint across 9 server-side modules (~14,000 lines reviewed).
+- Fix P0 API fall-through: POST /api/decision/today with non-empty holdings no longer leaks into createApiApp(), preventing duplicate request processing and inconsistent responses.
+- Fix P0 timer leak: withTimeout() in chat streaming now clears setTimeout handles in a finally block, preventing memory pressure under load.
+- Fix P1 hardcoded options expiry: replace static '2026-06-21' with dynamic computeNearestFridayExpiry() for accurate DTE calculations.
+- Fix P1 FK ordering: move decision_snapshots table creation before recommendation_reviews in schema.ts to satisfy foreign key constraints.
+- Fix P1 signal conflict mutation: resolveConflicts() in signalEngine.js now returns new objects via spread instead of mutating inputs.
+- Fix P2 NaN propagation: add safeNum() guards in signalEngine.js to prevent NaN scores from breaking signal ranking.
+- Fix P2 Date sort: use .getTime() instead of implicit Date subtraction in sort comparator.
+- Fix P2 JSON parse guard: wrap unguarded event_stats_json parse in decision/engine.ts with try-catch.
+- Fix P2 Express error middleware: add global app.use error handler to prevent requests from hanging on unhandled sync errors.
+- Fix P3 locale hardcode: wrapUp.lessons in engagement/engine.ts now respects locale parameter instead of always producing Chinese text.
+- Fix P3 chat history waste: reduce MAX_HISTORY_TURNS from 8 to 4 to match actual historyToProviderMessages usage.
+- Fix P3 auth seed guard: gate ensureSeededUserLocal() with a module-level flag to avoid redundant INSERT on every DB read.
+- Fix pre-existing TS error: add allowBackgroundStrategyRefresh to ensureQuantData parameter type in quant/service.ts.
+
 ## 10.1.2 (2026-03-24)
 - Release type: patch
 - Resolve all 11 npm audit vulnerabilities (4 moderate, 7 high) by adding npm overrides for transitive dependencies: undici ^6.24.1, ajv ^8.18.0, minimatch ^10.2.4, path-to-regexp ^8.3.0, esbuild ^0.27.4.

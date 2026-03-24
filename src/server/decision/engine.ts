@@ -658,7 +658,7 @@ function buildEvidenceBundle(args: {
   const regimeRow = args.regimeRow;
   const eventContext = buildEventContext(regimeRow);
   const supportingFactors = [
-    ...asArray<string>((regimeRow ? JSON.parse(regimeRow.event_stats_json || '{}') : {}).panda?.top_factors),
+    ...asArray<string>((() => { try { return JSON.parse(regimeRow?.event_stats_json || '{}'); } catch { return {}; } })()?.panda?.top_factors),
     ...asArray<string>(args.signal.explain_bullets)
   ]
     .map((item) => String(item))
