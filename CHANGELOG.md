@@ -2,6 +2,15 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 10.2.3 (2026-03-24)
+- Release type: patch
+- Add 63 high-quality tests across 4 new test files targeting server-side decision logic, risk governance, strategy orchestration, and broker/exchange connectivity.
+- New `riskGovernorEdgeCases.test.ts` (27 tests): all 8 overlay conditions (risk_off_kill_switch, macro_derisk, caution_size_cut, budget_exhausted, budget_thin, same_symbol_block/taper, sector_concentration, loss_streak_kill_switch/recovery, short_asymmetry_haircut, low_calibrated_confidence), compound multiplier stacking, edge cases (empty marketState, null riskProfile).
+- New `strategyTemplatesEdgeCases.test.ts` (17 tests): 9-template catalog completeness, required field contracts, `resolveStrategyId` resolution via strategy_id / SYMBOL_TO_STRATEGY map / asset_class fallback / market fallback, `buildSignalExplanation` line count and content.
+- New `decisionEngineEdgeCases.test.ts` (16 tests): output contract (today_call, risk_state, portfolio_context, summary), action card ranking, publication status, governor integration, edge cases (zero signals, empty marketState, null riskProfile, INSUFFICIENT_DATA), today_call code classification under high risk-off and healthy regime.
+- New `connectAdaptersEdgeCases.test.ts` (15 tests): Alpaca/Binance credential detection (NO_CREDENTIALS, UNSUPPORTED_PROVIDER), trading flag enforcement, order validation (missing orderId, missing credentials), snapshot structure contracts, timestamp validity.
+- Test suite: 97/97 files pass, 475/475 tests pass (up from 93/93 files and 412/412 tests).
+
 ## 10.2.2 (2026-03-24)
 - Release type: patch
 - Add 72 high-quality tests across 5 new test files targeting remaining untested engine modules.
