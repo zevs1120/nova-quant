@@ -2,6 +2,19 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 10.4.1 (2026-03-24)
+
+- Release type: patch
+- **Refactor: extract inline pages and utilities from `src/App.jsx` (3,088 -> 2,149 lines, -30%).**
+  - New `src/utils/date.js`: 7 date utility functions (`pad`, `localDateKey`, `keyToDate`, `shiftDateKey`, `weekStartKey`, `addUniqueKey`, `calcStreak`).
+  - New `src/utils/appHelpers.js`: 7 app-level utilities (`normalizeEmail`, `isLocalAuthRuntime`, `classifyAuthError`, `detectDisplayMode`, `settledValue`, `mapExecutionToTrade`, `runWhenIdle`).
+  - New `src/components/DataStatusTab.jsx`: data freshness/coverage status page (was inline `renderDataStatus()`).
+  - New `src/components/LearningLoopTab.jsx`: learning loop / flywheel status page (was inline `renderLearningStatus()`).
+  - New `src/components/SettingsTab.jsx`: settings page (was inline `renderSettings()`).
+  - New `src/components/DisciplineTab.jsx`: discipline tracking page (was inline in `renderMenuSection()`).
+  - Deduplicate `baseContext` construction: unified into a single `useMemo`, used by both `askAi()` and `<AiPage>`.
+  - All 4 new components are code-split via `React.lazy()`. Zero logic changes. 102/102 test files, 591/591 tests pass. Build OK.
+
 ## 10.4.0 (2026-03-24)
 
 - Release type: minor

@@ -4,14 +4,17 @@ const AiPage = lazy(() => import('./components/AiPage'));
 import novaLogo from './assets/NOVA1.png';
 import novaLogoCompact from './assets/Nova2.png';
 const BrowseTab = lazy(() => import('./components/BrowseTab'));
+const DataStatusTab = lazy(() => import('./components/DataStatusTab'));
+const DisciplineTab = lazy(() => import('./components/DisciplineTab'));
 const HoldingsTab = lazy(() => import('./components/HoldingsTab'));
+const LearningLoopTab = lazy(() => import('./components/LearningLoopTab'));
 const MarketTab = lazy(() => import('./components/MarketTab'));
 const MenuTab = lazy(() => import('./components/MenuTab'));
 const OnboardingFlow = lazy(() => import('./components/OnboardingFlow'));
 const ProofTab = lazy(() => import('./components/ProofTab'));
 const ResearchTab = lazy(() => import('./components/ResearchTab'));
 const RiskTab = lazy(() => import('./components/RiskTab'));
-import SegmentedControl from './components/SegmentedControl';
+const SettingsTab = lazy(() => import('./components/SettingsTab'));
 import Skeleton from './components/Skeleton';
 const SignalsTab = lazy(() => import('./components/SignalsTab'));
 import TodayTab from './components/TodayTab';
@@ -21,7 +24,17 @@ import { useLocalStorage } from './hooks/useLocalStorage';
 import { createTranslator, getDefaultLang, getLocale } from './i18n';
 import { buildHoldingsReview } from './research/holdingsAnalyzer';
 import { fetchApi, fetchApiJson } from './utils/api';
+import {
+  classifyAuthError,
+  detectDisplayMode,
+  isLocalAuthRuntime,
+  mapExecutionToTrade,
+  normalizeEmail,
+  runWhenIdle,
+  settledValue,
+} from './utils/appHelpers';
 import { primeBrowseHomeBundle, primeBrowseUniverseBundle } from './utils/browseWarmup';
+import { addUniqueKey, calcStreak, localDateKey, weekStartKey } from './utils/date';
 import {
   deriveConnectedHoldings,
   mergeHoldingsSources,
@@ -37,7 +50,6 @@ import {
   FORCE_DEMO_BUILD,
   isDemoRuntime as getIsDemoRuntime,
 } from './demo/runtime';
-import { formatDateTime, formatNumber } from './utils/format';
 
 const MENU_PARENTS = {
   weekly: 'group:review',
@@ -201,41 +213,6 @@ function buildMenuTitles(locale) {
   };
 }
 
-function normalizeEmail(value) {
-  return String(value || '')
-    .trim()
-    .toLowerCase();
-}
-
-function isLocalAuthRuntime() {
-  if (typeof window === 'undefined') return false;
-  return ['localhost', '127.0.0.1'].includes(window.location.hostname);
-}
-
-function classifyAuthError(error, locale) {
-  const zh = locale?.startsWith('zh');
-  const message = String(error?.message || '');
-  if (message.includes('(401)') || message.includes('INVALID_CREDENTIALS')) {
-    return zh ? '账号或密码错误。' : 'The email or password is incorrect.';
-  }
-  if (
-    message.includes('(503)') ||
-    message.includes('AUTH_STORE_NOT_CONFIGURED') ||
-    message.includes('AUTH_STORE_UNREACHABLE')
-  ) {
-    return zh
-      ? '登录服务当前未连上远端账户存储。请检查线上认证配置后再试。'
-      : 'The login service cannot reach its remote auth store right now.';
-  }
-  return zh
-    ? isLocalAuthRuntime()
-      ? '登录服务未连接。请先启动本地 API：npm run api:data'
-      : '登录服务暂时不可用。请稍后再试。'
-    : isLocalAuthRuntime()
-      ? 'The login service is offline. Start the local API first: npm run api:data'
-      : 'The login service is temporarily unavailable.';
-}
-
 const initialData = {
   signals: [],
   evidence: {
@@ -307,14 +284,6 @@ const DEMO_MANUAL_STATE = Object.freeze({
   },
 });
 
-function detectDisplayMode() {
-  if (typeof window === 'undefined') return 'browser';
-  if (window.matchMedia?.('(display-mode: standalone)').matches) return 'standalone';
-  if (window.matchMedia?.('(display-mode: fullscreen)').matches) return 'fullscreen';
-  if (window.navigator?.standalone) return 'standalone';
-  return 'browser';
-}
-
 async function fetchJson(url, options) {
   const response = await fetchApi(url, {
     credentials: 'include',
@@ -324,91 +293,6 @@ async function fetchJson(url, options) {
     throw new Error(`${url} failed (${response.status})`);
   }
   return response.json();
-}
-
-function settledValue(result, fallback = null) {
-  return result?.status === 'fulfilled' ? result.value : fallback;
-}
-
-function mapExecutionToTrade(execution) {
-  const baseTime = execution.created_at || new Date().toISOString();
-  const pnl = Number(execution.pnl_pct ?? execution.pnlPct ?? 0);
-  return {
-    time_in: baseTime,
-    time_out: baseTime,
-    market: execution.market,
-    symbol: execution.symbol,
-    side: execution.side || execution.direction || 'LONG',
-    entry: Number(execution.entry ?? execution.entry_price ?? 0),
-    exit: Number(
-      execution.exit ?? execution.tp_price ?? execution.entry ?? execution.entry_price ?? 0,
-    ),
-    pnl_pct: pnl,
-    fees: Number(execution.fees ?? 0),
-    signal_id: execution.signal_id || execution.signalId,
-    source: execution.mode || 'PAPER',
-  };
-}
-
-function runWhenIdle(task) {
-  if (typeof window === 'undefined') return () => {};
-  if (typeof window.requestIdleCallback === 'function') {
-    const id = window.requestIdleCallback(task, { timeout: 1200 });
-    return () => window.cancelIdleCallback?.(id);
-  }
-  const id = window.setTimeout(task, 180);
-  return () => window.clearTimeout(id);
-}
-
-function pad(n) {
-  return String(n).padStart(2, '0');
-}
-
-function localDateKey(input = new Date()) {
-  const d = new Date(input);
-  if (!Number.isFinite(d.getTime())) return '';
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-
-function keyToDate(key) {
-  const [y, m, d] = String(key || '')
-    .split('-')
-    .map((value) => Number(value));
-  if (!y || !m || !d) return null;
-  return new Date(y, m - 1, d);
-}
-
-function shiftDateKey(key, deltaDays) {
-  const base = keyToDate(key);
-  if (!base) return '';
-  base.setDate(base.getDate() + deltaDays);
-  return localDateKey(base);
-}
-
-function weekStartKey(input = new Date()) {
-  const d = new Date(input);
-  if (!Number.isFinite(d.getTime())) return '';
-  const weekday = (d.getDay() + 6) % 7;
-  d.setDate(d.getDate() - weekday);
-  return localDateKey(d);
-}
-
-function addUniqueKey(rows = [], key) {
-  if (!key) return rows;
-  if (rows.includes(key)) return rows;
-  return [...rows, key].sort();
-}
-
-function calcStreak(rows = [], anchorKey, stepDays = 1) {
-  if (!anchorKey) return 0;
-  const set = new Set(rows || []);
-  let cursor = anchorKey;
-  let streak = 0;
-  while (set.has(cursor)) {
-    streak += 1;
-    cursor = shiftDateKey(cursor, -stepDays);
-  }
-  return streak;
 }
 
 export default function App() {
@@ -1334,6 +1218,89 @@ export default function App() {
     todayKey,
   ]);
 
+  const baseContext = useMemo(
+    () => ({
+      locale: lang,
+      market,
+      assetClass,
+      riskProfileKey,
+      uiMode,
+      decisionSummary: {
+        today_call:
+          decisionSnapshot?.summary?.today_call?.headline ||
+          decisionSnapshot?.summary?.today_call ||
+          null,
+        risk_posture:
+          decisionSnapshot?.summary?.risk_posture || decisionSnapshot?.risk_state?.posture || null,
+        top_action_id: decisionSnapshot?.top_action_id || null,
+        top_action_symbol:
+          decisionSnapshot?.summary?.top_action_symbol ||
+          decisionSnapshot?.ranked_action_cards?.[0]?.symbol ||
+          null,
+        top_action_label:
+          decisionSnapshot?.summary?.top_action_label ||
+          decisionSnapshot?.ranked_action_cards?.[0]?.action_label ||
+          null,
+        source_status:
+          decisionSnapshot?.source_status ||
+          uiData?.config?.runtime?.source_status ||
+          'INSUFFICIENT_DATA',
+        data_status:
+          decisionSnapshot?.data_status ||
+          uiData?.config?.runtime?.data_status ||
+          'INSUFFICIENT_DATA',
+      },
+      holdingsSummary: {
+        holdings_count: holdingsReview?.totals?.holdings_count ?? 0,
+        total_weight_pct: holdingsReview?.totals?.total_weight_pct ?? 0,
+        aligned_weight_pct: holdingsReview?.system_alignment?.aligned_weight_pct ?? 0,
+        unsupported_weight_pct: holdingsReview?.system_alignment?.unsupported_weight_pct ?? 0,
+        top1_pct: holdingsReview?.concentration?.top1_pct ?? 0,
+        risk_level: holdingsReview?.risk?.level || null,
+        recommendation: holdingsReview?.risk?.recommendation || holdingsReview?.key_advice || null,
+      },
+      engagementSummary: {
+        locale: lang,
+        morning_check_status: engagementState?.daily_check_state?.status || null,
+        morning_check_label: engagementState?.daily_check_state?.headline || null,
+        morning_check_arrival:
+          engagementState?.daily_check_state?.arrival_line ||
+          engagementState?.ui_regime_state?.arrival_line ||
+          null,
+        morning_check_ritual:
+          engagementState?.daily_check_state?.ritual_line ||
+          engagementState?.ui_regime_state?.ritual_line ||
+          null,
+        perception_status: engagementState?.perception_layer?.status || null,
+        perception_headline: engagementState?.perception_layer?.headline || null,
+        perception_focus: engagementState?.perception_layer?.focus_line || null,
+        perception_confirmation: engagementState?.perception_layer?.confirmation_line || null,
+        wrap_up_ready: Boolean(engagementState?.daily_wrap_up?.ready),
+        wrap_up_completed: Boolean(engagementState?.daily_wrap_up?.completed),
+        wrap_up_line:
+          engagementState?.daily_wrap_up?.opening_line ||
+          engagementState?.ui_regime_state?.wrap_line ||
+          null,
+        discipline_score: Number(engagementState?.habit_state?.discipline_score || 0) || null,
+        behavior_quality: engagementState?.habit_state?.behavior_quality || null,
+        recommendation_change: engagementState?.recommendation_change?.summary || null,
+        ui_tone: engagementState?.ui_regime_state?.tone || null,
+      },
+    }),
+    [
+      lang,
+      market,
+      assetClass,
+      riskProfileKey,
+      uiMode,
+      decisionSnapshot,
+      uiData?.config?.runtime?.source_status,
+      uiData?.config?.runtime?.data_status,
+      holdingsReview,
+      engagementState,
+    ],
+  );
+
   const askAi = (message, context = {}) => {
     const text = String(message || '').trim();
     if (!text) return;
@@ -1342,75 +1309,7 @@ export default function App() {
       message: text,
       context: {
         page: activeTab === 'my' ? mySection || 'my' : activeTab,
-        locale: lang,
-        market,
-        assetClass,
-        riskProfileKey,
-        uiMode,
-        decisionSummary: {
-          today_call:
-            decisionSnapshot?.summary?.today_call?.headline ||
-            decisionSnapshot?.summary?.today_call ||
-            null,
-          risk_posture:
-            decisionSnapshot?.summary?.risk_posture ||
-            decisionSnapshot?.risk_state?.posture ||
-            null,
-          top_action_id: decisionSnapshot?.top_action_id || null,
-          top_action_symbol:
-            decisionSnapshot?.summary?.top_action_symbol ||
-            decisionSnapshot?.ranked_action_cards?.[0]?.symbol ||
-            null,
-          top_action_label:
-            decisionSnapshot?.summary?.top_action_label ||
-            decisionSnapshot?.ranked_action_cards?.[0]?.action_label ||
-            null,
-          source_status:
-            decisionSnapshot?.source_status ||
-            uiData?.config?.runtime?.source_status ||
-            'INSUFFICIENT_DATA',
-          data_status:
-            decisionSnapshot?.data_status ||
-            uiData?.config?.runtime?.data_status ||
-            'INSUFFICIENT_DATA',
-        },
-        holdingsSummary: {
-          holdings_count: holdingsReview?.totals?.holdings_count ?? 0,
-          total_weight_pct: holdingsReview?.totals?.total_weight_pct ?? 0,
-          aligned_weight_pct: holdingsReview?.system_alignment?.aligned_weight_pct ?? 0,
-          unsupported_weight_pct: holdingsReview?.system_alignment?.unsupported_weight_pct ?? 0,
-          top1_pct: holdingsReview?.concentration?.top1_pct ?? 0,
-          risk_level: holdingsReview?.risk?.level || null,
-          recommendation:
-            holdingsReview?.risk?.recommendation || holdingsReview?.key_advice || null,
-        },
-        engagementSummary: {
-          locale: lang,
-          morning_check_status: engagementState?.daily_check_state?.status || null,
-          morning_check_label: engagementState?.daily_check_state?.headline || null,
-          morning_check_arrival:
-            engagementState?.daily_check_state?.arrival_line ||
-            engagementState?.ui_regime_state?.arrival_line ||
-            null,
-          morning_check_ritual:
-            engagementState?.daily_check_state?.ritual_line ||
-            engagementState?.ui_regime_state?.ritual_line ||
-            null,
-          perception_status: engagementState?.perception_layer?.status || null,
-          perception_headline: engagementState?.perception_layer?.headline || null,
-          perception_focus: engagementState?.perception_layer?.focus_line || null,
-          perception_confirmation: engagementState?.perception_layer?.confirmation_line || null,
-          wrap_up_ready: Boolean(engagementState?.daily_wrap_up?.ready),
-          wrap_up_completed: Boolean(engagementState?.daily_wrap_up?.completed),
-          wrap_up_line:
-            engagementState?.daily_wrap_up?.opening_line ||
-            engagementState?.ui_regime_state?.wrap_line ||
-            null,
-          discipline_score: Number(engagementState?.habit_state?.discipline_score || 0) || null,
-          behavior_quality: engagementState?.habit_state?.behavior_quality || null,
-          recommendation_change: engagementState?.recommendation_change?.summary || null,
-          ui_tone: engagementState?.ui_regime_state?.tone || null,
-        },
+        ...baseContext,
         ...(context || {}),
       },
     });
@@ -1558,629 +1457,6 @@ export default function App() {
     setMyStack((current) => (current.length > 1 ? current.slice(0, -1) : current));
   }, []);
 
-  const renderDataStatus = () => {
-    const runtime = data?.config?.runtime || {};
-    const controlPlane = runtime?.control_plane || data?.control_plane || null;
-    const freshnessRows = runtime?.freshness_summary?.rows || [];
-    const coverage = runtime?.coverage_summary || {};
-    const topIssues = [];
-    if (runtime?.source_status !== 'DB_BACKED') {
-      topIssues.push('当前运行时并非完整 DB_BACKED，部分对象会降级为 unavailable。');
-    }
-    if ((runtime?.freshness_summary?.stale_count || 0) > 0) {
-      topIssues.push(
-        `发现 ${runtime?.freshness_summary?.stale_count} 个资产存在 stale/insufficient 状态。`,
-      );
-    }
-    if ((coverage?.assets_with_bars || 0) === 0) {
-      topIssues.push('尚未检测到可用 bars，请先执行 backfill + derive:runtime。');
-    }
-    if (controlPlane?.search?.status === 'UNAVAILABLE') {
-      topIssues.push('搜索资产库未就绪，Browse 搜索会表现为空。');
-    }
-    if (
-      Array.isArray(controlPlane?.runtime) &&
-      controlPlane.runtime.every((row) => Number(row?.active_signal_count || 0) === 0)
-    ) {
-      topIssues.push('两个市场当前都没有 active signals，所以 Today 会退回等待态。');
-    }
-
-    return (
-      <section className="stack-gap">
-        <article className="glass-card">
-          <h3 className="card-title">Data Status</h3>
-          <p className="muted status-line">
-            Overall: {runtime?.source_status || data?.data_status || '--'}
-          </p>
-          <div className="status-grid-3">
-            <div className="status-box">
-              <p className="muted">Assets Checked</p>
-              <h2>{coverage?.assets_checked ?? '--'}</h2>
-            </div>
-            <div className="status-box">
-              <p className="muted">Bars Coverage</p>
-              <h2>{coverage?.assets_with_bars ?? '--'}</h2>
-            </div>
-            <div className="status-box">
-              <p className="muted">Signals Generated</p>
-              <h2>{coverage?.generated_signals ?? '--'}</h2>
-            </div>
-          </div>
-          <ul className="bullet-list">
-            {(topIssues.length ? topIssues : ['当前未发现阻断级数据问题。'])
-              .slice(0, 5)
-              .map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-          </ul>
-        </article>
-
-        {controlPlane ? (
-          <article className="glass-card">
-            <h3 className="card-title">Control Plane</h3>
-            <p className="muted status-line">As of: {controlPlane.as_of || '--'}</p>
-            <div className="status-grid-3">
-              <div className="status-box">
-                <p className="muted">Search</p>
-                <h2>{controlPlane.search?.status || '--'}</h2>
-                <p className="muted status-line">
-                  {controlPlane.search?.live_asset_count ?? '--'} live /{' '}
-                  {controlPlane.search?.reference_asset_count ?? '--'} reference
-                </p>
-              </div>
-              <div className="status-box">
-                <p className="muted">Strategy Factory</p>
-                <h2>{controlPlane.strategy_factory?.latest_status || '--'}</h2>
-                <p className="muted status-line">
-                  {controlPlane.strategy_factory?.latest_run_at || 'No run yet'}
-                </p>
-              </div>
-              <div className="status-box">
-                <p className="muted">Delivery</p>
-                <h2>{controlPlane.delivery?.active_notification_count ?? '--'}</h2>
-                <p className="muted status-line">
-                  {controlPlane.delivery?.latest_notification_at || 'No delivery yet'}
-                </p>
-              </div>
-            </div>
-            <div className="table-wrap" style={{ marginTop: 12 }}>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Market</th>
-                    <th>Runtime</th>
-                    <th>Signals</th>
-                    <th>Decision</th>
-                    <th>Top</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(controlPlane.runtime || []).map((row) => (
-                    <tr key={row.market}>
-                      <td>{row.market}</td>
-                      <td>{row.source_status}</td>
-                      <td>
-                        {row.active_signal_count}/{row.signal_count}
-                      </td>
-                      <td>{row.decision_code}</td>
-                      <td>{row.top_action_symbol || '--'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </article>
-        ) : null}
-
-        <article className="glass-card">
-          <h3 className="card-title">Source Freshness</h3>
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Symbol</th>
-                  <th>Market</th>
-                  <th>Status</th>
-                  <th>Age(H)</th>
-                  <th>Stale</th>
-                </tr>
-              </thead>
-              <tbody>
-                {freshnessRows.map((row) => (
-                  <tr key={`${row.market}-${row.symbol}`}>
-                    <td>{row.symbol}</td>
-                    <td>{row.market}</td>
-                    <td>{row.status}</td>
-                    <td>{row.age_hours ?? '--'}</td>
-                    <td>{row.status === 'DB_BACKED' ? 'No' : 'Yes'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </article>
-      </section>
-    );
-  };
-
-  const renderLearningStatus = () => {
-    const runtime = data?.config?.runtime || {};
-    const controlPlane = runtime?.control_plane || data?.control_plane || null;
-    const flywheel = controlPlane?.flywheel || null;
-    const latestDataRun = flywheel?.free_data?.recent_runs?.[0] || null;
-    const latestEvolutionRun = flywheel?.evolution?.recent_runs?.[0] || null;
-    const latestTrainingRun = flywheel?.training?.recent_runs?.[0] || null;
-    const recentNews = Array.isArray(flywheel?.free_data?.recent_news)
-      ? flywheel.free_data.recent_news
-      : [];
-    const recentActivity = Array.isArray(flywheel?.recent_activity) ? flywheel.recent_activity : [];
-    const currentDatasetCount = Number(flywheel?.training?.current_dataset_count || 0);
-    const minimumTrainingRows = Number(flywheel?.training?.minimum_training_rows || 0);
-    const isZh = locale?.startsWith('zh');
-
-    if (!flywheel) {
-      return (
-        <section className="stack-gap">
-          <article className="glass-card">
-            <h3 className="card-title">Learning Loop</h3>
-            <p className="muted status-line">
-              {isZh
-                ? '学习飞轮状态暂时不可用，请先让后端完成一轮 control-plane 刷新。'
-                : 'Learning loop status is not available yet.'}
-            </p>
-          </article>
-        </section>
-      );
-    }
-
-    return (
-      <section className="stack-gap">
-        <article className="glass-card">
-          <div className="card-header">
-            <div>
-              <h3 className="card-title">Learning Loop</h3>
-              <p className="muted status-line">
-                {isZh ? '最近活跃时间' : 'Last activity'}:{' '}
-                {formatDateTime(flywheel.last_activity_at, locale)}
-              </p>
-            </div>
-            <span
-              className={`badge ${flywheel.training?.ready_for_training ? 'badge-triggered' : 'badge-neutral'}`}
-            >
-              {flywheel.training?.ready_for_training
-                ? isZh
-                  ? '可训练'
-                  : 'Training Ready'
-                : isZh
-                  ? '积累中'
-                  : 'Accumulating'}
-            </span>
-          </div>
-
-          <div className="status-grid-3" style={{ marginTop: 10 }}>
-            <div className="status-box">
-              <p className="muted">Free Data</p>
-              <h2>{flywheel.free_data?.latest_status || '--'}</h2>
-              <p className="muted status-line">
-                {formatDateTime(flywheel.free_data?.latest_run_at, locale)}
-              </p>
-            </div>
-            <div className="status-box">
-              <p className="muted">Evolution</p>
-              <h2>{flywheel.evolution?.latest_status || '--'}</h2>
-              <p className="muted status-line">
-                {formatDateTime(flywheel.evolution?.latest_run_at, locale)}
-              </p>
-            </div>
-            <div className="status-box">
-              <p className="muted">Training Samples</p>
-              <h2>{formatNumber(currentDatasetCount, 0, locale)}</h2>
-              <p className="muted status-line">
-                {isZh ? '门槛' : 'Threshold'} {formatNumber(minimumTrainingRows, 0, locale)}
-              </p>
-            </div>
-          </div>
-
-          <ul className="bullet-list" style={{ marginTop: 12 }}>
-            <li>
-              {isZh
-                ? `最近一次免费数据刷新处理了 ${formatNumber(latestDataRun?.crypto_structure?.symbols_processed || 0, 0, locale)} 个 crypto 标的，并刷新了 ${formatNumber(latestDataRun?.news?.refreshed_symbols || 0, 0, locale)} 个新闻符号。`
-                : `The latest free-data cycle touched ${formatNumber(latestDataRun?.crypto_structure?.symbols_processed || 0, 0, locale)} crypto symbols and refreshed ${formatNumber(latestDataRun?.news?.refreshed_symbols || 0, 0, locale)} news symbols.`}
-            </li>
-            <li>
-              {isZh
-                ? `最近一次演化周期：升级 ${formatNumber(latestEvolutionRun?.promoted_count || 0, 0, locale)} 个，回滚 ${formatNumber(latestEvolutionRun?.rollback_count || 0, 0, locale)} 个，safe mode ${formatNumber(latestEvolutionRun?.safe_mode_count || 0, 0, locale)} 个。`
-                : `The latest evolution cycle promoted ${formatNumber(latestEvolutionRun?.promoted_count || 0, 0, locale)}, rolled back ${formatNumber(latestEvolutionRun?.rollback_count || 0, 0, locale)}, and placed ${formatNumber(latestEvolutionRun?.safe_mode_count || 0, 0, locale)} markets in safe mode.`}
-            </li>
-            <li>
-              {isZh
-                ? `最近一次训练飞轮样本数是 ${formatNumber(currentDatasetCount, 0, locale)}，执行状态：${flywheel.training?.latest_execution_reason || '未执行'}。`
-                : `The latest training flywheel saw ${formatNumber(currentDatasetCount, 0, locale)} samples. Execution status: ${flywheel.training?.latest_execution_reason || 'not executed'}.`}
-            </li>
-          </ul>
-        </article>
-
-        {recentActivity.length ? (
-          <article className="glass-card">
-            <h3 className="card-title">Recent Loop Activity</h3>
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Workflow</th>
-                    <th>Status</th>
-                    <th>Detail</th>
-                    <th>Updated</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recentActivity.map((row) => (
-                    <tr key={`${row.workflow_key}-${row.updated_at}`}>
-                      <td>{row.label}</td>
-                      <td>{row.status}</td>
-                      <td>{row.detail}</td>
-                      <td>{formatDateTime(row.updated_at, locale)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </article>
-        ) : null}
-
-        <article className="glass-card">
-          <div className="card-header">
-            <div>
-              <h3 className="card-title">Recent Data Intake</h3>
-              <p className="muted status-line">
-                {isZh
-                  ? '看最近抓到了哪些免费数据。'
-                  : 'See what the backend has pulled most recently.'}
-              </p>
-            </div>
-            <span className="badge badge-neutral">{latestDataRun?.trigger_type || '--'}</span>
-          </div>
-
-          <div className="status-grid-3" style={{ marginTop: 10 }}>
-            <div className="status-box">
-              <p className="muted">News Refreshed</p>
-              <h2>{formatNumber(latestDataRun?.news?.refreshed_symbols || 0, 0, locale)}</h2>
-              <p className="muted status-line">
-                {formatNumber(latestDataRun?.news?.rows_upserted || 0, 0, locale)} rows
-              </p>
-            </div>
-            <div className="status-box">
-              <p className="muted">Funding Points</p>
-              <h2>
-                {formatNumber(latestDataRun?.crypto_structure?.funding_points || 0, 0, locale)}
-              </h2>
-              <p className="muted status-line">
-                {formatNumber(
-                  latestDataRun?.crypto_structure?.latest_funding_symbols || 0,
-                  0,
-                  locale,
-                )}{' '}
-                symbols
-              </p>
-            </div>
-            <div className="status-box">
-              <p className="muted">Basis Points</p>
-              <h2>{formatNumber(latestDataRun?.crypto_structure?.basis_points || 0, 0, locale)}</h2>
-              <p className="muted status-line">
-                {formatNumber(
-                  latestDataRun?.crypto_structure?.latest_basis_symbols || 0,
-                  0,
-                  locale,
-                )}{' '}
-                symbols
-              </p>
-            </div>
-          </div>
-
-          <div className="table-wrap" style={{ marginTop: 12 }}>
-            <table>
-              <thead>
-                <tr>
-                  <th>Symbol</th>
-                  <th>Headline</th>
-                  <th>Source</th>
-                  <th>Time</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentNews.length ? (
-                  recentNews.map((row) => (
-                    <tr key={row.id}>
-                      <td>{row.symbol}</td>
-                      <td>{row.headline}</td>
-                      <td>{row.source}</td>
-                      <td>{formatDateTime(row.published_at, locale)}</td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="4">
-                      {isZh ? '暂时还没有最近抓取的新闻记录。' : 'No recent news rows yet.'}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </article>
-
-        <article className="glass-card">
-          <div className="card-header">
-            <div>
-              <h3 className="card-title">Recent Evolution</h3>
-              <p className="muted status-line">
-                {isZh
-                  ? '看系统最近如何调整 champion / challenger。'
-                  : 'See how the system recently adjusted champions and challengers.'}
-              </p>
-            </div>
-            <span className="badge badge-neutral">{latestEvolutionRun?.trigger_type || '--'}</span>
-          </div>
-
-          <div className="table-wrap" style={{ marginTop: 12 }}>
-            <table>
-              <thead>
-                <tr>
-                  <th>Market</th>
-                  <th>Summary</th>
-                  <th>Champion</th>
-                  <th>Challenger</th>
-                </tr>
-              </thead>
-              <tbody>
-                {latestEvolutionRun?.markets?.length ? (
-                  latestEvolutionRun.markets.map((row) => (
-                    <tr key={`${latestEvolutionRun.id}-${row.market}`}>
-                      <td>{row.market}</td>
-                      <td>{row.summary || '--'}</td>
-                      <td>{row.active_model_id || '--'}</td>
-                      <td>{row.challenger_model_id || '--'}</td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="4">
-                      {isZh ? '暂时没有最近演化记录。' : 'No recent evolution rows yet.'}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </article>
-
-        <article className="glass-card">
-          <div className="card-header">
-            <div>
-              <h3 className="card-title">Training Readiness</h3>
-              <p className="muted status-line">
-                {isZh
-                  ? '这里会告诉你系统是不是已经真的开始训练。'
-                  : 'This tells you whether the system has started training for real.'}
-              </p>
-            </div>
-            <span
-              className={`badge ${flywheel.training?.ready_for_training ? 'badge-triggered' : 'badge-neutral'}`}
-            >
-              {flywheel.training?.latest_status || '--'}
-            </span>
-          </div>
-
-          <div className="status-grid-3" style={{ marginTop: 10 }}>
-            <div className="status-box">
-              <p className="muted">Sample Count</p>
-              <h2>{formatNumber(currentDatasetCount, 0, locale)}</h2>
-              <p className="muted status-line">
-                {flywheel.training?.current_dataset_source || '--'}
-              </p>
-            </div>
-            <div className="status-box">
-              <p className="muted">Execution</p>
-              <h2>{flywheel.training?.latest_execution_success ? 'SUCCESS' : 'WAIT'}</h2>
-              <p className="muted status-line">
-                {flywheel.training?.latest_execution_reason || '--'}
-              </p>
-            </div>
-            <div className="status-box">
-              <p className="muted">Task Types</p>
-              <h2>{formatNumber(flywheel.training?.task_types?.length || 0, 0, locale)}</h2>
-              <p className="muted status-line">
-                {formatDateTime(flywheel.training?.latest_run_at, locale)}
-              </p>
-            </div>
-          </div>
-
-          <div className="table-wrap" style={{ marginTop: 12 }}>
-            <table>
-              <thead>
-                <tr>
-                  <th>Run</th>
-                  <th>Trainer</th>
-                  <th>Samples</th>
-                  <th>Execution</th>
-                  <th>Updated</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(flywheel.training?.recent_runs || []).length ? (
-                  flywheel.training.recent_runs.map((row) => (
-                    <tr key={row.id}>
-                      <td>{row.status}</td>
-                      <td>{row.trainer || '--'}</td>
-                      <td>{formatNumber(row.dataset_count || 0, 0, locale)}</td>
-                      <td>{row.execution?.reason || '--'}</td>
-                      <td>{formatDateTime(row.updated_at, locale)}</td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="5">
-                      {isZh ? '暂时没有训练飞轮记录。' : 'No training flywheel runs yet.'}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </article>
-      </section>
-    );
-  };
-
-  const renderSettings = () => {
-    const notificationPrefs = engagementState?.notification_preferences;
-
-    const togglePreference = async (field, nextValue) => {
-      if (isDemoRuntime) return;
-      try {
-        const payload = await fetchJson('/api/notification-preferences', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId: effectiveUserId,
-            [field]: nextValue,
-          }),
-        });
-        setEngagementState((current) =>
-          current
-            ? {
-                ...current,
-                notification_preferences: payload,
-              }
-            : current,
-        );
-        void loadEngagementState();
-      } catch {
-        void loadEngagementState();
-      }
-    };
-
-    return (
-      <section className="stack-gap">
-        <article className="glass-card">
-          <h3 className="card-title">Preferences</h3>
-          <p className="muted status-line">模式会改变信息密度，不会改变底层策略产出。</p>
-
-          <div style={{ marginTop: 10 }}>
-            <SegmentedControl
-              label={t('app.userMode', undefined, 'Mode')}
-              options={[
-                { label: t('mode.beginner', undefined, 'Beginner'), value: 'beginner' },
-                { label: t('mode.standard', undefined, 'Standard'), value: 'standard' },
-                { label: t('mode.advanced', undefined, 'Advanced'), value: 'advanced' },
-              ]}
-              value={uiMode}
-              onChange={setUiMode}
-              compact
-            />
-          </div>
-
-          <div style={{ marginTop: 10 }}>
-            <SegmentedControl
-              label={t('app.riskMode', undefined, 'Risk Mode')}
-              options={[
-                { label: t('onboarding.profile.conservative'), value: 'conservative' },
-                { label: t('onboarding.profile.balanced'), value: 'balanced' },
-                { label: t('onboarding.profile.aggressive'), value: 'aggressive' },
-              ]}
-              value={riskProfileKey}
-              onChange={setRiskProfileKey}
-              compact
-            />
-          </div>
-
-          <div
-            style={{ marginTop: 10 }}
-            className="lang-toggle"
-            role="group"
-            aria-label="Language switch"
-          >
-            <button
-              type="button"
-              className={`lang-option ${lang === 'en' ? 'active' : ''}`}
-              onClick={() => setLang('en')}
-            >
-              EN
-            </button>
-            <button
-              type="button"
-              className={`lang-option ${lang === 'zh' ? 'active' : ''}`}
-              onClick={() => setLang('zh')}
-            >
-              中文
-            </button>
-          </div>
-
-          <div className="action-row" style={{ marginTop: 10 }}>
-            <button type="button" className="secondary-btn" onClick={() => setShowOnboarding(true)}>
-              Re-run Onboarding
-            </button>
-            <button type="button" className="secondary-btn" onClick={() => setAboutOpen(true)}>
-              About & Compliance
-            </button>
-          </div>
-        </article>
-
-        <article className="glass-card">
-          <div className="card-header">
-            <div>
-              <h3 className="card-title">Recall Style</h3>
-              <p className="muted status-line">
-                Nova only nudges when today&apos;s judgment, protection, or wrap-up is worth
-                confirming.
-              </p>
-            </div>
-            <span className="badge badge-neutral">{notificationPrefs?.frequency || 'NORMAL'}</span>
-          </div>
-
-          <div className="status-grid-2" style={{ marginTop: 10 }}>
-            {[
-              ['morning_enabled', 'Morning check'],
-              ['state_shift_enabled', 'Judgment shifts'],
-              ['protective_enabled', 'Protective reminders'],
-              ['wrap_up_enabled', 'Evening wrap-up'],
-            ].map(([field, label]) => {
-              const enabled = Boolean(notificationPrefs?.[field]);
-              return (
-                <button
-                  key={field}
-                  type="button"
-                  className={`status-box preference-toggle ${enabled ? 'is-on' : 'is-off'}`}
-                  onClick={() => togglePreference(field, enabled ? 0 : 1)}
-                >
-                  <p className="muted">{label}</p>
-                  <h2>{enabled ? 'On' : 'Off'}</h2>
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="action-row" style={{ marginTop: 10 }}>
-            <button
-              type="button"
-              className={`secondary-btn ${notificationPrefs?.frequency === 'LOW' ? 'is-selected' : ''}`}
-              onClick={() => togglePreference('frequency', 'LOW')}
-            >
-              Quiet cadence
-            </button>
-            <button
-              type="button"
-              className={`secondary-btn ${notificationPrefs?.frequency !== 'LOW' ? 'is-selected' : ''}`}
-              onClick={() => togglePreference('frequency', 'NORMAL')}
-            >
-              Normal cadence
-            </button>
-          </div>
-        </article>
-      </section>
-    );
-  };
-
   const renderMenuSection = (section) => {
     if (section === 'signals') {
       return !hasLoaded && loading ? (
@@ -2233,179 +1509,16 @@ export default function App() {
 
     if (section === 'discipline') {
       return (
-        <section className="stack-gap">
-          <article className="glass-card posture-card">
-            <h3 className="card-title">Discipline Progress</h3>
-            <p className="daily-brief-conclusion">
-              {engagementState?.habit_state?.summary ||
-                (locale.startsWith('zh')
-                  ? '你在训练的是判断节奏，不是交易频率。'
-                  : 'You are training decision rhythm, not trading frequency.')}
-            </p>
-
-            <div className="status-grid-3">
-              <div className="status-box">
-                <p className="muted">Daily Check-in</p>
-                <h2>
-                  {discipline.checkinStreak}
-                  {locale.startsWith('zh') ? ' 天' : ' days'}
-                </h2>
-              </div>
-              <div className="status-box">
-                <p className="muted">Weekly Review</p>
-                <h2>
-                  {discipline.weeklyStreak}
-                  {locale.startsWith('zh') ? ' 周' : ' weeks'}
-                </h2>
-              </div>
-              <div className="status-box">
-                <p className="muted">Risk Boundary</p>
-                <h2>
-                  {discipline.boundaryStreak}
-                  {locale.startsWith('zh') ? ' 天' : ' days'}
-                </h2>
-              </div>
-            </div>
-
-            <ul className="bullet-list">
-              <li>
-                {engagementState?.daily_check_state?.headline ||
-                  (discipline.checkedToday
-                    ? locale.startsWith('zh')
-                      ? '今天已完成判断校准。'
-                      : 'Today’s view has already been confirmed.'
-                    : locale.startsWith('zh')
-                      ? '今天还未完成判断校准。'
-                      : 'Today’s view is still waiting for confirmation.')}
-              </li>
-              <li>
-                {discipline.boundaryToday
-                  ? locale.startsWith('zh')
-                    ? '今天已确认风险边界。'
-                    : 'Today’s risk boundary has been confirmed.'
-                  : locale.startsWith('zh')
-                    ? '今天还未确认风险边界。'
-                    : 'Today’s risk boundary is still unconfirmed.'}
-              </li>
-              <li>
-                {discipline.reviewedThisWeek
-                  ? locale.startsWith('zh')
-                    ? '本周复盘已完成。'
-                    : 'This week’s review is complete.'
-                  : locale.startsWith('zh')
-                    ? '本周还未完成复盘。'
-                    : 'This week’s review is still open.'}
-              </li>
-              {discipline.noActionValueLine ? <li>{discipline.noActionValueLine}</li> : null}
-            </ul>
-
-            <div className="action-row">
-              <button type="button" className="primary-btn" onClick={markDailyCheckin}>
-                {locale.startsWith('zh') ? '完成今日 Check-in' : 'Complete today’s check-in'}
-              </button>
-              <button type="button" className="secondary-btn" onClick={markBoundaryKept}>
-                {locale.startsWith('zh') ? '记录风险边界执行' : 'Record boundary discipline'}
-              </button>
-              <button type="button" className="secondary-btn" onClick={markWeeklyReviewed}>
-                {locale.startsWith('zh') ? '标记本周复盘完成' : 'Mark weekly review done'}
-              </button>
-            </div>
-          </article>
-
-          {engagementState?.widget_summary ? (
-            <article className="glass-card">
-              <div className="card-header">
-                <div>
-                  <h3 className="card-title">Widget Preview</h3>
-                  <p className="muted status-line">
-                    {locale.startsWith('zh')
-                      ? '桌面和锁屏摘要会围绕判断，而不是围绕行情刺激。'
-                      : 'Home and lock-screen summaries stay centered on judgment, not market stimulation.'}
-                  </p>
-                </div>
-              </div>
-              <div className="status-grid-3">
-                {Object.values(engagementState.widget_summary).map((widget) => (
-                  <div key={widget.kind} className="status-box widget-preview-box">
-                    <p className="muted">{widget.kind.replace(/_/g, ' ')}</p>
-                    <h2>{widget.title}</h2>
-                    <p className="muted status-line">{widget.subtitle}</p>
-                    {widget.spark ? (
-                      <p className="status-line widget-spark-line">{widget.spark}</p>
-                    ) : null}
-                  </div>
-                ))}
-              </div>
-            </article>
-          ) : null}
-
-          {engagementState?.notification_center?.notifications?.length ? (
-            <article className="glass-card">
-              <div className="card-header">
-                <div>
-                  <h3 className="card-title">Notification Preview</h3>
-                  <p className="muted status-line">
-                    {locale.startsWith('zh')
-                      ? '这些消息的目的都是提醒你回来确认，而不是催你交易。'
-                      : 'These messages invite a calm return to confirm, not a push to trade.'}
-                  </p>
-                </div>
-                <span className="badge badge-neutral">
-                  {engagementState.notification_center.active_count || 0}
-                </span>
-              </div>
-              <div className="quick-access-list" style={{ marginTop: 8 }}>
-                {engagementState.notification_center.notifications.slice(0, 4).map((item) => (
-                  <div key={item.id} className="quick-access-row notification-preview-row">
-                    <span className="quick-access-title">{item.title}</span>
-                    <span className="quick-access-desc">{item.body}</span>
-                    <span className="muted status-line notification-tone-line">{item.tone}</span>
-                  </div>
-                ))}
-              </div>
-            </article>
-          ) : null}
-
-          {engagementState?.daily_wrap_up ? (
-            <article className="glass-card">
-              <div className="card-header">
-                <div>
-                  <h3 className="card-title">{engagementState.daily_wrap_up.title}</h3>
-                  <p className="muted status-line">{engagementState.daily_wrap_up.headline}</p>
-                </div>
-                <span
-                  className={`badge ${engagementState.daily_wrap_up.completed ? 'badge-triggered' : 'badge-neutral'}`}
-                >
-                  {engagementState.daily_wrap_up.short_label}
-                </span>
-              </div>
-              {engagementState.daily_wrap_up.opening_line ? (
-                <p className="status-line ritual-kicker">
-                  {engagementState.daily_wrap_up.opening_line}
-                </p>
-              ) : null}
-              <p className="daily-brief-conclusion">{engagementState.daily_wrap_up.summary}</p>
-              <ul className="bullet-list">
-                {(engagementState.daily_wrap_up.lessons || []).map((line) => (
-                  <li key={line}>{line}</li>
-                ))}
-                <li>{engagementState.daily_wrap_up.tomorrow_watch}</li>
-              </ul>
-              <div className="action-row">
-                <button type="button" className="primary-btn" onClick={markWrapUpComplete}>
-                  {locale.startsWith('zh') ? '完成今日复盘' : 'Complete today’s wrap-up'}
-                </button>
-                <button
-                  type="button"
-                  className="secondary-btn"
-                  onClick={() => askAi('What mattered most in today’s wrap-up?')}
-                >
-                  Ask Nova
-                </button>
-              </div>
-            </article>
-          ) : null}
-        </section>
+        <DisciplineTab
+          discipline={discipline}
+          engagementState={engagementState}
+          locale={locale}
+          markDailyCheckin={markDailyCheckin}
+          markBoundaryKept={markBoundaryKept}
+          markWrapUpComplete={markWrapUpComplete}
+          markWeeklyReviewed={markWeeklyReviewed}
+          askAi={askAi}
+        />
       );
     }
 
@@ -2472,15 +1585,33 @@ export default function App() {
     }
 
     if (section === 'data') {
-      return renderDataStatus();
+      return <DataStatusTab data={data} />;
     }
 
     if (section === 'learning') {
-      return renderLearningStatus();
+      return <LearningLoopTab data={data} locale={locale} />;
     }
 
     if (section === 'settings') {
-      return renderSettings();
+      return (
+        <SettingsTab
+          engagementState={engagementState}
+          uiMode={uiMode}
+          setUiMode={setUiMode}
+          riskProfileKey={riskProfileKey}
+          setRiskProfileKey={setRiskProfileKey}
+          lang={lang}
+          setLang={setLang}
+          t={t}
+          isDemoRuntime={isDemoRuntime}
+          effectiveUserId={effectiveUserId}
+          setShowOnboarding={setShowOnboarding}
+          setAboutOpen={setAboutOpen}
+          loadEngagementState={loadEngagementState}
+          setEngagementState={setEngagementState}
+          fetchJson={fetchJson}
+        />
+      );
     }
 
     return null;
@@ -2539,77 +1670,7 @@ export default function App() {
           onNavigate={navigateFromAi}
           userId={effectiveUserId}
           locale={locale}
-          baseContext={{
-            locale: lang,
-            market,
-            assetClass,
-            riskProfileKey,
-            uiMode,
-            decisionSummary: {
-              today_call:
-                decisionSnapshot?.summary?.today_call?.headline ||
-                decisionSnapshot?.summary?.today_call ||
-                null,
-              risk_posture:
-                decisionSnapshot?.summary?.risk_posture ||
-                decisionSnapshot?.risk_state?.posture ||
-                null,
-              top_action_id: decisionSnapshot?.top_action_id || null,
-              top_action_symbol:
-                decisionSnapshot?.summary?.top_action_symbol ||
-                decisionSnapshot?.ranked_action_cards?.[0]?.symbol ||
-                null,
-              top_action_label:
-                decisionSnapshot?.summary?.top_action_label ||
-                decisionSnapshot?.ranked_action_cards?.[0]?.action_label ||
-                null,
-              source_status:
-                decisionSnapshot?.source_status ||
-                uiData?.config?.runtime?.source_status ||
-                'INSUFFICIENT_DATA',
-              data_status:
-                decisionSnapshot?.data_status ||
-                uiData?.config?.runtime?.data_status ||
-                'INSUFFICIENT_DATA',
-            },
-            holdingsSummary: {
-              holdings_count: holdingsReview?.totals?.holdings_count ?? 0,
-              total_weight_pct: holdingsReview?.totals?.total_weight_pct ?? 0,
-              aligned_weight_pct: holdingsReview?.system_alignment?.aligned_weight_pct ?? 0,
-              unsupported_weight_pct: holdingsReview?.system_alignment?.unsupported_weight_pct ?? 0,
-              top1_pct: holdingsReview?.concentration?.top1_pct ?? 0,
-              risk_level: holdingsReview?.risk?.level || null,
-              recommendation:
-                holdingsReview?.risk?.recommendation || holdingsReview?.key_advice || null,
-            },
-            engagementSummary: {
-              locale: lang,
-              morning_check_status: engagementState?.daily_check_state?.status || null,
-              morning_check_label: engagementState?.daily_check_state?.headline || null,
-              morning_check_arrival:
-                engagementState?.daily_check_state?.arrival_line ||
-                engagementState?.ui_regime_state?.arrival_line ||
-                null,
-              morning_check_ritual:
-                engagementState?.daily_check_state?.ritual_line ||
-                engagementState?.ui_regime_state?.ritual_line ||
-                null,
-              perception_status: engagementState?.perception_layer?.status || null,
-              perception_headline: engagementState?.perception_layer?.headline || null,
-              perception_focus: engagementState?.perception_layer?.focus_line || null,
-              perception_confirmation: engagementState?.perception_layer?.confirmation_line || null,
-              wrap_up_ready: Boolean(engagementState?.daily_wrap_up?.ready),
-              wrap_up_completed: Boolean(engagementState?.daily_wrap_up?.completed),
-              wrap_up_line:
-                engagementState?.daily_wrap_up?.opening_line ||
-                engagementState?.ui_regime_state?.wrap_line ||
-                null,
-              discipline_score: Number(engagementState?.habit_state?.discipline_score || 0) || null,
-              behavior_quality: engagementState?.habit_state?.behavior_quality || null,
-              recommendation_change: engagementState?.recommendation_change?.summary || null,
-              ui_tone: engagementState?.ui_regime_state?.tone || null,
-            },
-          }}
+          baseContext={baseContext}
         />
       );
     }
