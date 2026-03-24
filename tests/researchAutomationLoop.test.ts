@@ -5,7 +5,7 @@ import { runQuantPipeline } from '../src/engines/pipeline.js';
 describe('research automation loop', () => {
   const state = runQuantPipeline({
     as_of: '2026-03-08T00:00:00.000Z',
-    config: { risk_profile: 'balanced' }
+    config: { risk_profile: 'balanced' },
   });
 
   it('emits weekly summary, alerts, and candidate suggestions', () => {

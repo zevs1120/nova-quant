@@ -17,7 +17,8 @@ function parseJson(text: string | null | undefined): JsonObject {
 function toMessages(run: NovaTaskRunRecord) {
   const input = parseJson(run.input_json);
   const output = parseJson(run.output_json);
-  const systemPrompt = typeof input.system_prompt === 'string' ? input.system_prompt : 'You are Nova.';
+  const systemPrompt =
+    typeof input.system_prompt === 'string' ? input.system_prompt : 'You are Nova.';
   const userPrompt =
     typeof input.user_prompt === 'string'
       ? input.user_prompt
@@ -36,7 +37,7 @@ function toMessages(run: NovaTaskRunRecord) {
   return [
     { role: 'system', content: systemPrompt },
     { role: 'user', content: userPrompt },
-    { role: 'assistant', content: assistantText }
+    { role: 'assistant', content: assistantText },
   ];
 }
 
@@ -56,16 +57,16 @@ export function buildMlxLmTrainingDataset(
     onlyIncluded?: boolean;
     limit?: number;
     taskTypes?: ReadonlyArray<NovaTaskType>;
-  }
+  },
 ) {
   const taskTypes = normalizeNovaMlxTaskTypes(args?.taskTypes || DEFAULT_NOVA_MLX_TASK_TYPES);
   const runs = repo.listNovaTaskRuns({
     status: 'SUCCEEDED',
-    limit: args?.limit || 500
+    limit: args?.limit || 500,
   });
   const labels = repo.listNovaReviewLabels({
     includeInTraining: args?.onlyIncluded ? true : undefined,
-    limit: 1000
+    limit: 1000,
   });
   const labelsByRun = indexLabels(labels);
 
@@ -91,9 +92,9 @@ export function buildMlxLmTrainingDataset(
             reviewer_id: label.reviewer_id,
             label: label.label,
             score: label.score,
-            include_in_training: Boolean(label.include_in_training)
-          }))
-        }
+            include_in_training: Boolean(label.include_in_training),
+          })),
+        },
       };
     })
     .filter((row): row is NonNullable<typeof row> => Boolean(row));
@@ -102,6 +103,6 @@ export function buildMlxLmTrainingDataset(
     format: 'mlx-lm-chat-jsonl',
     count: records.length,
     task_types: taskTypes,
-    records
+    records,
   };
 }

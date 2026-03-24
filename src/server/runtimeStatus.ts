@@ -9,15 +9,20 @@ export const RUNTIME_STATUS = {
   INSUFFICIENT_DATA: 'INSUFFICIENT_DATA',
   NO_CREDENTIALS: 'NO_CREDENTIALS',
   WITHHELD: 'WITHHELD',
-  DEMO_ONLY: 'DEMO_ONLY'
+  DEMO_ONLY: 'DEMO_ONLY',
 } as const;
 
 export type RuntimeStatus = (typeof RUNTIME_STATUS)[keyof typeof RUNTIME_STATUS];
 
 const RUNTIME_STATUS_SET = new Set<string>(Object.values(RUNTIME_STATUS));
 
-export function normalizeRuntimeStatus(value: unknown, fallback: RuntimeStatus = RUNTIME_STATUS.INSUFFICIENT_DATA): RuntimeStatus {
-  const candidate = String(value || '').trim().toUpperCase();
+export function normalizeRuntimeStatus(
+  value: unknown,
+  fallback: RuntimeStatus = RUNTIME_STATUS.INSUFFICIENT_DATA,
+): RuntimeStatus {
+  const candidate = String(value || '')
+    .trim()
+    .toUpperCase();
   if (RUNTIME_STATUS_SET.has(candidate)) {
     return candidate as RuntimeStatus;
   }
@@ -47,6 +52,6 @@ export function withComponentStatus(args: {
   return {
     source_status: componentSource,
     data_status: componentDataStatus,
-    source_label: componentDataStatus
+    source_label: componentDataStatus,
   };
 }

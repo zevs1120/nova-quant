@@ -6,7 +6,7 @@ import {
   estimateCostDragPct,
   normalizedTurnover,
   resolveExecutionAssumptions,
-  resolveExecutionRealismProfile
+  resolveExecutionRealismProfile,
 } from '../validation/executionRealismModel.js';
 
 const DEFAULT_CONFIG = Object.freeze({
@@ -18,7 +18,7 @@ const DEFAULT_CONFIG = Object.freeze({
   rolling_reoptimization: true,
   use_historical_replay: true,
   min_replay_daily_points: 30,
-  execution_realism_mode: 'backtest'
+  execution_realism_mode: 'backtest',
 });
 
 function safe(value, fallback = 0) {
@@ -32,7 +32,7 @@ function toDailySeries(backtest = {}) {
     regime: row.regime || 'unknown',
     ret: Number(row.post_cost_return || 0),
     pre_cost_ret: Number(row.pre_cost_return ?? row.post_cost_return ?? 0),
-    turnover: Number(row.turnover || 0)
+    turnover: Number(row.turnover || 0),
   }));
 }
 
@@ -42,7 +42,7 @@ function replayToDailySeries(rows = []) {
     regime: row.regime || 'unknown',
     ret: Number(row.post_cost_return || 0),
     pre_cost_ret: Number(row.pre_cost_return ?? row.post_cost_return ?? 0),
-    turnover: Number(row.turnover || 0)
+    turnover: Number(row.turnover || 0),
   }));
 }
 
@@ -50,7 +50,15 @@ function makeWindows(length, cfg) {
   const windows = [];
   let start = 0;
 
-  while (start + cfg.train_days + cfg.embargo_days + cfg.validation_days + cfg.embargo_days + cfg.test_days <= length) {
+  while (
+    start +
+      cfg.train_days +
+      cfg.embargo_days +
+      cfg.validation_days +
+      cfg.embargo_days +
+      cfg.test_days <=
+    length
+  ) {
     const trainStart = start;
     const trainEnd = trainStart + cfg.train_days;
     const validStart = trainEnd + cfg.embargo_days;
@@ -61,7 +69,7 @@ function makeWindows(length, cfg) {
     windows.push({
       train: [trainStart, trainEnd],
       validation: [validStart, validEnd],
-      test: [testStart, testEnd]
+      test: [testStart, testEnd],
     });
 
     start += cfg.step_days;
@@ -79,7 +87,7 @@ function metrics(rows = []) {
       mean_return: 0,
       sharpe: 0,
       max_drawdown: 0,
-      win_rate: 0
+      win_rate: 0,
     };
   }
 
@@ -96,7 +104,7 @@ function metrics(rows = []) {
     mean_return: round(mean(returns), 6),
     sharpe: round((mean(returns) / sigma) * Math.sqrt(252), 4),
     max_drawdown: round(maxDrawdownFromCurve(curve), 6),
-    win_rate: round(returns.filter((item) => item > 0).length / returns.length, 4)
+    win_rate: round(returns.filter((item) => item > 0).length / returns.length, 4),
   };
 }
 
@@ -110,8 +118,8 @@ function stressReturns(rows = [], assumption = {}, scenario = {}) {
         assumption: scenarioAssumption,
         turnover: normalizedTurnover(row.turnover),
         holdingDays: 1,
-        includeFunding: true
-      })
+        includeFunding: true,
+      }),
   }));
 }
 
@@ -132,7 +140,7 @@ function regimeSlice(rows = []) {
       regime,
       ...m,
       trade_density_ratio: round(items.length / total, 4),
-      drawdown_in_regime: m.max_drawdown
+      drawdown_in_regime: m.max_drawdown,
     };
   });
 }
@@ -143,7 +151,7 @@ function degradation(rows = []) {
       early_mean_return: 0,
       late_mean_return: 0,
       degradation: 0,
-      trend: 'insufficient_data'
+      trend: 'insufficient_data',
     };
   }
 
@@ -158,7 +166,7 @@ function degradation(rows = []) {
     early_mean_return: round(earlyMean, 6),
     late_mean_return: round(lateMean, 6),
     degradation: round(delta, 6),
-    trend: delta < -0.0008 ? 'degrading' : delta > 0.0008 ? 'improving' : 'stable'
+    trend: delta < -0.0008 ? 'degrading' : delta > 0.0008 ? 'improving' : 'stable',
   };
 }
 
@@ -171,7 +179,7 @@ function parameterNeighborhood(strategyId, allStrategies = []) {
       neighborhood_size: peers.length,
       relative_return_rank: 1,
       robust: false,
-      note: 'No neighborhood baseline available.'
+      note: 'No neighborhood baseline available.',
     };
   }
 
@@ -188,7 +196,7 @@ function parameterNeighborhood(strategyId, allStrategies = []) {
     relative_return_rank: rank,
     robust: rank <= Math.ceil(values.length * 0.6) && spread <= 0.08,
     performance_spread: round(spread, 6),
-    note: 'Neighborhood robustness is estimated from challenger variants under the same window.'
+    note: 'Neighborhood robustness is estimated from challenger variants under the same window.',
   };
 }
 
@@ -197,7 +205,7 @@ function parameterSensitivitySurface(series = []) {
     return {
       base: { score_threshold_shift: 0, sizing_shift: 0, cumulative_return: 0, max_drawdown: 0 },
       grid: [],
-      fragile: true
+      fragile: true,
     };
   }
 
@@ -207,31 +215,32 @@ function parameterSensitivitySurface(series = []) {
     for (const sizingShift of shifts) {
       const adjusted = series.map((row) => ({
         ...row,
-        ret: row.ret * (1 + sizingShift) + scoreShift * 0.0008
+        ret: row.ret * (1 + sizingShift) + scoreShift * 0.0008,
       }));
       const m = metrics(adjusted);
       grid.push({
         score_threshold_shift: round(scoreShift, 4),
         sizing_shift: round(sizingShift, 4),
         cumulative_return: m.cumulative_return,
-        max_drawdown: m.max_drawdown
+        max_drawdown: m.max_drawdown,
       });
     }
   }
 
-  const base = grid.find((item) => item.score_threshold_shift === 0 && item.sizing_shift === 0) || grid[0];
+  const base =
+    grid.find((item) => item.score_threshold_shift === 0 && item.sizing_shift === 0) || grid[0];
   const robustNeighbors = grid.filter(
     (item) =>
       Math.abs(item.score_threshold_shift) <= 0.04 &&
       Math.abs(item.sizing_shift) <= 0.04 &&
       item.cumulative_return >= (base?.cumulative_return ?? 0) - 0.03 &&
-      item.max_drawdown <= (base?.max_drawdown ?? 0) + 0.03
+      item.max_drawdown <= (base?.max_drawdown ?? 0) + 0.03,
   ).length;
 
   return {
     base,
     grid,
-    fragile: robustNeighbors < 5
+    fragile: robustNeighbors < 5,
   };
 }
 
@@ -245,11 +254,11 @@ function windowResult(series, win, idx) {
     ranges: {
       train: [train[0]?.date || null, train[train.length - 1]?.date || null],
       validation: [validation[0]?.date || null, validation[validation.length - 1]?.date || null],
-      test: [test[0]?.date || null, test[test.length - 1]?.date || null]
+      test: [test[0]?.date || null, test[test.length - 1]?.date || null],
     },
     train_metrics: metrics(train),
     validation_metrics: metrics(validation),
-    test_metrics: metrics(test)
+    test_metrics: metrics(test),
   };
 }
 
@@ -260,7 +269,7 @@ function resolveReplaySeries(strategy, replayValidation = {}, cfg = DEFAULT_CONF
       source: 'legacy_backtest',
       replay_backed: false,
       reason: 'replay_disabled',
-      assumption_profile: replayValidation?.assumptions?.assumption_profile || null
+      assumption_profile: replayValidation?.assumptions?.assumption_profile || null,
     };
   }
 
@@ -272,7 +281,7 @@ function resolveReplaySeries(strategy, replayValidation = {}, cfg = DEFAULT_CONF
       source: 'historical_replay_direct',
       replay_backed: true,
       reason: 'strategy_signal_replay_available',
-      assumption_profile: replayValidation?.assumptions?.assumption_profile || null
+      assumption_profile: replayValidation?.assumptions?.assumption_profile || null,
     };
   }
 
@@ -284,7 +293,7 @@ function resolveReplaySeries(strategy, replayValidation = {}, cfg = DEFAULT_CONF
         source: 'historical_replay_champion_aggregate',
         replay_backed: true,
         reason: 'champion_uses_signal_replay_aggregate',
-        assumption_profile: replayValidation?.assumptions?.assumption_profile || null
+        assumption_profile: replayValidation?.assumptions?.assumption_profile || null,
       };
     }
   }
@@ -294,7 +303,7 @@ function resolveReplaySeries(strategy, replayValidation = {}, cfg = DEFAULT_CONF
     source: 'legacy_backtest',
     replay_backed: false,
     reason: 'no_strategy_specific_replay_series',
-    assumption_profile: replayValidation?.assumptions?.assumption_profile || null
+    assumption_profile: replayValidation?.assumptions?.assumption_profile || null,
   };
 }
 
@@ -313,7 +322,7 @@ function strictFillMonotonicityCheck(base = {}, strict = {}) {
   const delta = strictRet - baseRet;
   return {
     passes: delta <= 0.0005,
-    delta: round(delta, 6)
+    delta: round(delta, 6),
   };
 }
 
@@ -325,17 +334,20 @@ function evaluateStrategy({ strategy, allStrategies, cfg, replayValidation }) {
   const baselineAssumption = resolveExecutionAssumptions({
     profile: cfg.execution_realism_profile,
     signal: { market: marketHint },
-    mode: cfg.execution_realism_profile?.mode || cfg.execution_realism_mode || 'backtest'
+    mode: cfg.execution_realism_profile?.mode || cfg.execution_realism_mode || 'backtest',
   });
-  const scenarioDefs = buildExecutionSensitivityScenarios(cfg.execution_realism_profile)
-    .filter((row) => !row.test_only);
+  const scenarioDefs = buildExecutionSensitivityScenarios(cfg.execution_realism_profile).filter(
+    (row) => !row.test_only,
+  );
   const scenarioMetrics = scenarioDefs.map((scenario) => ({
     scenario_id: scenario.scenario_id,
     label: scenario.label,
-    metrics: metrics(stressReturns(series, baselineAssumption, scenario))
+    metrics: metrics(stressReturns(series, baselineAssumption, scenario)),
   }));
   const scenarioById = toScenarioMap(scenarioMetrics);
-  const modelBaseMetrics = scenarioById.baseline?.metrics || metrics(stressReturns(series, baselineAssumption, { scenario_id: 'baseline' }));
+  const modelBaseMetrics =
+    scenarioById.baseline?.metrics ||
+    metrics(stressReturns(series, baselineAssumption, { scenario_id: 'baseline' }));
 
   const windows = makeWindows(series.length, cfg);
   const wfRows = windows.map((win, idx) => windowResult(series, win, idx));
@@ -356,8 +368,10 @@ function evaluateStrategy({ strategy, allStrategies, cfg, replayValidation }) {
   const strictMonotonicity = strictFillMonotonicityCheck(modelBaseMetrics, strictFill);
 
   const regimeBreakdown = regimeSlice(series);
-  const worstRegime = [...regimeBreakdown].sort((a, b) => a.cumulative_return - b.cumulative_return)[0] || null;
-  const bestRegime = [...regimeBreakdown].sort((a, b) => b.cumulative_return - a.cumulative_return)[0] || null;
+  const worstRegime =
+    [...regimeBreakdown].sort((a, b) => a.cumulative_return - b.cumulative_return)[0] || null;
+  const bestRegime =
+    [...regimeBreakdown].sort((a, b) => b.cumulative_return - a.cumulative_return)[0] || null;
 
   const degr = degradation(series);
   const neighborhood = parameterNeighborhood(strategy.strategy_id, allStrategies);
@@ -365,12 +379,14 @@ function evaluateStrategy({ strategy, allStrategies, cfg, replayValidation }) {
 
   const survivesOOS = oosPositiveRatio >= 0.45 && oosMean > -0.0012;
   const survivesCosts = cost50.cumulative_return >= modelBaseMetrics.cumulative_return - 0.05;
-  const survivesHarshExecution = Math.min(
-    cost50.cumulative_return,
-    spreadWide.cumulative_return,
-    fundingAdverse.cumulative_return,
-    strictFill.cumulative_return
-  ) >= modelBaseMetrics.cumulative_return - 0.08;
+  const survivesHarshExecution =
+    Math.min(
+      cost50.cumulative_return,
+      spreadWide.cumulative_return,
+      fundingAdverse.cumulative_return,
+      strictFill.cumulative_return,
+    ) >=
+    modelBaseMetrics.cumulative_return - 0.08;
   const regimeDependent =
     bestRegime && worstRegime
       ? Math.abs(bestRegime.cumulative_return - worstRegime.cumulative_return) > 0.08
@@ -387,7 +403,7 @@ function evaluateStrategy({ strategy, allStrategies, cfg, replayValidation }) {
       replay_reason: resolvedReplay.reason,
       assumption_profile: resolvedReplay.assumption_profile,
       replay_daily_points: replaySeries.length,
-      validation_daily_points: series.length
+      validation_daily_points: series.length,
     },
     windows: wfRows,
     out_of_sample_summary: {
@@ -395,7 +411,7 @@ function evaluateStrategy({ strategy, allStrategies, cfg, replayValidation }) {
       avg_test_cumulative_return: round(oosMean, 6),
       positive_window_ratio: round(oosPositiveRatio, 4),
       survives_out_of_sample: survivesOOS,
-      data_source: resolvedReplay.source
+      data_source: resolvedReplay.source,
     },
     regime_sliced_evaluation: regimeBreakdown,
     parameter_stability: neighborhood,
@@ -408,11 +424,11 @@ function evaluateStrategy({ strategy, allStrategies, cfg, replayValidation }) {
       wider_spread: spreadWide,
       adverse_funding: fundingAdverse,
       strict_fill: strictFill,
-      strict_fill_monotonicity: strictMonotonicity
+      strict_fill_monotonicity: strictMonotonicity,
     },
     slippage_sensitivity: {
       mild_slippage_shock: cost25,
-      severe_slippage_shock: cost50
+      severe_slippage_shock: cost50,
     },
     execution_realism: {
       assumption_profile: baselineAssumption,
@@ -420,10 +436,10 @@ function evaluateStrategy({ strategy, allStrategies, cfg, replayValidation }) {
       harsh_scenarios: {
         wider_spread: spreadWide,
         adverse_funding: fundingAdverse,
-        strict_fill: strictFill
+        strict_fill: strictFill,
       },
       strict_fill_monotonicity: strictMonotonicity,
-      survives_harsh_assumptions: survivesHarshExecution
+      survives_harsh_assumptions: survivesHarshExecution,
     },
     degradation_tracking: degr,
     verdict: {
@@ -435,8 +451,8 @@ function evaluateStrategy({ strategy, allStrategies, cfg, replayValidation }) {
       stability: stable ? 'stable' : 'fragile',
       parameter_neighborhood_robust: neighborhood.robust,
       parameter_surface_fragile: sensitivitySurface.fragile,
-      promotion_readiness: promotable ? 'pass' : 'hold'
-    }
+      promotion_readiness: promotable ? 'pass' : 'hold',
+    },
   };
 }
 
@@ -445,14 +461,14 @@ function collectStrategies(research = {}) {
     ? {
         strategy_id: research.champion?.config?.id || 'champion',
         strategy_label: research.champion?.config?.label || 'Champion',
-        backtest: research.champion?.backtest || {}
+        backtest: research.champion?.backtest || {},
       }
     : null;
 
   const challengers = (research?.challengers || []).map((item) => ({
     strategy_id: item?.config?.id || 'challenger',
     strategy_label: item?.config?.label || item?.config?.id || 'Challenger',
-    backtest: item?.backtest || {}
+    backtest: item?.backtest || {},
   }));
 
   return [champion, ...challengers].filter(Boolean);
@@ -465,7 +481,7 @@ export function buildWalkForwardValidation({
   regimeState = {},
   riskBucketSystem = {},
   funnelDiagnostics = {},
-  config = {}
+  config = {},
 } = {}) {
   const cfg = {
     ...DEFAULT_CONFIG,
@@ -473,8 +489,8 @@ export function buildWalkForwardValidation({
     execution_realism_profile: resolveExecutionRealismProfile({
       mode: config.execution_realism_mode || DEFAULT_CONFIG.execution_realism_mode,
       profile: config.execution_realism_profile || {},
-      overrides: config.execution_realism_overrides || {}
-    })
+      overrides: config.execution_realism_overrides || {},
+    }),
   };
 
   const replayValidation = buildHistoricalReplayValidation({
@@ -483,7 +499,7 @@ export function buildWalkForwardValidation({
     regimeState,
     riskBucketSystem,
     funnelDiagnostics,
-    config: config.replay || {}
+    config: config.replay || {},
   });
 
   const strategies = collectStrategies(research);
@@ -492,8 +508,8 @@ export function buildWalkForwardValidation({
       strategy,
       allStrategies: strategies,
       cfg,
-      replayValidation
-    })
+      replayValidation,
+    }),
   );
 
   return {
@@ -504,22 +520,29 @@ export function buildWalkForwardValidation({
     strategies: evaluations,
     summary: {
       evaluated_strategies: evaluations.length,
-      replay_backed_strategies: evaluations.filter((item) => item.replay_context?.replay_backed).length,
+      replay_backed_strategies: evaluations.filter((item) => item.replay_context?.replay_backed)
+        .length,
       replay_signal_count: replayValidation?.summary?.total_signals || 0,
       replay_triggered_count: replayValidation?.summary?.triggered_trades || 0,
       oos_survivors: evaluations.filter((item) => item.verdict.survives_out_of_sample).length,
       cost_survivors: evaluations.filter((item) => item.verdict.survives_after_costs).length,
-      harsh_execution_survivors: evaluations.filter((item) => item.verdict.survives_after_harsh_execution).length,
+      harsh_execution_survivors: evaluations.filter(
+        (item) => item.verdict.survives_after_harsh_execution,
+      ).length,
       strict_fill_monotonicity_failures: evaluations
         .filter((item) => !item.verdict.strict_fill_monotonicity)
         .map((item) => item.strategy_id),
-      fragile_strategies: evaluations.filter((item) => item.verdict.stability === 'fragile').map((item) => item.strategy_id),
-      promotion_ready: evaluations.filter((item) => item.verdict.promotion_readiness === 'pass').map((item) => item.strategy_id),
+      fragile_strategies: evaluations
+        .filter((item) => item.verdict.stability === 'fragile')
+        .map((item) => item.strategy_id),
+      promotion_ready: evaluations
+        .filter((item) => item.verdict.promotion_readiness === 'pass')
+        .map((item) => item.strategy_id),
       rolling_reoptimization: Boolean(cfg.rolling_reoptimization),
       execution_assumption_profile: {
         profile_id: cfg.execution_realism_profile.profile_id,
-        mode: cfg.execution_realism_profile.mode
-      }
-    }
+        mode: cfg.execution_realism_profile.mode,
+      },
+    },
   };
 }

@@ -1256,9 +1256,15 @@ export function ensureSchema(db: Database.Database): void {
           parent_run_id, input_json, context_json, output_json, status, error, created_at_ms, updated_at_ms
         FROM nova_task_runs_old;
       `);
-      db.exec('CREATE INDEX IF NOT EXISTS idx_nova_task_runs_lookup ON nova_task_runs(task_type, created_at_ms DESC);');
-      db.exec('CREATE INDEX IF NOT EXISTS idx_nova_task_runs_user ON nova_task_runs(user_id, created_at_ms DESC);');
-      db.exec('CREATE INDEX IF NOT EXISTS idx_nova_task_runs_thread ON nova_task_runs(thread_id, created_at_ms DESC);');
+      db.exec(
+        'CREATE INDEX IF NOT EXISTS idx_nova_task_runs_lookup ON nova_task_runs(task_type, created_at_ms DESC);',
+      );
+      db.exec(
+        'CREATE INDEX IF NOT EXISTS idx_nova_task_runs_user ON nova_task_runs(user_id, created_at_ms DESC);',
+      );
+      db.exec(
+        'CREATE INDEX IF NOT EXISTS idx_nova_task_runs_thread ON nova_task_runs(thread_id, created_at_ms DESC);',
+      );
       db.exec(`
         CREATE TABLE nova_review_labels (
           id TEXT PRIMARY KEY,
@@ -1281,7 +1287,9 @@ export function ensureSchema(db: Database.Database): void {
           id, run_id, reviewer_id, label, score, notes, include_in_training, created_at_ms, updated_at_ms
         FROM nova_review_labels_old;
       `);
-      db.exec('CREATE INDEX IF NOT EXISTS idx_nova_review_labels_run ON nova_review_labels(run_id, updated_at_ms DESC);');
+      db.exec(
+        'CREATE INDEX IF NOT EXISTS idx_nova_review_labels_run ON nova_review_labels(run_id, updated_at_ms DESC);',
+      );
       db.exec('DROP TABLE nova_review_labels_old;');
       db.exec('DROP TABLE nova_task_runs_old;');
       db.exec('COMMIT;');
@@ -1314,11 +1322,15 @@ export function ensureSchema(db: Database.Database): void {
   try {
     db.prepare('SELECT evidence_mode FROM decision_snapshots LIMIT 1').get();
   } catch {
-    db.exec("ALTER TABLE decision_snapshots ADD COLUMN evidence_mode TEXT NOT NULL DEFAULT 'UNAVAILABLE';");
+    db.exec(
+      "ALTER TABLE decision_snapshots ADD COLUMN evidence_mode TEXT NOT NULL DEFAULT 'UNAVAILABLE';",
+    );
   }
   try {
     db.prepare('SELECT performance_mode FROM decision_snapshots LIMIT 1').get();
   } catch {
-    db.exec("ALTER TABLE decision_snapshots ADD COLUMN performance_mode TEXT NOT NULL DEFAULT 'UNAVAILABLE';");
+    db.exec(
+      "ALTER TABLE decision_snapshots ADD COLUMN performance_mode TEXT NOT NULL DEFAULT 'UNAVAILABLE';",
+    );
   }
 }

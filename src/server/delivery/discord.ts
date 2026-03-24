@@ -20,7 +20,7 @@ export async function deliverSignalToDiscord(args: {
       endpoint: null,
       event_type: args.eventType,
       status: 'SKIPPED',
-      detail: 'DISCORD_WEBHOOK_URL missing'
+      detail: 'DISCORD_WEBHOOK_URL missing',
     });
     return;
   }
@@ -37,23 +37,35 @@ export async function deliverSignalToDiscord(args: {
         fields: [
           { name: 'Direction', value: args.signal.direction, inline: true },
           { name: 'Status', value: args.signal.status, inline: true },
-          { name: 'Confidence', value: `${(args.signal.confidence * 100).toFixed(0)}%`, inline: true },
+          {
+            name: 'Confidence',
+            value: `${(args.signal.confidence * 100).toFixed(0)}%`,
+            inline: true,
+          },
           { name: 'Entry', value: entry, inline: true },
           { name: 'Stop', value: args.signal.stop_loss.price.toFixed(2), inline: true },
           { name: 'TP1', value: tp.toFixed(2), inline: true },
-          { name: 'Position %', value: `${args.signal.position_advice.position_pct.toFixed(2)}%`, inline: true },
-          { name: 'Regime', value: `${args.signal.regime_id} / temp ${args.signal.temperature_percentile.toFixed(1)}`, inline: true }
+          {
+            name: 'Position %',
+            value: `${args.signal.position_advice.position_pct.toFixed(2)}%`,
+            inline: true,
+          },
+          {
+            name: 'Regime',
+            value: `${args.signal.regime_id} / temp ${args.signal.temperature_percentile.toFixed(1)}`,
+            inline: true,
+          },
         ],
-        timestamp: new Date().toISOString()
-      }
-    ]
+        timestamp: new Date().toISOString(),
+      },
+    ],
   };
 
   try {
     const res = await fetch(webhook, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
     });
     if (!res.ok) {
       const text = await res.text();
@@ -63,7 +75,7 @@ export async function deliverSignalToDiscord(args: {
         endpoint: webhook,
         event_type: args.eventType,
         status: 'FAILED',
-        detail: `HTTP ${res.status} ${text.slice(0, 200)}`
+        detail: `HTTP ${res.status} ${text.slice(0, 200)}`,
       });
       return;
     }
@@ -73,7 +85,7 @@ export async function deliverSignalToDiscord(args: {
       endpoint: webhook,
       event_type: args.eventType,
       status: 'SENT',
-      detail: null
+      detail: null,
     });
   } catch (error) {
     args.repo.logSignalDelivery({
@@ -82,7 +94,7 @@ export async function deliverSignalToDiscord(args: {
       endpoint: webhook,
       event_type: args.eventType,
       status: 'FAILED',
-      detail: error instanceof Error ? error.message : String(error)
+      detail: error instanceof Error ? error.message : String(error),
     });
   }
 }

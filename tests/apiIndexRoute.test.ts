@@ -20,7 +20,7 @@ function createMockResponse() {
     },
     end() {
       return this;
-    }
+    },
   };
 }
 
@@ -30,18 +30,18 @@ describe('api index route', () => {
     await handler(
       {
         query: {
-          route: ['auth', 'login']
+          route: ['auth', 'login'],
         },
         url: '/api?route=auth&route=login',
         method: 'OPTIONS',
         headers: {
-          origin: 'https://novaquant.cloud'
+          origin: 'https://novaquant.cloud',
         },
         header(name: string) {
           return this.headers?.[name.toLowerCase()];
-        }
+        },
       } as any,
-      res as any
+      res as any,
     );
 
     expect(res.statusCode).toBe(204);
@@ -55,18 +55,18 @@ describe('api index route', () => {
     await handler(
       {
         query: {
-          route: ['assets']
+          route: ['assets'],
         },
         url: '/api?route=assets',
         method: 'OPTIONS',
         headers: {
-          origin: 'https://novaquant.cloud'
+          origin: 'https://novaquant.cloud',
         },
         header(name: string) {
           return this.headers?.[name.toLowerCase()];
-        }
+        },
       } as any,
-      res as any
+      res as any,
     );
 
     expect(res.statusCode).toBe(204);

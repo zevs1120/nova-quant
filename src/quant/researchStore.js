@@ -20,7 +20,7 @@ function defaultStore() {
     portfolio_history: [],
     alpha_daily_stats: [],
     promotion_decisions: [],
-    experiments: []
+    experiments: [],
   };
 }
 
@@ -48,7 +48,7 @@ function readStore() {
     const parsed = JSON.parse(raw);
     return {
       ...defaultStore(),
-      ...parsed
+      ...parsed,
     };
   } catch {
     return defaultStore();
@@ -75,7 +75,9 @@ function mergeByKey(existing = [], incoming = [], keyFn, limit = 500) {
   for (const row of incoming) {
     map.set(keyFn(row), row);
   }
-  const merged = Array.from(map.values()).sort((a, b) => String(a.date || a.created_at || '').localeCompare(String(b.date || b.created_at || '')));
+  const merged = Array.from(map.values()).sort((a, b) =>
+    String(a.date || a.created_at || '').localeCompare(String(b.date || b.created_at || '')),
+  );
   return merged.slice(-limit);
 }
 
@@ -85,7 +87,7 @@ function runSummary(research) {
     champion_version: research?.champion?.config?.version,
     lookback_days: research?.dates?.length || 0,
     snapshots: research?.daily_snapshots?.length || 0,
-    challengers: research?.challengers?.length || 0
+    challengers: research?.challengers?.length || 0,
   };
 }
 
@@ -99,23 +101,48 @@ export function upsertResearchStoreFromLoop(research) {
     ...store,
     updated_at: new Date().toISOString(),
     runs: [...(store.runs || []), runSummary(research)].slice(-MAX_RUNS),
-    daily_snapshots: mergeByKey(store.daily_snapshots, research.daily_snapshots, (row) => row.date, MAX_DAYS),
-    model_history: mergeByKey(store.model_history, champion.model_history, (row) => row.date, MAX_DAYS),
-    risk_history: mergeByKey(store.risk_history, champion.risk_history, (row) => row.date, MAX_DAYS),
-    portfolio_history: mergeByKey(store.portfolio_history, champion.portfolio_history, (row) => row.date, MAX_DAYS),
+    daily_snapshots: mergeByKey(
+      store.daily_snapshots,
+      research.daily_snapshots,
+      (row) => row.date,
+      MAX_DAYS,
+    ),
+    model_history: mergeByKey(
+      store.model_history,
+      champion.model_history,
+      (row) => row.date,
+      MAX_DAYS,
+    ),
+    risk_history: mergeByKey(
+      store.risk_history,
+      champion.risk_history,
+      (row) => row.date,
+      MAX_DAYS,
+    ),
+    portfolio_history: mergeByKey(
+      store.portfolio_history,
+      champion.portfolio_history,
+      (row) => row.date,
+      MAX_DAYS,
+    ),
     alpha_daily_stats: mergeByKey(
       store.alpha_daily_stats,
       champion.alpha_daily_stats,
       (row) => `${row.date}-${row.alpha_id}`,
-      MAX_ALPHA_ROWS
+      MAX_ALPHA_ROWS,
     ),
     promotion_decisions: mergeByKey(
       store.promotion_decisions,
       research.promotion_decisions,
       (row) => row.decision_id,
-      MAX_EXPERIMENTS
+      MAX_EXPERIMENTS,
     ),
-    experiments: mergeByKey(store.experiments, research.experiments, (row) => row.experiment_id, MAX_EXPERIMENTS)
+    experiments: mergeByKey(
+      store.experiments,
+      research.experiments,
+      (row) => row.experiment_id,
+      MAX_EXPERIMENTS,
+    ),
   };
 
   writeStore(nextStore);

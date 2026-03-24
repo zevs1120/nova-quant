@@ -10,7 +10,7 @@ const REQUIRED_IGNORE_PATTERNS = [
   'data/*.db',
   '__MACOSX/',
   '.DS_Store',
-  '.vercel'
+  '.vercel',
 ];
 const REQUIRED_SCRIPTS = ['typecheck', 'build', 'test', 'verify', 'clean', 'package:source'];
 

@@ -1,11 +1,13 @@
 # Training Datasets (v1)
 
 ## Builders
+
 - Equities: `src/dataset_builders/equityDatasetBuilder.js`
 - Options: `src/dataset_builders/optionsDatasetBuilder.js`
 - Crypto: `src/dataset_builders/cryptoDatasetBuilder.js`
 
 Each builder performs:
+
 1. data alignment
 2. feature join
 3. label generation
@@ -13,6 +15,7 @@ Each builder performs:
 5. metadata emission (`TrainingDataset`)
 
 ## Equity Dataset
+
 - Feature set: `equity_core_v1`
 - Labels:
   - `future_return_5d`
@@ -21,6 +24,7 @@ Each builder performs:
   - `ranking_label`
 
 ## Options Dataset
+
 - Feature set: `options_chain_v1`
 - Labels (option-specific, not reused from equities):
   - `future_option_return_3d`
@@ -30,6 +34,7 @@ Each builder performs:
   - `underlying_future_return_3d`
 
 ## Crypto Dataset
+
 - Feature set: `crypto_spot_v1`
 - Labels:
   - `future_return_3d`
@@ -39,14 +44,18 @@ Each builder performs:
   - `regime_alignment`
 
 ## Split Policy
+
 Current split is date-based to avoid leakage:
+
 - train: oldest ~55%
 - valid: next ~15%
 - test: next ~15%
 - paper: latest ~15%
 
 ## API Interface
+
 Provided by `src/training/multiAssetTrainingService.js`:
+
 - `get_training_dataset(asset_class, feature_set, split)`
 - `list_available_assets(asset_class)`
 - `get_dataset_snapshot(asset_class)`

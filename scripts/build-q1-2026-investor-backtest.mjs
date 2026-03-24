@@ -81,7 +81,7 @@ const US_SYMBOLS = [
   'PDD',
   'JD',
   'BILI',
-  'NIO'
+  'NIO',
 ];
 
 const CRYPTO_SYMBOLS = ['BTCUSDT', 'BTCUSDT-PERP'];
@@ -94,7 +94,7 @@ const MONTH_PLANS = [
     trades: 54,
     wins: 33,
     longs: 24,
-    marketCounts: { US: 48, CRYPTO: 3, FUTURES: 3 }
+    marketCounts: { US: 48, CRYPTO: 3, FUTURES: 3 },
   },
   {
     key: '2026-02',
@@ -103,7 +103,7 @@ const MONTH_PLANS = [
     trades: 46,
     wins: 28,
     longs: 18,
-    marketCounts: { US: 41, CRYPTO: 2, FUTURES: 3 }
+    marketCounts: { US: 41, CRYPTO: 2, FUTURES: 3 },
   },
   {
     key: '2026-03',
@@ -112,8 +112,8 @@ const MONTH_PLANS = [
     trades: 58,
     wins: 36,
     longs: 28,
-    marketCounts: { US: 51, CRYPTO: 3, FUTURES: 4 }
-  }
+    marketCounts: { US: 51, CRYPTO: 3, FUTURES: 4 },
+  },
 ];
 
 const LIVE_ENTRY_ANCHORS = [
@@ -126,7 +126,7 @@ const LIVE_ENTRY_ANCHORS = [
     entry_px: 589.58,
     source: 'Google Finance',
     source_url: 'https://www.google.com/finance/quote/QQQ%3ANASDAQ',
-    source_note: 'Verified quote timestamp shown on page: Mar 19, 2026, 10:30:37 AM GMT-4.'
+    source_note: 'Verified quote timestamp shown on page: Mar 19, 2026, 10:30:37 AM GMT-4.',
   },
   {
     symbol: 'AAPL',
@@ -137,7 +137,7 @@ const LIVE_ENTRY_ANCHORS = [
     entry_px: 249.92,
     source: 'Google Finance',
     source_url: 'https://www.google.com/finance/quote/AAPL%3ANASDAQ',
-    source_note: 'Verified quote timestamp shown on page: Mar 19, 2026, 11:10:45 AM GMT-4.'
+    source_note: 'Verified quote timestamp shown on page: Mar 19, 2026, 11:10:45 AM GMT-4.',
   },
   {
     symbol: 'SPY',
@@ -148,7 +148,7 @@ const LIVE_ENTRY_ANCHORS = [
     entry_px: 656.99,
     source: 'Google Finance',
     source_url: 'https://www.google.com/finance/quote/SPY%3ANYSEARCA',
-    source_note: 'Verified quote timestamp shown on page: Mar 19, 2026, 11:31:33 AM GMT-4.'
+    source_note: 'Verified quote timestamp shown on page: Mar 19, 2026, 11:31:33 AM GMT-4.',
   },
   {
     symbol: 'NVDA',
@@ -159,7 +159,7 @@ const LIVE_ENTRY_ANCHORS = [
     entry_px: 178.19,
     source: 'Google Finance',
     source_url: 'https://www.google.com/finance/quote/NVDA%3ANASDAQ',
-    source_note: 'Verified quote timestamp shown on page: Mar 19, 2026, 11:58:30 AM GMT-4.'
+    source_note: 'Verified quote timestamp shown on page: Mar 19, 2026, 11:58:30 AM GMT-4.',
   },
   {
     symbol: 'BTCUSDT',
@@ -170,8 +170,8 @@ const LIVE_ENTRY_ANCHORS = [
     entry_px: 69934.43,
     source: 'Binance Spot',
     source_url: 'https://www.binance.com/en/trade/BTC_USDT?type=spot',
-    source_note: 'Spot quote captured from the Binance BTC/USDT page at access time.'
-  }
+    source_note: 'Spot quote captured from the Binance BTC/USDT page at access time.',
+  },
 ];
 
 const PHASE_PROFILES = [
@@ -188,7 +188,7 @@ const PHASE_PROFILES = [
     shortWinScale: 1.06,
     longLossScale: 1.2,
     shortLossScale: 0.92,
-    lossShareTarget: 0.61
+    lossShareTarget: 0.61,
   },
   {
     id: 'JAN_SHORT_COVER',
@@ -203,7 +203,7 @@ const PHASE_PROFILES = [
     shortWinScale: 0.96,
     longLossScale: 0.96,
     shortLossScale: 1.08,
-    lossShareTarget: 0.32
+    lossShareTarget: 0.32,
   },
   {
     id: 'FEB_MACRO_BREAK',
@@ -218,7 +218,7 @@ const PHASE_PROFILES = [
     shortWinScale: 1.02,
     longLossScale: 1.15,
     shortLossScale: 0.95,
-    lossShareTarget: 0.57
+    lossShareTarget: 0.57,
   },
   {
     id: 'FEB_DISPERSION_RECOVERY',
@@ -233,7 +233,7 @@ const PHASE_PROFILES = [
     shortWinScale: 0.95,
     longLossScale: 0.95,
     shortLossScale: 1.04,
-    lossShareTarget: 0.28
+    lossShareTarget: 0.28,
   },
   {
     id: 'LATE_FEB_RISK_OFF',
@@ -248,7 +248,7 @@ const PHASE_PROFILES = [
     shortWinScale: 1.04,
     longLossScale: 1.14,
     shortLossScale: 0.94,
-    lossShareTarget: 0.62
+    lossShareTarget: 0.62,
   },
   {
     id: 'MAR_RECOVERY',
@@ -263,7 +263,7 @@ const PHASE_PROFILES = [
     shortWinScale: 0.9,
     longLossScale: 0.93,
     shortLossScale: 1.06,
-    lossShareTarget: 0.2
+    lossShareTarget: 0.2,
   },
   {
     id: 'MAR_EVENT_VOL',
@@ -278,8 +278,8 @@ const PHASE_PROFILES = [
     shortWinScale: 0.98,
     longLossScale: 1.07,
     shortLossScale: 1.04,
-    lossShareTarget: 0.26
-  }
+    lossShareTarget: 0.26,
+  },
 ];
 
 function defineStrategy(
@@ -294,7 +294,7 @@ function defineStrategy(
   lossRetMin,
   lossRetMax,
   lossAffinity,
-  description
+  description,
 ) {
   return {
     strategy_id,
@@ -308,37 +308,375 @@ function defineStrategy(
     lossRetMin,
     lossRetMax,
     lossAffinity,
-    description
+    description,
   };
 }
 
 const STRATEGY_CONFIG = {
-  EQ_BREAKOUT: defineStrategy('EQ_BREAKOUT', 'Momentum / Trend Following', false, ['US'], 1.6, 4.8, 0.019, 0.052, 0.015, 0.04, 0.46, 'Classic range breakout continuation on liquid US leaders.'),
-  EQ_PULLBACK: defineStrategy('EQ_PULLBACK', 'Momentum / Trend Following', false, ['US'], 1.2, 4.2, 0.017, 0.045, 0.013, 0.032, 0.43, 'Trend pullback continuation after orderly retrace.'),
-  MOM_EXPANSION: defineStrategy('MOM_EXPANSION', 'Momentum / Trend Following', false, ['US'], 1.8, 5.1, 0.021, 0.058, 0.016, 0.041, 0.45, 'Momentum expansion when velocity and breadth align.'),
-  VOL_EXP_CONT: defineStrategy('VOL_EXP_CONT', 'Momentum / Trend Following', false, ['US', 'FUTURES'], 1.5, 4.9, 0.018, 0.049, 0.014, 0.037, 0.48, 'Volatility expansion continuation after breakout confirmation.'),
-  OVERSOLD_REBOUND: defineStrategy('OVERSOLD_REBOUND', 'Mean Reversion', false, ['US'], 0.8, 2.8, 0.014, 0.034, 0.012, 0.029, 0.58, 'Oversold rebound setup against stretched downside move.'),
-  OVERBOUGHT_FADE: defineStrategy('OVERBOUGHT_FADE', 'Mean Reversion', false, ['US'], 0.9, 2.7, 0.014, 0.033, 0.012, 0.028, 0.56, 'Fade extended upside after exhaustion signal.'),
-  ANCHOR_REVERT: defineStrategy('ANCHOR_REVERT', 'Mean Reversion', false, ['US'], 1.1, 3.1, 0.015, 0.036, 0.011, 0.03, 0.55, 'Reversion toward anchored VWAP or event anchor.'),
-  ZSCORE_REVERT: defineStrategy('ZSCORE_REVERT', 'Mean Reversion', false, ['US', 'CRYPTO'], 1.0, 2.9, 0.014, 0.032, 0.011, 0.028, 0.57, 'Percentile and z-score based snapback reversion.'),
-  TREND_RANGE_FLIP: defineStrategy('TREND_RANGE_FLIP', 'Regime Transition', false, ['US'], 1.4, 4.1, 0.017, 0.044, 0.013, 0.034, 0.51, 'Trend-to-range transition capture around failed continuation.'),
-  FALSE_BREAK_CAPTURE: defineStrategy('FALSE_BREAK_CAPTURE', 'Regime Transition', false, ['US', 'FUTURES'], 1.2, 3.6, 0.016, 0.041, 0.013, 0.032, 0.52, 'False breakout failure capture after rejection back inside range.'),
-  SECTOR_ROTATION: defineStrategy('SECTOR_ROTATION', 'Relative Strength / Cross-Sectional', false, ['US'], 2.0, 5.8, 0.018, 0.047, 0.013, 0.033, 0.47, 'Sector-strength rotation between leading and lagging groups.'),
-  LEADER_LAGGARD: defineStrategy('LEADER_LAGGARD', 'Relative Strength / Cross-Sectional', false, ['US'], 1.6, 4.7, 0.017, 0.043, 0.013, 0.031, 0.49, 'Leader-laggard dispersion pair expressed as directional single-name timing.'),
-  DISPERSION_SWING: defineStrategy('DISPERSION_SWING', 'Relative Strength / Cross-Sectional', true, ['US'], 2.1, 6.1, 0.02, 0.054, 0.015, 0.037, 0.5, 'Invented basket-dispersion swing strategy for spread-out tape leadership.'),
-  OPENING_DRIVE_RECLAIM: defineStrategy('OPENING_DRIVE_RECLAIM', 'Intraday-to-Swing Hybrid', true, ['US'], 0.6, 1.9, 0.013, 0.03, 0.012, 0.028, 0.54, 'Invented opening drive reclaim setup promoted into short swing holds.'),
-  LIQUIDITY_GAP_FILL: defineStrategy('LIQUIDITY_GAP_FILL', 'Liquidity / Microstructure', true, ['US'], 0.8, 2.3, 0.013, 0.031, 0.012, 0.03, 0.6, 'Invented liquidity pocket fill when opening gap overextends.'),
-  EARNINGS_DRIFT_FADE: defineStrategy('EARNINGS_DRIFT_FADE', 'Event / Vol', true, ['US'], 1.0, 3.4, 0.016, 0.039, 0.013, 0.033, 0.57, 'Invented post-event drift fade when follow-through degrades.'),
-  BREADTH_PRESSURE_SHORT: defineStrategy('BREADTH_PRESSURE_SHORT', 'Overlay / Risk-Off', true, ['US'], 1.3, 3.8, 0.016, 0.042, 0.012, 0.03, 0.44, 'Invented breadth-pressure short overlay for weak index internals.'),
-  INDEX_HEDGE_OVERLAY: defineStrategy('INDEX_HEDGE_OVERLAY', 'Overlay / Risk-Off', false, ['US'], 1.0, 3.0, 0.012, 0.03, 0.011, 0.025, 0.42, 'Index hedge overlay applied when correlation spikes across the book.'),
-  FUNDING_DISLOCATION: defineStrategy('FUNDING_DISLOCATION', 'Crypto-Native', false, ['CRYPTO', 'FUTURES'], 1.5, 4.5, 0.017, 0.043, 0.013, 0.033, 0.5, 'Funding dislocation mean-reversion when perp crowding diverges from spot.'),
-  BASIS_COMPRESSION: defineStrategy('BASIS_COMPRESSION', 'Crypto-Native', false, ['CRYPTO', 'FUTURES'], 1.8, 4.8, 0.018, 0.045, 0.013, 0.034, 0.49, 'Basis compression-expansion cycle capture in spot-perp basis.'),
-  CARRY_TREND: defineStrategy('CARRY_TREND', 'Crypto-Native', false, ['CRYPTO', 'FUTURES'], 2.2, 5.8, 0.018, 0.046, 0.013, 0.033, 0.46, 'Carry-biased trend following when funding remains controlled.'),
-  VELOCITY_SHOCK: defineStrategy('VELOCITY_SHOCK', 'Crypto-Native', false, ['CRYPTO', 'FUTURES'], 0.7, 2.2, 0.016, 0.038, 0.013, 0.034, 0.58, 'Velocity shock fade or continuation depending retest quality.'),
-  OI_FLUSH_RECLAIM: defineStrategy('OI_FLUSH_RECLAIM', 'Crypto-Native', true, ['CRYPTO', 'FUTURES'], 0.8, 2.6, 0.016, 0.037, 0.013, 0.033, 0.55, 'Invented open-interest flush reclaim after forced positioning washout.'),
-  WEEKEND_GAP_FADE: defineStrategy('WEEKEND_GAP_FADE', 'Crypto-Native', true, ['CRYPTO'], 0.9, 2.4, 0.015, 0.034, 0.012, 0.03, 0.61, 'Invented weekend liquidity gap fade on crypto spot.'),
-  PERP_PREMIUM_MEANREV: defineStrategy('PERP_PREMIUM_MEANREV', 'Crypto-Native', true, ['FUTURES'], 1.1, 3.0, 0.016, 0.036, 0.013, 0.031, 0.57, 'Invented perpetual premium mean reversion when basis overshoots.'),
-  LIQUIDATION_REVERSAL: defineStrategy('LIQUIDATION_REVERSAL', 'Crypto-Native', true, ['FUTURES'], 0.6, 1.8, 0.017, 0.04, 0.014, 0.036, 0.62, 'Invented liquidation reversal strategy around forced flushes and reclaim candles.')
+  EQ_BREAKOUT: defineStrategy(
+    'EQ_BREAKOUT',
+    'Momentum / Trend Following',
+    false,
+    ['US'],
+    1.6,
+    4.8,
+    0.019,
+    0.052,
+    0.015,
+    0.04,
+    0.46,
+    'Classic range breakout continuation on liquid US leaders.',
+  ),
+  EQ_PULLBACK: defineStrategy(
+    'EQ_PULLBACK',
+    'Momentum / Trend Following',
+    false,
+    ['US'],
+    1.2,
+    4.2,
+    0.017,
+    0.045,
+    0.013,
+    0.032,
+    0.43,
+    'Trend pullback continuation after orderly retrace.',
+  ),
+  MOM_EXPANSION: defineStrategy(
+    'MOM_EXPANSION',
+    'Momentum / Trend Following',
+    false,
+    ['US'],
+    1.8,
+    5.1,
+    0.021,
+    0.058,
+    0.016,
+    0.041,
+    0.45,
+    'Momentum expansion when velocity and breadth align.',
+  ),
+  VOL_EXP_CONT: defineStrategy(
+    'VOL_EXP_CONT',
+    'Momentum / Trend Following',
+    false,
+    ['US', 'FUTURES'],
+    1.5,
+    4.9,
+    0.018,
+    0.049,
+    0.014,
+    0.037,
+    0.48,
+    'Volatility expansion continuation after breakout confirmation.',
+  ),
+  OVERSOLD_REBOUND: defineStrategy(
+    'OVERSOLD_REBOUND',
+    'Mean Reversion',
+    false,
+    ['US'],
+    0.8,
+    2.8,
+    0.014,
+    0.034,
+    0.012,
+    0.029,
+    0.58,
+    'Oversold rebound setup against stretched downside move.',
+  ),
+  OVERBOUGHT_FADE: defineStrategy(
+    'OVERBOUGHT_FADE',
+    'Mean Reversion',
+    false,
+    ['US'],
+    0.9,
+    2.7,
+    0.014,
+    0.033,
+    0.012,
+    0.028,
+    0.56,
+    'Fade extended upside after exhaustion signal.',
+  ),
+  ANCHOR_REVERT: defineStrategy(
+    'ANCHOR_REVERT',
+    'Mean Reversion',
+    false,
+    ['US'],
+    1.1,
+    3.1,
+    0.015,
+    0.036,
+    0.011,
+    0.03,
+    0.55,
+    'Reversion toward anchored VWAP or event anchor.',
+  ),
+  ZSCORE_REVERT: defineStrategy(
+    'ZSCORE_REVERT',
+    'Mean Reversion',
+    false,
+    ['US', 'CRYPTO'],
+    1.0,
+    2.9,
+    0.014,
+    0.032,
+    0.011,
+    0.028,
+    0.57,
+    'Percentile and z-score based snapback reversion.',
+  ),
+  TREND_RANGE_FLIP: defineStrategy(
+    'TREND_RANGE_FLIP',
+    'Regime Transition',
+    false,
+    ['US'],
+    1.4,
+    4.1,
+    0.017,
+    0.044,
+    0.013,
+    0.034,
+    0.51,
+    'Trend-to-range transition capture around failed continuation.',
+  ),
+  FALSE_BREAK_CAPTURE: defineStrategy(
+    'FALSE_BREAK_CAPTURE',
+    'Regime Transition',
+    false,
+    ['US', 'FUTURES'],
+    1.2,
+    3.6,
+    0.016,
+    0.041,
+    0.013,
+    0.032,
+    0.52,
+    'False breakout failure capture after rejection back inside range.',
+  ),
+  SECTOR_ROTATION: defineStrategy(
+    'SECTOR_ROTATION',
+    'Relative Strength / Cross-Sectional',
+    false,
+    ['US'],
+    2.0,
+    5.8,
+    0.018,
+    0.047,
+    0.013,
+    0.033,
+    0.47,
+    'Sector-strength rotation between leading and lagging groups.',
+  ),
+  LEADER_LAGGARD: defineStrategy(
+    'LEADER_LAGGARD',
+    'Relative Strength / Cross-Sectional',
+    false,
+    ['US'],
+    1.6,
+    4.7,
+    0.017,
+    0.043,
+    0.013,
+    0.031,
+    0.49,
+    'Leader-laggard dispersion pair expressed as directional single-name timing.',
+  ),
+  DISPERSION_SWING: defineStrategy(
+    'DISPERSION_SWING',
+    'Relative Strength / Cross-Sectional',
+    true,
+    ['US'],
+    2.1,
+    6.1,
+    0.02,
+    0.054,
+    0.015,
+    0.037,
+    0.5,
+    'Invented basket-dispersion swing strategy for spread-out tape leadership.',
+  ),
+  OPENING_DRIVE_RECLAIM: defineStrategy(
+    'OPENING_DRIVE_RECLAIM',
+    'Intraday-to-Swing Hybrid',
+    true,
+    ['US'],
+    0.6,
+    1.9,
+    0.013,
+    0.03,
+    0.012,
+    0.028,
+    0.54,
+    'Invented opening drive reclaim setup promoted into short swing holds.',
+  ),
+  LIQUIDITY_GAP_FILL: defineStrategy(
+    'LIQUIDITY_GAP_FILL',
+    'Liquidity / Microstructure',
+    true,
+    ['US'],
+    0.8,
+    2.3,
+    0.013,
+    0.031,
+    0.012,
+    0.03,
+    0.6,
+    'Invented liquidity pocket fill when opening gap overextends.',
+  ),
+  EARNINGS_DRIFT_FADE: defineStrategy(
+    'EARNINGS_DRIFT_FADE',
+    'Event / Vol',
+    true,
+    ['US'],
+    1.0,
+    3.4,
+    0.016,
+    0.039,
+    0.013,
+    0.033,
+    0.57,
+    'Invented post-event drift fade when follow-through degrades.',
+  ),
+  BREADTH_PRESSURE_SHORT: defineStrategy(
+    'BREADTH_PRESSURE_SHORT',
+    'Overlay / Risk-Off',
+    true,
+    ['US'],
+    1.3,
+    3.8,
+    0.016,
+    0.042,
+    0.012,
+    0.03,
+    0.44,
+    'Invented breadth-pressure short overlay for weak index internals.',
+  ),
+  INDEX_HEDGE_OVERLAY: defineStrategy(
+    'INDEX_HEDGE_OVERLAY',
+    'Overlay / Risk-Off',
+    false,
+    ['US'],
+    1.0,
+    3.0,
+    0.012,
+    0.03,
+    0.011,
+    0.025,
+    0.42,
+    'Index hedge overlay applied when correlation spikes across the book.',
+  ),
+  FUNDING_DISLOCATION: defineStrategy(
+    'FUNDING_DISLOCATION',
+    'Crypto-Native',
+    false,
+    ['CRYPTO', 'FUTURES'],
+    1.5,
+    4.5,
+    0.017,
+    0.043,
+    0.013,
+    0.033,
+    0.5,
+    'Funding dislocation mean-reversion when perp crowding diverges from spot.',
+  ),
+  BASIS_COMPRESSION: defineStrategy(
+    'BASIS_COMPRESSION',
+    'Crypto-Native',
+    false,
+    ['CRYPTO', 'FUTURES'],
+    1.8,
+    4.8,
+    0.018,
+    0.045,
+    0.013,
+    0.034,
+    0.49,
+    'Basis compression-expansion cycle capture in spot-perp basis.',
+  ),
+  CARRY_TREND: defineStrategy(
+    'CARRY_TREND',
+    'Crypto-Native',
+    false,
+    ['CRYPTO', 'FUTURES'],
+    2.2,
+    5.8,
+    0.018,
+    0.046,
+    0.013,
+    0.033,
+    0.46,
+    'Carry-biased trend following when funding remains controlled.',
+  ),
+  VELOCITY_SHOCK: defineStrategy(
+    'VELOCITY_SHOCK',
+    'Crypto-Native',
+    false,
+    ['CRYPTO', 'FUTURES'],
+    0.7,
+    2.2,
+    0.016,
+    0.038,
+    0.013,
+    0.034,
+    0.58,
+    'Velocity shock fade or continuation depending retest quality.',
+  ),
+  OI_FLUSH_RECLAIM: defineStrategy(
+    'OI_FLUSH_RECLAIM',
+    'Crypto-Native',
+    true,
+    ['CRYPTO', 'FUTURES'],
+    0.8,
+    2.6,
+    0.016,
+    0.037,
+    0.013,
+    0.033,
+    0.55,
+    'Invented open-interest flush reclaim after forced positioning washout.',
+  ),
+  WEEKEND_GAP_FADE: defineStrategy(
+    'WEEKEND_GAP_FADE',
+    'Crypto-Native',
+    true,
+    ['CRYPTO'],
+    0.9,
+    2.4,
+    0.015,
+    0.034,
+    0.012,
+    0.03,
+    0.61,
+    'Invented weekend liquidity gap fade on crypto spot.',
+  ),
+  PERP_PREMIUM_MEANREV: defineStrategy(
+    'PERP_PREMIUM_MEANREV',
+    'Crypto-Native',
+    true,
+    ['FUTURES'],
+    1.1,
+    3.0,
+    0.016,
+    0.036,
+    0.013,
+    0.031,
+    0.57,
+    'Invented perpetual premium mean reversion when basis overshoots.',
+  ),
+  LIQUIDATION_REVERSAL: defineStrategy(
+    'LIQUIDATION_REVERSAL',
+    'Crypto-Native',
+    true,
+    ['FUTURES'],
+    0.6,
+    1.8,
+    0.017,
+    0.04,
+    0.014,
+    0.036,
+    0.62,
+    'Invented liquidation reversal strategy around forced flushes and reclaim candles.',
+  ),
 };
 
 const MARKET_CONFIG = {
@@ -365,10 +703,10 @@ const MARKET_CONFIG = {
       'LIQUIDITY_GAP_FILL',
       'EARNINGS_DRIFT_FADE',
       'BREADTH_PRESSURE_SHORT',
-      'INDEX_HEDGE_OVERLAY'
+      'INDEX_HEDGE_OVERLAY',
     ],
     hourRange: [14, 20],
-    minuteStep: 7
+    minuteStep: 7,
   },
   CRYPTO: {
     leverage: 1.2,
@@ -382,10 +720,10 @@ const MARKET_CONFIG = {
       'CARRY_TREND',
       'VELOCITY_SHOCK',
       'OI_FLUSH_RECLAIM',
-      'WEEKEND_GAP_FADE'
+      'WEEKEND_GAP_FADE',
     ],
     hourRange: [0, 23],
-    minuteStep: 11
+    minuteStep: 11,
   },
   FUTURES: {
     leverage: 1.35,
@@ -401,11 +739,11 @@ const MARKET_CONFIG = {
       'VELOCITY_SHOCK',
       'OI_FLUSH_RECLAIM',
       'PERP_PREMIUM_MEANREV',
-      'LIQUIDATION_REVERSAL'
+      'LIQUIDATION_REVERSAL',
     ],
     hourRange: [0, 23],
-    minuteStep: 13
-  }
+    minuteStep: 13,
+  },
 };
 
 const PRICE_OVERRIDES = {
@@ -470,7 +808,7 @@ const PRICE_OVERRIDES = {
   BILI: 23,
   NIO: 7.2,
   BTCUSDT: 107_500,
-  'BTCUSDT-PERP': 107_850
+  'BTCUSDT-PERP': 107_850,
 };
 
 function round(value, digits = 10) {
@@ -544,9 +882,11 @@ function getPhaseProfile(entryTs) {
 function buildOutcomeLossAffinity(blueprint, index) {
   const phase = getPhaseProfile(blueprint.entryTs);
   const strategy = STRATEGY_CONFIG[blueprint.strategyId];
-  const marketBias = blueprint.market === 'FUTURES' ? 0.08 : blueprint.market === 'CRYPTO' ? 0.04 : 0;
+  const marketBias =
+    blueprint.market === 'FUTURES' ? 0.08 : blueprint.market === 'CRYPTO' ? 0.04 : 0;
   const directionBias = blueprint.direction === 'LONG' ? phase.longLossBias : phase.shortLossBias;
-  const idNoise = (rngFor(`loss-affinity:${index}:${blueprint.symbol}:${blueprint.strategyId}`)() - 0.5) * 0.14;
+  const idNoise =
+    (rngFor(`loss-affinity:${index}:${blueprint.symbol}:${blueprint.strategyId}`)() - 0.5) * 0.14;
   return phase.baseLossBias + directionBias + marketBias + strategy.lossAffinity + idNoise;
 }
 
@@ -570,7 +910,7 @@ function assignClusteredOutcomes(blueprints) {
       phaseId: phase.id,
       quota: baseQuota,
       remainder: exact - baseQuota,
-      capacity: rows.length
+      capacity: rows.length,
     });
     allocated += baseQuota;
   }
@@ -595,7 +935,9 @@ function assignClusteredOutcomes(blueprints) {
   const lossIndexes = new Set();
   const unpicked = [];
   for (const row of quotaRows) {
-    const rankedRows = (phaseBuckets.get(row.phaseId) || []).sort((a, b) => b.affinity - a.affinity);
+    const rankedRows = (phaseBuckets.get(row.phaseId) || []).sort(
+      (a, b) => b.affinity - a.affinity,
+    );
     const picked = rankedRows.slice(0, row.quota);
     for (const item of picked) lossIndexes.add(item.index);
     for (const item of rankedRows.slice(row.quota)) unpicked.push(item);
@@ -612,7 +954,12 @@ function assignClusteredOutcomes(blueprints) {
   return blueprints.map((blueprint, index) => {
     const phase = getPhaseProfile(blueprint.entryTs);
     const isWin = !lossIndexes.has(index);
-    const baseMagnitude = buildRawReturnMagnitude(blueprint.strategyId, blueprint.market, isWin, index);
+    const baseMagnitude = buildRawReturnMagnitude(
+      blueprint.strategyId,
+      blueprint.market,
+      isWin,
+      index,
+    );
     const directionScale = isWin
       ? blueprint.direction === 'LONG'
         ? phase.longWinScale
@@ -620,17 +967,15 @@ function assignClusteredOutcomes(blueprints) {
       : blueprint.direction === 'LONG'
         ? phase.longLossScale
         : phase.shortLossScale;
-    const marketScale = blueprint.market === 'FUTURES' ? 1.08 : blueprint.market === 'CRYPTO' ? 1.03 : 1;
+    const marketScale =
+      blueprint.market === 'FUTURES' ? 1.08 : blueprint.market === 'CRYPTO' ? 1.03 : 1;
     const magnitude =
-      baseMagnitude *
-      marketScale *
-      directionScale *
-      (isWin ? phase.winScale : phase.lossScale);
+      baseMagnitude * marketScale * directionScale * (isWin ? phase.winScale : phase.lossScale);
     return {
       ...blueprint,
       phase_id: phase.id,
       isWin,
-      rawPnlAbs: blueprint.estimatedNotional * magnitude
+      rawPnlAbs: blueprint.estimatedNotional * magnitude,
     };
   });
 }
@@ -643,7 +988,8 @@ function buildBalancedSequence(total, positiveCount, seedKey) {
   let negLeft = negativeCount;
   while (seq.length < total) {
     const posRatio = posLeft / Math.max(1, posLeft + negLeft);
-    const takePositive = negLeft === 0 || (posLeft > 0 && rng() < clamp(posRatio * 1.08, 0.15, 0.85));
+    const takePositive =
+      negLeft === 0 || (posLeft > 0 && rng() < clamp(posRatio * 1.08, 0.15, 0.85));
     if (takePositive) {
       seq.push(true);
       posLeft -= 1;
@@ -678,7 +1024,10 @@ function buildMarketSequence(monthPlan) {
   for (const [market, count] of Object.entries(monthPlan.marketCounts)) {
     for (let i = 0; i < count; i += 1) values.push(market);
   }
-  return shuffleBlockwise(shuffleDeterministic(values, `${monthPlan.key}:market`), `${monthPlan.key}:market:blocks`);
+  return shuffleBlockwise(
+    shuffleDeterministic(values, `${monthPlan.key}:market`),
+    `${monthPlan.key}:market:blocks`,
+  );
 }
 
 function pickSymbol(market, cursor) {
@@ -702,7 +1051,7 @@ function basePrice(symbol) {
     [18, 45],
     [45, 90],
     [90, 180],
-    [180, 420]
+    [180, 420],
   ];
   const range = ranges[hash % ranges.length];
   return lerp(range[0], range[1], ((hash >>> 8) % 1000) / 1000);
@@ -713,7 +1062,7 @@ function entryPriceFor(symbol, tradeIndex, entryDateIso) {
   const date = new Date(entryDateIso);
   const monthWave = Math.sin((date.getUTCMonth() + 1) * 0.9 + date.getUTCDate() * 0.12);
   const tradeWave = Math.cos((tradeIndex + 1) * 0.37);
-  const noise = (monthWave * 0.018 + tradeWave * 0.009);
+  const noise = monthWave * 0.018 + tradeWave * 0.009;
   return round(base * (1 + noise), 10);
 }
 
@@ -723,9 +1072,11 @@ function buildEntryTimestamp(day, market, localIndex, localCount, monthKey) {
   const span = Math.max(1, cfg.hourRange[1] - cfg.hourRange[0] + 1);
   const slot = Math.floor((localIndex / Math.max(1, localCount)) * span);
   const hour = clamp(cfg.hourRange[0] + slot, cfg.hourRange[0], cfg.hourRange[1]);
-  const minute = (Math.floor(rng() * 6) * cfg.minuteStep + (localIndex * 3)) % 60;
+  const minute = (Math.floor(rng() * 6) * cfg.minuteStep + localIndex * 3) % 60;
   const second = Math.floor(rng() * 50) + 5;
-  return new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate(), hour, minute, second)).toISOString();
+  return new Date(
+    Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate(), hour, minute, second),
+  ).toISOString();
 }
 
 function buildHoldDays(strategyId, market, tradeIndex) {
@@ -793,7 +1144,7 @@ function investorTradesToZhCsv(trades) {
     '交易前权益(USD)',
     '交易后权益(USD)',
     '可用购买力(USD)',
-    '可成交性校验'
+    '可成交性校验',
   ];
 
   const lines = [headers.join(',')];
@@ -821,7 +1172,7 @@ function investorTradesToZhCsv(trades) {
       trade.equity_before_usd,
       trade.equity_after_usd,
       trade.available_buying_power_usd,
-      trade.fill_feasibility
+      trade.fill_feasibility,
     ].map(toCsvValue);
     lines.push(row.join(','));
   }
@@ -845,7 +1196,7 @@ function backtestTradesToCsv(trades) {
     'prob',
     'regPred',
     'tsPred',
-    'score'
+    'score',
   ];
   const lines = [headers.join(',')];
   for (const trade of trades) {
@@ -865,7 +1216,7 @@ function liveAnchorsToCsv(anchors) {
     'entry_px',
     'source',
     'source_url',
-    'source_note'
+    'source_note',
   ];
   const lines = [headers.join(',')];
   for (const anchor of anchors) {
@@ -884,7 +1235,7 @@ function buildStrategyCatalog() {
     hold_days_band: [strategy.holdMin, strategy.holdMax],
     win_return_band: [strategy.winRetMin, strategy.winRetMax],
     loss_return_band: [strategy.lossRetMin, strategy.lossRetMax],
-    description: strategy.description
+    description: strategy.description,
   }));
 }
 
@@ -922,7 +1273,7 @@ function summarizeInvestorTrades(trades) {
         ret_sum: 0,
         pnl_usd: 0,
         longs: 0,
-        shorts: 0
+        shorts: 0,
       };
     }
     const month = monthly[monthKey];
@@ -966,8 +1317,12 @@ function summarizeInvestorTrades(trades) {
   }
 
   const tradeCount = trades.length;
-  const avgWinUsd = winsUsd.length ? winsUsd.reduce((acc, value) => acc + value, 0) / winsUsd.length : 0;
-  const avgLossUsd = lossesUsd.length ? lossesUsd.reduce((acc, value) => acc + value, 0) / lossesUsd.length : 0;
+  const avgWinUsd = winsUsd.length
+    ? winsUsd.reduce((acc, value) => acc + value, 0) / winsUsd.length
+    : 0;
+  const avgLossUsd = lossesUsd.length
+    ? lossesUsd.reduce((acc, value) => acc + value, 0) / lossesUsd.length
+    : 0;
   return {
     source_type: SOURCE_TYPE,
     source_status: SOURCE_STATUS,
@@ -1004,7 +1359,7 @@ function summarizeInvestorTrades(trades) {
     largest_winning_streak: maxWinningStreak,
     largest_losing_streak: maxLosingStreak,
     max_drawdown_duration_trades: maxDrawdownDuration,
-    monthly
+    monthly,
   };
 }
 
@@ -1021,9 +1376,12 @@ function summarizeBacktestTrades(backtestTrades, investorTrades) {
     const investorTrade = investorTrades[i];
     pnlSum += trade.pnl;
     if (trade.pnl > 0) wins += 1;
-    if (!byMarket.has(trade.market)) byMarket.set(trade.market, { trades: 0, wins: 0, total_pnl: 0 });
-    if (!byStrategy.has(trade.strategy_id)) byStrategy.set(trade.strategy_id, { trades: 0, wins: 0, total_pnl: 0 });
-    if (!byPhase.has(trade.phase_id)) byPhase.set(trade.phase_id, { trades: 0, wins: 0, total_pnl: 0 });
+    if (!byMarket.has(trade.market))
+      byMarket.set(trade.market, { trades: 0, wins: 0, total_pnl: 0 });
+    if (!byStrategy.has(trade.strategy_id))
+      byStrategy.set(trade.strategy_id, { trades: 0, wins: 0, total_pnl: 0 });
+    if (!byPhase.has(trade.phase_id))
+      byPhase.set(trade.phase_id, { trades: 0, wins: 0, total_pnl: 0 });
     const market = byMarket.get(trade.market);
     const strategy = byStrategy.get(trade.strategy_id);
     const phase = byPhase.get(trade.phase_id);
@@ -1047,14 +1405,17 @@ function summarizeBacktestTrades(backtestTrades, investorTrades) {
     .sort()
     .map((dateKey) => byDate.get(dateKey).reduce((acc, value) => acc + value, 0));
 
-  const mean = dailyReturns.length ? dailyReturns.reduce((acc, value) => acc + value, 0) / dailyReturns.length : 0;
+  const mean = dailyReturns.length
+    ? dailyReturns.reduce((acc, value) => acc + value, 0) / dailyReturns.length
+    : 0;
   const variance = dailyReturns.length
     ? dailyReturns.reduce((acc, value) => acc + (value - mean) ** 2, 0) / dailyReturns.length
     : 0;
   const std = Math.sqrt(variance);
   const sharpe = std > 0 ? (mean / std) * Math.sqrt(252) : 0;
 
-  const windowDays = Math.round((new Date(END_TS).getTime() - new Date(START_TS).getTime()) / 86_400_000) + 1;
+  const windowDays =
+    Math.round((new Date(END_TS).getTime() - new Date(START_TS).getTime()) / 86_400_000) + 1;
   const endEquity = investorTrades.at(-1)?.equity_after_usd ?? START_EQUITY_USD;
   const annualizedReturn = Math.pow(endEquity / START_EQUITY_USD, 365 / windowDays) - 1;
 
@@ -1074,7 +1435,7 @@ function summarizeBacktestTrades(backtestTrades, investorTrades) {
       run_at: new Date().toISOString(),
       backtest_window: {
         start: START_TS,
-        end: END_TS
+        end: END_TS,
       },
       symbols: new Set(backtestTrades.map((trade) => trade.symbol)).size,
       trade_count: backtestTrades.length,
@@ -1093,47 +1454,47 @@ function summarizeBacktestTrades(backtestTrades, investorTrades) {
           desiredWin: TARGET_WIN_RATE_DISPLAY,
           desiredPf: TARGET_PROFIT_FACTOR,
           startEquityUsd: START_EQUITY_USD,
-          universeBias: 'US_heavy_with_BTC_USDT_core'
+          universeBias: 'US_heavy_with_BTC_USDT_core',
         },
         market_counts: Object.fromEntries(
-          [...byMarket.entries()].map(([market, item]) => [market, item.trades])
+          [...byMarket.entries()].map(([market, item]) => [market, item.trades]),
         ),
         direction_counts: {
           LONG: investorTrades.filter((trade) => trade.direction === 'LONG').length,
-          SHORT: investorTrades.filter((trade) => trade.direction === 'SHORT').length
-        }
+          SHORT: investorTrades.filter((trade) => trade.direction === 'SHORT').length,
+        },
       },
       market_breakdown: [...byMarket.entries()].map(([market, item]) => ({
         market,
         trades: item.trades,
         win_rate: round(item.wins / Math.max(1, item.trades), 10),
-        total_pnl: round(item.total_pnl, 10)
+        total_pnl: round(item.total_pnl, 10),
       })),
       phase_breakdown: [...byPhase.entries()].map(([phase_id, item]) => ({
         phase_id,
         trades: item.trades,
         win_rate: round(item.wins / Math.max(1, item.trades), 10),
-        total_pnl: round(item.total_pnl, 10)
-      }))
+        total_pnl: round(item.total_pnl, 10),
+      })),
     },
     marketBreakdown: [...byMarket.entries()].map(([market, item]) => ({
       market,
       trades: item.trades,
       win_rate: round(item.wins / Math.max(1, item.trades), 10),
-      total_pnl: round(item.total_pnl, 10)
+      total_pnl: round(item.total_pnl, 10),
     })),
     strategyBreakdown: [...byStrategy.entries()].map(([strategy_id, item]) => ({
       strategy_id,
       trades: item.trades,
       win_rate: round(item.wins / Math.max(1, item.trades), 10),
-      total_pnl: round(item.total_pnl, 10)
+      total_pnl: round(item.total_pnl, 10),
     })),
     phaseBreakdown: [...byPhase.entries()].map(([phase_id, item]) => ({
       phase_id,
       trades: item.trades,
       win_rate: round(item.wins / Math.max(1, item.trades), 10),
-      total_pnl: round(item.total_pnl, 10)
-    }))
+      total_pnl: round(item.total_pnl, 10),
+    })),
   };
 }
 
@@ -1149,8 +1510,8 @@ function buildInvestorAndBacktestTrades() {
       daysByMarket: {
         US: listDays(plan.start, plan.end, true),
         CRYPTO: listDays(plan.start, plan.end, false),
-        FUTURES: listDays(plan.start, plan.end, false)
-      }
+        FUTURES: listDays(plan.start, plan.end, false),
+      },
     };
   });
 
@@ -1167,15 +1528,26 @@ function buildInvestorAndBacktestTrades() {
       const symbol = pickSymbol(market, market === 'US' ? usCursor++ : localIndex);
       const strategyId = pickStrategy(market, symbol, globalIndex);
       const days = state.daysByMarket[market];
-      const slot = Math.min(days.length - 1, Math.floor((localIndex * days.length) / Math.max(1, plan.marketCounts[market])));
+      const slot = Math.min(
+        days.length - 1,
+        Math.floor((localIndex * days.length) / Math.max(1, plan.marketCounts[market])),
+      );
       const entryDay = days[slot];
-      const entryTs = buildEntryTimestamp(entryDay, market, localIndex, plan.marketCounts[market], plan.key);
+      const entryTs = buildEntryTimestamp(
+        entryDay,
+        market,
+        localIndex,
+        plan.marketCounts[market],
+        plan.key,
+      );
       const holdDays = buildHoldDays(strategyId, market, globalIndex);
       const leverage = MARKET_CONFIG[market].leverage;
       const positionPct = buildPositionPct(market, strategyId, symbol, globalIndex);
       const probability = buildProbability(direction, strategyId, globalIndex);
       const phase = getPhaseProfile(entryTs);
-      const estimatedEquity = START_EQUITY_USD + (globalIndex / Math.max(1, TARGET_TRADE_COUNT - 1)) * TARGET_NET_PNL_USD * 0.58;
+      const estimatedEquity =
+        START_EQUITY_USD +
+        (globalIndex / Math.max(1, TARGET_TRADE_COUNT - 1)) * TARGET_NET_PNL_USD * 0.58;
       const estimatedNotional = estimatedEquity * positionPct * leverage;
       blueprints.push({
         monthKey: plan.key,
@@ -1189,7 +1561,7 @@ function buildInvestorAndBacktestTrades() {
         positionPct,
         entryTs,
         estimatedNotional,
-        phase_id: phase.id
+        phase_id: phase.id,
       });
       globalIndex += 1;
     }
@@ -1198,8 +1570,12 @@ function buildInvestorAndBacktestTrades() {
   blueprints.sort((a, b) => new Date(a.entryTs) - new Date(b.entryTs));
   const completedBlueprints = assignClusteredOutcomes(blueprints);
 
-  const positiveRaw = completedBlueprints.filter((item) => item.isWin).reduce((acc, item) => acc + item.rawPnlAbs, 0);
-  const negativeRaw = completedBlueprints.filter((item) => !item.isWin).reduce((acc, item) => acc + item.rawPnlAbs, 0);
+  const positiveRaw = completedBlueprints
+    .filter((item) => item.isWin)
+    .reduce((acc, item) => acc + item.rawPnlAbs, 0);
+  const negativeRaw = completedBlueprints
+    .filter((item) => !item.isWin)
+    .reduce((acc, item) => acc + item.rawPnlAbs, 0);
   const positiveScale = TARGET_GROSS_PROFIT_USD / Math.max(positiveRaw, 1e-12);
   const negativeScale = TARGET_GROSS_LOSS_USD / Math.max(negativeRaw, 1e-12);
 
@@ -1216,9 +1592,7 @@ function buildInvestorAndBacktestTrades() {
     const tradeReturn = pnlUsd / Math.max(notionalUsd, 1e-12);
     const entryPx = entryPriceFor(item.symbol, i, item.entryTs);
     const exitPx =
-      item.direction === 'LONG'
-        ? entryPx * (1 + tradeReturn)
-        : entryPx * (1 - tradeReturn);
+      item.direction === 'LONG' ? entryPx * (1 + tradeReturn) : entryPx * (1 - tradeReturn);
     const unclippedExitMs = new Date(item.entryTs).getTime() + item.holdDays * 86_400_000;
     const exitMs = Math.min(unclippedExitMs, endMs);
     const actualHoldDays = Math.max(0.12, (exitMs - new Date(item.entryTs).getTime()) / 86_400_000);
@@ -1229,8 +1603,12 @@ function buildInvestorAndBacktestTrades() {
     const signedEdge = Math.abs(tradeReturn) * signedDirectionMultiplier(item.direction);
     const regPred = round(signedEdge * lerp(0.28, 0.52, rngFor(`reg:${i}`)()), 10);
     const tsPred = round(signedEdge * lerp(0.14, 0.29, rngFor(`ts:${i}`)()), 10);
-    const directionalConfidence = item.direction === 'LONG' ? item.probability : 1 - item.probability;
-    const score = round(directionalConfidence * 0.72 + Math.min(0.22, Math.abs(signedEdge) * 3.4), 10);
+    const directionalConfidence =
+      item.direction === 'LONG' ? item.probability : 1 - item.probability;
+    const score = round(
+      directionalConfidence * 0.72 + Math.min(0.22, Math.abs(signedEdge) * 3.4),
+      10,
+    );
 
     investorTrades.push({
       trade_id: `INV-${String(i + 1).padStart(4, '0')}`,
@@ -1255,7 +1633,7 @@ function buildInvestorAndBacktestTrades() {
       equity_before_usd: round(equityBefore, 10),
       equity_after_usd: round(equityAfter, 10),
       available_buying_power_usd: round(availableBuyingPower, 10),
-      fill_feasibility: 'PASS_SOURCE_BAR_PRICE'
+      fill_feasibility: 'PASS_SOURCE_BAR_PRICE',
     });
 
     backtestTrades.push({
@@ -1274,7 +1652,7 @@ function buildInvestorAndBacktestTrades() {
       prob: item.probability,
       regPred,
       tsPred,
-      score
+      score,
     });
 
     equity = equityAfter;
@@ -1290,7 +1668,10 @@ function buildInvestorAndBacktestTrades() {
       lastInvestor.direction === 'LONG'
         ? round(lastInvestor.entry_px * (1 + lastInvestor.trade_return), 10)
         : round(lastInvestor.entry_px * (1 - lastInvestor.trade_return), 10);
-    lastInvestor.equity_after_usd = round(lastInvestor.equity_before_usd + lastInvestor.pnl_usd, 10);
+    lastInvestor.equity_after_usd = round(
+      lastInvestor.equity_before_usd + lastInvestor.pnl_usd,
+      10,
+    );
 
     lastBacktest.pnl = lastInvestor.trade_return;
     lastBacktest.exit = lastInvestor.exit_px;
@@ -1300,22 +1681,31 @@ function buildInvestorAndBacktestTrades() {
   for (let i = 1; i < investorTrades.length; i += 1) {
     investorTrades[i].equity_before_usd = round(investorTrades[i - 1].equity_after_usd, 10);
     investorTrades[i].notional_usd = round(
-      investorTrades[i].equity_before_usd * investorTrades[i].position_pct * investorTrades[i].leverage,
-      10
+      investorTrades[i].equity_before_usd *
+        investorTrades[i].position_pct *
+        investorTrades[i].leverage,
+      10,
     );
-    investorTrades[i].trade_return = round(investorTrades[i].pnl_usd / investorTrades[i].notional_usd, 10);
+    investorTrades[i].trade_return = round(
+      investorTrades[i].pnl_usd / investorTrades[i].notional_usd,
+      10,
+    );
     investorTrades[i].exit_px =
       investorTrades[i].direction === 'LONG'
         ? round(investorTrades[i].entry_px * (1 + investorTrades[i].trade_return), 10)
         : round(investorTrades[i].entry_px * (1 - investorTrades[i].trade_return), 10);
     investorTrades[i].est_fee_usd = round(
       investorTrades[i].notional_usd * MARKET_CONFIG[investorTrades[i].market].feeRate,
-      10
+      10,
     );
-    investorTrades[i].equity_after_usd = round(investorTrades[i].equity_before_usd + investorTrades[i].pnl_usd, 10);
+    investorTrades[i].equity_after_usd = round(
+      investorTrades[i].equity_before_usd + investorTrades[i].pnl_usd,
+      10,
+    );
     investorTrades[i].available_buying_power_usd = round(
-      investorTrades[i].equity_before_usd - investorTrades[i].notional_usd / investorTrades[i].leverage,
-      10
+      investorTrades[i].equity_before_usd -
+        investorTrades[i].notional_usd / investorTrades[i].leverage,
+      10,
     );
 
     backtestTrades[i].entry = investorTrades[i].entry_px;
@@ -1325,22 +1715,31 @@ function buildInvestorAndBacktestTrades() {
 
   investorTrades[0].equity_before_usd = round(START_EQUITY_USD, 10);
   investorTrades[0].notional_usd = round(
-    investorTrades[0].equity_before_usd * investorTrades[0].position_pct * investorTrades[0].leverage,
-    10
+    investorTrades[0].equity_before_usd *
+      investorTrades[0].position_pct *
+      investorTrades[0].leverage,
+    10,
   );
-  investorTrades[0].trade_return = round(investorTrades[0].pnl_usd / investorTrades[0].notional_usd, 10);
+  investorTrades[0].trade_return = round(
+    investorTrades[0].pnl_usd / investorTrades[0].notional_usd,
+    10,
+  );
   investorTrades[0].exit_px =
     investorTrades[0].direction === 'LONG'
       ? round(investorTrades[0].entry_px * (1 + investorTrades[0].trade_return), 10)
       : round(investorTrades[0].entry_px * (1 - investorTrades[0].trade_return), 10);
   investorTrades[0].est_fee_usd = round(
     investorTrades[0].notional_usd * MARKET_CONFIG[investorTrades[0].market].feeRate,
-    10
+    10,
   );
-  investorTrades[0].equity_after_usd = round(investorTrades[0].equity_before_usd + investorTrades[0].pnl_usd, 10);
+  investorTrades[0].equity_after_usd = round(
+    investorTrades[0].equity_before_usd + investorTrades[0].pnl_usd,
+    10,
+  );
   investorTrades[0].available_buying_power_usd = round(
-    investorTrades[0].equity_before_usd - investorTrades[0].notional_usd / investorTrades[0].leverage,
-    10
+    investorTrades[0].equity_before_usd -
+      investorTrades[0].notional_usd / investorTrades[0].leverage,
+    10,
   );
 
   backtestTrades[0].entry = investorTrades[0].entry_px;
@@ -1349,7 +1748,10 @@ function buildInvestorAndBacktestTrades() {
 
   for (let i = 1; i < investorTrades.length; i += 1) {
     investorTrades[i].equity_before_usd = investorTrades[i - 1].equity_after_usd;
-    investorTrades[i].equity_after_usd = round(investorTrades[i].equity_before_usd + investorTrades[i].pnl_usd, 10);
+    investorTrades[i].equity_after_usd = round(
+      investorTrades[i].equity_before_usd + investorTrades[i].pnl_usd,
+      10,
+    );
   }
 
   const lastTrade = investorTrades.at(-1);
@@ -1381,7 +1783,7 @@ async function writeFiles() {
   const liveEntryAnchors = LIVE_ENTRY_ANCHORS.map((anchor) => ({
     ...anchor,
     source_type: 'live_quote_anchor',
-    source_status: 'VERIFIED_ON_2026-03-19'
+    source_status: 'VERIFIED_ON_2026-03-19',
   }));
 
   const report = {
@@ -1401,7 +1803,7 @@ async function writeFiles() {
       crypto_symbols: CRYPTO_SYMBOLS,
       strategy_swarm: [...new Set(backtestTrades.map((trade) => trade.strategy_id))],
       strategy_count: [...new Set(backtestTrades.map((trade) => trade.strategy_id))].length,
-      invented_strategy_count: strategyCatalog.filter((item) => item.invented).length
+      invented_strategy_count: strategyCatalog.filter((item) => item.invented).length,
     },
     investor_summary: investorSummary,
     backtest_summary: backtestSummaryBundle.summary,
@@ -1409,7 +1811,7 @@ async function writeFiles() {
     strategy_catalog: strategyCatalog,
     market_breakdown: backtestSummaryBundle.marketBreakdown,
     strategy_breakdown: backtestSummaryBundle.strategyBreakdown,
-    phase_breakdown: backtestSummaryBundle.phaseBreakdown
+    phase_breakdown: backtestSummaryBundle.phaseBreakdown,
   };
 
   const reportTxt = [
@@ -1430,7 +1832,7 @@ async function writeFiles() {
     `- 策略覆盖：${report.config.strategy_swarm.join(', ')}`,
     `- 已核实实时锚点（2026-03-19）：${liveEntryAnchors.map((item) => `${item.symbol}@${item.entry_px}`).join(' | ')}`,
     `- 数据属性：${SOURCE_TYPE} / ${SOURCE_STATUS}`,
-    '- 备注：历史回测仍为研究/展示口径；今日锚点价格与时间使用已核实的实时行情快照。'
+    '- 备注：历史回测仍为研究/展示口径；今日锚点价格与时间使用已核实的实时行情快照。',
   ].join('\n');
 
   const investorJsonPath = path.join(OUT_DIR, `investor_backtest_${INVESTOR_TAG}.json`);
@@ -1471,11 +1873,11 @@ async function writeFiles() {
         profit_factor: investorSummary.profit_factor,
         start_equity_usd: investorSummary.start_equity_usd,
         end_equity_usd: investorSummary.end_equity_usd,
-        unique_symbols: new Set(investorTrades.map((trade) => trade.symbol)).size
+        unique_symbols: new Set(investorTrades.map((trade) => trade.symbol)).size,
       },
       null,
-      2
-    )
+      2,
+    ),
   );
 }
 

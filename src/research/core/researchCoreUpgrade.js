@@ -19,7 +19,7 @@ export function buildResearchCoreUpgrade({
   riskProfileKey = 'balanced',
   championState = {},
   research = {},
-  discoveryConfig = {}
+  discoveryConfig = {},
 } = {}) {
   const signals = championState?.signals || [];
   const trades = championState?.trades || [];
@@ -28,7 +28,7 @@ export function buildResearchCoreUpgrade({
 
   const strategyFamilies = buildStrategyFamilyRegistry({
     asOf,
-    strategyRegistry
+    strategyRegistry,
   });
 
   const regimeEngine = buildRegimeEngineState({
@@ -36,7 +36,7 @@ export function buildResearchCoreUpgrade({
     championState,
     strategyFamilyRegistry: strategyFamilies,
     historicalSnapshots: research?.daily_snapshots || [],
-    signals
+    signals,
   });
 
   const riskBuckets = buildRiskBucketSystem({
@@ -45,7 +45,7 @@ export function buildResearchCoreUpgrade({
     championState,
     regimeState: regimeEngine,
     signals,
-    trades
+    trades,
   });
 
   const signalFunnel = buildSignalFunnelDiagnosticsV2({
@@ -54,14 +54,14 @@ export function buildResearchCoreUpgrade({
     trades,
     tradeLevelBuckets: riskBuckets.trade_level_buckets,
     regimeState: regimeEngine,
-    universeSize
+    universeSize,
   });
   const featureSignalLayer = buildFeatureSignalLayer({
     asOf,
     championState,
     regimeState: regimeEngine,
     riskBuckets,
-    funnelDiagnostics: signalFunnel
+    funnelDiagnostics: signalFunnel,
   });
 
   const walkForward = buildWalkForwardValidation({
@@ -70,7 +70,7 @@ export function buildResearchCoreUpgrade({
     championState,
     regimeState: regimeEngine,
     riskBucketSystem: riskBuckets,
-    funnelDiagnostics: signalFunnel
+    funnelDiagnostics: signalFunnel,
   });
 
   const shadowLog = buildShadowOpportunityLog({
@@ -78,13 +78,13 @@ export function buildResearchCoreUpgrade({
     funnelRecords: signalFunnel.raw_records,
     signals,
     tradeLevelBuckets: riskBuckets.trade_level_buckets,
-    replayValidation: walkForward?.replay_validation
+    replayValidation: walkForward?.replay_validation,
   });
   const executionDriftMonitor = buildExecutionDriftMonitor({
     asOf,
     replayValidation: walkForward?.replay_validation,
     trades,
-    signals
+    signals,
   });
 
   const strategyGovernance = buildStrategyGovernanceLifecycle({
@@ -93,7 +93,7 @@ export function buildResearchCoreUpgrade({
     walkforward: walkForward,
     funnelDiagnostics: signalFunnel,
     signals,
-    executionDrift: executionDriftMonitor
+    executionDrift: executionDriftMonitor,
   });
   const discoveryConfigWithDefaults = {
     ...(discoveryConfig || {}),
@@ -102,8 +102,8 @@ export function buildResearchCoreUpgrade({
       risk_profile:
         (discoveryConfig || {}).generation?.risk_profile ||
         (discoveryConfig || {}).risk_profile ||
-        riskProfileKey
-    }
+        riskProfileKey,
+    },
   };
   const strategyDiscovery = buildStrategyDiscoveryEngine({
     asOf,
@@ -112,7 +112,7 @@ export function buildResearchCoreUpgrade({
     signalFunnel,
     strategyGovernance,
     walkForward,
-    config: discoveryConfigWithDefaults
+    config: discoveryConfigWithDefaults,
   });
   const researchEvidence = buildResearchEvidenceSystem({
     asOf,
@@ -120,7 +120,7 @@ export function buildResearchCoreUpgrade({
     strategyGovernance,
     walkForward,
     regimeState: regimeEngine,
-    productOpportunities: featureSignalLayer.opportunity_objects
+    productOpportunities: featureSignalLayer.opportunity_objects,
   });
   const portfolioSimulation = buildPortfolioSimulationEngine({
     asOf,
@@ -131,8 +131,8 @@ export function buildResearchCoreUpgrade({
     executionDrift: executionDriftMonitor,
     executionRealism: {
       mode: 'paper',
-      profile: walkForward?.config?.execution_realism_profile || {}
-    }
+      profile: walkForward?.config?.execution_realism_profile || {},
+    },
   });
   const aiResearchCopilot = buildAiResearchCopilot({
     asOf,
@@ -142,7 +142,7 @@ export function buildResearchCoreUpgrade({
     strategyGovernance,
     regimeState: regimeEngine,
     strategyDiscovery,
-    portfolioSimulation
+    portfolioSimulation,
   });
   const weeklyCycle = buildWeeklyResearchCycle({
     asOf,
@@ -153,7 +153,7 @@ export function buildResearchCoreUpgrade({
     strategyDiscovery,
     walkForward,
     aiResearchCopilot,
-    portfolioSimulation
+    portfolioSimulation,
   });
   const researchAutomation = buildResearchAutomationLoop({
     asOf,
@@ -164,7 +164,7 @@ export function buildResearchCoreUpgrade({
     walkForward,
     strategyDiscovery,
     aiResearchCopilot,
-    weeklyCycle
+    weeklyCycle,
   });
 
   return {
@@ -187,7 +187,7 @@ export function buildResearchCoreUpgrade({
       weekly_research_cycle: 'MODEL_DERIVED',
       research_automation_loop: 'MODEL_DERIVED',
       product_opportunity_objects: 'MODEL_DERIVED',
-      data_feed: 'MODEL_DERIVED'
+      data_feed: 'MODEL_DERIVED',
     },
     strategy_families: strategyFamilies,
     regime_engine: regimeEngine,
@@ -206,14 +206,20 @@ export function buildResearchCoreUpgrade({
     research_automation_loop: researchAutomation,
     product_opportunities: featureSignalLayer.opportunity_objects,
     explainability_log: {
-      signal_reasoning: 'Signals are scored, filtered, and sized with explicit regime and risk explanations.',
+      signal_reasoning:
+        'Signals are scored, filtered, and sized with explicit regime and risk explanations.',
       filter_reasoning: 'No-trade and drop-off reasons are persisted in funnel and shadow records.',
       trade_block_reasoning: 'Each trade bucket carries allow/reduce/block rationale.',
-      risk_sizing_reasoning: 'Position sizing is reduced by user risk bucket and regime posture multipliers.',
-      product_object_lineage: 'Opportunity objects include audit lineage and evidence fields for product and Copilot.',
-      evidence_chain: 'Each strategy and candidate is linked via hypothesis -> template -> validation -> governance -> recommendation.',
-      portfolio_simulation: 'Portfolio behavior is simulated with regime-aware, risk-budgeted and correlation-aware allocations.',
-      copilot_reasoning: 'AI copilot recommendations are derived from funnel, shadow, validation, governance, and portfolio diagnostics.'
-    }
+      risk_sizing_reasoning:
+        'Position sizing is reduced by user risk bucket and regime posture multipliers.',
+      product_object_lineage:
+        'Opportunity objects include audit lineage and evidence fields for product and Copilot.',
+      evidence_chain:
+        'Each strategy and candidate is linked via hypothesis -> template -> validation -> governance -> recommendation.',
+      portfolio_simulation:
+        'Portfolio behavior is simulated with regime-aware, risk-budgeted and correlation-aware allocations.',
+      copilot_reasoning:
+        'AI copilot recommendations are derived from funnel, shadow, validation, governance, and portfolio diagnostics.',
+    },
   };
 }

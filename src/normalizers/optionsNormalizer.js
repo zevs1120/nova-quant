@@ -17,7 +17,7 @@ export function normalizeOptions(rawSnapshot) {
     frequency: row.frequency || FREQUENCY.DAILY,
     data_status: DATA_STATUS.NORMALIZED,
     use_notes: row.use_notes || 'Normalized option contract metadata.',
-    license_notes: row.license_notes || 'Sample fallback in demo environment.'
+    license_notes: row.license_notes || 'Sample fallback in demo environment.',
   }));
 
   const contractMap = Object.fromEntries(contracts.map((item) => [item.option_ticker, item]));
@@ -30,8 +30,10 @@ export function normalizeOptions(rawSnapshot) {
     const dte = Math.max(
       0,
       Math.round(
-        (new Date(`${contract.expiration_date}T00:00:00.000Z`).getTime() - new Date(row.timestamp || row.date).getTime()) / 86400000
-      )
+        (new Date(`${contract.expiration_date}T00:00:00.000Z`).getTime() -
+          new Date(row.timestamp || row.date).getTime()) /
+          86400000,
+      ),
     );
 
     return {
@@ -49,7 +51,7 @@ export function normalizeOptions(rawSnapshot) {
         delta: toNumber(row.greeks?.delta),
         gamma: toNumber(row.greeks?.gamma),
         theta: toNumber(row.greeks?.theta),
-        vega: toNumber(row.greeks?.vega)
+        vega: toNumber(row.greeks?.vega),
       },
       underlying_symbol: contract.underlying_symbol,
       underlying_price: underlyingPrice,
@@ -63,7 +65,7 @@ export function normalizeOptions(rawSnapshot) {
       frequency: row.frequency || FREQUENCY.DAILY,
       data_status: DATA_STATUS.NORMALIZED,
       use_notes: row.use_notes || 'Normalized option snapshot with contract-enriched fields.',
-      license_notes: row.license_notes || 'Sample fallback in demo environment.'
+      license_notes: row.license_notes || 'Sample fallback in demo environment.',
     };
   });
 
@@ -75,15 +77,18 @@ export function normalizeOptions(rawSnapshot) {
     derived_chain_metrics: {
       call_put_iv_skew: toNumber(row.derived_chain_metrics?.call_put_iv_skew),
       concentration_top5_oi: toNumber(row.derived_chain_metrics?.concentration_top5_oi),
-      total_open_interest: Math.max(0, Math.round(toNumber(row.derived_chain_metrics?.total_open_interest))),
-      total_volume: Math.max(0, Math.round(toNumber(row.derived_chain_metrics?.total_volume)))
+      total_open_interest: Math.max(
+        0,
+        Math.round(toNumber(row.derived_chain_metrics?.total_open_interest)),
+      ),
+      total_volume: Math.max(0, Math.round(toNumber(row.derived_chain_metrics?.total_volume))),
     },
     source: row.source || rawSnapshot?.metadata?.source || 'options_adapter',
     fetched_at: row.fetched_at || fetchedAt,
     frequency: row.frequency || FREQUENCY.DAILY,
     data_status: DATA_STATUS.NORMALIZED,
     use_notes: row.use_notes || 'Normalized chain snapshot for term/skew/concentration features.',
-    license_notes: row.license_notes || 'Sample fallback in demo environment.'
+    license_notes: row.license_notes || 'Sample fallback in demo environment.',
   }));
 
   const assets = contracts.map((item) => ({
@@ -102,18 +107,18 @@ export function normalizeOptions(rawSnapshot) {
     frequency: item.frequency,
     data_status: DATA_STATUS.NORMALIZED,
     use_notes: 'Normalized option asset registry entry.',
-    license_notes: item.license_notes
+    license_notes: item.license_notes,
   }));
 
   return {
     metadata: {
       ...rawSnapshot?.metadata,
       data_status: DATA_STATUS.NORMALIZED,
-      normalized_at: new Date().toISOString()
+      normalized_at: new Date().toISOString(),
     },
     assets,
     contracts,
     snapshots,
-    chains
+    chains,
   };
 }

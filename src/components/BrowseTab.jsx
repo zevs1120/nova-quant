@@ -8,7 +8,7 @@ import {
   searchBrowseUniverseLocal,
   warmBrowseDetailSnapshot,
   warmBrowseHomeSnapshot,
-  warmBrowseUniverseSnapshot
+  warmBrowseUniverseSnapshot,
 } from '../utils/browseWarmup';
 
 const CATEGORY_KEYS = ['STOCK', 'CRYPTO'];
@@ -20,7 +20,7 @@ const DETAIL_RANGE_CONFIG = {
   '1D': { live: true },
   '1W': { tf: '1d', limit: 7 },
   '1M': { tf: '1d', limit: 30 },
-  '3M': { tf: '1d', limit: 90 }
+  '3M': { tf: '1d', limit: 90 },
 };
 
 function buildInitialHomeState() {
@@ -29,7 +29,7 @@ function buildInitialHomeState() {
     acc[key] = {
       loading: !cached,
       error: '',
-      data: cached
+      data: cached,
     };
     return acc;
   }, {});
@@ -76,7 +76,7 @@ function formatAsOf(value, locale) {
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-    second: '2-digit'
+    second: '2-digit',
   });
 }
 
@@ -96,16 +96,21 @@ function formatRelativeTime(value, locale) {
 }
 
 function hashString(value) {
-  return Array.from(String(value || '')).reduce((acc, char) => ((acc << 5) - acc + char.charCodeAt(0)) | 0, 0);
+  return Array.from(String(value || '')).reduce(
+    (acc, char) => ((acc << 5) - acc + char.charCodeAt(0)) | 0,
+    0,
+  );
 }
 
 function buildNewsArtStyle(item) {
-  const seed = Math.abs(hashString(`${item?.symbol || ''}:${item?.source || ''}:${item?.headline || ''}`));
+  const seed = Math.abs(
+    hashString(`${item?.symbol || ''}:${item?.source || ''}:${item?.headline || ''}`),
+  );
   const hue = seed % 360;
   return {
     '--browse-news-a': `hsla(${hue}, 76%, 82%, 0.98)`,
     '--browse-news-b': `hsla(${(hue + 34) % 360}, 72%, 69%, 0.92)`,
-    '--browse-news-c': `hsla(${(hue + 88) % 360}, 66%, 34%, 0.96)`
+    '--browse-news-c': `hsla(${(hue + 88) % 360}, 66%, 34%, 0.96)`,
   };
 }
 
@@ -163,7 +168,11 @@ function ChevronDown() {
 function MiniChart({ values, tone = 'neutral', width = 228, height = 74, className = '' }) {
   const d = useMemo(() => chartPath(values, width, height), [height, values, width]);
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} className={`browse-rh-chart browse-rh-chart-${tone} ${className}`.trim()} aria-hidden="true">
+    <svg
+      viewBox={`0 0 ${width} ${height}`}
+      className={`browse-rh-chart browse-rh-chart-${tone} ${className}`.trim()}
+      aria-hidden="true"
+    >
       <path d={d} />
     </svg>
   );
@@ -200,7 +209,9 @@ function MarketCard({ item, locale, onOpen }) {
         <MiniChart values={item.values} tone={toneClass(item.change)} />
       </div>
       <p className="browse-rh-market-card-price">{compactPrice(item.latest, locale)}</p>
-      <p className={`browse-rh-market-card-change ${toneClass(item.change)}`}>{percentText(item.change, locale)}</p>
+      <p className={`browse-rh-market-card-change ${toneClass(item.change)}`}>
+        {percentText(item.change, locale)}
+      </p>
     </button>
   );
 }
@@ -209,7 +220,9 @@ function MoverChip({ item, locale, onOpen }) {
   return (
     <button type="button" className="browse-rh-mover-chip" onClick={() => onOpen(item)}>
       <span className="browse-rh-mover-symbol">{displaySymbol(item.symbol, item.market)}</span>
-      <span className={`browse-rh-mover-change ${toneClass(item.change)}`}>{percentText(item.change, locale)}</span>
+      <span className={`browse-rh-mover-change ${toneClass(item.change)}`}>
+        {percentText(item.change, locale)}
+      </span>
     </button>
   );
 }
@@ -264,17 +277,33 @@ function ResultRow({ item, locale, onOpen }) {
         <p className="browse-rh-result-name">{item.name || item.symbol}</p>
         {item.hint ? <p className="browse-rh-result-hint">{item.hint}</p> : null}
       </div>
-      <span className="browse-rh-result-side">{item.latest !== null ? compactPrice(item.latest, locale) : '›'}</span>
+      <span className="browse-rh-result-side">
+        {item.latest !== null ? compactPrice(item.latest, locale) : '›'}
+      </span>
     </button>
   );
 }
 
 function NewsVisual({ item, variant = 'thumb' }) {
   return (
-    <div className={`browse-rh-news-visual browse-rh-news-visual-${variant}`} style={buildNewsArtStyle(item)} aria-hidden="true">
-      {item.imageUrl ? <img className="browse-rh-news-image" src={item.imageUrl} alt="" loading="lazy" referrerPolicy="no-referrer" /> : null}
+    <div
+      className={`browse-rh-news-visual browse-rh-news-visual-${variant}`}
+      style={buildNewsArtStyle(item)}
+      aria-hidden="true"
+    >
+      {item.imageUrl ? (
+        <img
+          className="browse-rh-news-image"
+          src={item.imageUrl}
+          alt=""
+          loading="lazy"
+          referrerPolicy="no-referrer"
+        />
+      ) : null}
       <div className="browse-rh-news-visual-fallback">
-        <span className="browse-rh-news-visual-symbol">{displaySymbol(item.symbol, item.market)}</span>
+        <span className="browse-rh-news-visual-symbol">
+          {displaySymbol(item.symbol, item.market)}
+        </span>
         <span className="browse-rh-news-visual-source">{newsSourceLabel(item)}</span>
       </div>
     </div>
@@ -299,7 +328,11 @@ function NewsAssetPill({ item, locale, onOpen, changeMap = {} }) {
   return (
     <button type="button" className="browse-rh-news-asset-pill" onClick={() => onOpen(item)}>
       <span className="browse-rh-news-asset-symbol">{displaySymbol(item.symbol, item.market)}</span>
-      {Number.isFinite(change) ? <span className={`browse-rh-news-asset-change ${toneClass(change)}`}>{percentText(change, locale)}</span> : null}
+      {Number.isFinite(change) ? (
+        <span className={`browse-rh-news-asset-change ${toneClass(change)}`}>
+          {percentText(change, locale)}
+        </span>
+      ) : null}
     </button>
   );
 }
@@ -370,11 +403,24 @@ function NewsFeed({ items, locale, onOpen, changeMap = {}, readLabel }) {
   const [featured, ...rest] = items;
   return (
     <div className="browse-rh-news-feed">
-      <NewsFeaturedCard item={featured} locale={locale} onOpen={onOpen} changeMap={changeMap} readLabel={readLabel} />
+      <NewsFeaturedCard
+        item={featured}
+        locale={locale}
+        onOpen={onOpen}
+        changeMap={changeMap}
+        readLabel={readLabel}
+      />
       {rest.length ? (
         <div className="browse-rh-news-stack">
           {rest.map((item) => (
-            <NewsStoryRow key={item.id || `${item.symbol}-${item.headline}`} item={item} locale={locale} onOpen={onOpen} changeMap={changeMap} readLabel={readLabel} />
+            <NewsStoryRow
+              key={item.id || `${item.symbol}-${item.headline}`}
+              item={item}
+              locale={locale}
+              onOpen={onOpen}
+              changeMap={changeMap}
+              readLabel={readLabel}
+            />
           ))}
         </div>
       ) : null}
@@ -399,7 +445,7 @@ function buildSelection(item) {
     market: String(item.market || '').toUpperCase() === 'CRYPTO' ? 'CRYPTO' : 'US',
     name: item.name || item.title || normalizeSymbol(item.symbol),
     title: item.title || item.name || normalizeSymbol(item.symbol),
-    subtitle: item.subtitle || null
+    subtitle: item.subtitle || null,
   };
 }
 
@@ -413,7 +459,7 @@ export default function BrowseTab({
   watchlist = [],
   setWatchlist,
   topBarBackToken = 0,
-  onTopBarStateChange
+  onTopBarStateChange,
 }) {
   const isZh = locale?.startsWith('zh');
   const copy = useMemo(
@@ -422,7 +468,7 @@ export default function BrowseTab({
       searchPlaceholder: isZh ? '搜索股票或加密货币' : 'Search stocks or crypto',
       categories: {
         STOCK: isZh ? '股票' : 'Stock',
-        CRYPTO: isZh ? '加密' : 'Crypto'
+        CRYPTO: isZh ? '加密' : 'Crypto',
       },
       featured: isZh ? '精选标的' : 'Featured choices',
       topMovers: isZh ? '涨跌榜' : 'Top movers',
@@ -435,8 +481,12 @@ export default function BrowseTab({
       searching: isZh ? '搜索中…' : 'Searching…',
       noResults: isZh ? '没有找到结果。' : 'No results.',
       searchError: isZh ? '搜索暂时不可用。' : 'Search is temporarily unavailable.',
-      searchNoUniverse: isZh ? '搜索资产库还没有准备好。' : 'The searchable asset universe is not ready yet.',
-      searchNoMatches: isZh ? '有资产库，但这次查询没有命中。' : 'The asset universe is available, but this query did not match anything.',
+      searchNoUniverse: isZh
+        ? '搜索资产库还没有准备好。'
+        : 'The searchable asset universe is not ready yet.',
+      searchNoMatches: isZh
+        ? '有资产库，但这次查询没有命中。'
+        : 'The asset universe is available, but this query did not match anything.',
       back: isZh ? '返回' : 'Back',
       loading: isZh ? '加载中…' : 'Loading…',
       detailError: isZh ? '详情暂时不可用。' : 'Detail is unavailable.',
@@ -455,9 +505,9 @@ export default function BrowseTab({
       source: isZh ? '来源' : 'Source',
       updated: isZh ? '更新时间' : 'Updated',
       venue: isZh ? '市场' : 'Venue',
-      currency: isZh ? '货币' : 'Currency'
+      currency: isZh ? '货币' : 'Currency',
     }),
-    [isZh]
+    [isZh],
   );
 
   const [category, setCategory] = useState('STOCK');
@@ -478,17 +528,22 @@ export default function BrowseTab({
     low: null,
     high: null,
     asOf: null,
-    source: null
+    source: null,
   });
   const [detailOverview, setDetailOverview] = useState(null);
   const [detailNews, setDetailNews] = useState([]);
   const handledBackTokenRef = useRef(topBarBackToken);
   const selectedKey = selectedAsset ? `${selectedAsset.market}:${selectedAsset.symbol}` : '';
-  const watchedSymbols = useMemo(() => (watchlist || []).map((item) => normalizeSymbol(item)), [watchlist]);
+  const watchedSymbols = useMemo(
+    () => (watchlist || []).map((item) => normalizeSymbol(item)),
+    [watchlist],
+  );
   const detailNewsChangeMap = useMemo(() => {
     if (!selectedAsset) return {};
     const symbol = normalizeSymbol(selectedAsset.symbol);
-    const change = Number.isFinite(detailState.change) ? detailState.change : detailOverview?.tradingStats?.changePct ?? null;
+    const change = Number.isFinite(detailState.change)
+      ? detailState.change
+      : (detailOverview?.tradingStats?.changePct ?? null);
     return { [symbol]: change };
   }, [detailOverview?.tradingStats?.changePct, detailState.change, selectedAsset]);
   const todaySignalSymbols = useMemo(
@@ -498,10 +553,10 @@ export default function BrowseTab({
         .map((signal) => ({
           symbol: normalizeSymbol(signal?.symbol || signal?.ticker),
           market: String(signal?.market || '').toUpperCase() === 'CRYPTO' ? 'CRYPTO' : 'US',
-          title: signal?.thesis || signal?.summary || signal?.why || 'Today signal'
+          title: signal?.thesis || signal?.summary || signal?.why || 'Today signal',
         }))
         .filter((item) => item.symbol),
-    [signals]
+    [signals],
   );
 
   useEffect(() => {
@@ -511,7 +566,7 @@ export default function BrowseTab({
       title: selectedAsset
         ? displaySymbol(selectedAsset.symbol, selectedAsset.market)
         : activeList?.title || copy.title,
-      backLabel: copy.title
+      backLabel: copy.title,
     });
   }, [activeList, copy.title, onTopBarStateChange, selectedAsset]);
 
@@ -548,8 +603,8 @@ export default function BrowseTab({
             [view]: {
               loading: !next.data,
               error: '',
-              data: next.data
-            }
+              data: next.data,
+            },
           };
         });
       }
@@ -558,15 +613,18 @@ export default function BrowseTab({
           const payload = await warmBrowseHomeSnapshot(view, { force: !initial });
           if (cancelled) return;
           if (payload) {
-            primeBrowseDetailSelections([...(payload.futuresMarkets || []), ...((view === 'CRYPTO' ? payload.cryptoMovers : payload.topMovers) || [])]);
+            primeBrowseDetailSelections([
+              ...(payload.futuresMarkets || []),
+              ...((view === 'CRYPTO' ? payload.cryptoMovers : payload.topMovers) || []),
+            ]);
           }
           setHomeStateByCategory((current) => ({
             ...current,
             [view]: {
               loading: false,
               error: '',
-              data: payload || null
-            }
+              data: payload || null,
+            },
           }));
         } catch {
           if (cancelled) return;
@@ -576,7 +634,7 @@ export default function BrowseTab({
               ...current,
               [view]: prev.data
                 ? { ...prev, loading: false }
-                : { loading: false, error: copy.detailError, data: null }
+                : { loading: false, error: copy.detailError, data: null },
             };
           });
         } finally {
@@ -588,7 +646,9 @@ export default function BrowseTab({
     };
 
     void loadHome(category, true).then(() => {
-      const inactiveViews = CATEGORY_KEYS.filter((view) => view !== category && !readBrowseHomeSnapshot(view));
+      const inactiveViews = CATEGORY_KEYS.filter(
+        (view) => view !== category && !readBrowseHomeSnapshot(view),
+      );
       inactiveViews.forEach((view) => {
         void loadHome(view, false);
       });
@@ -631,7 +691,10 @@ export default function BrowseTab({
       try {
         void warmBrowseUniverseSnapshot('US');
         void warmBrowseUniverseSnapshot('CRYPTO');
-        const payload = await fetchApiJson(`/api/assets/search?q=${encodeURIComponent(trimmed)}&limit=18`, { cache: 'no-store' });
+        const payload = await fetchApiJson(
+          `/api/assets/search?q=${encodeURIComponent(trimmed)}&limit=18`,
+          { cache: 'no-store' },
+        );
         if (cancelled) return;
         setSearchResults(Array.isArray(payload?.data) ? payload.data : []);
         setSearchHealth(payload?.health || null);
@@ -661,7 +724,7 @@ export default function BrowseTab({
         low: null,
         high: null,
         asOf: null,
-        source: null
+        source: null,
       });
       setDetailOverview(null);
       setDetailNews([]);
@@ -671,7 +734,9 @@ export default function BrowseTab({
     const seededDetail = readBrowseDetailSnapshot(selectedAsset);
     if (seededDetail?.chart) {
       const seededValues = Array.isArray(seededDetail.chart?.points)
-        ? seededDetail.chart.points.map((point) => toNumber(point?.close)).filter((value) => Number.isFinite(value))
+        ? seededDetail.chart.points
+            .map((point) => toNumber(point?.close))
+            .filter((value) => Number.isFinite(value))
         : [];
       setDetailState({
         loading: false,
@@ -682,7 +747,7 @@ export default function BrowseTab({
         low: seededValues.length ? Math.min(...seededValues) : null,
         high: seededValues.length ? Math.max(...seededValues) : null,
         asOf: seededDetail.chart?.asOf || null,
-        source: seededDetail.chart?.source || null
+        source: seededDetail.chart?.source || null,
       });
       setDetailOverview(seededDetail.overview || null);
       setDetailNews(Array.isArray(seededDetail.news) ? seededDetail.news : []);
@@ -704,38 +769,53 @@ export default function BrowseTab({
           low: null,
           high: null,
           asOf: null,
-          source: null
+          source: null,
         });
       }
       try {
         const chartPayload = config.live
-          ? await fetchApiJson(`/api/browse/chart?market=${selectedAsset.market}&symbol=${encodeURIComponent(selectedAsset.symbol)}`, {
-              cache: 'no-store'
-            })
+          ? await fetchApiJson(
+              `/api/browse/chart?market=${selectedAsset.market}&symbol=${encodeURIComponent(selectedAsset.symbol)}`,
+              {
+                cache: 'no-store',
+              },
+            )
           : await fetchApiJson(
               `/api/ohlcv?market=${selectedAsset.market}&symbol=${encodeURIComponent(selectedAsset.symbol)}&tf=${config.tf}&limit=${config.limit}`,
-              { cache: 'no-store' }
+              { cache: 'no-store' },
             );
         if (cancelled) return;
         const values = config.live
-          ? (chartPayload?.points || []).map((point) => toNumber(point?.close)).filter((value) => Number.isFinite(value))
-          : (chartPayload?.data || []).map((row) => toNumber(row?.close)).filter((value) => Number.isFinite(value));
-        const latest = config.live ? toNumber(chartPayload?.latest) : values[values.length - 1] ?? null;
+          ? (chartPayload?.points || [])
+              .map((point) => toNumber(point?.close))
+              .filter((value) => Number.isFinite(value))
+          : (chartPayload?.data || [])
+              .map((row) => toNumber(row?.close))
+              .filter((value) => Number.isFinite(value));
+        const latest = config.live
+          ? toNumber(chartPayload?.latest)
+          : (values[values.length - 1] ?? null);
         const base = values[0] ?? null;
         setDetailState({
           loading: false,
           error: values.length ? '' : copy.detailError,
           values,
           latest,
-          change: config.live ? toNumber(chartPayload?.change) : latest !== null && base ? (latest - base) / base : null,
+          change: config.live
+            ? toNumber(chartPayload?.change)
+            : latest !== null && base
+              ? (latest - base) / base
+              : null,
           low: values.length ? Math.min(...values) : null,
           high: values.length ? Math.max(...values) : null,
           asOf: config.live
             ? chartPayload?.asOf || null
             : chartPayload?.data?.length
-              ? new Date(Number(chartPayload.data[chartPayload.data.length - 1]?.ts_open || Date.now())).toISOString()
+              ? new Date(
+                  Number(chartPayload.data[chartPayload.data.length - 1]?.ts_open || Date.now()),
+                ).toISOString()
               : null,
-          source: config.live ? chartPayload?.source || null : 'Historical OHLCV'
+          source: config.live ? chartPayload?.source || null : 'Historical OHLCV',
         });
       } catch {
         if (cancelled) return;
@@ -751,8 +831,8 @@ export default function BrowseTab({
                 low: null,
                 high: null,
                 asOf: null,
-                source: null
-              }
+                source: null,
+              },
         );
       } finally {
         inFlight = false;
@@ -793,18 +873,32 @@ export default function BrowseTab({
       if (inFlight) return;
       inFlight = true;
       try {
-        const seeded = await warmBrowseDetailSnapshot(selectedAsset, { force: false }).catch(() => null);
+        const seeded = await warmBrowseDetailSnapshot(selectedAsset, { force: false }).catch(
+          () => null,
+        );
         const [overviewPayload, newsPayload] = await Promise.all([
-          fetchApiJson(`/api/browse/overview?market=${selectedAsset.market}&symbol=${encodeURIComponent(selectedAsset.symbol)}`, {
-            cache: 'no-store'
-          }).catch(() => null),
-          fetchApiJson(`/api/browse/news?market=${selectedAsset.market}&symbol=${encodeURIComponent(selectedAsset.symbol)}&limit=6`, {
-            cache: 'no-store'
-          }).catch(() => null)
+          fetchApiJson(
+            `/api/browse/overview?market=${selectedAsset.market}&symbol=${encodeURIComponent(selectedAsset.symbol)}`,
+            {
+              cache: 'no-store',
+            },
+          ).catch(() => null),
+          fetchApiJson(
+            `/api/browse/news?market=${selectedAsset.market}&symbol=${encodeURIComponent(selectedAsset.symbol)}&limit=6`,
+            {
+              cache: 'no-store',
+            },
+          ).catch(() => null),
         ]);
         if (cancelled) return;
         setDetailOverview(overviewPayload || seeded?.overview || null);
-        setDetailNews(Array.isArray(newsPayload?.data) ? newsPayload.data : Array.isArray(seeded?.news) ? seeded.news : []);
+        setDetailNews(
+          Array.isArray(newsPayload?.data)
+            ? newsPayload.data
+            : Array.isArray(seeded?.news)
+              ? seeded.news
+              : [],
+        );
       } finally {
         inFlight = false;
       }
@@ -839,7 +933,9 @@ export default function BrowseTab({
     if (!selectedAsset || typeof setWatchlist !== 'function') return;
     const symbol = normalizeSymbol(selectedAsset.symbol);
     setWatchlist((current) => {
-      const list = Array.isArray(current) ? current.map((item) => normalizeSymbol(item)).filter(Boolean) : [];
+      const list = Array.isArray(current)
+        ? current.map((item) => normalizeSymbol(item)).filter(Boolean)
+        : [];
       return list.includes(symbol) ? list.filter((item) => item !== symbol) : [...list, symbol];
     });
   }
@@ -865,18 +961,31 @@ export default function BrowseTab({
         {query.trim() ? (
           <section className="browse-rh-section">
             <SectionHeader title={copy.results} />
-            {searchState === 'loading' ? <div className="browse-rh-empty">{copy.searching}</div> : null}
-            {searchState === 'error' ? <div className="browse-rh-empty">{copy.searchError}</div> : null}
-            {searchState === 'ready' && !searchResults.length ? <div className="browse-rh-empty">{copy.noResults}</div> : null}
+            {searchState === 'loading' ? (
+              <div className="browse-rh-empty">{copy.searching}</div>
+            ) : null}
+            {searchState === 'error' ? (
+              <div className="browse-rh-empty">{copy.searchError}</div>
+            ) : null}
+            {searchState === 'ready' && !searchResults.length ? (
+              <div className="browse-rh-empty">{copy.noResults}</div>
+            ) : null}
             {searchState === 'ready' && !searchResults.length && searchHealth?.reason ? (
               <div className="browse-rh-empty muted">
-                {searchHealth.reason === 'NO_ASSET_UNIVERSE' ? copy.searchNoUniverse : copy.searchNoMatches}
+                {searchHealth.reason === 'NO_ASSET_UNIVERSE'
+                  ? copy.searchNoUniverse
+                  : copy.searchNoMatches}
               </div>
             ) : null}
             {searchResults.length ? (
               <div className="browse-rh-list">
                 {searchResults.map((item) => (
-                  <ResultRow key={`${item.market}-${item.symbol}`} item={item} locale={locale} onOpen={openItem} />
+                  <ResultRow
+                    key={`${item.market}-${item.symbol}`}
+                    item={item}
+                    locale={locale}
+                    onOpen={openItem}
+                  />
                 ))}
               </div>
             ) : null}
@@ -887,14 +996,21 @@ export default function BrowseTab({
           <>
             <div className="browse-rh-pill-row">
               {CATEGORY_KEYS.map((key) => (
-                <button key={key} type="button" className={`browse-rh-pill ${category === key ? 'active' : ''}`} onClick={() => setCategory(key)}>
+                <button
+                  key={key}
+                  type="button"
+                  className={`browse-rh-pill ${category === key ? 'active' : ''}`}
+                  onClick={() => setCategory(key)}
+                >
                   {copy.categories[key]}
                 </button>
               ))}
             </div>
 
             {homeState.loading ? <div className="browse-rh-empty">{copy.loading}</div> : null}
-            {!homeState.loading && homeState.error ? <div className="browse-rh-empty">{homeState.error}</div> : null}
+            {!homeState.loading && homeState.error ? (
+              <div className="browse-rh-empty">{homeState.error}</div>
+            ) : null}
 
             {data ? (
               <>
@@ -902,7 +1018,12 @@ export default function BrowseTab({
                   <SectionHeader title={copy.featured} />
                   <div className="browse-rh-market-row">
                     {(data.futuresMarkets || []).map((item) => (
-                      <MarketCard key={`${item.market}-${item.symbol}`} item={item} locale={locale} onOpen={openItem} />
+                      <MarketCard
+                        key={`${item.market}-${item.symbol}`}
+                        item={item}
+                        locale={locale}
+                        onOpen={openItem}
+                      />
                     ))}
                   </div>
                 </section>
@@ -911,7 +1032,12 @@ export default function BrowseTab({
                   <SectionHeader title={copy.topMovers} />
                   <div className="browse-rh-chip-grid">
                     {moverItems.map((item) => (
-                      <MoverChip key={`move-${item.symbol}`} item={item} locale={locale} onOpen={openItem} />
+                      <MoverChip
+                        key={`move-${item.symbol}`}
+                        item={item}
+                        locale={locale}
+                        onOpen={openItem}
+                      />
                     ))}
                   </div>
                 </section>
@@ -934,7 +1060,17 @@ export default function BrowseTab({
                   </section>
                 ) : null}
 
-                <button type="button" className="browse-rh-expand" onClick={() => setActiveList({ type: 'screeners', title: copy.screeners, lists: data.screeners || [] })}>
+                <button
+                  type="button"
+                  className="browse-rh-expand"
+                  onClick={() =>
+                    setActiveList({
+                      type: 'screeners',
+                      title: copy.screeners,
+                      lists: data.screeners || [],
+                    })
+                  }
+                >
                   <span>{copy.showMore}</span>
                   <ChevronDown />
                 </button>
@@ -948,7 +1084,17 @@ export default function BrowseTab({
                   </div>
                 </section>
 
-                <button type="button" className="browse-rh-expand" onClick={() => setActiveList({ type: 'trending', title: copy.trending, lists: data.trendingLists || [] })}>
+                <button
+                  type="button"
+                  className="browse-rh-expand"
+                  onClick={() =>
+                    setActiveList({
+                      type: 'trending',
+                      title: copy.trending,
+                      lists: data.trendingLists || [],
+                    })
+                  }
+                >
                   <span>{copy.showMore}</span>
                   <ChevronDown />
                 </button>
@@ -977,7 +1123,12 @@ export default function BrowseTab({
         {items.length ? (
           <div className="browse-rh-list">
             {items.map((item) => (
-              <ResultRow key={`${item.market}-${item.symbol}`} item={item} locale={locale} onOpen={openItem} />
+              <ResultRow
+                key={`${item.market}-${item.symbol}`}
+                item={item}
+                locale={locale}
+                onOpen={openItem}
+              />
             ))}
           </div>
         ) : (
@@ -999,17 +1150,28 @@ export default function BrowseTab({
           <div className="browse-rh-detail-head">
             <div>
               <p className="browse-rh-detail-kicker">{selectedAsset.market}</p>
-              <h1 className="browse-rh-detail-symbol">{displaySymbol(selectedAsset.symbol, selectedAsset.market)}</h1>
+              <h1 className="browse-rh-detail-symbol">
+                {displaySymbol(selectedAsset.symbol, selectedAsset.market)}
+              </h1>
               <p className="browse-rh-detail-name">{detailOverview?.name || selectedAsset.name}</p>
             </div>
-            <button type="button" className={`browse-rh-watch-btn ${watched ? 'active' : ''}`} onClick={toggleWatch}>
+            <button
+              type="button"
+              className={`browse-rh-watch-btn ${watched ? 'active' : ''}`}
+              onClick={toggleWatch}
+            >
               {watched ? copy.removeWatch : copy.addWatch}
             </button>
           </div>
 
           <div className="browse-rh-pill-row">
             {DETAIL_RANGES.map((range) => (
-              <button key={range} type="button" className={`browse-rh-pill ${detailRange === range ? 'active' : ''}`} onClick={() => setDetailRange(range)}>
+              <button
+                key={range}
+                type="button"
+                className={`browse-rh-pill ${detailRange === range ? 'active' : ''}`}
+                onClick={() => setDetailRange(range)}
+              >
                 {range}
               </button>
             ))}
@@ -1017,20 +1179,36 @@ export default function BrowseTab({
 
           <div className="browse-rh-detail-chart-shell">
             {detailState.loading ? <div className="browse-rh-empty">{copy.loading}</div> : null}
-            {!detailState.loading && detailState.error ? <div className="browse-rh-empty">{detailState.error}</div> : null}
+            {!detailState.loading && detailState.error ? (
+              <div className="browse-rh-empty">{detailState.error}</div>
+            ) : null}
             {!detailState.loading && detailState.values.length ? (
               <>
                 <div className="browse-rh-detail-quote">
                   <div>
-                    <p className="browse-rh-detail-price">{compactPrice(detailState.latest, locale)}</p>
-                    <p className={`browse-rh-detail-change ${toneClass(detailState.change)}`}>{percentText(detailState.change, locale)}</p>
+                    <p className="browse-rh-detail-price">
+                      {compactPrice(detailState.latest, locale)}
+                    </p>
+                    <p className={`browse-rh-detail-change ${toneClass(detailState.change)}`}>
+                      {percentText(detailState.change, locale)}
+                    </p>
                   </div>
                   <div className="browse-rh-detail-meta">
-                    <span>{copy.source}: {detailState.source || '--'}</span>
-                    <span>{copy.updated}: {formatAsOf(detailState.asOf, locale)}</span>
+                    <span>
+                      {copy.source}: {detailState.source || '--'}
+                    </span>
+                    <span>
+                      {copy.updated}: {formatAsOf(detailState.asOf, locale)}
+                    </span>
                   </div>
                 </div>
-                <MiniChart values={detailState.values} tone={toneClass(detailState.change)} width={320} height={146} className="browse-rh-detail-chart" />
+                <MiniChart
+                  values={detailState.values}
+                  tone={toneClass(detailState.change)}
+                  width={320}
+                  height={146}
+                  className="browse-rh-detail-chart"
+                />
               </>
             ) : null}
           </div>
@@ -1050,7 +1228,10 @@ export default function BrowseTab({
             />
             <DetailStat label={copy.points} value={String(detailState.values.length || '--')} />
             <DetailStat label={copy.venue} value={detailOverview?.profile?.tradingVenue || '--'} />
-            <DetailStat label={copy.currency} value={detailOverview?.profile?.quoteCurrency || '--'} />
+            <DetailStat
+              label={copy.currency}
+              value={detailOverview?.profile?.quoteCurrency || '--'}
+            />
           </div>
         </section>
 
@@ -1060,7 +1241,12 @@ export default function BrowseTab({
               <SectionHeader title={copy.fundamentals} />
               <div className="browse-rh-detail-grid">
                 {(detailOverview.fundamentals || []).map((item) => (
-                  <DetailStat key={`${item.label}-${item.value}`} label={item.label} value={item.value || '--'} note={item.source} />
+                  <DetailStat
+                    key={`${item.label}-${item.value}`}
+                    label={item.label}
+                    value={item.value || '--'}
+                    note={item.source}
+                  />
                 ))}
               </div>
             </section>
@@ -1069,7 +1255,12 @@ export default function BrowseTab({
               <SectionHeader title={copy.relatedEtfs} />
               <div className="browse-rh-chip-grid">
                 {(detailOverview.relatedEtfs || []).map((item) => (
-                  <MoverChip key={`etf-${item}`} item={{ symbol: item, market: 'US', change: null }} locale={locale} onOpen={openItem} />
+                  <MoverChip
+                    key={`etf-${item}`}
+                    item={{ symbol: item, market: 'US', change: null }}
+                    locale={locale}
+                    onOpen={openItem}
+                  />
                 ))}
               </div>
             </section>
@@ -1078,7 +1269,11 @@ export default function BrowseTab({
               <SectionHeader title={copy.derivatives} />
               <div className="browse-rh-detail-grid">
                 {(detailOverview.optionEntries || []).map((item) => (
-                  <DetailStat key={`${item.label}-${item.description}`} label={item.label} value={item.description} />
+                  <DetailStat
+                    key={`${item.label}-${item.description}`}
+                    label={item.label}
+                    value={item.description}
+                  />
                 ))}
               </div>
             </section>
@@ -1088,7 +1283,13 @@ export default function BrowseTab({
         <section className="browse-rh-section">
           <SectionHeader title={copy.topNews} />
           {detailNews.length ? (
-            <NewsFeed items={detailNews} locale={locale} onOpen={openItem} changeMap={detailNewsChangeMap} readLabel={copy.readStory} />
+            <NewsFeed
+              items={detailNews}
+              locale={locale}
+              onOpen={openItem}
+              changeMap={detailNewsChangeMap}
+              readLabel={copy.readStory}
+            />
           ) : (
             <div className="browse-rh-empty">{copy.noNews}</div>
           )}

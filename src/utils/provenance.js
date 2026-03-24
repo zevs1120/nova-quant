@@ -1,5 +1,7 @@
 function normalizeStatus(value, fallback = 'INSUFFICIENT_DATA') {
-  const next = String(value || '').trim().toUpperCase();
+  const next = String(value || '')
+    .trim()
+    .toUpperCase();
   return next || fallback;
 }
 
@@ -14,48 +16,64 @@ export function describeEvidenceMode({ locale = 'en', sourceStatus, dataStatus, 
     REALIZED: {
       label: zh ? '实盘' : 'Live',
       tone: 'live',
-      note: zh ? '来自已确认成交与真实账户状态。' : 'Backed by confirmed fills and real account state.'
+      note: zh
+        ? '来自已确认成交与真实账户状态。'
+        : 'Backed by confirmed fills and real account state.',
     },
     DB_BACKED: {
       label: zh ? '数据库实时' : 'DB-backed',
       tone: 'db',
-      note: zh ? '来自当前数据库快照，不代表已成交。' : 'Backed by current database snapshots, not realized fills.'
+      note: zh
+        ? '来自当前数据库快照，不代表已成交。'
+        : 'Backed by current database snapshots, not realized fills.',
     },
     PAPER_ONLY: {
       label: zh ? '纸面' : 'Paper',
       tone: 'paper',
-      note: zh ? '来自前向模拟，不代表真实成交。' : 'Forward-simulated only. Not a realized trade record.'
+      note: zh
+        ? '来自前向模拟，不代表真实成交。'
+        : 'Forward-simulated only. Not a realized trade record.',
     },
     BACKTEST_ONLY: {
       label: zh ? '回测' : 'Backtest',
       tone: 'backtest',
-      note: zh ? '历史回测结果，不得视为实盘记录。' : 'Historical backtest only. Must not be read as live performance.'
+      note: zh
+        ? '历史回测结果，不得视为实盘记录。'
+        : 'Historical backtest only. Must not be read as live performance.',
     },
     MODEL_DERIVED: {
       label: zh ? '模型推导' : 'Model-derived',
       tone: 'derived',
-      note: zh ? '由模型推导，不是直接市场确认。' : 'Model-derived, not directly market-confirmed.'
+      note: zh ? '由模型推导，不是直接市场确认。' : 'Model-derived, not directly market-confirmed.',
     },
     EXPERIMENTAL: {
       label: zh ? '实验' : 'Experimental',
       tone: 'experimental',
-      note: zh ? '处于实验阶段，不应直接驱动真实动作。' : 'Experimental. Not production-safe for direct action.'
+      note: zh
+        ? '处于实验阶段，不应直接驱动真实动作。'
+        : 'Experimental. Not production-safe for direct action.',
     },
     WITHHELD: {
       label: zh ? '保留' : 'Withheld',
       tone: 'withheld',
-      note: zh ? '因证据或风险不足而被保留。' : 'Withheld because evidence or risk quality is insufficient.'
+      note: zh
+        ? '因证据或风险不足而被保留。'
+        : 'Withheld because evidence or risk quality is insufficient.',
     },
     DEMO_ONLY: {
       label: zh ? '演示' : 'Demo',
       tone: 'demo',
-      note: zh ? '仅用于演示，不得视为研究或实盘证据。' : 'For demo only. Not valid as research or live evidence.'
+      note: zh
+        ? '仅用于演示，不得视为研究或实盘证据。'
+        : 'For demo only. Not valid as research or live evidence.',
     },
     INSUFFICIENT_DATA: {
       label: zh ? '数据不足' : 'Insufficient',
       tone: 'insufficient',
-      note: zh ? '当前数据不足，判断可信度受限。' : 'Data is insufficient. Confidence is constrained.'
-    }
+      note: zh
+        ? '当前数据不足，判断可信度受限。'
+        : 'Data is insufficient. Confidence is constrained.',
+    },
   };
 
   const entry = definitions[mode] || definitions.INSUFFICIENT_DATA;
@@ -68,7 +86,7 @@ export function describeEvidenceMode({ locale = 'en', sourceStatus, dataStatus, 
     EXPERIMENTAL: zh ? '实验 / 非生产' : 'EXPERIMENTAL / NOT PROD',
     WITHHELD: zh ? '保留 / 禁止执行' : 'WITHHELD / DO NOT ACT',
     DEMO_ONLY: zh ? '演示 / 非真实' : 'DEMO / NOT REAL',
-    INSUFFICIENT_DATA: zh ? '数据不足 / 不建议动作' : 'INSUFFICIENT / DO NOT ACT'
+    INSUFFICIENT_DATA: zh ? '数据不足 / 不建议动作' : 'INSUFFICIENT / DO NOT ACT',
   };
 
   const detail =
@@ -87,6 +105,6 @@ export function describeEvidenceMode({ locale = 'en', sourceStatus, dataStatus, 
     label: entry.label,
     tone: entry.tone,
     note: detail ? `${entry.note} ${detail}` : entry.note,
-    watermark: watermarks[mode] || watermarks.INSUFFICIENT_DATA
+    watermark: watermarks[mode] || watermarks.INSUFFICIENT_DATA,
   };
 }

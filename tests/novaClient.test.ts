@@ -19,15 +19,15 @@ describe('nova client routing', () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
-        choices: [{ message: { content: 'strategy-output' } }]
-      })
+        choices: [{ message: { content: 'strategy-output' } }],
+      }),
     });
     vi.stubGlobal('fetch', fetchMock);
 
     const result = await runNovaChatCompletion({
       task: 'strategy_generation',
       systemPrompt: 'system',
-      userPrompt: 'user'
+      userPrompt: 'user',
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -47,20 +47,20 @@ describe('nova client routing', () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
-        candidates: [{ content: { parts: [{ text: 'explanation-output' }] } }]
-      })
+        candidates: [{ content: { parts: [{ text: 'explanation-output' }] } }],
+      }),
     });
     vi.stubGlobal('fetch', fetchMock);
 
     const result = await runNovaChatCompletion({
       task: 'assistant_grounded_answer',
       systemPrompt: 'system',
-      userPrompt: 'user'
+      userPrompt: 'user',
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(String(fetchMock.mock.calls[0]?.[0] || '')).toContain(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=gemini-key'
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=gemini-key',
     );
     expect(result.route.provider).toBe('gemini');
   });

@@ -1,10 +1,17 @@
-import { clamp, deterministicHash, maxDrawdownFromCurve, mean, round, stdDev } from '../engines/math.js';
+import {
+  clamp,
+  deterministicHash,
+  maxDrawdownFromCurve,
+  mean,
+  round,
+  stdDev,
+} from '../engines/math.js';
 import {
   applyScenarioToAssumption,
   buildExecutionSensitivityScenarios,
   estimateCostDragPct,
   resolveExecutionAssumptions,
-  resolveExecutionRealismProfile
+  resolveExecutionRealismProfile,
 } from '../research/validation/executionRealismModel.js';
 
 function safe(value, fallback = 0) {
@@ -16,7 +23,7 @@ const INSTITUTIONAL_PORTFOLIO_LIMITS = Object.freeze({
   max_strategy_weight: 0.11,
   max_market_exposure: {
     US: 0.82,
-    CRYPTO: 0.34
+    CRYPTO: 0.34,
   },
   max_top3_weight: 0.34,
   max_portfolio_drawdown: 0.12,
@@ -25,23 +32,26 @@ const INSTITUTIONAL_PORTFOLIO_LIMITS = Object.freeze({
   min_worst_case_sharpe: 0,
   max_cash_buffer: 0.18,
   min_execution_tracking_coverage: 0.18,
-  max_execution_tracking_breaches: 0
+  max_execution_tracking_breaches: 0,
 });
 
 function normalizeWeights(rows = [], totalCap = 1) {
   const raw = rows.map((row) => ({
     ...row,
-    raw_weight: Math.max(0.001, safe(row.quality_score, 0.4) * safe(row.allocation_multiplier, 1))
+    raw_weight: Math.max(0.001, safe(row.quality_score, 0.4) * safe(row.allocation_multiplier, 1)),
   }));
   const total = raw.reduce((acc, row) => acc + row.raw_weight, 0) || 1;
   return raw.map((row) => ({
     ...row,
-    weight: round((row.raw_weight / total) * totalCap, 6)
+    weight: round((row.raw_weight / total) * totalCap, 6),
   }));
 }
 
 function deriveFamilyCap(riskBucketSystem = {}) {
-  const correlatedCapPct = safe(riskBucketSystem?.user_risk_bucket?.correlated_exposure_cap_pct, 22);
+  const correlatedCapPct = safe(
+    riskBucketSystem?.user_risk_bucket?.correlated_exposure_cap_pct,
+    22,
+  );
   return round(clamp((correlatedCapPct + 6) / 100, 0.2, 0.45), 6);
 }
 
@@ -83,17 +93,17 @@ function applyFamilyCrowdingGuard(rows = [], familyCap = 0.32) {
         total_allocated_after: 0,
         unallocated_cash_buffer: 0,
         trimmed_families: [],
-        redistributed_weight: 0
+        redistributed_weight: 0,
       },
       family_exposure_before: [],
-      family_exposure_after: []
+      family_exposure_after: [],
     };
   }
 
   const working = rows.map((row) => ({
     ...row,
     base_weight: safe(row.weight, 0),
-    weight: safe(row.weight, 0)
+    weight: safe(row.weight, 0),
   }));
   const exposureBeforeMap = familyExposure(working);
   const totalBefore = working.reduce((acc, row) => acc + row.weight, 0);
@@ -108,7 +118,7 @@ function applyFamilyCrowdingGuard(rows = [], familyCap = 0.32) {
       strategy_family: family,
       before: round(exposure, 6),
       after: round(familyCap, 6),
-      trimmed: round(exposure - familyCap, 6)
+      trimmed: round(exposure - familyCap, 6),
     });
     for (const row of working) {
       if ((row.strategy_family || 'unknown') !== family) continue;
@@ -125,7 +135,7 @@ function applyFamilyCrowdingGuard(rows = [], familyCap = 0.32) {
       .map(([family, exposure]) => ({
         family,
         capacity: Math.max(0, familyCap - exposure),
-        exposure
+        exposure,
       }))
       .filter((row) => row.capacity > 1e-9);
 
@@ -134,7 +144,9 @@ function applyFamilyCrowdingGuard(rows = [], familyCap = 0.32) {
 
     if (redistribute > 0 && totalCapacity > 0) {
       for (const capRow of capacities) {
-        const familyRows = working.filter((row) => (row.strategy_family || 'unknown') === capRow.family);
+        const familyRows = working.filter(
+          (row) => (row.strategy_family || 'unknown') === capRow.family,
+        );
         if (!familyRows.length) continue;
         const familyCurrent = familyRows.reduce((acc, row) => acc + row.weight, 0);
         const familyTopup = redistribute * (capRow.capacity / totalCapacity);
@@ -156,7 +168,7 @@ function applyFamilyCrowdingGuard(rows = [], familyCap = 0.32) {
     strategy_rows: working.map((row) => ({
       ...row,
       weight: round(row.weight, 6),
-      crowding_adjustment: round(row.weight - row.base_weight, 6)
+      crowding_adjustment: round(row.weight - row.base_weight, 6),
     })),
     summary: {
       family_cap: round(familyCap, 6),
@@ -164,10 +176,13 @@ function applyFamilyCrowdingGuard(rows = [], familyCap = 0.32) {
       total_allocated_after: round(totalAfter, 6),
       unallocated_cash_buffer: round(Math.max(0, totalBefore - totalAfter), 6),
       trimmed_families: trimmedFamilies,
-      redistributed_weight: round(Math.max(0, initialTrimmedWeight - Math.max(0, trimmedWeight)), 6)
+      redistributed_weight: round(
+        Math.max(0, initialTrimmedWeight - Math.max(0, trimmedWeight)),
+        6,
+      ),
     },
     family_exposure_before: toExposureRows(exposureBeforeMap),
-    family_exposure_after: toExposureRows(exposureAfterMap)
+    family_exposure_after: toExposureRows(exposureAfterMap),
   };
 }
 
@@ -181,18 +196,18 @@ function applyInstitutionalRiskGuard(rows = [], limits = INSTITUTIONAL_PORTFOLIO
         total_allocated_after: 0,
         unallocated_cash_buffer: 0,
         trimmed_strategy_count: 0,
-        market_caps_applied: limits.max_market_exposure || {}
+        market_caps_applied: limits.max_market_exposure || {},
       },
       market_exposure_before: [],
       market_exposure_after: [],
-      trimmed_strategies: []
+      trimmed_strategies: [],
     };
   }
 
   const working = rows.map((row) => ({
     ...row,
     base_weight: safe(row.weight, 0),
-    weight: safe(row.weight, 0)
+    weight: safe(row.weight, 0),
   }));
   const totalBefore = working.reduce((acc, row) => acc + row.weight, 0);
   const trimmedStrategies = [];
@@ -207,7 +222,7 @@ function applyInstitutionalRiskGuard(rows = [], limits = INSTITUTIONAL_PORTFOLIO
       reason: 'max_strategy_weight',
       before: round(before, 6),
       after: round(row.weight, 6),
-      trimmed: round(before - row.weight, 6)
+      trimmed: round(before - row.weight, 6),
     });
   }
 
@@ -225,7 +240,7 @@ function applyInstitutionalRiskGuard(rows = [], limits = INSTITUTIONAL_PORTFOLIO
         reason: `market_cap_${market}`,
         before: round(before, 6),
         after: round(row.weight, 6),
-        trimmed: round(before - row.weight, 6)
+        trimmed: round(before - row.weight, 6),
       });
     }
   }
@@ -235,7 +250,7 @@ function applyInstitutionalRiskGuard(rows = [], limits = INSTITUTIONAL_PORTFOLIO
     strategy_rows: working.map((row) => ({
       ...row,
       weight: round(row.weight, 6),
-      institutional_adjustment: round(row.weight - row.base_weight, 6)
+      institutional_adjustment: round(row.weight - row.base_weight, 6),
     })),
     summary: {
       max_strategy_weight: round(safe(limits.max_strategy_weight, 0), 6),
@@ -243,11 +258,11 @@ function applyInstitutionalRiskGuard(rows = [], limits = INSTITUTIONAL_PORTFOLIO
       total_allocated_after: round(totalAfter, 6),
       unallocated_cash_buffer: round(Math.max(0, totalBefore - totalAfter), 6),
       trimmed_strategy_count: trimmedStrategies.length,
-      market_caps_applied: limits.max_market_exposure || {}
+      market_caps_applied: limits.max_market_exposure || {},
     },
     market_exposure_before: toExposureRows(marketExposureBefore, 'market_hint'),
     market_exposure_after: toExposureRows(genericExposure(working, 'market_hint'), 'market_hint'),
-    trimmed_strategies: trimmedStrategies
+    trimmed_strategies: trimmedStrategies,
   };
 }
 
@@ -256,7 +271,7 @@ function defaultStrategyRows({
   regimeState = {},
   riskBucketSystem = {},
   executionRealismProfile = {},
-  executionDrift = {}
+  executionDrift = {},
 }) {
   const evidenceRows = evidenceSystem?.strategies || [];
   const posture = regimeState?.state?.recommended_user_posture || 'REDUCE';
@@ -270,35 +285,57 @@ function defaultStrategyRows({
       return !['REJECT', 'RETIRE'].includes(rec);
     })
     .map((row) => {
-      const quality = safe(row.validation_summary?.candidate_quality_score, safe(row.governance_state?.operational_confidence, 0.5));
-      const baseReturn = safe(row.validation_summary?.stage_metrics?.stage_2_quick_backtest?.return, 0.012);
-      const drawdown = safe(row.validation_summary?.stage_metrics?.stage_2_quick_backtest?.drawdown, 0.15);
-      const turnover = safe(row.validation_summary?.stage_metrics?.stage_2_quick_backtest?.turnover, 0.28);
-      const costPenalty = safe(row.cost_sensitivity?.validation_cost_stress?.plus_50pct_cost, baseReturn - 0.01);
-      const marketHint = row.linked_product_recommendation?.asset?.includes('USDT') ? 'CRYPTO' : 'US';
+      const quality = safe(
+        row.validation_summary?.candidate_quality_score,
+        safe(row.governance_state?.operational_confidence, 0.5),
+      );
+      const baseReturn = safe(
+        row.validation_summary?.stage_metrics?.stage_2_quick_backtest?.return,
+        0.012,
+      );
+      const drawdown = safe(
+        row.validation_summary?.stage_metrics?.stage_2_quick_backtest?.drawdown,
+        0.15,
+      );
+      const turnover = safe(
+        row.validation_summary?.stage_metrics?.stage_2_quick_backtest?.turnover,
+        0.28,
+      );
+      const costPenalty = safe(
+        row.cost_sensitivity?.validation_cost_stress?.plus_50pct_cost,
+        baseReturn - 0.01,
+      );
+      const marketHint = row.linked_product_recommendation?.asset?.includes('USDT')
+        ? 'CRYPTO'
+        : 'US';
       const executionAssumption = resolveExecutionAssumptions({
         profile: executionRealismProfile,
         signal: { market: marketHint },
-        mode: executionRealismProfile.mode || 'paper'
+        mode: executionRealismProfile.mode || 'paper',
       });
       const baselineCostDrag = estimateCostDragPct({
         assumption: executionAssumption,
         turnover,
         holdingDays: 3,
-        includeFunding: true
+        includeFunding: true,
       });
 
       let allocationMultiplier = regimeMultiplier;
       if (posture === 'SKIP') allocationMultiplier *= 0.3;
       else if (posture === 'REDUCE') allocationMultiplier *= 0.75;
 
-      if (String(row.governance_state?.current_stage || '').toUpperCase() === 'PROD') allocationMultiplier *= 1.18;
-      if (String(row.governance_state?.current_stage || '').toUpperCase() === 'DEGRADE') allocationMultiplier *= 0.62;
+      if (String(row.governance_state?.current_stage || '').toUpperCase() === 'PROD')
+        allocationMultiplier *= 1.18;
+      if (String(row.governance_state?.current_stage || '').toUpperCase() === 'DEGRADE')
+        allocationMultiplier *= 0.62;
 
       const executionTracking = driftByStrategy.get(row.strategy_id) || null;
       if (executionTracking?.status === 'breach') allocationMultiplier *= 0.58;
       else if (executionTracking?.status === 'watch') allocationMultiplier *= 0.82;
-      else if (executionTracking?.status === 'aligned' && safe(executionTracking?.matched_trade_count, 0) >= 3) {
+      else if (
+        executionTracking?.status === 'aligned' &&
+        safe(executionTracking?.matched_trade_count, 0) >= 3
+      ) {
         allocationMultiplier *= 1.03;
       }
 
@@ -307,7 +344,7 @@ function defaultStrategyRows({
         candidate_id: row.candidate_id,
         strategy_family: row.audit_chain?.template || row.template_id || 'unknown',
         market_hint: marketHint,
-        expected_return: round((baseReturn * 0.65 + costPenalty * 0.35) - baselineCostDrag, 6),
+        expected_return: round(baseReturn * 0.65 + costPenalty * 0.35 - baselineCostDrag, 6),
         expected_volatility: round(clamp(drawdown * 0.55 + 0.07, 0.04, 0.55), 6),
         turnover: round(turnover, 6),
         quality_score: round(clamp(quality, 0, 1), 6),
@@ -318,7 +355,7 @@ function defaultStrategyRows({
         execution_tracking_status: executionTracking?.status || 'unavailable',
         execution_tracking_matched_trades: safe(executionTracking?.matched_trade_count, 0),
         execution_tracking_capture_rate: safe(executionTracking?.capture_rate, 0),
-        execution_tracking_fill_gap_bps: executionTracking?.avg_abs_fill_gap_bps ?? null
+        execution_tracking_fill_gap_bps: executionTracking?.avg_abs_fill_gap_bps ?? null,
       };
     });
 
@@ -344,7 +381,7 @@ function buildCorrelationMatrix(rows = []) {
     const a = rows[i];
     const row = {
       strategy_id: a.strategy_id,
-      correlations: {}
+      correlations: {},
     };
     for (let j = 0; j < rows.length; j += 1) {
       const b = rows[j];
@@ -393,7 +430,7 @@ function simulatePortfolioPath(rows = [], periods = 90) {
 
   return {
     returns,
-    equity_curve: curve
+    equity_curve: curve,
   };
 }
 
@@ -414,8 +451,10 @@ function regimeExposure(rows = [], regimeState = {}) {
   return rows.map((row) => ({
     strategy_id: row.strategy_id,
     current_regime: current,
-    compatible: (row.compatible_regimes || []).some((item) => String(item).toLowerCase().includes(String(current).toLowerCase())),
-    weight: row.weight
+    compatible: (row.compatible_regimes || []).some((item) =>
+      String(item).toLowerCase().includes(String(current).toLowerCase()),
+    ),
+    weight: row.weight,
   }));
 }
 
@@ -425,7 +464,7 @@ function diversificationContribution(rows = [], corrMatrix = []) {
       diversification_score: 0,
       concentration_hhi: 0,
       avg_pairwise_correlation: 0,
-      note: 'No strategy rows available for diversification analysis.'
+      note: 'No strategy rows available for diversification analysis.',
     };
   }
 
@@ -443,7 +482,7 @@ function diversificationContribution(rows = [], corrMatrix = []) {
     diversification_score: round(clamp((1 - hhi) * 0.62 + (1 - avgCorr) * 0.38, 0, 1), 4),
     concentration_hhi: round(hhi, 6),
     avg_pairwise_correlation: round(avgCorr, 4),
-    note: 'Higher diversification score indicates lower concentration and lower pairwise correlation.'
+    note: 'Higher diversification score indicates lower concentration and lower pairwise correlation.',
   };
 }
 
@@ -462,11 +501,13 @@ function marginalImpact(rows = [], corrMatrix = [], baseMetrics = {}) {
       strategy_id: excluded.strategy_id,
       delta_expected_return: round(safe(baseMetrics.portfolio_return) - subsetRet, 6),
       delta_volatility: round(safe(baseMetrics.volatility) - subsetVol, 6),
-      weight: excluded.weight
+      weight: excluded.weight,
     });
   }
 
-  return impacts.sort((a, b) => Math.abs(b.delta_expected_return) - Math.abs(a.delta_expected_return));
+  return impacts.sort(
+    (a, b) => Math.abs(b.delta_expected_return) - Math.abs(a.delta_expected_return),
+  );
 }
 
 function tailRiskSummary(path = {}) {
@@ -475,7 +516,7 @@ function tailRiskSummary(path = {}) {
     return {
       worst_period_return: 0,
       avg_left_tail_return: 0,
-      left_tail_observations: 0
+      left_tail_observations: 0,
     };
   }
   const sorted = returns.slice().sort((a, b) => a - b);
@@ -484,7 +525,7 @@ function tailRiskSummary(path = {}) {
   return {
     worst_period_return: round(sorted[0], 6),
     avg_left_tail_return: round(mean(leftTail), 6),
-    left_tail_observations: leftTail.length
+    left_tail_observations: leftTail.length,
   };
 }
 
@@ -497,11 +538,13 @@ function drawdownConcentration(rows = [], corrMatrix = [], regimeState = {}) {
       top_strategy_share: 0,
       top_family_share: 0,
       top_market_share: 0,
-      concentration_status: 'unknown'
+      concentration_status: 'unknown',
     };
   }
 
-  const corrByStrategy = new Map(corrMatrix.map((row) => [row.strategy_id, row.correlations || {}]));
+  const corrByStrategy = new Map(
+    corrMatrix.map((row) => [row.strategy_id, row.correlations || {}]),
+  );
   const currentRegime = String(regimeState?.state?.primary || 'unknown').toLowerCase();
   const strategyRows = rows.map((row) => {
     const corrRow = corrByStrategy.get(row.strategy_id) || {};
@@ -510,7 +553,9 @@ function drawdownConcentration(rows = [], corrMatrix = [], regimeState = {}) {
       .map(([, value]) => safe(value, 0));
     const avgCorr = corrValues.length ? mean(corrValues) : 0;
     const regimeMismatch = (row.compatible_regimes || []).length
-      ? !(row.compatible_regimes || []).some((item) => String(item).toLowerCase().includes(currentRegime))
+      ? !(row.compatible_regimes || []).some((item) =>
+          String(item).toLowerCase().includes(currentRegime),
+        )
       : false;
     const stressLossProxy =
       row.weight *
@@ -521,7 +566,7 @@ function drawdownConcentration(rows = [], corrMatrix = [], regimeState = {}) {
       strategy_id: row.strategy_id,
       strategy_family: row.strategy_family,
       market_hint: row.market_hint,
-      stress_loss_proxy: round(stressLossProxy, 6)
+      stress_loss_proxy: round(stressLossProxy, 6),
     };
   });
 
@@ -529,27 +574,30 @@ function drawdownConcentration(rows = [], corrMatrix = [], regimeState = {}) {
   const familyMap = new Map();
   const marketMap = new Map();
   for (const row of strategyRows) {
-    familyMap.set(row.strategy_family, (familyMap.get(row.strategy_family) || 0) + row.stress_loss_proxy);
+    familyMap.set(
+      row.strategy_family,
+      (familyMap.get(row.strategy_family) || 0) + row.stress_loss_proxy,
+    );
     marketMap.set(row.market_hint, (marketMap.get(row.market_hint) || 0) + row.stress_loss_proxy);
   }
   const byFamily = [...familyMap.entries()]
     .map(([strategy_family, stress_loss_proxy]) => ({
       strategy_family,
       stress_loss_proxy: round(stress_loss_proxy, 6),
-      share: round(stress_loss_proxy / totalStress, 6)
+      share: round(stress_loss_proxy / totalStress, 6),
     }))
     .sort((a, b) => b.share - a.share);
   const byMarket = [...marketMap.entries()]
     .map(([market_hint, stress_loss_proxy]) => ({
       market_hint,
       stress_loss_proxy: round(stress_loss_proxy, 6),
-      share: round(stress_loss_proxy / totalStress, 6)
+      share: round(stress_loss_proxy / totalStress, 6),
     }))
     .sort((a, b) => b.share - a.share);
   const rankedStrategies = strategyRows
     .map((row) => ({
       ...row,
-      share: round(row.stress_loss_proxy / totalStress, 6)
+      share: round(row.stress_loss_proxy / totalStress, 6),
     }))
     .sort((a, b) => b.share - a.share);
 
@@ -565,7 +613,11 @@ function drawdownConcentration(rows = [], corrMatrix = [], regimeState = {}) {
     top_family_share: round(topFamilyShare, 6),
     top_market_share: round(topMarketShare, 6),
     concentration_status:
-      topFamilyShare > 0.48 || topStrategyShare > 0.18 ? 'fragile' : topFamilyShare > 0.38 ? 'watch' : 'controlled'
+      topFamilyShare > 0.48 || topStrategyShare > 0.18
+        ? 'fragile'
+        : topFamilyShare > 0.38
+          ? 'watch'
+          : 'controlled',
   };
 }
 
@@ -581,7 +633,7 @@ function executionTrackingDiagnostics(rows = [], executionDrift = {}) {
       matched_trade_count: safe(drift?.matched_trade_count, 0),
       capture_rate: round(safe(drift?.capture_rate, 0), 6),
       avg_abs_fill_gap_bps: drift?.avg_abs_fill_gap_bps ?? null,
-      blockers: drift?.blockers || []
+      blockers: drift?.blockers || [],
     };
   });
   const withCoverage = trackedRows.filter((row) => row.matched_trade_count > 0);
@@ -593,7 +645,9 @@ function executionTrackingDiagnostics(rows = [], executionDrift = {}) {
     breach_count: trackedRows.filter((row) => row.status === 'breach').length,
     watch_count: trackedRows.filter((row) => row.status === 'watch').length,
     aligned_count: trackedRows.filter((row) => row.status === 'aligned').length,
-    avg_capture_rate: withCoverage.length ? round(mean(withCoverage.map((row) => row.capture_rate)), 6) : 0,
+    avg_capture_rate: withCoverage.length
+      ? round(mean(withCoverage.map((row) => row.capture_rate)), 6)
+      : 0,
     avg_abs_fill_gap_bps: withCoverage.length
       ? round(mean(withCoverage.map((row) => safe(row.avg_abs_fill_gap_bps, 0))), 6)
       : null,
@@ -601,9 +655,9 @@ function executionTrackingDiagnostics(rows = [], executionDrift = {}) {
       trackedRows
         .filter((row) => row.status === 'watch' || row.status === 'breach')
         .reduce((acc, row) => acc + safe(row.weight, 0), 0),
-      6
+      6,
     ),
-    by_strategy: trackedRows
+    by_strategy: trackedRows,
   };
 }
 
@@ -616,11 +670,11 @@ function buildInstitutionalScorecard({
   scenarioDiagnostics = [],
   drawdownRisk = {},
   allocationRows = [],
-  limits = INSTITUTIONAL_PORTFOLIO_LIMITS
+  limits = INSTITUTIONAL_PORTFOLIO_LIMITS,
 }) {
   const maxFamilyExposure = Math.max(
     0,
-    ...(crowdingGuard.family_exposure_after || []).map((row) => safe(row.exposure, 0))
+    ...(crowdingGuard.family_exposure_after || []).map((row) => safe(row.exposure, 0)),
   );
   const maxStrategyWeight = Math.max(0, ...allocationRows.map((row) => safe(row.weight, 0)));
   const top3Weight = allocationRows
@@ -637,62 +691,68 @@ function buildInstitutionalScorecard({
       id: 'diversification_score',
       threshold: safe(limits.min_diversification_score, 0),
       value: safe(diversification.diversification_score, 0),
-      pass: safe(diversification.diversification_score, 0) >= safe(limits.min_diversification_score, 0)
+      pass:
+        safe(diversification.diversification_score, 0) >= safe(limits.min_diversification_score, 0),
     },
     {
       id: 'family_crowding',
       threshold: safe(crowdingGuard.summary?.family_cap, 0),
       value: maxFamilyExposure,
-      pass: maxFamilyExposure <= safe(crowdingGuard.summary?.family_cap, 1) + 0.0005
+      pass: maxFamilyExposure <= safe(crowdingGuard.summary?.family_cap, 1) + 0.0005,
     },
     {
       id: 'strategy_weight_cap',
       threshold: safe(limits.max_strategy_weight, 1),
       value: maxStrategyWeight,
-      pass: maxStrategyWeight <= safe(limits.max_strategy_weight, 1) + 0.0005
+      pass: maxStrategyWeight <= safe(limits.max_strategy_weight, 1) + 0.0005,
     },
     {
       id: 'top3_weight',
       threshold: safe(limits.max_top3_weight, 1),
       value: top3Weight,
-      pass: top3Weight <= safe(limits.max_top3_weight, 1) + 0.0005
+      pass: top3Weight <= safe(limits.max_top3_weight, 1) + 0.0005,
     },
     {
       id: 'portfolio_drawdown',
       threshold: safe(limits.max_portfolio_drawdown, 1),
       value: safe(metrics.drawdown, 0),
-      pass: safe(metrics.drawdown, 0) <= safe(limits.max_portfolio_drawdown, 1)
+      pass: safe(metrics.drawdown, 0) <= safe(limits.max_portfolio_drawdown, 1),
     },
     {
       id: 'family_drawdown_share',
       threshold: safe(limits.max_family_drawdown_share, 1),
       value: safe(drawdownRisk.top_family_share, 0),
-      pass: safe(drawdownRisk.top_family_share, 0) <= safe(limits.max_family_drawdown_share, 1)
+      pass: safe(drawdownRisk.top_family_share, 0) <= safe(limits.max_family_drawdown_share, 1),
     },
     {
       id: 'worst_case_sharpe',
       threshold: safe(limits.min_worst_case_sharpe, 0),
       value: worstScenarioSharpe,
-      pass: worstScenarioSharpe >= safe(limits.min_worst_case_sharpe, 0)
+      pass: worstScenarioSharpe >= safe(limits.min_worst_case_sharpe, 0),
     },
     {
       id: 'cash_buffer',
       threshold: safe(limits.max_cash_buffer, 1),
       value: safe(institutionalGuard.summary?.unallocated_cash_buffer, 0),
-      pass: safe(institutionalGuard.summary?.unallocated_cash_buffer, 0) <= safe(limits.max_cash_buffer, 1)
+      pass:
+        safe(institutionalGuard.summary?.unallocated_cash_buffer, 0) <=
+        safe(limits.max_cash_buffer, 1),
     },
     {
       id: 'execution_tracking_coverage',
       threshold: safe(limits.min_execution_tracking_coverage, 0),
       value: safe(executionTracking.coverage_ratio, 0),
-      pass: safe(executionTracking.coverage_ratio, 0) >= safe(limits.min_execution_tracking_coverage, 0)
+      pass:
+        safe(executionTracking.coverage_ratio, 0) >=
+        safe(limits.min_execution_tracking_coverage, 0),
     },
     {
       id: 'execution_tracking_breaches',
       threshold: safe(limits.max_execution_tracking_breaches, 0),
       value: safe(executionTracking.breach_count, 0),
-      pass: safe(executionTracking.breach_count, 0) <= safe(limits.max_execution_tracking_breaches, 0)
-    }
+      pass:
+        safe(executionTracking.breach_count, 0) <= safe(limits.max_execution_tracking_breaches, 0),
+    },
   ];
 
   const passCount = checks.filter((row) => row.pass).length;
@@ -700,8 +760,13 @@ function buildInstitutionalScorecard({
     limits,
     checks,
     score: round(passCount / Math.max(1, checks.length), 4),
-    verdict: passCount === checks.length ? 'institutional_ready' : passCount >= checks.length - 2 ? 'watch' : 'not_ready',
-    blockers: checks.filter((row) => !row.pass).map((row) => row.id)
+    verdict:
+      passCount === checks.length
+        ? 'institutional_ready'
+        : passCount >= checks.length - 2
+          ? 'watch'
+          : 'not_ready',
+    blockers: checks.filter((row) => !row.pass).map((row) => row.id),
   };
 }
 
@@ -710,11 +775,14 @@ function stabilityAcrossRegimes(rows = [], baseVol = 0) {
     { regime: 'trend', return_mul: 1.05, vol_mul: 0.92 },
     { regime: 'range', return_mul: 0.78, vol_mul: 1.08 },
     { regime: 'high_volatility', return_mul: 0.62, vol_mul: 1.32 },
-    { regime: 'risk_off', return_mul: 0.34, vol_mul: 1.45 }
+    { regime: 'risk_off', return_mul: 0.34, vol_mul: 1.45 },
   ];
 
   return profiles.map((profile) => {
-    const expectedReturn = rows.reduce((acc, row) => acc + row.weight * row.expected_return * profile.return_mul, 0);
+    const expectedReturn = rows.reduce(
+      (acc, row) => acc + row.weight * row.expected_return * profile.return_mul,
+      0,
+    );
     const volatility = baseVol * profile.vol_mul;
     const sharpe = volatility > 0 ? (expectedReturn / volatility) * Math.sqrt(252) : 0;
 
@@ -723,7 +791,7 @@ function stabilityAcrossRegimes(rows = [], baseVol = 0) {
       expected_return: round(expectedReturn, 6),
       expected_volatility: round(volatility, 6),
       sharpe_proxy: round(sharpe, 4),
-      stability_label: sharpe >= 0.5 ? 'stable' : sharpe >= 0 ? 'mixed' : 'fragile'
+      stability_label: sharpe >= 0.5 ? 'stable' : sharpe >= 0 ? 'mixed' : 'fragile',
     };
   });
 }
@@ -735,13 +803,16 @@ function scenarioAdjustedStrategies(rows = [], scenario = {}) {
       assumption,
       turnover: safe(row.turnover, 0),
       holdingDays: 3,
-      includeFunding: true
+      includeFunding: true,
     });
     const baselineCost = safe(row.baseline_cost_drag_pct, 0);
     const strictFillPenalty = scenario?.scenario_id === 'strict_fill' ? 0.004 : 0;
     return {
       ...row,
-      expected_return: round(row.expected_return - Math.max(0, scenarioCostDrag - baselineCost) - strictFillPenalty, 6)
+      expected_return: round(
+        row.expected_return - Math.max(0, scenarioCostDrag - baselineCost) - strictFillPenalty,
+        6,
+      ),
     };
   });
 }
@@ -756,7 +827,7 @@ function scenarioPortfolioMetrics(rows = [], scenario = {}) {
     label: scenario.label,
     portfolio_return: round(portfolioReturn, 6),
     volatility: round(vol, 6),
-    sharpe: round(sharpe, 4)
+    sharpe: round(sharpe, 4),
   };
 }
 
@@ -767,40 +838,52 @@ export function buildPortfolioSimulationEngine({
   riskBucketSystem = {},
   opportunities = [],
   executionDrift = {},
-  executionRealism = {}
+  executionRealism = {},
 } = {}) {
   const executionProfile = resolveExecutionRealismProfile({
     mode: executionRealism.mode || 'paper',
     profile: executionRealism.profile || {},
-    overrides: executionRealism.overrides || {}
+    overrides: executionRealism.overrides || {},
   });
   const strategies = defaultStrategyRows({
     evidenceSystem,
     regimeState,
     riskBucketSystem,
     executionRealismProfile: executionProfile,
-    executionDrift
+    executionDrift,
   });
   const crowdingGuard = applyFamilyCrowdingGuard(strategies, deriveFamilyCap(riskBucketSystem));
-  const institutionalGuard = applyInstitutionalRiskGuard(crowdingGuard.strategy_rows, INSTITUTIONAL_PORTFOLIO_LIMITS);
+  const institutionalGuard = applyInstitutionalRiskGuard(
+    crowdingGuard.strategy_rows,
+    INSTITUTIONAL_PORTFOLIO_LIMITS,
+  );
   const guardedStrategies = institutionalGuard.strategy_rows;
   const corrMatrix = buildCorrelationMatrix(guardedStrategies);
   const path = simulatePortfolioPath(guardedStrategies, 90);
 
-  const portfolioReturn = guardedStrategies.reduce((acc, row) => acc + row.weight * row.expected_return, 0);
+  const portfolioReturn = guardedStrategies.reduce(
+    (acc, row) => acc + row.weight * row.expected_return,
+    0,
+  );
   const volatility = portfolioVolatility(guardedStrategies, corrMatrix);
   const sharpe = volatility > 0 ? (portfolioReturn / volatility) * Math.sqrt(252) : 0;
-  const turnover = guardedStrategies.length ? guardedStrategies.reduce((acc, row) => acc + row.weight * row.turnover, 0) : 0;
+  const turnover = guardedStrategies.length
+    ? guardedStrategies.reduce((acc, row) => acc + row.weight * row.turnover, 0)
+    : 0;
   const drawdown = path.equity_curve.length > 1 ? maxDrawdownFromCurve(path.equity_curve) : 0;
 
-  const exposureFamily = exposureBy(guardedStrategies, (row) => row.strategy_family || 'unknown', 'strategy_family');
+  const exposureFamily = exposureBy(
+    guardedStrategies,
+    (row) => row.strategy_family || 'unknown',
+    'strategy_family',
+  );
   const exposureAsset = exposureBy(
     opportunities.map((opp) => ({
       asset: opp.asset,
-      weight: safe(opp.suggested_size_pct, 0) / 100
+      weight: safe(opp.suggested_size_pct, 0) / 100,
     })),
     (row) => row.asset || 'unknown',
-    'asset'
+    'asset',
   );
   const exposureRegime = regimeExposure(guardedStrategies, regimeState);
 
@@ -809,7 +892,7 @@ export function buildPortfolioSimulationEngine({
     drawdown: round(drawdown, 6),
     sharpe: round(sharpe, 4),
     volatility: round(volatility, 6),
-    turnover: round(turnover, 6)
+    turnover: round(turnover, 6),
   };
 
   const diversification = diversificationContribution(guardedStrategies, corrMatrix);
@@ -819,7 +902,9 @@ export function buildPortfolioSimulationEngine({
   const executionTracking = executionTrackingDiagnostics(guardedStrategies, executionDrift);
   const scenarioDiagnostics = buildExecutionSensitivityScenarios(executionProfile)
     .filter((row) => !row.test_only)
-    .map((scenario) => scenarioPortfolioMetrics(scenarioAdjustedStrategies(guardedStrategies, scenario), scenario));
+    .map((scenario) =>
+      scenarioPortfolioMetrics(scenarioAdjustedStrategies(guardedStrategies, scenario), scenario),
+    );
   const institutionalScorecard = buildInstitutionalScorecard({
     metrics: baseMetrics,
     diversification,
@@ -829,7 +914,7 @@ export function buildPortfolioSimulationEngine({
     scenarioDiagnostics,
     drawdownRisk,
     allocationRows: guardedStrategies,
-    limits: INSTITUTIONAL_PORTFOLIO_LIMITS
+    limits: INSTITUTIONAL_PORTFOLIO_LIMITS,
   });
   const tailRisk = tailRiskSummary(path);
 
@@ -839,29 +924,33 @@ export function buildPortfolioSimulationEngine({
     portfolio_type: 'multi_strategy_multi_asset_risk_budgeted',
     allocation: {
       strategy_rows: guardedStrategies,
-      capital_allocation_rule: 'quality-weighted + regime-aware + execution-tracking-aware + risk-budget-capped + family-crowding-guard + institutional-risk-guard',
-      total_allocated_weight: round(guardedStrategies.reduce((acc, row) => acc + row.weight, 0), 6),
+      capital_allocation_rule:
+        'quality-weighted + regime-aware + execution-tracking-aware + risk-budget-capped + family-crowding-guard + institutional-risk-guard',
+      total_allocated_weight: round(
+        guardedStrategies.reduce((acc, row) => acc + row.weight, 0),
+        6,
+      ),
       crowding_guard: crowdingGuard.summary,
-      institutional_risk_guard: institutionalGuard.summary
+      institutional_risk_guard: institutionalGuard.summary,
     },
     metrics: baseMetrics,
     exposures: {
       by_strategy_family: exposureFamily,
       by_asset: exposureAsset,
-      by_regime: exposureRegime
+      by_regime: exposureRegime,
     },
     diagnostics: {
       diversification_contribution: diversification,
       allocation_crowding_guard: {
         family_exposure_before: crowdingGuard.family_exposure_before,
         family_exposure_after: crowdingGuard.family_exposure_after,
-        summary: crowdingGuard.summary
+        summary: crowdingGuard.summary,
       },
       institutional_risk_guard: {
         market_exposure_before: institutionalGuard.market_exposure_before,
         market_exposure_after: institutionalGuard.market_exposure_after,
         trimmed_strategies: institutionalGuard.trimmed_strategies,
-        summary: institutionalGuard.summary
+        summary: institutionalGuard.summary,
       },
       marginal_strategy_impact: marginal,
       strategy_correlation_matrix: corrMatrix,
@@ -872,15 +961,15 @@ export function buildPortfolioSimulationEngine({
       execution_realism: {
         assumption_profile: {
           profile_id: executionProfile.profile_id,
-          mode: executionProfile.mode
+          mode: executionProfile.mode,
         },
-        scenario_sensitivity: scenarioDiagnostics
+        scenario_sensitivity: scenarioDiagnostics,
       },
-      tail_risk: tailRisk
+      tail_risk: tailRisk,
     },
     path: {
       returns: path.returns,
-      equity_curve: path.equity_curve
-    }
+      equity_curve: path.equity_curve,
+    },
   };
 }

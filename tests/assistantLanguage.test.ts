@@ -3,7 +3,7 @@ import {
   appendAssistantDisclaimer,
   detectMessageLanguage,
   formatStructuredAssistantReply,
-  parseAssistantSectionHeading
+  parseAssistantSectionHeading,
 } from '../src/utils/assistantLanguage.js';
 
 describe('assistantLanguage', () => {
@@ -20,7 +20,7 @@ describe('assistantLanguage', () => {
       plan: ['先看风险。'],
       why: ['当前优势不够干净。'],
       risk: ['不要硬做。'],
-      evidence: ['market regime WAIT']
+      evidence: ['market regime WAIT'],
     });
 
     expect(reply).toContain('结论: 今天先等。');
@@ -29,16 +29,19 @@ describe('assistantLanguage', () => {
   });
 
   it('parses Chinese section headers', () => {
-    expect(parseAssistantSectionHeading('结论：先等等')).toEqual({ key: 'VERDICT', rest: '先等等' });
+    expect(parseAssistantSectionHeading('结论：先等等')).toEqual({
+      key: 'VERDICT',
+      rest: '先等等',
+    });
     expect(parseAssistantSectionHeading('证据: market regime WAIT')).toEqual({
       key: 'EVIDENCE',
-      rest: 'market regime WAIT'
+      rest: 'market regime WAIT',
     });
   });
 
   it('replaces old disclaimer when switching languages', () => {
-    expect(appendAssistantDisclaimer('Answer body\n\neducational, not financial advice', 'zh')).toBe(
-      'Answer body\n\n仅供教育参考，不构成投资建议'
-    );
+    expect(
+      appendAssistantDisclaimer('Answer body\n\neducational, not financial advice', 'zh'),
+    ).toBe('Answer body\n\n仅供教育参考，不构成投资建议');
   });
 });

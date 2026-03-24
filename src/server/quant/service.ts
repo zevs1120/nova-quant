@@ -12,7 +12,7 @@ import type {
   SignalContract,
   SignalStatus,
   StockSwingPayload,
-  UserRiskProfileRecord
+  UserRiskProfileRecord,
 } from '../types.js';
 import { MarketRepository } from '../db/repository.js';
 import { deliverSignalToDiscord } from '../delivery/discord.js';
@@ -37,28 +37,28 @@ const RISK_PROFILES: Record<
     max_daily_loss_pct: 1.8,
     max_drawdown_pct: 8,
     exposure_cap_pct: 35,
-    leverage_cap: 1.5
+    leverage_cap: 1.5,
   },
   balanced: {
     max_loss_per_trade_pct: 1.0,
     max_daily_loss_pct: 3.0,
     max_drawdown_pct: 12,
     exposure_cap_pct: 55,
-    leverage_cap: 2
+    leverage_cap: 2,
   },
   aggressive: {
     max_loss_per_trade_pct: 1.4,
     max_daily_loss_pct: 4.5,
     max_drawdown_pct: 18,
     exposure_cap_pct: 75,
-    leverage_cap: 3
-  }
+    leverage_cap: 3,
+  },
 };
 const DYNAMIC_RISK_BUCKETS = {
   DERISKED: { multiplier: 0.6 },
   RECOVERY_STEP_1: { multiplier: 0.78 },
   RECOVERY_STEP_2: { multiplier: 0.9 },
-  BASE: { multiplier: 1 }
+  BASE: { multiplier: 1 },
 } as const;
 
 interface RawSignal {
@@ -160,9 +160,19 @@ const STRATEGY_LIBRARY: Record<string, StrategyTemplate> = {
     entry_method: 'SPLIT_LIMIT' as const,
     stop_type: 'HYBRID' as const,
     trailing_type: 'EMA' as const,
-    cost: { fee_bps: 4.8, spread_bps: 3.2, slippage_bps: 4.3, funding_est_bps: 2.4, basis_est: 3.2 },
-    failure_modes: ['Funding turns one-sided', 'Basis collapses while spot lags', 'Cross-venue spread widens'],
-    tags: ['basis positive', 'funding mean reversion']
+    cost: {
+      fee_bps: 4.8,
+      spread_bps: 3.2,
+      slippage_bps: 4.3,
+      funding_est_bps: 2.4,
+      basis_est: 3.2,
+    },
+    failure_modes: [
+      'Funding turns one-sided',
+      'Basis collapses while spot lags',
+      'Cross-venue spread widens',
+    ],
+    tags: ['basis positive', 'funding mean reversion'],
   },
   CR_VEL: {
     strategy_id: 'CR_VEL',
@@ -173,9 +183,19 @@ const STRATEGY_LIBRARY: Record<string, StrategyTemplate> = {
     entry_method: 'LIMIT' as const,
     stop_type: 'ATR' as const,
     trailing_type: 'CHAND_EXIT' as const,
-    cost: { fee_bps: 5.2, spread_bps: 4.5, slippage_bps: 5.8, funding_est_bps: 2.8, basis_est: 1.3 },
-    failure_modes: ['Breakout without retest', 'Acceleration quickly fades', 'Open interest diverges'],
-    tags: ['velocity surge', 'breakout retest']
+    cost: {
+      fee_bps: 5.2,
+      spread_bps: 4.5,
+      slippage_bps: 5.8,
+      funding_est_bps: 2.8,
+      basis_est: 1.3,
+    },
+    failure_modes: [
+      'Breakout without retest',
+      'Acceleration quickly fades',
+      'Open interest diverges',
+    ],
+    tags: ['velocity surge', 'breakout retest'],
   },
   CR_TRAP: {
     strategy_id: 'CR_TRAP',
@@ -186,9 +206,15 @@ const STRATEGY_LIBRARY: Record<string, StrategyTemplate> = {
     entry_method: 'LIMIT' as const,
     stop_type: 'STRUCTURE' as const,
     trailing_type: 'NONE' as const,
-    cost: { fee_bps: 5.5, spread_bps: 5.1, slippage_bps: 6.5, funding_est_bps: 3.1, basis_est: 0.8 },
+    cost: {
+      fee_bps: 5.5,
+      spread_bps: 5.1,
+      slippage_bps: 6.5,
+      funding_est_bps: 3.1,
+      basis_est: 0.8,
+    },
     failure_modes: ['Liquidity pockets vanish', 'Gap-through stop', 'Panic reversal'],
-    tags: ['high-vol guard', 'defensive']
+    tags: ['high-vol guard', 'defensive'],
   },
   CR_CARRY: {
     strategy_id: 'CR_CARRY',
@@ -199,9 +225,19 @@ const STRATEGY_LIBRARY: Record<string, StrategyTemplate> = {
     entry_method: 'LIMIT' as const,
     stop_type: 'HYBRID' as const,
     trailing_type: 'EMA' as const,
-    cost: { fee_bps: 4.2, spread_bps: 2.8, slippage_bps: 3.9, funding_est_bps: 2.0, basis_est: 2.5 },
-    failure_modes: ['Funding flips abruptly', 'Basis percentile turns crowded', 'Risk-off correlation jump'],
-    tags: ['carry-favorable', 'funding-aligned']
+    cost: {
+      fee_bps: 4.2,
+      spread_bps: 2.8,
+      slippage_bps: 3.9,
+      funding_est_bps: 2.0,
+      basis_est: 2.5,
+    },
+    failure_modes: [
+      'Funding flips abruptly',
+      'Basis percentile turns crowded',
+      'Risk-off correlation jump',
+    ],
+    tags: ['carry-favorable', 'funding-aligned'],
   },
   EQ_VEL: {
     strategy_id: 'EQ_VEL',
@@ -214,7 +250,7 @@ const STRATEGY_LIBRARY: Record<string, StrategyTemplate> = {
     trailing_type: 'EMA' as const,
     cost: { fee_bps: 2.8, spread_bps: 1.4, slippage_bps: 2.6, basis_est: 0.2 },
     failure_modes: ['Index breadth fails', 'Volume confirmation missing', 'Gap against trend'],
-    tags: ['index-led', 'trend-follow']
+    tags: ['index-led', 'trend-follow'],
   },
   EQ_EVT: {
     strategy_id: 'EQ_EVT',
@@ -227,7 +263,7 @@ const STRATEGY_LIBRARY: Record<string, StrategyTemplate> = {
     trailing_type: 'CHAND_EXIT' as const,
     cost: { fee_bps: 3.2, spread_bps: 2.1, slippage_bps: 3.7, basis_est: 0.3 },
     failure_modes: ['IV crush after entry', 'Event drift reverses', 'Gap leaves no refill'],
-    tags: ['event-vol burst', 'earnings proxy']
+    tags: ['event-vol burst', 'earnings proxy'],
   },
   EQ_REG: {
     strategy_id: 'EQ_REG',
@@ -240,7 +276,7 @@ const STRATEGY_LIBRARY: Record<string, StrategyTemplate> = {
     trailing_type: 'EMA' as const,
     cost: { fee_bps: 2.4, spread_bps: 1.2, slippage_bps: 2.1, basis_est: 0.2 },
     failure_modes: ['QQQ/SPY diverges', 'Risk-off spike', 'Macro correlation shock'],
-    tags: ['regime gate', 'index control']
+    tags: ['regime gate', 'index control'],
   },
   EQ_SWING: {
     strategy_id: 'EQ_SWING',
@@ -253,7 +289,7 @@ const STRATEGY_LIBRARY: Record<string, StrategyTemplate> = {
     trailing_type: 'EMA' as const,
     cost: { fee_bps: 2.6, spread_bps: 1.4, slippage_bps: 2.5, basis_est: 0.2 },
     failure_modes: ['Catalyst reverses', 'Breadth weakens', 'Gap-through stop on macro shock'],
-    tags: ['swing', 'multi-horizon']
+    tags: ['swing', 'multi-horizon'],
   },
   OP_INTRADAY: {
     strategy_id: 'OP_INTRADAY',
@@ -266,8 +302,8 @@ const STRATEGY_LIBRARY: Record<string, StrategyTemplate> = {
     trailing_type: 'NONE' as const,
     cost: { fee_bps: 8.5, spread_bps: 9.5, slippage_bps: 7.2, basis_est: 0.4 },
     failure_modes: ['Spread widens too far', 'IV crush before trigger', 'No liquidity near strike'],
-    tags: ['intraday options', 'eod-flatten']
-  }
+    tags: ['intraday options', 'eod-flatten'],
+  },
 };
 
 type StrategyKey = keyof typeof STRATEGY_LIBRARY;
@@ -286,7 +322,7 @@ const SYMBOL_TO_STRATEGY: Record<string, StrategyKey> = {
   'US:MSFT': 'EQ_SWING',
   'US:SPY240621C00540000': 'OP_INTRADAY',
   'US:QQQ240621P00460000': 'OP_INTRADAY',
-  'US:AAPL240621C00215000': 'OP_INTRADAY'
+  'US:AAPL240621C00215000': 'OP_INTRADAY',
 };
 
 function clamp(value: number, min: number, max: number): number {
@@ -322,7 +358,11 @@ function resolveStrategy(raw: RawSignal): StrategyKey {
   return 'EQ_SWING';
 }
 
-function resolveStatus(rawStatus: RawSignal['status'], createdAtMs: number, expiresAtMs: number): SignalStatus {
+function resolveStatus(
+  rawStatus: RawSignal['status'],
+  createdAtMs: number,
+  expiresAtMs: number,
+): SignalStatus {
   const now = Date.now();
   if (now > expiresAtMs) return 'EXPIRED';
   if (rawStatus === 'TRIGGERED') return 'TRIGGERED';
@@ -338,7 +378,10 @@ function inferExpiresAt(raw: RawSignal): number {
   return createdAt + 48 * 3600 * 1000;
 }
 
-function deriveMarketState(raw: RawSignal, velocityPct: number): {
+function deriveMarketState(
+  raw: RawSignal,
+  velocityPct: number,
+): {
   temperature_percentile: number;
   volatility_percentile: number;
   trend_strength: number;
@@ -350,7 +393,11 @@ function deriveMarketState(raw: RawSignal, velocityPct: number): {
   const bias = (h % 27) - 13;
   const temp = clamp(velocityPct + bias, 4, 99);
   const vol = clamp(40 + ((h >> 3) % 55), 5, 99);
-  const trend = clamp(0.4 + raw.confidence / 10 + (raw.direction === 'LONG' ? 0.08 : -0.06), 0.05, 0.95);
+  const trend = clamp(
+    0.4 + raw.confidence / 10 + (raw.direction === 'LONG' ? 0.08 : -0.06),
+    0.05,
+    0.95,
+  );
   const crossCorrProxy = raw.market === 'CRYPTO' ? clamp(0.35 + ((h >> 5) % 40) / 100, 0, 1) : 0.45;
   const riskOff = clamp(0.42 * (vol / 100) + 0.35 * crossCorrProxy + 0.23 * (1 - trend), 0, 1);
 
@@ -374,11 +421,15 @@ function deriveMarketState(raw: RawSignal, velocityPct: number): {
     trend_strength: round(trend, 4),
     risk_off_score: round(riskOff, 4),
     regime_id: regime,
-    stance
+    stance,
   };
 }
 
-function nextRiskBucket(market: Market, tempPct: number, volPct: number): keyof typeof DYNAMIC_RISK_BUCKETS {
+function nextRiskBucket(
+  market: Market,
+  tempPct: number,
+  volPct: number,
+): keyof typeof DYNAMIC_RISK_BUCKETS {
   const current = bucketStateByMarket.get(market) ?? 'BASE';
   if (tempPct > 90 || volPct > 90) {
     bucketStateByMarket.set(market, 'DERISKED');
@@ -396,7 +447,12 @@ function nextRiskBucket(market: Market, tempPct: number, volPct: number): keyof 
   return 'BASE';
 }
 
-function expectedR(direction: SignalContract['direction'], entryMid: number, stop: number, tp: number): number {
+function expectedR(
+  direction: SignalContract['direction'],
+  entryMid: number,
+  stop: number,
+  tp: number,
+): number {
   const risk = Math.max(Math.abs(entryMid - stop), 1e-6);
   const reward = direction === 'LONG' ? tp - entryMid : entryMid - tp;
   return round(reward / risk, 3);
@@ -409,7 +465,10 @@ function calcPositionPct(args: {
   volPct: number;
   bucket: keyof typeof DYNAMIC_RISK_BUCKETS;
 }): number {
-  const stopDistance = Math.max(Math.abs(args.entryMid - args.stop) / Math.max(args.entryMid, 1e-6), 0.003);
+  const stopDistance = Math.max(
+    Math.abs(args.entryMid - args.stop) / Math.max(args.entryMid, 1e-6),
+    0.003,
+  );
   const riskPerTrade = args.riskProfile.max_loss_per_trade / 100;
   const basePct = (riskPerTrade / stopDistance) * 100;
   const volTargetCap = clamp(18 - args.volPct * 0.12, 2.5, 18);
@@ -425,7 +484,13 @@ function scoreSignal(args: {
   volPct: number;
 }): number {
   const regimeFit =
-    args.regimeId === 'TREND' ? 1.16 : args.regimeId === 'RANGE' ? 0.95 : args.regimeId === 'HIGH_VOL' ? 0.82 : 0.68;
+    args.regimeId === 'TREND'
+      ? 1.16
+      : args.regimeId === 'RANGE'
+        ? 0.95
+        : args.regimeId === 'HIGH_VOL'
+          ? 0.82
+          : 0.68;
   const costPenalty = args.totalCostBps / 40;
   const tailPenalty = (args.volPct / 100) * 0.55;
   return round(args.expectedRValue * args.confidence * regimeFit - costPenalty - tailPenalty, 4);
@@ -441,11 +506,15 @@ function fallbackRiskProfile(userId = 'guest-default'): UserRiskProfileRecord {
     max_drawdown: profile.max_drawdown_pct,
     exposure_cap: profile.exposure_cap_pct,
     leverage_cap: profile.leverage_cap,
-    updated_at_ms: Date.now()
+    updated_at_ms: Date.now(),
   };
 }
 
-function riskProfileForUser(repo: MarketRepository, userId: string, overrideProfileKey?: RiskProfileKey): UserRiskProfileRecord {
+function riskProfileForUser(
+  repo: MarketRepository,
+  userId: string,
+  overrideProfileKey?: RiskProfileKey,
+): UserRiskProfileRecord {
   const existing = repo.getUserRiskProfile(userId);
   if (overrideProfileKey && overrideProfileKey !== existing?.profile_key) {
     const preset = RISK_PROFILES[overrideProfileKey] || RISK_PROFILES[DEFAULT_RISK_PROFILE];
@@ -457,7 +526,7 @@ function riskProfileForUser(repo: MarketRepository, userId: string, overrideProf
       max_drawdown: preset.max_drawdown_pct,
       exposure_cap: preset.exposure_cap_pct,
       leverage_cap: preset.leverage_cap,
-      updated_at_ms: Date.now()
+      updated_at_ms: Date.now(),
     };
   }
   return existing ?? fallbackRiskProfile(userId);
@@ -483,7 +552,7 @@ function buildCacheContext(args: {
     market: (args.market as Market | 'ALL' | undefined) || 'ALL',
     assetClass: (args.assetClass as AssetClass | 'ALL' | undefined) || 'ALL',
     timeframe: sanitizeToken(args.timeframe, 'default'),
-    universeScope: sanitizeToken(args.universeScope, 'global')
+    universeScope: sanitizeToken(args.universeScope, 'global'),
   };
 }
 
@@ -494,7 +563,7 @@ function buildCacheKey(context: QuantRuntimeContext): string {
     `market:${context.market}`,
     `asset:${context.assetClass}`,
     `tf:${context.timeframe}`,
-    `scope:${context.universeScope}`
+    `scope:${context.universeScope}`,
   ].join('|');
 }
 
@@ -527,7 +596,7 @@ function maybeRefreshStrategyFactory(args: {
     .listWorkflowRuns({
       workflowKey: 'nova_strategy_lab',
       status: 'SUCCEEDED',
-      limit: 10
+      limit: 10,
     })
     .find((row) => {
       try {
@@ -552,7 +621,7 @@ function maybeRefreshStrategyFactory(args: {
     prompt: defaultStrategyFactoryPrompt(args.market, args.riskProfileKey),
     market: args.market,
     riskProfile: args.riskProfileKey,
-    maxCandidates: 8
+    maxCandidates: 8,
   })
     .catch(() => {})
     .finally(() => {
@@ -585,10 +654,12 @@ function buildExecutionChecklist(args: {
     `Place hard invalidation stop at ${args.stop.toFixed(2)} immediately after fill.`,
     `Set TP1 near ${args.tp1.toFixed(2)} and reduce at least 50% there.`,
     `Cap total size around ${args.positionPct.toFixed(2)}% under ${args.bucket} risk bucket.`,
-    'Skip execution if volatility spikes or orderbook depth drops suddenly.'
+    'Skip execution if volatility spikes or orderbook depth drops suddenly.',
   ];
   if (args.assetClass === 'CRYPTO') {
-    lines.push('Avoid opening right into funding reset windows and keep leverage conservative to avoid liquidation risk.');
+    lines.push(
+      'Avoid opening right into funding reset windows and keep leverage conservative to avoid liquidation risk.',
+    );
   }
   if (args.assetClass === 'OPTIONS') {
     lines.push('Intraday options rule: flatten by end of session if TP/SL not reached.');
@@ -612,9 +683,10 @@ function parseSignalPayload(payloadJson: string): SignalContract | null {
           : 'US_STOCK');
     const parsedStatus = String(parsed.status || '').toUpperCase();
     const normalizedStatus: SignalStatus =
-      parsedStatus === 'PENDING' ? 'NEW' : ((parsed.status as SignalStatus) || 'NEW');
+      parsedStatus === 'PENDING' ? 'NEW' : (parsed.status as SignalStatus) || 'NEW';
     if (!parsed.payload) {
-      const entryMid = (Number(parsed.entry_zone?.low ?? 0) + Number(parsed.entry_zone?.high ?? 0)) / 2 || 1;
+      const entryMid =
+        (Number(parsed.entry_zone?.low ?? 0) + Number(parsed.entry_zone?.high ?? 0)) / 2 || 1;
       parsed.payload = buildPayload(
         {
           signal_id: String(parsed.id || 'LEGACY'),
@@ -631,16 +703,16 @@ function parseSignalPayload(payloadJson: string): SignalContract | null {
           take_profit: Number(parsed.take_profit_levels?.[0]?.price ?? 0),
           position_size_pct: Number(parsed.position_advice?.position_pct ?? 0),
           validity: '24H',
-          rationale: Array.isArray(parsed.explain_bullets) ? parsed.explain_bullets : []
+          rationale: Array.isArray(parsed.explain_bullets) ? parsed.explain_bullets : [],
         },
         assetClass,
-        entryMid
+        entryMid,
       );
     }
     return {
       ...(parsed as SignalContract),
       asset_class: assetClass,
-      status: normalizedStatus
+      status: normalizedStatus,
     };
   } catch {
     return null;
@@ -655,37 +727,36 @@ function buildOptionsPayload(raw: RawSignal, entryMid: number): OptionsIntradayP
     underlying: {
       symbol: raw.symbol.match(/^[A-Z]+/)?.[0] || raw.symbol,
       spot_price: round(entryMid, 2),
-      session: 'REG'
+      session: 'REG',
     },
     option_contract: {
       side: put ? 'PUT' : 'CALL',
       expiry,
       strike,
       dte: 6,
-      contract_symbol: raw.symbol
+      contract_symbol: raw.symbol,
     },
     time_stop: {
       eod_flatten: true,
-      latest_exit_utc: new Date(Date.now() + 8 * 3600 * 1000).toISOString()
+      latest_exit_utc: new Date(Date.now() + 8 * 3600 * 1000).toISOString(),
     },
     greeks_iv: {
       delta: round(put ? -0.35 : 0.35, 2),
       iv_percentile: round(45 + (hashCode(raw.signal_id) % 50), 2),
-      expected_move: round(entryMid * 0.012, 3)
-    }
+      expected_move: round(entryMid * 0.012, 3),
+    },
   };
 }
 
 function buildStockPayload(raw: RawSignal): StockSwingPayload {
   const horizon: StockSwingPayload['horizon'] =
-    raw.strategy_id === 'EQ_SWING'
-      ? 'MEDIUM'
-      : raw.strategy_id === 'EQ_EVT'
-        ? 'SHORT'
-        : 'LONG';
+    raw.strategy_id === 'EQ_SWING' ? 'MEDIUM' : raw.strategy_id === 'EQ_EVT' ? 'SHORT' : 'LONG';
   return {
     horizon,
-    catalysts: raw.strategy_id === 'EQ_EVT' ? ['earnings-window', 'macro-vol-burst'] : ['index-regime', 'sector-leadership']
+    catalysts:
+      raw.strategy_id === 'EQ_EVT'
+        ? ['earnings-window', 'macro-vol-burst']
+        : ['index-regime', 'sector-leadership'],
   };
 }
 
@@ -704,21 +775,25 @@ function buildCryptoPayload(raw: RawSignal): CryptoPayload {
       basis_bps: basisBps,
       basis_percentile: basisPct,
       open_interest: 1_500_000 + (h % 400_000),
-      premium_index: round(((h % 120) - 60) / 10_000, 6)
+      premium_index: round(((h % 120) - 60) / 10_000, 6),
     },
     flow_state: {
       spot_led_breakout: h % 2 === 0,
       perp_led_breakout: h % 3 === 0,
-      funding_state: Math.abs(funding) > 0.0012 ? 'EXTREME' : 'NEUTRAL'
+      funding_state: Math.abs(funding) > 0.0012 ? 'EXTREME' : 'NEUTRAL',
     },
     leverage_suggestion: {
       suggested_leverage: raw.status === 'TRIGGERED' ? 1.5 : 1.2,
-      capped_by_profile: true
-    }
+      capped_by_profile: true,
+    },
   };
 }
 
-function buildPayload(raw: RawSignal, assetClass: AssetClass, entryMid: number): SignalContract['payload'] {
+function buildPayload(
+  raw: RawSignal,
+  assetClass: AssetClass,
+  entryMid: number,
+): SignalContract['payload'] {
   if (assetClass === 'OPTIONS') {
     return { kind: 'OPTIONS_INTRADAY', data: buildOptionsPayload(raw, entryMid) };
   }
@@ -741,13 +816,20 @@ function buildContracts(args: {
     const createdAtMs = Date.parse(raw.generated_at) || Date.now();
     const expiresAtMs = inferExpiresAt(raw);
     const marketState = deriveMarketState(raw, args.velocityPct);
-    const bucket = nextRiskBucket(raw.market, marketState.temperature_percentile, marketState.volatility_percentile);
+    const bucket = nextRiskBucket(
+      raw.market,
+      marketState.temperature_percentile,
+      marketState.volatility_percentile,
+    );
     const entryLow = Number(raw.entry_min);
     const entryHigh = Number(raw.entry_max);
     const entryMid = (entryLow + entryHigh) / 2;
     const stop = Number(raw.stop_loss);
     const tp1 = Number(raw.take_profit);
-    const tp2 = raw.direction === 'LONG' ? tp1 + Math.abs(tp1 - entryMid) * 0.62 : tp1 - Math.abs(tp1 - entryMid) * 0.62;
+    const tp2 =
+      raw.direction === 'LONG'
+        ? tp1 + Math.abs(tp1 - entryMid) * 0.62
+        : tp1 - Math.abs(tp1 - entryMid) * 0.62;
     const conf = clamp(Number(raw.confidence || 3) / 5, 0.05, 0.99);
     const expectedRValue = expectedR(raw.direction, entryMid, stop, tp1);
     const sampleSize = 24 + (hashCode(raw.signal_id) % 73);
@@ -764,17 +846,21 @@ function buildContracts(args: {
       entryMid,
       stop,
       volPct: marketState.volatility_percentile,
-      bucket
+      bucket,
     });
     const score = scoreSignal({
       expectedRValue,
       confidence: conf,
       regimeId: marketState.regime_id,
       totalCostBps: totalCost,
-      volPct: marketState.volatility_percentile
+      volPct: marketState.volatility_percentile,
     });
     const status = resolveStatus(raw.status, createdAtMs, expiresAtMs);
-    const strength = clamp(Math.round((conf * 70 + (expectedRValue / 3) * 20 + score * 7) * 10) / 10, 0, 100);
+    const strength = clamp(
+      Math.round((conf * 70 + (expectedRValue / 3) * 20 + score * 7) * 10) / 10,
+      0,
+      100,
+    );
     const payload = buildPayload(raw, assetClass, entryMid);
 
     const contract: SignalContract = {
@@ -798,54 +884,54 @@ function buildContracts(args: {
         low: round(entryLow, 6),
         high: round(entryHigh, 6),
         method: template.entry_method,
-        notes: `Primary zone only valid before ${new Date(expiresAtMs).toISOString()}`
+        notes: `Primary zone only valid before ${new Date(expiresAtMs).toISOString()}`,
       },
       invalidation_level: round(stop, 6),
       stop_loss: {
         type: template.stop_type,
         price: round(stop, 6),
-        rationale: `Stop anchored to ${template.stop_type.toLowerCase()} invalidation.`
+        rationale: `Stop anchored to ${template.stop_type.toLowerCase()} invalidation.`,
       },
       take_profit_levels: [
         {
           price: round(tp1, 6),
           size_pct: 60,
-          rationale: 'TP1 secures risk and de-risks quickly.'
+          rationale: 'TP1 secures risk and de-risks quickly.',
         },
         {
           price: round(tp2, 6),
           size_pct: 40,
-          rationale: 'TP2 captures trend continuation.'
-        }
+          rationale: 'TP2 captures trend continuation.',
+        },
       ],
       trailing_rule: {
         type: template.trailing_type,
-        params: template.trailing_type === 'NONE' ? {} : { lookback: 8, sensitivity: 1.2 }
+        params: template.trailing_type === 'NONE' ? {} : { lookback: 8, sensitivity: 1.2 },
       },
       position_advice: {
         position_pct: positionPct,
         leverage_cap: args.riskProfile.leverage_cap,
         risk_bucket_applied: bucket,
-        rationale: `${args.riskProfile.profile_key} profile with ${bucket} multiplier applied.`
+        rationale: `${args.riskProfile.profile_key} profile with ${bucket} multiplier applied.`,
       },
       cost_model: {
         fee_bps: template.cost.fee_bps,
         spread_bps: template.cost.spread_bps,
         slippage_bps: template.cost.slippage_bps,
         funding_est_bps: template.cost.funding_est_bps,
-        basis_est: template.cost.basis_est
+        basis_est: template.cost.basis_est,
       },
       expected_metrics: {
         expected_R: expectedRValue,
         hit_rate_est: round(hitRate, 4),
         sample_size: sampleSize,
-        expected_max_dd_est: round(expectedMaxDd, 4)
+        expected_max_dd_est: round(expectedMaxDd, 4),
       },
       explain_bullets: [
         `${template.strategy_id} detected setup on ${raw.symbol} under ${marketState.regime_id}.`,
         `Confidence ${(conf * 100).toFixed(0)}%, expected R ${expectedRValue.toFixed(2)}, est sample n=${sampleSize}.`,
         `Risk bucket ${bucket} limits size to ${positionPct.toFixed(2)}% with hard invalidation ${stop.toFixed(2)}.`,
-        ...template.failure_modes.slice(0, 2).map((item) => `Avoid execution when: ${item}.`)
+        ...template.failure_modes.slice(0, 2).map((item) => `Avoid execution when: ${item}.`),
       ],
       execution_checklist: buildExecutionChecklist({
         assetClass,
@@ -856,17 +942,17 @@ function buildContracts(args: {
         stop,
         tp1,
         positionPct,
-        bucket
+        bucket,
       }),
       tags: [...template.tags, marketState.regime_id.toLowerCase(), status.toLowerCase()],
       status,
       payload,
       references: {
         chart_url: `/charts/${raw.market}/${raw.symbol}`,
-        docs_url: `/docs/strategies/${template.strategy_id.toLowerCase()}`
+        docs_url: `/docs/strategies/${template.strategy_id.toLowerCase()}`,
       },
       score,
-      payload_version: 'signal-contract-v1'
+      payload_version: 'signal-contract-v1',
     };
 
     return contract;
@@ -888,7 +974,7 @@ function buildContracts(args: {
     muted.status = muted.status === 'TRIGGERED' ? muted.status : 'INVALIDATED';
     muted.explain_bullets = [
       `Muted by higher-score conflicting signal ${prefer.id}.`,
-      ...muted.explain_bullets.slice(0, 3)
+      ...muted.explain_bullets.slice(0, 3),
     ];
   }
 
@@ -897,7 +983,7 @@ function buildContracts(args: {
     .map((signal) => ({
       ...signal,
       explain_bullets: signal.explain_bullets.slice(0, 6),
-      execution_checklist: signal.execution_checklist.slice(0, 8)
+      execution_checklist: signal.execution_checklist.slice(0, 8),
     }));
 }
 
@@ -917,9 +1003,9 @@ function deriveMarketStateRows(signals: SignalContract[]): MarketStateRecord[] {
           signal.volatility_percentile / 420 -
           signal.confidence / 6,
         0,
-        1
+        1,
       ),
-      4
+      4,
     ),
     stance:
       signal.regime_id === 'RISK_OFF'
@@ -938,15 +1024,15 @@ function deriveMarketStateRows(signals: SignalContract[]): MarketStateRecord[] {
       tail_quantiles: {
         q10: round(-Math.abs((signal.expected_metrics.expected_max_dd_est ?? 0.1) * 1.3), 4),
         q50: round((signal.expected_metrics.expected_R - 0.8) * 0.01, 4),
-        q90: round(signal.expected_metrics.expected_R * 0.018, 4)
-      }
+        q90: round(signal.expected_metrics.expected_R * 0.018, 4),
+      },
     }),
     assumptions_json: JSON.stringify({
       fees_bps: signal.cost_model.fee_bps,
       slippage_bps: signal.cost_model.slippage_bps,
-      funding: signal.market === 'CRYPTO' ? 'included' : 'excluded'
+      funding: signal.market === 'CRYPTO' ? 'included' : 'excluded',
     }),
-    updated_at_ms: Date.now()
+    updated_at_ms: Date.now(),
   }));
 }
 
@@ -979,7 +1065,7 @@ function computeTradeMetrics(pnlPctSeries: number[]): {
     win_rate: round(wins.length / pnlPctSeries.length, 4),
     avg_rr: round(avgRr, 4),
     max_dd: round(Math.abs(worst), 4),
-    total_return: round(equity - 1, 4)
+    total_return: round(equity - 1, 4),
   };
 }
 
@@ -991,14 +1077,14 @@ function buildPerformanceSnapshots(args: {
 }): { apiResponse: Record<string, unknown>; snapshots: PerformanceSnapshotRecord[] } {
   const signalMap = new Map(args.contracts.map((signal) => [signal.id, signal]));
   const closedExecutions = args.executions.filter(
-    (item) => (item.action === 'DONE' || item.action === 'CLOSE') && Number.isFinite(item.pnl_pct)
+    (item) => (item.action === 'DONE' || item.action === 'CLOSE') && Number.isFinite(item.pnl_pct),
   );
   const executionTrades = closedExecutions.map((item) => ({
     market: item.market,
     signal_id: item.signal_id,
     pnl_pct: Number(item.pnl_pct || 0),
     time_out: new Date(item.created_at_ms).toISOString(),
-    source: item.mode
+    source: item.mode,
   }));
 
   const baseTrades = [...args.trades, ...executionTrades] as Array<{
@@ -1030,7 +1116,10 @@ function buildPerformanceSnapshots(args: {
       const signal = signalMap.get(trade.signal_id);
       const strategyId = signal?.strategy_id || 'UNCLASSIFIED';
       const regimeId = signal?.regime_id || 'RANGE';
-      byStrategyMap.set(strategyId, [...(byStrategyMap.get(strategyId) || []), Number(trade.pnl_pct || 0)]);
+      byStrategyMap.set(strategyId, [
+        ...(byStrategyMap.get(strategyId) || []),
+        Number(trade.pnl_pct || 0),
+      ]);
       byRegimeMap.set(regimeId, [...(byRegimeMap.get(regimeId) || []), Number(trade.pnl_pct || 0)]);
     }
 
@@ -1043,14 +1132,24 @@ function buildPerformanceSnapshots(args: {
 
     const backtestSeries = record.equity_curve?.backtest || [];
     const liveSeries = record.equity_curve?.live || [];
-    const backtestReturn = backtestSeries.length ? backtestSeries[backtestSeries.length - 1] / backtestSeries[0] - 1 : 0;
-    const liveReturn = liveSeries.length ? liveSeries[liveSeries.length - 1] / liveSeries[0] - 1 : 0;
+    const backtestReturn = backtestSeries.length
+      ? backtestSeries[backtestSeries.length - 1] / backtestSeries[0] - 1
+      : 0;
+    const liveReturn = liveSeries.length
+      ? liveSeries[liveSeries.length - 1] / liveSeries[0] - 1
+      : 0;
     const deviation = round(backtestReturn - liveReturn, 4);
 
     const liveCount = scoped.filter((item) => item.source !== 'PAPER').length;
     const paperCount = scoped.filter((item) => item.source === 'PAPER').length;
     const sourceLabel =
-      liveCount > 0 && paperCount > 0 ? 'MIXED' : liveCount > 0 ? 'LIVE' : paperCount > 0 ? 'PAPER' : 'BACKTEST';
+      liveCount > 0 && paperCount > 0
+        ? 'MIXED'
+        : liveCount > 0
+          ? 'LIVE'
+          : paperCount > 0
+            ? 'PAPER'
+            : 'BACKTEST';
 
     responseRows.push({
       market: record.market,
@@ -1061,7 +1160,7 @@ function buildPerformanceSnapshots(args: {
         win_rate: overall.win_rate,
         avg_rr: overall.avg_rr,
         max_dd: overall.max_dd,
-        total_return: overall.total_return
+        total_return: overall.total_return,
       },
       assumptions: record.assumptions,
       live_paper_label: sourceLabel,
@@ -1072,9 +1171,9 @@ function buildPerformanceSnapshots(args: {
         deviation: {
           backtest_return: round(backtestReturn, 4),
           live_return: round(liveReturn, 4),
-          gap: deviation
-        }
-      }
+          gap: deviation,
+        },
+      },
     });
 
     snapshots.push({
@@ -1087,10 +1186,10 @@ function buildPerformanceSnapshots(args: {
       payload_json: JSON.stringify({
         kpis: overall,
         assumptions: record.assumptions,
-        live_paper_label: sourceLabel
+        live_paper_label: sourceLabel,
       }),
       asof_ms: now,
-      updated_at_ms: now
+      updated_at_ms: now,
     });
 
     for (const item of byStrategy) {
@@ -1103,7 +1202,7 @@ function buildPerformanceSnapshots(args: {
         sample_size: item.sample_size,
         payload_json: JSON.stringify(item),
         asof_ms: now,
-        updated_at_ms: now
+        updated_at_ms: now,
       });
     }
     for (const item of byRegime) {
@@ -1116,7 +1215,7 @@ function buildPerformanceSnapshots(args: {
         sample_size: item.sample_size,
         payload_json: JSON.stringify(item),
         asof_ms: now,
-        updated_at_ms: now
+        updated_at_ms: now,
       });
     }
     snapshots.push({
@@ -1129,19 +1228,19 @@ function buildPerformanceSnapshots(args: {
       payload_json: JSON.stringify({
         backtest_return: round(backtestReturn, 4),
         live_return: round(liveReturn, 4),
-        gap: deviation
+        gap: deviation,
       }),
       asof_ms: now,
-      updated_at_ms: now
+      updated_at_ms: now,
     });
   }
 
   return {
     apiResponse: {
       asof: new Date(now).toISOString(),
-      records: responseRows
+      records: responseRows,
     },
-    snapshots
+    snapshots,
   };
 }
 
@@ -1156,7 +1255,7 @@ export function ensureQuantData(
     timeframe?: string;
     universeScope?: string;
     allowBackgroundStrategyRefresh?: boolean;
-  }
+  },
 ): QuantDataSnapshot {
   const riskProfile = riskProfileForUser(repo, userId, context?.riskProfileKey);
   repo.upsertUserRiskProfile(riskProfile);
@@ -1167,7 +1266,7 @@ export function ensureQuantData(
     market: context?.market,
     assetClass: context?.assetClass,
     timeframe: context?.timeframe,
-    universeScope: context?.universeScope
+    universeScope: context?.universeScope,
   });
   const cacheKey = buildCacheKey(cacheContext);
   const now = Date.now();
@@ -1185,25 +1284,27 @@ export function ensureQuantData(
   const derived = deriveRuntimeState({
     repo,
     userId,
-    riskProfile
+    riskProfile,
   });
 
   maybeRefreshStrategyFactory({
     repo,
     userId,
     market: 'US',
-    riskProfileKey: riskProfile.profile_key
+    riskProfileKey: riskProfile.profile_key,
   });
   maybeRefreshStrategyFactory({
     repo,
     userId,
     market: 'CRYPTO',
-    riskProfileKey: riskProfile.profile_key
+    riskProfileKey: riskProfile.profile_key,
   });
 
   const contracts = derived.signals as SignalContract[];
 
-  const existing = new Map(repo.listSignals({ limit: 500 }).map((row) => [row.signal_id, row.status]));
+  const existing = new Map(
+    repo.listSignals({ limit: 500 }).map((row) => [row.signal_id, row.status]),
+  );
   for (const signal of contracts) {
     const prev = existing.get(signal.id);
     if (!prev) {
@@ -1212,12 +1313,12 @@ export function ensureQuantData(
         repo,
         userId,
         signal,
-        eventType: 'CREATED'
+        eventType: 'CREATED',
       });
       void deliverSignalToDiscord({
         repo,
         signal,
-        eventType: 'CREATED'
+        eventType: 'CREATED',
       });
     } else if (prev !== signal.status) {
       repo.appendSignalEvent(signal.id, 'STATUS_CHANGED', { from: prev, to: signal.status });
@@ -1225,12 +1326,12 @@ export function ensureQuantData(
         repo,
         userId,
         signal,
-        eventType: 'STATUS_CHANGED'
+        eventType: 'STATUS_CHANGED',
       });
       void deliverSignalToDiscord({
         repo,
         signal,
-        eventType: 'STATUS_CHANGED'
+        eventType: 'STATUS_CHANGED',
       });
     }
   }
@@ -1242,7 +1343,7 @@ export function ensureQuantData(
     performanceApi: derived.performanceApi,
     sourceStatus: derived.sourceStatus,
     freshnessSummary: derived.freshnessSummary,
-    coverageSummary: derived.coverageSummary
+    coverageSummary: derived.coverageSummary,
   };
 
   cacheByKey.set(cacheKey, {
@@ -1254,8 +1355,8 @@ export function ensureQuantData(
     sourceSummary: {
       source_status: snapshot.sourceStatus,
       signal_count: snapshot.signals.length,
-      market_state_count: snapshot.marketState.length
-    }
+      market_state_count: snapshot.marketState.length,
+    },
   });
 
   return snapshot;
@@ -1290,6 +1391,6 @@ export function createExecutionRecord(input: {
     pnl_pct: input.pnlPct ?? null,
     note: input.note,
     created_at_ms: now,
-    updated_at_ms: now
+    updated_at_ms: now,
   };
 }

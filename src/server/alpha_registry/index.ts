@@ -5,7 +5,7 @@ import type {
   AlphaIntegrationPath,
   AlphaLifecycleEventRecord,
   AlphaLifecycleState,
-  Market
+  Market,
 } from '../types.js';
 import type { MarketRepository } from '../db/repository.js';
 
@@ -109,7 +109,7 @@ export function parseAlphaCandidateRecord(record: AlphaCandidateRecord): Autonom
     source: 'autonomous_discovery',
     strategy_candidate: metadata.strategy_candidate || null,
     notes: metadata.notes || [],
-    parent_alpha_id: record.parent_alpha_id
+    parent_alpha_id: record.parent_alpha_id,
   };
 }
 
@@ -157,10 +157,10 @@ export function buildAlphaCandidateRecord(args: {
       required_inputs: args.candidate.required_inputs,
       notes: args.candidate.notes || [],
       strategy_candidate: args.candidate.strategy_candidate,
-      created_at: args.candidate.created_at
+      created_at: args.candidate.created_at,
     }),
     created_at_ms: createdAtMs,
-    updated_at_ms: updatedAtMs
+    updated_at_ms: updatedAtMs,
   };
 }
 
@@ -173,7 +173,7 @@ export function persistAlphaCandidate(
     evaluationId?: string | null;
     rejectionReason?: string | null;
     promotionReason?: string | null;
-  }
+  },
 ): AlphaCandidateRecord {
   const existing = repo.getAlphaCandidate(args.candidate.id);
   const record = buildAlphaCandidateRecord({
@@ -184,7 +184,7 @@ export function persistAlphaCandidate(
     rejectionReason: args.rejectionReason ?? existing?.last_rejection_reason ?? null,
     promotionReason: args.promotionReason ?? existing?.last_promotion_reason ?? null,
     createdAtMs: existing?.created_at_ms,
-    updatedAtMs: Date.now()
+    updatedAtMs: Date.now(),
   });
   repo.upsertAlphaCandidate(record);
   if (!existing) {
@@ -196,9 +196,9 @@ export function persistAlphaCandidate(
       reason: 'registered',
       payload_json: JSON.stringify({
         source: record.source,
-        family: record.family
+        family: record.family,
       }),
-      created_at_ms: record.updated_at_ms
+      created_at_ms: record.updated_at_ms,
     });
   }
   return record;
@@ -213,11 +213,16 @@ export function transitionAlphaCandidate(
     payload?: JsonObject;
     acceptanceScore?: number | null;
     evaluationId?: string | null;
-  }
+  },
 ): AlphaCandidateRecord | null {
   const existing = repo.getAlphaCandidate(args.alphaCandidateId);
   if (!existing) return null;
-  if (existing.status === args.toStatus && !args.reason && args.acceptanceScore === undefined && args.evaluationId === undefined) {
+  if (
+    existing.status === args.toStatus &&
+    !args.reason &&
+    args.acceptanceScore === undefined &&
+    args.evaluationId === undefined
+  ) {
     return existing;
   }
 
@@ -226,12 +231,18 @@ export function transitionAlphaCandidate(
     status: args.toStatus,
     acceptance_score: args.acceptanceScore ?? existing.acceptance_score,
     last_evaluation_id: args.evaluationId ?? existing.last_evaluation_id,
-    last_rejection_reason: args.toStatus === 'REJECTED' ? args.reason ?? existing.last_rejection_reason : existing.last_rejection_reason,
+    last_rejection_reason:
+      args.toStatus === 'REJECTED'
+        ? (args.reason ?? existing.last_rejection_reason)
+        : existing.last_rejection_reason,
     last_promotion_reason:
-      args.toStatus === 'BACKTEST_PASS' || args.toStatus === 'SHADOW' || args.toStatus === 'CANARY' || args.toStatus === 'PROD'
-        ? args.reason ?? existing.last_promotion_reason
+      args.toStatus === 'BACKTEST_PASS' ||
+      args.toStatus === 'SHADOW' ||
+      args.toStatus === 'CANARY' ||
+      args.toStatus === 'PROD'
+        ? (args.reason ?? existing.last_promotion_reason)
         : existing.last_promotion_reason,
-    updated_at_ms: Date.now()
+    updated_at_ms: Date.now(),
   };
 
   repo.upsertAlphaCandidate(updated);
@@ -242,7 +253,7 @@ export function transitionAlphaCandidate(
     to_status: updated.status,
     reason: args.reason ?? null,
     payload_json: JSON.stringify(args.payload || {}),
-    created_at_ms: updated.updated_at_ms
+    created_at_ms: updated.updated_at_ms,
   };
   repo.insertAlphaLifecycleEvent(event);
   return updated;
@@ -252,7 +263,9 @@ function shadowStatsForCandidate(repo: MarketRepository, alphaCandidateId: strin
   const rows = repo.listAlphaShadowObservations({ alphaCandidateId, limit: 400 });
   const realized = rows.filter((row) => Number.isFinite(row.realized_pnl_pct));
   const pnlSeries = realized.map((row) => Number(row.realized_pnl_pct || 0));
-  const expectancy = pnlSeries.length ? pnlSeries.reduce((sum, value) => sum + value, 0) / pnlSeries.length : null;
+  const expectancy = pnlSeries.length
+    ? pnlSeries.reduce((sum, value) => sum + value, 0) / pnlSeries.length
+    : null;
   const wins = pnlSeries.filter((value) => value > 0).length;
   let equity = 1;
   let peak = 1;
@@ -262,13 +275,18 @@ function shadowStatsForCandidate(repo: MarketRepository, alphaCandidateId: strin
     peak = Math.max(peak, equity);
     maxDrawdown = Math.min(maxDrawdown, (equity - peak) / peak);
   }
-  const mean = pnlSeries.length ? pnlSeries.reduce((sum, value) => sum + value, 0) / pnlSeries.length : 0;
+  const mean = pnlSeries.length
+    ? pnlSeries.reduce((sum, value) => sum + value, 0) / pnlSeries.length
+    : 0;
   const variance =
     pnlSeries.length > 1
       ? pnlSeries.reduce((sum, value) => sum + (value - mean) ** 2, 0) / (pnlSeries.length - 1)
       : 0;
   const sigma = Math.sqrt(Math.max(variance, 0));
-  const sharpe = pnlSeries.length > 1 && sigma > 0 ? round((mean / sigma) * Math.sqrt(Math.min(pnlSeries.length, 252)), 4) : null;
+  const sharpe =
+    pnlSeries.length > 1 && sigma > 0
+      ? round((mean / sigma) * Math.sqrt(Math.min(pnlSeries.length, 252)), 4)
+      : null;
 
   return {
     total_observations: rows.length,
@@ -276,7 +294,7 @@ function shadowStatsForCandidate(repo: MarketRepository, alphaCandidateId: strin
     expectancy: expectancy === null ? null : round(expectancy, 4),
     win_rate: realized.length ? round(wins / realized.length, 4) : null,
     max_drawdown: realized.length ? round(Math.abs(maxDrawdown), 4) : null,
-    sharpe
+    sharpe,
   };
 }
 
@@ -289,7 +307,12 @@ export function buildAlphaRegistrySummary(repo: MarketRepository) {
 
   const records = candidates.map((candidate) => {
     const latestEval = evaluations.find((row) => row.alpha_candidate_id === candidate.id) || null;
-    const metrics = latestEval ? parseJson<AlphaEvaluationMetrics & JsonObject>(latestEval.metrics_json, {} as AlphaEvaluationMetrics & JsonObject) : null;
+    const metrics = latestEval
+      ? parseJson<AlphaEvaluationMetrics & JsonObject>(
+          latestEval.metrics_json,
+          {} as AlphaEvaluationMetrics & JsonObject,
+        )
+      : null;
     const shadow = shadowStatsForCandidate(repo, candidate.id);
     return {
       id: candidate.id,
@@ -301,7 +324,7 @@ export function buildAlphaRegistrySummary(repo: MarketRepository) {
       latest_evaluation_status: latestEval?.evaluation_status || null,
       correlation_to_active: metrics?.correlation_to_active ?? null,
       stability_score: metrics?.stability_score ?? null,
-      shadow
+      shadow,
     };
   });
 
@@ -312,13 +335,16 @@ export function buildAlphaRegistrySummary(repo: MarketRepository) {
 
   const decayingCandidates = records
     .filter((row) => ['SHADOW', 'CANARY', 'PROD'].includes(row.status))
-    .filter((row) => Number(row.shadow.expectancy || 0) < 0 || Number(row.shadow.max_drawdown || 0) > 0.18)
+    .filter(
+      (row) =>
+        Number(row.shadow.expectancy || 0) < 0 || Number(row.shadow.max_drawdown || 0) > 0.18,
+    )
     .slice(0, 10);
 
   const correlationMap = topCandidates.map((row) => ({
     alpha_id: row.id,
     family: row.family,
-    correlation_to_active: row.correlation_to_active
+    correlation_to_active: row.correlation_to_active,
   }));
 
   const statusCounts = candidates.reduce<Record<string, number>>((acc, candidate) => {
@@ -337,7 +363,7 @@ export function buildAlphaRegistrySummary(repo: MarketRepository) {
       from_status: row.from_status,
       to_status: row.to_status,
       reason: row.reason,
-      created_at: new Date(row.created_at_ms).toISOString()
-    }))
+      created_at: new Date(row.created_at_ms).toISOString(),
+    })),
   };
 }

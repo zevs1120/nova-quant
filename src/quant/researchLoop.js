@@ -1,12 +1,5 @@
 import { buildNovaQuantSystem, getAlphaDefinitions, getDefaultStrategyConfig } from './system.js';
-import {
-  deterministicNoise,
-  hashCode,
-  maxDrawdownFromCurve,
-  mean,
-  round,
-  stdDev
-} from './math.js';
+import { deterministicNoise, hashCode, maxDrawdownFromCurve, mean, round, stdDev } from './math.js';
 import { buildUnifiedRegistrySystem } from '../research/governance/registrySystem.js';
 import { buildPaperOps } from '../research/governance/paperOps.js';
 import { buildPromotionLoop } from '../research/governance/promotionLoop.js';
@@ -24,7 +17,7 @@ const DEFAULT_CHALLENGERS = [
       'Mean Reversion': 0.7,
       'Volume/Price': 1.05,
       'Market State': 0.9,
-      'Risk Filter': 1.2
+      'Risk Filter': 1.2,
     },
     score_bias: 1.4,
     directional_threshold: 0.021,
@@ -32,7 +25,7 @@ const DEFAULT_CHALLENGERS = [
     allow_c_in_high_vol: false,
     max_holdings_multiplier: 0.95,
     gross_exposure_multiplier: 0.94,
-    safety_sensitivity: 1.06
+    safety_sensitivity: 1.06,
   },
   {
     id: 'challenger-mr-adaptive',
@@ -43,7 +36,7 @@ const DEFAULT_CHALLENGERS = [
       'Mean Reversion': 1.28,
       'Volume/Price': 0.94,
       'Market State': 0.96,
-      'Risk Filter': 1.16
+      'Risk Filter': 1.16,
     },
     score_bias: 0.4,
     directional_threshold: 0.03,
@@ -52,7 +45,7 @@ const DEFAULT_CHALLENGERS = [
     high_vol_weight_multiplier: 0.7,
     max_holdings_multiplier: 1.05,
     gross_exposure_multiplier: 1.02,
-    safety_sensitivity: 1
+    safety_sensitivity: 1,
   },
   {
     id: 'challenger-risk-lean',
@@ -63,7 +56,7 @@ const DEFAULT_CHALLENGERS = [
       'Mean Reversion': 0.92,
       'Volume/Price': 0.96,
       'Market State': 0.85,
-      'Risk Filter': 1.42
+      'Risk Filter': 1.42,
     },
     score_bias: -0.3,
     directional_threshold: 0.028,
@@ -74,8 +67,8 @@ const DEFAULT_CHALLENGERS = [
     max_single_weight_multiplier: 0.88,
     sector_cap_multiplier: 0.9,
     gross_exposure_multiplier: 0.82,
-    safety_sensitivity: 1.12
-  }
+    safety_sensitivity: 1.12,
+  },
 ];
 
 function dateOnly(iso) {
@@ -112,8 +105,8 @@ function buildMarketSnapshot(date, state) {
     safety_score: state.safety.safety_score,
     suggested_exposure: {
       gross: state.today.suggested_gross_exposure_pct,
-      net: state.today.suggested_net_exposure_pct
-    }
+      net: state.today.suggested_net_exposure_pct,
+    },
   };
 }
 
@@ -131,7 +124,7 @@ function buildFeatureSnapshot(date, state) {
     trend_strength_mean: round(trendStrength, 5),
     reversion_stress_mean: round(reversionStress, 5),
     volume_adv_mean: round(volumePressure, 5),
-    volatility_mean: round(hv, 5)
+    volatility_mean: round(hv, 5),
   };
 }
 
@@ -147,13 +140,13 @@ function buildModelOutput(date, state) {
       opportunity_score: item.opportunity_score,
       confidence: item.confidence,
       risk_score: item.risk_score,
-      suggested_action: item.suggested_action
+      suggested_action: item.suggested_action,
     })),
     score_distribution: {
       p90: ranking[Math.max(0, Math.floor(ranking.length * 0.1) - 1)]?.opportunity_score ?? 0,
       p50: ranking[Math.max(0, Math.floor(ranking.length * 0.5) - 1)]?.opportunity_score ?? 0,
-      p10: ranking[Math.max(0, Math.floor(ranking.length * 0.9) - 1)]?.opportunity_score ?? 0
-    }
+      p10: ranking[Math.max(0, Math.floor(ranking.length * 0.9) - 1)]?.opportunity_score ?? 0,
+    },
   };
 }
 
@@ -176,16 +169,16 @@ function buildPortfolioSnapshot(date, state) {
       entry_logic: item.entry_logic,
       entry_plan: item.entry_plan,
       entry_zone: item.entry_plan?.entry_zone || { low: 0, high: 0 },
-      holding_horizon_days: item.grade === 'A' ? 5 : item.grade === 'B' ? 3 : 2
+      holding_horizon_days: item.grade === 'A' ? 5 : item.grade === 'B' ? 3 : 2,
     })),
     filtered: portfolio.filtered_out.map((item) => ({
       ticker: item.ticker,
       grade: item.grade,
       score: item.score,
       confidence: item.confidence,
-      reason: item.reason
+      reason: item.reason,
     })),
-    concentration: portfolio.sector_exposure_pct
+    concentration: portfolio.sector_exposure_pct,
   };
 }
 
@@ -198,7 +191,7 @@ function buildRiskSnapshot(date, state) {
     primary_risks: state.safety.primary_risks,
     suggested_gross_exposure_pct: state.safety.suggested_gross_exposure_pct,
     suggested_net_exposure_pct: state.safety.suggested_net_exposure_pct,
-    risk_cards: state.safety.cards
+    risk_cards: state.safety.cards,
   };
 }
 
@@ -232,7 +225,8 @@ function aggregateAlphaDailyStats(date, state, alphaRegistryIndex) {
     const avgAbs = mean(scores.map((value) => Math.abs(value)));
     const hitRateProxy = hitSignals.length ? mean(hitSignals) : 0;
     const pnlContribution = mean(pnlProxySeries);
-    const clusterTag = triggerCount / Math.max(scores.length, 1) > 0.62 ? 'high-correlation-cluster' : 'normal';
+    const clusterTag =
+      triggerCount / Math.max(scores.length, 1) > 0.62 ? 'high-correlation-cluster' : 'normal';
 
     return {
       type: 'AlphaDailyStats',
@@ -241,7 +235,7 @@ function aggregateAlphaDailyStats(date, state, alphaRegistryIndex) {
       score_summary: {
         mean: round(mean(scores), 5),
         abs_mean: round(avgAbs, 5),
-        stdev: round(stdDev(scores), 5)
+        stdev: round(stdDev(scores), 5),
       },
       number_of_triggers: triggerCount,
       average_confidence_contribution: round(avgAbs * 100, 3),
@@ -251,7 +245,7 @@ function aggregateAlphaDailyStats(date, state, alphaRegistryIndex) {
       decay_flag: false,
       correlation_cluster_tag: clusterTag,
       status: alphaDef.status,
-      version: alphaDef.version
+      version: alphaDef.version,
     };
   });
 }
@@ -275,7 +269,7 @@ function markAlphaDecay(alphaHistoryById) {
         (recentHit < prevHit - 0.05 || recentPnl < prevPnl - 0.08 || recentHit < 0.45);
       return {
         ...row,
-        decay_flag: Boolean(decay)
+        decay_flag: Boolean(decay),
       };
     });
   }
@@ -297,12 +291,15 @@ function runBacktestEngine(strategyId, snapshots) {
 
   for (const snapshot of snapshots) {
     const selected = snapshot.portfolio.selected;
-    const todayWeights = Object.fromEntries(selected.map((item) => [item.ticker, item.target_weight_pct]));
+    const todayWeights = Object.fromEntries(
+      selected.map((item) => [item.ticker, item.target_weight_pct]),
+    );
 
     const gross = selected.reduce((sum, item) => sum + item.target_weight_pct, 0);
     const net = selected.reduce(
-      (sum, item) => sum + (item.direction === 'LONG' ? item.target_weight_pct : -item.target_weight_pct),
-      0
+      (sum, item) =>
+        sum + (item.direction === 'LONG' ? item.target_weight_pct : -item.target_weight_pct),
+      0,
     );
 
     const edge = selected.reduce((acc, item) => {
@@ -318,7 +315,12 @@ function runBacktestEngine(strategyId, snapshots) {
       return sum + Math.abs(now - prev);
     }, 0);
 
-    const regimePenalty = snapshot.market.regime === 'High Volatility Risk' ? 0.0005 : snapshot.market.regime === 'Trend Down' ? 0.00025 : 0;
+    const regimePenalty =
+      snapshot.market.regime === 'High Volatility Risk'
+        ? 0.0005
+        : snapshot.market.regime === 'Trend Down'
+          ? 0.00025
+          : 0;
     const preCostReturn = edge - regimePenalty;
     const transactionCost = turnover * 0.00012 + selected.length * 0.00003;
     const postCostReturn = preCostReturn - transactionCost;
@@ -330,7 +332,7 @@ function runBacktestEngine(strategyId, snapshots) {
       post_cost_return: round(postCostReturn, 6),
       turnover: round(turnover, 4),
       gross_exposure_pct: round(gross, 2),
-      net_exposure_pct: round(net, 2)
+      net_exposure_pct: round(net, 2),
     });
 
     prevWeights = todayWeights;
@@ -373,7 +375,7 @@ function runBacktestEngine(strategyId, snapshots) {
     return {
       month,
       ret: round(ret, 5),
-      equity: round(eq, 5)
+      equity: round(eq, 5),
     };
   });
 
@@ -381,7 +383,7 @@ function runBacktestEngine(strategyId, snapshots) {
     regime,
     sample_days: values.length,
     avg_return: round(mean(values), 6),
-    win_rate: round(values.filter((value) => value > 0).length / Math.max(values.length, 1), 4)
+    win_rate: round(values.filter((value) => value > 0).length / Math.max(values.length, 1), 4),
   }));
 
   return {
@@ -392,7 +394,10 @@ function runBacktestEngine(strategyId, snapshots) {
     monthly,
     cumulative_return_pre_cost: round(curvePre.at(-1) / curvePre[0] - 1, 5),
     cumulative_return_post_cost: round(curvePost.at(-1) / curvePost[0] - 1, 5),
-    win_rate: round(postReturns.filter((value) => value > 0).length / Math.max(postReturns.length, 1), 4),
+    win_rate: round(
+      postReturns.filter((value) => value > 0).length / Math.max(postReturns.length, 1),
+      4,
+    ),
     avg_holding_period: round(mean(snapshots.map((item) => item.selected_avg_holding_days)), 3),
     max_drawdown: round(maxDrawdownFromCurve(curvePost), 5),
     sharpe: round((mean(postReturns) / sigma) * Math.sqrt(252), 4),
@@ -401,14 +406,14 @@ function runBacktestEngine(strategyId, snapshots) {
     exposure_summary: {
       avg_gross: round(mean(daily.map((item) => item.gross_exposure_pct)), 3),
       avg_net: round(mean(daily.map((item) => item.net_exposure_pct)), 3),
-      max_gross: round(Math.max(...daily.map((item) => item.gross_exposure_pct), 0), 3)
+      max_gross: round(Math.max(...daily.map((item) => item.gross_exposure_pct), 0), 3),
     },
     regime_breakdown: regimeBreakdown,
     cost_assumptions: {
       transaction_cost_model: 'turnover * 12 bps + per-position 3 bps',
       cost_before: round(mean(preReturns), 6),
-      cost_after: round(mean(postReturns), 6)
-    }
+      cost_after: round(mean(postReturns), 6),
+    },
   };
 }
 
@@ -432,11 +437,14 @@ function runSingleAlphaBacktests(alphaHistoryById) {
       alpha_id: alphaId,
       source_type: 'single_alpha_backtest_proxy',
       cumulative_return_post_cost: round(curve.at(-1) / curve[0] - 1, 5),
-      win_rate: round(dailyReturns.filter((value) => value > 0).length / Math.max(dailyReturns.length, 1), 4),
+      win_rate: round(
+        dailyReturns.filter((value) => value > 0).length / Math.max(dailyReturns.length, 1),
+        4,
+      ),
       max_drawdown: round(maxDrawdownFromCurve(curve), 5),
       sharpe: round((mean(dailyReturns) / sigma) * Math.sqrt(252), 4),
       sortino: round((mean(dailyReturns) / downside) * Math.sqrt(252), 4),
-      turnover: round(mean(ordered.map((row) => row.number_of_triggers / 20)), 4)
+      turnover: round(mean(ordered.map((row) => row.number_of_triggers / 20)), 4),
     };
   });
 }
@@ -461,14 +469,20 @@ function runPaperLedger(strategyId, snapshots, startingEquity = 100000) {
     const date = snapshot.date;
 
     for (const [ticker, pos] of Array.from(positions.entries())) {
-      const dailyMove = estimatePaperMove(ticker, date, pos.score_at_entry, pos.risk_score, pos.side);
+      const dailyMove = estimatePaperMove(
+        ticker,
+        date,
+        pos.score_at_entry,
+        pos.risk_score,
+        pos.side,
+      );
       pos.mark_price = round(pos.mark_price * (1 + dailyMove), 4);
       pos.holding_days += 1;
       pos.unrealized_pnl = round(
-        (pos.side === 'LONG'
+        pos.side === 'LONG'
           ? (pos.mark_price - pos.avg_price) * pos.qty
-          : (pos.avg_price - pos.mark_price) * pos.qty),
-        4
+          : (pos.avg_price - pos.mark_price) * pos.qty,
+        4,
       );
 
       const shouldClose =
@@ -489,7 +503,7 @@ function runPaperLedger(strategyId, snapshots, startingEquity = 100000) {
           qty: pos.qty,
           exit_price: pos.mark_price,
           realized_pnl: realized,
-          reason: snapshot.risk.mode === 'do not trade' ? 'risk-cut' : 'holding-window'
+          reason: snapshot.risk.mode === 'do not trade' ? 'risk-cut' : 'holding-window',
         });
 
         positions.delete(ticker);
@@ -501,7 +515,12 @@ function runPaperLedger(strategyId, snapshots, startingEquity = 100000) {
       if (positions.has(candidate.ticker)) continue;
 
       const entryPrice = round((candidate.entry_zone.low + candidate.entry_zone.high) / 2, 4);
-      const qty = Math.max(1, Math.round((startingEquity * (candidate.target_weight_pct / 100)) / Math.max(entryPrice, 0.01)));
+      const qty = Math.max(
+        1,
+        Math.round(
+          (startingEquity * (candidate.target_weight_pct / 100)) / Math.max(entryPrice, 0.01),
+        ),
+      );
       const status = snapshot.risk.mode === 'do not trade' ? 'REJECTED' : 'FILLED';
 
       orders.push({
@@ -515,7 +534,7 @@ function runPaperLedger(strategyId, snapshots, startingEquity = 100000) {
         status,
         fill_price: status === 'FILLED' ? entryPrice : null,
         assumed_slippage_bps: status === 'FILLED' ? 7 : 0,
-        source_snapshot_date: date
+        source_snapshot_date: date,
       });
 
       if (status !== 'FILLED') continue;
@@ -533,7 +552,7 @@ function runPaperLedger(strategyId, snapshots, startingEquity = 100000) {
         opened_at: date,
         holding_days: 0,
         max_holding_days: Math.max(1, Math.round(candidate.holding_horizon_days || 3)),
-        unrealized_pnl: 0
+        unrealized_pnl: 0,
       });
 
       transactions.push({
@@ -542,11 +561,14 @@ function runPaperLedger(strategyId, snapshots, startingEquity = 100000) {
         ticker: candidate.ticker,
         side: candidate.direction,
         qty,
-        entry_price: entryPrice
+        entry_price: entryPrice,
       });
     }
 
-    const unrealized = Array.from(positions.values()).reduce((sum, pos) => sum + pos.unrealized_pnl, 0);
+    const unrealized = Array.from(positions.values()).reduce(
+      (sum, pos) => sum + pos.unrealized_pnl,
+      0,
+    );
     const equity = startingEquity + realizedPnl + unrealized;
 
     equityCurve.push({
@@ -554,7 +576,7 @@ function runPaperLedger(strategyId, snapshots, startingEquity = 100000) {
       equity: round(equity, 4),
       realized_pnl: round(realizedPnl, 4),
       unrealized_pnl: round(unrealized, 4),
-      open_positions: positions.size
+      open_positions: positions.size,
     });
   }
 
@@ -573,11 +595,14 @@ function runPaperLedger(strategyId, snapshots, startingEquity = 100000) {
       filled_orders: orders.filter((item) => item.status === 'FILLED').length,
       open_positions: positions.size,
       realized_pnl: round(realizedPnl, 4),
-      unrealized_pnl: round(Array.from(positions.values()).reduce((sum, pos) => sum + pos.unrealized_pnl, 0), 4),
+      unrealized_pnl: round(
+        Array.from(positions.values()).reduce((sum, pos) => sum + pos.unrealized_pnl, 0),
+        4,
+      ),
       win_rate: round(wins / Math.max(closed.length, 1), 4),
-      total_return: round((equityCurve.at(-1)?.equity || startingEquity) / startingEquity - 1, 5)
+      total_return: round((equityCurve.at(-1)?.equity || startingEquity) / startingEquity - 1, 5),
     },
-    recent_orders: orders.slice(-12).reverse()
+    recent_orders: orders.slice(-12).reverse(),
   };
 }
 
@@ -596,15 +621,13 @@ function strategyDailySnapshot(date, state) {
     safety_score: state.safety.safety_score,
     suggested_exposure: {
       gross: state.safety.suggested_gross_exposure_pct,
-      net: state.safety.suggested_net_exposure_pct
+      net: state.safety.suggested_net_exposure_pct,
     },
     selected_opportunities: selected,
     filtered_opportunities: state.layers.portfolio_layer.filtered_out,
     active_alpha_summary: activeAlpha,
-    selected_avg_holding_days: mean(
-      selected.map((item) => (item.entry_plan ? 3 : 3))
-    ),
-    risk_drivers: state.safety.primary_risks
+    selected_avg_holding_days: mean(selected.map((item) => (item.entry_plan ? 3 : 3))),
+    risk_drivers: state.safety.primary_risks,
   };
 }
 
@@ -618,7 +641,7 @@ function runStrategyHistory({ dates, riskProfileKey, strategyConfig, alphaRegist
       asOf: toAsOf(date),
       riskProfileKey,
       executionTrades: [],
-      strategyConfig
+      strategyConfig,
     });
 
     snapshots.push(strategyDailySnapshot(date, state));
@@ -638,7 +661,8 @@ function runStrategyHistory({ dates, riskProfileKey, strategyConfig, alphaRegist
   const backtest = runBacktestEngine(strategyConfig.id, snapshots);
   const singleAlphaBacktests = runSingleAlphaBacktests(alphaHistoryWithDecay);
   const paper = runPaperLedger(strategyConfig.id, snapshots);
-  const alphaDailyStats = Object.values(alphaHistoryWithDecay).flat()
+  const alphaDailyStats = Object.values(alphaHistoryWithDecay)
+    .flat()
     .sort((a, b) => a.date.localeCompare(b.date));
   const marketHistory = snapshots.map((item) => item.market);
   const featureHistory = snapshots.map((item) => item.feature);
@@ -660,7 +684,7 @@ function runStrategyHistory({ dates, riskProfileKey, strategyConfig, alphaRegist
     single_alpha_backtests: singleAlphaBacktests,
     paper,
     current_snapshot: snapshots[snapshots.length - 1],
-    current_state: states[states.length - 1]
+    current_state: states[states.length - 1],
   };
 }
 
@@ -675,7 +699,10 @@ function regimeStabilityScore(snapshots) {
 
 function riskAdjustedScore(result) {
   const denom = Math.max(0.01, result.max_drawdown + 0.01);
-  return round(result.cumulative_return_post_cost / denom + result.sharpe * 0.2 + result.sortino * 0.15, 4);
+  return round(
+    result.cumulative_return_post_cost / denom + result.sharpe * 0.2 + result.sortino * 0.15,
+    4,
+  );
 }
 
 function backtestStability(result) {
@@ -683,7 +710,8 @@ function backtestStability(result) {
   if (!daily.length) return 0;
   const returns = daily.map((row) => Number(row.post_cost_return || 0));
   const volatility = stdDev(returns);
-  const tailRiskRatio = returns.filter((value) => value < -0.005).length / Math.max(returns.length, 1);
+  const tailRiskRatio =
+    returns.filter((value) => value < -0.005).length / Math.max(returns.length, 1);
   const score = Math.max(0, 1 - Math.min(1, volatility * 25 + tailRiskRatio * 0.7));
   return round(score, 4);
 }
@@ -709,7 +737,8 @@ function compareChampionChallenger(championHistory, challengerHistory, asOf) {
   const challengerStability = backtestStability(challenger);
 
   const overlapSeries = challengerHistory.snapshots.map((snapshot, index) => {
-    const champSet = championHistory.snapshots[index]?.portfolio?.selected?.map((item) => item.ticker) || [];
+    const champSet =
+      championHistory.snapshots[index]?.portfolio?.selected?.map((item) => item.ticker) || [];
     const chgSet = snapshot.portfolio.selected.map((item) => item.ticker);
     return jaccard(champSet, chgSet);
   });
@@ -718,65 +747,74 @@ function compareChampionChallenger(championHistory, challengerHistory, asOf) {
 
   const comparison = {
     type: 'ChallengerComparison',
-    comparison_id: registryId('comparison', championHistory.strategy.id, challengerHistory.strategy.id, asOf.slice(0, 10)),
+    comparison_id: registryId(
+      'comparison',
+      championHistory.strategy.id,
+      challengerHistory.strategy.id,
+      asOf.slice(0, 10),
+    ),
     champion_id: championHistory.strategy.id,
     challenger_id: challengerHistory.strategy.id,
     metrics: {
       return: {
         champion: champion.cumulative_return_post_cost,
         challenger: challenger.cumulative_return_post_cost,
-        delta: round(challenger.cumulative_return_post_cost - champion.cumulative_return_post_cost, 5)
+        delta: round(
+          challenger.cumulative_return_post_cost - champion.cumulative_return_post_cost,
+          5,
+        ),
       },
       drawdown: {
         champion: champion.max_drawdown,
         challenger: challenger.max_drawdown,
-        delta: round(challenger.max_drawdown - champion.max_drawdown, 5)
+        delta: round(challenger.max_drawdown - champion.max_drawdown, 5),
       },
       win_rate: {
         champion: champion.win_rate,
         challenger: challenger.win_rate,
-        delta: round(challenger.win_rate - champion.win_rate, 5)
+        delta: round(challenger.win_rate - champion.win_rate, 5),
       },
       turnover: {
         champion: champion.turnover,
         challenger: challenger.turnover,
-        delta: round(challenger.turnover - champion.turnover, 5)
+        delta: round(challenger.turnover - champion.turnover, 5),
       },
       hit_rate: {
         champion: champion.win_rate,
         challenger: challenger.win_rate,
-        delta: round(challenger.win_rate - champion.win_rate, 5)
+        delta: round(challenger.win_rate - champion.win_rate, 5),
       },
       stability: {
         champion: championStability,
         challenger: challengerStability,
-        delta: round(challengerStability - championStability, 5)
+        delta: round(challengerStability - championStability, 5),
       },
       regime_stability: {
         champion: regimeStabilityScore(championHistory.snapshots),
-        challenger: regimeStabilityScore(challengerHistory.snapshots)
+        challenger: regimeStabilityScore(challengerHistory.snapshots),
       },
       regime_robustness: {
         champion: regimeStabilityScore(championHistory.snapshots),
         challenger: regimeStabilityScore(challengerHistory.snapshots),
         delta: round(
-          regimeStabilityScore(challengerHistory.snapshots) - regimeStabilityScore(championHistory.snapshots),
-          5
-        )
+          regimeStabilityScore(challengerHistory.snapshots) -
+            regimeStabilityScore(championHistory.snapshots),
+          5,
+        ),
       },
       paper_feasibility: {
         champion: championPaperFeasibility,
         challenger: challengerPaperFeasibility,
-        delta: round(challengerPaperFeasibility - championPaperFeasibility, 5)
+        delta: round(challengerPaperFeasibility - championPaperFeasibility, 5),
       },
       risk_adjusted_score: {
         champion: riskAdjustedScore(champion),
-        challenger: riskAdjustedScore(challenger)
+        challenger: riskAdjustedScore(challenger),
       },
       overlap_with_champion: overlap,
-      uniqueness_vs_champion: uniqueness
+      uniqueness_vs_champion: uniqueness,
     },
-    promotable: false
+    promotable: false,
   };
 
   const checklist = [
@@ -784,44 +822,46 @@ function compareChampionChallenger(championHistory, challengerHistory, asOf) {
       rule: 'Return improvement (20D/60D proxy)',
       pass: comparison.metrics.return.delta >= 0.003,
       value: comparison.metrics.return.delta,
-      threshold: 0.003
+      threshold: 0.003,
     },
     {
       rule: 'Drawdown not materially worse',
       pass: comparison.metrics.drawdown.delta <= 0.01,
       value: comparison.metrics.drawdown.delta,
-      threshold: 0.01
+      threshold: 0.01,
     },
     {
       rule: 'Turnover control',
       pass: comparison.metrics.turnover.challenger <= comparison.metrics.turnover.champion * 1.25,
       value: comparison.metrics.turnover.challenger,
-      threshold: round(comparison.metrics.turnover.champion * 1.25, 5)
+      threshold: round(comparison.metrics.turnover.champion * 1.25, 5),
     },
     {
       rule: 'Regime stability floor',
       pass: comparison.metrics.regime_stability.challenger >= 0.45,
       value: comparison.metrics.regime_stability.challenger,
-      threshold: 0.45
+      threshold: 0.45,
     },
     {
       rule: 'Backtest stability floor',
       pass: comparison.metrics.stability.challenger >= 0.55,
       value: comparison.metrics.stability.challenger,
-      threshold: 0.55
+      threshold: 0.55,
     },
     {
       rule: 'Paper feasibility floor',
       pass: comparison.metrics.paper_feasibility.challenger >= 0.5,
       value: comparison.metrics.paper_feasibility.challenger,
-      threshold: 0.5
+      threshold: 0.5,
     },
     {
       rule: 'Risk-adjusted score improvement',
-      pass: comparison.metrics.risk_adjusted_score.challenger >= comparison.metrics.risk_adjusted_score.champion,
+      pass:
+        comparison.metrics.risk_adjusted_score.challenger >=
+        comparison.metrics.risk_adjusted_score.champion,
       value: comparison.metrics.risk_adjusted_score.challenger,
-      threshold: comparison.metrics.risk_adjusted_score.champion
-    }
+      threshold: comparison.metrics.risk_adjusted_score.champion,
+    },
   ];
 
   const promotable = checklist.every((item) => item.pass);
@@ -838,12 +878,12 @@ function compareChampionChallenger(championHistory, challengerHistory, asOf) {
     checklist,
     notes: promotable
       ? 'Challenger passes current gate and can move to paper stage.'
-      : 'Challenger remains in testing. Continue paper monitoring.'
+      : 'Challenger remains in testing. Continue paper monitoring.',
   };
 
   return {
     comparison,
-    decision
+    decision,
   };
 }
 
@@ -860,7 +900,8 @@ function computeAlphaHealth(alphaRegistry, alphaHistoryById) {
 
     let health = 'stable';
     if (recentPnl > prevPnl + 0.05 && recentHit > prevHit) health = 'improving';
-    if (recentPnl < prevPnl - 0.05 || recentHit < prevHit - 0.05 || recentHit < 0.45) health = 'decaying';
+    if (recentPnl < prevPnl - 0.05 || recentHit < prevHit - 0.05 || recentHit < 0.45)
+      health = 'decaying';
 
     return {
       alpha_id: alpha.id,
@@ -871,19 +912,24 @@ function computeAlphaHealth(alphaRegistry, alphaHistoryById) {
       recent_hit_rate: round(recentHit, 4),
       recent_pnl_proxy: round(recentPnl, 4),
       trigger_intensity: round(mean(last10.map((row) => row.number_of_triggers)), 3),
-      decay_flag: Boolean(last10.some((row) => row.decay_flag))
+      decay_flag: Boolean(last10.some((row) => row.decay_flag)),
     };
   });
 }
 
 function computeDiagnostics(championHistory, comparisons) {
   const snapshots = championHistory.snapshots;
-  const alphaHealth = computeAlphaHealth(championHistory.alpha_registry, championHistory.alpha_history);
+  const alphaHealth = computeAlphaHealth(
+    championHistory.alpha_registry,
+    championHistory.alpha_history,
+  );
 
   const stability = regimeStabilityScore(snapshots);
   const tradeLightDays = snapshots.filter((item) => item.risk.mode === 'trade light').length;
   const pausedDays = snapshots.filter((item) => item.risk.mode === 'do not trade').length;
-  const exposureCappedDays = snapshots.filter((item) => item.risk.suggested_gross_exposure_pct <= 30).length;
+  const exposureCappedDays = snapshots.filter(
+    (item) => item.risk.suggested_gross_exposure_pct <= 30,
+  ).length;
 
   const concentration = snapshots.map((item) => {
     const values = Object.values(item.portfolio.concentration || {});
@@ -904,24 +950,26 @@ function computeDiagnostics(championHistory, comparisons) {
     alpha_health: alphaHealth,
     regime_stability: {
       score: stability,
-      regime_transitions: snapshots.length ? Math.round((1 - stability) * (snapshots.length - 1)) : 0,
-      window_days: snapshots.length
+      regime_transitions: snapshots.length
+        ? Math.round((1 - stability) * (snapshots.length - 1))
+        : 0,
+      window_days: snapshots.length,
     },
     risk_pressure_summary: {
       avg_safety_score: round(mean(snapshots.map((item) => item.risk.safety_score)), 3),
       trade_light_days: tradeLightDays,
       paused_days: pausedDays,
       exposure_capped_days: exposureCappedDays,
-      why_exposure_capped_today: snapshots.at(-1)?.risk?.primary_risks?.[0] || '--'
+      why_exposure_capped_today: snapshots.at(-1)?.risk?.primary_risks?.[0] || '--',
     },
     portfolio_concentration: {
       avg_top_sector_exposure_pct: round(mean(concentration), 3),
-      max_top_sector_exposure_pct: round(Math.max(...concentration, 0), 3)
+      max_top_sector_exposure_pct: round(Math.max(...concentration, 0), 3),
     },
     paper_vs_backtest_gap: {
       paper_total_return: paperReturn,
       backtest_total_return: backtestReturn,
-      gap: round(paperReturn - backtestReturn, 5)
+      gap: round(paperReturn - backtestReturn, 5),
     },
     top_failure_reasons: Object.entries(failureReasonMap)
       .map(([reason, count]) => ({ reason, count }))
@@ -931,8 +979,8 @@ function computeDiagnostics(championHistory, comparisons) {
       challenger_id: row.comparison.challenger_id,
       promotable: row.comparison.promotable,
       delta_return: row.comparison.metrics.return.delta,
-      delta_drawdown: row.comparison.metrics.drawdown.delta
-    }))
+      delta_drawdown: row.comparison.metrics.drawdown.delta,
+    })),
   };
 }
 
@@ -959,7 +1007,7 @@ function buildAlphaRegistry() {
       expected_holding_period: item.expected_holding_period,
       risk_tags: item.risk_tags,
       status,
-      version: 'alpha-v1.0.0'
+      version: 'alpha-v1.0.0',
     };
   });
 }
@@ -979,7 +1027,7 @@ function buildExperiments(championHistory, challengerHistories, comparisonRows, 
     status: ENTITY_STAGE.CHAMPION,
     notes: 'Current production-like champion baseline.',
     comparison_summary: 'N/A (reference baseline)',
-    strategy_id: championHistory.strategy.id
+    strategy_id: championHistory.strategy.id,
   });
 
   for (const ch of challengerHistories) {
@@ -992,7 +1040,7 @@ function buildExperiments(championHistory, challengerHistories, comparisonRows, 
       status: normalizeStage(cmp?.decision?.status || ENTITY_STAGE.TESTING, ENTITY_STAGE.TESTING),
       notes: cmp?.decision?.notes || 'Under evaluation in paper environment.',
       comparison_summary: `Δret=${cmp?.comparison?.metrics?.return?.delta ?? 0}, Δdd=${cmp?.comparison?.metrics?.drawdown?.delta ?? 0}`,
-      strategy_id: ch.strategy.id
+      strategy_id: ch.strategy.id,
     });
   }
 
@@ -1003,7 +1051,7 @@ export function buildResearchLoop({
   endDate = new Date().toISOString(),
   lookbackDays = DEFAULT_LOOKBACK_DAYS,
   riskProfileKey = 'balanced',
-  challengerConfigs = DEFAULT_CHALLENGERS
+  challengerConfigs = DEFAULT_CHALLENGERS,
 } = {}) {
   const runAsOf = new Date(endDate).toISOString();
   const dates = businessDates(endDate, lookbackDays);
@@ -1014,14 +1062,14 @@ export function buildResearchLoop({
     ...getDefaultStrategyConfig(),
     id: 'champion',
     label: 'Champion',
-    version: 'model-v1.0.0'
+    version: 'model-v1.0.0',
   };
 
   const championHistory = runStrategyHistory({
     dates,
     riskProfileKey,
     strategyConfig: championConfig,
-    alphaRegistryIndex: alphaIndex
+    alphaRegistryIndex: alphaIndex,
   });
 
   championHistory.alpha_registry = alphaRegistry;
@@ -1032,21 +1080,28 @@ export function buildResearchLoop({
       riskProfileKey,
       strategyConfig: {
         ...getDefaultStrategyConfig(),
-        ...item
+        ...item,
       },
-      alphaRegistryIndex: alphaIndex
-    })
+      alphaRegistryIndex: alphaIndex,
+    }),
   );
 
-  const comparisonRows = challengerHistories.map((history) => compareChampionChallenger(championHistory, history, runAsOf));
+  const comparisonRows = challengerHistories.map((history) =>
+    compareChampionChallenger(championHistory, history, runAsOf),
+  );
   const diagnostics = computeDiagnostics(championHistory, comparisonRows);
-  const experiments = buildExperiments(championHistory, challengerHistories, comparisonRows, runAsOf);
+  const experiments = buildExperiments(
+    championHistory,
+    challengerHistories,
+    comparisonRows,
+    runAsOf,
+  );
   const decisions = comparisonRows.map((item) => item.decision);
   const promotionLoop = buildPromotionLoop({
     comparisons: comparisonRows.map((item) => item.comparison),
     decisions,
     asOf: runAsOf,
-    dataQualityStatus: 'healthy'
+    dataQualityStatus: 'healthy',
   });
   const legacyDecisionByChallenger = new Map(decisions.map((item) => [item.challenger_id, item]));
   const normalizedPromotionDecisions = promotionLoop.decisions.map((item) => ({
@@ -1054,7 +1109,7 @@ export function buildResearchLoop({
     ...item,
     challenger_id: item.compared_entities.challenger_id,
     status: item.decision.to_stage,
-    notes: item.rationale
+    notes: item.rationale,
   }));
 
   const versionRegistry = [
@@ -1062,17 +1117,19 @@ export function buildResearchLoop({
       strategy_id: championConfig.id,
       version: championConfig.version,
       status: ENTITY_STAGE.CHAMPION,
-      created_at: championHistory.current_snapshot?.date || dates[dates.length - 1]
+      created_at: championHistory.current_snapshot?.date || dates[dates.length - 1],
     },
     ...challengerHistories.map((item) => {
-      const decision = normalizedPromotionDecisions.find((row) => row.challenger_id === item.strategy.id);
+      const decision = normalizedPromotionDecisions.find(
+        (row) => row.challenger_id === item.strategy.id,
+      );
       return {
         strategy_id: item.strategy.id,
         version: item.strategy.version,
         status: normalizeStage(decision?.status || ENTITY_STAGE.TESTING, ENTITY_STAGE.TESTING),
-        created_at: championHistory.current_snapshot?.date || dates[dates.length - 1]
+        created_at: championHistory.current_snapshot?.date || dates[dates.length - 1],
       };
-    })
+    }),
   ];
 
   const snapshots = championHistory.snapshots.map((row) => ({
@@ -1083,7 +1140,7 @@ export function buildResearchLoop({
     selected_opportunities: row.selected_opportunities.map((item) => item.ticker),
     filtered_opportunities: row.filtered_opportunities.map((item) => item.ticker),
     active_alpha_summary: row.active_alpha_summary,
-    risk_drivers: row.risk_drivers
+    risk_drivers: row.risk_drivers,
   }));
 
   const paperOps = buildPaperOps({
@@ -1091,7 +1148,7 @@ export function buildResearchLoop({
     snapshots: championHistory.snapshots,
     paper: championHistory.paper,
     backtest: championHistory.backtest,
-    asOf: runAsOf
+    asOf: runAsOf,
   });
 
   const registrySystem = buildUnifiedRegistrySystem({
@@ -1101,16 +1158,16 @@ export function buildResearchLoop({
       config: championConfig,
       snapshots: championHistory.snapshots,
       backtest: championHistory.backtest,
-      paper: championHistory.paper
+      paper: championHistory.paper,
     },
     challengers: challengerHistories.map((item) => ({
       config: item.strategy,
       snapshots: item.snapshots,
       backtest: item.backtest,
-      paper: item.paper
+      paper: item.paper,
     })),
     decisions: normalizedPromotionDecisions,
-    asOf: runAsOf
+    asOf: runAsOf,
   });
 
   return {
@@ -1132,14 +1189,14 @@ export function buildResearchLoop({
       risk_history: championHistory.risk_history,
       backtest: championHistory.backtest,
       single_alpha_backtests: championHistory.single_alpha_backtests,
-      paper: championHistory.paper
+      paper: championHistory.paper,
     },
     alpha_registry: alphaRegistry,
     challengers: challengerHistories.map((item) => ({
       config: item.strategy,
       snapshots: item.snapshots,
       backtest: item.backtest,
-      paper: item.paper
+      paper: item.paper,
     })),
     comparisons: comparisonRows.map((item) => item.comparison),
     promotion_decisions: normalizedPromotionDecisions,
@@ -1151,7 +1208,7 @@ export function buildResearchLoop({
       model: 'champion-challenger-v1',
       statuses: ['draft', 'testing', 'paper', 'candidate', 'champion', 'challenger', 'retired'],
       version_registry: versionRegistry,
-      promotion_rules: promotionLoop.rules
+      promotion_rules: promotionLoop.rules,
     },
     object_models: [
       'MarketSnapshot',
@@ -1177,7 +1234,7 @@ export function buildResearchLoop({
       'StrategyHealth',
       'DataHealth',
       'WeeklySystemReview',
-      'GovernanceContractChecks'
-    ]
+      'GovernanceContractChecks',
+    ],
   };
 }

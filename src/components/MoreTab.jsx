@@ -7,14 +7,14 @@ const CATEGORY_GROUPS = [
       {
         key: 'weekly',
         title: 'Weekly Review',
-        description: 'A calm weekly summary and next focus.'
+        description: 'A calm weekly summary and next focus.',
       },
       {
         key: 'discipline',
         title: 'Discipline Progress',
-        description: 'Check your daily rhythm and boundary habits.'
-      }
-    ]
+        description: 'Check your daily rhythm and boundary habits.',
+      },
+    ],
   },
   {
     key: 'group:system',
@@ -24,24 +24,24 @@ const CATEGORY_GROUPS = [
       {
         key: 'signals',
         title: 'Signals',
-        description: 'All strategy signals and why some were filtered.'
+        description: 'All strategy signals and why some were filtered.',
       },
       {
         key: 'performance',
         title: 'Performance',
-        description: 'Paper, replay, and proof summaries.'
+        description: 'Paper, replay, and proof summaries.',
       },
       {
         key: 'safety',
         title: 'Safety',
-        description: 'Today’s risk limits and safety notes.'
+        description: 'Today’s risk limits and safety notes.',
       },
       {
         key: 'data',
         title: 'Data Status',
-        description: 'Freshness, coverage, and missing data checks.'
-      }
-    ]
+        description: 'Freshness, coverage, and missing data checks.',
+      },
+    ],
   },
   {
     key: 'group:market',
@@ -51,9 +51,9 @@ const CATEGORY_GROUPS = [
       {
         key: 'insights',
         title: 'Insights',
-        description: 'The background behind today’s view.'
-      }
-    ]
+        description: 'The background behind today’s view.',
+      },
+    ],
   },
   {
     key: 'group:settings',
@@ -63,10 +63,10 @@ const CATEGORY_GROUPS = [
       {
         key: 'settings',
         title: 'Settings',
-        description: 'Language, mode, and personal preferences.'
-      }
-    ]
-  }
+        description: 'Language, mode, and personal preferences.',
+      },
+    ],
+  },
 ];
 
 function extendGroups(uiMode) {
@@ -80,11 +80,11 @@ function extendGroups(uiMode) {
             {
               key: 'advanced',
               title: 'Advanced',
-              description: 'Deeper research and system details.'
-            }
-          ]
+              description: 'Deeper research and system details.',
+            },
+          ],
         }
-      : group
+      : group,
   );
 }
 
@@ -112,7 +112,7 @@ export default function MoreTab({
   renderSection,
   investorDemoEnabled,
   onToggleDemo,
-  onOpenAbout
+  onOpenAbout,
 }) {
   const groups = extendGroups(uiMode);
   const currentGroup = groups.find((item) => item.key === section);
@@ -147,7 +147,9 @@ export default function MoreTab({
   if (section !== 'menu') {
     return (
       <section className="stack-gap more-detail-screen more-native-screen">
-        <p className="muted status-line more-detail-note">This stays in More so Today can stay focused on the decision itself.</p>
+        <p className="muted status-line more-detail-note">
+          This stays in More so Today can stay focused on the decision itself.
+        </p>
         {renderSection(section)}
       </section>
     );
@@ -216,7 +218,8 @@ export default function MoreTab({
           : engagement?.daily_check_state?.status === 'REFRESH_REQUIRED'
             ? 'Today’s view changed'
             : 'Morning check pending'}{' '}
-        · Check-in streak: {discipline?.checkinStreak || 0} days · Weekly review streak: {discipline?.weeklyStreak || 0} weeks
+        · Check-in streak: {discipline?.checkinStreak || 0} days · Weekly review streak:{' '}
+        {discipline?.weeklyStreak || 0} weeks
       </p>
     </section>
   );

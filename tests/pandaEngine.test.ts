@@ -4,7 +4,7 @@ import {
   PandaStrategyBase,
   RiskBucket,
   buildPandaAdaptiveDecision,
-  resolvePandaModelConfig
+  resolvePandaModelConfig,
 } from '../src/server/quant/pandaEngine.js';
 
 function buildBars(count: number, start = 100) {
@@ -30,7 +30,7 @@ function buildBars(count: number, start = 100) {
       high,
       low,
       close,
-      volume: 1000 + i * 4
+      volume: 1000 + i * 4,
     });
     px = close;
   }
@@ -41,7 +41,7 @@ describe('panda engine modules', () => {
   it('strategy base calculates factors and emits decision', () => {
     const strategy = new PandaStrategyBase({
       longSignalThreshold: 0.6,
-      shortSignalThreshold: 0.9
+      shortSignalThreshold: 0.9,
     });
     strategy.add_factor('trend_strength', (frame) => frame.close.map(() => 0.72));
     strategy.add_factor('reversal_score', (frame) => frame.close.map(() => 0.15));
@@ -50,7 +50,7 @@ describe('panda engine modules', () => {
       open: [1, 2, 3, 4],
       high: [1, 2, 3, 4],
       low: [1, 2, 3, 4],
-      volume: [10, 10, 10, 10]
+      volume: [10, 10, 10, 10],
     };
     const out = strategy.decision(frame);
     expect(out.signal).toBe(1);
@@ -72,14 +72,18 @@ describe('panda engine modules', () => {
     const learner = new PandaAutoLearner();
     const factors = {
       trend_strength: [0.1, 0.2, 0.3, 0.4, 0.45, 0.5],
-      reversal_score: [0.6, 0.55, 0.5, 0.45, 0.4, 0.35]
+      reversal_score: [0.6, 0.55, 0.5, 0.45, 0.4, 0.35],
     };
     const returns = [0.01, 0.015, 0.012, 0.02, 0.022, 0.025];
     const top = learner.select_top_factors(factors, returns, 1);
     expect(top.length).toBe(1);
     expect(typeof learner.factor_scores[top[0]]).toBe('number');
-    expect(learner.adaptive_param([-0.01, -0.02], resolvePandaModelConfig()).risk).toBeLessThan(0.02);
-    expect(learner.adaptive_param([0.01], resolvePandaModelConfig()).position).toBeGreaterThanOrEqual(0.3);
+    expect(learner.adaptive_param([-0.01, -0.02], resolvePandaModelConfig()).risk).toBeLessThan(
+      0.02,
+    );
+    expect(
+      learner.adaptive_param([0.01], resolvePandaModelConfig()).position,
+    ).toBeGreaterThanOrEqual(0.3);
   });
 
   it('builds adaptive decision with factor ranking and risk decision', () => {
@@ -95,8 +99,8 @@ describe('panda engine modules', () => {
         max_drawdown: 12,
         exposure_cap: 55,
         leverage_cap: 2,
-        updated_at_ms: Date.now()
-      }
+        updated_at_ms: Date.now(),
+      },
     });
     expect(out.profile.learningStatus).toBe('READY');
     expect(out.topFactors.length).toBeGreaterThan(0);

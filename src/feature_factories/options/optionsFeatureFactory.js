@@ -21,15 +21,20 @@ function buildChainTermMap(snapshots) {
 
     map[key] = {
       term_structure_proxy: farIv - nearIv,
-      skew_proxy: (callIv.length ? mean(callIv.map((row) => row.implied_volatility)) : 0) - (putIv.length ? mean(putIv.map((row) => row.implied_volatility)) : 0),
-      atm_iv_level: atm.length ? mean(atm.map((row) => row.implied_volatility)) : mean(rows.map((row) => row.implied_volatility)),
+      skew_proxy:
+        (callIv.length ? mean(callIv.map((row) => row.implied_volatility)) : 0) -
+        (putIv.length ? mean(putIv.map((row) => row.implied_volatility)) : 0),
+      atm_iv_level: atm.length
+        ? mean(atm.map((row) => row.implied_volatility))
+        : mean(rows.map((row) => row.implied_volatility)),
       chain_concentration: rows.length
         ? rows
-          .slice()
-          .sort((a, b) => b.open_interest - a.open_interest)
-          .slice(0, 5)
-          .reduce((sum, row) => sum + row.open_interest, 0) / rows.reduce((sum, row) => sum + row.open_interest, 0)
-        : 0
+            .slice()
+            .sort((a, b) => b.open_interest - a.open_interest)
+            .slice(0, 5)
+            .reduce((sum, row) => sum + row.open_interest, 0) /
+          rows.reduce((sum, row) => sum + row.open_interest, 0)
+        : 0,
     };
   }
   return map;
@@ -39,7 +44,7 @@ export function buildOptionFeatures(normalizedOptions) {
   const snapshots = normalizedOptions?.snapshots || [];
   const chains = normalizedOptions?.chains || [];
   const chainMap = Object.fromEntries(
-    chains.map((row) => [`${row.underlying_symbol}:${row.date}`, row.derived_chain_metrics || {}])
+    chains.map((row) => [`${row.underlying_symbol}:${row.date}`, row.derived_chain_metrics || {}]),
   );
   const chainTermMap = buildChainTermMap(snapshots);
   const groupedByContract = groupBy(snapshots, (row) => row.option_ticker);
@@ -81,13 +86,17 @@ export function buildOptionFeatures(normalizedOptions) {
         skew_proxy: Number((chainMetrics.call_put_iv_skew ?? chainTerm.skew_proxy ?? 0).toFixed(6)),
         term_structure_proxy: Number((chainTerm.term_structure_proxy ?? 0).toFixed(6)),
         bid_ask_spread_pct: Number(spreadPct.toFixed(6)),
-        chain_concentration: Number((chainMetrics.concentration_top5_oi ?? chainTerm.chain_concentration ?? 0).toFixed(6)),
+        chain_concentration: Number(
+          (chainMetrics.concentration_top5_oi ?? chainTerm.chain_concentration ?? 0).toFixed(6),
+        ),
         oi_volume_anomaly: Number((row.volume / avgVol10).toFixed(6)),
-        liquidity_score: Number(((row.open_interest + row.volume) / Math.max(1, spreadPct * 10000)).toFixed(6)),
+        liquidity_score: Number(
+          ((row.open_interest + row.volume) / Math.max(1, spreadPct * 10000)).toFixed(6),
+        ),
         underlying_rel_price: Number((row.mid / Math.max(1e-9, row.underlying_price)).toFixed(6)),
         underlying_price: row.underlying_price,
         mid_price: row.mid,
-        premium_momentum_3d: Number((row.mid / Math.max(1e-9, prevMid) - 1).toFixed(6))
+        premium_momentum_3d: Number((row.mid / Math.max(1e-9, prevMid) - 1).toFixed(6)),
       });
     }
   }
@@ -108,8 +117,8 @@ export function buildOptionFeatures(normalizedOptions) {
       'oi_volume_anomaly',
       'liquidity_score',
       'underlying_rel_price',
-      'premium_momentum_3d'
+      'premium_momentum_3d',
     ],
-    rows
+    rows,
   };
 }

@@ -20,7 +20,7 @@ function buildAlphaHealth(research) {
     summary: {
       total: rows.length,
       decaying: rows.filter((row) => row.health === 'decaying' || row.decay_flag).length,
-      improving: rows.filter((row) => row.health === 'improving').length
+      improving: rows.filter((row) => row.health === 'improving').length,
     },
     rows: rows.map((row) => ({
       alpha_id: row.alpha_id,
@@ -28,8 +28,8 @@ function buildAlphaHealth(research) {
       recent_contribution: safeNumber(row.recent_pnl_proxy),
       regime_fit_trend: row.health,
       utilization_rate: safeNumber(row.trigger_intensity),
-      crowding_proxy: row.correlation_cluster_tag || 'normal'
-    }))
+      crowding_proxy: row.correlation_cluster_tag || 'normal',
+    })),
   };
 }
 
@@ -45,20 +45,22 @@ function buildModelHealth(research) {
     recent_eval_drift: Number(drift.toFixed(6)),
     calibration_summary: {
       paper_vs_backtest_gap: safeNumber(gap.gap),
-      recent_safety_score: Number(recentSafety.toFixed(4))
+      recent_safety_score: Number(recentSafety.toFixed(4)),
     },
     training_freshness: {
       latest_snapshot_date: snapshots.at(-1)?.date || null,
-      snapshot_count: snapshots.length
+      snapshot_count: snapshots.length,
     },
     feature_stability: {
-      regime_transition_count: safeNumber(research?.diagnostics?.regime_stability?.regime_transitions),
-      regime_stability_score: safeNumber(research?.diagnostics?.regime_stability?.score)
+      regime_transition_count: safeNumber(
+        research?.diagnostics?.regime_stability?.regime_transitions,
+      ),
+      regime_stability_score: safeNumber(research?.diagnostics?.regime_stability?.score),
     },
     warning_flags: [
       ...(Math.abs(safeNumber(gap.gap)) > 0.03 ? ['paper_backtest_gap_wide'] : []),
-      ...(drift < -4 ? ['safety_score_drift_down'] : [])
-    ]
+      ...(drift < -4 ? ['safety_score_drift_down'] : []),
+    ],
   };
 }
 
@@ -71,12 +73,15 @@ function buildStrategyHealth(research) {
     concentration_summary: concentration,
     paper_consistency: {
       paper_vs_backtest_gap: safeNumber(research?.diagnostics?.paper_vs_backtest_gap?.gap),
-      status: Math.abs(safeNumber(research?.diagnostics?.paper_vs_backtest_gap?.gap)) <= 0.02 ? 'stable' : 'attention'
+      status:
+        Math.abs(safeNumber(research?.diagnostics?.paper_vs_backtest_gap?.gap)) <= 0.02
+          ? 'stable'
+          : 'attention',
     },
     promotion_readiness: {
       promotable_count: watchlist.filter((row) => row.promotable).length,
-      top_candidates: topN(watchlist, 3, (row) => safeNumber(row.delta_return))
-    }
+      top_candidates: topN(watchlist, 3, (row) => safeNumber(row.delta_return)),
+    },
   };
 }
 
@@ -89,21 +94,22 @@ function buildDataHealth(multiAsset) {
       asset_class: row.asset_class,
       stale: row.stale,
       age_hours: row.age_hours,
-      status: row.status
+      status: row.status,
     })),
-    coverage_gaps: Object.values(quality?.coverage_summary || {}).filter((row) => safeNumber(row.coverage_ratio) < 0.7),
-    null_spikes: Object.entries(quality?.missingness_summary || {})
-      .flatMap(([bucket, fields]) =>
-        Object.entries(fields || {})
-          .filter(([, val]) => safeNumber(val?.ratio) > 0.12)
-          .map(([field, val]) => ({
-            bucket,
-            field,
-            ratio: safeNumber(val?.ratio)
-          }))
-      ),
+    coverage_gaps: Object.values(quality?.coverage_summary || {}).filter(
+      (row) => safeNumber(row.coverage_ratio) < 0.7,
+    ),
+    null_spikes: Object.entries(quality?.missingness_summary || {}).flatMap(([bucket, fields]) =>
+      Object.entries(fields || {})
+        .filter(([, val]) => safeNumber(val?.ratio) > 0.12)
+        .map(([field, val]) => ({
+          bucket,
+          field,
+          ratio: safeNumber(val?.ratio),
+        })),
+    ),
     asset_class_warnings: (quality?.top_issues || []).slice(0, 8),
-    overall_status: quality?.overall_status || '--'
+    overall_status: quality?.overall_status || '--',
   };
 }
 
@@ -135,17 +141,19 @@ function weeklyReview(research, multiAsset, asOf) {
     interesting_challengers: topN(watchlist, 3, (row) => safeNumber(row.delta_return)),
     stale_datasets: staleDatasets,
     confidence_reduction_areas: [
-      ...(Math.abs(safeNumber(research?.diagnostics?.paper_vs_backtest_gap?.gap)) > 0.025 ? ['paper_backtest_tracking_error'] : []),
+      ...(Math.abs(safeNumber(research?.diagnostics?.paper_vs_backtest_gap?.gap)) > 0.025
+        ? ['paper_backtest_tracking_error']
+        : []),
       ...(staleDatasets.length ? ['dataset_freshness_risk'] : []),
-      ...(deteriorated.length ? ['recent_regime_or_risk_deterioration'] : [])
-    ]
+      ...(deteriorated.length ? ['recent_regime_or_risk_deterioration'] : []),
+    ],
   };
 }
 
 export function buildInternalResearchIntelligence({
   research = {},
   multiAsset = {},
-  asOf = new Date().toISOString()
+  asOf = new Date().toISOString(),
 } = {}) {
   const alphaHealth = buildAlphaHealth(research);
   const modelHealth = buildModelHealth(research);
@@ -159,6 +167,6 @@ export function buildInternalResearchIntelligence({
     model_health: modelHealth,
     strategy_health: strategyHealth,
     data_health: dataHealth,
-    weekly_system_review: weeklySystemReview
+    weekly_system_review: weeklySystemReview,
   };
 }

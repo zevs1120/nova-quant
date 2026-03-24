@@ -3,7 +3,9 @@
 ## Target layers
 
 ### 1) Data Layer
+
 Inputs:
+
 - OHLCV bars
 - corporate actions / splits / dividends
 - market regime features
@@ -12,12 +14,15 @@ Inputs:
 - execution cost models
 
 Outputs:
+
 - clean canonical feature tables
 - event tables
 - universe membership snapshots
 
 ### 2) Research Layer
+
 Modules:
+
 - feature registry
 - strategy template registry
 - candidate generator
@@ -26,7 +31,9 @@ Modules:
 - experiment tracker
 
 ### 3) Portfolio Decision Layer
+
 Modules:
+
 - regime classifier/state machine
 - signal scorer
 - conflict resolver
@@ -35,7 +42,9 @@ Modules:
 - action queue generator
 
 ### 4) Release / Governance Layer
+
 Lifecycle:
+
 - DRAFT
 - SHADOW
 - CANARY
@@ -44,7 +53,9 @@ Lifecycle:
 - RETIRE
 
 ### 5) Product Layer
+
 Surfaces:
+
 - opportunity cards
 - market regime card
 - risk guardrails
@@ -54,5 +65,6 @@ Surfaces:
 - performance / audit pages
 
 ## Design principle
+
 The user sees a simple plan.
 The system contains the complexity.

@@ -11,7 +11,7 @@ function makeSignal(overrides: Record<string, unknown> = {}) {
     timeframe: '4H',
     entry_min: 68000,
     entry_max: 69000,
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -21,7 +21,7 @@ function makeTrade(overrides: Record<string, unknown> = {}) {
     market: 'CRYPTO',
     symbol: 'BTC-USDT',
     entry: 68500,
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -31,8 +31,20 @@ const anchorTime = Date.now();
 
 describe('synthetic series generation', () => {
   it('produces deterministic output for same inputs', () => {
-    const r1 = runVelocityEngine({ signals: [makeSignal()], trades: [], velocitySeed: null, featureSeries: null, anchorTime });
-    const r2 = runVelocityEngine({ signals: [makeSignal()], trades: [], velocitySeed: null, featureSeries: null, anchorTime });
+    const r1 = runVelocityEngine({
+      signals: [makeSignal()],
+      trades: [],
+      velocitySeed: null,
+      featureSeries: null,
+      anchorTime,
+    });
+    const r2 = runVelocityEngine({
+      signals: [makeSignal()],
+      trades: [],
+      velocitySeed: null,
+      featureSeries: null,
+      anchorTime,
+    });
     // Same series should produce identical close prices
     const s1 = r1.series[0];
     const s2 = r2.series[0];
@@ -40,7 +52,13 @@ describe('synthetic series generation', () => {
   });
 
   it('all generated prices are positive', () => {
-    const result = runVelocityEngine({ signals: [makeSignal()], trades: [], velocitySeed: null, featureSeries: null, anchorTime });
+    const result = runVelocityEngine({
+      signals: [makeSignal()],
+      trades: [],
+      velocitySeed: null,
+      featureSeries: null,
+      anchorTime,
+    });
     for (const series of result.series) {
       expect(series.close.every((p: number) => p > 0)).toBe(true);
     }
@@ -52,7 +70,7 @@ describe('synthetic series generation', () => {
       trades: [],
       velocitySeed: null,
       featureSeries: null,
-      anchorTime
+      anchorTime,
     });
     const keys = Object.keys(result.series_index);
     expect(keys).toContain(getSeriesKey('CRYPTO', 'BTC-USDT', '4H'));
@@ -64,7 +82,13 @@ describe('synthetic series generation', () => {
 
 describe('velocity arrays', () => {
   it('output arrays match close array length', () => {
-    const result = runVelocityEngine({ signals: [makeSignal()], trades: [], velocitySeed: null, featureSeries: null, anchorTime });
+    const result = runVelocityEngine({
+      signals: [makeSignal()],
+      trades: [],
+      velocitySeed: null,
+      featureSeries: null,
+      anchorTime,
+    });
     for (const series of result.series) {
       const len = series.close.length;
       expect(series.velocity.v_norm.length).toBe(len);
@@ -76,7 +100,13 @@ describe('velocity arrays', () => {
   });
 
   it('percentile values are bounded between 0 and 1', () => {
-    const result = runVelocityEngine({ signals: [makeSignal()], trades: [], velocitySeed: null, featureSeries: null, anchorTime });
+    const result = runVelocityEngine({
+      signals: [makeSignal()],
+      trades: [],
+      velocitySeed: null,
+      featureSeries: null,
+      anchorTime,
+    });
     for (const series of result.series) {
       for (const p of series.velocity.percentile) {
         expect(p).toBeGreaterThanOrEqual(0);
@@ -86,14 +116,26 @@ describe('velocity arrays', () => {
   });
 
   it('acceleration first element is 0', () => {
-    const result = runVelocityEngine({ signals: [makeSignal()], trades: [], velocitySeed: null, featureSeries: null, anchorTime });
+    const result = runVelocityEngine({
+      signals: [makeSignal()],
+      trades: [],
+      velocitySeed: null,
+      featureSeries: null,
+      anchorTime,
+    });
     for (const series of result.series) {
       expect(series.velocity.acceleration[0]).toBe(0);
     }
   });
 
   it('trend_strength is clamped between 0 and 1', () => {
-    const result = runVelocityEngine({ signals: [makeSignal()], trades: [], velocitySeed: null, featureSeries: null, anchorTime });
+    const result = runVelocityEngine({
+      signals: [makeSignal()],
+      trades: [],
+      velocitySeed: null,
+      featureSeries: null,
+      anchorTime,
+    });
     for (const series of result.series) {
       for (const t of series.velocity.trend_strength) {
         expect(t).toBeGreaterThanOrEqual(0);
@@ -107,7 +149,13 @@ describe('velocity arrays', () => {
 
 describe('event study', () => {
   it('events have valid event types', () => {
-    const result = runVelocityEngine({ signals: [makeSignal()], trades: [], velocitySeed: null, featureSeries: null, anchorTime });
+    const result = runVelocityEngine({
+      signals: [makeSignal()],
+      trades: [],
+      velocitySeed: null,
+      featureSeries: null,
+      anchorTime,
+    });
     for (const series of result.series) {
       for (const event of series.event_study.events) {
         expect(['CROSS_ABOVE_90', 'CROSS_BELOW_10']).toContain(event.event_type);
@@ -116,7 +164,13 @@ describe('event study', () => {
   });
 
   it('events include forward returns for configured horizons', () => {
-    const result = runVelocityEngine({ signals: [makeSignal()], trades: [], velocitySeed: null, featureSeries: null, anchorTime });
+    const result = runVelocityEngine({
+      signals: [makeSignal()],
+      trades: [],
+      velocitySeed: null,
+      featureSeries: null,
+      anchorTime,
+    });
     for (const series of result.series) {
       for (const event of series.event_study.events) {
         // horizons = [1, 3, 7]
@@ -128,7 +182,13 @@ describe('event study', () => {
   });
 
   it('conditional_stats has both event types', () => {
-    const result = runVelocityEngine({ signals: [makeSignal()], trades: [], velocitySeed: null, featureSeries: null, anchorTime });
+    const result = runVelocityEngine({
+      signals: [makeSignal()],
+      trades: [],
+      velocitySeed: null,
+      featureSeries: null,
+      anchorTime,
+    });
     for (const series of result.series) {
       expect(series.event_study.conditional_stats.CROSS_ABOVE_90).toBeTruthy();
       expect(series.event_study.conditional_stats.CROSS_BELOW_10).toBeTruthy();
@@ -145,13 +205,19 @@ describe('primary key resolution', () => {
       trades: [],
       velocitySeed: null,
       featureSeries: null,
-      anchorTime
+      anchorTime,
     });
     expect(result.primary_key).toBe(getSeriesKey('CRYPTO', 'BTC-USDT', '4H'));
   });
 
   it('falls back gracefully with empty signals and trades', () => {
-    const result = runVelocityEngine({ signals: [], trades: [], velocitySeed: null, featureSeries: null, anchorTime });
+    const result = runVelocityEngine({
+      signals: [],
+      trades: [],
+      velocitySeed: null,
+      featureSeries: null,
+      anchorTime,
+    });
     // Still generates BTC-USDT and QQQ benchmark series
     expect(result.series.length).toBeGreaterThanOrEqual(2);
     expect(result.primary_key).toBe(getSeriesKey('CRYPTO', 'BTC-USDT', '4H'));
@@ -162,7 +228,13 @@ describe('primary key resolution', () => {
 
 describe('global stats aggregation', () => {
   it('global fields use primary series latest values', () => {
-    const result = runVelocityEngine({ signals: [makeSignal()], trades: [], velocitySeed: null, featureSeries: null, anchorTime });
+    const result = runVelocityEngine({
+      signals: [makeSignal()],
+      trades: [],
+      velocitySeed: null,
+      featureSeries: null,
+      anchorTime,
+    });
     expect(typeof result.global.current).toBe('number');
     expect(typeof result.global.percentile).toBe('number');
     expect(typeof result.global.acceleration).toBe('number');
@@ -172,7 +244,13 @@ describe('global stats aggregation', () => {
   });
 
   it('includes rule summaries in both languages', () => {
-    const result = runVelocityEngine({ signals: [makeSignal()], trades: [], velocitySeed: null, featureSeries: null, anchorTime });
+    const result = runVelocityEngine({
+      signals: [makeSignal()],
+      trades: [],
+      velocitySeed: null,
+      featureSeries: null,
+      anchorTime,
+    });
     expect(result.global.rule_summary_en).toBeTruthy();
     expect(result.global.rule_summary_zh).toBeTruthy();
     expect(result.global.how_used_en.length).toBeGreaterThan(0);
@@ -180,19 +258,21 @@ describe('global stats aggregation', () => {
   });
 
   it('uses custom featureSeries when provided', () => {
-    const customSeries = [{
-      market: 'US',
-      symbol: 'SPY',
-      timeframe: '1D',
-      dates: Array.from({ length: 120 }, (_, i) => `2026-01-${String(i + 1).padStart(2, '0')}`),
-      close: Array.from({ length: 120 }, (_, i) => 400 + i * 0.5 + Math.sin(i / 5) * 2)
-    }];
+    const customSeries = [
+      {
+        market: 'US',
+        symbol: 'SPY',
+        timeframe: '1D',
+        dates: Array.from({ length: 120 }, (_, i) => `2026-01-${String(i + 1).padStart(2, '0')}`),
+        close: Array.from({ length: 120 }, (_, i) => 400 + i * 0.5 + Math.sin(i / 5) * 2),
+      },
+    ];
     const result = runVelocityEngine({
       signals: [],
       trades: [],
       velocitySeed: null,
       featureSeries: customSeries,
-      anchorTime
+      anchorTime,
     });
     expect(result.series.length).toBe(1);
     expect(result.series[0].symbol).toBe('SPY');

@@ -21,11 +21,13 @@ describe('demoAssistant', () => {
       ...buildInvestorDemoEnvironment('US_STOCK'),
       user_context: {
         holdings_review: {
-          rows: [{ symbol: 'AAPL', system_status: 'supported' }]
-        }
-      }
+          rows: [{ symbol: 'AAPL', system_status: 'supported' }],
+        },
+      },
     };
-    const reply = buildDemoAssistantReply('What is my biggest holdings risk?', state, { page: 'holdings' });
+    const reply = buildDemoAssistantReply('What is my biggest holdings risk?', state, {
+      page: 'holdings',
+    });
 
     expect(reply).toContain('VERDICT:');
     expect(reply).toContain('AAPL');
@@ -34,7 +36,10 @@ describe('demoAssistant', () => {
 
   it('returns Chinese structured sections when the question is Chinese', () => {
     const state = buildInvestorDemoEnvironment('US_STOCK');
-    const reply = buildDemoAssistantReply('我今天该怎么做？', state, { page: 'today', locale: 'zh' });
+    const reply = buildDemoAssistantReply('我今天该怎么做？', state, {
+      page: 'today',
+      locale: 'zh',
+    });
 
     expect(reply).toContain('结论:');
     expect(reply).toContain('行动:');

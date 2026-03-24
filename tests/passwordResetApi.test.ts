@@ -7,7 +7,9 @@ import { getDb } from '../src/server/db/database.js';
 function resetAuthUser(email: string) {
   const db = getDb();
   ensureSchema(db);
-  const row = db.prepare('SELECT user_id FROM auth_users WHERE email = ? LIMIT 1').get(email) as { user_id?: string } | undefined;
+  const row = db.prepare('SELECT user_id FROM auth_users WHERE email = ? LIMIT 1').get(email) as
+    | { user_id?: string }
+    | undefined;
   if (!row?.user_id) return;
   db.prepare('DELETE FROM auth_password_resets WHERE user_id = ?').run(row.user_id);
   db.prepare('DELETE FROM auth_sessions WHERE user_id = ?').run(row.user_id);
@@ -49,7 +51,7 @@ describe('password reset api', () => {
       password: 'StrongPass123',
       name: 'Reset User',
       tradeMode: 'active',
-      broker: 'Other'
+      broker: 'Other',
     });
     expect(signup.status).toBe(200);
 
@@ -65,7 +67,7 @@ describe('password reset api', () => {
       password: 'StrongPass123',
       name: 'Reset User',
       tradeMode: 'active',
-      broker: 'Other'
+      broker: 'Other',
     });
     expect(signup.status).toBe(200);
 
@@ -74,8 +76,8 @@ describe('password reset api', () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ id: 'email_123' }), {
         status: 200,
-        headers: { 'content-type': 'application/json' }
-      })
+        headers: { 'content-type': 'application/json' },
+      }),
     );
     vi.stubGlobal('fetch', fetchMock);
 

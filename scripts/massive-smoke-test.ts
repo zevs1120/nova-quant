@@ -46,7 +46,7 @@ const RATE_DELAY_MS = 12_500; // 12.5s to stay within Basic tier (5 req/min)
 
 async function rateWait(label?: string) {
   if (label) console.log(`  ⏳ Rate limit pause (${RATE_DELAY_MS / 1000}s)... [before ${label}]`);
-  await new Promise(r => setTimeout(r, RATE_DELAY_MS));
+  await new Promise((r) => setTimeout(r, RATE_DELAY_MS));
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────
@@ -72,7 +72,7 @@ async function main() {
     baseUrl: 'https://api.massive.com',
     timeoutMs: 15000,
     retry: { attempts: 2, baseDelayMs: 1000 },
-    requestDelayMs: 0
+    requestDelayMs: 0,
   });
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -86,7 +86,9 @@ async function main() {
   const aaplBars = await fetchMassiveAggs(fetchParams('AAPL'));
   assert(aaplBars.length > 0, `AAPL returned ${aaplBars.length} bars`);
   if (aaplBars.length > 0) {
-    console.log(`     Sample: O=${aaplBars[0].open} H=${aaplBars[0].high} L=${aaplBars[0].low} C=${aaplBars[0].close}`);
+    console.log(
+      `     Sample: O=${aaplBars[0].open} H=${aaplBars[0].high} L=${aaplBars[0].low} C=${aaplBars[0].close}`,
+    );
   }
 
   await rateWait('SPY');
@@ -184,7 +186,11 @@ async function main() {
     }
 
     assert(sorted, `${label}: timestamps are strictly sorted ascending`);
-    assert(duplicates === 0, `${label}: no duplicate timestamps`, duplicates > 0 ? `${duplicates} dupes` : undefined);
+    assert(
+      duplicates === 0,
+      `${label}: no duplicate timestamps`,
+      duplicates > 0 ? `${duplicates} dupes` : undefined,
+    );
 
     // For daily bars: check gap between consecutive bars
     // Stocks: should be roughly 1 day (86400000ms) on trading days (gaps for weekends okay)
@@ -197,11 +203,11 @@ async function main() {
 
     const oneDayMs = 86400000;
     const maxExpectedGap = isCrypto ? 2 * oneDayMs : 4 * oneDayMs; // crypto 2d, stock 4d (holiday)
-    const hugeGaps = gaps.filter(g => g > maxExpectedGap);
+    const hugeGaps = gaps.filter((g) => g > maxExpectedGap);
     assert(
       hugeGaps.length === 0,
       `${label}: no unexpectedly large gaps (max tolerance: ${maxExpectedGap / oneDayMs}d)`,
-      hugeGaps.length > 0 ? `${hugeGaps.length} gap(s) exceed tolerance` : undefined
+      hugeGaps.length > 0 ? `${hugeGaps.length} gap(s) exceed tolerance` : undefined,
     );
   }
 
@@ -235,7 +241,11 @@ async function main() {
   // Persist AAPL
   if (aaplBars.length > 0) {
     const asset = repo.upsertAsset({
-      market: 'US', symbol: 'AAPL', venue: 'MASSIVE', quote: 'USD', status: 'ACTIVE'
+      market: 'US',
+      symbol: 'AAPL',
+      venue: 'MASSIVE',
+      quote: 'USD',
+      status: 'ACTIVE',
     });
     const normalized = normalizeBars(aaplBars);
     const written = repo.upsertOhlcvBars(asset.asset_id, '1d', normalized, 'MASSIVE');
@@ -243,7 +253,10 @@ async function main() {
 
     // Read back
     const readBack = repo.getOhlcv({ assetId: asset.asset_id, timeframe: '1d' });
-    assert(readBack.length === aaplBars.length, `AAPL: read back ${readBack.length} bars (expected ${aaplBars.length})`);
+    assert(
+      readBack.length === aaplBars.length,
+      `AAPL: read back ${readBack.length} bars (expected ${aaplBars.length})`,
+    );
     assert(readBack[0].source === 'MASSIVE', `AAPL: source is MASSIVE`);
 
     // Verify values match
@@ -253,7 +266,10 @@ async function main() {
     // getLatestTsOpen
     const latestTs = repo.getLatestTsOpen(asset.asset_id, '1d');
     const expectedLastTs = aaplBars[aaplBars.length - 1].ts_open;
-    assert(latestTs === expectedLastTs, `AAPL: latestTsOpen = ${latestTs} (expected ${expectedLastTs})`);
+    assert(
+      latestTs === expectedLastTs,
+      `AAPL: latestTsOpen = ${latestTs} (expected ${expectedLastTs})`,
+    );
 
     // getOhlcvStats
     const stats = repo.getOhlcvStats(asset.asset_id, '1d');
@@ -263,7 +279,12 @@ async function main() {
   // Persist BTC
   if (btcBars.length > 0) {
     const asset = repo.upsertAsset({
-      market: 'CRYPTO', symbol: 'BTCUSDT', venue: 'MASSIVE', base: 'BTC', quote: 'USD', status: 'ACTIVE'
+      market: 'CRYPTO',
+      symbol: 'BTCUSDT',
+      venue: 'MASSIVE',
+      base: 'BTC',
+      quote: 'USD',
+      status: 'ACTIVE',
     });
     const normalized = normalizeBars(btcBars);
     repo.upsertOhlcvBars(asset.asset_id, '1d', normalized, 'MASSIVE');
@@ -279,7 +300,10 @@ async function main() {
     const normalized = normalizeBars(aaplBars);
     repo.upsertOhlcvBars(asset.asset_id, '1d', normalized, 'MASSIVE');
     const stats = repo.getOhlcvStats(asset.asset_id, '1d');
-    assert(stats.bar_count === aaplBars.length, `AAPL idempotency: still ${stats.bar_count} bars after re-ingest`);
+    assert(
+      stats.bar_count === aaplBars.length,
+      `AAPL idempotency: still ${stats.bar_count} bars after re-ingest`,
+    );
   }
 
   // ═══════════════════════════════════════════════════════════════════════

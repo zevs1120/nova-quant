@@ -17,19 +17,19 @@ describe('execution drift monitor', () => {
           replay_entry_event: {
             triggered: true,
             entry_time: '2026-03-01T15:00:00.000Z',
-            entry_price: 100
+            entry_price: 100,
           },
           replay_exit_event: {
             exit_type: 'take_profit',
-            exit_time: '2026-03-03T15:00:00.000Z'
+            exit_time: '2026-03-03T15:00:00.000Z',
           },
           realized_holding_duration: { days: 2 },
           realized_pnl_pct: 0.015,
           slippage_assumption_used: {
             volatility_bucket: 'normal',
             session_state: 'regular',
-            liquidity_bucket: 'normal'
-          }
+            liquidity_bucket: 'normal',
+          },
         },
         {
           signal_id: 'SIG-2',
@@ -42,21 +42,21 @@ describe('execution drift monitor', () => {
           replay_entry_event: {
             triggered: true,
             entry_time: '2026-03-02T15:00:00.000Z',
-            entry_price: 200
+            entry_price: 200,
           },
           replay_exit_event: {
             exit_type: 'stop_loss',
-            exit_time: '2026-03-03T15:00:00.000Z'
+            exit_time: '2026-03-03T15:00:00.000Z',
           },
           realized_holding_duration: { days: 1 },
           realized_pnl_pct: -0.01,
           slippage_assumption_used: {
             volatility_bucket: 'high',
             session_state: 'opening_auction',
-            liquidity_bucket: 'thin'
-          }
-        }
-      ]
+            liquidity_bucket: 'thin',
+          },
+        },
+      ],
     };
 
     const trades = [
@@ -70,7 +70,7 @@ describe('execution drift monitor', () => {
         exit: 101.25,
         pnl_pct: 1.3,
         time_in: '2026-03-01T15:08:00.000Z',
-        time_out: '2026-03-03T14:40:00.000Z'
+        time_out: '2026-03-03T14:40:00.000Z',
       },
       {
         signal_id: 'SIG-2',
@@ -82,14 +82,14 @@ describe('execution drift monitor', () => {
         exit: 209.5,
         pnl_pct: -4.2,
         time_in: '2026-03-02T16:20:00.000Z',
-        time_out: '2026-03-03T18:00:00.000Z'
-      }
+        time_out: '2026-03-03T18:00:00.000Z',
+      },
     ];
 
     const monitor = buildExecutionDriftMonitor({
       asOf: '2026-03-10T00:00:00.000Z',
       replayValidation,
-      trades
+      trades,
     });
 
     expect(monitor.summary.matched_trade_count).toBe(2);

@@ -19,7 +19,7 @@ export default function SignalDetail({
   onAskAi,
   onPaperExecute,
   t,
-  backLabel = 'Back'
+  backLabel = 'Back',
 }) {
   const [copied, setCopied] = useState(false);
   const isZh = String(locale || '').startsWith('zh');
@@ -33,28 +33,29 @@ export default function SignalDetail({
       : [signal.take_profit].filter((value) => value !== null && value !== undefined);
 
   const orderText = useMemo(
-    () => [
-      `symbol: ${signal.symbol}`,
-      `asset_class: ${signal.asset_class || (signal.market === 'CRYPTO' ? 'CRYPTO' : 'US_STOCK')}`,
-      `market: ${signal.market}`,
-      `strategy_id: ${signal.strategy_id ?? '--'}`,
-      `timeframe: ${signal.timeframe ?? '--'}`,
-      `regime_id: ${signal.regime_id ?? '--'}`,
-      `side: ${signal.direction}`,
-      `entry: ${formatNumber(entryMin)} - ${formatNumber(entryMax)}`,
-      `invalidation: ${formatNumber(signal.invalidation_level ?? stopLossPrice)}`,
-      `SL: ${formatNumber(stopLossPrice)}`,
-      `TP_levels: ${takeProfitLevels.map((level) => formatNumber(level)).join(' | ')}`,
-      `trailing_rule: ${JSON.stringify(signal.trailing_rule ?? {})}`,
-      `size: ${(signal.position_pct ?? signal.position_size_pct) ?? '--'}%`,
-      `expected_R: ${signal.expected_R ?? '--'}`,
-      `hit_rate_est: ${signal.hit_rate_est ?? '--'}`,
-      `cost_estimate_bps: ${signal.cost_estimate?.total_bps ?? '--'}`,
-      `validity: ${signal.validity}`,
-      `signal_id: ${signal.signal_id}`,
-      `model_version: ${signal.model_version}`
-    ].join('\n'),
-    [signal, entryMin, entryMax, takeProfitLevels, stopLossPrice]
+    () =>
+      [
+        `symbol: ${signal.symbol}`,
+        `asset_class: ${signal.asset_class || (signal.market === 'CRYPTO' ? 'CRYPTO' : 'US_STOCK')}`,
+        `market: ${signal.market}`,
+        `strategy_id: ${signal.strategy_id ?? '--'}`,
+        `timeframe: ${signal.timeframe ?? '--'}`,
+        `regime_id: ${signal.regime_id ?? '--'}`,
+        `side: ${signal.direction}`,
+        `entry: ${formatNumber(entryMin)} - ${formatNumber(entryMax)}`,
+        `invalidation: ${formatNumber(signal.invalidation_level ?? stopLossPrice)}`,
+        `SL: ${formatNumber(stopLossPrice)}`,
+        `TP_levels: ${takeProfitLevels.map((level) => formatNumber(level)).join(' | ')}`,
+        `trailing_rule: ${JSON.stringify(signal.trailing_rule ?? {})}`,
+        `size: ${signal.position_pct ?? signal.position_size_pct ?? '--'}%`,
+        `expected_R: ${signal.expected_R ?? '--'}`,
+        `hit_rate_est: ${signal.hit_rate_est ?? '--'}`,
+        `cost_estimate_bps: ${signal.cost_estimate?.total_bps ?? '--'}`,
+        `validity: ${signal.validity}`,
+        `signal_id: ${signal.signal_id}`,
+        `model_version: ${signal.model_version}`,
+      ].join('\n'),
+    [signal, entryMin, entryMax, takeProfitLevels, stopLossPrice],
   );
 
   const shareUrl = `${window.location.origin}${window.location.pathname}?signal_id=${signal.signal_id}`;
@@ -75,7 +76,7 @@ export default function SignalDetail({
         await navigator.share({
           title: t('signals.shareTitle', { symbol: signal.symbol }),
           text: orderText,
-          url: shareUrl
+          url: shareUrl,
         });
         return;
       } catch {
@@ -95,7 +96,12 @@ export default function SignalDetail({
   return (
     <section className="detail-screen">
       <div className="detail-nav-bar">
-        <button type="button" className="ios-nav-back detail-nav-back" onClick={onBack} aria-label={`Back to ${backLabel}`}>
+        <button
+          type="button"
+          className="ios-nav-back detail-nav-back"
+          onClick={onBack}
+          aria-label={`Back to ${backLabel}`}
+        >
           <span className="ios-back-chevron" aria-hidden="true">
             ‹
           </span>
@@ -120,7 +126,9 @@ export default function SignalDetail({
               · {t(`direction.${signal.direction}`, undefined, signal.direction)}
             </p>
           </div>
-          <div className={`badge badge-${signal.status.toLowerCase()}`}>{t(`status.${signal.status}`, undefined, signal.status)}</div>
+          <div className={`badge badge-${signal.status.toLowerCase()}`}>
+            {t(`status.${signal.status}`, undefined, signal.status)}
+          </div>
         </div>
 
         <div className="detail-list">
@@ -128,13 +136,21 @@ export default function SignalDetail({
             [t('signals.entryZone'), `${formatNumber(entryMin)} - ${formatNumber(entryMax)}`],
             [t('signals.stopLoss'), formatNumber(stopLossPrice)],
             [t('signals.takeProfit'), formatNumber(signal.take_profit)],
-            ['Confidence', Number.isFinite(Number(signal.confidence ?? signal.conviction)) ? `${Math.round(Number(signal.confidence ?? signal.conviction) * 100)}%` : '--'],
+            [
+              'Confidence',
+              Number.isFinite(Number(signal.confidence ?? signal.conviction))
+                ? `${Math.round(Number(signal.confidence ?? signal.conviction) * 100)}%`
+                : '--',
+            ],
             ['Generated', signal.generated_at || signal.created_at || '--'],
             ['Strategy Source', signal.strategy_source || 'AI quant strategy'],
-            [t('signals.positionSize'), t('signals.positionSizeValue', { value: signal.position_size_pct })],
+            [
+              t('signals.positionSize'),
+              t('signals.positionSizeValue', { value: signal.position_size_pct }),
+            ],
             [t('signals.validity'), t(`validity.${signal.validity}`, undefined, signal.validity)],
             [t('signals.modelVersion'), signal.model_version],
-            [t('signals.signalId'), signal.signal_id]
+            [t('signals.signalId'), signal.signal_id],
           ].map(([label, value]) => infoRow(label, value))}
         </div>
       </article>
@@ -147,7 +163,7 @@ export default function SignalDetail({
               ['Underlying', signal.payload.data?.underlying?.symbol || '--'],
               ['Contract', signal.payload.data?.option_contract?.contract_symbol || '--'],
               ['DTE', signal.payload.data?.option_contract?.dte ?? '--'],
-              ['Delta', signal.payload.data?.greeks_iv?.delta ?? '--']
+              ['Delta', signal.payload.data?.greeks_iv?.delta ?? '--'],
             ].map(([label, value]) => infoRow(label, value))}
           </div>
         </article>
@@ -156,7 +172,9 @@ export default function SignalDetail({
       {signal.payload?.kind === 'STOCK_SWING' ? (
         <article className="glass-card">
           <h3 className="card-title">{t('signals.stockHorizon')}</h3>
-          <div className="detail-list">{infoRow('Horizon', signal.payload.data?.horizon || '--')}</div>
+          <div className="detail-list">
+            {infoRow('Horizon', signal.payload.data?.horizon || '--')}
+          </div>
         </article>
       ) : null}
 
@@ -167,7 +185,7 @@ export default function SignalDetail({
             {[
               ['Funding', signal.payload.data?.perp_metrics?.funding_rate_current ?? '--'],
               ['Basis(bps)', signal.payload.data?.perp_metrics?.basis_bps ?? '--'],
-              ['Basis %ile', signal.payload.data?.perp_metrics?.basis_percentile ?? '--']
+              ['Basis %ile', signal.payload.data?.perp_metrics?.basis_percentile ?? '--'],
             ].map(([label, value]) => infoRow(label, value))}
           </div>
         </article>

@@ -1,5 +1,16 @@
 export function downloadCsv(filename, rows) {
-  const header = ['time_in', 'time_out', 'market', 'symbol', 'side', 'entry', 'exit', 'pnl_pct', 'fees', 'signal_id'];
+  const header = [
+    'time_in',
+    'time_out',
+    'market',
+    'symbol',
+    'side',
+    'entry',
+    'exit',
+    'pnl_pct',
+    'fees',
+    'signal_id',
+  ];
   const csv = [
     header.join(','),
     ...rows.map((row) =>
@@ -9,8 +20,8 @@ export function downloadCsv(filename, rows) {
           const value = String(raw).replace(/"/g, '""');
           return `"${value}"`;
         })
-        .join(',')
-    )
+        .join(','),
+    ),
   ].join('\n');
 
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });

@@ -10,7 +10,8 @@ function syntheticForwardPath(signalId, score, reason) {
   const seed = deterministicHash(`${signalId}|${reason}`);
   const noise = ((seed % 997) / 996) * 2 - 1;
   const edge = normalizeScore(score) - 0.5;
-  const reasonPenalty = reason === 'regime_blocked' ? -0.002 : reason === 'risk_budget_exhausted' ? 0.001 : 0;
+  const reasonPenalty =
+    reason === 'regime_blocked' ? -0.002 : reason === 'risk_budget_exhausted' ? 0.001 : 0;
 
   const r1 = clamp(edge * 0.022 + noise * 0.01 + reasonPenalty, -0.12, 0.12);
   const r2 = clamp(r1 * 1.28 + noise * 0.007 + reasonPenalty * 0.6, -0.16, 0.16);
@@ -22,12 +23,16 @@ function syntheticForwardPath(signalId, score, reason) {
     forward_2: round(r2, 4),
     forward_3: round(r3, 4),
     forward_5: round(r5, 4),
-    max_drawdown_proxy: round(Math.min(0, r1, r2, r3, r5), 4)
+    max_drawdown_proxy: round(Math.min(0, r1, r2, r3, r5), 4),
   };
 }
 
 function reducedSizeWouldPass(reason) {
-  return reason === 'risk_budget_exhausted' || reason === 'correlation_conflict' || reason === 'policy_filtered';
+  return (
+    reason === 'risk_budget_exhausted' ||
+    reason === 'correlation_conflict' ||
+    reason === 'policy_filtered'
+  );
 }
 
 function replayForwardPath(signalId, replayValidation = {}) {
@@ -39,8 +44,10 @@ function replayForwardPath(signalId, replayValidation = {}) {
     forward_2: Number(fwd.forward_2 ?? 0),
     forward_3: Number(fwd.forward_3 ?? 0),
     forward_5: Number(fwd.forward_5 ?? 0),
-    max_drawdown_proxy: Number(fwd.max_drawdown_proxy ?? row?.drawdown_summary?.max_drawdown_pct ?? 0),
-    source: fwd.source || 'historical_bar_replay'
+    max_drawdown_proxy: Number(
+      fwd.max_drawdown_proxy ?? row?.drawdown_summary?.max_drawdown_pct ?? 0,
+    ),
+    source: fwd.source || 'historical_bar_replay',
   };
 }
 
@@ -49,7 +56,7 @@ export function buildShadowOpportunityLog({
   funnelRecords = [],
   signals = [],
   tradeLevelBuckets = [],
-  replayValidation = {}
+  replayValidation = {},
 } = {}) {
   const signalById = new Map((signals || []).map((item) => [item.signal_id, item]));
   const bucketById = new Map((tradeLevelBuckets || []).map((row) => [row.signal_id, row]));
@@ -60,11 +67,14 @@ export function buildShadowOpportunityLog({
       const signal = signalById.get(record.signal_id) || {};
       const bucket = bucketById.get(record.signal_id) || {};
       const replayPath = replayForwardPath(record.signal_id, replayValidation);
-      const path = replayPath || syntheticForwardPath(record.signal_id, signal.score, record.no_trade_reason);
+      const path =
+        replayPath || syntheticForwardPath(record.signal_id, signal.score, record.no_trade_reason);
       const wouldImprovePortfolio = path.forward_3 > 0.008 || path.forward_5 > 0.012;
       const overStrict =
         wouldImprovePortfolio &&
-        ['score_too_low', 'risk_budget_exhausted', 'correlation_conflict'].includes(record.no_trade_reason);
+        ['score_too_low', 'risk_budget_exhausted', 'correlation_conflict'].includes(
+          record.no_trade_reason,
+        );
 
       return {
         shadow_id: `SHADOW-${String(index + 1).padStart(3, '0')}`,
@@ -80,13 +90,15 @@ export function buildShadowOpportunityLog({
         forward_performance: path,
         drawdown_profile: {
           max_drawdown_proxy: path.max_drawdown_proxy,
-          downside_flag: path.max_drawdown_proxy <= -0.05 ? 'elevated' : 'contained'
+          downside_flag: path.max_drawdown_proxy <= -0.05 ? 'elevated' : 'contained',
         },
         would_improve_portfolio_performance: wouldImprovePortfolio,
-        would_improve_risk_adjusted_performance: wouldImprovePortfolio && path.max_drawdown_proxy >= -0.035,
+        would_improve_risk_adjusted_performance:
+          wouldImprovePortfolio && path.max_drawdown_proxy >= -0.035,
         threshold_over_strictness_flag: overStrict,
         supporting_decision: bucket.decision || 'blocked',
-        forward_path_source: path.source || (replayPath ? 'historical_bar_replay' : 'synthetic_proxy')
+        forward_path_source:
+          path.source || (replayPath ? 'historical_bar_replay' : 'synthetic_proxy'),
       };
     })
     .sort((a, b) => b.signal_score - a.signal_score)
@@ -115,7 +127,7 @@ export function buildShadowOpportunityLog({
         strategy_template: item.strategy_template,
         filter_reason: item.filter_reason,
         forward_3: item.forward_performance.forward_3,
-        forward_5: item.forward_performance.forward_5
+        forward_5: item.forward_performance.forward_5,
       })),
     under_traded_family_regime_matrix: Array.from(underTradedCombo.entries())
       .map(([key, count]) => {
@@ -124,11 +136,11 @@ export function buildShadowOpportunityLog({
           strategy_family,
           regime,
           filter_reason,
-          count
+          count,
         };
       })
       .sort((a, b) => b.count - a.count)
       .slice(0, 12),
-    records: rows
+    records: rows,
   };
 }

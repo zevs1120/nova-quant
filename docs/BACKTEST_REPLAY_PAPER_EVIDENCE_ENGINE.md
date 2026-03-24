@@ -20,12 +20,14 @@ The goal is traceability and realism, not vanity metrics.
 ## 2) Canonical vs Experimental Paths
 
 ### Canonical path (production-intended evidence source)
+
 - `src/server/evidence/engine.ts`
 - run type: `portfolio_replay`
 - event-ordered bar replay with explicit execution profile assumptions
 - writes registry rows (`backtest_runs`, `backtest_metrics`, `signal_snapshots`, `backtest_artifacts`, `replay_paper_reconciliation`)
 
 ### Experimental paths (non-canonical)
+
 - legacy model-only portfolio simulation / synthetic proxy research outputs
 - still usable for ideation, but not treated as formal evidence
 - should be clearly marked `EXPERIMENTAL` or `MODEL_DERIVED`
@@ -33,6 +35,7 @@ The goal is traceability and realism, not vanity metrics.
 ## 3) Core Evidence Entities
 
 Implemented in SQLite schema:
+
 - `strategy_versions`
 - `dataset_versions`
 - `universe_snapshots`
@@ -50,6 +53,7 @@ This allows a signal or strategy claim to be traced to dataset/version/config/ex
 ## 4) Versioning Semantics
 
 Every canonical evidence run records:
+
 - `dataset_version_id`
 - `strategy_version_id` (champion/challenger context)
 - `universe_version_id`
@@ -62,6 +66,7 @@ Versioning is metadata-first (hash + pointers), not full immutable warehouse sna
 ## 5) Replay and Portfolio Logic
 
 Canonical replay includes:
+
 - signal entry trigger checks
 - fill-policy assumptions (`touch`, `bar_cross`, `conservative`)
 - slippage/spread/fee/funding effects via execution profile
@@ -74,6 +79,7 @@ If sample is insufficient, metrics are withheld (`WITHHELD`) instead of fabricat
 ## 6) Replay vs Paper Reconciliation
 
 `replay_paper_reconciliation` quantifies divergence per signal/trade group:
+
 - expected vs paper fill
 - expected vs paper pnl
 - expected vs actual hold period
@@ -89,6 +95,7 @@ No paper data means explicit unavailable status, never synthetic substitution.
 ## 7) Evidence APIs
 
 New API views:
+
 - `POST /api/evidence/run`
 - `GET /api/evidence/signals/top`
 - `GET /api/evidence/signals/:id`
@@ -102,6 +109,7 @@ These are DB-backed and expose transparency fields.
 ## 8) Honesty / Degradation Rules
 
 When conditions are weak:
+
 - insufficient bars/samples -> `INSUFFICIENT_DATA` or `WITHHELD`
 - no paper fills -> `PAPER_DATA_UNAVAILABLE`
 - connector not configured -> `DISCONNECTED` / `NO_CREDENTIALS`
@@ -126,4 +134,3 @@ curl -X POST http://127.0.0.1:8787/api/evidence/run \
   -H "Content-Type: application/json" \
   -d '{"userId":"guest-default","market":"US","assetClass":"US_STOCK","timeframe":"1d","maxSignals":120}'
 ```
-

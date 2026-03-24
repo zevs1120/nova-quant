@@ -3,11 +3,13 @@
 Last updated: 2026-03-08 (Asia/Shanghai)
 
 ## Scope
+
 This audit reviews the post-migration repository state with focus on backend/research/paper-trading continuity and governance readiness.
 
 ## Audit Results
 
 ### 1) Directory structure clarity / migration leftovers
+
 - Status: `partial`
 - Findings:
   - Core app/runtime code is split across `src/quant/*`, `src/research/*`, `src/server/*`, `src/engines/*`.
@@ -17,6 +19,7 @@ This audit reviews the post-migration repository state with focus on backend/res
   - Architectural intent and runtime reality can drift.
 
 ### 2) Data sources / schema / types / services duplication
+
 - Status: `partial`
 - Findings:
   - There are two major signal/data pipelines:
@@ -28,6 +31,7 @@ This audit reviews the post-migration repository state with focus on backend/res
   - Type drift and semantic mismatch between UI, research, and API outputs.
 
 ### 3) sample / simulated / real boundary
+
 - Status: `mostly_clear`
 - Findings:
   - Many modules explicitly label `sample/simulated/live_not_available`.
@@ -37,6 +41,7 @@ This audit reviews the post-migration repository state with focus on backend/res
   - Label semantics can drift as modules expand.
 
 ### 4) paper / backtest / live separation
+
 - Status: `mostly_clear`
 - Findings:
   - Proof layer clearly separates backtest/paper/live.
@@ -46,6 +51,7 @@ This audit reviews the post-migration repository state with focus on backend/res
   - Paper operational traceability not yet first-class enough for sustained governance.
 
 ### 5) Multi-asset shared foundation
+
 - Status: `good_base`
 - Findings:
   - Unified adapter -> normalizer -> feature factory -> dataset builder flow exists for equity/options/crypto.
@@ -55,6 +61,7 @@ This audit reviews the post-migration repository state with focus on backend/res
   - Dataset governance metadata (registry, feature/label manifests with quality semantics) is still thin.
 
 ### 6) Alpha / model / portfolio / risk / experiment object consistency
+
 - Status: `partial`
 - Findings:
   - Alpha history, challenger comparisons, diagnostics, and experiments exist.
@@ -63,6 +70,7 @@ This audit reviews the post-migration repository state with focus on backend/res
   - Governance logic can become brittle as strategies/models increase.
 
 ### 7) Training set / feature / label / eval traceability
+
 - Status: `partial`
 - Findings:
   - Dataset generation exists and includes split/date range.
@@ -71,6 +79,7 @@ This audit reviews the post-migration repository state with focus on backend/res
   - Hard to compare datasets over time and audit training provenance.
 
 ### 8) UI exists but backend object mismatch
+
 - Status: `yes`
 - Findings:
   - Some frontend pages read from quant runtime objects; server APIs use separate TS contracts.
@@ -79,6 +88,7 @@ This audit reviews the post-migration repository state with focus on backend/res
   - Product behavior may differ by entrypoint and confuse debugging.
 
 ### 9) Naming confusion / type drift / duplicated fields / state distortion
+
 - Status: `yes`
 - Findings:
   - Stage/status values vary (`promoted`, `candidate`, `testing`, plus model-related stage wording in docs).
@@ -88,12 +98,14 @@ This audit reviews the post-migration repository state with focus on backend/res
   - Governance decisions may not be comparable across components.
 
 ### 10) Highest leverage fixes for this cycle
+
 - Status: `identified`
 - Priority list below.
 
 ## Priority Fix List (This Implementation Cycle)
 
 ### P0 (must do now)
+
 1. Introduce canonical backend governance constants:
    - stage/state taxonomy
    - data provenance labels
@@ -114,16 +126,19 @@ This audit reviews the post-migration repository state with focus on backend/res
    - paper vs backtest gap diagnostics with explicit causes.
 
 ### P1 (within same cycle if feasible)
+
 1. Add model health / strategy health / weekly system review objects.
 2. Wire all new objects into research outputs so UI/AI/internal diagnostics can consume them directly.
 3. Align docs terminology with code taxonomy.
 
 ### P2 (deferred)
+
 1. Merge duplicated runtime pipelines into a single execution backbone.
 2. Replace heuristic correlation/risk components with return-matrix based models.
 3. Full live broker integration and production-grade execution lifecycle.
 
 ## Success Criteria for This Cycle
+
 - All new governance outputs are real runtime objects (not doc-only placeholders).
 - Training, registry, evaluation, paper ops, and monitoring outputs are traceable by ID and timestamp.
 - Existing frontend behavior remains stable while output layer becomes more governable.
@@ -131,6 +146,7 @@ This audit reviews the post-migration repository state with focus on backend/res
 ## Implementation Status (2026-03-08)
 
 ### Completed in this cycle
+
 - Added canonical taxonomy and normalization utilities:
   - `src/research/governance/taxonomy.js`
 - Added training data governance objects:
@@ -159,6 +175,7 @@ This audit reviews the post-migration repository state with focus on backend/res
   - output `data/snapshots/backend-governance.sample.json`
 
 ### Current cycle result against priority list
+
 - P0: done
 - P1: done
 - P2: intentionally deferred (kept out of this iteration)

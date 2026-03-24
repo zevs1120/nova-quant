@@ -7,6 +7,7 @@ Last updated: 2026-03-23 (Asia/Shanghai)
 Nova Quant is an AI-native quant decision platform for US equities and crypto.
 
 Mission:
+
 - reduce emotional trading,
 - improve execution discipline,
 - provide explainable action plans and risk-aware no-trade decisions.
@@ -14,11 +15,13 @@ Mission:
 ## 2) Product Positioning
 
 Nova Quant is not:
+
 - an auto-trading black box,
 - a signal spam feed,
 - a chart terminal clone.
 
 Nova Quant is:
+
 - a structured decision OS with auditable research logic.
 
 ## 3) Current Architecture Reality
@@ -28,16 +31,19 @@ Core runtime remains in `src/` and is orchestrated by `src/engines/pipeline.js`.
 Production deploy is split across `app/`, `server/`, `admin/`, and `model/` (see root `README.md` and `docs/REPOSITORY_OVERVIEW.md`). **Local development** still typically uses the **root** `package.json` (`npm run dev` → API + Vite).
 
 Current canonical product AI path:
+
 - `AiPage` / Ask Nova / Chat sheet now share one backend assistant path via `/api/chat`
 - chat threads persist in SQLite (`chat_threads`, `chat_messages`)
 - deterministic retrieval is no longer a separate frontend AI brain; it is now a backend fallback/tool
 - provider fallback now covers timeout/network/malformed/empty/rate-limit style failures, not only 429
 
 Current engineering reproducibility baseline:
+
 - package scripts now include `clean`, `lint`, `test`, and `verify`
 - repo handoff policy now excludes local runtime artifacts through `.gitignore`, `.npmignore`, `.gitattributes`, and `package:source`
 
 Current engagement layer now includes:
+
 - backend-grounded Morning Check state
 - discipline / habit state
 - calm notification candidates
@@ -51,6 +57,7 @@ Current engagement layer now includes:
   - more expressive widget/notification spark lines
 
 Research core now includes:
+
 - strategy family registry
 - strategy discovery engine (hypothesis -> template -> candidate -> validation -> scoring -> promotion)
 - research materials foundation (official-source digest, universe seeds, hypothesis/template/question libraries, market playbooks, weekly feed template)
@@ -69,6 +76,7 @@ Research core now includes:
 - research automation loop
 
 Primary module entry:
+
 - `src/research/core/researchCoreUpgrade.js`
 
 ## 4) Research Core Status (Current Session)
@@ -127,11 +135,13 @@ Canonical status vocabulary now used across runtime, evidence, connectors, and a
 ## 8) Archived Global Review Package (2026-03-08)
 
 Historical full-system external-review package was archived under:
+
 - `docs/archive/global_review_2026-03-09/`
 
 These files are retained for traceability and do not represent the current canonical runtime state.
 
 Review conclusion snapshot:
+
 - Nova Quant is best classified as a credible early AI-native quant research platform with usable product UX.
 - Core architecture is strong and modular, but realism depth remains the main maturity bottleneck.
 - Highest-priority risks remain synthetic validation paths, simplified cost/fill realism, and lightweight governance sign-off workflow.
@@ -139,6 +149,7 @@ Review conclusion snapshot:
 ## 9) Historical Replay Validation Upgrade (2026-03-09)
 
 Highest-priority credibility upgrade completed:
+
 - Added real bar-sequence replay module:
   - `src/research/validation/historicalReplayValidation.js`
 - Replay now produces event-ordered signal lifecycle objects:
@@ -152,6 +163,7 @@ Highest-priority credibility upgrade completed:
   - trigger status.
 
 Integration completed:
+
 1. `walkForwardValidation` now builds and exposes `replay_validation`.
 2. Champion walk-forward can consume replay-backed daily series.
 3. `shadowOpportunityLog` now prefers replay-derived forward outcomes; synthetic fallback remains.
@@ -159,6 +171,7 @@ Integration completed:
 5. Evidence summary now includes replay validation summary and replay context passthrough.
 
 Current replay reality:
+
 - Champion stream has replay-backed validation coverage.
 - Challenger streams still partially rely on legacy backtest daily series.
 - Bar-level replay is implemented; tick/queue-level realism is still absent.
@@ -166,15 +179,18 @@ Current replay reality:
 ## 10) Execution Realism Hardening Upgrade (2026-03-09)
 
 Highest-priority credibility upgrade #2 completed:
+
 - Added structured execution realism module:
   - `src/research/validation/executionRealismModel.js`
 
 Execution realism is now profile-based:
+
 1. `exec-realism.replay.v2`
 2. `exec-realism.backtest.v2`
 3. `exec-realism.paper.v2`
 
 Profiles include:
+
 - fee schedule,
 - volatility-bucketed slippage,
 - volatility-bucketed spread,
@@ -182,6 +198,7 @@ Profiles include:
 - explicit fill-policy defaults.
 
 Cross-system wiring completed:
+
 1. Replay (`historicalReplayValidation.v2`) now carries assumption profile and scenario sensitivity.
 2. Walk-forward now uses scenario-based realism stress and emits `survives_after_harsh_execution`.
 3. Candidate validation now uses profile-based cost drag + scenario stress in robustness stage.
@@ -190,10 +207,12 @@ Cross-system wiring completed:
 6. Governance confidence now includes harsh-execution survivability signal.
 
 New docs:
+
 - `docs/EXECUTION_REALISM_MODEL.md`
 - `docs/COST_AND_FILL_SENSITIVITY.md`
 
 Current realism position:
+
 - No longer static fee/slippage constants.
 - Still bar-level and assumption-based (no queue/tick execution path).
 - Venue-calibrated historical fill/slippage data integration remains pending.
@@ -203,9 +222,11 @@ Current realism position:
 Governance is now enforced as a structured workflow, not only stage labels.
 
 Lifecycle standardized:
+
 - `DRAFT -> SHADOW -> CANARY -> PROD -> RETIRED`
 
 Key upgrades:
+
 1. `strategyGovernanceV2` now applies required gate checks per stage (evidence + validation + monitoring).
 2. Governance outputs now include typed decision objects:
    - PromotionDecision
@@ -233,6 +254,7 @@ Key upgrades:
    - next_eligible_action
 
 Primary new governance docs:
+
 - `docs/GOVERNANCE_WORKFLOW.md`
 - `docs/STRATEGY_PROMOTION_CRITERIA.md`
 - `docs/STRATEGY_REVIEW_MEMO_TEMPLATE.md`
@@ -248,16 +270,18 @@ Key upgrades:
 Key reality changes:
 
 1. The product now has a single canonical assistant path.
+
 - `AiPage`
 - `Ask Nova`
 - `ChatAssistant`
-all route through `/api/chat` and share the same backend thread/memory/tooling service.
+  all route through `/api/chat` and share the same backend thread/memory/tooling service.
 
 ## 14) AI-Native Research Assistant Upgrade (2026-03-14)
 
 Nova Assistant is now able to operate as a quant research assistant, not only as a page/signal explainer.
 
 New research primitives:
+
 - factor taxonomy registry
 - factor metadata cards
 - regime taxonomy registry
@@ -267,6 +291,7 @@ New research primitives:
 - research doctrine summary layer
 
 New assistant research capabilities:
+
 - explain why a signal exists using supporting/opposing factors
 - explain why there is currently no signal
 - compare factor behavior by regime
@@ -279,21 +304,27 @@ New assistant research capabilities:
 Nova Quant now has a first-class decision layer between runtime signals and the homepage.
 
 Key reality changes:
+
 1. The system now distinguishes:
+
 - research signal
 - eligible signal
 - risk-adjusted decision
 - portfolio-aware action
 - user-facing action card
+
 2. Risk state is now an explicit upper-layer adjudicator rather than only a display label.
 3. Personalized decision snapshots are persisted in `decision_snapshots`.
 4. Assistant grounding now includes:
+
 - decision summary
 - holdings summary
 - ranked action evidence
+
 5. Homepage action cards can now be driven by backend-ranked decision objects instead of only local signal ranking.
 
 Current honest limits:
+
 - event intelligence is partially derived from runtime state and not yet backed by full earnings/macro calendar ingestion
 - user holdings personalization is frontend-supplied context, not live broker-linked state
 - generate strategy evaluation report objects
@@ -302,15 +333,18 @@ Current honest limits:
 - propose next-step research workflow plans
 
 Canonical research tool layer now lives in:
+
 - `src/server/research/knowledge.ts`
 - `src/server/research/tools.ts`
 
 Canonical assistant orchestration now includes research mode:
+
 - `general-coach`
 - `context-aware`
 - `research-assistant`
 
 Important honesty boundary:
+
 - factor definitions and interactions may come from taxonomy knowledge,
 - but measured factor-level performance is only stated as measured evidence when actual runtime/backtest artifacts exist.
 
@@ -319,6 +353,7 @@ Important honesty boundary:
 Nova now carries an explicit cross-asset research doctrine instead of leaving research philosophy implicit.
 
 Key doctrine points now wired into knowledge + assistant:
+
 - commodity futures are the intended lead research expansion track
 - current runtime support still honestly centers on US equities, options, and crypto
 - economically grounded factors are preferred over retail technical indicators
@@ -327,22 +362,26 @@ Key doctrine points now wired into knowledge + assistant:
 - no fabricated live capability, no simulated-as-real phrasing, no unrealistic backtest shortcuts
 
 Canonical files:
+
 - `docs/QUANT_RESEARCH_DOCTRINE.md`
 - `src/server/research/knowledge.ts`
 - `src/server/research/tools.ts`
 
 2. Thread persistence is now first-class.
+
 - chat threads persist in SQLite via:
   - `chat_threads`
   - `chat_messages`
 - page refresh no longer destroys the recent conversation state.
 
 3. Deterministic retrieval is no longer a second frontend AI brain.
+
 - It remains available only as:
   - a backend evidence selection tool
   - a deterministic fallback answer source when providers fail
 
 4. Provider fallback is now broader and audit-friendlier.
+
 - fallback now handles:
   - timeout
   - network failure
@@ -351,6 +390,7 @@ Canonical files:
   - rate limit / quota
 
 5. Engineering reproducibility baseline improved.
+
 - canonical scripts now include:
   - `clean`
   - `lint`
@@ -364,9 +404,11 @@ Canonical files:
   - runtime databases and journal files
 
 6. Canonical docs now describe the new assistant architecture:
+
 - `docs/NOVA_ASSISTANT_ARCHITECTURE.md`
 - `docs/SYSTEM_ARCHITECTURE.md`
 - `docs/TECHNICAL_DUE_DILIGENCE_GUIDE.md`
+
 1. Added runtime seed loader:
    - `src/research/discovery/seedRuntime.js`
 2. Discovery now consumes runtime seed assets:
@@ -393,10 +435,12 @@ Canonical files:
    - mapping failures and rejection counters
 
 New docs:
+
 - `docs/DISCOVERY_ENGINE_RUNTIME.md`
 - `docs/SEED_TO_CANDIDATE_FLOW.md`
 
 Remaining gaps:
+
 1. Doctrine/checklist seeds are loaded and referenced, but policy enforcement is still partial.
 2. Candidate validation remains simulation-heavy compared with generation layer realism progress.
 
@@ -405,6 +449,7 @@ Remaining gaps:
 Reliability moved from mostly unit/smoke checks to deterministic adversarial scenario testing.
 
 New reliability layer:
+
 1. Scenario pack seed:
    - `data/reference_seeds/reliability_scenario_pack.json`
 2. Runtime scenario loader:
@@ -418,25 +463,31 @@ New reliability layer:
    - `docs/research_reports/RELIABILITY_STRESS_REPORT.json`
 
 Expanded tests:
+
 - `tests/reliabilityStressFramework.test.ts`
 - `tests/reliabilityCoverage.test.ts`
 
 Reliability docs added:
+
 - `docs/TESTING_AND_STRESS_FRAMEWORK.md`
 - `docs/SCENARIO_PACKS.md`
 
 Current stress signal (latest report):
+
 - Resilient under: elevated volatility, risk-off, concentrated exposure, high slippage, discovery starvation, degraded candidate quality gates.
 - Weak under: poor-fill realism monotonicity, governance demotion depth under poor fills, fake-diversification/crowding in portfolio layer.
 
 ## 14) A-minus Re-evaluation Phase Update (2026-03-09)
 
 Highest-leverage hardening completed in this phase:
+
 1. **Validation consistency fix**
+
 - Patched `src/research/core/walkForwardValidation.js` to restore strict-fill monotonicity path stability (regression fix for missing `safe()` helper).
 - Kept strict-fill monotonicity as explicit validation and governance signal.
 
 2. **Portfolio anti-crowding hardening**
+
 - Added family crowding guard in `src/portfolio_simulation/portfolioSimulationEngine.js`.
 - Allocation now includes family cap derived from risk bucket correlation budget.
 - Output now exposes crowding diagnostics:
@@ -446,10 +497,12 @@ Highest-leverage hardening completed in this phase:
   - residual cash buffer.
 
 3. **Reliability stress framework alignment**
+
 - Fixed governance decision counting under poor-fill stress to use typed decision objects.
 - Updated crowding scenario checks to validate guard enforcement + residual correlation pressure.
 
 4. **Credibility package refresh**
+
 - Added final re-evaluation package (now archived) under `docs/archive/final_review_2026-03-09/`:
   - `01_FINAL_EXECUTIVE_VERDICT.md`
   - `02_LAYER_BY_LAYER_RATINGS.md`
@@ -458,6 +511,7 @@ Highest-leverage hardening completed in this phase:
   - `05_FINAL_NEXT_STEPS.md`
 
 Current final-position snapshot:
+
 - Tests: 49/49 passing.
 - Reliability scenarios: 8/8 resilient in latest stress report.
 - Remaining bottleneck: empirical validation breadth (replay coverage + OOS survivability), not architecture shape.
@@ -467,42 +521,53 @@ Current final-position snapshot:
 This phase shifted runtime truth from mock/demo defaults to DB-backed derivation and honest degradation.
 
 Implemented:
+
 1. Runtime derivation module added:
+
 - `src/server/quant/runtimeDerivation.ts`
 - Derives market state, rule-based signals, performance snapshots, freshness/coverage summaries from DB bars/executions.
 
 2. Quant sync path changed:
+
 - `src/server/quant/service.ts` `ensureQuantData(...)` now uses runtime derivation path.
 - Default runtime dependency on `public/mock/*` removed from quant sync flow.
 
 3. API-first runtime state:
+
 - Added `/api/runtime-state` in `src/server/api/app.ts`.
 - Added `/api/executions` GET and `/api/risk-profile` POST.
 - `src/server/api/queries.ts` now emits runtime transparency and status metadata.
 
 4. Chat tool de-mock:
+
 - `src/server/chat/tools.ts` now uses shared query/runtime services only.
 - Runtime mock fallback reads were removed.
 - Chat context now includes `sourceTransparency`.
 
 5. Connector honesty hardening:
+
 - `src/server/connect/adapters.ts` now defaults to disconnected/null-state snapshots.
 - No fake balances/positions in default runtime behavior.
 
 6. Frontend runtime path:
+
 - `src/App.jsx` now loads primary state from `/api/*`.
 - Local `runQuantPipeline` path retained only for explicit demo mode (`VITE_DEMO_MODE=1`).
 
 7. Ingestion reproducibility hardening:
+
 - Stooq ingestion now supports configured symbol whitelist to avoid default bulk over-ingestion.
 
 8. New run script:
+
 - `npm run derive:runtime` via `scripts/derive-runtime-state.ts`.
 
 9. Status semantics now emphasized in runtime:
+
 - `DB_BACKED`, `REALIZED`, `PAPER_ONLY`, `BACKTEST_ONLY`, `MODEL_DERIVED`, `EXPERIMENTAL`, `DISCONNECTED`, `INSUFFICIENT_DATA`, `DEMO_ONLY`.
 
 10. Docs and tests updated for DD posture:
+
 - Added runbook and lineage docs.
 - Added API/connect/chat/runtime derivation coverage tests.
 
@@ -511,6 +576,7 @@ Implemented:
 Focused cleanup completed (no feature expansion):
 
 1. Runtime cache isolation
+
 - `ensureQuantData(...)` cache is now keyed by:
   - `userId`
   - `riskProfileKey`
@@ -522,6 +588,7 @@ Focused cleanup completed (no feature expansion):
 - Added cache-isolation tests in `tests/cacheIsolation.test.ts`.
 
 2. Status semantics unification
+
 - Added centralized status module: `src/server/runtimeStatus.ts`.
 - Unified `source_status` / `data_status` / `source_label` behavior across:
   - `src/server/quant/runtimeDerivation.ts`
@@ -531,6 +598,7 @@ Focused cleanup completed (no feature expansion):
 - Connector credential failures now report `data_status: NO_CREDENTIALS` while keeping source provenance explicit.
 
 3. Packaging hygiene and clean source delivery
+
 - Hardened `.gitignore` and added `.gitattributes` export-ignore rules.
 - Added repeatable clean package script:
   - `scripts/package-source.mjs`
@@ -538,6 +606,7 @@ Focused cleanup completed (no feature expansion):
 - Added packaging test: `tests/packageSourceScript.test.ts`.
 
 4. Historical review archive cleanup
+
 - Moved old review sets to:
   - `docs/archive/global_review_2026-03-09/`
   - `docs/archive/final_review_2026-03-09/`
@@ -545,6 +614,7 @@ Focused cleanup completed (no feature expansion):
 - Added archive consistency test: `tests/docArchiveConsistency.test.ts`.
 
 5. Demo naming residue cleanup
+
 - Migrated UI persistence keys from `quant-demo-*` to `nova-quant-*`.
 - Added backward-compatible localStorage migration logic in `src/hooks/useLocalStorage.js`.
 - Added migration tests in `tests/localStorageMigration.test.ts`.
@@ -561,10 +631,12 @@ Focused cleanup completed (no feature expansion):
 ## 18) Unified Backtest / Replay / Paper Evidence Engine (2026-03-12)
 
 1. Added canonical evidence orchestration module:
+
 - `src/server/evidence/engine.ts`
 - Canonical run path: `portfolio_replay` (bar/event replay + execution profile assumptions + artifacts + reconciliation).
 
 2. Added evidence-chain persistence entities in SQLite:
+
 - `strategy_versions`
 - `dataset_versions`
 - `universe_snapshots`
@@ -578,6 +650,7 @@ Focused cleanup completed (no feature expansion):
 - `experiment_registry`
 
 3. Added evidence API surface:
+
 - `POST /api/evidence/run`
 - `GET /api/evidence/signals/top`
 - `GET /api/evidence/signals/:id`
@@ -587,10 +660,12 @@ Focused cleanup completed (no feature expansion):
 - `GET /api/evidence/strategies/champion`
 
 4. Added reproducible execution entrypoint:
+
 - `scripts/run-evidence.ts`
 - `npm run evidence:run`
 
 5. Frontend Today Top Signals now consumes evidence output when available:
+
 - `src/App.jsx` loads `/api/evidence/signals/top` alongside `/api/signals`.
 - `src/components/TodayTab.jsx` merges evidence records with runtime signals and surfaces:
   - supporting run id
@@ -598,6 +673,7 @@ Focused cleanup completed (no feature expansion):
   - evidence freshness/transparency
 
 6. Honesty posture preserved:
+
 - low sample -> `WITHHELD`
 - no paper fills -> `PAPER_DATA_UNAVAILABLE`
 - no silent fallback to synthetic canonical metrics.
@@ -607,6 +683,7 @@ Focused cleanup completed (no feature expansion):
 Integrated Panda AI core modules into backend runtime derivation without frontend contract changes.
 
 1. New backend module:
+
 - `src/server/quant/pandaEngine.ts`
 - Includes:
   - `PandaStrategyBase`
@@ -615,6 +692,7 @@ Integrated Panda AI core modules into backend runtime derivation without fronten
   - `buildPandaAdaptiveDecision(...)` orchestration
 
 2. Runtime integration point:
+
 - `src/server/quant/runtimeDerivation.ts`
 - For each asset with sufficient bars:
   - computes Panda factor rankings
@@ -623,16 +701,19 @@ Integrated Panda AI core modules into backend runtime derivation without fronten
   - enforces risk-bucket trade allowance in signal generation path
 
 3. Self-improvement behavior now active in runtime:
+
 - auto factor scoring (`correlation`-based)
 - top factor selection
 - adaptive risk/position parameter tuning from recent performance
 - strategy confidence/position optimization with Panda alignment/disagreement handling
 
 4. Frontend safety:
+
 - No frontend API contract was removed or broken.
 - Existing signal object shape is preserved; only additional metadata tags/checklist lines are added.
 
 5. Tests added:
+
 - `tests/pandaEngine.test.ts`
 - `tests/runtimeDerivation.test.ts` now validates auto-learning tags are present when signals exist.
 
@@ -641,16 +722,19 @@ Integrated Panda AI core modules into backend runtime derivation without fronten
 Nova Quant now has a first measured factor evaluation layer on top of the existing research taxonomy.
 
 1. New module:
+
 - `src/server/research/factorMeasurements.ts`
 - Computes cross-sectional measured diagnostics from current OHLCV coverage for supported factors.
 
 2. Currently measured factors:
+
 - `momentum`
 - `low_vol`
 - `reversal`
 - `seasonality`
 
 3. Current measured outputs:
+
 - IC
 - rank IC
 - quantile spread
@@ -659,11 +743,13 @@ Nova Quant now has a first measured factor evaluation layer on top of the existi
 - regime-conditioned breakdown
 
 4. Honesty boundary:
+
 - factors that require fundamentals / alt data / term structure remain `knowledge_only`
 - this includes current `value`, `quality`, `carry`, `breadth`, `size`, `sentiment`, `revision`, `liquidity`
 - assistant must explicitly separate taxonomy knowledge from measured evidence
 
 5. Assistant context quality improved:
+
 - factor/signal-specific research tools are now prioritized before generic research tools
 - fixed prior truncation issue where factor tools could be dropped by `slice(0, 8)`
 - 2026-03-15: NovaQuant now has a shared copy/persona operating system in `src/copy/novaCopySystem.js`.

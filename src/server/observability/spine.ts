@@ -17,7 +17,7 @@ export function recordAuditEvent(
     entityType: string;
     entityId?: string | null;
     payload: Record<string, unknown>;
-  }
+  },
 ): void {
   repo.insertAuditEvent({
     trace_id: args.traceId,
@@ -27,7 +27,7 @@ export function recordAuditEvent(
     entity_type: args.entityType,
     entity_id: args.entityId ?? null,
     payload_json: JSON.stringify(args.payload),
-    created_at_ms: Date.now()
+    created_at_ms: Date.now(),
   });
 }
 
@@ -41,7 +41,7 @@ function readChatAuditSummary() {
         FROM chat_audit_logs
         GROUP BY provider, status
         ORDER BY count DESC
-      `
+      `,
     )
     .all() as Array<{ provider: string; status: string; count: number }>;
   return rows;
@@ -55,21 +55,27 @@ export function buildObservabilitySummary(repo: MarketRepository) {
   return {
     structured_logging: {
       trace_id_required: true,
-      correlation_keys: ['trace_id', 'user_id', 'decision_snapshot_id', 'thread_id', 'workflow_run_id'],
-      note: 'Decision, workflow, and LLM flows now have an explicit trace spine.'
+      correlation_keys: [
+        'trace_id',
+        'user_id',
+        'decision_snapshot_id',
+        'thread_id',
+        'workflow_run_id',
+      ],
+      note: 'Decision, workflow, and LLM flows now have an explicit trace spine.',
     },
     audit_events: {
       total_recent: audits.length,
       scopes: [...new Set(audits.map((row) => row.scope))],
-      entity_types: [...new Set(audits.map((row) => row.entity_type))]
+      entity_types: [...new Set(audits.map((row) => row.entity_type))],
     },
     llm_traces: {
       provider_status_matrix: chatAudit,
-      note: 'LLM traces remain lightweight but auditable through chat_audit_logs plus prompt/model registries.'
+      note: 'LLM traces remain lightweight but auditable through chat_audit_logs plus prompt/model registries.',
     },
     workflow_trace_correlation: {
       traced_runs: workflowRuns.filter((row) => Boolean(row.trace_id)).length,
-      total_runs: workflowRuns.length
+      total_runs: workflowRuns.length,
     },
     metrics_catalog: [
       'api_latency_ms',
@@ -77,7 +83,7 @@ export function buildObservabilitySummary(repo: MarketRepository) {
       'decision_snapshot_generation_count',
       'cache_hit_ratio',
       'eval_quality_score',
-      'workflow_retry_count'
-    ]
+      'workflow_retry_count',
+    ],
   };
 }

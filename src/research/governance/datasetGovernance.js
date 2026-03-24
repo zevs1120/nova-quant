@@ -14,7 +14,7 @@ const FEATURE_GROUP_RULES = [
   { prefix: 'term_', group: 'term_structure' },
   { prefix: 'oi_', group: 'liquidity' },
   { prefix: 'premium_', group: 'premium_dynamics' },
-  { prefix: 'underlying_', group: 'underlying_linkage' }
+  { prefix: 'underlying_', group: 'underlying_linkage' },
 ];
 
 const LABEL_MANIFEST_RULES = {
@@ -23,22 +23,22 @@ const LABEL_MANIFEST_RULES = {
     horizon: '5d',
     cutoff_rule: 'labels use t+5 close, same-day features at market close',
     timestamp_alignment: 'US_TRADING_DAY_EOD',
-    calendar_mode: MARKET_TIME_MODE.US_TRADING_DAY
+    calendar_mode: MARKET_TIME_MODE.US_TRADING_DAY,
   },
   option: {
     task: 'option_premium_direction_and_alignment',
     horizon: '3d',
     cutoff_rule: 'labels use t+3 option mid and underlying move alignment',
     timestamp_alignment: 'US_TRADING_DAY_EOD',
-    calendar_mode: MARKET_TIME_MODE.US_TRADING_DAY
+    calendar_mode: MARKET_TIME_MODE.US_TRADING_DAY,
   },
   crypto: {
     task: 'spot_direction_rank_24_7',
     horizon: '3d',
     cutoff_rule: 'labels use rolling 24/7 bars with t+3 horizon',
     timestamp_alignment: 'CRYPTO_24_7_DAILY_CUTOFF',
-    calendar_mode: MARKET_TIME_MODE.CRYPTO_24_7
-  }
+    calendar_mode: MARKET_TIME_MODE.CRYPTO_24_7,
+  },
 };
 
 function safeNumber(value, fallback = 0) {
@@ -64,7 +64,7 @@ function expectedRange(values) {
   if (!nums.length) return null;
   return {
     min: Number(Math.min(...nums).toFixed(6)),
-    max: Number(Math.max(...nums).toFixed(6))
+    max: Number(Math.max(...nums).toFixed(6)),
   };
 }
 
@@ -76,27 +76,27 @@ function deriveFeatureManifest(rows, featureSetName, sourceSummary, asOf) {
     }
   }
 
-  return [...featureKeySet]
-    .sort()
-    .map((featureName) => {
-      const values = rows.map((row) => row.features?.[featureName]);
-      const missing = values.filter((item) => item === null || item === undefined || item === '').length;
-      const range = expectedRange(values);
-      const isLeakageSensitive = featureName.includes('future_') || featureName.includes('_label');
+  return [...featureKeySet].sort().map((featureName) => {
+    const values = rows.map((row) => row.features?.[featureName]);
+    const missing = values.filter(
+      (item) => item === null || item === undefined || item === '',
+    ).length;
+    const range = expectedRange(values);
+    const isLeakageSensitive = featureName.includes('future_') || featureName.includes('_label');
 
-      return {
-        manifest_id: registryId('feature', featureSetName, featureName),
-        feature_name: featureName,
-        feature_group: inferFeatureGroup(featureName),
-        source: sourceSummary,
-        derivation_logic: `Derived by feature factory ${featureSetName} from normalized rows.`,
-        null_ratio: safeRatio(missing, values.length || 1),
-        expected_range: range,
-        train_safe: !isLeakageSensitive,
-        leakage_sensitive: isLeakageSensitive,
-        observed_at: asOf
-      };
-    });
+    return {
+      manifest_id: registryId('feature', featureSetName, featureName),
+      feature_name: featureName,
+      feature_group: inferFeatureGroup(featureName),
+      source: sourceSummary,
+      derivation_logic: `Derived by feature factory ${featureSetName} from normalized rows.`,
+      null_ratio: safeRatio(missing, values.length || 1),
+      expected_range: range,
+      train_safe: !isLeakageSensitive,
+      leakage_sensitive: isLeakageSensitive,
+      observed_at: asOf,
+    };
+  });
 }
 
 function labelDistribution(values) {
@@ -111,7 +111,7 @@ function labelDistribution(values) {
     .map(([label, count]) => ({
       label,
       count,
-      ratio: safeRatio(count, total)
+      ratio: safeRatio(count, total),
     }));
 }
 
@@ -121,7 +121,7 @@ function deriveLabelManifest(dataset, rows, asOf) {
     horizon: '--',
     cutoff_rule: '--',
     timestamp_alignment: '--',
-    calendar_mode: MARKET_TIME_MODE.US_TRADING_DAY
+    calendar_mode: MARKET_TIME_MODE.US_TRADING_DAY,
   };
 
   const labelKeys = new Set();
@@ -131,23 +131,21 @@ function deriveLabelManifest(dataset, rows, asOf) {
     }
   }
 
-  const labels = [...labelKeys]
-    .sort()
-    .map((labelName) => {
-      const values = rows.map((row) => row.labels?.[labelName]);
-      const numeric = values.map((item) => Number(item)).filter((n) => Number.isFinite(n));
-      return {
-        label_name: labelName,
-        distribution: labelDistribution(values),
-        numeric_summary: numeric.length
-          ? {
-              mean: Number((numeric.reduce((sum, n) => sum + n, 0) / numeric.length).toFixed(6)),
-              min: Number(Math.min(...numeric).toFixed(6)),
-              max: Number(Math.max(...numeric).toFixed(6))
-            }
-          : null
-      };
-    });
+  const labels = [...labelKeys].sort().map((labelName) => {
+    const values = rows.map((row) => row.labels?.[labelName]);
+    const numeric = values.map((item) => Number(item)).filter((n) => Number.isFinite(n));
+    return {
+      label_name: labelName,
+      distribution: labelDistribution(values),
+      numeric_summary: numeric.length
+        ? {
+            mean: Number((numeric.reduce((sum, n) => sum + n, 0) / numeric.length).toFixed(6)),
+            min: Number(Math.min(...numeric).toFixed(6)),
+            max: Number(Math.max(...numeric).toFixed(6)),
+          }
+        : null,
+    };
+  });
 
   return {
     manifest_id: registryId('label', dataset.asset_class, dataset.feature_set_name),
@@ -161,7 +159,7 @@ function deriveLabelManifest(dataset, rows, asOf) {
     timestamp_alignment: rule.timestamp_alignment,
     calendar_mode: rule.calendar_mode,
     labels,
-    created_at: asOf
+    created_at: asOf,
   };
 }
 
@@ -180,10 +178,16 @@ function suspiciousAnomalies({ dataset, rows, qualityReport }) {
     anomalies.push('split_train_or_test_empty');
   }
 
-  const staleHit = (qualityReport?.stale_data_detection || []).find((row) => row.asset_class === dataset.asset_class && row.stale);
+  const staleHit = (qualityReport?.stale_data_detection || []).find(
+    (row) => row.asset_class === dataset.asset_class && row.stale,
+  );
   if (staleHit) anomalies.push('stale_source_detected');
 
-  const schemaIssue = (qualityReport?.schema_validation || []).find((row) => String(row.schema || '').toLowerCase().includes(dataset.asset_class));
+  const schemaIssue = (qualityReport?.schema_validation || []).find((row) =>
+    String(row.schema || '')
+      .toLowerCase()
+      .includes(dataset.asset_class),
+  );
   if (schemaIssue?.invalid_ratio > 0.02) {
     anomalies.push('schema_invalid_ratio_high');
   }
@@ -197,7 +201,7 @@ function classBalanceSummary(labelManifest) {
     if (!item.distribution?.length) continue;
     summaries.push({
       label_name: item.label_name,
-      top_classes: item.distribution.slice(0, 5)
+      top_classes: item.distribution.slice(0, 5),
     });
   }
   return summaries;
@@ -205,7 +209,12 @@ function classBalanceSummary(labelManifest) {
 
 function buildDatasetRegistryEntry(dataset, sourceSummary, qualityReport, labelManifest, asOf) {
   return {
-    registry_id: registryId('dataset', dataset.asset_class, dataset.feature_set_name, dataset.dataset_id),
+    registry_id: registryId(
+      'dataset',
+      dataset.asset_class,
+      dataset.feature_set_name,
+      dataset.dataset_id,
+    ),
     dataset_id: dataset.dataset_id,
     asset_class: dataset.asset_class,
     feature_set_name: dataset.feature_set_name,
@@ -214,28 +223,39 @@ function buildDatasetRegistryEntry(dataset, sourceSummary, qualityReport, labelM
     date_range: dataset.date_range,
     split_strategy: dataset.split_strategy || splitStrategy(dataset.split),
     created_at: dataset.created_at || asOf,
-    version: dataset.version || `${dataset.feature_set_name}@${String(dataset.dataset_id).slice(-10)}`,
+    version:
+      dataset.version || `${dataset.feature_set_name}@${String(dataset.dataset_id).slice(-10)}`,
     status: dataset.status || ENTITY_STAGE.PAPER,
     notes: dataset.use_notes || 'Training dataset registry entry.',
     quality_status: qualityReport?.overall_status || '--',
-    calendar_mode: labelManifest.calendar_mode
+    calendar_mode: labelManifest.calendar_mode,
   };
 }
 
 function buildDatasetSnapshot(dataset, rows, qualityReport, labelManifest, asOf) {
   return {
-    snapshot_id: registryId('dataset_snapshot', dataset.asset_class, dataset.dataset_id, asOf.slice(0, 10)),
+    snapshot_id: registryId(
+      'dataset_snapshot',
+      dataset.asset_class,
+      dataset.dataset_id,
+      asOf.slice(0, 10),
+    ),
     dataset_id: dataset.dataset_id,
     asset_class: dataset.asset_class,
     feature_set_name: dataset.feature_set_name,
     coverage_summary: qualityReport?.coverage_summary?.[dataset.asset_class] || null,
-    missingness_summary: qualityReport?.missingness_summary?.[`${dataset.asset_class}_bars`] || qualityReport?.missingness_summary || null,
+    missingness_summary:
+      qualityReport?.missingness_summary?.[`${dataset.asset_class}_bars`] ||
+      qualityReport?.missingness_summary ||
+      null,
     class_balance: classBalanceSummary(labelManifest),
     label_distribution: labelManifest.labels || [],
-    stale_data_detection: (qualityReport?.stale_data_detection || []).filter((item) => item.asset_class === dataset.asset_class),
+    stale_data_detection: (qualityReport?.stale_data_detection || []).filter(
+      (item) => item.asset_class === dataset.asset_class,
+    ),
     suspicious_anomalies: suspiciousAnomalies({ dataset, rows, qualityReport }),
     last_refresh_time: asOf,
-    row_count: rows.length
+    row_count: rows.length,
   };
 }
 
@@ -245,7 +265,7 @@ export function buildDatasetGovernance({
   datasetRows = {},
   featureManifests = {},
   sourceSummary = {},
-  qualityReport = {}
+  qualityReport = {},
 } = {}) {
   const registry = [];
   const detailedFeatureManifests = {};
@@ -261,10 +281,16 @@ export function buildDatasetGovernance({
       rows,
       featureSetName,
       sourceSummary[assetClass] || sourceSummary,
-      asOf
+      asOf,
     );
     const labelManifest = deriveLabelManifest(dataset, rows, asOf);
-    const registryEntry = buildDatasetRegistryEntry(dataset, sourceSummary, qualityReport, labelManifest, asOf);
+    const registryEntry = buildDatasetRegistryEntry(
+      dataset,
+      sourceSummary,
+      qualityReport,
+      labelManifest,
+      asOf,
+    );
     const snapshot = buildDatasetSnapshot(dataset, rows, qualityReport, labelManifest, asOf);
 
     registry.push(registryEntry);
@@ -278,9 +304,9 @@ export function buildDatasetGovernance({
     registry,
     feature_manifests: {
       simple: featureManifests,
-      detailed: detailedFeatureManifests
+      detailed: detailedFeatureManifests,
     },
     label_manifests: labelManifests,
-    snapshots
+    snapshots,
   };
 }

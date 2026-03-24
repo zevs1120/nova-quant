@@ -9,7 +9,7 @@ const REQUIRED_FIELDS = Object.freeze({
     'split_strategy',
     'created_at',
     'version',
-    'status'
+    'status',
   ],
   FeatureManifest: [
     'feature_name',
@@ -18,7 +18,7 @@ const REQUIRED_FIELDS = Object.freeze({
     'derivation_logic',
     'null_ratio',
     'train_safe',
-    'leakage_sensitive'
+    'leakage_sensitive',
   ],
   LabelManifest: [
     'dataset_id',
@@ -27,7 +27,7 @@ const REQUIRED_FIELDS = Object.freeze({
     'label_definition',
     'horizon',
     'cutoff_rule',
-    'timestamp_alignment'
+    'timestamp_alignment',
   ],
   DatasetQualitySnapshot: [
     'dataset_id',
@@ -38,7 +38,7 @@ const REQUIRED_FIELDS = Object.freeze({
     'label_distribution',
     'stale_data_detection',
     'suspicious_anomalies',
-    'last_refresh_time'
+    'last_refresh_time',
   ],
   AlphaRegistry: [
     'alpha_id',
@@ -48,7 +48,7 @@ const REQUIRED_FIELDS = Object.freeze({
     'regime_fit',
     'expected_holding_period',
     'active_status',
-    'version'
+    'version',
   ],
   ModelRegistry: [
     'model_id',
@@ -58,7 +58,7 @@ const REQUIRED_FIELDS = Object.freeze({
     'feature_set_name',
     'label_definition',
     'current_stage',
-    'evaluation_summary'
+    'evaluation_summary',
   ],
   StrategyRegistry: [
     'strategy_id',
@@ -69,7 +69,7 @@ const REQUIRED_FIELDS = Object.freeze({
     'risk_profile',
     'execution_mode',
     'current_stage',
-    'change_log'
+    'change_log',
   ],
   PromotionDecision: [
     'experiment_id',
@@ -78,7 +78,7 @@ const REQUIRED_FIELDS = Object.freeze({
     'decision',
     'rationale',
     'reviewer',
-    'created_at'
+    'created_at',
   ],
   PaperDailyRun: [
     'run_id',
@@ -89,10 +89,16 @@ const REQUIRED_FIELDS = Object.freeze({
     'fills',
     'positions',
     'equity_snapshot',
-    'safety_guards'
+    'safety_guards',
   ],
   PaperLedger: ['orders', 'fills', 'positions', 'daily_equity', 'slippage_assumptions', 'notes'],
-  InternalIntelligence: ['alpha_health', 'model_health', 'strategy_health', 'data_health', 'weekly_system_review']
+  InternalIntelligence: [
+    'alpha_health',
+    'model_health',
+    'strategy_health',
+    'data_health',
+    'weekly_system_review',
+  ],
 });
 
 function hasValue(value) {
@@ -110,7 +116,7 @@ function validateRows(type, rows = [], required = []) {
     if (missing.length) {
       invalid.push({
         index,
-        missing
+        missing,
       });
     }
   });
@@ -119,71 +125,71 @@ function validateRows(type, rows = [], required = []) {
     total: rows.length,
     invalid: invalid.length,
     invalid_ratio: rows.length ? Number((invalid.length / rows.length).toFixed(6)) : 0,
-    sample_invalid: invalid.slice(0, 3)
+    sample_invalid: invalid.slice(0, 3),
   };
 }
 
 export function buildGovernanceContractChecks({
   multiAsset = {},
   research = {},
-  internalIntelligence = {}
+  internalIntelligence = {},
 } = {}) {
   const checks = [
     validateRows(
       'DatasetRegistry',
       multiAsset?.dataset_governance?.registry || [],
-      REQUIRED_FIELDS.DatasetRegistry
+      REQUIRED_FIELDS.DatasetRegistry,
     ),
     validateRows(
       'FeatureManifest',
       Object.values(multiAsset?.dataset_governance?.feature_manifests_detailed || {}).flat(),
-      REQUIRED_FIELDS.FeatureManifest
+      REQUIRED_FIELDS.FeatureManifest,
     ),
     validateRows(
       'LabelManifest',
       Object.values(multiAsset?.dataset_governance?.label_manifests || {}),
-      REQUIRED_FIELDS.LabelManifest
+      REQUIRED_FIELDS.LabelManifest,
     ),
     validateRows(
       'DatasetQualitySnapshot',
       multiAsset?.dataset_governance?.snapshots || [],
-      REQUIRED_FIELDS.DatasetQualitySnapshot
+      REQUIRED_FIELDS.DatasetQualitySnapshot,
     ),
     validateRows(
       'AlphaRegistry',
       research?.registry_system?.alpha_registry || [],
-      REQUIRED_FIELDS.AlphaRegistry
+      REQUIRED_FIELDS.AlphaRegistry,
     ),
     validateRows(
       'ModelRegistry',
       research?.registry_system?.model_registry || [],
-      REQUIRED_FIELDS.ModelRegistry
+      REQUIRED_FIELDS.ModelRegistry,
     ),
     validateRows(
       'StrategyRegistry',
       research?.registry_system?.strategy_registry || [],
-      REQUIRED_FIELDS.StrategyRegistry
+      REQUIRED_FIELDS.StrategyRegistry,
     ),
     validateRows(
       'PromotionDecision',
       research?.promotion_decisions || [],
-      REQUIRED_FIELDS.PromotionDecision
+      REQUIRED_FIELDS.PromotionDecision,
     ),
     validateRows(
       'PaperDailyRun',
       research?.paper_ops?.daily_runs || [],
-      REQUIRED_FIELDS.PaperDailyRun
+      REQUIRED_FIELDS.PaperDailyRun,
     ),
     validateRows(
       'PaperLedger',
       research?.paper_ops?.ledger ? [research.paper_ops.ledger] : [],
-      REQUIRED_FIELDS.PaperLedger
+      REQUIRED_FIELDS.PaperLedger,
     ),
     validateRows(
       'InternalIntelligence',
       internalIntelligence ? [internalIntelligence] : [],
-      REQUIRED_FIELDS.InternalIntelligence
-    )
+      REQUIRED_FIELDS.InternalIntelligence,
+    ),
   ];
 
   const invalidTotal = checks.reduce((sum, row) => sum + row.invalid, 0);
@@ -191,7 +197,7 @@ export function buildGovernanceContractChecks({
     generated_at: new Date().toISOString(),
     checks,
     overall_status: invalidTotal === 0 ? 'pass' : 'attention',
-    invalid_objects: invalidTotal
+    invalid_objects: invalidTotal,
   };
 }
 

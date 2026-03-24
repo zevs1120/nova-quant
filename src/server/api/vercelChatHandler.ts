@@ -8,7 +8,7 @@ import {
   appendAssistantDisclaimer,
   detectMessageLanguage,
   getAssistantDisclaimer,
-  getAssistantSectionLabels
+  getAssistantSectionLabels,
 } from '../../utils/assistantLanguage.js';
 
 type ChatBody = {
@@ -45,7 +45,9 @@ function isStrategyRequest(message: string) {
   const lower = String(message || '').toLowerCase();
   return (
     (lower.includes('strategy') || lower.includes('alpha')) &&
-    ['generate', 'build', 'create', 'design', 'propose', 'draft', 'idea'].some((token) => lower.includes(token))
+    ['generate', 'build', 'create', 'design', 'propose', 'draft', 'idea'].some((token) =>
+      lower.includes(token),
+    )
   );
 }
 
@@ -67,7 +69,7 @@ function isBackendDueDiligenceRequest(message: string) {
     'workflow',
     'self-learning',
     'model',
-    'strategy logic'
+    'strategy logic',
   ];
   const chineseSignals = [
     '数据源',
@@ -85,9 +87,10 @@ function isBackendDueDiligenceRequest(message: string) {
     '后端',
     '策略逻辑',
     '自我学习',
-    'ai模块'
+    'ai模块',
   ];
-  const numberedChecklist = /(^|\n)\s*[1-5][\.\u3001\)]\s*/.test(message) || text.includes('以下几个问题');
+  const numberedChecklist =
+    /(^|\n)\s*[1-5][\.\u3001\)]\s*/.test(message) || text.includes('以下几个问题');
   return (
     numberedChecklist ||
     englishSignals.some((token) => text.includes(token)) ||
@@ -112,7 +115,7 @@ export async function handleVercelChat(req: VercelRequest, res: VercelResponse) 
           | 'more'
           | 'signal-detail'
           | 'unknown'
-          | undefined
+          | undefined,
       }
     : undefined;
 
@@ -125,7 +128,7 @@ export async function handleVercelChat(req: VercelRequest, res: VercelResponse) 
   if (!rate.allowed) {
     res.status(429).json({
       error: 'Rate limit exceeded',
-      resetAt: rate.resetAt
+      resetAt: rate.resetAt,
     });
     return;
   }
@@ -140,9 +143,16 @@ export async function handleVercelChat(req: VercelRequest, res: VercelResponse) 
     const replyLanguage = detectMessageLanguage(message, context?.locale || 'en');
     const labels = getAssistantSectionLabels(replyLanguage);
     const dueDiligence = isBackendDueDiligenceRequest(message);
-    const mode = isStrategyRequest(message) || dueDiligence ? 'research-assistant' : context ? 'context-aware' : 'general-coach';
+    const mode =
+      isStrategyRequest(message) || dueDiligence
+        ? 'research-assistant'
+        : context
+          ? 'context-aware'
+          : 'general-coach';
     const resolvedThreadId = threadId || `vercel-thread-${Date.now()}`;
-    res.write(`${JSON.stringify({ type: 'meta', mode, provider: 'preparing', threadId: resolvedThreadId })}\n`);
+    res.write(
+      `${JSON.stringify({ type: 'meta', mode, provider: 'preparing', threadId: resolvedThreadId })}\n`,
+    );
 
     if (isStrategyRequest(message)) {
       const reply = await generateGovernedNovaStrategyReply({
@@ -150,13 +160,18 @@ export async function handleVercelChat(req: VercelRequest, res: VercelResponse) 
         userId,
         prompt: message,
         locale: replyLanguage,
-        market: context?.market === 'US' || context?.market === 'CRYPTO' ? context.market : undefined,
+        market:
+          context?.market === 'US' || context?.market === 'CRYPTO' ? context.market : undefined,
         riskProfile: context?.riskProfileKey,
-        maxCandidates: 8
+        maxCandidates: 8,
       });
-      res.write(`${JSON.stringify({ type: 'meta', mode, provider: reply.provider, threadId: resolvedThreadId })}\n`);
+      res.write(
+        `${JSON.stringify({ type: 'meta', mode, provider: reply.provider, threadId: resolvedThreadId })}\n`,
+      );
       res.write(`${JSON.stringify({ type: 'chunk', delta: reply.text })}\n`);
-      res.write(`${JSON.stringify({ type: 'done', mode, provider: reply.provider, threadId: resolvedThreadId })}\n`);
+      res.write(
+        `${JSON.stringify({ type: 'done', mode, provider: reply.provider, threadId: resolvedThreadId })}\n`,
+      );
       res.end();
       return;
     }
@@ -166,7 +181,9 @@ export async function handleVercelChat(req: VercelRequest, res: VercelResponse) 
         operator_request: message,
         context: context || {},
         instruction: [
-          replyLanguage === 'zh' ? '你是 Nova 的后端尽调助手。' : 'You are Nova backend due-diligence assistant.',
+          replyLanguage === 'zh'
+            ? '你是 Nova 的后端尽调助手。'
+            : 'You are Nova backend due-diligence assistant.',
           replyLanguage === 'zh'
             ? '直接回答用户关于后端、AI、因子、策略、风控和自动化的问题。'
             : "Answer the user's backend, AI, factor, strategy, risk, and automation questions directly.",
@@ -184,8 +201,8 @@ export async function handleVercelChat(req: VercelRequest, res: VercelResponse) 
             : 'Separate what is live now vs what is configured vs what is still missing.',
           replyLanguage === 'zh'
             ? '语言要简洁但具体，不确定的地方直接说。'
-            : 'Use concise but concrete language. Mention uncertainty plainly instead of hiding it.'
-        ].join(' ')
+            : 'Use concise but concrete language. Mention uncertainty plainly instead of hiding it.',
+        ].join(' '),
       });
       const result = await runNovaChatCompletion({
         task: 'assistant_grounded_answer',
@@ -193,11 +210,17 @@ export async function handleVercelChat(req: VercelRequest, res: VercelResponse) 
           replyLanguage === 'zh'
             ? '你是 Nova Quant 的 Nova Assistant。处理后端尽调问题时，要直接回答产品和系统层问题。除非用户明确问现在是否要进场，否则不要退回到“当前没有信号”这种空话。用户用了编号提问时，优先用清晰编号作答。'
             : 'You are Nova Assistant for Nova Quant. For backend due-diligence questions, provide direct product and system answers. Do not fall back to saying there is no current signal unless the user specifically asks whether to enter a trade right now. Prefer clear numbered answers when the user asks numbered questions.',
-        userPrompt: diligencePrompt
+        userPrompt: diligencePrompt,
       });
-      res.write(`${JSON.stringify({ type: 'meta', mode, provider: `${result.route.provider}:${result.route.alias}`, threadId: resolvedThreadId })}\n`);
-      res.write(`${JSON.stringify({ type: 'chunk', delta: appendAssistantDisclaimer(result.text.trim(), replyLanguage) })}\n`);
-      res.write(`${JSON.stringify({ type: 'done', mode, provider: `${result.route.provider}:${result.route.alias}`, threadId: resolvedThreadId })}\n`);
+      res.write(
+        `${JSON.stringify({ type: 'meta', mode, provider: `${result.route.provider}:${result.route.alias}`, threadId: resolvedThreadId })}\n`,
+      );
+      res.write(
+        `${JSON.stringify({ type: 'chunk', delta: appendAssistantDisclaimer(result.text.trim(), replyLanguage) })}\n`,
+      );
+      res.write(
+        `${JSON.stringify({ type: 'done', mode, provider: `${result.route.provider}:${result.route.alias}`, threadId: resolvedThreadId })}\n`,
+      );
       res.end();
       return;
     }
@@ -205,10 +228,10 @@ export async function handleVercelChat(req: VercelRequest, res: VercelResponse) 
     const prompt = JSON.stringify({
       user_request: message,
       context: context || {},
-        instruction:
+      instruction:
         replyLanguage === 'zh'
           ? `你是 Nova Assistant。回答要简洁、基于证据、务实。只能使用这些中文标题：${labels.VERDICT}、${labels.PLAN}、${labels.WHY}、${labels.RISK}、${labels.EVIDENCE}。最后必须加上：${getAssistantDisclaimer('zh')}`
-          : 'You are Nova Assistant. Be concise, evidence-aware, and practical. Use section headers VERDICT, PLAN, WHY, RISK, EVIDENCE. End with: educational, not financial advice.'
+          : 'You are Nova Assistant. Be concise, evidence-aware, and practical. Use section headers VERDICT, PLAN, WHY, RISK, EVIDENCE. End with: educational, not financial advice.',
     });
     const result = await runNovaChatCompletion({
       task: 'assistant_grounded_answer',
@@ -216,11 +239,17 @@ export async function handleVercelChat(req: VercelRequest, res: VercelResponse) 
         replyLanguage === 'zh'
           ? '你是 Nova Quant 的 Nova Assistant。语气要冷静、有用、有风险意识。不要编造隐藏数据；上下文不完整时要直接说。'
           : 'You are Nova Assistant for Nova Quant. Keep tone calm, useful, and risk-aware. Do not fabricate hidden data. If context is incomplete, say so plainly.',
-      userPrompt: prompt
+      userPrompt: prompt,
     });
-    res.write(`${JSON.stringify({ type: 'meta', mode, provider: `${result.route.provider}:${result.route.alias}`, threadId: resolvedThreadId })}\n`);
-    res.write(`${JSON.stringify({ type: 'chunk', delta: appendAssistantDisclaimer(result.text.trim(), replyLanguage) })}\n`);
-    res.write(`${JSON.stringify({ type: 'done', mode, provider: `${result.route.provider}:${result.route.alias}`, threadId: resolvedThreadId })}\n`);
+    res.write(
+      `${JSON.stringify({ type: 'meta', mode, provider: `${result.route.provider}:${result.route.alias}`, threadId: resolvedThreadId })}\n`,
+    );
+    res.write(
+      `${JSON.stringify({ type: 'chunk', delta: appendAssistantDisclaimer(result.text.trim(), replyLanguage) })}\n`,
+    );
+    res.write(
+      `${JSON.stringify({ type: 'done', mode, provider: `${result.route.provider}:${result.route.alias}`, threadId: resolvedThreadId })}\n`,
+    );
     res.end();
   } catch (error) {
     const errorText = error instanceof Error ? error.message : String(error);

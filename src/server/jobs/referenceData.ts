@@ -4,7 +4,7 @@ import type { MarketRepository } from '../db/repository.js';
 import {
   fetchAlphaVantageFundamentalSnapshot,
   fetchFinnhubFundamentalSnapshot,
-  fetchYahooOptionSnapshots
+  fetchYahooOptionSnapshots,
 } from '../ingestion/hostedData.js';
 import { logWarn } from '../utils/log.js';
 
@@ -13,7 +13,9 @@ const OPTIONS_TTL_MS = 1000 * 60 * 60 * 6;
 const REF_CONCURRENCY = 2;
 
 function normalizeSymbol(symbol: string): string {
-  return String(symbol || '').trim().toUpperCase();
+  return String(symbol || '')
+    .trim()
+    .toUpperCase();
 }
 
 export async function ensureFreshFundamentalsForSymbol(args: {
@@ -29,7 +31,7 @@ export async function ensureFreshFundamentalsForSymbol(args: {
       fetched: false,
       skipped: true,
       rows_upserted: 0,
-      error: null
+      error: null,
     };
   }
 
@@ -41,14 +43,14 @@ export async function ensureFreshFundamentalsForSymbol(args: {
       fetched: false,
       skipped: true,
       rows_upserted: 0,
-      error: null
+      error: null,
     };
   }
 
   const rows = (
     await Promise.all([
       fetchAlphaVantageFundamentalSnapshot(symbol).catch(() => null),
-      fetchFinnhubFundamentalSnapshot(symbol).catch(() => null)
+      fetchFinnhubFundamentalSnapshot(symbol).catch(() => null),
     ])
   ).filter((row): row is NonNullable<typeof row> => Boolean(row));
 
@@ -59,7 +61,7 @@ export async function ensureFreshFundamentalsForSymbol(args: {
       fetched: false,
       skipped: false,
       rows_upserted: 0,
-      error: 'no_provider_data'
+      error: 'no_provider_data',
     };
   }
 
@@ -70,7 +72,7 @@ export async function ensureFreshFundamentalsForSymbol(args: {
     fetched: true,
     skipped: false,
     rows_upserted: rows.length,
-    error: null
+    error: null,
   };
 }
 
@@ -87,7 +89,7 @@ export async function ensureFreshOptionsForSymbol(args: {
       fetched: false,
       skipped: true,
       rows_upserted: 0,
-      error: null
+      error: null,
     };
   }
 
@@ -99,7 +101,7 @@ export async function ensureFreshOptionsForSymbol(args: {
       fetched: false,
       skipped: true,
       rows_upserted: 0,
-      error: null
+      error: null,
     };
   }
 
@@ -111,7 +113,7 @@ export async function ensureFreshOptionsForSymbol(args: {
   if (!rows.length) {
     logWarn('Yahoo option-chain refresh produced no rows', {
       symbol,
-      error: fetchError || 'fetch_failed'
+      error: fetchError || 'fetch_failed',
     });
     return {
       market: 'US' as const,
@@ -119,7 +121,7 @@ export async function ensureFreshOptionsForSymbol(args: {
       fetched: false,
       skipped: false,
       rows_upserted: 0,
-      error: fetchError || 'fetch_failed'
+      error: fetchError || 'fetch_failed',
     };
   }
 
@@ -130,7 +132,7 @@ export async function ensureFreshOptionsForSymbol(args: {
     fetched: true,
     skipped: false,
     rows_upserted: rows.length,
-    error: null
+    error: null,
   };
 }
 
@@ -156,10 +158,10 @@ export async function refreshTrainingReferenceData(args: {
               ensureFreshFundamentalsForSymbol({
                 repo: args.repo,
                 market: target.market,
-                symbol: target.symbol
-              })
-            )
-          )
+                symbol: target.symbol,
+              }),
+            ),
+          ),
         ),
     args.refreshOptions === false
       ? Promise.resolve([] as Awaited<ReturnType<typeof ensureFreshOptionsForSymbol>>[])
@@ -169,11 +171,11 @@ export async function refreshTrainingReferenceData(args: {
               ensureFreshOptionsForSymbol({
                 repo: args.repo,
                 market: target.market,
-                symbol: target.symbol
-              })
-            )
-          )
-        )
+                symbol: target.symbol,
+              }),
+            ),
+          ),
+        ),
   ]);
 
   return {
@@ -183,14 +185,18 @@ export async function refreshTrainingReferenceData(args: {
       refreshed_symbols: fundamentalResults.filter((row) => row.fetched).length,
       skipped_symbols: fundamentalResults.filter((row) => row.skipped).length,
       rows_upserted: fundamentalResults.reduce((acc, row) => acc + row.rows_upserted, 0),
-      errors: fundamentalResults.filter((row) => row.error).map((row) => ({ symbol: row.symbol, error: row.error }))
+      errors: fundamentalResults
+        .filter((row) => row.error)
+        .map((row) => ({ symbol: row.symbol, error: row.error })),
     },
     options: {
       targets: targets.length,
       refreshed_symbols: optionsResults.filter((row) => row.fetched).length,
       skipped_symbols: optionsResults.filter((row) => row.skipped).length,
       rows_upserted: optionsResults.reduce((acc, row) => acc + row.rows_upserted, 0),
-      errors: optionsResults.filter((row) => row.error).map((row) => ({ symbol: row.symbol, error: row.error }))
-    }
+      errors: optionsResults
+        .filter((row) => row.error)
+        .map((row) => ({ symbol: row.symbol, error: row.error })),
+    },
   };
 }

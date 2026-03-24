@@ -17,7 +17,7 @@ export function dateRangeFromRows(rows, field = 'date') {
   const sorted = sortByDate(rows, field);
   return {
     start: sorted[0]?.[field] || null,
-    end: sorted[sorted.length - 1]?.[field] || null
+    end: sorted[sorted.length - 1]?.[field] || null,
   };
 }
 

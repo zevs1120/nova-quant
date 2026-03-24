@@ -3,7 +3,7 @@ import {
   buildInvestorDemoEnvironment,
   buildInvestorDemoSignals,
   INVESTOR_DEMO_PERFORMANCE,
-  INVESTOR_DEMO_STATUS
+  INVESTOR_DEMO_STATUS,
 } from '../src/demo/investorDemo.js';
 
 describe('investor demo pack', () => {

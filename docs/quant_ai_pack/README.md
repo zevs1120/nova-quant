@@ -3,6 +3,7 @@
 This pack is designed so an AI coding agent can continuously evolve your product from a "signal app" into a real AI-driven quant research, validation, and deployment system.
 
 ## Contents
+
 - `00_mission_and_north_star.md` — what the system is trying to become
 - `01_system_architecture.md` — target architecture for research → validation → production
 - `02_data_contracts.md` — canonical data schemas and conventions

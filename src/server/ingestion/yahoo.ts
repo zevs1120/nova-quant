@@ -56,7 +56,7 @@ function toBarSeries(payload: YahooChartResponse): NormalizedBar[] {
       high: String(h),
       low: String(l),
       close: String(c),
-      volume: Number.isFinite(Number(v)) ? String(v) : '0'
+      volume: Number.isFinite(Number(v)) ? String(v) : '0',
     });
   }
   return normalizeBars(out);
@@ -80,11 +80,11 @@ async function fetchYahooBars(symbol: string, timeframe: Timeframe): Promise<Nor
     {
       headers: {
         'User-Agent': 'Mozilla/5.0 NovaQuant/1.0',
-        Accept: 'application/json'
-      }
+        Accept: 'application/json',
+      },
     },
     { attempts: 3, baseDelayMs: 1200 },
-    config.yahoo.timeoutMs
+    config.yahoo.timeoutMs,
   );
   if (!response.ok) {
     throw new Error(`Yahoo chart failed (${response.status}) for ${symbol}`);
@@ -92,7 +92,7 @@ async function fetchYahooBars(symbol: string, timeframe: Timeframe): Promise<Nor
   const json = (await response.json()) as YahooChartResponse;
   if (json.chart?.error) {
     throw new Error(
-      `Yahoo chart error for ${symbol}: ${json.chart.error.code || 'UNKNOWN'} ${json.chart.error.description || ''}`.trim()
+      `Yahoo chart error for ${symbol}: ${json.chart.error.code || 'UNKNOWN'} ${json.chart.error.description || ''}`.trim(),
     );
   }
   return toBarSeries(json);
@@ -108,24 +108,31 @@ export async function backfillYahooChart(params: {
   const venue = 'STOOQ';
 
   for (const symbolRaw of params.symbols) {
-    const symbol = String(symbolRaw || '').trim().toUpperCase();
+    const symbol = String(symbolRaw || '')
+      .trim()
+      .toUpperCase();
     if (!symbol) continue;
     const asset = params.repo.upsertAsset({
       market: 'US',
       symbol,
       venue,
       quote: 'USD',
-      status: 'ACTIVE'
+      status: 'ACTIVE',
     });
     const bars = await fetchYahooBars(symbol, params.timeframe);
     params.repo.upsertOhlcvBars(asset.asset_id, params.timeframe, bars, source);
     if (bars.length) {
-      params.repo.setCursor(asset.asset_id, params.timeframe, bars[bars.length - 1].ts_open, source);
+      params.repo.setCursor(
+        asset.asset_id,
+        params.timeframe,
+        bars[bars.length - 1].ts_open,
+        source,
+      );
     }
     logInfo('Yahoo chart backfill completed', {
       symbol,
       timeframe: params.timeframe,
-      inserted: bars.length
+      inserted: bars.length,
     });
   }
 }

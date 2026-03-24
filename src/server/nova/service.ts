@@ -39,7 +39,7 @@ function findPromptVersionId(repo: MarketRepository, taskKey: string): string | 
   const row = repo.listPromptVersions({
     taskKey,
     status: 'active',
-    limit: 1
+    limit: 1,
   })[0];
   return row?.id || null;
 }
@@ -77,7 +77,7 @@ export async function runLoggedNovaTextTask(args: {
   const promptVersionId = findPromptVersionId(args.repo, args.promptTaskKey);
   const inputJson = JSON.stringify({
     system_prompt: args.systemPrompt,
-    user_prompt: args.userPrompt
+    user_prompt: args.userPrompt,
   });
   const nowMs = Date.now();
 
@@ -99,14 +99,14 @@ export async function runLoggedNovaTextTask(args: {
       status: 'SKIPPED',
       error: 'Nova runtime is in deterministic fallback mode.',
       created_at_ms: nowMs,
-      updated_at_ms: nowMs
+      updated_at_ms: nowMs,
     });
     return {
       ok: false as const,
       skipped: true as const,
       traceId,
       runId,
-      route
+      route,
     };
   }
 
@@ -114,7 +114,7 @@ export async function runLoggedNovaTextTask(args: {
     const result = await runNovaChatCompletion({
       task: route.task,
       systemPrompt: args.systemPrompt,
-      userPrompt: args.userPrompt
+      userPrompt: args.userPrompt,
     });
     args.repo.upsertNovaTaskRun({
       id: runId,
@@ -131,12 +131,12 @@ export async function runLoggedNovaTextTask(args: {
       context_json: JSON.stringify(args.context),
       output_json: JSON.stringify({
         text: result.text,
-        raw: result.raw
+        raw: result.raw,
       }),
       status: 'SUCCEEDED',
       error: null,
       created_at_ms: nowMs,
-      updated_at_ms: Date.now()
+      updated_at_ms: Date.now(),
     });
     return {
       ok: true as const,
@@ -144,7 +144,7 @@ export async function runLoggedNovaTextTask(args: {
       traceId,
       runId,
       route: result.route,
-      text: result.text
+      text: result.text,
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -165,7 +165,7 @@ export async function runLoggedNovaTextTask(args: {
       status: 'FAILED',
       error: message,
       created_at_ms: nowMs,
-      updated_at_ms: Date.now()
+      updated_at_ms: Date.now(),
     });
     return {
       ok: false as const,
@@ -173,7 +173,7 @@ export async function runLoggedNovaTextTask(args: {
       traceId,
       runId,
       route,
-      error: message
+      error: message,
     };
   }
 }
@@ -188,13 +188,13 @@ function buildDecisionNarrativeContext(decision: JsonObject, locale?: string) {
     today_call: {
       code: todayCall.code || null,
       headline: todayCall.headline || null,
-      subtitle: todayCall.subtitle || null
+      subtitle: todayCall.subtitle || null,
     },
     risk_state: {
       posture: riskState.posture || null,
       summary: riskState.summary || null,
       user_message: riskState.user_message || null,
-      drivers: asArray<string>(riskState.drivers).slice(0, 4)
+      drivers: asArray<string>(riskState.drivers).slice(0, 4),
     },
     top_action: {
       action_id: topAction.action_id || null,
@@ -203,14 +203,14 @@ function buildDecisionNarrativeContext(decision: JsonObject, locale?: string) {
       time_horizon: topAction.time_horizon || null,
       brief_why_now: topAction.brief_why_now || null,
       brief_caution: topAction.brief_caution || null,
-      risk_note: topAction.risk_note || null
+      risk_note: topAction.risk_note || null,
     },
     portfolio_context: {
       availability: portfolio.availability || null,
       recommendation: portfolio.recommendation || null,
       exposure_posture: portfolio.exposure_posture || null,
-      same_symbol_weight_pct: portfolio.same_symbol_weight_pct || null
-    }
+      same_symbol_weight_pct: portfolio.same_symbol_weight_pct || null,
+    },
   };
 }
 
@@ -235,13 +235,16 @@ function buildActionCardNarrativePrompts(decision: JsonObject, locale?: string) 
       brief_caution: card.brief_caution || null,
       risk_note: card.risk_note || null,
       thesis: asObject(card.evidence_bundle).thesis || null,
-      invalidation: asArray<string>(asObject(card.evidence_bundle).invalidation_conditions).slice(0, 2)
+      invalidation: asArray<string>(asObject(card.evidence_bundle).invalidation_conditions).slice(
+        0,
+        2,
+      ),
     }));
   const systemPrompt =
     'You are Nova writing action card copy for a local decision system. Improve clarity and product tone without changing the underlying recommendation. Return strict JSON: {"cards":[{"action_id":"...","brief_why_now":"...","brief_caution":"...","risk_note":"..."}]}.';
   const userPrompt = JSON.stringify({
     locale: locale || 'en',
-    cards
+    cards,
   });
   return { systemPrompt, userPrompt };
 }
@@ -260,14 +263,14 @@ function buildWrapUpPrompts(args: {
     wrap_up: {
       headline: wrap.headline || null,
       summary: wrap.summary || null,
-      lessons: asArray<string>(wrap.lessons).slice(0, 3)
+      lessons: asArray<string>(wrap.lessons).slice(0, 3),
     },
     recommendation_change: {
       changed: change.changed || false,
       type: change.change_type || null,
-      summary: change.summary || null
+      summary: change.summary || null,
     },
-    decision: buildDecisionNarrativeContext(args.decision, args.locale)
+    decision: buildDecisionNarrativeContext(args.decision, args.locale),
   });
   return { systemPrompt, userPrompt };
 }
@@ -294,18 +297,27 @@ export async function applyLocalNovaDecisionLanguage<T extends JsonObject>(args:
     userPrompt: narrativePrompts.userPrompt,
     context: {
       surface: 'decision_snapshot',
-      locale: args.locale || 'en'
+      locale: args.locale || 'en',
     },
-    traceId: args.traceId || null
+    traceId: args.traceId || null,
   });
 
   if (narrativeRun.ok) {
     const parsed = firstJsonObject(narrativeRun.text);
     const todayCall = asObject(decisionState.today_call);
     const riskState = asObject(decisionState.risk_state);
-    todayCall.headline = sanitizeText(parsed?.today_call_headline, sanitizeText(todayCall.headline));
-    todayCall.subtitle = sanitizeText(parsed?.today_call_subtitle, sanitizeText(todayCall.subtitle));
-    riskState.user_message = sanitizeText(parsed?.risk_user_message, sanitizeText(riskState.user_message));
+    todayCall.headline = sanitizeText(
+      parsed?.today_call_headline,
+      sanitizeText(todayCall.headline),
+    );
+    todayCall.subtitle = sanitizeText(
+      parsed?.today_call_subtitle,
+      sanitizeText(todayCall.subtitle),
+    );
+    riskState.user_message = sanitizeText(
+      parsed?.risk_user_message,
+      sanitizeText(riskState.user_message),
+    );
     decisionState.today_call = todayCall;
     decisionState.risk_state = riskState;
     const summary = asObject(decisionState.summary);
@@ -324,10 +336,10 @@ export async function applyLocalNovaDecisionLanguage<T extends JsonObject>(args:
     userPrompt: actionPrompts.userPrompt,
     context: {
       surface: 'decision_snapshot',
-      locale: args.locale || 'en'
+      locale: args.locale || 'en',
     },
     traceId: narrativeRun.traceId,
-    parentRunId: narrativeRun.runId
+    parentRunId: narrativeRun.runId,
   });
 
   if (actionRun.ok) {
@@ -338,21 +350,23 @@ export async function applyLocalNovaDecisionLanguage<T extends JsonObject>(args:
         {
           brief_why_now: sanitizeText(row.brief_why_now),
           brief_caution: sanitizeText(row.brief_caution),
-          risk_note: sanitizeText(row.risk_note)
-        }
-      ])
+          risk_note: sanitizeText(row.risk_note),
+        },
+      ]),
     );
 
-    decisionState.ranked_action_cards = asArray<JsonObject>(decisionState.ranked_action_cards).map((card) => {
-      const patch = overrides.get(String(card.action_id || ''));
-      if (!patch) return card;
-      return {
-        ...card,
-        brief_why_now: patch.brief_why_now || card.brief_why_now,
-        brief_caution: patch.brief_caution || card.brief_caution,
-        risk_note: patch.risk_note || card.risk_note
-      };
-    });
+    decisionState.ranked_action_cards = asArray<JsonObject>(decisionState.ranked_action_cards).map(
+      (card) => {
+        const patch = overrides.get(String(card.action_id || ''));
+        if (!patch) return card;
+        return {
+          ...card,
+          brief_why_now: patch.brief_why_now || card.brief_why_now,
+          brief_caution: patch.brief_caution || card.brief_caution,
+          risk_note: patch.risk_note || card.risk_note,
+        };
+      },
+    );
   }
 
   const summaryState = asObject(decisionState.summary);
@@ -360,7 +374,7 @@ export async function applyLocalNovaDecisionLanguage<T extends JsonObject>(args:
     attempted: true,
     applied: Boolean(narrativeRun.ok || actionRun.ok),
     skipped: Boolean(narrativeRun.skipped && actionRun.skipped),
-    trace_id: narrativeRun.traceId
+    trace_id: narrativeRun.traceId,
   };
   decisionState.summary = summaryState;
 
@@ -368,11 +382,13 @@ export async function applyLocalNovaDecisionLanguage<T extends JsonObject>(args:
     enabled: !shouldSkipLocalNova(),
     endpoint: resolveBusinessTask('today_risk').endpoint,
     trace_id: narrativeRun.traceId,
-    model_tier: resolveBusinessTask('today_risk').alias
+    model_tier: resolveBusinessTask('today_risk').alias,
   };
 
   recordAuditEvent(args.repo, {
-    traceId: String(decisionCopy.nova_local && asObject(decisionCopy.nova_local).trace_id) || createTraceId('nova'),
+    traceId:
+      String(decisionCopy.nova_local && asObject(decisionCopy.nova_local).trace_id) ||
+      createTraceId('nova'),
     scope: 'nova_local',
     eventType: 'decision_language_generated',
     userId: args.userId || null,
@@ -381,8 +397,8 @@ export async function applyLocalNovaDecisionLanguage<T extends JsonObject>(args:
     payload: {
       task_runs: [narrativeRun.runId, actionRun.runId],
       applied: narrativeRun.ok || actionRun.ok,
-      skipped: narrativeRun.skipped && actionRun.skipped
-    }
+      skipped: narrativeRun.skipped && actionRun.skipped,
+    },
   });
 
   return decisionCopy;
@@ -401,7 +417,7 @@ export async function applyLocalNovaWrapUpLanguage<T extends JsonObject>(args: {
   const prompts = buildWrapUpPrompts({
     engagement: engagementCopy,
     decision: args.decision,
-    locale: args.locale
+    locale: args.locale,
   });
   const run = await runLoggedNovaTextTask({
     repo: args.repo,
@@ -412,9 +428,9 @@ export async function applyLocalNovaWrapUpLanguage<T extends JsonObject>(args: {
     userPrompt: prompts.userPrompt,
     context: {
       surface: 'daily_wrap_up',
-      locale: args.locale || 'en'
+      locale: args.locale || 'en',
     },
-    traceId: args.traceId || null
+    traceId: args.traceId || null,
   });
 
   if (run.ok) {
@@ -458,16 +474,16 @@ export async function logNovaAssistantAnswer(args: {
     parent_run_id: null,
     input_json: JSON.stringify({
       user_message: args.message,
-      provider: args.provider
+      provider: args.provider,
     }),
     context_json: JSON.stringify(args.context),
     output_json: JSON.stringify({
-      text: args.responseText
+      text: args.responseText,
     }),
     status: args.status,
     error: args.error || null,
     created_at_ms: nowMs,
-    updated_at_ms: nowMs
+    updated_at_ms: nowMs,
   });
 }
 
@@ -501,7 +517,7 @@ export async function retrieveNovaEmbedding(args: {
       status: 'SKIPPED',
       error: 'NOVA_DISABLE_LOCAL_GENERATION=1',
       created_at_ms: nowMs,
-      updated_at_ms: nowMs
+      updated_at_ms: nowMs,
     });
     return [];
   }
@@ -509,7 +525,7 @@ export async function retrieveNovaEmbedding(args: {
   try {
     const result = await runNovaEmbedding({
       task: 'retrieval_embedding',
-      input: args.input
+      input: args.input,
     });
     args.repo.upsertNovaTaskRun({
       id: runId,
@@ -528,7 +544,7 @@ export async function retrieveNovaEmbedding(args: {
       status: 'SUCCEEDED',
       error: null,
       created_at_ms: nowMs,
-      updated_at_ms: Date.now()
+      updated_at_ms: Date.now(),
     });
     return result.vector;
   } catch (error) {
@@ -549,7 +565,7 @@ export async function retrieveNovaEmbedding(args: {
       status: 'FAILED',
       error: error instanceof Error ? error.message : String(error),
       created_at_ms: nowMs,
-      updated_at_ms: Date.now()
+      updated_at_ms: Date.now(),
     });
     return [];
   }
@@ -574,7 +590,7 @@ export function labelNovaRun(args: {
     notes: args.notes || null,
     include_in_training: args.includeInTraining ? 1 : 0,
     created_at_ms: nowMs,
-    updated_at_ms: nowMs
+    updated_at_ms: nowMs,
   };
   args.repo.upsertNovaReviewLabel(row);
   return row;

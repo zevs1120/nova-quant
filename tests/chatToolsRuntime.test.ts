@@ -22,16 +22,16 @@ describe('chat tools runtime sourcing', () => {
           top_action_symbol: 'AAPL',
           top_action_label: 'Probe small',
           source_status: 'DB_BACKED',
-          data_status: 'DB_BACKED'
+          data_status: 'DB_BACKED',
         },
         holdingsSummary: {
           holdings_count: 2,
           total_weight_pct: 32,
           risk_level: 'medium',
-          recommendation: 'Portfolio risk is active but manageable.'
-        }
+          recommendation: 'Portfolio risk is active but manageable.',
+        },
       },
-      message: 'Why this signal?'
+      message: 'Why this signal?',
     });
 
     expect(bundle).toBeTruthy();
@@ -49,9 +49,9 @@ describe('chat tools runtime sourcing', () => {
       userId: 'guest-default',
       context: {
         market: 'US',
-        assetClass: 'US_STOCK'
+        assetClass: 'US_STOCK',
       },
-      message: 'Compare momentum by regime and tell me if this is overfit'
+      message: 'Compare momentum by regime and tell me if this is overfit',
     });
 
     expect(bundle.researchContext.research_mode).toBe(true);
@@ -68,9 +68,9 @@ describe('chat tools runtime sourcing', () => {
       context: {
         page: 'ai',
         market: 'CRYPTO',
-        assetClass: 'CRYPTO'
+        assetClass: 'CRYPTO',
       },
-      message: 'Review BTC-USDT. Should I keep it, trim it, or sell it?'
+      message: 'Review BTC-USDT. Should I keep it, trim it, or sell it?',
     });
 
     expect(bundle.requestedSymbol).toBe('BTC');

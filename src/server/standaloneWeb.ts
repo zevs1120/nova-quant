@@ -9,7 +9,9 @@ const serverDir = path.dirname(serverFile);
 const repoRoot = path.resolve(serverDir, '../..');
 
 function shouldServeWebDist(env = process.env) {
-  const raw = String(env.SERVE_WEB_DIST || '').trim().toLowerCase();
+  const raw = String(env.SERVE_WEB_DIST || '')
+    .trim()
+    .toLowerCase();
   return raw === '1' || raw === 'true';
 }
 

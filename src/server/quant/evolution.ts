@@ -10,7 +10,7 @@ import type {
   ModelVersionRecord,
   NotificationEventRecord,
   StrategyLifecycleStatus,
-  StrategyVersionRecord
+  StrategyVersionRecord,
 } from '../types.js';
 import {
   PANDA_FACTOR_NAMES,
@@ -20,7 +20,7 @@ import {
   resolvePandaModelConfig,
   type NumericBar,
   type PandaFactorName,
-  type PandaModelRuntimeConfig
+  type PandaModelRuntimeConfig,
 } from './pandaEngine.js';
 
 const EVOLUTION_WORKFLOW_KEY = 'quant_evolution_cycle';
@@ -114,7 +114,8 @@ function average(values: number[]): number {
 function std(values: number[]): number {
   if (values.length < 2) return 0;
   const mean = average(values);
-  const variance = values.reduce((acc, value) => acc + (value - mean) ** 2, 0) / Math.max(1, values.length - 1);
+  const variance =
+    values.reduce((acc, value) => acc + (value - mean) ** 2, 0) / Math.max(1, values.length - 1);
   return Math.sqrt(Math.max(0, variance));
 }
 
@@ -170,14 +171,14 @@ function parseBarsForMarket(
   repo: MarketRepository,
   market: Market,
   symbol: string,
-  limit = 360
+  limit = 360,
 ): NumericBar[] {
   const asset = repo.getAssetBySymbol(market, symbol);
   if (!asset) return [];
   const rows = repo.getOhlcv({
     assetId: asset.asset_id,
     timeframe: timeframeForMarket(market),
-    limit
+    limit,
   });
   return rows
     .map((row) => ({
@@ -186,7 +187,7 @@ function parseBarsForMarket(
       high: safeNumber(row.high, Number.NaN),
       low: safeNumber(row.low, Number.NaN),
       close: safeNumber(row.close, Number.NaN),
-      volume: safeNumber(row.volume, 0)
+      volume: safeNumber(row.volume, 0),
     }))
     .filter(
       (row) =>
@@ -194,7 +195,7 @@ function parseBarsForMarket(
         Number.isFinite(row.open) &&
         Number.isFinite(row.high) &&
         Number.isFinite(row.low) &&
-        Number.isFinite(row.close)
+        Number.isFinite(row.close),
     );
 }
 
@@ -204,7 +205,7 @@ function listMarketBarSets(repo: MarketRepository, market: Market) {
     .filter((asset) => asset.status === 'ACTIVE')
     .map((asset) => ({
       asset,
-      bars: parseBarsForMarket(repo, market, asset.symbol)
+      bars: parseBarsForMarket(repo, market, asset.symbol),
     }))
     .filter((entry) => entry.bars.length >= 140);
 }
@@ -219,28 +220,38 @@ function safeParseJson<T>(text: string | null | undefined, fallback: T): T {
 }
 
 function normalizeWeights(factorScores: Partial<Record<PandaFactorName, number>>) {
-  const total = Object.values(factorScores).reduce((acc, value) => acc + Math.max(0, safeNumber(value, 0)), 0);
+  const total = Object.values(factorScores).reduce(
+    (acc, value) => acc + Math.max(0, safeNumber(value, 0)),
+    0,
+  );
   if (total <= 0) return factorScores;
   return Object.fromEntries(
-    Object.entries(factorScores).map(([key, value]) => [key, round(Math.max(0, safeNumber(value, 0)) / total, 6)])
+    Object.entries(factorScores).map(([key, value]) => [
+      key,
+      round(Math.max(0, safeNumber(value, 0)) / total, 6),
+    ]),
   ) as Partial<Record<PandaFactorName, number>>;
 }
 
 function loadActiveModel(repo: MarketRepository, market: Market): ModelVersionRecord | null {
   const models = repo.listModelVersions({
     modelKey: marketModelKey(market),
-    limit: 20
+    limit: 20,
   });
   return models.find((row) => row.status === 'active') || null;
 }
 
-function loadDeprecatedModel(repo: MarketRepository, market: Market, excludeId?: string | null): ModelVersionRecord | null {
+function loadDeprecatedModel(
+  repo: MarketRepository,
+  market: Market,
+  excludeId?: string | null,
+): ModelVersionRecord | null {
   return (
     repo
       .listModelVersions({
         modelKey: marketModelKey(market),
         status: 'deprecated',
-        limit: 20
+        limit: 20,
       })
       .find((row) => row.id !== excludeId) || null
   );
@@ -256,16 +267,20 @@ function ensureExecutionProfile(repo: MarketRepository, asofMs: number): void {
     fill_policy_json: JSON.stringify({ type: 'close_plus_costs' }),
     latency_assumption_json: JSON.stringify({ bars: 1 }),
     version: '1',
-    created_at_ms: asofMs
+    created_at_ms: asofMs,
   });
 }
 
-function ensureDefaultActiveModel(repo: MarketRepository, market: Market, asofMs: number): ModelVersionRecord {
+function ensureDefaultActiveModel(
+  repo: MarketRepository,
+  market: Market,
+  asofMs: number,
+): ModelVersionRecord {
   const existing = loadActiveModel(repo, market);
   if (existing) return existing;
 
   const config = resolvePandaModelConfig({
-    modelKey: marketModelKey(market)
+    modelKey: marketModelKey(market),
   });
   const semanticVersion = `bootstrap-${dateKey(asofMs)}-1`;
   const configHash = hashJson(config).slice(0, 12);
@@ -281,7 +296,7 @@ function ensureDefaultActiveModel(repo: MarketRepository, market: Market, asofMs
     status: 'active',
     config_json: JSON.stringify(config),
     created_at_ms: asofMs,
-    updated_at_ms: asofMs
+    updated_at_ms: asofMs,
   });
   repo.upsertStrategyVersion({
     id: strategyId,
@@ -292,14 +307,19 @@ function ensureDefaultActiveModel(repo: MarketRepository, market: Market, asofMs
     config_json: JSON.stringify({ model_id: modelId, config }),
     status: 'champion',
     created_at_ms: asofMs,
-    updated_at_ms: asofMs
+    updated_at_ms: asofMs,
   });
-  return repo.listModelVersions({ modelKey: marketModelKey(market), limit: 5 }).find((row) => row.id === modelId)!;
+  return repo
+    .listModelVersions({ modelKey: marketModelKey(market), limit: 5 })
+    .find((row) => row.id === modelId)!;
 }
 
 function strategyRecordFromModel(model: ModelVersionRecord): StrategyVersionRecord {
   const configHash = hashText(model.config_json).slice(0, 12);
-  const strategyId = `strategy-${model.model_key}-${model.semantic_version}`.replace(/[^a-zA-Z0-9._-]/g, '-');
+  const strategyId = `strategy-${model.model_key}-${model.semantic_version}`.replace(
+    /[^a-zA-Z0-9._-]/g,
+    '-',
+  );
   return {
     id: strategyId,
     strategy_key: marketStrategyKey(model.model_key.includes('crypto') ? 'CRYPTO' : 'US'),
@@ -310,15 +330,23 @@ function strategyRecordFromModel(model: ModelVersionRecord): StrategyVersionReco
       model_id: model.id,
       model_key: model.model_key,
       semantic_version: model.semantic_version,
-      config: safeParseJson(model.config_json, {})
+      config: safeParseJson(model.config_json, {}),
     }),
-    status: model.status === 'active' ? 'champion' : model.status === 'challenger' ? 'challenger' : 'deprecated',
+    status:
+      model.status === 'active'
+        ? 'champion'
+        : model.status === 'challenger'
+          ? 'challenger'
+          : 'deprecated',
     created_at_ms: model.created_at_ms,
-    updated_at_ms: model.updated_at_ms
+    updated_at_ms: model.updated_at_ms,
   };
 }
 
-function ensureStrategyRecord(repo: MarketRepository, model: ModelVersionRecord): StrategyVersionRecord {
+function ensureStrategyRecord(
+  repo: MarketRepository,
+  model: ModelVersionRecord,
+): StrategyVersionRecord {
   const record = strategyRecordFromModel(model);
   repo.upsertStrategyVersion(record);
   return record;
@@ -338,7 +366,7 @@ function ensureDatasetArtifacts(args: {
     timeframe,
     coverage: args.runtimeSnapshot.coverageSummary,
     freshness: args.runtimeSnapshot.freshnessSummary,
-    members: args.members
+    members: args.members,
   });
   const datasetId = `dataset-${args.market.toLowerCase()}-${sourceBundleHash.slice(0, 12)}`;
   args.repo.createDatasetVersion({
@@ -350,7 +378,7 @@ function ensureDatasetArtifacts(args: {
     coverage_summary_json: JSON.stringify(args.runtimeSnapshot.coverageSummary),
     freshness_summary_json: JSON.stringify(args.runtimeSnapshot.freshnessSummary),
     notes: `Evolution cycle dataset snapshot for ${args.market}`,
-    created_at_ms: args.asofMs
+    created_at_ms: args.asofMs,
   });
   const universeId = `universe-${args.market.toLowerCase()}-${sourceBundleHash.slice(0, 12)}`;
   args.repo.upsertUniverseSnapshot({
@@ -360,7 +388,7 @@ function ensureDatasetArtifacts(args: {
     market: args.market,
     asset_class: assetClass,
     members_json: JSON.stringify(args.members),
-    created_at_ms: args.asofMs
+    created_at_ms: args.asofMs,
   });
   ensureExecutionProfile(args.repo, args.asofMs);
   return {
@@ -368,7 +396,7 @@ function ensureDatasetArtifacts(args: {
     universeId,
     executionProfileId: EXECUTION_PROFILE_ID,
     assetClass,
-    timeframe
+    timeframe,
   };
 }
 
@@ -382,7 +410,7 @@ function persistFactorEval(
     score: Record<string, unknown>;
     notes?: string | null;
     asofMs: number;
-  }
+  },
 ): void {
   const subjectId = `${args.market}:${args.timeframe}:${args.factorId}:${dateKey(args.asofMs)}`;
   repo.upsertEvalRecord({
@@ -393,11 +421,15 @@ function persistFactorEval(
     subject_version: dateKey(args.asofMs),
     score_json: JSON.stringify(args.score),
     notes: args.notes ?? null,
-    created_at_ms: args.asofMs
+    created_at_ms: args.asofMs,
   });
 }
 
-function storeMeasuredFactorEffects(repo: MarketRepository, market: Market, asofMs: number): number {
+function storeMeasuredFactorEffects(
+  repo: MarketRepository,
+  market: Market,
+  asofMs: number,
+): number {
   const assetClass = assetClassForMarket(market);
   const timeframe = timeframeForMarket(market);
   let count = 0;
@@ -407,7 +439,7 @@ function storeMeasuredFactorEffects(repo: MarketRepository, market: Market, asof
       market,
       assetClass,
       timeframe,
-      lookbackBars: market === 'US' ? 320 : 260
+      lookbackBars: market === 'US' ? 320 : 260,
     });
     persistFactorEval(repo, {
       market,
@@ -417,10 +449,10 @@ function storeMeasuredFactorEffects(repo: MarketRepository, market: Market, asof
       score: {
         source_status: result.source_status,
         data_status: result.data_status,
-        report: result.report
+        report: result.report,
       },
       notes: 'Measured factor daily persistence',
-      asofMs
+      asofMs,
     });
     count += 1;
   }
@@ -432,7 +464,12 @@ function runtimeFactorDirection(factorName: PandaFactorName): 1 | -1 {
   return 1;
 }
 
-function storeRuntimeFactorEffects(repo: MarketRepository, market: Market, barSets: ReturnType<typeof listMarketBarSets>, asofMs: number): number {
+function storeRuntimeFactorEffects(
+  repo: MarketRepository,
+  market: Market,
+  barSets: ReturnType<typeof listMarketBarSets>,
+  asofMs: number,
+): number {
   const timeframe = timeframeForMarket(market);
   let count = 0;
   for (const factorName of PANDA_FACTOR_NAMES) {
@@ -448,7 +485,13 @@ function storeRuntimeFactorEffects(repo: MarketRepository, market: Market, barSe
         const feature = safeNumber(factorSeries[index], Number.NaN);
         const base = safeNumber(closes[index], Number.NaN);
         const future = safeNumber(closes[index + horizon], Number.NaN);
-        if (!Number.isFinite(feature) || !Number.isFinite(base) || !Number.isFinite(future) || base <= 0) continue;
+        if (
+          !Number.isFinite(feature) ||
+          !Number.isFinite(base) ||
+          !Number.isFinite(future) ||
+          base <= 0
+        )
+          continue;
         xs.push(feature * runtimeFactorDirection(factorName));
         ys.push(future / base - 1);
         observations += 1;
@@ -464,7 +507,7 @@ function storeRuntimeFactorEffects(repo: MarketRepository, market: Market, barSe
                 acc.y.push(row.ret);
                 return acc;
               },
-              { x: [] as number[], y: [] as number[] }
+              { x: [] as number[], y: [] as number[] },
             )
         : null;
     const correlationScore =
@@ -486,15 +529,17 @@ function storeRuntimeFactorEffects(repo: MarketRepository, market: Market, barSe
               if (varX <= 1e-12 || varY <= 1e-12) return 0;
               return cov / Math.sqrt(varX * varY);
             })(),
-            6
+            6,
           )
         : 0;
     const hitRate =
       xs.length >= 5
         ? round(
-            xs.filter((value, index) => Math.sign(value || 0) === Math.sign(ys[index] || 0) && Math.abs(value) > 0).length /
-              Math.max(1, xs.length),
-            6
+            xs.filter(
+              (value, index) =>
+                Math.sign(value || 0) === Math.sign(ys[index] || 0) && Math.abs(value) > 0,
+            ).length / Math.max(1, xs.length),
+            6,
           )
         : 0;
     persistFactorEval(repo, {
@@ -505,10 +550,10 @@ function storeRuntimeFactorEffects(repo: MarketRepository, market: Market, barSe
       score: {
         ic: correlationScore,
         hit_rate: hitRate,
-        sample_size: observations
+        sample_size: observations,
       },
       notes: 'Runtime panda-factor daily persistence',
-      asofMs
+      asofMs,
     });
     count += 1;
   }
@@ -527,17 +572,17 @@ function candidateTemplates(): CandidateTemplate[] {
           trend_strength: 1.35,
           momentum_5: 1.15,
           volume_impulse: 1.05,
-          reversal_score: 0.6
-        }
-      }
+          reversal_score: 0.6,
+        },
+      },
     },
     {
       label: 'balanced-adaptive',
       seed: {
         regimeBias: 'balanced',
         longSignalThreshold: 0.8,
-        shortSignalThreshold: 0.82
-      }
+        shortSignalThreshold: 0.82,
+      },
     },
     {
       label: 'defensive',
@@ -551,10 +596,10 @@ function candidateTemplates(): CandidateTemplate[] {
         factorWeights: {
           volatility_score: 1.25,
           reversal_score: 1.1,
-          trend_strength: 0.82
-        }
-      }
-    }
+          trend_strength: 0.82,
+        },
+      },
+    },
   ];
 }
 
@@ -562,12 +607,12 @@ function fitCandidateConfig(
   barSets: ReturnType<typeof listMarketBarSets>,
   market: Market,
   template: CandidateTemplate,
-  baseConfig?: Partial<PandaModelRuntimeConfig> | null
+  baseConfig?: Partial<PandaModelRuntimeConfig> | null,
 ): PandaModelRuntimeConfig {
   const mergedBase = resolvePandaModelConfig({
     modelKey: marketModelKey(market),
     ...baseConfig,
-    ...template.seed
+    ...template.seed,
   });
   const aggregateScores = new Map<PandaFactorName, number>();
   for (const factorName of PANDA_FACTOR_NAMES) {
@@ -582,10 +627,13 @@ function fitCandidateConfig(
       frame,
       factorNames: [...PANDA_FACTOR_NAMES],
       lookaheadBars: mergedBase.factorLookaheadBars,
-      topFactorCount: mergedBase.topFactorCount
+      topFactorCount: mergedBase.topFactorCount,
     });
     for (const factorName of PANDA_FACTOR_NAMES) {
-      aggregateScores.set(factorName, aggregateScores.get(factorName)! + safeNumber(ranked.factorScores[factorName], 0));
+      aggregateScores.set(
+        factorName,
+        aggregateScores.get(factorName)! + safeNumber(ranked.factorScores[factorName], 0),
+      );
     }
     assetCount += 1;
   }
@@ -593,8 +641,8 @@ function fitCandidateConfig(
   const averagedScores = Object.fromEntries(
     Array.from(aggregateScores.entries()).map(([factorName, score]) => [
       factorName,
-      assetCount ? score / assetCount : 0
-    ])
+      assetCount ? score / assetCount : 0,
+    ]),
   ) as Partial<Record<PandaFactorName, number>>;
   const rankedFactors = Object.entries(averagedScores)
     .sort((a, b) => safeNumber(b[1], 0) - safeNumber(a[1], 0))
@@ -608,11 +656,16 @@ function fitCandidateConfig(
     factorWeights: normalizeWeights(averagedScores),
     longSignalThreshold: round(Math.max(0.58, mergedBase.longSignalThreshold - topScore * 0.12), 6),
     shortSignalThreshold: round(Math.max(0.6, mergedBase.shortSignalThreshold - topScore * 0.1), 6),
-    notes: `Fitted from walk-forward train windows (${template.label})`
+    notes: `Fitted from walk-forward train windows (${template.label})`,
   });
 }
 
-function buildWalkForwardWindows(total: number, minTrainBars: number, foldCount: number, testBars: number) {
+function buildWalkForwardWindows(
+  total: number,
+  minTrainBars: number,
+  foldCount: number,
+  testBars: number,
+) {
   if (total < minTrainBars + testBars) return [];
   const available = total - minTrainBars - testBars;
   const step = Math.max(1, Math.floor(available / Math.max(1, foldCount - 1)));
@@ -622,7 +675,7 @@ function buildWalkForwardWindows(total: number, minTrainBars: number, foldCount:
     windows.push({
       trainEnd,
       testStart: trainEnd,
-      testEnd: Math.min(total - 1, trainEnd + testBars - 1)
+      testEnd: Math.min(total - 1, trainEnd + testBars - 1),
     });
     trainEnd += step;
   }
@@ -637,7 +690,12 @@ function evaluateModelOnBars(args: {
   const foldCount = 4;
   const testBars = args.market === 'US' ? 28 : 36;
   const horizon = args.market === 'US' ? 5 : 6;
-  const windows = buildWalkForwardWindows(args.bars.length, Math.max(args.config.minSampleBars, 90), foldCount, testBars);
+  const windows = buildWalkForwardWindows(
+    args.bars.length,
+    Math.max(args.config.minSampleBars, 90),
+    foldCount,
+    testBars,
+  );
   const returns: number[] = [];
   const folds: WalkForwardMetrics['folds'] = [];
 
@@ -647,17 +705,21 @@ function evaluateModelOnBars(args: {
       [
         {
           asset: { symbol: 'TRAIN' } as never,
-          bars: trainBars
-        }
+          bars: trainBars,
+        },
       ],
       args.market,
       { label: 'wf-fit', seed: args.config },
-      args.config
+      args.config,
     );
     const foldReturns: number[] = [];
     const realizedHistory: number[] = [];
 
-    for (let index = Math.max(window.testStart, fittedConfig.minSampleBars); index <= window.testEnd - horizon; index += 1) {
+    for (
+      let index = Math.max(window.testStart, fittedConfig.minSampleBars);
+      index <= window.testEnd - horizon;
+      index += 1
+    ) {
       const context = args.bars.slice(Math.max(0, index - 320 + 1), index + 1);
       const decision = buildPandaAdaptiveDecision({
         market: args.market,
@@ -671,9 +733,9 @@ function evaluateModelOnBars(args: {
           max_drawdown: 12,
           exposure_cap: 55,
           leverage_cap: 2,
-          updated_at_ms: 0
+          updated_at_ms: 0,
         },
-        modelConfig: fittedConfig
+        modelConfig: fittedConfig,
       });
       if (!decision.risk.allowed || decision.signal === 0 || decision.confidence < 0.46) continue;
       const entry = args.bars[index].close;
@@ -696,7 +758,10 @@ function evaluateModelOnBars(args: {
         testStartTs: args.bars[window.testStart]?.ts_open ?? 0,
         testEndTs: args.bars[window.testEnd]?.ts_open ?? 0,
         trades: foldReturns.length,
-        netReturn: round(foldReturns.reduce((acc, value) => acc + value, 0), 6)
+        netReturn: round(
+          foldReturns.reduce((acc, value) => acc + value, 0),
+          6,
+        ),
       });
     }
   }
@@ -717,7 +782,7 @@ function evaluateModelOnBars(args: {
       withheldReason: 'insufficient_walk_forward_samples',
       realismGrade: 'WITHHELD',
       robustnessGrade: 'WITHHELD',
-      folds
+      folds,
     };
   }
 
@@ -741,12 +806,12 @@ function evaluateModelOnBars(args: {
     withheldReason: null,
     realismGrade: 'C',
     robustnessGrade: 'C',
-    folds
+    folds,
   };
   metric.realismGrade = gradeFromMetrics(metric);
   metric.robustnessGrade = gradeFromMetrics({
     ...metric,
-    sharpe: metric.sharpe - metric.maxDrawdown
+    sharpe: metric.sharpe - metric.maxDrawdown,
   });
   return metric;
 }
@@ -762,7 +827,7 @@ function aggregateEvaluations(args: {
     const metrics = evaluateModelOnBars({
       market: args.market,
       bars: entry.bars,
-      config: args.config
+      config: args.config,
     });
     if (metrics.sampleSize) {
       const foldRows = metrics.folds.map((row) => ({ ...row, symbol: entry.asset.symbol }));
@@ -789,7 +854,7 @@ function aggregateEvaluations(args: {
       withheldReason: 'no_eligible_assets',
       realismGrade: 'WITHHELD',
       robustnessGrade: 'WITHHELD',
-      folds: []
+      folds: [],
     };
   }
 
@@ -798,24 +863,33 @@ function aggregateEvaluations(args: {
   const metrics: WalkForwardMetrics = {
     grossReturn: round(grossReturn, 6),
     netReturn: round(grossReturn, 6),
-    sharpe: round(std(returns) > 0 ? (average(returns) / std(returns)) * Math.sqrt(returns.length) : 0, 6),
+    sharpe: round(
+      std(returns) > 0 ? (average(returns) / std(returns)) * Math.sqrt(returns.length) : 0,
+      6,
+    ),
     sortino: round(sortino(returns), 6),
     maxDrawdown: round(maxDrawdown(returns), 6),
     turnover: round(average(allFolds.map((row) => row.trades)), 6),
     winRate: round(allFolds.filter((row) => row.netReturn > 0).length / allFolds.length, 6),
     hitRate: round(allFolds.filter((row) => row.netReturn > 0).length / allFolds.length, 6),
-    costDrag: round(allFolds.reduce((acc, row) => acc + row.trades * (args.market === 'US' ? 0.0012 : 0.0018), 0), 6),
+    costDrag: round(
+      allFolds.reduce((acc, row) => acc + row.trades * (args.market === 'US' ? 0.0012 : 0.0018), 0),
+      6,
+    ),
     sampleSize: allFolds.reduce((acc, row) => acc + row.trades, 0),
     status: allFolds.reduce((acc, row) => acc + row.trades, 0) >= 12 ? 'READY' : 'WITHHELD',
-    withheldReason: allFolds.reduce((acc, row) => acc + row.trades, 0) >= 12 ? null : 'insufficient_walk_forward_samples',
+    withheldReason:
+      allFolds.reduce((acc, row) => acc + row.trades, 0) >= 12
+        ? null
+        : 'insufficient_walk_forward_samples',
     realismGrade: 'C',
     robustnessGrade: 'C',
-    folds: allFolds
+    folds: allFolds,
   };
   metrics.realismGrade = gradeFromMetrics(metrics);
   metrics.robustnessGrade = gradeFromMetrics({
     ...metrics,
-    sharpe: metrics.sharpe - metrics.maxDrawdown
+    sharpe: metrics.sharpe - metrics.maxDrawdown,
   });
   return metrics;
 }
@@ -834,7 +908,7 @@ function shouldPromote(challenger: WalkForwardMetrics, champion: WalkForwardMetr
 function shouldRollback(active: WalkForwardMetrics, runtimeSnapshot: RuntimeSnapshotLike): boolean {
   const coverage = safeParseJson<{ coverage_ratio?: number }>(
     JSON.stringify(runtimeSnapshot.coverageSummary),
-    {}
+    {},
   );
   const coverageRatio = safeNumber((coverage as Record<string, unknown>).coverage_ratio, 0);
   if (runtimeSnapshot.sourceStatus !== 'DB_BACKED' || coverageRatio < 0.2) return true;
@@ -851,7 +925,8 @@ async function sendDiscordAlert(args: {
 }) {
   const webhook = String(process.env.DISCORD_WEBHOOK_URL || '').trim();
   if (!webhook) return;
-  const color = args.severity === 'ERROR' ? 0xe34f4f : args.severity === 'WARN' ? 0xffc145 : 0x6aa6ff;
+  const color =
+    args.severity === 'ERROR' ? 0xe34f4f : args.severity === 'WARN' ? 0xffc145 : 0x6aa6ff;
   try {
     await fetch(webhook, {
       method: 'POST',
@@ -864,10 +939,10 @@ async function sendDiscordAlert(args: {
             description: args.description,
             color,
             fields: args.fields || [],
-            timestamp: new Date().toISOString()
-          }
-        ]
-      })
+            timestamp: new Date().toISOString(),
+          },
+        ],
+      }),
     });
   } catch {
     // Discord delivery is best-effort; notification_events remain the durable record.
@@ -886,7 +961,9 @@ async function recordProtectiveAlert(args: {
   traceId: string;
 }) {
   const assetClass = assetClassForMarket(args.market);
-  const fingerprint = hashText(`${dateKey(args.asofMs)}|${args.market}|${args.triggerType}|${args.title}`);
+  const fingerprint = hashText(
+    `${dateKey(args.asofMs)}|${args.market}|${args.triggerType}|${args.title}`,
+  );
   const event: NotificationEventRecord = {
     id: `notif-${fingerprint.slice(0, 20)}`,
     user_id: args.userId,
@@ -902,7 +979,7 @@ async function recordProtectiveAlert(args: {
     action_target: null,
     reason_json: JSON.stringify(args.reason),
     created_at_ms: args.asofMs,
-    updated_at_ms: args.asofMs
+    updated_at_ms: args.asofMs,
   };
   args.repo.upsertNotificationEvent(event);
   recordAuditEvent(args.repo, {
@@ -912,7 +989,7 @@ async function recordProtectiveAlert(args: {
     userId: args.userId,
     entityType: 'notification_event',
     entityId: event.id,
-    payload: args.reason
+    payload: args.reason,
   });
   await sendDiscordAlert({
     title: args.title,
@@ -920,8 +997,8 @@ async function recordProtectiveAlert(args: {
     severity: args.triggerType.includes('ROLLBACK') ? 'ERROR' : 'WARN',
     fields: [
       { name: 'Market', value: args.market },
-      { name: 'Date', value: dateKey(args.asofMs) }
-    ]
+      { name: 'Date', value: dateKey(args.asofMs) },
+    ],
   });
 }
 
@@ -944,7 +1021,7 @@ function createModelVersionRecord(args: {
     status: args.status,
     config_json: JSON.stringify(args.config),
     created_at_ms: args.asofMs,
-    updated_at_ms: args.asofMs
+    updated_at_ms: args.asofMs,
   };
 }
 
@@ -963,13 +1040,17 @@ function persistBacktestEvaluation(args: {
     market: args.market,
     runtimeSnapshot: args.runtimeSnapshot,
     members: barSets.map((entry) => entry.asset.symbol),
-    asofMs: args.asofMs
+    asofMs: args.asofMs,
   });
   const runId = `wf-${args.market.toLowerCase()}-${hashText(`${args.model.id}|${args.asofMs}`).slice(0, 16)}`;
   const firstFold = args.metrics.folds[0] || null;
   const lastFold = args.metrics.folds[args.metrics.folds.length - 1] || null;
   const status: BacktestRunRecord['status'] =
-    args.metrics.status === 'READY' ? 'SUCCESS' : args.metrics.status === 'FAILED' ? 'FAILED' : 'WITHHELD';
+    args.metrics.status === 'READY'
+      ? 'SUCCESS'
+      : args.metrics.status === 'FAILED'
+        ? 'FAILED'
+        : 'WITHHELD';
   args.repo.createBacktestRun({
     id: runId,
     run_type: 'walk_forward',
@@ -980,7 +1061,7 @@ function persistBacktestEvaluation(args: {
     config_hash: hashJson({
       strategy_id: args.strategy.id,
       model_id: args.model.id,
-      metrics: args.metrics
+      metrics: args.metrics,
     }),
     started_at_ms: args.asofMs,
     completed_at_ms: args.asofMs,
@@ -988,7 +1069,7 @@ function persistBacktestEvaluation(args: {
     train_window: firstFold ? `${firstFold.trainStartTs}:${firstFold.trainEndTs}` : null,
     validation_window: null,
     test_window: firstFold && lastFold ? `${firstFold.testStartTs}:${lastFold.testEndTs}` : null,
-    notes: `Walk-forward evaluation for ${args.model.id}`
+    notes: `Walk-forward evaluation for ${args.model.id}`,
   });
   const backtestMetric: BacktestMetricRecord = {
     backtest_run_id: runId,
@@ -1007,7 +1088,7 @@ function persistBacktestEvaluation(args: {
     robustness_grade: args.metrics.robustnessGrade,
     status: args.metrics.status,
     created_at_ms: args.asofMs,
-    updated_at_ms: args.asofMs
+    updated_at_ms: args.asofMs,
   };
   args.repo.upsertBacktestMetric(backtestMetric);
   args.repo.insertBacktestArtifacts([
@@ -1015,14 +1096,14 @@ function persistBacktestEvaluation(args: {
       backtest_run_id: runId,
       artifact_type: 'walk_forward_folds',
       path_or_payload: JSON.stringify(args.metrics.folds),
-      created_at_ms: args.asofMs
+      created_at_ms: args.asofMs,
     },
     {
       backtest_run_id: runId,
       artifact_type: 'model_config',
       path_or_payload: args.model.config_json,
-      created_at_ms: args.asofMs
-    }
+      created_at_ms: args.asofMs,
+    },
   ]);
   args.repo.upsertEvalRecord({
     id: `eval-model-${hashText(`${args.model.id}|${runId}`).slice(0, 20)}`,
@@ -1032,7 +1113,7 @@ function persistBacktestEvaluation(args: {
     subject_version: args.model.semantic_version,
     score_json: JSON.stringify(args.metrics),
     notes: `Walk-forward evaluation run ${runId}`,
-    created_at_ms: args.asofMs
+    created_at_ms: args.asofMs,
   });
   return runId;
 }
@@ -1047,35 +1128,38 @@ function setCompetitionStatuses(args: {
   const modelKey = marketModelKey(args.market);
   const models = args.repo.listModelVersions({
     modelKey,
-    limit: 50
+    limit: 50,
   });
   for (const model of models) {
     let nextStatus: ModelVersionRecord['status'] = 'deprecated';
     if (model.id === args.activeModelId) nextStatus = 'active';
-    else if (args.challengerModelId && model.id === args.challengerModelId) nextStatus = 'challenger';
+    else if (args.challengerModelId && model.id === args.challengerModelId)
+      nextStatus = 'challenger';
     if (model.status !== nextStatus) {
       args.repo.upsertModelVersion({
         ...model,
         status: nextStatus,
-        updated_at_ms: args.asofMs
+        updated_at_ms: args.asofMs,
       });
     }
   }
 
   const strategies = args.repo.listStrategyVersions({
     strategyKey: marketStrategyKey(args.market),
-    limit: 50
+    limit: 50,
   });
   for (const strategy of strategies) {
-    const linkedModelId = safeParseJson<{ model_id?: string }>(strategy.config_json, {}).model_id || null;
+    const linkedModelId =
+      safeParseJson<{ model_id?: string }>(strategy.config_json, {}).model_id || null;
     let nextStatus: StrategyLifecycleStatus = 'deprecated';
     if (linkedModelId === args.activeModelId) nextStatus = 'champion';
-    else if (args.challengerModelId && linkedModelId === args.challengerModelId) nextStatus = 'challenger';
+    else if (args.challengerModelId && linkedModelId === args.challengerModelId)
+      nextStatus = 'challenger';
     if (strategy.status !== nextStatus) {
       args.repo.upsertStrategyVersion({
         ...strategy,
         status: nextStatus,
-        updated_at_ms: args.asofMs
+        updated_at_ms: args.asofMs,
       });
     }
   }
@@ -1100,7 +1184,7 @@ async function runMarketEvolution(args: {
   const activeMetrics = aggregateEvaluations({
     market: args.market,
     config: activeConfig,
-    barSets
+    barSets,
   });
   const activeBacktestRunId = persistBacktestEvaluation({
     repo: args.repo,
@@ -1109,7 +1193,7 @@ async function runMarketEvolution(args: {
     model: activeModel,
     strategy: activeStrategy,
     metrics: activeMetrics,
-    asofMs: args.asofMs
+    asofMs: args.asofMs,
   });
   args.repo.upsertExperimentRecord({
     id: `exp-${activeBacktestRunId}`,
@@ -1119,7 +1203,7 @@ async function runMarketEvolution(args: {
     promotion_reason: null,
     demotion_reason: null,
     approved_at_ms: null,
-    created_at_ms: args.asofMs
+    created_at_ms: args.asofMs,
   });
 
   const challengers: EvaluatedModel[] = [];
@@ -1130,14 +1214,14 @@ async function runMarketEvolution(args: {
       config,
       status: 'challenger',
       label: template.label,
-      asofMs: args.asofMs
+      asofMs: args.asofMs,
     });
     args.repo.upsertModelVersion(model);
     const strategy = ensureStrategyRecord(args.repo, model);
     const metrics = aggregateEvaluations({
       market: args.market,
       config,
-      barSets
+      barSets,
     });
     const backtestRunId = persistBacktestEvaluation({
       repo: args.repo,
@@ -1146,7 +1230,7 @@ async function runMarketEvolution(args: {
       model,
       strategy,
       metrics,
-      asofMs: args.asofMs
+      asofMs: args.asofMs,
     });
     args.repo.upsertExperimentRecord({
       id: `exp-${backtestRunId}`,
@@ -1156,22 +1240,26 @@ async function runMarketEvolution(args: {
       promotion_reason: null,
       demotion_reason: metrics.status === 'READY' ? null : metrics.withheldReason,
       approved_at_ms: null,
-      created_at_ms: args.asofMs
+      created_at_ms: args.asofMs,
     });
     challengers.push({
       label: template.label,
       model,
       strategy,
       metrics,
-      backtestRunId
+      backtestRunId,
     });
   }
 
   const bestChallenger =
     challengers
       .filter((row) => row.metrics.status === 'READY')
-      .sort((a, b) => (b.metrics.netReturn - a.metrics.maxDrawdown) - (a.metrics.netReturn - a.metrics.maxDrawdown))[0] ||
-    null;
+      .sort(
+        (a, b) =>
+          b.metrics.netReturn -
+          a.metrics.maxDrawdown -
+          (a.metrics.netReturn - a.metrics.maxDrawdown),
+      )[0] || null;
 
   let promoted = false;
   let rolledBack = false;
@@ -1187,7 +1275,7 @@ async function runMarketEvolution(args: {
         market: args.market,
         activeModelId: fallbackModel.id,
         challengerModelId,
-        asofMs: args.asofMs
+        asofMs: args.asofMs,
       });
       activeModelId = fallbackModel.id;
       rolledBack = true;
@@ -1202,21 +1290,21 @@ async function runMarketEvolution(args: {
         reason: {
           previous_active_model_id: activeModel.id,
           rollback_to_model_id: fallbackModel.id,
-          active_metrics: activeMetrics
+          active_metrics: activeMetrics,
         },
         asofMs: args.asofMs,
-        traceId: args.traceId
+        traceId: args.traceId,
       });
     } else {
       const patchedConfig = resolvePandaModelConfig({
         ...activeConfig,
         safeMode: true,
-        rollbackTargetId: activeModel.id
+        rollbackTargetId: activeModel.id,
       });
       args.repo.upsertModelVersion({
         ...activeModel,
         config_json: JSON.stringify(patchedConfig),
-        updated_at_ms: args.asofMs
+        updated_at_ms: args.asofMs,
       });
       safeMode = true;
       await recordProtectiveAlert({
@@ -1228,10 +1316,10 @@ async function runMarketEvolution(args: {
         triggerType: 'EVOLUTION_SAFE_MODE',
         reason: {
           active_model_id: activeModel.id,
-          active_metrics: activeMetrics
+          active_metrics: activeMetrics,
         },
         asofMs: args.asofMs,
-        traceId: args.traceId
+        traceId: args.traceId,
       });
     }
   } else if (bestChallenger && shouldPromote(bestChallenger.metrics, activeMetrics)) {
@@ -1240,7 +1328,7 @@ async function runMarketEvolution(args: {
       market: args.market,
       activeModelId: bestChallenger.model.id,
       challengerModelId: activeModel.id,
-      asofMs: args.asofMs
+      asofMs: args.asofMs,
     });
     args.repo.upsertExperimentRecord({
       id: `promotion-${bestChallenger.backtestRunId}`,
@@ -1250,12 +1338,14 @@ async function runMarketEvolution(args: {
       promotion_reason: `Promoted over ${activeModel.id} on net_return=${round(bestChallenger.metrics.netReturn, 4)} sharpe=${round(bestChallenger.metrics.sharpe, 4)}`,
       demotion_reason: null,
       approved_at_ms: args.asofMs,
-      created_at_ms: args.asofMs
+      created_at_ms: args.asofMs,
     });
     promoted = true;
     activeModelId = bestChallenger.model.id;
     challengerModelId = activeModel.id;
-    safeMode = resolvePandaModelConfig(safeParseJson(bestChallenger.model.config_json, {})).safeMode;
+    safeMode = resolvePandaModelConfig(
+      safeParseJson(bestChallenger.model.config_json, {}),
+    ).safeMode;
     await recordProtectiveAlert({
       repo: args.repo,
       userId: args.userId,
@@ -1267,21 +1357,21 @@ async function runMarketEvolution(args: {
         previous_active_model_id: activeModel.id,
         promoted_model_id: bestChallenger.model.id,
         champion_metrics: activeMetrics,
-        challenger_metrics: bestChallenger.metrics
+        challenger_metrics: bestChallenger.metrics,
       },
       asofMs: args.asofMs,
-      traceId: args.traceId
+      traceId: args.traceId,
     });
   } else {
     if (activeConfig.safeMode && args.runtimeSnapshot.sourceStatus === 'DB_BACKED') {
       const patchedConfig = resolvePandaModelConfig({
         ...activeConfig,
-        safeMode: false
+        safeMode: false,
       });
       args.repo.upsertModelVersion({
         ...activeModel,
         config_json: JSON.stringify(patchedConfig),
-        updated_at_ms: args.asofMs
+        updated_at_ms: args.asofMs,
       });
       safeMode = false;
     }
@@ -1290,7 +1380,7 @@ async function runMarketEvolution(args: {
       market: args.market,
       activeModelId: activeModel.id,
       challengerModelId,
-      asofMs: args.asofMs
+      asofMs: args.asofMs,
     });
   }
 
@@ -1309,8 +1399,8 @@ async function runMarketEvolution(args: {
       active_model_id: activeModelId,
       challenger_model_id: challengerModelId,
       active_metrics: activeMetrics,
-      best_challenger_metrics: bestChallenger?.metrics || null
-    }
+      best_challenger_metrics: bestChallenger?.metrics || null,
+    },
   });
 
   return {
@@ -1327,7 +1417,7 @@ async function runMarketEvolution(args: {
         ? `Rolled back ${args.market} runtime after health degradation.`
         : safeMode
           ? `Kept ${args.market} runtime in safe mode.`
-          : `Held current ${args.market} champion; challengers remain in shadow.`
+          : `Held current ${args.market} champion; challengers remain in shadow.`,
   };
 }
 
@@ -1351,13 +1441,13 @@ export async function runEvolutionCycle(args: {
     trace_id: traceId,
     input_json: JSON.stringify({
       markets,
-      asof: new Date(asofMs).toISOString()
+      asof: new Date(asofMs).toISOString(),
     }),
     output_json: null,
     attempt_count: 1,
     started_at_ms: asofMs,
     updated_at_ms: asofMs,
-    completed_at_ms: null
+    completed_at_ms: null,
   });
 
   recordAuditEvent(args.repo, {
@@ -1367,7 +1457,7 @@ export async function runEvolutionCycle(args: {
     userId: args.userId,
     entityType: 'workflow_run',
     entityId: workflowId,
-    payload: { markets }
+    payload: { markets },
   });
 
   try {
@@ -1380,8 +1470,8 @@ export async function runEvolutionCycle(args: {
           market,
           runtimeSnapshot: args.runtimeSnapshot,
           asofMs,
-          traceId
-        })
+          traceId,
+        }),
       );
     }
 
@@ -1397,7 +1487,7 @@ export async function runEvolutionCycle(args: {
       attempt_count: 1,
       started_at_ms: asofMs,
       updated_at_ms: Date.now(),
-      completed_at_ms: Date.now()
+      completed_at_ms: Date.now(),
     });
 
     recordAuditEvent(args.repo, {
@@ -1407,13 +1497,13 @@ export async function runEvolutionCycle(args: {
       userId: args.userId,
       entityType: 'workflow_run',
       entityId: workflowId,
-      payload: { results }
+      payload: { results },
     });
 
     return {
       workflowId,
       traceId,
-      markets: results
+      markets: results,
     };
   } catch (error) {
     args.repo.upsertWorkflowRun({
@@ -1425,12 +1515,12 @@ export async function runEvolutionCycle(args: {
       trace_id: traceId,
       input_json: JSON.stringify({ markets }),
       output_json: JSON.stringify({
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       }),
       attempt_count: 1,
       started_at_ms: asofMs,
       updated_at_ms: Date.now(),
-      completed_at_ms: Date.now()
+      completed_at_ms: Date.now(),
     });
 
     recordAuditEvent(args.repo, {
@@ -1441,8 +1531,8 @@ export async function runEvolutionCycle(args: {
       entityType: 'workflow_run',
       entityId: workflowId,
       payload: {
-        error: error instanceof Error ? error.message : String(error)
-      }
+        error: error instanceof Error ? error.message : String(error),
+      },
     });
     throw error;
   }

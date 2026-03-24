@@ -24,7 +24,9 @@ export function handlePublicOptions(req: VercelRequest, res: VercelResponse) {
 }
 
 export function parseMarket(value?: string) {
-  const upper = String(value || '').trim().toUpperCase();
+  const upper = String(value || '')
+    .trim()
+    .toUpperCase();
   if (upper === 'US' || upper === 'CRYPTO') return upper as 'US' | 'CRYPTO';
   return undefined;
 }

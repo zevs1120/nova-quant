@@ -16,6 +16,7 @@ The operating rule was:
 ## Repositories Reviewed
 
 ### MIT / Apache / BSD style sources used for conceptual borrowing
+
 - Qlib
 - Lean
 - Feast
@@ -27,6 +28,7 @@ The operating rule was:
 - Riskfolio-Lib
 
 ### Restricted-license sources used only as pattern references
+
 - vectorbt
   - reason: Commons Clause restrictions
   - policy: no direct implementation borrowing

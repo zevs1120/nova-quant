@@ -5,9 +5,23 @@ const FEATURE_CATALOG = Object.freeze({
   volatility_features: ['atr_14', 'vol_percentile', 'hv20', 'volatility_stress', 'range_expansion'],
   cross_sectional_features: ['cross_rank', 'industry_rank', 'leader_laggard_spread'],
   market_breadth_features: ['breadth_ratio', 'risk_on_off_score', 'sector_rotation_strength'],
-  crypto_funding_basis_features: ['funding_rate', 'funding_zscore', 'basis_annualized', 'open_interest_delta'],
-  relative_strength_features: ['sector_relative_strength', 'basket_rank_momentum', 'cross_asset_rank'],
-  execution_realism_features: ['spread_bps', 'slippage_bps', 'liquidity_score', 'order_fill_probability']
+  crypto_funding_basis_features: [
+    'funding_rate',
+    'funding_zscore',
+    'basis_annualized',
+    'open_interest_delta',
+  ],
+  relative_strength_features: [
+    'sector_relative_strength',
+    'basket_rank_momentum',
+    'cross_asset_rank',
+  ],
+  execution_realism_features: [
+    'spread_bps',
+    'slippage_bps',
+    'liquidity_score',
+    'order_fill_probability',
+  ],
 });
 
 function normalizeConfidence(value) {
@@ -30,13 +44,18 @@ function lifecycleState(signal, decision) {
   const active = ['NEW', 'TRIGGERED'].includes(String(signal.status || '').toUpperCase());
   if (!active) return 'filtered_signal';
   if (decision?.decision === 'blocked') return 'filtered_signal';
-  if (decision?.decision === 'reduce' || decision?.decision === 'allow') return 'executable_opportunity';
+  if (decision?.decision === 'reduce' || decision?.decision === 'allow')
+    return 'executable_opportunity';
   return 'scored_signal';
 }
 
 function buildEvidence(signal, regimeState, riskBuckets) {
-  const checks = regimeState?.by_signal_compatibility?.find((item) => item.signal_id === signal.signal_id);
-  const tradeBucket = riskBuckets?.trade_level_buckets?.find((item) => item.signal_id === signal.signal_id);
+  const checks = regimeState?.by_signal_compatibility?.find(
+    (item) => item.signal_id === signal.signal_id,
+  );
+  const tradeBucket = riskBuckets?.trade_level_buckets?.find(
+    (item) => item.signal_id === signal.signal_id,
+  );
 
   return {
     regime_state: regimeState?.state?.primary || signal.regime_id || 'unknown',
@@ -48,8 +67,8 @@ function buildEvidence(signal, regimeState, riskBuckets) {
       signal_score: round(normalizeScore(signal.score), 4),
       confidence: round(normalizeConfidence(signal.confidence), 4),
       risk_score: Number(signal.risk_score ?? 0),
-      regime_compatibility: Number(signal.regime_compatibility ?? 0)
-    }
+      regime_compatibility: Number(signal.regime_compatibility ?? 0),
+    },
   };
 }
 
@@ -62,7 +81,7 @@ function toRawSignal(signal) {
     strategy_family: signal.strategy_family || 'unknown',
     strategy_template: signal.strategy_id || 'unknown',
     direction: signal.direction,
-    source_status: signal.status || 'unknown'
+    source_status: signal.status || 'unknown',
   };
 }
 
@@ -73,7 +92,7 @@ function toScoredSignal(signal, evidence) {
     conviction: round(normalizeConfidence(signal.confidence), 4),
     regime_compatibility: Number(signal.regime_compatibility ?? 0),
     risk_score: Number(signal.risk_score ?? 0),
-    evidence
+    evidence,
   };
 }
 
@@ -84,7 +103,11 @@ function toFilteredSignal(signal, decision, reason) {
     market: signal.market,
     strategy_family: signal.strategy_family,
     rejection_reason: reason || decision?.reasons?.[0] || 'policy_filtered',
-    reduced_size_would_pass: Boolean(decision && decision.decision === 'blocked' && decision.reasons?.some((r) => String(r).toLowerCase().includes('risk')))
+    reduced_size_would_pass: Boolean(
+      decision &&
+      decision.decision === 'blocked' &&
+      decision.reasons?.some((r) => String(r).toLowerCase().includes('risk')),
+    ),
   };
 }
 
@@ -97,14 +120,24 @@ function toExecutable(signal, decision, evidence) {
     strategy_family: signal.strategy_family,
     strategy_template: signal.strategy_id,
     executable_mode: decision?.decision === 'reduce' ? 'size_reduced' : 'full_size',
-    suggested_size_pct: Number(decision?.recommended_position_pct ?? signal.position_advice?.position_pct ?? signal.position_size_pct ?? 0),
+    suggested_size_pct: Number(
+      decision?.recommended_position_pct ??
+        signal.position_advice?.position_pct ??
+        signal.position_size_pct ??
+        0,
+    ),
     risk_bucket: decision?.trade_bucket || 'unknown',
-    evidence
+    evidence,
   };
 }
 
 function toOpportunityObject(signal, decision, evidence) {
-  const suggestedSize = Number(decision?.recommended_position_pct ?? signal.position_advice?.position_pct ?? signal.position_size_pct ?? 0);
+  const suggestedSize = Number(
+    decision?.recommended_position_pct ??
+      signal.position_advice?.position_pct ??
+      signal.position_size_pct ??
+      0,
+  );
   return {
     opportunity_id: `OPP-${signal.signal_id}`,
     asset: signal.symbol,
@@ -115,7 +148,7 @@ function toOpportunityObject(signal, decision, evidence) {
     regime_compatibility: {
       state: evidence.regime_state,
       posture: evidence.regime_posture,
-      compatibility: evidence.regime_compatibility
+      compatibility: evidence.regime_compatibility,
     },
     entry: signal.entry_zone || { low: signal.entry_min, high: signal.entry_max },
     stop: signal.stop_loss || { price: signal.stop_loss_value },
@@ -127,7 +160,7 @@ function toOpportunityObject(signal, decision, evidence) {
     rationale_summary: (signal.explain_bullets || signal.rationale || []).slice(0, 3),
     invalidation_conditions: [
       `Invalidation price: ${Number(signal.invalidation_level ?? signal.stop_loss_value ?? 0)}`,
-      'Regime flips to risk-off or compatibility is blocked.'
+      'Regime flips to risk-off or compatibility is blocked.',
     ],
     evidence_fields: evidence,
     audit_lineage: {
@@ -135,8 +168,8 @@ function toOpportunityObject(signal, decision, evidence) {
       strategy_version: signal.strategy_version || signal.model_version || 'unknown',
       parameter_version: signal.parameter_version || 'unknown',
       generated_at: signal.created_at || signal.generated_at,
-      decision_source: 'research_core.feature_signal_layer.v1'
-    }
+      decision_source: 'research_core.feature_signal_layer.v1',
+    },
   };
 }
 
@@ -145,7 +178,7 @@ export function buildFeatureSignalLayer({
   championState = {},
   regimeState = {},
   riskBuckets = {},
-  funnelDiagnostics = {}
+  funnelDiagnostics = {},
 } = {}) {
   const signals = championState?.signals || [];
   const rawSignals = [];
@@ -154,9 +187,11 @@ export function buildFeatureSignalLayer({
   const executableOpportunities = [];
   const opportunityObjects = [];
 
-  const noTradeReasonBySignal = new Map((funnelDiagnostics?.raw_records || [])
-    .filter((item) => item?.signal_id)
-    .map((item) => [item.signal_id, item.no_trade_reason]));
+  const noTradeReasonBySignal = new Map(
+    (funnelDiagnostics?.raw_records || [])
+      .filter((item) => item?.signal_id)
+      .map((item) => [item.signal_id, item.no_trade_reason]),
+  );
 
   for (const signal of signals) {
     const decision = findTradeDecision(signal.signal_id, riskBuckets?.trade_level_buckets || []);
@@ -167,7 +202,9 @@ export function buildFeatureSignalLayer({
 
     const state = lifecycleState(signal, decision);
     if (state === 'filtered_signal') {
-      filteredSignals.push(toFilteredSignal(signal, decision, noTradeReasonBySignal.get(signal.signal_id)));
+      filteredSignals.push(
+        toFilteredSignal(signal, decision, noTradeReasonBySignal.get(signal.signal_id)),
+      );
       continue;
     }
 
@@ -188,7 +225,7 @@ export function buildFeatureSignalLayer({
       raw_signals: rawSignals,
       scored_signals: scoredSignals,
       filtered_signals: filteredSignals,
-      executable_opportunities: executableOpportunities
+      executable_opportunities: executableOpportunities,
     },
     opportunity_objects: opportunityObjects,
     quality_summary: {
@@ -197,10 +234,7 @@ export function buildFeatureSignalLayer({
       filtered_count: filteredSignals.length,
       executable_count: executableOpportunities.length,
       opportunity_ready_count: opportunityObjects.length,
-      required_fields_coverage:
-        opportunityObjects.length
-          ? 1
-          : 0
-    }
+      required_fields_coverage: opportunityObjects.length ? 1 : 0,
+    },
   };
 }

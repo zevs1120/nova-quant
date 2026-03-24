@@ -7,6 +7,7 @@ This document defines how Nova Quant distinguishes normal variance from structur
 ## 1) Why strategies decay
 
 Strategies decay because:
+
 - market participants adapt,
 - microstructure changes,
 - cost structure shifts,
@@ -16,11 +17,13 @@ Strategies decay because:
 ## 2) Decay vs variance
 
 Normal variance:
+
 - temporary metric noise,
 - no major change in signal/fill behavior,
 - expected drawdown distribution.
 
 Decay:
+
 - persistent drop in expectancy,
 - rising slippage sensitivity,
 - lower conversion through funnel stages,
@@ -41,6 +44,7 @@ Example: trend strategy during prolonged range/high-vol state.
 ## 5) Comparison framework
 
 Compare by:
+
 - same template/version,
 - same asset universe,
 - same cost assumptions,
@@ -49,11 +53,13 @@ Compare by:
 ## 6) Demote vs retire decisions
 
 Demote when:
+
 - decay may be regime-conditional,
 - robustness remains acceptable after re-sizing,
 - portfolio contribution remains positive.
 
 Retire when:
+
 - decay is persistent across regimes,
 - cost-adjusted edge is gone,
 - fragility and governance warnings compound.
@@ -61,6 +67,7 @@ Retire when:
 ## 7) Governance linkage
 
 This doctrine should feed:
+
 - `src/research/core/strategyGovernanceV2.js` demotion/retirement rules,
 - `src/research/core/researchAutomationLoop.js` deterioration alerts,
 - weekly cycle degradation summary outputs.

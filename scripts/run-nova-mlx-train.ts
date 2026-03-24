@@ -9,7 +9,7 @@ import {
   DEFAULT_NOVA_MLX_TASK_TYPES,
   buildNovaMlxLoraPlan,
   normalizeNovaMlxTaskTypes,
-  renderNovaShellCommand
+  renderNovaShellCommand,
 } from '../src/server/nova/mlx.js';
 
 function parseArgs() {
@@ -34,7 +34,12 @@ function parseArgs() {
     out:
       outIndex >= 0
         ? args[outIndex + 1]
-        : path.join(process.cwd(), 'artifacts', 'training', `nova-mlx-${new Date().toISOString().slice(0, 10)}.jsonl`),
+        : path.join(
+            process.cwd(),
+            'artifacts',
+            'training',
+            `nova-mlx-${new Date().toISOString().slice(0, 10)}.jsonl`,
+          ),
     adapterPath:
       adapterIndex >= 0
         ? args[adapterIndex + 1]
@@ -45,17 +50,18 @@ function parseArgs() {
     learningRate: lrIndex >= 0 ? Number(args[lrIndex + 1]) : 1e-5,
     baseModel: modelIndex >= 0 ? args[modelIndex + 1] : undefined,
     loraLayers: layerIndex >= 0 ? Number(args[layerIndex + 1]) : 16,
-    includeTasks
+    includeTasks,
   };
 }
 
 function detectMlxLmAvailability() {
   const probe = spawnSync('python3', ['-c', 'import mlx_lm'], {
-    encoding: 'utf8'
+    encoding: 'utf8',
   });
   return {
     ok: probe.status === 0,
-    error: probe.status === 0 ? null : (probe.stderr || probe.stdout || 'mlx_lm import failed').trim()
+    error:
+      probe.status === 0 ? null : (probe.stderr || probe.stdout || 'mlx_lm import failed').trim(),
   };
 }
 
@@ -64,11 +70,13 @@ async function main() {
   const db = getDb();
   ensureSchema(db);
   const repo = new MarketRepository(db);
-  const taskTypes = normalizeNovaMlxTaskTypes(args.includeTasks.length ? args.includeTasks : DEFAULT_NOVA_MLX_TASK_TYPES);
+  const taskTypes = normalizeNovaMlxTaskTypes(
+    args.includeTasks.length ? args.includeTasks : DEFAULT_NOVA_MLX_TASK_TYPES,
+  );
   const dataset = buildMlxLmTrainingDataset(repo, {
     onlyIncluded: args.onlyIncluded,
     limit: Number.isFinite(args.limit) ? args.limit : 500,
-    taskTypes
+    taskTypes,
   });
 
   fs.mkdirSync(path.dirname(args.out), { recursive: true });
@@ -83,17 +91,21 @@ async function main() {
     batchSize: args.batchSize,
     learningRate: args.learningRate,
     loraLayers: args.loraLayers,
-    taskTypes
+    taskTypes,
   });
 
   const command = renderNovaShellCommand(plan.command);
-  process.stdout.write(`Prepared ${dataset.count} MLX-LM records for tasks: ${plan.tasks.join(', ')}\n`);
+  process.stdout.write(
+    `Prepared ${dataset.count} MLX-LM records for tasks: ${plan.tasks.join(', ')}\n`,
+  );
   process.stdout.write(`Dataset: ${plan.datasetPath}\n`);
   process.stdout.write(`Adapter output: ${plan.adapterPath}\n`);
   process.stdout.write(`Command: ${command}\n`);
 
   if (dataset.count === 0) {
-    process.stdout.write('No training-ready samples were exported. Add review labels or pass --allow-unlabeled.\n');
+    process.stdout.write(
+      'No training-ready samples were exported. Add review labels or pass --allow-unlabeled.\n',
+    );
     return;
   }
 
@@ -111,7 +123,7 @@ async function main() {
   }
 
   const child = spawnSync(plan.command[0], plan.command.slice(1), {
-    stdio: 'inherit'
+    stdio: 'inherit',
   });
   if (child.status !== 0) {
     process.exitCode = child.status || 1;
@@ -119,6 +131,8 @@ async function main() {
 }
 
 main().catch((error) => {
-  process.stderr.write(`${error instanceof Error ? error.stack || error.message : String(error)}\n`);
+  process.stderr.write(
+    `${error instanceof Error ? error.stack || error.message : String(error)}\n`,
+  );
   process.exitCode = 1;
 });

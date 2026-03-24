@@ -15,7 +15,7 @@ function buildFutureMap(features, horizon = 3) {
       const ret = future.close / Math.max(1e-9, current.close) - 1;
       map.set(`${productId}:${current.date}`, {
         future_return_3d: Number(ret.toFixed(6)),
-        future_date: future.date
+        future_date: future.date,
       });
     }
   }
@@ -58,23 +58,25 @@ export function buildCryptoTrainingDataset({ features, asOf }) {
         volume_expansion_20d: feature.volume_expansion_20d,
         intraday_range_proxy: feature.intraday_range_proxy,
         benchmark_rel_btc: feature.benchmark_rel_btc,
-        benchmark_rel_eth: feature.benchmark_rel_eth
+        benchmark_rel_eth: feature.benchmark_rel_eth,
       },
       labels: {
         future_return_3d: label.future_return_3d,
         direction_3d: directionLabel(label.future_return_3d),
         volatility_label: volLabel(feature.realized_vol_20d),
-        regime_alignment: feature.regime_risk_proxy
+        regime_alignment: feature.regime_risk_proxy,
       },
       source: feature.source,
       data_status: 'derived',
-      fetched_at: feature.fetched_at
+      fetched_at: feature.fetched_at,
     });
   }
 
   const byDate = groupBy(rows, (row) => row.date);
   for (const sameDateRows of byDate.values()) {
-    const map = Object.fromEntries(sameDateRows.map((row) => [row.product_id, row.labels.future_return_3d]));
+    const map = Object.fromEntries(
+      sameDateRows.map((row) => [row.product_id, row.labels.future_return_3d]),
+    );
     const ranked = rankMap(map);
     for (const row of sameDateRows) {
       row.labels.ranking_label = Number((ranked[row.product_id] || 0).toFixed(6));
@@ -82,7 +84,10 @@ export function buildCryptoTrainingDataset({ features, asOf }) {
   }
 
   const splitMap = buildDateSplits(rows, 'date');
-  const splitRows = rows.map((row) => ({ ...row, split: assignSplitByDate(row, splitMap, 'date') }));
+  const splitRows = rows.map((row) => ({
+    ...row,
+    split: assignSplitByDate(row, splitMap, 'date'),
+  }));
 
   return {
     dataset: {
@@ -99,8 +104,9 @@ export function buildCryptoTrainingDataset({ features, asOf }) {
       version: 'crypto_spot_v1.0.0',
       status: 'active',
       use_notes: '24/7 crypto spot training dataset with benchmark-relative features.',
-      license_notes: 'Contains sample fallback crypto data unless live exchange feed is configured.'
+      license_notes:
+        'Contains sample fallback crypto data unless live exchange feed is configured.',
     },
-    rows: splitRows
+    rows: splitRows,
   };
 }

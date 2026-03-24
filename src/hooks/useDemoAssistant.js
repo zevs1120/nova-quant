@@ -15,7 +15,7 @@ function normalizeStoredMessages(rows = []) {
           role: row.role === 'assistant' ? 'assistant' : 'user',
           content: String(row.content || ''),
           provider: row.provider || (row.role === 'assistant' ? 'demo-offline' : null),
-          question: row.question || null
+          question: row.question || null,
         }))
     : [];
 }
@@ -50,18 +50,18 @@ export function useDemoAssistant({ userId, seedRequest, contextBase, demoState }
           role: 'assistant',
           content: buildDemoAssistantReply(text, demoState, {
             ...(contextBase || {}),
-            ...(contextOverride || {})
+            ...(contextOverride || {}),
           }),
           provider: 'demo-offline',
-          question: text
-        }
+          question: text,
+        },
       ].slice(-24);
 
       setMessages(nextMessages);
       setStoredMessages(nextMessages);
       setStreaming(false);
     },
-    [contextBase, demoState, messages, setStoredMessages, streaming]
+    [contextBase, demoState, messages, setStoredMessages, streaming],
   );
 
   useEffect(() => {
@@ -81,6 +81,6 @@ export function useDemoAssistant({ userId, seedRequest, contextBase, demoState }
     error,
     activeThreadId: 'demo-offline-thread',
     sendMessage,
-    loadThread
+    loadThread,
   };
 }

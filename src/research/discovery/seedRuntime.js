@@ -44,7 +44,7 @@ const STRATEGY_FAMILY_MAP = Object.freeze({
   'betting against beta defensive': 'Relative Strength / Cross-Sectional',
   'factor momentum overlay': 'Relative Strength / Cross-Sectional',
   'funding carry capture': 'Crypto-Native Families',
-  'crypto attention momentum': 'Crypto-Native Families'
+  'crypto attention momentum': 'Crypto-Native Families',
 });
 
 const REGIME_ALIAS = Object.freeze({
@@ -60,7 +60,7 @@ const REGIME_ALIAS = Object.freeze({
   risk_off: 'risk_off',
   stress_risk_off: 'stress_risk_off',
   transition: 'transition',
-  risk_recovery: 'risk_recovery'
+  risk_recovery: 'risk_recovery',
 });
 
 function asArray(value) {
@@ -96,9 +96,7 @@ function normalizeRegimes(input) {
     .flatMap((item) => String(item).split(/[,\s]+/))
     .map((item) => toKey(item))
     .filter(Boolean);
-  const normalized = values
-    .map((item) => REGIME_ALIAS[item] || item)
-    .filter(Boolean);
+  const normalized = values.map((item) => REGIME_ALIAS[item] || item).filter(Boolean);
   return [...new Set(normalized)];
 }
 
@@ -106,7 +104,11 @@ function normalizeAssetClasses(marketValue, fallbackFamily = '') {
   const normalized = toKey(marketValue);
   const family = toKey(fallbackFamily);
 
-  if (normalized.includes('crypto') && !normalized.includes('equity') && !normalized.includes('stock')) {
+  if (
+    normalized.includes('crypto') &&
+    !normalized.includes('equity') &&
+    !normalized.includes('stock')
+  ) {
     return ['CRYPTO'];
   }
   if (normalized.includes('us') && !normalized.includes('crypto')) {
@@ -134,103 +136,110 @@ function defaultParameterRangesByFamily(family = '') {
     return {
       breakout_percentile: { min: 0.6, max: 0.95, step: 0.05 },
       trend_lookback: { min: 10, max: 80, step: 10 },
-      volatility_filter: { min: 0.35, max: 0.9, step: 0.05 }
+      volatility_filter: { min: 0.35, max: 0.9, step: 0.05 },
     };
   }
   if (key.includes('pullback')) {
     return {
       pullback_depth_atr: { min: 0.6, max: 2.8, step: 0.2 },
       trend_strength_min: { min: 0.35, max: 0.85, step: 0.05 },
-      retest_bars: { min: 1, max: 8, step: 1 }
+      retest_bars: { min: 1, max: 8, step: 1 },
     };
   }
   if (key.includes('trend') && key.includes('accel')) {
     return {
       acceleration_trigger: { min: 0.35, max: 0.95, step: 0.05 },
       confirmation_bars: { min: 1, max: 6, step: 1 },
-      max_hold_bars: { min: 1, max: 6, step: 1 }
+      max_hold_bars: { min: 1, max: 6, step: 1 },
     };
   }
-  if (key.includes('mean') || key.includes('oversold') || key.includes('overbought') || key.includes('reversion')) {
+  if (
+    key.includes('mean') ||
+    key.includes('oversold') ||
+    key.includes('overbought') ||
+    key.includes('reversion')
+  ) {
     return {
       zscore_trigger: { min: 1.0, max: 3.5, step: 0.25 },
       percentile_extreme: { min: 0.75, max: 0.99, step: 0.02 },
-      max_hold_bars: { min: 1, max: 10, step: 1 }
+      max_hold_bars: { min: 1, max: 10, step: 1 },
     };
   }
   if (key.includes('relative') || key.includes('leader') || key.includes('laggard')) {
     return {
       top_percentile_cutoff: { min: 0.05, max: 0.4, step: 0.05 },
       rebalance_days: { min: 1, max: 20, step: 1 },
-      turnover_cap: { min: 0.1, max: 0.8, step: 0.05 }
+      turnover_cap: { min: 0.1, max: 0.8, step: 0.05 },
     };
   }
   if (key.includes('volatility') || key.includes('compression')) {
     return {
       compression_lookback: { min: 5, max: 30, step: 1 },
       breakout_threshold: { min: 0.35, max: 0.95, step: 0.05 },
-      max_hold_bars: { min: 1, max: 8, step: 1 }
+      max_hold_bars: { min: 1, max: 8, step: 1 },
     };
   }
   if (key.includes('funding') || key.includes('basis')) {
     return {
       funding_z_trigger: { min: 1.0, max: 4.0, step: 0.25 },
       basis_shift_bps: { min: 5, max: 180, step: 5 },
-      leverage_cap: { min: 1.0, max: 2.2, step: 0.1 }
+      leverage_cap: { min: 1.0, max: 2.2, step: 0.1 },
     };
   }
   if (key.includes('time_series_momentum')) {
     return {
       lookback_fast_bars: { min: 10, max: 80, step: 5 },
       lookback_slow_bars: { min: 20, max: 180, step: 10 },
-      volatility_filter_cap: { min: 0.45, max: 0.98, step: 0.05 }
+      volatility_filter_cap: { min: 0.45, max: 0.98, step: 0.05 },
     };
   }
   if (key.includes('pairs')) {
     return {
       spread_entry_z: { min: 1.0, max: 4.0, step: 0.25 },
       spread_exit_z: { min: 0.1, max: 1.5, step: 0.1 },
-      max_pair_hold_bars: { min: 2, max: 30, step: 1 }
+      max_pair_hold_bars: { min: 2, max: 30, step: 1 },
     };
   }
   if (key.includes('value_quality') || (key.includes('value') && key.includes('quality'))) {
     return {
       top_decile_cutoff: { min: 0.05, max: 0.35, step: 0.05 },
       rebalance_days: { min: 5, max: 60, step: 5 },
-      quality_weight: { min: 0.2, max: 0.8, step: 0.05 }
+      quality_weight: { min: 0.2, max: 0.8, step: 0.05 },
     };
   }
   if (key.includes('beta')) {
     return {
       low_beta_cutoff: { min: 0.1, max: 0.5, step: 0.05 },
       rebalance_days: { min: 3, max: 30, step: 1 },
-      sector_cap_pct: { min: 10, max: 40, step: 5 }
+      sector_cap_pct: { min: 10, max: 40, step: 5 },
     };
   }
   if (key.includes('factor_momentum')) {
     return {
       factor_rank_cutoff: { min: 0.1, max: 0.5, step: 0.05 },
       rebalance_days: { min: 1, max: 20, step: 1 },
-      crowding_cap: { min: 0.4, max: 0.95, step: 0.05 }
+      crowding_cap: { min: 0.4, max: 0.95, step: 0.05 },
     };
   }
   if (key.includes('liquidity') || key.includes('stress')) {
     return {
       spread_cap_bps: { min: 6, max: 60, step: 2 },
       stress_trigger: { min: 0.35, max: 0.95, step: 0.05 },
-      size_cap_pct: { min: 0.1, max: 0.8, step: 0.05 }
+      size_cap_pct: { min: 0.1, max: 0.8, step: 0.05 },
     };
   }
 
   return {
     trigger_threshold: { min: 0.4, max: 0.9, step: 0.05 },
     confirmation_bars: { min: 1, max: 8, step: 1 },
-    max_hold_bars: { min: 1, max: 10, step: 1 }
+    max_hold_bars: { min: 1, max: 10, step: 1 },
   };
 }
 
 function normalizeHypothesis(seedRow = {}, index = 0, seedId = 'unknown') {
-  const family = canonicalStrategyFamily(seedRow.suggested_strategy_family || seedRow.family || 'unknown');
+  const family = canonicalStrategyFamily(
+    seedRow.suggested_strategy_family || seedRow.family || 'unknown',
+  );
   const regimes = normalizeRegimes(seedRow.expected_regime || seedRow.relevant_regimes || 'range');
   const templateHints = asArray(seedRow.suggested_template_candidates)
     .map(normalizeTemplateHintKey)
@@ -240,12 +249,19 @@ function normalizeHypothesis(seedRow = {}, index = 0, seedId = 'unknown') {
     hypothesis_id: seedRow.hypothesis_id || `HYP-SEED-${String(index + 1).padStart(3, '0')}`,
     description: seedRow.description || seedRow.title || `Seed hypothesis ${index + 1}`,
     title: seedRow.title || seedRow.description || `Seed hypothesis ${index + 1}`,
-    economic_intuition: seedRow.economic_intuition || 'No explicit economic intuition documented in seed.',
+    economic_intuition:
+      seedRow.economic_intuition || 'No explicit economic intuition documented in seed.',
     relevant_asset_classes: normalizeAssetClasses(seedRow.expected_market, family),
     relevant_regimes: regimes.length ? regimes : ['range'],
-    candidate_strategy_families: [...new Set([family].concat(asArray(seedRow.candidate_strategy_families).map(canonicalStrategyFamily)))],
+    candidate_strategy_families: [
+      ...new Set(
+        [family].concat(asArray(seedRow.candidate_strategy_families).map(canonicalStrategyFamily)),
+      ),
+    ],
     expected_holding_horizon: seedRow.expected_holding_horizon || '1-5 bars',
-    supporting_features: asArray(seedRow.required_feature_hints || seedRow.supporting_features).map((item) => toKey(item)).filter(Boolean),
+    supporting_features: asArray(seedRow.required_feature_hints || seedRow.supporting_features)
+      .map((item) => toKey(item))
+      .filter(Boolean),
     candidate_template_hints: templateHints,
     source_metadata: {
       source_type: 'seed_runtime',
@@ -254,8 +270,8 @@ function normalizeHypothesis(seedRow = {}, index = 0, seedId = 'unknown') {
       seed_file: seedId.startsWith('public_')
         ? 'data/reference_seeds/public_hypothesis_registry_seed.json'
         : 'data/reference_seeds/hypothesis_registry_seed.json',
-      public_reference_ids: asArray(seedRow.public_reference_ids).map(String)
-    }
+      public_reference_ids: asArray(seedRow.public_reference_ids).map(String),
+    },
   };
 }
 
@@ -268,20 +284,31 @@ function templateAliases(templateId, family) {
 function normalizeTemplate(seedRow = {}, index = 0, seedId = 'unknown') {
   const family = canonicalStrategyFamily(seedRow.family || seedRow.strategy_family || 'unknown');
   const compatibleRegimes = normalizeRegimes(seedRow.compatible_regimes || ['range']);
-  const compatibleFeatures = asArray(seedRow.compatible_features).map((item) => toKey(item)).filter(Boolean);
+  const compatibleFeatures = asArray(seedRow.compatible_features)
+    .map((item) => toKey(item))
+    .filter(Boolean);
 
   return {
     template_id: seedRow.template_id || `TPL-SEED-${String(index + 1).padStart(3, '0')}`,
     template_name:
-      seedRow.template_name || titleCase(seedRow.family || seedRow.template_id || `Seed Template ${index + 1}`),
+      seedRow.template_name ||
+      titleCase(seedRow.family || seedRow.template_id || `Seed Template ${index + 1}`),
     strategy_family: family,
-    entry_logic_structure: seedRow.entry_logic_structure || seedRow.entry_logic || 'Seed-defined entry logic',
-    exit_logic_structure: seedRow.exit_logic_structure || seedRow.exit_logic || 'Seed-defined exit logic',
-    risk_logic: seedRow.stop_logic_structure || seedRow.risk_logic || 'Risk controls from template seed',
-    position_sizing_logic: seedRow.sizing_logic_hints || seedRow.position_sizing_logic || 'Risk-bucket aligned sizing',
+    entry_logic_structure:
+      seedRow.entry_logic_structure || seedRow.entry_logic || 'Seed-defined entry logic',
+    exit_logic_structure:
+      seedRow.exit_logic_structure || seedRow.exit_logic || 'Seed-defined exit logic',
+    risk_logic:
+      seedRow.stop_logic_structure || seedRow.risk_logic || 'Risk controls from template seed',
+    position_sizing_logic:
+      seedRow.sizing_logic_hints || seedRow.position_sizing_logic || 'Risk-bucket aligned sizing',
     compatible_features: compatibleFeatures,
-    parameter_ranges: seedRow.parameter_ranges || defaultParameterRangesByFamily(seedRow.family || family),
-    compatible_asset_classes: normalizeAssetClasses(seedRow.supported_market || seedRow.market || seedRow.family, family),
+    parameter_ranges:
+      seedRow.parameter_ranges || defaultParameterRangesByFamily(seedRow.family || family),
+    compatible_asset_classes: normalizeAssetClasses(
+      seedRow.supported_market || seedRow.market || seedRow.family,
+      family,
+    ),
     compatible_regimes: compatibleRegimes.length ? compatibleRegimes : ['range'],
     expected_holding_horizon: seedRow.expected_holding_horizon || '1-5 bars',
     expected_trade_density: seedRow.expected_trade_density || 'medium',
@@ -294,8 +321,8 @@ function normalizeTemplate(seedRow = {}, index = 0, seedId = 'unknown') {
       seed_file: seedId.startsWith('public_')
         ? 'data/reference_seeds/public_strategy_template_seed.json'
         : 'data/reference_seeds/strategy_template_seed.json',
-      public_reference_ids: asArray(seedRow.public_reference_ids).map(String)
-    }
+      public_reference_ids: asArray(seedRow.public_reference_ids).map(String),
+    },
   };
 }
 
@@ -306,14 +333,14 @@ function buildFeatureCatalogIndex(seed = {}) {
     group_id: group.group_id || toKey(group.title),
     title: group.title || group.group_id || 'unknown',
     purpose: group.purpose || '',
-    example_features: asArray(group.example_features).map((item) => toKey(item))
+    example_features: asArray(group.example_features).map((item) => toKey(item)),
   }));
 
   for (const group of groupRows) {
     for (const feature of group.example_features) {
       byFeature[feature] = {
         group_id: group.group_id,
-        group_title: group.title
+        group_title: group.title,
       };
     }
   }
@@ -324,7 +351,7 @@ function buildFeatureCatalogIndex(seed = {}) {
     groups: groupRows,
     by_feature: byFeature,
     total_groups: groupRows.length,
-    total_features: Object.keys(byFeature).length
+    total_features: Object.keys(byFeature).length,
   };
 }
 
@@ -332,32 +359,36 @@ function resolveSeed(raw, fallback = {}) {
   return raw && typeof raw === 'object' ? raw : fallback;
 }
 
-export function loadDiscoverySeedRuntime({
-  seedOverrides = {}
-} = {}) {
+export function loadDiscoverySeedRuntime({ seedOverrides = {} } = {}) {
   const hypothesisSeed = resolveSeed(seedOverrides.hypothesis_seed, hypothesisSeedRaw);
   const templateSeed = resolveSeed(seedOverrides.template_seed, templateSeedRaw);
-  const publicHypothesisSeed = resolveSeed(seedOverrides.public_hypothesis_seed, publicHypothesisSeedRaw);
+  const publicHypothesisSeed = resolveSeed(
+    seedOverrides.public_hypothesis_seed,
+    publicHypothesisSeedRaw,
+  );
   const publicTemplateSeed = resolveSeed(seedOverrides.public_template_seed, publicTemplateSeedRaw);
   const featureSeed = resolveSeed(seedOverrides.feature_catalog_seed, featureCatalogSeedRaw);
   const doctrineSeed = resolveSeed(seedOverrides.research_doctrine_seed, researchDoctrineSeedRaw);
-  const checklistSeed = resolveSeed(seedOverrides.governance_checklist_seed, governanceChecklistSeedRaw);
+  const checklistSeed = resolveSeed(
+    seedOverrides.governance_checklist_seed,
+    governanceChecklistSeedRaw,
+  );
 
   const normalizedHypotheses = [
     ...asArray(hypothesisSeed.hypotheses).map((row, idx) =>
-      normalizeHypothesis(row, idx, hypothesisSeed.seed_id || 'hypothesis_seed')
+      normalizeHypothesis(row, idx, hypothesisSeed.seed_id || 'hypothesis_seed'),
     ),
     ...asArray(publicHypothesisSeed.hypotheses).map((row, idx) =>
-      normalizeHypothesis(row, idx, publicHypothesisSeed.seed_id || 'public_hypothesis_seed')
-    )
+      normalizeHypothesis(row, idx, publicHypothesisSeed.seed_id || 'public_hypothesis_seed'),
+    ),
   ];
   const normalizedTemplates = [
     ...asArray(templateSeed.templates).map((row, idx) =>
-      normalizeTemplate(row, idx, templateSeed.seed_id || 'template_seed')
+      normalizeTemplate(row, idx, templateSeed.seed_id || 'template_seed'),
     ),
     ...asArray(publicTemplateSeed.templates).map((row, idx) =>
-      normalizeTemplate(row, idx, publicTemplateSeed.seed_id || 'public_template_seed')
-    )
+      normalizeTemplate(row, idx, publicTemplateSeed.seed_id || 'public_template_seed'),
+    ),
   ];
   const featureCatalog = buildFeatureCatalogIndex(featureSeed);
 
@@ -369,42 +400,41 @@ export function loadDiscoverySeedRuntime({
       total: asArray(hypothesisSeed.hypotheses).length,
       public_seed_id: publicHypothesisSeed.seed_id || 'public_hypothesis_seed',
       public_total: asArray(publicHypothesisSeed.hypotheses).length,
-      merged_total: normalizedHypotheses.length
+      merged_total: normalizedHypotheses.length,
     },
     template_seed: {
       seed_id: templateSeed.seed_id || 'template_seed',
       total: asArray(templateSeed.templates).length,
       public_seed_id: publicTemplateSeed.seed_id || 'public_template_seed',
       public_total: asArray(publicTemplateSeed.templates).length,
-      merged_total: normalizedTemplates.length
+      merged_total: normalizedTemplates.length,
     },
     feature_catalog_seed: {
       seed_id: featureCatalog.seed_id,
       total_feature_groups: featureCatalog.total_groups,
-      total_features: featureCatalog.total_features
+      total_features: featureCatalog.total_features,
     },
     research_doctrine_seed: {
       version: doctrineSeed.version || doctrineSeed.seed_id || 'unknown',
-      principles: asArray(doctrineSeed.principles).length
+      principles: asArray(doctrineSeed.principles).length,
     },
     governance_checklist_seed: {
       version: checklistSeed.version || checklistSeed.seed_id || 'unknown',
-      sections: asArray(checklistSeed.checklist_sections).length
+      sections: asArray(checklistSeed.checklist_sections).length,
     },
     hypotheses: normalizedHypotheses,
     templates: normalizedTemplates,
     feature_catalog: featureCatalog,
     research_doctrine: doctrineSeed,
-    governance_checklist: checklistSeed
+    governance_checklist: checklistSeed,
   };
 }
 
-export function summarizeFeatureAlignment({
-  requiredFeatures = [],
-  featureCatalog = {}
-} = {}) {
+export function summarizeFeatureAlignment({ requiredFeatures = [], featureCatalog = {} } = {}) {
   const byFeature = featureCatalog?.by_feature || {};
-  const normalizedRequired = asArray(requiredFeatures).map((item) => toKey(item)).filter(Boolean);
+  const normalizedRequired = asArray(requiredFeatures)
+    .map((item) => toKey(item))
+    .filter(Boolean);
   const matched = [];
   const missing = [];
   const groups = new Set();
@@ -422,12 +452,14 @@ export function summarizeFeatureAlignment({
     required_features: normalizedRequired,
     catalog_matched_features: matched,
     catalog_missing_features: missing,
-    required_feature_groups: [...groups]
+    required_feature_groups: [...groups],
   };
 }
 
 export function normalizeConstraintList(value) {
-  return asArray(value).map((item) => String(item).trim()).filter(Boolean);
+  return asArray(value)
+    .map((item) => String(item).trim())
+    .filter(Boolean);
 }
 
 export function normalizeTemplateHint(value) {

@@ -7,7 +7,7 @@ import {
   LineElement,
   LinearScale,
   PointElement,
-  Tooltip
+  Tooltip,
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
 import SegmentedControl from './SegmentedControl';
@@ -46,7 +46,7 @@ function monthlyFromDailyEquity(rows = []) {
     return {
       month,
       ret,
-      equity: last
+      equity: last,
     };
   });
 }
@@ -57,14 +57,20 @@ function statCards(stats) {
       { label: 'Win Rate', value: '--' },
       { label: 'Total Return', value: '--' },
       { label: 'Max Drawdown', value: '--' },
-      { label: 'Sharpe / Sortino', value: '--' }
+      { label: 'Sharpe / Sortino', value: '--' },
     ];
   }
   return [
     { label: 'Win Rate', value: formatPercent(stats.win_rate) },
-    { label: 'Total Return', value: formatPercent(stats.total_return || stats.cumulative_return_post_cost) },
+    {
+      label: 'Total Return',
+      value: formatPercent(stats.total_return || stats.cumulative_return_post_cost),
+    },
     { label: 'Max Drawdown', value: formatPercent(stats.max_drawdown) },
-    { label: 'Sharpe / Sortino', value: `${formatNumber(stats.sharpe, 2)} / ${formatNumber(stats.sortino, 2)}` }
+    {
+      label: 'Sharpe / Sortino',
+      value: `${formatNumber(stats.sharpe, 2)} / ${formatNumber(stats.sortino, 2)}`,
+    },
   ];
 }
 
@@ -77,7 +83,7 @@ export default function ProofTab({
   loading,
   locale,
   uiMode = 'standard',
-  investorDemoSummary = null
+  investorDemoSummary = null,
 }) {
   const [sourceTab, setSourceTab] = useState('backtest');
 
@@ -98,9 +104,10 @@ export default function ProofTab({
           sharpe: researchBacktest.sharpe,
           sortino: researchBacktest.sortino,
           avg_holding_days: researchBacktest.avg_holding_period,
-          turnover: researchBacktest.turnover
+          turnover: researchBacktest.turnover,
         },
-        data_origin_note: 'Backtest engine output from daily snapshots (sample market data + deterministic model).'
+        data_origin_note:
+          'Backtest engine output from daily snapshots (sample market data + deterministic model).',
       };
     }
 
@@ -118,9 +125,10 @@ export default function ProofTab({
           sharpe: 0.9,
           sortino: 1.1,
           avg_holding_days: 3.2,
-          turnover: 0.22
+          turnover: 0.22,
         },
-        data_origin_note: 'Paper ledger output from simulated orders, fills, positions, and equity curve.'
+        data_origin_note:
+          'Paper ledger output from simulated orders, fills, positions, and equity curve.',
       };
     }
 
@@ -131,7 +139,7 @@ export default function ProofTab({
         monthly: [],
         stats: null,
         available: false,
-        data_origin_note: 'Live broker-linked track record is unavailable in this build.'
+        data_origin_note: 'Live broker-linked track record is unavailable in this build.',
       };
     }
 
@@ -143,7 +151,7 @@ export default function ProofTab({
       monthly: fallback.monthly || [],
       stats: fallback.stats || null,
       available: fallback.available,
-      data_origin_note: source?.data_origin_note || '--'
+      data_origin_note: source?.data_origin_note || '--',
     };
   }, [sourceTab, researchBacktest, researchPaper, proof.datasets, market]);
 
@@ -156,7 +164,7 @@ export default function ProofTab({
         locale,
         sourceStatus: 'BACKTEST_ONLY',
         dataStatus: 'BACKTEST_ONLY',
-        sourceType
+        sourceType,
       });
     }
 
@@ -165,7 +173,7 @@ export default function ProofTab({
         locale,
         sourceStatus: 'PAPER_ONLY',
         dataStatus: 'PAPER_ONLY',
-        sourceType
+        sourceType,
       });
     }
 
@@ -174,7 +182,7 @@ export default function ProofTab({
         locale,
         sourceStatus: 'WITHHELD',
         dataStatus: 'INSUFFICIENT_DATA',
-        sourceType
+        sourceType,
       });
     }
 
@@ -182,7 +190,7 @@ export default function ProofTab({
       locale,
       sourceStatus: 'REALIZED',
       dataStatus: 'REALIZED',
-      sourceType
+      sourceType,
     });
   }, [locale, marketBucket.available, marketBucket.source_type, sourceTab]);
   const demoProvenance = useMemo(
@@ -192,10 +200,10 @@ export default function ProofTab({
             locale,
             sourceStatus: investorDemoSummary.source_status || 'DEMO_ONLY',
             dataStatus: investorDemoSummary.source_status || 'DEMO_ONLY',
-            sourceType: 'demo'
+            sourceType: 'demo',
           })
         : null,
-    [investorDemoSummary, locale]
+    [investorDemoSummary, locale],
   );
 
   const chartData = useMemo(() => {
@@ -206,7 +214,7 @@ export default function ProofTab({
     let peak = equity[0] || 1;
     for (const value of equity) {
       peak = Math.max(peak, value);
-      drawdownSeries.push(peak === 0 ? 0 : (value - peak) / peak * 100);
+      drawdownSeries.push(peak === 0 ? 0 : ((value - peak) / peak) * 100);
     }
 
     return {
@@ -219,7 +227,7 @@ export default function ProofTab({
           backgroundColor: 'rgba(37, 99, 235, 0.12)',
           tension: 0.3,
           pointRadius: 0,
-          fill: false
+          fill: false,
         },
         {
           label: 'Drawdown %',
@@ -229,9 +237,9 @@ export default function ProofTab({
           tension: 0.3,
           pointRadius: 0,
           yAxisID: 'y2',
-          fill: false
-        }
-      ]
+          fill: false,
+        },
+      ],
     };
   }, [monthly]);
 
@@ -241,43 +249,43 @@ export default function ProofTab({
     plugins: {
       legend: {
         labels: {
-          color: 'rgba(0,0,0,0.55)'
-        }
-      }
+          color: 'rgba(0,0,0,0.55)',
+        },
+      },
     },
     scales: {
       x: {
         ticks: {
           color: 'rgba(0,0,0,0.55)',
-          maxTicksLimit: 6
+          maxTicksLimit: 6,
         },
         grid: {
-          color: 'rgba(0,0,0,0.06)'
-        }
+          color: 'rgba(0,0,0,0.06)',
+        },
       },
       y: {
         ticks: {
-          color: 'rgba(0,0,0,0.55)'
+          color: 'rgba(0,0,0,0.55)',
         },
         grid: {
-          color: 'rgba(0,0,0,0.06)'
-        }
+          color: 'rgba(0,0,0,0.06)',
+        },
       },
       y2: {
         position: 'right',
         ticks: {
-          color: 'rgba(0,0,0,0.55)'
+          color: 'rgba(0,0,0,0.55)',
         },
         grid: {
-          drawOnChartArea: false
-        }
-      }
-    }
+          drawOnChartArea: false,
+        },
+      },
+    },
   };
 
   const recentTrades = useMemo(
     () => trades.filter((item) => item.market === market).slice(0, 15),
-    [trades, market]
+    [trades, market],
   );
 
   const paperPositions = research?.champion?.paper?.current_positions || [];
@@ -294,7 +302,7 @@ export default function ProofTab({
     {
       key: 'mode',
       label: 'Mode',
-      value: proofProvenance.label
+      value: proofProvenance.label,
     },
     {
       key: 'execution',
@@ -306,12 +314,12 @@ export default function ProofTab({
             : 'Broker-linked'
           : sourceTab === 'paper'
             ? 'Simulated ledger'
-            : 'Historical replay'
+            : 'Historical replay',
     },
     {
       key: 'origin',
       label: 'Origin',
-      value: marketBucket.source_type || '--'
+      value: marketBucket.source_type || '--',
     },
     {
       key: 'use',
@@ -321,8 +329,8 @@ export default function ProofTab({
           ? 'Live review only'
           : sourceTab === 'paper'
             ? 'Validate execution logic'
-            : 'Research only'
-    }
+            : 'Research only',
+    },
   ];
 
   return (
@@ -331,7 +339,7 @@ export default function ProofTab({
         label="Market"
         options={[
           { label: 'US', value: 'US' },
-          { label: 'Crypto', value: 'CRYPTO' }
+          { label: 'Crypto', value: 'CRYPTO' },
         ]}
         value={market}
         onChange={setMarket}
@@ -342,7 +350,7 @@ export default function ProofTab({
         options={[
           { label: 'Backtest', value: 'backtest' },
           { label: 'Paper', value: 'paper' },
-          { label: 'Live', value: 'live' }
+          { label: 'Live', value: 'live' },
         ]}
         value={sourceTab}
         onChange={setSourceTab}
@@ -360,7 +368,9 @@ export default function ProofTab({
               <div>
                 <h3 className="card-title">Performance Proof</h3>
                 <div className="proof-provenance-head">
-                  <span className={`proof-provenance-badge proof-provenance-badge-${proofProvenance.tone}`}>
+                  <span
+                    className={`proof-provenance-badge proof-provenance-badge-${proofProvenance.tone}`}
+                  >
                     {proofProvenance.label}
                   </span>
                   <span className="proof-provenance-meta">{marketBucket.label}</span>
@@ -388,9 +398,14 @@ export default function ProofTab({
               <div className="card-header">
                 <div>
                   <h3 className="card-title">Demo Asset Overview</h3>
-                  <p className="muted">{demoProvenance?.note || 'For walkthroughs only. This card is not a real track record.'}</p>
+                  <p className="muted">
+                    {demoProvenance?.note ||
+                      'For walkthroughs only. This card is not a real track record.'}
+                  </p>
                 </div>
-                <span className={`proof-provenance-badge proof-provenance-badge-${demoProvenance?.tone || 'demo'}`}>
+                <span
+                  className={`proof-provenance-badge proof-provenance-badge-${demoProvenance?.tone || 'demo'}`}
+                >
                   {demoProvenance?.label || investorDemoSummary.source_status}
                 </span>
               </div>
@@ -403,7 +418,9 @@ export default function ProofTab({
                 <div className="status-box">
                   <p className="muted">Today</p>
                   <h2>{formatPercent(investorDemoSummary.daily_return, 1, true)}</h2>
-                  <p className="muted status-line">{formatNumber(investorDemoSummary.daily_pnl_amount, 2, locale)} USD</p>
+                  <p className="muted status-line">
+                    {formatNumber(investorDemoSummary.daily_pnl_amount, 2, locale)} USD
+                  </p>
                 </div>
                 <div className="status-box">
                   <p className="muted">7D</p>
@@ -457,7 +474,9 @@ export default function ProofTab({
                   <article className="glass-card">
                     <div className="card-header">
                       <h3 className="card-title">Equity & Drawdown</h3>
-                      <span className={`proof-provenance-badge proof-provenance-badge-${proofProvenance.tone}`}>
+                      <span
+                        className={`proof-provenance-badge proof-provenance-badge-${proofProvenance.tone}`}
+                      >
                         {proofProvenance.label}
                       </span>
                     </div>
@@ -484,7 +503,9 @@ export default function ProofTab({
                           {monthly.map((row) => (
                             <tr key={row.month}>
                               <td>{row.month}</td>
-                              <td className={row.ret >= 0 ? 'positive' : 'negative'}>{formatPercent(row.ret, 2, true)}</td>
+                              <td className={row.ret >= 0 ? 'positive' : 'negative'}>
+                                {formatPercent(row.ret, 2, true)}
+                              </td>
                               <td>{formatNumber(row.equity, 2, locale)}</td>
                             </tr>
                           ))}
@@ -500,7 +521,9 @@ export default function ProofTab({
                     <li>Total return: {formatPercent(stats?.total_return, 2, true)}</li>
                     <li>Win rate: {formatPercent(stats?.win_rate, 1)}</li>
                     <li>Max drawdown: {formatPercent(stats?.max_drawdown, 1)}</li>
-                    <li>This page is evidence only. Start from Today and Holdings for daily action.</li>
+                    <li>
+                      This page is evidence only. Start from Today and Holdings for daily action.
+                    </li>
                   </ul>
                 </article>
               )}
@@ -573,19 +596,33 @@ export default function ProofTab({
                   {comparisons.map((cmp) => (
                     <tr key={cmp.comparison_id}>
                       <td>{cmp.challenger_id}</td>
-                      <td className={cmp.metrics.return.delta >= 0 ? 'positive' : 'negative'}>{formatPercent(cmp.metrics.return.delta, 2, true)}</td>
-                      <td className={cmp.metrics.drawdown.delta <= 0 ? 'positive' : 'negative'}>{formatPercent(cmp.metrics.drawdown.delta, 2, true)}</td>
-                      <td className={cmp.metrics.win_rate.delta >= 0 ? 'positive' : 'negative'}>{formatPercent(cmp.metrics.win_rate.delta, 2, true)}</td>
-                      <td className={cmp.metrics.turnover.delta <= 0 ? 'positive' : 'negative'}>{formatNumber(cmp.metrics.turnover.delta, 3, locale)}</td>
+                      <td className={cmp.metrics.return.delta >= 0 ? 'positive' : 'negative'}>
+                        {formatPercent(cmp.metrics.return.delta, 2, true)}
+                      </td>
+                      <td className={cmp.metrics.drawdown.delta <= 0 ? 'positive' : 'negative'}>
+                        {formatPercent(cmp.metrics.drawdown.delta, 2, true)}
+                      </td>
+                      <td className={cmp.metrics.win_rate.delta >= 0 ? 'positive' : 'negative'}>
+                        {formatPercent(cmp.metrics.win_rate.delta, 2, true)}
+                      </td>
+                      <td className={cmp.metrics.turnover.delta <= 0 ? 'positive' : 'negative'}>
+                        {formatNumber(cmp.metrics.turnover.delta, 3, locale)}
+                      </td>
                       <td>{formatNumber(cmp.metrics.regime_stability.challenger, 3, locale)}</td>
                       <td
                         className={
-                          cmp.metrics.risk_adjusted_score.challenger >= cmp.metrics.risk_adjusted_score.champion
+                          cmp.metrics.risk_adjusted_score.challenger >=
+                          cmp.metrics.risk_adjusted_score.champion
                             ? 'positive'
                             : 'negative'
                         }
                       >
-                        {formatNumber(cmp.metrics.risk_adjusted_score.challenger - cmp.metrics.risk_adjusted_score.champion, 3, locale)}
+                        {formatNumber(
+                          cmp.metrics.risk_adjusted_score.challenger -
+                            cmp.metrics.risk_adjusted_score.champion,
+                          3,
+                          locale,
+                        )}
                       </td>
                       <td>{formatPercent(cmp.metrics.overlap_with_champion, 1)}</td>
                       <td>{cmp.promotable ? 'Yes' : 'No'}</td>
@@ -594,7 +631,10 @@ export default function ProofTab({
                 </tbody>
               </table>
             </div>
-            <p className="muted status-line">Transparent labels: backtest=simulated engine, paper=simulated ledger, live=upcoming only.</p>
+            <p className="muted status-line">
+              Transparent labels: backtest=simulated engine, paper=simulated ledger, live=upcoming
+              only.
+            </p>
           </article>
 
           <article className="glass-card">
@@ -618,7 +658,8 @@ export default function ProofTab({
                       <td>{trade.symbol}</td>
                       <td>{trade.side}</td>
                       <td>
-                        {formatNumber(trade.entry, 2, locale)} / {formatNumber(trade.exit, 2, locale)}
+                        {formatNumber(trade.entry, 2, locale)} /{' '}
+                        {formatNumber(trade.exit, 2, locale)}
                       </td>
                       <td className={trade.pnl_pct >= 0 ? 'positive' : 'negative'}>
                         {trade.pnl_pct > 0 ? '+' : ''}

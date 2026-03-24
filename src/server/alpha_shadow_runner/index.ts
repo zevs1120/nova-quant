@@ -1,5 +1,12 @@
 import { randomUUID } from 'node:crypto';
-import type { AlphaCandidateRecord, AlphaShadowObservationRecord, ExecutionRecord, Market, SignalContract, Timeframe } from '../types.js';
+import type {
+  AlphaCandidateRecord,
+  AlphaShadowObservationRecord,
+  ExecutionRecord,
+  Market,
+  SignalContract,
+  Timeframe,
+} from '../types.js';
 import type { MarketRepository } from '../db/repository.js';
 import { decodeSignalContract } from '../quant/service.js';
 import { parseAlphaCandidateRecord } from '../alpha_registry/index.js';
@@ -35,11 +42,17 @@ function round(value: number, digits = 6): number {
 }
 
 function latestExecutionForSignal(executions: ExecutionRecord[], signalId: string) {
-  return executions.find((row) => row.signal_id === signalId && (row.action === 'DONE' || row.action === 'CLOSE')) || null;
+  return (
+    executions.find(
+      (row) => row.signal_id === signalId && (row.action === 'DONE' || row.action === 'CLOSE'),
+    ) || null
+  );
 }
 
 function timeframeToMs(timeframe: string): number {
-  const raw = String(timeframe || '').trim().toLowerCase();
+  const raw = String(timeframe || '')
+    .trim()
+    .toLowerCase();
   const value = Number.parseInt(raw, 10);
   if (!Number.isFinite(value) || value <= 0) return 86_400_000;
   if (raw.endsWith('m')) return value * 60_000;
@@ -50,13 +63,22 @@ function timeframeToMs(timeframe: string): number {
 
 function normalizeTimeframe(timeframe: string): Timeframe | null {
   const normalized = String(timeframe || '').trim();
-  if (normalized === '1m' || normalized === '5m' || normalized === '15m' || normalized === '1h' || normalized === '1d') {
+  if (
+    normalized === '1m' ||
+    normalized === '5m' ||
+    normalized === '15m' ||
+    normalized === '1h' ||
+    normalized === '1d'
+  ) {
     return normalized;
   }
   return null;
 }
 
-function replayHorizonBars(candidate: ReturnType<typeof parseAlphaCandidateRecord>, signal: SignalContract): number {
+function replayHorizonBars(
+  candidate: ReturnType<typeof parseAlphaCandidateRecord>,
+  signal: SignalContract,
+): number {
   const matches = String(candidate.intended_holding_period || '')
     .match(/\d+/g)
     ?.map((item) => Number.parseInt(item, 10))
@@ -90,14 +112,14 @@ function deriveReplayPnlPct(args: {
       assetId: asset.asset_id,
       timeframe: normalizedTimeframe,
       start: lookbackStart,
-      limit: Math.max(horizonBars + 8, 24)
+      limit: Math.max(horizonBars + 8, 24),
     })
     .map((row) => ({
       ts_open: row.ts_open,
       open: Number(row.open),
       high: Number(row.high),
       low: Number(row.low),
-      close: Number(row.close)
+      close: Number(row.close),
     }))
     .filter((row) => Number.isFinite(row.close) && row.close > 0);
 
@@ -105,7 +127,7 @@ function deriveReplayPnlPct(args: {
 
   const bounds = {
     low: Math.min(args.signal.entry_zone.low, args.signal.entry_zone.high),
-    high: Math.max(args.signal.entry_zone.low, args.signal.entry_zone.high)
+    high: Math.max(args.signal.entry_zone.low, args.signal.entry_zone.high),
   };
   const isShort = String(args.signal.direction).toUpperCase() === 'SHORT';
   const stop = Number(args.signal.stop_loss.price);
@@ -140,7 +162,11 @@ function deriveReplayPnlPct(args: {
   for (let index = entryIndex; index <= lastResolvableIndex; index += 1) {
     const bar = bars[index];
     const stopHit = Number.isFinite(stop) ? (isShort ? bar.high >= stop : bar.low <= stop) : false;
-    const takeProfitHit = Number.isFinite(takeProfit) ? (isShort ? bar.low <= takeProfit : bar.high >= takeProfit) : false;
+    const takeProfitHit = Number.isFinite(takeProfit)
+      ? isShort
+        ? bar.low <= takeProfit
+        : bar.high >= takeProfit
+      : false;
     if (stopHit && takeProfitHit) {
       exitPrice = stop;
       break;
@@ -160,19 +186,33 @@ function deriveReplayPnlPct(args: {
   }
   if (!Number.isFinite(exitPrice) || !exitPrice || !entryPrice) return null;
 
-  const pnlPct = isShort ? ((entryPrice - exitPrice) / entryPrice) * 100 : ((exitPrice - entryPrice) / entryPrice) * 100;
+  const pnlPct = isShort
+    ? ((entryPrice - exitPrice) / entryPrice) * 100
+    : ((exitPrice - entryPrice) / entryPrice) * 100;
   return round(pnlPct, 4);
 }
 
 function featureResonance(candidateFeatures: string[], signal: SignalContract) {
   const tags = new Set((signal.tags || []).map((item) => String(item).toLowerCase()));
-  const newsTags = new Set((signal.news_context?.factor_tags || []).map((item) => String(item).toLowerCase()));
+  const newsTags = new Set(
+    (signal.news_context?.factor_tags || []).map((item) => String(item).toLowerCase()),
+  );
   const features = candidateFeatures.map((item) => String(item).toLowerCase());
   let score = 0;
-  if (features.some((item) => item.includes('trend')) && String(signal.regime_id).includes('TREND')) score += 0.18;
-  if (features.some((item) => item.includes('vol')) && signal.volatility_percentile >= 65) score += 0.16;
-  if (features.some((item) => item.includes('liquidity') || item.includes('spread')) && signal.cost_model.spread_bps <= 18) score += 0.14;
-  if (features.some((item) => item.includes('funding') || item.includes('basis')) && signal.market === 'CRYPTO') score += 0.2;
+  if (features.some((item) => item.includes('trend')) && String(signal.regime_id).includes('TREND'))
+    score += 0.18;
+  if (features.some((item) => item.includes('vol')) && signal.volatility_percentile >= 65)
+    score += 0.16;
+  if (
+    features.some((item) => item.includes('liquidity') || item.includes('spread')) &&
+    signal.cost_model.spread_bps <= 18
+  )
+    score += 0.14;
+  if (
+    features.some((item) => item.includes('funding') || item.includes('basis')) &&
+    signal.market === 'CRYPTO'
+  )
+    score += 0.2;
   if (features.some((item) => tags.has(item))) score += 0.14;
   if (features.some((item) => newsTags.has(item))) score += 0.12;
   return clamp(score, 0, 1);
@@ -196,7 +236,10 @@ function familyResonance(candidateFamily: string, signal: SignalContract) {
   return 0.45;
 }
 
-function decideShadowAction(candidate: ReturnType<typeof parseAlphaCandidateRecord>, signal: SignalContract): ShadowDecision {
+function decideShadowAction(
+  candidate: ReturnType<typeof parseAlphaCandidateRecord>,
+  signal: SignalContract,
+): ShadowDecision {
   const compatible = candidate.compatible_markets.includes(signal.market);
   if (!compatible) {
     return {
@@ -204,7 +247,7 @@ function decideShadowAction(candidate: ReturnType<typeof parseAlphaCandidateReco
       alignment: 0,
       adjustedConfidence: signal.confidence,
       suggestedWeightMultiplier: 1,
-      notes: ['market_not_compatible']
+      notes: ['market_not_compatible'],
     };
   }
 
@@ -220,7 +263,7 @@ function decideShadowAction(candidate: ReturnType<typeof parseAlphaCandidateReco
         alignment: base,
         adjustedConfidence: round(clamp(signal.confidence * 1.08, 0.05, 0.99), 4),
         suggestedWeightMultiplier: 1.06,
-        notes: ['confidence_overlay_positive']
+        notes: ['confidence_overlay_positive'],
       };
     }
     if (base <= 0.4) {
@@ -229,7 +272,7 @@ function decideShadowAction(candidate: ReturnType<typeof parseAlphaCandidateReco
         alignment: base,
         adjustedConfidence: round(clamp(signal.confidence * 0.88, 0.05, 0.99), 4),
         suggestedWeightMultiplier: 0.9,
-        notes: ['confidence_overlay_negative']
+        notes: ['confidence_overlay_negative'],
       };
     }
   }
@@ -240,7 +283,7 @@ function decideShadowAction(candidate: ReturnType<typeof parseAlphaCandidateReco
       alignment: base,
       adjustedConfidence: signal.confidence,
       suggestedWeightMultiplier: base >= 0.62 ? 1.02 : 0.82,
-      notes: [base >= 0.62 ? 'regime_hint_aligned' : 'regime_hint_block']
+      notes: [base >= 0.62 ? 'regime_hint_aligned' : 'regime_hint_block'],
     };
   }
 
@@ -250,7 +293,7 @@ function decideShadowAction(candidate: ReturnType<typeof parseAlphaCandidateReco
       alignment: base,
       adjustedConfidence: signal.confidence,
       suggestedWeightMultiplier: base >= 0.68 ? 1.08 : base <= 0.38 ? 0.82 : 1,
-      notes: ['weight_overlay']
+      notes: ['weight_overlay'],
     };
   }
 
@@ -259,7 +302,7 @@ function decideShadowAction(candidate: ReturnType<typeof parseAlphaCandidateReco
     alignment: base,
     adjustedConfidence: signal.confidence,
     suggestedWeightMultiplier: base >= 0.58 ? 1 : 0,
-    notes: [base >= 0.58 ? 'signal_input_aligned' : 'signal_input_rejected']
+    notes: [base >= 0.58 ? 'signal_input_aligned' : 'signal_input_rejected'],
   };
 }
 
@@ -293,19 +336,32 @@ export function applyAlphaRuntimeOverlays(args: {
       block = true;
     }
     if (decision.action === 'BOOST') {
-      confidenceMultiplier *= 1 + (Math.max(decision.adjustedConfidence - args.signal.confidence, 0) / Math.max(args.signal.confidence, 0.01)) * strength;
-      weightMultiplier *= 1 + ((decision.suggestedWeightMultiplier - 1) * strength);
+      confidenceMultiplier *=
+        1 +
+        (Math.max(decision.adjustedConfidence - args.signal.confidence, 0) /
+          Math.max(args.signal.confidence, 0.01)) *
+          strength;
+      weightMultiplier *= 1 + (decision.suggestedWeightMultiplier - 1) * strength;
     }
     if (decision.action === 'CUT') {
-      confidenceMultiplier *= 1 - clamp((args.signal.confidence - (decision.adjustedConfidence || args.signal.confidence)) / Math.max(args.signal.confidence, 0.01), 0, 0.35) * strength;
-      weightMultiplier *= 1 - clamp(1 - (decision.suggestedWeightMultiplier || 1), 0, 0.4) * strength;
+      confidenceMultiplier *=
+        1 -
+        clamp(
+          (args.signal.confidence - (decision.adjustedConfidence || args.signal.confidence)) /
+            Math.max(args.signal.confidence, 0.01),
+          0,
+          0.35,
+        ) *
+          strength;
+      weightMultiplier *=
+        1 - clamp(1 - (decision.suggestedWeightMultiplier || 1), 0, 0.4) * strength;
     }
     notes.push(...decision.notes.map((item) => `${row.id}:${item}`));
     appliedCandidates.push({
       alpha_id: row.id,
       status: row.status,
       action: decision.action,
-      alignment_score: decision.alignment
+      alignment_score: decision.alignment,
     });
   }
 
@@ -314,7 +370,7 @@ export function applyAlphaRuntimeOverlays(args: {
     confidence_multiplier: round(clamp(confidenceMultiplier, 0.7, 1.15), 4),
     weight_multiplier: round(clamp(weightMultiplier, 0.65, 1.15), 4),
     notes: [...new Set(notes)],
-    applied_candidates: appliedCandidates
+    applied_candidates: appliedCandidates,
   };
 }
 
@@ -322,7 +378,9 @@ export function summarizeAlphaShadowPerformance(repo: MarketRepository, alphaCan
   const rows = repo.listAlphaShadowObservations({ alphaCandidateId, limit: 400 });
   const realized = rows.filter((row) => Number.isFinite(row.realized_pnl_pct));
   const series = realized.map((row) => Number(row.realized_pnl_pct || 0));
-  const expectancy = series.length ? series.reduce((sum, value) => sum + value, 0) / series.length : null;
+  const expectancy = series.length
+    ? series.reduce((sum, value) => sum + value, 0) / series.length
+    : null;
   let equity = 1;
   let peak = 1;
   let drawdown = 0;
@@ -332,15 +390,27 @@ export function summarizeAlphaShadowPerformance(repo: MarketRepository, alphaCan
     drawdown = Math.min(drawdown, (equity - peak) / peak);
   }
   const mean = series.length ? series.reduce((sum, value) => sum + value, 0) / series.length : 0;
-  const variance = series.length > 1 ? series.reduce((sum, value) => sum + (value - mean) ** 2, 0) / (series.length - 1) : 0;
+  const variance =
+    series.length > 1
+      ? series.reduce((sum, value) => sum + (value - mean) ** 2, 0) / (series.length - 1)
+      : 0;
   const sigma = Math.sqrt(Math.max(variance, 0));
-  const sharpe = series.length > 1 && sigma > 0 ? round((mean / sigma) * Math.sqrt(Math.min(series.length, 252)), 4) : null;
+  const sharpe =
+    series.length > 1 && sigma > 0
+      ? round((mean / sigma) * Math.sqrt(Math.min(series.length, 252)), 4)
+      : null;
   return {
     sample_size: realized.length,
     expectancy: expectancy === null ? null : round(expectancy, 4),
     max_drawdown: realized.length ? round(Math.abs(drawdown), 4) : null,
     sharpe,
-    approval_rate: rows.length ? round(rows.filter((row) => row.shadow_action === 'APPROVE' || row.shadow_action === 'BOOST').length / rows.length, 4) : 0
+    approval_rate: rows.length
+      ? round(
+          rows.filter((row) => row.shadow_action === 'APPROVE' || row.shadow_action === 'BOOST')
+            .length / rows.length,
+          4,
+        )
+      : 0,
   };
 }
 
@@ -353,7 +423,9 @@ export function runAlphaShadowCycle(args: {
   const signalRows = args.repo
     .listSignals({ status: 'ALL', limit: 180 })
     .filter((row) => row.created_at_ms >= Date.now() - 21 * 86_400_000);
-  const signals = signalRows.map((row) => decodeSignalContract(row)).filter((row): row is SignalContract => Boolean(row));
+  const signals = signalRows
+    .map((row) => decodeSignalContract(row))
+    .filter((row): row is SignalContract => Boolean(row));
   const executions = args.repo.listExecutions({ userId: args.userId, limit: 400 });
   const observations: AlphaShadowObservationRecord[] = [];
 
@@ -363,7 +435,8 @@ export function runAlphaShadowCycle(args: {
       if (!candidate.compatible_markets.includes(signal.market)) continue;
       const decision = decideShadowAction(candidate, signal);
       const execution = latestExecutionForSignal(executions, signal.id);
-      const replayPnlPct = execution?.pnl_pct ?? deriveReplayPnlPct({ repo: args.repo, candidate, signal });
+      const replayPnlPct =
+        execution?.pnl_pct ?? deriveReplayPnlPct({ repo: args.repo, candidate, signal });
       observations.push({
         id: `alpha-shadow-${randomUUID()}`,
         alpha_candidate_id: row.id,
@@ -383,10 +456,10 @@ export function runAlphaShadowCycle(args: {
           notes: decision.notes,
           signal_strategy_id: signal.strategy_id,
           signal_regime_id: signal.regime_id,
-          signal_confidence: signal.confidence
+          signal_confidence: signal.confidence,
         }),
         created_at_ms: Date.now(),
-        updated_at_ms: Date.now()
+        updated_at_ms: Date.now(),
       });
     }
   }
@@ -396,12 +469,12 @@ export function runAlphaShadowCycle(args: {
   const summary = shadowCandidates.map((row) => ({
     alpha_id: row.id,
     status: row.status,
-    shadow: summarizeAlphaShadowPerformance(args.repo, row.id)
+    shadow: summarizeAlphaShadowPerformance(args.repo, row.id),
   }));
 
   return {
     candidates_processed: shadowCandidates.length,
     signals_evaluated: observations.length,
-    summary
+    summary,
   };
 }

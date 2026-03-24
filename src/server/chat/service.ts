@@ -3,21 +3,27 @@ import { getDb } from '../db/database.js';
 import { ensureSchema } from '../db/schema.js';
 import { MarketRepository } from '../db/repository.js';
 import type { ChatMessageRecord, ChatThreadRecord } from '../types.js';
-import type { ChatHistoryMessage, ChatRequestInput, ChatMode, ProviderMessage, StreamEvent } from './types.js';
+import type {
+  ChatHistoryMessage,
+  ChatRequestInput,
+  ChatMode,
+  ProviderMessage,
+  StreamEvent,
+} from './types.js';
 import { buildContextBundle } from './tools.js';
 import { buildSystemPrompt, buildUserPrompt } from './prompts.js';
 import { createProvider, getProviderOrder, isProviderConfigured } from './providers/index.js';
 import {
   ProviderEmptyResponseError,
   ProviderTimeoutError,
-  shouldFallbackProviderError
+  shouldFallbackProviderError,
 } from './providers/errors.js';
 import { resolveNovaRouteForProvider } from '../ai/llmOps.js';
 import { generateGovernedNovaStrategyReply } from '../nova/strategyLab.js';
 import {
   appendAssistantDisclaimer,
   detectMessageLanguage,
-  formatStructuredAssistantReply
+  formatStructuredAssistantReply,
 } from '../../utils/assistantLanguage.js';
 
 const MAX_HISTORY_TURNS = 4;
@@ -49,7 +55,7 @@ function detectMode(input: ChatRequestInput): ChatMode {
       'cross sectional',
       'rank ic',
       'research',
-      'failed experiment'
+      'failed experiment',
     ].some((token) => lower.includes(token))
   ) {
     return 'research-assistant';
@@ -67,7 +73,9 @@ function detectMode(input: ChatRequestInput): ChatMode {
 }
 
 function createThreadTitle(message: string): string {
-  const cleaned = String(message || '').replace(/\s+/g, ' ').trim();
+  const cleaned = String(message || '')
+    .replace(/\s+/g, ' ')
+    .trim();
   return cleaned ? cleaned.slice(0, 64) : 'Nova Assistant';
 }
 
@@ -77,14 +85,14 @@ function toHistoryMessages(rows: ChatMessageRecord[]): ChatHistoryMessage[] {
     .map((row) => ({
       role: row.role as 'user' | 'assistant',
       content: row.content,
-      createdAtMs: row.created_at_ms
+      createdAtMs: row.created_at_ms,
     }));
 }
 
 function historyToProviderMessages(history: ChatHistoryMessage[]): ProviderMessage[] {
   return history.slice(-4).map((item) => ({
     role: item.role,
-    content: item.content
+    content: item.content,
   }));
 }
 
@@ -96,7 +104,10 @@ function stringifyContext(context: ChatRequestInput['context']): string {
   }
 }
 
-async function* withTimeout(stream: AsyncGenerator<string>, timeoutMs: number): AsyncGenerator<string> {
+async function* withTimeout(
+  stream: AsyncGenerator<string>,
+  timeoutMs: number,
+): AsyncGenerator<string> {
   const iterator = stream[Symbol.asyncIterator]();
   while (true) {
     const next = iterator.next();
@@ -127,18 +138,22 @@ function ensureThread(repo: MarketRepository, input: ChatRequestInput): ChatThre
     last_context_json: stringifyContext(input.context),
     last_message_preview: input.message.slice(0, 160),
     created_at_ms: now,
-    updated_at_ms: now
+    updated_at_ms: now,
   };
   repo.upsertChatThread(thread);
   return thread;
 }
 
-function touchThread(repo: MarketRepository, thread: ChatThreadRecord, args: { context: ChatRequestInput['context']; preview: string }): void {
+function touchThread(
+  repo: MarketRepository,
+  thread: ChatThreadRecord,
+  args: { context: ChatRequestInput['context']; preview: string },
+): void {
   repo.upsertChatThread({
     ...thread,
     last_context_json: stringifyContext(args.context),
     last_message_preview: args.preview.slice(0, 160),
-    updated_at_ms: Date.now()
+    updated_at_ms: Date.now(),
   });
 }
 
@@ -146,7 +161,11 @@ function appendMessage(repo: MarketRepository, message: ChatMessageRecord): void
   repo.appendChatMessage(message);
 }
 
-function appendUserMessage(repo: MarketRepository, thread: ChatThreadRecord, input: ChatRequestInput): void {
+function appendUserMessage(
+  repo: MarketRepository,
+  thread: ChatThreadRecord,
+  input: ChatRequestInput,
+): void {
   appendMessage(repo, {
     thread_id: thread.id,
     user_id: input.userId,
@@ -155,18 +174,21 @@ function appendUserMessage(repo: MarketRepository, thread: ChatThreadRecord, inp
     context_json: stringifyContext(input.context),
     provider: null,
     status: 'READY',
-    created_at_ms: Date.now()
+    created_at_ms: Date.now(),
   });
 }
 
-function appendAssistantMessage(repo: MarketRepository, args: {
-  thread: ChatThreadRecord;
-  userId: string;
-  content: string;
-  context: ChatRequestInput['context'];
-  provider: string | null;
-  status: 'READY' | 'ERROR';
-}): void {
+function appendAssistantMessage(
+  repo: MarketRepository,
+  args: {
+    thread: ChatThreadRecord;
+    userId: string;
+    content: string;
+    context: ChatRequestInput['context'];
+    provider: string | null;
+    status: 'READY' | 'ERROR';
+  },
+): void {
   appendMessage(repo, {
     thread_id: args.thread.id,
     user_id: args.userId,
@@ -175,11 +197,14 @@ function appendAssistantMessage(repo: MarketRepository, args: {
     context_json: stringifyContext(args.context),
     provider: args.provider,
     status: args.status,
-    created_at_ms: Date.now()
+    created_at_ms: Date.now(),
   });
 }
 
-function buildDeterministicFallback(contextBundle: Awaited<ReturnType<typeof buildContextBundle>>, language = 'en'): string | null {
+function buildDeterministicFallback(
+  contextBundle: Awaited<ReturnType<typeof buildContextBundle>>,
+  language = 'en',
+): string | null {
   const note =
     language === 'zh'
       ? '当前运行环境里的本地 Marvix 不可用，已切换到内部证据兜底。'
@@ -188,7 +213,7 @@ function buildDeterministicFallback(contextBundle: Awaited<ReturnType<typeof bui
   if (!text) {
     const evidence = [
       ...contextBundle.statusSummary.slice(0, 2),
-      ...contextBundle.selectedEvidence.slice(0, 3)
+      ...contextBundle.selectedEvidence.slice(0, 3),
     ].filter(Boolean);
     if (!evidence.length) {
       return language === 'zh'
@@ -204,25 +229,27 @@ function buildDeterministicFallback(contextBundle: Awaited<ReturnType<typeof bui
       plan: [
         language === 'zh'
           ? '优先根据已有证据理解当前判断，不要把这次回答当成完整实盘建议。'
-          : 'Treat this as an evidence summary, not a full live-trading recommendation.'
+          : 'Treat this as an evidence summary, not a full live-trading recommendation.',
       ],
       why: [
         language === 'zh'
           ? '当前环境里缺少完整模型生成能力，所以回答会更保守。'
-          : 'The runtime does not have full model generation available, so the answer is intentionally conservative.'
+          : 'The runtime does not have full model generation available, so the answer is intentionally conservative.',
       ],
       risk: [
         language === 'zh'
           ? '常见失效模式 / 什么情况下不要做：当关键上下文缺失时，不要把兜底回答当成精确信号。'
-          : 'Common failure modes / when NOT to trade: do not treat fallback output as exact signal guidance when key context is missing.'
+          : 'Common failure modes / when NOT to trade: do not treat fallback output as exact signal guidance when key context is missing.',
       ],
-      evidence
+      evidence,
     });
   }
   return appendAssistantDisclaimer(`${note}\n\n${text}`, language);
 }
 
-function preferredSignal(bundle: Awaited<ReturnType<typeof buildContextBundle>>): Record<string, unknown> | null {
+function preferredSignal(
+  bundle: Awaited<ReturnType<typeof buildContextBundle>>,
+): Record<string, unknown> | null {
   if (bundle.signalDetail) return bundle.signalDetail;
   return ((bundle.signalCards || [])[0] as Record<string, unknown> | undefined) || null;
 }
@@ -233,7 +260,7 @@ function inferQuestionIntent(message: string) {
     asksEntry: /enter|entry|buy now|should i buy|should i enter|jump in|add now/.test(lower),
     asksHoldDecision: /keep|trim|sell|hold|reduce|cut/.test(lower),
     asksRisk: /safe|risk|danger|try anything/.test(lower),
-    asksWhyWait: /why are we waiting|why wait|why no signal|why not now/.test(lower)
+    asksWhyWait: /why are we waiting|why wait|why no signal|why not now/.test(lower),
   };
 }
 
@@ -246,12 +273,15 @@ function buildGroundedDeterministicReply(args: {
   const zh = language === 'zh';
   const bundle = args.contextBundle;
   const anchor = preferredSignal(bundle);
-  const requestedSymbol = bundle.requestedSymbol || String(args.input.context?.symbol || '').toUpperCase() || null;
+  const requestedSymbol =
+    bundle.requestedSymbol || String(args.input.context?.symbol || '').toUpperCase() || null;
   const anchorSymbol = String(anchor?.symbol || '').toUpperCase() || null;
   const anchorDirection = String(anchor?.direction || 'WAIT').toUpperCase();
   const anchorStatus = String(anchor?.status || '').toUpperCase();
   const anchorConfidence = Number(anchor?.confidence ?? anchor?.conviction ?? 0);
-  const marketRegime = String(bundle.marketTemperature?.regime_id || bundle.marketTemperature?.stance || 'unknown');
+  const marketRegime = String(
+    bundle.marketTemperature?.regime_id || bundle.marketTemperature?.stance || 'unknown',
+  );
   const temperature = Number(bundle.marketTemperature?.temperature_percentile);
   const riskProfile = String(bundle.riskProfile?.profile_key || 'balanced');
   const entryZone = (anchor?.entry_zone as Record<string, unknown> | undefined) || {};
@@ -263,7 +293,9 @@ function buildGroundedDeterministicReply(args: {
   const hasActionableSignal = Boolean(anchor && ['NEW', 'TRIGGERED'].includes(anchorStatus));
   const signalMismatch = requestedSymbol && anchorSymbol && requestedSymbol !== anchorSymbol;
 
-  let verdict = zh ? `现在还没有适合直接出手的 ${targetLabel} 清晰交易。` : `No clean ${targetLabel} trade is ready right now.`;
+  let verdict = zh
+    ? `现在还没有适合直接出手的 ${targetLabel} 清晰交易。`
+    : `No clean ${targetLabel} trade is ready right now.`;
   if (exactSignal && hasActionableSignal && anchorDirection === 'LONG') {
     verdict = zh
       ? `${targetLabel} 当前可以考虑做多，但只能在计划入场区间内执行。`
@@ -300,50 +332,58 @@ function buildGroundedDeterministicReply(args: {
     plan.push(
       zh
         ? `除非出现新的明确信号，否则不要在这里继续加 ${requestedSymbol}。`
-        : `Do not add to ${requestedSymbol} here unless a fresh signal appears.`
+        : `Do not add to ${requestedSymbol} here unless a fresh signal appears.`,
     );
     plan.push(
       zh
         ? `如果 ${requestedSymbol} 的仓位已经超出你的常规风险预算，就先减回试探仓。`
-        : `If ${requestedSymbol} is oversized versus your normal risk, trim it back to starter size.`
+        : `If ${requestedSymbol} is oversized versus your normal risk, trim it back to starter size.`,
     );
     plan.push(
       zh
         ? '只有在你已经有清晰失效位并且愿意严格执行时，才保留完整仓位。'
-        : 'Only keep full size if you already have a clear invalidation level and can respect it.'
+        : 'Only keep full size if you already have a clear invalidation level and can respect it.',
     );
   } else if (intent.asksEntry) {
     if (exactSignal && hasActionableSignal && entryLow !== null && entryHigh !== null) {
       plan.push(
         zh
           ? `等 ${targetLabel} 进入 ${entryLow} 到 ${entryHigh} 的区间再考虑，不要追高。`
-          : `Wait for ${targetLabel} to trade inside ${entryLow} to ${entryHigh}; do not chase above the zone.`
+          : `Wait for ${targetLabel} to trade inside ${entryLow} to ${entryHigh}; do not chase above the zone.`,
       );
     } else {
       plan.push(
         zh
           ? `在 setup 还没确认前，不要硬做新的 ${targetLabel} 入场。`
-          : `Do not force a fresh ${targetLabel} entry while the setup is still unconfirmed.`
+          : `Do not force a fresh ${targetLabel} entry while the setup is still unconfirmed.`,
       );
     }
     plan.push(
       zh
         ? `风险要和 ${riskProfile} 风险画像一致；今天适合控制仓位，不适合重仓逞强。`
-        : `Keep risk profile aligned with ${riskProfile}; this is a day for controlled size, not hero size.`
+        : `Keep risk profile aligned with ${riskProfile}; this is a day for controlled size, not hero size.`,
     );
-    plan.push(zh ? '如果你在入场前都定义不出止损，那就直接跳过。' : 'If you cannot define the stop before entry, skip the trade.');
+    plan.push(
+      zh
+        ? '如果你在入场前都定义不出止损，那就直接跳过。'
+        : 'If you cannot define the stop before entry, skip the trade.',
+    );
   } else {
     plan.push(
       zh
         ? `在 setup 更干净之前，先把 ${targetLabel} 当观察名单处理。`
-        : `Treat ${targetLabel} as watchlist-first until the setup is cleaner.`
+        : `Treat ${targetLabel} as watchlist-first until the setup is cleaner.`,
     );
     plan.push(
       zh
         ? `仓位应当匹配 ${riskProfile} 风险预算，而不是只看主观信心。`
-        : `Match position size to the ${riskProfile} risk budget rather than to conviction alone.`
+        : `Match position size to the ${riskProfile} risk budget rather than to conviction alone.`,
     );
-    plan.push(zh ? '去看 Today 和 Safety，确认当前市场姿态是否还支持动作。' : 'Use Today and Safety to confirm whether the market posture still supports action.');
+    plan.push(
+      zh
+        ? '去看 Today 和 Safety，确认当前市场姿态是否还支持动作。'
+        : 'Use Today and Safety to confirm whether the market posture still supports action.',
+    );
   }
 
   const why = [
@@ -363,7 +403,7 @@ function buildGroundedDeterministicReply(args: {
         : `The nearest actionable crypto/equity signal is ${anchorSymbol} ${anchorDirection}, which tells us the engine is seeing edge elsewhere, not specifically in ${requestedSymbol}.`
       : zh
         ? `风险姿态锚定在 ${riskProfile} 风险画像上，所以默认是控制暴露，而不是被“总要做点什么”推动。`
-        : `Risk posture is anchored to the ${riskProfile} profile, so the default is controlled exposure rather than “do something” pressure.`
+        : `Risk posture is anchored to the ${riskProfile} profile, so the default is controlled exposure rather than “do something” pressure.`,
   ];
 
   const risk = [
@@ -375,17 +415,21 @@ function buildGroundedDeterministicReply(args: {
       : 'If you are asking for permission to act before you can state the invalidation, the trade is probably not ready.',
     zh
       ? '常见失效模式 / 什么情况下不要做：没有新触发就不要加仓，不要在走弱时摊平，也不要因为资产熟悉就无视风险预算。'
-      : 'Common failure modes / when NOT to trade: do not add without a fresh trigger, do not average into weakness, and do not override the risk budget just because the asset is familiar.'
+      : 'Common failure modes / when NOT to trade: do not add without a fresh trigger, do not average into weakness, and do not override the risk budget just because the asset is familiar.',
   ];
 
   const evidence = [
     requestedSymbol ? `requested symbol ${requestedSymbol}` : null,
-    exactSignal && anchorSymbol ? `exact signal ${anchorSymbol} ${anchorDirection} status ${anchorStatus}` : null,
-    !exactSignal && anchorSymbol ? `top available signal ${anchorSymbol} ${anchorDirection} status ${anchorStatus}` : null,
+    exactSignal && anchorSymbol
+      ? `exact signal ${anchorSymbol} ${anchorDirection} status ${anchorStatus}`
+      : null,
+    !exactSignal && anchorSymbol
+      ? `top available signal ${anchorSymbol} ${anchorDirection} status ${anchorStatus}`
+      : null,
     `market regime ${marketRegime}`,
     Number.isFinite(temperature) ? `temperature ${temperature.toFixed(0)}` : null,
     `risk profile ${riskProfile}`,
-    ...bundle.selectedEvidence.slice(0, 3)
+    ...bundle.selectedEvidence.slice(0, 3),
   ].filter(Boolean);
 
   return formatStructuredAssistantReply({
@@ -394,25 +438,35 @@ function buildGroundedDeterministicReply(args: {
     plan,
     why,
     risk,
-    evidence
+    evidence,
   });
 }
 
-function isLowValueAssistantReply(text: string, bundle: Awaited<ReturnType<typeof buildContextBundle>>): boolean {
+function isLowValueAssistantReply(
+  text: string,
+  bundle: Awaited<ReturnType<typeof buildContextBundle>>,
+): boolean {
   const lower = String(text || '').toLowerCase();
   const generic =
     /insufficient data|cannot advise|no specific entry|not advisable to .*try anything|cannot provide a specific recommendation|数据不足|无法建议|没有明确入场|现在不能建议|无法提供明确建议/.test(
-      lower
+      lower,
     );
   if (!generic) return false;
-  return Boolean(bundle.selectedEvidence.length || bundle.signalCards.length || bundle.marketTemperature || bundle.requestedSymbol);
+  return Boolean(
+    bundle.selectedEvidence.length ||
+    bundle.signalCards.length ||
+    bundle.marketTemperature ||
+    bundle.requestedSymbol,
+  );
 }
 
 function isStrategyGenerationRequest(input: ChatRequestInput, mode: ChatMode): boolean {
   const lower = String(input.message || '').toLowerCase();
   const explicitRequest =
     (lower.includes('strategy') || lower.includes('alpha')) &&
-    ['generate', 'build', 'create', 'design', 'propose', 'draft', 'idea'].some((token) => lower.includes(token));
+    ['generate', 'build', 'create', 'design', 'propose', 'draft', 'idea'].some((token) =>
+      lower.includes(token),
+    );
   const portfolioIntent =
     lower.includes('portfolio fit') ||
     lower.includes('candidate strategy') ||
@@ -427,15 +481,24 @@ async function runProviderChain(args: {
   history: ChatHistoryMessage[];
   contextBundle: Awaited<ReturnType<typeof buildContextBundle>>;
 }): Promise<{ provider: string; text: string; mode: ChatMode }> {
-  const providerOrder = getProviderOrder().filter((name, index, rows) => rows.indexOf(name) === index).filter((name) => isProviderConfigured(name));
-  const replyLanguage = detectMessageLanguage(args.input.message, args.input.context?.locale || 'en');
-  const systemPrompt = buildSystemPrompt(args.mode, args.contextBundle.hasExactSignalData, replyLanguage);
+  const providerOrder = getProviderOrder()
+    .filter((name, index, rows) => rows.indexOf(name) === index)
+    .filter((name) => isProviderConfigured(name));
+  const replyLanguage = detectMessageLanguage(
+    args.input.message,
+    args.input.context?.locale || 'en',
+  );
+  const systemPrompt = buildSystemPrompt(
+    args.mode,
+    args.contextBundle.hasExactSignalData,
+    replyLanguage,
+  );
   const userPrompt = buildUserPrompt({
     userMessage: args.input.message,
     mode: args.mode,
     contextBundle: args.contextBundle,
     context: args.input.context,
-    history: args.history
+    history: args.history,
   });
 
   if (!providerOrder.length) {
@@ -443,7 +506,7 @@ async function runProviderChain(args: {
       buildGroundedDeterministicReply({
         input: args.input,
         mode: args.mode,
-        contextBundle: args.contextBundle
+        contextBundle: args.contextBundle,
       }) || buildDeterministicFallback(args.contextBundle, replyLanguage);
     if (deterministic) {
       return { provider: 'deterministic', text: deterministic, mode: args.mode };
@@ -458,12 +521,12 @@ async function runProviderChain(args: {
     const provider = createProvider(providerName);
     const route = resolveNovaRouteForProvider(
       'assistant_grounded_answer',
-      providerName === 'openai' ? 'openai' : providerName === 'gemini' ? 'gemini' : 'ollama'
+      providerName === 'openai' ? 'openai' : providerName === 'gemini' ? 'gemini' : 'ollama',
     );
     const providerMessages: ProviderMessage[] = [
       { role: 'system', content: systemPrompt },
       ...historyToProviderMessages(args.history),
-      { role: 'user', content: userPrompt }
+      { role: 'user', content: userPrompt },
     ];
 
     try {
@@ -476,9 +539,9 @@ async function runProviderChain(args: {
           apiKey: route.apiKey,
           headers: route.headers,
           temperature: 0.2,
-          maxTokens: 750
+          maxTokens: 750,
         }),
-        PROVIDER_TIMEOUT_MS
+        PROVIDER_TIMEOUT_MS,
       )) {
         text += chunk;
       }
@@ -493,16 +556,16 @@ async function runProviderChain(args: {
           text: buildGroundedDeterministicReply({
             input: args.input,
             mode: args.mode,
-            contextBundle: args.contextBundle
+            contextBundle: args.contextBundle,
           }),
-          mode: args.mode
+          mode: args.mode,
         };
       }
 
       return {
         provider: provider.name,
         text: appendAssistantDisclaimer(text.trim(), replyLanguage),
-        mode: args.mode
+        mode: args.mode,
       };
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
@@ -519,13 +582,13 @@ async function runProviderChain(args: {
     buildGroundedDeterministicReply({
       input: args.input,
       mode: args.mode,
-      contextBundle: args.contextBundle
+      contextBundle: args.contextBundle,
     }) || buildDeterministicFallback(args.contextBundle, replyLanguage);
   if (deterministic) {
     return {
       provider: 'deterministic',
       text: deterministic,
-      mode: args.mode
+      mode: args.mode,
     };
   }
 
@@ -543,7 +606,7 @@ export function getChatThreadMessages(userId: string, threadId: string, limit = 
   if (!thread) return { thread: null, messages: [] as ChatMessageRecord[] };
   return {
     thread,
-    messages: repo.listChatMessages(threadId, limit)
+    messages: repo.listChatMessages(threadId, limit),
   };
 }
 
@@ -556,13 +619,13 @@ export async function* streamChat(input: ChatRequestInput): AsyncGenerator<Strea
   const contextBundle = await buildContextBundle({
     userId: input.userId,
     context: input.context,
-    message: input.message
+    message: input.message,
   });
 
   appendUserMessage(repo, thread, input);
   touchThread(repo, thread, {
     context: input.context,
-    preview: input.message
+    preview: input.message,
   });
 
   yield { type: 'meta', mode, provider: 'preparing', threadId: thread.id };
@@ -578,12 +641,12 @@ export async function* streamChat(input: ChatRequestInput): AsyncGenerator<Strea
           locale: detectMessageLanguage(input.message, input.context?.locale || 'en'),
           market: input.context?.market,
           riskProfile: input.context?.riskProfileKey || null,
-          maxCandidates: 12
+          maxCandidates: 12,
         });
         result = {
           provider: reply.provider,
           text: reply.text,
-          mode: 'research-assistant'
+          mode: 'research-assistant',
         };
       } catch {
         result = await runProviderChain({
@@ -591,7 +654,7 @@ export async function* streamChat(input: ChatRequestInput): AsyncGenerator<Strea
           threadId: thread.id,
           mode,
           history,
-          contextBundle
+          contextBundle,
         });
       }
     } else {
@@ -600,7 +663,7 @@ export async function* streamChat(input: ChatRequestInput): AsyncGenerator<Strea
         threadId: thread.id,
         mode,
         history,
-        contextBundle
+        contextBundle,
       });
     }
 
@@ -614,11 +677,11 @@ export async function* streamChat(input: ChatRequestInput): AsyncGenerator<Strea
       content: result.text,
       context: input.context,
       provider: result.provider,
-      status: 'READY'
+      status: 'READY',
     });
     touchThread(repo, thread, {
       context: input.context,
-      preview: result.text
+      preview: result.text,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -627,16 +690,18 @@ export async function* streamChat(input: ChatRequestInput): AsyncGenerator<Strea
       thread,
       userId: input.userId,
       content: appendAssistantDisclaimer(
-        language === 'zh' ? `我在准备回答时遇到了一点问题。\n\n${message}` : `I hit a problem while preparing an answer.\n\n${message}`,
-        language
+        language === 'zh'
+          ? `我在准备回答时遇到了一点问题。\n\n${message}`
+          : `I hit a problem while preparing an answer.\n\n${message}`,
+        language,
       ),
       context: input.context,
       provider: null,
-      status: 'ERROR'
+      status: 'ERROR',
     });
     touchThread(repo, thread, {
       context: input.context,
-      preview: message
+      preview: message,
     });
     yield { type: 'error', error: message };
   }

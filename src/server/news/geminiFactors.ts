@@ -32,13 +32,43 @@ type JsonObject = Record<string, unknown>;
 
 const GEMINI_API_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 const GEMINI_NEWS_CONCURRENCY = Math.max(1, Number(process.env.GEMINI_NEWS_CONCURRENCY || 3));
-const GEMINI_NEWS_MIN_REQUEST_GAP_MS = Math.max(0, Number(process.env.GEMINI_NEWS_MIN_REQUEST_GAP_MS || 350));
+const GEMINI_NEWS_MIN_REQUEST_GAP_MS = Math.max(
+  0,
+  Number(process.env.GEMINI_NEWS_MIN_REQUEST_GAP_MS || 350),
+);
 const GEMINI_NEWS_MAX_HEADLINES = Math.max(3, Number(process.env.GEMINI_NEWS_MAX_HEADLINES || 5));
 const geminiNewsFactorQueue = pLimit(GEMINI_NEWS_CONCURRENCY);
 let nextGeminiNewsRequestAtMs = 0;
 
-const positiveTokens = ['beat', 'surge', 'growth', 'record', 'bullish', 'upgrade', 'approval', 'partnership', 'launch', 'buyback', 'wins', 'expands'];
-const negativeTokens = ['miss', 'drop', 'lawsuit', 'downgrade', 'risk', 'probe', 'ban', 'hack', 'fraud', 'delay', 'cuts', 'warning', 'recall'];
+const positiveTokens = [
+  'beat',
+  'surge',
+  'growth',
+  'record',
+  'bullish',
+  'upgrade',
+  'approval',
+  'partnership',
+  'launch',
+  'buyback',
+  'wins',
+  'expands',
+];
+const negativeTokens = [
+  'miss',
+  'drop',
+  'lawsuit',
+  'downgrade',
+  'risk',
+  'probe',
+  'ban',
+  'hack',
+  'fraud',
+  'delay',
+  'cuts',
+  'warning',
+  'recall',
+];
 
 const eventTypeMap: Array<{ type: string; tags: string[] }> = [
   { type: 'earnings', tags: ['earnings', 'guidance', 'revenue', 'eps', 'outlook', 'forecast'] },
@@ -46,11 +76,14 @@ const eventTypeMap: Array<{ type: string; tags: string[] }> = [
   { type: 'product_launch', tags: ['launch', 'release', 'product', 'chip', 'iphone', 'platform'] },
   { type: 'partnership', tags: ['partnership', 'deal', 'agreement', 'collaboration'] },
   { type: 'merger_acquisition', tags: ['acquisition', 'merger', 'buyout', 'takeover'] },
-  { type: 'regulation', tags: ['regulation', 'regulator', 'antitrust', 'ban', 'approval', 'sec', 'ftc'] },
+  {
+    type: 'regulation',
+    tags: ['regulation', 'regulator', 'antitrust', 'ban', 'approval', 'sec', 'ftc'],
+  },
   { type: 'legal', tags: ['lawsuit', 'court', 'settlement', 'probe', 'investigation'] },
   { type: 'cybersecurity', tags: ['hack', 'breach', 'cyber', 'security'] },
   { type: 'macro', tags: ['fed', 'rates', 'inflation', 'tariff', 'macro', 'policy'] },
-  { type: 'adoption', tags: ['adoption', 'demand', 'sales', 'orders', 'customers'] }
+  { type: 'adoption', tags: ['adoption', 'demand', 'sales', 'orders', 'customers'] },
 ];
 
 function clamp(value: number, min: number, max: number) {
@@ -97,26 +130,39 @@ function toNumber(value: unknown, fallback = 0) {
 function toStringArray(value: unknown) {
   return Array.isArray(value)
     ? value
-        .map((item) => String(item || '').trim().toLowerCase().replace(/[^a-z0-9_:-]+/g, '_'))
+        .map((item) =>
+          String(item || '')
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9_:-]+/g, '_'),
+        )
         .filter(Boolean)
         .slice(0, 8)
     : [];
 }
 
 function normalizeBias(value: unknown): GeminiBatchFactors['trading_bias'] {
-  const upper = String(value || '').trim().toUpperCase();
+  const upper = String(value || '')
+    .trim()
+    .toUpperCase();
   if (upper === 'BULLISH' || upper === 'BEARISH' || upper === 'MIXED') return upper;
   return 'NEUTRAL';
 }
 
 function normalizeHorizon(value: unknown): GeminiHeadlineFactor['impact_horizon'] {
-  const lower = String(value || '').trim().toLowerCase();
+  const lower = String(value || '')
+    .trim()
+    .toLowerCase();
   if (lower === 'immediate' || lower === 'near_term' || lower === 'medium_term') return lower;
   return 'near_term';
 }
 
 function structuredFactorsEnabled() {
-  return String(process.env.NOVA_NEWS_HEURISTIC_FACTORS_ENABLED || '1').trim().toLowerCase() !== '0';
+  return (
+    String(process.env.NOVA_NEWS_HEURISTIC_FACTORS_ENABLED || '1')
+      .trim()
+      .toLowerCase() !== '0'
+  );
 }
 
 function scoreHeadlineSentiment(text: string, baseLabel: NewsItemRecord['sentiment_label']) {
@@ -124,7 +170,13 @@ function scoreHeadlineSentiment(text: string, baseLabel: NewsItemRecord['sentime
   const pos = positiveTokens.filter((token) => lower.includes(token)).length;
   const neg = negativeTokens.filter((token) => lower.includes(token)).length;
   const labelBase =
-    baseLabel === 'POSITIVE' ? 0.28 : baseLabel === 'NEGATIVE' ? -0.28 : baseLabel === 'MIXED' ? 0.04 : 0;
+    baseLabel === 'POSITIVE'
+      ? 0.28
+      : baseLabel === 'NEGATIVE'
+        ? -0.28
+        : baseLabel === 'MIXED'
+          ? 0.04
+          : 0;
   return round(clamp(labelBase + pos * 0.12 - neg * 0.14, -1, 1));
 }
 
@@ -139,7 +191,12 @@ function detectEventType(text: string) {
 }
 
 function eventTypeToHorizon(eventType: string): GeminiHeadlineFactor['impact_horizon'] {
-  if (eventType === 'earnings' || eventType === 'analyst_rating' || eventType === 'legal' || eventType === 'regulation') {
+  if (
+    eventType === 'earnings' ||
+    eventType === 'analyst_rating' ||
+    eventType === 'legal' ||
+    eventType === 'regulation'
+  ) {
     return 'immediate';
   }
   if (eventType === 'product_launch' || eventType === 'partnership' || eventType === 'adoption') {
@@ -159,50 +216,74 @@ function buildHeuristicNewsBatchFactors(args: {
     const text = `${row.headline} ${summary}`.trim();
     const eventType = detectEventType(text);
     const sentimentScore = scoreHeadlineSentiment(text, row.sentiment_label);
-    const relevanceScore = round(clamp(Math.max(Number(row.relevance_score || 0), eventType === 'other' ? 0.35 : 0.48), 0, 1));
+    const relevanceScore = round(
+      clamp(Math.max(Number(row.relevance_score || 0), eventType === 'other' ? 0.35 : 0.48), 0, 1),
+    );
     return {
       id: row.id,
       sentiment_score: sentimentScore,
       relevance_score: relevanceScore,
       event_type: eventType,
       impact_horizon: eventTypeToHorizon(eventType),
-      thesis: (summary || row.headline).trim().slice(0, 180)
+      thesis: (summary || row.headline).trim().slice(0, 180),
     } satisfies GeminiHeadlineFactor;
   });
   if (!items.length) return null;
 
   const avgSentiment = items.reduce((sum, row) => sum + row.sentiment_score, 0) / items.length;
-  const riskEventTypes = new Set(['legal', 'regulation', 'cybersecurity', 'macro', 'merger_acquisition']);
+  const riskEventTypes = new Set([
+    'legal',
+    'regulation',
+    'cybersecurity',
+    'macro',
+    'merger_acquisition',
+  ]);
   const macroTypes = new Set(['macro', 'regulation']);
   const earningsTypes = new Set(['earnings', 'analyst_rating']);
   const eventRiskScore = round(
     clamp(
-      Math.max(...items.map((row) => (riskEventTypes.has(row.event_type) ? row.relevance_score : row.relevance_score * 0.55))),
+      Math.max(
+        ...items.map((row) =>
+          riskEventTypes.has(row.event_type) ? row.relevance_score : row.relevance_score * 0.55,
+        ),
+      ),
       0,
-      1
-    )
+      1,
+    ),
   );
   const macroPolicyScore = round(
     clamp(
-      items.filter((row) => macroTypes.has(row.event_type)).reduce((sum, row) => sum + row.relevance_score, 0) /
+      items
+        .filter((row) => macroTypes.has(row.event_type))
+        .reduce((sum, row) => sum + row.relevance_score, 0) /
         Math.max(1, items.filter((row) => macroTypes.has(row.event_type)).length),
       0,
-      1
-    )
+      1,
+    ),
   );
   const earningsImpactScore = round(
     clamp(
-      items.filter((row) => earningsTypes.has(row.event_type)).reduce((sum, row) => sum + row.relevance_score, 0) /
+      items
+        .filter((row) => earningsTypes.has(row.event_type))
+        .reduce((sum, row) => sum + row.relevance_score, 0) /
         Math.max(1, items.filter((row) => earningsTypes.has(row.event_type)).length),
       0,
-      1
-    )
+      1,
+    ),
   );
-  const factorTags = Array.from(new Set(items.map((row) => row.event_type).filter((row) => row !== 'other'))).slice(0, 8);
+  const factorTags = Array.from(
+    new Set(items.map((row) => row.event_type).filter((row) => row !== 'other')),
+  ).slice(0, 8);
   const positiveCount = items.filter((row) => row.sentiment_score >= 0.18).length;
   const negativeCount = items.filter((row) => row.sentiment_score <= -0.18).length;
   const tradingBias =
-    avgSentiment >= 0.16 ? 'BULLISH' : avgSentiment <= -0.16 ? 'BEARISH' : positiveCount && negativeCount ? 'MIXED' : 'NEUTRAL';
+    avgSentiment >= 0.16
+      ? 'BULLISH'
+      : avgSentiment <= -0.16
+        ? 'BEARISH'
+        : positiveCount && negativeCount
+          ? 'MIXED'
+          : 'NEUTRAL';
   const biasLabel =
     tradingBias === 'BULLISH'
       ? 'headline flow is constructive'
@@ -224,7 +305,7 @@ function buildHeuristicNewsBatchFactors(args: {
     earnings_impact_score: earningsImpactScore,
     trading_bias: tradingBias,
     factor_tags: factorTags,
-    items
+    items,
   };
 }
 
@@ -235,7 +316,9 @@ function normalizeFactors(raw: JsonObject, market: Market, symbol: string): Gemi
     symbol,
     market,
     generated_at: new Date().toISOString(),
-    summary: String(raw.summary || '').trim().slice(0, 280),
+    summary: String(raw.summary || '')
+      .trim()
+      .slice(0, 280),
     sentiment_score: round(clamp(toNumber(raw.sentiment_score, 0), -1, 1)),
     event_risk_score: round(clamp(toNumber(raw.event_risk_score, 0.2), 0, 1)),
     macro_policy_score: round(clamp(toNumber(raw.macro_policy_score, 0), 0, 1)),
@@ -249,13 +332,19 @@ function normalizeFactors(raw: JsonObject, market: Market, symbol: string): Gemi
           id: String(row.id || '').trim(),
           sentiment_score: round(clamp(toNumber(row.sentiment_score, 0), -1, 1)),
           relevance_score: round(clamp(toNumber(row.relevance_score, 0.35), 0, 1)),
-          event_type: String(row.event_type || 'other').trim().toLowerCase().slice(0, 48) || 'other',
+          event_type:
+            String(row.event_type || 'other')
+              .trim()
+              .toLowerCase()
+              .slice(0, 48) || 'other',
           impact_horizon: normalizeHorizon(row.impact_horizon),
-          thesis: String(row.thesis || '').trim().slice(0, 180)
+          thesis: String(row.thesis || '')
+            .trim()
+            .slice(0, 180),
         } satisfies GeminiHeadlineFactor;
       })
       .filter((row) => row.id)
-      .slice(0, 8)
+      .slice(0, 8),
   };
 }
 
@@ -290,15 +379,15 @@ async function sanitizeGeminiFactorsText(args: {
       'Convert the provided news-analysis text into exactly one strict JSON object.',
       'Return JSON only.',
       'Allowed keys: summary, sentiment_score, event_risk_score, macro_policy_score, earnings_impact_score, trading_bias, factor_tags, items.',
-      'Each item must contain: id, sentiment_score, relevance_score, event_type, impact_horizon, thesis.'
+      'Each item must contain: id, sentiment_score, relevance_score, event_type, impact_horizon, thesis.',
     ].join(' '),
     userPrompt: JSON.stringify({
       market: args.market,
       symbol: args.symbol,
-      raw_text: rawText
+      raw_text: rawText,
     }),
     temperature: 0,
-    maxTokens: 900
+    maxTokens: 900,
   });
 
   const parsed = firstJsonObject(completion.text);
@@ -322,7 +411,7 @@ export async function analyzeNewsBatchWithGemini(args: {
       headline: row.headline,
       source: row.source,
       published_at: new Date(row.published_at_ms).toISOString(),
-      summary: typeof payload.summary === 'string' ? payload.summary : null
+      summary: typeof payload.summary === 'string' ? payload.summary : null,
     };
   });
 
@@ -339,8 +428,8 @@ export async function analyzeNewsBatchWithGemini(args: {
     JSON.stringify({
       market: args.market,
       symbol: args.symbol,
-      headlines: items
-    })
+      headlines: items,
+    }),
   ].join('\n');
   let lastUnparsedText = '';
 
@@ -351,11 +440,11 @@ export async function analyzeNewsBatchWithGemini(args: {
         'You are a quant news factor extraction engine for Marvix.',
         'Return exactly one JSON object and nothing else.',
         'Valid top-level keys: summary, sentiment_score, event_risk_score, macro_policy_score, earnings_impact_score, trading_bias, factor_tags, items.',
-        'items must contain objects with keys: id, sentiment_score, relevance_score, event_type, impact_horizon, thesis.'
+        'items must contain objects with keys: id, sentiment_score, relevance_score, event_type, impact_horizon, thesis.',
       ].join(' '),
       userPrompt: prompt,
       temperature: 0.1,
-      maxTokens: 900
+      maxTokens: 900,
     });
     const parsed = firstJsonObject(completion.text);
     if (parsed) {
@@ -365,7 +454,7 @@ export async function analyzeNewsBatchWithGemini(args: {
     const sanitized = await sanitizeGeminiFactorsText({
       market: args.market,
       symbol: args.symbol,
-      rawText: lastUnparsedText
+      rawText: lastUnparsedText,
     }).catch(() => null);
     if (sanitized) {
       return sanitized;
@@ -385,14 +474,14 @@ export async function analyzeNewsBatchWithGemini(args: {
       contents: [
         {
           role: 'user',
-          parts: [{ text: prompt }]
-        }
+          parts: [{ text: prompt }],
+        },
       ],
       generationConfig: {
         temperature: 0.1,
         maxOutputTokens: 900,
-        responseMimeType: 'application/json'
-      }
+        responseMimeType: 'application/json',
+      },
     },
     {
       contents: [
@@ -400,16 +489,16 @@ export async function analyzeNewsBatchWithGemini(args: {
           role: 'user',
           parts: [
             {
-              text: `${prompt}\nReturn only a single JSON object. Do not wrap it in markdown.`
-            }
-          ]
-        }
+              text: `${prompt}\nReturn only a single JSON object. Do not wrap it in markdown.`,
+            },
+          ],
+        },
       ],
       generationConfig: {
         temperature: 0.1,
-        maxOutputTokens: 900
-      }
-    }
+        maxOutputTokens: 900,
+      },
+    },
   ];
 
   for (const body of requestPayloads) {
@@ -418,12 +507,12 @@ export async function analyzeNewsBatchWithGemini(args: {
       {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify(body)
+        body: JSON.stringify(body),
       },
       { attempts: 3, baseDelayMs: 1_500 },
-      20_000
+      20_000,
     );
 
     if (!response.ok) {
@@ -434,7 +523,9 @@ export async function analyzeNewsBatchWithGemini(args: {
     const text = extractGeminiText(json);
     const parsed =
       firstJsonObject(text) ||
-      ((json && typeof json === 'object' && !Array.isArray(json) && 'summary' in (json as JsonObject) ? (json as JsonObject) : null));
+      (json && typeof json === 'object' && !Array.isArray(json) && 'summary' in (json as JsonObject)
+        ? (json as JsonObject)
+        : null);
     if (parsed) {
       return normalizeFactors(parsed, args.market, args.symbol);
     }
@@ -443,7 +534,7 @@ export async function analyzeNewsBatchWithGemini(args: {
       const sanitized = await sanitizeGeminiFactorsText({
         market: args.market,
         symbol: args.symbol,
-        rawText: lastUnparsedText
+        rawText: lastUnparsedText,
       }).catch(() => null);
       if (sanitized) {
         return sanitized;
@@ -455,7 +546,7 @@ export async function analyzeNewsBatchWithGemini(args: {
     logWarn('Gemini factor parser could not coerce response into structured JSON', {
       market: args.market,
       symbol: args.symbol,
-      sample: lastUnparsedText.slice(0, 180)
+      sample: lastUnparsedText.slice(0, 180),
     });
   }
 
@@ -482,15 +573,17 @@ export async function enrichNewsRowsWithGeminiFactors(args: {
         ...payload,
         gemini_analysis: {
           batch: analysis,
-          headline: headlineFactor
-        }
+          headline: headlineFactor,
+        },
       };
       return {
         ...row,
-        sentiment_label: headlineFactor ? sentimentLabelFromScore(headlineFactor.sentiment_score) : row.sentiment_label,
+        sentiment_label: headlineFactor
+          ? sentimentLabelFromScore(headlineFactor.sentiment_score)
+          : row.sentiment_label,
         relevance_score: headlineFactor ? headlineFactor.relevance_score : row.relevance_score,
         payload_json: JSON.stringify(nextPayload),
-        updated_at_ms: now
+        updated_at_ms: now,
       };
     });
   });

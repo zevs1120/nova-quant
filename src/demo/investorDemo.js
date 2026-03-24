@@ -14,7 +14,7 @@ export const INVESTOR_DEMO_PERFORMANCE = {
   win_rate: 0.674,
   payoff_ratio: 1.62,
   source_status: INVESTOR_DEMO_STATUS,
-  note: 'Demo sample for investor walkthroughs only. Not live, not paper, not a real track record.'
+  note: 'Demo sample for investor walkthroughs only. Not live, not paper, not a real track record.',
 };
 
 export const INVESTOR_DEMO_HOLDINGS = [
@@ -29,7 +29,7 @@ export const INVESTOR_DEMO_HOLDINGS = [
     cost_basis: 193.4,
     current_price_override: 198.8,
     confidence_level: 4,
-    note: 'Investor demo core'
+    note: 'Investor demo core',
   },
   {
     id: 'demo-holding-nvda',
@@ -42,7 +42,7 @@ export const INVESTOR_DEMO_HOLDINGS = [
     cost_basis: 121.3,
     current_price_override: 128.6,
     confidence_level: 4,
-    note: 'Investor demo growth'
+    note: 'Investor demo growth',
   },
   {
     id: 'demo-holding-spy',
@@ -55,7 +55,7 @@ export const INVESTOR_DEMO_HOLDINGS = [
     cost_basis: 504.1,
     current_price_override: 519.2,
     confidence_level: 4,
-    note: 'Investor demo market ETF'
+    note: 'Investor demo market ETF',
   },
   {
     id: 'demo-holding-btc',
@@ -68,8 +68,8 @@ export const INVESTOR_DEMO_HOLDINGS = [
     cost_basis: 67200,
     current_price_override: 70240,
     confidence_level: 3,
-    note: 'Investor demo crypto'
-  }
+    note: 'Investor demo crypto',
+  },
 ];
 
 function minutesAgoIso(minutesAgo) {
@@ -78,8 +78,12 @@ function minutesAgoIso(minutesAgo) {
 
 function buildSignal(base) {
   const generatedAt = minutesAgoIso(base.minutesAgo);
-  const entryLow = Number.isFinite(Number(base.entry_low)) ? Number(base.entry_low) : Number(base.entry);
-  const entryHigh = Number.isFinite(Number(base.entry_high)) ? Number(base.entry_high) : Number(base.entry);
+  const entryLow = Number.isFinite(Number(base.entry_low))
+    ? Number(base.entry_low)
+    : Number(base.entry);
+  const entryHigh = Number.isFinite(Number(base.entry_high))
+    ? Number(base.entry_high)
+    : Number(base.entry);
   return {
     signal_id: `demo-signal-${base.symbol.toLowerCase()}-${base.minutesAgo}`,
     symbol: base.symbol,
@@ -102,28 +106,28 @@ function buildSignal(base) {
       data_status: INVESTOR_DEMO_STATUS,
       source_label: INVESTOR_DEMO_STATUS,
       source_status: INVESTOR_DEMO_STATUS,
-      note: 'Investor demo signal'
+      note: 'Investor demo signal',
     },
     actionable: base.status ? base.status === 'NEW' || base.status === 'TRIGGERED' : true,
     entry_zone: {
       low: entryLow,
-      high: entryHigh
+      high: entryHigh,
     },
     stop_loss: {
       type: 'DEMO',
       price: base.stop,
-      rationale: 'Investor demo stop'
+      rationale: 'Investor demo stop',
     },
     invalidation_level: base.stop,
     take_profit_levels: [
       {
         price: base.target,
-        rationale: 'Investor demo target'
-      }
+        rationale: 'Investor demo target',
+      },
     ],
     position_advice: {
       position_pct: base.position_pct,
-      note: 'Beginner-sized demo position'
+      note: 'Beginner-sized demo position',
     },
     explain_bullets: [base.thesis],
     tags: ['demo_only:investor', `strategy_source:${base.strategy_source || 'AI quant strategy'}`],
@@ -131,7 +135,7 @@ function buildSignal(base) {
     supporting_run_id: 'investor-demo-pack',
     strategy_source: base.strategy_source || 'AI quant strategy',
     demo_outcome_label: base.outcomeLabel || null,
-    demo_outcome_note: base.outcomeNote || null
+    demo_outcome_note: base.outcomeNote || null,
   };
 }
 
@@ -147,13 +151,14 @@ export function buildInvestorDemoSignals(assetClass = 'US_STOCK') {
         score: 82,
         timeframe: '4h',
         regime_id: 'RANGE_NORMAL',
-        thesis: 'The market cooled down and the rebound setup is cleaner than the rest of the crypto board.',
+        thesis:
+          'The market cooled down and the rebound setup is cleaner than the rest of the crypto board.',
         entry: 66850,
         stop: 64880,
         target: 69420,
         position_pct: 12,
         minutesAgo: 4,
-        strategy_source: 'AI quant strategy'
+        strategy_source: 'AI quant strategy',
       }),
       buildSignal({
         symbol: 'ETH-USDT',
@@ -172,7 +177,7 @@ export function buildInvestorDemoSignals(assetClass = 'US_STOCK') {
         minutesAgo: 185,
         status: 'DONE',
         outcomeLabel: 'Target reached',
-        outcomeNote: '+4.7%'
+        outcomeNote: '+4.7%',
       }),
       buildSignal({
         symbol: 'SOL-USDT',
@@ -191,8 +196,8 @@ export function buildInvestorDemoSignals(assetClass = 'US_STOCK') {
         minutesAgo: 420,
         status: 'DONE',
         outcomeLabel: 'Stayed flat',
-        outcomeNote: 'No trade'
-      })
+        outcomeNote: 'No trade',
+      }),
     ];
   }
 
@@ -206,7 +211,8 @@ export function buildInvestorDemoSignals(assetClass = 'US_STOCK') {
       score: 85,
       timeframe: '1d',
       regime_id: 'TREND_NORMAL',
-      thesis: 'The pullback stayed calm and buyers defended the key area, so this is the cleanest idea today.',
+      thesis:
+        'The pullback stayed calm and buyers defended the key area, so this is the cleanest idea today.',
       entry: 198.8,
       entry_low: 198.4,
       entry_high: 199.2,
@@ -214,7 +220,7 @@ export function buildInvestorDemoSignals(assetClass = 'US_STOCK') {
       target: 206.4,
       position_pct: 12,
       minutesAgo: 3,
-      strategy_source: 'AI quant strategy'
+      strategy_source: 'AI quant strategy',
     }),
     buildSignal({
       symbol: 'NVDA',
@@ -235,7 +241,7 @@ export function buildInvestorDemoSignals(assetClass = 'US_STOCK') {
       minutesAgo: 190,
       status: 'DONE',
       outcomeLabel: 'Target reached',
-      outcomeNote: '+5.1%'
+      outcomeNote: '+5.1%',
     }),
     buildSignal({
       symbol: 'SPY',
@@ -256,7 +262,7 @@ export function buildInvestorDemoSignals(assetClass = 'US_STOCK') {
       minutesAgo: 420,
       status: 'DONE',
       outcomeLabel: 'Small win',
-      outcomeNote: '+1.4%'
+      outcomeNote: '+1.4%',
     }),
     buildSignal({
       symbol: 'MSFT',
@@ -277,8 +283,8 @@ export function buildInvestorDemoSignals(assetClass = 'US_STOCK') {
       minutesAgo: 840,
       status: 'DONE',
       outcomeLabel: 'Stopped out',
-      outcomeNote: '-1.8%'
-    })
+      outcomeNote: '-1.8%',
+    }),
   ];
 }
 
@@ -292,7 +298,7 @@ export function buildInvestorDemoEnvironment(assetClass = 'US_STOCK') {
       source_status: INVESTOR_DEMO_STATUS,
       data_status: INVESTOR_DEMO_STATUS,
       asof: new Date().toISOString(),
-      supporting_run_id: 'investor-demo-pack'
+      supporting_run_id: 'investor-demo-pack',
     },
     today: {
       is_trading_day: true,
@@ -304,28 +310,28 @@ export function buildInvestorDemoEnvironment(assetClass = 'US_STOCK') {
       filtered_count: 5,
       grade_counts: { A: 1, B: 2, C: 1 },
       style_hint: 'calm trend',
-      best_signal_id: primary?.signal_id || null
+      best_signal_id: primary?.signal_id || null,
     },
     safety: {
       mode: 'normal risk',
       safety_score: 74,
       conclusion: 'Low risk today, one small position is acceptable.',
-      primary_risks: ['Keep size small and avoid chasing after the first move.']
+      primary_risks: ['Keep size small and avoid chasing after the first move.'],
     },
     insights: {
       regime: { tag: 'Calm uptrend' },
       volatility: { label: 'normal' },
-      breadth: { ratio: 0.61 }
+      breadth: { ratio: 0.61 },
     },
     performance: {
-      investor_demo: INVESTOR_DEMO_PERFORMANCE
+      investor_demo: INVESTOR_DEMO_PERFORMANCE,
     },
     config: {
       runtime: {
         source_status: INVESTOR_DEMO_STATUS,
         data_status: INVESTOR_DEMO_STATUS,
-        source_label: INVESTOR_DEMO_STATUS
-      }
-    }
+        source_label: INVESTOR_DEMO_STATUS,
+      },
+    },
   };
 }

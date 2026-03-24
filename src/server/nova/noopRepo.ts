@@ -5,6 +5,6 @@ export function createNoopNovaRepo() {
     },
     upsertNovaTaskRun() {},
     upsertWorkflowRun() {},
-    insertAuditEvent() {}
+    insertAuditEvent() {},
   };
 }

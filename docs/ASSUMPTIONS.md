@@ -7,11 +7,13 @@ This repository is simulation-first and explicitly labels maturity states.
 ## Execution realism profiles
 
 Nova Quant uses structured assumption profiles, not loose constants:
+
 - `exec-realism.replay.v2`
 - `exec-realism.backtest.v2`
 - `exec-realism.paper.v2`
 
 Profiles include:
+
 - `fee_bps_per_side`
 - `slippage_bps_by_vol_bucket`
 - `spread_bps_by_vol_bucket`
@@ -21,12 +23,14 @@ Profiles include:
 ## Fill and trigger policies
 
 Supported policies:
+
 1. `touch_based`
 2. `bar_cross_based`
 3. `conservative_fill`
 4. `optimistic_fill` (testing only)
 
 Replay keeps explicit:
+
 - `fill_assumption_used`
 - `slippage_assumption_used`
 - `assumption_profile`
@@ -34,6 +38,7 @@ Replay keeps explicit:
 ## Cost and sensitivity assumptions
 
 Validation and portfolio layers include scenario sensitivity:
+
 - `slippage_plus_25`
 - `slippage_plus_50`
 - `wider_spread`
@@ -41,6 +46,7 @@ Validation and portfolio layers include scenario sensitivity:
 - `strict_fill`
 
 These scenarios are now part of:
+
 - replay output,
 - walk-forward summaries,
 - candidate validation,

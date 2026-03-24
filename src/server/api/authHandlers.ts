@@ -12,7 +12,7 @@ import {
   logoutAuthSession,
   resetPasswordWithCode,
   signupAuthUser,
-  upsertAuthUserState
+  upsertAuthUserState,
 } from '../auth/service.js';
 
 type BasicRequest = {
@@ -57,7 +57,10 @@ function requestIp(req: BasicRequest) {
 
 function sendAuthServiceError(res: BasicResponse, error: unknown) {
   const message = String((error as Error)?.message || error || '');
-  if (message.includes('REMOTE_AUTH_STORE_NOT_CONFIGURED') || message.includes('POSTGRES_AUTH_STORE_NOT_CONFIGURED')) {
+  if (
+    message.includes('REMOTE_AUTH_STORE_NOT_CONFIGURED') ||
+    message.includes('POSTGRES_AUTH_STORE_NOT_CONFIGURED')
+  ) {
     res.status(503).json({ ok: false, error: 'AUTH_STORE_NOT_CONFIGURED' });
     return;
   }
@@ -93,7 +96,7 @@ export async function handleAuthSession(req: BasicRequest, res: BasicResponse) {
     res.json({
       authenticated: true,
       user: session.user,
-      state: session.state
+      state: session.state,
     });
   } catch (error) {
     sendAuthServiceError(res, error);
@@ -112,7 +115,7 @@ export async function handleAdminSession(req: BasicRequest, res: BasicResponse) 
       authenticated: true,
       authorized: true,
       user: session.user,
-      roles: session.roles
+      roles: session.roles,
     });
   } catch (error) {
     sendAuthServiceError(res, error);
@@ -137,7 +140,7 @@ export async function handleAuthSignup(req: BasicRequest, res: BasicResponse) {
       broker: String(body.broker || 'Other'),
       locale: body.locale || null,
       userAgent: getHeader(req, 'user-agent') || null,
-      ipAddress: requestIp(req)
+      ipAddress: requestIp(req),
     });
     if (!result.ok) {
       res.status(400).json({ ok: false, error: result.error });
@@ -148,7 +151,7 @@ export async function handleAuthSignup(req: BasicRequest, res: BasicResponse) {
       ok: true,
       authenticated: true,
       user: result.user,
-      state: result.state
+      state: result.state,
     });
   } catch (error) {
     sendAuthServiceError(res, error);
@@ -162,10 +165,12 @@ export async function handleAdminLogin(req: BasicRequest, res: BasicResponse) {
       email: String(body.email || ''),
       password: String(body.password || ''),
       userAgent: getHeader(req, 'user-agent') || null,
-      ipAddress: requestIp(req)
+      ipAddress: requestIp(req),
     });
     if (!result.ok) {
-      res.status(result.error === 'INVALID_CREDENTIALS' ? 401 : 403).json({ ok: false, error: result.error });
+      res
+        .status(result.error === 'INVALID_CREDENTIALS' ? 401 : 403)
+        .json({ ok: false, error: result.error });
       return;
     }
     res.setHeader('Set-Cookie', getAdminAuthCookieHeader(result.sessionToken));
@@ -174,7 +179,7 @@ export async function handleAdminLogin(req: BasicRequest, res: BasicResponse) {
       authenticated: true,
       authorized: true,
       user: result.user,
-      roles: result.roles
+      roles: result.roles,
     });
   } catch (error) {
     sendAuthServiceError(res, error);
@@ -188,7 +193,7 @@ export async function handleAuthLogin(req: BasicRequest, res: BasicResponse) {
       email: String(body.email || ''),
       password: String(body.password || ''),
       userAgent: getHeader(req, 'user-agent') || null,
-      ipAddress: requestIp(req)
+      ipAddress: requestIp(req),
     });
     if (!result.ok) {
       res.status(401).json({ ok: false, error: result.error });
@@ -199,7 +204,7 @@ export async function handleAuthLogin(req: BasicRequest, res: BasicResponse) {
       ok: true,
       authenticated: true,
       user: result.user,
-      state: result.state
+      state: result.state,
     });
   } catch (error) {
     sendAuthServiceError(res, error);
@@ -232,12 +237,12 @@ export async function handleForgotPassword(req: BasicRequest, res: BasicResponse
   try {
     const body = (req.body || {}) as { email?: string };
     const result = await createPasswordReset({
-      email: String(body.email || '')
+      email: String(body.email || ''),
     });
     res.json({
       ok: true,
       expiresInMinutes: result.expiresInMinutes,
-      codeHint: result.codeHint || null
+      codeHint: result.codeHint || null,
     });
   } catch (error) {
     sendAuthServiceError(res, error);
@@ -250,7 +255,7 @@ export async function handleResetPassword(req: BasicRequest, res: BasicResponse)
     const result = await resetPasswordWithCode({
       email: String(body.email || ''),
       code: String(body.code || ''),
-      newPassword: String(body.newPassword || '')
+      newPassword: String(body.newPassword || ''),
     });
     if (!result.ok) {
       res.status(400).json({ ok: false, error: result.error });
@@ -273,7 +278,7 @@ export async function handleGetAuthProfile(req: BasicRequest, res: BasicResponse
     res.json({
       ok: true,
       user: session.user,
-      state: await getAuthUserState(session.user.userId)
+      state: await getAuthUserState(session.user.userId),
     });
   } catch (error) {
     sendAuthServiceError(res, error);
@@ -306,7 +311,7 @@ export async function handlePostAuthProfile(req: BasicRequest, res: BasicRespons
       watchlist: body.watchlist,
       holdings: body.holdings,
       executions: body.executions,
-      disciplineLog: body.disciplineLog
+      disciplineLog: body.disciplineLog,
     });
     res.json({ ok: true, state });
   } catch (error) {

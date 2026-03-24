@@ -65,11 +65,11 @@ async function fetchNasdaqBars(symbol: string, timeframe: Timeframe): Promise<No
         headers: {
           'User-Agent': 'Mozilla/5.0 NovaQuant/1.0',
           Accept: 'application/json',
-          Referer: 'https://www.nasdaq.com/'
-        }
+          Referer: 'https://www.nasdaq.com/',
+        },
       },
       { attempts: 3, baseDelayMs: 1200 },
-      config.nasdaq.timeoutMs
+      config.nasdaq.timeoutMs,
     );
     if (!response.ok) {
       throw new Error(`Nasdaq historical failed (${response.status}) for ${symbol}`);
@@ -99,10 +99,10 @@ async function fetchNasdaqBars(symbol: string, timeframe: Timeframe): Promise<No
           high,
           low,
           close,
-          volume: volume || '0'
+          volume: volume || '0',
         };
       })
-      .filter((row: NormalizedBar | null): row is NormalizedBar => Boolean(row))
+      .filter((row: NormalizedBar | null): row is NormalizedBar => Boolean(row)),
   );
 }
 
@@ -116,24 +116,31 @@ export async function backfillNasdaqHistorical(params: {
   const venue = 'STOOQ';
 
   for (const symbolRaw of params.symbols) {
-    const symbol = String(symbolRaw || '').trim().toUpperCase();
+    const symbol = String(symbolRaw || '')
+      .trim()
+      .toUpperCase();
     if (!symbol) continue;
     const asset = params.repo.upsertAsset({
       market: 'US',
       symbol,
       venue,
       quote: 'USD',
-      status: 'ACTIVE'
+      status: 'ACTIVE',
     });
     const bars = await fetchNasdaqBars(symbol, params.timeframe);
     params.repo.upsertOhlcvBars(asset.asset_id, params.timeframe, bars, source);
     if (bars.length) {
-      params.repo.setCursor(asset.asset_id, params.timeframe, bars[bars.length - 1].ts_open, source);
+      params.repo.setCursor(
+        asset.asset_id,
+        params.timeframe,
+        bars[bars.length - 1].ts_open,
+        source,
+      );
     }
     logInfo('Nasdaq historical backfill completed', {
       symbol,
       timeframe: params.timeframe,
-      inserted: bars.length
+      inserted: bars.length,
     });
   }
 }

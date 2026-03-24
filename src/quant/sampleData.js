@@ -5,7 +5,7 @@ import {
   pctChange,
   returnsFromPrices,
   round,
-  simpleMovingAverage
+  simpleMovingAverage,
 } from './math.js';
 
 const US_UNIVERSE = [
@@ -20,7 +20,7 @@ const US_UNIVERSE = [
     adv: 79000000,
     basePrice: 515,
     drift: 0.00042,
-    vol: 0.0104
+    vol: 0.0104,
   },
   {
     ticker: 'QQQ',
@@ -33,7 +33,7 @@ const US_UNIVERSE = [
     adv: 52000000,
     basePrice: 430,
     drift: 0.00046,
-    vol: 0.0128
+    vol: 0.0128,
   },
   {
     ticker: 'IWM',
@@ -46,7 +46,7 @@ const US_UNIVERSE = [
     adv: 31000000,
     basePrice: 205,
     drift: 0.00023,
-    vol: 0.0145
+    vol: 0.0145,
   },
   {
     ticker: 'AAPL',
@@ -59,7 +59,7 @@ const US_UNIVERSE = [
     adv: 61000000,
     basePrice: 191,
     drift: 0.00055,
-    vol: 0.0162
+    vol: 0.0162,
   },
   {
     ticker: 'MSFT',
@@ -72,7 +72,7 @@ const US_UNIVERSE = [
     adv: 30000000,
     basePrice: 416,
     drift: 0.00058,
-    vol: 0.0148
+    vol: 0.0148,
   },
   {
     ticker: 'NVDA',
@@ -85,7 +85,7 @@ const US_UNIVERSE = [
     adv: 46000000,
     basePrice: 887,
     drift: 0.00074,
-    vol: 0.024
+    vol: 0.024,
   },
   {
     ticker: 'AMZN',
@@ -98,7 +98,7 @@ const US_UNIVERSE = [
     adv: 43000000,
     basePrice: 176,
     drift: 0.00049,
-    vol: 0.0178
+    vol: 0.0178,
   },
   {
     ticker: 'META',
@@ -111,7 +111,7 @@ const US_UNIVERSE = [
     adv: 22000000,
     basePrice: 485,
     drift: 0.00057,
-    vol: 0.0193
+    vol: 0.0193,
   },
   {
     ticker: 'GOOGL',
@@ -124,7 +124,7 @@ const US_UNIVERSE = [
     adv: 29000000,
     basePrice: 172,
     drift: 0.00047,
-    vol: 0.0168
+    vol: 0.0168,
   },
   {
     ticker: 'TSLA',
@@ -137,7 +137,7 @@ const US_UNIVERSE = [
     adv: 83000000,
     basePrice: 211,
     drift: 0.00051,
-    vol: 0.0302
+    vol: 0.0302,
   },
   {
     ticker: 'JPM',
@@ -150,7 +150,7 @@ const US_UNIVERSE = [
     adv: 13000000,
     basePrice: 193,
     drift: 0.00031,
-    vol: 0.0146
+    vol: 0.0146,
   },
   {
     ticker: 'XLF',
@@ -163,7 +163,7 @@ const US_UNIVERSE = [
     adv: 51000000,
     basePrice: 39,
     drift: 0.00024,
-    vol: 0.0139
+    vol: 0.0139,
   },
   {
     ticker: 'XLE',
@@ -176,7 +176,7 @@ const US_UNIVERSE = [
     adv: 28000000,
     basePrice: 93,
     drift: 0.0002,
-    vol: 0.0172
+    vol: 0.0172,
   },
   {
     ticker: 'XLK',
@@ -189,8 +189,8 @@ const US_UNIVERSE = [
     adv: 9600000,
     basePrice: 212,
     drift: 0.00045,
-    vol: 0.0154
-  }
+    vol: 0.0154,
+  },
 ];
 
 const CRYPTO_UNIVERSE = [
@@ -205,7 +205,7 @@ const CRYPTO_UNIVERSE = [
     adv: 25000000000,
     basePrice: 68200,
     drift: 0.00062,
-    vol: 0.024
+    vol: 0.024,
   },
   {
     ticker: 'ETH-USDT',
@@ -218,7 +218,7 @@ const CRYPTO_UNIVERSE = [
     adv: 16000000000,
     basePrice: 3620,
     drift: 0.00054,
-    vol: 0.028
+    vol: 0.028,
   },
   {
     ticker: 'SOL-USDT',
@@ -231,8 +231,8 @@ const CRYPTO_UNIVERSE = [
     adv: 3600000000,
     basePrice: 164,
     drift: 0.0007,
-    vol: 0.036
-  }
+    vol: 0.036,
+  },
 ];
 
 function getCalendar({ count, endDate, includeWeekends }) {
@@ -270,7 +270,8 @@ function generateBars(profile, dates) {
     const low = Math.min(open, close) * (1 - Math.abs(n5) * 0.0083);
 
     const range = Math.max(0.0001, high - low);
-    const coreVolume = profile.adv * (1 + n1 * 0.24 + n2 * 0.16 + (Math.abs(ret) > profile.vol * 1.15 ? 0.27 : 0));
+    const coreVolume =
+      profile.adv * (1 + n1 * 0.24 + n2 * 0.16 + (Math.abs(ret) > profile.vol * 1.15 ? 0.27 : 0));
     const volume = Math.max(profile.adv * 0.28, coreVolume);
     const vwap = low + range * (0.38 + (n3 + 1) * 0.13);
 
@@ -282,7 +283,7 @@ function generateBars(profile, dates) {
       close: round(close, 4),
       volume: Math.round(volume),
       vwap: round(vwap, 4),
-      ret_1d: round(pctChange(prevClose, close), 6)
+      ret_1d: round(pctChange(prevClose, close), 6),
     });
 
     prevClose = close;
@@ -307,7 +308,10 @@ function enrichInstrument(profile, bars) {
     market_cap: Math.round(profile.marketCapBillions * 1e9),
     market_cap_billions: profile.marketCapBillions,
     adv_20: Math.round(simpleMovingAverage(volumes, 20)),
-    volatility_20: round(annualizedVolatility(returns.slice(-20), profile.market === 'CRYPTO' ? 365 : 252), 4),
+    volatility_20: round(
+      annualizedVolatility(returns.slice(-20), profile.market === 'CRYPTO' ? 365 : 252),
+      4,
+    ),
     latest_close: latest?.close ?? 0,
     latest_vwap: latest?.vwap ?? 0,
     returns: {
@@ -315,9 +319,9 @@ function enrichInstrument(profile, bars) {
       d5: round(pctChange(closes.at(-6) ?? closes[0], closes.at(-1) ?? closes[0]), 5),
       d10: round(pctChange(closes.at(-11) ?? closes[0], closes.at(-1) ?? closes[0]), 5),
       d20: round(pctChange(closes.at(-21) ?? closes[0], closes.at(-1) ?? closes[0]), 5),
-      d60: round(pctChange(closes.at(-61) ?? closes[0], closes.at(-1) ?? closes[0]), 5)
+      d60: round(pctChange(closes.at(-61) ?? closes[0], closes.at(-1) ?? closes[0]), 5),
     },
-    bars
+    bars,
   };
 }
 
@@ -342,7 +346,7 @@ export function buildSampleMarketData({ asOf = new Date() } = {}) {
       ticker,
       name: data?.name || ticker,
       market: data?.market || 'US',
-      bars: data?.bars || []
+      bars: data?.bars || [],
     };
   });
 
@@ -353,6 +357,6 @@ export function buildSampleMarketData({ asOf = new Date() } = {}) {
       'Local deterministic sample dataset generated in-app for Nova Quant v1 demo. Not real-time feed and not live trading data.',
     instruments,
     by_ticker: mapByTicker,
-    benchmarks
+    benchmarks,
   };
 }

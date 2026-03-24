@@ -15,25 +15,31 @@ export function buildPortfolioAllocatorSummary(args: {
           ? 'universal_signal_only'
           : 'personalized_action_overlay',
       risk_budget_mode:
-        posture === 'ATTACK' ? 'deploy' : posture === 'PROBE' ? 'probe' : posture === 'DEFEND' ? 'de-risk' : 'wait'
+        posture === 'ATTACK'
+          ? 'deploy'
+          : posture === 'PROBE'
+            ? 'probe'
+            : posture === 'DEFEND'
+              ? 'de-risk'
+              : 'wait',
     },
     concentration_checks: {
       same_symbol_weight_pct: Number.isFinite(sameSymbolWeight) ? sameSymbolWeight : null,
       overlap_warning: Number.isFinite(sameSymbolWeight) ? sameSymbolWeight >= 10 : false,
-      concentration_note: args.portfolioContext?.concentration_note || null
+      concentration_note: args.portfolioContext?.concentration_note || null,
     },
     rebalance_semantics: {
       top_action_label: String(topAction?.action_label || topAction?.action || 'Wait'),
       top_portfolio_intent: String(topAction?.portfolio_intent || 'wait'),
       rotate_supported: true,
       hedge_supported: true,
-      trim_supported: true
+      trim_supported: true,
     },
     constraint_system: [
       'respect risk posture before allocation',
       'separate universal signal from personalized action',
       'downweight or rotate when overlap already exists',
-      'prefer de-risk semantics over additive risk on defensive days'
-    ]
+      'prefer de-risk semantics over additive risk on defensive days',
+    ],
   };
 }

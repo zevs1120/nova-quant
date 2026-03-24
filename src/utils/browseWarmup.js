@@ -48,8 +48,8 @@ function writeStorage(key, data) {
       key,
       JSON.stringify({
         savedAt: nowMs(),
-        data
-      })
+        data,
+      }),
     );
   } catch {
     // ignore quota/storage errors
@@ -75,7 +75,7 @@ function readSnapshot(map, storageKey, key, ttlMs) {
 function writeSnapshot(map, storageKey, key, data) {
   const payload = {
     savedAt: nowMs(),
-    data
+    data,
   };
   map.set(key, payload);
   writeStorage(storageKey, data);
@@ -123,7 +123,9 @@ export function primeBrowseHomeBundle() {
 }
 
 export function readBrowseUniverseSnapshot(market) {
-  return readSnapshot(universeCache, universeStorageKey(market), market, UNIVERSE_STORAGE_TTL_MS) || [];
+  return (
+    readSnapshot(universeCache, universeStorageKey(market), market, UNIVERSE_STORAGE_TTL_MS) || []
+  );
 }
 
 export async function warmBrowseUniverseSnapshot(market, options = {}) {
@@ -193,7 +195,7 @@ export function searchBrowseUniverseLocal(query, options = {}) {
         item.market === 'CRYPTO'
           ? [item.base || item.symbol, item.quote || 'USDT'].filter(Boolean).join(' / ')
           : item.venue || item.assetClass || 'US',
-      latest: null
+      latest: null,
     }));
 }
 
@@ -214,15 +216,24 @@ export async function warmBrowseDetailSnapshot(selection, options = {}) {
   if (cached && !options.force) return cached.data;
   if (detailInflight.has(key)) return detailInflight.get(key);
   const request = Promise.all([
-    fetchApiJson(`/api/browse/chart?market=${selection.market}&symbol=${encodeURIComponent(selection.symbol)}`, { cache: 'no-store' }).catch(() => null),
-    fetchApiJson(`/api/browse/overview?market=${selection.market}&symbol=${encodeURIComponent(selection.symbol)}`, { cache: 'no-store' }).catch(() => null),
-    fetchApiJson(`/api/browse/news?market=${selection.market}&symbol=${encodeURIComponent(selection.symbol)}&limit=6`, { cache: 'no-store' }).catch(() => null)
+    fetchApiJson(
+      `/api/browse/chart?market=${selection.market}&symbol=${encodeURIComponent(selection.symbol)}`,
+      { cache: 'no-store' },
+    ).catch(() => null),
+    fetchApiJson(
+      `/api/browse/overview?market=${selection.market}&symbol=${encodeURIComponent(selection.symbol)}`,
+      { cache: 'no-store' },
+    ).catch(() => null),
+    fetchApiJson(
+      `/api/browse/news?market=${selection.market}&symbol=${encodeURIComponent(selection.symbol)}&limit=6`,
+      { cache: 'no-store' },
+    ).catch(() => null),
   ])
     .then(([chart, overview, news]) => {
       const payload = {
         chart: chart || null,
         overview: overview || null,
-        news: Array.isArray(news?.data) ? news.data : []
+        news: Array.isArray(news?.data) ? news.data : [],
       };
       writeSnapshot(detailCache, detailStorageKey(key), key, payload);
       return payload;

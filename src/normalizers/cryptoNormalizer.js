@@ -15,7 +15,7 @@ export function normalizeCryptoSpot(rawSnapshot) {
     frequency: item.frequency || FREQUENCY.DAILY,
     data_status: DATA_STATUS.NORMALIZED,
     use_notes: item.use_notes || 'Normalized crypto product metadata.',
-    license_notes: item.license_notes || 'Sample fallback in demo environment.'
+    license_notes: item.license_notes || 'Sample fallback in demo environment.',
   }));
 
   const grouped = groupBy(rawSnapshot?.bars || [], (row) => row.product_id);
@@ -44,7 +44,7 @@ export function normalizeCryptoSpot(rawSnapshot) {
         frequency: row.frequency || FREQUENCY.DAILY,
         data_status: DATA_STATUS.NORMALIZED,
         use_notes: row.use_notes || 'Normalized crypto spot bars on 24/7 calendar.',
-        license_notes: row.license_notes || 'Sample fallback in demo environment.'
+        license_notes: row.license_notes || 'Sample fallback in demo environment.',
       });
     }
   }
@@ -63,17 +63,17 @@ export function normalizeCryptoSpot(rawSnapshot) {
     frequency: item.frequency,
     data_status: DATA_STATUS.NORMALIZED,
     use_notes: 'Normalized crypto asset registry entry.',
-    license_notes: item.license_notes
+    license_notes: item.license_notes,
   }));
 
   return {
     metadata: {
       ...rawSnapshot?.metadata,
       data_status: DATA_STATUS.NORMALIZED,
-      normalized_at: new Date().toISOString()
+      normalized_at: new Date().toISOString(),
     },
     assets,
     products,
-    bars
+    bars,
   };
 }

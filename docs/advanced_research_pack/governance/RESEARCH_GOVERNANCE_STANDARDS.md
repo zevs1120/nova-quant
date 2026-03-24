@@ -15,14 +15,18 @@ This standard defines evidence and control requirements for strategy lifecycle g
 ## 2) Promotion evidence thresholds
 
 ## DRAFT -> SHADOW
+
 Required:
+
 1. clear hypothesis-template mapping,
 2. valid data/feature lineage,
 3. minimum sanity + quick backtest pass,
 4. explicit failure conditions.
 
 ## SHADOW -> CANARY
+
 Required:
+
 1. walk-forward/OOS viability,
 2. cost sensitivity survives stress,
 3. regime behavior understood,
@@ -30,7 +34,9 @@ Required:
 5. positive expected portfolio marginal value.
 
 ## CANARY -> PROD
+
 Required:
+
 1. stable behavior under live-like constraints,
 2. controlled drawdown profile,
 3. sustained risk-bucket compliance,
@@ -59,6 +65,7 @@ Required:
 ## 6) Rollback conditions
 
 Trigger rollback when one or more occur:
+
 - severe recent-vs-historical degradation,
 - regime incompatibility breach,
 - persistent cost slippage failure,
@@ -67,6 +74,7 @@ Trigger rollback when one or more occur:
 ## 7) Retirement conditions
 
 Retire strategy when:
+
 - repeated rollback cycles fail,
 - edge disappears under realistic assumptions,
 - portfolio contribution turns persistently negative,
@@ -75,6 +83,7 @@ Retire strategy when:
 ## 8) Version comparison logic
 
 Compare versions on:
+
 - net performance,
 - drawdown asymmetry,
 - stability,
@@ -85,6 +94,7 @@ Compare versions on:
 ## 9) Documentation requirement by stage
 
 Every strategy version must retain:
+
 - hypothesis, template, params,
 - validation summary,
 - cost/risk/regime notes,

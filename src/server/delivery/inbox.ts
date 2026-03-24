@@ -46,10 +46,10 @@ export function deliverSignalToInternalInbox(args: {
       strategy_id: args.signal.strategy_id,
       strategy_family: args.signal.strategy_family,
       event_type: args.eventType,
-      score: args.signal.score
+      score: args.signal.score,
     }),
     created_at_ms: now,
-    updated_at_ms: now
+    updated_at_ms: now,
   };
 
   args.repo.upsertNotificationEvent(event);
@@ -59,6 +59,6 @@ export function deliverSignalToInternalInbox(args: {
     endpoint: args.userId,
     event_type: args.eventType,
     status: 'SENT',
-    detail: event.id
+    detail: event.id,
   });
 }

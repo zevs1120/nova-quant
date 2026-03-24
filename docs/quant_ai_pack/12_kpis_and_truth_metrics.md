@@ -1,6 +1,7 @@
 # KPIs and Truth Metrics
 
 ## Product truth metrics
+
 - daily open-before-market rate
 - opportunities viewed per active user
 - plan-to-execution rate
@@ -9,6 +10,7 @@
 - 4-week retention and 8-week retention
 
 ## Decision-quality metrics
+
 - average risk per trade adopted by user
 - % trades following plan vs deviating
 - stop adherence rate
@@ -16,6 +18,7 @@
 - concentration / correlation violation rate
 
 ## Research truth metrics
+
 - trade density vs target band
 - fill rate
 - cost slippage drift
@@ -24,6 +27,7 @@
 - regime mismatch incidents
 
 ## Business truth metrics
+
 - free→paid conversion
 - ARPU by tier
 - CAC by channel

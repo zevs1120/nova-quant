@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { getManualDashboard, claimManualReferral, redeemManualVipDay, submitManualPredictionEntry } from '../src/server/manual/service.js';
+import {
+  getManualDashboard,
+  claimManualReferral,
+  redeemManualVipDay,
+  submitManualPredictionEntry,
+} from '../src/server/manual/service.js';
 
 describe('manual service', () => {
   beforeEach(() => {
@@ -52,7 +57,7 @@ describe('manual service', () => {
     const result = submitManualPredictionEntry({
       userId: '',
       marketId: 'mkt_test',
-      selectedOption: 'A'
+      selectedOption: 'A',
     });
     expect(result.ok).toBe(false);
     expect(result.error).toBe('AUTH_REQUIRED');

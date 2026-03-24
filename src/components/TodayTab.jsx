@@ -2,7 +2,12 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import SignalDetail from './SignalDetail';
 import TradeTicketSheet from './TradeTicketSheet';
 import { describeEvidenceMode } from '../utils/provenance';
-import { buildNovaTradeQuestion, buildTradeIntent, openTradeIntentHandoff, tradeIntentHandoffLabel } from '../utils/tradeIntent';
+import {
+  buildNovaTradeQuestion,
+  buildTradeIntent,
+  openTradeIntentHandoff,
+  tradeIntentHandoffLabel,
+} from '../utils/tradeIntent';
 
 const ACTIVE_SIGNAL_STATUS = new Set(['NEW', 'TRIGGERED']);
 const DATA_STATUS_PENALTY = {
@@ -13,7 +18,7 @@ const DATA_STATUS_PENALTY = {
   DEMO_ONLY: 24,
   EXPERIMENTAL: 22,
   WITHHELD: 36,
-  INSUFFICIENT_DATA: 48
+  INSUFFICIENT_DATA: 48,
 };
 
 function normalizeDataStatus(signal) {
@@ -24,7 +29,7 @@ function normalizeDataStatus(signal) {
       signal?.source_transparency?.data_status ||
       signal?.source_transparency?.source_label ||
       signal?.source_transparency?.source_status ||
-      'INSUFFICIENT_DATA'
+      'INSUFFICIENT_DATA',
   )
     .trim()
     .toUpperCase();
@@ -72,7 +77,7 @@ function mergeEvidenceSignals(allSignals, evidenceSignals) {
       row?.source_transparency?.data_status ||
         row?.source_transparency?.source_label ||
         row?.evidence_status ||
-        'INSUFFICIENT_DATA'
+        'INSUFFICIENT_DATA',
     ).toUpperCase();
     return {
       ...base,
@@ -81,7 +86,9 @@ function mergeEvidenceSignals(allSignals, evidenceSignals) {
       market: row.market || base.market,
       asset_class: row.asset_class || base.asset_class,
       direction: row.direction || base.direction,
-      confidence: Number.isFinite(Number(row.conviction)) ? Number(row.conviction) : base.confidence,
+      confidence: Number.isFinite(Number(row.conviction))
+        ? Number(row.conviction)
+        : base.confidence,
       created_at: base.created_at || row.created_at || row.generated_at || null,
       entry_zone: row.entry_zone || base.entry_zone || null,
       stop_loss:
@@ -90,23 +97,28 @@ function mergeEvidenceSignals(allSignals, evidenceSignals) {
           ? {
               type: 'EVIDENCE',
               price: Number(row.invalidation),
-              rationale: 'Evidence-derived invalidation'
+              rationale: 'Evidence-derived invalidation',
             }
           : null),
-      invalidation_level:
-        Number.isFinite(Number(base.invalidation_level)) ? base.invalidation_level : Number(row.invalidation),
+      invalidation_level: Number.isFinite(Number(base.invalidation_level))
+        ? base.invalidation_level
+        : Number(row.invalidation),
       take_profit_levels: base.take_profit_levels || [],
       position_advice: base.position_advice || null,
       explain_bullets: base.explain_bullets || (row.thesis ? [row.thesis] : []),
       status: base.status || (row.actionable ? 'NEW' : 'WITHHELD'),
-      score: Number.isFinite(Number(base.score)) ? Number(base.score) : Number(row.conviction || 0) * 100,
+      score: Number.isFinite(Number(base.score))
+        ? Number(base.score)
+        : Number(row.conviction || 0) * 100,
       source_transparency: row.source_transparency || base.source_transparency || null,
-      source_status: row.source_transparency?.source_status || base.source_status || 'INSUFFICIENT_DATA',
-      source_label: row.source_transparency?.source_label || base.source_label || evidenceDataStatus,
+      source_status:
+        row.source_transparency?.source_status || base.source_status || 'INSUFFICIENT_DATA',
+      source_label:
+        row.source_transparency?.source_label || base.source_label || evidenceDataStatus,
       data_status: base.data_status || evidenceDataStatus,
       freshness_label: row.freshness_label || null,
       actionable: Boolean(row.actionable),
-      supporting_run_id: row.supporting_run_id || null
+      supporting_run_id: row.supporting_run_id || null,
     };
   });
 }
@@ -135,7 +147,7 @@ function pickBestSignal(signals, evidenceSignals, assetClass, now) {
       _rank: rankSignal(item, now),
       _dataStatus: normalizeDataStatus(item),
       _actionable: isActionable(item),
-      _freshness: item?.freshness_label || freshnessLabel(item, now)
+      _freshness: item?.freshness_label || freshnessLabel(item, now),
     }))
     .sort((a, b) => b._rank - a._rank);
   return list[0] || null;
@@ -152,7 +164,7 @@ function recentSignals(signals, evidenceSignals, assetClass, now, bestSignal) {
       ...item,
       _rank: rankSignal(item, now),
       _dataStatus: normalizeDataStatus(item),
-      _freshness: item?.freshness_label || freshnessLabel(item, now)
+      _freshness: item?.freshness_label || freshnessLabel(item, now),
     }))
     .sort((a, b) => b._rank - a._rank)
     .slice(0, 3);
@@ -160,15 +172,23 @@ function recentSignals(signals, evidenceSignals, assetClass, now, bestSignal) {
 
 function suggestionSubtitle(bestSignal, locale) {
   if (!bestSignal) {
-    return locale === 'zh' ? '暂时没有足够干净的动作，先等更清楚的条件。' : 'No clean setup yet. Better conditions are worth waiting for.';
+    return locale === 'zh'
+      ? '暂时没有足够干净的动作，先等更清楚的条件。'
+      : 'No clean setup yet. Better conditions are worth waiting for.';
   }
   if (!bestSignal._actionable) {
-    return locale === 'zh' ? '信号存在，但还不值得执行。' : 'There is a signal, but not an executable one yet.';
+    return locale === 'zh'
+      ? '信号存在，但还不值得执行。'
+      : 'There is a signal, but not an executable one yet.';
   }
   if (bestSignal.direction === 'SHORT') {
-    return locale === 'zh' ? '风险仍偏高，只允许小而严格的动作。' : 'Risk is still elevated. Keep size small and execution strict.';
+    return locale === 'zh'
+      ? '风险仍偏高，只允许小而严格的动作。'
+      : 'Risk is still elevated. Keep size small and execution strict.';
   }
-  return locale === 'zh' ? '今天可以看动作，但仓位仍然要轻。' : 'Selective action is workable today. Size still stays light.';
+  return locale === 'zh'
+    ? '今天可以看动作，但仓位仍然要轻。'
+    : 'Selective action is workable today. Size still stays light.';
 }
 
 function deriveOverallStatus(args) {
@@ -179,28 +199,37 @@ function deriveOverallStatus(args) {
     return {
       code: 'NO_TRADE',
       headline: locale === 'zh' ? '今天不适合动作' : 'Do not trade today',
-      subtitle: locale === 'zh' ? '市场已休市，今天更适合复盘。' : 'The market is closed. Today is better used for review.'
+      subtitle:
+        locale === 'zh'
+          ? '市场已休市，今天更适合复盘。'
+          : 'The market is closed. Today is better used for review.',
     };
   }
   if (mode.includes('do not trade') || mode.includes('defense')) {
     return {
       code: 'DEFENSE',
       headline: locale === 'zh' ? '今天先防守' : 'Defend first today',
-      subtitle: safety?.primary_risks?.[0] || 'Risk pressure is high. Capital protection first.'
+      subtitle: safety?.primary_risks?.[0] || 'Risk pressure is high. Capital protection first.',
     };
   }
   if (runtimeStatus === 'INSUFFICIENT_DATA' || runtimeStatus === 'WITHHELD') {
     return {
       code: 'WAIT',
       headline: locale === 'zh' ? '今天先等等' : 'Wait today',
-      subtitle: locale === 'zh' ? '当前数据边界不够干净，先等更清楚的判断。' : 'Data quality is limited. Wait for better signal clarity.'
+      subtitle:
+        locale === 'zh'
+          ? '当前数据边界不够干净，先等更清楚的判断。'
+          : 'Data quality is limited. Wait for better signal clarity.',
     };
   }
   if (!bestSignal) {
     return {
       code: 'WAIT',
       headline: locale === 'zh' ? '今天先等等' : 'Wait today',
-      subtitle: locale === 'zh' ? '现在没有足够高质量的动作。' : 'No high-quality opportunity at the moment.'
+      subtitle:
+        locale === 'zh'
+          ? '现在没有足够高质量的动作。'
+          : 'No high-quality opportunity at the moment.',
     };
   }
   if (!bestSignal._actionable) {
@@ -214,20 +243,23 @@ function deriveOverallStatus(args) {
             : 'The signal is withheld because sample quality is still weak.'
           : locale === 'zh'
             ? '信号还没到执行时点。'
-            : 'The signal is not ready for execution.'
+            : 'The signal is not ready for execution.',
     };
   }
   if (String(bestSignal?.regime_id || '').toUpperCase() === 'RISK_OFF') {
     return {
       code: 'DEFENSE',
       headline: locale === 'zh' ? '今天先防守' : 'Defend first today',
-      subtitle: locale === 'zh' ? '风险仍偏高，只适合防守型小动作。' : 'Market risk remains high. Only small defensive actions.'
+      subtitle:
+        locale === 'zh'
+          ? '风险仍偏高，只适合防守型小动作。'
+          : 'Market risk remains high. Only small defensive actions.',
     };
   }
   return {
     code: 'TRADE',
     headline: locale === 'zh' ? '今天可以动作' : 'Can trade today',
-    subtitle: suggestionSubtitle(bestSignal, locale)
+    subtitle: suggestionSubtitle(bestSignal, locale),
   };
 }
 
@@ -237,22 +269,35 @@ function riskLevel(overallCode, bestSignal, locale) {
       level: 'danger',
       icon: '🔴',
       label: locale === 'zh' ? '危险' : 'Dangerous',
-      explanation: locale === 'zh' ? '风险环境偏高，不要强行动作。' : 'High risk environment. Do not force trades.'
+      explanation:
+        locale === 'zh'
+          ? '风险环境偏高，不要强行动作。'
+          : 'High risk environment. Do not force trades.',
     };
   }
-  if (!bestSignal || !bestSignal._actionable || ['EXPERIMENTAL', 'WITHHELD', 'INSUFFICIENT_DATA'].includes(bestSignal._dataStatus)) {
+  if (
+    !bestSignal ||
+    !bestSignal._actionable ||
+    ['EXPERIMENTAL', 'WITHHELD', 'INSUFFICIENT_DATA'].includes(bestSignal._dataStatus)
+  ) {
     return {
       level: 'medium',
       icon: '🟡',
       label: locale === 'zh' ? '中等' : 'Medium',
-      explanation: locale === 'zh' ? '条件偏混合，保持低风险和高选择性。' : 'Conditions are mixed. Keep risk low and be selective.'
+      explanation:
+        locale === 'zh'
+          ? '条件偏混合，保持低风险和高选择性。'
+          : 'Conditions are mixed. Keep risk low and be selective.',
     };
   }
   return {
     level: 'safe',
     icon: '🟢',
     label: locale === 'zh' ? '稳' : 'Safe',
-    explanation: locale === 'zh' ? '条件尚可，但仍只适合小仓位。' : 'Setup quality is acceptable. Small position only.'
+    explanation:
+      locale === 'zh'
+        ? '条件尚可，但仍只适合小仓位。'
+        : 'Setup quality is acceptable. Small position only.',
   };
 }
 
@@ -280,7 +325,9 @@ function entryText(signal) {
 
 function entryRangeText(signal) {
   const low = Number(signal?.entry_zone?.low ?? signal?.entry_min);
-  const high = Number(signal?.entry_zone?.high ?? signal?.entry_max ?? signal?.entry_zone?.low ?? signal?.entry_min);
+  const high = Number(
+    signal?.entry_zone?.high ?? signal?.entry_max ?? signal?.entry_zone?.low ?? signal?.entry_min,
+  );
   if (!Number.isFinite(low) && !Number.isFinite(high)) return '--';
   if (Number.isFinite(low) && Number.isFinite(high)) {
     if (Math.abs(low - high) < 0.005) return `${low.toFixed(2)}`;
@@ -338,7 +385,14 @@ function riskGuardLabel(overallCode, riskLevelValue, locale) {
   return zh ? '先别加风险' : 'Do not add risk';
 }
 
-function buildKeepInMindText({ locale, signal, noActionDay, overallCode, provenance, riskLevelValue }) {
+function buildKeepInMindText({
+  locale,
+  signal,
+  noActionDay,
+  overallCode,
+  provenance,
+  riskLevelValue,
+}) {
   const zh = locale === 'zh';
   if (overallCode === 'UNAVAILABLE') {
     return zh
@@ -397,7 +451,7 @@ function buildActionMetaText({ locale, signal, provenance }) {
   const parts = [
     provenance?.label || null,
     signal ? generatedText(signal) : null,
-    signal ? strategySourceText(signal) : null
+    signal ? strategySourceText(signal) : null,
   ].filter((item) => item && item !== '--');
 
   if (parts.length) return parts.join(' • ');
@@ -414,16 +468,42 @@ function triggerFeedback(kind = 'soft') {
 }
 
 function DecisionMark({ code }) {
-  const tone = code === 'TRADE' ? 'trade' : code === 'WAIT' ? 'wait' : code === 'UNAVAILABLE' ? 'wait' : 'defense';
+  const tone =
+    code === 'TRADE'
+      ? 'trade'
+      : code === 'WAIT'
+        ? 'wait'
+        : code === 'UNAVAILABLE'
+          ? 'wait'
+          : 'defense';
   return (
     <span className={`decision-mark decision-mark-${tone}`} aria-hidden="true">
       <svg viewBox="0 0 20 20" className="decision-mark-icon" focusable="false">
         {code === 'TRADE' ? (
-          <path d="M4.5 10.5 8 14l7.5-8" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" />
+          <path
+            d="M4.5 10.5 8 14l7.5-8"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         ) : code === 'WAIT' ? (
-          <path d="M5 10h10" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" />
+          <path
+            d="M5 10h10"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.3"
+            strokeLinecap="round"
+          />
         ) : (
-          <path d="M10 4.5v11M4.5 10h11" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" />
+          <path
+            d="M10 4.5v11M4.5 10h11"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.1"
+            strokeLinecap="round"
+          />
         )}
       </svg>
     </span>
@@ -458,11 +538,11 @@ function buildDemoFallbackSignal(assetClass, now) {
       source_transparency: {
         data_status: 'DEMO_ONLY',
         source_status: 'DEMO_ONLY',
-        source_label: 'DEMO_ONLY'
+        source_label: 'DEMO_ONLY',
       },
       _actionable: true,
       _dataStatus: 'DEMO_ONLY',
-      _freshness: '4m ago'
+      _freshness: '4m ago',
     };
   }
 
@@ -491,11 +571,11 @@ function buildDemoFallbackSignal(assetClass, now) {
     source_transparency: {
       data_status: 'DEMO_ONLY',
       source_status: 'DEMO_ONLY',
-      source_label: 'DEMO_ONLY'
+      source_label: 'DEMO_ONLY',
     },
     _actionable: true,
     _dataStatus: 'DEMO_ONLY',
-    _freshness: '4m ago'
+    _freshness: '4m ago',
   };
 }
 
@@ -507,7 +587,7 @@ function buildSignalFromDecision(decision, now) {
     ...signal,
     data_status: topAction?.data_status,
     source_status: topAction?.source_status,
-    source_label: topAction?.source_label
+    source_label: topAction?.source_label,
   });
   return {
     ...signal,
@@ -519,7 +599,7 @@ function buildSignalFromDecision(decision, now) {
     portfolio_intent: topAction?.portfolio_intent || null,
     risk_note: topAction?.risk_note || null,
     brief_why_now: topAction?.brief_why_now || null,
-    evidence_bundle: topAction?.evidence_bundle || null
+    evidence_bundle: topAction?.evidence_bundle || null,
   };
 }
 
@@ -532,7 +612,7 @@ function buildSignalsFromDecision(decision, now) {
         ...signal,
         data_status: card?.data_status,
         source_status: card?.source_status,
-        source_label: card?.source_label
+        source_label: card?.source_label,
       });
       return {
         ...signal,
@@ -547,7 +627,7 @@ function buildSignalsFromDecision(decision, now) {
         evidence_bundle: card?.evidence_bundle || null,
         ranking_score: Number(card?.ranking_score || signal?.score || 0),
         _cardActionId: card?.action_id || `decision-card-${index + 1}`,
-        _cardTone: card?.eligible ? 'live' : 'watch'
+        _cardTone: card?.eligible ? 'live' : 'watch',
       };
     })
     .filter(Boolean);
@@ -567,15 +647,21 @@ function buildSignalRail(signals, evidenceSignals, assetClass, now, limit = 10) 
       _actionable: isActionable(item),
       _freshness: item?.freshness_label || freshnessLabel(item, now),
       ranking_score: rankSignal(item, now),
-      _cardActionId: item?.signal_id || `${item?.symbol || 'signal'}-${item?.created_at || item?.generated_at || 'na'}`,
-      _cardTone: isActionable(item) ? 'live' : 'watch'
+      _cardActionId:
+        item?.signal_id ||
+        `${item?.symbol || 'signal'}-${item?.created_at || item?.generated_at || 'na'}`,
+      _cardTone: isActionable(item) ? 'live' : 'watch',
     }))
     .sort((a, b) => b._rank - a._rank)
     .slice(0, limit);
 }
 
 function signalCardId(signal) {
-  return signal?._cardActionId || signal?.signal_id || `${signal?.symbol || 'signal'}-${signal?.created_at || signal?.generated_at || 'na'}`;
+  return (
+    signal?._cardActionId ||
+    signal?.signal_id ||
+    `${signal?.symbol || 'signal'}-${signal?.created_at || signal?.generated_at || 'na'}`
+  );
 }
 
 function signalQuotaForTradeMode(tradeMode) {
@@ -597,9 +683,12 @@ function sortSignalsForDisplay(list = []) {
   return [...list].sort((a, b) => {
     const confidenceDelta = signalConfidenceScore(b) - signalConfidenceScore(a);
     if (Math.abs(confidenceDelta) > 0.0001) return confidenceDelta;
-    const rankDelta = Number(b?.ranking_score || b?._rank || 0) - Number(a?.ranking_score || a?._rank || 0);
+    const rankDelta =
+      Number(b?.ranking_score || b?._rank || 0) - Number(a?.ranking_score || a?._rank || 0);
     if (Math.abs(rankDelta) > 0.001) return rankDelta;
-    const freshnessDelta = timestampMs(b?.created_at || b?.generated_at || 0) - timestampMs(a?.created_at || a?.generated_at || 0);
+    const freshnessDelta =
+      timestampMs(b?.created_at || b?.generated_at || 0) -
+      timestampMs(a?.created_at || a?.generated_at || 0);
     return freshnessDelta;
   });
 }
@@ -609,8 +698,12 @@ function overallFromDecision(decision, locale) {
   if (!call) return null;
   return {
     code: call?.code || 'WAIT',
-    headline: call?.headline || call?.summary || (locale === 'zh' ? '⚠️ 更适合等待' : '⚠️ Better to wait'),
-    subtitle: call?.subtitle || decision?.risk_state?.user_message || (locale === 'zh' ? '决策快照已生成。' : 'Decision snapshot available.')
+    headline:
+      call?.headline || call?.summary || (locale === 'zh' ? '⚠️ 更适合等待' : '⚠️ Better to wait'),
+    subtitle:
+      call?.subtitle ||
+      decision?.risk_state?.user_message ||
+      (locale === 'zh' ? '决策快照已生成。' : 'Decision snapshot available.'),
   };
 }
 
@@ -624,7 +717,9 @@ function riskFromDecision(decision, locale) {
       label: locale === 'zh' ? '未就绪' : 'Unavailable',
       explanation:
         decision?.today_call?.subtitle ||
-        (locale === 'zh' ? '系统运行状态还不完整，当前不应做交易动作。' : 'System runtime is incomplete, so no trading action should be taken.')
+        (locale === 'zh'
+          ? '系统运行状态还不完整，当前不应做交易动作。'
+          : 'System runtime is incomplete, so no trading action should be taken.'),
     };
   }
   if (!posture) return null;
@@ -633,7 +728,11 @@ function riskFromDecision(decision, locale) {
       level: 'danger',
       icon: '🔴',
       label: locale === 'zh' ? '危险' : 'Dangerous',
-      explanation: decision?.risk_state?.user_message || (locale === 'zh' ? '高风险环境下，不要强行动作。' : 'High risk environment. Do not force trades.')
+      explanation:
+        decision?.risk_state?.user_message ||
+        (locale === 'zh'
+          ? '高风险环境下，不要强行动作。'
+          : 'High risk environment. Do not force trades.'),
     };
   }
   if (posture === 'PROBE') {
@@ -641,14 +740,20 @@ function riskFromDecision(decision, locale) {
       level: 'medium',
       icon: '🟡',
       label: locale === 'zh' ? '中等' : 'Medium',
-      explanation: decision?.risk_state?.user_message || (locale === 'zh' ? '条件偏混合，保持低风险和高选择性。' : 'Conditions are mixed. Keep risk low and selective.')
+      explanation:
+        decision?.risk_state?.user_message ||
+        (locale === 'zh'
+          ? '条件偏混合，保持低风险和高选择性。'
+          : 'Conditions are mixed. Keep risk low and selective.'),
     };
   }
   return {
     level: 'safe',
     icon: '🟢',
     label: locale === 'zh' ? '稳' : 'Safe',
-    explanation: decision?.risk_state?.user_message || (locale === 'zh' ? '条件允许选择性动作。' : 'Conditions allow selective action.')
+    explanation:
+      decision?.risk_state?.user_message ||
+      (locale === 'zh' ? '条件允许选择性动作。' : 'Conditions allow selective action.'),
   };
 }
 
@@ -671,7 +776,7 @@ export default function TodayTab({
   onOpenSignals,
   onOpenWeekly,
   onConfirmBoundary,
-  onCompleteCheckIn
+  onCompleteCheckIn,
 }) {
   const [selectedSignalId, setSelectedSignalId] = useState(null);
   const [activeSignal, setActiveSignal] = useState(null);
@@ -681,18 +786,21 @@ export default function TodayTab({
     startX: 0,
     startY: 0,
     dragging: false,
-    suppressTapUntil: 0
+    suppressTapUntil: 0,
   });
-  const desiredSignalCount = useMemo(() => signalQuotaForTradeMode(brokerProfile?.tradeMode), [brokerProfile?.tradeMode]);
+  const desiredSignalCount = useMemo(
+    () => signalQuotaForTradeMode(brokerProfile?.tradeMode),
+    [brokerProfile?.tradeMode],
+  );
 
   const bestSignal = useMemo(
     () => pickBestSignal(signals, topSignalEvidence, assetClass, now),
-    [signals, topSignalEvidence, assetClass, now]
+    [signals, topSignalEvidence, assetClass, now],
   );
   const decisionSignals = useMemo(() => buildSignalsFromDecision(decision, now), [decision, now]);
   const fallbackSignals = useMemo(
     () => buildSignalRail(signals, topSignalEvidence, assetClass, now, desiredSignalCount),
-    [signals, topSignalEvidence, assetClass, now, desiredSignalCount]
+    [signals, topSignalEvidence, assetClass, now, desiredSignalCount],
   );
   const actionSignals = useMemo(() => {
     if (decisionSignals.length) return decisionSignals;
@@ -706,17 +814,35 @@ export default function TodayTab({
       if (selectedSignalId !== null) setSelectedSignalId(null);
       return;
     }
-    if (!selectedSignalId || !carouselSignals.some((signal) => signalCardId(signal) === selectedSignalId)) {
+    if (
+      !selectedSignalId ||
+      !carouselSignals.some((signal) => signalCardId(signal) === selectedSignalId)
+    ) {
       setSelectedSignalId(signalCardId(carouselSignals[0]));
     }
   }, [carouselSignals, selectedSignalId]);
 
   const featuredSignal = useMemo(() => {
     if (carouselSignals.length) {
-      return carouselSignals.find((signal) => signalCardId(signal) === selectedSignalId) || carouselSignals[0];
+      return (
+        carouselSignals.find((signal) => signalCardId(signal) === selectedSignalId) ||
+        carouselSignals[0]
+      );
     }
-    return buildSignalFromDecision(decision, now) || bestSignal || (investorDemoEnabled ? buildDemoFallbackSignal(assetClass, now) : null);
-  }, [carouselSignals, selectedSignalId, decision, now, bestSignal, investorDemoEnabled, assetClass]);
+    return (
+      buildSignalFromDecision(decision, now) ||
+      bestSignal ||
+      (investorDemoEnabled ? buildDemoFallbackSignal(assetClass, now) : null)
+    );
+  }, [
+    carouselSignals,
+    selectedSignalId,
+    decision,
+    now,
+    bestSignal,
+    investorDemoEnabled,
+    assetClass,
+  ]);
   const overall =
     overallFromDecision(decision, locale) ||
     deriveOverallStatus({
@@ -724,10 +850,11 @@ export default function TodayTab({
       safety,
       runtime,
       bestSignal: featuredSignal,
-      locale
+      locale,
     });
 
-  const risk = riskFromDecision(decision, locale) || riskLevel(overall.code, featuredSignal, locale);
+  const risk =
+    riskFromDecision(decision, locale) || riskLevel(overall.code, featuredSignal, locale);
   const noActionDay =
     !featuredSignal ||
     !featuredSignal._actionable ||
@@ -740,84 +867,122 @@ export default function TodayTab({
       now.toLocaleDateString(locale === 'zh' ? 'zh-CN' : 'en-US', {
         month: locale === 'zh' ? 'long' : 'short',
         day: 'numeric',
-        weekday: 'long'
+        weekday: 'long',
       }),
-    [now, locale]
+    [now, locale],
   );
   const provenance = useMemo(
     () =>
       describeEvidenceMode({
         locale,
-        sourceStatus: decision?.source_status || featuredSignal?.source_status || runtime?.source_status,
+        sourceStatus:
+          decision?.source_status || featuredSignal?.source_status || runtime?.source_status,
         dataStatus: decision?.data_status || featuredSignal?._dataStatus || runtime?.data_status,
-        sourceType: featuredSignal?.source_type || decision?.source_type || runtime?.source_type
+        sourceType: featuredSignal?.source_type || decision?.source_type || runtime?.source_type,
       }),
-    [decision?.data_status, decision?.source_status, decision?.source_type, featuredSignal?._dataStatus, featuredSignal?.source_status, featuredSignal?.source_type, locale, runtime?.data_status, runtime?.source_status, runtime?.source_type]
+    [
+      decision?.data_status,
+      decision?.source_status,
+      decision?.source_type,
+      featuredSignal?._dataStatus,
+      featuredSignal?.source_status,
+      featuredSignal?.source_type,
+      locale,
+      runtime?.data_status,
+      runtime?.source_status,
+      runtime?.source_type,
+    ],
   );
   const quickTiles = [
     {
       key: 'why',
       label: locale === 'zh' ? '为什么现在看它' : 'Why now',
       value: buildWhyNowText({ locale, signal: featuredSignal, noActionDay, provenance }),
-      tone: 'sky'
+      tone: 'sky',
     },
     {
       key: 'mind',
       label: locale === 'zh' ? '先记住什么' : 'Keep in mind',
-      value: buildKeepInMindText({ locale, signal: featuredSignal, noActionDay, overallCode: overall.code, provenance, riskLevelValue: risk.level }),
-      tone: 'mint'
-    }
+      value: buildKeepInMindText({
+        locale,
+        signal: featuredSignal,
+        noActionDay,
+        overallCode: overall.code,
+        provenance,
+        riskLevelValue: risk.level,
+      }),
+      tone: 'mint',
+    },
   ];
   const trustFacts = [
     {
       key: 'source',
       label: locale === 'zh' ? '来源' : 'Source',
-      value: provenance.label
+      value: provenance.label,
     },
     {
       key: 'execution',
       label: locale === 'zh' ? '执行边界' : 'Execution',
-      value: executionBoundaryLabel(provenance.mode, locale)
+      value: executionBoundaryLabel(provenance.mode, locale),
     },
     {
       key: 'guard',
       label: locale === 'zh' ? '风险约束' : 'Risk gate',
-      value: riskGuardLabel(overall.code, risk.level, locale)
-    }
+      value: riskGuardLabel(overall.code, risk.level, locale),
+    },
   ];
-  const climate = overall.code === 'TRADE'
-    ? {
-        name: locale === 'zh' ? '窗口打开' : 'Open lane',
-        line: locale === 'zh' ? '今天可以动，但节奏要轻。' : 'Tradable today. Keep the size light.',
-        tone: 'trade'
-      }
-    : overall.code === 'UNAVAILABLE'
+  const climate =
+    overall.code === 'TRADE'
       ? {
-          name: locale === 'zh' ? '系统离线' : 'System offline',
-          line: locale === 'zh' ? '先修运行链路，不要把空结果当成现金信号。' : 'Fix the runtime path first. Do not mistake empty output for a cash signal.',
-          tone: 'wait'
+          name: locale === 'zh' ? '窗口打开' : 'Open lane',
+          line:
+            locale === 'zh' ? '今天可以动，但节奏要轻。' : 'Tradable today. Keep the size light.',
+          tone: 'trade',
         }
-      : overall.code === 'WAIT'
-      ? {
-          name: locale === 'zh' ? '天气偏混' : 'Mixed skies',
-          line: locale === 'zh' ? '先等，不要抢第一下。' : 'Wait first. Do not force the first move.',
-          tone: 'wait'
-        }
-      : overall.code === 'NO_TRADE'
+      : overall.code === 'UNAVAILABLE'
         ? {
-            name: locale === 'zh' ? '今天休市' : 'Market closed',
-            line: locale === 'zh' ? '今天不做动作，只做复盘。' : 'No trading today. Use it for review.',
-            tone: 'closed'
+            name: locale === 'zh' ? '系统离线' : 'System offline',
+            line:
+              locale === 'zh'
+                ? '先修运行链路，不要把空结果当成现金信号。'
+                : 'Fix the runtime path first. Do not mistake empty output for a cash signal.',
+            tone: 'wait',
           }
-        : {
-            name: locale === 'zh' ? '风暴预警' : 'Storm watch',
-            line: locale === 'zh' ? '先防守，不要扩张风险。' : 'Defend first. Do not add risk.',
-            tone: 'defense'
-          };
+        : overall.code === 'WAIT'
+          ? {
+              name: locale === 'zh' ? '天气偏混' : 'Mixed skies',
+              line:
+                locale === 'zh'
+                  ? '先等，不要抢第一下。'
+                  : 'Wait first. Do not force the first move.',
+              tone: 'wait',
+            }
+          : overall.code === 'NO_TRADE'
+            ? {
+                name: locale === 'zh' ? '今天休市' : 'Market closed',
+                line:
+                  locale === 'zh'
+                    ? '今天不做动作，只做复盘。'
+                    : 'No trading today. Use it for review.',
+                tone: 'closed',
+              }
+            : {
+                name: locale === 'zh' ? '风暴预警' : 'Storm watch',
+                line: locale === 'zh' ? '先防守，不要扩张风险。' : 'Defend first. Do not add risk.',
+                tone: 'defense',
+              };
   const climateBand = [
-    overall.code === 'TRADE' ? 'high' : overall.code === 'WAIT' || overall.code === 'UNAVAILABLE' ? 'mid' : 'low',
-    noActionDay ? 'low' : Number(featuredSignal?.position_advice?.position_pct ?? 0) >= 14 ? 'high' : 'mid',
-    risk.level === 'safe' ? 'low' : risk.level === 'medium' ? 'mid' : 'high'
+    overall.code === 'TRADE'
+      ? 'high'
+      : overall.code === 'WAIT' || overall.code === 'UNAVAILABLE'
+        ? 'mid'
+        : 'low',
+    noActionDay
+      ? 'low'
+      : Number(featuredSignal?.position_advice?.position_pct ?? 0) >= 14
+        ? 'high'
+        : 'mid',
+    risk.level === 'safe' ? 'low' : risk.level === 'medium' ? 'mid' : 'high',
   ];
   const actionCardKicker = noActionDay
     ? locale === 'zh'
@@ -827,13 +992,24 @@ export default function TodayTab({
       ? '今日主选'
       : 'Today pick';
   const askPrompt = noActionDay
-    ? (locale === 'zh' ? '为什么今天应该先等？' : 'Why should I wait today?')
-    : (locale === 'zh' ? '用人话告诉我今天怎么买。' : 'Tell me how to take this trade in plain words.');
+    ? locale === 'zh'
+      ? '为什么今天应该先等？'
+      : 'Why should I wait today?'
+    : locale === 'zh'
+      ? '用人话告诉我今天怎么买。'
+      : 'Tell me how to take this trade in plain words.';
   const tradeIntent = useMemo(
-    () => (tradeSignal ? buildTradeIntent(tradeSignal, { broker: brokerProfile?.broker, brokerSnapshot: brokerConnection }) : null),
-    [tradeSignal, brokerProfile?.broker, brokerConnection]
+    () =>
+      tradeSignal
+        ? buildTradeIntent(tradeSignal, {
+            broker: brokerProfile?.broker,
+            brokerSnapshot: brokerConnection,
+          })
+        : null,
+    [tradeSignal, brokerProfile?.broker, brokerConnection],
   );
-  const buildSignalIntent = (signal) => buildTradeIntent(signal, { broker: brokerProfile?.broker, brokerSnapshot: brokerConnection });
+  const buildSignalIntent = (signal) =>
+    buildTradeIntent(signal, { broker: brokerProfile?.broker, brokerSnapshot: brokerConnection });
   const activeSignalIntent = activeSignal ? buildSignalIntent(activeSignal) : null;
 
   const openTradeTicket = (signal) => {
@@ -856,8 +1032,8 @@ export default function TodayTab({
       decisionSummary: {
         top_action_id: signal.signal_id,
         top_action_symbol: signal.symbol,
-        top_action_label: signal.action_label || signal.strategy_source || 'Action card'
-      }
+        top_action_label: signal.action_label || signal.strategy_source || 'Action card',
+      },
     });
   };
 
@@ -911,7 +1087,7 @@ export default function TodayTab({
       openTradeIntentHandoff(nextIntent, {
         onBeforeOpen: () => {
           if (!signalBlocked) onPaperExecute?.(signal);
-        }
+        },
       });
       return;
     }
@@ -986,7 +1162,8 @@ export default function TodayTab({
     swipeGestureRef.current.dragging = false;
   };
 
-  const shouldSuppressTap = () => swipeGestureRef.current.dragging || swipeGestureRef.current.suppressTapUntil > Date.now();
+  const shouldSuppressTap = () =>
+    swipeGestureRef.current.dragging || swipeGestureRef.current.suppressTapUntil > Date.now();
 
   const openSignalDetail = (signal, signalId) => {
     if (shouldSuppressTap()) return;
@@ -1012,14 +1189,21 @@ export default function TodayTab({
           </div>
           <div className="today-climate-band" aria-hidden="true">
             {climateBand.map((level, index) => (
-              <span key={`${level}-${index}`} className={`today-climate-pill today-climate-pill-${level}`} />
+              <span
+                key={`${level}-${index}`}
+                className={`today-climate-pill today-climate-pill-${level}`}
+              />
             ))}
           </div>
         </article>
 
         {carouselSignals.length > 0 ? (
           <section className="today-action-carousel">
-            <div className="today-action-track" ref={actionCarouselRef} onScroll={handleCarouselScroll}>
+            <div
+              className="today-action-track"
+              ref={actionCarouselRef}
+              onScroll={handleCarouselScroll}
+            >
               {carouselSignals.map((signal, index) => {
                 const signalId = signalCardId(signal);
                 const selected = signalId === signalCardId(featuredSignal);
@@ -1031,7 +1215,11 @@ export default function TodayTab({
                   overall.code === 'NO_TRADE' ||
                   overall.code === 'UNAVAILABLE';
                 const signalDirectionValue = String(signal?.direction || '').toUpperCase();
-                const signalTone = !signal?._actionable ? 'wait' : signalDirectionValue === 'SHORT' ? 'defense' : 'trade';
+                const signalTone = !signal?._actionable
+                  ? 'wait'
+                  : signalDirectionValue === 'SHORT'
+                    ? 'defense'
+                    : 'trade';
                 const signalActionBandLabel = signalBlocked
                   ? overall.code === 'DEFENSE' || signalDirectionValue === 'SHORT'
                     ? locale === 'zh'
@@ -1114,7 +1302,9 @@ export default function TodayTab({
                       <span className="today-action-kicker">
                         {actionCardKicker} {String(index + 1).padStart(2, '0')}
                       </span>
-                      <span className={`today-action-tag today-action-tag-${signalTone}`}>{signalActionBandLabel}</span>
+                      <span className={`today-action-tag today-action-tag-${signalTone}`}>
+                        {signalActionBandLabel}
+                      </span>
                     </div>
 
                     <div className="today-action-main">
@@ -1128,15 +1318,21 @@ export default function TodayTab({
 
                     <div className="today-action-stats">
                       <div className="today-action-stat">
-                        <span className="today-action-stat-label">{locale === 'zh' ? '把握' : 'Conviction'}</span>
+                        <span className="today-action-stat-label">
+                          {locale === 'zh' ? '把握' : 'Conviction'}
+                        </span>
                         <span className="today-action-stat-value">{confidenceText(signal)}</span>
                       </div>
                       <div className="today-action-stat">
-                        <span className="today-action-stat-label">{locale === 'zh' ? '仓位' : 'Size'}</span>
+                        <span className="today-action-stat-label">
+                          {locale === 'zh' ? '仓位' : 'Size'}
+                        </span>
                         <span className="today-action-stat-value">{signalPositionLabel}</span>
                       </div>
                       <div className="today-action-stat">
-                        <span className="today-action-stat-label">{locale === 'zh' ? '风险' : 'Risk'}</span>
+                        <span className="today-action-stat-label">
+                          {locale === 'zh' ? '风险' : 'Risk'}
+                        </span>
                         <span className="today-action-stat-value">{signalRiskLabel}</span>
                       </div>
                     </div>
@@ -1173,7 +1369,7 @@ export default function TodayTab({
                           }
                           onAskAi?.(askPrompt, {
                             page: 'today',
-                            focus: signalBlocked ? 'restraint' : 'top_action'
+                            focus: signalBlocked ? 'restraint' : 'top_action',
                           });
                         }}
                       >
@@ -1186,7 +1382,10 @@ export default function TodayTab({
             </div>
 
             {carouselSignals.length > 1 ? (
-              <div className="today-action-dots" aria-label={locale === 'zh' ? '行动卡位置' : 'Signal position'}>
+              <div
+                className="today-action-dots"
+                aria-label={locale === 'zh' ? '行动卡位置' : 'Signal position'}
+              >
                 {carouselSignals.map((signal, index) => {
                   const selected = signalCardId(signal) === signalCardId(featuredSignal);
                   return (
@@ -1194,7 +1393,9 @@ export default function TodayTab({
                       key={`dot-${signalCardId(signal)}`}
                       type="button"
                       className={`today-action-dot${selected ? ' is-active' : ''}`}
-                      aria-label={locale === 'zh' ? `查看第 ${index + 1} 张卡` : `Open card ${index + 1}`}
+                      aria-label={
+                        locale === 'zh' ? `查看第 ${index + 1} 张卡` : `Open card ${index + 1}`
+                      }
                       aria-pressed={selected}
                       onClick={() => scrollToCardIndex(index)}
                     />
@@ -1207,7 +1408,10 @@ export default function TodayTab({
 
         <section className="today-summary-grid">
           {quickTiles.map((item) => (
-            <article key={item.key} className={`glass-card today-summary-card today-summary-card-${item.tone}`}>
+            <article
+              key={item.key}
+              className={`glass-card today-summary-card today-summary-card-${item.tone}`}
+            >
               <p className="today-summary-card-label">{item.label}</p>
               <p className="today-summary-card-value">{item.value}</p>
             </article>

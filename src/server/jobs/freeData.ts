@@ -36,13 +36,13 @@ export async function runFreeDataFlywheel(args: {
       refresh_crypto_structure: args.refreshCryptoStructure !== false,
       refresh_fundamentals: args.refreshFundamentals !== false,
       refresh_options: args.refreshOptions !== false,
-      crypto_symbols: args.cryptoSymbols || null
+      crypto_symbols: args.cryptoSymbols || null,
     }),
     output_json: null,
     attempt_count: 1,
     started_at_ms: now,
     updated_at_ms: now,
-    completed_at_ms: null
+    completed_at_ms: null,
   });
 
   try {
@@ -55,7 +55,7 @@ export async function runFreeDataFlywheel(args: {
             market,
             usSymbols: cfg.markets.US.symbols,
             refreshFundamentals: args.refreshFundamentals !== false,
-            refreshOptions: args.refreshOptions !== false
+            refreshOptions: args.refreshOptions !== false,
           });
     const output = {
       workflow_id: workflowId,
@@ -66,7 +66,7 @@ export async function runFreeDataFlywheel(args: {
           ? { skipped: true }
           : await ensureFreshNewsForUniverse({
               repo: args.repo,
-              market
+              market,
             }),
       fundamentals:
         args.refreshFundamentals === false || market === 'CRYPTO'
@@ -81,8 +81,8 @@ export async function runFreeDataFlywheel(args: {
           ? { skipped: true }
           : await syncBinanceDerivatives({
               repo: args.repo,
-              symbols: args.cryptoSymbols?.length ? args.cryptoSymbols : cfg.markets.CRYPTO.symbols
-            })
+              symbols: args.cryptoSymbols?.length ? args.cryptoSymbols : cfg.markets.CRYPTO.symbols,
+            }),
     };
 
     args.repo.upsertWorkflowRun({
@@ -98,13 +98,13 @@ export async function runFreeDataFlywheel(args: {
         refresh_crypto_structure: args.refreshCryptoStructure !== false,
         refresh_fundamentals: args.refreshFundamentals !== false,
         refresh_options: args.refreshOptions !== false,
-        crypto_symbols: args.cryptoSymbols || null
+        crypto_symbols: args.cryptoSymbols || null,
       }),
       output_json: JSON.stringify(output),
       attempt_count: 1,
       started_at_ms: now,
       updated_at_ms: Date.now(),
-      completed_at_ms: Date.now()
+      completed_at_ms: Date.now(),
     });
 
     recordAuditEvent(args.repo, {
@@ -114,7 +114,7 @@ export async function runFreeDataFlywheel(args: {
       userId: args.userId || null,
       entityType: 'workflow_run',
       entityId: workflowId,
-      payload: output
+      payload: output,
     });
 
     return output;
@@ -132,15 +132,15 @@ export async function runFreeDataFlywheel(args: {
         refresh_crypto_structure: args.refreshCryptoStructure !== false,
         refresh_fundamentals: args.refreshFundamentals !== false,
         refresh_options: args.refreshOptions !== false,
-        crypto_symbols: args.cryptoSymbols || null
+        crypto_symbols: args.cryptoSymbols || null,
       }),
       output_json: JSON.stringify({
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       }),
       attempt_count: 1,
       started_at_ms: now,
       updated_at_ms: Date.now(),
-      completed_at_ms: Date.now()
+      completed_at_ms: Date.now(),
     });
 
     throw error;

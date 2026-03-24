@@ -8,7 +8,7 @@ import {
   createAssetId,
   safeNumber,
   toIsoDate,
-  toIsoTimestamp
+  toIsoTimestamp,
 } from '../src/types/multiAssetSchema.js';
 
 /* ---------- constants ---------- */
@@ -83,7 +83,7 @@ describe('buildProvenance', () => {
       id: 'equity:us:AAPL',
       data_status: 'normalized',
       use_notes: 'Clean daily bars',
-      license_notes: 'Free for research'
+      license_notes: 'Free for research',
     });
     expect(p.source).toBe('stooq');
     expect(p.identifier).toBe('equity:us:AAPL');
@@ -98,7 +98,7 @@ describe('buildProvenance', () => {
       fetched_at: '2026-03-01',
       frequency: '1h',
       id: 'crypto:binance:BTC-USDT',
-      data_status: 'raw'
+      data_status: 'raw',
     });
     expect(p.source).toBe('binance');
     expect(p.use_notes).toBeUndefined();
@@ -118,7 +118,9 @@ describe('createAssetId', () => {
   });
 
   it('works for options', () => {
-    expect(createAssetId('option', 'us', 'SPY240621C00540000')).toBe('option:us:SPY240621C00540000');
+    expect(createAssetId('option', 'us', 'SPY240621C00540000')).toBe(
+      'option:us:SPY240621C00540000',
+    );
   });
 });
 

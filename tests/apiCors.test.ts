@@ -17,7 +17,9 @@ describe('api cors policy', () => {
       .options('/api/admin/session')
       .set('Origin', 'https://admin.novaquant.cloud');
     expect(adminOrigin.status).toBe(204);
-    expect(adminOrigin.headers['access-control-allow-origin']).toBe('https://admin.novaquant.cloud');
+    expect(adminOrigin.headers['access-control-allow-origin']).toBe(
+      'https://admin.novaquant.cloud',
+    );
     expect(adminOrigin.headers['access-control-allow-credentials']).toBe('true');
   });
 

@@ -6,11 +6,7 @@ import process from 'node:process';
 
 const ROOT = process.cwd();
 const OUT_DIR = path.join(ROOT, 'artifacts');
-const STAMP = new Date()
-  .toISOString()
-  .replace(/[-:]/g, '')
-  .replace(/\..+$/, '')
-  .replace('T', '-');
+const STAMP = new Date().toISOString().replace(/[-:]/g, '').replace(/\..+$/, '').replace('T', '-');
 
 const EXCLUDES = [
   '.git',
@@ -30,13 +26,13 @@ const EXCLUDES = [
   'data/*.sqlite',
   'data/*.sqlite-*',
   '*.wal',
-  '*.shm'
+  '*.shm',
 ];
 
 function parseArgs(argv) {
   const parsed = {
     dryRun: false,
-    output: `nova-quant-source-${STAMP}.tar.gz`
+    output: `nova-quant-source-${STAMP}.tar.gz`,
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -68,7 +64,7 @@ function main() {
   const payload = {
     mode: args.dryRun ? 'dry-run' : 'package',
     output: outputPath,
-    excludes: EXCLUDES
+    excludes: EXCLUDES,
   };
 
   if (args.dryRun) {
@@ -79,7 +75,7 @@ function main() {
 
   execFileSync('tar', buildTarArgs(outputPath), {
     cwd: ROOT,
-    stdio: 'inherit'
+    stdio: 'inherit',
   });
 
   // eslint-disable-next-line no-console

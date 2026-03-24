@@ -14,13 +14,15 @@ function parseArgs() {
     .flatMap((token, index) => (token === '--include-task' ? [args[index + 1]] : []))
     .filter(Boolean) as NovaTaskType[];
 
-  const trainer = String(trainerIndex >= 0 ? args[trainerIndex + 1] : 'unsloth-lora').trim() as NovaTrainerKind;
+  const trainer = String(
+    trainerIndex >= 0 ? args[trainerIndex + 1] : 'unsloth-lora',
+  ).trim() as NovaTrainerKind;
   return {
     trainer,
     userId: userIndex >= 0 ? String(args[userIndex + 1] || '').trim() : null,
     limit: limitIndex >= 0 ? Number(args[limitIndex + 1]) : 500,
     onlyIncluded: !allowUnlabeled,
-    taskTypes
+    taskTypes,
   };
 }
 
@@ -39,13 +41,15 @@ async function main() {
     trainer: parsed.trainer,
     onlyIncluded: parsed.onlyIncluded,
     limit: Number.isFinite(parsed.limit) ? parsed.limit : 500,
-    taskTypes: parsed.taskTypes.length ? parsed.taskTypes : undefined
+    taskTypes: parsed.taskTypes.length ? parsed.taskTypes : undefined,
   });
 
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
 }
 
 main().catch((error) => {
-  process.stderr.write(`${error instanceof Error ? error.stack || error.message : String(error)}\n`);
+  process.stderr.write(
+    `${error instanceof Error ? error.stack || error.message : String(error)}\n`,
+  );
   process.exitCode = 1;
 });

@@ -20,17 +20,25 @@ describe('engagement api', () => {
     const app = createApiApp();
     const userId = `engagement-api-${Date.now()}`;
 
-    const stateRes = await request(app).post('/api/engagement/state').send({
-      userId,
-      market: 'US',
-      assetClass: 'US_STOCK',
-      localDate: '2026-03-14',
-      localHour: 9,
-      holdings: [
-        { symbol: 'AAPL', market: 'US', asset_class: 'US_STOCK', weight_pct: 14, sector: 'Technology' },
-        { symbol: 'QQQ', market: 'US', asset_class: 'US_STOCK', weight_pct: 18, sector: 'ETF' }
-      ]
-    });
+    const stateRes = await request(app)
+      .post('/api/engagement/state')
+      .send({
+        userId,
+        market: 'US',
+        assetClass: 'US_STOCK',
+        localDate: '2026-03-14',
+        localHour: 9,
+        holdings: [
+          {
+            symbol: 'AAPL',
+            market: 'US',
+            asset_class: 'US_STOCK',
+            weight_pct: 14,
+            sector: 'Technology',
+          },
+          { symbol: 'QQQ', market: 'US', asset_class: 'US_STOCK', weight_pct: 18, sector: 'ETF' },
+        ],
+      });
 
     expect(stateRes.status).toBe(200);
     expect(stateRes.body).toHaveProperty('daily_check_state');
@@ -45,7 +53,7 @@ describe('engagement api', () => {
       market: 'US',
       assetClass: 'US_STOCK',
       localDate: '2026-03-14',
-      localHour: 9
+      localHour: 9,
     });
 
     expect(morningRes.status).toBe(200);
@@ -57,7 +65,7 @@ describe('engagement api', () => {
       market: 'US',
       assetClass: 'US_STOCK',
       localDate: '2026-03-14',
-      localHour: 9
+      localHour: 9,
     });
 
     expect(widgetRes.status).toBe(200);
@@ -68,7 +76,7 @@ describe('engagement api', () => {
     const prefsRes = await request(app).post('/api/notification-preferences').send({
       userId,
       frequency: 'LOW',
-      protective_enabled: false
+      protective_enabled: false,
     });
 
     expect(prefsRes.status).toBe(200);
@@ -80,7 +88,7 @@ describe('engagement api', () => {
       market: 'US',
       assetClass: 'US_STOCK',
       localDate: '2026-03-14',
-      localHour: 19
+      localHour: 19,
     });
 
     expect(previewRes.status).toBe(200);

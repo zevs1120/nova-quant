@@ -8,7 +8,7 @@ import {
   getNovaRoutingPolicies,
   getNovaRuntimeMode,
   isLocalNovaEnabled,
-  resolveNovaRouteForProvider
+  resolveNovaRouteForProvider,
 } from '../src/server/ai/llmOps.js';
 
 describe('llm ops layer', () => {
@@ -26,8 +26,16 @@ describe('llm ops layer', () => {
     expect(['compact', 'full']).toContain(detectNovaMemoryTier());
 
     const routes = getNovaRoutingPolicies();
-    expect(routes.some((row) => row.task === 'decision_reasoning' && row.alias === MARVIX_MODEL_ALIASES.core)).toBe(true);
-    expect(routes.some((row) => row.task === 'retrieval_embedding' && row.alias === MARVIX_MODEL_ALIASES.retrieve)).toBe(true);
+    expect(
+      routes.some(
+        (row) => row.task === 'decision_reasoning' && row.alias === MARVIX_MODEL_ALIASES.core,
+      ),
+    ).toBe(true);
+    expect(
+      routes.some(
+        (row) => row.task === 'retrieval_embedding' && row.alias === MARVIX_MODEL_ALIASES.retrieve,
+      ),
+    ).toBe(true);
   });
 
   it('auto-disables local Nova in Vercel runtime', () => {

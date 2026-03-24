@@ -16,7 +16,7 @@ function buildFutureReturnMap(normalizedBars, horizon = 5) {
       map.set(`${symbol}:${current.date}`, {
         future_return: Number(ret.toFixed(6)),
         horizon_days: horizon,
-        future_date: future.date
+        future_date: future.date,
       });
     }
   }
@@ -60,23 +60,25 @@ export function buildEquityTrainingDataset({ features, normalizedBars, asOf }) {
         vol_hv20: feature.vol_hv20,
         liq_volume_adv20: feature.liq_volume_adv20,
         rel_strength_rank: feature.rel_strength_rank,
-        benchmark_rel_20: feature.benchmark_rel_20
+        benchmark_rel_20: feature.benchmark_rel_20,
       },
       labels: {
         future_return_5d: label.future_return,
         direction_5d: directionLabel(label.future_return),
-        volatility_label: volatilityLabel(feature.vol_hv20)
+        volatility_label: volatilityLabel(feature.vol_hv20),
       },
       source: feature.source,
       data_status: 'derived',
-      fetched_at: feature.fetched_at
+      fetched_at: feature.fetched_at,
     });
   }
 
   // Cross-sectional ranking label by date
   const byDate = groupBy(rows, (row) => row.date);
   for (const dateRows of byDate.values()) {
-    const rankSource = Object.fromEntries(dateRows.map((row) => [row.symbol, row.labels.future_return_5d]));
+    const rankSource = Object.fromEntries(
+      dateRows.map((row) => [row.symbol, row.labels.future_return_5d]),
+    );
     const ranked = rankMap(rankSource);
     for (const row of dateRows) {
       row.labels.ranking_label = Number((ranked[row.symbol] || 0).toFixed(6));
@@ -84,7 +86,10 @@ export function buildEquityTrainingDataset({ features, normalizedBars, asOf }) {
   }
 
   const splitMap = buildDateSplits(rows, 'date');
-  const splitRows = rows.map((row) => ({ ...row, split: assignSplitByDate(row, splitMap, 'date') }));
+  const splitRows = rows.map((row) => ({
+    ...row,
+    split: assignSplitByDate(row, splitMap, 'date'),
+  }));
 
   return {
     dataset: {
@@ -101,8 +106,8 @@ export function buildEquityTrainingDataset({ features, normalizedBars, asOf }) {
       version: 'equity_core_v1.0.0',
       status: 'active',
       use_notes: 'Daily equity training dataset for ranking and direction models.',
-      license_notes: 'Contains sample fallback data unless live provider feed enabled.'
+      license_notes: 'Contains sample fallback data unless live provider feed enabled.',
     },
-    rows: splitRows
+    rows: splitRows,
   };
 }

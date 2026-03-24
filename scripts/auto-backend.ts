@@ -8,7 +8,10 @@ import { runBackfillCli } from '../src/server/jobs/backfill.js';
 import { runFreeDataFlywheel } from '../src/server/jobs/freeData.js';
 import { runNovaTrainingFlywheel, type NovaTrainerKind } from '../src/server/nova/flywheel.js';
 import { runValidationCli } from '../src/server/jobs/validate.js';
-import { readAlphaDiscoveryConfig, runAlphaDiscoveryCycle } from '../src/server/alpha_discovery/index.js';
+import {
+  readAlphaDiscoveryConfig,
+  runAlphaDiscoveryCycle,
+} from '../src/server/alpha_discovery/index.js';
 import { runAlphaShadowMonitoringCycle } from '../src/server/alpha_promotion_guard/index.js';
 import { runEvolutionCycle } from '../src/server/quant/evolution.js';
 import { ensureQuantData } from '../src/server/quant/service.js';
@@ -54,7 +57,7 @@ const DEFAULTS: AutoBackendOptions = {
   skipWorker: false,
   skipTraining: false,
   skipDiscovery: false,
-  once: false
+  once: false,
 };
 
 export function parseAutoBackendArgs(argv: string[]): AutoBackendOptions {
@@ -69,15 +72,23 @@ export function parseAutoBackendArgs(argv: string[]): AutoBackendOptions {
 
     if (key === 'user' && next) out.userId = String(next).trim() || out.userId;
     if (key === 'port' && next) out.apiPort = Math.max(1, Number(next) || out.apiPort);
-    if (key === 'derive-interval-sec' && next) out.deriveIntervalSec = Math.max(30, Number(next) || out.deriveIntervalSec);
-    if (key === 'validate-every' && next) out.validateEvery = Math.max(1, Number(next) || out.validateEvery);
-    if (key === 'us-refresh-hours' && next) out.usRefreshHours = Math.max(1, Number(next) || out.usRefreshHours);
-    if (key === 'retrain-hours' && next) out.retrainHours = Math.max(1, Number(next) || out.retrainHours);
-    if (key === 'train-hours' && next) out.trainEveryHours = Math.max(1, Number(next) || out.trainEveryHours);
+    if (key === 'derive-interval-sec' && next)
+      out.deriveIntervalSec = Math.max(30, Number(next) || out.deriveIntervalSec);
+    if (key === 'validate-every' && next)
+      out.validateEvery = Math.max(1, Number(next) || out.validateEvery);
+    if (key === 'us-refresh-hours' && next)
+      out.usRefreshHours = Math.max(1, Number(next) || out.usRefreshHours);
+    if (key === 'retrain-hours' && next)
+      out.retrainHours = Math.max(1, Number(next) || out.retrainHours);
+    if (key === 'train-hours' && next)
+      out.trainEveryHours = Math.max(1, Number(next) || out.trainEveryHours);
     if (key === 'trainer' && next) out.trainer = String(next).trim() as NovaTrainerKind;
-    if (key === 'training-limit' && next) out.trainingLimit = Math.max(1, Number(next) || out.trainingLimit);
-    if (key === 'supervisor-check-sec' && next) out.supervisorCheckSec = Math.max(5, Number(next) || out.supervisorCheckSec);
-    if (key === 'discovery-hours' && next) out.discoveryEveryHours = Math.max(1, Number(next) || out.discoveryEveryHours);
+    if (key === 'training-limit' && next)
+      out.trainingLimit = Math.max(1, Number(next) || out.trainingLimit);
+    if (key === 'supervisor-check-sec' && next)
+      out.supervisorCheckSec = Math.max(5, Number(next) || out.supervisorCheckSec);
+    if (key === 'discovery-hours' && next)
+      out.discoveryEveryHours = Math.max(1, Number(next) || out.discoveryEveryHours);
     if (key === 'execute-training') out.executeTraining = true;
     if (key === 'skip-init') out.skipInit = true;
     if (key === 'skip-api') out.skipApi = true;
@@ -95,7 +106,7 @@ function log(message: string, meta?: Record<string, unknown>) {
   if (meta) {
     console.log(`[auto-backend] ${message}`, {
       ...meta,
-      ts: new Date().toISOString()
+      ts: new Date().toISOString(),
     });
     return;
   }
@@ -106,7 +117,7 @@ function warn(message: string, meta?: Record<string, unknown>) {
   if (meta) {
     console.warn(`[auto-backend] ${message}`, {
       ...meta,
-      ts: new Date().toISOString()
+      ts: new Date().toISOString(),
     });
     return;
   }
@@ -135,21 +146,26 @@ function isPortListening(port: number, host = '127.0.0.1'): Promise<boolean> {
 function isWorkerLikelyRunning(): Promise<boolean> {
   return new Promise((resolve) => {
     const child = spawn('pgrep', ['-f', 'scripts/update-binance.ts'], {
-      stdio: 'ignore'
+      stdio: 'ignore',
     });
     child.once('exit', (code) => resolve(code === 0));
     child.once('error', () => resolve(false));
   });
 }
 
-function spawnManaged(label: string, command: string, args: string[], env?: NodeJS.ProcessEnv): ChildProcess {
+function spawnManaged(
+  label: string,
+  command: string,
+  args: string[],
+  env?: NodeJS.ProcessEnv,
+): ChildProcess {
   log(`starting ${label}`, { command, args: args.join(' ') });
   const child = spawn(command, args, {
     stdio: 'inherit',
     env: {
       ...process.env,
-      ...env
-    }
+      ...env,
+    },
   });
   child.once('exit', (code, signal) => {
     log(`${label} exited`, { code: code ?? null, signal: signal ?? null });
@@ -173,7 +189,7 @@ async function ensureManagedProcesses(options: AutoBackendOptions, managed: Mana
         'api',
         process.execPath,
         ['--import', 'tsx', 'src/server/apiServer.ts'],
-        { PORT: String(options.apiPort) }
+        { PORT: String(options.apiPort) },
       );
       managed.api.once('exit', () => {
         managed.api = null;
@@ -188,11 +204,13 @@ async function ensureManagedProcesses(options: AutoBackendOptions, managed: Mana
   if (!options.skipWorker) {
     const workerRunning = await isWorkerLikelyRunning();
     if (!workerRunning && !managed.worker) {
-      managed.worker = spawnManaged(
-        'binance-worker',
-        process.execPath,
-        ['--import', 'tsx', 'scripts/update-binance.ts', '--tf', '1h']
-      );
+      managed.worker = spawnManaged('binance-worker', process.execPath, [
+        '--import',
+        'tsx',
+        'scripts/update-binance.ts',
+        '--tf',
+        '1h',
+      ]);
       managed.worker.once('exit', () => {
         managed.worker = null;
       });
@@ -219,13 +237,13 @@ async function runNovaTrainingCycle(args: {
     onlyIncluded: true,
     limit: args.trainingLimit,
     triggerType: args.triggerType,
-    executeWhenReady: args.executeTraining
+    executeWhenReady: args.executeTraining,
   });
   log('nova training flywheel finished', {
     trainer: result.training_plan.trainer,
     dataset_count: result.dataset_count,
     ready_for_training: result.ready_for_training,
-    execution: result.execution
+    execution: result.execution,
   });
   return result;
 }
@@ -240,7 +258,7 @@ export async function runAutoBackendInitialization(options: AutoBackendOptions) 
     await runBackfillCli(['--market', 'US', '--tf', '1d']);
   } catch (error) {
     warn('initial US backfill failed; continuing with remaining markets', {
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
     });
   }
 
@@ -249,7 +267,7 @@ export async function runAutoBackendInitialization(options: AutoBackendOptions) 
     await runBackfillCli(['--market', 'CRYPTO', '--tf', '1h']);
   } catch (error) {
     warn('initial crypto backfill failed', {
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
     });
   }
 
@@ -259,17 +277,17 @@ export async function runAutoBackendInitialization(options: AutoBackendOptions) 
       repo,
       market: 'ALL',
       userId: options.userId,
-      triggerType: 'manual'
+      triggerType: 'manual',
     });
     log('free data flywheel finished', {
       news: freeData.news,
       fundamentals: freeData.fundamentals,
       options: freeData.options,
-      crypto_structure: freeData.crypto_structure
+      crypto_structure: freeData.crypto_structure,
     });
   } catch (error) {
     warn('free data flywheel failed; continuing to validation', {
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
     });
   }
 
@@ -278,7 +296,7 @@ export async function runAutoBackendInitialization(options: AutoBackendOptions) 
     await runValidationCli(['--tf', '1d,1h', '--lookbackBars', '800']);
   } catch (error) {
     warn('validation failed; continuing to runtime derivation', {
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
     });
   }
 
@@ -287,7 +305,7 @@ export async function runAutoBackendInitialization(options: AutoBackendOptions) 
   log('runtime derivation finished', {
     source_status: snapshot.sourceStatus,
     signals: snapshot.signals.length,
-    market_state_rows: snapshot.marketState.length
+    market_state_rows: snapshot.marketState.length,
   });
 
   log('evolution cycle starting', { userId: options.userId });
@@ -297,8 +315,8 @@ export async function runAutoBackendInitialization(options: AutoBackendOptions) 
     runtimeSnapshot: {
       sourceStatus: snapshot.sourceStatus,
       freshnessSummary: snapshot.freshnessSummary,
-      coverageSummary: snapshot.coverageSummary
-    }
+      coverageSummary: snapshot.coverageSummary,
+    },
   });
   log('evolution cycle finished', {
     workflow_id: evolution.workflowId,
@@ -306,15 +324,15 @@ export async function runAutoBackendInitialization(options: AutoBackendOptions) 
       market: row.market,
       promoted: row.promoted,
       rolledBack: row.rolledBack,
-      safeMode: row.safeMode
-    }))
+      safeMode: row.safeMode,
+    })),
   });
   if (evolution.markets.some((row) => row.promoted || row.rolledBack || row.safeMode)) {
     snapshot = ensureQuantData(repo, options.userId, true);
     log('runtime derivation refreshed after evolution', {
       source_status: snapshot.sourceStatus,
       signals: snapshot.signals.length,
-      market_state_rows: snapshot.marketState.length
+      market_state_rows: snapshot.marketState.length,
     });
   }
 
@@ -326,11 +344,11 @@ export async function runAutoBackendInitialization(options: AutoBackendOptions) 
         trainer: options.trainer,
         trainingLimit: options.trainingLimit,
         executeTraining: options.executeTraining,
-        triggerType: 'manual'
+        triggerType: 'manual',
       });
     } catch (error) {
       warn('nova training flywheel failed during initialization', {
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
     }
   }
@@ -340,19 +358,21 @@ export async function runAutoBackendInitialization(options: AutoBackendOptions) 
       const discovery = await runAlphaDiscoveryCycle({
         repo,
         userId: options.userId,
-        triggerType: 'manual'
+        triggerType: 'manual',
       });
       log('alpha discovery cycle finished', {
         accepted: (discovery as Record<string, unknown>)?.evaluation_summary
-          ? ((discovery as Record<string, unknown>).evaluation_summary as Record<string, unknown>).accepted
+          ? ((discovery as Record<string, unknown>).evaluation_summary as Record<string, unknown>)
+              .accepted
           : null,
         rejected: (discovery as Record<string, unknown>)?.evaluation_summary
-          ? ((discovery as Record<string, unknown>).evaluation_summary as Record<string, unknown>).rejected
-          : null
+          ? ((discovery as Record<string, unknown>).evaluation_summary as Record<string, unknown>)
+              .rejected
+          : null,
       });
     } catch (error) {
       warn('alpha discovery cycle failed during initialization', {
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
     }
   }
@@ -382,7 +402,7 @@ export async function runAutoBackendMaintenanceCycle(args: {
     } catch (error) {
       warn('scheduled US refresh failed; continuing', {
         cycle: args.cycle,
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
     }
   }
@@ -392,19 +412,19 @@ export async function runAutoBackendMaintenanceCycle(args: {
       repo,
       market: 'ALL',
       userId: args.userId,
-      triggerType: 'scheduled'
+      triggerType: 'scheduled',
     });
     log('scheduled free data flywheel finished', {
       cycle: args.cycle,
       news: freeData.news,
       fundamentals: freeData.fundamentals,
       options: freeData.options,
-      crypto_structure: freeData.crypto_structure
+      crypto_structure: freeData.crypto_structure,
     });
   } catch (error) {
     warn('scheduled free data flywheel failed; continuing', {
       cycle: args.cycle,
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
     });
   }
 
@@ -414,7 +434,7 @@ export async function runAutoBackendMaintenanceCycle(args: {
   } catch (error) {
     warn('scheduled validation failed; continuing to runtime refresh', {
       cycle: args.cycle,
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
     });
   }
 
@@ -423,7 +443,7 @@ export async function runAutoBackendMaintenanceCycle(args: {
     cycle: args.cycle,
     source_status: snapshot.sourceStatus,
     signals: snapshot.signals.length,
-    market_state_rows: snapshot.marketState.length
+    market_state_rows: snapshot.marketState.length,
   });
 
   if (args.runEvolution) {
@@ -433,8 +453,8 @@ export async function runAutoBackendMaintenanceCycle(args: {
       runtimeSnapshot: {
         sourceStatus: snapshot.sourceStatus,
         freshnessSummary: snapshot.freshnessSummary,
-        coverageSummary: snapshot.coverageSummary
-      }
+        coverageSummary: snapshot.coverageSummary,
+      },
     });
     log('scheduled evolution cycle finished', {
       cycle: args.cycle,
@@ -443,8 +463,8 @@ export async function runAutoBackendMaintenanceCycle(args: {
         market: row.market,
         promoted: row.promoted,
         rolledBack: row.rolledBack,
-        safeMode: row.safeMode
-      }))
+        safeMode: row.safeMode,
+      })),
     });
     if (evolution.markets.some((row) => row.promoted || row.rolledBack || row.safeMode)) {
       snapshot = ensureQuantData(repo, args.userId, true);
@@ -452,7 +472,7 @@ export async function runAutoBackendMaintenanceCycle(args: {
         cycle: args.cycle,
         source_status: snapshot.sourceStatus,
         signals: snapshot.signals.length,
-        market_state_rows: snapshot.marketState.length
+        market_state_rows: snapshot.marketState.length,
       });
     }
   }
@@ -465,12 +485,12 @@ export async function runAutoBackendMaintenanceCycle(args: {
         trainer: args.trainer,
         trainingLimit: args.trainingLimit,
         executeTraining: args.executeTraining,
-        triggerType: 'scheduled'
+        triggerType: 'scheduled',
       });
     } catch (error) {
       warn('scheduled nova training flywheel failed', {
         cycle: args.cycle,
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
     }
   }
@@ -480,21 +500,23 @@ export async function runAutoBackendMaintenanceCycle(args: {
       const discovery = await runAlphaDiscoveryCycle({
         repo,
         userId: args.userId,
-        triggerType: 'scheduled'
+        triggerType: 'scheduled',
       });
       log('scheduled alpha discovery finished', {
         cycle: args.cycle,
         accepted: (discovery as Record<string, unknown>)?.evaluation_summary
-          ? ((discovery as Record<string, unknown>).evaluation_summary as Record<string, unknown>).accepted
+          ? ((discovery as Record<string, unknown>).evaluation_summary as Record<string, unknown>)
+              .accepted
           : null,
         rejected: (discovery as Record<string, unknown>)?.evaluation_summary
-          ? ((discovery as Record<string, unknown>).evaluation_summary as Record<string, unknown>).rejected
-          : null
+          ? ((discovery as Record<string, unknown>).evaluation_summary as Record<string, unknown>)
+              .rejected
+          : null,
       });
     } catch (error) {
       warn('scheduled alpha discovery failed', {
         cycle: args.cycle,
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
     }
     return;
@@ -513,19 +535,19 @@ export async function runAutoBackendMaintenanceCycle(args: {
           shadowAdmission: discoveryConfig.shadowAdmissionThresholds,
           shadowPromotion: discoveryConfig.shadowPromotionThresholds,
           retirement: discoveryConfig.retirementThresholds,
-          allowProdPromotion: discoveryConfig.allowProdPromotion
-        }
+          allowProdPromotion: discoveryConfig.allowProdPromotion,
+        },
       });
       log('scheduled alpha shadow monitoring finished', {
         cycle: args.cycle,
         candidates_processed: shadow.shadow.candidates_processed,
         promoted_to_canary: shadow.promotion.promoted_to_canary.length,
-        retired: shadow.promotion.retired.length
+        retired: shadow.promotion.retired.length,
       });
     } catch (error) {
       warn('scheduled alpha shadow monitoring failed', {
         cycle: args.cycle,
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
     }
   }
@@ -578,19 +600,19 @@ export async function runAutoBackend(argv = process.argv.slice(2)) {
 
   const usRefreshEveryCycles = Math.max(
     1,
-    Math.round((options.usRefreshHours * 3600) / options.deriveIntervalSec)
+    Math.round((options.usRefreshHours * 3600) / options.deriveIntervalSec),
   );
   const retrainEveryCycles = Math.max(
     1,
-    Math.round((options.retrainHours * 3600) / options.deriveIntervalSec)
+    Math.round((options.retrainHours * 3600) / options.deriveIntervalSec),
   );
   const trainEveryCycles = Math.max(
     1,
-    Math.round((options.trainEveryHours * 3600) / options.deriveIntervalSec)
+    Math.round((options.trainEveryHours * 3600) / options.deriveIntervalSec),
   );
   const discoveryEveryCycles = Math.max(
     1,
-    Math.round((options.discoveryEveryHours * 3600) / options.deriveIntervalSec)
+    Math.round((options.discoveryEveryHours * 3600) / options.deriveIntervalSec),
   );
 
   const supervisor = (async () => {
@@ -599,7 +621,7 @@ export async function runAutoBackend(argv = process.argv.slice(2)) {
         await ensureManagedProcesses(options, managed);
       } catch (error) {
         warn('managed process supervisor failed', {
-          error: error instanceof Error ? error.message : String(error)
+          error: error instanceof Error ? error.message : String(error),
         });
       }
       await sleep(options.supervisorCheckSec * 1000);
@@ -617,7 +639,13 @@ export async function runAutoBackend(argv = process.argv.slice(2)) {
       const runEvolution = cycle % retrainEveryCycles === 0;
       const runTraining = cycle % trainEveryCycles === 0;
       const runDiscovery = cycle % discoveryEveryCycles === 0;
-      if (cycle % options.validateEvery === 0 || refreshUs || runEvolution || runTraining || runDiscovery) {
+      if (
+        cycle % options.validateEvery === 0 ||
+        refreshUs ||
+        runEvolution ||
+        runTraining ||
+        runDiscovery
+      ) {
         await runAutoBackendMaintenanceCycle({
           userId: options.userId,
           cycle,
@@ -629,7 +657,7 @@ export async function runAutoBackend(argv = process.argv.slice(2)) {
           trainingLimit: options.trainingLimit,
           executeTraining: options.executeTraining,
           skipTraining: options.skipTraining,
-          skipDiscovery: options.skipDiscovery
+          skipDiscovery: options.skipDiscovery,
         });
       } else {
         const db = getDb();
@@ -640,7 +668,7 @@ export async function runAutoBackend(argv = process.argv.slice(2)) {
           cycle,
           source_status: snapshot.sourceStatus,
           signals: snapshot.signals.length,
-          market_state_rows: snapshot.marketState.length
+          market_state_rows: snapshot.marketState.length,
         });
         if (!options.skipDiscovery) {
           try {
@@ -655,13 +683,13 @@ export async function runAutoBackend(argv = process.argv.slice(2)) {
                 shadowAdmission: discoveryConfig.shadowAdmissionThresholds,
                 shadowPromotion: discoveryConfig.shadowPromotionThresholds,
                 retirement: discoveryConfig.retirementThresholds,
-                allowProdPromotion: discoveryConfig.allowProdPromotion
-              }
+                allowProdPromotion: discoveryConfig.allowProdPromotion,
+              },
             });
           } catch (error) {
             warn('background alpha shadow monitoring failed', {
               cycle,
-              error: error instanceof Error ? error.message : String(error)
+              error: error instanceof Error ? error.message : String(error),
             });
           }
         }
@@ -669,7 +697,7 @@ export async function runAutoBackend(argv = process.argv.slice(2)) {
     } catch (error) {
       log('maintenance cycle failed', {
         cycle,
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
     }
   }

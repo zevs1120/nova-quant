@@ -4,13 +4,16 @@ export default function QuickAccessSheet({
   options = [],
   onSelect,
   onOpenAi,
-  onOpenAbout
+  onOpenAbout,
 }) {
   if (!open) return null;
 
   return (
     <div className="sheet-overlay" onClick={onClose}>
-      <article className="sheet-card quick-access-sheet" onClick={(event) => event.stopPropagation()}>
+      <article
+        className="sheet-card quick-access-sheet"
+        onClick={(event) => event.stopPropagation()}
+      >
         <div className="card-header">
           <div>
             <h3 className="card-title">More Pages</h3>

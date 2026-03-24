@@ -161,7 +161,7 @@ function queryAdminUsers(): AdminUserRow[] {
           GROUP BY user_id
         ) roles ON roles.user_id = u.user_id
         ORDER BY COALESCE(u.last_login_at_ms, u.created_at_ms) DESC, u.created_at_ms DESC
-      `
+      `,
     )
     .all({ now_ms: now }) as AdminUserRow[];
 }
@@ -178,15 +178,18 @@ function mapAdminUsers(rows: AdminUserRow[]) {
       .split(',')
       .map((item) => item.trim())
       .filter(Boolean);
-    const lastSeenMs = row.last_login_at_ms ?? row.latest_execution_at_ms ?? row.latest_notification_at_ms ?? row.created_at_ms;
-    const status =
-      roles.includes('ADMIN')
-        ? '管理员'
-        : row.last_login_at_ms && row.last_login_at_ms >= sevenDaysAgo
-          ? '近 7 天活跃'
-          : row.execution_count
-            ? '已有使用记录'
-            : '低活跃';
+    const lastSeenMs =
+      row.last_login_at_ms ??
+      row.latest_execution_at_ms ??
+      row.latest_notification_at_ms ??
+      row.created_at_ms;
+    const status = roles.includes('ADMIN')
+      ? '管理员'
+      : row.last_login_at_ms && row.last_login_at_ms >= sevenDaysAgo
+        ? '近 7 天活跃'
+        : row.execution_count
+          ? '已有使用记录'
+          : '低活跃';
 
     return {
       user_id: row.user_id,
@@ -211,7 +214,8 @@ function mapAdminUsers(rows: AdminUserRow[]) {
       execution_count: Number(row.execution_count || 0),
       paper_execution_count: Number(row.paper_execution_count || 0),
       live_execution_count: Number(row.live_execution_count || 0),
-      avg_execution_pnl_pct: row.avg_execution_pnl_pct === null ? null : round(Number(row.avg_execution_pnl_pct), 4),
+      avg_execution_pnl_pct:
+        row.avg_execution_pnl_pct === null ? null : round(Number(row.avg_execution_pnl_pct), 4),
       latest_decision_at: toIso(row.latest_decision_at_ms),
       latest_execution_at: toIso(row.latest_execution_at_ms),
       notification_count: Number(row.notification_count || 0),
@@ -220,7 +224,7 @@ function mapAdminUsers(rows: AdminUserRow[]) {
       vip_days_redeemed_total: Number(row.vip_days_redeemed_total || 0),
       invite_code: row.invite_code,
       referral_count: Number(row.referral_count || 0),
-      status
+      status,
     };
   });
 
@@ -233,25 +237,29 @@ function mapAdminUsers(rows: AdminUserRow[]) {
     }).length;
     return {
       label: `${start.getMonth() + 1}/${start.getDate()}`,
-      value: count
+      value: count,
     };
   });
 
   return {
     summary: {
       total_users: users.length,
-      active_last_7d: users.filter((row) => row.last_login_at && Date.parse(row.last_login_at) >= sevenDaysAgo).length,
-      active_last_30d: users.filter((row) => row.last_login_at && Date.parse(row.last_login_at) >= thirtyDaysAgo).length,
+      active_last_7d: users.filter(
+        (row) => row.last_login_at && Date.parse(row.last_login_at) >= sevenDaysAgo,
+      ).length,
+      active_last_30d: users.filter(
+        (row) => row.last_login_at && Date.parse(row.last_login_at) >= thirtyDaysAgo,
+      ).length,
       admin_count: users.filter((row) => row.roles.includes('ADMIN')).length,
       total_watchlists: users.reduce((sum, row) => sum + row.watchlist_count, 0),
       total_notifications: users.reduce((sum, row) => sum + row.notification_count, 0),
-      total_referrals: users.reduce((sum, row) => sum + row.referral_count, 0)
+      total_referrals: users.reduce((sum, row) => sum + row.referral_count, 0),
     },
     trade_mode_mix: countBy(users, (row) => row.trade_mode),
     risk_profile_mix: countBy(users, (row) => row.risk_profile_key),
     status_mix: countBy(users, (row) => row.status),
     signup_trend: signupTrend,
-    users
+    users,
   };
 }
 
@@ -259,17 +267,24 @@ function mapLatestAlphaEvaluations(repo: MarketRepository, candidateIds: string[
   return new Map(
     candidateIds.map((candidateId) => {
       const evaluation = repo.getLatestAlphaEvaluation(candidateId);
-      const metrics = evaluation ? parseJson<AlphaEvaluationMetrics & JsonObject>(evaluation.metrics_json, {} as AlphaEvaluationMetrics & JsonObject) : null;
-      const rejectionReasons = evaluation ? parseJson<string[]>(evaluation.rejection_reasons_json, []) : [];
+      const metrics = evaluation
+        ? parseJson<AlphaEvaluationMetrics & JsonObject>(
+            evaluation.metrics_json,
+            {} as AlphaEvaluationMetrics & JsonObject,
+          )
+        : null;
+      const rejectionReasons = evaluation
+        ? parseJson<string[]>(evaluation.rejection_reasons_json, [])
+        : [];
       return [
         candidateId,
         {
           evaluation,
           metrics,
-          rejection_reasons: rejectionReasons
-        }
+          rejection_reasons: rejectionReasons,
+        },
       ] as const;
-    })
+    }),
   );
 }
 
@@ -277,7 +292,7 @@ export function buildAdminUsersSnapshot() {
   const rows = queryAdminUsers();
   return {
     generated_at: new Date().toISOString(),
-    ...mapAdminUsers(rows)
+    ...mapAdminUsers(rows),
   };
 }
 
@@ -293,7 +308,9 @@ export function buildAdminAlphaSnapshot() {
     const latest = evaluationMap.get(row.id);
     return {
       ...row,
-      latest_evaluation_created_at: latest?.evaluation ? toIso(latest.evaluation.created_at_ms) : null,
+      latest_evaluation_created_at: latest?.evaluation
+        ? toIso(latest.evaluation.created_at_ms)
+        : null,
       latest_acceptance_score: latest?.evaluation?.acceptance_score ?? row.acceptance_score ?? null,
       latest_rejection_reasons: latest?.rejection_reasons || [],
       metrics: latest?.metrics
@@ -302,9 +319,9 @@ export function buildAdminAlphaSnapshot() {
             sharpe: latest.metrics.sharpe ?? null,
             max_drawdown: latest.metrics.max_drawdown ?? null,
             stability_score: latest.metrics.stability_score ?? null,
-            correlation_to_active: latest.metrics.correlation_to_active ?? null
+            correlation_to_active: latest.metrics.correlation_to_active ?? null,
           }
-        : null
+        : null,
     };
   });
 
@@ -317,7 +334,7 @@ export function buildAdminAlphaSnapshot() {
     decaying_candidates: summary.decaying_candidates,
     correlation_map: summary.correlation_map,
     state_transitions: summary.state_transitions,
-    candidates
+    candidates,
   };
 }
 
@@ -345,7 +362,7 @@ export function buildAdminSignalsSnapshot() {
         tone: signal?.news_context?.tone || null,
         execution_count: executions.length,
         live_execution_count: executions.filter((item) => item.mode === 'LIVE').length,
-        paper_execution_count: executions.filter((item) => item.mode === 'PAPER').length
+        paper_execution_count: executions.filter((item) => item.mode === 'PAPER').length,
       };
     })
     .slice(0, 40);
@@ -365,10 +382,11 @@ export function buildAdminSignalsSnapshot() {
             executionRows
               .filter((row) => row.pnl_pct !== undefined && row.pnl_pct !== null)
               .reduce((sum, row) => sum + Number(row.pnl_pct || 0), 0) /
-              executionRows.filter((row) => row.pnl_pct !== undefined && row.pnl_pct !== null).length,
-            4
+              executionRows.filter((row) => row.pnl_pct !== undefined && row.pnl_pct !== null)
+                .length,
+            4,
           )
-        : null
+        : null,
   };
 
   return {
@@ -377,11 +395,15 @@ export function buildAdminSignalsSnapshot() {
       total_signals: signalRows.length,
       active_signals: activeSignals.length,
       avg_confidence: activeSignals.length
-        ? round(activeSignals.reduce((sum, row) => sum + Number(row.confidence || 0), 0) / activeSignals.length, 4)
+        ? round(
+            activeSignals.reduce((sum, row) => sum + Number(row.confidence || 0), 0) /
+              activeSignals.length,
+            4,
+          )
         : 0,
       top_symbols: topSymbols,
       direction_mix: directionMix,
-      market_mix: marketMix
+      market_mix: marketMix,
     },
     execution_summary: executionSummary,
     recent_executions: executionRows.slice(0, 20).map((row) => ({
@@ -394,9 +416,9 @@ export function buildAdminSignalsSnapshot() {
       symbol: row.symbol,
       size_pct: row.size_pct ?? null,
       pnl_pct: row.pnl_pct ?? null,
-      updated_at: toIso(row.updated_at_ms)
+      updated_at: toIso(row.updated_at_ms),
     })),
-    signals
+    signals,
   };
 }
 
@@ -413,28 +435,28 @@ export async function buildAdminSystemSnapshot() {
     diagnostics.push({
       severity: 'WARN',
       title: 'EC2 live 数据暂时不可达，当前已切回本地库',
-      detail: `已尝试连接 ${ops.data_source.upstream_base_url || 'configured upstream'}，但拉取失败。当前页面展示的是本地回退数据。`
+      detail: `已尝试连接 ${ops.data_source.upstream_base_url || 'configured upstream'}，但拉取失败。当前页面展示的是本地回退数据。`,
     });
   }
   if (newsItems72h >= 6 && ops.recent_news_factors.length === 0) {
     diagnostics.push({
       severity: 'WARN',
       title: '新闻有流入，但结构化因子产出偏低',
-      detail: `近 72 小时新闻 ${newsItems72h} 条，但结构化因子为 0。当前已启用 heuristic 回退，仍建议继续观察 Gemini 与 NewsAPI 覆盖。`
+      detail: `近 72 小时新闻 ${newsItems72h} 条，但结构化因子为 0。当前已启用 heuristic 回退，仍建议继续观察 Gemini 与 NewsAPI 覆盖。`,
     });
   }
   if (discoveryConfig.intervalHours >= 8 || discoveryConfig.searchBudget <= 10) {
     diagnostics.push({
       severity: 'WARN',
       title: 'Alpha 发现节奏偏保守',
-      detail: `当前 discovery 间隔 ${discoveryConfig.intervalHours} 小时，搜索预算 ${discoveryConfig.searchBudget}，更适合稳态筛选而不是高产探索。`
+      detail: `当前 discovery 间隔 ${discoveryConfig.intervalHours} 小时，搜索预算 ${discoveryConfig.searchBudget}，更适合稳态筛选而不是高产探索。`,
     });
   }
   if (factorCoveragePct >= 25) {
     diagnostics.push({
       severity: 'INFO',
       title: '新闻因子链已经开始沉淀',
-      detail: `近 72 小时结构化覆盖率 ${factorCoveragePct}% ，说明新闻到因子的主链正在工作。`
+      detail: `近 72 小时结构化覆盖率 ${factorCoveragePct}% ，说明新闻到因子的主链正在工作。`,
     });
   }
 
@@ -452,10 +474,22 @@ export async function buildAdminSystemSnapshot() {
         us_symbol_universe: config.markets.US.symbols.length,
         crypto_symbol_universe: config.markets.CRYPTO.symbols.length,
         action_cards: {
-          conservative: Number(process.env.NOVA_ACTION_CARD_LIMIT_CONSERVATIVE || config.serviceEnvelope?.targetDailyActionCards?.conservative || 10),
-          balanced: Number(process.env.NOVA_ACTION_CARD_LIMIT_BALANCED || config.serviceEnvelope?.targetDailyActionCards?.balanced || 12),
-          aggressive: Number(process.env.NOVA_ACTION_CARD_LIMIT_AGGRESSIVE || config.serviceEnvelope?.targetDailyActionCards?.aggressive || 15)
-        }
+          conservative: Number(
+            process.env.NOVA_ACTION_CARD_LIMIT_CONSERVATIVE ||
+              config.serviceEnvelope?.targetDailyActionCards?.conservative ||
+              10,
+          ),
+          balanced: Number(
+            process.env.NOVA_ACTION_CARD_LIMIT_BALANCED ||
+              config.serviceEnvelope?.targetDailyActionCards?.balanced ||
+              12,
+          ),
+          aggressive: Number(
+            process.env.NOVA_ACTION_CARD_LIMIT_AGGRESSIVE ||
+              config.serviceEnvelope?.targetDailyActionCards?.aggressive ||
+              15,
+          ),
+        },
       },
       alpha_discovery: {
         interval_hours: discoveryConfig.intervalHours,
@@ -463,9 +497,10 @@ export async function buildAdminSystemSnapshot() {
         search_budget: discoveryConfig.searchBudget,
         min_acceptance_score: discoveryConfig.minAcceptanceScore,
         family_coverage_targets: discoveryConfig.familyCoverageTargets,
-        shadow_admission_min_acceptance_score: discoveryConfig.shadowAdmissionThresholds.minAcceptanceScore,
+        shadow_admission_min_acceptance_score:
+          discoveryConfig.shadowAdmissionThresholds.minAcceptanceScore,
         shadow_admission_max_drawdown: discoveryConfig.shadowAdmissionThresholds.maxDrawdown,
-        max_correlation_to_active: discoveryConfig.maxCorrelationToActive
+        max_correlation_to_active: discoveryConfig.maxCorrelationToActive,
       },
       news_pipeline: {
         ttl_minutes: newsPipeline.ttl_minutes,
@@ -474,8 +509,11 @@ export async function buildAdminSystemSnapshot() {
         google_limit: newsPipeline.google_limit,
         heuristic_factor_fallback: newsPipeline.heuristic_factor_fallback,
         gemini_factor_concurrency: Math.max(1, Number(process.env.GEMINI_NEWS_CONCURRENCY || 3)),
-        gemini_request_gap_ms: Math.max(0, Number(process.env.GEMINI_NEWS_MIN_REQUEST_GAP_MS || 350))
-      }
+        gemini_request_gap_ms: Math.max(
+          0,
+          Number(process.env.GEMINI_NEWS_MIN_REQUEST_GAP_MS || 350),
+        ),
+      },
     },
     throughput_recent: ops.throughput_recent,
     diagnostics,
@@ -484,7 +522,7 @@ export async function buildAdminSystemSnapshot() {
     reference_data: ops.reference_data,
     active_signals: ops.active_signals,
     recent_nova_runs: ops.recent_nova_runs,
-    daily_ops: ops.daily_ops
+    daily_ops: ops.daily_ops,
   };
 }
 
@@ -505,48 +543,57 @@ export async function buildAdminOverviewSnapshot() {
       shadow_candidates: Number(alpha.inventory.SHADOW || 0),
       canary_candidates: Number(alpha.inventory.CANARY || 0),
       recent_news_factors: system.data_summary.news_factor_count,
-      ai_runs: system.ai_summary.total
+      ai_runs: system.ai_summary.total,
     },
     user_mix: users.trade_mode_mix,
-    alpha_lifecycle: Object.entries(alpha.inventory).map(([label, value]) => ({ label, value: Number(value || 0) })),
+    alpha_lifecycle: Object.entries(alpha.inventory).map(([label, value]) => ({
+      label,
+      value: Number(value || 0),
+    })),
     signal_direction_mix: signals.summary.direction_mix,
     top_symbols: signals.summary.top_symbols,
     workflow_timeline: workflows.slice(0, 10).map((row) => ({
       workflow_key: row.workflow_key,
       status: row.status,
       trigger_type: row.trigger_type,
-      updated_at: toIso(row.updated_at_ms)
+      updated_at: toIso(row.updated_at_ms),
     })),
     data_story: [
       {
         label: '前端用户层',
         value: `${users.summary.total_users} 个账户`,
-        detail: `近 7 天活跃 ${users.summary.active_last_7d} 个，管理员 ${users.summary.admin_count} 个。`
+        detail: `近 7 天活跃 ${users.summary.active_last_7d} 个，管理员 ${users.summary.admin_count} 个。`,
       },
       {
         label: '策略与 Alpha 层',
         value: `${Number(alpha.inventory.SHADOW || 0)} 个 Shadow 候选`,
-        detail: `当前 CANARY ${Number(alpha.inventory.CANARY || 0)} 个，PROD ${Number(alpha.inventory.PROD || 0)} 个。`
+        detail: `当前 CANARY ${Number(alpha.inventory.CANARY || 0)} 个，PROD ${Number(alpha.inventory.PROD || 0)} 个。`,
       },
       {
         label: '因子与 AI 层',
         value: `${system.data_summary.news_factor_count} 条新闻因子`,
-        detail: `最近 AI 运行 ${system.ai_summary.total} 次，新闻源 ${system.data_summary.news_items_72h} 条，结构化覆盖 ${system.data_summary.news_factor_coverage_pct}%。`
-      }
+        detail: `最近 AI 运行 ${system.ai_summary.total} 次，新闻源 ${system.data_summary.news_items_72h} 条，结构化覆盖 ${system.data_summary.news_factor_coverage_pct}%。`,
+      },
     ],
     guardrails: [
       { label: '先 Shadow 再上线', value: 100 },
       { label: '实盘自动直推关闭', value: 100 },
       { label: '数据因子覆盖', value: Math.min(100, system.data_summary.news_factor_count * 8) },
-      { label: 'Alpha 发现活跃度', value: Math.min(100, Number(alpha.inventory.DRAFT || 0) * 8 + Number(alpha.inventory.SHADOW || 0) * 12) },
-      { label: '用户使用活跃度', value: Math.min(100, users.summary.active_last_30d * 10) }
+      {
+        label: 'Alpha 发现活跃度',
+        value: Math.min(
+          100,
+          Number(alpha.inventory.DRAFT || 0) * 8 + Number(alpha.inventory.SHADOW || 0) * 12,
+        ),
+      },
+      { label: '用户使用活跃度', value: Math.min(100, users.summary.active_last_30d * 10) },
     ],
     system_cards: {
       runtime_provider: system.runtime.provider,
       runtime_mode: system.runtime.mode,
       news_factor_count: system.data_summary.news_factor_count,
-      option_chain_count: system.data_summary.option_chain_count
-    }
+      option_chain_count: system.data_summary.option_chain_count,
+    },
   };
 }
 

@@ -28,17 +28,17 @@ describe('asset search providers', () => {
           return {
             0: {
               ticker: 'IONQ',
-              title: 'IonQ, Inc.'
-            }
+              title: 'IonQ, Inc.',
+            },
           };
-        }
+        },
       } as Response;
     }) as typeof fetch;
 
     const results = await searchAssets({
       query: 'ionq',
       market: 'US',
-      limit: 10
+      limit: 10,
     });
 
     expect(results.some((row) => row.symbol === 'IONQ' && row.source === 'remote')).toBe(true);
@@ -55,21 +55,21 @@ describe('asset search providers', () => {
           return {
             0: {
               ticker: 'TSLA',
-              title: 'Tesla, Inc.'
+              title: 'Tesla, Inc.',
             },
             1: {
               ticker: 'TLSA',
-              title: 'Tiziana Life Sciences Ltd'
-            }
+              title: 'Tiziana Life Sciences Ltd',
+            },
           };
-        }
+        },
       } as Response;
     }) as typeof fetch;
 
     const results = await searchAssets({
       query: 'tesla',
       market: 'US',
-      limit: 10
+      limit: 10,
     });
 
     expect(results[0]?.symbol).toBe('TSLA');
@@ -86,7 +86,7 @@ describe('asset search providers', () => {
           ok: true,
           async json() {
             return {};
-          }
+          },
         } as Response;
       }
       expect(url).toContain('alphavantage.co/query');
@@ -100,18 +100,18 @@ describe('asset search providers', () => {
                 '2. name': 'IonQ, Inc.',
                 '3. type': 'Equity',
                 '4. region': 'United States',
-                '8. currency': 'USD'
-              }
-            ]
+                '8. currency': 'USD',
+              },
+            ],
           };
-        }
+        },
       } as Response;
     }) as typeof fetch;
 
     const results = await searchAssets({
       query: 'ionq',
       market: 'US',
-      limit: 10
+      limit: 10,
     });
 
     expect(results.some((row) => row.symbol === 'IONQ' && row.source === 'remote')).toBe(true);
@@ -132,18 +132,18 @@ describe('asset search providers', () => {
               {
                 symbol: 'bonk',
                 name: 'Bonk',
-                market_cap_rank: 72
-              }
-            ]
+                market_cap_rank: 72,
+              },
+            ],
           };
-        }
+        },
       } as Response;
     }) as typeof fetch;
 
     const results = await searchAssets({
       query: 'bonk',
       market: 'CRYPTO',
-      limit: 10
+      limit: 10,
     });
 
     expect(results.some((row) => row.symbol === 'BONK' && row.source === 'remote')).toBe(true);

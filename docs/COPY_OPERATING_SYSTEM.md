@@ -68,12 +68,12 @@ Tone is driven by a small matrix that product, backend, frontend, and assistant 
 
 ### Risk posture tone
 
-| Posture | Copy tone | Interaction tone |
-| --- | --- | --- |
-| `DEFEND` | boundary-first, protective, slightly sharper | contained, steadier, lower amplitude |
-| `WAIT` | quiet, complete, intentionally uneventful | minimal, calmer, more settled |
-| `PROBE` | selective, partial permission, still disciplined | measured, lightly suspended |
-| `ATTACK` | clearer and more focused, never hyped | crisper, cleaner, not louder |
+| Posture  | Copy tone                                        | Interaction tone                     |
+| -------- | ------------------------------------------------ | ------------------------------------ |
+| `DEFEND` | boundary-first, protective, slightly sharper     | contained, steadier, lower amplitude |
+| `WAIT`   | quiet, complete, intentionally uneventful        | minimal, calmer, more settled        |
+| `PROBE`  | selective, partial permission, still disciplined | measured, lightly suspended          |
+| `ATTACK` | clearer and more focused, never hyped            | crisper, cleaner, not louder         |
 
 ### Conviction overlay
 

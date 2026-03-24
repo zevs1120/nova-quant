@@ -4,17 +4,17 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   test: {
-    exclude: ['**/node_modules/**', 'artifacts/**', 'dist/**', 'build/**', 'coverage/**']
+    exclude: ['**/node_modules/**', 'artifacts/**', 'dist/**', 'build/**', 'coverage/**'],
   },
   server: {
     proxy: {
       '/api': {
         target: process.env.VITE_API_PROXY_TARGET || 'http://127.0.0.1:8787',
-        changeOrigin: true
-      }
-    }
+        changeOrigin: true,
+      },
+    },
   },
   build: {
-    outDir: 'dist'
-  }
+    outDir: 'dist',
+  },
 });

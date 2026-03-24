@@ -6,7 +6,7 @@ describe('signal generation integrity', () => {
   const state = buildNovaQuantSystem({
     asOf: '2026-03-08T00:00:00.000Z',
     riskProfileKey: 'balanced',
-    executionTrades: []
+    executionTrades: [],
   });
 
   it('generates actionable signals with plan fields', () => {

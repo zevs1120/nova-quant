@@ -22,13 +22,21 @@ import { createTranslator, getDefaultLang, getLocale } from './i18n';
 import { buildHoldingsReview } from './research/holdingsAnalyzer';
 import { fetchApi, fetchApiJson } from './utils/api';
 import { primeBrowseHomeBundle, primeBrowseUniverseBundle } from './utils/browseWarmup';
-import { deriveConnectedHoldings, mergeHoldingsSources, summarizeHoldingsSource } from './utils/holdingsSource';
+import {
+  deriveConnectedHoldings,
+  mergeHoldingsSources,
+  summarizeHoldingsSource,
+} from './utils/holdingsSource';
 import {
   buildInvestorDemoEnvironment,
   INVESTOR_DEMO_HOLDINGS,
-  INVESTOR_DEMO_PERFORMANCE
+  INVESTOR_DEMO_PERFORMANCE,
 } from './demo/investorDemo';
-import { DEMO_ENTRY_ENABLED, FORCE_DEMO_BUILD, isDemoRuntime as getIsDemoRuntime } from './demo/runtime';
+import {
+  DEMO_ENTRY_ENABLED,
+  FORCE_DEMO_BUILD,
+  isDemoRuntime as getIsDemoRuntime,
+} from './demo/runtime';
 import { formatDateTime, formatNumber } from './utils/format';
 
 const MENU_PARENTS = {
@@ -41,7 +49,7 @@ const MENU_PARENTS = {
   learning: 'group:system',
   insights: 'group:market',
   settings: 'group:settings',
-  advanced: 'group:settings'
+  advanced: 'group:settings',
 };
 
 function buildTabMeta(locale) {
@@ -50,16 +58,34 @@ function buildTabMeta(locale) {
     today: { icon: 'today', label: zh ? '今日' : 'Today' },
     ai: { icon: 'nova', label: 'Nova' },
     browse: { icon: 'browse', label: zh ? '发现' : 'Browse' },
-    my: { icon: 'my', label: zh ? '我的' : 'My' }
+    my: { icon: 'my', label: zh ? '我的' : 'My' },
   };
 }
 
 function TopBarMenuGlyph() {
   return (
     <svg viewBox="0 0 20 20" className="top-bar-action-icon" focusable="false" aria-hidden="true">
-      <path d="M4 5.75h12" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
-      <path d="M6.25 10h9.75" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
-      <path d="M4 14.25h12" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+      <path
+        d="M4 5.75h12"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+      />
+      <path
+        d="M6.25 10h9.75"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+      />
+      <path
+        d="M4 14.25h12"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
@@ -67,7 +93,12 @@ function TopBarMenuGlyph() {
 function TabBarIcon({ name }) {
   if (name === 'today') {
     return (
-      <svg viewBox="0 0 24 24" className="native-tabbar-icon-svg" focusable="false" aria-hidden="true">
+      <svg
+        viewBox="0 0 24 24"
+        className="native-tabbar-icon-svg"
+        focusable="false"
+        aria-hidden="true"
+      >
         <circle cx="12" cy="12" r="6.5" fill="none" stroke="currentColor" strokeWidth="1.9" />
         <circle cx="12" cy="12" r="2.5" fill="currentColor" />
       </svg>
@@ -76,25 +107,55 @@ function TabBarIcon({ name }) {
 
   if (name === 'nova') {
     return (
-      <svg viewBox="0 0 24 24" className="native-tabbar-icon-svg" focusable="false" aria-hidden="true">
-        <path d="M12 4.8 13.7 10.3 19.2 12 13.7 13.7 12 19.2 10.3 13.7 4.8 12 10.3 10.3Z" fill="currentColor" />
+      <svg
+        viewBox="0 0 24 24"
+        className="native-tabbar-icon-svg"
+        focusable="false"
+        aria-hidden="true"
+      >
+        <path
+          d="M12 4.8 13.7 10.3 19.2 12 13.7 13.7 12 19.2 10.3 13.7 4.8 12 10.3 10.3Z"
+          fill="currentColor"
+        />
       </svg>
     );
   }
 
   if (name === 'browse') {
     return (
-      <svg viewBox="0 0 24 24" className="native-tabbar-icon-svg" focusable="false" aria-hidden="true">
+      <svg
+        viewBox="0 0 24 24"
+        className="native-tabbar-icon-svg"
+        focusable="false"
+        aria-hidden="true"
+      >
         <circle cx="11" cy="11" r="4.75" fill="none" stroke="currentColor" strokeWidth="1.9" />
-        <path d="M14.5 14.5 18.5 18.5" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+        <path
+          d="M14.5 14.5 18.5 18.5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.9"
+          strokeLinecap="round"
+        />
       </svg>
     );
   }
 
   return (
-    <svg viewBox="0 0 24 24" className="native-tabbar-icon-svg" focusable="false" aria-hidden="true">
+    <svg
+      viewBox="0 0 24 24"
+      className="native-tabbar-icon-svg"
+      focusable="false"
+      aria-hidden="true"
+    >
       <circle cx="12" cy="9" r="3.1" fill="none" stroke="currentColor" strokeWidth="1.9" />
-      <path d="M6.6 18.2c1.4-2.6 3.2-3.9 5.4-3.9s4 1.3 5.4 3.9" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+      <path
+        d="M6.6 18.2c1.4-2.6 3.2-3.9 5.4-3.9s4 1.3 5.4 3.9"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
@@ -136,12 +197,14 @@ function buildMenuTitles(locale) {
     data: zh ? '数据状态' : 'Data Status',
     learning: zh ? '学习飞轮' : 'Learning Loop',
     settings: zh ? '设置' : 'Settings',
-    advanced: zh ? '高级' : 'Advanced'
+    advanced: zh ? '高级' : 'Advanced',
   };
 }
 
 function normalizeEmail(value) {
-  return String(value || '').trim().toLowerCase();
+  return String(value || '')
+    .trim()
+    .toLowerCase();
 }
 
 function isLocalAuthRuntime() {
@@ -180,7 +243,7 @@ const initialData = {
     source_status: 'INSUFFICIENT_DATA',
     data_status: 'INSUFFICIENT_DATA',
     asof: null,
-    supporting_run_id: null
+    supporting_run_id: null,
   },
   performance: { records: [], last_updated: null, proof: { datasets: {} }, paper_timeline: [] },
   trades: [],
@@ -195,7 +258,7 @@ const initialData = {
   insights: null,
   ai: null,
   layers: {},
-  control_plane: null
+  control_plane: null,
 };
 
 const DEFAULT_AUTH_WATCHLIST = Object.freeze(['SPY', 'QQQ', 'AAPL']);
@@ -207,13 +270,13 @@ const DEMO_MANUAL_STATE = Object.freeze({
     balance: 1240,
     expiringSoon: 180,
     vipDays: 1,
-    vipDaysRedeemed: 1
+    vipDaysRedeemed: 1,
   },
   referrals: {
     inviteCode: 'DEMO-NOVA',
     referredByCode: null,
     total: 3,
-    rewarded: 2
+    rewarded: 2,
   },
   ledger: [
     {
@@ -223,8 +286,8 @@ const DEMO_MANUAL_STATE = Object.freeze({
       balanceAfter: 1240,
       title: '+120',
       description: 'Morning Check plus one AI question.',
-      createdAt: new Date().toISOString()
-    }
+      createdAt: new Date().toISOString(),
+    },
   ],
   rewards: [
     {
@@ -233,15 +296,15 @@ const DEMO_MANUAL_STATE = Object.freeze({
       title: 'Redeem 1 VIP day',
       description: '1000 points unlocks one more VIP day.',
       costPoints: 1000,
-      enabled: true
-    }
+      enabled: true,
+    },
   ],
   predictions: [],
   rules: {
     vipRedeemPoints: 1000,
     referralRewardPoints: 200,
-    defaultPredictionStake: 100
-  }
+    defaultPredictionStake: 100,
+  },
 });
 
 function detectDisplayMode() {
@@ -255,7 +318,7 @@ function detectDisplayMode() {
 async function fetchJson(url, options) {
   const response = await fetchApi(url, {
     credentials: 'include',
-    ...(options || {})
+    ...(options || {}),
   });
   if (!response.ok) {
     throw new Error(`${url} failed (${response.status})`);
@@ -277,11 +340,13 @@ function mapExecutionToTrade(execution) {
     symbol: execution.symbol,
     side: execution.side || execution.direction || 'LONG',
     entry: Number(execution.entry ?? execution.entry_price ?? 0),
-    exit: Number(execution.exit ?? execution.tp_price ?? execution.entry ?? execution.entry_price ?? 0),
+    exit: Number(
+      execution.exit ?? execution.tp_price ?? execution.entry ?? execution.entry_price ?? 0,
+    ),
     pnl_pct: pnl,
     fees: Number(execution.fees ?? 0),
     signal_id: execution.signal_id || execution.signalId,
-    source: execution.mode || 'PAPER'
+    source: execution.mode || 'PAPER',
   };
 }
 
@@ -353,11 +418,11 @@ export default function App() {
   const [browseTopBarState, setBrowseTopBarState] = useState({
     canGoBack: false,
     title: 'Browse',
-    backLabel: 'Browse'
+    backLabel: 'Browse',
   });
   const [browseBackToken, setBrowseBackToken] = useState(0);
   const [assetClass, setAssetClass] = useLocalStorage('nova-quant-asset-class', 'US_STOCK', {
-    legacyKeys: ['quant-demo-asset-class']
+    legacyKeys: ['quant-demo-asset-class'],
   });
   const [market, setMarket] = useState('US');
   const [loading, setLoading] = useState(true);
@@ -369,56 +434,63 @@ export default function App() {
   const [now, setNow] = useState(new Date());
   const [aboutOpen, setAboutOpen] = useState(false);
   const [watchlist, setWatchlist] = useLocalStorage('nova-quant-watchlist', [], {
-    legacyKeys: ['quant-demo-watchlist']
+    legacyKeys: ['quant-demo-watchlist'],
   });
   const [executions, setExecutions] = useLocalStorage('nova-quant-executions', [], {
-    legacyKeys: ['quant-demo-executions']
+    legacyKeys: ['quant-demo-executions'],
   });
   const [holdings, setHoldings] = useLocalStorage('nova-quant-holdings', [], {
-    legacyKeys: ['quant-demo-holdings']
+    legacyKeys: ['quant-demo-holdings'],
   });
-  const [riskProfileKey, setRiskProfileKey] = useLocalStorage('nova-quant-risk-profile', 'balanced', {
-    legacyKeys: ['quant-demo-risk-profile']
-  });
+  const [riskProfileKey, setRiskProfileKey] = useLocalStorage(
+    'nova-quant-risk-profile',
+    'balanced',
+    {
+      legacyKeys: ['quant-demo-risk-profile'],
+    },
+  );
   const [uiMode, setUiMode] = useLocalStorage('nova-quant-ui-mode', 'standard', {
-    legacyKeys: ['quant-demo-ui-mode']
+    legacyKeys: ['quant-demo-ui-mode'],
   });
   const [userProfile, setUserProfile] = useLocalStorage('nova-quant-user-profile', {
     email: '',
     name: '',
     tradeMode: 'starter',
-    broker: 'Robinhood'
+    broker: 'Robinhood',
   });
   const [authSession, setAuthSession] = useLocalStorage('nova-quant-auth-session', null);
   const [onboardingDone, setOnboardingDone] = useLocalStorage('nova-quant-onboarding-done', false, {
-    legacyKeys: ['quant-demo-onboarding-done']
+    legacyKeys: ['quant-demo-onboarding-done'],
   });
   const [showOnboarding, setShowOnboarding] = useState(!authSession);
   const [lang, setLang] = useLocalStorage('nova-quant-lang', getDefaultLang(), {
-    legacyKeys: ['quant-demo-lang']
+    legacyKeys: ['quant-demo-lang'],
   });
-  const [investorDemoEnabled, setInvestorDemoEnabled] = useLocalStorage('nova-quant-investor-demo-enabled', false);
+  const [investorDemoEnabled, setInvestorDemoEnabled] = useLocalStorage(
+    'nova-quant-investor-demo-enabled',
+    false,
+  );
   const [investorDemoHoldingsBackup, setInvestorDemoHoldingsBackup] = useLocalStorage(
     'nova-quant-investor-demo-holdings-backup',
-    null
+    null,
   );
   const [investorDemoUiBackup, setInvestorDemoUiBackup] = useLocalStorage(
     'nova-quant-investor-demo-ui-backup',
-    null
+    null,
   );
   const [chatUserId] = useLocalStorage(
     'nova-quant-chat-user-id',
     `guest-${Math.random().toString(36).slice(2, 10)}`,
-    { legacyKeys: ['quant-demo-chat-user-id'] }
+    { legacyKeys: ['quant-demo-chat-user-id'] },
   );
   const [disciplineLog, setDisciplineLog] = useLocalStorage(
     'nova-quant-discipline-log',
     {
       checkins: [],
       boundary_kept: [],
-      weekly_reviews: []
+      weekly_reviews: [],
     },
-    { legacyKeys: ['quant-demo-discipline-log'] }
+    { legacyKeys: ['quant-demo-discipline-log'] },
   );
   const [aiSeedRequest, setAiSeedRequest] = useState(null);
   const [engagementState, setEngagementState] = useState(null);
@@ -432,7 +504,7 @@ export default function App() {
 
   const investorDemoEnvironment = useMemo(
     () => (investorDemoEnabled ? buildInvestorDemoEnvironment(assetClass) : null),
-    [investorDemoEnabled, assetClass]
+    [investorDemoEnabled, assetClass],
   );
   const isDemoRuntime = getIsDemoRuntime(investorDemoEnabled);
   const lastProfileSyncRef = useRef('');
@@ -453,11 +525,11 @@ export default function App() {
         ...(investorDemoEnvironment?.evidence || {}),
         top_signals: investorDemoEnvironment?.evidence?.top_signals || [],
         source_status: investorDemoEnvironment?.evidence?.source_status || 'DEMO_ONLY',
-        data_status: investorDemoEnvironment?.evidence?.data_status || 'DEMO_ONLY'
+        data_status: investorDemoEnvironment?.evidence?.data_status || 'DEMO_ONLY',
       },
       performance: {
         ...data.performance,
-        investor_demo: INVESTOR_DEMO_PERFORMANCE
+        investor_demo: INVESTOR_DEMO_PERFORMANCE,
       },
       decision: investorDemoEnvironment?.decision || data.decision,
       today: investorDemoEnvironment?.today || data.today,
@@ -468,9 +540,9 @@ export default function App() {
         ...(investorDemoEnvironment?.config || {}),
         runtime: {
           ...(data.config?.runtime || {}),
-          ...(investorDemoEnvironment?.config?.runtime || {})
-        }
-      }
+          ...(investorDemoEnvironment?.config?.runtime || {}),
+        },
+      },
     };
   }, [investorDemoEnabled, investorDemoEnvironment, data]);
 
@@ -478,9 +550,12 @@ export default function App() {
     () =>
       deriveConnectedHoldings({
         brokerSnapshot: uiData?.config?.runtime?.connectivity?.broker || null,
-        exchangeSnapshot: uiData?.config?.runtime?.connectivity?.exchange || null
+        exchangeSnapshot: uiData?.config?.runtime?.connectivity?.exchange || null,
       }),
-    [uiData?.config?.runtime?.connectivity?.broker, uiData?.config?.runtime?.connectivity?.exchange]
+    [
+      uiData?.config?.runtime?.connectivity?.broker,
+      uiData?.config?.runtime?.connectivity?.exchange,
+    ],
   );
 
   const holdingsSource = useMemo(() => {
@@ -489,21 +564,27 @@ export default function App() {
       manualHoldings: holdings,
       connectedHoldings,
       brokerSnapshot: uiData?.config?.runtime?.connectivity?.broker || null,
-      exchangeSnapshot: uiData?.config?.runtime?.connectivity?.exchange || null
+      exchangeSnapshot: uiData?.config?.runtime?.connectivity?.exchange || null,
     });
-  }, [connectedHoldings, holdings, investorDemoEnabled, uiData?.config?.runtime?.connectivity?.broker, uiData?.config?.runtime?.connectivity?.exchange]);
+  }, [
+    connectedHoldings,
+    holdings,
+    investorDemoEnabled,
+    uiData?.config?.runtime?.connectivity?.broker,
+    uiData?.config?.runtime?.connectivity?.exchange,
+  ]);
 
   const effectiveHoldings = useMemo(() => {
     if (investorDemoEnabled) return holdings;
     return mergeHoldingsSources({
       manualHoldings: holdings,
-      connectedHoldings
+      connectedHoldings,
     });
   }, [connectedHoldings, holdings, investorDemoEnabled]);
 
   const holdingsReview = useMemo(
     () => buildHoldingsReview({ holdings: effectiveHoldings, state: uiData }),
-    [effectiveHoldings, uiData]
+    [effectiveHoldings, uiData],
   );
 
   const aiState = useMemo(
@@ -514,10 +595,10 @@ export default function App() {
         user_id: effectiveUserId,
         ui_mode: uiMode,
         holdings: effectiveHoldings,
-        holdings_review: holdingsReview
-      }
+        holdings_review: holdingsReview,
+      },
     }),
-    [uiData, decisionSnapshot, effectiveUserId, uiMode, effectiveHoldings, holdingsReview]
+    [uiData, decisionSnapshot, effectiveUserId, uiMode, effectiveHoldings, holdingsReview],
   );
 
   const enableInvestorDemo = () => {
@@ -527,7 +608,7 @@ export default function App() {
         assetClass,
         market,
         watchlist: Array.isArray(watchlist) ? watchlist : [],
-        executions: Array.isArray(executions) ? executions : []
+        executions: Array.isArray(executions) ? executions : [],
       });
     }
     setHoldings(INVESTOR_DEMO_HOLDINGS);
@@ -546,13 +627,13 @@ export default function App() {
       const tradeModeMap = {
         starter: 'beginner',
         active: 'standard',
-        deep: 'advanced'
+        deep: 'advanced',
       };
       setUserProfile({
         email: account.email,
         name: account.name,
         tradeMode: account.tradeMode,
-        broker: account.broker
+        broker: account.broker,
       });
       setAuthSession({
         userId: account.userId,
@@ -560,14 +641,20 @@ export default function App() {
         name: account.name,
         tradeMode: account.tradeMode,
         broker: account.broker,
-        loggedInAt: new Date().toISOString()
+        loggedInAt: new Date().toISOString(),
       });
       setUiMode(syncedState?.uiMode || tradeModeMap[account.tradeMode] || 'standard');
       setRiskProfileKey(
         syncedState?.riskProfileKey ||
-          (account.tradeMode === 'deep' ? 'aggressive' : account.tradeMode === 'starter' ? 'conservative' : 'balanced')
+          (account.tradeMode === 'deep'
+            ? 'aggressive'
+            : account.tradeMode === 'starter'
+              ? 'conservative'
+              : 'balanced'),
       );
-      setWatchlist(Array.isArray(syncedState?.watchlist) ? syncedState.watchlist : DEFAULT_AUTH_WATCHLIST);
+      setWatchlist(
+        Array.isArray(syncedState?.watchlist) ? syncedState.watchlist : DEFAULT_AUTH_WATCHLIST,
+      );
       setHoldings(Array.isArray(syncedState?.holdings) ? syncedState.holdings : []);
       setExecutions(Array.isArray(syncedState?.executions) ? syncedState.executions : []);
       if (syncedState?.disciplineLog) setDisciplineLog(syncedState.disciplineLog);
@@ -594,8 +681,8 @@ export default function App() {
       setShowOnboarding,
       setUiMode,
       setUserProfile,
-      setWatchlist
-    ]
+      setWatchlist,
+    ],
   );
 
   useEffect(() => {
@@ -605,7 +692,9 @@ export default function App() {
       .then((payload) => {
         if (cancelled) return;
         if (payload?.authenticated && payload?.user) {
-          applyAuthenticatedProfile(payload.user, payload.state || null, { resetNavigation: false });
+          applyAuthenticatedProfile(payload.user, payload.state || null, {
+            resetNavigation: false,
+          });
           return;
         }
         setAuthSession(null);
@@ -639,13 +728,13 @@ export default function App() {
               balance: 0,
               expiringSoon: 0,
               vipDays: 0,
-              vipDaysRedeemed: 0
+              vipDaysRedeemed: 0,
             },
             referrals: {
               inviteCode: null,
               referredByCode: null,
               total: 0,
-              rewarded: 0
+              rewarded: 0,
             },
             ledger: [],
             rewards: [
@@ -655,10 +744,10 @@ export default function App() {
                 title: 'Redeem 1 VIP day',
                 description: '1000 points unlocks one more VIP day.',
                 costPoints: 1000,
-                enabled: false
-              }
+                enabled: false,
+              },
             ],
-            predictions: []
+            predictions: [],
           });
         }
       });
@@ -678,7 +767,7 @@ export default function App() {
       watchlist,
       holdings,
       executions,
-      disciplineLog
+      disciplineLog,
     };
     const serialized = JSON.stringify(payload);
     if (lastProfileSyncRef.current === serialized) return undefined;
@@ -688,7 +777,7 @@ export default function App() {
       void fetchJson('/api/auth/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: serialized
+        body: serialized,
       }).catch(() => {
         lastProfileSyncRef.current = '';
       });
@@ -705,7 +794,7 @@ export default function App() {
     market,
     riskProfileKey,
     uiMode,
-    watchlist
+    watchlist,
   ]);
 
   const clearInvestorDemo = () => {
@@ -714,8 +803,10 @@ export default function App() {
     setHoldings(restore);
     if (investorDemoUiBackup?.assetClass) setAssetClass(investorDemoUiBackup.assetClass);
     if (investorDemoUiBackup?.market) setMarket(investorDemoUiBackup.market);
-    if (Array.isArray(investorDemoUiBackup?.watchlist)) setWatchlist(investorDemoUiBackup.watchlist);
-    if (Array.isArray(investorDemoUiBackup?.executions)) setExecutions(investorDemoUiBackup.executions);
+    if (Array.isArray(investorDemoUiBackup?.watchlist))
+      setWatchlist(investorDemoUiBackup.watchlist);
+    if (Array.isArray(investorDemoUiBackup?.executions))
+      setExecutions(investorDemoUiBackup.executions);
     setInvestorDemoHoldingsBackup(null);
     setInvestorDemoUiBackup(null);
   };
@@ -751,7 +842,7 @@ export default function App() {
         const query = new URLSearchParams({
           userId: effectiveUserId,
           market,
-          assetClass
+          assetClass,
         });
 
         const [
@@ -765,7 +856,7 @@ export default function App() {
           riskProfileResult,
           controlPlaneResult,
           brokerConnectionResult,
-          exchangeConnectionResult
+          exchangeConnectionResult,
         ] = await Promise.allSettled([
           fetchJson(`/api/runtime-state?${query.toString()}`),
           fetchJson(`/api/assets?market=${market}`),
@@ -776,8 +867,12 @@ export default function App() {
           fetchJson(`/api/market/modules?${query.toString()}`),
           fetchJson(`/api/risk-profile?userId=${effectiveUserId}`),
           fetchJson(`/api/control-plane/status?userId=${effectiveUserId}`).catch(() => null),
-          authSession ? fetchJson(`/api/connect/broker?userId=${effectiveUserId}&provider=ALPACA`) : Promise.resolve(null),
-          authSession ? fetchJson(`/api/connect/exchange?userId=${effectiveUserId}&provider=BINANCE`) : Promise.resolve(null)
+          authSession
+            ? fetchJson(`/api/connect/broker?userId=${effectiveUserId}&provider=ALPACA`)
+            : Promise.resolve(null),
+          authSession
+            ? fetchJson(`/api/connect/exchange?userId=${effectiveUserId}&provider=BINANCE`)
+            : Promise.resolve(null),
         ]);
 
         if (!mounted) return;
@@ -800,7 +895,7 @@ export default function App() {
           asof: evidenceTopSignals?.asof || null,
           supporting_run_id: evidenceTopSignals?.supporting_run_id || null,
           dataset_version_id: evidenceTopSignals?.dataset_version_id || null,
-          strategy_version_id: evidenceTopSignals?.strategy_version_id || null
+          strategy_version_id: evidenceTopSignals?.strategy_version_id || null,
         };
         const apiSignals = Array.isArray(signals?.data) ? signals.data : null;
         const nextData = {
@@ -808,15 +903,22 @@ export default function App() {
           decision: runtimeData.decision || null,
           signals: apiSignals?.length ? apiSignals : runtimeData.signals || [],
           evidence: evidenceData,
-          market_modules: Array.isArray(modules?.data) ? modules.data : runtimeData.market_modules || [],
+          market_modules: Array.isArray(modules?.data)
+            ? modules.data
+            : runtimeData.market_modules || [],
           performance: performance || runtimeData.performance || initialData.performance,
           control_plane: controlPlane || runtimeData.control_plane || null,
           config: {
             ...(runtimeData.config || {}),
             last_updated:
-              runtime?.data_transparency?.as_of || runtime?.asof || runtimeData.config?.last_updated || new Date().toISOString(),
-            source_label: runtimeData.config?.source_label || runtime?.source_status || 'INSUFFICIENT_DATA',
-            data_status: runtimeData.config?.data_status || runtime?.data_status || 'INSUFFICIENT_DATA',
+              runtime?.data_transparency?.as_of ||
+              runtime?.asof ||
+              runtimeData.config?.last_updated ||
+              new Date().toISOString(),
+            source_label:
+              runtimeData.config?.source_label || runtime?.source_status || 'INSUFFICIENT_DATA',
+            data_status:
+              runtimeData.config?.data_status || runtime?.data_status || 'INSUFFICIENT_DATA',
             runtime: {
               ...(runtimeData.config?.runtime || {}),
               source_status: runtime?.source_status || 'INSUFFICIENT_DATA',
@@ -827,27 +929,39 @@ export default function App() {
                 signal_count: signals?.count ?? null,
                 market_state_count: marketState?.count ?? null,
                 modules_count: modules?.count ?? null,
-                performance_records: performance?.records?.length ?? null
+                performance_records: performance?.records?.length ?? null,
               },
               connectivity: {
                 broker: brokerConnection?.snapshot || null,
-                exchange: exchangeConnection?.snapshot || null
+                exchange: exchangeConnection?.snapshot || null,
               },
-              control_plane: controlPlane || null
+              control_plane: controlPlane || null,
             },
             risk_rules: {
               ...(runtimeData.config?.risk_rules || {}),
-              per_trade_risk_pct: riskProfile?.data?.max_loss_per_trade ?? runtimeData.config?.risk_rules?.per_trade_risk_pct ?? null,
-              daily_loss_pct: riskProfile?.data?.max_daily_loss ?? runtimeData.config?.risk_rules?.daily_loss_pct ?? null,
-              max_dd_pct: riskProfile?.data?.max_drawdown ?? runtimeData.config?.risk_rules?.max_dd_pct ?? null,
-              exposure_cap_pct: riskProfile?.data?.exposure_cap ?? runtimeData.config?.risk_rules?.exposure_cap_pct ?? null
-            }
-          }
+              per_trade_risk_pct:
+                riskProfile?.data?.max_loss_per_trade ??
+                runtimeData.config?.risk_rules?.per_trade_risk_pct ??
+                null,
+              daily_loss_pct:
+                riskProfile?.data?.max_daily_loss ??
+                runtimeData.config?.risk_rules?.daily_loss_pct ??
+                null,
+              max_dd_pct:
+                riskProfile?.data?.max_drawdown ??
+                runtimeData.config?.risk_rules?.max_dd_pct ??
+                null,
+              exposure_cap_pct:
+                riskProfile?.data?.exposure_cap ??
+                runtimeData.config?.risk_rules?.exposure_cap_pct ??
+                null,
+            },
+          },
         };
         setData(nextData);
         setRawData({
           as_of: runtime?.asof || new Date().toISOString(),
-          source_status: runtime?.source_status || 'INSUFFICIENT_DATA'
+          source_status: runtime?.source_status || 'INSUFFICIENT_DATA',
         });
         setHasLoaded(true);
       } catch {
@@ -909,9 +1023,9 @@ export default function App() {
     const modeled = runQuantPipeline({
       ...rawData,
       config: {
-        risk_profile: riskProfileKey
+        risk_profile: riskProfileKey,
       },
-      trades: executionTrades
+      trades: executionTrades,
     });
     setData(modeled);
   }, [rawData, executions, riskProfileKey]);
@@ -928,8 +1042,8 @@ export default function App() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         userId: effectiveUserId,
-        profileKey: riskProfileKey
-      })
+        profileKey: riskProfileKey,
+      }),
     })
       .then(() => setRefreshNonce((current) => current + 1))
       .catch(() => {});
@@ -955,8 +1069,8 @@ export default function App() {
           localDate: todayKey,
           localHour: now.getHours(),
           locale: lang,
-          holdings: effectiveHoldings
-        })
+          holdings: effectiveHoldings,
+        }),
       });
       setEngagementState(payload || null);
       return payload || null;
@@ -964,7 +1078,17 @@ export default function App() {
       setEngagementState(null);
       return null;
     }
-  }, [assetClass, effectiveUserId, hasLoaded, effectiveHoldings, isDemoRuntime, lang, market, now, todayKey]);
+  }, [
+    assetClass,
+    effectiveUserId,
+    hasLoaded,
+    effectiveHoldings,
+    isDemoRuntime,
+    lang,
+    market,
+    now,
+    todayKey,
+  ]);
 
   useEffect(() => {
     if (isDemoRuntime) return;
@@ -978,8 +1102,8 @@ export default function App() {
         market,
         assetClass,
         locale: lang,
-        holdings: effectiveHoldings
-      })
+        holdings: effectiveHoldings,
+      }),
     })
       .then((payload) => {
         if (!cancelled) setDecisionSnapshot(payload || null);
@@ -993,7 +1117,15 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [isDemoRuntime, effectiveUserId, market, assetClass, effectiveHoldings, lang, uiData.decision]);
+  }, [
+    isDemoRuntime,
+    effectiveUserId,
+    market,
+    assetClass,
+    effectiveHoldings,
+    lang,
+    uiData.decision,
+  ]);
 
   useEffect(() => {
     if (!decisionSnapshot || isDemoRuntime || !hasLoaded) return;
@@ -1001,7 +1133,12 @@ export default function App() {
   }, [decisionSnapshot?.audit_snapshot_id, isDemoRuntime, hasLoaded, loadEngagementState]);
 
   const lastUpdated = useMemo(() => {
-    return uiData.config.last_updated || uiData.performance.last_updated || uiData.velocity.last_updated || null;
+    return (
+      uiData.config.last_updated ||
+      uiData.performance.last_updated ||
+      uiData.velocity.last_updated ||
+      null
+    );
   }, [uiData]);
 
   const modelVersion = useMemo(() => {
@@ -1021,7 +1158,7 @@ export default function App() {
       reviewedThisWeek: weekly.includes(currentWeekKey),
       checkinStreak: calcStreak(checkins, todayKey, 1),
       boundaryStreak: calcStreak(boundary, todayKey, 1),
-      weeklyStreak: calcStreak(weekly, currentWeekKey, 7)
+      weeklyStreak: calcStreak(weekly, currentWeekKey, 7),
     };
   }, [disciplineLog, todayKey, currentWeekKey]);
 
@@ -1040,21 +1177,23 @@ export default function App() {
       disciplineScore: Number(habit.discipline_score || 0),
       behaviorQuality: habit.behavior_quality || null,
       summary: habit.summary || null,
-      noActionValueLine: habit.no_action_value_line || null
+      noActionValueLine: habit.no_action_value_line || null,
     };
   }, [engagementState, localDiscipline]);
 
   const syncLocalDisciplineLog = useCallback(
     (updater) => {
-      setDisciplineLog((current) => updater(current || { checkins: [], boundary_kept: [], weekly_reviews: [] }));
+      setDisciplineLog((current) =>
+        updater(current || { checkins: [], boundary_kept: [], weekly_reviews: [] }),
+      );
     },
-    [setDisciplineLog]
+    [setDisciplineLog],
   );
 
   const markDailyCheckin = useCallback(async () => {
     syncLocalDisciplineLog((current) => ({
       ...current,
-      checkins: addUniqueKey(current?.checkins || [], todayKey)
+      checkins: addUniqueKey(current?.checkins || [], todayKey),
     }));
     if (isDemoRuntime) return;
     try {
@@ -1068,19 +1207,30 @@ export default function App() {
           localDate: todayKey,
           localHour: now.getHours(),
           locale: lang,
-          holdings: effectiveHoldings
-        })
+          holdings: effectiveHoldings,
+        }),
       });
       setEngagementState(payload || null);
     } catch {
       void loadEngagementState();
     }
-  }, [assetClass, effectiveUserId, effectiveHoldings, isDemoRuntime, lang, loadEngagementState, market, now, syncLocalDisciplineLog, todayKey]);
+  }, [
+    assetClass,
+    effectiveUserId,
+    effectiveHoldings,
+    isDemoRuntime,
+    lang,
+    loadEngagementState,
+    market,
+    now,
+    syncLocalDisciplineLog,
+    todayKey,
+  ]);
 
   const markBoundaryKept = useCallback(async () => {
     syncLocalDisciplineLog((current) => ({
       ...current,
-      boundary_kept: addUniqueKey(current?.boundary_kept || [], todayKey)
+      boundary_kept: addUniqueKey(current?.boundary_kept || [], todayKey),
     }));
     if (isDemoRuntime) return;
     try {
@@ -1094,14 +1244,25 @@ export default function App() {
           localDate: todayKey,
           localHour: now.getHours(),
           locale: lang,
-          holdings: effectiveHoldings
-        })
+          holdings: effectiveHoldings,
+        }),
       });
       setEngagementState(payload || null);
     } catch {
       void loadEngagementState();
     }
-  }, [assetClass, effectiveUserId, effectiveHoldings, isDemoRuntime, lang, loadEngagementState, market, now, syncLocalDisciplineLog, todayKey]);
+  }, [
+    assetClass,
+    effectiveUserId,
+    effectiveHoldings,
+    isDemoRuntime,
+    lang,
+    loadEngagementState,
+    market,
+    now,
+    syncLocalDisciplineLog,
+    todayKey,
+  ]);
 
   const markWrapUpComplete = useCallback(async () => {
     if (isDemoRuntime) return;
@@ -1116,19 +1277,29 @@ export default function App() {
           localDate: todayKey,
           localHour: now.getHours(),
           locale: lang,
-          holdings: effectiveHoldings
-        })
+          holdings: effectiveHoldings,
+        }),
       });
       setEngagementState(payload || null);
     } catch {
       void loadEngagementState();
     }
-  }, [assetClass, effectiveUserId, effectiveHoldings, isDemoRuntime, lang, loadEngagementState, market, now, todayKey]);
+  }, [
+    assetClass,
+    effectiveUserId,
+    effectiveHoldings,
+    isDemoRuntime,
+    lang,
+    loadEngagementState,
+    market,
+    now,
+    todayKey,
+  ]);
 
   const markWeeklyReviewed = useCallback(async () => {
     syncLocalDisciplineLog((current) => ({
       ...current,
-      weekly_reviews: addUniqueKey(current?.weekly_reviews || [], currentWeekKey)
+      weekly_reviews: addUniqueKey(current?.weekly_reviews || [], currentWeekKey),
     }));
     if (isDemoRuntime) return;
     try {
@@ -1142,14 +1313,26 @@ export default function App() {
           localDate: todayKey,
           localHour: now.getHours(),
           locale: lang,
-          holdings: effectiveHoldings
-        })
+          holdings: effectiveHoldings,
+        }),
       });
       setEngagementState(payload || null);
     } catch {
       void loadEngagementState();
     }
-  }, [assetClass, effectiveUserId, currentWeekKey, effectiveHoldings, isDemoRuntime, lang, loadEngagementState, market, now, syncLocalDisciplineLog, todayKey]);
+  }, [
+    assetClass,
+    effectiveUserId,
+    currentWeekKey,
+    effectiveHoldings,
+    isDemoRuntime,
+    lang,
+    loadEngagementState,
+    market,
+    now,
+    syncLocalDisciplineLog,
+    todayKey,
+  ]);
 
   const askAi = (message, context = {}) => {
     const text = String(message || '').trim();
@@ -1165,13 +1348,31 @@ export default function App() {
         riskProfileKey,
         uiMode,
         decisionSummary: {
-          today_call: decisionSnapshot?.summary?.today_call?.headline || decisionSnapshot?.summary?.today_call || null,
-          risk_posture: decisionSnapshot?.summary?.risk_posture || decisionSnapshot?.risk_state?.posture || null,
+          today_call:
+            decisionSnapshot?.summary?.today_call?.headline ||
+            decisionSnapshot?.summary?.today_call ||
+            null,
+          risk_posture:
+            decisionSnapshot?.summary?.risk_posture ||
+            decisionSnapshot?.risk_state?.posture ||
+            null,
           top_action_id: decisionSnapshot?.top_action_id || null,
-          top_action_symbol: decisionSnapshot?.summary?.top_action_symbol || decisionSnapshot?.ranked_action_cards?.[0]?.symbol || null,
-          top_action_label: decisionSnapshot?.summary?.top_action_label || decisionSnapshot?.ranked_action_cards?.[0]?.action_label || null,
-          source_status: decisionSnapshot?.source_status || uiData?.config?.runtime?.source_status || 'INSUFFICIENT_DATA',
-          data_status: decisionSnapshot?.data_status || uiData?.config?.runtime?.data_status || 'INSUFFICIENT_DATA'
+          top_action_symbol:
+            decisionSnapshot?.summary?.top_action_symbol ||
+            decisionSnapshot?.ranked_action_cards?.[0]?.symbol ||
+            null,
+          top_action_label:
+            decisionSnapshot?.summary?.top_action_label ||
+            decisionSnapshot?.ranked_action_cards?.[0]?.action_label ||
+            null,
+          source_status:
+            decisionSnapshot?.source_status ||
+            uiData?.config?.runtime?.source_status ||
+            'INSUFFICIENT_DATA',
+          data_status:
+            decisionSnapshot?.data_status ||
+            uiData?.config?.runtime?.data_status ||
+            'INSUFFICIENT_DATA',
         },
         holdingsSummary: {
           holdings_count: holdingsReview?.totals?.holdings_count ?? 0,
@@ -1180,28 +1381,38 @@ export default function App() {
           unsupported_weight_pct: holdingsReview?.system_alignment?.unsupported_weight_pct ?? 0,
           top1_pct: holdingsReview?.concentration?.top1_pct ?? 0,
           risk_level: holdingsReview?.risk?.level || null,
-          recommendation: holdingsReview?.risk?.recommendation || holdingsReview?.key_advice || null
+          recommendation:
+            holdingsReview?.risk?.recommendation || holdingsReview?.key_advice || null,
         },
         engagementSummary: {
           locale: lang,
           morning_check_status: engagementState?.daily_check_state?.status || null,
           morning_check_label: engagementState?.daily_check_state?.headline || null,
-          morning_check_arrival: engagementState?.daily_check_state?.arrival_line || engagementState?.ui_regime_state?.arrival_line || null,
-          morning_check_ritual: engagementState?.daily_check_state?.ritual_line || engagementState?.ui_regime_state?.ritual_line || null,
+          morning_check_arrival:
+            engagementState?.daily_check_state?.arrival_line ||
+            engagementState?.ui_regime_state?.arrival_line ||
+            null,
+          morning_check_ritual:
+            engagementState?.daily_check_state?.ritual_line ||
+            engagementState?.ui_regime_state?.ritual_line ||
+            null,
           perception_status: engagementState?.perception_layer?.status || null,
           perception_headline: engagementState?.perception_layer?.headline || null,
           perception_focus: engagementState?.perception_layer?.focus_line || null,
           perception_confirmation: engagementState?.perception_layer?.confirmation_line || null,
           wrap_up_ready: Boolean(engagementState?.daily_wrap_up?.ready),
           wrap_up_completed: Boolean(engagementState?.daily_wrap_up?.completed),
-          wrap_up_line: engagementState?.daily_wrap_up?.opening_line || engagementState?.ui_regime_state?.wrap_line || null,
+          wrap_up_line:
+            engagementState?.daily_wrap_up?.opening_line ||
+            engagementState?.ui_regime_state?.wrap_line ||
+            null,
           discipline_score: Number(engagementState?.habit_state?.discipline_score || 0) || null,
           behavior_quality: engagementState?.habit_state?.behavior_quality || null,
           recommendation_change: engagementState?.recommendation_change?.summary || null,
-          ui_tone: engagementState?.ui_regime_state?.tone || null
+          ui_tone: engagementState?.ui_regime_state?.tone || null,
         },
-        ...(context || {})
-      }
+        ...(context || {}),
+      },
     });
     setActiveTab('ai');
   };
@@ -1240,7 +1451,7 @@ export default function App() {
       entry: (signal.entry_zone?.low + signal.entry_zone?.high) / 2 || signal.entry_min,
       entry_price: (signal.entry_zone?.low + signal.entry_zone?.high) / 2 || signal.entry_min,
       tp_price: signal.take_profit_levels?.[0]?.price ?? signal.take_profit,
-      pnl_pct: action === 'DONE' ? Number(signal.quick_pnl_pct ?? 0.6) : 0
+      pnl_pct: action === 'DONE' ? Number(signal.quick_pnl_pct ?? 0.6) : 0,
     };
     if (isDemoRuntime) {
       setExecutions((current) => [payload, ...current].slice(0, 200));
@@ -1255,8 +1466,8 @@ export default function App() {
           signalId: signal.signal_id,
           mode,
           action,
-          note: 'Recorded from Today quick action'
-        })
+          note: 'Recorded from Today quick action',
+        }),
       });
       setRefreshNonce((current) => current + 1);
     } catch {
@@ -1269,7 +1480,9 @@ export default function App() {
       setManualState(DEMO_MANUAL_STATE);
       return DEMO_MANUAL_STATE;
     }
-    const payload = await fetchJson(`/api/manual/state?userId=${encodeURIComponent(effectiveUserId)}`);
+    const payload = await fetchJson(
+      `/api/manual/state?userId=${encodeURIComponent(effectiveUserId)}`,
+    );
     setManualState(payload || null);
     return payload || null;
   }, [effectiveUserId, isDemoRuntime]);
@@ -1285,8 +1498,8 @@ export default function App() {
               ...base.summary,
               balance: Math.max(0, Number(base.summary.balance || 0) - days * 1000),
               vipDays: Number(base.summary.vipDays || 0) + days,
-              vipDaysRedeemed: Number(base.summary.vipDaysRedeemed || 0) + days
-            }
+              vipDaysRedeemed: Number(base.summary.vipDaysRedeemed || 0) + days,
+            },
           };
         });
         return;
@@ -1297,8 +1510,8 @@ export default function App() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             userId: effectiveUserId,
-            days
-          })
+            days,
+          }),
         });
         if (payload?.data) setManualState(payload.data);
         else await refreshManualState();
@@ -1306,7 +1519,7 @@ export default function App() {
         await refreshManualState().catch(() => {});
       }
     },
-    [effectiveUserId, isDemoRuntime, refreshManualState]
+    [effectiveUserId, isDemoRuntime, refreshManualState],
   );
 
   const buildMyStack = useCallback((section) => {
@@ -1326,7 +1539,7 @@ export default function App() {
       setMyStack(buildMyStack(section));
       setActiveTab('my');
     },
-    [buildMyStack]
+    [buildMyStack],
   );
 
   const pushMySection = useCallback((section) => {
@@ -1355,7 +1568,9 @@ export default function App() {
       topIssues.push('当前运行时并非完整 DB_BACKED，部分对象会降级为 unavailable。');
     }
     if ((runtime?.freshness_summary?.stale_count || 0) > 0) {
-      topIssues.push(`发现 ${runtime?.freshness_summary?.stale_count} 个资产存在 stale/insufficient 状态。`);
+      topIssues.push(
+        `发现 ${runtime?.freshness_summary?.stale_count} 个资产存在 stale/insufficient 状态。`,
+      );
     }
     if ((coverage?.assets_with_bars || 0) === 0) {
       topIssues.push('尚未检测到可用 bars，请先执行 backfill + derive:runtime。');
@@ -1363,7 +1578,10 @@ export default function App() {
     if (controlPlane?.search?.status === 'UNAVAILABLE') {
       topIssues.push('搜索资产库未就绪，Browse 搜索会表现为空。');
     }
-    if (Array.isArray(controlPlane?.runtime) && controlPlane.runtime.every((row) => Number(row?.active_signal_count || 0) === 0)) {
+    if (
+      Array.isArray(controlPlane?.runtime) &&
+      controlPlane.runtime.every((row) => Number(row?.active_signal_count || 0) === 0)
+    ) {
       topIssues.push('两个市场当前都没有 active signals，所以 Today 会退回等待态。');
     }
 
@@ -1371,7 +1589,9 @@ export default function App() {
       <section className="stack-gap">
         <article className="glass-card">
           <h3 className="card-title">Data Status</h3>
-          <p className="muted status-line">Overall: {runtime?.source_status || data?.data_status || '--'}</p>
+          <p className="muted status-line">
+            Overall: {runtime?.source_status || data?.data_status || '--'}
+          </p>
           <div className="status-grid-3">
             <div className="status-box">
               <p className="muted">Assets Checked</p>
@@ -1387,9 +1607,11 @@ export default function App() {
             </div>
           </div>
           <ul className="bullet-list">
-            {(topIssues.length ? topIssues : ['当前未发现阻断级数据问题。']).slice(0, 5).map((item) => (
-              <li key={item}>{item}</li>
-            ))}
+            {(topIssues.length ? topIssues : ['当前未发现阻断级数据问题。'])
+              .slice(0, 5)
+              .map((item) => (
+                <li key={item}>{item}</li>
+              ))}
           </ul>
         </article>
 
@@ -1402,18 +1624,23 @@ export default function App() {
                 <p className="muted">Search</p>
                 <h2>{controlPlane.search?.status || '--'}</h2>
                 <p className="muted status-line">
-                  {controlPlane.search?.live_asset_count ?? '--'} live / {controlPlane.search?.reference_asset_count ?? '--'} reference
+                  {controlPlane.search?.live_asset_count ?? '--'} live /{' '}
+                  {controlPlane.search?.reference_asset_count ?? '--'} reference
                 </p>
               </div>
               <div className="status-box">
                 <p className="muted">Strategy Factory</p>
                 <h2>{controlPlane.strategy_factory?.latest_status || '--'}</h2>
-                <p className="muted status-line">{controlPlane.strategy_factory?.latest_run_at || 'No run yet'}</p>
+                <p className="muted status-line">
+                  {controlPlane.strategy_factory?.latest_run_at || 'No run yet'}
+                </p>
               </div>
               <div className="status-box">
                 <p className="muted">Delivery</p>
                 <h2>{controlPlane.delivery?.active_notification_count ?? '--'}</h2>
-                <p className="muted status-line">{controlPlane.delivery?.latest_notification_at || 'No delivery yet'}</p>
+                <p className="muted status-line">
+                  {controlPlane.delivery?.latest_notification_at || 'No delivery yet'}
+                </p>
               </div>
             </div>
             <div className="table-wrap" style={{ marginTop: 12 }}>
@@ -1432,7 +1659,9 @@ export default function App() {
                     <tr key={row.market}>
                       <td>{row.market}</td>
                       <td>{row.source_status}</td>
-                      <td>{row.active_signal_count}/{row.signal_count}</td>
+                      <td>
+                        {row.active_signal_count}/{row.signal_count}
+                      </td>
                       <td>{row.decision_code}</td>
                       <td>{row.top_action_symbol || '--'}</td>
                     </tr>
@@ -1481,7 +1710,9 @@ export default function App() {
     const latestDataRun = flywheel?.free_data?.recent_runs?.[0] || null;
     const latestEvolutionRun = flywheel?.evolution?.recent_runs?.[0] || null;
     const latestTrainingRun = flywheel?.training?.recent_runs?.[0] || null;
-    const recentNews = Array.isArray(flywheel?.free_data?.recent_news) ? flywheel.free_data.recent_news : [];
+    const recentNews = Array.isArray(flywheel?.free_data?.recent_news)
+      ? flywheel.free_data.recent_news
+      : [];
     const recentActivity = Array.isArray(flywheel?.recent_activity) ? flywheel.recent_activity : [];
     const currentDatasetCount = Number(flywheel?.training?.current_dataset_count || 0);
     const minimumTrainingRows = Number(flywheel?.training?.minimum_training_rows || 0);
@@ -1493,7 +1724,9 @@ export default function App() {
           <article className="glass-card">
             <h3 className="card-title">Learning Loop</h3>
             <p className="muted status-line">
-              {isZh ? '学习飞轮状态暂时不可用，请先让后端完成一轮 control-plane 刷新。' : 'Learning loop status is not available yet.'}
+              {isZh
+                ? '学习飞轮状态暂时不可用，请先让后端完成一轮 control-plane 刷新。'
+                : 'Learning loop status is not available yet.'}
             </p>
           </article>
         </section>
@@ -1507,11 +1740,20 @@ export default function App() {
             <div>
               <h3 className="card-title">Learning Loop</h3>
               <p className="muted status-line">
-                {isZh ? '最近活跃时间' : 'Last activity'}: {formatDateTime(flywheel.last_activity_at, locale)}
+                {isZh ? '最近活跃时间' : 'Last activity'}:{' '}
+                {formatDateTime(flywheel.last_activity_at, locale)}
               </p>
             </div>
-            <span className={`badge ${flywheel.training?.ready_for_training ? 'badge-triggered' : 'badge-neutral'}`}>
-              {flywheel.training?.ready_for_training ? (isZh ? '可训练' : 'Training Ready') : (isZh ? '积累中' : 'Accumulating')}
+            <span
+              className={`badge ${flywheel.training?.ready_for_training ? 'badge-triggered' : 'badge-neutral'}`}
+            >
+              {flywheel.training?.ready_for_training
+                ? isZh
+                  ? '可训练'
+                  : 'Training Ready'
+                : isZh
+                  ? '积累中'
+                  : 'Accumulating'}
             </span>
           </div>
 
@@ -1519,12 +1761,16 @@ export default function App() {
             <div className="status-box">
               <p className="muted">Free Data</p>
               <h2>{flywheel.free_data?.latest_status || '--'}</h2>
-              <p className="muted status-line">{formatDateTime(flywheel.free_data?.latest_run_at, locale)}</p>
+              <p className="muted status-line">
+                {formatDateTime(flywheel.free_data?.latest_run_at, locale)}
+              </p>
             </div>
             <div className="status-box">
               <p className="muted">Evolution</p>
               <h2>{flywheel.evolution?.latest_status || '--'}</h2>
-              <p className="muted status-line">{formatDateTime(flywheel.evolution?.latest_run_at, locale)}</p>
+              <p className="muted status-line">
+                {formatDateTime(flywheel.evolution?.latest_run_at, locale)}
+              </p>
             </div>
             <div className="status-box">
               <p className="muted">Training Samples</p>
@@ -1587,7 +1833,9 @@ export default function App() {
             <div>
               <h3 className="card-title">Recent Data Intake</h3>
               <p className="muted status-line">
-                {isZh ? '看最近抓到了哪些免费数据。' : 'See what the backend has pulled most recently.'}
+                {isZh
+                  ? '看最近抓到了哪些免费数据。'
+                  : 'See what the backend has pulled most recently.'}
               </p>
             </div>
             <span className="badge badge-neutral">{latestDataRun?.trigger_type || '--'}</span>
@@ -1603,16 +1851,28 @@ export default function App() {
             </div>
             <div className="status-box">
               <p className="muted">Funding Points</p>
-              <h2>{formatNumber(latestDataRun?.crypto_structure?.funding_points || 0, 0, locale)}</h2>
+              <h2>
+                {formatNumber(latestDataRun?.crypto_structure?.funding_points || 0, 0, locale)}
+              </h2>
               <p className="muted status-line">
-                {formatNumber(latestDataRun?.crypto_structure?.latest_funding_symbols || 0, 0, locale)} symbols
+                {formatNumber(
+                  latestDataRun?.crypto_structure?.latest_funding_symbols || 0,
+                  0,
+                  locale,
+                )}{' '}
+                symbols
               </p>
             </div>
             <div className="status-box">
               <p className="muted">Basis Points</p>
               <h2>{formatNumber(latestDataRun?.crypto_structure?.basis_points || 0, 0, locale)}</h2>
               <p className="muted status-line">
-                {formatNumber(latestDataRun?.crypto_structure?.latest_basis_symbols || 0, 0, locale)} symbols
+                {formatNumber(
+                  latestDataRun?.crypto_structure?.latest_basis_symbols || 0,
+                  0,
+                  locale,
+                )}{' '}
+                symbols
               </p>
             </div>
           </div>
@@ -1639,7 +1899,9 @@ export default function App() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="4">{isZh ? '暂时还没有最近抓取的新闻记录。' : 'No recent news rows yet.'}</td>
+                    <td colSpan="4">
+                      {isZh ? '暂时还没有最近抓取的新闻记录。' : 'No recent news rows yet.'}
+                    </td>
                   </tr>
                 )}
               </tbody>
@@ -1652,7 +1914,9 @@ export default function App() {
             <div>
               <h3 className="card-title">Recent Evolution</h3>
               <p className="muted status-line">
-                {isZh ? '看系统最近如何调整 champion / challenger。' : 'See how the system recently adjusted champions and challengers.'}
+                {isZh
+                  ? '看系统最近如何调整 champion / challenger。'
+                  : 'See how the system recently adjusted champions and challengers.'}
               </p>
             </div>
             <span className="badge badge-neutral">{latestEvolutionRun?.trigger_type || '--'}</span>
@@ -1680,7 +1944,9 @@ export default function App() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="4">{isZh ? '暂时没有最近演化记录。' : 'No recent evolution rows yet.'}</td>
+                    <td colSpan="4">
+                      {isZh ? '暂时没有最近演化记录。' : 'No recent evolution rows yet.'}
+                    </td>
                   </tr>
                 )}
               </tbody>
@@ -1693,10 +1959,14 @@ export default function App() {
             <div>
               <h3 className="card-title">Training Readiness</h3>
               <p className="muted status-line">
-                {isZh ? '这里会告诉你系统是不是已经真的开始训练。' : 'This tells you whether the system has started training for real.'}
+                {isZh
+                  ? '这里会告诉你系统是不是已经真的开始训练。'
+                  : 'This tells you whether the system has started training for real.'}
               </p>
             </div>
-            <span className={`badge ${flywheel.training?.ready_for_training ? 'badge-triggered' : 'badge-neutral'}`}>
+            <span
+              className={`badge ${flywheel.training?.ready_for_training ? 'badge-triggered' : 'badge-neutral'}`}
+            >
               {flywheel.training?.latest_status || '--'}
             </span>
           </div>
@@ -1705,17 +1975,23 @@ export default function App() {
             <div className="status-box">
               <p className="muted">Sample Count</p>
               <h2>{formatNumber(currentDatasetCount, 0, locale)}</h2>
-              <p className="muted status-line">{flywheel.training?.current_dataset_source || '--'}</p>
+              <p className="muted status-line">
+                {flywheel.training?.current_dataset_source || '--'}
+              </p>
             </div>
             <div className="status-box">
               <p className="muted">Execution</p>
               <h2>{flywheel.training?.latest_execution_success ? 'SUCCESS' : 'WAIT'}</h2>
-              <p className="muted status-line">{flywheel.training?.latest_execution_reason || '--'}</p>
+              <p className="muted status-line">
+                {flywheel.training?.latest_execution_reason || '--'}
+              </p>
             </div>
             <div className="status-box">
               <p className="muted">Task Types</p>
               <h2>{formatNumber(flywheel.training?.task_types?.length || 0, 0, locale)}</h2>
-              <p className="muted status-line">{formatDateTime(flywheel.training?.latest_run_at, locale)}</p>
+              <p className="muted status-line">
+                {formatDateTime(flywheel.training?.latest_run_at, locale)}
+              </p>
             </div>
           </div>
 
@@ -1743,7 +2019,9 @@ export default function App() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="5">{isZh ? '暂时没有训练飞轮记录。' : 'No training flywheel runs yet.'}</td>
+                    <td colSpan="5">
+                      {isZh ? '暂时没有训练飞轮记录。' : 'No training flywheel runs yet.'}
+                    </td>
                   </tr>
                 )}
               </tbody>
@@ -1765,16 +2043,16 @@ export default function App() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             userId: effectiveUserId,
-            [field]: nextValue
-          })
+            [field]: nextValue,
+          }),
         });
         setEngagementState((current) =>
           current
             ? {
                 ...current,
-                notification_preferences: payload
+                notification_preferences: payload,
               }
-            : current
+            : current,
         );
         void loadEngagementState();
       } catch {
@@ -1794,7 +2072,7 @@ export default function App() {
               options={[
                 { label: t('mode.beginner', undefined, 'Beginner'), value: 'beginner' },
                 { label: t('mode.standard', undefined, 'Standard'), value: 'standard' },
-                { label: t('mode.advanced', undefined, 'Advanced'), value: 'advanced' }
+                { label: t('mode.advanced', undefined, 'Advanced'), value: 'advanced' },
               ]}
               value={uiMode}
               onChange={setUiMode}
@@ -1808,7 +2086,7 @@ export default function App() {
               options={[
                 { label: t('onboarding.profile.conservative'), value: 'conservative' },
                 { label: t('onboarding.profile.balanced'), value: 'balanced' },
-                { label: t('onboarding.profile.aggressive'), value: 'aggressive' }
+                { label: t('onboarding.profile.aggressive'), value: 'aggressive' },
               ]}
               value={riskProfileKey}
               onChange={setRiskProfileKey}
@@ -1816,7 +2094,12 @@ export default function App() {
             />
           </div>
 
-          <div style={{ marginTop: 10 }} className="lang-toggle" role="group" aria-label="Language switch">
+          <div
+            style={{ marginTop: 10 }}
+            className="lang-toggle"
+            role="group"
+            aria-label="Language switch"
+          >
             <button
               type="button"
               className={`lang-option ${lang === 'en' ? 'active' : ''}`}
@@ -1848,7 +2131,8 @@ export default function App() {
             <div>
               <h3 className="card-title">Recall Style</h3>
               <p className="muted status-line">
-                Nova only nudges when today&apos;s judgment, protection, or wrap-up is worth confirming.
+                Nova only nudges when today&apos;s judgment, protection, or wrap-up is worth
+                confirming.
               </p>
             </div>
             <span className="badge badge-neutral">{notificationPrefs?.frequency || 'NORMAL'}</span>
@@ -1859,7 +2143,7 @@ export default function App() {
               ['morning_enabled', 'Morning check'],
               ['state_shift_enabled', 'Judgment shifts'],
               ['protective_enabled', 'Protective reminders'],
-              ['wrap_up_enabled', 'Evening wrap-up']
+              ['wrap_up_enabled', 'Evening wrap-up'],
             ].map(([field, label]) => {
               const enabled = Boolean(notificationPrefs?.[field]);
               return (
@@ -1913,7 +2197,9 @@ export default function App() {
           executions={uiData.trades || []}
           watchlist={watchlist}
           setWatchlist={setWatchlist}
-          onQuickAsk={(_intent, signal) => askAi(`请解释 ${signal?.symbol || '该信号'} 的执行逻辑和风险边界。`)}
+          onQuickAsk={(_intent, signal) =>
+            askAi(`请解释 ${signal?.symbol || '该信号'} 的执行逻辑和风险边界。`)
+          }
           onPaperExecute={(signal) => recordExecution({ signal, mode: 'PAPER', action: 'EXECUTE' })}
           onMarkDone={(signal) => recordExecution({ signal, mode: 'PAPER', action: 'DONE' })}
           riskRules={uiData.config?.risk_rules || {}}
@@ -1960,15 +2246,24 @@ export default function App() {
             <div className="status-grid-3">
               <div className="status-box">
                 <p className="muted">Daily Check-in</p>
-                <h2>{discipline.checkinStreak}{locale.startsWith('zh') ? ' 天' : ' days'}</h2>
+                <h2>
+                  {discipline.checkinStreak}
+                  {locale.startsWith('zh') ? ' 天' : ' days'}
+                </h2>
               </div>
               <div className="status-box">
                 <p className="muted">Weekly Review</p>
-                <h2>{discipline.weeklyStreak}{locale.startsWith('zh') ? ' 周' : ' weeks'}</h2>
+                <h2>
+                  {discipline.weeklyStreak}
+                  {locale.startsWith('zh') ? ' 周' : ' weeks'}
+                </h2>
               </div>
               <div className="status-box">
                 <p className="muted">Risk Boundary</p>
-                <h2>{discipline.boundaryStreak}{locale.startsWith('zh') ? ' 天' : ' days'}</h2>
+                <h2>
+                  {discipline.boundaryStreak}
+                  {locale.startsWith('zh') ? ' 天' : ' days'}
+                </h2>
               </div>
             </div>
 
@@ -1983,8 +2278,24 @@ export default function App() {
                       ? '今天还未完成判断校准。'
                       : 'Today’s view is still waiting for confirmation.')}
               </li>
-              <li>{discipline.boundaryToday ? (locale.startsWith('zh') ? '今天已确认风险边界。' : 'Today’s risk boundary has been confirmed.') : (locale.startsWith('zh') ? '今天还未确认风险边界。' : 'Today’s risk boundary is still unconfirmed.')}</li>
-              <li>{discipline.reviewedThisWeek ? (locale.startsWith('zh') ? '本周复盘已完成。' : 'This week’s review is complete.') : (locale.startsWith('zh') ? '本周还未完成复盘。' : 'This week’s review is still open.')}</li>
+              <li>
+                {discipline.boundaryToday
+                  ? locale.startsWith('zh')
+                    ? '今天已确认风险边界。'
+                    : 'Today’s risk boundary has been confirmed.'
+                  : locale.startsWith('zh')
+                    ? '今天还未确认风险边界。'
+                    : 'Today’s risk boundary is still unconfirmed.'}
+              </li>
+              <li>
+                {discipline.reviewedThisWeek
+                  ? locale.startsWith('zh')
+                    ? '本周复盘已完成。'
+                    : 'This week’s review is complete.'
+                  : locale.startsWith('zh')
+                    ? '本周还未完成复盘。'
+                    : 'This week’s review is still open.'}
+              </li>
               {discipline.noActionValueLine ? <li>{discipline.noActionValueLine}</li> : null}
             </ul>
 
@@ -2019,7 +2330,9 @@ export default function App() {
                     <p className="muted">{widget.kind.replace(/_/g, ' ')}</p>
                     <h2>{widget.title}</h2>
                     <p className="muted status-line">{widget.subtitle}</p>
-                    {widget.spark ? <p className="status-line widget-spark-line">{widget.spark}</p> : null}
+                    {widget.spark ? (
+                      <p className="status-line widget-spark-line">{widget.spark}</p>
+                    ) : null}
                   </div>
                 ))}
               </div>
@@ -2037,7 +2350,9 @@ export default function App() {
                       : 'These messages invite a calm return to confirm, not a push to trade.'}
                   </p>
                 </div>
-                <span className="badge badge-neutral">{engagementState.notification_center.active_count || 0}</span>
+                <span className="badge badge-neutral">
+                  {engagementState.notification_center.active_count || 0}
+                </span>
               </div>
               <div className="quick-access-list" style={{ marginTop: 8 }}>
                 {engagementState.notification_center.notifications.slice(0, 4).map((item) => (
@@ -2058,12 +2373,16 @@ export default function App() {
                   <h3 className="card-title">{engagementState.daily_wrap_up.title}</h3>
                   <p className="muted status-line">{engagementState.daily_wrap_up.headline}</p>
                 </div>
-                <span className={`badge ${engagementState.daily_wrap_up.completed ? 'badge-triggered' : 'badge-neutral'}`}>
+                <span
+                  className={`badge ${engagementState.daily_wrap_up.completed ? 'badge-triggered' : 'badge-neutral'}`}
+                >
                   {engagementState.daily_wrap_up.short_label}
                 </span>
               </div>
               {engagementState.daily_wrap_up.opening_line ? (
-                <p className="status-line ritual-kicker">{engagementState.daily_wrap_up.opening_line}</p>
+                <p className="status-line ritual-kicker">
+                  {engagementState.daily_wrap_up.opening_line}
+                </p>
               ) : null}
               <p className="daily-brief-conclusion">{engagementState.daily_wrap_up.summary}</p>
               <ul className="bullet-list">
@@ -2076,7 +2395,11 @@ export default function App() {
                 <button type="button" className="primary-btn" onClick={markWrapUpComplete}>
                   {locale.startsWith('zh') ? '完成今日复盘' : 'Complete today’s wrap-up'}
                 </button>
-                <button type="button" className="secondary-btn" onClick={() => askAi('What mattered most in today’s wrap-up?')}>
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  onClick={() => askAi('What mattered most in today’s wrap-up?')}
+                >
                   Ask Nova
                 </button>
               </div>
@@ -2141,7 +2464,11 @@ export default function App() {
     }
 
     if (section === 'advanced') {
-      return !hasLoaded && loading ? <Skeleton lines={6} /> : <ResearchTab research={uiData.research} loading={loading} locale={locale} />;
+      return !hasLoaded && loading ? (
+        <Skeleton lines={6} />
+      ) : (
+        <ResearchTab research={uiData.research} loading={loading} locale={locale} />
+      );
     }
 
     if (section === 'data') {
@@ -2194,7 +2521,9 @@ export default function App() {
           onOpenSignals={() => openMySection('signals')}
           onToggleWatchlist={(symbol) =>
             setWatchlist((current) =>
-              current.includes(symbol) ? current.filter((item) => item !== symbol) : [...current, symbol]
+              current.includes(symbol)
+                ? current.filter((item) => item !== symbol)
+                : [...current, symbol],
             )
           }
           onPaperExecute={(signal) => recordExecution({ signal, mode: 'PAPER', action: 'EXECUTE' })}
@@ -2217,13 +2546,31 @@ export default function App() {
             riskProfileKey,
             uiMode,
             decisionSummary: {
-              today_call: decisionSnapshot?.summary?.today_call?.headline || decisionSnapshot?.summary?.today_call || null,
-              risk_posture: decisionSnapshot?.summary?.risk_posture || decisionSnapshot?.risk_state?.posture || null,
+              today_call:
+                decisionSnapshot?.summary?.today_call?.headline ||
+                decisionSnapshot?.summary?.today_call ||
+                null,
+              risk_posture:
+                decisionSnapshot?.summary?.risk_posture ||
+                decisionSnapshot?.risk_state?.posture ||
+                null,
               top_action_id: decisionSnapshot?.top_action_id || null,
-              top_action_symbol: decisionSnapshot?.summary?.top_action_symbol || decisionSnapshot?.ranked_action_cards?.[0]?.symbol || null,
-              top_action_label: decisionSnapshot?.summary?.top_action_label || decisionSnapshot?.ranked_action_cards?.[0]?.action_label || null,
-              source_status: decisionSnapshot?.source_status || uiData?.config?.runtime?.source_status || 'INSUFFICIENT_DATA',
-              data_status: decisionSnapshot?.data_status || uiData?.config?.runtime?.data_status || 'INSUFFICIENT_DATA'
+              top_action_symbol:
+                decisionSnapshot?.summary?.top_action_symbol ||
+                decisionSnapshot?.ranked_action_cards?.[0]?.symbol ||
+                null,
+              top_action_label:
+                decisionSnapshot?.summary?.top_action_label ||
+                decisionSnapshot?.ranked_action_cards?.[0]?.action_label ||
+                null,
+              source_status:
+                decisionSnapshot?.source_status ||
+                uiData?.config?.runtime?.source_status ||
+                'INSUFFICIENT_DATA',
+              data_status:
+                decisionSnapshot?.data_status ||
+                uiData?.config?.runtime?.data_status ||
+                'INSUFFICIENT_DATA',
             },
             holdingsSummary: {
               holdings_count: holdingsReview?.totals?.holdings_count ?? 0,
@@ -2232,26 +2579,36 @@ export default function App() {
               unsupported_weight_pct: holdingsReview?.system_alignment?.unsupported_weight_pct ?? 0,
               top1_pct: holdingsReview?.concentration?.top1_pct ?? 0,
               risk_level: holdingsReview?.risk?.level || null,
-              recommendation: holdingsReview?.risk?.recommendation || holdingsReview?.key_advice || null
+              recommendation:
+                holdingsReview?.risk?.recommendation || holdingsReview?.key_advice || null,
             },
             engagementSummary: {
               locale: lang,
               morning_check_status: engagementState?.daily_check_state?.status || null,
               morning_check_label: engagementState?.daily_check_state?.headline || null,
-              morning_check_arrival: engagementState?.daily_check_state?.arrival_line || engagementState?.ui_regime_state?.arrival_line || null,
-              morning_check_ritual: engagementState?.daily_check_state?.ritual_line || engagementState?.ui_regime_state?.ritual_line || null,
+              morning_check_arrival:
+                engagementState?.daily_check_state?.arrival_line ||
+                engagementState?.ui_regime_state?.arrival_line ||
+                null,
+              morning_check_ritual:
+                engagementState?.daily_check_state?.ritual_line ||
+                engagementState?.ui_regime_state?.ritual_line ||
+                null,
               perception_status: engagementState?.perception_layer?.status || null,
               perception_headline: engagementState?.perception_layer?.headline || null,
               perception_focus: engagementState?.perception_layer?.focus_line || null,
               perception_confirmation: engagementState?.perception_layer?.confirmation_line || null,
               wrap_up_ready: Boolean(engagementState?.daily_wrap_up?.ready),
               wrap_up_completed: Boolean(engagementState?.daily_wrap_up?.completed),
-              wrap_up_line: engagementState?.daily_wrap_up?.opening_line || engagementState?.ui_regime_state?.wrap_line || null,
+              wrap_up_line:
+                engagementState?.daily_wrap_up?.opening_line ||
+                engagementState?.ui_regime_state?.wrap_line ||
+                null,
               discipline_score: Number(engagementState?.habit_state?.discipline_score || 0) || null,
               behavior_quality: engagementState?.habit_state?.behavior_quality || null,
               recommendation_change: engagementState?.recommendation_change?.summary || null,
-              ui_tone: engagementState?.ui_regime_state?.tone || null
-            }
+              ui_tone: engagementState?.ui_regime_state?.tone || null,
+            },
           }}
         />
       );
@@ -2259,7 +2616,13 @@ export default function App() {
 
     if (activeTab === 'browse') {
       return (
-        <Suspense fallback={<div className="browse-rh-empty" style={{ padding: '3rem 0', textAlign: 'center' }}>Loading…</div>}>
+        <Suspense
+          fallback={
+            <div className="browse-rh-empty" style={{ padding: '3rem 0', textAlign: 'center' }}>
+              Loading…
+            </div>
+          }
+        >
           <BrowseTab
             locale={locale}
             signals={uiData?.signals || []}
@@ -2271,7 +2634,7 @@ export default function App() {
                 const normalized = {
                   canGoBack: Boolean(nextState?.canGoBack),
                   title: String(nextState?.title || tabMeta.browse.label),
-                  backLabel: String(nextState?.backLabel || tabMeta.browse.label)
+                  backLabel: String(nextState?.backLabel || tabMeta.browse.label),
                 };
                 if (
                   current.canGoBack === normalized.canGoBack &&
@@ -2336,7 +2699,7 @@ export default function App() {
         'group:review',
         'group:system',
         'group:market',
-        'group:settings'
+        'group:settings',
       ].includes(mySection)
     ) {
       return (
@@ -2370,14 +2733,14 @@ export default function App() {
             setDisciplineLog({
               checkins: [],
               boundary_kept: [],
-              weekly_reviews: []
+              weekly_reviews: [],
             });
             setAuthSession(null);
             setUserProfile({
               email: '',
               name: '',
               tradeMode: 'starter',
-              broker: 'Robinhood'
+              broker: 'Robinhood',
             });
             setShowOnboarding(true);
             setActiveTab('today');
@@ -2397,12 +2760,11 @@ export default function App() {
   const showHoldingsMenuAction = activeTab === 'my' && mySection === 'portfolio';
   const showCenterTopBarTitle = activeTab === 'browse' || activeTab === 'ai' || activeTab === 'my';
   const previousMySection = canGoBackInMyTopBar ? myStack[myStack.length - 2] : null;
-  const topBarBackLabel =
-    canGoBackInBrowseTopBar
-      ? browseTopBarState.backLabel
-      : previousMySection && previousMySection !== 'portfolio'
-        ? menuTitles[previousMySection] || tabMeta.my.label
-        : tabMeta.my.label;
+  const topBarBackLabel = canGoBackInBrowseTopBar
+    ? browseTopBarState.backLabel
+    : previousMySection && previousMySection !== 'portfolio'
+      ? menuTitles[previousMySection] || tabMeta.my.label
+      : tabMeta.my.label;
   const topBarCenterTitle =
     activeTab === 'browse'
       ? browseTopBarState.title || tabMeta.browse.label
@@ -2418,7 +2780,9 @@ export default function App() {
   const topBarMode = canGoBackInTopBar ? 'detail' : 'root';
   const appTone = engagementState?.ui_regime_state?.tone || 'quiet';
   const motionProfile = engagementState?.ui_regime_state?.motion_profile || 'calm';
-  const dailyCheckState = String(engagementState?.daily_check_state?.status || 'PENDING').toLowerCase();
+  const dailyCheckState = String(
+    engagementState?.daily_check_state?.status || 'PENDING',
+  ).toLowerCase();
   const [topBarCondensed, setTopBarCondensed] = useState(false);
   const mainContentRef = useRef(null);
 
@@ -2440,7 +2804,7 @@ export default function App() {
     setBrowseTopBarState({
       canGoBack: false,
       title: tabMeta.browse.label,
-      backLabel: tabMeta.browse.label
+      backLabel: tabMeta.browse.label,
     });
   }, [activeTab, tabMeta.browse.label]);
 
@@ -2474,10 +2838,17 @@ export default function App() {
         className={`device-shell device-shell-${displayMode} ui-tone-${appTone} ui-motion-${motionProfile} daily-check-${dailyCheckState}`}
         data-active-tab={activeTab}
       >
-        <header className={`top-bar top-bar-${topBarMode} ${topBarCondensed ? 'is-condensed' : ''}`}>
+        <header
+          className={`top-bar top-bar-${topBarMode} ${topBarCondensed ? 'is-condensed' : ''}`}
+        >
           <div className="top-bar-leading">
             {canGoBackInMyTopBar ? (
-              <button type="button" className="ios-nav-back top-bar-back" onClick={popMySection} aria-label={`Back to ${topBarBackLabel}`}>
+              <button
+                type="button"
+                className="ios-nav-back top-bar-back"
+                onClick={popMySection}
+                aria-label={`Back to ${topBarBackLabel}`}
+              >
                 <span className="ios-back-chevron" aria-hidden="true">
                   ‹
                 </span>
@@ -2503,8 +2874,16 @@ export default function App() {
             </div>
           ) : (
             <div className="top-bar-logo-wrap" aria-label="Nova Quant">
-              <img src={novaLogo} alt="Nova Quant" className={`top-bar-logo top-bar-logo-expanded ${topBarCondensed ? 'is-hidden' : ''}`} />
-              <img src={novaLogoCompact} alt="Nova Quant" className={`top-bar-logo top-bar-logo-compact ${topBarCondensed ? 'is-visible' : ''}`} />
+              <img
+                src={novaLogo}
+                alt="Nova Quant"
+                className={`top-bar-logo top-bar-logo-expanded ${topBarCondensed ? 'is-hidden' : ''}`}
+              />
+              <img
+                src={novaLogoCompact}
+                alt="Nova Quant"
+                className={`top-bar-logo top-bar-logo-compact ${topBarCondensed ? 'is-visible' : ''}`}
+              />
             </div>
           )}
           {showHoldingsMenuAction ? (
@@ -2554,145 +2933,155 @@ export default function App() {
         ))}
       </nav>
 
-      <AboutModal open={aboutOpen} onClose={() => setAboutOpen(false)} config={data.config} t={t} locale={locale} />
+      <AboutModal
+        open={aboutOpen}
+        onClose={() => setAboutOpen(false)}
+        config={data.config}
+        t={t}
+        locale={locale}
+      />
 
       <Suspense fallback={null}>
         <OnboardingFlow
-        open={showOnboarding}
-        locale={locale}
-        profile={userProfile}
-        initialMode={onboardingDone ? 'login' : 'intro'}
-        onLogin={async ({ email, password }) => {
-          try {
-            const payload = await fetchJson('/api/auth/login', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ email, password })
-            });
-            applyAuthenticatedProfile(payload.user, payload.state || null, { resetNavigation: true });
-            return { ok: true };
-          } catch (error) {
-            return {
-              ok: false,
-              error: classifyAuthError(error, locale)
-            };
-          }
-        }}
-        onRequestReset={async ({ email }) => {
-          try {
-            const payload = await fetchJson('/api/auth/forgot-password', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ email })
-            });
-            return {
-              ok: true,
-              codeHint: payload.codeHint || null,
-              expiresInMinutes: payload.expiresInMinutes || 15
-            };
-          } catch (error) {
-            const message = String(error?.message || '');
-            return {
-              ok: false,
-              error:
-                message.includes('(404)') ||
-                message.includes('(500)') ||
-                message.includes('(503)') ||
-                message.includes('AUTH_STORE_NOT_CONFIGURED') ||
-                message.includes('AUTH_STORE_UNREACHABLE')
-                  ? locale?.startsWith('zh')
-                    ? isLocalAuthRuntime()
-                      ? '重置服务未连接。请先启动本地 API：npm run api:data'
-                      : '重置服务暂时不可用。请稍后再试。'
-                    : isLocalAuthRuntime()
-                      ? 'The reset service is offline. Start the local API first: npm run api:data'
-                      : 'The reset service is temporarily unavailable.'
-                  : locale?.startsWith('zh')
-                    ? '暂时没法发送重置码，请稍后再试。'
-                    : 'We could not send a reset code just now.'
-            };
-          }
-        }}
-        onResetPassword={async ({ email, code, newPassword }) => {
-          try {
-            await fetchJson('/api/auth/reset-password', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ email, code, newPassword })
-            });
-            return { ok: true };
-          } catch (error) {
-            const message = String(error?.message || '');
-            return {
-              ok: false,
-              error:
-                message.includes('(400)') ||
-                message.includes('INVALID_RESET_CODE') ||
-                message.includes('WEAK_PASSWORD')
-                  ? locale?.startsWith('zh')
-                    ? '重置码无效，或密码不符合要求。'
-                    : 'The reset code is invalid, or the password is too weak.'
-                  : message.includes('(503)') ||
-                      message.includes('AUTH_STORE_NOT_CONFIGURED') ||
-                      message.includes('AUTH_STORE_UNREACHABLE')
+          open={showOnboarding}
+          locale={locale}
+          profile={userProfile}
+          initialMode={onboardingDone ? 'login' : 'intro'}
+          onLogin={async ({ email, password }) => {
+            try {
+              const payload = await fetchJson('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password }),
+              });
+              applyAuthenticatedProfile(payload.user, payload.state || null, {
+                resetNavigation: true,
+              });
+              return { ok: true };
+            } catch (error) {
+              return {
+                ok: false,
+                error: classifyAuthError(error, locale),
+              };
+            }
+          }}
+          onRequestReset={async ({ email }) => {
+            try {
+              const payload = await fetchJson('/api/auth/forgot-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email }),
+              });
+              return {
+                ok: true,
+                codeHint: payload.codeHint || null,
+                expiresInMinutes: payload.expiresInMinutes || 15,
+              };
+            } catch (error) {
+              const message = String(error?.message || '');
+              return {
+                ok: false,
+                error:
+                  message.includes('(404)') ||
+                  message.includes('(500)') ||
+                  message.includes('(503)') ||
+                  message.includes('AUTH_STORE_NOT_CONFIGURED') ||
+                  message.includes('AUTH_STORE_UNREACHABLE')
                     ? locale?.startsWith('zh')
-                      ? '重置服务当前未连上远端账户存储。请检查线上认证配置后再试。'
-                      : 'The reset service cannot reach its remote auth store right now.'
+                      ? isLocalAuthRuntime()
+                        ? '重置服务未连接。请先启动本地 API：npm run api:data'
+                        : '重置服务暂时不可用。请稍后再试。'
+                      : isLocalAuthRuntime()
+                        ? 'The reset service is offline. Start the local API first: npm run api:data'
+                        : 'The reset service is temporarily unavailable.'
                     : locale?.startsWith('zh')
-                    ? isLocalAuthRuntime()
-                      ? '重置服务未连接。请先启动本地 API：npm run api:data'
-                      : '重置服务暂时不可用。请稍后再试。'
-                    : isLocalAuthRuntime()
-                      ? 'The reset service is offline. Start the local API first: npm run api:data'
-                      : 'The reset service is temporarily unavailable.'
-            };
-          }
-        }}
-        onComplete={async (payload) => {
-          try {
-            const response = await fetchJson('/api/auth/signup', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                email: payload.email,
-                password: payload.password,
-                name: payload.name,
-                tradeMode: payload.tradeMode,
-                broker: payload.broker,
-                locale
-              })
-            });
-            applyAuthenticatedProfile(response.user, response.state || null, { resetNavigation: true });
-            return { ok: true };
-          } catch (error) {
-            const message = String(error?.message || '');
-            return {
-              ok: false,
-              error:
-                message.includes('(400)') ||
-                message.includes('EMAIL_EXISTS') ||
-                message.includes('INVALID_EMAIL') ||
-                message.includes('WEAK_PASSWORD')
-                ? locale?.startsWith('zh')
-                  ? '这个邮箱已经存在，或注册信息无效。'
-                  : 'That email already exists, or the signup details are invalid.'
-                : message.includes('(503)') ||
-                    message.includes('AUTH_STORE_NOT_CONFIGURED') ||
-                    message.includes('AUTH_STORE_UNREACHABLE')
-                  ? locale?.startsWith('zh')
-                    ? '注册服务当前未连上远端账户存储。请检查线上认证配置后再试。'
-                    : 'The signup service cannot reach its remote auth store right now.'
-                : locale?.startsWith('zh')
-                  ? isLocalAuthRuntime()
-                    ? '注册服务未连接。请先启动本地 API：npm run api:data'
-                    : '注册服务暂时不可用。请稍后再试。'
-                  : isLocalAuthRuntime()
-                    ? 'The signup service is offline. Start the local API first: npm run api:data'
-                    : 'The signup service is temporarily unavailable.'
-            };
-          }
-        }}
-      />
+                      ? '暂时没法发送重置码，请稍后再试。'
+                      : 'We could not send a reset code just now.',
+              };
+            }
+          }}
+          onResetPassword={async ({ email, code, newPassword }) => {
+            try {
+              await fetchJson('/api/auth/reset-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, code, newPassword }),
+              });
+              return { ok: true };
+            } catch (error) {
+              const message = String(error?.message || '');
+              return {
+                ok: false,
+                error:
+                  message.includes('(400)') ||
+                  message.includes('INVALID_RESET_CODE') ||
+                  message.includes('WEAK_PASSWORD')
+                    ? locale?.startsWith('zh')
+                      ? '重置码无效，或密码不符合要求。'
+                      : 'The reset code is invalid, or the password is too weak.'
+                    : message.includes('(503)') ||
+                        message.includes('AUTH_STORE_NOT_CONFIGURED') ||
+                        message.includes('AUTH_STORE_UNREACHABLE')
+                      ? locale?.startsWith('zh')
+                        ? '重置服务当前未连上远端账户存储。请检查线上认证配置后再试。'
+                        : 'The reset service cannot reach its remote auth store right now.'
+                      : locale?.startsWith('zh')
+                        ? isLocalAuthRuntime()
+                          ? '重置服务未连接。请先启动本地 API：npm run api:data'
+                          : '重置服务暂时不可用。请稍后再试。'
+                        : isLocalAuthRuntime()
+                          ? 'The reset service is offline. Start the local API first: npm run api:data'
+                          : 'The reset service is temporarily unavailable.',
+              };
+            }
+          }}
+          onComplete={async (payload) => {
+            try {
+              const response = await fetchJson('/api/auth/signup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  email: payload.email,
+                  password: payload.password,
+                  name: payload.name,
+                  tradeMode: payload.tradeMode,
+                  broker: payload.broker,
+                  locale,
+                }),
+              });
+              applyAuthenticatedProfile(response.user, response.state || null, {
+                resetNavigation: true,
+              });
+              return { ok: true };
+            } catch (error) {
+              const message = String(error?.message || '');
+              return {
+                ok: false,
+                error:
+                  message.includes('(400)') ||
+                  message.includes('EMAIL_EXISTS') ||
+                  message.includes('INVALID_EMAIL') ||
+                  message.includes('WEAK_PASSWORD')
+                    ? locale?.startsWith('zh')
+                      ? '这个邮箱已经存在，或注册信息无效。'
+                      : 'That email already exists, or the signup details are invalid.'
+                    : message.includes('(503)') ||
+                        message.includes('AUTH_STORE_NOT_CONFIGURED') ||
+                        message.includes('AUTH_STORE_UNREACHABLE')
+                      ? locale?.startsWith('zh')
+                        ? '注册服务当前未连上远端账户存储。请检查线上认证配置后再试。'
+                        : 'The signup service cannot reach its remote auth store right now.'
+                      : locale?.startsWith('zh')
+                        ? isLocalAuthRuntime()
+                          ? '注册服务未连接。请先启动本地 API：npm run api:data'
+                          : '注册服务暂时不可用。请稍后再试。'
+                        : isLocalAuthRuntime()
+                          ? 'The signup service is offline. Start the local API first: npm run api:data'
+                          : 'The signup service is temporarily unavailable.',
+              };
+            }
+          }}
+        />
       </Suspense>
     </div>
   );

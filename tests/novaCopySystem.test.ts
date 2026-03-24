@@ -12,7 +12,7 @@ import {
   getPerceptionLayerCopy,
   getTodayRiskCopy,
   getUiRegimeTone,
-  getWidgetCopy
+  getWidgetCopy,
 } from '../src/copy/novaCopySystem.js';
 
 describe('nova copy system', () => {
@@ -28,13 +28,13 @@ describe('nova copy system', () => {
       posture: 'ATTACK',
       locale: 'en',
       variant: 'sharp',
-      seed: 'alpha'
+      seed: 'alpha',
     });
     const risk = getTodayRiskCopy({
       posture: 'DEFEND',
       locale: 'en',
       changed: true,
-      seed: 'beta'
+      seed: 'beta',
     });
 
     expect(stance.toLowerCase()).not.toContain('act now');
@@ -49,12 +49,12 @@ describe('nova copy system', () => {
       status: 'COMPLETED',
       locale: 'zh',
       seed: 'quiet-day',
-      noActionDay: true
+      noActionDay: true,
     });
     const noAction = getNoActionCopy({
       locale: 'zh',
       posture: 'WAIT',
-      seed: 'quiet-day'
+      seed: 'quiet-day',
     });
 
     expect(morning.completion_feedback).toBeTruthy();
@@ -66,14 +66,14 @@ describe('nova copy system', () => {
       category: 'PROTECTIVE',
       posture: 'DEFEND',
       locale: 'zh',
-      seed: 'protective'
+      seed: 'protective',
     });
     const widget = getWidgetCopy({
       type: 'change',
       posture: 'PROBE',
       locale: 'en',
       triggerType: 'risk_shift',
-      seed: 'shift'
+      seed: 'shift',
     });
 
     expect(notification.title).toBeTruthy();
@@ -86,7 +86,7 @@ describe('nova copy system', () => {
     const voice = getAssistantVoiceGuide({
       locale: 'en',
       posture: 'DEFEND',
-      userState: 'impulsive'
+      userState: 'impulsive',
     });
 
     expect(voice.opener).toBeTruthy();
@@ -97,19 +97,19 @@ describe('nova copy system', () => {
   it('derives ui regime tone and discipline feedback from real states', () => {
     const uiTone = getUiRegimeTone({
       posture: 'PROBE',
-      locale: 'en'
+      locale: 'en',
     });
     const discipline = getDisciplineCopy({
       locale: 'en',
       score: 84,
       noActionDay: true,
-      seed: 'discipline'
+      seed: 'discipline',
     });
     const actionCopy = getActionCardCopy({
       posture: 'PROBE',
       locale: 'en',
       actionState: 'watch-only',
-      seed: 'card'
+      seed: 'card',
     });
     const guardrails = getCopyGuardrails('zh');
 
@@ -126,7 +126,7 @@ describe('nova copy system', () => {
       posture: 'WAIT',
       status: 'arriving',
       noActionDay: true,
-      seed: 'perception'
+      seed: 'perception',
     });
 
     expect(perception.badge).toBe('系统判断');

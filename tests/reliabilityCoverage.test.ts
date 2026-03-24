@@ -12,11 +12,11 @@ describe('reliability coverage expansion', () => {
   const baselineSystem = buildNovaQuantSystem({
     asOf: '2026-03-08T00:00:00.000Z',
     riskProfileKey: 'balanced',
-    executionTrades: []
+    executionTrades: [],
   });
   const baselinePipeline = runQuantPipeline({
     as_of: '2026-03-08T00:00:00.000Z',
-    config: { risk_profile: 'balanced' }
+    config: { risk_profile: 'balanced' },
   });
   const core = baselinePipeline?.research?.research_core;
 
@@ -63,8 +63,8 @@ describe('reliability coverage expansion', () => {
       sector: 'CONCENTRATED_THEME',
       position_advice: {
         ...(row.position_advice || {}),
-        position_pct: idx < 8 ? 14 : Number(row.position_advice?.position_pct || 0)
-      }
+        position_pct: idx < 8 ? 14 : Number(row.position_advice?.position_pct || 0),
+      },
     }));
 
     const overloadedRisk = buildRiskBucketSystem({
@@ -73,32 +73,38 @@ describe('reliability coverage expansion', () => {
       championState: baselineSystem,
       regimeState: core?.regime_engine,
       signals: overloadedSignals,
-      trades: baselineSystem.trades
+      trades: baselineSystem.trades,
     });
 
     expect(overloadedRisk?.portfolio_risk_budget?.budget_status).toBe('stressed');
     expect(
-      Number(overloadedRisk?.portfolio_risk_budget?.market_concentration_pct || 0)
+      Number(overloadedRisk?.portfolio_risk_budget?.market_concentration_pct || 0),
     ).toBeGreaterThan(
-      Number(overloadedRisk?.portfolio_risk_budget?.market_concentration_cap_pct || 0)
+      Number(overloadedRisk?.portfolio_risk_budget?.market_concentration_cap_pct || 0),
     );
   });
 
   it('D/E/F/G: discovery, validation, governance, portfolio all remain inspectable under stress', () => {
     const suite = runReliabilityStressFramework({
       asOf: '2026-03-08T00:00:00.000Z',
-      riskProfileKey: 'balanced'
+      riskProfileKey: 'balanced',
     });
 
-    const starvation = suite.scenarios.find((row: any) => row.scenario_id === 'strategy_starvation');
+    const starvation = suite.scenarios.find(
+      (row: any) => row.scenario_id === 'strategy_starvation',
+    );
     const highSlippage = suite.scenarios.find((row: any) => row.scenario_id === 'high_slippage');
     const poorFills = suite.scenarios.find((row: any) => row.scenario_id === 'poor_fills');
-    const crowding = suite.scenarios.find((row: any) => row.scenario_id === 'strategy_crowding_fake_diversification');
+    const crowding = suite.scenarios.find(
+      (row: any) => row.scenario_id === 'strategy_crowding_fake_diversification',
+    );
 
     expect(starvation?.metrics?.mapping_failures).toBeGreaterThan(0);
-    expect(highSlippage?.checks?.some((item: any) => item.check_id === 'execution_profile_applied' && item.pass)).toBe(
-      true
-    );
+    expect(
+      highSlippage?.checks?.some(
+        (item: any) => item.check_id === 'execution_profile_applied' && item.pass,
+      ),
+    ).toBe(true);
     expect(poorFills?.checks?.length).toBeGreaterThan(0);
     expect(crowding?.metrics?.avg_pairwise_correlation).toBeGreaterThan(0.5);
   });
@@ -117,7 +123,9 @@ describe('reliability coverage expansion', () => {
 
     expect(evidence?.strategies?.length).toBeGreaterThan(0);
     expect(evidence?.strategies?.[0]?.audit_chain).toBeTruthy();
-    const withAssumption = (evidence?.strategies || []).find((row: any) => Boolean(row.assumption_profile));
+    const withAssumption = (evidence?.strategies || []).find((row: any) =>
+      Boolean(row.assumption_profile),
+    );
     expect(withAssumption).toBeTruthy();
 
     expect(governance?.review_workflow?.reviews?.length).toBeGreaterThan(0);

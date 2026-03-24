@@ -12,7 +12,12 @@ export default function EligibilitySheet({ open, signal, checks, onClose, t }) {
 
   return (
     <div className="sheet-overlay" role="presentation" onClick={onClose}>
-      <section className="sheet-card" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+      <section
+        className="sheet-card"
+        role="dialog"
+        aria-modal="true"
+        onClick={(event) => event.stopPropagation()}
+      >
         <div className="card-header">
           <h3 className="card-title">{t('signals.eligibilityTitle')}</h3>
           <button type="button" className="ghost-btn" onClick={onClose}>
@@ -26,7 +31,9 @@ export default function EligibilitySheet({ open, signal, checks, onClose, t }) {
           {(checks || []).map((check) => (
             <div className="detail-row" key={check.key}>
               <span className="detail-label">{check.label}</span>
-              <span className={`detail-value ${check.state === 'fail' ? 'negative' : check.state === 'warn' ? '' : 'positive'}`}>
+              <span
+                className={`detail-value ${check.state === 'fail' ? 'negative' : check.state === 'warn' ? '' : 'positive'}`}
+              >
                 {check.reason || check.value}
               </span>
             </div>

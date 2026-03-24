@@ -3,20 +3,20 @@ import React, { useMemo, useState } from 'react';
 const MENU_GROUPS = [
   {
     key: 'group:review',
-    items: ['weekly', 'discipline']
+    items: ['weekly', 'discipline'],
   },
   {
     key: 'group:system',
-    items: ['signals', 'performance', 'safety', 'data', 'learning']
+    items: ['signals', 'performance', 'safety', 'data', 'learning'],
   },
   {
     key: 'group:market',
-    items: ['insights']
+    items: ['insights'],
   },
   {
     key: 'group:settings',
-    items: ['settings', 'advanced']
-  }
+    items: ['settings', 'advanced'],
+  },
 ];
 
 function localeCopy(locale) {
@@ -25,12 +25,18 @@ function localeCopy(locale) {
     menu: zh ? '菜单' : 'Menu',
     support: zh ? '支持' : 'Support',
     supportRootTitle: zh ? 'NovaQuant Support' : 'NovaQuant Support',
-    supportRootCopy: zh ? '帮助中心、联系支持、查看你的支持会话。' : 'Help Center, contact us 24/7, and check your support chats.',
+    supportRootCopy: zh
+      ? '帮助中心、联系支持、查看你的支持会话。'
+      : 'Help Center, contact us 24/7, and check your support chats.',
     predictionGames: zh ? '预测游戏' : 'Prediction Games',
     rewards: zh ? '奖励 / 邀请好友' : 'Rewards / Invite Friends',
-    rewardsRootCopy: zh ? '邀请朋友，赚取 1000 积分奖励。' : 'Invite friends and earn 1,000-point rewards.',
+    rewardsRootCopy: zh
+      ? '邀请朋友，赚取 1000 积分奖励。'
+      : 'Invite friends and earn 1,000-point rewards.',
     securityPrivacy: zh ? '安全与隐私' : 'Security & privacy',
-    securityPrivacyCopy: zh ? '密码、设备安全、隐私与数据控制。' : 'Password, device security, privacy, and data controls.',
+    securityPrivacyCopy: zh
+      ? '密码、设备安全、隐私与数据控制。'
+      : 'Password, device security, privacy, and data controls.',
     review: zh ? '复盘' : 'Review',
     system: zh ? '系统' : 'System',
     marketNotes: zh ? '市场笔记' : 'Market Notes',
@@ -38,7 +44,9 @@ function localeCopy(locale) {
     about: zh ? '关于' : 'About',
     logout: zh ? '退出登录' : 'Log out',
     points: zh ? '积分' : 'Points',
-    predictionCopy: zh ? '每天用一点判断力，换一点额外乐趣。' : 'Turn judgment into a small daily edge.',
+    predictionCopy: zh
+      ? '每天用一点判断力，换一点额外乐趣。'
+      : 'Turn judgment into a small daily edge.',
     rewardsCopy: zh ? '邀请、兑换、VIP 都从这里进。' : 'Invite, redeem, and unlock VIP from here.',
     pointsHub: zh ? '积分中心' : 'Points Hub',
     expiring: zh ? '即将过期' : 'Expiring soon',
@@ -50,12 +58,16 @@ function localeCopy(locale) {
     recentActivity: zh ? '最近积分动态' : 'Recent Activity',
     rulesFaq: zh ? '规则 / 常见问题' : 'Rules / FAQ',
     pointsRate: zh ? '1000 积分 = 1 天 VIP' : '1000 pts = 1 day VIP',
-    pointsUse: zh ? '你现在最值得做的是继续拿判断换积分。' : 'The best next move is to trade judgment for points.',
+    pointsUse: zh
+      ? '你现在最值得做的是继续拿判断换积分。'
+      : 'The best next move is to trade judgment for points.',
     reviewDescription: zh ? '本周总结和纪律记录。' : 'Weekly recap and discipline rhythm.',
-    systemDescription: zh ? '系统状态、信号、安全、数据和学习飞轮。' : 'Signals, safety, performance, data, and the learning loop.',
+    systemDescription: zh
+      ? '系统状态、信号、安全、数据和学习飞轮。'
+      : 'Signals, safety, performance, data, and the learning loop.',
     marketDescription: zh ? '更宽的市场背景和观察。' : 'Broader context and market notes.',
     settingsDescription: zh ? '语言、偏好和模式设置。' : 'Language, preferences, and modes.',
-    username: zh ? '用户名' : 'Username'
+    username: zh ? '用户名' : 'Username',
   };
 }
 
@@ -66,7 +78,9 @@ function buildVersionLabel(appMeta) {
 }
 
 function firstNameFromUsername(username) {
-  const raw = String(username || '').replace(/^@/, '').trim();
+  const raw = String(username || '')
+    .replace(/^@/, '')
+    .trim();
   if (!raw) return 'there';
   const head = raw.split(/[\s._-]+/).find(Boolean) || raw;
   return head.charAt(0).toUpperCase() + head.slice(1);
@@ -87,44 +101,46 @@ function itemCatalog(locale) {
   return {
     weekly: {
       title: zh ? '周复盘' : 'Weekly Review',
-      description: zh ? '一周总结和下周重点。' : 'A calm weekly recap and next focus.'
+      description: zh ? '一周总结和下周重点。' : 'A calm weekly recap and next focus.',
     },
     discipline: {
       title: zh ? '纪律进度' : 'Discipline Progress',
-      description: zh ? '查看节奏、边界与连续性。' : 'See your rhythm, boundaries, and streaks.'
+      description: zh ? '查看节奏、边界与连续性。' : 'See your rhythm, boundaries, and streaks.',
     },
     signals: {
       title: zh ? '信号总览' : 'Signals',
-      description: zh ? '全部信号和被过滤的原因。' : 'All signals and what got filtered.'
+      description: zh ? '全部信号和被过滤的原因。' : 'All signals and what got filtered.',
     },
     performance: {
       title: zh ? '表现证明' : 'Performance',
-      description: zh ? '纸面、回放和证明摘要。' : 'Paper, replay, and proof summaries.'
+      description: zh ? '纸面、回放和证明摘要。' : 'Paper, replay, and proof summaries.',
     },
     safety: {
       title: zh ? '安全边界' : 'Safety',
-      description: zh ? '今天的风险边界和限额。' : 'Today’s guardrails and risk limits.'
+      description: zh ? '今天的风险边界和限额。' : 'Today’s guardrails and risk limits.',
     },
     data: {
       title: zh ? '数据状态' : 'Data Status',
-      description: zh ? '新鲜度、覆盖率和缺口。' : 'Freshness, coverage, and missing data.'
+      description: zh ? '新鲜度、覆盖率和缺口。' : 'Freshness, coverage, and missing data.',
     },
     learning: {
       title: zh ? '学习飞轮' : 'Learning Loop',
-      description: zh ? '最近抓取、演化和训练样本。' : 'Recent ingestion, evolution, and training samples.'
+      description: zh
+        ? '最近抓取、演化和训练样本。'
+        : 'Recent ingestion, evolution, and training samples.',
     },
     insights: {
       title: zh ? '市场洞察' : 'Insights',
-      description: zh ? '今天观点背后的大背景。' : 'The background behind today’s view.'
+      description: zh ? '今天观点背后的大背景。' : 'The background behind today’s view.',
     },
     settings: {
       title: zh ? '设置' : 'Settings',
-      description: zh ? '语言、模式和个人偏好。' : 'Language, mode, and personal preferences.'
+      description: zh ? '语言、模式和个人偏好。' : 'Language, mode, and personal preferences.',
     },
     advanced: {
       title: zh ? '高级' : 'Advanced',
-      description: zh ? '更深的研究与系统细节。' : 'Deeper research and system detail.'
-    }
+      description: zh ? '更深的研究与系统细节。' : 'Deeper research and system detail.',
+    },
   };
 }
 
@@ -135,7 +151,10 @@ function formatPoints(value, locale) {
 
 function pointsHint(points, locale) {
   if (points?.status === 'gain') return '+200';
-  if (points?.status === 'vip') return locale?.startsWith('zh') ? `VIP ${points.vipDays || 1}天` : `VIP ${points.vipDays || 1}d`;
+  if (points?.status === 'vip')
+    return locale?.startsWith('zh')
+      ? `VIP ${points.vipDays || 1}天`
+      : `VIP ${points.vipDays || 1}d`;
   return locale?.startsWith('zh') ? '即将过期' : 'Expiring soon';
 }
 
@@ -144,16 +163,18 @@ function pointsActivity(points, locale) {
   return [
     {
       title: points?.status === 'gain' ? '+200' : zh ? '今天 +120' : '+120 today',
-      desc: zh ? 'Morning Check + 一次 AI 提问。' : 'Morning Check plus one AI question.'
+      desc: zh ? 'Morning Check + 一次 AI 提问。' : 'Morning Check plus one AI question.',
     },
     {
-      title: zh ? `即将过期 ${Number(points?.expiringSoon || 0).toLocaleString(locale)} 积分` : `${Number(points?.expiringSoon || 0).toLocaleString(locale)} pts expiring`,
-      desc: zh ? '先换 VIP，别让它白白过期。' : 'Redeem VIP before those points expire.'
+      title: zh
+        ? `即将过期 ${Number(points?.expiringSoon || 0).toLocaleString(locale)} 积分`
+        : `${Number(points?.expiringSoon || 0).toLocaleString(locale)} pts expiring`,
+      desc: zh ? '先换 VIP，别让它白白过期。' : 'Redeem VIP before those points expire.',
     },
     {
       title: zh ? `本月 VIP ${points?.vipDays || 0} 天` : `VIP ${points?.vipDays || 0}d this month`,
-      desc: zh ? '已经换到的高级天数会继续累计。' : 'Your redeemed VIP days keep stacking up.'
-    }
+      desc: zh ? '已经换到的高级天数会继续累计。' : 'Your redeemed VIP days keep stacking up.',
+    },
   ];
 }
 
@@ -175,17 +196,27 @@ export default function MenuTab({
   onRedeemVip,
   onOpenAbout,
   onLogout,
-  appMeta
+  appMeta,
 }) {
   const copy = localeCopy(locale);
   const catalog = itemCatalog(locale);
   const group = MENU_GROUPS.find((item) => item.key === section);
   const manualAvailable = Boolean(manualState?.available || demoEnabled);
-  const points = manualState?.summary || { balance: 0, expiringSoon: 0, vipDays: 0, vipDaysRedeemed: 0 };
+  const points = manualState?.summary || {
+    balance: 0,
+    expiringSoon: 0,
+    vipDays: 0,
+    vipDaysRedeemed: 0,
+  };
   const ledger = Array.isArray(manualState?.ledger) ? manualState.ledger : [];
   const predictions = Array.isArray(manualState?.predictions) ? manualState.predictions : [];
   const rewards = Array.isArray(manualState?.rewards) ? manualState.rewards : [];
-  const referrals = manualState?.referrals || { inviteCode: null, referredByCode: null, total: 0, rewarded: 0 };
+  const referrals = manualState?.referrals || {
+    inviteCode: null,
+    referredByCode: null,
+    total: 0,
+    rewarded: 0,
+  };
   const [shareFeedback, setShareFeedback] = useState('');
   const [profileVisibility, setProfileVisibility] = useState('none');
   const [deviceSecurityMode, setDeviceSecurityMode] = useState('face-id');
@@ -199,25 +230,25 @@ export default function MenuTab({
     { key: 'create-passkey', title: isZh ? '创建通行密钥' : 'Create passkey' },
     { key: 'change-password', title: isZh ? '修改密码' : 'Change password' },
     { key: 'device-security', title: isZh ? '设备安全' : 'Device security', note: 'Face ID' },
-    { key: 'devices', title: isZh ? '设备管理' : 'Devices' }
+    { key: 'devices', title: isZh ? '设备管理' : 'Devices' },
   ];
   const privacyRows = [
     { key: 'profile-visibility', title: isZh ? '管理资料可见性' : 'Manage profile visibility' },
     { key: 'blocking', title: isZh ? '屏蔽名单' : 'Blocking' },
     { key: 'manage-data', title: isZh ? '管理你的数据' : 'Manage your data' },
-    { key: 'privacy-policy', title: isZh ? '隐私政策' : 'Privacy Policy' }
+    { key: 'privacy-policy', title: isZh ? '隐私政策' : 'Privacy Policy' },
   ];
   const deviceSessions = [
     {
       key: 'iphone-primary',
       title: isZh ? '这台 iPhone' : 'This iPhone',
-      desc: isZh ? '主设备 · 最近活动：刚刚' : 'Primary device · Last active just now'
+      desc: isZh ? '主设备 · 最近活动：刚刚' : 'Primary device · Last active just now',
     },
     {
       key: 'web-session',
       title: isZh ? 'Web session' : 'Web session',
-      desc: isZh ? 'Safari · 上海 · 最近活动：2 小时前' : 'Safari · Shanghai · Last active 2h ago'
-    }
+      desc: isZh ? 'Safari · 上海 · 最近活动：2 小时前' : 'Safari · Shanghai · Last active 2h ago',
+    },
   ];
   const privacyPolicySections = useMemo(
     () => [
@@ -226,8 +257,8 @@ export default function MenuTab({
         paragraphs: [
           isZh
             ? '本隐私政策适用于 NovaQuant 的网站、移动应用、研究工具、客户支持渠道以及与你的账户、候选信号、行动卡、奖励和数据请求相关的在线服务。只要你注册、浏览、登录、提问、连接账户、提交表单或与我们的支持团队互动，本政策就适用。'
-            : 'This Privacy Policy applies to NovaQuant’s websites, mobile apps, research tools, customer support channels, and online services connected to your account, action cards, rewards, and data requests. It applies whenever you register, browse, sign in, ask Nova questions, connect an account, submit a form, or interact with our support team.'
-        ]
+            : 'This Privacy Policy applies to NovaQuant’s websites, mobile apps, research tools, customer support channels, and online services connected to your account, action cards, rewards, and data requests. It applies whenever you register, browse, sign in, ask Nova questions, connect an account, submit a form, or interact with our support team.',
+        ],
       },
       {
         title: isZh ? '2. 我们收集哪些信息' : '2. Information We Collect',
@@ -240,8 +271,8 @@ export default function MenuTab({
             : 'We also collect account and usage information such as watchlists, holdings, trade tickets, paper execution history, browsing behavior, Nova conversations, rewards activity, device information, IP address, browser type, crash logs, performance metrics, and data generated through cookies and similar technologies.',
           isZh
             ? '在你授权的情况下，我们还可能从券商、市场数据供应商、身份验证服务商、分析平台或推荐渠道接收补充信息，以帮助我们提供产品功能、验证身份、检测风险并改善服务。'
-            : 'With your authorization, we may also receive supplemental information from brokers, market-data providers, identity-verification vendors, analytics platforms, or referral channels to deliver features, verify identity, detect risk, and improve the service.'
-        ]
+            : 'With your authorization, we may also receive supplemental information from brokers, market-data providers, identity-verification vendors, analytics platforms, or referral channels to deliver features, verify identity, detect risk, and improve the service.',
+        ],
       },
       {
         title: isZh ? '3. 我们如何使用这些信息' : '3. How We Use Information',
@@ -251,8 +282,8 @@ export default function MenuTab({
             : 'We use this information to create and maintain your account, generate personalized research and action cards, power Nova conversations, process invite rewards, export data, troubleshoot issues, respond to support requests, and improve the product experience.',
           isZh
             ? '我们还会将信息用于安全与合规目的，例如识别欺诈、保护系统、执行平台规则、履行法律义务、保存审计记录以及在必要时调查异常活动。'
-            : 'We also use information for security and compliance purposes, such as detecting fraud, protecting systems, enforcing platform rules, meeting legal obligations, keeping audit records, and investigating unusual activity when needed.'
-        ]
+            : 'We also use information for security and compliance purposes, such as detecting fraud, protecting systems, enforcing platform rules, meeting legal obligations, keeping audit records, and investigating unusual activity when needed.',
+        ],
       },
       {
         title: isZh ? '4. 信息披露与共享' : '4. Disclosures and Sharing',
@@ -262,19 +293,21 @@ export default function MenuTab({
             : 'We do not sell your personal information. We share information only in limited and appropriate situations, including with vendors that provide hosting, analytics, identity verification, customer support, messaging, payments, rewards fulfillment, and infrastructure services on our behalf.',
           isZh
             ? '当你主动连接券商、使用第三方登录、导出数据、发起分享或授权特定功能时，我们会按照你的指示共享必要信息。若法律、监管、诉讼、审计或公司重组需要，我们也可能依法披露相关信息。'
-            : 'When you connect a broker, use third-party sign-in, export data, share content, or authorize a specific feature, we may share the information needed to follow your instructions. We may also disclose information when required by law, regulation, litigation, audit, or corporate reorganization.'
-        ]
+            : 'When you connect a broker, use third-party sign-in, export data, share content, or authorize a specific feature, we may share the information needed to follow your instructions. We may also disclose information when required by law, regulation, litigation, audit, or corporate reorganization.',
+        ],
       },
       {
-        title: isZh ? '5. Cookie、追踪技术与设备权限' : '5. Cookies, Tracking Technologies, and Device Permissions',
+        title: isZh
+          ? '5. Cookie、追踪技术与设备权限'
+          : '5. Cookies, Tracking Technologies, and Device Permissions',
         paragraphs: [
           isZh
             ? 'NovaQuant 使用 cookie、本地存储、像素和类似技术来保持登录状态、记住偏好、衡量性能、分析功能使用情况并改进产品。你可以通过浏览器或设备设置管理这些权限，但部分功能可能因此不可用。'
             : 'NovaQuant uses cookies, local storage, pixels, and similar technologies to keep you signed in, remember preferences, measure performance, analyze feature usage, and improve the product. You can manage these permissions through your browser or device settings, but some features may stop working properly.',
           isZh
             ? '如果你在设备层面关闭联系人、通知、相册、生物识别或位置权限，我们会尊重这些选择，但相关体验可能会受到影响。'
-            : 'If you disable contacts, notifications, photo access, biometrics, or location permissions at the device level, we will honor that choice, but related experiences may be reduced.'
-        ]
+            : 'If you disable contacts, notifications, photo access, biometrics, or location permissions at the device level, we will honor that choice, but related experiences may be reduced.',
+        ],
       },
       {
         title: isZh ? '6. 你的控制权与选择' : '6. Your Controls and Choices',
@@ -284,59 +317,59 @@ export default function MenuTab({
             : 'You can manage profile visibility, marketing preferences, device security, blocked users, data exports, and deletion requests inside NovaQuant. Depending on where you live, you may also have rights to access, correct, delete, restrict certain processing, or withdraw consent.',
           isZh
             ? '我们会在适用法律允许的范围内处理这些请求；在某些情况下，我们可能需要先验证身份，或者因安全、合规、反欺诈、审计和记录保存要求而保留部分信息。'
-            : 'We will process these requests to the extent required by applicable law; in some cases we may need to verify your identity first, or keep certain information for security, compliance, anti-fraud, audit, and record-retention reasons.'
-        ]
+            : 'We will process these requests to the extent required by applicable law; in some cases we may need to verify your identity first, or keep certain information for security, compliance, anti-fraud, audit, and record-retention reasons.',
+        ],
       },
       {
         title: isZh ? '7. 信息保留' : '7. Retention of Information',
         paragraphs: [
           isZh
             ? '我们会在实现最初收集目的所需的期限内保留信息，并在必要时为了遵守法律、监管、税务、会计、争议处理、风控或审计义务而延长保留时间。'
-            : 'We retain information for as long as needed to fulfill the original purpose for which it was collected and, when necessary, for longer periods to comply with legal, regulatory, tax, accounting, dispute-resolution, risk, or audit obligations.'
-        ]
+            : 'We retain information for as long as needed to fulfill the original purpose for which it was collected and, when necessary, for longer periods to comply with legal, regulatory, tax, accounting, dispute-resolution, risk, or audit obligations.',
+        ],
       },
       {
         title: isZh ? '8. 信息安全' : '8. Security',
         paragraphs: [
           isZh
             ? '我们使用访问控制、传输加密、日志审计、供应商审查、异常检测和账号保护措施来保护你的信息，但任何系统都无法承诺绝对安全。请使用强密码、设备锁和双重验证，并及时保护你的登录凭证。'
-            : 'We use access controls, encryption in transit, audit logging, vendor reviews, anomaly detection, and account-protection measures to help protect your information, but no system can promise absolute security. Please use a strong password, device lock, and multifactor protections, and keep your credentials secure.'
-        ]
+            : 'We use access controls, encryption in transit, audit logging, vendor reviews, anomaly detection, and account-protection measures to help protect your information, but no system can promise absolute security. Please use a strong password, device lock, and multifactor protections, and keep your credentials secure.',
+        ],
       },
       {
         title: isZh ? '9. 儿童隐私' : '9. Children’s Privacy',
         paragraphs: [
           isZh
             ? 'NovaQuant 并非面向 13 岁以下儿童设计，我们不会明知收集这类用户的个人信息。如果你认为未成年人在不适当的情况下向我们提交了信息，请联系我们，我们会采取合理措施处理。'
-            : 'NovaQuant is not designed for children under 13, and we do not knowingly collect personal information from them. If you believe a minor has provided information inappropriately, please contact us and we will take reasonable steps to address it.'
-        ]
+            : 'NovaQuant is not designed for children under 13, and we do not knowingly collect personal information from them. If you believe a minor has provided information inappropriately, please contact us and we will take reasonable steps to address it.',
+        ],
       },
       {
         title: isZh ? '10. 国际传输' : '10. International Transfers',
         paragraphs: [
           isZh
             ? '为了运营全球化产品，我们的服务提供商、云基础设施或支持团队可能会在不同国家处理信息。发生跨境传输时，我们会采取合同、技术和组织措施来保护相关数据。'
-            : 'To operate a global product, our service providers, cloud infrastructure, or support teams may process information in different countries. When cross-border transfers occur, we use contractual, technical, and organizational measures to help protect that data.'
-        ]
+            : 'To operate a global product, our service providers, cloud infrastructure, or support teams may process information in different countries. When cross-border transfers occur, we use contractual, technical, and organizational measures to help protect that data.',
+        ],
       },
       {
         title: isZh ? '11. 政策更新' : '11. Changes to This Policy',
         paragraphs: [
           isZh
             ? '本政策会随着产品、法律要求和业务实践变化而更新。我们更新时会修改生效日期，并在必要时通过产品内通知、邮件或页面提示向你说明。'
-            : 'This policy may change as our product, legal requirements, and business practices evolve. When we update it, we will revise the effective date and, when appropriate, provide notice through the product, by email, or on this page.'
-        ]
+            : 'This policy may change as our product, legal requirements, and business practices evolve. When we update it, we will revise the effective date and, when appropriate, provide notice through the product, by email, or on this page.',
+        ],
       },
       {
         title: isZh ? '12. 联系我们' : '12. Contact Us',
         paragraphs: [
           isZh
             ? '如果你对本隐私政策或你的隐私选择有任何问题，请联系 support@novaquant.cloud，并在主题中注明 Privacy Request。'
-            : 'If you have any questions about this Privacy Policy or your privacy choices, contact support@novaquant.cloud and include “Privacy Request” in the subject line.'
-        ]
-      }
+            : 'If you have any questions about this Privacy Policy or your privacy choices, contact support@novaquant.cloud and include “Privacy Request” in the subject line.',
+        ],
+      },
     ],
-    [isZh]
+    [isZh],
   );
 
   async function shareInvite(mode = 'share') {
@@ -412,11 +445,19 @@ export default function MenuTab({
         </div>
 
         <div className="points-hub-primary-grid">
-          <button type="button" className="points-hub-primary-card" onClick={() => onSectionChange('prediction-games')}>
+          <button
+            type="button"
+            className="points-hub-primary-card"
+            onClick={() => onSectionChange('prediction-games')}
+          >
             <span className="menu-primary-title">{copy.games}</span>
             <span className="menu-primary-copy">{copy.predictionCopy}</span>
           </button>
-          <button type="button" className="points-hub-primary-card points-hub-primary-card-accent" onClick={() => onSectionChange('rewards')}>
+          <button
+            type="button"
+            className="points-hub-primary-card points-hub-primary-card-accent"
+            onClick={() => onSectionChange('rewards')}
+          >
             <span className="menu-primary-title">{copy.invite}</span>
             <span className="menu-primary-copy">{copy.rewardsCopy}</span>
           </button>
@@ -434,11 +475,14 @@ export default function MenuTab({
                   id: 'vip-1d',
                   kind: 'vip_day',
                   title: copy.vipRedeem,
-                  description: locale?.startsWith('zh') ? '先把快过期的积分换成 VIP。' : 'Turn expiring points into VIP first.',
+                  description: locale?.startsWith('zh')
+                    ? '先把快过期的积分换成 VIP。'
+                    : 'Turn expiring points into VIP first.',
                   costPoints: 1000,
-                  enabled: false
-                }
-              ]).map((item) => (
+                  enabled: false,
+                },
+              ]
+          ).map((item) => (
             <button
               key={item.id}
               type="button"
@@ -455,7 +499,9 @@ export default function MenuTab({
                 <span className="menu-list-title">{item.title}</span>
                 <span className="menu-list-desc">{item.description}</span>
               </span>
-              <span className="menu-list-arrow">{item.kind === 'vip_day' ? `${item.costPoints}` : '›'}</span>
+              <span className="menu-list-arrow">
+                {item.kind === 'vip_day' ? `${item.costPoints}` : '›'}
+              </span>
             </button>
           ))}
         </div>
@@ -468,7 +514,7 @@ export default function MenuTab({
             {(ledger.length
               ? ledger.map((item) => ({
                   title: `${item.pointsDelta > 0 ? '+' : ''}${item.pointsDelta}`,
-                  desc: item.description || item.title
+                  desc: item.description || item.title,
                 }))
               : activity
             ).map((item) => (
@@ -487,7 +533,11 @@ export default function MenuTab({
             <h2>{copy.rulesFaq}</h2>
           </div>
           <div className="menu-group-list">
-            <button type="button" className="menu-list-row" onClick={() => onSectionChange('points-history')}>
+            <button
+              type="button"
+              className="menu-list-row"
+              onClick={() => onSectionChange('points-history')}
+            >
               <span>
                 <span className="menu-list-title">{copy.history}</span>
                 <span className="menu-list-desc">
@@ -522,13 +572,17 @@ export default function MenuTab({
                     : `${item.entry.selectedOption} selected · ${item.entry.pointsStaked} pts`
                   : locale?.startsWith('zh')
                     ? '等待题目开放或结算。'
-                    : 'Waiting for entry or settlement.'
+                    : 'Waiting for entry or settlement.',
               }))
             : [
                 locale?.startsWith('zh')
                   ? { title: '当前没有正在进行的真实题目', copy: '新题目上线后会直接出现在这里。' }
-                  : { title: 'No live rounds right now', copy: 'New prediction markets will appear here as soon as they are published.' }
-              ]).map((item) => (
+                  : {
+                      title: 'No live rounds right now',
+                      copy: 'New prediction markets will appear here as soon as they are published.',
+                    },
+              ]
+          ).map((item) => (
             <article key={item.title} className="menu-primary-tile">
               <span className="menu-primary-title">{item.title}</span>
               <span className="menu-primary-copy">{item.copy}</span>
@@ -572,37 +626,59 @@ export default function MenuTab({
               <div className="menu-invite-steps">
                 <div className="menu-invite-step">
                   <strong>{isZh ? '1. 分享链接' : '1. Share your link'}</strong>
-                  <span>{isZh ? '把邀请链接发给朋友。' : 'Send your invite link to a friend.'}</span>
+                  <span>
+                    {isZh ? '把邀请链接发给朋友。' : 'Send your invite link to a friend.'}
+                  </span>
                 </div>
                 <div className="menu-invite-step">
                   <strong>{isZh ? '2. 完成注册' : '2. Complete signup'}</strong>
-                  <span>{isZh ? '朋友完成注册并连接账户。' : 'Your friend signs up and finishes setup.'}</span>
+                  <span>
+                    {isZh ? '朋友完成注册并连接账户。' : 'Your friend signs up and finishes setup.'}
+                  </span>
                 </div>
                 <div className="menu-invite-step">
                   <strong>{isZh ? '3. 双方得分' : '3. Both earn points'}</strong>
-                  <span>{isZh ? '你和朋友都能得到 1000 积分。' : 'You both receive 1,000 points.'}</span>
+                  <span>
+                    {isZh ? '你和朋友都能得到 1000 积分。' : 'You both receive 1,000 points.'}
+                  </span>
                 </div>
               </div>
             </div>
 
             <div className="menu-invite-meta">
-              <span>{isZh ? `邀请码 ${referrals.inviteCode || 'NQSTART'}` : `Code ${referrals.inviteCode || 'NQSTART'}`}</span>
-              <span>{isZh ? `已邀请 ${referrals.total || 0} 人` : `${referrals.total || 0} invited`}</span>
+              <span>
+                {isZh
+                  ? `邀请码 ${referrals.inviteCode || 'NQSTART'}`
+                  : `Code ${referrals.inviteCode || 'NQSTART'}`}
+              </span>
+              <span>
+                {isZh ? `已邀请 ${referrals.total || 0} 人` : `${referrals.total || 0} invited`}
+              </span>
             </div>
 
             {shareFeedback ? <p className="menu-inline-feedback">{shareFeedback}</p> : null}
 
             <div className="menu-invite-actions">
-              <button type="button" className="menu-solid-cta" onClick={() => shareInvite('contacts')}>
+              <button
+                type="button"
+                className="menu-solid-cta"
+                onClick={() => shareInvite('contacts')}
+              >
                 {isZh ? '邀请联系人' : 'Invite contacts'}
               </button>
-              <button type="button" className="menu-outline-cta" onClick={() => shareInvite('link')}>
+              <button
+                type="button"
+                className="menu-outline-cta"
+                onClick={() => shareInvite('link')}
+              >
                 {isZh ? '分享链接' : 'Share link'}
               </button>
             </div>
 
             <p className="menu-invite-footnote">
-              {isZh ? '大多数邀请奖励为 1000 积分。条款适用。' : 'Most invite rewards are 1,000 points. Terms apply.'}
+              {isZh
+                ? '大多数邀请奖励为 1000 积分。条款适用。'
+                : 'Most invite rewards are 1,000 points. Terms apply.'}
             </p>
           </div>
         </section>
@@ -622,17 +698,19 @@ export default function MenuTab({
         </div>
         <div className="menu-group-list">
           {(isHistory
-            ? (ledger.length
-                ? ledger.map((item) => ({
-                    title: `${item.pointsDelta > 0 ? '+' : ''}${item.pointsDelta}`,
-                    desc: item.description || item.title
-                  }))
-                : [
-                    {
-                      title: locale?.startsWith('zh') ? '暂无积分流水' : 'No point activity yet',
-                      desc: locale?.startsWith('zh') ? '真实事件发生后会记在这里。' : 'Real point activity will appear here once it happens.'
-                    }
-                  ])
+            ? ledger.length
+              ? ledger.map((item) => ({
+                  title: `${item.pointsDelta > 0 ? '+' : ''}${item.pointsDelta}`,
+                  desc: item.description || item.title,
+                }))
+              : [
+                  {
+                    title: locale?.startsWith('zh') ? '暂无积分流水' : 'No point activity yet',
+                    desc: locale?.startsWith('zh')
+                      ? '真实事件发生后会记在这里。'
+                      : 'Real point activity will appear here once it happens.',
+                  },
+                ]
             : [
                 {
                   title: locale?.startsWith('zh') ? '邀请好友' : 'Invite friends',
@@ -642,14 +720,14 @@ export default function MenuTab({
                       : `Code ${referrals.inviteCode} · ${referrals.total} referrals`
                     : locale?.startsWith('zh')
                       ? '登录后生成邀请码。'
-                      : 'Sign in to generate your invite code.'
+                      : 'Sign in to generate your invite code.',
                 },
                 {
                   title: locale?.startsWith('zh') ? '兑换 VIP' : 'Redeem VIP',
                   desc: locale?.startsWith('zh')
                     ? `已兑换 ${points.vipDaysRedeemed || 0} 天，当前余额 ${points.vipDays || 0} 天。`
-                    : `${points.vipDaysRedeemed || 0} days redeemed, ${points.vipDays || 0} days available.`
-                }
+                    : `${points.vipDaysRedeemed || 0} days redeemed, ${points.vipDays || 0} days available.`,
+                },
               ]
           ).map((item) => (
             <div key={item.title} className="menu-list-row static">
@@ -685,24 +763,50 @@ export default function MenuTab({
         <div className="menu-support-section">
           <h2>{isZh ? '支持工具' : 'Support tools'}</h2>
           <div className="menu-group-list">
-            <button type="button" className="menu-list-row" onClick={() => onSectionChange('help-center')}>
+            <button
+              type="button"
+              className="menu-list-row"
+              onClick={() => onSectionChange('help-center')}
+            >
               <span>
                 <span className="menu-list-title">{isZh ? '帮助中心' : 'Help center'}</span>
-                <span className="menu-list-desc">{isZh ? '账户、邀请、交易与数据常见问题。' : 'Account, invite, trading, and data FAQs.'}</span>
+                <span className="menu-list-desc">
+                  {isZh
+                    ? '账户、邀请、交易与数据常见问题。'
+                    : 'Account, invite, trading, and data FAQs.'}
+                </span>
               </span>
               <span className="menu-list-arrow">›</span>
             </button>
-            <button type="button" className="menu-list-row" onClick={() => onSectionChange('support-chats')}>
+            <button
+              type="button"
+              className="menu-list-row"
+              onClick={() => onSectionChange('support-chats')}
+            >
               <span>
-                <span className="menu-list-title">{isZh ? '你的支持会话' : 'Your support chats'}</span>
-                <span className="menu-list-desc">{isZh ? '查看当前处理中的支持请求。' : 'See the support requests that are currently open.'}</span>
+                <span className="menu-list-title">
+                  {isZh ? '你的支持会话' : 'Your support chats'}
+                </span>
+                <span className="menu-list-desc">
+                  {isZh
+                    ? '查看当前处理中的支持请求。'
+                    : 'See the support requests that are currently open.'}
+                </span>
               </span>
               <span className="menu-list-arrow">›</span>
             </button>
-            <button type="button" className="menu-list-row" onClick={() => onSectionChange('disclosures')}>
+            <button
+              type="button"
+              className="menu-list-row"
+              onClick={() => onSectionChange('disclosures')}
+            >
               <span>
                 <span className="menu-list-title">{isZh ? '披露与说明' : 'Disclosures'}</span>
-                <span className="menu-list-desc">{isZh ? '版本、数据口径、演示说明与限制。' : 'Version notes, data scope, demo disclosures, and limitations.'}</span>
+                <span className="menu-list-desc">
+                  {isZh
+                    ? '版本、数据口径、演示说明与限制。'
+                    : 'Version notes, data scope, demo disclosures, and limitations.'}
+                </span>
               </span>
               <span className="menu-list-arrow">›</span>
             </button>
@@ -717,7 +821,9 @@ export default function MenuTab({
           onClick={() =>
             openMailto(
               isZh ? 'NovaQuant 支持请求' : 'NovaQuant support request',
-              isZh ? '请描述你遇到的问题，我们会尽快回复。' : 'Please describe what happened and we will get back to you shortly.'
+              isZh
+                ? '请描述你遇到的问题，我们会尽快回复。'
+                : 'Please describe what happened and we will get back to you shortly.',
             )
           }
         >
@@ -733,19 +839,35 @@ export default function MenuTab({
           { title: '账户与登录', desc: '登录失败、设备切换、账号绑定与身份信息问题。' },
           { title: '邀请与积分', desc: '邀请奖励、邀请码、积分到账与 VIP 兑换。' },
           { title: 'Browse / Nova', desc: '搜索不到标的、新闻加载慢、Nova 回答不准。' },
-          { title: '数据与回测', desc: '行情延迟、回测口径、演示数据与真实数据差异。' }
+          { title: '数据与回测', desc: '行情延迟、回测口径、演示数据与真实数据差异。' },
         ]
       : [
-          { title: 'Account & login', desc: 'Sign-in issues, device changes, account linking, and identity questions.' },
-          { title: 'Invites & points', desc: 'Invite rewards, codes, points credits, and VIP redemption.' },
-          { title: 'Browse / Nova', desc: 'Missing symbols, slow news loading, or low-quality Nova answers.' },
-          { title: 'Data & backtests', desc: 'Market data delays, backtest methodology, and demo-vs-live differences.' }
+          {
+            title: 'Account & login',
+            desc: 'Sign-in issues, device changes, account linking, and identity questions.',
+          },
+          {
+            title: 'Invites & points',
+            desc: 'Invite rewards, codes, points credits, and VIP redemption.',
+          },
+          {
+            title: 'Browse / Nova',
+            desc: 'Missing symbols, slow news loading, or low-quality Nova answers.',
+          },
+          {
+            title: 'Data & backtests',
+            desc: 'Market data delays, backtest methodology, and demo-vs-live differences.',
+          },
         ];
     return (
       <section className="stack-gap menu-screen">
         <div className="menu-page-head">
           <h1>{isZh ? '帮助中心' : 'Help center'}</h1>
-          <p>{isZh ? '从最常见的问题开始，遇到卡点再联系支持。' : 'Start with the most common questions, then contact support if you are still blocked.'}</p>
+          <p>
+            {isZh
+              ? '从最常见的问题开始，遇到卡点再联系支持。'
+              : 'Start with the most common questions, then contact support if you are still blocked.'}
+          </p>
         </div>
         <div className="menu-group-list">
           {topics.map((item) => (
@@ -766,10 +888,18 @@ export default function MenuTab({
       <section className="stack-gap menu-screen">
         <div className="menu-page-head">
           <h1>{isZh ? '你的支持会话' : 'Your support chats'}</h1>
-          <p>{isZh ? '当前没有未完成的支持会话。新请求会通过邮件与你同步。' : 'There are no open support chats right now. New requests will sync to your email.'}</p>
+          <p>
+            {isZh
+              ? '当前没有未完成的支持会话。新请求会通过邮件与你同步。'
+              : 'There are no open support chats right now. New requests will sync to your email.'}
+          </p>
         </div>
         <div className="menu-empty-surface">
-          <p>{isZh ? '需要帮助时，直接使用页面底部的 Contact Support。' : 'If you need help, use the Contact Support button on the main support page.'}</p>
+          <p>
+            {isZh
+              ? '需要帮助时，直接使用页面底部的 Contact Support。'
+              : 'If you need help, use the Contact Support button on the main support page.'}
+          </p>
         </div>
       </section>
     );
@@ -780,19 +910,41 @@ export default function MenuTab({
       <section className="stack-gap menu-screen">
         <div className="menu-page-head">
           <h1>{isZh ? '披露与说明' : 'Disclosures'}</h1>
-          <p>{isZh ? '关于数据、演示、执行与系统边界的关键说明。' : 'Key notes about data, demo behavior, execution, and system boundaries.'}</p>
+          <p>
+            {isZh
+              ? '关于数据、演示、执行与系统边界的关键说明。'
+              : 'Key notes about data, demo behavior, execution, and system boundaries.'}
+          </p>
         </div>
         <div className="menu-group-list">
           {[
             isZh
-              ? { title: '市场数据', desc: '页面会优先展示公开行情与缓存快照，极少数时刻可能存在秒级延迟。' }
-              : { title: 'Market data', desc: 'The app prioritizes public market feeds and cached snapshots; in rare moments a seconds-level delay can occur.' },
+              ? {
+                  title: '市场数据',
+                  desc: '页面会优先展示公开行情与缓存快照，极少数时刻可能存在秒级延迟。',
+                }
+              : {
+                  title: 'Market data',
+                  desc: 'The app prioritizes public market feeds and cached snapshots; in rare moments a seconds-level delay can occur.',
+                },
             isZh
-              ? { title: '演示模式', desc: '部分页面会使用 demo 样例数据来保证流程完整，这不代表真实成交记录。' }
-              : { title: 'Demo mode', desc: 'Some surfaces use demo data to keep flows complete. This does not represent real execution history.' },
+              ? {
+                  title: '演示模式',
+                  desc: '部分页面会使用 demo 样例数据来保证流程完整，这不代表真实成交记录。',
+                }
+              : {
+                  title: 'Demo mode',
+                  desc: 'Some surfaces use demo data to keep flows complete. This does not represent real execution history.',
+                },
             isZh
-              ? { title: '执行与券商', desc: '交易票据、纸面执行和券商跳转已经支持，但并非所有券商都开放 API 直连下单。' }
-              : { title: 'Execution & brokers', desc: 'Trade tickets, paper execution, and broker handoff are supported, but not every broker has direct order API connectivity.' }
+              ? {
+                  title: '执行与券商',
+                  desc: '交易票据、纸面执行和券商跳转已经支持，但并非所有券商都开放 API 直连下单。',
+                }
+              : {
+                  title: 'Execution & brokers',
+                  desc: 'Trade tickets, paper execution, and broker handoff are supported, but not every broker has direct order API connectivity.',
+                },
           ].map((item) => (
             <div key={item.title} className="menu-list-row static">
               <span>
@@ -820,7 +972,9 @@ export default function MenuTab({
         <div className="menu-setting-surface">
           <div className="menu-setting-highlight">
             <span className="menu-setting-kicker">{isZh ? '当前状态' : 'Current status'}</span>
-            <strong>{isZh ? '这台设备已准备好创建通行密钥' : 'This device is ready for a passkey'}</strong>
+            <strong>
+              {isZh ? '这台设备已准备好创建通行密钥' : 'This device is ready for a passkey'}
+            </strong>
             <p>
               {isZh
                 ? '创建后，你将能用生物识别或屏幕锁快速登录，并可在 Devices 页面随时撤销。'
@@ -830,11 +984,19 @@ export default function MenuTab({
           <div className="menu-detail-bullets">
             <div className="menu-detail-bullet">
               <strong>{isZh ? '更快登录' : 'Faster sign-in'}</strong>
-              <span>{isZh ? '减少手动输入密码的频率。' : 'Reduce how often you need to type a password.'}</span>
+              <span>
+                {isZh
+                  ? '减少手动输入密码的频率。'
+                  : 'Reduce how often you need to type a password.'}
+              </span>
             </div>
             <div className="menu-detail-bullet">
               <strong>{isZh ? '更强保护' : 'Stronger protection'}</strong>
-              <span>{isZh ? '降低重复密码和钓鱼风险。' : 'Lower the risk of reused passwords and phishing.'}</span>
+              <span>
+                {isZh
+                  ? '降低重复密码和钓鱼风险。'
+                  : 'Lower the risk of reused passwords and phishing.'}
+              </span>
             </div>
           </div>
         </div>
@@ -878,7 +1040,9 @@ export default function MenuTab({
             onClick={() =>
               openMailto(
                 isZh ? 'NovaQuant 修改密码请求' : 'NovaQuant password change request',
-                isZh ? '请协助我发起密码重置流程。' : 'Please help me start the password reset flow.'
+                isZh
+                  ? '请协助我发起密码重置流程。'
+                  : 'Please help me start the password reset flow.',
               )
             }
           >
@@ -905,13 +1069,17 @@ export default function MenuTab({
             {
               key: 'face-id',
               title: 'Face ID',
-              desc: isZh ? '优先使用面容识别解锁 NovaQuant。' : 'Use Face ID to unlock NovaQuant first.'
+              desc: isZh
+                ? '优先使用面容识别解锁 NovaQuant。'
+                : 'Use Face ID to unlock NovaQuant first.',
             },
             {
               key: 'device-passcode',
               title: isZh ? '设备密码' : 'Device passcode',
-              desc: isZh ? '在生物识别不可用时，回退到系统锁屏密码。' : 'Fall back to your system passcode when biometrics are unavailable.'
-            }
+              desc: isZh
+                ? '在生物识别不可用时，回退到系统锁屏密码。'
+                : 'Fall back to your system passcode when biometrics are unavailable.',
+            },
           ].map((item) => {
             const active = deviceSecurityMode === item.key;
             return (
@@ -925,7 +1093,10 @@ export default function MenuTab({
                   <strong>{item.title}</strong>
                   <span>{item.desc}</span>
                 </span>
-                <span className={`menu-choice-radio ${active ? 'is-selected' : ''}`} aria-hidden="true" />
+                <span
+                  className={`menu-choice-radio ${active ? 'is-selected' : ''}`}
+                  aria-hidden="true"
+                />
               </button>
             );
           })}
@@ -984,15 +1155,15 @@ export default function MenuTab({
               title: isZh ? 'NovaQuant 上的任何人' : 'Anyone on NovaQuant',
               desc: isZh
                 ? '任何拥有你基本信息的人都可以搜索到你的资料。'
-                : 'Anyone who has your basic account details can search and find your profile.'
+                : 'Anyone who has your basic account details can search and find your profile.',
             },
             {
               key: 'none',
               title: isZh ? '没有人' : 'No one',
               desc: isZh
                 ? '没有人可以通过姓名、用户名、手机号或邮箱找到你。'
-                : 'No one can find you by your name, username, phone number, or email.'
-            }
+                : 'No one can find you by your name, username, phone number, or email.',
+            },
           ].map((item) => {
             const active = profileVisibility === item.key;
             return (
@@ -1006,12 +1177,19 @@ export default function MenuTab({
                   <strong>{item.title}</strong>
                   <span>{item.desc}</span>
                 </span>
-                <span className={`menu-choice-radio ${active ? 'is-selected' : ''}`} aria-hidden="true" />
+                <span
+                  className={`menu-choice-radio ${active ? 'is-selected' : ''}`}
+                  aria-hidden="true"
+                />
               </button>
             );
           })}
         </div>
-        <button type="button" className="menu-inline-link" onClick={() => onSectionChange('privacy-policy')}>
+        <button
+          type="button"
+          className="menu-inline-link"
+          onClick={() => onSectionChange('privacy-policy')}
+        >
           {isZh
             ? '想进一步了解我们如何使用你的个人信息？阅读隐私政策。'
             : 'To better understand how we use your personal information, read our Privacy Policy.'}
@@ -1047,17 +1225,24 @@ export default function MenuTab({
       {
         key: 'privacy-choices',
         title: isZh ? '你的隐私选择' : 'Your privacy choices',
-        desc: isZh ? '控制个性化、更新通知和研究用途。' : 'Control personalization, updates, and research uses.'
+        desc: isZh
+          ? '控制个性化、更新通知和研究用途。'
+          : 'Control personalization, updates, and research uses.',
       },
       {
         key: 'download-personal-data',
         title: isZh ? '下载个人数据' : 'Download personal data',
-        desc: isZh ? '请求一份你的账户与产品使用导出。' : 'Request an export of your account and product usage data.'
+        desc: isZh
+          ? '请求一份你的账户与产品使用导出。'
+          : 'Request an export of your account and product usage data.',
       },
       {
         key: 'request-data-deletion',
         title: isZh ? '请求删除数据' : 'Request data deletion',
-        desc: isZh ? '发起删除申请，我们会进行身份核验与合规审查。' : 'Start a deletion request and we will review it for identity and compliance requirements.'}
+        desc: isZh
+          ? '发起删除申请，我们会进行身份核验与合规审查。'
+          : 'Start a deletion request and we will review it for identity and compliance requirements.',
+      },
     ];
     return (
       <section className="stack-gap menu-screen">
@@ -1071,7 +1256,12 @@ export default function MenuTab({
         </div>
         <div className="menu-group-list">
           {rows.map((item) => (
-            <button key={item.key} type="button" className="menu-list-row" onClick={() => onSectionChange(item.key)}>
+            <button
+              key={item.key}
+              type="button"
+              className="menu-list-row"
+              onClick={() => onSectionChange(item.key)}
+            >
               <span>
                 <span className="menu-list-title">{item.title}</span>
                 <span className="menu-list-desc">{item.desc}</span>
@@ -1102,24 +1292,35 @@ export default function MenuTab({
               enabled: privacyPersonalization,
               onToggle: () => setPrivacyPersonalization((value) => !value),
               title: isZh ? '个性化洞察' : 'Personalized insights',
-              desc: isZh ? '允许 NovaQuant 根据你的持仓、问答和观察列表优化卡片排序。' : 'Allow NovaQuant to tailor card ranking using your holdings, questions, and watchlists.'
+              desc: isZh
+                ? '允许 NovaQuant 根据你的持仓、问答和观察列表优化卡片排序。'
+                : 'Allow NovaQuant to tailor card ranking using your holdings, questions, and watchlists.',
             },
             {
               key: 'updates',
               enabled: privacyProductUpdates,
               onToggle: () => setPrivacyProductUpdates((value) => !value),
               title: isZh ? '产品更新与活动提醒' : 'Product updates and reminders',
-              desc: isZh ? '允许我们通过邮件或站内消息发送更新、功能发布与活动提醒。' : 'Allow us to send email or in-product updates about launches, reminders, and rewards activity.'
+              desc: isZh
+                ? '允许我们通过邮件或站内消息发送更新、功能发布与活动提醒。'
+                : 'Allow us to send email or in-product updates about launches, reminders, and rewards activity.',
             },
             {
               key: 'research',
               enabled: privacyResearchSharing,
               onToggle: () => setPrivacyResearchSharing((value) => !value),
               title: isZh ? '匿名研究改进' : 'Anonymized research improvement',
-              desc: isZh ? '允许我们使用脱敏交互数据改进系统质量与风控。' : 'Allow us to use de-identified interaction data to improve system quality and risk controls.'
-            }
+              desc: isZh
+                ? '允许我们使用脱敏交互数据改进系统质量与风控。'
+                : 'Allow us to use de-identified interaction data to improve system quality and risk controls.',
+            },
           ].map((item) => (
-            <button key={item.key} type="button" className="menu-toggle-card" onClick={item.onToggle}>
+            <button
+              key={item.key}
+              type="button"
+              className="menu-toggle-card"
+              onClick={item.onToggle}
+            >
               <span className="menu-choice-copy">
                 <strong>{item.title}</strong>
                 <span>{item.desc}</span>
@@ -1149,11 +1350,19 @@ export default function MenuTab({
           <div className="menu-detail-bullets">
             <div className="menu-detail-bullet">
               <strong>{isZh ? '通常包含' : 'Usually includes'}</strong>
-              <span>{isZh ? '账户资料、偏好设置、观察列表、积分记录、支持工单与设备会话摘要。' : 'Account profile, preferences, watchlists, points history, support tickets, and a summary of device sessions.'}</span>
+              <span>
+                {isZh
+                  ? '账户资料、偏好设置、观察列表、积分记录、支持工单与设备会话摘要。'
+                  : 'Account profile, preferences, watchlists, points history, support tickets, and a summary of device sessions.'}
+              </span>
             </div>
             <div className="menu-detail-bullet">
               <strong>{isZh ? '交付方式' : 'Delivery method'}</strong>
-              <span>{isZh ? '我们会先核验身份，然后把导出文件发送到你的注册邮箱。' : 'We verify identity first and then send the export package to your registered email address.'}</span>
+              <span>
+                {isZh
+                  ? '我们会先核验身份，然后把导出文件发送到你的注册邮箱。'
+                  : 'We verify identity first and then send the export package to your registered email address.'}
+              </span>
             </div>
           </div>
           <button
@@ -1162,7 +1371,9 @@ export default function MenuTab({
             onClick={() =>
               openMailto(
                 isZh ? 'NovaQuant 数据导出请求' : 'NovaQuant data export request',
-                isZh ? '请为我的账户发起个人数据导出请求。' : 'Please start a personal data export request for my account.'
+                isZh
+                  ? '请为我的账户发起个人数据导出请求。'
+                  : 'Please start a personal data export request for my account.',
               )
             }
           >
@@ -1188,11 +1399,19 @@ export default function MenuTab({
           <div className="menu-detail-bullets">
             <div className="menu-detail-bullet">
               <strong>{isZh ? '提交前请确认' : 'Before you submit'}</strong>
-              <span>{isZh ? '删除请求可能影响登录、奖励记录、支持历史以及未来的问题排查。' : 'A deletion request may affect sign-in access, rewards history, support history, and our ability to investigate future issues.'}</span>
+              <span>
+                {isZh
+                  ? '删除请求可能影响登录、奖励记录、支持历史以及未来的问题排查。'
+                  : 'A deletion request may affect sign-in access, rewards history, support history, and our ability to investigate future issues.'}
+              </span>
             </div>
             <div className="menu-detail-bullet">
               <strong>{isZh ? '处理流程' : 'Review process'}</strong>
-              <span>{isZh ? '我们会先核验身份，再依据适用法律和业务义务决定可以删除的范围。' : 'We verify identity first and then review the request against applicable law and our operational obligations.'}</span>
+              <span>
+                {isZh
+                  ? '我们会先核验身份，再依据适用法律和业务义务决定可以删除的范围。'
+                  : 'We verify identity first and then review the request against applicable law and our operational obligations.'}
+              </span>
             </div>
           </div>
           <button
@@ -1201,7 +1420,9 @@ export default function MenuTab({
             onClick={() =>
               openMailto(
                 isZh ? 'NovaQuant 数据删除请求' : 'NovaQuant data deletion request',
-                isZh ? '请协助我发起个人数据删除申请。' : 'Please help me start a personal data deletion request.'
+                isZh
+                  ? '请协助我发起个人数据删除申请。'
+                  : 'Please help me start a personal data deletion request.',
               )
             }
           >
@@ -1217,9 +1438,7 @@ export default function MenuTab({
       <section className="stack-gap menu-screen">
         <div className="menu-page-head">
           <h1>{isZh ? '隐私政策' : 'Privacy Policy'}</h1>
-          <p>
-            {isZh ? '生效日期：2026 年 3 月 21 日' : 'Effective date: March 21, 2026'}
-          </p>
+          <p>{isZh ? '生效日期：2026 年 3 月 21 日' : 'Effective date: March 21, 2026'}</p>
         </div>
         <div className="menu-policy-shell">
           {privacyPolicySections.map((item) => (
@@ -1249,14 +1468,25 @@ export default function MenuTab({
         <div className="menu-security-section">
           <div className="menu-page-head">
             <h1>{isZh ? '安全' : 'Security'}</h1>
-            <p>{isZh ? '为你的 NovaQuant 账户增加额外的安全保护。' : 'Protect your NovaQuant account with additional layers of security.'}</p>
+            <p>
+              {isZh
+                ? '为你的 NovaQuant 账户增加额外的安全保护。'
+                : 'Protect your NovaQuant account with additional layers of security.'}
+            </p>
           </div>
           <div className="menu-group-list">
             {securityRows.map((item) => (
-              <button key={item.key} type="button" className="menu-list-row" onClick={() => onSectionChange(item.key)}>
+              <button
+                key={item.key}
+                type="button"
+                className="menu-list-row"
+                onClick={() => onSectionChange(item.key)}
+              >
                 <span>
                   <span className="menu-list-title">{item.title}</span>
-                  {item.note ? <span className="menu-list-desc menu-list-desc-accent">{item.note}</span> : null}
+                  {item.note ? (
+                    <span className="menu-list-desc menu-list-desc-accent">{item.note}</span>
+                  ) : null}
                 </span>
                 <span className="menu-list-arrow">›</span>
               </button>
@@ -1267,11 +1497,20 @@ export default function MenuTab({
         <div className="menu-security-section">
           <div className="menu-page-head">
             <h1>{isZh ? '隐私' : 'Privacy'}</h1>
-            <p>{isZh ? '管理你的资料、数据使用与隐私边界。' : 'Manage how your profile and data are used.'}</p>
+            <p>
+              {isZh
+                ? '管理你的资料、数据使用与隐私边界。'
+                : 'Manage how your profile and data are used.'}
+            </p>
           </div>
           <div className="menu-group-list">
             {privacyRows.map((item) => (
-              <button key={item.key} type="button" className="menu-list-row" onClick={() => onSectionChange(item.key)}>
+              <button
+                key={item.key}
+                type="button"
+                className="menu-list-row"
+                onClick={() => onSectionChange(item.key)}
+              >
                 <span className="menu-list-title">{item.title}</span>
                 <span className="menu-list-arrow">›</span>
               </button>
@@ -1310,7 +1549,12 @@ export default function MenuTab({
             const item = catalog[key];
             if (!item) return null;
             return (
-              <button key={key} type="button" className="menu-list-row" onClick={() => onSectionChange(key)}>
+              <button
+                key={key}
+                type="button"
+                className="menu-list-row"
+                onClick={() => onSectionChange(key)}
+              >
                 <span>
                   <span className="menu-list-title">{item.title}</span>
                   <span className="menu-list-desc">{item.description}</span>
@@ -1350,10 +1594,25 @@ export default function MenuTab({
           {[
             { key: 'support', title: copy.supportRootTitle, desc: copy.supportRootCopy },
             { key: 'rewards', title: copy.rewards, desc: copy.rewardsRootCopy },
-            { key: 'security-privacy', title: copy.securityPrivacy, desc: copy.securityPrivacyCopy },
-            { key: 'settings', title: copy.settings, desc: locale?.startsWith('zh') ? '通知、偏好、账户与模式。' : 'Notifications, preferences, account, and mode.' }
+            {
+              key: 'security-privacy',
+              title: copy.securityPrivacy,
+              desc: copy.securityPrivacyCopy,
+            },
+            {
+              key: 'settings',
+              title: copy.settings,
+              desc: locale?.startsWith('zh')
+                ? '通知、偏好、账户与模式。'
+                : 'Notifications, preferences, account, and mode.',
+            },
           ].map((item) => (
-            <button key={item.key} type="button" className="menu-list-row" onClick={() => onSectionChange(item.key)}>
+            <button
+              key={item.key}
+              type="button"
+              className="menu-list-row"
+              onClick={() => onSectionChange(item.key)}
+            >
               <span>
                 <span className="menu-list-title">{item.title}</span>
                 <span className="menu-list-desc">{item.desc}</span>
@@ -1377,20 +1636,33 @@ export default function MenuTab({
                       title: locale?.startsWith('zh') ? '演示模式' : 'Demo Mode',
                       desc: locale?.startsWith('zh')
                         ? '用样例数据走完整个平台，不影响真实账户路径。'
-                        : 'Run a sample-data walkthrough without touching the real account path.'
-                    }
+                        : 'Run a sample-data walkthrough without touching the real account path.',
+                    },
                   ]
                 : []),
-              { key: 'about', title: copy.about, desc: locale?.startsWith('zh') ? '版本、支持与合规信息。' : 'Version, support, and compliance.' }
+              {
+                key: 'about',
+                title: copy.about,
+                desc: locale?.startsWith('zh')
+                  ? '版本、支持与合规信息。'
+                  : 'Version, support, and compliance.',
+              },
             ].map((item) => {
-              const onClick = item.key === 'about' ? onOpenAbout : item.key === 'demo' ? onToggleDemo : () => onSectionChange(item.key);
+              const onClick =
+                item.key === 'about'
+                  ? onOpenAbout
+                  : item.key === 'demo'
+                    ? onToggleDemo
+                    : () => onSectionChange(item.key);
               return (
                 <button key={item.key} type="button" className="menu-list-row" onClick={onClick}>
                   <span>
                     <span className="menu-list-title">{item.title}</span>
                     <span className="menu-list-desc">{item.desc}</span>
                   </span>
-                  <span className="menu-list-arrow">{item.key === 'demo' ? (demoEnabled ? 'On' : 'Off') : '›'}</span>
+                  <span className="menu-list-arrow">
+                    {item.key === 'demo' ? (demoEnabled ? 'On' : 'Off') : '›'}
+                  </span>
                 </button>
               );
             })}
@@ -1399,7 +1671,11 @@ export default function MenuTab({
       </div>
 
       <div className="menu-root-footer">
-        <button type="button" className="menu-outline-cta menu-outline-cta-logout" onClick={onLogout}>
+        <button
+          type="button"
+          className="menu-outline-cta menu-outline-cta-logout"
+          onClick={onLogout}
+        >
           {copy.logout}
         </button>
       </div>

@@ -5,6 +5,7 @@ Last updated: 2026-03-09
 ## Lifecycle
 
 Nova Quant governance lifecycle (enforced):
+
 1. `DRAFT`
 2. `SHADOW`
 3. `CANARY`
@@ -14,12 +15,14 @@ Nova Quant governance lifecycle (enforced):
 ## Core Families and Templates
 
 1. Momentum / Trend Following
+
 - breakout
 - pullback_continuation
 - momentum_expansion
 - volatility_expansion_continuation
 
 2. Mean Reversion
+
 - oversold_rebound
 - overbought_fade
 - anchor_deviation_reversion
@@ -27,18 +30,21 @@ Nova Quant governance lifecycle (enforced):
 - percentile_zscore_reversion
 
 3. Regime Transition
+
 - trend_to_range_transition
 - volatility_regime_switch
 - risk_on_to_risk_off_transition
 - false_breakout_failed_trend_capture
 
 4. Relative Strength / Cross-Sectional
+
 - sector_strength_rotation
 - cross_asset_momentum
 - basket_rank_momentum
 - leader_laggard_pair
 
 5. Crypto-Native
+
 - funding_dislocation
 - basis_compression_expansion
 - carry_oriented_setup
@@ -47,6 +53,7 @@ Nova Quant governance lifecycle (enforced):
 - exchange_divergence_stress_proxy
 
 6. Future Overlay (Optional)
+
 - event_aware_filter_overlay
 - options_flow_overlay
 - sentiment_overlay
@@ -55,6 +62,7 @@ Nova Quant governance lifecycle (enforced):
 ## Strategy Registry Status Fields
 
 `registry_system.strategy_registry` now includes governance status visibility:
+
 - `current_state`
 - `evidence_status`
 - `validation_status`
@@ -65,12 +73,14 @@ Nova Quant governance lifecycle (enforced):
 - `last_review_timestamp`
 
 Structured governance view:
+
 - `registry_system.strategy_registry_governance_view`
 - `research_core.strategy_governance.strategy_registry`
 
 ## Governance Metadata per Strategy Version
 
 `research_core.strategy_governance.strategy_records[*]` includes:
+
 - `strategy_id`
 - `family`
 - `template`
@@ -86,12 +96,14 @@ Structured governance view:
 ## Decision Objects
 
 Governance emits typed decision objects:
+
 - `PromotionDecision`
 - `DemotionDecision`
 - `RollbackDecision`
 - `RetirementDecision`
 
 Output paths:
+
 - `research_core.strategy_governance.decision_objects.PromotionDecision`
 - `research_core.strategy_governance.decision_objects.DemotionDecision`
 - `research_core.strategy_governance.decision_objects.RollbackDecision`

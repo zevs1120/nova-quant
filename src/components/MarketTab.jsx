@@ -15,7 +15,7 @@ export default function MarketTab({
   modules,
   insights,
   uiMode = 'standard',
-  onExplainRisk
+  onExplainRisk,
 }) {
   const filtered = modules.filter((item) => {
     if (item.asset_class && item.asset_class !== assetClass) return false;
@@ -33,7 +33,7 @@ export default function MarketTab({
         options={[
           { label: 'Options', value: 'OPTIONS' },
           { label: 'Stocks', value: 'US_STOCK' },
-          { label: 'Crypto', value: 'CRYPTO' }
+          { label: 'Crypto', value: 'CRYPTO' },
         ]}
         value={assetClass}
         onChange={(value) => {
@@ -45,7 +45,9 @@ export default function MarketTab({
       <GlassCard className="velocity-hero">
         <p className="muted">Environment Summary</p>
         <h1 className="velocity-value">{insights?.regime?.tag || '--'}</h1>
-        <p className="muted status-line">{insights?.short_commentary || insights?.regime?.description || '--'}</p>
+        <p className="muted status-line">
+          {insights?.short_commentary || insights?.regime?.description || '--'}
+        </p>
         <div className="status-grid-3">
           <div className="status-box">
             <p className="muted">Breadth</p>
@@ -151,7 +153,8 @@ export default function MarketTab({
       <GlassCard>
         <h3 className="card-title">Data Boundary</h3>
         <p className="muted">
-          Insights are generated from sample market data + derived features. They support daily decisions but are not live feed claims.
+          Insights are generated from sample market data + derived features. They support daily
+          decisions but are not live feed claims.
         </p>
       </GlassCard>
     </section>

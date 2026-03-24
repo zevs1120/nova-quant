@@ -7,7 +7,9 @@ import { getDb } from '../src/server/db/database.js';
 function resetAuthUser(email: string) {
   const db = getDb();
   ensureSchema(db);
-  const row = db.prepare('SELECT user_id FROM auth_users WHERE email = ? LIMIT 1').get(email) as { user_id?: string } | undefined;
+  const row = db.prepare('SELECT user_id FROM auth_users WHERE email = ? LIMIT 1').get(email) as
+    | { user_id?: string }
+    | undefined;
   if (!row?.user_id) return;
   db.prepare('DELETE FROM auth_password_resets WHERE user_id = ?').run(row.user_id);
   db.prepare('DELETE FROM auth_sessions WHERE user_id = ?').run(row.user_id);
@@ -48,8 +50,8 @@ describe('signup welcome email', () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ id: 'email_123' }), {
         status: 200,
-        headers: { 'content-type': 'application/json' }
-      })
+        headers: { 'content-type': 'application/json' },
+      }),
     );
     vi.stubGlobal('fetch', fetchMock);
 
@@ -59,7 +61,7 @@ describe('signup welcome email', () => {
       password: 'StrongPass123',
       name: 'Welcome User',
       tradeMode: 'active',
-      broker: 'Other'
+      broker: 'Other',
     });
 
     expect(signup.status).toBe(200);
@@ -74,8 +76,8 @@ describe('signup welcome email', () => {
     vi.stubEnv('NOVA_AUTH_EMAIL_FROM', 'NovaQuant <welcome@novaquant.cloud>');
     const fetchMock = vi.fn().mockResolvedValue(
       new Response('upstream error', {
-        status: 500
-      })
+        status: 500,
+      }),
     );
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     vi.stubGlobal('fetch', fetchMock);
@@ -86,7 +88,7 @@ describe('signup welcome email', () => {
       password: 'StrongPass123',
       name: 'Welcome User',
       tradeMode: 'active',
-      broker: 'Other'
+      broker: 'Other',
     });
 
     expect(signup.status).toBe(200);

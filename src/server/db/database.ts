@@ -28,7 +28,10 @@ function tryAcquireSqliteProcessLock(dbPath: string) {
   for (;;) {
     try {
       const fd = fs.openSync(lockPath, 'wx');
-      fs.writeFileSync(fd, JSON.stringify({ pid: process.pid, started_at: new Date().toISOString(), db_path: dbPath }));
+      fs.writeFileSync(
+        fd,
+        JSON.stringify({ pid: process.pid, started_at: new Date().toISOString(), db_path: dbPath }),
+      );
       dbLockFd = fd;
       dbLockPath = lockPath;
       return;

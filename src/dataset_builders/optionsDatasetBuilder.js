@@ -15,7 +15,7 @@ function buildFutureOptionMap(featureRows, horizon = 3) {
       map.set(`${ticker}:${current.date}`, {
         future_option_return: Number(ret.toFixed(6)),
         future_mid: future.mid_price,
-        future_date: future.date
+        future_date: future.date,
       });
     }
   }
@@ -34,7 +34,10 @@ function buildUnderlyingFutureMap(featureRows, horizon = 3) {
       daily.get(row.date).push(row.underlying_price);
     }
     const ordered = [...daily.entries()]
-      .map(([date, values]) => ({ date, price: values.reduce((sum, value) => sum + value, 0) / values.length }))
+      .map(([date, values]) => ({
+        date,
+        price: values.reduce((sum, value) => sum + value, 0) / values.length,
+      }))
       .sort((a, b) => a.date.localeCompare(b.date));
 
     for (let i = 0; i < ordered.length; i += 1) {
@@ -71,7 +74,8 @@ export function buildOptionsTrainingDataset({ features, asOf }) {
     const optionFuture = futureOptionMap.get(optionKey);
     if (!optionFuture) continue;
 
-    const underlyingFutureRet = underlyingMap.get(`${feature.underlying_symbol}:${feature.date}`) ?? 0;
+    const underlyingFutureRet =
+      underlyingMap.get(`${feature.underlying_symbol}:${feature.date}`) ?? 0;
 
     rows.push({
       asset_class: 'option',
@@ -89,30 +93,34 @@ export function buildOptionsTrainingDataset({ features, asOf }) {
         bid_ask_spread_pct: feature.bid_ask_spread_pct,
         chain_concentration: feature.chain_concentration,
         oi_volume_anomaly: feature.oi_volume_anomaly,
-        premium_momentum_3d: feature.premium_momentum_3d
+        premium_momentum_3d: feature.premium_momentum_3d,
       },
       labels: {
         future_option_return_3d: optionFuture.future_option_return,
         option_direction_3d: optionFuture.future_option_return >= 0 ? 'premium_up' : 'premium_down',
         payoff_alignment_3d: payoffDirection(feature.option_type, underlyingFutureRet),
         vol_risk_label: volRiskLabel(feature.implied_vol_change_5d),
-        underlying_future_return_3d: underlyingFutureRet
+        underlying_future_return_3d: underlyingFutureRet,
       },
       source: feature.source,
       data_status: 'derived',
-      fetched_at: feature.fetched_at
+      fetched_at: feature.fetched_at,
     });
   }
 
   const splitMap = buildDateSplits(rows, 'date');
-  const splitRows = rows.map((row) => ({ ...row, split: assignSplitByDate(row, splitMap, 'date') }));
+  const splitRows = rows.map((row) => ({
+    ...row,
+    split: assignSplitByDate(row, splitMap, 'date'),
+  }));
 
   return {
     dataset: {
       dataset_id: `tds-options-chain-v1-${String(asOf).slice(0, 10)}`,
       asset_class: 'option',
       feature_set_name: 'options_chain_v1',
-      label_definition: 'future_option_return_3d + option_direction_3d + payoff_alignment_3d + vol_risk_label',
+      label_definition:
+        'future_option_return_3d + option_direction_3d + payoff_alignment_3d + vol_risk_label',
       split: splitCounts(splitRows),
       split_strategy: 'date_ratio_70_15_15',
       created_at: createdAt,
@@ -122,8 +130,8 @@ export function buildOptionsTrainingDataset({ features, asOf }) {
       version: 'options_chain_v1.0.0',
       status: 'active',
       use_notes: 'Option-specific labels tied to premium dynamics and underlying alignment.',
-      license_notes: 'Contains sample fallback options data unless licensed feed is configured.'
+      license_notes: 'Contains sample fallback options data unless licensed feed is configured.',
     },
-    rows: splitRows
+    rows: splitRows,
   };
 }

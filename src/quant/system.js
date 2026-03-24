@@ -14,7 +14,7 @@ import {
   round,
   simpleMovingAverage,
   stdDev,
-  sum
+  sum,
 } from './math.js';
 
 const PIPELINE_VERSION = `nova-quant-v${APP_VERSION}`;
@@ -28,7 +28,7 @@ const RISK_PROFILES = {
     dailyLossPct: 1.8,
     maxDrawdownPct: 8,
     exposureCapPct: 38,
-    leverageCap: 1.2
+    leverageCap: 1.2,
   },
   balanced: {
     maxHoldings: 7,
@@ -38,7 +38,7 @@ const RISK_PROFILES = {
     dailyLossPct: 3,
     maxDrawdownPct: 12,
     exposureCapPct: 58,
-    leverageCap: 1.8
+    leverageCap: 1.8,
   },
   aggressive: {
     maxHoldings: 9,
@@ -48,59 +48,63 @@ const RISK_PROFILES = {
     dailyLossPct: 4.5,
     maxDrawdownPct: 18,
     exposureCapPct: 76,
-    leverageCap: 2.4
-  }
+    leverageCap: 2.4,
+  },
 };
 
 const REGIME_TAXONOMY = [
   {
     tag: 'Trend Up',
-    description: 'Index trend and breadth are both healthy; trend-following alpha has edge.'
+    description: 'Index trend and breadth are both healthy; trend-following alpha has edge.',
   },
   {
     tag: 'Trend Down',
-    description: 'Index trend is weak and downside pressure dominates; long risk should be selective.'
+    description:
+      'Index trend is weak and downside pressure dominates; long risk should be selective.',
   },
   {
     tag: 'Range / Choppy',
-    description: 'Direction is mixed and leadership rotates quickly; mean-reversion and risk control matter.'
+    description:
+      'Direction is mixed and leadership rotates quickly; mean-reversion and risk control matter.',
   },
   {
     tag: 'High Volatility Risk',
-    description: 'Volatility and correlation stress are elevated; gross exposure should be reduced.'
+    description:
+      'Volatility and correlation stress are elevated; gross exposure should be reduced.',
   },
   {
     tag: 'Risk Recovery',
-    description: 'Volatility is cooling after stress; exposure can be rebuilt gradually with quality setups.'
-  }
+    description:
+      'Volatility is cooling after stress; exposure can be rebuilt gradually with quality setups.',
+  },
 ];
 
 const RISK_RULES = [
   {
     id: 'RR-001',
     title: 'Index volatility throttle',
-    rule: 'If benchmark daily volatility > 2.2%, reduce gross exposure by 40% and disable new C-grade trades.'
+    rule: 'If benchmark daily volatility > 2.2%, reduce gross exposure by 40% and disable new C-grade trades.',
   },
   {
     id: 'RR-002',
     title: 'Liquidity floor',
-    rule: 'If ADV < $500M equivalent notional, mark instrument as non-tradable for today.'
+    rule: 'If ADV < $500M equivalent notional, mark instrument as non-tradable for today.',
   },
   {
     id: 'RR-003',
     title: 'Gap chase filter',
-    rule: 'If open gap exceeds 2.8% in signal direction, do not chase first entry zone.'
+    rule: 'If open gap exceeds 2.8% in signal direction, do not chase first entry zone.',
   },
   {
     id: 'RR-004',
     title: 'Trend deterioration gate',
-    rule: 'When index trend drops below neutral, only A-grade opportunities remain tradable.'
+    rule: 'When index trend drops below neutral, only A-grade opportunities remain tradable.',
   },
   {
     id: 'RR-005',
     title: 'Concentration cap',
-    rule: 'Single sector exposure cannot exceed configured cap; overflow candidates are filtered out.'
-  }
+    rule: 'Single sector exposure cannot exceed configured cap; overflow candidates are filtered out.',
+  },
 ];
 
 const ALPHA_LIBRARY = [
@@ -113,7 +117,7 @@ const ALPHA_LIBRARY = [
     regimes: ['Trend Up', 'Risk Recovery'],
     holding_period: '3-10D',
     risk_tags: ['trend-crowding'],
-    compute: (f) => clamp(f.trend.ret20 * 4 + f.trend.maDev20 * 8, -1, 1)
+    compute: (f) => clamp(f.trend.ret20 * 4 + f.trend.maDev20 * 8, -1, 1),
   },
   {
     id: 'ALP-T02',
@@ -130,7 +134,7 @@ const ALPHA_LIBRARY = [
       if (up) return 0.9;
       if (down) return -0.9;
       return 0;
-    }
+    },
   },
   {
     id: 'ALP-T03',
@@ -145,7 +149,7 @@ const ALPHA_LIBRARY = [
       if (f.trend.breakout === 'UP') return 0.85;
       if (f.trend.breakout === 'DOWN') return -0.85;
       return 0;
-    }
+    },
   },
   {
     id: 'ALP-T04',
@@ -156,7 +160,7 @@ const ALPHA_LIBRARY = [
     regimes: ['Trend Up', 'Risk Recovery'],
     holding_period: '3-12D',
     risk_tags: ['sector-reversal'],
-    compute: (f) => clamp((f.cross.rank - 0.5) * 1.6 + (f.cross.industryRank - 0.5) * 1.2, -1, 1)
+    compute: (f) => clamp((f.cross.rank - 0.5) * 1.6 + (f.cross.industryRank - 0.5) * 1.2, -1, 1),
   },
   {
     id: 'ALP-M01',
@@ -171,7 +175,7 @@ const ALPHA_LIBRARY = [
       if (f.meanReversion.rsi14 <= 30) return 0.75;
       if (f.meanReversion.rsi14 >= 70) return -0.75;
       return 0;
-    }
+    },
   },
   {
     id: 'ALP-M02',
@@ -182,7 +186,7 @@ const ALPHA_LIBRARY = [
     regimes: ['Range / Choppy', 'High Volatility Risk', 'Risk Recovery'],
     holding_period: '1-3D',
     risk_tags: ['momentum-crash'],
-    compute: (f) => clamp(-f.meanReversion.zScore10 / 2.6, -1, 1)
+    compute: (f) => clamp(-f.meanReversion.zScore10 / 2.6, -1, 1),
   },
   {
     id: 'ALP-M03',
@@ -193,7 +197,7 @@ const ALPHA_LIBRARY = [
     regimes: ['Range / Choppy', 'High Volatility Risk'],
     holding_period: '1-2D',
     risk_tags: ['trend-day-loss'],
-    compute: (f) => clamp(-f.meanReversion.vwapDev * 14, -1, 1)
+    compute: (f) => clamp(-f.meanReversion.vwapDev * 14, -1, 1),
   },
   {
     id: 'ALP-V01',
@@ -208,7 +212,7 @@ const ALPHA_LIBRARY = [
       const amp = clamp((f.volume.volumeAdv - 1) * 1.25, -1, 1);
       const direction = f.trend.ret5 >= 0 ? 1 : -1;
       return round(amp * direction, 4);
-    }
+    },
   },
   {
     id: 'ALP-V02',
@@ -222,7 +226,7 @@ const ALPHA_LIBRARY = [
     compute: (f) => {
       if (f.trend.ret20 > 0 && f.trend.ret5 < 0 && f.volume.volumeAdv < 1) return 0.62;
       return 0;
-    }
+    },
   },
   {
     id: 'ALP-V03',
@@ -236,7 +240,7 @@ const ALPHA_LIBRARY = [
     compute: (f) => {
       if (f.volume.turnoverShock < 1.2) return 0;
       return f.trend.ret1 >= 0 ? 0.55 : -0.55;
-    }
+    },
   },
   {
     id: 'ALP-S01',
@@ -252,7 +256,7 @@ const ALPHA_LIBRARY = [
       if (m.regime.tag === 'Trend Down') return -0.45;
       if (m.regime.tag === 'Risk Recovery') return 0.2;
       return 0;
-    }
+    },
   },
   {
     id: 'ALP-S02',
@@ -263,7 +267,7 @@ const ALPHA_LIBRARY = [
     regimes: ['ALL'],
     holding_period: 'N/A',
     risk_tags: ['breadth-fade'],
-    compute: (_f, m) => clamp((m.breadth.ratio - 0.5) * 1.4, -1, 1)
+    compute: (_f, m) => clamp((m.breadth.ratio - 0.5) * 1.4, -1, 1),
   },
   {
     id: 'ALP-S03',
@@ -276,10 +280,11 @@ const ALPHA_LIBRARY = [
     risk_tags: ['style-reversal'],
     compute: (f, m) => {
       if (m.style.preference === 'Growth' && f.meta.sector === 'Technology') return 0.45;
-      if (m.style.preference === 'Defensive' && ['Energy', 'Financials'].includes(f.meta.sector)) return 0.35;
+      if (m.style.preference === 'Defensive' && ['Energy', 'Financials'].includes(f.meta.sector))
+        return 0.35;
       if (m.style.preference === 'Balanced') return 0.12;
       return -0.18;
-    }
+    },
   },
   {
     id: 'ALP-R01',
@@ -290,7 +295,7 @@ const ALPHA_LIBRARY = [
     regimes: ['ALL'],
     holding_period: 'N/A',
     risk_tags: ['liquidity'],
-    compute: (f) => (f.riskFlags.lowLiquidity ? -1 : 0.25)
+    compute: (f) => (f.riskFlags.lowLiquidity ? -1 : 0.25),
   },
   {
     id: 'ALP-R02',
@@ -301,7 +306,7 @@ const ALPHA_LIBRARY = [
     regimes: ['ALL'],
     holding_period: 'N/A',
     risk_tags: ['volatility'],
-    compute: (f) => clamp(0.22 - f.volatility.hv20 * 0.9, -1, 1)
+    compute: (f) => clamp(0.22 - f.volatility.hv20 * 0.9, -1, 1),
   },
   {
     id: 'ALP-R03',
@@ -312,8 +317,8 @@ const ALPHA_LIBRARY = [
     regimes: ['ALL'],
     holding_period: 'N/A',
     risk_tags: ['execution'],
-    compute: (f) => (Math.abs(f.execution.gapPct) > 0.028 ? -0.9 : 0.18)
-  }
+    compute: (f) => (Math.abs(f.execution.gapPct) > 0.028 ? -0.9 : 0.18),
+  },
 ];
 
 const FAMILY_WEIGHTS = {
@@ -321,7 +326,7 @@ const FAMILY_WEIGHTS = {
   'Mean Reversion': 0.95,
   'Volume/Price': 1,
   'Market State': 0.9,
-  'Risk Filter': 1.2
+  'Risk Filter': 1.2,
 };
 
 export function getAlphaDefinitions() {
@@ -333,12 +338,15 @@ export function getAlphaDefinitions() {
     inputs: item.inputs,
     regime_fit: item.regimes,
     expected_holding_period: item.holding_period,
-    risk_tags: item.risk_tags
+    risk_tags: item.risk_tags,
   }));
 }
 
 export function getDefaultStrategyConfig() {
-  return { ...DEFAULT_STRATEGY_CONFIG, family_weights: { ...DEFAULT_STRATEGY_CONFIG.family_weights } };
+  return {
+    ...DEFAULT_STRATEGY_CONFIG,
+    family_weights: { ...DEFAULT_STRATEGY_CONFIG.family_weights },
+  };
 }
 
 const DEFAULT_STRATEGY_CONFIG = {
@@ -356,7 +364,7 @@ const DEFAULT_STRATEGY_CONFIG = {
   max_single_weight_multiplier: 1,
   sector_cap_multiplier: 1,
   gross_exposure_multiplier: 1,
-  safety_sensitivity: 1
+  safety_sensitivity: 1,
 };
 
 function resolveStrategyConfig(strategyConfig = {}) {
@@ -365,8 +373,8 @@ function resolveStrategyConfig(strategyConfig = {}) {
     ...strategyConfig,
     family_weights: {
       ...FAMILY_WEIGHTS,
-      ...(strategyConfig.family_weights || {})
-    }
+      ...(strategyConfig.family_weights || {}),
+    },
   };
 }
 
@@ -423,10 +431,13 @@ function computeFeatureLayer(dataLayer) {
     const ret1 = returns.at(-1) ?? 0;
     const gapPct = pctChange(bars.at(-2)?.close ?? latestClose, bars.at(-1)?.open ?? latestClose);
 
-    const hv20 = annualizedVolatility(returns.slice(-20), instrument.market === 'CRYPTO' ? 365 : 252);
+    const hv20 = annualizedVolatility(
+      returns.slice(-20),
+      instrument.market === 'CRYPTO' ? 365 : 252,
+    );
     const downside20 = annualizedVolatility(
       returns.slice(-20).map((value) => (value < 0 ? value : 0)),
-      instrument.market === 'CRYPTO' ? 365 : 252
+      instrument.market === 'CRYPTO' ? 365 : 252,
     );
 
     const turnoverCurrent = latestVolume * latestClose;
@@ -441,7 +452,7 @@ function computeFeatureLayer(dataLayer) {
       sector: instrument.sector,
       industry: instrument.industry,
       marketCap: instrument.market_cap,
-      adv20
+      adv20,
     };
 
     featuresByTicker[instrument.ticker] = {
@@ -459,43 +470,43 @@ function computeFeatureLayer(dataLayer) {
         ma60,
         maDev20: ma20 ? pctChange(ma20, latestClose) : 0,
         maDev60: ma60 ? pctChange(ma60, latestClose) : 0,
-        breakout: calcBreakout(closes)
+        breakout: calcBreakout(closes),
       },
       meanReversion: {
         zScore10: rollingZScore(closes, 10),
         rsi14: computeRsi(closes, 14),
-        vwapDev: latestVwap ? pctChange(latestVwap, latestClose) : 0
+        vwapDev: latestVwap ? pctChange(latestVwap, latestClose) : 0,
       },
       volume: {
         volumeAdv: adv20 ? latestVolume / adv20 : 1,
         turnoverShock: round(turnoverShock, 4),
         latestVolume,
-        adv20
+        adv20,
       },
       volatility: {
         atrPct14: calcAtrPercent(bars, 14),
         hv20,
-        downside20
+        downside20,
       },
       execution: {
-        gapPct
+        gapPct,
       },
       riskFlags: {
         lowLiquidity: adv20 * latestClose < 500000000,
         highGap: Math.abs(gapPct) > 0.028,
-        highVol: hv20 > 0.52
+        highVol: hv20 > 0.52,
       },
       cross: {
         rank: 0,
-        industryRank: 0
-      }
+        industryRank: 0,
+      },
     };
   }
 
   const ret20Rank = rankMap(
     Object.fromEntries(
-      Object.entries(featuresByTicker).map(([ticker, feature]) => [ticker, feature.trend.ret20])
-    )
+      Object.entries(featuresByTicker).map(([ticker, feature]) => [ticker, feature.trend.ret20]),
+    ),
   );
 
   const byIndustry = {};
@@ -508,7 +519,7 @@ function computeFeatureLayer(dataLayer) {
   const industryRankMap = {};
   for (const group of Object.values(byIndustry)) {
     const groupRank = rankMap(
-      Object.fromEntries(group.map((feature) => [feature.meta.ticker, feature.trend.ret20]))
+      Object.fromEntries(group.map((feature) => [feature.meta.ticker, feature.trend.ret20])),
     );
     Object.assign(industryRankMap, groupRank);
   }
@@ -520,7 +531,7 @@ function computeFeatureLayer(dataLayer) {
 
   return {
     source_type: 'derived_features',
-    by_ticker: featuresByTicker
+    by_ticker: featuresByTicker,
   };
 }
 
@@ -529,7 +540,9 @@ function computeMarketState(dataLayer, featureLayer) {
   const qqq = featureLayer.by_ticker.QQQ;
   const xlf = featureLayer.by_ticker.XLF;
 
-  const tradableUs = Object.values(featureLayer.by_ticker).filter((item) => item.meta.market === 'US');
+  const tradableUs = Object.values(featureLayer.by_ticker).filter(
+    (item) => item.meta.market === 'US',
+  );
   const breadthRatio =
     tradableUs.filter((item) => (item.bars.at(-1)?.close ?? 0) > item.trend.ma20).length /
     Math.max(tradableUs.length, 1);
@@ -537,7 +550,7 @@ function computeMarketState(dataLayer, featureLayer) {
   const indexTrendStrength = clamp(
     0.5 + (spy.trend.maDev20 * 5 + spy.trend.maDev60 * 4 + spy.trend.ret20 * 2),
     0,
-    1
+    1,
   );
 
   const volStress = clamp(spy.volatility.hv20 / 0.32, 0, 1.4);
@@ -545,7 +558,11 @@ function computeMarketState(dataLayer, featureLayer) {
   const stylePreference =
     styleSpread > 0.03 ? 'Growth' : styleSpread < -0.02 ? 'Defensive' : 'Balanced';
 
-  const riskAppetite = clamp(indexTrendStrength * 0.42 + breadthRatio * 0.38 + (1 - volStress) * 0.2, 0, 1);
+  const riskAppetite = clamp(
+    indexTrendStrength * 0.42 + breadthRatio * 0.38 + (1 - volStress) * 0.2,
+    0,
+    1,
+  );
 
   let regimeTag = 'Range / Choppy';
   if (volStress > 1 || breadthRatio < 0.4) {
@@ -554,7 +571,12 @@ function computeMarketState(dataLayer, featureLayer) {
     regimeTag = 'Trend Up';
   } else if (indexTrendStrength <= 0.4 && breadthRatio <= 0.44) {
     regimeTag = 'Trend Down';
-  } else if (indexTrendStrength > 0.48 && indexTrendStrength < 0.64 && riskAppetite >= 0.52 && volStress < 0.9) {
+  } else if (
+    indexTrendStrength > 0.48 &&
+    indexTrendStrength < 0.64 &&
+    riskAppetite >= 0.52 &&
+    volStress < 0.9
+  ) {
     regimeTag = 'Risk Recovery';
   }
 
@@ -570,7 +592,7 @@ function computeMarketState(dataLayer, featureLayer) {
   const sectorLeadership = Object.entries(sectorMap)
     .map(([sector, values]) => ({
       sector,
-      score: round(mean(values), 4)
+      score: round(mean(values), 4),
     }))
     .sort((a, b) => b.score - a.score);
 
@@ -581,26 +603,27 @@ function computeMarketState(dataLayer, featureLayer) {
     regime,
     breadth: {
       ratio: round(breadthRatio, 4),
-      label: breadthRatio >= 0.58 ? 'Strong' : breadthRatio <= 0.42 ? 'Weak' : 'Balanced'
+      label: breadthRatio >= 0.58 ? 'Strong' : breadthRatio <= 0.42 ? 'Weak' : 'Balanced',
     },
     indexTrend: {
       strength: round(indexTrendStrength, 4),
-      label: indexTrendStrength >= 0.65 ? 'Uptrend' : indexTrendStrength <= 0.42 ? 'Downtrend' : 'Flat'
+      label:
+        indexTrendStrength >= 0.65 ? 'Uptrend' : indexTrendStrength <= 0.42 ? 'Downtrend' : 'Flat',
     },
     volatility: {
       stress: round(volStress, 4),
       hv20: round(spy.volatility.hv20, 4),
-      label: volStress > 1 ? 'High' : volStress < 0.7 ? 'Calm' : 'Normal'
+      label: volStress > 1 ? 'High' : volStress < 0.7 ? 'Calm' : 'Normal',
     },
     style: {
       spread: round(styleSpread, 4),
-      preference: stylePreference
+      preference: stylePreference,
     },
     riskAppetite: {
       score: round(riskAppetite, 4),
-      state: riskOn ? 'Risk-On' : 'Risk-Off'
+      state: riskOn ? 'Risk-On' : 'Risk-Off',
     },
-    sectorLeadership
+    sectorLeadership,
   };
 }
 
@@ -618,7 +641,7 @@ function scoreAlphaForTicker(feature, marketState) {
       holding_period: alpha.holding_period,
       risk_tags: alpha.risk_tags,
       active,
-      score: round(score, 4)
+      score: round(score, 4),
     };
   });
 }
@@ -641,9 +664,9 @@ function buildAlphaLayer(featureLayer, marketState) {
       applicable_market_regime: alpha.regimes,
       expected_holding_period: alpha.holding_period,
       risk_tags: alpha.risk_tags,
-      active: true
+      active: true,
     })),
-    by_ticker: byTicker
+    by_ticker: byTicker,
   };
 }
 
@@ -664,46 +687,62 @@ function runModelLayer(featureLayer, alphaLayer, marketState, strategyConfig) {
           weightSum: acc.weightSum + weight,
           positives: acc.positives + (alpha.score > 0.16 ? 1 : 0),
           negatives: acc.negatives + (alpha.score < -0.16 ? 1 : 0),
-          active: acc.active + (alpha.active ? 1 : 0)
+          active: acc.active + (alpha.active ? 1 : 0),
         };
       },
-      { weightedScore: 0, weightSum: 0, positives: 0, negatives: 0, active: 0 }
+      { weightedScore: 0, weightSum: 0, positives: 0, negatives: 0, active: 0 },
     );
 
     const directionalBias = weighted.weightSum ? weighted.weightedScore / weighted.weightSum : 0;
     const liquidityPenalty = feature.riskFlags.lowLiquidity ? 15 : 0;
-    const volPenalty = clamp((feature.volatility.hv20 - 0.25) * 60 * config.risk_penalty_multiplier, 0, 18 * config.risk_penalty_multiplier);
+    const volPenalty = clamp(
+      (feature.volatility.hv20 - 0.25) * 60 * config.risk_penalty_multiplier,
+      0,
+      18 * config.risk_penalty_multiplier,
+    );
     const gapPenalty = feature.riskFlags.highGap ? 7 : 0;
     const base = 60 + config.score_bias + directionalBias * 38 + (feature.cross.rank - 0.5) * 14;
 
     const opportunityScore = clamp(base - liquidityPenalty - volPenalty - gapPenalty, 1, 99);
     const confidence = clamp(
-      40 + weighted.positives * 5 - weighted.negatives * 3 + feature.cross.rank * 22 - volPenalty * 0.5,
+      40 +
+        weighted.positives * 5 -
+        weighted.negatives * 3 +
+        feature.cross.rank * 22 -
+        volPenalty * 0.5,
       8,
-      97
+      97,
     );
 
     const regimeFit = clamp(
-      0.45 + (marketState.regime.tag === 'Trend Up' ? feature.trend.maDev20 * 2.6 : 0) + (marketState.regime.tag === 'Range / Choppy' ? -Math.abs(feature.trend.ret5) * 1.2 : 0) + feature.cross.industryRank * 0.35,
+      0.45 +
+        (marketState.regime.tag === 'Trend Up' ? feature.trend.maDev20 * 2.6 : 0) +
+        (marketState.regime.tag === 'Range / Choppy' ? -Math.abs(feature.trend.ret5) * 1.2 : 0) +
+        feature.cross.industryRank * 0.35,
       0.05,
-      0.99
+      0.99,
     );
 
     const riskScore = clamp(
-      25 + feature.volatility.hv20 * 55 + feature.volatility.downside20 * 24 + (feature.riskFlags.lowLiquidity ? 12 : 0) + (feature.riskFlags.highGap ? 10 : 0) - feature.cross.rank * 11,
+      25 +
+        feature.volatility.hv20 * 55 +
+        feature.volatility.downside20 * 24 +
+        (feature.riskFlags.lowLiquidity ? 12 : 0) +
+        (feature.riskFlags.highGap ? 10 : 0) -
+        feature.cross.rank * 11,
       8,
-      97
+      97,
     );
 
-    const directionalSignal = directionalBias + feature.trend.ret20 * 0.35 - feature.meanReversion.zScore10 * 0.08;
-    const suggestedAction =
-      feature.riskFlags.lowLiquidity
-        ? 'AVOID'
-        : directionalSignal >= config.directional_threshold
-          ? 'LONG'
-          : directionalSignal <= -config.directional_threshold
-            ? 'SHORT'
-            : 'AVOID';
+    const directionalSignal =
+      directionalBias + feature.trend.ret20 * 0.35 - feature.meanReversion.zScore10 * 0.08;
+    const suggestedAction = feature.riskFlags.lowLiquidity
+      ? 'AVOID'
+      : directionalSignal >= config.directional_threshold
+        ? 'LONG'
+        : directionalSignal <= -config.directional_threshold
+          ? 'SHORT'
+          : 'AVOID';
 
     rows.push({
       ticker,
@@ -725,13 +764,13 @@ function runModelLayer(featureLayer, alphaLayer, marketState, strategyConfig) {
         ...(feature.riskFlags.lowLiquidity ? ['Liquidity below threshold'] : []),
         ...(feature.riskFlags.highGap ? ['Open gap too large for immediate chase'] : []),
         ...(riskScore > 70 ? ['Risk score above tolerance'] : []),
-        ...(suggestedAction === 'AVOID' ? ['Directional edge not clear'] : [])
-      ]
+        ...(suggestedAction === 'AVOID' ? ['Directional edge not clear'] : []),
+      ],
     });
   }
 
   const ranked = [...rows].sort(
-    (a, b) => b.opportunity_score - a.opportunity_score || b.confidence - a.confidence
+    (a, b) => b.opportunity_score - a.opportunity_score || b.confidence - a.confidence,
   );
 
   ranked.forEach((row, index) => {
@@ -743,9 +782,12 @@ function runModelLayer(featureLayer, alphaLayer, marketState, strategyConfig) {
     regime_model: {
       tag: marketState.regime.tag,
       description: marketState.regime.description,
-      confidence: round(marketState.riskAppetite.score * 0.55 + marketState.indexTrend.strength * 0.45, 3)
+      confidence: round(
+        marketState.riskAppetite.score * 0.55 + marketState.indexTrend.strength * 0.45,
+        3,
+      ),
     },
-    ranking: ranked
+    ranking: ranked,
   };
 }
 
@@ -779,7 +821,8 @@ function buildEntryPlan(feature, direction, confidence) {
 
   const entryLow = direction === 'LONG' ? close - spread : close - spread * 0.4;
   const entryHigh = direction === 'LONG' ? close + spread * 0.4 : close + spread;
-  const stop = direction === 'LONG' ? entryLow * (1 - atrPct * 1.25) : entryHigh * (1 + atrPct * 1.25);
+  const stop =
+    direction === 'LONG' ? entryLow * (1 - atrPct * 1.25) : entryHigh * (1 + atrPct * 1.25);
   const riskUnit = Math.abs((entryLow + entryHigh) / 2 - stop);
   const tp1 = direction === 'LONG' ? entryHigh + riskUnit * 1.45 : entryLow - riskUnit * 1.45;
   const tp2 = direction === 'LONG' ? entryHigh + riskUnit * 2.25 : entryLow - riskUnit * 2.25;
@@ -789,24 +832,27 @@ function buildEntryPlan(feature, direction, confidence) {
       low: round(entryLow, 4),
       high: round(entryHigh, 4),
       method: 'LIMIT_RETEST',
-      notes: confidence >= 75 ? 'High-confidence setup, allow single-pass entry.' : 'Require retest before fill.'
+      notes:
+        confidence >= 75
+          ? 'High-confidence setup, allow single-pass entry.'
+          : 'Require retest before fill.',
     },
     stop_loss: {
       type: 'ATR_BUFFER',
-      price: round(stop, 4)
+      price: round(stop, 4),
     },
     take_profit_levels: [
       {
         price: round(tp1, 4),
         size_pct: 60,
-        rationale: 'Scale out first tranche at ~1.5R.'
+        rationale: 'Scale out first tranche at ~1.5R.',
       },
       {
         price: round(tp2, 4),
         size_pct: 40,
-        rationale: 'Hold runner for continuation extension.'
-      }
-    ]
+        rationale: 'Hold runner for continuation extension.',
+      },
+    ],
   };
 }
 
@@ -814,8 +860,14 @@ function buildPortfolioLayer(modelLayer, featureLayer, marketState, profile, str
   const config = resolveStrategyConfig(strategyConfig);
   const constraints = {
     max_holdings: Math.max(1, Math.round(profile.maxHoldings * config.max_holdings_multiplier)),
-    max_single_weight_pct: round(profile.maxSingleWeightPct * config.max_single_weight_multiplier, 2),
-    sector_exposure_limit_pct: round(profile.sectorExposureLimitPct * config.sector_cap_multiplier, 2)
+    max_single_weight_pct: round(
+      profile.maxSingleWeightPct * config.max_single_weight_multiplier,
+      2,
+    ),
+    sector_exposure_limit_pct: round(
+      profile.sectorExposureLimitPct * config.sector_cap_multiplier,
+      2,
+    ),
   };
 
   const grossBaseByRegime = {
@@ -823,7 +875,7 @@ function buildPortfolioLayer(modelLayer, featureLayer, marketState, profile, str
     'Trend Down': 38,
     'Range / Choppy': 46,
     'High Volatility Risk': 26,
-    'Risk Recovery': 54
+    'Risk Recovery': 54,
   };
 
   const netBaseByRegime = {
@@ -831,12 +883,12 @@ function buildPortfolioLayer(modelLayer, featureLayer, marketState, profile, str
     'Trend Down': -12,
     'Range / Choppy': 4,
     'High Volatility Risk': 0,
-    'Risk Recovery': 18
+    'Risk Recovery': 18,
   };
 
   const suggestedGross = Math.min(
     profile.exposureCapPct,
-    (grossBaseByRegime[marketState.regime.tag] ?? 45) * config.gross_exposure_multiplier
+    (grossBaseByRegime[marketState.regime.tag] ?? 45) * config.gross_exposure_multiplier,
   );
   const suggestedNet = netBaseByRegime[marketState.regime.tag] ?? 0;
 
@@ -856,7 +908,7 @@ function buildPortfolioLayer(modelLayer, featureLayer, marketState, profile, str
         reason: row.filter_reasons[0] || 'Model action: avoid',
         score: row.opportunity_score,
         confidence: row.confidence,
-        grade
+        grade,
       });
       continue;
     }
@@ -867,7 +919,7 @@ function buildPortfolioLayer(modelLayer, featureLayer, marketState, profile, str
         reason: 'Max holding count reached',
         score: row.opportunity_score,
         confidence: row.confidence,
-        grade
+        grade,
       });
       continue;
     }
@@ -878,7 +930,7 @@ function buildPortfolioLayer(modelLayer, featureLayer, marketState, profile, str
         reason: 'Current regime only allows A/B-quality setups',
         score: row.opportunity_score,
         confidence: row.confidence,
-        grade
+        grade,
       });
       continue;
     }
@@ -894,7 +946,7 @@ function buildPortfolioLayer(modelLayer, featureLayer, marketState, profile, str
         reason: 'Current regime only allows A/B-quality setups',
         score: row.opportunity_score,
         confidence: row.confidence,
-        grade
+        grade,
       });
       continue;
     }
@@ -911,7 +963,8 @@ function buildPortfolioLayer(modelLayer, featureLayer, marketState, profile, str
             ? 8.2
             : 6.2;
     if (grade === 'A') weight += 1.2;
-    if (marketState.regime.tag === 'High Volatility Risk') weight *= config.high_vol_weight_multiplier;
+    if (marketState.regime.tag === 'High Volatility Risk')
+      weight *= config.high_vol_weight_multiplier;
     if (marketState.regime.tag === 'Risk Recovery') weight *= config.recovery_weight_multiplier;
 
     weight = Math.min(weight, constraints.max_single_weight_pct);
@@ -922,7 +975,7 @@ function buildPortfolioLayer(modelLayer, featureLayer, marketState, profile, str
         reason: `Sector exposure cap reached (${sector})`,
         score: row.opportunity_score,
         confidence: row.confidence,
-        grade
+        grade,
       });
       continue;
     }
@@ -952,7 +1005,7 @@ function buildPortfolioLayer(modelLayer, featureLayer, marketState, profile, str
       rank_order: row.rank_order,
       entry_logic: `${row.suggested_action === 'LONG' ? 'Buy' : 'Short'} near ${entryPlan.entry_zone.low} - ${entryPlan.entry_zone.high} with ATR-buffer stop.`,
       reason_summary: topAlpha.join(' + '),
-      entry_plan: entryPlan
+      entry_plan: entryPlan,
     });
   }
 
@@ -961,17 +1014,17 @@ function buildPortfolioLayer(modelLayer, featureLayer, marketState, profile, str
 
   const scaled = selected.map((item) => ({
     ...item,
-    target_weight_pct: round(item.target_weight_pct * scale, 2)
+    target_weight_pct: round(item.target_weight_pct * scale, 2),
   }));
 
   const grossExposure = round(sum(scaled.map((item) => item.target_weight_pct)), 2);
   const netExposure = round(
     sum(
       scaled.map((item) =>
-        item.direction === 'LONG' ? item.target_weight_pct : -item.target_weight_pct
-      )
+        item.direction === 'LONG' ? item.target_weight_pct : -item.target_weight_pct,
+      ),
     ),
-    2
+    2,
   );
 
   return {
@@ -986,18 +1039,20 @@ function buildPortfolioLayer(modelLayer, featureLayer, marketState, profile, str
     candidates: scaled,
     filtered_out: filtered.sort((a, b) => b.score - a.score).slice(0, 14),
     sector_exposure_pct: Object.fromEntries(
-      Object.entries(sectorExposure).map(([sector, value]) => [sector, round(value * scale, 2)])
-    )
+      Object.entries(sectorExposure).map(([sector, value]) => [sector, round(value * scale, 2)]),
+    ),
   };
 }
 
 function buildSafetyLayer(marketState, portfolio, modelLayer, profile, strategyConfig) {
   const config = resolveStrategyConfig(strategyConfig);
   const marketRisk = clamp(
-    (marketState.volatility.stress * 45 + (1 - marketState.breadth.ratio) * 35 + (1 - marketState.indexTrend.strength) * 20) *
+    (marketState.volatility.stress * 45 +
+      (1 - marketState.breadth.ratio) * 35 +
+      (1 - marketState.indexTrend.strength) * 20) *
       config.safety_sensitivity,
     8,
-    95
+    95,
   );
 
   const concentration = Math.max(...Object.values(portfolio.sector_exposure_pct || { none: 0 }));
@@ -1006,13 +1061,21 @@ function buildSafetyLayer(marketState, portfolio, modelLayer, profile, strategyC
       (concentration / Math.max(profile.sectorExposureLimitPct, 1)) * 28 +
       Math.abs(portfolio.net_exposure_pct) * 0.4,
     6,
-    95
+    95,
   );
 
   const tradable = modelLayer.ranking.filter((item) => item.suggested_action !== 'AVOID');
-  const instrumentRisk = clamp(mean(tradable.slice(0, 6).map((item) => item.risk_score || 50)), 10, 95);
+  const instrumentRisk = clamp(
+    mean(tradable.slice(0, 6).map((item) => item.risk_score || 50)),
+    10,
+    95,
+  );
 
-  const safetyScore = clamp(100 - marketRisk * 0.42 - portfolioRisk * 0.34 - instrumentRisk * 0.24, 4, 96);
+  const safetyScore = clamp(
+    100 - marketRisk * 0.42 - portfolioRisk * 0.34 - instrumentRisk * 0.24,
+    4,
+    96,
+  );
 
   let mode = 'normal risk';
   if (safetyScore <= 32) mode = 'do not trade';
@@ -1020,9 +1083,12 @@ function buildSafetyLayer(marketState, portfolio, modelLayer, profile, strategyC
   else if (safetyScore >= 82) mode = 'aggressive risk';
 
   const primaryRisks = [];
-  if (marketState.volatility.label === 'High') primaryRisks.push('Benchmark volatility remains elevated.');
-  if (marketState.breadth.ratio < 0.45) primaryRisks.push('Market breadth is weak and signal dispersion is high.');
-  if (concentration > profile.sectorExposureLimitPct * 0.8) primaryRisks.push('Sector concentration is close to cap.');
+  if (marketState.volatility.label === 'High')
+    primaryRisks.push('Benchmark volatility remains elevated.');
+  if (marketState.breadth.ratio < 0.45)
+    primaryRisks.push('Market breadth is weak and signal dispersion is high.');
+  if (concentration > profile.sectorExposureLimitPct * 0.8)
+    primaryRisks.push('Sector concentration is close to cap.');
   if (portfolio.filtered_out.some((item) => item.reason.includes('regime'))) {
     primaryRisks.push('Regime gate is filtering lower-quality setups.');
   }
@@ -1036,8 +1102,8 @@ function buildSafetyLayer(marketState, portfolio, modelLayer, profile, strategyC
     lines: [
       `Regime: ${marketState.regime.tag}`,
       `Breadth: ${(marketState.breadth.ratio * 100).toFixed(1)}% above 20D MA`,
-      `SPY HV20: ${(marketState.volatility.hv20 * 100).toFixed(1)}% annualized`
-    ]
+      `SPY HV20: ${(marketState.volatility.hv20 * 100).toFixed(1)}% annualized`,
+    ],
   };
 
   const portfolioCard = {
@@ -1046,14 +1112,16 @@ function buildSafetyLayer(marketState, portfolio, modelLayer, profile, strategyC
     lines: [
       `Gross exposure: ${portfolio.gross_exposure_pct.toFixed(1)}%`,
       `Net exposure: ${portfolio.net_exposure_pct.toFixed(1)}%`,
-      `Top sector exposure: ${round(concentration, 1).toFixed(1)}%`
-    ]
+      `Top sector exposure: ${round(concentration, 1).toFixed(1)}%`,
+    ],
   };
 
   const instrumentCard = {
     title: 'Instrument Level',
     score: round(100 - instrumentRisk, 1),
-    lines: modelLayer.ranking.slice(0, 3).map((row) => `${row.ticker}: risk ${row.risk_score.toFixed(1)}`)
+    lines: modelLayer.ranking
+      .slice(0, 3)
+      .map((row) => `${row.ticker}: risk ${row.risk_score.toFixed(1)}`),
   };
 
   return {
@@ -1066,7 +1134,7 @@ function buildSafetyLayer(marketState, portfolio, modelLayer, profile, strategyC
     cards: {
       market: marketCard,
       portfolio: portfolioCard,
-      instrument: instrumentCard
+      instrument: instrumentCard,
     },
     conclusion:
       mode === 'do not trade'
@@ -1076,7 +1144,7 @@ function buildSafetyLayer(marketState, portfolio, modelLayer, profile, strategyC
           : mode === 'aggressive risk'
             ? 'Conditions support higher conviction sizing, but keep stop discipline.'
             : 'Normal risk mode: execute plan with standard sizing and rule compliance.',
-    rules: RISK_RULES
+    rules: RISK_RULES,
   };
 }
 
@@ -1088,7 +1156,7 @@ function makeMonthlySeries(startYear, startMonth, returns) {
     const mm = String(month).padStart(2, '0');
     rows.push({
       month: `${year}-${mm}`,
-      ret: round(ret, 4)
+      ret: round(ret, 4),
     });
     month += 1;
     if (month > 12) {
@@ -1104,7 +1172,7 @@ function makeMonthlySeries(startYear, startMonth, returns) {
     return {
       ...row,
       equity: round(equity, 4),
-      drawdown: peak === 0 ? 0 : round((equity - peak) / peak, 4)
+      drawdown: peak === 0 ? 0 : round((equity - peak) / peak, 4),
     };
   });
   return enriched;
@@ -1127,7 +1195,7 @@ function performanceStats(monthlyRows, tradeCount, avgHoldingDays) {
     max_drawdown: round(maxDrawdown, 4),
     sharpe: round((mean(returns) / sigma) * Math.sqrt(12), 3),
     sortino: round((mean(returns) / downside) * Math.sqrt(12), 3),
-    avg_holding_days: round(avgHoldingDays, 2)
+    avg_holding_days: round(avgHoldingDays, 2),
   };
 }
 
@@ -1144,7 +1212,10 @@ function buildSyntheticRecentTrades(modelLayer, asOf) {
     closeDate.setUTCDate(closeDate.getUTCDate() + ((i % 5) + 1));
 
     const direction = row.suggested_action === 'SHORT' ? 'SHORT' : 'LONG';
-    const pnl = round((row.opportunity_score - 52) / 20 - (row.risk_score - 50) / 35 + (i % 3 === 0 ? -0.7 : 0.35), 2);
+    const pnl = round(
+      (row.opportunity_score - 52) / 20 - (row.risk_score - 50) / 35 + (i % 3 === 0 ? -0.7 : 0.35),
+      2,
+    );
 
     rows.push({
       time_in: openDate.toISOString(),
@@ -1157,7 +1228,7 @@ function buildSyntheticRecentTrades(modelLayer, asOf) {
       pnl_pct: pnl,
       fees: round(6 + Math.abs(pnl) * 1.8, 2),
       signal_id: `SIM-${row.ticker}-${i + 1}`,
-      source: i < 10 ? 'PAPER' : 'BACKTEST'
+      source: i < 10 ? 'PAPER' : 'BACKTEST',
     });
   }
 
@@ -1166,12 +1237,12 @@ function buildSyntheticRecentTrades(modelLayer, asOf) {
 
 function buildPerformanceLayer(modelLayer, asOf) {
   const usBacktestReturns = [
-    0.012, -0.008, 0.006, 0.01, 0.004, 0.013, -0.009, 0.005, 0.009, 0.007, -0.006, 0.011,
-    0.004, -0.003, 0.008, 0.006, 0.01, -0.004
+    0.012, -0.008, 0.006, 0.01, 0.004, 0.013, -0.009, 0.005, 0.009, 0.007, -0.006, 0.011, 0.004,
+    -0.003, 0.008, 0.006, 0.01, -0.004,
   ];
   const usPaperReturns = [0.006, -0.004, 0.005, 0.003, -0.002, 0.007];
   const cryptoBacktestReturns = [
-    0.018, -0.021, 0.012, 0.009, -0.014, 0.019, 0.011, -0.017, 0.013, 0.008, -0.011, 0.014
+    0.018, -0.021, 0.012, 0.009, -0.014, 0.019, 0.011, -0.017, 0.013, 0.008, -0.011, 0.014,
   ];
   const cryptoPaperReturns = [0.01, -0.013, 0.009, -0.004, 0.006, 0.005];
 
@@ -1183,26 +1254,27 @@ function buildPerformanceLayer(modelLayer, asOf) {
       data_origin_note: 'Sample stats generated from deterministic historical simulation.',
       markets: {
         US: {
-          monthly: makeMonthlySeries(2024, 7, usBacktestReturns)
+          monthly: makeMonthlySeries(2024, 7, usBacktestReturns),
         },
         CRYPTO: {
-          monthly: makeMonthlySeries(2025, 1, cryptoBacktestReturns)
-        }
-      }
+          monthly: makeMonthlySeries(2025, 1, cryptoBacktestReturns),
+        },
+      },
     },
     paper: {
       id: 'paper',
       label: 'Simulated / Paper',
       source_type: 'simulated_paper',
-      data_origin_note: 'Paper trading simulation using the same rule stack, not real-money execution.',
+      data_origin_note:
+        'Paper trading simulation using the same rule stack, not real-money execution.',
       markets: {
         US: {
-          monthly: makeMonthlySeries(2025, 9, usPaperReturns)
+          monthly: makeMonthlySeries(2025, 9, usPaperReturns),
         },
         CRYPTO: {
-          monthly: makeMonthlySeries(2025, 9, cryptoPaperReturns)
-        }
-      }
+          monthly: makeMonthlySeries(2025, 9, cryptoPaperReturns),
+        },
+      },
     },
     live: {
       id: 'live',
@@ -1212,21 +1284,23 @@ function buildPerformanceLayer(modelLayer, asOf) {
       markets: {
         US: {
           available: false,
-          monthly: []
+          monthly: [],
         },
         CRYPTO: {
           available: false,
-          monthly: []
-        }
-      }
-    }
+          monthly: [],
+        },
+      },
+    },
   };
 
   for (const source of ['backtest', 'paper']) {
     for (const market of ['US', 'CRYPTO']) {
       const bucket = datasets[source].markets[market];
-      const trades = source === 'backtest' ? (market === 'US' ? 212 : 248) : market === 'US' ? 37 : 52;
-      const avgHolding = source === 'backtest' ? (market === 'US' ? 4.9 : 2.7) : market === 'US' ? 3.6 : 1.9;
+      const trades =
+        source === 'backtest' ? (market === 'US' ? 212 : 248) : market === 'US' ? 37 : 52;
+      const avgHolding =
+        source === 'backtest' ? (market === 'US' ? 4.9 : 2.7) : market === 'US' ? 3.6 : 1.9;
       bucket.stats = performanceStats(bucket.monthly, trades, avgHolding);
     }
   }
@@ -1241,8 +1315,8 @@ function buildPerformanceLayer(modelLayer, asOf) {
     transparency_notes: [
       'Backtest and paper sections use sample/simulated data for product demonstration.',
       'Live section is intentionally marked as unavailable (upcoming) to avoid misleading representation.',
-      'All numbers are internally consistent within this demo dataset and replaceable by real APIs later.'
-    ]
+      'All numbers are internally consistent within this demo dataset and replaceable by real APIs later.',
+    ],
   };
 }
 
@@ -1257,7 +1331,7 @@ function buildInsightsLayer(featureLayer, marketState, portfolio, safetyLayer) {
       asset_class: 'US_STOCK',
       title: 'Current Regime',
       summary: `${marketState.regime.tag}: ${marketState.regime.description}`,
-      metric: `Risk appetite ${(marketState.riskAppetite.score * 100).toFixed(1)}`
+      metric: `Risk appetite ${(marketState.riskAppetite.score * 100).toFixed(1)}`,
     },
     {
       id: 'ins-breadth',
@@ -1265,7 +1339,7 @@ function buildInsightsLayer(featureLayer, marketState, portfolio, safetyLayer) {
       asset_class: 'US_STOCK',
       title: 'Market Breadth',
       summary: `${(marketState.breadth.ratio * 100).toFixed(1)}% of tracked US symbols are above 20D moving average.`,
-      metric: marketState.breadth.label
+      metric: marketState.breadth.label,
     },
     {
       id: 'ins-style',
@@ -1273,7 +1347,7 @@ function buildInsightsLayer(featureLayer, marketState, portfolio, safetyLayer) {
       asset_class: 'US_STOCK',
       title: 'Style Rotation',
       summary: `Current style preference: ${marketState.style.preference}. QQQ-XLF spread ${(marketState.style.spread * 100).toFixed(2)}%.`,
-      metric: marketState.style.preference
+      metric: marketState.style.preference,
     },
     {
       id: 'ins-vol',
@@ -1281,7 +1355,7 @@ function buildInsightsLayer(featureLayer, marketState, portfolio, safetyLayer) {
       asset_class: 'US_STOCK',
       title: 'Volatility Environment',
       summary: `SPY HV20 ${(marketState.volatility.hv20 * 100).toFixed(1)}% annualized, labeled ${marketState.volatility.label}.`,
-      metric: marketState.volatility.label
+      metric: marketState.volatility.label,
     },
     {
       id: 'ins-risk',
@@ -1289,15 +1363,15 @@ function buildInsightsLayer(featureLayer, marketState, portfolio, safetyLayer) {
       asset_class: 'US_STOCK',
       title: 'Risk-On / Risk-Off',
       summary: `${marketState.riskAppetite.state} with safety score ${safetyLayer.safety_score.toFixed(1)}.`,
-      metric: safetyLayer.mode
-    }
+      metric: safetyLayer.mode,
+    },
   ];
 
   const whySignals = [
     `Regime is ${marketState.regime.tag}, so the model currently prioritizes ${marketState.regime.tag === 'Range / Choppy' ? 'mean-reversion and tighter risk filters' : 'trend and volume-confirmed setups'}.`,
     `Breadth at ${(marketState.breadth.ratio * 100).toFixed(1)}% influences confidence dispersion across A/B/C grades.`,
     `Top filtered reason today: ${portfolio.filtered_out[0]?.reason || 'no major filter pressure'}.`,
-    `Suggested gross exposure ${portfolio.suggested_gross_exposure_pct}% reflects market volatility label ${marketState.volatility.label}.`
+    `Suggested gross exposure ${portfolio.suggested_gross_exposure_pct}% reflects market volatility label ${marketState.volatility.label}.`,
   ];
 
   return {
@@ -1306,7 +1380,7 @@ function buildInsightsLayer(featureLayer, marketState, portfolio, safetyLayer) {
     breadth: marketState.breadth,
     leadership: {
       leaders,
-      laggards
+      laggards,
     },
     volatility: marketState.volatility,
     style: marketState.style,
@@ -1318,7 +1392,7 @@ function buildInsightsLayer(featureLayer, marketState, portfolio, safetyLayer) {
         : marketState.regime.tag === 'High Volatility Risk'
           ? 'Volatility stress is high; system is intentionally filtering lower-quality setups and reducing gross.'
           : 'Regime is mixed. Keep trade selection strict and rely on score + risk confirmation.',
-    modules
+    modules,
   };
 }
 
@@ -1326,7 +1400,7 @@ function buildTodayLayer(portfolio, safetyLayer, marketState) {
   const byGrade = {
     A: portfolio.candidates.filter((item) => item.grade === 'A').length,
     B: portfolio.candidates.filter((item) => item.grade === 'B').length,
-    C: portfolio.candidates.filter((item) => item.grade === 'C').length
+    C: portfolio.candidates.filter((item) => item.grade === 'C').length,
   };
 
   const tradeability =
@@ -1364,15 +1438,17 @@ function buildTodayLayer(portfolio, safetyLayer, marketState) {
       `Safety score is ${safetyLayer.safety_score.toFixed(1)} (${safetyLayer.mode}).`,
       `Regime classification: ${marketState.regime.tag}.`,
       `Suggested gross/net exposure: ${safetyLayer.suggested_gross_exposure_pct}% / ${safetyLayer.suggested_net_exposure_pct}%.`,
-      `Filtered opportunities: ${portfolio.filtered_out.length}.`
+      `Filtered opportunities: ${portfolio.filtered_out.length}.`,
     ],
     empty_states: {
-      no_signal: 'No qualified setup after model + risk filters. Capital preservation is a valid outcome.',
-      high_risk_pause: 'Risk mode is do-not-trade. New positions are paused until stress metrics normalize.',
+      no_signal:
+        'No qualified setup after model + risk filters. Capital preservation is a valid outcome.',
+      high_risk_pause:
+        'Risk mode is do-not-trade. New positions are paused until stress metrics normalize.',
       non_trading_day: 'Market is closed. System provides planning view only.',
       no_live: 'Live track record is not available in this demo. See backtest and paper tabs.',
-      load_error: 'Data loading failed. Please retry or refresh sample dataset.'
-    }
+      load_error: 'Data loading failed. Please retry or refresh sample dataset.',
+    },
   };
 }
 
@@ -1399,7 +1475,8 @@ function buildSignalContracts(portfolio, featureLayer, safetyLayer, asOf) {
       market: item.market,
       asset_class: item.asset_class,
       strategy_id: `NOVA_${item.grade}_${item.direction}`,
-      strategy_family: item.grade === 'A' ? 'High Conviction' : item.grade === 'B' ? 'Core' : 'Tactical',
+      strategy_family:
+        item.grade === 'A' ? 'High Conviction' : item.grade === 'B' ? 'Core' : 'Tactical',
       direction: item.direction,
       status: index < 2 ? 'TRIGGERED' : 'NEW',
       created_at: asOf,
@@ -1424,14 +1501,14 @@ function buildSignalContracts(portfolio, featureLayer, safetyLayer, asOf) {
         position_pct: item.target_weight_pct,
         leverage_cap: 1,
         risk_bucket_applied: safetyLayer.mode,
-        rationale: `Grade ${item.grade} candidate with ${item.confidence.toFixed(1)} confidence.`
+        rationale: `Grade ${item.grade} candidate with ${item.confidence.toFixed(1)} confidence.`,
       },
       position_size_pct: item.target_weight_pct,
       expected_metrics: {
         expected_R: round(1.1 + (item.score - 60) / 35, 3),
         hit_rate_est: round(item.confidence / 100, 4),
         sample_size: 120 + item.rank_order * 8,
-        expected_max_dd_est: round(item.risk_score / 300, 4)
+        expected_max_dd_est: round(item.risk_score / 300, 4),
       },
       holding_horizon_days: item.grade === 'A' ? 5.4 : item.grade === 'B' ? 3.3 : 1.7,
       market_heat: marketStateLabelFromSafety(safetyLayer.mode),
@@ -1439,21 +1516,26 @@ function buildSignalContracts(portfolio, featureLayer, safetyLayer, asOf) {
       explain_bullets: [
         `${item.ticker} ranked #${item.rank_order} with score ${item.score.toFixed(1)} and confidence ${item.confidence.toFixed(1)}.`,
         `Primary drivers: ${item.reason_summary}.`,
-        `Regime fit ${(item.regime_fit * 100).toFixed(1)}% under ${safetyLayer.mode} safety mode.`
+        `Regime fit ${(item.regime_fit * 100).toFixed(1)}% under ${safetyLayer.mode} safety mode.`,
       ],
       execution_checklist: [
         `Enter via limit around ${plan.entry_zone.low} - ${plan.entry_zone.high}, avoid chasing outside zone.`,
         `Set protective stop at ${plan.stop_loss.price} immediately after fill.`,
         `Scale 60% at ${plan.take_profit_levels[0].price}, hold 40% runner to ${plan.take_profit_levels[1].price}.`,
-        `Keep position near ${item.target_weight_pct.toFixed(2)}% and respect daily loss limit.`
+        `Keep position near ${item.target_weight_pct.toFixed(2)}% and respect daily loss limit.`,
       ],
       risk_warnings: item.risk_score > 68 ? ['risk_score_elevated'] : [],
-      guardrail_recommendation: safetyLayer.mode === 'do not trade' ? 'STAY_OUT' : safetyLayer.mode === 'trade light' ? 'REDUCE' : 'TRADE_OK',
+      guardrail_recommendation:
+        safetyLayer.mode === 'do not trade'
+          ? 'STAY_OUT'
+          : safetyLayer.mode === 'trade light'
+            ? 'REDUCE'
+            : 'TRADE_OK',
       rationale: [
         `${item.direction} bias from model with ${item.grade} grade opportunity.`,
-        `Sector ${item.sector}, reason summary: ${item.reason_summary}.`
+        `Sector ${item.sector}, reason summary: ${item.reason_summary}.`,
       ],
-      source_type: 'simulated_signal'
+      source_type: 'simulated_signal',
     });
   }
 
@@ -1485,35 +1567,35 @@ function buildSignalContracts(portfolio, featureLayer, safetyLayer, asOf) {
         low: 0,
         high: 0,
         method: 'NA',
-        notes: item.reason
+        notes: item.reason,
       },
       entry_min: 0,
       entry_max: 0,
       stop_loss: {
         type: 'NA',
-        price: 0
+        price: 0,
       },
       stop_loss_value: 0,
       take_profit_levels: [
         {
           price: 0,
           size_pct: 100,
-          rationale: 'Filtered'
-        }
+          rationale: 'Filtered',
+        },
       ],
       take_profit: 0,
       position_advice: {
         position_pct: 0,
         leverage_cap: 1,
         risk_bucket_applied: 'filtered',
-        rationale: item.reason
+        rationale: item.reason,
       },
       position_size_pct: 0,
       expected_metrics: {
         expected_R: 0,
         hit_rate_est: 0,
         sample_size: 0,
-        expected_max_dd_est: 0
+        expected_max_dd_est: 0,
       },
       holding_horizon_days: 0,
       market_heat: 'HIGH',
@@ -1523,7 +1605,7 @@ function buildSignalContracts(portfolio, featureLayer, safetyLayer, asOf) {
       risk_warnings: ['filtered'],
       guardrail_recommendation: 'STAY_OUT',
       rationale: [item.reason],
-      source_type: 'simulated_filtered'
+      source_type: 'simulated_filtered',
     });
   }
 
@@ -1562,13 +1644,13 @@ function buildAiLayer(todayLayer, safetyLayer, insightsLayer, portfolio) {
       '为什么 Live 是 upcoming？',
       '现在市场是 risk-on 还是 risk-off？',
       '行业领导方向如何影响今天信号？',
-      '如果 safety score 再下降 10 分会怎样？'
+      '如果 safety score 再下降 10 分会怎样？',
     ],
     answer_templates: {
       light_mode: `Safety score ${safetyLayer.safety_score.toFixed(1)} and regime ${insightsLayer.regime.tag} jointly limit gross to ${todayLayer.suggested_gross_exposure_pct}%`,
       top_pair: portfolio.candidates.slice(0, 2).map((item) => item.ticker),
-      risk_drivers: safetyLayer.primary_risks
-    }
+      risk_drivers: safetyLayer.primary_risks,
+    },
   };
 }
 
@@ -1588,27 +1670,32 @@ function buildConfig(asOf, profileKey, safetyLayer, strategyConfig) {
       max_dd_pct: profile.maxDrawdownPct,
       exposure_cap_pct: profile.exposureCapPct,
       leverage_cap: profile.leverageCap,
-      vol_switch: true
+      vol_switch: true,
     },
     risk_status: {
       trading_on: safetyLayer.mode !== 'do not trade',
-      current_level: safetyLayer.mode === 'aggressive risk' ? 'LOW' : safetyLayer.mode === 'normal risk' ? 'MEDIUM' : 'HIGH',
+      current_level:
+        safetyLayer.mode === 'aggressive risk'
+          ? 'LOW'
+          : safetyLayer.mode === 'normal risk'
+            ? 'MEDIUM'
+            : 'HIGH',
       current_risk_bucket: safetyLayer.mode.replace(' ', '_').toUpperCase(),
       bucket_state: safetyLayer.mode.replace(' ', '_').toUpperCase(),
       diagnostics: {
         daily_pnl_pct: -0.42,
-        max_dd_pct: 3.8
+        max_dd_pct: 3.8,
       },
       last_event: `${asOf}: ${safetyLayer.mode}`,
       last_event_en: `${asOf}: ${safetyLayer.mode}`,
-      last_event_zh: `${asOf}：${safetyLayer.mode}`
+      last_event_zh: `${asOf}：${safetyLayer.mode}`,
     },
     last_updated: asOf,
     calc_meta: {
       pipeline_version: PIPELINE_VERSION,
       dataset_version: 'sample-deterministic-2026-03-v1',
       strategy_id: strategyConfig?.id || 'champion',
-      strategy_version: strategyConfig?.version || 'model-v1.0.0'
+      strategy_version: strategyConfig?.version || 'model-v1.0.0',
     },
     data_source_flags: {
       market_data: 'sample',
@@ -1616,8 +1703,8 @@ function buildConfig(asOf, profileKey, safetyLayer, strategyConfig) {
       signals: 'simulated',
       performance_backtest: 'sample',
       performance_paper: 'simulated',
-      performance_live: 'none'
-    }
+      performance_live: 'none',
+    },
   };
 }
 
@@ -1625,7 +1712,7 @@ export function buildNovaQuantSystem({
   asOf = new Date().toISOString(),
   riskProfileKey = 'balanced',
   executionTrades = [],
-  strategyConfig = {}
+  strategyConfig = {},
 } = {}) {
   const profile = RISK_PROFILES[riskProfileKey] || RISK_PROFILES.balanced;
   const resolvedStrategyConfig = resolveStrategyConfig(strategyConfig);
@@ -1635,8 +1722,20 @@ export function buildNovaQuantSystem({
   const marketState = computeMarketState(dataLayer, featureLayer);
   const alphaLayer = buildAlphaLayer(featureLayer, marketState);
   const modelLayer = runModelLayer(featureLayer, alphaLayer, marketState, resolvedStrategyConfig);
-  const portfolioLayer = buildPortfolioLayer(modelLayer, featureLayer, marketState, profile, resolvedStrategyConfig);
-  const safetyLayer = buildSafetyLayer(marketState, portfolioLayer, modelLayer, profile, resolvedStrategyConfig);
+  const portfolioLayer = buildPortfolioLayer(
+    modelLayer,
+    featureLayer,
+    marketState,
+    profile,
+    resolvedStrategyConfig,
+  );
+  const safetyLayer = buildSafetyLayer(
+    marketState,
+    portfolioLayer,
+    modelLayer,
+    profile,
+    resolvedStrategyConfig,
+  );
   const performanceLayer = buildPerformanceLayer(modelLayer, asOf);
   const insightsLayer = buildInsightsLayer(featureLayer, marketState, portfolioLayer, safetyLayer);
   const todayLayer = buildTodayLayer(portfolioLayer, safetyLayer, marketState);
@@ -1644,39 +1743,46 @@ export function buildNovaQuantSystem({
 
   const signals = buildSignalContracts(portfolioLayer, featureLayer, safetyLayer, asOf);
   const trades = [...executionTrades, ...performanceLayer.recent_trades]
-    .sort((a, b) => new Date(b.time_out || b.created_at || 0) - new Date(a.time_out || a.created_at || 0))
+    .sort(
+      (a, b) =>
+        new Date(b.time_out || b.created_at || 0) - new Date(a.time_out || a.created_at || 0),
+    )
     .slice(0, 80);
 
   const config = buildConfig(asOf, riskProfileKey, safetyLayer, resolvedStrategyConfig);
 
-  const records = ['backtest', 'paper']
-    .flatMap((bucket) =>
-      ['US', 'CRYPTO'].map((market) => ({
-        market,
-        range: bucket === 'backtest' ? 'ALL' : '3M',
-        kpis: {
-          win_rate: performanceLayer.datasets[bucket].markets[market].stats.win_rate,
-          avg_rr: round(1.05 + performanceLayer.datasets[bucket].markets[market].stats.win_rate * 0.7, 4),
-          max_dd: performanceLayer.datasets[bucket].markets[market].stats.max_drawdown,
-          total_return: performanceLayer.datasets[bucket].markets[market].stats.total_return,
-          sharpe: performanceLayer.datasets[bucket].markets[market].stats.sharpe,
-          sortino: performanceLayer.datasets[bucket].markets[market].stats.sortino,
-          trades: performanceLayer.datasets[bucket].markets[market].stats.trades,
-          avg_holding_days: performanceLayer.datasets[bucket].markets[market].stats.avg_holding_days
-        },
-        assumptions: {
-          fees_bps: market === 'US' ? 4 : 8,
-          slippage_bps: market === 'US' ? 5 : 10,
-          funding: market === 'US' ? 'excluded' : 'included',
-          leverage: market === 'US' ? '1x' : '1.2x'
-        },
-        equity_curve: {
-          dates: performanceLayer.datasets[bucket].markets[market].monthly.map((row) => row.month),
-          backtest: performanceLayer.datasets.backtest.markets[market].monthly.map((row) => row.equity),
-          live: performanceLayer.datasets.paper.markets[market].monthly.map((row) => row.equity)
-        }
-      }))
-    );
+  const records = ['backtest', 'paper'].flatMap((bucket) =>
+    ['US', 'CRYPTO'].map((market) => ({
+      market,
+      range: bucket === 'backtest' ? 'ALL' : '3M',
+      kpis: {
+        win_rate: performanceLayer.datasets[bucket].markets[market].stats.win_rate,
+        avg_rr: round(
+          1.05 + performanceLayer.datasets[bucket].markets[market].stats.win_rate * 0.7,
+          4,
+        ),
+        max_dd: performanceLayer.datasets[bucket].markets[market].stats.max_drawdown,
+        total_return: performanceLayer.datasets[bucket].markets[market].stats.total_return,
+        sharpe: performanceLayer.datasets[bucket].markets[market].stats.sharpe,
+        sortino: performanceLayer.datasets[bucket].markets[market].stats.sortino,
+        trades: performanceLayer.datasets[bucket].markets[market].stats.trades,
+        avg_holding_days: performanceLayer.datasets[bucket].markets[market].stats.avg_holding_days,
+      },
+      assumptions: {
+        fees_bps: market === 'US' ? 4 : 8,
+        slippage_bps: market === 'US' ? 5 : 10,
+        funding: market === 'US' ? 'excluded' : 'included',
+        leverage: market === 'US' ? '1x' : '1.2x',
+      },
+      equity_curve: {
+        dates: performanceLayer.datasets[bucket].markets[market].monthly.map((row) => row.month),
+        backtest: performanceLayer.datasets.backtest.markets[market].monthly.map(
+          (row) => row.equity,
+        ),
+        live: performanceLayer.datasets.paper.markets[market].monthly.map((row) => row.equity),
+      },
+    })),
+  );
 
   const marketModules = insightsLayer.modules;
 
@@ -1699,9 +1805,9 @@ export function buildNovaQuantSystem({
           note_zh:
             safetyLayer.mode === 'do not trade'
               ? '模拟交易因安全模式暂停。'
-              : '模拟交易在当前风险配置下运行中。'
-        }
-      ]
+              : '模拟交易在当前风险配置下运行中。',
+        },
+      ],
     },
     velocity: {
       current: round((marketState.indexTrend.strength - 0.5) * 2.2, 4),
@@ -1717,9 +1823,9 @@ export function buildNovaQuantSystem({
           returns: {
             q10: -0.018,
             q50: 0.004,
-            q90: 0.021
-          }
-        }
+            q90: 0.021,
+          },
+        },
       },
       rule_summary_en:
         'Velocity, breadth, and volatility jointly control risk bucket and candidate ranking.',
@@ -1727,14 +1833,14 @@ export function buildNovaQuantSystem({
       how_used_en: [
         'Use regime first to decide whether trend or mean-reversion families dominate.',
         'Apply volatility throttle before position sizing to avoid over-allocation in stress.',
-        'Only keep high-score signals when regime confidence weakens.'
+        'Only keep high-score signals when regime confidence weakens.',
       ],
       how_used_zh: [
         '先判定状态，再决定趋势或均值回归策略权重。',
         '先做波动降仓，再做仓位分配，避免压力期超配。',
-        '当状态置信下降时，仅保留高分信号。'
+        '当状态置信下降时，仅保留高分信号。',
       ],
-      last_updated: asOf
+      last_updated: asOf,
     },
     config,
     market_modules: marketModules,
@@ -1747,29 +1853,42 @@ export function buildNovaQuantSystem({
         overall: {
           universe_size: dataLayer.instruments.length,
           raw_signals_generated: modelLayer.ranking.length,
-          filtered_by_regime: portfolioLayer.filtered_out.filter((item) => item.reason.includes('regime')).length,
-          filtered_by_risk: portfolioLayer.filtered_out.filter((item) => item.reason.toLowerCase().includes('risk')).length,
-          filtered_by_conflict: portfolioLayer.filtered_out.filter((item) => item.reason.toLowerCase().includes('sector')).length,
+          filtered_by_regime: portfolioLayer.filtered_out.filter((item) =>
+            item.reason.includes('regime'),
+          ).length,
+          filtered_by_risk: portfolioLayer.filtered_out.filter((item) =>
+            item.reason.toLowerCase().includes('risk'),
+          ).length,
+          filtered_by_conflict: portfolioLayer.filtered_out.filter((item) =>
+            item.reason.toLowerCase().includes('sector'),
+          ).length,
           executable_opportunities: portfolioLayer.candidates.length,
           filled_trades: executionTrades.length,
-          completed_round_trip_trades: Math.min(executionTrades.length, 4)
+          completed_round_trip_trades: Math.min(executionTrades.length, 4),
         },
         by_asset_class: [
           {
             asset_class: 'US_STOCK',
-            universe_size: dataLayer.instruments.filter((item) => item.asset_class === 'US_STOCK').length,
-            raw_signals_generated: modelLayer.ranking.filter((item) => item.asset_class === 'US_STOCK').length,
+            universe_size: dataLayer.instruments.filter((item) => item.asset_class === 'US_STOCK')
+              .length,
+            raw_signals_generated: modelLayer.ranking.filter(
+              (item) => item.asset_class === 'US_STOCK',
+            ).length,
             filtered_by_regime: portfolioLayer.filtered_out.length,
-            filtered_by_risk: portfolioLayer.filtered_out.filter((item) => item.reason.toLowerCase().includes('risk')).length,
-            filtered_by_conflict: portfolioLayer.filtered_out.filter((item) => item.reason.toLowerCase().includes('sector')).length,
+            filtered_by_risk: portfolioLayer.filtered_out.filter((item) =>
+              item.reason.toLowerCase().includes('risk'),
+            ).length,
+            filtered_by_conflict: portfolioLayer.filtered_out.filter((item) =>
+              item.reason.toLowerCase().includes('sector'),
+            ).length,
             executable_opportunities: portfolioLayer.candidates.length,
             filled_trades: executionTrades.length,
-            completed_round_trip_trades: Math.min(executionTrades.length, 4)
-          }
+            completed_round_trip_trades: Math.min(executionTrades.length, 4),
+          },
         ],
         no_trade_top_n: portfolioLayer.filtered_out.slice(0, 5).map((item) => ({
           reason_label: item.reason,
-          count: 1
+          count: 1,
         })),
         shadow_opportunity_log: portfolioLayer.filtered_out.slice(0, 8).map((item, index) => ({
           shadow_id: `SH-${index + 1}`,
@@ -1779,11 +1898,11 @@ export function buildNovaQuantSystem({
           threshold_delta: round(item.score - 55, 2),
           subsequent_path: {
             r_1d: round((item.score - 60) / 1200, 4),
-            r_3d: round((item.score - 60) / 780, 4)
+            r_3d: round((item.score - 60) / 780, 4),
           },
           hypothetical_lower_size_pass: item.score >= 50,
-          hypothetical_relaxed_conflict_pass: item.reason.toLowerCase().includes('sector')
-        }))
+          hypothetical_relaxed_conflict_pass: item.reason.toLowerCase().includes('sector'),
+        })),
       },
       risk_guardrails: {
         stay_out_recommendation: {
@@ -1793,7 +1912,7 @@ export function buildNovaQuantSystem({
               : safetyLayer.mode === 'trade light'
                 ? 'REDUCE'
                 : 'TRADE_OK',
-          reason: safetyLayer.primary_risks[0]
+          reason: safetyLayer.primary_risks[0],
         },
         correlated_exposure_alerts: Object.entries(portfolioLayer.sector_exposure_pct)
           .filter(([, value]) => value >= profile.sectorExposureLimitPct * 0.75)
@@ -1802,7 +1921,9 @@ export function buildNovaQuantSystem({
             theme: sector,
             severity: value >= profile.sectorExposureLimitPct * 0.95 ? 'HIGH' : 'MEDIUM',
             gross_pct: value,
-            symbols: portfolioLayer.candidates.filter((item) => item.sector === sector).map((item) => item.ticker)
+            symbols: portfolioLayer.candidates
+              .filter((item) => item.sector === sector)
+              .map((item) => item.ticker),
           })),
         regime_mismatch_warnings: portfolioLayer.filtered_out
           .filter((item) => item.reason.toLowerCase().includes('regime'))
@@ -1810,9 +1931,9 @@ export function buildNovaQuantSystem({
           .map((item) => ({
             type: 'regime_mismatch',
             symbol: item.ticker,
-            severity: 'MEDIUM'
-          }))
-      }
+            severity: 'MEDIUM',
+          })),
+      },
     },
     today: todayLayer,
     safety: safetyLayer,
@@ -1828,7 +1949,7 @@ export function buildNovaQuantSystem({
       risk_layer: safetyLayer,
       performance_layer: performanceLayer,
       insights_layer: insightsLayer,
-      ai_layer: aiLayer
-    }
+      ai_layer: aiLayer,
+    },
   };
 }

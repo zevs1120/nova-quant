@@ -9,11 +9,13 @@ This operating system defines Nova Quant's weekly research cadence.
 ## Step 1: Funnel review (Monday)
 
 Inputs:
+
 - signal funnel metrics,
 - no-trade reason top N,
 - per-family and per-regime drop-off.
 
 Outputs:
+
 - bottleneck diagnosis,
 - threshold tuning candidates,
 - starvation warnings.
@@ -21,22 +23,26 @@ Outputs:
 ## Step 2: Shadow review (Tuesday)
 
 Inputs:
+
 - filtered/near-threshold opportunities,
 - forward outcomes,
 - missed-opportunity diagnostics.
 
 Outputs:
+
 - filters likely too strict,
 - bounded relaxation experiments.
 
 ## Step 3: Strategy health review (Wednesday)
 
 Inputs:
+
 - strategy lifecycle metrics,
 - degradation signals,
 - regime performance deltas.
 
 Outputs:
+
 - demotion watchlist,
 - rollback candidates,
 - investigation priorities.
@@ -44,11 +50,13 @@ Outputs:
 ## Step 4: Discovery review (Thursday)
 
 Inputs:
+
 - hypotheses selected,
 - generated candidates,
 - validation outcomes.
 
 Outputs:
+
 - promoted SHADOW candidates,
 - hypothesis/template productivity map,
 - next discovery focus by regime gap.
@@ -56,11 +64,13 @@ Outputs:
 ## Step 5: Governance review (Friday)
 
 Inputs:
+
 - evidence bundles,
 - promotion proposals,
 - audit checklist results.
 
 Outputs:
+
 - approved promotions/demotions,
 - required reviewer notes,
 - retirement actions.
@@ -68,11 +78,13 @@ Outputs:
 ## Step 6: Product-output review (Friday)
 
 Inputs:
+
 - daily brief quality,
 - holdings recommendation quality,
 - AI explanation quality.
 
 Outputs:
+
 - wording/explanation fixes,
 - risk communication improvements,
 - no-trade guidance calibration.

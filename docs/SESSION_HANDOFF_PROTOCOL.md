@@ -9,6 +9,7 @@ Ensure every major implementation block leaves enough context for instant contin
 ## Mandatory Updates Per Major Block
 
 After each major implementation block, update at minimum:
+
 - `docs/PROJECT_MEMORY.md`
 - `docs/IMPLEMENTATION_LOG.md`
 - `docs/RESEARCH_LOG.md`
@@ -21,6 +22,7 @@ If the change touches **deploy surfaces**, note explicitly whether it affects ro
 ## Required Block Summary Content
 
 Each block log should include:
+
 1. What was implemented
 2. Files created/modified
 3. Architectural decisions
@@ -32,4 +34,3 @@ Each block log should include:
 
 Do not close a major block without a handoff-quality log update.
 Code-only completion is considered incomplete.
-

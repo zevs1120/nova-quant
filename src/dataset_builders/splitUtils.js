@@ -7,7 +7,7 @@ export function buildDateSplits(rows, dateField = 'date') {
       train: new Set(),
       valid: new Set(),
       test: new Set(),
-      paper: new Set()
+      paper: new Set(),
     };
   }
 
@@ -20,7 +20,7 @@ export function buildDateSplits(rows, dateField = 'date') {
     train: new Set(allDates.slice(0, trainEnd)),
     valid: new Set(allDates.slice(trainEnd, validEnd)),
     test: new Set(allDates.slice(validEnd, testEnd)),
-    paper: new Set(allDates.slice(testEnd))
+    paper: new Set(allDates.slice(testEnd)),
   };
 }
 
@@ -39,15 +39,18 @@ export function splitCounts(rows) {
     train: grouped.get('train')?.length || 0,
     valid: grouped.get('valid')?.length || 0,
     test: grouped.get('test')?.length || 0,
-    paper: grouped.get('paper')?.length || 0
+    paper: grouped.get('paper')?.length || 0,
   };
 }
 
 export function dateRange(rows, field = 'date') {
   if (!rows?.length) return { start: null, end: null };
-  const dates = rows.map((row) => row[field]).filter(Boolean).sort();
+  const dates = rows
+    .map((row) => row[field])
+    .filter(Boolean)
+    .sort();
   return {
     start: dates[0] || null,
-    end: dates[dates.length - 1] || null
+    end: dates[dates.length - 1] || null,
   };
 }

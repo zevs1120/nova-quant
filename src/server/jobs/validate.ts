@@ -20,7 +20,7 @@ export async function runValidationCli(argv: string[]): Promise<void> {
   await validateAndRepair({
     repo,
     timeframes: tfs,
-    lookbackBars
+    lookbackBars,
   });
 
   logInfo('Validation completed', { lookbackBars, timeframes: tfs.join(',') });

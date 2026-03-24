@@ -99,9 +99,11 @@ flowchart TD
 ## New Canonical Surfaces
 
 ### Domain Contracts
+
 - `/src/server/domain/contracts.ts`
 
 Defines canonical backend-facing objects:
+
 - `ResearchTask`
 - `StrategyCandidate`
 - `RiskState`
@@ -117,9 +119,11 @@ Defines canonical backend-facing objects:
 - `RecommendationReview`
 
 ### Feature Platform
+
 - `/src/server/feature/platform.ts`
 
 Adds:
+
 - feature registry
 - point-in-time contract
 - offline/online parity notes
@@ -127,9 +131,11 @@ Adds:
 - cache isolation dimensions
 
 ### Registry Layer
+
 - `/src/server/registry/service.ts`
 
 Adds unified views for:
+
 - strategies
 - experiments
 - models
@@ -138,18 +144,22 @@ Adds unified views for:
 - workflows
 
 ### Nova LLM Ops
+
 - `/src/server/ai/llmOps.ts`
 
 Adds:
+
 - local Nova model plan
 - route policies
 - prompt pack definitions
 - prompt/model registry seeding
 
 ### Durable Workflows
+
 - `/src/server/workflows/durable.ts`
 
 Adds blueprint layer for:
+
 - nightly validation
 - evidence refresh
 - replay/paper comparison
@@ -157,27 +167,33 @@ Adds blueprint layer for:
 - prompt eval refresh
 
 ### Observability Spine
+
 - `/src/server/observability/spine.ts`
 
 Adds:
+
 - trace id generator
 - audit event writer
 - observability summary
 - metrics catalog
 
 ### Portfolio Allocator
+
 - `/src/server/portfolio/allocator.ts`
 
 Adds:
+
 - allocator abstraction
 - overlap / concentration awareness
 - universal vs personalized separation
 - rebalance / rotate / hedge semantics
 
 ### Scorecards / Self-Proof Foundation
+
 - `/src/server/evals/scorecards.ts`
 
 Adds:
+
 - decision quality summary
 - no-action value score
 - explanation effectiveness score
@@ -185,6 +201,7 @@ Adds:
 - user alignment placeholder
 
 ### Backbone Summary
+
 - `/src/server/backbone/service.ts`
 - `GET /api/backbone/summary`
 

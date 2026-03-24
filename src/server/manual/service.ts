@@ -106,13 +106,13 @@ function defaultDashboard(reason: ManualAvailabilityReason | null): ManualDashbo
       balance: 0,
       expiringSoon: 0,
       vipDays: 0,
-      vipDaysRedeemed: 0
+      vipDaysRedeemed: 0,
     },
     referrals: {
       inviteCode: null,
       referredByCode: null,
       total: 0,
-      rewarded: 0
+      rewarded: 0,
     },
     ledger: [],
     rewards: [
@@ -122,15 +122,15 @@ function defaultDashboard(reason: ManualAvailabilityReason | null): ManualDashbo
         title: 'Redeem 1 VIP day',
         description: '1000 points unlocks one more VIP day.',
         costPoints: VIP_REDEEM_POINTS,
-        enabled: false
-      }
+        enabled: false,
+      },
     ],
     predictions: [],
     rules: {
       vipRedeemPoints: VIP_REDEEM_POINTS,
       referralRewardPoints: REFERRAL_REWARD_POINTS,
-      defaultPredictionStake: DEFAULT_PREDICTION_STAKE
-    }
+      defaultPredictionStake: DEFAULT_PREDICTION_STAKE,
+    },
   };
 }
 
@@ -146,7 +146,7 @@ function ensureManualUserState(userId: string) {
       `SELECT user_id, invite_code, referred_by_code, vip_days_balance, vip_days_redeemed_total
        FROM manual_user_state
        WHERE user_id = ?
-       LIMIT 1`
+       LIMIT 1`,
     )
     .get(userId) as
     | {
@@ -162,7 +162,9 @@ function ensureManualUserState(userId: string) {
   let inviteCode = buildInviteCode(userId);
   const ts = nowMs();
   while (
-    (db.prepare('SELECT user_id FROM manual_user_state WHERE invite_code = ? LIMIT 1').get(inviteCode) as { user_id: string } | undefined)
+    db
+      .prepare('SELECT user_id FROM manual_user_state WHERE invite_code = ? LIMIT 1')
+      .get(inviteCode) as { user_id: string } | undefined
   ) {
     inviteCode = `${buildInviteCode(userId)}${randomBytes(2).toString('hex').toUpperCase()}`;
   }
@@ -173,11 +175,11 @@ function ensureManualUserState(userId: string) {
         user_id, invite_code, referred_by_code, vip_days_balance, vip_days_redeemed_total, updated_at_ms
       ) VALUES(
         @user_id, @invite_code, NULL, 0, 0, @updated_at_ms
-      )`
+      )`,
     ).run({
       user_id: userId,
       invite_code: inviteCode,
-      updated_at_ms: ts
+      updated_at_ms: ts,
     });
   } catch (error) {
     const message = String((error as Error)?.message || error || '');
@@ -192,7 +194,7 @@ function ensureManualUserState(userId: string) {
     invite_code: inviteCode,
     referred_by_code: null,
     vip_days_balance: 0,
-    vip_days_redeemed_total: 0
+    vip_days_redeemed_total: 0,
   };
 }
 
@@ -204,7 +206,7 @@ function currentPointsBalance(userId: string) {
        FROM manual_points_ledger
        WHERE user_id = ?
        ORDER BY created_at_ms DESC
-       LIMIT 1`
+       LIMIT 1`,
     )
     .get(userId) as { balance_after: number } | undefined;
   return Number(row?.balance_after || 0);
@@ -225,7 +227,7 @@ function appendPointsLedger(args: {
       entry_id, user_id, event_type, points_delta, balance_after, metadata_json, created_at_ms
     ) VALUES(
       @entry_id, @user_id, @event_type, @points_delta, @balance_after, @metadata_json, @created_at_ms
-    )`
+    )`,
   ).run({
     entry_id: createId('pts'),
     user_id: args.userId,
@@ -233,7 +235,7 @@ function appendPointsLedger(args: {
     points_delta: Math.trunc(args.pointsDelta),
     balance_after: balanceAfter,
     metadata_json: JSON.stringify(args.metadata || {}),
-    created_at_ms: nowMs()
+    created_at_ms: nowMs(),
   });
   return balanceAfter;
 }
@@ -246,16 +248,16 @@ function listPointsLedger(userId: string, limit = 8): ManualDashboard['ledger'] 
        FROM manual_points_ledger
        WHERE user_id = ?
        ORDER BY created_at_ms DESC
-       LIMIT ?`
+       LIMIT ?`,
     )
     .all(userId, limit) as Array<{
-      entry_id: string;
-      event_type: string;
-      points_delta: number;
-      balance_after: number;
-      metadata_json: string | null;
-      created_at_ms: number;
-    }>;
+    entry_id: string;
+    event_type: string;
+    points_delta: number;
+    balance_after: number;
+    metadata_json: string | null;
+    created_at_ms: number;
+  }>;
 
   return rows.map((row) => {
     const metadata = parseJson<LedgerMetadata>(row.metadata_json, {});
@@ -266,7 +268,7 @@ function listPointsLedger(userId: string, limit = 8): ManualDashboard['ledger'] 
       balanceAfter: Number(row.balance_after || 0),
       title: metadata.title || row.event_type,
       description: metadata.description || '',
-      createdAt: new Date(row.created_at_ms).toISOString()
+      createdAt: new Date(row.created_at_ms).toISOString(),
     };
   });
 }
@@ -293,22 +295,22 @@ function listPredictionMarkets(userId: string): ManualDashboard['predictions'] {
          ON e.market_id = m.market_id AND e.user_id = ?
        WHERE m.status IN ('OPEN', 'LOCKED', 'RESOLVED')
        ORDER BY m.closes_at_ms ASC, m.created_at_ms DESC
-       LIMIT 12`
+       LIMIT 12`,
     )
     .all(userId) as Array<{
-      market_id: string;
-      prompt: string;
-      market: string | null;
-      symbol: string | null;
-      status: string;
-      closes_at_ms: number;
-      resolves_at_ms: number | null;
-      options_json: string;
-      selected_option: string | null;
-      entry_status: string | null;
-      points_staked: number | null;
-      points_awarded: number | null;
-    }>;
+    market_id: string;
+    prompt: string;
+    market: string | null;
+    symbol: string | null;
+    status: string;
+    closes_at_ms: number;
+    resolves_at_ms: number | null;
+    options_json: string;
+    selected_option: string | null;
+    entry_status: string | null;
+    points_staked: number | null;
+    points_awarded: number | null;
+  }>;
 
   return rows.map((row) => ({
     id: row.market_id,
@@ -317,16 +319,18 @@ function listPredictionMarkets(userId: string): ManualDashboard['predictions'] {
     symbol: row.symbol || null,
     status: row.status,
     closesAt: Number.isFinite(row.closes_at_ms) ? new Date(row.closes_at_ms).toISOString() : null,
-    resolvesAt: Number.isFinite(row.resolves_at_ms || NaN) ? new Date(Number(row.resolves_at_ms)).toISOString() : null,
+    resolvesAt: Number.isFinite(row.resolves_at_ms || NaN)
+      ? new Date(Number(row.resolves_at_ms)).toISOString()
+      : null,
     options: parseJson<Array<{ key: string; label: string }>>(row.options_json, []),
     entry: row.selected_option
       ? {
           selectedOption: row.selected_option,
           status: row.entry_status || 'OPEN',
           pointsStaked: Number(row.points_staked || 0),
-          pointsAwarded: Number(row.points_awarded || 0)
+          pointsAwarded: Number(row.points_awarded || 0),
         }
-      : null
+      : null,
   }));
 }
 
@@ -343,7 +347,7 @@ export function getManualDashboard(userId: string | null | undefined): ManualDas
          COUNT(*) AS total,
          SUM(CASE WHEN status = 'REWARDED' THEN 1 ELSE 0 END) AS rewarded
        FROM manual_referrals
-       WHERE inviter_user_id = ?`
+       WHERE inviter_user_id = ?`,
     )
     .get(normalizedUserId) as { total: number | null; rewarded: number | null } | undefined;
 
@@ -355,13 +359,13 @@ export function getManualDashboard(userId: string | null | undefined): ManualDas
       balance,
       expiringSoon: 0,
       vipDays: Number(userState.vip_days_balance || 0),
-      vipDaysRedeemed: Number(userState.vip_days_redeemed_total || 0)
+      vipDaysRedeemed: Number(userState.vip_days_redeemed_total || 0),
     },
     referrals: {
       inviteCode: userState.invite_code,
       referredByCode: userState.referred_by_code || null,
       total: Number(referralCounts?.total || 0),
-      rewarded: Number(referralCounts?.rewarded || 0)
+      rewarded: Number(referralCounts?.rewarded || 0),
     },
     ledger: listPointsLedger(normalizedUserId, 8),
     rewards: [
@@ -371,15 +375,15 @@ export function getManualDashboard(userId: string | null | undefined): ManualDas
         title: 'Redeem 1 VIP day',
         description: '1000 points unlocks one more VIP day.',
         costPoints: VIP_REDEEM_POINTS,
-        enabled: balance >= VIP_REDEEM_POINTS
-      }
+        enabled: balance >= VIP_REDEEM_POINTS,
+      },
     ],
     predictions: listPredictionMarkets(normalizedUserId),
     rules: {
       vipRedeemPoints: VIP_REDEEM_POINTS,
       referralRewardPoints: REFERRAL_REWARD_POINTS,
-      defaultPredictionStake: DEFAULT_PREDICTION_STAKE
-    }
+      defaultPredictionStake: DEFAULT_PREDICTION_STAKE,
+    },
   };
 }
 
@@ -398,7 +402,7 @@ export function redeemManualVipDay(args: { userId: string; days?: number }) {
   db.prepare(
     `UPDATE manual_user_state
      SET vip_days_balance = vip_days_balance + ?, vip_days_redeemed_total = vip_days_redeemed_total + ?, updated_at_ms = ?
-     WHERE user_id = ?`
+     WHERE user_id = ?`,
   ).run(days, days, nowMs(), userId);
   appendPointsLedger({
     userId,
@@ -406,8 +410,8 @@ export function redeemManualVipDay(args: { userId: string; days?: number }) {
     pointsDelta: -cost,
     metadata: {
       title: `Redeemed ${days} VIP day${days > 1 ? 's' : ''}`,
-      description: `${cost} points converted into premium access.`
-    }
+      description: `${cost} points converted into premium access.`,
+    },
   });
   return { ok: true as const, data: getManualDashboard(userId) };
 }
@@ -417,21 +421,25 @@ export function claimManualReferral(args: { userId: string; inviteCode: string }
     return { ok: false as const, error: 'AUTH_REQUIRED' };
   }
   const userId = String(args.userId).trim();
-  const inviteCode = String(args.inviteCode || '').trim().toUpperCase();
+  const inviteCode = String(args.inviteCode || '')
+    .trim()
+    .toUpperCase();
   if (!inviteCode) return { ok: false as const, error: 'INVITE_CODE_REQUIRED' };
 
   const db = getManualDb();
   const currentUserState = ensureManualUserState(userId);
   if (!currentUserState) return { ok: false as const, error: 'AUTH_REQUIRED' };
-  if (currentUserState.invite_code === inviteCode) return { ok: false as const, error: 'SELF_REFERRAL_NOT_ALLOWED' };
-  if (currentUserState.referred_by_code) return { ok: false as const, error: 'REFERRAL_ALREADY_CLAIMED' };
+  if (currentUserState.invite_code === inviteCode)
+    return { ok: false as const, error: 'SELF_REFERRAL_NOT_ALLOWED' };
+  if (currentUserState.referred_by_code)
+    return { ok: false as const, error: 'REFERRAL_ALREADY_CLAIMED' };
 
   const inviter = db
     .prepare(
       `SELECT user_id
        FROM manual_user_state
        WHERE invite_code = ?
-       LIMIT 1`
+       LIMIT 1`,
     )
     .get(inviteCode) as { user_id: string } | undefined;
   if (!inviter) return { ok: false as const, error: 'INVITE_CODE_INVALID' };
@@ -441,14 +449,14 @@ export function claimManualReferral(args: { userId: string; inviteCode: string }
     db.prepare(
       `UPDATE manual_user_state
        SET referred_by_code = ?, updated_at_ms = ?
-       WHERE user_id = ?`
+       WHERE user_id = ?`,
     ).run(inviteCode, ts, userId);
     db.prepare(
       `INSERT INTO manual_referrals(
         referral_id, inviter_user_id, invite_code, referred_user_id, status, reward_points, created_at_ms, updated_at_ms
       ) VALUES(
         @referral_id, @inviter_user_id, @invite_code, @referred_user_id, 'REWARDED', @reward_points, @created_at_ms, @updated_at_ms
-      )`
+      )`,
     ).run({
       referral_id: createId('ref'),
       inviter_user_id: inviter.user_id,
@@ -456,7 +464,7 @@ export function claimManualReferral(args: { userId: string; inviteCode: string }
       referred_user_id: userId,
       reward_points: REFERRAL_REWARD_POINTS,
       created_at_ms: ts,
-      updated_at_ms: ts
+      updated_at_ms: ts,
     });
     appendPointsLedger({
       userId: inviter.user_id,
@@ -464,8 +472,8 @@ export function claimManualReferral(args: { userId: string; inviteCode: string }
       pointsDelta: REFERRAL_REWARD_POINTS,
       metadata: {
         title: 'Referral reward',
-        description: `${inviteCode} converted into a confirmed referral.`
-      }
+        description: `${inviteCode} converted into a confirmed referral.`,
+      },
     });
     appendPointsLedger({
       userId,
@@ -473,8 +481,8 @@ export function claimManualReferral(args: { userId: string; inviteCode: string }
       pointsDelta: REFERRAL_REWARD_POINTS,
       metadata: {
         title: 'Referral welcome reward',
-        description: `Joined through ${inviteCode}.`
-      }
+        description: `Joined through ${inviteCode}.`,
+      },
     });
   });
   tx();
@@ -494,7 +502,10 @@ export function submitManualPredictionEntry(args: {
   const userId = String(args.userId).trim();
   const marketId = String(args.marketId || '').trim();
   const selectedOption = String(args.selectedOption || '').trim();
-  const pointsStaked = Math.max(0, Math.trunc(Number(args.pointsStaked ?? DEFAULT_PREDICTION_STAKE)));
+  const pointsStaked = Math.max(
+    0,
+    Math.trunc(Number(args.pointsStaked ?? DEFAULT_PREDICTION_STAKE)),
+  );
   if (!marketId || !selectedOption) {
     return { ok: false as const, error: 'PREDICTION_INPUT_REQUIRED' };
   }
@@ -505,7 +516,7 @@ export function submitManualPredictionEntry(args: {
       `SELECT market_id, prompt, options_json, status, closes_at_ms
        FROM manual_prediction_markets
        WHERE market_id = ?
-       LIMIT 1`
+       LIMIT 1`,
     )
     .get(marketId) as
     | {
@@ -529,7 +540,7 @@ export function submitManualPredictionEntry(args: {
       `SELECT entry_id
        FROM manual_prediction_entries
        WHERE market_id = ? AND user_id = ?
-       LIMIT 1`
+       LIMIT 1`,
     )
     .get(marketId, userId) as { entry_id: string } | undefined;
   if (existing) return { ok: false as const, error: 'PREDICTION_ALREADY_SUBMITTED' };
@@ -542,7 +553,7 @@ export function submitManualPredictionEntry(args: {
         entry_id, market_id, user_id, selected_option, status, points_staked, points_awarded, created_at_ms, updated_at_ms
       ) VALUES(
         @entry_id, @market_id, @user_id, @selected_option, 'OPEN', @points_staked, 0, @created_at_ms, @updated_at_ms
-      )`
+      )`,
     ).run({
       entry_id: createId('pred'),
       market_id: marketId,
@@ -550,7 +561,7 @@ export function submitManualPredictionEntry(args: {
       selected_option: selectedOption,
       points_staked: pointsStaked,
       created_at_ms: nowMs(),
-      updated_at_ms: nowMs()
+      updated_at_ms: nowMs(),
     });
     if (pointsStaked > 0) {
       appendPointsLedger({
@@ -559,8 +570,8 @@ export function submitManualPredictionEntry(args: {
         pointsDelta: -pointsStaked,
         metadata: {
           title: 'Prediction stake',
-          description: market.prompt
-        }
+          description: market.prompt,
+        },
       });
     }
   });

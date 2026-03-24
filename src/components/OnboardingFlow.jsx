@@ -11,26 +11,26 @@ function buildCopy(locale) {
         sub: zh ? '清楚地交易。' : 'Trade with clarity.',
         body: zh
           ? '给想要更清楚日常信号、更简单决策的人，一套原生 AI 的判断界面。'
-          : 'AI-native guidance for people who want clearer daily signals and simpler decisions.'
+          : 'AI-native guidance for people who want clearer daily signals and simpler decisions.',
       },
       {
         title: zh ? '先看今天的气候' : 'Know today’s climate',
         body: zh
           ? '几秒内判断：今天该行动、该等待，还是应该更轻一点。'
-          : 'See whether today calls for action, patience, or a lighter touch — in seconds.'
+          : 'See whether today calls for action, patience, or a lighter touch — in seconds.',
       },
       {
         title: zh ? '先问，不必自己解码' : 'Ask. Don’t decode.',
         body: zh
           ? '直接用人话问 Nova，不必独自翻噪音、拆信号。'
-          : 'Talk to Nova in plain language instead of digging through noise and signals alone.'
+          : 'Talk to Nova in plain language instead of digging through noise and signals alone.',
       },
       {
         title: zh ? '接上你常用的券商' : 'Move with your broker',
         body: zh
           ? '继续用你已经习惯的券商 app，NovaQuant 只负责把判断更快送到执行前。'
-          : 'Choose the app you already use, and let NovaQuant guide you closer to execution.'
-      }
+          : 'Choose the app you already use, and let NovaQuant guide you closer to execution.',
+      },
     ],
     swipe: zh ? '左滑继续' : 'Swipe to continue',
     login: zh ? '登录' : 'Log in',
@@ -41,7 +41,9 @@ function buildCopy(locale) {
     namePlaceholder: zh ? '你的名字' : 'Your name',
     chooseTrade: zh ? '选择你的交易方式' : 'Choose how you trade',
     chooseBroker: zh ? '你用哪个券商？' : 'Which broker do you use?',
-    brokerNote: zh ? '之后我们会用它帮你更快跳转到券商 app。' : 'We’ll use this later to help you jump into your broker app faster.',
+    brokerNote: zh
+      ? '之后我们会用它帮你更快跳转到券商 app。'
+      : 'We’ll use this later to help you jump into your broker app faster.',
     continue: zh ? '继续' : 'Continue',
     back: zh ? '返回' : 'Back',
     finish: zh ? '开始使用' : 'Start',
@@ -50,30 +52,36 @@ function buildCopy(locale) {
     sendCode: zh ? '发送重置码' : 'Send code',
     resetCodeLabel: zh ? '重置码' : 'Reset code',
     resetCodePlaceholder: zh ? '输入 6 位重置码' : 'Enter the 6-digit code',
-    newPasswordPlaceholder: zh ? '设置新密码（至少 8 位）' : 'Create a new password (8+ characters)',
-    resetHelper: zh ? '先发送重置码，再输入新密码完成重置。' : 'Send a reset code first, then choose a new password.',
+    newPasswordPlaceholder: zh
+      ? '设置新密码（至少 8 位）'
+      : 'Create a new password (8+ characters)',
+    resetHelper: zh
+      ? '先发送重置码，再输入新密码完成重置。'
+      : 'Send a reset code first, then choose a new password.',
     resetInfoTemplate: zh
-      ? ({ minutes, code }) => `重置码 ${code ? `已发送：${code}` : '已发送'}，${minutes} 分钟内有效。`
-      : ({ minutes, code }) => `Reset code ${code ? `${code}` : 'sent'} — valid for ${minutes} minutes.`,
+      ? ({ minutes, code }) =>
+          `重置码 ${code ? `已发送：${code}` : '已发送'}，${minutes} 分钟内有效。`
+      : ({ minutes, code }) =>
+          `Reset code ${code ? `${code}` : 'sent'} — valid for ${minutes} minutes.`,
     resetSuccess: zh ? '密码已更新，现在可以直接登录。' : 'Password updated. You can log in now.',
     step: zh ? '步骤' : 'Step',
     modeCards: [
       {
         key: 'starter',
         title: zh ? '入门' : 'Starter',
-        body: zh ? '更清楚、更简单的日常判断。' : 'Clear, simple daily guidance'
+        body: zh ? '更清楚、更简单的日常判断。' : 'Clear, simple daily guidance',
       },
       {
         key: 'active',
         title: zh ? '主动' : 'Active',
-        body: zh ? '更快的信号，更快的决定。' : 'Faster signals, quicker decisions'
+        body: zh ? '更快的信号，更快的决定。' : 'Faster signals, quicker decisions',
       },
       {
         key: 'deep',
         title: zh ? '深度' : 'Deep',
-        body: zh ? '更多细节，更多上下文。' : 'More nuance, more context'
-      }
-    ]
+        body: zh ? '更多细节，更多上下文。' : 'More nuance, more context',
+      },
+    ],
   };
 }
 
@@ -81,7 +89,10 @@ function Dots({ count, activeIndex }) {
   return (
     <div className="onboarding-page-dots" aria-hidden="true">
       {Array.from({ length: count }, (_, index) => (
-        <span key={index} className={`onboarding-page-dot ${index === activeIndex ? 'active' : ''}`} />
+        <span
+          key={index}
+          className={`onboarding-page-dot ${index === activeIndex ? 'active' : ''}`}
+        />
       ))}
     </div>
   );
@@ -131,7 +142,10 @@ function AiPresenceArt() {
   return (
     <svg viewBox="0 0 360 300" className="onboarding-artboard" aria-hidden="true">
       <path d="M40 214C88 160 112 122 180 92C252 60 290 70 320 120" className="ob-wave" />
-      <path d="M48 236C118 192 156 176 196 164C258 146 286 148 324 176" className="ob-wave ob-wave-cyan" />
+      <path
+        d="M48 236C118 192 156 176 196 164C258 146 286 148 324 176"
+        className="ob-wave ob-wave-cyan"
+      />
       <path d="M70 76L146 126L112 186" className="ob-link" />
       <path d="M290 74L218 126L246 188" className="ob-link" />
       <circle cx="180" cy="154" r="66" className="ob-presence" />
@@ -151,7 +165,14 @@ function BrokerBridgeArt() {
     <svg viewBox="0 0 360 300" className="onboarding-artboard" aria-hidden="true">
       <rect x="44" y="64" width="124" height="172" rx="32" className="ob-device" />
       <rect x="192" y="96" width="124" height="140" rx="28" className="ob-device ob-device-alt" />
-      <rect x="78" y="102" width="58" height="18" rx="9" className="ob-app-pill ob-app-pill-indigo" />
+      <rect
+        x="78"
+        y="102"
+        width="58"
+        height="18"
+        rx="9"
+        className="ob-app-pill ob-app-pill-indigo"
+      />
       <rect x="78" y="132" width="74" height="18" rx="9" className="ob-app-pill ob-app-pill-cyan" />
       <rect x="78" y="162" width="46" height="18" rx="9" className="ob-app-pill ob-app-pill-pink" />
       <rect x="220" y="132" width="70" height="48" rx="20" className="ob-handoff-core" />
@@ -173,7 +194,7 @@ export default function OnboardingFlow({
   onLogin,
   onRequestReset,
   onResetPassword,
-  onComplete
+  onComplete,
 }) {
   const copy = useMemo(() => buildCopy(locale), [locale]);
   const [mode, setMode] = useState('intro');
@@ -227,10 +248,18 @@ export default function OnboardingFlow({
 
   const emailValid = /\S+@\S+\.\S+/.test(email);
   const passwordValid = String(password).trim().length >= 8;
-  const normalizedLoginIdentifier = String(loginEmail || '').trim().toLowerCase();
-  const testAccountLogin = normalizedLoginIdentifier === 'test' && String(loginPassword || '') === 'test';
-  const loginReady = (/\S+@\S+\.\S+/.test(loginEmail) && String(loginPassword).trim().length >= 8) || testAccountLogin;
-  const resetCodeReady = /\S+@\S+\.\S+/.test(resetEmail) && String(resetCode).trim().length >= 6 && String(resetPasswordValue).trim().length >= 8;
+  const normalizedLoginIdentifier = String(loginEmail || '')
+    .trim()
+    .toLowerCase();
+  const testAccountLogin =
+    normalizedLoginIdentifier === 'test' && String(loginPassword || '') === 'test';
+  const loginReady =
+    (/\S+@\S+\.\S+/.test(loginEmail) && String(loginPassword).trim().length >= 8) ||
+    testAccountLogin;
+  const resetCodeReady =
+    /\S+@\S+\.\S+/.test(resetEmail) &&
+    String(resetCode).trim().length >= 6 &&
+    String(resetPasswordValue).trim().length >= 8;
   const canContinue =
     signupStep === 0
       ? emailValid && passwordValid
@@ -287,7 +316,11 @@ export default function OnboardingFlow({
               >
                 {copy.login}
               </button>
-              <button type="button" className="onboarding-btn onboarding-btn-primary" onClick={() => setMode('signup')}>
+              <button
+                type="button"
+                className="onboarding-btn onboarding-btn-primary"
+                onClick={() => setMode('signup')}
+              >
                 {copy.signUp}
               </button>
             </div>
@@ -356,10 +389,15 @@ export default function OnboardingFlow({
                 try {
                   const result = await onLogin({
                     email: loginEmail,
-                    password: loginPassword
+                    password: loginPassword,
                   });
                   if (result?.ok === false) {
-                    setLoginError(result.error || (locale?.startsWith('zh') ? '账号或密码不正确。' : 'The email or password is incorrect.'));
+                    setLoginError(
+                      result.error ||
+                        (locale?.startsWith('zh')
+                          ? '账号或密码不正确。'
+                          : 'The email or password is incorrect.'),
+                    );
                   }
                 } finally {
                   setSubmitting(false);
@@ -425,15 +463,20 @@ export default function OnboardingFlow({
                     setResetInfo('');
                     try {
                       const result = await onRequestReset({ email: resetEmail });
-                  if (result?.ok === false) {
-                        setResetError(result.error || (locale?.startsWith('zh') ? '暂时没法发送重置码。' : 'Could not send a reset code right now.'));
+                      if (result?.ok === false) {
+                        setResetError(
+                          result.error ||
+                            (locale?.startsWith('zh')
+                              ? '暂时没法发送重置码。'
+                              : 'Could not send a reset code right now.'),
+                        );
                         return;
                       }
                       setResetInfo(
                         copy.resetInfoTemplate({
                           minutes: result?.expiresInMinutes || 15,
-                          code: result?.codeHint || ''
-                        })
+                          code: result?.codeHint || '',
+                        }),
                       );
                     } finally {
                       setSubmitting(false);
@@ -471,10 +514,15 @@ export default function OnboardingFlow({
                   const result = await onResetPassword({
                     email: resetEmail,
                     code: resetCode,
-                    newPassword: resetPasswordValue
+                    newPassword: resetPasswordValue,
                   });
                   if (result?.ok === false) {
-                    setResetError(result.error || (locale?.startsWith('zh') ? '重置没有成功，请重试。' : 'Reset did not complete. Please try again.'));
+                    setResetError(
+                      result.error ||
+                        (locale?.startsWith('zh')
+                          ? '重置没有成功，请重试。'
+                          : 'Reset did not complete. Please try again.'),
+                    );
                     return;
                   }
                   setLoginInfo(copy.resetSuccess);
@@ -489,7 +537,11 @@ export default function OnboardingFlow({
                 }
               }}
             >
-              {submitting ? (locale?.startsWith('zh') ? '正在重置…' : 'Resetting…') : copy.resetPassword}
+              {submitting
+                ? locale?.startsWith('zh')
+                  ? '正在重置…'
+                  : 'Resetting…'
+                : copy.resetPassword}
             </button>
           </div>
         </section>
@@ -497,7 +549,11 @@ export default function OnboardingFlow({
         <section className="signup-stage">
           <div className="signup-stage-head">
             {signupStep > 0 ? (
-              <button type="button" className="signup-back" onClick={() => setSignupStep((value) => value - 1)}>
+              <button
+                type="button"
+                className="signup-back"
+                onClick={() => setSignupStep((value) => value - 1)}
+              >
                 {copy.back}
               </button>
             ) : (
@@ -528,12 +584,18 @@ export default function OnboardingFlow({
                     className="signup-input"
                     type="password"
                     autoComplete="new-password"
-                    placeholder={locale?.startsWith('zh') ? '创建密码（至少 8 位）' : 'Create a password (8+ characters)'}
+                    placeholder={
+                      locale?.startsWith('zh')
+                        ? '创建密码（至少 8 位）'
+                        : 'Create a password (8+ characters)'
+                    }
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
                   />
                 </div>
-                {signupError && signupStep === 0 ? <p className="signup-error">{signupError}</p> : null}
+                {signupError && signupStep === 0 ? (
+                  <p className="signup-error">{signupError}</p>
+                ) : null}
               </div>
             ) : null}
 
@@ -613,10 +675,15 @@ export default function OnboardingFlow({
                       password,
                       name,
                       tradeMode,
-                      broker
+                      broker,
                     });
                     if (result?.ok === false) {
-                      setSignupError(result.error || (locale?.startsWith('zh') ? '注册没有成功，请稍后再试。' : 'Sign up did not complete. Please try again.'));
+                      setSignupError(
+                        result.error ||
+                          (locale?.startsWith('zh')
+                            ? '注册没有成功，请稍后再试。'
+                            : 'Sign up did not complete. Please try again.'),
+                      );
                       setSignupStep(0);
                     }
                   } finally {
@@ -625,7 +692,13 @@ export default function OnboardingFlow({
                 })();
               }}
             >
-              {submitting ? (locale?.startsWith('zh') ? '正在创建…' : 'Creating…') : signupStep < 2 ? copy.continue : copy.finish}
+              {submitting
+                ? locale?.startsWith('zh')
+                  ? '正在创建…'
+                  : 'Creating…'
+                : signupStep < 2
+                  ? copy.continue
+                  : copy.finish}
             </button>
           </div>
         </section>

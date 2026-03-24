@@ -1,10 +1,21 @@
 import { describe, expect, it } from 'vitest';
 // @ts-ignore JS runtime module import
 import {
-  clamp, sum, mean, stdDev, percentileRank, quantile,
-  correlation, returnsFromPrices, maxDrawdownFromCurve,
-  rollingStd, rollingMean, groupBy, compoundReturns,
-  deterministicHash, round
+  clamp,
+  sum,
+  mean,
+  stdDev,
+  percentileRank,
+  quantile,
+  correlation,
+  returnsFromPrices,
+  maxDrawdownFromCurve,
+  rollingStd,
+  rollingMean,
+  groupBy,
+  compoundReturns,
+  deterministicHash,
+  round,
 } from '../src/engines/math.js';
 
 /* ─────────────────────────────────────────────────
@@ -223,7 +234,7 @@ describe('groupBy', () => {
     const items = [
       { market: 'US', symbol: 'AAPL' },
       { market: 'US', symbol: 'GOOGL' },
-      { market: 'CRYPTO', symbol: 'BTC' }
+      { market: 'CRYPTO', symbol: 'BTC' },
     ];
     const grouped = groupBy(items, (item: any) => item.market);
     expect(grouped.US).toHaveLength(2);

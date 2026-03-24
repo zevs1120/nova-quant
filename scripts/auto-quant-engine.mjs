@@ -25,7 +25,7 @@ const US_SYMBOLS_CORE = [
   'JPM',
   'XOM',
   'UNH',
-  'WMT'
+  'WMT',
 ];
 const US_SYMBOLS_GROWTH = [
   'PLTR',
@@ -52,7 +52,7 @@ const US_SYMBOLS_GROWTH = [
   'PATH',
   'BILL',
   'ROKU',
-  'COIN'
+  'COIN',
 ];
 const US_SYMBOLS_SMALL = [
   'MARA',
@@ -84,7 +84,7 @@ const US_SYMBOLS_SMALL = [
   'GCT',
   'DNA',
   'LMND',
-  'JOBY'
+  'JOBY',
 ];
 const CRYPTO_SYMBOLS_DEFAULT = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT'];
 
@@ -103,7 +103,8 @@ const MIN_LONG_RATIO = Number(process.env.MIN_LONG_RATIO || 0.06);
 const MIN_SHORT_RATIO = Number(process.env.MIN_SHORT_RATIO || 0.2);
 const MAX_TRADES_PER_SYMBOL = Number(process.env.MAX_TRADES_PER_SYMBOL || 28);
 const MAX_US_SYMBOLS = Number(
-  process.env.MAX_US_SYMBOLS || (UNIVERSE_MODE === 'broad' ? 70 : UNIVERSE_MODE === 'extended' ? 40 : 20)
+  process.env.MAX_US_SYMBOLS ||
+    (UNIVERSE_MODE === 'broad' ? 70 : UNIVERSE_MODE === 'extended' ? 40 : 20),
 );
 const CRYPTO_YEARS = Number(process.env.CRYPTO_YEARS || 4);
 const FETCH_US_HOURLY = process.env.FETCH_US_HOURLY === '1';
@@ -132,7 +133,10 @@ function resolveUsSymbols() {
   if (UNIVERSE_MODE === 'extended') {
     return uniq([...US_SYMBOLS_CORE, ...US_SYMBOLS_GROWTH]).slice(0, Math.max(1, MAX_US_SYMBOLS));
   }
-  return uniq([...US_SYMBOLS_CORE, ...US_SYMBOLS_GROWTH, ...US_SYMBOLS_SMALL]).slice(0, Math.max(1, MAX_US_SYMBOLS));
+  return uniq([...US_SYMBOLS_CORE, ...US_SYMBOLS_GROWTH, ...US_SYMBOLS_SMALL]).slice(
+    0,
+    Math.max(1, MAX_US_SYMBOLS),
+  );
 }
 
 function resolveCryptoSymbols() {
@@ -163,8 +167,8 @@ const STRATEGY_SWARM =
           sideBias: 'BOTH',
           minAdx: 16,
           minVolumeZ: -2.5,
-          spreadCostBps: 8
-        }
+          spreadCostBps: 8,
+        },
       ]
     : [
         {
@@ -183,7 +187,7 @@ const STRATEGY_SWARM =
           sideBias: 'BOTH',
           minAdx: 8,
           minVolumeZ: -3.2,
-          spreadCostBps: 9
+          spreadCostBps: 9,
         },
         {
           id: 'MOM_SWING',
@@ -201,7 +205,7 @@ const STRATEGY_SWARM =
           sideBias: 'BOTH',
           minAdx: 10,
           minVolumeZ: -3.0,
-          spreadCostBps: 8
+          spreadCostBps: 8,
         },
         {
           id: 'MOM_TIGHT',
@@ -219,7 +223,7 @@ const STRATEGY_SWARM =
           sideBias: 'BOTH',
           minAdx: 0,
           minVolumeZ: -4.0,
-          spreadCostBps: 10
+          spreadCostBps: 10,
         },
         {
           id: 'MEAN_REV',
@@ -240,7 +244,7 @@ const STRATEGY_SWARM =
           maxAdx: 36,
           minVolumeZ: -3.5,
           probOptional: true,
-          spreadCostBps: 11
+          spreadCostBps: 11,
         },
         {
           id: 'VOL_BREAK',
@@ -258,7 +262,7 @@ const STRATEGY_SWARM =
           sideBias: 'BOTH',
           minAdx: 9,
           minVolumeZ: 0.2,
-          spreadCostBps: 10
+          spreadCostBps: 10,
         },
         {
           id: 'CR_CARRY',
@@ -277,7 +281,7 @@ const STRATEGY_SWARM =
           minAdx: 0,
           minVolumeZ: -4.0,
           probOptional: true,
-          spreadCostBps: 12
+          spreadCostBps: 12,
         },
         {
           id: 'US_BETA',
@@ -296,7 +300,7 @@ const STRATEGY_SWARM =
           minAdx: 0,
           minVolumeZ: -4.0,
           probOptional: true,
-          spreadCostBps: 11
+          spreadCostBps: 11,
         },
         {
           id: 'US_MICRO',
@@ -315,8 +319,8 @@ const STRATEGY_SWARM =
           minAdx: 0,
           minVolumeZ: -0.8,
           probOptional: true,
-          spreadCostBps: 12
-        }
+          spreadCostBps: 12,
+        },
       ];
 
 const USER_AGENT =
@@ -403,8 +407,8 @@ async function fetchWithRetry(url, options = {}, retries = 2, timeoutMs = 15000)
           'user-agent': USER_AGENT,
           referer: 'https://stooq.com/',
           accept: '*/*',
-          ...(options.headers || {})
-        }
+          ...(options.headers || {}),
+        },
       });
       clearTimeout(timer);
       return res;
@@ -447,9 +451,33 @@ function parseStooqDailyCsv(symbol, text) {
     const low = Number(r[3]);
     const close = Number(r[4]);
     const volume = Number(r[5] || 0);
-    if (!date || !Number.isFinite(open) || !Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close)) continue;
-    const ts = Date.UTC(Number(date.slice(0, 4)), Number(date.slice(5, 7)) - 1, Number(date.slice(8, 10)), 0, 0, 0);
-    out.push({ datetime: new Date(ts).toISOString(), symbol, open, high, low, close, volume, timeframe: '1d', market: 'US' });
+    if (
+      !date ||
+      !Number.isFinite(open) ||
+      !Number.isFinite(high) ||
+      !Number.isFinite(low) ||
+      !Number.isFinite(close)
+    )
+      continue;
+    const ts = Date.UTC(
+      Number(date.slice(0, 4)),
+      Number(date.slice(5, 7)) - 1,
+      Number(date.slice(8, 10)),
+      0,
+      0,
+      0,
+    );
+    out.push({
+      datetime: new Date(ts).toISOString(),
+      symbol,
+      open,
+      high,
+      low,
+      close,
+      volume,
+      timeframe: '1d',
+      market: 'US',
+    });
   }
   return out;
 }
@@ -475,9 +503,19 @@ function parseStooqA2Intraday(symbol, text) {
       Number(d.slice(6, 8)),
       Number(tm.slice(0, 2)),
       Number(tm.slice(2, 4)),
-      Number(tm.slice(4, 6))
+      Number(tm.slice(4, 6)),
     );
-    out.push({ datetime: new Date(ts).toISOString(), symbol, open, high, low, close, volume, timeframe: '1h', market: 'US' });
+    out.push({
+      datetime: new Date(ts).toISOString(),
+      symbol,
+      open,
+      high,
+      low,
+      close,
+      volume,
+      timeframe: '1h',
+      market: 'US',
+    });
   }
   return out;
 }
@@ -603,13 +641,21 @@ function parseBinanceKlinesCsv(text, symbol, market, timeframe, kind = 'klines')
       timeframe,
       market,
       takerBuyBase: Number(r[9] || 0),
-      kind
+      kind,
     });
   }
   return out;
 }
 
-async function fetchBinanceMonthlySeries({ marketPath, dataType, symbol, interval, months, market, kind = 'klines' }) {
+async function fetchBinanceMonthlySeries({
+  marketPath,
+  dataType,
+  symbol,
+  interval,
+  months,
+  market,
+  kind = 'klines',
+}) {
   const all = [];
   let okCount = 0;
   let missCount = 0;
@@ -631,13 +677,20 @@ async function fetchBinanceMonthlySeries({ marketPath, dataType, symbol, interva
     okCount += 1;
     await sleep(60);
   }
-  console.log(`[binance] ${symbol} ${dataType} ${interval} downloaded=${okCount} missing=${missCount}`);
+  console.log(
+    `[binance] ${symbol} ${dataType} ${interval} downloaded=${okCount} missing=${missCount}`,
+  );
   return all;
 }
 
 async function fetchFREDSeries(seriesId, outSymbol) {
   const url = `https://fred.stlouisfed.org/graph/fredgraph.csv?id=${seriesId}`;
-  const res = await fetchWithRetry(url, { headers: { referer: 'https://fred.stlouisfed.org/' } }, 4, 25000);
+  const res = await fetchWithRetry(
+    url,
+    { headers: { referer: 'https://fred.stlouisfed.org/' } },
+    4,
+    25000,
+  );
   if (!res.ok) return [];
   const text = await res.text();
   const rows = parseCsvSimple(text);
@@ -647,7 +700,14 @@ async function fetchFREDSeries(seriesId, outSymbol) {
     if (!date || !value || value === '.') continue;
     const v = Number(value);
     if (!Number.isFinite(v)) continue;
-    const ts = Date.UTC(Number(date.slice(0, 4)), Number(date.slice(5, 7)) - 1, Number(date.slice(8, 10)), 0, 0, 0);
+    const ts = Date.UTC(
+      Number(date.slice(0, 4)),
+      Number(date.slice(5, 7)) - 1,
+      Number(date.slice(8, 10)),
+      0,
+      0,
+      0,
+    );
     out.push({ datetime: new Date(ts).toISOString(), symbol: outSymbol, value: v });
   }
   return out;
@@ -655,13 +715,20 @@ async function fetchFREDSeries(seriesId, outSymbol) {
 
 async function fetchCboeSpyOptionsSnapshot(spotPrice) {
   const url = 'https://cdn.cboe.com/api/global/delayed_quotes/options/SPY.json';
-  const res = await fetchWithRetry(url, { headers: { referer: 'https://www.cboe.com/' } }, 4, 30000);
+  const res = await fetchWithRetry(
+    url,
+    { headers: { referer: 'https://www.cboe.com/' } },
+    4,
+    30000,
+  );
   if (!res.ok) return null;
   const json = await res.json();
   const options = json?.data?.options || [];
   if (!options.length) return null;
 
-  const clean = options.filter((o) => Number.isFinite(Number(o.iv)) && Number.isFinite(Number(o.open_interest)));
+  const clean = options.filter(
+    (o) => Number.isFinite(Number(o.iv)) && Number.isFinite(Number(o.open_interest)),
+  );
   if (!clean.length) return null;
 
   let callIvNum = 0;
@@ -702,7 +769,9 @@ async function fetchCboeSpyOptionsSnapshot(spotPrice) {
 
   const callIv = callIvDen ? callIvNum / callIvDen : 0;
   const putIv = putIvDen ? putIvNum / putIvDen : 0;
-  const ts = new Date(String(json.timestamp || new Date().toISOString()).replace(' ', 'T') + 'Z').toISOString();
+  const ts = new Date(
+    String(json.timestamp || new Date().toISOString()).replace(' ', 'T') + 'Z',
+  ).toISOString();
 
   return {
     datetime: ts,
@@ -713,7 +782,7 @@ async function fetchCboeSpyOptionsSnapshot(spotPrice) {
     open_interest_total: totalOI,
     volume_total: totalVol,
     avg_abs_delta: absDeltaDen ? absDeltaNum / absDeltaDen : 0,
-    gamma_exposure: gammaExp
+    gamma_exposure: gammaExp,
   };
 }
 
@@ -771,7 +840,7 @@ function cleanBars(rows) {
         close,
         open: arr[i].open * scale,
         high: arr[i].high * scale,
-        low: arr[i].low * scale
+        low: arr[i].low * scale,
       });
     }
   }
@@ -834,7 +903,11 @@ function computeATR(highs, lows, closes, period = 14) {
     if (i === 0) {
       tr[i] = highs[i] - lows[i];
     } else {
-      tr[i] = Math.max(highs[i] - lows[i], Math.abs(highs[i] - closes[i - 1]), Math.abs(lows[i] - closes[i - 1]));
+      tr[i] = Math.max(
+        highs[i] - lows[i],
+        Math.abs(highs[i] - closes[i - 1]),
+        Math.abs(lows[i] - closes[i - 1]),
+      );
     }
   }
   const out = new Array(closes.length).fill(null);
@@ -861,7 +934,11 @@ function computeADX(highs, lows, closes, period = 14) {
     const dn = lows[i - 1] - lows[i];
     plusDM[i] = up > dn && up > 0 ? up : 0;
     minusDM[i] = dn > up && dn > 0 ? dn : 0;
-    tr[i] = Math.max(highs[i] - lows[i], Math.abs(highs[i] - closes[i - 1]), Math.abs(lows[i] - closes[i - 1]));
+    tr[i] = Math.max(
+      highs[i] - lows[i],
+      Math.abs(highs[i] - closes[i - 1]),
+      Math.abs(lows[i] - closes[i - 1]),
+    );
   }
   const adx = new Array(closes.length).fill(null);
   let atr = 0;
@@ -914,15 +991,26 @@ function addFeatures(rows, macroByDate, optionsSnapshot, cryptoDerivByDateSymbol
     const ema12 = ema(closes, 12);
     const ema26 = ema(closes, 26);
     const macd = closes.map((_, i) => (ema12[i] ?? 0) - (ema26[i] ?? 0));
-    const macdSig = ema(macd.map((v) => (Number.isFinite(v) ? v : 0)), 9);
+    const macdSig = ema(
+      macd.map((v) => (Number.isFinite(v) ? v : 0)),
+      9,
+    );
     const macdHist = macd.map((v, i) => (v ?? 0) - (macdSig[i] ?? 0));
     const adx14 = computeADX(highs, lows, closes, 14);
     const atr14 = computeATR(highs, lows, closes, 14);
     const ret1 = closes.map((_, i) => (i > 0 ? closes[i] / closes[i - 1] - 1 : null));
     const ret3 = closes.map((_, i) => (i > 2 ? closes[i] / closes[i - 3] - 1 : null));
     const ret7 = closes.map((_, i) => (i > 6 ? closes[i] / closes[i - 7] - 1 : null));
-    const vol20 = rolling(ret1.map((v) => v ?? 0), 20, (x) => std(x));
-    const vol60 = rolling(ret1.map((v) => v ?? 0), 60, (x) => std(x));
+    const vol20 = rolling(
+      ret1.map((v) => v ?? 0),
+      20,
+      (x) => std(x),
+    );
+    const vol60 = rolling(
+      ret1.map((v) => v ?? 0),
+      60,
+      (x) => std(x),
+    );
     const volZ20 = rolling(vols, 20, (x) => {
       const m = mean(x);
       const s = std(x, m);
@@ -948,7 +1036,9 @@ function addFeatures(rows, macroByDate, optionsSnapshot, cryptoDerivByDateSymbol
       const macro = macroByDate.get(date) || {};
       const derivSymbol = symbol.replace(/-PERP$/i, '');
       const deriv = cryptoDerivByDateSymbol.get(`${derivSymbol}|${date}`) || {};
-      const marketClass = String(arr[i].market || (symbol.endsWith('USDT') ? 'CRYPTO' : 'US')).toUpperCase();
+      const marketClass = String(
+        arr[i].market || (symbol.endsWith('USDT') ? 'CRYPTO' : 'US'),
+      ).toUpperCase();
       const isCryptoLike = marketClass === 'CRYPTO' || marketClass === 'FUTURES';
       const isUs = marketClass === 'US';
       const vix = Number(macro.VIX ?? 0);
@@ -978,14 +1068,18 @@ function addFeatures(rows, macroByDate, optionsSnapshot, cryptoDerivByDateSymbol
         vol60: vol60[i],
         money_flow_obv: obv[i],
         volume_z20: volZ20[i],
-        pv_divergence: i > 0 ? Math.sign(ret1[i] ?? 0) - Math.sign((vols[i] - vols[i - 1]) / Math.max(vols[i - 1], 1e-8)) : null,
+        pv_divergence:
+          i > 0
+            ? Math.sign(ret1[i] ?? 0) -
+              Math.sign((vols[i] - vols[i - 1]) / Math.max(vols[i - 1], 1e-8))
+            : null,
         block_trade_flag: (volZ20[i] ?? 0) > 2 ? 1 : 0,
         macro_vix: vix,
         macro_dxy: dxy,
         macro_us10y: us10y,
         opt_iv_anom: isUs ? (vix - 20) / 20 : 0,
         opt_oi_jump: isUs ? (volZ20[i] ?? 0) : 0,
-        opt_vol_slope: isUs ? ((vol20[i] ?? 0) - (vol60[i] ?? 0)) : 0,
+        opt_vol_slope: isUs ? (vol20[i] ?? 0) - (vol60[i] ?? 0) : 0,
         funding_rate: isCryptoLike ? Number(deriv.funding_rate ?? 0) : 0,
         basis: isCryptoLike ? Number(deriv.basis ?? 0) : 0,
         basis_percentile: isCryptoLike ? Number(deriv.basis_pct ?? 0) : 0,
@@ -996,7 +1090,7 @@ function addFeatures(rows, macroByDate, optionsSnapshot, cryptoDerivByDateSymbol
         options_chain_skew: isUs && optionsSnapshot ? optionsSnapshot.iv_skew : 0,
         options_chain_oi: isUs && optionsSnapshot ? optionsSnapshot.open_interest_total : 0,
         options_chain_delta: isUs && optionsSnapshot ? optionsSnapshot.avg_abs_delta : 0,
-        options_chain_gamma: isUs && optionsSnapshot ? optionsSnapshot.gamma_exposure : 0
+        options_chain_gamma: isUs && optionsSnapshot ? optionsSnapshot.gamma_exposure : 0,
       });
     }
   }
@@ -1030,7 +1124,7 @@ function addLabels(rows) {
         future_dd_3d: dd3,
         buy_signal: n3.close / cur.close - 1 >= 0.04 && dd3 <= 0.02 ? 1 : 0,
         stop_loss: cur.close - 1.5 * cur.atr14,
-        take_profit: cur.close + 2.2 * cur.atr14
+        take_profit: cur.close + 2.2 * cur.atr14,
       };
       out.push(row);
     }
@@ -1072,7 +1166,7 @@ const FEATURE_COLUMNS = [
   'options_chain_skew',
   'options_chain_oi',
   'options_chain_delta',
-  'options_chain_gamma'
+  'options_chain_gamma',
 ];
 
 function filterNumericRows(rows, featureCols, targetCol) {
@@ -1092,7 +1186,10 @@ function selectTopFeatures(rows, featureCols, targetCol, topN = 18) {
     const y = rows.map((r) => r[targetCol]);
     scores.push({ col, score: Math.abs(corr(x, y)) });
   }
-  return scores.sort((a, b) => b.score - a.score).slice(0, topN).map((x) => x.col);
+  return scores
+    .sort((a, b) => b.score - a.score)
+    .slice(0, topN)
+    .map((x) => x.col);
 }
 
 function fitStandardizer(rows, featureCols) {
@@ -1248,7 +1345,8 @@ function resolveDirectionByStrategy(row, strategy) {
   if (!Number.isFinite(row.atr14) || row.atr14 <= 0) return 'FLAT';
   if (Number.isFinite(strategy.minAdx) && Number(row.adx14 ?? 0) < strategy.minAdx) return 'FLAT';
   if (Number.isFinite(strategy.maxAdx) && Number(row.adx14 ?? 0) > strategy.maxAdx) return 'FLAT';
-  if (Number.isFinite(strategy.minVolumeZ) && Number(row.volume_z20 ?? 0) < strategy.minVolumeZ) return 'FLAT';
+  if (Number.isFinite(strategy.minVolumeZ) && Number(row.volume_z20 ?? 0) < strategy.minVolumeZ)
+    return 'FLAT';
 
   if (strategy.sideBias === 'CRYPTO_ONLY' && row.market !== 'CRYPTO') return 'FLAT';
   if (strategy.sideBias === 'US_ONLY' && row.market !== 'US') return 'FLAT';
@@ -1257,9 +1355,16 @@ function resolveDirectionByStrategy(row, strategy) {
   const pickByStrength = (canLong, canShort) => {
     if (canLong && canShort) {
       const longScore =
-        row.prob + Math.max(0, row.regPred * 4) + Math.max(0, row.tsPred * 7) + Math.max(0, Number(row.roc1 ?? 0) * 5);
+        row.prob +
+        Math.max(0, row.regPred * 4) +
+        Math.max(0, row.tsPred * 7) +
+        Math.max(0, Number(row.roc1 ?? 0) * 5);
       const shortScore =
-        1 - row.prob + Math.max(0, -row.regPred * 4) + Math.max(0, -row.tsPred * 7) + Math.max(0, -Number(row.roc1 ?? 0) * 5);
+        1 -
+        row.prob +
+        Math.max(0, -row.regPred * 4) +
+        Math.max(0, -row.tsPred * 7) +
+        Math.max(0, -Number(row.roc1 ?? 0) * 5);
       return longScore >= shortScore ? 'LONG' : 'SHORT';
     }
     if (canLong) return 'LONG';
@@ -1284,16 +1389,25 @@ function resolveDirectionByStrategy(row, strategy) {
     const funding = Number(row.funding_rate ?? 0);
     const carryLongEdge = basis <= 0.006 && funding <= 0.0012;
     const carryShortEdge = basis >= -0.006 && funding >= -0.0012;
-    const longBase = (row.regPred >= strategy.longReg || row.tsPred >= strategy.longTs || Number(row.roc3 ?? 0) > 0) && carryLongEdge;
+    const longBase =
+      (row.regPred >= strategy.longReg ||
+        row.tsPred >= strategy.longTs ||
+        Number(row.roc3 ?? 0) > 0) &&
+      carryLongEdge;
     const shortBase =
-      (row.regPred <= strategy.shortReg || row.tsPred <= strategy.shortTs || Number(row.roc3 ?? 0) < 0) && carryShortEdge;
+      (row.regPred <= strategy.shortReg ||
+        row.tsPred <= strategy.shortTs ||
+        Number(row.roc3 ?? 0) < 0) &&
+      carryShortEdge;
     const canLong = probOptional ? longBase : row.prob >= strategy.longProb && longBase;
     const canShort = probOptional ? shortBase : row.prob <= strategy.shortProb && shortBase;
     return pickByStrength(canLong, canShort);
   }
 
-  const longBase = row.regPred >= strategy.longReg || row.tsPred >= strategy.longTs || Number(row.roc1 ?? 0) > 0;
-  const shortBase = row.regPred <= strategy.shortReg || row.tsPred <= strategy.shortTs || Number(row.roc1 ?? 0) < 0;
+  const longBase =
+    row.regPred >= strategy.longReg || row.tsPred >= strategy.longTs || Number(row.roc1 ?? 0) > 0;
+  const shortBase =
+    row.regPred <= strategy.shortReg || row.tsPred <= strategy.shortTs || Number(row.roc1 ?? 0) < 0;
   const canLong = probOptional ? longBase : row.prob >= strategy.longProb && longBase;
   const canShort = probOptional ? shortBase : row.prob <= strategy.shortProb && shortBase;
   return pickByStrength(canLong, canShort);
@@ -1326,7 +1440,7 @@ function summarizeTrades(trades) {
     win_rate: trades.length ? wins / trades.length : 0,
     profit_factor: profitFactor,
     trade_count: trades.length,
-    sharpe: sharpe(pnlSeries)
+    sharpe: sharpe(pnlSeries),
   };
 }
 
@@ -1344,7 +1458,12 @@ function tradeQuality(trade) {
       : trade.strategy_id === 'VOL_BREAK' || trade.strategy_id === 'MOM_FAST'
         ? 0.01
         : 0;
-  return trade.score * 0.58 + dirProb * 0.32 + Math.max(-0.03, Math.min(0.08, edge * 6 + edgeTs * 9)) + strategyBoost;
+  return (
+    trade.score * 0.58 +
+    dirProb * 0.32 +
+    Math.max(-0.03, Math.min(0.08, edge * 6 + edgeTs * 9)) +
+    strategyBoost
+  );
 }
 
 function getMarketCounts(trades) {
@@ -1367,10 +1486,12 @@ function allocateMarketTargets(total, weights, availableCounts) {
   const activeMarkets = Object.keys(weights).filter((m) => (availableCounts[m] || 0) > 0);
   if (!activeMarkets.length) return {};
 
-  const weightSum = activeMarkets.reduce((acc, m) => acc + Math.max(0, Number(weights[m] || 0)), 0) || activeMarkets.length;
+  const weightSum =
+    activeMarkets.reduce((acc, m) => acc + Math.max(0, Number(weights[m] || 0)), 0) ||
+    activeMarkets.length;
   const raw = activeMarkets.map((m) => ({
     market: m,
-    rawTarget: (total * Math.max(0, Number(weights[m] || 0))) / weightSum
+    rawTarget: (total * Math.max(0, Number(weights[m] || 0))) / weightSum,
   }));
   const targets = {};
   let assigned = 0;
@@ -1403,7 +1524,10 @@ function pickLossesByTarget(losses, count, targetLossAbs) {
   if (count <= 0 || !losses.length) return [];
   if (losses.length <= count) return losses.slice(0, count);
   const qualitySorted = [...losses].sort((a, b) => tradeQuality(b) - tradeQuality(a));
-  const candidates = qualitySorted.slice(0, Math.min(qualitySorted.length, Math.max(count * 8, 200)));
+  const candidates = qualitySorted.slice(
+    0,
+    Math.min(qualitySorted.length, Math.max(count * 8, 200)),
+  );
   if (candidates.length <= count) return candidates;
 
   const byAbs = [...candidates].sort((a, b) => Math.abs(a.pnl) - Math.abs(b.pnl));
@@ -1476,9 +1600,12 @@ function selectByMarketAndSides(pool, targetCount, marketWeights, minLongRatio, 
 
   const selected = [];
   const usedKeys = new Set();
-  const makeKey = (t) => `${t.symbol}|${t.market}|${t.direction}|${t.entryDate}|${t.exitDate}|${t.strategy_id}`;
+  const makeKey = (t) =>
+    `${t.symbol}|${t.market}|${t.direction}|${t.entryDate}|${t.exitDate}|${t.strategy_id}`;
   for (const market of Object.keys(marketTargets)) {
-    const marketPool = [...(byMarket.get(market) || [])].sort((a, b) => tradeQuality(b) - tradeQuality(a));
+    const marketPool = [...(byMarket.get(market) || [])].sort(
+      (a, b) => tradeQuality(b) - tradeQuality(a),
+    );
     const target = marketTargets[market];
     selected.push(...pickFromPool(marketPool, target, usedKeys));
   }
@@ -1529,7 +1656,15 @@ function selectByMarketAndSides(pool, targetCount, marketWeights, minLongRatio, 
   return rebalanced;
 }
 
-function selectTargetBandWithSides(pool, targetCount, desiredWin, desiredPf, marketWeights, minLongRatio, minShortRatio) {
+function selectTargetBandWithSides(
+  pool,
+  targetCount,
+  desiredWin,
+  desiredPf,
+  marketWeights,
+  minLongRatio,
+  minShortRatio,
+) {
   const byMarket = new Map();
   for (const t of pool) {
     if (!byMarket.has(t.market)) byMarket.set(t.market, []);
@@ -1544,21 +1679,27 @@ function selectTargetBandWithSides(pool, targetCount, desiredWin, desiredPf, mar
   const usedKeys = new Set();
 
   for (const market of Object.keys(marketTargets)) {
-    const marketPool = [...(byMarket.get(market) || [])].sort((a, b) => tradeQuality(b) - tradeQuality(a));
+    const marketPool = [...(byMarket.get(market) || [])].sort(
+      (a, b) => tradeQuality(b) - tradeQuality(a),
+    );
     const target = marketTargets[market];
     const longTarget = Math.max(0, Math.floor(target * minLongRatio));
     const shortTarget = Math.max(0, Math.floor(target * minShortRatio));
     const coreTargets = [
       { side: 'LONG', target: longTarget },
-      { side: 'SHORT', target: shortTarget }
+      { side: 'SHORT', target: shortTarget },
     ];
 
     const local = [];
     for (const sideCfg of coreTargets) {
       const sidePool = marketPool.filter((t) => t.direction === sideCfg.side);
       if (!sidePool.length || sideCfg.target <= 0) continue;
-      const wins = sidePool.filter((t) => t.pnl > 0).sort((a, b) => tradeQuality(b) - tradeQuality(a));
-      const losses = sidePool.filter((t) => t.pnl <= 0).sort((a, b) => tradeQuality(b) - tradeQuality(a));
+      const wins = sidePool
+        .filter((t) => t.pnl > 0)
+        .sort((a, b) => tradeQuality(b) - tradeQuality(a));
+      const losses = sidePool
+        .filter((t) => t.pnl <= 0)
+        .sort((a, b) => tradeQuality(b) - tradeQuality(a));
       let winCount = Math.min(wins.length, Math.max(0, Math.round(sideCfg.target * desiredWin)));
       let lossCount = Math.max(0, sideCfg.target - winCount);
       if (lossCount > losses.length) {
@@ -1620,13 +1761,20 @@ function selectTargetBandByMarket(pool, targetCount, desiredWin, desiredPf, mark
   const marketTargets = allocateMarketTargets(targetCount, marketWeights, availableCounts);
   const selected = [];
   const usedKeys = new Set();
-  const makeKey = (t) => `${t.symbol}|${t.market}|${t.direction}|${t.entryDate}|${t.exitDate}|${t.strategy_id}`;
+  const makeKey = (t) =>
+    `${t.symbol}|${t.market}|${t.direction}|${t.entryDate}|${t.exitDate}|${t.strategy_id}`;
 
   for (const market of Object.keys(marketTargets)) {
-    const marketPool = [...(byMarket.get(market) || [])].sort((a, b) => tradeQuality(b) - tradeQuality(a));
+    const marketPool = [...(byMarket.get(market) || [])].sort(
+      (a, b) => tradeQuality(b) - tradeQuality(a),
+    );
     const target = marketTargets[market];
-    const wins = marketPool.filter((t) => t.pnl > 0).sort((a, b) => tradeQuality(b) - tradeQuality(a));
-    const losses = marketPool.filter((t) => t.pnl <= 0).sort((a, b) => tradeQuality(b) - tradeQuality(a));
+    const wins = marketPool
+      .filter((t) => t.pnl > 0)
+      .sort((a, b) => tradeQuality(b) - tradeQuality(a));
+    const losses = marketPool
+      .filter((t) => t.pnl <= 0)
+      .sort((a, b) => tradeQuality(b) - tradeQuality(a));
 
     let winCount = Math.min(wins.length, Math.max(0, Math.round(target * desiredWin)));
     let lossCount = Math.max(0, target - winCount);
@@ -1674,7 +1822,8 @@ function selectTargetBandByMarket(pool, targetCount, desiredWin, desiredPf, mark
 }
 
 function injectLongsWithFloors(selected, pool, minLongCount, winFloor, pfFloor) {
-  const makeKey = (t) => `${t.symbol}|${t.market}|${t.direction}|${t.entryDate}|${t.exitDate}|${t.strategy_id}`;
+  const makeKey = (t) =>
+    `${t.symbol}|${t.market}|${t.direction}|${t.entryDate}|${t.exitDate}|${t.strategy_id}`;
   let cur = [...selected];
   const used = new Set(cur.map(makeKey));
   const directionCounts = getDirectionCounts(cur);
@@ -1724,7 +1873,7 @@ function tuneTradeSelection(allTrades, targetTrades) {
       targetTrades,
       Math.max(TARGET_WIN_MIN, 0.665),
       Math.max(TARGET_PF_MIN, 1.62),
-      fitWeights
+      fitWeights,
     );
     return {
       selected: fitSelected,
@@ -1733,11 +1882,11 @@ function tuneTradeSelection(allTrades, targetTrades) {
         params: {
           desiredWin: Math.max(TARGET_WIN_MIN, 0.665),
           desiredPf: Math.max(TARGET_PF_MIN, 1.62),
-          marketWeights: fitWeights
+          marketWeights: fitWeights,
         },
         market_counts: getMarketCounts(fitSelected),
-        direction_counts: getDirectionCounts(fitSelected)
-      }
+        direction_counts: getDirectionCounts(fitSelected),
+      },
     };
   }
   const scoreValues = deduped.map((t) => t.score);
@@ -1745,12 +1894,16 @@ function tuneTradeSelection(allTrades, targetTrades) {
     { US: 0.55, FUTURES: 0.22, CRYPTO: 0.23 },
     { US: 0.5, FUTURES: 0.25, CRYPTO: 0.25 },
     { US: 0.6, FUTURES: 0.2, CRYPTO: 0.2 },
-    { US: 0.45, FUTURES: 0.3, CRYPTO: 0.25 }
+    { US: 0.45, FUTURES: 0.3, CRYPTO: 0.25 },
   ];
   const scoreQ = [0.15, 0.25, 0.35, 0.45, 0.55];
   const longProbMins = [0.02, 0.08, 0.14, 0.2];
   const shortProbMins = [0.42, 0.46, 0.5];
-  const longRatios = [MIN_LONG_RATIO, Math.max(MIN_LONG_RATIO, 0.1), Math.max(MIN_LONG_RATIO, 0.15)];
+  const longRatios = [
+    MIN_LONG_RATIO,
+    Math.max(MIN_LONG_RATIO, 0.1),
+    Math.max(MIN_LONG_RATIO, 0.15),
+  ];
   const minMarketCount = Math.max(60, Math.floor(targetTrades * 0.12));
 
   let best = null;
@@ -1768,7 +1921,13 @@ function tuneTradeSelection(allTrades, targetTrades) {
         if (pool.length < targetTrades) continue;
         for (const weights of marketWeightSets) {
           for (const longRatio of longRatios) {
-            const selected = selectByMarketAndSides(pool, targetTrades, weights, longRatio, MIN_SHORT_RATIO);
+            const selected = selectByMarketAndSides(
+              pool,
+              targetTrades,
+              weights,
+              longRatio,
+              MIN_SHORT_RATIO,
+            );
             const metrics = summarizeTrades(selected);
             const marketCounts = getMarketCounts(selected);
             const directionCounts = getDirectionCounts(selected);
@@ -1793,7 +1952,13 @@ function tuneTradeSelection(allTrades, targetTrades) {
               objective,
               marketCounts,
               directionCounts,
-              params: { scoreQuantile: q, longProbMin, shortProbMin, longRatio, marketWeights: weights }
+              params: {
+                scoreQuantile: q,
+                longProbMin,
+                shortProbMin,
+                longRatio,
+                marketWeights: weights,
+              },
             };
 
             const feasible =
@@ -1830,14 +1995,14 @@ function tuneTradeSelection(allTrades, targetTrades) {
       targetTrades,
       Math.max(TARGET_WIN_MIN, 0.665),
       Math.max(TARGET_PF_MIN, 1.62),
-      bandWeights
+      bandWeights,
     );
     const injectedBand = injectLongsWithFloors(
       baseBand,
       deduped,
       Math.max(1, Math.floor(targetTrades * MIN_LONG_RATIO)),
       TARGET_WIN_MIN,
-      TARGET_PF_MIN
+      TARGET_PF_MIN,
     );
     const bandMetrics = summarizeTrades(injectedBand);
     const bandMarketCounts = getMarketCounts(injectedBand);
@@ -1861,13 +2026,15 @@ function tuneTradeSelection(allTrades, targetTrades) {
           mode: 'floor_band_injected',
           desiredWin: Math.max(TARGET_WIN_MIN, 0.665),
           desiredPf: Math.max(TARGET_PF_MIN, 1.62),
-          marketWeights: bandWeights
-        }
+          marketWeights: bandWeights,
+        },
       };
     }
   }
   if (!finalPick) {
-    const fallback = [...allTrades].sort((a, b) => tradeQuality(b) - tradeQuality(a)).slice(0, targetTrades);
+    const fallback = [...allTrades]
+      .sort((a, b) => tradeQuality(b) - tradeQuality(a))
+      .slice(0, targetTrades);
     fallback.sort((a, b) => new Date(a.entryDate) - new Date(b.entryDate));
     return { selected: fallback, selection_meta: { mode: 'fallback' } };
   }
@@ -1884,8 +2051,8 @@ function tuneTradeSelection(allTrades, targetTrades) {
       objective: finalPick.objective,
       params: finalPick.params,
       market_counts: finalPick.marketCounts,
-      direction_counts: finalPick.directionCounts
-    }
+      direction_counts: finalPick.directionCounts,
+    },
   };
 }
 
@@ -1921,9 +2088,18 @@ function backtestSignals(rows, probs, regPred, tsPred, options = {}) {
         const endIndex = Math.min(arr.length - 1, i + maxHold);
         const entry = row.close;
         const atr = Math.max(row.atr14, row.close * 0.008);
-        const sl = direction === 'LONG' ? entry - Number(strategy.slAtr || 1.2) * atr : entry + Number(strategy.slAtr || 1.2) * atr;
-        const tp1 = direction === 'LONG' ? entry + Number(strategy.tp1Atr || 1.2) * atr : entry - Number(strategy.tp1Atr || 1.2) * atr;
-        const tp2 = direction === 'LONG' ? entry + Number(strategy.tp2Atr || 2.2) * atr : entry - Number(strategy.tp2Atr || 2.2) * atr;
+        const sl =
+          direction === 'LONG'
+            ? entry - Number(strategy.slAtr || 1.2) * atr
+            : entry + Number(strategy.slAtr || 1.2) * atr;
+        const tp1 =
+          direction === 'LONG'
+            ? entry + Number(strategy.tp1Atr || 1.2) * atr
+            : entry - Number(strategy.tp1Atr || 1.2) * atr;
+        const tp2 =
+          direction === 'LONG'
+            ? entry + Number(strategy.tp2Atr || 2.2) * atr
+            : entry - Number(strategy.tp2Atr || 2.2) * atr;
         let realized = 0;
         let left = 1;
         let exitIndex = endIndex;
@@ -1974,7 +2150,8 @@ function backtestSignals(rows, probs, regPred, tsPred, options = {}) {
 
         if (left > 0) {
           exitPrice = arr[exitIndex].close;
-          const finalRet = direction === 'LONG' ? (exitPrice - entry) / entry : (entry - exitPrice) / entry;
+          const finalRet =
+            direction === 'LONG' ? (exitPrice - entry) / entry : (entry - exitPrice) / entry;
           realized += left * finalRet;
         }
 
@@ -1983,7 +2160,10 @@ function backtestSignals(rows, probs, regPred, tsPred, options = {}) {
 
         const directionalConf = direction === 'LONG' ? row.prob : 1 - row.prob;
         const directionalEdge = direction === 'LONG' ? row.regPred : -row.regPred;
-        const score = directionalConf * 0.72 + Math.max(-0.08, Math.min(0.22, directionalEdge * 8)) - roundtripCost;
+        const score =
+          directionalConf * 0.72 +
+          Math.max(-0.08, Math.min(0.22, directionalEdge * 8)) -
+          roundtripCost;
 
         allTrades.push({
           symbol,
@@ -2000,7 +2180,7 @@ function backtestSignals(rows, probs, regPred, tsPred, options = {}) {
           prob: row.prob,
           regPred: row.regPred,
           tsPred: row.tsPred,
-          score
+          score,
         });
 
         i = i + 1 + Math.max(0, Math.floor(strategy.cooldown || 0));
@@ -2022,7 +2202,7 @@ function backtestSignals(rows, probs, regPred, tsPred, options = {}) {
     raw_direction_counts: rawDirectionCounts,
     target_trade_count: targetTrades,
     selection_meta: tuned.selection_meta,
-    ...summary
+    ...summary,
   };
 }
 
@@ -2040,7 +2220,7 @@ function summarizeDataCoverage(rows) {
       key: k,
       rows: arr.length,
       start: new Date(arr[0]).toISOString(),
-      end: new Date(arr[arr.length - 1]).toISOString()
+      end: new Date(arr[arr.length - 1]).toISOString(),
     });
   }
   return out.sort((a, b) => a.key.localeCompare(b.key));
@@ -2061,7 +2241,12 @@ function buildSignals(latestRows, featureCols, standardizer, clfW, regW, tsW, op
     const ts = tsPred[i];
     const longConv = p;
     const shortConv = 1 - p;
-    const dir = longConv > 0.58 && (rr > 0.001 || ts > 0) ? '多' : shortConv > 0.58 && (rr < -0.001 || ts < 0) ? '空' : '观望';
+    const dir =
+      longConv > 0.58 && (rr > 0.001 || ts > 0)
+        ? '多'
+        : shortConv > 0.58 && (rr < -0.001 || ts < 0)
+          ? '空'
+          : '观望';
     const directionalConv = dir === '多' ? longConv : dir === '空' ? shortConv : 0.5;
     const retStrength = Math.min(1, Math.max(Math.abs(rr) * 25, Math.abs(ts) * 35));
     const score = 0.78 * directionalConv + 0.22 * retStrength;
@@ -2079,7 +2264,7 @@ function buildSignals(latestRows, featureCols, standardizer, clfW, regW, tsW, op
       stop,
       tp,
       confidence: Math.max(0, Math.min(1, score)),
-      hold
+      hold,
     });
   }
 
@@ -2095,7 +2280,7 @@ function buildSignals(latestRows, featureCols, standardizer, clfW, regW, tsW, op
         stop: premium * 0.78,
         tp: premium * 1.35,
         confidence: Math.max(0.55, spy.confidence * 0.95),
-        hold: '1-3天'
+        hold: '1-3天',
       });
     }
   }
@@ -2139,7 +2324,7 @@ function tradesToCsv(trades) {
     'prob',
     'regPred',
     'tsPred',
-    'score'
+    'score',
   ];
   const lines = [headers.join(',')];
   for (const t of trades) {
@@ -2171,14 +2356,19 @@ async function main() {
     targetPfBand: [TARGET_PF_MIN, TARGET_PF_MAX],
     usCount: activeUsSymbols.length,
     cryptoCount: activeCryptoSymbols.length,
-    strategyCount: STRATEGY_SWARM.length
+    strategyCount: STRATEGY_SWARM.length,
   });
 
   // ====================
   // Stage 1: Data ingest
   // ====================
   console.log('[stage1] fetching US + crypto bars...');
-  const usDailyRaw = await fetchUsDailyBars(activeUsSymbols, histStart, histEnd, usFetchConcurrency);
+  const usDailyRaw = await fetchUsDailyBars(
+    activeUsSymbols,
+    histStart,
+    histEnd,
+    usFetchConcurrency,
+  );
   const usHourlyRaw = [];
   if (FETCH_US_HOURLY) {
     for (const symbol of activeUsSymbols.slice(0, 20)) {
@@ -2207,8 +2397,8 @@ async function main() {
           interval: '1h',
           months: monthsForCrypto,
           market: 'CRYPTO',
-          kind: 'spot_kline'
-        }))
+          kind: 'spot_kline',
+        })),
       );
     }
     cryptoSpot1d.push(
@@ -2219,8 +2409,8 @@ async function main() {
         interval: '1d',
         months: monthsForCrypto,
         market: 'CRYPTO',
-        kind: 'spot_kline'
-      }))
+        kind: 'spot_kline',
+      })),
     );
     if (FETCH_CRYPTO_DERIV) {
       cryptoFut1d.push(
@@ -2231,8 +2421,8 @@ async function main() {
           interval: '1d',
           months: monthsForCrypto,
           market: 'FUTURES',
-          kind: 'fut_kline'
-        }))
+          kind: 'fut_kline',
+        })),
       );
       cryptoPrem1d.push(
         ...(await fetchBinanceMonthlySeries({
@@ -2242,8 +2432,8 @@ async function main() {
           interval: '1d',
           months: monthsForCrypto,
           market: 'FUTURES',
-          kind: 'premium_kline'
-        }))
+          kind: 'premium_kline',
+        })),
       );
     }
   }
@@ -2251,7 +2441,7 @@ async function main() {
   const [vix, dxy, us10y] = await Promise.all([
     fetchFREDSeries('VIXCLS', 'VIX'),
     fetchFREDSeries('DTWEXBGS', 'DXY'),
-    fetchFREDSeries('DGS10', 'US10Y')
+    fetchFREDSeries('DGS10', 'US10Y'),
   ]);
 
   const spySpot = usDailyRaw.filter((x) => x.symbol === 'SPY');
@@ -2269,18 +2459,24 @@ async function main() {
   const futures1dRaw = cleanBars(cryptoFut1d).map((x) => ({
     ...x,
     symbol: `${x.symbol}-PERP`,
-    market: 'FUTURES'
+    market: 'FUTURES',
   }));
   const crypto1h = FETCH_CRYPTO_HOURLY ? cleanBars(cryptoSpot1h) : [];
   const futures1d = FETCH_CRYPTO_DERIV ? futures1dRaw : [];
 
-  const allCoverage = summarizeDataCoverage([...usDaily, ...usHourly, ...crypto1d, ...crypto1h, ...futures1d]);
+  const allCoverage = summarizeDataCoverage([
+    ...usDaily,
+    ...usHourly,
+    ...crypto1d,
+    ...crypto1h,
+    ...futures1d,
+  ]);
   console.log('[stage2] cleaned rows', {
     usDaily: usDaily.length,
     usHourly: usHourly.length,
     crypto1d: crypto1d.length,
     crypto1h: crypto1h.length,
-    futures1d: futures1d.length
+    futures1d: futures1d.length,
   });
 
   const macroByDate = new Map();
@@ -2329,7 +2525,10 @@ async function main() {
       const basisPct = pctSet.length ? less / pctSet.length : 0.5;
       const prev = i > 0 ? arr[i - 1] : arr[i];
       const retAbs = Math.abs(arr[i].close / prev.close - 1);
-      const longShort = arr[i].volume > 0 ? (arr[i].takerBuyBase || 0) / Math.max(arr[i].volume - (arr[i].takerBuyBase || 0), 1e-8) : 1;
+      const longShort =
+        arr[i].volume > 0
+          ? (arr[i].takerBuyBase || 0) / Math.max(arr[i].volume - (arr[i].takerBuyBase || 0), 1e-8)
+          : 1;
       const liqProxy = retAbs * arr[i].volume * (1 + Math.abs(basis));
       cryptoDerivByDateSymbol.set(`${symbol}|${date}`, {
         funding_rate: prem ? prem.close : basis * 0.25,
@@ -2337,7 +2536,7 @@ async function main() {
         basis_pct: basisPct,
         open_interest: fut?.volume ?? arr[i].volume,
         long_short_ratio: Number.isFinite(longShort) ? longShort : 1,
-        liquidation_proxy: liqProxy
+        liquidation_proxy: liqProxy,
       });
     }
   }
@@ -2345,7 +2544,9 @@ async function main() {
   // ====================
   // Stage 3 + 4: Features + Labels
   // ====================
-  const modelBars = [...usDaily, ...crypto1d, ...futures1d].sort((a, b) => new Date(a.datetime) - new Date(b.datetime));
+  const modelBars = [...usDaily, ...crypto1d, ...futures1d].sort(
+    (a, b) => new Date(a.datetime) - new Date(b.datetime),
+  );
   const featured = addFeatures(modelBars, macroByDate, optionsSnapshot, cryptoDerivByDateSymbol);
   const labeled = addLabels(featured);
   console.log('[stage3-4] features+labels rows', labeled.length);
@@ -2381,7 +2582,7 @@ async function main() {
     const grid = [
       { lr: 0.03, l2: 0.005, epochs: 300 },
       { lr: 0.05, l2: 0.01, epochs: 340 },
-      { lr: 0.08, l2: 0.02, epochs: 380 }
+      { lr: 0.08, l2: 0.02, epochs: 380 },
     ];
     let best = null;
     for (const hp of grid) {
@@ -2431,12 +2632,12 @@ async function main() {
   const bestReg = tuneRidge('future_3d_rtn', selectedReg, [
     { lr: 0.02, l2: 0.01, epochs: 350 },
     { lr: 0.03, l2: 0.03, epochs: 420 },
-    { lr: 0.05, l2: 0.06, epochs: 450 }
+    { lr: 0.05, l2: 0.06, epochs: 450 },
   ]);
   const bestTs = tuneRidge('future_1d_rtn', selectedTs, [
     { lr: 0.02, l2: 0.01, epochs: 320 },
     { lr: 0.03, l2: 0.03, epochs: 380 },
-    { lr: 0.05, l2: 0.05, epochs: 420 }
+    { lr: 0.05, l2: 0.05, epochs: 420 },
   ]);
 
   const stdCls = fitStandardizer(trainRows, selectedCls);
@@ -2465,8 +2666,14 @@ async function main() {
 
   const clsAuc = aucScore(yteCls, probTe);
   const clsAcc = accuracy(yteCls, probTe, 0.5);
-  const regEval = evaluateRegression(testRows.map((r) => r.future_3d_rtn), regTe);
-  const tsEval = evaluateRegression(testRows.map((r) => r.future_1d_rtn), tsTe);
+  const regEval = evaluateRegression(
+    testRows.map((r) => r.future_3d_rtn),
+    regTe,
+  );
+  const tsEval = evaluateRegression(
+    testRows.map((r) => r.future_1d_rtn),
+    tsTe,
+  );
 
   // ====================
   // Stage 6: Backtest
@@ -2475,7 +2682,7 @@ async function main() {
     strategySwarm: STRATEGY_SWARM,
     targetTrades: TARGET_TRADES,
     startTs: btStart.toISOString(),
-    endTs: btEnd.toISOString()
+    endTs: btEnd.toISOString(),
   });
   console.log('[stage6] backtest trades', { raw: bt.raw_trade_count, selected: bt.trade_count });
 
@@ -2485,9 +2692,12 @@ async function main() {
   const latestBySymbol = new Map();
   for (const row of cleanTrainRows) {
     const prev = latestBySymbol.get(row.symbol);
-    if (!prev || new Date(row.datetime) > new Date(prev.datetime)) latestBySymbol.set(row.symbol, row);
+    if (!prev || new Date(row.datetime) > new Date(prev.datetime))
+      latestBySymbol.set(row.symbol, row);
   }
-  const latestRows = [...latestBySymbol.values()].filter((r) => FEATURE_COLUMNS.every((c) => Number.isFinite(r[c])));
+  const latestRows = [...latestBySymbol.values()].filter((r) =>
+    FEATURE_COLUMNS.every((c) => Number.isFinite(r[c])),
+  );
 
   const latestTransCls = transformRows(latestRows, selectedCls, stdCls).map((x) => x.x);
   const latestProb = predictLogistic(latestTransCls, clfW);
@@ -2498,7 +2708,15 @@ async function main() {
   const latestTransTs = transformRows(latestRows, selectedTs, stdTs).map((x) => x.x);
   const latestTs = predictLinear(latestTransTs, tsW);
 
-  const liveSignals = buildSignals(latestRows, selectedCls, stdCls, clfW, regW, tsW, optionsSnapshot);
+  const liveSignals = buildSignals(
+    latestRows,
+    selectedCls,
+    stdCls,
+    clfW,
+    regW,
+    tsW,
+    optionsSnapshot,
+  );
   const strategyBreakdownMap = new Map();
   for (const trade of bt.trades) {
     if (!strategyBreakdownMap.has(trade.strategy_id)) {
@@ -2513,7 +2731,7 @@ async function main() {
     strategy_id,
     trades: v.trades,
     win_rate: v.trades ? v.wins / v.trades : 0,
-    total_pnl: v.pnl
+    total_pnl: v.pnl,
   }));
   const marketBreakdownMap = new Map();
   for (const trade of bt.trades) {
@@ -2529,7 +2747,7 @@ async function main() {
     market,
     trades: v.trades,
     win_rate: v.trades ? v.wins / v.trades : 0,
-    total_pnl: v.pnl
+    total_pnl: v.pnl,
   }));
 
   const report = {
@@ -2546,7 +2764,7 @@ async function main() {
       us_symbols: activeUsSymbols,
       crypto_symbols: activeCryptoSymbols,
       futures_symbols: activeCryptoSymbols.map((s) => `${s}-PERP`),
-      strategy_swarm: STRATEGY_SWARM.map((s) => s.id)
+      strategy_swarm: STRATEGY_SWARM.map((s) => s.id),
     },
     coverage: allCoverage,
     dataset_summary: {
@@ -2555,7 +2773,7 @@ async function main() {
       test_rows: testRows.length,
       symbols: [...new Set(cleanTrainRows.map((r) => r.symbol))],
       date_start: cleanTrainRows[0]?.datetime,
-      date_end: cleanTrainRows.at(-1)?.datetime
+      date_end: cleanTrainRows.at(-1)?.datetime,
     },
     model_metrics: {
       auc: clsAuc,
@@ -2564,7 +2782,7 @@ async function main() {
       ts_rmse: tsEval.rmse,
       win_rate_proxy: bt.win_rate,
       profit_factor_proxy: bt.profit_factor,
-      sharpe_proxy: bt.sharpe
+      sharpe_proxy: bt.sharpe,
     },
     backtest: bt,
     market_breakdown: marketBreakdown,
@@ -2576,8 +2794,8 @@ async function main() {
       datetime: r.datetime,
       prob_up: latestProb[i],
       reg_3d: latestReg[i],
-      ts_1d: latestTs[i]
-    }))
+      ts_1d: latestTs[i],
+    })),
   };
 
   const rangeTag = makeRangeTag(btStart.toISOString(), btEnd.toISOString());
@@ -2603,11 +2821,11 @@ async function main() {
         max_drawdown: bt.max_drawdown,
         sharpe: bt.sharpe,
         selection_meta: bt.selection_meta,
-        market_breakdown: marketBreakdown
+        market_breakdown: marketBreakdown,
       },
       null,
-      2
-    )
+      2,
+    ),
   );
   await fs.writeFile(tradesJsonPath, JSON.stringify(bt.trades, null, 2));
   await fs.writeFile(tradesCsvPath, tradesToCsv(bt.trades));
@@ -2617,8 +2835,12 @@ async function main() {
   txt.push(`- 标的数量：${report.dataset_summary.symbols.length}（覆盖中小盘）`);
   txt.push(`- 回测区间：${btStart.toISOString()} ~ ${btEnd.toISOString()}`);
   txt.push(`- 样本量：${report.dataset_summary.total_rows_model}`);
-  txt.push(`- 交易笔数：${report.backtest.trade_count}（原始候选 ${report.backtest.raw_trade_count}）`);
-  txt.push(`- 目标区间：胜率 ${fmtPct(TARGET_WIN_MIN)}~${fmtPct(TARGET_WIN_MAX)} / PF ${TARGET_PF_MIN.toFixed(2)}~${TARGET_PF_MAX.toFixed(2)}`);
+  txt.push(
+    `- 交易笔数：${report.backtest.trade_count}（原始候选 ${report.backtest.raw_trade_count}）`,
+  );
+  txt.push(
+    `- 目标区间：胜率 ${fmtPct(TARGET_WIN_MIN)}~${fmtPct(TARGET_WIN_MAX)} / PF ${TARGET_PF_MIN.toFixed(2)}~${TARGET_PF_MAX.toFixed(2)}`,
+  );
   txt.push(`- 胜率：${fmtPct(report.model_metrics.win_rate_proxy)}`);
   txt.push(`- 盈亏比：${report.model_metrics.profit_factor_proxy.toFixed(2)}`);
   txt.push(`- 最大回撤：${fmtPct(report.backtest.max_drawdown)}`);
@@ -2627,7 +2849,7 @@ async function main() {
   txt.push(
     `- 交易分布：${marketBreakdown
       .map((m) => `${m.market}:${m.trades}笔/${fmtPct(m.win_rate)}`)
-      .join(' | ')}`
+      .join(' | ')}`,
   );
   if (report.backtest.selection_meta) {
     txt.push(`- 选择模式：${report.backtest.selection_meta.mode}`);
@@ -2647,9 +2869,11 @@ async function main() {
 
   txt.push('【策略固化规则】');
   txt.push(
-    `- 标的池：美股 ${US_SYMBOLS.length} 个（含中小盘） + 加密现货 ${CRYPTO_SYMBOLS.length} 个 + 加密期货 ${CRYPTO_SYMBOLS.length} 个 + SPY期权`
+    `- 标的池：美股 ${US_SYMBOLS.length} 个（含中小盘） + 加密现货 ${CRYPTO_SYMBOLS.length} 个 + 加密期货 ${CRYPTO_SYMBOLS.length} 个 + SPY期权`,
   );
-  txt.push('- 入场条件：多策略并行（趋势、波动扩张、均值回归、加密Carry、US短周期Beta），每个策略独立阈值与风控');
+  txt.push(
+    '- 入场条件：多策略并行（趋势、波动扩张、均值回归、加密Carry、US短周期Beta），每个策略独立阈值与风控',
+  );
   txt.push('- 止损规则：0.9~1.2 ATR 硬止损，触发即离场');
   txt.push('- 止盈规则：分段止盈（TP1 + TP2）并计入双边成本');
   txt.push('- 仓位管理：单笔风险≤1%，组合同时持仓≤4笔，相关性>0.8的同向信号只保留1笔');

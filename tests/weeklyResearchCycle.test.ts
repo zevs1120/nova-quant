@@ -5,7 +5,7 @@ import { runQuantPipeline } from '../src/engines/pipeline.js';
 describe('weekly research cycle', () => {
   const state = runQuantPipeline({
     as_of: '2026-03-08T00:00:00.000Z',
-    config: { risk_profile: 'balanced' }
+    config: { risk_profile: 'balanced' },
   });
 
   const weekly = state?.research?.research_core?.weekly_research_cycle;

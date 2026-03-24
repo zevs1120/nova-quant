@@ -9,6 +9,7 @@ This document tracks validation realism before and after replay integration.
 ## 1) What was synthetic before
 
 ### Walk-forward validation
+
 - Source file: `src/research/core/walkForwardValidation.js` (pre-upgrade)
 - Prior behavior:
   - consumed strategy `backtest.daily` proxy series,
@@ -16,12 +17,14 @@ This document tracks validation realism before and after replay integration.
   - cost/slippage stress performed on synthetic daily return streams.
 
 ### Shadow opportunity outcomes
+
 - Source file: `src/research/core/shadowOpportunityLog.js` (pre-upgrade)
 - Prior behavior:
   - used `syntheticForwardPath` deterministic proxy,
   - no bar-joined forward performance.
 
 ### Discovery quick backtest
+
 - Source file: `src/research/discovery/candidateValidation.js` (pre-upgrade)
 - Prior behavior:
   - quick performance derived from deterministic hash/noise formulas,
@@ -30,6 +33,7 @@ This document tracks validation realism before and after replay integration.
 ## 2) What is now replay-based
 
 ### A. Historical replay engine added
+
 - New file: `src/research/validation/historicalReplayValidation.js`
 - Replay now includes:
   - event-ordered lifecycle,
@@ -39,6 +43,7 @@ This document tracks validation realism before and after replay integration.
   - realized PnL and drawdown path.
 
 ### B. Structured execution realism layer added
+
 - New file: `src/research/validation/executionRealismModel.js`
 - Upgrade:
   - profile-based assumptions (`replay/backtest/paper`),
@@ -47,6 +52,7 @@ This document tracks validation realism before and after replay integration.
   - scenario sensitivity (`+25%`, `+50%`, wider spread, adverse funding, strict fill).
 
 ### C. Walk-forward integration
+
 - File: `src/research/core/walkForwardValidation.js`
 - Improvements:
   - emits `replay_validation`,
@@ -55,12 +61,14 @@ This document tracks validation realism before and after replay integration.
   - execution realism now feeds strategy-level stress verdicts.
 
 ### D. Shadow log integration
+
 - File: `src/research/core/shadowOpportunityLog.js`
 - Improvements:
   - consumes `replay_validation.signal_outcome_map` when available,
   - records `forward_path_source` to show replay vs fallback origin.
 
 ### E. Discovery quick-stage realism anchor
+
 - File: `src/research/discovery/candidateValidation.js`
 - Improvements:
   - quick-backtest can anchor on replay market benchmarks,

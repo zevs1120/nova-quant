@@ -23,8 +23,15 @@ function applyAppEnvironment() {
     const viewportHeight = vv?.height || window.innerHeight || 0;
     const viewportWidth = vv?.width || window.innerWidth || 0;
     const offsetTop = vv?.offsetTop || 0;
-    const keyboardInset = Math.max(0, (window.innerHeight || viewportHeight) - viewportHeight - offsetTop);
-    const layoutHeight = Math.max(window.innerHeight || 0, viewportHeight + offsetTop, document.documentElement?.clientHeight || 0);
+    const keyboardInset = Math.max(
+      0,
+      (window.innerHeight || viewportHeight) - viewportHeight - offsetTop,
+    );
+    const layoutHeight = Math.max(
+      window.innerHeight || 0,
+      viewportHeight + offsetTop,
+      document.documentElement?.clientHeight || 0,
+    );
 
     root.style.setProperty('--app-height', `${layoutHeight}px`);
     root.style.setProperty('--visual-height', `${viewportHeight}px`);
@@ -33,7 +40,10 @@ function applyAppEnvironment() {
     root.style.setProperty('--keyboard-inset', `${keyboardInset}px`);
 
     body.dataset.displayMode = displayMode;
-    body.classList.toggle('is-standalone', displayMode === 'standalone' || displayMode === 'fullscreen');
+    body.classList.toggle(
+      'is-standalone',
+      displayMode === 'standalone' || displayMode === 'fullscreen',
+    );
     body.classList.toggle('is-browser', displayMode === 'browser');
     body.classList.toggle('keyboard-open', keyboardInset > 24);
   };
@@ -56,5 +66,5 @@ applyAppEnvironment();
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <App />
-  </React.StrictMode>
+  </React.StrictMode>,
 );

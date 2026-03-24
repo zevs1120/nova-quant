@@ -11,18 +11,24 @@ const STRATEGY_TEMPLATES = {
     features: ['basis_spread', 'funding_rate', 'spot_perp_spread', 'open_interest_delta'],
     trigger_conditions: [
       'Basis widening while funding remains controlled.',
-      'Spot-led price expansion confirmed by perp participation.'
+      'Spot-led price expansion confirmed by perp participation.',
     ],
     invalidation: ['Basis collapses below neutral.', 'Funding turns crowded against position.'],
     tp_ladder_rule: 'TP1 at 1R, TP2 at 1.6R, trailing after TP1.',
     not_to_trade: ['Exchange spread blowout', 'Funding shock > 3x baseline'],
-    cost_assumptions: { fee_bps: 5, spread_bps: 3, slippage_bps: 4, funding_est_bps: 3, basis_est: 3 },
+    cost_assumptions: {
+      fee_bps: 5,
+      spread_bps: 3,
+      slippage_bps: 4,
+      funding_est_bps: 3,
+      basis_est: 3,
+    },
     rules: [
       'Prefer long when basis is positive but not crowded and funding stays near neutral.',
       'Fade move when funding gets extreme while spot/perp spread fails to confirm.',
-      'Invalidate if basis collapses through neutral with rising liquidation pressure.'
+      'Invalidate if basis collapses through neutral with rising liquidation pressure.',
     ],
-    trailing_rule: { mode: 'atr-step', trigger_r_multiple: 1.2, trail_distance_pct: 1.1 }
+    trailing_rule: { mode: 'atr-step', trigger_r_multiple: 1.2, trail_distance_pct: 1.1 },
   },
   CR_VEL: {
     strategy_id: 'CR_VEL',
@@ -32,17 +38,26 @@ const STRATEGY_TEMPLATES = {
     default_timeframe: '2H',
     name: 'Crypto Velocity Breakout + Retest',
     features: ['velocity_percentile', 'acceleration', 'breakout_level', 'retest_depth'],
-    trigger_conditions: ['Velocity percentile crosses high threshold.', 'Retest holds and acceleration remains positive.'],
+    trigger_conditions: [
+      'Velocity percentile crosses high threshold.',
+      'Retest holds and acceleration remains positive.',
+    ],
     invalidation: ['Retest breaks with negative acceleration.'],
     tp_ladder_rule: 'TP1 at structure extension, TP2 at velocity exhaustion.',
     not_to_trade: ['Breakout without retest', 'Liquidity thinning in top of book'],
-    cost_assumptions: { fee_bps: 5, spread_bps: 4, slippage_bps: 5, funding_est_bps: 2, basis_est: 2 },
+    cost_assumptions: {
+      fee_bps: 5,
+      spread_bps: 4,
+      slippage_bps: 5,
+      funding_est_bps: 2,
+      basis_est: 2,
+    },
     rules: [
       'Trigger only when velocity percentile crosses into expansion and acceleration stays positive.',
       'Require retest into entry zone before full sizing.',
-      'Abort when retest fails and acceleration flips negative.'
+      'Abort when retest fails and acceleration flips negative.',
     ],
-    trailing_rule: { mode: 'swing-low', trigger_r_multiple: 1.0, trail_distance_pct: 1.4 }
+    trailing_rule: { mode: 'swing-low', trigger_r_multiple: 1.0, trail_distance_pct: 1.4 },
   },
   CR_TRAP: {
     strategy_id: 'CR_TRAP',
@@ -56,13 +71,19 @@ const STRATEGY_TEMPLATES = {
     invalidation: ['Bid/ask spread widens beyond defensive threshold.'],
     tp_ladder_rule: 'Quick TP ladder and no aggressive trailing.',
     not_to_trade: ['Cascade liquidation environment', 'Latent feed instability'],
-    cost_assumptions: { fee_bps: 6, spread_bps: 5, slippage_bps: 6, funding_est_bps: 3, basis_est: 1 },
+    cost_assumptions: {
+      fee_bps: 6,
+      spread_bps: 5,
+      slippage_bps: 6,
+      funding_est_bps: 3,
+      basis_est: 1,
+    },
     rules: [
       'Trade only defensive pullback setups when volatility percentile is extreme.',
       'Cut gross exposure aggressively if liquidity gaps expand.',
-      'Prefer smaller size and quicker profit realization.'
+      'Prefer smaller size and quicker profit realization.',
     ],
-    trailing_rule: { mode: 'tight-chandelier', trigger_r_multiple: 0.8, trail_distance_pct: 0.9 }
+    trailing_rule: { mode: 'tight-chandelier', trigger_r_multiple: 0.8, trail_distance_pct: 0.9 },
   },
   CR_CARRY: {
     strategy_id: 'CR_CARRY',
@@ -76,13 +97,19 @@ const STRATEGY_TEMPLATES = {
     invalidation: ['Funding flips extreme against trend.'],
     tp_ladder_rule: 'TP1 at 1R, TP2 at 1.5R.',
     not_to_trade: ['Funding reset turbulence', 'basis percentile crowded'],
-    cost_assumptions: { fee_bps: 4, spread_bps: 3, slippage_bps: 4, funding_est_bps: 2, basis_est: 2 },
+    cost_assumptions: {
+      fee_bps: 4,
+      spread_bps: 3,
+      slippage_bps: 4,
+      funding_est_bps: 2,
+      basis_est: 2,
+    },
     rules: [
       'Bias with carry when funding and basis align with direction.',
       'Reduce size if risk-off score rises.',
-      'Stop quickly if carry state flips.'
+      'Stop quickly if carry state flips.',
     ],
-    trailing_rule: { mode: 'ema-trail', trigger_r_multiple: 1.1, trail_distance_pct: 1.2 }
+    trailing_rule: { mode: 'ema-trail', trigger_r_multiple: 1.1, trail_distance_pct: 1.2 },
   },
   EQ_VEL: {
     strategy_id: 'EQ_VEL',
@@ -100,9 +127,9 @@ const STRATEGY_TEMPLATES = {
     rules: [
       'Follow direction when trend strength and velocity percentile both stay supportive.',
       'Use pullback entry zone inside prevailing trend channel.',
-      'Exit early when breadth weakens against position direction.'
+      'Exit early when breadth weakens against position direction.',
     ],
-    trailing_rule: { mode: 'ema-trail', trigger_r_multiple: 1.4, trail_distance_pct: 1.7 }
+    trailing_rule: { mode: 'ema-trail', trigger_r_multiple: 1.4, trail_distance_pct: 1.7 },
   },
   EQ_EVT: {
     strategy_id: 'EQ_EVT',
@@ -120,9 +147,9 @@ const STRATEGY_TEMPLATES = {
     rules: [
       'Activate around earnings or macro event windows with volatility expansion signal.',
       'Direction follows post-event drift only after first pullback confirms.',
-      'Tight invalidation if gap fails and IV crush dominates move.'
+      'Tight invalidation if gap fails and IV crush dominates move.',
     ],
-    trailing_rule: { mode: 'event-vol', trigger_r_multiple: 0.9, trail_distance_pct: 1.0 }
+    trailing_rule: { mode: 'event-vol', trigger_r_multiple: 0.9, trail_distance_pct: 1.0 },
   },
   EQ_REG: {
     strategy_id: 'EQ_REG',
@@ -140,9 +167,9 @@ const STRATEGY_TEMPLATES = {
     rules: [
       'Allow risk-on directional trades only when index regime confirms.',
       'Reduce participation when QQQ/SPY leadership weakens.',
-      'Hold neutral when risk-off score breaches hard threshold.'
+      'Hold neutral when risk-off score breaches hard threshold.',
     ],
-    trailing_rule: { mode: 'index-gated', trigger_r_multiple: 1.1, trail_distance_pct: 1.5 }
+    trailing_rule: { mode: 'index-gated', trigger_r_multiple: 1.1, trail_distance_pct: 1.5 },
   },
   EQ_SWING: {
     strategy_id: 'EQ_SWING',
@@ -160,9 +187,9 @@ const STRATEGY_TEMPLATES = {
     rules: [
       'Use pullback entries in aligned trend.',
       'Adjust horizon by catalyst intensity.',
-      'Exit fast on trend failure.'
+      'Exit fast on trend failure.',
     ],
-    trailing_rule: { mode: 'ema-trail', trigger_r_multiple: 1.3, trail_distance_pct: 1.5 }
+    trailing_rule: { mode: 'ema-trail', trigger_r_multiple: 1.3, trail_distance_pct: 1.5 },
   },
   OP_INTRADAY: {
     strategy_id: 'OP_INTRADAY',
@@ -180,10 +207,10 @@ const STRATEGY_TEMPLATES = {
     rules: [
       'Trade liquid strikes only.',
       'Use strict invalidation and quick partials.',
-      'Force flatten by EOD.'
+      'Force flatten by EOD.',
     ],
-    trailing_rule: { mode: 'none' }
-  }
+    trailing_rule: { mode: 'none' },
+  },
 };
 
 const SYMBOL_TO_STRATEGY = {
@@ -200,7 +227,7 @@ const SYMBOL_TO_STRATEGY = {
   'US:MSFT': 'EQ_SWING',
   'US:SPY240621C00540000': 'OP_INTRADAY',
   'US:QQQ240621P00460000': 'OP_INTRADAY',
-  'US:AAPL240621C00215000': 'OP_INTRADAY'
+  'US:AAPL240621C00215000': 'OP_INTRADAY',
 };
 
 export function listStrategyTemplates() {
@@ -230,7 +257,7 @@ export function buildSignalExplanation({
   risk,
   expectedR,
   hitRateEst,
-  costEstimate
+  costEstimate,
 }) {
   const entryLow = Number(signal.entry_min).toFixed(2);
   const entryHigh = Number(signal.entry_max).toFixed(2);
@@ -242,11 +269,11 @@ export function buildSignalExplanation({
     `${template.strategy_id} (${template.default_timeframe}) favors ${signal.direction.toLowerCase()} in ${entryLow}-${entryHigh} based on ${template.features
       .slice(0, 2)
       .join(' + ')}.`,
-    `Regime ${regime.regime_id} with trend=${regime.trend_strength.toFixed(2)}, vol_pct=${(regime.vol_percentile * 100).toFixed(
-      0
-    )}%, velocity_pct=${velocityPct}% keeps risk bucket at ${risk.bucket_state}.`,
+    `Regime ${regime.regime_id} with trend=${regime.trend_strength.toFixed(2)}, vol_pct=${(
+      regime.vol_percentile * 100
+    ).toFixed(0)}%, velocity_pct=${velocityPct}% keeps risk bucket at ${risk.bucket_state}.`,
     `Expected R=${expectedR.toFixed(2)}, hit-rate est=${hitRatePct}% (n=${risk.sample_size_reference}), estimated cost=${costBps} bps.`,
-    `Avoid when: ${template.not_to_trade.slice(0, 2).join('; ')}.`
+    `Avoid when: ${template.not_to_trade.slice(0, 2).join('; ')}.`,
   ];
 }
 

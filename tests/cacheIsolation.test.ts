@@ -6,7 +6,7 @@ import {
   __buildQuantCacheKeyForTests,
   __resetQuantDataCacheForTests,
   ensureQuantData,
-  type QuantRuntimeContext
+  type QuantRuntimeContext,
 } from '../src/server/quant/service.js';
 
 function buildRepo() {
@@ -24,11 +24,11 @@ describe('quant runtime cache isolation', () => {
     const repo = buildRepo();
     const a = ensureQuantData(repo, 'user-a', false, {
       market: 'US',
-      assetClass: 'US_STOCK'
+      assetClass: 'US_STOCK',
     });
     const b = ensureQuantData(repo, 'user-b', false, {
       market: 'US',
-      assetClass: 'US_STOCK'
+      assetClass: 'US_STOCK',
     });
     expect(a).not.toBe(b);
   });
@@ -38,12 +38,12 @@ describe('quant runtime cache isolation', () => {
     const balanced = ensureQuantData(repo, 'user-a', false, {
       riskProfileKey: 'balanced',
       market: 'US',
-      assetClass: 'US_STOCK'
+      assetClass: 'US_STOCK',
     });
     const aggressive = ensureQuantData(repo, 'user-a', false, {
       riskProfileKey: 'aggressive',
       market: 'US',
-      assetClass: 'US_STOCK'
+      assetClass: 'US_STOCK',
     });
     expect(balanced).not.toBe(aggressive);
   });
@@ -54,13 +54,13 @@ describe('quant runtime cache isolation', () => {
       riskProfileKey: 'balanced',
       market: 'US',
       assetClass: 'US_STOCK',
-      timeframe: '1d'
+      timeframe: '1d',
     });
     const second = ensureQuantData(repo, 'user-a', false, {
       riskProfileKey: 'balanced',
       market: 'US',
       assetClass: 'US_STOCK',
-      timeframe: '1d'
+      timeframe: '1d',
     });
     expect(second).toBe(first);
   });
@@ -70,23 +70,23 @@ describe('quant runtime cache isolation', () => {
     const keyA = ensureQuantData(repo, 'user-a', false, {
       riskProfileKey: 'balanced',
       market: 'US',
-      assetClass: 'US_STOCK'
+      assetClass: 'US_STOCK',
     });
     const keyB = ensureQuantData(repo, 'user-b', false, {
       riskProfileKey: 'balanced',
       market: 'US',
-      assetClass: 'US_STOCK'
+      assetClass: 'US_STOCK',
     });
 
     const refreshedA = ensureQuantData(repo, 'user-a', true, {
       riskProfileKey: 'balanced',
       market: 'US',
-      assetClass: 'US_STOCK'
+      assetClass: 'US_STOCK',
     });
     const reusedB = ensureQuantData(repo, 'user-b', false, {
       riskProfileKey: 'balanced',
       market: 'US',
-      assetClass: 'US_STOCK'
+      assetClass: 'US_STOCK',
     });
 
     expect(refreshedA).not.toBe(keyA);
@@ -100,7 +100,7 @@ describe('quant runtime cache isolation', () => {
       market: 'CRYPTO',
       assetClass: 'CRYPTO',
       timeframe: '1h',
-      universeScope: 'watchlist-core'
+      universeScope: 'watchlist-core',
     };
     const key = __buildQuantCacheKeyForTests(context);
     expect(key).toContain('user:alice');

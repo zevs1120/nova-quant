@@ -1,8 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  createBrokerAdapter,
-  createExchangeAdapter
-} from '../src/server/connect/adapters.js';
+import { createBrokerAdapter, createExchangeAdapter } from '../src/server/connect/adapters.js';
 
 /* ---------- credential / config detection ---------- */
 
@@ -20,7 +17,9 @@ describe('broker adapter — credential checks', () => {
     vi.stubEnv('NOVA_ENABLE_ALPACA_TRADING', '');
     vi.stubEnv('NOVA_ENABLE_BINANCE_TRADING', '');
   });
-  afterEach(() => { vi.unstubAllEnvs(); });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
 
   it('returns DISCONNECTED with NO_CREDENTIALS for Alpaca when keys missing', async () => {
     const adapter = createBrokerAdapter('ALPACA');
@@ -56,7 +55,9 @@ describe('exchange adapter — credential checks', () => {
     vi.stubEnv('NOVA_ENABLE_TRADING', '');
     vi.stubEnv('NOVA_ENABLE_BINANCE_TRADING', '');
   });
-  afterEach(() => { vi.unstubAllEnvs(); });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
 
   it('returns DISCONNECTED with NO_CREDENTIALS for Binance when keys missing', async () => {
     const adapter = createExchangeAdapter('BINANCE');
@@ -90,7 +91,9 @@ describe('adapter — trading flags', () => {
     vi.stubEnv('NOVA_ENABLE_ALPACA_TRADING', '');
     vi.stubEnv('NOVA_ENABLE_BINANCE_TRADING', '');
   });
-  afterEach(() => { vi.unstubAllEnvs(); });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
 
   it('Alpaca submitOrder throws when trading disabled and no credentials', async () => {
     const adapter = createBrokerAdapter('ALPACA');
@@ -100,8 +103,8 @@ describe('adapter — trading flags', () => {
         side: 'BUY',
         type: 'LIMIT',
         qty: 10,
-        limit_price: 180
-      })
+        limit_price: 180,
+      }),
     ).rejects.toThrow(/credentials|configured/i);
   });
 
@@ -112,8 +115,8 @@ describe('adapter — trading flags', () => {
         symbol: 'BTCUSDT',
         side: 'BUY',
         type: 'MARKET',
-        qty: 0.01
-      })
+        qty: 0.01,
+      }),
     ).rejects.toThrow(/credentials|configured/i);
   });
 
@@ -145,7 +148,9 @@ describe('adapter — snapshot structure', () => {
     vi.stubEnv('NOVA_ENABLE_ORDER_ROUTING', '');
     vi.stubEnv('NOVA_ENABLE_TRADING', '');
   });
-  afterEach(() => { vi.unstubAllEnvs(); });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
 
   it('broker snapshot has all required fields', async () => {
     const adapter = createBrokerAdapter('ALPACA');

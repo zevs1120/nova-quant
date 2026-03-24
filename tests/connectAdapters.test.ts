@@ -65,13 +65,13 @@ describe('connection adapters default honesty mode', () => {
           filled_qty: '0',
           notional: null,
           limit_price: '500',
-          submitted_at: '2026-03-21T00:00:00.000Z'
+          submitted_at: '2026-03-21T00:00:00.000Z',
         }),
         {
           status: 200,
-          headers: { 'content-type': 'application/json' }
-        }
-      ) as never
+          headers: { 'content-type': 'application/json' },
+        },
+      ) as never,
     );
 
     const adapter = createBrokerAdapter('ALPACA');
@@ -81,7 +81,7 @@ describe('connection adapters default honesty mode', () => {
       type: 'LIMIT',
       qty: 1,
       limit_price: 500,
-      time_in_force: 'DAY'
+      time_in_force: 'DAY',
     });
 
     expect(order?.order_id).toBe('ord_123');
@@ -109,13 +109,13 @@ describe('connection adapters default honesty mode', () => {
           timeInForce: 'GTC',
           type: 'LIMIT',
           side: 'BUY',
-          transactTime: Date.UTC(2026, 2, 21)
+          transactTime: Date.UTC(2026, 2, 21),
         }),
         {
           status: 200,
-          headers: { 'content-type': 'application/json' }
-        }
-      ) as never
+          headers: { 'content-type': 'application/json' },
+        },
+      ) as never,
     );
 
     const adapter = createExchangeAdapter('BINANCE');
@@ -125,7 +125,7 @@ describe('connection adapters default honesty mode', () => {
       type: 'LIMIT',
       qty: 0.01,
       limit_price: 50_000,
-      time_in_force: 'GTC'
+      time_in_force: 'GTC',
     });
 
     expect(order?.order_id).toBe('99');

@@ -20,12 +20,14 @@ function confidenceValue(signal) {
 
 function summarizeExecutionState(executions, assetClass) {
   const scoped = executions.filter((item) => getAssetClass(item) === assetClass);
-  const activeTrades = scoped.filter((item) => String(item.action || '').toUpperCase() === 'EXECUTE').length;
+  const activeTrades = scoped.filter(
+    (item) => String(item.action || '').toUpperCase() === 'EXECUTE',
+  ).length;
   const followRate = scoped.length ? Math.min(100, (activeTrades / scoped.length) * 100) : 0;
   return {
     activeTrades,
     followRate,
-    totalExecutions: scoped.length
+    totalExecutions: scoped.length,
   };
 }
 
@@ -44,7 +46,7 @@ function decisionLabel(todayPlan, safety) {
       status: 'Review / Observe',
       verdict: 'Today is for review, not for forcing new trades.',
       action: 'Check holdings risk and prepare your watchlist for next session.',
-      riskBoundary: 'Do not open fresh directional risk on market-closed days.'
+      riskBoundary: 'Do not open fresh directional risk on market-closed days.',
     };
   }
 
@@ -55,7 +57,7 @@ function decisionLabel(todayPlan, safety) {
       status: 'Today Not Suitable For Active Trading',
       verdict: 'Do not force new trades today. Capital protection is the priority.',
       action: 'Pause fresh exposure and only monitor your highest-quality setups.',
-      riskBoundary: 'If setup quality is not clearly high, skip.'
+      riskBoundary: 'If setup quality is not clearly high, skip.',
     };
   }
 
@@ -65,7 +67,7 @@ function decisionLabel(todayPlan, safety) {
       status: 'Light Position / Observe',
       verdict: 'Trade lightly today. Size down and focus only on top setups.',
       action: 'Focus on 1-3 opportunities and avoid weak or crowded names.',
-      riskBoundary: 'No aggressive adding. Keep gross exposure under plan.'
+      riskBoundary: 'No aggressive adding. Keep gross exposure under plan.',
     };
   }
 
@@ -75,7 +77,7 @@ function decisionLabel(todayPlan, safety) {
       status: 'Suitable For Active Trading',
       verdict: 'Conditions are supportive, but execution discipline still matters.',
       action: 'Execute your best ideas first. Do not chase late entries.',
-      riskBoundary: 'Respect stop, size, and concentration caps.'
+      riskBoundary: 'Respect stop, size, and concentration caps.',
     };
   }
 
@@ -84,7 +86,7 @@ function decisionLabel(todayPlan, safety) {
     status: 'Suitable For Selective Trading',
     verdict: 'You can trade selectively today. Quality beats quantity.',
     action: 'Start from your top A/B ideas and stay inside exposure limits.',
-    riskBoundary: 'If confidence is unclear, reduce size instead of adding names.'
+    riskBoundary: 'If confidence is unclear, reduce size instead of adding names.',
   };
 }
 
@@ -114,7 +116,7 @@ export default function SignalsTab({
   alphaLibrary,
   uiMode = 'standard',
   t,
-  locale
+  locale,
 }) {
   const [gradeFilter, setGradeFilter] = useState('ALL');
   const [sortBy, setSortBy] = useState('score');
@@ -131,16 +133,18 @@ export default function SignalsTab({
 
   const scopedSignals = useMemo(
     () => signals.filter((item) => getAssetClass(item) === assetClass),
-    [signals, assetClass]
+    [signals, assetClass],
   );
 
   const activeOpportunities = useMemo(() => {
     const base = scopedSignals.filter((item) => ACTIVE_STATUSES.has(String(item.status)));
-    const gradeScoped = gradeFilter === 'ALL' ? base : base.filter((item) => item.grade === gradeFilter);
+    const gradeScoped =
+      gradeFilter === 'ALL' ? base : base.filter((item) => item.grade === gradeFilter);
 
     const sorted = [...gradeScoped].sort((a, b) => {
       if (sortBy === 'confidence') return confidenceValue(b) - confidenceValue(a);
-      if (sortBy === 'newest') return new Date(b.created_at || b.generated_at) - new Date(a.created_at || a.generated_at);
+      if (sortBy === 'newest')
+        return new Date(b.created_at || b.generated_at) - new Date(a.created_at || a.generated_at);
       return Number(b.score || 0) - Number(a.score || 0);
     });
 
@@ -159,12 +163,15 @@ export default function SignalsTab({
       scopedSignals
         .filter((item) => ['INVALIDATED', 'EXPIRED'].includes(String(item.status)))
         .slice(0, 10),
-    [scopedSignals]
+    [scopedSignals],
   );
 
   const focusOpportunities = useMemo(() => activeOpportunities.slice(0, 3), [activeOpportunities]);
 
-  const portfolioSummary = useMemo(() => summarizeExecutionState(executions, assetClass), [executions, assetClass]);
+  const portfolioSummary = useMemo(
+    () => summarizeExecutionState(executions, assetClass),
+    [executions, assetClass],
+  );
 
   const riskWarnings = useMemo(() => {
     const warnings = [...(safety?.primary_risks || [])];
@@ -185,14 +192,16 @@ export default function SignalsTab({
 
   const toggleWatch = (symbol) => {
     setWatchlist((current) =>
-      current.includes(symbol) ? current.filter((item) => item !== symbol) : [...current, symbol]
+      current.includes(symbol) ? current.filter((item) => item !== symbol) : [...current, symbol],
     );
   };
 
   const eligibilityChecks = useMemo(() => {
     if (!eligibilitySignal) return [];
 
-    const pos = Number(eligibilitySignal.position_advice?.position_pct ?? eligibilitySignal.position_size_pct ?? 0);
+    const pos = Number(
+      eligibilitySignal.position_advice?.position_pct ?? eligibilitySignal.position_size_pct ?? 0,
+    );
     const exposureCap = Number(riskRules?.exposure_cap_pct ?? 100);
     const riskScore = Number(eligibilitySignal.risk_score ?? 50);
     const isExpired = ['EXPIRED', 'INVALIDATED'].includes(String(eligibilitySignal.status || ''));
@@ -205,7 +214,7 @@ export default function SignalsTab({
           pos <= exposureCap
             ? `Target ${pos.toFixed(2)}% is within exposure cap.`
             : `Target ${pos.toFixed(2)}% exceeds cap ${exposureCap.toFixed(1)}%.`,
-        state: pos <= exposureCap ? 'pass' : 'fail'
+        state: pos <= exposureCap ? 'pass' : 'fail',
       },
       {
         key: 'riskScore',
@@ -214,14 +223,14 @@ export default function SignalsTab({
           riskScore <= 65
             ? `Risk score ${riskScore.toFixed(1)} is acceptable.`
             : `Risk score ${riskScore.toFixed(1)} is elevated, use reduced size.`,
-        state: riskScore <= 65 ? 'pass' : 'warn'
+        state: riskScore <= 65 ? 'pass' : 'warn',
       },
       {
         key: 'validity',
         label: t('signals.checkValidity'),
         reason: isExpired ? 'Signal is expired/filtered.' : 'Signal is currently valid.',
-        state: isExpired ? 'fail' : 'pass'
-      }
+        state: isExpired ? 'fail' : 'pass',
+      },
     ];
   }, [eligibilitySignal, riskRules, t]);
 
@@ -234,7 +243,14 @@ export default function SignalsTab({
   }, [alphaLibrary]);
 
   if (activeSignal) {
-    return <SignalDetail signal={activeSignal} onBack={() => setActiveSignal(null)} t={t} backLabel="Signals" />;
+    return (
+      <SignalDetail
+        signal={activeSignal}
+        onBack={() => setActiveSignal(null)}
+        t={t}
+        backLabel="Signals"
+      />
+    );
   }
 
   return (
@@ -245,7 +261,7 @@ export default function SignalsTab({
           options={[
             { label: t('common.options'), value: 'OPTIONS' },
             { label: t('common.stocks'), value: 'US_STOCK' },
-            { label: t('common.crypto'), value: 'CRYPTO' }
+            { label: t('common.crypto'), value: 'CRYPTO' },
           ]}
           value={assetClass}
           onChange={setAssetClass}
@@ -284,9 +300,13 @@ export default function SignalsTab({
 
           <p className="muted status-line">{todayPlan?.trading_day_message || '--'}</p>
           {focusOpportunities.length === 0 ? (
-            <p className="muted status-line"><strong>No high-quality setup now.</strong> It is valid to skip and preserve capital.</p>
+            <p className="muted status-line">
+              <strong>No high-quality setup now.</strong> It is valid to skip and preserve capital.
+            </p>
           ) : null}
-          <p className="muted status-line">Data boundary: sample market + derived features + simulated outputs.</p>
+          <p className="muted status-line">
+            Data boundary: sample market + derived features + simulated outputs.
+          </p>
         </article>
 
         <article className="glass-card">
@@ -309,27 +329,48 @@ export default function SignalsTab({
                     <div>
                       <p className="opportunity-symbol">{signal.symbol}</p>
                       <p className="opportunity-meta">
-                        {signal.direction} · {symbolGrade(signal)} · score {formatNumber(signal.score, 1, locale)}
+                        {signal.direction} · {symbolGrade(signal)} · score{' '}
+                        {formatNumber(signal.score, 1, locale)}
                       </p>
                     </div>
                     <span className="badge badge-triggered">{signal.grade || '--'}</span>
                   </div>
 
                   <p className="muted status-line">
-                    Weight {formatNumber(signal.position_advice?.position_pct ?? signal.position_size_pct, 2, locale)}% · confidence {formatNumber(confidenceValue(signal), 1, locale)}/5
+                    Weight{' '}
+                    {formatNumber(
+                      signal.position_advice?.position_pct ?? signal.position_size_pct,
+                      2,
+                      locale,
+                    )}
+                    % · confidence {formatNumber(confidenceValue(signal), 1, locale)}/5
                   </p>
-                  <p className="muted status-line">{signal.explain_bullets?.[0] || signal.rationale?.[0] || '--'}</p>
+                  <p className="muted status-line">
+                    {signal.explain_bullets?.[0] || signal.rationale?.[0] || '--'}
+                  </p>
 
                   <div className="action-row">
-                    <button type="button" className="quick-ask-btn" onClick={() => setActiveSignal(signal)}>
+                    <button
+                      type="button"
+                      className="quick-ask-btn"
+                      onClick={() => setActiveSignal(signal)}
+                    >
                       Open Plan
                     </button>
-                    <button type="button" className="quick-ask-btn" onClick={() => onQuickAsk?.('explain', signal)}>
+                    <button
+                      type="button"
+                      className="quick-ask-btn"
+                      onClick={() => onQuickAsk?.('explain', signal)}
+                    >
                       Why This?
                     </button>
                     {uiMode !== 'beginner' ? (
                       <>
-                        <button type="button" className="quick-ask-btn" onClick={() => onPaperExecute?.(signal)}>
+                        <button
+                          type="button"
+                          className="quick-ask-btn"
+                          onClick={() => onPaperExecute?.(signal)}
+                        >
                           Paper Execute
                         </button>
                         <button
@@ -347,7 +388,9 @@ export default function SignalsTab({
             </div>
           ) : (
             <article className="glass-card empty-card">
-              <p>{todayPlan?.empty_states?.no_signal || 'No actionable signal for current focus.'}</p>
+              <p>
+                {todayPlan?.empty_states?.no_signal || 'No actionable signal for current focus.'}
+              </p>
               <p className="muted">Today is not worth forcing. Keep cash and wait for clarity.</p>
             </article>
           )}
@@ -356,14 +399,22 @@ export default function SignalsTab({
         {uiMode === 'advanced' ? (
           <article className="glass-card">
             <h3 className="card-title">Filtered Out (Do Not Force)</h3>
-            <p className="muted">These names were scored but blocked by risk/regime/portfolio rules.</p>
+            <p className="muted">
+              These names were scored but blocked by risk/regime/portfolio rules.
+            </p>
             {filteredOut.length ? (
               <div className="shadow-log-list">
                 {filteredOut.slice(0, 5).map((signal) => (
                   <div key={signal.signal_id} className="shadow-log-row">
                     <div>
-                      <p className="shadow-title">{signal.symbol} · {signal.grade || 'Filtered'}</p>
-                      <p className="muted">{signal.explain_bullets?.[0] || signal.entry_zone?.notes || 'Filtered by risk rules.'}</p>
+                      <p className="shadow-title">
+                        {signal.symbol} · {signal.grade || 'Filtered'}
+                      </p>
+                      <p className="muted">
+                        {signal.explain_bullets?.[0] ||
+                          signal.entry_zone?.notes ||
+                          'Filtered by risk rules.'}
+                      </p>
                     </div>
                     <button
                       type="button"
@@ -388,7 +439,10 @@ export default function SignalsTab({
           <details className="exec-steps" open={uiMode === 'beginner'}>
             <summary>Why is the system in this mode?</summary>
             <div className="exec-lines">
-              <p>Safety score: {formatNumber(safety?.safety_score, 1, locale)} ({safety?.mode || '--'})</p>
+              <p>
+                Safety score: {formatNumber(safety?.safety_score, 1, locale)} (
+                {safety?.mode || '--'})
+              </p>
               <p>Regime: {todayPlan?.style_hint || '--'}</p>
               <p>Main risk: {topRisk}</p>
             </div>
@@ -397,7 +451,10 @@ export default function SignalsTab({
           <details className="exec-steps">
             <summary>Why this exposure cap?</summary>
             <div className="exec-lines">
-              <p>Suggested gross/net: {todayPlan?.suggested_gross_exposure_pct ?? '--'}% / {todayPlan?.suggested_net_exposure_pct ?? '--'}%</p>
+              <p>
+                Suggested gross/net: {todayPlan?.suggested_gross_exposure_pct ?? '--'}% /{' '}
+                {todayPlan?.suggested_net_exposure_pct ?? '--'}%
+              </p>
               <p>{safety?.conclusion || 'Exposure is set by regime + risk pressure.'}</p>
             </div>
           </details>
@@ -442,7 +499,7 @@ export default function SignalsTab({
                 { label: 'All', value: 'ALL' },
                 { label: 'A', value: 'A' },
                 { label: 'B', value: 'B' },
-                { label: 'C', value: 'C' }
+                { label: 'C', value: 'C' },
               ]}
               value={gradeFilter}
               onChange={setGradeFilter}
@@ -452,13 +509,25 @@ export default function SignalsTab({
             <div className="filter-row">
               <span className="muted">Sort</span>
               <div className="filter-buttons">
-                <button type="button" className={`pill-btn ${sortBy === 'score' ? 'active' : ''}`} onClick={() => setSortBy('score')}>
+                <button
+                  type="button"
+                  className={`pill-btn ${sortBy === 'score' ? 'active' : ''}`}
+                  onClick={() => setSortBy('score')}
+                >
                   Score
                 </button>
-                <button type="button" className={`pill-btn ${sortBy === 'confidence' ? 'active' : ''}`} onClick={() => setSortBy('confidence')}>
+                <button
+                  type="button"
+                  className={`pill-btn ${sortBy === 'confidence' ? 'active' : ''}`}
+                  onClick={() => setSortBy('confidence')}
+                >
                   {t('common.confidence')}
                 </button>
-                <button type="button" className={`pill-btn ${sortBy === 'newest' ? 'active' : ''}`} onClick={() => setSortBy('newest')}>
+                <button
+                  type="button"
+                  className={`pill-btn ${sortBy === 'newest' ? 'active' : ''}`}
+                  onClick={() => setSortBy('newest')}
+                >
                   {t('common.newest')}
                 </button>
               </div>
@@ -487,7 +556,10 @@ export default function SignalsTab({
                 </div>
               ) : (
                 <article className="glass-card empty-card">
-                  <p>{todayPlan?.empty_states?.no_signal || 'No actionable signal for current filter.'}</p>
+                  <p>
+                    {todayPlan?.empty_states?.no_signal ||
+                      'No actionable signal for current filter.'}
+                  </p>
                 </article>
               )}
             </article>
@@ -496,23 +568,38 @@ export default function SignalsTab({
               <h3 className="card-title">Alpha Families</h3>
               <div className="strategy-kpi-row">
                 {alphaFamilies.map(([family, count]) => (
-                  <div className="mini-stat" key={family}>{family}: {count}</div>
+                  <div className="mini-stat" key={family}>
+                    {family}: {count}
+                  </div>
                 ))}
               </div>
               <p className="muted status-line">
-                Data tags: market=sample, features=derived, signals=simulated. No live broker execution data in this page.
+                Data tags: market=sample, features=derived, signals=simulated. No live broker
+                execution data in this page.
               </p>
             </article>
 
             <article className="glass-card">
               <h3 className="card-title">Signal Funnel Snapshot</h3>
               <div className="strategy-kpi-row">
-                <div className="mini-stat">Universe: {analytics?.signal_funnel?.overall?.universe_size ?? '--'}</div>
-                <div className="mini-stat">Generated: {analytics?.signal_funnel?.overall?.raw_signals_generated ?? '--'}</div>
-                <div className="mini-stat">Filtered(Regime): {analytics?.signal_funnel?.overall?.filtered_by_regime ?? '--'}</div>
-                <div className="mini-stat">Filtered(Risk): {analytics?.signal_funnel?.overall?.filtered_by_risk ?? '--'}</div>
-                <div className="mini-stat">Executable: {analytics?.signal_funnel?.overall?.executable_opportunities ?? '--'}</div>
-                <div className="mini-stat">Filled: {analytics?.signal_funnel?.overall?.filled_trades ?? '--'}</div>
+                <div className="mini-stat">
+                  Universe: {analytics?.signal_funnel?.overall?.universe_size ?? '--'}
+                </div>
+                <div className="mini-stat">
+                  Generated: {analytics?.signal_funnel?.overall?.raw_signals_generated ?? '--'}
+                </div>
+                <div className="mini-stat">
+                  Filtered(Regime): {analytics?.signal_funnel?.overall?.filtered_by_regime ?? '--'}
+                </div>
+                <div className="mini-stat">
+                  Filtered(Risk): {analytics?.signal_funnel?.overall?.filtered_by_risk ?? '--'}
+                </div>
+                <div className="mini-stat">
+                  Executable: {analytics?.signal_funnel?.overall?.executable_opportunities ?? '--'}
+                </div>
+                <div className="mini-stat">
+                  Filled: {analytics?.signal_funnel?.overall?.filled_trades ?? '--'}
+                </div>
               </div>
             </article>
           </>

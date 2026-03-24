@@ -61,6 +61,7 @@ Runtime rules:
 ## Core Architecture
 
 Primary application layers:
+
 - `src/App.jsx`: mobile-first product shell and tab orchestration
 - `src/server/api/app.ts`: canonical API surface for frontend + evidence + assistant (109 routes)
 - `src/server/auth/postgresStore.ts`: Postgres-backed auth store (users, sessions, roles, password resets, user state sync)
@@ -82,9 +83,11 @@ Primary application layers:
 NovaQuant now exposes a proper backend backbone rather than a loose collection of subsystems.
 
 Canonical inspection surface:
+
 - `GET /api/backbone/summary`
 
 New backbone modules:
+
 - `src/server/domain/contracts.ts`
 - `src/server/feature/platform.ts`
 - `src/server/research/kernel.ts`
@@ -101,6 +104,7 @@ New backbone modules:
 - `src/server/nova/training.ts`
 
 Reference docs:
+
 - `docs/OPEN_SOURCE_BORROW_MAP.md`
 - `docs/NOVAQUANT_BACKEND_ARCHITECTURE_AFTER_REFACTOR.md`
 - `docs/WHAT_WAS_ACTUALLY_IMPLEMENTED.md`
@@ -113,14 +117,17 @@ Reference docs:
 Nova Assistant now defaults to the **Marvix** model family on a local-only Ollama runtime for macOS / Apple Silicon.
 
 Endpoint:
+
 - `http://127.0.0.1:11434/v1`
 
 Default routing:
+
 - `Marvix-Core` -> decision reasoning / action cards / grounded assistant answers
 - `Marvix-Scout` -> fast classification / state tagging
 - `Marvix-Retrieve` -> embeddings / retrieval
 
 Primary APIs:
+
 - `GET /api/nova/runtime`
 - `GET /api/nova/health`
 - `GET /api/nova/runs`
@@ -128,20 +135,24 @@ Primary APIs:
 - `GET /api/nova/training/export`
 
 Local operator commands:
+
 - `npm run nova:health`
 - `npm run nova:export-mlx`
 - `npm run nova:train:lora`
 
 This keeps the product grounded:
+
 - structured decision / risk / evidence objects remain canonical
 - local Marvix generates concise language and explanations on top of those objects
 - if Ollama is unavailable, the runtime falls back to deterministic copy instead of fabricating output
 
 Compatibility note:
+
 - public model aliases now surface as `Marvix-*`
 - existing `/api/nova/*` paths stay in place so current clients do not break
 
 VPS deployment:
+
 - see `docs/AWS_EC2_DEPLOYMENT.md` for the recommended EC2 single-host setup using `SERVE_WEB_DIST=1` + `npm run start:api`
 - `docs/VULTR_DEPLOYMENT.md` remains available if you want a generic VPS path later
 
@@ -150,6 +161,7 @@ VPS deployment:
 MARVIX now includes an autonomous alpha discovery loop for controlled research deployment on EC2.
 
 What it does:
+
 - generates candidate alpha ideas from seeded hypotheses + templates
 - mutates/refines them with a simplicity and robustness bias
 - runs proxy backtest evaluation and hard rejection gates
@@ -159,6 +171,7 @@ What it does:
 - never auto-promotes newly discovered alpha straight to full production capital
 
 Primary modules:
+
 - `src/server/alpha_discovery/index.ts`
 - `src/server/alpha_registry/index.ts`
 - `src/server/alpha_evaluator/index.ts`
@@ -167,11 +180,13 @@ Primary modules:
 - `src/server/alpha_promotion_guard/index.ts`
 
 Operator commands:
+
 - `npm run alpha:discover`
 - `npm run marvix:ops`
 - `npm run auto:backend`
 
 Key environment variables:
+
 - `NOVA_ALPHA_DISCOVERY_ENABLED`
 - `NOVA_ALPHA_DISCOVERY_INTERVAL_HOURS`
 - `NOVA_ALPHA_DISCOVERY_MAX_CANDIDATES`
@@ -184,18 +199,21 @@ Key environment variables:
 - `NOVA_ALPHA_ALLOW_PROD_PROMOTION`
 
 Results live in SQLite tables:
+
 - `alpha_candidates`
 - `alpha_evaluations`
 - `alpha_shadow_observations`
 - `alpha_lifecycle_events`
 
 Private inspection:
+
 - `GET /api/internal/marvix/ops`
 - loopback-only, intended for EC2 operator access rather than end-user UI
 
 ## Source of Truth
 
 Primary backend source of truth:
+
 - `src/server/api/app.ts`
 - `src/server/api/queries.ts`
 - `src/server/decision/engine.ts`
@@ -224,6 +242,7 @@ raw observations
 ```
 
 Key runtime surfaces:
+
 - `GET /api/runtime-state` includes a baseline `data.decision`
 - `POST /api/decision/today` builds a personalized decision snapshot using user holdings context
 - `GET /api/decision/audit` exposes persisted recommendation history for replay and review
@@ -233,6 +252,7 @@ Key runtime surfaces:
 Nova Quant now also exposes a lightweight engagement layer built around calm decision rituals rather than high-frequency trading prompts.
 
 Core engagement surfaces:
+
 - `POST /api/engagement/state`
 - `POST /api/engagement/morning-check`
 - `POST /api/engagement/boundary`
@@ -242,6 +262,7 @@ Core engagement surfaces:
 - `GET /api/notifications/preview`
 
 These objects drive:
+
 - Morning Check state
 - discipline / habit state
 - evening wrap-up
@@ -253,11 +274,13 @@ These objects drive:
 NovaQuant now includes a structured copy/persona layer rather than scattered UI strings.
 
 Primary resources:
+
 - `src/copy/novaCopySystem.js`
 - `src/copy/novaCopySystem.d.ts`
 - `docs/COPY_OPERATING_SYSTEM.md`
 
 This layer defines:
+
 - brand voice constitution
 - tone matrix by posture and user state
 - state-to-copy selectors
@@ -270,12 +293,14 @@ This layer defines:
 NovaQuant now includes a dedicated perception layer designed to make the product feel like a new AI-native decision category rather than a better finance tool.
 
 Primary resources:
+
 - `docs/PERCEPTION_LAYER_DIFFERENTIATION.md`
 - `src/server/engagement/engine.ts`
 - `src/copy/novaCopySystem.js`
 - `src/components/TodayTab.jsx`
 
 This layer defines:
+
 - system-first judgment arrival lines
 - decision-presence summaries for the Today surface
 - state-driven emotional tone without hype
@@ -286,11 +311,13 @@ This layer defines:
 NovaQuant now uses a single SemVer source synchronized across package metadata, runtime config, About, and changelog.
 
 Commands:
+
 - `npm run version:major`
 - `npm run version:minor`
 - `npm run version:patch`
 
 Version metadata source:
+
 - `package.json`
 - `src/config/version.js`
 - `CHANGELOG.md`
@@ -371,6 +398,7 @@ Nova Quant now exposes a single canonical assistant stack:
 - If no provider is configured or a provider fails, Nova degrades honestly to deterministic internal guidance instead of pretending the LLM succeeded
 
 Assistant boundaries:
+
 - It may explain signals, risk posture, positions, and evidence
 - It does **not** claim live fills, broker access, or realized performance when those do not exist
 
@@ -380,6 +408,7 @@ Nova Assistant now also supports a research mode aimed at quant research tasks r
 signal explanation.
 
 Current research capabilities include:
+
 - factor taxonomy and definition retrieval
 - factor interaction lookup
 - measured factor evaluation for OHLCV-supported factors
@@ -397,6 +426,7 @@ Current research capabilities include:
 - research topic summarization
 
 This means Nova can now help with:
+
 - "Why does this signal exist?"
 - "Why is there no signal right now?"
 - "How does momentum usually behave across regimes?"
@@ -429,6 +459,7 @@ node scripts/package-source.mjs --dry-run
 ```
 
 Default exclusions include local/runtime artifacts:
+
 - `node_modules/`, `dist/`, `build/`, `coverage/`
 - `data/*.db`, `data/*.db-wal`, `data/*.db-shm`, `*.sqlite*`, `*.wal`, `*.shm`
 - `__MACOSX/`, `.DS_Store`, local logs/tmp artifacts
@@ -456,4 +487,5 @@ Default exclusions include local/runtime artifacts:
 - [`docs/SIGNAL_FUNNEL.md`](docs/SIGNAL_FUNNEL.md)
 
 Historical reviews were archived under:
+
 - [`docs/archive/`](docs/archive/)

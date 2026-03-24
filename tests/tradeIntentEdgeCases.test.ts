@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildTradeIntent,
   buildNovaTradeQuestion,
-  tradeIntentHandoffLabel
+  tradeIntentHandoffLabel,
   // @ts-ignore JS runtime module import
 } from '../src/utils/tradeIntent.js';
 
@@ -34,7 +34,7 @@ describe('buildTradeIntent defensive handling', () => {
   it('resolves stop_loss from nested stop_loss.price object', () => {
     const intent = buildTradeIntent({
       symbol: 'AAPL',
-      stop_loss: { price: 185 }
+      stop_loss: { price: 185 },
     });
     expect(intent.stopLoss).toBe(185);
   });
@@ -42,7 +42,7 @@ describe('buildTradeIntent defensive handling', () => {
   it('resolves stop_loss from stop_loss_value fallback', () => {
     const intent = buildTradeIntent({
       symbol: 'AAPL',
-      stop_loss_value: 183
+      stop_loss_value: 183,
     });
     expect(intent.stopLoss).toBe(183);
   });
@@ -50,7 +50,7 @@ describe('buildTradeIntent defensive handling', () => {
   it('resolves stop_loss from invalidation_level fallback', () => {
     const intent = buildTradeIntent({
       symbol: 'AAPL',
-      invalidation_level: 180
+      invalidation_level: 180,
     });
     expect(intent.stopLoss).toBe(180);
   });
@@ -58,7 +58,7 @@ describe('buildTradeIntent defensive handling', () => {
   it('falls back to numeric stop_loss when no object', () => {
     const intent = buildTradeIntent({
       symbol: 'AAPL',
-      stop_loss: 178
+      stop_loss: 178,
     });
     expect(intent.stopLoss).toBe(178);
   });
@@ -66,7 +66,7 @@ describe('buildTradeIntent defensive handling', () => {
   it('handles legacy take_profit (single number) fallback', () => {
     const intent = buildTradeIntent({
       symbol: 'AAPL',
-      take_profit: 215
+      take_profit: 215,
     });
     expect(intent.targets).toHaveLength(1);
     expect(intent.targets[0].price).toBe(215);
@@ -76,7 +76,7 @@ describe('buildTradeIntent defensive handling', () => {
     const intent = buildTradeIntent({
       symbol: 'AAPL',
       take_profit: 200,
-      take_profit_levels: [{ price: 210 }, { price: 225 }]
+      take_profit_levels: [{ price: 210 }, { price: 225 }],
     });
     expect(intent.targets).toHaveLength(2);
     expect(intent.targets[0].price).toBe(210);
@@ -85,7 +85,7 @@ describe('buildTradeIntent defensive handling', () => {
   it('resolves position sizing from nested position_advice.position_pct', () => {
     const intent = buildTradeIntent({
       symbol: 'AAPL',
-      position_advice: { position_pct: 7.5 }
+      position_advice: { position_pct: 7.5 },
     });
     expect(intent.sizePct).toBe(7.5);
     expect(intent.sizeLabel).toBe('small');
@@ -107,7 +107,7 @@ describe('buildTradeIntent defensive handling', () => {
 describe('buildTradeIntent entry zone', () => {
   it('computes entryMid from entry_zone.low / entry_zone.high', () => {
     const intent = buildTradeIntent({
-      entry_zone: { low: 100, high: 110 }
+      entry_zone: { low: 100, high: 110 },
     });
     expect(intent.entryMid).toBe(105);
     expect(intent.entryLabel).toBe('100.00 - 110.00');
@@ -115,7 +115,7 @@ describe('buildTradeIntent entry zone', () => {
 
   it('falls back to entry_zone.min / entry_zone.max', () => {
     const intent = buildTradeIntent({
-      entry_zone: { min: 200, max: 210 }
+      entry_zone: { min: 200, max: 210 },
     });
     expect(intent.entryMid).toBe(205);
   });
@@ -123,14 +123,14 @@ describe('buildTradeIntent entry zone', () => {
   it('falls back to entry_min / entry_max', () => {
     const intent = buildTradeIntent({
       entry_min: 50,
-      entry_max: 55
+      entry_max: 55,
     });
     expect(intent.entryMid).toBe(52.5);
   });
 
   it('shows single price when low == high', () => {
     const intent = buildTradeIntent({
-      entry_zone: { low: 100, high: 100 }
+      entry_zone: { low: 100, high: 100 },
     });
     expect(intent.entryLabel).toBe('100.00');
   });
@@ -151,7 +151,7 @@ describe('copyText payload', () => {
       stop_loss: { price: 115 },
       take_profit_levels: [{ price: 140 }],
       position_advice: { position_pct: 8 },
-      strategy_id: 'EQ_VEL'
+      strategy_id: 'EQ_VEL',
     });
     expect(intent.copyText).toContain('symbol: NVDA');
     expect(intent.copyText).toContain('side: LONG');
@@ -161,7 +161,7 @@ describe('copyText payload', () => {
 
   it('uses -- for missing fields', () => {
     const intent = buildTradeIntent({
-      symbol: 'AAPL'
+      symbol: 'AAPL',
     });
     expect(intent.copyText).toContain('stop_loss: --');
     expect(intent.copyText).toContain('entry_mid: --');
@@ -174,19 +174,25 @@ describe('copyText payload', () => {
 
 describe('tradeIntentHandoffLabel i18n', () => {
   it('returns Chinese label for prefilled ticket', () => {
-    const label = tradeIntentHandoffLabel({
-      handoffPrefillsTicket: true,
-      handoffBrokerLabel: 'Robinhood'
-    }, 'zh');
+    const label = tradeIntentHandoffLabel(
+      {
+        handoffPrefillsTicket: true,
+        handoffBrokerLabel: 'Robinhood',
+      },
+      'zh',
+    );
     expect(label).toContain('Robinhood');
     expect(label).toContain('下单');
   });
 
   it('returns English label for opening broker', () => {
-    const label = tradeIntentHandoffLabel({
-      canOpenBroker: true,
-      handoffBrokerLabel: 'Robinhood'
-    }, 'en');
+    const label = tradeIntentHandoffLabel(
+      {
+        canOpenBroker: true,
+        handoffBrokerLabel: 'Robinhood',
+      },
+      'en',
+    );
     expect(label).toBe('Open Robinhood');
   });
 
@@ -212,9 +218,9 @@ describe('buildNovaTradeQuestion', () => {
         entryLabel: '120.00 - 125.00',
         stopLoss: 115,
         targets: [{ price: 140 }],
-        sizePct: 8
+        sizePct: 8,
       },
-      'en'
+      'en',
     );
     expect(question).toContain('NVDA');
     expect(question).toContain('LONG');
@@ -233,9 +239,9 @@ describe('buildNovaTradeQuestion', () => {
         entryLabel: '195.00',
         stopLoss: 190,
         targets: [{ price: 210 }],
-        sizePct: 5
+        sizePct: 5,
       },
-      'zh'
+      'zh',
     );
     expect(question).toContain('AAPL');
     expect(question).toContain('行动卡');

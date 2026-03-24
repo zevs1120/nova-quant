@@ -19,9 +19,9 @@ function makeRow(id: string, headline: string): NewsItemRecord {
     relevance_score: 0.35,
     payload_json: JSON.stringify({
       provider: 'google_news_rss',
-      summary: `${headline} summary`
+      summary: `${headline} summary`,
     }),
-    updated_at_ms: 1_710_000_000_000
+    updated_at_ms: 1_710_000_000_000,
   };
 }
 
@@ -58,23 +58,23 @@ describe('news provider with Gemini factors', () => {
                         relevance_score: 0.82,
                         event_type: 'earnings',
                         impact_horizon: 'near_term',
-                        thesis: 'Fresh earnings optimism is dominating the tape.'
-                      }
-                    ]
-                  })
-                }
-              ]
-            }
-          }
-        ]
-      })
+                        thesis: 'Fresh earnings optimism is dominating the tape.',
+                      },
+                    ],
+                  }),
+                },
+              ],
+            },
+          },
+        ],
+      }),
     });
     vi.stubGlobal('fetch', fetchMock);
 
     const enriched = await enrichNewsRowsWithGeminiFactors({
       market: 'US',
       symbol: 'AAPL',
-      rows: [makeRow('news-1', 'Apple rallies after upbeat guidance')]
+      rows: [makeRow('news-1', 'Apple rallies after upbeat guidance')],
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -104,14 +104,14 @@ describe('news provider with Gemini factors', () => {
               macro_policy_score: 0.18,
               earnings_impact_score: 0.73,
               trading_bias: 'BULLISH',
-              factor_tags: ['earnings', 'product_cycle']
+              factor_tags: ['earnings', 'product_cycle'],
             },
             headline: {
               sentiment_score: 0.66,
-              relevance_score: 0.82
-            }
-          }
-        })
+              relevance_score: 0.82,
+            },
+          },
+        }),
       },
       {
         ...makeRow('news-2', 'Apple supply chain remains stable'),
@@ -129,15 +129,15 @@ describe('news provider with Gemini factors', () => {
               macro_policy_score: 0.18,
               earnings_impact_score: 0.73,
               trading_bias: 'BULLISH',
-              factor_tags: ['earnings', 'product_cycle']
+              factor_tags: ['earnings', 'product_cycle'],
             },
             headline: {
               sentiment_score: 0.38,
-              relevance_score: 0.51
-            }
-          }
-        })
-      }
+              relevance_score: 0.51,
+            },
+          },
+        }),
+      },
     ];
 
     const context = buildNewsContext(rows, 'AAPL');
@@ -183,23 +183,23 @@ describe('news provider with Gemini factors', () => {
                         relevance_score: 0.82,
                         event_type: 'earnings',
                         impact_horizon: 'near_term',
-                        thesis: 'Fresh earnings optimism is dominating the tape.'
-                      }
-                    ]
-                  })
-                }
-              ]
-            }
-          }
-        ]
-      })
+                        thesis: 'Fresh earnings optimism is dominating the tape.',
+                      },
+                    ],
+                  }),
+                },
+              ],
+            },
+          },
+        ],
+      }),
     });
     vi.stubGlobal('fetch', fetchMock);
 
     const result = await ensureFreshNewsForSymbol({
       repo,
       market: 'US',
-      symbol: 'AAPL'
+      symbol: 'AAPL',
     });
 
     expect(result.fetched).toBe(true);
@@ -223,20 +223,22 @@ describe('news provider with Gemini factors', () => {
             content: {
               parts: [
                 {
-                  text: 'unstructured response that is not json'
-                }
-              ]
-            }
-          }
-        ]
-      })
+                  text: 'unstructured response that is not json',
+                },
+              ],
+            },
+          },
+        ],
+      }),
     });
     vi.stubGlobal('fetch', fetchMock);
 
     const enriched = await enrichNewsRowsWithGeminiFactors({
       market: 'US',
       symbol: 'AAPL',
-      rows: [makeRow('news-heuristic', 'Apple gains after analyst upgrade and product launch optimism')]
+      rows: [
+        makeRow('news-heuristic', 'Apple gains after analyst upgrade and product launch optimism'),
+      ],
     });
 
     const payload = JSON.parse(enriched[0].payload_json) as Record<string, any>;

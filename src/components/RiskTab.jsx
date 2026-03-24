@@ -1,13 +1,17 @@
 function modeTone(mode) {
   const key = String(mode || '').toLowerCase();
-  if (key.includes('do not trade') || key.includes('不要交易') || key.includes('暂停')) return 'badge-expired';
-  if (key.includes('trade light') || key.includes('轻仓') || key.includes('小仓')) return 'badge-medium';
-  if (key.includes('aggressive') || key.includes('积极') || key.includes('进攻')) return 'badge-triggered';
+  if (key.includes('do not trade') || key.includes('不要交易') || key.includes('暂停'))
+    return 'badge-expired';
+  if (key.includes('trade light') || key.includes('轻仓') || key.includes('小仓'))
+    return 'badge-medium';
+  if (key.includes('aggressive') || key.includes('积极') || key.includes('进攻'))
+    return 'badge-triggered';
   return 'badge-neutral';
 }
 
 function progressValue(current, max) {
-  if (!Number.isFinite(Number(current)) || !Number.isFinite(Number(max)) || Number(max) <= 0) return 0;
+  if (!Number.isFinite(Number(current)) || !Number.isFinite(Number(max)) || Number(max) <= 0)
+    return 0;
   return Math.min(100, Math.max(0, (Math.abs(Number(current)) / Number(max)) * 100));
 }
 
@@ -25,12 +29,12 @@ function buildCopy(locale) {
       ? [
           '建议总/净暴露：{gross}% / {net}%。',
           '如果你拿不准，先减仓，再决定要不要加新名字。',
-          '高风险阶段里，没有 setup 也好过硬做一个。'
+          '高风险阶段里，没有 setup 也好过硬做一个。',
         ]
       : [
           'Suggested gross/net: {gross}% / {net}%.',
           'If you are unsure, reduce size first before adding new names.',
-          'No setup is better than a forced setup in high-risk periods.'
+          'No setup is better than a forced setup in high-risk periods.',
         ],
     riskDiagnostics: zh ? '风险压力诊断' : 'Risk Pressure Diagnostics',
     avgSafety: zh ? '平均安全分（窗口）' : 'Avg Safety (window)',
@@ -54,13 +58,25 @@ function buildCopy(locale) {
     todayLossProgress: zh ? '今日亏损进度' : 'Today loss progress',
     drawdownProgress: zh ? '回撤进度' : 'Drawdown progress',
     rulebook: zh ? '风险规则手册（v1）' : 'Risk Rulebook (v1)',
-    normalRisk: zh ? '今天允许常规风险，但仓位上限仍然生效。' : 'Today allows normal risk, but position limits still apply.',
-    lightRisk: zh ? '今天是轻仓日。仓位要小，动作要挑。' : 'Today is a light-risk day. Keep size small and selective.',
-    standDown: zh ? '今天新风险要暂停。' : 'Today is a stand-down day for new risk.'
+    normalRisk: zh
+      ? '今天允许常规风险，但仓位上限仍然生效。'
+      : 'Today allows normal risk, but position limits still apply.',
+    lightRisk: zh
+      ? '今天是轻仓日。仓位要小，动作要挑。'
+      : 'Today is a light-risk day. Keep size small and selective.',
+    standDown: zh ? '今天新风险要暂停。' : 'Today is a stand-down day for new risk.',
   };
 }
 
-export default function RiskTab({ config, safety, research, uiMode = 'standard', t, onExplain, locale }) {
+export default function RiskTab({
+  config,
+  safety,
+  research,
+  uiMode = 'standard',
+  t,
+  onExplain,
+  locale,
+}) {
   const copy = buildCopy(locale);
   const riskRules = config.risk_rules ?? {};
   const riskStatus = config.risk_status ?? {};
@@ -77,11 +93,15 @@ export default function RiskTab({ config, safety, research, uiMode = 'standard',
   const ddProgress = progressValue(drawdown, drawdownMax);
   const cards = safety?.cards || {};
   const shouldTradeText =
-    String(safety?.mode || '').toLowerCase().includes('do not trade') ||
+    String(safety?.mode || '')
+      .toLowerCase()
+      .includes('do not trade') ||
     String(safety?.mode || '').includes('不要交易') ||
     String(safety?.mode || '').includes('暂停')
       ? copy.standDown
-      : String(safety?.mode || '').toLowerCase().includes('trade light') ||
+      : String(safety?.mode || '')
+            .toLowerCase()
+            .includes('trade light') ||
           String(safety?.mode || '').includes('轻仓') ||
           String(safety?.mode || '').includes('小仓')
         ? copy.lightRisk
@@ -114,14 +134,21 @@ export default function RiskTab({ config, safety, research, uiMode = 'standard',
 
         <p className="muted status-line">{safety?.conclusion || copy.unavailable}</p>
         <p className="muted status-line">
-          {copy.whyCapped} {systemDiag?.risk_pressure_summary?.why_exposure_capped_today || safety?.primary_risks?.[0] || '--'}
+          {copy.whyCapped}{' '}
+          {systemDiag?.risk_pressure_summary?.why_exposure_capped_today ||
+            safety?.primary_risks?.[0] ||
+            '--'}
         </p>
       </article>
 
       <article className="glass-card">
         <h3 className="card-title">{copy.actionBoundary}</h3>
         <ul className="bullet-list">
-          <li>{copy.actionBoundaryLines[0].replace('{gross}', String(safety?.suggested_gross_exposure_pct ?? '--')).replace('{net}', String(safety?.suggested_net_exposure_pct ?? '--'))}</li>
+          <li>
+            {copy.actionBoundaryLines[0]
+              .replace('{gross}', String(safety?.suggested_gross_exposure_pct ?? '--'))
+              .replace('{net}', String(safety?.suggested_net_exposure_pct ?? '--'))}
+          </li>
           <li>{copy.actionBoundaryLines[1]}</li>
           <li>{copy.actionBoundaryLines[2]}</li>
         </ul>
@@ -158,11 +185,15 @@ export default function RiskTab({ config, safety, research, uiMode = 'standard',
             </div>
             <div className="detail-row">
               <span className="detail-label">{copy.regimeTransitions}</span>
-              <span className="detail-value">{systemDiag?.regime_stability?.regime_transitions ?? '--'}</span>
+              <span className="detail-value">
+                {systemDiag?.regime_stability?.regime_transitions ?? '--'}
+              </span>
             </div>
             <div className="detail-row">
               <span className="detail-label">{copy.windowDays}</span>
-              <span className="detail-value">{systemDiag?.regime_stability?.window_days ?? '--'}</span>
+              <span className="detail-value">
+                {systemDiag?.regime_stability?.window_days ?? '--'}
+              </span>
             </div>
           </div>
         </article>
@@ -223,7 +254,9 @@ export default function RiskTab({ config, safety, research, uiMode = 'standard',
             </div>
             <div className="detail-row">
               <span className="detail-label">{copy.volSwitch}</span>
-              <span className="detail-value">{riskRules.vol_switch ? t('common.on') : t('common.off')}</span>
+              <span className="detail-value">
+                {riskRules.vol_switch ? t('common.on') : t('common.off')}
+              </span>
             </div>
           </div>
 

@@ -5,6 +5,7 @@ Last updated: 2026-03-24
 ## 1) Raw Data Sources
 
 ### Primary API (US + Crypto)
+
 - Source: **Massive.com** REST API (formerly Polygon.io).
 - Ingestion module: `src/server/ingestion/massive.ts`.
 - Requires: `MASSIVE_API_KEY` in `.env`. Basic (free) tier enforces 12s delay between requests.
@@ -12,12 +13,14 @@ Last updated: 2026-03-24
 - Storage: `assets` + `ohlcv` (both `US` and `CRYPTO` markets).
 
 ### US Equities (Legacy Fallback)
+
 - Source: Stooq bulk packs.
 - Ingestion module: `src/server/ingestion/stooq.ts`.
 - Additional fallbacks: `src/server/ingestion/yahoo.ts`, `src/server/ingestion/nasdaq.ts`.
 - Storage: `assets` + `ohlcv` (market=`US`).
 
 ### Crypto (Legacy Fallback)
+
 - Source A: Binance public historical archives.
 - Source B: Binance REST incremental endpoint.
 - Ingestion modules:
@@ -27,6 +30,7 @@ Last updated: 2026-03-24
 - Storage: `assets` + `ohlcv` (market=`CRYPTO`).
 
 ### Normalization
+
 - All ingested bars pass through `src/server/ingestion/normalize.ts` to produce a uniform OHLCV schema.
 
 ## 2) Validation Layer
@@ -46,32 +50,40 @@ Last updated: 2026-03-24
   - explicit CLI via `npm run derive:runtime`.
 
 Derived objects:
+
 1. `market_state`
+
 - trend, volatility percentile, temperature percentile, risk-off score, regime, stance.
 - Deterministic and inspectable bar-derived rules.
 
 2. `signals`
+
 - Rule-based generation from real OHLCV.
 - Conditions may yield zero signals.
 - Signal metadata includes score, status, risk bucket, assumptions, and data status tags.
 
 3. `performance_snapshots`
+
 - Built from recorded `executions` (paper/live labels).
 - Low sample => metric withholding (`null` + withheld reason).
 
 4. Freshness/Coverage summaries
+
 - Stale and insufficient coverage are explicitly reported.
 
 ## 4) API Consumption Path
 
 Primary API app:
+
 - `src/server/api/app.ts`
 
 Query/service source:
+
 - `src/server/api/queries.ts`
 - `src/server/quant/service.ts`
 
 Frontend uses `/api/*` endpoints, especially `/api/runtime-state`, plus:
+
 - `/api/assets`
 - `/api/signals`
 - `/api/market-state`
@@ -84,6 +96,7 @@ Frontend uses `/api/*` endpoints, especially `/api/runtime-state`, plus:
 ## 5) Backtest / Replay / Paper Evidence Lineage
 
 Canonical chain:
+
 1. point-in-time bars and runtime signals
 2. `signal_snapshots` (with strategy/dataset references)
 3. canonical replay (`portfolio_replay`)
@@ -92,6 +105,7 @@ Canonical chain:
 6. strategy governance-facing records in `experiment_registry`
 
 Key lineage anchors:
+
 - `dataset_version_id`
 - `strategy_version_id`
 - `universe_version_id`

@@ -6,7 +6,7 @@ import {
   pgUpsertSession,
   pgUpsertUser,
   pgUpsertUserRole,
-  pgUpsertUserState
+  pgUpsertUserState,
 } from '../src/server/auth/postgresStore.js';
 
 function parseJson<T>(value: string | null | undefined, fallback: T): T {
@@ -26,11 +26,13 @@ async function main() {
   await ensurePostgresAuthSchema();
   const db = getDb();
 
-  const users = db.prepare(
-    `SELECT user_id, email, password_hash, name, trade_mode, broker, locale, created_at_ms, updated_at_ms, last_login_at_ms
+  const users = db
+    .prepare(
+      `SELECT user_id, email, password_hash, name, trade_mode, broker, locale, created_at_ms, updated_at_ms, last_login_at_ms
      FROM auth_users
-     ORDER BY created_at_ms ASC`
-  ).all() as Array<{
+     ORDER BY created_at_ms ASC`,
+    )
+    .all() as Array<{
     user_id: string;
     email: string;
     password_hash: string;
@@ -45,10 +47,12 @@ async function main() {
 
   const states = new Map(
     (
-      db.prepare(
-        `SELECT user_id, asset_class, market, ui_mode, risk_profile_key, watchlist_json, holdings_json, executions_json, discipline_log_json, updated_at_ms
-         FROM auth_user_state_sync`
-      ).all() as Array<{
+      db
+        .prepare(
+          `SELECT user_id, asset_class, market, ui_mode, risk_profile_key, watchlist_json, holdings_json, executions_json, discipline_log_json, updated_at_ms
+         FROM auth_user_state_sync`,
+        )
+        .all() as Array<{
         user_id: string;
         asset_class: string;
         market: string;
@@ -70,31 +74,36 @@ async function main() {
         watchlist: parseJson<string[]>(row.watchlist_json, []),
         holdings: parseJson<unknown[]>(row.holdings_json, []),
         executions: parseJson<unknown[]>(row.executions_json, []),
-        disciplineLog: parseJson<{ checkins: string[]; boundary_kept: string[]; weekly_reviews: string[] }>(
-          row.discipline_log_json,
-          { checkins: [], boundary_kept: [], weekly_reviews: [] }
-        ),
-        updatedAtMs: row.updated_at_ms
-      }
-    ])
+        disciplineLog: parseJson<{
+          checkins: string[];
+          boundary_kept: string[];
+          weekly_reviews: string[];
+        }>(row.discipline_log_json, { checkins: [], boundary_kept: [], weekly_reviews: [] }),
+        updatedAtMs: row.updated_at_ms,
+      },
+    ]),
   );
 
-  const roles = db.prepare(
-    `SELECT user_id, role, granted_at_ms, granted_by_user_id
+  const roles = db
+    .prepare(
+      `SELECT user_id, role, granted_at_ms, granted_by_user_id
      FROM auth_user_roles
-     ORDER BY granted_at_ms ASC`
-  ).all() as Array<{
+     ORDER BY granted_at_ms ASC`,
+    )
+    .all() as Array<{
     user_id: string;
     role: 'ADMIN' | 'OPERATOR' | 'SUPPORT';
     granted_at_ms: number;
     granted_by_user_id: string | null;
   }>;
 
-  const sessions = db.prepare(
-    `SELECT session_id, user_id, session_token_hash, user_agent, ip_address, expires_at_ms, revoked_at_ms, created_at_ms, updated_at_ms, last_seen_at_ms
+  const sessions = db
+    .prepare(
+      `SELECT session_id, user_id, session_token_hash, user_agent, ip_address, expires_at_ms, revoked_at_ms, created_at_ms, updated_at_ms, last_seen_at_ms
      FROM auth_sessions
-     ORDER BY created_at_ms ASC`
-  ).all() as Array<{
+     ORDER BY created_at_ms ASC`,
+    )
+    .all() as Array<{
     session_id: string;
     user_id: string;
     session_token_hash: string;
@@ -118,7 +127,7 @@ async function main() {
       holdings: [],
       executions: [],
       disciplineLog: { checkins: [], boundary_kept: [], weekly_reviews: [] },
-      updatedAtMs: user.updated_at_ms
+      updatedAtMs: user.updated_at_ms,
     };
     await pgUpsertUserState(
       user.user_id,
@@ -130,9 +139,9 @@ async function main() {
         watchlist: state.watchlist,
         holdings: state.holdings,
         executions: state.executions,
-        disciplineLog: state.disciplineLog
+        disciplineLog: state.disciplineLog,
       },
-      state.updatedAtMs
+      state.updatedAtMs,
     );
   }
 
@@ -141,7 +150,7 @@ async function main() {
       userId: role.user_id,
       role: role.role,
       grantedAtMs: role.granted_at_ms,
-      grantedByUserId: role.granted_by_user_id
+      grantedByUserId: role.granted_by_user_id,
     });
   }
 
@@ -155,11 +164,11 @@ async function main() {
         ok: true,
         users: users.length,
         roles: roles.length,
-        sessions: sessions.length
+        sessions: sessions.length,
       },
       null,
-      2
-    )
+      2,
+    ),
   );
 }
 

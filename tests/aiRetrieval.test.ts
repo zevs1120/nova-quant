@@ -18,9 +18,9 @@ describe('answerWithRetrieval', () => {
           position_advice: { position_pct: 12 },
           stop_loss: { price: 61800 },
           take_profit_levels: [{ price: 66100 }],
-          tags: ['auto_learning:enabled', 'auto_position:0.12', 'factor:trend_strength']
-        }
-      ]
+          tags: ['auto_learning:enabled', 'auto_position:0.12', 'factor:trend_strength'],
+        },
+      ],
     });
 
     expect(result.intent).toBe('buy_or_sell');
@@ -37,9 +37,9 @@ describe('answerWithRetrieval', () => {
       safety: { mode: 'trade light' },
       user_context: {
         holdings_review: {
-          rows: []
-        }
-      }
+          rows: [],
+        },
+      },
     });
 
     expect(result.intent).toBe('holdings_risk');

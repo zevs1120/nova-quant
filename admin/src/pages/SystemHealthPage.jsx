@@ -13,7 +13,10 @@ function MixBars({ rows, formatter }) {
             <span>{formatter ? formatter(item.value) : item.value}</span>
           </div>
           <div className="mix-bar-track">
-            <span className="mix-bar-fill" style={{ width: `${(Number(item.value || 0) / total) * 100}%` }} />
+            <span
+              className="mix-bar-fill"
+              style={{ width: `${(Number(item.value || 0) / total) * 100}%` }}
+            />
           </div>
         </div>
       ))}
@@ -61,27 +64,29 @@ export default function SystemHealthPage() {
     {
       label: '模型运行模式',
       value: `${runtime.provider || 'unknown'} / ${runtime.mode || 'unknown'}`,
-      detail: dataSource.live_connected ? '当前已经连到 EC2 live upstream 的运行时状态。' : '说明管理后台当前看到的推理供应商和运行模式。',
-      tone: 'blue'
+      detail: dataSource.live_connected
+        ? '当前已经连到 EC2 live upstream 的运行时状态。'
+        : '说明管理后台当前看到的推理供应商和运行模式。',
+      tone: 'blue',
     },
     {
       label: '后台工作流',
       value: `${workflowSummary.total || 0} 次`,
       detail: `当前展示 ${dailyOps.local_date || '今日'} 的 free_data、training、alpha discovery、shadow runner 等任务汇总。`,
-      tone: 'green'
+      tone: 'green',
     },
     {
       label: '新闻与因子',
       value: `${dataSummary.news_items_72h || 0} / ${dataSummary.news_factor_count || 0}`,
       detail: `前者是 72 小时新闻量，后者是已结构化的新闻因子量，覆盖率 ${dataSummary.news_factor_coverage_pct || 0}%。`,
-      tone: 'amber'
+      tone: 'amber',
     },
     {
       label: 'AI 调用',
       value: `${aiSummary.total || 0} 次`,
       detail: '最近 Nova / Marvix AI 任务运行统计。',
-      tone: 'red'
-    }
+      tone: 'red',
+    },
   ];
 
   return (
@@ -90,14 +95,19 @@ export default function SystemHealthPage() {
         <article className="panel">
           <div className="panel-header">
             <h3>数据来源</h3>
-            <span className={`status-pill ${dataSource.mode === 'live-upstream' ? 'is-green' : dataSource.mode === 'local-fallback' ? 'is-red' : 'is-slate'}`}>
+            <span
+              className={`status-pill ${dataSource.mode === 'live-upstream' ? 'is-green' : dataSource.mode === 'local-fallback' ? 'is-red' : 'is-slate'}`}
+            >
               {dataSource.label || 'Unknown'}
             </span>
           </div>
           <div className="source-card-grid">
             <article className="source-card">
               <strong>当前日切口径</strong>
-              <p>{dailyOps.local_date || dataSource.local_date || '--'} · {dailyOps.timezone || dataSource.timezone || 'Asia/Shanghai'}</p>
+              <p>
+                {dailyOps.local_date || dataSource.local_date || '--'} ·{' '}
+                {dailyOps.timezone || dataSource.timezone || 'Asia/Shanghai'}
+              </p>
             </article>
             <article className="source-card">
               <strong>Upstream</strong>
@@ -109,7 +119,13 @@ export default function SystemHealthPage() {
             </article>
             <article className="source-card">
               <strong>连接说明</strong>
-              <p>{dataSource.live_connected ? '管理台当前看到的是 EC2 live 聚合结果。' : dataSource.error ? `已回退到本地数据：${dataSource.error}` : '当前展示本地库数据。'}</p>
+              <p>
+                {dataSource.live_connected
+                  ? '管理台当前看到的是 EC2 live 聚合结果。'
+                  : dataSource.error
+                    ? `已回退到本地数据：${dataSource.error}`
+                    : '当前展示本地库数据。'}
+              </p>
             </article>
           </div>
         </article>
@@ -122,15 +138,30 @@ export default function SystemHealthPage() {
           <div className="source-card-grid">
             <article className="source-card">
               <strong>今日 free data</strong>
-              <p>{(dailyOps.workflow_counts || []).find((row) => row.workflow_key === 'free_data_flywheel')?.run_count || 0} 次</p>
+              <p>
+                {(dailyOps.workflow_counts || []).find(
+                  (row) => row.workflow_key === 'free_data_flywheel',
+                )?.run_count || 0}{' '}
+                次
+              </p>
             </article>
             <article className="source-card">
               <strong>今日 Alpha discovery</strong>
-              <p>{(dailyOps.workflow_counts || []).find((row) => row.workflow_key === 'alpha_discovery_loop')?.run_count || 0} 次</p>
+              <p>
+                {(dailyOps.workflow_counts || []).find(
+                  (row) => row.workflow_key === 'alpha_discovery_loop',
+                )?.run_count || 0}{' '}
+                次
+              </p>
             </article>
             <article className="source-card">
               <strong>今日 Shadow runner</strong>
-              <p>{(dailyOps.workflow_counts || []).find((row) => row.workflow_key === 'alpha_shadow_runner')?.run_count || 0} 次</p>
+              <p>
+                {(dailyOps.workflow_counts || []).find(
+                  (row) => row.workflow_key === 'alpha_shadow_runner',
+                )?.run_count || 0}{' '}
+                次
+              </p>
             </article>
             <article className="source-card">
               <strong>今日信号入库</strong>
@@ -173,27 +204,52 @@ export default function SystemHealthPage() {
           <div className="source-card-grid">
             <article className="source-card">
               <strong>服务容量目标</strong>
-              <p>目标客户 {throughputControls.service_envelope?.target_active_clients || 0} 人，目标标的 {throughputControls.service_envelope?.target_daily_symbols || 0} 个，行动卡 {throughputControls.service_envelope?.action_cards?.conservative || 0}/{throughputControls.service_envelope?.action_cards?.balanced || 0}/{throughputControls.service_envelope?.action_cards?.aggressive || 0}。</p>
+              <p>
+                目标客户 {throughputControls.service_envelope?.target_active_clients || 0}{' '}
+                人，目标标的 {throughputControls.service_envelope?.target_daily_symbols || 0}{' '}
+                个，行动卡 {throughputControls.service_envelope?.action_cards?.conservative || 0}/
+                {throughputControls.service_envelope?.action_cards?.balanced || 0}/
+                {throughputControls.service_envelope?.action_cards?.aggressive || 0}。
+              </p>
             </article>
             <article className="source-card">
               <strong>Alpha Discovery</strong>
-              <p>间隔 {throughputControls.alpha_discovery?.interval_hours || 0} 小时，每轮 {throughputControls.alpha_discovery?.max_candidates_per_cycle || 0} 个候选，搜索预算 {throughputControls.alpha_discovery?.search_budget || 0}。</p>
+              <p>
+                间隔 {throughputControls.alpha_discovery?.interval_hours || 0} 小时，每轮{' '}
+                {throughputControls.alpha_discovery?.max_candidates_per_cycle || 0} 个候选，搜索预算{' '}
+                {throughputControls.alpha_discovery?.search_budget || 0}。
+              </p>
             </article>
             <article className="source-card">
               <strong>Family 配额</strong>
-              <p>{Object.entries(throughputControls.alpha_discovery?.family_coverage_targets || {}).map(([family, value]) => `${family}:${value}`).join(' / ') || '未配置'}</p>
+              <p>
+                {Object.entries(throughputControls.alpha_discovery?.family_coverage_targets || {})
+                  .map(([family, value]) => `${family}:${value}`)
+                  .join(' / ') || '未配置'}
+              </p>
             </article>
             <article className="source-card">
               <strong>新闻刷新</strong>
-              <p>TTL {throughputControls.news_pipeline?.ttl_minutes || 0} 分钟，并发 {throughputControls.news_pipeline?.refresh_concurrency || 0}，扩展阈值 {throughputControls.news_pipeline?.min_rows_for_expansion || 0} 条。</p>
+              <p>
+                TTL {throughputControls.news_pipeline?.ttl_minutes || 0} 分钟，并发{' '}
+                {throughputControls.news_pipeline?.refresh_concurrency || 0}，扩展阈值{' '}
+                {throughputControls.news_pipeline?.min_rows_for_expansion || 0} 条。
+              </p>
             </article>
             <article className="source-card">
               <strong>Gemini 因子化</strong>
-              <p>并发 {throughputControls.news_pipeline?.gemini_factor_concurrency || 0}，最小间隔 {throughputControls.news_pipeline?.gemini_request_gap_ms || 0}ms。</p>
+              <p>
+                并发 {throughputControls.news_pipeline?.gemini_factor_concurrency || 0}，最小间隔{' '}
+                {throughputControls.news_pipeline?.gemini_request_gap_ms || 0}ms。
+              </p>
             </article>
             <article className="source-card">
               <strong>Heuristic 回退</strong>
-              <p>{throughputControls.news_pipeline?.heuristic_factor_fallback ? '已开启，Gemini 失败时仍结构化新闻因子。' : '已关闭，仅依赖 Gemini。'}</p>
+              <p>
+                {throughputControls.news_pipeline?.heuristic_factor_fallback
+                  ? '已开启，Gemini 失败时仍结构化新闻因子。'
+                  : '已关闭，仅依赖 Gemini。'}
+              </p>
             </article>
           </div>
         </article>
@@ -206,19 +262,32 @@ export default function SystemHealthPage() {
           <div className="source-card-grid">
             <article className="source-card">
               <strong>Free data</strong>
-              <p>新闻刷新 {throughputRecent.latest_free_data?.refreshed_symbols ?? 0} 个标的，新闻写入 {throughputRecent.latest_free_data?.rows_upserted ?? 0} 条。</p>
+              <p>
+                新闻刷新 {throughputRecent.latest_free_data?.refreshed_symbols ?? 0}{' '}
+                个标的，新闻写入 {throughputRecent.latest_free_data?.rows_upserted ?? 0} 条。
+              </p>
             </article>
             <article className="source-card">
               <strong>Alpha discovery</strong>
-              <p>接受 {throughputRecent.latest_alpha_discovery?.accepted ?? 0} 个，拒绝 {throughputRecent.latest_alpha_discovery?.rejected ?? 0} 个。</p>
+              <p>
+                接受 {throughputRecent.latest_alpha_discovery?.accepted ?? 0} 个，拒绝{' '}
+                {throughputRecent.latest_alpha_discovery?.rejected ?? 0} 个。
+              </p>
             </article>
             <article className="source-card">
               <strong>Shadow runner</strong>
-              <p>处理 {throughputRecent.latest_shadow_monitoring?.candidates_processed ?? 0} 个，晋升 Canary {throughputRecent.latest_shadow_monitoring?.promoted_to_canary ?? 0} 个。</p>
+              <p>
+                处理 {throughputRecent.latest_shadow_monitoring?.candidates_processed ?? 0} 个，晋升
+                Canary {throughputRecent.latest_shadow_monitoring?.promoted_to_canary ?? 0} 个。
+              </p>
             </article>
             <article className="source-card">
               <strong>Nova training</strong>
-              <p>样本 {throughputRecent.latest_training?.dataset_count ?? 0}，状态 {throughputRecent.latest_training?.status || 'IDLE'}，执行 {throughputRecent.latest_training?.execution?.reason || 'execution_not_requested'}。</p>
+              <p>
+                样本 {throughputRecent.latest_training?.dataset_count ?? 0}，状态{' '}
+                {throughputRecent.latest_training?.status || 'IDLE'}，执行{' '}
+                {throughputRecent.latest_training?.execution?.reason || 'execution_not_requested'}。
+              </p>
             </article>
           </div>
         </article>
@@ -237,7 +306,9 @@ export default function SystemHealthPage() {
                   <strong>{row.title}</strong>
                   <p>{row.detail}</p>
                 </div>
-                <span className={`status-pill ${row.severity === 'WARN' ? 'is-red' : 'is-blue'}`}>{row.severity}</span>
+                <span className={`status-pill ${row.severity === 'WARN' ? 'is-red' : 'is-blue'}`}>
+                  {row.severity}
+                </span>
               </div>
             ))}
             {!diagnostics.length ? <p className="panel-copy">当前没有明显瓶颈告警。</p> : null}
@@ -278,7 +349,9 @@ export default function SystemHealthPage() {
                 </div>
                 <div className="candidate-timeline-meta">
                   <span className="status-pill is-slate">{row.alias}</span>
-                  <span>{row.provider}/{row.model}</span>
+                  <span>
+                    {row.provider}/{row.model}
+                  </span>
                 </div>
               </div>
             ))}
@@ -316,17 +389,23 @@ export default function SystemHealthPage() {
           <div className="news-factor-list">
             {(data?.recent_news_factors || []).map((row) => (
               <article key={row.id} className="news-factor-card">
-                <strong>{row.symbol} · {row.source}</strong>
+                <strong>
+                  {row.symbol} · {row.source}
+                </strong>
                 <p>{row.factor_summary || row.headline}</p>
                 <div className="news-factor-tags">
                   {(row.factor_tags || []).slice(0, 6).map((tag) => (
-                    <span key={tag} className="tag-chip">{tag}</span>
+                    <span key={tag} className="tag-chip">
+                      {tag}
+                    </span>
                   ))}
                   {!row.factor_tags?.length ? <span className="tag-chip">无标签</span> : null}
                 </div>
               </article>
             ))}
-            {!data?.recent_news_factors?.length ? <p className="panel-copy">当前没有结构化新闻因子。</p> : null}
+            {!data?.recent_news_factors?.length ? (
+              <p className="panel-copy">当前没有结构化新闻因子。</p>
+            ) : null}
           </div>
         </article>
 
@@ -340,10 +419,14 @@ export default function SystemHealthPage() {
               <div key={row.id} className="candidate-timeline-item">
                 <div>
                   <strong>{row.task_type}</strong>
-                  <p>{row.route_alias || 'unrouted'} · {row.model_name || 'model-unknown'}</p>
+                  <p>
+                    {row.route_alias || 'unrouted'} · {row.model_name || 'model-unknown'}
+                  </p>
                 </div>
                 <div className="candidate-timeline-meta">
-                  <span className={`status-pill ${row.status === 'SUCCEEDED' ? 'is-green' : row.status === 'FAILED' ? 'is-red' : 'is-slate'}`}>
+                  <span
+                    className={`status-pill ${row.status === 'SUCCEEDED' ? 'is-green' : row.status === 'FAILED' ? 'is-red' : 'is-slate'}`}
+                  >
                     {row.status}
                   </span>
                   <span>{row.created_at}</span>

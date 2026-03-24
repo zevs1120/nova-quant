@@ -1,10 +1,12 @@
 # AI Copilot Output Contract
 
 ## Principle
+
 The assistant must not behave like a generic chat model.
 It must behave like a structured trading copilot.
 
 ## Default response sections
+
 1. Verdict
 2. Plan
 3. Why
@@ -12,6 +14,7 @@ It must behave like a structured trading copilot.
 5. Evidence (collapsed by default)
 
 ## Output schema
+
 ```json
 {
   "verdict": {
@@ -23,9 +26,9 @@ It must behave like a structured trading copilot.
     {
       "instrument": "",
       "side": "long|short",
-      "entry_zone": [0,0],
+      "entry_zone": [0, 0],
       "stop": 0,
-      "take_profit": [0,0],
+      "take_profit": [0, 0],
       "suggested_size_pct": 0,
       "holding_horizon_days": 0,
       "risk_bucket": "A|B|C"
@@ -53,6 +56,7 @@ It must behave like a structured trading copilot.
 ```
 
 ## Forbidden behaviors
+
 - vague inspirational text
 - naked prediction without plan
 - unsupported certainty

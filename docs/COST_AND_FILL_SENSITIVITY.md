@@ -9,6 +9,7 @@ Measure whether strategy and portfolio behavior survives harsher execution condi
 ## Scenarios
 
 Nova Quant now evaluates these built-in scenarios:
+
 1. `baseline`
 2. `slippage_plus_25`
 3. `slippage_plus_50`
@@ -17,16 +18,19 @@ Nova Quant now evaluates these built-in scenarios:
 6. `strict_fill`
 
 Optional test-only:
+
 - `optimistic_fill_test_only` (for diagnostics only, not promotion claims)
 
 ## Where sensitivity is applied
 
 ### Replay
+
 - Module: `src/research/validation/historicalReplayValidation.js`
 - Output: `replay_validation.execution_sensitivity[]`
 - Includes scenario summary and deltas vs baseline.
 
 ### Walk-forward validation
+
 - Module: `src/research/core/walkForwardValidation.js`
 - Outputs:
   - `cost_sensitivity` (including spread/funding/strict-fill stress),
@@ -34,12 +38,14 @@ Optional test-only:
   - verdict flag `survives_after_harsh_execution`.
 
 ### Candidate validation
+
 - Module: `src/research/discovery/candidateValidation.js`
 - Stage-2/3 metrics now include:
   - explicit execution assumption profile,
   - scenario cost-stress returns.
 
 ### Portfolio simulation
+
 - Module: `src/portfolio_simulation/portfolioSimulationEngine.js`
 - Output:
   - `diagnostics.execution_realism.scenario_sensitivity[]`
@@ -47,6 +53,7 @@ Optional test-only:
 ## Governance and evidence implications
 
 Execution realism now feeds:
+
 - evidence objects (`assumption_profile`, `cost_realism_notes`, `fill_realism_notes`, `funding_realism_notes`),
 - governance confidence (includes harsh-execution survival),
 - promotion interpretation (pass/hold under stricter assumptions).

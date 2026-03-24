@@ -5,7 +5,7 @@ import {
   applyScenarioToProfile,
   buildExecutionSensitivityScenarios,
   resolveExecutionAssumptions,
-  resolveExecutionRealismProfile
+  resolveExecutionRealismProfile,
 } from './executionRealismModel.js';
 
 const DEFAULT_REPLAY_CONFIG = Object.freeze({
@@ -16,7 +16,7 @@ const DEFAULT_REPLAY_CONFIG = Object.freeze({
   max_hold_bars_default: 8,
   max_recorded_drawdown_points: 32,
   execution_realism_mode: 'replay',
-  include_test_only_scenarios: false
+  include_test_only_scenarios: false,
 });
 
 const ACTIVE_SIGNAL_STATUS = new Set(['NEW', 'TRIGGERED']);
@@ -44,7 +44,7 @@ function normalizedBars(instruments = []) {
         high: safe(bar?.high),
         low: safe(bar?.low),
         close: safe(bar?.close),
-        volume: safe(bar?.volume)
+        volume: safe(bar?.volume),
       }))
       .filter((bar) => bar.date && Number.isFinite(bar.close) && bar.close > 0)
       .sort((a, b) => String(a.date).localeCompare(String(b.date)));
@@ -54,7 +54,7 @@ function normalizedBars(instruments = []) {
       symbol,
       market: row?.market || 'US',
       asset_class: row?.asset_class || (row?.market === 'CRYPTO' ? 'CRYPTO' : 'US_STOCK'),
-      bars
+      bars,
     });
   }
   return bySymbol;
@@ -82,7 +82,7 @@ function entryBounds(signal = {}) {
   if (!Number.isFinite(low) || !Number.isFinite(high) || low <= 0 || high <= 0) return null;
   return {
     low: Math.min(low, high),
-    high: Math.max(low, high)
+    high: Math.max(low, high),
   };
 }
 
@@ -100,7 +100,9 @@ function entryTriggered({ bounds, bar, direction, model }) {
   }
 
   if (model === FILL_POLICIES.BAR_CROSS_BASED) {
-    return isShort ? safe(bar.low, Infinity) <= bounds.low : safe(bar.high, -Infinity) >= bounds.high;
+    return isShort
+      ? safe(bar.low, Infinity) <= bounds.low
+      : safe(bar.high, -Infinity) >= bounds.high;
   }
 
   if (model === FILL_POLICIES.CONSERVATIVE_FILL) {
@@ -127,11 +129,23 @@ function referenceEntryPrice({ bounds, bar, direction, model }) {
 
   if (model === FILL_POLICIES.CONSERVATIVE_FILL) {
     return isShort
-      ? clamp(Math.min(bounds.low, safe(bar.close, bounds.low)), safe(bar.low, bounds.low), bounds.high)
-      : clamp(Math.max(bounds.high, safe(bar.close, bounds.high)), bounds.low, safe(bar.high, bounds.high));
+      ? clamp(
+          Math.min(bounds.low, safe(bar.close, bounds.low)),
+          safe(bar.low, bounds.low),
+          bounds.high,
+        )
+      : clamp(
+          Math.max(bounds.high, safe(bar.close, bounds.high)),
+          bounds.low,
+          safe(bar.high, bounds.high),
+        );
   }
 
-  return clamp((bounds.low + bounds.high) / 2, safe(bar.low, bounds.low), safe(bar.high, bounds.high));
+  return clamp(
+    (bounds.low + bounds.high) / 2,
+    safe(bar.low, bounds.low),
+    safe(bar.high, bounds.high),
+  );
 }
 
 function horizonBars(signal = {}, cfg = DEFAULT_REPLAY_CONFIG) {
@@ -159,11 +173,14 @@ function recordForwardPath({ signal, bars, startIdx, horizons }) {
       forward_3: 0,
       forward_5: 0,
       max_drawdown_proxy: 0,
-      source: 'missing_bars'
+      source: 'missing_bars',
     };
   }
 
-  const reference = safe(signal?.entry_zone?.high ?? signal?.entry_zone?.low ?? bars[startIdx].close, bars[startIdx].close);
+  const reference = safe(
+    signal?.entry_zone?.high ?? signal?.entry_zone?.low ?? bars[startIdx].close,
+    bars[startIdx].close,
+  );
   const closes = [];
   const out = {};
 
@@ -185,7 +202,7 @@ function recordForwardPath({ signal, bars, startIdx, horizons }) {
     forward_3: out.forward_3 ?? 0,
     forward_5: out.forward_5 ?? 0,
     max_drawdown_proxy: round(maxDrawdownFromCurve(curve) * -1, 6),
-    source: 'historical_bar_replay'
+    source: 'historical_bar_replay',
   };
 }
 
@@ -193,27 +210,27 @@ function shouldBlockSignal({ signal, riskDecision, noTradeReason }) {
   if (!ACTIVE_SIGNAL_STATUS.has(String(signal?.status || '').toUpperCase())) {
     return {
       blocked: true,
-      reason: 'inactive_signal_status'
+      reason: 'inactive_signal_status',
     };
   }
 
   if (noTradeReason) {
     return {
       blocked: true,
-      reason: noTradeReason
+      reason: noTradeReason,
     };
   }
 
   if (riskDecision?.decision === 'blocked') {
     return {
       blocked: true,
-      reason: 'risk_blocked'
+      reason: 'risk_blocked',
     };
   }
 
   return {
     blocked: false,
-    reason: null
+    reason: null,
   };
 }
 
@@ -241,7 +258,7 @@ function tradeExitCheck({ signal, bar, stop, takeProfit, intrabarPriority }) {
   if (stopHit && targetHit) {
     return {
       exit_type: intrabarPriority === 'target_first' ? 'take_profit' : 'stop_loss',
-      both_touched_same_bar: true
+      both_touched_same_bar: true,
     };
   }
   if (stopHit) return { exit_type: 'stop_loss', both_touched_same_bar: false };
@@ -267,8 +284,10 @@ function summarizeTrades(trades = []) {
     trigger_rate: trades.length ? round(triggered.length / trades.length, 4) : 0,
     win_rate: closed.length ? round(wins.length / closed.length, 4) : 0,
     avg_realized_pnl_pct: closed.length ? round(mean(netReturns), 6) : 0,
-    avg_holding_bars: closed.length ? round(mean(closed.map((row) => safe(row.realized_holding_duration?.bars))), 4) : 0,
-    max_drawdown_from_trade_sequence: round(maxDrawdownFromCurve(equity), 6)
+    avg_holding_bars: closed.length
+      ? round(mean(closed.map((row) => safe(row.realized_holding_duration?.bars))), 4)
+      : 0,
+    max_drawdown_from_trade_sequence: round(maxDrawdownFromCurve(equity), 6),
   };
 }
 
@@ -285,16 +304,22 @@ function groupStats(rows = [], key) {
     const triggered = list.filter((row) => row.replay_entry_event?.triggered);
     const closed = triggered.filter((row) => row.replay_exit_event?.exit_type);
     const pnl = closed.map((row) => safe(row.realized_pnl_pct));
-    const drawdowns = closed.map((row) => Math.abs(safe(row.drawdown_summary?.max_drawdown_pct || 0)));
+    const drawdowns = closed.map((row) =>
+      Math.abs(safe(row.drawdown_summary?.max_drawdown_pct || 0)),
+    );
     return {
       [key]: group,
       signals: list.length,
       triggered_trades: triggered.length,
       closed_trades: closed.length,
-      win_rate: closed.length ? round(closed.filter((row) => safe(row.realized_pnl_pct) > 0).length / closed.length, 4) : 0,
+      win_rate: closed.length
+        ? round(closed.filter((row) => safe(row.realized_pnl_pct) > 0).length / closed.length, 4)
+        : 0,
       avg_trade_return_post_cost: pnl.length ? round(mean(pnl), 6) : 0,
       avg_drawdown_abs: drawdowns.length ? round(mean(drawdowns), 6) : 0,
-      avg_holding_bars: closed.length ? round(mean(closed.map((row) => safe(row.realized_holding_duration?.bars))), 4) : 0
+      avg_holding_bars: closed.length
+        ? round(mean(closed.map((row) => safe(row.realized_holding_duration?.bars))), 4)
+        : 0,
     };
   });
 }
@@ -315,7 +340,7 @@ function aggregateDaily(records = [], regimeState = {}, allDates = []) {
         gross_exposure_pct: 0,
         net_exposure_pct: 0,
         trades_triggered: 0,
-        trades_closed: 0
+        trades_closed: 0,
       });
     }
     return map.get(key);
@@ -363,7 +388,7 @@ function aggregateDaily(records = [], regimeState = {}, allDates = []) {
       post_cost_return: round(row.post_cost_return, 6),
       turnover: round(row.turnover * 100, 4),
       gross_exposure_pct: round(row.gross_exposure_pct, 4),
-      net_exposure_pct: round(row.net_exposure_pct, 4)
+      net_exposure_pct: round(row.net_exposure_pct, 4),
     }));
 }
 
@@ -374,7 +399,7 @@ function replaySignal({
   noTradeReason,
   regimeState,
   cfg,
-  executionProfile
+  executionProfile,
 }) {
   const signalTime = signal?.created_at || signal?.generated_at;
   const signalDate = isoDate(signalTime);
@@ -389,8 +414,8 @@ function replaySignal({
       signal_id: signal.signal_id,
       symbol: signal.symbol,
       status: signal.status,
-      regime_state: regimeState?.state?.primary || 'unknown'
-    }
+      regime_state: regimeState?.state?.primary || 'unknown',
+    },
   });
 
   const barPack = instrument || null;
@@ -405,8 +430,8 @@ function replaySignal({
     mode: 'replay',
     fillPolicy: {
       entry: cfg.entry_fill_model,
-      exit: cfg.exit_fill_model
-    }
+      exit: cfg.exit_fill_model,
+    },
   });
 
   const fwd = recordForwardPath({ signal, bars, startIdx, horizons: cfg.forward_horizons });
@@ -420,8 +445,8 @@ function replaySignal({
     details: {
       reason: blocked.reason || null,
       risk_decision: riskDecision?.decision || 'allow',
-      no_trade_reason: noTradeReason || null
-    }
+      no_trade_reason: noTradeReason || null,
+    },
   });
 
   const baseRecord = {
@@ -443,20 +468,20 @@ function replaySignal({
       entry_time: null,
       entry_price: null,
       bar_index: null,
-      reason: blocked.blocked ? blocked.reason : 'pending'
+      reason: blocked.blocked ? blocked.reason : 'pending',
     },
     replay_exit_event: {
       exit_type: null,
       exit_time: null,
       exit_price: null,
       bar_index: null,
-      reason: blocked.blocked ? blocked.reason : 'pending'
+      reason: blocked.blocked ? blocked.reason : 'pending',
     },
     fill_assumption_used: {
       entry_fill_model: baselineAssumption.fill_policy.entry,
       exit_fill_model: baselineAssumption.fill_policy.exit,
       intrabar_priority: cfg.intrabar_priority,
-      limit_touch_rule: 'touch_entry_zone'
+      limit_touch_rule: 'touch_entry_zone',
     },
     slippage_assumption_used: {
       market: baselineAssumption.market,
@@ -470,22 +495,22 @@ function replaySignal({
       funding_bps_per_day: baselineAssumption.funding_bps_per_day,
       borrow_bps_per_day: baselineAssumption.borrow_bps_per_day,
       latency_slippage_bps: baselineAssumption.latency_slippage_bps,
-      partial_fill_probability: baselineAssumption.partial_fill_probability
+      partial_fill_probability: baselineAssumption.partial_fill_probability,
     },
     assumption_profile: {
       profile_id: baselineAssumption.profile_id,
       mode: baselineAssumption.mode,
-      scenario: executionProfile?.assumption_scenario || 'baseline'
+      scenario: executionProfile?.assumption_scenario || 'baseline',
     },
     realized_holding_duration: {
       bars: 0,
-      days: 0
+      days: 0,
     },
     position_size_pct: safe(signal?.position_advice?.position_pct ?? signal?.position_size_pct, 0),
     effective_position_size_pct: round(
       safe(signal?.position_advice?.position_pct ?? signal?.position_size_pct, 0) *
         safe(baselineAssumption.partial_fill_probability, 0.98),
-      6
+      6,
     ),
     realized_pnl_pre_cost_pct: 0,
     realized_pnl_pct: 0,
@@ -494,33 +519,33 @@ function replaySignal({
       liquidity_bucket: baselineAssumption.liquidity_bucket,
       partial_fill_probability: baselineAssumption.partial_fill_probability,
       borrow_bps_per_day: baselineAssumption.borrow_bps_per_day,
-      latency_slippage_bps: baselineAssumption.latency_slippage_bps
+      latency_slippage_bps: baselineAssumption.latency_slippage_bps,
     },
     cost_realism_notes: baselineAssumption.realism_notes || [],
     fill_realism_notes: [
       `Entry policy=${baselineAssumption.fill_policy.entry}`,
       `Exit policy=${baselineAssumption.fill_policy.exit}`,
-      `Expected fill ratio=${round(safe(baselineAssumption.partial_fill_probability, 0.98), 4)}`
+      `Expected fill ratio=${round(safe(baselineAssumption.partial_fill_probability, 0.98), 4)}`,
     ],
     funding_realism_notes: [
       baselineAssumption.market === 'CRYPTO'
         ? `Funding drag modeled at ${baselineAssumption.funding_bps_per_day} bps/day.`
         : baselineAssumption.borrow_bps_per_day > 0
           ? `Short borrow drag modeled at ${baselineAssumption.borrow_bps_per_day} bps/day.`
-          : 'No funding drag applied for US equities.'
+          : 'No funding drag applied for US equities.',
     ],
     drawdown_path: [],
     drawdown_summary: {
       max_drawdown_pct: 0,
-      source: 'not_triggered'
+      source: 'not_triggered',
     },
     trade_triggered: false,
     trigger_window: {
       start_date: signalDate,
-      end_date: signalDate
+      end_date: signalDate,
     },
     forward_performance: fwd,
-    lifecycle_events: lifecycle
+    lifecycle_events: lifecycle,
   };
 
   if (blocked.blocked) {
@@ -534,8 +559,8 @@ function replaySignal({
       replay_entry_event: {
         ...baseRecord.replay_entry_event,
         reason: 'missing_market_data',
-        event_type: 'entry_not_evaluated'
-      }
+        event_type: 'entry_not_evaluated',
+      },
     };
     out.lifecycle_events = [
       ...lifecycle,
@@ -544,8 +569,8 @@ function replaySignal({
         event_type: 'replay_skipped',
         event_time: signalTime,
         event_date: signalDate,
-        details: { reason: 'missing_market_data' }
-      }
+        details: { reason: 'missing_market_data' },
+      },
     ];
     return out;
   }
@@ -564,8 +589,8 @@ function replaySignal({
       replay_entry_event: {
         ...baseRecord.replay_entry_event,
         reason: 'invalid_entry_zone',
-        event_type: 'entry_not_evaluated'
-      }
+        event_type: 'entry_not_evaluated',
+      },
     };
     out.lifecycle_events = [
       ...lifecycle,
@@ -574,8 +599,8 @@ function replaySignal({
         event_type: 'replay_skipped',
         event_time: signalTime,
         event_date: signalDate,
-        details: { reason: 'invalid_entry_zone' }
-      }
+        details: { reason: 'invalid_entry_zone' },
+      },
     ];
     return out;
   }
@@ -586,12 +611,14 @@ function replaySignal({
 
   for (let i = startIdx; i <= endIdx; i += 1) {
     const bar = bars[i];
-    if (!entryTriggered({
-      bounds,
-      bar,
-      direction: signal.direction,
-      model: baselineAssumption.fill_policy.entry
-    })) {
+    if (
+      !entryTriggered({
+        bounds,
+        bar,
+        direction: signal.direction,
+        model: baselineAssumption.fill_policy.entry,
+      })
+    ) {
       continue;
     }
 
@@ -600,7 +627,7 @@ function replaySignal({
       signal: { ...signal, market: signal?.market || barPack?.market || 'US' },
       bar,
       mode: 'replay',
-      fillPolicy: baselineAssumption.fill_policy
+      fillPolicy: baselineAssumption.fill_policy,
     });
 
     entryIdx = i;
@@ -608,14 +635,14 @@ function replaySignal({
       bounds,
       bar,
       direction: signal.direction,
-      model: entryAssumption.fill_policy.entry
+      model: entryAssumption.fill_policy.entry,
     });
     entryPrice = adjustPriceForExecution({
       price: assumed,
       direction: signal.direction,
       side: 'entry',
       slippageBps: entryAssumption.entry_slippage_bps,
-      spreadBps: entryAssumption.spread_bps
+      spreadBps: entryAssumption.spread_bps,
     });
     break;
   }
@@ -629,19 +656,19 @@ function replaySignal({
         entry_time: null,
         entry_price: null,
         bar_index: null,
-        reason: 'entry_zone_not_touched'
+        reason: 'entry_zone_not_touched',
       },
       replay_exit_event: {
         exit_type: 'not_triggered',
         exit_time: null,
         exit_price: null,
         bar_index: null,
-        reason: 'entry_zone_not_touched'
+        reason: 'entry_zone_not_touched',
       },
       trigger_window: {
         start_date: bars[startIdx]?.date || signalDate,
-        end_date: bars[endIdx]?.date || signalDate
-      }
+        end_date: bars[endIdx]?.date || signalDate,
+      },
     };
 
     out.lifecycle_events = [
@@ -651,8 +678,11 @@ function replaySignal({
         event_type: 'entry_not_triggered',
         event_time: signalTime,
         event_date: bars[endIdx]?.date || signalDate,
-        details: { reason: 'entry_zone_not_touched', trigger_window_end: bars[endIdx]?.date || signalDate }
-      }
+        details: {
+          reason: 'entry_zone_not_touched',
+          trigger_window_end: bars[endIdx]?.date || signalDate,
+        },
+      },
     ];
     return out;
   }
@@ -676,7 +706,7 @@ function replaySignal({
       bar,
       stop,
       takeProfit: tp1,
-      intrabarPriority: cfg.intrabar_priority
+      intrabarPriority: cfg.intrabar_priority,
     });
 
     if (!check.exit_type) continue;
@@ -697,7 +727,7 @@ function replaySignal({
     signal: { ...signal, market: signal?.market || barPack?.market || 'US' },
     bar: exitBar,
     mode: 'replay',
-    fillPolicy: entryAssumption.fill_policy
+    fillPolicy: entryAssumption.fill_policy,
   });
 
   const exitPrice = adjustPriceForExecution({
@@ -705,11 +735,12 @@ function replaySignal({
     direction: signal.direction,
     side: 'exit',
     slippageBps: exitAssumption.exit_slippage_bps,
-    spreadBps: exitAssumption.spread_bps
+    spreadBps: exitAssumption.spread_bps,
   });
 
   const grossReturn = estimateMarkReturn(signal.direction, entryPrice, exitPrice);
-  const feeDrag = ((safe(entryAssumption.fee_bps_per_side, 0) + safe(exitAssumption.fee_bps_per_side, 0)) / 10000);
+  const feeDrag =
+    (safe(entryAssumption.fee_bps_per_side, 0) + safe(exitAssumption.fee_bps_per_side, 0)) / 10000;
 
   const entryDate = bars[entryIdx]?.date || signalDate;
   const exitDate = bars[exitIdx]?.date || signalDate;
@@ -721,16 +752,24 @@ function replaySignal({
     return Math.max(1, Math.round((b - a) / 86400000) + 1);
   })();
 
-  const fundingBpsPerDay = (safe(entryAssumption.funding_bps_per_day, 0) + safe(exitAssumption.funding_bps_per_day, 0)) / 2;
+  const fundingBpsPerDay =
+    (safe(entryAssumption.funding_bps_per_day, 0) + safe(exitAssumption.funding_bps_per_day, 0)) /
+    2;
   const fundingDrag = (fundingBpsPerDay / 10000) * days;
-  const borrowBpsPerDay = (safe(entryAssumption.borrow_bps_per_day, 0) + safe(exitAssumption.borrow_bps_per_day, 0)) / 2;
+  const borrowBpsPerDay =
+    (safe(entryAssumption.borrow_bps_per_day, 0) + safe(exitAssumption.borrow_bps_per_day, 0)) / 2;
   const borrowDrag = (borrowBpsPerDay / 10000) * days;
   const fillRatio = round(
     Math.max(
       0.35,
-      Math.min(1, (safe(entryAssumption.partial_fill_probability, 0.98) + safe(exitAssumption.partial_fill_probability, 0.98)) / 2)
+      Math.min(
+        1,
+        (safe(entryAssumption.partial_fill_probability, 0.98) +
+          safe(exitAssumption.partial_fill_probability, 0.98)) /
+          2,
+      ),
     ),
-    6
+    6,
   );
   const netReturn = grossReturn - feeDrag - fundingDrag - borrowDrag;
 
@@ -752,7 +791,7 @@ function replaySignal({
       entry_time: `${entryDate}T00:00:00.000Z`,
       entry_price: round(entryPrice, 6),
       bar_index: entryIdx,
-      reason: 'entry_zone_touched'
+      reason: 'entry_zone_touched',
     },
     replay_exit_event: {
       exit_type: exitType,
@@ -760,13 +799,13 @@ function replaySignal({
       exit_price: round(exitPrice, 6),
       bar_index: exitIdx,
       reason: exitType === 'expiry' ? 'expiry_or_horizon_reached' : exitType,
-      both_touched_same_bar: bothTouchedSameBar
+      both_touched_same_bar: bothTouchedSameBar,
     },
     fill_assumption_used: {
       entry_fill_model: entryAssumption.fill_policy.entry,
       exit_fill_model: exitAssumption.fill_policy.exit,
       intrabar_priority: cfg.intrabar_priority,
-      limit_touch_rule: 'touch_entry_zone'
+      limit_touch_rule: 'touch_entry_zone',
     },
     slippage_assumption_used: {
       market: entryAssumption.market,
@@ -775,21 +814,32 @@ function replaySignal({
       liquidity_bucket: entryAssumption.liquidity_bucket,
       entry_bps: entryAssumption.entry_slippage_bps,
       exit_bps: exitAssumption.exit_slippage_bps,
-      spread_bps: round((safe(entryAssumption.spread_bps) + safe(exitAssumption.spread_bps)) / 2, 6),
-      fee_bps: round((safe(entryAssumption.fee_bps_per_side) + safe(exitAssumption.fee_bps_per_side)) / 2, 6),
+      spread_bps: round(
+        (safe(entryAssumption.spread_bps) + safe(exitAssumption.spread_bps)) / 2,
+        6,
+      ),
+      fee_bps: round(
+        (safe(entryAssumption.fee_bps_per_side) + safe(exitAssumption.fee_bps_per_side)) / 2,
+        6,
+      ),
       funding_bps_per_day: round(fundingBpsPerDay, 6),
       borrow_bps_per_day: round(borrowBpsPerDay, 6),
-      latency_slippage_bps: round((safe(entryAssumption.latency_slippage_bps, 0) + safe(exitAssumption.latency_slippage_bps, 0)) / 2, 6),
-      partial_fill_probability: fillRatio
+      latency_slippage_bps: round(
+        (safe(entryAssumption.latency_slippage_bps, 0) +
+          safe(exitAssumption.latency_slippage_bps, 0)) /
+          2,
+        6,
+      ),
+      partial_fill_probability: fillRatio,
     },
     assumption_profile: {
       profile_id: entryAssumption.profile_id,
       mode: entryAssumption.mode,
-      scenario: executionProfile?.assumption_scenario || 'baseline'
+      scenario: executionProfile?.assumption_scenario || 'baseline',
     },
     realized_holding_duration: {
       bars: holdingBars,
-      days
+      days,
     },
     effective_position_size_pct: round(safe(baseRecord.position_size_pct, 0) * fillRatio, 6),
     realized_pnl_pre_cost_pct: round(grossReturn, 6),
@@ -799,30 +849,35 @@ function replaySignal({
       liquidity_bucket: entryAssumption.liquidity_bucket,
       partial_fill_probability: fillRatio,
       borrow_bps_per_day: round(borrowBpsPerDay, 6),
-      latency_slippage_bps: round((safe(entryAssumption.latency_slippage_bps, 0) + safe(exitAssumption.latency_slippage_bps, 0)) / 2, 6)
+      latency_slippage_bps: round(
+        (safe(entryAssumption.latency_slippage_bps, 0) +
+          safe(exitAssumption.latency_slippage_bps, 0)) /
+          2,
+        6,
+      ),
     },
     drawdown_path: clippedPath,
     drawdown_summary: {
       max_drawdown_pct: round(maxDd * -1, 6),
-      source: 'bar_close_mark_to_market'
+      source: 'bar_close_mark_to_market',
     },
     trigger_window: {
       start_date: bars[startIdx]?.date || signalDate,
-      end_date: bars[endIdx]?.date || signalDate
+      end_date: bars[endIdx]?.date || signalDate,
     },
     cost_realism_notes: entryAssumption.realism_notes || [],
     fill_realism_notes: [
       `Entry policy=${entryAssumption.fill_policy.entry}`,
       `Exit policy=${exitAssumption.fill_policy.exit}`,
-      `Expected fill ratio=${fillRatio}`
+      `Expected fill ratio=${fillRatio}`,
     ],
     funding_realism_notes: [
       entryAssumption.market === 'CRYPTO'
         ? `Funding drag applied: ${round(fundingDrag, 6)} return units over ${days} day(s).`
         : borrowDrag > 0
           ? `Borrow drag applied: ${round(borrowDrag, 6)} return units over ${days} day(s).`
-          : 'No funding drag applied for US equities.'
-    ]
+          : 'No funding drag applied for US equities.',
+    ],
   };
 
   out.lifecycle_events = [
@@ -836,8 +891,8 @@ function replaySignal({
         entry_price: out.replay_entry_event.entry_price,
         entry_model: entryAssumption.fill_policy.entry,
         slippage_bps: out.slippage_assumption_used.entry_bps,
-        spread_bps: out.slippage_assumption_used.spread_bps
-      }
+        spread_bps: out.slippage_assumption_used.spread_bps,
+      },
     },
     {
       event_order: 4,
@@ -852,9 +907,9 @@ function replaySignal({
         intrabar_priority: cfg.intrabar_priority,
         funding_drag_pct: round(fundingDrag, 6),
         borrow_drag_pct: round(borrowDrag, 6),
-        effective_fill_ratio: fillRatio
-      }
-    }
+        effective_fill_ratio: fillRatio,
+      },
+    },
   ];
 
   return out;
@@ -873,9 +928,9 @@ function toOutcomeMap(records = []) {
         effective_position_size_pct: row.effective_position_size_pct,
         execution_quality_summary: row.execution_quality_summary,
         drawdown_summary: row.drawdown_summary,
-        forward_performance: row.forward_performance
-      }
-    ])
+        forward_performance: row.forward_performance,
+      },
+    ]),
   );
 }
 
@@ -887,7 +942,7 @@ function replayPass({
   regimeState = {},
   cfg = DEFAULT_REPLAY_CONFIG,
   executionProfile = {},
-  includeSignals = true
+  includeSignals = true,
 } = {}) {
   const records = orderedSignals.map((signal) => {
     const symbol = String(signal?.symbol || '').toUpperCase();
@@ -899,18 +954,22 @@ function replayPass({
       noTradeReason: noTradeReasonBySignal.get(signal.signal_id),
       regimeState,
       cfg,
-      executionProfile
+      executionProfile,
     });
   });
 
-  const closedTrades = records.filter((row) => row.replay_entry_event?.triggered && row.replay_exit_event?.exit_type);
-  const dates = [...new Set(
-    orderedSignals
-      .map((signal) => barMap.get(String(signal?.symbol || '').toUpperCase())?.bars || [])
-      .flat()
-      .map((bar) => bar?.date)
-      .filter(Boolean)
-  )].sort((a, b) => String(a).localeCompare(String(b)));
+  const closedTrades = records.filter(
+    (row) => row.replay_entry_event?.triggered && row.replay_exit_event?.exit_type,
+  );
+  const dates = [
+    ...new Set(
+      orderedSignals
+        .map((signal) => barMap.get(String(signal?.symbol || '').toUpperCase())?.bars || [])
+        .flat()
+        .map((bar) => bar?.date)
+        .filter(Boolean),
+    ),
+  ].sort((a, b) => String(a).localeCompare(String(b)));
 
   const daily = aggregateDaily(records, regimeState, dates);
   const summary = summarizeTrades(records);
@@ -922,7 +981,7 @@ function replayPass({
     family_replay_benchmarks: groupStats(closedTrades, 'strategy_family'),
     strategy_replay_benchmarks: groupStats(closedTrades, 'strategy_id'),
     signal_outcome_map: toOutcomeMap(records),
-    replayed_signals: includeSignals ? records : undefined
+    replayed_signals: includeSignals ? records : undefined,
   };
 }
 
@@ -933,7 +992,7 @@ function scenarioRows({
   noTradeReasonBySignal,
   regimeState,
   cfg,
-  baselineProfile
+  baselineProfile,
 }) {
   const scenarios = buildExecutionSensitivityScenarios(baselineProfile)
     .filter((item) => item.scenario_id !== 'baseline')
@@ -951,10 +1010,10 @@ function scenarioRows({
       cfg: {
         ...cfg,
         entry_fill_model: scenario.fill_policy_override?.entry || cfg.entry_fill_model,
-        exit_fill_model: scenario.fill_policy_override?.exit || cfg.exit_fill_model
+        exit_fill_model: scenario.fill_policy_override?.exit || cfg.exit_fill_model,
       },
       executionProfile: scenarioProfile,
-      includeSignals: false
+      includeSignals: false,
     });
 
     rows.push({
@@ -963,9 +1022,9 @@ function scenarioRows({
       assumption_profile: {
         profile_id: scenarioProfile.profile_id,
         mode: scenarioProfile.mode,
-        scenario: scenario.scenario_id
+        scenario: scenario.scenario_id,
       },
-      summary: out.summary
+      summary: out.summary,
     });
   }
 
@@ -988,7 +1047,7 @@ function legacyExecutionOverrides(config = {}) {
       low: { entry: safe(row?.entry, 4), exit: safe(row?.exit, 4) },
       normal: { entry: safe(row?.entry, 4), exit: safe(row?.exit, 4) },
       high: { entry: safe(row?.entry, 4), exit: safe(row?.exit, 4) },
-      stress: { entry: safe(row?.entry, 4), exit: safe(row?.exit, 4) }
+      stress: { entry: safe(row?.entry, 4), exit: safe(row?.exit, 4) },
     };
   }
 
@@ -1001,11 +1060,11 @@ export function buildHistoricalReplayValidation({
   regimeState = {},
   riskBucketSystem = {},
   funnelDiagnostics = {},
-  config = {}
+  config = {},
 } = {}) {
   const cfg = {
     ...DEFAULT_REPLAY_CONFIG,
-    ...config
+    ...config,
   };
 
   const executionProfile = resolveExecutionRealismProfile({
@@ -1013,19 +1072,25 @@ export function buildHistoricalReplayValidation({
     profile: cfg.execution_realism_profile || {},
     overrides: {
       ...(config?.execution_realism_overrides || {}),
-      ...legacyExecutionOverrides(config)
-    }
+      ...legacyExecutionOverrides(config),
+    },
   });
 
   const signals = championState?.signals || [];
   const instruments = championState?.layers?.data_layer?.instruments || [];
   const barMap = normalizedBars(instruments);
-  const riskBySignal = new Map((riskBucketSystem?.trade_level_buckets || []).map((row) => [row.signal_id, row]));
-  const noTradeReasonBySignal = new Map((funnelDiagnostics?.raw_records || [])
-    .filter((row) => row?.signal_id)
-    .map((row) => [row.signal_id, row.no_trade_reason]));
+  const riskBySignal = new Map(
+    (riskBucketSystem?.trade_level_buckets || []).map((row) => [row.signal_id, row]),
+  );
+  const noTradeReasonBySignal = new Map(
+    (funnelDiagnostics?.raw_records || [])
+      .filter((row) => row?.signal_id)
+      .map((row) => [row.signal_id, row.no_trade_reason]),
+  );
 
-  const orderedSignals = [...signals].sort((a, b) => String(a.created_at || '').localeCompare(String(b.created_at || '')));
+  const orderedSignals = [...signals].sort((a, b) =>
+    String(a.created_at || '').localeCompare(String(b.created_at || '')),
+  );
   const baseline = replayPass({
     orderedSignals,
     barMap,
@@ -1034,7 +1099,7 @@ export function buildHistoricalReplayValidation({
     regimeState,
     cfg,
     executionProfile,
-    includeSignals: true
+    includeSignals: true,
   });
 
   const sensitivity = scenarioRows({
@@ -1044,14 +1109,20 @@ export function buildHistoricalReplayValidation({
     noTradeReasonBySignal,
     regimeState,
     cfg,
-    baselineProfile: executionProfile
+    baselineProfile: executionProfile,
   }).map((row) => ({
     ...row,
     delta_vs_baseline: {
-      trigger_rate: round(safe(row.summary?.trigger_rate) - safe(baseline.summary?.trigger_rate), 6),
+      trigger_rate: round(
+        safe(row.summary?.trigger_rate) - safe(baseline.summary?.trigger_rate),
+        6,
+      ),
       win_rate: round(safe(row.summary?.win_rate) - safe(baseline.summary?.win_rate), 6),
-      avg_realized_pnl_pct: round(safe(row.summary?.avg_realized_pnl_pct) - safe(baseline.summary?.avg_realized_pnl_pct), 6)
-    }
+      avg_realized_pnl_pct: round(
+        safe(row.summary?.avg_realized_pnl_pct) - safe(baseline.summary?.avg_realized_pnl_pct),
+        6,
+      ),
+    },
   }));
 
   return {
@@ -1062,12 +1133,13 @@ export function buildHistoricalReplayValidation({
       assumption_profile: {
         profile_id: executionProfile.profile_id,
         mode: executionProfile.mode,
-        scenario: 'baseline'
+        scenario: 'baseline',
       },
       entry_fill_model: cfg.entry_fill_model,
       exit_fill_model: cfg.exit_fill_model,
       intrabar_priority: cfg.intrabar_priority,
-      realism_boundary: 'bar-level replay with intrabar execution ordering assumption; no tick-level queue simulation.'
+      realism_boundary:
+        'bar-level replay with intrabar execution ordering assumption; no tick-level queue simulation.',
     },
     summary: baseline.summary,
     market_replay_benchmarks: baseline.market_replay_benchmarks,
@@ -1080,7 +1152,7 @@ export function buildHistoricalReplayValidation({
     notes: [
       'Signal lifecycle is replayed in event order: formation -> filtering -> entry check -> exit evaluation.',
       'Entry/exit include explicit fee/slippage/spread/funding assumptions by market and volatility bucket.',
-      'Fill policy supports touch-based, bar-cross-based, conservative, and optional optimistic test mode.'
-    ]
+      'Fill policy supports touch-based, bar-cross-based, conservative, and optional optimistic test mode.',
+    ],
   };
 }

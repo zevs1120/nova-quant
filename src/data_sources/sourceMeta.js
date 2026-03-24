@@ -10,7 +10,7 @@ export function sourceMeta({
   use_notes,
   license_notes,
   mode,
-  docs_url
+  docs_url,
 }) {
   const transparency = transparencyFromSourceMode(mode, true);
   return {
@@ -23,7 +23,7 @@ export function sourceMeta({
     use_notes,
     license_notes,
     mode,
-    docs_url
+    docs_url,
   };
 }
 
@@ -36,7 +36,7 @@ export function sourceHealthRow({
   latest_data_time,
   stale_threshold_hours,
   failures = 0,
-  notes
+  notes,
 }) {
   const latest = latest_data_time ? new Date(latest_data_time).getTime() : 0;
   const now = Date.now();
@@ -56,6 +56,6 @@ export function sourceHealthRow({
     stale,
     failures,
     status: failures > 0 ? 'degraded' : stale ? 'stale' : 'healthy',
-    notes
+    notes,
   };
 }

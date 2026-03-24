@@ -7,7 +7,7 @@ import {
   getExecutionGovernance,
   listExecutions,
   setExecutionKillSwitch,
-  submitExecution
+  submitExecution,
 } from '../src/server/api/queries.js';
 
 function seedSignal(id: string, symbol: string, createdAt: string, entry: number): SignalContract {
@@ -28,21 +28,41 @@ function seedSignal(id: string, symbol: string, createdAt: string, entry: number
     direction: 'LONG',
     strength: 82,
     confidence: 0.74,
-    entry_zone: { low: entry - 0.25, high: entry + 0.25, method: 'LIMIT', notes: 'seeded factory card' },
+    entry_zone: {
+      low: entry - 0.25,
+      high: entry + 0.25,
+      method: 'LIMIT',
+      notes: 'seeded factory card',
+    },
     invalidation_level: entry - 1.2,
     stop_loss: { type: 'ATR', price: entry - 1.2, rationale: 'seed' },
     take_profit_levels: [{ price: entry + 2.1, size_pct: 0.6, rationale: 'seed' }],
     trailing_rule: { type: 'EMA', params: { fast: 10, slow: 30 } },
-    position_advice: { position_pct: 8, leverage_cap: 1.5, risk_bucket_applied: 'BASE', rationale: 'seed' },
+    position_advice: {
+      position_pct: 8,
+      leverage_cap: 1.5,
+      risk_bucket_applied: 'BASE',
+      rationale: 'seed',
+    },
     cost_model: { fee_bps: 1.2, spread_bps: 1.1, slippage_bps: 1.8, basis_est: 0 },
-    expected_metrics: { expected_R: 1.3, hit_rate_est: 0.57, sample_size: 28, expected_max_dd_est: 0.08 },
+    expected_metrics: {
+      expected_R: 1.3,
+      hit_rate_est: 0.57,
+      sample_size: 28,
+      expected_max_dd_est: 0.08,
+    },
     explain_bullets: ['Seeded public-template signal'],
     execution_checklist: ['seed'],
-    tags: ['status:MODEL_DERIVED', 'source:nova_factory', 'factory_quality:88', 'factory_stage:shadow'],
+    tags: [
+      'status:MODEL_DERIVED',
+      'source:nova_factory',
+      'factory_quality:88',
+      'factory_stage:shadow',
+    ],
     status: 'NEW',
     payload: { kind: 'STOCK_SWING', data: { horizon: 'MEDIUM', catalysts: ['seed'] } },
     score: 84,
-    payload_version: 'signal-contract.v1'
+    payload_version: 'signal-contract.v1',
   };
 }
 
@@ -66,7 +86,7 @@ describe('execution governance', () => {
     await setExecutionKillSwitch({
       enabled: false,
       provider: 'ALPACA',
-      reason: 'test cleanup'
+      reason: 'test cleanup',
     });
   });
 
@@ -76,7 +96,12 @@ describe('execution governance', () => {
     const repo = new MarketRepository(db);
     const now = Date.now();
     const userId = `exec-governance-${now}`;
-    const signal = seedSignal(`SIG-EXEC-GOV-${now}`, 'SPY', new Date(now - 5 * 60_000).toISOString(), 501.25);
+    const signal = seedSignal(
+      `SIG-EXEC-GOV-${now}`,
+      'SPY',
+      new Date(now - 5 * 60_000).toISOString(),
+      501.25,
+    );
     repo.upsertSignal(signal);
 
     process.env.ALPACA_API_KEY = 'key';
@@ -98,13 +123,13 @@ describe('execution governance', () => {
             filled_qty: '0',
             notional: null,
             limit_price: '501.25',
-            submitted_at: '2026-03-21T00:00:00.000Z'
+            submitted_at: '2026-03-21T00:00:00.000Z',
           }),
           {
             status: 200,
-            headers: { 'content-type': 'application/json' }
-          }
-        ) as never
+            headers: { 'content-type': 'application/json' },
+          },
+        ) as never,
       )
       .mockResolvedValueOnce(
         new Response(
@@ -121,13 +146,13 @@ describe('execution governance', () => {
             filled_avg_price: '501.30',
             notional: null,
             limit_price: '501.25',
-            submitted_at: '2026-03-21T00:00:00.000Z'
+            submitted_at: '2026-03-21T00:00:00.000Z',
           }),
           {
             status: 200,
-            headers: { 'content-type': 'application/json' }
-          }
-        ) as never
+            headers: { 'content-type': 'application/json' },
+          },
+        ) as never,
       );
 
     const result = await submitExecution({
@@ -136,7 +161,7 @@ describe('execution governance', () => {
       mode: 'LIVE',
       action: 'EXECUTE',
       provider: 'ALPACA',
-      qty: 1
+      qty: 1,
     });
 
     expect(result.ok).toBe(true);
@@ -147,7 +172,7 @@ describe('execution governance', () => {
     const executions = listExecutions({
       userId,
       signalId: signal.id,
-      limit: 10
+      limit: 10,
     });
     expect(executions.some((row) => row.mode === 'LIVE')).toBe(true);
     expect(executions.some((row) => row.mode === 'PAPER')).toBe(true);
@@ -161,7 +186,7 @@ describe('execution governance', () => {
     const governance = await getExecutionGovernance({
       userId,
       provider: 'ALPACA',
-      refreshOrders: true
+      refreshOrders: true,
     });
     expect(governance.champion_challenger.paired_count).toBe(1);
     expect(governance.reconciliation.summary.total).toBe(1);
@@ -175,7 +200,12 @@ describe('execution governance', () => {
     const repo = new MarketRepository(db);
     const now = Date.now();
     const userId = `exec-kill-${now}`;
-    const signal = seedSignal(`SIG-EXEC-KILL-${now}`, 'SPY', new Date(now - 5 * 60_000).toISOString(), 499.8);
+    const signal = seedSignal(
+      `SIG-EXEC-KILL-${now}`,
+      'SPY',
+      new Date(now - 5 * 60_000).toISOString(),
+      499.8,
+    );
     repo.upsertSignal(signal);
 
     process.env.ALPACA_API_KEY = 'key';
@@ -186,7 +216,7 @@ describe('execution governance', () => {
       userId,
       enabled: true,
       provider: 'ALPACA',
-      reason: 'manual breach drill'
+      reason: 'manual breach drill',
     });
     expect(killSwitch.kill_switch.active).toBe(true);
 
@@ -197,7 +227,7 @@ describe('execution governance', () => {
       mode: 'LIVE',
       action: 'EXECUTE',
       provider: 'ALPACA',
-      qty: 1
+      qty: 1,
     });
 
     expect(result.ok).toBe(false);

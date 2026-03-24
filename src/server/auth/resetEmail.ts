@@ -22,7 +22,9 @@ function resetEmailReplyTo() {
 }
 
 function appUrl() {
-  return String(process.env.NOVA_APP_URL || 'https://novaquant.cloud').trim().replace(/\/+$/, '');
+  return String(process.env.NOVA_APP_URL || 'https://novaquant.cloud')
+    .trim()
+    .replace(/\/+$/, '');
 }
 
 export function canSendPasswordResetEmail() {
@@ -42,7 +44,7 @@ function buildEmailText(args: PasswordResetEmailArgs) {
     '',
     `Open ${appUrl()} to finish resetting your password.`,
     '',
-    'If you did not request this, you can ignore this email.'
+    'If you did not request this, you can ignore this email.',
   ].join('\n');
 }
 
@@ -73,7 +75,7 @@ export async function sendPasswordResetEmail(args: PasswordResetEmailArgs) {
     to: [args.email],
     subject: 'Your NovaQuant password reset code',
     text: buildEmailText(args),
-    html: buildEmailHtml(args)
+    html: buildEmailHtml(args),
   };
   const replyTo = resetEmailReplyTo();
   if (replyTo) {
@@ -84,9 +86,9 @@ export async function sendPasswordResetEmail(args: PasswordResetEmailArgs) {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
     },
-    body: JSON.stringify(payload)
+    body: JSON.stringify(payload),
   });
   if (!response.ok) {
     const detail = (await response.text().catch(() => '')).trim().slice(0, 240);
@@ -105,7 +107,7 @@ function buildWelcomeText(args: SignupWelcomeEmailArgs) {
     '',
     `You can now sign in at ${appUrl()} and start using NovaQuant.`,
     '',
-    'If you did not create this account, reply to this email and we will help you secure it.'
+    'If you did not create this account, reply to this email and we will help you secure it.',
   ].join('\n');
 }
 
@@ -135,7 +137,7 @@ export async function sendSignupWelcomeEmail(args: SignupWelcomeEmailArgs) {
     to: [args.email],
     subject: 'Welcome to NovaQuant',
     text: buildWelcomeText(args),
-    html: buildWelcomeHtml(args)
+    html: buildWelcomeHtml(args),
   };
   const replyTo = resetEmailReplyTo();
   if (replyTo) {
@@ -146,9 +148,9 @@ export async function sendSignupWelcomeEmail(args: SignupWelcomeEmailArgs) {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
     },
-    body: JSON.stringify(payload)
+    body: JSON.stringify(payload),
   });
   if (!response.ok) {
     const detail = (await response.text().catch(() => '')).trim().slice(0, 240);

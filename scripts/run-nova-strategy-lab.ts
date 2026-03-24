@@ -15,11 +15,16 @@ function parseArgs() {
 
   return {
     prompt: promptIndex >= 0 ? String(args[promptIndex + 1] || '').trim() : '',
-    market: marketIndex >= 0 ? (String(args[marketIndex + 1] || '').trim().toUpperCase() as Market) : undefined,
+    market:
+      marketIndex >= 0
+        ? (String(args[marketIndex + 1] || '')
+            .trim()
+            .toUpperCase() as Market)
+        : undefined,
     locale: localeIndex >= 0 ? String(args[localeIndex + 1] || '').trim() : 'en',
     riskProfile: riskIndex >= 0 ? String(args[riskIndex + 1] || '').trim() : undefined,
     maxCandidates: maxIndex >= 0 ? Number(args[maxIndex + 1]) : 12,
-    userId: userIndex >= 0 ? String(args[userIndex + 1] || '').trim() : null
+    userId: userIndex >= 0 ? String(args[userIndex + 1] || '').trim() : null,
   };
 }
 
@@ -42,7 +47,7 @@ async function main() {
     locale: parsed.locale,
     market: parsed.market as 'US' | 'CRYPTO' | undefined,
     riskProfile: parsed.riskProfile,
-    maxCandidates: Number.isFinite(parsed.maxCandidates) ? parsed.maxCandidates : 12
+    maxCandidates: Number.isFinite(parsed.maxCandidates) ? parsed.maxCandidates : 12,
   });
 
   process.stdout.write(`${result.text}\n\n`);
@@ -50,6 +55,8 @@ async function main() {
 }
 
 main().catch((error) => {
-  process.stderr.write(`${error instanceof Error ? error.stack || error.message : String(error)}\n`);
+  process.stderr.write(
+    `${error instanceof Error ? error.stack || error.message : String(error)}\n`,
+  );
   process.exitCode = 1;
 });

@@ -1,9 +1,11 @@
 # Strategy Factory Spec
 
 ## Goal
+
 Continuously generate candidate strategies without turning the system into an ungoverned black box.
 
 ## Strategy families required
+
 1. Trend following
 2. Breakout / volatility expansion
 3. Mean reversion
@@ -13,8 +15,11 @@ Continuously generate candidate strategies without turning the system into an un
 7. Flow / velocity / liquidation-aware setups
 
 ## Candidate generation modes
+
 ### A. Template expansion
+
 Given a family template, vary:
+
 - lookbacks
 - thresholds
 - volatility normalization rules
@@ -24,14 +29,18 @@ Given a family template, vary:
 - regime filters
 
 ### B. Rule composition
+
 Compose blocks like:
+
 - trend filter + pullback trigger
 - range regime + zscore reversal
 - funding extreme + carry decay
 - breakout + velocity confirmation
 
 ### C. Controlled search
+
 Search only within bounded spaces with:
+
 - parameter ranges,
 - max complexity,
 - min trade count,
@@ -39,6 +48,7 @@ Search only within bounded spaces with:
 - cost constraints.
 
 ## Hard constraints for any candidate
+
 - Must declare applicable market(s)
 - Must declare expected holding horizon
 - Must declare cost model
@@ -46,6 +56,7 @@ Search only within bounded spaces with:
 - Must declare kill conditions
 
 ## Strategy metadata schema
+
 - candidate_id
 - family
 - thesis

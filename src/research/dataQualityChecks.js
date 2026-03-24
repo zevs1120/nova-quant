@@ -5,10 +5,12 @@ function missingness(rows, fields) {
   const total = rows.length || 1;
   const summary = {};
   for (const field of fields) {
-    const missing = rows.filter((row) => row[field] === null || row[field] === undefined || row[field] === '').length;
+    const missing = rows.filter(
+      (row) => row[field] === null || row[field] === undefined || row[field] === '',
+    ).length;
     summary[field] = {
       missing,
-      ratio: Number((missing / total).toFixed(6))
+      ratio: Number((missing / total).toFixed(6)),
     };
   }
   return summary;
@@ -24,7 +26,7 @@ function duplicateCheck(rows, keyFn) {
   }
   return {
     duplicates: duplicate,
-    duplicate_ratio: rows.length ? Number((duplicate / rows.length).toFixed(6)) : 0
+    duplicate_ratio: rows.length ? Number((duplicate / rows.length).toFixed(6)) : 0,
   };
 }
 
@@ -38,7 +40,9 @@ function monotonicityCheck(rows, groupField, timeField) {
 
   let violations = 0;
   for (const items of grouped.values()) {
-    const sorted = [...items].sort((a, b) => String(a[timeField]).localeCompare(String(b[timeField])));
+    const sorted = [...items].sort((a, b) =>
+      String(a[timeField]).localeCompare(String(b[timeField])),
+    );
     for (let i = 1; i < sorted.length; i += 1) {
       if (String(sorted[i - 1][timeField]) >= String(sorted[i][timeField])) {
         violations += 1;
@@ -48,7 +52,7 @@ function monotonicityCheck(rows, groupField, timeField) {
 
   return {
     violations,
-    monotonic: violations === 0
+    monotonic: violations === 0,
   };
 }
 
@@ -56,14 +60,16 @@ function schemaValidation(rows, schemaName) {
   const fields = REQUIRED_FIELDS[schemaName] || [];
   let invalid = 0;
   for (const row of rows) {
-    const missingRequired = fields.some((field) => row[field] === undefined || row[field] === null || row[field] === '');
+    const missingRequired = fields.some(
+      (field) => row[field] === undefined || row[field] === null || row[field] === '',
+    );
     if (missingRequired) invalid += 1;
   }
   return {
     schema: schemaName,
     total_rows: rows.length,
     invalid_rows: invalid,
-    invalid_ratio: rows.length ? Number((invalid / rows.length).toFixed(6)) : 0
+    invalid_ratio: rows.length ? Number((invalid / rows.length).toFixed(6)) : 0,
   };
 }
 
@@ -79,23 +85,20 @@ function latestTimestamp(rows, field) {
 function coverageSummary(assetClass, registryRows, dataRows, idField) {
   const covered = new Set((dataRows || []).map((row) => row[idField]));
   const totalAssets = registryRows.length;
-  const coveredAssets = registryRows.filter((row) => covered.has(row.symbol) || covered.has(row.option_ticker) || covered.has(row.product_id)).length;
+  const coveredAssets = registryRows.filter(
+    (row) =>
+      covered.has(row.symbol) || covered.has(row.option_ticker) || covered.has(row.product_id),
+  ).length;
   return {
     asset_class: assetClass,
     total_assets: totalAssets,
     covered_assets: coveredAssets,
     coverage_ratio: totalAssets ? Number((coveredAssets / totalAssets).toFixed(6)) : 0,
-    row_count: dataRows.length
+    row_count: dataRows.length,
   };
 }
 
-export function buildDataQualityReport({
-  asOf,
-  adapters,
-  normalized,
-  features,
-  datasets
-}) {
+export function buildDataQualityReport({ asOf, adapters, normalized, features, datasets }) {
   const equityBars = normalized.equities?.bars || [];
   const optionSnapshots = normalized.options?.snapshots || [];
   const optionContracts = normalized.options?.contracts || [];
@@ -108,26 +111,49 @@ export function buildDataQualityReport({
     schemaValidation(optionSnapshots, 'OptionSnapshot'),
     schemaValidation(normalized.options?.chains || [], 'OptionChainSnapshot'),
     schemaValidation(normalized.crypto?.products || [], 'CryptoProduct'),
-    schemaValidation(cryptoBars, 'CryptoBar')
+    schemaValidation(cryptoBars, 'CryptoBar'),
   ];
 
   const duplicateChecks = {
     equity_bars: duplicateCheck(equityBars, (row) => `${row.symbol}:${row.date}`),
     option_contracts: duplicateCheck(optionContracts, (row) => row.option_ticker),
     option_snapshots: duplicateCheck(optionSnapshots, (row) => `${row.option_ticker}:${row.date}`),
-    crypto_bars: duplicateCheck(cryptoBars, (row) => `${row.product_id}:${row.date}`)
+    crypto_bars: duplicateCheck(cryptoBars, (row) => `${row.product_id}:${row.date}`),
   };
 
   const monotonicity = {
     equity_bars: monotonicityCheck(equityBars, 'symbol', 'date'),
     option_snapshots: monotonicityCheck(optionSnapshots, 'option_ticker', 'date'),
-    crypto_bars: monotonicityCheck(cryptoBars, 'product_id', 'date')
+    crypto_bars: monotonicityCheck(cryptoBars, 'product_id', 'date'),
   };
 
   const missingnessSummary = {
-    equity_bars: missingness(equityBars, ['open', 'high', 'low', 'close', 'volume', 'date', 'symbol']),
-    option_snapshots: missingness(optionSnapshots, ['bid', 'ask', 'mid', 'implied_volatility', 'dte', 'underlying_price']),
-    crypto_bars: missingness(cryptoBars, ['open', 'high', 'low', 'close', 'volume', 'date', 'product_id'])
+    equity_bars: missingness(equityBars, [
+      'open',
+      'high',
+      'low',
+      'close',
+      'volume',
+      'date',
+      'symbol',
+    ]),
+    option_snapshots: missingness(optionSnapshots, [
+      'bid',
+      'ask',
+      'mid',
+      'implied_volatility',
+      'dte',
+      'underlying_price',
+    ]),
+    crypto_bars: missingness(cryptoBars, [
+      'open',
+      'high',
+      'low',
+      'close',
+      'volume',
+      'date',
+      'product_id',
+    ]),
   };
 
   const sourceHealth = [
@@ -139,7 +165,7 @@ export function buildDataQualityReport({
       last_fetched_at: normalized.equities?.metadata?.fetched_at,
       latest_data_time: latestTimestamp(equityBars, 'date'),
       stale_threshold_hours: 72,
-      notes: 'US equity daily research feed'
+      notes: 'US equity daily research feed',
     }),
     sourceHealthRow({
       source: adapters.options.id,
@@ -149,7 +175,7 @@ export function buildDataQualityReport({
       last_fetched_at: normalized.options?.metadata?.fetched_at,
       latest_data_time: latestTimestamp(optionSnapshots, 'date'),
       stale_threshold_hours: 72,
-      notes: 'US options chain snapshots'
+      notes: 'US options chain snapshots',
     }),
     sourceHealthRow({
       source: adapters.crypto.id,
@@ -159,21 +185,26 @@ export function buildDataQualityReport({
       last_fetched_at: normalized.crypto?.metadata?.fetched_at,
       latest_data_time: latestTimestamp(cryptoBars, 'date'),
       stale_threshold_hours: 24,
-      notes: 'Crypto spot 24/7 market data'
-    })
+      notes: 'Crypto spot 24/7 market data',
+    }),
   ];
 
   const coverage = {
     equity: coverageSummary('equity', normalized.equities?.assets || [], equityBars, 'symbol'),
-    option: coverageSummary('option', normalized.options?.assets || [], optionSnapshots, 'option_ticker'),
-    crypto: coverageSummary('crypto', normalized.crypto?.assets || [], cryptoBars, 'product_id')
+    option: coverageSummary(
+      'option',
+      normalized.options?.assets || [],
+      optionSnapshots,
+      'option_ticker',
+    ),
+    crypto: coverageSummary('crypto', normalized.crypto?.assets || [], cryptoBars, 'product_id'),
   };
 
   const datasetHealth = (datasets || []).map((item) => ({
     dataset_id: item.dataset_id,
     asset_class: item.asset_class,
     rows: Object.values(item.split || {}).reduce((sum, value) => sum + Number(value || 0), 0),
-    split: item.split
+    split: item.split,
   }));
 
   const topIssues = [];
@@ -189,18 +220,18 @@ export function buildDataQualityReport({
     raw: {
       equity: normalized.equities?.metadata?.fetched_at,
       option: normalized.options?.metadata?.fetched_at,
-      crypto: normalized.crypto?.metadata?.fetched_at
+      crypto: normalized.crypto?.metadata?.fetched_at,
     },
     normalized: {
       equity: normalized.equities?.metadata?.normalized_at,
       option: normalized.options?.metadata?.normalized_at,
-      crypto: normalized.crypto?.metadata?.normalized_at
+      crypto: normalized.crypto?.metadata?.normalized_at,
     },
     derived: {
       equity_feature_rows: features.equity?.rows?.length || 0,
       option_feature_rows: features.option?.rows?.length || 0,
-      crypto_feature_rows: features.crypto?.rows?.length || 0
-    }
+      crypto_feature_rows: features.crypto?.rows?.length || 0,
+    },
   };
 
   return {
@@ -215,11 +246,11 @@ export function buildDataQualityReport({
       source: row.source,
       asset_class: row.asset_class,
       stale: row.stale,
-      age_hours: row.age_hours
+      age_hours: row.age_hours,
     })),
     dataset_health: datasetHealth,
     top_issues: topIssues,
     overall_status: topIssues.length ? 'attention' : 'healthy',
-    latest_data_status: latestDataStatus
+    latest_data_status: latestDataStatus,
   };
 }

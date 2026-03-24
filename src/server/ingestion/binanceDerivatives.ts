@@ -35,19 +35,21 @@ function round(value: number, digits = 6): number {
 }
 
 function inferBaseQuote(symbol: string): { base: string; quote: string } {
-  const upper = String(symbol || '').trim().toUpperCase();
+  const upper = String(symbol || '')
+    .trim()
+    .toUpperCase();
   const quoteCandidates = ['USDT', 'USDC', 'FDUSD', 'BUSD', 'BTC', 'ETH'];
   for (const quote of quoteCandidates) {
     if (upper.endsWith(quote) && upper.length > quote.length) {
       return {
         base: upper.slice(0, -quote.length),
-        quote
+        quote,
       };
     }
   }
   return {
     base: upper,
-    quote: 'USDT'
+    quote: 'USDT',
   };
 }
 
@@ -57,12 +59,17 @@ function derivativeConfig() {
     baseUrl: String(cfg.binanceRest.baseUrl || 'https://fapi.binance.com').replace(/\/+$/, ''),
     retry: cfg.binanceRest.retry,
     historyLimit: Math.max(8, Number(cfg.binanceDerivatives?.historyLimit || 90)),
-    requestDelayMs: Math.max(0, Number(cfg.binanceDerivatives?.requestDelayMs || cfg.binanceRest.requestDelayMs || 180)),
-    timeoutMs: Math.max(4_000, Number(cfg.binanceDerivatives?.timeoutMs || 12_000))
+    requestDelayMs: Math.max(
+      0,
+      Number(cfg.binanceDerivatives?.requestDelayMs || cfg.binanceRest.requestDelayMs || 180),
+    ),
+    timeoutMs: Math.max(4_000, Number(cfg.binanceDerivatives?.timeoutMs || 12_000)),
   };
 }
 
-async function fetchFundingRateHistory(symbol: string): Promise<Array<{ ts_open: number; funding_rate: string }>> {
+async function fetchFundingRateHistory(
+  symbol: string,
+): Promise<Array<{ ts_open: number; funding_rate: string }>> {
   const cfg = derivativeConfig();
   const url = new URL(`${cfg.baseUrl}/fapi/v1/fundingRate`);
   url.searchParams.set('symbol', symbol);
@@ -79,7 +86,7 @@ async function fetchFundingRateHistory(symbol: string): Promise<Array<{ ts_open:
   return payload
     .map((row) => ({
       ts_open: Number(row.fundingTime),
-      funding_rate: String(row.fundingRate ?? '').trim()
+      funding_rate: String(row.fundingRate ?? '').trim(),
     }))
     .filter((row) => Number.isFinite(row.ts_open) && row.funding_rate)
     .sort((a, b) => a.ts_open - b.ts_open);
@@ -103,7 +110,7 @@ function basisBpsFromPremium(payload: PremiumIndexPayload): number | null {
   const mark = safeNumber(payload.markPrice);
   const index = safeNumber(payload.indexPrice);
   if (!Number.isFinite(mark) || !Number.isFinite(index) || index <= 0) return null;
-  return round(((mark / index) - 1) * 10_000, 4);
+  return round((mark / index - 1) * 10_000, 4);
 }
 
 function isBinanceBlockedError(error: unknown): boolean {
@@ -131,7 +138,7 @@ export async function syncBinanceDerivatives(params: {
       basis_inserted: number;
       latest_funding_rate: number | null;
       latest_basis_bps: number | null;
-    }>
+    }>,
   };
 
   if (Date.now() < binanceDerivativesBlockedUntilMs) {
@@ -139,7 +146,9 @@ export async function syncBinanceDerivatives(params: {
   }
 
   for (const rawSymbol of params.symbols) {
-    const symbol = String(rawSymbol || '').trim().toUpperCase();
+    const symbol = String(rawSymbol || '')
+      .trim()
+      .toUpperCase();
     if (!symbol) continue;
 
     const { base, quote } = inferBaseQuote(symbol);
@@ -149,7 +158,7 @@ export async function syncBinanceDerivatives(params: {
       venue: 'BINANCE_UM',
       base,
       quote,
-      status: 'ACTIVE'
+      status: 'ACTIVE',
     });
 
     let fundingInserted = 0;
@@ -160,22 +169,29 @@ export async function syncBinanceDerivatives(params: {
     try {
       const fundingRows = await fetchFundingRateHistory(symbol);
       if (fundingRows.length) {
-        fundingInserted = params.repo.upsertFundingRates(asset.asset_id, fundingRows, 'BINANCE_FUNDING_HISTORY');
+        fundingInserted = params.repo.upsertFundingRates(
+          asset.asset_id,
+          fundingRows,
+          'BINANCE_FUNDING_HISTORY',
+        );
         latestFundingRate = safeNumber(fundingRows[fundingRows.length - 1]?.funding_rate);
       }
     } catch (error) {
       if (isBinanceBlockedError(error)) {
         binanceDerivativesBlockedUntilMs = Date.now() + BINANCE_DERIVATIVES_BLOCK_COOLDOWN_MS;
-        logWarn('Binance derivatives REST is region-blocked; skipping funding/premium sync for a cooldown window', {
-          symbol,
-          cooldown_hours: BINANCE_DERIVATIVES_BLOCK_COOLDOWN_MS / (1000 * 60 * 60),
-          error: error instanceof Error ? error.message : String(error)
-        });
+        logWarn(
+          'Binance derivatives REST is region-blocked; skipping funding/premium sync for a cooldown window',
+          {
+            symbol,
+            cooldown_hours: BINANCE_DERIVATIVES_BLOCK_COOLDOWN_MS / (1000 * 60 * 60),
+            error: error instanceof Error ? error.message : String(error),
+          },
+        );
         return summary;
       }
       logWarn('Funding history sync failed', {
         symbol,
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
     }
 
@@ -192,10 +208,10 @@ export async function syncBinanceDerivatives(params: {
           [
             {
               ts_open: tsOpen,
-              basis_bps: String(basisBps)
-            }
+              basis_bps: String(basisBps),
+            },
           ],
-          'BINANCE_PREMIUM_INDEX'
+          'BINANCE_PREMIUM_INDEX',
         );
         latestBasisBps = basisBps;
       }
@@ -207,10 +223,10 @@ export async function syncBinanceDerivatives(params: {
           [
             {
               ts_open: tsOpen,
-              funding_rate: String(round(lastFundingRate, 8))
-            }
+              funding_rate: String(round(lastFundingRate, 8)),
+            },
           ],
-          'BINANCE_PREMIUM_INDEX'
+          'BINANCE_PREMIUM_INDEX',
         );
         fundingInserted += 1;
         latestFundingRate = round(lastFundingRate, 8);
@@ -218,16 +234,19 @@ export async function syncBinanceDerivatives(params: {
     } catch (error) {
       if (isBinanceBlockedError(error)) {
         binanceDerivativesBlockedUntilMs = Date.now() + BINANCE_DERIVATIVES_BLOCK_COOLDOWN_MS;
-        logWarn('Binance derivatives REST is region-blocked; skipping funding/premium sync for a cooldown window', {
-          symbol,
-          cooldown_hours: BINANCE_DERIVATIVES_BLOCK_COOLDOWN_MS / (1000 * 60 * 60),
-          error: error instanceof Error ? error.message : String(error)
-        });
+        logWarn(
+          'Binance derivatives REST is region-blocked; skipping funding/premium sync for a cooldown window',
+          {
+            symbol,
+            cooldown_hours: BINANCE_DERIVATIVES_BLOCK_COOLDOWN_MS / (1000 * 60 * 60),
+            error: error instanceof Error ? error.message : String(error),
+          },
+        );
         return summary;
       }
       logWarn('Premium index sync failed', {
         symbol,
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
     }
 
@@ -241,7 +260,7 @@ export async function syncBinanceDerivatives(params: {
       funding_inserted: fundingInserted,
       basis_inserted: basisInserted,
       latest_funding_rate: Number.isFinite(latestFundingRate) ? latestFundingRate : null,
-      latest_basis_bps: Number.isFinite(latestBasisBps) ? latestBasisBps : null
+      latest_basis_bps: Number.isFinite(latestBasisBps) ? latestBasisBps : null,
     });
 
     logInfo('Binance derivatives sync completed', {
@@ -249,7 +268,7 @@ export async function syncBinanceDerivatives(params: {
       fundingInserted,
       basisInserted,
       latestFundingRate,
-      latestBasisBps
+      latestBasisBps,
     });
 
     await sleep(cfg.requestDelayMs);

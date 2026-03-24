@@ -13,7 +13,10 @@ function MixBars({ rows }) {
             <span>{item.value}</span>
           </div>
           <div className="mix-bar-track">
-            <span className="mix-bar-fill" style={{ width: `${(Number(item.value || 0) / total) * 100}%` }} />
+            <span
+              className="mix-bar-fill"
+              style={{ width: `${(Number(item.value || 0) / total) * 100}%` }}
+            />
           </div>
         </div>
       ))}
@@ -60,26 +63,26 @@ export default function SignalsExecutionPage() {
       label: '活跃信号',
       value: `${summary.active_signals || 0} 条`,
       detail: '当前处于 NEW / TRIGGERED 的在线候选信号。',
-      tone: 'green'
+      tone: 'green',
     },
     {
       label: '平均置信度',
       value: `${Math.round(Number(summary.avg_confidence || 0) * 100)} 分`,
       detail: '这里展示的是当前活跃信号的平均置信度，不是回测收益。',
-      tone: 'blue'
+      tone: 'blue',
     },
     {
       label: 'Paper / Live 执行',
       value: `${execution.paper || 0} / ${execution.live || 0}`,
       detail: `总执行数 ${execution.total || 0}，Live 仍然必须被严格控制。`,
-      tone: 'amber'
+      tone: 'amber',
     },
     {
       label: '平均执行盈亏',
       value: execution.avg_pnl_pct === null ? '暂无' : `${execution.avg_pnl_pct}%`,
       detail: '用于快速判断执行链路是否已经出现明显滑点或退化。',
-      tone: 'red'
-    }
+      tone: 'red',
+    },
   ];
 
   return (
@@ -140,10 +143,14 @@ export default function SignalsExecutionPage() {
               <div key={row.execution_id} className="candidate-timeline-item">
                 <div>
                   <strong>{row.symbol}</strong>
-                  <p>{row.mode} · {row.action} · {row.signal_id}</p>
+                  <p>
+                    {row.mode} · {row.action} · {row.signal_id}
+                  </p>
                 </div>
                 <div className="candidate-timeline-meta">
-                  <span className={`status-pill ${row.mode === 'LIVE' ? 'is-red' : 'is-blue'}`}>{row.mode}</span>
+                  <span className={`status-pill ${row.mode === 'LIVE' ? 'is-red' : 'is-blue'}`}>
+                    {row.mode}
+                  </span>
                   <span>{row.updated_at}</span>
                 </div>
               </div>
@@ -175,10 +182,14 @@ export default function SignalsExecutionPage() {
                 <tr key={row.signal_id}>
                   <td>
                     <strong>{row.symbol}</strong>
-                    <div className="table-subline">{row.market} · {row.asset_class}</div>
+                    <div className="table-subline">
+                      {row.market} · {row.asset_class}
+                    </div>
                   </td>
                   <td>
-                    <span className={`status-pill ${toneForDirection(row.direction)}`}>{row.direction}</span>
+                    <span className={`status-pill ${toneForDirection(row.direction)}`}>
+                      {row.direction}
+                    </span>
                     <div className="table-subline">{row.status}</div>
                   </td>
                   <td>
@@ -191,11 +202,17 @@ export default function SignalsExecutionPage() {
                   </td>
                   <td>
                     共 {row.execution_count} 次
-                    <div className="table-subline">Paper {row.paper_execution_count} · Live {row.live_execution_count}</div>
+                    <div className="table-subline">
+                      Paper {row.paper_execution_count} · Live {row.live_execution_count}
+                    </div>
                   </td>
                   <td>
                     {row.explain || '暂无解释'}
-                    <div className="table-subline">{row.factor_tags?.length ? row.factor_tags.join(' · ') : row.tone || '无因子标签'}</div>
+                    <div className="table-subline">
+                      {row.factor_tags?.length
+                        ? row.factor_tags.join(' · ')
+                        : row.tone || '无因子标签'}
+                    </div>
                   </td>
                 </tr>
               ))}

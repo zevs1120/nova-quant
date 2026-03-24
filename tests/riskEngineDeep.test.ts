@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 // @ts-ignore JS runtime module import
-import { computePositionPct, resolveRiskProfile, runRiskEngine } from '../src/engines/riskEngine.js';
+import {
+  computePositionPct,
+  resolveRiskProfile,
+  runRiskEngine,
+} from '../src/engines/riskEngine.js';
 // @ts-ignore JS runtime module import
 import { RISK_PROFILES, DYNAMIC_RISK_BUCKETS } from '../src/engines/params.js';
 
@@ -49,10 +53,12 @@ describe('computePositionPct', () => {
       stopLoss: 95,
       profile: balanced,
       bucketMultiplier: 1,
-      activeSignalCount: 3
+      activeSignalCount: 3,
     });
     expect(pct).toBeGreaterThan(0);
-    expect(pct).toBeLessThanOrEqual(balanced.per_signal_cap_pct * (0.8 + balanced.leverage_cap * 0.2));
+    expect(pct).toBeLessThanOrEqual(
+      balanced.per_signal_cap_pct * (0.8 + balanced.leverage_cap * 0.2),
+    );
   });
 
   it('caps position when entry ≈ stopLoss (tiny stop distance)', () => {
@@ -63,7 +69,7 @@ describe('computePositionPct', () => {
       stopLoss: 99.999,
       profile: balanced,
       bucketMultiplier: 1,
-      activeSignalCount: 1
+      activeSignalCount: 1,
     });
     expect(pct).toBeGreaterThan(0);
     // Must not exceed the leverage-scaled per-signal cap
@@ -77,7 +83,7 @@ describe('computePositionPct', () => {
       stopLoss: 0,
       profile: balanced,
       bucketMultiplier: 1,
-      activeSignalCount: 1
+      activeSignalCount: 1,
     });
     expect(Number.isFinite(pct)).toBe(true);
     expect(pct).toBeGreaterThanOrEqual(0);
@@ -89,7 +95,7 @@ describe('computePositionPct', () => {
       stopLoss: NaN,
       profile: balanced,
       bucketMultiplier: 1,
-      activeSignalCount: 1
+      activeSignalCount: 1,
     });
     expect(Number.isFinite(pct)).toBe(true);
   });
@@ -102,14 +108,14 @@ describe('computePositionPct', () => {
       stopLoss: 90,
       profile: balanced,
       bucketMultiplier: DYNAMIC_RISK_BUCKETS.BASE.multiplier,
-      activeSignalCount: 3
+      activeSignalCount: 3,
     });
     const derisked = computePositionPct({
       entry: 100,
       stopLoss: 90,
       profile: balanced,
       bucketMultiplier: DYNAMIC_RISK_BUCKETS.DERISKED.multiplier,
-      activeSignalCount: 3
+      activeSignalCount: 3,
     });
     expect(derisked).toBeLessThan(base);
   });
@@ -120,14 +126,14 @@ describe('computePositionPct', () => {
       stopLoss: 95,
       profile: balanced,
       bucketMultiplier: 1,
-      activeSignalCount: 1
+      activeSignalCount: 1,
     });
     const many = computePositionPct({
       entry: 100,
       stopLoss: 95,
       profile: balanced,
       bucketMultiplier: 1,
-      activeSignalCount: 10
+      activeSignalCount: 10,
     });
     expect(many).toBeLessThanOrEqual(single);
   });
@@ -153,16 +159,16 @@ function makeVelocityState(percentile = 0.5) {
       'US:SPY:1d': {
         velocity: {
           percentile: [percentile],
-          vol_percentile: [percentile]
-        }
-      }
-    }
+          vol_percentile: [percentile],
+        },
+      },
+    },
   };
 }
 
 function makeRegimeState(riskOffScore = 0.5, volPercentile = 0.5) {
   return {
-    primary: { risk_off_score: riskOffScore, vol_percentile: volPercentile }
+    primary: { risk_off_score: riskOffScore, vol_percentile: volPercentile },
   };
 }
 
@@ -172,7 +178,7 @@ describe('runRiskEngine', () => {
       config: { risk_profile: 'balanced' },
       trades: [],
       velocityState: makeVelocityState(0.5),
-      regimeState: makeRegimeState(0.3)
+      regimeState: makeRegimeState(0.3),
     });
     expect(result.bucket_state).toBe('BASE');
     expect(result.bucket_multiplier).toBe(1);
@@ -185,7 +191,7 @@ describe('runRiskEngine', () => {
       config: { risk_profile: 'balanced' },
       trades: [],
       velocityState: makeVelocityState(0.95),
-      regimeState: makeRegimeState(0.5)
+      regimeState: makeRegimeState(0.5),
     });
     expect(result.bucket_state).toBe('DERISKED');
     expect(result.bucket_multiplier).toBe(DYNAMIC_RISK_BUCKETS.DERISKED.multiplier);
@@ -196,20 +202,18 @@ describe('runRiskEngine', () => {
       config: { risk_profile: 'balanced' },
       trades: [],
       velocityState: makeVelocityState(0.5),
-      regimeState: makeRegimeState(0.75)
+      regimeState: makeRegimeState(0.75),
     });
     expect(result.status.current_level).toBe('HIGH');
   });
 
   it('turns off trading when daily loss exceeds profile limit', () => {
-    const trades = [
-      { symbol: 'SPY', time_out: '2026-03-24T10:00:00Z', pnl_pct: -3.5 }
-    ];
+    const trades = [{ symbol: 'SPY', time_out: '2026-03-24T10:00:00Z', pnl_pct: -3.5 }];
     const result = runRiskEngine({
       config: { risk_profile: 'balanced' },
       trades,
       velocityState: makeVelocityState(0.5),
-      regimeState: makeRegimeState(0.3)
+      regimeState: makeRegimeState(0.3),
     });
     // balanced max_daily_loss_pct is 3.0, trade lost 3.5% → should shut off
     expect(result.status.trading_on).toBe(false);
@@ -219,27 +223,25 @@ describe('runRiskEngine', () => {
     // Simulate equity going 1.0 → 0.85 (15% DD) which exceeds balanced 12% limit
     const trades = [
       { symbol: 'SPY', time_out: '2026-03-20T10:00:00Z', pnl_pct: -8 },
-      { symbol: 'SPY', time_out: '2026-03-21T10:00:00Z', pnl_pct: -8 }
+      { symbol: 'SPY', time_out: '2026-03-21T10:00:00Z', pnl_pct: -8 },
     ];
     const result = runRiskEngine({
       config: { risk_profile: 'balanced' },
       trades,
       velocityState: makeVelocityState(0.5),
-      regimeState: makeRegimeState(0.3)
+      regimeState: makeRegimeState(0.3),
     });
     expect(result.status.trading_on).toBe(false);
     expect(result.status.diagnostics.max_dd_pct).toBeGreaterThan(12);
   });
 
   it('keeps trading on when losses are within limits', () => {
-    const trades = [
-      { symbol: 'SPY', time_out: '2026-03-24T10:00:00Z', pnl_pct: -1.5 }
-    ];
+    const trades = [{ symbol: 'SPY', time_out: '2026-03-24T10:00:00Z', pnl_pct: -1.5 }];
     const result = runRiskEngine({
       config: { risk_profile: 'balanced' },
       trades,
       velocityState: makeVelocityState(0.5),
-      regimeState: makeRegimeState(0.3)
+      regimeState: makeRegimeState(0.3),
     });
     expect(result.status.trading_on).toBe(true);
   });

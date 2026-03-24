@@ -20,7 +20,7 @@ function recommendationFromScore(score, status) {
     return {
       recommendation: 'REJECT',
       lifecycle_action: 'KEEP_DRAFT',
-      next_stage: 'DRAFT'
+      next_stage: 'DRAFT',
     };
   }
 
@@ -28,7 +28,7 @@ function recommendationFromScore(score, status) {
     return {
       recommendation: 'PROMOTE_TO_SHADOW',
       lifecycle_action: 'PROMOTE',
-      next_stage: 'SHADOW'
+      next_stage: 'SHADOW',
     };
   }
 
@@ -36,14 +36,14 @@ function recommendationFromScore(score, status) {
     return {
       recommendation: 'HOLD_FOR_RETEST',
       lifecycle_action: 'HOLD',
-      next_stage: 'DRAFT'
+      next_stage: 'DRAFT',
     };
   }
 
   return {
     recommendation: 'REJECT',
     lifecycle_action: 'REJECT',
-    next_stage: 'DRAFT'
+    next_stage: 'DRAFT',
   };
 }
 
@@ -57,7 +57,7 @@ function scoreSingle(validationRow, candidate) {
     regime_stability_score: clamp(Number(metrics.regime_stability_score || 0), 0, 1),
     diversification_score: clamp(Number(metrics.diversification_score || 0), 0, 1),
     cost_sensitivity_score: clamp(Number(metrics.cost_sensitivity_score || 0), 0, 1),
-    parameter_stability_score: clamp(Number(metrics.parameter_stability_score || 0), 0, 1)
+    parameter_stability_score: clamp(Number(metrics.parameter_stability_score || 0), 0, 1),
   };
 
   const qualityScore = round(
@@ -67,7 +67,7 @@ function scoreSingle(validationRow, candidate) {
       0.14 * componentScores.diversification_score +
       0.12 * componentScores.cost_sensitivity_score +
       0.12 * componentScores.parameter_stability_score,
-    4
+    4,
   );
 
   const recommendation = recommendationFromScore(qualityScore, validationRow.final_status);
@@ -94,20 +94,20 @@ function scoreSingle(validationRow, candidate) {
         regime_stability: 0.16,
         diversification: 0.14,
         cost_sensitivity: 0.12,
-        parameter_stability: 0.12
-      }
-    }
+        parameter_stability: 0.12,
+      },
+    },
   };
 }
 
 export function buildCandidateScoring({
   asOf = new Date().toISOString(),
   candidates = [],
-  validation = {}
+  validation = {},
 } = {}) {
   const candidateById = new Map((candidates || []).map((row) => [row.candidate_id, row]));
   const rows = (validation?.candidates || []).map((validationRow) =>
-    scoreSingle(validationRow, candidateById.get(validationRow.candidate_id))
+    scoreSingle(validationRow, candidateById.get(validationRow.candidate_id)),
   );
 
   const promoted = rows.filter((row) => row.recommendation === 'PROMOTE_TO_SHADOW');
@@ -126,7 +126,7 @@ export function buildCandidateScoring({
       rejected: rejected.length,
       avg_candidate_quality_score: rows.length
         ? round(rows.reduce((acc, row) => acc + row.candidate_quality_score, 0) / rows.length, 4)
-        : 0
-    }
+        : 0,
+    },
   };
 }

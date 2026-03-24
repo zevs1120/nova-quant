@@ -13,7 +13,7 @@ export function logChatAudit(record: ChatAuditRecord): void {
         INSERT INTO chat_audit_logs(
           user_id, thread_id, mode, provider, message, context_json, status, error, response_preview, duration_ms, created_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `
+      `,
     ).run(
       record.userId,
       record.threadId ?? null,
@@ -25,7 +25,7 @@ export function logChatAudit(record: ChatAuditRecord): void {
       record.error ?? null,
       record.responsePreview ?? null,
       record.durationMs,
-      Date.now()
+      Date.now(),
     );
 
     db.prepare(
@@ -33,7 +33,7 @@ export function logChatAudit(record: ChatAuditRecord): void {
         INSERT INTO audit_events(
           trace_id, scope, event_type, user_id, entity_type, entity_id, payload_json, created_at_ms
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `
+      `,
     ).run(
       createTraceId('chat'),
       'nova_assistant',
@@ -46,9 +46,9 @@ export function logChatAudit(record: ChatAuditRecord): void {
         provider: record.provider,
         status: record.status,
         error: record.error ?? null,
-        duration_ms: record.durationMs
+        duration_ms: record.durationMs,
       }),
-      Date.now()
+      Date.now(),
     );
   } catch {
     // best-effort audit logging

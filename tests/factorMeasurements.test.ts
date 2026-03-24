@@ -22,23 +22,29 @@ function series(start: number, dailyRate: number, count: number): NormalizedBar[
       high: (price * 1.01).toFixed(4),
       low: (price * 0.99).toFixed(4),
       close: price.toFixed(4),
-      volume: String(1_000_000 + i * 5000)
+      volume: String(1_000_000 + i * 5000),
     });
   }
   return rows;
 }
 
-function carrySeries(start: number, dailyRate: number, fundingRate: number, basisBps: number, count: number) {
+function carrySeries(
+  start: number,
+  dailyRate: number,
+  fundingRate: number,
+  basisBps: number,
+  count: number,
+) {
   return {
     bars: series(start, dailyRate, count),
     funding: Array.from({ length: count }, (_, index) => ({
       ts_open: Date.UTC(2025, 0, 1 + index),
-      funding_rate: fundingRate.toFixed(6)
+      funding_rate: fundingRate.toFixed(6),
     })),
     basis: Array.from({ length: count }, (_, index) => ({
       ts_open: Date.UTC(2025, 0, 1 + index),
-      basis_bps: basisBps.toFixed(4)
-    }))
+      basis_bps: basisBps.toFixed(4),
+    })),
   };
 }
 
@@ -49,18 +55,23 @@ describe('factor measurement research layer', () => {
       { symbol: 'AAA', rate: 0.006 },
       { symbol: 'BBB', rate: 0.0035 },
       { symbol: 'CCC', rate: 0.001 },
-      { symbol: 'DDD', rate: -0.0015 }
+      { symbol: 'DDD', rate: -0.0015 },
     ];
 
     for (const item of assets) {
-      const asset = repo.upsertAsset({ symbol: item.symbol, market: 'US', venue: 'TEST', status: 'ACTIVE' });
+      const asset = repo.upsertAsset({
+        symbol: item.symbol,
+        market: 'US',
+        venue: 'TEST',
+        status: 'ACTIVE',
+      });
       repo.upsertOhlcvBars(asset.asset_id, '1d', series(100, item.rate, 220), 'test_seed');
     }
 
     const result = buildFactorMeasurementReport(repo, {
       factorId: 'momentum',
       market: 'US',
-      assetClass: 'US_STOCK'
+      assetClass: 'US_STOCK',
     });
 
     expect(result.report?.availability).toBe('measured');
@@ -75,7 +86,7 @@ describe('factor measurement research layer', () => {
     const result = buildFactorMeasurementReport(repo, {
       factorId: 'value',
       market: 'US',
-      assetClass: 'US_STOCK'
+      assetClass: 'US_STOCK',
     });
 
     expect(result.source_status).toBe('DB_BACKED');
@@ -90,11 +101,16 @@ describe('factor measurement research layer', () => {
       { symbol: 'BTCUSDT', rate: 0.005, funding: 0.0009, basis: 18 },
       { symbol: 'ETHUSDT', rate: 0.0038, funding: 0.0006, basis: 12 },
       { symbol: 'SOLUSDT', rate: 0.0018, funding: 0.0002, basis: 4 },
-      { symbol: 'ADAUSDT', rate: -0.0008, funding: -0.0004, basis: -6 }
+      { symbol: 'ADAUSDT', rate: -0.0008, funding: -0.0004, basis: -6 },
     ];
 
     for (const item of assets) {
-      const asset = repo.upsertAsset({ symbol: item.symbol, market: 'CRYPTO', venue: 'TEST', status: 'ACTIVE' });
+      const asset = repo.upsertAsset({
+        symbol: item.symbol,
+        market: 'CRYPTO',
+        venue: 'TEST',
+        status: 'ACTIVE',
+      });
       const payload = carrySeries(100, item.rate, item.funding, item.basis, 220);
       repo.upsertOhlcvBars(asset.asset_id, '1d', payload.bars, 'test_seed');
       repo.upsertFundingRates(asset.asset_id, payload.funding, 'test_seed');
@@ -104,7 +120,7 @@ describe('factor measurement research layer', () => {
     const result = buildFactorMeasurementReport(repo, {
       factorId: 'carry',
       market: 'CRYPTO',
-      assetClass: 'CRYPTO'
+      assetClass: 'CRYPTO',
     });
 
     expect(result.report?.availability).toBe('measured');

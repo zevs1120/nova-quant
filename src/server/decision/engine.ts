@@ -5,14 +5,14 @@ import type {
   MarketStateRecord,
   SignalContract,
   UserHoldingInput,
-  UserRiskProfileRecord
+  UserRiskProfileRecord,
 } from '../types.js';
 import { RUNTIME_STATUS, normalizeRuntimeStatus } from '../runtimeStatus.js';
 import { getConfig } from '../config.js';
 import {
   getDailyStanceCopy,
   getPortfolioActionLabel,
-  getTodayRiskCopy
+  getTodayRiskCopy,
 } from '../../copy/novaCopySystem.js';
 import { buildEvidenceLineage } from '../evidence/lineage.js';
 import { evaluateRiskGovernor, type RiskGovernorOutcome } from '../risk/governor.js';
@@ -109,13 +109,17 @@ function alignTransparency(args: {
   return {
     source_status: sourceStatus,
     data_status: dataStatus,
-    source_label: dataStatus
+    source_label: dataStatus,
   };
 }
 
 function normalizeHolding(row: UserHoldingInput, index: number) {
-  const symbol = String(row.symbol || '').trim().toUpperCase();
-  const assetClass = (String(row.asset_class || '').toUpperCase() as AssetClass) || (symbol.includes('USDT') ? 'CRYPTO' : 'US_STOCK');
+  const symbol = String(row.symbol || '')
+    .trim()
+    .toUpperCase();
+  const assetClass =
+    (String(row.asset_class || '').toUpperCase() as AssetClass) ||
+    (symbol.includes('USDT') ? 'CRYPTO' : 'US_STOCK');
   return {
     id: row.id || `holding-${index + 1}`,
     symbol,
@@ -126,7 +130,7 @@ function normalizeHolding(row: UserHoldingInput, index: number) {
     cost_basis: toNumber(row.cost_basis, null),
     current_price: toNumber(row.current_price, null),
     sector: String(row.sector || '').trim() || (assetClass === 'CRYPTO' ? 'Crypto' : 'Unknown'),
-    note: String(row.note || '').trim() || null
+    note: String(row.note || '').trim() || null,
   };
 }
 
@@ -157,16 +161,18 @@ function factoryPromotionBoost(signal: UiSignal): number {
     .find(Boolean);
   const quality = qualityFromMeta ?? (qualityFromTag ? Number(qualityFromTag[1]) : 0) ?? 0;
   const refsFromMeta = asArray(metadata.public_reference_ids).length;
-  const refsFromTag = tags
-    .map((tag) => tag.match(/^factory_refs:(\d+)$/i))
-    .find(Boolean);
+  const refsFromTag = tags.map((tag) => tag.match(/^factory_refs:(\d+)$/i)).find(Boolean);
   const refs = refsFromMeta || (refsFromTag ? Number(refsFromTag[1]) : 0) || 0;
-  const stage = String(metadata.next_stage || tags.find((tag) => tag.startsWith('factory_stage:'))?.split(':')[1] || '').toLowerCase();
+  const stage = String(
+    metadata.next_stage ||
+      tags.find((tag) => tag.startsWith('factory_stage:'))?.split(':')[1] ||
+      '',
+  ).toLowerCase();
   const regimeFit = tags.includes('factory_regime_fit:matched');
 
   return Math.min(
     18,
-    quality * 0.07 + refs * 1.5 + (stage === 'shadow' ? 3.5 : 1.5) + (regimeFit ? 4 : 0)
+    quality * 0.07 + refs * 1.5 + (stage === 'shadow' ? 3.5 : 1.5) + (regimeFit ? 4 : 0),
   );
 }
 
@@ -176,7 +182,9 @@ function strategySourceForSignal(signal: UiSignal): string {
 }
 
 function isStrategyBackedSource(source: string): boolean {
-  const normalized = String(source || '').trim().toLowerCase();
+  const normalized = String(source || '')
+    .trim()
+    .toLowerCase();
   if (!normalized || normalized === 'unknown') return false;
   if (normalized.startsWith('decision_engine.')) return false;
   if (normalized.includes('demo')) return false;
@@ -207,23 +215,31 @@ function evaluatePublicationGate(args: {
       strategyBacked: false,
       publishable: false,
       status: 'REJECTED' as const,
-      reason: 'Signal is not linked to a registered strategy family.'
+      reason: 'Signal is not linked to a registered strategy family.',
     };
   }
 
-  const dataStatus = String(args.signal.data_status || args.signal.source_label || args.signal.source_status || '');
-  const sourceStatus = String(args.signal.source_status || args.signal.source_label || args.signal.data_status || '');
+  const dataStatus = String(
+    args.signal.data_status || args.signal.source_label || args.signal.source_status || '',
+  );
+  const sourceStatus = String(
+    args.signal.source_status || args.signal.source_label || args.signal.data_status || '',
+  );
   if (!isPublicationReadyStatus(dataStatus, sourceStatus)) {
     return {
       strategyBacked: true,
       publishable: false,
       status: 'REJECTED' as const,
-      reason: `Signal data status ${normalizeRuntimeStatus(dataStatus, RUNTIME_STATUS.INSUFFICIENT_DATA)} is not publishable.`
+      reason: `Signal data status ${normalizeRuntimeStatus(dataStatus, RUNTIME_STATUS.INSUFFICIENT_DATA)} is not publishable.`,
     };
   }
 
   const confidence =
-    toNumber((args.signal.confidence_details as Record<string, unknown> | undefined)?.calibrated_confidence, null) ??
+    toNumber(
+      (args.signal.confidence_details as Record<string, unknown> | undefined)
+        ?.calibrated_confidence,
+      null,
+    ) ??
     toNumber(args.signal.confidence, 0) ??
     0;
   if (confidence < 0.55) {
@@ -231,17 +247,20 @@ function evaluatePublicationGate(args: {
       strategyBacked: true,
       publishable: false,
       status: 'WATCH' as const,
-      reason: 'Calibrated confidence is below the deploy threshold.'
+      reason: 'Calibrated confidence is below the deploy threshold.',
     };
   }
 
-  const sampleSize = toNumber((args.signal.expected_metrics as Record<string, unknown> | undefined)?.sample_size, null);
+  const sampleSize = toNumber(
+    (args.signal.expected_metrics as Record<string, unknown> | undefined)?.sample_size,
+    null,
+  );
   if (sampleSize !== null && sampleSize < 12) {
     return {
       strategyBacked: true,
       publishable: false,
       status: 'WATCH' as const,
-      reason: 'Historical sample is still too thin for a production action card.'
+      reason: 'Historical sample is still too thin for a production action card.',
     };
   }
 
@@ -250,7 +269,7 @@ function evaluatePublicationGate(args: {
       strategyBacked: true,
       publishable: false,
       status: 'WATCH' as const,
-      reason: args.intent.rationale
+      reason: args.intent.rationale,
     };
   }
 
@@ -259,7 +278,7 @@ function evaluatePublicationGate(args: {
       strategyBacked: true,
       publishable: false,
       status: 'WATCH' as const,
-      reason: args.governor.block_reason || 'Risk governor blocked the action.'
+      reason: args.governor.block_reason || 'Risk governor blocked the action.',
     };
   }
 
@@ -267,7 +286,7 @@ function evaluatePublicationGate(args: {
     strategyBacked: true,
     publishable: true,
     status: 'ACTIONABLE' as const,
-    reason: null
+    reason: null,
   };
 }
 
@@ -283,7 +302,9 @@ function inferHorizon(signal: UiSignal): { label: string; days: number | null } 
   if (timeframe === '1d') return { label: 'days to weeks', days: 5 };
   if (timeframe === '1h' || timeframe === '15m') return { label: 'intraday to swing', days: 2 };
   const payload = signal.payload as Record<string, unknown> | undefined;
-  const horizon = String((payload?.data as Record<string, unknown> | undefined)?.horizon || '').toUpperCase();
+  const horizon = String(
+    (payload?.data as Record<string, unknown> | undefined)?.horizon || '',
+  ).toUpperCase();
   if (horizon === 'SHORT') return { label: '1 to 3 days', days: 3 };
   if (horizon === 'MEDIUM') return { label: 'several days', days: 5 };
   if (horizon === 'LONG') return { label: '1 to 3 weeks', days: 10 };
@@ -295,7 +316,7 @@ function buildEventContext(row?: MarketStateRecord | null) {
     return {
       availability: 'INSUFFICIENT_DATA',
       note: 'No market-state event context is available yet.',
-      tags: [] as string[]
+      tags: [] as string[],
     };
   }
   const stats = (() => {
@@ -316,16 +337,20 @@ function buildEventContext(row?: MarketStateRecord | null) {
   }
   return {
     availability: normalizeRuntimeStatus(
-      stats.source_status || (row.updated_at_ms ? RUNTIME_STATUS.DB_BACKED : RUNTIME_STATUS.INSUFFICIENT_DATA),
-      RUNTIME_STATUS.INSUFFICIENT_DATA
+      stats.source_status ||
+        (row.updated_at_ms ? RUNTIME_STATUS.DB_BACKED : RUNTIME_STATUS.INSUFFICIENT_DATA),
+      RUNTIME_STATUS.INSUFFICIENT_DATA,
     ),
-    note:
-      'Current event intelligence is derived from runtime state and signal context. Macro and earnings calendars are not yet fully connected in this runtime path.',
-    tags: [...new Set(tags)].slice(0, 4)
+    note: 'Current event intelligence is derived from runtime state and signal context. Macro and earnings calendars are not yet fully connected in this runtime path.',
+    tags: [...new Set(tags)].slice(0, 4),
   };
 }
 
-function mergeSignals(signals: UiSignal[], evidenceSignals: EvidenceSignal[], overallStatus: string): UiSignal[] {
+function mergeSignals(
+  signals: UiSignal[],
+  evidenceSignals: EvidenceSignal[],
+  overallStatus: string,
+): UiSignal[] {
   const byId = new Map(signals.map((row) => [String(row.signal_id || row.id || ''), row]));
   const merged = evidenceSignals.map((row) => {
     const signalId = String(row.signal_id || '');
@@ -333,8 +358,13 @@ function mergeSignals(signals: UiSignal[], evidenceSignals: EvidenceSignal[], ov
     const transparency = (row.source_transparency as Record<string, unknown> | undefined) || {};
     const status = alignTransparency({
       overallStatus,
-      componentSourceStatus: transparency.source_status || base.source_status || RUNTIME_STATUS.DB_BACKED,
-      componentDataStatus: transparency.data_status || row.evidence_status || base.data_status || RUNTIME_STATUS.MODEL_DERIVED
+      componentSourceStatus:
+        transparency.source_status || base.source_status || RUNTIME_STATUS.DB_BACKED,
+      componentDataStatus:
+        transparency.data_status ||
+        row.evidence_status ||
+        base.data_status ||
+        RUNTIME_STATUS.MODEL_DERIVED,
     });
     return {
       ...base,
@@ -352,7 +382,11 @@ function mergeSignals(signals: UiSignal[], evidenceSignals: EvidenceSignal[], ov
       stop_loss:
         base.stop_loss ||
         (toNumber(row.invalidation, null) !== null
-          ? { type: 'EVIDENCE', price: Number(row.invalidation), rationale: 'Evidence-derived invalidation' }
+          ? {
+              type: 'EVIDENCE',
+              price: Number(row.invalidation),
+              rationale: 'Evidence-derived invalidation',
+            }
           : null),
       take_profit_levels: base.take_profit_levels || [],
       position_advice: base.position_advice || null,
@@ -362,7 +396,7 @@ function mergeSignals(signals: UiSignal[], evidenceSignals: EvidenceSignal[], ov
       source_transparency: {
         ...(base.source_transparency as Record<string, unknown> | undefined),
         ...transparency,
-        ...status
+        ...status,
       },
       source_status: status.source_status,
       data_status: status.data_status,
@@ -371,17 +405,23 @@ function mergeSignals(signals: UiSignal[], evidenceSignals: EvidenceSignal[], ov
       freshness_label: row.freshness_label || null,
       actionable: Boolean(row.actionable),
       supporting_run_id: row.supporting_run_id || null,
-      replay_paper_evidence_available: Boolean(row.replay_paper_evidence_available)
+      replay_paper_evidence_available: Boolean(row.replay_paper_evidence_available),
     };
   });
 
   const untouched = signals
-    .filter((row) => !merged.some((item) => String(item.signal_id || '') === String(row.signal_id || row.id || '')))
+    .filter(
+      (row) =>
+        !merged.some(
+          (item) => String(item.signal_id || '') === String(row.signal_id || row.id || ''),
+        ),
+    )
     .map((row) => {
       const status = alignTransparency({
         overallStatus,
         componentSourceStatus: row.source_status || row.source_label || overallStatus,
-        componentDataStatus: row.data_status || row.source_label || row.source_status || overallStatus
+        componentDataStatus:
+          row.data_status || row.source_label || row.source_status || overallStatus,
       });
       return {
         ...row,
@@ -390,8 +430,8 @@ function mergeSignals(signals: UiSignal[], evidenceSignals: EvidenceSignal[], ov
         source_label: status.source_label,
         source_transparency: {
           ...((row.source_transparency as Record<string, unknown> | undefined) || {}),
-          ...status
-        }
+          ...status,
+        },
       };
     });
   return [...merged, ...untouched];
@@ -399,8 +439,14 @@ function mergeSignals(signals: UiSignal[], evidenceSignals: EvidenceSignal[], ov
 
 function isActionable(row: UiSignal): boolean {
   const status = String(row.status || '').toUpperCase();
-  const dataStatus = normalizeRuntimeStatus(String(row.data_status || row.source_label || row.source_status || ''));
-  return (status === 'NEW' || status === 'TRIGGERED') && dataStatus !== RUNTIME_STATUS.WITHHELD && dataStatus !== RUNTIME_STATUS.INSUFFICIENT_DATA;
+  const dataStatus = normalizeRuntimeStatus(
+    String(row.data_status || row.source_label || row.source_status || ''),
+  );
+  return (
+    (status === 'NEW' || status === 'TRIGGERED') &&
+    dataStatus !== RUNTIME_STATUS.WITHHELD &&
+    dataStatus !== RUNTIME_STATUS.INSUFFICIENT_DATA
+  );
 }
 
 function buildPortfolioContext(args: {
@@ -421,7 +467,7 @@ function buildPortfolioContext(args: {
       focus_symbol: args.topActionSymbol || null,
       same_symbol_weight_pct: 0,
       concentration_note: 'No current positions provided.',
-      sector_concentration: []
+      sector_concentration: [],
     };
   }
 
@@ -429,7 +475,8 @@ function buildPortfolioContext(args: {
   const totalWeight = rows.reduce((sum, row) => sum + (row.weight_pct || 0), 0);
   const top1 = sorted[0]?.weight_pct || 0;
   const focusWeight = args.topActionSymbol
-    ? rows.find((row) => row.symbol === String(args.topActionSymbol || '').toUpperCase())?.weight_pct || 0
+    ? rows.find((row) => row.symbol === String(args.topActionSymbol || '').toUpperCase())
+        ?.weight_pct || 0
     : 0;
   const sectorMap = new Map<string, { sector: string; weight_pct: number; count: number }>();
   for (const row of rows) {
@@ -445,7 +492,13 @@ function buildPortfolioContext(args: {
     .slice(0, 3);
 
   const exposurePosture =
-    totalWeight >= 85 ? 'heavy' : totalWeight >= 55 ? 'moderate' : totalWeight > 0 ? 'light' : 'empty';
+    totalWeight >= 85
+      ? 'heavy'
+      : totalWeight >= 55
+        ? 'moderate'
+        : totalWeight > 0
+          ? 'light'
+          : 'empty';
   const recommendation =
     args.riskPosture === 'DEFEND'
       ? 'Portfolio is in defensive mode. Prioritize reducing unsupported or crowded exposure.'
@@ -469,7 +522,7 @@ function buildPortfolioContext(args: {
       top1 >= 30
         ? `Largest position already accounts for ${top1.toFixed(1)}% of stated exposure.`
         : 'No single position dominates the provided portfolio.',
-    sector_concentration: sectorConcentration
+    sector_concentration: sectorConcentration,
   };
 }
 
@@ -483,7 +536,9 @@ function deriveRiskState(args: {
   const rows = args.marketState || [];
   const avg = (field: keyof MarketStateRecord, fallback: number | null = null) => {
     if (!rows.length) return fallback;
-    const values = rows.map((row) => toNumber(row[field], null)).filter((v): v is number => v !== null);
+    const values = rows
+      .map((row) => toNumber(row[field], null))
+      .filter((v): v is number => v !== null);
     if (!values.length) return fallback;
     return values.reduce((sum, value) => sum + value, 0) / values.length;
   };
@@ -502,7 +557,10 @@ function deriveRiskState(args: {
   const lossPressure = latestExecutionLosses.length >= 3;
 
   let posture: 'ATTACK' | 'PROBE' | 'DEFEND' | 'WAIT' = 'PROBE';
-  if (normalizeRuntimeStatus(args.runtimeSourceStatus, RUNTIME_STATUS.INSUFFICIENT_DATA) !== RUNTIME_STATUS.DB_BACKED) {
+  if (
+    normalizeRuntimeStatus(args.runtimeSourceStatus, RUNTIME_STATUS.INSUFFICIENT_DATA) !==
+    RUNTIME_STATUS.DB_BACKED
+  ) {
     posture = 'WAIT';
   } else if ((avgRiskOff ?? 0) >= 0.72 || (avgVol ?? 0) >= 82 || lossPressure) {
     posture = 'DEFEND';
@@ -516,42 +574,74 @@ function deriveRiskState(args: {
     posture,
     locale: args.locale,
     variant: posture === 'DEFEND' || posture === 'WAIT' ? 'restrained' : 'standard',
-    seed: `${posture}:${avgVol ?? 'na'}:${avgRiskOff ?? 'na'}`
+    seed: `${posture}:${avgVol ?? 'na'}:${avgRiskOff ?? 'na'}`,
   });
   const riskCopy = getTodayRiskCopy({
     posture,
     locale: args.locale,
     changed: false,
-    seed: `${posture}:${avgVol ?? 'na'}:${avgRiskOff ?? 'na'}`
+    seed: `${posture}:${avgVol ?? 'na'}:${avgRiskOff ?? 'na'}`,
   });
 
   return {
-    source_status: normalizeRuntimeStatus(args.runtimeSourceStatus, RUNTIME_STATUS.INSUFFICIENT_DATA),
+    source_status: normalizeRuntimeStatus(
+      args.runtimeSourceStatus,
+      RUNTIME_STATUS.INSUFFICIENT_DATA,
+    ),
     data_status: normalizeRuntimeStatus(args.runtimeSourceStatus, RUNTIME_STATUS.INSUFFICIENT_DATA),
     posture,
     summary,
     simple_label: riskCopy.label,
     user_message: riskCopy.explanation,
     drivers: [
-      avgVol === null ? 'Volatility regime unavailable.' : `Average volatility percentile ${avgVol.toFixed(1)}.`,
-      avgRiskOff === null ? 'Risk-off regime unavailable.' : `Average risk-off score ${avgRiskOff.toFixed(2)}.`,
+      avgVol === null
+        ? 'Volatility regime unavailable.'
+        : `Average volatility percentile ${avgVol.toFixed(1)}.`,
+      avgRiskOff === null
+        ? 'Risk-off regime unavailable.'
+        : `Average risk-off score ${avgRiskOff.toFixed(2)}.`,
       breadth === null ? 'Breadth unavailable.' : `Trend breadth ${(breadth * 100).toFixed(0)}%.`,
-      lossPressure ? 'Recent realized paper losses are elevated.' : 'Recent execution pressure is not elevated.'
+      lossPressure
+        ? 'Recent realized paper losses are elevated.'
+        : 'Recent execution pressure is not elevated.',
     ],
     machine: {
-      volatility_regime: avgVol === null ? 'INSUFFICIENT_DATA' : avgVol >= 82 ? 'HIGH' : avgVol >= 65 ? 'MODERATE' : 'CALM',
+      volatility_regime:
+        avgVol === null
+          ? 'INSUFFICIENT_DATA'
+          : avgVol >= 82
+            ? 'HIGH'
+            : avgVol >= 65
+              ? 'MODERATE'
+              : 'CALM',
       liquidity_regime: 'UNAVAILABLE',
-      risk_on_off: avgRiskOff === null ? 'INSUFFICIENT_DATA' : avgRiskOff >= 0.72 ? 'RISK_OFF' : avgRiskOff >= 0.56 ? 'NEUTRAL' : 'RISK_ON',
+      risk_on_off:
+        avgRiskOff === null
+          ? 'INSUFFICIENT_DATA'
+          : avgRiskOff >= 0.72
+            ? 'RISK_OFF'
+            : avgRiskOff >= 0.56
+              ? 'NEUTRAL'
+              : 'RISK_ON',
       macro_event_risk: 'UNAVAILABLE',
-      style_rotation_climate: breadth === null ? 'INSUFFICIENT_DATA' : breadth >= 0.65 ? 'trend_favored' : breadth <= 0.35 ? 'choppy' : 'mixed',
+      style_rotation_climate:
+        breadth === null
+          ? 'INSUFFICIENT_DATA'
+          : breadth >= 0.65
+            ? 'trend_favored'
+            : breadth <= 0.35
+              ? 'choppy'
+              : 'mixed',
       trend_suitability: breadth === null ? null : Number(clamp(breadth, 0, 1).toFixed(3)),
-      mean_reversion_suitability: breadth === null ? null : Number((1 - clamp(breadth, 0, 1)).toFixed(3)),
-      abnormal_correlation_context: avgRiskOff !== null && avgRiskOff >= 0.72 ? 'elevated' : 'normal',
+      mean_reversion_suitability:
+        breadth === null ? null : Number((1 - clamp(breadth, 0, 1)).toFixed(3)),
+      abnormal_correlation_context:
+        avgRiskOff !== null && avgRiskOff >= 0.72 ? 'elevated' : 'normal',
       avg_volatility_percentile: avgVol,
       avg_temperature_percentile: avgTemp,
       avg_risk_off_score: avgRiskOff,
-      risk_profile_key: args.riskProfile?.profile_key || 'balanced'
-    }
+      risk_profile_key: args.riskProfile?.profile_key || 'balanced',
+    },
   };
 }
 
@@ -570,7 +660,7 @@ function buildActionIntent(args: {
       action: 'watch_only',
       action_label: getPortfolioActionLabel('watch_only', args.locale),
       eligible: false,
-      rationale: 'Evidence exists, but the setup is not executable right now.'
+      rationale: 'Evidence exists, but the setup is not executable right now.',
     };
   }
   if (!args.governor.allowed) {
@@ -578,7 +668,7 @@ function buildActionIntent(args: {
       action: 'no_action',
       action_label: getPortfolioActionLabel('no_action', args.locale),
       eligible: false,
-      rationale: args.governor.block_reason || 'Portfolio risk governor blocked the action.'
+      rationale: args.governor.block_reason || 'Portfolio risk governor blocked the action.',
     };
   }
   if (direction === 'SHORT' && args.holdingWeight > 0) {
@@ -586,15 +676,18 @@ function buildActionIntent(args: {
       action: 'reduce_risk',
       action_label: getPortfolioActionLabel('reduce_risk', args.locale),
       eligible: true,
-      rationale: 'You already hold this exposure and the system is now leaning against it.'
+      rationale: 'You already hold this exposure and the system is now leaning against it.',
     };
   }
   if (args.riskPosture === 'DEFEND') {
     return {
       action: args.holdingWeight > 0 ? 'defensive_hold' : 'no_action',
-      action_label: getPortfolioActionLabel(args.holdingWeight > 0 ? 'defensive_hold' : 'no_action', args.locale),
+      action_label: getPortfolioActionLabel(
+        args.holdingWeight > 0 ? 'defensive_hold' : 'no_action',
+        args.locale,
+      ),
       eligible: args.holdingWeight > 0,
-      rationale: 'Risk posture is defensive, so new directional risk should be limited.'
+      rationale: 'Risk posture is defensive, so new directional risk should be limited.',
     };
   }
   if (args.holdingWeight > 0) {
@@ -603,14 +696,16 @@ function buildActionIntent(args: {
         action: 'defensive_hold',
         action_label: getPortfolioActionLabel('defensive_hold', args.locale),
         eligible: true,
-        rationale: 'You already carry a meaningful position here. Protect the existing exposure first.'
+        rationale:
+          'You already carry a meaningful position here. Protect the existing exposure first.',
       };
     }
     return {
       action: 'add_on_strength',
       action_label: getPortfolioActionLabel('add_on_strength', args.locale),
       eligible: true,
-      rationale: 'The setup is aligned with an existing position and portfolio exposure is still manageable.'
+      rationale:
+        'The setup is aligned with an existing position and portfolio exposure is still manageable.',
     };
   }
   if (direction === 'SHORT' && args.portfolioContext.total_weight_pct > 30) {
@@ -618,7 +713,7 @@ function buildActionIntent(args: {
       action: 'hedge',
       action_label: getPortfolioActionLabel('hedge', args.locale),
       eligible: true,
-      rationale: 'The short setup can be used as a portfolio hedge against existing long exposure.'
+      rationale: 'The short setup can be used as a portfolio hedge against existing long exposure.',
     };
   }
   if (args.riskPosture === 'PROBE') {
@@ -626,21 +721,22 @@ function buildActionIntent(args: {
       action: 'open_new_risk',
       action_label: getPortfolioActionLabel('open_new_risk', args.locale),
       eligible: true,
-      rationale: 'Conditions allow only selective new exposure. Keep size small.'
+      rationale: 'Conditions allow only selective new exposure. Keep size small.',
     };
   }
   return {
     action: 'open_new_risk',
     action_label: getPortfolioActionLabel('open_new_risk', args.locale),
     eligible: true,
-    rationale: 'Risk posture allows a fresh position if the setup remains valid.'
+    rationale: 'Risk posture allows a fresh position if the setup remains valid.',
   };
 }
 
 function buildWhyNow(signal: UiSignal, riskState: ReturnType<typeof deriveRiskState>) {
   const bullets = asArray<string>(signal.explain_bullets).filter(Boolean);
   if (bullets.length) return bullets[0];
-  if (riskState.posture === 'DEFEND') return 'The setup exists, but it ranks mainly because existing exposure needs attention.';
+  if (riskState.posture === 'DEFEND')
+    return 'The setup exists, but it ranks mainly because existing exposure needs attention.';
   return `Setup aligns with ${String(signal.strategy_family || signal.strategy_id || 'the current strategy')} under ${String(signal.regime_id || 'current regime')}.`;
 }
 
@@ -658,22 +754,38 @@ function buildEvidenceBundle(args: {
   const regimeRow = args.regimeRow;
   const eventContext = buildEventContext(regimeRow);
   const supportingFactors = [
-    ...asArray<string>((() => { try { return JSON.parse(regimeRow?.event_stats_json || '{}'); } catch { return {}; } })()?.panda?.top_factors),
-    ...asArray<string>(args.signal.explain_bullets)
+    ...asArray<string>(
+      (() => {
+        try {
+          return JSON.parse(regimeRow?.event_stats_json || '{}');
+        } catch {
+          return {};
+        }
+      })()?.panda?.top_factors,
+    ),
+    ...asArray<string>(args.signal.explain_bullets),
   ]
     .map((item) => String(item))
     .filter(Boolean)
     .slice(0, 4);
 
   const opposingFactors: string[] = [];
-  if ((args.riskState.machine.avg_volatility_percentile || 0) >= 75) opposingFactors.push('Elevated realized volatility.');
-  if ((args.riskState.machine.avg_risk_off_score || 0) >= 0.65) opposingFactors.push('Risk-off posture is elevated.');
-  if ((args.portfolioContext.top1_pct || 0) >= 30) opposingFactors.push('Portfolio concentration is already high.');
-  if (Number((args.signal.expected_metrics as Record<string, unknown> | undefined)?.sample_size || 0) < 12) {
+  if ((args.riskState.machine.avg_volatility_percentile || 0) >= 75)
+    opposingFactors.push('Elevated realized volatility.');
+  if ((args.riskState.machine.avg_risk_off_score || 0) >= 0.65)
+    opposingFactors.push('Risk-off posture is elevated.');
+  if ((args.portfolioContext.top1_pct || 0) >= 30)
+    opposingFactors.push('Portfolio concentration is already high.');
+  if (
+    Number(
+      (args.signal.expected_metrics as Record<string, unknown> | undefined)?.sample_size || 0,
+    ) < 12
+  ) {
     opposingFactors.push('Historical sample size is still limited.');
   }
 
-  const previousSummary = (args.previousDecision?.summary as Record<string, unknown> | undefined) || {};
+  const previousSummary =
+    (args.previousDecision?.summary as Record<string, unknown> | undefined) || {};
   const previousTopActionSymbol = String(previousSummary.top_action_symbol || '');
   const currentSymbol = String(args.signal.symbol || '');
   const whatChanged =
@@ -684,16 +796,18 @@ function buildEvidenceBundle(args: {
         : 'No prior personalized decision snapshot is available for comparison.';
 
   const horizon = inferHorizon(args.signal);
-  const confidenceDetails = (args.signal.confidence_details as Record<string, unknown> | undefined) || {};
+  const confidenceDetails =
+    (args.signal.confidence_details as Record<string, unknown> | undefined) || {};
   const newsContext = (args.signal.news_context as Record<string, unknown> | undefined) || {};
   const lineage = buildEvidenceLineage({
-    runtimeStatus: args.signal.source_status || args.signal.data_status || RUNTIME_STATUS.INSUFFICIENT_DATA,
+    runtimeStatus:
+      args.signal.source_status || args.signal.data_status || RUNTIME_STATUS.INSUFFICIENT_DATA,
     performanceStatus: args.performanceSourceStatus || RUNTIME_STATUS.INSUFFICIENT_DATA,
     replayEvidenceAvailable: args.signal.replay_paper_evidence_available,
     paperEvidenceAvailable: false,
     sourceStatus: args.signal.source_status,
     dataStatus: args.signal.data_status,
-    demo: args.demoMode
+    demo: args.demoMode,
   });
   return {
     thesis: buildWhyNow(args.signal, args.riskState),
@@ -702,21 +816,23 @@ function buildEvidenceBundle(args: {
     regime_context: {
       regime_id: regimeRow?.regime_id || args.signal.regime_id || '--',
       stance: regimeRow?.stance || '--',
-      volatility_percentile: regimeRow?.volatility_percentile ?? args.signal.volatility_percentile ?? null,
-      temperature_percentile: regimeRow?.temperature_percentile ?? args.signal.temperature_percentile ?? null,
-      risk_off_score: regimeRow?.risk_off_score ?? null
+      volatility_percentile:
+        regimeRow?.volatility_percentile ?? args.signal.volatility_percentile ?? null,
+      temperature_percentile:
+        regimeRow?.temperature_percentile ?? args.signal.temperature_percentile ?? null,
+      risk_off_score: regimeRow?.risk_off_score ?? null,
     },
     event_context: eventContext,
     data_quality: {
       source_status: String(args.signal.source_status || RUNTIME_STATUS.INSUFFICIENT_DATA),
       data_status: String(args.signal.data_status || RUNTIME_STATUS.INSUFFICIENT_DATA),
-      evidence_status: String(args.signal.evidence_status || 'UNKNOWN')
+      evidence_status: String(args.signal.evidence_status || 'UNKNOWN'),
     },
     confidence: {
       conviction: Number(toNumber(args.signal.confidence, 0) || 0),
       uncertainty:
         opposingFactors.length >= 3 ? 'HIGH' : opposingFactors.length >= 2 ? 'MEDIUM' : 'LOW',
-      calibration: confidenceDetails
+      calibration: confidenceDetails,
     },
     evidence_lineage: lineage,
     news_context: newsContext,
@@ -726,11 +842,11 @@ function buildEvidenceBundle(args: {
       `Stop / invalidation sits near ${String((args.signal.stop_loss as Record<string, unknown> | undefined)?.price ?? args.signal.invalidation_level ?? '--')}.`,
       `Expected horizon: ${horizon.label}.`,
       args.actionIntent.rationale,
-      ...args.governor.reasons
+      ...args.governor.reasons,
     ].slice(0, 4),
     next_action: args.actionIntent.action,
     what_changed: whatChanged,
-    generated_at: new Date().toISOString()
+    generated_at: new Date().toISOString(),
   };
 }
 
@@ -744,10 +860,14 @@ function rankCard(args: {
 }) {
   const score = Number(toNumber(args.signal.score, 0) || 0);
   const confidence = Number(toNumber(args.signal.confidence, 0) || 0);
-  const createdAtMs = parseDateMs(args.signal.created_at) || parseDateMs(args.signal.generated_at) || Date.now() - 72 * 3600_000;
+  const createdAtMs =
+    parseDateMs(args.signal.created_at) ||
+    parseDateMs(args.signal.generated_at) ||
+    Date.now() - 72 * 3600_000;
   const ageHours = Math.max(0, (Date.now() - createdAtMs) / 3600_000);
   const freshnessPenalty = Math.min(24, ageHours * 1.1);
-  const posturePenalty = args.riskState.posture === 'DEFEND' ? 18 : args.riskState.posture === 'PROBE' ? 8 : 0;
+  const posturePenalty =
+    args.riskState.posture === 'DEFEND' ? 18 : args.riskState.posture === 'PROBE' ? 8 : 0;
   const intentBonus =
     args.intent.action === 'reduce_risk'
       ? 16
@@ -761,17 +881,20 @@ function rankCard(args: {
               ? 6
               : -8;
   const holdingBonus = args.holdingWeight > 0 && args.intent.action === 'reduce_risk' ? 10 : 0;
-  const governorPenalty =
-    !args.governor.allowed
-      ? 45
-      : args.governor.governor_mode === 'DERISK'
-        ? 14
-        : args.governor.governor_mode === 'CAUTION'
-          ? 8
-          : 0;
+  const governorPenalty = !args.governor.allowed
+    ? 45
+    : args.governor.governor_mode === 'DERISK'
+      ? 14
+      : args.governor.governor_mode === 'CAUTION'
+        ? 8
+        : 0;
   const governorBoost = args.governor.allowed ? args.governor.size_multiplier * 6 : 0;
   const strategyPenalty = args.publicationGate.strategyBacked ? 0 : 120;
-  const publicationPenalty = args.publicationGate.publishable ? 0 : args.publicationGate.status === 'WATCH' ? 18 : 64;
+  const publicationPenalty = args.publicationGate.publishable
+    ? 0
+    : args.publicationGate.status === 'WATCH'
+      ? 18
+      : 64;
   const publicationBoost = args.publicationGate.publishable ? 12 : 0;
   const factoryBoost = factoryPromotionBoost(args.signal);
   return (
@@ -805,7 +928,7 @@ function buildNoActionCard(args: {
   const status = alignTransparency({
     overallStatus: args.overallStatus,
     componentSourceStatus: args.overallStatus,
-    componentDataStatus: args.overallStatus
+    componentDataStatus: args.overallStatus,
   });
   const reasonText = args.reasonText || 'No action ranks above the current opportunity set.';
   return {
@@ -835,14 +958,14 @@ function buildNoActionCard(args: {
       risk_budget_remaining: Number(args.portfolioContext.total_weight_pct || 0),
       block_reason: reasonText,
       reasons: [reasonText],
-      overlays: [String(args.reasonCode || 'no_action_default').toLowerCase()]
+      overlays: [String(args.reasonCode || 'no_action_default').toLowerCase()],
     },
     evidence_lineage: buildEvidenceLineage({
       runtimeStatus: args.overallStatus,
       performanceStatus: args.performanceSourceStatus,
       sourceStatus: args.overallStatus,
       dataStatus: args.overallStatus,
-      demo: args.demoMode
+      demo: args.demoMode,
     }),
     entry_zone: null,
     stop_loss: null,
@@ -864,18 +987,21 @@ function buildNoActionCard(args: {
       event_context: {
         availability: normalizeRuntimeStatus(args.overallStatus, RUNTIME_STATUS.INSUFFICIENT_DATA),
         note: 'No trade-worthy event context is available.',
-        tags: []
+        tags: [],
       },
       data_quality: status,
       confidence: {
         conviction: 0,
-        uncertainty: 'HIGH'
+        uncertainty: 'HIGH',
       },
-      implementation_caveats: [reasonText, 'Wait for cleaner evidence or lower-risk conditions.'].filter(Boolean),
+      implementation_caveats: [
+        reasonText,
+        'Wait for cleaner evidence or lower-risk conditions.',
+      ].filter(Boolean),
       next_action: 'wait',
       what_changed: reasonText,
-      generated_at: args.asOf
-    }
+      generated_at: args.asOf,
+    },
   };
 }
 
@@ -883,9 +1009,28 @@ function determineActionCardLimit(riskProfile?: UserRiskProfileRecord | null) {
   const config = getConfig();
   const target = config.serviceEnvelope?.targetDailyActionCards || {};
   const key = String(riskProfile?.profile_key || 'balanced').toLowerCase();
-  const conservative = Math.max(6, Math.min(20, Number(process.env.NOVA_ACTION_CARD_LIMIT_CONSERVATIVE || target.conservative || target.min || 10)));
-  const balanced = Math.max(conservative, Math.min(20, Number(process.env.NOVA_ACTION_CARD_LIMIT_BALANCED || target.balanced || 12)));
-  const aggressive = Math.max(balanced, Math.min(24, Number(process.env.NOVA_ACTION_CARD_LIMIT_AGGRESSIVE || target.aggressive || target.max || 15)));
+  const conservative = Math.max(
+    6,
+    Math.min(
+      20,
+      Number(
+        process.env.NOVA_ACTION_CARD_LIMIT_CONSERVATIVE || target.conservative || target.min || 10,
+      ),
+    ),
+  );
+  const balanced = Math.max(
+    conservative,
+    Math.min(20, Number(process.env.NOVA_ACTION_CARD_LIMIT_BALANCED || target.balanced || 12)),
+  );
+  const aggressive = Math.max(
+    balanced,
+    Math.min(
+      24,
+      Number(
+        process.env.NOVA_ACTION_CARD_LIMIT_AGGRESSIVE || target.aggressive || target.max || 15,
+      ),
+    ),
+  );
   if (key === 'aggressive') return aggressive;
   if (key === 'conservative') return conservative;
   return balanced;
@@ -905,15 +1050,16 @@ function adjustedCardScore(card: ActionCard, selected: ActionCard[]) {
   const selectedStrategies = countBy(selected, (row) => String(row.strategy_source || ''));
   const selectedMarkets = countBy(selected, (row) => String(row.market || ''));
   const selectedActions = countBy(selected, (row) => String(row.action || ''));
-  const selectedDirections = countBy(
-    selected,
-    (row) => String((row.signal_payload as Record<string, unknown> | null)?.direction || '').toUpperCase()
+  const selectedDirections = countBy(selected, (row) =>
+    String((row.signal_payload as Record<string, unknown> | null)?.direction || '').toUpperCase(),
   );
   const sameSymbolCount = selectedSymbols.get(String(card.symbol || '')) || 0;
   const sameStrategyCount = selectedStrategies.get(String(card.strategy_source || '')) || 0;
   const sameMarketCount = selectedMarkets.get(String(card.market || '')) || 0;
   const sameActionCount = selectedActions.get(String(card.action || '')) || 0;
-  const directionKey = String((card.signal_payload as Record<string, unknown> | null)?.direction || '').toUpperCase();
+  const directionKey = String(
+    (card.signal_payload as Record<string, unknown> | null)?.direction || '',
+  ).toUpperCase();
   const sameDirectionCount = selectedDirections.get(directionKey) || 0;
 
   let adjusted = card.ranking_score;
@@ -936,14 +1082,16 @@ function selectDiversifiedActionCards(ranked: ActionCard[], maxCards: number) {
   const strategyBacked = ranked.filter((row) => row.strategy_backed && row.signal_payload);
   const pools = [
     strategyBacked.filter((row) => row.eligible),
-    strategyBacked.filter((row) => !row.eligible)
+    strategyBacked.filter((row) => !row.eligible),
   ];
 
   for (const pool of pools) {
     const remaining = [...pool];
     while (remaining.length && selected.length < maxCards) {
       const seenSymbols = new Set(selected.map((row) => String(row.symbol || '')).filter(Boolean));
-      const unseenSymbolPool = remaining.filter((row) => !seenSymbols.has(String(row.symbol || '')));
+      const unseenSymbolPool = remaining.filter(
+        (row) => !seenSymbols.has(String(row.symbol || '')),
+      );
       const candidatePool = unseenSymbolPool.length ? unseenSymbolPool : remaining;
       let bestIndex = 0;
       let bestScore = -Infinity;
@@ -964,31 +1112,38 @@ function selectDiversifiedActionCards(ranked: ActionCard[], maxCards: number) {
 }
 
 export function buildDecisionSnapshot(input: DecisionEngineInput) {
-  const overallStatus = normalizeRuntimeStatus(input.runtimeSourceStatus, RUNTIME_STATUS.INSUFFICIENT_DATA);
-  const mergedSignals = mergeSignals(input.signals || [], input.evidenceSignals || [], overallStatus);
+  const overallStatus = normalizeRuntimeStatus(
+    input.runtimeSourceStatus,
+    RUNTIME_STATUS.INSUFFICIENT_DATA,
+  );
+  const mergedSignals = mergeSignals(
+    input.signals || [],
+    input.evidenceSignals || [],
+    overallStatus,
+  );
   const actionableSignals = mergedSignals.filter(isActionable);
   const riskState = deriveRiskState({
     marketState: input.marketState || [],
     runtimeSourceStatus: overallStatus,
     riskProfile: input.riskProfile,
     executions: input.executions,
-    locale: input.locale
+    locale: input.locale,
   });
 
   const portfolioContextBase = buildPortfolioContext({
     holdings: input.holdings,
     topActionSymbol: null,
-    riskPosture: riskState.posture
+    riskPosture: riskState.posture,
   });
 
   const regimeBySymbol = new Map(
-    (input.marketState || []).map((row) => [String(row.symbol || '').toUpperCase(), row])
+    (input.marketState || []).map((row) => [String(row.symbol || '').toUpperCase(), row]),
   );
   const holdingsBySymbol = new Map(
     (input.holdings || []).map((row, index) => {
       const normalized = normalizeHolding(row, index);
       return [normalized.symbol, normalized];
-    })
+    }),
   );
 
   const ranked: ActionCard[] = mergedSignals
@@ -1001,7 +1156,10 @@ export function buildDecisionSnapshot(input: DecisionEngineInput) {
         executions: input.executions,
         holdings: input.holdings,
         riskProfile: input.riskProfile,
-        calibratedConfidence: toNumber((signal.confidence_details as Record<string, unknown> | undefined)?.calibrated_confidence, null)
+        calibratedConfidence: toNumber(
+          (signal.confidence_details as Record<string, unknown> | undefined)?.calibrated_confidence,
+          null,
+        ),
       });
       const intent = buildActionIntent({
         signal,
@@ -1009,14 +1167,14 @@ export function buildDecisionSnapshot(input: DecisionEngineInput) {
         portfolioContext: portfolioContextBase,
         holdingWeight,
         governor,
-        locale: input.locale
+        locale: input.locale,
       });
       const strategySource = strategySourceForSignal(signal);
       const publicationGate = evaluatePublicationGate({
         signal,
         intent,
         governor,
-        strategySource
+        strategySource,
       });
       const evidenceBundle = buildEvidenceBundle({
         signal,
@@ -1027,7 +1185,7 @@ export function buildDecisionSnapshot(input: DecisionEngineInput) {
         actionIntent: intent,
         governor,
         performanceSourceStatus: input.performanceSourceStatus,
-        demoMode: input.demoMode
+        demoMode: input.demoMode,
       });
       const horizon = inferHorizon(signal);
       const rankingScore = rankCard({
@@ -1036,11 +1194,16 @@ export function buildDecisionSnapshot(input: DecisionEngineInput) {
         intent,
         holdingWeight,
         governor,
-        publicationGate
+        publicationGate,
       });
-      const basePositionPct = toNumber((signal.position_advice as Record<string, unknown> | undefined)?.position_pct, null);
+      const basePositionPct = toNumber(
+        (signal.position_advice as Record<string, unknown> | undefined)?.position_pct,
+        null,
+      );
       const finalPositionPct =
-        basePositionPct === null ? null : Number((basePositionPct * governor.size_multiplier).toFixed(2));
+        basePositionPct === null
+          ? null
+          : Number((basePositionPct * governor.size_multiplier).toFixed(2));
       const evidenceLineage = buildEvidenceLineage({
         runtimeStatus: input.runtimeSourceStatus,
         performanceStatus: input.performanceSourceStatus,
@@ -1048,37 +1211,51 @@ export function buildDecisionSnapshot(input: DecisionEngineInput) {
         paperEvidenceAvailable: false,
         sourceStatus: signal.source_status,
         dataStatus: signal.data_status,
-        demo: input.demoMode
+        demo: input.demoMode,
       });
       return {
         action_id: `action-${String(signal.signal_id || symbol || Math.random()).replace(/[^a-zA-Z0-9_-]/g, '-')}`,
         signal_id: String(signal.signal_id || ''),
         symbol,
-        market: ((String(signal.market || input.market).toUpperCase() === 'CRYPTO' ? 'CRYPTO' : 'US') as Market | 'ALL'),
-        asset_class: (
-          String(signal.asset_class || input.assetClass || 'US_STOCK').toUpperCase() === 'CRYPTO'
-            ? 'CRYPTO'
-            : String(signal.asset_class || input.assetClass || 'US_STOCK').toUpperCase() === 'OPTIONS'
-              ? 'OPTIONS'
-              : 'US_STOCK'
-        ) as AssetClass | 'ALL',
+        market: (String(signal.market || input.market).toUpperCase() === 'CRYPTO'
+          ? 'CRYPTO'
+          : 'US') as Market | 'ALL',
+        asset_class: (String(signal.asset_class || input.assetClass || 'US_STOCK').toUpperCase() ===
+        'CRYPTO'
+          ? 'CRYPTO'
+          : String(signal.asset_class || input.assetClass || 'US_STOCK').toUpperCase() === 'OPTIONS'
+            ? 'OPTIONS'
+            : 'US_STOCK') as AssetClass | 'ALL',
         action: intent.action,
         action_label: intent.action_label,
         portfolio_intent: intent.action,
         confidence: Number(toNumber(signal.confidence, 0) || 0),
-        calibrated_confidence: toNumber((signal.confidence_details as Record<string, unknown> | undefined)?.calibrated_confidence, null) || Number(toNumber(signal.confidence, 0) || 0),
+        calibrated_confidence:
+          toNumber(
+            (signal.confidence_details as Record<string, unknown> | undefined)
+              ?.calibrated_confidence,
+            null,
+          ) || Number(toNumber(signal.confidence, 0) || 0),
         conviction_label:
-          (toNumber(signal.confidence, 0) || 0) >= 0.75 ? 'High' : (toNumber(signal.confidence, 0) || 0) >= 0.58 ? 'Medium' : 'Low',
+          (toNumber(signal.confidence, 0) || 0) >= 0.75
+            ? 'High'
+            : (toNumber(signal.confidence, 0) || 0) >= 0.58
+              ? 'Medium'
+              : 'Low',
         time_horizon: horizon.label,
         time_horizon_days: horizon.days,
         brief_why_now: evidenceBundle.thesis,
         brief_caution:
-          publicationGate.reason || governor.block_reason || evidenceBundle.implementation_caveats[0] || intent.rationale,
+          publicationGate.reason ||
+          governor.block_reason ||
+          evidenceBundle.implementation_caveats[0] ||
+          intent.rationale,
         risk_note: riskState.user_message,
         eligible: publicationGate.publishable,
         ranking_score: Number(rankingScore.toFixed(2)),
         recommended_position_pct: finalPositionPct,
-        confidence_details: (signal.confidence_details as Record<string, unknown> | undefined) || null,
+        confidence_details:
+          (signal.confidence_details as Record<string, unknown> | undefined) || null,
         governor,
         evidence_lineage: evidenceLineage,
         entry_zone: signal.entry_zone || null,
@@ -1093,12 +1270,15 @@ export function buildDecisionSnapshot(input: DecisionEngineInput) {
         data_status: String(signal.data_status || overallStatus),
         source_label: String(signal.source_label || signal.data_status || overallStatus),
         signal_payload: signal,
-        evidence_bundle: evidenceBundle
+        evidence_bundle: evidenceBundle,
       };
     })
     .sort((a, b) => b.ranking_score - a.ranking_score);
 
-  const rankedActionCards = selectDiversifiedActionCards(ranked, determineActionCardLimit(input.riskProfile));
+  const rankedActionCards = selectDiversifiedActionCards(
+    ranked,
+    determineActionCardLimit(input.riskProfile),
+  );
   if (!rankedActionCards.length || !rankedActionCards[0]?.eligible) {
     const noActionReasonCode =
       overallStatus !== RUNTIME_STATUS.DB_BACKED
@@ -1126,8 +1306,8 @@ export function buildDecisionSnapshot(input: DecisionEngineInput) {
         demoMode: input.demoMode,
         locale: input.locale,
         reasonCode: noActionReasonCode,
-        reasonText: noActionReasonText
-      })
+        reasonText: noActionReasonText,
+      }),
     );
   }
 
@@ -1135,7 +1315,7 @@ export function buildDecisionSnapshot(input: DecisionEngineInput) {
   const portfolioContext = buildPortfolioContext({
     holdings: input.holdings,
     topActionSymbol: topAction?.symbol || null,
-    riskPosture: riskState.posture
+    riskPosture: riskState.posture,
   });
   const todayCall =
     topAction.action === 'no_action' && overallStatus !== RUNTIME_STATUS.DB_BACKED
@@ -1146,7 +1326,7 @@ export function buildDecisionSnapshot(input: DecisionEngineInput) {
             topAction.governor?.block_reason ||
             (input.locale === 'zh'
               ? '运行时还不是 DB-backed，当前不能给出可执行动作卡。'
-              : 'Runtime is not DB-backed yet, so no executable action card can be published.')
+              : 'Runtime is not DB-backed yet, so no executable action card can be published.'),
         }
       : topAction.action === 'no_action' && mergedSignals.length === 0
         ? {
@@ -1156,18 +1336,23 @@ export function buildDecisionSnapshot(input: DecisionEngineInput) {
               topAction.governor?.block_reason ||
               (input.locale === 'zh'
                 ? '运行时已执行，但当前信号池为空。'
-                : 'Runtime completed, but the signal pool is empty.')
+                : 'Runtime completed, but the signal pool is empty.'),
           }
         : topAction.action === 'no_action'
           ? {
               code: 'WAIT',
               headline: input.locale === 'zh' ? '今天先等等' : 'Wait today',
-              subtitle: topAction.governor?.block_reason || riskState.user_message
+              subtitle: topAction.governor?.block_reason || riskState.user_message,
             }
           : {
-              code: riskState.posture === 'ATTACK' ? 'TRADE' : riskState.posture === 'PROBE' ? 'PROBE' : 'DEFENSE',
+              code:
+                riskState.posture === 'ATTACK'
+                  ? 'TRADE'
+                  : riskState.posture === 'PROBE'
+                    ? 'PROBE'
+                    : 'DEFENSE',
               headline: riskState.summary,
-              subtitle: topAction.brief_why_now
+              subtitle: topAction.brief_why_now,
             };
 
   const decisionState =
@@ -1187,11 +1372,17 @@ export function buildDecisionSnapshot(input: DecisionEngineInput) {
     risk_posture: riskState.posture,
     risk_summary: riskState.summary,
     user_message: riskState.user_message,
-    evidence_mode: String((topAction.evidence_lineage as Record<string, unknown> | undefined)?.display_mode || 'UNAVAILABLE'),
-    performance_mode: String((topAction.evidence_lineage as Record<string, unknown> | undefined)?.performance_mode || 'UNAVAILABLE'),
+    evidence_mode: String(
+      (topAction.evidence_lineage as Record<string, unknown> | undefined)?.display_mode ||
+        'UNAVAILABLE',
+    ),
+    performance_mode: String(
+      (topAction.evidence_lineage as Record<string, unknown> | undefined)?.performance_mode ||
+        'UNAVAILABLE',
+    ),
     decision_state: decisionState,
     source_status: overallStatus,
-    data_status: overallStatus
+    data_status: overallStatus,
   };
 
   return {
@@ -1208,7 +1399,7 @@ export function buildDecisionSnapshot(input: DecisionEngineInput) {
     evidence_summary: {
       top_action_thesis: topAction.evidence_bundle?.thesis || null,
       main_risk_driver: riskState.drivers[0] || null,
-      personalized: portfolioContext.availability === 'PERSONALIZED'
+      personalized: portfolioContext.availability === 'PERSONALIZED',
     },
     audit: {
       candidate_count: mergedSignals.length,
@@ -1216,9 +1407,12 @@ export function buildDecisionSnapshot(input: DecisionEngineInput) {
       strategy_backed_count: ranked.filter((row) => row.strategy_backed).length,
       publishable_count: ranked.filter((row) => row.publication_status === 'ACTIONABLE').length,
       rejected_due_to_risk: actionableSignals.length - ranked.filter((row) => row.eligible).length,
-      previous_top_action_symbol: String(((input.previousDecision?.summary as Record<string, unknown> | undefined) || {}).top_action_symbol || ''),
-      created_for_user: input.userId
+      previous_top_action_symbol: String(
+        ((input.previousDecision?.summary as Record<string, unknown> | undefined) || {})
+          .top_action_symbol || '',
+      ),
+      created_for_user: input.userId,
     },
-    summary
+    summary,
   };
 }

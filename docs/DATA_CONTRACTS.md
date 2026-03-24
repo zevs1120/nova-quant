@@ -293,7 +293,9 @@ This file defines review-facing contracts used by research core.
     "discovery_success_rate": 0.1458
   },
   "candidate_diagnostics": {
-    "by_hypothesis": [{ "hypothesis_id": "HYP-MOM-PERSIST", "generated": 8, "promoted_to_shadow": 2 }],
+    "by_hypothesis": [
+      { "hypothesis_id": "HYP-MOM-PERSIST", "generated": 8, "promoted_to_shadow": 2 }
+    ],
     "by_regime": [{ "regime": "trend", "generated": 20, "promoted": 4 }],
     "top_failure_reasons": [{ "reason": "parameter_fragility", "count": 9 }],
     "coverage_gaps": { "regime_gaps": ["stress_risk_off"], "asset_class_gaps": [] }
@@ -318,7 +320,10 @@ This file defines review-facing contracts used by research core.
   "walk_forward_results": { "summary": { "positive_window_ratio": 0.6 } },
   "governance_state": { "current_stage": "SHADOW", "next_stage": "CANARY" },
   "promotion_history": [{ "source": "discovery_engine", "decision": "PROMOTE_TO_SHADOW" }],
-  "production_recommendation": { "recommendation": "PROMOTE_TO_SHADOW", "lifecycle_target": "SHADOW" }
+  "production_recommendation": {
+    "recommendation": "PROMOTE_TO_SHADOW",
+    "lifecycle_target": "SHADOW"
+  }
 }
 ```
 
@@ -345,7 +350,9 @@ This file defines review-facing contracts used by research core.
   },
   "review_status": "APPROVED",
   "next_eligible_action": "PROMOTE_TO_PROD",
-  "promotion_history": [{ "at": "2026-03-09T12:00:00.000Z", "from_state": "SHADOW", "to_state": "CANARY" }],
+  "promotion_history": [
+    { "at": "2026-03-09T12:00:00.000Z", "from_state": "SHADOW", "to_state": "CANARY" }
+  ],
   "demotion_history": [],
   "rollback_history": [],
   "retirement_reason": null

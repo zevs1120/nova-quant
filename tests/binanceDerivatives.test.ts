@@ -23,12 +23,12 @@ describe('syncBinanceDerivatives', () => {
         return new Response(
           JSON.stringify([
             { symbol: 'BTCUSDT', fundingRate: '0.0001', fundingTime: 1_710_000_000_000 },
-            { symbol: 'BTCUSDT', fundingRate: '0.0002', fundingTime: 1_710_028_800_000 }
+            { symbol: 'BTCUSDT', fundingRate: '0.0002', fundingTime: 1_710_028_800_000 },
           ]),
           {
             status: 200,
-            headers: { 'content-type': 'application/json' }
-          }
+            headers: { 'content-type': 'application/json' },
+          },
         );
       }
 
@@ -39,12 +39,12 @@ describe('syncBinanceDerivatives', () => {
             markPrice: '50500',
             indexPrice: '50000',
             lastFundingRate: '0.0002',
-            time: 1_710_028_800_000
+            time: 1_710_028_800_000,
           }),
           {
             status: 200,
-            headers: { 'content-type': 'application/json' }
-          }
+            headers: { 'content-type': 'application/json' },
+          },
         );
       }
 
@@ -53,7 +53,7 @@ describe('syncBinanceDerivatives', () => {
 
     const result = await syncBinanceDerivatives({
       repo,
-      symbols: ['BTCUSDT']
+      symbols: ['BTCUSDT'],
     });
 
     const asset = repo.getAssetBySymbol('CRYPTO', 'BTCUSDT');

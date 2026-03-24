@@ -14,7 +14,7 @@ import type {
   SignalContract,
   SignalSnapshotRecord,
   StrategyVersionRecord,
-  UniverseSnapshotRecord
+  UniverseSnapshotRecord,
 } from '../types.js';
 
 type EvidenceRunParams = {
@@ -128,7 +128,16 @@ function timeframeToMs(timeframe: string): number {
   return DAY_MS;
 }
 
-function toBars(rows: Array<{ ts_open: number; open: string; high: string; low: string; close: string; volume: string }>) {
+function toBars(
+  rows: Array<{
+    ts_open: number;
+    open: string;
+    high: string;
+    low: string;
+    close: string;
+    volume: string;
+  }>,
+) {
   return rows
     .map((row) => ({
       ts_open: row.ts_open,
@@ -136,13 +145,19 @@ function toBars(rows: Array<{ ts_open: number; open: string; high: string; low: 
       high: safeNumber(row.high),
       low: safeNumber(row.low),
       close: safeNumber(row.close),
-      volume: safeNumber(row.volume)
+      volume: safeNumber(row.volume),
     }))
     .filter((row) => row.ts_open > 0 && row.close > 0)
     .sort((a, b) => a.ts_open - b.ts_open);
 }
 
-function adversePrice(price: number, direction: string, side: 'entry' | 'exit', bps: number, spreadBps: number) {
+function adversePrice(
+  price: number,
+  direction: string,
+  side: 'entry' | 'exit',
+  bps: number,
+  spreadBps: number,
+) {
   const totalBps = (safeNumber(bps) + safeNumber(spreadBps) * 0.5) / 10_000;
   const isShort = String(direction).toUpperCase() === 'SHORT';
   if (side === 'entry') {
@@ -177,7 +192,10 @@ function evidenceStatusFromSignal(signal: SignalContract): SignalSnapshotRecord[
 function normalizeExecutionProfile(row: ExecutionProfileRecord): ExecutionProfileNormalized {
   const spread = JSON.parse(row.spread_model_json) as { bps: number };
   const slip = JSON.parse(row.slippage_model_json) as { entry_bps: number; exit_bps: number };
-  const fee = JSON.parse(row.fee_model_json) as { bps_per_side: number; funding_bps_per_day: number };
+  const fee = JSON.parse(row.fee_model_json) as {
+    bps_per_side: number;
+    funding_bps_per_day: number;
+  };
   const fill = JSON.parse(row.fill_policy_json) as { mode: 'touch' | 'bar_cross' | 'conservative' };
   const latency = JSON.parse(row.latency_assumption_json) as { latency_ms: number };
   return {
@@ -190,7 +208,7 @@ function normalizeExecutionProfile(row: ExecutionProfileRecord): ExecutionProfil
     funding_bps_per_day: safeNumber(fee.funding_bps_per_day),
     fill_policy: fill.mode || 'conservative',
     latency_ms: safeNumber(latency.latency_ms),
-    mode: row.profile_name.includes('stress') ? 'stress' : 'baseline'
+    mode: row.profile_name.includes('stress') ? 'stress' : 'baseline',
   };
 }
 
@@ -205,7 +223,7 @@ function entryTriggered(
   bar: { open: number; high: number; low: number; close: number },
   bounds: { low: number; high: number },
   policy: ExecutionProfileNormalized['fill_policy'],
-  direction: string
+  direction: string,
 ): boolean {
   if (policy === 'touch') {
     return bar.low <= bounds.high && bar.high >= bounds.low;
@@ -224,16 +242,20 @@ function chooseEntryPrice(
   bar: { low: number; high: number; close: number },
   bounds: { low: number; high: number },
   policy: ExecutionProfileNormalized['fill_policy'],
-  direction: string
+  direction: string,
 ): number {
-  if (policy === 'bar_cross') return String(direction).toUpperCase() === 'SHORT' ? bounds.low : bounds.high;
-  if (policy === 'conservative') return String(direction).toUpperCase() === 'SHORT' ? Math.min(bounds.low, bar.close) : Math.max(bounds.high, bar.close);
+  if (policy === 'bar_cross')
+    return String(direction).toUpperCase() === 'SHORT' ? bounds.low : bounds.high;
+  if (policy === 'conservative')
+    return String(direction).toUpperCase() === 'SHORT'
+      ? Math.min(bounds.low, bar.close)
+      : Math.max(bounds.high, bar.close);
   return (bounds.low + bounds.high) / 2;
 }
 
 function pickExit(
   bar: { high: number; low: number; close: number },
-  signal: SignalContract
+  signal: SignalContract,
 ): { exitType: 'stop_loss' | 'take_profit' | null; rawPrice: number | null } {
   const stop = safeNumber(signal.stop_loss?.price, NaN);
   const tp = safeNumber(signal.take_profit_levels?.[0]?.price, NaN);
@@ -248,7 +270,10 @@ function pickExit(
   return { exitType: null, rawPrice: null };
 }
 
-function gradeFromValue(value: number, thresholds: [number, number, number]): 'A' | 'B' | 'C' | 'D' {
+function gradeFromValue(
+  value: number,
+  thresholds: [number, number, number],
+): 'A' | 'B' | 'C' | 'D' {
   if (value >= thresholds[0]) return 'A';
   if (value >= thresholds[1]) return 'B';
   if (value >= thresholds[2]) return 'C';
@@ -281,7 +306,7 @@ function metricSummary(args: {
       robustness_grade: 'WITHHELD',
       status: 'WITHHELD',
       created_at_ms: ts,
-      updated_at_ms: ts
+      updated_at_ms: ts,
     };
   }
 
@@ -290,7 +315,8 @@ function metricSummary(args: {
   const cost = closed.map((row) => safeNumber(row.cost_drag));
   const winRate = net.filter((row) => row > 0).length / Math.max(1, net.length);
   const meanNet = net.reduce((acc, row) => acc + row, 0) / Math.max(1, net.length);
-  const variance = net.reduce((acc, row) => acc + (row - meanNet) ** 2, 0) / Math.max(1, net.length - 1);
+  const variance =
+    net.reduce((acc, row) => acc + (row - meanNet) ** 2, 0) / Math.max(1, net.length - 1);
   const sigma = Math.sqrt(Math.max(variance, 1e-12));
   const downsideRows = net.filter((row) => row < 0);
   const downsideMean = downsideRows.length
@@ -306,7 +332,9 @@ function metricSummary(args: {
     peak = Math.max(peak, nav);
     worst = Math.min(worst, (nav - peak) / Math.max(peak, 1e-9));
   }
-  const turnover = args.daily.reduce((acc, row) => acc + safeNumber(row.turnover), 0) / Math.max(1, args.daily.length);
+  const turnover =
+    args.daily.reduce((acc, row) => acc + safeNumber(row.turnover), 0) /
+    Math.max(1, args.daily.length);
   const grossReturn = gross.reduce((acc, row) => acc + row, 0);
   const netReturn = net.reduce((acc, row) => acc + row, 0);
   const costDrag = cost.reduce((acc, row) => acc + row, 0);
@@ -334,7 +362,7 @@ function metricSummary(args: {
     robustness_grade: gradeFromValue(robustnessValue, [0.88, 0.72, 0.56]),
     status: 'READY',
     created_at_ms: ts,
-    updated_at_ms: ts
+    updated_at_ms: ts,
   };
 }
 
@@ -359,7 +387,7 @@ function aggregateDaily(trades: ReplayTrade[]) {
         post_cost_return: 0,
         turnover: 0,
         gross_exposure_pct: 0,
-        net_exposure_pct: 0
+        net_exposure_pct: 0,
       });
     }
     return map.get(date)!;
@@ -395,7 +423,7 @@ function aggregateDaily(trades: ReplayTrade[]) {
         turnover: round(row.turnover * 100, 4),
         gross_exposure_pct: round(row.gross_exposure_pct, 4),
         net_exposure_pct: round(row.net_exposure_pct, 4),
-        nav: round(nav, 6)
+        nav: round(nav, 6),
       };
     });
 }
@@ -417,7 +445,7 @@ function buildAttribution(trades: ReplayTrade[]) {
     by_conviction_bucket: {},
     by_holding_horizon: {},
     by_side: {},
-    by_cost_bucket: {}
+    by_cost_bucket: {},
   };
 
   const add = (scope: keyof typeof groups, key: string, trade: ReplayTrade) => {
@@ -435,7 +463,11 @@ function buildAttribution(trades: ReplayTrade[]) {
     add('by_conviction_bucket', bucket(trade.conviction, [0.45, 0.6, 0.75, 0.9]), trade);
     add('by_holding_horizon', bucket(trade.holding_days, [1, 3, 5, 10]), trade);
     add('by_side', trade.direction === 'SHORT' ? 'SHORT' : 'LONG', trade);
-    add('by_cost_bucket', bucket(Math.abs(safeNumber(trade.cost_drag)), [0.001, 0.003, 0.006, 0.01]), trade);
+    add(
+      'by_cost_bucket',
+      bucket(Math.abs(safeNumber(trade.cost_drag)), [0.001, 0.003, 0.006, 0.01]),
+      trade,
+    );
   }
 
   const normalize = (map: Record<string, { count: number; pnl: number; win: number }>) =>
@@ -444,7 +476,7 @@ function buildAttribution(trades: ReplayTrade[]) {
         key,
         trades: row.count,
         net_return: round(row.pnl, 6),
-        win_rate: round(row.win / Math.max(1, row.count), 6)
+        win_rate: round(row.win / Math.max(1, row.count), 6),
       }))
       .sort((a, b) => b.trades - a.trades);
 
@@ -456,7 +488,7 @@ function buildAttribution(trades: ReplayTrade[]) {
     by_conviction_bucket: normalize(groups.by_conviction_bucket),
     by_holding_horizon: normalize(groups.by_holding_horizon),
     by_side: normalize(groups.by_side),
-    by_cost_bucket: normalize(groups.by_cost_bucket)
+    by_cost_bucket: normalize(groups.by_cost_bucket),
   };
 }
 
@@ -499,12 +531,18 @@ function runReplayPass(args: {
         cost_drag: null,
         holding_bars: 0,
         holding_days: 0,
-        path: []
+        path: [],
       });
       continue;
     }
 
-    const bars = toBars(args.repo.getOhlcv({ assetId: asset.asset_id, timeframe: signal.timeframe as never, limit: 1200 }));
+    const bars = toBars(
+      args.repo.getOhlcv({
+        assetId: asset.asset_id,
+        timeframe: signal.timeframe as never,
+        limit: 1200,
+      }),
+    );
     const createdAtMs = Date.parse(signal.created_at);
     const expiresAtMs = Date.parse(signal.expires_at);
     const bounds = signalEntryBounds(signal);
@@ -535,13 +573,15 @@ function runReplayPass(args: {
         cost_drag: null,
         holding_bars: 0,
         holding_days: 0,
-        path: []
+        path: [],
       });
       continue;
     }
 
-    const horizonBars = Math.max(2, Math.round((signal.timeframe.includes('h') ? 24 : 5)));
-    const maxEndTs = Number.isFinite(expiresAtMs) ? expiresAtMs : createdAtMs + timeframeToMs(signal.timeframe) * horizonBars;
+    const horizonBars = Math.max(2, Math.round(signal.timeframe.includes('h') ? 24 : 5));
+    const maxEndTs = Number.isFinite(expiresAtMs)
+      ? expiresAtMs
+      : createdAtMs + timeframeToMs(signal.timeframe) * horizonBars;
     const startIdx = bars.findIndex((row) => row.ts_open >= createdAtMs);
     if (startIdx < 0) {
       trades.push({
@@ -570,7 +610,7 @@ function runReplayPass(args: {
         cost_drag: null,
         holding_bars: 0,
         holding_days: 0,
-        path: []
+        path: [],
       });
       continue;
     }
@@ -583,7 +623,13 @@ function runReplayPass(args: {
       if (!entryTriggered(bar, bounds, args.profile.fill_policy, signal.direction)) continue;
       entryIdx = i;
       const refPrice = chooseEntryPrice(bar, bounds, args.profile.fill_policy, signal.direction);
-      entryPrice = adversePrice(refPrice, signal.direction, 'entry', args.profile.entry_slippage_bps, args.profile.spread_bps);
+      entryPrice = adversePrice(
+        refPrice,
+        signal.direction,
+        'entry',
+        args.profile.entry_slippage_bps,
+        args.profile.spread_bps,
+      );
       break;
     }
 
@@ -614,7 +660,7 @@ function runReplayPass(args: {
         cost_drag: null,
         holding_bars: 0,
         holding_days: 0,
-        path: []
+        path: [],
       });
       continue;
     }
@@ -638,11 +684,18 @@ function runReplayPass(args: {
     }
 
     const exitTs = bars[exitIdx].ts_open;
-    const exitPrice = adversePrice(exitRawPrice, signal.direction, 'exit', args.profile.exit_slippage_bps, args.profile.spread_bps);
+    const exitPrice = adversePrice(
+      exitRawPrice,
+      signal.direction,
+      'exit',
+      args.profile.exit_slippage_bps,
+      args.profile.spread_bps,
+    );
     const gross = pnlFromPrices(signal.direction, entryPrice, exitPrice);
     const holdDays = Math.max(1, Math.round((exitTs - bars[entryIdx].ts_open) / DAY_MS) + 1);
-    const feeDrag = ((args.profile.fee_bps_per_side * 2) / 10_000);
-    const fundingDrag = signal.market === 'CRYPTO' ? (args.profile.funding_bps_per_day / 10_000) * holdDays : 0;
+    const feeDrag = (args.profile.fee_bps_per_side * 2) / 10_000;
+    const fundingDrag =
+      signal.market === 'CRYPTO' ? (args.profile.funding_bps_per_day / 10_000) * holdDays : 0;
     const costDrag = feeDrag + fundingDrag;
     const net = gross - costDrag;
 
@@ -672,14 +725,14 @@ function runReplayPass(args: {
       cost_drag: round(costDrag, 6),
       holding_bars: Math.max(1, exitIdx - entryIdx + 1),
       holding_days: holdDays,
-      path
+      path,
     });
   }
 
   const daily = aggregateDaily(trades);
   const metrics = metricSummary({
     trades,
-    daily: daily.map((row) => ({ post_cost_return: row.post_cost_return, turnover: row.turnover }))
+    daily: daily.map((row) => ({ post_cost_return: row.post_cost_return, turnover: row.turnover })),
   });
   const attribution = buildAttribution(trades);
 
@@ -687,7 +740,7 @@ function runReplayPass(args: {
     trades,
     metrics,
     daily_equity_curve: daily,
-    attribution
+    attribution,
   };
 }
 
@@ -702,7 +755,7 @@ function ensureExecutionProfiles(repo: MarketRepository) {
     fill_policy_json: JSON.stringify({ mode: 'conservative' }),
     latency_assumption_json: JSON.stringify({ latency_ms: 180 }),
     version: 'v1',
-    created_at_ms: ts
+    created_at_ms: ts,
   };
   const stress: ExecutionProfileRecord = {
     id: 'exec-replay-stress-v1',
@@ -713,13 +766,13 @@ function ensureExecutionProfiles(repo: MarketRepository) {
     fill_policy_json: JSON.stringify({ mode: 'conservative' }),
     latency_assumption_json: JSON.stringify({ latency_ms: 260 }),
     version: 'v1',
-    created_at_ms: ts
+    created_at_ms: ts,
   };
   repo.upsertExecutionProfile(baseline);
   repo.upsertExecutionProfile(stress);
   return {
     baseline: normalizeExecutionProfile(baseline),
-    stress: normalizeExecutionProfile(stress)
+    stress: normalizeExecutionProfile(stress),
   };
 }
 
@@ -736,7 +789,7 @@ function ensureStrategyVersions(repo: MarketRepository, signals: SignalContract[
       timeframe: signal.timeframe,
       cost_model: signal.cost_model,
       stop_loss: signal.stop_loss?.type,
-      trailing_rule: signal.trailing_rule?.type
+      trailing_rule: signal.trailing_rule?.type,
     });
     const id = `SV-${hashJson(`${strategyKey}:${version}`).slice(0, 16)}`;
     rowsByKey.set(id, {
@@ -750,11 +803,11 @@ function ensureStrategyVersions(repo: MarketRepository, signals: SignalContract[
         family: signal.strategy_family,
         version: signal.strategy_version,
         timeframe: signal.timeframe,
-        cost_model: signal.cost_model
+        cost_model: signal.cost_model,
       }),
       status: 'challenger',
       created_at_ms: ts,
-      updated_at_ms: ts
+      updated_at_ms: ts,
     });
   }
 
@@ -802,7 +855,7 @@ function buildDatasetAndUniverse(args: {
       bar_count: stats.bar_count,
       first_ts_open: stats.first_ts_open,
       last_ts_open: stats.last_ts_open,
-      age_hours: ageHours
+      age_hours: ageHours,
     };
   });
   const freshness = {
@@ -811,12 +864,12 @@ function buildDatasetAndUniverse(args: {
       const threshold = row.market === 'CRYPTO' ? 10 : 80;
       return safeNumber(row.age_hours, 9999) > threshold;
     }).length,
-    rows: coverageRows
+    rows: coverageRows,
   };
   const coverage = {
     assets_checked: scopeAssets.length,
     assets_with_bars: coverageRows.filter((row) => row.bar_count > 0).length,
-    timeframe: args.timeframe
+    timeframe: args.timeframe,
   };
   const bundleHash = hashJson({
     market: args.market,
@@ -825,14 +878,14 @@ function buildDatasetAndUniverse(args: {
     coverage_rows: coverageRows.map((row) => ({
       symbol: row.symbol,
       bar_count: row.bar_count,
-      last_ts_open: row.last_ts_open
-    }))
+      last_ts_open: row.last_ts_open,
+    })),
   });
   const existing = args.repo.findDatasetVersionByHash({
     market: args.market,
     assetClass: args.assetClass,
     timeframe: args.timeframe,
-    sourceBundleHash: bundleHash
+    sourceBundleHash: bundleHash,
   });
   const datasetId = existing?.id || `DS-${bundleHash.slice(0, 16)}-${now}`;
   if (!existing) {
@@ -845,7 +898,7 @@ function buildDatasetAndUniverse(args: {
       coverage_summary_json: JSON.stringify(coverage),
       freshness_summary_json: JSON.stringify(freshness),
       notes: null,
-      created_at_ms: now
+      created_at_ms: now,
     };
     args.repo.createDatasetVersion(row);
   }
@@ -860,15 +913,15 @@ function buildDatasetAndUniverse(args: {
       scopeAssets.map((row) => ({
         symbol: row.symbol,
         market: row.market,
-        venue: row.venue
-      }))
+        venue: row.venue,
+      })),
     ),
-    created_at_ms: now
+    created_at_ms: now,
   };
   args.repo.upsertUniverseSnapshot(universe);
 
   const marketStateRows = args.repo.listMarketState({
-    market: args.market === 'ALL' ? undefined : args.market
+    market: args.market === 'ALL' ? undefined : args.market,
   });
   args.repo.upsertFeatureSnapshot({
     id: `FEAT-${datasetId}`,
@@ -881,21 +934,21 @@ function buildDatasetAndUniverse(args: {
         regime_id: row.regime_id,
         trend_strength: row.trend_strength,
         volatility_percentile: row.volatility_percentile,
-        updated_at_ms: row.updated_at_ms
-      }))
+        updated_at_ms: row.updated_at_ms,
+      })),
     ),
     metadata_json: JSON.stringify({
       source: 'market_state',
-      row_count: marketStateRows.length
+      row_count: marketStateRows.length,
     }),
-    created_at_ms: now
+    created_at_ms: now,
   });
 
   return {
     datasetVersionId: datasetId,
     universeVersionId: universe.id,
     coverage,
-    freshness
+    freshness,
   };
 }
 
@@ -930,23 +983,23 @@ function buildSignalSnapshots(args: {
       regime_context_json: JSON.stringify({
         regime_id: signal.regime_id,
         temperature_percentile: signal.temperature_percentile,
-        volatility_percentile: signal.volatility_percentile
+        volatility_percentile: signal.volatility_percentile,
       }),
       entry_logic_json: JSON.stringify({
         entry_zone: signal.entry_zone,
-        trigger: signal.strategy_id
+        trigger: signal.strategy_id,
       }),
       invalidation_logic_json: JSON.stringify({
         stop_loss: signal.stop_loss,
-        invalidation_level: signal.invalidation_level
+        invalidation_level: signal.invalidation_level,
       }),
       source_transparency_json: JSON.stringify({
         source_status: inferSignalStatus(signal),
         data_status: inferSignalStatus(signal),
-        source_label: inferSignalStatus(signal)
+        source_label: inferSignalStatus(signal),
       }),
       evidence_status: evidenceStatusFromSignal(signal),
-      created_at_ms: ts
+      created_at_ms: ts,
     };
   });
   return rows;
@@ -960,7 +1013,10 @@ function buildReconciliation(args: {
   replayTrades: ReplayTrade[];
 }): ReconciliationSummary {
   const executions = args.repo.listExecutions({ userId: args.userId, limit: 5000 });
-  const bySignal = new Map<string, { open?: typeof executions[number]; close?: typeof executions[number] }>();
+  const bySignal = new Map<
+    string,
+    { open?: (typeof executions)[number]; close?: (typeof executions)[number] }
+  >();
   for (const row of executions) {
     if (!bySignal.has(row.signal_id)) bySignal.set(row.signal_id, {});
     const slot = bySignal.get(row.signal_id)!;
@@ -989,12 +1045,15 @@ function buildReconciliation(args: {
     const expectedFill = replay?.entry_price ?? null;
     const paperFill = open?.entry_price ?? null;
     const expectedPnl = replay?.net_return ?? null;
-    const paperPnl = close && Number.isFinite(close.pnl_pct) ? safeNumber(close.pnl_pct) / 100 : null;
+    const paperPnl =
+      close && Number.isFinite(close.pnl_pct) ? safeNumber(close.pnl_pct) / 100 : null;
     const expectedHold = replay?.holding_days ?? null;
     const actualHold =
       open && close ? Math.max(0, (close.created_at_ms - open.created_at_ms) / DAY_MS) : null;
     const slippageGap =
-      expectedFill !== null && paperFill !== null ? round((paperFill - expectedFill) / Math.max(expectedFill, 1e-9), 6) : null;
+      expectedFill !== null && paperFill !== null
+        ? round((paperFill - expectedFill) / Math.max(expectedFill, 1e-9), 6)
+        : null;
     rows.push({
       id: `REC-${args.runId}-${hashJson(snapshot.id).slice(0, 14)}`,
       signal_snapshot_id: snapshot.id,
@@ -1012,10 +1071,10 @@ function buildReconciliation(args: {
         replay_triggered: Boolean(replay?.triggered),
         replay_exit_reason: replay?.exit_reason || null,
         paper_has_open: Boolean(open),
-        paper_has_close: Boolean(close)
+        paper_has_close: Boolean(close),
       }),
       status,
-      created_at_ms: now
+      created_at_ms: now,
     });
   }
   args.repo.upsertReconciliationRows(rows);
@@ -1026,7 +1085,9 @@ function buildReconciliation(args: {
     replay_unavailable: rows.filter((row) => row.status === 'REPLAY_DATA_UNAVAILABLE').length,
     partial: rows.filter((row) => row.status === 'PARTIAL').length,
     avg_slippage_gap: (() => {
-      const values = rows.map((row) => row.slippage_gap).filter((v): v is number => Number.isFinite(v as number));
+      const values = rows
+        .map((row) => row.slippage_gap)
+        .filter((v): v is number => Number.isFinite(v as number));
       if (!values.length) return null;
       return round(values.reduce((acc, v) => acc + v, 0) / values.length, 6);
     })(),
@@ -1036,7 +1097,7 @@ function buildReconciliation(args: {
         .map((row) => safeNumber(row.paper_pnl) - safeNumber(row.expected_pnl));
       if (!values.length) return null;
       return round(values.reduce((acc, v) => acc + v, 0) / values.length, 6);
-    })()
+    })(),
   };
   return { rows, summary };
 }
@@ -1053,7 +1114,7 @@ export function runEvidenceEngine(repo: MarketRepository, params: EvidenceRunPar
       market,
       assetClass,
       status: 'ALL',
-      limit: maxSignals
+      limit: maxSignals,
     })
     .map((row) => {
       try {
@@ -1067,12 +1128,13 @@ export function runEvidenceEngine(repo: MarketRepository, params: EvidenceRunPar
     .slice(0, maxSignals);
 
   const strategyVersions = ensureStrategyVersions(repo, signals);
-  const champion = repo.listStrategyVersions({ status: 'champion', limit: 1 })[0] || strategyVersions[0] || null;
+  const champion =
+    repo.listStrategyVersions({ status: 'champion', limit: 1 })[0] || strategyVersions[0] || null;
   const dataset = buildDatasetAndUniverse({
     repo,
     market,
     assetClass,
-    timeframe
+    timeframe,
   });
   const executionProfiles = ensureExecutionProfiles(repo);
   const runId = `BTR-${asOf}-${hashJson(`${market}:${assetClass}:${timeframe}`).slice(0, 8)}`;
@@ -1088,7 +1150,7 @@ export function runEvidenceEngine(repo: MarketRepository, params: EvidenceRunPar
       assetClass,
       timeframe,
       maxSignals,
-      profile: executionProfiles.baseline.id
+      profile: executionProfiles.baseline.id,
     }),
     started_at_ms: asOf,
     completed_at_ms: null,
@@ -1096,7 +1158,7 @@ export function runEvidenceEngine(repo: MarketRepository, params: EvidenceRunPar
     train_window: null,
     validation_window: null,
     test_window: null,
-    notes: null
+    notes: null,
   };
   repo.createBacktestRun(run);
 
@@ -1104,7 +1166,7 @@ export function runEvidenceEngine(repo: MarketRepository, params: EvidenceRunPar
     runId,
     datasetVersionId: dataset.datasetVersionId,
     strategyVersions,
-    signals
+    signals,
   });
   repo.upsertSignalSnapshots(snapshots);
 
@@ -1112,13 +1174,13 @@ export function runEvidenceEngine(repo: MarketRepository, params: EvidenceRunPar
     repo,
     signals,
     snapshots,
-    profile: executionProfiles.baseline
+    profile: executionProfiles.baseline,
   });
   const stress = runReplayPass({
     repo,
     signals,
     snapshots,
-    profile: executionProfiles.stress
+    profile: executionProfiles.stress,
   });
   const netBase = safeNumber(baseline.metrics.net_return, 0);
   const netStress = safeNumber(stress.metrics.net_return, 0);
@@ -1127,9 +1189,9 @@ export function runEvidenceEngine(repo: MarketRepository, params: EvidenceRunPar
     trades: baseline.trades,
     daily: baseline.daily_equity_curve.map((row) => ({
       post_cost_return: row.post_cost_return,
-      turnover: row.turnover
+      turnover: row.turnover,
     })),
-    degradation
+    degradation,
   });
   metric.backtest_run_id = runId;
   metric.updated_at_ms = nowMs();
@@ -1141,7 +1203,7 @@ export function runEvidenceEngine(repo: MarketRepository, params: EvidenceRunPar
     userId: params.userId,
     runId,
     snapshots,
-    replayTrades: baseline.trades
+    replayTrades: baseline.trades,
   });
 
   const artifacts: BacktestArtifactRecord[] = [
@@ -1150,26 +1212,28 @@ export function runEvidenceEngine(repo: MarketRepository, params: EvidenceRunPar
       artifact_type: 'equity_curve',
       path_or_payload: JSON.stringify({
         source_status: RUNTIME_STATUS.DB_BACKED,
-        data_status: metric.status === 'WITHHELD' ? RUNTIME_STATUS.WITHHELD : RUNTIME_STATUS.MODEL_DERIVED,
-        daily: baseline.daily_equity_curve
+        data_status:
+          metric.status === 'WITHHELD' ? RUNTIME_STATUS.WITHHELD : RUNTIME_STATUS.MODEL_DERIVED,
+        daily: baseline.daily_equity_curve,
       }),
-      created_at_ms: nowMs()
+      created_at_ms: nowMs(),
     },
     {
       backtest_run_id: runId,
       artifact_type: 'trades',
       path_or_payload: JSON.stringify({
         source_status: RUNTIME_STATUS.DB_BACKED,
-        data_status: metric.status === 'WITHHELD' ? RUNTIME_STATUS.WITHHELD : RUNTIME_STATUS.MODEL_DERIVED,
-        trades: baseline.trades
+        data_status:
+          metric.status === 'WITHHELD' ? RUNTIME_STATUS.WITHHELD : RUNTIME_STATUS.MODEL_DERIVED,
+        trades: baseline.trades,
       }),
-      created_at_ms: nowMs()
+      created_at_ms: nowMs(),
     },
     {
       backtest_run_id: runId,
       artifact_type: 'attribution',
       path_or_payload: JSON.stringify(baseline.attribution),
-      created_at_ms: nowMs()
+      created_at_ms: nowMs(),
     },
     {
       backtest_run_id: runId,
@@ -1179,20 +1243,21 @@ export function runEvidenceEngine(repo: MarketRepository, params: EvidenceRunPar
         stress_net_return: stress.metrics.net_return,
         degradation,
         source_status: RUNTIME_STATUS.MODEL_DERIVED,
-        note: 'Portfolio replay baseline vs stressed execution profile.'
+        note: 'Portfolio replay baseline vs stressed execution profile.',
       }),
-      created_at_ms: nowMs()
+      created_at_ms: nowMs(),
     },
     {
       backtest_run_id: runId,
       artifact_type: 'reconciliation',
       path_or_payload: JSON.stringify(reconciliation.summary),
-      created_at_ms: nowMs()
-    }
+      created_at_ms: nowMs(),
+    },
   ];
   repo.insertBacktestArtifacts(artifacts);
 
-  const runStatus: BacktestRunRecord['status'] = metric.status === 'WITHHELD' ? 'WITHHELD' : 'SUCCESS';
+  const runStatus: BacktestRunRecord['status'] =
+    metric.status === 'WITHHELD' ? 'WITHHELD' : 'SUCCESS';
   repo.updateBacktestRunStatus({
     id: runId,
     status: runStatus,
@@ -1200,7 +1265,7 @@ export function runEvidenceEngine(repo: MarketRepository, params: EvidenceRunPar
     notes:
       metric.status === 'WITHHELD'
         ? 'WITHHELD: insufficient sample for reliable metrics.'
-        : 'Canonical portfolio replay completed.'
+        : 'Canonical portfolio replay completed.',
   });
 
   const experiment: ExperimentRegistryRecord = {
@@ -1208,10 +1273,11 @@ export function runEvidenceEngine(repo: MarketRepository, params: EvidenceRunPar
     backtest_run_id: runId,
     strategy_version_id: champion?.id || null,
     decision_status: champion?.status === 'champion' ? 'champion' : 'challenger',
-    promotion_reason: champion?.status === 'champion' ? 'Current champion used in canonical evidence run.' : null,
+    promotion_reason:
+      champion?.status === 'champion' ? 'Current champion used in canonical evidence run.' : null,
     demotion_reason: null,
     approved_at_ms: runStatus === 'SUCCESS' ? nowMs() : null,
-    created_at_ms: nowMs()
+    created_at_ms: nowMs(),
   };
   repo.upsertExperimentRecord(experiment);
 
@@ -1229,14 +1295,14 @@ export function runEvidenceEngine(repo: MarketRepository, params: EvidenceRunPar
     signals_evaluated: signals.length,
     trades_triggered: baseline.trades.filter((row) => row.triggered).length,
     trades_closed: baseline.trades.filter((row) => row.triggered && row.net_return !== null).length,
-    reconciliation_summary: reconciliation.summary
+    reconciliation_summary: reconciliation.summary,
   };
 }
 
 function latestSuccessfulRun(repo: MarketRepository, market?: Market) {
   const runs = repo.listBacktestRuns({
     runType: 'portfolio_replay',
-    limit: 50
+    limit: 50,
   });
   if (!market) return runs.find((row) => row.status !== 'RUNNING') || runs[0] || null;
   for (const run of runs) {
@@ -1255,38 +1321,45 @@ function parseSignalPayloadSafe(payload: string): SignalContract | null {
   }
 }
 
-export function getTopSignalEvidence(repo: MarketRepository, args: {
-  userId: string;
-  market?: Market;
-  assetClass?: AssetClass;
-  limit?: number;
-}) {
+export function getTopSignalEvidence(
+  repo: MarketRepository,
+  args: {
+    userId: string;
+    market?: Market;
+    assetClass?: AssetClass;
+    limit?: number;
+  },
+) {
   const run = latestSuccessfulRun(repo, args.market);
   if (!run) {
     return {
       asof: new Date().toISOString(),
       source_status: RUNTIME_STATUS.INSUFFICIENT_DATA,
       data_status: RUNTIME_STATUS.INSUFFICIENT_DATA,
-      records: []
+      records: [],
     };
   }
   const metrics = repo.getBacktestMetric(run.id);
   const snapshots = repo.listSignalSnapshots({
     runId: run.id,
     market: args.market,
-    limit: 300
+    limit: 300,
   });
   const reconciliationRows = repo.listReconciliationRows({
     replayRunId: run.id,
-    limit: 5000
+    limit: 5000,
   });
-  const reconciliationBySnapshot = new Map(reconciliationRows.map((row) => [row.signal_snapshot_id, row]));
+  const reconciliationBySnapshot = new Map(
+    reconciliationRows.map((row) => [row.signal_snapshot_id, row]),
+  );
   const records = snapshots
     .map((snapshot) => {
       const signalRow = repo.getSignal(snapshot.signal_id);
       const signal = signalRow ? parseSignalPayloadSafe(signalRow.payload_json) : null;
       const rec = reconciliationBySnapshot.get(snapshot.id);
-      const freshness = signal ? Math.max(0, Math.round((nowMs() - (Date.parse(signal.created_at) || nowMs())) / 60000)) : null;
+      const freshness = signal
+        ? Math.max(0, Math.round((nowMs() - (Date.parse(signal.created_at) || nowMs())) / 60000))
+        : null;
       const actionable = signal
         ? ['NEW', 'TRIGGERED'].includes(String(signal.status).toUpperCase()) &&
           !['WITHHELD', 'INSUFFICIENT_DATA'].includes(evidenceStatusFromSignal(signal))
@@ -1299,34 +1372,43 @@ export function getTopSignalEvidence(repo: MarketRepository, args: {
         timeframe: snapshot.timeframe,
         direction: signal?.direction || snapshot.direction,
         conviction: snapshot.conviction,
-        regime_id: signal?.regime_id || JSON.parse(snapshot.regime_context_json || '{}').regime_id || '--',
+        regime_id:
+          signal?.regime_id || JSON.parse(snapshot.regime_context_json || '{}').regime_id || '--',
         thesis: signal?.explain_bullets?.[0] || signal?.entry_zone?.notes || '--',
-        entry_zone: signal?.entry_zone || JSON.parse(snapshot.entry_logic_json || '{}').entry_zone || null,
-        invalidation: signal?.stop_loss?.price || JSON.parse(snapshot.invalidation_logic_json || '{}').stop_loss?.price || null,
+        entry_zone:
+          signal?.entry_zone || JSON.parse(snapshot.entry_logic_json || '{}').entry_zone || null,
+        invalidation:
+          signal?.stop_loss?.price ||
+          JSON.parse(snapshot.invalidation_logic_json || '{}').stop_loss?.price ||
+          null,
         source_transparency: JSON.parse(snapshot.source_transparency_json || '{}'),
         evidence_status: snapshot.evidence_status,
         freshness_minutes: freshness,
         freshness_label:
-          freshness === null ? '--' : freshness < 1 ? 'just now' : freshness < 60 ? `${freshness}m ago` : `${Math.floor(freshness / 60)}h ago`,
+          freshness === null
+            ? '--'
+            : freshness < 1
+              ? 'just now'
+              : freshness < 60
+                ? `${freshness}m ago`
+                : `${Math.floor(freshness / 60)}h ago`,
         actionable,
         supporting_run_id: run.id,
         strategy_version_id: snapshot.strategy_version_id,
         dataset_version_id: snapshot.dataset_version_id,
         reconciliation_status: rec?.status || 'PAPER_DATA_UNAVAILABLE',
-        replay_paper_evidence_available: rec?.status === 'RECONCILED'
+        replay_paper_evidence_available: rec?.status === 'RECONCILED',
       };
     })
     .sort((a, b) => {
-      const aPenalty = a.evidence_status === 'WITHHELD' || a.evidence_status === 'INSUFFICIENT_DATA' ? 100 : 0;
-      const bPenalty = b.evidence_status === 'WITHHELD' || b.evidence_status === 'INSUFFICIENT_DATA' ? 100 : 0;
+      const aPenalty =
+        a.evidence_status === 'WITHHELD' || a.evidence_status === 'INSUFFICIENT_DATA' ? 100 : 0;
+      const bPenalty =
+        b.evidence_status === 'WITHHELD' || b.evidence_status === 'INSUFFICIENT_DATA' ? 100 : 0;
       const aFresh = a.freshness_minutes ?? 999999;
       const bFresh = b.freshness_minutes ?? 999999;
       return (
-        b.conviction * 100 -
-        a.conviction * 100 +
-        aPenalty -
-        bPenalty +
-        (aFresh - bFresh) * 0.1
+        b.conviction * 100 - a.conviction * 100 + aPenalty - bPenalty + (aFresh - bFresh) * 0.1
       );
     })
     .slice(0, Math.max(1, Math.min(8, args.limit || 3)));
@@ -1339,20 +1421,23 @@ export function getTopSignalEvidence(repo: MarketRepository, args: {
     supporting_run_id: run.id,
     dataset_version_id: run.dataset_version_id,
     strategy_version_id: run.strategy_version_id,
-    records
+    records,
   };
 }
 
-export function getSignalEvidenceDetail(repo: MarketRepository, args: {
-  signalId: string;
-  userId: string;
-}) {
+export function getSignalEvidenceDetail(
+  repo: MarketRepository,
+  args: {
+    signalId: string;
+    userId: string;
+  },
+) {
   const signalRow = repo.getSignal(args.signalId);
   if (!signalRow) {
     return {
       source_status: RUNTIME_STATUS.INSUFFICIENT_DATA,
       data_status: RUNTIME_STATUS.INSUFFICIENT_DATA,
-      detail: null
+      detail: null,
     };
   }
   const signal = parseSignalPayloadSafe(signalRow.payload_json);
@@ -1360,7 +1445,7 @@ export function getSignalEvidenceDetail(repo: MarketRepository, args: {
     return {
       source_status: RUNTIME_STATUS.INSUFFICIENT_DATA,
       data_status: RUNTIME_STATUS.INSUFFICIENT_DATA,
-      detail: null
+      detail: null,
     };
   }
   const snapshots = repo.listSignalSnapshots({ signalId: args.signalId, limit: 20 });
@@ -1368,14 +1453,23 @@ export function getSignalEvidenceDetail(repo: MarketRepository, args: {
   const run = latestSnapshot ? repo.getBacktestRun(latestSnapshot.backtest_run_id) : null;
   const metric = run ? repo.getBacktestMetric(run.id) : null;
   const recon = latestSnapshot
-    ? repo.listReconciliationRows({ replayRunId: latestSnapshot.backtest_run_id, limit: 500 }).find((row) => row.signal_snapshot_id === latestSnapshot.id)
+    ? repo
+        .listReconciliationRows({ replayRunId: latestSnapshot.backtest_run_id, limit: 500 })
+        .find((row) => row.signal_snapshot_id === latestSnapshot.id)
     : null;
-  const executions = repo.listExecutions({ userId: args.userId, signalId: args.signalId, limit: 50 });
+  const executions = repo.listExecutions({
+    userId: args.userId,
+    signalId: args.signalId,
+    limit: 50,
+  });
   const events = repo.listSignalEvents(args.signalId, 30);
 
   return {
     source_status: RUNTIME_STATUS.DB_BACKED,
-    data_status: latestSnapshot?.evidence_status === 'WITHHELD' ? RUNTIME_STATUS.WITHHELD : RUNTIME_STATUS.MODEL_DERIVED,
+    data_status:
+      latestSnapshot?.evidence_status === 'WITHHELD'
+        ? RUNTIME_STATUS.WITHHELD
+        : RUNTIME_STATUS.MODEL_DERIVED,
     detail: {
       signal,
       snapshot: latestSnapshot,
@@ -1383,12 +1477,12 @@ export function getSignalEvidenceDetail(repo: MarketRepository, args: {
         ? {
             run_id: run.id,
             run_status: run.status,
-            metrics: metric
+            metrics: metric,
           }
         : null,
       paper_summary: {
         executions_count: executions.length,
-        latest_execution: executions[0] || null
+        latest_execution: executions[0] || null,
       },
       reconciliation: recon
         ? {
@@ -1397,41 +1491,44 @@ export function getSignalEvidenceDetail(repo: MarketRepository, args: {
             paper_fill_price: recon.paper_fill_price,
             expected_pnl: recon.expected_pnl,
             paper_pnl: recon.paper_pnl,
-            slippage_gap: recon.slippage_gap
+            slippage_gap: recon.slippage_gap,
           }
         : {
-            status: 'RECONCILIATION_UNAVAILABLE'
+            status: 'RECONCILIATION_UNAVAILABLE',
           },
       regime_context: signal.regime_id,
       transparency: {
         source_status: inferSignalStatus(signal),
         data_status: inferSignalStatus(signal),
-        source_label: inferSignalStatus(signal)
+        source_label: inferSignalStatus(signal),
       },
-      signal_events: events
-    }
+      signal_events: events,
+    },
   };
 }
 
-export function listBacktestEvidence(repo: MarketRepository, args: {
-  runType?: string;
-  status?: string;
-  strategyVersionId?: string;
-  limit?: number;
-}) {
+export function listBacktestEvidence(
+  repo: MarketRepository,
+  args: {
+    runType?: string;
+    status?: string;
+    strategyVersionId?: string;
+    limit?: number;
+  },
+) {
   const rows = repo.listBacktestRuns({
     runType: args.runType,
     status: args.status,
     strategyVersionId: args.strategyVersionId,
-    limit: args.limit || 50
+    limit: args.limit || 50,
   });
   return {
     source_status: rows.length ? RUNTIME_STATUS.DB_BACKED : RUNTIME_STATUS.INSUFFICIENT_DATA,
     data_status: rows.length ? RUNTIME_STATUS.DB_BACKED : RUNTIME_STATUS.INSUFFICIENT_DATA,
     records: rows.map((row) => ({
       ...row,
-      metric: repo.getBacktestMetric(row.id)
-    }))
+      metric: repo.getBacktestMetric(row.id),
+    })),
   };
 }
 
@@ -1441,17 +1538,20 @@ export function getBacktestEvidenceDetail(repo: MarketRepository, runId: string)
     return {
       source_status: RUNTIME_STATUS.INSUFFICIENT_DATA,
       data_status: RUNTIME_STATUS.INSUFFICIENT_DATA,
-      detail: null
+      detail: null,
     };
   }
   const metric = repo.getBacktestMetric(run.id);
   const artifacts = repo.listBacktestArtifacts(run.id);
   const dataset = repo.getDatasetVersion(run.dataset_version_id);
   const universe = repo.getUniverseSnapshot(run.universe_version_id);
-  const strategy = run.strategy_version_id ? repo.getStrategyVersion(run.strategy_version_id) : null;
+  const strategy = run.strategy_version_id
+    ? repo.getStrategyVersion(run.strategy_version_id)
+    : null;
   return {
     source_status: RUNTIME_STATUS.DB_BACKED,
-    data_status: metric?.status === 'WITHHELD' ? RUNTIME_STATUS.WITHHELD : RUNTIME_STATUS.MODEL_DERIVED,
+    data_status:
+      metric?.status === 'WITHHELD' ? RUNTIME_STATUS.WITHHELD : RUNTIME_STATUS.MODEL_DERIVED,
     detail: {
       run,
       strategy,
@@ -1466,35 +1566,39 @@ export function getBacktestEvidenceDetail(repo: MarketRepository, runId: string)
           } catch {
             return row.path_or_payload;
           }
-        })()
+        })(),
       })),
       transparency: {
         source_status: RUNTIME_STATUS.DB_BACKED,
-        data_status: metric?.status === 'WITHHELD' ? RUNTIME_STATUS.WITHHELD : RUNTIME_STATUS.MODEL_DERIVED,
-        source_label: RUNTIME_STATUS.DB_BACKED
-      }
-    }
+        data_status:
+          metric?.status === 'WITHHELD' ? RUNTIME_STATUS.WITHHELD : RUNTIME_STATUS.MODEL_DERIVED,
+        source_label: RUNTIME_STATUS.DB_BACKED,
+      },
+    },
   };
 }
 
-export function listReconciliationEvidence(repo: MarketRepository, args: {
-  replayRunId?: string;
-  symbol?: string;
-  strategyVersionId?: string;
-  status?: ReplayPaperReconciliationRecord['status'];
-  limit?: number;
-}) {
+export function listReconciliationEvidence(
+  repo: MarketRepository,
+  args: {
+    replayRunId?: string;
+    symbol?: string;
+    strategyVersionId?: string;
+    status?: ReplayPaperReconciliationRecord['status'];
+    limit?: number;
+  },
+) {
   const rows = repo.listReconciliationRows({
     replayRunId: args.replayRunId,
     symbol: args.symbol,
     strategyVersionId: args.strategyVersionId,
     status: args.status,
-    limit: args.limit || 200
+    limit: args.limit || 200,
   });
   return {
     source_status: rows.length ? RUNTIME_STATUS.DB_BACKED : RUNTIME_STATUS.INSUFFICIENT_DATA,
     data_status: rows.length ? RUNTIME_STATUS.MODEL_DERIVED : RUNTIME_STATUS.INSUFFICIENT_DATA,
-    records: rows
+    records: rows,
   };
 }
 
@@ -1514,12 +1618,12 @@ export function getChampionStrategies(repo: MarketRepository) {
       status: row.status,
       supporting_run_id: latest?.id || null,
       evidence_status: metric?.status || 'WITHHELD',
-      metrics: metric
+      metrics: metric,
     };
   });
   return {
     source_status: rows.length ? RUNTIME_STATUS.DB_BACKED : RUNTIME_STATUS.INSUFFICIENT_DATA,
     data_status: rows.length ? RUNTIME_STATUS.MODEL_DERIVED : RUNTIME_STATUS.INSUFFICIENT_DATA,
-    records: rows
+    records: rows,
   };
 }

@@ -5,7 +5,7 @@ import { runQuantPipeline } from '../src/engines/pipeline.js';
 describe('strategy discovery engine', () => {
   const state = runQuantPipeline({
     as_of: '2026-03-08T00:00:00.000Z',
-    config: { risk_profile: 'balanced' }
+    config: { risk_profile: 'balanced' },
   });
 
   const discovery = state?.research?.research_core?.strategy_discovery_engine;
@@ -64,10 +64,10 @@ describe('strategy discovery engine', () => {
             market: 'CRYPTO',
             asset_class: 'CRYPTO',
             family: 'Crypto-Native Families',
-            discovery_batch_size: 12
-          }
-        }
-      }
+            discovery_batch_size: 12,
+          },
+        },
+      },
     });
 
     const constrainedDiscovery = constrained?.research?.research_core?.strategy_discovery_engine;

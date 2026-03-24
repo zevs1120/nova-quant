@@ -1,13 +1,16 @@
 # Champion-Challenger Framework v1
 
 ## Objective
+
 Enable controlled model evolution:
+
 - `champion`: active baseline
 - `challenger`: parallel alternatives under same data window
 
 No challenger can replace champion without governance gate.
 
 ## Implementation
+
 - Config and comparison logic: `src/quant/researchLoop.js`
 - Default challengers:
   - trend-heavy
@@ -15,7 +18,9 @@ No challenger can replace champion without governance gate.
   - risk-lean
 
 ## Challenger Config Dimensions
+
 Each challenger can vary:
+
 - alpha family weights
 - score bias / directional threshold
 - risk penalty multipliers
@@ -25,6 +30,7 @@ Each challenger can vary:
 - safety sensitivity
 
 ## Comparison Contract (`ChallengerComparison`)
+
 - return delta
 - drawdown delta
 - win-rate delta
@@ -35,6 +41,7 @@ Each challenger can vary:
 - `promotable` boolean
 
 ## Promotion Decision Contract (`PromotionDecision`)
+
 - `decision_id`
 - `challenger_id`
 - `created_at`
@@ -44,6 +51,7 @@ Each challenger can vary:
 - notes
 
 ## UI Mapping
+
 - Performance page:
   - champion vs challenger comparison table
 - Internal Research page:
@@ -52,6 +60,7 @@ Each challenger can vary:
   - version registry
 
 ## Future Upgrade Targets
+
 1. Multi-window gate (20D/60D/120D explicit slices).
 2. Regime-specific challenger pools.
 3. Automatic candidate queue with human approval workflow.

@@ -3,7 +3,13 @@ import { RUNTIME_STATUS } from '../runtimeStatus.js';
 import type { Asset, AssetClass, Market, Timeframe } from '../types.js';
 import { getFactorDefinition, type FactorCard, type FactorFamilyId } from './knowledge.js';
 
-type SupportedMeasuredFactorId = 'momentum' | 'low_vol' | 'reversal' | 'seasonality' | 'carry' | 'liquidity';
+type SupportedMeasuredFactorId =
+  | 'momentum'
+  | 'low_vol'
+  | 'reversal'
+  | 'seasonality'
+  | 'carry'
+  | 'liquidity';
 
 type FactorMeasurementArgs = {
   factorId?: string;
@@ -73,9 +79,7 @@ function pearson(xs: number[], ys: number[]): number | null {
 }
 
 function rank(values: number[]): number[] {
-  const sorted = values
-    .map((value, index) => ({ value, index }))
-    .sort((a, b) => a.value - b.value);
+  const sorted = values.map((value, index) => ({ value, index })).sort((a, b) => a.value - b.value);
   const ranks = new Array(values.length).fill(0);
   let i = 0;
   while (i < sorted.length) {
@@ -109,7 +113,12 @@ function realizedVol(closes: number[], endIndex: number, window: number): number
   return stdDev(returns);
 }
 
-function avgDollarVolume(closes: number[], volumes: number[], endIndex: number, window: number): number | null {
+function avgDollarVolume(
+  closes: number[],
+  volumes: number[],
+  endIndex: number,
+  window: number,
+): number | null {
   if (endIndex - window + 1 < 0) return null;
   const values: number[] = [];
   for (let i = endIndex - window + 1; i <= endIndex; i += 1) {
@@ -121,9 +130,15 @@ function avgDollarVolume(closes: number[], volumes: number[], endIndex: number, 
   return mean(values);
 }
 
-function rollingMean(values: Array<number | null>, endIndex: number, window: number): number | null {
+function rollingMean(
+  values: Array<number | null>,
+  endIndex: number,
+  window: number,
+): number | null {
   const start = Math.max(0, endIndex - window + 1);
-  const bucket = values.slice(start, endIndex + 1).filter((value): value is number => value !== null && Number.isFinite(value));
+  const bucket = values
+    .slice(start, endIndex + 1)
+    .filter((value): value is number => value !== null && Number.isFinite(value));
   return bucket.length ? mean(bucket) : null;
 }
 
@@ -131,7 +146,7 @@ function alignLatestSeries<T>(
   points: Array<{ ts_open: number }>,
   rows: T[],
   valueAt: (row: T) => number | null,
-  tsAt: (row: T) => number
+  tsAt: (row: T) => number,
 ): Array<number | null> {
   const ordered = [...rows].sort((a, b) => tsAt(a) - tsAt(b));
   let cursor = 0;
@@ -162,7 +177,7 @@ function quantileBuckets<T>(rows: T[], bucketCount: number): { low: T[]; high: T
   const size = Math.max(1, Math.floor(rows.length / bucketCount));
   return {
     low: rows.slice(0, size),
-    high: rows.slice(Math.max(rows.length - size, 0))
+    high: rows.slice(Math.max(rows.length - size, 0)),
   };
 }
 
@@ -176,32 +191,37 @@ function measuredFactorSupport(factorId: FactorFamilyId): {
     case 'momentum':
       return {
         measurable: true,
-        implementation_note: 'Measured from cross-sectional 20d/60d relative strength using OHLCV history.',
-        default_horizon_bars: 20
+        implementation_note:
+          'Measured from cross-sectional 20d/60d relative strength using OHLCV history.',
+        default_horizon_bars: 20,
       };
     case 'low_vol':
       return {
         measurable: true,
-        implementation_note: 'Measured from cross-sectional inverse realized volatility using daily OHLCV.',
-        default_horizon_bars: 20
+        implementation_note:
+          'Measured from cross-sectional inverse realized volatility using daily OHLCV.',
+        default_horizon_bars: 20,
       };
     case 'reversal':
       return {
         measurable: true,
-        implementation_note: 'Measured from short-horizon overreaction using recent 5-day return reversion.',
-        default_horizon_bars: 5
+        implementation_note:
+          'Measured from short-horizon overreaction using recent 5-day return reversion.',
+        default_horizon_bars: 5,
       };
     case 'seasonality':
       return {
         measurable: true,
-        implementation_note: 'Measured from day-of-month style recurrence proxy using return seasonality over daily bars.',
-        default_horizon_bars: 5
+        implementation_note:
+          'Measured from day-of-month style recurrence proxy using return seasonality over daily bars.',
+        default_horizon_bars: 5,
       };
     case 'carry':
       return {
         measurable: true,
-        implementation_note: 'Measured from aligned funding-rate and basis history using the repository funding/basis store for crypto assets.',
-        default_horizon_bars: 20
+        implementation_note:
+          'Measured from aligned funding-rate and basis history using the repository funding/basis store for crypto assets.',
+        default_horizon_bars: 20,
       };
     case 'value':
     case 'quality':
@@ -210,29 +230,34 @@ function measuredFactorSupport(factorId: FactorFamilyId): {
     case 'revision':
       return {
         measurable: false,
-        reason: 'This factor depends on fundamental, estimate, or alternative-data history that is not yet persisted in the runtime research store.',
-        implementation_note: 'The taxonomy and workflow are available, but measured cross-sectional history needs broader data coverage.',
-        default_horizon_bars: 20
+        reason:
+          'This factor depends on fundamental, estimate, or alternative-data history that is not yet persisted in the runtime research store.',
+        implementation_note:
+          'The taxonomy and workflow are available, but measured cross-sectional history needs broader data coverage.',
+        default_horizon_bars: 20,
       };
     case 'breadth':
       return {
         measurable: false,
-        reason: 'Breadth is currently better represented as a market/regime overlay than as an asset-level cross-sectional rank in this store.',
-        implementation_note: 'Use regime diagnostics plus market-state breadth overlays until breadth history is persisted as a first-class artifact.',
-        default_horizon_bars: 20
+        reason:
+          'Breadth is currently better represented as a market/regime overlay than as an asset-level cross-sectional rank in this store.',
+        implementation_note:
+          'Use regime diagnostics plus market-state breadth overlays until breadth history is persisted as a first-class artifact.',
+        default_horizon_bars: 20,
       };
     case 'liquidity':
       return {
         measurable: true,
-        implementation_note: 'Measured from rolling dollar volume and illiquidity penalty proxies derived from OHLCV history.',
-        default_horizon_bars: 5
+        implementation_note:
+          'Measured from rolling dollar volume and illiquidity penalty proxies derived from OHLCV history.',
+        default_horizon_bars: 5,
       };
     default:
       return {
         measurable: false,
         reason: 'This factor is not yet mapped to a measured research implementation.',
         implementation_note: 'Use knowledge-layer guidance until measured history exists.',
-        default_horizon_bars: 20
+        default_horizon_bars: 20,
       };
   }
 }
@@ -250,10 +275,28 @@ function computeFeatureSeries(args: {
   if (factorId === 'carry') {
     const startTs = rows[0]?.ts_open;
     const endTs = rows.length ? rows[rows.length - 1].ts_open : undefined;
-    const fundingRows = repo.listFundingRates({ assetId: asset.asset_id, start: startTs, end: endTs });
-    const basisRows = repo.listBasisSnapshots({ assetId: asset.asset_id, start: startTs, end: endTs });
-    const alignedFunding = alignLatestSeries(rows, fundingRows, (row) => toNumber(row.funding_rate), (row) => row.ts_open);
-    const alignedBasis = alignLatestSeries(rows, basisRows, (row) => toNumber(row.basis_bps), (row) => row.ts_open);
+    const fundingRows = repo.listFundingRates({
+      assetId: asset.asset_id,
+      start: startTs,
+      end: endTs,
+    });
+    const basisRows = repo.listBasisSnapshots({
+      assetId: asset.asset_id,
+      start: startTs,
+      end: endTs,
+    });
+    const alignedFunding = alignLatestSeries(
+      rows,
+      fundingRows,
+      (row) => toNumber(row.funding_rate),
+      (row) => row.ts_open,
+    );
+    const alignedBasis = alignLatestSeries(
+      rows,
+      basisRows,
+      (row) => toNumber(row.basis_bps),
+      (row) => row.ts_open,
+    );
 
     return rows.map((_, index) => {
       const fundingMean = rollingMean(alignedFunding, index, 6);
@@ -303,7 +346,7 @@ function buildAssetObservations(
   asset: Asset,
   rows: ReturnType<MarketRepository['getOhlcv']>,
   factorId: SupportedMeasuredFactorId,
-  forwardHorizon: number
+  forwardHorizon: number,
 ): AssetFeaturePoint[] {
   const closes = rows.map((row) => toNumber(row.close) ?? Number.NaN);
   const volumes = rows.map((row) => toNumber(row.volume) ?? Number.NaN);
@@ -313,7 +356,7 @@ function buildAssetObservations(
     repo,
     rows,
     closes,
-    volumes
+    volumes,
   });
   const observations: AssetFeaturePoint[] = [];
 
@@ -335,14 +378,18 @@ function buildAssetObservations(
       feature: adjustedFeature,
       forwardReturn,
       trendProxy,
-      volProxy
+      volProxy,
     });
   }
 
   return observations;
 }
 
-function summarizeDailyCrossSection(points: AssetFeaturePoint[], previousLeaders: string[] | null, bucketCount: number): DailyCrossSectionSummary {
+function summarizeDailyCrossSection(
+  points: AssetFeaturePoint[],
+  previousLeaders: string[] | null,
+  bucketCount: number,
+): DailyCrossSectionSummary {
   const xs = points.map((row) => row.feature);
   const ys = points.map((row) => row.forwardReturn);
   const sorted = [...points].sort((a, b) => a.feature - b.feature);
@@ -350,7 +397,9 @@ function summarizeDailyCrossSection(points: AssetFeaturePoint[], previousLeaders
   const lowAvg = mean(buckets.low.map((row) => row.forwardReturn));
   const highAvg = mean(buckets.high.map((row) => row.forwardReturn));
   const turnover = previousLeaders
-    ? 1 - buckets.high.filter((row) => previousLeaders.includes(row.symbol)).length / Math.max(previousLeaders.length, 1)
+    ? 1 -
+      buckets.high.filter((row) => previousLeaders.includes(row.symbol)).length /
+        Math.max(previousLeaders.length, 1)
     : null;
   const avgTrend = mean(points.map((row) => row.trendProxy)) ?? 0;
   const avgVol = mean(points.map((row) => row.volProxy)) ?? 0;
@@ -363,7 +412,7 @@ function summarizeDailyCrossSection(points: AssetFeaturePoint[], previousLeaders
     hit: lowAvg === null || highAvg === null ? null : highAvg > lowAvg,
     turnover_proxy: turnover,
     regime: classifyDerivedRegime(avgTrend, avgVol),
-    observation_count: points.length
+    observation_count: points.length,
   };
 }
 
@@ -385,18 +434,20 @@ function aggregateRegimeMetrics(rows: DailyCrossSectionSummary[]) {
       sample_dates: items.length,
       ic: mean(items.map((row) => row.ic).filter((row): row is number => row !== null)),
       rank_ic: mean(items.map((row) => row.rank_ic).filter((row): row is number => row !== null)),
-      quantile_spread: mean(items.map((row) => row.quantile_spread).filter((row): row is number => row !== null)),
+      quantile_spread: mean(
+        items.map((row) => row.quantile_spread).filter((row): row is number => row !== null),
+      ),
       hit_rate: mean(hitValues(items)),
-      turnover_proxy: mean(items.map((row) => row.turnover_proxy).filter((row): row is number => row !== null))
+      turnover_proxy: mean(
+        items.map((row) => row.turnover_proxy).filter((row): row is number => row !== null),
+      ),
     }))
     .sort((a, b) => b.sample_dates - a.sample_dates);
 }
 
 function collectMeasurableAssetSet(repo: MarketRepository, market: Market | undefined): Asset[] {
   const targetMarket = market || 'US';
-  return repo
-    .listAssets(targetMarket)
-    .filter((asset) => asset.status === 'ACTIVE');
+  return repo.listAssets(targetMarket).filter((asset) => asset.status === 'ACTIVE');
 }
 
 export function buildFactorMeasurementReport(repo: MarketRepository, args: FactorMeasurementArgs) {
@@ -405,7 +456,7 @@ export function buildFactorMeasurementReport(repo: MarketRepository, args: Facto
     return {
       source_status: RUNTIME_STATUS.INSUFFICIENT_DATA,
       data_status: RUNTIME_STATUS.INSUFFICIENT_DATA,
-      report: null
+      report: null,
     };
   }
 
@@ -429,13 +480,14 @@ export function buildFactorMeasurementReport(repo: MarketRepository, args: Facto
           market: targetMarket,
           asset_class: args.assetClass || null,
           timeframe,
-          lookback_bars: lookbackBars
+          lookback_bars: lookbackBars,
         },
         measured_metrics: null,
         regime_conditioned_metrics: [],
         notes: [support.reason, support.implementation_note].filter(Boolean),
-        next_research_action: 'Add the missing data source or persist the required factor history before treating this as measured evidence.'
-      }
+        next_research_action:
+          'Add the missing data source or persist the required factor history before treating this as measured evidence.',
+      },
     };
   }
 
@@ -451,14 +503,24 @@ export function buildFactorMeasurementReport(repo: MarketRepository, args: Facto
     const rows = repo.getOhlcv({
       assetId: asset.asset_id,
       timeframe,
-      limit: lookbackBars
+      limit: lookbackBars,
     });
     if (rows.length < Math.max(90, forwardHorizon + 30)) continue;
-    const observations = buildAssetObservations(repo, asset, rows, measurableFactorId, forwardHorizon);
+    const observations = buildAssetObservations(
+      repo,
+      asset,
+      rows,
+      measurableFactorId,
+      forwardHorizon,
+    );
     if (observations.length < 20) continue;
     assetCount += 1;
-    coverageStart = coverageStart === null ? observations[0].ts : Math.min(coverageStart, observations[0].ts);
-    coverageEnd = coverageEnd === null ? observations[observations.length - 1].ts : Math.max(coverageEnd, observations[observations.length - 1].ts);
+    coverageStart =
+      coverageStart === null ? observations[0].ts : Math.min(coverageStart, observations[0].ts);
+    coverageEnd =
+      coverageEnd === null
+        ? observations[observations.length - 1].ts
+        : Math.max(coverageEnd, observations[observations.length - 1].ts);
     for (const point of observations) {
       const existing = dateMap.get(point.ts) || [];
       existing.push(point);
@@ -470,10 +532,15 @@ export function buildFactorMeasurementReport(repo: MarketRepository, args: Facto
   const dailySummaries: DailyCrossSectionSummary[] = [];
   let previousLeaders: string[] | null = null;
   for (const ts of dailyDates) {
-    const points = (dateMap.get(ts) || []).filter((row) => Number.isFinite(row.feature) && Number.isFinite(row.forwardReturn));
+    const points = (dateMap.get(ts) || []).filter(
+      (row) => Number.isFinite(row.feature) && Number.isFinite(row.forwardReturn),
+    );
     if (points.length < minAssetsPerDate) continue;
     const summary = summarizeDailyCrossSection(points, previousLeaders, quantileBucketsCount);
-    previousLeaders = [...points].sort((a, b) => b.feature - a.feature).slice(0, Math.max(1, Math.floor(points.length / quantileBucketsCount))).map((row) => row.symbol);
+    previousLeaders = [...points]
+      .sort((a, b) => b.feature - a.feature)
+      .slice(0, Math.max(1, Math.floor(points.length / quantileBucketsCount)))
+      .map((row) => row.symbol);
     dailySummaries.push(summary);
   }
 
@@ -490,35 +557,42 @@ export function buildFactorMeasurementReport(repo: MarketRepository, args: Facto
           market: targetMarket,
           asset_class: args.assetClass || null,
           timeframe,
-          lookback_bars: lookbackBars
+          lookback_bars: lookbackBars,
         },
         measured_metrics: null,
         regime_conditioned_metrics: [],
         notes: [
           'The current cross-sectional store did not have enough aligned asset history to compute measured factor diagnostics.',
-          support.implementation_note
+          support.implementation_note,
         ],
-        next_research_action: 'Increase daily-bar coverage or widen the measurable universe before relying on this factor report.'
-      }
+        next_research_action:
+          'Increase daily-bar coverage or widen the measurable universe before relying on this factor report.',
+      },
     };
   }
 
   const metrics = {
     ic: mean(dailySummaries.map((row) => row.ic).filter((row): row is number => row !== null)),
-    rank_ic: mean(dailySummaries.map((row) => row.rank_ic).filter((row): row is number => row !== null)),
-    quantile_spread: mean(dailySummaries.map((row) => row.quantile_spread).filter((row): row is number => row !== null)),
+    rank_ic: mean(
+      dailySummaries.map((row) => row.rank_ic).filter((row): row is number => row !== null),
+    ),
+    quantile_spread: mean(
+      dailySummaries.map((row) => row.quantile_spread).filter((row): row is number => row !== null),
+    ),
     hit_rate: mean(
       dailySummaries
         .map((row) => (row.hit === null ? null : row.hit ? 1 : 0))
-        .filter((row): row is 0 | 1 => row !== null)
+        .filter((row): row is 0 | 1 => row !== null),
     ),
-    turnover_proxy: mean(dailySummaries.map((row) => row.turnover_proxy).filter((row): row is number => row !== null)),
+    turnover_proxy: mean(
+      dailySummaries.map((row) => row.turnover_proxy).filter((row): row is number => row !== null),
+    ),
     sample_dates: dailySummaries.length,
     sample_observations: dailySummaries.reduce((sum, row) => sum + row.observation_count, 0),
     stability_ratio:
       dailySummaries.length > 0
         ? dailySummaries.filter((row) => (row.ic ?? 0) > 0).length / dailySummaries.length
-        : null
+        : null,
   };
 
   const regimeMetrics = aggregateRegimeMetrics(dailySummaries);
@@ -544,19 +618,19 @@ export function buildFactorMeasurementReport(repo: MarketRepository, args: Facto
         assets_used: assetCount,
         coverage_start_ms: coverageStart,
         coverage_end_ms: coverageEnd,
-        min_assets_per_date: minAssetsPerDate
+        min_assets_per_date: minAssetsPerDate,
       },
       measured_metrics: metrics,
       regime_conditioned_metrics: regimeMetrics,
       notes: [
         support.implementation_note,
-        'These are factor-level measured diagnostics from current OHLCV coverage, not a claim of live deployable edge by themselves.'
+        'These are factor-level measured diagnostics from current OHLCV coverage, not a claim of live deployable edge by themselves.',
       ],
       verdict,
       next_research_action:
         (metrics.ic ?? 0) > 0.03 && (metrics.quantile_spread ?? 0) > 0
           ? 'Use this factor in a replay-aware strategy test with transaction costs and portfolio constraints.'
-          : 'Improve the proxy, widen the universe, or reject the idea before spending more backtest budget.'
-    }
+          : 'Improve the proxy, widen the universe, or reject the idea before spending more backtest budget.',
+    },
   };
 }

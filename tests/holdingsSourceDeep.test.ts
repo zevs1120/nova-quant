@@ -4,7 +4,7 @@ import {
   upsertImportedHoldings,
   deriveConnectedHoldings,
   mergeHoldingsSources,
-  summarizeHoldingsSource
+  summarizeHoldingsSource,
   // @ts-ignore JS runtime module import
 } from '../src/utils/holdingsSource.js';
 
@@ -19,7 +19,7 @@ describe('applyMarketValueWeights', () => {
     const rows = [
       { symbol: 'AAPL', quantity: 10, current_price: 200 },
       { symbol: 'GOOGL', quantity: 5, current_price: 180 },
-      { symbol: 'MSFT', quantity: 8, current_price: 400 }
+      { symbol: 'MSFT', quantity: 8, current_price: 400 },
     ];
     const result = applyMarketValueWeights(rows);
     const totalWeight = result.reduce((sum: number, r: any) => sum + (r.weight_pct || 0), 0);
@@ -40,7 +40,7 @@ describe('applyMarketValueWeights', () => {
   it('skips rows with empty symbol', () => {
     const rows = [
       { symbol: '', quantity: 10, current_price: 200 },
-      { symbol: 'AAPL', quantity: 5, current_price: 100 }
+      { symbol: 'AAPL', quantity: 5, current_price: 100 },
     ];
     const result = applyMarketValueWeights(rows);
     expect(result).toHaveLength(1);
@@ -56,7 +56,7 @@ describe('applyMarketValueWeights', () => {
   it('handles row with only market_value (no qty × price)', () => {
     const rows = [
       { symbol: 'AAPL', market_value: 3000 },
-      { symbol: 'GOOGL', market_value: 7000 }
+      { symbol: 'GOOGL', market_value: 7000 },
     ];
     const result = applyMarketValueWeights(rows);
     expect(result[0].weight_pct).toBeCloseTo(30, 0);
@@ -91,12 +91,18 @@ describe('upsertImportedHoldings', () => {
   });
 
   it('handles empty existing array', () => {
-    const result = upsertImportedHoldings([], [{ symbol: 'AAPL', quantity: 5, current_price: 100 }]);
+    const result = upsertImportedHoldings(
+      [],
+      [{ symbol: 'AAPL', quantity: 5, current_price: 100 }],
+    );
     expect(result).toHaveLength(1);
   });
 
   it('handles empty imported array', () => {
-    const result = upsertImportedHoldings([{ symbol: 'AAPL', quantity: 5, current_price: 100 }], []);
+    const result = upsertImportedHoldings(
+      [{ symbol: 'AAPL', quantity: 5, current_price: 100 }],
+      [],
+    );
     expect(result).toHaveLength(1);
   });
 });
@@ -109,7 +115,7 @@ describe('deriveConnectedHoldings', () => {
   it('handles empty broker and exchange snapshots', () => {
     const result = deriveConnectedHoldings({
       brokerSnapshot: {},
-      exchangeSnapshot: {}
+      exchangeSnapshot: {},
     });
     expect(result).toEqual([]);
   });
@@ -117,7 +123,7 @@ describe('deriveConnectedHoldings', () => {
   it('handles null/undefined snapshots', () => {
     const result = deriveConnectedHoldings({
       brokerSnapshot: null,
-      exchangeSnapshot: undefined
+      exchangeSnapshot: undefined,
     });
     expect(result).toEqual([]);
   });
@@ -127,10 +133,10 @@ describe('deriveConnectedHoldings', () => {
       brokerSnapshot: {
         provider: 'Alpaca',
         positions: [
-          { symbol: 'AAPL', qty: 10, avg_entry_price: 190, current_price: 200, market_value: 2000 }
-        ]
+          { symbol: 'AAPL', qty: 10, avg_entry_price: 190, current_price: 200, market_value: 2000 },
+        ],
       },
-      exchangeSnapshot: {}
+      exchangeSnapshot: {},
     });
     expect(result).toHaveLength(1);
     expect(result[0].symbol).toBe('AAPL');
@@ -145,9 +151,9 @@ describe('deriveConnectedHoldings', () => {
         provider: 'Binance',
         balances: [
           { asset: 'BTC', free: 0.5, locked: 0.1, mark_price: 62000 },
-          { asset: 'ETH', total: 5, mark_price: 3400 }
-        ]
-      }
+          { asset: 'ETH', total: 5, mark_price: 3400 },
+        ],
+      },
     });
     expect(result).toHaveLength(2);
     expect(result.find((r: any) => r.symbol === 'BTC-USDT')).toBeDefined();
@@ -159,10 +165,8 @@ describe('deriveConnectedHoldings', () => {
     const result = deriveConnectedHoldings({
       brokerSnapshot: {},
       exchangeSnapshot: {
-        balances: [
-          { asset: 'USDT', total: 10000, mark_price: 1 }
-        ]
-      }
+        balances: [{ asset: 'USDT', total: 10000, mark_price: 1 }],
+      },
     });
     expect(result).toEqual([]);
   });
@@ -170,11 +174,9 @@ describe('deriveConnectedHoldings', () => {
   it('skips broker positions with zero quantity', () => {
     const result = deriveConnectedHoldings({
       brokerSnapshot: {
-        positions: [
-          { symbol: 'AAPL', qty: 0, current_price: 200 }
-        ]
+        positions: [{ symbol: 'AAPL', qty: 0, current_price: 200 }],
       },
-      exchangeSnapshot: {}
+      exchangeSnapshot: {},
     });
     expect(result).toEqual([]);
   });
@@ -188,7 +190,16 @@ describe('mergeHoldingsSources', () => {
   it('live takes priority over manual for same symbol', () => {
     const result = mergeHoldingsSources({
       manualHoldings: [{ symbol: 'AAPL', quantity: 5, current_price: 190, source_kind: 'MANUAL' }],
-      connectedHoldings: [{ symbol: 'AAPL', quantity: 10, current_price: 200, source_kind: 'LIVE', market: 'US', asset_class: 'US_STOCK' }]
+      connectedHoldings: [
+        {
+          symbol: 'AAPL',
+          quantity: 10,
+          current_price: 200,
+          source_kind: 'LIVE',
+          market: 'US',
+          asset_class: 'US_STOCK',
+        },
+      ],
     });
     expect(result).toHaveLength(1);
     expect(result[0].quantity).toBe(10);
@@ -198,7 +209,9 @@ describe('mergeHoldingsSources', () => {
   it('includes manual holdings for symbols not in live', () => {
     const result = mergeHoldingsSources({
       manualHoldings: [{ symbol: 'NVDA', quantity: 3, current_price: 900 }],
-      connectedHoldings: [{ symbol: 'AAPL', quantity: 10, current_price: 200, source_kind: 'LIVE' }]
+      connectedHoldings: [
+        { symbol: 'AAPL', quantity: 10, current_price: 200, source_kind: 'LIVE' },
+      ],
     });
     expect(result).toHaveLength(2);
     const symbols = result.map((r: any) => r.symbol);
@@ -226,7 +239,7 @@ describe('summarizeHoldingsSource', () => {
     const result = summarizeHoldingsSource({
       investorDemoEnabled: false,
       connectedHoldings: [{ symbol: 'AAPL', quantity: 10 }],
-      manualHoldings: []
+      manualHoldings: [],
     });
     expect(result.kind).toBe('LIVE');
     expect(result.live_count).toBe(1);
@@ -236,7 +249,7 @@ describe('summarizeHoldingsSource', () => {
     const result = summarizeHoldingsSource({
       investorDemoEnabled: false,
       connectedHoldings: [],
-      manualHoldings: [{ symbol: 'AAPL' }]
+      manualHoldings: [{ symbol: 'AAPL' }],
     });
     expect(result.kind).toBe('IMPORTED');
     expect(result.manual_count).toBe(1);
@@ -246,7 +259,7 @@ describe('summarizeHoldingsSource', () => {
     const result = summarizeHoldingsSource({
       investorDemoEnabled: false,
       connectedHoldings: [{ symbol: 'AAPL' }],
-      manualHoldings: [{ symbol: 'GOOGL' }]
+      manualHoldings: [{ symbol: 'GOOGL' }],
     });
     expect(result.kind).toBe('LIVE_PLUS_IMPORTED');
   });
@@ -255,7 +268,7 @@ describe('summarizeHoldingsSource', () => {
     const result = summarizeHoldingsSource({
       investorDemoEnabled: false,
       connectedHoldings: [],
-      manualHoldings: []
+      manualHoldings: [],
     });
     expect(result.kind).toBe('UNAVAILABLE');
     expect(result.available).toBe(false);
@@ -266,7 +279,7 @@ describe('summarizeHoldingsSource', () => {
       investorDemoEnabled: false,
       connectedHoldings: [],
       manualHoldings: [],
-      brokerSnapshot: { can_read_positions: true }
+      brokerSnapshot: { can_read_positions: true },
     });
     expect(result.kind).toBe('LIVE_EMPTY');
     expect(result.connected).toBe(true);
@@ -277,7 +290,7 @@ describe('summarizeHoldingsSource', () => {
       investorDemoEnabled: false,
       connectedHoldings: [],
       manualHoldings: [{ symbol: 'AAPL' }],
-      brokerSnapshot: { can_read_positions: true }
+      brokerSnapshot: { can_read_positions: true },
     });
     expect(result.kind).toBe('IMPORTED_FALLBACK');
   });
@@ -289,38 +302,34 @@ describe('summarizeHoldingsSource', () => {
 
 describe('asset class inference through normalize', () => {
   it('detects common crypto symbols (BTC, ETH, SOL)', () => {
-    const result = applyMarketValueWeights([
-      { symbol: 'BTC', quantity: 1, current_price: 62000 }
-    ]);
+    const result = applyMarketValueWeights([{ symbol: 'BTC', quantity: 1, current_price: 62000 }]);
     expect(result[0].asset_class).toBe('CRYPTO');
     expect(result[0].market).toBe('CRYPTO');
   });
 
   it('detects USDT-suffixed symbols as crypto', () => {
     const result = applyMarketValueWeights([
-      { symbol: 'ETHUSDT', quantity: 5, current_price: 3400 }
+      { symbol: 'ETHUSDT', quantity: 5, current_price: 3400 },
     ]);
     expect(result[0].asset_class).toBe('CRYPTO');
   });
 
   it('detects hyphenated crypto symbols', () => {
     const result = applyMarketValueWeights([
-      { symbol: 'SOL-USD', quantity: 20, current_price: 150 }
+      { symbol: 'SOL-USD', quantity: 20, current_price: 150 },
     ]);
     expect(result[0].asset_class).toBe('CRYPTO');
   });
 
   it('defaults to US_STOCK for non-crypto symbols', () => {
-    const result = applyMarketValueWeights([
-      { symbol: 'AAPL', quantity: 10, current_price: 200 }
-    ]);
+    const result = applyMarketValueWeights([{ symbol: 'AAPL', quantity: 10, current_price: 200 }]);
     expect(result[0].asset_class).toBe('US_STOCK');
     expect(result[0].market).toBe('US');
   });
 
   it('respects explicit asset_class', () => {
     const result = applyMarketValueWeights([
-      { symbol: 'AAPL', asset_class: 'OPTIONS', quantity: 1, current_price: 5 }
+      { symbol: 'AAPL', asset_class: 'OPTIONS', quantity: 1, current_price: 5 },
     ]);
     expect(result[0].asset_class).toBe('OPTIONS');
   });

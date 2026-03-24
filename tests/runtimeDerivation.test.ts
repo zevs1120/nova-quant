@@ -5,7 +5,12 @@ import { MarketRepository } from '../src/server/db/repository.js';
 import { deriveRuntimeState } from '../src/server/quant/runtimeDerivation.js';
 import type { NormalizedBar } from '../src/server/types.js';
 
-function buildTrendBars(startTs: number, stepMs: number, startPrice: number, count: number): NormalizedBar[] {
+function buildTrendBars(
+  startTs: number,
+  stepMs: number,
+  startPrice: number,
+  count: number,
+): NormalizedBar[] {
   const rows: NormalizedBar[] = [];
   let px = startPrice;
   for (let i = 0; i < count; i += 1) {
@@ -20,7 +25,7 @@ function buildTrendBars(startTs: number, stepMs: number, startPrice: number, cou
       high: high.toFixed(4),
       low: low.toFixed(4),
       close: close.toFixed(4),
-      volume: String(1000 + i * 3)
+      volume: String(1000 + i * 3),
     });
     px = close;
   }
@@ -36,36 +41,46 @@ describe('derive runtime state', () => {
     const us = repo.upsertAsset({
       symbol: 'SPY',
       market: 'US',
-      venue: 'STOOQ'
+      venue: 'STOOQ',
     });
     const crypto = repo.upsertAsset({
       symbol: 'BTCUSDT',
       market: 'CRYPTO',
       venue: 'BINANCE_UM',
       base: 'BTC',
-      quote: 'USDT'
+      quote: 'USDT',
     });
 
     const now = Date.now();
-    repo.upsertOhlcvBars(us.asset_id, '1d', buildTrendBars(now - 120 * 86_400_000, 86_400_000, 450, 120), 'TEST');
-    repo.upsertOhlcvBars(crypto.asset_id, '1h', buildTrendBars(now - 240 * 3_600_000, 3_600_000, 65000, 240), 'TEST');
+    repo.upsertOhlcvBars(
+      us.asset_id,
+      '1d',
+      buildTrendBars(now - 120 * 86_400_000, 86_400_000, 450, 120),
+      'TEST',
+    );
+    repo.upsertOhlcvBars(
+      crypto.asset_id,
+      '1h',
+      buildTrendBars(now - 240 * 3_600_000, 3_600_000, 65000, 240),
+      'TEST',
+    );
     repo.upsertFundingRates(
       crypto.asset_id,
       [
         { ts_open: now - 24 * 3_600_000, funding_rate: '0.0001' },
         { ts_open: now - 16 * 3_600_000, funding_rate: '0.0002' },
-        { ts_open: now - 8 * 3_600_000, funding_rate: '0.0003' }
+        { ts_open: now - 8 * 3_600_000, funding_rate: '0.0003' },
       ],
-      'TEST'
+      'TEST',
     );
     repo.upsertBasisSnapshots(
       crypto.asset_id,
       [
         { ts_open: now - 12 * 3_600_000, basis_bps: '4.5' },
         { ts_open: now - 6 * 3_600_000, basis_bps: '7.5' },
-        { ts_open: now - 2 * 3_600_000, basis_bps: '12' }
+        { ts_open: now - 2 * 3_600_000, basis_bps: '12' },
       ],
-      'TEST'
+      'TEST',
     );
     repo.upsertNewsItems([
       {
@@ -90,16 +105,16 @@ describe('derive runtime state', () => {
               macro_policy_score: 0.71,
               earnings_impact_score: 0.12,
               trading_bias: 'BULLISH',
-              factor_tags: ['macro', 'risk_on']
+              factor_tags: ['macro', 'risk_on'],
             },
             headline: {
               sentiment_score: 0.44,
-              relevance_score: 0.84
-            }
-          }
+              relevance_score: 0.84,
+            },
+          },
         }),
-        updated_at_ms: now - 20 * 60_000
-      }
+        updated_at_ms: now - 20 * 60_000,
+      },
     ]);
 
     repo.upsertUserRiskProfile({
@@ -110,7 +125,7 @@ describe('derive runtime state', () => {
       max_drawdown: 12,
       exposure_cap: 55,
       leverage_cap: 2,
-      updated_at_ms: now
+      updated_at_ms: now,
     });
 
     repo.upsertWorkflowRun({
@@ -122,11 +137,13 @@ describe('derive runtime state', () => {
       trace_id: `trace-factory-${now}`,
       input_json: JSON.stringify({
         market: 'US',
-        constraints: { market: 'US' }
+        constraints: { market: 'US' },
       }),
       output_json: JSON.stringify({
-        portfolio_fit: 'Promote public template-backed momentum ideas when trend regime is already live.',
-        risk_note: 'Keep new factory cards in shadow posture until execution drift remains contained.',
+        portfolio_fit:
+          'Promote public template-backed momentum ideas when trend regime is already live.',
+        risk_note:
+          'Keep new factory cards in shadow posture until execution drift remains contained.',
         selected_candidates: [
           {
             candidate_id: 'cand-public-tsmom',
@@ -145,19 +162,19 @@ describe('derive runtime state', () => {
             public_reference_ids: ['aqr_trend_following', 'aqr_vme'],
             candidate_source_metadata: {
               template_source: {
-                public_reference_ids: ['aqr_trend_following', 'aqr_vme']
+                public_reference_ids: ['aqr_trend_following', 'aqr_vme'],
               },
               mapping_quality: {
-                feature_overlap_count: 3
-              }
-            }
-          }
-        ]
+                feature_overlap_count: 3,
+              },
+            },
+          },
+        ],
       }),
       attempt_count: 1,
       started_at_ms: now - 1_000,
       updated_at_ms: now - 500,
-      completed_at_ms: now - 500
+      completed_at_ms: now - 500,
     });
 
     const runtime = deriveRuntimeState({
@@ -171,8 +188,8 @@ describe('derive runtime state', () => {
         max_drawdown: 12,
         exposure_cap: 55,
         leverage_cap: 2,
-        updated_at_ms: now
-      }
+        updated_at_ms: now,
+      },
     });
 
     expect(runtime.sourceStatus).toBe('DB_BACKED');
@@ -180,9 +197,14 @@ describe('derive runtime state', () => {
     expect(runtime.coverageSummary).toBeTruthy();
     expect(runtime.performanceSnapshots.length).toBeGreaterThan(0);
     expect(Array.isArray(runtime.signals)).toBe(true);
-    const cryptoState = runtime.marketState.find((row) => row.market === 'CRYPTO' && row.symbol === 'BTCUSDT');
+    const cryptoState = runtime.marketState.find(
+      (row) => row.market === 'CRYPTO' && row.symbol === 'BTCUSDT',
+    );
     expect(cryptoState).toBeTruthy();
-    const eventStats = JSON.parse(String(cryptoState?.event_stats_json || '{}')) as Record<string, unknown>;
+    const eventStats = JSON.parse(String(cryptoState?.event_stats_json || '{}')) as Record<
+      string,
+      unknown
+    >;
     const micro = (eventStats.crypto_microstructure || {}) as Record<string, unknown>;
     expect(micro.fundingRateCurrent).toBe(0.0003);
     expect(micro.fundingRate24h).toBe(0.0006);
@@ -192,10 +214,16 @@ describe('derive runtime state', () => {
       expect(tagBlob.some((tag) => String(tag).startsWith('auto_learning:'))).toBe(true);
       expect(tagBlob.some((tag) => String(tag).startsWith('factor:'))).toBe(true);
       expect(tagBlob.includes('source:nova_factory')).toBe(true);
-      const factorySignal = runtime.signals.find((row) => row.tags?.includes('source:nova_factory'));
+      const factorySignal = runtime.signals.find((row) =>
+        row.tags?.includes('source:nova_factory'),
+      );
       expect(factorySignal).toBeTruthy();
-      expect((factorySignal as Record<string, any>)?.factory_metadata?.template_name).toBe('Time-Series Momentum Template');
-      const signalWithNews = runtime.signals.find((row) => (row.news_context?.headline_count || 0) > 0);
+      expect((factorySignal as Record<string, any>)?.factory_metadata?.template_name).toBe(
+        'Time-Series Momentum Template',
+      );
+      const signalWithNews = runtime.signals.find(
+        (row) => (row.news_context?.headline_count || 0) > 0,
+      );
       expect(signalWithNews?.news_context?.analysis_provider).toBe('gemini');
       expect(signalWithNews?.news_context?.factor_tags).toContain('macro');
     }

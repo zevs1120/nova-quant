@@ -5,13 +5,17 @@ import { runEvidenceEngine } from '../src/server/evidence/engine.js';
 import type { AssetClass, Market } from '../src/server/types.js';
 
 function parseMarket(value: string | undefined): Market | undefined {
-  const upper = String(value || '').trim().toUpperCase();
+  const upper = String(value || '')
+    .trim()
+    .toUpperCase();
   if (upper === 'US' || upper === 'CRYPTO') return upper;
   return undefined;
 }
 
 function parseAssetClass(value: string | undefined): AssetClass | undefined {
-  const upper = String(value || '').trim().toUpperCase();
+  const upper = String(value || '')
+    .trim()
+    .toUpperCase();
   if (upper === 'US_STOCK' || upper === 'CRYPTO' || upper === 'OPTIONS') return upper;
   return undefined;
 }
@@ -66,7 +70,7 @@ async function main() {
     market: args.market,
     assetClass: args.assetClass,
     timeframe: args.timeframe,
-    maxSignals: args.maxSignals
+    maxSignals: args.maxSignals,
   });
   // eslint-disable-next-line no-console
   console.log(JSON.stringify({ ok: true, ...out }, null, 2));

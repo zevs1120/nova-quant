@@ -5,7 +5,7 @@ import { runQuantPipeline } from '../src/engines/pipeline.js';
 describe('research evidence system', () => {
   const state = runQuantPipeline({
     as_of: '2026-03-08T00:00:00.000Z',
-    config: { risk_profile: 'balanced' }
+    config: { risk_profile: 'balanced' },
   });
 
   const evidence = state?.research?.research_core?.research_evidence_system;
@@ -21,7 +21,9 @@ describe('research evidence system', () => {
     expect(sample.production_recommendation).toBeTruthy();
     expect(sample.audit_chain).toBeTruthy();
     expect(sample.promotion_history).toBeTruthy();
-    const withAssumption = evidence.strategies.find((row: { assumption_profile: unknown }) => Boolean(row.assumption_profile));
+    const withAssumption = evidence.strategies.find((row: { assumption_profile: unknown }) =>
+      Boolean(row.assumption_profile),
+    );
     expect(withAssumption).toBeTruthy();
     expect(sample.cost_realism_notes?.length).toBeGreaterThan(0);
   });

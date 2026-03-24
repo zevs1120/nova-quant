@@ -3,13 +3,16 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ensureSchema } from '../src/server/db/schema.js';
 import { MarketRepository } from '../src/server/db/repository.js';
 import { ensureFreshNewsForSymbol } from '../src/server/news/provider.js';
-import { ensureFreshFundamentalsForSymbol, ensureFreshOptionsForSymbol } from '../src/server/jobs/referenceData.js';
+import {
+  ensureFreshFundamentalsForSymbol,
+  ensureFreshOptionsForSymbol,
+} from '../src/server/jobs/referenceData.js';
 
 function makeJsonResponse(body: unknown) {
   return {
     ok: true,
     json: async () => body,
-    text: async () => JSON.stringify(body)
+    text: async () => JSON.stringify(body),
   };
 }
 
@@ -17,7 +20,7 @@ function makeTextResponse(text: string) {
   return {
     ok: true,
     json: async () => ({ text }),
-    text: async () => text
+    text: async () => text,
   };
 }
 
@@ -49,7 +52,10 @@ describe('hosted reference data ingestion', () => {
           return makeJsonResponse({ symbol: 'AAPL', annualReports: [{ totalAssets: '2000' }] });
         }
         if (url.includes('alphavantage.co') && url.includes('function=EARNINGS')) {
-          return makeJsonResponse({ symbol: 'AAPL', annualEarnings: [{ fiscalDateEnding: '2025-12-31' }] });
+          return makeJsonResponse({
+            symbol: 'AAPL',
+            annualEarnings: [{ fiscalDateEnding: '2025-12-31' }],
+          });
         }
         if (url.includes('finnhub.io') && url.includes('/stock/metric')) {
           return makeJsonResponse({ metric: { peTTM: 27.1, epsGrowthTTMYoy: 0.14 } });
@@ -58,13 +64,13 @@ describe('hosted reference data ingestion', () => {
           return makeJsonResponse({ data: [{ year: 2025, report: { ic: { revenue: 1000 } } }] });
         }
         throw new Error(`Unhandled URL ${url}`);
-      })
+      }),
     );
 
     const result = await ensureFreshFundamentalsForSymbol({
       repo,
       market: 'US',
-      symbol: 'AAPL'
+      symbol: 'AAPL',
     });
 
     expect(result.fetched).toBe(true);
@@ -89,10 +95,10 @@ describe('hosted reference data ingestion', () => {
               result: [
                 {
                   expirationDates: [1_760_000_000],
-                  quote: { regularMarketPrice: 188.5 }
-                }
-              ]
-            }
+                  quote: { regularMarketPrice: 188.5 },
+                },
+              ],
+            },
           });
         }
         if (url.includes('/v7/finance/options/AAPL') && url.includes('date=1760000000')) {
@@ -104,26 +110,36 @@ describe('hosted reference data ingestion', () => {
                     {
                       expirationDate: 1_760_000_000,
                       calls: [
-                        { contractSymbol: 'AAPL-C1', impliedVolatility: 0.22, openInterest: 1200, volume: 180 }
+                        {
+                          contractSymbol: 'AAPL-C1',
+                          impliedVolatility: 0.22,
+                          openInterest: 1200,
+                          volume: 180,
+                        },
                       ],
                       puts: [
-                        { contractSymbol: 'AAPL-P1', impliedVolatility: 0.26, openInterest: 1500, volume: 160 }
-                      ]
-                    }
-                  ]
-                }
-              ]
-            }
+                        {
+                          contractSymbol: 'AAPL-P1',
+                          impliedVolatility: 0.26,
+                          openInterest: 1500,
+                          volume: 160,
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
           });
         }
         throw new Error(`Unhandled URL ${url}`);
-      })
+      }),
     );
 
     const result = await ensureFreshOptionsForSymbol({
       repo,
       market: 'US',
-      symbol: 'AAPL'
+      symbol: 'AAPL',
     });
 
     expect(result.fetched).toBe(true);
@@ -155,26 +171,36 @@ describe('hosted reference data ingestion', () => {
                     {
                       expirationDate: 1_760_000_000,
                       calls: [
-                        { contractSymbol: 'AAPL-C1', impliedVolatility: 0.22, openInterest: 1200, volume: 180 }
+                        {
+                          contractSymbol: 'AAPL-C1',
+                          impliedVolatility: 0.22,
+                          openInterest: 1200,
+                          volume: 180,
+                        },
                       ],
                       puts: [
-                        { contractSymbol: 'AAPL-P1', impliedVolatility: 0.26, openInterest: 1500, volume: 160 }
-                      ]
-                    }
-                  ]
-                }
-              ]
-            }
+                        {
+                          contractSymbol: 'AAPL-P1',
+                          impliedVolatility: 0.26,
+                          openInterest: 1500,
+                          volume: 160,
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
           });
         }
         return new Response('blocked', { status: 500 });
-      })
+      }),
     );
 
     const result = await ensureFreshOptionsForSymbol({
       repo,
       market: 'US',
-      symbol: 'AAPL'
+      symbol: 'AAPL',
     });
 
     expect(result.fetched).toBe(true);
@@ -188,13 +214,13 @@ describe('hosted reference data ingestion', () => {
 
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => new Response('blocked', { status: 401 }))
+      vi.fn(async () => new Response('blocked', { status: 401 })),
     );
 
     const result = await ensureFreshOptionsForSymbol({
       repo,
       market: 'US',
-      symbol: 'SPY'
+      symbol: 'SPY',
     });
 
     expect(result.fetched).toBe(false);
@@ -218,20 +244,34 @@ describe('hosted reference data ingestion', () => {
             data: {
               current_price: 500.25,
               options: [
-                { option: 'SPY240101C00500000', iv: 0.21, open_interest: 1000, volume: 120, delta: 0.45, gamma: 0.01 },
-                { option: 'SPY240101P00500000', iv: 0.24, open_interest: 1300, volume: 110, delta: -0.42, gamma: 0.012 }
-              ]
-            }
+                {
+                  option: 'SPY240101C00500000',
+                  iv: 0.21,
+                  open_interest: 1000,
+                  volume: 120,
+                  delta: 0.45,
+                  gamma: 0.01,
+                },
+                {
+                  option: 'SPY240101P00500000',
+                  iv: 0.24,
+                  open_interest: 1300,
+                  volume: 110,
+                  delta: -0.42,
+                  gamma: 0.012,
+                },
+              ],
+            },
           });
         }
         throw new Error(`Unhandled URL ${url}`);
-      })
+      }),
     );
 
     const result = await ensureFreshOptionsForSymbol({
       repo,
       market: 'US',
-      symbol: 'SPY'
+      symbol: 'SPY',
     });
 
     expect(result.fetched).toBe(true);
@@ -272,8 +312,8 @@ describe('hosted reference data ingestion', () => {
               source: 'Finnhub Wire',
               summary: 'Finnhub summary',
               url: 'https://example.com/finnhub-1',
-              datetime: 1_774_050_000
-            }
+              datetime: 1_774_050_000,
+            },
           ]);
         }
         if (url.includes('newsapi.org')) {
@@ -284,24 +324,26 @@ describe('hosted reference data ingestion', () => {
                 description: 'NewsAPI summary',
                 url: 'https://example.com/newsapi-1',
                 publishedAt: '2026-03-21T09:00:00Z',
-                source: { name: 'NewsAPI Wire' }
-              }
-            ]
+                source: { name: 'NewsAPI Wire' },
+              },
+            ],
           });
         }
         throw new Error(`Unhandled URL ${url}`);
-      })
+      }),
     );
 
     const result = await ensureFreshNewsForSymbol({
       repo,
       market: 'US',
-      symbol: 'AAPL'
+      symbol: 'AAPL',
     });
 
     expect(result.fetched).toBe(true);
     expect(result.rows_upserted).toBe(3);
     const rows = repo.listNewsItems({ market: 'US', symbol: 'AAPL', limit: 10 });
-    expect(rows.map((row) => row.source)).toEqual(expect.arrayContaining(['Reuters', 'Finnhub Wire', 'NewsAPI Wire']));
+    expect(rows.map((row) => row.source)).toEqual(
+      expect.arrayContaining(['Reuters', 'Finnhub Wire', 'NewsAPI Wire']),
+    );
   });
 });

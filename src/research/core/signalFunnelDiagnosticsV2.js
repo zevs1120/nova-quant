@@ -18,7 +18,7 @@ function emptyCounter() {
     executable: 0,
     entered_positions: 0,
     filled: 0,
-    roundtrip: 0
+    roundtrip: 0,
   };
 }
 
@@ -30,17 +30,27 @@ function mergeCounter(target, source) {
 }
 
 function classifyNoTradeReason(decision = {}, signal = {}) {
-  const reasons = [
-    ...(decision.reasons || []),
-    ...(signal.risk_warnings || [])
-  ].map((item) => String(item).toLowerCase());
+  const reasons = [...(decision.reasons || []), ...(signal.risk_warnings || [])].map((item) =>
+    String(item).toLowerCase(),
+  );
 
   if (reasons.some((item) => item.includes('regime'))) return 'regime_blocked';
-  if (reasons.some((item) => item.includes('quality') || item.includes('score'))) return 'score_too_low';
-  if (reasons.some((item) => item.includes('budget') || item.includes('exposure cap') || item.includes('daily loss'))) {
+  if (reasons.some((item) => item.includes('quality') || item.includes('score')))
+    return 'score_too_low';
+  if (
+    reasons.some(
+      (item) =>
+        item.includes('budget') || item.includes('exposure cap') || item.includes('daily loss'),
+    )
+  ) {
     return 'risk_budget_exhausted';
   }
-  if (reasons.some((item) => item.includes('correlated') || item.includes('cluster') || item.includes('conflict'))) {
+  if (
+    reasons.some(
+      (item) =>
+        item.includes('correlated') || item.includes('cluster') || item.includes('conflict'),
+    )
+  ) {
     return 'correlation_conflict';
   }
   if (!ACTIVE_STATUS.has(String(signal.status || '').toUpperCase())) {
@@ -81,7 +91,7 @@ function stageDropoff(counter) {
     ['risk_filter_passed', 'conflict_filter_passed'],
     ['conflict_filter_passed', 'executable'],
     ['executable', 'filled'],
-    ['filled', 'roundtrip']
+    ['filled', 'roundtrip'],
   ];
 
   return pairs.map(([from, to]) => {
@@ -93,7 +103,7 @@ function stageDropoff(counter) {
       from: fromValue,
       to: toValue,
       drop_count: drop,
-      drop_ratio: fromValue ? round(drop / fromValue, 4) : 0
+      drop_ratio: fromValue ? round(drop / fromValue, 4) : 0,
     };
   });
 }
@@ -110,7 +120,7 @@ function aggregateBy(records, keyName) {
     .map(([key, counter]) => ({
       [keyName]: key,
       ...counter,
-      dropoff: stageDropoff(counter)
+      dropoff: stageDropoff(counter),
     }))
     .sort((a, b) => b.generated - a.generated);
 }
@@ -128,7 +138,7 @@ function topNoTradeReasons(records = []) {
     .map(([reason, count]) => ({
       reason,
       count,
-      share: round(count / total, 4)
+      share: round(count / total, 4),
     }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 8);
@@ -140,7 +150,7 @@ function inferBottleneck(counter) {
     score_filtered: counter.score_filtered,
     risk_filtered: counter.risk_filtered,
     conflict_filtered: counter.conflict_filtered,
-    execution_gap: Math.max(0, counter.executable - counter.filled)
+    execution_gap: Math.max(0, counter.executable - counter.filled),
   };
 
   const [stage, value] = Object.entries(map).sort((a, b) => b[1] - a[1])[0] || ['none', 0];
@@ -156,7 +166,7 @@ function inferBottleneck(counter) {
             ? 'Score thresholds are filtering too many candidates.'
             : stage === 'conflict_filtered'
               ? 'Conflict filter is suppressing many candidates due to overlap.'
-              : 'Execution conversion is currently the largest bottleneck.'
+              : 'Execution conversion is currently the largest bottleneck.',
   };
 }
 
@@ -167,11 +177,13 @@ function thresholdSensitivity(records = []) {
       near_threshold_count: 0,
       near_threshold_share: 0,
       score_too_low_near_threshold: 0,
-      diagnosis: 'No score records available for threshold sensitivity.'
+      diagnosis: 'No score records available for threshold sensitivity.',
     };
   }
 
-  const nearThreshold = withScore.filter((item) => Math.abs(Number(item.signal_score) - 0.45) <= 0.05);
+  const nearThreshold = withScore.filter(
+    (item) => Math.abs(Number(item.signal_score) - 0.45) <= 0.05,
+  );
   const scoreTooLowNear = nearThreshold.filter((item) => item.no_trade_reason === 'score_too_low');
 
   const share = nearThreshold.length / withScore.length;
@@ -182,7 +194,7 @@ function thresholdSensitivity(records = []) {
     diagnosis:
       share >= 0.35
         ? 'Large share of candidates sits near threshold; adaptive scoring may improve density.'
-        : 'Threshold boundary pressure is moderate.'
+        : 'Threshold boundary pressure is moderate.',
   };
 }
 
@@ -195,7 +207,7 @@ function overFilteringDetection(counter, thresholdDiag) {
     over_filtered: overFiltered,
     note: overFiltered
       ? 'Candidate starvation likely caused by strict filters and near-threshold rejects.'
-      : 'No strong over-filtering signal from current window.'
+      : 'No strong over-filtering signal from current window.',
   };
 }
 
@@ -205,7 +217,7 @@ export function buildSignalFunnelDiagnosticsV2({
   trades = [],
   tradeLevelBuckets = [],
   regimeState = {},
-  universeSize = null
+  universeSize = null,
 } = {}) {
   const bySignalId = new Map((tradeLevelBuckets || []).map((row) => [row.signal_id, row]));
   const filledIds = new Set();
@@ -222,10 +234,9 @@ export function buildSignalFunnelDiagnosticsV2({
     const decision = bySignalId.get(signal.signal_id);
     const active = ACTIVE_STATUS.has(String(signal.status || '').toUpperCase());
     const prefilterPassed = Boolean(signal.signal_id && signal.symbol && signal.market);
-    const executable = active && (!decision || decision.decision === 'allow' || decision.decision === 'reduce');
-    const noTradeReason = !executable
-      ? classifyNoTradeReason(decision || {}, signal)
-      : null;
+    const executable =
+      active && (!decision || decision.decision === 'allow' || decision.decision === 'reduce');
+    const noTradeReason = !executable ? classifyNoTradeReason(decision || {}, signal) : null;
 
     return {
       signal_id: signal.signal_id,
@@ -241,11 +252,14 @@ export function buildSignalFunnelDiagnosticsV2({
       entered: executable,
       filled: filledIds.has(signal.signal_id),
       roundtrip: roundtripIds.has(signal.signal_id),
-      no_trade_reason: noTradeReason
+      no_trade_reason: noTradeReason,
     };
   });
 
-  const overall = records.reduce((acc, record) => mergeCounter(acc, singleRecordCounter(record)), emptyCounter());
+  const overall = records.reduce(
+    (acc, record) => mergeCounter(acc, singleRecordCounter(record)),
+    emptyCounter(),
+  );
   if (Number.isFinite(Number(universeSize)) && Number(universeSize) > overall.universe) {
     overall.universe = Number(universeSize);
   }
@@ -276,8 +290,8 @@ export function buildSignalFunnelDiagnosticsV2({
       key_questions: [
         'Why are we getting too few trades?',
         'Where are candidates being filtered out?',
-        'Are filters too strict for current regime?'
-      ]
-    }
+        'Are filters too strict for current regime?',
+      ],
+    },
   };
 }

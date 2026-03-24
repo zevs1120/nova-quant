@@ -13,7 +13,7 @@ const TARGETS = [
   '.vercel',
   path.join('data', 'quant.db'),
   path.join('data', 'quant.db-wal'),
-  path.join('data', 'quant.db-shm')
+  path.join('data', 'quant.db-shm'),
 ];
 
 function removeByName(root, targetName) {

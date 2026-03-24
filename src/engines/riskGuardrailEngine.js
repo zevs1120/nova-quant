@@ -3,7 +3,7 @@ import { clamp, round } from './math.js';
 const ACTIVE_STATUSES = new Set(['NEW', 'TRIGGERED']);
 const US_THEME_BUCKETS = {
   mega_tech: new Set(['AAPL', 'MSFT', 'NVDA', 'AMZN', 'META', 'TSLA', 'GOOGL']),
-  index_beta: new Set(['SPY', 'QQQ', 'IWM', 'DIA'])
+  index_beta: new Set(['SPY', 'QQQ', 'IWM', 'DIA']),
 };
 const CRYPTO_BUCKET = new Set(['BTC-USDT', 'ETH-USDT', 'SOL-USDT', 'BNB-USDT']);
 
@@ -11,7 +11,9 @@ function stopDistancePct(signal) {
   const entryLow = Number(signal.entry_zone?.low ?? signal.entry_min ?? 0);
   const entryHigh = Number(signal.entry_zone?.high ?? signal.entry_max ?? 0);
   const entryMid = (entryLow + entryHigh) / 2;
-  const stop = Number(signal.stop_loss?.price ?? signal.stop_loss_value ?? signal.stop_loss ?? entryMid);
+  const stop = Number(
+    signal.stop_loss?.price ?? signal.stop_loss_value ?? signal.stop_loss ?? entryMid,
+  );
   if (!Number.isFinite(entryMid) || entryMid <= 0 || !Number.isFinite(stop)) return 0;
   return Math.abs((entryMid - stop) / entryMid) * 100;
 }
@@ -31,7 +33,9 @@ function buildCorrelationAlerts(activeSignals) {
     const theme = classifyTheme(signal);
     const current = themeMap.get(theme) || { theme, count: 0, gross_pct: 0, symbols: [] };
     current.count += 1;
-    current.gross_pct += Number(signal.position_advice?.position_pct ?? signal.position_size_pct ?? 0);
+    current.gross_pct += Number(
+      signal.position_advice?.position_pct ?? signal.position_size_pct ?? 0,
+    );
     current.symbols.push(signal.symbol);
     themeMap.set(theme, current);
   }
@@ -45,7 +49,7 @@ function buildCorrelationAlerts(activeSignals) {
         theme: row.theme,
         severity: row.gross_pct >= threshold * 1.4 ? 'HIGH' : 'MEDIUM',
         gross_pct: round(row.gross_pct, 2),
-        symbols: row.symbols
+        symbols: row.symbols,
       });
     }
   }
@@ -61,15 +65,21 @@ function buildRegimeMismatchWarnings(activeSignals) {
       symbol: signal.symbol,
       regime_id: signal.regime_id,
       regime_compatibility: Number(signal.regime_compatibility ?? 0),
-      severity: Number(signal.regime_compatibility ?? 0) < 36 ? 'HIGH' : 'MEDIUM'
+      severity: Number(signal.regime_compatibility ?? 0) < 36 ? 'HIGH' : 'MEDIUM',
     }));
 }
 
-function recommendation({ riskState, budgetUsedPct, maxBudgetPct, correlationAlerts, mismatchWarnings }) {
+function recommendation({
+  riskState,
+  budgetUsedPct,
+  maxBudgetPct,
+  correlationAlerts,
+  mismatchWarnings,
+}) {
   if (!riskState?.status?.trading_on) {
     return {
       action: 'STAY_OUT',
-      reason: 'Daily loss or drawdown guardrail reached.'
+      reason: 'Daily loss or drawdown guardrail reached.',
     };
   }
 
@@ -78,7 +88,7 @@ function recommendation({ riskState, budgetUsedPct, maxBudgetPct, correlationAle
   if (hardRisk || (riskClusterHigh && budgetUsedPct >= 80)) {
     return {
       action: 'STAY_OUT',
-      reason: 'Portfolio risk budget is effectively exhausted or concentration risk is too high.'
+      reason: 'Portfolio risk budget is effectively exhausted or concentration risk is too high.',
     };
   }
 
@@ -91,13 +101,13 @@ function recommendation({ riskState, budgetUsedPct, maxBudgetPct, correlationAle
   if (warmRisk) {
     return {
       action: 'REDUCE',
-      reason: 'Trade only top setups and reduce size due to elevated portfolio/regime risk.'
+      reason: 'Trade only top setups and reduce size due to elevated portfolio/regime risk.',
     };
   }
 
   return {
     action: 'TRADE_OK',
-    reason: 'Risk budget and regime alignment support normal disciplined execution.'
+    reason: 'Risk budget and regime alignment support normal disciplined execution.',
   };
 }
 
@@ -112,11 +122,14 @@ export function runRiskGuardrailEngine({ signals, riskState }) {
       symbol: signal.symbol,
       pos_pct: posPct,
       stop_pct: stopPct,
-      risk_used_pct: riskUsedPct
+      risk_used_pct: riskUsedPct,
     };
   });
 
-  const usedRiskPct = round(perSignalRisk.reduce((sum, item) => sum + item.risk_used_pct, 0), 4);
+  const usedRiskPct = round(
+    perSignalRisk.reduce((sum, item) => sum + item.risk_used_pct, 0),
+    4,
+  );
   const maxBudgetPct = Number(riskState?.profile?.max_daily_loss_pct ?? 3);
   const budgetUsedPct = round(clamp((usedRiskPct / Math.max(maxBudgetPct, 0.1)) * 100, 0, 300), 2);
   const remainingPct = round(Math.max(0, maxBudgetPct - usedRiskPct), 4);
@@ -128,23 +141,25 @@ export function runRiskGuardrailEngine({ signals, riskState }) {
     budgetUsedPct,
     maxBudgetPct,
     correlationAlerts,
-    mismatchWarnings: regimeMismatchWarnings
+    mismatchWarnings: regimeMismatchWarnings,
   });
 
   const signalAnnotations = Object.fromEntries(
     signals.map((signal) => {
       const warnings = [];
-      if (regimeMismatchWarnings.some((item) => item.signal_id === signal.signal_id)) warnings.push('regime_mismatch');
-      if (correlationAlerts.some((item) => item.symbols.includes(signal.symbol))) warnings.push('correlation_cluster');
+      if (regimeMismatchWarnings.some((item) => item.signal_id === signal.signal_id))
+        warnings.push('regime_mismatch');
+      if (correlationAlerts.some((item) => item.symbols.includes(signal.symbol)))
+        warnings.push('correlation_cluster');
       return [
         signal.signal_id,
         {
           signal_id: signal.signal_id,
           warnings,
-          recommendation: rec.action
-        }
+          recommendation: rec.action,
+        },
       ];
-    })
+    }),
   );
 
   return {
@@ -154,11 +169,11 @@ export function runRiskGuardrailEngine({ signals, riskState }) {
       max_risk_pct: maxBudgetPct,
       used_risk_pct: usedRiskPct,
       used_budget_pct: budgetUsedPct,
-      remaining_risk_pct: remainingPct
+      remaining_risk_pct: remainingPct,
     },
     correlated_exposure_alerts: correlationAlerts,
     regime_mismatch_warnings: regimeMismatchWarnings,
     stay_out_recommendation: rec,
-    signal_annotations: signalAnnotations
+    signal_annotations: signalAnnotations,
   };
 }

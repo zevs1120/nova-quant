@@ -28,7 +28,7 @@ function tradeMetrics(trades) {
       max_dd: 0,
       total_return: 0,
       profit_factor: 0,
-      sharpe: 0
+      sharpe: 0,
     };
   }
 
@@ -38,14 +38,16 @@ function tradeMetrics(trades) {
   const avgWin = wins.length ? mean(wins) : 0;
   const avgLoss = losses.length ? Math.abs(mean(losses)) : 0;
   const avgRr = avgLoss ? avgWin / avgLoss : avgWin > 0 ? 2 : 0;
-  const profitFactor = Math.abs(losses.length ? mean(wins) * wins.length / (mean(losses) * losses.length) : 0);
+  const profitFactor = Math.abs(
+    losses.length ? (mean(wins) * wins.length) / (mean(losses) * losses.length) : 0,
+  );
   const equityCurve = [1];
   for (const value of returns) {
     equityCurve.push(equityCurve[equityCurve.length - 1] * (1 + value));
   }
 
   const sharpeBase = stdDev(returns);
-  const sharpe = sharpeBase ? mean(returns) / sharpeBase * Math.sqrt(12) : 0;
+  const sharpe = sharpeBase ? (mean(returns) / sharpeBase) * Math.sqrt(12) : 0;
 
   return {
     sample_size: returns.length,
@@ -54,7 +56,7 @@ function tradeMetrics(trades) {
     max_dd: round(maxDrawdownFromCurve(equityCurve), 4),
     total_return: round(compoundReturns(returns), 4),
     profit_factor: round(profitFactor, 4),
-    sharpe: round(sharpe, 4)
+    sharpe: round(sharpe, 4),
   };
 }
 
@@ -70,7 +72,7 @@ function buildAttribution(trades, key) {
   return Object.entries(grouped)
     .map(([id, rows]) => ({
       id,
-      ...tradeMetrics(rows)
+      ...tradeMetrics(rows),
     }))
     .sort((a, b) => b.sample_size - a.sample_size);
 }
@@ -79,10 +81,10 @@ function buildDeviation(record, trades, signalMap) {
   const btReturn = calcReturnFromEquityCurve(record?.equity_curve?.backtest || []);
   const liveReturn = calcReturnFromEquityCurve(record?.equity_curve?.live || []);
   const gap = btReturn - liveReturn;
-  const usedSignals = trades
-    .map((trade) => signalMap[trade.signal_id])
-    .filter(Boolean);
-  const avgExpectedCostBps = mean(usedSignals.map((signal) => Number(signal?.cost_estimate?.total_bps || 0)));
+  const usedSignals = trades.map((trade) => signalMap[trade.signal_id]).filter(Boolean);
+  const avgExpectedCostBps = mean(
+    usedSignals.map((signal) => Number(signal?.cost_estimate?.total_bps || 0)),
+  );
   const assumedSlippageBps = Number(record?.assumptions?.slippage_bps || 0);
   const tradeCount = trades.length;
   const costImpact = (avgExpectedCostBps / 10000) * tradeCount;
@@ -96,10 +98,10 @@ function buildDeviation(record, trades, signalMap) {
     decomposition: {
       cost: round(costImpact, 4),
       slippage: round(slippageImpact, 4),
-      fill_quality: round(fillImpact, 4)
+      fill_quality: round(fillImpact, 4),
     },
     avg_expected_cost_bps: round(avgExpectedCostBps, 3),
-    sample_size: tradeCount
+    sample_size: tradeCount,
   };
 }
 
@@ -109,7 +111,7 @@ function enrichTrades(trades, signalMap) {
     return {
       ...trade,
       strategy_id: signal.strategy_id || trade.strategy_id || 'UNCLASSIFIED',
-      regime_id: signal.regime_id || trade.regime_id || 'RGM_NEUTRAL'
+      regime_id: signal.regime_id || trade.regime_id || 'RGM_NEUTRAL',
     };
   });
 }
@@ -121,7 +123,7 @@ export function runPerformanceEngine({ performance, trades, signals }) {
 
   const records = (performance.records || []).map((record) => {
     const scopedTrades = enrichedTrades.filter(
-      (trade) => trade.market === record.market && inRange(trade, record.range, anchorTime)
+      (trade) => trade.market === record.market && inRange(trade, record.range, anchorTime),
     );
     const overall = tradeMetrics(scopedTrades);
     const byStrategy = buildAttribution(scopedTrades, 'strategy_id');
@@ -135,14 +137,14 @@ export function runPerformanceEngine({ performance, trades, signals }) {
         overall,
         by_strategy: byStrategy,
         by_regime: byRegime,
-        backtest_live_deviation: deviation
-      }
+        backtest_live_deviation: deviation,
+      },
     };
   });
 
   return {
     ...performance,
     records,
-    trade_enrichment_version: PARAM_VERSION
+    trade_enrichment_version: PARAM_VERSION,
   };
 }

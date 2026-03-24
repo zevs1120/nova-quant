@@ -28,6 +28,7 @@ This framework defines how Nova Quant judges portfolio quality.
 ## 3) Marginal contribution framework
 
 For each strategy/family, compute:
+
 1. return delta when included/excluded,
 2. drawdown delta,
 3. volatility delta,
@@ -39,6 +40,7 @@ Candidates with weak standalone returns may still be promoted if they improve po
 ## 4) Diversification score concept
 
 Use a composite diversification score:
+
 - correlation distance,
 - regime payoff complementarity,
 - failure-mode independence,
@@ -47,6 +49,7 @@ Use a composite diversification score:
 ## 5) Drawdown concentration analysis
 
 Track what fraction of drawdown comes from:
+
 - top strategy,
 - top family,
 - top asset bucket,
@@ -57,6 +60,7 @@ High concentration flags governance risk even with acceptable aggregate return.
 ## 6) Regime-specific failure analysis
 
 Evaluate portfolio metrics by regime slices:
+
 - identify brittle regime zones,
 - identify under-covered regimes,
 - recommend family-level rebalancing.
@@ -70,6 +74,7 @@ Evaluate portfolio metrics by regime slices:
 ## 8) Consumption in Nova Quant
 
 Primary consumers:
+
 - `src/portfolio_simulation/portfolioSimulationEngine.js`
 - `src/research/weekly_cycle/weeklyResearchCycle.js`
 - `src/research/copilot/aiResearchCopilot.js`

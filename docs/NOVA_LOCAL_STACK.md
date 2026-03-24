@@ -26,9 +26,9 @@ Unified memory aware defaults:
 
 Task router:
 
- - fast classification / tagging -> `Marvix-Scout`
- - core reasoning / Today Risk / stance / wrap-up / action card language -> `Marvix-Core`
- - retrieval embeddings -> `Marvix-Retrieve`
+- fast classification / tagging -> `Marvix-Scout`
+- core reasoning / Today Risk / stance / wrap-up / action card language -> `Marvix-Core`
+- retrieval embeddings -> `Marvix-Retrieve`
 
 ## Implemented Local Surfaces
 

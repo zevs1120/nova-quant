@@ -24,7 +24,7 @@ export async function runIncrementalCli(argv: string[]): Promise<void> {
       symbols: cfg.markets.CRYPTO.symbols,
       timeframes: tfs,
       repo,
-      limit: cfg.binanceRest.limit
+      limit: cfg.binanceRest.limit,
     });
 
     if (!once) {

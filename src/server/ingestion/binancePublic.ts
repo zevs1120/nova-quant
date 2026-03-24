@@ -22,7 +22,7 @@ export function parseBinanceKlineRow(row: string[]): NormalizedBar | null {
     high: row[2],
     low: row[3],
     close: row[4],
-    volume: row[5]
+    volume: row[5],
   };
 }
 
@@ -51,11 +51,13 @@ async function ingestZipFileFromResponse(
   repo: MarketRepository,
   assetId: number,
   timeframe: Timeframe,
-  source: string
+  source: string,
 ): Promise<number> {
   if (!response.body) return 0;
 
-  const entries = Readable.fromWeb(response.body as never).pipe(unzipper.Parse({ forceStream: true }));
+  const entries = Readable.fromWeb(response.body as never).pipe(
+    unzipper.Parse({ forceStream: true }),
+  );
   let inserted = 0;
 
   for await (const entry of entries as AsyncIterable<unzipper.Entry>) {
@@ -92,7 +94,7 @@ async function downloadAndIngest(
   repo: MarketRepository,
   assetId: number,
   timeframe: Timeframe,
-  source: string
+  source: string,
 ): Promise<number> {
   const response = await fetchWithRetry(url, {}, { attempts: 3, baseDelayMs: 600 });
   if (response.status === 404) return 0;
@@ -125,20 +127,26 @@ export async function backfillBinancePublic(params: {
             venue: 'BINANCE_UM',
             base,
             quote,
-            status: 'ACTIVE'
+            status: 'ACTIVE',
           });
 
           let inserted = 0;
           for (const month of months) {
             const url = monthlyUrl(symbol, timeframe, month);
             try {
-              inserted += await downloadAndIngest(url, params.repo, asset.asset_id, timeframe, 'BINANCE_PUBLIC_MONTHLY');
+              inserted += await downloadAndIngest(
+                url,
+                params.repo,
+                asset.asset_id,
+                timeframe,
+                'BINANCE_PUBLIC_MONTHLY',
+              );
             } catch (error) {
               logWarn('Monthly Binance file failed', {
                 symbol,
                 timeframe,
                 month,
-                error: error instanceof Error ? error.message : String(error)
+                error: error instanceof Error ? error.message : String(error),
               });
             }
           }
@@ -146,13 +154,19 @@ export async function backfillBinancePublic(params: {
           for (const day of lastDays) {
             const url = dailyUrl(symbol, timeframe, day);
             try {
-              inserted += await downloadAndIngest(url, params.repo, asset.asset_id, timeframe, 'BINANCE_PUBLIC_DAILY');
+              inserted += await downloadAndIngest(
+                url,
+                params.repo,
+                asset.asset_id,
+                timeframe,
+                'BINANCE_PUBLIC_DAILY',
+              );
             } catch (error) {
               logWarn('Daily Binance file failed', {
                 symbol,
                 timeframe,
                 day,
-                error: error instanceof Error ? error.message : String(error)
+                error: error instanceof Error ? error.message : String(error),
               });
             }
           }
@@ -163,7 +177,7 @@ export async function backfillBinancePublic(params: {
           }
 
           logInfo('Binance public backfill completed', { symbol, timeframe, inserted });
-        })
+        }),
       );
     }
   }

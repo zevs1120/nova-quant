@@ -62,7 +62,12 @@ function confidenceBucket(value: number): number {
   return Math.max(0, Math.min(4, Math.floor(clamp(value, 0, 0.999) * 5)));
 }
 
-function buildBucketKey(args: { market: Market | 'ALL'; direction: SignalDirection | 'ALL'; regime: string | 'ALL'; bucket: number | 'ALL' }) {
+function buildBucketKey(args: {
+  market: Market | 'ALL';
+  direction: SignalDirection | 'ALL';
+  regime: string | 'ALL';
+  bucket: number | 'ALL';
+}) {
   return [args.market, args.direction, args.regime, args.bucket].join('|');
 }
 
@@ -74,7 +79,9 @@ function mean(values: number[]): number {
 function buildExamples(repo: MarketRepository, userId: string): CalibrationExample[] {
   const executions = repo
     .listExecutions({ userId, limit: 2000 })
-    .filter((row) => Number.isFinite(row.pnl_pct) && (row.action === 'DONE' || row.action === 'CLOSE'));
+    .filter(
+      (row) => Number.isFinite(row.pnl_pct) && (row.action === 'DONE' || row.action === 'CLOSE'),
+    );
 
   return executions
     .map((row) => {
@@ -86,7 +93,7 @@ function buildExamples(repo: MarketRepository, userId: string): CalibrationExamp
         regime: String(signal.regime_id || 'UNKNOWN').toUpperCase(),
         rawConfidence: clamp(Number(signal.confidence || 0.5), 0.01, 0.99),
         pnlPct: Number(row.pnl_pct || 0),
-        realizedWin: Number(row.pnl_pct || 0) > 0 ? 1 : 0
+        realizedWin: Number(row.pnl_pct || 0) > 0 ? 1 : 0,
       } satisfies CalibrationExample;
     })
     .filter((row): row is CalibrationExample => Boolean(row));
@@ -109,7 +116,7 @@ function summarizeBucket(key: string, rows: CalibrationExample[]): BucketStats {
     winRate: round(winRate, 4),
     avgPnlPct: round(avgPnlPct, 4),
     avgLossPct: round(avgLossPct, 4),
-    brier: round(brier, 4)
+    brier: round(brier, 4),
   };
 }
 
@@ -121,7 +128,7 @@ function buildBucketStats(examples: CalibrationExample[]) {
       buildBucketKey({ market: row.market, direction: row.direction, regime: row.regime, bucket }),
       buildBucketKey({ market: row.market, direction: row.direction, regime: 'ALL', bucket }),
       buildBucketKey({ market: 'ALL', direction: row.direction, regime: 'ALL', bucket }),
-      buildBucketKey({ market: 'ALL', direction: 'ALL', regime: 'ALL', bucket })
+      buildBucketKey({ market: 'ALL', direction: 'ALL', regime: 'ALL', bucket }),
     ];
     for (const key of keys) {
       const existing = buckets.get(key) || [];
@@ -151,23 +158,33 @@ function buildSummary(examples: CalibrationExample[]): CalibrationSummary {
   }
   let weightedError = 0;
   for (const rows of grouped.values()) {
-    weightedError += Math.abs(mean(rows.map((row) => row.rawConfidence)) - mean(rows.map((row) => row.realizedWin))) * (rows.length / examples.length);
+    weightedError +=
+      Math.abs(
+        mean(rows.map((row) => row.rawConfidence)) - mean(rows.map((row) => row.realizedWin)),
+      ) *
+      (rows.length / examples.length);
   }
   return {
     sample_size: examples.length,
     ece: round(weightedError, 4),
-    brier: round(brier, 4)
+    brier: round(brier, 4),
   };
 }
 
-function sizingBandForConfidence(value: number): { band: ConfidenceCalibration['sizing_band']; multiplier: number } {
+function sizingBandForConfidence(value: number): {
+  band: ConfidenceCalibration['sizing_band'];
+  multiplier: number;
+} {
   if (value >= 0.74) return { band: 'press', multiplier: 1 };
   if (value >= 0.66) return { band: 'base', multiplier: 0.84 };
   if (value >= 0.58) return { band: 'light', multiplier: 0.64 };
   return { band: 'tiny', multiplier: 0.42 };
 }
 
-export function createConfidenceCalibrator(args: { repo: MarketRepository; userId: string }): ConfidenceCalibrator {
+export function createConfidenceCalibrator(args: {
+  repo: MarketRepository;
+  userId: string;
+}): ConfidenceCalibrator {
   const examples = buildExamples(args.repo, args.userId);
   const stats = buildBucketStats(examples);
   const summary = buildSummary(examples);
@@ -180,32 +197,46 @@ export function createConfidenceCalibrator(args: { repo: MarketRepository; userI
       const regime = String(signal.regime_id || 'UNKNOWN').toUpperCase();
       const keys = [
         buildBucketKey({ market: signal.market, direction: signal.direction, regime, bucket }),
-        buildBucketKey({ market: signal.market, direction: signal.direction, regime: 'ALL', bucket }),
+        buildBucketKey({
+          market: signal.market,
+          direction: signal.direction,
+          regime: 'ALL',
+          bucket,
+        }),
         buildBucketKey({ market: 'ALL', direction: signal.direction, regime: 'ALL', bucket }),
-        buildBucketKey({ market: 'ALL', direction: 'ALL', regime: 'ALL', bucket })
+        buildBucketKey({ market: 'ALL', direction: 'ALL', regime: 'ALL', bucket }),
       ];
-      const bucketStats = keys.map((key) => stats.get(key)).find((row) => row && row.sampleSize >= 6) || {
+      const bucketStats = keys
+        .map((key) => stats.get(key))
+        .find((row) => row && row.sampleSize >= 6) || {
         key: keys[keys.length - 1],
         sampleSize: 0,
         avgConfidence: rawConfidence,
         winRate: 0.5,
         avgPnlPct: 0,
         avgLossPct: 0,
-        brier: summary.brier
+        brier: summary.brier,
       };
 
-      const posteriorWinRate = (bucketStats.winRate * bucketStats.sampleSize + 6) / (bucketStats.sampleSize + 12);
+      const posteriorWinRate =
+        (bucketStats.winRate * bucketStats.sampleSize + 6) / (bucketStats.sampleSize + 12);
       const returnConfidence = clamp(0.5 + bucketStats.avgPnlPct / 8, 0.2, 0.85);
       const executionConfidence = clamp(bucketStats.sampleSize / 24, 0.25, 1);
       const riskConfidence = clamp(1 - bucketStats.avgLossPct / 12, 0.25, 0.95);
-      const shrunk = 0.5 + ((rawConfidence - 0.5) * 0.5 + (posteriorWinRate - 0.5) * 0.5) * (0.55 + executionConfidence * 0.45);
+      const shrunk =
+        0.5 +
+        ((rawConfidence - 0.5) * 0.5 + (posteriorWinRate - 0.5) * 0.5) *
+          (0.55 + executionConfidence * 0.45);
       const calibratedConfidence = clamp(
         shrunk * 0.65 + returnConfidence * 0.15 + riskConfidence * 0.2,
         0.18,
-        0.94
+        0.94,
       );
       const sizingBase = sizingBandForConfidence(calibratedConfidence);
-      const sizingMultiplier = round(clamp(sizingBase.multiplier * (0.8 + riskConfidence * 0.3), 0.25, 1.05), 4);
+      const sizingMultiplier = round(
+        clamp(sizingBase.multiplier * (0.8 + riskConfidence * 0.3), 0.25, 1.05),
+        4,
+      );
 
       return {
         raw_confidence: round(rawConfidence, 4),
@@ -222,8 +253,8 @@ export function createConfidenceCalibrator(args: { repo: MarketRepository; userI
         brier_score: bucketStats.brier,
         ece: summary.ece,
         sizing_multiplier: sizingMultiplier,
-        sizing_band: sizingBase.band
+        sizing_band: sizingBase.band,
       };
-    }
+    },
   };
 }

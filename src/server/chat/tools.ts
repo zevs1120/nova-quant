@@ -6,7 +6,7 @@ import {
   getRuntimeState,
   getSignalContract,
   listAssets,
-  listSignalContracts
+  listSignalContracts,
 } from '../api/queries.js';
 import { RUNTIME_STATUS } from '../runtimeStatus.js';
 import type { ChatContextInput, ToolContextBundle } from './types.js';
@@ -34,7 +34,7 @@ import {
   getValidationReportTool,
   listFailedExperimentsTool,
   runFactorDiagnosticsTool,
-  summarizeResearchOnTopicTool
+  summarizeResearchOnTopicTool,
 } from '../research/tools.js';
 
 function inferAssetClass(context?: ChatContextInput): AssetClass | undefined {
@@ -53,16 +53,46 @@ function inferMarket(context?: ChatContextInput): Market | undefined {
   return undefined;
 }
 
-const ASSET_ALIASES: Array<{ symbol: string; market: Market; assetClass: AssetClass; aliases: string[] }> = [
-  { symbol: 'BTC', market: 'CRYPTO', assetClass: 'CRYPTO', aliases: ['btc', 'bitcoin', 'btcusdt', 'btc-usdt', 'xbt'] },
-  { symbol: 'ETH', market: 'CRYPTO', assetClass: 'CRYPTO', aliases: ['eth', 'ethereum', 'ethusdt', 'eth-usdt'] },
-  { symbol: 'SOL', market: 'CRYPTO', assetClass: 'CRYPTO', aliases: ['sol', 'solana', 'solusdt', 'sol-usdt'] },
+const ASSET_ALIASES: Array<{
+  symbol: string;
+  market: Market;
+  assetClass: AssetClass;
+  aliases: string[];
+}> = [
+  {
+    symbol: 'BTC',
+    market: 'CRYPTO',
+    assetClass: 'CRYPTO',
+    aliases: ['btc', 'bitcoin', 'btcusdt', 'btc-usdt', 'xbt'],
+  },
+  {
+    symbol: 'ETH',
+    market: 'CRYPTO',
+    assetClass: 'CRYPTO',
+    aliases: ['eth', 'ethereum', 'ethusdt', 'eth-usdt'],
+  },
+  {
+    symbol: 'SOL',
+    market: 'CRYPTO',
+    assetClass: 'CRYPTO',
+    aliases: ['sol', 'solana', 'solusdt', 'sol-usdt'],
+  },
   { symbol: 'AAPL', market: 'US', assetClass: 'US_STOCK', aliases: ['aapl', 'apple'] },
   { symbol: 'NVDA', market: 'US', assetClass: 'US_STOCK', aliases: ['nvda', 'nvidia'] },
   { symbol: 'TSLA', market: 'US', assetClass: 'US_STOCK', aliases: ['tsla', 'tesla'] },
   { symbol: 'MSFT', market: 'US', assetClass: 'US_STOCK', aliases: ['msft', 'microsoft'] },
-  { symbol: 'SPY', market: 'US', assetClass: 'US_STOCK', aliases: ['spy', 's&p500', 'sp500', 's&p 500'] },
-  { symbol: 'QQQ', market: 'US', assetClass: 'US_STOCK', aliases: ['qqq', 'nasdaq', 'nasdaq100', 'nasdaq 100'] }
+  {
+    symbol: 'SPY',
+    market: 'US',
+    assetClass: 'US_STOCK',
+    aliases: ['spy', 's&p500', 'sp500', 's&p 500'],
+  },
+  {
+    symbol: 'QQQ',
+    market: 'US',
+    assetClass: 'US_STOCK',
+    aliases: ['qqq', 'nasdaq', 'nasdaq100', 'nasdaq 100'],
+  },
 ];
 
 function normalizeLookup(value: unknown): string {
@@ -91,7 +121,7 @@ function inferRequestedAsset(args: {
     return {
       symbol: explicitSymbol,
       market: contextMarket || (contextAssetClass === 'CRYPTO' ? 'CRYPTO' : 'US'),
-      assetClass: contextAssetClass || (contextMarket === 'CRYPTO' ? 'CRYPTO' : 'US_STOCK')
+      assetClass: contextAssetClass || (contextMarket === 'CRYPTO' ? 'CRYPTO' : 'US_STOCK'),
     };
   }
 
@@ -102,7 +132,7 @@ function inferRequestedAsset(args: {
     return {
       symbol: normalizeCandidateSymbol(pairMatch[1], 'CRYPTO'),
       market: 'CRYPTO',
-      assetClass: 'CRYPTO'
+      assetClass: 'CRYPTO',
     };
   }
 
@@ -111,18 +141,26 @@ function inferRequestedAsset(args: {
     ...(args.signalCards || [])
       .filter((row): row is Record<string, unknown> => Boolean(row && typeof row === 'object'))
       .map((row) => ({
-        symbol: normalizeCandidateSymbol(row.symbol, String(row.market || '').toUpperCase() === 'CRYPTO' ? 'CRYPTO' : 'US'),
-        market: String(row.market || '').toUpperCase() === 'CRYPTO' ? ('CRYPTO' as const) : ('US' as const),
-        assetClass: String(row.asset_class || '').toUpperCase() === 'CRYPTO' ? ('CRYPTO' as const) : ('US_STOCK' as const),
-        aliases: [String(row.symbol || '')]
+        symbol: normalizeCandidateSymbol(
+          row.symbol,
+          String(row.market || '').toUpperCase() === 'CRYPTO' ? 'CRYPTO' : 'US',
+        ),
+        market:
+          String(row.market || '').toUpperCase() === 'CRYPTO'
+            ? ('CRYPTO' as const)
+            : ('US' as const),
+        assetClass:
+          String(row.asset_class || '').toUpperCase() === 'CRYPTO'
+            ? ('CRYPTO' as const)
+            : ('US_STOCK' as const),
+        aliases: [String(row.symbol || '')],
       })),
-    ...listAssets()
-      .map((asset) => ({
-        symbol: normalizeCandidateSymbol(asset.symbol, asset.market === 'CRYPTO' ? 'CRYPTO' : 'US'),
-        market: asset.market === 'CRYPTO' ? ('CRYPTO' as const) : ('US' as const),
-        assetClass: asset.market === 'CRYPTO' ? ('CRYPTO' as const) : ('US_STOCK' as const),
-        aliases: [asset.symbol, asset.base || '', asset.symbol?.replace('USDT', '') || '']
-      }))
+    ...listAssets().map((asset) => ({
+      symbol: normalizeCandidateSymbol(asset.symbol, asset.market === 'CRYPTO' ? 'CRYPTO' : 'US'),
+      market: asset.market === 'CRYPTO' ? ('CRYPTO' as const) : ('US' as const),
+      assetClass: asset.market === 'CRYPTO' ? ('CRYPTO' as const) : ('US_STOCK' as const),
+      aliases: [asset.symbol, asset.base || '', asset.symbol?.replace('USDT', '') || ''],
+    })),
   ];
 
   const normalizedMessage = normalizeLookup(message);
@@ -130,7 +168,9 @@ function inferRequestedAsset(args: {
   let best: { symbol: string; market: Market; assetClass: AssetClass; score: number } | null = null;
 
   for (const candidate of allCandidates) {
-    const aliases = [...candidate.aliases, candidate.symbol].map((item) => normalizeLookup(item)).filter(Boolean);
+    const aliases = [...candidate.aliases, candidate.symbol]
+      .map((item) => normalizeLookup(item))
+      .filter(Boolean);
     let score = 0;
     for (const alias of aliases) {
       if (!alias) continue;
@@ -139,7 +179,15 @@ function inferRequestedAsset(args: {
     }
     if (contextMarket && candidate.market === contextMarket) score += 8;
     if (!best || score > best.score) {
-      best = score > 0 ? { symbol: candidate.symbol, market: candidate.market, assetClass: candidate.assetClass, score } : best;
+      best =
+        score > 0
+          ? {
+              symbol: candidate.symbol,
+              market: candidate.market,
+              assetClass: candidate.assetClass,
+              score,
+            }
+          : best;
     }
   }
 
@@ -147,14 +195,14 @@ function inferRequestedAsset(args: {
     return {
       symbol: null,
       market: contextMarket || null,
-      assetClass: contextAssetClass || null
+      assetClass: contextAssetClass || null,
     };
   }
 
   return {
     symbol: best.symbol,
     market: best.market,
-    assetClass: best.assetClass
+    assetClass: best.assetClass,
   };
 }
 
@@ -164,14 +212,16 @@ function normalizeDataStatus(row: Record<string, unknown> | null | undefined): s
       row?.source_label ||
       row?.source_status ||
       (row?.source_transparency as Record<string, unknown> | undefined)?.data_status ||
-      RUNTIME_STATUS.INSUFFICIENT_DATA
+      RUNTIME_STATUS.INSUFFICIENT_DATA,
   ).toUpperCase();
 }
 
 function isActionableSignal(row: Record<string, unknown>): boolean {
   const status = String(row.status || '').toUpperCase();
   const dataStatus = normalizeDataStatus(row);
-  return ['NEW', 'TRIGGERED'].includes(status) && !['WITHHELD', 'INSUFFICIENT_DATA'].includes(dataStatus);
+  return (
+    ['NEW', 'TRIGGERED'].includes(status) && !['WITHHELD', 'INSUFFICIENT_DATA'].includes(dataStatus)
+  );
 }
 
 function scoreSignalForContext(row: Record<string, unknown>, context?: ChatContextInput): number {
@@ -185,7 +235,10 @@ function scoreSignalForContext(row: Record<string, unknown>, context?: ChatConte
   return score + confidence * 20 + actionBonus + symbolBonus - dataPenalty;
 }
 
-function pickRelevantSignals(rows: unknown[], context?: ChatContextInput): Record<string, unknown>[] {
+function pickRelevantSignals(
+  rows: unknown[],
+  context?: ChatContextInput,
+): Record<string, unknown>[] {
   return rows
     .filter((row): row is Record<string, unknown> => Boolean(row && typeof row === 'object'))
     .sort((a, b) => scoreSignalForContext(b, context) - scoreSignalForContext(a, context))
@@ -208,7 +261,7 @@ function inferResearchTopic(message = ''): string | null {
     'portfolio',
     'cross sectional',
     'factor',
-    'strategy'
+    'strategy',
   ];
   return candidates.find((item) => lower.includes(item)) || null;
 }
@@ -219,7 +272,8 @@ function inferFactorId(message = ''): string | undefined {
   if (lower.includes('momentum')) return 'momentum';
   if (lower.includes('quality')) return 'quality';
   if (lower.includes('carry')) return 'carry';
-  if (lower.includes('low vol') || lower.includes('low-vol') || lower.includes('defensive')) return 'low_vol';
+  if (lower.includes('low vol') || lower.includes('low-vol') || lower.includes('defensive'))
+    return 'low_vol';
   if (lower.includes('reversal') || lower.includes('mean reversion')) return 'reversal';
   if (lower.includes('breadth')) return 'breadth';
   if (lower.includes('seasonality')) return 'seasonality';
@@ -249,7 +303,7 @@ function shouldEnterResearchMode(message = ''): boolean {
     'rank ic',
     'research',
     'why no signal',
-    'failed experiment'
+    'failed experiment',
   ].some((token) => lower.includes(token));
 }
 
@@ -263,7 +317,7 @@ async function buildResearchToolResults(args: {
     return {
       research_mode: false,
       selected_tools: [],
-      tool_results: []
+      tool_results: [],
     };
   }
 
@@ -282,29 +336,49 @@ async function buildResearchToolResults(args: {
 
   addCandidate('summarize_research_on_topic', 72, summarizeResearchOnTopicTool({ topic }));
   addCandidate('get_research_doctrine', 56, getResearchDoctrineTool());
-  addCandidate('get_regime_diagnostics', 78, getRegimeDiagnosticsTool({
-    userId: args.userId,
-    market,
-    assetClass,
-    symbol: args.context?.symbol
-  }));
-  addCandidate('get_research_workflow_plan', 68, getResearchWorkflowPlanTool({
-    topic,
-    factorId,
-    market,
-    assetClass
-  }));
-  addCandidate('get_strategy_evaluation_report', 62, getStrategyEvaluationReportTool({
-    runId: undefined,
-    market,
-    assetClass
-  }));
-  addCandidate('get_validation_report', 60, getValidationReportTool({
-    runId: undefined,
-    market,
-    assetClass
-  }));
-  addCandidate('get_backtest_integrity_report', 58, getBacktestIntegrityReportTool({ runId: undefined }));
+  addCandidate(
+    'get_regime_diagnostics',
+    78,
+    getRegimeDiagnosticsTool({
+      userId: args.userId,
+      market,
+      assetClass,
+      symbol: args.context?.symbol,
+    }),
+  );
+  addCandidate(
+    'get_research_workflow_plan',
+    68,
+    getResearchWorkflowPlanTool({
+      topic,
+      factorId,
+      market,
+      assetClass,
+    }),
+  );
+  addCandidate(
+    'get_strategy_evaluation_report',
+    62,
+    getStrategyEvaluationReportTool({
+      runId: undefined,
+      market,
+      assetClass,
+    }),
+  );
+  addCandidate(
+    'get_validation_report',
+    60,
+    getValidationReportTool({
+      runId: undefined,
+      market,
+      assetClass,
+    }),
+  );
+  addCandidate(
+    'get_backtest_integrity_report',
+    58,
+    getBacktestIntegrityReportTool({ runId: undefined }),
+  );
   addCandidate('get_turnover_cost_report', 57, getTurnoverCostReportTool({ runId: undefined }));
   addCandidate('get_strategy_registry', 48, getStrategyRegistryTool());
   addCandidate('get_regime_taxonomy', 44, getRegimeTaxonomyTool());
@@ -315,11 +389,15 @@ async function buildResearchToolResults(args: {
   if (factorId) {
     addCandidate('get_factor_definition', 96, getFactorDefinitionTool(factorId));
     addCandidate('get_factor_interactions', 92, getFactorInteractionsTool(factorId));
-    addCandidate('get_factor_measured_report', 95, getFactorMeasuredReportTool({
-      factorId,
-      market,
-      assetClass
-    }));
+    addCandidate(
+      'get_factor_measured_report',
+      95,
+      getFactorMeasuredReportTool({
+        factorId,
+        market,
+        assetClass,
+      }),
+    );
     addCandidate(
       'compare_factor_performance_by_regime',
       90,
@@ -327,8 +405,8 @@ async function buildResearchToolResults(args: {
         userId: args.userId,
         factorId,
         market,
-        assetClass
-      })
+        assetClass,
+      }),
     );
     addCandidate(
       'get_factor_research_snapshot',
@@ -336,8 +414,8 @@ async function buildResearchToolResults(args: {
       getFactorResearchSnapshotTool({
         factorId,
         market,
-        assetClass
-      })
+        assetClass,
+      }),
     );
     addCandidate('get_factor_catalog', 40, getFactorCatalogTool());
   }
@@ -351,8 +429,8 @@ async function buildResearchToolResults(args: {
         signalId: args.context?.signalId,
         symbol: args.context?.symbol,
         market,
-        assetClass
-      })
+        assetClass,
+      }),
     );
     addCandidate(
       'run_factor_diagnostics',
@@ -362,8 +440,8 @@ async function buildResearchToolResults(args: {
         signalId: args.context?.signalId,
         symbol: args.context?.symbol,
         market,
-        assetClass
-      })
+        assetClass,
+      }),
     );
     addCandidate(
       'explain_why_signal_exists',
@@ -373,8 +451,8 @@ async function buildResearchToolResults(args: {
         signalId: args.context?.signalId,
         symbol: args.context?.symbol,
         market,
-        assetClass
-      })
+        assetClass,
+      }),
     );
   }
 
@@ -385,20 +463,21 @@ async function buildResearchToolResults(args: {
       explainWhyNoSignalTool({
         userId: args.userId,
         market,
-        assetClass
-      })
+        assetClass,
+      }),
     );
   }
 
-  const deduped = new Map<string, { tool: string; priority: number; result: Record<string, unknown> }>();
+  const deduped = new Map<
+    string,
+    { tool: string; priority: number; result: Record<string, unknown> }
+  >();
   for (const candidate of candidates) {
     const existing = deduped.get(candidate.tool);
     if (!existing || candidate.priority > existing.priority) deduped.set(candidate.tool, candidate);
   }
 
-  const ordered = [...deduped.values()]
-    .sort((a, b) => b.priority - a.priority)
-    .slice(0, 8);
+  const ordered = [...deduped.values()].sort((a, b) => b.priority - a.priority).slice(0, 8);
 
   return {
     research_mode: true,
@@ -407,22 +486,27 @@ async function buildResearchToolResults(args: {
       tool: item.tool,
       source_status: String(item.result.source_status || RUNTIME_STATUS.INSUFFICIENT_DATA),
       data_status: String(item.result.data_status || RUNTIME_STATUS.INSUFFICIENT_DATA),
-      payload: item.result
-    }))
+      payload: item.result,
+    })),
   };
 }
 
 export async function getSignalCards(userId: string, assetClass?: string): Promise<unknown[]> {
-  const normalizedAssetClass = assetClass ? inferAssetClass({ assetClass: assetClass as AssetClass }) : undefined;
+  const normalizedAssetClass = assetClass
+    ? inferAssetClass({ assetClass: assetClass as AssetClass })
+    : undefined;
   return listSignalContracts({
     userId,
     assetClass: normalizedAssetClass,
     status: 'ALL',
-    limit: 16
+    limit: 16,
   });
 }
 
-export async function getSignalDetail(signalId: string, userId: string): Promise<Record<string, unknown> | null> {
+export async function getSignalDetail(
+  signalId: string,
+  userId: string,
+): Promise<Record<string, unknown> | null> {
   if (!signalId) return null;
   const signal = getSignalContract(signalId, userId);
   return (signal as Record<string, unknown> | null) ?? null;
@@ -431,26 +515,35 @@ export async function getSignalDetail(signalId: string, userId: string): Promise
 export async function getMarketTemperature(
   userId: string,
   market: string,
-  symbol?: string
+  symbol?: string,
 ): Promise<Record<string, unknown> | null> {
   const normalizedMarket = String(market || '').toUpperCase() === 'CRYPTO' ? 'CRYPTO' : 'US';
   const rows = getMarketState({
     userId,
     market: normalizedMarket,
-    symbol: symbol?.toUpperCase()
+    symbol: symbol?.toUpperCase(),
   });
   return (rows[0] as unknown as Record<string, unknown> | undefined) ?? null;
 }
 
 export async function getRiskProfile(userId: string): Promise<Record<string, unknown> | null> {
-  return (getRiskProfileQuery(userId, { skipSync: true }) as Record<string, unknown> | null) ?? null;
+  return (
+    (getRiskProfileQuery(userId, { skipSync: true }) as Record<string, unknown> | null) ?? null
+  );
 }
 
-export async function getPerformanceSummary(userId: string, market?: string): Promise<Record<string, unknown> | null> {
-  const normalizedMarket = market ? (String(market).toUpperCase() === 'CRYPTO' ? 'CRYPTO' : 'US') : undefined;
+export async function getPerformanceSummary(
+  userId: string,
+  market?: string,
+): Promise<Record<string, unknown> | null> {
+  const normalizedMarket = market
+    ? String(market).toUpperCase() === 'CRYPTO'
+      ? 'CRYPTO'
+      : 'US'
+    : undefined;
   return getPerformanceSummaryQuery({
     userId,
-    market: normalizedMarket
+    market: normalizedMarket,
   });
 }
 
@@ -470,44 +563,50 @@ function buildSelectedEvidence(args: {
     const entryZone = (signal.entry_zone as Record<string, unknown> | undefined) || {};
     const stopLoss = (signal.stop_loss as Record<string, unknown> | undefined) || {};
     lines.push(
-      `signal ${String(signal.symbol || 'unknown')} ${String(signal.direction || 'WAIT')} confidence ${Number(signal.confidence || 0).toFixed(0)}`
+      `signal ${String(signal.symbol || 'unknown')} ${String(signal.direction || 'WAIT')} confidence ${Number(signal.confidence || 0).toFixed(0)}`,
     );
     lines.push(
-      `entry ${String(entryZone.low ?? signal.entry_min ?? '--')} to ${String(entryZone.high ?? signal.entry_max ?? '--')}, stop ${String(stopLoss.price ?? signal.stop_loss ?? '--')}`
+      `entry ${String(entryZone.low ?? signal.entry_min ?? '--')} to ${String(entryZone.high ?? signal.entry_max ?? '--')}, stop ${String(stopLoss.price ?? signal.stop_loss ?? '--')}`,
     );
   }
   if (args.marketTemperature) {
     lines.push(
-      `market regime ${String(args.marketTemperature.regime_id || args.marketTemperature.stance || 'unknown')}, temperature ${String(args.marketTemperature.temperature_percentile ?? '--')}, vol ${String(args.marketTemperature.volatility_percentile ?? '--')}`
+      `market regime ${String(args.marketTemperature.regime_id || args.marketTemperature.stance || 'unknown')}, temperature ${String(args.marketTemperature.temperature_percentile ?? '--')}, vol ${String(args.marketTemperature.volatility_percentile ?? '--')}`,
     );
   }
   if (args.riskProfile) {
-    lines.push(`risk profile ${String(args.riskProfile.profile_key || 'balanced')} with exposure cap ${String(args.riskProfile.exposure_cap ?? '--')}`);
+    lines.push(
+      `risk profile ${String(args.riskProfile.profile_key || 'balanced')} with exposure cap ${String(args.riskProfile.exposure_cap ?? '--')}`,
+    );
   }
   if (args.decisionSummary) {
     lines.push(
-      `decision ${String(args.decisionSummary.today_call || '--')} | posture ${String(args.decisionSummary.risk_posture || '--')} | top action ${String(args.decisionSummary.top_action_label || '--')} ${String(args.decisionSummary.top_action_symbol || '')}`.trim()
+      `decision ${String(args.decisionSummary.today_call || '--')} | posture ${String(args.decisionSummary.risk_posture || '--')} | top action ${String(args.decisionSummary.top_action_label || '--')} ${String(args.decisionSummary.top_action_symbol || '')}`.trim(),
     );
   }
   if (args.holdingsSummary) {
     lines.push(
-      `holdings ${String(args.holdingsSummary.holdings_count ?? 0)} | total weight ${String(args.holdingsSummary.total_weight_pct ?? '--')} | risk ${String(args.holdingsSummary.risk_level || '--')}`
+      `holdings ${String(args.holdingsSummary.holdings_count ?? 0)} | total weight ${String(args.holdingsSummary.total_weight_pct ?? '--')} | risk ${String(args.holdingsSummary.risk_level || '--')}`,
     );
   }
   if (args.engagementSummary) {
     lines.push(
-      `morning check ${String(args.engagementSummary.morning_check_status || '--')} | discipline ${String(args.engagementSummary.discipline_score ?? '--')} | wrap-up ${args.engagementSummary.wrap_up_ready ? 'ready' : 'not_ready'}`
+      `morning check ${String(args.engagementSummary.morning_check_status || '--')} | discipline ${String(args.engagementSummary.discipline_score ?? '--')} | wrap-up ${args.engagementSummary.wrap_up_ready ? 'ready' : 'not_ready'}`,
     );
     if (args.engagementSummary.perception_headline || args.engagementSummary.perception_focus) {
       lines.push(
-        `perception ${String(args.engagementSummary.perception_status || '--')} | ${String(args.engagementSummary.perception_headline || '--')} | ${String(args.engagementSummary.perception_focus || '--')}`
+        `perception ${String(args.engagementSummary.perception_status || '--')} | ${String(args.engagementSummary.perception_headline || '--')} | ${String(args.engagementSummary.perception_focus || '--')}`,
       );
     }
   }
-  const firstRecord = (args.performanceSummary?.records as Array<Record<string, unknown>> | undefined)?.[0];
+  const firstRecord = (
+    args.performanceSummary?.records as Array<Record<string, unknown>> | undefined
+  )?.[0];
   const overall = firstRecord?.overall as Record<string, unknown> | undefined;
   if (overall) {
-    lines.push(`performance source ${String(overall.source_label || args.sourceTransparency.performance_source)}, sample ${String(overall.sample_size ?? '--')}`);
+    lines.push(
+      `performance source ${String(overall.source_label || args.sourceTransparency.performance_source)}, sample ${String(overall.sample_size ?? '--')}`,
+    );
   }
   lines.push(`signal status ${args.sourceTransparency.signal_data_status}`);
   lines.push(`market-state status ${args.sourceTransparency.market_state_status}`);
@@ -520,25 +619,29 @@ export async function buildContextBundle(args: {
   message?: string;
 }): Promise<ToolContextBundle> {
   const { userId, context } = args;
-  const seedSignalCards = pickRelevantSignals(await getSignalCards(userId, inferAssetClass(context)), context);
+  const seedSignalCards = pickRelevantSignals(
+    await getSignalCards(userId, inferAssetClass(context)),
+    context,
+  );
   const inferredAsset = inferRequestedAsset({
     message: args.message,
     context,
-    signalCards: seedSignalCards
+    signalCards: seedSignalCards,
   });
   const market = inferMarket(context) || inferredAsset.market || undefined;
   const assetClass = inferAssetClass(context) || inferredAsset.assetClass || undefined;
-  const requestedSymbol = normalizeCandidateSymbol(context?.symbol || inferredAsset.symbol, market || undefined) || null;
+  const requestedSymbol =
+    normalizeCandidateSymbol(context?.symbol || inferredAsset.symbol, market || undefined) || null;
 
   const runtime = getRuntimeState({
     userId,
     market,
-    assetClass
+    assetClass,
   });
 
   const signalCards = pickRelevantSignals(await getSignalCards(userId, assetClass), {
     ...(context || {}),
-    symbol: requestedSymbol || context?.symbol
+    symbol: requestedSymbol || context?.symbol,
   });
 
   let signalDetail: Record<string, unknown> | null = null;
@@ -564,14 +667,20 @@ export async function buildContextBundle(args: {
   const sourceTransparency = {
     signal_data_status: String(runtime?.source_status || RUNTIME_STATUS.INSUFFICIENT_DATA),
     market_state_status: String(
-      runtime?.data_transparency?.data_status || runtime?.source_status || RUNTIME_STATUS.INSUFFICIENT_DATA
+      runtime?.data_transparency?.data_status ||
+        runtime?.source_status ||
+        RUNTIME_STATUS.INSUFFICIENT_DATA,
     ),
     performance_source: (() => {
-      const firstRecord = (performanceSummary?.records as Array<Record<string, unknown>> | undefined)?.[0];
+      const firstRecord = (
+        performanceSummary?.records as Array<Record<string, unknown>> | undefined
+      )?.[0];
       const overall = firstRecord?.overall as Record<string, unknown> | undefined;
       return String(overall?.source_label || RUNTIME_STATUS.INSUFFICIENT_DATA);
     })(),
-    performance_status: String(runtime?.data_transparency?.data_status || RUNTIME_STATUS.INSUFFICIENT_DATA)
+    performance_status: String(
+      runtime?.data_transparency?.data_status || RUNTIME_STATUS.INSUFFICIENT_DATA,
+    ),
   };
 
   return {
@@ -587,8 +696,8 @@ export async function buildContextBundle(args: {
       ? answerWithRetrieval(args.message, {
           ...(runtime?.data || {}),
           user_context: {
-            user_id: userId
-          }
+            user_id: userId,
+          },
         })
       : null,
     selectedEvidence: buildSelectedEvidence({
@@ -599,17 +708,19 @@ export async function buildContextBundle(args: {
       sourceTransparency,
       decisionSummary: context?.decisionSummary,
       holdingsSummary: context?.holdingsSummary,
-      engagementSummary: context?.engagementSummary
+      engagementSummary: context?.engagementSummary,
     }),
     statusSummary: [
       `signals ${sourceTransparency.signal_data_status}`,
       `market ${sourceTransparency.market_state_status}`,
       `performance ${sourceTransparency.performance_source}`,
       context?.decisionSummary?.today_call ? `decision ${context.decisionSummary.today_call}` : '',
-      context?.engagementSummary?.morning_check_status ? `check ${context.engagementSummary.morning_check_status}` : ''
+      context?.engagementSummary?.morning_check_status
+        ? `check ${context.engagementSummary.morning_check_status}`
+        : '',
     ].filter(Boolean),
     sourceTransparency,
     researchContext,
-    hasExactSignalData: Boolean(signalDetail)
+    hasExactSignalData: Boolean(signalDetail),
   };
 }

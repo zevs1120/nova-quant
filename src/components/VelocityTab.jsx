@@ -8,12 +8,12 @@ export default function VelocityTab({ velocity, t, lang, onExplainRisk }) {
   const regimeClass = velocity.regime?.toLowerCase?.() ?? '';
   const ruleSummary =
     lang === 'zh'
-      ? velocity.rule_summary_zh ?? velocity.rule_summary ?? '--'
-      : velocity.rule_summary_en ?? velocity.rule_summary ?? '--';
+      ? (velocity.rule_summary_zh ?? velocity.rule_summary ?? '--')
+      : (velocity.rule_summary_en ?? velocity.rule_summary ?? '--');
   const howUsed =
     lang === 'zh'
-      ? velocity.how_used_zh ?? velocity.how_used ?? []
-      : velocity.how_used_en ?? velocity.how_used ?? [];
+      ? (velocity.how_used_zh ?? velocity.how_used ?? [])
+      : (velocity.how_used_en ?? velocity.how_used ?? []);
   const stanceText =
     regimeClass === 'risk_off'
       ? t('velocity.stanceRiskOff')
@@ -34,7 +34,9 @@ export default function VelocityTab({ velocity, t, lang, onExplainRisk }) {
           </span>
           <span className={`badge badge-${regimeClass}`}>{regimeLabel}</span>
         </div>
-        <p className="muted status-line">{t('velocity.systemStance')}: {stanceText}</p>
+        <p className="muted status-line">
+          {t('velocity.systemStance')}: {stanceText}
+        </p>
       </GlassCard>
 
       <GlassCard>
@@ -50,7 +52,9 @@ export default function VelocityTab({ velocity, t, lang, onExplainRisk }) {
           </div>
           <div className="kpi-card">
             <p className="kpi-label">{t('velocity.avgMove')}</p>
-            <h3 className="kpi-value">{formatPercent(velocity.stats?.avg_move ?? null, 2, true)}</h3>
+            <h3 className="kpi-value">
+              {formatPercent(velocity.stats?.avg_move ?? null, 2, true)}
+            </h3>
           </div>
           <div className="kpi-card">
             <p className="kpi-label">{t('velocity.avgDD')}</p>

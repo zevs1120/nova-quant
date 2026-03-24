@@ -4,9 +4,18 @@ import { ensureSchema } from '../src/server/db/schema.js';
 import { MarketRepository } from '../src/server/db/repository.js';
 import type { SignalContract } from '../src/server/types.js';
 import { runAlphaDiscoveryCycle } from '../src/server/alpha_discovery/index.js';
-import { persistAlphaCandidate, type AutonomousAlphaCandidate } from '../src/server/alpha_registry/index.js';
-import { reviewAlphaBacktestOutcomes, reviewAlphaShadowCandidates } from '../src/server/alpha_promotion_guard/index.js';
-import { runAlphaShadowCycle, summarizeAlphaShadowPerformance } from '../src/server/alpha_shadow_runner/index.js';
+import {
+  persistAlphaCandidate,
+  type AutonomousAlphaCandidate,
+} from '../src/server/alpha_registry/index.js';
+import {
+  reviewAlphaBacktestOutcomes,
+  reviewAlphaShadowCandidates,
+} from '../src/server/alpha_promotion_guard/index.js';
+import {
+  runAlphaShadowCycle,
+  summarizeAlphaShadowPerformance,
+} from '../src/server/alpha_shadow_runner/index.js';
 
 function buildCandidate(id: string): AutonomousAlphaCandidate {
   return {
@@ -14,31 +23,31 @@ function buildCandidate(id: string): AutonomousAlphaCandidate {
     thesis: 'Volume-filtered trend continuation candidate',
     family: 'trend_continuation_refinement',
     formula: {
-      template_id: 'TMP-BREAKOUT-CONT'
+      template_id: 'TMP-BREAKOUT-CONT',
     },
     params: {
       breakout_percentile: 0.85,
-      trend_lookback: 30
+      trend_lookback: 30,
     },
     feature_dependencies: ['trend_strength', 'volume_expansion', 'breakout_distance'],
     regime_constraints: ['trend'],
     compatible_markets: ['US'],
     intended_holding_period: '2-6 bars',
     entry_logic: {
-      trigger: 'breakout_with_volume'
+      trigger: 'breakout_with_volume',
     },
     exit_logic: {
-      stop: 'atr_trail'
+      stop: 'atr_trail',
     },
     sizing_hint: {
-      path: 'signal_input'
+      path: 'signal_input',
     },
     required_inputs: ['trend_strength', 'volume_expansion'],
     complexity_score: 1.02,
     integration_path: 'signal_input',
     created_at: new Date().toISOString(),
     source: 'autonomous_discovery',
-    strategy_candidate: null
+    strategy_candidate: null,
   };
 }
 
@@ -65,45 +74,45 @@ function buildSignal(id: string, symbol = 'AAPL'): SignalContract {
     entry_zone: {
       low: 100,
       high: 101,
-      method: 'LIMIT'
+      method: 'LIMIT',
     },
     invalidation_level: 97,
     stop_loss: {
       type: 'ATR',
       price: 97,
-      rationale: 'test stop'
+      rationale: 'test stop',
     },
     take_profit_levels: [
       {
         price: 104,
         size_pct: 0.6,
-        rationale: 'tp1'
+        rationale: 'tp1',
       },
       {
         price: 107,
         size_pct: 0.4,
-        rationale: 'tp2'
-      }
+        rationale: 'tp2',
+      },
     ],
     trailing_rule: {
       type: 'EMA',
-      params: { ema_fast: 10, ema_slow: 30 }
+      params: { ema_fast: 10, ema_slow: 30 },
     },
     position_advice: {
       position_pct: 5,
       leverage_cap: 1,
       risk_bucket_applied: 'BASE',
-      rationale: 'test sizing'
+      rationale: 'test sizing',
     },
     cost_model: {
       fee_bps: 1.5,
       spread_bps: 1,
-      slippage_bps: 1.8
+      slippage_bps: 1.8,
     },
     expected_metrics: {
       expected_R: 1.2,
       hit_rate_est: 0.55,
-      sample_size: 20
+      sample_size: 20,
     },
     explain_bullets: ['test signal'],
     execution_checklist: ['check data'],
@@ -113,11 +122,11 @@ function buildSignal(id: string, symbol = 'AAPL'): SignalContract {
       kind: 'STOCK_SWING',
       data: {
         horizon: 'MEDIUM',
-        catalysts: ['test']
-      }
+        catalysts: ['test'],
+      },
     },
     score: 78,
-    payload_version: '1'
+    payload_version: '1',
   };
 }
 
@@ -130,7 +139,7 @@ function buildBars(startMs: number, count: number, startPrice = 100) {
       high: String(base + 5),
       low: String(base - 3),
       close: String(base + 2),
-      volume: String(1_000_000 + index * 10_000)
+      volume: String(1_000_000 + index * 10_000),
     };
   });
 }
@@ -163,14 +172,14 @@ describe('alpha discovery loop', () => {
         stance: 'Trend regime',
         event_stats_json: JSON.stringify({}),
         assumptions_json: JSON.stringify({}),
-        updated_at_ms: Date.now()
-      }
+        updated_at_ms: Date.now(),
+      },
     ]);
 
     const result = await runAlphaDiscoveryCycle({
       repo,
       userId: 'alpha-user',
-      triggerType: 'manual'
+      triggerType: 'manual',
     });
 
     const candidates = repo.listAlphaCandidates({ limit: 80 });
@@ -180,7 +189,11 @@ describe('alpha discovery loop', () => {
     expect(candidates.length).toBeGreaterThan(0);
     expect(evaluations.length).toBeGreaterThan(0);
     expect(candidates.some((row) => row.status === 'PROD')).toBe(false);
-    expect(candidates.some((row) => row.status === 'SHADOW' || row.status === 'REJECTED' || row.status === 'DRAFT')).toBe(true);
+    expect(
+      candidates.some(
+        (row) => row.status === 'SHADOW' || row.status === 'REJECTED' || row.status === 'DRAFT',
+      ),
+    ).toBe(true);
   });
 
   it('promotes passing shadow candidates to CANARY but not PROD by default', () => {
@@ -193,9 +206,13 @@ describe('alpha discovery loop', () => {
     persistAlphaCandidate(repo, {
       candidate,
       status: 'SHADOW',
-      acceptanceScore: 0.82
+      acceptanceScore: 0.82,
     });
-    repo.upsertSignals(Array.from({ length: 18 }).map((_, index) => buildSignal(`signal-shadow-pass-${index}`, 'AAPL')));
+    repo.upsertSignals(
+      Array.from({ length: 18 }).map((_, index) =>
+        buildSignal(`signal-shadow-pass-${index}`, 'AAPL'),
+      ),
+    );
     repo.insertAlphaEvaluation({
       id: 'alpha-eval-pass',
       alpha_candidate_id: candidate.id,
@@ -206,11 +223,11 @@ describe('alpha discovery loop', () => {
       metrics_json: JSON.stringify({
         correlation_to_active: 0.24,
         sharpe: 0.92,
-        net_pnl: 0.08
+        net_pnl: 0.08,
       }),
       rejection_reasons_json: JSON.stringify([]),
       notes: 'passed',
-      created_at_ms: now
+      created_at_ms: now,
     });
     repo.upsertAlphaShadowObservations(
       Array.from({ length: 18 }).map((_, index) => ({
@@ -228,8 +245,8 @@ describe('alpha discovery loop', () => {
         realized_source: 'paper',
         payload_json: JSON.stringify({}),
         created_at_ms: now + index,
-        updated_at_ms: now + index
-      }))
+        updated_at_ms: now + index,
+      })),
     );
 
     const review = reviewAlphaShadowCandidates({
@@ -239,7 +256,7 @@ describe('alpha discovery loop', () => {
         maxCorrelationToActive: 0.72,
         shadowAdmission: {
           minAcceptanceScore: 0.58,
-          maxDrawdown: 0.28
+          maxDrawdown: 0.28,
         },
         shadowPromotion: {
           minSampleSize: 16,
@@ -247,15 +264,15 @@ describe('alpha discovery loop', () => {
           minExpectancy: 0.001,
           maxDrawdown: 0.25,
           minApprovalRate: 0.45,
-          maxBacktestDegradation: 0.55
+          maxBacktestDegradation: 0.55,
         },
         retirement: {
           minExpectancy: -0.01,
           maxDrawdown: 0.3,
-          decayStreakLimit: 4
+          decayStreakLimit: 4,
         },
-        allowProdPromotion: false
-      }
+        allowProdPromotion: false,
+      },
     });
 
     expect(review.promoted_to_canary).toContain(candidate.id);
@@ -273,7 +290,7 @@ describe('alpha discovery loop', () => {
     persistAlphaCandidate(repo, {
       candidate,
       status: 'DRAFT',
-      acceptanceScore: 0.6
+      acceptanceScore: 0.6,
     });
 
     const evaluationId = 'alpha-eval-shadow-admission';
@@ -283,7 +300,7 @@ describe('alpha discovery loop', () => {
         {
           candidate: {
             id: candidate.id,
-            integration_path: 'signal_input'
+            integration_path: 'signal_input',
           },
           evaluation: {
             id: evaluationId,
@@ -295,24 +312,24 @@ describe('alpha discovery loop', () => {
             metrics_json: '{}',
             rejection_reasons_json: '[]',
             notes: 'watch but admissible',
-            created_at_ms: now
+            created_at_ms: now,
           },
           metrics: {
             correlation_to_active: 0.22,
             max_drawdown: 0.24,
             sharpe: 0.64,
-            net_pnl: 0.032
+            net_pnl: 0.032,
           },
           rejectionReasons: [],
-          recommendedState: 'DRAFT'
-        }
+          recommendedState: 'DRAFT',
+        },
       ],
       thresholds: {
         minAcceptanceScore: 0.66,
         maxCorrelationToActive: 0.8,
         shadowAdmission: {
           minAcceptanceScore: 0.58,
-          maxDrawdown: 0.28
+          maxDrawdown: 0.28,
         },
         shadowPromotion: {
           minSampleSize: 12,
@@ -320,15 +337,15 @@ describe('alpha discovery loop', () => {
           minExpectancy: 0.0015,
           maxDrawdown: 0.18,
           minApprovalRate: 0.45,
-          maxBacktestDegradation: 0.45
+          maxBacktestDegradation: 0.45,
         },
         retirement: {
           minExpectancy: -0.002,
           maxDrawdown: 0.22,
-          decayStreakLimit: 3
+          decayStreakLimit: 3,
         },
-        allowProdPromotion: false
-      }
+        allowProdPromotion: false,
+      },
     });
 
     expect(review.accepted).toEqual([candidate.id]);
@@ -345,25 +362,46 @@ describe('alpha discovery loop', () => {
       symbol: 'AAPL',
       market: 'US',
       venue: 'TEST',
-      status: 'ACTIVE'
+      status: 'ACTIVE',
     });
     repo.upsertOhlcvBars(
       asset.asset_id,
       '1d',
       [
-        { ts_open: now - 10 * 86_400_000, open: '99', high: '101', low: '98.5', close: '100', volume: '1000000' },
-        { ts_open: now - 9 * 86_400_000, open: '100', high: '102', low: '99.2', close: '101.2', volume: '1000000' },
-        { ts_open: now - 8 * 86_400_000, open: '101.2', high: '104.6', low: '100.8', close: '104.1', volume: '1000000' },
-        ...buildBars(now - 7 * 86_400_000, 8, 105)
+        {
+          ts_open: now - 10 * 86_400_000,
+          open: '99',
+          high: '101',
+          low: '98.5',
+          close: '100',
+          volume: '1000000',
+        },
+        {
+          ts_open: now - 9 * 86_400_000,
+          open: '100',
+          high: '102',
+          low: '99.2',
+          close: '101.2',
+          volume: '1000000',
+        },
+        {
+          ts_open: now - 8 * 86_400_000,
+          open: '101.2',
+          high: '104.6',
+          low: '100.8',
+          close: '104.1',
+          volume: '1000000',
+        },
+        ...buildBars(now - 7 * 86_400_000, 8, 105),
       ],
-      'TEST'
+      'TEST',
     );
 
     const candidate = buildCandidate('alpha-shadow-replay');
     persistAlphaCandidate(repo, {
       candidate,
       status: 'SHADOW',
-      acceptanceScore: 0.64
+      acceptanceScore: 0.64,
     });
 
     const signal = buildSignal('signal-shadow-replay', 'AAPL');
@@ -379,7 +417,7 @@ describe('alpha discovery loop', () => {
     const result = runAlphaShadowCycle({
       repo,
       workflowRunId: 'workflow-alpha-shadow-replay',
-      userId: 'guest-default'
+      userId: 'guest-default',
     });
 
     expect(result.candidates_processed).toBe(1);
@@ -387,7 +425,10 @@ describe('alpha discovery loop', () => {
     expect(summary.sample_size).toBe(1);
     expect(summary.expectancy).not.toBeNull();
 
-    const rows = repo.listAlphaShadowObservations({ alphaCandidateId: candidate.id, signalId: signal.id });
+    const rows = repo.listAlphaShadowObservations({
+      alphaCandidateId: candidate.id,
+      signalId: signal.id,
+    });
     expect(rows).toHaveLength(1);
     expect(rows[0]?.realized_source).toBe('ohlcv_replay');
     expect(Number(rows[0]?.realized_pnl_pct)).toBeGreaterThan(0);

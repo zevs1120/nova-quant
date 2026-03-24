@@ -9,7 +9,7 @@ const DEFAULT_THRESHOLD_PROFILE = Object.freeze({
   max_avg_abs_pnl_gap_pct: 0.02,
   max_avg_abs_hold_gap_days: 2.5,
   max_win_rate_drift: 0.08,
-  warning_threshold_fraction: 0.7
+  warning_threshold_fraction: 0.7,
 });
 
 function safe(value, fallback = 0) {
@@ -64,12 +64,13 @@ function normalizeSource(value) {
 function normalizeTradeReturn(rawValue, expected = null) {
   const raw = safe(rawValue, NaN);
   if (!Number.isFinite(raw)) return null;
-  const candidates = Math.abs(raw) > 0.25 ? [raw, raw / 100] : [raw, raw * 100 > 25 ? raw / 100 : raw];
+  const candidates =
+    Math.abs(raw) > 0.25 ? [raw, raw / 100] : [raw, raw * 100 > 25 ? raw / 100 : raw];
   if (Number.isFinite(expected)) {
     return candidates
       .map((value) => ({
         value,
-        gap: Math.abs(value - expected)
+        gap: Math.abs(value - expected),
       }))
       .sort((a, b) => a.gap - b.gap)[0].value;
   }
@@ -95,17 +96,18 @@ function strategyMetaBySignal(signals = []) {
             symbol: String(signal.symbol || '').toUpperCase() || null,
             market: signal.market || null,
             direction: normalizeDirection(signal.direction),
-            signal_time: signal.created_at || signal.generated_at || null
-          }
+            signal_time: signal.created_at || signal.generated_at || null,
+          },
         ];
       })
-      .filter(Boolean)
+      .filter(Boolean),
   );
 }
 
 function normalizeReplayRows(replayValidation = {}, signals = []) {
   const signalMeta = strategyMetaBySignal(signals);
-  const rows = replayValidation?.replayed_signals || Object.values(replayValidation?.signal_outcome_map || {});
+  const rows =
+    replayValidation?.replayed_signals || Object.values(replayValidation?.signal_outcome_map || {});
 
   return (rows || [])
     .map((row) => {
@@ -119,13 +121,16 @@ function normalizeReplayRows(replayValidation = {}, signals = []) {
         symbol: String(row.symbol || meta.symbol || '').toUpperCase() || null,
         market: row.market || meta.market || null,
         direction: normalizeDirection(row.direction || meta.direction),
-        signal_time: row.signal_time || meta.signal_time || row.replay_entry_event?.entry_time || null,
+        signal_time:
+          row.signal_time || meta.signal_time || row.replay_entry_event?.entry_time || null,
         replay_triggered: Boolean(row.replay_entry_event?.triggered || row.trade_triggered),
         replay_closed: Boolean(row.replay_exit_event?.exit_type),
         expected_entry_price: Number.isFinite(Number(row.replay_entry_event?.entry_price))
           ? Number(row.replay_entry_event.entry_price)
           : null,
-        expected_return: Number.isFinite(Number(row.realized_pnl_pct)) ? Number(row.realized_pnl_pct) : null,
+        expected_return: Number.isFinite(Number(row.realized_pnl_pct))
+          ? Number(row.realized_pnl_pct)
+          : null,
         expected_holding_days: Number.isFinite(Number(row.realized_holding_duration?.days))
           ? Number(row.realized_holding_duration.days)
           : null,
@@ -133,7 +138,7 @@ function normalizeReplayRows(replayValidation = {}, signals = []) {
         expected_entry_time: row.replay_entry_event?.entry_time || null,
         volatility_bucket: row.slippage_assumption_used?.volatility_bucket || null,
         session_state: row.slippage_assumption_used?.session_state || null,
-        liquidity_bucket: row.slippage_assumption_used?.liquidity_bucket || null
+        liquidity_bucket: row.slippage_assumption_used?.liquidity_bucket || null,
       };
     })
     .filter(Boolean);
@@ -157,15 +162,19 @@ function normalizeActualTrades(trades = [], signals = []) {
         symbol: String(trade.symbol || meta.symbol || '').toUpperCase() || null,
         market: trade.market || meta.market || null,
         direction: normalizeDirection(trade.side || trade.direction || meta.direction),
-        entry_price: Number.isFinite(Number(trade.entry ?? trade.entry_price)) ? Number(trade.entry ?? trade.entry_price) : null,
-        exit_price: Number.isFinite(Number(trade.exit ?? trade.exit_price)) ? Number(trade.exit ?? trade.exit_price) : null,
+        entry_price: Number.isFinite(Number(trade.entry ?? trade.entry_price))
+          ? Number(trade.entry ?? trade.entry_price)
+          : null,
+        exit_price: Number.isFinite(Number(trade.exit ?? trade.exit_price))
+          ? Number(trade.exit ?? trade.exit_price)
+          : null,
         raw_pnl: Number.isFinite(Number(trade.pnl_pct)) ? Number(trade.pnl_pct) : null,
         time_in: entryTime,
         time_out: exitTime,
         holding_days: (() => {
           const days = daysBetween(entryTime, exitTime);
           return days === null ? null : Math.max(0, days);
-        })()
+        })(),
       };
     })
     .filter(Boolean);
@@ -183,15 +192,18 @@ function exactMatchCandidates(actualTrades = []) {
 
 function fuzzyTradeDistance(replayRow, actualRow) {
   if (!replayRow || !actualRow) return Infinity;
-  if (replayRow.symbol && actualRow.symbol && replayRow.symbol !== actualRow.symbol) return Infinity;
-  if (replayRow.direction && actualRow.direction && replayRow.direction !== actualRow.direction) return Infinity;
+  if (replayRow.symbol && actualRow.symbol && replayRow.symbol !== actualRow.symbol)
+    return Infinity;
+  if (replayRow.direction && actualRow.direction && replayRow.direction !== actualRow.direction)
+    return Infinity;
   const entryReference = replayRow.expected_entry_time || replayRow.signal_time;
   const timeGapHours = hoursBetween(entryReference, actualRow.time_in);
   if (timeGapHours === null) return Infinity;
   if (timeGapHours > 96) return Infinity;
-  const priceGap = replayRow.expected_entry_price && actualRow.entry_price
-    ? Math.abs(actualRow.entry_price / Math.max(replayRow.expected_entry_price, 1e-9) - 1)
-    : 0.05;
+  const priceGap =
+    replayRow.expected_entry_price && actualRow.entry_price
+      ? Math.abs(actualRow.entry_price / Math.max(replayRow.expected_entry_price, 1e-9) - 1)
+      : 0.05;
   return timeGapHours / 24 + priceGap * 20;
 }
 
@@ -204,22 +216,32 @@ function reconcileStatus(metrics, thresholds) {
     Number.isFinite(metrics.pnl_gap_pct_abs) &&
       metrics.pnl_gap_pct_abs > safe(thresholds.max_avg_abs_pnl_gap_pct, 0) * 1.2,
     Number.isFinite(metrics.hold_gap_days_abs) &&
-      metrics.hold_gap_days_abs > safe(thresholds.max_avg_abs_hold_gap_days, 0) * 1.2
+      metrics.hold_gap_days_abs > safe(thresholds.max_avg_abs_hold_gap_days, 0) * 1.2,
   ].filter(Boolean).length;
   if (breaches > 0) return 'breach';
 
   const warnings = [
     Number.isFinite(metrics.fill_gap_bps_abs) &&
-      metrics.fill_gap_bps_abs > safe(thresholds.max_avg_abs_fill_gap_bps, 0) * safe(thresholds.warning_threshold_fraction, 0.7),
+      metrics.fill_gap_bps_abs >
+        safe(thresholds.max_avg_abs_fill_gap_bps, 0) *
+          safe(thresholds.warning_threshold_fraction, 0.7),
     Number.isFinite(metrics.pnl_gap_pct_abs) &&
-      metrics.pnl_gap_pct_abs > safe(thresholds.max_avg_abs_pnl_gap_pct, 0) * safe(thresholds.warning_threshold_fraction, 0.7),
+      metrics.pnl_gap_pct_abs >
+        safe(thresholds.max_avg_abs_pnl_gap_pct, 0) *
+          safe(thresholds.warning_threshold_fraction, 0.7),
     Number.isFinite(metrics.hold_gap_days_abs) &&
-      metrics.hold_gap_days_abs > safe(thresholds.max_avg_abs_hold_gap_days, 0) * safe(thresholds.warning_threshold_fraction, 0.7)
+      metrics.hold_gap_days_abs >
+        safe(thresholds.max_avg_abs_hold_gap_days, 0) *
+          safe(thresholds.warning_threshold_fraction, 0.7),
   ].filter(Boolean).length;
   return warnings > 0 ? 'watch' : 'aligned';
 }
 
-function buildReconciliations(replayRows = [], actualTrades = [], thresholds = DEFAULT_THRESHOLD_PROFILE) {
+function buildReconciliations(
+  replayRows = [],
+  actualTrades = [],
+  thresholds = DEFAULT_THRESHOLD_PROFILE,
+) {
   const exactCandidates = exactMatchCandidates(actualTrades);
   const unusedActual = new Set(actualTrades.map((_, idx) => idx));
   const rows = [];
@@ -243,7 +265,7 @@ function buildReconciliations(replayRows = [], actualTrades = [], thresholds = D
         status: 'not_triggered',
         match_method: 'none',
         replay_triggered: false,
-        actual_executed: false
+        actual_executed: false,
       });
       continue;
     }
@@ -262,7 +284,7 @@ function buildReconciliations(replayRows = [], actualTrades = [], thresholds = D
         .filter((trade, idx) => unusedActual.has(idx))
         .map((trade) => ({
           trade,
-          distance: fuzzyTradeDistance(replayRow, trade)
+          distance: fuzzyTradeDistance(replayRow, trade),
         }))
         .filter((row) => Number.isFinite(row.distance))
         .sort((a, b) => a.distance - b.distance);
@@ -284,7 +306,7 @@ function buildReconciliations(replayRows = [], actualTrades = [], thresholds = D
         status: 'replay_only',
         match_method: 'none',
         replay_triggered: true,
-        actual_executed: false
+        actual_executed: false,
       });
       continue;
     }
@@ -293,7 +315,12 @@ function buildReconciliations(replayRows = [], actualTrades = [], thresholds = D
     const actualReturn = normalizeTradeReturn(matchedTrade.raw_pnl, expectedReturn);
     const fillGapBps =
       replayRow.expected_entry_price && matchedTrade.entry_price
-        ? round(((matchedTrade.entry_price - replayRow.expected_entry_price) / replayRow.expected_entry_price) * 10000, 4)
+        ? round(
+            ((matchedTrade.entry_price - replayRow.expected_entry_price) /
+              replayRow.expected_entry_price) *
+              10000,
+            4,
+          )
         : null;
     const pnlGapPct =
       Number.isFinite(expectedReturn) && Number.isFinite(actualReturn)
@@ -308,7 +335,7 @@ function buildReconciliations(replayRows = [], actualTrades = [], thresholds = D
       pnl_gap_pct_abs: pnlGapPct === null ? null : Math.abs(pnlGapPct),
       hold_gap_days_abs: holdGapDays === null ? null : Math.abs(holdGapDays),
       direction_mismatch: replayRow.direction !== matchedTrade.direction,
-      symbol_mismatch: replayRow.symbol !== matchedTrade.symbol
+      symbol_mismatch: replayRow.symbol !== matchedTrade.symbol,
     };
     rows.push({
       signal_id: replayRow.signal_id,
@@ -334,10 +361,13 @@ function buildReconciliations(replayRows = [], actualTrades = [], thresholds = D
       replay_signal_time: replayRow.signal_time,
       actual_time_in: matchedTrade.time_in,
       actual_time_out: matchedTrade.time_out,
-      entry_latency_hours: hoursBetween(replayRow.expected_entry_time || replayRow.signal_time, matchedTrade.time_in),
+      entry_latency_hours: hoursBetween(
+        replayRow.expected_entry_time || replayRow.signal_time,
+        matchedTrade.time_in,
+      ),
       volatility_bucket: replayRow.volatility_bucket || null,
       session_state: replayRow.session_state || null,
-      liquidity_bucket: replayRow.liquidity_bucket || null
+      liquidity_bucket: replayRow.liquidity_bucket || null,
     });
   }
 
@@ -359,7 +389,7 @@ function buildReconciliations(replayRows = [], actualTrades = [], thresholds = D
       actual_return: normalizeTradeReturn(trade.raw_pnl),
       actual_holding_days: trade.holding_days,
       actual_time_in: trade.time_in,
-      actual_time_out: trade.time_out
+      actual_time_out: trade.time_out,
     });
   });
 
@@ -370,8 +400,15 @@ function meanOrNull(values = []) {
   return values.length ? round(mean(values), 6) : null;
 }
 
-function summarizeRows(rows = [], replayRows = [], actualTrades = [], thresholds = DEFAULT_THRESHOLD_PROFILE) {
-  const matched = rows.filter((row) => row.status === 'aligned' || row.status === 'watch' || row.status === 'breach');
+function summarizeRows(
+  rows = [],
+  replayRows = [],
+  actualTrades = [],
+  thresholds = DEFAULT_THRESHOLD_PROFILE,
+) {
+  const matched = rows.filter(
+    (row) => row.status === 'aligned' || row.status === 'watch' || row.status === 'breach',
+  );
   const replayOnly = rows.filter((row) => row.status === 'replay_only');
   const actualOnly = rows.filter((row) => row.status === 'actual_only');
   const replayTriggered = replayRows.filter((row) => row.replay_triggered);
@@ -391,45 +428,52 @@ function summarizeRows(rows = [], replayRows = [], actualTrades = [], thresholds
       id: 'matched_trade_sample',
       threshold: thresholds.min_matched_trades,
       value: matched.length,
-      pass: matched.length >= safe(thresholds.min_matched_trades, 0)
+      pass: matched.length >= safe(thresholds.min_matched_trades, 0),
     },
     {
       id: 'capture_rate',
       threshold: thresholds.min_capture_rate,
       value: round(captureRate, 6),
-      pass: captureRate >= safe(thresholds.min_capture_rate, 0)
+      pass: captureRate >= safe(thresholds.min_capture_rate, 0),
     },
     {
       id: 'unmatched_actual_share',
       threshold: thresholds.max_unmatched_actual_share,
       value: round(unmatchedActualShare, 6),
-      pass: unmatchedActualShare <= safe(thresholds.max_unmatched_actual_share, 1)
+      pass: unmatchedActualShare <= safe(thresholds.max_unmatched_actual_share, 1),
     },
     {
       id: 'avg_abs_fill_gap_bps',
       threshold: thresholds.max_avg_abs_fill_gap_bps,
       value: meanOrNull(fillGaps.map(Math.abs)),
-      pass: fillGaps.length ? mean(fillGaps.map(Math.abs)) <= safe(thresholds.max_avg_abs_fill_gap_bps, Infinity) : false
+      pass: fillGaps.length
+        ? mean(fillGaps.map(Math.abs)) <= safe(thresholds.max_avg_abs_fill_gap_bps, Infinity)
+        : false,
     },
     {
       id: 'p95_abs_fill_gap_bps',
       threshold: thresholds.max_p95_abs_fill_gap_bps,
       value: percentile(fillGaps.map(Math.abs), 95),
       pass: fillGaps.length
-        ? safe(percentile(fillGaps.map(Math.abs), 95), Infinity) <= safe(thresholds.max_p95_abs_fill_gap_bps, Infinity)
-        : false
+        ? safe(percentile(fillGaps.map(Math.abs), 95), Infinity) <=
+          safe(thresholds.max_p95_abs_fill_gap_bps, Infinity)
+        : false,
     },
     {
       id: 'avg_abs_pnl_gap_pct',
       threshold: thresholds.max_avg_abs_pnl_gap_pct,
       value: meanOrNull(pnlGaps.map(Math.abs)),
-      pass: pnlGaps.length ? mean(pnlGaps.map(Math.abs)) <= safe(thresholds.max_avg_abs_pnl_gap_pct, Infinity) : false
+      pass: pnlGaps.length
+        ? mean(pnlGaps.map(Math.abs)) <= safe(thresholds.max_avg_abs_pnl_gap_pct, Infinity)
+        : false,
     },
     {
       id: 'avg_abs_hold_gap_days',
       threshold: thresholds.max_avg_abs_hold_gap_days,
       value: meanOrNull(holdGaps.map(Math.abs)),
-      pass: holdGaps.length ? mean(holdGaps.map(Math.abs)) <= safe(thresholds.max_avg_abs_hold_gap_days, Infinity) : false
+      pass: holdGaps.length
+        ? mean(holdGaps.map(Math.abs)) <= safe(thresholds.max_avg_abs_hold_gap_days, Infinity)
+        : false,
     },
     {
       id: 'win_rate_drift',
@@ -441,8 +485,8 @@ function summarizeRows(rows = [], replayRows = [], actualTrades = [], thresholds
       pass:
         replayWinRate !== null && actualWinRate !== null
           ? Math.abs(actualWinRate - replayWinRate) <= safe(thresholds.max_win_rate_drift, Infinity)
-          : false
-    }
+          : false,
+    },
   ];
 
   const blockers = checks.filter((row) => !row.pass).map((row) => row.id);
@@ -464,19 +508,32 @@ function summarizeRows(rows = [], replayRows = [], actualTrades = [], thresholds
     replay_win_rate: replayWinRate === null ? null : round(replayWinRate, 6),
     actual_win_rate: actualWinRate === null ? null : round(actualWinRate, 6),
     win_rate_drift:
-      replayWinRate === null || actualWinRate === null ? null : round(actualWinRate - replayWinRate, 6),
+      replayWinRate === null || actualWinRate === null
+        ? null
+        : round(actualWinRate - replayWinRate, 6),
     breach_count: matched.filter((row) => row.status === 'breach').length,
     watch_count: matched.filter((row) => row.status === 'watch').length,
     aligned_count: matched.filter((row) => row.status === 'aligned').length,
     insufficient_sample: insufficientSample,
     score: round(checks.filter((row) => row.pass).length / Math.max(checks.length, 1), 4),
     pass: blockers.length === 0,
-    status: insufficientSample ? 'insufficient_sample' : blockers.length ? (blockers.length <= 2 ? 'watch' : 'breach') : 'aligned',
-    blockers
+    status: insufficientSample
+      ? 'insufficient_sample'
+      : blockers.length
+        ? blockers.length <= 2
+          ? 'watch'
+          : 'breach'
+        : 'aligned',
+    blockers,
   };
 }
 
-function aggregateByKey(rows = [], key = 'strategy_id', fallback = 'unknown', thresholds = DEFAULT_THRESHOLD_PROFILE) {
+function aggregateByKey(
+  rows = [],
+  key = 'strategy_id',
+  fallback = 'unknown',
+  thresholds = DEFAULT_THRESHOLD_PROFILE,
+) {
   const groups = new Map();
   for (const row of rows) {
     const groupKey = row?.[key] || fallback;
@@ -486,12 +543,23 @@ function aggregateByKey(rows = [], key = 'strategy_id', fallback = 'unknown', th
 
   return Array.from(groups.entries())
     .map(([group, list]) => {
-      const matched = list.filter((row) => row.status === 'aligned' || row.status === 'watch' || row.status === 'breach');
+      const matched = list.filter(
+        (row) => row.status === 'aligned' || row.status === 'watch' || row.status === 'breach',
+      );
       const replayTriggered = list.filter((row) => row.replay_triggered);
       const actualExecuted = list.filter((row) => row.actual_executed);
-      const fillValues = matched.map((row) => safe(row.fill_gap_bps, NaN)).filter(Number.isFinite).map(Math.abs);
-      const pnlValues = matched.map((row) => safe(row.pnl_gap_pct, NaN)).filter(Number.isFinite).map(Math.abs);
-      const holdValues = matched.map((row) => safe(row.hold_gap_days, NaN)).filter(Number.isFinite).map(Math.abs);
+      const fillValues = matched
+        .map((row) => safe(row.fill_gap_bps, NaN))
+        .filter(Number.isFinite)
+        .map(Math.abs);
+      const pnlValues = matched
+        .map((row) => safe(row.pnl_gap_pct, NaN))
+        .filter(Number.isFinite)
+        .map(Math.abs);
+      const holdValues = matched
+        .map((row) => safe(row.hold_gap_days, NaN))
+        .filter(Number.isFinite)
+        .map(Math.abs);
       const matchedCount = matched.length;
       const captureRate = replayTriggered.length ? matchedCount / replayTriggered.length : 0;
       const replayWinRate = matchedCount
@@ -510,7 +578,9 @@ function aggregateByKey(rows = [], key = 'strategy_id', fallback = 'unknown', th
         avg_abs_pnl_gap_pct: pnlValues.length ? round(mean(pnlValues), 6) : null,
         avg_abs_hold_gap_days: holdValues.length ? round(mean(holdValues), 6) : null,
         win_rate_drift:
-          replayWinRate === null || actualWinRate === null ? null : round(actualWinRate - replayWinRate, 6),
+          replayWinRate === null || actualWinRate === null
+            ? null
+            : round(actualWinRate - replayWinRate, 6),
         breach_count: matched.filter((row) => row.status === 'breach').length,
         watch_count: matched.filter((row) => row.status === 'watch').length,
         status:
@@ -521,10 +591,13 @@ function aggregateByKey(rows = [], key = 'strategy_id', fallback = 'unknown', th
               : matched.some((row) => row.status === 'watch')
                 ? 'watch'
                 : 'aligned',
-        blockers: []
+        blockers: [],
       };
-      if (summary.status === 'insufficient_sample') summary.blockers.push('insufficient_execution_tracking_sample');
-      if ((summary.avg_abs_fill_gap_bps ?? 0) > safe(thresholds.max_avg_abs_fill_gap_bps, Infinity)) {
+      if (summary.status === 'insufficient_sample')
+        summary.blockers.push('insufficient_execution_tracking_sample');
+      if (
+        (summary.avg_abs_fill_gap_bps ?? 0) > safe(thresholds.max_avg_abs_fill_gap_bps, Infinity)
+      ) {
         summary.blockers.push('fill_gap_discipline');
       }
       if ((summary.avg_abs_pnl_gap_pct ?? 0) > safe(thresholds.max_avg_abs_pnl_gap_pct, Infinity)) {
@@ -537,8 +610,13 @@ function aggregateByKey(rows = [], key = 'strategy_id', fallback = 'unknown', th
         summary.blockers.push('win_rate_tracking_error');
       }
       summary.score = round(
-        1 - Math.min(1, summary.blockers.length / 4 + (summary.status === 'breach' ? 0.35 : summary.status === 'watch' ? 0.15 : 0)),
-        4
+        1 -
+          Math.min(
+            1,
+            summary.blockers.length / 4 +
+              (summary.status === 'breach' ? 0.35 : summary.status === 'watch' ? 0.15 : 0),
+          ),
+        4,
       );
       return summary;
     })
@@ -553,11 +631,11 @@ export function buildExecutionDriftMonitor({
   replayValidation = {},
   trades = [],
   signals = [],
-  thresholds = {}
+  thresholds = {},
 } = {}) {
   const thresholdProfile = {
     ...DEFAULT_THRESHOLD_PROFILE,
-    ...(thresholds || {})
+    ...(thresholds || {}),
   };
   const replayRows = normalizeReplayRows(replayValidation, signals);
   const actualTrades = normalizeActualTrades(trades, signals);
@@ -578,13 +656,15 @@ export function buildExecutionDriftMonitor({
       pass: summary.pass,
       score: summary.score,
       blockers: summary.blockers,
-      checks: summary.checks
+      checks: summary.checks,
     },
     coverage: {
-      replay_days: [...new Set(replayRows.map((row) => isoDay(row.signal_time)).filter(Boolean))].length,
-      actual_days: [...new Set(actualTrades.map((row) => isoDay(row.time_in)).filter(Boolean))].length,
+      replay_days: [...new Set(replayRows.map((row) => isoDay(row.signal_time)).filter(Boolean))]
+        .length,
+      actual_days: [...new Set(actualTrades.map((row) => isoDay(row.time_in)).filter(Boolean))]
+        .length,
       matched_trade_count: summary.matched_trade_count,
-      capture_rate: summary.capture_rate
+      capture_rate: summary.capture_rate,
     },
     by_strategy: byStrategy,
     by_market: byMarket,
@@ -594,7 +674,7 @@ export function buildExecutionDriftMonitor({
     notes: [
       'Exact signal_id alignment is preferred; symbol/side/time fuzzy matching is used as a fallback.',
       'BACKTEST-sourced trades are excluded from execution drift scoring.',
-      'Institutional gate focuses on capture rate plus fill/PnL/holding-period tracking error.'
-    ]
+      'Institutional gate focuses on capture rate plus fill/PnL/holding-period tracking error.',
+    ],
   };
 }

@@ -87,7 +87,7 @@ export function massiveBarToNormalized(bar: MassiveAggBar): NormalizedBar {
     high: String(bar.h),
     low: String(bar.l),
     close: String(bar.c),
-    volume: String(bar.v ?? 0)
+    volume: String(bar.v ?? 0),
   };
 }
 
@@ -105,13 +105,13 @@ function buildAggsUrl(
   from: string,
   to: string,
   apiKey: string,
-  limit = 50000
+  limit = 50000,
 ): string {
   const params = new URLSearchParams({
     adjusted: 'true',
     sort: 'asc',
     limit: String(limit),
-    apiKey
+    apiKey,
   });
   return `${baseUrl}/v2/aggs/ticker/${encodeURIComponent(ticker)}/range/${multiplier}/${timespan}/${from}/${to}?${params.toString()}`;
 }
@@ -144,7 +144,7 @@ export async function fetchMassiveAggs(params: {
     timespan,
     formatDate(from),
     formatDate(to),
-    apiKey
+    apiKey,
   );
 
   let pageCount = 0;
@@ -154,7 +154,9 @@ export async function fetchMassiveAggs(params: {
     pageCount += 1;
 
     // Append apiKey to next_url if not already present
-    const urlWithKey = url.includes('apiKey=') ? url : `${url}${url.includes('?') ? '&' : '?'}apiKey=${apiKey}`;
+    const urlWithKey = url.includes('apiKey=')
+      ? url
+      : `${url}${url.includes('?') ? '&' : '?'}apiKey=${apiKey}`;
 
     let response: Response;
     try {
@@ -185,7 +187,7 @@ export async function fetchMassiveAggs(params: {
       logWarn('Massive API non-OK response', {
         ticker,
         status: response.status,
-        statusText: response.statusText
+        statusText: response.statusText,
       });
       break;
     }
@@ -246,14 +248,13 @@ export async function backfillMassiveStocks(params: {
 
   const to = params.toDate || new Date();
   const from =
-    params.fromDate ||
-    new Date(to.getTime() - massive.defaultLookbackDays * 24 * 60 * 60 * 1000);
+    params.fromDate || new Date(to.getTime() - massive.defaultLookbackDays * 24 * 60 * 60 * 1000);
 
   logInfo('Starting Massive stocks backfill', {
     symbols: symbols.length,
     timeframes,
     from: formatDate(from),
-    to: formatDate(to)
+    to: formatDate(to),
   });
 
   for (const symbol of symbols) {
@@ -262,7 +263,7 @@ export async function backfillMassiveStocks(params: {
       symbol,
       venue: 'MASSIVE',
       quote: 'USD',
-      status: 'ACTIVE'
+      status: 'ACTIVE',
     });
 
     for (const tf of timeframes) {
@@ -276,7 +277,7 @@ export async function backfillMassiveStocks(params: {
           baseUrl: massive.baseUrl,
           timeoutMs: massive.timeoutMs,
           retry: massive.retry,
-          requestDelayMs: massive.requestDelayMs
+          requestDelayMs: massive.requestDelayMs,
         });
 
         if (bars.length > 0) {
@@ -288,7 +289,7 @@ export async function backfillMassiveStocks(params: {
         logWarn('Massive stocks backfill failed for symbol', {
           symbol,
           timeframe: tf,
-          error: error instanceof Error ? error.message : String(error)
+          error: error instanceof Error ? error.message : String(error),
         });
       }
 
@@ -330,14 +331,13 @@ export async function backfillMassiveCrypto(params: {
 
   const to = params.toDate || new Date();
   const from =
-    params.fromDate ||
-    new Date(to.getTime() - massive.defaultLookbackDays * 24 * 60 * 60 * 1000);
+    params.fromDate || new Date(to.getTime() - massive.defaultLookbackDays * 24 * 60 * 60 * 1000);
 
   logInfo('Starting Massive crypto backfill', {
     symbols: symbols.length,
     timeframes,
     from: formatDate(from),
-    to: formatDate(to)
+    to: formatDate(to),
   });
 
   for (const symbol of symbols) {
@@ -350,7 +350,7 @@ export async function backfillMassiveCrypto(params: {
       venue: 'MASSIVE',
       base: symbol.replace(/USD[T]?$/i, ''),
       quote: 'USD',
-      status: 'ACTIVE'
+      status: 'ACTIVE',
     });
 
     for (const tf of timeframes) {
@@ -364,19 +364,24 @@ export async function backfillMassiveCrypto(params: {
           baseUrl: massive.baseUrl,
           timeoutMs: massive.timeoutMs,
           retry: massive.retry,
-          requestDelayMs: massive.requestDelayMs
+          requestDelayMs: massive.requestDelayMs,
         });
 
         if (bars.length > 0) {
           const normalized = normalizeBars(bars);
           repo.upsertOhlcvBars(asset.asset_id, tf, normalized, source);
-          logInfo('Massive crypto ingested', { symbol, massiveTicker, timeframe: tf, bars: normalized.length });
+          logInfo('Massive crypto ingested', {
+            symbol,
+            massiveTicker,
+            timeframe: tf,
+            bars: normalized.length,
+          });
         }
       } catch (error) {
         logWarn('Massive crypto backfill failed for symbol', {
           symbol,
           timeframe: tf,
-          error: error instanceof Error ? error.message : String(error)
+          error: error instanceof Error ? error.message : String(error),
         });
       }
 

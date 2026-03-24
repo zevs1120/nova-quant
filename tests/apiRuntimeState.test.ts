@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as publicTodayDecisionService from '../src/server/public/todayDecisionService.js';
-import { getDecisionSnapshot, getRuntimeState, getRuntimeStateResponse } from '../src/server/api/queries.js';
+import {
+  getDecisionSnapshot,
+  getRuntimeState,
+  getRuntimeStateResponse,
+} from '../src/server/api/queries.js';
 import { createBrokerAdapter } from '../src/server/connect/adapters.js';
 
 describe('api runtime state', () => {
@@ -13,7 +17,7 @@ describe('api runtime state', () => {
     const res = getRuntimeState({
       userId: 'guest-default',
       market: 'US',
-      assetClass: 'US_STOCK'
+      assetClass: 'US_STOCK',
     });
 
     expect(res).toHaveProperty('source_status');
@@ -41,12 +45,12 @@ describe('api runtime state', () => {
       today_call: {
         code: 'TRADE',
         headline: 'Fresh signals are live.',
-        subtitle: 'AAPL is pulling back into trend support.'
+        subtitle: 'AAPL is pulling back into trend support.',
       },
       risk_state: {
         posture: 'ATTACK',
         summary: 'Fresh signals are live.',
-        user_message: 'Backdrop supports selective risk.'
+        user_message: 'Backdrop supports selective risk.',
       },
       ranked_action_cards: [
         {
@@ -76,31 +80,31 @@ describe('api runtime state', () => {
             status: 'NEW',
             source_status: 'MODEL_DERIVED',
             data_status: 'MODEL_DERIVED',
-            source_label: 'MODEL_DERIVED'
-          }
-        }
+            source_label: 'MODEL_DERIVED',
+          },
+        },
       ],
       top_action_id: 'action-public-aapl',
       summary: {
         today_call: {
           code: 'TRADE',
           headline: 'Fresh signals are live.',
-          subtitle: 'AAPL is pulling back into trend support.'
-        }
+          subtitle: 'AAPL is pulling back into trend support.',
+        },
       },
       audit: {
         candidate_count: 1,
         actionable_count: 1,
         strategy_backed_count: 1,
         publishable_count: 1,
-        created_for_user: 'runtime-fallback-test'
-      }
+        created_for_user: 'runtime-fallback-test',
+      },
     } as any);
 
     const res = await getRuntimeStateResponse({
       userId: `runtime-fallback-test-${Date.now()}`,
       market: 'US',
-      assetClass: 'US_STOCK'
+      assetClass: 'US_STOCK',
     });
 
     expect(res.data.decision.today_call.code).toBe('TRADE');
@@ -118,12 +122,12 @@ describe('api runtime state', () => {
       today_call: {
         code: 'TRADE',
         headline: 'Fresh signals are live.',
-        subtitle: 'MSFT is reclaiming trend support.'
+        subtitle: 'MSFT is reclaiming trend support.',
       },
       risk_state: {
         posture: 'ATTACK',
         summary: 'Fresh signals are live.',
-        user_message: 'Backdrop supports selective risk.'
+        user_message: 'Backdrop supports selective risk.',
       },
       ranked_action_cards: [],
       top_action_id: null,
@@ -131,22 +135,22 @@ describe('api runtime state', () => {
         today_call: {
           code: 'TRADE',
           headline: 'Fresh signals are live.',
-          subtitle: 'MSFT is reclaiming trend support.'
-        }
+          subtitle: 'MSFT is reclaiming trend support.',
+        },
       },
       audit: {
         candidate_count: 1,
         actionable_count: 1,
         strategy_backed_count: 1,
         publishable_count: 1,
-        created_for_user: 'decision-fallback-test'
-      }
+        created_for_user: 'decision-fallback-test',
+      },
     } as any);
 
     const decision = await getDecisionSnapshot({
       userId: `decision-fallback-test-${Date.now()}`,
       market: 'US',
-      assetClass: 'US_STOCK'
+      assetClass: 'US_STOCK',
     });
 
     expect((decision as { today_call?: { code?: string } }).today_call?.code).toBe('TRADE');

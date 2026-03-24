@@ -16,7 +16,7 @@ import type {
   SignalContract,
   Timeframe,
   UserHoldingInput,
-  WorkflowRunRecord
+  WorkflowRunRecord,
 } from '../types.js';
 import { createExecutionRecord, decodeSignalContract, ensureQuantData } from '../quant/service.js';
 import {
@@ -26,32 +26,53 @@ import {
   getTopSignalEvidence,
   listBacktestEvidence,
   listReconciliationEvidence,
-  runEvidenceEngine
+  runEvidenceEngine,
 } from '../evidence/engine.js';
 import { getConfig } from '../config.js';
 import {
   RUNTIME_STATUS,
   derivePerformanceSourceStatus,
   normalizeRuntimeStatus,
-  withComponentStatus
+  withComponentStatus,
 } from '../runtimeStatus.js';
 import { buildDecisionSnapshot } from '../decision/engine.js';
 import { buildEngagementSnapshot, defaultNotificationPreferences } from '../engagement/engine.js';
 import { buildBackendBackboneSummary } from '../backbone/service.js';
 import { createTraceId, recordAuditEvent } from '../observability/spine.js';
-import { applyLocalNovaDecisionLanguage, applyLocalNovaWrapUpLanguage, logNovaAssistantAnswer } from '../nova/service.js';
+import {
+  applyLocalNovaDecisionLanguage,
+  applyLocalNovaWrapUpLanguage,
+  logNovaAssistantAnswer,
+} from '../nova/service.js';
 import { buildMlxLmTrainingDataset } from '../nova/training.js';
-import { getNovaModelPlan, getNovaRoutingPolicies, getNovaRuntimeAvailabilityReason, getNovaRuntimeMode } from '../ai/llmOps.js';
+import {
+  getNovaModelPlan,
+  getNovaRoutingPolicies,
+  getNovaRuntimeAvailabilityReason,
+  getNovaRuntimeMode,
+} from '../ai/llmOps.js';
 import { inspectNovaHealth } from '../nova/health.js';
 import { labelNovaRun } from '../nova/service.js';
-import { MIN_AUTOMATIC_TRAINING_ROWS, runNovaTrainingFlywheel, type NovaTrainerKind } from '../nova/flywheel.js';
+import {
+  MIN_AUTOMATIC_TRAINING_ROWS,
+  runNovaTrainingFlywheel,
+  type NovaTrainerKind,
+} from '../nova/flywheel.js';
 import { generateGovernedNovaStrategies } from '../nova/strategyLab.js';
-import { buildNewsContext, ensureFreshNewsForSymbol, ensureFreshNewsForUniverse } from '../news/provider.js';
+import {
+  buildNewsContext,
+  ensureFreshNewsForSymbol,
+  ensureFreshNewsForUniverse,
+} from '../news/provider.js';
 import { buildEvidenceLineage } from '../evidence/lineage.js';
 import { fetchWithRetry } from '../utils/http.js';
 import { getPublicBrowseHome } from '../public/browseService.js';
 import { getPublicTodayDecision } from '../public/todayDecisionService.js';
-import { createBrokerAdapter, createExchangeAdapter, type OrderStatusSnapshot } from '../connect/adapters.js';
+import {
+  createBrokerAdapter,
+  createExchangeAdapter,
+  type OrderStatusSnapshot,
+} from '../connect/adapters.js';
 import { buildPrivateMarvixOpsReport } from '../ops/privateMarvixOps.js';
 import { buildLocalAdminResearchOpsSnapshot } from '../admin/liveOps.js';
 
@@ -61,22 +82,22 @@ const RISK_PROFILE_PRESETS = {
     max_daily_loss: 1.8,
     max_drawdown: 8,
     exposure_cap: 35,
-    leverage_cap: 1.5
+    leverage_cap: 1.5,
   },
   balanced: {
     max_loss_per_trade: 1.0,
     max_daily_loss: 3.0,
     max_drawdown: 12,
     exposure_cap: 55,
-    leverage_cap: 2
+    leverage_cap: 2,
   },
   aggressive: {
     max_loss_per_trade: 1.4,
     max_daily_loss: 4.5,
     max_drawdown: 18,
     exposure_cap: 75,
-    leverage_cap: 3
-  }
+    leverage_cap: 3,
+  },
 } as const;
 
 type AssetSearchResult = {
@@ -188,7 +209,7 @@ const referenceUniverseFiles = [
   'us_equities_core.json',
   'us_sector_etfs.json',
   'market_proxies.json',
-  'crypto_core.json'
+  'crypto_core.json',
 ];
 
 const commonEquityAliases: Record<string, string[]> = {
@@ -204,7 +225,7 @@ const commonEquityAliases: Record<string, string[]> = {
   PLTR: ['palantir'],
   COIN: ['coinbase'],
   UBER: ['uber'],
-  'BRK.B': ['berkshire', 'berkshire hathaway']
+  'BRK.B': ['berkshire', 'berkshire hathaway'],
 };
 
 const commonCryptoNames: Record<string, string[]> = {
@@ -219,7 +240,7 @@ const commonCryptoNames: Record<string, string[]> = {
   AVAX: ['avalanche', 'avax'],
   LINK: ['chainlink', 'link'],
   LTC: ['litecoin', 'ltc'],
-  TON: ['ton', 'the open network']
+  TON: ['ton', 'the open network'],
 };
 
 const knownEtfSymbols = new Set([
@@ -242,7 +263,7 @@ const knownEtfSymbols = new Set([
   'SMH',
   'SOXX',
   'VTI',
-  'VOO'
+  'VOO',
 ]);
 
 const relatedEtfMap: Record<string, string[]> = {
@@ -261,16 +282,19 @@ const relatedEtfMap: Record<string, string[]> = {
   ETH: ['ETHA', 'ETHE', 'QQQ'],
   ETHUSDT: ['ETHA', 'ETHE', 'QQQ'],
   SOL: ['ARKK', 'QQQ', 'SMH'],
-  SOLUSDT: ['ARKK', 'QQQ', 'SMH']
+  SOLUSDT: ['ARKK', 'QQQ', 'SMH'],
 };
 
-const cryptoAliasLookup = Object.entries(commonCryptoNames).reduce<Record<string, string>>((acc, [symbol, aliases]) => {
-  acc[normalizeSearchText(symbol)] = symbol;
-  aliases.forEach((alias) => {
-    acc[normalizeSearchText(alias)] = symbol;
-  });
-  return acc;
-}, {});
+const cryptoAliasLookup = Object.entries(commonCryptoNames).reduce<Record<string, string>>(
+  (acc, [symbol, aliases]) => {
+    acc[normalizeSearchText(symbol)] = symbol;
+    aliases.forEach((alias) => {
+      acc[normalizeSearchText(alias)] = symbol;
+    });
+    return acc;
+  },
+  {},
+);
 
 let cachedReferenceSearchUniverse: SearchCandidate[] | null = null;
 const remoteSearchCache = new Map<string, { expiresAt: number; results: SearchCandidate[] }>();
@@ -284,7 +308,7 @@ function getAlphaVantageApiKey(): string {
     process.env.ALPHA_VANTAGE_API_KEY ||
       process.env.ALPHAVANTAGE_API_KEY ||
       process.env.NOVA_SEARCH_ALPHA_VANTAGE_KEY ||
-      ''
+      '',
   ).trim();
 }
 
@@ -293,21 +317,27 @@ function getCoinGeckoApiKey(): string {
     process.env.COINGECKO_DEMO_API_KEY ||
       process.env.COINGECKO_API_KEY ||
       process.env.COINGECKO_PRO_API_KEY ||
-      ''
+      '',
   ).trim();
 }
 
 function getSearchUserAgent(): string {
-  return String(process.env.BROWSE_SEARCH_USER_AGENT || 'NovaQuant/1.0 support@novaquant.local').trim();
+  return String(
+    process.env.BROWSE_SEARCH_USER_AGENT || 'NovaQuant/1.0 support@novaquant.local',
+  ).trim();
 }
 
-async function fetchJsonWithTimeout(url: string, init: RequestInit = {}, timeoutMs = REMOTE_SEARCH_TIMEOUT_MS) {
+async function fetchJsonWithTimeout(
+  url: string,
+  init: RequestInit = {},
+  timeoutMs = REMOTE_SEARCH_TIMEOUT_MS,
+) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const response = await fetch(url, {
       ...init,
-      signal: controller.signal
+      signal: controller.signal,
     });
     if (!response.ok) {
       throw new Error(`Request failed (${response.status})`);
@@ -321,7 +351,7 @@ async function fetchJsonWithTimeout(url: string, init: RequestInit = {}, timeout
 function cacheRemoteSearch(key: string, results: SearchCandidate[]) {
   remoteSearchCache.set(key, {
     expiresAt: Date.now() + REMOTE_SEARCH_TTL_MS,
-    results
+    results,
   });
 }
 
@@ -344,8 +374,8 @@ async function getSecSearchUniverse(): Promise<SearchCandidate[]> {
     const payload = (await fetchJsonWithTimeout('https://www.sec.gov/files/company_tickers.json', {
       headers: {
         'user-agent': getSearchUserAgent(),
-        accept: 'application/json'
-      }
+        accept: 'application/json',
+      },
     })) as Record<string, { ticker?: string; title?: string }>;
 
     const results = Object.values(payload || {})
@@ -356,14 +386,14 @@ async function getSecSearchUniverse(): Promise<SearchCandidate[]> {
           type: 'Equity',
           region: 'United States',
           exchange: 'SEC',
-          currency: 'USD'
-        })
+          currency: 'USD',
+        }),
       )
       .filter((candidate) => candidate.symbol);
 
     cachedSecUniverse = {
       expiresAt: Date.now() + SEC_UNIVERSE_TTL_MS,
-      results
+      results,
     };
     return results;
   } catch {
@@ -464,10 +494,16 @@ function parseLiveExecutionNote(note: string | null | undefined): StoredLiveExec
     notional: Number.isFinite(Number(parsed.notional)) ? Number(parsed.notional) : null,
     limit_price: Number.isFinite(Number(parsed.limit_price)) ? Number(parsed.limit_price) : null,
     filled_qty: Number.isFinite(Number(parsed.filled_qty)) ? Number(parsed.filled_qty) : null,
-    filled_avg_price: Number.isFinite(Number(parsed.filled_avg_price)) ? Number(parsed.filled_avg_price) : null,
+    filled_avg_price: Number.isFinite(Number(parsed.filled_avg_price))
+      ? Number(parsed.filled_avg_price)
+      : null,
     submitted_at: parsed.submitted_at ? String(parsed.submitted_at) : null,
-    expected_entry_price: Number.isFinite(Number(parsed.expected_entry_price)) ? Number(parsed.expected_entry_price) : null,
-    expected_notional: Number.isFinite(Number(parsed.expected_notional)) ? Number(parsed.expected_notional) : null,
+    expected_entry_price: Number.isFinite(Number(parsed.expected_entry_price))
+      ? Number(parsed.expected_entry_price)
+      : null,
+    expected_notional: Number.isFinite(Number(parsed.expected_notional))
+      ? Number(parsed.expected_notional)
+      : null,
     strategy_id: String(parsed.strategy_id || ''),
     strategy_family: String(parsed.strategy_family || ''),
     signal_score: Number.isFinite(Number(parsed.signal_score)) ? Number(parsed.signal_score) : 0,
@@ -475,46 +511,58 @@ function parseLiveExecutionNote(note: string | null | undefined): StoredLiveExec
     routing:
       parsed.routing && typeof parsed.routing === 'object'
         ? {
-            route_key: String((parsed.routing as Record<string, unknown>).route_key || 'live_champion_paper_challenger'),
+            route_key: String(
+              (parsed.routing as Record<string, unknown>).route_key ||
+                'live_champion_paper_challenger',
+            ),
             champion_mode: 'LIVE',
             challenger_mode: 'PAPER',
             shadow_execution_id: (parsed.routing as Record<string, unknown>).shadow_execution_id
               ? String((parsed.routing as Record<string, unknown>).shadow_execution_id)
-              : null
+              : null,
           }
         : {
             route_key: 'live_champion_paper_challenger',
             champion_mode: 'LIVE',
             challenger_mode: 'PAPER',
-            shadow_execution_id: null
+            shadow_execution_id: null,
           },
     execution_guard:
       parsed.execution_guard && typeof parsed.execution_guard === 'object'
         ? (parsed.execution_guard as Record<string, unknown>)
         : null,
-    user_note: parsed.user_note ? String(parsed.user_note) : null
+    user_note: parsed.user_note ? String(parsed.user_note) : null,
   };
 }
 
-function parseShadowExecutionNote(note: string | null | undefined): StoredShadowExecutionNote | null {
+function parseShadowExecutionNote(
+  note: string | null | undefined,
+): StoredShadowExecutionNote | null {
   const parsed = parseExecutionNoteObject(note);
   if (!parsed || parsed.type !== 'shadow_execution') return null;
   return {
     type: 'shadow_execution',
     shadow_role: 'CHALLENGER',
     provider: String(parsed.provider || '').toUpperCase(),
-    paired_live_execution_id: parsed.paired_live_execution_id ? String(parsed.paired_live_execution_id) : null,
+    paired_live_execution_id: parsed.paired_live_execution_id
+      ? String(parsed.paired_live_execution_id)
+      : null,
     order_id: String(parsed.order_id || ''),
     client_order_id: parsed.client_order_id ? String(parsed.client_order_id) : null,
-    expected_entry_price: Number.isFinite(Number(parsed.expected_entry_price)) ? Number(parsed.expected_entry_price) : null,
+    expected_entry_price: Number.isFinite(Number(parsed.expected_entry_price))
+      ? Number(parsed.expected_entry_price)
+      : null,
     strategy_id: String(parsed.strategy_id || ''),
     strategy_family: String(parsed.strategy_family || ''),
     route_key: String(parsed.route_key || 'live_champion_paper_challenger'),
-    user_note: parsed.user_note ? String(parsed.user_note) : null
+    user_note: parsed.user_note ? String(parsed.user_note) : null,
   };
 }
 
-async function deriveSignalNotional(signal: SignalContract, provider: string): Promise<number | null> {
+async function deriveSignalNotional(
+  signal: SignalContract,
+  provider: string,
+): Promise<number | null> {
   const targetPct = Number(signal.position_advice?.position_pct || 0);
   if (!Number.isFinite(targetPct) || targetPct <= 0) return null;
 
@@ -528,7 +576,9 @@ async function deriveSignalNotional(signal: SignalContract, provider: string): P
   if (provider === 'BINANCE') {
     const adapter = createExchangeAdapter(provider);
     const snapshot = await adapter.fetchSnapshot();
-    const quote = snapshot.balances.find((row) => ['USDT', 'USDC', 'BUSD', 'FDUSD', 'USD'].includes(String(row.asset || '').toUpperCase()));
+    const quote = snapshot.balances.find((row) =>
+      ['USDT', 'USDC', 'BUSD', 'FDUSD', 'USD'].includes(String(row.asset || '').toUpperCase()),
+    );
     const capital = quote?.free ?? quote?.total ?? null;
     return Number.isFinite(Number(capital)) ? Number(capital) * (targetPct / 100) : null;
   }
@@ -568,10 +618,10 @@ function stringifyLiveExecutionNote(args: {
       route_key: 'live_champion_paper_challenger',
       champion_mode: 'LIVE',
       challenger_mode: 'PAPER',
-      shadow_execution_id: args.shadowExecutionId ?? null
+      shadow_execution_id: args.shadowExecutionId ?? null,
     },
     execution_guard: args.executionGuard || null,
-    user_note: args.userNote || null
+    user_note: args.userNote || null,
   });
 }
 
@@ -593,7 +643,7 @@ function stringifyShadowExecutionNote(args: {
     strategy_id: args.signal.strategy_id,
     strategy_family: args.signal.strategy_family,
     route_key: 'live_champion_paper_challenger',
-    user_note: args.userNote || null
+    user_note: args.userNote || null,
   });
 }
 
@@ -616,7 +666,7 @@ function parseNumericValue(value: unknown): number | null {
   const next = Number(
     String(value ?? '')
       .replace(/[$,%\s,]/g, '')
-      .trim()
+      .trim(),
   );
   return Number.isFinite(next) ? next : null;
 }
@@ -646,11 +696,13 @@ function normalizeBrowseNewsItem(row: import('../types.js').NewsItemRecord): Bro
     publisher: typeof payload?.publisher === 'string' ? payload.publisher : row.source,
     sourceUrl: typeof payload?.sourceUrl === 'string' ? payload.sourceUrl : null,
     url: row.url || null,
-    publishedAt: Number.isFinite(row.published_at_ms) ? new Date(row.published_at_ms).toISOString() : null,
+    publishedAt: Number.isFinite(row.published_at_ms)
+      ? new Date(row.published_at_ms).toISOString()
+      : null,
     sentiment: row.sentiment_label,
     relevance: Number(row.relevance_score || 0),
     summary: typeof payload?.summary === 'string' ? payload.summary : null,
-    imageUrl: typeof payload?.imageUrl === 'string' ? payload.imageUrl : null
+    imageUrl: typeof payload?.imageUrl === 'string' ? payload.imageUrl : null,
   };
 }
 
@@ -661,17 +713,20 @@ function deriveRelatedEtfs(symbol: string, market: Market): string[] {
   return ['SPY', 'QQQ', 'VTI'];
 }
 
-function deriveOptionEntries(args: { market: Market; symbol: string }): Array<{ label: string; description: string }> {
+function deriveOptionEntries(args: {
+  market: Market;
+  symbol: string;
+}): Array<{ label: string; description: string }> {
   if (args.market !== 'US') {
     return [
       { label: 'Perps', description: 'Perpetual/futures execution context' },
-      { label: 'Basis', description: 'Cross-venue basis and carry view' }
+      { label: 'Basis', description: 'Cross-venue basis and carry view' },
     ];
   }
   return [
     { label: 'Calls', description: `${args.symbol} bullish directional options entry` },
     { label: 'Puts', description: `${args.symbol} downside hedge and event protection` },
-    { label: 'Flow', description: 'Watch unusual flow and implied vol shifts' }
+    { label: 'Flow', description: 'Watch unusual flow and implied vol shifts' },
   ];
 }
 
@@ -682,7 +737,9 @@ function isBrowseChartPoint(value: unknown): value is BrowseChartPoint {
 }
 
 function buildDirectEquityCandidate(symbolInput: string): SearchCandidate {
-  const symbol = String(symbolInput || '').trim().toUpperCase();
+  const symbol = String(symbolInput || '')
+    .trim()
+    .toUpperCase();
   return {
     symbol,
     market: 'US',
@@ -692,13 +749,17 @@ function buildDirectEquityCandidate(symbolInput: string): SearchCandidate {
     hint: 'Direct ticker lookup',
     source: 'remote',
     aliases: [symbol],
-    heuristicDirect: true
+    heuristicDirect: true,
   };
 }
 
 function buildDirectCryptoCandidate(symbolInput: string): SearchCandidate {
   const pair = parseCryptoLookupSymbol(symbolInput);
-  const base = pair?.base || String(symbolInput || '').trim().toUpperCase();
+  const base =
+    pair?.base ||
+    String(symbolInput || '')
+      .trim()
+      .toUpperCase();
   const quote = pair?.quote || 'USDT';
   const symbol = pair?.resolvedSymbol || base;
   return {
@@ -709,8 +770,15 @@ function buildDirectCryptoCandidate(symbolInput: string): SearchCandidate {
     name: `${base} / ${quote}`,
     hint: 'Direct crypto lookup',
     source: 'remote',
-    aliases: [symbol, base, `${base}${quote}`, `${base}/${quote}`, symbolInput, ...(commonCryptoNames[base] || [])],
-    heuristicDirect: true
+    aliases: [
+      symbol,
+      base,
+      `${base}${quote}`,
+      `${base}/${quote}`,
+      symbolInput,
+      ...(commonCryptoNames[base] || []),
+    ],
+    heuristicDirect: true,
   };
 }
 
@@ -765,7 +833,9 @@ function searchUniverseDir(): string {
   return path.resolve(queriesDir, '../../../data/reference_universes');
 }
 
-function parseCryptoLookupSymbol(value: string): { base: string; quote: string; resolvedSymbol: string; gatePair: string } | null {
+function parseCryptoLookupSymbol(
+  value: string,
+): { base: string; quote: string; resolvedSymbol: string; gatePair: string } | null {
   const compact = String(value || '')
     .trim()
     .toUpperCase()
@@ -780,7 +850,7 @@ function parseCryptoLookupSymbol(value: string): { base: string; quote: string; 
       base,
       quote,
       resolvedSymbol: `${base}${quote}`,
-      gatePair: `${base}_${quote}`
+      gatePair: `${base}_${quote}`,
     };
   }
 
@@ -790,14 +860,16 @@ function parseCryptoLookupSymbol(value: string): { base: string; quote: string; 
       base: alias,
       quote: 'USDT',
       resolvedSymbol: `${alias}USDT`,
-      gatePair: `${alias}_USDT`
+      gatePair: `${alias}_USDT`,
     };
   }
 
   return null;
 }
 
-function buildLiveAssetCandidate(asset: ReturnType<MarketRepository['listAssets']>[number]): SearchCandidate {
+function buildLiveAssetCandidate(
+  asset: ReturnType<MarketRepository['listAssets']>[number],
+): SearchCandidate {
   const market = asset.market === 'CRYPTO' ? 'CRYPTO' : 'US';
   const assetClass = market === 'CRYPTO' ? 'CRYPTO' : 'US_STOCK';
   const cryptoPair = parseCryptoBaseQuote(asset.symbol);
@@ -809,7 +881,7 @@ function buildLiveAssetCandidate(asset: ReturnType<MarketRepository['listAssets'
     quote ? `${base || ''}${quote}` : null,
     base && quote ? `${base}/${quote}` : null,
     ...(base ? commonCryptoNames[base] || [] : []),
-    ...(commonEquityAliases[asset.symbol] || [])
+    ...(commonEquityAliases[asset.symbol] || []),
   ].filter(Boolean) as string[];
 
   return {
@@ -818,20 +890,20 @@ function buildLiveAssetCandidate(asset: ReturnType<MarketRepository['listAssets'
     assetClass,
     venue: asset.venue,
     name:
-      market === 'CRYPTO'
-        ? `${base || asset.symbol}${quote ? ` / ${quote}` : ''}`
-        : asset.symbol,
+      market === 'CRYPTO' ? `${base || asset.symbol}${quote ? ` / ${quote}` : ''}` : asset.symbol,
     hint:
       market === 'CRYPTO'
         ? `Crypto${asset.venue ? ` · ${asset.venue}` : ''}`
         : `US stock${asset.venue ? ` · ${asset.venue}` : ''}`,
     source: 'live',
-    aliases
+    aliases,
   };
 }
 
 function buildReferenceAssetCandidate(item: ReferenceUniverseInstrument): SearchCandidate {
-  const isCrypto = String(item.market || '').toUpperCase().includes('CRYPTO');
+  const isCrypto = String(item.market || '')
+    .toUpperCase()
+    .includes('CRYPTO');
   const market: Market = isCrypto ? 'CRYPTO' : 'US';
   const assetClass: AssetClass = isCrypto ? 'CRYPTO' : 'US_STOCK';
   const pair = parseCryptoBaseQuote(item.symbol);
@@ -844,7 +916,7 @@ function buildReferenceAssetCandidate(item: ReferenceUniverseInstrument): Search
     base && quote ? `${base}/${quote}` : null,
     item.category,
     ...(base ? commonCryptoNames[base] || [] : []),
-    ...(commonEquityAliases[item.symbol] || [])
+    ...(commonEquityAliases[item.symbol] || []),
   ].filter(Boolean) as string[];
 
   return {
@@ -852,16 +924,13 @@ function buildReferenceAssetCandidate(item: ReferenceUniverseInstrument): Search
     market,
     assetClass,
     venue: null,
-    name:
-      market === 'CRYPTO'
-        ? `${base || item.symbol}${quote ? ` / ${quote}` : ''}`
-        : item.symbol,
+    name: market === 'CRYPTO' ? `${base || item.symbol}${quote ? ` / ${quote}` : ''}` : item.symbol,
     hint:
       market === 'CRYPTO'
         ? sentenceCase(item.category || 'crypto')
         : sentenceCase(item.category || 'US equity'),
     source: 'reference',
-    aliases
+    aliases,
   };
 }
 
@@ -878,7 +947,14 @@ function buildRemoteEquityCandidate(input: {
   const exchange = String(input.exchange || '').trim();
   const type = String(input.type || '').trim();
   const currency = String(input.currency || '').trim();
-  const aliases = [symbol, input.name, region, exchange, type, ...(commonEquityAliases[symbol] || [])].filter(Boolean) as string[];
+  const aliases = [
+    symbol,
+    input.name,
+    region,
+    exchange,
+    type,
+    ...(commonEquityAliases[symbol] || []),
+  ].filter(Boolean) as string[];
   const hintParts = [type || 'Equity', region, exchange, currency].filter(Boolean);
 
   return {
@@ -889,7 +965,7 @@ function buildRemoteEquityCandidate(input: {
     name: String(input.name || symbol).trim() || symbol,
     hint: hintParts.join(' · '),
     source: 'remote',
-    aliases
+    aliases,
   };
 }
 
@@ -899,9 +975,13 @@ function buildRemoteCryptoCandidate(input: {
   rank?: number | null;
 }): SearchCandidate {
   const symbol = String(input.symbol || '').toUpperCase();
-  const aliases = [symbol, input.name, ...(commonCryptoNames[symbol] || [])].filter(Boolean) as string[];
+  const aliases = [symbol, input.name, ...(commonCryptoNames[symbol] || [])].filter(
+    Boolean,
+  ) as string[];
   const rank =
-    Number.isFinite(Number(input.rank)) && Number(input.rank) > 0 ? `Rank #${Number(input.rank)}` : 'Crypto asset';
+    Number.isFinite(Number(input.rank)) && Number(input.rank) > 0
+      ? `Rank #${Number(input.rank)}`
+      : 'Crypto asset';
 
   return {
     symbol,
@@ -911,11 +991,14 @@ function buildRemoteCryptoCandidate(input: {
     name: String(input.name || symbol).trim() || symbol,
     hint: rank,
     source: 'remote',
-    aliases
+    aliases,
   };
 }
 
-async function searchAlphaVantageEquities(query: string, limit: number): Promise<SearchCandidate[]> {
+async function searchAlphaVantageEquities(
+  query: string,
+  limit: number,
+): Promise<SearchCandidate[]> {
   const apiKey = getAlphaVantageApiKey();
   if (!apiKey) return [];
 
@@ -941,8 +1024,8 @@ async function searchAlphaVantageEquities(query: string, limit: number): Promise
           type: row['3. type'],
           region: row['4. region'],
           exchange: row['4. region'] === 'United States' ? 'US' : row['4. region'],
-          currency: row['8. currency']
-        })
+          currency: row['8. currency'],
+        }),
       )
       .filter((candidate) => candidate.symbol)
       .slice(0, limit);
@@ -975,8 +1058,8 @@ async function searchCoinGeckoCrypto(query: string, limit: number): Promise<Sear
         buildRemoteCryptoCandidate({
           symbol: row.symbol || '',
           name: row.name || '',
-          rank: row.market_cap_rank
-        })
+          rank: row.market_cap_rank,
+        }),
       )
       .filter((candidate) => candidate.symbol)
       .slice(0, limit);
@@ -988,7 +1071,11 @@ async function searchCoinGeckoCrypto(query: string, limit: number): Promise<Sear
   }
 }
 
-async function searchRemoteAssets(query: string, limit: number, market?: Market): Promise<SearchCandidate[]> {
+async function searchRemoteAssets(
+  query: string,
+  limit: number,
+  market?: Market,
+): Promise<SearchCandidate[]> {
   if (query.trim().length < 2) return [];
 
   const tasks: Promise<SearchCandidate[]>[] = [];
@@ -1022,7 +1109,9 @@ function getReferenceSearchUniverse(): SearchCandidate[] {
   for (const file of referenceUniverseFiles) {
     const filePath = path.join(searchUniverseDir(), file);
     if (!fs.existsSync(filePath)) continue;
-    const payload = JSON.parse(fs.readFileSync(filePath, 'utf8')) as { instruments?: ReferenceUniverseInstrument[] };
+    const payload = JSON.parse(fs.readFileSync(filePath, 'utf8')) as {
+      instruments?: ReferenceUniverseInstrument[];
+    };
     for (const item of payload.instruments || []) {
       if (!item?.symbol) continue;
       const candidate = buildReferenceAssetCandidate(item);
@@ -1061,10 +1150,14 @@ function scoreAssetCandidate(query: string, candidate: SearchCandidate): number 
     const normalizedAlias = normalizeSearchText(alias);
     if (!normalizedAlias) continue;
     if (normalizedAlias === normalizedQuery) {
-      score = Math.max(score, (candidate.market === 'CRYPTO' ? 1210 : 1120) - exactHeuristicPenalty);
-    }
-    else if (normalizedAlias.startsWith(normalizedQuery)) score = Math.max(score, 900 - prefixHeuristicPenalty);
-    else if (normalizedAlias.includes(normalizedQuery)) score = Math.max(score, 640 - prefixHeuristicPenalty);
+      score = Math.max(
+        score,
+        (candidate.market === 'CRYPTO' ? 1210 : 1120) - exactHeuristicPenalty,
+      );
+    } else if (normalizedAlias.startsWith(normalizedQuery))
+      score = Math.max(score, 900 - prefixHeuristicPenalty);
+    else if (normalizedAlias.includes(normalizedQuery))
+      score = Math.max(score, 640 - prefixHeuristicPenalty);
   }
 
   if (candidate.market === 'CRYPTO' && symbol.endsWith(`${normalizedQuery}usdt`)) {
@@ -1083,7 +1176,7 @@ function toSearchResult(candidate: SearchCandidate, score: number): AssetSearchR
     assetClass: candidate.assetClass,
     venue: candidate.venue,
     source: candidate.source,
-    score
+    score,
   };
 }
 
@@ -1138,7 +1231,7 @@ export async function searchAssets(args: { query: string; limit?: number; market
   return Array.from(candidates.values())
     .map((candidate) => ({
       candidate,
-      score: scoreAssetCandidate(query, candidate)
+      score: scoreAssetCandidate(query, candidate),
     }))
     .filter((item) => item.score > 0)
     .sort((a, b) => {
@@ -1156,15 +1249,13 @@ export async function searchAssets(args: { query: string; limit?: number; market
 export function getSearchHealth(args?: { market?: Market; query?: string; resultCount?: number }) {
   const repo = getRepo();
   const liveAssets = repo.listAssets(args?.market).length;
-  const referenceAssets = getReferenceSearchUniverse().filter((candidate) => !args?.market || candidate.market === args.market).length;
+  const referenceAssets = getReferenceSearchUniverse().filter(
+    (candidate) => !args?.market || candidate.market === args.market,
+  ).length;
   const query = String(args?.query || '').trim();
   const resultCount = Number(args?.resultCount || 0);
   const status =
-    resultCount > 0
-      ? 'READY'
-      : liveAssets > 0 || referenceAssets > 0
-        ? 'DEGRADED'
-        : 'UNAVAILABLE';
+    resultCount > 0 ? 'READY' : liveAssets > 0 || referenceAssets > 0 ? 'DEGRADED' : 'UNAVAILABLE';
   const reason =
     resultCount > 0
       ? null
@@ -1182,13 +1273,13 @@ export function getSearchHealth(args?: { market?: Market; query?: string; result
     result_count: resultCount,
     live_asset_count: liveAssets,
     reference_asset_count: referenceAssets,
-    remote_lookup_enabled: query.length >= 2
+    remote_lookup_enabled: query.length >= 2,
   };
 }
 
 export async function getBrowseHomePayload(args?: { view?: string }) {
   return await getPublicBrowseHome({
-    view: args?.view
+    view: args?.view,
   });
 }
 
@@ -1212,26 +1303,28 @@ type NasdaqBrowseChartResponse = {
 };
 
 function assetClassesForBrowseSymbol(symbol: string): Array<'stocks' | 'etf'> {
-  return knownEtfSymbols.has(String(symbol || '').toUpperCase()) ? ['etf', 'stocks'] : ['stocks', 'etf'];
+  return knownEtfSymbols.has(String(symbol || '').toUpperCase())
+    ? ['etf', 'stocks']
+    : ['stocks', 'etf'];
 }
 
 function normalizeNasdaqBrowseChart(
   requestedSymbol: string,
   assetClass: 'stocks' | 'etf',
-  payload: NasdaqBrowseChartResponse
+  payload: NasdaqBrowseChartResponse,
 ): BrowseChartSnapshot | null {
   const data = payload.data;
   const points = (data?.chart || []).reduce<BrowseChartPoint[]>((acc, point) => {
-      const ts = Number(point?.x);
-      const close = parseNumericValue(point?.y ?? point?.z?.value);
-      if (!Number.isFinite(ts) || close === null) return acc;
-      acc.push({
-        ts,
-        close,
-        label: point?.z?.dateTime || null
-      });
-      return acc;
-    }, []);
+    const ts = Number(point?.x);
+    const close = parseNumericValue(point?.y ?? point?.z?.value);
+    if (!Number.isFinite(ts) || close === null) return acc;
+    acc.push({
+      ts,
+      close,
+      label: point?.z?.dateTime || null,
+    });
+    return acc;
+  }, []);
 
   const lastPoint = points[points.length - 1] || null;
   const firstPoint = points[0] || null;
@@ -1261,7 +1354,7 @@ function normalizeNasdaqBrowseChart(
     previousClose,
     change,
     points,
-    note: 'Today intraday chart from Nasdaq'
+    note: 'Today intraday chart from Nasdaq',
   };
 }
 
@@ -1277,11 +1370,11 @@ async function fetchNasdaqBrowseChart(symbol: string): Promise<BrowseChartSnapsh
           headers: {
             'User-Agent': 'Mozilla/5.0 NovaQuant/1.0',
             Accept: 'application/json',
-            Referer: 'https://www.nasdaq.com/'
-          }
+            Referer: 'https://www.nasdaq.com/',
+          },
         },
         { attempts: 2, baseDelayMs: 900 },
-        config.nasdaq.timeoutMs
+        config.nasdaq.timeoutMs,
       );
       if (!response.ok) continue;
       const payload = (await response.json()) as NasdaqBrowseChartResponse;
@@ -1300,7 +1393,11 @@ function startOfLocalDayUnixSeconds(nowMs = Date.now()): number {
   return Math.floor(local.getTime() / 1000);
 }
 
-function normalizeGateCryptoChart(requestedSymbol: string, pair: string, payload: unknown): BrowseChartSnapshot | null {
+function normalizeGateCryptoChart(
+  requestedSymbol: string,
+  pair: string,
+  payload: unknown,
+): BrowseChartSnapshot | null {
   if (!Array.isArray(payload)) return null;
 
   const points = payload
@@ -1338,7 +1435,7 @@ function normalizeGateCryptoChart(requestedSymbol: string, pair: string, payload
     previousClose: first,
     change,
     points,
-    note: 'Today intraday chart from Gate.io spot'
+    note: 'Today intraday chart from Gate.io spot',
   };
 }
 
@@ -1358,11 +1455,11 @@ async function fetchGateCryptoBrowseChart(symbol: string): Promise<BrowseChartSn
       {
         headers: {
           Accept: 'application/json',
-          'User-Agent': getSearchUserAgent()
-        }
+          'User-Agent': getSearchUserAgent(),
+        },
       },
       { attempts: 2, baseDelayMs: 900 },
-      12_000
+      12_000,
     );
     if (!response.ok) return null;
     const payload = (await response.json()) as unknown;
@@ -1372,10 +1469,18 @@ async function fetchGateCryptoBrowseChart(symbol: string): Promise<BrowseChartSn
   }
 }
 
-function buildLocalBrowseChart(args: { market: Market; symbol: string }): BrowseChartSnapshot | null {
+function buildLocalBrowseChart(args: {
+  market: Market;
+  symbol: string;
+}): BrowseChartSnapshot | null {
   const repo = getRepo();
-  const directSymbol = String(args.symbol || '').trim().toUpperCase();
-  const cryptoResolved = args.market === 'CRYPTO' ? parseCryptoLookupSymbol(directSymbol)?.resolvedSymbol || directSymbol : directSymbol;
+  const directSymbol = String(args.symbol || '')
+    .trim()
+    .toUpperCase();
+  const cryptoResolved =
+    args.market === 'CRYPTO'
+      ? parseCryptoLookupSymbol(directSymbol)?.resolvedSymbol || directSymbol
+      : directSymbol;
   const symbol = args.market === 'CRYPTO' ? cryptoResolved : directSymbol;
   const asset = repo.getAssetBySymbol(args.market, symbol);
   if (!asset) return null;
@@ -1386,15 +1491,15 @@ function buildLocalBrowseChart(args: { market: Market; symbol: string }): Browse
     const rows = repo.getOhlcv({
       assetId: asset.asset_id,
       timeframe,
-      limit
+      limit,
     });
     const points = rows.reduce<BrowseChartPoint[]>((acc, row) => {
-        const ts = Number(row.ts_open);
-        const close = parseNumericValue(row.close);
-        if (!Number.isFinite(ts) || close === null) return acc;
-        acc.push({ ts, close, label: null });
-        return acc;
-      }, []);
+      const ts = Number(row.ts_open);
+      const close = parseNumericValue(row.close);
+      if (!Number.isFinite(ts) || close === null) return acc;
+      acc.push({ ts, close, label: null });
+      return acc;
+    }, []);
 
     if (points.length < 2) continue;
 
@@ -1425,16 +1530,21 @@ function buildLocalBrowseChart(args: { market: Market; symbol: string }): Browse
       previousClose: first,
       change,
       points,
-      note: 'Latest cached market data from local store'
+      note: 'Latest cached market data from local store',
     };
   }
 
   return null;
 }
 
-export async function getBrowseAssetChart(args: { market: Market; symbol: string }): Promise<BrowseChartSnapshot | null> {
+export async function getBrowseAssetChart(args: {
+  market: Market;
+  symbol: string;
+}): Promise<BrowseChartSnapshot | null> {
   const market = args.market;
-  const symbol = String(args.symbol || '').trim().toUpperCase();
+  const symbol = String(args.symbol || '')
+    .trim()
+    .toUpperCase();
   if (!symbol) return null;
 
   if (market === 'US') {
@@ -1444,68 +1554,101 @@ export async function getBrowseAssetChart(args: { market: Market; symbol: string
   return (await fetchGateCryptoBrowseChart(symbol)) || buildLocalBrowseChart({ market, symbol });
 }
 
-export async function getBrowseNewsFeed(args: { market?: Market | 'ALL'; symbol?: string; limit?: number }) {
+export async function getBrowseNewsFeed(args: {
+  market?: Market | 'ALL';
+  symbol?: string;
+  limit?: number;
+}) {
   const repo = getRepo();
-  const symbol = String(args.symbol || '').trim().toUpperCase();
+  const symbol = String(args.symbol || '')
+    .trim()
+    .toUpperCase();
   const market = args.market || 'ALL';
   if (symbol && market !== 'ALL') {
     await ensureFreshNewsForSymbol({
       repo,
       market,
-      symbol
+      symbol,
     });
   } else {
     await ensureFreshNewsForUniverse({
       repo,
-      market
+      market,
     });
   }
   const rows = repo.listNewsItems({
     market: market === 'ALL' ? undefined : market,
     symbol: symbol || undefined,
-    limit: args.limit || 8
+    limit: args.limit || 8,
   });
   return rows.map(normalizeBrowseNewsItem);
 }
 
-export async function getBrowseAssetOverview(args: { market: Market; symbol: string }): Promise<BrowseAssetOverview | null> {
+export async function getBrowseAssetOverview(args: {
+  market: Market;
+  symbol: string;
+}): Promise<BrowseAssetOverview | null> {
   const repo = getRepo();
-  const symbol = String(args.symbol || '').trim().toUpperCase();
+  const symbol = String(args.symbol || '')
+    .trim()
+    .toUpperCase();
   if (!symbol) return null;
 
-  const asset = repo.getAssetBySymbol(args.market, args.market === 'CRYPTO' ? parseCryptoLookupSymbol(symbol)?.resolvedSymbol || symbol : symbol);
+  const asset = repo.getAssetBySymbol(
+    args.market,
+    args.market === 'CRYPTO' ? parseCryptoLookupSymbol(symbol)?.resolvedSymbol || symbol : symbol,
+  );
   if (!asset) return null;
 
   const history = repo.getOhlcv({
     assetId: asset.asset_id,
     timeframe: '1d',
-    limit: args.market === 'CRYPTO' ? 180 : 260
+    limit: args.market === 'CRYPTO' ? 180 : 260,
   });
-  const closes = history.map((row) => parseNumericValue(row.close)).filter((value): value is number => Number.isFinite(value));
-  const highs = history.map((row) => parseNumericValue(row.high)).filter((value): value is number => Number.isFinite(value));
-  const lows = history.map((row) => parseNumericValue(row.low)).filter((value): value is number => Number.isFinite(value));
-  const volumes = history.map((row) => parseNumericValue(row.volume)).filter((value): value is number => Number.isFinite(value));
+  const closes = history
+    .map((row) => parseNumericValue(row.close))
+    .filter((value): value is number => Number.isFinite(value));
+  const highs = history
+    .map((row) => parseNumericValue(row.high))
+    .filter((value): value is number => Number.isFinite(value));
+  const lows = history
+    .map((row) => parseNumericValue(row.low))
+    .filter((value): value is number => Number.isFinite(value));
+  const volumes = history
+    .map((row) => parseNumericValue(row.volume))
+    .filter((value): value is number => Number.isFinite(value));
   const latestClose = closes[closes.length - 1] ?? null;
   const previousClose = closes.length >= 2 ? closes[closes.length - 2] : null;
-  const changePct = latestClose !== null && previousClose !== null && previousClose ? (latestClose - previousClose) / previousClose : null;
+  const changePct =
+    latestClose !== null && previousClose !== null && previousClose
+      ? (latestClose - previousClose) / previousClose
+      : null;
   const rangeHigh = highs.length ? Math.max(...highs) : null;
   const rangeLow = lows.length ? Math.min(...lows) : null;
   const latestVolume = volumes[volumes.length - 1] ?? null;
-  const avgVolume30d = volumes.length ? volumes.slice(-30).reduce((sum, value) => sum + value, 0) / Math.max(1, Math.min(30, volumes.length)) : null;
-  const assetType = args.market === 'CRYPTO' ? 'Crypto spot' : knownEtfSymbols.has(asset.symbol) ? 'ETF' : 'US equity';
+  const avgVolume30d = volumes.length
+    ? volumes.slice(-30).reduce((sum, value) => sum + value, 0) /
+      Math.max(1, Math.min(30, volumes.length))
+    : null;
+  const assetType =
+    args.market === 'CRYPTO'
+      ? 'Crypto spot'
+      : knownEtfSymbols.has(asset.symbol)
+        ? 'ETF'
+        : 'US equity';
   const quoteCurrency = asset.quote || (args.market === 'CRYPTO' ? 'USDT' : 'USD');
   const newsRows = await getBrowseNewsFeed({
     market: args.market,
     symbol: asset.symbol,
-    limit: 6
+    limit: 6,
   });
   const newsContext = buildNewsContext(
     repo.listNewsItems({
       market: args.market,
       symbol: asset.symbol,
-      limit: 6
+      limit: 6,
     }),
-    asset.symbol
+    asset.symbol,
   );
 
   const earnings =
@@ -1514,11 +1657,11 @@ export async function getBrowseAssetOverview(args: { market: Market; symbol: str
           status: 'Watch',
           note: knownEtfSymbols.has(asset.symbol)
             ? 'ETF basket does not have a single earnings event; watch top-weight constituents instead.'
-            : 'No direct calendar feed is wired yet; use news and signal context around earnings windows.'
+            : 'No direct calendar feed is wired yet; use news and signal context around earnings windows.',
         }
       : {
           status: '24/7',
-          note: 'Crypto does not follow quarterly earnings; monitor exchange, ETF-flow, and funding headlines instead.'
+          note: 'Crypto does not follow quarterly earnings; monitor exchange, ETF-flow, and funding headlines instead.',
         };
 
   return {
@@ -1536,8 +1679,9 @@ export async function getBrowseAssetOverview(args: { market: Market; symbol: str
     profile: {
       tradingVenue: asset.venue,
       quoteCurrency,
-      tradingSchedule: args.market === 'CRYPTO' ? '24/7 continuous' : 'US session + pre/post market',
-      proxyType: assetType
+      tradingSchedule:
+        args.market === 'CRYPTO' ? '24/7 continuous' : 'US session + pre/post market',
+      proxyType: assetType,
     },
     tradingStats: {
       latestClose,
@@ -1547,23 +1691,23 @@ export async function getBrowseAssetOverview(args: { market: Market; symbol: str
       rangeLow,
       avgVolume30d,
       latestVolume,
-      barsAvailable: history.length
+      barsAvailable: history.length,
     },
     fundamentals: [
       { label: 'Asset type', value: assetType, source: 'reference' },
       { label: '52W / lookback high', value: formatCompactMetric(rangeHigh), source: 'derived' },
       { label: '52W / lookback low', value: formatCompactMetric(rangeLow), source: 'derived' },
       { label: '30D avg volume', value: formatCompactMetric(avgVolume30d), source: 'derived' },
-      { label: 'Latest volume', value: formatCompactMetric(latestVolume), source: 'derived' }
+      { label: 'Latest volume', value: formatCompactMetric(latestVolume), source: 'derived' },
     ],
     earnings,
     relatedEtfs: deriveRelatedEtfs(asset.symbol, args.market),
     optionEntries: deriveOptionEntries({
       market: args.market,
-      symbol: asset.symbol
+      symbol: asset.symbol,
     }),
     newsContext,
-    topNews: newsRows
+    topNews: newsRows,
   };
 }
 
@@ -1586,13 +1730,17 @@ export function queryOhlcv(args: {
     timeframe: args.timeframe,
     start: args.start,
     end: args.end,
-    limit: args.limit
+    limit: args.limit,
   });
 
   return { asset, rows };
 }
 
-export function syncQuantState(userId = 'guest-default', force = false, context: RuntimeSyncContext = {}) {
+export function syncQuantState(
+  userId = 'guest-default',
+  force = false,
+  context: RuntimeSyncContext = {},
+) {
   const repo = getRepo();
   return ensureQuantData(repo, userId, force, {
     riskProfileKey: context.riskProfileKey,
@@ -1600,7 +1748,7 @@ export function syncQuantState(userId = 'guest-default', force = false, context:
     assetClass: context.assetClass,
     timeframe: context.timeframe,
     universeScope: context.universeScope,
-    allowBackgroundStrategyRefresh: context.allowBackgroundStrategyRefresh
+    allowBackgroundStrategyRefresh: context.allowBackgroundStrategyRefresh,
   });
 }
 
@@ -1615,21 +1763,24 @@ export function listSignalContracts(args: {
   const repo = getRepo();
   syncQuantState(args.userId || 'guest-default', false, {
     market: args.market,
-    assetClass: args.assetClass
+    assetClass: args.assetClass,
   });
   const rows = repo.listSignals({
     assetClass: args.assetClass,
     market: args.market,
     symbol: args.symbol,
     status: args.status,
-    limit: args.limit
+    limit: args.limit,
   });
   return rows
     .map((row) => decodeSignalContract(row))
     .filter((row): row is SignalContract => Boolean(row));
 }
 
-export function getSignalContract(signalId: string, userId = 'guest-default'): SignalContract | null {
+export function getSignalContract(
+  signalId: string,
+  userId = 'guest-default',
+): SignalContract | null {
   const repo = getRepo();
   syncQuantState(userId);
   const row = repo.getSignal(signalId);
@@ -1644,9 +1795,11 @@ function executionGovernanceThresholds() {
   const maxUnreconciled = Number(process.env.NOVA_EXECUTION_KILL_SWITCH_MAX_UNRECONCILED || 3);
   return {
     max_drift_bps: Number.isFinite(maxDriftBps) && maxDriftBps > 0 ? maxDriftBps : 125,
-    max_drift_breaches: Number.isFinite(maxDriftBreaches) && maxDriftBreaches > 0 ? maxDriftBreaches : 2,
-    max_lookup_failures: Number.isFinite(maxLookupFailures) && maxLookupFailures > 0 ? maxLookupFailures : 3,
-    max_unreconciled: Number.isFinite(maxUnreconciled) && maxUnreconciled > 0 ? maxUnreconciled : 3
+    max_drift_breaches:
+      Number.isFinite(maxDriftBreaches) && maxDriftBreaches > 0 ? maxDriftBreaches : 2,
+    max_lookup_failures:
+      Number.isFinite(maxLookupFailures) && maxLookupFailures > 0 ? maxLookupFailures : 3,
+    max_unreconciled: Number.isFinite(maxUnreconciled) && maxUnreconciled > 0 ? maxUnreconciled : 3,
   };
 }
 
@@ -1674,8 +1827,19 @@ function orderEffectivePrice(args: {
 }
 
 function liveOrderState(status: string) {
-  const normalized = String(status || '').trim().toUpperCase();
-  if (['NEW', 'ACCEPTED', 'ACCEPTED_FOR_BIDDING', 'PARTIALLY_FILLED', 'PENDING_NEW', 'PENDING_REPLACE'].includes(normalized)) {
+  const normalized = String(status || '')
+    .trim()
+    .toUpperCase();
+  if (
+    [
+      'NEW',
+      'ACCEPTED',
+      'ACCEPTED_FOR_BIDDING',
+      'PARTIALLY_FILLED',
+      'PENDING_NEW',
+      'PENDING_REPLACE',
+    ].includes(normalized)
+  ) {
     return 'PENDING';
   }
   if (['FILLED', 'DONE', 'CLOSED'].includes(normalized)) return 'FILLED';
@@ -1686,13 +1850,13 @@ function liveOrderState(status: string) {
 function readManualExecutionKillSwitch(repo: MarketRepository, provider?: string) {
   const runs = repo.listWorkflowRuns({
     workflowKey: 'execution_kill_switch',
-    limit: 40
+    limit: 40,
   });
   const normalizedProvider = provider ? String(provider).toUpperCase() : null;
   const applicable = runs
     .map((run) => ({
       run,
-      output: asObject(parseJsonValue(run.output_json))
+      output: asObject(parseJsonValue(run.output_json)),
     }))
     .filter(({ output }) => {
       const scopeProvider = output.provider ? String(output.provider).toUpperCase() : null;
@@ -1705,7 +1869,7 @@ function readManualExecutionKillSwitch(repo: MarketRepository, provider?: string
       enabled: false,
       provider: normalizedProvider,
       reason: null as string | null,
-      updated_at: null as string | null
+      updated_at: null as string | null,
     };
   }
 
@@ -1713,7 +1877,7 @@ function readManualExecutionKillSwitch(repo: MarketRepository, provider?: string
     enabled: Boolean(applicable.output.enabled),
     provider: applicable.output.provider ? String(applicable.output.provider).toUpperCase() : null,
     reason: applicable.output.reason ? String(applicable.output.reason) : null,
-    updated_at: toIso(applicable.run.updated_at_ms)
+    updated_at: toIso(applicable.run.updated_at_ms),
   };
 }
 
@@ -1730,7 +1894,7 @@ async function buildExecutionReconciliation(args: {
     .listExecutions({
       userId: args.userId,
       mode: 'LIVE',
-      limit: Math.max(1, Math.min(30, args.limit || 12))
+      limit: Math.max(1, Math.min(30, args.limit || 12)),
     })
     .filter((row) => {
       const note = parseLiveExecutionNote(row.note);
@@ -1742,16 +1906,18 @@ async function buildExecutionReconciliation(args: {
     .listExecutions({
       userId: args.userId,
       mode: 'PAPER',
-      limit: 200
+      limit: 200,
     })
     .filter((row) => parseShadowExecutionNote(row.note));
   const shadowByLiveExecutionId = new Map(
     paperExecutions
       .map((row) => {
         const note = parseShadowExecutionNote(row.note);
-        return note?.paired_live_execution_id ? [note.paired_live_execution_id, row] as const : null;
+        return note?.paired_live_execution_id
+          ? ([note.paired_live_execution_id, row] as const)
+          : null;
       })
-      .filter((row): row is readonly [string, typeof paperExecutions[number]] => Boolean(row))
+      .filter((row): row is readonly [string, (typeof paperExecutions)[number]] => Boolean(row)),
   );
 
   const rows = [] as Array<Record<string, unknown>>;
@@ -1766,7 +1932,7 @@ async function buildExecutionReconciliation(args: {
             provider: storedNote.provider,
             orderId: storedNote.order_id,
             clientOrderId: storedNote.client_order_id || undefined,
-            symbol: execution.symbol
+            symbol: execution.symbol,
           })
         : { ok: true as const, order: null as OrderStatusSnapshot | null };
     const liveOrder = statusLookup.ok ? statusLookup.order : null;
@@ -1775,7 +1941,7 @@ async function buildExecutionReconciliation(args: {
       filledAvgPrice: liveOrder?.filled_avg_price ?? storedNote.filled_avg_price,
       limitPrice: liveOrder?.limit_price ?? storedNote.limit_price,
       notional: liveOrder?.notional ?? storedNote.notional,
-      qty: liveOrder?.filled_qty ?? liveOrder?.qty ?? storedNote.filled_qty ?? storedNote.qty
+      qty: liveOrder?.filled_qty ?? liveOrder?.qty ?? storedNote.filled_qty ?? storedNote.qty,
     });
     const expectedEntryPrice = storedNote.expected_entry_price ?? execution.entry_price ?? null;
     const paperEntryPrice = shadow?.entry_price ?? shadowNote?.expected_entry_price ?? null;
@@ -1799,7 +1965,8 @@ async function buildExecutionReconciliation(args: {
       reconciliationStatus = 'NO_CHALLENGER';
     } else if (
       (entryGapBps !== null && Math.abs(entryGapBps) > thresholds.max_drift_bps) ||
-      (championVsChallengerGapBps !== null && Math.abs(championVsChallengerGapBps) > thresholds.max_drift_bps)
+      (championVsChallengerGapBps !== null &&
+        Math.abs(championVsChallengerGapBps) > thresholds.max_drift_bps)
     ) {
       reconciliationStatus = 'DRIFT';
     }
@@ -1823,12 +1990,16 @@ async function buildExecutionReconciliation(args: {
       live_effective_price: effectivePrice,
       paper_entry_price: paperEntryPrice,
       entry_gap_bps: entryGapBps !== null ? Number(entryGapBps.toFixed(2)) : null,
-      challenger_gap_bps: championVsChallengerGapBps !== null ? Number(championVsChallengerGapBps.toFixed(2)) : null,
+      challenger_gap_bps:
+        championVsChallengerGapBps !== null ? Number(championVsChallengerGapBps.toFixed(2)) : null,
       strategy_id: storedNote.strategy_id,
       strategy_family: storedNote.strategy_family,
       signal_score: storedNote.signal_score,
-      submitted_at: liveOrder?.submitted_at || storedNote.submitted_at || new Date(execution.created_at_ms).toISOString(),
-      execution_guard: storedNote.execution_guard || null
+      submitted_at:
+        liveOrder?.submitted_at ||
+        storedNote.submitted_at ||
+        new Date(execution.created_at_ms).toISOString(),
+      execution_guard: storedNote.execution_guard || null,
     });
   }
 
@@ -1851,8 +2022,8 @@ async function buildExecutionReconciliation(args: {
       no_challenger: rows.filter((row) => row.reconciliation_status === 'NO_CHALLENGER').length,
       cancelled: rows.filter((row) => row.reconciliation_status === 'CANCELLED').length,
       avg_entry_gap_bps: avg('entry_gap_bps'),
-      avg_challenger_gap_bps: avg('challenger_gap_bps')
-    }
+      avg_challenger_gap_bps: avg('challenger_gap_bps'),
+    },
   };
 }
 
@@ -1875,17 +2046,17 @@ async function buildExecutionGovernance(args: {
 
   if (reconciliation.summary.drift >= thresholds.max_drift_breaches) {
     autoReasons.push(
-      `Execution drift breached ${reconciliation.summary.drift}/${thresholds.max_drift_breaches} recent live orders.`
+      `Execution drift breached ${reconciliation.summary.drift}/${thresholds.max_drift_breaches} recent live orders.`,
     );
   }
   if (reconciliation.summary.lookup_failed >= thresholds.max_lookup_failures) {
     autoReasons.push(
-      `Order-status lookup failed ${reconciliation.summary.lookup_failed}/${thresholds.max_lookup_failures} times.`
+      `Order-status lookup failed ${reconciliation.summary.lookup_failed}/${thresholds.max_lookup_failures} times.`,
     );
   }
   if (unreconciledCount >= thresholds.max_unreconciled) {
     autoReasons.push(
-      `Unreconciled live orders reached ${unreconciledCount}/${thresholds.max_unreconciled}.`
+      `Unreconciled live orders reached ${unreconciledCount}/${thresholds.max_unreconciled}.`,
     );
   }
 
@@ -1910,12 +2081,12 @@ async function buildExecutionGovernance(args: {
         shadow_execution_id: row.shadow_execution_id,
         strategy_id: row.strategy_id,
         strategy_family: row.strategy_family,
-        reconciliation_status: row.reconciliation_status
-      }))
+        reconciliation_status: row.reconciliation_status,
+      })),
     },
     reconciliation: {
       refreshed: Boolean(args.refreshOrders),
-      ...reconciliation
+      ...reconciliation,
     },
     kill_switch: {
       active: killSwitchActive,
@@ -1926,8 +2097,8 @@ async function buildExecutionGovernance(args: {
       thresholds,
       last_manual_update_at: manual.updated_at,
       last_manual_reason: manual.reason,
-      provider_scope: manual.provider || null
-    }
+      provider_scope: manual.provider || null,
+    },
   };
 }
 
@@ -1951,16 +2122,16 @@ export function upsertExecution(args: {
     mode: args.mode,
     action: args.action,
     note: args.note,
-    pnlPct: args.pnlPct
+    pnlPct: args.pnlPct,
   });
   repo.upsertExecution(execution);
   repo.appendSignalEvent(signal.id, `EXECUTION_${args.action}`, {
     mode: args.mode,
-    execution_id: execution.execution_id
+    execution_id: execution.execution_id,
   });
   syncQuantState(args.userId, true, {
     market: signal.market,
-    assetClass: signal.asset_class
+    assetClass: signal.asset_class,
   });
   return { ok: true, executionId: execution.execution_id };
 }
@@ -2001,21 +2172,30 @@ export async function submitExecution(args: {
       userId: args.userId,
       provider,
       limit: 8,
-      refreshOrders: true
+      refreshOrders: true,
     });
     if (governance.kill_switch.active) {
       return {
         ok: false,
         error: `Execution kill switch is active. ${governance.kill_switch.reasons[0] || 'Live routing is temporarily blocked.'}`,
-        governance
+        governance,
       };
     }
 
     const side = signalExecutionSide(signal);
-    const orderType = args.orderType || (String(signal.entry_zone?.method || '').toUpperCase().includes('MARKET') ? 'MARKET' : 'LIMIT');
+    const orderType =
+      args.orderType ||
+      (String(signal.entry_zone?.method || '')
+        .toUpperCase()
+        .includes('MARKET')
+        ? 'MARKET'
+        : 'LIMIT');
     const limitPrice = args.limitPrice ?? signalEntryMid(signal);
     const notional =
-      args.notional ?? (Number.isFinite(Number(args.qty)) && Number(args.qty) > 0 ? null : await deriveSignalNotional(signal, provider));
+      args.notional ??
+      (Number.isFinite(Number(args.qty)) && Number(args.qty) > 0
+        ? null
+        : await deriveSignalNotional(signal, provider));
 
     const orderRequest = {
       symbol: signal.symbol,
@@ -2025,7 +2205,7 @@ export async function submitExecution(args: {
       notional,
       limit_price: limitPrice,
       time_in_force: args.timeInForce || (provider === 'BINANCE' ? 'GTC' : 'DAY'),
-      client_order_id: `${args.userId.replace(/[^a-zA-Z0-9]+/g, '').slice(0, 12)}_${Date.now()}`
+      client_order_id: `${args.userId.replace(/[^a-zA-Z0-9]+/g, '').slice(0, 12)}_${Date.now()}`,
     } as const;
 
     const order =
@@ -2034,7 +2214,10 @@ export async function submitExecution(args: {
         : await createExchangeAdapter(provider).submitOrder?.(orderRequest);
 
     if (!order) {
-      return { ok: false, error: `Provider ${provider} does not support live order routing in this build.` };
+      return {
+        ok: false,
+        error: `Provider ${provider} does not support live order routing in this build.`,
+      };
     }
 
     const execution = createExecutionRecord({
@@ -2049,9 +2232,9 @@ export async function submitExecution(args: {
         expectedEntryPrice: signalEntryMid(signal),
         expectedNotional: notional,
         executionGuard: governance.kill_switch,
-        userNote: args.note
+        userNote: args.note,
       }),
-      pnlPct: args.pnlPct
+      pnlPct: args.pnlPct,
     });
     repo.upsertExecution(execution);
 
@@ -2067,9 +2250,9 @@ export async function submitExecution(args: {
           signal,
           order,
           liveExecutionId: execution.execution_id,
-          userNote: args.note
+          userNote: args.note,
         }),
-        pnlPct: null
+        pnlPct: null,
       });
       repo.upsertExecution(shadowExecution);
       shadowExecutionId = shadowExecution.execution_id;
@@ -2081,7 +2264,7 @@ export async function submitExecution(args: {
         expectedNotional: notional,
         shadowExecutionId,
         executionGuard: governance.kill_switch,
-        userNote: args.note
+        userNote: args.note,
       });
       repo.upsertExecution(execution);
     } catch (shadowError) {
@@ -2093,9 +2276,9 @@ export async function submitExecution(args: {
         expectedNotional: notional,
         executionGuard: {
           ...governance.kill_switch,
-          shadow_error: shadowError instanceof Error ? shadowError.message : String(shadowError)
+          shadow_error: shadowError instanceof Error ? shadowError.message : String(shadowError),
         },
-        userNote: args.note
+        userNote: args.note,
       });
       repo.upsertExecution(execution);
     }
@@ -2108,23 +2291,23 @@ export async function submitExecution(args: {
       client_order_id: order.client_order_id,
       order_status: order.status,
       shadow_execution_id: shadowExecutionId,
-      route_key: 'live_champion_paper_challenger'
+      route_key: 'live_champion_paper_challenger',
     });
     syncQuantState(args.userId, true, {
       market: signal.market,
-      assetClass: signal.asset_class
+      assetClass: signal.asset_class,
     });
     return {
       ok: true,
       executionId: execution.execution_id,
       shadowExecutionId,
       order,
-      governance
+      governance,
     };
   } catch (error) {
     return {
       ok: false,
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
     };
   }
 }
@@ -2141,7 +2324,7 @@ export async function getExecutionGovernance(args?: {
     userId: args?.userId || 'guest-default',
     provider: args?.provider,
     limit: args?.limit,
-    refreshOrders: args?.refreshOrders
+    refreshOrders: args?.refreshOrders,
   });
 }
 
@@ -2166,24 +2349,24 @@ export async function setExecutionKillSwitch(args: {
     trace_id: null,
     input_json: JSON.stringify({
       user_id: userId,
-      provider
+      provider,
     }),
     output_json: JSON.stringify({
       enabled: Boolean(args.enabled),
       reason: args.reason || null,
-      provider
+      provider,
     }),
     attempt_count: 1,
     started_at_ms: now,
     updated_at_ms: now,
-    completed_at_ms: now
+    completed_at_ms: now,
   });
 
   return getExecutionGovernance({
     userId,
     provider: provider || undefined,
     limit: 12,
-    refreshOrders: false
+    refreshOrders: false,
   });
 }
 
@@ -2193,22 +2376,27 @@ export async function getLiveOrderStatus(args: {
   clientOrderId?: string;
   symbol?: string;
 }) {
-  const provider = String(args.provider || '').trim().toUpperCase();
+  const provider = String(args.provider || '')
+    .trim()
+    .toUpperCase();
   if (!provider) return { ok: false, error: 'provider is required' };
   try {
     const order =
       provider === 'ALPACA'
         ? await createBrokerAdapter(provider).getOrder?.({
             orderId: args.orderId,
-            clientOrderId: args.clientOrderId
+            clientOrderId: args.clientOrderId,
           })
         : await createExchangeAdapter(provider).getOrder?.({
             orderId: args.orderId,
             clientOrderId: args.clientOrderId,
-            symbol: args.symbol
+            symbol: args.symbol,
           });
     if (!order) {
-      return { ok: false, error: `Provider ${provider} does not support order lookup in this build.` };
+      return {
+        ok: false,
+        error: `Provider ${provider} does not support order lookup in this build.`,
+      };
     }
     return { ok: true, order };
   } catch (error) {
@@ -2222,22 +2410,27 @@ export async function cancelLiveOrder(args: {
   clientOrderId?: string;
   symbol?: string;
 }) {
-  const provider = String(args.provider || '').trim().toUpperCase();
+  const provider = String(args.provider || '')
+    .trim()
+    .toUpperCase();
   if (!provider) return { ok: false, error: 'provider is required' };
   try {
     const order =
       provider === 'ALPACA'
         ? await createBrokerAdapter(provider).cancelOrder?.({
             orderId: args.orderId,
-            clientOrderId: args.clientOrderId
+            clientOrderId: args.clientOrderId,
           })
         : await createExchangeAdapter(provider).cancelOrder?.({
             orderId: args.orderId,
             clientOrderId: args.clientOrderId,
-            symbol: args.symbol
+            symbol: args.symbol,
           });
     if (!order) {
-      return { ok: false, error: `Provider ${provider} does not support order cancellation in this build.` };
+      return {
+        ok: false,
+        error: `Provider ${provider} does not support order cancellation in this build.`,
+      };
     }
     return { ok: true, order };
   } catch (error) {
@@ -2251,7 +2444,9 @@ export function findUserLiveExecutionOrder(args: {
   orderId?: string;
   clientOrderId?: string;
 }) {
-  const provider = String(args.provider || '').trim().toUpperCase();
+  const provider = String(args.provider || '')
+    .trim()
+    .toUpperCase();
   const orderId = String(args.orderId || '').trim();
   const clientOrderId = String(args.clientOrderId || '').trim();
   if (!args.userId || !provider || (!orderId && !clientOrderId)) return null;
@@ -2259,7 +2454,7 @@ export function findUserLiveExecutionOrder(args: {
   const executions = listExecutions({
     userId: args.userId,
     mode: 'LIVE',
-    limit: 1000
+    limit: 1000,
   });
   for (const row of executions) {
     const note = parseLiveExecutionNote(row.note);
@@ -2269,7 +2464,7 @@ export function findUserLiveExecutionOrder(args: {
         executionId: row.execution_id,
         orderId: note.order_id,
         clientOrderId: note.client_order_id,
-        provider: note.provider
+        provider: note.provider,
       };
     }
     if (clientOrderId && note.client_order_id === clientOrderId) {
@@ -2277,7 +2472,7 @@ export function findUserLiveExecutionOrder(args: {
         executionId: row.execution_id,
         orderId: note.order_id,
         clientOrderId: note.client_order_id,
-        provider: note.provider
+        provider: note.provider,
       };
     }
   }
@@ -2297,7 +2492,7 @@ export function listExecutions(args: {
     market: args.market,
     mode: args.mode,
     signalId: args.signalId,
-    limit: args.limit
+    limit: args.limit,
   });
 }
 
@@ -2310,12 +2505,12 @@ export function getMarketState(args: {
   const repo = getRepo();
   syncQuantState(args.userId || 'guest-default', false, {
     market: args.market,
-    timeframe: args.timeframe
+    timeframe: args.timeframe,
   });
   return repo.listMarketState({
     market: args.market,
     symbol: args.symbol,
-    timeframe: args.timeframe
+    timeframe: args.timeframe,
   });
 }
 
@@ -2323,11 +2518,11 @@ export function getPerformanceSummary(args: { userId?: string; market?: Market; 
   const repo = getRepo();
   const state = syncQuantState(args.userId || 'guest-default', false, {
     market: args.market,
-    timeframe: args.range
+    timeframe: args.range,
   });
   const rows = repo.listPerformanceSnapshots({
     market: args.market,
-    range: args.range
+    range: args.range,
   });
   const grouped = rows.reduce<Record<string, Record<string, unknown>>>((acc, row) => {
     const key = `${row.market}:${row.range}`;
@@ -2338,13 +2533,15 @@ export function getPerformanceSummary(args: { userId?: string; market?: Market; 
         overall: null,
         by_strategy: [],
         by_regime: [],
-        deviation: null
+        deviation: null,
       };
     }
     const payload = JSON.parse(row.payload_json) as Record<string, unknown>;
     if (row.segment_type === 'OVERALL') acc[key].overall = payload;
-    if (row.segment_type === 'STRATEGY') (acc[key].by_strategy as Record<string, unknown>[]).push(payload);
-    if (row.segment_type === 'REGIME') (acc[key].by_regime as Record<string, unknown>[]).push(payload);
+    if (row.segment_type === 'STRATEGY')
+      (acc[key].by_strategy as Record<string, unknown>[]).push(payload);
+    if (row.segment_type === 'REGIME')
+      (acc[key].by_regime as Record<string, unknown>[]).push(payload);
     if (row.segment_type === 'DEVIATION') acc[key].deviation = payload;
     return acc;
   }, {});
@@ -2352,7 +2549,7 @@ export function getPerformanceSummary(args: { userId?: string; market?: Market; 
   return {
     asof: new Date(state.asofMs).toISOString(),
     source_status: normalizeRuntimeStatus(state.sourceStatus, RUNTIME_STATUS.INSUFFICIENT_DATA),
-    records: Object.values(grouped)
+    records: Object.values(grouped),
   };
 }
 
@@ -2368,7 +2565,10 @@ export function getRiskProfile(userId = 'guest-default', opts?: { skipSync?: boo
   return repo.getUserRiskProfile(userId);
 }
 
-export function setRiskProfile(userId: string, profileKey: 'conservative' | 'balanced' | 'aggressive') {
+export function setRiskProfile(
+  userId: string,
+  profileKey: 'conservative' | 'balanced' | 'aggressive',
+) {
   const repo = getRepo();
   const preset = RISK_PROFILE_PRESETS[profileKey] || RISK_PROFILE_PRESETS.balanced;
   repo.upsertUserRiskProfile({
@@ -2379,7 +2579,7 @@ export function setRiskProfile(userId: string, profileKey: 'conservative' | 'bal
     max_drawdown: preset.max_drawdown,
     exposure_cap: preset.exposure_cap,
     leverage_cap: preset.leverage_cap,
-    updated_at_ms: Date.now()
+    updated_at_ms: Date.now(),
   });
   return repo.getUserRiskProfile(userId);
 }
@@ -2396,7 +2596,7 @@ export function ensureDefaultPublicSignalsApiKey(): string {
     key_hash: hashApiKey(plainKey),
     label: 'Default Public Signals Key',
     scope: 'signals:read',
-    status: 'ACTIVE'
+    status: 'ACTIVE',
   });
   return plainKey;
 }
@@ -2411,7 +2611,7 @@ export function verifyPublicSignalsApiKey(rawKey?: string): boolean {
 export function getMarketModules(args?: { market?: Market; assetClass?: AssetClass }) {
   const repo = getRepo();
   const rows = repo.listMarketState({
-    market: args?.market
+    market: args?.market,
   });
 
   const scoped = rows.filter((row) => {
@@ -2429,10 +2629,15 @@ export function getMarketModules(args?: { market?: Market; assetClass?: AssetCla
   return Array.from(bySymbol.values())
     .slice(0, 36)
     .map((row, index) => {
-      const event = row.event_stats_json ? (JSON.parse(row.event_stats_json) as Record<string, unknown>) : {};
+      const event = row.event_stats_json
+        ? (JSON.parse(row.event_stats_json) as Record<string, unknown>)
+        : {};
       const moduleStatus = withComponentStatus({
         overallDataStatus: normalizeRuntimeStatus(event.data_status, RUNTIME_STATUS.MODEL_DERIVED),
-        componentSourceStatus: normalizeRuntimeStatus(event.source_status, RUNTIME_STATUS.DB_BACKED)
+        componentSourceStatus: normalizeRuntimeStatus(
+          event.source_status,
+          RUNTIME_STATUS.DB_BACKED,
+        ),
       });
       return {
         id: `module-${row.market}-${row.symbol}-${index + 1}`,
@@ -2444,7 +2649,7 @@ export function getMarketModules(args?: { market?: Market; assetClass?: AssetCla
         source_status: moduleStatus.source_status,
         data_status: moduleStatus.data_status,
         source_label: moduleStatus.source_label,
-        as_of: new Date(row.updated_at_ms).toISOString()
+        as_of: new Date(row.updated_at_ms).toISOString(),
       };
     });
 }
@@ -2466,30 +2671,37 @@ export function upsertExternalConnection(args: {
     provider: args.provider,
     mode: args.mode,
     status: args.status,
-    meta_json: args.meta ? JSON.stringify(args.meta) : null
+    meta_json: args.meta ? JSON.stringify(args.meta) : null,
   });
   return { connection_id: id };
 }
 
-export function listExternalConnections(args: { userId: string; connectionType?: 'BROKER' | 'EXCHANGE' }) {
+export function listExternalConnections(args: {
+  userId: string;
+  connectionType?: 'BROKER' | 'EXCHANGE';
+}) {
   const repo = getRepo();
   const rows = repo.listExternalConnections({
     userId: args.userId,
-    connectionType: args.connectionType
+    connectionType: args.connectionType,
   });
   return rows.map((row) => ({
     ...row,
-    meta: row.meta_json ? JSON.parse(row.meta_json) : null
+    meta: row.meta_json ? JSON.parse(row.meta_json) : null,
   }));
 }
 
 function toUiSignal(signal: SignalContract): Record<string, unknown> {
   const grade = signal.score >= 75 ? 'A' : signal.score >= 63 ? 'B' : 'C';
-  const statusTag = signal.tags.find((tag) => String(tag).startsWith('status:'))?.split(':')[1] || RUNTIME_STATUS.MODEL_DERIVED;
-  const sourceTag = signal.tags.find((tag) => String(tag).startsWith('source:'))?.split(':')[1] || RUNTIME_STATUS.DB_BACKED;
+  const statusTag =
+    signal.tags.find((tag) => String(tag).startsWith('status:'))?.split(':')[1] ||
+    RUNTIME_STATUS.MODEL_DERIVED;
+  const sourceTag =
+    signal.tags.find((tag) => String(tag).startsWith('source:'))?.split(':')[1] ||
+    RUNTIME_STATUS.DB_BACKED;
   const status = withComponentStatus({
     overallDataStatus: normalizeRuntimeStatus(statusTag, RUNTIME_STATUS.MODEL_DERIVED),
-    componentSourceStatus: normalizeRuntimeStatus(sourceTag, RUNTIME_STATUS.DB_BACKED)
+    componentSourceStatus: normalizeRuntimeStatus(sourceTag, RUNTIME_STATUS.DB_BACKED),
   });
   return {
     ...signal,
@@ -2497,7 +2709,7 @@ function toUiSignal(signal: SignalContract): Record<string, unknown> {
     grade,
     source_status: status.source_status,
     source_label: status.source_label,
-    data_status: status.data_status
+    data_status: status.data_status,
   };
 }
 
@@ -2547,7 +2759,7 @@ function loadRuntimeStateCore(args: {
   const market = args.market || (args.assetClass === 'CRYPTO' ? 'CRYPTO' : 'US');
   const state = syncQuantState(userId, Boolean(args.forceSync), {
     market: args.market,
-    assetClass: args.assetClass
+    assetClass: args.assetClass,
   });
   const risk = getRiskProfile(userId, { skipSync: true });
 
@@ -2556,7 +2768,7 @@ function loadRuntimeStateCore(args: {
     market: args.market,
     assetClass: args.assetClass,
     status: 'ALL',
-    limit: 60
+    limit: 60,
   }).map(toUiSignal);
 
   const marketState = getMarketState({ userId, market });
@@ -2579,13 +2791,16 @@ function loadRuntimeStateCore(args: {
   const topSignal = active[0] || null;
 
   const avgVol = marketState.length
-    ? marketState.reduce((acc, row) => acc + Number(row.volatility_percentile || 0), 0) / marketState.length
+    ? marketState.reduce((acc, row) => acc + Number(row.volatility_percentile || 0), 0) /
+      marketState.length
     : null;
   const avgTemp = marketState.length
-    ? marketState.reduce((acc, row) => acc + Number(row.temperature_percentile || 0), 0) / marketState.length
+    ? marketState.reduce((acc, row) => acc + Number(row.temperature_percentile || 0), 0) /
+      marketState.length
     : null;
   const avgRiskOff = marketState.length
-    ? marketState.reduce((acc, row) => acc + Number(row.risk_off_score || 0), 0) / marketState.length
+    ? marketState.reduce((acc, row) => acc + Number(row.risk_off_score || 0), 0) /
+      marketState.length
     : null;
 
   const mode = modeFromRiskProfile(risk || undefined);
@@ -2594,13 +2809,22 @@ function loadRuntimeStateCore(args: {
 
   const today = {
     is_trading_day: true,
-    trading_day_message: market === 'CRYPTO' ? 'Crypto market runs 24/7.' : 'US market session inferred from bar updates.',
+    trading_day_message:
+      market === 'CRYPTO'
+        ? 'Crypto market runs 24/7.'
+        : 'US market session inferred from bar updates.',
     suggested_gross_exposure_pct: suggestedGross,
     suggested_net_exposure_pct: suggestedNet,
     style_hint:
-      topSignal && String(topSignal.strategy_family || '').toLowerCase().includes('mean')
+      topSignal &&
+      String(topSignal.strategy_family || '')
+        .toLowerCase()
+        .includes('mean')
         ? 'mean reversion'
-        : topSignal && String(topSignal.strategy_family || '').toLowerCase().includes('trend')
+        : topSignal &&
+            String(topSignal.strategy_family || '')
+              .toLowerCase()
+              .includes('trend')
           ? 'trend'
           : 'watchful',
     why_today: [
@@ -2610,14 +2834,19 @@ function loadRuntimeStateCore(args: {
       topSignal && typeof topSignal.news_context === 'object'
         ? `News tone: ${String((topSignal.news_context as Record<string, unknown>).tone || 'NONE').toLowerCase()}.`
         : 'No fresh news context is attached to the current top setup.',
-      avgVol === null ? 'Volatility percentile unavailable due to insufficient bars.' : `Average volatility percentile: ${avgVol.toFixed(1)}.`,
-      avgRiskOff === null ? 'Risk-off score unavailable.' : `Average risk-off score: ${avgRiskOff.toFixed(2)}.`
-    ]
+      avgVol === null
+        ? 'Volatility percentile unavailable due to insufficient bars.'
+        : `Average volatility percentile: ${avgVol.toFixed(1)}.`,
+      avgRiskOff === null
+        ? 'Risk-off score unavailable.'
+        : `Average risk-off score: ${avgRiskOff.toFixed(2)}.`,
+    ],
   };
 
   const safety = {
     mode,
-    safety_score: avgRiskOff === null ? 50 : Math.max(0, Math.min(100, Math.round((1 - avgRiskOff) * 100))),
+    safety_score:
+      avgRiskOff === null ? 50 : Math.max(0, Math.min(100, Math.round((1 - avgRiskOff) * 100))),
     suggested_gross_exposure_pct: suggestedGross,
     suggested_net_exposure_pct: suggestedNet,
     conclusion:
@@ -2627,71 +2856,117 @@ function loadRuntimeStateCore(args: {
           ? 'Mixed regime signals; keep size selective and controlled.'
           : 'Risk posture allows normal sizing within profile caps.',
     primary_risks: [
-      avgVol !== null && avgVol > 75 ? 'Volatility percentile is elevated.' : 'Volatility is not at panic level.',
-      avgTemp !== null && avgTemp > 82 ? 'Temperature is stretched; avoid chasing.' : 'Temperature is within normal range.',
+      avgVol !== null && avgVol > 75
+        ? 'Volatility percentile is elevated.'
+        : 'Volatility is not at panic level.',
+      avgTemp !== null && avgTemp > 82
+        ? 'Temperature is stretched; avoid chasing.'
+        : 'Temperature is within normal range.',
       state.sourceStatus !== RUNTIME_STATUS.DB_BACKED
         ? 'Data coverage is insufficient for high-confidence actions.'
-        : 'Signals are DB-backed from derived OHLCV state.'
+        : 'Signals are DB-backed from derived OHLCV state.',
     ],
     cards: {
       market: {
         title: 'Market',
         score: avgRiskOff === null ? 50 : Number(((1 - avgRiskOff) * 100).toFixed(1)),
-        lines: ['Derived from OHLCV trend/volatility/risk-off features.']
+        lines: ['Derived from OHLCV trend/volatility/risk-off features.'],
       },
       portfolio: {
         title: 'Portfolio',
         score: mode === 'do not trade' ? 35 : mode === 'trade light' ? 55 : 70,
-        lines: ['Exposure caps follow user risk profile.']
+        lines: ['Exposure caps follow user risk profile.'],
       },
       instrument: {
         title: 'Instrument',
         score: topSignal ? Number(topSignal.score || 50) : 45,
-        lines: [topSignal ? `Top candidate: ${String(topSignal.symbol)}` : 'No active candidate in NEW/TRIGGERED state.']
-      }
+        lines: [
+          topSignal
+            ? `Top candidate: ${String(topSignal.symbol)}`
+            : 'No active candidate in NEW/TRIGGERED state.',
+        ],
+      },
     },
     rules: [
-      { id: 'size-cap', title: 'Size cap', rule: `Gross exposure cap ${risk?.exposure_cap ?? '--'}%` },
-      { id: 'hard-stop', title: 'Hard stop', rule: 'Every trade requires invalidation placement before entry.' },
-      { id: 'skip-on-data-gap', title: 'Data guard', rule: 'If bars are stale or missing, strategy should skip.' }
-    ]
+      {
+        id: 'size-cap',
+        title: 'Size cap',
+        rule: `Gross exposure cap ${risk?.exposure_cap ?? '--'}%`,
+      },
+      {
+        id: 'hard-stop',
+        title: 'Hard stop',
+        rule: 'Every trade requires invalidation placement before entry.',
+      },
+      {
+        id: 'skip-on-data-gap',
+        title: 'Data guard',
+        rule: 'If bars are stale or missing, strategy should skip.',
+      },
+    ],
   };
 
   const insights = {
     regime: {
       tag: marketState[0]?.regime_id || RUNTIME_STATUS.INSUFFICIENT_DATA,
-      description: marketState[0]?.stance || 'No reliable market-state record available.'
+      description: marketState[0]?.stance || 'No reliable market-state record available.',
     },
     short_commentary: topSignal
       ? `Current best opportunity: ${String(topSignal.symbol)} (${String(topSignal.strategy_id)}).`
       : 'No high-quality opportunity currently passed filters.',
     breadth: {
       ratio: marketState.length
-        ? Number((marketState.filter((row) => Number(row.trend_strength || 0) >= 0.55).length / marketState.length).toFixed(4))
-        : null
+        ? Number(
+            (
+              marketState.filter((row) => Number(row.trend_strength || 0) >= 0.55).length /
+              marketState.length
+            ).toFixed(4),
+          )
+        : null,
     },
     volatility: {
-      label: avgVol === null ? 'insufficient_data' : avgVol >= 80 ? 'elevated' : avgVol >= 60 ? 'moderate' : 'calm'
+      label:
+        avgVol === null
+          ? 'insufficient_data'
+          : avgVol >= 80
+            ? 'elevated'
+            : avgVol >= 60
+              ? 'moderate'
+              : 'calm',
     },
     risk_on_off: {
-      state: avgRiskOff === null ? 'insufficient_data' : avgRiskOff >= 0.7 ? 'risk_off' : avgRiskOff >= 0.55 ? 'neutral' : 'risk_on'
+      state:
+        avgRiskOff === null
+          ? 'insufficient_data'
+          : avgRiskOff >= 0.7
+            ? 'risk_off'
+            : avgRiskOff >= 0.55
+              ? 'neutral'
+              : 'risk_on',
     },
     style: {
-      preference: today.style_hint
+      preference: today.style_hint,
     },
     leadership: {
-      leaders: active.slice(0, 3).map((row) => ({ sector: String(row.symbol), score: Number(row.score || 0) / 100 })),
-      laggards: active.slice(-3).map((row) => ({ sector: String(row.symbol), score: Number(row.score || 0) / 100 }))
+      leaders: active
+        .slice(0, 3)
+        .map((row) => ({ sector: String(row.symbol), score: Number(row.score || 0) / 100 })),
+      laggards: active
+        .slice(-3)
+        .map((row) => ({ sector: String(row.symbol), score: Number(row.score || 0) / 100 })),
     },
-    why_signals_today: today.why_today
+    why_signals_today: today.why_today,
   };
 
-  const runtimeStateStatus = normalizeRuntimeStatus(state.sourceStatus, RUNTIME_STATUS.INSUFFICIENT_DATA);
+  const runtimeStateStatus = normalizeRuntimeStatus(
+    state.sourceStatus,
+    RUNTIME_STATUS.INSUFFICIENT_DATA,
+  );
   const runtimeLineage = buildEvidenceLineage({
     runtimeStatus: runtimeStateStatus,
     performanceStatus: performanceSource,
     sourceStatus: runtimeStateStatus,
-    dataStatus: runtimeStateStatus
+    dataStatus: runtimeStateStatus,
   });
   const runtimeTransparency = {
     as_of: new Date(state.asofMs).toISOString(),
@@ -2709,7 +2984,7 @@ function loadRuntimeStateCore(args: {
     model_derived: signals.length > 0,
     experimental: runtimeStateStatus === RUNTIME_STATUS.EXPERIMENTAL,
     disconnected: false,
-    performance_source: performanceSource
+    performance_source: performanceSource,
   };
 
   return {
@@ -2737,7 +3012,7 @@ function loadRuntimeStateCore(args: {
     safety,
     insights,
     runtimeStateStatus,
-    runtimeTransparency
+    runtimeTransparency,
   };
 }
 
@@ -2815,7 +3090,7 @@ function decisionSnapshotFromRow(row: DecisionSnapshotRecord) {
     summary,
     audit_snapshot_id: row.id,
     trace_id: null,
-    from_cache: true
+    from_cache: true,
   };
 }
 
@@ -2842,10 +3117,10 @@ function buildDecisionContextHash(args: {
           market: row.market,
           weight_pct: row.weight_pct,
           quantity: row.quantity,
-          sector: row.sector
+          sector: row.sector,
         })),
-        topActions: args.topActions
-      })
+        topActions: args.topActions,
+      }),
     )
     .digest('hex');
 }
@@ -2863,13 +3138,17 @@ function persistDecisionSnapshot(args: {
     riskProfileKey: args.core.risk?.profile_key,
     runtimeStatus: String(args.core.runtimeTransparency.source_status),
     holdings: args.holdings,
-    topActions: ((args.decision.ranked_action_cards as Array<Record<string, unknown>> | undefined) || []).map((row) => ({
+    topActions: (
+      (args.decision.ranked_action_cards as Array<Record<string, unknown>> | undefined) || []
+    ).map((row) => ({
       signal_id: String(row.signal_id || ''),
-      symbol: String(row.symbol || '')
-    }))
+      symbol: String(row.symbol || ''),
+    })),
   });
   const snapshotId = `decision-${createHash('sha256')
-    .update(`${args.core.userId}:${args.core.market}:${args.core.assetClass || 'ALL'}:${snapshotDate}:${contextHash}`)
+    .update(
+      `${args.core.userId}:${args.core.market}:${args.core.assetClass || 'ALL'}:${snapshotDate}:${contextHash}`,
+    )
     .digest('hex')
     .slice(0, 24)}`;
   const nowMs = Date.now();
@@ -2880,8 +3159,12 @@ function persistDecisionSnapshot(args: {
     asset_class: args.core.assetClass || 'ALL',
     snapshot_date: snapshotDate,
     context_hash: contextHash,
-    evidence_mode: (String(args.decision.evidence_mode || 'UNAVAILABLE') as import('../types.js').EvidenceMode),
-    performance_mode: (String(args.decision.performance_mode || 'UNAVAILABLE') as import('../types.js').EvidenceMode),
+    evidence_mode: String(
+      args.decision.evidence_mode || 'UNAVAILABLE',
+    ) as import('../types.js').EvidenceMode,
+    performance_mode: String(
+      args.decision.performance_mode || 'UNAVAILABLE',
+    ) as import('../types.js').EvidenceMode,
     source_status: String(args.decision.source_status || RUNTIME_STATUS.INSUFFICIENT_DATA),
     data_status: String(args.decision.data_status || RUNTIME_STATUS.INSUFFICIENT_DATA),
     risk_state_json: JSON.stringify(args.decision.risk_state || {}),
@@ -2890,7 +3173,7 @@ function persistDecisionSnapshot(args: {
     summary_json: JSON.stringify(args.decision.summary || {}),
     top_action_id: String(args.decision.top_action_id || '') || null,
     created_at_ms: nowMs,
-    updated_at_ms: nowMs
+    updated_at_ms: nowMs,
   });
   const traceId = createTraceId('decision');
   recordAuditEvent(args.core.repo, {
@@ -2904,16 +3187,18 @@ function persistDecisionSnapshot(args: {
       market: args.core.market,
       asset_class: args.core.assetClass || 'ALL',
       top_action_id: args.decision.top_action_id || null,
-      ranked_action_count: Array.isArray(args.decision.ranked_action_cards) ? args.decision.ranked_action_cards.length : 0,
+      ranked_action_count: Array.isArray(args.decision.ranked_action_cards)
+        ? args.decision.ranked_action_cards.length
+        : 0,
       evidence_mode: args.decision.evidence_mode || 'UNAVAILABLE',
       performance_mode: args.decision.performance_mode || 'UNAVAILABLE',
       source_status: args.decision.source_status || RUNTIME_STATUS.INSUFFICIENT_DATA,
-      data_status: args.decision.data_status || RUNTIME_STATUS.INSUFFICIENT_DATA
-    }
+      data_status: args.decision.data_status || RUNTIME_STATUS.INSUFFICIENT_DATA,
+    },
   });
   return {
     snapshotId,
-    traceId
+    traceId,
   };
 }
 
@@ -2926,14 +3211,16 @@ function buildDecisionSnapshotFromCore(args: {
     userId: args.core.userId,
     market: args.core.market,
     assetClass: args.core.assetClass,
-    limit: 6
+    limit: 6,
   });
   const previousRow = args.core.repo.getLatestDecisionSnapshot({
     userId: args.core.userId,
     market: args.core.market,
-    assetClass: args.core.assetClass || 'ALL'
+    assetClass: args.core.assetClass || 'ALL',
   });
-  const previousDecision = previousRow?.summary_json ? { summary: parseJsonObject(previousRow.summary_json) || {} } : null;
+  const previousDecision = previousRow?.summary_json
+    ? { summary: parseJsonObject(previousRow.summary_json) || {} }
+    : null;
   const decision = buildDecisionSnapshot({
     userId: args.core.userId,
     market: args.core.market,
@@ -2941,7 +3228,9 @@ function buildDecisionSnapshotFromCore(args: {
     asOf: String(args.core.runtimeTransparency.as_of),
     locale: args.locale,
     runtimeSourceStatus: String(args.core.runtimeTransparency.source_status),
-    performanceSourceStatus: String(args.core.performanceSource || RUNTIME_STATUS.INSUFFICIENT_DATA),
+    performanceSourceStatus: String(
+      args.core.performanceSource || RUNTIME_STATUS.INSUFFICIENT_DATA,
+    ),
     riskProfile: args.core.risk,
     signals: args.core.signals,
     evidenceSignals: evidenceTop.records || [],
@@ -2949,10 +3238,10 @@ function buildDecisionSnapshotFromCore(args: {
     executions: listExecutions({
       userId: args.core.userId,
       market: args.core.market,
-      limit: 60
+      limit: 60,
     }),
     holdings: args.holdings,
-    previousDecision
+    previousDecision,
   });
 
   return decision;
@@ -2967,26 +3256,26 @@ export async function getDecisionSnapshot(args: {
 }) {
   const core = loadRuntimeStateCore({
     ...args,
-    forceSync: true
+    forceSync: true,
   });
   const deterministic = buildDecisionSnapshotFromCore({
     core,
     holdings: args.holdings,
-    locale: args.locale
+    locale: args.locale,
   });
   if (
     shouldUsePublicDecisionFallback({
       sourceStatus: String(core.runtimeTransparency.source_status || ''),
       signalCount: core.signals.length,
       decision: deterministic as Record<string, unknown>,
-      holdings: args.holdings
+      holdings: args.holdings,
     })
   ) {
     return await getPublicTodayDecision({
       userId: core.userId,
       market: core.market,
       assetClass: core.assetClass,
-      locale: args.locale
+      locale: args.locale,
     });
   }
   const snapshotDate = snapshotDateKey(String(core.runtimeTransparency.as_of));
@@ -2997,15 +3286,17 @@ export async function getDecisionSnapshot(args: {
     riskProfileKey: core.risk?.profile_key,
     runtimeStatus: String(core.runtimeTransparency.source_status),
     holdings: args.holdings,
-    topActions: ((deterministic.ranked_action_cards as Array<Record<string, unknown>> | undefined) || []).map((row) => ({
+    topActions: (
+      (deterministic.ranked_action_cards as Array<Record<string, unknown>> | undefined) || []
+    ).map((row) => ({
       signal_id: String(row.signal_id || ''),
-      symbol: String(row.symbol || '')
-    }))
+      symbol: String(row.symbol || ''),
+    })),
   });
   const latest = core.repo.getLatestDecisionSnapshot({
     userId: core.userId,
     market: core.market,
-    assetClass: core.assetClass || 'ALL'
+    assetClass: core.assetClass || 'ALL',
   });
   const latestSummary = parseJsonObject(latest?.summary_json);
   const latestNovaMeta =
@@ -3015,12 +3306,16 @@ export async function getDecisionSnapshot(args: {
   const cachedNovaApplied = Boolean(latestNovaMeta?.applied);
   const cachedNovaAttempted = Boolean(latestNovaMeta?.attempted);
   const cachedNovaFreshFailure =
-    cachedNovaAttempted && !cachedNovaApplied && latest ? Date.now() - latest.updated_at_ms < 5 * 60 * 1000 : false;
+    cachedNovaAttempted && !cachedNovaApplied && latest
+      ? Date.now() - latest.updated_at_ms < 5 * 60 * 1000
+      : false;
   if (
     latest &&
     latest.snapshot_date === snapshotDate &&
     latest.context_hash === contextHash &&
-    (cachedNovaApplied || cachedNovaFreshFailure || String(process.env.NOVA_DISABLE_LOCAL_GENERATION || '') === '1')
+    (cachedNovaApplied ||
+      cachedNovaFreshFailure ||
+      String(process.env.NOVA_DISABLE_LOCAL_GENERATION || '') === '1')
   ) {
     return decisionSnapshotFromRow(latest);
   }
@@ -3028,17 +3323,17 @@ export async function getDecisionSnapshot(args: {
     repo: core.repo,
     userId: core.userId,
     locale: args.locale,
-    decision: deterministic as Record<string, unknown>
+    decision: deterministic as Record<string, unknown>,
   });
   const persisted = persistDecisionSnapshot({
     core,
     decision: enriched,
-    holdings: args.holdings
+    holdings: args.holdings,
   });
   return {
     ...enriched,
     audit_snapshot_id: persisted.snapshotId,
-    trace_id: persisted.traceId
+    trace_id: persisted.traceId,
   };
 }
 
@@ -3055,9 +3350,10 @@ async function getDecisionRowsForEngagement(args: {
   const latest = repo.getLatestDecisionSnapshot({
     userId,
     market: args.market,
-    assetClass
+    assetClass,
   });
-  const canReuseLatest = !args.holdings?.length && latest && Date.now() - latest.updated_at_ms < 5 * 60 * 1000;
+  const canReuseLatest =
+    !args.holdings?.length && latest && Date.now() - latest.updated_at_ms < 5 * 60 * 1000;
   if (!canReuseLatest) {
     await getDecisionSnapshot(args);
   }
@@ -3065,17 +3361,19 @@ async function getDecisionRowsForEngagement(args: {
     userId,
     market: args.market,
     assetClass,
-    limit: 6
+    limit: 6,
   });
   const current = rows[0] || null;
   const previous = rows[1] || null;
   return { current, previous };
 }
 
-function serializeNotificationRows(rows: Array<ReturnType<MarketRepository['listNotificationEvents']>[number]>) {
+function serializeNotificationRows(
+  rows: Array<ReturnType<MarketRepository['listNotificationEvents']>[number]>,
+) {
   return rows.map((row) => ({
     ...row,
-    reason: parseOptionalJson(row.reason_json)
+    reason: parseOptionalJson(row.reason_json),
   }));
 }
 
@@ -3107,7 +3405,7 @@ export async function getEngagementState(args: {
     userId,
     market,
     assetClass,
-    limit: 120
+    limit: 120,
   });
 
   const snapshot = buildEngagementSnapshot({
@@ -3120,7 +3418,7 @@ export async function getEngagementState(args: {
     decisionRow: current,
     previousDecisionRow: previous,
     ritualEvents: rituals,
-    notificationPreferences: preferences
+    notificationPreferences: preferences,
   });
 
   for (const notification of snapshot.notification_center.notifications || []) {
@@ -3132,7 +3430,7 @@ export async function getEngagementState(args: {
     market,
     assetClass,
     status: 'ACTIVE',
-    limit: 12
+    limit: 12,
   });
 
   const enrichedSnapshot = args.skipLanguage
@@ -3145,8 +3443,8 @@ export async function getEngagementState(args: {
         decision: {
           today_call: parseOptionalJson(current?.summary_json)?.today_call || null,
           risk_state: parseOptionalJson(current?.risk_state_json) || {},
-          ranked_action_cards: parseJsonArray(current?.actions_json)
-        }
+          ranked_action_cards: parseJsonArray(current?.actions_json),
+        },
       });
 
   return {
@@ -3154,9 +3452,9 @@ export async function getEngagementState(args: {
     notification_center: {
       ...((enrichedSnapshot.notification_center as Record<string, unknown>) || {}),
       active_count: persistedNotifications.length,
-      notifications: serializeNotificationRows(persistedNotifications)
+      notifications: serializeNotificationRows(persistedNotifications),
     },
-    decision_snapshot_id: current?.id || null
+    decision_snapshot_id: current?.id || null,
   };
 }
 
@@ -3180,7 +3478,11 @@ async function recordRitualEvent(args: {
   localDate?: string;
   localHour?: number;
   locale?: string;
-  eventType: 'MORNING_CHECK_COMPLETED' | 'RISK_BOUNDARY_CONFIRMED' | 'WRAP_UP_COMPLETED' | 'WEEKLY_REVIEW_COMPLETED';
+  eventType:
+    | 'MORNING_CHECK_COMPLETED'
+    | 'RISK_BOUNDARY_CONFIRMED'
+    | 'WRAP_UP_COMPLETED'
+    | 'WEEKLY_REVIEW_COMPLETED';
   reason?: Record<string, unknown>;
   holdings?: UserHoldingInput[];
 }) {
@@ -3199,7 +3501,7 @@ async function recordRitualEvent(args: {
       market,
       assetClass,
       eventDate,
-      eventType: args.eventType
+      eventType: args.eventType,
     }),
     user_id: userId,
     market,
@@ -3212,10 +3514,10 @@ async function recordRitualEvent(args: {
       risk_posture: summary?.risk_posture || null,
       top_action_id: current?.top_action_id || null,
       today_call: summary?.today_call || null,
-      ...(args.reason || {})
+      ...(args.reason || {}),
     }),
     created_at_ms: nowMs,
-    updated_at_ms: nowMs
+    updated_at_ms: nowMs,
   });
 
   return getEngagementState({
@@ -3225,7 +3527,7 @@ async function recordRitualEvent(args: {
     localDate: eventDate,
     localHour: args.localHour,
     holdings: args.holdings,
-    locale: args.locale
+    locale: args.locale,
   });
 }
 
@@ -3241,7 +3543,7 @@ export async function completeMorningCheck(args: {
   return recordRitualEvent({
     ...args,
     eventType: 'MORNING_CHECK_COMPLETED',
-    reason: { source: 'today_check' }
+    reason: { source: 'today_check' },
   });
 }
 
@@ -3257,7 +3559,7 @@ export async function confirmRiskBoundary(args: {
   return recordRitualEvent({
     ...args,
     eventType: 'RISK_BOUNDARY_CONFIRMED',
-    reason: { source: 'user_boundary_confirmation' }
+    reason: { source: 'user_boundary_confirmation' },
   });
 }
 
@@ -3273,7 +3575,7 @@ export async function completeWrapUp(args: {
   return recordRitualEvent({
     ...args,
     eventType: 'WRAP_UP_COMPLETED',
-    reason: { source: 'daily_wrap_up' }
+    reason: { source: 'daily_wrap_up' },
   });
 }
 
@@ -3289,7 +3591,7 @@ export async function completeWeeklyReview(args: {
   return recordRitualEvent({
     ...args,
     eventType: 'WEEKLY_REVIEW_COMPLETED',
-    reason: { source: 'weekly_review' }
+    reason: { source: 'weekly_review' },
   });
 }
 
@@ -3304,7 +3606,7 @@ export async function getWidgetSummary(args: {
 }) {
   const snapshot = await getEngagementState({
     ...args,
-    skipLanguage: true
+    skipLanguage: true,
   });
   return {
     as_of: snapshot.as_of,
@@ -3313,7 +3615,7 @@ export async function getWidgetSummary(args: {
     perception_layer: snapshot.perception_layer,
     widget_summary: snapshot.widget_summary,
     ui_regime_state: snapshot.ui_regime_state,
-    recommendation_change: snapshot.recommendation_change
+    recommendation_change: snapshot.recommendation_change,
   };
 }
 
@@ -3328,13 +3630,13 @@ export async function getNotificationPreview(args: {
 }) {
   const snapshot = await getEngagementState({
     ...args,
-    skipLanguage: true
+    skipLanguage: true,
   });
   return {
     as_of: snapshot.as_of,
     source_status: snapshot.source_status,
     data_status: snapshot.data_status,
-    notification_center: snapshot.notification_center
+    notification_center: snapshot.notification_center,
   };
 }
 
@@ -3359,12 +3661,12 @@ export function setNotificationPreferencesState(args: {
   const userId = args.userId || 'guest-default';
   const current = resolveNotificationPreferences(repo, userId);
   const sanitizedUpdates = Object.fromEntries(
-    Object.entries(args.updates || {}).filter(([, value]) => value !== undefined)
+    Object.entries(args.updates || {}).filter(([, value]) => value !== undefined),
   ) as typeof args.updates;
   const next = {
     ...current,
     ...sanitizedUpdates,
-    updated_at_ms: Date.now()
+    updated_at_ms: Date.now(),
   };
   repo.upsertUserNotificationPreferences(next);
   return next;
@@ -3380,7 +3682,7 @@ export function getNovaRuntimeState() {
     provider: plan.provider,
     local_only: plan.local_only,
     mode,
-    availability_reason: getNovaRuntimeAvailabilityReason(mode)
+    availability_reason: getNovaRuntimeAvailabilityReason(mode),
   };
 }
 
@@ -3409,7 +3711,7 @@ export function listNovaRuns(args?: {
     threadId: args?.threadId,
     taskType: args?.taskType,
     status: args?.status,
-    limit: args?.limit || 60
+    limit: args?.limit || 60,
   });
   return {
     count: rows.length,
@@ -3417,8 +3719,8 @@ export function listNovaRuns(args?: {
       ...row,
       input: parseOptionalJson(row.input_json),
       context: parseOptionalJson(row.context_json),
-      output: parseOptionalJson(row.output_json)
-    }))
+      output: parseOptionalJson(row.output_json),
+    })),
   };
 }
 
@@ -3438,7 +3740,7 @@ export function createNovaReviewLabel(args: {
     label: args.label,
     score: args.score,
     notes: args.notes,
-    includeInTraining: args.includeInTraining
+    includeInTraining: args.includeInTraining,
   });
 }
 
@@ -3461,7 +3763,7 @@ export async function runNovaTrainingFlywheelNow(args?: {
     trainer: args?.trainer,
     onlyIncluded: args?.onlyIncluded,
     limit: args?.limit,
-    taskTypes: args?.taskTypes
+    taskTypes: args?.taskTypes,
   });
 }
 
@@ -3481,7 +3783,7 @@ export async function runNovaStrategyGeneration(args: {
     locale: args.locale || 'en',
     market: args.market || null,
     riskProfile: args.riskProfile || null,
-    maxCandidates: args.maxCandidates
+    maxCandidates: args.maxCandidates,
   });
 }
 
@@ -3505,7 +3807,7 @@ export async function recordNovaAssistantRun(args: {
     responseText: args.responseText,
     provider: args.provider,
     status: args.status,
-    error: args.error
+    error: args.error,
   });
 }
 
@@ -3520,7 +3822,7 @@ export function listDecisionAudit(args: {
     userId: args.userId || 'guest-default',
     market: args.market,
     assetClass: args.assetClass || undefined,
-    limit: args.limit || 20
+    limit: args.limit || 20,
   });
   return {
     count: rows.length,
@@ -3543,8 +3845,8 @@ export function listDecisionAudit(args: {
           return [];
         }
       })(),
-      updated_at_ms: row.updated_at_ms
-    }))
+      updated_at_ms: row.updated_at_ms,
+    })),
   };
 }
 
@@ -3555,7 +3857,7 @@ export function getRuntimeState(args: {
 }) {
   const core = loadRuntimeStateCore(args);
   const decision = buildDecisionSnapshotFromCore({
-    core
+    core,
   });
 
   return {
@@ -3567,13 +3869,15 @@ export function getRuntimeState(args: {
       signals: core.signals,
       performance: core.performance,
       decision,
-      trades: listExecutions({ userId: core.userId, market: core.market, limit: 200 }).map((row) => ({
-        ...row,
-        time_in: new Date(row.created_at_ms).toISOString(),
-        time_out: new Date(row.created_at_ms).toISOString(),
-        entry: row.entry_price,
-        exit: row.tp_price ?? row.entry_price
-      })),
+      trades: listExecutions({ userId: core.userId, market: core.market, limit: 200 }).map(
+        (row) => ({
+          ...row,
+          time_in: new Date(row.created_at_ms).toISOString(),
+          time_out: new Date(row.created_at_ms).toISOString(),
+          entry: row.entry_price,
+          exit: row.tp_price ?? row.entry_price,
+        }),
+      ),
       velocity: {
         as_of: core.runtimeTransparency.as_of,
         market: core.market,
@@ -3581,32 +3885,38 @@ export function getRuntimeState(args: {
         temperature_percentile: core.avgTemp,
         risk_off_score: core.avgRiskOff,
         ...withComponentStatus({
-          overallDataStatus: normalizeRuntimeStatus(core.runtimeTransparency.data_status, RUNTIME_STATUS.INSUFFICIENT_DATA),
-          componentSourceStatus: RUNTIME_STATUS.MODEL_DERIVED
-        })
+          overallDataStatus: normalizeRuntimeStatus(
+            core.runtimeTransparency.data_status,
+            RUNTIME_STATUS.INSUFFICIENT_DATA,
+          ),
+          componentSourceStatus: RUNTIME_STATUS.MODEL_DERIVED,
+        }),
       },
       config: {
         last_updated: core.runtimeTransparency.as_of,
         ...withComponentStatus({
-          overallDataStatus: normalizeRuntimeStatus(core.runtimeTransparency.data_status, RUNTIME_STATUS.INSUFFICIENT_DATA),
-          componentSourceStatus: RUNTIME_STATUS.MODEL_DERIVED
+          overallDataStatus: normalizeRuntimeStatus(
+            core.runtimeTransparency.data_status,
+            RUNTIME_STATUS.INSUFFICIENT_DATA,
+          ),
+          componentSourceStatus: RUNTIME_STATUS.MODEL_DERIVED,
         }),
         risk_rules: {
           per_trade_risk_pct: core.risk?.max_loss_per_trade ?? null,
           daily_loss_pct: core.risk?.max_daily_loss ?? null,
           max_dd_pct: core.risk?.max_drawdown ?? null,
           exposure_cap_pct: core.risk?.exposure_cap ?? null,
-          vol_switch: true
+          vol_switch: true,
         },
         risk_status: {
           current_risk_bucket: core.mode.toUpperCase(),
           bucket_state: core.mode.toUpperCase(),
           diagnostics: {
             daily_pnl_pct: null,
-            max_dd_pct: null
-          }
+            max_dd_pct: null,
+          },
         },
-        runtime: core.runtimeTransparency
+        runtime: core.runtimeTransparency,
       },
       market_modules: core.modules,
       analytics: {
@@ -3615,25 +3925,28 @@ export function getRuntimeState(args: {
         status_flags: {
           runtime_source: core.runtimeTransparency.source_status,
           performance_source: core.performanceSource,
-          has_performance_sample: core.hasPerformanceSample
-        }
+          has_performance_sample: core.hasPerformanceSample,
+        },
       },
       research: {
         ...withComponentStatus({
-          overallDataStatus: normalizeRuntimeStatus(core.runtimeTransparency.data_status, RUNTIME_STATUS.INSUFFICIENT_DATA),
-          componentSourceStatus: RUNTIME_STATUS.MODEL_DERIVED
+          overallDataStatus: normalizeRuntimeStatus(
+            core.runtimeTransparency.data_status,
+            RUNTIME_STATUS.INSUFFICIENT_DATA,
+          ),
+          componentSourceStatus: RUNTIME_STATUS.MODEL_DERIVED,
         }),
         notes: [
           core.runtimeTransparency.data_status === RUNTIME_STATUS.DB_BACKED
             ? 'Runtime app state is DB-backed; advanced research modules remain experimental in this API path.'
-            : 'Runtime app state is currently insufficient for high-confidence research overlays.'
-        ]
+            : 'Runtime app state is currently insufficient for high-confidence research overlays.',
+        ],
       },
       today: core.today,
       safety: core.safety,
       insights: core.insights,
       ai: {
-        source_transparency: core.runtimeTransparency
+        source_transparency: core.runtimeTransparency,
       },
       layers: {
         data_layer: {
@@ -3641,8 +3954,8 @@ export function getRuntimeState(args: {
             ticker: row.symbol,
             market: row.market,
             latest_close: null,
-            sector: row.market === 'CRYPTO' ? 'Crypto' : 'US'
-          }))
+            sector: row.market === 'CRYPTO' ? 'Crypto' : 'US',
+          })),
         },
         portfolio_layer: {
           candidates: core.active.slice(0, 12).map((row) => ({
@@ -3652,16 +3965,16 @@ export function getRuntimeState(args: {
             confidence: row.confidence,
             risk_score: row.volatility_percentile,
             entry_plan: {
-              entry_zone: row.entry_zone
-            }
+              entry_zone: row.entry_zone,
+            },
           })),
           filtered_out: core.signals
             .filter((row) => !['NEW', 'TRIGGERED'].includes(String(row.status)))
             .slice(0, 12)
-            .map((row) => ({ ticker: row.symbol, reason: row.status }))
-        }
-      }
-    }
+            .map((row) => ({ ticker: row.symbol, reason: row.status })),
+        },
+      },
+    },
   };
 }
 
@@ -3679,7 +3992,11 @@ function shouldUsePublicDecisionFallback(args: {
   const signalCount = Number(args.signalCount || 0);
   const todayCall = asObject(asObject(args.decision).today_call);
   const decisionCode = String(todayCall.code || '').toUpperCase();
-  return runtimeStatus !== RUNTIME_STATUS.DB_BACKED && signalCount === 0 && (decisionCode === 'UNAVAILABLE' || !decisionCode);
+  return (
+    runtimeStatus !== RUNTIME_STATUS.DB_BACKED &&
+    signalCount === 0 &&
+    (decisionCode === 'UNAVAILABLE' || !decisionCode)
+  );
 }
 
 function signalPayloadsFromDecision(decision: Record<string, unknown> | null | undefined) {
@@ -3698,7 +4015,7 @@ export async function getRuntimeStateResponse(args: {
     !shouldUsePublicDecisionFallback({
       sourceStatus: String(runtime.source_status || ''),
       signalCount: Array.isArray(runtime?.data?.signals) ? runtime.data.signals.length : 0,
-      decision: asObject(runtime?.data?.decision)
+      decision: asObject(runtime?.data?.decision),
     })
   ) {
     return runtime;
@@ -3708,7 +4025,7 @@ export async function getRuntimeStateResponse(args: {
     const publicDecision = await getPublicTodayDecision({
       userId: args.userId,
       market: args.market,
-      assetClass: args.assetClass
+      assetClass: args.assetClass,
     });
     const publicSignals = signalPayloadsFromDecision(publicDecision as Record<string, unknown>);
     return {
@@ -3716,8 +4033,8 @@ export async function getRuntimeStateResponse(args: {
       data: {
         ...runtime.data,
         signals: publicSignals.length ? publicSignals : runtime.data.signals,
-        decision: publicDecision
-      }
+        decision: publicDecision,
+      },
     };
   } catch {
     return runtime;
@@ -3734,7 +4051,9 @@ function parseJsonValue(text: string | null | undefined): unknown {
 }
 
 function asObject(value: unknown): Record<string, unknown> {
-  return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
 }
 
 function asArray(value: unknown): unknown[] {
@@ -3759,7 +4078,7 @@ function workflowRunBase(run: WorkflowRunRecord) {
     trigger_type: run.trigger_type,
     started_at: toIso(run.started_at_ms),
     updated_at: toIso(run.updated_at_ms),
-    completed_at: toIso(run.completed_at_ms)
+    completed_at: toIso(run.completed_at_ms),
   };
 }
 
@@ -3780,8 +4099,12 @@ function summarizeFreeDataRun(run: WorkflowRunRecord) {
       symbol: String(row.symbol || ''),
       funding_inserted: toCount(row.funding_inserted),
       basis_inserted: toCount(row.basis_inserted),
-      latest_funding_rate: Number.isFinite(Number(row.latest_funding_rate)) ? Number(row.latest_funding_rate) : null,
-      latest_basis_bps: Number.isFinite(Number(row.latest_basis_bps)) ? Number(row.latest_basis_bps) : null
+      latest_funding_rate: Number.isFinite(Number(row.latest_funding_rate))
+        ? Number(row.latest_funding_rate)
+        : null,
+      latest_basis_bps: Number.isFinite(Number(row.latest_basis_bps))
+        ? Number(row.latest_basis_bps)
+        : null,
     }))
     .filter((row) => row.symbol);
   const detailParts = [
@@ -3792,7 +4115,7 @@ function summarizeFreeDataRun(run: WorkflowRunRecord) {
     Number.isFinite(Number(optionsCoverage.fresh_coverage_pct))
       ? `opt ${toCount(optionsCoverage.fresh_coverage_pct)}% fresh`
       : '',
-    toCount(crypto.symbols_processed) ? `${toCount(crypto.symbols_processed)} crypto symbols` : ''
+    toCount(crypto.symbols_processed) ? `${toCount(crypto.symbols_processed)} crypto symbols` : '',
   ].filter(Boolean);
 
   return {
@@ -3801,17 +4124,19 @@ function summarizeFreeDataRun(run: WorkflowRunRecord) {
     market: typeof output.market === 'string' ? output.market : 'ALL',
     reference_data: {
       target_symbol_budget: toCount(targetPlan.target_symbol_budget),
-      target_symbol_count: toCount(targetPlan.target_symbols && asArray(targetPlan.target_symbols).length),
+      target_symbol_count: toCount(
+        targetPlan.target_symbols && asArray(targetPlan.target_symbols).length,
+      ),
       configured_seed_count: toCount(targetPlan.configured_seed_count),
       runtime_active_count: toCount(targetPlan.runtime_active_count),
-      universe_fill_count: toCount(targetPlan.universe_fill_count)
+      universe_fill_count: toCount(targetPlan.universe_fill_count),
     },
     news: {
       targets: toCount(news.targets),
       refreshed_symbols: toCount(news.refreshed_symbols),
       skipped_symbols: toCount(news.skipped_symbols),
       rows_upserted: toCount(news.rows_upserted),
-      error_count: asArray(news.errors).length
+      error_count: asArray(news.errors).length,
     },
     fundamentals: {
       targets: toCount(fundamentals.targets),
@@ -3823,7 +4148,7 @@ function summarizeFreeDataRun(run: WorkflowRunRecord) {
       fresh_count: toCount(fundamentalsCoverage.fresh_count),
       stale_count: toCount(fundamentalsCoverage.stale_count),
       missing_count: toCount(fundamentalsCoverage.missing_count),
-      fresh_coverage_pct: toCount(fundamentalsCoverage.fresh_coverage_pct)
+      fresh_coverage_pct: toCount(fundamentalsCoverage.fresh_coverage_pct),
     },
     options: {
       targets: toCount(options.targets),
@@ -3835,7 +4160,7 @@ function summarizeFreeDataRun(run: WorkflowRunRecord) {
       fresh_count: toCount(optionsCoverage.fresh_count),
       stale_count: toCount(optionsCoverage.stale_count),
       missing_count: toCount(optionsCoverage.missing_count),
-      fresh_coverage_pct: toCount(optionsCoverage.fresh_coverage_pct)
+      fresh_coverage_pct: toCount(optionsCoverage.fresh_coverage_pct),
     },
     crypto_structure: {
       symbols_processed: toCount(crypto.symbols_processed),
@@ -3843,9 +4168,9 @@ function summarizeFreeDataRun(run: WorkflowRunRecord) {
       basis_points: toCount(crypto.basis_points),
       latest_funding_symbols: toCount(crypto.latest_funding_symbols),
       latest_basis_symbols: toCount(crypto.latest_basis_symbols),
-      highlights
+      highlights,
     },
-    detail: detailParts.join(' · ')
+    detail: detailParts.join(' · '),
   };
 }
 
@@ -3860,7 +4185,7 @@ function summarizeEvolutionRun(run: WorkflowRunRecord) {
       safe_mode: Boolean(row.safeMode),
       active_model_id: typeof row.activeModelId === 'string' ? row.activeModelId : null,
       challenger_model_id: typeof row.challengerModelId === 'string' ? row.challengerModelId : null,
-      summary: typeof row.summary === 'string' ? row.summary : ''
+      summary: typeof row.summary === 'string' ? row.summary : '',
     }));
 
   return {
@@ -3869,7 +4194,7 @@ function summarizeEvolutionRun(run: WorkflowRunRecord) {
     promoted_count: markets.filter((row) => row.promoted).length,
     rollback_count: markets.filter((row) => row.rolled_back).length,
     safe_mode_count: markets.filter((row) => row.safe_mode).length,
-    markets
+    markets,
   };
 }
 
@@ -3883,14 +4208,16 @@ function summarizeTrainingRun(run: WorkflowRunRecord) {
     dataset_count: toCount(output.dataset_count),
     ready_for_training: Boolean(output.ready_for_training),
     manifest_path: typeof output.manifest_path === 'string' ? output.manifest_path : null,
-    task_types: asArray(output.task_types).map((row) => String(row || '')).filter(Boolean),
+    task_types: asArray(output.task_types)
+      .map((row) => String(row || ''))
+      .filter(Boolean),
     execution: {
       attempted: Boolean(execution.attempted),
       executed: Boolean(execution.executed),
       success: Boolean(execution.success),
       reason: typeof execution.reason === 'string' ? execution.reason : null,
-      exit_code: Number.isFinite(Number(execution.exit_code)) ? Number(execution.exit_code) : null
-    }
+      exit_code: Number.isFinite(Number(execution.exit_code)) ? Number(execution.exit_code) : null,
+    },
   };
 }
 
@@ -3903,28 +4230,28 @@ function summarizeRecentNews(repo: MarketRepository) {
     source: row.source,
     sentiment: row.sentiment_label,
     published_at: toIso(row.published_at_ms),
-    updated_at: toIso(row.updated_at_ms)
+    updated_at: toIso(row.updated_at_ms),
   }));
 }
 
 function buildFlywheelStatus(repo: MarketRepository) {
   const freeDataRuns = repo.listWorkflowRuns({
     workflowKey: 'free_data_flywheel',
-    limit: 6
+    limit: 6,
   });
   const evolutionRuns = repo.listWorkflowRuns({
     workflowKey: 'quant_evolution_cycle',
-    limit: 6
+    limit: 6,
   });
   const trainingRuns = repo.listWorkflowRuns({
     workflowKey: 'nova_training_flywheel',
-    limit: 6
+    limit: 6,
   });
 
   const latestTrainingSummary = trainingRuns[0] ? summarizeTrainingRun(trainingRuns[0]) : null;
   const liveTrainingDataset = buildMlxLmTrainingDataset(repo, {
     onlyIncluded: true,
-    limit: 500
+    limit: 500,
   });
   const currentDatasetCount = latestTrainingSummary?.dataset_count ?? liveTrainingDataset.count;
 
@@ -3936,7 +4263,7 @@ function buildFlywheelStatus(repo: MarketRepository) {
         label: 'Free Data Refresh',
         status: summary.status,
         updated_at: summary.updated_at,
-        detail: summary.detail
+        detail: summary.detail,
       };
     }),
     ...evolutionRuns.slice(0, 2).map((run) => {
@@ -3946,7 +4273,7 @@ function buildFlywheelStatus(repo: MarketRepository) {
         label: 'Quant Evolution',
         status: summary.status,
         updated_at: summary.updated_at,
-        detail: `${summary.promoted_count} promoted · ${summary.rollback_count} rolled back · ${summary.safe_mode_count} safe mode`
+        detail: `${summary.promoted_count} promoted · ${summary.rollback_count} rolled back · ${summary.safe_mode_count} safe mode`,
       };
     }),
     ...trainingRuns.slice(0, 2).map((run) => {
@@ -3956,9 +4283,9 @@ function buildFlywheelStatus(repo: MarketRepository) {
         label: 'Nova Training',
         status: summary.status,
         updated_at: summary.updated_at,
-        detail: `${summary.dataset_count} samples · ${summary.execution.reason || 'no execution detail'}`
+        detail: `${summary.dataset_count} samples · ${summary.execution.reason || 'no execution detail'}`,
       };
-    })
+    }),
   ]
     .filter((row) => row.updated_at)
     .sort((a, b) => String(b.updated_at).localeCompare(String(a.updated_at)));
@@ -3972,27 +4299,32 @@ function buildFlywheelStatus(repo: MarketRepository) {
       latest_run_at: toIso(freeDataRuns[0]?.updated_at_ms),
       latest_trigger_type: freeDataRuns[0]?.trigger_type || null,
       recent_runs: freeDataRuns.map(summarizeFreeDataRun),
-      recent_news: summarizeRecentNews(repo)
+      recent_news: summarizeRecentNews(repo),
     },
     evolution: {
       latest_status: evolutionRuns[0]?.status || 'IDLE',
       latest_run_at: toIso(evolutionRuns[0]?.updated_at_ms),
       latest_trigger_type: evolutionRuns[0]?.trigger_type || null,
-      recent_runs: evolutionRuns.map(summarizeEvolutionRun)
+      recent_runs: evolutionRuns.map(summarizeEvolutionRun),
     },
     training: {
       latest_status: trainingRuns[0]?.status || 'IDLE',
       latest_run_at: toIso(trainingRuns[0]?.updated_at_ms),
       latest_trigger_type: trainingRuns[0]?.trigger_type || null,
       current_dataset_count: currentDatasetCount,
-      current_dataset_source: latestTrainingSummary?.dataset_count !== undefined ? 'latest_training_run' : 'live_scan',
+      current_dataset_source:
+        latestTrainingSummary?.dataset_count !== undefined ? 'latest_training_run' : 'live_scan',
       minimum_training_rows: MIN_AUTOMATIC_TRAINING_ROWS,
       ready_for_training: currentDatasetCount >= MIN_AUTOMATIC_TRAINING_ROWS,
       latest_execution_reason: latestTrainingSummary?.execution.reason || null,
-      latest_execution_success: latestTrainingSummary ? latestTrainingSummary.execution.success : null,
-      task_types: latestTrainingSummary?.task_types?.length ? latestTrainingSummary.task_types : liveTrainingDataset.task_types,
-      recent_runs: trainingRuns.map(summarizeTrainingRun)
-    }
+      latest_execution_success: latestTrainingSummary
+        ? latestTrainingSummary.execution.success
+        : null,
+      task_types: latestTrainingSummary?.task_types?.length
+        ? latestTrainingSummary.task_types
+        : liveTrainingDataset.task_types,
+      recent_runs: trainingRuns.map(summarizeTrainingRun),
+    },
   };
 }
 
@@ -4008,12 +4340,14 @@ export async function getControlPlaneStatus(args?: { userId?: string }) {
   const runtime = markets.map((market) => {
     const core = loadRuntimeStateCore({
       userId,
-      market
+      market,
     });
     const decision = buildDecisionSnapshotFromCore({
-      core
+      core,
     });
-    const topAction = ((decision.ranked_action_cards as Array<Record<string, unknown>> | undefined) || [])[0] || null;
+    const topAction =
+      ((decision.ranked_action_cards as Array<Record<string, unknown>> | undefined) || [])[0] ||
+      null;
     return {
       market,
       as_of: core.runtimeTransparency.as_of,
@@ -4021,34 +4355,36 @@ export async function getControlPlaneStatus(args?: { userId?: string }) {
       data_status: core.runtimeTransparency.data_status,
       signal_count: core.signals.length,
       active_signal_count: core.active.length,
-      decision_code: String((decision.today_call as Record<string, unknown> | undefined)?.code || 'WAIT'),
+      decision_code: String(
+        (decision.today_call as Record<string, unknown> | undefined)?.code || 'WAIT',
+      ),
       top_action_symbol: topAction ? String(topAction.symbol || '') || null : null,
       top_action_label: topAction ? String(topAction.action_label || '') || null : null,
       coverage: core.runtimeTransparency.coverage_summary || null,
-      freshness: core.runtimeTransparency.freshness_summary || null
+      freshness: core.runtimeTransparency.freshness_summary || null,
     };
   });
 
   const activeNotifications = repo.listNotificationEvents({
     userId,
     status: 'ACTIVE',
-    limit: 50
+    limit: 50,
   });
   const workflowRuns = repo.listWorkflowRuns({
     workflowKey: 'nova_strategy_lab',
     status: 'SUCCEEDED',
-    limit: 10
+    limit: 10,
   });
   const latestStrategyLabRun = workflowRuns[0] || null;
   const browseHome = await getBrowseHomePayload({
-    view: 'NOW'
+    view: 'NOW',
   }).catch(() => null);
   const flywheel = buildFlywheelStatus(repo);
   const executionGovernance = await buildExecutionGovernance({
     repo,
     userId,
     limit: 8,
-    refreshOrders: false
+    refreshOrders: false,
   });
 
   return {
@@ -4058,24 +4394,28 @@ export async function getControlPlaneStatus(args?: { userId?: string }) {
       query_path: '/api/assets/search',
       browse_home_status: browseHome ? 'READY' : 'UNAVAILABLE',
       browse_home_featured_count: browseHome?.futuresMarkets?.length || 0,
-      browse_home_movers_count: browseHome?.topMovers?.length || 0
+      browse_home_movers_count: browseHome?.topMovers?.length || 0,
     },
     runtime,
     strategy_factory: {
-      latest_run_at: latestStrategyLabRun ? new Date(latestStrategyLabRun.updated_at_ms).toISOString() : null,
+      latest_run_at: latestStrategyLabRun
+        ? new Date(latestStrategyLabRun.updated_at_ms).toISOString()
+        : null,
       latest_status: latestStrategyLabRun?.status || 'IDLE',
-      recent_run_count: workflowRuns.length
+      recent_run_count: workflowRuns.length,
     },
     execution_governance: {
       kill_switch: executionGovernance.kill_switch,
       champion_challenger: executionGovernance.champion_challenger,
-      reconciliation_summary: executionGovernance.reconciliation.summary
+      reconciliation_summary: executionGovernance.reconciliation.summary,
     },
     flywheel,
     delivery: {
       active_notification_count: activeNotifications.length,
-      latest_notification_at: activeNotifications[0] ? new Date(activeNotifications[0].updated_at_ms).toISOString() : null
-    }
+      latest_notification_at: activeNotifications[0]
+        ? new Date(activeNotifications[0].updated_at_ms).toISOString()
+        : null,
+    },
   };
 }
 
@@ -4099,7 +4439,7 @@ export function runEvidence(args: {
   syncQuantState(args.userId || 'guest-default', false, {
     market: args.market,
     assetClass: args.assetClass,
-    timeframe: args.timeframe
+    timeframe: args.timeframe,
   });
   return runEvidenceEngine(repo, {
     userId: args.userId || 'guest-default',
@@ -4107,7 +4447,7 @@ export function runEvidence(args: {
     assetClass: args.assetClass,
     timeframe: args.timeframe,
     maxSignals: args.maxSignals,
-    force: args.force
+    force: args.force,
   });
 }
 
@@ -4120,13 +4460,13 @@ export function getEvidenceTopSignals(args: {
   const repo = getRepo();
   syncQuantState(args.userId || 'guest-default', false, {
     market: args.market,
-    assetClass: args.assetClass
+    assetClass: args.assetClass,
   });
   return getTopSignalEvidence(repo, {
     userId: args.userId || 'guest-default',
     market: args.market,
     assetClass: args.assetClass,
-    limit: args.limit
+    limit: args.limit,
   });
 }
 
@@ -4135,7 +4475,7 @@ export function getEvidenceSignalDetail(args: { signalId: string; userId?: strin
   syncQuantState(args.userId || 'guest-default', false);
   return getSignalEvidenceDetail(repo, {
     signalId: args.signalId,
-    userId: args.userId || 'guest-default'
+    userId: args.userId || 'guest-default',
   });
 }
 
@@ -4150,7 +4490,7 @@ export function listEvidenceBacktests(args?: {
     runType: args?.runType,
     status: args?.status,
     strategyVersionId: args?.strategyVersionId,
-    limit: args?.limit
+    limit: args?.limit,
   });
 }
 
@@ -4172,7 +4512,7 @@ export function listEvidenceReconciliation(args?: {
     symbol: args?.symbol,
     strategyVersionId: args?.strategyVersionId,
     status: args?.status,
-    limit: args?.limit
+    limit: args?.limit,
   });
 }
 

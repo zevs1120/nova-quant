@@ -9,7 +9,7 @@ import {
   rollingMean,
   rollingStd,
   round,
-  stdDev
+  stdDev,
 } from './math.js';
 
 const DEFAULT_POINTS = 120;
@@ -33,7 +33,7 @@ function seriesKey(market, symbol, timeframe) {
 function calcEventStats(events, horizons, tailQuantiles) {
   const grouped = {
     CROSS_ABOVE_90: {},
-    CROSS_BELOW_10: {}
+    CROSS_BELOW_10: {},
   };
 
   for (const type of Object.keys(grouped)) {
@@ -54,12 +54,12 @@ function calcEventStats(events, horizons, tailQuantiles) {
         e_max_drawdown: round(mean(drawdowns), 4),
         tail_quantiles: {
           returns: Object.fromEntries(
-            tailQuantiles.map((q) => [`q${Math.round(q * 100)}`, round(quantile(returns, q), 4)])
+            tailQuantiles.map((q) => [`q${Math.round(q * 100)}`, round(quantile(returns, q), 4)]),
           ),
           max_drawdown: Object.fromEntries(
-            tailQuantiles.map((q) => [`q${Math.round(q * 100)}`, round(quantile(drawdowns, q), 4)])
-          )
-        }
+            tailQuantiles.map((q) => [`q${Math.round(q * 100)}`, round(quantile(drawdowns, q), 4)]),
+          ),
+        },
       };
     }
   }
@@ -79,7 +79,14 @@ function calcPathDrawdown(path) {
   return Math.abs(worst);
 }
 
-function generateSyntheticSeries({ market, symbol, timeframe, anchorPrice, anchorTime, points = DEFAULT_POINTS }) {
+function generateSyntheticSeries({
+  market,
+  symbol,
+  timeframe,
+  anchorPrice,
+  anchorTime,
+  points = DEFAULT_POINTS,
+}) {
   const hours = timeframeToHours(timeframe);
   const stepMs = hours * 3600 * 1000;
   const seed = deterministicHash(`${market}:${symbol}:${timeframe}`);
@@ -92,7 +99,7 @@ function generateSyntheticSeries({ market, symbol, timeframe, anchorPrice, ancho
   for (let i = 0; i < points; i += 1) {
     const t1 = Math.sin((i + (seed % 11)) / 5.2) * 0.0054;
     const t2 = Math.cos((i + (seed % 17)) / 8.1) * 0.0036;
-    const pulse = i % 27 === 0 ? ((seed % 2 === 0 ? 1 : -1) * 0.009) : 0;
+    const pulse = i % 27 === 0 ? (seed % 2 === 0 ? 1 : -1) * 0.009 : 0;
     const ret = drift + t1 + t2 + pulse;
     px = Math.max(0.00001, px * (1 + ret));
     close.push(round(px, 4));
@@ -131,7 +138,8 @@ function calcVelocityArrays(close) {
 
   const vNorm = vRaw.map((value, index) => {
     const mu = rollingMean(vRaw, VELOCITY_SETTINGS.lookback, index);
-    const sigma = rollingStd(vRaw, VELOCITY_SETTINGS.lookback, index) || stdDev(vRaw.slice(0, index + 1)) || 1;
+    const sigma =
+      rollingStd(vRaw, VELOCITY_SETTINGS.lookback, index) || stdDev(vRaw.slice(0, index + 1)) || 1;
     return (value - mu) / sigma;
   });
 
@@ -140,9 +148,11 @@ function calcVelocityArrays(close) {
   const percentile = vNorm.map((value, index) => percentileRank(vNorm.slice(0, index + 1), value));
 
   const volSeries = close.map((_, index) =>
-    rollingStd(returns, VELOCITY_SETTINGS.lookback, Math.max(0, index - 1))
+    rollingStd(returns, VELOCITY_SETTINGS.lookback, Math.max(0, index - 1)),
   );
-  const volPercentile = volSeries.map((value, index) => percentileRank(volSeries.slice(0, index + 1), value));
+  const volPercentile = volSeries.map((value, index) =>
+    percentileRank(volSeries.slice(0, index + 1), value),
+  );
 
   const trendStrength = close.map((price, index) => {
     const baseIndex = Math.max(0, index - VELOCITY_SETTINGS.lookback);
@@ -164,8 +174,11 @@ function buildSeriesState(series) {
   for (let index = 1; index < close.length - maxHorizon; index += 1) {
     const prev = arrays.percentile[index - 1];
     const curr = arrays.percentile[index];
-    const crossedHigh = prev < VELOCITY_SETTINGS.event_threshold_high && curr >= VELOCITY_SETTINGS.event_threshold_high;
-    const crossedLow = prev > VELOCITY_SETTINGS.event_threshold_low && curr <= VELOCITY_SETTINGS.event_threshold_low;
+    const crossedHigh =
+      prev < VELOCITY_SETTINGS.event_threshold_high &&
+      curr >= VELOCITY_SETTINGS.event_threshold_high;
+    const crossedLow =
+      prev > VELOCITY_SETTINGS.event_threshold_low && curr <= VELOCITY_SETTINGS.event_threshold_low;
     if (!crossedHigh && !crossedLow) continue;
 
     const event = {
@@ -178,7 +191,7 @@ function buildSeriesState(series) {
       percentile: round(curr, 4),
       v_norm: round(arrays.vNorm[index], 4),
       acceleration: round(arrays.acceleration[index], 4),
-      forward: {}
+      forward: {},
     };
 
     for (const horizon of horizons) {
@@ -186,7 +199,7 @@ function buildSeriesState(series) {
       const path = close.slice(index, index + horizon + 1);
       event.forward[horizon] = {
         return: round(futureClose / close[index] - 1, 5),
-        max_drawdown: round(calcPathDrawdown(path), 5)
+        max_drawdown: round(calcPathDrawdown(path), 5),
       };
     }
 
@@ -204,19 +217,19 @@ function buildSeriesState(series) {
       acceleration: arrays.acceleration.map((value) => round(value, 4)),
       percentile: arrays.percentile.map((value) => round(value, 4)),
       trend_strength: arrays.trendStrength.map((value) => round(value, 4)),
-      vol_percentile: arrays.volPercentile.map((value) => round(value, 4))
+      vol_percentile: arrays.volPercentile.map((value) => round(value, 4)),
     },
     latest: {
       v_norm: round(arrays.vNorm[lastIndex], 4),
       acceleration: round(arrays.acceleration[lastIndex], 4),
       percentile: round(arrays.percentile[lastIndex], 4),
       trend_strength: round(arrays.trendStrength[lastIndex], 4),
-      vol_percentile: round(arrays.volPercentile[lastIndex], 4)
+      vol_percentile: round(arrays.volPercentile[lastIndex], 4),
     },
     event_study: {
       events,
-      conditional_stats: conditionalStats
-    }
+      conditional_stats: conditionalStats,
+    },
   };
 }
 
@@ -228,33 +241,33 @@ function buildSeedSeries(signals, trades, anchorTime) {
     keys.set(seriesKey(signal.market, signal.symbol, timeframe), {
       market: signal.market,
       symbol: signal.symbol,
-      timeframe
+      timeframe,
     });
   }
 
   keys.set(seriesKey('CRYPTO', 'BTC-USDT', '4H'), {
     market: 'CRYPTO',
     symbol: 'BTC-USDT',
-    timeframe: '4H'
+    timeframe: '4H',
   });
   keys.set(seriesKey('US', 'QQQ', '1D'), {
     market: 'US',
     symbol: 'QQQ',
-    timeframe: '1D'
+    timeframe: '1D',
   });
 
   return Array.from(keys.values()).map((item) =>
     generateSyntheticSeries({
       ...item,
       anchorPrice: pickAnchorPrice(item.market, item.symbol, signals, trades),
-      anchorTime
-    })
+      anchorTime,
+    }),
   );
 }
 
 function resolvePrimarySeries(seriesStates) {
   const btc = seriesStates.find(
-    (item) => item.market === 'CRYPTO' && item.symbol === 'BTC-USDT' && item.timeframe === '4H'
+    (item) => item.market === 'CRYPTO' && item.symbol === 'BTC-USDT' && item.timeframe === '4H',
   );
   if (btc) return btc;
 
@@ -284,20 +297,18 @@ export function runVelocityEngine({ signals, trades, velocitySeed, featureSeries
         symbol: series.symbol,
         timeframe: series.timeframe,
         conditional_stats: series.event_study.conditional_stats,
-        events: series.event_study.events
-      }
-    ])
+        events: series.event_study.events,
+      },
+    ]),
   );
 
-  const primaryStats =
-    primary?.event_study?.conditional_stats?.CROSS_ABOVE_90?.[7] ||
-    primary?.event_study?.conditional_stats?.CROSS_ABOVE_90?.[3] ||
-    {
+  const primaryStats = primary?.event_study?.conditional_stats?.CROSS_ABOVE_90?.[7] ||
+    primary?.event_study?.conditional_stats?.CROSS_ABOVE_90?.[3] || {
       sample_size: 0,
       p_up: 0,
       e_return: 0,
       e_max_drawdown: 0,
-      tail_quantiles: { returns: {}, max_drawdown: {} }
+      tail_quantiles: { returns: {}, max_drawdown: {} },
     };
 
   return {
@@ -306,7 +317,10 @@ export function runVelocityEngine({ signals, trades, velocitySeed, featureSeries
     seed_source: velocitySeed?.seed_source || 'synthetic-deterministic-series',
     series: seriesStates,
     series_index: Object.fromEntries(
-      seriesStates.map((series) => [seriesKey(series.market, series.symbol, series.timeframe), series])
+      seriesStates.map((series) => [
+        seriesKey(series.market, series.symbol, series.timeframe),
+        series,
+      ]),
     ),
     event_study_db: eventStudyDb,
     primary_key: primary ? seriesKey(primary.market, primary.symbol, primary.timeframe) : null,
@@ -319,12 +333,12 @@ export function runVelocityEngine({ signals, trades, velocitySeed, featureSeries
         next_7d_up_prob: primaryStats.p_up,
         avg_move: primaryStats.e_return,
         avg_dd: primaryStats.e_max_drawdown,
-        tail_quantiles: primaryStats.tail_quantiles
+        tail_quantiles: primaryStats.tail_quantiles,
       },
       rule_summary_en: velocitySeed?.rule_summary_en ?? HOW_USED_RULES.rule_summary_en,
       rule_summary_zh: velocitySeed?.rule_summary_zh ?? HOW_USED_RULES.rule_summary_zh,
       how_used_en: velocitySeed?.how_used_en ?? HOW_USED_RULES.how_used_en,
-      how_used_zh: velocitySeed?.how_used_zh ?? HOW_USED_RULES.how_used_zh
-    }
+      how_used_zh: velocitySeed?.how_used_zh ?? HOW_USED_RULES.how_used_zh,
+    },
   };
 }

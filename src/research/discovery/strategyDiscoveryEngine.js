@@ -14,8 +14,14 @@ function decayingFamilies(strategyGovernance = {}) {
     .filter(Boolean);
 }
 
-function analyzeDiscoveryPressure({ strategyGovernance = {}, signalFunnel = {}, regimeState = {} } = {}) {
-  const degraded = (strategyGovernance?.strategies || []).filter((row) => row?.degradation_signals?.status === 'warning');
+function analyzeDiscoveryPressure({
+  strategyGovernance = {},
+  signalFunnel = {},
+  regimeState = {},
+} = {}) {
+  const degraded = (strategyGovernance?.strategies || []).filter(
+    (row) => row?.degradation_signals?.status === 'warning',
+  );
   const generated = Number(signalFunnel?.overall?.generated || 0);
   const executable = Number(signalFunnel?.overall?.executable || 0);
   const starvation = generated <= 4 || (generated ? executable / generated <= 0.25 : true);
@@ -26,7 +32,7 @@ function analyzeDiscoveryPressure({ strategyGovernance = {}, signalFunnel = {}, 
     starvation_detected: starvation,
     executable_ratio: generated ? round(executable / generated, 4) : 0,
     degraded_strategy_count: degraded.length,
-    decaying_families: decayingFamilies(strategyGovernance)
+    decaying_families: decayingFamilies(strategyGovernance),
   };
 }
 
@@ -42,8 +48,8 @@ function attachValidationAndScore(candidates = [], validation = {}, scoring = {}
       ...candidate.traceability,
       validation_metrics: valById.get(candidate.candidate_id)?.metrics || null,
       rejection_reasons: valById.get(candidate.candidate_id)?.rejection_reasons || [],
-      promotion_decision: scoreById.get(candidate.candidate_id)?.recommendation || 'REJECT'
-    }
+      promotion_decision: scoreById.get(candidate.candidate_id)?.recommendation || 'REJECT',
+    },
   }));
 }
 
@@ -66,10 +72,10 @@ function promotionDecisions(scoring = {}, asOf = new Date().toISOString()) {
       performance_score: row.component_scores?.performance_score,
       robustness_score: row.component_scores?.robustness_score,
       regime_stability_score: row.component_scores?.regime_stability_score,
-      diversification_score: row.component_scores?.diversification_score
+      diversification_score: row.component_scores?.diversification_score,
     },
     created_at: asOf,
-    reviewer_source: 'system-generated'
+    reviewer_source: 'system-generated',
   }));
 }
 
@@ -77,7 +83,7 @@ function promotedCandidates(scoring = {}, candidates = []) {
   const ids = new Set(
     (scoring?.candidates || [])
       .filter((row) => row.recommendation === 'PROMOTE_TO_SHADOW')
-      .map((row) => row.candidate_id)
+      .map((row) => row.candidate_id),
   );
 
   return (candidates || [])
@@ -88,7 +94,7 @@ function promotedCandidates(scoring = {}, candidates = []) {
       hypothesis_id: candidate.hypothesis_id,
       template_id: candidate.template_id,
       next_stage: 'SHADOW',
-      promotion_note: 'Promoted by discovery quality gate to SHADOW for controlled observation.'
+      promotion_note: 'Promoted by discovery quality gate to SHADOW for controlled observation.',
     }));
 }
 
@@ -99,15 +105,15 @@ export function buildStrategyDiscoveryEngine({
   signalFunnel = {},
   strategyGovernance = {},
   walkForward = {},
-  config = {}
+  config = {},
 } = {}) {
   const pressure = analyzeDiscoveryPressure({
     strategyGovernance,
     signalFunnel,
-    regimeState
+    regimeState,
   });
   const seedRuntime = loadDiscoverySeedRuntime({
-    seedOverrides: config.seed_overrides || {}
+    seedOverrides: config.seed_overrides || {},
   });
   const generationConfig = config.generation || {};
   const runtimeConstraints = generationConfig.constraints || generationConfig;
@@ -117,16 +123,16 @@ export function buildStrategyDiscoveryEngine({
     context: {
       currentRegime: pressure.current_regime,
       starvation: pressure.starvation_detected,
-      decayingFamilies: pressure.decaying_families
+      decayingFamilies: pressure.decaying_families,
     },
     config: runtimeConstraints,
-    seedRuntime
+    seedRuntime,
   });
 
   const templateRegistry = buildTemplateRegistry({
     asOf,
     config: runtimeConstraints,
-    seedRuntime
+    seedRuntime,
   });
 
   const generated = buildCandidateGenerator({
@@ -137,9 +143,9 @@ export function buildStrategyDiscoveryEngine({
     context: {
       currentRegime: pressure.current_regime,
       starvation: pressure.starvation_detected,
-      walkforward_promotion_ready: walkForward?.summary?.promotion_ready || []
+      walkforward_promotion_ready: walkForward?.summary?.promotion_ready || [],
     },
-    config: generationConfig
+    config: generationConfig,
   });
 
   const validation = buildCandidateValidationPipeline({
@@ -150,7 +156,7 @@ export function buildStrategyDiscoveryEngine({
       regimeState,
       signalFunnel,
       strategyGovernance,
-      walkForward
+      walkForward,
     },
     config: {
       ...(config.validation || {}),
@@ -159,22 +165,22 @@ export function buildStrategyDiscoveryEngine({
         execution_realism_profile:
           config.validation?.stage_2?.execution_realism_profile ||
           walkForward?.config?.execution_realism_profile ||
-          {}
-      }
-    }
+          {},
+      },
+    },
   });
 
   const scoring = buildCandidateScoring({
     asOf,
     candidates: generated.candidates,
-    validation
+    validation,
   });
 
   const diagnostics = buildDiscoveryDiagnostics({
     asOf,
     candidates: generated.candidates,
     scoredCandidates: scoring.candidates,
-    generationSummary: generated.summary
+    generationSummary: generated.summary,
   });
 
   const decisions = promotionDecisions(scoring, asOf);
@@ -187,7 +193,7 @@ export function buildStrategyDiscoveryEngine({
     lifecycle: {
       stages: ['DRAFT', 'SHADOW', 'CANARY', 'PROD', 'RETIRED'],
       promotion_gate: 'Candidate Quality Score + stage validation gate',
-      default_entry_stage: 'DRAFT'
+      default_entry_stage: 'DRAFT',
     },
     discovery_loop: {
       cycle_steps: [
@@ -199,9 +205,9 @@ export function buildStrategyDiscoveryEngine({
         'run_validation_pipeline',
         'rank_candidates',
         'promote_best_to_shadow',
-        'update_discovery_logs'
+        'update_discovery_logs',
       ],
-      cycle_context: pressure
+      cycle_context: pressure,
     },
     hypothesis_registry: hypothesisRegistry,
     template_registry: templateRegistry,
@@ -218,7 +224,7 @@ export function buildStrategyDiscoveryEngine({
       template_seed: seedRuntime.template_seed,
       feature_catalog_seed: seedRuntime.feature_catalog_seed,
       research_doctrine_seed: seedRuntime.research_doctrine_seed,
-      governance_checklist_seed: seedRuntime.governance_checklist_seed
+      governance_checklist_seed: seedRuntime.governance_checklist_seed,
     },
     summary: {
       hypotheses_selected: generated.selected_hypotheses.length,
@@ -233,13 +239,13 @@ export function buildStrategyDiscoveryEngine({
           generated.summary.runtime_seed_diagnostics?.hypotheses_producing_candidates?.length || 0,
         templates_used:
           generated.summary.runtime_seed_diagnostics?.templates_used_most?.length || 0,
-        seeds_unused_count: generated.summary.runtime_seed_diagnostics?.seeds_unused_count || 0
+        seeds_unused_count: generated.summary.runtime_seed_diagnostics?.seeds_unused_count || 0,
       },
       notes: [
         'Structured seed-driven hypothesis-template-feature generation is used instead of brute-force parameter search.',
         'Fragile candidates are rejected through staged validation and quality scoring.',
-        'Promotion decisions include full traceability to hypothesis/template/parameters/validation outputs.'
-      ]
-    }
+        'Promotion decisions include full traceability to hypothesis/template/parameters/validation outputs.',
+      ],
+    },
   };
 }

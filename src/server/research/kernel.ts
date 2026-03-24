@@ -13,7 +13,7 @@ export function buildResearchKernelSummary(repo: MarketRepository) {
     const metric = run ? repo.getBacktestMetric(run.id) : null;
     return {
       experiment_run: toExperimentRunContract(experiment, run, metric),
-      strategy_candidate: toStrategyCandidateContract(experiment, run, metric)
+      strategy_candidate: toStrategyCandidateContract(experiment, run, metric),
     };
   });
 
@@ -23,23 +23,23 @@ export function buildResearchKernelSummary(repo: MarketRepository) {
       'rolling_backtest',
       'replay_validation',
       'promotion_review',
-      'shadow_monitoring'
+      'shadow_monitoring',
     ],
     lineage: {
       strategy_versions: strategies.length,
       experiment_records: experiments.length,
-      backtest_runs: backtestRuns.length
+      backtest_runs: backtestRuns.length,
     },
     benchmark_and_challenger_flow: {
       champions: experiments.filter((row) => row.decision_status === 'champion').length,
       challengers: experiments.filter((row) => row.decision_status === 'challenger').length,
       candidates: experiments.filter((row) => row.decision_status === 'candidate').length,
-      holds: experiments.filter((row) => row.decision_status === 'hold').length
+      holds: experiments.filter((row) => row.decision_status === 'hold').length,
     },
     promotion_flow: {
       states: ['candidate', 'challenger', 'champion', 'hold', 'deprecated', 'retired'],
-      note: 'Promotion remains evidence-driven and auditable through experiment, metric, and evidence lineage.'
+      note: 'Promotion remains evidence-driven and auditable through experiment, metric, and evidence lineage.',
     },
-    recent_candidates: candidateRuns.slice(0, 12)
+    recent_candidates: candidateRuns.slice(0, 12),
   };
 }

@@ -16,6 +16,7 @@ NovaQuant did **not** copy wholesale implementations from these repositories. Th
 ## White-list Sources
 
 ### Qlib
+
 - Core problem solved:
   - research platform structure from data -> feature -> model -> backtest -> evaluation -> production.
 - Borrowed patterns:
@@ -33,6 +34,7 @@ NovaQuant did **not** copy wholesale implementations from these repositories. Th
   - treated as conceptually borrowable; no direct code copy included in this repo
 
 ### RD-Agent
+
 - Core problem solved:
   - research as an iterative loop, not a single pass.
 - Borrowed patterns:
@@ -48,6 +50,7 @@ NovaQuant did **not** copy wholesale implementations from these repositories. Th
   - conceptual borrow only
 
 ### Lean
+
 - Core problem solved:
   - institutional event-driven trading engine decomposition.
 - Borrowed patterns:
@@ -63,6 +66,7 @@ NovaQuant did **not** copy wholesale implementations from these repositories. Th
   - conceptual borrow only
 
 ### Feast
+
 - Core problem solved:
   - point-in-time correct feature access and offline/online parity.
 - Borrowed patterns:
@@ -77,6 +81,7 @@ NovaQuant did **not** copy wholesale implementations from these repositories. Th
   - conceptual borrow only
 
 ### Great Expectations
+
 - Core problem solved:
   - data contracts and expectations as tests.
 - Borrowed patterns:
@@ -91,6 +96,7 @@ NovaQuant did **not** copy wholesale implementations from these repositories. Th
   - conceptual borrow only
 
 ### MLflow
+
 - Core problem solved:
   - experiment, model, prompt, artifact, and promotion lineage.
 - Borrowed patterns:
@@ -106,6 +112,7 @@ NovaQuant did **not** copy wholesale implementations from these repositories. Th
   - conceptual borrow only
 
 ### Temporal
+
 - Core problem solved:
   - durable workflows with retry / replay / resume.
 - Borrowed patterns:
@@ -119,6 +126,7 @@ NovaQuant did **not** copy wholesale implementations from these repositories. Th
   - conceptual borrow only
 
 ### OpenTelemetry Collector
+
 - Core problem solved:
   - structured telemetry spine across logs / metrics / traces.
 - Borrowed patterns:
@@ -134,6 +142,7 @@ NovaQuant did **not** copy wholesale implementations from these repositories. Th
   - conceptual borrow only
 
 ### Langfuse
+
 - Core problem solved:
   - LLM prompt/version/eval/trace lineage.
 - Borrowed patterns:
@@ -149,6 +158,7 @@ NovaQuant did **not** copy wholesale implementations from these repositories. Th
   - only MIT-safe concepts referenced; no ee code or direct copy
 
 ### Riskfolio-Lib
+
 - Core problem solved:
   - allocator abstraction, risk budgeting, and constraints.
 - Borrowed patterns:
@@ -165,6 +175,7 @@ NovaQuant did **not** copy wholesale implementations from these repositories. Th
 ## Gray-list Sources
 
 ### vectorbt
+
 - Borrowed only:
   - fast research loop intuition
   - records-first result organization
@@ -174,6 +185,7 @@ NovaQuant did **not** copy wholesale implementations from these repositories. Th
   - Commons Clause constraints
 
 ### OpenBB
+
 - Borrowed only:
   - provider normalization / adapter mindset
 - Not adopted:

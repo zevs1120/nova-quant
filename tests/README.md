@@ -3,6 +3,7 @@
 Status: `PRODUCTION_INTENDED` baseline
 
 Focus:
+
 - signal generation integrity
 - regime classification
 - risk filtering

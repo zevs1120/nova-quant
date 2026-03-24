@@ -5,7 +5,12 @@ import { MarketRepository } from '../src/server/db/repository.js';
 import { runEvolutionCycle } from '../src/server/quant/evolution.js';
 import type { NormalizedBar } from '../src/server/types.js';
 
-function buildTrendBars(startTs: number, stepMs: number, startPrice: number, count: number): NormalizedBar[] {
+function buildTrendBars(
+  startTs: number,
+  stepMs: number,
+  startPrice: number,
+  count: number,
+): NormalizedBar[] {
   const rows: NormalizedBar[] = [];
   let px = startPrice;
   for (let i = 0; i < count; i += 1) {
@@ -20,7 +25,7 @@ function buildTrendBars(startTs: number, stepMs: number, startPrice: number, cou
       high: high.toFixed(4),
       low: low.toFixed(4),
       close: close.toFixed(4),
-      volume: String(1200 + i * 4)
+      volume: String(1200 + i * 4),
     });
     px = close;
   }
@@ -36,11 +41,16 @@ describe('runEvolutionCycle', () => {
     const asset = repo.upsertAsset({
       symbol: 'SPY',
       market: 'US',
-      venue: 'STOOQ'
+      venue: 'STOOQ',
     });
 
     const now = Date.now();
-    repo.upsertOhlcvBars(asset.asset_id, '1d', buildTrendBars(now - 240 * 86_400_000, 86_400_000, 480, 240), 'TEST');
+    repo.upsertOhlcvBars(
+      asset.asset_id,
+      '1d',
+      buildTrendBars(now - 240 * 86_400_000, 86_400_000, 480, 240),
+      'TEST',
+    );
 
     const result = await runEvolutionCycle({
       repo,
@@ -48,9 +58,9 @@ describe('runEvolutionCycle', () => {
       runtimeSnapshot: {
         sourceStatus: 'DB_BACKED',
         freshnessSummary: { US: { latest_bar_age_minutes: 8 } },
-        coverageSummary: { US: { symbols: 1, complete: true } }
+        coverageSummary: { US: { symbols: 1, complete: true } },
       },
-      markets: ['US']
+      markets: ['US'],
     });
 
     expect(result.markets).toHaveLength(1);
@@ -58,7 +68,11 @@ describe('runEvolutionCycle', () => {
     expect(result.markets[0]?.factorEvalCount).toBeGreaterThan(0);
     expect(result.markets[0]?.activeModelId).toBeTruthy();
 
-    const workflow = repo.listWorkflowRuns({ workflowKey: 'quant_evolution_cycle', status: 'SUCCEEDED', limit: 5 })[0];
+    const workflow = repo.listWorkflowRuns({
+      workflowKey: 'quant_evolution_cycle',
+      status: 'SUCCEEDED',
+      limit: 5,
+    })[0];
     expect(workflow).toBeTruthy();
     expect(workflow?.id).toBe(result.workflowId);
 

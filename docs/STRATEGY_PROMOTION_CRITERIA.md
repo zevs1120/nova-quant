@@ -7,6 +7,7 @@ This file defines enforced promotion gates in Nova Quant governance workflow.
 ## DRAFT -> SHADOW
 
 Required:
+
 1. Evidence completeness score `>= 0.45`
 2. Execution assumption profile present
 3. Signal frequency `>= 3`
@@ -14,6 +15,7 @@ Required:
 5. Review approval state: `APPROVED`
 
 Typical block reasons:
+
 - missing evidence lineage
 - missing execution profile
 - insufficient signal density
@@ -21,6 +23,7 @@ Typical block reasons:
 ## SHADOW -> CANARY
 
 Required:
+
 1. Evidence completeness score `>= 0.62`
 2. Replay context present
 3. Execution assumption profile present
@@ -32,6 +35,7 @@ Required:
 9. Review approval state: `APPROVED`
 
 Typical block reasons:
+
 - cost or harsh-execution fragility
 - unstable validation
 - unresolved governance concerns
@@ -39,6 +43,7 @@ Typical block reasons:
 ## CANARY -> PROD
 
 Required:
+
 1. Evidence completeness score `>= 0.72`
 2. Replay context present
 3. Execution assumption profile present
@@ -52,6 +57,7 @@ Required:
 11. Review approval state: `APPROVED`
 
 Typical block reasons:
+
 - degradation warnings
 - confidence below threshold
 - execution realism breach under strict scenarios
@@ -59,18 +65,24 @@ Typical block reasons:
 ## PROD Demotion / Rollback / Retirement
 
 ### Demotion (`PROD -> CANARY`)
+
 Triggered when:
+
 - severe warning not high enough for retirement,
 - or validation status fails,
 - or operational confidence breaks threshold.
 
 ### Rollback (`PROD -> CANARY`, standby canary referenced)
+
 Triggered when:
+
 - severe governance warning with rollback candidate available,
 - critical concerns and confidence collapse.
 
 ### Retirement (`* -> RETIRED`)
+
 Triggered when:
+
 - critical degradation persists,
 - harsh execution + cost fragility combine,
 - strategy no longer justifies operational maintenance.

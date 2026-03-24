@@ -48,11 +48,12 @@ function resolveBaseModel() {
 
 function detectMlxLmAvailability() {
   const probe = spawnSync('python3', ['-c', 'import mlx_lm'], {
-    encoding: 'utf8'
+    encoding: 'utf8',
   });
   return {
     ok: probe.status === 0,
-    error: probe.status === 0 ? null : (probe.stderr || probe.stdout || 'mlx_lm import failed').trim()
+    error:
+      probe.status === 0 ? null : (probe.stderr || probe.stdout || 'mlx_lm import failed').trim(),
   };
 }
 
@@ -66,14 +67,14 @@ function buildOpenSourceTrainerPlan(args: {
     const mlx = buildNovaMlxLoraPlan({
       baseModel: args.baseModel,
       datasetPath: args.datasetPath,
-      adapterPath: args.outputDir
+      adapterPath: args.outputDir,
     });
     return {
       trainer: args.trainer,
       base_model: mlx.baseModel,
       output_dir: mlx.adapterPath,
       command: mlx.command,
-      command_text: renderNovaShellCommand(mlx.command)
+      command_text: renderNovaShellCommand(mlx.command),
     };
   }
 
@@ -90,14 +91,14 @@ function buildOpenSourceTrainerPlan(args: {
       '--max-steps',
       '400',
       '--batch-size',
-      '2'
+      '2',
     ];
     return {
       trainer: args.trainer,
       base_model: args.baseModel,
       output_dir: args.outputDir,
       command,
-      command_text: renderNovaShellCommand(command)
+      command_text: renderNovaShellCommand(command),
     };
   }
 
@@ -109,14 +110,14 @@ function buildOpenSourceTrainerPlan(args: {
     '--dataset',
     args.datasetPath,
     '--output',
-    args.outputDir
+    args.outputDir,
   ];
   return {
     trainer: args.trainer,
     base_model: args.baseModel,
     output_dir: args.outputDir,
     command,
-    command_text: renderNovaShellCommand(command)
+    command_text: renderNovaShellCommand(command),
   };
 }
 
@@ -135,7 +136,8 @@ function buildChallengerModelRecord(args: {
     model_key: MARVIX_MODEL_ALIASES.challenger,
     provider: 'fine-tune-plan',
     endpoint: null,
-    task_scope: 'assistant_grounded_answer,action_card_generation,risk_regime_explanation,strategy_candidate_generation',
+    task_scope:
+      'assistant_grounded_answer,action_card_generation,risk_regime_explanation,strategy_candidate_generation',
     semantic_version: semanticVersion,
     status: 'challenger',
     config_json: JSON.stringify({
@@ -144,10 +146,10 @@ function buildChallengerModelRecord(args: {
       manifest_path: args.manifestPath,
       output_dir: args.outputDir,
       dataset_count: args.datasetCount,
-      quality_summary: args.qualitySummary
+      quality_summary: args.qualitySummary,
     }),
     created_at_ms: now,
-    updated_at_ms: now
+    updated_at_ms: now,
   };
 }
 
@@ -159,13 +161,15 @@ export function summarizeNovaTrainingDataset(records: Array<Record<string, unkno
     const task = String(metadata.task_type || 'unknown');
     taskCounts.set(task, (taskCounts.get(task) || 0) + 1);
     const labels = Array.isArray(metadata.labels) ? metadata.labels : [];
-    includedLabels += labels.filter((label) => Boolean((label as Record<string, unknown>).include_in_training)).length;
+    includedLabels += labels.filter((label) =>
+      Boolean((label as Record<string, unknown>).include_in_training),
+    ).length;
   }
 
   return {
     total_records: records.length,
     by_task_type: Object.fromEntries([...taskCounts.entries()].sort((a, b) => b[1] - a[1])),
-    included_labels: includedLabels
+    included_labels: includedLabels,
   };
 }
 
@@ -176,7 +180,12 @@ export async function runNovaTrainingFlywheel(args: FlywheelArgs) {
   const trainer = args.trainer || 'unsloth-lora';
   const triggerType = args.triggerType || 'manual';
   const dateKey = new Date(now).toISOString().slice(0, 10);
-  const artifactsDir = path.join(process.cwd(), 'artifacts', 'training', `nova-flywheel-${dateKey}`);
+  const artifactsDir = path.join(
+    process.cwd(),
+    'artifacts',
+    'training',
+    `nova-flywheel-${dateKey}`,
+  );
   ensureDir(artifactsDir);
 
   args.repo.upsertWorkflowRun({
@@ -191,19 +200,19 @@ export async function runNovaTrainingFlywheel(args: FlywheelArgs) {
       only_included: args.onlyIncluded !== false,
       limit: args.limit || 500,
       task_types: args.taskTypes || null,
-      execute_when_ready: args.executeWhenReady === true
+      execute_when_ready: args.executeWhenReady === true,
     }),
     output_json: null,
     attempt_count: 1,
     started_at_ms: now,
     updated_at_ms: now,
-    completed_at_ms: null
+    completed_at_ms: null,
   });
 
   const dataset = buildMlxLmTrainingDataset(args.repo, {
     onlyIncluded: args.onlyIncluded !== false,
     limit: args.limit || 500,
-    taskTypes: args.taskTypes
+    taskTypes: args.taskTypes,
   });
 
   const datasetPath = path.join(artifactsDir, `nova-training-${dateKey}.jsonl`);
@@ -212,12 +221,14 @@ export async function runNovaTrainingFlywheel(args: FlywheelArgs) {
   const datasetContent = dataset.records.map((row) => JSON.stringify(row)).join('\n');
   fs.writeFileSync(datasetPath, `${datasetContent}${datasetContent ? '\n' : ''}`);
 
-  const qualitySummary = summarizeNovaTrainingDataset(dataset.records as Array<Record<string, unknown>>);
+  const qualitySummary = summarizeNovaTrainingDataset(
+    dataset.records as Array<Record<string, unknown>>,
+  );
   const plan = buildOpenSourceTrainerPlan({
     trainer,
     datasetPath,
     outputDir,
-    baseModel: resolveBaseModel()
+    baseModel: resolveBaseModel(),
   });
   const manifestPath = path.join(artifactsDir, `nova-training-manifest-${trainer}.json`);
   const manifest = {
@@ -227,7 +238,7 @@ export async function runNovaTrainingFlywheel(args: FlywheelArgs) {
     dataset_count: dataset.count,
     task_types: dataset.task_types,
     quality_summary: qualitySummary,
-    plan
+    plan,
   };
   fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
 
@@ -239,7 +250,7 @@ export async function runNovaTrainingFlywheel(args: FlywheelArgs) {
       manifestPath,
       outputDir,
       datasetCount: dataset.count,
-      qualitySummary
+      qualitySummary,
     });
     args.repo.upsertModelVersion(challenger);
     challengerModelId = challenger.id;
@@ -250,7 +261,7 @@ export async function runNovaTrainingFlywheel(args: FlywheelArgs) {
     executed: false,
     success: false,
     reason: 'execution_not_requested',
-    exit_code: null as number | null
+    exit_code: null as number | null,
   };
 
   if (args.executeWhenReady && dataset.count > 0) {
@@ -265,7 +276,7 @@ export async function runNovaTrainingFlywheel(args: FlywheelArgs) {
         execution.reason = `mlx_lm_unavailable:${mlx.error || 'unknown'}`;
       } else {
         const child = spawnSync(plan.command[0], plan.command.slice(1), {
-          stdio: 'inherit'
+          stdio: 'inherit',
         });
         execution.executed = true;
         execution.exit_code = child.status ?? null;
@@ -288,7 +299,7 @@ export async function runNovaTrainingFlywheel(args: FlywheelArgs) {
     manifest_path: manifestPath,
     challenger_model_id: challengerModelId,
     ready_for_training: dataset.count > 0,
-    execution
+    execution,
   };
 
   args.repo.upsertWorkflowRun({
@@ -303,13 +314,13 @@ export async function runNovaTrainingFlywheel(args: FlywheelArgs) {
       only_included: args.onlyIncluded !== false,
       limit: args.limit || 500,
       task_types: args.taskTypes || null,
-      execute_when_ready: args.executeWhenReady === true
+      execute_when_ready: args.executeWhenReady === true,
     }),
     output_json: JSON.stringify(result),
     attempt_count: 1,
     started_at_ms: now,
     updated_at_ms: Date.now(),
-    completed_at_ms: Date.now()
+    completed_at_ms: Date.now(),
   });
 
   recordAuditEvent(args.repo, {
@@ -319,7 +330,7 @@ export async function runNovaTrainingFlywheel(args: FlywheelArgs) {
     userId: args.userId || null,
     entityType: 'workflow_run',
     entityId: workflowId,
-    payload: result
+    payload: result,
   });
 
   return result;

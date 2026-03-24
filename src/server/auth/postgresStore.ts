@@ -184,13 +184,15 @@ function buildDefaultState(): PgAuthUserState {
     disciplineLog: {
       checkins: [],
       boundary_kept: [],
-      weekly_reviews: []
-    }
+      weekly_reviews: [],
+    },
   };
 }
 
 function resolveAuthDriver() {
-  return String(process.env.NOVA_AUTH_DRIVER || '').trim().toLowerCase();
+  return String(process.env.NOVA_AUTH_DRIVER || '')
+    .trim()
+    .toLowerCase();
 }
 
 function resolveAuthDatabaseUrl() {
@@ -198,12 +200,16 @@ function resolveAuthDatabaseUrl() {
     process.env.NOVA_AUTH_DATABASE_URL ||
       process.env.SUPABASE_DB_URL ||
       process.env.DATABASE_URL ||
-      ''
+      '',
   ).trim();
 }
 
 function shouldUseSsl(connectionString: string) {
-  if (String(process.env.NOVA_AUTH_PG_SSL || '').trim().toLowerCase() === 'disable') {
+  if (
+    String(process.env.NOVA_AUTH_PG_SSL || '')
+      .trim()
+      .toLowerCase() === 'disable'
+  ) {
     return false;
   }
   return !/(localhost|127\.0\.0\.1)/i.test(connectionString);
@@ -222,7 +228,7 @@ function getAuthPool() {
   poolSingleton = new Pool({
     connectionString,
     max: Math.max(1, Number(process.env.NOVA_AUTH_PG_POOL_MAX || 5)),
-    ssl: shouldUseSsl(connectionString) ? { rejectUnauthorized: false } : undefined
+    ssl: shouldUseSsl(connectionString) ? { rejectUnauthorized: false } : undefined,
   });
   return poolSingleton;
 }
@@ -240,12 +246,15 @@ function mapUserRow(row: Record<string, unknown>): PgAuthUserRow {
     email: String(row.email || ''),
     password_hash: String(row.password_hash || ''),
     name: String(row.name || ''),
-    trade_mode: (String(row.trade_mode || 'active') as PgAuthTradeMode),
+    trade_mode: String(row.trade_mode || 'active') as PgAuthTradeMode,
     broker: String(row.broker || 'Other'),
     locale: asNullableString(row.locale),
     created_at_ms: toNumber(row.created_at_ms),
     updated_at_ms: toNumber(row.updated_at_ms),
-    last_login_at_ms: row.last_login_at_ms === null || row.last_login_at_ms === undefined ? null : toNumber(row.last_login_at_ms)
+    last_login_at_ms:
+      row.last_login_at_ms === null || row.last_login_at_ms === undefined
+        ? null
+        : toNumber(row.last_login_at_ms),
   };
 }
 
@@ -254,7 +263,7 @@ function mapRoleRow(row: Record<string, unknown>): PgAuthUserRoleRow {
     user_id: String(row.user_id || ''),
     role: String(row.role || 'SUPPORT') as PgAuthRole,
     granted_at_ms: toNumber(row.granted_at_ms),
-    granted_by_user_id: asNullableString(row.granted_by_user_id)
+    granted_by_user_id: asNullableString(row.granted_by_user_id),
   };
 }
 
@@ -266,10 +275,13 @@ function mapSessionRow(row: Record<string, unknown>): PgAuthSessionRow {
     user_agent: asNullableString(row.user_agent),
     ip_address: asNullableString(row.ip_address),
     expires_at_ms: toNumber(row.expires_at_ms),
-    revoked_at_ms: row.revoked_at_ms === null || row.revoked_at_ms === undefined ? null : toNumber(row.revoked_at_ms),
+    revoked_at_ms:
+      row.revoked_at_ms === null || row.revoked_at_ms === undefined
+        ? null
+        : toNumber(row.revoked_at_ms),
     created_at_ms: toNumber(row.created_at_ms),
     updated_at_ms: toNumber(row.updated_at_ms),
-    last_seen_at_ms: toNumber(row.last_seen_at_ms)
+    last_seen_at_ms: toNumber(row.last_seen_at_ms),
   };
 }
 
@@ -280,9 +292,10 @@ function mapResetRow(row: Record<string, unknown>): PgAuthPasswordResetRow {
     email: String(row.email || ''),
     code_hash: String(row.code_hash || ''),
     expires_at_ms: toNumber(row.expires_at_ms),
-    used_at_ms: row.used_at_ms === null || row.used_at_ms === undefined ? null : toNumber(row.used_at_ms),
+    used_at_ms:
+      row.used_at_ms === null || row.used_at_ms === undefined ? null : toNumber(row.used_at_ms),
     created_at_ms: toNumber(row.created_at_ms),
-    updated_at_ms: toNumber(row.updated_at_ms)
+    updated_at_ms: toNumber(row.updated_at_ms),
   };
 }
 
@@ -297,7 +310,10 @@ function mapStateRow(row: Record<string, unknown> | null | undefined): PgAuthUse
     watchlist: parseJsonValue<string[]>(row.watchlist_json, fallback.watchlist),
     holdings: parseJsonValue<unknown[]>(row.holdings_json, fallback.holdings),
     executions: parseJsonValue<unknown[]>(row.executions_json, fallback.executions),
-    disciplineLog: parseJsonValue<PgAuthUserState['disciplineLog']>(row.discipline_log_json, fallback.disciplineLog)
+    disciplineLog: parseJsonValue<PgAuthUserState['disciplineLog']>(
+      row.discipline_log_json,
+      fallback.disciplineLog,
+    ),
   };
 }
 
@@ -309,7 +325,7 @@ export async function pgGetUserByEmail(email: string) {
      FROM auth_users
      WHERE email = $1
      LIMIT 1`,
-    [email]
+    [email],
   );
   return result.rows[0] ? mapUserRow(result.rows[0]) : null;
 }
@@ -322,7 +338,7 @@ export async function pgGetUserById(userId: string) {
      FROM auth_users
      WHERE user_id = $1
      LIMIT 1`,
-    [userId]
+    [userId],
   );
   return result.rows[0] ? mapUserRow(result.rows[0]) : null;
 }
@@ -347,8 +363,8 @@ export async function pgInsertUserWithState(args: { user: PgAuthUserRow; state: 
         args.user.locale,
         args.user.created_at_ms,
         args.user.updated_at_ms,
-        args.user.last_login_at_ms
-      ]
+        args.user.last_login_at_ms,
+      ],
     );
     await client.query(
       `INSERT INTO auth_user_state_sync(
@@ -364,8 +380,8 @@ export async function pgInsertUserWithState(args: { user: PgAuthUserRow; state: 
         JSON.stringify(args.state.holdings || []),
         JSON.stringify(args.state.executions || []),
         JSON.stringify(args.state.disciplineLog || buildDefaultState().disciplineLog),
-        args.user.updated_at_ms
-      ]
+        args.user.updated_at_ms,
+      ],
     );
     await client.query('COMMIT');
   } catch (error) {
@@ -402,8 +418,8 @@ export async function pgUpsertUser(user: PgAuthUserRow) {
       user.locale,
       user.created_at_ms,
       user.updated_at_ms,
-      user.last_login_at_ms
-    ]
+      user.last_login_at_ms,
+    ],
   );
 }
 
@@ -415,12 +431,17 @@ export async function pgListUserRoles(userId: string) {
      FROM auth_user_roles
      WHERE user_id = $1
      ORDER BY granted_at_ms DESC`,
-    [userId]
+    [userId],
   );
   return result.rows.map((row: Record<string, unknown>) => mapRoleRow(row));
 }
 
-export async function pgUpsertUserRole(args: { userId: string; role: PgAuthRole; grantedAtMs: number; grantedByUserId?: string | null }) {
+export async function pgUpsertUserRole(args: {
+  userId: string;
+  role: PgAuthRole;
+  grantedAtMs: number;
+  grantedByUserId?: string | null;
+}) {
   await ensurePostgresAuthSchema();
   const pool = getAuthPool();
   await pool.query(
@@ -428,7 +449,7 @@ export async function pgUpsertUserRole(args: { userId: string; role: PgAuthRole;
      VALUES ($1,$2,$3,$4)
      ON CONFLICT(user_id, role) DO UPDATE SET
        granted_by_user_id = COALESCE(auth_user_roles.granted_by_user_id, EXCLUDED.granted_by_user_id)`,
-    [args.userId, args.role, args.grantedAtMs, args.grantedByUserId || null]
+    [args.userId, args.role, args.grantedAtMs, args.grantedByUserId || null],
   );
 }
 
@@ -458,8 +479,8 @@ export async function pgUpsertSession(session: PgAuthSessionRow) {
       session.revoked_at_ms,
       session.created_at_ms,
       session.updated_at_ms,
-      session.last_seen_at_ms
-    ]
+      session.last_seen_at_ms,
+    ],
   );
 }
 
@@ -502,7 +523,7 @@ export async function pgGetSessionBundle(tokenHash: string, now: number) {
        AND s.revoked_at_ms IS NULL
        AND s.expires_at_ms > $2
      LIMIT 1`,
-    [tokenHash, now]
+    [tokenHash, now],
   );
   if (!result.rows[0]) return null;
   const row = result.rows[0] as Record<string, unknown>;
@@ -511,14 +532,14 @@ export async function pgGetSessionBundle(tokenHash: string, now: number) {
     session: mapSessionRow({
       ...bundle,
       created_at_ms: bundle.session_created_at_ms,
-      updated_at_ms: bundle.session_updated_at_ms
+      updated_at_ms: bundle.session_updated_at_ms,
     }),
     user: mapUserRow({
       ...bundle,
       created_at_ms: bundle.user_created_at_ms,
-      updated_at_ms: bundle.user_updated_at_ms
+      updated_at_ms: bundle.user_updated_at_ms,
     }),
-    state: mapStateRow(bundle)
+    state: mapStateRow(bundle),
   };
 }
 
@@ -529,7 +550,7 @@ export async function pgTouchSession(sessionId: string, now: number) {
     `UPDATE auth_sessions
      SET updated_at_ms = $2, last_seen_at_ms = $2
      WHERE session_id = $1`,
-    [sessionId, now]
+    [sessionId, now],
   );
 }
 
@@ -540,7 +561,7 @@ export async function pgRevokeSessionByTokenHash(tokenHash: string, now: number)
     `UPDATE auth_sessions
      SET revoked_at_ms = $2, updated_at_ms = $2
      WHERE session_token_hash = $1 AND revoked_at_ms IS NULL`,
-    [tokenHash, now]
+    [tokenHash, now],
   );
 }
 
@@ -551,7 +572,7 @@ export async function pgRevokeUserSessions(userId: string, now: number) {
     `UPDATE auth_sessions
      SET revoked_at_ms = $2, updated_at_ms = $2
      WHERE user_id = $1 AND revoked_at_ms IS NULL`,
-    [userId, now]
+    [userId, now],
   );
 }
 
@@ -562,7 +583,7 @@ export async function pgInvalidateOpenPasswordResets(userId: string, now: number
     `UPDATE auth_password_resets
      SET used_at_ms = $2, updated_at_ms = $2
      WHERE user_id = $1 AND used_at_ms IS NULL`,
-    [userId, now]
+    [userId, now],
   );
 }
 
@@ -586,8 +607,8 @@ export async function pgInsertPasswordReset(reset: PgAuthPasswordResetRow) {
       reset.expires_at_ms,
       reset.used_at_ms,
       reset.created_at_ms,
-      reset.updated_at_ms
-    ]
+      reset.updated_at_ms,
+    ],
   );
 }
 
@@ -600,7 +621,7 @@ export async function pgGetLatestPasswordReset(userId: string, email: string) {
      WHERE user_id = $1 AND email = $2
      ORDER BY created_at_ms DESC
      LIMIT 1`,
-    [userId, email]
+    [userId, email],
   );
   return result.rows[0] ? mapResetRow(result.rows[0]) : null;
 }
@@ -612,7 +633,7 @@ export async function pgMarkPasswordResetUsed(resetId: string, now: number) {
     `UPDATE auth_password_resets
      SET used_at_ms = $2, updated_at_ms = $2
      WHERE reset_id = $1`,
-    [resetId, now]
+    [resetId, now],
   );
 }
 
@@ -624,12 +645,16 @@ export async function pgGetUserState(userId: string) {
      FROM auth_user_state_sync
      WHERE user_id = $1
      LIMIT 1`,
-    [userId]
+    [userId],
   );
   return mapStateRow(result.rows[0] as Record<string, unknown> | undefined);
 }
 
-export async function pgUpsertUserState(userId: string, state: PgAuthUserState, updatedAtMs: number) {
+export async function pgUpsertUserState(
+  userId: string,
+  state: PgAuthUserState,
+  updatedAtMs: number,
+) {
   await ensurePostgresAuthSchema();
   const pool = getAuthPool();
   await pool.query(
@@ -656,8 +681,8 @@ export async function pgUpsertUserState(userId: string, state: PgAuthUserState, 
       JSON.stringify(state.holdings || []),
       JSON.stringify(state.executions || []),
       JSON.stringify(state.disciplineLog || buildDefaultState().disciplineLog),
-      updatedAtMs
-    ]
+      updatedAtMs,
+    ],
   );
 }
 

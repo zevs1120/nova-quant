@@ -3,17 +3,7 @@
   "$id": "https://api.novaquant.cloud/schemas/model-signal.schema.json",
   "title": "NovaQuant Model Signal",
   "type": "object",
-  "required": [
-    "market",
-    "symbol",
-    "side",
-    "entry",
-    "stop",
-    "take1",
-    "risk",
-    "strategy",
-    "time"
-  ],
+  "required": ["market", "symbol", "side", "entry", "stop", "take1", "risk", "strategy", "time"],
   "properties": {
     "market": {
       "type": "string",

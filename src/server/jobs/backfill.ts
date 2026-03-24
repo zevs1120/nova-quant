@@ -33,41 +33,41 @@ export async function runBackfillCli(argv: string[]): Promise<void> {
         await backfillStooqBulk({
           timeframe: tf,
           repo,
-          symbols: cfg.markets.US.symbols
+          symbols: cfg.markets.US.symbols,
         });
       } catch (error) {
         if (tf === '1d') {
           logWarn('US bulk backfill failed; switching to Yahoo fallback', {
             timeframe: tf,
-            error: error instanceof Error ? error.message : String(error)
+            error: error instanceof Error ? error.message : String(error),
           });
           try {
             await backfillYahooChart({
               timeframe: tf,
               repo,
-              symbols: cfg.markets.US.symbols
+              symbols: cfg.markets.US.symbols,
             });
           } catch (fallbackError) {
             logWarn('Yahoo fallback failed; switching to Nasdaq fallback', {
               timeframe: tf,
-              error: fallbackError instanceof Error ? fallbackError.message : String(fallbackError)
+              error: fallbackError instanceof Error ? fallbackError.message : String(fallbackError),
             });
             try {
               await backfillNasdaqHistorical({
                 timeframe: tf,
                 repo,
-                symbols: cfg.markets.US.symbols
+                symbols: cfg.markets.US.symbols,
               });
             } catch (nasdaqError) {
               if (tf === '1d' && String(process.env.ALPHA_VANTAGE_API_KEY || '').trim()) {
                 logWarn('Nasdaq fallback failed; switching to Alpha Vantage daily fallback', {
                   timeframe: tf,
-                  error: nasdaqError instanceof Error ? nasdaqError.message : String(nasdaqError)
+                  error: nasdaqError instanceof Error ? nasdaqError.message : String(nasdaqError),
                 });
                 await backfillAlphaVantageDaily({
                   timeframe: tf,
                   repo,
-                  symbols: cfg.markets.US.symbols
+                  symbols: cfg.markets.US.symbols,
                 });
               } else {
                 throw nasdaqError;
@@ -77,7 +77,7 @@ export async function runBackfillCli(argv: string[]): Promise<void> {
         } else {
           logWarn('US backfill failed for timeframe; continuing without fallback', {
             timeframe: tf,
-            error: error instanceof Error ? error.message : String(error)
+            error: error instanceof Error ? error.message : String(error),
           });
         }
       }
@@ -89,7 +89,7 @@ export async function runBackfillCli(argv: string[]): Promise<void> {
     await backfillBinancePublic({
       symbols: cfg.markets.CRYPTO.symbols,
       timeframes: cryptoTfs,
-      repo
+      repo,
     });
   }
 

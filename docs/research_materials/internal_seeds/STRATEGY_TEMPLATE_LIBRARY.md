@@ -9,6 +9,7 @@ Templates are reusable and parameterizable strategy blueprints for the discovery
 ## breakout continuation
 
 ### TPL-BREAKOUT-CONT-01
+
 - Family: breakout continuation
 - Purpose: Capture directional follow-through after structural breakout with participation confirmation.
 - Entry logic structure: Enter when price closes beyond breakout threshold and volume expansion filter passes.
@@ -22,6 +23,7 @@ Templates are reusable and parameterizable strategy blueprints for the discovery
 - Risk profile: directional_momentum
 
 ### TPL-BREAKOUT-CONT-02
+
 - Family: breakout continuation
 - Purpose: Trade second-leg continuation after successful breakout retest.
 - Entry logic structure: Enter on retest hold above breakout pivot with resumed momentum.
@@ -37,6 +39,7 @@ Templates are reusable and parameterizable strategy blueprints for the discovery
 ## pullback continuation
 
 ### TPL-PULLBACK-CONT-01
+
 - Family: pullback continuation
 - Purpose: Re-enter prevailing trend after controlled pullback.
 - Entry logic structure: Enter when pullback depth remains within configured ATR band and trend filter remains valid.
@@ -50,6 +53,7 @@ Templates are reusable and parameterizable strategy blueprints for the discovery
 - Risk profile: trend_continuation
 
 ### TPL-PULLBACK-CONT-02
+
 - Family: pullback continuation
 - Purpose: Capture trend resumption after short-term mean reversion inside trend.
 - Entry logic structure: Enter when short-term reversion indicator resets while higher timeframe trend stays intact.
@@ -65,6 +69,7 @@ Templates are reusable and parameterizable strategy blueprints for the discovery
 ## trend acceleration
 
 ### TPL-TREND-ACCEL-01
+
 - Family: trend acceleration
 - Purpose: Capture acceleration phase when trend transitions from orderly to impulsive.
 - Entry logic structure: Enter on acceleration threshold breach with confirming range expansion.
@@ -78,6 +83,7 @@ Templates are reusable and parameterizable strategy blueprints for the discovery
 - Risk profile: fast_momentum
 
 ### TPL-TREND-ACCEL-02
+
 - Family: trend acceleration
 - Purpose: Trade continuation after acceleration survives first pullback.
 - Entry logic structure: Enter on first higher-low after acceleration spike.
@@ -93,6 +99,7 @@ Templates are reusable and parameterizable strategy blueprints for the discovery
 ## percentile mean reversion
 
 ### TPL-PCTL-MR-01
+
 - Family: percentile mean reversion
 - Purpose: Fade statistically extreme percentile moves in balanced regimes.
 - Entry logic structure: Enter when percentile extreme and z-score trigger jointly fire.
@@ -106,6 +113,7 @@ Templates are reusable and parameterizable strategy blueprints for the discovery
 - Risk profile: counter_trend
 
 ### TPL-PCTL-MR-02
+
 - Family: percentile mean reversion
 - Purpose: Capture partial mean reversion from tail percentile events.
 - Entry logic structure: Enter after extreme candle closes and next-bar failure to continue.
@@ -121,6 +129,7 @@ Templates are reusable and parameterizable strategy blueprints for the discovery
 ## oversold rebound
 
 ### TPL-OVERSOLD-RB-01
+
 - Family: oversold rebound
 - Purpose: Buy post-capitulation rebounds after downside exhaustion.
 - Entry logic structure: Enter when downside extension and liquidation pressure peak then fade.
@@ -134,6 +143,7 @@ Templates are reusable and parameterizable strategy blueprints for the discovery
 - Risk profile: panic_rebound
 
 ### TPL-OVERSOLD-RB-02
+
 - Family: oversold rebound
 - Purpose: Capture short-cover bounce when trend continuation fails at lows.
 - Entry logic structure: Enter on failed low break with positive delta divergence.
@@ -149,6 +159,7 @@ Templates are reusable and parameterizable strategy blueprints for the discovery
 ## overbought fade
 
 ### TPL-OVERBOUGHT-FADE-01
+
 - Family: overbought fade
 - Purpose: Fade overextended upside moves lacking broad confirmation.
 - Entry logic structure: Enter short when extension threshold and divergence filter pass.
@@ -162,6 +173,7 @@ Templates are reusable and parameterizable strategy blueprints for the discovery
 - Risk profile: counter_trend_fade
 
 ### TPL-OVERBOUGHT-FADE-02
+
 - Family: overbought fade
 - Purpose: Exploit failed continuation after parabolic intraday advance.
 - Entry logic structure: Enter on first lower-high after parabolic run.
@@ -177,6 +189,7 @@ Templates are reusable and parameterizable strategy blueprints for the discovery
 ## relative strength leader
 
 ### TPL-RS-LEADER-01
+
 - Family: relative strength leader
 - Purpose: Long top-ranked leaders in persistent leadership environments.
 - Entry logic structure: Select top rank bucket and enter on pullback or breakout trigger.
@@ -190,6 +203,7 @@ Templates are reusable and parameterizable strategy blueprints for the discovery
 - Risk profile: cross_sectional_momentum
 
 ### TPL-RS-LEADER-02
+
 - Family: relative strength leader
 - Purpose: Capture leadership persistence in sector rotation cycles.
 - Entry logic structure: Rotate into top sector leaders with breadth confirmation.
@@ -205,6 +219,7 @@ Templates are reusable and parameterizable strategy blueprints for the discovery
 ## leader-laggard spread
 
 ### TPL-LEADER-LAG-01
+
 - Family: leader-laggard spread
 - Purpose: Trade relative spread between leaders and laggards.
 - Entry logic structure: Enter spread when rank dispersion exceeds threshold.
@@ -218,6 +233,7 @@ Templates are reusable and parameterizable strategy blueprints for the discovery
 - Risk profile: relative_value_spread
 
 ### TPL-LEADER-LAG-02
+
 - Family: leader-laggard spread
 - Purpose: Capture laggard catch-up during recovery phases.
 - Entry logic structure: Long laggards/short leaders when recovery breadth expands sharply.
@@ -233,6 +249,7 @@ Templates are reusable and parameterizable strategy blueprints for the discovery
 ## volatility compression breakout
 
 ### TPL-VOL-COMP-BRK-01
+
 - Family: volatility compression breakout
 - Purpose: Exploit breakout after prolonged volatility contraction.
 - Entry logic structure: Enter on close outside compression band with directional filter.
@@ -246,6 +263,7 @@ Templates are reusable and parameterizable strategy blueprints for the discovery
 - Risk profile: expansion_breakout
 
 ### TPL-VOL-COMP-BRK-02
+
 - Family: volatility compression breakout
 - Purpose: Trade post-event breakout from implied-vol crush setup.
 - Entry logic structure: Enter when post-event range narrows then breaks with volume confirmation.
@@ -261,6 +279,7 @@ Templates are reusable and parameterizable strategy blueprints for the discovery
 ## false breakout fade
 
 ### TPL-FALSE-BRK-FADE-01
+
 - Family: false breakout fade
 - Purpose: Fade failed breakout attempts and trapped-flow unwinds.
 - Entry logic structure: Enter opposite direction after breakout fails to hold confirmation window.
@@ -274,6 +293,7 @@ Templates are reusable and parameterizable strategy blueprints for the discovery
 - Risk profile: trap_reversal
 
 ### TPL-FALSE-BRK-FADE-02
+
 - Family: false breakout fade
 - Purpose: Capture breakdown failure rebound with trap confirmation.
 - Entry logic structure: Enter long on failed breakdown and immediate reclaim.
@@ -289,6 +309,7 @@ Templates are reusable and parameterizable strategy blueprints for the discovery
 ## trend exhaustion fade
 
 ### TPL-TREND-EXH-FADE-01
+
 - Family: trend exhaustion fade
 - Purpose: Fade mature trends after acceleration exhaustion.
 - Entry logic structure: Enter against trend when exhaustion score and divergence both trigger.
@@ -302,6 +323,7 @@ Templates are reusable and parameterizable strategy blueprints for the discovery
 - Risk profile: late_trend_reversal
 
 ### TPL-TREND-EXH-FADE-02
+
 - Family: trend exhaustion fade
 - Purpose: Capture reversal after failed final thrust in mature trends.
 - Entry logic structure: Enter after final thrust fails and structure breaks lower/higher.
@@ -317,6 +339,7 @@ Templates are reusable and parameterizable strategy blueprints for the discovery
 ## funding dislocation reversion
 
 ### TPL-FUNDING-DISLOC-01
+
 - Family: funding dislocation reversion
 - Purpose: Trade normalization of extreme perpetual funding imbalances.
 - Entry logic structure: Enter against crowded side when funding z-score exceeds trigger.
@@ -330,6 +353,7 @@ Templates are reusable and parameterizable strategy blueprints for the discovery
 - Risk profile: carry_reversion
 
 ### TPL-FUNDING-DISLOC-02
+
 - Family: funding dislocation reversion
 - Purpose: Capture short squeeze after deeply negative funding regime.
 - Entry logic structure: Enter long when negative funding and short crowding begin to unwind.
@@ -345,6 +369,7 @@ Templates are reusable and parameterizable strategy blueprints for the discovery
 ## basis compression
 
 ### TPL-BASIS-COMP-01
+
 - Family: basis compression
 - Purpose: Exploit futures basis normalization after dislocation.
 - Entry logic structure: Enter when annualized basis deviates beyond historical bounds.
@@ -358,6 +383,7 @@ Templates are reusable and parameterizable strategy blueprints for the discovery
 - Risk profile: basis_reversion
 
 ### TPL-BASIS-COMP-02
+
 - Family: basis compression
 - Purpose: Capture basis expansion continuation in strong risk-on cycles.
 - Entry logic structure: Enter with basis trend when carry remains supportive and stress low.
@@ -373,6 +399,7 @@ Templates are reusable and parameterizable strategy blueprints for the discovery
 ## liquidity shock reversal
 
 ### TPL-LIQ-SHOCK-REV-01
+
 - Family: liquidity shock reversal
 - Purpose: Trade mean reversion after short-lived liquidity dislocation.
 - Entry logic structure: Enter once spread shock peaks and first stabilization signal appears.
@@ -386,6 +413,7 @@ Templates are reusable and parameterizable strategy blueprints for the discovery
 - Risk profile: microstructure_reversion
 
 ### TPL-LIQ-SHOCK-REV-02
+
 - Family: liquidity shock reversal
 - Purpose: Capture bounce after forced-flow liquidation wave.
 - Entry logic structure: Enter after liquidation cluster dissipates and price reclaims micro support.
@@ -401,6 +429,7 @@ Templates are reusable and parameterizable strategy blueprints for the discovery
 ## multi-day continuation
 
 ### TPL-MULTI-DAY-CONT-01
+
 - Family: multi-day continuation
 - Purpose: Exploit sustained multi-session trend persistence.
 - Entry logic structure: Enter on higher timeframe breakout with supportive daily trend score.
@@ -414,6 +443,7 @@ Templates are reusable and parameterizable strategy blueprints for the discovery
 - Risk profile: swing_trend
 
 ### TPL-MULTI-DAY-CONT-02
+
 - Family: multi-day continuation
 - Purpose: Add exposure on orderly pullbacks during multi-day trend.
 - Entry logic structure: Enter on daily pullback support hold with intact trend structure.
@@ -429,6 +459,7 @@ Templates are reusable and parameterizable strategy blueprints for the discovery
 ## multi-day exhaustion
 
 ### TPL-MULTI-DAY-EXH-01
+
 - Family: multi-day exhaustion
 - Purpose: Fade mature multi-day runs after broad divergence appears.
 - Entry logic structure: Enter opposite direction after trend extension and breadth divergence trigger.
@@ -442,6 +473,7 @@ Templates are reusable and parameterizable strategy blueprints for the discovery
 - Risk profile: swing_reversal
 
 ### TPL-MULTI-DAY-EXH-02
+
 - Family: multi-day exhaustion
 - Purpose: Capture reversal after failed continuation day in mature trend.
 - Entry logic structure: Enter after failed continuation candle closes back inside prior value zone.

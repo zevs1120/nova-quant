@@ -2,8 +2,14 @@ import Database from 'better-sqlite3';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ensureSchema } from '../src/server/db/schema.js';
 import { MarketRepository } from '../src/server/db/repository.js';
-import { resetBinanceAccessBlockForTests, updateBinanceIncremental } from '../src/server/ingestion/binanceIncremental.js';
-import { resetBinanceDerivativesBlockForTests, syncBinanceDerivatives } from '../src/server/ingestion/binanceDerivatives.js';
+import {
+  resetBinanceAccessBlockForTests,
+  updateBinanceIncremental,
+} from '../src/server/ingestion/binanceIncremental.js';
+import {
+  resetBinanceDerivativesBlockForTests,
+  syncBinanceDerivatives,
+} from '../src/server/ingestion/binanceDerivatives.js';
 
 describe('updateBinanceIncremental', () => {
   afterEach(() => {
@@ -24,7 +30,7 @@ describe('updateBinanceIncremental', () => {
     await updateBinanceIncremental({
       repo,
       symbols: ['BTCUSDT', 'ETHUSDT'],
-      timeframes: ['1h']
+      timeframes: ['1h'],
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -33,7 +39,7 @@ describe('updateBinanceIncremental', () => {
     await updateBinanceIncremental({
       repo,
       symbols: ['BTCUSDT', 'ETHUSDT'],
-      timeframes: ['1h']
+      timeframes: ['1h'],
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -51,7 +57,7 @@ describe('updateBinanceIncremental', () => {
 
     await syncBinanceDerivatives({
       repo,
-      symbols: ['BTCUSDT', 'ETHUSDT']
+      symbols: ['BTCUSDT', 'ETHUSDT'],
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -59,7 +65,7 @@ describe('updateBinanceIncremental', () => {
 
     await syncBinanceDerivatives({
       repo,
-      symbols: ['BTCUSDT', 'ETHUSDT']
+      symbols: ['BTCUSDT', 'ETHUSDT'],
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);

@@ -22,6 +22,7 @@ It is designed as a research monitoring system, not a UI-only metric block.
 11. `roundtrip`
 
 The diagnostics object also keeps filtered counters:
+
 - `regime_filtered`
 - `score_filtered`
 - `risk_filtered`
@@ -61,6 +62,7 @@ The diagnostics object also keeps filtered counters:
 ## Shadow Opportunity Link
 
 Filtered records feed the shadow log for:
+
 - missed opportunity analysis,
 - reduced-size viability,
 - strictness diagnostics,

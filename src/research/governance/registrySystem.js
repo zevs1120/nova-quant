@@ -26,14 +26,14 @@ function alphaEvalSummary(alphaId, healthRows = []) {
     health: hit.health,
     recent_hit_rate: hit.recent_hit_rate,
     recent_pnl_proxy: hit.recent_pnl_proxy,
-    decay_flag: hit.decay_flag
+    decay_flag: hit.decay_flag,
   };
 }
 
 export function buildAlphaRegistry({
   alphaDefinitions = [],
   alphaHealth = [],
-  asOf = new Date().toISOString()
+  asOf = new Date().toISOString(),
 } = {}) {
   return alphaDefinitions.map((alpha) => ({
     registry_id: registryId('alpha', alpha.id, alpha.version || 'v1'),
@@ -47,7 +47,7 @@ export function buildAlphaRegistry({
     status: alpha.status,
     version: alpha.version || 'alpha-v1',
     last_eval_summary: alphaEvalSummary(alpha.id, alphaHealth),
-    updated_at: asOf
+    updated_at: asOf,
   }));
 }
 
@@ -61,7 +61,7 @@ function modelEvalSummary(history, decision) {
     paper_return: paper.total_return ?? null,
     paper_win_rate: paper.win_rate ?? null,
     promotion_status: decision?.status || ENTITY_STAGE.TESTING,
-    promotable: Boolean(decision?.promotable)
+    promotable: Boolean(decision?.promotable),
   };
 }
 
@@ -69,21 +69,22 @@ export function buildModelRegistry({
   champion = {},
   challengers = [],
   decisions = [],
-  asOf = new Date().toISOString()
+  asOf = new Date().toISOString(),
 } = {}) {
   const rows = [];
   const all = [
     { type: 'champion', item: champion },
-    ...challengers.map((item) => ({ type: 'challenger', item }))
+    ...challengers.map((item) => ({ type: 'challenger', item })),
   ];
   for (const row of all) {
     const cfg = row.item?.config || {};
     const strategyId = cfg.id || 'unknown';
     const strategyVersion = cfg.version || 'v1';
     const decision = decisions.find((item) => item.challenger_id === strategyId);
-    const stage = row.type === 'champion'
-      ? ENTITY_STAGE.CHAMPION
-      : normalizeStage(decision?.status || ENTITY_STAGE.TESTING, ENTITY_STAGE.TESTING);
+    const stage =
+      row.type === 'champion'
+        ? ENTITY_STAGE.CHAMPION
+        : normalizeStage(decision?.status || ENTITY_STAGE.TESTING, ENTITY_STAGE.TESTING);
     rows.push({
       registry_id: registryId('model', strategyId, strategyVersion),
       model_id: `model_${strategyId}`,
@@ -96,11 +97,11 @@ export function buildModelRegistry({
         directional_threshold: cfg.directional_threshold ?? null,
         score_bias: cfg.score_bias ?? null,
         risk_penalty_multiplier: cfg.risk_penalty_multiplier ?? null,
-        gross_exposure_multiplier: cfg.gross_exposure_multiplier ?? null
+        gross_exposure_multiplier: cfg.gross_exposure_multiplier ?? null,
       },
       created_at: asOf,
       current_stage: stage,
-      evaluation_summary: modelEvalSummary(row.item, decision)
+      evaluation_summary: modelEvalSummary(row.item, decision),
     });
   }
   return rows;
@@ -115,7 +116,7 @@ function buildStrategyChangeLog(baseConfig, currentConfig) {
     'gross_exposure_multiplier',
     'max_holdings_multiplier',
     'max_single_weight_multiplier',
-    'sector_cap_multiplier'
+    'sector_cap_multiplier',
   ];
   const rows = [];
   for (const key of keys) {
@@ -124,7 +125,7 @@ function buildStrategyChangeLog(baseConfig, currentConfig) {
     rows.push({
       field: key,
       from: baseConfig[key] ?? null,
-      to: currentConfig[key] ?? null
+      to: currentConfig[key] ?? null,
     });
   }
   return rows;
@@ -139,7 +140,7 @@ function strategyEvalSummary(history, decision) {
     turnover: backtest.turnover ?? null,
     promotable: Boolean(decision?.promotable),
     decision_status: decision?.status || ENTITY_STAGE.TESTING,
-    recent_snapshot_dates: diagnostics.map((item) => item.date)
+    recent_snapshot_dates: diagnostics.map((item) => item.date),
   };
 }
 
@@ -148,7 +149,7 @@ export function buildStrategyRegistry({
   challengers = [],
   decisions = [],
   alphaRegistry = [],
-  asOf = new Date().toISOString()
+  asOf = new Date().toISOString(),
 } = {}) {
   const championId = champion?.config?.id || 'champion';
   const baseConfig = champion?.config || {};
@@ -171,7 +172,7 @@ export function buildStrategyRegistry({
       portfolio_logic: 'rank_select_with_regime_risk_constraints',
       risk_profile: {
         safety_sensitivity: cfg.safety_sensitivity ?? null,
-        allow_c_in_high_vol: cfg.allow_c_in_high_vol ?? null
+        allow_c_in_high_vol: cfg.allow_c_in_high_vol ?? null,
       },
       execution_mode: EXECUTION_MODE.PAPER,
       current_stage: stage,
@@ -180,8 +181,8 @@ export function buildStrategyRegistry({
       created_at: asOf,
       notes: [
         toSummaryRow('label', cfg.label || strategyId),
-        toSummaryRow('version', cfg.version || 'v1')
-      ]
+        toSummaryRow('version', cfg.version || 'v1'),
+      ],
     };
   });
 }
@@ -192,31 +193,31 @@ export function buildUnifiedRegistrySystem({
   champion = {},
   challengers = [],
   decisions = [],
-  asOf = new Date().toISOString()
+  asOf = new Date().toISOString(),
 } = {}) {
   const alphaRegistry = buildAlphaRegistry({
     alphaDefinitions,
     alphaHealth,
-    asOf
+    asOf,
   });
   const modelRegistry = buildModelRegistry({
     champion,
     challengers,
     decisions,
-    asOf
+    asOf,
   });
   const strategyRegistry = buildStrategyRegistry({
     champion,
     challengers,
     decisions,
     alphaRegistry: alphaDefinitions,
-    asOf
+    asOf,
   });
 
   return {
     generated_at: asOf,
     alpha_registry: alphaRegistry,
     model_registry: modelRegistry,
-    strategy_registry: strategyRegistry
+    strategy_registry: strategyRegistry,
   };
 }

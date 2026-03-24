@@ -57,7 +57,7 @@ import type {
   WorkflowRunRecord,
   AuditEventRecord,
   UserRitualEventRecord,
-  UserRiskProfileRecord
+  UserRiskProfileRecord,
 } from '../types.js';
 
 function nowMs(): number {
@@ -87,12 +87,12 @@ export class MarketRepository {
       quote: input.quote ?? null,
       status: input.status ?? 'ACTIVE',
       created_at: ts,
-      updated_at: ts
+      updated_at: ts,
     });
 
     const row = this.db
       .prepare(
-        'SELECT asset_id, symbol, market, venue, base, quote, status, created_at, updated_at FROM assets WHERE symbol=? AND market=? AND venue=?'
+        'SELECT asset_id, symbol, market, venue, base, quote, status, created_at, updated_at FROM assets WHERE symbol=? AND market=? AND venue=?',
       )
       .get(input.symbol, input.market, input.venue) as Asset | undefined;
 
@@ -104,7 +104,7 @@ export class MarketRepository {
     const row = this.db
       .prepare(
         `SELECT asset_id, symbol, market, venue, base, quote, status, created_at, updated_at
-         FROM assets WHERE market=? AND symbol=? AND status='ACTIVE' ORDER BY updated_at DESC LIMIT 1`
+         FROM assets WHERE market=? AND symbol=? AND status='ACTIVE' ORDER BY updated_at DESC LIMIT 1`,
       )
       .get(market, symbol) as Asset | undefined;
     return row ?? null;
@@ -114,13 +114,15 @@ export class MarketRepository {
     if (market) {
       return this.db
         .prepare(
-          'SELECT asset_id, symbol, market, venue, base, quote, status, created_at, updated_at FROM assets WHERE market=? ORDER BY symbol'
+          'SELECT asset_id, symbol, market, venue, base, quote, status, created_at, updated_at FROM assets WHERE market=? ORDER BY symbol',
         )
         .all(market) as Asset[];
     }
 
     return this.db
-      .prepare('SELECT asset_id, symbol, market, venue, base, quote, status, created_at, updated_at FROM assets ORDER BY market, symbol')
+      .prepare(
+        'SELECT asset_id, symbol, market, venue, base, quote, status, created_at, updated_at FROM assets ORDER BY market, symbol',
+      )
       .all() as Asset[];
   }
 
@@ -128,7 +130,7 @@ export class MarketRepository {
     assetId: number,
     timeframe: Timeframe,
     bars: NormalizedBar[],
-    source: string
+    source: string,
   ): number {
     if (!bars.length) return 0;
 
@@ -158,7 +160,7 @@ export class MarketRepository {
           close: bar.close,
           volume: bar.volume,
           source,
-          ingest_at: ingestAt
+          ingest_at: ingestAt,
         });
       }
     });
@@ -167,7 +169,11 @@ export class MarketRepository {
     return bars.length;
   }
 
-  upsertFundingRates(assetId: number, rows: Array<{ ts_open: number; funding_rate: string }>, source: string): number {
+  upsertFundingRates(
+    assetId: number,
+    rows: Array<{ ts_open: number; funding_rate: string }>,
+    source: string,
+  ): number {
     if (!rows.length) return 0;
 
     const ingestAt = nowMs();
@@ -187,7 +193,7 @@ export class MarketRepository {
           ts_open: row.ts_open,
           funding_rate: row.funding_rate,
           source,
-          ingest_at: ingestAt
+          ingest_at: ingestAt,
         });
       }
     });
@@ -229,7 +235,7 @@ export class MarketRepository {
       asset_id: params.assetId,
       start: params.start,
       end: params.end,
-      limit: params.limit
+      limit: params.limit,
     }) as FundingRateRow[];
   }
 
@@ -242,13 +248,17 @@ export class MarketRepository {
           WHERE asset_id = ?
           ORDER BY ts_open DESC
           LIMIT 1
-        `
+        `,
       )
       .get(assetId) as FundingRateRow | undefined;
     return row ?? null;
   }
 
-  upsertBasisSnapshots(assetId: number, rows: Array<{ ts_open: number; basis_bps: string }>, source: string): number {
+  upsertBasisSnapshots(
+    assetId: number,
+    rows: Array<{ ts_open: number; basis_bps: string }>,
+    source: string,
+  ): number {
     if (!rows.length) return 0;
 
     const ingestAt = nowMs();
@@ -268,7 +278,7 @@ export class MarketRepository {
           ts_open: row.ts_open,
           basis_bps: row.basis_bps,
           source,
-          ingest_at: ingestAt
+          ingest_at: ingestAt,
         });
       }
     });
@@ -310,7 +320,7 @@ export class MarketRepository {
       asset_id: params.assetId,
       start: params.start,
       end: params.end,
-      limit: params.limit
+      limit: params.limit,
     }) as BasisSnapshotRow[];
   }
 
@@ -323,7 +333,7 @@ export class MarketRepository {
           WHERE asset_id = ?
           ORDER BY ts_open DESC
           LIMIT 1
-        `
+        `,
       )
       .get(assetId) as BasisSnapshotRow | undefined;
     return row ?? null;
@@ -372,7 +382,7 @@ export class MarketRepository {
       timeframe: params.timeframe,
       start: params.start,
       end: params.end,
-      limit: params.limit
+      limit: params.limit,
     }) as Array<{
       ts_open: number;
       open: string;
@@ -386,12 +396,17 @@ export class MarketRepository {
 
   getLatestTsOpen(assetId: number, timeframe: Timeframe): number | null {
     const row = this.db
-      .prepare('SELECT ts_open FROM ohlcv WHERE asset_id=? AND timeframe=? ORDER BY ts_open DESC LIMIT 1')
+      .prepare(
+        'SELECT ts_open FROM ohlcv WHERE asset_id=? AND timeframe=? ORDER BY ts_open DESC LIMIT 1',
+      )
       .get(assetId, timeframe) as { ts_open: number } | undefined;
     return row?.ts_open ?? null;
   }
 
-  getOhlcvStats(assetId: number, timeframe: Timeframe): {
+  getOhlcvStats(
+    assetId: number,
+    timeframe: Timeframe,
+  ): {
     bar_count: number;
     first_ts_open: number | null;
     last_ts_open: number | null;
@@ -402,13 +417,15 @@ export class MarketRepository {
           SELECT COUNT(*) AS bar_count, MIN(ts_open) AS first_ts_open, MAX(ts_open) AS last_ts_open
           FROM ohlcv
           WHERE asset_id = ? AND timeframe = ?
-        `
+        `,
       )
-      .get(assetId, timeframe) as { bar_count: number; first_ts_open: number | null; last_ts_open: number | null } | undefined;
+      .get(assetId, timeframe) as
+      | { bar_count: number; first_ts_open: number | null; last_ts_open: number | null }
+      | undefined;
     return {
       bar_count: Number(row?.bar_count || 0),
       first_ts_open: row?.first_ts_open ?? null,
-      last_ts_open: row?.last_ts_open ?? null
+      last_ts_open: row?.last_ts_open ?? null,
     };
   }
 
@@ -429,21 +446,25 @@ export class MarketRepository {
             last_ts_open = excluded.last_ts_open,
             source = excluded.source,
             updated_at = excluded.updated_at
-        `
+        `,
       )
       .run({
         asset_id: assetId,
         timeframe,
         last_ts_open: lastTsOpen,
         source,
-        updated_at: nowMs()
+        updated_at: nowMs(),
       });
   }
 
-  listAssetIdsByMarket(market?: string): Array<{ asset_id: number; symbol: string; market: string; venue: string }> {
+  listAssetIdsByMarket(
+    market?: string,
+  ): Array<{ asset_id: number; symbol: string; market: string; venue: string }> {
     if (market) {
       return this.db
-        .prepare('SELECT asset_id, symbol, market, venue FROM assets WHERE market = ? ORDER BY symbol')
+        .prepare(
+          'SELECT asset_id, symbol, market, venue FROM assets WHERE market = ? ORDER BY symbol',
+        )
         .all(market) as Array<{ asset_id: number; symbol: string; market: string; venue: string }>;
     }
 
@@ -455,7 +476,7 @@ export class MarketRepository {
   listBarsRange(assetId: number, timeframe: Timeframe, start: number, end: number): number[] {
     const rows = this.db
       .prepare(
-        'SELECT ts_open FROM ohlcv WHERE asset_id=? AND timeframe=? AND ts_open>=? AND ts_open<=? ORDER BY ts_open ASC'
+        'SELECT ts_open FROM ohlcv WHERE asset_id=? AND timeframe=? AND ts_open>=? AND ts_open<=? ORDER BY ts_open ASC',
       )
       .all(assetId, timeframe, start, end) as Array<{ ts_open: number }>;
     return rows.map((row) => row.ts_open);
@@ -471,9 +492,16 @@ export class MarketRepository {
     this.db
       .prepare(
         `INSERT INTO ingest_anomalies(asset_id, timeframe, ts_open, anomaly_type, detail, created_at)
-         VALUES (?, ?, ?, ?, ?, ?)`
+         VALUES (?, ?, ?, ?, ?, ?)`,
       )
-      .run(args.assetId ?? null, args.timeframe, args.tsOpen ?? null, args.anomalyType, args.detail, nowMs());
+      .run(
+        args.assetId ?? null,
+        args.timeframe,
+        args.tsOpen ?? null,
+        args.anomalyType,
+        args.detail,
+        nowMs(),
+      );
   }
 
   upsertSignal(signal: SignalContract): void {
@@ -593,7 +621,7 @@ export class MarketRepository {
       status: signal.status,
       score: signal.score,
       payload_json: payload,
-      updated_at_ms: updatedAt
+      updated_at_ms: updatedAt,
     });
   }
 
@@ -611,7 +639,7 @@ export class MarketRepository {
         .prepare(
           `UPDATE signals
            SET status='EXPIRED', updated_at_ms=?
-           WHERE status IN ('NEW', 'TRIGGERED')`
+           WHERE status IN ('NEW', 'TRIGGERED')`,
         )
         .run(ts);
       return Number(result.changes || 0);
@@ -668,9 +696,9 @@ export class MarketRepository {
   }
 
   getSignal(signalId: string): SignalRecord | null {
-    const row = this.db.prepare('SELECT * FROM signals WHERE signal_id = ? LIMIT 1').get(signalId) as
-      | SignalRecord
-      | undefined;
+    const row = this.db
+      .prepare('SELECT * FROM signals WHERE signal_id = ? LIMIT 1')
+      .get(signalId) as SignalRecord | undefined;
     return row ?? null;
   }
 
@@ -678,24 +706,41 @@ export class MarketRepository {
     this.db
       .prepare(
         `INSERT INTO signal_events(signal_id, event_type, payload_json, created_at_ms)
-         VALUES (?, ?, ?, ?)`
+         VALUES (?, ?, ?, ?)`,
       )
       .run(signalId, eventType, payload ? JSON.stringify(payload) : null, nowMs());
   }
 
-  listSignalEvents(signalId: string, limit = 40): Array<{ id: number; signal_id: string; event_type: string; payload_json: string | null; created_at_ms: number }> {
+  listSignalEvents(
+    signalId: string,
+    limit = 40,
+  ): Array<{
+    id: number;
+    signal_id: string;
+    event_type: string;
+    payload_json: string | null;
+    created_at_ms: number;
+  }> {
     return this.db
       .prepare(
         `SELECT id, signal_id, event_type, payload_json, created_at_ms
          FROM signal_events
          WHERE signal_id = ?
          ORDER BY created_at_ms DESC
-         LIMIT ?`
+         LIMIT ?`,
       )
-      .all(signalId, limit) as Array<{ id: number; signal_id: string; event_type: string; payload_json: string | null; created_at_ms: number }>;
+      .all(signalId, limit) as Array<{
+      id: number;
+      signal_id: string;
+      event_type: string;
+      payload_json: string | null;
+      created_at_ms: number;
+    }>;
   }
 
-  upsertExecution(input: Omit<ExecutionRecord, 'updated_at_ms'> & { updated_at_ms?: number }): void {
+  upsertExecution(
+    input: Omit<ExecutionRecord, 'updated_at_ms'> & { updated_at_ms?: number },
+  ): void {
     const ts = input.updated_at_ms ?? nowMs();
     this.db
       .prepare(
@@ -724,7 +769,7 @@ export class MarketRepository {
             note = excluded.note,
             created_at_ms = excluded.created_at_ms,
             updated_at_ms = excluded.updated_at_ms
-        `
+        `,
       )
       .run({
         execution_id: input.execution_id,
@@ -741,7 +786,7 @@ export class MarketRepository {
         pnl_pct: input.pnl_pct ?? null,
         note: input.note ?? null,
         created_at_ms: input.created_at_ms,
-        updated_at_ms: ts
+        updated_at_ms: ts,
       });
   }
 
@@ -785,7 +830,7 @@ export class MarketRepository {
         ${whereSql}
         ORDER BY created_at_ms DESC
         ${limitSql}
-      `
+      `,
       )
       .all(q) as Array<{
       execution_id: string;
@@ -812,7 +857,7 @@ export class MarketRepository {
       tp_price: row.tp_price ?? undefined,
       size_pct: row.size_pct ?? undefined,
       pnl_pct: row.pnl_pct ?? undefined,
-      note: row.note ?? undefined
+      note: row.note ?? undefined,
     }));
   }
 
@@ -833,7 +878,7 @@ export class MarketRepository {
             exposure_cap = excluded.exposure_cap,
             leverage_cap = excluded.leverage_cap,
             updated_at_ms = excluded.updated_at_ms
-        `
+        `,
       )
       .run(profile);
   }
@@ -842,7 +887,7 @@ export class MarketRepository {
     const row = this.db
       .prepare(
         `SELECT user_id, profile_key, max_loss_per_trade, max_daily_loss, max_drawdown, exposure_cap, leverage_cap, updated_at_ms
-         FROM user_risk_profiles WHERE user_id = ? LIMIT 1`
+         FROM user_risk_profiles WHERE user_id = ? LIMIT 1`,
       )
       .get(userId) as UserRiskProfileRecord | undefined;
     return row ?? null;
@@ -870,7 +915,7 @@ export class MarketRepository {
             event_stats_json = excluded.event_stats_json,
             assumptions_json = excluded.assumptions_json,
             updated_at_ms = excluded.updated_at_ms
-        `
+        `,
       )
       .run(record);
   }
@@ -882,7 +927,11 @@ export class MarketRepository {
     tx(rows);
   }
 
-  listMarketState(params?: { market?: Market; symbol?: string; timeframe?: string }): MarketStateRecord[] {
+  listMarketState(params?: {
+    market?: Market;
+    symbol?: string;
+    timeframe?: string;
+  }): MarketStateRecord[] {
     const where: string[] = [];
     const q: Record<string, unknown> = {};
     if (params?.market) {
@@ -907,7 +956,7 @@ export class MarketRepository {
       FROM market_state
       ${whereSql}
       ORDER BY temperature_percentile DESC, updated_at_ms DESC
-    `
+    `,
       )
       .all(q) as MarketStateRecord[];
   }
@@ -927,7 +976,7 @@ export class MarketRepository {
             payload_json = excluded.payload_json,
             asof_ms = excluded.asof_ms,
             updated_at_ms = excluded.updated_at_ms
-        `
+        `,
       )
       .run(record);
   }
@@ -939,7 +988,11 @@ export class MarketRepository {
     tx(rows);
   }
 
-  listPerformanceSnapshots(params?: { market?: Market; range?: string; segmentType?: string }): PerformanceSnapshotRecord[] {
+  listPerformanceSnapshots(params?: {
+    market?: Market;
+    range?: string;
+    segmentType?: string;
+  }): PerformanceSnapshotRecord[] {
     const where: string[] = [];
     const q: Record<string, unknown> = {};
     if (params?.market) {
@@ -962,7 +1015,7 @@ export class MarketRepository {
       FROM performance_snapshots
       ${whereSql}
       ORDER BY asof_ms DESC, sample_size DESC
-    `
+    `,
       )
       .all(q) as PerformanceSnapshotRecord[];
   }
@@ -985,7 +1038,7 @@ export class MarketRepository {
             relevance_score = excluded.relevance_score,
             payload_json = excluded.payload_json,
             updated_at_ms = excluded.updated_at_ms
-        `
+        `,
       )
       .run(record);
   }
@@ -997,7 +1050,12 @@ export class MarketRepository {
     tx(rows);
   }
 
-  listNewsItems(params?: { market?: Market | 'ALL'; symbol?: string; limit?: number; sinceMs?: number }): NewsItemRecord[] {
+  listNewsItems(params?: {
+    market?: Market | 'ALL';
+    symbol?: string;
+    limit?: number;
+    sinceMs?: number;
+  }): NewsItemRecord[] {
     const where: string[] = [];
     const q: Record<string, unknown> = {};
     if (params?.market) {
@@ -1024,7 +1082,7 @@ export class MarketRepository {
           ${whereSql}
           ORDER BY published_at_ms DESC, updated_at_ms DESC
           ${limitSql}
-        `
+        `,
       )
       .all(q) as NewsItemRecord[];
   }
@@ -1043,7 +1101,7 @@ export class MarketRepository {
             asof_date = excluded.asof_date,
             payload_json = excluded.payload_json,
             updated_at_ms = excluded.updated_at_ms
-        `
+        `,
       )
       .run(record);
   }
@@ -1055,7 +1113,11 @@ export class MarketRepository {
     tx(rows);
   }
 
-  listFundamentalSnapshots(params?: { market?: Market; symbol?: string; limit?: number }): FundamentalSnapshotRecord[] {
+  listFundamentalSnapshots(params?: {
+    market?: Market;
+    symbol?: string;
+    limit?: number;
+  }): FundamentalSnapshotRecord[] {
     const where: string[] = [];
     const q: Record<string, unknown> = {};
     if (params?.market) {
@@ -1078,7 +1140,7 @@ export class MarketRepository {
           ${whereSql}
           ORDER BY updated_at_ms DESC
           ${limitSql}
-        `
+        `,
       )
       .all(q) as FundamentalSnapshotRecord[];
   }
@@ -1098,7 +1160,7 @@ export class MarketRepository {
             source = excluded.source,
             payload_json = excluded.payload_json,
             updated_at_ms = excluded.updated_at_ms
-        `
+        `,
       )
       .run(record);
   }
@@ -1110,7 +1172,11 @@ export class MarketRepository {
     tx(rows);
   }
 
-  listOptionChainSnapshots(params?: { market?: Market; symbol?: string; limit?: number }): OptionChainSnapshotRecord[] {
+  listOptionChainSnapshots(params?: {
+    market?: Market;
+    symbol?: string;
+    limit?: number;
+  }): OptionChainSnapshotRecord[] {
     const where: string[] = [];
     const q: Record<string, unknown> = {};
     if (params?.market) {
@@ -1133,7 +1199,7 @@ export class MarketRepository {
           ${whereSql}
           ORDER BY snapshot_ts_ms DESC, updated_at_ms DESC
           ${limitSql}
-        `
+        `,
       )
       .all(q) as OptionChainSnapshotRecord[];
   }
@@ -1176,7 +1242,7 @@ export class MarketRepository {
             last_promotion_reason = excluded.last_promotion_reason,
             metadata_json = excluded.metadata_json,
             updated_at_ms = excluded.updated_at_ms
-        `
+        `,
       )
       .run(input);
   }
@@ -1193,7 +1259,7 @@ export class MarketRepository {
           FROM alpha_candidates
           WHERE id = ?
           LIMIT 1
-        `
+        `,
       )
       .get(id) as AlphaCandidateRecord | undefined;
     return row ?? null;
@@ -1234,7 +1300,7 @@ export class MarketRepository {
           ${whereSql}
           ORDER BY updated_at_ms DESC, acceptance_score DESC
           ${limitSql}
-        `
+        `,
       )
       .all(q) as AlphaCandidateRecord[];
   }
@@ -1250,7 +1316,7 @@ export class MarketRepository {
             @id, @alpha_candidate_id, @workflow_run_id, @backtest_run_id, @evaluation_status, @acceptance_score,
             @metrics_json, @rejection_reasons_json, @notes, @created_at_ms
           )
-        `
+        `,
       )
       .run(input);
   }
@@ -1283,7 +1349,7 @@ export class MarketRepository {
           ${whereSql}
           ORDER BY created_at_ms DESC
           ${limitSql}
-        `
+        `,
       )
       .all(q) as AlphaEvaluationRecord[];
   }
@@ -1299,7 +1365,7 @@ export class MarketRepository {
           WHERE alpha_candidate_id = ?
           ORDER BY created_at_ms DESC
           LIMIT 1
-        `
+        `,
       )
       .get(alphaCandidateId) as AlphaEvaluationRecord | undefined;
     return row ?? null;
@@ -1326,7 +1392,7 @@ export class MarketRepository {
             realized_source = excluded.realized_source,
             payload_json = excluded.payload_json,
             updated_at_ms = excluded.updated_at_ms
-        `
+        `,
       )
       .run(input);
   }
@@ -1366,7 +1432,7 @@ export class MarketRepository {
           ${whereSql}
           ORDER BY updated_at_ms DESC
           ${limitSql}
-        `
+        `,
       )
       .all(q) as AlphaShadowObservationRecord[];
   }
@@ -1380,12 +1446,15 @@ export class MarketRepository {
           ) VALUES(
             @id, @alpha_candidate_id, @from_status, @to_status, @reason, @payload_json, @created_at_ms
           )
-        `
+        `,
       )
       .run(input);
   }
 
-  listAlphaLifecycleEvents(params?: { alphaCandidateId?: string; limit?: number }): AlphaLifecycleEventRecord[] {
+  listAlphaLifecycleEvents(params?: {
+    alphaCandidateId?: string;
+    limit?: number;
+  }): AlphaLifecycleEventRecord[] {
     const where: string[] = [];
     const q: Record<string, unknown> = {};
     if (params?.alphaCandidateId) {
@@ -1404,7 +1473,7 @@ export class MarketRepository {
           ${whereSql}
           ORDER BY created_at_ms DESC
           ${limitSql}
-        `
+        `,
       )
       .all(q) as AlphaLifecycleEventRecord[];
   }
@@ -1428,25 +1497,29 @@ export class MarketRepository {
           scope = excluded.scope,
           status = excluded.status,
           updated_at_ms = excluded.updated_at_ms
-      `
+      `,
       )
       .run({
         ...input,
         status: input.status ?? 'ACTIVE',
         created_at_ms: ts,
-        updated_at_ms: ts
+        updated_at_ms: ts,
       });
   }
 
-  getApiKeyByHash(keyHash: string): { key_id: string; key_hash: string; label: string; scope: string; status: string } | null {
+  getApiKeyByHash(
+    keyHash: string,
+  ): { key_id: string; key_hash: string; label: string; scope: string; status: string } | null {
     const row = this.db
       .prepare(
         `SELECT key_id, key_hash, label, scope, status
          FROM api_keys
          WHERE key_hash = ?
-         LIMIT 1`
+         LIMIT 1`,
       )
-      .get(keyHash) as { key_id: string; key_hash: string; label: string; scope: string; status: string } | undefined;
+      .get(keyHash) as
+      | { key_id: string; key_hash: string; label: string; scope: string; status: string }
+      | undefined;
     return row ?? null;
   }
 
@@ -1463,7 +1536,7 @@ export class MarketRepository {
         `
           INSERT INTO signal_deliveries(signal_id, channel, endpoint, event_type, status, detail, created_at_ms)
           VALUES(@signal_id, @channel, @endpoint, @event_type, @status, @detail, @created_at_ms)
-      `
+      `,
       )
       .run({
         signal_id: input.signal_id,
@@ -1472,7 +1545,7 @@ export class MarketRepository {
         event_type: input.event_type,
         status: input.status,
         detail: input.detail ?? null,
-        created_at_ms: nowMs()
+        created_at_ms: nowMs(),
       });
   }
 
@@ -1502,17 +1575,20 @@ export class MarketRepository {
             status = excluded.status,
             meta_json = excluded.meta_json,
             updated_at_ms = excluded.updated_at_ms
-      `
+      `,
       )
       .run({
         ...input,
         meta_json: input.meta_json ?? null,
         created_at_ms: ts,
-        updated_at_ms: ts
+        updated_at_ms: ts,
       });
   }
 
-  listExternalConnections(params: { userId: string; connectionType?: 'BROKER' | 'EXCHANGE' }): Array<{
+  listExternalConnections(params: {
+    userId: string;
+    connectionType?: 'BROKER' | 'EXCHANGE';
+  }): Array<{
     connection_id: string;
     user_id: string;
     connection_type: 'BROKER' | 'EXCHANGE';
@@ -1535,7 +1611,7 @@ export class MarketRepository {
           FROM external_connections
           WHERE ${where.join(' AND ')}
           ORDER BY updated_at_ms DESC
-      `
+      `,
       )
       .all(q) as Array<{
       connection_id: string;
@@ -1563,7 +1639,7 @@ export class MarketRepository {
             last_context_json = excluded.last_context_json,
             last_message_preview = excluded.last_message_preview,
             updated_at_ms = excluded.updated_at_ms
-        `
+        `,
       )
       .run(input);
   }
@@ -1576,7 +1652,7 @@ export class MarketRepository {
           FROM chat_threads
           WHERE id = ? AND user_id = ?
           LIMIT 1
-        `
+        `,
       )
       .get(id, userId) as ChatThreadRecord | undefined;
     return row ?? null;
@@ -1591,7 +1667,7 @@ export class MarketRepository {
           WHERE user_id = ?
           ORDER BY updated_at_ms DESC
           LIMIT ?
-        `
+        `,
       )
       .all(userId, limit) as ChatThreadRecord[];
   }
@@ -1605,12 +1681,12 @@ export class MarketRepository {
           ) VALUES(
             @thread_id, @user_id, @role, @content, @context_json, @provider, @status, @created_at_ms
           )
-        `
+        `,
       )
       .run({
         ...input,
         context_json: input.context_json ?? null,
-        provider: input.provider ?? null
+        provider: input.provider ?? null,
       });
     return Number(result.lastInsertRowid);
   }
@@ -1624,7 +1700,7 @@ export class MarketRepository {
           WHERE thread_id = ?
           ORDER BY created_at_ms DESC
           LIMIT ?
-        `
+        `,
       )
       .all(threadId, limit) as ChatMessageRecord[];
     return [...rows].reverse();
@@ -1647,12 +1723,16 @@ export class MarketRepository {
             config_json = excluded.config_json,
             status = excluded.status,
             updated_at_ms = excluded.updated_at_ms
-        `
+        `,
       )
       .run(input);
   }
 
-  listStrategyVersions(params?: { strategyKey?: string; status?: string; limit?: number }): StrategyVersionRecord[] {
+  listStrategyVersions(params?: {
+    strategyKey?: string;
+    status?: string;
+    limit?: number;
+  }): StrategyVersionRecord[] {
     const where: string[] = [];
     const q: Record<string, unknown> = {};
     if (params?.strategyKey) {
@@ -1674,7 +1754,7 @@ export class MarketRepository {
           ${whereSql}
           ORDER BY updated_at_ms DESC
           ${limitSql}
-        `
+        `,
       )
       .all(q) as StrategyVersionRecord[];
   }
@@ -1687,7 +1767,7 @@ export class MarketRepository {
           FROM strategy_versions
           WHERE id = ?
           LIMIT 1
-        `
+        `,
       )
       .get(id) as StrategyVersionRecord | undefined;
     return row ?? null;
@@ -1703,7 +1783,7 @@ export class MarketRepository {
             @id, @market, @asset_class, @timeframe, @source_bundle_hash, @coverage_summary_json, @freshness_summary_json, @notes, @created_at_ms
           )
           ON CONFLICT(id) DO NOTHING
-        `
+        `,
       )
       .run(input);
   }
@@ -1722,9 +1802,11 @@ export class MarketRepository {
           WHERE market = ? AND asset_class = ? AND timeframe = ? AND source_bundle_hash = ?
           ORDER BY created_at_ms DESC
           LIMIT 1
-        `
+        `,
       )
-      .get(params.market, params.assetClass, params.timeframe, params.sourceBundleHash) as DatasetVersionRecord | undefined;
+      .get(params.market, params.assetClass, params.timeframe, params.sourceBundleHash) as
+      | DatasetVersionRecord
+      | undefined;
     return row ?? null;
   }
 
@@ -1736,7 +1818,7 @@ export class MarketRepository {
           FROM dataset_versions
           WHERE id = ?
           LIMIT 1
-        `
+        `,
       )
       .get(id) as DatasetVersionRecord | undefined;
     return row ?? null;
@@ -1773,7 +1855,7 @@ export class MarketRepository {
           ${whereSql}
           ORDER BY created_at_ms DESC
           ${limitSql}
-        `
+        `,
       )
       .all(q) as DatasetVersionRecord[];
   }
@@ -1790,7 +1872,7 @@ export class MarketRepository {
           ON CONFLICT(id) DO UPDATE SET
             members_json = excluded.members_json,
             snapshot_ts_ms = excluded.snapshot_ts_ms
-        `
+        `,
       )
       .run(input);
   }
@@ -1801,7 +1883,7 @@ export class MarketRepository {
         `
           SELECT id, dataset_version_id, snapshot_ts_ms, market, asset_class, members_json, created_at_ms
           FROM universe_snapshots WHERE id = ? LIMIT 1
-        `
+        `,
       )
       .get(id) as UniverseSnapshotRecord | undefined;
     return row ?? null;
@@ -1838,7 +1920,7 @@ export class MarketRepository {
           ${whereSql}
           ORDER BY snapshot_ts_ms DESC
           ${limitSql}
-        `
+        `,
       )
       .all(q) as UniverseSnapshotRecord[];
   }
@@ -1856,7 +1938,7 @@ export class MarketRepository {
             feature_hash = excluded.feature_hash,
             metadata_json = excluded.metadata_json,
             snapshot_ts_ms = excluded.snapshot_ts_ms
-        `
+        `,
       )
       .run(input);
   }
@@ -1887,7 +1969,7 @@ export class MarketRepository {
           ${whereSql}
           ORDER BY snapshot_ts_ms DESC
           ${limitSql}
-        `
+        `,
       )
       .all(q) as FeatureSnapshotRecord[];
   }
@@ -1910,7 +1992,7 @@ export class MarketRepository {
             fill_policy_json = excluded.fill_policy_json,
             latency_assumption_json = excluded.latency_assumption_json,
             version = excluded.version
-        `
+        `,
       )
       .run(input);
   }
@@ -1924,7 +2006,7 @@ export class MarketRepository {
           FROM execution_profiles
           WHERE id = ?
           LIMIT 1
-        `
+        `,
       )
       .get(id) as ExecutionProfileRecord | undefined;
     return row ?? null;
@@ -1939,7 +2021,7 @@ export class MarketRepository {
           FROM execution_profiles
           ORDER BY created_at_ms DESC
           LIMIT ?
-        `
+        `,
       )
       .all(limit) as ExecutionProfileRecord[];
   }
@@ -1955,7 +2037,7 @@ export class MarketRepository {
             @id, @run_type, @strategy_version_id, @dataset_version_id, @universe_version_id, @execution_profile_id,
             @config_hash, @started_at_ms, @completed_at_ms, @status, @train_window, @validation_window, @test_window, @notes
           )
-        `
+        `,
       )
       .run(input);
   }
@@ -1974,13 +2056,13 @@ export class MarketRepository {
               completed_at_ms = COALESCE(@completed_at_ms, completed_at_ms),
               notes = COALESCE(@notes, notes)
           WHERE id = @id
-        `
+        `,
       )
       .run({
         id: args.id,
         status: args.status,
         completed_at_ms: args.completedAtMs ?? null,
-        notes: args.notes ?? null
+        notes: args.notes ?? null,
       });
   }
 
@@ -2017,7 +2099,7 @@ export class MarketRepository {
           ${whereSql}
           ORDER BY started_at_ms DESC
           ${limitSql}
-        `
+        `,
       )
       .all(q) as BacktestRunRecord[];
   }
@@ -2032,7 +2114,7 @@ export class MarketRepository {
           FROM backtest_runs
           WHERE id = ?
           LIMIT 1
-        `
+        `,
       )
       .get(id) as BacktestRunRecord | undefined;
     return row ?? null;
@@ -2068,7 +2150,7 @@ export class MarketRepository {
           invalidation_logic_json = excluded.invalidation_logic_json,
           source_transparency_json = excluded.source_transparency_json,
           evidence_status = excluded.evidence_status
-      `
+      `,
     );
     const tx = this.db.transaction((items: SignalSnapshotRecord[]) => {
       for (const row of items) stmt.run(row);
@@ -2120,7 +2202,7 @@ export class MarketRepository {
           ${whereSql}
           ORDER BY snapshot_ts_ms DESC
           ${limitSql}
-        `
+        `,
       )
       .all(q) as SignalSnapshotRecord[];
   }
@@ -2136,7 +2218,7 @@ export class MarketRepository {
             @backtest_run_id, @gross_return, @net_return, @sharpe, @sortino, @max_drawdown, @turnover, @win_rate, @hit_rate,
             @cost_drag, @sample_size, @withheld_reason, @realism_grade, @robustness_grade, @status, @created_at_ms, @updated_at_ms
           )
-        `
+        `,
       )
       .run(input);
   }
@@ -2152,7 +2234,7 @@ export class MarketRepository {
           WHERE backtest_run_id = ?
           ORDER BY updated_at_ms DESC
           LIMIT 1
-        `
+        `,
       )
       .get(backtestRunId) as BacktestMetricRecord | undefined;
     return row ?? null;
@@ -2164,7 +2246,7 @@ export class MarketRepository {
       `
         INSERT INTO backtest_artifacts(backtest_run_id, artifact_type, path_or_payload, created_at_ms)
         VALUES(@backtest_run_id, @artifact_type, @path_or_payload, @created_at_ms)
-      `
+      `,
     );
     const tx = this.db.transaction((items: BacktestArtifactRecord[]) => {
       for (const row of items) stmt.run(row);
@@ -2180,7 +2262,7 @@ export class MarketRepository {
           FROM backtest_artifacts
           WHERE backtest_run_id = ?
           ORDER BY created_at_ms DESC
-        `
+        `,
       )
       .all(backtestRunId) as BacktestArtifactRecord[];
   }
@@ -2209,7 +2291,7 @@ export class MarketRepository {
           slippage_gap = excluded.slippage_gap,
           attribution_json = excluded.attribution_json,
           status = excluded.status
-      `
+      `,
     );
     const tx = this.db.transaction((items: ReplayPaperReconciliationRecord[]) => {
       for (const row of items) stmt.run(row);
@@ -2223,7 +2305,13 @@ export class MarketRepository {
     symbol?: string;
     strategyVersionId?: string;
     limit?: number;
-  }): Array<ReplayPaperReconciliationRecord & { symbol: string | null; strategy_version_id: string | null; regime_id: string | null }> {
+  }): Array<
+    ReplayPaperReconciliationRecord & {
+      symbol: string | null;
+      strategy_version_id: string | null;
+      regime_id: string | null;
+    }
+  > {
     const where: string[] = [];
     const q: Record<string, unknown> = {};
     if (params?.replayRunId) {
@@ -2259,9 +2347,15 @@ export class MarketRepository {
           ${whereSql}
           ORDER BY r.created_at_ms DESC
           ${limitSql}
-        `
+        `,
       )
-      .all(q) as Array<ReplayPaperReconciliationRecord & { symbol: string | null; strategy_version_id: string | null; regime_id: string | null }>;
+      .all(q) as Array<
+      ReplayPaperReconciliationRecord & {
+        symbol: string | null;
+        strategy_version_id: string | null;
+        regime_id: string | null;
+      }
+    >;
   }
 
   upsertExperimentRecord(input: ExperimentRegistryRecord): void {
@@ -2280,7 +2374,7 @@ export class MarketRepository {
             promotion_reason = excluded.promotion_reason,
             demotion_reason = excluded.demotion_reason,
             approved_at_ms = excluded.approved_at_ms
-        `
+        `,
       )
       .run(input);
   }
@@ -2294,7 +2388,7 @@ export class MarketRepository {
           FROM experiment_registry
           ORDER BY created_at_ms DESC
           LIMIT ?
-        `
+        `,
       )
       .all(limit) as ExperimentRegistryRecord[];
   }
@@ -2317,12 +2411,16 @@ export class MarketRepository {
             status = excluded.status,
             config_json = excluded.config_json,
             updated_at_ms = excluded.updated_at_ms
-        `
+        `,
       )
       .run(input);
   }
 
-  listModelVersions(params?: { modelKey?: string; status?: string; limit?: number }): ModelVersionRecord[] {
+  listModelVersions(params?: {
+    modelKey?: string;
+    status?: string;
+    limit?: number;
+  }): ModelVersionRecord[] {
     const where: string[] = [];
     const q: Record<string, unknown> = {};
     if (params?.modelKey) {
@@ -2344,7 +2442,7 @@ export class MarketRepository {
           ${whereSql}
           ORDER BY updated_at_ms DESC
           ${limitSql}
-        `
+        `,
       )
       .all(q) as ModelVersionRecord[];
   }
@@ -2365,12 +2463,16 @@ export class MarketRepository {
             prompt_text = excluded.prompt_text,
             status = excluded.status,
             updated_at_ms = excluded.updated_at_ms
-        `
+        `,
       )
       .run(input);
   }
 
-  listPromptVersions(params?: { taskKey?: string; status?: string; limit?: number }): PromptVersionRecord[] {
+  listPromptVersions(params?: {
+    taskKey?: string;
+    status?: string;
+    limit?: number;
+  }): PromptVersionRecord[] {
     const where: string[] = [];
     const q: Record<string, unknown> = {};
     if (params?.taskKey) {
@@ -2392,7 +2494,7 @@ export class MarketRepository {
           ${whereSql}
           ORDER BY updated_at_ms DESC
           ${limitSql}
-        `
+        `,
       )
       .all(q) as PromptVersionRecord[];
   }
@@ -2413,12 +2515,16 @@ export class MarketRepository {
             subject_version = excluded.subject_version,
             score_json = excluded.score_json,
             notes = excluded.notes
-        `
+        `,
       )
       .run(input);
   }
 
-  listEvalRecords(params?: { subjectType?: string; evalType?: string; limit?: number }): EvalRegistryRecord[] {
+  listEvalRecords(params?: {
+    subjectType?: string;
+    evalType?: string;
+    limit?: number;
+  }): EvalRegistryRecord[] {
     const where: string[] = [];
     const q: Record<string, unknown> = {};
     if (params?.subjectType) {
@@ -2440,7 +2546,7 @@ export class MarketRepository {
           ${whereSql}
           ORDER BY created_at_ms DESC
           ${limitSql}
-        `
+        `,
       )
       .all(q) as EvalRegistryRecord[];
   }
@@ -2467,12 +2573,16 @@ export class MarketRepository {
             attempt_count = excluded.attempt_count,
             updated_at_ms = excluded.updated_at_ms,
             completed_at_ms = excluded.completed_at_ms
-        `
+        `,
       )
       .run(input);
   }
 
-  listWorkflowRuns(params?: { workflowKey?: string; status?: string; limit?: number }): WorkflowRunRecord[] {
+  listWorkflowRuns(params?: {
+    workflowKey?: string;
+    status?: string;
+    limit?: number;
+  }): WorkflowRunRecord[] {
     const where: string[] = [];
     const q: Record<string, unknown> = {};
     if (params?.workflowKey) {
@@ -2496,7 +2606,7 @@ export class MarketRepository {
           ${whereSql}
           ORDER BY updated_at_ms DESC
           ${limitSql}
-        `
+        `,
       )
       .all(q) as WorkflowRunRecord[];
   }
@@ -2510,12 +2620,17 @@ export class MarketRepository {
           ) VALUES(
             @trace_id, @scope, @event_type, @user_id, @entity_type, @entity_id, @payload_json, @created_at_ms
           )
-        `
+        `,
       )
       .run(input);
   }
 
-  listAuditEvents(params?: { traceId?: string; entityType?: string; entityId?: string; limit?: number }): AuditEventRecord[] {
+  listAuditEvents(params?: {
+    traceId?: string;
+    entityType?: string;
+    entityId?: string;
+    limit?: number;
+  }): AuditEventRecord[] {
     const where: string[] = [];
     const q: Record<string, unknown> = {};
     if (params?.traceId) {
@@ -2541,7 +2656,7 @@ export class MarketRepository {
           ${whereSql}
           ORDER BY created_at_ms DESC
           ${limitSql}
-        `
+        `,
       )
       .all(q) as AuditEventRecord[];
   }
@@ -2562,12 +2677,16 @@ export class MarketRepository {
             score = excluded.score,
             notes = excluded.notes,
             payload_json = excluded.payload_json
-        `
+        `,
       )
       .run(input);
   }
 
-  listRecommendationReviews(params?: { decisionSnapshotId?: string; reviewType?: string; limit?: number }): RecommendationReviewRecord[] {
+  listRecommendationReviews(params?: {
+    decisionSnapshotId?: string;
+    reviewType?: string;
+    limit?: number;
+  }): RecommendationReviewRecord[] {
     const where: string[] = [];
     const q: Record<string, unknown> = {};
     if (params?.decisionSnapshotId) {
@@ -2589,7 +2708,7 @@ export class MarketRepository {
           ${whereSql}
           ORDER BY created_at_ms DESC
           ${limitSql}
-        `
+        `,
       )
       .all(q) as RecommendationReviewRecord[];
   }
@@ -2621,7 +2740,7 @@ export class MarketRepository {
             summary_json = excluded.summary_json,
             top_action_id = excluded.top_action_id,
             updated_at_ms = excluded.updated_at_ms
-        `
+        `,
       )
       .run(input);
   }
@@ -2651,7 +2770,7 @@ export class MarketRepository {
           WHERE ${where.join(' AND ')}
           ORDER BY updated_at_ms DESC
           LIMIT 1
-        `
+        `,
       )
       .get(q) as DecisionSnapshotRecord | undefined;
     return row ?? null;
@@ -2685,7 +2804,7 @@ export class MarketRepository {
           WHERE ${where.join(' AND ')}
           ORDER BY updated_at_ms DESC
           ${limitSql}
-        `
+        `,
       )
       .all(q) as DecisionSnapshotRecord[];
   }
@@ -2704,7 +2823,7 @@ export class MarketRepository {
             snapshot_id = excluded.snapshot_id,
             reason_json = excluded.reason_json,
             updated_at_ms = excluded.updated_at_ms
-        `
+        `,
       )
       .run(input);
   }
@@ -2746,7 +2865,7 @@ export class MarketRepository {
           WHERE ${where.join(' AND ')}
           ORDER BY updated_at_ms DESC
           ${limitSql}
-        `
+        `,
       )
       .all(q) as UserRitualEventRecord[];
   }
@@ -2761,7 +2880,7 @@ export class MarketRepository {
           FROM user_notification_preferences
           WHERE user_id = ?
           LIMIT 1
-        `
+        `,
       )
       .get(userId) as NotificationPreferenceRecord | undefined;
     return row ?? null;
@@ -2787,7 +2906,7 @@ export class MarketRepository {
             quiet_start_hour = excluded.quiet_start_hour,
             quiet_end_hour = excluded.quiet_end_hour,
             updated_at_ms = excluded.updated_at_ms
-        `
+        `,
       )
       .run(input);
   }
@@ -2811,7 +2930,7 @@ export class MarketRepository {
             action_target = excluded.action_target,
             reason_json = excluded.reason_json,
             updated_at_ms = excluded.updated_at_ms
-        `
+        `,
       )
       .run(input);
   }
@@ -2849,7 +2968,7 @@ export class MarketRepository {
           WHERE ${where.join(' AND ')}
           ORDER BY updated_at_ms DESC
           ${limitSql}
-        `
+        `,
       )
       .all(q) as NotificationEventRecord[];
   }
@@ -2881,7 +3000,7 @@ export class MarketRepository {
             status = excluded.status,
             error = excluded.error,
             updated_at_ms = excluded.updated_at_ms
-        `
+        `,
       )
       .run(input);
   }
@@ -2924,7 +3043,7 @@ export class MarketRepository {
           ${whereSql}
           ORDER BY created_at_ms DESC
           ${limitSql}
-        `
+        `,
       )
       .all(q) as NovaTaskRunRecord[];
   }
@@ -2939,7 +3058,7 @@ export class MarketRepository {
           FROM nova_task_runs
           WHERE id = ?
           LIMIT 1
-        `
+        `,
       )
       .get(runId) as NovaTaskRunRecord | undefined;
     return row ?? null;
@@ -2962,12 +3081,16 @@ export class MarketRepository {
             notes = excluded.notes,
             include_in_training = excluded.include_in_training,
             updated_at_ms = excluded.updated_at_ms
-        `
+        `,
       )
       .run(input);
   }
 
-  listNovaReviewLabels(params?: { runId?: string; includeInTraining?: boolean; limit?: number }): NovaReviewLabelRecord[] {
+  listNovaReviewLabels(params?: {
+    runId?: string;
+    includeInTraining?: boolean;
+    limit?: number;
+  }): NovaReviewLabelRecord[] {
     const where: string[] = [];
     const q: Record<string, unknown> = {};
     if (params?.runId) {
@@ -2990,7 +3113,7 @@ export class MarketRepository {
           ${whereSql}
           ORDER BY updated_at_ms DESC
           ${limitSql}
-        `
+        `,
       )
       .all(q) as NovaReviewLabelRecord[];
   }
@@ -3016,12 +3139,17 @@ export class MarketRepository {
             source_status = excluded.source_status,
             data_status = excluded.data_status,
             updated_at_ms = excluded.updated_at_ms
-        `
+        `,
       )
       .run(input);
   }
 
-  listMarketStateSnapshots(params: { userId: string; market?: Market | 'ALL'; assetClass?: AssetClass | 'ALL'; limit?: number }): MarketStateSnapshotRecord[] {
+  listMarketStateSnapshots(params: {
+    userId: string;
+    market?: Market | 'ALL';
+    assetClass?: AssetClass | 'ALL';
+    limit?: number;
+  }): MarketStateSnapshotRecord[] {
     const where = ['user_id = @user_id'];
     const q: Record<string, unknown> = { user_id: params.userId };
     if (params.market) {
@@ -3043,7 +3171,7 @@ export class MarketRepository {
           WHERE ${where.join(' AND ')}
           ORDER BY updated_at_ms DESC
           ${limitSql}
-        `
+        `,
       )
       .all(q) as MarketStateSnapshotRecord[];
   }
@@ -3077,12 +3205,16 @@ export class MarketRepository {
             prompt_version_id = excluded.prompt_version_id,
             payload_json = excluded.payload_json,
             updated_at_ms = excluded.updated_at_ms
-        `
+        `,
       )
       .run(input);
   }
 
-  listEvidenceSnapshots(params: { decisionSnapshotId?: string; actionId?: string; limit?: number }): EvidenceSnapshotRecord[] {
+  listEvidenceSnapshots(params: {
+    decisionSnapshotId?: string;
+    actionId?: string;
+    limit?: number;
+  }): EvidenceSnapshotRecord[] {
     const where: string[] = [];
     const q: Record<string, unknown> = {};
     if (params.decisionSnapshotId) {
@@ -3106,7 +3238,7 @@ export class MarketRepository {
           ${whereSql}
           ORDER BY updated_at_ms DESC
           ${limitSql}
-        `
+        `,
       )
       .all(q) as EvidenceSnapshotRecord[];
   }
@@ -3139,12 +3271,16 @@ export class MarketRepository {
             evidence_snapshot_id = excluded.evidence_snapshot_id,
             payload_json = excluded.payload_json,
             updated_at_ms = excluded.updated_at_ms
-        `
+        `,
       )
       .run(input);
   }
 
-  listActionSnapshots(params: { decisionSnapshotId?: string; userId?: string; limit?: number }): ActionSnapshotRecord[] {
+  listActionSnapshots(params: {
+    decisionSnapshotId?: string;
+    userId?: string;
+    limit?: number;
+  }): ActionSnapshotRecord[] {
     const where: string[] = [];
     const q: Record<string, unknown> = {};
     if (params.decisionSnapshotId) {
@@ -3168,7 +3304,7 @@ export class MarketRepository {
           ${whereSql}
           ORDER BY rank ASC, updated_at_ms DESC
           ${limitSql}
-        `
+        `,
       )
       .all(q) as ActionSnapshotRecord[];
   }
@@ -3190,7 +3326,7 @@ export class MarketRepository {
             thread_id = excluded.thread_id,
             payload_json = excluded.payload_json,
             updated_at_ms = excluded.updated_at_ms
-        `
+        `,
       )
       .run(input);
   }
@@ -3227,7 +3363,7 @@ export class MarketRepository {
           WHERE ${where.join(' AND ')}
           ORDER BY updated_at_ms DESC
           ${limitSql}
-        `
+        `,
       )
       .all(q) as UserResponseEventRecord[];
   }
@@ -3249,12 +3385,17 @@ export class MarketRepository {
             summary = excluded.summary,
             payload_json = excluded.payload_json,
             updated_at_ms = excluded.updated_at_ms
-        `
+        `,
       )
       .run(input);
   }
 
-  listOutcomeReviews(params?: { decisionSnapshotId?: string; reviewKind?: string; userId?: string; limit?: number }): OutcomeReviewRecord[] {
+  listOutcomeReviews(params?: {
+    decisionSnapshotId?: string;
+    reviewKind?: string;
+    userId?: string;
+    limit?: number;
+  }): OutcomeReviewRecord[] {
     const where: string[] = [];
     const q: Record<string, unknown> = {};
     if (params?.decisionSnapshotId) {
@@ -3281,7 +3422,7 @@ export class MarketRepository {
           ${whereSql}
           ORDER BY updated_at_ms DESC
           ${limitSql}
-        `
+        `,
       )
       .all(q) as OutcomeReviewRecord[];
   }
@@ -3308,12 +3449,16 @@ export class MarketRepository {
             decision_profile_json = excluded.decision_profile_json,
             personalization_context_json = excluded.personalization_context_json,
             updated_at_ms = excluded.updated_at_ms
-        `
+        `,
       )
       .run(input);
   }
 
-  getLatestUserStateSnapshot(params: { userId: string; market?: Market | 'ALL'; assetClass?: AssetClass | 'ALL' }): UserStateSnapshotRecord | null {
+  getLatestUserStateSnapshot(params: {
+    userId: string;
+    market?: Market | 'ALL';
+    assetClass?: AssetClass | 'ALL';
+  }): UserStateSnapshotRecord | null {
     const where = ['user_id = @user_id'];
     const q: Record<string, unknown> = { user_id: params.userId };
     if (params.market) {
@@ -3334,7 +3479,7 @@ export class MarketRepository {
           WHERE ${where.join(' AND ')}
           ORDER BY updated_at_ms DESC
           LIMIT 1
-        `
+        `,
       )
       .get(q) as UserStateSnapshotRecord | undefined;
     return row ?? null;
@@ -3358,12 +3503,18 @@ export class MarketRepository {
             export_ready = excluded.export_ready,
             payload_json = excluded.payload_json,
             updated_at_ms = excluded.updated_at_ms
-        `
+        `,
       )
       .run(input);
   }
 
-  listDecisionIntelligenceDataset(params: { userId?: string; market?: Market | 'ALL'; assetClass?: AssetClass | 'ALL'; labelState?: string; limit?: number }): DecisionIntelligenceDatasetRecord[] {
+  listDecisionIntelligenceDataset(params: {
+    userId?: string;
+    market?: Market | 'ALL';
+    assetClass?: AssetClass | 'ALL';
+    labelState?: string;
+    limit?: number;
+  }): DecisionIntelligenceDatasetRecord[] {
     const where: string[] = [];
     const q: Record<string, unknown> = {};
     if (params.userId) {
@@ -3394,7 +3545,7 @@ export class MarketRepository {
           ${whereSql}
           ORDER BY updated_at_ms DESC
           ${limitSql}
-        `
+        `,
       )
       .all(q) as DecisionIntelligenceDatasetRecord[];
   }
@@ -3411,12 +3562,16 @@ export class MarketRepository {
           ON CONFLICT(id) DO UPDATE SET
             result_json = excluded.result_json,
             updated_at_ms = excluded.updated_at_ms
-        `
+        `,
       )
       .run(input);
   }
 
-  listSandboxRuns(params: { userId: string; decisionSnapshotId?: string; limit?: number }): SandboxRunRecord[] {
+  listSandboxRuns(params: {
+    userId: string;
+    decisionSnapshotId?: string;
+    limit?: number;
+  }): SandboxRunRecord[] {
     const where = ['user_id = @user_id'];
     const q: Record<string, unknown> = { user_id: params.userId };
     if (params.decisionSnapshotId) {
@@ -3433,7 +3588,7 @@ export class MarketRepository {
           WHERE ${where.join(' AND ')}
           ORDER BY updated_at_ms DESC
           ${limitSql}
-        `
+        `,
       )
       .all(q) as SandboxRunRecord[];
   }
@@ -3453,12 +3608,17 @@ export class MarketRepository {
             status = excluded.status,
             payload_json = excluded.payload_json,
             updated_at_ms = excluded.updated_at_ms
-        `
+        `,
       )
       .run(input);
   }
 
-  listExternalSurfaces(params?: { surfaceType?: string; market?: Market | 'ALL'; assetClass?: AssetClass | 'ALL'; limit?: number }): ExternalSurfaceRecord[] {
+  listExternalSurfaces(params?: {
+    surfaceType?: string;
+    market?: Market | 'ALL';
+    assetClass?: AssetClass | 'ALL';
+    limit?: number;
+  }): ExternalSurfaceRecord[] {
     const where: string[] = [];
     const q: Record<string, unknown> = {};
     if (params?.surfaceType) {
@@ -3484,7 +3644,7 @@ export class MarketRepository {
           ${whereSql}
           ORDER BY updated_at_ms DESC
           ${limitSql}
-        `
+        `,
       )
       .all(q) as ExternalSurfaceRecord[];
   }
@@ -3503,12 +3663,17 @@ export class MarketRepository {
           ON CONFLICT(id) DO UPDATE SET
             payload_json = excluded.payload_json,
             updated_at_ms = excluded.updated_at_ms
-        `
+        `,
       )
       .run(input);
   }
 
-  listComplianceLogs(params?: { logType?: string; userId?: string; decisionSnapshotId?: string; limit?: number }): ComplianceLogRecord[] {
+  listComplianceLogs(params?: {
+    logType?: string;
+    userId?: string;
+    decisionSnapshotId?: string;
+    limit?: number;
+  }): ComplianceLogRecord[] {
     const where: string[] = [];
     const q: Record<string, unknown> = {};
     if (params?.logType) {
@@ -3535,7 +3700,7 @@ export class MarketRepository {
           ${whereSql}
           ORDER BY updated_at_ms DESC
           ${limitSql}
-        `
+        `,
       )
       .all(q) as ComplianceLogRecord[];
   }

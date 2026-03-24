@@ -24,7 +24,7 @@ function byHypothesis(candidates = [], scored = []) {
       promoted_to_shadow: 0,
       rejected: 0,
       avg_quality_score: 0,
-      _qualitySum: 0
+      _qualitySum: 0,
     };
 
     const score = scoreById.get(candidate.candidate_id);
@@ -53,7 +53,7 @@ function byHypothesis(candidates = [], scored = []) {
       promoted_to_shadow: row.promoted_to_shadow,
       rejected: row.rejected,
       success_rate: row.generated ? round(row.promoted_to_shadow / row.generated, 4) : 0,
-      avg_quality_score: row.pass_to_scoring ? round(row._qualitySum / row.pass_to_scoring, 4) : 0
+      avg_quality_score: row.pass_to_scoring ? round(row._qualitySum / row.pass_to_scoring, 4) : 0,
     }))
     .sort((a, b) => b.success_rate - a.success_rate);
 }
@@ -67,7 +67,7 @@ function byRegime(candidates = [], promotedIds = new Set()) {
       const row = bucket.get(key) || {
         regime: key,
         generated: 0,
-        promoted: 0
+        promoted: 0,
       };
       row.generated += 1;
       if (promotedIds.has(candidate.candidate_id)) row.promoted += 1;
@@ -78,7 +78,7 @@ function byRegime(candidates = [], promotedIds = new Set()) {
   return Array.from(bucket.values())
     .map((row) => ({
       ...row,
-      success_rate: row.generated ? round(row.promoted / row.generated, 4) : 0
+      success_rate: row.generated ? round(row.promoted / row.generated, 4) : 0,
     }))
     .sort((a, b) => b.generated - a.generated);
 }
@@ -92,7 +92,7 @@ function byAssetClass(candidates = [], promotedIds = new Set()) {
       const row = bucket.get(key) || {
         asset_class: key,
         generated: 0,
-        promoted: 0
+        promoted: 0,
       };
       row.generated += 1;
       if (promotedIds.has(candidate.candidate_id)) row.promoted += 1;
@@ -103,7 +103,7 @@ function byAssetClass(candidates = [], promotedIds = new Set()) {
   return Array.from(bucket.values())
     .map((row) => ({
       ...row,
-      success_rate: row.generated ? round(row.promoted / row.generated, 4) : 0
+      success_rate: row.generated ? round(row.promoted / row.generated, 4) : 0,
     }))
     .sort((a, b) => b.generated - a.generated);
 }
@@ -128,7 +128,7 @@ function recurringFamilyFailures(candidates = [], scored = []) {
       strategy_family: family,
       failed_count: 0,
       promoted_count: 0,
-      top_reasons: []
+      top_reasons: [],
     };
     current.failed_count += 1;
     current.top_reasons.push(...(row.rejection_reasons || []).slice(0, 2));
@@ -143,7 +143,7 @@ function recurringFamilyFailures(candidates = [], scored = []) {
       strategy_family: family,
       failed_count: 0,
       promoted_count: 0,
-      top_reasons: []
+      top_reasons: [],
     };
     current.promoted_count += 1;
     map.set(family, current);
@@ -154,10 +154,12 @@ function recurringFamilyFailures(candidates = [], scored = []) {
       strategy_family: row.strategy_family,
       failed_count: row.failed_count,
       promoted_count: row.promoted_count,
-      fail_to_promote_ratio: row.promoted_count ? round(row.failed_count / row.promoted_count, 4) : row.failed_count,
+      fail_to_promote_ratio: row.promoted_count
+        ? round(row.failed_count / row.promoted_count, 4)
+        : row.failed_count,
       top_reasons: groupCount(row.top_reasons, (item) => item)
         .map((item) => item.key)
-        .slice(0, 3)
+        .slice(0, 3),
     }))
     .sort((a, b) => b.failed_count - a.failed_count)
     .slice(0, 12);
@@ -173,7 +175,7 @@ function coverageGaps(byRegimeRows = [], byAssetRows = []) {
 
   return {
     regime_gaps: regimeGaps,
-    asset_class_gaps: assetGaps
+    asset_class_gaps: assetGaps,
   };
 }
 
@@ -181,9 +183,11 @@ export function buildDiscoveryDiagnostics({
   asOf = new Date().toISOString(),
   candidates = [],
   scoredCandidates = [],
-  generationSummary = {}
+  generationSummary = {},
 } = {}) {
-  const promotedRows = (scoredCandidates || []).filter((row) => row.recommendation === 'PROMOTE_TO_SHADOW');
+  const promotedRows = (scoredCandidates || []).filter(
+    (row) => row.recommendation === 'PROMOTE_TO_SHADOW',
+  );
   const promotedIds = new Set(promotedRows.map((row) => row.candidate_id));
 
   const hypothesisStats = byHypothesis(candidates, scoredCandidates);
@@ -199,8 +203,9 @@ export function buildDiscoveryDiagnostics({
     summary: {
       total_generated: generated,
       total_promoted_to_shadow: promoted,
-      total_rejected: (scoredCandidates || []).filter((row) => row.recommendation === 'REJECT').length,
-      discovery_success_rate: generated ? round(promoted / generated, 4) : 0
+      total_rejected: (scoredCandidates || []).filter((row) => row.recommendation === 'REJECT')
+        .length,
+      discovery_success_rate: generated ? round(promoted / generated, 4) : 0,
     },
     by_hypothesis: hypothesisStats,
     by_regime: regimeStats,
@@ -209,19 +214,21 @@ export function buildDiscoveryDiagnostics({
     recurring_family_failures: recurringFamilyFailures(candidates, scoredCandidates),
     coverage_gaps: coverageGaps(regimeStats, assetStats),
     seed_runtime_diagnostics: {
-      hypotheses_producing_candidates: generationSummary?.runtime_seed_diagnostics?.hypotheses_producing_candidates || [],
+      hypotheses_producing_candidates:
+        generationSummary?.runtime_seed_diagnostics?.hypotheses_producing_candidates || [],
       templates_used_most: generationSummary?.runtime_seed_diagnostics?.templates_used_most || [],
-      hypotheses_without_candidates: generationSummary?.runtime_seed_diagnostics?.hypotheses_without_candidates || [],
+      hypotheses_without_candidates:
+        generationSummary?.runtime_seed_diagnostics?.hypotheses_without_candidates || [],
       templates_unused: generationSummary?.runtime_seed_diagnostics?.templates_unused || [],
-      mapping_failures: generationSummary?.runtime_seed_diagnostics?.mapping_failures || []
+      mapping_failures: generationSummary?.runtime_seed_diagnostics?.mapping_failures || [],
     },
     explainability: {
       key_questions: [
         'Which hypotheses produce robust strategies?',
         'Which families fail repeatedly?',
         'Which regimes and asset classes lack strategy coverage?',
-        'Which seed hypotheses and templates remain unused or fail mapping?'
-      ]
-    }
+        'Which seed hypotheses and templates remain unused or fail mapping?',
+      ],
+    },
   };
 }

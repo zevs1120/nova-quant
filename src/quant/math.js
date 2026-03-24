@@ -114,10 +114,7 @@ export function rankMap(valuesByKey) {
   const sorted = [...entries].sort((a, b) => b[1] - a[1]);
   const total = Math.max(1, sorted.length - 1);
   return Object.fromEntries(
-    sorted.map(([key], index) => [
-      key,
-      total === 0 ? 1 : round(1 - index / total, 4)
-    ])
+    sorted.map(([key], index) => [key, total === 0 ? 1 : round(1 - index / total, 4)]),
   );
 }
 

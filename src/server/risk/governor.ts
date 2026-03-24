@@ -1,4 +1,10 @@
-import type { ExecutionRecord, MarketStateRecord, SignalContract, UserHoldingInput, UserRiskProfileRecord } from '../types.js';
+import type {
+  ExecutionRecord,
+  MarketStateRecord,
+  SignalContract,
+  UserHoldingInput,
+  UserRiskProfileRecord,
+} from '../types.js';
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -16,10 +22,12 @@ function mean(values: number[]): number {
 
 function normalizeHolding(row: UserHoldingInput) {
   return {
-    symbol: String(row.symbol || '').trim().toUpperCase(),
+    symbol: String(row.symbol || '')
+      .trim()
+      .toUpperCase(),
     sector: String(row.sector || '').trim() || 'Unknown',
     weightPct: Number(row.weight_pct || 0),
-    assetClass: String(row.asset_class || '').toUpperCase()
+    assetClass: String(row.asset_class || '').toUpperCase(),
   };
 }
 
@@ -43,12 +51,16 @@ export function evaluateRiskGovernor(args: {
 }): RiskGovernorOutcome {
   const rows = (args.holdings || []).map(normalizeHolding).filter((row) => row.symbol);
   const totalExposure = rows.reduce((sum, row) => sum + row.weightPct, 0);
-  const sameSymbol = rows.find((row) => row.symbol === String(args.signal.symbol || '').toUpperCase())?.weightPct || 0;
+  const sameSymbol =
+    rows.find((row) => row.symbol === String(args.signal.symbol || '').toUpperCase())?.weightPct ||
+    0;
   const sectorMap = new Map<string, number>();
   for (const row of rows) {
     sectorMap.set(row.sector, (sectorMap.get(row.sector) || 0) + row.weightPct);
   }
-  const targetSector = rows.find((row) => row.symbol === String(args.signal.symbol || '').toUpperCase())?.sector || 'Unknown';
+  const targetSector =
+    rows.find((row) => row.symbol === String(args.signal.symbol || '').toUpperCase())?.sector ||
+    'Unknown';
   const sectorExposure = sectorMap.get(targetSector) || 0;
   const exposureCap = Number(args.riskProfile?.exposure_cap || 55);
   const riskBudgetRemaining = round(Math.max(0, exposureCap - totalExposure), 2);
@@ -162,6 +174,6 @@ export function evaluateRiskGovernor(args: {
     risk_budget_remaining: riskBudgetRemaining,
     block_reason: allowed ? null : reasons[0] || 'Risk governor blocked the action.',
     reasons: [...new Set(reasons)],
-    overlays: [...new Set(overlays)]
+    overlays: [...new Set(overlays)],
   };
 }

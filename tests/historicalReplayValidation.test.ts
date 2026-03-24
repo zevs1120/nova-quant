@@ -5,7 +5,7 @@ import { runQuantPipeline } from '../src/engines/pipeline.js';
 describe('historical replay validation', () => {
   const state = runQuantPipeline({
     as_of: '2026-03-08T00:00:00.000Z',
-    config: { risk_profile: 'balanced' }
+    config: { risk_profile: 'balanced' },
   });
 
   const walkForward = state?.research?.research_core?.walk_forward_validation;
@@ -39,7 +39,8 @@ describe('historical replay validation', () => {
 
   it('emits execution sensitivity scenarios', () => {
     expect(replay?.execution_sensitivity?.length).toBeGreaterThan(0);
-    const ids = replay?.execution_sensitivity?.map((row: { scenario_id: string }) => row.scenario_id) || [];
+    const ids =
+      replay?.execution_sensitivity?.map((row: { scenario_id: string }) => row.scenario_id) || [];
     expect(ids).toContain('slippage_plus_25');
     expect(ids).toContain('slippage_plus_50');
     expect(ids).toContain('wider_spread');

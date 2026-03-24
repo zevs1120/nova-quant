@@ -1,7 +1,9 @@
 # Mission and North Star
 
 ## Mission
+
 Build a consumer-facing AI quant product for US equities and crypto that converts noisy multi-market data into:
+
 - clear trading verdicts,
 - executable plans,
 - position sizing guidance,
@@ -9,18 +11,22 @@ Build a consumer-facing AI quant product for US equities and crypto that convert
 - and post-trade learning loops.
 
 ## Product truth
+
 We are NOT building:
+
 - a news terminal,
 - a chart toy,
 - a generic chatbot,
 - or a vague signal feed.
 
 We ARE building:
+
 - a decision layer between market data and execution,
 - first as signal + recommendation,
 - later as one-click and automation-ready execution.
 
 ## North-star outcomes
+
 1. User can answer in under 10 seconds:
    - Should I trade today?
    - Which market is better right now?
@@ -38,6 +44,7 @@ We ARE building:
    - and retire degraded ones.
 
 ## Non-negotiables
+
 - Cost/slippage assumptions must be consistent everywhere
 - Every production signal must be explainable and auditable
 - Risk reduction should often replace hard no-trade blocks

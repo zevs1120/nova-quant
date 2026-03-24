@@ -62,11 +62,7 @@
       "status": "resilient",
       "failed_count": 0,
       "passed_count": 4,
-      "modules_touched": [
-        "regime_engine",
-        "risk_bucket_system",
-        "decision_layer"
-      ],
+      "modules_touched": ["regime_engine", "risk_bucket_system", "decision_layer"],
       "failed_modules": [],
       "first_failure": null,
       "graceful_degradation": true
@@ -111,10 +107,7 @@
       "status": "resilient",
       "failed_count": 0,
       "passed_count": 3,
-      "modules_touched": [
-        "regime_engine",
-        "risk_bucket_system"
-      ],
+      "modules_touched": ["regime_engine", "risk_bucket_system"],
       "failed_modules": [],
       "first_failure": null,
       "graceful_degradation": true
@@ -164,10 +157,7 @@
       "status": "resilient",
       "failed_count": 0,
       "passed_count": 3,
-      "modules_touched": [
-        "risk_bucket_system",
-        "decision_layer"
-      ],
+      "modules_touched": ["risk_bucket_system", "decision_layer"],
       "failed_modules": [],
       "first_failure": null,
       "graceful_degradation": true
@@ -204,17 +194,13 @@
         {
           "strategy_family": "Mean Reversion",
           "hit_count": 2,
-          "top_reasons": [
-            "risk_adjusted_return_too_low"
-          ]
+          "top_reasons": ["risk_adjusted_return_too_low"]
         }
       ],
       "status": "resilient",
       "failed_count": 0,
       "passed_count": 2,
-      "modules_touched": [
-        "walk_forward_validation"
-      ],
+      "modules_touched": ["walk_forward_validation"],
       "failed_modules": [],
       "first_failure": null,
       "graceful_degradation": true
@@ -287,19 +273,13 @@
         {
           "strategy_family": "Mean Reversion",
           "hit_count": 1,
-          "top_reasons": [
-            "walkforward_positive_ratio_too_low",
-            "walkforward_avg_return_too_low"
-          ]
+          "top_reasons": ["walkforward_positive_ratio_too_low", "walkforward_avg_return_too_low"]
         }
       ],
       "status": "resilient",
       "failed_count": 0,
       "passed_count": 3,
-      "modules_touched": [
-        "walk_forward_validation",
-        "governance_workflow"
-      ],
+      "modules_touched": ["walk_forward_validation", "governance_workflow"],
       "failed_modules": [],
       "first_failure": null,
       "graceful_degradation": true
@@ -335,9 +315,7 @@
       "status": "resilient",
       "failed_count": 0,
       "passed_count": 2,
-      "modules_touched": [
-        "discovery_engine"
-      ],
+      "modules_touched": ["discovery_engine"],
       "failed_modules": [],
       "first_failure": null,
       "graceful_degradation": true
@@ -378,9 +356,7 @@
       "status": "resilient",
       "failed_count": 0,
       "passed_count": 2,
-      "modules_touched": [
-        "portfolio_simulation"
-      ],
+      "modules_touched": ["portfolio_simulation"],
       "failed_modules": [],
       "first_failure": null,
       "graceful_degradation": true
@@ -440,9 +416,7 @@
       "status": "resilient",
       "failed_count": 0,
       "passed_count": 2,
-      "modules_touched": [
-        "discovery_engine"
-      ],
+      "modules_touched": ["discovery_engine"],
       "failed_modules": [],
       "first_failure": null,
       "graceful_degradation": true
@@ -498,18 +472,12 @@
       {
         "strategy_family": "Mean Reversion",
         "hit_count": 4,
-        "scenario_ids": [
-          "high_slippage",
-          "poor_fills",
-          "degraded_candidate_quality"
-        ]
+        "scenario_ids": ["high_slippage", "poor_fills", "degraded_candidate_quality"]
       },
       {
         "strategy_family": "Crypto-Native Families",
         "hit_count": 1,
-        "scenario_ids": [
-          "degraded_candidate_quality"
-        ]
+        "scenario_ids": ["degraded_candidate_quality"]
       }
     ]
   }

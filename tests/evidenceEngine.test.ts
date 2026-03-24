@@ -5,7 +5,12 @@ import { MarketRepository } from '../src/server/db/repository.js';
 import { runEvidenceEngine } from '../src/server/evidence/engine.js';
 import type { NormalizedBar, SignalContract } from '../src/server/types.js';
 
-function buildBars(startTs: number, count: number, stepMs: number, startPrice: number): NormalizedBar[] {
+function buildBars(
+  startTs: number,
+  count: number,
+  stepMs: number,
+  startPrice: number,
+): NormalizedBar[] {
   const rows: NormalizedBar[] = [];
   let px = startPrice;
   for (let i = 0; i < count; i += 1) {
@@ -20,7 +25,7 @@ function buildBars(startTs: number, count: number, stepMs: number, startPrice: n
       high: high.toFixed(4),
       low: low.toFixed(4),
       close: close.toFixed(4),
-      volume: String(2000 + i * 10)
+      volume: String(2000 + i * 10),
     });
     px = close;
   }
@@ -58,43 +63,43 @@ function buildSignal(args: {
       low: args.entry - 0.4,
       high: args.entry + 0.4,
       method: 'LIMIT',
-      notes: 'test'
+      notes: 'test',
     },
     invalidation_level: args.entry - (args.direction === 'LONG' ? 1.1 : -1.1),
     stop_loss: {
       type: 'ATR',
       price: args.entry - (args.direction === 'LONG' ? 1.1 : -1.1),
-      rationale: 'test'
+      rationale: 'test',
     },
     take_profit_levels: [
       {
         price: args.entry + (args.direction === 'LONG' ? 1.8 : -1.8),
         size_pct: 0.6,
-        rationale: 'tp1'
-      }
+        rationale: 'tp1',
+      },
     ],
     trailing_rule: {
       type: 'EMA',
-      params: { fast: 10, slow: 30 }
+      params: { fast: 10, slow: 30 },
     },
     position_advice: {
       position_pct: 8,
       leverage_cap: 1.5,
       risk_bucket_applied: 'BASE',
-      rationale: 'test'
+      rationale: 'test',
     },
     cost_model: {
       fee_bps: 1.2,
       spread_bps: 1.1,
       slippage_bps: 2.3,
       funding_est_bps: args.market === 'CRYPTO' ? 0.8 : undefined,
-      basis_est: 0
+      basis_est: 0,
     },
     expected_metrics: {
       expected_R: 1.4,
       hit_rate_est: 0.57,
       sample_size: 30,
-      expected_max_dd_est: 0.08
+      expected_max_dd_est: 0.08,
     },
     explain_bullets: ['Test thesis'],
     execution_checklist: ['test'],
@@ -104,14 +109,14 @@ function buildSignal(args: {
       kind: 'STOCK_SWING',
       data: {
         horizon: 'MEDIUM',
-        catalysts: ['test']
-      }
+        catalysts: ['test'],
+      },
     },
     references: {
-      docs_url: 'docs/RUNTIME_DATA_LINEAGE.md'
+      docs_url: 'docs/RUNTIME_DATA_LINEAGE.md',
     },
     score: 78,
-    payload_version: 'signal-contract.v1'
+    payload_version: 'signal-contract.v1',
   };
 }
 
@@ -126,12 +131,12 @@ describe('evidence engine canonical chain', () => {
     const aapl = repo.upsertAsset({
       symbol: 'AAPL',
       market: 'US',
-      venue: 'STOOQ'
+      venue: 'STOOQ',
     });
     const msft = repo.upsertAsset({
       symbol: 'MSFT',
       market: 'US',
-      venue: 'STOOQ'
+      venue: 'STOOQ',
     });
     repo.upsertOhlcvBars(aapl.asset_id, '1d', buildBars(start, 140, 24 * 3600_000, 180), 'TEST');
     repo.upsertOhlcvBars(msft.asset_id, '1d', buildBars(start, 140, 24 * 3600_000, 320), 'TEST');
@@ -149,7 +154,7 @@ describe('evidence engine canonical chain', () => {
         direction: i % 3 === 0 ? 'SHORT' : 'LONG',
         entry,
         timeframe: '1d',
-        strategy: i % 2 === 0 ? 'EQ_TREND_A' : 'EQ_TREND_B'
+        strategy: i % 2 === 0 ? 'EQ_TREND_A' : 'EQ_TREND_B',
       });
       signalIds.push(signal.id);
       repo.upsertSignal(signal);
@@ -170,7 +175,7 @@ describe('evidence engine canonical chain', () => {
       pnl_pct: null,
       note: 'open',
       created_at_ms: now - 2 * 24 * 3600_000,
-      updated_at_ms: now - 2 * 24 * 3600_000
+      updated_at_ms: now - 2 * 24 * 3600_000,
     });
     repo.upsertExecution({
       execution_id: 'EXE-EVD-CLOSE-1',
@@ -187,7 +192,7 @@ describe('evidence engine canonical chain', () => {
       pnl_pct: 1.7,
       note: 'close',
       created_at_ms: now - 1 * 24 * 3600_000,
-      updated_at_ms: now - 1 * 24 * 3600_000
+      updated_at_ms: now - 1 * 24 * 3600_000,
     });
 
     const out = runEvidenceEngine(repo, {
@@ -195,7 +200,7 @@ describe('evidence engine canonical chain', () => {
       market: 'US',
       assetClass: 'US_STOCK',
       timeframe: '1d',
-      maxSignals: 30
+      maxSignals: 30,
     });
 
     expect(out.run_id).toBeTruthy();

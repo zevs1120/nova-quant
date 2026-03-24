@@ -1,7 +1,9 @@
 # Canonical Data Contracts
 
 ## 1. Instrument master
+
 Fields:
+
 - instrument_id
 - symbol
 - market (equity|crypto|futures|options)
@@ -16,7 +18,9 @@ Fields:
 - tradable_flag
 
 ## 2. Bar data
+
 Fields:
+
 - ts
 - instrument_id
 - timeframe
@@ -31,16 +35,20 @@ Fields:
 - adjusted_flag
 
 Rules:
+
 - timestamps normalized to UTC internally
 - explicitly mark adjusted vs raw
 - never mix adjusted and raw prices in one backtest silently
 
 ## 3. Feature table
+
 Primary key:
+
 - ts
 - instrument_id
 
 Fields examples:
+
 - ret_1d
 - ret_5d
 - atr_14
@@ -55,7 +63,9 @@ Fields examples:
 - velocity_score
 
 ## 4. Signal candidate table
+
 Fields:
+
 - signal_id
 - ts_generated
 - instrument_id
@@ -77,7 +87,9 @@ Fields:
 - invalidation_rule_json
 
 ## 5. Order simulation table
+
 Fields:
+
 - order_id
 - signal_id
 - submitted_ts
@@ -95,7 +107,9 @@ Fields:
 - reject_reason
 
 ## 6. Position table
+
 Fields:
+
 - position_id
 - instrument_id
 - side
@@ -110,7 +124,9 @@ Fields:
 - regime_at_entry
 
 ## 7. Audit log table
+
 Fields:
+
 - audit_id
 - ts
 - entity_type
@@ -123,6 +139,7 @@ Fields:
 - changed_by
 
 ## Conventions
+
 - All assumptions versioned
 - Every dataset has source + freshness metadata
 - Every production metric must be reproducible from raw logs

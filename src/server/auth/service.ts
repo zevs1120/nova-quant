@@ -17,13 +17,13 @@ import {
   remoteUserIdByEmailKey,
   remoteUserKey,
   remoteUserSessionsKey,
-  remoteUserStateKey
+  remoteUserStateKey,
 } from './remoteKv.js';
 import {
   canSendPasswordResetEmail,
   canSendSignupWelcomeEmail,
   sendPasswordResetEmail,
-  sendSignupWelcomeEmail
+  sendSignupWelcomeEmail,
 } from './resetEmail.js';
 import {
   hasPostgresAuthStore,
@@ -43,7 +43,7 @@ import {
   pgUpsertSession,
   pgUpsertUser,
   pgUpsertUserRole,
-  pgUpsertUserState
+  pgUpsertUserState,
 } from './postgresStore.js';
 import { logWarn } from '../utils/log.js';
 
@@ -140,7 +140,9 @@ function nowMs() {
 }
 
 function normalizeEmail(value: string) {
-  return String(value || '').trim().toLowerCase();
+  return String(value || '')
+    .trim()
+    .toLowerCase();
 }
 
 function normalizeTradeMode(value: string | null | undefined): AuthTradeMode {
@@ -149,7 +151,9 @@ function normalizeTradeMode(value: string | null | undefined): AuthTradeMode {
 }
 
 function normalizeRole(value: string | null | undefined): AuthRole | null {
-  const next = String(value || '').trim().toUpperCase();
+  const next = String(value || '')
+    .trim()
+    .toUpperCase();
   if (next === 'ADMIN' || next === 'OPERATOR' || next === 'SUPPORT') return next;
   return null;
 }
@@ -176,7 +180,7 @@ function mergeSeededUserState(user: SeededUserConfig): AuthUserState {
     watchlist: Array.isArray(next.watchlist) ? next.watchlist : base.watchlist,
     holdings: Array.isArray(next.holdings) ? next.holdings : base.holdings,
     executions: Array.isArray(next.executions) ? next.executions : base.executions,
-    disciplineLog: next.disciplineLog || base.disciplineLog
+    disciplineLog: next.disciplineLog || base.disciplineLog,
   };
 }
 
@@ -194,8 +198,8 @@ function getSeededUserConfigs(): SeededUserConfig[] {
       initialState: {
         watchlist: ['SPY', 'QQQ', 'AAPL'],
         assetClass: 'US_STOCK',
-        market: 'US'
-      }
+        market: 'US',
+      },
     });
   }
 
@@ -209,7 +213,7 @@ function getSeededUserConfigs(): SeededUserConfig[] {
         name: String(process.env.NOVA_SEEDED_DEMO_NAME || 'Nova Demo'),
         tradeMode: normalizeTradeMode(process.env.NOVA_SEEDED_DEMO_TRADE_MODE),
         broker: String(process.env.NOVA_SEEDED_DEMO_BROKER || 'Robinhood'),
-        locale: String(process.env.NOVA_SEEDED_DEMO_LOCALE || 'en')
+        locale: String(process.env.NOVA_SEEDED_DEMO_LOCALE || 'en'),
       });
     }
   }
@@ -219,7 +223,7 @@ function getSeededUserConfigs(): SeededUserConfig[] {
     if (!user.email || !user.password) return;
     deduped.set(normalizeEmail(user.email), {
       ...user,
-      email: normalizeEmail(user.email)
+      email: normalizeEmail(user.email),
     });
   });
   return Array.from(deduped.values());
@@ -244,11 +248,15 @@ function verifyPassword(password: string, stored: string) {
 }
 
 function hashToken(token: string) {
-  return createHash('sha256').update(String(token || '')).digest('hex');
+  return createHash('sha256')
+    .update(String(token || ''))
+    .digest('hex');
 }
 
 function hashResetCode(code: string) {
-  return createHash('sha256').update(`reset:${String(code || '')}`).digest('hex');
+  return createHash('sha256')
+    .update(`reset:${String(code || '')}`)
+    .digest('hex');
 }
 
 function buildCookieHeader(name: string, token: string, maxAgeSeconds: number) {
@@ -286,17 +294,22 @@ function defaultUserState(): AuthUserState {
     disciplineLog: {
       checkins: [],
       boundary_kept: [],
-      weekly_reviews: []
-    }
+      weekly_reviews: [],
+    },
   };
 }
 
-async function trySendSignupWelcomeEmail(user: { email: string; name: string; userId?: string; user_id?: string }) {
+async function trySendSignupWelcomeEmail(user: {
+  email: string;
+  name: string;
+  userId?: string;
+  user_id?: string;
+}) {
   if (!canSendSignupWelcomeEmail()) return;
   try {
     await sendSignupWelcomeEmail({
       email: user.email,
-      name: user.name
+      name: user.name,
     });
   } catch (error) {
     logWarn('Signup welcome email failed', {
@@ -304,7 +317,7 @@ async function trySendSignupWelcomeEmail(user: { email: string; name: string; us
       event_type: 'signup_welcome_email_failed',
       user_id: 'userId' in user ? user.userId : user.user_id,
       email: user.email,
-      error: String((error as Error)?.message || error || '')
+      error: String((error as Error)?.message || error || ''),
     });
   }
 }
@@ -313,7 +326,8 @@ function buildInitialUserState(tradeMode: AuthTradeMode): AuthUserState {
   return {
     ...defaultUserState(),
     uiMode: tradeMode === 'starter' ? 'beginner' : tradeMode === 'deep' ? 'advanced' : 'standard',
-    riskProfileKey: tradeMode === 'deep' ? 'aggressive' : tradeMode === 'starter' ? 'conservative' : 'balanced'
+    riskProfileKey:
+      tradeMode === 'deep' ? 'aggressive' : tradeMode === 'starter' ? 'conservative' : 'balanced',
   };
 }
 
@@ -326,7 +340,7 @@ function mapPublicUser(row: AuthUserRow): PublicAuthUser {
     broker: row.broker,
     locale: row.locale,
     createdAtMs: row.created_at_ms,
-    lastLoginAtMs: row.last_login_at_ms ?? null
+    lastLoginAtMs: row.last_login_at_ms ?? null,
   };
 }
 
@@ -341,8 +355,9 @@ function assertAuthStoreReady() {
 }
 
 function upsertLocalAuthUser(user: AuthUserRow) {
-  getDb().prepare(
-    `INSERT INTO auth_users(
+  getDb()
+    .prepare(
+      `INSERT INTO auth_users(
       user_id, email, password_hash, name, trade_mode, broker, locale, created_at_ms, updated_at_ms, last_login_at_ms
     ) VALUES (
       @user_id, @email, @password_hash, @name, @trade_mode, @broker, @locale, @created_at_ms, @updated_at_ms, @last_login_at_ms
@@ -355,14 +370,16 @@ function upsertLocalAuthUser(user: AuthUserRow) {
       broker = excluded.broker,
       locale = excluded.locale,
       updated_at_ms = excluded.updated_at_ms,
-      last_login_at_ms = excluded.last_login_at_ms`
-  ).run(user);
+      last_login_at_ms = excluded.last_login_at_ms`,
+    )
+    .run(user);
 }
 
 function upsertLocalAuthUserState(userId: string, state: AuthUserState, updatedAtMs = nowMs()) {
   try {
-    getDb().prepare(
-      `INSERT INTO auth_user_state_sync(
+    getDb()
+      .prepare(
+        `INSERT INTO auth_user_state_sync(
         user_id, asset_class, market, ui_mode, risk_profile_key, watchlist_json, holdings_json, executions_json, discipline_log_json, updated_at_ms
       ) VALUES (
         @user_id, @asset_class, @market, @ui_mode, @risk_profile_key, @watchlist_json, @holdings_json, @executions_json, @discipline_log_json, @updated_at_ms
@@ -376,19 +393,22 @@ function upsertLocalAuthUserState(userId: string, state: AuthUserState, updatedA
         holdings_json = excluded.holdings_json,
         executions_json = excluded.executions_json,
         discipline_log_json = excluded.discipline_log_json,
-        updated_at_ms = excluded.updated_at_ms`
-    ).run({
-      user_id: userId,
-      asset_class: state.assetClass,
-      market: state.market,
-      ui_mode: state.uiMode,
-      risk_profile_key: state.riskProfileKey,
-      watchlist_json: JSON.stringify(state.watchlist || []),
-      holdings_json: JSON.stringify(state.holdings || []),
-      executions_json: JSON.stringify(state.executions || []),
-      discipline_log_json: JSON.stringify(state.disciplineLog || defaultUserState().disciplineLog),
-      updated_at_ms: updatedAtMs
-    });
+        updated_at_ms = excluded.updated_at_ms`,
+      )
+      .run({
+        user_id: userId,
+        asset_class: state.assetClass,
+        market: state.market,
+        ui_mode: state.uiMode,
+        risk_profile_key: state.riskProfileKey,
+        watchlist_json: JSON.stringify(state.watchlist || []),
+        holdings_json: JSON.stringify(state.holdings || []),
+        executions_json: JSON.stringify(state.executions || []),
+        discipline_log_json: JSON.stringify(
+          state.disciplineLog || defaultUserState().disciplineLog,
+        ),
+        updated_at_ms: updatedAtMs,
+      });
   } catch (error) {
     if (!String((error as Error)?.message || '').includes('FOREIGN KEY constraint failed')) {
       throw error;
@@ -396,19 +416,26 @@ function upsertLocalAuthUserState(userId: string, state: AuthUserState, updatedA
   }
 }
 
-function upsertLocalAuthUserRole(args: { userId: string; role: AuthRole; grantedAtMs: number; grantedByUserId?: string | null }) {
+function upsertLocalAuthUserRole(args: {
+  userId: string;
+  role: AuthRole;
+  grantedAtMs: number;
+  grantedByUserId?: string | null;
+}) {
   try {
-    getDb().prepare(
-      `INSERT INTO auth_user_roles(user_id, role, granted_at_ms, granted_by_user_id)
+    getDb()
+      .prepare(
+        `INSERT INTO auth_user_roles(user_id, role, granted_at_ms, granted_by_user_id)
        VALUES (@user_id, @role, @granted_at_ms, @granted_by_user_id)
        ON CONFLICT(user_id, role) DO UPDATE SET
-         granted_by_user_id = COALESCE(auth_user_roles.granted_by_user_id, excluded.granted_by_user_id)`
-    ).run({
-      user_id: args.userId,
-      role: args.role,
-      granted_at_ms: args.grantedAtMs,
-      granted_by_user_id: args.grantedByUserId || null
-    });
+         granted_by_user_id = COALESCE(auth_user_roles.granted_by_user_id, excluded.granted_by_user_id)`,
+      )
+      .run({
+        user_id: args.userId,
+        role: args.role,
+        granted_at_ms: args.grantedAtMs,
+        granted_by_user_id: args.grantedByUserId || null,
+      });
   } catch (error) {
     if (!String((error as Error)?.message || '').includes('FOREIGN KEY constraint failed')) {
       throw error;
@@ -418,8 +445,9 @@ function upsertLocalAuthUserRole(args: { userId: string; role: AuthRole; granted
 
 function upsertLocalAuthSession(session: RemoteSessionRecord) {
   try {
-    getDb().prepare(
-      `INSERT INTO auth_sessions(
+    getDb()
+      .prepare(
+        `INSERT INTO auth_sessions(
         session_id, user_id, session_token_hash, user_agent, ip_address, expires_at_ms, revoked_at_ms, created_at_ms, updated_at_ms, last_seen_at_ms
       ) VALUES (
         @session_id, @user_id, @session_token_hash, @user_agent, @ip_address, @expires_at_ms, @revoked_at_ms, @created_at_ms, @updated_at_ms, @last_seen_at_ms
@@ -432,8 +460,9 @@ function upsertLocalAuthSession(session: RemoteSessionRecord) {
         expires_at_ms = excluded.expires_at_ms,
         revoked_at_ms = excluded.revoked_at_ms,
         updated_at_ms = excluded.updated_at_ms,
-        last_seen_at_ms = excluded.last_seen_at_ms`
-    ).run(session);
+        last_seen_at_ms = excluded.last_seen_at_ms`,
+      )
+      .run(session);
   } catch (error) {
     if (!String((error as Error)?.message || '').includes('FOREIGN KEY constraint failed')) {
       throw error;
@@ -443,13 +472,17 @@ function upsertLocalAuthSession(session: RemoteSessionRecord) {
 
 function revokeLocalAuthSessionByTokenHash(tokenHash: string, ts: number) {
   getDb()
-    .prepare('UPDATE auth_sessions SET revoked_at_ms = ?, updated_at_ms = ? WHERE session_token_hash = ? AND revoked_at_ms IS NULL')
+    .prepare(
+      'UPDATE auth_sessions SET revoked_at_ms = ?, updated_at_ms = ? WHERE session_token_hash = ? AND revoked_at_ms IS NULL',
+    )
     .run(ts, ts, tokenHash);
 }
 
 function revokeLocalAuthSessionsByUserId(userId: string, ts: number) {
   getDb()
-    .prepare('UPDATE auth_sessions SET revoked_at_ms = ?, updated_at_ms = ? WHERE user_id = ? AND revoked_at_ms IS NULL')
+    .prepare(
+      'UPDATE auth_sessions SET revoked_at_ms = ?, updated_at_ms = ? WHERE user_id = ? AND revoked_at_ms IS NULL',
+    )
     .run(ts, ts, userId);
 }
 
@@ -467,7 +500,7 @@ function ensureSeededUserLocal() {
         user_id, email, password_hash, name, trade_mode, broker, locale, created_at_ms, updated_at_ms, last_login_at_ms
       ) VALUES (
         @user_id, @email, @password_hash, @name, @trade_mode, @broker, @locale, @created_at_ms, @updated_at_ms, @last_login_at_ms
-      )`
+      )`,
     ).run({
       user_id: userId,
       email: seededUser.email,
@@ -478,7 +511,7 @@ function ensureSeededUserLocal() {
       locale: seededUser.locale,
       created_at_ms: ts,
       updated_at_ms: ts,
-      last_login_at_ms: null
+      last_login_at_ms: null,
     });
     const initialState = mergeSeededUserState(seededUser);
     db.prepare(
@@ -486,7 +519,7 @@ function ensureSeededUserLocal() {
         user_id, asset_class, market, ui_mode, risk_profile_key, watchlist_json, holdings_json, executions_json, discipline_log_json, updated_at_ms
       ) VALUES (
         @user_id, @asset_class, @market, @ui_mode, @risk_profile_key, @watchlist_json, @holdings_json, @executions_json, @discipline_log_json, @updated_at_ms
-      )`
+      )`,
     ).run({
       user_id: userId,
       asset_class: initialState.assetClass,
@@ -497,7 +530,7 @@ function ensureSeededUserLocal() {
       holdings_json: JSON.stringify(initialState.holdings),
       executions_json: JSON.stringify(initialState.executions),
       discipline_log_json: JSON.stringify(initialState.disciplineLog),
-      updated_at_ms: ts
+      updated_at_ms: ts,
     });
   }
 }
@@ -519,10 +552,12 @@ async function ensureSeededUserRemote() {
       locale: seededUser.locale,
       created_at_ms: ts,
       updated_at_ms: ts,
-      last_login_at_ms: null
+      last_login_at_ms: null,
     };
     const state = mergeSeededUserState(seededUser);
-    const reserved = await remoteSetString(remoteUserIdByEmailKey(seededUser.email), userId, { nx: true });
+    const reserved = await remoteSetString(remoteUserIdByEmailKey(seededUser.email), userId, {
+      nx: true,
+    });
     if (!reserved) continue;
     try {
       await remoteSetJson(remoteUserKey(userId), user);
@@ -556,12 +591,12 @@ async function ensureSeededUserPostgres() {
       locale: seededUser.locale,
       created_at_ms: ts,
       updated_at_ms: ts,
-      last_login_at_ms: null
+      last_login_at_ms: null,
     };
     const state = mergeSeededUserState(seededUser);
     await pgInsertUserWithState({
       user,
-      state
+      state,
     });
     upsertLocalAuthUser(user);
     upsertLocalAuthUserState(userId, state, ts);
@@ -591,7 +626,7 @@ function getUserByEmailLocal(email: string): AuthUserRow | null {
   const row = getDb()
     .prepare(
       `SELECT user_id, email, password_hash, name, trade_mode, broker, locale, created_at_ms, updated_at_ms, last_login_at_ms
-       FROM auth_users WHERE email = ? LIMIT 1`
+       FROM auth_users WHERE email = ? LIMIT 1`,
     )
     .get(normalizeEmail(email)) as AuthUserRow | undefined;
   return row ?? null;
@@ -622,7 +657,7 @@ function getUserByIdLocal(userId: string): AuthUserRow | null {
   const row = getDb()
     .prepare(
       `SELECT user_id, email, password_hash, name, trade_mode, broker, locale, created_at_ms, updated_at_ms, last_login_at_ms
-       FROM auth_users WHERE user_id = ? LIMIT 1`
+       FROM auth_users WHERE user_id = ? LIMIT 1`,
     )
     .get(userId) as AuthUserRow | undefined;
   return row ?? null;
@@ -650,12 +685,12 @@ function listAuthUserRoleRowsLocal(userId: string): AuthUserRoleRow[] {
         `SELECT user_id, role, granted_at_ms, granted_by_user_id
          FROM auth_user_roles
          WHERE user_id = ?
-         ORDER BY granted_at_ms DESC`
+         ORDER BY granted_at_ms DESC`,
       )
       .all(userId) as AuthUserRoleRow[] | undefined) || []
   ).map((row) => ({
     ...row,
-    role: normalizeRole(row.role) || 'SUPPORT'
+    role: normalizeRole(row.role) || 'SUPPORT',
   }));
 }
 
@@ -668,7 +703,7 @@ async function listAuthUserRoleRows(userId: string): Promise<AuthUserRoleRow[]> 
         userId: row.user_id,
         role: row.role,
         grantedAtMs: row.granted_at_ms,
-        grantedByUserId: row.granted_by_user_id
+        grantedByUserId: row.granted_by_user_id,
       });
     });
     return rows;
@@ -680,7 +715,7 @@ async function listAuthUserRoleRows(userId: string): Promise<AuthUserRoleRow[]> 
         user_id: String(row.user_id || userId),
         role: normalizeRole(row.role) || null,
         granted_at_ms: Number(row.granted_at_ms || 0),
-        granted_by_user_id: row.granted_by_user_id ? String(row.granted_by_user_id) : null
+        granted_by_user_id: row.granted_by_user_id ? String(row.granted_by_user_id) : null,
       }))
       .filter((row): row is AuthUserRoleRow => Boolean(row.role))
       .sort((a, b) => b.granted_at_ms - a.granted_at_ms);
@@ -688,7 +723,11 @@ async function listAuthUserRoleRows(userId: string): Promise<AuthUserRoleRow[]> 
   return listAuthUserRoleRowsLocal(userId);
 }
 
-async function upsertAuthUserRole(args: { userId: string; role: AuthRole; grantedByUserId?: string | null }) {
+async function upsertAuthUserRole(args: {
+  userId: string;
+  role: AuthRole;
+  grantedByUserId?: string | null;
+}) {
   await ensureSeededUser();
   const ts = nowMs();
   if (hasPostgresAuthStore()) {
@@ -696,13 +735,13 @@ async function upsertAuthUserRole(args: { userId: string; role: AuthRole; grante
       userId: args.userId,
       role: args.role,
       grantedAtMs: ts,
-      grantedByUserId: args.grantedByUserId || null
+      grantedByUserId: args.grantedByUserId || null,
     });
     upsertLocalAuthUserRole({
       userId: args.userId,
       role: args.role,
       grantedAtMs: ts,
-      grantedByUserId: args.grantedByUserId || null
+      grantedByUserId: args.grantedByUserId || null,
     });
     return;
   }
@@ -713,7 +752,7 @@ async function upsertAuthUserRole(args: { userId: string; role: AuthRole; grante
         user_id: String(row.user_id || args.userId),
         role: normalizeRole(row.role) || null,
         granted_at_ms: Number(row.granted_at_ms || 0),
-        granted_by_user_id: row.granted_by_user_id ? String(row.granted_by_user_id) : null
+        granted_by_user_id: row.granted_by_user_id ? String(row.granted_by_user_id) : null,
       }))
       .filter((row): row is AuthUserRoleRow => Boolean(row.role));
     const existing = next.find((row) => row.role === args.role);
@@ -725,7 +764,7 @@ async function upsertAuthUserRole(args: { userId: string; role: AuthRole; grante
         user_id: args.userId,
         role: args.role,
         granted_at_ms: ts,
-        granted_by_user_id: args.grantedByUserId || null
+        granted_by_user_id: args.grantedByUserId || null,
       });
     }
     await remoteSetJson(remoteUserRolesKey(args.userId), next);
@@ -736,13 +775,13 @@ async function upsertAuthUserRole(args: { userId: string; role: AuthRole; grante
       `INSERT INTO auth_user_roles(user_id, role, granted_at_ms, granted_by_user_id)
        VALUES (@user_id, @role, @granted_at_ms, @granted_by_user_id)
        ON CONFLICT(user_id, role) DO UPDATE SET
-         granted_by_user_id = COALESCE(auth_user_roles.granted_by_user_id, excluded.granted_by_user_id)`
+         granted_by_user_id = COALESCE(auth_user_roles.granted_by_user_id, excluded.granted_by_user_id)`,
     )
     .run({
       user_id: args.userId,
       role: args.role,
       granted_at_ms: ts,
-      granted_by_user_id: args.grantedByUserId || null
+      granted_by_user_id: args.grantedByUserId || null,
     });
 }
 
@@ -753,11 +792,15 @@ async function syncConfiguredAdminRole(user: AuthUserRow | PublicAuthUser | null
   if (!isConfiguredAdminEmail(email)) return;
   await upsertAuthUserRole({
     userId,
-    role: 'ADMIN'
+    role: 'ADMIN',
   });
 }
 
-function createSessionLocal(args: { userId: string; userAgent?: string | null; ipAddress?: string | null }) {
+function createSessionLocal(args: {
+  userId: string;
+  userAgent?: string | null;
+  ipAddress?: string | null;
+}) {
   const db = getDb();
   const token = randomBytes(24).toString('hex');
   const ts = nowMs();
@@ -767,7 +810,7 @@ function createSessionLocal(args: { userId: string; userAgent?: string | null; i
       session_id, user_id, session_token_hash, user_agent, ip_address, expires_at_ms, revoked_at_ms, created_at_ms, updated_at_ms, last_seen_at_ms
     ) VALUES (
       @session_id, @user_id, @session_token_hash, @user_agent, @ip_address, @expires_at_ms, NULL, @created_at_ms, @updated_at_ms, @last_seen_at_ms
-    )`
+    )`,
   ).run({
     session_id: sessionId,
     user_id: args.userId,
@@ -777,12 +820,16 @@ function createSessionLocal(args: { userId: string; userAgent?: string | null; i
     expires_at_ms: ts + SESSION_TTL_MS,
     created_at_ms: ts,
     updated_at_ms: ts,
-    last_seen_at_ms: ts
+    last_seen_at_ms: ts,
   });
   return token;
 }
 
-async function createSession(args: { userId: string; userAgent?: string | null; ipAddress?: string | null }) {
+async function createSession(args: {
+  userId: string;
+  userAgent?: string | null;
+  ipAddress?: string | null;
+}) {
   if (hasPostgresAuthStore()) {
     const token = randomBytes(24).toString('hex');
     const ts = nowMs();
@@ -797,7 +844,7 @@ async function createSession(args: { userId: string; userAgent?: string | null; 
       revoked_at_ms: null,
       created_at_ms: ts,
       updated_at_ms: ts,
-      last_seen_at_ms: ts
+      last_seen_at_ms: ts,
     };
     await pgUpsertSession(record);
     upsertLocalAuthSession(record);
@@ -820,7 +867,7 @@ async function createSession(args: { userId: string; userAgent?: string | null; 
     revoked_at_ms: null,
     created_at_ms: ts,
     updated_at_ms: ts,
-    last_seen_at_ms: ts
+    last_seen_at_ms: ts,
   };
   await remoteSetJson(remoteSessionKey(tokenHash), record, { px: SESSION_TTL_MS });
   await remoteSetAdd(remoteUserSessionsKey(args.userId), tokenHash);
@@ -853,7 +900,9 @@ export function clearAdminAuthCookieHeader() {
   return clearCookieHeader(ADMIN_SESSION_COOKIE_NAME);
 }
 
-export async function getAuthSession(token: string | null | undefined): Promise<{ user: PublicAuthUser; state: AuthUserState } | null> {
+export async function getAuthSession(
+  token: string | null | undefined,
+): Promise<{ user: PublicAuthUser; state: AuthUserState } | null> {
   if (!token) return null;
   await ensureSeededUser();
 
@@ -867,19 +916,20 @@ export async function getAuthSession(token: string | null | undefined): Promise<
     upsertLocalAuthSession({
       ...bundle.session,
       updated_at_ms: now,
-      last_seen_at_ms: now
+      last_seen_at_ms: now,
     });
     return {
       user: mapPublicUser(bundle.user),
-      state: bundle.state
+      state: bundle.state,
     };
   }
 
   if (!hasRemoteAuthStore()) {
     const db = getDb();
     const now = nowMs();
-    const row = db.prepare(
-      `SELECT
+    const row = db
+      .prepare(
+        `SELECT
          s.session_id,
          s.user_id,
          s.session_token_hash,
@@ -911,22 +961,27 @@ export async function getAuthSession(token: string | null | undefined): Promise<
        JOIN auth_users u ON u.user_id = s.user_id
        LEFT JOIN auth_user_state_sync sync ON sync.user_id = u.user_id
        WHERE s.session_token_hash = ? AND s.revoked_at_ms IS NULL AND s.expires_at_ms > ?
-       LIMIT 1`
-    ).get(hashToken(token), now) as (RemoteSessionRecord &
-      AuthUserRow & {
-        user_created_at_ms: number;
-        user_updated_at_ms: number;
-        asset_class: string | null;
-        market: string | null;
-        ui_mode: string | null;
-        risk_profile_key: string | null;
-        watchlist_json: string | null;
-        holdings_json: string | null;
-        executions_json: string | null;
-        discipline_log_json: string | null;
-      }) | undefined;
+       LIMIT 1`,
+      )
+      .get(hashToken(token), now) as
+      | (RemoteSessionRecord &
+          AuthUserRow & {
+            user_created_at_ms: number;
+            user_updated_at_ms: number;
+            asset_class: string | null;
+            market: string | null;
+            ui_mode: string | null;
+            risk_profile_key: string | null;
+            watchlist_json: string | null;
+            holdings_json: string | null;
+            executions_json: string | null;
+            discipline_log_json: string | null;
+          })
+      | undefined;
     if (!row) return null;
-    db.prepare('UPDATE auth_sessions SET updated_at_ms = ?, last_seen_at_ms = ? WHERE session_id = ?').run(now, now, row.session_id);
+    db.prepare(
+      'UPDATE auth_sessions SET updated_at_ms = ?, last_seen_at_ms = ? WHERE session_id = ?',
+    ).run(now, now, row.session_id);
     return {
       user: {
         userId: row.user_id,
@@ -936,7 +991,7 @@ export async function getAuthSession(token: string | null | undefined): Promise<
         broker: row.broker,
         locale: row.locale,
         createdAtMs: row.user_created_at_ms,
-        lastLoginAtMs: row.last_login_at_ms ?? null
+        lastLoginAtMs: row.last_login_at_ms ?? null,
       },
       state: {
         assetClass: row.asset_class || 'US_STOCK',
@@ -946,8 +1001,8 @@ export async function getAuthSession(token: string | null | undefined): Promise<
         watchlist: parseJson(row.watchlist_json, [] as string[]),
         holdings: parseJson(row.holdings_json, [] as unknown[]),
         executions: parseJson(row.executions_json, [] as unknown[]),
-        disciplineLog: parseJson(row.discipline_log_json, defaultUserState().disciplineLog)
-      }
+        disciplineLog: parseJson(row.discipline_log_json, defaultUserState().disciplineLog),
+      },
     };
   }
 
@@ -964,7 +1019,7 @@ export async function getAuthSession(token: string | null | undefined): Promise<
 
   const [user, state] = await Promise.all([
     getUserById(session.user_id),
-    getAuthUserState(session.user_id)
+    getAuthUserState(session.user_id),
   ]);
   if (!user) {
     await remoteDeleteKey(remoteSessionKey(tokenHash));
@@ -977,14 +1032,14 @@ export async function getAuthSession(token: string | null | undefined): Promise<
     {
       ...session,
       updated_at_ms: now,
-      last_seen_at_ms: now
+      last_seen_at_ms: now,
     },
-    { px: remainingTtl }
+    { px: remainingTtl },
   );
 
   return {
     user: mapPublicUser(user),
-    state
+    state,
   };
 }
 
@@ -1024,11 +1079,11 @@ export async function signupAuthUser(args: {
       locale: args.locale || null,
       created_at_ms: ts,
       updated_at_ms: ts,
-      last_login_at_ms: ts
+      last_login_at_ms: ts,
     };
     await pgInsertUserWithState({
       user,
-      state
+      state,
     });
     upsertLocalAuthUser(user);
     upsertLocalAuthUserState(userId, state, ts);
@@ -1036,14 +1091,14 @@ export async function signupAuthUser(args: {
     const sessionToken = await createSession({
       userId,
       userAgent: args.userAgent,
-      ipAddress: args.ipAddress
+      ipAddress: args.ipAddress,
     });
     await trySendSignupWelcomeEmail(user);
     return {
       ok: true as const,
       user: mapPublicUser(user),
       state,
-      sessionToken
+      sessionToken,
     };
   }
   if (!hasRemoteAuthStore()) {
@@ -1059,7 +1114,7 @@ export async function signupAuthUser(args: {
         user_id, email, password_hash, name, trade_mode, broker, locale, created_at_ms, updated_at_ms, last_login_at_ms
       ) VALUES (
         @user_id, @email, @password_hash, @name, @trade_mode, @broker, @locale, @created_at_ms, @updated_at_ms, @last_login_at_ms
-      )`
+      )`,
     ).run({
       user_id: userId,
       email,
@@ -1070,14 +1125,14 @@ export async function signupAuthUser(args: {
       locale: args.locale || null,
       created_at_ms: ts,
       updated_at_ms: ts,
-      last_login_at_ms: ts
+      last_login_at_ms: ts,
     });
     db.prepare(
       `INSERT INTO auth_user_state_sync(
         user_id, asset_class, market, ui_mode, risk_profile_key, watchlist_json, holdings_json, executions_json, discipline_log_json, updated_at_ms
       ) VALUES (
         @user_id, @asset_class, @market, @ui_mode, @risk_profile_key, @watchlist_json, @holdings_json, @executions_json, @discipline_log_json, @updated_at_ms
-      )`
+      )`,
     ).run({
       user_id: userId,
       asset_class: state.assetClass,
@@ -1088,7 +1143,7 @@ export async function signupAuthUser(args: {
       holdings_json: JSON.stringify(state.holdings),
       executions_json: JSON.stringify(state.executions),
       discipline_log_json: JSON.stringify(state.disciplineLog),
-      updated_at_ms: ts
+      updated_at_ms: ts,
     });
     const user = getUserByIdLocal(userId);
     if (!user) return { ok: false as const, error: 'SIGNUP_FAILED' };
@@ -1096,14 +1151,14 @@ export async function signupAuthUser(args: {
     const sessionToken = await createSession({
       userId,
       userAgent: args.userAgent,
-      ipAddress: args.ipAddress
+      ipAddress: args.ipAddress,
     });
     await trySendSignupWelcomeEmail(user);
     return {
       ok: true as const,
       user: mapPublicUser(user),
       state,
-      sessionToken
+      sessionToken,
     };
   }
 
@@ -1120,7 +1175,7 @@ export async function signupAuthUser(args: {
     locale: args.locale || null,
     created_at_ms: ts,
     updated_at_ms: ts,
-    last_login_at_ms: ts
+    last_login_at_ms: ts,
   };
 
   const reserved = await remoteSetString(remoteUserIdByEmailKey(email), userId, { nx: true });
@@ -1134,17 +1189,21 @@ export async function signupAuthUser(args: {
     const sessionToken = await createSession({
       userId,
       userAgent: args.userAgent,
-      ipAddress: args.ipAddress
+      ipAddress: args.ipAddress,
     });
     await trySendSignupWelcomeEmail(user);
     return {
       ok: true as const,
       user: mapPublicUser(user),
       state,
-      sessionToken
+      sessionToken,
     };
   } catch (error) {
-    await remoteDeleteKeys([remoteUserIdByEmailKey(email), remoteUserKey(userId), remoteUserStateKey(userId)]);
+    await remoteDeleteKeys([
+      remoteUserIdByEmailKey(email),
+      remoteUserKey(userId),
+      remoteUserStateKey(userId),
+    ]);
     throw error;
   }
 }
@@ -1164,7 +1223,7 @@ export async function loginAuthUser(args: {
   const updatedUser: AuthUserRow = {
     ...user,
     updated_at_ms: ts,
-    last_login_at_ms: ts
+    last_login_at_ms: ts,
   };
 
   if (hasPostgresAuthStore()) {
@@ -1173,21 +1232,23 @@ export async function loginAuthUser(args: {
   } else if (hasRemoteAuthStore()) {
     await remoteSetJson(remoteUserKey(user.user_id), updatedUser);
   } else {
-    getDb().prepare('UPDATE auth_users SET last_login_at_ms = ?, updated_at_ms = ? WHERE user_id = ?').run(ts, ts, user.user_id);
+    getDb()
+      .prepare('UPDATE auth_users SET last_login_at_ms = ?, updated_at_ms = ? WHERE user_id = ?')
+      .run(ts, ts, user.user_id);
   }
   await syncConfiguredAdminRole(updatedUser);
 
   const sessionToken = await createSession({
     userId: user.user_id,
     userAgent: args.userAgent,
-    ipAddress: args.ipAddress
+    ipAddress: args.ipAddress,
   });
   const state = await getAuthUserState(user.user_id);
   return {
     ok: true as const,
     user: mapPublicUser(updatedUser),
     state,
-    sessionToken
+    sessionToken,
   };
 }
 
@@ -1208,7 +1269,7 @@ export async function loginAdminUser(args: {
     ok: true as const,
     user: result.user,
     roles,
-    sessionToken: result.sessionToken
+    sessionToken: result.sessionToken,
   };
 }
 
@@ -1231,11 +1292,15 @@ export async function logoutAuthSession(token: string | null | undefined) {
   }
   const ts = nowMs();
   getDb()
-    .prepare('UPDATE auth_sessions SET revoked_at_ms = ?, updated_at_ms = ? WHERE session_token_hash = ? AND revoked_at_ms IS NULL')
+    .prepare(
+      'UPDATE auth_sessions SET revoked_at_ms = ?, updated_at_ms = ? WHERE session_token_hash = ? AND revoked_at_ms IS NULL',
+    )
     .run(ts, ts, tokenHash);
 }
 
-export async function getAdminSession(token: string | null | undefined): Promise<{ user: PublicAuthUser; roles: AuthRole[] } | null> {
+export async function getAdminSession(
+  token: string | null | undefined,
+): Promise<{ user: PublicAuthUser; roles: AuthRole[] } | null> {
   const session = await getAuthSession(token);
   if (!session) return null;
   await syncConfiguredAdminRole(session.user);
@@ -1243,7 +1308,7 @@ export async function getAdminSession(token: string | null | undefined): Promise
   if (!roles.includes('ADMIN')) return null;
   return {
     user: session.user,
-    roles
+    roles,
   };
 }
 
@@ -1252,7 +1317,11 @@ export async function createPasswordReset(args: { email: string }) {
   const email = normalizeEmail(args.email);
   const user = await getUserByEmail(email);
   if (!user) {
-    return { ok: true as const, codeHint: null, expiresInMinutes: Math.floor(RESET_TTL_MS / 60000) };
+    return {
+      ok: true as const,
+      codeHint: null,
+      expiresInMinutes: Math.floor(RESET_TTL_MS / 60000),
+    };
   }
 
   const ts = nowMs();
@@ -1269,7 +1338,7 @@ export async function createPasswordReset(args: { email: string }) {
       expires_at_ms: ts + RESET_TTL_MS,
       used_at_ms: null,
       created_at_ms: ts,
-      updated_at_ms: ts
+      updated_at_ms: ts,
     };
     await pgInvalidateOpenPasswordResets(user.user_id, ts);
     await pgInsertPasswordReset(reset);
@@ -1280,13 +1349,13 @@ export async function createPasswordReset(args: { email: string }) {
       await sendPasswordResetEmail({
         email,
         code,
-        expiresInMinutes
+        expiresInMinutes,
       });
     }
     return {
       ok: true as const,
       codeHint: exposeCodeHint ? code : null,
-      expiresInMinutes
+      expiresInMinutes,
     };
   }
 
@@ -1299,7 +1368,7 @@ export async function createPasswordReset(args: { email: string }) {
       expires_at_ms: ts + RESET_TTL_MS,
       used_at_ms: null,
       created_at_ms: ts,
-      updated_at_ms: ts
+      updated_at_ms: ts,
     };
     await remoteSetJson(remotePasswordResetKey(user.user_id), reset, { px: RESET_TTL_MS });
     if (!exposeCodeHint) {
@@ -1309,24 +1378,26 @@ export async function createPasswordReset(args: { email: string }) {
       await sendPasswordResetEmail({
         email,
         code,
-        expiresInMinutes
+        expiresInMinutes,
       });
     }
     return {
       ok: true as const,
       codeHint: exposeCodeHint ? code : null,
-      expiresInMinutes
+      expiresInMinutes,
     };
   }
 
   const db = getDb();
-  db.prepare('UPDATE auth_password_resets SET used_at_ms = ?, updated_at_ms = ? WHERE user_id = ? AND used_at_ms IS NULL').run(ts, ts, user.user_id);
+  db.prepare(
+    'UPDATE auth_password_resets SET used_at_ms = ?, updated_at_ms = ? WHERE user_id = ? AND used_at_ms IS NULL',
+  ).run(ts, ts, user.user_id);
   db.prepare(
     `INSERT INTO auth_password_resets(
       reset_id, user_id, email, code_hash, expires_at_ms, used_at_ms, created_at_ms, updated_at_ms
     ) VALUES (
       @reset_id, @user_id, @email, @code_hash, @expires_at_ms, NULL, @created_at_ms, @updated_at_ms
-    )`
+    )`,
   ).run({
     reset_id: createId('rst'),
     user_id: user.user_id,
@@ -1334,7 +1405,7 @@ export async function createPasswordReset(args: { email: string }) {
     code_hash: hashResetCode(code),
     expires_at_ms: ts + RESET_TTL_MS,
     created_at_ms: ts,
-    updated_at_ms: ts
+    updated_at_ms: ts,
   });
   if (!exposeCodeHint) {
     if (!canSendPasswordResetEmail()) {
@@ -1343,33 +1414,43 @@ export async function createPasswordReset(args: { email: string }) {
     await sendPasswordResetEmail({
       email,
       code,
-      expiresInMinutes
+      expiresInMinutes,
     });
   }
   return {
     ok: true as const,
     codeHint: exposeCodeHint ? code : null,
-    expiresInMinutes
+    expiresInMinutes,
   };
 }
 
-export async function resetPasswordWithCode(args: { email: string; code: string; newPassword: string }) {
+export async function resetPasswordWithCode(args: {
+  email: string;
+  code: string;
+  newPassword: string;
+}) {
   await ensureSeededUser();
   const email = normalizeEmail(args.email);
   const user = await getUserByEmail(email);
   if (!user) return { ok: false as const, error: 'INVALID_RESET' };
-  if (String(args.newPassword || '').length < 8) return { ok: false as const, error: 'WEAK_PASSWORD' };
+  if (String(args.newPassword || '').length < 8)
+    return { ok: false as const, error: 'WEAK_PASSWORD' };
   const ts = nowMs();
 
   if (hasPostgresAuthStore()) {
     const row = await pgGetLatestPasswordReset(user.user_id, email);
-    if (!row || row.used_at_ms || row.expires_at_ms < ts || row.code_hash !== hashResetCode(args.code)) {
+    if (
+      !row ||
+      row.used_at_ms ||
+      row.expires_at_ms < ts ||
+      row.code_hash !== hashResetCode(args.code)
+    ) {
       return { ok: false as const, error: 'INVALID_RESET' };
     }
     const updatedUser: AuthUserRow = {
       ...user,
       password_hash: hashPassword(args.newPassword),
-      updated_at_ms: ts
+      updated_at_ms: ts,
     };
     await pgUpsertUser(updatedUser);
     await pgMarkPasswordResetUsed(row.reset_id, ts);
@@ -1381,36 +1462,64 @@ export async function resetPasswordWithCode(args: { email: string; code: string;
 
   if (hasRemoteAuthStore()) {
     const row = await remoteGetJson<RemoteResetRecord>(remotePasswordResetKey(user.user_id));
-    if (!row || row.used_at_ms || row.expires_at_ms < ts || row.code_hash !== hashResetCode(args.code)) {
+    if (
+      !row ||
+      row.used_at_ms ||
+      row.expires_at_ms < ts ||
+      row.code_hash !== hashResetCode(args.code)
+    ) {
       return { ok: false as const, error: 'INVALID_RESET' };
     }
     const updatedUser: AuthUserRow = {
       ...user,
       password_hash: hashPassword(args.newPassword),
-      updated_at_ms: ts
+      updated_at_ms: ts,
     };
     await remoteSetJson(remoteUserKey(user.user_id), updatedUser);
-    await remoteSetJson(remotePasswordResetKey(user.user_id), { ...row, used_at_ms: ts, updated_at_ms: ts }, { px: Math.max(row.expires_at_ms - ts, 1_000) });
+    await remoteSetJson(
+      remotePasswordResetKey(user.user_id),
+      { ...row, used_at_ms: ts, updated_at_ms: ts },
+      { px: Math.max(row.expires_at_ms - ts, 1_000) },
+    );
     const sessionHashes = await remoteSetMembers(remoteUserSessionsKey(user.user_id));
-    await Promise.all(sessionHashes.map((sessionHash) => remoteDeleteKey(remoteSessionKey(sessionHash))));
+    await Promise.all(
+      sessionHashes.map((sessionHash) => remoteDeleteKey(remoteSessionKey(sessionHash))),
+    );
     await remoteDeleteKey(remoteUserSessionsKey(user.user_id));
     return { ok: true as const };
   }
 
   const db = getDb();
-  const row = db.prepare(
-    `SELECT reset_id, code_hash, expires_at_ms, used_at_ms
+  const row = db
+    .prepare(
+      `SELECT reset_id, code_hash, expires_at_ms, used_at_ms
      FROM auth_password_resets
      WHERE user_id = ? AND email = ?
      ORDER BY created_at_ms DESC
-     LIMIT 1`
-  ).get(user.user_id, email) as { reset_id: string; code_hash: string; expires_at_ms: number; used_at_ms: number | null } | undefined;
-  if (!row || row.used_at_ms || row.expires_at_ms < ts || row.code_hash !== hashResetCode(args.code)) {
+     LIMIT 1`,
+    )
+    .get(user.user_id, email) as
+    | { reset_id: string; code_hash: string; expires_at_ms: number; used_at_ms: number | null }
+    | undefined;
+  if (
+    !row ||
+    row.used_at_ms ||
+    row.expires_at_ms < ts ||
+    row.code_hash !== hashResetCode(args.code)
+  ) {
     return { ok: false as const, error: 'INVALID_RESET' };
   }
-  db.prepare('UPDATE auth_users SET password_hash = ?, updated_at_ms = ? WHERE user_id = ?').run(hashPassword(args.newPassword), ts, user.user_id);
-  db.prepare('UPDATE auth_password_resets SET used_at_ms = ?, updated_at_ms = ? WHERE reset_id = ?').run(ts, ts, row.reset_id);
-  db.prepare('UPDATE auth_sessions SET revoked_at_ms = ?, updated_at_ms = ? WHERE user_id = ? AND revoked_at_ms IS NULL').run(ts, ts, user.user_id);
+  db.prepare('UPDATE auth_users SET password_hash = ?, updated_at_ms = ? WHERE user_id = ?').run(
+    hashPassword(args.newPassword),
+    ts,
+    user.user_id,
+  );
+  db.prepare(
+    'UPDATE auth_password_resets SET used_at_ms = ?, updated_at_ms = ? WHERE reset_id = ?',
+  ).run(ts, ts, row.reset_id);
+  db.prepare(
+    'UPDATE auth_sessions SET revoked_at_ms = ?, updated_at_ms = ? WHERE user_id = ? AND revoked_at_ms IS NULL',
+  ).run(ts, ts, user.user_id);
   return { ok: true as const };
 }
 
@@ -1428,18 +1537,20 @@ export async function getAuthUserState(userId: string): Promise<AuthUserState> {
     .prepare(
       `SELECT asset_class, market, ui_mode, risk_profile_key, watchlist_json, holdings_json, executions_json, discipline_log_json
        FROM auth_user_state_sync
-       WHERE user_id = ? LIMIT 1`
+       WHERE user_id = ? LIMIT 1`,
     )
-    .get(userId) as {
-      asset_class: string;
-      market: string;
-      ui_mode: string;
-      risk_profile_key: string;
-      watchlist_json: string;
-      holdings_json: string;
-      executions_json: string;
-      discipline_log_json: string;
-    } | undefined;
+    .get(userId) as
+    | {
+        asset_class: string;
+        market: string;
+        ui_mode: string;
+        risk_profile_key: string;
+        watchlist_json: string;
+        holdings_json: string;
+        executions_json: string;
+        discipline_log_json: string;
+      }
+    | undefined;
   if (!row) return defaultUserState();
   return {
     assetClass: row.asset_class || 'US_STOCK',
@@ -1449,7 +1560,7 @@ export async function getAuthUserState(userId: string): Promise<AuthUserState> {
     watchlist: parseJson(row.watchlist_json, [] as string[]),
     holdings: parseJson(row.holdings_json, [] as unknown[]),
     executions: parseJson(row.executions_json, [] as unknown[]),
-    disciplineLog: parseJson(row.discipline_log_json, defaultUserState().disciplineLog)
+    disciplineLog: parseJson(row.discipline_log_json, defaultUserState().disciplineLog),
   };
 }
 
@@ -1464,7 +1575,7 @@ export async function upsertAuthUserState(userId: string, input: Partial<AuthUse
     watchlist: Array.isArray(input.watchlist) ? input.watchlist : current.watchlist,
     holdings: Array.isArray(input.holdings) ? input.holdings : current.holdings,
     executions: Array.isArray(input.executions) ? input.executions : current.executions,
-    disciplineLog: input.disciplineLog || current.disciplineLog
+    disciplineLog: input.disciplineLog || current.disciplineLog,
   };
 
   if (hasPostgresAuthStore()) {
@@ -1479,8 +1590,9 @@ export async function upsertAuthUserState(userId: string, input: Partial<AuthUse
     return next;
   }
 
-  getDb().prepare(
-    `INSERT INTO auth_user_state_sync(
+  getDb()
+    .prepare(
+      `INSERT INTO auth_user_state_sync(
       user_id, asset_class, market, ui_mode, risk_profile_key, watchlist_json, holdings_json, executions_json, discipline_log_json, updated_at_ms
     ) VALUES (
       @user_id, @asset_class, @market, @ui_mode, @risk_profile_key, @watchlist_json, @holdings_json, @executions_json, @discipline_log_json, @updated_at_ms
@@ -1494,18 +1606,19 @@ export async function upsertAuthUserState(userId: string, input: Partial<AuthUse
       holdings_json = excluded.holdings_json,
       executions_json = excluded.executions_json,
       discipline_log_json = excluded.discipline_log_json,
-      updated_at_ms = excluded.updated_at_ms`
-  ).run({
-    user_id: userId,
-    asset_class: next.assetClass,
-    market: next.market,
-    ui_mode: next.uiMode,
-    risk_profile_key: next.riskProfileKey,
-    watchlist_json: JSON.stringify(next.watchlist || []),
-    holdings_json: JSON.stringify(next.holdings || []),
-    executions_json: JSON.stringify(next.executions || []),
-    discipline_log_json: JSON.stringify(next.disciplineLog || defaultUserState().disciplineLog),
-    updated_at_ms: nowMs()
-  });
+      updated_at_ms = excluded.updated_at_ms`,
+    )
+    .run({
+      user_id: userId,
+      asset_class: next.assetClass,
+      market: next.market,
+      ui_mode: next.uiMode,
+      risk_profile_key: next.riskProfileKey,
+      watchlist_json: JSON.stringify(next.watchlist || []),
+      holdings_json: JSON.stringify(next.holdings || []),
+      executions_json: JSON.stringify(next.executions || []),
+      discipline_log_json: JSON.stringify(next.disciplineLog || defaultUserState().disciplineLog),
+      updated_at_ms: nowMs(),
+    });
   return next;
 }

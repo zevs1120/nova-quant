@@ -15,7 +15,7 @@ export { buildPortfolioSimulationEngine } from '../../portfolio_simulation/portf
 export { buildAiResearchCopilot } from '../copilot/aiResearchCopilot.js';
 export {
   buildWeeklyResearchCycle,
-  buildWeeklyResearchReportMarkdown
+  buildWeeklyResearchReportMarkdown,
 } from '../weekly_cycle/weeklyResearchCycle.js';
 export { writeWeeklyResearchReport } from '../weekly_cycle/writeWeeklyReportNode.js';
 export {
@@ -27,5 +27,5 @@ export {
   buildCandidateValidationPipeline,
   buildCandidateScoring,
   buildDiscoveryDiagnostics,
-  buildStrategyDiscoveryEngine
+  buildStrategyDiscoveryEngine,
 } from '../discovery/index.js';

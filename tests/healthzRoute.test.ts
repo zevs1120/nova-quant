@@ -17,7 +17,7 @@ function createMockResponse() {
     json(body: unknown) {
       this.payload = body;
       return this;
-    }
+    },
   };
 }
 
@@ -27,18 +27,18 @@ describe('vercel healthz route', () => {
     await handler(
       {
         query: {
-          route: ['healthz']
+          route: ['healthz'],
         },
         url: '/api/healthz',
         method: 'GET',
-        headers: {}
+        headers: {},
       } as any,
-      res as any
+      res as any,
     );
     expect(res.statusCode).toBe(200);
     expect(res.payload).toMatchObject({
       ok: true,
-      service: 'novaquant-api'
+      service: 'novaquant-api',
     });
   });
 });

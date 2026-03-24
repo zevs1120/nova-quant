@@ -11,21 +11,21 @@ function normalizeScenario(row = {}) {
     category: row.category || 'uncategorized',
     severity: row.severity || 'medium',
     targets: toArray(row.targets),
-    parameters: row.parameters || {}
+    parameters: row.parameters || {},
   };
 }
 
 export function loadReliabilityScenarioPacks(overrides = {}) {
   const source = {
     ...reliabilityScenarioPackRaw,
-    ...(overrides || {})
+    ...(overrides || {}),
   };
 
   return {
     seed_id: source.seed_id || 'reliability_scenario_pack',
     generated_at: source.generated_at || new Date().toISOString(),
     description: source.description || 'Reliability scenario packs',
-    scenarios: toArray(source.scenarios).map(normalizeScenario)
+    scenarios: toArray(source.scenarios).map(normalizeScenario),
   };
 }
 

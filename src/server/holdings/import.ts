@@ -26,7 +26,20 @@ type ImportSummary = {
   columns?: string[];
 };
 
-const COMMON_CRYPTO_SYMBOLS = new Set(['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'DOGE', 'ADA', 'AVAX', 'TRX', 'LINK', 'LTC', 'TON']);
+const COMMON_CRYPTO_SYMBOLS = new Set([
+  'BTC',
+  'ETH',
+  'SOL',
+  'BNB',
+  'XRP',
+  'DOGE',
+  'ADA',
+  'AVAX',
+  'TRX',
+  'LINK',
+  'LTC',
+  'TON',
+]);
 
 function asText(value: unknown) {
   return String(value || '').trim();
@@ -62,7 +75,8 @@ function normalizeSymbol(value: unknown) {
 
 function inferAssetClass(symbol: string, rawAssetClass?: unknown) {
   const explicit = asText(rawAssetClass).toUpperCase();
-  if (explicit === 'US_STOCK' || explicit === 'CRYPTO' || explicit === 'OPTIONS') return explicit as ParsedHolding['asset_class'];
+  if (explicit === 'US_STOCK' || explicit === 'CRYPTO' || explicit === 'OPTIONS')
+    return explicit as ParsedHolding['asset_class'];
   if (explicit === 'STOCK' || explicit === 'EQUITY' || explicit === 'ETF') return 'US_STOCK';
   if (explicit === 'COIN' || explicit === 'TOKEN') return 'CRYPTO';
   if (COMMON_CRYPTO_SYMBOLS.has(symbol)) return 'CRYPTO';
@@ -134,17 +148,28 @@ function mergeParsedHoldings(previous: ParsedHolding | undefined, next: ParsedHo
   const prevQuantity = toNumber(previous.quantity);
   const nextQuantity = toNumber(next.quantity);
   const mergedQuantity =
-    prevQuantity !== null && nextQuantity !== null ? prevQuantity + nextQuantity : nextQuantity ?? prevQuantity ?? null;
+    prevQuantity !== null && nextQuantity !== null
+      ? prevQuantity + nextQuantity
+      : (nextQuantity ?? prevQuantity ?? null);
   const prevMarketValue = toNumber(previous.market_value);
   const nextMarketValue = toNumber(next.market_value);
   const mergedMarketValue =
-    prevMarketValue !== null && nextMarketValue !== null ? prevMarketValue + nextMarketValue : nextMarketValue ?? prevMarketValue ?? null;
+    prevMarketValue !== null && nextMarketValue !== null
+      ? prevMarketValue + nextMarketValue
+      : (nextMarketValue ?? prevMarketValue ?? null);
 
   let mergedCostBasis = next.cost_basis ?? previous.cost_basis ?? null;
-  if (prevQuantity !== null && nextQuantity !== null && mergedQuantity && previous.cost_basis !== null && next.cost_basis !== null) {
+  if (
+    prevQuantity !== null &&
+    nextQuantity !== null &&
+    mergedQuantity &&
+    previous.cost_basis !== null &&
+    next.cost_basis !== null
+  ) {
     mergedCostBasis = round(
-      ((prevQuantity * Number(previous.cost_basis)) + (nextQuantity * Number(next.cost_basis))) / mergedQuantity,
-      4
+      (prevQuantity * Number(previous.cost_basis) + nextQuantity * Number(next.cost_basis)) /
+        mergedQuantity,
+      4,
     );
   }
 
@@ -157,11 +182,15 @@ function mergeParsedHoldings(previous: ParsedHolding | undefined, next: ParsedHo
     current_price: next.current_price ?? previous.current_price ?? null,
     weight_pct: next.weight_pct ?? previous.weight_pct ?? null,
     note: next.note || previous.note || null,
-    import_confidence: next.import_confidence ?? previous.import_confidence ?? null
+    import_confidence: next.import_confidence ?? previous.import_confidence ?? null,
   };
 }
 
-function finalizeImportedRows(rows: ParsedHolding[], sourceKind: 'CSV' | 'SCREENSHOT', sourceLabel: string) {
+function finalizeImportedRows(
+  rows: ParsedHolding[],
+  sourceKind: 'CSV' | 'SCREENSHOT',
+  sourceLabel: string,
+) {
   const grouped = new Map<string, ParsedHolding>();
 
   rows.forEach((row, index) => {
@@ -169,7 +198,8 @@ function finalizeImportedRows(rows: ParsedHolding[], sourceKind: 'CSV' | 'SCREEN
     if (!symbol) return;
     const assetClass = inferAssetClass(symbol, row.asset_class);
     const market = inferMarket(assetClass, row.market);
-    const normalizedSymbol = assetClass === 'CRYPTO' && !symbol.includes('-') ? `${symbol}-USDT` : symbol;
+    const normalizedSymbol =
+      assetClass === 'CRYPTO' && !symbol.includes('-') ? `${symbol}-USDT` : symbol;
     const normalizedRow: ParsedHolding = {
       ...row,
       id: row.id || `${String(sourceKind).toLowerCase()}-${index + 1}-${normalizedSymbol}`,
@@ -184,7 +214,7 @@ function finalizeImportedRows(rows: ParsedHolding[], sourceKind: 'CSV' | 'SCREEN
       note: asText(row.note) || null,
       source_kind: sourceKind,
       source_label: sourceLabel,
-      import_confidence: toNumber(row.import_confidence)
+      import_confidence: toNumber(row.import_confidence),
     };
     const key = buildIdentityKey(normalizedRow);
     grouped.set(key, mergeParsedHoldings(grouped.get(key), normalizedRow));
@@ -206,7 +236,7 @@ export function importHoldingsFromCsvText(args: { csvText: string; filename?: st
     relax_column_count: true,
     trim: true,
     bom: true,
-    delimiter
+    delimiter,
   }) as Array<Record<string, unknown>>;
 
   if (!records.length) {
@@ -218,8 +248,8 @@ export function importHoldingsFromCsvText(args: { csvText: string; filename?: st
         skipped_count: 0,
         warnings: ['The file had no rows to import.'],
         source_label: args.filename || 'CSV import',
-        columns: []
-      } satisfies ImportSummary
+        columns: [],
+      } satisfies ImportSummary,
     };
   }
 
@@ -229,19 +259,68 @@ export function importHoldingsFromCsvText(args: { csvText: string; filename?: st
 
   for (const record of records) {
     const symbol = normalizeSymbol(
-      resolveField(record, ['symbol', 'ticker', 'asset', 'instrument', 'code', 'security', 'token', 'coin'])
+      resolveField(record, [
+        'symbol',
+        'ticker',
+        'asset',
+        'instrument',
+        'code',
+        'security',
+        'token',
+        'coin',
+      ]),
     );
     if (!symbol) {
       skippedCount += 1;
       continue;
     }
 
-    const assetClass = inferAssetClass(symbol, resolveField(record, ['asset class', 'asset type', 'type', 'category']));
-    const quantity = toNumber(resolveField(record, ['quantity', 'qty', 'shares', 'units', 'size', 'position size']));
-    const currentPrice = toNumber(resolveField(record, ['current price', 'price', 'last price', 'mark price', 'market price', 'last']));
-    const marketValue = toNumber(resolveField(record, ['market value', 'position value', 'value', 'current value', 'notional']));
-    const costBasis = toNumber(resolveField(record, ['cost basis', 'avg cost', 'average cost', 'avg entry', 'avg entry price', 'cost']));
-    const weightPct = normalizeWeight(resolveField(record, ['weight', 'weight pct', 'weight %', 'allocation', 'allocation pct', 'portfolio pct']));
+    const assetClass = inferAssetClass(
+      symbol,
+      resolveField(record, ['asset class', 'asset type', 'type', 'category']),
+    );
+    const quantity = toNumber(
+      resolveField(record, ['quantity', 'qty', 'shares', 'units', 'size', 'position size']),
+    );
+    const currentPrice = toNumber(
+      resolveField(record, [
+        'current price',
+        'price',
+        'last price',
+        'mark price',
+        'market price',
+        'last',
+      ]),
+    );
+    const marketValue = toNumber(
+      resolveField(record, [
+        'market value',
+        'position value',
+        'value',
+        'current value',
+        'notional',
+      ]),
+    );
+    const costBasis = toNumber(
+      resolveField(record, [
+        'cost basis',
+        'avg cost',
+        'average cost',
+        'avg entry',
+        'avg entry price',
+        'cost',
+      ]),
+    );
+    const weightPct = normalizeWeight(
+      resolveField(record, [
+        'weight',
+        'weight pct',
+        'weight %',
+        'allocation',
+        'allocation pct',
+        'portfolio pct',
+      ]),
+    );
     const note = asText(resolveField(record, ['name', 'description', 'note', 'company']));
 
     rows.push({
@@ -253,7 +332,7 @@ export function importHoldingsFromCsvText(args: { csvText: string; filename?: st
       market_value: marketValue,
       cost_basis: costBasis,
       weight_pct: weightPct,
-      note
+      note,
     });
   }
 
@@ -270,13 +349,15 @@ export function importHoldingsFromCsvText(args: { csvText: string; filename?: st
       skipped_count: skippedCount,
       warnings,
       source_label: args.filename || 'CSV import',
-      columns: Object.keys(records[0] || {})
-    } satisfies ImportSummary
+      columns: Object.keys(records[0] || {}),
+    } satisfies ImportSummary,
   };
 }
 
 function visionEndpoint() {
-  const raw = String(process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1/chat/completions').trim();
+  const raw = String(
+    process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1/chat/completions',
+  ).trim();
   if (raw.endsWith('/chat/completions')) return raw;
   if (raw.endsWith('/v1')) return `${raw}/chat/completions`;
   return `${raw.replace(/\/+$/, '')}/v1/chat/completions`;
@@ -299,7 +380,7 @@ export async function importHoldingsFromScreenshot(args: { imageDataUrl: string 
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
     },
     body: JSON.stringify({
       model: process.env.OPENAI_VISION_MODEL || process.env.OPENAI_MODEL || 'gpt-4o-mini',
@@ -309,26 +390,25 @@ export async function importHoldingsFromScreenshot(args: { imageDataUrl: string 
         {
           role: 'system',
           content:
-            'Extract portfolio holdings from brokerage or exchange screenshots. Return strict JSON only. Skip cash, buying power, day PnL, totals, and watchlists.'
+            'Extract portfolio holdings from brokerage or exchange screenshots. Return strict JSON only. Skip cash, buying power, day PnL, totals, and watchlists.',
         },
         {
           role: 'user',
           content: [
             {
               type: 'text',
-              text:
-                'Return {"holdings":[{"symbol":"","asset_class":"US_STOCK|CRYPTO|OPTIONS|null","market":"US|CRYPTO|null","quantity":null,"current_price":null,"market_value":null,"cost_basis":null,"weight_pct":null,"note":null,"import_confidence":null}],"warnings":[""]}. Only include open positions that are clearly visible. Use BTC-USDT style symbols for crypto when only the base symbol is visible.'
+              text: 'Return {"holdings":[{"symbol":"","asset_class":"US_STOCK|CRYPTO|OPTIONS|null","market":"US|CRYPTO|null","quantity":null,"current_price":null,"market_value":null,"cost_basis":null,"weight_pct":null,"note":null,"import_confidence":null}],"warnings":[""]}. Only include open positions that are clearly visible. Use BTC-USDT style symbols for crypto when only the base symbol is visible.',
             },
             {
               type: 'image_url',
               image_url: {
-                url: imageDataUrl
-              }
-            }
-          ]
-        }
-      ]
-    })
+                url: imageDataUrl,
+              },
+            },
+          ],
+        },
+      ],
+    }),
   });
 
   if (!response.ok) {
@@ -354,7 +434,7 @@ export async function importHoldingsFromScreenshot(args: { imageDataUrl: string 
       imported_count: holdings.length,
       skipped_count: Math.max(0, rawHoldings.length - holdings.length),
       warnings,
-      source_label: 'Screenshot import'
-    } satisfies ImportSummary
+      source_label: 'Screenshot import',
+    } satisfies ImportSummary,
   };
 }

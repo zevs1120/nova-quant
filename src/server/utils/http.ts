@@ -7,7 +7,7 @@ export async function fetchWithRetry(
   url: string,
   init: RequestInit,
   retry: { attempts: number; baseDelayMs: number },
-  timeoutMs = 30_000
+  timeoutMs = 30_000,
 ): Promise<Response> {
   let lastError: unknown;
 
@@ -42,7 +42,7 @@ export async function downloadToFile(
   url: string,
   filePath: string,
   retry: { attempts: number; baseDelayMs: number },
-  timeoutMs = 30_000
+  timeoutMs = 30_000,
 ): Promise<void> {
   const res = await fetchWithRetry(url, {}, retry, timeoutMs);
   if (!res.ok || !res.body) {

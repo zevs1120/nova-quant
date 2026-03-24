@@ -18,7 +18,7 @@ describe('auto-backend launchd helper', () => {
       trainer: 'mlx-lora',
       trainingLimit: 600,
       supervisorCheckSec: 20,
-      executeTraining: true
+      executeTraining: true,
     });
 
     expect(command).toContain("'npm' 'run' 'auto:backend' '--'");
@@ -42,13 +42,15 @@ describe('auto-backend launchd helper', () => {
       trainer: 'mlx-lora',
       trainingLimit: 500,
       supervisorCheckSec: 20,
-      executeTraining: false
+      executeTraining: false,
     });
 
     expect(plist).toContain('<key>KeepAlive</key>');
     expect(plist).toContain('<true/>');
     expect(plist).toContain('/Users/qiao/Downloads/nova-quant');
-    expect(plist).toContain(path.join('/Users/qiao/Downloads/nova-quant/logs/auto-backend', 'stdout.log'));
+    expect(plist).toContain(
+      path.join('/Users/qiao/Downloads/nova-quant/logs/auto-backend', 'stdout.log'),
+    );
     expect(plist).toContain('com.novaquant.auto-backend');
   });
 });

@@ -38,8 +38,10 @@ repo/
 ```
 
 ## Rule
+
 No strategy should exist only as code.
 Every strategy must have:
+
 - config,
 - validation report,
 - promotion memo,

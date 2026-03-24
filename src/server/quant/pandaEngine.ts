@@ -17,7 +17,7 @@ export const PANDA_FACTOR_NAMES = [
   'reversal_score',
   'volume_impulse',
   'volatility_score',
-  'momentum_5'
+  'momentum_5',
 ] as const;
 
 export type PandaFactorName = (typeof PANDA_FACTOR_NAMES)[number];
@@ -64,7 +64,8 @@ function average(values: number[]): number {
 function std(values: number[]): number {
   if (values.length < 2) return 0;
   const mean = average(values);
-  const variance = values.reduce((acc, value) => acc + (value - mean) ** 2, 0) / Math.max(1, values.length - 1);
+  const variance =
+    values.reduce((acc, value) => acc + (value - mean) ** 2, 0) / Math.max(1, values.length - 1);
   return Math.sqrt(Math.max(0, variance));
 }
 
@@ -142,7 +143,7 @@ function toFrame(bars: NumericBar[]): PandaFrame {
     high: bars.map((row) => safeNumber(row.high)),
     low: bars.map((row) => safeNumber(row.low)),
     close: bars.map((row) => safeNumber(row.close)),
-    volume: bars.map((row) => safeNumber(row.volume))
+    volume: bars.map((row) => safeNumber(row.volume)),
   };
 }
 
@@ -208,20 +209,30 @@ export const PANDA_FACTOR_BUILDERS: Record<PandaFactorName, PandaFactorFn> = {
   reversal_score: reversalScoreFactor,
   volume_impulse: volumeImpulseFactor,
   volatility_score: volatilityFactor,
-  momentum_5: momentum5Factor
+  momentum_5: momentum5Factor,
 };
 
-export function resolvePandaModelConfig(config?: Partial<PandaModelRuntimeConfig> | null): PandaModelRuntimeConfig {
+export function resolvePandaModelConfig(
+  config?: Partial<PandaModelRuntimeConfig> | null,
+): PandaModelRuntimeConfig {
   const enabledFactorsRaw = Array.isArray(config?.enabledFactors)
-    ? config!.enabledFactors.filter((item): item is PandaFactorName => PANDA_FACTOR_NAMES.includes(item as PandaFactorName))
+    ? config!.enabledFactors.filter((item): item is PandaFactorName =>
+        PANDA_FACTOR_NAMES.includes(item as PandaFactorName),
+      )
     : [...PANDA_FACTOR_NAMES];
   const enabledFactors = enabledFactorsRaw.length ? enabledFactorsRaw : [...PANDA_FACTOR_NAMES];
 
   return {
     modelKey: typeof config?.modelKey === 'string' ? config.modelKey : null,
     enabledFactors,
-    topFactorCount: Math.max(1, Math.min(enabledFactors.length, Math.round(safeNumber(config?.topFactorCount, 4)))),
-    factorLookaheadBars: Math.max(1, Math.min(8, Math.round(safeNumber(config?.factorLookaheadBars, 1)))),
+    topFactorCount: Math.max(
+      1,
+      Math.min(enabledFactors.length, Math.round(safeNumber(config?.topFactorCount, 4))),
+    ),
+    factorLookaheadBars: Math.max(
+      1,
+      Math.min(8, Math.round(safeNumber(config?.factorLookaheadBars, 1))),
+    ),
     minSampleBars: Math.max(40, Math.round(safeNumber(config?.minSampleBars, 40))),
     longSignalThreshold: clamp(safeNumber(config?.longSignalThreshold, 0.82), 0.45, 1.8),
     shortSignalThreshold: clamp(safeNumber(config?.shortSignalThreshold, 0.78), 0.45, 1.8),
@@ -231,11 +242,13 @@ export function resolvePandaModelConfig(config?: Partial<PandaModelRuntimeConfig
     stopLossBasePct: clamp(safeNumber(config?.stopLossBasePct, 0.05), 0.01, 0.12),
     safeMode: Boolean(config?.safeMode),
     regimeBias:
-      config?.regimeBias === 'trend' || config?.regimeBias === 'meanreversion' ? config.regimeBias : 'balanced',
+      config?.regimeBias === 'trend' || config?.regimeBias === 'meanreversion'
+        ? config.regimeBias
+        : 'balanced',
     factorWeights: { ...(config?.factorWeights || {}) },
     promotedAtMs: config?.promotedAtMs ?? null,
     rollbackTargetId: typeof config?.rollbackTargetId === 'string' ? config.rollbackTargetId : null,
-    notes: typeof config?.notes === 'string' ? config.notes : null
+    notes: typeof config?.notes === 'string' ? config.notes : null,
   };
 }
 
@@ -246,17 +259,20 @@ function normalizeVolumeImpulse(value: number): number {
 function normalizeMomentum(value: number): { positive: number; negative: number } {
   return {
     positive: clamp(safeNumber(value), 0, 1),
-    negative: clamp(-safeNumber(value), 0, 1)
+    negative: clamp(-safeNumber(value), 0, 1),
   };
 }
 
-function resolveFactorWeights(config: PandaModelRuntimeConfig, topFactors: string[] = []): Record<PandaFactorName, number> {
+function resolveFactorWeights(
+  config: PandaModelRuntimeConfig,
+  topFactors: string[] = [],
+): Record<PandaFactorName, number> {
   const base: Record<PandaFactorName, number> = {
     trend_strength: 1,
     reversal_score: 1,
     volume_impulse: 0.6,
     volatility_score: 0.45,
-    momentum_5: 0.8
+    momentum_5: 0.8,
   };
 
   if (config.regimeBias === 'trend') {
@@ -287,7 +303,7 @@ function resolveFactorWeights(config: PandaModelRuntimeConfig, topFactors: strin
 
 export function buildPandaFactorFrame(
   bars: NumericBar[],
-  factorNames: PandaFactorName[] = [...PANDA_FACTOR_NAMES]
+  factorNames: PandaFactorName[] = [...PANDA_FACTOR_NAMES],
 ): PandaFrame {
   const frame = toFrame(bars);
   for (const factorName of factorNames) {
@@ -304,7 +320,7 @@ export function rankPandaFactors(args: {
 }): { factorScores: Record<string, number>; topFactors: string[] } {
   const returns = forwardReturns(args.frame.close || [], args.lookaheadBars);
   const scored = Object.fromEntries(
-    args.factorNames.map((name) => [name, Math.abs(correlation(args.frame[name] || [], returns))])
+    args.factorNames.map((name) => [name, Math.abs(correlation(args.frame[name] || [], returns))]),
   ) as Record<string, number>;
   const topFactors = Object.entries(scored)
     .sort((a, b) => b[1] - a[1])
@@ -312,7 +328,7 @@ export function rankPandaFactors(args: {
     .map(([name]) => name);
   return {
     factorScores: scored,
-    topFactors
+    topFactors,
   };
 }
 
@@ -348,25 +364,20 @@ function computeSignalBreakdown(args: {
 
   let signal = 0;
   if (!args.config.safeMode) {
-    if (
-      shortScore >= args.config.shortSignalThreshold &&
-      shortScore >= longScore + 0.04
-    ) {
+    if (shortScore >= args.config.shortSignalThreshold && shortScore >= longScore + 0.04) {
       signal = -1;
     } else if (
       reversalLatest >= args.config.reversalOverrideThreshold &&
       shortScore >= args.config.shortSignalThreshold - 0.05
     ) {
       signal = -1;
-    } else if (
-      longScore >= args.config.longSignalThreshold &&
-      longScore >= shortScore + 0.04
-    ) {
+    } else if (longScore >= args.config.longSignalThreshold && longScore >= shortScore + 0.04) {
       signal = 1;
     }
   }
 
-  const scoreAnchor = signal > 0 ? longScore : signal < 0 ? shortScore : Math.max(longScore, shortScore);
+  const scoreAnchor =
+    signal > 0 ? longScore : signal < 0 ? shortScore : Math.max(longScore, shortScore);
   const scoreGap = Math.abs(longScore - shortScore);
   const confidence =
     signal === 0
@@ -380,7 +391,7 @@ function computeSignalBreakdown(args: {
     shortScore: round(shortScore, 6),
     trendLatest: round(trendLatest, 6),
     reversalLatest: round(reversalLatest, 6),
-    volatilityLatest: round(volatilityLatest, 6)
+    volatilityLatest: round(volatilityLatest, 6),
   };
 }
 
@@ -431,7 +442,7 @@ export class RiskBucket {
     max_total_risk = 0.02,
     max_position_ratio = 0.3,
     max_drawdown = 0.15,
-    stop_loss_pct = 0.05
+    stop_loss_pct = 0.05,
   ) {
     this.max_total_risk = max_total_risk;
     this.max_position_ratio = max_position_ratio;
@@ -455,7 +466,8 @@ export class RiskBucket {
 
   is_trade_allowed(_signal: number, capital: number, position_value: number): [boolean, string] {
     if (this.current_drawdown >= this.max_drawdown) return [false, 'drawdown_limit'];
-    if (capital > 0 && position_value / capital >= this.max_position_ratio) return [false, 'position_limit'];
+    if (capital > 0 && position_value / capital >= this.max_position_ratio)
+      return [false, 'position_limit'];
     return [true, 'ok'];
   }
 
@@ -463,7 +475,10 @@ export class RiskBucket {
     const stopPct = Math.max(this.stop_loss_pct, Math.min(0.12, volatility * 1.8));
     const risk_per_share = Math.max(1e-9, price * stopPct);
     let position_size = (capital * this.max_total_risk) / risk_per_share;
-    position_size = Math.min(position_size, (capital * this.max_position_ratio) / Math.max(price, 1e-9));
+    position_size = Math.min(
+      position_size,
+      (capital * this.max_position_ratio) / Math.max(price, 1e-9),
+    );
     return Math.max(0, Math.floor(position_size));
   }
 }
@@ -481,9 +496,16 @@ export class PandaAutoLearner {
     return Math.abs(correlation(factor_series, returns));
   }
 
-  select_top_factors(factor_dict: Record<string, number[]>, returns: number[], top_n = 5): string[] {
+  select_top_factors(
+    factor_dict: Record<string, number[]>,
+    returns: number[],
+    top_n = 5,
+  ): string[] {
     const scored = Object.fromEntries(
-      Object.entries(factor_dict).map(([name, values]) => [name, this.score_factor(values, returns)])
+      Object.entries(factor_dict).map(([name, values]) => [
+        name,
+        this.score_factor(values, returns),
+      ]),
     ) as Record<string, number>;
     this.factor_scores = scored;
     return Object.entries(scored)
@@ -494,7 +516,7 @@ export class PandaAutoLearner {
 
   adaptive_param(
     performance_history: number[],
-    config: PandaModelRuntimeConfig
+    config: PandaModelRuntimeConfig,
   ): { risk: number; position: number } {
     if (!performance_history.length) {
       return { risk: config.riskBase, position: config.positionBase };
@@ -505,13 +527,13 @@ export class PandaAutoLearner {
     if (latest < 0 || avg < 0) {
       return {
         risk: clamp(config.riskBase * 0.65, 0.005, 0.03),
-        position: clamp(config.positionBase * 0.72, 0.1, 0.35)
+        position: clamp(config.positionBase * 0.72, 0.1, 0.35),
       };
     }
     if (avg > 0.01) {
       return {
         risk: clamp(config.riskBase * 1.08, 0.005, 0.03),
-        position: clamp(config.positionBase * 1.05, 0.1, 0.35)
+        position: clamp(config.positionBase * 1.05, 0.1, 0.35),
       };
     }
     return { risk: config.riskBase, position: config.positionBase };
@@ -561,13 +583,13 @@ export function buildPandaAdaptiveDecision(args: {
         reason: 'insufficient_data',
         suggestedShares: 0,
         suggestedPositionPct: 0,
-        currentDrawdown: 0
+        currentDrawdown: 0,
       },
       profile: {
         market: args.market,
         sampleSize,
-        learningStatus: 'INSUFFICIENT_DATA'
-      }
+        learningStatus: 'INSUFFICIENT_DATA',
+      },
     };
   }
 
@@ -575,14 +597,14 @@ export function buildPandaAdaptiveDecision(args: {
   const learner = new PandaAutoLearner();
   const fwdReturns = forwardReturns(frame.close || [], config.factorLookaheadBars);
   const factorDict = Object.fromEntries(
-    config.enabledFactors.map((name) => [name, frame[name] || []])
+    config.enabledFactors.map((name) => [name, frame[name] || []]),
   ) as Record<string, number[]>;
   const topFactors = learner.select_top_factors(factorDict, fwdReturns, config.topFactorCount);
   const adaptiveParams = learner.adaptive_param(args.performanceHistory || [], config);
   const decision = computeSignalBreakdown({
     frame,
     config,
-    topFactors
+    topFactors,
   });
 
   const volatility = safeNumber(lastValue(frame.volatility_score || []), 0.02);
@@ -592,7 +614,7 @@ export function buildPandaAdaptiveDecision(args: {
     clamp(adaptiveParams.risk, 0.005, 0.03),
     clamp(adaptiveParams.position, 0.1, 0.35),
     clamp(args.riskProfile.max_drawdown / 100, 0.05, 0.35),
-    clamp(config.stopLossBasePct + volatility * 0.55, 0.01, 0.12)
+    clamp(config.stopLossBasePct + volatility * 0.55, 0.01, 0.12),
   );
 
   let equity = 1;
@@ -602,11 +624,12 @@ export function buildPandaAdaptiveDecision(args: {
   }
 
   const suggestedShares = riskBucket.calc_position_size(capital, latestPrice, volatility);
-  const suggestedPositionPct = clamp((suggestedShares * latestPrice) / capital, 0, riskBucket.max_position_ratio) * 100;
+  const suggestedPositionPct =
+    clamp((suggestedShares * latestPrice) / capital, 0, riskBucket.max_position_ratio) * 100;
   let [allowed, reason] = riskBucket.is_trade_allowed(
     decision.signal,
     capital,
-    suggestedPositionPct / 100 * capital * 0.98
+    (suggestedPositionPct / 100) * capital * 0.98,
   );
   if (config.safeMode) {
     allowed = false;
@@ -624,12 +647,12 @@ export function buildPandaAdaptiveDecision(args: {
       reason,
       suggestedShares,
       suggestedPositionPct: round(suggestedPositionPct, 4),
-      currentDrawdown: round(riskBucket.current_drawdown, 6)
+      currentDrawdown: round(riskBucket.current_drawdown, 6),
     },
     profile: {
       market: args.market,
       sampleSize,
-      learningStatus: 'READY'
-    }
+      learningStatus: 'READY',
+    },
   };
 }

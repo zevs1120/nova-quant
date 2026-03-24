@@ -2,7 +2,11 @@ import os from 'node:os';
 import type { ProviderAdapter, ProviderRequest } from '../types.js';
 import { ProviderError, ProviderNetworkError, ProviderRateLimitError } from './errors.js';
 
-const OLLAMA_OPENAI_BASE = (process.env.OLLAMA_OPENAI_BASE_URL || process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434/v1').replace(/\/$/, '');
+const OLLAMA_OPENAI_BASE = (
+  process.env.OLLAMA_OPENAI_BASE_URL ||
+  process.env.OLLAMA_BASE_URL ||
+  'http://127.0.0.1:11434/v1'
+).replace(/\/$/, '');
 const OLLAMA_CHAT_ENDPOINT = `${OLLAMA_OPENAI_BASE}/chat/completions`;
 
 function resolveDefaultModel(): string {
@@ -10,7 +14,7 @@ function resolveDefaultModel(): string {
   const tier = String(process.env.NOVA_MEMORY_TIER || '').toLowerCase();
   if (tier === 'compact') return 'qwen3:4b';
   if (tier === 'full') return 'qwen3:8b';
-  const memoryGb = Math.round(os.totalmem() / (1024 ** 3));
+  const memoryGb = Math.round(os.totalmem() / 1024 ** 3);
   return memoryGb >= 24 ? 'qwen3:8b' : 'qwen3:4b';
 }
 
@@ -29,22 +33,27 @@ export class OllamaProvider implements ProviderAdapter {
     const endpoint = String(req.endpoint || OLLAMA_CHAT_ENDPOINT).replace(/\/$/, '');
     let response: Response;
     try {
-      response = await fetch(endpoint.endsWith('/chat/completions') ? endpoint : `${endpoint}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(req.headers || {})
+      response = await fetch(
+        endpoint.endsWith('/chat/completions') ? endpoint : `${endpoint}/chat/completions`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(req.headers || {}),
+          },
+          body: JSON.stringify({
+            model: req.model || DEFAULT_OLLAMA_MODEL,
+            messages: req.messages,
+            temperature: req.temperature ?? 0.2,
+            max_tokens: req.maxTokens ?? 700,
+            stream: true,
+          }),
         },
-        body: JSON.stringify({
-          model: req.model || DEFAULT_OLLAMA_MODEL,
-          messages: req.messages,
-          temperature: req.temperature ?? 0.2,
-          max_tokens: req.maxTokens ?? 700,
-          stream: true
-        })
-      });
+      );
     } catch (error) {
-      throw new ProviderNetworkError(error instanceof Error ? error.message : 'Ollama network error');
+      throw new ProviderNetworkError(
+        error instanceof Error ? error.message : 'Ollama network error',
+      );
     }
 
     if (response.status === 429) {

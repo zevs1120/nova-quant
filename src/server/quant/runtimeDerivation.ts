@@ -8,7 +8,7 @@ import type {
   SignalPayload,
   SignalContract,
   Timeframe,
-  UserRiskProfileRecord
+  UserRiskProfileRecord,
 } from '../types.js';
 import { MarketRepository } from '../db/repository.js';
 import { RUNTIME_STATUS, type RuntimeStatus } from '../runtimeStatus.js';
@@ -16,7 +16,7 @@ import {
   buildPandaAdaptiveDecision,
   resolvePandaModelConfig,
   type PandaAdaptiveDecision,
-  type PandaModelRuntimeConfig
+  type PandaModelRuntimeConfig,
 } from './pandaEngine.js';
 import { createConfidenceCalibrator } from '../confidence/calibration.js';
 import { buildEvidenceLineage } from '../evidence/lineage.js';
@@ -128,7 +128,10 @@ function pandaModelKeyForMarket(market: Market): string {
   return `panda-runtime-${market.toLowerCase()}`;
 }
 
-function loadActivePandaModel(repo: MarketRepository, market: Market): {
+function loadActivePandaModel(
+  repo: MarketRepository,
+  market: Market,
+): {
   modelId: string | null;
   semanticVersion: string;
   config: PandaModelRuntimeConfig;
@@ -137,13 +140,15 @@ function loadActivePandaModel(repo: MarketRepository, market: Market): {
     repo
       .listModelVersions({
         modelKey: pandaModelKeyForMarket(market),
-        limit: 20
+        limit: 20,
       })
       .find((row) => row.status === 'active') || null;
   return {
     modelId: model?.id ?? null,
     semanticVersion: model?.semantic_version || 'runtime-bars-rules.v1',
-    config: resolvePandaModelConfig(model ? JSON.parse(model.config_json || '{}') : { modelKey: pandaModelKeyForMarket(market) })
+    config: resolvePandaModelConfig(
+      model ? JSON.parse(model.config_json || '{}') : { modelKey: pandaModelKeyForMarket(market) },
+    ),
   };
 }
 
@@ -192,7 +197,7 @@ function atrSeries(bars: NumericBar[], period = 14): number[] {
     const tr = Math.max(
       cur.high - cur.low,
       Math.abs(cur.high - prev.close),
-      Math.abs(cur.low - prev.close)
+      Math.abs(cur.low - prev.close),
     );
     trs.push(tr);
   }
@@ -215,7 +220,12 @@ function returns(values: number[]): number[] {
   return out;
 }
 
-function parseBars(repo: MarketRepository, assetId: number, timeframe: Timeframe, limit = 320): NumericBar[] {
+function parseBars(
+  repo: MarketRepository,
+  assetId: number,
+  timeframe: Timeframe,
+  limit = 320,
+): NumericBar[] {
   const rows = repo.getOhlcv({ assetId, timeframe, limit });
   return sortBars(
     rows.map((row) => ({
@@ -224,8 +234,8 @@ function parseBars(repo: MarketRepository, assetId: number, timeframe: Timeframe
       high: toNum(row.high),
       low: toNum(row.low),
       close: toNum(row.close),
-      volume: toNum(row.volume)
-    }))
+      volume: toNum(row.volume),
+    })),
   );
 }
 
@@ -240,14 +250,14 @@ function inferRegime(args: {
   if (args.riskOff >= 0.72) {
     return {
       regimeId: 'RISK_OFF',
-      stance: 'Risk-off: preserve capital, avoid forced entries.'
+      stance: 'Risk-off: preserve capital, avoid forced entries.',
     };
   }
 
   if (args.volPct >= 80) {
     return {
       regimeId: 'HIGH_VOL',
-      stance: 'High volatility: size down and demand stronger confirmation.'
+      stance: 'High volatility: size down and demand stronger confirmation.',
     };
   }
 
@@ -255,13 +265,13 @@ function inferRegime(args: {
     const trendSide = args.close >= args.emaSlow ? 'uptrend' : 'downtrend';
     return {
       regimeId: 'TREND',
-      stance: `Trend regime (${trendSide}): favor continuation, avoid counter-trend sizing.`
+      stance: `Trend regime (${trendSide}): favor continuation, avoid counter-trend sizing.`,
     };
   }
 
   return {
     regimeId: 'RANGE',
-    stance: 'Range regime: prioritize mean-reversion edges and tighter invalidation.'
+    stance: 'Range regime: prioritize mean-reversion edges and tighter invalidation.',
   };
 }
 
@@ -274,7 +284,11 @@ function statsForBars(market: Market, bars: NumericBar[]) {
   const emaSlow = ema(closes, 30);
   const emaAnchor = ema(closes, 55);
   const spread = emaSlow ? (emaFast - emaSlow) / emaSlow : 0;
-  const trendStrength = clamp(Math.abs(spread) * 20 + Math.abs((latest.close - emaAnchor) / Math.max(1e-9, emaAnchor)) * 8, 0, 1);
+  const trendStrength = clamp(
+    Math.abs(spread) * 20 + Math.abs((latest.close - emaAnchor) / Math.max(1e-9, emaAnchor)) * 8,
+    0,
+    1,
+  );
 
   const atr = atrSeries(bars, 14);
   const latestAtr = atr[atr.length - 1] || 0;
@@ -299,7 +313,12 @@ function statsForBars(market: Market, bars: NumericBar[]) {
     const p5 = closes[i - 5] || p1;
     const e10 = ema(closes.slice(0, i + 1), 10);
     const vv = volumes[i] / Math.max(1, sma(volumes.slice(0, i + 1), 20));
-    return Math.abs((c - p1) / Math.max(1e-9, p1)) * 4 + Math.abs((c - p5) / Math.max(1e-9, p5)) * 2 + Math.max(0, vv - 1) + Math.abs((c - e10) / Math.max(1e-9, e10)) * 3;
+    return (
+      Math.abs((c - p1) / Math.max(1e-9, p1)) * 4 +
+      Math.abs((c - p5) / Math.max(1e-9, p5)) * 2 +
+      Math.max(0, vv - 1) +
+      Math.abs((c - e10) / Math.max(1e-9, e10)) * 3
+    );
   });
   const tempPct = percentileRank(tempSeries.slice(-140), tempScore);
 
@@ -307,10 +326,19 @@ function statsForBars(market: Market, bars: NumericBar[]) {
   const downside = retSeries.filter((r) => r < 0).map((r) => Math.abs(r));
   const downsideVol = std(downside);
   const drift = retSeries.length ? retSeries.reduce((acc, v) => acc + v, 0) / retSeries.length : 0;
-  const riskOffRaw = clamp((volPct / 100) * 0.45 + (downsideVol * 25) * 0.3 + (drift < 0 ? Math.min(0.3, Math.abs(drift) * 20) : 0) + (market === 'CRYPTO' ? 0.06 : 0), 0, 1);
+  const riskOffRaw = clamp(
+    (volPct / 100) * 0.45 +
+      downsideVol * 25 * 0.3 +
+      (drift < 0 ? Math.min(0.3, Math.abs(drift) * 20) : 0) +
+      (market === 'CRYPTO' ? 0.06 : 0),
+    0,
+    1,
+  );
 
   const zWindow = closes.slice(-40);
-  const zMean = zWindow.length ? zWindow.reduce((acc, v) => acc + v, 0) / zWindow.length : latest.close;
+  const zMean = zWindow.length
+    ? zWindow.reduce((acc, v) => acc + v, 0) / zWindow.length
+    : latest.close;
   const zStd = std(zWindow) || 1e-9;
   const zScore = (latest.close - zMean) / zStd;
 
@@ -325,7 +353,7 @@ function statsForBars(market: Market, bars: NumericBar[]) {
     riskOff: riskOffRaw,
     close: latest.close,
     emaFast,
-    emaSlow
+    emaSlow,
   });
 
   return {
@@ -345,7 +373,7 @@ function statsForBars(market: Market, bars: NumericBar[]) {
     breakdownLow,
     latestAtr,
     regimeId,
-    stance
+    stance,
   };
 }
 
@@ -373,18 +401,23 @@ type AdaptiveTuning = {
 function selectRule(ctx: ReturnType<typeof statsForBars>): RuleHit | null {
   if (ctx.regimeId === 'RISK_OFF') return null;
 
-  const breakout = ctx.latest.close > ctx.breakoutHigh && ctx.volImpulse >= 1.05 && ctx.trendStrength >= 0.45;
+  const breakout =
+    ctx.latest.close > ctx.breakoutHigh && ctx.volImpulse >= 1.05 && ctx.trendStrength >= 0.45;
   if (breakout) {
     return {
       id: 'TREND_BREAKOUT',
       family: 'Momentum / Trend Following',
       direction: 'LONG',
-      confidence: clamp(0.55 + ctx.trendStrength * 0.25 + Math.min(0.15, (ctx.volImpulse - 1) * 0.2), 0.52, 0.92),
+      confidence: clamp(
+        0.55 + ctx.trendStrength * 0.25 + Math.min(0.15, (ctx.volImpulse - 1) * 0.2),
+        0.52,
+        0.92,
+      ),
       rationale: [
         'Price closed above 20-bar high with volume confirmation.',
         'Trend spread remains positive across fast/slow EMA.',
-        'Volatility is elevated but not in explicit risk-off state.'
-      ]
+        'Volatility is elevated but not in explicit risk-off state.',
+      ],
     };
   }
 
@@ -398,12 +431,16 @@ function selectRule(ctx: ReturnType<typeof statsForBars>): RuleHit | null {
       id: 'TREND_PULLBACK',
       family: 'Momentum / Trend Following',
       direction: 'LONG',
-      confidence: clamp(0.5 + ctx.trendStrength * 0.22 + Math.max(0, -ctx.zScore) * 0.05, 0.48, 0.86),
+      confidence: clamp(
+        0.5 + ctx.trendStrength * 0.22 + Math.max(0, -ctx.zScore) * 0.05,
+        0.48,
+        0.86,
+      ),
       rationale: [
         'Pullback into trend support zone (EMA fast/slow band).',
         '5-bar drift remains positive, favoring continuation.',
-        'Entry is closer to invalidation than to breakout exhaustion.'
-      ]
+        'Entry is closer to invalidation than to breakout exhaustion.',
+      ],
     };
   }
 
@@ -417,8 +454,8 @@ function selectRule(ctx: ReturnType<typeof statsForBars>): RuleHit | null {
       rationale: [
         'Price is statistically stretched below local range mean.',
         'Range regime favors reversion over continuation bets.',
-        'Volatility is not in extreme panic regime.'
-      ]
+        'Volatility is not in extreme panic regime.',
+      ],
     };
   }
 
@@ -432,30 +469,38 @@ function selectRule(ctx: ReturnType<typeof statsForBars>): RuleHit | null {
       rationale: [
         'Price is stretched above local range mean.',
         'Range regime supports fade setups more than breakout chase.',
-        'Signal is suppressed when volatility reaches panic threshold.'
-      ]
+        'Signal is suppressed when volatility reaches panic threshold.',
+      ],
     };
   }
 
-  const breakdownShort = ctx.latest.close < ctx.breakdownLow && ctx.volImpulse >= 1.08 && ctx.volPct >= 55;
+  const breakdownShort =
+    ctx.latest.close < ctx.breakdownLow && ctx.volImpulse >= 1.08 && ctx.volPct >= 55;
   if (breakdownShort) {
     return {
       id: 'VOL_BREAKDOWN',
       family: 'Regime Transition',
       direction: 'SHORT',
-      confidence: clamp(0.52 + Math.min(0.2, (ctx.volPct - 50) / 100) + Math.min(0.12, (ctx.volImpulse - 1) * 0.2), 0.5, 0.88),
+      confidence: clamp(
+        0.52 + Math.min(0.2, (ctx.volPct - 50) / 100) + Math.min(0.12, (ctx.volImpulse - 1) * 0.2),
+        0.5,
+        0.88,
+      ),
       rationale: [
         'Breakdown below 20-bar support under expanding range.',
         'Volatility expansion confirms transition risk.',
-        'Setup is downgraded when risk-off score is already extreme.'
-      ]
+        'Setup is downgraded when risk-off score is already extreme.',
+      ],
     };
   }
 
   return null;
 }
 
-function fallbackRuleFromPanda(ctx: ReturnType<typeof statsForBars>, panda: PandaAdaptiveDecision): RuleHit | null {
+function fallbackRuleFromPanda(
+  ctx: ReturnType<typeof statsForBars>,
+  panda: PandaAdaptiveDecision,
+): RuleHit | null {
   if (panda.signal === 0 || panda.confidence < 0.52) return null;
   const longTrend = ctx.regimeId === 'TREND' || ctx.trendStrength >= 0.55;
   if (panda.signal > 0) {
@@ -466,8 +511,8 @@ function fallbackRuleFromPanda(ctx: ReturnType<typeof statsForBars>, panda: Pand
       confidence: clamp(0.5 + panda.confidence * 0.4, 0.48, 0.88),
       rationale: [
         'Panda adaptive layer selected a long-side setup from factor state.',
-        `Top factors: ${panda.topFactors.slice(0, 3).join(', ') || 'trend_strength, reversal_score'}.`
-      ]
+        `Top factors: ${panda.topFactors.slice(0, 3).join(', ') || 'trend_strength, reversal_score'}.`,
+      ],
     };
   }
   return {
@@ -477,17 +522,22 @@ function fallbackRuleFromPanda(ctx: ReturnType<typeof statsForBars>, panda: Pand
     confidence: clamp(0.5 + panda.confidence * 0.4, 0.48, 0.88),
     rationale: [
       'Panda adaptive layer selected a short-side setup from factor state.',
-      `Top factors: ${panda.topFactors.slice(0, 3).join(', ') || 'trend_strength, reversal_score'}.`
-    ]
+      `Top factors: ${panda.topFactors.slice(0, 3).join(', ') || 'trend_strength, reversal_score'}.`,
+    ],
   };
 }
 
 function mergeRuleWithPanda(rule: RuleHit, panda: PandaAdaptiveDecision): RuleHit {
   if (panda.signal === 0) return rule;
   const directionMatches =
-    (panda.signal > 0 && rule.direction === 'LONG') || (panda.signal < 0 && rule.direction === 'SHORT');
+    (panda.signal > 0 && rule.direction === 'LONG') ||
+    (panda.signal < 0 && rule.direction === 'SHORT');
   const confidenceAdj = directionMatches ? 0.06 : -0.14;
-  const updatedConfidence = clamp(rule.confidence + confidenceAdj + (panda.confidence - 0.5) * 0.12, 0.28, 0.93);
+  const updatedConfidence = clamp(
+    rule.confidence + confidenceAdj + (panda.confidence - 0.5) * 0.12,
+    0.28,
+    0.93,
+  );
   return {
     ...rule,
     confidence: updatedConfidence,
@@ -495,19 +545,24 @@ function mergeRuleWithPanda(rule: RuleHit, panda: PandaAdaptiveDecision): RuleHi
       ...rule.rationale,
       directionMatches
         ? 'Panda auto-learning confirms direction and lifts confidence modestly.'
-        : 'Panda auto-learning disagrees on direction; confidence reduced.'
-    ]
+        : 'Panda auto-learning disagrees on direction; confidence reduced.',
+    ],
   };
 }
 
-function deriveMarketPerformanceHistory(repo: MarketRepository, userId: string): Record<Market, number[]> {
+function deriveMarketPerformanceHistory(
+  repo: MarketRepository,
+  userId: string,
+): Record<Market, number[]> {
   const rows = repo
     .listExecutions({ userId, limit: 2000 })
-    .filter((row) => (row.action === 'DONE' || row.action === 'CLOSE') && Number.isFinite(row.pnl_pct))
+    .filter(
+      (row) => (row.action === 'DONE' || row.action === 'CLOSE') && Number.isFinite(row.pnl_pct),
+    )
     .sort((a, b) => a.created_at_ms - b.created_at_ms);
   const out: Record<Market, number[]> = {
     US: [],
-    CRYPTO: []
+    CRYPTO: [],
   };
   for (const row of rows) {
     const market = row.market === 'CRYPTO' ? 'CRYPTO' : 'US';
@@ -527,11 +582,15 @@ function buildAdaptiveTuning(panda: PandaAdaptiveDecision): AdaptiveTuning {
     riskAllowed: panda.risk.allowed,
     riskReason: panda.risk.reason,
     suggestedPositionPct: panda.risk.suggestedPositionPct,
-    learningStatus: panda.profile.learningStatus
+    learningStatus: panda.profile.learningStatus,
   };
 }
 
-function evaluateRuleSample(bars: NumericBar[], ruleId: string, direction: 'LONG' | 'SHORT'): {
+function evaluateRuleSample(
+  bars: NumericBar[],
+  ruleId: string,
+  direction: 'LONG' | 'SHORT',
+): {
   sampleSize: number;
   winRate: number;
   expectedR: number;
@@ -572,14 +631,16 @@ function evaluateRuleSample(bars: NumericBar[], ruleId: string, direction: 'LONG
 
   const winRate = hits.filter((r) => r > 0).length / hits.length;
   const avgRet = hits.reduce((acc, v) => acc + v, 0) / hits.length;
-  const avgDd = drawdowns.length ? drawdowns.reduce((acc, v) => acc + v, 0) / drawdowns.length : null;
+  const avgDd = drawdowns.length
+    ? drawdowns.reduce((acc, v) => acc + v, 0) / drawdowns.length
+    : null;
   const expectedR = avgDd && avgDd > 0 ? avgRet / avgDd : avgRet > 0 ? avgRet * 3 : avgRet * 2;
 
   return {
     sampleSize: hits.length,
     winRate: round(winRate, 4),
     expectedR: round(expectedR, 4),
-    expectedMaxDd: avgDd !== null ? round(avgDd, 4) : null
+    expectedMaxDd: avgDd !== null ? round(avgDd, 4) : null,
   };
 }
 
@@ -626,7 +687,10 @@ function buildSignal(args: {
   const positionBase = clamp(confidence * 18, 3.5, 18);
   const adaptivePositionMul = clamp((adaptive?.adaptivePosition || 0.3) / 0.3, 0.5, 1.25);
   let positionPct = Math.min(positionBase, riskProfile.exposure_cap * 0.3) * adaptivePositionMul;
-  if (Number.isFinite(adaptive?.suggestedPositionPct) && (adaptive?.suggestedPositionPct || 0) > 0) {
+  if (
+    Number.isFinite(adaptive?.suggestedPositionPct) &&
+    (adaptive?.suggestedPositionPct || 0) > 0
+  ) {
     positionPct = Math.min(positionPct, adaptive!.suggestedPositionPct);
   }
   positionPct = round(clamp(positionPct, 0.5, riskProfile.exposure_cap), 2);
@@ -638,9 +702,11 @@ function buildSignal(args: {
     `rule:${hit.id.toLowerCase()}`,
     `auto_learning:${adaptive?.learningStatus === 'READY' ? 'enabled' : 'degraded'}`,
     `auto_risk:${round(adaptive?.adaptiveRisk || 0.02, 4)}`,
-    `auto_position:${round(adaptive?.adaptivePosition || 0.3, 4)}`
+    `auto_position:${round(adaptive?.adaptivePosition || 0.3, 4)}`,
   ];
-  const topFactorTags = (adaptive?.topFactors || []).slice(0, 3).map((name) => `factor:${String(name).toLowerCase()}`);
+  const topFactorTags = (adaptive?.topFactors || [])
+    .slice(0, 3)
+    .map((name) => `factor:${String(name).toLowerCase()}`);
   tagList.push(...topFactorTags);
 
   const signalId = `SIG-${market}-${asset.symbol}-${hit.id}`;
@@ -652,7 +718,7 @@ function buildSignal(args: {
     fundingRate24h: 0,
     basisBps: 0,
     basisPercentile: 50,
-    fundingState: 'NEUTRAL' as const
+    fundingState: 'NEUTRAL' as const,
   };
 
   const payload: SignalPayload =
@@ -667,25 +733,27 @@ function buildSignal(args: {
               funding_rate_8h: cryptoData.fundingRate8h,
               funding_rate_24h: cryptoData.fundingRate24h,
               basis_bps: cryptoData.basisBps,
-              basis_percentile: cryptoData.basisPercentile
+              basis_percentile: cryptoData.basisPercentile,
             },
             flow_state: {
               spot_led_breakout: hit.id.includes('BREAKOUT'),
-              perp_led_breakout: Math.abs(cryptoData.basisBps) >= 6 || Math.abs(cryptoData.fundingRateCurrent) >= 0.0008,
-              funding_state: cryptoData.fundingState
+              perp_led_breakout:
+                Math.abs(cryptoData.basisBps) >= 6 ||
+                Math.abs(cryptoData.fundingRateCurrent) >= 0.0008,
+              funding_state: cryptoData.fundingState,
             },
             leverage_suggestion: {
               suggested_leverage: 1,
-              capped_by_profile: true
-            }
-          }
+              capped_by_profile: true,
+            },
+          },
         }
       : {
           kind: 'STOCK_SWING',
           data: {
             horizon: timeframe === '1d' ? 'MEDIUM' : 'SHORT',
-            catalysts: ['Derived from OHLCV trend/volatility/range rules']
-          }
+            catalysts: ['Derived from OHLCV trend/volatility/range rules'],
+          },
         };
 
   return {
@@ -709,51 +777,52 @@ function buildSignal(args: {
       low: round(entryMid - entryBand, 6),
       high: round(entryMid + entryBand, 6),
       method: 'LIMIT',
-      notes: 'Derived from latest close +/- 0.35 ATR'
+      notes: 'Derived from latest close +/- 0.35 ATR',
     },
     invalidation_level: stop,
     stop_loss: {
       type: 'ATR',
       price: stop,
-      rationale: '1.2 ATR stop distance'
+      rationale: '1.2 ATR stop distance',
     },
     take_profit_levels: [
       {
         price: tp1,
         size_pct: 0.6,
-        rationale: '1.25R first take-profit'
+        rationale: '1.25R first take-profit',
       },
       {
         price: tp2,
         size_pct: 0.4,
-        rationale: '2.1R extension target'
-      }
+        rationale: '2.1R extension target',
+      },
     ],
     trailing_rule: {
       type: 'EMA',
       params: {
         ema_fast: 10,
-        ema_slow: 30
-      }
+        ema_slow: 30,
+      },
     },
     position_advice: {
       position_pct: positionPct,
       leverage_cap: Math.max(1, riskProfile.leverage_cap),
       risk_bucket_applied: stats.regimeId === 'RISK_OFF' ? 'DERISKED' : 'BASE',
-      rationale: 'Position scaled by confidence, volatility and user risk profile cap.'
+      rationale: 'Position scaled by confidence, volatility and user risk profile cap.',
     },
     cost_model: {
       fee_bps: market === 'CRYPTO' ? 4 : 1.5,
       spread_bps: market === 'CRYPTO' ? 3.5 : 1,
       slippage_bps: market === 'CRYPTO' ? 4.5 : 1.8,
-      funding_est_bps: market === 'CRYPTO' ? round(Math.abs(cryptoData.fundingRate24h) * 10_000, 2) : undefined,
-      basis_est: market === 'CRYPTO' ? round(Math.abs(cryptoData.basisBps), 2) : 0
+      funding_est_bps:
+        market === 'CRYPTO' ? round(Math.abs(cryptoData.fundingRate24h) * 10_000, 2) : undefined,
+      basis_est: market === 'CRYPTO' ? round(Math.abs(cryptoData.basisBps), 2) : 0,
     },
     expected_metrics: {
       expected_R: 0,
       hit_rate_est: 0,
       sample_size: 0,
-      expected_max_dd_est: undefined
+      expected_max_dd_est: undefined,
     },
     explain_bullets: hit.rationale,
     execution_checklist: [
@@ -763,23 +832,24 @@ function buildSignal(args: {
       'If liquidity/availability is missing, skip and mark as no-trade.',
       adaptive?.topFactors?.length
         ? `Auto-learning top factors: ${adaptive.topFactors.slice(0, 3).join(', ')}.`
-        : 'Auto-learning factors unavailable or insufficient sample.'
+        : 'Auto-learning factors unavailable or insufficient sample.',
     ],
     tags: tagList,
     status: 'NEW',
     payload,
     references: {
-      docs_url: 'docs/RUNTIME_DATA_LINEAGE.md'
+      docs_url: 'docs/RUNTIME_DATA_LINEAGE.md',
     },
     score,
-    payload_version: 'signal-contract.v1'
+    payload_version: 'signal-contract.v1',
   };
 }
 
 function withUiFields(signal: SignalContract): SignalContract & Record<string, unknown> {
   const grade = signalGrade(signal.score);
   const sourceTag =
-    signal.tags.find((tag) => String(tag).startsWith('status:'))?.split(':')[1] || RUNTIME_STATUS.MODEL_DERIVED;
+    signal.tags.find((tag) => String(tag).startsWith('status:'))?.split(':')[1] ||
+    RUNTIME_STATUS.MODEL_DERIVED;
   return {
     ...signal,
     signal_id: signal.id,
@@ -792,17 +862,24 @@ function withUiFields(signal: SignalContract): SignalContract & Record<string, u
         : signal.volatility_percentile >= 80
           ? ['Volatility elevated. Keep size small and use hard invalidation.']
           : ['Normal execution risk. Respect stop and position cap.'],
-    quick_pnl_pct: null
+    quick_pnl_pct: null,
   };
 }
 
-function parseRuleSampleFromSignal(signal: SignalContract, bars: NumericBar[]): {
+function parseRuleSampleFromSignal(
+  signal: SignalContract,
+  bars: NumericBar[],
+): {
   sampleSize: number;
   winRate: number;
   expectedR: number;
   expectedMaxDd: number | null;
 } {
-  return evaluateRuleSample(bars, signal.strategy_id, signal.direction === 'SHORT' ? 'SHORT' : 'LONG');
+  return evaluateRuleSample(
+    bars,
+    signal.strategy_id,
+    signal.direction === 'SHORT' ? 'SHORT' : 'LONG',
+  );
 }
 
 function buildPerformanceSnapshotsFromExecutions(args: {
@@ -812,11 +889,13 @@ function buildPerformanceSnapshotsFromExecutions(args: {
 }): { snapshots: PerformanceSnapshotRecord[]; apiResponse: Record<string, unknown> } {
   const executions = args.repo
     .listExecutions({ userId: args.userId, limit: 5000 })
-    .filter((row) => (row.action === 'DONE' || row.action === 'CLOSE') && Number.isFinite(row.pnl_pct));
+    .filter(
+      (row) => (row.action === 'DONE' || row.action === 'CLOSE') && Number.isFinite(row.pnl_pct),
+    );
 
   const ranges = [
     { key: '30D', windowMs: 30 * 24 * MS_HOUR },
-    { key: 'ALL', windowMs: Number.POSITIVE_INFINITY }
+    { key: 'ALL', windowMs: Number.POSITIVE_INFINITY },
   ];
 
   const markets: Market[] = ['US', 'CRYPTO'];
@@ -862,12 +941,12 @@ function buildPerformanceSnapshotsFromExecutions(args: {
               win_rate: null,
               total_return: null,
               max_drawdown: null,
-              withheld_reason: 'insufficient_sample'
+              withheld_reason: 'insufficient_sample',
             }
           : {
               win_rate: round(wins / sample, 4),
               total_return: round(totalRet, 4),
-              max_drawdown: round(Math.abs(worst), 4)
+              max_drawdown: round(Math.abs(worst), 4),
             };
 
       const payload = {
@@ -879,9 +958,9 @@ function buildPerformanceSnapshotsFromExecutions(args: {
         assumptions: {
           pnl_source: 'executions.pnl_pct',
           include_open_positions: false,
-          include_unrealized: false
+          include_unrealized: false,
         },
-        metrics
+        metrics,
       };
 
       snapshots.push({
@@ -889,11 +968,12 @@ function buildPerformanceSnapshotsFromExecutions(args: {
         range: range.key,
         segment_type: 'OVERALL',
         segment_key: 'ALL',
-        source_label: hasLive && hasPaper ? 'MIXED' : hasLive ? 'LIVE' : hasPaper ? 'PAPER' : 'BACKTEST',
+        source_label:
+          hasLive && hasPaper ? 'MIXED' : hasLive ? 'LIVE' : hasPaper ? 'PAPER' : 'BACKTEST',
         sample_size: sample,
         payload_json: JSON.stringify(payload),
         asof_ms: args.nowMs,
-        updated_at_ms: args.nowMs
+        updated_at_ms: args.nowMs,
       });
 
       records.push(payload);
@@ -907,8 +987,8 @@ function buildPerformanceSnapshotsFromExecutions(args: {
     apiResponse: {
       asof: new Date(args.nowMs).toISOString(),
       source_status: hasAnySample ? RUNTIME_STATUS.DB_BACKED : RUNTIME_STATUS.INSUFFICIENT_DATA,
-      records
-    }
+      records,
+    },
   };
 }
 
@@ -923,22 +1003,28 @@ function buildCoverageSummary(args: {
     assets_with_bars: args.assetsWithBars,
     generated_signals: args.generatedSignals,
     market_state_rows: args.stateRows,
-    coverage_ratio: args.assetsChecked ? round(args.assetsWithBars / args.assetsChecked, 4) : 0
+    coverage_ratio: args.assetsChecked ? round(args.assetsWithBars / args.assetsChecked, 4) : 0,
   };
 }
 
-function loadStrategyFactoryCandidates(repo: MarketRepository, market: Market): StrategyFactoryCandidate[] {
+function loadStrategyFactoryCandidates(
+  repo: MarketRepository,
+  market: Market,
+): StrategyFactoryCandidate[] {
   const recentRuns = repo.listWorkflowRuns({
     workflowKey: 'nova_strategy_lab',
     status: 'SUCCEEDED',
-    limit: 12
+    limit: 12,
   });
   const freshCutoff = Date.now() - 24 * MS_HOUR;
 
   for (const run of recentRuns) {
     if ((run.completed_at_ms || run.updated_at_ms || 0) < freshCutoff) continue;
     const input = parseJsonObject(run.input_json);
-    const constraints = input.constraints && typeof input.constraints === 'object' ? (input.constraints as Record<string, unknown>) : {};
+    const constraints =
+      input.constraints && typeof input.constraints === 'object'
+        ? (input.constraints as Record<string, unknown>)
+        : {};
     const runMarket = String(constraints.market || input.market || '').toUpperCase();
     if (runMarket && runMarket !== market) continue;
 
@@ -947,9 +1033,10 @@ function loadStrategyFactoryCandidates(repo: MarketRepository, market: Market): 
     const promoted = rows
       .filter((row) => String(row.recommendation || '').toUpperCase() === 'PROMOTE_TO_SHADOW')
       .map((row) => {
-        const metadata = row.candidate_source_metadata && typeof row.candidate_source_metadata === 'object'
-          ? (row.candidate_source_metadata as Record<string, unknown>)
-          : {};
+        const metadata =
+          row.candidate_source_metadata && typeof row.candidate_source_metadata === 'object'
+            ? (row.candidate_source_metadata as Record<string, unknown>)
+            : {};
         const templateSource =
           metadata.template_source && typeof metadata.template_source === 'object'
             ? (metadata.template_source as Record<string, unknown>)
@@ -960,7 +1047,7 @@ function loadStrategyFactoryCandidates(repo: MarketRepository, market: Market): 
             : {};
         const publicReferenceIds = [
           ...parseJsonArray<string>(row.public_reference_ids),
-          ...parseJsonArray<string>(templateSource.public_reference_ids)
+          ...parseJsonArray<string>(templateSource.public_reference_ids),
         ]
           .map((item) => String(item || '').trim())
           .filter(Boolean);
@@ -970,19 +1057,26 @@ function loadStrategyFactoryCandidates(repo: MarketRepository, market: Market): 
           recommendation: String(row.recommendation || ''),
           nextStage: String(row.next_stage || '').trim() || null,
           candidateQualityScorePct: toNum(row.candidate_quality_score_pct),
-          supportingFeatures: parseJsonArray<string>(row.supporting_features).map((item) => String(item)),
+          supportingFeatures: parseJsonArray<string>(row.supporting_features).map((item) =>
+            String(item),
+          ),
           portfolioFit: String(output.portfolio_fit || ''),
           riskNote: String(output.risk_note || ''),
           templateName: String(row.template_name || '').trim() || null,
           templateId:
-            String(templateSource.seed_key || templateSource.seed_id || row.template_id || '')
-              .trim() || null,
-          supportedAssetClasses: parseJsonArray<string>(row.supported_asset_classes).map((item) => String(item).toUpperCase()),
-          compatibleRegimes: parseJsonArray<string>(row.compatible_regimes).map((item) => String(item).toLowerCase()),
+            String(
+              templateSource.seed_key || templateSource.seed_id || row.template_id || '',
+            ).trim() || null,
+          supportedAssetClasses: parseJsonArray<string>(row.supported_asset_classes).map((item) =>
+            String(item).toUpperCase(),
+          ),
+          compatibleRegimes: parseJsonArray<string>(row.compatible_regimes).map((item) =>
+            String(item).toLowerCase(),
+          ),
           qualityPriorScore: toNum(row.quality_prior_score),
           generationMode: String(row.generation_mode || '').trim() || null,
           publicReferenceIds: [...new Set(publicReferenceIds)],
-          featureOverlapCount: Math.max(0, Math.round(toNum(mappingQuality.feature_overlap_count)))
+          featureOverlapCount: Math.max(0, Math.round(toNum(mappingQuality.feature_overlap_count))),
         };
       })
       .filter((row) => row.strategyId)
@@ -994,11 +1088,18 @@ function loadStrategyFactoryCandidates(repo: MarketRepository, market: Market): 
   return [];
 }
 
-function familyBias(candidate: StrategyFactoryCandidate, signal: SignalContract & Record<string, unknown>): number {
+function familyBias(
+  candidate: StrategyFactoryCandidate,
+  signal: SignalContract & Record<string, unknown>,
+): number {
   const family = candidate.strategyFamily.toLowerCase();
   const signalRegime = String(signal.regime_id || '').toLowerCase();
-  const regimeFit = candidate.compatibleRegimes.some((item) => item === signalRegime || signalRegime.includes(item));
-  const assetFit = candidate.supportedAssetClasses.includes(String(signal.asset_class || '').toUpperCase());
+  const regimeFit = candidate.compatibleRegimes.some(
+    (item) => item === signalRegime || signalRegime.includes(item),
+  );
+  const assetFit = candidate.supportedAssetClasses.includes(
+    String(signal.asset_class || '').toUpperCase(),
+  );
   let bias = 2;
   if (regimeFit) bias += 8;
   if (assetFit) bias += 4;
@@ -1028,13 +1129,20 @@ function buildStrategyFactorySignals(args: {
 
   for (const candidate of args.candidates) {
     const base = [...args.baseSignals]
-      .filter((signal) => signal.market === args.market && signal.status === 'NEW' && !usedSymbols.has(signal.symbol))
+      .filter(
+        (signal) =>
+          signal.market === args.market &&
+          signal.status === 'NEW' &&
+          !usedSymbols.has(signal.symbol),
+      )
       .sort((a, b) => b.score + familyBias(candidate, b) - (a.score + familyBias(candidate, a)))[0];
     if (!base) continue;
 
     usedSymbols.add(base.symbol);
     const candidateStrength = clamp(candidate.candidateQualityScorePct / 100, 0.45, 0.96);
-    const regimeFit = candidate.compatibleRegimes.some((item) => item === String(base.regime_id || '').toLowerCase());
+    const regimeFit = candidate.compatibleRegimes.some(
+      (item) => item === String(base.regime_id || '').toLowerCase(),
+    );
     const researchBackedBoost = Math.min(6, candidate.publicReferenceIds.length * 1.5);
     const confidence = round(
       clamp(
@@ -1043,9 +1151,9 @@ function buildStrategyFactorySignals(args: {
           (regimeFit ? 0.04 : 0) +
           researchBackedBoost / 200,
         0.35,
-        0.97
+        0.97,
       ),
-      4
+      4,
     );
     const score = round(
       clamp(
@@ -1055,9 +1163,9 @@ function buildStrategyFactorySignals(args: {
           (regimeFit ? 8 : 0) +
           researchBackedBoost,
         35,
-        99
+        99,
       ),
-      2
+      2,
     );
     const signalId = `SIG-${args.market}-${base.symbol}-${candidate.strategyId}`.slice(0, 96);
     const factoryMetadata = {
@@ -1071,50 +1179,56 @@ function buildStrategyFactorySignals(args: {
       supported_asset_classes: candidate.supportedAssetClasses,
       compatible_regimes: candidate.compatibleRegimes,
       supporting_features: candidate.supportingFeatures.slice(0, 6),
-      public_reference_ids: candidate.publicReferenceIds
+      public_reference_ids: candidate.publicReferenceIds,
     };
 
     const overlay = withUiFields({
-        ...base,
-        id: signalId,
-        created_at: new Date(args.nowMs).toISOString(),
-        strategy_id: candidate.strategyId,
-        strategy_family: candidate.strategyFamily,
-        strategy_version: `nova-factory.${candidate.nextStage || 'shadow'}`,
-        confidence,
-        strength: round(confidence * 100, 2),
-        score,
-        explain_bullets: [
-          `Promoted from Nova Strategy Lab with ${Math.round(candidate.candidateQualityScorePct)} quality score.`,
-          candidate.templateName ? `Template: ${candidate.templateName}.` : 'Template-backed promotion from the public strategy library.',
-          candidate.publicReferenceIds.length
-            ? `Research anchors: ${candidate.publicReferenceIds.slice(0, 3).join(', ')}.`
-            : 'Promotion is supported by runtime discovery and governance checks.',
-          candidate.portfolioFit || 'Selected to complement the current runtime lineup.',
-          ...base.explain_bullets.slice(0, 3)
-        ],
-        execution_checklist: [
-          'Factory-promoted card: confirm the setup still matches the current tape before acting.',
-          candidate.riskNote || 'Treat factory promotions as governed ideas, not blind automation.',
-          ...base.execution_checklist.slice(0, 4)
-        ],
-        tags: [
-          ...base.tags.filter((tag) => !String(tag).startsWith('source:')),
-          'source:nova_factory',
-          `factory_stage:${String(candidate.nextStage || 'shadow').toLowerCase()}`,
-          `factory_quality:${Math.round(candidate.candidateQualityScorePct)}`,
-          `factory_regime_fit:${regimeFit ? 'matched' : 'indirect'}`,
-          `factory_refs:${candidate.publicReferenceIds.length}`,
-          `factory_generation:${tagValue(candidate.generationMode || 'unknown')}`,
-          ...(candidate.templateName ? [`factory_template:${tagValue(candidate.templateName)}`] : []),
-          ...candidate.publicReferenceIds.slice(0, 2).map((id) => `factory_ref:${tagValue(id)}`),
-          ...candidate.supportingFeatures.slice(0, 3).map((feature) => `factory_feature:${String(feature).toLowerCase().replace(/\s+/g, '_')}`)
-        ]
-      });
+      ...base,
+      id: signalId,
+      created_at: new Date(args.nowMs).toISOString(),
+      strategy_id: candidate.strategyId,
+      strategy_family: candidate.strategyFamily,
+      strategy_version: `nova-factory.${candidate.nextStage || 'shadow'}`,
+      confidence,
+      strength: round(confidence * 100, 2),
+      score,
+      explain_bullets: [
+        `Promoted from Nova Strategy Lab with ${Math.round(candidate.candidateQualityScorePct)} quality score.`,
+        candidate.templateName
+          ? `Template: ${candidate.templateName}.`
+          : 'Template-backed promotion from the public strategy library.',
+        candidate.publicReferenceIds.length
+          ? `Research anchors: ${candidate.publicReferenceIds.slice(0, 3).join(', ')}.`
+          : 'Promotion is supported by runtime discovery and governance checks.',
+        candidate.portfolioFit || 'Selected to complement the current runtime lineup.',
+        ...base.explain_bullets.slice(0, 3),
+      ],
+      execution_checklist: [
+        'Factory-promoted card: confirm the setup still matches the current tape before acting.',
+        candidate.riskNote || 'Treat factory promotions as governed ideas, not blind automation.',
+        ...base.execution_checklist.slice(0, 4),
+      ],
+      tags: [
+        ...base.tags.filter((tag) => !String(tag).startsWith('source:')),
+        'source:nova_factory',
+        `factory_stage:${String(candidate.nextStage || 'shadow').toLowerCase()}`,
+        `factory_quality:${Math.round(candidate.candidateQualityScorePct)}`,
+        `factory_regime_fit:${regimeFit ? 'matched' : 'indirect'}`,
+        `factory_refs:${candidate.publicReferenceIds.length}`,
+        `factory_generation:${tagValue(candidate.generationMode || 'unknown')}`,
+        ...(candidate.templateName ? [`factory_template:${tagValue(candidate.templateName)}`] : []),
+        ...candidate.publicReferenceIds.slice(0, 2).map((id) => `factory_ref:${tagValue(id)}`),
+        ...candidate.supportingFeatures
+          .slice(0, 3)
+          .map(
+            (feature) => `factory_feature:${String(feature).toLowerCase().replace(/\s+/g, '_')}`,
+          ),
+      ],
+    });
 
     overlays.push({
       ...overlay,
-      factory_metadata: factoryMetadata
+      factory_metadata: factoryMetadata,
     });
   }
 
@@ -1126,12 +1240,15 @@ function summarizeNews(repo: MarketRepository, market: Market, symbol: string): 
     market,
     symbol,
     limit: 5,
-    sinceMs: Date.now() - 1000 * 60 * 60 * 48
+    sinceMs: Date.now() - 1000 * 60 * 60 * 48,
   });
   return buildNewsContext(rows as NewsItemRecord[], symbol);
 }
 
-function loadCryptoMicrostructure(repo: MarketRepository, assetId: number): CryptoMarketMicrostructure {
+function loadCryptoMicrostructure(
+  repo: MarketRepository,
+  assetId: number,
+): CryptoMarketMicrostructure {
   const fundingRows = repo.listFundingRates({ assetId, limit: 24 });
   const basisRows = repo.listBasisSnapshots({ assetId, limit: 96 });
 
@@ -1152,7 +1269,7 @@ function loadCryptoMicrostructure(repo: MarketRepository, assetId: number): Cryp
     fundingRate24h: round(fundingRate24h, 8),
     basisBps: round(basisBps, 4),
     basisPercentile: basisValues.length ? percentileRank(basisValues, basisBps) : 50,
-    fundingState: Math.abs(fundingRateCurrent) >= 0.0008 ? 'EXTREME' : 'NEUTRAL'
+    fundingState: Math.abs(fundingRateCurrent) >= 0.0008 ? 'EXTREME' : 'NEUTRAL',
   };
 }
 
@@ -1194,8 +1311,10 @@ function adjustRuleForNews(rule: RuleHit, news: SignalNewsContext): RuleHit {
             ? 'Recent headline flow is mixed, so conviction is trimmed.'
             : 'Recent Gemini-derived news factors are shaping conviction.',
       news.factor_summary ? news.factor_summary : null,
-      Number(news.event_risk_score || 0) >= 0.75 ? 'Event-risk score is elevated, so risk is trimmed.' : null
-    ].filter(Boolean) as string[]
+      Number(news.event_risk_score || 0) >= 0.75
+        ? 'Event-risk score is elevated, so risk is trimmed.'
+        : null,
+    ].filter(Boolean) as string[],
   };
 }
 
@@ -1218,8 +1337,14 @@ export function deriveRuntimeState(params: {
   const cfg = getConfig();
 
   const targets: Array<{ market: Market; symbol: string }> = [
-    ...cfg.markets.US.symbols.map((symbol) => ({ market: 'US' as const, symbol: symbol.toUpperCase() })),
-    ...cfg.markets.CRYPTO.symbols.map((symbol) => ({ market: 'CRYPTO' as const, symbol: symbol.toUpperCase() }))
+    ...cfg.markets.US.symbols.map((symbol) => ({
+      market: 'US' as const,
+      symbol: symbol.toUpperCase(),
+    })),
+    ...cfg.markets.CRYPTO.symbols.map((symbol) => ({
+      market: 'CRYPTO' as const,
+      symbol: symbol.toUpperCase(),
+    })),
   ];
 
   const marketStateRows: MarketStateRecord[] = [];
@@ -1228,7 +1353,7 @@ export function deriveRuntimeState(params: {
   const performanceHistoryByMarket = deriveMarketPerformanceHistory(repo, userId);
   const activePandaModelByMarket: Record<Market, ReturnType<typeof loadActivePandaModel>> = {
     US: loadActivePandaModel(repo, 'US'),
-    CRYPTO: loadActivePandaModel(repo, 'CRYPTO')
+    CRYPTO: loadActivePandaModel(repo, 'CRYPTO'),
   };
   const calibrator = createConfidenceCalibrator({ repo, userId });
 
@@ -1244,7 +1369,7 @@ export function deriveRuntimeState(params: {
         timeframe: timeframeForMarket(target.market),
         status: RUNTIME_STATUS.INSUFFICIENT_DATA,
         age_hours: null,
-        bar_count: 0
+        bar_count: 0,
       });
       continue;
     }
@@ -1258,7 +1383,7 @@ export function deriveRuntimeState(params: {
         timeframe,
         status: RUNTIME_STATUS.INSUFFICIENT_DATA,
         age_hours: null,
-        bar_count: bars.length
+        bar_count: bars.length,
       });
       continue;
     }
@@ -1268,14 +1393,15 @@ export function deriveRuntimeState(params: {
     const latestTs = bars[bars.length - 1].ts_open;
     const ageHours = (nowMs - latestTs) / MS_HOUR;
     const staleThreshold = target.market === 'CRYPTO' ? 8 : 72;
-    const freshnessStatus = ageHours > staleThreshold ? RUNTIME_STATUS.INSUFFICIENT_DATA : RUNTIME_STATUS.DB_BACKED;
+    const freshnessStatus =
+      ageHours > staleThreshold ? RUNTIME_STATUS.INSUFFICIENT_DATA : RUNTIME_STATUS.DB_BACKED;
     freshnessRows.push({
       market: target.market,
       symbol: target.symbol,
       timeframe,
       status: freshnessStatus,
       age_hours: round(ageHours, 2),
-      bar_count: bars.length
+      bar_count: bars.length,
     });
 
     const baselineRule = selectRule(ctx);
@@ -1285,7 +1411,7 @@ export function deriveRuntimeState(params: {
       bars,
       performanceHistory: performanceHistoryByMarket[target.market] || [],
       riskProfile,
-      modelConfig: activeModel.config
+      modelConfig: activeModel.config,
     });
     const adaptiveTuning = buildAdaptiveTuning(pandaDecision);
     let ruleHit: RuleHit | null = baselineRule;
@@ -1295,7 +1421,8 @@ export function deriveRuntimeState(params: {
       ruleHit = mergeRuleWithPanda(ruleHit, pandaDecision);
     }
     const newsContext = summarizeNews(repo, target.market, target.symbol);
-    const cryptoMicrostructure = target.market === 'CRYPTO' ? loadCryptoMicrostructure(repo, asset.asset_id) : null;
+    const cryptoMicrostructure =
+      target.market === 'CRYPTO' ? loadCryptoMicrostructure(repo, asset.asset_id) : null;
     if (ruleHit) {
       ruleHit = adjustRuleForNews(ruleHit, newsContext);
     }
@@ -1323,8 +1450,8 @@ export function deriveRuntimeState(params: {
         factor_scores: pandaDecision.factorScores,
         adaptive_params: pandaDecision.adaptiveParams,
         risk: pandaDecision.risk,
-        learning_status: pandaDecision.profile.learningStatus
-      }
+        learning_status: pandaDecision.profile.learningStatus,
+      },
     };
 
     marketStateRows.push({
@@ -1342,9 +1469,9 @@ export function deriveRuntimeState(params: {
       assumptions_json: JSON.stringify({
         source_label: freshnessStatus,
         derivation: 'derived_from_ohlcv',
-        stale_hours: round(ageHours, 2)
+        stale_hours: round(ageHours, 2),
       }),
-      updated_at_ms: nowMs
+      updated_at_ms: nowMs,
     });
 
     if (activeModel.config.safeMode) continue;
@@ -1362,7 +1489,7 @@ export function deriveRuntimeState(params: {
       nowMs,
       adaptive: adaptiveTuning,
       strategyVersion: activeModel.semanticVersion,
-      cryptoMicrostructure
+      cryptoMicrostructure,
     });
 
     const sampled = parseRuleSampleFromSignal(signal, bars);
@@ -1370,21 +1497,27 @@ export function deriveRuntimeState(params: {
       expected_R: sampled.sampleSize < 8 ? 0 : sampled.expectedR,
       hit_rate_est: sampled.sampleSize < 8 ? 0 : sampled.winRate,
       sample_size: sampled.sampleSize,
-      expected_max_dd_est: sampled.expectedMaxDd ?? undefined
+      expected_max_dd_est: sampled.expectedMaxDd ?? undefined,
     };
-    const calibration = calibrator.calibrateSignal(signal as SignalContract & Record<string, unknown>);
+    const calibration = calibrator.calibrateSignal(
+      signal as SignalContract & Record<string, unknown>,
+    );
     signal.confidence = calibration.calibrated_confidence;
     signal.confidence_details = calibration;
     signal.position_advice.position_pct = round(
-      clamp(signal.position_advice.position_pct * calibration.sizing_multiplier, 0.35, riskProfile.exposure_cap),
-      2
+      clamp(
+        signal.position_advice.position_pct * calibration.sizing_multiplier,
+        0.35,
+        riskProfile.exposure_cap,
+      ),
+      2,
     );
     signal.position_advice.rationale = `Position scaled by calibrated confidence (${Math.round(
-      calibration.calibrated_confidence * 100
+      calibration.calibrated_confidence * 100,
     )}%), execution reliability, and user risk profile cap.`;
     const alphaOverlay = applyAlphaRuntimeOverlays({
       repo,
-      signal
+      signal,
     });
     const overlaidConfidence = round(
       clamp(
@@ -1392,9 +1525,9 @@ export function deriveRuntimeState(params: {
           ? Math.min(signal.confidence, 0.35) * alphaOverlay.confidence_multiplier
           : signal.confidence * alphaOverlay.confidence_multiplier,
         0.05,
-        0.98
+        0.98,
       ),
-      4
+      4,
     );
     signal.confidence = overlaidConfidence;
     signal.position_advice.position_pct = round(
@@ -1403,9 +1536,9 @@ export function deriveRuntimeState(params: {
           alphaOverlay.weight_multiplier *
           (alphaOverlay.block ? 0.35 : 1),
         alphaOverlay.block ? 0.05 : 0.35,
-        riskProfile.exposure_cap
+        riskProfile.exposure_cap,
       ),
-      2
+      2,
     );
     signal.position_advice.rationale = alphaOverlay.applied_candidates.length
       ? `${signal.position_advice.rationale} Alpha overlays applied (${alphaOverlay.applied_candidates.length}) and still routed through the risk governor.`
@@ -1417,7 +1550,7 @@ export function deriveRuntimeState(params: {
       alpha_overlay_applied: alphaOverlay.applied_candidates.length > 0,
       alpha_overlay_blocked: alphaOverlay.block,
       alpha_overlay_notes: alphaOverlay.notes,
-      alpha_overlay_candidates: alphaOverlay.applied_candidates
+      alpha_overlay_candidates: alphaOverlay.applied_candidates,
     } as typeof calibration & Record<string, unknown>;
     signal.lineage = buildEvidenceLineage({
       runtimeStatus: freshnessStatus,
@@ -1425,7 +1558,7 @@ export function deriveRuntimeState(params: {
       replayEvidenceAvailable: false,
       paperEvidenceAvailable: false,
       sourceStatus: freshnessStatus,
-      dataStatus: freshnessStatus
+      dataStatus: freshnessStatus,
     });
     signal.news_context = newsContext;
 
@@ -1437,14 +1570,14 @@ export function deriveRuntimeState(params: {
       `calibration_bucket:${calibration.calibration_bucket}`,
       `news_tone:${newsContext.tone.toLowerCase()}`,
       alphaOverlay.applied_candidates.length ? `alpha_overlay:active` : `alpha_overlay:none`,
-      alphaOverlay.block ? 'alpha_overlay:block' : 'alpha_overlay:pass'
+      alphaOverlay.block ? 'alpha_overlay:block' : 'alpha_overlay:pass',
     ];
     if (alphaOverlay.applied_candidates.length) {
       signal.explain_bullets = [
         ...signal.explain_bullets,
         alphaOverlay.block
           ? 'Mature alpha overlay downgraded this setup before it reached portfolio risk gating.'
-          : 'Mature alpha overlay adjusted confidence/weight before portfolio risk gating.'
+          : 'Mature alpha overlay adjusted confidence/weight before portfolio risk gating.',
       ];
     }
 
@@ -1456,7 +1589,7 @@ export function deriveRuntimeState(params: {
   const performance = buildPerformanceSnapshotsFromExecutions({
     repo,
     userId,
-    nowMs
+    nowMs,
   });
   repo.upsertPerformanceSnapshots(performance.snapshots);
 
@@ -1464,7 +1597,7 @@ export function deriveRuntimeState(params: {
     assetsChecked: targets.length,
     assetsWithBars,
     generatedSignals: derivedSignals.length,
-    stateRows: marketStateRows.length
+    stateRows: marketStateRows.length,
   });
 
   const factorySignals = [
@@ -1472,14 +1605,14 @@ export function deriveRuntimeState(params: {
       market: 'US',
       nowMs,
       baseSignals: derivedSignals,
-      candidates: loadStrategyFactoryCandidates(repo, 'US')
+      candidates: loadStrategyFactoryCandidates(repo, 'US'),
     }),
     ...buildStrategyFactorySignals({
       market: 'CRYPTO',
       nowMs,
       baseSignals: derivedSignals,
-      candidates: loadStrategyFactoryCandidates(repo, 'CRYPTO')
-    })
+      candidates: loadStrategyFactoryCandidates(repo, 'CRYPTO'),
+    }),
   ];
 
   if (factorySignals.length) {
@@ -1492,7 +1625,8 @@ export function deriveRuntimeState(params: {
   repo.upsertSignals(derivedSignals);
   repo.expireSignalsNotIn(activeSignalIds);
 
-  const sourceStatus = assetsWithBars > 0 ? RUNTIME_STATUS.DB_BACKED : RUNTIME_STATUS.INSUFFICIENT_DATA;
+  const sourceStatus =
+    assetsWithBars > 0 ? RUNTIME_STATUS.DB_BACKED : RUNTIME_STATUS.INSUFFICIENT_DATA;
 
   return {
     asofMs: nowMs,
@@ -1503,9 +1637,9 @@ export function deriveRuntimeState(params: {
     freshnessSummary: {
       source_status: sourceStatus,
       rows: freshnessRows,
-      stale_count: freshnessRows.filter((row) => row.status !== RUNTIME_STATUS.DB_BACKED).length
+      stale_count: freshnessRows.filter((row) => row.status !== RUNTIME_STATUS.DB_BACKED).length,
     },
     coverageSummary,
-    sourceStatus
+    sourceStatus,
   };
 }

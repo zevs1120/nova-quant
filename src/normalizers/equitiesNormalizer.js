@@ -22,7 +22,7 @@ export function normalizeEquities(rawSnapshot) {
     frequency: FREQUENCY.DAILY,
     data_status: DATA_STATUS.NORMALIZED,
     use_notes: 'Normalized US equity instrument registry entry.',
-    license_notes: 'See provider terms for live feed usage.'
+    license_notes: 'See provider terms for live feed usage.',
   }));
 
   const grouped = groupBy(rawBars, (row) => row.symbol);
@@ -53,7 +53,7 @@ export function normalizeEquities(rawSnapshot) {
         frequency: row.frequency || FREQUENCY.DAILY,
         data_status: DATA_STATUS.NORMALIZED,
         use_notes: row.use_notes || 'Normalized daily bars for feature engineering and training.',
-        license_notes: row.license_notes || 'Sample fallback in demo environment.'
+        license_notes: row.license_notes || 'Sample fallback in demo environment.',
       });
     }
   }
@@ -62,10 +62,10 @@ export function normalizeEquities(rawSnapshot) {
     metadata: {
       ...rawSnapshot?.metadata,
       data_status: DATA_STATUS.NORMALIZED,
-      normalized_at: new Date().toISOString()
+      normalized_at: new Date().toISOString(),
     },
     assets,
     bars,
-    benchmarks: rawSnapshot?.benchmarks || []
+    benchmarks: rawSnapshot?.benchmarks || [],
   };
 }

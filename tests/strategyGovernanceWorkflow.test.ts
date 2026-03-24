@@ -5,7 +5,7 @@ import { runQuantPipeline } from '../src/engines/pipeline.js';
 describe('strategy governance workflow hardening', () => {
   const state = runQuantPipeline({
     as_of: '2026-03-09T00:00:00.000Z',
-    config: { risk_profile: 'balanced' }
+    config: { risk_profile: 'balanced' },
   });
 
   const governance = state?.research?.research_core?.strategy_governance;

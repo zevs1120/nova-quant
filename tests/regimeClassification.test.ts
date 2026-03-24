@@ -11,11 +11,11 @@ describe('regime classification v2', () => {
           regime: { tag: 'High Volatility Risk' },
           breadth: { ratio: 0.32 },
           volatility: { stress: 0.86 },
-          risk_on_off: { score: 0.73, state: 'Risk-Off' }
+          risk_on_off: { score: 0.73, state: 'Risk-Off' },
         },
-        safety: { mode: 'do not trade' }
+        safety: { mode: 'do not trade' },
       },
-      strategyFamilyRegistry: { templates: [] }
+      strategyFamilyRegistry: { templates: [] },
     });
 
     expect(regime.state.primary).toBe('risk_off');
@@ -30,11 +30,11 @@ describe('regime classification v2', () => {
           regime: { tag: 'Trend Up' },
           breadth: { ratio: 0.67 },
           volatility: { stress: 0.22 },
-          risk_on_off: { score: 0.64, state: 'Risk-On' }
+          risk_on_off: { score: 0.64, state: 'Risk-On' },
         },
-        safety: { mode: 'normal risk' }
+        safety: { mode: 'normal risk' },
       },
-      strategyFamilyRegistry: { templates: [] }
+      strategyFamilyRegistry: { templates: [] },
     });
 
     expect(regime.state.primary).toBe('trend');

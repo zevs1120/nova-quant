@@ -1,7 +1,11 @@
 import { clamp, deterministicHash, round } from './math.js';
 
 const ACTIVE_STATUSES = new Set(['NEW', 'TRIGGERED']);
-const RISK_REASON_SET = new Set(['risk_budget_exhausted', 'cost_too_high', 'min_notional_or_lot_violation']);
+const RISK_REASON_SET = new Set([
+  'risk_budget_exhausted',
+  'cost_too_high',
+  'min_notional_or_lot_violation',
+]);
 const CONFLICT_REASON_SET = new Set(['correlation_conflict', 'duplicated_theme_exposure']);
 
 const DEFAULT_THRESHOLDS = {
@@ -10,7 +14,7 @@ const DEFAULT_THRESHOLDS = {
   risk_score_max: 74,
   cost_bps_max: 16,
   min_position_pct: 0.25,
-  shadow_max: 24
+  shadow_max: 24,
 };
 
 function mapReasonLabel(reason) {
@@ -27,7 +31,7 @@ function mapReasonLabel(reason) {
     data_missing: 'Data missing',
     min_notional_or_lot_violation: 'Minimum size/lot violation',
     duplicated_theme_exposure: 'Duplicated theme exposure',
-    manual_kill_switch: 'Manual kill switch'
+    manual_kill_switch: 'Manual kill switch',
   };
   return labels[reason] || reason;
 }
@@ -42,7 +46,7 @@ function emptyCounters() {
     filtered_by_conflict: 0,
     executable_opportunities: 0,
     filled_trades: 0,
-    completed_round_trip_trades: 0
+    completed_round_trip_trades: 0,
   };
 }
 
@@ -85,18 +89,21 @@ function reasonCodes(signal, riskState, thresholds) {
   if (riskScore > thresholds.risk_score_max) reasons.push('risk_budget_exhausted');
   if (totalCost > thresholds.cost_bps_max) reasons.push('cost_too_high');
   if (positionPct <= thresholds.min_position_pct) reasons.push('min_notional_or_lot_violation');
-  if (signal.status === 'EXPIRED' && !ACTIVE_STATUSES.has(signal.status)) reasons.push('execution_window_closed');
+  if (signal.status === 'EXPIRED' && !ACTIVE_STATUSES.has(signal.status))
+    reasons.push('execution_window_closed');
 
   if (!reasons.length && !ACTIVE_STATUSES.has(signal.status)) reasons.push('entry_not_touched');
   if (!reasons.length) return { primary: null, secondary: null };
   return {
     primary: reasons[0],
-    secondary: reasons[1] || null
+    secondary: reasons[1] || null,
   };
 }
 
 function buildSyntheticPath(signal) {
-  const seed = deterministicHash(signal.signal_id || signal.id || `${signal.symbol}-${signal.created_at}`);
+  const seed = deterministicHash(
+    signal.signal_id || signal.id || `${signal.symbol}-${signal.created_at}`,
+  );
   const centered = ((seed % 1000) / 999) * 2 - 1;
   const expectedR = Number(signal.expected_metrics?.expected_R ?? signal.expected_R ?? 1);
   const hitRate = Number(signal.expected_metrics?.hit_rate_est ?? signal.hit_rate_est ?? 0.5);
@@ -108,7 +115,7 @@ function buildSyntheticPath(signal) {
   return {
     r_1d: round(r1d, 4),
     r_2d: round(r2d, 4),
-    r_3d: round(r3d, 4)
+    r_3d: round(r3d, 4),
   };
 }
 
@@ -134,7 +141,7 @@ function rankedNoTradeReasons(records) {
       reason_code: reason,
       reason_label: mapReasonLabel(reason),
       count,
-      share: round(count / total, 4)
+      share: round(count / total, 4),
     }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 6);
@@ -144,13 +151,19 @@ function buildShadowLog(records, thresholds) {
   return records
     .filter((record) => record.primary_reason)
     .filter((record) => {
-      if (record.primary_reason === 'score_too_low') return record.candidate_score >= thresholds.score_min - 0.22;
-      if (record.primary_reason === 'regime_blocked') return record.regime_fit >= thresholds.regime_compatibility_min - 14;
+      if (record.primary_reason === 'score_too_low')
+        return record.candidate_score >= thresholds.score_min - 0.22;
+      if (record.primary_reason === 'regime_blocked')
+        return record.regime_fit >= thresholds.regime_compatibility_min - 14;
       if (record.primary_reason === 'risk_budget_exhausted') return true;
       if (record.primary_reason === 'correlation_conflict') return true;
       return false;
     })
-    .sort((a, b) => b.candidate_score - a.candidate_score || new Date(b.generated_at) - new Date(a.generated_at))
+    .sort(
+      (a, b) =>
+        b.candidate_score - a.candidate_score ||
+        new Date(b.generated_at) - new Date(a.generated_at),
+    )
     .slice(0, thresholds.shadow_max)
     .map((record, index) => ({
       shadow_id: `SHD-${index + 1}-${record.signal_id}`,
@@ -166,9 +179,11 @@ function buildShadowLog(records, thresholds) {
       threshold_delta: round(record.candidate_score - thresholds.score_min, 4),
       primary_reason: record.primary_reason,
       secondary_reason: record.secondary_reason,
-      hypothetical_lower_size_pass: record.primary_reason === 'risk_budget_exhausted' || record.primary_reason === 'cost_too_high',
+      hypothetical_lower_size_pass:
+        record.primary_reason === 'risk_budget_exhausted' ||
+        record.primary_reason === 'cost_too_high',
       hypothetical_relaxed_conflict_pass: record.primary_reason === 'correlation_conflict',
-      subsequent_path: record.synthetic_future_path
+      subsequent_path: record.synthetic_future_path,
     }));
 }
 
@@ -182,7 +197,8 @@ export function runSignalFunnelDiagnostics({ signals, trades, riskState, thresho
     const sid = trade.signal_id || trade.signalId;
     if (!sid || !signalIds.has(sid)) continue;
     if (trade.time_in) filledTradeIds.add(sid);
-    if (trade.time_out && trade.exit !== null && trade.exit !== undefined) completedTradeIds.add(sid);
+    if (trade.time_out && trade.exit !== null && trade.exit !== undefined)
+      completedTradeIds.add(sid);
   }
 
   const records = signals.map((signal) => {
@@ -204,29 +220,37 @@ export function runSignalFunnelDiagnostics({ signals, trades, riskState, thresho
       executable,
       filled: filledTradeIds.has(signal.signal_id),
       round_trip_completed: completedTradeIds.has(signal.signal_id),
-      synthetic_future_path: buildSyntheticPath(signal)
+      synthetic_future_path: buildSyntheticPath(signal),
     };
   });
 
-  const overall = records.reduce((acc, record) => mergeCounters(acc, stageCounterFromRecord(record)), emptyCounters());
-  const byStrategyFamily = aggregateRecords(records, (item) => item.strategy_family).map((item) => ({
-    strategy_family: item.key,
-    ...item
-  }));
+  const overall = records.reduce(
+    (acc, record) => mergeCounters(acc, stageCounterFromRecord(record)),
+    emptyCounters(),
+  );
+  const byStrategyFamily = aggregateRecords(records, (item) => item.strategy_family).map(
+    (item) => ({
+      strategy_family: item.key,
+      ...item,
+    }),
+  );
   const byMarket = aggregateRecords(records, (item) => item.market).map((item) => ({
     market: item.key,
-    ...item
+    ...item,
   }));
   const byAssetClass = aggregateRecords(records, (item) => item.asset_class).map((item) => ({
     asset_class: item.key,
-    ...item
+    ...item,
   }));
-  const byDayFamily = aggregateRecords(records, (item) => `${item.trade_day}|${item.strategy_family}`).map((item) => {
+  const byDayFamily = aggregateRecords(
+    records,
+    (item) => `${item.trade_day}|${item.strategy_family}`,
+  ).map((item) => {
     const [trade_day, strategy_family] = item.key.split('|');
     return {
       trade_day,
       strategy_family,
-      ...item
+      ...item,
     };
   });
 
@@ -246,7 +270,7 @@ export function runSignalFunnelDiagnostics({ signals, trades, riskState, thresho
       'data_missing',
       'min_notional_or_lot_violation',
       'duplicated_theme_exposure',
-      'manual_kill_switch'
+      'manual_kill_switch',
     ],
     overall,
     by_asset_class: byAssetClass,
@@ -254,6 +278,6 @@ export function runSignalFunnelDiagnostics({ signals, trades, riskState, thresho
     by_market: byMarket,
     by_day_family: byDayFamily,
     no_trade_top_n: rankedNoTradeReasons(records),
-    shadow_opportunity_log: buildShadowLog(records, cfg)
+    shadow_opportunity_log: buildShadowLog(records, cfg),
   };
 }

@@ -22,7 +22,7 @@ const GEMINI_API_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/mo
 const GEMINI_EXPLANATION_TASKS: ReadonlySet<NovaTaskRoute> = new Set([
   'assistant_grounded_answer',
   'decision_reasoning',
-  'action_card_generation'
+  'action_card_generation',
 ]);
 
 function getDefaultGroqModel() {
@@ -39,9 +39,9 @@ function withTimeoutInit(init: RequestInit, timeoutMs: number) {
   return {
     init: {
       ...init,
-      signal: controller.signal
+      signal: controller.signal,
     },
-    clear: () => clearTimeout(timer)
+    clear: () => clearTimeout(timer),
   };
 }
 
@@ -50,7 +50,8 @@ function cleanBase(url: string): string {
 }
 
 function extractContent(payload: unknown): string {
-  const content = (payload as { choices?: Array<{ message?: { content?: string } }> })?.choices?.[0]?.message?.content;
+  const content = (payload as { choices?: Array<{ message?: { content?: string } }> })?.choices?.[0]
+    ?.message?.content;
   return typeof content === 'string' ? content : '';
 }
 
@@ -67,13 +68,17 @@ function extractGeminiText(payload: unknown): string {
 }
 
 function shouldUseGroqTextRoute(): boolean {
-  const disabled = String(process.env.NOVA_DISABLE_GROQ || '').trim().toLowerCase();
+  const disabled = String(process.env.NOVA_DISABLE_GROQ || '')
+    .trim()
+    .toLowerCase();
   if (disabled === '1' || disabled === 'true') return false;
   return Boolean(String(process.env.GROQ_API_KEY || '').trim());
 }
 
 function shouldUseGeminiTextRoute(): boolean {
-  const disabled = String(process.env.NOVA_DISABLE_GEMINI || '').trim().toLowerCase();
+  const disabled = String(process.env.NOVA_DISABLE_GEMINI || '')
+    .trim()
+    .toLowerCase();
   if (disabled === '1' || disabled === 'true') return false;
   return Boolean(String(process.env.GEMINI_API_KEY || '').trim());
 }
@@ -84,7 +89,12 @@ function shouldUseHostedExplainer(task: NovaTaskRoute): boolean {
 
 function humanizeFetchError(error: unknown, provider = 'Nova'): Error {
   if (error instanceof Error) {
-    if (error.name === 'AbortError' || String(error.message || '').toLowerCase().includes('aborted')) {
+    if (
+      error.name === 'AbortError' ||
+      String(error.message || '')
+        .toLowerCase()
+        .includes('aborted')
+    ) {
       return new Error(`${provider} request timed out. Please try again.`);
     }
     return error;
@@ -102,7 +112,7 @@ export async function runNovaChatCompletion(args: NovaChatArgs) {
         provider: 'groq' as const,
         model: getDefaultGroqModel(),
         endpoint: GROQ_OPENAI_BASE_URL,
-        apiKey: String(process.env.GROQ_API_KEY || '').trim()
+        apiKey: String(process.env.GROQ_API_KEY || '').trim(),
       }
     : useGemini
       ? {
@@ -110,37 +120,42 @@ export async function runNovaChatCompletion(args: NovaChatArgs) {
           provider: 'gemini' as const,
           model: getDefaultGeminiModel(),
           endpoint: GEMINI_API_BASE_URL,
-          apiKey: String(process.env.GEMINI_API_KEY || '').trim()
+          apiKey: String(process.env.GEMINI_API_KEY || '').trim(),
         }
-    : route;
+      : route;
 
   if (effectiveRoute.provider === 'gemini') {
     const endpoint = `${String(effectiveRoute.endpoint || GEMINI_API_BASE_URL).replace(/\/$/, '')}/${effectiveRoute.model}:generateContent?key=${effectiveRoute.apiKey}`;
-    const { init, clear } = withTimeoutInit({
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
+    const { init, clear } = withTimeoutInit(
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              role: 'user',
+              parts: [
+                {
+                  text: `SYSTEM: ${args.systemPrompt}\n\nUSER: ${args.userPrompt}`,
+                },
+              ],
+            },
+          ],
+          generationConfig: {
+            temperature: args.temperature ?? 0.15,
+            maxOutputTokens: args.maxTokens ?? 500,
+          },
+        }),
       },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: 'user',
-            parts: [
-              {
-                text: `SYSTEM: ${args.systemPrompt}\n\nUSER: ${args.userPrompt}`
-              }
-            ]
-          }
-        ],
-        generationConfig: {
-          temperature: args.temperature ?? 0.15,
-          maxOutputTokens: args.maxTokens ?? 500
-        }
+      DEFAULT_CLOUD_TIMEOUT_MS,
+    );
+    const response = await fetch(endpoint, init)
+      .catch((error) => {
+        throw humanizeFetchError(error, 'Gemini');
       })
-    }, DEFAULT_CLOUD_TIMEOUT_MS);
-    const response = await fetch(endpoint, init).catch((error) => {
-      throw humanizeFetchError(error, 'Gemini');
-    }).finally(clear);
+      .finally(clear);
 
     if (!response.ok) {
       const text = await response.text().catch(() => '');
@@ -157,32 +172,37 @@ export async function runNovaChatCompletion(args: NovaChatArgs) {
       route: effectiveRoute,
       endpoint,
       text,
-      raw
+      raw,
     };
   }
 
   const endpoint = `${cleanBase(effectiveRoute.endpoint)}/chat/completions`;
-  const { init, clear } = withTimeoutInit({
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(effectiveRoute.apiKey ? { Authorization: `Bearer ${effectiveRoute.apiKey}` } : {}),
-      ...(effectiveRoute.headers || {})
+  const { init, clear } = withTimeoutInit(
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(effectiveRoute.apiKey ? { Authorization: `Bearer ${effectiveRoute.apiKey}` } : {}),
+        ...(effectiveRoute.headers || {}),
+      },
+      body: JSON.stringify({
+        model: effectiveRoute.model,
+        messages: [
+          { role: 'system', content: args.systemPrompt },
+          { role: 'user', content: args.userPrompt },
+        ],
+        temperature: args.temperature ?? 0.15,
+        max_tokens: args.maxTokens ?? 500,
+        stream: false,
+      }),
     },
-    body: JSON.stringify({
-      model: effectiveRoute.model,
-      messages: [
-        { role: 'system', content: args.systemPrompt },
-        { role: 'user', content: args.userPrompt }
-      ],
-      temperature: args.temperature ?? 0.15,
-      max_tokens: args.maxTokens ?? 500,
-      stream: false
+    useGroq ? DEFAULT_CLOUD_TIMEOUT_MS : DEFAULT_LOCAL_TIMEOUT_MS,
+  );
+  const response = await fetch(endpoint, init)
+    .catch((error) => {
+      throw humanizeFetchError(error, effectiveRoute.provider === 'groq' ? 'Groq' : 'Marvix');
     })
-  }, useGroq ? DEFAULT_CLOUD_TIMEOUT_MS : DEFAULT_LOCAL_TIMEOUT_MS);
-  const response = await fetch(endpoint, init).catch((error) => {
-    throw humanizeFetchError(error, effectiveRoute.provider === 'groq' ? 'Groq' : 'Marvix');
-  }).finally(clear);
+    .finally(clear);
 
   if (!response.ok) {
     const text = await response.text().catch(() => '');
@@ -199,28 +219,33 @@ export async function runNovaChatCompletion(args: NovaChatArgs) {
     route: effectiveRoute,
     endpoint,
     text,
-    raw
+    raw,
   };
 }
 
 export async function runNovaEmbedding(args: NovaEmbeddingArgs) {
   const route = resolveNovaRoute(args.task);
   const endpoint = `${cleanBase(route.endpoint)}/embeddings`;
-  const { init, clear } = withTimeoutInit({
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(route.apiKey ? { Authorization: `Bearer ${route.apiKey}` } : {}),
-      ...(route.headers || {})
+  const { init, clear } = withTimeoutInit(
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(route.apiKey ? { Authorization: `Bearer ${route.apiKey}` } : {}),
+        ...(route.headers || {}),
+      },
+      body: JSON.stringify({
+        model: route.model,
+        input: args.input,
+      }),
     },
-    body: JSON.stringify({
-      model: route.model,
-      input: args.input
+    route.provider === 'openai' ? DEFAULT_CLOUD_TIMEOUT_MS : DEFAULT_LOCAL_TIMEOUT_MS,
+  );
+  const response = await fetch(endpoint, init)
+    .catch((error) => {
+      throw humanizeFetchError(error, 'Marvix embedding');
     })
-  }, route.provider === 'openai' ? DEFAULT_CLOUD_TIMEOUT_MS : DEFAULT_LOCAL_TIMEOUT_MS);
-  const response = await fetch(endpoint, init).catch((error) => {
-    throw humanizeFetchError(error, 'Marvix embedding');
-  }).finally(clear);
+    .finally(clear);
 
   if (!response.ok) {
     const text = await response.text().catch(() => '');
@@ -234,6 +259,6 @@ export async function runNovaEmbedding(args: NovaEmbeddingArgs) {
     route,
     endpoint,
     vector: raw.data?.[0]?.embedding || [],
-    raw
+    raw,
   };
 }

@@ -17,7 +17,7 @@ async function collectChat(userId: string, message: string) {
   const events = [];
   for await (const event of streamChat({
     userId,
-    message
+    message,
   })) {
     events.push(event);
   }
@@ -48,11 +48,12 @@ describe('nova strategy and flywheel services', () => {
     const result = await generateGovernedNovaStrategies({
       repo,
       userId: `svc-strategy-${Date.now()}`,
-      prompt: 'Generate a conservative crypto strategy with trend following and clear risk controls',
+      prompt:
+        'Generate a conservative crypto strategy with trend following and clear risk controls',
       locale: 'en',
       market: 'CRYPTO',
       riskProfile: 'conservative',
-      maxCandidates: 6
+      maxCandidates: 6,
     });
 
     expect(result.workflow_id).toBeTruthy();
@@ -66,7 +67,10 @@ describe('nova strategy and flywheel services', () => {
     vi.stubEnv('NOVA_FORCE_LOCAL_GENERATION', '');
 
     const userId = `svc-chat-${Date.now()}`;
-    const events = await collectChat(userId, 'Generate a conservative crypto swing trading strategy for me');
+    const events = await collectChat(
+      userId,
+      'Generate a conservative crypto swing trading strategy for me',
+    );
     const provider = events.find((row) => row.type === 'meta' && row.provider !== 'preparing');
     const chunk = events.find((row) => row.type === 'chunk');
 
@@ -86,12 +90,12 @@ describe('nova strategy and flywheel services', () => {
           choices: [
             {
               message: {
-                content: '{"answer":"Today risk is moderate and capital should stay selective."}'
-              }
-            }
-          ]
-        })
-      }))
+                content: '{"answer":"Today risk is moderate and capital should stay selective."}',
+              },
+            },
+          ],
+        }),
+      })),
     );
 
     const repo = getRepo();
@@ -104,14 +108,14 @@ describe('nova strategy and flywheel services', () => {
       systemPrompt: 'You are Nova.',
       userPrompt: 'Explain today risk posture in plain English.',
       context: {
-        test: true
-      }
+        test: true,
+      },
     });
 
     const assistantRun = repo.listNovaTaskRuns({
       userId,
       taskType: 'assistant_grounded_answer',
-      limit: 10
+      limit: 10,
     })[0];
 
     expect(assistantRun?.id).toBeTruthy();
@@ -122,7 +126,7 @@ describe('nova strategy and flywheel services', () => {
       reviewerId: 'vitest-reviewer',
       label: 'high_quality',
       score: 0.91,
-      includeInTraining: true
+      includeInTraining: true,
     });
 
     const result = await runNovaTrainingFlywheel({
@@ -130,7 +134,7 @@ describe('nova strategy and flywheel services', () => {
       userId,
       trainer: 'mlx-lora',
       onlyIncluded: true,
-      limit: 20
+      limit: 20,
     });
 
     expect(result.workflow_id).toBeTruthy();

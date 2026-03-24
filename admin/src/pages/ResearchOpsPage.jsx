@@ -13,7 +13,10 @@ function MixBars({ rows, formatter }) {
             <span>{formatter ? formatter(item.value) : item.value}</span>
           </div>
           <div className="mix-bar-track">
-            <span className="mix-bar-fill" style={{ width: `${(Number(item.value || 0) / total) * 100}%` }} />
+            <span
+              className="mix-bar-fill"
+              style={{ width: `${(Number(item.value || 0) / total) * 100}%` }}
+            />
           </div>
         </div>
       ))}
@@ -26,7 +29,7 @@ function formatNumber(value, digits = 0) {
   if (!Number.isFinite(numeric)) return '--';
   return new Intl.NumberFormat('zh-CN', {
     maximumFractionDigits: digits,
-    minimumFractionDigits: digits
+    minimumFractionDigits: digits,
   }).format(numeric);
 }
 
@@ -42,7 +45,7 @@ function formatDateTime(value) {
   if (Number.isNaN(parsed.getTime())) return '--';
   return new Intl.DateTimeFormat('zh-CN', {
     dateStyle: 'short',
-    timeStyle: 'short'
+    timeStyle: 'short',
   }).format(parsed);
 }
 
@@ -53,7 +56,7 @@ function workflowLabel(key) {
     alpha_shadow_runner: 'Shadow runner',
     nova_training_flywheel: 'Nova training',
     nova_strategy_lab: 'Strategy lab',
-    quant_evolution_cycle: 'Quant evolution'
+    quant_evolution_cycle: 'Quant evolution',
   };
   return labels[key] || key;
 }
@@ -66,7 +69,7 @@ function tableLabel(key) {
     fundamental_snapshots: '基本面',
     backtest_runs: '回测 run',
     backtest_metrics: '回测指标',
-    dataset_versions: 'Dataset version'
+    dataset_versions: 'Dataset version',
   };
   return labels[key] || key;
 }
@@ -120,9 +123,12 @@ export default function ResearchOpsPage() {
   const training = daily.training || {};
 
   const workflowTotal = workflowCounts.reduce((sum, row) => sum + Number(row.run_count || 0), 0);
-  const freeDataRuns = workflowCounts.find((row) => row.workflow_key === 'free_data_flywheel')?.run_count || 0;
-  const alphaDiscoveryRuns = workflowCounts.find((row) => row.workflow_key === 'alpha_discovery_loop')?.run_count || 0;
-  const shadowRuns = workflowCounts.find((row) => row.workflow_key === 'alpha_shadow_runner')?.run_count || 0;
+  const freeDataRuns =
+    workflowCounts.find((row) => row.workflow_key === 'free_data_flywheel')?.run_count || 0;
+  const alphaDiscoveryRuns =
+    workflowCounts.find((row) => row.workflow_key === 'alpha_discovery_loop')?.run_count || 0;
+  const shadowRuns =
+    workflowCounts.find((row) => row.workflow_key === 'alpha_shadow_runner')?.run_count || 0;
   const passCount = evalSummary.find((row) => row.evaluation_status === 'PASS')?.cnt || 0;
   const watchCount = evalSummary.find((row) => row.evaluation_status === 'WATCH')?.cnt || 0;
   const rejectCount = evalSummary.find((row) => row.evaluation_status === 'REJECT')?.cnt || 0;
@@ -137,38 +143,40 @@ export default function ResearchOpsPage() {
       label: '今日工作流',
       value: `${formatNumber(workflowTotal)} 次`,
       detail: `Free data ${formatNumber(freeDataRuns)} 次，Discovery ${formatNumber(alphaDiscoveryRuns)} 次，Shadow ${formatNumber(shadowRuns)} 次。`,
-      tone: 'blue'
+      tone: 'blue',
     },
     {
       label: '今日数据产出',
       value: `${formatNumber(dataIntakeTotal)} 条`,
       detail: `新闻 ${formatNumber(tableCounts.news_items?.count || 0)}，期权链 ${formatNumber(tableCounts.option_chain_snapshots?.count || 0)}，信号 ${formatNumber(tableCounts.signals?.count || 0)}。`,
-      tone: 'green'
+      tone: 'green',
     },
     {
       label: 'Alpha 评估',
       value: `P ${formatNumber(passCount)} / W ${formatNumber(watchCount)} / R ${formatNumber(rejectCount)}`,
       detail: `今日新增回测 ${formatNumber(tableCounts.backtest_runs?.count || 0)} 个，回测指标 ${formatNumber(tableCounts.backtest_metrics?.count || 0)} 条。`,
-      tone: 'amber'
+      tone: 'amber',
     },
     {
       label: '训练状态',
-      value: training.latest_run ? `${formatNumber(training.current_dataset_count || 0)} 样本` : '今日未训练',
+      value: training.latest_run
+        ? `${formatNumber(training.current_dataset_count || 0)} 样本`
+        : '今日未训练',
       detail: training.latest_run
         ? `${training.latest_run.status || 'WAIT'} · ${training.latest_execution_reason || 'execution_not_requested'}`
         : `最近一次 ${formatDateTime(training.latest_run_at)}`,
-      tone: 'red'
-    }
+      tone: 'red',
+    },
   ];
 
   const workflowMixRows = workflowCounts.map((row) => ({
     label: workflowLabel(row.workflow_key),
-    value: Number(row.run_count || 0)
+    value: Number(row.run_count || 0),
   }));
 
   const tableMixRows = Object.entries(tableCounts).map(([key, row]) => ({
     label: tableLabel(key),
-    value: Number(row?.count || 0)
+    value: Number(row?.count || 0),
   }));
 
   return (
@@ -177,12 +185,17 @@ export default function ResearchOpsPage() {
         <article className="panel">
           <div className="panel-header">
             <h3>数据来源</h3>
-            <span className={`status-pill ${sourceBadgeClass(dataSource.mode)}`}>{dataSource.label || '未知来源'}</span>
+            <span className={`status-pill ${sourceBadgeClass(dataSource.mode)}`}>
+              {dataSource.label || '未知来源'}
+            </span>
           </div>
           <div className="source-card-grid">
             <article className="source-card">
               <strong>当前口径</strong>
-              <p>{daily.local_date || dataSource.local_date || '--'} · {daily.timezone || dataSource.timezone || 'Asia/Shanghai'}</p>
+              <p>
+                {daily.local_date || dataSource.local_date || '--'} ·{' '}
+                {daily.timezone || dataSource.timezone || 'Asia/Shanghai'}
+              </p>
             </article>
             <article className="source-card">
               <strong>Upstream</strong>
@@ -194,7 +207,13 @@ export default function ResearchOpsPage() {
             </article>
             <article className="source-card">
               <strong>连接状态</strong>
-              <p>{dataSource.live_connected ? '已连到 EC2 live upstream。' : dataSource.error ? `已回退到本地数据：${dataSource.error}` : '当前展示本地库数据。'}</p>
+              <p>
+                {dataSource.live_connected
+                  ? '已连到 EC2 live upstream。'
+                  : dataSource.error
+                    ? `已回退到本地数据：${dataSource.error}`
+                    : '当前展示本地库数据。'}
+              </p>
             </article>
           </div>
         </article>
@@ -212,14 +231,19 @@ export default function ResearchOpsPage() {
                   {formatNumber(row.cnt)} 个，平均 acceptance {formatNumber(row.avg_acceptance, 4)}
                 </p>
                 <p>
-                  最佳 proxy 收益 {formatPercent(row.best_net_pnl, 1)}，平均 Sharpe {formatNumber(row.avg_sharpe, 3)}
+                  最佳 proxy 收益 {formatPercent(row.best_net_pnl, 1)}，平均 Sharpe{' '}
+                  {formatNumber(row.avg_sharpe, 3)}
                 </p>
-                <span className={`status-pill ${row.evaluation_status === 'PASS' ? 'is-green' : row.evaluation_status === 'WATCH' ? 'is-amber' : 'is-red'}`}>
+                <span
+                  className={`status-pill ${row.evaluation_status === 'PASS' ? 'is-green' : row.evaluation_status === 'WATCH' ? 'is-amber' : 'is-red'}`}
+                >
                   {row.evaluation_status}
                 </span>
               </article>
             ))}
-            {!evalSummary.length ? <p className="panel-copy">今天还没有新的 Alpha 评估结果。</p> : null}
+            {!evalSummary.length ? (
+              <p className="panel-copy">今天还没有新的 Alpha 评估结果。</p>
+            ) : null}
           </div>
         </article>
       </section>
@@ -271,14 +295,20 @@ export default function ResearchOpsPage() {
                     <tr key={row.backtest_run_id}>
                       <td>
                         <strong>{row.backtest_run_id}</strong>
-                        <div className="table-subline">{formatDateTime(row.completed_at || row.started_at)}</div>
+                        <div className="table-subline">
+                          {formatDateTime(row.completed_at || row.started_at)}
+                        </div>
                       </td>
                       <td>{formatPercent(row.net_return, 1)}</td>
                       <td>{formatNumber(row.sharpe, 3)}</td>
                       <td>{formatPercent(row.max_dd, 1)}</td>
                       <td>
-                        <div>{row.robustness_grade || '--'} / {row.realism_grade || '--'}</div>
-                        <div className="table-subline">sample {formatNumber(row.sample_size || 0)}</div>
+                        <div>
+                          {row.robustness_grade || '--'} / {row.realism_grade || '--'}
+                        </div>
+                        <div className="table-subline">
+                          sample {formatNumber(row.sample_size || 0)}
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -301,11 +331,20 @@ export default function ResearchOpsPage() {
             {recentSignals.map((row) => (
               <div key={row.signal_id} className="health-route-item">
                 <div>
-                  <strong>{row.symbol} · {row.direction}</strong>
-                  <p>{row.strategy_id}{row.explain ? ` · ${row.explain}` : ''}</p>
+                  <strong>
+                    {row.symbol} · {row.direction}
+                  </strong>
+                  <p>
+                    {row.strategy_id}
+                    {row.explain ? ` · ${row.explain}` : ''}
+                  </p>
                 </div>
                 <div className="candidate-timeline-meta">
-                  <span className={`status-pill ${evaluationTone(row.direction === 'LONG' ? 'PASS' : 'WATCH')}`}>Score {formatNumber(row.score, 2)}</span>
+                  <span
+                    className={`status-pill ${evaluationTone(row.direction === 'LONG' ? 'PASS' : 'WATCH')}`}
+                  >
+                    Score {formatNumber(row.score, 2)}
+                  </span>
                   <span>{formatDateTime(row.created_at_utc)}</span>
                 </div>
               </div>
@@ -326,24 +365,34 @@ export default function ResearchOpsPage() {
               <div key={row.id} className="candidate-timeline-item">
                 <div>
                   <strong>{workflowLabel(row.workflow_key)}</strong>
-                  <p>{row.status} · {row.trigger_type}</p>
+                  <p>
+                    {row.status} · {row.trigger_type}
+                  </p>
                 </div>
                 <div className="candidate-timeline-meta">
-                  {Object.entries(row.summary || {}).slice(0, 2).map(([key, value]) => (
-                    <span key={key}>{key}:{String(value ?? '--')}</span>
-                  ))}
+                  {Object.entries(row.summary || {})
+                    .slice(0, 2)
+                    .map(([key, value]) => (
+                      <span key={key}>
+                        {key}:{String(value ?? '--')}
+                      </span>
+                    ))}
                   <span>{formatDateTime(row.updated_at)}</span>
                 </div>
               </div>
             ))}
-            {!recentWorkflows.length ? <p className="panel-copy">今天还没有工作流运行记录。</p> : null}
+            {!recentWorkflows.length ? (
+              <p className="panel-copy">今天还没有工作流运行记录。</p>
+            ) : null}
           </div>
         </article>
 
         <article className="panel">
           <div className="panel-header">
             <h3>训练飞轮</h3>
-            <span className={`status-pill ${training.ready_for_training ? 'is-green' : 'is-amber'}`}>
+            <span
+              className={`status-pill ${training.ready_for_training ? 'is-green' : 'is-amber'}`}
+            >
               {training.ready_for_training ? 'Ready' : 'Accumulating'}
             </span>
           </div>
@@ -358,7 +407,10 @@ export default function ResearchOpsPage() {
             </article>
             <article className="source-card">
               <strong>样本 / 阈值</strong>
-              <p>{formatNumber(training.current_dataset_count || 0)} / {formatNumber(training.minimum_training_rows || 0)}</p>
+              <p>
+                {formatNumber(training.current_dataset_count || 0)} /{' '}
+                {formatNumber(training.minimum_training_rows || 0)}
+              </p>
             </article>
             <article className="source-card">
               <strong>执行状态</strong>

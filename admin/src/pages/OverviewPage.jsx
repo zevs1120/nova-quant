@@ -9,7 +9,7 @@ function RingMeter({ value, label, note, accent }) {
         className="ring-meter"
         style={{
           '--ring-value': `${Math.max(0, Math.min(Number(value || 0), 100)) * 3.6}deg`,
-          '--ring-accent': accent
+          '--ring-accent': accent,
         }}
       >
         <div className="ring-meter-inner">
@@ -32,14 +32,20 @@ function LifecycleStack({ rows }) {
           <span
             key={item.label}
             className="lifecycle-stack-segment"
-            style={{ width: `${(Number(item.value || 0) / total) * 100}%`, background: palette[index % palette.length] }}
+            style={{
+              width: `${(Number(item.value || 0) / total) * 100}%`,
+              background: palette[index % palette.length],
+            }}
           />
         ))}
       </div>
       <div className="lifecycle-legend">
         {rows.map((item, index) => (
           <div key={item.label} className="lifecycle-legend-item">
-            <span className="lifecycle-dot" style={{ background: palette[index % palette.length] }} />
+            <span
+              className="lifecycle-dot"
+              style={{ background: palette[index % palette.length] }}
+            />
             <span>{item.label}</span>
             <strong>{item.value}</strong>
           </div>
@@ -60,7 +66,10 @@ function MixBars({ rows }) {
             <span>{item.value}</span>
           </div>
           <div className="mix-bar-track">
-            <span className="mix-bar-fill" style={{ width: `${(Number(item.value || 0) / total) * 100}%` }} />
+            <span
+              className="mix-bar-fill"
+              style={{ width: `${(Number(item.value || 0) / total) * 100}%` }}
+            />
           </div>
         </div>
       ))}
@@ -98,32 +107,34 @@ export default function OverviewPage() {
   }
 
   const headline = data?.headline_metrics || {};
-  const activeUserRatio = headline.total_users ? (Number(headline.active_users_7d || 0) / Number(headline.total_users || 1)) * 100 : 0;
+  const activeUserRatio = headline.total_users
+    ? (Number(headline.active_users_7d || 0) / Number(headline.total_users || 1)) * 100
+    : 0;
   const stats = [
     {
       label: '注册用户',
       value: `${headline.total_users || 0} 个`,
       detail: `近 7 天活跃 ${headline.active_users_7d || 0} 个。`,
-      tone: 'blue'
+      tone: 'blue',
     },
     {
       label: '在线信号',
       value: `${headline.active_signals || 0} 条`,
       detail: '后台当前处于 NEW / TRIGGERED 的策略信号总量。',
-      tone: 'green'
+      tone: 'green',
     },
     {
       label: 'Shadow 候选',
       value: `${headline.shadow_candidates || 0} 个`,
       detail: `Canary ${headline.canary_candidates || 0} 个，说明新策略仍受严格晋升控制。`,
-      tone: 'amber'
+      tone: 'amber',
     },
     {
       label: 'AI 与因子',
       value: `${headline.ai_runs || 0} 次 AI 运行`,
       detail: `最近沉淀新闻因子 ${headline.recent_news_factors || 0} 条。`,
-      tone: 'red'
-    }
+      tone: 'red',
+    },
   ];
 
   const topSymbols = (data?.top_symbols || []).slice(0, 5);
@@ -134,14 +145,18 @@ export default function OverviewPage() {
         <div className="hero-copy-card">
           <p className="admin-eyebrow">Overview</p>
           <h3>平台运行总览</h3>
-          <p className="hero-summary">这里汇总当前用户规模、信号活跃度、Alpha 生命周期、AI 运行情况和最新工作流状态。</p>
+          <p className="hero-summary">
+            这里汇总当前用户规模、信号活跃度、Alpha 生命周期、AI 运行情况和最新工作流状态。
+          </p>
 
           <div className="source-card-grid">
             {(data?.data_story || []).map((item) => (
               <article key={item.label} className="source-card">
                 <strong>{item.label}</strong>
                 <p>{item.detail}</p>
-                <p><strong>{item.value}</strong></p>
+                <p>
+                  <strong>{item.value}</strong>
+                </p>
               </article>
             ))}
           </div>
@@ -162,11 +177,17 @@ export default function OverviewPage() {
             </article>
             <article className="mini-note-card tone-dark">
               <p>策略层</p>
-              <strong>{headline.active_signals || 0} 条在线信号，{headline.shadow_candidates || 0} 个 Shadow 候选</strong>
+              <strong>
+                {headline.active_signals || 0} 条在线信号，{headline.shadow_candidates || 0} 个
+                Shadow 候选
+              </strong>
             </article>
             <article className="mini-note-card tone-soft">
               <p>AI 层</p>
-              <strong>{headline.ai_runs || 0} 次最近 AI 运行，{headline.recent_news_factors || 0} 条因子沉淀</strong>
+              <strong>
+                {headline.ai_runs || 0} 次最近 AI 运行，{headline.recent_news_factors || 0}{' '}
+                条因子沉淀
+              </strong>
             </article>
           </div>
         </div>
@@ -236,9 +257,13 @@ export default function OverviewPage() {
               <div key={`${item.workflow_key}-${item.updated_at}`} className="api-progress-item">
                 <div>
                   <strong>{item.workflow_key}</strong>
-                  <p>{item.trigger_type} · {item.updated_at || '时间未知'}</p>
+                  <p>
+                    {item.trigger_type} · {item.updated_at || '时间未知'}
+                  </p>
                 </div>
-                <span className={`status-pill ${item.status === 'SUCCEEDED' ? 'is-green' : item.status === 'FAILED' ? 'is-red' : 'is-slate'}`}>
+                <span
+                  className={`status-pill ${item.status === 'SUCCEEDED' ? 'is-green' : item.status === 'FAILED' ? 'is-red' : 'is-slate'}`}
+                >
                   {item.status}
                 </span>
               </div>

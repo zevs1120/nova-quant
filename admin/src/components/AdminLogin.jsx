@@ -44,12 +44,18 @@ export default function AdminLogin({ loading, error, onSubmit, apiBase }) {
 
           {error ? <p className="admin-error">{error}</p> : null}
 
-          <button type="submit" className="admin-primary-btn" disabled={loading || !email || !password}>
+          <button
+            type="submit"
+            className="admin-primary-btn"
+            disabled={loading || !email || !password}
+          >
             {loading ? '正在校验权限…' : '管理员登录'}
           </button>
         </form>
 
-        <p className="admin-footnote">{apiBase ? `当前接口源：${apiBase}` : '当前接口源：同域代理'}</p>
+        <p className="admin-footnote">
+          {apiBase ? `当前接口源：${apiBase}` : '当前接口源：同域代理'}
+        </p>
       </section>
     </div>
   );

@@ -47,6 +47,7 @@ Use this template for promotion/demotion/rollback/retirement reviews.
 ## 6) Stage Check Results
 
 List required checks and status:
+
 - [ ] evidence_completeness
 - [ ] replay_context
 - [ ] execution_profile

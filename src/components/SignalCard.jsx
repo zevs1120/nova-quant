@@ -19,21 +19,25 @@ function buildOrderText(signal) {
     `size: ${signal.position_advice?.position_pct ?? signal.position_size_pct}%`,
     `horizon_days: ${signal.holding_horizon_days ?? '--'}`,
     `status: ${signal.status}`,
-    `signal_id: ${signal.signal_id}`
+    `signal_id: ${signal.signal_id}`,
   ].join('\n');
 }
 
 function toRiskTag(signal, t) {
   const riskScore = Number(signal.risk_score ?? 50);
-  if (riskScore >= 68) return `${t('signals.riskHigh', undefined, 'Risk: High')} (${riskScore.toFixed(0)})`;
-  if (riskScore >= 42) return `${t('signals.riskMedium', undefined, 'Risk: Medium')} (${riskScore.toFixed(0)})`;
+  if (riskScore >= 68)
+    return `${t('signals.riskHigh', undefined, 'Risk: High')} (${riskScore.toFixed(0)})`;
+  if (riskScore >= 42)
+    return `${t('signals.riskMedium', undefined, 'Risk: Medium')} (${riskScore.toFixed(0)})`;
   return `${t('signals.riskLow', undefined, 'Risk: Low')} (${riskScore.toFixed(0)})`;
 }
 
 function toRegimeTag(signal, t) {
   const compatibility = Number(signal.regime_compatibility ?? 50);
-  if (compatibility >= 72) return `${t('signals.regimeGood', undefined, 'Regime fit: Good')} (${compatibility.toFixed(0)})`;
-  if (compatibility >= 45) return `${t('signals.regimeWatch', undefined, 'Regime fit: Watch')} (${compatibility.toFixed(0)})`;
+  if (compatibility >= 72)
+    return `${t('signals.regimeGood', undefined, 'Regime fit: Good')} (${compatibility.toFixed(0)})`;
+  if (compatibility >= 45)
+    return `${t('signals.regimeWatch', undefined, 'Regime fit: Watch')} (${compatibility.toFixed(0)})`;
   return `${t('signals.regimePoor', undefined, 'Regime fit: Poor')} (${compatibility.toFixed(0)})`;
 }
 
@@ -41,7 +45,8 @@ function freshnessLabel(signal, t, locale) {
   const createdAt = new Date(signal.created_at ?? signal.generated_at);
   const expiresAt = new Date(signal.expires_at || createdAt.getTime() + 24 * 3600 * 1000);
   const diffMs = expiresAt.getTime() - Date.now();
-  if (!Number.isFinite(diffMs)) return formatDateTime(signal.created_at ?? signal.generated_at, locale);
+  if (!Number.isFinite(diffMs))
+    return formatDateTime(signal.created_at ?? signal.generated_at, locale);
   if (diffMs <= 0) return t('signals.freshExpired', undefined, 'Expired');
   const hours = Math.round(diffMs / 3600000);
   if (hours <= 1) return t('signals.freshSoon', undefined, 'Expires soon');
@@ -54,7 +59,10 @@ function confidencePct(level) {
 
 function coachMode(signal, t) {
   const size = Number(signal.position_advice?.position_pct ?? signal.position_size_pct ?? 0);
-  if (String(signal.status).toUpperCase() !== 'TRIGGERED' && String(signal.status).toUpperCase() !== 'NEW') {
+  if (
+    String(signal.status).toUpperCase() !== 'TRIGGERED' &&
+    String(signal.status).toUpperCase() !== 'NEW'
+  ) {
     return t('signals.watchOnly', undefined, 'Watch first');
   }
   if (size >= 14) return t('signals.normalRiskHint', undefined, 'Normal size');
@@ -72,7 +80,7 @@ export default function SignalCard({
   onExecute,
   onMarkDone,
   t,
-  locale
+  locale,
 }) {
   const confidenceLevel = normalizeConfidenceLevel(signal);
   const confidenceKey = confidenceBand(confidenceLevel);
@@ -88,17 +96,26 @@ export default function SignalCard({
   const hasCorrCluster = signal.risk_warnings?.includes('correlation_cluster');
 
   return (
-    <article className="signal-card" onClick={() => onSelect(signal)} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && onSelect(signal)}>
+    <article
+      className="signal-card"
+      onClick={() => onSelect(signal)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => e.key === 'Enter' && onSelect(signal)}
+    >
       <div className="signal-row">
         <div>
           <h3 className="signal-symbol">{signal.symbol}</h3>
           <p className="signal-meta">
-            {t(`direction.${signal.direction}`, undefined, signal.direction)} · {freshnessLabel(signal, t, locale)}
+            {t(`direction.${signal.direction}`, undefined, signal.direction)} ·{' '}
+            {freshnessLabel(signal, t, locale)}
           </p>
         </div>
         <div className="signal-right-head">
           {signal.grade ? <span className="badge badge-neutral">Grade {signal.grade}</span> : null}
-          <span className={`badge badge-${String(signal.status).toLowerCase()}`}>{t(`status.${signal.status}`, undefined, signal.status)}</span>
+          <span className={`badge badge-${String(signal.status).toLowerCase()}`}>
+            {t(`status.${signal.status}`, undefined, signal.status)}
+          </span>
           <button
             type="button"
             className={`watch-btn ${isWatched ? 'watched' : ''}`}
@@ -115,10 +132,14 @@ export default function SignalCard({
 
       <div className="confidence-ribbon">
         <div className="confidence-track">
-          <div className="confidence-fill" style={{ width: `${confidencePct(confidenceLevel)}%` }} />
+          <div
+            className="confidence-fill"
+            style={{ width: `${confidencePct(confidenceLevel)}%` }}
+          />
         </div>
         <p className="signal-meta">
-          {t('signals.confShort')}: {t(`confidenceBand.${confidenceKey}`)} ({confidenceLevel.toFixed(1)}/5)
+          {t('signals.confShort')}: {t(`confidenceBand.${confidenceKey}`)} (
+          {confidenceLevel.toFixed(1)}/5)
         </p>
       </div>
 
@@ -134,7 +155,8 @@ export default function SignalCard({
         <div className="plan-cell plan-cell-wide">
           <span className="detail-label">{t('signals.riskLine', undefined, 'Risk line')}</span>
           <span className="detail-value">
-            {Number.isFinite(stop) ? formatNumber(stop, 2, locale) : '--'} · {t('signals.stopEarlyHint', undefined, 'get out if it breaks')}
+            {Number.isFinite(stop) ? formatNumber(stop, 2, locale) : '--'} ·{' '}
+            {t('signals.stopEarlyHint', undefined, 'get out if it breaks')}
           </span>
         </div>
       </div>
@@ -148,10 +170,14 @@ export default function SignalCard({
           <span>{toRegimeTag(signal, t)}</span>
         </div>
         {hasRegimeMismatch ? (
-          <div className="badge badge-medium">{t('signals.warnMismatchShort', undefined, 'Regime mismatch')}</div>
+          <div className="badge badge-medium">
+            {t('signals.warnMismatchShort', undefined, 'Regime mismatch')}
+          </div>
         ) : null}
         {hasCorrCluster ? (
-          <div className="badge badge-medium">{t('signals.warnCorrelationShort', undefined, 'Correlation cluster')}</div>
+          <div className="badge badge-medium">
+            {t('signals.warnCorrelationShort', undefined, 'Correlation cluster')}
+          </div>
         ) : null}
       </div>
 

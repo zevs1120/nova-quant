@@ -7,7 +7,7 @@ function parseArgs(argv: string[]) {
   const args = {
     userId: 'guest-default',
     triggerType: 'manual' as 'manual' | 'scheduled' | 'shadow',
-    force: false
+    force: false,
   };
   for (let i = 0; i < argv.length; i += 1) {
     const token = argv[i];
@@ -36,7 +36,7 @@ async function main() {
     repo,
     userId: args.userId,
     triggerType: args.triggerType,
-    force: args.force
+    force: args.force,
   });
   console.log(JSON.stringify(result, null, 2));
 }

@@ -14,7 +14,7 @@ describe('upsert logic', () => {
       market: 'CRYPTO',
       venue: 'BINANCE_UM',
       base: 'BTC',
-      quote: 'USDT'
+      quote: 'USDT',
     });
 
     const bar = {
@@ -23,7 +23,7 @@ describe('upsert logic', () => {
       high: '40100',
       low: '39900',
       close: '40050',
-      volume: '123'
+      volume: '123',
     };
 
     repo.upsertOhlcvBars(asset.asset_id, '5m', [bar], 'TEST_A');
@@ -43,7 +43,7 @@ describe('upsert logic', () => {
     const asset = repo.upsertAsset({
       symbol: 'AAPL',
       market: 'US',
-      venue: 'STOOQ'
+      venue: 'STOOQ',
     });
 
     repo.setCursor(asset.asset_id, '1d', 1700000000000, 'TEST');

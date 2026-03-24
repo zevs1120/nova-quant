@@ -24,7 +24,7 @@ function isLocalHost(hostname) {
 function runtimeApiBases() {
   const envBases = unique([
     trimTrailingSlash(import.meta.env?.VITE_API_BASE_URL),
-    trimTrailingSlash(import.meta.env?.VITE_PUBLIC_API_BASE_URL)
+    trimTrailingSlash(import.meta.env?.VITE_PUBLIC_API_BASE_URL),
   ]);
 
   if (typeof window === 'undefined') return envBases;
@@ -39,7 +39,11 @@ function runtimeApiBases() {
     return unique([...envBases, '']);
   }
 
-  if (hostname === 'novaquant.cloud' || hostname === 'admin.novaquant.cloud' || hostname.endsWith('.novaquant.cloud')) {
+  if (
+    hostname === 'novaquant.cloud' ||
+    hostname === 'admin.novaquant.cloud' ||
+    hostname.endsWith('.novaquant.cloud')
+  ) {
     return unique(['', ...envBases, 'https://api.novaquant.cloud']);
   }
 
@@ -47,7 +51,9 @@ function runtimeApiBases() {
 }
 
 export function buildApiUrl(path, base = '') {
-  const normalizedPath = String(path || '').startsWith('/') ? String(path) : `/${String(path || '')}`;
+  const normalizedPath = String(path || '').startsWith('/')
+    ? String(path)
+    : `/${String(path || '')}`;
   if (!base) return normalizedPath;
   return `${trimTrailingSlash(base)}${normalizedPath}`;
 }
@@ -66,7 +72,7 @@ export async function fetchApi(path, options = {}) {
       const response = await fetch(url, {
         ...options,
         mode: base ? 'cors' : options.mode,
-        credentials: options.credentials ?? 'include'
+        credentials: options.credentials ?? 'include',
       });
       cachedApiBase = base;
       return response;

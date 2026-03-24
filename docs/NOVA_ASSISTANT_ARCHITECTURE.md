@@ -7,14 +7,17 @@ Last updated: 2026-03-23
 Nova Quant now exposes a single canonical assistant path.
 
 User-facing surfaces:
+
 - AI tab / Ask Nova page
 - Ask Nova shortcuts from Today / Holdings / other pages
 - ChatAssistant sheet UI (if opened)
 
 All of these route through:
+
 - `POST /api/chat`
 
 The same canonical assistant can now operate in three modes:
+
 - `general-coach`
 - `context-aware`
 - `research-assistant`
@@ -22,12 +25,14 @@ The same canonical assistant can now operate in three modes:
 ## Core Flow
 
 1. Frontend sends:
+
 - `userId`
 - `threadId` (if an existing conversation exists)
 - `message`
 - page-aware context (`market`, `assetClass`, `signalId`, `symbol`, `riskProfileKey`, `uiMode`)
 
 2. Backend assistant service:
+
 - restores or creates a chat thread
 - loads recent messages from `chat_messages`
 - builds evidence-aware context with `src/server/chat/tools.ts`
@@ -37,10 +42,12 @@ The same canonical assistant can now operate in three modes:
 - degrades honestly to deterministic internal guidance if no provider succeeds
 
 For research-heavy questions, the assistant now also pulls from:
+
 - `src/server/research/knowledge.ts`
 - `src/server/research/tools.ts`
 
 That lets the same Nova Assistant answer research questions about:
+
 - factor definitions
 - factor interactions
 - regime fit
@@ -55,11 +62,13 @@ That lets the same Nova Assistant answer research questions about:
 - signal-level evidence
 
 3. Backend persists:
+
 - `chat_threads`
 - `chat_messages`
 - `chat_audit_logs`
 
 4. Frontend restores:
+
 - most recent thread
 - thread messages
 - current thread id in local storage
@@ -67,12 +76,14 @@ That lets the same Nova Assistant answer research questions about:
 ## Why This Replaced The Old Split
 
 Before this upgrade, the product effectively had two AI paths:
+
 - local deterministic frontend retrieval
 - backend provider-backed chat
 
 That created a "two brains" problem.
 
 Now:
+
 - deterministic retrieval still exists,
 - but only as a backend tool / fallback source,
 - so the user sees one Nova Assistant instead of two inconsistent systems.
@@ -97,6 +108,7 @@ In this mode, prompt assembly changes from plain product coaching to:
 - next-step research guidance
 
 The expected answer structure is:
+
 - `VERDICT`
 - `PLAN`
 - `WHY`
@@ -104,6 +116,7 @@ The expected answer structure is:
 - `EVIDENCE`
 
 And the assistant should explicitly say whether a line of thought is worth:
+
 - more desk research
 - backtest
 - replay
@@ -112,6 +125,7 @@ And the assistant should explicitly say whether a line of thought is worth:
 ## Research Tool Inventory
 
 Current research tools include:
+
 - `get_factor_catalog`
 - `get_factor_definition`
 - `get_factor_interactions`
@@ -136,6 +150,7 @@ Current research tools include:
 - `summarize_research_on_topic`
 
 See also:
+
 - `docs/RESEARCH_ASSISTANT_TOOLS.md`
 
 ## Honesty Rules

@@ -1,7 +1,7 @@
 import {
   canonicalStrategyFamily,
   loadDiscoverySeedRuntime,
-  normalizeConstraintList
+  normalizeConstraintList,
 } from './seedRuntime.js';
 
 const LEGACY_TEMPLATE_REGISTRY = Object.freeze([
@@ -13,14 +13,19 @@ const LEGACY_TEMPLATE_REGISTRY = Object.freeze([
     exit_logic_structure: 'Time stop + trailing stop + momentum decay exit',
     risk_logic: 'Volatility-normalized stop distance with regime guardrails',
     position_sizing_logic: 'Conviction * regime multiplier * risk bucket multiplier',
-    compatible_features: ['trend_strength', 'breakout_distance', 'volume_expansion', 'vol_percentile'],
+    compatible_features: [
+      'trend_strength',
+      'breakout_distance',
+      'volume_expansion',
+      'vol_percentile',
+    ],
     parameter_ranges: {
       breakout_percentile: { min: 0.6, max: 0.95, step: 0.05 },
       trend_lookback: { min: 10, max: 80, step: 10 },
-      volatility_filter: { min: 0.45, max: 0.9, step: 0.05 }
+      volatility_filter: { min: 0.45, max: 0.9, step: 0.05 },
     },
     compatible_asset_classes: ['US_STOCK', 'CRYPTO'],
-    compatible_regimes: ['trend', 'uptrend_normal', 'uptrend_high_vol']
+    compatible_regimes: ['trend', 'uptrend_normal', 'uptrend_high_vol'],
   },
   {
     template_id: 'TMP-MEAN-REVERT',
@@ -30,14 +35,19 @@ const LEGACY_TEMPLATE_REGISTRY = Object.freeze([
     exit_logic_structure: 'Exit on mean reversion target or time decay',
     risk_logic: 'Stop on adverse continuation and volatility shock expansion',
     position_sizing_logic: 'Reduce size under risk-off or weak liquidity',
-    compatible_features: ['zscore_lookback', 'percentile_rank', 'vol_spike_score', 'liquidity_score'],
+    compatible_features: [
+      'zscore_lookback',
+      'percentile_rank',
+      'vol_spike_score',
+      'liquidity_score',
+    ],
     parameter_ranges: {
       zscore_trigger: { min: 1.0, max: 3.5, step: 0.25 },
       percentile_extreme: { min: 0.75, max: 0.99, step: 0.02 },
-      max_hold_bars: { min: 1, max: 10, step: 1 }
+      max_hold_bars: { min: 1, max: 10, step: 1 },
     },
     compatible_asset_classes: ['US_STOCK', 'CRYPTO'],
-    compatible_regimes: ['range', 'range_high_vol', 'high_volatility']
+    compatible_regimes: ['range', 'range_high_vol', 'high_volatility'],
   },
   {
     template_id: 'TMP-REL-STRENGTH',
@@ -47,31 +57,42 @@ const LEGACY_TEMPLATE_REGISTRY = Object.freeze([
     exit_logic_structure: 'Periodic rebalance or rank breakdown exit',
     risk_logic: 'Concentration cap and correlation conflict filter',
     position_sizing_logic: 'Rank-proportional with turnover penalty',
-    compatible_features: ['sector_relative_strength', 'cross_asset_rank', 'basket_rank', 'turnover_cost_proxy'],
+    compatible_features: [
+      'sector_relative_strength',
+      'cross_asset_rank',
+      'basket_rank',
+      'turnover_cost_proxy',
+    ],
     parameter_ranges: {
       top_percentile_cutoff: { min: 0.05, max: 0.4, step: 0.05 },
       rebalance_days: { min: 1, max: 20, step: 1 },
-      turnover_cap: { min: 0.1, max: 0.8, step: 0.05 }
+      turnover_cap: { min: 0.1, max: 0.8, step: 0.05 },
     },
     compatible_asset_classes: ['US_STOCK', 'CRYPTO'],
-    compatible_regimes: ['trend', 'range_normal', 'risk_recovery']
+    compatible_regimes: ['trend', 'range_normal', 'risk_recovery'],
   },
   {
     template_id: 'TMP-REGIME-TRANS',
     template_name: 'Regime Transition Template',
     strategy_family: 'Regime Transition',
-    entry_logic_structure: 'Activate when transition signals exceed threshold and regime confidence decays',
+    entry_logic_structure:
+      'Activate when transition signals exceed threshold and regime confidence decays',
     exit_logic_structure: 'Exit after transition completion or failed transition reversal',
     risk_logic: 'Aggressive size down under transition uncertainty',
     position_sizing_logic: 'Transition confidence weighted with defensive cap',
-    compatible_features: ['risk_on_off_score', 'breadth_decay', 'cross_asset_stress', 'trend_confidence'],
+    compatible_features: [
+      'risk_on_off_score',
+      'breadth_decay',
+      'cross_asset_stress',
+      'trend_confidence',
+    ],
     parameter_ranges: {
       transition_trigger: { min: 0.45, max: 0.95, step: 0.05 },
       confirmation_bars: { min: 1, max: 8, step: 1 },
-      defensive_cut_multiplier: { min: 0.15, max: 0.9, step: 0.05 }
+      defensive_cut_multiplier: { min: 0.15, max: 0.9, step: 0.05 },
     },
     compatible_asset_classes: ['US_STOCK', 'CRYPTO'],
-    compatible_regimes: ['transition', 'risk_off', 'high_volatility', 'range_high_vol']
+    compatible_regimes: ['transition', 'risk_off', 'high_volatility', 'range_high_vol'],
   },
   {
     template_id: 'TMP-FUNDING-BASIS',
@@ -81,15 +102,20 @@ const LEGACY_TEMPLATE_REGISTRY = Object.freeze([
     exit_logic_structure: 'Exit on carry normalization, basis compression, or stress expansion',
     risk_logic: 'Spread and depth stress gates + leverage cap',
     position_sizing_logic: 'Carry score weighted with liquidity and stress penalty',
-    compatible_features: ['funding_rate', 'funding_zscore', 'basis_annualized', 'open_interest_change'],
+    compatible_features: [
+      'funding_rate',
+      'funding_zscore',
+      'basis_annualized',
+      'open_interest_change',
+    ],
     parameter_ranges: {
       funding_z_trigger: { min: 1.0, max: 4.0, step: 0.25 },
       basis_shift_bps: { min: 5, max: 180, step: 5 },
-      leverage_cap: { min: 1.0, max: 2.5, step: 0.1 }
+      leverage_cap: { min: 1.0, max: 2.5, step: 0.1 },
     },
     compatible_asset_classes: ['CRYPTO'],
-    compatible_regimes: ['range', 'high_volatility', 'risk_off', 'trend']
-  }
+    compatible_regimes: ['range', 'high_volatility', 'risk_off', 'trend'],
+  },
 ]);
 
 function parseHorizonRange(horizon) {
@@ -107,7 +133,7 @@ function parseHorizonConstraint(raw) {
   if (typeof raw === 'object') {
     return {
       min: Number.isFinite(raw.min) ? raw.min : 0,
-      max: Number.isFinite(raw.max) ? raw.max : Number.POSITIVE_INFINITY
+      max: Number.isFinite(raw.max) ? raw.max : Number.POSITIVE_INFINITY,
     };
   }
   const key = String(raw).toLowerCase().trim();
@@ -121,18 +147,28 @@ function parseHorizonConstraint(raw) {
 function normalizeTemplate(template = {}, index = 0) {
   return {
     template_id: template.template_id || `TMP-LEGACY-${String(index + 1).padStart(3, '0')}`,
-    template_name: template.template_name || template.template_id || `Discovery template ${index + 1}`,
-    strategy_family: canonicalStrategyFamily(template.strategy_family || template.family || 'unknown'),
-    entry_logic_structure: template.entry_logic_structure || template.entry_logic || 'Template entry logic',
-    exit_logic_structure: template.exit_logic_structure || template.exit_logic || 'Template exit logic',
+    template_name:
+      template.template_name || template.template_id || `Discovery template ${index + 1}`,
+    strategy_family: canonicalStrategyFamily(
+      template.strategy_family || template.family || 'unknown',
+    ),
+    entry_logic_structure:
+      template.entry_logic_structure || template.entry_logic || 'Template entry logic',
+    exit_logic_structure:
+      template.exit_logic_structure || template.exit_logic || 'Template exit logic',
     risk_logic: template.risk_logic || template.stop_logic_structure || 'Template risk logic',
-    position_sizing_logic: template.position_sizing_logic || template.sizing_logic_hints || 'Template sizing logic',
-    compatible_features: Array.isArray(template.compatible_features) ? template.compatible_features : [],
+    position_sizing_logic:
+      template.position_sizing_logic || template.sizing_logic_hints || 'Template sizing logic',
+    compatible_features: Array.isArray(template.compatible_features)
+      ? template.compatible_features
+      : [],
     parameter_ranges: template.parameter_ranges || {},
     compatible_asset_classes: Array.isArray(template.compatible_asset_classes)
       ? template.compatible_asset_classes
       : ['US_STOCK', 'CRYPTO'],
-    compatible_regimes: Array.isArray(template.compatible_regimes) ? template.compatible_regimes : ['range'],
+    compatible_regimes: Array.isArray(template.compatible_regimes)
+      ? template.compatible_regimes
+      : ['range'],
     expected_holding_horizon: template.expected_holding_horizon || '1-5 bars',
     expected_trade_density: template.expected_trade_density || 'medium',
     risk_profile: template.risk_profile || 'balanced',
@@ -143,16 +179,12 @@ function normalizeTemplate(template = {}, index = 0) {
       source_type: 'legacy_registry',
       seed_id: null,
       seed_index: index,
-      seed_file: null
-    }
+      seed_file: null,
+    },
   };
 }
 
-function resolveTemplates({
-  seedRuntime = null,
-  seedOverrides = {},
-  templates = null
-} = {}) {
+function resolveTemplates({ seedRuntime = null, seedOverrides = {}, templates = null } = {}) {
   if (Array.isArray(templates) && templates.length) {
     return templates.map((item, idx) => normalizeTemplate(item, idx));
   }
@@ -165,34 +197,52 @@ function resolveTemplates({
 
 function normalizeConstraints(constraints = {}) {
   return {
-    market: normalizeConstraintList(constraints.market || constraints.markets).map((item) => String(item).toUpperCase()),
-    asset_classes: normalizeConstraintList(constraints.asset_class || constraints.asset_classes).map((item) =>
-      String(item).toUpperCase()
+    market: normalizeConstraintList(constraints.market || constraints.markets).map((item) =>
+      String(item).toUpperCase(),
     ),
-    regimes: normalizeConstraintList(constraints.regime || constraints.regimes).map((item) => String(item).toLowerCase()),
-    families: normalizeConstraintList(constraints.family || constraints.families).map(canonicalStrategyFamily),
+    asset_classes: normalizeConstraintList(
+      constraints.asset_class || constraints.asset_classes,
+    ).map((item) => String(item).toUpperCase()),
+    regimes: normalizeConstraintList(constraints.regime || constraints.regimes).map((item) =>
+      String(item).toLowerCase(),
+    ),
+    families: normalizeConstraintList(constraints.family || constraints.families).map(
+      canonicalStrategyFamily,
+    ),
     trade_horizon: parseHorizonConstraint(constraints.trade_horizon || constraints.horizon),
-    risk_profile: String(constraints.risk_profile || constraints.riskProfile || '').toLowerCase().trim()
+    risk_profile: String(constraints.risk_profile || constraints.riskProfile || '')
+      .toLowerCase()
+      .trim(),
   };
 }
 
 function supportsMarket(template, markets = []) {
   if (!markets.length) return true;
-  const assets = new Set((template.compatible_asset_classes || []).map((item) => String(item).toUpperCase()));
-  if (markets.some((item) => ['US', 'US_STOCK', 'EQUITY'].includes(item)) && !assets.has('US_STOCK')) return false;
+  const assets = new Set(
+    (template.compatible_asset_classes || []).map((item) => String(item).toUpperCase()),
+  );
+  if (
+    markets.some((item) => ['US', 'US_STOCK', 'EQUITY'].includes(item)) &&
+    !assets.has('US_STOCK')
+  )
+    return false;
   if (markets.some((item) => ['CRYPTO'].includes(item)) && !assets.has('CRYPTO')) return false;
   return true;
 }
 
 function supportsAssetClass(template, classes = []) {
   if (!classes.length) return true;
-  const assets = new Set((template.compatible_asset_classes || []).map((item) => String(item).toUpperCase()));
+  const assets = new Set(
+    (template.compatible_asset_classes || []).map((item) => String(item).toUpperCase()),
+  );
   return classes.every((item) => assets.has(item));
 }
 
 function supportsRegime(template, regimes = []) {
   if (!regimes.length) return true;
-  const available = new Set((template.compatible_regimes || []).map((item) => String(item).toLowerCase()));
+  const available = new Set(
+    (template.compatible_regimes || []).map((item) => String(item).toLowerCase()),
+  );
   return regimes.some((item) => available.has(item));
 }
 
@@ -226,25 +276,26 @@ function supportsRiskProfile(template, riskProfile = '') {
 }
 
 function applyConstraints(templates = [], constraints = {}) {
-  return (templates || []).filter((template) => (
-    supportsMarket(template, constraints.market) &&
-    supportsAssetClass(template, constraints.asset_classes) &&
-    supportsRegime(template, constraints.regimes) &&
-    supportsFamily(template, constraints.families) &&
-    supportsHorizon(template, constraints.trade_horizon) &&
-    supportsRiskProfile(template, constraints.risk_profile)
-  ));
+  return (templates || []).filter(
+    (template) =>
+      supportsMarket(template, constraints.market) &&
+      supportsAssetClass(template, constraints.asset_classes) &&
+      supportsRegime(template, constraints.regimes) &&
+      supportsFamily(template, constraints.families) &&
+      supportsHorizon(template, constraints.trade_horizon) &&
+      supportsRiskProfile(template, constraints.risk_profile),
+  );
 }
 
 export function listDiscoveryTemplates({
   seedRuntime = null,
   seedOverrides = {},
-  templates = null
+  templates = null,
 } = {}) {
   return resolveTemplates({
     seedRuntime,
     seedOverrides,
-    templates
+    templates,
   });
 }
 
@@ -253,17 +304,21 @@ export function buildTemplateRegistry({
   config = {},
   seedRuntime = null,
   seedOverrides = {},
-  templates = null
+  templates = null,
 } = {}) {
   const resolved = resolveTemplates({
     seedRuntime,
     seedOverrides,
-    templates
+    templates,
   });
   const constraints = normalizeConstraints(config.constraints || config);
   const constrained = applyConstraints(resolved, constraints);
-  const seedConsumed = resolved.some((item) => item?.source_metadata?.source_type === 'seed_runtime');
-  const fallbackUsed = resolved.some((item) => item?.source_metadata?.source_type === 'legacy_registry');
+  const seedConsumed = resolved.some(
+    (item) => item?.source_metadata?.source_type === 'seed_runtime',
+  );
+  const fallbackUsed = resolved.some(
+    (item) => item?.source_metadata?.source_type === 'legacy_registry',
+  );
 
   return {
     generated_at: asOf,
@@ -273,10 +328,10 @@ export function buildTemplateRegistry({
       fallback_used: fallbackUsed,
       total_seed_templates:
         seedRuntime?.templates?.length ||
-        resolved.filter((item) => item?.source_metadata?.source_type === 'seed_runtime').length
+        resolved.filter((item) => item?.source_metadata?.source_type === 'seed_runtime').length,
     },
     constraints_applied: constraints,
     templates: constrained,
-    total_templates: constrained.length
+    total_templates: constrained.length,
   };
 }

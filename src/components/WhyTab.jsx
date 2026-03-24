@@ -27,7 +27,7 @@ export default function WhyTab({
   research,
   uiMode = 'standard',
   locale,
-  onExplain
+  onExplain,
 }) {
   const topSignal = bestOpportunity(signals);
   const topFail = topFiltered(research);
@@ -47,20 +47,27 @@ export default function WhyTab({
         </div>
         <p className="daily-brief-conclusion">{stanceLabel(today, safety)}</p>
         <p className="muted status-line">
-          Safety {formatNumber(safety?.safety_score, 1, locale)} · style {today?.style_hint || '--'} · risk {safety?.primary_risks?.[0] || '--'}
+          Safety {formatNumber(safety?.safety_score, 1, locale)} · style {today?.style_hint || '--'}{' '}
+          · risk {safety?.primary_risks?.[0] || '--'}
         </p>
       </article>
 
       <article className="glass-card">
         <h3 className="card-title">Why is today light / cautious?</h3>
-        <p className="muted status-line">{safety?.conclusion || 'Risk layer sets position limits from regime + breadth + volatility.'}</p>
+        <p className="muted status-line">
+          {safety?.conclusion ||
+            'Risk layer sets position limits from regime + breadth + volatility.'}
+        </p>
         <details className="exec-steps" open={uiMode === 'beginner'}>
           <summary>Show quick evidence</summary>
           <div className="exec-lines">
             <p>Mode: {safety?.mode || '--'}</p>
             <p>Safety score: {formatNumber(safety?.safety_score, 1, locale)}</p>
             <p>Primary risk: {safety?.primary_risks?.[0] || '--'}</p>
-            <p>Suggested gross/net: {today?.suggested_gross_exposure_pct ?? '--'}% / {today?.suggested_net_exposure_pct ?? '--'}%</p>
+            <p>
+              Suggested gross/net: {today?.suggested_gross_exposure_pct ?? '--'}% /{' '}
+              {today?.suggested_net_exposure_pct ?? '--'}%
+            </p>
           </div>
         </details>
       </article>
@@ -70,9 +77,12 @@ export default function WhyTab({
         {topSignal ? (
           <>
             <p className="muted status-line">
-              {topSignal.symbol} · {topSignal.grade || '--'} grade · score {formatNumber(topSignal.score, 1, locale)}
+              {topSignal.symbol} · {topSignal.grade || '--'} grade · score{' '}
+              {formatNumber(topSignal.score, 1, locale)}
             </p>
-            <p className="muted status-line">{topSignal.explain_bullets?.[0] || topSignal.rationale?.[0] || '--'}</p>
+            <p className="muted status-line">
+              {topSignal.explain_bullets?.[0] || topSignal.rationale?.[0] || '--'}
+            </p>
             <details className="exec-steps">
               <summary>Why this one over others?</summary>
               <div className="exec-lines">
@@ -84,14 +94,18 @@ export default function WhyTab({
             </details>
           </>
         ) : (
-          <p className="muted status-line">No active high-quality opportunity right now. Skipping is valid.</p>
+          <p className="muted status-line">
+            No active high-quality opportunity right now. Skipping is valid.
+          </p>
         )}
       </article>
 
       <article className="glass-card">
         <h3 className="card-title">Why are some names filtered out?</h3>
         <p className="muted status-line">
-          {topFail ? `${topFail.reason} is the dominant block this window (${topFail.count} hits).` : 'No dominant block reason in this short window.'}
+          {topFail
+            ? `${topFail.reason} is the dominant block this window (${topFail.count} hits).`
+            : 'No dominant block reason in this short window.'}
         </p>
         <details className="exec-steps">
           <summary>Filter logic in plain language</summary>
@@ -105,14 +119,17 @@ export default function WhyTab({
       <article className="glass-card">
         <h3 className="card-title">Why is my holdings risk high?</h3>
         <p className="muted status-line">
-          Risk score: {holdingsRisk?.score ?? '--'} ({holdingsRisk?.level || '--'}) · {holdingsRisk?.recommendation || '--'}
+          Risk score: {holdingsRisk?.score ?? '--'} ({holdingsRisk?.level || '--'}) ·{' '}
+          {holdingsRisk?.recommendation || '--'}
         </p>
         <details className="exec-steps" open={uiMode === 'beginner'}>
           <summary>Main portfolio risk reasons</summary>
           <div className="exec-lines">
-            {(holdingsRisk?.primary_risks || ['No portfolio risk detail yet.']).slice(0, 4).map((line) => (
-              <p key={line}>{line}</p>
-            ))}
+            {(holdingsRisk?.primary_risks || ['No portfolio risk detail yet.'])
+              .slice(0, 4)
+              .map((line) => (
+                <p key={line}>{line}</p>
+              ))}
           </div>
         </details>
       </article>
@@ -120,12 +137,16 @@ export default function WhyTab({
       <article className="glass-card">
         <h3 className="card-title">Why is system more conservative now?</h3>
         <p className="muted status-line">
-          Regime: {insights?.regime?.tag || '--'} · Risk-on/off: {insights?.risk_on_off?.state || '--'}
+          Regime: {insights?.regime?.tag || '--'} · Risk-on/off:{' '}
+          {insights?.risk_on_off?.state || '--'}
         </p>
         <details className="exec-steps">
           <summary>Conservative tilt evidence</summary>
           <div className="exec-lines">
-            <p>Regime stability score: {formatNumber(research?.diagnostics?.regime_stability?.score, 3, locale)}</p>
+            <p>
+              Regime stability score:{' '}
+              {formatNumber(research?.diagnostics?.regime_stability?.score, 3, locale)}
+            </p>
             <p>Trade-light days in window: {pressure?.trade_light_days ?? '--'}</p>
             <p>Paper vs backtest return gap: {formatPercent(paperGap?.return_gap, 2, true)}</p>
           </div>
@@ -135,13 +156,27 @@ export default function WhyTab({
       <article className="glass-card">
         <h3 className="card-title">Ask AI About Any Why</h3>
         <div className="action-row">
-          <button type="button" className="secondary-btn" onClick={() => onExplain?.('为什么今天建议轻仓或保守？')}>
+          <button
+            type="button"
+            className="secondary-btn"
+            onClick={() => onExplain?.('为什么今天建议轻仓或保守？')}
+          >
             Why today?
           </button>
-          <button type="button" className="secondary-btn" onClick={() => onExplain?.(`为什么 ${topSignal?.symbol || '这个机会'} 是当前优先机会？`)}>
+          <button
+            type="button"
+            className="secondary-btn"
+            onClick={() =>
+              onExplain?.(`为什么 ${topSignal?.symbol || '这个机会'} 是当前优先机会？`)
+            }
+          >
             Why this opportunity?
           </button>
-          <button type="button" className="secondary-btn" onClick={() => onExplain?.('为什么我的持仓风险高？最先该减哪部分？')}>
+          <button
+            type="button"
+            className="secondary-btn"
+            onClick={() => onExplain?.('为什么我的持仓风险高？最先该减哪部分？')}
+          >
             Why my holdings risk?
           </button>
         </div>

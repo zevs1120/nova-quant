@@ -8,8 +8,12 @@ describe('documentation archive consistency', () => {
     const finalDir = path.join(process.cwd(), 'docs', 'final_review');
     expect(existsSync(globalDir)).toBe(true);
     expect(existsSync(finalDir)).toBe(true);
-    const globalFiles = readdirSync(globalDir).filter((name) => !name.startsWith('.')).sort();
-    const finalFiles = readdirSync(finalDir).filter((name) => !name.startsWith('.')).sort();
+    const globalFiles = readdirSync(globalDir)
+      .filter((name) => !name.startsWith('.'))
+      .sort();
+    const finalFiles = readdirSync(finalDir)
+      .filter((name) => !name.startsWith('.'))
+      .sort();
     expect(globalFiles).toEqual(['ARCHIVED.md']);
     expect(finalFiles).toEqual(['ARCHIVED.md']);
   });

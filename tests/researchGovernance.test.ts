@@ -5,7 +5,7 @@ import { runQuantPipeline } from '../src/engines/pipeline.js';
 describe('research governance outputs', () => {
   const state = runQuantPipeline({
     as_of: '2026-03-07T00:00:00.000Z',
-    config: { risk_profile: 'balanced' }
+    config: { risk_profile: 'balanced' },
   });
   const research = state.research;
 

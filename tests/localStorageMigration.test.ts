@@ -12,7 +12,7 @@ function createMemoryStorage(seed?: Record<string, string>) {
     },
     removeItem(key: string) {
       map.delete(key);
-    }
+    },
   };
 }
 
@@ -20,17 +20,21 @@ describe('localStorage key migration', () => {
   it('prefers the new key when present', () => {
     const storage = createMemoryStorage({
       'nova-quant-risk-profile': JSON.stringify('aggressive'),
-      'quant-demo-risk-profile': JSON.stringify('balanced')
+      'quant-demo-risk-profile': JSON.stringify('balanced'),
     });
-    const value = readLocalStorageWithMigration(storage, 'nova-quant-risk-profile', 'balanced', ['quant-demo-risk-profile']);
+    const value = readLocalStorageWithMigration(storage, 'nova-quant-risk-profile', 'balanced', [
+      'quant-demo-risk-profile',
+    ]);
     expect(value).toBe('aggressive');
   });
 
   it('migrates legacy key when new key is absent', () => {
     const storage = createMemoryStorage({
-      'quant-demo-risk-profile': JSON.stringify('conservative')
+      'quant-demo-risk-profile': JSON.stringify('conservative'),
     });
-    const value = readLocalStorageWithMigration(storage, 'nova-quant-risk-profile', 'balanced', ['quant-demo-risk-profile']);
+    const value = readLocalStorageWithMigration(storage, 'nova-quant-risk-profile', 'balanced', [
+      'quant-demo-risk-profile',
+    ]);
     expect(value).toBe('conservative');
     expect(storage.getItem('nova-quant-risk-profile')).toBe(JSON.stringify('conservative'));
     expect(storage.getItem('quant-demo-risk-profile')).toBeNull();
@@ -38,7 +42,9 @@ describe('localStorage key migration', () => {
 
   it('falls back to initial value when no key exists', () => {
     const storage = createMemoryStorage();
-    const value = readLocalStorageWithMigration(storage, 'nova-quant-ui-mode', 'standard', ['quant-demo-ui-mode']);
+    const value = readLocalStorageWithMigration(storage, 'nova-quant-ui-mode', 'standard', [
+      'quant-demo-ui-mode',
+    ]);
     expect(value).toBe('standard');
   });
 });

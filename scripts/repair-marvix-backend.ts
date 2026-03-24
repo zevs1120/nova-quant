@@ -12,7 +12,7 @@ type RepairArgs = {
 function parseArgs(argv: string[]): RepairArgs {
   const out: RepairArgs = {
     market: 'ALL',
-    userId: 'guest-default'
+    userId: 'guest-default',
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -23,7 +23,8 @@ function parseArgs(argv: string[]): RepairArgs {
     const next = inlineValue ?? argv[i + 1];
     const consumeNext = inlineValue === undefined && next && !next.startsWith('--');
 
-    if (key === 'market' && next) out.market = String(next).trim().toUpperCase() as RepairArgs['market'];
+    if (key === 'market' && next)
+      out.market = String(next).trim().toUpperCase() as RepairArgs['market'];
     if (key === 'user' && next) out.userId = String(next).trim() || out.userId;
 
     if (consumeNext) i += 1;
@@ -46,7 +47,7 @@ async function main() {
     refreshNews: true,
     refreshCryptoStructure: true,
     refreshFundamentals: true,
-    refreshOptions: true
+    refreshOptions: true,
   });
 
   const report = buildPrivateMarvixOpsReport(repo);
@@ -62,24 +63,26 @@ async function main() {
     health: {
       recent_news_factor_count: report.recent_news_factors.length,
       fundamentals_count: report.reference_data.fundamentals.length,
-      option_chain_count: report.reference_data.option_chains.length
+      option_chain_count: report.reference_data.option_chains.length,
     },
     recent_news_factors: report.recent_news_factors.slice(0, 5),
     reference_data: {
       fundamentals: report.reference_data.fundamentals.slice(0, 5),
-      option_chains: report.reference_data.option_chains.slice(0, 5)
+      option_chains: report.reference_data.option_chains.slice(0, 5),
     },
     active_signal_news_context: report.active_signals.slice(0, 3).map((row) => ({
       signal_id: row.signal_id,
       symbol: row.symbol,
-      news_context: row.news_context
-    }))
+      news_context: row.news_context,
+    })),
   };
 
   process.stdout.write(`${JSON.stringify(summary, null, 2)}\n`);
 }
 
 main().catch((error) => {
-  process.stderr.write(`${error instanceof Error ? error.stack || error.message : String(error)}\n`);
+  process.stderr.write(
+    `${error instanceof Error ? error.stack || error.message : String(error)}\n`,
+  );
   process.exitCode = 1;
 });

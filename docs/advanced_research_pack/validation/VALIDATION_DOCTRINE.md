@@ -7,6 +7,7 @@ This doctrine defines production-grade validation standards for Nova Quant.
 ## 1) Why naive backtests are insufficient
 
 Naive backtests often ignore:
+
 - regime shifts,
 - realistic costs,
 - slippage/fill constraints,
@@ -19,6 +20,7 @@ Any strategy passing only naive backtest stays in DRAFT.
 
 Validation must use rolling windows with strict temporal separation.
 Goals:
+
 - estimate performance stability over time,
 - detect decay early,
 - avoid one-period overfitting.
@@ -31,6 +33,7 @@ In-sample performance is considered hypothesis support only.
 ## 4) Cost sensitivity doctrine
 
 Every candidate must be stress-tested under:
+
 - base cost assumptions,
 - harsher slippage assumptions,
 - fee/funding stress.
@@ -45,6 +48,7 @@ Reject candidates where tiny parameter changes collapse performance.
 ## 6) Regime-sliced validation
 
 Evaluate metrics by regime to identify:
+
 - conditional edge,
 - regime mismatch failure,
 - concentration risk.
@@ -52,6 +56,7 @@ Evaluate metrics by regime to identify:
 ## 7) Capacity and execution realism
 
 Validation must include:
+
 - realistic fill probability assumptions,
 - liquidity filters,
 - turnover constraints,
@@ -60,6 +65,7 @@ Validation must include:
 ## 8) Degradation monitoring
 
 After promotion, monitor:
+
 - recent-vs-historical delta,
 - rising drawdown asymmetry,
 - conversion drop across funnel stages,

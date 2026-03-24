@@ -6,7 +6,7 @@ import type {
   NewsItemRecord,
   NormalizedBar,
   OptionChainSnapshotRecord,
-  Timeframe
+  Timeframe,
 } from '../types.js';
 import { fetchWithRetry } from '../utils/http.js';
 import { normalizeBars } from './normalize.js';
@@ -18,7 +18,7 @@ const FINNHUB_BASE_URL = 'https://finnhub.io/api/v1';
 const NEWSAPI_BASE_URL = 'https://newsapi.org/v2';
 const YAHOO_OPTIONS_BASE_URLS = [
   'https://query2.finance.yahoo.com/v7/finance/options',
-  'https://query1.finance.yahoo.com/v7/finance/options'
+  'https://query1.finance.yahoo.com/v7/finance/options',
 ];
 
 function hashId(parts: Array<string | number | null | undefined>) {
@@ -48,7 +48,9 @@ function toDateFromEpochSeconds(value: number | null | undefined): string | null
 }
 
 function normalizeSymbol(value: string): string {
-  return String(value || '').trim().toUpperCase();
+  return String(value || '')
+    .trim()
+    .toUpperCase();
 }
 
 function normalizeUrl(value: string | null | undefined): string | null {
@@ -56,24 +58,28 @@ function normalizeUrl(value: string | null | undefined): string | null {
   return url || null;
 }
 
-function normalizeHeadlineId(prefix: string, market: Market, symbol: string, headline: string, publishedAtMs: number) {
+function normalizeHeadlineId(
+  prefix: string,
+  market: Market,
+  symbol: string,
+  headline: string,
+  publishedAtMs: number,
+) {
   return `${prefix}-${hashId([market, symbol, headline, publishedAtMs])}`;
 }
 
 async function fetchJson(url: string, init: RequestInit, timeoutMs = 15_000): Promise<unknown> {
-  const response = await fetchWithRetry(
-    url,
-    init,
-    { attempts: 3, baseDelayMs: 1_000 },
-    timeoutMs
-  );
+  const response = await fetchWithRetry(url, init, { attempts: 3, baseDelayMs: 1_000 }, timeoutMs);
   if (!response.ok) {
     throw new Error(`Hosted data request failed (${response.status})`);
   }
   return response.json();
 }
 
-async function fetchAlphaVantage(functionName: string, params: Record<string, string>): Promise<unknown> {
+async function fetchAlphaVantage(
+  functionName: string,
+  params: Record<string, string>,
+): Promise<unknown> {
   const apiKey = String(process.env.ALPHA_VANTAGE_API_KEY || '').trim();
   if (!apiKey) throw new Error('Alpha Vantage API key not configured');
 
@@ -85,8 +91,8 @@ async function fetchAlphaVantage(functionName: string, params: Record<string, st
   }
   const payload = (await fetchJson(url.toString(), {
     headers: {
-      Accept: 'application/json'
-    }
+      Accept: 'application/json',
+    },
   })) as JsonObject;
   if (payload['Error Message']) {
     throw new Error(String(payload['Error Message']));
@@ -105,15 +111,15 @@ async function fetchFinnhub(path: string, params: Record<string, string>): Promi
   }
   return fetchJson(url.toString(), {
     headers: {
-      Accept: 'application/json'
-    }
+      Accept: 'application/json',
+    },
   });
 }
 
 export async function fetchAlphaVantageDailyBars(symbol: string): Promise<NormalizedBar[]> {
   const payload = (await fetchAlphaVantage('TIME_SERIES_DAILY_ADJUSTED', {
     symbol,
-    outputsize: 'full'
+    outputsize: 'full',
   })) as JsonObject;
   const series = payload['Time Series (Daily)'];
   if (!series || typeof series !== 'object') return [];
@@ -134,7 +140,7 @@ export async function fetchAlphaVantageDailyBars(symbol: string): Promise<Normal
         high: String(high),
         low: String(low),
         close: String(close),
-        volume: Number.isFinite(Number(volume)) ? String(volume) : '0'
+        volume: Number.isFinite(Number(volume)) ? String(volume) : '0',
       } satisfies NormalizedBar;
     })
     .filter((row): row is NormalizedBar => Boolean(row))
@@ -143,7 +149,9 @@ export async function fetchAlphaVantageDailyBars(symbol: string): Promise<Normal
   return normalizeBars(rows);
 }
 
-export async function fetchAlphaVantageFundamentalSnapshot(symbol: string): Promise<FundamentalSnapshotRecord | null> {
+export async function fetchAlphaVantageFundamentalSnapshot(
+  symbol: string,
+): Promise<FundamentalSnapshotRecord | null> {
   const normalized = normalizeSymbol(symbol);
   if (!String(process.env.ALPHA_VANTAGE_API_KEY || '').trim()) return null;
 
@@ -151,7 +159,7 @@ export async function fetchAlphaVantageFundamentalSnapshot(symbol: string): Prom
     fetchAlphaVantage('OVERVIEW', { symbol: normalized }).catch(() => null),
     fetchAlphaVantage('INCOME_STATEMENT', { symbol: normalized }).catch(() => null),
     fetchAlphaVantage('BALANCE_SHEET', { symbol: normalized }).catch(() => null),
-    fetchAlphaVantage('EARNINGS', { symbol: normalized }).catch(() => null)
+    fetchAlphaVantage('EARNINGS', { symbol: normalized }).catch(() => null),
   ]);
 
   if (!overview && !incomeStatement && !balanceSheet && !earnings) return null;
@@ -169,19 +177,23 @@ export async function fetchAlphaVantageFundamentalSnapshot(symbol: string): Prom
       overview,
       income_statement: incomeStatement,
       balance_sheet: balanceSheet,
-      earnings
+      earnings,
     }),
-    updated_at_ms: now
+    updated_at_ms: now,
   };
 }
 
-export async function fetchFinnhubFundamentalSnapshot(symbol: string): Promise<FundamentalSnapshotRecord | null> {
+export async function fetchFinnhubFundamentalSnapshot(
+  symbol: string,
+): Promise<FundamentalSnapshotRecord | null> {
   const normalized = normalizeSymbol(symbol);
   if (!String(process.env.FINNHUB_API_KEY || '').trim()) return null;
 
   const [metrics, financials] = await Promise.all([
     fetchFinnhub('stock/metric', { symbol: normalized, metric: 'all' }).catch(() => null),
-    fetchFinnhub('stock/financials-reported', { symbol: normalized, freq: 'annual' }).catch(() => null)
+    fetchFinnhub('stock/financials-reported', { symbol: normalized, freq: 'annual' }).catch(
+      () => null,
+    ),
   ]);
 
   if (!metrics && !financials) return null;
@@ -197,9 +209,9 @@ export async function fetchFinnhubFundamentalSnapshot(symbol: string): Promise<F
       provider: 'finnhub',
       fetched_at: new Date(now).toISOString(),
       metrics,
-      financials_reported: financials
+      financials_reported: financials,
     }),
-    updated_at_ms: now
+    updated_at_ms: now,
   };
 }
 
@@ -213,7 +225,10 @@ type FinnhubNewsRow = {
   datetime?: number;
 };
 
-export async function fetchFinnhubNewsItems(market: Market, symbol: string): Promise<NewsItemRecord[]> {
+export async function fetchFinnhubNewsItems(
+  market: Market,
+  symbol: string,
+): Promise<NewsItemRecord[]> {
   if (market !== 'US') return [];
   if (!String(process.env.FINNHUB_API_KEY || '').trim()) return [];
   const normalized = normalizeSymbol(symbol);
@@ -222,14 +237,15 @@ export async function fetchFinnhubNewsItems(market: Market, symbol: string): Pro
   const payload = (await fetchFinnhub('company-news', {
     symbol: normalized,
     from,
-    to
+    to,
   }).catch(() => [])) as FinnhubNewsRow[];
 
   if (!Array.isArray(payload)) return [];
   const now = Date.now();
   return payload.slice(0, 6).map((row, index) => {
     const headline = String(row.headline || `${normalized} news`).trim();
-    const publishedAtMs = Number(row.datetime) > 0 ? Number(row.datetime) * 1000 : now - index * 60_000;
+    const publishedAtMs =
+      Number(row.datetime) > 0 ? Number(row.datetime) * 1000 : now - index * 60_000;
     return {
       id: normalizeHeadlineId('news-finnhub', market, normalized, headline, publishedAtMs),
       market,
@@ -243,9 +259,9 @@ export async function fetchFinnhubNewsItems(market: Market, symbol: string): Pro
       payload_json: JSON.stringify({
         provider: 'finnhub_news',
         summary: String(row.summary || '').trim() || null,
-        imageUrl: normalizeUrl(row.image)
+        imageUrl: normalizeUrl(row.image),
       }),
-      updated_at_ms: now
+      updated_at_ms: now,
     } satisfies NewsItemRecord;
   });
 }
@@ -261,7 +277,11 @@ type NewsApiArticle = {
   };
 };
 
-export async function fetchNewsApiItems(market: Market, symbol: string, query: string): Promise<NewsItemRecord[]> {
+export async function fetchNewsApiItems(
+  market: Market,
+  symbol: string,
+  query: string,
+): Promise<NewsItemRecord[]> {
   const apiKey = String(process.env.NEWSAPI_API_KEY || '').trim();
   if (!apiKey) return [];
 
@@ -276,10 +296,10 @@ export async function fetchNewsApiItems(market: Market, symbol: string, query: s
     {
       headers: {
         'X-Api-Key': apiKey,
-        Accept: 'application/json'
-      }
+        Accept: 'application/json',
+      },
     },
-    15_000
+    15_000,
   ).catch(() => null)) as { articles?: NewsApiArticle[] } | null;
 
   const articles = Array.isArray(payload?.articles) ? payload.articles : [];
@@ -301,9 +321,9 @@ export async function fetchNewsApiItems(market: Market, symbol: string, query: s
       payload_json: JSON.stringify({
         provider: 'newsapi',
         summary: String(row.description || '').trim() || null,
-        imageUrl: normalizeUrl(row.urlToImage)
+        imageUrl: normalizeUrl(row.urlToImage),
       }),
-      updated_at_ms: now
+      updated_at_ms: now,
     } satisfies NewsItemRecord;
   });
 }
@@ -354,12 +374,27 @@ type CboeOptionsResponse = {
   };
 };
 
-function summarizeContracts(symbol: string, expiryEpochSeconds: number, spotPrice: number, calls: YahooOptionsContract[], puts: YahooOptionsContract[]) {
-  const callIvs = calls.map((row) => safeNumber(row.impliedVolatility)).filter((row) => Number.isFinite(row));
-  const putIvs = puts.map((row) => safeNumber(row.impliedVolatility)).filter((row) => Number.isFinite(row));
-  const avgCallIv = callIvs.length ? callIvs.reduce((sum, row) => sum + row, 0) / callIvs.length : 0;
+function summarizeContracts(
+  symbol: string,
+  expiryEpochSeconds: number,
+  spotPrice: number,
+  calls: YahooOptionsContract[],
+  puts: YahooOptionsContract[],
+) {
+  const callIvs = calls
+    .map((row) => safeNumber(row.impliedVolatility))
+    .filter((row) => Number.isFinite(row));
+  const putIvs = puts
+    .map((row) => safeNumber(row.impliedVolatility))
+    .filter((row) => Number.isFinite(row));
+  const avgCallIv = callIvs.length
+    ? callIvs.reduce((sum, row) => sum + row, 0) / callIvs.length
+    : 0;
   const avgPutIv = putIvs.length ? putIvs.reduce((sum, row) => sum + row, 0) / putIvs.length : 0;
-  const totalCallOi = calls.reduce((sum, row) => sum + Math.max(0, Number(row.openInterest) || 0), 0);
+  const totalCallOi = calls.reduce(
+    (sum, row) => sum + Math.max(0, Number(row.openInterest) || 0),
+    0,
+  );
   const totalPutOi = puts.reduce((sum, row) => sum + Math.max(0, Number(row.openInterest) || 0), 0);
   const totalCallVolume = calls.reduce((sum, row) => sum + Math.max(0, Number(row.volume) || 0), 0);
   const totalPutVolume = puts.reduce((sum, row) => sum + Math.max(0, Number(row.volume) || 0), 0);
@@ -375,11 +410,14 @@ function summarizeContracts(symbol: string, expiryEpochSeconds: number, spotPric
     call_open_interest: totalCallOi,
     put_open_interest: totalPutOi,
     total_volume: totalCallVolume + totalPutVolume,
-    put_call_open_interest_ratio: totalCallOi > 0 ? round(totalPutOi / totalCallOi, 6) : null
+    put_call_open_interest_ratio: totalCallOi > 0 ? round(totalPutOi / totalCallOi, 6) : null,
   };
 }
 
-async function fetchYahooOptionChain(symbol: string, expiryEpochSeconds?: number): Promise<YahooOptionsResponse> {
+async function fetchYahooOptionChain(
+  symbol: string,
+  expiryEpochSeconds?: number,
+): Promise<YahooOptionsResponse> {
   let lastError: unknown = null;
   for (const baseUrl of YAHOO_OPTIONS_BASE_URLS) {
     try {
@@ -392,14 +430,14 @@ async function fetchYahooOptionChain(symbol: string, expiryEpochSeconds?: number
           'User-Agent': 'Mozilla/5.0 NovaQuant/1.0',
           Accept: 'application/json',
           'Accept-Language': 'en-US,en;q=0.9',
-          Referer: `https://finance.yahoo.com/quote/${encodeURIComponent(symbol)}/options`
-        }
+          Referer: `https://finance.yahoo.com/quote/${encodeURIComponent(symbol)}/options`,
+        },
       })) as YahooOptionsResponse;
     } catch (error) {
       lastError = error;
     }
   }
-  throw (lastError instanceof Error ? lastError : new Error('Yahoo options fetch failed'));
+  throw lastError instanceof Error ? lastError : new Error('Yahoo options fetch failed');
 }
 
 async function fetchCboeOptionSnapshot(symbol: string): Promise<OptionChainSnapshotRecord | null> {
@@ -411,16 +449,18 @@ async function fetchCboeOptionSnapshot(symbol: string): Promise<OptionChainSnaps
       headers: {
         Referer: 'https://www.cboe.com/',
         'User-Agent': 'Mozilla/5.0 NovaQuant/1.0',
-        Accept: 'application/json'
-      }
+        Accept: 'application/json',
+      },
     },
-    20_000
+    20_000,
   )) as CboeOptionsResponse;
 
   const options = Array.isArray(payload?.data?.options) ? payload.data.options : [];
   if (!options.length) return null;
 
-  const clean = options.filter((row) => Number.isFinite(Number(row.iv)) && Number.isFinite(Number(row.open_interest)));
+  const clean = options.filter(
+    (row) => Number.isFinite(Number(row.iv)) && Number.isFinite(Number(row.open_interest)),
+  );
   if (!clean.length) return null;
 
   const spot = safeNumber(payload?.data?.current_price);
@@ -471,10 +511,10 @@ async function fetchCboeOptionSnapshot(symbol: string): Promise<OptionChainSnaps
         total_volume: totalVol,
         put_call_open_interest_ratio: null,
         avg_abs_delta: absDeltaDen ? round(absDeltaNum / absDeltaDen, 6) : null,
-        gamma_exposure: Number.isFinite(gammaExposure) ? round(gammaExposure, 2) : null
-      }
+        gamma_exposure: Number.isFinite(gammaExposure) ? round(gammaExposure, 2) : null,
+      },
     }),
-    updated_at_ms: now
+    updated_at_ms: now,
   };
 }
 
@@ -493,7 +533,7 @@ function snapshotFromYahooOptionsPayload(args: {
     expiryEpochSeconds,
     spot,
     Array.isArray(optionEntry.calls) ? optionEntry.calls : [],
-    Array.isArray(optionEntry.puts) ? optionEntry.puts : []
+    Array.isArray(optionEntry.puts) ? optionEntry.puts : [],
   );
   return {
     id: `opt-${hashId(['yahoo-options', args.symbol, summary.expiration_date, args.now])}`,
@@ -505,13 +545,16 @@ function snapshotFromYahooOptionsPayload(args: {
     payload_json: JSON.stringify({
       provider: 'yahoo_options',
       fetched_at: new Date(args.now).toISOString(),
-      summary
+      summary,
     }),
-    updated_at_ms: args.now
+    updated_at_ms: args.now,
   };
 }
 
-export async function fetchYahooOptionSnapshots(symbol: string, maxExpirations = 2): Promise<OptionChainSnapshotRecord[]> {
+export async function fetchYahooOptionSnapshots(
+  symbol: string,
+  maxExpirations = 2,
+): Promise<OptionChainSnapshotRecord[]> {
   const normalized = normalizeSymbol(symbol);
   let rootError: unknown = null;
   const root = await fetchYahooOptionChain(normalized).catch((error) => {
@@ -525,17 +568,21 @@ export async function fetchYahooOptionSnapshots(symbol: string, maxExpirations =
       const fallback = await fetchCboeOptionSnapshot(normalized).catch(() => null);
       if (fallback) return [fallback];
     }
-    throw (rootError instanceof Error ? rootError : new Error(`Yahoo options root response missing result for ${normalized}`));
+    throw rootError instanceof Error
+      ? rootError
+      : new Error(`Yahoo options root response missing result for ${normalized}`);
   }
 
-  const expirations = Array.isArray(primary.expirationDates) ? primary.expirationDates.slice(0, maxExpirations) : [];
+  const expirations = Array.isArray(primary.expirationDates)
+    ? primary.expirationDates.slice(0, maxExpirations)
+    : [];
   const now = Date.now();
   const snapshots: OptionChainSnapshotRecord[] = [];
   let datedError: unknown = null;
   const rootSnapshot = snapshotFromYahooOptionsPayload({
     symbol: normalized,
     now,
-    payload: root
+    payload: root,
   });
   if (rootSnapshot) {
     snapshots.push(rootSnapshot);
@@ -550,7 +597,7 @@ export async function fetchYahooOptionSnapshots(symbol: string, maxExpirations =
     const snapshot = snapshotFromYahooOptionsPayload({
       symbol: normalized,
       now,
-      payload
+      payload,
     });
     if (snapshot) snapshots.push(snapshot);
   }
@@ -590,7 +637,7 @@ export async function backfillAlphaVantageDaily(params: {
       symbol,
       venue,
       quote: 'USD',
-      status: 'ACTIVE'
+      status: 'ACTIVE',
     });
     const bars = await fetchAlphaVantageDailyBars(symbol);
     params.repo.upsertOhlcvBars(asset.asset_id, '1d', bars, source);

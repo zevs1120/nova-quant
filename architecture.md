@@ -23,28 +23,28 @@ nova-quant/
 ```
 
 **运行时规则**:
-| 层       | 允许                     | 禁止                     |
+| 层 | 允许 | 禁止 |
 |----------|--------------------------|--------------------------|
-| `app/`   | 仅调用 API               | 直接读写数据库           |
-| `admin/` | 仅调用 API               | 直接读写数据库           |
-| `server/`| 读写数据库、响应 API 请求 | —                        |
-| `model/` | 推送标准信号到 server     | 触碰用户数据             |
+| `app/` | 仅调用 API | 直接读写数据库 |
+| `admin/` | 仅调用 API | 直接读写数据库 |
+| `server/`| 读写数据库、响应 API 请求 | — |
+| `model/` | 推送标准信号到 server | 触碰用户数据 |
 
 ---
 
 ## 3. 技术栈
 
-| 类别              | 选型                                          |
-|-------------------|-----------------------------------------------|
-| 前端框架          | React 18 + Vite 5, JSX                        |
-| 后端框架          | Express 5 (TypeScript)                        |
-| 业务数据库        | SQLite (better-sqlite3) — `data/quant.db`     |
-| 认证数据库        | Postgres (生产推荐) / Upstash Redis (遗留) / SQLite (本地) |
-| 类型检查          | TypeScript 5.9                                |
-| 测试框架          | Vitest 4 + Supertest                          |
-| 部署平台          | Vercel (前端 + API) / AWS EC2 (模型 + 后端自动化) |
-| LLM 运行时        | Ollama (本地 Marvix 模型族) + Gemini / OpenAI / Groq 回退 |
-| 图表              | Chart.js + react-chartjs-2                    |
+| 类别       | 选型                                                       |
+| ---------- | ---------------------------------------------------------- |
+| 前端框架   | React 18 + Vite 5, JSX                                     |
+| 后端框架   | Express 5 (TypeScript)                                     |
+| 业务数据库 | SQLite (better-sqlite3) — `data/quant.db`                  |
+| 认证数据库 | Postgres (生产推荐) / Upstash Redis (遗留) / SQLite (本地) |
+| 类型检查   | TypeScript 5.9                                             |
+| 测试框架   | Vitest 4 + Supertest                                       |
+| 部署平台   | Vercel (前端 + API) / AWS EC2 (模型 + 后端自动化)          |
+| LLM 运行时 | Ollama (本地 Marvix 模型族) + Gemini / OpenAI / Groq 回退  |
+| 图表       | Chart.js + react-chartjs-2                                 |
 
 ---
 
@@ -217,33 +217,33 @@ nova-quant/
 
 ### 6.1 API 层 (`src/server/api/`)
 
-| 文件               | 职责                             | 大小     |
-|--------------------|----------------------------------|----------|
-| `app.ts`           | Express 应用 (109 条路由)        | 63 KB    |
-| `queries.ts`       | SQLite 查询封装                  | 140 KB   |
-| `authHandlers.ts`  | 认证路由处理                     | 9 KB     |
-| `adminHandlers.ts` | 管理端路由处理                   | 5 KB     |
-| `modelHandlers.ts` | 模型/信号摄入路由                | 10 KB    |
-| `vercelChatHandler.ts` | Vercel 端对话处理            | 10 KB    |
+| 文件                   | 职责                      | 大小   |
+| ---------------------- | ------------------------- | ------ |
+| `app.ts`               | Express 应用 (109 条路由) | 63 KB  |
+| `queries.ts`           | SQLite 查询封装           | 140 KB |
+| `authHandlers.ts`      | 认证路由处理              | 9 KB   |
+| `adminHandlers.ts`     | 管理端路由处理            | 5 KB   |
+| `modelHandlers.ts`     | 模型/信号摄入路由         | 10 KB  |
+| `vercelChatHandler.ts` | Vercel 端对话处理         | 10 KB  |
 
 ### 6.2 数据库层 (`src/server/db/`)
 
-| 文件             | 职责                                  | 大小     |
-|------------------|---------------------------------------|----------|
-| `schema.ts`      | 全部 SQLite 表定义 & 迁移             | 49 KB    |
-| `repository.ts`  | 数据访问层 (CRUD 操作)               | 128 KB   |
-| `database.ts`    | 连接管理 & WAL 模式配置               | 2 KB     |
+| 文件            | 职责                      | 大小   |
+| --------------- | ------------------------- | ------ |
+| `schema.ts`     | 全部 SQLite 表定义 & 迁移 | 49 KB  |
+| `repository.ts` | 数据访问层 (CRUD 操作)    | 128 KB |
+| `database.ts`   | 连接管理 & WAL 模式配置   | 2 KB   |
 
 **主要 SQLite 表**: `ohlcv_bars`, `runtime_state`, `decision_snapshots`, `chat_threads`, `chat_messages`, `evidence_runs`, `alpha_candidates`, `alpha_evaluations`, `alpha_shadow_observations`, `alpha_lifecycle_events`, `manual_signals`, `engagement_state` 等
 
 ### 6.3 认证层 (`src/server/auth/`)
 
-| 文件              | 职责                                              |
-|-------------------|-------------------------------------------------|
-| `service.ts`      | 认证服务 (Session / RBAC / 中间件) — 49 KB        |
-| `postgresStore.ts`| Postgres 认证存储 (users/sessions/roles) — 21 KB  |
-| `remoteKv.ts`     | Upstash Redis 遗留认证路径                         |
-| `resetEmail.ts`   | 密码重置邮件流                                     |
+| 文件               | 职责                                             |
+| ------------------ | ------------------------------------------------ |
+| `service.ts`       | 认证服务 (Session / RBAC / 中间件) — 49 KB       |
+| `postgresStore.ts` | Postgres 认证存储 (users/sessions/roles) — 21 KB |
+| `remoteKv.ts`      | Upstash Redis 遗留认证路径                       |
+| `resetEmail.ts`    | 密码重置邮件流                                   |
 
 ### 6.4 决策引擎 (`src/server/decision/`)
 
@@ -251,28 +251,28 @@ nova-quant/
 
 ### 6.5 Nova Assistant (`src/server/chat/`)
 
-| 文件        | 职责                                            |
-|-------------|-------------------------------------------------|
-| `service.ts`| 对话服务 (线程持久化、多轮记忆、回退) — 26 KB    |
-| `tools.ts`  | 内部工具层 (信号、市场、绩效、风险、检索) — 23 KB |
-| `prompts.ts`| Prompt 组装 (结构化、证据感知) — 16 KB           |
-| `providers/`| 4 个 LLM Provider (Ollama/Gemini/OpenAI/Groq)   |
-| `audit.ts`  | 对话审计                                         |
+| 文件         | 职责                                              |
+| ------------ | ------------------------------------------------- |
+| `service.ts` | 对话服务 (线程持久化、多轮记忆、回退) — 26 KB     |
+| `tools.ts`   | 内部工具层 (信号、市场、绩效、风险、检索) — 23 KB |
+| `prompts.ts` | Prompt 组装 (结构化、证据感知) — 16 KB            |
+| `providers/` | 4 个 LLM Provider (Ollama/Gemini/OpenAI/Groq)     |
+| `audit.ts`   | 对话审计                                          |
 
 ### 6.6 数据摄取 (`src/server/ingestion/`)
 
-| 连接器                   | 数据源                        |
-|--------------------------|-------------------------------|
-| `massive.ts`             | Massive.com REST API **(主)**  |
-| `stooq.ts`               | Stooq 批量 (遗留回退)         |
-| `binancePublic.ts`       | Binance 公开批量               |
-| `binanceIncremental.ts`  | Binance 增量更新               |
-| `binanceDerivatives.ts`  | Binance 衍生品                 |
-| `hostedData.ts`          | 托管数据源                     |
-| `yahoo.ts`               | Yahoo Finance                  |
-| `nasdaq.ts`              | Nasdaq                         |
-| `normalize.ts`           | 数据归一化管线                 |
-| `validation.ts`          | 数据质量验证                   |
+| 连接器                  | 数据源                        |
+| ----------------------- | ----------------------------- |
+| `massive.ts`            | Massive.com REST API **(主)** |
+| `stooq.ts`              | Stooq 批量 (遗留回退)         |
+| `binancePublic.ts`      | Binance 公开批量              |
+| `binanceIncremental.ts` | Binance 增量更新              |
+| `binanceDerivatives.ts` | Binance 衍生品                |
+| `hostedData.ts`         | 托管数据源                    |
+| `yahoo.ts`              | Yahoo Finance                 |
+| `nasdaq.ts`             | Nasdaq                        |
+| `normalize.ts`          | 数据归一化管线                |
+| `validation.ts`         | 数据质量验证                  |
 
 ### 6.7 Alpha 发现系统 (6 个模块)
 
@@ -287,16 +287,16 @@ alpha_promotion_guard/ → 晋升守卫 (Shadow → Canary → Prod)
 
 ### 6.8 Marvix LLM 运行时 (`src/server/nova/`)
 
-| 文件            | 职责                             |
-|-----------------|----------------------------------|
-| `service.ts`    | Nova 服务 (任务日志、路由)        |
-| `client.ts`     | Ollama 客户端                    |
-| `router.ts`     | 模型路由 (Core/Scout/Retrieve)   |
-| `health.ts`     | 健康检查                         |
-| `flywheel.ts`   | 策略飞轮                         |
-| `strategyLab.ts`| 策略实验室                       |
-| `training.ts`   | MLX 训练导出                     |
-| `mlx.ts`        | MLX-LM 集成                     |
+| 文件             | 职责                           |
+| ---------------- | ------------------------------ |
+| `service.ts`     | Nova 服务 (任务日志、路由)     |
+| `client.ts`      | Ollama 客户端                  |
+| `router.ts`      | 模型路由 (Core/Scout/Retrieve) |
+| `health.ts`      | 健康检查                       |
+| `flywheel.ts`    | 策略飞轮                       |
+| `strategyLab.ts` | 策略实验室                     |
+| `training.ts`    | MLX 训练导出                   |
+| `mlx.ts`         | MLX-LM 集成                    |
 
 ---
 
@@ -312,27 +312,27 @@ alpha_promotion_guard/ → 晋升守卫 (Shadow → Canary → Prod)
 
 ### 7.2 主要组件 (29 个)
 
-| 组件                | 职责                   | 大小     |
-|---------------------|------------------------|----------|
-| `App.jsx`           | 产品壳 & Tab 编排      | 106 KB   |
-| `TodayTab.jsx`      | 今日决策面板 (首页)     | 49 KB    |
-| `MenuTab.jsx`       | 设置 & 高级功能         | 70 KB    |
-| `BrowseTab.jsx`     | 资产浏览 & 搜索         | 41 KB    |
-| `HoldingsTab.jsx`   | 持仓管理                | 28 KB    |
-| `OnboardingFlow.jsx`| 首次引导流              | 27 KB    |
-| `ResearchTab.jsx`   | AI 研究工具             | 25 KB    |
-| `ProofTab.jsx`      | 证据 & 回测             | 23 KB    |
-| `SignalsTab.jsx`    | 信号列表                | 21 KB    |
-| `AiPage.jsx`        | Nova 助手对话页         | 16 KB    |
-| `RiskTab.jsx`       | 风险仪表盘              | 13 KB    |
+| 组件                 | 职责                | 大小   |
+| -------------------- | ------------------- | ------ |
+| `App.jsx`            | 产品壳 & Tab 编排   | 106 KB |
+| `TodayTab.jsx`       | 今日决策面板 (首页) | 49 KB  |
+| `MenuTab.jsx`        | 设置 & 高级功能     | 70 KB  |
+| `BrowseTab.jsx`      | 资产浏览 & 搜索     | 41 KB  |
+| `HoldingsTab.jsx`    | 持仓管理            | 28 KB  |
+| `OnboardingFlow.jsx` | 首次引导流          | 27 KB  |
+| `ResearchTab.jsx`    | AI 研究工具         | 25 KB  |
+| `ProofTab.jsx`       | 证据 & 回测         | 23 KB  |
+| `SignalsTab.jsx`     | 信号列表            | 21 KB  |
+| `AiPage.jsx`         | Nova 助手对话页     | 16 KB  |
+| `RiskTab.jsx`        | 风险仪表盘          | 13 KB  |
 
 ### 7.3 Hooks
 
-| Hook                   | 功能                   |
-|------------------------|------------------------|
-| `useNovaAssistant.js`  | Nova 助手交互状态       |
-| `useDemoAssistant.js`  | Demo 模式助手           |
-| `useLocalStorage.js`   | 本地存储封装            |
+| Hook                  | 功能              |
+| --------------------- | ----------------- |
+| `useNovaAssistant.js` | Nova 助手交互状态 |
+| `useDemoAssistant.js` | Demo 模式助手     |
+| `useLocalStorage.js`  | 本地存储封装      |
 
 ### 7.4 工具函数 (`src/utils/`)
 
@@ -342,19 +342,19 @@ alpha_promotion_guard/ → 晋升守卫 (Shadow → Canary → Prod)
 
 ## 8. 量化引擎管线 (`src/engines/`)
 
-| 引擎                      | 职责                          | 大小     |
-|---------------------------|-------------------------------|----------|
-| `signalEngine.js`         | 信号生成 & 评分 (核心)        | 21 KB    |
-| `velocityEngine.js`       | 动量 / 速度跟踪              | 11 KB    |
-| `strategyTemplates.js`    | 策略模板注册                  | 11 KB    |
-| `funnelEngine.js`         | 信号过滤漏斗                  | 10 KB    |
-| `pipeline.js`             | 完整管线编排                  | 7 KB     |
-| `riskEngine.js`           | 风险评分                      | 6 KB     |
-| `riskGuardrailEngine.js`  | 风险防护栏                    | 6 KB     |
-| `performanceEngine.js`    | 绩效测量                      | 5 KB     |
-| `regimeEngine.js`         | 市场状态/体制分类             | 3 KB     |
-| `math.js`                 | 数学工具                      | 4 KB     |
-| `params.js`               | 引擎参数                      | 3 KB     |
+| 引擎                     | 职责                   | 大小  |
+| ------------------------ | ---------------------- | ----- |
+| `signalEngine.js`        | 信号生成 & 评分 (核心) | 21 KB |
+| `velocityEngine.js`      | 动量 / 速度跟踪        | 11 KB |
+| `strategyTemplates.js`   | 策略模板注册           | 11 KB |
+| `funnelEngine.js`        | 信号过滤漏斗           | 10 KB |
+| `pipeline.js`            | 完整管线编排           | 7 KB  |
+| `riskEngine.js`          | 风险评分               | 6 KB  |
+| `riskGuardrailEngine.js` | 风险防护栏             | 6 KB  |
+| `performanceEngine.js`   | 绩效测量               | 5 KB  |
+| `regimeEngine.js`        | 市场状态/体制分类      | 3 KB  |
+| `math.js`                | 数学工具               | 4 KB  |
+| `params.js`              | 引擎参数               | 3 KB  |
 
 ---
 
@@ -382,7 +382,7 @@ src/research/
 独立 Vite 应用，包含以下页面:
 
 | 页面                       | 职责                               |
-|----------------------------|------------------------------------|
+| -------------------------- | ---------------------------------- |
 | `OverviewPage.jsx`         | 系统概览仪表盘                     |
 | `SystemHealthPage.jsx`     | 系统健康监控                       |
 | `ResearchOpsPage.jsx`      | 研究运维 (工作流、数据摄取、Alpha) |
@@ -420,11 +420,11 @@ src/research/
 
 ### 12.1 Vercel 部署
 
-| 目标     | 入口                           | 路由规则                 |
-|----------|--------------------------------|--------------------------|
-| 前端     | `vite build → dist/`           | SPA 静态                 |
-| API      | `api/index.ts`                 | `/api/:route*` → 代理    |
-| Admin    | `admin/` (独立 Vite)            | —                        |
+| 目标  | 入口                 | 路由规则              |
+| ----- | -------------------- | --------------------- |
+| 前端  | `vite build → dist/` | SPA 静态              |
+| API   | `api/index.ts`       | `/api/:route*` → 代理 |
+| Admin | `admin/` (独立 Vite) | —                     |
 
 `vercel.json` 配置 1024 MB 内存，30s 超时。
 
@@ -437,20 +437,20 @@ src/research/
 
 ### 12.3 关键运维脚本 (`scripts/`)
 
-| 脚本                        | 用途                               |
-|-----------------------------|------------------------------------|
-| `auto-backend.ts`           | 自动化后端运维循环                 |
-| `auto-quant-engine.mjs`     | 自动化量化引擎 (91 KB)            |
-| `backfill.ts`               | 数据回填                           |
-| `db-init.ts` / `db-migrate.ts` | 数据库初始化 & 迁移             |
-| `derive-runtime-state.ts`   | 运行时状态推导                     |
-| `massive-smoke-test.ts`     | Massive API 冒烟测试               |
-| `run-alpha-discovery.ts`    | Alpha 发现循环                     |
-| `run-evidence.ts`           | 证据引擎执行                       |
-| `run-nova-strategy-lab.ts`  | 策略实验室                         |
-| `migrate-auth-to-postgres.ts`| 认证迁移到 Postgres              |
-| `package-source.mjs`        | 源码打包 (DD 用)                   |
-| `version-manager.mjs`       | SemVer 版本管理                    |
+| 脚本                           | 用途                   |
+| ------------------------------ | ---------------------- |
+| `auto-backend.ts`              | 自动化后端运维循环     |
+| `auto-quant-engine.mjs`        | 自动化量化引擎 (91 KB) |
+| `backfill.ts`                  | 数据回填               |
+| `db-init.ts` / `db-migrate.ts` | 数据库初始化 & 迁移    |
+| `derive-runtime-state.ts`      | 运行时状态推导         |
+| `massive-smoke-test.ts`        | Massive API 冒烟测试   |
+| `run-alpha-discovery.ts`       | Alpha 发现循环         |
+| `run-evidence.ts`              | 证据引擎执行           |
+| `run-nova-strategy-lab.ts`     | 策略实验室             |
+| `migrate-auth-to-postgres.ts`  | 认证迁移到 Postgres    |
+| `package-source.mjs`           | 源码打包 (DD 用)       |
+| `version-manager.mjs`          | SemVer 版本管理        |
 
 ---
 
@@ -475,17 +475,17 @@ npm run stress:reliability  # 可靠性压力测试
 
 API/运行时输出使用的显式状态标签:
 
-| 标签               | 含义                     |
-|--------------------|--------------------------|
-| `DB_BACKED`        | 数据库支撑               |
-| `REALIZED`         | 已实现                   |
-| `MODEL_DERIVED`    | 模型推导                 |
-| `PAPER_ONLY`       | 仅纸上交易               |
-| `BACKTEST_ONLY`    | 仅回测                   |
-| `EXPERIMENTAL`     | 实验性                   |
-| `DISCONNECTED`     | 未连接                   |
-| `INSUFFICIENT_DATA`| 数据不足                 |
-| `DEMO_ONLY`        | 仅演示                   |
+| 标签                | 含义       |
+| ------------------- | ---------- |
+| `DB_BACKED`         | 数据库支撑 |
+| `REALIZED`          | 已实现     |
+| `MODEL_DERIVED`     | 模型推导   |
+| `PAPER_ONLY`        | 仅纸上交易 |
+| `BACKTEST_ONLY`     | 仅回测     |
+| `EXPERIMENTAL`      | 实验性     |
+| `DISCONNECTED`      | 未连接     |
+| `INSUFFICIENT_DATA` | 数据不足   |
+| `DEMO_ONLY`         | 仅演示     |
 
 ---
 
@@ -499,19 +499,19 @@ API/运行时输出使用的显式状态标签:
 
 ## 16. 环境变量一览
 
-| 变量                      | 用途                        |
-|---------------------------|-----------------------------|
-| `DATABASE_URL`            | Postgres 认证 (生产)        |
-| `MASSIVE_API_KEY`         | Massive.com 数据 API        |
-| `ALPHA_VANTAGE_API_KEY`   | 股票/ETF 搜索增强           |
-| `COINGECKO_*_API_KEY`     | 加密货币搜索增强             |
-| `KV_REST_API_*`           | Upstash Redis (遗留)        |
-| `NOVA_ALPHA_DISCOVERY_*`  | Alpha 发现循环配置           |
-| `GEMINI_API_KEY`          | Google Gemini LLM           |
-| `OPENAI_API_KEY`          | OpenAI LLM                  |
-| `GROQ_API_KEY`            | Groq LLM                    |
-| `DB_PATH`                 | 自定义 SQLite 路径           |
-| `SERVE_WEB_DIST`          | EC2 单机部署模式             |
+| 变量                     | 用途                 |
+| ------------------------ | -------------------- |
+| `DATABASE_URL`           | Postgres 认证 (生产) |
+| `MASSIVE_API_KEY`        | Massive.com 数据 API |
+| `ALPHA_VANTAGE_API_KEY`  | 股票/ETF 搜索增强    |
+| `COINGECKO_*_API_KEY`    | 加密货币搜索增强     |
+| `KV_REST_API_*`          | Upstash Redis (遗留) |
+| `NOVA_ALPHA_DISCOVERY_*` | Alpha 发现循环配置   |
+| `GEMINI_API_KEY`         | Google Gemini LLM    |
+| `OPENAI_API_KEY`         | OpenAI LLM           |
+| `GROQ_API_KEY`           | Groq LLM             |
+| `DB_PATH`                | 自定义 SQLite 路径   |
+| `SERVE_WEB_DIST`         | EC2 单机部署模式     |
 
 ---
 
@@ -537,15 +537,15 @@ npm test && npm run lint && npm run typecheck && npm run build && npm run verify
 
 全部技术文档位于 `docs/` (75+ 文件)。核心文档:
 
-| 文档                                    | 内容                   |
-|-----------------------------------------|------------------------|
-| `SYSTEM_ARCHITECTURE.md`                | 系统架构               |
-| `NOVA_ASSISTANT_ARCHITECTURE.md`        | 助手架构               |
-| `DECISION_ENGINE.md`                    | 决策引擎               |
-| `ENGAGEMENT_SYSTEM.md`                  | 参与系统               |
-| `QUANT_RESEARCH_DOCTRINE.md`            | 量化研究方法论         |
-| `REPOSITORY_OVERVIEW.md`               | 仓库概览               |
-| `REPO_RUNBOOK.md`                       | 运维手册               |
-| `TECHNICAL_DUE_DILIGENCE_GUIDE.md`     | 技术尽调指南           |
-| `MARVIX_SYSTEM_ARCHITECTURE.md`         | Marvix 系统架构       |
-| `AWS_EC2_DEPLOYMENT.md`                | EC2 部署指南           |
+| 文档                               | 内容            |
+| ---------------------------------- | --------------- |
+| `SYSTEM_ARCHITECTURE.md`           | 系统架构        |
+| `NOVA_ASSISTANT_ARCHITECTURE.md`   | 助手架构        |
+| `DECISION_ENGINE.md`               | 决策引擎        |
+| `ENGAGEMENT_SYSTEM.md`             | 参与系统        |
+| `QUANT_RESEARCH_DOCTRINE.md`       | 量化研究方法论  |
+| `REPOSITORY_OVERVIEW.md`           | 仓库概览        |
+| `REPO_RUNBOOK.md`                  | 运维手册        |
+| `TECHNICAL_DUE_DILIGENCE_GUIDE.md` | 技术尽调指南    |
+| `MARVIX_SYSTEM_ARCHITECTURE.md`    | Marvix 系统架构 |
+| `AWS_EC2_DEPLOYMENT.md`            | EC2 部署指南    |

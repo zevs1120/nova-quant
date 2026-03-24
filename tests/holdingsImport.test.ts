@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { importHoldingsFromCsvText, importHoldingsFromScreenshot } from '../src/server/holdings/import.js';
+import {
+  importHoldingsFromCsvText,
+  importHoldingsFromScreenshot,
+} from '../src/server/holdings/import.js';
 
 describe('holdings import', () => {
   afterEach(() => {
@@ -12,7 +15,7 @@ describe('holdings import', () => {
       filename: 'positions.csv',
       csvText: `Symbol,Quantity,Avg Cost,Market Price
 AAPL,10,100,120
-BTC,0.5,60000,64000`
+BTC,0.5,60000,64000`,
     });
 
     expect(result.summary.imported_count).toBe(2);
@@ -21,7 +24,7 @@ BTC,0.5,60000,64000`
     expect(result.holdings.map((row: { symbol: string }) => row.symbol)).toContain('BTC-USDT');
     const totalWeight = result.holdings.reduce(
       (sum: number, row: { weight_pct?: number | null }) => sum + Number(row.weight_pct || 0),
-      0
+      0,
     );
     expect(totalWeight).toBeCloseTo(100, 2);
   });
@@ -47,20 +50,20 @@ BTC,0.5,60000,64000`
                       current_price: 900,
                       market_value: 4500,
                       cost_basis: 800,
-                      import_confidence: 0.92
-                    }
+                      import_confidence: 0.92,
+                    },
                   ],
-                  warnings: ['Double-check quantity.']
-                })
-              }
-            }
-          ]
-        })
-      })
+                  warnings: ['Double-check quantity.'],
+                }),
+              },
+            },
+          ],
+        }),
+      }),
     );
 
     const result = await importHoldingsFromScreenshot({
-      imageDataUrl: 'data:image/png;base64,AAAA'
+      imageDataUrl: 'data:image/png;base64,AAAA',
     });
 
     expect(result.summary.source).toBe('SCREENSHOT');

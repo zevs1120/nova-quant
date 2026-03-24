@@ -7,7 +7,7 @@ import { runEvolutionCycle } from '../src/server/quant/evolution.js';
 
 export function parseArgs(argv: string[]) {
   const out = {
-    userId: 'guest-default'
+    userId: 'guest-default',
   };
   for (let i = 0; i < argv.length; i += 1) {
     const token = argv[i];
@@ -31,19 +31,19 @@ export async function runEvolutionCycleCli(argv = process.argv.slice(2)) {
     runtimeSnapshot: {
       sourceStatus: snapshot.sourceStatus,
       freshnessSummary: snapshot.freshnessSummary,
-      coverageSummary: snapshot.coverageSummary
-    }
+      coverageSummary: snapshot.coverageSummary,
+    },
   });
   console.log(
     JSON.stringify(
       {
         workflowId: result.workflowId,
         traceId: result.traceId,
-        markets: result.markets
+        markets: result.markets,
       },
       null,
-      2
-    )
+      2,
+    ),
   );
 }
 

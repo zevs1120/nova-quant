@@ -43,13 +43,18 @@ function fallbackSeries(seriesIndex, market) {
 }
 
 function crossMarketRiskSnapshot(seriesIndex) {
-  const btc = seriesIndex[getSeriesKey('CRYPTO', 'BTC-USDT', '4H')] || fallbackSeries(seriesIndex, 'CRYPTO');
+  const btc =
+    seriesIndex[getSeriesKey('CRYPTO', 'BTC-USDT', '4H')] || fallbackSeries(seriesIndex, 'CRYPTO');
   const qqq = seriesIndex[getSeriesKey('US', 'QQQ', '1D')] || fallbackSeries(seriesIndex, 'US');
 
   const btcReturns = returnsFromPrices(btc?.close || []);
   const qqqReturns = returnsFromPrices(qqq?.close || []);
   const corr = Math.abs(correlation(btcReturns.slice(-30), qqqReturns.slice(-30)));
-  const volSpike = clamp(((btc?.latest?.vol_percentile || 0) + (qqq?.latest?.vol_percentile || 0)) / 2, 0, 1);
+  const volSpike = clamp(
+    ((btc?.latest?.vol_percentile || 0) + (qqq?.latest?.vol_percentile || 0)) / 2,
+    0,
+    1,
+  );
   const ddStress = clamp((recentDrawdown(btc?.close) + recentDrawdown(qqq?.close)) / 0.3, 0, 1);
   const riskOffScore = clamp(0.35 * corr + 0.45 * volSpike + 0.2 * ddStress, 0, 1);
 
@@ -57,7 +62,7 @@ function crossMarketRiskSnapshot(seriesIndex) {
     btc_nasdaq_corr: round(corr, 4),
     vol_spike: round(volSpike, 4),
     drawdown_stress: round(ddStress, 4),
-    risk_off_score: round(riskOffScore, 4)
+    risk_off_score: round(riskOffScore, 4),
   };
 }
 
@@ -72,7 +77,7 @@ export function runRegimeEngine({ velocityState }) {
     const riskOff = clamp(
       crossMarket.risk_off_score * 0.65 + volPct * 0.2 + (1 - trend) * 0.15,
       0,
-      1
+      1,
     );
     const regime = classifyRegime(trend, volPct, riskOff);
 
@@ -86,13 +91,13 @@ export function runRegimeEngine({ velocityState }) {
       trend_strength: round(trend, 4),
       vol_percentile: round(volPct, 4),
       risk_off_score: round(riskOff, 4),
-      cross_market: crossMarket
+      cross_market: crossMarket,
     };
   }
 
   return {
     cross_market: crossMarket,
     snapshots,
-    primary: snapshots[velocityState.primary_key] || Object.values(snapshots)[0] || null
+    primary: snapshots[velocityState.primary_key] || Object.values(snapshots)[0] || null,
   };
 }

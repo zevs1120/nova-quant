@@ -2,7 +2,22 @@ import { buildSampleMarketData } from '../../quant/sampleData.js';
 import { ASSET_CLASS, DATA_STATUS, FREQUENCY } from '../../types/multiAssetSchema.js';
 import { sourceMeta } from '../sourceMeta.js';
 
-const DEFAULT_UNIVERSE = ['SPY', 'QQQ', 'IWM', 'AAPL', 'MSFT', 'NVDA', 'AMZN', 'META', 'GOOGL', 'TSLA', 'JPM', 'XLF', 'XLE', 'XLK'];
+const DEFAULT_UNIVERSE = [
+  'SPY',
+  'QQQ',
+  'IWM',
+  'AAPL',
+  'MSFT',
+  'NVDA',
+  'AMZN',
+  'META',
+  'GOOGL',
+  'TSLA',
+  'JPM',
+  'XLF',
+  'XLE',
+  'XLK',
+];
 
 function inferSourceMode(config = {}) {
   if (config?.provider_mode) return config.provider_mode;
@@ -16,7 +31,12 @@ function buildEquityMetadata(marketItem) {
     sector: marketItem.sector,
     industry: marketItem.industry,
     market_cap: marketItem.market_cap,
-    market_cap_bucket: marketItem.market_cap_billions >= 200 ? 'mega' : marketItem.market_cap_billions >= 10 ? 'large' : 'mid'
+    market_cap_bucket:
+      marketItem.market_cap_billions >= 200
+        ? 'mega'
+        : marketItem.market_cap_billions >= 10
+          ? 'large'
+          : 'mid',
   };
 }
 
@@ -30,12 +50,15 @@ export function createEquityAdapter(config = {}) {
     supports_live: true,
     primary_source: mode === 'live_path_available' ? 'polygon' : 'stooq_sample',
     docs: {
-      polygon: 'https://polygon.io/docs/stocks/get_v2_aggs_ticker__stocksticker__range__multiplier___timespan___from___to',
-      stooq: 'https://stooq.com/db/h/'
+      polygon:
+        'https://polygon.io/docs/stocks/get_v2_aggs_ticker__stocksticker__range__multiplier___timespan___from___to',
+      stooq: 'https://stooq.com/db/h/',
     },
     fetchRawSnapshot({ asOf, symbols = DEFAULT_UNIVERSE } = {}) {
       const sample = buildSampleMarketData({ asOf });
-      const selected = sample.instruments.filter((item) => item.market === 'US' && symbols.includes(item.ticker));
+      const selected = sample.instruments.filter(
+        (item) => item.market === 'US' && symbols.includes(item.ticker),
+      );
       const benchmarks = sample.benchmarks.filter((item) => item.market === 'US');
 
       return {
@@ -45,8 +68,10 @@ export function createEquityAdapter(config = {}) {
           frequency: FREQUENCY.DAILY,
           data_status: DATA_STATUS.RAW,
           mode,
-          use_notes: 'US equities and ETF daily research data. Live path configured via Polygon or Stooq bulk scripts.',
-          license_notes: 'Sample fallback generated locally. Live path requires provider terms review.'
+          use_notes:
+            'US equities and ETF daily research data. Live path configured via Polygon or Stooq bulk scripts.',
+          license_notes:
+            'Sample fallback generated locally. Live path requires provider terms review.',
         }),
         bars: selected.flatMap((item) =>
           item.bars.map((bar) => ({
@@ -65,8 +90,8 @@ export function createEquityAdapter(config = {}) {
             frequency: FREQUENCY.DAILY,
             data_status: DATA_STATUS.RAW,
             use_notes: 'Daily bar aligned for backtest and training use.',
-            license_notes: 'Sample fallback for demo. Replace with licensed feed for production.'
-          }))
+            license_notes: 'Sample fallback for demo. Replace with licensed feed for production.',
+          })),
         ),
         assets: selected.map((item) => ({
           ...buildEquityMetadata(item),
@@ -74,21 +99,21 @@ export function createEquityAdapter(config = {}) {
           asset_class: ASSET_CLASS.EQUITY,
           venue: 'XNYS',
           status: 'active',
-          source: mode === 'live_path_available' ? 'polygon/stooq' : 'sample'
+          source: mode === 'live_path_available' ? 'polygon/stooq' : 'sample',
         })),
         benchmarks: benchmarks.map((item) => ({
           symbol: item.ticker,
-          bars: item.bars
+          bars: item.bars,
         })),
         live_path: {
           provider: 'polygon',
           requires_api_key: true,
           endpoint_templates: [
             '/v2/aggs/ticker/{symbol}/range/1/day/{from}/{to}',
-            '/v3/reference/tickers/{symbol}'
-          ]
-        }
+            '/v3/reference/tickers/{symbol}',
+          ],
+        },
       };
-    }
+    },
   };
 }

@@ -5,7 +5,7 @@ import {
   buildSignalExplanation,
   getStrategyTemplate,
   resolveStrategyId,
-  strategyTemplateVersion
+  strategyTemplateVersion,
 } from './strategyTemplates.js';
 import { getSeriesKey } from './velocityEngine.js';
 
@@ -15,7 +15,9 @@ function safeNum(value, fallback = 0) {
 }
 
 function inferTimeframe(signal, template) {
-  return signal.timeframe || template.default_timeframe || (signal.market === 'CRYPTO' ? '4H' : '1D');
+  return (
+    signal.timeframe || template.default_timeframe || (signal.market === 'CRYPTO' ? '4H' : '1D')
+  );
 }
 
 function inferAssetClass(signal, strategyId) {
@@ -30,11 +32,14 @@ function getSignalSeries(signal, timeframe, velocityState) {
   if (direct) return direct;
 
   const sameSymbol = Object.values(velocityState.series_index).find(
-    (series) => series.market === signal.market && series.symbol === signal.symbol
+    (series) => series.market === signal.market && series.symbol === signal.symbol,
   );
   if (sameSymbol) return sameSymbol;
 
-  return Object.values(velocityState.series_index).find((series) => series.market === signal.market) || null;
+  return (
+    Object.values(velocityState.series_index).find((series) => series.market === signal.market) ||
+    null
+  );
 }
 
 function getRegimeSnapshot(signal, timeframe, regimeState) {
@@ -42,7 +47,7 @@ function getRegimeSnapshot(signal, timeframe, regimeState) {
   return (
     regimeState.snapshots[key] ||
     Object.values(regimeState.snapshots).find(
-      (item) => item.market === signal.market && item.symbol === signal.symbol
+      (item) => item.market === signal.market && item.symbol === signal.symbol,
     ) ||
     regimeState.primary
   );
@@ -65,7 +70,8 @@ function inferStopType(strategyId) {
 function inferTrailingType(template) {
   const mode = String(template.trailing_rule?.mode || '').toLowerCase();
   if (!mode || mode === 'none') return 'NONE';
-  if (mode.includes('tight') || mode.includes('event-vol') || mode.includes('chandelier')) return 'CHAND_EXIT';
+  if (mode.includes('tight') || mode.includes('event-vol') || mode.includes('chandelier'))
+    return 'CHAND_EXIT';
   return 'EMA';
 }
 
@@ -108,13 +114,13 @@ function buildTakeProfitLevels(signal, entryMid) {
     {
       price: round(tp1, 4),
       size_pct: 60,
-      rationale: 'De-risk at first objective and lock initial edge.'
+      rationale: 'De-risk at first objective and lock initial edge.',
     },
     {
       price: round(tp2, 4),
       size_pct: 40,
-      rationale: 'Capture continuation if momentum persists.'
-    }
+      rationale: 'Capture continuation if momentum persists.',
+    },
   ];
 }
 
@@ -127,23 +133,32 @@ function pickEventStats(signal, series) {
 function calcCostModel(signal, strategyId, regime, velocity) {
   const baseline = COST_BASELINE_BY_MARKET[signal.market] || COST_BASELINE_BY_MARKET.US;
   const volatilityPenalty = (regime?.vol_percentile || 0.5) > 0.8 ? 2 : 0;
-  const spreadBps = signal.market === 'CRYPTO' ? 3 + volatilityPenalty * 0.5 : 1 + volatilityPenalty * 0.3;
+  const spreadBps =
+    signal.market === 'CRYPTO' ? 3 + volatilityPenalty * 0.5 : 1 + volatilityPenalty * 0.3;
   const fundingAdj =
-    signal.market === 'CRYPTO' ? baseline.funding_bps + ((regime?.risk_off_score || 0) > 0.65 ? 2 : 0) : 0;
+    signal.market === 'CRYPTO'
+      ? baseline.funding_bps + ((regime?.risk_off_score || 0) > 0.65 ? 2 : 0)
+      : 0;
   const basisAdj =
     signal.market === 'CRYPTO'
-      ? baseline.basis_bps + (strategyId === 'CR_BAS' ? Math.abs(velocity?.latest?.acceleration || 0) * 2 : 0)
+      ? baseline.basis_bps +
+        (strategyId === 'CR_BAS' ? Math.abs(velocity?.latest?.acceleration || 0) * 2 : 0)
       : baseline.basis_bps;
 
   const total =
-    baseline.fees_bps + baseline.slippage_bps + fundingAdj + basisAdj + volatilityPenalty + spreadBps;
+    baseline.fees_bps +
+    baseline.slippage_bps +
+    fundingAdj +
+    basisAdj +
+    volatilityPenalty +
+    spreadBps;
   return {
     fee_bps: round(baseline.fees_bps, 2),
     spread_bps: round(spreadBps, 2),
     slippage_bps: round(baseline.slippage_bps + volatilityPenalty, 2),
     funding_est_bps: round(fundingAdj, 2),
     basis_est: round(basisAdj, 2),
-    total_bps: round(total, 2)
+    total_bps: round(total, 2),
   };
 }
 
@@ -157,7 +172,13 @@ function computeStrength(confidenceNorm, regime, velocitySeries) {
 
 function computeSignalScore({ expectedR, confidenceNorm, regimeId, totalCostBps, volPct }) {
   const regimeFit =
-    regimeId === 'TREND' ? 1.18 : regimeId === 'RANGE' ? 0.96 : regimeId === 'HIGH_VOL' ? 0.78 : 0.65;
+    regimeId === 'TREND'
+      ? 1.18
+      : regimeId === 'RANGE'
+        ? 0.96
+        : regimeId === 'HIGH_VOL'
+          ? 0.78
+          : 0.65;
   const costPenalty = totalCostBps / 45;
   const tailRiskPenalty = (volPct / 100) * 0.55;
   return round(expectedR * confidenceNorm * regimeFit - costPenalty - tailRiskPenalty, 4);
@@ -187,8 +208,14 @@ function computeRiskScore({ volatilityPercentile, costModel, bucketState, expect
   return round(clamp(volRisk + costRisk + bucketRisk - edgeOffset, 6, 96), 1);
 }
 
-function computeRegimeCompatibility({ regimeId, strategyId, temperaturePercentile, volatilityPercentile }) {
-  let score = regimeId === 'TREND' ? 78 : regimeId === 'RANGE' ? 62 : regimeId === 'HIGH_VOL' ? 46 : 38;
+function computeRegimeCompatibility({
+  regimeId,
+  strategyId,
+  temperaturePercentile,
+  volatilityPercentile,
+}) {
+  let score =
+    regimeId === 'TREND' ? 78 : regimeId === 'RANGE' ? 62 : regimeId === 'HIGH_VOL' ? 46 : 38;
   if (strategyId === 'CR_TRAP' && regimeId === 'HIGH_VOL') score += 14;
   if ((strategyId === 'EQ_VEL' || strategyId === 'CR_VEL') && regimeId === 'TREND') score += 12;
   if (temperaturePercentile > 90 || volatilityPercentile > 90) score -= 10;
@@ -202,23 +229,38 @@ function toHeatLabel(percentile) {
 }
 
 function toCrowdedRiskLabel({ temperaturePercentile, volatilityPercentile, costModel }) {
-  const pressure = temperaturePercentile * 0.45 + volatilityPercentile * 0.35 + Math.min(costModel.total_bps || 0, 18) * 1.3;
+  const pressure =
+    temperaturePercentile * 0.45 +
+    volatilityPercentile * 0.35 +
+    Math.min(costModel.total_bps || 0, 18) * 1.3;
   if (pressure >= 74) return 'HIGH';
   if (pressure >= 46) return 'MEDIUM';
   return 'LOW';
 }
 
-function buildExecutionChecklist({ signal, assetClass, entryMethod, entryMin, entryMax, stopLoss, tp1, positionPct, bucketState }) {
+function buildExecutionChecklist({
+  signal,
+  assetClass,
+  entryMethod,
+  entryMin,
+  entryMax,
+  stopLoss,
+  tp1,
+  positionPct,
+  bucketState,
+}) {
   const lines = [
     `Confirm spread and liquidity for ${signal.symbol} before entering.`,
     `Use ${entryMethod} entry in ${round(entryMin, 2)}-${round(entryMax, 2)}; do not chase outside zone.`,
     `Set hard stop at ${round(stopLoss, 2)} immediately after fill.`,
     `Set TP1 near ${round(tp1, 2)} and scale out at least 50-60%.`,
     `Limit initial size to ${round(positionPct, 2)}% under ${bucketState} risk bucket.`,
-    'Skip if volatility spikes further or regime flips risk-off.'
+    'Skip if volatility spikes further or regime flips risk-off.',
   ];
   if (assetClass === 'CRYPTO') {
-    lines.push('Avoid entries around funding reset windows; keep leverage conservative to reduce liquidation risk.');
+    lines.push(
+      'Avoid entries around funding reset windows; keep leverage conservative to reduce liquidation risk.',
+    );
   }
   if (assetClass === 'OPTIONS') {
     lines.push('Use liquid strikes only and enforce end-of-day flatten if setup has not resolved.');
@@ -250,35 +292,39 @@ function buildAssetPayload({ signal, assetClass, entryMid, strategyId }) {
         underlying: {
           symbol: String(signal.symbol || '').match(/^[A-Z]+/)?.[0] || signal.symbol,
           spot_price: round(entryMid, 2),
-          session: 'REG'
+          session: 'REG',
         },
         option_contract: {
           side: put ? 'PUT' : 'CALL',
           expiry,
           strike: Math.round(entryMid),
           dte,
-          contract_symbol: signal.symbol
+          contract_symbol: signal.symbol,
         },
         time_stop: {
           eod_flatten: true,
-          latest_exit_utc: new Date(Date.now() + 8 * 3600 * 1000).toISOString()
+          latest_exit_utc: new Date(Date.now() + 8 * 3600 * 1000).toISOString(),
         },
         greeks_iv: {
           delta: round(put ? -0.35 : 0.35, 2),
           iv_percentile: round(48 + (safeNum(signal.confidence, 3) - 3) * 8, 2),
-          expected_move: round(entryMid * 0.012, 2)
-        }
-      }
+          expected_move: round(entryMid * 0.012, 2),
+        },
+      },
     };
   }
   if (assetClass === 'US_STOCK') {
-    const horizon = strategyId === 'EQ_SWING' ? 'MEDIUM' : strategyId === 'EQ_EVT' ? 'SHORT' : 'LONG';
+    const horizon =
+      strategyId === 'EQ_SWING' ? 'MEDIUM' : strategyId === 'EQ_EVT' ? 'SHORT' : 'LONG';
     return {
       kind: 'STOCK_SWING',
       data: {
         horizon,
-        catalysts: strategyId === 'EQ_EVT' ? ['earnings_window', 'macro_event'] : ['index_regime', 'sector_leadership']
-      }
+        catalysts:
+          strategyId === 'EQ_EVT'
+            ? ['earnings_window', 'macro_event']
+            : ['index_regime', 'sector_leadership'],
+      },
     };
   }
   const confidenceBias = Number(signal.confidence || 3) - 3;
@@ -294,18 +340,18 @@ function buildAssetPayload({ signal, assetClass, entryMid, strategyId }) {
         basis_bps: round(18 + confidenceBias * 6, 2),
         basis_percentile: round(62 + confidenceBias * 9, 2),
         open_interest: 1625000 + Math.round(confidenceBias * 120000),
-        premium_index: round(confidenceBias * 0.0003, 6)
+        premium_index: round(confidenceBias * 0.0003, 6),
       },
       flow_state: {
         spot_led_breakout: signal.direction === 'LONG',
         perp_led_breakout: signal.direction === 'SHORT',
-        funding_state: Math.abs(confidenceBias) > 1.2 ? 'EXTREME' : 'NEUTRAL'
+        funding_state: Math.abs(confidenceBias) > 1.2 ? 'EXTREME' : 'NEUTRAL',
       },
       leverage_suggestion: {
         suggested_leverage: signal.status === 'TRIGGERED' ? 1.5 : 1.2,
-        capped_by_profile: true
-      }
-    }
+        capped_by_profile: true,
+      },
+    },
   };
 }
 
@@ -333,8 +379,8 @@ function resolveConflicts(sortedSignals) {
       tags: [...signal.tags, 'conflict-muted'],
       explain_bullets: [
         `Signal muted due to higher-score opposite setup (${previous.id}).`,
-        ...signal.explain_bullets.slice(0, 4)
-      ]
+        ...signal.explain_bullets.slice(0, 4),
+      ],
     };
   });
 }
@@ -371,7 +417,7 @@ export function runSignalEngine({ signals, velocityState, regimeState, riskState
       stopLoss: signal.stop_loss,
       profile: riskState.profile,
       bucketMultiplier,
-      activeSignalCount: activeByMarket[signal.market] || 1
+      activeSignalCount: activeByMarket[signal.market] || 1,
     });
     const costModel = calcCostModel(signal, strategyId, regime, series);
     const strength = computeStrength(confidenceNorm, regime, series);
@@ -388,54 +434,57 @@ export function runSignalEngine({ signals, velocityState, regimeState, riskState
       stopLoss: Number(signal.stop_loss),
       tp1: tpLevels[0].price,
       positionPct,
-      bucketState: riskState.bucket_state
+      bucketState: riskState.bucket_state,
     });
     const explainBullets = buildSignalExplanation({
       signal,
       template,
       regime,
       velocity: {
-        percentile: series?.latest?.percentile || 0.5
+        percentile: series?.latest?.percentile || 0.5,
       },
       risk: {
         bucket_state: riskState.bucket_state,
-        sample_size_reference: sampleSize || eventStats?.sample_size || 0
+        sample_size_reference: sampleSize || eventStats?.sample_size || 0,
       },
       expectedR,
       hitRateEst,
       costEstimate: {
-        total_bps: costModel.total_bps
-      }
+        total_bps: costModel.total_bps,
+      },
     });
     const score = computeSignalScore({
       expectedR,
       confidenceNorm,
       regimeId,
       totalCostBps: costModel.total_bps,
-      volPct: (regime?.vol_percentile || 0.5) * 100
+      volPct: (regime?.vol_percentile || 0.5) * 100,
     });
     const stopType = inferStopType(strategyId);
     const trailingType = inferTrailingType(template);
-    const temperaturePercentile = round((series?.latest?.percentile || velocityState.global.percentile || 0.5) * 100, 2);
+    const temperaturePercentile = round(
+      (series?.latest?.percentile || velocityState.global.percentile || 0.5) * 100,
+      2,
+    );
     const volatilityPercentile = round((regime?.vol_percentile || 0.5) * 100, 2);
     const holdingHorizonDays = inferHoldingHorizonDays(timeframe, strategyId, assetClass);
     const riskScore = computeRiskScore({
       volatilityPercentile,
       costModel,
       bucketState: riskState.bucket_state,
-      expectedR
+      expectedR,
     });
     const regimeCompatibility = computeRegimeCompatibility({
       regimeId,
       strategyId,
       temperaturePercentile,
-      volatilityPercentile
+      volatilityPercentile,
     });
     const marketHeat = toHeatLabel(temperaturePercentile);
     const crowdedRisk = toCrowdedRiskLabel({
       temperaturePercentile,
       volatilityPercentile,
-      costModel
+      costModel,
     });
 
     return {
@@ -459,32 +508,32 @@ export function runSignalEngine({ signals, velocityState, regimeState, riskState
         low: entryMin,
         high: entryMax,
         method: entryMethod,
-        notes: `Valid until ${new Date(expiresAtMs).toISOString()}`
+        notes: `Valid until ${new Date(expiresAtMs).toISOString()}`,
       },
       invalidation_level: Number(signal.invalidation_level ?? signal.stop_loss),
       stop_loss: {
         type: stopType,
         price: Number(signal.stop_loss),
-        rationale: `${stopType} stop anchored to setup invalidation`
+        rationale: `${stopType} stop anchored to setup invalidation`,
       },
       stop_loss_value: Number(signal.stop_loss),
       take_profit_levels: tpLevels,
       trailing_rule: {
         type: trailingType,
-        params: template.trailing_rule || {}
+        params: template.trailing_rule || {},
       },
       position_advice: {
         position_pct: positionPct,
         leverage_cap: riskState.rules.leverage_cap,
         risk_bucket_applied: riskState.bucket_state,
-        rationale: `${riskState.profile_key} profile with dynamic bucket ${riskState.bucket_state}`
+        rationale: `${riskState.profile_key} profile with dynamic bucket ${riskState.bucket_state}`,
       },
       cost_model: costModel,
       expected_metrics: {
         expected_R: expectedR,
         hit_rate_est: round(hitRateEst, 4),
         sample_size: sampleSize,
-        expected_max_dd_est: round(eventStats?.e_max_drawdown ?? volatilityPercentile / 430, 4)
+        expected_max_dd_est: round(eventStats?.e_max_drawdown ?? volatilityPercentile / 430, 4),
       },
       holding_horizon_days: holdingHorizonDays,
       risk_score: riskScore,
@@ -498,13 +547,13 @@ export function runSignalEngine({ signals, velocityState, regimeState, riskState
         strategyId,
         regimeId.toLowerCase(),
         temperaturePercentile > 90 ? 'temp-extreme' : 'temp-normal',
-        volatilityPercentile > 90 ? 'vol-extreme' : 'vol-normal'
+        volatilityPercentile > 90 ? 'vol-extreme' : 'vol-normal',
       ],
       status,
       payload: buildAssetPayload({ signal, assetClass, entryMid, strategyId }),
       references: {
         chart_url: `/charts/${signal.market}/${signal.symbol}`,
-        docs_url: `/docs/strategies/${strategyId.toLowerCase()}`
+        docs_url: `/docs/strategies/${strategyId.toLowerCase()}`,
       },
       score,
 
@@ -530,17 +579,20 @@ export function runSignalEngine({ signals, velocityState, regimeState, riskState
         slippage_bps: costModel.slippage_bps,
         funding_bps: costModel.funding_est_bps,
         basis_bps: costModel.basis_est,
-        total_bps: costModel.total_bps
+        total_bps: costModel.total_bps,
       },
       rationale: explainBullets,
       advice: explainBullets[0],
       model_version: signal.model_version || 'v0.3',
       parameter_version: PARAM_VERSION,
-      strategy_template_version: strategyTemplateVersion
+      strategy_template_version: strategyTemplateVersion,
     };
   });
 
   return resolveConflicts(
-    [...contracts].sort((a, b) => b.score - a.score || new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    [...contracts].sort(
+      (a, b) =>
+        b.score - a.score || new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    ),
   );
 }

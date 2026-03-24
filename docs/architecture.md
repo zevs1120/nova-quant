@@ -1,9 +1,11 @@
 # Nova Quant v1 Architecture
 
 ## 1. Scope
+
 Nova Quant v1 is a **front-end runnable prototype** of an AI quant trading system. It is not a news portal and not a generic chat shell.
 
 This version is designed to be:
+
 - runnable in current H5 mobile UI
 - logically consistent across Today / Performance / Safety / Insights / AI
 - transparent about data provenance (`sample`, `derived`, `simulated`, `upcoming`)
@@ -12,6 +14,7 @@ This version is designed to be:
 ## 2. Layered System
 
 ### Layer A. Data Layer
+
 - Source: deterministic local sample dataset (`src/quant/sampleData.js`)
 - Includes:
   - `ticker`, `name`, `sector`, `industry`, `market_cap`
@@ -20,6 +23,7 @@ This version is designed to be:
   - benchmark/index series (`SPY`, `QQQ`, `IWM`, `BTC-USDT`)
 
 ### Layer B. Feature Layer
+
 - Source: derived from Data Layer (`computeFeatureLayer`)
 - Features include:
   - Trend: 1/5/10/20/60D return, MA deviation, breakout
@@ -30,6 +34,7 @@ This version is designed to be:
   - Market-state inputs: breadth, index trend, style spread, risk appetite
 
 ### Layer C. Alpha Layer
+
 - Source: rule alpha library (`ALPHA_LIBRARY`)
 - 16 alphas across families:
   - Trend
@@ -40,6 +45,7 @@ This version is designed to be:
 - Every alpha has id/name/family/description/inputs/regime/holding period/risk tags/active+score.
 
 ### Layer D. Model Layer
+
 - Deterministic model stack:
   1. Signal scoring
   2. Regime model
@@ -54,6 +60,7 @@ This version is designed to be:
   - `suggested_action`
 
 ### Layer E. Portfolio Layer
+
 - Converts model outputs into executable candidates.
 - Constraints:
   - max holdings
@@ -68,6 +75,7 @@ This version is designed to be:
   - filtered-out list + reason
 
 ### Layer F. Risk & Safety Layer
+
 - Three-level risk:
   1. Market-level
   2. Portfolio-level
@@ -80,6 +88,7 @@ This version is designed to be:
   - rulebook cards
 
 ### Layer G. Performance / Proof Layer
+
 - Explicit source partition:
   - `Backtest` (sample historical simulation)
   - `Simulated/Paper`
@@ -91,6 +100,7 @@ This version is designed to be:
   - win rate / Sharpe / Sortino / avg holding
 
 ### Layer H. Insights Layer
+
 - Quant-focused market context:
   - current regime
   - breadth
@@ -101,11 +111,13 @@ This version is designed to be:
   - why today’s signal structure looks this way
 
 ### Layer I. AI Layer
+
 - Front-end retrieval-based explanation layer (`src/quant/aiRetrieval.js`)
 - Uses current system outputs (Today/Safety/Insights/Portfolio) instead of static generic chat.
 - Supports preset analytical questions and structured answers with evidence lines.
 
 ### Layer J. Self-Improving Research Loop
+
 - Daily loop engine (`src/quant/researchLoop.js`) with date-based snapshots.
 - Local research store (`src/quant/researchStore.js`) for merged history:
   - daily snapshots
@@ -115,6 +127,7 @@ This version is designed to be:
 - Champion/challenger comparison and governance rules are first-class objects.
 
 ### Layer K. Multi-Asset Data & Training Pipeline
+
 - Pipeline engine (`src/research/multiAssetPipeline.js`) covers:
   - US equities
   - US equity options
@@ -132,6 +145,7 @@ This version is designed to be:
   - `get_latest_data_status`
 
 ## 3. UI Mapping
+
 - `Today` -> Data/Feature/Alpha/Model/Portfolio summary
 - `Safety` -> Risk layer center
 - `Insights` -> Market-state and signal-context layer
@@ -141,7 +155,9 @@ This version is designed to be:
 - `Research/Data Hub` -> Multi-asset coverage, source health, dataset snapshots, quality report
 
 ## 4. Extensibility Path
+
 Current implementation is deterministic and local. To migrate toward production:
+
 1. replace Data Layer with real market feed API
 2. replace rule model with trainable model services
 3. replace simulated paper/live with broker-integrated execution logs

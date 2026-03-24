@@ -6,10 +6,12 @@ export function buildRiskGovernanceSummary(args: {
   portfolioContext: Record<string, unknown> | null;
 }) {
   const avgRiskOff = args.marketState.length
-    ? args.marketState.reduce((sum, row) => sum + Number(row.risk_off_score || 0), 0) / args.marketState.length
+    ? args.marketState.reduce((sum, row) => sum + Number(row.risk_off_score || 0), 0) /
+      args.marketState.length
     : null;
   const avgVol = args.marketState.length
-    ? args.marketState.reduce((sum, row) => sum + Number(row.volatility_percentile || 0), 0) / args.marketState.length
+    ? args.marketState.reduce((sum, row) => sum + Number(row.volatility_percentile || 0), 0) /
+      args.marketState.length
     : null;
   const climate =
     avgRiskOff === null
@@ -30,7 +32,7 @@ export function buildRiskGovernanceSummary(args: {
       posture: climate,
       avg_risk_off: avgRiskOff,
       avg_volatility_percentile: avgVol,
-      regime_count: args.marketState.length
+      regime_count: args.marketState.length,
     },
     risk_gate_logic: {
       top_level_policy:
@@ -40,26 +42,31 @@ export function buildRiskGovernanceSummary(args: {
             ? 'probe only'
             : climate === 'watchful'
               ? 'action allowed with tighter sizing'
-              : 'normal decision flow'
+              : 'normal decision flow',
     },
     overlays: [
       {
         id: 'risk_off_overlay',
         enabled: avgRiskOff !== null && avgRiskOff >= 0.65,
-        effect: 'downweight offensive signals and elevate caution copy'
+        effect: 'downweight offensive signals and elevate caution copy',
       },
       {
         id: 'crowding_overlay',
         enabled: overlapWarning,
-        effect: 'de-prioritize same-symbol / same-theme actions when current exposure already exists'
-      }
+        effect:
+          'de-prioritize same-symbol / same-theme actions when current exposure already exists',
+      },
     ],
     policy_outcome: {
       recommendation_bias:
-        climate === 'defensive' ? 'no-action-or-hedge' : climate === 'cautious' ? 'selective-probe' : 'actionable',
+        climate === 'defensive'
+          ? 'no-action-or-hedge'
+          : climate === 'cautious'
+            ? 'selective-probe'
+            : 'actionable',
       user_message:
         String(args.riskState?.user_message || args.riskState?.summary || '').trim() ||
-        'Risk policy is acting as an upper-layer gate, not a cosmetic badge.'
-    }
+        'Risk policy is acting as an upper-layer gate, not a cosmetic badge.',
+    },
   };
 }

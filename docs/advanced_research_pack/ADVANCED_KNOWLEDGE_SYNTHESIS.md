@@ -7,6 +7,7 @@ This synthesis explains how the advanced knowledge pack upgrades Nova Quant's re
 ## 1) New higher-order capabilities now encoded
 
 Nova Quant now has explicit doctrine for:
+
 - alpha research methodology,
 - portfolio construction intelligence,
 - anti-overfitting and validation discipline,
@@ -20,6 +21,7 @@ This upgrades the platform from "component-complete" to "policy-aware and review
 ## 2) How this should change Strategy Discovery Engine
 
 Discovery should now:
+
 1. prioritize hypothesis quality over parameter breadth,
 2. enforce diversity-aware candidate generation,
 3. penalize low-density and fragile candidates earlier,
@@ -27,6 +29,7 @@ Discovery should now:
 5. emit governance-ready evidence artifacts by default.
 
 Priority modules:
+
 - `src/research/discovery/strategyDiscoveryEngine.js`
 - `src/research/discovery/candidateGenerator.js`
 - `src/research/discovery/candidateValidation.js`
@@ -35,18 +38,21 @@ Priority modules:
 ## 3) How this should change Validation Framework
 
 Validation should adopt doctrine-controlled gates:
+
 - stricter sample and stability floors,
 - regime-sliced viability as hard criteria,
 - stronger cost/fill realism stress,
 - explicit fragility and decay labels.
 
 Priority modules:
+
 - `src/research/core/walkForwardValidation.js`
 - `src/research/discovery/candidateValidation.js`
 
 ## 4) How this should change Portfolio Simulator
 
 Portfolio simulation should incorporate:
+
 - diversification score as first-class output,
 - drawdown concentration attribution,
 - family concentration controls,
@@ -54,17 +60,20 @@ Portfolio simulation should incorporate:
 - turnover cost diagnostics under stress.
 
 Priority module:
+
 - `src/portfolio_simulation/portfolioSimulationEngine.js`
 
 ## 5) How this should change Strategy Governance
 
 Governance should move from metric thresholding to evidence standards:
+
 - checklist-based promotion review,
 - stage-specific evidence minimums,
 - explicit rollback and retirement policy triggers,
 - version comparison with marginal contribution logic.
 
 Priority modules:
+
 - `src/research/core/strategyGovernanceV2.js`
 - `src/research/evidence/evidenceSystem.js`
 - `src/research/weekly_cycle/weeklyResearchCycle.js`
@@ -72,6 +81,7 @@ Priority modules:
 ## 6) How this improves technical due diligence readiness
 
 Due-diligence posture improves by adding:
+
 - explicit doctrine and standards,
 - auditable promotion criteria,
 - formal failure-mode taxonomy,

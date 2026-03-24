@@ -5,7 +5,7 @@ import {
   listCrossSectionalModelCatalog,
   listFactorCatalog,
   listRegimeTaxonomy,
-  listStrategyMetadata
+  listStrategyMetadata,
 } from '../src/server/research/knowledge.js';
 
 describe('research knowledge layer', () => {
@@ -36,8 +36,10 @@ describe('research knowledge layer', () => {
     expect(strategies.length).toBeGreaterThan(0);
     expect(
       strategies.some((family) =>
-        family.templates.some((template) => template.strategy_template_name === 'time_series_momentum')
-      )
+        family.templates.some(
+          (template) => template.strategy_template_name === 'time_series_momentum',
+        ),
+      ),
     ).toBe(true);
     expect(models.some((row) => row.model_id === 'linear_baseline')).toBe(true);
   });

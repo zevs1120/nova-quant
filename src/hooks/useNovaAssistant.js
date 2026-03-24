@@ -12,7 +12,7 @@ function normalizeMessages(rows = []) {
     id: row.id || randomId(),
     role: row.role,
     content: row.content,
-    provider: row.provider || null
+    provider: row.provider || null,
   }));
 }
 
@@ -29,11 +29,13 @@ export function useNovaAssistant({ userId, seedRequest, contextBase }) {
   const loadThread = useCallback(
     async (threadId) => {
       if (!threadId || !userId) return;
-      const payload = await fetchJson(`/api/chat/threads/${threadId}?userId=${encodeURIComponent(userId)}&limit=40`);
+      const payload = await fetchJson(
+        `/api/chat/threads/${threadId}?userId=${encodeURIComponent(userId)}&limit=40`,
+      );
       setMessages(normalizeMessages(payload.messages || []));
       setActiveThreadId(threadId);
     },
-    [userId, setActiveThreadId]
+    [userId, setActiveThreadId],
   );
 
   useEffect(() => {
@@ -47,7 +49,9 @@ export function useNovaAssistant({ userId, seedRequest, contextBase }) {
           await loadThread(activeThreadId);
           return;
         }
-        const payload = await fetchJson(`/api/chat/threads?userId=${encodeURIComponent(userId)}&limit=1`);
+        const payload = await fetchJson(
+          `/api/chat/threads?userId=${encodeURIComponent(userId)}&limit=1`,
+        );
         const first = payload.data?.[0];
         if (mounted && first?.id) {
           await loadThread(first.id);
@@ -76,14 +80,14 @@ export function useNovaAssistant({ userId, seedRequest, contextBase }) {
       setMessages((current) => [
         ...current,
         { id: randomId(), role: 'user', content: text },
-        { id: assistantId, role: 'assistant', content: '', question: text }
+        { id: assistantId, role: 'assistant', content: '', question: text },
       ]);
 
       try {
         const response = await fetchApi('/api/chat', {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
           },
           credentials: 'include',
           body: JSON.stringify({
@@ -92,9 +96,9 @@ export function useNovaAssistant({ userId, seedRequest, contextBase }) {
             message: text,
             context: {
               ...(contextBase || {}),
-              ...(contextOverride || {})
-            }
-          })
+              ...(contextOverride || {}),
+            },
+          }),
         });
 
         if (!response.ok || !response.body) {
@@ -108,7 +112,9 @@ export function useNovaAssistant({ userId, seedRequest, contextBase }) {
 
         const appendChunk = (delta) => {
           setMessages((current) =>
-            current.map((item) => (item.id === assistantId ? { ...item, content: `${item.content}${delta}` } : item))
+            current.map((item) =>
+              item.id === assistantId ? { ...item, content: `${item.content}${delta}` } : item,
+            ),
           );
         };
 
@@ -130,15 +136,19 @@ export function useNovaAssistant({ userId, seedRequest, contextBase }) {
                 setActiveThreadId(event.threadId);
                 setMessages((current) =>
                   current.map((item) =>
-                    item.id === assistantId ? { ...item, provider: event.provider || null } : item
-                  )
+                    item.id === assistantId ? { ...item, provider: event.provider || null } : item,
+                  ),
                 );
               }
               if (event.type === 'chunk' && event.delta) {
                 appendChunk(event.delta);
               }
               if (event.type === 'error') {
-                setError(language === 'zh' ? `生成回答失败：${event.error || '请稍后重试。'}` : event.error || 'Failed to generate response');
+                setError(
+                  language === 'zh'
+                    ? `生成回答失败：${event.error || '请稍后重试。'}`
+                    : event.error || 'Failed to generate response',
+                );
               }
             } catch {
               // Ignore malformed stream chunks.
@@ -151,15 +161,21 @@ export function useNovaAssistant({ userId, seedRequest, contextBase }) {
         setMessages((current) =>
           current.map((item) =>
             item.id === assistantId
-              ? { ...item, content: language === 'zh' ? `我在准备回答时遇到了一点问题。\n\n${message}` : `I hit a problem while preparing an answer.\n\n${message}` }
-              : item
-          )
+              ? {
+                  ...item,
+                  content:
+                    language === 'zh'
+                      ? `我在准备回答时遇到了一点问题。\n\n${message}`
+                      : `I hit a problem while preparing an answer.\n\n${message}`,
+                }
+              : item,
+          ),
         );
       } finally {
         setStreaming(false);
       }
     },
-    [activeThreadId, contextBase, streaming, userId, setActiveThreadId]
+    [activeThreadId, contextBase, streaming, userId, setActiveThreadId],
   );
 
   useEffect(() => {
@@ -177,6 +193,6 @@ export function useNovaAssistant({ userId, seedRequest, contextBase }) {
     error,
     activeThreadId,
     sendMessage,
-    loadThread
+    loadThread,
   };
 }

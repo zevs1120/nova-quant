@@ -8,7 +8,7 @@ function deteriorationAlerts(strategyGovernance = {}) {
       stage: item.current_stage,
       reasons: item.degradation_signals.reasons,
       confidence: item.operational_confidence,
-      severity: item.operational_confidence < 0.4 ? 'high' : 'medium'
+      severity: item.operational_confidence < 0.4 ? 'high' : 'medium',
     }));
 }
 
@@ -27,7 +27,7 @@ function signalStarvation(funnel = {}) {
     bottleneck: funnel?.bottleneck || null,
     note: starvation
       ? 'Signal density is low relative to generated candidates.'
-      : 'No severe starvation in current cycle.'
+      : 'No severe starvation in current cycle.',
   };
 }
 
@@ -38,7 +38,7 @@ function candidateSuggestions({ starvation, shadowLog, regimeState }) {
       suggestion_type: 'density_recovery',
       title: 'Relax score/risk thresholds in bounded test',
       reason: 'Executable ratio is low and indicates funnel over-filtering risk.',
-      suggested_stage: 'SHADOW'
+      suggested_stage: 'SHADOW',
     });
   }
 
@@ -48,7 +48,7 @@ function candidateSuggestions({ starvation, shadowLog, regimeState }) {
       suggestion_type: 'shadow_learned_variant',
       title: 'Create near-threshold challenger variants',
       reason: 'Shadow log indicates potentially over-strict filtering.',
-      suggested_stage: 'DRAFT'
+      suggested_stage: 'DRAFT',
     });
   }
 
@@ -57,7 +57,7 @@ function candidateSuggestions({ starvation, shadowLog, regimeState }) {
       suggestion_type: 'regime_specialist',
       title: 'Expand high-volatility specialist templates',
       reason: 'Current regime favors transition and defensive families.',
-      suggested_stage: 'SHADOW'
+      suggested_stage: 'SHADOW',
     });
   }
 
@@ -66,7 +66,7 @@ function candidateSuggestions({ starvation, shadowLog, regimeState }) {
       suggestion_type: 'maintain',
       title: 'Continue current cycle with monitoring',
       reason: 'No urgent structural pressure signal detected.',
-      suggested_stage: 'SHADOW'
+      suggested_stage: 'SHADOW',
     });
   }
 
@@ -88,13 +88,15 @@ function funnelAbnormalities(funnel = {}) {
 
   return {
     abnormality_flags: issues,
-    severity: issues.length >= 2 ? 'high' : issues.length === 1 ? 'medium' : 'low'
+    severity: issues.length >= 2 ? 'high' : issues.length === 1 ? 'medium' : 'low',
   };
 }
 
 function weeklySummary({ regimeState, strategyGovernance, starvation, shadowLog }) {
   const posture = regimeState?.state?.recommended_user_posture || '--';
-  const degradeCount = (strategyGovernance?.strategies || []).filter((item) => item.degradation_signals?.status === 'warning').length;
+  const degradeCount = (strategyGovernance?.strategies || []).filter(
+    (item) => item.degradation_signals?.status === 'warning',
+  ).length;
   const strictness = Number(shadowLog?.missed_opportunity_ratio || 0);
 
   return {
@@ -106,17 +108,17 @@ function weeklySummary({ regimeState, strategyGovernance, starvation, shadowLog 
           : 'System posture is constructive with controlled risk deployment.',
     what_improved: [
       `Regime confidence=${regimeState?.regime_confidence ?? '--'}.`,
-      `Operational governance decisions generated=${strategyGovernance?.decisions?.length || 0}.`
+      `Operational governance decisions generated=${strategyGovernance?.decisions?.length || 0}.`,
     ],
     what_deteriorated: [
       `Degradation alerts=${degradeCount}.`,
       `Signal starvation detected=${starvation.starvation_detected}.`,
-      `Shadow strictness ratio=${round(strictness, 4)}.`
+      `Shadow strictness ratio=${round(strictness, 4)}.`,
     ],
     confidence_adjustment:
       strictness >= 0.35 || starvation.starvation_detected
         ? 'reduce_confidence'
-        : 'maintain_confidence'
+        : 'maintain_confidence',
   };
 }
 
@@ -129,28 +131,28 @@ export function buildResearchAutomationLoop({
   walkForward = {},
   strategyDiscovery = {},
   aiResearchCopilot = {},
-  weeklyCycle = {}
+  weeklyCycle = {},
 } = {}) {
   const alerts = deteriorationAlerts(strategyGovernance);
   const starvation = signalStarvation(funnelDiagnostics);
   const suggestions = candidateSuggestions({
     starvation,
     shadowLog,
-    regimeState
+    regimeState,
   });
   const abnormalities = funnelAbnormalities(funnelDiagnostics);
   const summary = weeklySummary({
     regimeState,
     strategyGovernance,
     starvation,
-    shadowLog
+    shadowLog,
   });
 
   const governanceRecommendations = (strategyGovernance?.decisions || []).map((item) => ({
     strategy_id: item.strategy_id,
     action: item.action,
     to_stage: item.to_stage,
-    rationale: item.rationale
+    rationale: item.rationale,
   }));
   const discoveryRecommendations = (strategyDiscovery?.promotion_decisions || [])
     .slice(0, 6)
@@ -159,7 +161,7 @@ export function buildResearchAutomationLoop({
       strategy_id: item.strategy_id,
       decision: item.decision,
       to_stage: item.to_stage,
-      quality_score: item.metrics_summary?.candidate_quality_score ?? null
+      quality_score: item.metrics_summary?.candidate_quality_score ?? null,
     }));
 
   return {
@@ -172,7 +174,7 @@ export function buildResearchAutomationLoop({
       'suggest_candidate_variants',
       'review_validation_results',
       'generate_governance_recommendations',
-      'update_research_logs'
+      'update_research_logs',
     ],
     deterioration_alerts: alerts,
     signal_starvation: starvation,
@@ -186,29 +188,29 @@ export function buildResearchAutomationLoop({
           ? 'Prioritize risk reduction and transition-specialist strategy monitoring.'
           : regimeState?.state?.recommended_user_posture === 'REDUCE'
             ? 'Focus on A-quality opportunities and reduced-size execution.'
-            : 'Allow selective expansion while monitoring degradation and costs.'
+            : 'Allow selective expansion while monitoring degradation and costs.',
     },
     validation_snapshot: {
       evaluated_strategies: walkForward?.summary?.evaluated_strategies || 0,
-      promotion_ready: walkForward?.summary?.promotion_ready || []
+      promotion_ready: walkForward?.summary?.promotion_ready || [],
     },
     strategy_discovery_snapshot: {
       generated_candidates: strategyDiscovery?.summary?.generated_candidates || 0,
       promoted_to_shadow: strategyDiscovery?.summary?.promoted_to_shadow || 0,
       discovery_success_rate: strategyDiscovery?.summary?.discovery_success_rate || 0,
-      top_promotion_decisions: discoveryRecommendations
+      top_promotion_decisions: discoveryRecommendations,
     },
     ai_research_copilot_snapshot: {
       top_actions: aiResearchCopilot?.top_actions?.slice(0, 5) || [],
       insight_count: aiResearchCopilot?.research_insights?.length || 0,
-      validation_warning_count: aiResearchCopilot?.validation_warnings?.length || 0
+      validation_warning_count: aiResearchCopilot?.validation_warnings?.length || 0,
     },
     weekly_cycle_snapshot: {
       generated_at: weeklyCycle?.generated_at || asOf,
       bottleneck_stage: weeklyCycle?.signal_density_issues?.bottleneck_stage || 'unknown',
-      recommendation_count: weeklyCycle?.research_recommendations?.length || 0
+      recommendation_count: weeklyCycle?.research_recommendations?.length || 0,
     },
     governance_recommendations: governanceRecommendations,
-    weekly_research_summary: summary
+    weekly_research_summary: summary,
   };
 }

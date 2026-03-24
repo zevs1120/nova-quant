@@ -30,9 +30,9 @@ describe('model signal ingest api', () => {
             take2: 223.5,
             risk: 0.02,
             strategy: 'trend_pullback_v3',
-            time: '2026-03-22T09:30:00Z'
-          }
-        ]
+            time: '2026-03-22T09:30:00Z',
+          },
+        ],
       });
 
     expect(response.status).toBe(200);
@@ -41,8 +41,12 @@ describe('model signal ingest api', () => {
 
     const db = getDb();
     const row = db
-      .prepare("SELECT signal_id, symbol, market, strategy_id, payload_json FROM signals WHERE strategy_id = 'TREND_PULLBACK_V3' LIMIT 1")
-      .get() as { signal_id: string; symbol: string; market: string; payload_json: string } | undefined;
+      .prepare(
+        "SELECT signal_id, symbol, market, strategy_id, payload_json FROM signals WHERE strategy_id = 'TREND_PULLBACK_V3' LIMIT 1",
+      )
+      .get() as
+      | { signal_id: string; symbol: string; market: string; payload_json: string }
+      | undefined;
 
     expect(row?.signal_id).toBeTruthy();
     expect(row?.symbol).toBe('AAPL');

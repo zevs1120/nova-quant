@@ -7,7 +7,7 @@ export const EVIDENCE_MODE = {
   BACKTEST: 'BACKTEST',
   DEMO: 'DEMO',
   MIXED: 'MIXED',
-  UNAVAILABLE: 'UNAVAILABLE'
+  UNAVAILABLE: 'UNAVAILABLE',
 } as const;
 
 export type EvidenceMode = (typeof EVIDENCE_MODE)[keyof typeof EVIDENCE_MODE];
@@ -22,23 +22,35 @@ export type EvidenceLineage = {
   demo: boolean;
 };
 
-export function normalizeEvidenceMode(value: unknown, fallback: EvidenceMode = EVIDENCE_MODE.UNAVAILABLE): EvidenceMode {
-  const candidate = String(value || '').trim().toUpperCase();
+export function normalizeEvidenceMode(
+  value: unknown,
+  fallback: EvidenceMode = EVIDENCE_MODE.UNAVAILABLE,
+): EvidenceMode {
+  const candidate = String(value || '')
+    .trim()
+    .toUpperCase();
   if (candidate in EVIDENCE_MODE) {
     return candidate as EvidenceMode;
   }
   return fallback;
 }
 
-export function deriveMarketDataMode(args: { runtimeStatus?: unknown; demo?: boolean }): EvidenceMode {
+export function deriveMarketDataMode(args: {
+  runtimeStatus?: unknown;
+  demo?: boolean;
+}): EvidenceMode {
   if (args.demo) return EVIDENCE_MODE.DEMO;
   const status = normalizeRuntimeStatus(args.runtimeStatus, RUNTIME_STATUS.INSUFFICIENT_DATA);
-  if (status === RUNTIME_STATUS.DB_BACKED || status === RUNTIME_STATUS.REALIZED) return EVIDENCE_MODE.LIVE;
+  if (status === RUNTIME_STATUS.DB_BACKED || status === RUNTIME_STATUS.REALIZED)
+    return EVIDENCE_MODE.LIVE;
   if (status === RUNTIME_STATUS.DEMO_ONLY) return EVIDENCE_MODE.DEMO;
   return EVIDENCE_MODE.UNAVAILABLE;
 }
 
-export function derivePerformanceMode(args: { performanceStatus?: unknown; demo?: boolean }): EvidenceMode {
+export function derivePerformanceMode(args: {
+  performanceStatus?: unknown;
+  demo?: boolean;
+}): EvidenceMode {
   if (args.demo) return EVIDENCE_MODE.DEMO;
   const status = normalizeRuntimeStatus(args.performanceStatus, RUNTIME_STATUS.INSUFFICIENT_DATA);
   if (status === RUNTIME_STATUS.REALIZED) return EVIDENCE_MODE.LIVE;
@@ -56,7 +68,8 @@ export function deriveValidationMode(args: {
 }): EvidenceMode {
   if (args.demo) return EVIDENCE_MODE.DEMO;
   if (Boolean(args.replayEvidenceAvailable)) return EVIDENCE_MODE.REPLAY;
-  if (Boolean(args.paperEvidenceAvailable) || args.performanceMode === EVIDENCE_MODE.PAPER) return EVIDENCE_MODE.PAPER;
+  if (Boolean(args.paperEvidenceAvailable) || args.performanceMode === EVIDENCE_MODE.PAPER)
+    return EVIDENCE_MODE.PAPER;
   if (args.performanceMode === EVIDENCE_MODE.BACKTEST) return EVIDENCE_MODE.BACKTEST;
   if (args.performanceMode === EVIDENCE_MODE.LIVE) return EVIDENCE_MODE.LIVE;
   return EVIDENCE_MODE.UNAVAILABLE;
@@ -70,14 +83,17 @@ export function chooseDisplayMode(args: {
 }): EvidenceMode {
   if (args.demo) return EVIDENCE_MODE.DEMO;
   const modes = [args.marketDataMode, args.performanceMode, args.validationMode].filter(
-    (mode) => mode !== EVIDENCE_MODE.UNAVAILABLE
+    (mode) => mode !== EVIDENCE_MODE.UNAVAILABLE,
   );
   const distinct = [...new Set(modes)];
   if (!distinct.length) return EVIDENCE_MODE.UNAVAILABLE;
   if (distinct.length === 1) return distinct[0] as EvidenceMode;
-  if (distinct.includes(EVIDENCE_MODE.LIVE) && distinct.includes(EVIDENCE_MODE.REPLAY)) return EVIDENCE_MODE.MIXED;
-  if (distinct.includes(EVIDENCE_MODE.LIVE) && distinct.includes(EVIDENCE_MODE.PAPER)) return EVIDENCE_MODE.MIXED;
-  if (distinct.includes(EVIDENCE_MODE.PAPER) && distinct.includes(EVIDENCE_MODE.BACKTEST)) return EVIDENCE_MODE.MIXED;
+  if (distinct.includes(EVIDENCE_MODE.LIVE) && distinct.includes(EVIDENCE_MODE.REPLAY))
+    return EVIDENCE_MODE.MIXED;
+  if (distinct.includes(EVIDENCE_MODE.LIVE) && distinct.includes(EVIDENCE_MODE.PAPER))
+    return EVIDENCE_MODE.MIXED;
+  if (distinct.includes(EVIDENCE_MODE.PAPER) && distinct.includes(EVIDENCE_MODE.BACKTEST))
+    return EVIDENCE_MODE.MIXED;
   return distinct[0] as EvidenceMode;
 }
 
@@ -90,21 +106,32 @@ export function buildEvidenceLineage(args: {
   dataStatus?: unknown;
   demo?: boolean;
 }): EvidenceLineage {
-  const marketDataMode = deriveMarketDataMode({ runtimeStatus: args.runtimeStatus, demo: args.demo });
-  const performanceMode = derivePerformanceMode({ performanceStatus: args.performanceStatus, demo: args.demo });
+  const marketDataMode = deriveMarketDataMode({
+    runtimeStatus: args.runtimeStatus,
+    demo: args.demo,
+  });
+  const performanceMode = derivePerformanceMode({
+    performanceStatus: args.performanceStatus,
+    demo: args.demo,
+  });
   const validationMode = deriveValidationMode({
     replayEvidenceAvailable: args.replayEvidenceAvailable,
     paperEvidenceAvailable: args.paperEvidenceAvailable,
     performanceMode,
-    demo: args.demo
+    demo: args.demo,
   });
   return {
     market_data_mode: marketDataMode,
     performance_mode: performanceMode,
     validation_mode: validationMode,
-    display_mode: chooseDisplayMode({ marketDataMode, performanceMode, validationMode, demo: args.demo }),
+    display_mode: chooseDisplayMode({
+      marketDataMode,
+      performanceMode,
+      validationMode,
+      demo: args.demo,
+    }),
     source_status: normalizeRuntimeStatus(args.sourceStatus, RUNTIME_STATUS.INSUFFICIENT_DATA),
     data_status: normalizeRuntimeStatus(args.dataStatus, RUNTIME_STATUS.INSUFFICIENT_DATA),
-    demo: Boolean(args.demo)
+    demo: Boolean(args.demo),
   };
 }

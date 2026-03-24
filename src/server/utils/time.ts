@@ -5,7 +5,7 @@ const TF_TO_MS: Record<Timeframe, number> = {
   '5m': 5 * 60_000,
   '15m': 15 * 60_000,
   '1h': 60 * 60_000,
-  '1d': 24 * 60 * 60_000
+  '1d': 24 * 60 * 60_000,
 };
 
 export function timeframeToMs(tf: Timeframe): number {

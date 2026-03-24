@@ -7,17 +7,17 @@ export default function ChatAssistant({ open, onClose, userId, seed, t }) {
     userId,
     seedRequest: seed,
     contextBase: {
-      page: 'ai'
-    }
+      page: 'ai',
+    },
   });
 
   const suggestions = useMemo(
     () => [
       t('chat.suggest.quantBasics'),
       t('chat.suggest.riskSizing'),
-      t('chat.suggest.executeChecklist')
+      t('chat.suggest.executeChecklist'),
     ],
-    [t]
+    [t],
   );
 
   useEffect(() => {
@@ -28,7 +28,12 @@ export default function ChatAssistant({ open, onClose, userId, seed, t }) {
 
   return (
     <div className="chat-overlay" role="presentation" onClick={onClose}>
-      <section className="chat-sheet" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+      <section
+        className="chat-sheet"
+        role="dialog"
+        aria-modal="true"
+        onClick={(event) => event.stopPropagation()}
+      >
         <header className="chat-header">
           <h3 className="card-title">{t('chat.title')}</h3>
           <button type="button" className="ghost-btn" onClick={onClose}>
@@ -82,7 +87,11 @@ export default function ChatAssistant({ open, onClose, userId, seed, t }) {
             placeholder={t('chat.placeholder')}
             disabled={streaming}
           />
-          <button type="submit" className="primary-btn chat-send" disabled={streaming || !input.trim()}>
+          <button
+            type="submit"
+            className="primary-btn chat-send"
+            disabled={streaming || !input.trim()}
+          >
             {streaming ? t('chat.sending') : t('chat.send')}
           </button>
         </form>

@@ -24,6 +24,6 @@ export function resolveBusinessTask(task: NovaBusinessTask) {
   const route = mapBusinessTaskToRoute(task);
   return {
     business_task: task,
-    ...resolveNovaRoute(route)
+    ...resolveNovaRoute(route),
   };
 }

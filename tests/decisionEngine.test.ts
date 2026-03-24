@@ -17,16 +17,18 @@ function marketState(overrides: Partial<MarketStateRecord> = {}): MarketStateRec
     event_stats_json: JSON.stringify({
       source_status: 'DB_BACKED',
       panda: {
-        top_factors: ['momentum', 'trend persistence']
-      }
+        top_factors: ['momentum', 'trend persistence'],
+      },
     }),
     assumptions_json: JSON.stringify({ source_label: 'DB_BACKED' }),
     updated_at_ms: Date.now(),
-    ...overrides
+    ...overrides,
   };
 }
 
-function riskProfile(profile_key: UserRiskProfileRecord['profile_key'] = 'balanced'): UserRiskProfileRecord {
+function riskProfile(
+  profile_key: UserRiskProfileRecord['profile_key'] = 'balanced',
+): UserRiskProfileRecord {
   return {
     user_id: 'decision-user',
     profile_key,
@@ -35,7 +37,7 @@ function riskProfile(profile_key: UserRiskProfileRecord['profile_key'] = 'balanc
     max_drawdown: 12,
     exposure_cap: 55,
     leverage_cap: 2,
-    updated_at_ms: Date.now()
+    updated_at_ms: Date.now(),
   };
 }
 
@@ -63,7 +65,7 @@ function signal(overrides: Record<string, unknown> = {}) {
     data_status: 'MODEL_DERIVED',
     source_label: 'MODEL_DERIVED',
     expected_metrics: { sample_size: 24 },
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -79,7 +81,7 @@ describe('decision engine', () => {
       signals: [signal()],
       evidenceSignals: [],
       marketState: [marketState()],
-      holdings: [{ symbol: 'AAPL', asset_class: 'US_STOCK', weight_pct: 8, sector: 'Technology' }]
+      holdings: [{ symbol: 'AAPL', asset_class: 'US_STOCK', weight_pct: 8, sector: 'Technology' }],
     });
 
     expect(out.risk_state.posture).toBe('ATTACK');
@@ -104,10 +106,10 @@ describe('decision engine', () => {
           volatility_percentile: 91,
           risk_off_score: 0.84,
           temperature_percentile: 88,
-          stance: 'risk off'
-        })
+          stance: 'risk off',
+        }),
       ],
-      holdings: []
+      holdings: [],
     });
 
     expect(out.risk_state.posture).toBe('DEFEND');
@@ -124,12 +126,24 @@ describe('decision engine', () => {
       runtimeSourceStatus: 'DB_BACKED',
       riskProfile: riskProfile('balanced'),
       signals: [
-        signal({ signal_id: 'SIG-REAL-1', symbol: 'AAPL', strategy_id: 'EQ_SWING', strategy_family: 'Momentum / Trend' }),
-        signal({ signal_id: 'SIG-FAKE-1', symbol: 'MSFT', strategy_id: null, strategy_family: null, confidence: 0.92, score: 91 })
+        signal({
+          signal_id: 'SIG-REAL-1',
+          symbol: 'AAPL',
+          strategy_id: 'EQ_SWING',
+          strategy_family: 'Momentum / Trend',
+        }),
+        signal({
+          signal_id: 'SIG-FAKE-1',
+          symbol: 'MSFT',
+          strategy_id: null,
+          strategy_family: null,
+          confidence: 0.92,
+          score: 91,
+        }),
       ],
       evidenceSignals: [],
       marketState: [marketState(), marketState({ symbol: 'MSFT' })],
-      holdings: []
+      holdings: [],
     });
 
     expect(out.audit.strategy_backed_count).toBe(1);

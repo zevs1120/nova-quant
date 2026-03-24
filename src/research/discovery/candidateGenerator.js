@@ -3,7 +3,7 @@ import {
   canonicalStrategyFamily,
   normalizeConstraintList,
   normalizeTemplateHint,
-  summarizeFeatureAlignment
+  summarizeFeatureAlignment,
 } from './seedRuntime.js';
 
 function intersect(a = [], b = []) {
@@ -21,7 +21,7 @@ function numericRange(range = {}) {
   return {
     min,
     max,
-    step: Number.isFinite(step) && step > 0 ? step : 1
+    step: Number.isFinite(step) && step > 0 ? step : 1,
   };
 }
 
@@ -110,14 +110,15 @@ function summarizeParameterBias(template, parameterSet) {
   for (const [name, value] of Object.entries(parameterSet || {})) {
     const range = numericRange(ranges[name]);
     if (!range) continue;
-    const ratio = range.max === range.min ? 0.5 : (Number(value) - range.min) / (range.max - range.min);
+    const ratio =
+      range.max === range.min ? 0.5 : (Number(value) - range.min) / (range.max - range.min);
     score += clamp(ratio, 0, 1);
     count += 1;
   }
 
   return {
     normalized_parameter_bias: count ? round(score / count, 4) : 0.5,
-    parameter_count: count
+    parameter_count: count,
   };
 }
 
@@ -128,7 +129,10 @@ function qualityPrior({ hypothesis, template, overlapFeatures, regimeIntersectio
   const regimeFit = regimeIntersection.length ? 1 : 0.42;
   const priority = Number(hypothesis.discovery_priority_score || 0.5);
   const starvationBoost = context.starvation ? 0.06 : 0;
-  return round(clamp(priority * 0.5 + featureCoverage * 0.25 + regimeFit * 0.19 + starvationBoost, 0, 1), 4);
+  return round(
+    clamp(priority * 0.5 + featureCoverage * 0.25 + regimeFit * 0.19 + starvationBoost, 0, 1),
+    4,
+  );
 }
 
 function buildCandidateId(hypothesisId, templateId, parameterSet) {
@@ -151,7 +155,7 @@ function parseHorizonConstraint(raw) {
   if (typeof raw === 'object') {
     return {
       min: Number.isFinite(raw.min) ? raw.min : 0,
-      max: Number.isFinite(raw.max) ? raw.max : Number.POSITIVE_INFINITY
+      max: Number.isFinite(raw.max) ? raw.max : Number.POSITIVE_INFINITY,
     };
   }
   const key = String(raw).toLowerCase().trim();
@@ -169,21 +173,30 @@ function normalizeGenerationConfig(config = {}) {
     max_hypotheses: Number(config.max_hypotheses || 8),
     max_templates_per_hypothesis: Number(config.max_templates_per_hypothesis || 5),
     min_feature_overlap: Number(config.min_feature_overlap || 1),
-    market: normalizeConstraintList(constraints.market || constraints.markets).map((item) => String(item).toUpperCase()),
-    asset_classes: normalizeConstraintList(constraints.asset_class || constraints.asset_classes).map((item) =>
-      String(item).toUpperCase()
+    market: normalizeConstraintList(constraints.market || constraints.markets).map((item) =>
+      String(item).toUpperCase(),
     ),
-    regimes: normalizeConstraintList(constraints.regime || constraints.regimes).map((item) => String(item).toLowerCase()),
-    families: normalizeConstraintList(constraints.family || constraints.families).map(canonicalStrategyFamily),
+    asset_classes: normalizeConstraintList(
+      constraints.asset_class || constraints.asset_classes,
+    ).map((item) => String(item).toUpperCase()),
+    regimes: normalizeConstraintList(constraints.regime || constraints.regimes).map((item) =>
+      String(item).toLowerCase(),
+    ),
+    families: normalizeConstraintList(constraints.family || constraints.families).map(
+      canonicalStrategyFamily,
+    ),
     trade_horizon: parseHorizonConstraint(constraints.trade_horizon || constraints.horizon),
-    risk_profile: String(constraints.risk_profile || constraints.riskProfile || '').toLowerCase().trim()
+    risk_profile: String(constraints.risk_profile || constraints.riskProfile || '')
+      .toLowerCase()
+      .trim(),
   };
 }
 
 function supportsMarket(assetClasses = [], markets = []) {
   if (!markets.length) return true;
   const set = new Set((assetClasses || []).map((item) => String(item).toUpperCase()));
-  if (markets.some((item) => ['US', 'US_STOCK', 'EQUITY'].includes(item)) && !set.has('US_STOCK')) return false;
+  if (markets.some((item) => ['US', 'US_STOCK', 'EQUITY'].includes(item)) && !set.has('US_STOCK'))
+    return false;
   if (markets.some((item) => ['CRYPTO'].includes(item)) && !set.has('CRYPTO')) return false;
   return true;
 }
@@ -232,7 +245,9 @@ function supportsRiskProfile(template, riskProfile = '') {
 }
 
 function templateHintMatch(hypothesis = {}, template = {}) {
-  const hints = (hypothesis.candidate_template_hints || []).map(normalizeTemplateHint).filter(Boolean);
+  const hints = (hypothesis.candidate_template_hints || [])
+    .map(normalizeTemplateHint)
+    .filter(Boolean);
   if (!hints.length) return { pass: true, applied: false };
 
   const aliases = []
@@ -243,7 +258,7 @@ function templateHintMatch(hypothesis = {}, template = {}) {
 
   return {
     pass: hints.some((hint) => aliases.includes(hint)),
-    applied: true
+    applied: true,
   };
 }
 
@@ -257,7 +272,7 @@ function initRejectionCounter() {
     horizon_mismatch: 0,
     template_hint_mismatch: 0,
     feature_mismatch: 0,
-    capacity_limit: 0
+    capacity_limit: 0,
   };
 }
 
@@ -269,7 +284,7 @@ function templateUsageRows(candidates = []) {
       template_id: key,
       template_name: row.template_name,
       strategy_family: row.strategy_family,
-      count: (map.get(key)?.count || 0) + 1
+      count: (map.get(key)?.count || 0) + 1,
     });
   }
   return Array.from(map.values()).sort((a, b) => b.count - a.count);
@@ -281,7 +296,7 @@ function hypothesisUsageRows(candidates = []) {
     const key = row.hypothesis_id;
     map.set(key, {
       hypothesis_id: key,
-      count: (map.get(key)?.count || 0) + 1
+      count: (map.get(key)?.count || 0) + 1,
     });
   }
   return Array.from(map.values()).sort((a, b) => b.count - a.count);
@@ -293,17 +308,20 @@ export function buildCandidateGenerator({
   templateRegistry = {},
   seedRuntime = {},
   context = {},
-  config = {}
+  config = {},
 } = {}) {
   const hypotheses = hypothesisRegistry?.hypotheses || [];
   const templates = templateRegistry?.templates || [];
   const normalizedConfig = normalizeGenerationConfig(config);
-  const modes = normalizedConfig.risk_profile === 'conservative'
-    ? ['base', 'conservative', 'regime_tuned']
-    : ['base', 'conservative', 'exploratory', 'regime_tuned'];
+  const modes =
+    normalizedConfig.risk_profile === 'conservative'
+      ? ['base', 'conservative', 'regime_tuned']
+      : ['base', 'conservative', 'exploratory', 'regime_tuned'];
 
   const selectedHypotheses = [...hypotheses]
-    .sort((a, b) => Number(b.discovery_priority_score || 0) - Number(a.discovery_priority_score || 0))
+    .sort(
+      (a, b) => Number(b.discovery_priority_score || 0) - Number(a.discovery_priority_score || 0),
+    )
     .slice(0, normalizedConfig.max_hypotheses);
 
   const generated = [];
@@ -312,7 +330,9 @@ export function buildCandidateGenerator({
   const mappingFailures = [];
 
   for (const hypothesis of selectedHypotheses) {
-    const hypothesisFamilies = (hypothesis.candidate_strategy_families || []).map(canonicalStrategyFamily);
+    const hypothesisFamilies = (hypothesis.candidate_strategy_families || []).map(
+      canonicalStrategyFamily,
+    );
     let localCount = 0;
     let matchedTemplateCount = 0;
     let attemptedTemplateCount = 0;
@@ -322,22 +342,33 @@ export function buildCandidateGenerator({
     for (const template of templates) {
       attemptedTemplateCount += 1;
 
-      const familyMatch = hypothesisFamilies.includes(canonicalStrategyFamily(template.strategy_family));
+      const familyMatch = hypothesisFamilies.includes(
+        canonicalStrategyFamily(template.strategy_family),
+      );
       if (!familyMatch) {
         counters.family_mismatch += 1;
         rejectedTemplateCounts.family_mismatch += 1;
         continue;
       }
 
-      const assetIntersection = intersect(hypothesis.relevant_asset_classes, template.compatible_asset_classes);
+      const assetIntersection = intersect(
+        hypothesis.relevant_asset_classes,
+        template.compatible_asset_classes,
+      );
       if (!assetIntersection.length) {
         counters.asset_mismatch += 1;
         rejectedTemplateCounts.asset_mismatch += 1;
         continue;
       }
 
-      const regimeIntersection = intersect(hypothesis.relevant_regimes, template.compatible_regimes);
-      const featureOverlap = intersect(hypothesis.supporting_features, template.compatible_features);
+      const regimeIntersection = intersect(
+        hypothesis.relevant_regimes,
+        template.compatible_regimes,
+      );
+      const featureOverlap = intersect(
+        hypothesis.supporting_features,
+        template.compatible_features,
+      );
       const hintMatch = templateHintMatch(hypothesis, template);
 
       if (!supportsMarket(assetIntersection, normalizedConfig.market)) {
@@ -350,7 +381,12 @@ export function buildCandidateGenerator({
         rejectedTemplateCounts.asset_mismatch += 1;
         continue;
       }
-      if (!supportsRegime(regimeIntersection.length ? regimeIntersection : template.compatible_regimes, normalizedConfig.regimes)) {
+      if (
+        !supportsRegime(
+          regimeIntersection.length ? regimeIntersection : template.compatible_regimes,
+          normalizedConfig.regimes,
+        )
+      ) {
         counters.regime_mismatch += 1;
         rejectedTemplateCounts.regime_mismatch += 1;
         continue;
@@ -392,13 +428,24 @@ export function buildCandidateGenerator({
           break;
         }
 
-        const seed = deterministicHash(`${hypothesis.hypothesis_id}|${template.template_id}|${mode}|${asOf}`);
+        const seed = deterministicHash(
+          `${hypothesis.hypothesis_id}|${template.template_id}|${mode}|${asOf}`,
+        );
         const parameterSet = buildParameterSet(template, mode, context.currentRegime, seed);
-        const candidateId = buildCandidateId(hypothesis.hypothesis_id, template.template_id, parameterSet);
+        const candidateId = buildCandidateId(
+          hypothesis.hypothesis_id,
+          template.template_id,
+          parameterSet,
+        );
         const biasSummary = summarizeParameterBias(template, parameterSet);
         const featureAlignment = summarizeFeatureAlignment({
-          requiredFeatures: [...new Set([...(hypothesis.supporting_features || []), ...(template.compatible_features || [])])],
-          featureCatalog: seedRuntime?.feature_catalog || {}
+          requiredFeatures: [
+            ...new Set([
+              ...(hypothesis.supporting_features || []),
+              ...(template.compatible_features || []),
+            ]),
+          ],
+          featureCatalog: seedRuntime?.feature_catalog || {},
         });
 
         generated.push({
@@ -412,8 +459,11 @@ export function buildCandidateGenerator({
           template_name: template.template_name,
           strategy_family: template.strategy_family,
           supported_asset_classes: assetIntersection,
-          compatible_regimes: regimeIntersection.length ? regimeIntersection : template.compatible_regimes,
-          expected_holding_horizon: hypothesis.expected_holding_horizon || template.expected_holding_horizon || '1-5 bars',
+          compatible_regimes: regimeIntersection.length
+            ? regimeIntersection
+            : template.compatible_regimes,
+          expected_holding_horizon:
+            hypothesis.expected_holding_horizon || template.expected_holding_horizon || '1-5 bars',
           supporting_features: featureOverlap,
           required_features: featureAlignment.required_features,
           required_feature_groups: featureAlignment.required_feature_groups,
@@ -427,7 +477,7 @@ export function buildCandidateGenerator({
             template,
             overlapFeatures: featureOverlap,
             regimeIntersection,
-            context
+            context,
           }),
           candidate_source_metadata: {
             source_type: 'seed_driven_runtime',
@@ -446,21 +496,21 @@ export function buildCandidateGenerator({
               regimes: normalizedConfig.regimes,
               families: normalizedConfig.families,
               trade_horizon: normalizedConfig.trade_horizon,
-              risk_profile: normalizedConfig.risk_profile
+              risk_profile: normalizedConfig.risk_profile,
             },
             mapping_quality: {
               feature_overlap_count: featureOverlap.length,
               regime_overlap_count: regimeIntersection.length,
-              template_hint_applied: hintMatch.applied
-            }
+              template_hint_applied: hintMatch.applied,
+            },
           },
           traceability: {
             generated_at: asOf,
             generated_by: 'strategy-discovery-engine.v2',
             hypothesis_origin: hypothesis.hypothesis_id,
             template_origin: template.template_id,
-            parameter_bias: biasSummary
-          }
+            parameter_bias: biasSummary,
+          },
         });
         localCount += 1;
       }
@@ -470,7 +520,7 @@ export function buildCandidateGenerator({
       mappingFailures.push({
         hypothesis_id: hypothesis.hypothesis_id,
         reason: 'no_template_match_after_constraints',
-        rejected_template_counts: rejectedTemplateCounts
+        rejected_template_counts: rejectedTemplateCounts,
       });
     }
 
@@ -481,7 +531,7 @@ export function buildCandidateGenerator({
       matched_templates: matchedTemplateCount,
       mapped_template_ids: matchedTemplateIds.slice(0, 8),
       generated_candidates: localCount,
-      rejected_template_counts: rejectedTemplateCounts
+      rejected_template_counts: rejectedTemplateCounts,
     });
   }
 
@@ -508,13 +558,13 @@ export function buildCandidateGenerator({
         regimes: normalizedConfig.regimes,
         families: normalizedConfig.families,
         trade_horizon: normalizedConfig.trade_horizon,
-        risk_profile: normalizedConfig.risk_profile
-      }
+        risk_profile: normalizedConfig.risk_profile,
+      },
     },
     selected_hypotheses: selectedHypotheses.map((item) => ({
       hypothesis_id: item.hypothesis_id,
       description: item.description,
-      discovery_priority_score: item.discovery_priority_score
+      discovery_priority_score: item.discovery_priority_score,
     })),
     candidates: generated,
     summary: {
@@ -527,10 +577,10 @@ export function buildCandidateGenerator({
         hypotheses_without_candidates: hypothesesWithoutCandidates,
         templates_unused: templatesUnused,
         mapping_failures: mappingFailures,
-        seeds_unused_count: hypothesesWithoutCandidates.length + templatesUnused.length
+        seeds_unused_count: hypothesesWithoutCandidates.length + templatesUnused.length,
       },
       guided_generation_note:
-        'Candidates are generated from seed-driven hypothesis-template-feature alignment with bounded parameter modes and explicit runtime constraints.'
-    }
+        'Candidates are generated from seed-driven hypothesis-template-feature alignment with bounded parameter modes and explicit runtime constraints.',
+    },
   };
 }

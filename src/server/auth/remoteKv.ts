@@ -14,7 +14,7 @@ function getRemoteRedisConfig(): RemoteRedisConfig | null {
   if (!url || !token) return null;
   return {
     url: url.replace(/\/+$/, ''),
-    token
+    token,
   };
 }
 
@@ -39,7 +39,7 @@ async function fetchRemoteRedis(url: string, init: RequestInit) {
   try {
     return await fetch(url, {
       ...init,
-      signal: controller.signal
+      signal: controller.signal,
     });
   } catch (error) {
     const message = String((error as Error)?.message || error || '');
@@ -58,31 +58,39 @@ async function runRedisCommand<T>(command: RedisScalar[]): Promise<T | null> {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${config.token}`,
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
     },
-    body: JSON.stringify(command)
+    body: JSON.stringify(command),
   });
 
   const payload = (await response.json()) as RedisSuccess<T> | RedisFailure;
   if (!response.ok || 'error' in payload) {
-    throw new Error(`REMOTE_AUTH_STORE_COMMAND_FAILED:${'error' in payload ? payload.error : response.status}`);
+    throw new Error(
+      `REMOTE_AUTH_STORE_COMMAND_FAILED:${'error' in payload ? payload.error : response.status}`,
+    );
   }
   return payload.result ?? null;
 }
 
-async function runRedisPipeline(commands: RedisScalar[][]): Promise<Array<{ result?: unknown; error?: string }>> {
+async function runRedisPipeline(
+  commands: RedisScalar[][],
+): Promise<Array<{ result?: unknown; error?: string }>> {
   const config = getRequiredRemoteRedisConfig();
   const response = await fetchRemoteRedis(`${config.url}/pipeline`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${config.token}`,
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
     },
-    body: JSON.stringify(commands)
+    body: JSON.stringify(commands),
   });
-  const payload = (await response.json()) as Array<{ result?: unknown; error?: string }> | RedisFailure;
+  const payload = (await response.json()) as
+    | Array<{ result?: unknown; error?: string }>
+    | RedisFailure;
   if (!response.ok || !Array.isArray(payload)) {
-    throw new Error(`REMOTE_AUTH_STORE_PIPELINE_FAILED:${Array.isArray(payload) ? response.status : payload.error}`);
+    throw new Error(
+      `REMOTE_AUTH_STORE_PIPELINE_FAILED:${Array.isArray(payload) ? response.status : payload.error}`,
+    );
   }
   return payload;
 }
@@ -137,7 +145,7 @@ export async function remoteGetJson<T>(key: string): Promise<T | null> {
 export async function remoteSetString(
   key: string,
   value: string,
-  options: { nx?: boolean; px?: number } = {}
+  options: { nx?: boolean; px?: number } = {},
 ): Promise<boolean> {
   const command: RedisScalar[] = ['SET', key, value];
   if (options.px) {
@@ -153,7 +161,7 @@ export async function remoteSetString(
 export async function remoteSetJson(
   key: string,
   value: unknown,
-  options: { nx?: boolean; px?: number } = {}
+  options: { nx?: boolean; px?: number } = {},
 ): Promise<boolean> {
   return remoteSetString(key, JSON.stringify(value), options);
 }

@@ -9,5 +9,5 @@ document.title = 'NovaQuant 管理后台';
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <AdminApp />
-  </React.StrictMode>
+  </React.StrictMode>,
 );

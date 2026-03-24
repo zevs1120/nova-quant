@@ -32,7 +32,7 @@ export async function validateAndRepair(params: {
           timeframe: tf,
           tsOpen: gap.from,
           anomalyType: 'MISSING_BARS',
-          detail
+          detail,
         });
 
         if (asset.market === 'CRYPTO' && asset.venue === 'BINANCE_UM') {
@@ -43,26 +43,33 @@ export async function validateAndRepair(params: {
               timeframe: tf,
               startTime: gap.from - step,
               endTime: gap.to + step,
-              limit: Math.max(100, gap.missingBars + 10)
+              limit: Math.max(100, gap.missingBars + 10),
             });
             if (bars.length) {
               params.repo.upsertOhlcvBars(asset.asset_id, tf, bars, 'BINANCE_REPAIR');
-              logInfo('Gap repaired from Binance REST', { symbol: asset.symbol, timeframe: tf, inserted: bars.length });
+              logInfo('Gap repaired from Binance REST', {
+                symbol: asset.symbol,
+                timeframe: tf,
+                inserted: bars.length,
+              });
             }
           } catch (error) {
             if (isBinanceAccessBlockedError(error)) {
               binanceRepairBlocked = true;
-              logWarn('Binance futures REST is region-blocked; skipping automatic crypto gap repair for this run', {
-                symbol: asset.symbol,
-                timeframe: tf,
-                error: error instanceof Error ? error.message : String(error)
-              });
+              logWarn(
+                'Binance futures REST is region-blocked; skipping automatic crypto gap repair for this run',
+                {
+                  symbol: asset.symbol,
+                  timeframe: tf,
+                  error: error instanceof Error ? error.message : String(error),
+                },
+              );
               continue;
             }
             logWarn('Failed gap repair from Binance REST', {
               symbol: asset.symbol,
               timeframe: tf,
-              error: error instanceof Error ? error.message : String(error)
+              error: error instanceof Error ? error.message : String(error),
             });
           }
         } else {
@@ -70,7 +77,7 @@ export async function validateAndRepair(params: {
             symbol: asset.symbol,
             market: asset.market,
             timeframe: tf,
-            missingBars: gap.missingBars
+            missingBars: gap.missingBars,
           });
         }
       }

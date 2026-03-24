@@ -3,7 +3,7 @@ import {
   DYNAMIC_RISK_BUCKETS,
   PARAM_VERSION,
   RISK_PROFILES,
-  VELOCITY_SETTINGS
+  VELOCITY_SETTINGS,
 } from './params.js';
 import { clamp, round } from './math.js';
 
@@ -25,13 +25,22 @@ function chooseBucket({ velocitySeries, volSeries }) {
   const prev2Vel = asPercentile(velocitySeries?.[velocitySeries.length - 3]);
   const prev2Vol = asPercentile(volSeries?.[volSeries.length - 3]);
 
-  if (currentVel > VELOCITY_SETTINGS.restore_threshold || currentVol > VELOCITY_SETTINGS.restore_threshold) {
+  if (
+    currentVel > VELOCITY_SETTINGS.restore_threshold ||
+    currentVol > VELOCITY_SETTINGS.restore_threshold
+  ) {
     return { state: 'DERISKED', reason: 'velocity/volatility percentile above 90th threshold' };
   }
-  if (prevVel > VELOCITY_SETTINGS.restore_threshold || prevVol > VELOCITY_SETTINGS.restore_threshold) {
+  if (
+    prevVel > VELOCITY_SETTINGS.restore_threshold ||
+    prevVol > VELOCITY_SETTINGS.restore_threshold
+  ) {
     return { state: 'RECOVERY_STEP_1', reason: 'first normalization step after de-risk trigger' };
   }
-  if (prev2Vel > VELOCITY_SETTINGS.restore_threshold || prev2Vol > VELOCITY_SETTINGS.restore_threshold) {
+  if (
+    prev2Vel > VELOCITY_SETTINGS.restore_threshold ||
+    prev2Vol > VELOCITY_SETTINGS.restore_threshold
+  ) {
     return { state: 'RECOVERY_STEP_2', reason: 'second normalization step before base risk' };
   }
   return { state: 'BASE', reason: 'normal risk bucket' };
@@ -72,12 +81,13 @@ function computeTradeHistoryRisk(trades = [], profile) {
     }, 0);
 
   const maxDdPct = Math.abs(maxDd) * 100;
-  const tradingOn = dailyPnlPct > -profile.max_daily_loss_pct && maxDdPct < profile.max_drawdown_pct;
+  const tradingOn =
+    dailyPnlPct > -profile.max_daily_loss_pct && maxDdPct < profile.max_drawdown_pct;
 
   return {
     trading_on: tradingOn,
     max_dd_pct: round(maxDdPct, 2),
-    daily_pnl_pct: round(dailyPnlPct, 2)
+    daily_pnl_pct: round(dailyPnlPct, 2),
   };
 }
 
@@ -89,7 +99,10 @@ function riskLevelFromState(bucketState, riskOffScore) {
 
 export function resolveRiskProfile(config = {}) {
   const requested =
-    config.risk_profile || config.risk_profile_key || config.risk_rules?.profile || DEFAULT_RISK_PROFILE;
+    config.risk_profile ||
+    config.risk_profile_key ||
+    config.risk_rules?.profile ||
+    DEFAULT_RISK_PROFILE;
   return RISK_PROFILES[requested] ? requested : DEFAULT_RISK_PROFILE;
 }
 
@@ -98,7 +111,7 @@ export function computePositionPct({
   stopLoss,
   profile,
   bucketMultiplier,
-  activeSignalCount = 1
+  activeSignalCount = 1,
 }) {
   const safeEntry = Math.max(Number(entry || 0), 1e-6);
   const safeStop = Number(stopLoss || safeEntry);
@@ -108,7 +121,7 @@ export function computePositionPct({
   const leverageScale = 0.8 + profile.leverage_cap * 0.2;
   const basePerSignalCap = Math.min(
     profile.exposure_cap_pct / Math.max(activeSignalCount, 1),
-    profile.per_signal_cap_pct * leverageScale
+    profile.per_signal_cap_pct * leverageScale,
   );
   const perSignalCap = basePerSignalCap * bucketMultiplier;
   const positionPct = clamp(rawPct * bucketMultiplier, 0, perSignalCap);
@@ -121,7 +134,9 @@ export function runRiskEngine({ config, trades, velocityState, regimeState }) {
   const primarySeries = velocityState.series_index?.[velocityState.primary_key];
   const bucket = chooseBucket({
     velocitySeries: primarySeries?.velocity?.percentile || [velocityState.global.percentile || 0.5],
-    volSeries: primarySeries?.velocity?.vol_percentile || [regimeState.primary?.vol_percentile || 0.5]
+    volSeries: primarySeries?.velocity?.vol_percentile || [
+      regimeState.primary?.vol_percentile || 0.5,
+    ],
   });
   const bucketConfig = DYNAMIC_RISK_BUCKETS[bucket.state];
   const historyRisk = computeTradeHistoryRisk(trades, profile);
@@ -141,7 +156,7 @@ export function runRiskEngine({ config, trades, velocityState, regimeState }) {
       max_dd_pct: profile.max_drawdown_pct,
       exposure_cap_pct: profile.exposure_cap_pct,
       leverage_cap: profile.leverage_cap,
-      vol_switch: true
+      vol_switch: true,
     },
     status: {
       trading_on: historyRisk.trading_on,
@@ -151,7 +166,7 @@ export function runRiskEngine({ config, trades, velocityState, regimeState }) {
       last_event: `${nowIso}: ${bucket.state} (${bucket.reason})`,
       last_event_en: `${nowIso}: ${bucket.state} (${bucket.reason})`,
       last_event_zh: `${nowIso}：${bucket.state}（${bucket.reason}）`,
-      diagnostics: historyRisk
-    }
+      diagnostics: historyRisk,
+    },
   };
 }

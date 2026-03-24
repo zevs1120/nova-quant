@@ -5,7 +5,7 @@ import { runQuantPipeline } from '../src/engines/pipeline.js';
 describe('portfolio simulation engine', () => {
   const state = runQuantPipeline({
     as_of: '2026-03-08T00:00:00.000Z',
-    config: { risk_profile: 'balanced' }
+    config: { risk_profile: 'balanced' },
   });
 
   const sim = state?.research?.research_core?.portfolio_simulation_engine;
@@ -35,23 +35,30 @@ describe('portfolio simulation engine', () => {
     const cap = Number(sim?.allocation?.crowding_guard?.family_cap || 0);
     expect(cap).toBeGreaterThan(0);
 
-    const familyExposureAfter = sim?.diagnostics?.allocation_crowding_guard?.family_exposure_after || [];
+    const familyExposureAfter =
+      sim?.diagnostics?.allocation_crowding_guard?.family_exposure_after || [];
     expect(familyExposureAfter.length).toBeGreaterThan(0);
 
-    const maxFamilyExposure = Math.max(...familyExposureAfter.map((row: any) => Number(row.exposure || 0)));
+    const maxFamilyExposure = Math.max(
+      ...familyExposureAfter.map((row: any) => Number(row.exposure || 0)),
+    );
     expect(maxFamilyExposure).toBeLessThanOrEqual(cap + 0.0005);
-    expect(Number(sim?.allocation?.crowding_guard?.unallocated_cash_buffer || 0)).toBeGreaterThanOrEqual(0);
+    expect(
+      Number(sim?.allocation?.crowding_guard?.unallocated_cash_buffer || 0),
+    ).toBeGreaterThanOrEqual(0);
   });
 
   it('applies institutional portfolio risk guardrails', () => {
     expect(sim?.allocation?.institutional_risk_guard).toBeTruthy();
     const maxStrategyWeight = Math.max(
-      ...(sim?.allocation?.strategy_rows || []).map((row: any) => Number(row.weight || 0))
+      ...(sim?.allocation?.strategy_rows || []).map((row: any) => Number(row.weight || 0)),
     );
     expect(maxStrategyWeight).toBeLessThanOrEqual(
-      Number(sim?.allocation?.institutional_risk_guard?.max_strategy_weight || 1) + 0.0005
+      Number(sim?.allocation?.institutional_risk_guard?.max_strategy_weight || 1) + 0.0005,
     );
-    expect(sim?.diagnostics?.institutional_risk_guard?.market_exposure_after?.length).toBeGreaterThan(0);
+    expect(
+      sim?.diagnostics?.institutional_risk_guard?.market_exposure_after?.length,
+    ).toBeGreaterThan(0);
     expect(sim?.allocation?.strategy_rows?.[0]?.execution_tracking_status).toBeTruthy();
   });
 });

@@ -3,8 +3,14 @@ import { describe, expect, it } from 'vitest';
 import { ensureSchema } from '../src/server/db/schema.js';
 import { MarketRepository } from '../src/server/db/repository.js';
 import type { SignalContract } from '../src/server/types.js';
-import { persistAlphaCandidate, type AutonomousAlphaCandidate } from '../src/server/alpha_registry/index.js';
-import { buildPrivateMarvixOpsReport, isLoopbackAddress } from '../src/server/ops/privateMarvixOps.js';
+import {
+  persistAlphaCandidate,
+  type AutonomousAlphaCandidate,
+} from '../src/server/alpha_registry/index.js';
+import {
+  buildPrivateMarvixOpsReport,
+  isLoopbackAddress,
+} from '../src/server/ops/privateMarvixOps.js';
 
 function buildCandidate(id: string): AutonomousAlphaCandidate {
   return {
@@ -25,7 +31,7 @@ function buildCandidate(id: string): AutonomousAlphaCandidate {
     integration_path: 'confidence_modifier',
     created_at: new Date().toISOString(),
     source: 'autonomous_discovery',
-    strategy_candidate: null
+    strategy_candidate: null,
   };
 }
 
@@ -52,45 +58,45 @@ function buildSignal(id: string, symbol = 'AAPL'): SignalContract {
     entry_zone: {
       low: 100,
       high: 101,
-      method: 'LIMIT'
+      method: 'LIMIT',
     },
     invalidation_level: 97,
     stop_loss: {
       type: 'ATR',
       price: 97,
-      rationale: 'test stop'
+      rationale: 'test stop',
     },
     take_profit_levels: [
       {
         price: 104,
         size_pct: 0.6,
-        rationale: 'tp1'
+        rationale: 'tp1',
       },
       {
         price: 107,
         size_pct: 0.4,
-        rationale: 'tp2'
-      }
+        rationale: 'tp2',
+      },
     ],
     trailing_rule: {
       type: 'EMA',
-      params: { ema_fast: 10, ema_slow: 30 }
+      params: { ema_fast: 10, ema_slow: 30 },
     },
     position_advice: {
       position_pct: 5,
       leverage_cap: 1,
       risk_bucket_applied: 'BASE',
-      rationale: 'test sizing'
+      rationale: 'test sizing',
     },
     cost_model: {
       fee_bps: 1.5,
       spread_bps: 1,
-      slippage_bps: 1.8
+      slippage_bps: 1.8,
     },
     expected_metrics: {
       expected_R: 1.1,
       hit_rate_est: 0.54,
-      sample_size: 16
+      sample_size: 16,
     },
     explain_bullets: ['test signal'],
     execution_checklist: ['check data'],
@@ -100,11 +106,11 @@ function buildSignal(id: string, symbol = 'AAPL'): SignalContract {
       kind: 'STOCK_SWING',
       data: {
         horizon: 'MEDIUM',
-        catalysts: ['test']
-      }
+        catalysts: ['test'],
+      },
     },
     score: 79,
-    payload_version: '1'
+    payload_version: '1',
   };
 }
 
@@ -133,13 +139,13 @@ describe('private Marvix ops report', () => {
       output_json: JSON.stringify({
         news: {
           refreshed_symbols: 4,
-          rows_upserted: 12
-        }
+          rows_upserted: 12,
+        },
       }),
       attempt_count: 1,
       started_at_ms: now - 5_000,
       updated_at_ms: now - 2_000,
-      completed_at_ms: now - 2_000
+      completed_at_ms: now - 2_000,
     });
 
     repo.upsertNewsItems([
@@ -162,16 +168,16 @@ describe('private Marvix ops report', () => {
               factor_tags: ['product_cycle', 'demand'],
               summary: 'Demand and product-cycle tone remain supportive.',
               sentiment_score: 0.53,
-              event_risk_score: 0.32
+              event_risk_score: 0.32,
             },
             headline: {
               sentiment_score: 0.67,
-              relevance_score: 0.88
-            }
-          }
+              relevance_score: 0.88,
+            },
+          },
         }),
-        updated_at_ms: now - 30_000
-      }
+        updated_at_ms: now - 30_000,
+      },
     ]);
 
     repo.upsertFundamentalSnapshots([
@@ -183,10 +189,10 @@ describe('private Marvix ops report', () => {
         asof_date: '2026-03-21',
         payload_json: JSON.stringify({
           provider: 'finnhub',
-          metrics: { peTTM: 28.1 }
+          metrics: { peTTM: 28.1 },
         }),
-        updated_at_ms: now - 25_000
-      }
+        updated_at_ms: now - 25_000,
+      },
     ]);
 
     repo.upsertOptionChainSnapshots([
@@ -202,17 +208,17 @@ describe('private Marvix ops report', () => {
             contracts_count: 24,
             total_open_interest: 12000,
             total_volume: 1800,
-            iv_skew: -0.03
-          }
+            iv_skew: -0.03,
+          },
         }),
-        updated_at_ms: now - 20_000
-      }
+        updated_at_ms: now - 20_000,
+      },
     ]);
 
     persistAlphaCandidate(repo, {
       candidate: buildCandidate('alpha-ops-1'),
       status: 'SHADOW',
-      acceptanceScore: 0.81
+      acceptanceScore: 0.81,
     });
     repo.upsertSignals([buildSignal('sig-aapl-1', 'AAPL')]);
     repo.insertAlphaEvaluation({
@@ -224,11 +230,11 @@ describe('private Marvix ops report', () => {
       acceptance_score: 0.81,
       metrics_json: JSON.stringify({
         correlation_to_active: 0.22,
-        stability_score: 0.71
+        stability_score: 0.71,
       }),
       rejection_reasons_json: JSON.stringify([]),
       notes: 'ready for shadow',
-      created_at_ms: now - 10_000
+      created_at_ms: now - 10_000,
     });
     repo.upsertAlphaShadowObservations([
       {
@@ -246,8 +252,8 @@ describe('private Marvix ops report', () => {
         realized_source: 'paper',
         payload_json: JSON.stringify({}),
         created_at_ms: now - 8_000,
-        updated_at_ms: now - 8_000
-      }
+        updated_at_ms: now - 8_000,
+      },
     ]);
 
     const report = buildPrivateMarvixOpsReport(repo);

@@ -2,7 +2,7 @@ import { inspectNovaHealth } from '../src/server/nova/health.js';
 
 function parseArgs() {
   return {
-    json: process.argv.slice(2).includes('--json')
+    json: process.argv.slice(2).includes('--json'),
   };
 }
 
@@ -16,7 +16,7 @@ function printText(report: Awaited<ReturnType<typeof inspectNovaHealth>>) {
     `- Reachable: ${report.reachability.ok ? 'yes' : 'no'}`,
     `- Latency: ${report.reachability.latency_ms ?? 'n/a'} ms`,
     `- Available models: ${report.available_models.length ? report.available_models.join(', ') : 'none detected'}`,
-    `- Missing models: ${report.missing_models.length ? report.missing_models.join(', ') : 'none'}`
+    `- Missing models: ${report.missing_models.length ? report.missing_models.join(', ') : 'none'}`,
   ];
 
   if (report.reachability.error) {
@@ -49,6 +49,8 @@ async function main() {
 }
 
 main().catch((error) => {
-  process.stderr.write(`${error instanceof Error ? error.stack || error.message : String(error)}\n`);
+  process.stderr.write(
+    `${error instanceof Error ? error.stack || error.message : String(error)}\n`,
+  );
   process.exitCode = 1;
 });

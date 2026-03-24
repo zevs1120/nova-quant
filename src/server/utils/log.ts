@@ -7,14 +7,15 @@ type LogMeta = Record<string, unknown> & {
 function emit(level: 'INFO' | 'WARN' | 'ERROR', message: string, meta?: LogMeta): void {
   const prefix = `[${level}] ${message}`;
   if (!meta) {
-    const logger = level === 'ERROR' ? console.error : level === 'WARN' ? console.warn : console.log;
+    const logger =
+      level === 'ERROR' ? console.error : level === 'WARN' ? console.warn : console.log;
     logger(prefix);
     return;
   }
   const logger = level === 'ERROR' ? console.error : level === 'WARN' ? console.warn : console.log;
   logger(prefix, {
     ...meta,
-    ts: new Date().toISOString()
+    ts: new Date().toISOString(),
   });
 }
 

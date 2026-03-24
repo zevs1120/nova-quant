@@ -6,15 +6,15 @@ const SECTION_LABELS = {
     PLAN: 'PLAN',
     WHY: 'WHY',
     RISK: 'RISK',
-    EVIDENCE: 'EVIDENCE'
+    EVIDENCE: 'EVIDENCE',
   },
   zh: {
     VERDICT: '结论',
     PLAN: '行动',
     WHY: '原因',
     RISK: '风险',
-    EVIDENCE: '证据'
-  }
+    EVIDENCE: '证据',
+  },
 };
 
 const SECTION_ALIASES = {
@@ -22,16 +22,20 @@ const SECTION_ALIASES = {
   PLAN: ['PLAN', '行动', '计划', '怎么做', '操作', '建议动作'],
   WHY: ['WHY', '原因', '为什么', '依据'],
   RISK: ['RISK', '风险', '风险提示'],
-  EVIDENCE: ['EVIDENCE', '证据', '事实', '来源']
+  EVIDENCE: ['EVIDENCE', '证据', '事实', '来源'],
 };
 
 const DISCLAIMERS = {
   en: 'educational, not financial advice',
-  zh: '仅供教育参考，不构成投资建议'
+  zh: '仅供教育参考，不构成投资建议',
 };
 
 function normalizeLanguage(value = 'en') {
-  return String(value || '').toLowerCase().startsWith('zh') ? 'zh' : 'en';
+  return String(value || '')
+    .toLowerCase()
+    .startsWith('zh')
+    ? 'zh'
+    : 'en';
 }
 
 function escapeRegExp(value) {
@@ -76,7 +80,7 @@ export function formatStructuredAssistantReply({
   why = [],
   risk = [],
   evidence = [],
-  includeDisclaimer = true
+  includeDisclaimer = true,
 } = {}) {
   const labels = getAssistantSectionLabels(language);
   const body = [
@@ -92,7 +96,7 @@ export function formatStructuredAssistantReply({
     ...risk.filter(Boolean).map((item) => `- ${item}`),
     '',
     `${labels.EVIDENCE}:`,
-    ...evidence.filter(Boolean).map((item) => `- ${item}`)
+    ...evidence.filter(Boolean).map((item) => `- ${item}`),
   ]
     .join('\n')
     .trim();
@@ -101,7 +105,9 @@ export function formatStructuredAssistantReply({
 }
 
 export function parseAssistantSectionHeading(line) {
-  const cleaned = String(line || '').trim().replace(/^#{1,3}\s*/, '');
+  const cleaned = String(line || '')
+    .trim()
+    .replace(/^#{1,3}\s*/, '');
   if (!cleaned) return null;
 
   for (const [key, aliases] of Object.entries(SECTION_ALIASES)) {
@@ -110,7 +116,7 @@ export function parseAssistantSectionHeading(line) {
       if (match) {
         return {
           key,
-          rest: String(match[1] || '').trim()
+          rest: String(match[1] || '').trim(),
         };
       }
     }

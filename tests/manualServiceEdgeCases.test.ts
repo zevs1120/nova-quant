@@ -3,7 +3,7 @@ import {
   getManualDashboard,
   redeemManualVipDay,
   claimManualReferral,
-  submitManualPredictionEntry
+  submitManualPredictionEntry,
 } from '../src/server/manual/service.js';
 
 /*
@@ -22,7 +22,9 @@ describe('manual dashboard — guest / auth guard', () => {
     vi.stubEnv('SUPABASE_DB_URL', '');
     vi.stubEnv('DATABASE_URL', '');
   });
-  afterEach(() => { vi.unstubAllEnvs(); });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
 
   it('returns AUTH_REQUIRED for guest-default', () => {
     const dashboard = getManualDashboard('guest-default');
@@ -59,7 +61,9 @@ describe('manual dashboard — default shape', () => {
     vi.stubEnv('SUPABASE_DB_URL', '');
     vi.stubEnv('DATABASE_URL', '');
   });
-  afterEach(() => { vi.unstubAllEnvs(); });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
 
   it('guest dashboard has correct summary defaults', () => {
     const d = getManualDashboard('guest-test');
@@ -107,7 +111,9 @@ describe('manual dashboard — FK guard for non-existent users', () => {
     vi.stubEnv('SUPABASE_DB_URL', '');
     vi.stubEnv('DATABASE_URL', '');
   });
-  afterEach(() => { vi.unstubAllEnvs(); });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
 
   it('returns unavailable dashboard for user not in users table', () => {
     const d = getManualDashboard(`fake-user-${Date.now()}`);
@@ -125,7 +131,9 @@ describe('manual — VIP redemption guards', () => {
     vi.stubEnv('SUPABASE_DB_URL', '');
     vi.stubEnv('DATABASE_URL', '');
   });
-  afterEach(() => { vi.unstubAllEnvs(); });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
 
   it('rejects guest users', () => {
     const result = redeemManualVipDay({ userId: 'guest-default' });
@@ -148,7 +156,9 @@ describe('manual — referral claim guards', () => {
     vi.stubEnv('SUPABASE_DB_URL', '');
     vi.stubEnv('DATABASE_URL', '');
   });
-  afterEach(() => { vi.unstubAllEnvs(); });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
 
   it('rejects guest users', () => {
     const result = claimManualReferral({ userId: 'guest-default', inviteCode: 'NVTEST1' });
@@ -171,13 +181,15 @@ describe('manual — prediction entry guards', () => {
     vi.stubEnv('SUPABASE_DB_URL', '');
     vi.stubEnv('DATABASE_URL', '');
   });
-  afterEach(() => { vi.unstubAllEnvs(); });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
 
   it('rejects guest users', () => {
     const result = submitManualPredictionEntry({
       userId: 'guest-default',
       marketId: 'mkt-1',
-      selectedOption: 'UP'
+      selectedOption: 'UP',
     });
     expect(result.ok).toBe(false);
     expect(result.error).toBe('AUTH_REQUIRED');
@@ -187,7 +199,7 @@ describe('manual — prediction entry guards', () => {
     const result = submitManualPredictionEntry({
       userId: `nonguest-${Date.now()}`,
       marketId: '',
-      selectedOption: 'UP'
+      selectedOption: 'UP',
     });
     expect(result.ok).toBe(false);
     expect(result.error).toBe('PREDICTION_INPUT_REQUIRED');
@@ -197,7 +209,7 @@ describe('manual — prediction entry guards', () => {
     const result = submitManualPredictionEntry({
       userId: `nonguest-${Date.now()}`,
       marketId: 'mkt-1',
-      selectedOption: ''
+      selectedOption: '',
     });
     expect(result.ok).toBe(false);
     expect(result.error).toBe('PREDICTION_INPUT_REQUIRED');
@@ -207,7 +219,7 @@ describe('manual — prediction entry guards', () => {
     const result = submitManualPredictionEntry({
       userId: `nonguest-${Date.now()}`,
       marketId: 'market-that-doesnt-exist',
-      selectedOption: 'UP'
+      selectedOption: 'UP',
     });
     expect(result.ok).toBe(false);
     expect(result.error).toBe('PREDICTION_NOT_FOUND');

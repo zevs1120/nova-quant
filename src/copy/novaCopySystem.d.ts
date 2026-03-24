@@ -22,17 +22,50 @@ export interface ToneMatrixRecord {
   language: string[];
 }
 
-export declare const NOVA_BRAND_VOICE: Record<NovaLocale, Omit<BrandVoiceConstitution, 'locale' | 'playful_boundary' | 'banned_phrases'>>;
+export declare const NOVA_BRAND_VOICE: Record<
+  NovaLocale,
+  Omit<BrandVoiceConstitution, 'locale' | 'playful_boundary' | 'banned_phrases'>
+>;
 export declare const NOVA_PLAYFUL_BOUNDARY: { allowed: string[]; forbidden: string[] };
-export declare const NOVA_TONE_MATRIX: Record<'defensive' | 'cautious' | 'observe' | 'probe' | 'opportunity' | 'watchful' | 'quiet', ToneMatrixRecord>;
+export declare const NOVA_TONE_MATRIX: Record<
+  'defensive' | 'cautious' | 'observe' | 'probe' | 'opportunity' | 'watchful' | 'quiet',
+  ToneMatrixRecord
+>;
 
 export function normalizeNovaLocale(locale?: string | null): NovaLocale;
 export function getBrandVoiceConstitution(locale?: string): BrandVoiceConstitution;
-export function getToneMatrix(locale?: string): { locale: NovaLocale; matrix: typeof NOVA_TONE_MATRIX };
-export function getPlayfulnessPrinciples(locale?: string): { locale: NovaLocale; definition: string; allowed: string[]; forbidden: string[] };
-export function getDailyStanceCopy(args: { posture?: string; locale?: string; variant?: string; seed?: string; changed?: boolean; noActionDay?: boolean }): string;
-export function getTodayRiskCopy(args: { posture?: string; locale?: string; changed?: boolean; seed?: string }): { label: string; explanation: string; delta: string };
-export function getMorningCheckCopy(args: { posture?: string; status?: string; locale?: string; seed?: string; changed?: boolean; noActionDay?: boolean }): {
+export function getToneMatrix(locale?: string): {
+  locale: NovaLocale;
+  matrix: typeof NOVA_TONE_MATRIX;
+};
+export function getPlayfulnessPrinciples(locale?: string): {
+  locale: NovaLocale;
+  definition: string;
+  allowed: string[];
+  forbidden: string[];
+};
+export function getDailyStanceCopy(args: {
+  posture?: string;
+  locale?: string;
+  variant?: string;
+  seed?: string;
+  changed?: boolean;
+  noActionDay?: boolean;
+}): string;
+export function getTodayRiskCopy(args: {
+  posture?: string;
+  locale?: string;
+  changed?: boolean;
+  seed?: string;
+}): { label: string; explanation: string; delta: string };
+export function getMorningCheckCopy(args: {
+  posture?: string;
+  status?: string;
+  locale?: string;
+  seed?: string;
+  changed?: boolean;
+  noActionDay?: boolean;
+}): {
   title: string;
   short_label: string;
   headline: string;
@@ -45,7 +78,12 @@ export function getMorningCheckCopy(args: { posture?: string; status?: string; l
   ai_cta_label: string;
   changed_line: string | null;
 };
-export function getActionCardCopy(args: { posture?: string; locale?: string; seed?: string; actionState?: string }): {
+export function getActionCardCopy(args: {
+  posture?: string;
+  locale?: string;
+  seed?: string;
+  actionState?: string;
+}): {
   title: string;
   risk_title: string;
   more_ranked_title: string;
@@ -57,12 +95,56 @@ export function getActionCardCopy(args: { posture?: string; locale?: string; see
   invalidation: string;
   badges: Record<string, string>;
 };
-export function getNoActionCopy(args: { locale?: string; seed?: string; posture?: string }): { arrival: string; completion: string; wrap: string; notify: string };
-export function getNotificationCopy(args: { category?: string; posture?: string; locale?: string; triggerType?: string; seed?: string; overlap?: boolean }): { title: string; body: string };
-export function getWidgetCopy(args: { type: string; posture?: string; locale?: string; triggerType?: string; seed?: string }): { title: string; caption?: string; spark: string };
-export function getDisciplineCopy(args: { locale?: string; score?: number; noActionDay?: boolean; seed?: string }): { summary: string; no_action_value_line: string | null; behavior_quality: string };
-export function getWrapUpCopy(args: { locale?: string; posture?: string; ready: boolean; completed: boolean; seed?: string; noActionDay?: boolean }): { title: string; short_label: string; headline: string; opening_line: string; completion_feedback: string; no_action_line: string | null };
-export function getPerceptionLayerCopy(args: { locale?: string; posture?: string; seed?: string; status?: string; changed?: boolean; noActionDay?: boolean }): {
+export function getNoActionCopy(args: { locale?: string; seed?: string; posture?: string }): {
+  arrival: string;
+  completion: string;
+  wrap: string;
+  notify: string;
+};
+export function getNotificationCopy(args: {
+  category?: string;
+  posture?: string;
+  locale?: string;
+  triggerType?: string;
+  seed?: string;
+  overlap?: boolean;
+}): { title: string; body: string };
+export function getWidgetCopy(args: {
+  type: string;
+  posture?: string;
+  locale?: string;
+  triggerType?: string;
+  seed?: string;
+}): { title: string; caption?: string; spark: string };
+export function getDisciplineCopy(args: {
+  locale?: string;
+  score?: number;
+  noActionDay?: boolean;
+  seed?: string;
+}): { summary: string; no_action_value_line: string | null; behavior_quality: string };
+export function getWrapUpCopy(args: {
+  locale?: string;
+  posture?: string;
+  ready: boolean;
+  completed: boolean;
+  seed?: string;
+  noActionDay?: boolean;
+}): {
+  title: string;
+  short_label: string;
+  headline: string;
+  opening_line: string;
+  completion_feedback: string;
+  no_action_line: string | null;
+};
+export function getPerceptionLayerCopy(args: {
+  locale?: string;
+  posture?: string;
+  seed?: string;
+  status?: string;
+  changed?: boolean;
+  noActionDay?: boolean;
+}): {
   badge: string;
   ambient_label: string;
   headline: string;
@@ -70,7 +152,18 @@ export function getPerceptionLayerCopy(args: { locale?: string; posture?: string
   confirmation_line: string;
   status: string;
 };
-export function getAssistantVoiceGuide(args?: { locale?: string; posture?: string; userState?: string }): { opener: string; risk_explain: string; intercept: string; no_action: string; wrap: string; style_rules: string[] };
+export function getAssistantVoiceGuide(args?: {
+  locale?: string;
+  posture?: string;
+  userState?: string;
+}): {
+  opener: string;
+  risk_explain: string;
+  intercept: string;
+  no_action: string;
+  wrap: string;
+  style_rules: string[];
+};
 export function getUiRegimeTone(args: { posture?: string; locale?: string }): {
   tone: string;
   accent: string;
@@ -86,4 +179,8 @@ export function getUiRegimeTone(args: { posture?: string; locale?: string }): {
   motion: Record<string, string>;
 };
 export function getPortfolioActionLabel(action: string, locale?: string): string;
-export function getCopyGuardrails(locale?: string): { locale: NovaLocale; banned_phrases: string[]; rules: string[] };
+export function getCopyGuardrails(locale?: string): {
+  locale: NovaLocale;
+  banned_phrases: string[];
+  rules: string[];
+};

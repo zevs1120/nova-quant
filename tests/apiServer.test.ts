@@ -17,20 +17,23 @@ describe('api server standalone web shell', () => {
   function createFakeApp() {
     return {
       use: vi.fn(),
-      get: vi.fn()
+      get: vi.fn(),
     };
   }
 
   it('mounts static middleware and SPA fallback when SERVE_WEB_DIST is enabled', () => {
     const distDir = fs.mkdtempSync(path.join(os.tmpdir(), 'marvix-dist-'));
     tempDirs.push(distDir);
-    fs.writeFileSync(path.join(distDir, 'index.html'), '<!doctype html><html><body>Marvix Cloud Shell</body></html>');
+    fs.writeFileSync(
+      path.join(distDir, 'index.html'),
+      '<!doctype html><html><body>Marvix Cloud Shell</body></html>',
+    );
 
     const app = createFakeApp();
     const result = attachStandaloneWebShell(app as any, {
       ...process.env,
       SERVE_WEB_DIST: '1',
-      WEB_DIST_PATH: distDir
+      WEB_DIST_PATH: distDir,
     });
 
     expect(result).toBe(app);
@@ -44,7 +47,7 @@ describe('api server standalone web shell', () => {
     const app = createFakeApp();
     const result = attachStandaloneWebShell(app as any, {
       ...process.env,
-      SERVE_WEB_DIST: '0'
+      SERVE_WEB_DIST: '0',
     });
 
     expect(result).toBe(app);
@@ -60,7 +63,7 @@ describe('api server standalone web shell', () => {
     const result = attachStandaloneWebShell(app as any, {
       ...process.env,
       SERVE_WEB_DIST: 'true',
-      WEB_DIST_PATH: distDir
+      WEB_DIST_PATH: distDir,
     });
 
     expect(result).toBe(app);

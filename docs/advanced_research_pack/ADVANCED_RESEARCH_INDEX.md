@@ -14,6 +14,7 @@ This advanced pack adds doctrine and operating standards so those inputs are use
 ## Knowledge Domains and Files
 
 ## Methodology
+
 - `methodology/ALPHA_RESEARCH_METHODOLOGY.md`
   - Teaches how to form, test, and reject alpha ideas with production realism.
   - Should influence: `src/research/discovery/*`, `src/research/core/featureSignalLayer.js`.
@@ -22,6 +23,7 @@ This advanced pack adds doctrine and operating standards so those inputs are use
   - Should influence: discovery gating, validation thresholds, governance decisions.
 
 ## Portfolio Intelligence
+
 - `portfolio/PORTFOLIO_CONSTRUCTION_THEORY.md`
   - Defines portfolio-level design logic across strategies/families/regimes.
   - Should influence: `src/portfolio_simulation/portfolioSimulationEngine.js` (and review notes under `portfolio_simulation/`), risk allocation rules.
@@ -30,6 +32,7 @@ This advanced pack adds doctrine and operating standards so those inputs are use
   - Should influence: weekly cycle reports and copilot portfolio diagnostics.
 
 ## Validation Doctrine
+
 - `validation/VALIDATION_DOCTRINE.md`
   - Canonical validation standard beyond naive backtest.
   - Should influence: `src/research/discovery/candidateValidation.js`, `src/research/core/walkForwardValidation.js`.
@@ -41,6 +44,7 @@ This advanced pack adds doctrine and operating standards so those inputs are use
   - Should influence: lifecycle demotion/retirement logic and deterioration alerts.
 
 ## Failure Modes
+
 - `failure_modes/QUANT_FAILURE_MODES.md`
   - Platform-level quant failure patterns and controls.
   - Should influence: discovery diagnostics, funnel monitoring, governance safeguards.
@@ -49,6 +53,7 @@ This advanced pack adds doctrine and operating standards so those inputs are use
   - Should influence: opportunity object quality and copilot answer structure.
 
 ## Governance
+
 - `governance/RESEARCH_GOVERNANCE_STANDARDS.md`
   - Promotion/demotion evidence thresholds and stage requirements.
   - Should influence: `src/research/core/strategyGovernanceV2.js`, `src/research/discovery/candidateScoring.js`.
@@ -57,6 +62,7 @@ This advanced pack adds doctrine and operating standards so those inputs are use
   - Should influence: governance review workflows and stage change memos.
 
 ## Research Operations
+
 - `research_ops/WEEKLY_RESEARCH_OPERATING_SYSTEM.md`
   - Weekly operating cadence for funnel/shadow/discovery/governance review.
   - Should influence: `src/research/weekly_cycle/weeklyResearchCycle.js` and report templates.
@@ -65,10 +71,12 @@ This advanced pack adds doctrine and operating standards so those inputs are use
   - Should influence: roadmap and milestone acceptance criteria.
 
 ## Synthesis
+
 - `ADVANCED_KNOWLEDGE_SYNTHESIS.md`
   - Maps advanced doctrines into concrete changes for discovery, validation, portfolio simulation, and governance.
 
 ## Machine-readable seeds
+
 - `data/reference_seeds/research_doctrine_seed.json`
 - `data/reference_seeds/failure_mode_seed.json`
 - `data/reference_seeds/portfolio_evaluation_seed.json`

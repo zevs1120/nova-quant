@@ -43,15 +43,15 @@ export class GeminiProvider implements ProviderAdapter {
     const streamRes = await fetch(STREAM_ENDPOINT(model, apiKey), {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         generationConfig: {
           temperature: req.temperature ?? 0.2,
-          maxOutputTokens: req.maxTokens ?? 700
-        }
-      })
+          maxOutputTokens: req.maxTokens ?? 700,
+        },
+      }),
     });
 
     if (streamRes.status === 429) {
@@ -87,15 +87,15 @@ export class GeminiProvider implements ProviderAdapter {
     const syncRes = await fetch(SYNC_ENDPOINT(model, apiKey), {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         generationConfig: {
           temperature: req.temperature ?? 0.2,
-          maxOutputTokens: req.maxTokens ?? 700
-        }
-      })
+          maxOutputTokens: req.maxTokens ?? 700,
+        },
+      }),
     });
 
     if (!syncRes.ok) {

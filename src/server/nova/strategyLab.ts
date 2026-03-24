@@ -83,20 +83,23 @@ function firstJsonObject(text: string): JsonObject | null {
 function parseIntent(prompt: string, market?: 'US' | 'CRYPTO' | null, riskProfile?: string | null) {
   const text = String(prompt || '').toLowerCase();
   const inferredMarket =
-    market || (text.includes('crypto') || text.includes('btc') || text.includes('eth') ? 'CRYPTO' : 'US');
+    market ||
+    (text.includes('crypto') || text.includes('btc') || text.includes('eth') ? 'CRYPTO' : 'US');
 
   const regimes = [
     text.includes('trend') ? 'trend' : null,
     text.includes('range') || text.includes('mean reversion') ? 'range' : null,
     text.includes('high vol') || text.includes('volatile') ? 'high_volatility' : null,
-    text.includes('risk off') || text.includes('defensive') ? 'risk_off' : null
+    text.includes('risk off') || text.includes('defensive') ? 'risk_off' : null,
   ].filter(Boolean);
 
   const families = [
     text.includes('momentum') || text.includes('breakout') ? 'Momentum / Trend Following' : null,
     text.includes('mean reversion') || text.includes('revert') ? 'Mean Reversion' : null,
-    text.includes('relative strength') || text.includes('rotation') ? 'Relative Strength / Cross-Sectional' : null,
-    text.includes('funding') || text.includes('basis') ? 'Crypto-Native Families' : null
+    text.includes('relative strength') || text.includes('rotation')
+      ? 'Relative Strength / Cross-Sectional'
+      : null,
+    text.includes('funding') || text.includes('basis') ? 'Crypto-Native Families' : null,
   ].filter(Boolean);
 
   const horizon =
@@ -118,10 +121,14 @@ function parseIntent(prompt: string, market?: 'US' | 'CRYPTO' | null, riskProfil
 
   return {
     market: inferredMarket,
-    regimes: regimes.length ? regimes : inferredMarket === 'CRYPTO' ? ['trend', 'high_volatility'] : ['trend', 'range'],
+    regimes: regimes.length
+      ? regimes
+      : inferredMarket === 'CRYPTO'
+        ? ['trend', 'high_volatility']
+        : ['trend', 'range'],
     families,
     trade_horizon: horizon,
-    risk_profile: profile
+    risk_profile: profile,
   };
 }
 
@@ -144,7 +151,7 @@ function buildCandidateSummary(candidates: StrategyCandidate[], scored: Strategy
       validation_status: scoreRow.final_status || 'unscored',
       candidate_quality_score: scoreRow.candidate_quality_score ?? null,
       recommendation: scoreRow.recommendation || 'REJECT',
-      rejection_reasons: scoreRow.rejection_reasons || []
+      rejection_reasons: scoreRow.rejection_reasons || [],
     };
   });
 }
@@ -166,20 +173,23 @@ function buildStrategyLabPrompts(args: {
     'parameter_overrides: [{"candidate_id":"...","parameter_overrides":{"name":value}}]',
     'portfolio_fit: string',
     'risk_note: string',
-    'why: string[]'
+    'why: string[]',
   ].join('\n');
 
   const userPrompt = JSON.stringify({
     locale: args.locale || 'en',
     operator_request: args.prompt,
     constraints: args.constraints,
-    candidate_pool: args.candidateSummary
+    candidate_pool: args.candidateSummary,
   });
 
   return { systemPrompt, userPrompt };
 }
 
-function applyOverrides(candidate: StrategyCandidate, override: Record<string, unknown> | undefined) {
+function applyOverrides(
+  candidate: StrategyCandidate,
+  override: Record<string, unknown> | undefined,
+) {
   const parameterSet = asObject(candidate.parameter_set);
   const ranges = asObject(candidate.parameter_space_reference);
   if (!override) return { ...candidate, parameter_set: parameterSet };
@@ -208,12 +218,12 @@ function applyOverrides(candidate: StrategyCandidate, override: Record<string, u
     candidate_source_metadata: {
       ...asObject(candidate.candidate_source_metadata),
       source_type: 'nova_strategy_lab',
-      tuned_from_candidate_id: candidate.candidate_id
+      tuned_from_candidate_id: candidate.candidate_id,
     },
     traceability: {
       ...asObject(candidate.traceability),
-      tuned_by: 'nova-strategy-lab.v1'
-    }
+      tuned_by: 'nova-strategy-lab.v1',
+    },
   };
 }
 
@@ -225,58 +235,79 @@ function validateAndScore(candidates: StrategyCandidate[]) {
       regimeState: {},
       signalFunnel: {},
       strategyGovernance: {},
-      walkForward: {}
+      walkForward: {},
     },
     config: {
       stage_2: {
         execution_realism_profile: {
-          mode: 'paper'
-        }
-      }
-    }
+          mode: 'paper',
+        },
+      },
+    },
   });
 
   const scoring = buildCandidateScoring({
     candidates,
-    validation
+    validation,
   });
 
   return { validation, scoring };
 }
 
-function formatStrategyLabReply(result: Awaited<ReturnType<typeof generateGovernedNovaStrategies>>, locale = 'en') {
-  const zh = String(locale || '').toLowerCase().startsWith('zh');
+function formatStrategyLabReply(
+  result: Awaited<ReturnType<typeof generateGovernedNovaStrategies>>,
+  locale = 'en',
+) {
+  const zh = String(locale || '')
+    .toLowerCase()
+    .startsWith('zh');
   const rows = result.selected_candidates;
   if (!rows.length) {
     return formatStructuredAssistantReply({
       language: locale,
-      verdict: zh ? '当前还没有足够干净、值得行动的候选策略。' : 'No candidate is clean enough to act on yet.',
+      verdict: zh
+        ? '当前还没有足够干净、值得行动的候选策略。'
+        : 'No candidate is clean enough to act on yet.',
       plan: zh
-        ? ['先保持当前在线策略不变。', '用更严的约束或更好的证据重新跑 discovery。', '宁可没有新策略，也不要上弱策略。']
+        ? [
+            '先保持当前在线策略不变。',
+            '用更严的约束或更好的证据重新跑 discovery。',
+            '宁可没有新策略，也不要上弱策略。',
+          ]
         : [
             'Keep current live strategies unchanged.',
             'Re-run discovery with tighter constraints or better evidence.',
-            'Prefer no new strategy over weak strategy.'
+            'Prefer no new strategy over weak strategy.',
           ],
       why: zh
-        ? ['当前候选池没有足够强地通过质量和治理门槛。', '当稳健性不足时，策略生成本来就应该允许返回空。', '这能让研究纪律优先于新奇感。']
+        ? [
+            '当前候选池没有足够强地通过质量和治理门槛。',
+            '当稳健性不足时，策略生成本来就应该允许返回空。',
+            '这能让研究纪律优先于新奇感。',
+          ]
         : [
             'The candidate pool did not pass quality and governance gates strongly enough.',
             'Strategy generation is allowed to return nothing when robustness is weak.',
-            'This keeps research discipline ahead of novelty.'
+            'This keeps research discipline ahead of novelty.',
           ],
       risk: zh
-        ? ['常见失效模式 / 什么情况下不要做', '没有验证前，不要把 AI 想法直接推进到 live runtime。', '候选池偏弱时，往往隐藏着成本或市场状态脆弱性。']
+        ? [
+            '常见失效模式 / 什么情况下不要做',
+            '没有验证前，不要把 AI 想法直接推进到 live runtime。',
+            '候选池偏弱时，往往隐藏着成本或市场状态脆弱性。',
+          ]
         : [
             'Common failure modes / when NOT to trade',
             'Do not promote AI ideas directly into live runtime without validation.',
-            'Weak candidate pools often hide cost or regime fragility.'
+            'Weak candidate pools often hide cost or regime fragility.',
           ],
       evidence: [
         `provider ${result.provider}`,
         `source ${result.source}`,
-        zh ? `候选池 ${result.pool_summary.total_candidates} 个候选` : `pool ${result.pool_summary.total_candidates} candidates`
-      ]
+        zh
+          ? `候选池 ${result.pool_summary.total_candidates} 个候选`
+          : `pool ${result.pool_summary.total_candidates} candidates`,
+      ],
     });
   }
 
@@ -291,7 +322,7 @@ function formatStrategyLabReply(result: Awaited<ReturnType<typeof generateGovern
       .map((row: StrategySelectionRow) =>
         zh
           ? `${String(row.strategy_id || 'unknown')}：${row.recommendation} | 分数 ${String(row.candidate_quality_score_pct || 'n/a')} | 下一步 ${String(row.next_stage || 'unknown')}`
-          : `${String(row.strategy_id || 'unknown')}: ${row.recommendation} | score ${String(row.candidate_quality_score_pct || 'n/a')} | next ${String(row.next_stage || 'unknown')}`
+          : `${String(row.strategy_id || 'unknown')}: ${row.recommendation} | score ${String(row.candidate_quality_score_pct || 'n/a')} | next ${String(row.next_stage || 'unknown')}`,
       ),
     why: result.why.length
       ? result.why.slice(0, 3)
@@ -299,13 +330,21 @@ function formatStrategyLabReply(result: Awaited<ReturnType<typeof generateGovern
         ? [result.portfolio_fit, result.risk_note, '这些候选在 AI 调优后又做了一次验证。']
         : [result.portfolio_fit, result.risk_note, 'Candidates were revalidated after AI tuning.'],
     risk: zh
-      ? ['常见失效模式 / 什么情况下不要做', result.risk_note, '仍处于 HOLD_FOR_RETEST 或 REJECT 的想法不要推进。']
-      : ['Common failure modes / when NOT to trade', result.risk_note, 'Do not promote ideas that remain HOLD_FOR_RETEST or REJECT.'],
+      ? [
+          '常见失效模式 / 什么情况下不要做',
+          result.risk_note,
+          '仍处于 HOLD_FOR_RETEST 或 REJECT 的想法不要推进。',
+        ]
+      : [
+          'Common failure modes / when NOT to trade',
+          result.risk_note,
+          'Do not promote ideas that remain HOLD_FOR_RETEST or REJECT.',
+        ],
     evidence: [
       `provider ${result.provider}`,
       `source ${result.source}`,
-      `promoted ${result.governance_summary.promotable_count} | hold ${result.governance_summary.hold_count} | reject ${result.governance_summary.reject_count}`
-    ]
+      `promoted ${result.governance_summary.promotable_count} | hold ${result.governance_summary.hold_count} | reject ${result.governance_summary.reject_count}`,
+    ],
   });
 }
 
@@ -326,13 +365,13 @@ export async function generateGovernedNovaStrategies(args: StrategyLabArgs) {
     input_json: JSON.stringify({
       prompt: args.prompt,
       locale: args.locale || 'en',
-      constraints
+      constraints,
     }),
     output_json: null,
     attempt_count: 1,
     started_at_ms: Date.now(),
     updated_at_ms: Date.now(),
-    completed_at_ms: null
+    completed_at_ms: null,
   });
 
   const hypothesisRegistry = buildHypothesisRegistry({
@@ -340,15 +379,15 @@ export async function generateGovernedNovaStrategies(args: StrategyLabArgs) {
     context: {
       currentRegime: constraints.regimes[0] || 'range',
       starvation: false,
-      decayingFamilies: []
+      decayingFamilies: [],
     },
     config: { constraints },
-    seedRuntime
+    seedRuntime,
   });
   const templateRegistry = buildTemplateRegistry({
     asOf: asof,
     config: { constraints },
-    seedRuntime
+    seedRuntime,
   });
   const generated = buildCandidateGenerator({
     asOf: asof,
@@ -358,33 +397,38 @@ export async function generateGovernedNovaStrategies(args: StrategyLabArgs) {
     context: {
       currentRegime: constraints.regimes[0] || 'range',
       starvation: false,
-      walkforward_promotion_ready: []
+      walkforward_promotion_ready: [],
     },
     config: {
       max_candidates: Math.max(8, Math.min(18, args.maxCandidates || 12)),
       max_hypotheses: 8,
       max_templates_per_hypothesis: 3,
-      constraints
-    }
+      constraints,
+    },
   });
 
   const initial = validateAndScore(generated.candidates);
-  const rankedPool = initial.scoring.ranking.slice(0, Math.max(8, Math.min(12, args.maxCandidates || 8)));
+  const rankedPool = initial.scoring.ranking.slice(
+    0,
+    Math.max(8, Math.min(12, args.maxCandidates || 8)),
+  );
   const candidateById = new Map<string, StrategyCandidate>(
-    generated.candidates.map((row: StrategyCandidate) => [String(row.candidate_id || ''), row] as const)
+    generated.candidates.map(
+      (row: StrategyCandidate) => [String(row.candidate_id || ''), row] as const,
+    ),
   );
   const candidateSummary = buildCandidateSummary(
     rankedPool
       .map((row: StrategyScoreRow) => candidateById.get(String(row.candidate_id || '')) || null)
       .filter((row: StrategyCandidate | null): row is StrategyCandidate => Boolean(row)),
-    initial.scoring.candidates as StrategyScoreRow[]
+    initial.scoring.candidates as StrategyScoreRow[],
   );
 
   const prompts = buildStrategyLabPrompts({
     prompt: args.prompt,
     locale: args.locale,
     constraints,
-    candidateSummary
+    candidateSummary,
   });
 
   const novaRun = await runLoggedNovaTextTask({
@@ -397,16 +441,16 @@ export async function generateGovernedNovaStrategies(args: StrategyLabArgs) {
     context: {
       surface: 'strategy_lab',
       locale: args.locale || 'en',
-      constraints
+      constraints,
     },
-    traceId
+    traceId,
   });
 
   const parsed = novaRun.ok ? firstJsonObject(novaRun.text) : null;
   const selectedIds = asArray<string>(parsed?.selected_candidate_ids).filter(Boolean);
   const overrideRows = asArray<JsonObject>(parsed?.parameter_overrides);
   const overrideById = new Map(
-    overrideRows.map((row) => [String(row.candidate_id || ''), asObject(row.parameter_overrides)])
+    overrideRows.map((row) => [String(row.candidate_id || ''), asObject(row.parameter_overrides)]),
   );
 
   const selectedBaseCandidates =
@@ -415,66 +459,84 @@ export async function generateGovernedNovaStrategies(args: StrategyLabArgs) {
       .filter((row: StrategyCandidate | null): row is StrategyCandidate => Boolean(row))
       .slice(0, 4) || [];
 
-  const deterministicFallback =
-    rankedPool
-      .map((row: StrategyScoreRow): StrategyCandidate | null => candidateById.get(String(row.candidate_id || '')) || null)
-      .filter((row: StrategyCandidate | null): row is StrategyCandidate => Boolean(row))
-      .slice(0, 3);
+  const deterministicFallback = rankedPool
+    .map(
+      (row: StrategyScoreRow): StrategyCandidate | null =>
+        candidateById.get(String(row.candidate_id || '')) || null,
+    )
+    .filter((row: StrategyCandidate | null): row is StrategyCandidate => Boolean(row))
+    .slice(0, 3);
 
-  const tunedCandidates = (selectedBaseCandidates.length ? selectedBaseCandidates : deterministicFallback).map((candidate: StrategyCandidate) =>
-    applyOverrides(candidate, overrideById.get(String(candidate.candidate_id || '')))
+  const tunedCandidates = (
+    selectedBaseCandidates.length ? selectedBaseCandidates : deterministicFallback
+  ).map((candidate: StrategyCandidate) =>
+    applyOverrides(candidate, overrideById.get(String(candidate.candidate_id || ''))),
   );
 
   const finalSelection = validateAndScore(tunedCandidates);
   const finalCandidateById = new Map<string, StrategyCandidate>(
-    tunedCandidates.map((row: StrategyCandidate) => [String(row.candidate_id || ''), row] as const)
+    tunedCandidates.map((row: StrategyCandidate) => [String(row.candidate_id || ''), row] as const),
   );
-  const selected: StrategySelectionRow[] = finalSelection.scoring.ranking.map((scoreRow: StrategyScoreRow) => {
-    const candidate = asObject(finalCandidateById.get(String(scoreRow.candidate_id || '')));
-    return {
-      candidate_id: scoreRow.candidate_id,
-      strategy_id: scoreRow.strategy_id,
-      strategy_family: candidate.strategy_family || null,
-      template_name: candidate.template_name || null,
-      candidate_quality_score: scoreRow.candidate_quality_score,
-      candidate_quality_score_pct: scoreRow.candidate_quality_score_pct,
-      recommendation: scoreRow.recommendation,
-      next_stage: scoreRow.next_stage,
-      rejection_reasons: scoreRow.rejection_reasons || [],
-      parameter_set: candidate.parameter_set || {},
-      supporting_features: candidate.supporting_features || [],
-      supported_asset_classes: candidate.supported_asset_classes || [],
-      compatible_regimes: candidate.compatible_regimes || [],
-      quality_prior_score: candidate.quality_prior_score ?? null,
-      generation_mode: candidate.generation_mode || null,
-      candidate_source_metadata: candidate.candidate_source_metadata || {},
-      traceability: candidate.traceability || {}
-    };
-  });
+  const selected: StrategySelectionRow[] = finalSelection.scoring.ranking.map(
+    (scoreRow: StrategyScoreRow) => {
+      const candidate = asObject(finalCandidateById.get(String(scoreRow.candidate_id || '')));
+      return {
+        candidate_id: scoreRow.candidate_id,
+        strategy_id: scoreRow.strategy_id,
+        strategy_family: candidate.strategy_family || null,
+        template_name: candidate.template_name || null,
+        candidate_quality_score: scoreRow.candidate_quality_score,
+        candidate_quality_score_pct: scoreRow.candidate_quality_score_pct,
+        recommendation: scoreRow.recommendation,
+        next_stage: scoreRow.next_stage,
+        rejection_reasons: scoreRow.rejection_reasons || [],
+        parameter_set: candidate.parameter_set || {},
+        supporting_features: candidate.supporting_features || [],
+        supported_asset_classes: candidate.supported_asset_classes || [],
+        compatible_regimes: candidate.compatible_regimes || [],
+        quality_prior_score: candidate.quality_prior_score ?? null,
+        generation_mode: candidate.generation_mode || null,
+        candidate_source_metadata: candidate.candidate_source_metadata || {},
+        traceability: candidate.traceability || {},
+      };
+    },
+  );
 
   const result = {
     generated_at: asof,
     workflow_id: workflowId,
     trace_id: traceId,
-    provider: novaRun.ok ? `${novaRun.route.provider}:${novaRun.route.alias}` : 'deterministic-ranked',
+    provider: novaRun.ok
+      ? `${novaRun.route.provider}:${novaRun.route.alias}`
+      : 'deterministic-ranked',
     source: novaRun.ok ? 'nova-generated' : 'deterministic-ranked',
     runtime_mode: novaRun.ok ? novaRun.route.provider : 'deterministic',
     prompt: args.prompt,
     constraints,
     pool_summary: {
       total_candidates: generated.summary.total_candidates,
-      shortlisted_candidates: candidateSummary.length
+      shortlisted_candidates: candidateSummary.length,
     },
     selected_candidates: selected,
-    portfolio_fit: String(parsed?.portfolio_fit || 'Prefer small controlled experiments over immediate promotion.'),
-    risk_note: String(parsed?.risk_note || 'Treat new strategies as draft research until they clear validation and governance.'),
+    portfolio_fit: String(
+      parsed?.portfolio_fit || 'Prefer small controlled experiments over immediate promotion.',
+    ),
+    risk_note: String(
+      parsed?.risk_note ||
+        'Treat new strategies as draft research until they clear validation and governance.',
+    ),
     why: asArray<string>(parsed?.why).filter(Boolean),
     governance_summary: {
-      promotable_count: selected.filter((row: StrategySelectionRow) => row.recommendation === 'PROMOTE_TO_SHADOW').length,
-      hold_count: selected.filter((row: StrategySelectionRow) => row.recommendation === 'HOLD_FOR_RETEST').length,
-      reject_count: selected.filter((row: StrategySelectionRow) => row.recommendation === 'REJECT').length
+      promotable_count: selected.filter(
+        (row: StrategySelectionRow) => row.recommendation === 'PROMOTE_TO_SHADOW',
+      ).length,
+      hold_count: selected.filter(
+        (row: StrategySelectionRow) => row.recommendation === 'HOLD_FOR_RETEST',
+      ).length,
+      reject_count: selected.filter((row: StrategySelectionRow) => row.recommendation === 'REJECT')
+        .length,
     },
-    raw_generation_text: novaRun.ok ? novaRun.text : null
+    raw_generation_text: novaRun.ok ? novaRun.text : null,
   };
 
   args.repo.upsertWorkflowRun({
@@ -487,13 +549,13 @@ export async function generateGovernedNovaStrategies(args: StrategyLabArgs) {
     input_json: JSON.stringify({
       prompt: args.prompt,
       locale: args.locale || 'en',
-      constraints
+      constraints,
     }),
     output_json: JSON.stringify(result),
     attempt_count: 1,
     started_at_ms: Date.now(),
     updated_at_ms: Date.now(),
-    completed_at_ms: Date.now()
+    completed_at_ms: Date.now(),
   });
 
   recordAuditEvent(args.repo, {
@@ -503,7 +565,7 @@ export async function generateGovernedNovaStrategies(args: StrategyLabArgs) {
     userId: args.userId || null,
     entityType: 'workflow_run',
     entityId: workflowId,
-    payload: result
+    payload: result,
   });
 
   return result;
@@ -514,6 +576,6 @@ export async function generateGovernedNovaStrategyReply(args: StrategyLabArgs) {
   return {
     provider: result.provider,
     text: formatStrategyLabReply(result, args.locale || 'en'),
-    result
+    result,
   };
 }

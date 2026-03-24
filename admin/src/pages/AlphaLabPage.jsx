@@ -13,7 +13,10 @@ function MixBars({ rows }) {
             <span>{item.value}</span>
           </div>
           <div className="mix-bar-track">
-            <span className="mix-bar-fill" style={{ width: `${(Number(item.value || 0) / total) * 100}%` }} />
+            <span
+              className="mix-bar-fill"
+              style={{ width: `${(Number(item.value || 0) / total) * 100}%` }}
+            />
           </div>
         </div>
       ))}
@@ -52,7 +55,9 @@ function CandidateCards({ rows, emptyText, tone = 'is-blue' }) {
           <div className="candidate-card-metrics">
             <span>接受分 {row.acceptance_score ?? row.latest_acceptance_score ?? '-'}</span>
             <span>稳定度 {row.stability_score ?? row.metrics?.stability_score ?? '-'}</span>
-            <span>相关性 {row.correlation_to_active ?? row.metrics?.correlation_to_active ?? '-'}</span>
+            <span>
+              相关性 {row.correlation_to_active ?? row.metrics?.correlation_to_active ?? '-'}
+            </span>
           </div>
         </article>
       ))}
@@ -87,32 +92,35 @@ export default function AlphaLabPage() {
   }
 
   const inventory = data?.inventory || {};
-  const totalCandidates = Object.values(inventory).reduce((sum, value) => sum + Number(value || 0), 0);
+  const totalCandidates = Object.values(inventory).reduce(
+    (sum, value) => sum + Number(value || 0),
+    0,
+  );
   const stats = [
     {
       label: 'Alpha 候选总量',
       value: `${totalCandidates} 个`,
       detail: '包含 DRAFT、SHADOW、CANARY、PROD 等全部生命周期状态。',
-      tone: 'blue'
+      tone: 'blue',
     },
     {
       label: 'Shadow 候选',
       value: `${inventory.SHADOW || 0} 个`,
       detail: '这些候选已接入实时跟踪，但不会直接占用正式资金。',
-      tone: 'amber'
+      tone: 'amber',
     },
     {
       label: 'Canary / Prod',
       value: `${Number(inventory.CANARY || 0) + Number(inventory.PROD || 0)} 个`,
       detail: `CANARY ${inventory.CANARY || 0} 个，PROD ${inventory.PROD || 0} 个。`,
-      tone: 'green'
+      tone: 'green',
     },
     {
       label: 'Rejected / Retired',
       value: `${Number(inventory.REJECTED || 0) + Number(inventory.RETIRED || 0)} 个`,
       detail: '说明系统确实在淘汰不稳健或衰减的想法，而不是只累积新候选。',
-      tone: 'red'
-    }
+      tone: 'red',
+    },
   ];
 
   return (
@@ -147,7 +155,11 @@ export default function AlphaLabPage() {
             <h3>最值得继续观察的候选</h3>
             <span className="status-pill is-amber">Top candidates</span>
           </div>
-          <CandidateCards rows={data?.top_candidates || []} emptyText="暂无通过闸门的候选" tone="is-amber" />
+          <CandidateCards
+            rows={data?.top_candidates || []}
+            emptyText="暂无通过闸门的候选"
+            tone="is-amber"
+          />
         </article>
 
         <article className="panel">
@@ -155,7 +167,11 @@ export default function AlphaLabPage() {
             <h3>正在衰减的候选</h3>
             <span className="status-pill is-red">Decay watch</span>
           </div>
-          <CandidateCards rows={data?.decaying_candidates || []} emptyText="暂无衰减预警候选" tone="is-red" />
+          <CandidateCards
+            rows={data?.decaying_candidates || []}
+            emptyText="暂无衰减预警候选"
+            tone="is-red"
+          />
         </article>
       </section>
 
@@ -175,12 +191,16 @@ export default function AlphaLabPage() {
                 <div className="mix-bar-track">
                   <span
                     className="mix-bar-fill"
-                    style={{ width: `${Math.max(4, Math.min(100, Number(row.correlation_to_active || 0) * 100))}%` }}
+                    style={{
+                      width: `${Math.max(4, Math.min(100, Number(row.correlation_to_active || 0) * 100))}%`,
+                    }}
                   />
                 </div>
               </div>
             ))}
-            {!data?.correlation_map?.length ? <p className="panel-copy">暂无相关性分析结果。</p> : null}
+            {!data?.correlation_map?.length ? (
+              <p className="panel-copy">暂无相关性分析结果。</p>
+            ) : null}
           </div>
         </article>
 
@@ -197,12 +217,16 @@ export default function AlphaLabPage() {
                   <p>{row.reason || '系统状态变更'}</p>
                 </div>
                 <div className="candidate-timeline-meta">
-                  <span className={`status-pill ${toneForStatus(row.to_status)}`}>{row.to_status}</span>
+                  <span className={`status-pill ${toneForStatus(row.to_status)}`}>
+                    {row.to_status}
+                  </span>
                   <span>{row.created_at}</span>
                 </div>
               </div>
             ))}
-            {!data?.state_transitions?.length ? <p className="panel-copy">暂无生命周期事件。</p> : null}
+            {!data?.state_transitions?.length ? (
+              <p className="panel-copy">暂无生命周期事件。</p>
+            ) : null}
           </div>
         </article>
       </section>
@@ -232,14 +256,23 @@ export default function AlphaLabPage() {
                   </td>
                   <td>
                     {row.family}
-                    <div className="table-subline">{row.status} · {row.integration_path}</div>
+                    <div className="table-subline">
+                      {row.status} · {row.integration_path}
+                    </div>
                   </td>
                   <td>{row.latest_acceptance_score ?? row.acceptance_score ?? '-'}</td>
                   <td>
                     Sharpe {row.metrics?.sharpe ?? '-'} · 回撤 {row.metrics?.max_drawdown ?? '-'}
-                    <div className="table-subline">稳定度 {row.metrics?.stability_score ?? '-'} · 相关性 {row.metrics?.correlation_to_active ?? '-'}</div>
+                    <div className="table-subline">
+                      稳定度 {row.metrics?.stability_score ?? '-'} · 相关性{' '}
+                      {row.metrics?.correlation_to_active ?? '-'}
+                    </div>
                   </td>
-                  <td>{row.latest_rejection_reasons?.length ? row.latest_rejection_reasons.join('；') : '通过或未触发拒绝'}</td>
+                  <td>
+                    {row.latest_rejection_reasons?.length
+                      ? row.latest_rejection_reasons.join('；')
+                      : '通过或未触发拒绝'}
+                  </td>
                 </tr>
               ))}
             </tbody>

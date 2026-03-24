@@ -11,10 +11,36 @@ const NEWS_TTL_MINUTES = Math.max(5, Number(process.env.NOVA_NEWS_TTL_MINUTES ||
 const NEWS_TTL_MS = 1000 * 60 * NEWS_TTL_MINUTES;
 const NEWS_TIMEOUT_MS = 2600;
 const NEWS_CONCURRENCY = Math.max(1, Number(process.env.NOVA_NEWS_CONCURRENCY || 6));
-const NEWS_MIN_ROWS_FOR_EXPANSION = Math.max(4, Number(process.env.NOVA_NEWS_MIN_ROWS_FOR_EXPANSION || 8));
+const NEWS_MIN_ROWS_FOR_EXPANSION = Math.max(
+  4,
+  Number(process.env.NOVA_NEWS_MIN_ROWS_FOR_EXPANSION || 8),
+);
 const GOOGLE_NEWS_ITEM_LIMIT = Math.max(4, Number(process.env.NOVA_NEWS_GOOGLE_LIMIT || 8));
-const positiveTokens = ['beat', 'surge', 'growth', 'record', 'bullish', 'upgrade', 'approval', 'partnership', 'launch', 'buyback'];
-const negativeTokens = ['miss', 'drop', 'lawsuit', 'downgrade', 'risk', 'probe', 'ban', 'hack', 'fraud', 'delay', 'cuts'];
+const positiveTokens = [
+  'beat',
+  'surge',
+  'growth',
+  'record',
+  'bullish',
+  'upgrade',
+  'approval',
+  'partnership',
+  'launch',
+  'buyback',
+];
+const negativeTokens = [
+  'miss',
+  'drop',
+  'lawsuit',
+  'downgrade',
+  'risk',
+  'probe',
+  'ban',
+  'hack',
+  'fraud',
+  'delay',
+  'cuts',
+];
 
 const usAliases: Record<string, string[]> = {
   AAPL: ['Apple'],
@@ -22,7 +48,7 @@ const usAliases: Record<string, string[]> = {
   NVDA: ['NVIDIA'],
   TSLA: ['Tesla'],
   SPY: ['S&P 500'],
-  QQQ: ['Nasdaq 100']
+  QQQ: ['Nasdaq 100'],
 };
 
 const cryptoAliases: Record<string, string[]> = {
@@ -31,11 +57,13 @@ const cryptoAliases: Record<string, string[]> = {
   SOLUSDT: ['Solana'],
   BTC: ['Bitcoin'],
   ETH: ['Ethereum'],
-  SOL: ['Solana']
+  SOL: ['Solana'],
 };
 
 function normalizeSymbol(symbol: string): string {
-  return String(symbol || '').trim().toUpperCase();
+  return String(symbol || '')
+    .trim()
+    .toUpperCase();
 }
 
 function parsePayloadJson(text: string | null | undefined): Record<string, unknown> {
@@ -54,7 +82,10 @@ export function readNewsPipelineConfig() {
     refresh_concurrency: NEWS_CONCURRENCY,
     min_rows_for_expansion: NEWS_MIN_ROWS_FOR_EXPANSION,
     google_limit: GOOGLE_NEWS_ITEM_LIMIT,
-    heuristic_factor_fallback: String(process.env.NOVA_NEWS_HEURISTIC_FACTORS_ENABLED || '1').trim().toLowerCase() !== '0'
+    heuristic_factor_fallback:
+      String(process.env.NOVA_NEWS_HEURISTIC_FACTORS_ENABLED || '1')
+        .trim()
+        .toLowerCase() !== '0',
   };
 }
 
@@ -84,14 +115,20 @@ function decodeXml(value: string): string {
     .trim();
 }
 
-function scoreHeadline(headline: string): { sentiment: NewsItemRecord['sentiment_label']; relevance: number } {
+function scoreHeadline(headline: string): {
+  sentiment: NewsItemRecord['sentiment_label'];
+  relevance: number;
+} {
   const lower = headline.toLowerCase();
   const pos = positiveTokens.filter((token) => lower.includes(token)).length;
   const neg = negativeTokens.filter((token) => lower.includes(token)).length;
   const relevance = Math.min(1, 0.35 + (pos + neg) * 0.12);
   if (pos > neg) return { sentiment: 'POSITIVE', relevance };
   if (neg > pos) return { sentiment: 'NEGATIVE', relevance };
-  return { sentiment: pos + neg > 0 ? 'MIXED' : 'NEUTRAL', relevance: pos + neg > 0 ? relevance : 0.35 };
+  return {
+    sentiment: pos + neg > 0 ? 'MIXED' : 'NEUTRAL',
+    relevance: pos + neg > 0 ? relevance : 0.35,
+  };
 }
 
 function stripHtml(value: string): string {
@@ -112,19 +149,19 @@ function splitHeadlinePublisher(title: string): { headline: string; publisher: s
   if (parts.length < 2) {
     return {
       headline: String(title || '').trim(),
-      publisher: null
+      publisher: null,
     };
   }
   const publisher = parts[parts.length - 1] || null;
   if (!publisher || publisher.length > 72) {
     return {
       headline: String(title || '').trim(),
-      publisher: null
+      publisher: null,
     };
   }
   return {
     headline: parts.slice(0, -1).join(' - ').trim(),
-    publisher
+    publisher,
   };
 }
 
@@ -143,7 +180,10 @@ function sourceHostLabel(value: string | null): string | null {
   }
 }
 
-function extractDescriptionParts(item: string): { summary: string | null; imageUrl: string | null } {
+function extractDescriptionParts(item: string): {
+  summary: string | null;
+  imageUrl: string | null;
+} {
   const descriptionRaw = item.match(/<description>([\s\S]*?)<\/description>/i)?.[1] || '';
   const description = decodeXml(descriptionRaw);
   const imageUrl =
@@ -158,7 +198,7 @@ function extractDescriptionParts(item: string): { summary: string | null; imageU
     .trim();
   return {
     summary: summary || null,
-    imageUrl
+    imageUrl,
   };
 }
 
@@ -170,7 +210,9 @@ function parseGoogleNewsRss(xml: string, market: Market, symbol: string): NewsIt
     const rawTitle = decodeXml(item.match(/<title>([\s\S]*?)<\/title>/)?.[1] || `${symbol} news`);
     const titleParts = splitHeadlinePublisher(rawTitle);
     const link = decodeXml(item.match(/<link>([\s\S]*?)<\/link>/)?.[1] || '');
-    const pubDate = Date.parse(decodeXml(item.match(/<pubDate>([\s\S]*?)<\/pubDate>/)?.[1] || '')) || now - index * 60_000;
+    const pubDate =
+      Date.parse(decodeXml(item.match(/<pubDate>([\s\S]*?)<\/pubDate>/)?.[1] || '')) ||
+      now - index * 60_000;
     const sourceUrl = parseSourceUrl(item);
     const sourceTag = decodeXml(item.match(/<source[^>]*>([\s\S]*?)<\/source>/i)?.[1] || '');
     const description = extractDescriptionParts(item);
@@ -193,14 +235,18 @@ function parseGoogleNewsRss(xml: string, market: Market, symbol: string): NewsIt
         publisher: source,
         sourceUrl,
         summary: description.summary,
-        imageUrl: description.imageUrl
+        imageUrl: description.imageUrl,
       }),
-      updated_at_ms: now
+      updated_at_ms: now,
     } satisfies NewsItemRecord;
   });
 }
 
-async function fetchTextWithTimeout(url: string, init: RequestInit = {}, timeoutMs = NEWS_TIMEOUT_MS): Promise<string> {
+async function fetchTextWithTimeout(
+  url: string,
+  init: RequestInit = {},
+  timeoutMs = NEWS_TIMEOUT_MS,
+): Promise<string> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -209,8 +255,8 @@ async function fetchTextWithTimeout(url: string, init: RequestInit = {}, timeout
       signal: controller.signal,
       headers: {
         'user-agent': 'NovaQuant/1.0 support@novaquant.local',
-        ...(init.headers || {})
-      }
+        ...(init.headers || {}),
+      },
     });
     if (!response.ok) {
       throw new Error(`News request failed (${response.status})`);
@@ -223,12 +269,18 @@ async function fetchTextWithTimeout(url: string, init: RequestInit = {}, timeout
 
 function aliasQuery(market: Market, symbol: string): string {
   const normalized = normalizeSymbol(symbol);
-  const aliases = market === 'CRYPTO' ? cryptoAliases[normalized] || [normalized.replace(/USDT$/, '')] : usAliases[normalized] || [normalized];
+  const aliases =
+    market === 'CRYPTO'
+      ? cryptoAliases[normalized] || [normalized.replace(/USDT$/, '')]
+      : usAliases[normalized] || [normalized];
   return aliases[0] || normalized;
 }
 
 async function fetchGoogleNewsItems(market: Market, symbol: string): Promise<NewsItemRecord[]> {
-  const query = market === 'CRYPTO' ? `${aliasQuery(market, symbol)} crypto` : `${aliasQuery(market, symbol)} stock`;
+  const query =
+    market === 'CRYPTO'
+      ? `${aliasQuery(market, symbol)} crypto`
+      : `${aliasQuery(market, symbol)} stock`;
   const url = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-US&gl=US&ceid=US:en`;
   const xml = await fetchTextWithTimeout(url);
   return parseGoogleNewsRss(xml, market, normalizeSymbol(symbol));
@@ -237,17 +289,25 @@ async function fetchGoogleNewsItems(market: Market, symbol: string): Promise<New
 function dedupeNewsRows(rows: NewsItemRecord[]): NewsItemRecord[] {
   const deduped = new Map<string, NewsItemRecord>();
   for (const row of rows.sort((a, b) => b.published_at_ms - a.published_at_ms)) {
-    const key = `${normalizeSymbol(row.symbol)}::${String(row.url || '').trim().toLowerCase()}::${row.headline.trim().toLowerCase()}`;
+    const key = `${normalizeSymbol(row.symbol)}::${String(row.url || '')
+      .trim()
+      .toLowerCase()}::${row.headline.trim().toLowerCase()}`;
     if (!deduped.has(key)) deduped.set(key, row);
   }
   return [...deduped.values()].sort((a, b) => b.published_at_ms - a.published_at_ms).slice(0, 12);
 }
 
-async function fetchMultiSourceNewsItems(market: Market, symbol: string): Promise<NewsItemRecord[]> {
-  const query = market === 'CRYPTO' ? `${aliasQuery(market, symbol)} crypto` : `${aliasQuery(market, symbol)} stock`;
+async function fetchMultiSourceNewsItems(
+  market: Market,
+  symbol: string,
+): Promise<NewsItemRecord[]> {
+  const query =
+    market === 'CRYPTO'
+      ? `${aliasQuery(market, symbol)} crypto`
+      : `${aliasQuery(market, symbol)} stock`;
   const [googleRows, finnhubRows] = await Promise.all([
     fetchGoogleNewsItems(market, symbol).catch(() => []),
-    fetchFinnhubNewsItems(market, symbol).catch(() => [])
+    fetchFinnhubNewsItems(market, symbol).catch(() => []),
   ]);
   const mergedPrimary = dedupeNewsRows([...googleRows, ...finnhubRows]);
   if (mergedPrimary.length >= NEWS_MIN_ROWS_FOR_EXPANSION) return mergedPrimary;
@@ -255,7 +315,11 @@ async function fetchMultiSourceNewsItems(market: Market, symbol: string): Promis
   return dedupeNewsRows([...mergedPrimary, ...newsApiRows]);
 }
 
-export async function ensureFreshNewsForSymbol(args: { repo: MarketRepository; market: Market; symbol: string }) {
+export async function ensureFreshNewsForSymbol(args: {
+  repo: MarketRepository;
+  market: Market;
+  symbol: string;
+}) {
   const symbol = normalizeSymbol(args.symbol);
   const latest = args.repo.listNewsItems({ market: args.market, symbol, limit: 1 })[0] || null;
   if (latest && Date.now() - latest.updated_at_ms < NEWS_TTL_MS) {
@@ -268,7 +332,7 @@ export async function ensureFreshNewsForSymbol(args: { repo: MarketRepository; m
       const rows = await enrichNewsRowsWithGeminiFactors({
         market: args.market,
         symbol,
-        rows: cachedRows
+        rows: cachedRows,
       }).catch(() => cachedRows);
       const geminiRows = rows.filter((row) => hasGeminiAnalysis(row)).length;
       if (geminiRows === 0) {
@@ -276,7 +340,7 @@ export async function ensureFreshNewsForSymbol(args: { repo: MarketRepository; m
           market: args.market,
           symbol,
           rows: rows.length,
-          source: 'cache_backfill'
+          source: 'cache_backfill',
         });
       }
       args.repo.upsertNewsItems(rows);
@@ -286,7 +350,7 @@ export async function ensureFreshNewsForSymbol(args: { repo: MarketRepository; m
         fetched: geminiRows > 0,
         skipped: geminiRows === 0,
         rows_upserted: geminiRows > 0 ? rows.length : 0,
-        error: null
+        error: null,
       };
     }
     return {
@@ -295,7 +359,7 @@ export async function ensureFreshNewsForSymbol(args: { repo: MarketRepository; m
       fetched: false,
       skipped: true,
       rows_upserted: 0,
-      error: null
+      error: null,
     };
   }
   try {
@@ -303,7 +367,7 @@ export async function ensureFreshNewsForSymbol(args: { repo: MarketRepository; m
     const rows = await enrichNewsRowsWithGeminiFactors({
       market: args.market,
       symbol,
-      rows: rawRows
+      rows: rawRows,
     }).catch(() => rawRows);
     const geminiRows = rows.filter((row) => {
       const payload = parsePayloadJson(row.payload_json);
@@ -313,7 +377,7 @@ export async function ensureFreshNewsForSymbol(args: { repo: MarketRepository; m
       logWarn('Gemini news factor enrichment produced no structured factor rows', {
         market: args.market,
         symbol,
-        rows: rows.length
+        rows: rows.length,
       });
     }
     if (rows.length) args.repo.upsertNewsItems(rows);
@@ -323,7 +387,7 @@ export async function ensureFreshNewsForSymbol(args: { repo: MarketRepository; m
       fetched: true,
       skipped: false,
       rows_upserted: rows.length,
-      error: null
+      error: null,
     };
   } catch {
     // leave stale news in place if fetch fails
@@ -333,7 +397,7 @@ export async function ensureFreshNewsForSymbol(args: { repo: MarketRepository; m
       fetched: false,
       skipped: false,
       rows_upserted: 0,
-      error: 'fetch_failed'
+      error: 'fetch_failed',
     };
   }
 }
@@ -345,7 +409,7 @@ export function buildNewsContext(rows: NewsItemRecord[], symbol: string) {
       acc[row.sentiment_label] = (acc[row.sentiment_label] || 0) + 1;
       return acc;
     },
-    {} as Record<string, number>
+    {} as Record<string, number>,
   );
   const tone =
     toneCounts.NEGATIVE > toneCounts.POSITIVE
@@ -371,7 +435,9 @@ export function buildNewsContext(rows: NewsItemRecord[], symbol: string) {
       const analysis = payload.gemini_analysis;
       if (!analysis || typeof analysis !== 'object') return null;
       const headline = (analysis as Record<string, unknown>).headline;
-      return headline && typeof headline === 'object' ? (headline as Record<string, unknown>) : null;
+      return headline && typeof headline === 'object'
+        ? (headline as Record<string, unknown>)
+        : null;
     })
     .filter(Boolean) as Array<Record<string, unknown>>;
   const factorScoreValues = geminiHeadlineScores
@@ -383,15 +449,22 @@ export function buildNewsContext(rows: NewsItemRecord[], symbol: string) {
       : safeNumber(geminiBatch?.sentiment_score);
   const eventRiskScore = Math.max(
     safeNumber(geminiBatch?.event_risk_score) || 0,
-    ...geminiHeadlineScores.map((row) => safeNumber(row.relevance_score) || 0)
+    ...geminiHeadlineScores.map((row) => safeNumber(row.relevance_score) || 0),
   );
   const macroPolicyScore = safeNumber(geminiBatch?.macro_policy_score);
   const earningsImpactScore = safeNumber(geminiBatch?.earnings_impact_score);
   const factorTags = Array.isArray(geminiBatch?.factor_tags)
-    ? geminiBatch.factor_tags.map((item) => String(item || '').trim()).filter(Boolean).slice(0, 8)
+    ? geminiBatch.factor_tags
+        .map((item) => String(item || '').trim())
+        .filter(Boolean)
+        .slice(0, 8)
     : [];
-  const factorSummary = typeof geminiBatch?.summary === 'string' ? geminiBatch.summary.trim() : null;
-  const tradingBias = typeof geminiBatch?.trading_bias === 'string' ? String(geminiBatch.trading_bias).trim().toUpperCase() : null;
+  const factorSummary =
+    typeof geminiBatch?.summary === 'string' ? geminiBatch.summary.trim() : null;
+  const tradingBias =
+    typeof geminiBatch?.trading_bias === 'string'
+      ? String(geminiBatch.trading_bias).trim().toUpperCase()
+      : null;
   return {
     symbol: normalizeSymbol(symbol),
     headline_count: rows.length,
@@ -407,17 +480,23 @@ export function buildNewsContext(rows: NewsItemRecord[], symbol: string) {
     factor_summary: factorSummary,
     analysis_provider: geminiBatch ? 'gemini' : null,
     trading_bias:
-      tradingBias === 'BULLISH' || tradingBias === 'BEARISH' || tradingBias === 'MIXED' || tradingBias === 'NEUTRAL'
+      tradingBias === 'BULLISH' ||
+      tradingBias === 'BEARISH' ||
+      tradingBias === 'MIXED' ||
+      tradingBias === 'NEUTRAL'
         ? tradingBias
-        : null
+        : null,
   } as const;
 }
 
-export async function ensureFreshNewsForUniverse(args: { repo: MarketRepository; market?: Market | 'ALL' }) {
+export async function ensureFreshNewsForUniverse(args: {
+  repo: MarketRepository;
+  market?: Market | 'ALL';
+}) {
   const config = getConfig();
   const targets: Array<{ market: Market; symbol: string }> = [
     ...config.markets.US.symbols.map((symbol) => ({ market: 'US' as const, symbol })),
-    ...config.markets.CRYPTO.symbols.map((symbol) => ({ market: 'CRYPTO' as const, symbol }))
+    ...config.markets.CRYPTO.symbols.map((symbol) => ({ market: 'CRYPTO' as const, symbol })),
   ].filter((row) => !args.market || args.market === 'ALL' || row.market === args.market);
 
   const limit = pLimit(NEWS_CONCURRENCY);
@@ -427,10 +506,10 @@ export async function ensureFreshNewsForUniverse(args: { repo: MarketRepository;
         ensureFreshNewsForSymbol({
           repo: args.repo,
           market: target.market,
-          symbol: target.symbol
-        })
-      )
-    )
+          symbol: target.symbol,
+        }),
+      ),
+    ),
   );
 
   return {
@@ -439,6 +518,8 @@ export async function ensureFreshNewsForUniverse(args: { repo: MarketRepository;
     refreshed_symbols: results.filter((row) => row.fetched).length,
     skipped_symbols: results.filter((row) => row.skipped).length,
     rows_upserted: results.reduce((acc, row) => acc + Number(row.rows_upserted || 0), 0),
-    errors: results.filter((row) => row.error).map((row) => ({ market: row.market, symbol: row.symbol, error: row.error }))
+    errors: results
+      .filter((row) => row.error)
+      .map((row) => ({ market: row.market, symbol: row.symbol, error: row.error })),
   };
 }

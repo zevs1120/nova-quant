@@ -12,7 +12,7 @@ describe('parsers', () => {
       '41950.3',
       '42080.8',
       '1234.56',
-      '1700000299999'
+      '1700000299999',
     ];
 
     const bar = parseBinanceKlineRow(row);
@@ -29,7 +29,7 @@ describe('parsers', () => {
       HIGH: '201.2',
       LOW: '199.5',
       CLOSE: '200.9',
-      VOLUME: '1000000'
+      VOLUME: '1000000',
     } as unknown as Record<string, string>;
 
     const bar = parseStooqRecord(record);
@@ -42,7 +42,7 @@ describe('parsers', () => {
     const bars = normalizeBars([
       { ts_open: 10, open: '1', high: '2', low: '0.5', close: '1.1', volume: '100' },
       { ts_open: 10, open: '1.2', high: '2.2', low: '0.4', close: '1.3', volume: '120' },
-      { ts_open: 5, open: '0.9', high: '1.5', low: '0.7', close: '1.0', volume: '90' }
+      { ts_open: 5, open: '0.9', high: '1.5', low: '0.7', close: '1.0', volume: '90' },
     ]);
 
     expect(bars).toHaveLength(2);

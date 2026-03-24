@@ -5,7 +5,7 @@ import {
   isoToMs,
   floorToTimeframe,
   monthRange,
-  dayRange
+  dayRange,
 } from '../src/server/utils/time.js';
 
 /* ---------- timeframeToMs ---------- */

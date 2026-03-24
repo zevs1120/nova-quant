@@ -5,25 +5,30 @@ Last updated: 2026-03-09
 ## End-to-End Flow
 
 1. Load seed runtime (`seedRuntime.js`)
+
 - Ingest hypothesis/template/feature/doctrine/checklist seed files.
 - Normalize fields and canonical names.
 
 2. Build constrained registries
+
 - `buildHypothesisRegistry(...)`
 - `buildTemplateRegistry(...)`
 - Apply runtime constraints (market/asset/regime/family/horizon/risk profile).
 
 3. Hypothesis -> Template mapping
+
 - Family compatibility must match.
 - Asset class overlap must exist.
 - Regime compatibility must pass runtime filters.
 - If hypothesis template hints exist, template aliases must match.
 
 4. Template -> Feature mapping
+
 - Align hypothesis + template required features with feature catalog.
 - Record matched features, missing features, and feature groups.
 
 5. Candidate generation
+
 - Generate bounded parameter modes:
   - `base`
   - `conservative`
@@ -32,6 +37,7 @@ Last updated: 2026-03-09
 - Emit machine-readable candidate objects with full source metadata.
 
 6. Diagnostics
+
 - Record mapping failures and drop reasons.
 - Record used vs unused hypotheses/templates.
 

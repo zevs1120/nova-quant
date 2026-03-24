@@ -19,8 +19,8 @@ export function buildRegistrySummary(repo: MarketRepository) {
         family: row.family,
         version: row.version,
         status: row.status,
-        config_hash: row.config_hash
-      }))
+        config_hash: row.config_hash,
+      })),
     },
     experiment_registry: {
       count: experiments.length,
@@ -33,18 +33,18 @@ export function buildRegistrySummary(repo: MarketRepository) {
         strategy_version_id: row.strategy_version_id,
         decision_status: row.decision_status,
         promotion_reason: row.promotion_reason,
-        demotion_reason: row.demotion_reason
-      }))
+        demotion_reason: row.demotion_reason,
+      })),
     },
     prompt_registry: {
       count: llmOps.prompt_registry.length,
       active: llmOps.prompt_registry.filter((row) => row.status === 'active').length,
-      records: llmOps.prompt_registry
+      records: llmOps.prompt_registry,
     },
     model_registry: {
       count: llmOps.model_registry.length,
       active: llmOps.model_registry.filter((row) => row.status === 'active').length,
-      records: llmOps.model_registry
+      records: llmOps.model_registry,
     },
     eval_registry: {
       count: evals.length,
@@ -54,19 +54,20 @@ export function buildRegistrySummary(repo: MarketRepository) {
         eval_type: row.eval_type,
         subject_type: row.subject_type,
         subject_id: row.subject_id,
-        subject_version: row.subject_version
-      }))
+        subject_version: row.subject_version,
+      })),
     },
     workflow_registry: {
       count: workflows.length,
-      active: workflows.filter((row) => row.status === 'RUNNING' || row.status === 'PLANNED').length,
+      active: workflows.filter((row) => row.status === 'RUNNING' || row.status === 'PLANNED')
+        .length,
       records: workflows.map((row) => ({
         id: row.id,
         workflow_key: row.workflow_key,
         workflow_version: row.workflow_version,
         trigger_type: row.trigger_type,
-        status: row.status
-      }))
-    }
+        status: row.status,
+      })),
+    },
   };
 }

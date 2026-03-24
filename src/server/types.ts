@@ -5,7 +5,14 @@ export type SignalDirection = 'LONG' | 'SHORT' | 'FLAT';
 export type SignalStatus = 'NEW' | 'TRIGGERED' | 'EXPIRED' | 'INVALIDATED' | 'CLOSED';
 export type RiskProfileKey = 'conservative' | 'balanced' | 'aggressive';
 export type ExecutionMode = 'PAPER' | 'LIVE';
-export type EvidenceMode = 'LIVE' | 'PAPER' | 'REPLAY' | 'BACKTEST' | 'DEMO' | 'MIXED' | 'UNAVAILABLE';
+export type EvidenceMode =
+  | 'LIVE'
+  | 'PAPER'
+  | 'REPLAY'
+  | 'BACKTEST'
+  | 'DEMO'
+  | 'MIXED'
+  | 'UNAVAILABLE';
 export type ExecutionAction = 'EXECUTE' | 'DONE' | 'CLOSE';
 
 export interface Asset {
@@ -402,7 +409,14 @@ export type AlphaIntegrationPath =
   | 'regime_activation_hint'
   | 'portfolio_weight_suggestion';
 
-export type AlphaLifecycleState = 'DRAFT' | 'BACKTEST_PASS' | 'SHADOW' | 'CANARY' | 'PROD' | 'RETIRED' | 'REJECTED';
+export type AlphaLifecycleState =
+  | 'DRAFT'
+  | 'BACKTEST_PASS'
+  | 'SHADOW'
+  | 'CANARY'
+  | 'PROD'
+  | 'RETIRED'
+  | 'REJECTED';
 
 export interface AlphaCandidateRecord {
   id: string;
@@ -570,11 +584,30 @@ export interface AppConfig {
   };
 }
 
-export type StrategyLifecycleStatus = 'active' | 'archived' | 'challenger' | 'champion' | 'deprecated' | 'retired';
-export type BacktestRunType = 'signal_replay' | 'portfolio_replay' | 'walk_forward' | 'paper_reconciliation';
+export type StrategyLifecycleStatus =
+  | 'active'
+  | 'archived'
+  | 'challenger'
+  | 'champion'
+  | 'deprecated'
+  | 'retired';
+export type BacktestRunType =
+  | 'signal_replay'
+  | 'portfolio_replay'
+  | 'walk_forward'
+  | 'paper_reconciliation';
 export type BacktestRunStatus = 'RUNNING' | 'SUCCESS' | 'WITHHELD' | 'FAILED';
-export type EvidenceStatus = 'REPLAY_READY' | 'WITHHELD' | 'INSUFFICIENT_DATA' | 'PARTIAL_DATA' | 'EXPERIMENTAL';
-export type ReconciliationStatus = 'RECONCILED' | 'PAPER_DATA_UNAVAILABLE' | 'REPLAY_DATA_UNAVAILABLE' | 'PARTIAL';
+export type EvidenceStatus =
+  | 'REPLAY_READY'
+  | 'WITHHELD'
+  | 'INSUFFICIENT_DATA'
+  | 'PARTIAL_DATA'
+  | 'EXPERIMENTAL';
+export type ReconciliationStatus =
+  | 'RECONCILED'
+  | 'PAPER_DATA_UNAVAILABLE'
+  | 'REPLAY_DATA_UNAVAILABLE'
+  | 'PARTIAL';
 export type BacktestMetricStatus = 'READY' | 'WITHHELD' | 'FAILED';
 export type GradeLetter = 'A' | 'B' | 'C' | 'D' | 'WITHHELD';
 
@@ -1049,7 +1082,11 @@ export interface UserResponseEventRecord {
   updated_at_ms: number;
 }
 
-export type OutcomeReviewKind = 'OUTCOME' | 'FAILURE' | 'NO_ACTION_VALUE' | 'EXPLANATION_EFFECTIVENESS';
+export type OutcomeReviewKind =
+  | 'OUTCOME'
+  | 'FAILURE'
+  | 'NO_ACTION_VALUE'
+  | 'EXPLANATION_EFFECTIVENESS';
 
 export interface OutcomeReviewRecord {
   id: string;
@@ -1126,7 +1163,11 @@ export interface ExternalSurfaceRecord {
   updated_at_ms: number;
 }
 
-export type ComplianceLogType = 'RECOMMENDATION' | 'EVIDENCE' | 'PROMPT_EXECUTION' | 'POLICY_DECISION';
+export type ComplianceLogType =
+  | 'RECOMMENDATION'
+  | 'EVIDENCE'
+  | 'PROMPT_EXECUTION'
+  | 'POLICY_DECISION';
 
 export interface ComplianceLogRecord {
   id: string;
@@ -1179,7 +1220,11 @@ export interface DisciplineState {
 }
 
 export interface BehavioralPattern {
-  viewing_style: 'confirm_then_leave' | 'high_frequency_observer' | 'deliberate_reviewer' | 'unclear';
+  viewing_style:
+    | 'confirm_then_leave'
+    | 'high_frequency_observer'
+    | 'deliberate_reviewer'
+    | 'unclear';
   action_preference: 'watch_first' | 'act_on_conviction' | 'event_sensitive' | 'unclear';
   preferred_horizon: 'short' | 'medium' | 'mixed';
   notification_responsiveness: 'low' | 'medium' | 'high';

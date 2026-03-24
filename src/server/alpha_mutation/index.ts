@@ -13,7 +13,7 @@ const FEATURE_SUBSTITUTIONS: Record<string, string[]> = {
   funding_rate: ['funding_zscore', 'basis_annualized'],
   basis_annualized: ['funding_rate', 'open_interest_change'],
   cross_asset_rank: ['basket_rank', 'sector_relative_strength'],
-  sector_relative_strength: ['cross_asset_rank', 'breadth_ratio']
+  sector_relative_strength: ['cross_asset_rank', 'breadth_ratio'],
 };
 
 function round(value: number, digits = 6): number {
@@ -66,14 +66,14 @@ function simplifyCandidate(candidate: AutonomousAlphaCandidate): AutonomousAlpha
   const simplifiedParams = Object.fromEntries(
     Object.entries(candidate.params || {}).map(([key, value]) => [
       key,
-      typeof value === 'number' && Number.isFinite(value) ? simplifyNumericParam(value) : value
-    ])
+      typeof value === 'number' && Number.isFinite(value) ? simplifyNumericParam(value) : value,
+    ]),
   );
   const seed = {
     parent: candidate.id,
     type: 'simplified',
     params: simplifiedParams,
-    features: simplifiedFeatures
+    features: simplifiedFeatures,
   };
 
   return {
@@ -85,25 +85,32 @@ function simplifyCandidate(candidate: AutonomousAlphaCandidate): AutonomousAlpha
     required_inputs: pruneRedundantFeatures([...candidate.required_inputs, ...simplifiedFeatures]),
     complexity_score: round(Math.max(0.8, candidate.complexity_score * 0.84), 4),
     parent_alpha_id: candidate.id,
-    notes: [...(candidate.notes || []), 'simplified_thresholds', 'pruned_redundant_conditions']
+    notes: [...(candidate.notes || []), 'simplified_thresholds', 'pruned_redundant_conditions'],
   };
 }
 
 export function buildAlphaMutations(
   candidate: AutonomousAlphaCandidate,
-  budget: MutationBudget
+  budget: MutationBudget,
 ): AutonomousAlphaCandidate[] {
   const mutations: AutonomousAlphaCandidate[] = [];
   if (budget.maxMutations <= 0) return mutations;
 
   const tighter = {
     ...candidate,
-    id: buildStableAlphaId({ parent: candidate.id, type: 'tighter', params: mutateParams(candidate.params, 'tighter') }),
+    id: buildStableAlphaId({
+      parent: candidate.id,
+      type: 'tighter',
+      params: mutateParams(candidate.params, 'tighter'),
+    }),
     thesis: `${candidate.thesis} [tighter]`,
     params: mutateParams(candidate.params, 'tighter'),
-    complexity_score: round(Math.max(0.8, candidate.complexity_score - 0.15 * budget.simplicityBias), 4),
+    complexity_score: round(
+      Math.max(0.8, candidate.complexity_score - 0.15 * budget.simplicityBias),
+      4,
+    ),
     parent_alpha_id: candidate.id,
-    notes: [...(candidate.notes || []), 'parameter_mutation:tighter']
+    notes: [...(candidate.notes || []), 'parameter_mutation:tighter'],
   };
   mutations.push(tighter);
 
@@ -113,14 +120,20 @@ export function buildAlphaMutations(
       id: buildStableAlphaId({
         parent: candidate.id,
         type: 'feature_substitution',
-        features: substituteFeatures(candidate.feature_dependencies)
+        features: substituteFeatures(candidate.feature_dependencies),
       }),
       thesis: `${candidate.thesis} [feature-substitution]`,
       feature_dependencies: substituteFeatures(candidate.feature_dependencies),
-      required_inputs: pruneRedundantFeatures([...candidate.required_inputs, ...substituteFeatures(candidate.feature_dependencies)]),
-      complexity_score: round(Math.max(0.85, candidate.complexity_score - 0.08 * budget.simplicityBias), 4),
+      required_inputs: pruneRedundantFeatures([
+        ...candidate.required_inputs,
+        ...substituteFeatures(candidate.feature_dependencies),
+      ]),
+      complexity_score: round(
+        Math.max(0.85, candidate.complexity_score - 0.08 * budget.simplicityBias),
+        4,
+      ),
       parent_alpha_id: candidate.id,
-      notes: [...(candidate.notes || []), 'feature_substitution']
+      notes: [...(candidate.notes || []), 'feature_substitution'],
     });
   }
 
@@ -131,12 +144,16 @@ export function buildAlphaMutations(
   if (mutations.length < budget.maxMutations) {
     mutations.push({
       ...candidate,
-      id: buildStableAlphaId({ parent: candidate.id, type: 'looser', params: mutateParams(candidate.params, 'looser') }),
+      id: buildStableAlphaId({
+        parent: candidate.id,
+        type: 'looser',
+        params: mutateParams(candidate.params, 'looser'),
+      }),
       thesis: `${candidate.thesis} [looser]`,
       params: mutateParams(candidate.params, 'looser'),
       complexity_score: round(candidate.complexity_score + 0.06, 4),
       parent_alpha_id: candidate.id,
-      notes: [...(candidate.notes || []), 'parameter_mutation:looser']
+      notes: [...(candidate.notes || []), 'parameter_mutation:looser'],
     });
   }
 

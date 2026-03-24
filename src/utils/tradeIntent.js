@@ -17,7 +17,9 @@ function isZhLocale(locale = 'en') {
 }
 
 function normalizedBrokerKey(value) {
-  return normalizedBroker(value).toLowerCase().replace(/[^a-z0-9]+/g, '');
+  return normalizedBroker(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '');
 }
 
 function inferAssetClass(signal = {}) {
@@ -49,14 +51,16 @@ function toParamValue(value) {
 }
 
 function brokerSide(side = '') {
-  const normalized = String(side || '').trim().toUpperCase();
+  const normalized = String(side || '')
+    .trim()
+    .toUpperCase();
   if (normalized === 'SHORT' || normalized === 'SELL') return 'sell';
   return 'buy';
 }
 
 function applyUrlTemplate(template, context) {
   return String(template || '').replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_match, key) =>
-    encodeURIComponent(toParamValue(context[key]))
+    encodeURIComponent(toParamValue(context[key])),
   );
 }
 
@@ -77,8 +81,8 @@ const DEFAULT_BROKER_HANDOFFS = {
     label: 'Robinhood',
     stockUrl: 'https://robinhood.com/stocks/{{symbol}}',
     cryptoUrl: 'https://robinhood.com/crypto/{{baseSymbol}}',
-    opensAppIfInstalled: true
-  }
+    opensAppIfInstalled: true,
+  },
 };
 
 function resolveBrokerTemplate(broker) {
@@ -95,7 +99,9 @@ function resolveBrokerTemplate(broker) {
 
 function buildBrokerHandoff({ broker, signal, intent }) {
   const assetClass = inferAssetClass(signal);
-  const symbol = String(signal?.symbol || '').trim().toUpperCase();
+  const symbol = String(signal?.symbol || '')
+    .trim()
+    .toUpperCase();
 
   if (!symbol) return null;
   const template = resolveBrokerTemplate(broker);
@@ -121,20 +127,18 @@ function buildBrokerHandoff({ broker, signal, intent }) {
     target2: intent.targets?.[1]?.price ?? null,
     target3: intent.targets?.[2]?.price ?? null,
     signalId: intent.signalId,
-    strategyId: intent.strategyId
+    strategyId: intent.strategyId,
   };
 
   const templateUrl =
-    (assetClass === 'CRYPTO' ? template.cryptoUrl : template.stockUrl) ||
-    template.url ||
-    null;
+    (assetClass === 'CRYPTO' ? template.cryptoUrl : template.stockUrl) || template.url || null;
   if (!templateUrl) return null;
 
   return {
     url: applyUrlTemplate(templateUrl, context),
     kind: template.kind === 'prefilled_ticket' ? 'prefilled_ticket' : 'asset_page',
     brokerLabel: template.label || normalizedBroker(broker),
-    opensAppIfInstalled: template.opensAppIfInstalled === true
+    opensAppIfInstalled: template.opensAppIfInstalled === true,
   };
 }
 
@@ -147,7 +151,10 @@ function positionLabel(sizePct) {
 }
 
 function copyPayload(intent) {
-  const tpLine = (intent.targets || []).map((row) => row.price).filter((value) => Number.isFinite(value)).join(' | ');
+  const tpLine = (intent.targets || [])
+    .map((row) => row.price)
+    .filter((value) => Number.isFinite(value))
+    .join(' | ');
   return [
     `symbol: ${intent.symbol}`,
     `market: ${intent.market}`,
@@ -162,7 +169,7 @@ function copyPayload(intent) {
     `signal_id: ${intent.signalId || '--'}`,
     `strategy_id: ${intent.strategyId || '--'}`,
     `why_now: ${intent.whyNow || '--'}`,
-    `risk_note: ${intent.riskNote || '--'}`
+    `risk_note: ${intent.riskNote || '--'}`,
   ].join('\n');
 }
 
@@ -198,22 +205,35 @@ export function openTradeIntentHandoff(intent = {}, options = {}) {
 export function buildTradeIntent(signal = {}, options = {}) {
   const broker = normalizedBroker(options.broker || options.userBroker);
   const assetClass = inferAssetClass(signal);
-  const entryLow = toNumber(signal?.entry_zone?.low ?? signal?.entry_zone?.min ?? signal?.entry_min);
-  const entryHigh = toNumber(signal?.entry_zone?.high ?? signal?.entry_zone?.max ?? signal?.entry_max, entryLow);
+  const entryLow = toNumber(
+    signal?.entry_zone?.low ?? signal?.entry_zone?.min ?? signal?.entry_min,
+  );
+  const entryHigh = toNumber(
+    signal?.entry_zone?.high ?? signal?.entry_zone?.max ?? signal?.entry_max,
+    entryLow,
+  );
   const entryMid =
     Number.isFinite(entryLow) && Number.isFinite(entryHigh)
       ? round((entryLow + entryHigh) / 2, 4)
       : (entryLow ?? entryHigh);
-  const stopLoss = toNumber(signal?.stop_loss?.price ?? signal?.stop_loss_value ?? signal?.invalidation_level ?? signal?.stop_loss);
-  const sizePct = toNumber(signal?.position_advice?.position_pct ?? signal?.position_size_pct ?? signal?.position_pct);
-  const rawTargets = Array.isArray(signal?.take_profit_levels) && signal.take_profit_levels.length
-    ? signal.take_profit_levels
-    : [signal?.take_profit].filter((value) => value !== null && value !== undefined);
+  const stopLoss = toNumber(
+    signal?.stop_loss?.price ??
+      signal?.stop_loss_value ??
+      signal?.invalidation_level ??
+      signal?.stop_loss,
+  );
+  const sizePct = toNumber(
+    signal?.position_advice?.position_pct ?? signal?.position_size_pct ?? signal?.position_pct,
+  );
+  const rawTargets =
+    Array.isArray(signal?.take_profit_levels) && signal.take_profit_levels.length
+      ? signal.take_profit_levels
+      : [signal?.take_profit].filter((value) => value !== null && value !== undefined);
   const targets = rawTargets
     .map((row, index) => ({
       index: index + 1,
       price: toNumber(typeof row === 'number' ? row : row?.price),
-      sizePct: toNumber(typeof row === 'number' ? null : row?.size_pct)
+      sizePct: toNumber(typeof row === 'number' ? null : row?.size_pct),
     }))
     .filter((row) => Number.isFinite(row.price));
 
@@ -227,7 +247,9 @@ export function buildTradeIntent(signal = {}, options = {}) {
   const intent = {
     id: `${String(signal?.signal_id || signal?.symbol || 'intent')}-intent`,
     signalId: signal?.signal_id || null,
-    symbol: String(signal?.symbol || '').trim().toUpperCase(),
+    symbol: String(signal?.symbol || '')
+      .trim()
+      .toUpperCase(),
     market: String(signal?.market || (assetClass === 'CRYPTO' ? 'CRYPTO' : 'US')).toUpperCase(),
     assetClass,
     side: String(signal?.direction || 'LONG').toUpperCase(),
@@ -257,7 +279,7 @@ export function buildTradeIntent(signal = {}, options = {}) {
     handoffPrefillsTicket: false,
     handoffOpensAppIfInstalled: false,
     checklist: Array.isArray(signal?.execution_checklist) ? signal.execution_checklist : [],
-    copyText: ''
+    copyText: '',
   };
 
   const brokerHandoff = buildBrokerHandoff({ broker, signal, intent });
@@ -285,13 +307,13 @@ export function buildNovaTradeQuestion(signal = {}, intent = {}, locale = 'en') 
     return [
       `请根据这张行动卡，帮我把 ${intent.symbol || signal?.symbol || '这个标的'} 的执行计划讲清楚。`,
       `方向 ${intent.side || signal?.direction || '--'}，入场区间 ${intent.entryLabel || '--'}，止损 ${intent.stopLoss ?? '--'}，目标 ${targetSummary || '--'}，建议仓位 ${intent.sizePct ?? '--'}%。`,
-      '请按四部分回答：现在能不能做、怎么挂单、什么情况不该做、做错后怎么处理。'
+      '请按四部分回答：现在能不能做、怎么挂单、什么情况不该做、做错后怎么处理。',
     ].join(' ');
   }
 
   return [
     `Review this action card for ${intent.symbol || signal?.symbol || 'this setup'}.`,
     `Side ${intent.side || signal?.direction || '--'}, entry ${intent.entryLabel || '--'}, stop ${intent.stopLoss ?? '--'}, target ${targetSummary || '--'}, size ${intent.sizePct ?? '--'}%.`,
-    'Answer in four parts: can I take it now, how to place it, when not to take it, and how to manage it if it fails.'
+    'Answer in four parts: can I take it now, how to place it, when not to take it, and how to manage it if it fails.',
   ].join(' ');
 }

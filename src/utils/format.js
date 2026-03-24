@@ -2,7 +2,7 @@ export function formatNumber(value, digits = 2, locale) {
   if (value === null || value === undefined || Number.isNaN(Number(value))) return '--';
   return Number(value).toLocaleString(locale, {
     maximumFractionDigits: digits,
-    minimumFractionDigits: Number.isInteger(Number(value)) ? 0 : Math.min(digits, 2)
+    minimumFractionDigits: Number.isInteger(Number(value)) ? 0 : Math.min(digits, 2),
   });
 }
 
@@ -28,7 +28,7 @@ export function formatDateTime(iso, locale) {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
   });
 }
 
@@ -39,7 +39,7 @@ export function formatDate(iso, locale) {
   return date.toLocaleDateString(locale, {
     year: 'numeric',
     month: 'short',
-    day: 'numeric'
+    day: 'numeric',
   });
 }
 

@@ -26,7 +26,7 @@ export function buildCryptoFeatures(normalizedCrypto) {
 
   const benchmarkRows = {
     BTC: Object.fromEntries((grouped.get('BTC-USDT') || []).map((row) => [row.date, row])),
-    ETH: Object.fromEntries((grouped.get('ETH-USDT') || []).map((row) => [row.date, row]))
+    ETH: Object.fromEntries((grouped.get('ETH-USDT') || []).map((row) => [row.date, row])),
   };
 
   const rows = [];
@@ -50,7 +50,8 @@ export function buildCryptoFeatures(normalizedCrypto) {
       const btcRel = btc ? row.returns - btc.returns : 0;
       const ethRel = eth ? row.returns - eth.returns : btcRel;
       const benchmarkPulse = ((btc?.returns || 0) + (eth?.returns || 0)) / 2;
-      const riskOn = benchmarkPulse > 0.004 ? 'risk_on' : benchmarkPulse < -0.004 ? 'risk_off' : 'neutral';
+      const riskOn =
+        benchmarkPulse > 0.004 ? 'risk_on' : benchmarkPulse < -0.004 ? 'risk_off' : 'neutral';
 
       rows.push({
         asset_class: 'crypto',
@@ -72,7 +73,7 @@ export function buildCryptoFeatures(normalizedCrypto) {
         regime_risk_proxy: riskOn,
         returns_1d: row.returns,
         trades_count: row.trades_count,
-        close: row.close
+        close: row.close,
       });
     }
   }
@@ -89,8 +90,8 @@ export function buildCryptoFeatures(normalizedCrypto) {
       'intraday_range_proxy',
       'benchmark_rel_btc',
       'benchmark_rel_eth',
-      'regime_risk_proxy'
+      'regime_risk_proxy',
     ],
-    rows
+    rows,
   };
 }

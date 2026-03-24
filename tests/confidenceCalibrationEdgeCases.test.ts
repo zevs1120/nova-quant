@@ -9,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 function makeMockRepo(executions: any[] = [], signals: Map<string, any> = new Map()) {
   return {
     listExecutions: (_args: any) => executions,
-    getSignal: (id: string) => signals.get(id) || null
+    getSignal: (id: string) => signals.get(id) || null,
   } as any;
 }
 
@@ -25,12 +25,14 @@ describe('confidence calibration — sizing bands', () => {
     const mod = await import('../src/server/confidence/calibration.js');
     createConfidenceCalibrator = mod.createConfidenceCalibrator;
   });
-  afterEach(() => { vi.unstubAllEnvs(); });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
 
   it('returns valid calibrator with empty execution history', () => {
     const calibrator = createConfidenceCalibrator({
       repo: makeMockRepo(),
-      userId: 'test-user'
+      userId: 'test-user',
     });
     expect(calibrator.summary.sample_size).toBe(0);
     expect(calibrator.summary.ece).toBe(0);
@@ -40,14 +42,14 @@ describe('confidence calibration — sizing bands', () => {
   it('calibrateSignal returns all required fields for signal with no history', () => {
     const calibrator = createConfidenceCalibrator({
       repo: makeMockRepo(),
-      userId: 'test-user'
+      userId: 'test-user',
     });
     const result = calibrator.calibrateSignal({
       signal_id: 'sig-1',
       market: 'US',
       direction: 'LONG',
       regime_id: 'RGM_RISK_ON',
-      confidence: 0.7
+      confidence: 0.7,
     });
     expect(result.raw_confidence).toBeCloseTo(0.7, 2);
     expect(result.calibrated_confidence).toBeGreaterThan(0);
@@ -67,7 +69,7 @@ describe('confidence calibration — sizing bands', () => {
   it('confidence clamps to [0.01, 0.99]', () => {
     const calibrator = createConfidenceCalibrator({
       repo: makeMockRepo(),
-      userId: 'test-user'
+      userId: 'test-user',
     });
     const low = calibrator.calibrateSignal({ confidence: 0, market: 'US', direction: 'LONG' });
     const high = calibrator.calibrateSignal({ confidence: 1, market: 'US', direction: 'LONG' });
@@ -78,10 +80,18 @@ describe('confidence calibration — sizing bands', () => {
   it('calibrated confidence stays within [0.18, 0.94]', () => {
     const calibrator = createConfidenceCalibrator({
       repo: makeMockRepo(),
-      userId: 'test-user'
+      userId: 'test-user',
     });
-    const veryLow = calibrator.calibrateSignal({ confidence: 0.01, market: 'US', direction: 'LONG' });
-    const veryHigh = calibrator.calibrateSignal({ confidence: 0.99, market: 'US', direction: 'LONG' });
+    const veryLow = calibrator.calibrateSignal({
+      confidence: 0.01,
+      market: 'US',
+      direction: 'LONG',
+    });
+    const veryHigh = calibrator.calibrateSignal({
+      confidence: 0.99,
+      market: 'US',
+      direction: 'LONG',
+    });
     expect(veryLow.calibrated_confidence).toBeGreaterThanOrEqual(0.18);
     expect(veryHigh.calibrated_confidence).toBeLessThanOrEqual(0.94);
   });
@@ -89,10 +99,18 @@ describe('confidence calibration — sizing bands', () => {
   it('higher raw confidence generally produces higher calibrated confidence with no history', () => {
     const calibrator = createConfidenceCalibrator({
       repo: makeMockRepo(),
-      userId: 'test-user'
+      userId: 'test-user',
     });
-    const lowConf = calibrator.calibrateSignal({ confidence: 0.3, market: 'US', direction: 'LONG' });
-    const highConf = calibrator.calibrateSignal({ confidence: 0.85, market: 'US', direction: 'LONG' });
+    const lowConf = calibrator.calibrateSignal({
+      confidence: 0.3,
+      market: 'US',
+      direction: 'LONG',
+    });
+    const highConf = calibrator.calibrateSignal({
+      confidence: 0.85,
+      market: 'US',
+      direction: 'LONG',
+    });
     expect(highConf.calibrated_confidence).toBeGreaterThan(lowConf.calibrated_confidence);
   });
 });
@@ -107,7 +125,9 @@ describe('confidence calibration — with execution history', () => {
     const mod = await import('../src/server/confidence/calibration.js');
     createConfidenceCalibrator = mod.createConfidenceCalibrator;
   });
-  afterEach(() => { vi.unstubAllEnvs(); });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
 
   it('builds non-zero summary with real execution history', () => {
     const signals = new Map<string, any>();
@@ -118,18 +138,18 @@ describe('confidence calibration — with execution history', () => {
         market: 'US',
         direction: 'LONG',
         regime_id: 'RGM_RISK_ON',
-        confidence: 0.5 + i * 0.03
+        confidence: 0.5 + i * 0.03,
       });
       executions.push({
         signal_id: sigId,
         action: 'DONE',
-        pnl_pct: i % 3 === 0 ? -1.5 : 2.5
+        pnl_pct: i % 3 === 0 ? -1.5 : 2.5,
       });
     }
 
     const calibrator = createConfidenceCalibrator({
       repo: makeMockRepo(executions, signals),
-      userId: 'test-user'
+      userId: 'test-user',
     });
     expect(calibrator.summary.sample_size).toBe(12);
     expect(calibrator.summary.brier).toBeGreaterThan(0);
@@ -144,24 +164,24 @@ describe('confidence calibration — with execution history', () => {
         market: 'US',
         direction: 'LONG',
         regime_id: 'RGM_RISK_ON',
-        confidence: 0.6
+        confidence: 0.6,
       });
       executions.push({
         signal_id: sigId,
         action: 'DONE',
-        pnl_pct: i % 2 === 0 ? 2 : -1
+        pnl_pct: i % 2 === 0 ? 2 : -1,
       });
     }
 
     const calibrator = createConfidenceCalibrator({
       repo: makeMockRepo(executions, signals),
-      userId: 'test-user'
+      userId: 'test-user',
     });
     const result = calibrator.calibrateSignal({
       market: 'US',
       direction: 'LONG',
       regime_id: 'RGM_RISK_ON',
-      confidence: 0.6
+      confidence: 0.6,
     });
     // With 24 samples, execution_confidence should be significant
     expect(result.execution_confidence).toBeGreaterThanOrEqual(0.25);
@@ -169,26 +189,29 @@ describe('confidence calibration — with execution history', () => {
   });
 
   it('skips executions without matching signal', () => {
-    const executions = [
-      { signal_id: 'missing-sig', action: 'DONE', pnl_pct: 5 }
-    ];
+    const executions = [{ signal_id: 'missing-sig', action: 'DONE', pnl_pct: 5 }];
     const calibrator = createConfidenceCalibrator({
       repo: makeMockRepo(executions),
-      userId: 'test-user'
+      userId: 'test-user',
     });
     expect(calibrator.summary.sample_size).toBe(0);
   });
 
   it('only includes DONE/CLOSE executions', () => {
     const signals = new Map<string, any>();
-    signals.set('sig-1', { market: 'US', direction: 'LONG', regime_id: 'RGM_RISK_ON', confidence: 0.6 });
+    signals.set('sig-1', {
+      market: 'US',
+      direction: 'LONG',
+      regime_id: 'RGM_RISK_ON',
+      confidence: 0.6,
+    });
     const executions = [
       { signal_id: 'sig-1', action: 'PENDING', pnl_pct: 3 },
-      { signal_id: 'sig-1', action: 'OPEN', pnl_pct: 2 }
+      { signal_id: 'sig-1', action: 'OPEN', pnl_pct: 2 },
     ];
     const calibrator = createConfidenceCalibrator({
       repo: makeMockRepo(executions, signals),
-      userId: 'test-user'
+      userId: 'test-user',
     });
     expect(calibrator.summary.sample_size).toBe(0);
   });

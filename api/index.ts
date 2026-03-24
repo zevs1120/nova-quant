@@ -6,7 +6,7 @@ import {
   getPublicBrowseNewsFeed,
   listPublicAssets,
   queryPublicOhlcv,
-  searchPublicAssets
+  searchPublicAssets,
 } from '../src/server/public/browseService.js';
 import { getPublicTodayDecision } from '../src/server/public/todayDecisionService.js';
 import type { AssetClass, Market } from '../src/server/types.js';
@@ -26,13 +26,17 @@ function handlePublicOptions(req: VercelRequest, res: VercelResponse) {
 }
 
 function parseMarket(value?: string) {
-  const upper = String(value || '').trim().toUpperCase();
+  const upper = String(value || '')
+    .trim()
+    .toUpperCase();
   if (upper === 'US' || upper === 'CRYPTO') return upper as 'US' | 'CRYPTO';
   return undefined;
 }
 
 function parseAssetClass(value?: string) {
-  const upper = String(value || '').trim().toUpperCase();
+  const upper = String(value || '')
+    .trim()
+    .toUpperCase();
   if (upper === 'US_STOCK' || upper === 'CRYPTO' || upper === 'ALL') return upper as AssetClass;
   return undefined;
 }
@@ -87,7 +91,9 @@ function parseJsonBody(req: VercelRequest) {
 function signalPayloadsFromDecision(decision: Record<string, unknown>) {
   const cards = Array.isArray(decision.ranked_action_cards) ? decision.ranked_action_cards : [];
   return cards
-    .map((row) => (row && typeof row === 'object' ? (row as Record<string, unknown>).signal_payload : null))
+    .map((row) =>
+      row && typeof row === 'object' ? (row as Record<string, unknown>).signal_payload : null,
+    )
     .filter((row): row is Record<string, unknown> => Boolean(row) && typeof row === 'object');
 }
 
@@ -102,14 +108,14 @@ function publicRuntimeTransparency(args: { asOf: string; signalCount: number }) 
     freshness_summary: {
       source_status: 'MODEL_DERIVED',
       rows: [],
-      stale_count: 0
+      stale_count: 0,
     },
     coverage_summary: {
       assets_checked: args.signalCount,
       assets_with_bars: args.signalCount,
       generated_signals: args.signalCount,
       market_state_rows: args.signalCount,
-      coverage_ratio: args.signalCount > 0 ? 1 : 0
+      coverage_ratio: args.signalCount > 0 ? 1 : 0,
     },
     db_backed: false,
     paper_only: false,
@@ -118,7 +124,7 @@ function publicRuntimeTransparency(args: { asOf: string; signalCount: number }) 
     model_derived: true,
     experimental: false,
     disconnected: false,
-    performance_source: 'UNAVAILABLE'
+    performance_source: 'UNAVAILABLE',
   };
 }
 
@@ -134,13 +140,22 @@ function buildPublicRuntimeState(args: {
   decision: Record<string, unknown>;
 }) {
   const asOf = String(args.decision.as_of || new Date().toISOString());
-  const posture = String((args.decision.risk_state as Record<string, unknown> | undefined)?.posture || 'PROBE').toUpperCase();
-  const topAction = ((args.decision.ranked_action_cards as Array<Record<string, unknown>> | undefined) || [])[0] || null;
+  const posture = String(
+    (args.decision.risk_state as Record<string, unknown> | undefined)?.posture || 'PROBE',
+  ).toUpperCase();
+  const topAction =
+    ((args.decision.ranked_action_cards as Array<Record<string, unknown>> | undefined) || [])[0] ||
+    null;
   const signals = signalPayloadsFromDecision(args.decision);
   const runtime = publicRuntimeTransparency({ asOf, signalCount: signals.length });
   const mode = postureMode(posture);
-  const topSymbol = String((topAction?.symbol as string | undefined) || (signals[0]?.symbol as string | undefined) || '');
-  const topSubtitle = String((args.decision.today_call as Record<string, unknown> | undefined)?.subtitle || 'Public live market scan is active.');
+  const topSymbol = String(
+    (topAction?.symbol as string | undefined) || (signals[0]?.symbol as string | undefined) || '',
+  );
+  const topSubtitle = String(
+    (args.decision.today_call as Record<string, unknown> | undefined)?.subtitle ||
+      'Public live market scan is active.',
+  );
 
   return {
     asof: asOf,
@@ -152,7 +167,7 @@ function buildPublicRuntimeState(args: {
       performance: {
         asof: asOf,
         source_status: 'UNAVAILABLE',
-        records: []
+        records: [],
       },
       decision: args.decision,
       trades: [],
@@ -164,7 +179,7 @@ function buildPublicRuntimeState(args: {
         risk_off_score: null,
         source_status: 'MODEL_DERIVED',
         data_status: 'MODEL_DERIVED',
-        source_label: 'MODEL_DERIVED'
+        source_label: 'MODEL_DERIVED',
       },
       config: {
         last_updated: asOf,
@@ -176,17 +191,17 @@ function buildPublicRuntimeState(args: {
           daily_loss_pct: 3,
           max_dd_pct: 12,
           exposure_cap_pct: 55,
-          vol_switch: true
+          vol_switch: true,
         },
         risk_status: {
           current_risk_bucket: mode.mode.toUpperCase(),
           bucket_state: mode.mode.toUpperCase(),
           diagnostics: {
             daily_pnl_pct: null,
-            max_dd_pct: null
-          }
+            max_dd_pct: null,
+          },
         },
-        runtime
+        runtime,
       },
       market_modules: [],
       analytics: {
@@ -195,76 +210,90 @@ function buildPublicRuntimeState(args: {
         status_flags: {
           runtime_source: 'MODEL_DERIVED',
           performance_source: 'UNAVAILABLE',
-          has_performance_sample: false
-        }
+          has_performance_sample: false,
+        },
       },
       research: {
         source_status: 'MODEL_DERIVED',
         data_status: 'MODEL_DERIVED',
         source_label: 'MODEL_DERIVED',
-        notes: ['Hosted public runtime is using live market scan fallback.']
+        notes: ['Hosted public runtime is using live market scan fallback.'],
       },
       today: {
         is_trading_day: true,
-        trading_day_message: args.market === 'CRYPTO' ? 'Crypto market runs 24/7.' : 'Hosted public market scan is live.',
+        trading_day_message:
+          args.market === 'CRYPTO'
+            ? 'Crypto market runs 24/7.'
+            : 'Hosted public market scan is live.',
         suggested_gross_exposure_pct: mode.gross,
         suggested_net_exposure_pct: mode.net,
         style_hint: posture === 'ATTACK' ? 'trend' : 'watchful',
         why_today: [
           topSubtitle,
-          topSymbol ? `Top public setup: ${topSymbol}.` : 'No publishable public setup is active right now.'
-        ]
+          topSymbol
+            ? `Top public setup: ${topSymbol}.`
+            : 'No publishable public setup is active right now.',
+        ],
       },
       safety: {
         mode: mode.mode,
         safety_score: mode.score,
         suggested_gross_exposure_pct: mode.gross,
         suggested_net_exposure_pct: mode.net,
-        conclusion: String((args.decision.risk_state as Record<string, unknown> | undefined)?.user_message || topSubtitle),
+        conclusion: String(
+          (args.decision.risk_state as Record<string, unknown> | undefined)?.user_message ||
+            topSubtitle,
+        ),
         primary_risks: [topSubtitle],
         cards: {
           market: {
             title: 'Market',
             score: mode.score,
-            lines: ['Derived from live public market scan.']
+            lines: ['Derived from live public market scan.'],
           },
           portfolio: {
             title: 'Portfolio',
             score: 55,
-            lines: ['Hosted fallback is universal, not portfolio-personalized.']
+            lines: ['Hosted fallback is universal, not portfolio-personalized.'],
           },
           instrument: {
             title: 'Instrument',
             score: topAction ? Number(topAction.ranking_score || 70) : 45,
-            lines: [topSymbol ? `Top candidate: ${topSymbol}` : 'No active candidate.']
-          }
+            lines: [topSymbol ? `Top candidate: ${topSymbol}` : 'No active candidate.'],
+          },
         },
         rules: [
           { id: 'size-cap', title: 'Size cap', rule: `Gross exposure cap ${mode.gross}%` },
-          { id: 'hard-stop', title: 'Hard stop', rule: 'Every trade requires invalidation placement before entry.' }
-        ]
+          {
+            id: 'hard-stop',
+            title: 'Hard stop',
+            rule: 'Every trade requires invalidation placement before entry.',
+          },
+        ],
       },
       insights: {
         regime: {
           tag: posture,
-          description: topSubtitle
+          description: topSubtitle,
         },
         short_commentary: topSubtitle,
         breadth: { ratio: null },
         volatility: { label: 'live_public_scan' },
-        risk_on_off: { state: posture === 'ATTACK' ? 'risk_on' : posture === 'PROBE' ? 'neutral' : 'risk_off' },
+        risk_on_off: {
+          state: posture === 'ATTACK' ? 'risk_on' : posture === 'PROBE' ? 'neutral' : 'risk_off',
+        },
         style: { preference: posture === 'ATTACK' ? 'trend' : 'watchful' },
         leadership: {
           leaders: signals.slice(0, 3).map((row) => ({
             sector: String(row.symbol || ''),
-            score: Number(row.score || row.confidence || 0)
+            score: Number(row.score || row.confidence || 0),
           })),
-          laggards: []
+          laggards: [],
         },
-        why_signals_today: [topSubtitle]
+        why_signals_today: [topSubtitle],
       },
       ai: {
-        source_transparency: runtime
+        source_transparency: runtime,
       },
       layers: {
         data_layer: {
@@ -272,8 +301,8 @@ function buildPublicRuntimeState(args: {
             ticker: row.symbol,
             market: row.market,
             latest_close: null,
-            sector: row.market === 'CRYPTO' ? 'Crypto' : 'US'
-          }))
+            sector: row.market === 'CRYPTO' ? 'Crypto' : 'US',
+          })),
         },
         portfolio_layer: {
           candidates: signals.slice(0, 12).map((row) => ({
@@ -283,13 +312,13 @@ function buildPublicRuntimeState(args: {
             confidence: row.confidence,
             risk_score: null,
             entry_plan: {
-              entry_zone: row.entry_zone || null
-            }
+              entry_zone: row.entry_zone || null,
+            },
           })),
-          filtered_out: []
-        }
-      }
-    }
+          filtered_out: [],
+        },
+      },
+    },
   };
 }
 
@@ -321,7 +350,7 @@ async function handlePublicBrowseRoute(req: VercelRequest, res: VercelResponse, 
     res.status(200).json({
       ok: true,
       service: 'novaquant-api',
-      ts: Date.now()
+      ts: Date.now(),
     });
     return true;
   }
@@ -352,7 +381,9 @@ async function handlePublicBrowseRoute(req: VercelRequest, res: VercelResponse, 
 
   if (path === '/api/browse/chart' && req.method === 'GET') {
     const market = parseMarket(req.query.market as string | undefined);
-    const symbol = String(req.query.symbol || '').trim().toUpperCase();
+    const symbol = String(req.query.symbol || '')
+      .trim()
+      .toUpperCase();
     if (!market || !symbol) {
       res.status(400).json({ error: 'Required query params: market, symbol' });
       return true;
@@ -375,7 +406,10 @@ async function handlePublicBrowseRoute(req: VercelRequest, res: VercelResponse, 
       res.status(400).json({ error: 'Required query param: market' });
       return true;
     }
-    const symbol = String(req.query.symbol || '').trim().toUpperCase() || undefined;
+    const symbol =
+      String(req.query.symbol || '')
+        .trim()
+        .toUpperCase() || undefined;
     const limit = req.query.limit ? Number(req.query.limit) : 8;
     const data = await getPublicBrowseNewsFeed({ market, symbol, limit });
     res.status(200).json({ market, symbol: symbol ?? null, count: data.length, data });
@@ -384,7 +418,9 @@ async function handlePublicBrowseRoute(req: VercelRequest, res: VercelResponse, 
 
   if (path === '/api/browse/overview' && req.method === 'GET') {
     const market = parseMarket(req.query.market as string | undefined);
-    const symbol = String(req.query.symbol || '').trim().toUpperCase();
+    const symbol = String(req.query.symbol || '')
+      .trim()
+      .toUpperCase();
     if (!market || !symbol) {
       res.status(400).json({ error: 'Required query params: market, symbol' });
       return true;
@@ -400,7 +436,9 @@ async function handlePublicBrowseRoute(req: VercelRequest, res: VercelResponse, 
 
   if (path === '/api/ohlcv' && req.method === 'GET') {
     const market = parseMarket(req.query.market as string | undefined);
-    const symbol = String(req.query.symbol || '').trim().toUpperCase();
+    const symbol = String(req.query.symbol || '')
+      .trim()
+      .toUpperCase();
     const timeframe = parseTimeframe((req.query.tf || req.query.timeframe) as string | undefined);
     if (!market || !symbol || !timeframe) {
       res.status(400).json({ error: 'Required query params: market, symbol, tf' });
@@ -418,36 +456,40 @@ async function handlePublicBrowseRoute(req: VercelRequest, res: VercelResponse, 
       timeframe,
       count: result.rows.length,
       asset: result.asset,
-      data: result.rows
+      data: result.rows,
     });
     return true;
   }
 
   if (path === '/api/signals' && req.method === 'GET') {
     const market = parseMarket(req.query.market as string | undefined) || 'US';
-    const assetClass = parseAssetClass(req.query.assetClass as string | undefined) || (market === 'CRYPTO' ? 'CRYPTO' : 'US_STOCK');
+    const assetClass =
+      parseAssetClass(req.query.assetClass as string | undefined) ||
+      (market === 'CRYPTO' ? 'CRYPTO' : 'US_STOCK');
     const userId = String(req.query.userId || 'guest-default');
     const decision = await getPublicTodayDecision({ market, assetClass, userId });
     const data = signalPayloadsFromDecision(decision as Record<string, unknown>);
     res.status(200).json({
       asof: decision.as_of,
       count: data.length,
-      data
+      data,
     });
     return true;
   }
 
   if (path === '/api/runtime-state' && req.method === 'GET') {
     const market = parseMarket(req.query.market as string | undefined) || 'US';
-    const assetClass = parseAssetClass(req.query.assetClass as string | undefined) || (market === 'CRYPTO' ? 'CRYPTO' : 'US_STOCK');
+    const assetClass =
+      parseAssetClass(req.query.assetClass as string | undefined) ||
+      (market === 'CRYPTO' ? 'CRYPTO' : 'US_STOCK');
     const userId = String(req.query.userId || 'guest-default');
     const decision = await getPublicTodayDecision({ market, assetClass, userId });
     res.status(200).json(
       buildPublicRuntimeState({
         market,
         assetClass,
-        decision: decision as Record<string, unknown>
-      })
+        decision: decision as Record<string, unknown>,
+      }),
     );
     return true;
   }
@@ -456,7 +498,9 @@ async function handlePublicBrowseRoute(req: VercelRequest, res: VercelResponse, 
     const body = parseJsonBody(req);
     const holdings = Array.isArray(body.holdings) ? body.holdings : [];
     const market = parseMarket(String(body.market || req.query.market || '')) || 'US';
-    const assetClass = parseAssetClass(String(body.assetClass || req.query.assetClass || '')) || (market === 'CRYPTO' ? 'CRYPTO' : 'US_STOCK');
+    const assetClass =
+      parseAssetClass(String(body.assetClass || req.query.assetClass || '')) ||
+      (market === 'CRYPTO' ? 'CRYPTO' : 'US_STOCK');
     const userId = String(body.userId || req.query.userId || 'guest-default');
     const locale = typeof body.locale === 'string' ? body.locale : undefined;
     if (!holdings.length) {

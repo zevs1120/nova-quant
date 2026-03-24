@@ -7,6 +7,7 @@ Last updated: 2026-03-09
 In Nova Quant, replay means validating opportunities against **historical bar sequences in event order** instead of only synthetic return proxies.
 
 Replay lifecycle:
+
 1. signal formation event
 2. signal filtering event (risk/no-trade gates)
 3. event-ordered entry checks with explicit fill policy
@@ -14,11 +15,13 @@ Replay lifecycle:
 5. realized trade outcome with fill, slippage, spread, fee, and funding assumptions
 
 This is implemented as a first-class module:
+
 - `src/research/validation/historicalReplayValidation.js`
 
 ## 2) Modules now using replay
 
 ### A. Walk-forward validation
+
 - File: `src/research/core/walkForwardValidation.js`
 - Upgrade:
   - now builds `replay_validation` outputs,
@@ -27,6 +30,7 @@ This is implemented as a first-class module:
   - strategy output now includes `execution_realism` scenario sensitivity.
 
 ### B. Shadow opportunity diagnostics
+
 - File: `src/research/core/shadowOpportunityLog.js`
 - Upgrade:
   - now prefers replay-derived forward outcomes via `signal_outcome_map`,
@@ -34,6 +38,7 @@ This is implemented as a first-class module:
   - each shadow record includes `forward_path_source`.
 
 ### C. Discovery candidate quick validation
+
 - File: `src/research/discovery/candidateValidation.js`
 - Upgrade:
   - quick-backtest stage now can anchor to replay market benchmarks,
@@ -42,6 +47,7 @@ This is implemented as a first-class module:
 ## 3) Replay capability details
 
 Replay engine now supports:
+
 - event-ordered signal formation/filtering/entry/exit lifecycle,
 - regime-aware context attachment,
 - entry trigger by policy (`touch`, `bar-cross`, `conservative`, optional optimistic test mode),
@@ -54,6 +60,7 @@ Replay engine now supports:
 - per-signal forward outcome map for diagnostics.
 
 For each replayed signal/opportunity, Nova Quant records:
+
 - `signal_time`
 - `regime_state`
 - `replay_entry_event`
@@ -70,6 +77,7 @@ For each replayed signal/opportunity, Nova Quant records:
 ## 4) What realism improved
 
 Compared to prior proxy-only paths:
+
 - validation now has bar-sequence-grounded execution checks,
 - trade triggering is no longer assumed,
 - stop/take-profit conflicts are handled via explicit intrabar priority assumptions,
@@ -80,6 +88,7 @@ Compared to prior proxy-only paths:
 ## 5) What remains approximate
 
 Replay is materially better but still not full execution-grade realism:
+
 - bar-level replay cannot model tick-level path/order queue priority,
 - intrabar order is assumption-based (`stop_first` by default),
 - assumptions are profile-based but not yet venue-time-series calibrated,
@@ -90,10 +99,12 @@ Replay is materially better but still not full execution-grade realism:
 
 Replay outputs are deterministic under fixed input state and assumptions.
 Key contracts emitted from walk-forward:
+
 - `walk_forward_validation.replay_validation`
 - `walk_forward_validation.strategies[*].replay_context`
 
 These can be consumed by:
+
 - evidence system,
 - governance scoring,
 - shadow diagnostics,

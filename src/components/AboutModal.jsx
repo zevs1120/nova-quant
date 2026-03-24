@@ -5,7 +5,12 @@ export default function AboutModal({ open, onClose, config, t, locale }) {
 
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <div className="modal-card" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+      <div
+        className="modal-card"
+        role="dialog"
+        aria-modal="true"
+        onClick={(event) => event.stopPropagation()}
+      >
         <div className="card-header">
           <h3 className="card-title">{t('about.title')}</h3>
           <button type="button" className="ghost-btn" onClick={onClose}>

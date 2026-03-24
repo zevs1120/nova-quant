@@ -11,6 +11,7 @@ Nova Quant is an AI-native quantitative **decision** platform for US equities an
 ## 2) What Is Real vs Experimental
 
 ### DB-backed runtime (real)
+
 - Primary ingestion via **Massive.com** REST API (`src/server/ingestion/massive.ts`) writing to SQLite (`assets`, `ohlcv`).
 - Legacy fallback ingestion: Stooq (US equities), Binance (crypto).
 - Additional data sources: Yahoo, Nasdaq, hosted data.
@@ -46,6 +47,7 @@ Nova Quant is an AI-native quantitative **decision** platform for US equities an
   - personalized portfolio-context-aware recommendation snapshots
 
 ### Experimental/model-derived
+
 - Some advanced research core analytics remain model-derived.
 - Portfolio simulation and some discovery outputs are research-grade and not live execution proof.
 
@@ -57,9 +59,11 @@ Nova Quant is an AI-native quantitative **decision** platform for US equities an
 ## 3) Current Source-of-Truth Design
 
 Canonical backend entrypoint:
+
 - `src/server/api/app.ts`
 
 Shared query/service path:
+
 - `src/server/api/queries.ts`
 - `src/server/quant/service.ts`
 - `src/server/quant/runtimeDerivation.ts`
@@ -89,6 +93,7 @@ Wrapper routes (`api/*.ts`) delegate to shared app layer.
 ## 6) Connectivity Posture
 
 Default connector posture is honest:
+
 - `DISCONNECTED` + null balances/positions when not configured.
 - No fake buying power or fake holdings.
 - Connection checks and metadata are persisted in `external_connections`.
@@ -116,11 +121,13 @@ npm run verify
 ## 8) Canonical Assistant Reality
 
 The product now exposes one assistant path, not two separate AI personalities:
+
 - frontend AI page -> `/api/chat`
 - Ask Nova shortcuts -> `/api/chat`
 - legacy sheet UI -> `/api/chat`
 
 Provider behavior:
+
 - if a configured provider succeeds, Nova returns the provider-backed answer
 - if a provider times out / fails / returns malformed or empty output, Nova falls back to the next provider
 - if no provider is configured, Nova returns deterministic internal guidance with explicit honesty about the fallback mode
@@ -146,6 +153,7 @@ Canonical current-state documents:
 - `docs/VERSIONING.md`
 
 Historical review snapshots are archived under:
+
 - `docs/archive/`
 
 Archived review files are retained for traceability and should not be treated as current system truth.

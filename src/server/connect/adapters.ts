@@ -92,16 +92,32 @@ export interface BrokerAdapter {
   provider: string;
   fetchSnapshot(): Promise<BrokerSnapshot>;
   submitOrder?(order: OrderRequest): Promise<OrderStatusSnapshot>;
-  getOrder?(args: { orderId?: string; clientOrderId?: string; symbol?: string }): Promise<OrderStatusSnapshot>;
-  cancelOrder?(args: { orderId?: string; clientOrderId?: string; symbol?: string }): Promise<OrderStatusSnapshot>;
+  getOrder?(args: {
+    orderId?: string;
+    clientOrderId?: string;
+    symbol?: string;
+  }): Promise<OrderStatusSnapshot>;
+  cancelOrder?(args: {
+    orderId?: string;
+    clientOrderId?: string;
+    symbol?: string;
+  }): Promise<OrderStatusSnapshot>;
 }
 
 export interface ExchangeAdapter {
   provider: string;
   fetchSnapshot(): Promise<ExchangeSnapshot>;
   submitOrder?(order: OrderRequest): Promise<OrderStatusSnapshot>;
-  getOrder?(args: { orderId?: string; clientOrderId?: string; symbol?: string }): Promise<OrderStatusSnapshot>;
-  cancelOrder?(args: { orderId?: string; clientOrderId?: string; symbol?: string }): Promise<OrderStatusSnapshot>;
+  getOrder?(args: {
+    orderId?: string;
+    clientOrderId?: string;
+    symbol?: string;
+  }): Promise<OrderStatusSnapshot>;
+  cancelOrder?(args: {
+    orderId?: string;
+    clientOrderId?: string;
+    symbol?: string;
+  }): Promise<OrderStatusSnapshot>;
 }
 
 function nowIso(): string {
@@ -111,8 +127,12 @@ function nowIso(): string {
 function resolveAlpacaCredentials() {
   return {
     apiKey: String(process.env.ALPACA_API_KEY || process.env.APCA_API_KEY_ID || '').trim(),
-    apiSecret: String(process.env.ALPACA_API_SECRET || process.env.APCA_API_SECRET_KEY || '').trim(),
-    baseUrl: String(process.env.ALPACA_API_BASE_URL || 'https://paper-api.alpaca.markets').trim().replace(/\/+$/, '')
+    apiSecret: String(
+      process.env.ALPACA_API_SECRET || process.env.APCA_API_SECRET_KEY || '',
+    ).trim(),
+    baseUrl: String(process.env.ALPACA_API_BASE_URL || 'https://paper-api.alpaca.markets')
+      .trim()
+      .replace(/\/+$/, ''),
   };
 }
 
@@ -120,7 +140,9 @@ function resolveBinanceCredentials() {
   return {
     apiKey: String(process.env.BINANCE_API_KEY || '').trim(),
     apiSecret: String(process.env.BINANCE_API_SECRET || '').trim(),
-    baseUrl: String(process.env.BINANCE_API_BASE_URL || 'https://api.binance.com').trim().replace(/\/+$/, '')
+    baseUrl: String(process.env.BINANCE_API_BASE_URL || 'https://api.binance.com')
+      .trim()
+      .replace(/\/+$/, ''),
   };
 }
 
@@ -183,18 +205,22 @@ function ensureTradingEnabled(provider: string) {
     throw new Error(missingCredentialMessage(provider));
   }
   if (!tradingEnabled(provider)) {
-    throw new Error(`${provider} trading is disabled. Set NOVA_ENABLE_ORDER_ROUTING=1 or the provider-specific trading flag.`);
+    throw new Error(
+      `${provider} trading is disabled. Set NOVA_ENABLE_ORDER_ROUTING=1 or the provider-specific trading flag.`,
+    );
   }
 }
 
-async function readJsonOrError<T>(response: Response): Promise<{ ok: true; data: T } | { ok: false; detail: string }> {
+async function readJsonOrError<T>(
+  response: Response,
+): Promise<{ ok: true; data: T } | { ok: false; detail: string }> {
   if (response.ok) {
     return { ok: true, data: (await response.json()) as T };
   }
   const text = await response.text().catch(() => '');
   return {
     ok: false,
-    detail: `HTTP ${response.status}${text ? ` ${text.slice(0, 240)}` : ''}`
+    detail: `HTTP ${response.status}${text ? ` ${text.slice(0, 240)}` : ''}`,
   };
 }
 
@@ -213,7 +239,7 @@ function providerErrorBroker(provider: string, detail: string): BrokerSnapshot {
     can_trade: false,
     buying_power: null,
     cash: null,
-    positions: []
+    positions: [],
   };
 }
 
@@ -231,7 +257,7 @@ function providerErrorExchange(provider: string, detail: string): ExchangeSnapsh
     can_read_positions: false,
     can_trade: false,
     balances: [],
-    positions: []
+    positions: [],
   };
 }
 
@@ -244,8 +270,13 @@ function signBinanceQuery(secret: string, query: URLSearchParams) {
   return query;
 }
 
-function disconnectedBroker(provider: string, reasonCode: ConnectionReason, message: string): BrokerSnapshot {
-  const dataStatus = reasonCode === 'NO_CREDENTIALS' ? RUNTIME_STATUS.NO_CREDENTIALS : RUNTIME_STATUS.DISCONNECTED;
+function disconnectedBroker(
+  provider: string,
+  reasonCode: ConnectionReason,
+  message: string,
+): BrokerSnapshot {
+  const dataStatus =
+    reasonCode === 'NO_CREDENTIALS' ? RUNTIME_STATUS.NO_CREDENTIALS : RUNTIME_STATUS.DISCONNECTED;
   return {
     provider,
     mode: 'READ_ONLY',
@@ -260,12 +291,17 @@ function disconnectedBroker(provider: string, reasonCode: ConnectionReason, mess
     can_trade: false,
     buying_power: null,
     cash: null,
-    positions: []
+    positions: [],
   };
 }
 
-function disconnectedExchange(provider: string, reasonCode: ConnectionReason, message: string): ExchangeSnapshot {
-  const dataStatus = reasonCode === 'NO_CREDENTIALS' ? RUNTIME_STATUS.NO_CREDENTIALS : RUNTIME_STATUS.DISCONNECTED;
+function disconnectedExchange(
+  provider: string,
+  reasonCode: ConnectionReason,
+  message: string,
+): ExchangeSnapshot {
+  const dataStatus =
+    reasonCode === 'NO_CREDENTIALS' ? RUNTIME_STATUS.NO_CREDENTIALS : RUNTIME_STATUS.DISCONNECTED;
   return {
     provider,
     mode: 'READ_ONLY',
@@ -279,7 +315,7 @@ function disconnectedExchange(provider: string, reasonCode: ConnectionReason, me
     can_read_positions: false,
     can_trade: false,
     balances: [],
-    positions: []
+    positions: [],
   };
 }
 
@@ -299,7 +335,7 @@ function parseAlpacaOrder(provider: string, data: Record<string, unknown>): Orde
     filled_qty: toNumber(data.filled_qty),
     filled_avg_price: toNumber(data.filled_avg_price),
     submitted_at: data.submitted_at ? String(data.submitted_at) : null,
-    raw: data
+    raw: data,
   };
 }
 
@@ -319,9 +355,10 @@ function parseBinanceOrder(provider: string, data: Record<string, unknown>): Ord
     notional: cumulativeQuoteQty,
     limit_price: toNumber(data.price),
     filled_qty: filledQty,
-    filled_avg_price: filledQty && cumulativeQuoteQty ? cumulativeQuoteQty / filledQty : toNumber(data.price),
+    filled_avg_price:
+      filledQty && cumulativeQuoteQty ? cumulativeQuoteQty / filledQty : toNumber(data.price),
     submitted_at: data.transactTime ? new Date(Number(data.transactTime)).toISOString() : null,
-    raw: data
+    raw: data,
   };
 }
 
@@ -331,7 +368,11 @@ class HonestBrokerAdapter implements BrokerAdapter {
   async fetchSnapshot(): Promise<BrokerSnapshot> {
     const provider = String(this.provider || '').toUpperCase();
     if (provider !== 'ALPACA') {
-      return disconnectedBroker(provider, 'UNSUPPORTED_PROVIDER', 'Broker provider is not supported in this build.');
+      return disconnectedBroker(
+        provider,
+        'UNSUPPORTED_PROVIDER',
+        'Broker provider is not supported in this build.',
+      );
     }
     if (!isConfigured(provider)) {
       return disconnectedBroker(provider, 'NO_CREDENTIALS', missingCredentialMessage(provider));
@@ -340,12 +381,22 @@ class HonestBrokerAdapter implements BrokerAdapter {
     const headers = {
       accept: 'application/json',
       'APCA-API-KEY-ID': credentials.apiKey,
-      'APCA-API-SECRET-KEY': credentials.apiSecret
+      'APCA-API-SECRET-KEY': credentials.apiSecret,
     };
     try {
       const [accountRes, positionsRes] = await Promise.all([
-        fetchWithRetry(`${credentials.baseUrl}/v2/account`, { headers }, { attempts: 2, baseDelayMs: 400 }, 12_000),
-        fetchWithRetry(`${credentials.baseUrl}/v2/positions`, { headers }, { attempts: 2, baseDelayMs: 400 }, 12_000)
+        fetchWithRetry(
+          `${credentials.baseUrl}/v2/account`,
+          { headers },
+          { attempts: 2, baseDelayMs: 400 },
+          12_000,
+        ),
+        fetchWithRetry(
+          `${credentials.baseUrl}/v2/positions`,
+          { headers },
+          { attempts: 2, baseDelayMs: 400 },
+          12_000,
+        ),
       ]);
       const account = await readJsonOrError<Record<string, unknown>>(accountRes);
       if (!account.ok) {
@@ -383,9 +434,9 @@ class HonestBrokerAdapter implements BrokerAdapter {
             market_value: toNumber(row.market_value) ?? 0,
             current_price: toNumber(row.current_price),
             avg_entry_price: toNumber(row.avg_entry_price),
-            unrealized_pnl: toNumber(row.unrealized_pl)
+            unrealized_pnl: toNumber(row.unrealized_pl),
           }))
-          .filter((row) => row.symbol && row.qty > 0)
+          .filter((row) => row.symbol && row.qty > 0),
       };
     } catch (error) {
       return providerErrorBroker(provider, error instanceof Error ? error.message : String(error));
@@ -400,11 +451,13 @@ class HonestBrokerAdapter implements BrokerAdapter {
     ensureTradingEnabled(provider);
     const credentials = resolveAlpacaCredentials();
     const payload: Record<string, string | number | boolean> = {
-      symbol: String(order.symbol || '').trim().toUpperCase(),
+      symbol: String(order.symbol || '')
+        .trim()
+        .toUpperCase(),
       side: String(order.side || 'BUY').toLowerCase(),
       type: String(order.type || 'LIMIT').toLowerCase(),
       time_in_force: String(order.time_in_force || 'DAY').toLowerCase(),
-      client_order_id: String(order.client_order_id || `nq_${Date.now()}`)
+      client_order_id: String(order.client_order_id || `nq_${Date.now()}`),
     };
     if (!payload.symbol) throw new Error('symbol is required.');
     if (Number.isFinite(Number(order.qty))) payload.qty = Number(order.qty);
@@ -427,12 +480,12 @@ class HonestBrokerAdapter implements BrokerAdapter {
           accept: 'application/json',
           'content-type': 'application/json',
           'APCA-API-KEY-ID': credentials.apiKey,
-          'APCA-API-SECRET-KEY': credentials.apiSecret
+          'APCA-API-SECRET-KEY': credentials.apiSecret,
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       },
       { attempts: 2, baseDelayMs: 400 },
-      12_000
+      12_000,
     );
     const parsed = await readJsonOrError<Record<string, unknown>>(response);
     if (!parsed.ok) {
@@ -462,11 +515,11 @@ class HonestBrokerAdapter implements BrokerAdapter {
         headers: {
           accept: 'application/json',
           'APCA-API-KEY-ID': credentials.apiKey,
-          'APCA-API-SECRET-KEY': credentials.apiSecret
-        }
+          'APCA-API-SECRET-KEY': credentials.apiSecret,
+        },
       },
       { attempts: 2, baseDelayMs: 400 },
-      12_000
+      12_000,
     );
     const parsed = await readJsonOrError<Record<string, unknown>>(response);
     if (!parsed.ok) {
@@ -475,7 +528,10 @@ class HonestBrokerAdapter implements BrokerAdapter {
     return parseAlpacaOrder(provider, parsed.data);
   }
 
-  async cancelOrder(args: { orderId?: string; clientOrderId?: string }): Promise<OrderStatusSnapshot> {
+  async cancelOrder(args: {
+    orderId?: string;
+    clientOrderId?: string;
+  }): Promise<OrderStatusSnapshot> {
     const provider = String(this.provider || '').toUpperCase();
     if (provider !== 'ALPACA') {
       throw new Error(`Broker provider ${provider} is not supported for order routing.`);
@@ -493,11 +549,11 @@ class HonestBrokerAdapter implements BrokerAdapter {
         headers: {
           accept: 'application/json',
           'APCA-API-KEY-ID': credentials.apiKey,
-          'APCA-API-SECRET-KEY': credentials.apiSecret
-        }
+          'APCA-API-SECRET-KEY': credentials.apiSecret,
+        },
       },
       { attempts: 2, baseDelayMs: 400 },
-      12_000
+      12_000,
     );
     if (response.status === 204) {
       return {
@@ -515,7 +571,7 @@ class HonestBrokerAdapter implements BrokerAdapter {
         filled_qty: null,
         filled_avg_price: null,
         submitted_at: null,
-        raw: null
+        raw: null,
       };
     }
     const parsed = await readJsonOrError<Record<string, unknown>>(response);
@@ -532,7 +588,11 @@ class HonestExchangeAdapter implements ExchangeAdapter {
   async fetchSnapshot(): Promise<ExchangeSnapshot> {
     const provider = String(this.provider || '').toUpperCase();
     if (provider !== 'BINANCE') {
-      return disconnectedExchange(provider, 'UNSUPPORTED_PROVIDER', 'Exchange provider is not supported in this build.');
+      return disconnectedExchange(
+        provider,
+        'UNSUPPORTED_PROVIDER',
+        'Exchange provider is not supported in this build.',
+      );
     }
     if (!isConfigured(provider)) {
       return disconnectedExchange(provider, 'NO_CREDENTIALS', missingCredentialMessage(provider));
@@ -542,21 +602,23 @@ class HonestExchangeAdapter implements ExchangeAdapter {
       credentials.apiSecret,
       new URLSearchParams({
         timestamp: String(Date.now()),
-        recvWindow: '5000'
-      })
+        recvWindow: '5000',
+      }),
     );
     try {
       const response = await fetchWithRetry(
         `${credentials.baseUrl}/api/v3/account?${query.toString()}`,
         {
           headers: {
-            'X-MBX-APIKEY': credentials.apiKey
-          }
+            'X-MBX-APIKEY': credentials.apiKey,
+          },
         },
         { attempts: 2, baseDelayMs: 400 },
-        12_000
+        12_000,
       );
-      const account = await readJsonOrError<{ balances?: Array<Record<string, unknown>> }>(response);
+      const account = await readJsonOrError<{ balances?: Array<Record<string, unknown>> }>(
+        response,
+      );
       if (!account.ok) {
         return providerErrorExchange(provider, `Binance account fetch failed. ${account.detail}`);
       }
@@ -568,7 +630,7 @@ class HonestExchangeAdapter implements ExchangeAdapter {
             asset: String(row.asset || '').toUpperCase(),
             free,
             locked,
-            total: free + locked
+            total: free + locked,
           };
         })
         .filter((row) => row.asset && row.total > 0);
@@ -593,10 +655,13 @@ class HonestExchangeAdapter implements ExchangeAdapter {
         can_read_positions: true,
         can_trade: mode === 'TRADING',
         balances,
-        positions: []
+        positions: [],
       };
     } catch (error) {
-      return providerErrorExchange(provider, error instanceof Error ? error.message : String(error));
+      return providerErrorExchange(
+        provider,
+        error instanceof Error ? error.message : String(error),
+      );
     }
   }
 
@@ -607,7 +672,9 @@ class HonestExchangeAdapter implements ExchangeAdapter {
     }
     ensureTradingEnabled(provider);
     const credentials = resolveBinanceCredentials();
-    const symbol = String(order.symbol || '').trim().toUpperCase();
+    const symbol = String(order.symbol || '')
+      .trim()
+      .toUpperCase();
     if (!symbol) throw new Error('symbol is required.');
     const type = String(order.type || 'LIMIT').toUpperCase() === 'MARKET' ? 'MARKET' : 'LIMIT';
     const side = String(order.side || 'BUY').toUpperCase() === 'SELL' ? 'SELL' : 'BUY';
@@ -617,20 +684,30 @@ class HonestExchangeAdapter implements ExchangeAdapter {
       type,
       newClientOrderId: String(order.client_order_id || `nq_${Date.now()}`),
       recvWindow: '5000',
-      timestamp: String(Date.now())
+      timestamp: String(Date.now()),
     });
     if (type === 'LIMIT') {
       const price = Number(order.limit_price);
-      const qty = Number(order.qty ?? (Number.isFinite(Number(order.notional)) && price > 0 ? Number(order.notional) / price : NaN));
-      if (!Number.isFinite(price) || price <= 0) throw new Error('limit_price is required for Binance limit orders.');
-      if (!Number.isFinite(qty) || qty <= 0) throw new Error('qty or notional is required for Binance limit orders.');
+      const qty = Number(
+        order.qty ??
+          (Number.isFinite(Number(order.notional)) && price > 0
+            ? Number(order.notional) / price
+            : NaN),
+      );
+      if (!Number.isFinite(price) || price <= 0)
+        throw new Error('limit_price is required for Binance limit orders.');
+      if (!Number.isFinite(qty) || qty <= 0)
+        throw new Error('qty or notional is required for Binance limit orders.');
       query.set('timeInForce', String(order.time_in_force || 'GTC').toUpperCase());
       query.set('price', formatNumber(price) || String(price));
       query.set('quantity', formatNumber(qty) || String(qty));
     } else if (Number.isFinite(Number(order.qty)) && Number(order.qty) > 0) {
       query.set('quantity', formatNumber(Number(order.qty)) || String(Number(order.qty)));
     } else if (Number.isFinite(Number(order.notional)) && Number(order.notional) > 0) {
-      query.set('quoteOrderQty', formatNumber(Number(order.notional), 6) || String(Number(order.notional)));
+      query.set(
+        'quoteOrderQty',
+        formatNumber(Number(order.notional), 6) || String(Number(order.notional)),
+      );
     } else {
       throw new Error('qty or notional is required for Binance market orders.');
     }
@@ -641,11 +718,11 @@ class HonestExchangeAdapter implements ExchangeAdapter {
       {
         method: 'POST',
         headers: {
-          'X-MBX-APIKEY': credentials.apiKey
-        }
+          'X-MBX-APIKEY': credentials.apiKey,
+        },
       },
       { attempts: 2, baseDelayMs: 400 },
-      12_000
+      12_000,
     );
     const parsed = await readJsonOrError<Record<string, unknown>>(response);
     if (!parsed.ok) {
@@ -654,19 +731,25 @@ class HonestExchangeAdapter implements ExchangeAdapter {
     return parseBinanceOrder(provider, parsed.data);
   }
 
-  async getOrder(args: { orderId?: string; clientOrderId?: string; symbol?: string }): Promise<OrderStatusSnapshot> {
+  async getOrder(args: {
+    orderId?: string;
+    clientOrderId?: string;
+    symbol?: string;
+  }): Promise<OrderStatusSnapshot> {
     const provider = String(this.provider || '').toUpperCase();
     if (provider !== 'BINANCE') {
       throw new Error(`Exchange provider ${provider} is not supported for order routing.`);
     }
     ensureTradingEnabled(provider);
     const credentials = resolveBinanceCredentials();
-    const symbol = String(args.symbol || '').trim().toUpperCase();
+    const symbol = String(args.symbol || '')
+      .trim()
+      .toUpperCase();
     if (!symbol) throw new Error('symbol is required for Binance order lookup.');
     const query = new URLSearchParams({
       symbol,
       recvWindow: '5000',
-      timestamp: String(Date.now())
+      timestamp: String(Date.now()),
     });
     if (args.orderId) {
       query.set('orderId', String(args.orderId));
@@ -680,11 +763,11 @@ class HonestExchangeAdapter implements ExchangeAdapter {
       `${credentials.baseUrl}/api/v3/order?${query.toString()}`,
       {
         headers: {
-          'X-MBX-APIKEY': credentials.apiKey
-        }
+          'X-MBX-APIKEY': credentials.apiKey,
+        },
       },
       { attempts: 2, baseDelayMs: 400 },
-      12_000
+      12_000,
     );
     const parsed = await readJsonOrError<Record<string, unknown>>(response);
     if (!parsed.ok) {
@@ -693,19 +776,25 @@ class HonestExchangeAdapter implements ExchangeAdapter {
     return parseBinanceOrder(provider, parsed.data);
   }
 
-  async cancelOrder(args: { orderId?: string; clientOrderId?: string; symbol?: string }): Promise<OrderStatusSnapshot> {
+  async cancelOrder(args: {
+    orderId?: string;
+    clientOrderId?: string;
+    symbol?: string;
+  }): Promise<OrderStatusSnapshot> {
     const provider = String(this.provider || '').toUpperCase();
     if (provider !== 'BINANCE') {
       throw new Error(`Exchange provider ${provider} is not supported for order routing.`);
     }
     ensureTradingEnabled(provider);
     const credentials = resolveBinanceCredentials();
-    const symbol = String(args.symbol || '').trim().toUpperCase();
+    const symbol = String(args.symbol || '')
+      .trim()
+      .toUpperCase();
     if (!symbol) throw new Error('symbol is required for Binance order cancel.');
     const query = new URLSearchParams({
       symbol,
       recvWindow: '5000',
-      timestamp: String(Date.now())
+      timestamp: String(Date.now()),
     });
     if (args.orderId) {
       query.set('orderId', String(args.orderId));
@@ -720,11 +809,11 @@ class HonestExchangeAdapter implements ExchangeAdapter {
       {
         method: 'DELETE',
         headers: {
-          'X-MBX-APIKEY': credentials.apiKey
-        }
+          'X-MBX-APIKEY': credentials.apiKey,
+        },
       },
       { attempts: 2, baseDelayMs: 400 },
-      12_000
+      12_000,
     );
     const parsed = await readJsonOrError<Record<string, unknown>>(response);
     if (!parsed.ok) {

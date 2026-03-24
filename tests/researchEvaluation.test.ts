@@ -6,7 +6,7 @@ import {
   buildExperimentRegistryView,
   buildResearchWorkflowPlan,
   buildStrategyEvaluationReport,
-  buildValidationReport
+  buildValidationReport,
 } from '../src/server/research/evaluation.js';
 
 function repo() {

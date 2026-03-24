@@ -17,7 +17,7 @@ function main() {
   const args = parseArgs(process.argv.slice(2));
   const report = runReliabilityStressFramework({
     asOf: args.asOf,
-    riskProfileKey: args.riskProfile
+    riskProfileKey: args.riskProfile,
   });
 
   if (args.out) {

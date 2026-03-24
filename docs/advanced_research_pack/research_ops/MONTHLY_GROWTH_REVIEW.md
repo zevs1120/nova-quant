@@ -7,6 +7,7 @@ This framework evaluates whether Nova Quant truly matured over the last month.
 ## 1) Discovery growth
 
 Review:
+
 - hypotheses explored,
 - candidate quality trend,
 - survival and promotion rates,
@@ -15,6 +16,7 @@ Review:
 ## 2) Validation quality growth
 
 Review:
+
 - walk-forward robustness trend,
 - cost-stress survival trend,
 - fragility warning trend,
@@ -23,6 +25,7 @@ Review:
 ## 3) Governance activity quality
 
 Review:
+
 - promotion/demotion quality,
 - rollback responsiveness,
 - retirement discipline,
@@ -31,6 +34,7 @@ Review:
 ## 4) Portfolio intelligence growth
 
 Review:
+
 - diversification contribution improvements,
 - drawdown concentration changes,
 - family concentration risk trajectory,
@@ -39,6 +43,7 @@ Review:
 ## 5) Product-facing opportunity quality
 
 Review:
+
 - opportunity contract completeness,
 - actionability and clarity,
 - no-trade guidance quality,
@@ -47,6 +52,7 @@ Review:
 ## 6) Risk-discipline growth
 
 Review:
+
 - risk bucket compliance,
 - size-down/no-trade correctness,
 - overexposure incident count,

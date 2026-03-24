@@ -12,7 +12,7 @@ import {
   handleForgotPassword,
   handleGetAuthProfile,
   handlePostAuthProfile,
-  handleResetPassword
+  handleResetPassword,
 } from './authHandlers.js';
 import { getAuthSession } from '../auth/service.js';
 import {
@@ -21,7 +21,7 @@ import {
   handleAdminResearchOps,
   handleAdminSignals,
   handleAdminSystem,
-  handleAdminUsers
+  handleAdminUsers,
 } from './adminHandlers.js';
 import { handleModelHeartbeat, handleModelSignalIngest } from './modelHandlers.js';
 import {
@@ -84,9 +84,14 @@ import {
   syncQuantState,
   cancelLiveOrder,
   upsertExternalConnection,
-  verifyPublicSignalsApiKey
+  verifyPublicSignalsApiKey,
 } from './queries.js';
-import { claimManualReferral, getManualDashboard, redeemManualVipDay, submitManualPredictionEntry } from '../manual/service.js';
+import {
+  claimManualReferral,
+  getManualDashboard,
+  redeemManualVipDay,
+  submitManualPredictionEntry,
+} from '../manual/service.js';
 import { checkRateLimit } from '../chat/rateLimit.js';
 import { getChatThreadMessages, listChatThreads, streamChat } from '../chat/service.js';
 import { logChatAudit } from '../chat/audit.js';
@@ -114,7 +119,7 @@ import {
   getValidationReportTool,
   listFailedExperimentsTool,
   runFactorDiagnosticsTool,
-  summarizeResearchOnTopicTool
+  summarizeResearchOnTopicTool,
 } from '../research/tools.js';
 import { isLoopbackAddress } from '../ops/privateMarvixOps.js';
 
@@ -139,7 +144,9 @@ function parseAssetClass(value?: string): AssetClass | undefined {
   return undefined;
 }
 
-function parseSignalStatus(value?: string): 'ALL' | 'NEW' | 'TRIGGERED' | 'EXPIRED' | 'INVALIDATED' | 'CLOSED' | undefined {
+function parseSignalStatus(
+  value?: string,
+): 'ALL' | 'NEW' | 'TRIGGERED' | 'EXPIRED' | 'INVALIDATED' | 'CLOSED' | undefined {
   if (!value) return undefined;
   const upper = value.toUpperCase();
   if (
@@ -161,7 +168,10 @@ function resolveApiRequestPath(req: express.Request) {
   }
   const route = req.query?.route;
   if (Array.isArray(route) && route.length) {
-    return `/api/${route.map((value) => String(value || '')).filter(Boolean).join('/')}`;
+    return `/api/${route
+      .map((value) => String(value || ''))
+      .filter(Boolean)
+      .join('/')}`;
   }
   if (typeof route === 'string' && route) {
     return `/api/${route}`;
@@ -180,7 +190,7 @@ type RequestWithNovaScope = express.Request & {
 type AsyncRouteHandler = (
   req: express.Request,
   res: express.Response,
-  next: express.NextFunction
+  next: express.NextFunction,
 ) => Promise<unknown> | unknown;
 
 function asyncRoute(handler: AsyncRouteHandler): express.RequestHandler {
@@ -216,7 +226,9 @@ function isGuestScopedUserId(value: string | null | undefined) {
 function readRequestedUserId(req: express.Request) {
   const queryValue = Array.isArray(req.query?.userId) ? req.query.userId[0] : req.query?.userId;
   const bodyValue =
-    req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? (req.body as Record<string, unknown>).userId : undefined;
+    req.body && typeof req.body === 'object' && !Array.isArray(req.body)
+      ? (req.body as Record<string, unknown>).userId
+      : undefined;
   return normalizeUserId(bodyValue || queryValue);
 }
 
@@ -239,7 +251,7 @@ function getRequestScope(req: express.Request) {
     scope || {
       authenticated: false,
       userId: 'guest-default',
-      authUserId: null
+      authUserId: null,
     }
   );
 }
@@ -250,7 +262,10 @@ function sendUserScopeAuthError(res: express.Response, error: unknown) {
     res.status(503).json({ error: 'AUTH_STORE_NOT_CONFIGURED' });
     return;
   }
-  if (message.includes('REMOTE_AUTH_STORE_TIMEOUT') || message.includes('REMOTE_AUTH_STORE_UNREACHABLE')) {
+  if (
+    message.includes('REMOTE_AUTH_STORE_TIMEOUT') ||
+    message.includes('REMOTE_AUTH_STORE_UNREACHABLE')
+  ) {
     res.status(503).json({ error: 'AUTH_STORE_UNREACHABLE' });
     return;
   }
@@ -272,23 +287,27 @@ export function createApiApp() {
   const appAllowedOrigins = new Set(
     String(
       process.env.NOVA_APP_ALLOWED_ORIGINS ||
-        'https://novaquant.cloud,http://localhost:4173,http://127.0.0.1:4173,http://localhost:5173,http://127.0.0.1:5173'
+        'https://novaquant.cloud,http://localhost:4173,http://127.0.0.1:4173,http://localhost:5173,http://127.0.0.1:5173',
     )
       .split(',')
       .map((row) => String(row || '').trim())
-      .filter(Boolean)
+      .filter(Boolean),
   );
   const adminAllowedOrigins = new Set(
     String(
       process.env.NOVA_ADMIN_ALLOWED_ORIGINS ||
-        'https://admin.novaquant.cloud,http://localhost:4174,http://127.0.0.1:4174,http://localhost:5174,http://127.0.0.1:5174'
+        'https://admin.novaquant.cloud,http://localhost:4174,http://127.0.0.1:4174,http://localhost:5174,http://127.0.0.1:5174',
     )
       .split(',')
       .map((row) => String(row || '').trim())
-      .filter(Boolean)
+      .filter(Boolean),
   );
   const firstPartyOrigins = new Set([...appAllowedOrigins, ...adminAllowedOrigins]);
-  const requireLoopbackOnly = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const requireLoopbackOnly = (
+    req: express.Request,
+    res: express.Response,
+    next: express.NextFunction,
+  ) => {
     const remote = req.socket.remoteAddress || req.ip || null;
     if (!isLoopbackAddress(remote)) {
       res.status(403).json({ error: 'Private Marvix ops endpoint is loopback-only.' });
@@ -367,14 +386,18 @@ export function createApiApp() {
         const requestedUserId = readRequestedUserId(req);
 
         if (session) {
-          if (requestedUserId && requestedUserId !== session.user.userId && !isGuestScopedUserId(requestedUserId)) {
+          if (
+            requestedUserId &&
+            requestedUserId !== session.user.userId &&
+            !isGuestScopedUserId(requestedUserId)
+          ) {
             res.status(403).json({ error: 'USER_SCOPE_MISMATCH' });
             return;
           }
           (req as RequestWithNovaScope).novaScope = {
             authenticated: true,
             userId: session.user.userId,
-            authUserId: session.user.userId
+            authUserId: session.user.userId,
           };
           writeResolvedUserId(req, session.user.userId);
           next();
@@ -389,14 +412,14 @@ export function createApiApp() {
         (req as RequestWithNovaScope).novaScope = {
           authenticated: false,
           userId: resolvedGuestUserId,
-          authUserId: null
+          authUserId: null,
         };
         writeResolvedUserId(req, resolvedGuestUserId);
         next();
       } catch (error) {
         sendUserScopeAuthError(res, error);
       }
-    })
+    }),
   );
 
   app.get('/healthz', (_req, res) => {
@@ -440,31 +463,34 @@ export function createApiApp() {
     res.json({ market: market ?? 'ALL', count: assets.length, data: assets });
   });
 
-  app.get('/api/assets/search', asyncRoute(async (req, res) => {
-    const market = parseMarket(req.query.market as string | undefined);
-    if (req.query.market && !market) {
-      res.status(400).json({ error: 'Invalid market, use US or CRYPTO' });
-      return;
-    }
-    const query = String(req.query.q || '');
-    const limit = req.query.limit ? Number(req.query.limit) : 24;
-    const results = await searchAssets({
-      query,
-      limit,
-      market
-    });
-    res.json({
-      query,
-      market: market ?? 'ALL',
-      count: results.length,
-      data: results,
-      health: getSearchHealth({
-        market,
+  app.get(
+    '/api/assets/search',
+    asyncRoute(async (req, res) => {
+      const market = parseMarket(req.query.market as string | undefined);
+      if (req.query.market && !market) {
+        res.status(400).json({ error: 'Invalid market, use US or CRYPTO' });
+        return;
+      }
+      const query = String(req.query.q || '');
+      const limit = req.query.limit ? Number(req.query.limit) : 24;
+      const results = await searchAssets({
         query,
-        resultCount: results.length
-      })
-    });
-  }));
+        limit,
+        market,
+      });
+      res.json({
+        query,
+        market: market ?? 'ALL',
+        count: results.length,
+        data: results,
+        health: getSearchHealth({
+          market,
+          query,
+          resultCount: results.length,
+        }),
+      });
+    }),
+  );
 
   app.get('/api/manual/state', (req, res) => {
     const userId = (req.query.userId as string | undefined) || '';
@@ -475,7 +501,7 @@ export function createApiApp() {
     const body = req.body as { userId?: string; days?: number };
     const result = redeemManualVipDay({
       userId: String(body.userId || ''),
-      days: body.days
+      days: body.days,
     });
     if (!result.ok) {
       res.status(result.error === 'AUTH_REQUIRED' ? 401 : 400).json(result);
@@ -488,7 +514,7 @@ export function createApiApp() {
     const body = req.body as { userId?: string; inviteCode?: string };
     const result = claimManualReferral({
       userId: String(body.userId || ''),
-      inviteCode: String(body.inviteCode || '')
+      inviteCode: String(body.inviteCode || ''),
     });
     if (!result.ok) {
       res.status(result.error === 'AUTH_REQUIRED' ? 401 : 400).json(result);
@@ -498,12 +524,17 @@ export function createApiApp() {
   });
 
   app.post('/api/manual/predictions/entry', (req, res) => {
-    const body = req.body as { userId?: string; marketId?: string; selectedOption?: string; pointsStaked?: number };
+    const body = req.body as {
+      userId?: string;
+      marketId?: string;
+      selectedOption?: string;
+      pointsStaked?: number;
+    };
     const result = submitManualPredictionEntry({
       userId: String(body.userId || ''),
       marketId: String(body.marketId || ''),
       selectedOption: String(body.selectedOption || ''),
-      pointsStaked: body.pointsStaked
+      pointsStaked: body.pointsStaked,
     });
     if (!result.ok) {
       res.status(result.error === 'AUTH_REQUIRED' ? 401 : 400).json(result);
@@ -512,84 +543,96 @@ export function createApiApp() {
     res.json(result);
   });
 
-  app.get('/api/browse/home', asyncRoute(async (req, res) => {
-    const view = req.query.view as string | undefined;
-    res.json(
-      await getBrowseHomePayload({
-        view
-      })
-    );
-  }));
+  app.get(
+    '/api/browse/home',
+    asyncRoute(async (req, res) => {
+      const view = req.query.view as string | undefined;
+      res.json(
+        await getBrowseHomePayload({
+          view,
+        }),
+      );
+    }),
+  );
 
-  app.get('/api/browse/chart', asyncRoute(async (req, res) => {
-    const market = parseMarket(req.query.market as string | undefined);
-    const symbol = (req.query.symbol as string | undefined)?.toUpperCase();
+  app.get(
+    '/api/browse/chart',
+    asyncRoute(async (req, res) => {
+      const market = parseMarket(req.query.market as string | undefined);
+      const symbol = (req.query.symbol as string | undefined)?.toUpperCase();
 
-    if (!market || !symbol) {
-      res.status(400).json({ error: 'Required query params: market, symbol' });
-      return;
-    }
+      if (!market || !symbol) {
+        res.status(400).json({ error: 'Required query params: market, symbol' });
+        return;
+      }
 
-    const data = await getBrowseAssetChart({
-      market,
-      symbol
-    });
+      const data = await getBrowseAssetChart({
+        market,
+        symbol,
+      });
 
-    if (!data) {
-      res.status(404).json({ error: 'Browse chart unavailable' });
-      return;
-    }
+      if (!data) {
+        res.status(404).json({ error: 'Browse chart unavailable' });
+        return;
+      }
 
-    res.json({
-      market,
-      symbol,
-      count: data.points.length,
-      data
-    });
-  }));
+      res.json({
+        market,
+        symbol,
+        count: data.points.length,
+        data,
+      });
+    }),
+  );
 
-  app.get('/api/browse/news', asyncRoute(async (req, res) => {
-    const market = req.query.market ? parseMarket(req.query.market as string | undefined) : 'ALL';
-    if (req.query.market && !market) {
-      res.status(400).json({ error: 'Invalid market, use US or CRYPTO' });
-      return;
-    }
-    const symbol = (req.query.symbol as string | undefined)?.toUpperCase();
-    const limit = req.query.limit ? Number(req.query.limit) : 8;
-    const data = await getBrowseNewsFeed({
-      market,
-      symbol,
-      limit
-    });
-    res.json({
-      market,
-      symbol: symbol || null,
-      count: data.length,
-      data
-    });
-  }));
+  app.get(
+    '/api/browse/news',
+    asyncRoute(async (req, res) => {
+      const market = req.query.market ? parseMarket(req.query.market as string | undefined) : 'ALL';
+      if (req.query.market && !market) {
+        res.status(400).json({ error: 'Invalid market, use US or CRYPTO' });
+        return;
+      }
+      const symbol = (req.query.symbol as string | undefined)?.toUpperCase();
+      const limit = req.query.limit ? Number(req.query.limit) : 8;
+      const data = await getBrowseNewsFeed({
+        market,
+        symbol,
+        limit,
+      });
+      res.json({
+        market,
+        symbol: symbol || null,
+        count: data.length,
+        data,
+      });
+    }),
+  );
 
-  app.get('/api/browse/overview', asyncRoute(async (req, res) => {
-    const market = parseMarket(req.query.market as string | undefined);
-    const symbol = (req.query.symbol as string | undefined)?.toUpperCase();
-    if (!market || !symbol) {
-      res.status(400).json({ error: 'Required query params: market, symbol' });
-      return;
-    }
-    const data = await getBrowseAssetOverview({
-      market,
-      symbol
-    });
-    if (!data) {
-      res.status(404).json({ error: 'Browse overview unavailable' });
-      return;
-    }
-    res.json({
-      market,
-      symbol,
-      data
-    });
-  }));
+  app.get(
+    '/api/browse/overview',
+    asyncRoute(async (req, res) => {
+      const market = parseMarket(req.query.market as string | undefined);
+      const symbol = (req.query.symbol as string | undefined)?.toUpperCase();
+      if (!market || !symbol) {
+        res.status(400).json({ error: 'Required query params: market, symbol' });
+        return;
+      }
+      const data = await getBrowseAssetOverview({
+        market,
+        symbol,
+      });
+      if (!data) {
+        res.status(404).json({ error: 'Browse overview unavailable' });
+        return;
+      }
+      res.json({
+        market,
+        symbol,
+        data,
+      });
+    }),
+  );
 
   app.get('/api/signals', (req, res) => {
     const market = parseMarket(req.query.market as string | undefined);
@@ -609,12 +652,12 @@ export function createApiApp() {
       market,
       symbol,
       status,
-      limit
+      limit,
     });
     res.json({
       asof: new Date().toISOString(),
       count: data.length,
-      data
+      data,
     });
   });
 
@@ -635,12 +678,12 @@ export function createApiApp() {
       market,
       symbol,
       status,
-      limit
+      limit,
     });
     res.json({
       asof: new Date().toISOString(),
       count: data.length,
-      data
+      data,
     });
   });
 
@@ -649,53 +692,65 @@ export function createApiApp() {
     const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
     const modules = getMarketModules({
       market,
-      assetClass
+      assetClass,
     });
     res.json({
       asof: new Date().toISOString(),
       count: modules.length,
-      data: modules
+      data: modules,
     });
   });
 
-  app.get('/api/runtime-state', asyncRoute(async (req, res) => {
-    const market = parseMarket(req.query.market as string | undefined);
-    const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
-    const userId = (req.query.userId as string | undefined) || 'guest-default';
-    const runtime = await getRuntimeStateResponse({
-      userId,
-      market,
-      assetClass
-    });
-    res.json(runtime);
-  }));
+  app.get(
+    '/api/runtime-state',
+    asyncRoute(async (req, res) => {
+      const market = parseMarket(req.query.market as string | undefined);
+      const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
+      const userId = (req.query.userId as string | undefined) || 'guest-default';
+      const runtime = await getRuntimeStateResponse({
+        userId,
+        market,
+        assetClass,
+      });
+      res.json(runtime);
+    }),
+  );
 
-  app.get('/api/control-plane/status', asyncRoute(async (req, res) => {
-    const userId = (req.query.userId as string | undefined) || 'guest-default';
-    res.json(
-      await getControlPlaneStatus({
-        userId
-      })
-    );
-  }));
+  app.get(
+    '/api/control-plane/status',
+    asyncRoute(async (req, res) => {
+      const userId = (req.query.userId as string | undefined) || 'guest-default';
+      res.json(
+        await getControlPlaneStatus({
+          userId,
+        }),
+      );
+    }),
+  );
 
-  app.get('/api/control-plane/flywheel', asyncRoute(async (req, res) => {
-    const userId = (req.query.userId as string | undefined) || 'guest-default';
-    res.json(
-      await getFlywheelStatus({
-        userId
-      })
-    );
-  }));
+  app.get(
+    '/api/control-plane/flywheel',
+    asyncRoute(async (req, res) => {
+      const userId = (req.query.userId as string | undefined) || 'guest-default';
+      res.json(
+        await getFlywheelStatus({
+          userId,
+        }),
+      );
+    }),
+  );
 
   app.get('/api/control-plane/research-ops', (req, res) => {
-    const timeZone = (req.query.tz as string | undefined) || (req.query.timezone as string | undefined) || undefined;
+    const timeZone =
+      (req.query.tz as string | undefined) ||
+      (req.query.timezone as string | undefined) ||
+      undefined;
     const localDate = (req.query.localDate as string | undefined) || undefined;
     res.json(
       getResearchOpsStatus({
         timeZone,
-        localDate
-      })
+        localDate,
+      }),
     );
   });
 
@@ -707,8 +762,8 @@ export function createApiApp() {
       getBackendBackbone({
         userId,
         market,
-        assetClass
-      })
+        assetClass,
+      }),
     );
   });
 
@@ -732,8 +787,8 @@ export function createApiApp() {
         threadId,
         taskType,
         status,
-        limit
-      })
+        limit,
+      }),
     );
   });
 
@@ -759,8 +814,8 @@ export function createApiApp() {
         label,
         score: body.score,
         notes: body.notes,
-        includeInTraining: Boolean(body.includeInTraining)
-      })
+        includeInTraining: Boolean(body.includeInTraining),
+      }),
     );
   });
 
@@ -770,89 +825,100 @@ export function createApiApp() {
     res.json(
       exportNovaTrainingDataset({
         onlyIncluded,
-        limit
-      })
+        limit,
+      }),
     );
   });
 
-  app.post('/api/nova/training/flywheel', asyncRoute(async (req, res) => {
-    const body = (req.body || {}) as {
-      userId?: string;
-      trainer?: string;
-      onlyIncluded?: boolean;
-      limit?: number;
-      taskTypes?: string[];
-    };
-    const trainer = String(body.trainer || 'unsloth-lora').trim();
-    if (!['mlx-lora', 'unsloth-lora', 'axolotl-qlora'].includes(trainer)) {
-      res.status(400).json({ error: 'trainer must be mlx-lora, unsloth-lora, or axolotl-qlora' });
-      return;
-    }
-    const taskTypes = Array.isArray(body.taskTypes)
-      ? body.taskTypes.map((value) => String(value).trim()).filter(Boolean)
-      : undefined;
-    res.json(
-      await runNovaTrainingFlywheelNow({
-        userId: String(body.userId || '').trim() || undefined,
-        trainer: trainer as 'mlx-lora' | 'unsloth-lora' | 'axolotl-qlora',
-        onlyIncluded: body.onlyIncluded !== false,
-        limit: Number.isFinite(Number(body.limit)) ? Number(body.limit) : undefined,
-        taskTypes: taskTypes as NovaTaskType[] | undefined
-      })
-    );
-  }));
+  app.post(
+    '/api/nova/training/flywheel',
+    asyncRoute(async (req, res) => {
+      const body = (req.body || {}) as {
+        userId?: string;
+        trainer?: string;
+        onlyIncluded?: boolean;
+        limit?: number;
+        taskTypes?: string[];
+      };
+      const trainer = String(body.trainer || 'unsloth-lora').trim();
+      if (!['mlx-lora', 'unsloth-lora', 'axolotl-qlora'].includes(trainer)) {
+        res.status(400).json({ error: 'trainer must be mlx-lora, unsloth-lora, or axolotl-qlora' });
+        return;
+      }
+      const taskTypes = Array.isArray(body.taskTypes)
+        ? body.taskTypes.map((value) => String(value).trim()).filter(Boolean)
+        : undefined;
+      res.json(
+        await runNovaTrainingFlywheelNow({
+          userId: String(body.userId || '').trim() || undefined,
+          trainer: trainer as 'mlx-lora' | 'unsloth-lora' | 'axolotl-qlora',
+          onlyIncluded: body.onlyIncluded !== false,
+          limit: Number.isFinite(Number(body.limit)) ? Number(body.limit) : undefined,
+          taskTypes: taskTypes as NovaTaskType[] | undefined,
+        }),
+      );
+    }),
+  );
 
-  app.post('/api/nova/strategy/generate', asyncRoute(async (req, res) => {
-    const body = (req.body || {}) as {
-      userId?: string;
-      prompt?: string;
-      locale?: string;
-      market?: string;
-      riskProfile?: string;
-      maxCandidates?: number;
-    };
-    const prompt = String(body.prompt || '').trim();
-    const market = parseMarket(body.market);
-    if (!prompt) {
-      res.status(400).json({ error: 'prompt is required' });
-      return;
-    }
-    if (body.market && !market) {
-      res.status(400).json({ error: 'Invalid market, use US or CRYPTO' });
-      return;
-    }
-    res.json(
-      await runNovaStrategyGeneration({
-        userId: String(body.userId || '').trim() || undefined,
-        prompt,
-        locale: String(body.locale || '').trim() || undefined,
+  app.post(
+    '/api/nova/strategy/generate',
+    asyncRoute(async (req, res) => {
+      const body = (req.body || {}) as {
+        userId?: string;
+        prompt?: string;
+        locale?: string;
+        market?: string;
+        riskProfile?: string;
+        maxCandidates?: number;
+      };
+      const prompt = String(body.prompt || '').trim();
+      const market = parseMarket(body.market);
+      if (!prompt) {
+        res.status(400).json({ error: 'prompt is required' });
+        return;
+      }
+      if (body.market && !market) {
+        res.status(400).json({ error: 'Invalid market, use US or CRYPTO' });
+        return;
+      }
+      res.json(
+        await runNovaStrategyGeneration({
+          userId: String(body.userId || '').trim() || undefined,
+          prompt,
+          locale: String(body.locale || '').trim() || undefined,
+          market,
+          riskProfile: String(body.riskProfile || '').trim() || undefined,
+          maxCandidates: Number.isFinite(Number(body.maxCandidates))
+            ? Number(body.maxCandidates)
+            : undefined,
+        }),
+      );
+    }),
+  );
+
+  app.post(
+    '/api/decision/today',
+    asyncRoute(async (req, res) => {
+      const body = req.body as {
+        userId?: string;
+        market?: string;
+        assetClass?: string;
+        locale?: string;
+        holdings?: Array<Record<string, unknown>>;
+      };
+      const market = parseMarket(body.market);
+      const assetClass = parseAssetClass(body.assetClass);
+      const userId = (body.userId as string | undefined) || 'guest-default';
+      const decision = await getDecisionSnapshot({
+        userId,
         market,
-        riskProfile: String(body.riskProfile || '').trim() || undefined,
-        maxCandidates: Number.isFinite(Number(body.maxCandidates)) ? Number(body.maxCandidates) : undefined
-      })
-    );
-  }));
-
-  app.post('/api/decision/today', asyncRoute(async (req, res) => {
-    const body = req.body as {
-      userId?: string;
-      market?: string;
-      assetClass?: string;
-      locale?: string;
-      holdings?: Array<Record<string, unknown>>;
-    };
-    const market = parseMarket(body.market);
-    const assetClass = parseAssetClass(body.assetClass);
-    const userId = (body.userId as string | undefined) || 'guest-default';
-    const decision = await getDecisionSnapshot({
-      userId,
-      market,
-      assetClass,
-      holdings: Array.isArray(body.holdings) ? (body.holdings as never) : [],
-      locale: body.locale
-    });
-    res.json(decision);
-  }));
+        assetClass,
+        holdings: Array.isArray(body.holdings) ? (body.holdings as never) : [],
+        locale: body.locale,
+      });
+      res.json(decision);
+    }),
+  );
 
   app.get('/api/decision/audit', (req, res) => {
     const market = parseMarket(req.query.market as string | undefined);
@@ -864,166 +930,187 @@ export function createApiApp() {
         userId,
         market,
         assetClass,
-        limit
-      })
+        limit,
+      }),
     );
   });
 
-  app.post('/api/engagement/state', asyncRoute(async (req, res) => {
-    const body = (req.body || {}) as {
-      userId?: string;
-      market?: string;
-      assetClass?: string;
-      localDate?: string;
-      localHour?: number;
-      locale?: string;
-      holdings?: Array<Record<string, unknown>>;
-    };
-    const market = parseMarket(body.market);
-    const assetClass = parseAssetClass(body.assetClass);
-    const userId = body.userId || 'guest-default';
-    res.json(
-      await getEngagementState({
-        userId,
-        market,
-        assetClass,
-        localDate: body.localDate,
-        localHour: Number(body.localHour),
-        holdings: Array.isArray(body.holdings) ? (body.holdings as never) : [],
-        locale: body.locale
-      })
-    );
-  }));
+  app.post(
+    '/api/engagement/state',
+    asyncRoute(async (req, res) => {
+      const body = (req.body || {}) as {
+        userId?: string;
+        market?: string;
+        assetClass?: string;
+        localDate?: string;
+        localHour?: number;
+        locale?: string;
+        holdings?: Array<Record<string, unknown>>;
+      };
+      const market = parseMarket(body.market);
+      const assetClass = parseAssetClass(body.assetClass);
+      const userId = body.userId || 'guest-default';
+      res.json(
+        await getEngagementState({
+          userId,
+          market,
+          assetClass,
+          localDate: body.localDate,
+          localHour: Number(body.localHour),
+          holdings: Array.isArray(body.holdings) ? (body.holdings as never) : [],
+          locale: body.locale,
+        }),
+      );
+    }),
+  );
 
-  app.post('/api/engagement/morning-check', asyncRoute(async (req, res) => {
-    const body = (req.body || {}) as {
-      userId?: string;
-      market?: string;
-      assetClass?: string;
-      localDate?: string;
-      localHour?: number;
-      locale?: string;
-      holdings?: Array<Record<string, unknown>>;
-    };
-    res.json(
-      await completeMorningCheck({
-        userId: body.userId,
-        market: parseMarket(body.market),
-        assetClass: parseAssetClass(body.assetClass),
-        localDate: body.localDate,
-        localHour: Number(body.localHour),
-        holdings: Array.isArray(body.holdings) ? (body.holdings as never) : [],
-        locale: body.locale
-      })
-    );
-  }));
+  app.post(
+    '/api/engagement/morning-check',
+    asyncRoute(async (req, res) => {
+      const body = (req.body || {}) as {
+        userId?: string;
+        market?: string;
+        assetClass?: string;
+        localDate?: string;
+        localHour?: number;
+        locale?: string;
+        holdings?: Array<Record<string, unknown>>;
+      };
+      res.json(
+        await completeMorningCheck({
+          userId: body.userId,
+          market: parseMarket(body.market),
+          assetClass: parseAssetClass(body.assetClass),
+          localDate: body.localDate,
+          localHour: Number(body.localHour),
+          holdings: Array.isArray(body.holdings) ? (body.holdings as never) : [],
+          locale: body.locale,
+        }),
+      );
+    }),
+  );
 
-  app.post('/api/engagement/boundary', asyncRoute(async (req, res) => {
-    const body = (req.body || {}) as {
-      userId?: string;
-      market?: string;
-      assetClass?: string;
-      localDate?: string;
-      localHour?: number;
-      locale?: string;
-      holdings?: Array<Record<string, unknown>>;
-    };
-    res.json(
-      await confirmRiskBoundary({
-        userId: body.userId,
-        market: parseMarket(body.market),
-        assetClass: parseAssetClass(body.assetClass),
-        localDate: body.localDate,
-        localHour: Number(body.localHour),
-        holdings: Array.isArray(body.holdings) ? (body.holdings as never) : [],
-        locale: body.locale
-      })
-    );
-  }));
+  app.post(
+    '/api/engagement/boundary',
+    asyncRoute(async (req, res) => {
+      const body = (req.body || {}) as {
+        userId?: string;
+        market?: string;
+        assetClass?: string;
+        localDate?: string;
+        localHour?: number;
+        locale?: string;
+        holdings?: Array<Record<string, unknown>>;
+      };
+      res.json(
+        await confirmRiskBoundary({
+          userId: body.userId,
+          market: parseMarket(body.market),
+          assetClass: parseAssetClass(body.assetClass),
+          localDate: body.localDate,
+          localHour: Number(body.localHour),
+          holdings: Array.isArray(body.holdings) ? (body.holdings as never) : [],
+          locale: body.locale,
+        }),
+      );
+    }),
+  );
 
-  app.post('/api/engagement/wrap-up', asyncRoute(async (req, res) => {
-    const body = (req.body || {}) as {
-      userId?: string;
-      market?: string;
-      assetClass?: string;
-      localDate?: string;
-      localHour?: number;
-      locale?: string;
-      holdings?: Array<Record<string, unknown>>;
-    };
-    res.json(
-      await completeWrapUp({
-        userId: body.userId,
-        market: parseMarket(body.market),
-        assetClass: parseAssetClass(body.assetClass),
-        localDate: body.localDate,
-        localHour: Number(body.localHour),
-        holdings: Array.isArray(body.holdings) ? (body.holdings as never) : [],
-        locale: body.locale
-      })
-    );
-  }));
+  app.post(
+    '/api/engagement/wrap-up',
+    asyncRoute(async (req, res) => {
+      const body = (req.body || {}) as {
+        userId?: string;
+        market?: string;
+        assetClass?: string;
+        localDate?: string;
+        localHour?: number;
+        locale?: string;
+        holdings?: Array<Record<string, unknown>>;
+      };
+      res.json(
+        await completeWrapUp({
+          userId: body.userId,
+          market: parseMarket(body.market),
+          assetClass: parseAssetClass(body.assetClass),
+          localDate: body.localDate,
+          localHour: Number(body.localHour),
+          holdings: Array.isArray(body.holdings) ? (body.holdings as never) : [],
+          locale: body.locale,
+        }),
+      );
+    }),
+  );
 
-  app.post('/api/engagement/weekly-review', asyncRoute(async (req, res) => {
-    const body = (req.body || {}) as {
-      userId?: string;
-      market?: string;
-      assetClass?: string;
-      localDate?: string;
-      localHour?: number;
-      locale?: string;
-      holdings?: Array<Record<string, unknown>>;
-    };
-    res.json(
-      await completeWeeklyReview({
-        userId: body.userId,
-        market: parseMarket(body.market),
-        assetClass: parseAssetClass(body.assetClass),
-        localDate: body.localDate,
-        localHour: Number(body.localHour),
-        holdings: Array.isArray(body.holdings) ? (body.holdings as never) : [],
-        locale: body.locale
-      })
-    );
-  }));
+  app.post(
+    '/api/engagement/weekly-review',
+    asyncRoute(async (req, res) => {
+      const body = (req.body || {}) as {
+        userId?: string;
+        market?: string;
+        assetClass?: string;
+        localDate?: string;
+        localHour?: number;
+        locale?: string;
+        holdings?: Array<Record<string, unknown>>;
+      };
+      res.json(
+        await completeWeeklyReview({
+          userId: body.userId,
+          market: parseMarket(body.market),
+          assetClass: parseAssetClass(body.assetClass),
+          localDate: body.localDate,
+          localHour: Number(body.localHour),
+          holdings: Array.isArray(body.holdings) ? (body.holdings as never) : [],
+          locale: body.locale,
+        }),
+      );
+    }),
+  );
 
-  app.get('/api/widgets/summary', asyncRoute(async (req, res) => {
-    const market = parseMarket(req.query.market as string | undefined);
-    const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
-    const userId = (req.query.userId as string | undefined) || 'guest-default';
-    const localDate = req.query.localDate as string | undefined;
-    const localHour = req.query.localHour ? Number(req.query.localHour) : undefined;
-    const locale = req.query.locale as string | undefined;
-    res.json(
-      await getWidgetSummary({
-        userId,
-        market,
-        assetClass,
-        localDate,
-        localHour,
-        locale
-      })
-    );
-  }));
+  app.get(
+    '/api/widgets/summary',
+    asyncRoute(async (req, res) => {
+      const market = parseMarket(req.query.market as string | undefined);
+      const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
+      const userId = (req.query.userId as string | undefined) || 'guest-default';
+      const localDate = req.query.localDate as string | undefined;
+      const localHour = req.query.localHour ? Number(req.query.localHour) : undefined;
+      const locale = req.query.locale as string | undefined;
+      res.json(
+        await getWidgetSummary({
+          userId,
+          market,
+          assetClass,
+          localDate,
+          localHour,
+          locale,
+        }),
+      );
+    }),
+  );
 
-  app.get('/api/notifications/preview', asyncRoute(async (req, res) => {
-    const market = parseMarket(req.query.market as string | undefined);
-    const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
-    const userId = (req.query.userId as string | undefined) || 'guest-default';
-    const localDate = req.query.localDate as string | undefined;
-    const localHour = req.query.localHour ? Number(req.query.localHour) : undefined;
-    const locale = req.query.locale as string | undefined;
-    res.json(
-      await getNotificationPreview({
-        userId,
-        market,
-        assetClass,
-        localDate,
-        localHour,
-        locale
-      })
-    );
-  }));
+  app.get(
+    '/api/notifications/preview',
+    asyncRoute(async (req, res) => {
+      const market = parseMarket(req.query.market as string | undefined);
+      const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
+      const userId = (req.query.userId as string | undefined) || 'guest-default';
+      const localDate = req.query.localDate as string | undefined;
+      const localHour = req.query.localHour ? Number(req.query.localHour) : undefined;
+      const locale = req.query.locale as string | undefined;
+      res.json(
+        await getNotificationPreview({
+          userId,
+          market,
+          assetClass,
+          localDate,
+          localHour,
+          locale,
+        }),
+      );
+    }),
+  );
 
   app.get('/api/notification-preferences', (req, res) => {
     const userId = (req.query.userId as string | undefined) || 'guest-default';
@@ -1048,18 +1135,30 @@ export function createApiApp() {
           morning_enabled:
             body.morning_enabled === undefined ? undefined : Number(Boolean(body.morning_enabled)),
           state_shift_enabled:
-            body.state_shift_enabled === undefined ? undefined : Number(Boolean(body.state_shift_enabled)),
+            body.state_shift_enabled === undefined
+              ? undefined
+              : Number(Boolean(body.state_shift_enabled)),
           protective_enabled:
-            body.protective_enabled === undefined ? undefined : Number(Boolean(body.protective_enabled)),
+            body.protective_enabled === undefined
+              ? undefined
+              : Number(Boolean(body.protective_enabled)),
           wrap_up_enabled:
             body.wrap_up_enabled === undefined ? undefined : Number(Boolean(body.wrap_up_enabled)),
           frequency: body.frequency,
           quiet_start_hour:
-            body.quiet_start_hour === undefined ? undefined : body.quiet_start_hour === null ? null : Number(body.quiet_start_hour),
+            body.quiet_start_hour === undefined
+              ? undefined
+              : body.quiet_start_hour === null
+                ? null
+                : Number(body.quiet_start_hour),
           quiet_end_hour:
-            body.quiet_end_hour === undefined ? undefined : body.quiet_end_hour === null ? null : Number(body.quiet_end_hour)
-        }
-      })
+            body.quiet_end_hour === undefined
+              ? undefined
+              : body.quiet_end_hour === null
+                ? null
+                : Number(body.quiet_end_hour),
+        },
+      }),
     );
   });
 
@@ -1086,8 +1185,8 @@ export function createApiApp() {
       getFactorMeasuredReportTool({
         factorId: String(req.params.id || ''),
         market,
-        assetClass
-      })
+        assetClass,
+      }),
     );
   });
 
@@ -1121,8 +1220,8 @@ export function createApiApp() {
         assetClass,
         signalId,
         symbol,
-        factorId
-      })
+        factorId,
+      }),
     );
   });
 
@@ -1187,8 +1286,8 @@ export function createApiApp() {
         market,
         assetClass,
         signalId,
-        symbol
-      })
+        symbol,
+      }),
     );
   });
 
@@ -1210,8 +1309,8 @@ export function createApiApp() {
         market,
         assetClass,
         runId,
-        factorId: String(req.params.id || '')
-      })
+        factorId: String(req.params.id || ''),
+      }),
     );
   });
 
@@ -1224,8 +1323,8 @@ export function createApiApp() {
         runId,
         factorId: String(req.params.id || ''),
         market,
-        assetClass
-      })
+        assetClass,
+      }),
     );
   });
 
@@ -1246,7 +1345,7 @@ export function createApiApp() {
       assetClass,
       timeframe: body.timeframe,
       maxSignals: body.maxSignals,
-      force: body.force
+      force: body.force,
     });
     res.json(out);
   });
@@ -1260,7 +1359,7 @@ export function createApiApp() {
       userId,
       market,
       assetClass,
-      limit
+      limit,
     });
     res.json(out);
   });
@@ -1270,7 +1369,7 @@ export function createApiApp() {
     const userId = (req.query.userId as string | undefined) || 'guest-default';
     const out = getEvidenceSignalDetail({
       signalId,
-      userId
+      userId,
     });
     if (!out.detail) {
       res.status(404).json({ error: 'Signal evidence not found' });
@@ -1288,7 +1387,7 @@ export function createApiApp() {
       runType,
       status,
       strategyVersionId,
-      limit
+      limit,
     });
     res.json(out);
   });
@@ -1308,14 +1407,19 @@ export function createApiApp() {
     const symbol = (req.query.symbol as string | undefined)?.toUpperCase() || undefined;
     const strategyVersionId = (req.query.strategyVersionId as string | undefined) || undefined;
     const status =
-      (req.query.status as 'RECONCILED' | 'PAPER_DATA_UNAVAILABLE' | 'REPLAY_DATA_UNAVAILABLE' | 'PARTIAL' | undefined) || undefined;
+      (req.query.status as
+        | 'RECONCILED'
+        | 'PAPER_DATA_UNAVAILABLE'
+        | 'REPLAY_DATA_UNAVAILABLE'
+        | 'PARTIAL'
+        | undefined) || undefined;
     const limit = req.query.limit ? Number(req.query.limit) : 200;
     const out = listEvidenceReconciliation({
       replayRunId,
       symbol,
       strategyVersionId,
       status,
-      limit
+      limit,
     });
     res.json(out);
   });
@@ -1338,191 +1442,216 @@ export function createApiApp() {
     res.json({ data, executions });
   });
 
-  app.post('/api/executions', asyncRoute(async (req, res) => {
-    const body = req.body as {
-      userId?: string;
-      signalId?: string;
-      mode?: 'PAPER' | 'LIVE';
-      action?: 'EXECUTE' | 'DONE' | 'CLOSE';
-      note?: string;
-      pnlPct?: number | null;
-      provider?: string;
-      qty?: number | null;
-      notional?: number | null;
-      orderType?: 'MARKET' | 'LIMIT';
-      limitPrice?: number | null;
-      timeInForce?: 'DAY' | 'GTC' | 'IOC' | 'FOK';
-    };
-    const userId = String(body.userId || '').trim() || 'guest-default';
-    const signalId = String(body.signalId || '').trim();
-    const mode = body.mode || 'PAPER';
-    const action = body.action || 'EXECUTE';
-    if (!signalId) {
-      res.status(400).json({ error: 'signalId is required' });
-      return;
-    }
-    if (!['PAPER', 'LIVE'].includes(mode) || !['EXECUTE', 'DONE', 'CLOSE'].includes(action)) {
-      res.status(400).json({ error: 'Invalid mode/action' });
-      return;
-    }
-    if (mode === 'LIVE' && !requireAuthenticatedScope(req, res)) {
-      return;
-    }
+  app.post(
+    '/api/executions',
+    asyncRoute(async (req, res) => {
+      const body = req.body as {
+        userId?: string;
+        signalId?: string;
+        mode?: 'PAPER' | 'LIVE';
+        action?: 'EXECUTE' | 'DONE' | 'CLOSE';
+        note?: string;
+        pnlPct?: number | null;
+        provider?: string;
+        qty?: number | null;
+        notional?: number | null;
+        orderType?: 'MARKET' | 'LIMIT';
+        limitPrice?: number | null;
+        timeInForce?: 'DAY' | 'GTC' | 'IOC' | 'FOK';
+      };
+      const userId = String(body.userId || '').trim() || 'guest-default';
+      const signalId = String(body.signalId || '').trim();
+      const mode = body.mode || 'PAPER';
+      const action = body.action || 'EXECUTE';
+      if (!signalId) {
+        res.status(400).json({ error: 'signalId is required' });
+        return;
+      }
+      if (!['PAPER', 'LIVE'].includes(mode) || !['EXECUTE', 'DONE', 'CLOSE'].includes(action)) {
+        res.status(400).json({ error: 'Invalid mode/action' });
+        return;
+      }
+      if (mode === 'LIVE' && !requireAuthenticatedScope(req, res)) {
+        return;
+      }
 
-    const result = await submitExecution({
-      userId,
-      signalId,
-      mode,
-      action,
-      note: body.note,
-      pnlPct: body.pnlPct,
-      provider: body.provider,
-      qty: body.qty,
-      notional: body.notional,
-      orderType: body.orderType,
-      limitPrice: body.limitPrice,
-      timeInForce: body.timeInForce
-    });
-    if (!result.ok || !result.executionId) {
-      res.status(mode === 'LIVE' ? 400 : 404).json({
-        error: 'error' in result ? result.error : 'Execution failed',
-        governance: 'governance' in result ? result.governance : undefined
+      const result = await submitExecution({
+        userId,
+        signalId,
+        mode,
+        action,
+        note: body.note,
+        pnlPct: body.pnlPct,
+        provider: body.provider,
+        qty: body.qty,
+        notional: body.notional,
+        orderType: body.orderType,
+        limitPrice: body.limitPrice,
+        timeInForce: body.timeInForce,
       });
-      return;
-    }
-    res.json({
-      ok: true,
-      executionId: result.executionId,
-      shadowExecutionId: 'shadowExecutionId' in result ? result.shadowExecutionId : undefined,
-      order: 'order' in result ? result.order : undefined,
-      governance: 'governance' in result ? result.governance : undefined
-    });
-  }));
+      if (!result.ok || !result.executionId) {
+        res.status(mode === 'LIVE' ? 400 : 404).json({
+          error: 'error' in result ? result.error : 'Execution failed',
+          governance: 'governance' in result ? result.governance : undefined,
+        });
+        return;
+      }
+      res.json({
+        ok: true,
+        executionId: result.executionId,
+        shadowExecutionId: 'shadowExecutionId' in result ? result.shadowExecutionId : undefined,
+        order: 'order' in result ? result.order : undefined,
+        governance: 'governance' in result ? result.governance : undefined,
+      });
+    }),
+  );
 
-  app.get('/api/executions/governance', asyncRoute(async (req, res) => {
-    const scope = requireAuthenticatedScope(req, res);
-    if (!scope) return;
-    const userId = scope.userId;
-    const provider = (req.query.provider as string | undefined) || undefined;
-    const limit = req.query.limit ? Number(req.query.limit) : undefined;
-    const refreshOrders = String(req.query.refresh || '').toLowerCase() === 'true' || req.query.refresh === '1';
-    const result = await getExecutionGovernance({
-      userId,
-      provider,
-      limit,
-      refreshOrders
-    });
-    res.json(result);
-  }));
+  app.get(
+    '/api/executions/governance',
+    asyncRoute(async (req, res) => {
+      const scope = requireAuthenticatedScope(req, res);
+      if (!scope) return;
+      const userId = scope.userId;
+      const provider = (req.query.provider as string | undefined) || undefined;
+      const limit = req.query.limit ? Number(req.query.limit) : undefined;
+      const refreshOrders =
+        String(req.query.refresh || '').toLowerCase() === 'true' || req.query.refresh === '1';
+      const result = await getExecutionGovernance({
+        userId,
+        provider,
+        limit,
+        refreshOrders,
+      });
+      res.json(result);
+    }),
+  );
 
-  app.get('/api/executions/reconciliation', asyncRoute(async (req, res) => {
-    const scope = requireAuthenticatedScope(req, res);
-    if (!scope) return;
-    const userId = scope.userId;
-    const provider = (req.query.provider as string | undefined) || undefined;
-    const limit = req.query.limit ? Number(req.query.limit) : undefined;
-    const refreshOrders = String(req.query.refresh || '').toLowerCase() === 'true' || req.query.refresh === '1';
-    const result = await getExecutionGovernance({
-      userId,
-      provider,
-      limit,
-      refreshOrders
-    });
-    res.json(result.reconciliation);
-  }));
+  app.get(
+    '/api/executions/reconciliation',
+    asyncRoute(async (req, res) => {
+      const scope = requireAuthenticatedScope(req, res);
+      if (!scope) return;
+      const userId = scope.userId;
+      const provider = (req.query.provider as string | undefined) || undefined;
+      const limit = req.query.limit ? Number(req.query.limit) : undefined;
+      const refreshOrders =
+        String(req.query.refresh || '').toLowerCase() === 'true' || req.query.refresh === '1';
+      const result = await getExecutionGovernance({
+        userId,
+        provider,
+        limit,
+        refreshOrders,
+      });
+      res.json(result.reconciliation);
+    }),
+  );
 
-  app.post('/api/executions/kill-switch', asyncRoute(async (req, res) => {
-    const scope = requireAuthenticatedScope(req, res);
-    if (!scope) return;
-    const body = (req.body || {}) as {
-      userId?: string;
-      enabled?: boolean;
-      reason?: string;
-      provider?: string;
-    };
-    if (typeof body.enabled !== 'boolean') {
-      res.status(400).json({ error: 'enabled must be a boolean' });
-      return;
-    }
-    const result = await setExecutionKillSwitch({
-      userId: scope.userId,
-      enabled: body.enabled,
-      reason: body.reason,
-      provider: body.provider
-    });
-    res.json({ ok: true, data: result });
-  }));
+  app.post(
+    '/api/executions/kill-switch',
+    asyncRoute(async (req, res) => {
+      const scope = requireAuthenticatedScope(req, res);
+      if (!scope) return;
+      const body = (req.body || {}) as {
+        userId?: string;
+        enabled?: boolean;
+        reason?: string;
+        provider?: string;
+      };
+      if (typeof body.enabled !== 'boolean') {
+        res.status(400).json({ error: 'enabled must be a boolean' });
+        return;
+      }
+      const result = await setExecutionKillSwitch({
+        userId: scope.userId,
+        enabled: body.enabled,
+        reason: body.reason,
+        provider: body.provider,
+      });
+      res.json({ ok: true, data: result });
+    }),
+  );
 
-  app.get('/api/executions/orders/:provider/:orderId', asyncRoute(async (req, res) => {
-    const scope = requireAuthenticatedScope(req, res);
-    if (!scope) return;
-    const provider = String(req.params.provider || '').trim().toUpperCase();
-    const orderId = String(req.params.orderId || '').trim();
-    const clientOrderId = (req.query.clientOrderId as string | undefined) || undefined;
-    const symbol = (req.query.symbol as string | undefined)?.toUpperCase() || undefined;
-    const ownership = findUserLiveExecutionOrder({
-      userId: scope.userId,
-      provider,
-      orderId,
-      clientOrderId
-    });
-    if (!ownership) {
-      res.status(404).json({ error: 'LIVE_ORDER_NOT_FOUND' });
-      return;
-    }
-    const result = await getLiveOrderStatus({
-      provider,
-      orderId,
-      clientOrderId,
-      symbol
-    });
-    if (!result.ok) {
-      res.status(400).json({ error: result.error });
-      return;
-    }
-    res.json({ ok: true, order: result.order });
-  }));
+  app.get(
+    '/api/executions/orders/:provider/:orderId',
+    asyncRoute(async (req, res) => {
+      const scope = requireAuthenticatedScope(req, res);
+      if (!scope) return;
+      const provider = String(req.params.provider || '')
+        .trim()
+        .toUpperCase();
+      const orderId = String(req.params.orderId || '').trim();
+      const clientOrderId = (req.query.clientOrderId as string | undefined) || undefined;
+      const symbol = (req.query.symbol as string | undefined)?.toUpperCase() || undefined;
+      const ownership = findUserLiveExecutionOrder({
+        userId: scope.userId,
+        provider,
+        orderId,
+        clientOrderId,
+      });
+      if (!ownership) {
+        res.status(404).json({ error: 'LIVE_ORDER_NOT_FOUND' });
+        return;
+      }
+      const result = await getLiveOrderStatus({
+        provider,
+        orderId,
+        clientOrderId,
+        symbol,
+      });
+      if (!result.ok) {
+        res.status(400).json({ error: result.error });
+        return;
+      }
+      res.json({ ok: true, order: result.order });
+    }),
+  );
 
-  app.post('/api/executions/orders/:provider/:orderId/cancel', asyncRoute(async (req, res) => {
-    const scope = requireAuthenticatedScope(req, res);
-    if (!scope) return;
-    const provider = String(req.params.provider || '').trim().toUpperCase();
-    const orderId = String(req.params.orderId || '').trim();
-    const body = (req.body || {}) as { clientOrderId?: string; symbol?: string };
-    const ownership = findUserLiveExecutionOrder({
-      userId: scope.userId,
-      provider,
-      orderId,
-      clientOrderId: body.clientOrderId
-    });
-    if (!ownership) {
-      res.status(404).json({ error: 'LIVE_ORDER_NOT_FOUND' });
-      return;
-    }
-    const result = await cancelLiveOrder({
-      provider,
-      orderId,
-      clientOrderId: body.clientOrderId,
-      symbol: body.symbol ? String(body.symbol).toUpperCase() : undefined
-    });
-    if (!result.ok) {
-      res.status(400).json({ error: result.error });
-      return;
-    }
-    res.json({ ok: true, order: result.order });
-  }));
+  app.post(
+    '/api/executions/orders/:provider/:orderId/cancel',
+    asyncRoute(async (req, res) => {
+      const scope = requireAuthenticatedScope(req, res);
+      if (!scope) return;
+      const provider = String(req.params.provider || '')
+        .trim()
+        .toUpperCase();
+      const orderId = String(req.params.orderId || '').trim();
+      const body = (req.body || {}) as { clientOrderId?: string; symbol?: string };
+      const ownership = findUserLiveExecutionOrder({
+        userId: scope.userId,
+        provider,
+        orderId,
+        clientOrderId: body.clientOrderId,
+      });
+      if (!ownership) {
+        res.status(404).json({ error: 'LIVE_ORDER_NOT_FOUND' });
+        return;
+      }
+      const result = await cancelLiveOrder({
+        provider,
+        orderId,
+        clientOrderId: body.clientOrderId,
+        symbol: body.symbol ? String(body.symbol).toUpperCase() : undefined,
+      });
+      if (!result.ok) {
+        res.status(400).json({ error: result.error });
+        return;
+      }
+      res.json({ ok: true, order: result.order });
+    }),
+  );
 
   app.get('/api/executions', (req, res) => {
     const userId = (req.query.userId as string | undefined) || 'guest-default';
     const market = parseMarket(req.query.market as string | undefined);
-    const mode = req.query.mode === 'LIVE' ? 'LIVE' : req.query.mode === 'PAPER' ? 'PAPER' : undefined;
+    const mode =
+      req.query.mode === 'LIVE' ? 'LIVE' : req.query.mode === 'PAPER' ? 'PAPER' : undefined;
     const signalId = (req.query.signalId as string | undefined) || undefined;
     const limit = req.query.limit ? Number(req.query.limit) : 200;
     const data = listExecutions({ userId, market, mode, signalId, limit });
     res.json({
       asof: new Date().toISOString(),
       count: data.length,
-      data
+      data,
     });
   });
 
@@ -1535,12 +1664,12 @@ export function createApiApp() {
       userId,
       market,
       symbol,
-      timeframe
+      timeframe,
     });
     res.json({
       asof: new Date().toISOString(),
       count: data.length,
-      data
+      data,
     });
   });
 
@@ -1559,7 +1688,10 @@ export function createApiApp() {
   });
 
   app.post('/api/risk-profile', (req, res) => {
-    const body = req.body as { userId?: string; profileKey?: 'conservative' | 'balanced' | 'aggressive' };
+    const body = req.body as {
+      userId?: string;
+      profileKey?: 'conservative' | 'balanced' | 'aggressive';
+    };
     const userId = String(body.userId || '').trim() || 'guest-default';
     const profileKey = body.profileKey;
     if (!profileKey || !['conservative', 'balanced', 'aggressive'].includes(profileKey)) {
@@ -1570,72 +1702,81 @@ export function createApiApp() {
     res.json({ ok: true, data });
   });
 
-  app.post('/api/holdings/import/csv', asyncRoute(async (req, res) => {
-    const body = req.body as { csvText?: string; filename?: string };
-    if (!String(body?.csvText || '').trim()) {
-      res.status(400).json({ error: 'CSV_TEXT_REQUIRED' });
-      return;
-    }
-    const data = importHoldingsFromCsvText({
-      csvText: String(body.csvText || ''),
-      filename: String(body.filename || '').trim() || undefined
-    });
-    res.json(data);
-  }));
-
-  app.post('/api/holdings/import/screenshot', asyncRoute(async (req, res) => {
-    const body = req.body as { imageDataUrl?: string };
-    if (!String(body?.imageDataUrl || '').trim()) {
-      res.status(400).json({ error: 'IMAGE_REQUIRED' });
-      return;
-    }
-    try {
-      const data = await importHoldingsFromScreenshot({
-        imageDataUrl: String(body.imageDataUrl || '')
-      });
-      res.json(data);
-    } catch (error) {
-      const message = String((error as Error)?.message || error || '');
-      if ((error as Error)?.name === 'SCREENSHOT_IMPORT_UNAVAILABLE') {
-        res.status(503).json({ error: 'SCREENSHOT_IMPORT_UNAVAILABLE', message });
+  app.post(
+    '/api/holdings/import/csv',
+    asyncRoute(async (req, res) => {
+      const body = req.body as { csvText?: string; filename?: string };
+      if (!String(body?.csvText || '').trim()) {
+        res.status(400).json({ error: 'CSV_TEXT_REQUIRED' });
         return;
       }
-      throw error;
-    }
-  }));
+      const data = importHoldingsFromCsvText({
+        csvText: String(body.csvText || ''),
+        filename: String(body.filename || '').trim() || undefined,
+      });
+      res.json(data);
+    }),
+  );
 
-  app.get('/api/connect/broker', asyncRoute(async (req, res) => {
-    const scope = requireAuthenticatedScope(req, res);
-    if (!scope) return;
-    const userId = scope.userId;
-    const provider = String((req.query.provider as string | undefined) || 'ALPACA').toUpperCase();
-    const adapter = createBrokerAdapter(provider);
-    const snapshot = await adapter.fetchSnapshot();
-    upsertExternalConnection({
-      userId,
-      connectionType: 'BROKER',
-      provider,
-      mode: snapshot.mode,
-      status: snapshot.status,
-      meta: {
-        source_status: snapshot.source_status,
-        data_status: snapshot.data_status,
-        source_label: snapshot.source_label,
-        reason_code: snapshot.reason_code,
-        message: snapshot.message,
-        last_checked_at: snapshot.last_checked_at,
-        can_read_positions: snapshot.can_read_positions,
-        can_trade: snapshot.can_trade
+  app.post(
+    '/api/holdings/import/screenshot',
+    asyncRoute(async (req, res) => {
+      const body = req.body as { imageDataUrl?: string };
+      if (!String(body?.imageDataUrl || '').trim()) {
+        res.status(400).json({ error: 'IMAGE_REQUIRED' });
+        return;
       }
-    });
-    const connections = listExternalConnections({ userId, connectionType: 'BROKER' });
-    res.json({
-      provider,
-      mode: snapshot.mode,
-      snapshot,
-      connections
-    });
-  }));
+      try {
+        const data = await importHoldingsFromScreenshot({
+          imageDataUrl: String(body.imageDataUrl || ''),
+        });
+        res.json(data);
+      } catch (error) {
+        const message = String((error as Error)?.message || error || '');
+        if ((error as Error)?.name === 'SCREENSHOT_IMPORT_UNAVAILABLE') {
+          res.status(503).json({ error: 'SCREENSHOT_IMPORT_UNAVAILABLE', message });
+          return;
+        }
+        throw error;
+      }
+    }),
+  );
+
+  app.get(
+    '/api/connect/broker',
+    asyncRoute(async (req, res) => {
+      const scope = requireAuthenticatedScope(req, res);
+      if (!scope) return;
+      const userId = scope.userId;
+      const provider = String((req.query.provider as string | undefined) || 'ALPACA').toUpperCase();
+      const adapter = createBrokerAdapter(provider);
+      const snapshot = await adapter.fetchSnapshot();
+      upsertExternalConnection({
+        userId,
+        connectionType: 'BROKER',
+        provider,
+        mode: snapshot.mode,
+        status: snapshot.status,
+        meta: {
+          source_status: snapshot.source_status,
+          data_status: snapshot.data_status,
+          source_label: snapshot.source_label,
+          reason_code: snapshot.reason_code,
+          message: snapshot.message,
+          last_checked_at: snapshot.last_checked_at,
+          can_read_positions: snapshot.can_read_positions,
+          can_trade: snapshot.can_trade,
+        },
+      });
+      const connections = listExternalConnections({ userId, connectionType: 'BROKER' });
+      res.json({
+        provider,
+        mode: snapshot.mode,
+        snapshot,
+        connections,
+      });
+    }),
+  );
 
   app.post('/api/connect/broker', (req, res) => {
     const scope = requireAuthenticatedScope(req, res);
@@ -1654,44 +1795,49 @@ export function createApiApp() {
         requested_at: new Date().toISOString(),
         note: 'Connection request saved. Actual status determined by adapter checks.',
         can_read_positions: false,
-        can_trade: false
-      }
+        can_trade: false,
+      },
     });
     res.json({ ok: true, ...saved });
   });
 
-  app.get('/api/connect/exchange', asyncRoute(async (req, res) => {
-    const scope = requireAuthenticatedScope(req, res);
-    if (!scope) return;
-    const userId = scope.userId;
-    const provider = String((req.query.provider as string | undefined) || 'BINANCE').toUpperCase();
-    const adapter = createExchangeAdapter(provider);
-    const snapshot = await adapter.fetchSnapshot();
-    upsertExternalConnection({
-      userId,
-      connectionType: 'EXCHANGE',
-      provider,
-      mode: snapshot.mode,
-      status: snapshot.status,
-      meta: {
-        source_status: snapshot.source_status,
-        data_status: snapshot.data_status,
-        source_label: snapshot.source_label,
-        reason_code: snapshot.reason_code,
-        message: snapshot.message,
-        last_checked_at: snapshot.last_checked_at,
-        can_read_positions: snapshot.can_read_positions,
-        can_trade: snapshot.can_trade
-      }
-    });
-    const connections = listExternalConnections({ userId, connectionType: 'EXCHANGE' });
-    res.json({
-      provider,
-      mode: snapshot.mode,
-      snapshot,
-      connections
-    });
-  }));
+  app.get(
+    '/api/connect/exchange',
+    asyncRoute(async (req, res) => {
+      const scope = requireAuthenticatedScope(req, res);
+      if (!scope) return;
+      const userId = scope.userId;
+      const provider = String(
+        (req.query.provider as string | undefined) || 'BINANCE',
+      ).toUpperCase();
+      const adapter = createExchangeAdapter(provider);
+      const snapshot = await adapter.fetchSnapshot();
+      upsertExternalConnection({
+        userId,
+        connectionType: 'EXCHANGE',
+        provider,
+        mode: snapshot.mode,
+        status: snapshot.status,
+        meta: {
+          source_status: snapshot.source_status,
+          data_status: snapshot.data_status,
+          source_label: snapshot.source_label,
+          reason_code: snapshot.reason_code,
+          message: snapshot.message,
+          last_checked_at: snapshot.last_checked_at,
+          can_read_positions: snapshot.can_read_positions,
+          can_trade: snapshot.can_trade,
+        },
+      });
+      const connections = listExternalConnections({ userId, connectionType: 'EXCHANGE' });
+      res.json({
+        provider,
+        mode: snapshot.mode,
+        snapshot,
+        connections,
+      });
+    }),
+  );
 
   app.post('/api/connect/exchange', (req, res) => {
     const scope = requireAuthenticatedScope(req, res);
@@ -1710,8 +1856,8 @@ export function createApiApp() {
         requested_at: new Date().toISOString(),
         note: 'Connection request saved. Actual status determined by adapter checks.',
         can_read_positions: false,
-        can_trade: false
-      }
+        can_trade: false,
+      },
     });
     res.json({ ok: true, ...saved });
   });
@@ -1735,7 +1881,7 @@ export function createApiApp() {
       timeframe,
       start,
       end,
-      limit
+      limit,
     });
 
     if (!asset) {
@@ -1749,7 +1895,7 @@ export function createApiApp() {
       start,
       end,
       count: rows.length,
-      data: rows
+      data: rows,
     });
   });
 
@@ -1807,11 +1953,11 @@ export function createApiApp() {
         message,
         contextJson: JSON.stringify(context ?? {}),
         status: 'rate_limited',
-        durationMs: Date.now() - startedAt
+        durationMs: Date.now() - startedAt,
       });
       res.status(429).json({
         error: 'Rate limit exceeded',
-        resetAt: rate.resetAt
+        resetAt: rate.resetAt,
       });
       return;
     }
@@ -1821,7 +1967,9 @@ export function createApiApp() {
     res.setHeader('Cache-Control', 'no-cache, no-transform');
     res.setHeader('Connection', 'keep-alive');
 
-    let mode: 'general-coach' | 'context-aware' | 'research-assistant' = context ? 'context-aware' : 'general-coach';
+    let mode: 'general-coach' | 'context-aware' | 'research-assistant' = context
+      ? 'context-aware'
+      : 'general-coach';
     let provider = 'unknown';
     let resolvedThreadId = threadId;
     let responseText = '';
@@ -1833,7 +1981,7 @@ export function createApiApp() {
         userId,
         threadId,
         message,
-        context
+        context,
       })) {
         if (event.type === 'meta') {
           mode = event.mode;
@@ -1863,7 +2011,7 @@ export function createApiApp() {
         status,
         error: errorText || undefined,
         responsePreview: responseText.slice(0, 1200),
-        durationMs: Date.now() - startedAt
+        durationMs: Date.now() - startedAt,
       });
       await recordNovaAssistantRun({
         userId,
@@ -1873,7 +2021,7 @@ export function createApiApp() {
         responseText,
         provider,
         status: status === 'ok' ? 'SUCCEEDED' : 'FAILED',
-        error: errorText || undefined
+        error: errorText || undefined,
       });
       res.end();
     }
@@ -1889,7 +2037,7 @@ export function createApiApp() {
     res.json({
       userId,
       count: data.length,
-      data
+      data,
     });
   });
 
@@ -1905,18 +2053,19 @@ export function createApiApp() {
     res.json(payload);
   });
 
-
   // Global error handler — catches sync failures and any async rejections routed through Express/asyncRoute.
-  app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-    const message = err?.message || 'Internal server error';
-    const status = (err as Error & { status?: number }).status || 500;
-    if (status >= 500) {
-      console.error('[api] unhandled route error:', message);
-    }
-    if (!res.headersSent) {
-      res.status(status).json({ error: message });
-    }
-  });
+  app.use(
+    (err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+      const message = err?.message || 'Internal server error';
+      const status = (err as Error & { status?: number }).status || 500;
+      if (status >= 500) {
+        console.error('[api] unhandled route error:', message);
+      }
+      if (!res.headersSent) {
+        res.status(status).json({ error: message });
+      }
+    },
+  );
 
   return app;
 }

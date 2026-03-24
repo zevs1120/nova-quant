@@ -22,14 +22,17 @@ export function normalizeBars(rows: NormalizedBar[]): NormalizedBar[] {
       high: decimalToString(row.high),
       low: decimalToString(row.low),
       close: decimalToString(row.close),
-      volume: decimalToString(row.volume)
+      volume: decimalToString(row.volume),
     });
   }
 
   return [...dedup.values()].sort((a, b) => a.ts_open - b.ts_open);
 }
 
-export function detectGaps(tsList: number[], timeframe: Timeframe): Array<{ from: number; to: number; missingBars: number }> {
+export function detectGaps(
+  tsList: number[],
+  timeframe: Timeframe,
+): Array<{ from: number; to: number; missingBars: number }> {
   if (tsList.length < 2) return [];
 
   const step = timeframeToMs(timeframe);

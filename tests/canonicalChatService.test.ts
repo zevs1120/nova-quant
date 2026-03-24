@@ -36,8 +36,8 @@ describe('canonical chat service', () => {
         context: {
           page: 'today',
           market: 'US',
-          assetClass: 'US_STOCK'
-        }
+          assetClass: 'US_STOCK',
+        },
       })
       .buffer(true)
       .parse((res, done) => {
@@ -61,10 +61,14 @@ describe('canonical chat service', () => {
     expect(threadListRes.body.count).toBeGreaterThan(0);
     expect(threadListRes.body.data[0].id).toBe(meta?.threadId);
 
-    const threadRes = await request(app).get(`/api/chat/threads/${meta?.threadId}`).query({ userId, limit: 20 });
+    const threadRes = await request(app)
+      .get(`/api/chat/threads/${meta?.threadId}`)
+      .query({ userId, limit: 20 });
     expect(threadRes.status).toBe(200);
     expect(Array.isArray(threadRes.body.messages)).toBe(true);
     expect(threadRes.body.messages.length).toBeGreaterThanOrEqual(2);
-    expect(threadRes.body.messages.some((row: { role: string }) => row.role === 'assistant')).toBe(true);
+    expect(threadRes.body.messages.some((row: { role: string }) => row.role === 'assistant')).toBe(
+      true,
+    );
   });
 });

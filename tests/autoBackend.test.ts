@@ -31,7 +31,7 @@ describe('auto-backend automation entrypoints', () => {
       '--skip-worker',
       '--skip-training',
       '--skip-discovery',
-      '--once'
+      '--once',
     ]);
 
     expect(args.userId).toBe('research-user');
@@ -55,7 +55,14 @@ describe('auto-backend automation entrypoints', () => {
 
   it('supports a no-side-effect once mode for smoke testing automation startup', async () => {
     await expect(
-      runAutoBackend(['--once', '--skip-init', '--skip-api', '--skip-worker', '--skip-training', '--skip-discovery'])
+      runAutoBackend([
+        '--once',
+        '--skip-init',
+        '--skip-api',
+        '--skip-worker',
+        '--skip-training',
+        '--skip-discovery',
+      ]),
     ).resolves.toBeUndefined();
   });
 });

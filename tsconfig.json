@@ -10,5 +10,11 @@
     "types": ["node"],
     "outDir": "build-ts"
   },
-  "include": ["src/server/**/*.ts", "scripts/**/*.ts", "tests/**/*.ts", "tests/**/*.d.ts", "api/**/*.ts"]
+  "include": [
+    "src/server/**/*.ts",
+    "scripts/**/*.ts",
+    "tests/**/*.ts",
+    "tests/**/*.d.ts",
+    "api/**/*.ts"
+  ]
 }

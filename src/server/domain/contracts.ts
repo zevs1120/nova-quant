@@ -8,7 +8,7 @@ import type {
   ModelVersionRecord,
   PromptVersionRecord,
   RecommendationReviewRecord,
-  WorkflowRunRecord
+  WorkflowRunRecord,
 } from '../types.js';
 
 export type AvailabilityStatus =
@@ -223,7 +223,7 @@ function toPortfolioIntent(raw: Record<string, unknown>, actionLabel: string): P
     personalized: raw.availability !== 'UNPERSONALIZED',
     overlap_pct: Number.isFinite(overlap) ? overlap : null,
     concentration_warning: String(raw.concentration_note || '').trim() || null,
-    action_bias: actionBias
+    action_bias: actionBias,
   };
 }
 
@@ -237,7 +237,7 @@ export function toRiskStateContract(row: DecisionSnapshotRecord): RiskState {
     data_status: availability(row.data_status),
     regime_id: String(risk.regime_id || '').trim() || null,
     market_climate: String(risk.market_climate || '').trim() || null,
-    risk_budget_state: String(risk.risk_budget_state || '').trim() || null
+    risk_budget_state: String(risk.risk_budget_state || '').trim() || null,
   };
 }
 
@@ -245,13 +245,15 @@ export function toActionCardContracts(row: DecisionSnapshotRecord): ActionCard[]
   const actions = parseJson<Array<Record<string, unknown>>>(row.actions_json, []);
   const portfolioContext = parseJson<Record<string, unknown>>(row.portfolio_context_json, {});
   return actions.map((action, index) => {
-    const evidenceBundle = ((action.evidence_bundle as Record<string, unknown> | undefined) || {});
+    const evidenceBundle = (action.evidence_bundle as Record<string, unknown> | undefined) || {};
     return {
       action_id: String(action.action_id || `action-${index + 1}`),
       signal_id: String(action.signal_id || '').trim() || null,
       symbol: String(action.symbol || '').trim() || null,
-      market: (String(action.market || row.market || 'ALL').toUpperCase() as Market | 'ALL'),
-      asset_class: (String(action.asset_class || row.asset_class || 'ALL').toUpperCase() as AssetClass | 'ALL'),
+      market: String(action.market || row.market || 'ALL').toUpperCase() as Market | 'ALL',
+      asset_class: String(action.asset_class || row.asset_class || 'ALL').toUpperCase() as
+        | AssetClass
+        | 'ALL',
       action_label: String(action.action_label || action.action || 'Wait'),
       rank: index + 1,
       ranking_score: Number(action.ranking_score || 0),
@@ -260,9 +262,12 @@ export function toActionCardContracts(row: DecisionSnapshotRecord): ActionCard[]
       why_now: String(action.brief_why_now || '').trim() || null,
       caution: String(action.brief_caution || action.risk_note || '').trim() || null,
       invalidation: String(evidenceBundle.invalidation || '').trim() || null,
-      portfolio_intent: toPortfolioIntent(portfolioContext, String(action.action_label || action.action || 'Wait')),
+      portfolio_intent: toPortfolioIntent(
+        portfolioContext,
+        String(action.action_label || action.action || 'Wait'),
+      ),
       source_status: availability(action.source_status || row.source_status),
-      data_status: availability(action.data_status || row.data_status)
+      data_status: availability(action.data_status || row.data_status),
     };
   });
 }
@@ -271,13 +276,22 @@ export function toEvidenceBundleContracts(row: DecisionSnapshotRecord): Evidence
   const actions = parseJson<Array<Record<string, unknown>>>(row.actions_json, []);
   return actions.map((action) => {
     const evidence = (action.evidence_bundle || {}) as Record<string, unknown>;
-    const evidenceInvalidation = String((evidence as Record<string, unknown>).invalidation || '').trim();
+    const evidenceInvalidation = String(
+      (evidence as Record<string, unknown>).invalidation || '',
+    ).trim();
     return {
       action_id: String(action.action_id || ''),
       thesis: String(evidence.thesis || action.brief_why_now || 'No thesis recorded.'),
-      supporting_factors: Array.isArray(evidence.supporting_factors) ? evidence.supporting_factors.map(String) : [],
-      opposing_factors: Array.isArray(evidence.opposing_factors) ? evidence.opposing_factors.map(String) : [],
-      regime_context: typeof evidence.regime_context === 'object' && evidence.regime_context ? (evidence.regime_context as Record<string, unknown>) : {},
+      supporting_factors: Array.isArray(evidence.supporting_factors)
+        ? evidence.supporting_factors.map(String)
+        : [],
+      opposing_factors: Array.isArray(evidence.opposing_factors)
+        ? evidence.opposing_factors.map(String)
+        : [],
+      regime_context:
+        typeof evidence.regime_context === 'object' && evidence.regime_context
+          ? (evidence.regime_context as Record<string, unknown>)
+          : {},
       ranking_reason: String(evidence.ranking_reason || '').trim() || null,
       invalidation_conditions: Array.isArray(evidence.invalidation_conditions)
         ? evidence.invalidation_conditions.map(String)
@@ -285,13 +299,16 @@ export function toEvidenceBundleContracts(row: DecisionSnapshotRecord): Evidence
           ? [evidenceInvalidation]
           : String(action.brief_caution || '').trim()
             ? [String(action.brief_caution)]
-          : [],
+            : [],
       horizon: String(action.time_horizon || '').trim() || null,
-      previous_change: typeof evidence.previous_change === 'object' && evidence.previous_change ? (evidence.previous_change as Record<string, unknown>) : null,
+      previous_change:
+        typeof evidence.previous_change === 'object' && evidence.previous_change
+          ? (evidence.previous_change as Record<string, unknown>)
+          : null,
       similar_case_summary: String(evidence.similar_case_summary || '').trim() || null,
       generated_at: String(evidence.generated_at || '').trim() || null,
       source_status: availability(action.source_status || row.source_status),
-      data_status: availability(action.data_status || row.data_status)
+      data_status: availability(action.data_status || row.data_status),
     };
   });
 }
@@ -299,7 +316,7 @@ export function toEvidenceBundleContracts(row: DecisionSnapshotRecord): Evidence
 export function toExperimentRunContract(
   experiment: ExperimentRegistryRecord,
   run: BacktestRunRecord | null,
-  metric: BacktestMetricRecord | null
+  metric: BacktestMetricRecord | null,
 ): ExperimentRun {
   return {
     id: experiment.id,
@@ -311,20 +328,20 @@ export function toExperimentRunContract(
       max_drawdown: metric?.max_drawdown ?? null,
       turnover: metric?.turnover ?? null,
       cost_drag: metric?.cost_drag ?? null,
-      sample_size: metric?.sample_size ?? null
+      sample_size: metric?.sample_size ?? null,
     },
     dataset_lineage: {
       dataset_version_id: run?.dataset_version_id || 'unknown',
       universe_version_id: run?.universe_version_id || 'unknown',
-      execution_profile_id: run?.execution_profile_id || 'unknown'
-    }
+      execution_profile_id: run?.execution_profile_id || 'unknown',
+    },
   };
 }
 
 export function toStrategyCandidateContract(
   experiment: ExperimentRegistryRecord,
   run: BacktestRunRecord | null,
-  metric: BacktestMetricRecord | null
+  metric: BacktestMetricRecord | null,
 ): StrategyCandidate {
   const status = experiment.decision_status;
   const benchmarkRole =
@@ -350,7 +367,7 @@ export function toStrategyCandidateContract(
     status,
     benchmark_role: benchmarkRole,
     evidence_quality: evidenceQuality,
-    notes: experiment.promotion_reason || experiment.demotion_reason || run?.notes || null
+    notes: experiment.promotion_reason || experiment.demotion_reason || run?.notes || null,
   };
 }
 
@@ -362,7 +379,7 @@ export function toModelVersionContract(row: ModelVersionRecord): ModelVersion {
     provider: row.provider,
     semantic_version: row.semantic_version,
     status: row.status,
-    endpoint: row.endpoint
+    endpoint: row.endpoint,
   };
 }
 
@@ -372,7 +389,7 @@ export function toPromptVersionContract(row: PromptVersionRecord): PromptVersion
     task_key: row.task_key,
     semantic_version: row.semantic_version,
     status: row.status,
-    hash: row.prompt_hash
+    hash: row.prompt_hash,
   };
 }
 
@@ -384,17 +401,19 @@ export function toWorkflowRunContract(row: WorkflowRunRecord): WorkflowRun {
     trigger_type: row.trigger_type,
     status: row.status,
     trace_id: row.trace_id,
-    attempt_count: row.attempt_count
+    attempt_count: row.attempt_count,
   };
 }
 
-export function toRecommendationReviewContract(row: RecommendationReviewRecord): RecommendationReview {
+export function toRecommendationReviewContract(
+  row: RecommendationReviewRecord,
+): RecommendationReview {
   return {
     id: row.id,
     decision_snapshot_id: row.decision_snapshot_id,
     action_id: row.action_id,
     review_type: row.review_type,
     score: row.score,
-    notes: row.notes
+    notes: row.notes,
   };
 }

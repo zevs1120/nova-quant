@@ -9,7 +9,7 @@ const messages = {
       dataDelayed: 'Data: Delayed',
       riskMode: 'Risk Mode',
       model: 'Model',
-      userMode: 'Mode'
+      userMode: 'Mode',
     },
     tabs: {
       signals: 'Today',
@@ -20,12 +20,12 @@ const messages = {
       proof: 'Performance',
       risk: 'Safety',
       velocity: 'Velocity',
-      research: 'Research'
+      research: 'Research',
     },
     mode: {
       beginner: 'Beginner',
       standard: 'Standard',
-      advanced: 'Advanced'
+      advanced: 'Advanced',
     },
     common: {
       market: 'Market',
@@ -50,7 +50,7 @@ const messages = {
       side: 'Side',
       entryExit: 'Entry / Exit',
       pnl: 'PnL',
-      fees: 'Fees'
+      fees: 'Fees',
     },
     status: {
       NEW: 'New',
@@ -58,20 +58,20 @@ const messages = {
       TRIGGERED: 'Triggered',
       CLOSED: 'Closed',
       EXPIRED: 'Expired',
-      INVALIDATED: 'Invalidated'
+      INVALIDATED: 'Invalidated',
     },
     direction: {
       LONG: 'Long',
-      SHORT: 'Short'
+      SHORT: 'Short',
     },
     confidenceBand: {
       high: 'High',
       medium: 'Medium',
-      low: 'Low'
+      low: 'Low',
     },
     validity: {
       '24H': '24H',
-      UNTIL_TRIGGERED: 'Until Triggered'
+      UNTIL_TRIGGERED: 'Until Triggered',
     },
     signals: {
       confShort: 'Conf',
@@ -129,7 +129,7 @@ const messages = {
       noTradeTopN: 'No-Trade Reason Top N',
       shadowLogTitle: 'Shadow Opportunity Log',
       shadowLogSub: 'Near-miss opportunities used for threshold debugging.',
-      shadowLogEmpty: 'No near-miss shadow opportunities in current window.'
+      shadowLogEmpty: 'No near-miss shadow opportunities in current window.',
     },
     proof: {
       winRate: 'Win Rate',
@@ -155,14 +155,14 @@ const messages = {
       attribution: 'Attribution',
       byStrategy: 'By strategy',
       byRegime: 'By regime',
-      deviation: 'Deviation'
+      deviation: 'Deviation',
     },
     paperStatus: {
       SYNCED: 'Synced',
       RUNNING: 'Running',
       DERISKED: 'De-risked',
       PAUSED: 'Paused',
-      RECOVERED: 'Recovered'
+      RECOVERED: 'Recovered',
     },
     risk: {
       rules: 'Risk Rules',
@@ -185,8 +185,8 @@ const messages = {
       level: {
         LOW: 'Low',
         MEDIUM: 'Medium',
-        HIGH: 'High'
-      }
+        HIGH: 'High',
+      },
     },
     velocity: {
       current: 'Current Velocity',
@@ -208,8 +208,8 @@ const messages = {
       regime: {
         RISK_ON: 'Risk-On',
         NEUTRAL: 'Neutral',
-        RISK_OFF: 'Risk-Off'
-      }
+        RISK_OFF: 'Risk-Off',
+      },
     },
     market: {
       bigData: 'Market Big Data Modules',
@@ -217,7 +217,7 @@ const messages = {
       fundingBasis: 'Funding & Basis State',
       sentimentRegime: 'Sentiment / Regime',
       exchangeHealth: 'Exchange Health',
-      carryFavorable: 'Carry-favorable'
+      carryFavorable: 'Carry-favorable',
     },
     onboarding: {
       title: 'Quick Setup',
@@ -229,8 +229,8 @@ const messages = {
       profile: {
         conservative: 'Conservative',
         balanced: 'Balanced',
-        aggressive: 'Aggressive'
-      }
+        aggressive: 'Aggressive',
+      },
     },
     about: {
       title: 'About & Compliance',
@@ -238,7 +238,7 @@ const messages = {
       appVersion: 'App Version',
       dataUpdated: 'Data Last Updated',
       disclaimer:
-        'This is a signal & execution tool, not asset management. Funds remain in the user\'s own brokerage/exchange account (non-custodial).'
+        "This is a signal & execution tool, not asset management. Funds remain in the user's own brokerage/exchange account (non-custodial).",
     },
     chat: {
       title: 'Nova Quant Coach',
@@ -254,18 +254,18 @@ const messages = {
       quick: {
         explain: 'Explain',
         execute: 'How to execute',
-        risk: 'Risk check'
+        risk: 'Risk check',
       },
       prompt: {
         explain: 'Explain this signal for {symbol} in plain English.',
         execute: 'How should I execute this signal for {symbol} step by step?',
-        risk: 'Do a risk check for this {symbol} signal and tell me when not to trade.'
+        risk: 'Do a risk check for this {symbol} signal and tell me when not to trade.',
       },
       suggest: {
         quantBasics: 'What is a good quant workflow?',
         riskSizing: 'How should I size positions?',
-        executeChecklist: 'Give me a pre-trade checklist.'
-      }
+        executeChecklist: 'Give me a pre-trade checklist.',
+      },
     },
     ai: {
       brand: 'Nova Quant AI',
@@ -286,30 +286,30 @@ const messages = {
         execute: 'How do I execute?',
         failureModes: 'What can go wrong?',
         adjustRisk: 'Adjust for my risk profile',
-        summary3: 'Summarize in 3 steps'
+        summary3: 'Summarize in 3 steps',
       },
       quickOpt: {
         explainContract: 'Explain contract',
         entryStopTp: 'Entry/Stop/TP',
-        eodPlan: 'EOD exit plan'
+        eodPlan: 'EOD exit plan',
       },
       quickCr: {
         explainFunding: 'Explain funding/basis state',
         squeezeRisk: 'Risk of squeeze',
-        executionTips: 'Execution tips'
+        executionTips: 'Execution tips',
       },
       quickSt: {
         horizonPlan: 'Horizon plan',
         catalystRisk: 'Catalyst risk',
-        positionSizing: 'Position sizing'
+        positionSizing: 'Position sizing',
       },
       quickDefault: {
         whatMeans: 'What does this mean?',
         howExecute: 'How to execute?',
         whenNotTrade: 'When NOT to trade?',
-        whyRiskReduced: 'Why risk reduced?'
-      }
-    }
+        whyRiskReduced: 'Why risk reduced?',
+      },
+    },
   },
   zh: {
     app: {
@@ -321,7 +321,7 @@ const messages = {
       dataDelayed: '数据: 延迟',
       riskMode: '风险模式',
       model: '模型',
-      userMode: '模式'
+      userMode: '模式',
     },
     tabs: {
       signals: '今日',
@@ -332,12 +332,12 @@ const messages = {
       proof: '绩效',
       risk: '安全',
       velocity: '速度',
-      research: '研究'
+      research: '研究',
     },
     mode: {
       beginner: '新手',
       standard: '标准',
-      advanced: '进阶'
+      advanced: '进阶',
     },
     common: {
       market: '市场',
@@ -362,7 +362,7 @@ const messages = {
       side: '方向',
       entryExit: '开仓 / 平仓',
       pnl: '收益',
-      fees: '费用'
+      fees: '费用',
     },
     status: {
       NEW: '新信号',
@@ -370,20 +370,20 @@ const messages = {
       TRIGGERED: '已触发',
       CLOSED: '已平仓',
       EXPIRED: '已过期',
-      INVALIDATED: '已失效'
+      INVALIDATED: '已失效',
     },
     direction: {
       LONG: '做多',
-      SHORT: '做空'
+      SHORT: '做空',
     },
     confidenceBand: {
       high: '高',
       medium: '中',
-      low: '低'
+      low: '低',
     },
     validity: {
       '24H': '24小时',
-      UNTIL_TRIGGERED: '直到触发'
+      UNTIL_TRIGGERED: '直到触发',
     },
     signals: {
       confShort: '置信',
@@ -441,7 +441,7 @@ const messages = {
       noTradeTopN: '不交易原因 Top N',
       shadowLogTitle: '影子机会日志',
       shadowLogSub: '用于阈值调优的近失机会追踪。',
-      shadowLogEmpty: '当前窗口暂无近失影子机会。'
+      shadowLogEmpty: '当前窗口暂无近失影子机会。',
     },
     proof: {
       winRate: '胜率',
@@ -467,14 +467,14 @@ const messages = {
       attribution: '归因分析',
       byStrategy: '按策略',
       byRegime: '按状态',
-      deviation: '偏差'
+      deviation: '偏差',
     },
     paperStatus: {
       SYNCED: '已同步',
       RUNNING: '运行中',
       DERISKED: '已降风险',
       PAUSED: '已暂停',
-      RECOVERED: '已恢复'
+      RECOVERED: '已恢复',
     },
     risk: {
       rules: '风控规则',
@@ -497,8 +497,8 @@ const messages = {
       level: {
         LOW: '低',
         MEDIUM: '中',
-        HIGH: '高'
-      }
+        HIGH: '高',
+      },
     },
     velocity: {
       current: '当前速度值',
@@ -520,8 +520,8 @@ const messages = {
       regime: {
         RISK_ON: '偏风险',
         NEUTRAL: '中性',
-        RISK_OFF: '避险'
-      }
+        RISK_OFF: '避险',
+      },
     },
     market: {
       bigData: '市场大数据模块',
@@ -529,7 +529,7 @@ const messages = {
       fundingBasis: '资金费率与基差状态',
       sentimentRegime: '情绪 / Regime',
       exchangeHealth: '交易所健康度',
-      carryFavorable: 'Carry 友好'
+      carryFavorable: 'Carry 友好',
     },
     onboarding: {
       title: '快速设置',
@@ -541,8 +541,8 @@ const messages = {
       profile: {
         conservative: '保守型',
         balanced: '均衡型',
-        aggressive: '进取型'
-      }
+        aggressive: '进取型',
+      },
     },
     about: {
       title: '关于与合规',
@@ -550,7 +550,7 @@ const messages = {
       appVersion: '应用版本',
       dataUpdated: '数据更新时间',
       disclaimer:
-        '本工具为信号与执行辅助，不属于资产管理。资金始终保留在用户本人券商/交易所账户（非托管）。'
+        '本工具为信号与执行辅助，不属于资产管理。资金始终保留在用户本人券商/交易所账户（非托管）。',
     },
     chat: {
       title: 'Nova Quant 助手',
@@ -566,18 +566,18 @@ const messages = {
       quick: {
         explain: '解释信号',
         execute: '如何执行',
-        risk: '风险检查'
+        risk: '风险检查',
       },
       prompt: {
         explain: '请用通俗语言解释一下 {symbol} 这个信号。',
         execute: '请给我 {symbol} 这个信号的分步执行方法。',
-        risk: '请对 {symbol} 这个信号做风险检查，并告诉我什么情况下不该交易。'
+        risk: '请对 {symbol} 这个信号做风险检查，并告诉我什么情况下不该交易。',
       },
       suggest: {
         quantBasics: '一个好的量化交易流程是什么？',
         riskSizing: '仓位应该怎么分配？',
-        executeChecklist: '给我一份交易前检查清单。'
-      }
+        executeChecklist: '给我一份交易前检查清单。',
+      },
     },
     ai: {
       brand: 'Nova Quant AI',
@@ -598,31 +598,31 @@ const messages = {
         execute: '怎么执行',
         failureModes: '可能失败在哪里',
         adjustRisk: '按我的风险级别调整',
-        summary3: '3 步总结'
+        summary3: '3 步总结',
       },
       quickOpt: {
         explainContract: '解释合约',
         entryStopTp: '入场/止损/止盈',
-        eodPlan: '收盘退出计划'
+        eodPlan: '收盘退出计划',
       },
       quickCr: {
         explainFunding: '解释资金费率/基差',
         squeezeRisk: '挤压风险',
-        executionTips: '执行建议'
+        executionTips: '执行建议',
       },
       quickSt: {
         horizonPlan: '持有周期计划',
         catalystRisk: '催化风险',
-        positionSizing: '仓位建议'
+        positionSizing: '仓位建议',
       },
       quickDefault: {
         whatMeans: '这是什么意思？',
         howExecute: '怎么执行？',
         whenNotTrade: '什么时候不该做？',
-        whyRiskReduced: '为什么降风险？'
-      }
-    }
-  }
+        whyRiskReduced: '为什么降风险？',
+      },
+    },
+  },
 };
 
 function getByPath(obj, path) {
@@ -638,7 +638,7 @@ function applyVars(template, vars) {
   if (!vars) return template;
   return Object.entries(vars).reduce(
     (current, [key, value]) => current.replaceAll(`{${key}}`, String(value)),
-    template
+    template,
   );
 }
 

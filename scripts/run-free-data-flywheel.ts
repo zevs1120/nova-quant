@@ -9,7 +9,7 @@ function parseArgs(argv: string[]) {
     userId: 'guest-default',
     refreshNews: true,
     refreshCryptoStructure: true,
-    cryptoSymbols: [] as string[]
+    cryptoSymbols: [] as string[],
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -20,7 +20,8 @@ function parseArgs(argv: string[]) {
     const next = inlineValue ?? argv[i + 1];
     const consumeNext = inlineValue === undefined && next && !next.startsWith('--');
 
-    if (key === 'market' && next) out.market = String(next).trim().toUpperCase() as 'US' | 'CRYPTO' | 'ALL';
+    if (key === 'market' && next)
+      out.market = String(next).trim().toUpperCase() as 'US' | 'CRYPTO' | 'ALL';
     if (key === 'user' && next) out.userId = String(next).trim() || out.userId;
     if (key === 'skip-news') out.refreshNews = false;
     if (key === 'skip-crypto-structure') out.refreshCryptoStructure = false;
@@ -49,12 +50,14 @@ async function main() {
     triggerType: 'manual',
     refreshNews: args.refreshNews,
     refreshCryptoStructure: args.refreshCryptoStructure,
-    cryptoSymbols: args.cryptoSymbols
+    cryptoSymbols: args.cryptoSymbols,
   });
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
 }
 
 main().catch((error) => {
-  process.stderr.write(`${error instanceof Error ? error.stack || error.message : String(error)}\n`);
+  process.stderr.write(
+    `${error instanceof Error ? error.stack || error.message : String(error)}\n`,
+  );
   process.exitCode = 1;
 });

@@ -32,16 +32,16 @@ describe('decision api', () => {
             market: 'US',
             asset_class: 'US_STOCK',
             weight_pct: 14,
-            sector: 'Technology'
+            sector: 'Technology',
           },
           {
             symbol: 'QQQ',
             market: 'US',
             asset_class: 'US_STOCK',
             weight_pct: 18,
-            sector: 'ETF'
-          }
-        ]
+            sector: 'ETF',
+          },
+        ],
       });
 
     expect(decisionRes.status).toBe(200);
@@ -65,7 +65,7 @@ describe('decision api', () => {
       userId,
       market: 'US',
       assetClass: 'US_STOCK',
-      limit: 5
+      limit: 5,
     });
 
     expect(auditRes.status).toBe(200);

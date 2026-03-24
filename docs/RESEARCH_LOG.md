@@ -36,17 +36,21 @@ Last updated: 2026-03-14
 
 1. The assistant can now answer factor/strategy/regime questions using a dedicated research tool layer instead of general chat heuristics.
 2. Factor diagnostics are now structured around:
+
 - supporting factors
 - opposing factors
 - regime context
 - uncertainty
 - implementation caveats
 - next research action
+
 3. "Why no signal?" is now explainable as a research object instead of only a user-facing empty state.
 4. Backtest integrity and turnover/cost realism can now be surfaced directly in assistant answers and API responses.
 5. The research layer now distinguishes between:
+
 - taxonomy knowledge (definitions, expected failure modes, interactions)
 - measured evidence (runtime rows, backtest artifacts, registry results)
+
 6. Failed experiments are now usable as memory assets, not only missing strategy outcomes.
 7. Research workflow planning is now first-class: the assistant can suggest the next concrete step from hypothesis to feature construction to validation to portfolio mapping.
 8. Strategy evaluation and validation report objects now exist as explicit assistant/API outputs instead of being implied inside long-form chat responses.
@@ -57,10 +61,13 @@ Last updated: 2026-03-14
 1. A useful signal is not yet a usable recommendation; a decision layer is required to adjudicate between signal quality, market regime, and portfolio context.
 2. Risk state becomes materially more useful once it is allowed to suppress or downgrade action, not merely decorate the UI.
 3. Personalized action semantics matter:
+
 - the same signal may imply `open_new_risk`, `add_on_strength`, `reduce_risk`, or `no_action`
-depending on current holdings.
+  depending on current holdings.
+
 4. Assistant quality improves when grounded on explicit decision objects instead of inferring recommendation state from scattered runtime fields.
 5. Decision audit snapshots create a better research loop because recommendation outcomes can later be reviewed against:
+
 - assumed holdings context
 - risk posture
 - top-ranked evidence
@@ -71,10 +78,12 @@ depending on current holdings.
 2. A meaningful "daily check" requires a fingerprint of today's actual judgment; otherwise completion state quickly becomes fake.
 3. The right habit target is not "open the app more", but "return once to confirm whether the posture changed".
 4. Notification quality improves when the system can say exactly why it is recalling the user:
+
 - morning confirmation due
 - risk posture changed
 - top action changed
 - wrap-up is ready
+
 5. Widget summaries should behave like compact investment committee notes, not like mini stock terminals.
 6. Discipline systems are stronger when they reward restraint, boundary keeping, and review cadence rather than trade count.
 
@@ -134,6 +143,7 @@ depending on current holdings.
 ## Discovery Run Snapshot (2026-03-08)
 
 Fixed-context run (same timestamp) after gate calibration:
+
 - candidates generated: 40
 - survivors after validation: 35
 - promoted to SHADOW: 7
@@ -141,6 +151,7 @@ Fixed-context run (same timestamp) after gate calibration:
 - rejected: 14
 
 Interpretation:
+
 - Discovery is no longer over-promoting by default.
 - Pipeline now keeps a meaningful middle bucket (`HOLD_FOR_RETEST`) for iterative refinement.
 
@@ -204,6 +215,7 @@ Interpretation:
 3. Shadow opportunity forward metrics now use replay-first outcomes; synthetic only as fallback.
 4. Discovery quick-backtest stage now anchors to replay market benchmarks when available.
 5. Current replay run snapshot (fixed timestamp):
+
 - total_signals: 15
 - triggered_trades: 7
 - closed_trades: 7
@@ -252,9 +264,11 @@ Interpretation:
 1. Discovery now consumes hypothesis/template/feature/doctrine/checklist seeds at runtime rather than relying mostly on in-file registries.
 2. Hypothesis-template mapping quality is now measurable (template hint mismatch and feature mismatch are explicit counters).
 3. Seed utilization is now observable:
+
 - which hypotheses produce candidates
 - which templates are used most
 - which seeds remain unused
+
 4. Constrained discovery runs now work by market/asset/family/horizon/risk profile; candidate populations can be intentionally narrowed.
 5. Candidate metadata now captures source lineage and constraints, improving traceability for downstream validation and governance.
 
@@ -282,18 +296,22 @@ Interpretation:
 ## A-minus Re-evaluation Findings (2026-03-09)
 
 1. **Validation consistency**
+
 - Strict-fill monotonicity path is now runtime-stable again after regression fix in walk-forward module.
 - Monotonicity remains wired into both validation verdicts and governance checks.
 
 2. **Portfolio realism hardening**
+
 - Added family crowding guard in portfolio allocation to reduce fake diversification risk.
 - Portfolio outputs now include concentration-control diagnostics with before/after family exposure attribution.
 
 3. **Stress framework interpretation quality improved**
+
 - Poor-fill scenario now verifies governance response from typed decision artifacts, not ambiguous fields.
 - Crowding scenario now checks mitigation effectiveness (cap enforcement) while preserving correlation-pressure diagnostics.
 
 4. **Current empirical bottleneck remains unchanged**
+
 - Latest baseline still shows limited replay-backed strategy coverage and weak OOS survival.
 
 ## Runtime Authenticity Findings (2026-03-09)
@@ -309,6 +327,7 @@ Interpretation:
 1. If coverage/freshness is weak, runtime should degrade to `INSUFFICIENT_DATA` rather than force opportunity density.
 2. If execution sample is low, performance metrics should be `null`/withheld, not inferred from synthetic proxies.
 3. Runtime recommendation quality is now explicitly tied to data freshness, reducing false confidence risk.
+
 - This confirms remaining maturity risk is empirical depth, not architecture completeness.
 
 ## Updated Research Focus After Re-evaluation
@@ -328,18 +347,22 @@ Interpretation:
 ## Evidence Engine Integration Findings (2026-03-12)
 
 1. Canonical evidence path now exists end-to-end:
+
 - runtime signals -> signal snapshots -> portfolio replay -> metrics/artifacts -> reconciliation -> registry.
 
 2. Portfolio replay output is now formally persisted and queryable:
+
 - no longer only transient analytics output.
 
 3. Replay-vs-paper reconciliation now produces structured availability states:
+
 - `RECONCILED`
 - `PAPER_DATA_UNAVAILABLE`
 - `REPLAY_DATA_UNAVAILABLE`
 - `PARTIAL`
 
 4. Attribution is now persisted as an artifact, not only shown in-memory:
+
 - strategy family
 - symbol
 - market/asset class
@@ -350,6 +373,7 @@ Interpretation:
 - cost bucket.
 
 5. Top signal ranking can now consume evidence metadata directly:
+
 - supporting run linkage
 - reconciliation availability
 - evidence freshness.
@@ -363,34 +387,42 @@ Interpretation:
 ## Panda Self-Improvement Integration Findings (2026-03-12)
 
 1. Strategy generation is now hybrid:
+
 - existing deterministic OHLCV rule engine remains primary,
 - Panda factor-learning layer now acts as adaptive overlay for direction confidence and signal fallback.
 
 2. Factor-learning feedback loop now active:
+
 - factors are scored by correlation with forward returns,
 - top factors are selected per runtime derivation cycle,
 - selected factors are attached to signal metadata/checklists.
 
 3. Risk adaptation is now performance-aware:
+
 - recent execution history drives adaptive risk/position parameters,
 - risk bucket constraints now participate in signal allow/skip decisions.
 
 4. Integration remains honest:
+
 - insufficient bars -> Panda learning status degrades cleanly (`INSUFFICIENT_DATA`),
 - no mock or synthetic fill paths were introduced.
 
 ## 2026-03-14 — Research Layer Findings: Measured Factor Diagnostics
 
 1. Taxonomy-only research was no longer enough.
+
 - The assistant could describe factors and workflows, but lacked measured factor objects for current OHLCV-backed proxies.
 
 2. The first measurable factor set is now explicit.
+
 - `momentum`, `low_vol`, `reversal`, `seasonality` can now produce measured diagnostics from existing daily bars.
 
 3. Factor measurement remains intentionally incomplete where data is missing.
+
 - `value`, `quality`, `carry`, `size`, `sentiment`, `revision`, and broader breadth-style studies still need richer source data before they can be treated as measured factor evidence.
 
 4. Assistant context assembly had a real prioritization bug.
+
 - Research mode previously collected many tools and then truncated them with `slice(0, 8)`.
 - This could drop the exact factor-specific tool a question needed.
 - The tool layer is now prioritized so local relevance beats generic background context.

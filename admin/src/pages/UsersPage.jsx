@@ -15,7 +15,10 @@ function MixBars({ rows }) {
             <span>{item.value}</span>
           </div>
           <div className="mix-bar-track">
-            <span className="mix-bar-fill" style={{ width: `${(Number(item.value || 0) / total) * 100}%` }} />
+            <span
+              className="mix-bar-fill"
+              style={{ width: `${(Number(item.value || 0) / total) * 100}%` }}
+            />
           </div>
         </div>
       ))}
@@ -51,10 +54,30 @@ export default function UsersPage() {
 
   const summary = data?.summary || {};
   const stats = [
-    { label: '注册用户总量', value: `${summary.total_users || 0} 个`, detail: '后台当前可识别的全部账户。', tone: 'blue' },
-    { label: '近 7 天活跃', value: `${summary.active_last_7d || 0} 个`, detail: '说明用户是否真的开始使用产品。', tone: 'green' },
-    { label: '管理员账号', value: `${summary.admin_count || 0} 个`, detail: '当前具备后台权限的账户数量。', tone: 'amber' },
-    { label: '通知触达', value: `${summary.total_notifications || 0} 次`, detail: '说明系统是否在持续触达和陪伴用户。', tone: 'red' }
+    {
+      label: '注册用户总量',
+      value: `${summary.total_users || 0} 个`,
+      detail: '后台当前可识别的全部账户。',
+      tone: 'blue',
+    },
+    {
+      label: '近 7 天活跃',
+      value: `${summary.active_last_7d || 0} 个`,
+      detail: '说明用户是否真的开始使用产品。',
+      tone: 'green',
+    },
+    {
+      label: '管理员账号',
+      value: `${summary.admin_count || 0} 个`,
+      detail: '当前具备后台权限的账户数量。',
+      tone: 'amber',
+    },
+    {
+      label: '通知触达',
+      value: `${summary.total_notifications || 0} 次`,
+      detail: '说明系统是否在持续触达和陪伴用户。',
+      tone: 'red',
+    },
   ];
 
   return (
@@ -94,7 +117,10 @@ export default function UsersPage() {
               <div key={item.label} className="mini-column-item">
                 <span className="mini-column-value">{item.value}</span>
                 <div className="mini-column-track">
-                  <span className="mini-column-fill" style={{ height: `${Math.max(10, Number(item.value || 0) * 18)}px` }} />
+                  <span
+                    className="mini-column-fill"
+                    style={{ height: `${Math.max(10, Number(item.value || 0) * 18)}px` }}
+                  />
                 </div>
                 <span className="mini-column-label">{item.label}</span>
               </div>
@@ -141,11 +167,15 @@ export default function UsersPage() {
                   <td>{row.status}</td>
                   <td>
                     决策 {row.decision_count} / 执行 {row.execution_count}
-                    <div className="table-subline">Paper {row.paper_execution_count} · Live {row.live_execution_count}</div>
+                    <div className="table-subline">
+                      Paper {row.paper_execution_count} · Live {row.live_execution_count}
+                    </div>
                   </td>
                   <td>
                     {row.active_session_count} 个活跃会话
-                    <div className="table-subline">观察列表 {row.watchlist_count} · 持仓 {row.holding_count}</div>
+                    <div className="table-subline">
+                      观察列表 {row.watchlist_count} · 持仓 {row.holding_count}
+                    </div>
                   </td>
                 </tr>
               ))}

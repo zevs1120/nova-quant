@@ -9,7 +9,7 @@ function makeSeries(
   market: string,
   symbol: string,
   timeframe: string,
-  overrides: { trend_strength?: number; vol_percentile?: number } = {}
+  overrides: { trend_strength?: number; vol_percentile?: number } = {},
 ) {
   const trend = overrides.trend_strength ?? 0.5;
   const vol = overrides.vol_percentile ?? 0.5;
@@ -19,14 +19,18 @@ function makeSeries(
     timeframe,
     close: [100, 101, 102],
     dates: ['2026-01-01', '2026-01-02', '2026-01-03'],
-    latest: { trend_strength: trend, vol_percentile: vol, v_norm: 0, acceleration: 0, percentile: 0.5 }
+    latest: {
+      trend_strength: trend,
+      vol_percentile: vol,
+      v_norm: 0,
+      acceleration: 0,
+      percentile: 0.5,
+    },
   };
 }
 
 function makeSeriesIndex(entries: Array<ReturnType<typeof makeSeries>>) {
-  return Object.fromEntries(
-    entries.map((s) => [getSeriesKey(s.market, s.symbol, s.timeframe), s])
-  );
+  return Object.fromEntries(entries.map((s) => [getSeriesKey(s.market, s.symbol, s.timeframe), s]));
 }
 
 /* ---------- regime classification boundary tests ---------- */
@@ -37,10 +41,10 @@ describe('regime classification via runRegimeEngine', () => {
       velocityState: {
         series_index: makeSeriesIndex([
           makeSeries('US', 'QQQ', '1D', { trend_strength: 0.8, vol_percentile: 0.3 }),
-          makeSeries('CRYPTO', 'BTC-USDT', '4H', { trend_strength: 0.75, vol_percentile: 0.25 })
+          makeSeries('CRYPTO', 'BTC-USDT', '4H', { trend_strength: 0.75, vol_percentile: 0.25 }),
         ]),
-        primary_key: getSeriesKey('CRYPTO', 'BTC-USDT', '4H')
-      }
+        primary_key: getSeriesKey('CRYPTO', 'BTC-USDT', '4H'),
+      },
     });
     expect(result.primary).toBeTruthy();
     // Both series should show strong trend → RISK_ON
@@ -53,10 +57,10 @@ describe('regime classification via runRegimeEngine', () => {
       velocityState: {
         series_index: makeSeriesIndex([
           makeSeries('US', 'QQQ', '1D', { trend_strength: 0.1, vol_percentile: 0.9 }),
-          makeSeries('CRYPTO', 'BTC-USDT', '4H', { trend_strength: 0.15, vol_percentile: 0.85 })
+          makeSeries('CRYPTO', 'BTC-USDT', '4H', { trend_strength: 0.15, vol_percentile: 0.85 }),
         ]),
-        primary_key: getSeriesKey('US', 'QQQ', '1D')
-      }
+        primary_key: getSeriesKey('US', 'QQQ', '1D'),
+      },
     });
     const regimes = Object.values(result.snapshots).map((s: any) => s.regime_label);
     expect(regimes.every((r: string) => r === 'RISK_OFF')).toBe(true);
@@ -68,15 +72,15 @@ describe('regime classification via runRegimeEngine', () => {
         series_index: makeSeriesIndex([
           makeSeries('US', 'QQQ', '1D', {
             trend_strength: 0.6,
-            vol_percentile: REGIME_THRESHOLDS.vol_risk_off
+            vol_percentile: REGIME_THRESHOLDS.vol_risk_off,
           }),
           makeSeries('CRYPTO', 'BTC-USDT', '4H', {
             trend_strength: 0.6,
-            vol_percentile: REGIME_THRESHOLDS.vol_risk_off
-          })
+            vol_percentile: REGIME_THRESHOLDS.vol_risk_off,
+          }),
         ]),
-        primary_key: getSeriesKey('US', 'QQQ', '1D')
-      }
+        primary_key: getSeriesKey('US', 'QQQ', '1D'),
+      },
     });
     const regimes = Object.values(result.snapshots).map((s: any) => s.regime_label);
     // With vol at the risk_off threshold, the blended risk_off_score drives classification
@@ -88,10 +92,10 @@ describe('regime classification via runRegimeEngine', () => {
       velocityState: {
         series_index: makeSeriesIndex([
           makeSeries('US', 'QQQ', '1D', { trend_strength: 0.45, vol_percentile: 0.5 }),
-          makeSeries('CRYPTO', 'BTC-USDT', '4H', { trend_strength: 0.45, vol_percentile: 0.5 })
+          makeSeries('CRYPTO', 'BTC-USDT', '4H', { trend_strength: 0.45, vol_percentile: 0.5 }),
         ]),
-        primary_key: getSeriesKey('CRYPTO', 'BTC-USDT', '4H')
-      }
+        primary_key: getSeriesKey('CRYPTO', 'BTC-USDT', '4H'),
+      },
     });
     const regimes = Object.values(result.snapshots).map((s: any) => s.regime_label);
     expect(regimes).toContain('NEUTRAL');
@@ -106,10 +110,10 @@ describe('cross-market risk snapshot', () => {
       velocityState: {
         series_index: makeSeriesIndex([
           makeSeries('US', 'QQQ', '1D', { trend_strength: 0.6, vol_percentile: 0.4 }),
-          makeSeries('CRYPTO', 'BTC-USDT', '4H', { trend_strength: 0.7, vol_percentile: 0.3 })
+          makeSeries('CRYPTO', 'BTC-USDT', '4H', { trend_strength: 0.7, vol_percentile: 0.3 }),
         ]),
-        primary_key: getSeriesKey('CRYPTO', 'BTC-USDT', '4H')
-      }
+        primary_key: getSeriesKey('CRYPTO', 'BTC-USDT', '4H'),
+      },
     });
     const cm = result.cross_market;
     expect(cm.btc_nasdaq_corr).toBeGreaterThanOrEqual(0);
@@ -124,7 +128,7 @@ describe('cross-market risk snapshot', () => {
 
   it('handles empty series_index without crashing', () => {
     const result = runRegimeEngine({
-      velocityState: { series_index: {}, primary_key: null }
+      velocityState: { series_index: {}, primary_key: null },
     });
     expect(result.cross_market).toBeTruthy();
     expect(result.primary).toBeNull();
@@ -141,10 +145,10 @@ describe('primary snapshot selection', () => {
       velocityState: {
         series_index: makeSeriesIndex([
           makeSeries('US', 'QQQ', '1D'),
-          makeSeries('CRYPTO', 'BTC-USDT', '4H')
+          makeSeries('CRYPTO', 'BTC-USDT', '4H'),
         ]),
-        primary_key: pk
-      }
+        primary_key: pk,
+      },
     });
     expect(result.primary?.key).toBe(pk);
   });
@@ -153,8 +157,8 @@ describe('primary snapshot selection', () => {
     const result = runRegimeEngine({
       velocityState: {
         series_index: makeSeriesIndex([makeSeries('CRYPTO', 'ETH-USDT', '4H')]),
-        primary_key: 'nonexistent'
-      }
+        primary_key: 'nonexistent',
+      },
     });
     expect(result.primary).toBeTruthy();
     expect(result.primary?.symbol).toBe('ETH-USDT');
@@ -168,8 +172,8 @@ describe('regime engine output contract', () => {
     const result = runRegimeEngine({
       velocityState: {
         series_index: makeSeriesIndex([makeSeries('US', 'AAPL', '1D')]),
-        primary_key: getSeriesKey('US', 'AAPL', '1D')
-      }
+        primary_key: getSeriesKey('US', 'AAPL', '1D'),
+      },
     });
     const snap = Object.values(result.snapshots)[0] as any;
     expect(snap.key).toBeTruthy();

@@ -18,12 +18,19 @@ function parseArgs() {
   const out =
     outIndex >= 0
       ? args[outIndex + 1]
-      : path.join(process.cwd(), 'artifacts', 'training', `nova-mlx-${new Date().toISOString().slice(0, 10)}.jsonl`);
+      : path.join(
+          process.cwd(),
+          'artifacts',
+          'training',
+          `nova-mlx-${new Date().toISOString().slice(0, 10)}.jsonl`,
+        );
   return {
     onlyIncluded,
     limit: Number.isFinite(limit) ? limit : 500,
     out,
-    taskTypes: normalizeNovaMlxTaskTypes(includeTasks.length ? includeTasks : DEFAULT_NOVA_MLX_TASK_TYPES)
+    taskTypes: normalizeNovaMlxTaskTypes(
+      includeTasks.length ? includeTasks : DEFAULT_NOVA_MLX_TASK_TYPES,
+    ),
   };
 }
 
@@ -35,12 +42,14 @@ function main() {
   const dataset = buildMlxLmTrainingDataset(repo, {
     onlyIncluded: args.onlyIncluded,
     limit: args.limit,
-    taskTypes: args.taskTypes
+    taskTypes: args.taskTypes,
   });
   fs.mkdirSync(path.dirname(args.out), { recursive: true });
   const content = dataset.records.map((row) => JSON.stringify(row)).join('\n');
   fs.writeFileSync(args.out, `${content}${content ? '\n' : ''}`);
-  process.stdout.write(`Exported ${dataset.count} MLX-LM records for ${dataset.task_types.join(', ')} to ${args.out}\n`);
+  process.stdout.write(
+    `Exported ${dataset.count} MLX-LM records for ${dataset.task_types.join(', ')} to ${args.out}\n`,
+  );
 }
 
 main();

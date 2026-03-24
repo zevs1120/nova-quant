@@ -4,7 +4,7 @@ import {
   mean,
   pctChange,
   rankMap,
-  stdDev
+  stdDev,
 } from '../../quant/math.js';
 import { groupBy, sortByDate } from '../../normalizers/utils.js';
 
@@ -57,7 +57,9 @@ function benchmarkDateMap(benchmarks = []) {
 export function buildEquityFeatures(normalizedEquities) {
   const bars = normalizedEquities?.bars || [];
   const assets = normalizedEquities?.assets || [];
-  const sectorBySymbol = Object.fromEntries(assets.map((item) => [item.symbol, item.sector || 'Unknown']));
+  const sectorBySymbol = Object.fromEntries(
+    assets.map((item) => [item.symbol, item.sector || 'Unknown']),
+  );
   const grouped = groupBy(bars, (row) => row.symbol);
   const benchmarks = benchmarkDateMap(normalizedEquities?.benchmarks || []);
   const bySymbolDate = new Map();
@@ -81,7 +83,11 @@ export function buildEquityFeatures(normalizedEquities) {
       const sma60 = rollingAverage(closes, i, 60);
       const close = closes[i];
       const closeStd20 = rollingStd(closes, i, 20) || 1e-9;
-      const atr14 = rollingAverage(highs.map((h, idx) => h - lows[idx]), i, 14);
+      const atr14 = rollingAverage(
+        highs.map((h, idx) => h - lows[idx]),
+        i,
+        14,
+      );
       const hv20 = annualizedVolatility(trailingReturns(closes, i, 20), 252);
       const adv20 = rollingAverage(volumes, i, 20) || 1;
       const dollarAdv20 = rollingAverage(dollarVol, i, 20);
@@ -126,7 +132,7 @@ export function buildEquityFeatures(normalizedEquities) {
         rel_strength_raw_20: Number(ret20.toFixed(6)),
         benchmark_rel_20: Number(benchmarkRel20.toFixed(6)),
         style_rel_20: Number(styleRel20.toFixed(6)),
-        sector: sectorBySymbol[symbol] || 'Unknown'
+        sector: sectorBySymbol[symbol] || 'Unknown',
       };
 
       bySymbolDate.set(`${symbol}:${row.date}`, value);
@@ -143,7 +149,9 @@ export function buildEquityFeatures(normalizedEquities) {
     const sectorGroups = groupBy(rows, (row) => row.sector);
     const sectorRankByKey = {};
     for (const [sector, sectorRows] of sectorGroups.entries()) {
-      const map = Object.fromEntries(sectorRows.map((row) => [row.symbol, row.rel_strength_raw_20]));
+      const map = Object.fromEntries(
+        sectorRows.map((row) => [row.symbol, row.rel_strength_raw_20]),
+      );
       const ranked = rankMap(map);
       for (const [symbol, rank] of Object.entries(ranked)) {
         sectorRankByKey[`${sector}:${symbol}`] = rank;
@@ -155,7 +163,9 @@ export function buildEquityFeatures(normalizedEquities) {
       const target = bySymbolDate.get(key);
       if (!target) continue;
       target.rel_strength_rank = Number((overallRank[row.symbol] || 0).toFixed(6));
-      target.rel_strength_sector_rank = Number((sectorRankByKey[`${row.sector}:${row.symbol}`] || 0).toFixed(6));
+      target.rel_strength_sector_rank = Number(
+        (sectorRankByKey[`${row.sector}:${row.symbol}`] || 0).toFixed(6),
+      );
     }
   }
 
@@ -180,8 +190,8 @@ export function buildEquityFeatures(normalizedEquities) {
       'rel_strength_rank',
       'rel_strength_sector_rank',
       'benchmark_rel_20',
-      'style_rel_20'
+      'style_rel_20',
     ],
-    rows: featureRows
+    rows: featureRows,
   };
 }

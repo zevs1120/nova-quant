@@ -40,7 +40,7 @@ function familySensitivityFromDiscovery(discovery = {}, focusReasons = []) {
     const candidate = byId.get(scoreRow.candidate_id);
     rows.push({
       strategy_family: candidate?.strategy_family || 'unknown',
-      reasons
+      reasons,
     });
   }
 
@@ -50,7 +50,7 @@ function familySensitivityFromDiscovery(discovery = {}, focusReasons = []) {
     const current = map.get(key) || {
       strategy_family: key,
       hit_count: 0,
-      reasons: []
+      reasons: [],
     };
     current.hit_count += 1;
     current.reasons.push(...row.reasons);
@@ -61,7 +61,7 @@ function familySensitivityFromDiscovery(discovery = {}, focusReasons = []) {
     .map((row) => ({
       strategy_family: row.strategy_family,
       hit_count: row.hit_count,
-      top_reasons: Array.from(new Set(row.reasons)).slice(0, 4)
+      top_reasons: Array.from(new Set(row.reasons)).slice(0, 4),
     }))
     .sort((a, b) => b.hit_count - a.hit_count);
 }
@@ -73,17 +73,20 @@ function check(module, check_id, pass, value, threshold, note) {
     pass: Boolean(pass),
     value,
     threshold,
-    note
+    note,
   };
 }
 
-function scaleExecutionProfile(profile = {}, {
-  profileId = 'exec-realism.stress.custom',
-  slippageMultiplier = 1,
-  spreadMultiplier = 1,
-  fillEntry = null,
-  fillExit = null
-} = {}) {
+function scaleExecutionProfile(
+  profile = {},
+  {
+    profileId = 'exec-realism.stress.custom',
+    slippageMultiplier = 1,
+    spreadMultiplier = 1,
+    fillEntry = null,
+    fillExit = null,
+  } = {},
+) {
   const out = clone(profile);
   out.profile_id = profileId;
 
@@ -92,7 +95,7 @@ function scaleExecutionProfile(profile = {}, {
     for (const bucket of Object.keys(market?.spread_bps_by_vol_bucket || {})) {
       market.spread_bps_by_vol_bucket[bucket] = round(
         safe(market.spread_bps_by_vol_bucket[bucket], 0) * spreadMultiplier,
-        6
+        6,
       );
     }
     for (const bucket of Object.keys(market?.slippage_bps_by_vol_bucket || {})) {
@@ -120,8 +123,8 @@ function baselineContext({ asOf, riskProfileKey }) {
   const state = runQuantPipeline({
     as_of: asOf,
     config: {
-      risk_profile: riskProfileKey
-    }
+      risk_profile: riskProfileKey,
+    },
   });
   const core = state?.research?.research_core || {};
   return {
@@ -130,8 +133,8 @@ function baselineContext({ asOf, riskProfileKey }) {
     research: state?.research || {},
     championState: {
       ...state,
-      research: undefined
-    }
+      research: undefined,
+    },
   };
 }
 
@@ -155,7 +158,7 @@ function scenarioElevatedVolatility(pack, context) {
     championState: champion,
     strategyFamilyRegistry: context.core.strategy_families,
     historicalSnapshots: context.research.daily_snapshots || [],
-    signals: champion.signals || []
+    signals: champion.signals || [],
   });
   const risk = buildRiskBucketSystem({
     asOf: context.asOf,
@@ -163,20 +166,23 @@ function scenarioElevatedVolatility(pack, context) {
     championState: champion,
     regimeState: regime,
     signals: champion.signals || [],
-    trades: champion.trades || []
+    trades: champion.trades || [],
   });
   const featureLayer = buildFeatureSignalLayer({
     asOf: context.asOf,
     championState: champion,
     regimeState: regime,
     riskBuckets: risk,
-    funnelDiagnostics: context.core.signal_funnel_diagnostics
+    funnelDiagnostics: context.core.signal_funnel_diagnostics,
   });
 
   const decisions = risk.trade_level_buckets || [];
-  const blockedRatio = decisions.length ? decisions.filter((row) => row.decision === 'blocked').length / decisions.length : 0;
+  const blockedRatio = decisions.length
+    ? decisions.filter((row) => row.decision === 'blocked').length / decisions.length
+    : 0;
   const reduceOrBlockedRatio = decisions.length
-    ? decisions.filter((row) => ['reduce', 'blocked'].includes(row.decision)).length / decisions.length
+    ? decisions.filter((row) => ['reduce', 'blocked'].includes(row.decision)).length /
+      decisions.length
     : 0;
   const checks = [
     check(
@@ -185,7 +191,7 @@ function scenarioElevatedVolatility(pack, context) {
       ['high_volatility', 'risk_off'].includes(regime?.state?.primary),
       regime?.state?.primary,
       'high_volatility|risk_off',
-      'Regime engine should react to elevated volatility input.'
+      'Regime engine should react to elevated volatility input.',
     ),
     check(
       'risk_bucket_system',
@@ -193,18 +199,19 @@ function scenarioElevatedVolatility(pack, context) {
       ['REDUCE', 'SKIP'].includes(regime?.state?.recommended_user_posture),
       regime?.state?.recommended_user_posture,
       'REDUCE|SKIP',
-      'Risk posture should become defensive under stress.'
+      'Risk posture should become defensive under stress.',
     ),
     check(
       'decision_layer',
       'degrades_gracefully_under_vol_stress',
-      featureLayer?.signal_lifecycle?.raw_signals?.length >= featureLayer?.signal_lifecycle?.executable_opportunities?.length,
+      featureLayer?.signal_lifecycle?.raw_signals?.length >=
+        featureLayer?.signal_lifecycle?.executable_opportunities?.length,
       {
         raw: featureLayer?.signal_lifecycle?.raw_signals?.length || 0,
-        executable: featureLayer?.signal_lifecycle?.executable_opportunities?.length || 0
+        executable: featureLayer?.signal_lifecycle?.executable_opportunities?.length || 0,
       },
       'raw >= executable',
-      'Product layer should remain structured while reducing executable density.'
+      'Product layer should remain structured while reducing executable density.',
     ),
     check(
       'risk_bucket_system',
@@ -212,8 +219,8 @@ function scenarioElevatedVolatility(pack, context) {
       reduceOrBlockedRatio >= 0.3,
       round(reduceOrBlockedRatio, 4),
       '>= 0.3',
-      'Risk filter should reduce/block a meaningful share under elevated volatility.'
-    )
+      'Risk filter should reduce/block a meaningful share under elevated volatility.',
+    ),
   ];
 
   return {
@@ -226,9 +233,9 @@ function scenarioElevatedVolatility(pack, context) {
       regime_primary: regime?.state?.primary,
       posture: regime?.state?.recommended_user_posture,
       blocked_ratio: round(blockedRatio, 4),
-      reduce_or_block_ratio: round(reduceOrBlockedRatio, 4)
+      reduce_or_block_ratio: round(reduceOrBlockedRatio, 4),
     },
-    sensitive_families: []
+    sensitive_families: [],
   };
 }
 
@@ -252,7 +259,7 @@ function scenarioRiskOff(pack, context) {
     championState: champion,
     strategyFamilyRegistry: context.core.strategy_families,
     historicalSnapshots: context.research.daily_snapshots || [],
-    signals: champion.signals || []
+    signals: champion.signals || [],
   });
   const risk = buildRiskBucketSystem({
     asOf: context.asOf,
@@ -260,7 +267,7 @@ function scenarioRiskOff(pack, context) {
     championState: champion,
     regimeState: regime,
     signals: champion.signals || [],
-    trades: champion.trades || []
+    trades: champion.trades || [],
   });
 
   const checks = [
@@ -270,7 +277,7 @@ function scenarioRiskOff(pack, context) {
       regime?.state?.primary === 'risk_off',
       regime?.state?.primary,
       'risk_off',
-      'Risk-off shock should classify as risk_off.'
+      'Risk-off shock should classify as risk_off.',
     ),
     check(
       'risk_bucket_system',
@@ -278,7 +285,7 @@ function scenarioRiskOff(pack, context) {
       regime?.state?.recommended_user_posture === 'SKIP',
       regime?.state?.recommended_user_posture,
       'SKIP',
-      'Risk-off state should force SKIP posture.'
+      'Risk-off state should force SKIP posture.',
     ),
     check(
       'risk_bucket_system',
@@ -286,8 +293,8 @@ function scenarioRiskOff(pack, context) {
       String(risk?.decision_summary?.no_trade_recommendation || '').length > 0,
       risk?.decision_summary?.no_trade_recommendation || '',
       'non-empty',
-      'Risk module should provide explicit no-trade guidance.'
-    )
+      'Risk module should provide explicit no-trade guidance.',
+    ),
   ];
 
   return {
@@ -299,9 +306,9 @@ function scenarioRiskOff(pack, context) {
     metrics: {
       regime_primary: regime?.state?.primary,
       posture: regime?.state?.recommended_user_posture,
-      no_trade_recommendation: risk?.decision_summary?.no_trade_recommendation || ''
+      no_trade_recommendation: risk?.decision_summary?.no_trade_recommendation || '',
     },
-    sensitive_families: []
+    sensitive_families: [],
   };
 }
 
@@ -317,8 +324,8 @@ function scenarioConcentratedExposure(pack, context) {
       sector: pack.parameters.shared_sector || 'CONCENTRATED_THEME',
       position_advice: {
         ...(row.position_advice || {}),
-        position_pct: safe(pack.parameters.position_pct, 14)
-      }
+        position_pct: safe(pack.parameters.position_pct, 14),
+      },
     };
   });
 
@@ -328,12 +335,12 @@ function scenarioConcentratedExposure(pack, context) {
     championState: champion,
     regimeState: context.core.regime_engine,
     signals: champion.signals || [],
-    trades: champion.trades || []
+    trades: champion.trades || [],
   });
 
   const budget = risk?.portfolio_risk_budget || {};
   const reduceOrBlocked = (risk?.trade_level_buckets || []).filter((row) =>
-    ['reduce', 'blocked'].includes(row.decision)
+    ['reduce', 'blocked'].includes(row.decision),
   ).length;
   const total = (risk?.trade_level_buckets || []).length || 1;
 
@@ -344,7 +351,7 @@ function scenarioConcentratedExposure(pack, context) {
       budget?.budget_status === 'stressed',
       budget?.budget_status,
       'stressed',
-      'Concentrated setup should stress portfolio budget.'
+      'Concentrated setup should stress portfolio budget.',
     ),
     check(
       'risk_bucket_system',
@@ -355,10 +362,10 @@ function scenarioConcentratedExposure(pack, context) {
         market_concentration_pct: budget.market_concentration_pct,
         market_concentration_cap_pct: budget.market_concentration_cap_pct,
         correlated_exposure_pct: budget.correlated_exposure_pct,
-        correlated_exposure_cap_pct: budget.correlated_exposure_cap_pct
+        correlated_exposure_cap_pct: budget.correlated_exposure_cap_pct,
       },
       'concentration >= cap',
-      'Concentration guardrails should fire under overloaded exposure.'
+      'Concentration guardrails should fire under overloaded exposure.',
     ),
     check(
       'decision_layer',
@@ -366,8 +373,8 @@ function scenarioConcentratedExposure(pack, context) {
       ratio(reduceOrBlocked, total) >= 0.55,
       ratio(reduceOrBlocked, total),
       '>= 0.55',
-      'Decision layer should reduce/block majority under concentration overload.'
-    )
+      'Decision layer should reduce/block majority under concentration overload.',
+    ),
   ];
 
   return {
@@ -379,18 +386,19 @@ function scenarioConcentratedExposure(pack, context) {
     metrics: {
       budget_status: budget?.budget_status,
       concentration_pct: budget?.market_concentration_pct,
-      concentration_cap_pct: budget?.market_concentration_cap_pct
+      concentration_cap_pct: budget?.market_concentration_cap_pct,
     },
-    sensitive_families: []
+    sensitive_families: [],
   };
 }
 
 function scenarioHighSlippage(pack, context) {
-  const baseProfile = context.core?.walk_forward_validation?.config?.execution_realism_profile || {};
+  const baseProfile =
+    context.core?.walk_forward_validation?.config?.execution_realism_profile || {};
   const stressedProfile = scaleExecutionProfile(baseProfile, {
     profileId: pack.parameters.execution_profile_id || 'exec-realism.backtest.high-slippage.v1',
     slippageMultiplier: safe(pack.parameters.slippage_multiplier, 2.4),
-    spreadMultiplier: safe(pack.parameters.spread_multiplier, 1.9)
+    spreadMultiplier: safe(pack.parameters.spread_multiplier, 1.9),
   });
 
   const walkForward = buildWalkForwardValidation({
@@ -402,11 +410,14 @@ function scenarioHighSlippage(pack, context) {
     funnelDiagnostics: context.core.signal_funnel_diagnostics,
     config: {
       execution_realism_mode: 'backtest',
-      execution_realism_profile: stressedProfile
-    }
+      execution_realism_profile: stressedProfile,
+    },
   });
 
-  const baseSurvivors = safe(context.core?.walk_forward_validation?.summary?.harsh_execution_survivors, 0);
+  const baseSurvivors = safe(
+    context.core?.walk_forward_validation?.summary?.harsh_execution_survivors,
+    0,
+  );
   const stressedSurvivors = safe(walkForward?.summary?.harsh_execution_survivors, 0);
   const survivalRatio = baseSurvivors > 0 ? stressedSurvivors / baseSurvivors : 1;
 
@@ -419,14 +430,14 @@ function scenarioHighSlippage(pack, context) {
     walkForward,
     config: {
       generation: {
-        risk_profile: context.riskProfileKey
+        risk_profile: context.riskProfileKey,
       },
       validation: {
         stage_2: {
-          execution_realism_profile: stressedProfile
-        }
-      }
-    }
+          execution_realism_profile: stressedProfile,
+        },
+      },
+    },
   });
 
   const checks = [
@@ -436,7 +447,7 @@ function scenarioHighSlippage(pack, context) {
       survivalRatio >= 0.5,
       round(survivalRatio, 4),
       '>= 0.5',
-      'Validation should degrade but remain partially resilient under high slippage.'
+      'Validation should degrade but remain partially resilient under high slippage.',
     ),
     check(
       'walk_forward_validation',
@@ -444,8 +455,8 @@ function scenarioHighSlippage(pack, context) {
       Boolean(walkForward?.summary?.execution_assumption_profile?.profile_id),
       walkForward?.summary?.execution_assumption_profile?.profile_id || null,
       'non-empty profile_id',
-      'Stress profile must be traceable in validation outputs.'
-    )
+      'Stress profile must be traceable in validation outputs.',
+    ),
   ];
 
   return {
@@ -457,24 +468,25 @@ function scenarioHighSlippage(pack, context) {
     metrics: {
       base_harsh_execution_survivors: baseSurvivors,
       stressed_harsh_execution_survivors: stressedSurvivors,
-      survival_ratio: round(survivalRatio, 4)
+      survival_ratio: round(survivalRatio, 4),
     },
     sensitive_families: familySensitivityFromDiscovery(discovery, [
       'cost_sensitivity_too_high',
       'post_cost_return_too_weak',
-      'risk_adjusted_return_too_low'
-    ])
+      'risk_adjusted_return_too_low',
+    ]),
   };
 }
 
 function scenarioPoorFills(pack, context) {
-  const baseProfile = context.core?.walk_forward_validation?.config?.execution_realism_profile || {};
+  const baseProfile =
+    context.core?.walk_forward_validation?.config?.execution_realism_profile || {};
   const stressedProfile = scaleExecutionProfile(baseProfile, {
     profileId: pack.parameters.execution_profile_id || 'exec-realism.backtest.poor-fills.v1',
     slippageMultiplier: safe(pack.parameters.slippage_multiplier, 2.6),
     spreadMultiplier: safe(pack.parameters.spread_multiplier, 2.3),
     fillEntry: pack.parameters.fill_entry || 'conservative_fill',
-    fillExit: pack.parameters.fill_exit || 'conservative_fill'
+    fillExit: pack.parameters.fill_exit || 'conservative_fill',
   });
 
   const walkForward = buildWalkForwardValidation({
@@ -486,8 +498,8 @@ function scenarioPoorFills(pack, context) {
     funnelDiagnostics: context.core.signal_funnel_diagnostics,
     config: {
       execution_realism_mode: 'backtest',
-      execution_realism_profile: stressedProfile
-    }
+      execution_realism_profile: stressedProfile,
+    },
   });
 
   const governance = buildStrategyGovernanceLifecycle({
@@ -495,7 +507,7 @@ function scenarioPoorFills(pack, context) {
     research: context.research,
     walkforward: walkForward,
     funnelDiagnostics: context.core.signal_funnel_diagnostics,
-    signals: context.championState.signals || []
+    signals: context.championState.signals || [],
   });
 
   const strictFillRows = (walkForward?.strategies || []).map((row) => {
@@ -505,7 +517,7 @@ function scenarioPoorFills(pack, context) {
       strategy_id: row.strategy_id,
       base,
       strict,
-      delta: round(strict - base, 6)
+      delta: round(strict - base, 6),
     };
   });
   const strictFillImprovedCount = strictFillRows.filter((row) => row.delta > 0).length;
@@ -523,10 +535,10 @@ function scenarioPoorFills(pack, context) {
       strictFillConsistency,
       {
         improved_count: strictFillImprovedCount,
-        total: strictFillRows.length
+        total: strictFillRows.length,
       },
       'improved_count <= floor(total/2)',
-      'Strict-fill assumptions should not improve most strategies; if they do, realism model is brittle.'
+      'Strict-fill assumptions should not improve most strategies; if they do, realism model is brittle.',
     ),
     check(
       'governance_workflow',
@@ -534,7 +546,7 @@ function scenarioPoorFills(pack, context) {
       demoteOrRollback > 0,
       demoteOrRollback,
       '> 0',
-      'Governance must remain operational and emit decision artifacts under poor fills.'
+      'Governance must remain operational and emit decision artifacts under poor fills.',
     ),
     check(
       'walk_forward_validation',
@@ -542,8 +554,8 @@ function scenarioPoorFills(pack, context) {
       Boolean(walkForward?.summary?.execution_assumption_profile?.profile_id),
       walkForward?.summary?.execution_assumption_profile?.profile_id || null,
       'non-empty profile_id',
-      'Validation traceability should remain intact under poor fill assumptions.'
-    )
+      'Validation traceability should remain intact under poor fill assumptions.',
+    ),
   ];
 
   const discovery = buildStrategyDiscoveryEngine({
@@ -555,14 +567,14 @@ function scenarioPoorFills(pack, context) {
     walkForward,
     config: {
       generation: {
-        risk_profile: context.riskProfileKey
+        risk_profile: context.riskProfileKey,
       },
       validation: {
         stage_2: {
-          execution_realism_profile: stressedProfile
-        }
-      }
-    }
+          execution_realism_profile: stressedProfile,
+        },
+      },
+    },
   });
 
   return {
@@ -574,12 +586,12 @@ function scenarioPoorFills(pack, context) {
     metrics: {
       strict_fill_monotonicity_ok: strictFillConsistency,
       strict_fill_rows: strictFillRows,
-      governance_action_count: (governance?.decision_objects?.all || []).length
+      governance_action_count: (governance?.decision_objects?.all || []).length,
     },
     sensitive_families: familySensitivityFromDiscovery(discovery, [
       'cost_sensitivity_too_high',
-      'walkforward_avg_return_too_low'
-    ])
+      'walkforward_avg_return_too_low',
+    ]),
   };
 }
 
@@ -599,13 +611,14 @@ function scenarioStrategyStarvation(pack, context) {
         min_feature_overlap: safe(pack.parameters.min_feature_overlap, 99),
         market: pack.parameters.market || 'CRYPTO',
         family: pack.parameters.family || 'Relative Strength / Cross-Sectional',
-        risk_profile: context.riskProfileKey
-      }
-    }
+        risk_profile: context.riskProfileKey,
+      },
+    },
   });
 
   const generated = safe(discovery?.candidate_generation?.summary?.total_candidates, 0);
-  const failures = discovery?.candidate_generation?.summary?.runtime_seed_diagnostics?.mapping_failures || [];
+  const failures =
+    discovery?.candidate_generation?.summary?.runtime_seed_diagnostics?.mapping_failures || [];
   const checks = [
     check(
       'discovery_engine',
@@ -613,7 +626,7 @@ function scenarioStrategyStarvation(pack, context) {
       generated <= 2,
       generated,
       '<= 2 candidates',
-      'Scenario should surface low-density starvation behavior.'
+      'Scenario should surface low-density starvation behavior.',
     ),
     check(
       'discovery_engine',
@@ -621,8 +634,8 @@ function scenarioStrategyStarvation(pack, context) {
       failures.length > 0,
       failures.length,
       '> 0 mapping failures',
-      'Discovery should explain why candidate density collapsed.'
-    )
+      'Discovery should explain why candidate density collapsed.',
+    ),
   ];
 
   return {
@@ -633,9 +646,9 @@ function scenarioStrategyStarvation(pack, context) {
     checks,
     metrics: {
       generated_candidates: generated,
-      mapping_failures: failures.length
+      mapping_failures: failures.length,
     },
-    sensitive_families: discovery?.candidate_diagnostics?.recurring_family_failures || []
+    sensitive_families: discovery?.candidate_diagnostics?.recurring_family_failures || [],
   };
 }
 
@@ -657,19 +670,19 @@ function crowdedEvidenceRows(pack) {
           stage_2_quick_backtest: {
             return: 0.031 - i * 0.0014,
             drawdown: 0.14 + i * 0.003,
-            turnover: 0.52 + i * 0.01
-          }
-        }
+            turnover: 0.52 + i * 0.01,
+          },
+        },
       },
       cost_sensitivity: {
         validation_cost_stress: {
-          plus_50pct_cost: 0.012 - i * 0.0007
-        }
+          plus_50pct_cost: 0.012 - i * 0.0007,
+        },
       },
       governance_state: {
         current_stage: 'PROD',
-        operational_confidence: 0.62
-      }
+        operational_confidence: 0.62,
+      },
     });
   }
   return rows;
@@ -679,15 +692,15 @@ function scenarioCrowding(pack, context) {
   const sim = buildPortfolioSimulationEngine({
     asOf: context.asOf,
     evidenceSystem: {
-      strategies: crowdedEvidenceRows(pack)
+      strategies: crowdedEvidenceRows(pack),
     },
     regimeState: context.core.regime_engine,
     riskBucketSystem: context.core.risk_bucket_system,
     opportunities: context.core.product_opportunities || [],
     executionRealism: {
       mode: 'paper',
-      profile: context.core.walk_forward_validation?.config?.execution_realism_profile || {}
-    }
+      profile: context.core.walk_forward_validation?.config?.execution_realism_profile || {},
+    },
   });
 
   const diversification = sim?.diagnostics?.diversification_contribution || {};
@@ -702,10 +715,10 @@ function scenarioCrowding(pack, context) {
       {
         top_family_exposure: topFamilyExposure,
         family_cap: familyCap,
-        trimmed_families: trimmedFamilies
+        trimmed_families: trimmedFamilies,
       },
       'top_family_exposure <= family_cap + 0.01',
-      'Crowding guard should cap family concentration under overloaded same-family strategies.'
+      'Crowding guard should cap family concentration under overloaded same-family strategies.',
     ),
     check(
       'portfolio_simulation',
@@ -713,8 +726,8 @@ function scenarioCrowding(pack, context) {
       safe(diversification.avg_pairwise_correlation, 0) >= 0.5,
       diversification.avg_pairwise_correlation,
       '>= 0.5',
-      'Even with concentration guard, crowding pressure should still appear in pairwise correlation diagnostics.'
-    )
+      'Even with concentration guard, crowding pressure should still appear in pairwise correlation diagnostics.',
+    ),
   ];
 
   return {
@@ -726,14 +739,17 @@ function scenarioCrowding(pack, context) {
     metrics: {
       top_family_exposure: topFamilyExposure,
       diversification_score: diversification.diversification_score,
-      avg_pairwise_correlation: diversification.avg_pairwise_correlation
+      avg_pairwise_correlation: diversification.avg_pairwise_correlation,
     },
-    sensitive_families: []
+    sensitive_families: [],
   };
 }
 
 function scenarioDegradedCandidateQuality(pack, context) {
-  const baselinePromoted = safe(context.core?.strategy_discovery_engine?.summary?.promoted_to_shadow, 0);
+  const baselinePromoted = safe(
+    context.core?.strategy_discovery_engine?.summary?.promoted_to_shadow,
+    0,
+  );
 
   const discovery = buildStrategyDiscoveryEngine({
     asOf: context.asOf,
@@ -744,10 +760,10 @@ function scenarioDegradedCandidateQuality(pack, context) {
     walkForward: context.core.walk_forward_validation,
     config: {
       generation: {
-        risk_profile: context.riskProfileKey
+        risk_profile: context.riskProfileKey,
       },
-      validation: pack.parameters.validation || {}
-    }
+      validation: pack.parameters.validation || {},
+    },
   });
 
   const promoted = safe(discovery?.summary?.promoted_to_shadow, 0);
@@ -761,7 +777,7 @@ function scenarioDegradedCandidateQuality(pack, context) {
       promoted <= Math.max(1, Math.floor(baselinePromoted * 0.6)),
       promoted,
       `<= ${Math.max(1, Math.floor(baselinePromoted * 0.6))}`,
-      'Stricter quality gates should materially reduce promotions.'
+      'Stricter quality gates should materially reduce promotions.',
     ),
     check(
       'discovery_engine',
@@ -769,8 +785,8 @@ function scenarioDegradedCandidateQuality(pack, context) {
       ratio(rejected, total) >= 0.4,
       ratio(rejected, total),
       '>= 0.4',
-      'Degraded candidate quality should be rejected more often.'
-    )
+      'Degraded candidate quality should be rejected more often.',
+    ),
   ];
 
   return {
@@ -782,9 +798,9 @@ function scenarioDegradedCandidateQuality(pack, context) {
     metrics: {
       baseline_promoted: baselinePromoted,
       stressed_promoted: promoted,
-      rejection_rate: ratio(rejected, total)
+      rejection_rate: ratio(rejected, total),
     },
-    sensitive_families: discovery?.candidate_diagnostics?.recurring_family_failures || []
+    sensitive_families: discovery?.candidate_diagnostics?.recurring_family_failures || [],
   };
 }
 
@@ -819,11 +835,11 @@ function evaluateScenario(pack, context) {
             false,
             false,
             true,
-            'Scenario id has no registered handler.'
-          )
+            'Scenario id has no registered handler.',
+          ),
         ],
         metrics: {},
-        sensitive_families: []
+        sensitive_families: [],
       };
   }
 }
@@ -846,10 +862,10 @@ function summarizeScenario(row = {}) {
       ? {
           module: first.module,
           check_id: first.check_id,
-          note: first.note
+          note: first.note,
         }
       : null,
-    graceful_degradation: graceful
+    graceful_degradation: graceful,
   };
 }
 
@@ -861,7 +877,7 @@ function aggregateSensitivity(rows = []) {
       const current = map.get(key) || {
         strategy_family: key,
         hit_count: 0,
-        scenario_ids: []
+        scenario_ids: [],
       };
       current.hit_count += safe(hit.hit_count, 1);
       current.scenario_ids.push(row.scenario_id);
@@ -871,7 +887,7 @@ function aggregateSensitivity(rows = []) {
   return Array.from(map.values())
     .map((row) => ({
       ...row,
-      scenario_ids: Array.from(new Set(row.scenario_ids))
+      scenario_ids: Array.from(new Set(row.scenario_ids)),
     }))
     .sort((a, b) => b.hit_count - a.hit_count)
     .slice(0, 12);
@@ -893,7 +909,7 @@ function moduleHealth(rows = []) {
       module: row.module,
       pass_count: row.pass,
       fail_count: row.fail,
-      pass_rate: row.pass + row.fail ? round(row.pass / (row.pass + row.fail), 4) : 0
+      pass_rate: row.pass + row.fail ? round(row.pass / (row.pass + row.fail), 4) : 0,
     }))
     .sort((a, b) => a.pass_rate - b.pass_rate);
 }
@@ -901,25 +917,27 @@ function moduleHealth(rows = []) {
 export function runReliabilityStressFramework({
   asOf = '2026-03-08T00:00:00.000Z',
   riskProfileKey = 'balanced',
-  scenarioOverrides = {}
+  scenarioOverrides = {},
 } = {}) {
   const packs = loadReliabilityScenarioPacks(scenarioOverrides);
   const context = baselineContext({ asOf, riskProfileKey });
   context.asOf = asOf;
   context.riskProfileKey = riskProfileKey;
 
-  const evaluated = (packs.scenarios || []).map((pack) => summarizeScenario(evaluateScenario(pack, context)));
+  const evaluated = (packs.scenarios || []).map((pack) =>
+    summarizeScenario(evaluateScenario(pack, context)),
+  );
   const moduleRows = moduleHealth(evaluated);
   const weakest = moduleRows.slice(0, 3);
   const strongest = [...moduleRows].sort((a, b) => b.pass_rate - a.pass_rate).slice(0, 3);
   const failingScenarios = evaluated.filter((row) => row.failed_count > 0);
   const firstFailureChain = failingScenarios.map((row) => ({
     scenario_id: row.scenario_id,
-    first_failure: row.first_failure
+    first_failure: row.first_failure,
   }));
   const gracefulRatio = ratio(
     evaluated.filter((row) => row.graceful_degradation).length,
-    evaluated.length || 1
+    evaluated.length || 1,
   );
 
   return {
@@ -930,8 +948,14 @@ export function runReliabilityStressFramework({
       regime: context.core?.regime_engine?.state?.primary || 'unknown',
       posture: context.core?.regime_engine?.state?.recommended_user_posture || 'unknown',
       opportunities: (context.core?.product_opportunities || []).length,
-      discovery_candidates: safe(context.core?.strategy_discovery_engine?.summary?.generated_candidates, 0),
-      promoted_candidates: safe(context.core?.strategy_discovery_engine?.summary?.promoted_to_shadow, 0)
+      discovery_candidates: safe(
+        context.core?.strategy_discovery_engine?.summary?.generated_candidates,
+        0,
+      ),
+      promoted_candidates: safe(
+        context.core?.strategy_discovery_engine?.summary?.promoted_to_shadow,
+        0,
+      ),
     },
     scenarios: evaluated,
     summary: {
@@ -942,7 +966,7 @@ export function runReliabilityStressFramework({
       first_failure_chain: firstFailureChain,
       weakest_modules: weakest,
       strongest_modules: strongest,
-      strategy_family_sensitivity: aggregateSensitivity(evaluated)
-    }
+      strategy_family_sensitivity: aggregateSensitivity(evaluated),
+    },
   };
 }

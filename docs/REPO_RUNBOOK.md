@@ -155,12 +155,15 @@ curl "http://127.0.0.1:8787/api/evidence/strategies/champion"
 ## 9) Typical Troubleshooting
 
 1. `INSUFFICIENT_DATA` in runtime:
+
 - run `backfill`, `validate:data`, `derive:runtime` again.
 
 2. Connector shows disconnected:
+
 - expected unless real provider credentials + adapter implementation are available.
 
 3. Missing live performance:
+
 - expected when no `LIVE` executions exist; runtime should not fabricate live stats.
 
 ## 10) Status Interpretation
@@ -186,6 +189,7 @@ node scripts/package-source.mjs --dry-run
 ```
 
 Excluded by default:
+
 - `node_modules`, `dist`, `build`, `coverage`, `artifacts`
 - `data/*.db`, `data/*.db-wal`, `data/*.db-shm`, `*.sqlite*`, `*.wal`, `*.shm`
 - `__MACOSX`, `.DS_Store`, local logs/tmp files

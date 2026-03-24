@@ -1,5 +1,5 @@
 export {
   buildWeeklyResearchCycle,
-  buildWeeklyResearchReportMarkdown
+  buildWeeklyResearchReportMarkdown,
 } from './weeklyResearchCycle.js';
 export { writeWeeklyResearchReport } from './writeWeeklyReportNode.js';

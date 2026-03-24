@@ -1,5 +1,9 @@
 import { MarketRepository } from '../db/repository.js';
-import { getBacktestEvidenceDetail, getChampionStrategies, listBacktestEvidence } from '../evidence/engine.js';
+import {
+  getBacktestEvidenceDetail,
+  getChampionStrategies,
+  listBacktestEvidence,
+} from '../evidence/engine.js';
 import { RUNTIME_STATUS, normalizeRuntimeStatus } from '../runtimeStatus.js';
 import type { AssetClass, Market } from '../types.js';
 import { getFactorDefinition } from './knowledge.js';
@@ -22,7 +26,9 @@ function safeNumber(value: unknown): number | null {
 function latestRelevantRun(repo: MarketRepository, args: ResearchEvaluationArgs) {
   if (args.runId) return repo.getBacktestRun(args.runId);
   if (args.strategyVersionId) {
-    return repo.listBacktestRuns({ strategyVersionId: args.strategyVersionId, limit: 1 })[0] || null;
+    return (
+      repo.listBacktestRuns({ strategyVersionId: args.strategyVersionId, limit: 1 })[0] || null
+    );
   }
   const champions = getChampionStrategies(repo).records || [];
   const champion = champions.find((row) => row.supporting_run_id) || champions[0];
@@ -32,11 +38,17 @@ function latestRelevantRun(repo: MarketRepository, args: ResearchEvaluationArgs)
 }
 
 function artifactMap(detail: ReturnType<typeof getBacktestEvidenceDetail>['detail']) {
-  const entries: Array<[string, unknown]> = (detail?.artifacts || []).map((row) => [row.artifact_type, row.payload]);
+  const entries: Array<[string, unknown]> = (detail?.artifacts || []).map((row) => [
+    row.artifact_type,
+    row.payload,
+  ]);
   return new Map<string, unknown>(entries);
 }
 
-function overfitDiagnostics(metric: Record<string, unknown> | null, realismStress?: Record<string, unknown> | null) {
+function overfitDiagnostics(
+  metric: Record<string, unknown> | null,
+  realismStress?: Record<string, unknown> | null,
+) {
   const reasons: string[] = [];
   const sampleSize = Number(metric?.sample_size || 0);
   const sharpe = Number(metric?.sharpe || 0);
@@ -75,18 +87,20 @@ function overfitDiagnostics(metric: Record<string, unknown> | null, realismStres
     note:
       reasons.length > 0
         ? 'This is a heuristic overfitting-risk summary, not a formal PBO or deflated Sharpe implementation.'
-        : 'No obvious overfitting proxy was detected from current replay metrics.'
+        : 'No obvious overfitting proxy was detected from current replay metrics.',
   };
 }
 
 function regimeBreakdownFromAttribution(attribution: Record<string, unknown> | null) {
-  const rows = Array.isArray(attribution?.by_regime) ? (attribution?.by_regime as Array<Record<string, unknown>>) : [];
+  const rows = Array.isArray(attribution?.by_regime)
+    ? (attribution?.by_regime as Array<Record<string, unknown>>)
+    : [];
   return rows.map((row) => ({
     regime: String(row.regime || row.regime_id || 'UNKNOWN'),
     contribution: safeNumber(row.contribution ?? row.net_return ?? row.pnl_contribution),
     trade_count: safeNumber(row.trade_count ?? row.count),
     avg_return: safeNumber(row.avg_return ?? row.mean_return),
-    note: String(row.note || '')
+    note: String(row.note || ''),
   }));
 }
 
@@ -100,17 +114,20 @@ function factorRegimeView(attribution: Record<string, unknown> | null, factorId?
     expected_conflicts: factor?.interactions.conflicts || [],
     note: factor
       ? 'Observed regime rows come from strategy-level attribution. Factor-specific interpretation is taxonomy-guided unless direct factor history exists.'
-      : 'No factor selected; returning strategy-level regime breakdown only.'
+      : 'No factor selected; returning strategy-level regime breakdown only.',
   };
 }
 
-export function buildStrategyEvaluationReport(repo: MarketRepository, args: ResearchEvaluationArgs = {}) {
+export function buildStrategyEvaluationReport(
+  repo: MarketRepository,
+  args: ResearchEvaluationArgs = {},
+) {
   const run = latestRelevantRun(repo, args);
   if (!run) {
     return {
       source_status: RUNTIME_STATUS.INSUFFICIENT_DATA,
       data_status: RUNTIME_STATUS.INSUFFICIENT_DATA,
-      report: null
+      report: null,
     };
   }
 
@@ -120,13 +137,14 @@ export function buildStrategyEvaluationReport(repo: MarketRepository, args: Rese
     return {
       source_status: wrap.source_status,
       data_status: wrap.data_status,
-      report: null
+      report: null,
     };
   }
 
   const artifacts = artifactMap(detail);
   const attribution = (artifacts.get('attribution') as Record<string, unknown> | undefined) || null;
-  const realismStress = (artifacts.get('realism_stress') as Record<string, unknown> | undefined) || null;
+  const realismStress =
+    (artifacts.get('realism_stress') as Record<string, unknown> | undefined) || null;
   const metrics = detail.metrics as unknown as Record<string, unknown>;
   const overfit = overfitDiagnostics(metrics, realismStress);
 
@@ -149,7 +167,7 @@ export function buildStrategyEvaluationReport(repo: MarketRepository, args: Rese
         turnover: safeNumber(metrics.turnover),
         sharpe: safeNumber(metrics.sharpe),
         sortino: safeNumber(metrics.sortino),
-        sample_size: safeNumber(metrics.sample_size)
+        sample_size: safeNumber(metrics.sample_size),
       },
       cross_sectional_metrics: {
         ic: factorMeasurement?.report?.measured_metrics?.ic ?? null,
@@ -159,13 +177,13 @@ export function buildStrategyEvaluationReport(repo: MarketRepository, args: Rese
         availability: factorMeasurement?.report?.availability || 'not_persisted_yet',
         note:
           factorMeasurement?.report?.notes?.[0] ||
-          'Cross-sectional factor metrics are not yet persisted as first-class research artifacts.'
+          'Cross-sectional factor metrics are not yet persisted as first-class research artifacts.',
       },
       regime_breakdown: regimeBreakdownFromAttribution(attribution),
       sensitivity_analysis: {
         execution_stress: realismStress || null,
         parameter_sensitivity: null,
-        note: 'Execution realism stress is available; parameter surface persistence is a later phase.'
+        note: 'Execution realism stress is available; parameter surface persistence is a later phase.',
       },
       overfitting_risk: overfit,
       verdict:
@@ -177,8 +195,8 @@ export function buildStrategyEvaluationReport(repo: MarketRepository, args: Rese
       next_action:
         overfit.level === 'high'
           ? 'Run broader walk-forward and harsher cost stress before promoting this idea.'
-          : 'Review replay, paper, and portfolio fit before deciding promotion.'
-    }
+          : 'Review replay, paper, and portfolio fit before deciding promotion.',
+    },
   };
 }
 
@@ -189,7 +207,7 @@ export function buildValidationReport(repo: MarketRepository, args: ResearchEval
     return {
       source_status: evaluation.source_status,
       data_status: evaluation.data_status,
-      validation_report: null
+      validation_report: null,
     };
   }
 
@@ -203,17 +221,17 @@ export function buildValidationReport(repo: MarketRepository, args: ResearchEval
         walk_forward: {
           supported: true,
           measured_result: null,
-          note: 'Walk-forward exists in the broader research stack but is not yet persisted into this evidence record.'
+          note: 'Walk-forward exists in the broader research stack but is not yet persisted into this evidence record.',
         },
         purged_validation: {
           supported: false,
           measured_result: null,
-          note: 'Purged / embargoed validation is not wired into persisted run objects yet.'
+          note: 'Purged / embargoed validation is not wired into persisted run objects yet.',
         },
         transaction_cost_sensitivity: report.sensitivity_analysis.execution_stress,
         regime_split_robustness: report.regime_breakdown,
         turnover_realism: report.measured_metrics.turnover,
-        overfitting_proxy: report.overfitting_risk
+        overfitting_proxy: report.overfitting_risk,
       },
       decision_gate: {
         worth_backtest: true,
@@ -222,9 +240,9 @@ export function buildValidationReport(repo: MarketRepository, args: ResearchEval
         rationale:
           report.overfitting_risk.level === 'high'
             ? 'Execution realism and sample quality still look too fragile for confident paper progression.'
-            : 'Current evidence supports replay/paper discussion, subject to strategy-specific risk review.'
-      }
-    }
+            : 'Current evidence supports replay/paper discussion, subject to strategy-specific risk review.',
+      },
+    },
   };
 }
 
@@ -232,7 +250,9 @@ export function buildExperimentRegistryView(repo: MarketRepository, limit = 25) 
   const rows = repo.listExperimentRecords(limit);
   const records = rows.map((row) => {
     const run = repo.getBacktestRun(row.backtest_run_id);
-    const strategy = row.strategy_version_id ? repo.getStrategyVersion(row.strategy_version_id) : null;
+    const strategy = row.strategy_version_id
+      ? repo.getStrategyVersion(row.strategy_version_id)
+      : null;
     const metric = run ? repo.getBacktestMetric(run.id) : null;
     return {
       experiment_id: row.id,
@@ -252,16 +272,16 @@ export function buildExperimentRegistryView(repo: MarketRepository, limit = 25) 
             sample_size: metric.sample_size,
             robustness_grade: metric.robustness_grade,
             realism_grade: metric.realism_grade,
-            status: metric.status
+            status: metric.status,
           }
-        : null
+        : null,
     };
   });
 
   return {
     source_status: records.length ? RUNTIME_STATUS.DB_BACKED : RUNTIME_STATUS.INSUFFICIENT_DATA,
     data_status: records.length ? RUNTIME_STATUS.MODEL_DERIVED : RUNTIME_STATUS.INSUFFICIENT_DATA,
-    records
+    records,
   };
 }
 
@@ -278,45 +298,51 @@ export function buildResearchWorkflowPlan(args: ResearchEvaluationArgs = {}) {
         {
           stage: 'hypothesis',
           action: `Define the market intuition behind ${topic}.`,
-          deliverable: 'Explicit hypothesis statement + failure conditions'
+          deliverable: 'Explicit hypothesis statement + failure conditions',
         },
         {
           stage: 'feature_construction',
           action: factor
             ? `Build features from proxies such as ${factor.proxies.slice(0, 3).join(', ')}.`
             : 'Map the idea into measurable features and implementation constraints.',
-          deliverable: 'Feature list with data dependencies and leakage notes'
+          deliverable: 'Feature list with data dependencies and leakage notes',
         },
         {
           stage: 'validation_design',
-          action: 'Choose baseline model/ranking method, OOS splits, and execution realism assumptions.',
-          deliverable: 'Validation plan with cost, turnover, and regime checks'
+          action:
+            'Choose baseline model/ranking method, OOS splits, and execution realism assumptions.',
+          deliverable: 'Validation plan with cost, turnover, and regime checks',
         },
         {
           stage: 'portfolio_mapping',
-          action: 'Translate signal strength into position sizing, exposure constraints, and turnover limits.',
-          deliverable: 'Signal-to-portfolio mapping rules'
+          action:
+            'Translate signal strength into position sizing, exposure constraints, and turnover limits.',
+          deliverable: 'Signal-to-portfolio mapping rules',
         },
         {
           stage: 'evidence_summary',
-          action: 'Summarize thesis, supporting factors, opposing factors, regime fit, and implementation caveats.',
-          deliverable: 'Evidence object ready for assistant and product use'
+          action:
+            'Summarize thesis, supporting factors, opposing factors, regime fit, and implementation caveats.',
+          deliverable: 'Evidence object ready for assistant and product use',
         },
         {
           stage: 'postmortem',
-          action: 'If the result fails, record why it failed and whether the failure is structural or temporary.',
-          deliverable: 'Failed-idea note / reject or iterate decision'
-        }
+          action:
+            'If the result fails, record why it failed and whether the failure is structural or temporary.',
+          deliverable: 'Failed-idea note / reject or iterate decision',
+        },
       ],
-      next_best_action:
-        factor
-          ? `Start with ${factor.factor_id} as the anchor factor, then compare it against current regime and cost drag before running replay.`
-          : `Use ${topic} as the working hypothesis, define measurable features, then validate it under costs and regime splits before running replay.`
-    }
+      next_best_action: factor
+        ? `Start with ${factor.factor_id} as the anchor factor, then compare it against current regime and cost drag before running replay.`
+        : `Use ${topic} as the working hypothesis, define measurable features, then validate it under costs and regime splits before running replay.`,
+    },
   };
 }
 
-export function buildFactorResearchSnapshot(repo: MarketRepository, args: ResearchEvaluationArgs = {}) {
+export function buildFactorResearchSnapshot(
+  repo: MarketRepository,
+  args: ResearchEvaluationArgs = {},
+) {
   const evaluation = buildStrategyEvaluationReport(repo, args);
   const report = evaluation.report;
   const run = latestRelevantRun(repo, args);
@@ -327,13 +353,15 @@ export function buildFactorResearchSnapshot(repo: MarketRepository, args: Resear
 
   return {
     source_status:
-      measured?.report?.availability === 'measured' ? measured.source_status : evaluation.source_status,
+      measured?.report?.availability === 'measured'
+        ? measured.source_status
+        : evaluation.source_status,
     data_status:
       measured?.report?.availability === 'measured' ? measured.data_status : evaluation.data_status,
     snapshot: {
       ...factorRegimeView(attribution, args.factorId),
-      measured_factor_report: measured?.report || null
-    }
+      measured_factor_report: measured?.report || null,
+    },
   };
 }
 
@@ -343,11 +371,13 @@ export function listResearchMemory(repo: MarketRepository, limit = 20) {
   const shipped = experiments.filter((row) => row.reason_for_ship);
   return {
     source_status: experiments.length ? RUNTIME_STATUS.DB_BACKED : RUNTIME_STATUS.INSUFFICIENT_DATA,
-    data_status: experiments.length ? RUNTIME_STATUS.MODEL_DERIVED : RUNTIME_STATUS.INSUFFICIENT_DATA,
+    data_status: experiments.length
+      ? RUNTIME_STATUS.MODEL_DERIVED
+      : RUNTIME_STATUS.INSUFFICIENT_DATA,
     memory: {
       shipped_ideas: shipped.slice(0, 10),
       failed_ideas: failed.slice(0, 10),
-      note: 'This memory view is built from experiment registry + backtest metrics. Richer factor-level memory can be added later.'
-    }
+      note: 'This memory view is built from experiment registry + backtest metrics. Richer factor-level memory can be added later.',
+    },
   };
 }

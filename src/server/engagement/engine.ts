@@ -5,7 +5,7 @@ import type {
   Market,
   NotificationEventRecord,
   NotificationPreferenceRecord,
-  UserRitualEventRecord
+  UserRitualEventRecord,
 } from '../types.js';
 import { RUNTIME_STATUS, normalizeRuntimeStatus } from '../runtimeStatus.js';
 import {
@@ -16,7 +16,7 @@ import {
   getPerceptionLayerCopy,
   getUiRegimeTone,
   getWidgetCopy,
-  getWrapUpCopy
+  getWrapUpCopy,
 } from '../../copy/novaCopySystem.js';
 
 type JsonObject = Record<string, unknown>;
@@ -36,7 +36,9 @@ function asArray<T = unknown>(value: unknown): T[] {
 }
 
 function uniqueDays(rows: UserRitualEventRecord[], eventType: UserRitualEventRecord['event_type']) {
-  return [...new Set(rows.filter((row) => row.event_type === eventType).map((row) => row.event_date))].sort();
+  return [
+    ...new Set(rows.filter((row) => row.event_type === eventType).map((row) => row.event_date)),
+  ].sort();
 }
 
 function calcDayStreak(days: string[], anchorDay: string): number {
@@ -76,12 +78,12 @@ function weekStartKey(dateKey: string): string {
 function copyTone(posture: string, locale?: string) {
   const uiTone = getUiRegimeTone({
     posture,
-    locale
+    locale,
   });
   const noAction = getNoActionCopy({
     locale,
     posture,
-    seed: `${posture}:engagement`
+    seed: `${posture}:engagement`,
   });
   return {
     tone: uiTone.tone,
@@ -95,11 +97,15 @@ function copyTone(posture: string, locale?: string) {
     humor: uiTone.humor_line,
     protective: uiTone.protective_line,
     wrap: uiTone.wrap_line,
-    motion: uiTone.motion
+    motion: uiTone.motion,
   };
 }
 
-function summarizeRecommendationChange(current: JsonObject, previous: JsonObject | null, locale?: string) {
+function summarizeRecommendationChange(
+  current: JsonObject,
+  previous: JsonObject | null,
+  locale?: string,
+) {
   const isZh = locale === 'zh';
   const currentRisk = String(current.risk_posture || '');
   const currentSymbol = String(current.top_action_symbol || '');
@@ -108,13 +114,15 @@ function summarizeRecommendationChange(current: JsonObject, previous: JsonObject
     return {
       changed: false,
       change_type: 'initial_snapshot',
-      summary: isZh ? '今天的判断已更新，你只需要回来确认一次。' : 'Today’s view is set. One clean check is enough.',
+      summary: isZh
+        ? '今天的判断已更新，你只需要回来确认一次。'
+        : 'Today’s view is set. One clean check is enough.',
       previous: null,
       current: {
         risk_posture: currentRisk,
         top_action_symbol: currentSymbol,
-        top_action_label: currentLabel
-      }
+        top_action_label: currentLabel,
+      },
     };
   }
 
@@ -129,8 +137,16 @@ function summarizeRecommendationChange(current: JsonObject, previous: JsonObject
       summary: isZh
         ? `判断从 ${prevRisk || '未知'} 切到了 ${currentRisk || '未知'}。`
         : `The posture moved from ${prevRisk || 'unknown'} to ${currentRisk || 'unknown'}.`,
-      previous: { risk_posture: prevRisk, top_action_symbol: prevSymbol, top_action_label: prevLabel },
-      current: { risk_posture: currentRisk, top_action_symbol: currentSymbol, top_action_label: currentLabel }
+      previous: {
+        risk_posture: prevRisk,
+        top_action_symbol: prevSymbol,
+        top_action_label: prevLabel,
+      },
+      current: {
+        risk_posture: currentRisk,
+        top_action_symbol: currentSymbol,
+        top_action_label: currentLabel,
+      },
     };
   }
 
@@ -141,8 +157,16 @@ function summarizeRecommendationChange(current: JsonObject, previous: JsonObject
       summary: isZh
         ? `最重要的卡片从 ${prevSymbol || '无'} 变成了 ${currentSymbol || '无'}。`
         : `The lead card changed from ${prevSymbol || 'none'} to ${currentSymbol || 'none'}.`,
-      previous: { risk_posture: prevRisk, top_action_symbol: prevSymbol, top_action_label: prevLabel },
-      current: { risk_posture: currentRisk, top_action_symbol: currentSymbol, top_action_label: currentLabel }
+      previous: {
+        risk_posture: prevRisk,
+        top_action_symbol: prevSymbol,
+        top_action_label: prevLabel,
+      },
+      current: {
+        risk_posture: currentRisk,
+        top_action_symbol: currentSymbol,
+        top_action_label: currentLabel,
+      },
     };
   }
 
@@ -152,8 +176,16 @@ function summarizeRecommendationChange(current: JsonObject, previous: JsonObject
     summary: isZh
       ? '核心判断没有明显变，今天更重要的是确认而不是频繁切换。'
       : 'The core view held. Today is more about confirmation than constant switching.',
-    previous: { risk_posture: prevRisk, top_action_symbol: prevSymbol, top_action_label: prevLabel },
-    current: { risk_posture: currentRisk, top_action_symbol: currentSymbol, top_action_label: currentLabel }
+    previous: {
+      risk_posture: prevRisk,
+      top_action_symbol: prevSymbol,
+      top_action_label: prevLabel,
+    },
+    current: {
+      risk_posture: currentRisk,
+      top_action_symbol: currentSymbol,
+      top_action_label: currentLabel,
+    },
   };
 }
 
@@ -167,7 +199,7 @@ export function defaultNotificationPreferences(userId: string): NotificationPref
     frequency: 'NORMAL',
     quiet_start_hour: 22,
     quiet_end_hour: 8,
-    updated_at_ms: Date.now()
+    updated_at_ms: Date.now(),
   };
 }
 
@@ -194,7 +226,7 @@ function buildDailyCheckState(args: {
   locale?: string;
 }) {
   const todayEvent = args.rituals.find(
-    (row) => row.event_type === 'MORNING_CHECK_COMPLETED' && row.event_date === args.localDate
+    (row) => row.event_type === 'MORNING_CHECK_COMPLETED' && row.event_date === args.localDate,
   );
   const recorded = todayEvent ? parseJson(todayEvent.reason_json) : {};
   const todayCall = (args.decisionSummary.today_call as JsonObject | undefined) || {};
@@ -202,14 +234,16 @@ function buildDailyCheckState(args: {
   const recordedFingerprint = `${String(recorded.risk_posture || '--')}:${String(recorded.top_action_id || '--')}`;
   const refreshRequired = Boolean(todayEvent && currentFingerprint !== recordedFingerprint);
   const status = !todayEvent ? 'PENDING' : refreshRequired ? 'REFRESH_REQUIRED' : 'COMPLETED';
-  const noActionDay = ['WAIT', 'DEFEND'].includes(String(args.decisionSummary.risk_posture || '').toUpperCase());
+  const noActionDay = ['WAIT', 'DEFEND'].includes(
+    String(args.decisionSummary.risk_posture || '').toUpperCase(),
+  );
   const copy = getMorningCheckCopy({
     posture: String(args.decisionSummary.risk_posture || 'WAIT'),
     status,
     locale: args.locale,
     seed: `${args.localDate}:${currentFingerprint}`,
     changed: args.recommendationChange.changed,
-    noActionDay
+    noActionDay,
   });
 
   return {
@@ -225,7 +259,10 @@ function buildDailyCheckState(args: {
     cta_label: copy.cta_label,
     ai_cta_label: copy.ai_cta_label,
     completed_at_ms: todayEvent?.updated_at_ms || null,
-    completion_feedback: status === 'REFRESH_REQUIRED' ? copy.changed_line || copy.completion_feedback : copy.completion_feedback
+    completion_feedback:
+      status === 'REFRESH_REQUIRED'
+        ? copy.changed_line || copy.completion_feedback
+        : copy.completion_feedback,
   };
 }
 
@@ -243,8 +280,8 @@ function buildHabitState(args: {
       args.rituals
         .filter((row) => row.event_type === 'WEEKLY_REVIEW_COMPLETED')
         .map((row) => row.week_key)
-        .filter((value): value is string => Boolean(value))
-    )
+        .filter((value): value is string => Boolean(value)),
+    ),
   ];
   const currentWeekKey = weekStartKey(args.localDate);
   const morningStreak = calcDayStreak(morningDays, args.localDate);
@@ -253,13 +290,13 @@ function buildHabitState(args: {
   const weeklyStreak = calcWeekStreak(weeklyKeys, currentWeekKey);
   const disciplineScore = Math.max(
     35,
-    Math.min(96, 45 + morningStreak * 4 + boundaryStreak * 3 + wrapStreak * 2 + weeklyStreak * 2)
+    Math.min(96, 45 + morningStreak * 4 + boundaryStreak * 3 + wrapStreak * 2 + weeklyStreak * 2),
   );
   const disciplineCopy = getDisciplineCopy({
     locale: args.locale,
     score: disciplineScore,
     noActionDay: true,
-    seed: `${args.localDate}:${disciplineScore}`
+    seed: `${args.localDate}:${disciplineScore}`,
   });
 
   return {
@@ -274,7 +311,7 @@ function buildHabitState(args: {
     discipline_score: disciplineScore,
     behavior_quality: disciplineCopy.behavior_quality,
     summary: disciplineCopy.summary,
-    no_action_value_line: disciplineCopy.no_action_value_line || args.tone.noActionValue
+    no_action_value_line: disciplineCopy.no_action_value_line || args.tone.noActionValue,
   };
 }
 
@@ -289,7 +326,7 @@ function buildWrapUp(args: {
 }) {
   const ready = args.localHour >= 18;
   const completed = args.rituals.some(
-    (row) => row.event_type === 'WRAP_UP_COMPLETED' && row.event_date === args.localDate
+    (row) => row.event_type === 'WRAP_UP_COMPLETED' && row.event_date === args.localDate,
   );
   const previousRisk = String(args.previousSummary?.risk_posture || '');
   const currentRisk = String(args.currentSummary.risk_posture || '');
@@ -315,7 +352,7 @@ function buildWrapUp(args: {
     ready,
     completed,
     seed: `${args.localDate}:${currentRisk}:${currentSymbol}`,
-    noActionDay
+    noActionDay,
   });
 
   return {
@@ -334,7 +371,7 @@ function buildWrapUp(args: {
           : `The most useful thing today is to understand the premise and invalidation for ${currentSymbol}.`
         : args.locale === 'zh'
           ? '今天系统更重视风险姿态，而不是新机会。'
-          : 'Today the system prioritized risk posture over new opportunities.'
+          : 'Today the system prioritized risk posture over new opportunities.',
     ],
     tomorrow_watch:
       currentRisk === 'DEFEND'
@@ -344,7 +381,7 @@ function buildWrapUp(args: {
         : args.locale === 'zh'
           ? '明天优先观察最重要的那张卡是否仍留在榜首。'
           : 'Tomorrow, watch whether the lead card still deserves the top slot.',
-    completion_feedback: wrapCopy.completion_feedback
+    completion_feedback: wrapCopy.completion_feedback,
   };
 }
 
@@ -370,7 +407,7 @@ function buildPerceptionLayer(args: {
     seed: `${posture}:${topSymbol || 'none'}:${args.recommendationChange.change_type}`,
     status,
     changed: args.recommendationChange.changed,
-    noActionDay
+    noActionDay,
   });
 
   return {
@@ -381,7 +418,7 @@ function buildPerceptionLayer(args: {
     focus_line: perceptionCopy.focus_line,
     confirmation_line: perceptionCopy.confirmation_line,
     top_action_symbol: topSymbol || null,
-    no_action_day: noActionDay
+    no_action_day: noActionDay,
   };
 }
 
@@ -417,8 +454,8 @@ function buildNotificationCandidate(args: {
         title: args.title,
         body: args.body,
         actionTarget: args.actionTarget,
-        reason: args.reason
-      })
+        reason: args.reason,
+      }),
     )
     .digest('hex');
   const now = Date.now();
@@ -437,7 +474,7 @@ function buildNotificationCandidate(args: {
     action_target: args.actionTarget,
     reason_json: JSON.stringify(args.reason),
     created_at_ms: now,
-    updated_at_ms: now
+    updated_at_ms: now,
   };
 }
 
@@ -464,7 +501,7 @@ function buildNotificationCandidates(args: {
       category: 'RHYTHM',
       posture: String(args.currentSummary.risk_posture || 'WAIT'),
       locale: args.locale,
-      seed: `${args.localDate}:rhythm`
+      seed: `${args.localDate}:rhythm`,
     });
     notifications.push(
       buildNotificationCandidate({
@@ -474,20 +511,19 @@ function buildNotificationCandidates(args: {
         category: 'RHYTHM',
         triggerType: 'morning_check_due',
         title: rhythmCopy.title,
-        body:
-          quiet
-            ? args.locale === 'zh'
-              ? '判断已经更新。安静时段后再回来确认，也完全来得及。'
-              : 'The view is updated. A calm check after quiet hours is still perfectly on time.'
-            : rhythmCopy.body,
+        body: quiet
+          ? args.locale === 'zh'
+            ? '判断已经更新。安静时段后再回来确认，也完全来得及。'
+            : 'The view is updated. A calm check after quiet hours is still perfectly on time.'
+          : rhythmCopy.body,
         tone: 'calm',
         actionTarget: 'today',
         reason: {
           daily_check_status: args.dailyCheckState.status,
           risk_posture: args.currentSummary.risk_posture,
-          quiet_window: quiet
-        }
-      })
+          quiet_window: quiet,
+        },
+      }),
     );
   }
 
@@ -497,7 +533,7 @@ function buildNotificationCandidates(args: {
       posture: String(args.currentSummary.risk_posture || 'WAIT'),
       locale: args.locale,
       triggerType: String(args.recommendationChange.change_type),
-      seed: `${args.localDate}:${args.recommendationChange.change_type}`
+      seed: `${args.localDate}:${args.recommendationChange.change_type}`,
     });
     notifications.push(
       buildNotificationCandidate({
@@ -510,8 +546,8 @@ function buildNotificationCandidates(args: {
         body: `${args.recommendationChange.summary} ${stateShiftCopy.body}`,
         tone: 'measured',
         actionTarget: 'today',
-        reason: args.recommendationChange as unknown as JsonObject
-      })
+        reason: args.recommendationChange as unknown as JsonObject,
+      }),
     );
   }
 
@@ -524,7 +560,7 @@ function buildNotificationCandidates(args: {
         posture,
         locale: args.locale,
         overlap: top1 >= 25,
-        seed: `${args.localDate}:protective:${top1}`
+        seed: `${args.localDate}:protective:${top1}`,
       });
       notifications.push(
         buildNotificationCandidate({
@@ -532,17 +568,21 @@ function buildNotificationCandidates(args: {
           market: args.market,
           assetClass: args.assetClass,
           category: 'PROTECTIVE',
-          triggerType: posture === 'DEFEND' || posture === 'WAIT' ? 'protective_posture' : 'concentration_warning',
+          triggerType:
+            posture === 'DEFEND' || posture === 'WAIT'
+              ? 'protective_posture'
+              : 'concentration_warning',
           title: protectiveCopy.title,
-          body: posture === 'DEFEND' || posture === 'WAIT' ? protectiveCopy.body : protectiveCopy.body,
+          body:
+            posture === 'DEFEND' || posture === 'WAIT' ? protectiveCopy.body : protectiveCopy.body,
           tone: 'protective',
           actionTarget: 'ai',
           reason: {
             posture,
             top1_pct: top1,
-            recommendation: args.currentPortfolio.recommendation || null
-          }
-        })
+            recommendation: args.currentPortfolio.recommendation || null,
+          },
+        }),
       );
     }
   }
@@ -552,7 +592,7 @@ function buildNotificationCandidates(args: {
       category: 'WRAP_UP',
       posture: String(args.currentSummary.risk_posture || 'WAIT'),
       locale: args.locale,
-      seed: `${args.localDate}:wrap`
+      seed: `${args.localDate}:wrap`,
     });
     notifications.push(
       buildNotificationCandidate({
@@ -568,9 +608,9 @@ function buildNotificationCandidates(args: {
         reason: {
           ready: true,
           top_action_symbol: args.currentSummary.top_action_symbol || null,
-          risk_posture: args.currentSummary.risk_posture || null
-        }
-      })
+          risk_posture: args.currentSummary.risk_posture || null,
+        },
+      }),
     );
   }
 
@@ -593,20 +633,20 @@ function buildWidgetSummary(args: {
     type: 'state',
     posture,
     locale: args.locale,
-    seed: `${posture}:state:${topSymbol}`
+    seed: `${posture}:state:${topSymbol}`,
   });
   const actionCopy = getWidgetCopy({
     type: 'action',
     posture,
     locale: args.locale,
-    seed: `${posture}:action:${topSymbol}`
+    seed: `${posture}:action:${topSymbol}`,
   });
   const changeCopy = getWidgetCopy({
     type: 'change',
     posture,
     locale: args.locale,
     triggerType: args.recommendationChange.change_type,
-    seed: `${posture}:change:${topSymbol}`
+    seed: `${posture}:change:${topSymbol}`,
   });
   return {
     state_widget: {
@@ -615,7 +655,7 @@ function buildWidgetSummary(args: {
       subtitle: args.dailyCheckState.headline,
       caption: stateCopy.caption || args.tone.widget_label,
       spark: stateCopy.spark || args.dailyCheckState.ritual_line,
-      deep_link: 'today'
+      deep_link: 'today',
     },
     action_widget: {
       kind: 'TOP_ACTION',
@@ -628,7 +668,7 @@ function buildWidgetSummary(args: {
       subtitle: String(todayCall.subtitle || args.currentSummary.user_message || ''),
       caution: args.tone.noActionValue,
       spark: actionCopy.spark || args.tone.humor,
-      deep_link: 'today'
+      deep_link: 'today',
     },
     change_widget: {
       kind: 'CHANGE_ALERT',
@@ -641,18 +681,26 @@ function buildWidgetSummary(args: {
         : args.locale === 'zh'
           ? '回来确认一次就够了'
           : 'One calm check is enough',
-      spark: changeCopy.spark || (args.recommendationChange.changed ? args.tone.arrival : args.tone.noActionValue),
-      deep_link: args.recommendationChange.changed ? 'today' : 'ai'
-    }
+      spark:
+        changeCopy.spark ||
+        (args.recommendationChange.changed ? args.tone.arrival : args.tone.noActionValue),
+      deep_link: args.recommendationChange.changed ? 'today' : 'ai',
+    },
   };
 }
 
 export function buildEngagementSnapshot(input: EngagementInput) {
   const currentSummary = parseJson(input.decisionRow?.summary_json);
-  const previousSummary = input.previousDecisionRow ? parseJson(input.previousDecisionRow.summary_json) : null;
+  const previousSummary = input.previousDecisionRow
+    ? parseJson(input.previousDecisionRow.summary_json)
+    : null;
   const currentPortfolio = parseJson(input.decisionRow?.portfolio_context_json);
   const tone = copyTone(String(currentSummary.risk_posture || 'WAIT'), input.locale);
-  const recommendationChange = summarizeRecommendationChange(currentSummary, previousSummary, input.locale);
+  const recommendationChange = summarizeRecommendationChange(
+    currentSummary,
+    previousSummary,
+    input.locale,
+  );
   const dailyCheckState = buildDailyCheckState({
     localDate: input.localDate,
     localHour: input.localHour,
@@ -660,13 +708,13 @@ export function buildEngagementSnapshot(input: EngagementInput) {
     recommendationChange,
     rituals: input.ritualEvents,
     tone,
-    locale: input.locale
+    locale: input.locale,
   });
   const habitState = buildHabitState({
     localDate: input.localDate,
     rituals: input.ritualEvents,
     tone,
-    locale: input.locale
+    locale: input.locale,
   });
   const dailyWrapUp = buildWrapUp({
     localDate: input.localDate,
@@ -675,7 +723,7 @@ export function buildEngagementSnapshot(input: EngagementInput) {
     previousSummary,
     tone,
     rituals: input.ritualEvents,
-    locale: input.locale
+    locale: input.locale,
   });
   const notifications = buildNotificationCandidates({
     userId: input.userId,
@@ -689,7 +737,7 @@ export function buildEngagementSnapshot(input: EngagementInput) {
     currentSummary,
     currentPortfolio,
     prefs: input.notificationPreferences,
-    locale: input.locale
+    locale: input.locale,
   });
   const widgetSummary = buildWidgetSummary({
     dailyCheckState,
@@ -697,20 +745,26 @@ export function buildEngagementSnapshot(input: EngagementInput) {
     currentSummary,
     wrapUp: dailyWrapUp,
     tone,
-    locale: input.locale
+    locale: input.locale,
   });
   const perceptionLayer = buildPerceptionLayer({
     currentSummary,
     dailyCheckState,
     recommendationChange,
     tone,
-    locale: input.locale
+    locale: input.locale,
   });
 
   return {
     as_of: new Date().toISOString(),
-    source_status: normalizeRuntimeStatus(input.decisionRow?.source_status, RUNTIME_STATUS.INSUFFICIENT_DATA),
-    data_status: normalizeRuntimeStatus(input.decisionRow?.data_status, RUNTIME_STATUS.INSUFFICIENT_DATA),
+    source_status: normalizeRuntimeStatus(
+      input.decisionRow?.source_status,
+      RUNTIME_STATUS.INSUFFICIENT_DATA,
+    ),
+    data_status: normalizeRuntimeStatus(
+      input.decisionRow?.data_status,
+      RUNTIME_STATUS.INSUFFICIENT_DATA,
+    ),
     daily_check_state: dailyCheckState,
     habit_state: habitState,
     daily_wrap_up: dailyWrapUp,
@@ -719,7 +773,7 @@ export function buildEngagementSnapshot(input: EngagementInput) {
     notification_center: {
       active_count: notifications.length,
       quiet_hours_active: inQuietHours(input.localHour, input.notificationPreferences),
-      notifications
+      notifications,
     },
     recommendation_change: recommendationChange,
     ui_regime_state: {
@@ -732,10 +786,18 @@ export function buildEngagementSnapshot(input: EngagementInput) {
       completion_line: tone.completion,
       protective_line: tone.protective,
       wrap_line: tone.wrap,
-      card_emphasis: tone.tone === 'opportunity' ? 'elevated' : tone.tone === 'defensive' ? 'guarded' : 'steady',
-      motion_profile: tone.tone === 'opportunity' ? 'lift' : tone.tone === 'defensive' ? 'hold' : tone.tone === 'watchful' ? 'drift' : 'calm',
-      motion: tone.motion
+      card_emphasis:
+        tone.tone === 'opportunity' ? 'elevated' : tone.tone === 'defensive' ? 'guarded' : 'steady',
+      motion_profile:
+        tone.tone === 'opportunity'
+          ? 'lift'
+          : tone.tone === 'defensive'
+            ? 'hold'
+            : tone.tone === 'watchful'
+              ? 'drift'
+              : 'calm',
+      motion: tone.motion,
     },
-    notification_preferences: input.notificationPreferences
+    notification_preferences: input.notificationPreferences,
   };
 }

@@ -4,7 +4,7 @@ import {
   getStrategyTemplate,
   resolveStrategyId,
   buildSignalExplanation,
-  strategyTemplateVersion
+  strategyTemplateVersion,
 } from '../src/engines/strategyTemplates.js';
 
 /* ---------- template catalog ---------- */
@@ -67,11 +67,15 @@ describe('getStrategyTemplate', () => {
 
 describe('resolveStrategyId', () => {
   it('returns signal.strategy_id when it exists in templates', () => {
-    expect(resolveStrategyId({ strategy_id: 'CR_BAS', market: 'CRYPTO', symbol: 'BTC-USDT' })).toBe('CR_BAS');
+    expect(resolveStrategyId({ strategy_id: 'CR_BAS', market: 'CRYPTO', symbol: 'BTC-USDT' })).toBe(
+      'CR_BAS',
+    );
   });
 
   it('ignores invalid strategy_id and uses symbol map', () => {
-    expect(resolveStrategyId({ strategy_id: 'INVALID', market: 'CRYPTO', symbol: 'BTC-USDT' })).toBe('CR_BAS');
+    expect(
+      resolveStrategyId({ strategy_id: 'INVALID', market: 'CRYPTO', symbol: 'BTC-USDT' }),
+    ).toBe('CR_BAS');
   });
 
   it('resolves via SYMBOL_TO_STRATEGY map', () => {
@@ -82,8 +86,12 @@ describe('resolveStrategyId', () => {
   });
 
   it('falls back by asset_class for unmapped symbols', () => {
-    expect(resolveStrategyId({ market: 'US', symbol: 'UNKNOWN', asset_class: 'OPTIONS' })).toBe('OP_INTRADAY');
-    expect(resolveStrategyId({ market: 'US', symbol: 'UNKNOWN', asset_class: 'US_STOCK' })).toBe('EQ_SWING');
+    expect(resolveStrategyId({ market: 'US', symbol: 'UNKNOWN', asset_class: 'OPTIONS' })).toBe(
+      'OP_INTRADAY',
+    );
+    expect(resolveStrategyId({ market: 'US', symbol: 'UNKNOWN', asset_class: 'US_STOCK' })).toBe(
+      'EQ_SWING',
+    );
   });
 
   it('falls back by market when nothing else matches', () => {
@@ -108,7 +116,7 @@ describe('buildSignalExplanation', () => {
       risk: { bucket_state: 'BASE', sample_size_reference: 42 },
       expectedR: 2.1,
       hitRateEst: 0.58,
-      costEstimate: { total_bps: 8 }
+      costEstimate: { total_bps: 8 },
     });
     expect(lines).toHaveLength(4);
     expect(lines[0]).toContain('CR_BAS');
@@ -130,7 +138,7 @@ describe('buildSignalExplanation', () => {
       risk: { bucket_state: 'DERISKED', sample_size_reference: 10 },
       expectedR: 1.2,
       hitRateEst: 0.45,
-      costEstimate: { total_bps: 4 }
+      costEstimate: { total_bps: 4 },
     });
     expect(lines[1]).toContain('velocity_pct=0%');
   });

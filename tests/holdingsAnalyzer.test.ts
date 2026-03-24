@@ -11,7 +11,7 @@ describe('buildHoldingsReview', () => {
           quantity: 10,
           cost_basis: 100,
           current_price_override: 110,
-          weight_pct: 40
+          weight_pct: 40,
         },
         {
           symbol: 'BTC-USDT',
@@ -19,16 +19,16 @@ describe('buildHoldingsReview', () => {
           quantity: 0.5,
           cost_basis: 60000,
           current_price_override: 63000,
-          weight_pct: 60
-        }
+          weight_pct: 60,
+        },
       ],
       state: {
         safety: { mode: 'normal risk' },
         layers: {
           data_layer: { instruments: [] },
-          portfolio_layer: { candidates: [], filtered_out: [] }
-        }
-      }
+          portfolio_layer: { candidates: [], filtered_out: [] },
+        },
+      },
     });
 
     expect(review.totals.total_market_value).toBe(32600);
@@ -45,23 +45,23 @@ describe('buildHoldingsReview', () => {
           asset_class: 'US_STOCK',
           quantity: 10,
           cost_basis: 100,
-          current_price_override: 100
+          current_price_override: 100,
         },
         {
           symbol: 'MSFT',
           asset_class: 'US_STOCK',
           quantity: 5,
           cost_basis: 200,
-          current_price_override: 200
-        }
+          current_price_override: 200,
+        },
       ],
       state: {
         safety: { mode: 'normal risk' },
         layers: {
           data_layer: { instruments: [] },
-          portfolio_layer: { candidates: [], filtered_out: [] }
-        }
-      }
+          portfolio_layer: { candidates: [], filtered_out: [] },
+        },
+      },
     });
 
     expect(review.totals.total_weight_pct).toBe(100);

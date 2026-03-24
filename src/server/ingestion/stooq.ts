@@ -80,12 +80,14 @@ export function parseStooqRecord(record: Record<string, string> | string[]): Nor
       high,
       low,
       close,
-      volume: volume || '0'
+      volume: volume || '0',
     };
   }
 
   const values = arr.map((item) => String(item ?? '').trim());
-  const dateIndex = values.findIndex((item) => /^\d{8}$/.test(item) || /^\d{4}-\d{2}-\d{2}$/.test(item));
+  const dateIndex = values.findIndex(
+    (item) => /^\d{8}$/.test(item) || /^\d{4}-\d{2}-\d{2}$/.test(item),
+  );
   if (dateIndex < 0) return null;
 
   const timeCandidate = values[dateIndex + 1] || '';
@@ -107,7 +109,7 @@ export function parseStooqRecord(record: Record<string, string> | string[]): Nor
     high,
     low,
     close,
-    volume
+    volume,
   };
 }
 
@@ -117,7 +119,7 @@ async function ingestEntry(
   repo: MarketRepository,
   batchSize: number,
   source: string,
-  allowedSymbols?: Set<string>
+  allowedSymbols?: Set<string>,
 ): Promise<void> {
   const symbol = inferSymbolFromPath(entry.path);
   if (!symbol) {
@@ -134,7 +136,7 @@ async function ingestEntry(
     symbol,
     venue: 'STOOQ',
     quote: 'USD',
-    status: 'ACTIVE'
+    status: 'ACTIVE',
   });
 
   const parser = parse({
@@ -142,7 +144,7 @@ async function ingestEntry(
     skip_empty_lines: true,
     trim: true,
     columns: false,
-    delimiter: [',', ';', '\t']
+    delimiter: [',', ';', '\t'],
   });
 
   const stream = entry.pipe(parser);
@@ -190,7 +192,7 @@ export async function backfillStooqBulk(params: {
     url,
     {},
     { attempts: 2, baseDelayMs: 1000 },
-    config.stooq.timeoutMs
+    config.stooq.timeoutMs,
   );
   if (!response.ok || !response.body) {
     throw new Error(`Stooq download failed (${response.status}) for ${url}`);
@@ -201,7 +203,9 @@ export async function backfillStooqBulk(params: {
     throw new Error(`Stooq bulk denied for ${url}: ${bodyText.trim()}`);
   }
 
-  const unzipStream = Readable.fromWeb(response.body as never).pipe(unzipper.Parse({ forceStream: true }));
+  const unzipStream = Readable.fromWeb(response.body as never).pipe(
+    unzipper.Parse({ forceStream: true }),
+  );
 
   let fileCount = 0;
   for await (const entry of unzipStream as AsyncIterable<Entry>) {
@@ -220,7 +224,7 @@ export async function backfillStooqBulk(params: {
     } catch (error) {
       logWarn('Failed to ingest Stooq file entry', {
         entry: entry.path,
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
       entry.autodrain();
     }

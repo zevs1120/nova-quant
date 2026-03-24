@@ -32,27 +32,35 @@ Each scenario includes:
 ## Current Scenario Set
 
 1. `elevated_volatility`
+
 - Stresses regime + risk posture transition.
 
 2. `risk_off_regime`
+
 - Forces risk-off classification and no-trade guidance checks.
 
 3. `concentrated_exposure`
+
 - Overloads concentration/correlation budgets in risk engine.
 
 4. `high_slippage`
+
 - Applies slippage/spread multipliers in execution realism profile.
 
 5. `poor_fills`
+
 - Forces conservative fill assumptions and tests strict-fill consistency.
 
 6. `strategy_starvation`
+
 - Constrains discovery until candidate density collapses and checks diagnostics.
 
 7. `strategy_crowding_fake_diversification`
+
 - Simulates crowded strategy book to test correlation/diversification diagnostics.
 
 8. `degraded_candidate_quality`
+
 - Tightens validation thresholds to force rejection-heavy candidate cycle.
 
 ## Consistent Re-Run Workflow
@@ -70,12 +78,15 @@ Output:
 ## How To Extend
 
 1. Add a scenario entry in:
+
 - `data/reference_seeds/reliability_scenario_pack.json`
 
 2. Implement handler in:
+
 - `evaluateScenario(...)` switch inside `src/research/reliability/reliabilityStressFramework.js`
 
 3. Add expectations in:
+
 - `tests/reliabilityStressFramework.test.ts`
 - `tests/reliabilityCoverage.test.ts` (if cross-layer behavior)
 

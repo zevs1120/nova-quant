@@ -24,7 +24,7 @@ describe('reliability stress framework', () => {
   it('runs full stress suite and emits module-level reliability summary', () => {
     const suite = runReliabilityStressFramework({
       asOf: '2026-03-08T00:00:00.000Z',
-      riskProfileKey: 'balanced'
+      riskProfileKey: 'balanced',
     });
 
     expect(suite.framework_version).toBeTruthy();
@@ -40,12 +40,19 @@ describe('reliability stress framework', () => {
   it('exposes scenario-specific brittleness and sensitivity outputs', () => {
     const suite = runReliabilityStressFramework({
       asOf: '2026-03-08T00:00:00.000Z',
-      riskProfileKey: 'balanced'
+      riskProfileKey: 'balanced',
     });
 
-    const starvation = suite.scenarios.find((row: { scenario_id: string }) => row.scenario_id === 'strategy_starvation');
-    const crowding = suite.scenarios.find((row: { scenario_id: string }) => row.scenario_id === 'strategy_crowding_fake_diversification');
-    const poorFills = suite.scenarios.find((row: { scenario_id: string }) => row.scenario_id === 'poor_fills');
+    const starvation = suite.scenarios.find(
+      (row: { scenario_id: string }) => row.scenario_id === 'strategy_starvation',
+    );
+    const crowding = suite.scenarios.find(
+      (row: { scenario_id: string }) =>
+        row.scenario_id === 'strategy_crowding_fake_diversification',
+    );
+    const poorFills = suite.scenarios.find(
+      (row: { scenario_id: string }) => row.scenario_id === 'poor_fills',
+    );
 
     expect(starvation).toBeTruthy();
     expect(starvation?.metrics?.generated_candidates).toBeLessThanOrEqual(2);

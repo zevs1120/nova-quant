@@ -29,16 +29,26 @@ function seedSignal(id: string, symbol: string, createdAt: string, entry: number
     stop_loss: { type: 'ATR', price: entry - 1.1, rationale: 'seed' },
     take_profit_levels: [{ price: entry + 1.6, size_pct: 0.6, rationale: 'seed' }],
     trailing_rule: { type: 'EMA', params: { fast: 10, slow: 30 } },
-    position_advice: { position_pct: 7, leverage_cap: 1.4, risk_bucket_applied: 'BASE', rationale: 'seed' },
+    position_advice: {
+      position_pct: 7,
+      leverage_cap: 1.4,
+      risk_bucket_applied: 'BASE',
+      rationale: 'seed',
+    },
     cost_model: { fee_bps: 1.2, spread_bps: 1.1, slippage_bps: 2.2, basis_est: 0 },
-    expected_metrics: { expected_R: 1.2, hit_rate_est: 0.56, sample_size: 20, expected_max_dd_est: 0.08 },
+    expected_metrics: {
+      expected_R: 1.2,
+      hit_rate_est: 0.56,
+      sample_size: 20,
+      expected_max_dd_est: 0.08,
+    },
     explain_bullets: ['API seed signal'],
     execution_checklist: ['seed'],
     tags: ['status:MODEL_DERIVED', 'source:DB_BACKED'],
     status: 'NEW',
     payload: { kind: 'STOCK_SWING', data: { horizon: 'MEDIUM', catalysts: ['seed'] } },
     score: 76,
-    payload_version: 'signal-contract.v1'
+    payload_version: 'signal-contract.v1',
   };
 }
 
@@ -52,7 +62,7 @@ describe('evidence api', () => {
     const asset = repo.upsertAsset({
       symbol: 'SPY',
       market: 'US',
-      venue: 'STOOQ'
+      venue: 'STOOQ',
     });
 
     const bars = Array.from({ length: 120 }).map((_, i) => {
@@ -64,13 +74,23 @@ describe('evidence api', () => {
         high: (close + 0.45).toFixed(4),
         low: (open - 0.4).toFixed(4),
         close: close.toFixed(4),
-        volume: String(3000 + i * 12)
+        volume: String(3000 + i * 12),
       };
     });
     repo.upsertOhlcvBars(asset.asset_id, '1d', bars, 'TEST');
 
-    const signalA = seedSignal('SIG-API-EVD-1', 'SPY', new Date(start + 90 * 24 * 3600_000).toISOString(), 457);
-    const signalB = seedSignal('SIG-API-EVD-2', 'SPY', new Date(start + 92 * 24 * 3600_000).toISOString(), 458);
+    const signalA = seedSignal(
+      'SIG-API-EVD-1',
+      'SPY',
+      new Date(start + 90 * 24 * 3600_000).toISOString(),
+      457,
+    );
+    const signalB = seedSignal(
+      'SIG-API-EVD-2',
+      'SPY',
+      new Date(start + 92 * 24 * 3600_000).toISOString(),
+      458,
+    );
     repo.upsertSignal(signalA);
     repo.upsertSignal(signalB);
 
@@ -89,7 +109,7 @@ describe('evidence api', () => {
       pnl_pct: null,
       note: 'seed',
       created_at_ms: now - 2 * 24 * 3600_000,
-      updated_at_ms: now - 2 * 24 * 3600_000
+      updated_at_ms: now - 2 * 24 * 3600_000,
     });
 
     const app = createApiApp();
@@ -99,7 +119,7 @@ describe('evidence api', () => {
       market: 'US',
       assetClass: 'US_STOCK',
       timeframe: '1d',
-      maxSignals: 30
+      maxSignals: 30,
     });
     expect(runRes.status).toBe(200);
     expect(runRes.body.run_id).toBeTruthy();
@@ -108,7 +128,7 @@ describe('evidence api', () => {
       userId: 'api-evidence-user',
       market: 'US',
       assetClass: 'US_STOCK',
-      limit: 3
+      limit: 3,
     });
     expect(topRes.status).toBe(200);
     expect(topRes.body.source_status).toBe('DB_BACKED');
@@ -130,7 +150,9 @@ describe('evidence api', () => {
     expect(runDetailRes.body.detail).toHaveProperty('metrics');
     expect(runDetailRes.body.detail).toHaveProperty('transparency');
 
-    const reconRes = await request(app).get('/api/evidence/reconciliation').query({ replayRunId: runId });
+    const reconRes = await request(app)
+      .get('/api/evidence/reconciliation')
+      .query({ replayRunId: runId });
     expect(reconRes.status).toBe(200);
     expect(Array.isArray(reconRes.body.records)).toBe(true);
 

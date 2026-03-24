@@ -5,7 +5,7 @@ export const ENTITY_STAGE = Object.freeze({
   CANDIDATE: 'candidate',
   CHAMPION: 'champion',
   CHALLENGER: 'challenger',
-  RETIRED: 'retired'
+  RETIRED: 'retired',
 });
 
 export const STAGE_ORDER = Object.freeze([
@@ -14,7 +14,7 @@ export const STAGE_ORDER = Object.freeze([
   ENTITY_STAGE.PAPER,
   ENTITY_STAGE.CANDIDATE,
   ENTITY_STAGE.CHAMPION,
-  ENTITY_STAGE.RETIRED
+  ENTITY_STAGE.RETIRED,
 ]);
 
 export const DATA_TRANSPARENCY = Object.freeze({
@@ -22,19 +22,19 @@ export const DATA_TRANSPARENCY = Object.freeze({
   SIMULATED: 'simulated',
   REAL_PATH_READY: 'real_path_ready',
   REAL_LIVE: 'real_live',
-  LIVE_NOT_AVAILABLE: 'live_not_available'
+  LIVE_NOT_AVAILABLE: 'live_not_available',
 });
 
 export const EXECUTION_MODE = Object.freeze({
   BACKTEST: 'backtest',
   PAPER: 'paper',
-  LIVE: 'live'
+  LIVE: 'live',
 });
 
 export const MARKET_TIME_MODE = Object.freeze({
   US_TRADING_DAY: 'us_trading_day',
   CRYPTO_24_7: 'crypto_24_7',
-  MIXED_MULTI_ASSET: 'mixed_multi_asset'
+  MIXED_MULTI_ASSET: 'mixed_multi_asset',
 });
 
 const LEGACY_STAGE_MAP = Object.freeze({
@@ -45,7 +45,7 @@ const LEGACY_STAGE_MAP = Object.freeze({
   testing: ENTITY_STAGE.TESTING,
   draft: ENTITY_STAGE.DRAFT,
   challenger: ENTITY_STAGE.CHALLENGER,
-  retired: ENTITY_STAGE.RETIRED
+  retired: ENTITY_STAGE.RETIRED,
 });
 
 const LEGACY_TRANSPARENCY_MAP = Object.freeze({
@@ -57,7 +57,7 @@ const LEGACY_TRANSPARENCY_MAP = Object.freeze({
   real_path_ready_fallback_sample: DATA_TRANSPARENCY.REAL_PATH_READY,
   sample_with_live_path_ready: DATA_TRANSPARENCY.REAL_PATH_READY,
   live_path_available: DATA_TRANSPARENCY.REAL_PATH_READY,
-  sample_fallback: DATA_TRANSPARENCY.SAMPLE
+  sample_fallback: DATA_TRANSPARENCY.SAMPLE,
 });
 
 function safeSlug(value) {

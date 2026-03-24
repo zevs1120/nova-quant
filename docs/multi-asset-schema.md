@@ -1,7 +1,9 @@
 # Multi-Asset Schema (v1)
 
 ## Unified Base
+
 All records include provenance fields:
+
 - `source`
 - `fetched_at`
 - `frequency`
@@ -10,6 +12,7 @@ All records include provenance fields:
 - `license_notes`
 
 ## 1. Asset
+
 - `asset_id`
 - `asset_class` (`equity` / `option` / `crypto`)
 - `symbol`
@@ -18,6 +21,7 @@ All records include provenance fields:
 - `source`
 
 ## 2. EquityBar
+
 - `symbol`
 - `date`
 - `open/high/low/close`
@@ -28,6 +32,7 @@ All records include provenance fields:
 - `source`
 
 ## 3. OptionContract
+
 - `option_ticker` / `contract_id`
 - `underlying_symbol`
 - `expiration_date`
@@ -38,6 +43,7 @@ All records include provenance fields:
 - `source`
 
 ## 4. OptionSnapshot
+
 - `option_ticker`
 - `timestamp` / `date`
 - `last/bid/ask/mid`
@@ -49,12 +55,14 @@ All records include provenance fields:
 - `source`
 
 ## 5. OptionChainSnapshot
+
 - `underlying_symbol`
 - `timestamp` / `date`
 - `contracts[]`
 - `derived_chain_metrics`
 
 ## 6. CryptoProduct
+
 - `venue`
 - `product_id` / `symbol`
 - `base_asset`
@@ -62,6 +70,7 @@ All records include provenance fields:
 - `status`
 
 ## 7. CryptoBar
+
 - `product_id`
 - `timestamp` / `date`
 - `open/high/low/close`
@@ -70,6 +79,7 @@ All records include provenance fields:
 - `source`
 
 ## 8. DatasetSnapshot
+
 - `dataset_id`
 - `asset_class`
 - `frequency`
@@ -79,6 +89,7 @@ All records include provenance fields:
 - `missingness_summary`
 
 ## 9. TrainingDataset
+
 - `dataset_id`
 - `asset_class`
 - `feature_set_name`
@@ -87,5 +98,6 @@ All records include provenance fields:
 - `created_at`
 
 ## Notes
+
 - Options are not treated as a generic ticker; chain linkage and contract fields are preserved.
 - Crypto uses continuous 24/7 timestamps and separate handling from US trading day logic.

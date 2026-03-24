@@ -7,7 +7,7 @@ import {
   buildExecutionSensitivityScenarios,
   estimateCostDragPct,
   resolveExecutionAssumptions,
-  resolveExecutionRealismProfile
+  resolveExecutionRealismProfile,
 } from '../src/research/validation/executionRealismModel.js';
 
 describe('execution realism model', () => {
@@ -15,8 +15,12 @@ describe('execution realism model', () => {
     const profile = resolveExecutionRealismProfile({ mode: 'replay' });
     const assumption = resolveExecutionAssumptions({
       profile,
-      signal: { market: 'CRYPTO', volatility_percentile: 92, created_at: '2026-03-08T03:00:00.000Z' },
-      mode: 'replay'
+      signal: {
+        market: 'CRYPTO',
+        volatility_percentile: 92,
+        created_at: '2026-03-08T03:00:00.000Z',
+      },
+      mode: 'replay',
     });
 
     expect(assumption.market).toBe('CRYPTO');
@@ -35,15 +39,19 @@ describe('execution realism model', () => {
       profile,
       signal: { market: 'US' },
       mode: 'backtest',
-      fillPolicy: { entry: FILL_POLICIES.TOUCH_BASED, exit: FILL_POLICIES.BAR_CROSS_BASED }
+      fillPolicy: { entry: FILL_POLICIES.TOUCH_BASED, exit: FILL_POLICIES.BAR_CROSS_BASED },
     });
     const scenario = buildExecutionSensitivityScenarios(profile).find(
-      (row: { scenario_id: string }) => row.scenario_id === 'slippage_plus_50'
+      (row: { scenario_id: string }) => row.scenario_id === 'slippage_plus_50',
     );
     const stressed = applyScenarioToAssumption(base, scenario);
 
     const baseCost = estimateCostDragPct({ assumption: base, turnover: 0.45, holdingDays: 3 });
-    const stressedCost = estimateCostDragPct({ assumption: stressed, turnover: 0.45, holdingDays: 3 });
+    const stressedCost = estimateCostDragPct({
+      assumption: stressed,
+      turnover: 0.45,
+      holdingDays: 3,
+    });
 
     expect(stressedCost).toBeGreaterThan(baseCost);
 
@@ -52,14 +60,14 @@ describe('execution realism model', () => {
       direction: 'LONG',
       side: 'entry',
       slippageBps: base.entry_slippage_bps,
-      spreadBps: base.spread_bps
+      spreadBps: base.spread_bps,
     });
     const longExit = adjustPriceForExecution({
       price: 100,
       direction: 'LONG',
       side: 'exit',
       slippageBps: base.exit_slippage_bps,
-      spreadBps: base.spread_bps
+      spreadBps: base.spread_bps,
     });
     expect(longEntry).toBeGreaterThan(100);
     expect(longExit).toBeLessThan(100);
@@ -73,15 +81,15 @@ describe('execution realism model', () => {
         market: 'US',
         direction: 'SHORT',
         created_at: '2026-03-10T12:40:00.000Z',
-        liquidity_score: 0.18
+        liquidity_score: 0.18,
       },
       bar: {
         high: 101,
         low: 98,
         close: 99,
-        volume: 120000
+        volume: 120000,
       },
-      mode: 'replay'
+      mode: 'replay',
     });
 
     expect(assumption.session_state).toBe('premarket');

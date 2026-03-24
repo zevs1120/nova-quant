@@ -20,7 +20,7 @@ export function checkRateLimit(userId: string): RateLimitResult {
     return {
       allowed: false,
       remaining: 0,
-      resetAt
+      resetAt,
     };
   }
 
@@ -30,6 +30,6 @@ export function checkRateLimit(userId: string): RateLimitResult {
   return {
     allowed: true,
     remaining: Math.max(0, MAX_REQUESTS - valid.length),
-    resetAt: now + WINDOW_MS
+    resetAt: now + WINDOW_MS,
   };
 }

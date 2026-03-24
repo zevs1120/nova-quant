@@ -8,9 +8,12 @@ import {
   handleAdminOverview,
   handleAdminSignals,
   handleAdminSystem,
-  handleAdminUsers
+  handleAdminUsers,
 } from '../src/server/api/adminHandlers.js';
-import { persistAlphaCandidate, type AutonomousAlphaCandidate } from '../src/server/alpha_registry/index.js';
+import {
+  persistAlphaCandidate,
+  type AutonomousAlphaCandidate,
+} from '../src/server/alpha_registry/index.js';
 import type { SignalContract } from '../src/server/types.js';
 
 type MockResponse = {
@@ -36,13 +39,13 @@ function createMockResponse(): MockResponse {
     },
     setHeader(name: string, value: string) {
       this.headers[name] = value;
-    }
+    },
   };
 }
 
 async function callHandler(
   handler: (req: Record<string, unknown>, res: MockResponse) => Promise<void>,
-  args: { body?: unknown; cookie?: string }
+  args: { body?: unknown; cookie?: string },
 ) {
   const res = createMockResponse();
   await handler(
@@ -52,9 +55,9 @@ async function callHandler(
       header(name: string) {
         if (name.toLowerCase() === 'cookie') return args.cookie || '';
         return '';
-      }
+      },
     },
-    res
+    res,
   );
   return res;
 }
@@ -78,7 +81,7 @@ function buildCandidate(id: string): AutonomousAlphaCandidate {
     integration_path: 'signal_input',
     created_at: new Date().toISOString(),
     source: 'autonomous_discovery',
-    strategy_candidate: null
+    strategy_candidate: null,
   };
 }
 
@@ -105,40 +108,40 @@ function buildSignal(id: string, symbol = 'AAPL'): SignalContract {
     entry_zone: {
       low: 100,
       high: 101,
-      method: 'LIMIT'
+      method: 'LIMIT',
     },
     invalidation_level: 96,
     stop_loss: {
       type: 'ATR',
       price: 96,
-      rationale: 'test stop'
+      rationale: 'test stop',
     },
     take_profit_levels: [
       {
         price: 105,
         size_pct: 0.6,
-        rationale: 'tp1'
-      }
+        rationale: 'tp1',
+      },
     ],
     trailing_rule: {
       type: 'EMA',
-      params: { ema_fast: 10, ema_slow: 30 }
+      params: { ema_fast: 10, ema_slow: 30 },
     },
     position_advice: {
       position_pct: 5,
       leverage_cap: 1,
       risk_bucket_applied: 'BASE',
-      rationale: 'admin api test sizing'
+      rationale: 'admin api test sizing',
     },
     cost_model: {
       fee_bps: 1.2,
       spread_bps: 1.1,
-      slippage_bps: 1.4
+      slippage_bps: 1.4,
     },
     expected_metrics: {
       expected_R: 1.24,
       hit_rate_est: 0.56,
-      sample_size: 18
+      sample_size: 18,
     },
     explain_bullets: ['趋势延续伴随成交量放大。'],
     execution_checklist: ['确认数据新鲜度'],
@@ -153,24 +156,26 @@ function buildSignal(id: string, symbol = 'AAPL'): SignalContract {
       source: 'Finnhub',
       factor_score: 0.62,
       factor_tags: ['earnings', 'momentum'],
-      analysis_provider: 'gemini'
+      analysis_provider: 'gemini',
     },
     payload: {
       kind: 'STOCK_SWING',
       data: {
         horizon: 'MEDIUM',
-        catalysts: ['earnings_revision']
-      }
+        catalysts: ['earnings_revision'],
+      },
     },
     score: 84,
-    payload_version: 'signal-contract.v1'
+    payload_version: 'signal-contract.v1',
   };
 }
 
 function cleanupAdminData(email: string) {
   const db = getDb();
   ensureSchema(db);
-  const row = db.prepare('SELECT user_id FROM auth_users WHERE email = ? LIMIT 1').get(email) as { user_id?: string } | undefined;
+  const row = db.prepare('SELECT user_id FROM auth_users WHERE email = ? LIMIT 1').get(email) as
+    | { user_id?: string }
+    | undefined;
   const userId = row?.user_id || null;
 
   db.prepare("DELETE FROM alpha_shadow_observations WHERE id LIKE 'admin-data-%'").run();
@@ -188,7 +193,9 @@ function cleanupAdminData(email: string) {
   if (userId) {
     db.prepare('DELETE FROM notification_events WHERE user_id = ?').run(userId);
     db.prepare('DELETE FROM user_risk_profiles WHERE user_id = ?').run(userId);
-    db.prepare('DELETE FROM manual_referrals WHERE inviter_user_id = ? OR referred_user_id = ?').run(userId, userId);
+    db.prepare(
+      'DELETE FROM manual_referrals WHERE inviter_user_id = ? OR referred_user_id = ?',
+    ).run(userId, userId);
     db.prepare('DELETE FROM auth_sessions WHERE user_id = ?').run(userId);
     db.prepare('DELETE FROM auth_user_roles WHERE user_id = ?').run(userId);
     db.prepare('DELETE FROM auth_user_state_sync WHERE user_id = ?').run(userId);
@@ -231,16 +238,16 @@ describe('admin data api', () => {
         password: 'StrongPass123',
         name: 'Admin Data Tester',
         tradeMode: 'active',
-        broker: 'Other'
-      }
+        broker: 'Other',
+      },
     });
     expect(signup.statusCode).toBe(200);
 
     const login = await callHandler(handleAdminLogin, {
       body: {
         email,
-        password: 'StrongPass123'
-      }
+        password: 'StrongPass123',
+      },
     });
     expect(login.statusCode).toBe(200);
 
@@ -250,7 +257,9 @@ describe('admin data api', () => {
     const db = getDb();
     ensureSchema(db);
     const repo = new MarketRepository(db);
-    const userRow = db.prepare('SELECT user_id FROM auth_users WHERE email = ? LIMIT 1').get(email) as { user_id: string };
+    const userRow = db
+      .prepare('SELECT user_id FROM auth_users WHERE email = ? LIMIT 1')
+      .get(email) as { user_id: string };
     const userId = userRow.user_id;
     const now = Date.now();
 
@@ -262,7 +271,7 @@ describe('admin data api', () => {
           @user_id, 'US_STOCK', 'US', 'standard', 'balanced', '["AAPL","MSFT"]', '[{"symbol":"AAPL","weight":0.25}]', '[]',
           '{"checkins":[1],"boundary_kept":[1],"weekly_reviews":[1]}', @updated_at_ms
         )
-      `
+      `,
     ).run({ user_id: userId, updated_at_ms: now });
 
     db.prepare(
@@ -272,7 +281,7 @@ describe('admin data api', () => {
         ) VALUES(
           @user_id, 'balanced', 0.02, 0.04, 0.12, 0.8, 1.0, @updated_at_ms
         )
-      `
+      `,
     ).run({ user_id: userId, updated_at_ms: now });
 
     db.prepare(
@@ -284,7 +293,7 @@ describe('admin data api', () => {
           'admin-data-note-1', @user_id, 'US', 'US_STOCK', 'RHYTHM', 'daily_digest', 'admin-data-note-1',
           'Daily digest', 'Latest signal ready', 'neutral', 'ACTIVE', null, '{}', @created_at_ms, @updated_at_ms
         )
-      `
+      `,
     ).run({ user_id: userId, created_at_ms: now - 10_000, updated_at_ms: now - 10_000 });
 
     repo.upsertSignal(buildSignal('admin-data-signal-1'));
@@ -301,7 +310,7 @@ describe('admin data api', () => {
       pnl_pct: 2.4,
       note: 'admin api execution',
       created_at_ms: now - 8_000,
-      updated_at_ms: now - 8_000
+      updated_at_ms: now - 8_000,
     });
 
     repo.upsertWorkflowRun({
@@ -315,12 +324,12 @@ describe('admin data api', () => {
       output_json: JSON.stringify({
         news: { refreshed_symbols: 3, rows_upserted: 9 },
         fundamentals: { rows_upserted: 1, errors: [] },
-        options: { rows_upserted: 1, errors: [] }
+        options: { rows_upserted: 1, errors: [] },
       }),
       attempt_count: 1,
       started_at_ms: now - 12_000,
       updated_at_ms: now - 7_000,
-      completed_at_ms: now - 7_000
+      completed_at_ms: now - 7_000,
     });
 
     repo.upsertWorkflowRun({
@@ -333,12 +342,12 @@ describe('admin data api', () => {
       input_json: '{}',
       output_json: JSON.stringify({
         evaluation_summary: { accepted: 1, rejected: 2 },
-        alpha_registry: { top_candidates: ['admin-data-alpha-1'] }
+        alpha_registry: { top_candidates: ['admin-data-alpha-1'] },
       }),
       attempt_count: 1,
       started_at_ms: now - 6_000,
       updated_at_ms: now - 4_000,
-      completed_at_ms: now - 4_000
+      completed_at_ms: now - 4_000,
     });
 
     repo.upsertNewsItem({
@@ -358,14 +367,14 @@ describe('admin data api', () => {
             factor_tags: ['product_cycle', 'earnings_revision'],
             summary: 'Revenue revision tone remains constructive.',
             sentiment_score: 0.64,
-            event_risk_score: 0.22
+            event_risk_score: 0.22,
           },
           headline: {
-            sentiment_score: 0.69
-          }
-        }
+            sentiment_score: 0.69,
+          },
+        },
       }),
-      updated_at_ms: now - 30_000
+      updated_at_ms: now - 30_000,
     });
 
     repo.upsertFundamentalSnapshot({
@@ -375,9 +384,9 @@ describe('admin data api', () => {
       source: 'FINNHUB',
       asof_date: '2026-03-22',
       payload_json: JSON.stringify({
-        metrics: { peTTM: 28.4 }
+        metrics: { peTTM: 28.4 },
       }),
-      updated_at_ms: now - 25_000
+      updated_at_ms: now - 25_000,
     });
 
     repo.upsertOptionChainSnapshot({
@@ -391,10 +400,10 @@ describe('admin data api', () => {
         summary: {
           contracts_count: 3200,
           total_open_interest: 980000,
-          total_volume: 145000
-        }
+          total_volume: 145000,
+        },
       }),
-      updated_at_ms: now - 20_000
+      updated_at_ms: now - 20_000,
     });
 
     repo.upsertNovaTaskRun({
@@ -414,14 +423,14 @@ describe('admin data api', () => {
       status: 'SUCCEEDED',
       error: null,
       created_at_ms: now - 15_000,
-      updated_at_ms: now - 15_000
+      updated_at_ms: now - 15_000,
     });
 
     const candidate = buildCandidate('admin-data-alpha-1');
     persistAlphaCandidate(repo, {
       candidate,
       status: 'SHADOW',
-      acceptanceScore: 0.86
+      acceptanceScore: 0.86,
     });
 
     repo.insertAlphaEvaluation({
@@ -442,7 +451,7 @@ describe('admin data api', () => {
         cost_sensitivity: {
           plus_25pct_cost: 10.9,
           plus_50pct_cost: 9.6,
-          strict_fill: 8.8
+          strict_fill: 8.8,
         },
         performance_by_subperiod: [],
         performance_by_regime: [],
@@ -453,13 +462,13 @@ describe('admin data api', () => {
         backtest_proxy: {
           gross_return: 15.2,
           net_return: 12.4,
-          note: 'proxy'
+          note: 'proxy',
         },
-        proxy_only: true
+        proxy_only: true,
       }),
       rejection_reasons_json: '[]',
       notes: 'passed',
-      created_at_ms: now - 3_000
+      created_at_ms: now - 3_000,
     });
 
     repo.upsertAlphaShadowObservation({
@@ -477,7 +486,7 @@ describe('admin data api', () => {
       realized_source: 'paper',
       payload_json: '{}',
       created_at_ms: now - 2_000,
-      updated_at_ms: now - 2_000
+      updated_at_ms: now - 2_000,
     });
 
     const overview = await callHandler(handleAdminOverview, { cookie });
@@ -492,13 +501,44 @@ describe('admin data api', () => {
     expect(signals.statusCode).toBe(200);
     expect(system.statusCode).toBe(200);
 
-    expect((overview.body as { data: { headline_metrics: { total_users: number } } }).data.headline_metrics.total_users).toBeGreaterThanOrEqual(1);
-    expect((users.body as { data: { users: Array<{ email: string }> } }).data.users[0]?.email).toBe(email);
-    expect((alphas.body as { data: { inventory: Record<string, number> } }).data.inventory.SHADOW).toBe(1);
-    expect((signals.body as { data: { summary: { active_signals: number } } }).data.summary.active_signals).toBeGreaterThanOrEqual(1);
-    expect((system.body as { data: { data_summary: { option_chain_count: number; fundamentals_count: number } } }).data.data_summary.option_chain_count).toBeGreaterThanOrEqual(1);
-    expect((system.body as { data: { data_summary: { option_chain_count: number; fundamentals_count: number } } }).data.data_summary.fundamentals_count).toBeGreaterThanOrEqual(1);
-    expect((system.body as { data: { throughput_controls: { alpha_discovery: { max_candidates_per_cycle: number } } } }).data.throughput_controls.alpha_discovery.max_candidates_per_cycle).toBeGreaterThan(0);
-    expect((system.body as { data: { throughput_controls: { news_pipeline: { ttl_minutes: number } } } }).data.throughput_controls.news_pipeline.ttl_minutes).toBeGreaterThan(0);
+    expect(
+      (overview.body as { data: { headline_metrics: { total_users: number } } }).data
+        .headline_metrics.total_users,
+    ).toBeGreaterThanOrEqual(1);
+    expect((users.body as { data: { users: Array<{ email: string }> } }).data.users[0]?.email).toBe(
+      email,
+    );
+    expect(
+      (alphas.body as { data: { inventory: Record<string, number> } }).data.inventory.SHADOW,
+    ).toBe(1);
+    expect(
+      (signals.body as { data: { summary: { active_signals: number } } }).data.summary
+        .active_signals,
+    ).toBeGreaterThanOrEqual(1);
+    expect(
+      (
+        system.body as {
+          data: { data_summary: { option_chain_count: number; fundamentals_count: number } };
+        }
+      ).data.data_summary.option_chain_count,
+    ).toBeGreaterThanOrEqual(1);
+    expect(
+      (
+        system.body as {
+          data: { data_summary: { option_chain_count: number; fundamentals_count: number } };
+        }
+      ).data.data_summary.fundamentals_count,
+    ).toBeGreaterThanOrEqual(1);
+    expect(
+      (
+        system.body as {
+          data: { throughput_controls: { alpha_discovery: { max_candidates_per_cycle: number } } };
+        }
+      ).data.throughput_controls.alpha_discovery.max_candidates_per_cycle,
+    ).toBeGreaterThan(0);
+    expect(
+      (system.body as { data: { throughput_controls: { news_pipeline: { ttl_minutes: number } } } })
+        .data.throughput_controls.news_pipeline.ttl_minutes,
+    ).toBeGreaterThan(0);
   });
 });

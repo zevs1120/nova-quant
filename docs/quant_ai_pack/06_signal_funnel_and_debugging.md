@@ -1,10 +1,13 @@
 # Signal Funnel and Debugging Spec
 
 ## Problem
+
 Trade density is too low until proven otherwise.
 
 ## Required funnel counters
+
 For every trading day and strategy family:
+
 1. universe_total
 2. universe_after_liquidity_filter
 3. regime_pass
@@ -17,7 +20,9 @@ For every trading day and strategy family:
 10. round_trip_completed
 
 ## No-trade reason taxonomy
+
 Must log one primary reason and optional secondary reason:
+
 - regime_blocked
 - score_too_low
 - risk_budget_exhausted
@@ -33,7 +38,9 @@ Must log one primary reason and optional secondary reason:
 - manual_kill_switch
 
 ## Shadow opportunity log
+
 Track near-miss opportunities:
+
 - candidate score
 - threshold delta
 - hypothetical lower-size pass?
@@ -41,6 +48,7 @@ Track near-miss opportunities:
 - subsequent 1d/2d/3d return path
 
 ## Required dashboards
+
 - funnel by strategy family
 - funnel by market
 - no-trade Top N

@@ -31,11 +31,13 @@ Main implementation:
 - [`src/server/decision/engine.ts`](../src/server/decision/engine.ts)
 
 Primary API surfaces:
+
 - `POST /api/decision/today`
 - `GET /api/decision/audit`
 - `GET /api/runtime-state` (includes baseline decision object)
 
 Persistence:
+
 - `decision_snapshots`
 
 ## Core Semantics
@@ -43,15 +45,19 @@ Persistence:
 The system now distinguishes:
 
 1. `research signal`
+
 - strategy/model/rules think something is interesting
 
 2. `eligible signal`
+
 - signal is still actionable after transparency and basic gating checks
 
 3. `risk-adjusted decision`
+
 - top-down regime and risk policy may downgrade, defer, or suppress the signal
 
 4. `portfolio-aware action`
+
 - same signal may mean:
   - open new risk
   - add on strength
@@ -62,6 +68,7 @@ The system now distinguishes:
   - no action
 
 5. `user-facing action card`
+
 - compact frontend payload for Today page
 
 ## Risk State
@@ -69,6 +76,7 @@ The system now distinguishes:
 Risk state is a first-class adjudicator, not a label.
 
 Current machine outputs include:
+
 - volatility regime
 - risk-on / risk-off posture
 - trend suitability
@@ -78,6 +86,7 @@ Current machine outputs include:
 - execution-loss pressure
 
 User-facing summary is intentionally simple:
+
 - 今天可进攻
 - 今天适合试探，不适合激进
 - 今天优先防守
@@ -86,6 +95,7 @@ User-facing summary is intentionally simple:
 ## Action Card Contract
 
 Each ranked action card includes:
+
 - `action`
 - `action_label`
 - `portfolio_intent`
@@ -106,6 +116,7 @@ Each ranked action card includes:
 ## Evidence Bundle Contract
 
 Every action card must have an evidence bundle with:
+
 - `thesis`
 - `supporting_factors`
 - `opposing_factors`
@@ -119,6 +130,7 @@ Every action card must have an evidence bundle with:
 - `generated_at`
 
 This same bundle is what the assistant should cite when answering:
+
 - why today is defensive
 - why this card ranks first
 - what changed since yesterday / last snapshot
@@ -130,12 +142,14 @@ This same bundle is what the assistant should cite when answering:
 `POST /api/decision/today` accepts user-context holdings supplied by the frontend.
 
 That means the system can personalize using:
+
 - current positions
 - same-symbol overlap
 - exposure posture
 - sector concentration
 
 But it does **not** claim:
+
 - live broker-linked holdings
 - custodial account synchronization
 - real execution access
@@ -148,6 +162,7 @@ When holdings are absent, the system stays honest and returns a universal decisi
 Decision snapshots are persisted for audit and replay under `decision_snapshots`.
 
 Each stored record captures:
+
 - user / market / asset class
 - snapshot date
 - context hash
@@ -159,6 +174,7 @@ Each stored record captures:
 - top action id
 
 This makes it possible to answer:
+
 - what recommendation the user saw
 - what portfolio context was assumed
 - what risk posture was active
@@ -209,7 +225,7 @@ Example shape:
 ## Known Real Limits
 
 1. Macro calendar / earnings calendar / analyst revision feeds are not yet fully wired into the
-canonical runtime path, so `event_context` is still partially derived.
+   canonical runtime path, so `event_context` is still partially derived.
 2. User context currently comes from local product state, not live custodial account sync.
 3. Backtest / replay / paper / live semantics are more aligned than before, but some secondary
-research modules still use older proxy-style assumptions.
+   research modules still use older proxy-style assumptions.

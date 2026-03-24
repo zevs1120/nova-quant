@@ -6,7 +6,7 @@ export const APP_VERSION_LABEL = `v${APP_VERSION}`;
 export const APP_METADATA = Object.freeze({
   semanticVersion: APP_VERSION,
   buildNumber: APP_BUILD_NUMBER,
-  versionLabel: APP_VERSION_LABEL
+  versionLabel: APP_VERSION_LABEL,
 });
 
 export function getAppVersionDisplay() {

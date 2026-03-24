@@ -54,8 +54,8 @@ describe('nova local stack', () => {
         context: {
           page: 'today',
           market: 'US',
-          assetClass: 'US_STOCK'
-        }
+          assetClass: 'US_STOCK',
+        },
       })
       .buffer(true)
       .parse((res, done) => {
@@ -73,11 +73,13 @@ describe('nova local stack', () => {
 
     const runsRes = await request(app).get('/api/nova/runs').query({
       userId,
-      limit: 20
+      limit: 20,
     });
     expect(runsRes.status).toBe(200);
     expect(runsRes.body.count).toBeGreaterThan(0);
-    const assistantRun = runsRes.body.records.find((row: { task_type?: string }) => row.task_type === 'assistant_grounded_answer');
+    const assistantRun = runsRes.body.records.find(
+      (row: { task_type?: string }) => row.task_type === 'assistant_grounded_answer',
+    );
     expect(assistantRun?.id).toBeTruthy();
 
     const labelRes = await request(app).post('/api/nova/review-label').send({
@@ -85,14 +87,14 @@ describe('nova local stack', () => {
       reviewerId: 'test-reviewer',
       label: 'high_quality',
       score: 0.92,
-      includeInTraining: true
+      includeInTraining: true,
     });
     expect(labelRes.status).toBe(200);
     expect(labelRes.body.run_id).toBe(assistantRun.id);
 
     const exportRes = await request(app).get('/api/nova/training/export').query({
       onlyIncluded: true,
-      limit: 50
+      limit: 50,
     });
     expect(exportRes.status).toBe(200);
     expect(exportRes.body.format).toBe('mlx-lm-chat-jsonl');
@@ -119,7 +121,7 @@ describe('nova local stack', () => {
         userId,
         market: 'US',
         assetClass: 'US_STOCK',
-        holdings: [{ symbol: 'AAPL', asset_class: 'US_STOCK', weight_pct: 10 }]
+        holdings: [{ symbol: 'AAPL', asset_class: 'US_STOCK', weight_pct: 10 }],
       });
 
     expect(decisionRes.status).toBe(200);
@@ -138,8 +140,8 @@ describe('nova local stack', () => {
         context: {
           page: 'today',
           market: 'US',
-          assetClass: 'US_STOCK'
-        }
+          assetClass: 'US_STOCK',
+        },
       })
       .buffer(true)
       .parse((res, done) => {
@@ -153,7 +155,9 @@ describe('nova local stack', () => {
 
     expect(chatRes.status).toBe(200);
     const events = readNdjsonText(chatRes);
-    expect(events.some((row) => row.type === 'meta' && row.provider === 'deterministic')).toBe(true);
+    expect(events.some((row) => row.type === 'meta' && row.provider === 'deterministic')).toBe(
+      true,
+    );
   });
 
   it('generates governed strategies through the API even in fallback mode', async () => {
@@ -162,13 +166,16 @@ describe('nova local stack', () => {
     vi.stubEnv('NOVA_FORCE_LOCAL_GENERATION', '');
 
     const app = createApiApp();
-    const res = await request(app).post('/api/nova/strategy/generate').send({
-      userId: `nova-strategy-${Date.now()}`,
-      prompt: 'Generate a conservative crypto swing strategy with trend bias and clear risk notes',
-      market: 'CRYPTO',
-      riskProfile: 'conservative',
-      maxCandidates: 6
-    });
+    const res = await request(app)
+      .post('/api/nova/strategy/generate')
+      .send({
+        userId: `nova-strategy-${Date.now()}`,
+        prompt:
+          'Generate a conservative crypto swing strategy with trend bias and clear risk notes',
+        market: 'CRYPTO',
+        riskProfile: 'conservative',
+        maxCandidates: 6,
+      });
 
     expect(res.status).toBe(200);
     expect(res.body.workflow_id).toBeTruthy();
@@ -189,7 +196,7 @@ describe('nova local stack', () => {
       .post('/api/chat')
       .send({
         userId,
-        message: 'Explain today risk posture in plain English'
+        message: 'Explain today risk posture in plain English',
       })
       .buffer(true)
       .parse((res, done) => {
@@ -204,9 +211,11 @@ describe('nova local stack', () => {
 
     const runsRes = await request(app).get('/api/nova/runs').query({
       userId,
-      limit: 20
+      limit: 20,
     });
-    const run = runsRes.body.records.find((row: { task_type?: string }) => row.task_type === 'assistant_grounded_answer');
+    const run = runsRes.body.records.find(
+      (row: { task_type?: string }) => row.task_type === 'assistant_grounded_answer',
+    );
     expect(run?.id).toBeTruthy();
 
     const labelRes = await request(app).post('/api/nova/review-label').send({
@@ -214,7 +223,7 @@ describe('nova local stack', () => {
       reviewerId: 'test-reviewer',
       label: 'train',
       score: 0.88,
-      includeInTraining: true
+      includeInTraining: true,
     });
     expect(labelRes.status).toBe(200);
 
@@ -222,7 +231,7 @@ describe('nova local stack', () => {
       userId,
       trainer: 'mlx-lora',
       onlyIncluded: true,
-      limit: 20
+      limit: 20,
     });
     expect(flywheelRes.status).toBe(200);
     expect(flywheelRes.body.workflow_id).toBeTruthy();

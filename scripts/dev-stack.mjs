@@ -28,7 +28,7 @@ function startProcess(args) {
   const child = spawn(npmCommand, args, {
     cwd: process.cwd(),
     env: process.env,
-    stdio: 'inherit'
+    stdio: 'inherit',
   });
 
   children.add(child);

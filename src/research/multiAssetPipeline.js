@@ -24,7 +24,7 @@ import {
   get_source_health,
   get_training_dataset,
   list_available_assets,
-  setMultiAssetTrainingContext
+  setMultiAssetTrainingContext,
 } from '../training/multiAssetTrainingService.js';
 
 function compactAdapterInfo(adapter, raw) {
@@ -36,17 +36,18 @@ function compactAdapterInfo(adapter, raw) {
     primary_source: adapter.primary_source,
     docs: adapter.docs,
     live_path: raw?.live_path || null,
-    metadata: raw?.metadata || null
+    metadata: raw?.metadata || null,
   };
 }
 
 function buildDatasetSnapshot(dataset, quality, sourceSummary) {
   const miss = quality?.missingness_summary || {};
-  const missingnessByAsset = dataset.asset_class === 'equity'
-    ? miss.equity_bars
-    : dataset.asset_class === 'option'
-      ? miss.option_snapshots
-      : miss.crypto_bars;
+  const missingnessByAsset =
+    dataset.asset_class === 'equity'
+      ? miss.equity_bars
+      : dataset.asset_class === 'option'
+        ? miss.option_snapshots
+        : miss.crypto_bars;
 
   const coverage = quality?.coverage_summary?.[dataset.asset_class] || {};
 
@@ -58,7 +59,7 @@ function buildDatasetSnapshot(dataset, quality, sourceSummary) {
     source_summary: sourceSummary,
     coverage_summary: coverage,
     missingness_summary: missingnessByAsset,
-    created_at: dataset.created_at
+    created_at: dataset.created_at,
   };
 }
 
@@ -70,13 +71,16 @@ function buildSourceSummary(adapters) {
         id: adapter.id,
         mode: adapter.mode,
         primary_source: adapter.primary_source,
-        supports_live: adapter.supports_live
-      }
-    ])
+        supports_live: adapter.supports_live,
+      },
+    ]),
   );
 }
 
-export function buildMultiAssetDataTrainingPipeline({ asOf = new Date().toISOString(), sourceConfig = {} } = {}) {
+export function buildMultiAssetDataTrainingPipeline({
+  asOf = new Date().toISOString(),
+  sourceConfig = {},
+} = {}) {
   const equityAdapter = createEquityAdapter(sourceConfig.equity || {});
   const optionsAdapter = createOptionsAdapter(sourceConfig.options || {});
   const cryptoAdapter = createCryptoSpotAdapter(sourceConfig.crypto || {});
@@ -84,19 +88,19 @@ export function buildMultiAssetDataTrainingPipeline({ asOf = new Date().toISOStr
   const raw = {
     equities: equityAdapter.fetchRawSnapshot({ asOf }),
     options: optionsAdapter.fetchRawSnapshot({ asOf }),
-    crypto: cryptoAdapter.fetchRawSnapshot({ asOf })
+    crypto: cryptoAdapter.fetchRawSnapshot({ asOf }),
   };
 
   const normalized = {
     equities: normalizeEquities(raw.equities),
     options: normalizeOptions(raw.options),
-    crypto: normalizeCryptoSpot(raw.crypto)
+    crypto: normalizeCryptoSpot(raw.crypto),
   };
 
   const assetRegistry = [
     ...(normalized.equities.assets || []),
     ...(normalized.options.assets || []),
-    ...(normalized.crypto.assets || [])
+    ...(normalized.crypto.assets || []),
   ];
 
   normalized.asset_registry = assetRegistry;
@@ -104,34 +108,34 @@ export function buildMultiAssetDataTrainingPipeline({ asOf = new Date().toISOStr
   const features = {
     equity: buildEquityFeatures(normalized.equities),
     option: buildOptionFeatures(normalized.options),
-    crypto: buildCryptoFeatures(normalized.crypto)
+    crypto: buildCryptoFeatures(normalized.crypto),
   };
 
   const equityDataset = buildEquityTrainingDataset({
     features: features.equity.rows,
     normalizedBars: normalized.equities.bars,
-    asOf
+    asOf,
   });
   const optionsDataset = buildOptionsTrainingDataset({
     features: features.option.rows,
-    asOf
+    asOf,
   });
   const cryptoDataset = buildCryptoTrainingDataset({
     features: features.crypto.rows,
-    asOf
+    asOf,
   });
 
   const datasets = [equityDataset.dataset, optionsDataset.dataset, cryptoDataset.dataset];
   const datasetRows = {
     [equityDataset.dataset.dataset_id]: equityDataset.rows,
     [optionsDataset.dataset.dataset_id]: optionsDataset.rows,
-    [cryptoDataset.dataset.dataset_id]: cryptoDataset.rows
+    [cryptoDataset.dataset.dataset_id]: cryptoDataset.rows,
   };
 
   const adapters = {
     equity: compactAdapterInfo(equityAdapter, raw.equities),
     options: compactAdapterInfo(optionsAdapter, raw.options),
-    crypto: compactAdapterInfo(cryptoAdapter, raw.crypto)
+    crypto: compactAdapterInfo(cryptoAdapter, raw.crypto),
   };
 
   const qualityReport = buildDataQualityReport({
@@ -139,25 +143,27 @@ export function buildMultiAssetDataTrainingPipeline({ asOf = new Date().toISOStr
     adapters: {
       equity: equityAdapter,
       options: optionsAdapter,
-      crypto: cryptoAdapter
+      crypto: cryptoAdapter,
     },
     normalized,
     features,
-    datasets
+    datasets,
   });
 
   const sourceSummary = buildSourceSummary({
     equity: equityAdapter,
     options: optionsAdapter,
-    crypto: cryptoAdapter
+    crypto: cryptoAdapter,
   });
 
-  const datasetSnapshots = datasets.map((dataset) => buildDatasetSnapshot(dataset, qualityReport, sourceSummary));
+  const datasetSnapshots = datasets.map((dataset) =>
+    buildDatasetSnapshot(dataset, qualityReport, sourceSummary),
+  );
 
   const featureManifests = {
     equity: features.equity.feature_manifest,
     option: features.option.feature_manifest,
-    crypto: features.crypto.feature_manifest
+    crypto: features.crypto.feature_manifest,
   };
 
   const governance = buildDatasetGovernance({
@@ -166,7 +172,7 @@ export function buildMultiAssetDataTrainingPipeline({ asOf = new Date().toISOStr
     datasetRows,
     featureManifests,
     sourceSummary,
-    qualityReport
+    qualityReport,
   });
 
   setMultiAssetTrainingContext({
@@ -180,20 +186,20 @@ export function buildMultiAssetDataTrainingPipeline({ asOf = new Date().toISOStr
     datasetQualitySnapshots: governance.snapshots,
     assetRegistry,
     sourceHealth: qualityReport.source_health_summary,
-    latestDataStatus: qualityReport.latest_data_status
+    latestDataStatus: qualityReport.latest_data_status,
   });
 
   const apiPreview = {
     datasets: {
       equity_train: get_training_dataset('equity', 'equity_core_v1', 'train')?.rows?.length || 0,
       option_train: get_training_dataset('option', 'options_chain_v1', 'train')?.rows?.length || 0,
-      crypto_train: get_training_dataset('crypto', 'crypto_spot_v1', 'train')?.rows?.length || 0
+      crypto_train: get_training_dataset('crypto', 'crypto_spot_v1', 'train')?.rows?.length || 0,
     },
     assets: {
       equity: list_available_assets('equity').length,
       option: list_available_assets('option').length,
-      crypto: list_available_assets('crypto').length
-    }
+      crypto: list_available_assets('crypto').length,
+    },
   };
 
   return {
@@ -204,39 +210,39 @@ export function buildMultiAssetDataTrainingPipeline({ asOf = new Date().toISOStr
       notes: [
         'US equities: Polygon/Stooq path + local deterministic fallback.',
         'US options: Polygon options path + sample chain fallback.',
-        'Crypto spot: Coinbase public path + sample fallback.'
-      ]
+        'Crypto spot: Coinbase public path + sample fallback.',
+      ],
     },
     adapters,
     raw: {
       equities: {
         metadata: raw.equities.metadata,
         bars_count: raw.equities.bars.length,
-        asset_count: raw.equities.assets.length
+        asset_count: raw.equities.assets.length,
       },
       options: {
         metadata: raw.options.metadata,
         contracts_count: raw.options.contracts.length,
         snapshots_count: raw.options.snapshots.length,
-        chains_count: raw.options.chains.length
+        chains_count: raw.options.chains.length,
       },
       crypto: {
         metadata: raw.crypto.metadata,
         products_count: raw.crypto.products.length,
-        bars_count: raw.crypto.bars.length
-      }
+        bars_count: raw.crypto.bars.length,
+      },
     },
     normalized: {
       asset_registry: assetRegistry,
       equities: normalized.equities,
       options: normalized.options,
-      crypto: normalized.crypto
+      crypto: normalized.crypto,
     },
     derived: {
       features,
       datasets,
       dataset_rows: datasetRows,
-      dataset_snapshots: datasetSnapshots
+      dataset_snapshots: datasetSnapshots,
     },
     quality_report: qualityReport,
     source_health: get_source_health(),
@@ -244,21 +250,21 @@ export function buildMultiAssetDataTrainingPipeline({ asOf = new Date().toISOStr
     feature_manifests: {
       equity: get_feature_manifest('equity'),
       option: get_feature_manifest('option'),
-      crypto: get_feature_manifest('crypto')
+      crypto: get_feature_manifest('crypto'),
     },
     dataset_governance: {
       registry: get_dataset_registry(),
       feature_manifests_detailed: {
         equity: get_feature_manifest_detailed('equity'),
         option: get_feature_manifest_detailed('option'),
-        crypto: get_feature_manifest_detailed('crypto')
+        crypto: get_feature_manifest_detailed('crypto'),
       },
       label_manifests: {
         equity: get_label_manifest('equity'),
         option: get_label_manifest('option'),
-        crypto: get_label_manifest('crypto')
+        crypto: get_label_manifest('crypto'),
       },
-      snapshots: get_dataset_quality_snapshot()
+      snapshots: get_dataset_quality_snapshot(),
     },
     api_preview: {
       interface_contracts: [
@@ -271,19 +277,19 @@ export function buildMultiAssetDataTrainingPipeline({ asOf = new Date().toISOStr
         'get_dataset_registry(asset_class)',
         'get_dataset_quality_snapshot(asset_class)',
         'get_source_health()',
-        'get_latest_data_status()'
+        'get_latest_data_status()',
       ],
       sample_results: apiPreview,
-      snapshots_available: get_dataset_snapshot().length
+      snapshots_available: get_dataset_snapshot().length,
     },
     transparency: {
       real_vs_sample: {
         equity: transparencyFromSourceMode(adapters.equity.mode, adapters.equity.supports_live),
         option: transparencyFromSourceMode(adapters.options.mode, adapters.options.supports_live),
-        crypto: transparencyFromSourceMode(adapters.crypto.mode, adapters.crypto.supports_live)
+        crypto: transparencyFromSourceMode(adapters.crypto.mode, adapters.crypto.supports_live),
       },
       labels: DATA_TRANSPARENCY,
-      notes: 'This build keeps boundaries explicit. Live performance is not fabricated.'
-    }
+      notes: 'This build keeps boundaries explicit. Live performance is not fabricated.',
+    },
   };
 }

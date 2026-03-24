@@ -29,7 +29,7 @@ export default function AdminApp() {
 
   const activeItem = useMemo(
     () => ADMIN_NAVIGATION.find((item) => item.id === active) || ADMIN_NAVIGATION[0],
-    [active]
+    [active],
   );
 
   useEffect(() => {
@@ -82,9 +82,11 @@ export default function AdminApp() {
             setAuthError(
               code === 'INVALID_CREDENTIALS'
                 ? '邮箱或密码错误。'
-                : code === 'AUTH_STORE_NOT_CONFIGURED' || code === 'AUTH_STORE_UNREACHABLE' || code === 'AUTH_SERVICE_ERROR'
+                : code === 'AUTH_STORE_NOT_CONFIGURED' ||
+                    code === 'AUTH_STORE_UNREACHABLE' ||
+                    code === 'AUTH_SERVICE_ERROR'
                   ? '管理员登录服务当前未连上认证存储。'
-                  : '当前账号没有管理员权限。'
+                  : '当前账号没有管理员权限。',
             );
           } finally {
             setAuthLoading(false);

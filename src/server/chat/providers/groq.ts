@@ -23,15 +23,15 @@ export class GroqProvider implements ProviderAdapter {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         model: DEFAULT_MODEL,
         messages: req.messages,
         temperature: req.temperature ?? 0.25,
         max_tokens: req.maxTokens ?? 700,
-        stream: true
-      })
+        stream: true,
+      }),
     });
 
     if (response.status === 429) {

@@ -71,12 +71,34 @@ type CandidateCard = {
   evidence_bundle: Record<string, unknown>;
 };
 
-const PUBLIC_STOCK_UNIVERSE = ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'SPY', 'QQQ', 'AMZN', 'META', 'NFLX', 'COIN', 'PLTR', 'MSTR'];
-const PUBLIC_CRYPTO_UNIVERSE = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XRPUSDT', 'DOGEUSDT', 'ADAUSDT', 'AVAXUSDT', 'LINKUSDT'];
+const PUBLIC_STOCK_UNIVERSE = [
+  'AAPL',
+  'MSFT',
+  'NVDA',
+  'TSLA',
+  'SPY',
+  'QQQ',
+  'AMZN',
+  'META',
+  'NFLX',
+  'COIN',
+  'PLTR',
+  'MSTR',
+];
+const PUBLIC_CRYPTO_UNIVERSE = [
+  'BTCUSDT',
+  'ETHUSDT',
+  'SOLUSDT',
+  'XRPUSDT',
+  'DOGEUSDT',
+  'ADAUSDT',
+  'AVAXUSDT',
+  'LINKUSDT',
+];
 const PUBLIC_MARKET_PROXIES = [
   { symbol: 'SPY', market: 'US' as const },
   { symbol: 'QQQ', market: 'US' as const },
-  { symbol: 'BTCUSDT', market: 'CRYPTO' as const }
+  { symbol: 'BTCUSDT', market: 'CRYPTO' as const },
 ];
 
 function average(values: number[]) {
@@ -93,10 +115,20 @@ function meanOfLast(values: number[], count: number) {
   return slice.length ? average(slice) : 0;
 }
 
-function buildStats(symbol: string, market: Market, rows: Array<{ close: number | null; high: number | null; low: number | null; ts_open: number }>): ScanStats | null {
-  const closes = rows.map((row) => row.close).filter((value): value is number => Number.isFinite(value));
-  const highs = rows.map((row) => row.high).filter((value): value is number => Number.isFinite(value));
-  const lows = rows.map((row) => row.low).filter((value): value is number => Number.isFinite(value));
+function buildStats(
+  symbol: string,
+  market: Market,
+  rows: Array<{ close: number | null; high: number | null; low: number | null; ts_open: number }>,
+): ScanStats | null {
+  const closes = rows
+    .map((row) => row.close)
+    .filter((value): value is number => Number.isFinite(value));
+  const highs = rows
+    .map((row) => row.high)
+    .filter((value): value is number => Number.isFinite(value));
+  const lows = rows
+    .map((row) => row.low)
+    .filter((value): value is number => Number.isFinite(value));
   if (closes.length < 55 || highs.length < 20 || lows.length < 20) return null;
   const latest = closes[closes.length - 1];
   const previous = closes[closes.length - 2];
@@ -116,7 +148,7 @@ function buildStats(symbol: string, market: Market, rows: Array<{ close: number 
       const low = row.low ?? row.close ?? 0;
       const close = row.close ?? 1;
       return close ? (high - low) / close : 0;
-    })
+    }),
   );
   return {
     symbol,
@@ -135,7 +167,7 @@ function buildStats(symbol: string, market: Market, rows: Array<{ close: number 
     high20,
     low20,
     rangePct14,
-    asOf: new Date(rows[rows.length - 1].ts_open).toISOString()
+    asOf: new Date(rows[rows.length - 1].ts_open).toISOString(),
   };
 }
 
@@ -145,9 +177,23 @@ function marketPostureFromProxies(stats: ScanStats[]) {
   const breadthScore = usable.reduce((sum, row) => sum + (row.latest > row.ma20 ? 1 : -1), 0);
   const vol = average(usable.map((row) => row.rangePct14));
   const composite = trendScore + breadthScore - (vol > 0.06 ? 2 : vol > 0.04 ? 1 : 0);
-  if (composite >= 3) return { posture: 'ATTACK', bucket: 'NORMAL' as const, note: 'Broad trend and volatility backdrop support selective risk.' };
-  if (composite >= 0) return { posture: 'PROBE', bucket: 'CAUTION' as const, note: 'Backdrop is mixed. New risk should stay selective and sized down.' };
-  return { posture: 'DEFEND', bucket: 'DERISK' as const, note: 'Trend breadth is weak or volatility is elevated. Favor defense.' };
+  if (composite >= 3)
+    return {
+      posture: 'ATTACK',
+      bucket: 'NORMAL' as const,
+      note: 'Broad trend and volatility backdrop support selective risk.',
+    };
+  if (composite >= 0)
+    return {
+      posture: 'PROBE',
+      bucket: 'CAUTION' as const,
+      note: 'Backdrop is mixed. New risk should stay selective and sized down.',
+    };
+  return {
+    posture: 'DEFEND',
+    bucket: 'DERISK' as const,
+    note: 'Trend breadth is weak or volatility is elevated. Favor defense.',
+  };
 }
 
 function confidenceLabel(value: number): 'High' | 'Medium' | 'Low' {
@@ -167,8 +213,14 @@ function makeCard(args: {
   caution: string;
 }) {
   const latest = args.stats.latest;
-  const stopBase = args.direction === 'LONG' ? latest * (1 - Math.max(0.025, args.stats.rangePct14 * 1.4)) : latest * (1 + Math.max(0.025, args.stats.rangePct14 * 1.4));
-  const targetBase = args.direction === 'LONG' ? latest * (1 + Math.max(0.04, args.stats.rangePct14 * 2.4)) : latest * (1 - Math.max(0.04, args.stats.rangePct14 * 2.4));
+  const stopBase =
+    args.direction === 'LONG'
+      ? latest * (1 - Math.max(0.025, args.stats.rangePct14 * 1.4))
+      : latest * (1 + Math.max(0.025, args.stats.rangePct14 * 1.4));
+  const targetBase =
+    args.direction === 'LONG'
+      ? latest * (1 + Math.max(0.04, args.stats.rangePct14 * 2.4))
+      : latest * (1 - Math.max(0.04, args.stats.rangePct14 * 2.4));
   const bucket =
     args.posture.posture === 'ATTACK'
       ? 'NORMAL'
@@ -179,12 +231,16 @@ function makeCard(args: {
         : args.direction === 'SHORT' && args.confidence >= 0.68
           ? 'CAUTION'
           : 'BLOCKED';
-  const sizeMultiplier = bucket === 'NORMAL' ? 1 : bucket === 'CAUTION' ? 0.72 : bucket === 'DERISK' ? 0.45 : 0;
+  const sizeMultiplier =
+    bucket === 'NORMAL' ? 1 : bucket === 'CAUTION' ? 0.72 : bucket === 'DERISK' ? 0.45 : 0;
   const eligible = bucket !== 'BLOCKED' && args.confidence >= 0.6;
   const positionPct = Number((12 * sizeMultiplier).toFixed(2));
   const publicationStatus = eligible ? 'ACTIONABLE' : 'WATCH';
-  const publicationReason =
-    eligible ? null : bucket === 'BLOCKED' ? 'Risk bucket blocked fresh exposure in the current market posture.' : 'Setup stays on watch until confidence or market posture improves.';
+  const publicationReason = eligible
+    ? null
+    : bucket === 'BLOCKED'
+      ? 'Risk bucket blocked fresh exposure in the current market posture.'
+      : 'Setup stays on watch until confidence or market posture improves.';
   const action = eligible ? 'open_new_risk' : 'watch_only';
   const score = Number((args.confidence * 100 + (eligible ? 8 : -4)).toFixed(2));
   const signalId = `${args.stats.symbol}-${args.strategy}-${args.direction}-${args.stats.asOf}`;
@@ -216,16 +272,16 @@ function makeCard(args: {
       risk_budget_remaining: 100,
       block_reason: publicationReason,
       reasons: publicationReason ? [publicationReason] : [args.posture.note],
-      overlays: [bucket.toLowerCase()]
+      overlays: [bucket.toLowerCase()],
     },
     evidence_lineage: {
       display_mode: 'LIVE_PUBLIC_SCAN',
       performance_mode: 'UNAVAILABLE',
-      validation_mode: 'PUBLIC_MARKET_DATA'
+      validation_mode: 'PUBLIC_MARKET_DATA',
     },
     entry_zone: {
       low: Number((latest * (args.direction === 'LONG' ? 0.995 : 1.0)).toFixed(2)),
-      high: Number((latest * (args.direction === 'LONG' ? 1.01 : 1.005)).toFixed(2))
+      high: Number((latest * (args.direction === 'LONG' ? 1.01 : 1.005)).toFixed(2)),
     },
     stop_loss: { price: Number(stopBase.toFixed(2)) },
     take_profit: { price: Number(targetBase.toFixed(2)) },
@@ -250,7 +306,7 @@ function makeCard(args: {
       regime_id: args.posture.posture,
       entry_zone: {
         low: Number((latest * (args.direction === 'LONG' ? 0.995 : 1.0)).toFixed(2)),
-        high: Number((latest * (args.direction === 'LONG' ? 1.01 : 1.005)).toFixed(2))
+        high: Number((latest * (args.direction === 'LONG' ? 1.01 : 1.005)).toFixed(2)),
       },
       stop_loss: { price: Number(stopBase.toFixed(2)) },
       invalidation_level: Number(stopBase.toFixed(2)),
@@ -263,30 +319,33 @@ function makeCard(args: {
       status: eligible ? 'NEW' : 'WITHHELD',
       source_status: 'MODEL_DERIVED',
       data_status: 'MODEL_DERIVED',
-      source_label: 'MODEL_DERIVED'
+      source_label: 'MODEL_DERIVED',
     },
     evidence_bundle: {
       thesis: args.why,
       supporting_factors: [
         `${args.strategy} from live public market scan`,
         `20D return ${(args.stats.ret20d * 100).toFixed(1)}%`,
-        `Price vs 20D average ${(args.stats.latest / args.stats.ma20 - 1) * 100 >= 0 ? '+' : ''}${((args.stats.latest / args.stats.ma20 - 1) * 100).toFixed(1)}%`
+        `Price vs 20D average ${(args.stats.latest / args.stats.ma20 - 1) * 100 >= 0 ? '+' : ''}${((args.stats.latest / args.stats.ma20 - 1) * 100).toFixed(1)}%`,
       ],
       opposing_factors: [args.caution],
       regime_context: {
         posture: args.posture.posture,
-        risk_bucket: bucket
+        risk_bucket: bucket,
       },
       data_quality: {
         source_status: 'MODEL_DERIVED',
-        data_status: 'MODEL_DERIVED'
+        data_status: 'MODEL_DERIVED',
       },
-      generated_at: args.stats.asOf
-    }
+      generated_at: args.stats.asOf,
+    },
   } satisfies CandidateCard;
 }
 
-function scanSymbol(stats: ScanStats, posture: ReturnType<typeof marketPostureFromProxies>): CandidateCard[] {
+function scanSymbol(
+  stats: ScanStats,
+  posture: ReturnType<typeof marketPostureFromProxies>,
+): CandidateCard[] {
   const candidates: CandidateCard[] = [];
   const bullish = stats.latest > stats.ma20 && stats.ma20 > stats.ma50;
   const bearish = stats.latest < stats.ma20 && stats.ma20 < stats.ma50;
@@ -295,7 +354,11 @@ function scanSymbol(stats: ScanStats, posture: ReturnType<typeof marketPostureFr
   const nearLow = stats.latest <= stats.low20 * 1.03;
 
   if (bullish && nearPullback && stats.ret20d > 0.03) {
-    const confidence = clamp(0.58 + stats.ret20d * 1.7 + Math.max(0, -stats.ret5d) * 0.45, 0.56, 0.83);
+    const confidence = clamp(
+      0.58 + stats.ret20d * 1.7 + Math.max(0, -stats.ret5d) * 0.45,
+      0.56,
+      0.83,
+    );
     candidates.push(
       makeCard({
         stats,
@@ -305,8 +368,8 @@ function scanSymbol(stats: ScanStats, posture: ReturnType<typeof marketPostureFr
         confidence,
         posture,
         why: `${stats.symbol} is still above its 20D and 50D trend stack while pulling back into support.`,
-        caution: 'Only act while the pullback stays orderly and above the medium-term trend.'
-      })
+        caution: 'Only act while the pullback stays orderly and above the medium-term trend.',
+      }),
     );
   }
 
@@ -321,13 +384,17 @@ function scanSymbol(stats: ScanStats, posture: ReturnType<typeof marketPostureFr
         confidence,
         posture,
         why: `${stats.symbol} is pressing its 20-day highs with trend alignment still intact.`,
-        caution: 'Do not chase extended candles; entries work better near the breakout shelf.'
-      })
+        caution: 'Do not chase extended candles; entries work better near the breakout shelf.',
+      }),
     );
   }
 
   if (nearLow && stats.ret5d < -0.03 && stats.latest >= stats.ma50 * 0.95) {
-    const confidence = clamp(0.54 + Math.abs(stats.ret5d) * 1.25 + Math.max(0, stats.latest / stats.low20 - 1) * 0.6, 0.52, 0.74);
+    const confidence = clamp(
+      0.54 + Math.abs(stats.ret5d) * 1.25 + Math.max(0, stats.latest / stats.low20 - 1) * 0.6,
+      0.52,
+      0.74,
+    );
     candidates.push(
       makeCard({
         stats,
@@ -337,13 +404,17 @@ function scanSymbol(stats: ScanStats, posture: ReturnType<typeof marketPostureFr
         confidence,
         posture,
         why: `${stats.symbol} is stretched near its short-term range floor and can mean-revert if pressure fades.`,
-        caution: 'This setup is invalid if downside momentum accelerates instead of stabilizing.'
-      })
+        caution: 'This setup is invalid if downside momentum accelerates instead of stabilizing.',
+      }),
     );
   }
 
   if (bearish && stats.ret20d < -0.03 && stats.ret5d < -0.015) {
-    const confidence = clamp(0.58 + Math.abs(stats.ret20d) * 1.4 + Math.abs(stats.ret5d) * 0.6, 0.56, 0.84);
+    const confidence = clamp(
+      0.58 + Math.abs(stats.ret20d) * 1.4 + Math.abs(stats.ret5d) * 0.6,
+      0.56,
+      0.84,
+    );
     candidates.push(
       makeCard({
         stats,
@@ -353,14 +424,18 @@ function scanSymbol(stats: ScanStats, posture: ReturnType<typeof marketPostureFr
         confidence,
         posture,
         why: `${stats.symbol} is below both medium-term trend anchors with downside momentum still leading.`,
-        caution: 'Respect squeezes quickly if price reclaims the 20-day trend line.'
-      })
+        caution: 'Respect squeezes quickly if price reclaims the 20-day trend line.',
+      }),
     );
   }
 
   const prev = stats.closes[stats.closes.length - 2];
   if (prev <= stats.ma20 && stats.latest > stats.ma20 && stats.ma20 >= stats.ma50 * 0.98) {
-    const confidence = clamp(0.56 + Math.max(0, stats.ret1d) * 1.2 + Math.max(0, stats.ret5d) * 0.5, 0.54, 0.76);
+    const confidence = clamp(
+      0.56 + Math.max(0, stats.ret1d) * 1.2 + Math.max(0, stats.ret5d) * 0.5,
+      0.54,
+      0.76,
+    );
     candidates.push(
       makeCard({
         stats,
@@ -370,8 +445,9 @@ function scanSymbol(stats: ScanStats, posture: ReturnType<typeof marketPostureFr
         confidence,
         posture,
         why: `${stats.symbol} just reclaimed its 20-day trend line after a reset, which can kick off a fresh leg.`,
-        caution: 'The reclaim only matters if the market keeps following through over the next few bars.'
-      })
+        caution:
+          'The reclaim only matters if the market keeps following through over the next few bars.',
+      }),
     );
   }
 
@@ -383,7 +459,7 @@ async function loadStats(symbol: string, market: Market): Promise<ScanStats | nu
     market,
     symbol,
     timeframe: '1d',
-    limit: 120
+    limit: 120,
   });
   if (!history.rows.length) return null;
   const chart = await getPublicBrowseAssetChart({ market, symbol }).catch(() => null);
@@ -393,7 +469,7 @@ async function loadStats(symbol: string, market: Market): Promise<ScanStats | nu
       ...rows[rows.length - 1],
       close: chart.latest,
       high: Math.max(rows[rows.length - 1].high ?? chart.latest, chart.latest),
-      low: Math.min(rows[rows.length - 1].low ?? chart.latest, chart.latest)
+      low: Math.min(rows[rows.length - 1].low ?? chart.latest, chart.latest),
     };
   }
   return buildStats(symbol, market, rows);
@@ -414,9 +490,9 @@ export async function getPublicTodayDecision(args: {
   ).filter((row): row is ScanStats => row !== null);
   const posture = marketPostureFromProxies(proxyStats);
 
-  const statsRows = (
-    await Promise.all(universe.map((symbol) => loadStats(symbol, market)))
-  ).filter((row): row is ScanStats => row !== null);
+  const statsRows = (await Promise.all(universe.map((symbol) => loadStats(symbol, market)))).filter(
+    (row): row is ScanStats => row !== null,
+  );
 
   const ranked = statsRows
     .flatMap((stats) => scanSymbol(stats, posture))
@@ -433,13 +509,15 @@ export async function getPublicTodayDecision(args: {
   const todayCall = top
     ? {
         code: top.eligible ? 'TRADE' : 'WAIT',
-        headline: top.eligible ? 'Fresh signals are live.' : 'Signals are live, but stay selective.',
-        subtitle: top.eligible ? top.brief_why_now : top.publication_reason || top.brief_caution
+        headline: top.eligible
+          ? 'Fresh signals are live.'
+          : 'Signals are live, but stay selective.',
+        subtitle: top.eligible ? top.brief_why_now : top.publication_reason || top.brief_caution,
       }
     : {
         code: 'WAIT',
         headline: 'No live setups right now.',
-        subtitle: 'The live public scan did not find a setup worth publishing at this moment.'
+        subtitle: 'The live public scan did not find a setup worth publishing at this moment.',
       };
 
   return {
@@ -454,8 +532,8 @@ export async function getPublicTodayDecision(args: {
       summary: todayCall.headline,
       user_message: posture.note,
       machine: {
-        risk_bucket: posture.bucket
-      }
+        risk_bucket: posture.bucket,
+      },
     },
     ranked_action_cards: ranked,
     top_action_id: top?.action_id || null,
@@ -467,14 +545,14 @@ export async function getPublicTodayDecision(args: {
       top_action_symbol: top?.symbol || null,
       top_action_label: top?.action_label || null,
       source_status: 'MODEL_DERIVED',
-      data_status: 'MODEL_DERIVED'
+      data_status: 'MODEL_DERIVED',
     },
     audit: {
       candidate_count: ranked.length,
       actionable_count: ranked.filter((row) => row.eligible).length,
       strategy_backed_count: ranked.length,
       publishable_count: ranked.filter((row) => row.publication_status === 'ACTIONABLE').length,
-      created_for_user: args.userId || 'guest-default'
-    }
+      created_for_user: args.userId || 'guest-default',
+    },
   };
 }

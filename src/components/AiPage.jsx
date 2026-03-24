@@ -7,42 +7,56 @@ import { parseAssistantSectionHeading } from '../utils/assistantLanguage';
 const COPILOT_SECTIONS = ['VERDICT', 'PLAN', 'WHY', 'RISK', 'EVIDENCE'];
 
 function buildAiCopy(locale = 'en-US') {
-  const lang = String(locale || '').toLowerCase().startsWith('zh') ? 'zh' : 'en';
+  const lang = String(locale || '')
+    .toLowerCase()
+    .startsWith('zh')
+    ? 'zh'
+    : 'en';
   return {
     quickQuestions:
       lang === 'zh'
         ? ['我今天该怎么做？', '现在适合出手吗？', '为什么我们还在等？', '我现在应该进场吗？']
-        : ['What should I do today?', 'Is it safe to try anything?', 'Why are we waiting?', 'Should I enter now?'],
+        : [
+            'What should I do today?',
+            'Is it safe to try anything?',
+            'Why are we waiting?',
+            'Should I enter now?',
+          ],
     nextStep: {
       holdings: lang === 'zh' ? '打开持仓' : 'Open Holdings',
       weekly: lang === 'zh' ? '打开周复盘' : 'Open Weekly Review',
       safety: lang === 'zh' ? '打开安全页' : 'Open Safety',
-      today: lang === 'zh' ? '打开今日' : 'Open Today'
+      today: lang === 'zh' ? '打开今日' : 'Open Today',
     },
     fallback: {
       showLess: lang === 'zh' ? '收起' : 'Show less',
       showMore: lang === 'zh' ? '展开' : 'Show more',
       hideDetail: lang === 'zh' ? '收起细节' : 'Hide detail',
-      showDetail: lang === 'zh' ? '展开细节' : 'Show detail'
+      showDetail: lang === 'zh' ? '展开细节' : 'Show detail',
     },
     sections: {
       verdict: lang === 'zh' ? '今日判断' : 'Today’s call',
       plan: lang === 'zh' ? '该怎么做' : 'What to do',
       why: lang === 'zh' ? '为什么' : 'Why',
       risk: lang === 'zh' ? '风险' : 'Risk',
-      evidence: lang === 'zh' ? '证据' : 'Source'
+      evidence: lang === 'zh' ? '证据' : 'Source',
     },
     composerPlaceholder: lang === 'zh' ? '直接用自然语言问我' : 'Ask in plain words',
     emptyBadge: 'Nova',
     emptyHeading: lang === 'zh' ? '问我，今天到底意味着什么。' : 'Ask what today means.',
     emptySubheading:
-      lang === 'zh' ? '短问题就可以。我们会先告诉你判断，再告诉你原因。' : 'Short questions work best. We will give you the call first, then the reason.',
+      lang === 'zh'
+        ? '短问题就可以。我们会先告诉你判断，再告诉你原因。'
+        : 'Short questions work best. We will give you the call first, then the reason.',
     autoQuestion: lang === 'zh' ? '我今天该怎么做？' : 'What should I do today?',
     aiError: {
       failed: lang === 'zh' ? '生成回答失败' : 'Failed to generate response',
-      preparing: lang === 'zh' ? '我在准备回答时遇到了一点问题。' : 'I hit a problem while preparing an answer.'
+      preparing:
+        lang === 'zh'
+          ? '我在准备回答时遇到了一点问题。'
+          : 'I hit a problem while preparing an answer.',
     },
-    locale: lang
+    locale: lang,
   };
 }
 
@@ -67,7 +81,9 @@ function parseStructuredReply(raw) {
     }
   }
 
-  const normalized = Object.fromEntries(COPILOT_SECTIONS.map((key) => [key, String(sections[key] || '').trim()]));
+  const normalized = Object.fromEntries(
+    COPILOT_SECTIONS.map((key) => [key, String(sections[key] || '').trim()]),
+  );
   return Object.values(normalized).some(Boolean) ? normalized : null;
 }
 
@@ -154,12 +170,20 @@ function AssistantMessage({ message, onNavigate, copy }) {
               </p>
             ))}
             {showToggle ? (
-              <button type="button" className="ai-inline-toggle" onClick={() => setExpanded((value) => !value)}>
+              <button
+                type="button"
+                className="ai-inline-toggle"
+                onClick={() => setExpanded((value) => !value)}
+              >
                 {expanded ? copy.fallback.showLess : copy.fallback.showMore}
               </button>
             ) : null}
             <div className="ai-assistant-footer">
-              <button type="button" className="ai-inline-link" onClick={() => onNavigate?.(nextStep.target)}>
+              <button
+                type="button"
+                className="ai-inline-link"
+                onClick={() => onNavigate?.(nextStep.target)}
+              >
                 {nextStep.label}
               </button>
             </div>
@@ -197,7 +221,11 @@ function AssistantMessage({ message, onNavigate, copy }) {
           <AssistantResponseSection title={copy.sections.risk} lines={riskLines} />
 
           {hasExtraContent ? (
-            <button type="button" className="ai-inline-toggle" onClick={() => setExpanded((value) => !value)}>
+            <button
+              type="button"
+              className="ai-inline-toggle"
+              onClick={() => setExpanded((value) => !value)}
+            >
               {expanded ? copy.fallback.hideDetail : copy.fallback.showDetail}
             </button>
           ) : null}
@@ -214,7 +242,11 @@ function AssistantMessage({ message, onNavigate, copy }) {
           ) : null}
 
           <div className="ai-assistant-footer">
-            <button type="button" className="ai-inline-link" onClick={() => onNavigate?.(nextStep.target)}>
+            <button
+              type="button"
+              className="ai-inline-link"
+              onClick={() => onNavigate?.(nextStep.target)}
+            >
               {nextStep.label}
             </button>
           </div>
@@ -297,7 +329,16 @@ function Composer({ input, setInput, streaming, sendMessage, hasMessages, copy }
   );
 }
 
-function AiConversationShell({ messages, input, setInput, streaming, error, sendMessage, onNavigate, locale }) {
+function AiConversationShell({
+  messages,
+  input,
+  setInput,
+  streaming,
+  error,
+  sendMessage,
+  onNavigate,
+  locale,
+}) {
   const listRef = useRef(null);
   const endRef = useRef(null);
   const hasMessages = messages.length > 0;
@@ -332,10 +373,15 @@ function AiConversationShell({ messages, input, setInput, streaming, error, send
           <div className="ai-thread-stack">
             {messages.map((item) =>
               item.role === 'assistant' ? (
-                <AssistantMessage key={item.id} message={item} onNavigate={onNavigate} copy={copy} />
+                <AssistantMessage
+                  key={item.id}
+                  message={item}
+                  onNavigate={onNavigate}
+                  copy={copy}
+                />
               ) : (
                 <UserMessage key={item.id} content={item.content} />
-              )
+              ),
             )}
             <div ref={endRef} className="ai-thread-end" aria-hidden="true" />
           </div>
@@ -373,8 +419,8 @@ function LiveAiConversation({ seedRequest, onNavigate, userId, baseContext, loca
       riskProfileKey: baseContext?.riskProfileKey,
       uiMode: baseContext?.uiMode,
       decisionSummary: baseContext?.decisionSummary,
-      holdingsSummary: baseContext?.holdingsSummary
-    }
+      holdingsSummary: baseContext?.holdingsSummary,
+    },
   });
 
   return <AiConversationShell {...assistant} onNavigate={onNavigate} locale={locale} />;
@@ -395,8 +441,8 @@ function DemoAiConversation({ quantState, seedRequest, onNavigate, userId, baseC
       riskProfileKey: baseContext?.riskProfileKey,
       uiMode: baseContext?.uiMode,
       decisionSummary: baseContext?.decisionSummary,
-      holdingsSummary: baseContext?.holdingsSummary
-    }
+      holdingsSummary: baseContext?.holdingsSummary,
+    },
   });
   const { messages, sendMessage } = assistant;
 
@@ -406,14 +452,28 @@ function DemoAiConversation({ quantState, seedRequest, onNavigate, userId, baseC
     void sendMessage(copy.autoQuestion, {
       page: 'today',
       market: baseContext?.market,
-      assetClass: baseContext?.assetClass
+      assetClass: baseContext?.assetClass,
     });
-  }, [seedRequest?.message, messages.length, sendMessage, baseContext?.market, baseContext?.assetClass, copy.autoQuestion]);
+  }, [
+    seedRequest?.message,
+    messages.length,
+    sendMessage,
+    baseContext?.market,
+    baseContext?.assetClass,
+    copy.autoQuestion,
+  ]);
 
   return <AiConversationShell {...assistant} onNavigate={onNavigate} locale={locale} />;
 }
 
-export default function AiPage({ quantState, seedRequest, onNavigate, userId, baseContext, locale }) {
+export default function AiPage({
+  quantState,
+  seedRequest,
+  onNavigate,
+  userId,
+  baseContext,
+  locale,
+}) {
   const isDemoMode = Boolean(quantState?.performance?.investor_demo);
 
   if (isDemoMode) {

@@ -35,7 +35,7 @@ const DEFAULT_OPTIONS: AutoBackendLaunchdOptions = {
   trainer: 'mlx-lora',
   trainingLimit: 500,
   supervisorCheckSec: 20,
-  executeTraining: false
+  executeTraining: false,
 };
 
 function shellEscape(value: string) {
@@ -49,7 +49,7 @@ function parseArgs(argv: string[]) {
     write: false,
     install: false,
     uninstall: false,
-    status: false
+    status: false,
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -66,14 +66,21 @@ function parseArgs(argv: string[]) {
     if (key === 'out' && next) out.outPath = path.resolve(String(next));
     if (key === 'user' && next) out.userId = String(next).trim() || out.userId;
     if (key === 'port' && next) out.port = Math.max(1, Number(next) || out.port);
-    if (key === 'derive-interval-sec' && next) out.deriveIntervalSec = Math.max(30, Number(next) || out.deriveIntervalSec);
-    if (key === 'validate-every' && next) out.validateEvery = Math.max(1, Number(next) || out.validateEvery);
-    if (key === 'us-refresh-hours' && next) out.usRefreshHours = Math.max(1, Number(next) || out.usRefreshHours);
-    if (key === 'retrain-hours' && next) out.retrainHours = Math.max(1, Number(next) || out.retrainHours);
+    if (key === 'derive-interval-sec' && next)
+      out.deriveIntervalSec = Math.max(30, Number(next) || out.deriveIntervalSec);
+    if (key === 'validate-every' && next)
+      out.validateEvery = Math.max(1, Number(next) || out.validateEvery);
+    if (key === 'us-refresh-hours' && next)
+      out.usRefreshHours = Math.max(1, Number(next) || out.usRefreshHours);
+    if (key === 'retrain-hours' && next)
+      out.retrainHours = Math.max(1, Number(next) || out.retrainHours);
     if (key === 'train-hours' && next) out.trainHours = Math.max(1, Number(next) || out.trainHours);
-    if (key === 'trainer' && next) out.trainer = String(next).trim() as AutoBackendLaunchdOptions['trainer'];
-    if (key === 'training-limit' && next) out.trainingLimit = Math.max(1, Number(next) || out.trainingLimit);
-    if (key === 'supervisor-check-sec' && next) out.supervisorCheckSec = Math.max(5, Number(next) || out.supervisorCheckSec);
+    if (key === 'trainer' && next)
+      out.trainer = String(next).trim() as AutoBackendLaunchdOptions['trainer'];
+    if (key === 'training-limit' && next)
+      out.trainingLimit = Math.max(1, Number(next) || out.trainingLimit);
+    if (key === 'supervisor-check-sec' && next)
+      out.supervisorCheckSec = Math.max(5, Number(next) || out.supervisorCheckSec);
     if (key === 'execute-training') out.executeTraining = true;
     if (key === 'write') out.write = true;
     if (key === 'install') out.install = true;
@@ -111,7 +118,7 @@ export function buildAutoBackendCommand(options: AutoBackendLaunchdOptions) {
     '--training-limit',
     String(options.trainingLimit),
     '--supervisor-check-sec',
-    String(options.supervisorCheckSec)
+    String(options.supervisorCheckSec),
   ];
 
   if (options.executeTraining) args.push('--execute-training');
@@ -164,7 +171,8 @@ function launchAgentPath(label: string) {
 }
 
 function currentGuiDomain() {
-  const uid = typeof process.getuid === 'function' ? process.getuid() : Number(process.env.UID || 0);
+  const uid =
+    typeof process.getuid === 'function' ? process.getuid() : Number(process.env.UID || 0);
   return `gui/${uid}`;
 }
 
@@ -178,7 +186,9 @@ function installService(plistPath: string, label: string) {
     // ignore if not already loaded
   }
   execFileSync('launchctl', ['bootstrap', currentGuiDomain(), target], { stdio: 'inherit' });
-  execFileSync('launchctl', ['kickstart', '-k', `${currentGuiDomain()}/${label}`], { stdio: 'inherit' });
+  execFileSync('launchctl', ['kickstart', '-k', `${currentGuiDomain()}/${label}`], {
+    stdio: 'inherit',
+  });
   return target;
 }
 
@@ -233,7 +243,9 @@ const isEntrypoint = process.argv[1] && import.meta.url === pathToFileURL(proces
 
 if (isEntrypoint) {
   main().catch((error) => {
-    process.stderr.write(`${error instanceof Error ? error.stack || error.message : String(error)}\n`);
+    process.stderr.write(
+      `${error instanceof Error ? error.stack || error.message : String(error)}\n`,
+    );
     process.exitCode = 1;
   });
 }

@@ -6,7 +6,9 @@ import { fetchApiJson } from '../utils/api';
 import { upsertImportedHoldings } from '../utils/holdingsSource';
 
 function asSymbol(value) {
-  return String(value || '').trim().toUpperCase();
+  return String(value || '')
+    .trim()
+    .toUpperCase();
 }
 
 function currencyText(value, locale) {
@@ -14,7 +16,7 @@ function currencyText(value, locale) {
   return Number(value).toLocaleString(locale, {
     style: 'currency',
     currency: 'USD',
-    maximumFractionDigits: 2
+    maximumFractionDigits: 2,
   });
 }
 
@@ -41,24 +43,24 @@ function adviceInfo(row, locale) {
   if (row.system_status === 'contradicted') {
     return {
       tone: 'caution',
-      badge: locale === 'zh' ? '减仓' : 'Reduce'
+      badge: locale === 'zh' ? '减仓' : 'Reduce',
     };
   }
   if (row.system_status === 'not_supported') {
     return {
       tone: 'watch',
-      badge: locale === 'zh' ? '观望' : 'Caution'
+      badge: locale === 'zh' ? '观望' : 'Caution',
     };
   }
   if (row.system_status === 'aligned') {
     return {
       tone: 'favored',
-      badge: locale === 'zh' ? '偏好' : 'Favored'
+      badge: locale === 'zh' ? '偏好' : 'Favored',
     };
   }
   return {
     tone: 'neutral',
-    badge: locale === 'zh' ? '中性' : 'Neutral'
+    badge: locale === 'zh' ? '中性' : 'Neutral',
   };
 }
 
@@ -72,7 +74,7 @@ const RANGE_POINTS = {
   '1M': 22,
   '3M': 66,
   '1Y': 140,
-  ALL: Infinity
+  ALL: Infinity,
 };
 
 function buildSeries(base, delta, seed, points = 26) {
@@ -80,7 +82,8 @@ function buildSeries(base, delta, seed, points = 26) {
   const safeDelta = Number.isFinite(delta) ? delta : 0;
   return Array.from({ length: points }, (_, index) => {
     const progress = points === 1 ? 1 : index / (points - 1);
-    const wave = Math.sin(progress * Math.PI * (1.7 + (seed % 3) * 0.15)) * (0.018 + (seed % 5) * 0.002);
+    const wave =
+      Math.sin(progress * Math.PI * (1.7 + (seed % 3) * 0.15)) * (0.018 + (seed % 5) * 0.002);
     const jitter = Math.cos(progress * Math.PI * (2.1 + (seed % 4) * 0.12)) * 0.009;
     const trend = safeDelta * (progress - 0.48) * 0.42;
     return safeBase * (1 + wave + jitter + trend);
@@ -105,7 +108,11 @@ function linePath(values, width = 320, height = 88) {
 function MiniSparkline({ values, className = '' }) {
   const path = useMemo(() => linePath(values), [values]);
   return (
-    <svg viewBox="0 0 320 88" className={`holdings-sparkline ${className}`.trim()} aria-hidden="true">
+    <svg
+      viewBox="0 0 320 88"
+      className={`holdings-sparkline ${className}`.trim()}
+      aria-hidden="true"
+    >
       <path d={path} />
     </svg>
   );
@@ -120,9 +127,17 @@ function companyLabel(row, locale) {
 }
 
 function quantityLabel(row, locale) {
-  if (!Number.isFinite(Number(row.quantity))) return locale === 'zh' ? '份额待补充' : 'Add quantity';
+  if (!Number.isFinite(Number(row.quantity)))
+    return locale === 'zh' ? '份额待补充' : 'Add quantity';
   const digits = row.asset_class === 'CRYPTO' ? 4 : Number.isInteger(Number(row.quantity)) ? 0 : 2;
-  const unit = row.asset_class === 'CRYPTO' ? (locale === 'zh' ? '枚' : 'units') : (locale === 'zh' ? '份' : 'shares');
+  const unit =
+    row.asset_class === 'CRYPTO'
+      ? locale === 'zh'
+        ? '枚'
+        : 'units'
+      : locale === 'zh'
+        ? '份'
+        : 'shares';
   return `${formatNumber(row.quantity, digits, locale)} ${unit}`;
 }
 
@@ -136,7 +151,9 @@ function sourceLabel(row, locale) {
 }
 
 function holdingMeta(row, locale) {
-  return [companyLabel(row, locale), quantityLabel(row, locale), sourceLabel(row, locale)].filter(Boolean).join(' · ');
+  return [companyLabel(row, locale), quantityLabel(row, locale), sourceLabel(row, locale)]
+    .filter(Boolean)
+    .join(' · ');
 }
 
 function barDate(bar) {
@@ -151,7 +168,7 @@ function closeSeries(instrument, range) {
   return sliced
     .map((bar) => ({
       date: barDate(bar),
-      close: Number(bar?.close)
+      close: Number(bar?.close),
     }))
     .filter((row) => row.date && Number.isFinite(row.close));
 }
@@ -193,7 +210,7 @@ function realPortfolioSeries(rows, instrumentMap, range) {
       if (!Number.isFinite(units) || units <= 0) return null;
       return {
         units,
-        series
+        series,
       };
     })
     .filter(Boolean);
@@ -224,7 +241,7 @@ export default function HoldingsTab({
   manualHoldingsCount = 0,
   canRefreshConnectedHoldings = false,
   onRefreshHoldings,
-  onExplain
+  onExplain,
 }) {
   const [surfaceTab, setSurfaceTab] = useState('holdings');
   const [range, setRange] = useState('1M');
@@ -235,7 +252,7 @@ export default function HoldingsTab({
 
   const instrumentMap = useMemo(
     () => new Map((marketInstruments || []).map((item) => [asSymbol(item.ticker), item])),
-    [marketInstruments]
+    [marketInstruments],
   );
 
   useEffect(() => {
@@ -244,8 +261,8 @@ export default function HoldingsTab({
     setHoldings((current) =>
       current.map((item, index) => ({
         ...item,
-        id: item.id || `holding-${index + 1}-${asSymbol(item.symbol)}`
-      }))
+        id: item.id || `holding-${index + 1}-${asSymbol(item.symbol)}`,
+      })),
     );
   }, [holdings, setHoldings]);
 
@@ -253,19 +270,20 @@ export default function HoldingsTab({
   const totals = holdingsReview?.totals || {};
   const keyAdvice =
     holdingsReview?.key_advice ||
-    (locale === 'zh' ? '先把仓位读进来，Nova 才能给你个性化建议。' : 'Load your holdings first so Nova can personalize the advice.');
+    (locale === 'zh'
+      ? '先把仓位读进来，Nova 才能给你个性化建议。'
+      : 'Load your holdings first so Nova can personalize the advice.');
   const topRisk =
     holdingsReview?.risk?.primary_risks?.[0] ||
-    (locale === 'zh' ? '先把真实仓位接进来，再判断今天该留什么、减什么。' : 'Bring in your real positions first, then decide what to keep or trim.');
+    (locale === 'zh'
+      ? '先把真实仓位接进来，再判断今天该留什么、减什么。'
+      : 'Bring in your real positions first, then decide what to keep or trim.');
   const totalValue = currencyText(totals.total_market_value, locale);
   const totalPnlAmount = signedMoney(totals.total_unrealized_pnl_amount, locale);
   const totalPnlPct = signedPercent(totals.estimated_unrealized_pnl_pct, locale);
   const totalPnlTone = pnlToneClass(totals.estimated_unrealized_pnl_pct);
 
-  const timeframeOptions = useMemo(
-    () => ['1D', '1W', '1M', '3M', '1Y', 'ALL'],
-    []
-  );
+  const timeframeOptions = useMemo(() => ['1D', '1W', '1M', '3M', '1Y', 'ALL'], []);
 
   const overviewSeries = useMemo(() => {
     const realSeries = realPortfolioSeries(rows, instrumentMap, range);
@@ -275,12 +293,23 @@ export default function HoldingsTab({
     const delta = Number(totals.estimated_unrealized_pnl_pct || 0);
     const seed = rows.reduce((sum, row) => sum + hashSeed(row.symbol), 0) + hashSeed(range);
     return buildSeries(base, delta, seed, 28);
-  }, [rows, totals.total_market_value, totals.estimated_unrealized_pnl_pct, instrumentMap, investorDemoEnabled, range]);
+  }, [
+    rows,
+    totals.total_market_value,
+    totals.estimated_unrealized_pnl_pct,
+    instrumentMap,
+    investorDemoEnabled,
+    range,
+  ]);
 
   const listRows = useMemo(
     () =>
       rows.map((row) => {
-        const realSeries = realHoldingSeries(row, instrumentMap.get(asSymbol(row.symbol)), range).slice(-14);
+        const realSeries = realHoldingSeries(
+          row,
+          instrumentMap.get(asSymbol(row.symbol)),
+          range,
+        ).slice(-14);
         return {
           ...row,
           advice: adviceInfo(row, locale),
@@ -292,12 +321,12 @@ export default function HoldingsTab({
                     Number(row.market_value || row.current_price || 1),
                     Number(row.pnl_pct || 0),
                     hashSeed(`${row.symbol}:${range}`),
-                    14
+                    14,
                   )
-                : []
+                : [],
         };
       }),
-    [rows, locale, instrumentMap, investorDemoEnabled, range]
+    [rows, locale, instrumentMap, investorDemoEnabled, range],
   );
 
   const watchlistRows = useMemo(() => {
@@ -312,7 +341,12 @@ export default function HoldingsTab({
         return {
           symbol,
           label: locale === 'zh' ? '观察中' : 'Watching',
-          sparkline: realSeries.length >= 2 ? realSeries : investorDemoEnabled ? buildSeries(100, 0, hashSeed(`${symbol}:watch`), 14) : []
+          sparkline:
+            realSeries.length >= 2
+              ? realSeries
+              : investorDemoEnabled
+                ? buildSeries(100, 0, hashSeed(`${symbol}:watch`), 14)
+                : [],
         };
       });
   }, [watchlist, rows, locale, instrumentMap, investorDemoEnabled, range]);
@@ -330,29 +364,37 @@ export default function HoldingsTab({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           csvText,
-          filename: file.name
-        })
+          filename: file.name,
+        }),
       });
       const importedHoldings = Array.isArray(payload?.holdings) ? payload.holdings : [];
       if (!importedHoldings.length) {
-        throw new Error(locale === 'zh' ? '没有识别到可导入的持仓行。' : 'No recognizable holdings rows were found.');
+        throw new Error(
+          locale === 'zh'
+            ? '没有识别到可导入的持仓行。'
+            : 'No recognizable holdings rows were found.',
+        );
       }
       setHoldings((current) => upsertImportedHoldings(current, importedHoldings));
       setSurfaceTab('holdings');
-      const warnings = Array.isArray(payload?.summary?.warnings) ? payload.summary.warnings.filter(Boolean) : [];
+      const warnings = Array.isArray(payload?.summary?.warnings)
+        ? payload.summary.warnings.filter(Boolean)
+        : [];
       setImportFeedback({
         tone: 'success',
         message:
           locale === 'zh'
             ? `已从 ${file.name} 导入 ${importedHoldings.length} 个持仓。`
             : `Imported ${importedHoldings.length} holdings from ${file.name}.`,
-        detail: warnings[0] || ''
+        detail: warnings[0] || '',
       });
     } catch (error) {
       setImportFeedback({
         tone: 'error',
-        message: String(error?.message || (locale === 'zh' ? 'CSV 导入失败。' : 'CSV import failed.')),
-        detail: ''
+        message: String(
+          error?.message || (locale === 'zh' ? 'CSV 导入失败。' : 'CSV import failed.'),
+        ),
+        detail: '',
       });
     } finally {
       setBusyAction('');
@@ -368,32 +410,44 @@ export default function HoldingsTab({
       const imageDataUrl = await new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(String(reader.result || ''));
-        reader.onerror = () => reject(new Error(locale === 'zh' ? '截图读取失败。' : 'Failed to read screenshot.'));
+        reader.onerror = () =>
+          reject(new Error(locale === 'zh' ? '截图读取失败。' : 'Failed to read screenshot.'));
         reader.readAsDataURL(file);
       });
       const payload = await fetchApiJson('/api/holdings/import/screenshot', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageDataUrl })
+        body: JSON.stringify({ imageDataUrl }),
       });
       const importedHoldings = Array.isArray(payload?.holdings) ? payload.holdings : [];
       if (!importedHoldings.length) {
-        throw new Error(locale === 'zh' ? '截图里没有识别出清晰持仓。' : 'No clear holdings were recognized from the screenshot.');
+        throw new Error(
+          locale === 'zh'
+            ? '截图里没有识别出清晰持仓。'
+            : 'No clear holdings were recognized from the screenshot.',
+        );
       }
       setHoldings((current) => upsertImportedHoldings(current, importedHoldings));
       setSurfaceTab('holdings');
-      const warnings = Array.isArray(payload?.summary?.warnings) ? payload.summary.warnings.filter(Boolean) : [];
+      const warnings = Array.isArray(payload?.summary?.warnings)
+        ? payload.summary.warnings.filter(Boolean)
+        : [];
       setImportFeedback({
         tone: 'success',
         message:
           locale === 'zh'
             ? `已从截图识别 ${importedHoldings.length} 个持仓。`
             : `Imported ${importedHoldings.length} holdings from the screenshot.`,
-        detail: warnings[0] || (locale === 'zh' ? '截图导入仍是实验功能，请快速核对数量和成本。' : 'Screenshot import is still experimental, so please double-check quantity and cost basis.')
+        detail:
+          warnings[0] ||
+          (locale === 'zh'
+            ? '截图导入仍是实验功能，请快速核对数量和成本。'
+            : 'Screenshot import is still experimental, so please double-check quantity and cost basis.'),
       });
     } catch (error) {
       const message = String(error?.message || '');
-      const unavailable = message.includes('SCREENSHOT_IMPORT_UNAVAILABLE') || message.includes('OPENAI_API_KEY');
+      const unavailable =
+        message.includes('SCREENSHOT_IMPORT_UNAVAILABLE') || message.includes('OPENAI_API_KEY');
       setImportFeedback({
         tone: 'error',
         message: unavailable
@@ -405,7 +459,7 @@ export default function HoldingsTab({
           ? locale === 'zh'
             ? '服务端还没有可用的视觉模型配置。'
             : 'The server does not have a vision-capable model configured yet.'
-          : ''
+          : '',
       });
     } finally {
       setBusyAction('');
@@ -424,7 +478,11 @@ export default function HoldingsTab({
               {totalPnlAmount} <span>({totalPnlPct})</span>
             </p>
             {holdingsSource?.message ? (
-              <p className="muted status-line">{locale === 'zh' ? `来源：${holdingsSource.message}` : `Source: ${holdingsSource.message}`}</p>
+              <p className="muted status-line">
+                {locale === 'zh'
+                  ? `来源：${holdingsSource.message}`
+                  : `Source: ${holdingsSource.message}`}
+              </p>
             ) : null}
           </div>
           {investorDemoEnabled ? (
@@ -453,7 +511,9 @@ export default function HoldingsTab({
       </section>
 
       <section className="holdings-priority-surface">
-        <p className="holdings-priority-kicker">{locale === 'zh' ? '最重要的一句' : 'Most important next step'}</p>
+        <p className="holdings-priority-kicker">
+          {locale === 'zh' ? '最重要的一句' : 'Most important next step'}
+        </p>
         <h2 className="holdings-priority-title">{keyAdvice}</h2>
         <p className="holdings-priority-copy">{topRisk}</p>
         <div className="action-row holdings-priority-actions">
@@ -464,7 +524,7 @@ export default function HoldingsTab({
               onExplain?.(
                 locale === 'zh'
                   ? '用一句话告诉我，我当前持仓里最需要先处理的一件事是什么。'
-                  : 'Tell me in one sentence what I should fix first in my current holdings.'
+                  : 'Tell me in one sentence what I should fix first in my current holdings.',
               )
             }
           >
@@ -476,12 +536,20 @@ export default function HoldingsTab({
       <section className="holdings-import-surface">
         <div className="holdings-import-head">
           <div>
-            <p className="holdings-import-kicker">{locale === 'zh' ? '读入你的仓位' : 'Load your positions'}</p>
-            <h2 className="holdings-import-title">{locale === 'zh' ? '先把仓位接进来，再谈动作。' : 'Bring positions in before making calls.'}</h2>
+            <p className="holdings-import-kicker">
+              {locale === 'zh' ? '读入你的仓位' : 'Load your positions'}
+            </p>
+            <h2 className="holdings-import-title">
+              {locale === 'zh'
+                ? '先把仓位接进来，再谈动作。'
+                : 'Bring positions in before making calls.'}
+            </h2>
           </div>
           {manualHoldingsCount > 0 ? (
             <span className="holdings-import-badge">
-              {locale === 'zh' ? `已导入 ${manualHoldingsCount}` : `${manualHoldingsCount} imported`}
+              {locale === 'zh'
+                ? `已导入 ${manualHoldingsCount}`
+                : `${manualHoldingsCount} imported`}
             </span>
           ) : null}
         </div>
@@ -516,7 +584,13 @@ export default function HoldingsTab({
             onClick={() => csvInputRef.current?.click()}
             disabled={Boolean(busyAction)}
           >
-            {busyAction === 'csv' ? (locale === 'zh' ? '导入中...' : 'Importing...') : locale === 'zh' ? '导入 CSV' : 'Import CSV'}
+            {busyAction === 'csv'
+              ? locale === 'zh'
+                ? '导入中...'
+                : 'Importing...'
+              : locale === 'zh'
+                ? '导入 CSV'
+                : 'Import CSV'}
           </button>
           <button
             type="button"
@@ -540,8 +614,9 @@ export default function HoldingsTab({
                 setHoldings([]);
                 setImportFeedback({
                   tone: 'success',
-                  message: locale === 'zh' ? '已清空手动导入的仓位。' : 'Cleared imported holdings.',
-                  detail: ''
+                  message:
+                    locale === 'zh' ? '已清空手动导入的仓位。' : 'Cleared imported holdings.',
+                  detail: '',
                 });
               }}
               disabled={Boolean(busyAction)}
@@ -551,11 +626,15 @@ export default function HoldingsTab({
           ) : null}
         </div>
         {importFeedback?.message ? (
-          <p className={`status-line holdings-import-status holdings-import-status-${importFeedback.tone || 'neutral'}`}>
+          <p
+            className={`status-line holdings-import-status holdings-import-status-${importFeedback.tone || 'neutral'}`}
+          >
             {importFeedback.message}
           </p>
         ) : null}
-        {importFeedback?.detail ? <p className="muted holdings-import-detail">{importFeedback.detail}</p> : null}
+        {importFeedback?.detail ? (
+          <p className="muted holdings-import-detail">{importFeedback.detail}</p>
+        ) : null}
         {!canRefreshConnectedHoldings && !investorDemoEnabled ? (
           <p className="muted holdings-import-detail">
             {locale === 'zh'
@@ -587,7 +666,7 @@ export default function HoldingsTab({
         <SegmentedControl
           options={[
             { label: locale === 'zh' ? '持仓' : 'Holdings', value: 'holdings' },
-            { label: locale === 'zh' ? '观察列表' : 'Watchlist', value: 'watchlist' }
+            { label: locale === 'zh' ? '观察列表' : 'Watchlist', value: 'watchlist' },
           ]}
           value={surfaceTab}
           onChange={setSurfaceTab}
@@ -631,7 +710,12 @@ export default function HoldingsTab({
                     type="button"
                     className="primary-btn"
                     onClick={() =>
-                      setHoldings(SAMPLE_HOLDINGS_TEMPLATE.map((item, index) => ({ ...item, id: `example-${index + 1}` })))
+                      setHoldings(
+                        SAMPLE_HOLDINGS_TEMPLATE.map((item, index) => ({
+                          ...item,
+                          id: `example-${index + 1}`,
+                        })),
+                      )
                     }
                   >
                     {locale === 'zh' ? '加载示例' : 'Load example'}
@@ -651,20 +735,25 @@ export default function HoldingsTab({
                   onExplain?.(
                     locale === 'zh'
                       ? `帮我看一下 ${row.symbol} 现在应该继续拿着、减仓，还是卖掉。`
-                      : `Review ${row.symbol}. Should I keep it, trim it, or sell it?`
+                      : `Review ${row.symbol}. Should I keep it, trim it, or sell it?`,
                   )
                 }
               >
                 <div className="holdings-rh-row-left">
                   <div className="holdings-rh-symbol-line">
                     <span className="holdings-rh-symbol">{row.symbol}</span>
-                    <span className={`holdings-rh-ai-tag holdings-rh-ai-tag-${row.advice.tone}`}>{row.advice.badge}</span>
+                    <span className={`holdings-rh-ai-tag holdings-rh-ai-tag-${row.advice.tone}`}>
+                      {row.advice.badge}
+                    </span>
                   </div>
                   <p className="holdings-rh-meta">{holdingMeta(row, locale)}</p>
                 </div>
 
                 <div className="holdings-rh-row-spark">
-                  <MiniSparkline values={row.sparkline} className={`holdings-sparkline-${row.advice.tone}`} />
+                  <MiniSparkline
+                    values={row.sparkline}
+                    className={`holdings-sparkline-${row.advice.tone}`}
+                  />
                 </div>
 
                 <div className="holdings-rh-row-right">
@@ -689,7 +778,7 @@ export default function HoldingsTab({
                   onExplain?.(
                     locale === 'zh'
                       ? `帮我看一下 ${row.symbol} 今天值不值得继续关注。`
-                      : `Review ${row.symbol}. Is it worth staying on watch today?`
+                      : `Review ${row.symbol}. Is it worth staying on watch today?`,
                   )
                 }
               >
@@ -698,14 +787,18 @@ export default function HoldingsTab({
                     <span className="holdings-rh-symbol">{row.symbol}</span>
                     <span className="holdings-rh-ai-tag holdings-rh-ai-tag-watch">{row.label}</span>
                   </div>
-                  <p className="holdings-rh-meta">{locale === 'zh' ? '来自你的观察列表' : 'From your watchlist'}</p>
+                  <p className="holdings-rh-meta">
+                    {locale === 'zh' ? '来自你的观察列表' : 'From your watchlist'}
+                  </p>
                 </div>
                 <div className="holdings-rh-row-spark">
                   <MiniSparkline values={row.sparkline} className="holdings-sparkline-watch" />
                 </div>
                 <div className="holdings-rh-row-right">
                   <p className="holdings-rh-market">{locale === 'zh' ? '已跟踪' : 'Tracked'}</p>
-                  <p className="holdings-rh-pnl neutral">{locale === 'zh' ? '等待判断' : 'Waiting on a call'}</p>
+                  <p className="holdings-rh-pnl neutral">
+                    {locale === 'zh' ? '等待判断' : 'Waiting on a call'}
+                  </p>
                 </div>
               </button>
             ))}

@@ -7,6 +7,7 @@ Last updated: 2026-03-09
 The Strategy Discovery Engine upgrades Nova Quant from static strategy configuration into a recurring, structured alpha hypothesis research pipeline.
 
 Mission:
+
 - generate candidate strategies from explicit hypotheses,
 - reject fragile variants quickly,
 - promote robust candidates to `SHADOW` with traceability,
@@ -110,12 +111,14 @@ The engine is implemented under `src/research/discovery/`.
 Every candidate passes through 5 stages:
 
 1. `stage_1_fast_sanity`
+
 - trade frequency realism
 - turnover realism
 - leverage dependence
 - sparse-signal rejection
 
 2. `stage_2_quick_backtest`
+
 - return
 - drawdown
 - Sharpe proxy
@@ -124,17 +127,20 @@ Every candidate passes through 5 stages:
 - fees/slippage-aware post-cost output
 
 3. `stage_3_robustness_tests`
+
 - parameter perturbation stability
 - regime-segment stability
 - cost stress (`+25%`, `+50%`)
 - slippage shock
 
 4. `stage_4_walkforward`
+
 - rolling window out-of-sample proxy
 - positive window ratio
 - degradation check
 
 5. `stage_5_portfolio_contribution`
+
 - diversification contribution
 - independent alpha proxy
 - portfolio improvement gate
@@ -146,6 +152,7 @@ Candidates failing any stage are rejected with structured reasons.
 Implemented in `candidateScoring.js`.
 
 Components:
+
 - Performance score
 - Robustness score
 - Regime stability score
@@ -158,6 +165,7 @@ Weighted formula:
 `0.26*performance + 0.20*robustness + 0.16*regime_stability + 0.14*diversification + 0.12*cost_sensitivity + 0.12*parameter_stability`
 
 Decision mapping:
+
 - `>= 0.86` -> `PROMOTE_TO_SHADOW`
 - `0.74 - 0.8599` -> `HOLD_FOR_RETEST`
 - `< 0.74` or failed validation -> `REJECT`
@@ -167,6 +175,7 @@ Decision mapping:
 Implemented in `strategyDiscoveryEngine.js`.
 
 Cycle:
+
 1. analyze existing production strategies
 2. identify performance decay
 3. identify signal starvation
@@ -178,6 +187,7 @@ Cycle:
 9. update discovery diagnostics/log objects
 
 Integrated into research core:
+
 - `src/research/core/researchCoreUpgrade.js`
 - Output key: `research.research_core.strategy_discovery_engine`
 
@@ -186,6 +196,7 @@ Integrated into research core:
 Implemented in `discoveryDiagnostics.js`.
 
 Tracks:
+
 - candidates generated per hypothesis
 - pass and promotion rates by hypothesis
 - discovery by regime
@@ -200,6 +211,7 @@ Tracks:
   - mapping failures
 
 Primary questions answered:
+
 - which hypotheses produce robust candidates?
 - which families repeatedly fail?
 - which regimes or asset classes are under-covered?
@@ -207,6 +219,7 @@ Primary questions answered:
 ## 8. Traceability Contract
 
 Every candidate now carries:
+
 - hypothesis origin
 - template origin
 - feature set
@@ -216,6 +229,7 @@ Every candidate now carries:
 - promotion decision
 
 Discovery decisions are emitted as first-class objects:
+
 - `discovery_decision_id`
 - `candidate_id`
 - `decision`

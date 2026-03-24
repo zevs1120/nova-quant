@@ -5,6 +5,7 @@ This is not a roadmap. It is the implementation truth for the current refactor.
 ## Implemented Now
 
 ### 1. Unified backend backbone endpoint
+
 - `GET /api/backbone/summary`
 - Returns a structured snapshot containing:
   - research kernel
@@ -19,6 +20,7 @@ This is not a roadmap. It is the implementation truth for the current refactor.
   - evidence/review scorecards
 
 ### 2. Canonical domain contracts
+
 - Added explicit shared contracts for:
   - research tasks
   - strategy candidates
@@ -31,6 +33,7 @@ This is not a roadmap. It is the implementation truth for the current refactor.
   - model/prompt/workflow/review objects
 
 ### 3. New registry persistence
+
 - Added database tables plus repository methods for:
   - `model_versions`
   - `prompt_versions`
@@ -40,6 +43,7 @@ This is not a roadmap. It is the implementation truth for the current refactor.
   - `recommendation_reviews`
 
 ### 4. Local Nova LLM ops layer
+
 - Added local-first Nova model routing summary:
   - Nova-Core
   - Nova-Scout
@@ -50,11 +54,13 @@ This is not a roadmap. It is the implementation truth for the current refactor.
 - Shifted provider preference to local Ollama first
 
 ### 5. Observability spine foundation
+
 - Added trace id generation
 - Added decision audit-event recording
 - Added audit / workflow / chat observability summary
 
 ### 6. Feature platform foundation
+
 - Added feature registry
 - Added point-in-time contract description
 - Added validation gates
@@ -62,16 +68,19 @@ This is not a roadmap. It is the implementation truth for the current refactor.
 - Added repository read paths for dataset / feature / universe snapshots
 
 ### 7. Research kernel summary
+
 - Added experiment lineage summary
 - Added candidate / challenger / champion visibility
 - Added research task abstractions and promotion flow summary
 
 ### 8. Portfolio allocator summary
+
 - Added explicit universal-vs-personalized separation
 - Added overlap and concentration checks
 - Added rebalance / hedge / rotate semantics
 
 ### 9. Scorecard layer
+
 - Added first structured proof layer for:
   - decision quality
   - no-action value
@@ -80,6 +89,7 @@ This is not a roadmap. It is the implementation truth for the current refactor.
   - user alignment placeholder
 
 ### 10. Documentation and provenance
+
 - Added borrow map
 - Added backend architecture doc
 - Added license/compliance notes
@@ -87,41 +97,53 @@ This is not a roadmap. It is the implementation truth for the current refactor.
 ## Skeleton Built, But Still Needs Depth
 
 ### 1. Durable workflow runtime
+
 Implemented:
+
 - workflow blueprints
 - workflow run persistence
 - retry/resume/replay contract
 
 Still limited by current repo:
+
 - no Temporal-like executor
 - workflows are represented and auditable, but not yet independently scheduled/orchestrated inside this repo
 
 ### 2. Feature platform
+
 Implemented:
+
 - feature registry
 - parity contract
 - validation gates
 
 Still limited by current repo:
+
 - not every runtime feature is yet snapshot-backed
 - some features remain derived on demand instead of through a full online feature service
 
 ### 3. LLM ops
+
 Implemented:
+
 - local model routing
 - prompt/model registry
 - provider preference shift to Ollama
 
 Still limited by current repo:
+
 - prompt eval storage is scaffolded through registry and scorecards, not a full annotation UI
 - trace replay exists as data structure, not a standalone review console
 
 ### 4. Scorecards / self-proof
+
 Implemented:
+
 - scorecard computation structure
 - recommendation review persistence
 
 Still limited by current repo:
+
 - historical review volume is still sparse
 - some score dimensions return `null` until more real review data accumulates
 

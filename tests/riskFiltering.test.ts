@@ -8,13 +8,13 @@ describe('risk bucket trade filtering', () => {
       asOf: '2026-03-08T00:00:00.000Z',
       riskProfileKey: 'balanced',
       championState: {
-        safety: { cards: { portfolio: { score: 72 } } }
+        safety: { cards: { portfolio: { score: 72 } } },
       },
       regimeState: {
         state: {
           recommended_user_posture: 'REDUCE',
-          default_sizing_multiplier: 0.7
-        }
+          default_sizing_multiplier: 0.7,
+        },
       },
       signals: [
         {
@@ -26,7 +26,7 @@ describe('risk bucket trade filtering', () => {
           confidence: 0.8,
           risk_score: 35,
           regime_compatibility: 78,
-          position_advice: { position_pct: 10 }
+          position_advice: { position_pct: 10 },
         },
         {
           signal_id: 'S2',
@@ -37,7 +37,7 @@ describe('risk bucket trade filtering', () => {
           confidence: 0.55,
           risk_score: 58,
           regime_compatibility: 62,
-          position_advice: { position_pct: 8 }
+          position_advice: { position_pct: 8 },
         },
         {
           signal_id: 'S3',
@@ -48,10 +48,10 @@ describe('risk bucket trade filtering', () => {
           confidence: 0.33,
           risk_score: 90,
           regime_compatibility: 20,
-          position_advice: { position_pct: 6 }
-        }
+          position_advice: { position_pct: 6 },
+        },
       ],
-      trades: []
+      trades: [],
     });
 
     const decisions = result.trade_level_buckets.map((item: any) => item.decision);

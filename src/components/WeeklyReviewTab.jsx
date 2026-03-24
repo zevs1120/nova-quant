@@ -36,7 +36,7 @@ export default function WeeklyReviewTab({
   locale,
   discipline,
   onMarkReviewed,
-  onExplain
+  onExplain,
 }) {
   const snapshots = research?.daily_snapshots || [];
   const week = snapshots.slice(-5);
@@ -56,21 +56,29 @@ export default function WeeklyReviewTab({
         topFiltered: [],
         avoidBehavior: '避免在证据不足时硬做第二笔。',
         nextFocus: '--',
-        paperRet: null
+        paperRet: null,
       };
     }
 
     const avgSafety = mean(week.map((row) => row.safety_score));
     const avgSelected = mean(week.map((row) => (row.selected_opportunities || []).length));
     const avgFiltered = mean(week.map((row) => (row.filtered_opportunities || []).length));
-    const topSelected = topFrequency(week.flatMap((row) => row.selected_opportunities || []), 3);
-    const topFiltered = topFrequency(week.flatMap((row) => row.filtered_opportunities || []), 3);
-    const dominantRegime = topFrequency(week.map((row) => row.market_regime), 1)[0]?.name || '--';
+    const topSelected = topFrequency(
+      week.flatMap((row) => row.selected_opportunities || []),
+      3,
+    );
+    const topFiltered = topFrequency(
+      week.flatMap((row) => row.filtered_opportunities || []),
+      3,
+    );
+    const dominantRegime =
+      topFrequency(
+        week.map((row) => row.market_regime),
+        1,
+      )[0]?.name || '--';
     const paperRet = weeklyPaperReturn(paper.equity_curve || []);
 
-    const avoidBehavior =
-      diagnostics?.top_failure_reasons?.[0]?.reason ||
-      '追高和重复加仓';
+    const avoidBehavior = diagnostics?.top_failure_reasons?.[0]?.reason || '追高和重复加仓';
 
     let summary = '这周最有价值的不是抓更多机会，而是把低质量动作挡在了门外。';
     if (avgSafety <= 50) {
@@ -94,9 +102,15 @@ export default function WeeklyReviewTab({
       topFiltered,
       avoidBehavior,
       nextFocus,
-      paperRet
+      paperRet,
     };
-  }, [diagnostics?.top_failure_reasons, paper.equity_curve, signals, week, weeklySystemReview?.interesting_challengers]);
+  }, [
+    diagnostics?.top_failure_reasons,
+    paper.equity_curve,
+    signals,
+    week,
+    weeklySystemReview?.interesting_challengers,
+  ]);
 
   const growthFeedback =
     discipline?.checkinStreak >= 7
@@ -135,7 +149,11 @@ export default function WeeklyReviewTab({
           <button type="button" className="primary-btn" onClick={onMarkReviewed}>
             {discipline?.reviewedThisWeek ? '本周复盘已完成' : '标记本周复盘完成'}
           </button>
-          <button type="button" className="secondary-btn" onClick={() => onExplain?.('给我一句下周执行纪律建议。')}>
+          <button
+            type="button"
+            className="secondary-btn"
+            onClick={() => onExplain?.('给我一句下周执行纪律建议。')}
+          >
             Ask AI
           </button>
         </div>
@@ -145,8 +163,13 @@ export default function WeeklyReviewTab({
         <h3 className="card-title">本周市场环境</h3>
         <ul className="bullet-list">
           <li>Regime: {insights?.regime?.tag || '--'}。</li>
-          <li>系统本周平均每天筛出 {formatNumber(weekly.avgSelected, 1, locale)} 个机会，过滤 {formatNumber(weekly.avgFiltered, 1, locale)} 个。</li>
-          <li>当前风格提示: {today?.style_hint || '--'}，风险模式: {safety?.mode || '--'}。</li>
+          <li>
+            系统本周平均每天筛出 {formatNumber(weekly.avgSelected, 1, locale)} 个机会，过滤{' '}
+            {formatNumber(weekly.avgFiltered, 1, locale)} 个。
+          </li>
+          <li>
+            当前风格提示: {today?.style_hint || '--'}，风险模式: {safety?.mode || '--'}。
+          </li>
         </ul>
       </article>
 
@@ -156,17 +179,29 @@ export default function WeeklyReviewTab({
           <div className="status-box">
             <p className="muted">更有效</p>
             <ul className="bullet-list">
-              {weekly.topSelected.length ? weekly.topSelected.map((item) => (
-                <li key={item.name}>{item.name}（{item.count} 天）</li>
-              )) : <li>本周没有明显稳定优胜类目。</li>}
+              {weekly.topSelected.length ? (
+                weekly.topSelected.map((item) => (
+                  <li key={item.name}>
+                    {item.name}（{item.count} 天）
+                  </li>
+                ))
+              ) : (
+                <li>本周没有明显稳定优胜类目。</li>
+              )}
             </ul>
           </div>
           <div className="status-box">
             <p className="muted">更应回避</p>
             <ul className="bullet-list">
-              {weekly.topFiltered.length ? weekly.topFiltered.map((item) => (
-                <li key={item.name}>{item.name}（{item.count} 天）</li>
-              )) : <li>过滤样本不足，继续观察。</li>}
+              {weekly.topFiltered.length ? (
+                weekly.topFiltered.map((item) => (
+                  <li key={item.name}>
+                    {item.name}（{item.count} 天）
+                  </li>
+                ))
+              ) : (
+                <li>过滤样本不足，继续观察。</li>
+              )}
             </ul>
           </div>
         </div>
@@ -210,16 +245,21 @@ export default function WeeklyReviewTab({
                 </tr>
               </thead>
               <tbody>
-                {week.slice().reverse().map((row) => (
-                  <tr key={row.date}>
-                    <td>{row.date}</td>
-                    <td>{row.market_regime}</td>
-                    <td>{formatNumber(row.safety_score, 1, locale)}</td>
-                    <td>{row.suggested_exposure?.gross}% / {row.suggested_exposure?.net}%</td>
-                    <td>{row.selected_opportunities?.length || 0}</td>
-                    <td>{row.filtered_opportunities?.length || 0}</td>
-                  </tr>
-                ))}
+                {week
+                  .slice()
+                  .reverse()
+                  .map((row) => (
+                    <tr key={row.date}>
+                      <td>{row.date}</td>
+                      <td>{row.market_regime}</td>
+                      <td>{formatNumber(row.safety_score, 1, locale)}</td>
+                      <td>
+                        {row.suggested_exposure?.gross}% / {row.suggested_exposure?.net}%
+                      </td>
+                      <td>{row.selected_opportunities?.length || 0}</td>
+                      <td>{row.filtered_opportunities?.length || 0}</td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           </div>
