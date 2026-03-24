@@ -6,6 +6,8 @@ All notable changes to NovaQuant are recorded here.
 - Release type: patch
 - Resolve all 11 npm audit vulnerabilities (4 moderate, 7 high) by adding npm overrides for transitive dependencies: undici ^6.24.1, ajv ^8.18.0, minimatch ^10.2.4, path-to-regexp ^8.3.0, esbuild ^0.27.4.
 - Affected parent packages: @vercel/node (undici, ajv, minimatch, path-to-regexp) and vite (esbuild). No breaking changes to direct dependencies.
+- Fix 12 failing tests across 9 test files by adding env isolation (vi.stubEnv) for LLM provider keys (GROQ_API_KEY, GEMINI_API_KEY) and remote auth store credentials (KV_REST_API_URL, KV_REST_API_TOKEN, UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN). Tests now pass consistently with or without .env credentials present.
+- Update apiIndexRoute CORS assertion from GET,OPTIONS to GET,POST,OPTIONS to match current applyPublicCors handler.
 - Updated release metadata, build number, About runtime source, and changelog entry.
 
 ## 10.1.1 (2026-03-23)
