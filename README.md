@@ -338,8 +338,9 @@ npm run verify
 
 ## Notes On Data
 
-- US data: Stooq bulk ingestion (`src/server/ingestion/stooq.ts`) with configured symbol whitelist.
-- Crypto data: Binance public bulk + incremental REST ingestion.
+- **Primary API data source**: Massive.com (formerly Polygon.io) REST API for both US equities and crypto OHLCV. Module: `src/server/ingestion/massive.ts`. Requires `MASSIVE_API_KEY` in `.env`. Basic (free) tier enforces 12s delay between requests.
+- US data: Stooq bulk ingestion (`src/server/ingestion/stooq.ts`) with configured symbol whitelist (legacy fallback).
+- Crypto data: Binance public bulk + incremental REST ingestion (legacy fallback).
 - If data is stale/insufficient, APIs return honest degraded states (`INSUFFICIENT_DATA`) instead of synthetic beautification.
 
 ## Key Commands

@@ -117,6 +117,17 @@ function buildFallbackConfig(): AppConfig {
         maxDrawdown: 0.22,
         decayStreakLimit: 3
       }
+    },
+    massive: {
+      baseUrl: 'https://api.massive.com',
+      apiKey: process.env.MASSIVE_API_KEY || '',
+      timeoutMs: 30000,
+      requestDelayMs: 12000,
+      retry: {
+        attempts: 3,
+        baseDelayMs: 1000
+      },
+      defaultLookbackDays: 365
     }
   };
 }

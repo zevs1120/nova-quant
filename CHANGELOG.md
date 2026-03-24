@@ -2,6 +2,16 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 10.3.0 (2026-03-24)
+- Release type: minor
+- Integrate Massive.com (formerly Polygon.io) REST API as a new data source for US equities and crypto OHLCV bars.
+- New `src/server/ingestion/massive.ts`: implements `backfillMassiveStocks` and `backfillMassiveCrypto` with v2 aggregates endpoint, built-in pagination via `next_url`, 429 rate-limit handling (15s backoff), network timeout retry with exponential backoff, and Binance→Massive crypto symbol conversion (`BTCUSDT` → `X:BTCUSD`).
+- Add `massive` configuration block to `AppConfig` type and `config.ts` defaults: `MASSIVE_API_KEY` env var, 12s rate-limit delay (Basic tier), 365-day default lookback, 3 retry attempts.
+- Add `MASSIVE_API_KEY` placeholder to `.env` and `.env.example`.
+- New `tests/massiveIngestion.test.ts` (34 tests): pure function tests (mapTimeframe, convertCryptoSymbol, massiveBarToNormalized with decimal precision), fetchMassiveAggs integration tests (happy path, empty results, undefined results, pagination, 429 retry, 403/401/500/503 error handling, network timeout, invalid JSON, apiKey injection on next_url), backfill graceful skip tests, and full data pipeline round-trip tests (stock/crypto fetch→normalize→upsert→getOhlcv, upsert idempotency, upsert overwrite, getLatestTsOpen).
+- New `scripts/massive-smoke-test.ts` (38 real-API assertions): multi-ticker validation (AAPL, SPY, MSFT, X:BTCUSD, X:ETHUSD), OHLC data integrity invariants (high≥all, low≤all, volume≥0), time continuity checks (sorted, no duplicates, no gap anomalies), invalid ticker handling, and complete DB round-trip verification via getOhlcv/getLatestTsOpen/getOhlcvStats with idempotency proof.
+- Test suite: 102/102 files pass, 591/591 tests pass (up from 101/101 files and 557/557 tests).
+
 ## 10.2.4 (2026-03-24)
 - Release type: patch
 - Add 82 high-quality tests across 4 new test files targeting weak-coverage pure-logic modules and the manual (loyalty/gamification) service.

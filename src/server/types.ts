@@ -560,6 +560,14 @@ export interface AppConfig {
       decayStreakLimit?: number;
     };
   };
+  massive?: {
+    baseUrl: string;
+    apiKey: string;
+    timeoutMs: number;
+    requestDelayMs: number;
+    retry: RetryConfig;
+    defaultLookbackDays: number;
+  };
 }
 
 export type StrategyLifecycleStatus = 'active' | 'archived' | 'challenger' | 'champion' | 'deprecated' | 'retired';
