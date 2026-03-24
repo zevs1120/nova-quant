@@ -42,6 +42,7 @@ import {
   getPrivateMarvixOps,
   getNovaRuntimeState,
   getRuntimeState,
+  getRuntimeStateResponse,
   getEvidenceBacktestDetail,
   getEvidenceChampionStrategies,
   getEvidenceSignalDetail,
@@ -507,11 +508,11 @@ export function createApiApp() {
     });
   });
 
-  app.get('/api/runtime-state', (req, res) => {
+  app.get('/api/runtime-state', async (req, res) => {
     const market = parseMarket(req.query.market as string | undefined);
     const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
     const userId = (req.query.userId as string | undefined) || 'guest-default';
-    const runtime = getRuntimeState({
+    const runtime = await getRuntimeStateResponse({
       userId,
       market,
       assetClass

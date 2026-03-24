@@ -15,6 +15,7 @@ export default function SignalDetail({
   locale = 'en',
   onBack,
   onOpenTradeTicket,
+  primaryActionLabel,
   onAskAi,
   onPaperExecute,
   t,
@@ -195,7 +196,7 @@ export default function SignalDetail({
       <div className="action-row">
         {onOpenTradeTicket ? (
           <button type="button" className="primary-btn" onClick={onOpenTradeTicket}>
-            {isZh ? '打开交易票据' : 'Open trade ticket'}
+            {primaryActionLabel || (isZh ? '打开交易票据' : 'Open trade ticket')}
           </button>
         ) : null}
         <button type="button" className="primary-btn" onClick={handleCopy}>

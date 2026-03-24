@@ -879,10 +879,11 @@ export default function App() {
           dataset_version_id: evidenceTopSignals?.dataset_version_id || null,
           strategy_version_id: evidenceTopSignals?.strategy_version_id || null
         };
+        const apiSignals = Array.isArray(signals?.data) ? signals.data : null;
         const nextData = {
           ...runtimeData,
           decision: runtimeData.decision || null,
-          signals: Array.isArray(signals?.data) ? signals.data : runtimeData.signals || [],
+          signals: apiSignals?.length ? apiSignals : runtimeData.signals || [],
           evidence: evidenceData,
           market_modules: Array.isArray(modules?.data) ? modules.data : runtimeData.market_modules || [],
           performance: performance || runtimeData.performance || initialData.performance,

@@ -50,6 +50,7 @@ import { buildNewsContext, ensureFreshNewsForSymbol, ensureFreshNewsForUniverse 
 import { buildEvidenceLineage } from '../evidence/lineage.js';
 import { fetchWithRetry } from '../utils/http.js';
 import { getPublicBrowseHome } from '../public/browseService.js';
+import { getPublicTodayDecision } from '../public/todayDecisionService.js';
 import { createBrokerAdapter, createExchangeAdapter, type OrderStatusSnapshot } from '../connect/adapters.js';
 import { buildPrivateMarvixOpsReport } from '../ops/privateMarvixOps.js';
 
@@ -1091,6 +1092,7 @@ type RuntimeSyncContext = {
   assetClass?: AssetClass;
   timeframe?: string;
   universeScope?: string;
+  allowBackgroundStrategyRefresh?: boolean;
 };
 
 export function listAssets(market?: Market) {
@@ -1596,7 +1598,8 @@ export function syncQuantState(userId = 'guest-default', force = false, context:
     market: context.market,
     assetClass: context.assetClass,
     timeframe: context.timeframe,
-    universeScope: context.universeScope
+    universeScope: context.universeScope,
+    allowBackgroundStrategyRefresh: context.allowBackgroundStrategyRefresh
   });
 }
 
@@ -2922,8 +2925,6 @@ export async function getDecisionSnapshot(args: {
   holdings?: UserHoldingInput[];
   locale?: string;
 }) {
-  const repo = getRepo();
-  await ensureFreshNewsForUniverse({ repo, market: args.market || 'ALL' });
   const core = loadRuntimeStateCore({
     ...args,
     forceSync: true
@@ -2933,6 +2934,21 @@ export async function getDecisionSnapshot(args: {
     holdings: args.holdings,
     locale: args.locale
   });
+  if (
+    shouldUsePublicDecisionFallback({
+      sourceStatus: String(core.runtimeTransparency.source_status || ''),
+      signalCount: core.signals.length,
+      decision: deterministic as Record<string, unknown>,
+      holdings: args.holdings
+    })
+  ) {
+    return await getPublicTodayDecision({
+      userId: core.userId,
+      market: core.market,
+      assetClass: core.assetClass,
+      locale: args.locale
+    });
+  }
   const snapshotDate = snapshotDateKey(String(core.runtimeTransparency.as_of));
   const contextHash = buildDecisionContextHash({
     userId: core.userId,
@@ -2993,12 +3009,22 @@ async function getDecisionRowsForEngagement(args: {
   holdings?: UserHoldingInput[];
   locale?: string;
 }) {
-  await getDecisionSnapshot(args);
   const repo = getRepo();
-  const rows = repo.listDecisionSnapshots({
-    userId: args.userId || 'guest-default',
+  const userId = args.userId || 'guest-default';
+  const assetClass = args.assetClass || undefined;
+  const latest = repo.getLatestDecisionSnapshot({
+    userId,
     market: args.market,
-    assetClass: args.assetClass || undefined,
+    assetClass
+  });
+  const canReuseLatest = !args.holdings?.length && latest && Date.now() - latest.updated_at_ms < 5 * 60 * 1000;
+  if (!canReuseLatest) {
+    await getDecisionSnapshot(args);
+  }
+  const rows = repo.listDecisionSnapshots({
+    userId,
+    market: args.market,
+    assetClass,
     limit: 6
   });
   const current = rows[0] || null;
@@ -3029,6 +3055,7 @@ export async function getEngagementState(args: {
   localHour?: number;
   holdings?: UserHoldingInput[];
   locale?: string;
+  skipLanguage?: boolean;
 }) {
   const repo = getRepo();
   const userId = args.userId || 'guest-default';
@@ -3068,17 +3095,19 @@ export async function getEngagementState(args: {
     limit: 12
   });
 
-  const enrichedSnapshot = await applyLocalNovaWrapUpLanguage({
-    repo,
-    userId,
-    locale: args.locale,
-    engagement: snapshot,
-    decision: {
-      today_call: parseOptionalJson(current?.summary_json)?.today_call || null,
-      risk_state: parseOptionalJson(current?.risk_state_json) || {},
-      ranked_action_cards: parseJsonArray(current?.actions_json)
-    }
-  });
+  const enrichedSnapshot = args.skipLanguage
+    ? snapshot
+    : await applyLocalNovaWrapUpLanguage({
+        repo,
+        userId,
+        locale: args.locale,
+        engagement: snapshot,
+        decision: {
+          today_call: parseOptionalJson(current?.summary_json)?.today_call || null,
+          risk_state: parseOptionalJson(current?.risk_state_json) || {},
+          ranked_action_cards: parseJsonArray(current?.actions_json)
+        }
+      });
 
   return {
     ...enrichedSnapshot,
@@ -3233,7 +3262,10 @@ export async function getWidgetSummary(args: {
   holdings?: UserHoldingInput[];
   locale?: string;
 }) {
-  const snapshot = await getEngagementState(args);
+  const snapshot = await getEngagementState({
+    ...args,
+    skipLanguage: true
+  });
   return {
     as_of: snapshot.as_of,
     source_status: snapshot.source_status,
@@ -3254,7 +3286,10 @@ export async function getNotificationPreview(args: {
   holdings?: UserHoldingInput[];
   locale?: string;
 }) {
-  const snapshot = await getEngagementState(args);
+  const snapshot = await getEngagementState({
+    ...args,
+    skipLanguage: true
+  });
   return {
     as_of: snapshot.as_of,
     source_status: snapshot.source_status,
@@ -3586,6 +3621,65 @@ export function getRuntimeState(args: {
   };
 }
 
+function shouldUsePublicDecisionFallback(args: {
+  sourceStatus?: string | null;
+  signalCount?: number;
+  decision?: Record<string, unknown> | null;
+  holdings?: UserHoldingInput[];
+}) {
+  if (String(process.env.NOVA_FORCE_PUBLIC_RUNTIME_FALLBACK || '') === '1') {
+    return !(Array.isArray(args.holdings) && args.holdings.length);
+  }
+  if (Array.isArray(args.holdings) && args.holdings.length) return false;
+  const runtimeStatus = normalizeRuntimeStatus(args.sourceStatus, RUNTIME_STATUS.INSUFFICIENT_DATA);
+  const signalCount = Number(args.signalCount || 0);
+  const todayCall = asObject(asObject(args.decision).today_call);
+  const decisionCode = String(todayCall.code || '').toUpperCase();
+  return runtimeStatus !== RUNTIME_STATUS.DB_BACKED && signalCount === 0 && (decisionCode === 'UNAVAILABLE' || !decisionCode);
+}
+
+function signalPayloadsFromDecision(decision: Record<string, unknown> | null | undefined) {
+  return asArray(asObject(decision).ranked_action_cards)
+    .map((row) => asObject(row).signal_payload)
+    .filter((row) => row && typeof row === 'object');
+}
+
+export async function getRuntimeStateResponse(args: {
+  userId?: string;
+  market?: Market;
+  assetClass?: AssetClass;
+}) {
+  const runtime = getRuntimeState(args);
+  if (
+    !shouldUsePublicDecisionFallback({
+      sourceStatus: String(runtime.source_status || ''),
+      signalCount: Array.isArray(runtime?.data?.signals) ? runtime.data.signals.length : 0,
+      decision: asObject(runtime?.data?.decision)
+    })
+  ) {
+    return runtime;
+  }
+
+  try {
+    const publicDecision = await getPublicTodayDecision({
+      userId: args.userId,
+      market: args.market,
+      assetClass: args.assetClass
+    });
+    const publicSignals = signalPayloadsFromDecision(publicDecision as Record<string, unknown>);
+    return {
+      ...runtime,
+      data: {
+        ...runtime.data,
+        signals: publicSignals.length ? publicSignals : runtime.data.signals,
+        decision: publicDecision
+      }
+    };
+  } catch {
+    return runtime;
+  }
+}
+
 function parseJsonValue(text: string | null | undefined): unknown {
   if (!text) return null;
   try {
@@ -3627,7 +3721,13 @@ function workflowRunBase(run: WorkflowRunRecord) {
 
 function summarizeFreeDataRun(run: WorkflowRunRecord) {
   const output = asObject(parseJsonValue(run.output_json));
+  const referenceData = asObject(output.reference_data);
+  const targetPlan = asObject(referenceData.target_plan);
   const news = asObject(output.news);
+  const fundamentals = asObject(output.fundamentals);
+  const fundamentalsCoverage = asObject(fundamentals.coverage);
+  const options = asObject(output.options);
+  const optionsCoverage = asObject(options.coverage);
   const crypto = asObject(output.crypto_structure);
   const highlights = asArray(crypto.symbols)
     .map((row) => asObject(row))
@@ -3640,17 +3740,58 @@ function summarizeFreeDataRun(run: WorkflowRunRecord) {
       latest_basis_bps: Number.isFinite(Number(row.latest_basis_bps)) ? Number(row.latest_basis_bps) : null
     }))
     .filter((row) => row.symbol);
+  const detailParts = [
+    `${toCount(news.refreshed_symbols)} news refreshes`,
+    Number.isFinite(Number(fundamentalsCoverage.fresh_coverage_pct))
+      ? `fund ${toCount(fundamentalsCoverage.fresh_coverage_pct)}% fresh`
+      : '',
+    Number.isFinite(Number(optionsCoverage.fresh_coverage_pct))
+      ? `opt ${toCount(optionsCoverage.fresh_coverage_pct)}% fresh`
+      : '',
+    toCount(crypto.symbols_processed) ? `${toCount(crypto.symbols_processed)} crypto symbols` : ''
+  ].filter(Boolean);
 
   return {
     ...workflowRunBase(run),
     workflow_key: run.workflow_key,
     market: typeof output.market === 'string' ? output.market : 'ALL',
+    reference_data: {
+      target_symbol_budget: toCount(targetPlan.target_symbol_budget),
+      target_symbol_count: toCount(targetPlan.target_symbols && asArray(targetPlan.target_symbols).length),
+      configured_seed_count: toCount(targetPlan.configured_seed_count),
+      runtime_active_count: toCount(targetPlan.runtime_active_count),
+      universe_fill_count: toCount(targetPlan.universe_fill_count)
+    },
     news: {
       targets: toCount(news.targets),
       refreshed_symbols: toCount(news.refreshed_symbols),
       skipped_symbols: toCount(news.skipped_symbols),
       rows_upserted: toCount(news.rows_upserted),
       error_count: asArray(news.errors).length
+    },
+    fundamentals: {
+      targets: toCount(fundamentals.targets),
+      refreshed_symbols: toCount(fundamentals.refreshed_symbols),
+      skipped_symbols: toCount(fundamentals.skipped_symbols),
+      rows_upserted: toCount(fundamentals.rows_upserted),
+      error_count: asArray(fundamentals.errors).length,
+      target_count: toCount(fundamentalsCoverage.target_count),
+      fresh_count: toCount(fundamentalsCoverage.fresh_count),
+      stale_count: toCount(fundamentalsCoverage.stale_count),
+      missing_count: toCount(fundamentalsCoverage.missing_count),
+      fresh_coverage_pct: toCount(fundamentalsCoverage.fresh_coverage_pct)
+    },
+    options: {
+      targets: toCount(options.targets),
+      refreshed_symbols: toCount(options.refreshed_symbols),
+      skipped_symbols: toCount(options.skipped_symbols),
+      rows_upserted: toCount(options.rows_upserted),
+      error_count: asArray(options.errors).length,
+      target_count: toCount(optionsCoverage.target_count),
+      fresh_count: toCount(optionsCoverage.fresh_count),
+      stale_count: toCount(optionsCoverage.stale_count),
+      missing_count: toCount(optionsCoverage.missing_count),
+      fresh_coverage_pct: toCount(optionsCoverage.fresh_coverage_pct)
     },
     crypto_structure: {
       symbols_processed: toCount(crypto.symbols_processed),
@@ -3659,7 +3800,8 @@ function summarizeFreeDataRun(run: WorkflowRunRecord) {
       latest_funding_symbols: toCount(crypto.latest_funding_symbols),
       latest_basis_symbols: toCount(crypto.latest_basis_symbols),
       highlights
-    }
+    },
+    detail: detailParts.join(' · ')
   };
 }
 
@@ -3750,7 +3892,7 @@ function buildFlywheelStatus(repo: MarketRepository) {
         label: 'Free Data Refresh',
         status: summary.status,
         updated_at: summary.updated_at,
-        detail: `${summary.news.refreshed_symbols} news refreshes · ${summary.crypto_structure.symbols_processed} crypto symbols`
+        detail: summary.detail
       };
     }),
     ...evolutionRuns.slice(0, 2).map((run) => {

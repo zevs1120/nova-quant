@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import SignalDetail from './SignalDetail';
 import TradeTicketSheet from './TradeTicketSheet';
 import { describeEvidenceMode } from '../utils/provenance';
-import { buildNovaTradeQuestion, buildTradeIntent } from '../utils/tradeIntent';
+import { buildNovaTradeQuestion, buildTradeIntent, openTradeIntentHandoff, tradeIntentHandoffLabel } from '../utils/tradeIntent';
 
 const ACTIVE_SIGNAL_STATUS = new Set(['NEW', 'TRIGGERED']);
 const DATA_STATUS_PENALTY = {
@@ -833,6 +833,8 @@ export default function TodayTab({
     () => (tradeSignal ? buildTradeIntent(tradeSignal, { broker: brokerProfile?.broker, brokerSnapshot: brokerConnection }) : null),
     [tradeSignal, brokerProfile?.broker, brokerConnection]
   );
+  const buildSignalIntent = (signal) => buildTradeIntent(signal, { broker: brokerProfile?.broker, brokerSnapshot: brokerConnection });
+  const activeSignalIntent = activeSignal ? buildSignalIntent(activeSignal) : null;
 
   const openTradeTicket = (signal) => {
     if (!signal) return;
@@ -842,7 +844,7 @@ export default function TodayTab({
 
   const askNovaAboutSignal = (signal, intent = null) => {
     if (!signal) return;
-    const nextIntent = intent || buildTradeIntent(signal, { broker: brokerProfile?.broker, brokerSnapshot: brokerConnection });
+    const nextIntent = intent || buildSignalIntent(signal);
     onAskAi?.(buildNovaTradeQuestion(signal, nextIntent, locale), {
       page: 'today',
       focus: 'execution',
@@ -866,7 +868,14 @@ export default function TodayTab({
           signal={activeSignal}
           locale={locale}
           onBack={() => setActiveSignal(null)}
-          onOpenTradeTicket={() => openTradeTicket(activeSignal)}
+          onOpenTradeTicket={() => handleSignalAction(activeSignal)}
+          primaryActionLabel={
+            activeSignalIntent?.canOpenBroker
+              ? tradeIntentHandoffLabel(activeSignalIntent, locale)
+              : locale === 'zh'
+                ? '打开交易票据'
+                : 'Open trade ticket'
+          }
           onAskAi={() => askNovaAboutSignal(activeSignal)}
           onPaperExecute={() => onPaperExecute?.(activeSignal)}
           t={(key, _v, fallback) => fallback || key}
@@ -886,6 +895,7 @@ export default function TodayTab({
   }
 
   const handleSignalAction = (signal) => {
+    const nextIntent = buildSignalIntent(signal);
     const signalBlocked =
       !signal ||
       !signal._actionable ||
@@ -893,6 +903,18 @@ export default function TodayTab({
       overall.code === 'DEFENSE' ||
       overall.code === 'NO_TRADE' ||
       overall.code === 'UNAVAILABLE';
+    if (nextIntent?.canOpenBroker) {
+      triggerFeedback(signalBlocked ? 'soft' : 'confirm');
+      if (!signalBlocked) {
+        onCompleteCheckIn?.();
+      }
+      openTradeIntentHandoff(nextIntent, {
+        onBeforeOpen: () => {
+          if (!signalBlocked) onPaperExecute?.(signal);
+        }
+      });
+      return;
+    }
     if (!signalBlocked) {
       onCompleteCheckIn?.();
       openTradeTicket(signal);
@@ -1050,6 +1072,12 @@ export default function TodayTab({
                         ? '高风险'
                         : 'High risk';
                 const signalMetaLine = buildActionMetaText({ locale, signal, provenance });
+                const signalIntent = buildSignalIntent(signal);
+                const primaryActionLabel = signalIntent?.canOpenBroker
+                  ? tradeIntentHandoffLabel(signalIntent, locale)
+                  : locale === 'zh'
+                    ? '打开交易票据'
+                    : 'Open trade ticket';
                 return (
                   <article
                     key={signalId}
@@ -1131,13 +1159,7 @@ export default function TodayTab({
                           handleSignalAction(signal);
                         }}
                       >
-                        {!signalBlocked
-                          ? locale === 'zh'
-                            ? '打开交易票据'
-                            : 'Open ticket'
-                          : locale === 'zh'
-                            ? '查看理由'
-                            : 'See why'}
+                        {primaryActionLabel}
                       </button>
                       <button
                         type="button"

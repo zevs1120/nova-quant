@@ -12,6 +12,10 @@ function normalizedBroker(value) {
   return String(value || 'Robinhood').trim();
 }
 
+function isZhLocale(locale = 'en') {
+  return String(locale || '').startsWith('zh');
+}
+
 function normalizedBrokerKey(value) {
   return normalizedBroker(value).toLowerCase().replace(/[^a-z0-9]+/g, '');
 }
@@ -71,15 +75,22 @@ const DEFAULT_BROKER_HANDOFFS = {
   robinhood: {
     kind: 'asset_page',
     label: 'Robinhood',
-    stockUrl: 'https://robinhood.com/us/en/stocks/{{symbol}}/',
-    cryptoUrl: 'https://robinhood.com/us/en/crypto/{{baseSymbol}}/'
+    stockUrl: 'https://robinhood.com/stocks/{{symbol}}',
+    cryptoUrl: 'https://robinhood.com/crypto/{{baseSymbol}}',
+    opensAppIfInstalled: true
   }
 };
 
 function resolveBrokerTemplate(broker) {
   const configured = readConfiguredBrokerTemplates();
   const key = normalizedBrokerKey(broker);
-  return configured[key] || configured[normalizedBroker(broker)] || DEFAULT_BROKER_HANDOFFS[key] || null;
+  return (
+    configured[key] ||
+    configured[normalizedBroker(broker)] ||
+    DEFAULT_BROKER_HANDOFFS[key] ||
+    DEFAULT_BROKER_HANDOFFS.robinhood ||
+    null
+  );
 }
 
 function buildBrokerHandoff({ broker, signal, intent }) {
@@ -122,7 +133,8 @@ function buildBrokerHandoff({ broker, signal, intent }) {
   return {
     url: applyUrlTemplate(templateUrl, context),
     kind: template.kind === 'prefilled_ticket' ? 'prefilled_ticket' : 'asset_page',
-    brokerLabel: template.label || normalizedBroker(broker)
+    brokerLabel: template.label || normalizedBroker(broker),
+    opensAppIfInstalled: template.opensAppIfInstalled === true
   };
 }
 
@@ -152,6 +164,35 @@ function copyPayload(intent) {
     `why_now: ${intent.whyNow || '--'}`,
     `risk_note: ${intent.riskNote || '--'}`
   ].join('\n');
+}
+
+export function tradeIntentHandoffLabel(intent = {}, locale = 'en') {
+  const broker = normalizedBroker(intent?.handoffBrokerLabel || intent?.broker);
+  if (intent?.handoffPrefillsTicket) {
+    return isZhLocale(locale) ? `去 ${broker} 下单` : `Open ${broker} order`;
+  }
+  if (intent?.canOpenBroker) {
+    return isZhLocale(locale) ? `打开 ${broker}` : `Open ${broker}`;
+  }
+  return isZhLocale(locale) ? '复制交易票据' : 'Copy trade ticket';
+}
+
+export function openTradeIntentHandoff(intent = {}, options = {}) {
+  if (!intent?.brokerHandoffUrl || typeof window === 'undefined') return false;
+
+  options.onBeforeOpen?.();
+
+  const userAgent = typeof navigator === 'undefined' ? '' : String(navigator.userAgent || '');
+  const isMobileDevice = /android|iphone|ipad|ipod/i.test(userAgent);
+
+  if (isMobileDevice) {
+    window.location.assign(intent.brokerHandoffUrl);
+    return true;
+  }
+
+  const popup = window.open(intent.brokerHandoffUrl, '_blank', 'noopener,noreferrer');
+  if (!popup) window.location.assign(intent.brokerHandoffUrl);
+  return true;
 }
 
 export function buildTradeIntent(signal = {}, options = {}) {
@@ -209,20 +250,24 @@ export function buildTradeIntent(signal = {}, options = {}) {
     riskNote: signal?.risk_note || signal?.brief_caution || null,
     invalidation: signal?.invalidation_level ?? stopLoss,
     broker,
+    handoffBrokerLabel: broker,
     brokerHandoffUrl: null,
     brokerHandoffKind: 'copy_only',
     canOpenBroker: false,
     handoffPrefillsTicket: false,
+    handoffOpensAppIfInstalled: false,
     checklist: Array.isArray(signal?.execution_checklist) ? signal.execution_checklist : [],
     copyText: ''
   };
 
   const brokerHandoff = buildBrokerHandoff({ broker, signal, intent });
   if (brokerHandoff?.url) {
+    intent.handoffBrokerLabel = brokerHandoff.brokerLabel || broker;
     intent.brokerHandoffUrl = brokerHandoff.url;
     intent.brokerHandoffKind = brokerHandoff.kind;
     intent.canOpenBroker = true;
     intent.handoffPrefillsTicket = brokerHandoff.kind === 'prefilled_ticket';
+    intent.handoffOpensAppIfInstalled = brokerHandoff.opensAppIfInstalled === true;
   }
 
   intent.copyText = copyPayload(intent);
