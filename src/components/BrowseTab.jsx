@@ -923,9 +923,9 @@ export default function BrowseTab({
                       {(data.earnings || []).map((item) => (
                         <EarningsRow key={`earn-${item.symbol}`} item={item} onOpen={openItem} />
                       ))}
-                      {todaySignalSymbols.map((item) => (
+                      {todaySignalSymbols.map((item, idx) => (
                         <EarningsRow
-                          key={`signal-${item.symbol}`}
+                          key={`signal-${item.symbol}-${idx}`}
                           item={{ ...item, note: item.title, timing: 'Today signal' }}
                           onOpen={openItem}
                         />

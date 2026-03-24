@@ -9,6 +9,7 @@ All notable changes to NovaQuant are recorded here.
 - Fix 12 failing tests across 9 test files by adding env isolation (vi.stubEnv) for LLM provider keys (GROQ_API_KEY, GEMINI_API_KEY) and remote auth store credentials (KV_REST_API_URL, KV_REST_API_TOKEN, UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN). Tests now pass consistently with or without .env credentials present.
 - Update apiIndexRoute CORS assertion from GET,OPTIONS to GET,POST,OPTIONS to match current applyPublicCors handler.
 - Fix manual service 500 crash for cloud-only auth users: gracefully handle FOREIGN KEY constraint failure in ensureManualUserState when user exists in remote auth store (Upstash Redis) but not in local SQLite auth_users table. Returns default dashboard instead of crashing.
+- Fix duplicate React key warning in BrowseTab Earnings section: todaySignalSymbols can contain multiple signals for the same symbol (e.g. TSLA, META), causing `signal-${symbol}` key collisions. Added array index to disambiguate.
 - Updated release metadata, build number, About runtime source, and changelog entry.
 
 ## 10.1.1 (2026-03-23)
