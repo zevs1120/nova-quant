@@ -1,21 +1,21 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AboutModal from './components/AboutModal';
-import AiPage from './components/AiPage';
+const AiPage = lazy(() => import('./components/AiPage'));
 import novaLogo from './assets/NOVA1.png';
 import novaLogoCompact from './assets/Nova2.png';
-import BrowseTab from './components/BrowseTab';
-import HoldingsTab from './components/HoldingsTab';
-import MarketTab from './components/MarketTab';
-import MenuTab from './components/MenuTab';
-import OnboardingFlow from './components/OnboardingFlow';
-import ProofTab from './components/ProofTab';
-import ResearchTab from './components/ResearchTab';
-import RiskTab from './components/RiskTab';
+const BrowseTab = lazy(() => import('./components/BrowseTab'));
+const HoldingsTab = lazy(() => import('./components/HoldingsTab'));
+const MarketTab = lazy(() => import('./components/MarketTab'));
+const MenuTab = lazy(() => import('./components/MenuTab'));
+const OnboardingFlow = lazy(() => import('./components/OnboardingFlow'));
+const ProofTab = lazy(() => import('./components/ProofTab'));
+const ResearchTab = lazy(() => import('./components/ResearchTab'));
+const RiskTab = lazy(() => import('./components/RiskTab'));
 import SegmentedControl from './components/SegmentedControl';
 import Skeleton from './components/Skeleton';
-import SignalsTab from './components/SignalsTab';
+const SignalsTab = lazy(() => import('./components/SignalsTab'));
 import TodayTab from './components/TodayTab';
-import WeeklyReviewTab from './components/WeeklyReviewTab';
+const WeeklyReviewTab = lazy(() => import('./components/WeeklyReviewTab'));
 import { runQuantPipeline } from './engines/pipeline';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { createTranslator, getDefaultLang, getLocale } from './i18n';
@@ -2332,30 +2332,32 @@ export default function App() {
 
     if (activeTab === 'browse') {
       return (
-        <BrowseTab
-          locale={locale}
-          signals={uiData?.signals || []}
-          watchlist={watchlist}
-          setWatchlist={setWatchlist}
-          topBarBackToken={browseBackToken}
-          onTopBarStateChange={(nextState) =>
-            setBrowseTopBarState((current) => {
-              const normalized = {
-                canGoBack: Boolean(nextState?.canGoBack),
-                title: String(nextState?.title || tabMeta.browse.label),
-                backLabel: String(nextState?.backLabel || tabMeta.browse.label)
-              };
-              if (
-                current.canGoBack === normalized.canGoBack &&
-                current.title === normalized.title &&
-                current.backLabel === normalized.backLabel
-              ) {
-                return current;
-              }
-              return normalized;
-            })
-          }
-        />
+        <Suspense fallback={<div className="browse-rh-empty" style={{ padding: '3rem 0', textAlign: 'center' }}>Loading…</div>}>
+          <BrowseTab
+            locale={locale}
+            signals={uiData?.signals || []}
+            watchlist={watchlist}
+            setWatchlist={setWatchlist}
+            topBarBackToken={browseBackToken}
+            onTopBarStateChange={(nextState) =>
+              setBrowseTopBarState((current) => {
+                const normalized = {
+                  canGoBack: Boolean(nextState?.canGoBack),
+                  title: String(nextState?.title || tabMeta.browse.label),
+                  backLabel: String(nextState?.backLabel || tabMeta.browse.label)
+                };
+                if (
+                  current.canGoBack === normalized.canGoBack &&
+                  current.title === normalized.title &&
+                  current.backLabel === normalized.backLabel
+                ) {
+                  return current;
+                }
+                return normalized;
+              })
+            }
+          />
+        </Suspense>
       );
     }
 
@@ -2590,9 +2592,11 @@ export default function App() {
         </header>
 
         <main ref={mainContentRef} className={`main-content main-content-${activeTab}`}>
-          <div className="screen-transition" key={`${activeTab}-${mySection}-${uiMode}`}>
-            {renderScreen()}
-          </div>
+          <Suspense fallback={<Skeleton lines={6} />}>
+            <div className="screen-transition" key={`${activeTab}-${mySection}-${uiMode}`}>
+              {renderScreen()}
+            </div>
+          </Suspense>
         </main>
       </div>
 
@@ -2622,7 +2626,8 @@ export default function App() {
 
       <AboutModal open={aboutOpen} onClose={() => setAboutOpen(false)} config={data.config} t={t} locale={locale} />
 
-      <OnboardingFlow
+      <Suspense fallback={null}>
+        <OnboardingFlow
         open={showOnboarding}
         locale={locale}
         profile={userProfile}
@@ -2758,6 +2763,7 @@ export default function App() {
           }
         }}
       />
+      </Suspense>
     </div>
   );
 }
