@@ -1,7 +1,7 @@
 {
   "name": "nova-quant",
   "private": true,
-  "version": "10.1.1",
+  "version": "10.1.2",
   "type": "module",
   "scripts": {
     "dev": "node scripts/dev-stack.mjs",
@@ -73,5 +73,12 @@
     "typescript": "^5.9.3",
     "vite": "^5.4.11",
     "vitest": "^4.0.18"
+  },
+  "overrides": {
+    "undici": "^6.24.1",
+    "ajv": "^8.18.0",
+    "minimatch": "^10.2.4",
+    "path-to-regexp": "^8.3.0",
+    "esbuild": "^0.27.4"
   }
 }

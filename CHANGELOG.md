@@ -2,6 +2,12 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 10.1.2 (2026-03-24)
+- Release type: patch
+- Resolve all 11 npm audit vulnerabilities (4 moderate, 7 high) by adding npm overrides for transitive dependencies: undici ^6.24.1, ajv ^8.18.0, minimatch ^10.2.4, path-to-regexp ^8.3.0, esbuild ^0.27.4.
+- Affected parent packages: @vercel/node (undici, ajv, minimatch, path-to-regexp) and vite (esbuild). No breaking changes to direct dependencies.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
 ## 10.1.1 (2026-03-23)
 - Release type: patch
 - Normalize documentation against the repo: monorepo deploy layout, local dev (npm ci, npm run dev stack), REPOSITORY_OVERVIEW/REPO_RUNBOOK/VERSIONING cross-links.
