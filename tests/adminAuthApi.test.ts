@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getDb } from '../src/server/db/database.js';
 import { ensureSchema } from '../src/server/db/schema.js';
 import { handleAdminLogin, handleAdminSession, handleAuthSignup } from '../src/server/api/authHandlers.js';
@@ -63,9 +63,17 @@ function resetAuthTables(email: string) {
 describe('admin auth api', () => {
   const email = 'admin-api-test@example.com';
 
+  beforeEach(() => {
+    vi.stubEnv('KV_REST_API_URL', '');
+    vi.stubEnv('KV_REST_API_TOKEN', '');
+    vi.stubEnv('UPSTASH_REDIS_REST_URL', '');
+    vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', '');
+  });
+
   afterEach(() => {
     process.env.NOVA_ADMIN_EMAILS = '';
     resetAuthTables(email);
+    vi.unstubAllEnvs();
   });
 
   it('creates an admin session for configured admin emails', async () => {

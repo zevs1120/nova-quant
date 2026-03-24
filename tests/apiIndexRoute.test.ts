@@ -71,6 +71,6 @@ describe('api index route', () => {
 
     expect(res.statusCode).toBe(204);
     expect(res.headers['access-control-allow-origin']).toBe('https://novaquant.cloud');
-    expect(res.headers['access-control-allow-methods']).toBe('GET,OPTIONS');
+    expect(res.headers['access-control-allow-methods']).toBe('GET,POST,OPTIONS');
   });
 });

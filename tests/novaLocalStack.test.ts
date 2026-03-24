@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import request from 'supertest';
 import { createApiApp } from '../src/server/api/app.js';
 import { MARVIX_MODEL_ALIASES } from '../src/server/ai/llmOps.js';
@@ -14,6 +14,15 @@ function readNdjsonText(response: { body?: unknown; text?: string }) {
 }
 
 describe('nova local stack', () => {
+  beforeEach(() => {
+    vi.stubEnv('GROQ_API_KEY', '');
+    vi.stubEnv('GEMINI_API_KEY', '');
+    vi.stubEnv('KV_REST_API_URL', '');
+    vi.stubEnv('KV_REST_API_TOKEN', '');
+    vi.stubEnv('UPSTASH_REDIS_REST_URL', '');
+    vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', '');
+  });
+
   afterEach(() => {
     vi.unstubAllEnvs();
   });

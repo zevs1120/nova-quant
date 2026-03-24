@@ -1,8 +1,21 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import request from 'supertest';
 import { createApiApp } from '../src/server/api/app.js';
 
 describe('engagement api', () => {
+  beforeEach(() => {
+    vi.stubEnv('GROQ_API_KEY', '');
+    vi.stubEnv('GEMINI_API_KEY', '');
+    vi.stubEnv('KV_REST_API_URL', '');
+    vi.stubEnv('KV_REST_API_TOKEN', '');
+    vi.stubEnv('UPSTASH_REDIS_REST_URL', '');
+    vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', '');
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it('returns a grounded engagement snapshot and persists ritual state', async () => {
     const app = createApiApp();
     const userId = `engagement-api-${Date.now()}`;

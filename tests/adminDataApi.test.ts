@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getDb } from '../src/server/db/database.js';
 import { ensureSchema } from '../src/server/db/schema.js';
 import { MarketRepository } from '../src/server/db/repository.js';
@@ -200,9 +200,17 @@ function cleanupAdminData(email: string) {
 describe('admin data api', () => {
   const email = 'admin-data-api@example.com';
 
+  beforeEach(() => {
+    vi.stubEnv('KV_REST_API_URL', '');
+    vi.stubEnv('KV_REST_API_TOKEN', '');
+    vi.stubEnv('UPSTASH_REDIS_REST_URL', '');
+    vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', '');
+  });
+
   afterEach(() => {
     process.env.NOVA_ADMIN_EMAILS = '';
     cleanupAdminData(email);
+    vi.unstubAllEnvs();
   });
 
   it('rejects admin data access without an admin session', async () => {
