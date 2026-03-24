@@ -2,6 +2,11 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 10.3.5 (2026-03-24)
+
+- Release type: patch
+- Add GitHub Actions CI workflow (`.github/workflows/ci.yml`). Runs on push to `main` and all PRs: lint (repo policy) -> format check -> typecheck -> test -> build. Uses Node.js 22 with npm cache.
+
 ## 10.3.4 (2026-03-24)
 
 - Release type: patch
