@@ -156,6 +156,17 @@ function providerMode(provider: string): 'READ_ONLY' | 'TRADING' {
   return tradingEnabled(provider) ? 'TRADING' : 'READ_ONLY';
 }
 
+function missingCredentialMessage(provider: string) {
+  const p = String(provider || '').toUpperCase();
+  if (p === 'ALPACA') {
+    return 'Alpaca credentials are not configured. Set ALPACA_API_KEY/APCA_API_KEY_ID and ALPACA_API_SECRET/APCA_API_SECRET_KEY.';
+  }
+  if (p === 'BINANCE') {
+    return 'Binance credentials are not configured. Set BINANCE_API_KEY and BINANCE_API_SECRET.';
+  }
+  return `${p || 'Provider'} credentials are not configured.`;
+}
+
 function toNumber(value: unknown): number | null {
   const n = Number(value);
   return Number.isFinite(n) ? n : null;
@@ -169,7 +180,7 @@ function formatNumber(value: number | null | undefined, digits = 8): string | un
 
 function ensureTradingEnabled(provider: string) {
   if (!isConfigured(provider)) {
-    throw new Error(`${provider} credentials are not configured.`);
+    throw new Error(missingCredentialMessage(provider));
   }
   if (!tradingEnabled(provider)) {
     throw new Error(`${provider} trading is disabled. Set NOVA_ENABLE_ORDER_ROUTING=1 or the provider-specific trading flag.`);
@@ -323,7 +334,7 @@ class HonestBrokerAdapter implements BrokerAdapter {
       return disconnectedBroker(provider, 'UNSUPPORTED_PROVIDER', 'Broker provider is not supported in this build.');
     }
     if (!isConfigured(provider)) {
-      return disconnectedBroker(provider, 'NO_CREDENTIALS', 'Broker credentials are not configured.');
+      return disconnectedBroker(provider, 'NO_CREDENTIALS', missingCredentialMessage(provider));
     }
     const credentials = resolveAlpacaCredentials();
     const headers = {
@@ -524,7 +535,7 @@ class HonestExchangeAdapter implements ExchangeAdapter {
       return disconnectedExchange(provider, 'UNSUPPORTED_PROVIDER', 'Exchange provider is not supported in this build.');
     }
     if (!isConfigured(provider)) {
-      return disconnectedExchange(provider, 'NO_CREDENTIALS', 'Exchange credentials are not configured.');
+      return disconnectedExchange(provider, 'NO_CREDENTIALS', missingCredentialMessage(provider));
     }
     const credentials = resolveBinanceCredentials();
     const query = signBinanceQuery(

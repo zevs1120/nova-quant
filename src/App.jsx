@@ -853,8 +853,8 @@ export default function App() {
           fetchJson(`/api/market/modules?${query.toString()}`),
           fetchJson(`/api/risk-profile?userId=${effectiveUserId}`),
           fetchJson(`/api/control-plane/status?userId=${effectiveUserId}`).catch(() => null),
-          fetchJson(`/api/connect/broker?userId=${effectiveUserId}&provider=ALPACA`),
-          fetchJson(`/api/connect/exchange?userId=${effectiveUserId}&provider=BINANCE`)
+          authSession ? fetchJson(`/api/connect/broker?userId=${effectiveUserId}&provider=ALPACA`) : Promise.resolve(null),
+          authSession ? fetchJson(`/api/connect/exchange?userId=${effectiveUserId}&provider=BINANCE`) : Promise.resolve(null)
         ]);
 
         if (!mounted) return;

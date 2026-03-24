@@ -19,6 +19,33 @@ import {
   remoteUserSessionsKey,
   remoteUserStateKey
 } from './remoteKv.js';
+import {
+  canSendPasswordResetEmail,
+  canSendSignupWelcomeEmail,
+  sendPasswordResetEmail,
+  sendSignupWelcomeEmail
+} from './resetEmail.js';
+import {
+  hasPostgresAuthStore,
+  pgGetLatestPasswordReset,
+  pgGetSessionBundle,
+  pgGetUserByEmail,
+  pgGetUserById,
+  pgGetUserState,
+  pgInsertPasswordReset,
+  pgInsertUserWithState,
+  pgInvalidateOpenPasswordResets,
+  pgListUserRoles,
+  pgMarkPasswordResetUsed,
+  pgRevokeSessionByTokenHash,
+  pgRevokeUserSessions,
+  pgTouchSession,
+  pgUpsertSession,
+  pgUpsertUser,
+  pgUpsertUserRole,
+  pgUpsertUserState
+} from './postgresStore.js';
+import { logWarn } from '../utils/log.js';
 
 const SESSION_COOKIE_NAME = 'novaquant_session';
 const ADMIN_SESSION_COOKIE_NAME = 'novaquant_admin_session';
@@ -229,6 +256,10 @@ function buildCookieHeader(name: string, token: string, maxAgeSeconds: number) {
   return `${name}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAgeSeconds}${secure ? '; Secure' : ''}`;
 }
 
+function shouldExposePasswordResetCodeHint() {
+  return process.env.VERCEL !== '1' && process.env.NODE_ENV !== 'production';
+}
+
 function clearCookieHeader(name: string) {
   const secure = process.env.VERCEL === '1' || process.env.NODE_ENV === 'production';
   return `${name}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure ? '; Secure' : ''}`;
@@ -260,6 +291,24 @@ function defaultUserState(): AuthUserState {
   };
 }
 
+async function trySendSignupWelcomeEmail(user: { email: string; name: string; userId?: string; user_id?: string }) {
+  if (!canSendSignupWelcomeEmail()) return;
+  try {
+    await sendSignupWelcomeEmail({
+      email: user.email,
+      name: user.name
+    });
+  } catch (error) {
+    logWarn('Signup welcome email failed', {
+      scope: 'auth',
+      event_type: 'signup_welcome_email_failed',
+      user_id: 'userId' in user ? user.userId : user.user_id,
+      email: user.email,
+      error: String((error as Error)?.message || error || '')
+    });
+  }
+}
+
 function buildInitialUserState(tradeMode: AuthTradeMode): AuthUserState {
   return {
     ...defaultUserState(),
@@ -286,9 +335,122 @@ function shouldRequireRemoteAuthStore() {
 }
 
 function assertAuthStoreReady() {
-  if (shouldRequireRemoteAuthStore() && !hasRemoteAuthStore()) {
+  if (shouldRequireRemoteAuthStore() && !hasRemoteAuthStore() && !hasPostgresAuthStore()) {
     throw new Error('REMOTE_AUTH_STORE_NOT_CONFIGURED');
   }
+}
+
+function upsertLocalAuthUser(user: AuthUserRow) {
+  getDb().prepare(
+    `INSERT INTO auth_users(
+      user_id, email, password_hash, name, trade_mode, broker, locale, created_at_ms, updated_at_ms, last_login_at_ms
+    ) VALUES (
+      @user_id, @email, @password_hash, @name, @trade_mode, @broker, @locale, @created_at_ms, @updated_at_ms, @last_login_at_ms
+    )
+    ON CONFLICT(user_id) DO UPDATE SET
+      email = excluded.email,
+      password_hash = excluded.password_hash,
+      name = excluded.name,
+      trade_mode = excluded.trade_mode,
+      broker = excluded.broker,
+      locale = excluded.locale,
+      updated_at_ms = excluded.updated_at_ms,
+      last_login_at_ms = excluded.last_login_at_ms`
+  ).run(user);
+}
+
+function upsertLocalAuthUserState(userId: string, state: AuthUserState, updatedAtMs = nowMs()) {
+  try {
+    getDb().prepare(
+      `INSERT INTO auth_user_state_sync(
+        user_id, asset_class, market, ui_mode, risk_profile_key, watchlist_json, holdings_json, executions_json, discipline_log_json, updated_at_ms
+      ) VALUES (
+        @user_id, @asset_class, @market, @ui_mode, @risk_profile_key, @watchlist_json, @holdings_json, @executions_json, @discipline_log_json, @updated_at_ms
+      )
+      ON CONFLICT(user_id) DO UPDATE SET
+        asset_class = excluded.asset_class,
+        market = excluded.market,
+        ui_mode = excluded.ui_mode,
+        risk_profile_key = excluded.risk_profile_key,
+        watchlist_json = excluded.watchlist_json,
+        holdings_json = excluded.holdings_json,
+        executions_json = excluded.executions_json,
+        discipline_log_json = excluded.discipline_log_json,
+        updated_at_ms = excluded.updated_at_ms`
+    ).run({
+      user_id: userId,
+      asset_class: state.assetClass,
+      market: state.market,
+      ui_mode: state.uiMode,
+      risk_profile_key: state.riskProfileKey,
+      watchlist_json: JSON.stringify(state.watchlist || []),
+      holdings_json: JSON.stringify(state.holdings || []),
+      executions_json: JSON.stringify(state.executions || []),
+      discipline_log_json: JSON.stringify(state.disciplineLog || defaultUserState().disciplineLog),
+      updated_at_ms: updatedAtMs
+    });
+  } catch (error) {
+    if (!String((error as Error)?.message || '').includes('FOREIGN KEY constraint failed')) {
+      throw error;
+    }
+  }
+}
+
+function upsertLocalAuthUserRole(args: { userId: string; role: AuthRole; grantedAtMs: number; grantedByUserId?: string | null }) {
+  try {
+    getDb().prepare(
+      `INSERT INTO auth_user_roles(user_id, role, granted_at_ms, granted_by_user_id)
+       VALUES (@user_id, @role, @granted_at_ms, @granted_by_user_id)
+       ON CONFLICT(user_id, role) DO UPDATE SET
+         granted_by_user_id = COALESCE(auth_user_roles.granted_by_user_id, excluded.granted_by_user_id)`
+    ).run({
+      user_id: args.userId,
+      role: args.role,
+      granted_at_ms: args.grantedAtMs,
+      granted_by_user_id: args.grantedByUserId || null
+    });
+  } catch (error) {
+    if (!String((error as Error)?.message || '').includes('FOREIGN KEY constraint failed')) {
+      throw error;
+    }
+  }
+}
+
+function upsertLocalAuthSession(session: RemoteSessionRecord) {
+  try {
+    getDb().prepare(
+      `INSERT INTO auth_sessions(
+        session_id, user_id, session_token_hash, user_agent, ip_address, expires_at_ms, revoked_at_ms, created_at_ms, updated_at_ms, last_seen_at_ms
+      ) VALUES (
+        @session_id, @user_id, @session_token_hash, @user_agent, @ip_address, @expires_at_ms, @revoked_at_ms, @created_at_ms, @updated_at_ms, @last_seen_at_ms
+      )
+      ON CONFLICT(session_id) DO UPDATE SET
+        user_id = excluded.user_id,
+        session_token_hash = excluded.session_token_hash,
+        user_agent = excluded.user_agent,
+        ip_address = excluded.ip_address,
+        expires_at_ms = excluded.expires_at_ms,
+        revoked_at_ms = excluded.revoked_at_ms,
+        updated_at_ms = excluded.updated_at_ms,
+        last_seen_at_ms = excluded.last_seen_at_ms`
+    ).run(session);
+  } catch (error) {
+    if (!String((error as Error)?.message || '').includes('FOREIGN KEY constraint failed')) {
+      throw error;
+    }
+  }
+}
+
+function revokeLocalAuthSessionByTokenHash(tokenHash: string, ts: number) {
+  getDb()
+    .prepare('UPDATE auth_sessions SET revoked_at_ms = ?, updated_at_ms = ? WHERE session_token_hash = ? AND revoked_at_ms IS NULL')
+    .run(ts, ts, tokenHash);
+}
+
+function revokeLocalAuthSessionsByUserId(userId: string, ts: number) {
+  getDb()
+    .prepare('UPDATE auth_sessions SET revoked_at_ms = ?, updated_at_ms = ? WHERE user_id = ? AND revoked_at_ms IS NULL')
+    .run(ts, ts, userId);
 }
 
 function ensureSeededUserLocal() {
@@ -372,8 +534,46 @@ async function ensureSeededUserRemote() {
   }
 }
 
+async function ensureSeededUserPostgres() {
+  for (const seededUser of getSeededUserConfigs()) {
+    const existing = await pgGetUserByEmail(seededUser.email);
+    if (existing) {
+      upsertLocalAuthUser(existing);
+      const state = await pgGetUserState(existing.user_id);
+      upsertLocalAuthUserState(existing.user_id, state, existing.updated_at_ms);
+      continue;
+    }
+
+    const ts = nowMs();
+    const userId = createId('usr');
+    const user: AuthUserRow = {
+      user_id: userId,
+      email: seededUser.email,
+      password_hash: hashPassword(seededUser.password),
+      name: seededUser.name,
+      trade_mode: seededUser.tradeMode,
+      broker: seededUser.broker,
+      locale: seededUser.locale,
+      created_at_ms: ts,
+      updated_at_ms: ts,
+      last_login_at_ms: null
+    };
+    const state = mergeSeededUserState(seededUser);
+    await pgInsertUserWithState({
+      user,
+      state
+    });
+    upsertLocalAuthUser(user);
+    upsertLocalAuthUserState(userId, state, ts);
+  }
+}
+
 async function ensureSeededUser() {
   assertAuthStoreReady();
+  if (hasPostgresAuthStore()) {
+    await ensureSeededUserPostgres();
+    return;
+  }
   if (hasRemoteAuthStore()) {
     await ensureSeededUserRemote();
     return;
@@ -399,6 +599,13 @@ function getUserByEmailLocal(email: string): AuthUserRow | null {
 
 async function getUserByEmail(email: string): Promise<AuthUserRow | null> {
   await ensureSeededUser();
+  if (hasPostgresAuthStore()) {
+    const user = await pgGetUserByEmail(normalizeEmail(email));
+    if (user) {
+      upsertLocalAuthUser(user);
+    }
+    return user;
+  }
   if (hasRemoteAuthStore()) {
     const userId = await remoteGetString(remoteUserIdByEmailKey(normalizeEmail(email)));
     if (!userId) return null;
@@ -423,6 +630,13 @@ function getUserByIdLocal(userId: string): AuthUserRow | null {
 
 async function getUserById(userId: string): Promise<AuthUserRow | null> {
   await ensureSeededUser();
+  if (hasPostgresAuthStore()) {
+    const user = await pgGetUserById(userId);
+    if (user) {
+      upsertLocalAuthUser(user);
+    }
+    return user;
+  }
   if (hasRemoteAuthStore()) {
     return (await remoteGetJson<AuthUserRow>(remoteUserKey(userId))) || null;
   }
@@ -447,6 +661,18 @@ function listAuthUserRoleRowsLocal(userId: string): AuthUserRoleRow[] {
 
 async function listAuthUserRoleRows(userId: string): Promise<AuthUserRoleRow[]> {
   await ensureSeededUser();
+  if (hasPostgresAuthStore()) {
+    const rows = await pgListUserRoles(userId);
+    rows.forEach((row: AuthUserRoleRow) => {
+      upsertLocalAuthUserRole({
+        userId: row.user_id,
+        role: row.role,
+        grantedAtMs: row.granted_at_ms,
+        grantedByUserId: row.granted_by_user_id
+      });
+    });
+    return rows;
+  }
   if (hasRemoteAuthStore()) {
     const rows = (await remoteGetJson<AuthUserRoleRow[]>(remoteUserRolesKey(userId))) || [];
     return rows
@@ -465,6 +691,21 @@ async function listAuthUserRoleRows(userId: string): Promise<AuthUserRoleRow[]> 
 async function upsertAuthUserRole(args: { userId: string; role: AuthRole; grantedByUserId?: string | null }) {
   await ensureSeededUser();
   const ts = nowMs();
+  if (hasPostgresAuthStore()) {
+    await pgUpsertUserRole({
+      userId: args.userId,
+      role: args.role,
+      grantedAtMs: ts,
+      grantedByUserId: args.grantedByUserId || null
+    });
+    upsertLocalAuthUserRole({
+      userId: args.userId,
+      role: args.role,
+      grantedAtMs: ts,
+      grantedByUserId: args.grantedByUserId || null
+    });
+    return;
+  }
   if (hasRemoteAuthStore()) {
     const current = (await remoteGetJson<AuthUserRoleRow[]>(remoteUserRolesKey(args.userId))) || [];
     const next = current
@@ -542,6 +783,26 @@ function createSessionLocal(args: { userId: string; userAgent?: string | null; i
 }
 
 async function createSession(args: { userId: string; userAgent?: string | null; ipAddress?: string | null }) {
+  if (hasPostgresAuthStore()) {
+    const token = randomBytes(24).toString('hex');
+    const ts = nowMs();
+    const sessionId = createId('sess');
+    const record: RemoteSessionRecord = {
+      session_id: sessionId,
+      user_id: args.userId,
+      session_token_hash: hashToken(token),
+      user_agent: args.userAgent || null,
+      ip_address: args.ipAddress || null,
+      expires_at_ms: ts + SESSION_TTL_MS,
+      revoked_at_ms: null,
+      created_at_ms: ts,
+      updated_at_ms: ts,
+      last_seen_at_ms: ts
+    };
+    await pgUpsertSession(record);
+    upsertLocalAuthSession(record);
+    return token;
+  }
   if (!hasRemoteAuthStore()) {
     return createSessionLocal(args);
   }
@@ -595,6 +856,24 @@ export function clearAdminAuthCookieHeader() {
 export async function getAuthSession(token: string | null | undefined): Promise<{ user: PublicAuthUser; state: AuthUserState } | null> {
   if (!token) return null;
   await ensureSeededUser();
+
+  if (hasPostgresAuthStore()) {
+    const now = nowMs();
+    const bundle = await pgGetSessionBundle(hashToken(token), now);
+    if (!bundle) return null;
+    await pgTouchSession(bundle.session.session_id, now);
+    upsertLocalAuthUser(bundle.user);
+    upsertLocalAuthUserState(bundle.user.user_id, bundle.state, now);
+    upsertLocalAuthSession({
+      ...bundle.session,
+      updated_at_ms: now,
+      last_seen_at_ms: now
+    });
+    return {
+      user: mapPublicUser(bundle.user),
+      state: bundle.state
+    };
+  }
 
   if (!hasRemoteAuthStore()) {
     const db = getDb();
@@ -728,6 +1007,45 @@ export async function signupAuthUser(args: {
   if (password.length < 8) {
     return { ok: false as const, error: 'WEAK_PASSWORD' };
   }
+  if (hasPostgresAuthStore()) {
+    if (await pgGetUserByEmail(email)) {
+      return { ok: false as const, error: 'EMAIL_EXISTS' };
+    }
+    const ts = nowMs();
+    const userId = createId('usr');
+    const state = buildInitialUserState(args.tradeMode);
+    const user: AuthUserRow = {
+      user_id: userId,
+      email,
+      password_hash: hashPassword(password),
+      name: String(args.name || '').trim() || 'NovaQuant User',
+      trade_mode: args.tradeMode,
+      broker: String(args.broker || 'Other'),
+      locale: args.locale || null,
+      created_at_ms: ts,
+      updated_at_ms: ts,
+      last_login_at_ms: ts
+    };
+    await pgInsertUserWithState({
+      user,
+      state
+    });
+    upsertLocalAuthUser(user);
+    upsertLocalAuthUserState(userId, state, ts);
+    await syncConfiguredAdminRole(user);
+    const sessionToken = await createSession({
+      userId,
+      userAgent: args.userAgent,
+      ipAddress: args.ipAddress
+    });
+    await trySendSignupWelcomeEmail(user);
+    return {
+      ok: true as const,
+      user: mapPublicUser(user),
+      state,
+      sessionToken
+    };
+  }
   if (!hasRemoteAuthStore()) {
     if (getUserByEmailLocal(email)) {
       return { ok: false as const, error: 'EMAIL_EXISTS' };
@@ -780,6 +1098,7 @@ export async function signupAuthUser(args: {
       userAgent: args.userAgent,
       ipAddress: args.ipAddress
     });
+    await trySendSignupWelcomeEmail(user);
     return {
       ok: true as const,
       user: mapPublicUser(user),
@@ -817,6 +1136,7 @@ export async function signupAuthUser(args: {
       userAgent: args.userAgent,
       ipAddress: args.ipAddress
     });
+    await trySendSignupWelcomeEmail(user);
     return {
       ok: true as const,
       user: mapPublicUser(user),
@@ -847,7 +1167,10 @@ export async function loginAuthUser(args: {
     last_login_at_ms: ts
   };
 
-  if (hasRemoteAuthStore()) {
+  if (hasPostgresAuthStore()) {
+    await pgUpsertUser(updatedUser);
+    upsertLocalAuthUser(updatedUser);
+  } else if (hasRemoteAuthStore()) {
     await remoteSetJson(remoteUserKey(user.user_id), updatedUser);
   } else {
     getDb().prepare('UPDATE auth_users SET last_login_at_ms = ?, updated_at_ms = ? WHERE user_id = ?').run(ts, ts, user.user_id);
@@ -892,6 +1215,12 @@ export async function loginAdminUser(args: {
 export async function logoutAuthSession(token: string | null | undefined) {
   if (!token) return;
   const tokenHash = hashToken(token);
+  if (hasPostgresAuthStore()) {
+    const ts = nowMs();
+    await pgRevokeSessionByTokenHash(tokenHash, ts);
+    revokeLocalAuthSessionByTokenHash(tokenHash, ts);
+    return;
+  }
   if (hasRemoteAuthStore()) {
     const session = await remoteGetJson<RemoteSessionRecord>(remoteSessionKey(tokenHash));
     if (session?.user_id) {
@@ -928,7 +1257,38 @@ export async function createPasswordReset(args: { email: string }) {
 
   const ts = nowMs();
   const code = String(Math.floor(100000 + Math.random() * 900000));
-  const exposeCodeHint = process.env.VERCEL !== '1' && process.env.NODE_ENV !== 'production';
+  const exposeCodeHint = shouldExposePasswordResetCodeHint();
+  const expiresInMinutes = Math.floor(RESET_TTL_MS / 60000);
+
+  if (hasPostgresAuthStore()) {
+    const reset: RemoteResetRecord = {
+      reset_id: createId('rst'),
+      user_id: user.user_id,
+      email,
+      code_hash: hashResetCode(code),
+      expires_at_ms: ts + RESET_TTL_MS,
+      used_at_ms: null,
+      created_at_ms: ts,
+      updated_at_ms: ts
+    };
+    await pgInvalidateOpenPasswordResets(user.user_id, ts);
+    await pgInsertPasswordReset(reset);
+    if (!exposeCodeHint) {
+      if (!canSendPasswordResetEmail()) {
+        throw new Error('RESET_EMAIL_NOT_CONFIGURED');
+      }
+      await sendPasswordResetEmail({
+        email,
+        code,
+        expiresInMinutes
+      });
+    }
+    return {
+      ok: true as const,
+      codeHint: exposeCodeHint ? code : null,
+      expiresInMinutes
+    };
+  }
 
   if (hasRemoteAuthStore()) {
     const reset: RemoteResetRecord = {
@@ -942,10 +1302,20 @@ export async function createPasswordReset(args: { email: string }) {
       updated_at_ms: ts
     };
     await remoteSetJson(remotePasswordResetKey(user.user_id), reset, { px: RESET_TTL_MS });
+    if (!exposeCodeHint) {
+      if (!canSendPasswordResetEmail()) {
+        throw new Error('RESET_EMAIL_NOT_CONFIGURED');
+      }
+      await sendPasswordResetEmail({
+        email,
+        code,
+        expiresInMinutes
+      });
+    }
     return {
       ok: true as const,
       codeHint: exposeCodeHint ? code : null,
-      expiresInMinutes: Math.floor(RESET_TTL_MS / 60000)
+      expiresInMinutes
     };
   }
 
@@ -966,10 +1336,20 @@ export async function createPasswordReset(args: { email: string }) {
     created_at_ms: ts,
     updated_at_ms: ts
   });
+  if (!exposeCodeHint) {
+    if (!canSendPasswordResetEmail()) {
+      throw new Error('RESET_EMAIL_NOT_CONFIGURED');
+    }
+    await sendPasswordResetEmail({
+      email,
+      code,
+      expiresInMinutes
+    });
+  }
   return {
     ok: true as const,
     codeHint: exposeCodeHint ? code : null,
-    expiresInMinutes: Math.floor(RESET_TTL_MS / 60000)
+    expiresInMinutes
   };
 }
 
@@ -980,6 +1360,24 @@ export async function resetPasswordWithCode(args: { email: string; code: string;
   if (!user) return { ok: false as const, error: 'INVALID_RESET' };
   if (String(args.newPassword || '').length < 8) return { ok: false as const, error: 'WEAK_PASSWORD' };
   const ts = nowMs();
+
+  if (hasPostgresAuthStore()) {
+    const row = await pgGetLatestPasswordReset(user.user_id, email);
+    if (!row || row.used_at_ms || row.expires_at_ms < ts || row.code_hash !== hashResetCode(args.code)) {
+      return { ok: false as const, error: 'INVALID_RESET' };
+    }
+    const updatedUser: AuthUserRow = {
+      ...user,
+      password_hash: hashPassword(args.newPassword),
+      updated_at_ms: ts
+    };
+    await pgUpsertUser(updatedUser);
+    await pgMarkPasswordResetUsed(row.reset_id, ts);
+    await pgRevokeUserSessions(user.user_id, ts);
+    upsertLocalAuthUser(updatedUser);
+    revokeLocalAuthSessionsByUserId(user.user_id, ts);
+    return { ok: true as const };
+  }
 
   if (hasRemoteAuthStore()) {
     const row = await remoteGetJson<RemoteResetRecord>(remotePasswordResetKey(user.user_id));
@@ -1018,6 +1416,11 @@ export async function resetPasswordWithCode(args: { email: string; code: string;
 
 export async function getAuthUserState(userId: string): Promise<AuthUserState> {
   await ensureSeededUser();
+  if (hasPostgresAuthStore()) {
+    const state = await pgGetUserState(userId);
+    upsertLocalAuthUserState(userId, state);
+    return state;
+  }
   if (hasRemoteAuthStore()) {
     return (await remoteGetJson<AuthUserState>(remoteUserStateKey(userId))) || defaultUserState();
   }
@@ -1063,6 +1466,13 @@ export async function upsertAuthUserState(userId: string, input: Partial<AuthUse
     executions: Array.isArray(input.executions) ? input.executions : current.executions,
     disciplineLog: input.disciplineLog || current.disciplineLog
   };
+
+  if (hasPostgresAuthStore()) {
+    const ts = nowMs();
+    await pgUpsertUserState(userId, next, ts);
+    upsertLocalAuthUserState(userId, next, ts);
+    return next;
+  }
 
   if (hasRemoteAuthStore()) {
     await remoteSetJson(remoteUserStateKey(userId), next);

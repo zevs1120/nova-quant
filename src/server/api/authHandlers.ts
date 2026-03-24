@@ -57,12 +57,26 @@ function requestIp(req: BasicRequest) {
 
 function sendAuthServiceError(res: BasicResponse, error: unknown) {
   const message = String((error as Error)?.message || error || '');
-  if (message.includes('REMOTE_AUTH_STORE_NOT_CONFIGURED')) {
+  if (message.includes('REMOTE_AUTH_STORE_NOT_CONFIGURED') || message.includes('POSTGRES_AUTH_STORE_NOT_CONFIGURED')) {
     res.status(503).json({ ok: false, error: 'AUTH_STORE_NOT_CONFIGURED' });
     return;
   }
-  if (message.includes('REMOTE_AUTH_STORE_TIMEOUT') || message.includes('REMOTE_AUTH_STORE_UNREACHABLE')) {
+  if (
+    message.includes('REMOTE_AUTH_STORE_TIMEOUT') ||
+    message.includes('REMOTE_AUTH_STORE_UNREACHABLE') ||
+    message.includes('ECONNREFUSED') ||
+    message.includes('ENOTFOUND') ||
+    message.includes('connect ECONN')
+  ) {
     res.status(503).json({ ok: false, error: 'AUTH_STORE_UNREACHABLE' });
+    return;
+  }
+  if (message.includes('RESET_EMAIL_NOT_CONFIGURED')) {
+    res.status(503).json({ ok: false, error: 'RESET_DELIVERY_NOT_CONFIGURED' });
+    return;
+  }
+  if (message.includes('RESET_EMAIL_SEND_FAILED')) {
+    res.status(502).json({ ok: false, error: 'RESET_DELIVERY_FAILED' });
     return;
   }
   res.status(500).json({ ok: false, error: 'AUTH_SERVICE_ERROR' });

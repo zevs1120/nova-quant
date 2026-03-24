@@ -2245,6 +2245,45 @@ export async function cancelLiveOrder(args: {
   }
 }
 
+export function findUserLiveExecutionOrder(args: {
+  userId: string;
+  provider: string;
+  orderId?: string;
+  clientOrderId?: string;
+}) {
+  const provider = String(args.provider || '').trim().toUpperCase();
+  const orderId = String(args.orderId || '').trim();
+  const clientOrderId = String(args.clientOrderId || '').trim();
+  if (!args.userId || !provider || (!orderId && !clientOrderId)) return null;
+
+  const executions = listExecutions({
+    userId: args.userId,
+    mode: 'LIVE',
+    limit: 1000
+  });
+  for (const row of executions) {
+    const note = parseLiveExecutionNote(row.note);
+    if (!note || note.provider !== provider) continue;
+    if (orderId && note.order_id === orderId) {
+      return {
+        executionId: row.execution_id,
+        orderId: note.order_id,
+        clientOrderId: note.client_order_id,
+        provider: note.provider
+      };
+    }
+    if (clientOrderId && note.client_order_id === clientOrderId) {
+      return {
+        executionId: row.execution_id,
+        orderId: note.order_id,
+        clientOrderId: note.client_order_id,
+        provider: note.provider
+      };
+    }
+  }
+  return null;
+}
+
 export function listExecutions(args: {
   userId?: string;
   market?: Market;

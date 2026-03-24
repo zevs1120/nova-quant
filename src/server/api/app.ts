@@ -14,6 +14,7 @@ import {
   handlePostAuthProfile,
   handleResetPassword
 } from './authHandlers.js';
+import { getAuthSession } from '../auth/service.js';
 import {
   handleAdminAlphas,
   handleAdminOverview,
@@ -39,6 +40,7 @@ import {
   getEngagementState,
   getDecisionSnapshot,
   exportNovaTrainingDataset,
+  findUserLiveExecutionOrder,
   getNovaHealthState,
   getPrivateMarvixOps,
   getNovaRuntimeState,
@@ -166,6 +168,103 @@ function resolveApiRequestPath(req: express.Request) {
   return req.path || '/';
 }
 
+type RequestWithNovaScope = express.Request & {
+  novaScope?: {
+    authenticated: boolean;
+    userId: string;
+    authUserId: string | null;
+  };
+};
+
+type AsyncRouteHandler = (
+  req: express.Request,
+  res: express.Response,
+  next: express.NextFunction
+) => Promise<unknown> | unknown;
+
+function asyncRoute(handler: AsyncRouteHandler): express.RequestHandler {
+  return (req, res, next) => {
+    Promise.resolve(handler(req, res, next)).catch(next);
+  };
+}
+
+function parseCookiesFromHeader(header: string) {
+  return String(header || '')
+    .split(';')
+    .reduce<Record<string, string>>((acc, item) => {
+      const [key, ...rest] = item.trim().split('=');
+      if (!key) return acc;
+      try {
+        acc[key] = decodeURIComponent(rest.join('=') || '');
+      } catch {
+        acc[key] = rest.join('=') || '';
+      }
+      return acc;
+    }, {});
+}
+
+function normalizeUserId(value: unknown) {
+  return String(value || '').trim();
+}
+
+function isGuestScopedUserId(value: string | null | undefined) {
+  const normalized = normalizeUserId(value).toLowerCase();
+  return !normalized || normalized === 'guest-default' || normalized.startsWith('guest-');
+}
+
+function readRequestedUserId(req: express.Request) {
+  const queryValue = Array.isArray(req.query?.userId) ? req.query.userId[0] : req.query?.userId;
+  const bodyValue =
+    req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? (req.body as Record<string, unknown>).userId : undefined;
+  return normalizeUserId(bodyValue || queryValue);
+}
+
+function writeResolvedUserId(req: express.Request, userId: string) {
+  if (req.query && typeof req.query === 'object') {
+    (req.query as Record<string, unknown>).userId = userId;
+  }
+  if (req.body && typeof req.body === 'object' && !Array.isArray(req.body)) {
+    (req.body as Record<string, unknown>).userId = userId;
+  }
+}
+
+function strictUserScopeEnabled() {
+  return process.env.NOVA_DISABLE_SESSION_USER_SCOPE !== '1' && process.env.NODE_ENV !== 'test';
+}
+
+function getRequestScope(req: express.Request) {
+  const scope = (req as RequestWithNovaScope).novaScope;
+  return (
+    scope || {
+      authenticated: false,
+      userId: 'guest-default',
+      authUserId: null
+    }
+  );
+}
+
+function sendUserScopeAuthError(res: express.Response, error: unknown) {
+  const message = String((error as Error)?.message || error || '');
+  if (message.includes('REMOTE_AUTH_STORE_NOT_CONFIGURED')) {
+    res.status(503).json({ error: 'AUTH_STORE_NOT_CONFIGURED' });
+    return;
+  }
+  if (message.includes('REMOTE_AUTH_STORE_TIMEOUT') || message.includes('REMOTE_AUTH_STORE_UNREACHABLE')) {
+    res.status(503).json({ error: 'AUTH_STORE_UNREACHABLE' });
+    return;
+  }
+  res.status(500).json({ error: 'AUTH_SCOPE_RESOLUTION_FAILED' });
+}
+
+function requireAuthenticatedScope(req: express.Request, res: express.Response) {
+  const scope = getRequestScope(req);
+  if (!scope.authenticated || isGuestScopedUserId(scope.userId)) {
+    res.status(401).json({ error: 'AUTH_REQUIRED' });
+    return null;
+  }
+  return scope;
+}
+
 export function createApiApp() {
   const app = express();
   app.use(express.json({ limit: '1mb' }));
@@ -253,6 +352,52 @@ export function createApiApp() {
   });
   ensureDefaultPublicSignalsApiKey();
 
+  app.use(
+    asyncRoute(async (req, res, next) => {
+      const apiPath = resolveApiRequestPath(req);
+      if (!apiPath.startsWith('/api/')) {
+        next();
+        return;
+      }
+
+      try {
+        const cookies = parseCookiesFromHeader(req.header('cookie') || '');
+        const session = await getAuthSession(cookies.novaquant_session);
+        const requestedUserId = readRequestedUserId(req);
+
+        if (session) {
+          if (requestedUserId && requestedUserId !== session.user.userId && !isGuestScopedUserId(requestedUserId)) {
+            res.status(403).json({ error: 'USER_SCOPE_MISMATCH' });
+            return;
+          }
+          (req as RequestWithNovaScope).novaScope = {
+            authenticated: true,
+            userId: session.user.userId,
+            authUserId: session.user.userId
+          };
+          writeResolvedUserId(req, session.user.userId);
+          next();
+          return;
+        }
+
+        const resolvedGuestUserId = requestedUserId || 'guest-default';
+        if (strictUserScopeEnabled() && !isGuestScopedUserId(resolvedGuestUserId)) {
+          res.status(401).json({ error: 'AUTH_REQUIRED' });
+          return;
+        }
+        (req as RequestWithNovaScope).novaScope = {
+          authenticated: false,
+          userId: resolvedGuestUserId,
+          authUserId: null
+        };
+        writeResolvedUserId(req, resolvedGuestUserId);
+        next();
+      } catch (error) {
+        sendUserScopeAuthError(res, error);
+      }
+    })
+  );
+
   app.get('/healthz', (_req, res) => {
     res.json({ ok: true, ts: Date.now() });
   });
@@ -294,7 +439,7 @@ export function createApiApp() {
     res.json({ market: market ?? 'ALL', count: assets.length, data: assets });
   });
 
-  app.get('/api/assets/search', async (req, res) => {
+  app.get('/api/assets/search', asyncRoute(async (req, res) => {
     const market = parseMarket(req.query.market as string | undefined);
     if (req.query.market && !market) {
       res.status(400).json({ error: 'Invalid market, use US or CRYPTO' });
@@ -318,7 +463,7 @@ export function createApiApp() {
         resultCount: results.length
       })
     });
-  });
+  }));
 
   app.get('/api/manual/state', (req, res) => {
     const userId = (req.query.userId as string | undefined) || '';
@@ -366,16 +511,16 @@ export function createApiApp() {
     res.json(result);
   });
 
-  app.get('/api/browse/home', async (req, res) => {
+  app.get('/api/browse/home', asyncRoute(async (req, res) => {
     const view = req.query.view as string | undefined;
     res.json(
       await getBrowseHomePayload({
         view
       })
     );
-  });
+  }));
 
-  app.get('/api/browse/chart', async (req, res) => {
+  app.get('/api/browse/chart', asyncRoute(async (req, res) => {
     const market = parseMarket(req.query.market as string | undefined);
     const symbol = (req.query.symbol as string | undefined)?.toUpperCase();
 
@@ -400,9 +545,9 @@ export function createApiApp() {
       count: data.points.length,
       data
     });
-  });
+  }));
 
-  app.get('/api/browse/news', async (req, res) => {
+  app.get('/api/browse/news', asyncRoute(async (req, res) => {
     const market = req.query.market ? parseMarket(req.query.market as string | undefined) : 'ALL';
     if (req.query.market && !market) {
       res.status(400).json({ error: 'Invalid market, use US or CRYPTO' });
@@ -421,9 +566,9 @@ export function createApiApp() {
       count: data.length,
       data
     });
-  });
+  }));
 
-  app.get('/api/browse/overview', async (req, res) => {
+  app.get('/api/browse/overview', asyncRoute(async (req, res) => {
     const market = parseMarket(req.query.market as string | undefined);
     const symbol = (req.query.symbol as string | undefined)?.toUpperCase();
     if (!market || !symbol) {
@@ -443,7 +588,7 @@ export function createApiApp() {
       symbol,
       data
     });
-  });
+  }));
 
   app.get('/api/signals', (req, res) => {
     const market = parseMarket(req.query.market as string | undefined);
@@ -512,7 +657,7 @@ export function createApiApp() {
     });
   });
 
-  app.get('/api/runtime-state', async (req, res) => {
+  app.get('/api/runtime-state', asyncRoute(async (req, res) => {
     const market = parseMarket(req.query.market as string | undefined);
     const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
     const userId = (req.query.userId as string | undefined) || 'guest-default';
@@ -522,25 +667,25 @@ export function createApiApp() {
       assetClass
     });
     res.json(runtime);
-  });
+  }));
 
-  app.get('/api/control-plane/status', async (req, res) => {
+  app.get('/api/control-plane/status', asyncRoute(async (req, res) => {
     const userId = (req.query.userId as string | undefined) || 'guest-default';
     res.json(
       await getControlPlaneStatus({
         userId
       })
     );
-  });
+  }));
 
-  app.get('/api/control-plane/flywheel', async (req, res) => {
+  app.get('/api/control-plane/flywheel', asyncRoute(async (req, res) => {
     const userId = (req.query.userId as string | undefined) || 'guest-default';
     res.json(
       await getFlywheelStatus({
         userId
       })
     );
-  });
+  }));
 
   app.get('/api/control-plane/research-ops', (req, res) => {
     const timeZone = (req.query.tz as string | undefined) || (req.query.timezone as string | undefined) || undefined;
@@ -629,7 +774,7 @@ export function createApiApp() {
     );
   });
 
-  app.post('/api/nova/training/flywheel', async (req, res) => {
+  app.post('/api/nova/training/flywheel', asyncRoute(async (req, res) => {
     const body = (req.body || {}) as {
       userId?: string;
       trainer?: string;
@@ -654,9 +799,9 @@ export function createApiApp() {
         taskTypes: taskTypes as NovaTaskType[] | undefined
       })
     );
-  });
+  }));
 
-  app.post('/api/nova/strategy/generate', async (req, res) => {
+  app.post('/api/nova/strategy/generate', asyncRoute(async (req, res) => {
     const body = (req.body || {}) as {
       userId?: string;
       prompt?: string;
@@ -685,9 +830,9 @@ export function createApiApp() {
         maxCandidates: Number.isFinite(Number(body.maxCandidates)) ? Number(body.maxCandidates) : undefined
       })
     );
-  });
+  }));
 
-  app.post('/api/decision/today', async (req, res) => {
+  app.post('/api/decision/today', asyncRoute(async (req, res) => {
     const body = req.body as {
       userId?: string;
       market?: string;
@@ -706,7 +851,7 @@ export function createApiApp() {
       locale: body.locale
     });
     res.json(decision);
-  });
+  }));
 
   app.get('/api/decision/audit', (req, res) => {
     const market = parseMarket(req.query.market as string | undefined);
@@ -723,7 +868,7 @@ export function createApiApp() {
     );
   });
 
-  app.post('/api/engagement/state', async (req, res) => {
+  app.post('/api/engagement/state', asyncRoute(async (req, res) => {
     const body = (req.body || {}) as {
       userId?: string;
       market?: string;
@@ -747,9 +892,9 @@ export function createApiApp() {
         locale: body.locale
       })
     );
-  });
+  }));
 
-  app.post('/api/engagement/morning-check', async (req, res) => {
+  app.post('/api/engagement/morning-check', asyncRoute(async (req, res) => {
     const body = (req.body || {}) as {
       userId?: string;
       market?: string;
@@ -770,9 +915,9 @@ export function createApiApp() {
         locale: body.locale
       })
     );
-  });
+  }));
 
-  app.post('/api/engagement/boundary', async (req, res) => {
+  app.post('/api/engagement/boundary', asyncRoute(async (req, res) => {
     const body = (req.body || {}) as {
       userId?: string;
       market?: string;
@@ -793,9 +938,9 @@ export function createApiApp() {
         locale: body.locale
       })
     );
-  });
+  }));
 
-  app.post('/api/engagement/wrap-up', async (req, res) => {
+  app.post('/api/engagement/wrap-up', asyncRoute(async (req, res) => {
     const body = (req.body || {}) as {
       userId?: string;
       market?: string;
@@ -816,9 +961,9 @@ export function createApiApp() {
         locale: body.locale
       })
     );
-  });
+  }));
 
-  app.post('/api/engagement/weekly-review', async (req, res) => {
+  app.post('/api/engagement/weekly-review', asyncRoute(async (req, res) => {
     const body = (req.body || {}) as {
       userId?: string;
       market?: string;
@@ -839,9 +984,9 @@ export function createApiApp() {
         locale: body.locale
       })
     );
-  });
+  }));
 
-  app.get('/api/widgets/summary', async (req, res) => {
+  app.get('/api/widgets/summary', asyncRoute(async (req, res) => {
     const market = parseMarket(req.query.market as string | undefined);
     const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
     const userId = (req.query.userId as string | undefined) || 'guest-default';
@@ -858,9 +1003,9 @@ export function createApiApp() {
         locale
       })
     );
-  });
+  }));
 
-  app.get('/api/notifications/preview', async (req, res) => {
+  app.get('/api/notifications/preview', asyncRoute(async (req, res) => {
     const market = parseMarket(req.query.market as string | undefined);
     const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
     const userId = (req.query.userId as string | undefined) || 'guest-default';
@@ -877,7 +1022,7 @@ export function createApiApp() {
         locale
       })
     );
-  });
+  }));
 
   app.get('/api/notification-preferences', (req, res) => {
     const userId = (req.query.userId as string | undefined) || 'guest-default';
@@ -1192,7 +1337,7 @@ export function createApiApp() {
     res.json({ data, executions });
   });
 
-  app.post('/api/executions', async (req, res) => {
+  app.post('/api/executions', asyncRoute(async (req, res) => {
     const body = req.body as {
       userId?: string;
       signalId?: string;
@@ -1217,6 +1362,9 @@ export function createApiApp() {
     }
     if (!['PAPER', 'LIVE'].includes(mode) || !['EXECUTE', 'DONE', 'CLOSE'].includes(action)) {
       res.status(400).json({ error: 'Invalid mode/action' });
+      return;
+    }
+    if (mode === 'LIVE' && !requireAuthenticatedScope(req, res)) {
       return;
     }
 
@@ -1248,10 +1396,12 @@ export function createApiApp() {
       order: 'order' in result ? result.order : undefined,
       governance: 'governance' in result ? result.governance : undefined
     });
-  });
+  }));
 
-  app.get('/api/executions/governance', async (req, res) => {
-    const userId = (req.query.userId as string | undefined) || 'guest-default';
+  app.get('/api/executions/governance', asyncRoute(async (req, res) => {
+    const scope = requireAuthenticatedScope(req, res);
+    if (!scope) return;
+    const userId = scope.userId;
     const provider = (req.query.provider as string | undefined) || undefined;
     const limit = req.query.limit ? Number(req.query.limit) : undefined;
     const refreshOrders = String(req.query.refresh || '').toLowerCase() === 'true' || req.query.refresh === '1';
@@ -1262,10 +1412,12 @@ export function createApiApp() {
       refreshOrders
     });
     res.json(result);
-  });
+  }));
 
-  app.get('/api/executions/reconciliation', async (req, res) => {
-    const userId = (req.query.userId as string | undefined) || 'guest-default';
+  app.get('/api/executions/reconciliation', asyncRoute(async (req, res) => {
+    const scope = requireAuthenticatedScope(req, res);
+    if (!scope) return;
+    const userId = scope.userId;
     const provider = (req.query.provider as string | undefined) || undefined;
     const limit = req.query.limit ? Number(req.query.limit) : undefined;
     const refreshOrders = String(req.query.refresh || '').toLowerCase() === 'true' || req.query.refresh === '1';
@@ -1276,9 +1428,11 @@ export function createApiApp() {
       refreshOrders
     });
     res.json(result.reconciliation);
-  });
+  }));
 
-  app.post('/api/executions/kill-switch', async (req, res) => {
+  app.post('/api/executions/kill-switch', asyncRoute(async (req, res) => {
+    const scope = requireAuthenticatedScope(req, res);
+    if (!scope) return;
     const body = (req.body || {}) as {
       userId?: string;
       enabled?: boolean;
@@ -1290,19 +1444,31 @@ export function createApiApp() {
       return;
     }
     const result = await setExecutionKillSwitch({
-      userId: body.userId || 'guest-default',
+      userId: scope.userId,
       enabled: body.enabled,
       reason: body.reason,
       provider: body.provider
     });
     res.json({ ok: true, data: result });
-  });
+  }));
 
-  app.get('/api/executions/orders/:provider/:orderId', async (req, res) => {
+  app.get('/api/executions/orders/:provider/:orderId', asyncRoute(async (req, res) => {
+    const scope = requireAuthenticatedScope(req, res);
+    if (!scope) return;
     const provider = String(req.params.provider || '').trim().toUpperCase();
     const orderId = String(req.params.orderId || '').trim();
     const clientOrderId = (req.query.clientOrderId as string | undefined) || undefined;
     const symbol = (req.query.symbol as string | undefined)?.toUpperCase() || undefined;
+    const ownership = findUserLiveExecutionOrder({
+      userId: scope.userId,
+      provider,
+      orderId,
+      clientOrderId
+    });
+    if (!ownership) {
+      res.status(404).json({ error: 'LIVE_ORDER_NOT_FOUND' });
+      return;
+    }
     const result = await getLiveOrderStatus({
       provider,
       orderId,
@@ -1314,12 +1480,24 @@ export function createApiApp() {
       return;
     }
     res.json({ ok: true, order: result.order });
-  });
+  }));
 
-  app.post('/api/executions/orders/:provider/:orderId/cancel', async (req, res) => {
+  app.post('/api/executions/orders/:provider/:orderId/cancel', asyncRoute(async (req, res) => {
+    const scope = requireAuthenticatedScope(req, res);
+    if (!scope) return;
     const provider = String(req.params.provider || '').trim().toUpperCase();
     const orderId = String(req.params.orderId || '').trim();
     const body = (req.body || {}) as { clientOrderId?: string; symbol?: string };
+    const ownership = findUserLiveExecutionOrder({
+      userId: scope.userId,
+      provider,
+      orderId,
+      clientOrderId: body.clientOrderId
+    });
+    if (!ownership) {
+      res.status(404).json({ error: 'LIVE_ORDER_NOT_FOUND' });
+      return;
+    }
     const result = await cancelLiveOrder({
       provider,
       orderId,
@@ -1331,7 +1509,7 @@ export function createApiApp() {
       return;
     }
     res.json({ ok: true, order: result.order });
-  });
+  }));
 
   app.get('/api/executions', (req, res) => {
     const userId = (req.query.userId as string | undefined) || 'guest-default';
@@ -1391,8 +1569,10 @@ export function createApiApp() {
     res.json({ ok: true, data });
   });
 
-  app.get('/api/connect/broker', async (req, res) => {
-    const userId = (req.query.userId as string | undefined) || 'guest-default';
+  app.get('/api/connect/broker', asyncRoute(async (req, res) => {
+    const scope = requireAuthenticatedScope(req, res);
+    if (!scope) return;
+    const userId = scope.userId;
     const provider = String((req.query.provider as string | undefined) || 'ALPACA').toUpperCase();
     const adapter = createBrokerAdapter(provider);
     const snapshot = await adapter.fetchSnapshot();
@@ -1420,11 +1600,13 @@ export function createApiApp() {
       snapshot,
       connections
     });
-  });
+  }));
 
   app.post('/api/connect/broker', (req, res) => {
+    const scope = requireAuthenticatedScope(req, res);
+    if (!scope) return;
     const body = req.body as { userId?: string; provider?: string; mode?: 'READ_ONLY' | 'TRADING' };
-    const userId = body.userId || 'guest-default';
+    const userId = scope.userId;
     const provider = String(body.provider || 'ALPACA').toUpperCase();
     const mode = body.mode || 'READ_ONLY';
     const saved = upsertExternalConnection({
@@ -1443,8 +1625,10 @@ export function createApiApp() {
     res.json({ ok: true, ...saved });
   });
 
-  app.get('/api/connect/exchange', async (req, res) => {
-    const userId = (req.query.userId as string | undefined) || 'guest-default';
+  app.get('/api/connect/exchange', asyncRoute(async (req, res) => {
+    const scope = requireAuthenticatedScope(req, res);
+    if (!scope) return;
+    const userId = scope.userId;
     const provider = String((req.query.provider as string | undefined) || 'BINANCE').toUpperCase();
     const adapter = createExchangeAdapter(provider);
     const snapshot = await adapter.fetchSnapshot();
@@ -1472,11 +1656,13 @@ export function createApiApp() {
       snapshot,
       connections
     });
-  });
+  }));
 
   app.post('/api/connect/exchange', (req, res) => {
+    const scope = requireAuthenticatedScope(req, res);
+    if (!scope) return;
     const body = req.body as { userId?: string; provider?: string; mode?: 'READ_ONLY' | 'TRADING' };
-    const userId = body.userId || 'guest-default';
+    const userId = scope.userId;
     const provider = String(body.provider || 'BINANCE').toUpperCase();
     const mode = body.mode || 'READ_ONLY';
     const saved = upsertExternalConnection({
@@ -1685,8 +1871,7 @@ export function createApiApp() {
   });
 
 
-  // Global error handler — catches unhandled errors from sync routes and prevents hanging requests.
-  // Note: Express 4 does NOT automatically catch rejected promises in async handlers.
+  // Global error handler — catches sync failures and any async rejections routed through Express/asyncRoute.
   app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     const message = err?.message || 'Internal server error';
     const status = (err as Error & { status?: number }).status || 500;

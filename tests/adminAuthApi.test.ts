@@ -64,6 +64,10 @@ describe('admin auth api', () => {
   const email = 'admin-api-test@example.com';
 
   beforeEach(() => {
+    vi.stubEnv('NOVA_AUTH_DRIVER', 'sqlite');
+    vi.stubEnv('NOVA_AUTH_DATABASE_URL', '');
+    vi.stubEnv('NOVA_AUTH_PG_SSL', '');
+    vi.stubEnv('NOVA_AUTH_PG_POOL_MAX', '');
     vi.stubEnv('KV_REST_API_URL', '');
     vi.stubEnv('KV_REST_API_TOKEN', '');
     vi.stubEnv('UPSTASH_REDIS_REST_URL', '');
