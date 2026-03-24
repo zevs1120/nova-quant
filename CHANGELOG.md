@@ -2,6 +2,15 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 10.3.3 (2026-03-24)
+- Release type: patch
+- Fix 12 pre-existing TypeScript strict-mode errors across 4 test files; `tsc --noEmit` now passes cleanly.
+  - `tests/riskGovernorEdgeCases.test.ts`: add `as const` to `asset_class` literal in `makeHolding` helper to satisfy `AssetClass` union type (resolves 10 errors).
+  - `tests/controlPlaneStatus.test.ts`: add non-null assertion on `recentNewsItem` after `.find()` (TS18048).
+  - `tests/decisionEngineEdgeCases.test.ts`: add 8 missing required `MarketStateRecord` properties (`market`, `symbol`, `timeframe`, `snapshot_ts_ms`, `temperature_percentile`, `event_stats_json`, `assumptions_json`, `updated_at_ms`) to `makeMarketState` helper; `market` uses `as const` for `Market` union (TS2740).
+  - `tests/massiveIngestion.test.ts`: use double-cast `as unknown as Record<string, unknown>` for test-only `delete` operation (TS2352).
+- Test suite: 102/102 files pass, 591/591 tests pass (unchanged).
+
 ## 10.3.2 (2026-03-24)
 - Release type: patch
 - Add `CLAUDE.md` project instructions for Claude Code: build commands, code style, testing guidelines, commit conventions, environment setup.

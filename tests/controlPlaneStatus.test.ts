@@ -11,7 +11,7 @@ function seedWorkflowRun(
     output: unknown;
     updatedAtMs: number;
     triggerType?: 'scheduled' | 'manual' | 'shadow' | 'replay';
-  }
+  },
 ) {
   repo.upsertWorkflowRun({
     id: args.id,
@@ -25,7 +25,7 @@ function seedWorkflowRun(
     attempt_count: 1,
     started_at_ms: args.updatedAtMs - 1_000,
     updated_at_ms: args.updatedAtMs,
-    completed_at_ms: args.updatedAtMs
+    completed_at_ms: args.updatedAtMs,
   });
 }
 
@@ -46,7 +46,7 @@ describe('control plane flywheel status', () => {
       sentiment_label: 'NEUTRAL',
       relevance_score: 0.78,
       payload_json: JSON.stringify({ seeded: true }),
-      updated_at_ms: baseTs + 100
+      updated_at_ms: baseTs + 100,
     });
 
     seedWorkflowRun(repo, {
@@ -61,7 +61,7 @@ describe('control plane flywheel status', () => {
           refreshed_symbols: 5,
           skipped_symbols: 7,
           rows_upserted: 24,
-          errors: []
+          errors: [],
         },
         crypto_structure: {
           symbols_processed: 3,
@@ -75,11 +75,11 @@ describe('control plane flywheel status', () => {
               funding_inserted: 6,
               basis_inserted: 1,
               latest_funding_rate: 0.0001,
-              latest_basis_bps: 8.2
-            }
-          ]
-        }
-      }
+              latest_basis_bps: 8.2,
+            },
+          ],
+        },
+      },
     });
 
     seedWorkflowRun(repo, {
@@ -95,7 +95,7 @@ describe('control plane flywheel status', () => {
           safeMode: false,
           activeModelId: 'model-us-active',
           challengerModelId: 'model-us-challenger',
-          summary: 'Promoted model-us-active after walk-forward improvement.'
+          summary: 'Promoted model-us-active after walk-forward improvement.',
         },
         {
           market: 'CRYPTO',
@@ -105,9 +105,9 @@ describe('control plane flywheel status', () => {
           safeMode: true,
           activeModelId: 'model-crypto-active',
           challengerModelId: 'model-crypto-challenger',
-          summary: 'Kept CRYPTO runtime in safe mode.'
-        }
-      ]
+          summary: 'Kept CRYPTO runtime in safe mode.',
+        },
+      ],
     });
 
     seedWorkflowRun(repo, {
@@ -126,9 +126,9 @@ describe('control plane flywheel status', () => {
           executed: false,
           success: false,
           reason: 'insufficient_training_rows:2',
-          exit_code: null
-        }
-      }
+          exit_code: null,
+        },
+      },
     });
 
     const status = await getControlPlaneStatus({ userId });
@@ -139,13 +139,17 @@ describe('control plane flywheel status', () => {
     expect(status.flywheel.training.minimum_training_rows).toBe(8);
     expect(status.flywheel.training.latest_execution_reason).toBe('insufficient_training_rows:2');
 
-    const freeRun = status.flywheel.free_data.recent_runs.find((row: { id?: string }) => row.id === `workflow-free-${baseTs}`);
+    const freeRun = status.flywheel.free_data.recent_runs.find(
+      (row: { id?: string }) => row.id === `workflow-free-${baseTs}`,
+    );
     expect(freeRun).toBeTruthy();
     if (!freeRun) throw new Error('expected free data run');
     expect(freeRun.news.refreshed_symbols).toBe(5);
     expect(freeRun.crypto_structure.funding_points).toBe(18);
 
-    const evolutionRun = status.flywheel.evolution.recent_runs.find((row: { id?: string }) => row.id === `workflow-evo-${baseTs}`);
+    const evolutionRun = status.flywheel.evolution.recent_runs.find(
+      (row: { id?: string }) => row.id === `workflow-evo-${baseTs}`,
+    );
     expect(evolutionRun).toBeTruthy();
     if (!evolutionRun) throw new Error('expected evolution run');
     expect(evolutionRun.promoted_count).toBe(1);
@@ -154,20 +158,21 @@ describe('control plane flywheel status', () => {
     expect(
       status.flywheel.recent_activity.some(
         (row: { workflow_key?: string; detail?: string }) =>
-          row.workflow_key === 'nova_training_flywheel' && String(row.detail || '').includes('insufficient_training_rows:2')
-      )
+          row.workflow_key === 'nova_training_flywheel' &&
+          String(row.detail || '').includes('insufficient_training_rows:2'),
+      ),
     ).toBe(true);
 
     const flywheel = await getFlywheelStatus({ userId });
     const recentNewsItem = flywheel.free_data.recent_news.find(
-      (row: { symbol?: string }) => row.symbol === 'BTCUSDT'
+      (row: { symbol?: string }) => row.symbol === 'BTCUSDT',
     );
     expect(recentNewsItem).toBeTruthy();
-    expect(recentNewsItem.symbol).toBe('BTCUSDT');
+    expect(recentNewsItem!.symbol).toBe('BTCUSDT');
     expect(flywheel.training.current_dataset_count).toBe(2);
     const evoRun = flywheel.evolution.recent_runs.find(
       (row: { markets?: Array<{ market?: string }> }) =>
-        row.markets?.some((m: { market?: string }) => m.market === 'US')
+        row.markets?.some((m: { market?: string }) => m.market === 'US'),
     );
     expect(evoRun).toBeTruthy();
   });

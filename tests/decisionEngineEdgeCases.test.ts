@@ -27,18 +27,26 @@ function makeSignal(overrides: Record<string, unknown> = {}) {
     position_advice: { position_pct: 5 },
     regime_compatibility: 70,
     news_context: { tone: 'NEUTRAL' },
-    ...overrides
+    ...overrides,
   };
 }
 
 function makeMarketState(overrides: Record<string, unknown> = {}) {
   return {
+    market: 'US' as const,
+    symbol: 'SPY',
+    timeframe: '1d',
+    snapshot_ts_ms: Date.now(),
     risk_off_score: 0.3,
     volatility_percentile: 40,
+    temperature_percentile: 40,
     trend_strength: 0.6,
     regime_id: 'RGM_RISK_ON',
     stance: 'RISK_ON',
-    ...overrides
+    event_stats_json: '{}',
+    assumptions_json: '{}',
+    updated_at_ms: Date.now(),
+    ...overrides,
   };
 }
 
@@ -52,7 +60,7 @@ function makeRiskProfile(overrides: Record<string, unknown> = {}) {
     max_drawdown: 12,
     leverage_cap: 2,
     per_signal_cap: 6,
-    ...overrides
+    ...overrides,
   } as any;
 }
 
@@ -68,7 +76,7 @@ function callDecision(overrides: Record<string, unknown> = {}) {
     signals: [makeSignal()],
     evidenceSignals: [],
     marketState: [makeMarketState()],
-    ...overrides
+    ...overrides,
   }) as Record<string, unknown>;
 }
 
@@ -80,7 +88,9 @@ describe('decision engine — output contract', () => {
     vi.stubEnv('SUPABASE_DB_URL', '');
     vi.stubEnv('DATABASE_URL', '');
   });
-  afterEach(() => { vi.unstubAllEnvs(); });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
 
   it('returns all required top-level fields', () => {
     const decision = callDecision();
@@ -119,7 +129,9 @@ describe('decision engine — action cards', () => {
     vi.stubEnv('SUPABASE_DB_URL', '');
     vi.stubEnv('DATABASE_URL', '');
   });
-  afterEach(() => { vi.unstubAllEnvs(); });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
 
   it('produces action cards from signals', () => {
     const decision = callDecision();
@@ -134,7 +146,7 @@ describe('decision engine — action cards', () => {
   it('ranks by ranking_score descending', () => {
     const signals = [
       makeSignal({ signal_id: 'low', score: 30, confidence: 0.4 }),
-      makeSignal({ signal_id: 'high', score: 90, confidence: 0.9 })
+      makeSignal({ signal_id: 'high', score: 90, confidence: 0.9 }),
     ];
     const decision = callDecision({ signals });
     const cards = decision.ranked_action_cards as any[];
@@ -173,7 +185,9 @@ describe('decision engine — edge cases', () => {
     vi.stubEnv('SUPABASE_DB_URL', '');
     vi.stubEnv('DATABASE_URL', '');
   });
-  afterEach(() => { vi.unstubAllEnvs(); });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
 
   it('returns valid decision with zero signals', () => {
     const decision = callDecision({ signals: [] });
@@ -198,7 +212,7 @@ describe('decision engine — edge cases', () => {
 
   it('attaches holdings context when provided', () => {
     const holdings = [
-      { symbol: 'AAPL', asset_class: 'US_STOCK', weight_pct: 10, sector: 'Technology' }
+      { symbol: 'AAPL', asset_class: 'US_STOCK', weight_pct: 10, sector: 'Technology' },
     ];
     const decision = callDecision({ holdings });
     const ctx = decision.portfolio_context as any;
@@ -209,8 +223,8 @@ describe('decision engine — edge cases', () => {
     const previousDecision = {
       summary: {
         today_call: { code: 'CAUTIOUS_NEUTRAL' },
-        risk_posture: 'CAUTIOUS'
-      }
+        risk_posture: 'CAUTIOUS',
+      },
     };
     const decision = callDecision({ previousDecision });
     // engine should produce a valid decision even with previousDecision context
@@ -232,12 +246,16 @@ describe('decision engine — today call codes', () => {
     vi.stubEnv('SUPABASE_DB_URL', '');
     vi.stubEnv('DATABASE_URL', '');
   });
-  afterEach(() => { vi.unstubAllEnvs(); });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
 
   it('produces protective call under high risk-off', () => {
     const decision = callDecision({
       signals: [],
-      marketState: [makeMarketState({ risk_off_score: 0.85, volatility_percentile: 90, trend_strength: 0.2 })]
+      marketState: [
+        makeMarketState({ risk_off_score: 0.85, volatility_percentile: 90, trend_strength: 0.2 }),
+      ],
     });
     const tc = decision.today_call as any;
     // Should be protective/cautious code
@@ -248,7 +266,9 @@ describe('decision engine — today call codes', () => {
   it('produces constructive call under healthy regime', () => {
     const decision = callDecision({
       signals: [makeSignal({ score: 85, confidence: 0.82 })],
-      marketState: [makeMarketState({ risk_off_score: 0.15, volatility_percentile: 30, trend_strength: 0.8 })]
+      marketState: [
+        makeMarketState({ risk_off_score: 0.15, volatility_percentile: 30, trend_strength: 0.8 }),
+      ],
     });
     const tc = decision.today_call as any;
     expect(tc.code).toBeTruthy();

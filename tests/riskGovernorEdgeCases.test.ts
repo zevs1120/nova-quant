@@ -12,7 +12,7 @@ function makeSignal(overrides: Record<string, unknown> = {}) {
     direction: 'LONG',
     confidence: 0.7,
     regime_id: 'RGM_RISK_ON',
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -21,7 +21,7 @@ function makeMarketState(overrides: Record<string, unknown> = {}) {
     risk_off_score: 0.3,
     volatility_percentile: 40,
     trend_strength: 0.6,
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -29,9 +29,9 @@ function makeHolding(symbol: string, weightPct: number, overrides: Record<string
   return {
     symbol,
     weight_pct: weightPct,
-    asset_class: 'US_STOCK',
+    asset_class: 'US_STOCK' as const,
     sector: 'Technology',
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -39,7 +39,7 @@ function makeProfile(overrides: Record<string, unknown> = {}) {
   return {
     exposure_cap: 55,
     max_daily_loss: 3,
-    ...overrides
+    ...overrides,
   } as any;
 }
 
@@ -51,7 +51,7 @@ describe('risk governor — normal conditions', () => {
       signal: makeSignal() as any,
       marketState: [makeMarketState()] as any[],
       riskProfile: makeProfile(),
-      holdings: []
+      holdings: [],
     });
     expect(result.governor_mode).toBe('NORMAL');
     expect(result.allowed).toBe(true);
@@ -67,8 +67,8 @@ describe('risk governor — risk-off blocking', () => {
   it('BLOCKED when avgRiskOff >= 0.78', () => {
     const result = evaluateRiskGovernor({
       signal: makeSignal() as any,
-      marketState: [makeMarketState({ risk_off_score: 0.80 })] as any[],
-      riskProfile: makeProfile()
+      marketState: [makeMarketState({ risk_off_score: 0.8 })] as any[],
+      riskProfile: makeProfile(),
     });
     expect(result.governor_mode).toBe('BLOCKED');
     expect(result.allowed).toBe(false);
@@ -79,8 +79,8 @@ describe('risk governor — risk-off blocking', () => {
   it('DERISK when avgRiskOff is 0.68-0.77', () => {
     const result = evaluateRiskGovernor({
       signal: makeSignal() as any,
-      marketState: [makeMarketState({ risk_off_score: 0.70 })] as any[],
-      riskProfile: makeProfile()
+      marketState: [makeMarketState({ risk_off_score: 0.7 })] as any[],
+      riskProfile: makeProfile(),
     });
     expect(result.governor_mode).toBe('DERISK');
     expect(result.allowed).toBe(true);
@@ -91,8 +91,8 @@ describe('risk governor — risk-off blocking', () => {
   it('CAUTION when avgRiskOff is 0.58-0.67', () => {
     const result = evaluateRiskGovernor({
       signal: makeSignal() as any,
-      marketState: [makeMarketState({ risk_off_score: 0.60 })] as any[],
-      riskProfile: makeProfile()
+      marketState: [makeMarketState({ risk_off_score: 0.6 })] as any[],
+      riskProfile: makeProfile(),
     });
     expect(result.governor_mode).toBe('CAUTION');
     expect(result.allowed).toBe(true);
@@ -104,7 +104,7 @@ describe('risk governor — risk-off blocking', () => {
     const result = evaluateRiskGovernor({
       signal: makeSignal() as any,
       marketState: [makeMarketState({ risk_off_score: 0.2, volatility_percentile: 85 })] as any[],
-      riskProfile: makeProfile()
+      riskProfile: makeProfile(),
     });
     expect(result.governor_mode).toBe('DERISK');
     expect(result.overlays).toContain('macro_derisk');
@@ -114,7 +114,7 @@ describe('risk governor — risk-off blocking', () => {
     const result = evaluateRiskGovernor({
       signal: makeSignal() as any,
       marketState: [makeMarketState({ risk_off_score: 0.2, volatility_percentile: 75 })] as any[],
-      riskProfile: makeProfile()
+      riskProfile: makeProfile(),
     });
     expect(result.governor_mode).toBe('CAUTION');
     expect(result.overlays).toContain('caution_size_cut');
@@ -129,10 +129,7 @@ describe('risk governor — budget constraints', () => {
       signal: makeSignal() as any,
       marketState: [makeMarketState()] as any[],
       riskProfile: makeProfile({ exposure_cap: 55 }),
-      holdings: [
-        makeHolding('MSFT', 30),
-        makeHolding('GOOG', 25)
-      ]
+      holdings: [makeHolding('MSFT', 30), makeHolding('GOOG', 25)],
     });
     expect(result.governor_mode).toBe('BLOCKED');
     expect(result.allowed).toBe(false);
@@ -145,7 +142,7 @@ describe('risk governor — budget constraints', () => {
       signal: makeSignal() as any,
       marketState: [makeMarketState()] as any[],
       riskProfile: makeProfile({ exposure_cap: 55 }),
-      holdings: [makeHolding('MSFT', 51)]
+      holdings: [makeHolding('MSFT', 51)],
     });
     expect(result.overlays).toContain('budget_thin');
     expect(result.risk_budget_remaining).toBeLessThanOrEqual(5);
@@ -160,7 +157,7 @@ describe('risk governor — same-symbol exposure', () => {
       signal: makeSignal({ symbol: 'AAPL' }) as any,
       marketState: [makeMarketState()] as any[],
       riskProfile: makeProfile(),
-      holdings: [makeHolding('AAPL', 20)]
+      holdings: [makeHolding('AAPL', 20)],
     });
     expect(result.governor_mode).toBe('BLOCKED');
     expect(result.allowed).toBe(false);
@@ -172,7 +169,7 @@ describe('risk governor — same-symbol exposure', () => {
       signal: makeSignal({ symbol: 'AAPL' }) as any,
       marketState: [makeMarketState()] as any[],
       riskProfile: makeProfile(),
-      holdings: [makeHolding('AAPL', 12)]
+      holdings: [makeHolding('AAPL', 12)],
     });
     expect(result.overlays).toContain('same_symbol_taper');
     expect(result.size_multiplier).toBeCloseTo(0.7, 1);
@@ -183,7 +180,7 @@ describe('risk governor — same-symbol exposure', () => {
       signal: makeSignal({ symbol: 'AAPL' }) as any,
       marketState: [makeMarketState()] as any[],
       riskProfile: makeProfile(),
-      holdings: [makeHolding('AAPL', 8)]
+      holdings: [makeHolding('AAPL', 8)],
     });
     expect(result.overlays).not.toContain('same_symbol_block');
     expect(result.overlays).not.toContain('same_symbol_taper');
@@ -201,8 +198,8 @@ describe('risk governor — sector concentration', () => {
       holdings: [
         makeHolding('AAPL', 5, { sector: 'Technology' }),
         makeHolding('MSFT', 20, { sector: 'Technology' }),
-        makeHolding('GOOG', 15, { sector: 'Technology' })
-      ]
+        makeHolding('GOOG', 15, { sector: 'Technology' }),
+      ],
     });
     expect(result.overlays).toContain('sector_concentration');
   });
@@ -215,13 +212,13 @@ describe('risk governor — loss streak', () => {
     const executions = Array.from({ length: 5 }, (_, i) => ({
       action: 'DONE',
       pnl_pct: -2,
-      signal_id: `sig-${i}`
+      signal_id: `sig-${i}`,
     }));
     const result = evaluateRiskGovernor({
       signal: makeSignal() as any,
       marketState: [makeMarketState()] as any[],
       riskProfile: makeProfile(),
-      executions: executions as any[]
+      executions: executions as any[],
     });
     expect(result.governor_mode).toBe('BLOCKED');
     expect(result.allowed).toBe(false);
@@ -232,13 +229,13 @@ describe('risk governor — loss streak', () => {
     const executions = [
       { action: 'DONE', pnl_pct: -1.5 },
       { action: 'DONE', pnl_pct: -2 },
-      { action: 'DONE', pnl_pct: 3 }
+      { action: 'DONE', pnl_pct: 3 },
     ];
     const result = evaluateRiskGovernor({
       signal: makeSignal() as any,
       marketState: [makeMarketState()] as any[],
       riskProfile: makeProfile(),
-      executions: executions as any[]
+      executions: executions as any[],
     });
     expect(result.overlays).toContain('loss_recovery');
   });
@@ -246,13 +243,13 @@ describe('risk governor — loss streak', () => {
   it('BLOCKED when cumulative PnL breaches max_daily_loss', () => {
     const executions = [
       { action: 'DONE', pnl_pct: -2 },
-      { action: 'DONE', pnl_pct: -1.5 }
+      { action: 'DONE', pnl_pct: -1.5 },
     ];
     const result = evaluateRiskGovernor({
       signal: makeSignal() as any,
       marketState: [makeMarketState()] as any[],
       riskProfile: makeProfile({ max_daily_loss: 3 }),
-      executions: executions as any[]
+      executions: executions as any[],
     });
     expect(result.governor_mode).toBe('BLOCKED');
     expect(result.overlays).toContain('loss_streak_kill_switch');
@@ -266,12 +263,12 @@ describe('risk governor — short asymmetry', () => {
     const longResult = evaluateRiskGovernor({
       signal: makeSignal({ direction: 'LONG' }) as any,
       marketState: [makeMarketState()] as any[],
-      riskProfile: makeProfile()
+      riskProfile: makeProfile(),
     });
     const shortResult = evaluateRiskGovernor({
       signal: makeSignal({ direction: 'SHORT' }) as any,
       marketState: [makeMarketState()] as any[],
-      riskProfile: makeProfile()
+      riskProfile: makeProfile(),
     });
     expect(shortResult.size_multiplier).toBeLessThan(longResult.size_multiplier);
     expect(shortResult.overlays).toContain('short_asymmetry_haircut');
@@ -287,7 +284,7 @@ describe('risk governor — calibrated confidence', () => {
       signal: makeSignal() as any,
       marketState: [makeMarketState()] as any[],
       riskProfile: makeProfile(),
-      calibratedConfidence: 0.40
+      calibratedConfidence: 0.4,
     });
     expect(result.overlays).toContain('low_calibrated_confidence');
     expect(result.size_multiplier).toBeLessThan(1);
@@ -298,7 +295,7 @@ describe('risk governor — calibrated confidence', () => {
       signal: makeSignal() as any,
       marketState: [makeMarketState()] as any[],
       riskProfile: makeProfile(),
-      calibratedConfidence: 0.65
+      calibratedConfidence: 0.65,
     });
     expect(result.overlays).not.toContain('low_calibrated_confidence');
   });
@@ -310,10 +307,10 @@ describe('risk governor — compound overlays', () => {
   it('multiplies size_multiplier across multiple overlays', () => {
     const result = evaluateRiskGovernor({
       signal: makeSignal({ direction: 'SHORT', symbol: 'AAPL' }) as any,
-      marketState: [makeMarketState({ risk_off_score: 0.60 })] as any[],
+      marketState: [makeMarketState({ risk_off_score: 0.6 })] as any[],
       riskProfile: makeProfile(),
       holdings: [makeHolding('AAPL', 12)],
-      calibratedConfidence: 0.40
+      calibratedConfidence: 0.4,
     });
     // caution(0.74) × same_symbol_taper(0.7) × short(0.88) × low_conf(0.55)
     expect(result.size_multiplier).toBeLessThan(0.3);
@@ -324,7 +321,7 @@ describe('risk governor — compound overlays', () => {
     const result = evaluateRiskGovernor({
       signal: makeSignal() as any,
       marketState: [makeMarketState()] as any[],
-      riskProfile: makeProfile()
+      riskProfile: makeProfile(),
     });
     expect(result.size_multiplier).toBeGreaterThanOrEqual(0.15);
     expect(result.size_multiplier).toBeLessThanOrEqual(1);
@@ -334,7 +331,7 @@ describe('risk governor — compound overlays', () => {
     const result = evaluateRiskGovernor({
       signal: makeSignal() as any,
       marketState: [],
-      riskProfile: makeProfile()
+      riskProfile: makeProfile(),
     });
     expect(result.governor_mode).toBe('NORMAL');
     expect(result.allowed).toBe(true);
@@ -344,7 +341,7 @@ describe('risk governor — compound overlays', () => {
     const result = evaluateRiskGovernor({
       signal: makeSignal() as any,
       marketState: [makeMarketState()] as any[],
-      riskProfile: null
+      riskProfile: null,
     });
     expect(result.allowed).toBe(true);
     expect(result.risk_budget_remaining).toBeGreaterThanOrEqual(0);

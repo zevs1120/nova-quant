@@ -10,7 +10,7 @@ import {
   backfillMassiveStocks,
   backfillMassiveCrypto,
   type MassiveAggBar,
-  type MassiveAggsResponse
+  type MassiveAggsResponse,
 } from '../src/server/ingestion/massive.js';
 import { normalizeBars } from '../src/server/ingestion/normalize.js';
 
@@ -24,11 +24,11 @@ function makeMockResponse(overrides?: Partial<MassiveAggsResponse>): MassiveAggs
     adjusted: true,
     results: [
       { v: 100, o: 150, c: 151, h: 152, l: 149, t: 1700000000000 },
-      { v: 200, o: 151, c: 153, h: 154, l: 150, t: 1700086400000 }
+      { v: 200, o: 151, c: 153, h: 154, l: 150, t: 1700086400000 },
     ],
     status: 'OK',
     request_id: 'test-123',
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -43,7 +43,7 @@ function defaultFetchParams(overrides?: Record<string, unknown>) {
     timeoutMs: 5000,
     retry: { attempts: 1, baseDelayMs: 100 },
     requestDelayMs: 0,
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -119,7 +119,7 @@ describe('Massive API ingestion', () => {
         h: 153.0,
         l: 147.5,
         t: 1700000000000,
-        n: 500
+        n: 500,
       };
 
       const result = massiveBarToNormalized(bar);
@@ -130,20 +130,30 @@ describe('Massive API ingestion', () => {
         high: '153',
         low: '147.5',
         close: '152.3',
-        volume: '1234567'
+        volume: '1234567',
       });
     });
 
     it('handles zero volume', () => {
       const bar: MassiveAggBar = {
-        v: 0, o: 100, c: 101, h: 102, l: 99, t: 1700000000000
+        v: 0,
+        o: 100,
+        c: 101,
+        h: 102,
+        l: 99,
+        t: 1700000000000,
       };
       expect(massiveBarToNormalized(bar).volume).toBe('0');
     });
 
     it('preserves decimal precision in prices', () => {
       const bar: MassiveAggBar = {
-        v: 50, o: 123.456789, c: 124.987654, h: 125.111, l: 122.002, t: 1700000000000
+        v: 50,
+        o: 123.456789,
+        c: 124.987654,
+        h: 125.111,
+        l: 122.002,
+        t: 1700000000000,
       };
       const result = massiveBarToNormalized(bar);
       expect(result.open).toBe('123.456789');
@@ -158,8 +168,8 @@ describe('Massive API ingestion', () => {
   describe('fetchMassiveAggs', () => {
     it('fetches and returns normalized bars with correct URL structure', async () => {
       const mockResponse = makeMockResponse();
-      const fetchMock = vi.fn(async () =>
-        new Response(JSON.stringify(mockResponse), { status: 200 })
+      const fetchMock = vi.fn(
+        async () => new Response(JSON.stringify(mockResponse), { status: 200 }),
       ) as typeof fetch;
       vi.stubGlobal('fetch', fetchMock);
 
@@ -178,9 +188,13 @@ describe('Massive API ingestion', () => {
     });
 
     it('handles empty results array gracefully', async () => {
-      vi.stubGlobal('fetch', vi.fn(async () =>
-        new Response(JSON.stringify(makeMockResponse({ results: [] })), { status: 200 })
-      ) as typeof fetch);
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(
+          async () =>
+            new Response(JSON.stringify(makeMockResponse({ results: [] })), { status: 200 }),
+        ) as typeof fetch,
+      );
 
       const bars = await fetchMassiveAggs(defaultFetchParams());
       expect(bars).toHaveLength(0);
@@ -188,10 +202,11 @@ describe('Massive API ingestion', () => {
 
     it('handles results: undefined gracefully', async () => {
       const resp = makeMockResponse();
-      delete (resp as Record<string, unknown>).results;
-      vi.stubGlobal('fetch', vi.fn(async () =>
-        new Response(JSON.stringify(resp), { status: 200 })
-      ) as typeof fetch);
+      delete (resp as unknown as Record<string, unknown>).results;
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => new Response(JSON.stringify(resp), { status: 200 })) as typeof fetch,
+      );
 
       const bars = await fetchMassiveAggs(defaultFetchParams());
       expect(bars).toHaveLength(0);
@@ -200,18 +215,22 @@ describe('Massive API ingestion', () => {
     it('follows next_url for pagination', async () => {
       const page1 = makeMockResponse({
         results: [{ v: 100, o: 150, c: 151, h: 152, l: 149, t: 1700000000000 }],
-        next_url: 'https://api.massive.com/v2/aggs/ticker/AAPL/range/1/day/2024-01-01/2024-01-31?cursor=abc'
+        next_url:
+          'https://api.massive.com/v2/aggs/ticker/AAPL/range/1/day/2024-01-01/2024-01-31?cursor=abc',
       });
       const page2 = makeMockResponse({
         results: [{ v: 200, o: 151, c: 153, h: 154, l: 150, t: 1700086400000 }],
-        next_url: undefined
+        next_url: undefined,
       });
 
       let callCount = 0;
-      vi.stubGlobal('fetch', vi.fn(async () => {
-        callCount += 1;
-        return new Response(JSON.stringify(callCount === 1 ? page1 : page2), { status: 200 });
-      }) as typeof fetch);
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => {
+          callCount += 1;
+          return new Response(JSON.stringify(callCount === 1 ? page1 : page2), { status: 200 });
+        }) as typeof fetch,
+      );
 
       const bars = await fetchMassiveAggs(defaultFetchParams());
       expect(bars).toHaveLength(2);
@@ -225,11 +244,14 @@ describe('Massive API ingestion', () => {
       vi.spyOn(sleepModule, 'sleep').mockResolvedValue();
 
       let callCount = 0;
-      vi.stubGlobal('fetch', vi.fn(async () => {
-        callCount += 1;
-        if (callCount === 1) return new Response('Rate limited', { status: 429 });
-        return new Response(JSON.stringify(makeMockResponse()), { status: 200 });
-      }) as typeof fetch);
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => {
+          callCount += 1;
+          if (callCount === 1) return new Response('Rate limited', { status: 429 });
+          return new Response(JSON.stringify(makeMockResponse()), { status: 200 });
+        }) as typeof fetch,
+      );
 
       const bars = await fetchMassiveAggs(defaultFetchParams());
       expect(bars).toHaveLength(2);
@@ -240,9 +262,10 @@ describe('Massive API ingestion', () => {
 
     it('handles 403 Forbidden — stops immediately with zero bars', async () => {
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-      vi.stubGlobal('fetch', vi.fn(async () =>
-        new Response('Forbidden', { status: 403 })
-      ) as typeof fetch);
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => new Response('Forbidden', { status: 403 })) as typeof fetch,
+      );
 
       const bars = await fetchMassiveAggs(defaultFetchParams());
       expect(bars).toHaveLength(0);
@@ -252,9 +275,10 @@ describe('Massive API ingestion', () => {
 
     it('handles 401 Unauthorized — stops immediately with zero bars', async () => {
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-      vi.stubGlobal('fetch', vi.fn(async () =>
-        new Response('Unauthorized', { status: 401 })
-      ) as typeof fetch);
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => new Response('Unauthorized', { status: 401 })) as typeof fetch,
+      );
 
       const bars = await fetchMassiveAggs(defaultFetchParams());
       expect(bars).toHaveLength(0);
@@ -264,9 +288,10 @@ describe('Massive API ingestion', () => {
 
     it('handles 500 Internal Server Error — stops with zero bars', async () => {
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-      vi.stubGlobal('fetch', vi.fn(async () =>
-        new Response('Internal Server Error', { status: 500 })
-      ) as typeof fetch);
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => new Response('Internal Server Error', { status: 500 })) as typeof fetch,
+      );
 
       const bars = await fetchMassiveAggs(defaultFetchParams());
       expect(bars).toHaveLength(0);
@@ -276,9 +301,10 @@ describe('Massive API ingestion', () => {
 
     it('handles 503 Service Unavailable — stops with zero bars', async () => {
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-      vi.stubGlobal('fetch', vi.fn(async () =>
-        new Response('Service Unavailable', { status: 503 })
-      ) as typeof fetch);
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => new Response('Service Unavailable', { status: 503 })) as typeof fetch,
+      );
 
       const bars = await fetchMassiveAggs(defaultFetchParams());
       expect(bars).toHaveLength(0);
@@ -290,13 +316,18 @@ describe('Massive API ingestion', () => {
       vi.spyOn(sleepModule, 'sleep').mockResolvedValue();
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-      vi.stubGlobal('fetch', vi.fn(async () => {
-        throw new Error('AbortError: The operation was aborted');
-      }) as typeof fetch);
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => {
+          throw new Error('AbortError: The operation was aborted');
+        }) as typeof fetch,
+      );
 
-      const bars = await fetchMassiveAggs(defaultFetchParams({
-        retry: { attempts: 2, baseDelayMs: 100 }
-      }));
+      const bars = await fetchMassiveAggs(
+        defaultFetchParams({
+          retry: { attempts: 2, baseDelayMs: 100 },
+        }),
+      );
 
       // Should retry up to attempts count, then break with empty bars
       expect(bars).toHaveLength(0);
@@ -307,9 +338,10 @@ describe('Massive API ingestion', () => {
 
     it('handles invalid JSON response — stops with zero bars', async () => {
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-      vi.stubGlobal('fetch', vi.fn(async () =>
-        new Response('<html>Not JSON</html>', { status: 200 })
-      ) as typeof fetch);
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => new Response('<html>Not JSON</html>', { status: 200 })) as typeof fetch,
+      );
 
       const bars = await fetchMassiveAggs(defaultFetchParams());
       expect(bars).toHaveLength(0);
@@ -319,17 +351,20 @@ describe('Massive API ingestion', () => {
     it('appends apiKey to next_url when not present', async () => {
       const page1 = makeMockResponse({
         results: [{ v: 100, o: 150, c: 151, h: 152, l: 149, t: 1700000000000 }],
-        next_url: 'https://api.massive.com/v2/aggs?cursor=abc' // no apiKey
+        next_url: 'https://api.massive.com/v2/aggs?cursor=abc', // no apiKey
       });
       const page2 = makeMockResponse({
         results: [{ v: 200, o: 151, c: 153, h: 154, l: 150, t: 1700086400000 }],
       });
 
       let callCount = 0;
-      vi.stubGlobal('fetch', vi.fn(async () => {
-        callCount += 1;
-        return new Response(JSON.stringify(callCount === 1 ? page1 : page2), { status: 200 });
-      }) as typeof fetch);
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => {
+          callCount += 1;
+          return new Response(JSON.stringify(callCount === 1 ? page1 : page2), { status: 200 });
+        }) as typeof fetch,
+      );
 
       await fetchMassiveAggs(defaultFetchParams());
 
@@ -383,9 +418,12 @@ describe('Massive API ingestion', () => {
       ensureSchema(db);
       const repo = new MarketRepository(db);
 
-      vi.stubGlobal('fetch', vi.fn(async () =>
-        new Response(JSON.stringify(makeMockResponse()), { status: 200 })
-      ) as typeof fetch);
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(
+          async () => new Response(JSON.stringify(makeMockResponse()), { status: 200 }),
+        ) as typeof fetch,
+      );
 
       // 1. Fetch
       const bars = await fetchMassiveAggs(defaultFetchParams());
@@ -393,7 +431,11 @@ describe('Massive API ingestion', () => {
 
       // 2. Persist
       const asset = repo.upsertAsset({
-        market: 'US', symbol: 'AAPL', venue: 'MASSIVE', quote: 'USD', status: 'ACTIVE'
+        market: 'US',
+        symbol: 'AAPL',
+        venue: 'MASSIVE',
+        quote: 'USD',
+        status: 'ACTIVE',
       });
       const normalized = normalizeBars(bars);
       repo.upsertOhlcvBars(asset.asset_id, '1d', normalized, 'MASSIVE');
@@ -401,7 +443,7 @@ describe('Massive API ingestion', () => {
       // 3. Read back via getOhlcv (the path downstream consumers use)
       const readBack = repo.getOhlcv({
         assetId: asset.asset_id,
-        timeframe: '1d'
+        timeframe: '1d',
       });
 
       expect(readBack).toHaveLength(2);
@@ -418,9 +460,12 @@ describe('Massive API ingestion', () => {
       const repo = new MarketRepository(db);
 
       const cryptoResponse = makeMockResponse({ ticker: 'X:BTCUSD' });
-      vi.stubGlobal('fetch', vi.fn(async () =>
-        new Response(JSON.stringify(cryptoResponse), { status: 200 })
-      ) as typeof fetch);
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(
+          async () => new Response(JSON.stringify(cryptoResponse), { status: 200 }),
+        ) as typeof fetch,
+      );
 
       // 1. Convert symbol
       const massiveTicker = convertCryptoSymbol('BTCUSDT');
@@ -432,7 +477,12 @@ describe('Massive API ingestion', () => {
 
       // 3. Persist
       const asset = repo.upsertAsset({
-        market: 'CRYPTO', symbol: 'BTCUSDT', venue: 'MASSIVE', base: 'BTC', quote: 'USD', status: 'ACTIVE'
+        market: 'CRYPTO',
+        symbol: 'BTCUSDT',
+        venue: 'MASSIVE',
+        base: 'BTC',
+        quote: 'USD',
+        status: 'ACTIVE',
       });
       const normalized = normalizeBars(bars);
       repo.upsertOhlcvBars(asset.asset_id, '1d', normalized, 'MASSIVE');
@@ -448,12 +498,19 @@ describe('Massive API ingestion', () => {
       ensureSchema(db);
       const repo = new MarketRepository(db);
 
-      vi.stubGlobal('fetch', vi.fn(async () =>
-        new Response(JSON.stringify(makeMockResponse()), { status: 200 })
-      ) as typeof fetch);
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(
+          async () => new Response(JSON.stringify(makeMockResponse()), { status: 200 }),
+        ) as typeof fetch,
+      );
 
       const asset = repo.upsertAsset({
-        market: 'US', symbol: 'AAPL', venue: 'MASSIVE', quote: 'USD', status: 'ACTIVE'
+        market: 'US',
+        symbol: 'AAPL',
+        venue: 'MASSIVE',
+        quote: 'USD',
+        status: 'ACTIVE',
       });
 
       // First ingestion
@@ -461,7 +518,11 @@ describe('Massive API ingestion', () => {
       const norm1 = normalizeBars(bars1);
       repo.upsertOhlcvBars(asset.asset_id, '1d', norm1, 'MASSIVE');
 
-      const count1 = (db.prepare("SELECT COUNT(*) as cnt FROM ohlcv WHERE source = 'MASSIVE'").get() as { cnt: number }).cnt;
+      const count1 = (
+        db.prepare("SELECT COUNT(*) as cnt FROM ohlcv WHERE source = 'MASSIVE'").get() as {
+          cnt: number;
+        }
+      ).cnt;
       expect(count1).toBe(2);
 
       // Second ingestion with same data — should upsert, not duplicate
@@ -469,7 +530,11 @@ describe('Massive API ingestion', () => {
       const norm2 = normalizeBars(bars2);
       repo.upsertOhlcvBars(asset.asset_id, '1d', norm2, 'MASSIVE');
 
-      const count2 = (db.prepare("SELECT COUNT(*) as cnt FROM ohlcv WHERE source = 'MASSIVE'").get() as { cnt: number }).cnt;
+      const count2 = (
+        db.prepare("SELECT COUNT(*) as cnt FROM ohlcv WHERE source = 'MASSIVE'").get() as {
+          cnt: number;
+        }
+      ).cnt;
       expect(count2).toBe(2); // Still 2, not 4
 
       // Verify getOhlcvStats too
@@ -483,19 +548,37 @@ describe('Massive API ingestion', () => {
       const repo = new MarketRepository(db);
 
       const asset = repo.upsertAsset({
-        market: 'US', symbol: 'AAPL', venue: 'MASSIVE', quote: 'USD', status: 'ACTIVE'
+        market: 'US',
+        symbol: 'AAPL',
+        venue: 'MASSIVE',
+        quote: 'USD',
+        status: 'ACTIVE',
       });
 
       // First write: close = 151
-      const bars1 = normalizeBars([{
-        ts_open: 1700000000000, open: '150', high: '152', low: '149', close: '151', volume: '100'
-      }]);
+      const bars1 = normalizeBars([
+        {
+          ts_open: 1700000000000,
+          open: '150',
+          high: '152',
+          low: '149',
+          close: '151',
+          volume: '100',
+        },
+      ]);
       repo.upsertOhlcvBars(asset.asset_id, '1d', bars1, 'MASSIVE');
 
       // Second write: same ts_open, but close updated to 155 (adjusted data)
-      const bars2 = normalizeBars([{
-        ts_open: 1700000000000, open: '150', high: '156', low: '149', close: '155', volume: '120'
-      }]);
+      const bars2 = normalizeBars([
+        {
+          ts_open: 1700000000000,
+          open: '150',
+          high: '156',
+          low: '149',
+          close: '155',
+          volume: '120',
+        },
+      ]);
       repo.upsertOhlcvBars(asset.asset_id, '1d', bars2, 'MASSIVE');
 
       const readBack = repo.getOhlcv({ assetId: asset.asset_id, timeframe: '1d' });
@@ -511,12 +594,30 @@ describe('Massive API ingestion', () => {
       const repo = new MarketRepository(db);
 
       const asset = repo.upsertAsset({
-        market: 'US', symbol: 'AAPL', venue: 'MASSIVE', quote: 'USD', status: 'ACTIVE'
+        market: 'US',
+        symbol: 'AAPL',
+        venue: 'MASSIVE',
+        quote: 'USD',
+        status: 'ACTIVE',
       });
 
       const bars = normalizeBars([
-        { ts_open: 1700000000000, open: '150', high: '152', low: '149', close: '151', volume: '100' },
-        { ts_open: 1700086400000, open: '151', high: '154', low: '150', close: '153', volume: '200' }
+        {
+          ts_open: 1700000000000,
+          open: '150',
+          high: '152',
+          low: '149',
+          close: '151',
+          volume: '100',
+        },
+        {
+          ts_open: 1700086400000,
+          open: '151',
+          high: '154',
+          low: '150',
+          close: '153',
+          volume: '200',
+        },
       ]);
       repo.upsertOhlcvBars(asset.asset_id, '1d', bars, 'MASSIVE');
 
