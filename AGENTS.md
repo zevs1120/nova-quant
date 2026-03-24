@@ -18,7 +18,7 @@
 
 ## 编码风格与命名约定
 
-仓库使用 ES Modules、严格 TypeScript 和 React。现有代码以 2 空格缩进、单引号为主；改动时优先遵循邻近文件。组件与类型用 `PascalCase`，函数、变量与服务实例用 `camelCase`，脚本文件采用 kebab-case，测试文件命名为 `<feature>.test.ts`。仓库没有独立 ESLint/Prettier 配置，`npm run lint` 实际执行 `scripts/check-repo-policy.mjs`。
+仓库使用 ES Modules、严格 TypeScript 和 React。现有代码以 2 空格缩进、单引号为主；改动时优先遵循邻近文件。组件与类型用 `PascalCase`，函数、变量与服务实例用 `camelCase`，脚本文件采用 kebab-case，测试文件命名为 `<feature>.test.ts`。仓库使用 Prettier 格式化（配置见 `.prettierrc`），没有独立 ESLint 配置。`npm run lint` 实际执行 `scripts/check-repo-policy.mjs`。
 
 ## 测试指南
 
