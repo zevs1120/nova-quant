@@ -4,6 +4,7 @@ import {
   buildAdminOverviewSnapshot,
   buildAdminSignalsSnapshot,
   buildAdminSystemSnapshot,
+  buildAdminTodayOpsSnapshot,
   buildAdminUsersSnapshot
 } from '../admin/service.js';
 
@@ -71,7 +72,7 @@ export async function handleAdminOverview(req: BasicRequest, res: BasicResponse)
         user: session.user,
         roles: session.roles
       },
-      data: buildAdminOverviewSnapshot()
+      data: await buildAdminOverviewSnapshot()
     });
   } catch (error) {
     respondAdminError(res, 'ADMIN_OVERVIEW_FAILED', error);
@@ -139,9 +140,31 @@ export async function handleAdminSystem(req: BasicRequest, res: BasicResponse) {
         user: session.user,
         roles: session.roles
       },
-      data: buildAdminSystemSnapshot()
+      data: await buildAdminSystemSnapshot()
     });
   } catch (error) {
     respondAdminError(res, 'ADMIN_SYSTEM_FAILED', error);
+  }
+}
+
+export async function handleAdminResearchOps(req: BasicRequest, res: BasicResponse) {
+  const session = await authorizeAdmin(req, res);
+  if (!session) return;
+  try {
+    const timeZone = typeof req.query?.tz === 'string' ? req.query.tz : typeof req.query?.timezone === 'string' ? req.query.timezone : undefined;
+    const localDate = typeof req.query?.localDate === 'string' ? req.query.localDate : undefined;
+    res.json({
+      ok: true,
+      session: {
+        user: session.user,
+        roles: session.roles
+      },
+      data: await buildAdminTodayOpsSnapshot({
+        timeZone,
+        localDate
+      })
+    });
+  } catch (error) {
+    respondAdminError(res, 'ADMIN_RESEARCH_OPS_FAILED', error);
   }
 }

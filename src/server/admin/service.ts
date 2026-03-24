@@ -2,13 +2,12 @@ import { getDb } from '../db/database.js';
 import { ensureSchema } from '../db/schema.js';
 import { MarketRepository } from '../db/repository.js';
 import type { AlphaEvaluationMetrics } from '../alpha_registry/index.js';
-import { buildPrivateMarvixOpsReport } from '../ops/privateMarvixOps.js';
 import { buildAlphaRegistrySummary } from '../alpha_registry/index.js';
 import { decodeSignalContract } from '../quant/service.js';
-import type { NovaTaskRunRecord } from '../types.js';
 import { readAlphaDiscoveryConfig } from '../alpha_discovery/index.js';
 import { readNewsPipelineConfig } from '../news/provider.js';
 import { getConfig } from '../config.js';
+import { buildAdminResearchOpsSnapshot } from './liveOps.js';
 
 type JsonObject = Record<string, unknown>;
 
@@ -80,18 +79,6 @@ function countBy<T>(rows: T[], keyFn: (row: T) => string | null | undefined) {
   return Array.from(map.entries())
     .map(([label, value]) => ({ label, value }))
     .sort((a, b) => b.value - a.value);
-}
-
-function summarizeNovaRuns(rows: NovaTaskRunRecord[]) {
-  const byStatus = countBy(rows, (row) => row.status);
-  const byTask = countBy(rows, (row) => row.task_type);
-  const byRoute = countBy(rows, (row) => row.route_alias || 'unrouted');
-  return {
-    total: rows.length,
-    by_status: byStatus,
-    by_task: byTask,
-    by_route: byRoute
-  };
 }
 
 function queryAdminUsers(): AdminUserRow[] {
@@ -413,30 +400,27 @@ export function buildAdminSignalsSnapshot() {
   };
 }
 
-export function buildAdminSystemSnapshot() {
-  const repo = getRepo();
+export async function buildAdminSystemSnapshot() {
   const config = getConfig();
-  const ops = buildPrivateMarvixOpsReport(repo);
+  const ops = await buildAdminResearchOpsSnapshot();
   const discoveryConfig = readAlphaDiscoveryConfig();
   const newsPipeline = readNewsPipelineConfig();
-  const newsItems = repo.listNewsItems({ limit: 60, sinceMs: Date.now() - 1000 * 60 * 60 * 72 });
-  const factorTagMix = countBy(
-    ops.recent_news_factors.flatMap((row) => (Array.isArray(row.factor_tags) ? row.factor_tags : [])),
-    (row) => String(row)
-  );
-  const sourceMix = countBy(newsItems, (row) => row.source);
-  const novaRuns = repo.listNovaTaskRuns({ limit: 60 });
-  const latestFreeData = ops.workflows.find((row) => row.workflow_key === 'free_data_flywheel') || null;
-  const latestDiscovery = ops.workflows.find((row) => row.workflow_key === 'alpha_discovery_loop') || null;
-  const latestShadow = ops.workflows.find((row) => row.workflow_key === 'alpha_shadow_runner') || null;
-  const factorCoveragePct = newsItems.length ? round((ops.recent_news_factors.length / newsItems.length) * 100, 1) : 0;
   const diagnostics: Array<{ severity: 'INFO' | 'WARN'; title: string; detail: string }> = [];
+  const factorCoveragePct = Number(ops.data_summary.news_factor_coverage_pct || 0);
+  const newsItems72h = Number(ops.data_summary.news_items_72h || 0);
 
-  if (newsItems.length >= 6 && ops.recent_news_factors.length === 0) {
+  if (ops.data_source.mode === 'local-fallback') {
+    diagnostics.push({
+      severity: 'WARN',
+      title: 'EC2 live 数据暂时不可达，当前已切回本地库',
+      detail: `已尝试连接 ${ops.data_source.upstream_base_url || 'configured upstream'}，但拉取失败。当前页面展示的是本地回退数据。`
+    });
+  }
+  if (newsItems72h >= 6 && ops.recent_news_factors.length === 0) {
     diagnostics.push({
       severity: 'WARN',
       title: '新闻有流入，但结构化因子产出偏低',
-      detail: `近 72 小时新闻 ${newsItems.length} 条，但结构化因子为 0。当前已启用 heuristic 回退，仍建议继续观察 Gemini 与 NewsAPI 覆盖。`
+      detail: `近 72 小时新闻 ${newsItems72h} 条，但结构化因子为 0。当前已启用 heuristic 回退，仍建议继续观察 Gemini 与 NewsAPI 覆盖。`
     });
   }
   if (discoveryConfig.intervalHours >= 8 || discoveryConfig.searchBudget <= 10) {
@@ -456,22 +440,11 @@ export function buildAdminSystemSnapshot() {
 
   return {
     generated_at: new Date().toISOString(),
+    data_source: ops.data_source,
     runtime: ops.runtime,
-    workflow_summary: {
-      total: ops.workflows.length,
-      by_status: countBy(ops.workflows, (row) => row.status),
-      by_workflow: countBy(ops.workflows, (row) => row.workflow_key)
-    },
-    ai_summary: summarizeNovaRuns(novaRuns),
-    data_summary: {
-      news_items_72h: newsItems.length,
-      news_factor_count: ops.recent_news_factors.length,
-      news_factor_coverage_pct: factorCoveragePct,
-      fundamentals_count: ops.reference_data.fundamentals.length,
-      option_chain_count: ops.reference_data.option_chains.length,
-      source_mix: sourceMix,
-      factor_tag_mix: factorTagMix
-    },
+    workflow_summary: ops.workflow_summary,
+    ai_summary: ops.ai_summary,
+    data_summary: ops.data_summary,
     throughput_controls: {
       service_envelope: {
         target_active_clients: config.serviceEnvelope?.targetActiveClients || 50,
@@ -504,25 +477,23 @@ export function buildAdminSystemSnapshot() {
         gemini_request_gap_ms: Math.max(0, Number(process.env.GEMINI_NEWS_MIN_REQUEST_GAP_MS || 350))
       }
     },
-    throughput_recent: {
-      latest_free_data: latestFreeData?.summary || null,
-      latest_alpha_discovery: latestDiscovery?.summary || null,
-      latest_shadow_monitoring: latestShadow?.summary || null
-    },
+    throughput_recent: ops.throughput_recent,
     diagnostics,
     workflows: ops.workflows,
     recent_news_factors: ops.recent_news_factors,
     reference_data: ops.reference_data,
-    recent_nova_runs: ops.recent_nova_runs
+    active_signals: ops.active_signals,
+    recent_nova_runs: ops.recent_nova_runs,
+    daily_ops: ops.daily_ops
   };
 }
 
-export function buildAdminOverviewSnapshot() {
+export async function buildAdminOverviewSnapshot() {
   const repo = getRepo();
   const users = buildAdminUsersSnapshot();
   const alpha = buildAdminAlphaSnapshot();
   const signals = buildAdminSignalsSnapshot();
-  const system = buildAdminSystemSnapshot();
+  const system = await buildAdminSystemSnapshot();
   const workflows = repo.listWorkflowRuns({ limit: 16 });
 
   return {
@@ -577,4 +548,8 @@ export function buildAdminOverviewSnapshot() {
       option_chain_count: system.data_summary.option_chain_count
     }
   };
+}
+
+export async function buildAdminTodayOpsSnapshot(args?: { timeZone?: string; localDate?: string }) {
+  return await buildAdminResearchOpsSnapshot(args);
 }

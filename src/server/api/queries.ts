@@ -53,6 +53,7 @@ import { getPublicBrowseHome } from '../public/browseService.js';
 import { getPublicTodayDecision } from '../public/todayDecisionService.js';
 import { createBrokerAdapter, createExchangeAdapter, type OrderStatusSnapshot } from '../connect/adapters.js';
 import { buildPrivateMarvixOpsReport } from '../ops/privateMarvixOps.js';
+import { buildLocalAdminResearchOpsSnapshot } from '../admin/liveOps.js';
 
 const RISK_PROFILE_PRESETS = {
   conservative: {
@@ -3346,6 +3347,10 @@ export function getNovaRuntimeState() {
 
 export function getPrivateMarvixOps() {
   return buildPrivateMarvixOpsReport(getRepo());
+}
+
+export function getResearchOpsStatus(args?: { timeZone?: string; localDate?: string }) {
+  return buildLocalAdminResearchOpsSnapshot(args);
 }
 
 export async function getNovaHealthState() {

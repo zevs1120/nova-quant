@@ -17,6 +17,7 @@ import {
 import {
   handleAdminAlphas,
   handleAdminOverview,
+  handleAdminResearchOps,
   handleAdminSignals,
   handleAdminSystem,
   handleAdminUsers
@@ -58,6 +59,7 @@ import {
   listExternalConnections,
   getPerformanceSummary,
   getRiskProfile,
+  getResearchOpsStatus,
   setRiskProfile,
   getSignalContract,
   getBrowseAssetOverview,
@@ -231,6 +233,7 @@ export function createApiApp() {
       apiPath === '/api/risk-profile' ||
       apiPath === '/api/control-plane/status' ||
       apiPath === '/api/control-plane/flywheel' ||
+      apiPath === '/api/control-plane/research-ops' ||
       apiPath === '/api/connect/broker' ||
       apiPath === '/api/connect/exchange';
     if (!(allowCrossOriginRead && (req.method === 'GET' || req.method === 'OPTIONS'))) {
@@ -266,6 +269,7 @@ export function createApiApp() {
   app.get('/api/admin/alphas', handleAdminAlphas);
   app.get('/api/admin/signals', handleAdminSignals);
   app.get('/api/admin/system', handleAdminSystem);
+  app.get('/api/admin/research-ops', handleAdminResearchOps);
 
   app.post('/api/model/signals/ingest', handleModelSignalIngest);
   app.post('/api/model/heartbeat', handleModelHeartbeat);
@@ -534,6 +538,17 @@ export function createApiApp() {
     res.json(
       await getFlywheelStatus({
         userId
+      })
+    );
+  });
+
+  app.get('/api/control-plane/research-ops', (req, res) => {
+    const timeZone = (req.query.tz as string | undefined) || (req.query.timezone as string | undefined) || undefined;
+    const localDate = (req.query.localDate as string | undefined) || undefined;
+    res.json(
+      getResearchOpsStatus({
+        timeZone,
+        localDate
       })
     );
   });

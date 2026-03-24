@@ -82,6 +82,12 @@ export function getAdminSystem() {
   });
 }
 
+export function getAdminResearchOps() {
+  return adminRequest('/api/admin/research-ops', {
+    method: 'GET'
+  });
+}
+
 export function loginAdmin(args) {
   return adminRequest('/api/admin/login', {
     method: 'POST',

@@ -48,24 +48,26 @@ export default function SystemHealthPage() {
   }
 
   const runtime = data?.runtime || {};
+  const dataSource = data?.data_source || {};
   const workflowSummary = data?.workflow_summary || {};
   const aiSummary = data?.ai_summary || {};
   const dataSummary = data?.data_summary || {};
   const throughputControls = data?.throughput_controls || {};
   const throughputRecent = data?.throughput_recent || {};
+  const dailyOps = data?.daily_ops || {};
   const diagnostics = data?.diagnostics || [];
 
   const stats = [
     {
       label: '模型运行模式',
       value: `${runtime.provider || 'unknown'} / ${runtime.mode || 'unknown'}`,
-      detail: '说明管理后台当前看到的推理供应商和运行模式。',
+      detail: dataSource.live_connected ? '当前已经连到 EC2 live upstream 的运行时状态。' : '说明管理后台当前看到的推理供应商和运行模式。',
       tone: 'blue'
     },
     {
       label: '后台工作流',
       value: `${workflowSummary.total || 0} 次`,
-      detail: '最近 free_data、training、alpha discovery、shadow runner 等任务汇总。',
+      detail: `当前展示 ${dailyOps.local_date || '今日'} 的 free_data、training、alpha discovery、shadow runner 等任务汇总。`,
       tone: 'green'
     },
     {
@@ -84,6 +86,60 @@ export default function SystemHealthPage() {
 
   return (
     <section className="page-grid">
+      <section className="page-grid two-up">
+        <article className="panel">
+          <div className="panel-header">
+            <h3>数据来源</h3>
+            <span className={`status-pill ${dataSource.mode === 'live-upstream' ? 'is-green' : dataSource.mode === 'local-fallback' ? 'is-red' : 'is-slate'}`}>
+              {dataSource.label || 'Unknown'}
+            </span>
+          </div>
+          <div className="source-card-grid">
+            <article className="source-card">
+              <strong>当前日切口径</strong>
+              <p>{dailyOps.local_date || dataSource.local_date || '--'} · {dailyOps.timezone || dataSource.timezone || 'Asia/Shanghai'}</p>
+            </article>
+            <article className="source-card">
+              <strong>Upstream</strong>
+              <p>{dataSource.upstream_base_url || '未配置，当前读本地库'}</p>
+            </article>
+            <article className="source-card">
+              <strong>时间窗起点</strong>
+              <p>{dailyOps.since_utc || '--'}</p>
+            </article>
+            <article className="source-card">
+              <strong>连接说明</strong>
+              <p>{dataSource.live_connected ? '管理台当前看到的是 EC2 live 聚合结果。' : dataSource.error ? `已回退到本地数据：${dataSource.error}` : '当前展示本地库数据。'}</p>
+            </article>
+          </div>
+        </article>
+
+        <article className="panel">
+          <div className="panel-header">
+            <h3>今日后台快照</h3>
+            <span className="status-pill is-blue">Daily lens</span>
+          </div>
+          <div className="source-card-grid">
+            <article className="source-card">
+              <strong>今日 free data</strong>
+              <p>{(dailyOps.workflow_counts || []).find((row) => row.workflow_key === 'free_data_flywheel')?.run_count || 0} 次</p>
+            </article>
+            <article className="source-card">
+              <strong>今日 Alpha discovery</strong>
+              <p>{(dailyOps.workflow_counts || []).find((row) => row.workflow_key === 'alpha_discovery_loop')?.run_count || 0} 次</p>
+            </article>
+            <article className="source-card">
+              <strong>今日 Shadow runner</strong>
+              <p>{(dailyOps.workflow_counts || []).find((row) => row.workflow_key === 'alpha_shadow_runner')?.run_count || 0} 次</p>
+            </article>
+            <article className="source-card">
+              <strong>今日信号入库</strong>
+              <p>{dailyOps.table_counts?.signals?.count || 0} 条</p>
+            </article>
+          </div>
+        </article>
+      </section>
+
       <div className="stats-grid">
         {stats.map((item) => (
           <StatCard key={item.label} {...item} />
@@ -159,6 +215,10 @@ export default function SystemHealthPage() {
             <article className="source-card">
               <strong>Shadow runner</strong>
               <p>处理 {throughputRecent.latest_shadow_monitoring?.candidates_processed ?? 0} 个，晋升 Canary {throughputRecent.latest_shadow_monitoring?.promoted_to_canary ?? 0} 个。</p>
+            </article>
+            <article className="source-card">
+              <strong>Nova training</strong>
+              <p>样本 {throughputRecent.latest_training?.dataset_count ?? 0}，状态 {throughputRecent.latest_training?.status || 'IDLE'}，执行 {throughputRecent.latest_training?.execution?.reason || 'execution_not_requested'}。</p>
             </article>
           </div>
         </article>

@@ -20,6 +20,11 @@ export const ADMIN_NAVIGATION = [
     description: '在线信号、订单流与执行控制。'
   },
   {
+    id: 'research-ops',
+    label: '今天后台成果',
+    description: '直接看 EC2 live 数据、回测、信号和训练状态。'
+  },
+  {
     id: 'system-health',
     label: '系统健康',
     description: '数据新鲜度、模型状态与后台任务。'
