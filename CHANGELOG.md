@@ -2,6 +2,15 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 10.4.0 (2026-03-24)
+
+- Release type: minor
+- **Refactor: split `src/server/api/app.ts` (2,071 lines / 91 routes) into 15 domain-specific Express Router files + shared helpers.**
+  - New `src/server/api/helpers.ts`: shared parsers (`parseMarket`, `parseTimeframe`, `parseAssetClass`, `parseSignalStatus`), `asyncRoute` wrapper, session/auth scope utilities.
+  - New `src/server/api/routes/`: `auth.ts` (8), `admin.ts` (11), `browse.ts` (6), `signals.ts` (3), `market.ts` (6), `decision.ts` (2), `engagement.ts` (9), `execution.ts` (7), `research.ts` (22), `evidence.ts` (7), `nova.ts` (7), `chat.ts` (4), `connect.ts` (6), `manual.ts` (4), `runtime.ts` (5).
+  - `app.ts` reduced to ~210 lines: middleware (JSON, CORS, session scope), 2 special routes (`/healthz`, `/api/internal/marvix/ops`), 15 router mounts, error handler.
+  - Zero logic changes. All 102 test files and 591 tests pass. Lint, typecheck, format, build all green.
+
 ## 10.3.5 (2026-03-24)
 
 - Release type: patch

@@ -1,0 +1,164 @@
+import express, { Router } from 'express';
+import type { AssetClass, Market } from '../../types.js';
+import { checkRateLimit } from '../../chat/rateLimit.js';
+import { getChatThreadMessages, listChatThreads, streamChat } from '../../chat/service.js';
+import { logChatAudit } from '../../chat/audit.js';
+import { recordNovaAssistantRun } from '../queries.js';
+
+const router = Router();
+
+async function handleChat(req: express.Request, res: express.Response) {
+  const startedAt = Date.now();
+  const body = req.body as {
+    userId?: string;
+    threadId?: string;
+    message?: string;
+    context?: {
+      signalId?: string;
+      symbol?: string;
+      market?: Market;
+      assetClass?: AssetClass;
+      timeframe?: string;
+      page?: 'today' | 'ai' | 'holdings' | 'more' | 'signal-detail' | 'unknown';
+      riskProfileKey?: string;
+      uiMode?: string;
+      decisionSummary?: {
+        today_call?: string;
+        risk_posture?: string;
+        top_action_id?: string | null;
+        top_action_symbol?: string | null;
+        top_action_label?: string | null;
+        source_status?: string;
+        data_status?: string;
+      };
+      holdingsSummary?: {
+        holdings_count?: number;
+        total_weight_pct?: number;
+        aligned_weight_pct?: number;
+        unsupported_weight_pct?: number;
+        top1_pct?: number;
+        risk_level?: string;
+        recommendation?: string;
+      };
+    };
+  };
+  const userId = String(body?.userId || '').trim();
+  const message = String(body?.message || '').trim();
+  const threadId = String(body?.threadId || '').trim() || undefined;
+  const context = body?.context;
+
+  if (!userId || !message) {
+    res.status(400).json({ error: 'userId and message are required' });
+    return;
+  }
+
+  const rate = checkRateLimit(userId);
+  if (!rate.allowed) {
+    logChatAudit({
+      userId,
+      mode: context ? 'context-aware' : 'general-coach',
+      provider: 'none',
+      message,
+      contextJson: JSON.stringify(context ?? {}),
+      status: 'rate_limited',
+      durationMs: Date.now() - startedAt,
+    });
+    res.status(429).json({
+      error: 'Rate limit exceeded',
+      resetAt: rate.resetAt,
+    });
+    return;
+  }
+
+  res.status(200);
+  res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('Connection', 'keep-alive');
+
+  let mode: 'general-coach' | 'context-aware' | 'research-assistant' = context
+    ? 'context-aware'
+    : 'general-coach';
+  let provider = 'unknown';
+  let resolvedThreadId = threadId;
+  let responseText = '';
+  let status: 'ok' | 'error' = 'ok';
+  let errorText = '';
+
+  try {
+    for await (const event of streamChat({
+      userId,
+      threadId,
+      message,
+      context,
+    })) {
+      if (event.type === 'meta') {
+        mode = event.mode;
+        provider = event.provider;
+        resolvedThreadId = event.threadId || resolvedThreadId;
+      } else if (event.type === 'chunk') {
+        responseText += event.delta;
+      } else if (event.type === 'error') {
+        status = 'error';
+        errorText = event.error;
+      }
+
+      res.write(`${JSON.stringify(event)}\n`);
+    }
+  } catch (error) {
+    status = 'error';
+    errorText = error instanceof Error ? error.message : String(error);
+    res.write(`${JSON.stringify({ type: 'error', error: errorText })}\n`);
+  } finally {
+    logChatAudit({
+      userId,
+      mode,
+      provider,
+      threadId: resolvedThreadId,
+      message,
+      contextJson: JSON.stringify(context ?? {}),
+      status,
+      error: errorText || undefined,
+      responsePreview: responseText.slice(0, 1200),
+      durationMs: Date.now() - startedAt,
+    });
+    await recordNovaAssistantRun({
+      userId,
+      threadId: resolvedThreadId,
+      context: (context || {}) as Record<string, unknown>,
+      message,
+      responseText,
+      provider,
+      status: status === 'ok' ? 'SUCCEEDED' : 'FAILED',
+      error: errorText || undefined,
+    });
+    res.end();
+  }
+}
+
+router.post('/api/chat', handleChat);
+router.post('/api/ai-chat', handleChat);
+
+router.get('/api/chat/threads', (req, res) => {
+  const userId = String((req.query.userId as string | undefined) || '').trim() || 'guest-default';
+  const limit = req.query.limit ? Number(req.query.limit) : 12;
+  const data = listChatThreads(userId, limit);
+  res.json({
+    userId,
+    count: data.length,
+    data,
+  });
+});
+
+router.get('/api/chat/threads/:id', (req, res) => {
+  const userId = String((req.query.userId as string | undefined) || '').trim() || 'guest-default';
+  const threadId = String(req.params.id || '').trim();
+  const limit = req.query.limit ? Number(req.query.limit) : 40;
+  const payload = getChatThreadMessages(userId, threadId, limit);
+  if (!payload.thread) {
+    res.status(404).json({ error: 'Thread not found' });
+    return;
+  }
+  res.json(payload);
+});
+
+export default router;
