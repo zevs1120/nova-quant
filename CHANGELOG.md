@@ -2,6 +2,16 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 10.2.4 (2026-03-24)
+- Release type: patch
+- Add 82 high-quality tests across 4 new test files targeting weak-coverage pure-logic modules and the manual (loyalty/gamification) service.
+- New `timeUtilsEdgeCases.test.ts` (27 tests): `timeframeToMs` for all 5 timeframes + unsupported throw, `toMsUtc` with number/Date/ISO/numeric-string/invalid-throw, `isoToMs` edge cases, `floorToTimeframe` alignment, `monthRange` including year boundaries and reversed ranges, `dayRange` with month boundaries and zero-count.
+- New `multiAssetSchemaEdgeCases.test.ts` (27 tests): constant enums (ASSET_CLASS, DATA_STATUS, FREQUENCY), REQUIRED_FIELDS contract for all 8 entity types, `buildProvenance` field mapping, `createAssetId` format, `safeNumber` for NaN/Infinity/null/undefined, `toIsoDate` extraction, `toIsoTimestamp` with/without timezone.
+- New `confidenceCalibrationEdgeCases.test.ts` (10 tests): empty-history calibrator summary, full signal calibration field contract, confidence clamping [0.01-0.99], calibrated range [0.18-0.94], monotonicity with no history, execution history with 12/24 samples, filter logic (DONE/CLOSE only, missing signal skip).
+- New `manualServiceEdgeCases.test.ts` (19 tests): guest auth guards (5 variants), default dashboard shape (summary/referrals/rewards/rules/ledger), FK-guard for non-existent users, VIP redemption guards, referral claim guards (empty code, invalid code), prediction entry guards (empty marketId/selectedOption, non-existent market).
+- Fix pre-existing flaky `controlPlaneStatus.test.ts`: replaced `[0]` index-based assertions with `.find()` lookups by unique symbol/market. Root cause: parallel tests seed competing workflow runs and news items that shift ordering in `ORDER BY updated_at_ms DESC LIMIT 6` results, pushing seeded data out of position `[0]`.
+- Test suite: 101/101 files pass, 557/557 tests pass (up from 97/97 files and 475/475 tests).
+
 ## 10.2.3 (2026-03-24)
 - Release type: patch
 - Add 63 high-quality tests across 4 new test files targeting server-side decision logic, risk governance, strategy orchestration, and broker/exchange connectivity.

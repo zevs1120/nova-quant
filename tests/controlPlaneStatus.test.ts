@@ -159,8 +159,16 @@ describe('control plane flywheel status', () => {
     ).toBe(true);
 
     const flywheel = await getFlywheelStatus({ userId });
-    expect(flywheel.free_data.recent_news[0].symbol).toBe('BTCUSDT');
+    const recentNewsItem = flywheel.free_data.recent_news.find(
+      (row: { symbol?: string }) => row.symbol === 'BTCUSDT'
+    );
+    expect(recentNewsItem).toBeTruthy();
+    expect(recentNewsItem.symbol).toBe('BTCUSDT');
     expect(flywheel.training.current_dataset_count).toBe(2);
-    expect(flywheel.evolution.recent_runs[0].markets.some((row: { market?: string }) => row.market === 'US')).toBe(true);
+    const evoRun = flywheel.evolution.recent_runs.find(
+      (row: { markets?: Array<{ market?: string }> }) =>
+        row.markets?.some((m: { market?: string }) => m.market === 'US')
+    );
+    expect(evoRun).toBeTruthy();
   });
 });
