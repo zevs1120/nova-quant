@@ -13,7 +13,8 @@ All notable changes to NovaQuant are recorded here.
   - New `src/components/SettingsTab.jsx`: settings page (was inline `renderSettings()`).
   - New `src/components/DisciplineTab.jsx`: discipline tracking page (was inline in `renderMenuSection()`).
   - Deduplicate `baseContext` construction: unified into a single `useMemo`, used by both `askAi()` and `<AiPage>`.
-  - All 4 new components are code-split via `React.lazy()`. Zero logic changes. 102/102 test files, 591/591 tests pass. Build OK.
+  - All 4 new components are code-split via `React.lazy()`. UX note: first visit to Data Status, Learning Loop, Settings, and Discipline pages now shows a brief Skeleton loading state (previously rendered inline/synchronously). No business logic changes. 102/102 test files, 591/591 tests pass. Build OK.
+- Update version metadata to 10.4.1 (build 62) in `package.json`, `src/config/version.js`, and `README.md`.
 
 ## 10.4.0 (2026-03-24)
 
