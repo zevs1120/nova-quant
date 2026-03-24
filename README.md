@@ -1,9 +1,9 @@
 # Nova Quant
 
 Nova Quant is an AI-native quantitative **decision** platform for US equities and crypto.
-Current app version: `10.1.2` (build `59`).
+Current app version: `10.2.0` (build `60`).
 Versioning policy: `package.json` is canonical, `src/config/version.js` is the generated runtime mirror, and release history lives in `CHANGELOG.md` / `docs/VERSIONING.md`.
-Internet auth on deployed/serverless environments requires a persistent Redis-backed auth store via `KV_REST_API_URL` + `KV_REST_API_TOKEN` or `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN`. Without one of those pairs, `/api/auth/*` returns `AUTH_STORE_NOT_CONFIGURED`.
+Auth supports two backends: **Postgres** (recommended for production, set `DATABASE_URL`) and **Upstash Redis** (legacy deployed path via `KV_REST_API_URL` + `KV_REST_API_TOKEN` or `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN`). Local development uses SQLite auth by default. Without any remote auth backend configured, deployed `/api/auth/*` returns `AUTH_STORE_NOT_CONFIGURED`.
 Browse search can now merge external market results into `/api/assets/search`. By default it augments local assets with the SEC company ticker universe and CoinGecko crypto search; set `ALPHA_VANTAGE_API_KEY` for broader stock / ETF lookup and `COINGECKO_DEMO_API_KEY` (or `COINGECKO_API_KEY` / `COINGECKO_PRO_API_KEY`) for higher-volume crypto search.
 
 It is designed to help self-directed traders reduce emotional trading and execute with discipline.
@@ -15,7 +15,7 @@ This repository now supports a strict four-part deployment layout:
 
 - `app/`: user-facing H5 frontend on Vercel
 - `server/`: pure API layer on Vercel
-- `admin/`: internal control dashboard on Vercel
+- `admin/`: internal control dashboard on Vercel (includes System Health + Research Ops dashboards)
 - `model/`: EC2-side model boundary and signal contract
 
 Production domains should be split as:
@@ -44,6 +44,9 @@ Runtime rules:
 - A perception-layer system that makes NovaQuant feel like a judgment surface, not a traditional finance dashboard
 - A professional backend backbone that unifies research, risk, decision, portfolio, evidence, local Nova LLM ops, workflows, registries, and observability
 - A single-machine **local Nova** runtime on Apple Silicon via Ollama, with model routing, task logging, review labels, and MLX-LM export
+- Session-scoped authentication with Postgres-backed user/session/role store, RBAC guards, and password reset email flow
+- Holdings import from CSV files, broker screenshots (vision-model), and read-only exchange sync
+- Admin Research Ops dashboard for daily workflow, data intake, Alpha evaluation, and training monitoring
 - Clean handoff tooling that excludes local databases, build artifacts, cached node modules, and platform junk
 
 ## What Changed In This Runtime-Realism Upgrade
@@ -59,15 +62,20 @@ Runtime rules:
 
 Primary application layers:
 - `src/App.jsx`: mobile-first product shell and tab orchestration
-- `src/server/api/app.ts`: canonical API surface for frontend + evidence + assistant
+- `src/server/api/app.ts`: canonical API surface for frontend + evidence + assistant (109 routes)
+- `src/server/auth/postgresStore.ts`: Postgres-backed auth store (users, sessions, roles, password resets, user state sync)
+- `src/server/auth/service.ts`: authentication service with session-scoped middleware and RBAC
 - `src/server/decision/engine.ts`: decision engine for risk-adjudicated, portfolio-aware action cards
 - `src/server/chat/service.ts`: canonical Nova Assistant service with threads, fallback, and evidence-aware prompt assembly
 - `src/server/chat/tools.ts`: deterministic internal tool layer (signals, market state, performance, risk, retrieval fallback)
 - `src/server/quant/service.ts`: quant runtime synchronization + cache isolation
 - `src/server/quant/runtimeDerivation.ts`: DB-backed runtime derivation
 - `src/server/evidence/engine.ts`: replay / backtest / evidence engine
+- `src/server/holdings/import.ts`: CSV / screenshot holdings import with auto-detection and normalization
+- `src/server/admin/liveOps.ts`: admin Research Ops aggregation (workflows, data intake, Alpha eval, training)
 - `src/server/backbone/service.ts`: unified backend backbone summary spanning research, risk, decision, registries, workflows, observability, portfolio, and review
 - SQLite (`data/quant.db` at runtime, excluded from handoff packages)
+- Postgres (auth store, optional, recommended for production)
 
 ## Backend Backbone
 
@@ -193,7 +201,9 @@ Primary backend source of truth:
 - `src/server/decision/engine.ts`
 - `src/server/quant/service.ts`
 - `src/server/quant/runtimeDerivation.ts`
-- SQLite (`data/quant.db`)
+- `src/server/auth/postgresStore.ts` (auth store schema + queries)
+- SQLite (`data/quant.db`) for business data
+- Postgres (auth store, when `DATABASE_URL` is set)
 
 ## Decision Engine
 

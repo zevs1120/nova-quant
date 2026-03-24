@@ -2,6 +2,19 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 10.2.0 (2026-03-24)
+- Release type: minor
+- Harden authentication with a full Postgres auth store (`auth_users`, `auth_sessions`, `auth_user_roles`, `auth_password_resets`, `auth_user_state_sync`), session-scoped user middleware, RBAC role system (ADMIN / OPERATOR / SUPPORT), and password reset email flow.
+- Add `asyncRoute()` wrapper to all async Express handlers, fixing the Express 4 unhandled async rejection gap.
+- Add session-based user scope resolution: cookie parsing, `RequestWithNovaScope` middleware, `requireAuthenticatedScope` guard, and guest-user fallback.
+- Add `scripts/migrate-auth-to-postgres.ts` for one-step SQLite → Postgres auth migration.
+- Add admin Research Ops dashboard (`ResearchOpsPage.jsx` + `liveOps.ts`) showing daily workflow runs, data intake counts, Alpha evaluation distribution (PASS / WATCH / REJECT), training status, top backtests, and recent signals with upstream / local-fallback data source switching.
+- Add holdings import system with three data ingestion paths: CSV upload, screenshot (vision-model) upload, and read-only broker/exchange sync.
+- CSV parser (`src/server/holdings/import.ts`) auto-detects delimiter (comma / semicolon / tab), maps common column aliases, infers asset class (US_STOCK / CRYPTO / OPTIONS), and normalizes weight/market-value.
+- Add `src/utils/holdingsSource.js` shared utility for holdings merge, dedup (by market:class:symbol key), and market-value weight calculation.
+- Expand `HoldingsTab.jsx` with CSV/screenshot upload UI, import feedback (success/warning/error), and a "most important next step" priority advice section.
+- Add 6 new test files: `authScopeApi.test.ts`, `passwordResetApi.test.ts`, `signupWelcomeApi.test.ts`, `adminAuthApi.test.ts`, `holdingsImport.test.ts`, `holdingsAnalyzer.test.ts`.
+
 ## 10.1.3 (2026-03-24)
 - Release type: patch
 - Comprehensive code audit and bug fix sprint across 9 server-side modules (~14,000 lines reviewed).
