@@ -91,6 +91,7 @@ import { checkRateLimit } from '../chat/rateLimit.js';
 import { getChatThreadMessages, listChatThreads, streamChat } from '../chat/service.js';
 import { logChatAudit } from '../chat/audit.js';
 import { createBrokerAdapter, createExchangeAdapter } from '../connect/adapters.js';
+import { importHoldingsFromCsvText, importHoldingsFromScreenshot } from '../holdings/import.js';
 import {
   compareFactorPerformanceByRegimeTool,
   explainWhyNoSignalTool,
@@ -267,7 +268,7 @@ function requireAuthenticatedScope(req: express.Request, res: express.Response) 
 
 export function createApiApp() {
   const app = express();
-  app.use(express.json({ limit: '1mb' }));
+  app.use(express.json({ limit: '8mb' }));
   const appAllowedOrigins = new Set(
     String(
       process.env.NOVA_APP_ALLOWED_ORIGINS ||
@@ -1568,6 +1569,40 @@ export function createApiApp() {
     const data = setRiskProfile(userId, profileKey);
     res.json({ ok: true, data });
   });
+
+  app.post('/api/holdings/import/csv', asyncRoute(async (req, res) => {
+    const body = req.body as { csvText?: string; filename?: string };
+    if (!String(body?.csvText || '').trim()) {
+      res.status(400).json({ error: 'CSV_TEXT_REQUIRED' });
+      return;
+    }
+    const data = importHoldingsFromCsvText({
+      csvText: String(body.csvText || ''),
+      filename: String(body.filename || '').trim() || undefined
+    });
+    res.json(data);
+  }));
+
+  app.post('/api/holdings/import/screenshot', asyncRoute(async (req, res) => {
+    const body = req.body as { imageDataUrl?: string };
+    if (!String(body?.imageDataUrl || '').trim()) {
+      res.status(400).json({ error: 'IMAGE_REQUIRED' });
+      return;
+    }
+    try {
+      const data = await importHoldingsFromScreenshot({
+        imageDataUrl: String(body.imageDataUrl || '')
+      });
+      res.json(data);
+    } catch (error) {
+      const message = String((error as Error)?.message || error || '');
+      if ((error as Error)?.name === 'SCREENSHOT_IMPORT_UNAVAILABLE') {
+        res.status(503).json({ error: 'SCREENSHOT_IMPORT_UNAVAILABLE', message });
+        return;
+      }
+      throw error;
+    }
+  }));
 
   app.get('/api/connect/broker', asyncRoute(async (req, res) => {
     const scope = requireAuthenticatedScope(req, res);

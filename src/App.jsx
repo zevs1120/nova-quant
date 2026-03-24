@@ -22,6 +22,7 @@ import { createTranslator, getDefaultLang, getLocale } from './i18n';
 import { buildHoldingsReview } from './research/holdingsAnalyzer';
 import { fetchApi, fetchApiJson } from './utils/api';
 import { primeBrowseHomeBundle, primeBrowseUniverseBundle } from './utils/browseWarmup';
+import { deriveConnectedHoldings, mergeHoldingsSources, summarizeHoldingsSource } from './utils/holdingsSource';
 import {
   buildInvestorDemoEnvironment,
   INVESTOR_DEMO_HOLDINGS,
@@ -333,61 +334,6 @@ function addUniqueKey(rows = [], key) {
   return [...rows, key].sort();
 }
 
-function toNumber(value) {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : null;
-}
-
-function deriveConnectedHoldings({ brokerSnapshot, exchangeSnapshot }) {
-  const brokerPositions = Array.isArray(brokerSnapshot?.positions) ? brokerSnapshot.positions : [];
-  const exchangeBalances = Array.isArray(exchangeSnapshot?.balances) ? exchangeSnapshot.balances : [];
-  const rows = [];
-
-  const brokerTotal = brokerPositions.reduce((sum, row) => sum + Math.max(0, Number(row?.market_value || 0)), 0);
-  for (const row of brokerPositions) {
-    const symbol = String(row?.symbol || '').trim().toUpperCase();
-    const marketValue = Number(row?.market_value || 0);
-    const quantity = Number(row?.qty || 0);
-    if (!symbol || !(quantity > 0)) continue;
-    rows.push({
-      id: `broker-${symbol}`,
-      symbol,
-      asset_class: 'US_STOCK',
-      market: 'US',
-      quantity,
-      cost_basis: toNumber(row?.avg_entry_price),
-      current_price: toNumber(row?.current_price),
-      weight_pct: brokerTotal > 0 && marketValue > 0 ? (marketValue / brokerTotal) * 100 : null,
-      note: 'Broker'
-    });
-  }
-
-  const pricedExchangeBalances = exchangeBalances
-    .map((row) => ({
-      asset: String(row?.asset || '').trim().toUpperCase(),
-      total: Number(row?.total || Number(row?.free || 0) + Number(row?.locked || 0)),
-      mark_price: toNumber(row?.mark_price),
-      market_value: Number(row?.market_value || 0)
-    }))
-    .filter((row) => row.asset && row.asset !== 'USDT' && row.total > 0);
-  const exchangeTotal = pricedExchangeBalances.reduce((sum, row) => sum + Math.max(0, row.market_value || 0), 0);
-
-  for (const row of pricedExchangeBalances) {
-    rows.push({
-      id: `exchange-${row.asset}`,
-      symbol: `${row.asset}-USDT`,
-      asset_class: 'CRYPTO',
-      market: 'CRYPTO',
-      quantity: row.total,
-      current_price: row.mark_price,
-      weight_pct: exchangeTotal > 0 && row.market_value > 0 ? (row.market_value / exchangeTotal) * 100 : null,
-      note: 'Exchange'
-    });
-  }
-
-  return rows;
-}
-
 function calcStreak(rows = [], anchorKey, stepDays = 1) {
   if (!anchorKey) return 0;
   const set = new Set(rows || []);
@@ -538,44 +484,21 @@ export default function App() {
   );
 
   const holdingsSource = useMemo(() => {
-    if (investorDemoEnabled) {
-      return {
-        kind: 'DEMO',
-        connected: true,
-        available: true,
-        message: 'Demo holdings enabled.'
-      };
-    }
-    const broker = uiData?.config?.runtime?.connectivity?.broker || null;
-    const exchange = uiData?.config?.runtime?.connectivity?.exchange || null;
-    const connected = Boolean(broker?.can_read_positions || exchange?.can_read_positions);
-    if (connected) {
-      return {
-        kind:
-          connectedHoldings.some((row) => row.market === 'US') && connectedHoldings.some((row) => row.market === 'CRYPTO')
-            ? 'MERGED'
-            : broker?.can_read_positions
-              ? 'BROKER'
-              : 'EXCHANGE',
-        connected: true,
-        available: true,
-        message:
-          connectedHoldings.length > 0
-            ? 'Live read-only holdings loaded from connected accounts.'
-            : 'Connected accounts are live, but no open holdings were reported.'
-      };
-    }
-    return {
-      kind: 'UNAVAILABLE',
-      connected: false,
-      available: false,
-      message: broker?.message || exchange?.message || 'Connect a broker or exchange to load real holdings.'
-    };
-  }, [connectedHoldings, investorDemoEnabled, uiData?.config?.runtime?.connectivity?.broker, uiData?.config?.runtime?.connectivity?.exchange]);
+    return summarizeHoldingsSource({
+      investorDemoEnabled,
+      manualHoldings: holdings,
+      connectedHoldings,
+      brokerSnapshot: uiData?.config?.runtime?.connectivity?.broker || null,
+      exchangeSnapshot: uiData?.config?.runtime?.connectivity?.exchange || null
+    });
+  }, [connectedHoldings, holdings, investorDemoEnabled, uiData?.config?.runtime?.connectivity?.broker, uiData?.config?.runtime?.connectivity?.exchange]);
 
   const effectiveHoldings = useMemo(() => {
     if (investorDemoEnabled) return holdings;
-    return connectedHoldings;
+    return mergeHoldingsSources({
+      manualHoldings: holdings,
+      connectedHoldings
+    });
   }, [connectedHoldings, holdings, investorDemoEnabled]);
 
   const holdingsReview = useMemo(
@@ -753,7 +676,7 @@ export default function App() {
       uiMode,
       riskProfileKey,
       watchlist,
-      holdings: effectiveHoldings,
+      holdings,
       executions,
       disciplineLog
     };
@@ -776,8 +699,8 @@ export default function App() {
     assetClass,
     authSession?.userId,
     disciplineLog,
-    effectiveHoldings,
     executions,
+    holdings,
     investorDemoEnabled,
     market,
     riskProfileKey,
@@ -1011,6 +934,10 @@ export default function App() {
       .then(() => setRefreshNonce((current) => current + 1))
       .catch(() => {});
   }, [riskProfileKey, effectiveUserId, isDemoRuntime]);
+
+  const refreshHoldingsSources = useCallback(() => {
+    setRefreshNonce((current) => current + 1);
+  }, []);
 
   const todayKey = localDateKey(now);
   const currentWeekKey = weekStartKey(now);
@@ -2374,6 +2301,9 @@ export default function App() {
           locale={locale}
           investorDemoEnabled={investorDemoEnabled}
           holdingsSource={holdingsSource}
+          manualHoldingsCount={holdingsSource?.manual_count || 0}
+          canRefreshConnectedHoldings={Boolean(authSession?.userId) && !investorDemoEnabled}
+          onRefreshHoldings={refreshHoldingsSources}
           onExplain={(message) => askAi(message)}
         />
       );

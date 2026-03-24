@@ -36,4 +36,36 @@ describe('buildHoldingsReview', () => {
     expect(review.rows[0].market_value).toBeTruthy();
     expect(review.rows[0].pnl_amount).toBeTruthy();
   });
+
+  it('derives effective weights from market value when weight_pct is missing', () => {
+    const review = buildHoldingsReview({
+      holdings: [
+        {
+          symbol: 'AAPL',
+          asset_class: 'US_STOCK',
+          quantity: 10,
+          cost_basis: 100,
+          current_price_override: 100
+        },
+        {
+          symbol: 'MSFT',
+          asset_class: 'US_STOCK',
+          quantity: 5,
+          cost_basis: 200,
+          current_price_override: 200
+        }
+      ],
+      state: {
+        safety: { mode: 'normal risk' },
+        layers: {
+          data_layer: { instruments: [] },
+          portfolio_layer: { candidates: [], filtered_out: [] }
+        }
+      }
+    });
+
+    expect(review.totals.total_weight_pct).toBe(100);
+    expect(review.rows[0].effective_weight_pct).toBe(50);
+    expect(review.rows[1].effective_weight_pct).toBe(50);
+  });
 });

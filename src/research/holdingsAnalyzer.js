@@ -1,4 +1,5 @@
 function toNumber(value, fallback = null) {
+  if (value === null || value === undefined || value === '') return fallback;
   const n = Number(value);
   if (!Number.isFinite(n)) return fallback;
   return n;
@@ -29,6 +30,7 @@ function normalizeHolding(item, index) {
   const cost = toNumber(item?.cost_basis, null);
   const quantity = toNumber(item?.quantity, null);
   const currentPriceOverride = toNumber(item?.current_price_override ?? item?.current_price, null);
+  const marketValue = toNumber(item?.market_value, null);
   const confidenceLevelRaw = toNumber(item?.confidence_level, null);
   const confidenceLevel = confidenceLevelRaw === null ? null : clamp(Math.round(confidenceLevelRaw), 1, 5);
 
@@ -41,9 +43,13 @@ function normalizeHolding(item, index) {
     quantity,
     cost_basis: cost,
     current_price_override: currentPriceOverride,
+    market_value: marketValue,
     sector: String(item?.sector || '').trim() || null,
     confidence_level: confidenceLevel,
-    note: String(item?.note || '').trim()
+    note: String(item?.note || '').trim(),
+    source_kind: String(item?.source_kind || '').trim() || null,
+    source_label: String(item?.source_label || '').trim() || null,
+    import_confidence: toNumber(item?.import_confidence, null)
   };
 }
 
@@ -221,9 +227,7 @@ export function buildHoldingsReview({ holdings = [], state } = {}) {
   const candidateBySymbol = new Map(candidates.map((item) => [asSymbol(item.ticker), item]));
   const filteredBySymbol = new Map(filtered.map((item) => [asSymbol(item.ticker), item]));
 
-  const defaultWeight = normalized.length ? 100 / normalized.length : 0;
-
-  const rows = normalized.map((holding) => {
+  const draftRows = normalized.map((holding) => {
     const symbol = asSymbol(holding.symbol);
     const instrument = instrumentBySymbol.get(symbol);
     const candidate = candidateBySymbol.get(symbol);
@@ -235,20 +239,13 @@ export function buildHoldingsReview({ holdings = [], state } = {}) {
       toNumber(candidate?.entry_plan?.entry_zone?.high, null) ??
       toNumber(candidate?.entry_plan?.entry_zone?.low, null);
 
-    const effectiveWeight = clamp(
-      toNumber(holding.weight_pct, null) ?? defaultWeight,
-      0,
-      100
-    );
-
     const pnlPct =
       toNumber(holding.cost_basis, null) && toNumber(currentPrice, null)
         ? (currentPrice - holding.cost_basis) / holding.cost_basis
         : null;
     const marketValue =
-      toNumber(holding.quantity, null) !== null && toNumber(currentPrice, null) !== null
-        ? holding.quantity * currentPrice
-        : null;
+      toNumber(holding.market_value, null) ??
+      (toNumber(holding.quantity, null) !== null && toNumber(currentPrice, null) !== null ? holding.quantity * currentPrice : null);
     const pnlAmount =
       toNumber(holding.quantity, null) !== null && pnlPct !== null && toNumber(holding.cost_basis, null) !== null
         ? (currentPrice - holding.cost_basis) * holding.quantity
@@ -265,15 +262,36 @@ export function buildHoldingsReview({ holdings = [], state } = {}) {
       ...holding,
       sector: holding.sector || instrument?.sector || (holding.asset_class === 'CRYPTO' ? 'Crypto' : 'Unknown'),
       current_price: currentPrice,
-      effective_weight_pct: Number(effectiveWeight.toFixed(2)),
       pnl_pct: pnlPct !== null ? Number(pnlPct.toFixed(4)) : null,
       pnl_amount: pnlAmount !== null ? Number(pnlAmount.toFixed(2)) : null,
       market_value: marketValue !== null ? Number(marketValue.toFixed(2)) : null,
       user_confidence_level: holding.confidence_level,
+      source_kind: holding.source_kind || null,
+      source_label: holding.source_label || null,
+      import_confidence: holding.import_confidence,
       grade: candidate?.grade || null,
       confidence: toNumber(candidate?.confidence, null),
       model_risk_score: toNumber(candidate?.risk_score, null),
       ...systemView
+    };
+  });
+
+  const totalDerivedMarketValue = draftRows.reduce((sum, row) => sum + Math.max(0, Number(row.market_value || 0)), 0);
+  const canUseMarketValueWeights =
+    totalDerivedMarketValue > 0 && draftRows.every((row) => Number.isFinite(Number(row.market_value)) && Number(row.market_value) > 0);
+  const defaultWeight = draftRows.length ? 100 / draftRows.length : 0;
+
+  const rows = draftRows.map((row) => {
+    const effectiveWeight = clamp(
+      canUseMarketValueWeights
+        ? (Number(row.market_value || 0) / totalDerivedMarketValue) * 100
+        : (toNumber(row.weight_pct, null) ?? defaultWeight),
+      0,
+      100
+    );
+    return {
+      ...row,
+      effective_weight_pct: Number(effectiveWeight.toFixed(2))
     };
   });
 
@@ -289,12 +307,15 @@ export function buildHoldingsReview({ holdings = [], state } = {}) {
 
   const alignedWeight = alignedRows.reduce((sum, row) => sum + row.effective_weight_pct, 0);
   const unsupportedWeight = unsupportedRows.reduce((sum, row) => sum + row.effective_weight_pct, 0);
-  const confidenceRows = rows.filter((row) => Number.isFinite(Number(row.user_confidence_level)));
+  const confidenceRows = rows.filter((row) => toNumber(row.user_confidence_level, null) !== null);
   const avgUserConfidence = confidenceRows.length
     ? confidenceRows.reduce((sum, row) => sum + Number(row.user_confidence_level), 0) / confidenceRows.length
     : null;
   const highConflictCount = rows.filter(
-    (row) => Number(row.user_confidence_level) >= 4 && (row.system_status === 'not_supported' || row.system_status === 'contradicted')
+    (row) =>
+      toNumber(row.user_confidence_level, null) !== null &&
+      Number(row.user_confidence_level) >= 4 &&
+      (row.system_status === 'not_supported' || row.system_status === 'contradicted')
   ).length;
 
   const sectorExposure = exposureRows(rows);

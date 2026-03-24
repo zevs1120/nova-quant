@@ -826,8 +826,12 @@ export interface UserHoldingInput {
   quantity?: number | null;
   cost_basis?: number | null;
   current_price?: number | null;
+  market_value?: number | null;
   sector?: string | null;
   note?: string | null;
+  source_kind?: string | null;
+  source_label?: string | null;
+  import_confidence?: number | null;
 }
 
 export interface DecisionSnapshotRecord {

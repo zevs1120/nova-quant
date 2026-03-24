@@ -9478,6 +9478,92 @@ body.keyboard-open .ai-composer-shell {
     0 10px 28px rgba(20, 24, 33, 0.045);
 }
 
+.holdings-priority-surface,
+.holdings-import-surface {
+  padding: 18px;
+  border-radius: 24px;
+  background: rgba(255, 252, 248, 0.94);
+  box-shadow:
+    inset 0 0 0 1px rgba(18, 26, 39, 0.05),
+    0 10px 30px rgba(20, 24, 33, 0.04);
+}
+
+.holdings-priority-surface {
+  background:
+    radial-gradient(circle at top left, rgba(65, 93, 255, 0.12), transparent 38%),
+    rgba(255, 252, 248, 0.96);
+}
+
+.holdings-priority-kicker,
+.holdings-import-kicker {
+  margin: 0;
+  color: rgba(22, 28, 39, 0.5);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.holdings-priority-title,
+.holdings-import-title {
+  margin: 10px 0 0;
+  color: var(--text-primary);
+  font-size: 24px;
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+  font-weight: 760;
+}
+
+.holdings-priority-copy,
+.holdings-import-copy {
+  margin: 10px 0 0;
+  color: rgba(22, 28, 39, 0.58);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.holdings-priority-actions,
+.holdings-import-actions {
+  margin-top: 14px;
+}
+
+.holdings-import-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.holdings-import-badge {
+  flex-shrink: 0;
+  align-self: flex-start;
+  padding: 7px 11px;
+  border-radius: 999px;
+  background: rgba(65, 93, 255, 0.1);
+  color: rgba(36, 56, 185, 0.94);
+  font-size: 11px;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.holdings-import-status {
+  margin-top: 12px;
+}
+
+.holdings-import-status-success {
+  color: rgba(18, 126, 93, 0.92);
+}
+
+.holdings-import-status-error {
+  color: rgba(183, 18, 98, 0.88);
+}
+
+.holdings-import-detail {
+  margin-top: 6px;
+}
+
 .holdings-overview-head {
   display: flex;
   align-items: flex-start;
@@ -9765,8 +9851,18 @@ body.keyboard-open .ai-composer-shell {
     padding: 16px 16px 12px;
   }
 
+  .holdings-priority-surface,
+  .holdings-import-surface {
+    padding: 16px;
+  }
+
   .holdings-overview-total {
     font-size: 30px;
+  }
+
+  .holdings-priority-title,
+  .holdings-import-title {
+    font-size: 22px;
   }
 
   .holdings-rh-row {

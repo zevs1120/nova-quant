@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import SegmentedControl from './SegmentedControl';
 import { formatNumber } from '../utils/format';
 import { SAMPLE_HOLDINGS_TEMPLATE } from '../research/holdingsAnalyzer';
+import { fetchApiJson } from '../utils/api';
+import { upsertImportedHoldings } from '../utils/holdingsSource';
 
 function asSymbol(value) {
   return String(value || '').trim().toUpperCase();
@@ -110,10 +112,31 @@ function MiniSparkline({ values, className = '' }) {
 }
 
 function companyLabel(row, locale) {
-  if (row.note) return row.note;
+  const note = String(row.note || '').trim();
+  if (note) return note;
   if (row.asset_class === 'CRYPTO') return locale === 'zh' ? '加密仓位' : 'Crypto position';
   if (row.asset_class === 'OPTIONS') return locale === 'zh' ? '期权仓位' : 'Options position';
   return locale === 'zh' ? '股票仓位' : 'Equity position';
+}
+
+function quantityLabel(row, locale) {
+  if (!Number.isFinite(Number(row.quantity))) return locale === 'zh' ? '份额待补充' : 'Add quantity';
+  const digits = row.asset_class === 'CRYPTO' ? 4 : Number.isInteger(Number(row.quantity)) ? 0 : 2;
+  const unit = row.asset_class === 'CRYPTO' ? (locale === 'zh' ? '枚' : 'units') : (locale === 'zh' ? '份' : 'shares');
+  return `${formatNumber(row.quantity, digits, locale)} ${unit}`;
+}
+
+function sourceLabel(row, locale) {
+  const explicit = String(row.source_label || '').trim();
+  if (explicit) return explicit;
+  if (row.source_kind === 'CSV') return locale === 'zh' ? 'CSV 导入' : 'CSV import';
+  if (row.source_kind === 'SCREENSHOT') return locale === 'zh' ? '截图导入' : 'Screenshot import';
+  if (row.source_kind === 'LIVE') return locale === 'zh' ? '只读同步' : 'Read-only sync';
+  return null;
+}
+
+function holdingMeta(row, locale) {
+  return [companyLabel(row, locale), quantityLabel(row, locale), sourceLabel(row, locale)].filter(Boolean).join(' · ');
 }
 
 function barDate(bar) {
@@ -198,10 +221,17 @@ export default function HoldingsTab({
   locale,
   investorDemoEnabled,
   holdingsSource,
+  manualHoldingsCount = 0,
+  canRefreshConnectedHoldings = false,
+  onRefreshHoldings,
   onExplain
 }) {
   const [surfaceTab, setSurfaceTab] = useState('holdings');
   const [range, setRange] = useState('1M');
+  const [busyAction, setBusyAction] = useState('');
+  const [importFeedback, setImportFeedback] = useState(null);
+  const csvInputRef = useRef(null);
+  const screenshotInputRef = useRef(null);
 
   const instrumentMap = useMemo(
     () => new Map((marketInstruments || []).map((item) => [asSymbol(item.ticker), item])),
@@ -221,6 +251,12 @@ export default function HoldingsTab({
 
   const rows = holdingsReview?.rows || [];
   const totals = holdingsReview?.totals || {};
+  const keyAdvice =
+    holdingsReview?.key_advice ||
+    (locale === 'zh' ? '先把仓位读进来，Nova 才能给你个性化建议。' : 'Load your holdings first so Nova can personalize the advice.');
+  const topRisk =
+    holdingsReview?.risk?.primary_risks?.[0] ||
+    (locale === 'zh' ? '先把真实仓位接进来，再判断今天该留什么、减什么。' : 'Bring in your real positions first, then decide what to keep or trim.');
   const totalValue = currencyText(totals.total_market_value, locale);
   const totalPnlAmount = signedMoney(totals.total_unrealized_pnl_amount, locale);
   const totalPnlPct = signedPercent(totals.estimated_unrealized_pnl_pct, locale);
@@ -283,6 +319,100 @@ export default function HoldingsTab({
 
   const emptyList = surfaceTab === 'holdings' ? !listRows.length : !watchlistRows.length;
 
+  async function importCsvFile(file) {
+    if (!file) return;
+    setBusyAction('csv');
+    setImportFeedback(null);
+    try {
+      const csvText = await file.text();
+      const payload = await fetchApiJson('/api/holdings/import/csv', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          csvText,
+          filename: file.name
+        })
+      });
+      const importedHoldings = Array.isArray(payload?.holdings) ? payload.holdings : [];
+      if (!importedHoldings.length) {
+        throw new Error(locale === 'zh' ? '没有识别到可导入的持仓行。' : 'No recognizable holdings rows were found.');
+      }
+      setHoldings((current) => upsertImportedHoldings(current, importedHoldings));
+      setSurfaceTab('holdings');
+      const warnings = Array.isArray(payload?.summary?.warnings) ? payload.summary.warnings.filter(Boolean) : [];
+      setImportFeedback({
+        tone: 'success',
+        message:
+          locale === 'zh'
+            ? `已从 ${file.name} 导入 ${importedHoldings.length} 个持仓。`
+            : `Imported ${importedHoldings.length} holdings from ${file.name}.`,
+        detail: warnings[0] || ''
+      });
+    } catch (error) {
+      setImportFeedback({
+        tone: 'error',
+        message: String(error?.message || (locale === 'zh' ? 'CSV 导入失败。' : 'CSV import failed.')),
+        detail: ''
+      });
+    } finally {
+      setBusyAction('');
+      if (csvInputRef.current) csvInputRef.current.value = '';
+    }
+  }
+
+  async function importScreenshotFile(file) {
+    if (!file) return;
+    setBusyAction('screenshot');
+    setImportFeedback(null);
+    try {
+      const imageDataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => reject(new Error(locale === 'zh' ? '截图读取失败。' : 'Failed to read screenshot.'));
+        reader.readAsDataURL(file);
+      });
+      const payload = await fetchApiJson('/api/holdings/import/screenshot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageDataUrl })
+      });
+      const importedHoldings = Array.isArray(payload?.holdings) ? payload.holdings : [];
+      if (!importedHoldings.length) {
+        throw new Error(locale === 'zh' ? '截图里没有识别出清晰持仓。' : 'No clear holdings were recognized from the screenshot.');
+      }
+      setHoldings((current) => upsertImportedHoldings(current, importedHoldings));
+      setSurfaceTab('holdings');
+      const warnings = Array.isArray(payload?.summary?.warnings) ? payload.summary.warnings.filter(Boolean) : [];
+      setImportFeedback({
+        tone: 'success',
+        message:
+          locale === 'zh'
+            ? `已从截图识别 ${importedHoldings.length} 个持仓。`
+            : `Imported ${importedHoldings.length} holdings from the screenshot.`,
+        detail: warnings[0] || (locale === 'zh' ? '截图导入仍是实验功能，请快速核对数量和成本。' : 'Screenshot import is still experimental, so please double-check quantity and cost basis.')
+      });
+    } catch (error) {
+      const message = String(error?.message || '');
+      const unavailable = message.includes('SCREENSHOT_IMPORT_UNAVAILABLE') || message.includes('OPENAI_API_KEY');
+      setImportFeedback({
+        tone: 'error',
+        message: unavailable
+          ? locale === 'zh'
+            ? '截图导入当前不可用，先用 CSV 或只读同步。'
+            : 'Screenshot import is unavailable right now. Use CSV or read-only sync first.'
+          : message || (locale === 'zh' ? '截图导入失败。' : 'Screenshot import failed.'),
+        detail: unavailable
+          ? locale === 'zh'
+            ? '服务端还没有可用的视觉模型配置。'
+            : 'The server does not have a vision-capable model configured yet.'
+          : ''
+      });
+    } finally {
+      setBusyAction('');
+      if (screenshotInputRef.current) screenshotInputRef.current.value = '';
+    }
+  }
+
   return (
     <section className="stack-gap holdings-rh-screen">
       <section className="holdings-overview-surface">
@@ -320,6 +450,137 @@ export default function HoldingsTab({
             </button>
           ))}
         </div>
+      </section>
+
+      <section className="holdings-priority-surface">
+        <p className="holdings-priority-kicker">{locale === 'zh' ? '最重要的一句' : 'Most important next step'}</p>
+        <h2 className="holdings-priority-title">{keyAdvice}</h2>
+        <p className="holdings-priority-copy">{topRisk}</p>
+        <div className="action-row holdings-priority-actions">
+          <button
+            type="button"
+            className="secondary-btn"
+            onClick={() =>
+              onExplain?.(
+                locale === 'zh'
+                  ? '用一句话告诉我，我当前持仓里最需要先处理的一件事是什么。'
+                  : 'Tell me in one sentence what I should fix first in my current holdings.'
+              )
+            }
+          >
+            {locale === 'zh' ? '让 Nova 解释' : 'Ask Nova'}
+          </button>
+        </div>
+      </section>
+
+      <section className="holdings-import-surface">
+        <div className="holdings-import-head">
+          <div>
+            <p className="holdings-import-kicker">{locale === 'zh' ? '读入你的仓位' : 'Load your positions'}</p>
+            <h2 className="holdings-import-title">{locale === 'zh' ? '先把仓位接进来，再谈动作。' : 'Bring positions in before making calls.'}</h2>
+          </div>
+          {manualHoldingsCount > 0 ? (
+            <span className="holdings-import-badge">
+              {locale === 'zh' ? `已导入 ${manualHoldingsCount}` : `${manualHoldingsCount} imported`}
+            </span>
+          ) : null}
+        </div>
+        <p className="holdings-import-copy">
+          {holdingsSource?.message ||
+            (locale === 'zh'
+              ? '支持只读同步、CSV 导入和截图识别。'
+              : 'Use read-only sync, CSV import, or screenshot import.')}
+        </p>
+        <div className="action-row holdings-import-actions">
+          <button
+            type="button"
+            className="secondary-btn"
+            onClick={() => {
+              setBusyAction('refresh');
+              onRefreshHoldings?.();
+              window.setTimeout(() => setBusyAction(''), 900);
+            }}
+            disabled={!canRefreshConnectedHoldings || Boolean(busyAction)}
+          >
+            {busyAction === 'refresh'
+              ? locale === 'zh'
+                ? '刷新中...'
+                : 'Refreshing...'
+              : locale === 'zh'
+                ? '刷新只读同步'
+                : 'Refresh read-only'}
+          </button>
+          <button
+            type="button"
+            className="secondary-btn"
+            onClick={() => csvInputRef.current?.click()}
+            disabled={Boolean(busyAction)}
+          >
+            {busyAction === 'csv' ? (locale === 'zh' ? '导入中...' : 'Importing...') : locale === 'zh' ? '导入 CSV' : 'Import CSV'}
+          </button>
+          <button
+            type="button"
+            className="ghost-btn"
+            onClick={() => screenshotInputRef.current?.click()}
+            disabled={Boolean(busyAction)}
+          >
+            {busyAction === 'screenshot'
+              ? locale === 'zh'
+                ? '识别中...'
+                : 'Reading...'
+              : locale === 'zh'
+                ? '导入截图'
+                : 'Import screenshot'}
+          </button>
+          {manualHoldingsCount > 0 ? (
+            <button
+              type="button"
+              className="ghost-btn"
+              onClick={() => {
+                setHoldings([]);
+                setImportFeedback({
+                  tone: 'success',
+                  message: locale === 'zh' ? '已清空手动导入的仓位。' : 'Cleared imported holdings.',
+                  detail: ''
+                });
+              }}
+              disabled={Boolean(busyAction)}
+            >
+              {locale === 'zh' ? '清空导入' : 'Clear imports'}
+            </button>
+          ) : null}
+        </div>
+        {importFeedback?.message ? (
+          <p className={`status-line holdings-import-status holdings-import-status-${importFeedback.tone || 'neutral'}`}>
+            {importFeedback.message}
+          </p>
+        ) : null}
+        {importFeedback?.detail ? <p className="muted holdings-import-detail">{importFeedback.detail}</p> : null}
+        {!canRefreshConnectedHoldings && !investorDemoEnabled ? (
+          <p className="muted holdings-import-detail">
+            {locale === 'zh'
+              ? '登录并配置可用连接后，Nova 才能刷新只读仓位。'
+              : 'Sign in and configure a supported connection before refreshing read-only holdings.'}
+          </p>
+        ) : null}
+        <input
+          ref={csvInputRef}
+          type="file"
+          accept=".csv,text/csv,.txt"
+          hidden
+          onChange={(event) => {
+            void importCsvFile(event.target.files?.[0] || null);
+          }}
+        />
+        <input
+          ref={screenshotInputRef}
+          type="file"
+          accept="image/*"
+          hidden
+          onChange={(event) => {
+            void importScreenshotFile(event.target.files?.[0] || null);
+          }}
+        />
       </section>
 
       <section className="holdings-switch-row">
@@ -399,15 +660,7 @@ export default function HoldingsTab({
                     <span className="holdings-rh-symbol">{row.symbol}</span>
                     <span className={`holdings-rh-ai-tag holdings-rh-ai-tag-${row.advice.tone}`}>{row.advice.badge}</span>
                   </div>
-                  <p className="holdings-rh-meta">
-                    {companyLabel(row, locale)}
-                    {' · '}
-                    {Number.isFinite(Number(row.quantity))
-                      ? `${formatNumber(row.quantity, row.asset_class === 'CRYPTO' ? 3 : 0, locale)} ${locale === 'zh' ? '份' : 'shares'}`
-                      : locale === 'zh'
-                        ? '份额待补充'
-                        : 'Add quantity'}
-                  </p>
+                  <p className="holdings-rh-meta">{holdingMeta(row, locale)}</p>
                 </div>
 
                 <div className="holdings-rh-row-spark">
