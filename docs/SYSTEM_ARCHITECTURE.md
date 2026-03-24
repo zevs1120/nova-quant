@@ -1,6 +1,6 @@
 # Nova Quant System Architecture
 
-Last updated: 2026-03-23
+Last updated: 2026-03-24
 
 ## 1) Layer Overview
 
@@ -21,9 +21,29 @@ Last updated: 2026-03-23
 - Repository operations: `src/server/db/repository.ts`.
 
 4. **Ingestion Layer**
-- US: `src/server/ingestion/stooq.ts`.
-- Crypto: `src/server/ingestion/binancePublic.ts`, `src/server/ingestion/binanceIncremental.ts`.
+- Primary (US + Crypto): `src/server/ingestion/massive.ts` — Massive.com REST API (requires `MASSIVE_API_KEY`).
+- US legacy fallback: `src/server/ingestion/stooq.ts`.
+- Crypto legacy fallback: `src/server/ingestion/binancePublic.ts`, `src/server/ingestion/binanceIncremental.ts`.
+- Additional: `src/server/ingestion/yahoo.ts`, `src/server/ingestion/nasdaq.ts`, `src/server/ingestion/hostedData.ts`.
+- Normalization: `src/server/ingestion/normalize.ts`.
 - Validation/repair: `src/server/ingestion/validation.ts`.
+
+4b. **Auth Layer**
+- Service: `src/server/auth/service.ts` — session-scoped auth, RBAC, middleware.
+- Postgres store (production): `src/server/auth/postgresStore.ts` — users, sessions, roles, password resets.
+- Legacy KV store: `src/server/auth/remoteKv.ts` (Upstash Redis).
+- Password reset emails: `src/server/auth/resetEmail.ts`.
+
+4c. **Holdings Import**
+- Module: `src/server/holdings/import.ts` — CSV, broker screenshot (vision-model), and exchange sync.
+
+4d. **News Layer**
+- Provider: `src/server/news/provider.ts` — aggregated news fetching.
+- Gemini factor extraction: `src/server/news/geminiFactors.ts`.
+
+4e. **Admin / LiveOps Layer**
+- Admin service: `src/server/admin/service.ts`.
+- Research Ops aggregation: `src/server/admin/liveOps.ts` — workflows, data intake, Alpha eval, training.
 
 5. **Derived Runtime Layer**
 - Runtime derivation: `src/server/quant/runtimeDerivation.ts`.

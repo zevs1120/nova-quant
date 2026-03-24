@@ -1,13 +1,15 @@
 # Repo Runbook
 
-Last updated: 2026-03-23
+Last updated: 2026-03-24
 
 ## 1) Prerequisites
 
 - Node.js 20+
 - npm 10+
-- Network access for ingestion (Stooq/Binance public endpoints)
+- `MASSIVE_API_KEY` for primary market data ingestion (Massive.com REST API)
+- Network access for ingestion (Massive.com primary; Stooq/Binance legacy fallback)
 - Native toolchain for `better-sqlite3` (standard on macOS with Xcode CLT)
+- Optional: `DATABASE_URL` for Postgres auth store (recommended for production)
 
 ## 2) First-time Setup
 
@@ -108,12 +110,24 @@ Split deploy apps (`app/`, `admin/`, `server/` packages) use their own `package.
 ## 6) Quality Gates
 
 ```bash
-npm run test:data
+npm test
 npm run typecheck
 npm run build
+npm run verify
 ```
 
-## 7) Run Evidence Engine
+## 7) Session Auth (Postgres)
+
+For production deployments, configure Postgres-backed auth:
+
+```bash
+export DATABASE_URL="postgresql://user:pass@host:5432/nova_auth"
+npm run auth:migrate:postgres
+```
+
+Local dev uses SQLite auth by default. Without any remote auth backend configured, deployed `/api/auth/*` returns `AUTH_STORE_NOT_CONFIGURED`.
+
+## 8) Run Evidence Engine
 
 CLI path:
 
@@ -138,7 +152,7 @@ curl "http://127.0.0.1:8787/api/evidence/reconciliation?limit=50"
 curl "http://127.0.0.1:8787/api/evidence/strategies/champion"
 ```
 
-## 8) Typical Troubleshooting
+## 9) Typical Troubleshooting
 
 1. `INSUFFICIENT_DATA` in runtime:
 - run `backfill`, `validate:data`, `derive:runtime` again.
@@ -149,7 +163,7 @@ curl "http://127.0.0.1:8787/api/evidence/strategies/champion"
 3. Missing live performance:
 - expected when no `LIVE` executions exist; runtime should not fabricate live stats.
 
-## 9) Status Interpretation
+## 10) Status Interpretation
 
 - `DB_BACKED`: derived from DB-backed ingestion/runtime objects.
 - `PAPER_ONLY`: only paper execution sample exists.
@@ -159,7 +173,7 @@ curl "http://127.0.0.1:8787/api/evidence/strategies/champion"
 - `WITHHELD`: metric deliberately withheld due low sample quality.
 - `INSUFFICIENT_DATA`: not enough data to support strong output.
 
-## 10) Clean Source Package For DD
+## 11) Clean Source Package For DD
 
 ```bash
 npm run package:source
@@ -176,7 +190,7 @@ Excluded by default:
 - `data/*.db`, `data/*.db-wal`, `data/*.db-shm`, `*.sqlite*`, `*.wal`, `*.shm`
 - `__MACOSX`, `.DS_Store`, local logs/tmp files
 
-## 11) Vercel Deployment
+## 12) Vercel Deployment
 
 Expected Vercel settings:
 

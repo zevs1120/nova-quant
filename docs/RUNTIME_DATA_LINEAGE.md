@@ -1,22 +1,33 @@
 # Runtime Data Lineage
 
-Last updated: 2026-03-12
+Last updated: 2026-03-24
 
 ## 1) Raw Data Sources
 
-### US Equities
+### Primary API (US + Crypto)
+- Source: **Massive.com** REST API (formerly Polygon.io).
+- Ingestion module: `src/server/ingestion/massive.ts`.
+- Requires: `MASSIVE_API_KEY` in `.env`. Basic (free) tier enforces 12s delay between requests.
+- Invocation: `npm run backfill`.
+- Storage: `assets` + `ohlcv` (both `US` and `CRYPTO` markets).
+
+### US Equities (Legacy Fallback)
 - Source: Stooq bulk packs.
 - Ingestion module: `src/server/ingestion/stooq.ts`.
-- Invocation: `npm run backfill` (US branch).
+- Additional fallbacks: `src/server/ingestion/yahoo.ts`, `src/server/ingestion/nasdaq.ts`.
 - Storage: `assets` + `ohlcv` (market=`US`).
 
-### Crypto
+### Crypto (Legacy Fallback)
 - Source A: Binance public historical archives.
 - Source B: Binance REST incremental endpoint.
 - Ingestion modules:
   - `src/server/ingestion/binancePublic.ts`
   - `src/server/ingestion/binanceIncremental.ts`
+  - `src/server/ingestion/binanceDerivatives.ts`
 - Storage: `assets` + `ohlcv` (market=`CRYPTO`).
+
+### Normalization
+- All ingested bars pass through `src/server/ingestion/normalize.ts` to produce a uniform OHLCV schema.
 
 ## 2) Validation Layer
 
@@ -104,7 +115,24 @@ Key lineage anchors:
   - market state status
   - performance source/status
 
-## 8) Connector Lineage
+## 8) Auth Store Lineage
+
+- Service: `src/server/auth/service.ts` (session, RBAC, middleware).
+- Postgres store (production): `src/server/auth/postgresStore.ts` — `users`, `sessions`, `roles`, `password_resets`, `user_state_sync`.
+- Legacy KV store: `src/server/auth/remoteKv.ts` (Upstash Redis, deployed fallback).
+- Local dev: SQLite-backed auth by default.
+- Without any remote auth backend configured, deployed `/api/auth/*` returns `AUTH_STORE_NOT_CONFIGURED`.
+
+## 9) Holdings Import Lineage
+
+- Module: `src/server/holdings/import.ts`.
+- Import modes:
+  - CSV file upload with auto-detection and normalization.
+  - Broker screenshot upload (vision-model parsing).
+  - Read-only exchange sync.
+- Imported holdings feed into the Decision Engine for portfolio-aware personalization.
+
+## 10) Connector Lineage
 
 - Adapter module: `src/server/connect/adapters.ts`.
 - Default snapshot behavior:

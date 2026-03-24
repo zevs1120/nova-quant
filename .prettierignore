@@ -1,0 +1,9 @@
+dist/
+build-ts/
+coverage/
+artifacts/
+data/
+node_modules/
+*.db
+*.sqlite
+package-lock.json

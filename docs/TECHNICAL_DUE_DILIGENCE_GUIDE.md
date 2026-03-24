@@ -1,6 +1,6 @@
 # Technical Due Diligence Guide
 
-Last updated: 2026-03-23
+Last updated: 2026-03-24
 
 ## 1) What Nova Quant Is Today
 
@@ -11,7 +11,9 @@ Nova Quant is an AI-native quantitative **decision** platform for US equities an
 ## 2) What Is Real vs Experimental
 
 ### DB-backed runtime (real)
-- Ingestion pipelines writing to SQLite (`assets`, `ohlcv`).
+- Primary ingestion via **Massive.com** REST API (`src/server/ingestion/massive.ts`) writing to SQLite (`assets`, `ohlcv`).
+- Legacy fallback ingestion: Stooq (US equities), Binance (crypto).
+- Additional data sources: Yahoo, Nasdaq, hosted data.
 - Derived market state from historical bars (`market_state`).
 - Rule-based signal generation from bars (`signals`).
 - Execution log and paper/live action records (`executions`).
@@ -29,6 +31,14 @@ Nova Quant is an AI-native quantitative **decision** platform for US equities an
   - `chat_audit_logs`
   - evidence-aware tool context assembly
   - deterministic fallback when provider access is unavailable
+- Postgres-backed session auth store (production):
+  - `users`, `sessions`, `roles`, `password_resets`, `user_state_sync`
+  - Module: `src/server/auth/postgresStore.ts`
+  - Local dev falls back to SQLite auth
+- Holdings import (`src/server/holdings/import.ts`):
+  - CSV parsing with auto-detection
+  - Broker screenshot parsing via vision-model
+  - Read-only exchange sync
 - Canonical decision engine records:
   - `decision_snapshots`
   - ranked action cards
@@ -117,7 +127,7 @@ Provider behavior:
 
 ## 9) Honest Limitations (Current)
 
-1. US daily/hourly bars may be incomplete until additional Stooq runs complete.
+1. US daily/hourly bars depend on `MASSIVE_API_KEY` configuration; without it, legacy Stooq fallback may yield incomplete coverage.
 2. Some research subsystems still use synthetic/model-derived internals for exploration.
 3. Connectors and live routing **do not fabricate** balances or fills; without credentials/flags the UI/API should surface `DISCONNECTED` / `NO_CREDENTIALS` style states.
 4. Execution realism is bar-level; no tick/queue microstructure simulation in the default stack.

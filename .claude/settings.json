@@ -1,0 +1,23 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path // .tool_response.filePath' | { read -r f; echo \"$f\" | grep -qE '\\.(ts|tsx|js|jsx|css|json)$' && npx --yes prettier --write \"$f\"; } 2>/dev/null || true",
+            "timeout": 15,
+            "statusMessage": "Formatting..."
+          },
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path // .tool_response.filePath' | { read -r f; echo \"$f\" | grep -qE '\\.(ts|tsx)$' && { errs=$(npx tsc --noEmit 2>&1 | grep -F \"$(basename \"$f\")\" || true); if [ -n \"$errs\" ]; then printf '{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"TypeScript errors in edited file:\\n%s\"}}' \"$(echo \"$errs\" | head -20 | sed 's/\"/\\\\\"/g' | tr '\\n' '|' | sed 's/|/\\\\n/g')\"; fi; }; } 2>/dev/null || true",
+            "timeout": 60,
+            "statusMessage": "Typechecking..."
+          }
+        ]
+      }
+    ]
+  }
+}

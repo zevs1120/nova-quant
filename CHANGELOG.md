@@ -2,6 +2,26 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 10.3.2 (2026-03-24)
+- Release type: patch
+- Add `CLAUDE.md` project instructions for Claude Code: build commands, code style, testing guidelines, commit conventions, environment setup.
+- Add Prettier (`.prettierrc`, `.prettierignore`) with 2-space indent, single quotes, trailing commas to match existing codebase style. New `format` and `format:check` npm scripts.
+- Add `.claude/settings.json` with two PostToolUse hooks: auto-format via Prettier on Write/Edit, and per-file typecheck feedback on `.ts/.tsx` edits.
+- Add `.claude/skills/verify/SKILL.md`: on-demand `/verify` skill that runs the full lint+typecheck+test+build gate.
+- Add `.claude/skills/dev/SKILL.md`: on-demand `/dev` skill with prerequisites checklist for starting the local development stack.
+
+## 10.3.1 (2026-03-24)
+- Release type: patch
+- Create `architecture.md` at project root: comprehensive 18-section architecture overview generated from full codebase scan, covering monorepo topology, tech stack, directory structure, data flow pipeline, all 38 backend modules, 29 frontend components, 11 quant engines, data ingestion connectors, Alpha discovery system, Marvix LLM runtime, admin dashboard, database architecture, deployment, testing, environment variables, and documentation index.
+- Audit 10 key documentation files against current codebase and update 5 that were outdated:
+  - `docs/SYSTEM_ARCHITECTURE.md`: add Massive.com as primary ingestion source, Auth layer (Postgres/Redis/SQLite), Holdings Import, News layer (provider + Gemini factor extraction), and Admin/LiveOps layer.
+  - `docs/RUNTIME_DATA_LINEAGE.md`: add Massive.com as primary API for US+Crypto, Postgres auth store lineage, holdings import lineage, Binance derivatives connector, and normalization pipeline.
+  - `docs/REPO_RUNBOOK.md`: add `MASSIVE_API_KEY` and `DATABASE_URL` to prerequisites, new Postgres auth section with migration command, fix quality gates to `npm test` + `npm run verify`.
+  - `docs/TECHNICAL_DUE_DILIGENCE_GUIDE.md`: add Massive.com, Postgres auth store, and holdings import to "What Is Real" section; update honest limitations to reference Massive API key dependency.
+  - `docs/MARVIX_SYSTEM_ARCHITECTURE.md`: add Massive.com REST API as primary data source ahead of legacy Stooq/Binance fallbacks.
+- 5 docs confirmed accurate and unchanged: `NOVA_ASSISTANT_ARCHITECTURE.md`, `DECISION_ENGINE.md`, `ENGAGEMENT_SYSTEM.md`, `REPOSITORY_OVERVIEW.md`, `VERSIONING.md`.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
 ## 10.3.0 (2026-03-24)
 - Release type: minor
 - Integrate Massive.com (formerly Polygon.io) REST API as a new data source for US equities and crypto OHLCV bars.

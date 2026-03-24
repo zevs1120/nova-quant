@@ -20,10 +20,11 @@ Target flow:
 
 `market data + Gemini-analyzed news -> Marvix -> trade instruction -> Gemini explanation`
 
-Current free data sources wired toward that flow:
+Current data sources wired toward that flow:
 
-- US price bars: Stooq, Yahoo Finance public chart path, Nasdaq fallback, Alpha Vantage daily fallback
-- Crypto price bars: Binance public market data
+- Primary API (US + Crypto): **Massive.com** REST API (`src/server/ingestion/massive.ts`, requires `MASSIVE_API_KEY`)
+- US price bars (legacy fallback): Stooq, Yahoo Finance public chart path, Nasdaq fallback, Alpha Vantage daily fallback
+- Crypto price bars (legacy fallback): Binance public market data
 - US fundamentals: Alpha Vantage + Finnhub
 - News: Google News RSS + Finnhub News + NewsAPI, then Gemini factor extraction
 - Options: Yahoo Finance public option-chain snapshots
