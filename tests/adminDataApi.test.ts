@@ -205,6 +205,9 @@ describe('admin data api', () => {
     vi.stubEnv('KV_REST_API_TOKEN', '');
     vi.stubEnv('UPSTASH_REDIS_REST_URL', '');
     vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', '');
+    vi.stubEnv('NOVA_AUTH_DRIVER', '');
+    vi.stubEnv('SUPABASE_DB_URL', '');
+    vi.stubEnv('DATABASE_URL', '');
   });
 
   afterEach(() => {

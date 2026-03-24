@@ -133,6 +133,8 @@ export function deterministicHash(input) {
 }
 
 export function round(value, digits = 4) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
   const scale = 10 ** digits;
-  return Math.round(Number(value) * scale) / scale;
+  return Math.round(n * scale) / scale;
 }

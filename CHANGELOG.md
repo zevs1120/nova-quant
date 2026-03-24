@@ -2,6 +2,20 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 10.2.1 (2026-03-24)
+- Release type: patch
+- Add 131 high-quality tests across 5 new test files targeting core financial calculation engines and business logic edge cases.
+- New `riskEngineDeep.test.ts` (17 tests): position sizing with NaN/zero/tiny stops, risk bucket state machine transitions, daily-loss and max-drawdown circuit breakers.
+- New `signalEngineScoring.test.ts` (16 tests): signal scoring under TREND vs RISK_OFF regimes, expected R for LONG/SHORT, direction-conflict muting, time-based expiry, crypto vs US cost model differences.
+- New `mathEdgeCases.test.ts` (35 tests): boundary conditions for all 13 math utility functions including stdDev with constants, correlation with identical arrays, maxDrawdown scenarios, and round with non-finite inputs.
+- New `tradeIntentEdgeCases.test.ts` (20 tests): defensive handling of empty/undefined signals, stop_loss resolution chain (object → value → invalidation → numeric), legacy take_profit fallback, i18n handoff labels, AI prompt generation.
+- New `holdingsSourceDeep.test.ts` (27 tests): portfolio weight rebalancing (sums to 100%), merge/dedup by market:class:symbol key, live-over-manual priority, all 7 summarizeHoldingsSource status classifications, and crypto symbol inference.
+- Fix P1 NaN propagation in `math.js`: `round(NaN)` returned NaN instead of 0 because `Math.round(NaN * scale)` is NaN. Added `Number.isFinite()` guard so non-finite inputs (NaN, Infinity, undefined) return 0, preventing silent corruption in position sizing and signal scoring.
+- Fix P1 DERISKED bucket multiplier ineffective in `riskEngine.js`: `computePositionPct()` applied `bucketMultiplier` only to `rawPct` but not to `perSignalCap`. With tight stops, both BASE and DERISKED clamped to the same cap ceiling, making the risk bucket meaningless. Now `perSignalCap` is also scaled by `bucketMultiplier`, ensuring DERISKED always constrains positions.
+- Fix P2 Postgres auth driver leaking into tests: `adminDataApi.test.ts` and `novaLocalStack.test.ts` stubbed KV/Redis env vars but not `NOVA_AUTH_DRIVER`/`SUPABASE_DB_URL`. When `.env` sets `NOVA_AUTH_DRIVER=postgres`, auth service attempted remote Supabase connections during tests, causing 500 errors. Added env stubs to force local SQLite auth store.
+- Install missing `pg` package, resolving 14 test file import failures.
+- Test suite: 88/88 files pass, 340/340 tests pass (up from 67/83 files and 180/182 tests).
+
 ## 10.2.0 (2026-03-24)
 - Release type: minor
 - Harden authentication with a full Postgres auth store (`auth_users`, `auth_sessions`, `auth_user_roles`, `auth_password_resets`, `auth_user_state_sync`), session-scoped user middleware, RBAC role system (ADMIN / OPERATOR / SUPPORT), and password reset email flow.

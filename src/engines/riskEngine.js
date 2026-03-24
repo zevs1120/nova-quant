@@ -106,10 +106,11 @@ export function computePositionPct({
   const riskPerTradePct = profile.max_loss_per_trade_pct;
   const rawPct = (riskPerTradePct / Math.max(stopDistancePct, 0.35)) * 100;
   const leverageScale = 0.8 + profile.leverage_cap * 0.2;
-  const perSignalCap = Math.min(
+  const basePerSignalCap = Math.min(
     profile.exposure_cap_pct / Math.max(activeSignalCount, 1),
     profile.per_signal_cap_pct * leverageScale
   );
+  const perSignalCap = basePerSignalCap * bucketMultiplier;
   const positionPct = clamp(rawPct * bucketMultiplier, 0, perSignalCap);
   return round(positionPct, 2);
 }
