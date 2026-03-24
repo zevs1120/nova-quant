@@ -17,6 +17,11 @@ describe('nova local stack', () => {
   beforeEach(() => {
     vi.stubEnv('GROQ_API_KEY', '');
     vi.stubEnv('GEMINI_API_KEY', '');
+    vi.stubEnv('OPENAI_API_KEY', '');
+    vi.stubEnv('NOVA_CLOUD_API_KEY', '');
+    vi.stubEnv('OPENAI_BASE_URL', '');
+    vi.stubEnv('NOVA_CLOUD_OPENAI_BASE_URL', '');
+    vi.stubEnv('NOVA_PREFER_CLOUD', '');
     vi.stubEnv('KV_REST_API_URL', '');
     vi.stubEnv('KV_REST_API_TOKEN', '');
     vi.stubEnv('UPSTASH_REDIS_REST_URL', '');
@@ -113,11 +118,12 @@ describe('nova local stack', () => {
       .send({
         userId,
         market: 'US',
-        assetClass: 'US_STOCK'
+        assetClass: 'US_STOCK',
+        holdings: [{ symbol: 'AAPL', asset_class: 'US_STOCK', weight_pct: 10 }]
       });
 
     expect(decisionRes.status).toBe(200);
-    expect(decisionRes.body.summary.nova_local.skipped).toBe(true);
+    expect(decisionRes.body.summary?.nova_local?.skipped).toBe(true);
 
     const runtimeRes = await request(app).get('/api/nova/runtime');
     expect(runtimeRes.status).toBe(200);

@@ -2,6 +2,17 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 10.2.2 (2026-03-24)
+- Release type: patch
+- Add 72 high-quality tests across 5 new test files targeting remaining untested engine modules.
+- New `regimeEngineEdgeCases.test.ts` (9 tests): RISK_ON / NEUTRAL / RISK_OFF classification boundaries, cross-market risk snapshot clamping, primary snapshot selection, output contract verification.
+- New `velocityEngineEdgeCases.test.ts` (14 tests): deterministic synthetic series generation, velocity array invariants (length, bounds, acceleration[0]=0), event study validation, BTC-USDT primary key resolution, custom featureSeries support.
+- New `performanceEngineEdgeCases.test.ts` (11 tests): trade metrics for zero/all-winners/all-losers/mixed, attribution grouping by strategy_id and regime_id, backtest-live deviation decomposition, 3M vs ALL range filtering.
+- New `funnelEngineEdgeCases.test.ts` (19 tests): all 13 rejection reason codes (regime_blocked, score_too_low, risk_budget_exhausted, cost_too_high, etc.), funnel counter pipeline, aggregation by market/strategy, no-trade ranking with share sums, shadow opportunity log cap and near-miss inclusion.
+- New `riskGuardrailEdgeCases.test.ts` (19 tests): mega_tech / crypto_core / single_name theme classification, correlation cluster alert thresholds (MEDIUM vs HIGH severity), regime mismatch warnings, STAY_OUT / REDUCE / TRADE_OK recommendation state machine, portfolio risk budget arithmetic, signal annotation propagation.
+- Fix P1 flaky `novaLocalStack` test: "bypasses local Nova in Vercel runtime" always failed in parallel because `getDecisionSnapshot` took the `shouldUsePublicDecisionFallback` early-return when `signalCount=0 && runtimeStatus=INSUFFICIENT_DATA && no holdings`. The public fallback skips `applyLocalNovaDecisionLanguage` entirely, so `summary.nova_local` was never set. Fixed by sending `holdings` in the test POST and stubbing 5 cloud API env vars (`OPENAI_API_KEY`, `NOVA_CLOUD_API_KEY`, `OPENAI_BASE_URL`, `NOVA_CLOUD_OPENAI_BASE_URL`, `NOVA_PREFER_CLOUD`) to force deterministic-fallback mode.
+- Test suite: 93/93 files pass, 412/412 tests pass (up from 88/88 files and 340/340 tests).
+
 ## 10.2.1 (2026-03-24)
 - Release type: patch
 - Add 131 high-quality tests across 5 new test files targeting core financial calculation engines and business logic edge cases.
