@@ -142,7 +142,10 @@ describe('control plane flywheel status', () => {
     const freeRun = status.flywheel.free_data.recent_runs.find(
       (row: { id?: string }) => row.id === `workflow-free-${baseTs}`,
     );
-    expect(freeRun).toBeTruthy();
+    expect(
+      freeRun,
+      `workflow-free-${baseTs} not in recent_runs (got ${status.flywheel.free_data.recent_runs.map((r: { id?: string }) => r.id).join(', ')})`,
+    ).toBeTruthy();
     if (!freeRun) throw new Error('expected free data run');
     expect(freeRun.news.refreshed_symbols).toBe(5);
     expect(freeRun.crypto_structure.funding_points).toBe(18);

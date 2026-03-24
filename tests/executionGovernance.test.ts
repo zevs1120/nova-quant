@@ -164,7 +164,10 @@ describe('execution governance', () => {
       qty: 1,
     });
 
-    expect(result.ok).toBe(true);
+    expect(result, `submitExecution returned: ${JSON.stringify(result)}`).toHaveProperty(
+      'ok',
+      true,
+    );
     if (!result.ok || !result.executionId) throw new Error('expected live execution to succeed');
     const shadowExecutionId = 'shadowExecutionId' in result ? result.shadowExecutionId : null;
     expect(shadowExecutionId).toBeTruthy();
