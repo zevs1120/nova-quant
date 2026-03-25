@@ -67,6 +67,8 @@ function seedSignal(id: string, symbol: string, createdAt: string, entry: number
 }
 
 describe('execution governance', () => {
+  const originalFetch = globalThis.fetch;
+
   beforeEach(() => {
     vi.stubEnv('GROQ_API_KEY', '');
     vi.stubEnv('GEMINI_API_KEY', '');
@@ -74,9 +76,12 @@ describe('execution governance', () => {
     vi.stubEnv('KV_REST_API_TOKEN', '');
     vi.stubEnv('UPSTASH_REDIS_REST_URL', '');
     vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', '');
+    vi.stubEnv('ALPACA_API_KEY', '');
+    vi.stubEnv('ALPACA_API_SECRET', '');
   });
 
   afterEach(async () => {
+    globalThis.fetch = originalFetch;
     vi.restoreAllMocks();
     vi.unstubAllEnvs();
     process.env.NOVA_ENABLE_ORDER_ROUTING = '';
@@ -108,7 +113,15 @@ describe('execution governance', () => {
     process.env.ALPACA_API_SECRET = 'secret';
     process.env.NOVA_ENABLE_ALPACA_TRADING = '1';
 
-    vi.spyOn(globalThis, 'fetch')
+    const defaultResponse = () =>
+      Promise.resolve(
+        new Response(JSON.stringify({}), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      );
+    const fetchMock = vi.fn()
+      .mockImplementation(defaultResponse)
       .mockResolvedValueOnce(
         new Response(
           JSON.stringify({
@@ -129,7 +142,7 @@ describe('execution governance', () => {
             status: 200,
             headers: { 'content-type': 'application/json' },
           },
-        ) as never,
+        ),
       )
       .mockResolvedValueOnce(
         new Response(
@@ -152,8 +165,9 @@ describe('execution governance', () => {
             status: 200,
             headers: { 'content-type': 'application/json' },
           },
-        ) as never,
+        ),
       );
+    globalThis.fetch = fetchMock;
 
     const result = await submitExecution({
       userId,
@@ -223,7 +237,8 @@ describe('execution governance', () => {
     });
     expect(killSwitch.kill_switch.active).toBe(true);
 
-    const fetchMock = vi.spyOn(globalThis, 'fetch');
+    const fetchMock = vi.fn();
+    globalThis.fetch = fetchMock;
     const result = await submitExecution({
       userId,
       signalId: signal.id,

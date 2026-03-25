@@ -341,7 +341,7 @@ export default function App() {
             <a href="#features">Features</a>
             <a href="#pricing">Pricing</a>
             <a href="#guide">FAQ</a>
-            <a href="#about">Distrbution</a>
+            <a href="#about">Distribution</a>
           </nav>
 
           <a className="site-header-cta" href="https://app.novaquant.cloud">

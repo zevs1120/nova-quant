@@ -1,7 +1,7 @@
 # Nova Quant — Architecture Overview
 
 > 自动扫描生成 · 最后更新: 2026-03-24
-> Version: 10.4.2 (build 63)
+> Version: 10.5.0 (build 64)
 
 ---
 

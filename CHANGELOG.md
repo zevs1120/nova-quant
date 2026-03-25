@@ -2,6 +2,39 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 10.5.0 (2026-03-25)
+
+- Release type: minor
+- **Docs: add professional-grade product document for external review.**
+  - New `docs/CURRENT_PRODUCT_DOCUMENT_ZH.md` (436 lines): a comprehensive current-stage product document written for professional reviewers, advisors, and institutional evaluators.
+  - Covers execution summary, product boundary definition, target user fit matrix, 8 existing capability areas (user app, holdings, decision engine, execution/reconciliation, AI assistant, research/evidence, Alpha lifecycle, admin backend), a truth-vs-experiment assessment table, P0/P1/P2 feature gap priorities, a three-phase roadmap (credibility → governance → controlled expansion), and explicit feedback questions for reviewers.
+  - Includes quantified codebase anchors: 15 API route groups, 6 admin pages, 17 Tab pages, 102 test files.
+- **Feat: build art-directed mobile-first landing page as an independent deploy unit.**
+  - New `landing/` sub-project: Vite + React scaffold with independent `package.json`, `vercel.json`, and `vite.config.js` for standalone Vercel deployment.
+  - Full art-directed page (711 lines JSX, 3,125 lines hand-crafted CSS) with 8 sections: glassmorphism header, Warhol-tone hero with halftone visual patterns, interactive action card stack (5 cards with CSS-variable-driven fan layout and `is-selected` state), Marvix architecture flow diagram, Ask Nova showcase, 4-tier pricing board (Free/Lite/Pro/Ultra), FAQ accordion, first-reactions testimonials, distribution credits, and full legal footer with regulatory disclaimers.
+  - 6 brand assets added: `nova-logo.png`, `ask-nova-shot.jpg`, 4 product screen captures (`today-screen.png`, `nova-screen.png`, `browse-screen.png`, `menu-screen.png`).
+  - All content is data-driven (pricing plans, FAQs, action cards, testimonials defined as JS arrays), semantic HTML (`<article>`, `<section>`, `<nav>`, `<blockquote>`, `<cite>`, `<details>`), and accessible (`aria-label`, `aria-pressed`).
+  - Mobile-first responsive design with `@media` breakpoints at 600px, 900px, and 1200px.
+- **Chore: restructure domain layout from 4-part to 5-part deployment.**
+  - Root domain `novaquant.cloud` now serves the landing page; main app moves to `app.novaquant.cloud`.
+  - CORS default whitelist in `src/server/api/app.ts` updated to include both `app.novaquant.cloud` (primary) and `novaquant.cloud` (backward-compatible).
+  - Password reset email link (`src/server/auth/resetEmail.ts`) and invite link (`src/components/MenuTab.jsx`) updated to new app subdomain.
+  - All landing page CTAs (sign up, Get started, Open NovaQuant, pricing cards) point to `app.novaquant.cloud`.
+  - 4 test files updated with new CORS origin assertions (`apiCors.test.ts`, `apiIndexRoute.test.ts`, `passwordResetApi.test.ts`, `signupWelcomeApi.test.ts`).
+  - 5 documentation files updated: `README.md`, `admin/README.md`, `architecture.md`, `docs/REPOSITORY_OVERVIEW.md`, `server/README.md`.
+  - `.env.example` updated: `NOVA_APP_ALLOWED_ORIGINS` and `NOVA_APP_URL` examples reflect new subdomain.
+- **Fix: refine landing page header glassmorphism.**
+  - Add `background-clip: padding-box` and `clip-path: inset(0 round 999px)` to prevent gradient bleed past pill border-radius.
+  - Tune `::before` pseudo-element inset, height, opacity, and radial-gradient parameters for cleaner glass reflections without corner artifacts.
+- **Fix: correct "Distrbution" → "Distribution" typo in landing page navigation.**
+- **Fix: sync `.env` CORS origins with domain restructure.**
+  - `NOVA_APP_ALLOWED_ORIGINS` in `.env` was still `https://novaquant.cloud` only; added `https://app.novaquant.cloud` as primary origin. Resolved 3 CORS test failures (`apiCors.test.ts`, `apiIndexRoute.test.ts`).
+- **Fix: harden `executionGovernance.test.ts` fetch mock for Node.js 25.**
+  - Root cause: `vi.spyOn(globalThis, 'fetch')` cannot intercept Node.js 25's built-in `fetch` (non-configurable property). Replaced with direct `globalThis.fetch = vi.fn()` assignment with save/restore in `afterEach`.
+  - Added `mockImplementation(defaultResponse)` fallback so extra fetch calls from `fetchWithRetry` don't crash with `undefined`.
+  - Added `vi.stubEnv` for `ALPACA_API_KEY` and `ALPACA_API_SECRET` in `beforeEach` for proper env isolation.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
 ## 10.4.3 (2026-03-24)
 
 - Release type: patch
