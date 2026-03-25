@@ -2,6 +2,29 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 10.4.2 (2026-03-24)
+
+- Release type: patch
+- **Fix: resolve flaky `controlPlaneStatus.test.ts` race condition.**
+  - Root cause: `baseTs` random offset of only 10,000 ms allowed parallel test workers' `workflow_runs` to collide in `ORDER BY updated_at_ms DESC LIMIT 6` queries.
+  - Fix: move base epoch from year 2099 to year 2199 and widen random range from 10K to 1B ms. Verified with 5/5 consecutive runs.
+- **Refactor: decompose `src/App.jsx` (2,150 → 955 lines, -56%).**
+  - New `src/hooks/useAuth.js` (397 lines): full auth lifecycle — login, signup, password reset, session hydration, profile sync, logout.
+  - New `src/hooks/useAppData.js` (218 lines): 11-endpoint parallel data loading, 2-minute auto-refresh, `FORCE_DEMO_BUILD` local pipeline fallback.
+  - New `src/hooks/useEngagement.js` (371 lines): engagement state, discipline tracking, morning check, boundary, wrap-up, weekly review, execution recording, VIP redemption.
+  - New `src/hooks/useInvestorDemo.js` (189 lines): investor demo mode, holdings source composition, connected holdings derivation.
+  - New `src/hooks/useNavigation.js` (106 lines): tab/stack navigation, My-tab routing, AI seed requests, cross-tab navigation.
+  - New `src/config/appConstants.js` (163 lines): `MENU_PARENTS`, `DEMO_MANUAL_STATE`, `MY_SECTION_LIST`, `initialData`, `buildTabMeta`, `buildMenuTitles`.
+  - New `src/components/icons/TabBarIcon.jsx` (69 lines): tab bar SVG icon component.
+  - New `src/components/icons/TopBarMenuGlyph.jsx` (27 lines): menu hamburger SVG component.
+  - `App.jsx` is now a thin orchestrator: hook composition + render tree + top bar + tab bar + modals.
+- **Refactor: modularize `src/styles.css` (16,813 → 12 domain modules).**
+  - New `src/styles/` directory with 12 chronologically-ordered CSS modules: `base.css` (2,767), `mobile-ux.css` (878), `interaction-system.css` (1,078), `consumer-layer.css` (1,105), `ai-chat.css` (182), `today-redesign.css` (1,217), `ai-rebuild.css` (389), `robinhood-surfaces.css` (953), `today-final.css` (979), `holdings.css` (3,248), `polish.css` (1,687), `corrections.css` (2,330).
+  - `src/styles.css` reduced to 22 lines of ordered `@import` statements.
+  - CSS output unchanged at 242.98 kB (zero visual regression).
+- Zero logic changes across all three refactors. `npm run verify` passes: lint ✓, typecheck ✓, 102/102 test files ✓, 591/591 tests ✓, build ✓.
+- Update version metadata to 10.4.2 (build 63).
+
 ## 10.4.1 (2026-03-24)
 
 - Release type: patch

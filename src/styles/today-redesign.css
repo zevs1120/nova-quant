@@ -1,0 +1,1217 @@
+/* Home redesign: Apple Fitness inspired command surface */
+.today-screen-redesign {
+  position: relative;
+  gap: 18px;
+}
+
+.today-screen-redesign::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% -12%, rgba(191, 94, 255, 0.16), transparent 24%),
+    radial-gradient(circle at 14% 12%, rgba(42, 232, 176, 0.12), transparent 20%),
+    radial-gradient(circle at 88% 16%, rgba(255, 145, 77, 0.11), transparent 18%);
+  opacity: 0.85;
+  z-index: 0;
+}
+
+.today-screen-redesign .today-fold,
+.today-screen-redesign > .glass-card {
+  position: relative;
+  z-index: 1;
+}
+
+.today-fitness-hero {
+  border-radius: 34px;
+  padding: 24px 22px 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    radial-gradient(circle at 80% 18%, rgba(191, 94, 255, 0.18), transparent 28%),
+    radial-gradient(circle at 18% 86%, rgba(42, 232, 176, 0.16), transparent 26%),
+    linear-gradient(180deg, rgba(11, 14, 20, 0.98), rgba(6, 8, 13, 0.98));
+  box-shadow:
+    0 30px 60px rgba(0, 0, 0, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.today-fitness-hero .muted,
+.today-fitness-hero .status-line,
+.today-fitness-hero .ritual-kicker,
+.today-fitness-hero .today-hero-symbol-meta,
+.today-fitness-hero .today-command-prompt {
+  color: rgba(231, 236, 244, 0.7);
+}
+
+.today-command-top {
+  margin-bottom: 14px;
+}
+
+.today-fitness-band {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.today-band-trade {
+  background: rgba(42, 232, 176, 0.18);
+  color: #8af6d6;
+}
+
+.today-band-wait {
+  background: rgba(255, 145, 77, 0.16);
+  color: #ffbf8d;
+}
+
+.today-band-defense,
+.today-band-no_trade {
+  background: rgba(191, 94, 255, 0.18);
+  color: #d5a5ff;
+}
+
+.today-fitness-hero .today-hero-eyebrow {
+  color: rgba(231, 236, 244, 0.5);
+}
+
+.today-fitness-hero .today-hero-title {
+  color: #f8fbff;
+  font-size: 38px;
+  line-height: 0.98;
+  max-width: 10ch;
+}
+
+.today-fitness-hero .today-hero-subtitle {
+  color: rgba(240, 245, 255, 0.88);
+  font-size: 17px;
+  line-height: 1.42;
+  max-width: 28ch;
+}
+
+.today-command-main {
+  grid-template-columns: minmax(0, 1.05fr) minmax(240px, 0.95fr);
+  gap: 20px;
+  align-items: center;
+}
+
+.today-ring-cluster {
+  gap: 12px;
+}
+
+.today-ring-card {
+  gap: 10px;
+}
+
+.today-ring-shell {
+  --ring-size: 92px;
+  padding: 8px;
+  background: conic-gradient(
+    var(--ring-color, rgba(42, 232, 176, 0.88)) 0 var(--ring-progress),
+    rgba(255, 255, 255, 0.12) var(--ring-progress) 100%
+  );
+  box-shadow:
+    0 14px 26px rgba(0, 0, 0, 0.24),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.today-ring-core {
+  background: rgba(10, 12, 18, 0.96);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+.today-ring-value {
+  color: #f8fbff;
+  font-size: 15px;
+}
+
+.today-ring-label {
+  color: rgba(231, 236, 244, 0.56);
+}
+
+.today-ring-go {
+  --ring-color: #2ae8b0;
+}
+
+.today-ring-watch {
+  --ring-color: #ff914d;
+}
+
+.today-ring-hold,
+.today-ring-calm {
+  --ring-color: #bf5eff;
+}
+
+.today-fitness-dial {
+  margin-top: 18px;
+  padding: 14px 14px 12px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.today-fitness-dial-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.today-fitness-dial-kicker {
+  margin: 0;
+  color: rgba(231, 236, 244, 0.64);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.today-fitness-segment {
+  --thumb-width: calc((100% - 8px) / 3);
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.today-fitness-segment-thumb {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  bottom: 4px;
+  width: var(--thumb-width);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(42, 232, 176, 0.9), rgba(18, 171, 128, 0.84));
+  box-shadow: 0 10px 22px rgba(42, 232, 176, 0.22);
+  transform: translateX(calc(var(--tempo-index, 1) * 100%));
+  transition:
+    transform 220ms var(--ease-spring),
+    background 220ms var(--ease-spring);
+}
+
+.today-fitness-segment-btn {
+  position: relative;
+  z-index: 1;
+  min-height: 42px;
+  border: 0;
+  background: transparent;
+  color: rgba(231, 236, 244, 0.66);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.today-fitness-segment-btn.active {
+  color: #04130f;
+}
+
+.today-fitness-dial-note {
+  margin: 10px 2px 0;
+  color: rgba(231, 236, 244, 0.74);
+  font-size: 14px;
+  line-height: 1.42;
+}
+
+.today-fitness-hero .stance-rail {
+  margin-top: 12px;
+}
+
+.today-fitness-hero .stance-step {
+  min-height: 44px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(231, 236, 244, 0.62);
+}
+
+.today-fitness-hero .stance-step.active {
+  background: rgba(255, 255, 255, 0.14);
+  color: #f8fbff;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.today-fitness-hero .today-action-line {
+  color: #f8fbff;
+  font-size: 30px;
+}
+
+.today-fitness-hero .today-hero-confidence {
+  background: rgba(255, 255, 255, 0.12);
+  color: #f8fbff;
+}
+
+.today-fitness-hero .today-no-action-panel,
+.today-fitness-hero .today-coach-pill {
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.today-fitness-hero .today-coach-pill-label {
+  color: rgba(231, 236, 244, 0.5);
+}
+
+.today-fitness-hero .today-coach-pill-value {
+  color: #f8fbff;
+}
+
+.today-fitness-hero .primary-btn {
+  background: linear-gradient(180deg, #2ae8b0, #15b18a);
+  color: #04130f;
+  box-shadow: 0 16px 28px rgba(42, 232, 176, 0.2);
+}
+
+.today-fitness-hero .secondary-btn {
+  background: rgba(255, 255, 255, 0.06);
+  color: #f8fbff;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.today-support-card {
+  border-radius: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: linear-gradient(180deg, rgba(16, 19, 26, 0.96), rgba(12, 14, 20, 0.96));
+  box-shadow:
+    0 22px 44px rgba(0, 0, 0, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.today-support-card .card-title,
+.today-support-card .quick-access-title,
+.today-support-card .today-follow-through-value {
+  color: #f3f7ff;
+}
+
+.today-support-card .muted,
+.today-support-card .status-line,
+.today-support-card .ritual-kicker,
+.today-support-card .quick-access-desc,
+.today-support-card .today-follow-through-label {
+  color: rgba(223, 229, 240, 0.66);
+}
+
+.today-support-card .today-follow-through-item {
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.today-support-card .secondary-btn,
+.today-support-card .primary-btn {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.today-support-card .secondary-btn {
+  background: rgba(255, 255, 255, 0.06);
+  color: #f8fbff;
+}
+
+.today-support-card .primary-btn {
+  background: rgba(42, 232, 176, 0.16);
+  color: #8af6d6;
+}
+
+@media (max-width: 760px) {
+  .today-command-main {
+    grid-template-columns: 1fr;
+  }
+
+  .today-ring-cluster {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .today-fitness-hero {
+    padding: 20px 18px 18px;
+    border-radius: 28px;
+  }
+
+  .today-fitness-hero .today-hero-title {
+    font-size: 32px;
+  }
+
+  .today-ring-shell {
+    --ring-size: 78px;
+  }
+
+  .today-fitness-dial {
+    padding: 12px 12px 10px;
+  }
+
+  .today-fitness-segment-btn {
+    min-height: 40px;
+    font-size: 12px;
+  }
+
+  .today-support-card {
+    border-radius: 24px;
+  }
+}
+
+/* Home palette correction: keep Fitness structure, move back to a light consumer surface */
+.today-screen-redesign::before {
+  background:
+    radial-gradient(circle at 50% -10%, rgba(255, 110, 199, 0.12), transparent 24%),
+    radial-gradient(circle at 12% 16%, rgba(85, 224, 193, 0.12), transparent 18%),
+    radial-gradient(circle at 88% 18%, rgba(95, 174, 255, 0.12), transparent 18%),
+    linear-gradient(180deg, rgba(255, 251, 246, 0.98), rgba(247, 242, 235, 0.98));
+  opacity: 1;
+}
+
+.today-fitness-hero {
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background:
+    radial-gradient(circle at 84% 18%, rgba(255, 110, 199, 0.14), transparent 26%),
+    radial-gradient(circle at 18% 82%, rgba(85, 224, 193, 0.13), transparent 24%),
+    linear-gradient(180deg, rgba(255, 252, 248, 0.98), rgba(248, 243, 236, 0.98));
+  box-shadow:
+    0 26px 52px rgba(20, 24, 33, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.84);
+}
+
+.today-fitness-hero .muted,
+.today-fitness-hero .status-line,
+.today-fitness-hero .ritual-kicker,
+.today-fitness-hero .today-hero-symbol-meta,
+.today-fitness-hero .today-command-prompt {
+  color: rgba(23, 28, 36, 0.64);
+}
+
+.today-fitness-hero .today-hero-eyebrow {
+  color: rgba(23, 28, 36, 0.42);
+}
+
+.today-fitness-hero .today-hero-title {
+  color: #121722;
+}
+
+.today-fitness-hero .today-hero-subtitle {
+  color: rgba(18, 23, 34, 0.88);
+}
+
+.today-band-trade {
+  background: rgba(85, 224, 193, 0.18);
+  color: #127965;
+}
+
+.today-band-wait {
+  background: rgba(255, 179, 97, 0.18);
+  color: #ad610d;
+}
+
+.today-band-defense,
+.today-band-no_trade {
+  background: rgba(176, 120, 255, 0.16);
+  color: #6940bc;
+}
+
+.today-ring-shell {
+  background: conic-gradient(
+    var(--ring-color, rgba(85, 224, 193, 0.94)) 0 var(--ring-progress),
+    rgba(26, 32, 44, 0.08) var(--ring-progress) 100%
+  );
+  box-shadow:
+    0 12px 22px rgba(20, 24, 33, 0.08),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.55);
+}
+
+.today-ring-core {
+  background: rgba(255, 253, 249, 0.98);
+  box-shadow: inset 0 0 0 1px rgba(20, 24, 33, 0.05);
+}
+
+.today-ring-value {
+  color: #171c24;
+}
+
+.today-ring-label {
+  color: rgba(23, 28, 36, 0.5);
+}
+
+.today-ring-go {
+  --ring-color: #32d6aa;
+}
+
+.today-ring-watch {
+  --ring-color: #4fb4ff;
+}
+
+.today-ring-hold,
+.today-ring-calm {
+  --ring-color: #b66dff;
+}
+
+.today-fitness-dial {
+  background: rgba(255, 255, 255, 0.62);
+  box-shadow:
+    inset 0 0 0 1px rgba(23, 28, 36, 0.06),
+    0 10px 20px rgba(20, 24, 33, 0.05);
+}
+
+.today-fitness-dial-kicker {
+  color: rgba(23, 28, 36, 0.54);
+}
+
+.today-fitness-segment {
+  background: rgba(23, 28, 36, 0.05);
+  box-shadow: inset 0 0 0 1px rgba(23, 28, 36, 0.04);
+}
+
+.today-fitness-segment-thumb {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(251, 246, 240, 0.98));
+  box-shadow:
+    0 10px 18px rgba(20, 24, 33, 0.08),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.76);
+}
+
+.today-fitness-segment-btn {
+  color: rgba(23, 28, 36, 0.58);
+}
+
+.today-fitness-segment-btn.active {
+  color: #171c24;
+}
+
+.today-fitness-dial-note {
+  color: rgba(23, 28, 36, 0.72);
+}
+
+.today-fitness-hero .stance-step {
+  background: rgba(23, 28, 36, 0.05);
+  color: rgba(23, 28, 36, 0.58);
+}
+
+.today-fitness-hero .stance-step.active {
+  background: rgba(255, 255, 255, 0.82);
+  color: #171c24;
+  box-shadow: inset 0 0 0 1px rgba(23, 28, 36, 0.06);
+}
+
+.today-fitness-hero .today-action-line {
+  color: #171c24;
+}
+
+.today-fitness-hero .today-hero-confidence {
+  background: rgba(85, 224, 193, 0.16);
+  color: #127965;
+}
+
+.today-fitness-hero .today-no-action-panel,
+.today-fitness-hero .today-coach-pill {
+  background: rgba(255, 255, 255, 0.62);
+  box-shadow: inset 0 0 0 1px rgba(23, 28, 36, 0.05);
+}
+
+.today-fitness-hero .today-coach-pill-label {
+  color: rgba(23, 28, 36, 0.46);
+}
+
+.today-fitness-hero .today-coach-pill-value {
+  color: #171c24;
+}
+
+.today-fitness-hero .primary-btn {
+  background: linear-gradient(180deg, #171c24, #10141b);
+  color: #fffaf3;
+  box-shadow: 0 16px 28px rgba(20, 24, 33, 0.18);
+}
+
+.today-fitness-hero .secondary-btn {
+  background: rgba(255, 255, 255, 0.68);
+  color: #171c24;
+  border-color: rgba(23, 28, 36, 0.07);
+}
+
+.today-support-card {
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: linear-gradient(180deg, rgba(255, 252, 248, 0.98), rgba(248, 243, 236, 0.96));
+  box-shadow:
+    0 18px 36px rgba(20, 24, 33, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.84);
+}
+
+.today-support-card .card-title,
+.today-support-card .quick-access-title,
+.today-support-card .today-follow-through-value {
+  color: #171c24;
+}
+
+.today-support-card .muted,
+.today-support-card .status-line,
+.today-support-card .ritual-kicker,
+.today-support-card .quick-access-desc,
+.today-support-card .today-follow-through-label {
+  color: rgba(23, 28, 36, 0.62);
+}
+
+.today-support-card .today-follow-through-item {
+  background: rgba(255, 255, 255, 0.64);
+  box-shadow: inset 0 0 0 1px rgba(23, 28, 36, 0.05);
+}
+
+.today-support-card .secondary-btn {
+  background: rgba(255, 255, 255, 0.7);
+  color: #171c24;
+  border-color: rgba(23, 28, 36, 0.07);
+}
+
+.today-support-card .primary-btn {
+  background: rgba(85, 224, 193, 0.14);
+  color: #127965;
+}
+
+/* Home redesign round 2: light pop editorial surface */
+.today-screen-redesign {
+  gap: 20px;
+}
+
+.today-screen-redesign::before {
+  background:
+    radial-gradient(circle at 84% 10%, rgba(88, 221, 214, 0.18), transparent 20%),
+    radial-gradient(circle at 16% 22%, rgba(255, 146, 115, 0.16), transparent 18%),
+    radial-gradient(circle at 62% 78%, rgba(127, 124, 255, 0.12), transparent 22%),
+    linear-gradient(180deg, rgba(255, 251, 245, 0.98), rgba(247, 241, 232, 0.98));
+  opacity: 1;
+}
+
+.today-summary-header {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 4px 2px 2px;
+}
+
+.today-summary-date {
+  margin: 0 0 4px;
+  color: rgba(23, 28, 36, 0.46);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.today-summary-title {
+  margin: 0;
+  color: #141923;
+  font-size: clamp(38px, 6vw, 48px);
+  line-height: 0.96;
+  letter-spacing: -0.05em;
+}
+
+.today-summary-subtitle {
+  margin: 10px 0 0;
+  max-width: 28ch;
+  color: rgba(23, 28, 36, 0.66);
+  font-size: 16px;
+  line-height: 1.42;
+}
+
+.today-summary-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  box-shadow: 0 8px 18px rgba(20, 24, 33, 0.08);
+}
+
+.today-summary-status-trade {
+  background: rgba(75, 224, 184, 0.18);
+  color: #0d7e63;
+}
+
+.today-summary-status-wait {
+  background: rgba(255, 181, 97, 0.18);
+  color: #9f5f10;
+}
+
+.today-summary-status-defense,
+.today-summary-status-no_trade {
+  background: rgba(131, 124, 255, 0.16);
+  color: #5e52da;
+}
+
+.today-fold {
+  gap: 16px;
+}
+
+.today-fitness-hero {
+  padding: 16px;
+  border-radius: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  background: linear-gradient(180deg, rgba(255, 253, 249, 0.98), rgba(248, 241, 233, 0.98));
+  box-shadow:
+    0 24px 50px rgba(20, 24, 33, 0.09),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92);
+}
+
+.today-hero-carousel {
+  overflow: hidden;
+}
+
+.today-hero-track {
+  display: flex;
+  width: 200%;
+  transition: transform 320ms var(--ease-spring);
+}
+
+.today-hero-page {
+  width: 50%;
+  flex: 0 0 50%;
+}
+
+.today-pop-summary-card {
+  position: relative;
+  overflow: hidden;
+  padding: 18px;
+  border-radius: 30px;
+  background: linear-gradient(140deg, #17c8ad 0%, #3e92f8 56%, #7e7cff 100%);
+  box-shadow:
+    0 26px 44px rgba(32, 94, 137, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.today-pop-summary-card::before,
+.today-pop-summary-card::after {
+  content: '';
+  position: absolute;
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+.today-pop-summary-card::before {
+  width: 240px;
+  height: 240px;
+  right: -64px;
+  top: -86px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.24), transparent 70%);
+}
+
+.today-pop-summary-card::after {
+  width: 180px;
+  height: 180px;
+  left: -54px;
+  bottom: -64px;
+  background: radial-gradient(circle, rgba(255, 227, 132, 0.22), transparent 72%);
+}
+
+.today-pop-summary-card .today-command-top,
+.today-pop-summary-card .today-command-main,
+.today-pop-summary-card .today-pop-progress,
+.today-pop-summary-card .today-pop-mini-grid {
+  position: relative;
+  z-index: 1;
+}
+
+.today-pop-summary-card .today-command-top {
+  margin-bottom: 18px;
+}
+
+.today-pop-summary-card .today-command-status {
+  gap: 8px;
+}
+
+.today-pop-summary-card .badge-neutral {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.today-pop-summary-card .muted,
+.today-pop-summary-card .status-line,
+.today-pop-summary-card .ritual-kicker,
+.today-pop-summary-card .today-hero-symbol-meta,
+.today-pop-summary-card .today-command-prompt {
+  color: rgba(255, 255, 255, 0.74);
+}
+
+.today-pop-summary-card .today-fitness-band {
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+}
+
+.today-pop-summary-card .today-hero-eyebrow {
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.today-pop-summary-card .today-hero-title,
+.today-pop-summary-card .today-hero-subtitle,
+.today-pop-summary-card .today-ring-value,
+.today-pop-summary-card .today-pop-mini-value {
+  color: #ffffff;
+}
+
+.today-pop-summary-card .today-command-main {
+  grid-template-columns: minmax(0, 1.05fr) minmax(230px, 0.95fr);
+  gap: 18px;
+  align-items: flex-start;
+}
+
+.today-pop-summary-card .today-ring-cluster {
+  gap: 10px;
+}
+
+.today-pop-summary-card .today-ring-shell {
+  background: conic-gradient(
+    var(--ring-color, rgba(255, 255, 255, 0.96)) 0 var(--ring-progress),
+    rgba(255, 255, 255, 0.22) var(--ring-progress) 100%
+  );
+  box-shadow:
+    0 12px 24px rgba(28, 53, 117, 0.18),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+}
+
+.today-pop-summary-card .today-ring-core {
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+
+.today-pop-summary-card .today-ring-label {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.today-pop-summary-card .today-ring-go {
+  --ring-color: #fbff91;
+}
+
+.today-pop-summary-card .today-ring-watch {
+  --ring-color: #6ef6ff;
+}
+
+.today-pop-summary-card .today-ring-hold,
+.today-pop-summary-card .today-ring-calm {
+  --ring-color: #ffd091;
+}
+
+.today-pop-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.today-pop-progress-lead,
+.today-pop-progress-rest {
+  display: block;
+  height: 10px;
+  border-radius: 999px;
+}
+
+.today-pop-progress-lead {
+  width: min(34%, 180px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+
+.today-pop-progress-rest {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.today-pop-progress-lead.tone-mint {
+  background: linear-gradient(90deg, #fdff9e 0%, #9fffdc 100%);
+}
+
+.today-pop-progress-lead.tone-amber {
+  background: linear-gradient(90deg, #ffd78c 0%, #ff9d7a 100%);
+}
+
+.today-pop-progress-lead.tone-violet {
+  background: linear-gradient(90deg, #f4b0ff 0%, #9ab1ff 100%);
+}
+
+.today-pop-mini-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.today-pop-mini-card {
+  min-height: 100px;
+  padding: 16px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(10px);
+}
+
+.today-pop-mini-label {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.today-pop-mini-value {
+  margin: 12px 0 0;
+  font-size: 24px;
+  line-height: 1.08;
+  letter-spacing: -0.04em;
+  font-weight: 800;
+}
+
+.today-quick-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.today-quick-card {
+  position: relative;
+  overflow: hidden;
+  min-height: 138px;
+  padding: 18px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow:
+    0 14px 28px rgba(20, 24, 33, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.88);
+}
+
+.today-quick-card::before {
+  content: '';
+  position: absolute;
+  inset: auto 16px 16px auto;
+  width: 74px;
+  height: 74px;
+  border-radius: 22px;
+  opacity: 0.22;
+}
+
+.today-quick-card-mint::before {
+  background: linear-gradient(140deg, #68f3db, #4bc8ff);
+}
+
+.today-quick-card-sky::before {
+  background: linear-gradient(140deg, #9bc0ff, #8f88ff);
+}
+
+.today-quick-card-label {
+  margin: 0;
+  color: rgba(23, 28, 36, 0.46);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.today-quick-card-value {
+  margin: 14px 0 0;
+  color: #171c24;
+  font-size: 22px;
+  line-height: 1.18;
+  letter-spacing: -0.04em;
+  font-weight: 780;
+  max-width: 12ch;
+}
+
+.today-fitness-dial {
+  margin-top: 14px;
+  background: rgba(255, 255, 255, 0.8);
+  box-shadow:
+    0 14px 28px rgba(20, 24, 33, 0.06),
+    inset 0 0 0 1px rgba(23, 28, 36, 0.05);
+}
+
+.today-fitness-dial-kicker {
+  color: rgba(23, 28, 36, 0.52);
+}
+
+.today-fitness-segment {
+  background: rgba(23, 28, 36, 0.05);
+}
+
+.today-fitness-segment-thumb {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(252, 248, 242, 0.98));
+  box-shadow:
+    0 10px 18px rgba(20, 24, 33, 0.08),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.76);
+}
+
+.today-fitness-segment-btn.active {
+  color: #171c24;
+}
+
+.today-fitness-dial-note {
+  color: rgba(23, 28, 36, 0.72);
+}
+
+.today-fitness-hero .today-no-action-panel,
+.today-fitness-hero .today-coach-pill {
+  background: rgba(255, 255, 255, 0.74);
+  box-shadow: inset 0 0 0 1px rgba(23, 28, 36, 0.05);
+}
+
+.today-fitness-hero .today-action-line {
+  color: #171c24;
+}
+
+.today-fitness-hero .today-hero-confidence {
+  background: rgba(99, 151, 255, 0.16);
+  color: #2351c3;
+}
+
+.today-fitness-hero .primary-btn {
+  background: linear-gradient(180deg, #171c24, #0f131a);
+  color: #fff9f0;
+  box-shadow: 0 16px 28px rgba(20, 24, 33, 0.18);
+}
+
+.today-fitness-hero .secondary-btn {
+  background: rgba(255, 255, 255, 0.8);
+  color: #171c24;
+  border-color: rgba(23, 28, 36, 0.07);
+}
+
+.today-pop-action-card {
+  min-height: 100%;
+}
+
+.today-pop-action-card .today-command-top {
+  margin-bottom: 14px;
+}
+
+.today-pop-action-card .today-hero-signal-row {
+  margin-bottom: 14px;
+}
+
+.today-pop-action-card .today-coach-plan {
+  gap: 10px;
+}
+
+.today-pop-action-card .today-coach-pill {
+  min-height: 84px;
+}
+
+.today-pop-action-card .today-fitness-dial {
+  margin-top: 14px;
+}
+
+.today-pop-action-card .today-action-row {
+  margin-top: 14px;
+}
+
+.today-pop-action-card .today-action-cta,
+.today-pop-action-card .today-action-secondary {
+  min-height: 48px;
+}
+
+.today-pop-action-card .today-no-action-panel {
+  min-height: 164px;
+}
+
+.today-hero-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.today-hero-dot {
+  width: 30px;
+  height: 8px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(23, 28, 36, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.66);
+  transition:
+    width 220ms var(--ease-spring),
+    background-color 220ms var(--ease-spring),
+    transform 220ms var(--ease-spring);
+}
+
+.today-hero-dot.active {
+  width: 54px;
+  background: linear-gradient(90deg, #17c8ad 0%, #3e92f8 52%, #7e7cff 100%);
+  transform: scale(1.02);
+}
+
+.today-support-card {
+  border-radius: 26px;
+  border: 1px solid rgba(255, 255, 255, 0.86);
+  background: linear-gradient(180deg, rgba(255, 253, 249, 0.98), rgba(249, 244, 237, 0.96));
+  box-shadow:
+    0 18px 34px rgba(20, 24, 33, 0.07),
+    inset 0 1px 0 rgba(255, 255, 255, 0.88);
+}
+
+.today-support-card .today-follow-through-item {
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.today-support-card .secondary-btn {
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.today-pop-summary-card {
+  padding: 16px;
+}
+
+.today-pop-summary-card .today-command-main {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.today-pop-summary-card .today-ring-cluster {
+  width: 100%;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.today-pop-summary-card .today-ring-card {
+  align-items: center;
+  text-align: center;
+}
+
+.today-pop-summary-card .today-ring-shell {
+  --ring-size: 72px;
+}
+
+.today-pop-summary-card .today-command-copy {
+  gap: 8px;
+}
+
+.today-pop-summary-card .today-hero-title {
+  font-size: clamp(28px, 5vw, 34px);
+  line-height: 1;
+  max-width: 12ch;
+}
+
+.today-pop-summary-card .today-hero-subtitle {
+  font-size: 16px;
+  line-height: 1.38;
+  max-width: 24ch;
+}
+
+.today-pop-summary-card .today-command-prompt {
+  margin-top: 2px;
+}
+
+.today-pop-progress {
+  margin-top: 14px;
+}
+
+.today-quick-grid {
+  margin-top: 10px;
+}
+
+.today-quick-card {
+  min-height: 124px;
+}
+
+.today-secondary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.today-secondary-grid .today-support-card {
+  height: 100%;
+}
+
+.today-secondary-grid .card-title {
+  font-size: 20px;
+  line-height: 1.08;
+}
+
+.today-secondary-grid .daily-brief-conclusion,
+.today-secondary-grid .today-follow-through-value {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+}
+
+.today-secondary-grid .action-row {
+  gap: 8px;
+}
+
+@media (max-width: 760px) {
+  .today-summary-header {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .today-pop-summary-card .today-command-main {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .today-summary-title {
+    font-size: 34px;
+  }
+
+  .today-fitness-hero {
+    padding: 14px;
+    border-radius: 28px;
+  }
+
+  .today-pop-summary-card {
+    padding: 16px;
+    border-radius: 26px;
+  }
+
+  .today-pop-summary-card .today-ring-shell {
+    --ring-size: 64px;
+  }
+
+  .today-quick-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .today-secondary-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .today-quick-card {
+    min-height: 116px;
+    padding: 14px;
+    border-radius: 22px;
+  }
+
+  .today-quick-card-value {
+    font-size: 18px;
+  }
+
+  .today-secondary-grid .today-support-card {
+    padding: 16px;
+    border-radius: 22px;
+  }
+
+  .today-secondary-grid .card-title {
+    font-size: 18px;
+  }
+
+  .today-hero-dot {
+    width: 24px;
+    height: 7px;
+  }
+
+  .today-hero-dot.active {
+    width: 44px;
+  }
+}
+

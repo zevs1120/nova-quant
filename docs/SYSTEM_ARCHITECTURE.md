@@ -6,7 +6,15 @@ Last updated: 2026-03-24
 
 1. **Frontend (React/Vite)**
 
-- `src/App.jsx`: mobile-first shell; bottom navigation **Today**, **Nova** (AI), **Browse**, **My**.
+- `src/App.jsx`: thin orchestrator shell (~955 lines); composes custom hooks and renders top bar, tab bar, and screen routing.
+- `src/hooks/useAuth.js`: full auth lifecycle (login, signup, session hydration, profile sync, logout).
+- `src/hooks/useAppData.js`: 11-endpoint parallel data loading with 2-minute auto-refresh.
+- `src/hooks/useEngagement.js`: engagement state, discipline tracking, execution recording, VIP redemption.
+- `src/hooks/useInvestorDemo.js`: investor demo mode, holdings source composition, data overlay.
+- `src/hooks/useNavigation.js`: tab/stack navigation, My-tab routing, AI seed requests.
+- `src/config/appConstants.js`: shared constants, locale builders, default data shapes.
+- `src/styles/`: 12 ordered CSS modules (`base` → `corrections`) replacing the monolithic `styles.css`. Import order preserves the design cascade.
+- Bottom navigation: **Today**, **Nova** (AI), **Browse**, **My**.
 - Deeper surfaces (holdings, signals, weekly review, menu/settings, risk, research, etc.) are reached from **My**, menus, or in-tab navigation—not separate bottom tabs.
 - Default runtime path is API-first (`/api/*` via Vite proxy in local dev).
 - Local pipeline / demo paths are gated by explicit demo and investor-demo switches (see `src/demo/` and env flags in README).

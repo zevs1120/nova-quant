@@ -1,7 +1,7 @@
 # Nova Quant — Architecture Overview
 
 > 自动扫描生成 · 最后更新: 2026-03-24
-> Version: 10.1.2 (build 60)
+> Version: 10.4.2 (build 63)
 
 ---
 
@@ -54,16 +54,18 @@ nova-quant/
 nova-quant/
 │
 ├── src/                          # 核心源码
-│   ├── App.jsx                   # 移动优先产品壳 & Tab 编排 (106 KB)
+│   ├── App.jsx                   # 薄编排壳层 (31 KB) — 组合 hooks + 渲染
 │   ├── main.jsx                  # React 入口
-│   ├── styles.css                # 全局样式 (314 KB)
+│   ├── styles.css                # @import 入口 (→ src/styles/ 12 模块)
 │   ├── i18n.js                   # 国际化 (中/英)
 │   │
-│   ├── components/               # 29 个 UI 组件
-│   ├── hooks/                    # React Hooks (助手、本地存储、Demo)
+│   ├── components/               # 35 个 UI 组件
+│   │   └── icons/                # TabBarIcon, TopBarMenuGlyph
+│   ├── hooks/                    # 8 个 React Hooks (auth, data, engagement, demo, nav 等)
 │   ├── utils/                    # 前端工具 (API、格式化、意图解析等)
 │   ├── copy/                     # 品牌文案操作系统
-│   ├── config/                   # 运行时版本配置
+│   ├── config/                   # 运行时版本 + appConstants
+│   ├── styles/                   # 12 个有序 CSS 领域模块
 │   ├── assets/                   # 静态资源
 │   ├── demo/                     # Demo 模式相关
 │   │
@@ -135,7 +137,7 @@ nova-quant/
 │   ├── signal.schema.json        # 信号合约 JSON Schema
 │   └── README.md
 │
-├── tests/                        # 104 个测试文件 (Vitest)
+├── tests/                        # 102 个测试文件 (Vitest)
 ├── scripts/                      # 35 个运维脚本
 ├── config/                       # 摄取配置
 ├── docs/                         # 75+ 文档文件
@@ -305,16 +307,16 @@ alpha_promotion_guard/ → 晋升守卫 (Shadow → Canary → Prod)
 ### 7.1 技术选型
 
 - **框架**: React 18 + Vite 5 (SPA)
-- **样式**: 纯 CSS (`styles.css`, 314 KB)
-- **路由/状态**: App.jsx 内 Tab 编排 (无第三方路由)
+- **样式**: 12 个有序 CSS 模块 (`src/styles/` via `@import`)
+- **路由/状态**: App.jsx 编排 + 5 个 custom hooks (无第三方路由)
 - **代码分割**: `React.lazy` 用于次级 Tab 组件
 - **国际化**: `i18n.js` (中/英双语)
 
-### 7.2 主要组件 (29 个)
+### 7.2 主要组件 (35 个)
 
 | 组件                 | 职责                | 大小   |
 | -------------------- | ------------------- | ------ |
-| `App.jsx`            | 产品壳 & Tab 编排   | 106 KB |
+| `App.jsx`            | 薄编排壳 (hooks + 渲染) | 31 KB |
 | `TodayTab.jsx`       | 今日决策面板 (首页) | 49 KB  |
 | `MenuTab.jsx`        | 设置 & 高级功能     | 70 KB  |
 | `BrowseTab.jsx`      | 资产浏览 & 搜索     | 41 KB  |
@@ -328,11 +330,16 @@ alpha_promotion_guard/ → 晋升守卫 (Shadow → Canary → Prod)
 
 ### 7.3 Hooks
 
-| Hook                  | 功能              |
-| --------------------- | ----------------- |
-| `useNovaAssistant.js` | Nova 助手交互状态 |
-| `useDemoAssistant.js` | Demo 模式助手     |
-| `useLocalStorage.js`  | 本地存储封装      |
+| Hook                  | 功能                          |
+| --------------------- | ----------------------------- |
+| `useAuth.js`          | 认证生命周期 (登录/注册/登出) |
+| `useAppData.js`       | 11 端点并行数据加载 + 自动刷新 |
+| `useEngagement.js`    | 参与/纪律/执行记录            |
+| `useInvestorDemo.js`  | 投资者 Demo 模式 & 持仓覆盖  |
+| `useNavigation.js`    | Tab/栈导航 & AI 路由          |
+| `useNovaAssistant.js` | Nova 助手交互状态             |
+| `useDemoAssistant.js` | Demo 模式助手                 |
+| `useLocalStorage.js`  | 本地存储封装                  |
 
 ### 7.4 工具函数 (`src/utils/`)
 
@@ -457,7 +464,8 @@ src/research/
 ## 13. 测试体系
 
 - **框架**: Vitest 4 + Supertest
-- **测试文件**: 104 个 (均在 `tests/` 目录)
+- **测试文件**: 102 个 (均在 `tests/` 目录)
+- **测试用例**: 591 个 (全部通过)
 - **覆盖率**: `@vitest/coverage-v8`
 
 **覆盖领域**: 决策引擎、信号引擎、风控引擎、证据引擎、参与引擎、API 路由、认证、CORS、缓存隔离、Nova 客户端、Alpha 发现、Massive 摄取、持仓导入、手动信号、新闻提供、组合模拟、策略发现、置信度校准、数学边界等。

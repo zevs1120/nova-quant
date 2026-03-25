@@ -32,7 +32,14 @@ function seedWorkflowRun(
 describe('control plane flywheel status', () => {
   it('surfaces recent ingestion, evolution, and training state through the status APIs', async () => {
     const repo = new MarketRepository(getDb());
-    const baseTs = Date.UTC(2099, 0, 1, 0, 0, 0) + Math.floor(Math.random() * 10_000);
+
+    // Clean up future-dated workflow_runs that may have accumulated from prior
+    // test executions. Without this, old rows with high updated_at_ms values
+    // occupy the LIMIT 6 window and evict freshly seeded rows.
+    const cleanupThreshold = Date.UTC(2100, 0, 1, 0, 0, 0);
+    getDb().exec(`DELETE FROM workflow_runs WHERE updated_at_ms >= ${cleanupThreshold}`);
+
+    const baseTs = Date.UTC(2199, 0, 1, 0, 0, 0) + Math.floor(Math.random() * 1_000_000_000);
     const userId = `control-plane-${baseTs}`;
 
     repo.upsertNewsItem({

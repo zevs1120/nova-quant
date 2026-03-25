@@ -1,0 +1,371 @@
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { DEMO_MANUAL_STATE } from '../config/appConstants';
+import { localDateKey, weekStartKey, addUniqueKey, calcStreak } from '../utils/date';
+
+/**
+ * Handles engagement state loading, daily check-in, boundary, wrap-up, weekly review,
+ * execution recording, manual state, VIP redemption, and discipline tracking.
+ */
+export function useEngagement({
+  fetchJson,
+  effectiveUserId,
+  market,
+  assetClass,
+  lang,
+  effectiveHoldings,
+  isDemoRuntime,
+  hasLoaded,
+  decisionSnapshot,
+  setRefreshNonce,
+  now,
+  disciplineLog,
+  setDisciplineLog,
+  executions,
+  setExecutions,
+}) {
+  const [engagementState, setEngagementState] = useState(null);
+  const [manualState, setManualState] = useState(DEMO_MANUAL_STATE);
+
+  const todayKey = localDateKey(now);
+  const currentWeekKey = weekStartKey(now);
+
+  // Load manual state
+  useEffect(() => {
+    if (isDemoRuntime) {
+      setManualState(DEMO_MANUAL_STATE);
+      return undefined;
+    }
+    let cancelled = false;
+    void fetchJson(`/api/manual/state?userId=${encodeURIComponent(effectiveUserId)}`)
+      .then((payload) => {
+        if (!cancelled) setManualState(payload || null);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setManualState({
+            ...DEMO_MANUAL_STATE,
+            available: false,
+            mode: 'REAL',
+            reason: 'MANUAL_UNAVAILABLE',
+            summary: {
+              balance: 0,
+              expiringSoon: 0,
+              vipDays: 0,
+              vipDaysRedeemed: 0,
+            },
+            referrals: {
+              inviteCode: null,
+              referredByCode: null,
+              total: 0,
+              rewarded: 0,
+            },
+            ledger: [],
+            rewards: [
+              {
+                id: 'vip-1d',
+                kind: 'vip_day',
+                title: 'Redeem 1 VIP day',
+                description: '1000 points unlocks one more VIP day.',
+                costPoints: 1000,
+                enabled: false,
+              },
+            ],
+            predictions: [],
+          });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [effectiveUserId, isDemoRuntime, fetchJson]);
+
+  const loadEngagementState = useCallback(async () => {
+    if (isDemoRuntime || !hasLoaded) return null;
+    try {
+      const payload = await fetchJson('/api/engagement/state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: effectiveUserId,
+          market,
+          assetClass,
+          localDate: todayKey,
+          localHour: now.getHours(),
+          locale: lang,
+          holdings: effectiveHoldings,
+        }),
+      });
+      setEngagementState(payload || null);
+      return payload || null;
+    } catch {
+      setEngagementState(null);
+      return null;
+    }
+  }, [
+    assetClass,
+    effectiveUserId,
+    hasLoaded,
+    effectiveHoldings,
+    isDemoRuntime,
+    lang,
+    market,
+    now,
+    todayKey,
+    fetchJson,
+  ]);
+
+  // Load engagement after decision snapshot
+  useEffect(() => {
+    if (!decisionSnapshot || isDemoRuntime || !hasLoaded) return;
+    void loadEngagementState();
+  }, [decisionSnapshot?.audit_snapshot_id, isDemoRuntime, hasLoaded, loadEngagementState]);
+
+  const syncLocalDisciplineLog = useCallback(
+    (updater) => {
+      setDisciplineLog((current) =>
+        updater(current || { checkins: [], boundary_kept: [], weekly_reviews: [] }),
+      );
+    },
+    [setDisciplineLog],
+  );
+
+  const localDiscipline = useMemo(() => {
+    const checkins = disciplineLog?.checkins || [];
+    const boundary = disciplineLog?.boundary_kept || [];
+    const weekly = disciplineLog?.weekly_reviews || [];
+
+    return {
+      checkedToday: checkins.includes(todayKey),
+      boundaryToday: boundary.includes(todayKey),
+      reviewedThisWeek: weekly.includes(currentWeekKey),
+      checkinStreak: calcStreak(checkins, todayKey, 1),
+      boundaryStreak: calcStreak(boundary, todayKey, 1),
+      weeklyStreak: calcStreak(weekly, currentWeekKey, 7),
+    };
+  }, [disciplineLog, todayKey, currentWeekKey]);
+
+  const discipline = useMemo(() => {
+    const habit = engagementState?.habit_state;
+    if (!habit) return localDiscipline;
+    return {
+      checkedToday: Boolean(habit.checkedToday),
+      boundaryToday: Boolean(habit.boundaryToday),
+      reviewedThisWeek: Boolean(habit.reviewedThisWeek),
+      checkinStreak: Number(habit.checkinStreak || 0),
+      boundaryStreak: Number(habit.boundaryStreak || 0),
+      weeklyStreak: Number(habit.weeklyStreak || 0),
+      wrapUpToday: Boolean(habit.wrapUpToday),
+      wrapUpStreak: Number(habit.wrapUpStreak || 0),
+      disciplineScore: Number(habit.discipline_score || 0),
+      behaviorQuality: habit.behavior_quality || null,
+      summary: habit.summary || null,
+      noActionValueLine: habit.no_action_value_line || null,
+    };
+  }, [engagementState, localDiscipline]);
+
+  const buildEngagementBody = useCallback(
+    () => ({
+      userId: effectiveUserId,
+      market,
+      assetClass,
+      localDate: todayKey,
+      localHour: now.getHours(),
+      locale: lang,
+      holdings: effectiveHoldings,
+    }),
+    [assetClass, effectiveUserId, effectiveHoldings, lang, market, now, todayKey],
+  );
+
+  const markDailyCheckin = useCallback(async () => {
+    syncLocalDisciplineLog((current) => ({
+      ...current,
+      checkins: addUniqueKey(current?.checkins || [], todayKey),
+    }));
+    if (isDemoRuntime) return;
+    try {
+      const payload = await fetchJson('/api/engagement/morning-check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(buildEngagementBody()),
+      });
+      setEngagementState(payload || null);
+    } catch {
+      void loadEngagementState();
+    }
+  }, [
+    buildEngagementBody,
+    isDemoRuntime,
+    loadEngagementState,
+    syncLocalDisciplineLog,
+    todayKey,
+    fetchJson,
+  ]);
+
+  const markBoundaryKept = useCallback(async () => {
+    syncLocalDisciplineLog((current) => ({
+      ...current,
+      boundary_kept: addUniqueKey(current?.boundary_kept || [], todayKey),
+    }));
+    if (isDemoRuntime) return;
+    try {
+      const payload = await fetchJson('/api/engagement/boundary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(buildEngagementBody()),
+      });
+      setEngagementState(payload || null);
+    } catch {
+      void loadEngagementState();
+    }
+  }, [
+    buildEngagementBody,
+    isDemoRuntime,
+    loadEngagementState,
+    syncLocalDisciplineLog,
+    todayKey,
+    fetchJson,
+  ]);
+
+  const markWrapUpComplete = useCallback(async () => {
+    if (isDemoRuntime) return;
+    try {
+      const payload = await fetchJson('/api/engagement/wrap-up', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(buildEngagementBody()),
+      });
+      setEngagementState(payload || null);
+    } catch {
+      void loadEngagementState();
+    }
+  }, [buildEngagementBody, isDemoRuntime, loadEngagementState, fetchJson]);
+
+  const markWeeklyReviewed = useCallback(async () => {
+    syncLocalDisciplineLog((current) => ({
+      ...current,
+      weekly_reviews: addUniqueKey(current?.weekly_reviews || [], currentWeekKey),
+    }));
+    if (isDemoRuntime) return;
+    try {
+      const payload = await fetchJson('/api/engagement/weekly-review', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(buildEngagementBody()),
+      });
+      setEngagementState(payload || null);
+    } catch {
+      void loadEngagementState();
+    }
+  }, [
+    buildEngagementBody,
+    currentWeekKey,
+    isDemoRuntime,
+    loadEngagementState,
+    syncLocalDisciplineLog,
+    fetchJson,
+  ]);
+
+  const recordExecution = useCallback(
+    async ({ signal, mode, action }) => {
+      const payload = {
+        signal_id: signal.signal_id,
+        signalId: signal.signal_id,
+        market: signal.market,
+        symbol: signal.symbol,
+        side: signal.direction,
+        direction: signal.direction,
+        mode,
+        action,
+        created_at: new Date().toISOString(),
+        entry: (signal.entry_zone?.low + signal.entry_zone?.high) / 2 || signal.entry_min,
+        entry_price: (signal.entry_zone?.low + signal.entry_zone?.high) / 2 || signal.entry_min,
+        tp_price: signal.take_profit_levels?.[0]?.price ?? signal.take_profit,
+        pnl_pct: action === 'DONE' ? Number(signal.quick_pnl_pct ?? 0.6) : 0,
+      };
+      if (isDemoRuntime) {
+        setExecutions((current) => [payload, ...current].slice(0, 200));
+        return;
+      }
+      try {
+        await fetchJson('/api/executions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: effectiveUserId,
+            signalId: signal.signal_id,
+            mode,
+            action,
+            note: 'Recorded from Today quick action',
+          }),
+        });
+        setRefreshNonce((current) => current + 1);
+      } catch {
+        // Keep UI resilient; failed writes are surfaced by stale state.
+      }
+    },
+    [effectiveUserId, isDemoRuntime, setExecutions, setRefreshNonce, fetchJson],
+  );
+
+  const refreshManualState = useCallback(async () => {
+    if (isDemoRuntime) {
+      setManualState(DEMO_MANUAL_STATE);
+      return DEMO_MANUAL_STATE;
+    }
+    const payload = await fetchJson(
+      `/api/manual/state?userId=${encodeURIComponent(effectiveUserId)}`,
+    );
+    setManualState(payload || null);
+    return payload || null;
+  }, [effectiveUserId, isDemoRuntime, fetchJson]);
+
+  const redeemVipDay = useCallback(
+    async (days = 1) => {
+      if (isDemoRuntime) {
+        setManualState((current) => {
+          const base = current || DEMO_MANUAL_STATE;
+          return {
+            ...base,
+            summary: {
+              ...base.summary,
+              balance: Math.max(0, Number(base.summary.balance || 0) - days * 1000),
+              vipDays: Number(base.summary.vipDays || 0) + days,
+              vipDaysRedeemed: Number(base.summary.vipDaysRedeemed || 0) + days,
+            },
+          };
+        });
+        return;
+      }
+      try {
+        const payload = await fetchJson('/api/manual/rewards/redeem', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: effectiveUserId,
+            days,
+          }),
+        });
+        if (payload?.data) setManualState(payload.data);
+        else await refreshManualState();
+      } catch {
+        await refreshManualState().catch(() => {});
+      }
+    },
+    [effectiveUserId, isDemoRuntime, refreshManualState, fetchJson],
+  );
+
+  return {
+    engagementState,
+    setEngagementState,
+    manualState,
+    discipline,
+    todayKey,
+    currentWeekKey,
+    loadEngagementState,
+    markDailyCheckin,
+    markBoundaryKept,
+    markWrapUpComplete,
+    markWeeklyReviewed,
+    recordExecution,
+    redeemVipDay,
+  };
+}

@@ -1,7 +1,7 @@
 # Nova Quant
 
 Nova Quant is an AI-native quantitative **decision** platform for US equities and crypto.
-Current app version: `10.4.1` (build `62`).
+Current app version: `10.4.2` (build `63`).
 Versioning policy: `package.json` is canonical, `src/config/version.js` is the generated runtime mirror, and release history lives in `CHANGELOG.md` / `docs/VERSIONING.md`.
 Auth supports two backends: **Postgres** (recommended for production, set `DATABASE_URL`) and **Upstash Redis** (legacy deployed path via `KV_REST_API_URL` + `KV_REST_API_TOKEN` or `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN`). Local development uses SQLite auth by default. Without any remote auth backend configured, deployed `/api/auth/*` returns `AUTH_STORE_NOT_CONFIGURED`.
 Browse search can now merge external market results into `/api/assets/search`. By default it augments local assets with the SEC company ticker universe and CoinGecko crypto search; set `ALPHA_VANTAGE_API_KEY` for broader stock / ETF lookup and `COINGECKO_DEMO_API_KEY` (or `COINGECKO_API_KEY` / `COINGECKO_PRO_API_KEY`) for higher-volume crypto search.
@@ -62,7 +62,10 @@ Runtime rules:
 
 Primary application layers:
 
-- `src/App.jsx`: mobile-first product shell and tab orchestration
+- `src/App.jsx`: thin orchestrator composing custom hooks (`useAuth`, `useAppData`, `useEngagement`, `useInvestorDemo`, `useNavigation`) and rendering the tab/top bar shell
+- `src/hooks/`: extracted state management — auth lifecycle, data loading, engagement, demo mode, navigation
+- `src/config/appConstants.js`: shared constants, locale builders, and default data shapes
+- `src/styles.css` → `src/styles/`: 12 ordered CSS modules (base → corrections) replacing the monolithic stylesheet
 - `src/server/api/app.ts`: canonical API surface for frontend + evidence + assistant (109 routes)
 - `src/server/auth/postgresStore.ts`: Postgres-backed auth store (users, sessions, roles, password resets, user state sync)
 - `src/server/auth/service.ts`: authentication service with session-scoped middleware and RBAC
