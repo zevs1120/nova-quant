@@ -1,8 +1,17 @@
 #!/usr/bin/env node
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
+import process from 'node:process';
 
-const commands = ['npm run lint', 'npm run typecheck', 'npm test', 'npm run build'];
+const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 
-for (const command of commands) {
-  execSync(command, { stdio: 'inherit' });
+const steps = [
+  ['run', 'lint'],
+  ['run', 'typecheck'],
+  ['test'],
+  ['run', 'build'],
+  ['run', 'build:landing'],
+];
+
+for (const args of steps) {
+  execFileSync(npmCmd, args, { stdio: 'inherit' });
 }

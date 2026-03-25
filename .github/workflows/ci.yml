@@ -19,6 +19,9 @@ jobs:
 
       - run: npm ci
 
+      - name: Install landing dependencies
+        run: npm ci --prefix landing
+
       - name: Lint (repo policy)
         run: npm run lint
 
@@ -33,3 +36,6 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Build Landing
+        run: npm run build:landing

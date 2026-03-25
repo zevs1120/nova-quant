@@ -14,7 +14,13 @@ All notable changes to NovaQuant are recorded here.
   - Full art-directed page (711 lines JSX, 3,125 lines hand-crafted CSS) with 8 sections: glassmorphism header, Warhol-tone hero with halftone visual patterns, interactive action card stack (5 cards with CSS-variable-driven fan layout and `is-selected` state), Marvix architecture flow diagram, Ask Nova showcase, 4-tier pricing board (Free/Lite/Pro/Ultra), FAQ accordion, first-reactions testimonials, distribution credits, and full legal footer with regulatory disclaimers.
   - 6 brand assets added: `nova-logo.png`, `ask-nova-shot.jpg`, 4 product screen captures (`today-screen.png`, `nova-screen.png`, `browse-screen.png`, `menu-screen.png`).
   - All content is data-driven (pricing plans, FAQs, action cards, testimonials defined as JS arrays), semantic HTML (`<article>`, `<section>`, `<nav>`, `<blockquote>`, `<cite>`, `<details>`), and accessible (`aria-label`, `aria-pressed`).
-  - Mobile-first responsive design with `@media` breakpoints at 600px, 900px, and 1200px.
+  - Mobile-first responsive design with layered `@media` breakpoints (e.g. 520px, 760px, 900px, 1100px, and sub-375px refinements); see follow-up fix entry below for statement fan, pricing, distribution, and motion.
+- **Fix: landing page narrow-viewport layout, distribution copy, and motion preferences (`landing/`).**
+  - **Statement / action-card fan:** `ResizeObserver` drives fit-to-width scaling; transform uses scale only (no horizontal translate drift); at ≤1100px the stack viewport goes full-bleed (`100vw`) with safe-area horizontal padding so layout math matches real device width.
+  - **Pricing:** small screens use a 2×2 board; card titles stay on one line where needed (`nowrap` / ellipsis); typography tuned per breakpoint.
+  - **Distribution:** headline and story blocks no longer clip to an overly tight `ch`-based max width on small screens; copy/lead/context use full available width. **Credits** list spans the full grid row at ≤1100px (`grid-column: 1 / -1`, `min-width: 0`, `justify-self: stretch`); at ≤900px credits switch to a **single column** so names and roles use the full content width (avoids a “one narrow column + empty grid” look next to the page background grid).
+  - **Other sections:** additional mobile passes for ribbon, proof, ask, FAQ, voices, and legal (spacing, type, touch targets where relevant).
+  - **Accessibility:** `prefers-reduced-motion: reduce` trims transitions (e.g. FAQ disclosure) for users who request reduced motion.
 - **Chore: restructure domain layout from 4-part to 5-part deployment.**
   - Root domain `novaquant.cloud` now serves the landing page; main app moves to `app.novaquant.cloud`.
   - CORS default whitelist in `src/server/api/app.ts` updated to include both `app.novaquant.cloud` (primary) and `novaquant.cloud` (backward-compatible).

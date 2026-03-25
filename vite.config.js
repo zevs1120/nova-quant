@@ -1,8 +1,13 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
+// Vitest 4+ bundles Vite 8 (oxc/rolldown); @vitejs/plugin-react 4.x still registers legacy
+// esbuild hooks and prints deprecation noise. Tests only import TS/JS (no JSX), so omit
+// the React plugin during `vitest` — keeps `vite build` / dev unchanged.
+const vitestRunning = Boolean(process.env.VITEST);
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: vitestRunning ? [] : [react()],
   test: {
     exclude: ['**/node_modules/**', 'artifacts/**', 'dist/**', 'build/**', 'coverage/**'],
   },

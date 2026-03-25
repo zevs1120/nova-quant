@@ -1,4 +1,14 @@
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
+
+/** Default / max layout width for the fanned stack (must match `.statement-stack-scaler` in styles). */
+const STATEMENT_FAN_STAGE_WIDTH_REM = 41;
+/** Do not shrink the stage below this (keeps cards from reflowing narrower than the fan layout). */
+const STATEMENT_FAN_MIN_STAGE_WIDTH_REM = 39;
+/** Visual height budget after scale (stage min-height + small lift/shadow slack). */
+const STATEMENT_FAN_STAGE_HEIGHT_REM = 42;
+const STATEMENT_FAN_VIEWPORT_PAD_PX = 8;
+/** Extra px around measured card bbox so shadows / rotation / selected scale do not clip. */
+const STATEMENT_FAN_BBOX_PAD_PX = 28;
 
 const ribbons = [
   'Signals translated',
@@ -320,6 +330,66 @@ const legalNotes = [
 
 export default function App() {
   const [activeStatementCard, setActiveStatementCard] = useState(2);
+  const statementFanViewportRef = useRef(null);
+  const statementFanScalerRef = useRef(null);
+  const statementFanStageRef = useRef(null);
+  const statementFanScaleRef = useRef(1);
+  const [statementFanScale, setStatementFanScale] = useState(1);
+  const [statementFanFitWidthPx, setStatementFanFitWidthPx] = useState(null);
+
+  useLayoutEffect(() => {
+    statementFanScaleRef.current = statementFanScale;
+  }, [statementFanScale]);
+
+  useLayoutEffect(() => {
+    const vp = statementFanViewportRef.current;
+    if (!vp || typeof ResizeObserver === 'undefined') return undefined;
+
+    const readInlineWidth = (entry) =>
+      entry.contentBoxSize && entry.contentBoxSize[0]
+        ? entry.contentBoxSize[0].inlineSize
+        : entry.contentRect.width;
+
+    const measureFitWidthPx = () => {
+      const scaler = statementFanScalerRef.current;
+      const stage = statementFanStageRef.current;
+      const rootFs = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+      const maxWpx = STATEMENT_FAN_STAGE_WIDTH_REM * rootFs;
+      const minWpx = STATEMENT_FAN_MIN_STAGE_WIDTH_REM * rootFs;
+      if (!scaler || !stage) return maxWpx;
+
+      const k = Math.max(statementFanScaleRef.current, 0.001);
+      const sRect = scaler.getBoundingClientRect();
+      const slots = stage.querySelectorAll('.statement-stack-slot');
+      let minL = Infinity;
+      let maxR = -Infinity;
+      for (const slot of slots) {
+        const r = slot.getBoundingClientRect();
+        minL = Math.min(minL, (r.left - sRect.left) / k);
+        maxR = Math.max(maxR, (r.right - sRect.left) / k);
+      }
+      if (!Number.isFinite(minL) || !Number.isFinite(maxR) || maxR <= minL) return maxWpx;
+
+      const spanPx = Math.ceil(maxR - minL + STATEMENT_FAN_BBOX_PAD_PX);
+      return Math.min(Math.max(spanPx, minWpx), maxWpx);
+    };
+
+    const apply = (inlineWidth) => {
+      const avail = Math.max(0, inlineWidth - STATEMENT_FAN_VIEWPORT_PAD_PX);
+      const fitWpx = measureFitWidthPx();
+      const nextScale = Math.min(1, avail / fitWpx);
+
+      setStatementFanFitWidthPx((prev) => (prev === fitWpx ? prev : fitWpx));
+      setStatementFanScale((prev) => (Math.abs(prev - nextScale) > 0.003 ? nextScale : prev));
+    };
+
+    const ro = new ResizeObserver((entries) => {
+      apply(readInlineWidth(entries[0]));
+    });
+    ro.observe(vp);
+    apply(vp.getBoundingClientRect().width);
+    return () => ro.disconnect();
+  }, [activeStatementCard]);
 
   return (
     <div className="world">
@@ -404,67 +474,85 @@ export default function App() {
                 className="statement-showcase-accent statement-showcase-accent-b"
                 aria-hidden="true"
               />
-              <div className="statement-stack-stage">
-                {statementActionCards.map((card, index) => (
-                  <button
-                    type="button"
-                    key={card.symbol}
-                    className={`statement-stack-slot statement-stack-slot-${card.tone}${activeStatementCard === index ? ' is-selected' : ''}`}
-                    style={{
-                      '--stack-x': card.layout.x,
-                      '--stack-y': card.layout.y,
-                      '--stack-r': card.layout.r,
-                      '--stack-z': card.layout.z,
-                      '--stack-delay': card.layout.delay,
-                    }}
-                    aria-pressed={activeStatementCard === index}
-                    onClick={() => setActiveStatementCard(index)}
-                    onFocus={() => setActiveStatementCard(index)}
-                  >
-                    <article className="statement-action-card statement-action-card-stack">
-                      <div className="statement-action-card-head">
-                        <span className="statement-action-kicker">{card.kicker}</span>
-                        <span className="statement-action-tag">{card.tag}</span>
-                      </div>
-
-                      <div className="statement-action-main">
-                        <div className="statement-action-symbol-block">
-                          <h3 className="statement-action-symbol">{card.symbol}</h3>
-                          <p className="statement-action-direction">{card.direction}</p>
-                          <p className="statement-action-meta">{card.meta}</p>
-                        </div>
-                        <span className="statement-action-mark" aria-hidden="true" />
-                      </div>
-
-                      <div className="statement-action-stats">
-                        {card.stats.map((item) => (
-                          <div className="statement-action-stat" key={item.label}>
-                            <span className="statement-action-stat-label">{item.label}</span>
-                            <span className="statement-action-stat-value">{item.value}</span>
+              <div
+                ref={statementFanViewportRef}
+                className="statement-stack-viewport"
+                style={{
+                  height: `${STATEMENT_FAN_STAGE_HEIGHT_REM * statementFanScale}rem`,
+                }}
+              >
+                <div
+                  ref={statementFanScalerRef}
+                  className="statement-stack-scaler"
+                  style={{
+                    width:
+                      statementFanFitWidthPx != null ? `${statementFanFitWidthPx}px` : undefined,
+                    transform: `scale(${statementFanScale})`,
+                  }}
+                >
+                  <div ref={statementFanStageRef} className="statement-stack-stage">
+                    {statementActionCards.map((card, index) => (
+                      <button
+                        type="button"
+                        key={card.symbol}
+                        className={`statement-stack-slot statement-stack-slot-${card.tone}${activeStatementCard === index ? ' is-selected' : ''}`}
+                        style={{
+                          '--stack-x': card.layout.x,
+                          '--stack-y': card.layout.y,
+                          '--stack-r': card.layout.r,
+                          '--stack-z': card.layout.z,
+                          '--stack-delay': card.layout.delay,
+                        }}
+                        aria-pressed={activeStatementCard === index}
+                        onClick={() => setActiveStatementCard(index)}
+                        onFocus={() => setActiveStatementCard(index)}
+                      >
+                        <article className="statement-action-card statement-action-card-stack">
+                          <div className="statement-action-card-head">
+                            <span className="statement-action-kicker">{card.kicker}</span>
+                            <span className="statement-action-tag">{card.tag}</span>
                           </div>
-                        ))}
-                      </div>
 
-                      <div className="statement-action-context-row">
-                        {card.context.map((item) => (
-                          <span className="statement-action-context-pill" key={item.label}>
-                            <span className="statement-action-context-label">{item.label}</span>
-                            <span className="statement-action-context-value">{item.value}</span>
-                          </span>
-                        ))}
-                      </div>
+                          <div className="statement-action-main">
+                            <div className="statement-action-symbol-block">
+                              <h3 className="statement-action-symbol">{card.symbol}</h3>
+                              <p className="statement-action-direction">{card.direction}</p>
+                              <p className="statement-action-meta">{card.meta}</p>
+                            </div>
+                            <span className="statement-action-mark" aria-hidden="true" />
+                          </div>
 
-                      <div className="statement-action-links">
-                        <span className="statement-action-link statement-action-link-primary">
-                          Open Robinhood
-                        </span>
-                        <span className="statement-action-link statement-action-link-secondary">
-                          Ask Nova
-                        </span>
-                      </div>
-                    </article>
-                  </button>
-                ))}
+                          <div className="statement-action-stats">
+                            {card.stats.map((item) => (
+                              <div className="statement-action-stat" key={item.label}>
+                                <span className="statement-action-stat-label">{item.label}</span>
+                                <span className="statement-action-stat-value">{item.value}</span>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="statement-action-context-row">
+                            {card.context.map((item) => (
+                              <span className="statement-action-context-pill" key={item.label}>
+                                <span className="statement-action-context-label">{item.label}</span>
+                                <span className="statement-action-context-value">{item.value}</span>
+                              </span>
+                            ))}
+                          </div>
+
+                          <div className="statement-action-links">
+                            <span className="statement-action-link statement-action-link-primary">
+                              Open Robinhood
+                            </span>
+                            <span className="statement-action-link statement-action-link-secondary">
+                              Ask Nova
+                            </span>
+                          </div>
+                        </article>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           </div>

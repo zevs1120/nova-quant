@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run build` -- Vite build to `dist/`
 - `npm run typecheck` -- `tsc --noEmit` (strict mode)
 - `npm test` -- Vitest (all tests)
-- `npm run verify` -- sequential lint + typecheck + test + build (must pass before marking work done)
+- `npm run verify` -- sequential lint + typecheck + test + build + `build:landing` (must pass before marking work done)
 - `npm run format -- <file>` -- Prettier (single file); `npm run format:check` -- check all
 
 ## Data Pipeline (first-time / after schema changes)
