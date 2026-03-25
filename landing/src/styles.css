@@ -137,6 +137,8 @@ a {
   isolation: isolate;
   overflow: hidden;
   border-radius: 999px;
+  background-clip: padding-box;
+  clip-path: inset(0 round 999px);
   border: 1px solid rgba(255, 255, 255, 0.72);
   background:
     radial-gradient(circle at 16% 8%, rgba(255, 255, 255, 0.58), transparent 28%),
@@ -157,19 +159,20 @@ a {
   position: absolute;
   inset: 0;
   pointer-events: none;
+  border-radius: inherit;
 }
 
 .site-header::before {
-  inset: -92% -12% auto;
-  height: 220%;
+  inset: -76% -8% auto;
+  height: 196%;
   background:
-    radial-gradient(circle at 12% 58%, rgba(255, 170, 118, 0.42), transparent 15%),
+    radial-gradient(circle at 14% 60%, rgba(255, 170, 118, 0.34), transparent 13%),
     radial-gradient(circle at 34% 36%, rgba(255, 255, 255, 0.44), transparent 11%),
-    radial-gradient(circle at 58% 38%, rgba(102, 194, 255, 0.38), transparent 18%),
-    radial-gradient(circle at 78% 36%, rgba(167, 136, 255, 0.24), transparent 15%),
-    radial-gradient(circle at 92% 52%, rgba(255, 102, 194, 0.34), transparent 17%);
+    radial-gradient(circle at 58% 38%, rgba(102, 194, 255, 0.34), transparent 17%),
+    radial-gradient(circle at 78% 36%, rgba(167, 136, 255, 0.22), transparent 14%),
+    radial-gradient(circle at 90% 50%, rgba(255, 102, 194, 0.28), transparent 15%);
   filter: blur(26px) saturate(1.2);
-  opacity: 0.88;
+  opacity: 0.82;
 }
 
 .site-header::after {
