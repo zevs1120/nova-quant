@@ -2,6 +2,18 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 10.4.3 (2026-03-24)
+
+- Release type: patch
+- **Feat: Today tab viewport-fit layout — single-screen, no-scroll homepage.**
+  - All Today tab content (header, climate strip, action card carousel, summary grid) now fits within a single viewport on all iPhone sizes (SE 375×667 through 14 Pro Max 430×932) without vertical scrolling.
+  - CSS-only implementation using `dvh` units and `clamp()` for proportional scaling of padding, gaps, font sizes, and component heights based on viewport height.
+  - Action card dynamically fills available space between climate strip and summary grid via `flex: 1` + `justify-content: space-between`.
+  - Summary cards (Why now / Keep in mind) pinned just above the tab bar.
+  - Stats grid forced to 3-column layout, action buttons remain side-by-side on all screen sizes.
+  - Fix `line-clamp` vendor prefix lint warnings by adding standard `line-clamp` property.
+  - Transparent main content background to eliminate visible container rectangle behind cards.
+
 ## 10.4.2 (2026-03-24)
 
 - Release type: patch

@@ -417,6 +417,7 @@ body.keyboard-open .bottom-nav {
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
+  line-clamp: 3;
 }
 
 .today-signal-rail-stats {
@@ -2327,4 +2328,228 @@ body.is-standalone .app-bg {
 
 .native-tabbar-button {
   min-height: var(--native-tabbar-height) !important;
+}
+
+/* ────────────────────────────────────────────────────────
+   Today Tab: Viewport-Fit — all content in one screen
+   ──────────────────────────────────────────────────────── */
+
+.main-content-today,
+body.is-standalone .main-content-today {
+  overflow: hidden !important;
+  padding-top: clamp(4px, 0.8dvh, 8px) !important;
+  padding-bottom: calc(var(--native-tabbar-reserve) + 2px) !important;
+  background: transparent !important;
+}
+
+.main-content-today .screen-transition {
+  height: 100% !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.today-screen-native {
+  flex: 1 1 0 !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  overflow: hidden !important;
+  gap: clamp(4px, 0.8dvh, 12px) !important;
+}
+
+.today-summary-header {
+  padding: 0 2px !important;
+  gap: clamp(2px, 0.4dvh, 8px) !important;
+  flex-shrink: 0;
+}
+
+.today-summary-date {
+  margin-bottom: clamp(1px, 0.3dvh, 6px) !important;
+  font-size: clamp(10px, 1.6dvh, 13px) !important;
+}
+
+.today-summary-title {
+  font-size: clamp(24px, 4.5dvh, 42px) !important;
+}
+
+.today-screen-flow {
+  flex: 1 1 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  gap: clamp(6px, 1dvh, 14px) !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.today-climate-strip {
+  flex-shrink: 0;
+  min-height: auto !important;
+  padding: clamp(8px, 1.4dvh, 16px) clamp(12px, 1.6dvh, 18px) !important;
+  border-radius: clamp(16px, 2.4dvh, 28px) !important;
+}
+
+.today-climate-name {
+  font-size: clamp(13px, 2dvh, 18px) !important;
+}
+
+.today-climate-line {
+  font-size: clamp(11px, 1.6dvh, 14px) !important;
+}
+
+.today-climate-pill {
+  width: clamp(18px, 3dvh, 28px) !important;
+  height: clamp(6px, 1dvh, 10px) !important;
+}
+
+.today-action-carousel {
+  flex: 1 1 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  gap: clamp(4px, 0.6dvh, 10px) !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.today-action-track {
+  flex: 1 1 0 !important;
+  min-height: 0 !important;
+}
+
+.today-action-card {
+  min-height: 0 !important;
+  height: 100% !important;
+  gap: clamp(6px, 1dvh, 14px) !important;
+  padding: clamp(10px, 1.4dvh, 18px) !important;
+  border-radius: clamp(18px, 2.8dvh, 30px) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+  overflow: hidden !important;
+}
+
+.today-action-card::after {
+  height: clamp(3px, 0.5dvh, 6px) !important;
+}
+
+.today-action-card-head {
+  flex-shrink: 0;
+}
+
+.today-action-kicker,
+.today-action-tag {
+  min-height: clamp(20px, 3dvh, 25px) !important;
+  padding: 0 clamp(6px, 1dvh, 10px) !important;
+  font-size: clamp(8px, 1.2dvh, 10px) !important;
+}
+
+.today-action-main {
+  flex-shrink: 0;
+}
+
+.today-action-symbol {
+  font-size: clamp(28px, 5dvh, 50px) !important;
+}
+
+.today-action-direction {
+  margin-top: clamp(3px, 0.6dvh, 10px) !important;
+  font-size: clamp(13px, 2dvh, 16px) !important;
+}
+
+.today-action-meta {
+  margin-top: clamp(2px, 0.4dvh, 7px) !important;
+  font-size: clamp(9px, 1.4dvh, 11px) !important;
+}
+
+.today-action-card .decision-mark {
+  width: clamp(22px, 3.4dvh, 28px) !important;
+  height: clamp(22px, 3.4dvh, 28px) !important;
+}
+
+.today-action-stats {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: clamp(4px, 0.8dvh, 10px) !important;
+  flex-shrink: 0;
+}
+
+.today-action-stat {
+  min-height: 0 !important;
+  padding: clamp(6px, 1dvh, 12px) clamp(8px, 1dvh, 12px) !important;
+  border-radius: clamp(12px, 1.8dvh, 20px) !important;
+  gap: clamp(2px, 0.4dvh, 6px) !important;
+}
+
+.today-action-stat-label {
+  font-size: clamp(8px, 1.2dvh, 10px) !important;
+}
+
+.today-action-stat-value {
+  font-size: clamp(13px, 2dvh, 16px) !important;
+}
+
+.today-action-context-row {
+  flex-shrink: 0;
+  gap: clamp(4px, 0.6dvh, 8px) !important;
+}
+
+.today-action-context-pill {
+  min-height: clamp(24px, 3.6dvh, 32px) !important;
+  padding: 0 clamp(6px, 1dvh, 11px) !important;
+}
+
+.today-action-context-label {
+  font-size: clamp(8px, 1.2dvh, 10px) !important;
+}
+
+.today-action-context-value {
+  font-size: clamp(11px, 1.6dvh, 13px) !important;
+}
+
+.today-action-links {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+  gap: clamp(4px, 0.8dvh, 10px) !important;
+  flex-shrink: 0;
+}
+
+.today-action-link {
+  min-height: clamp(34px, 5dvh, 48px) !important;
+  padding: 0 clamp(10px, 1.2dvh, 16px) !important;
+  font-size: clamp(12px, 1.8dvh, 14px) !important;
+}
+
+.today-action-dots {
+  flex-shrink: 0;
+  gap: clamp(4px, 0.6dvh, 8px) !important;
+}
+
+.today-action-dot {
+  width: clamp(6px, 1dvh, 8px) !important;
+  height: clamp(6px, 1dvh, 8px) !important;
+}
+
+.today-action-dot.is-active {
+  width: clamp(18px, 2.8dvh, 24px) !important;
+}
+
+.today-summary-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: clamp(4px, 0.8dvh, 12px) !important;
+  flex-shrink: 0;
+}
+
+.today-summary-card {
+  min-height: 0 !important;
+  padding: clamp(8px, 1.2dvh, 16px) !important;
+  border-radius: clamp(14px, 2dvh, 22px) !important;
+}
+
+.today-summary-card-label {
+  font-size: clamp(9px, 1.3dvh, 11px) !important;
+}
+
+.today-summary-card-value {
+  margin-top: clamp(4px, 0.6dvh, 12px) !important;
+  font-size: clamp(11px, 1.6dvh, 15px) !important;
+  line-height: 1.35 !important;
+  -webkit-line-clamp: 2 !important;
+  line-clamp: 2 !important;
 }
