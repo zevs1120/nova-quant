@@ -1,0 +1,446 @@
+@media (max-width: 1100px) {
+  .pricing-grid {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+  }
+
+  .pricing-copy {
+    grid-column: 1 / span 8;
+  }
+
+  .pricing-board {
+    grid-column: 1 / span 8;
+  }
+}
+
+@media (max-width: 760px) {
+  .pricing-grid {
+    row-gap: 1rem;
+  }
+}
+
+@media (max-width: 520px) {
+  .pricing-grid {
+    padding: 0.6rem 0 0;
+  }
+}
+
+@media (max-width: 1100px) {
+  .pricing-board {
+    margin-top: 1.4rem;
+  }
+}
+
+.pricing-copy .section-kicker {
+  --kicker-accent: rgba(255, 216, 63, 0.32);
+}
+
+.pricing-grid {
+  align-items: start;
+  padding: 1rem 0 0;
+  row-gap: 1.8rem;
+}
+
+.pricing-copy {
+  grid-column: 1 / span 12;
+  padding-top: 0.8rem;
+}
+
+.pricing-copy h2 {
+  max-width: none;
+  white-space: nowrap;
+}
+
+.pricing-copy .micro-intro {
+  max-width: 28rem;
+  margin-top: 1.1rem;
+}
+
+.pricing-board {
+  grid-column: 1 / span 12;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1.2rem;
+}
+
+.pricing-card {
+  --glass-accent: rgba(255, 255, 255, 0.22);
+  --glass-haze: rgba(255, 255, 255, 0.1);
+  --glass-spectral-a: rgba(102, 194, 255, 0.28);
+  --glass-spectral-b: rgba(255, 102, 194, 0.22);
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  min-height: 31rem;
+  padding: 1.45rem 1.28rem 1.24rem;
+  overflow: hidden;
+  border-radius: 1.35rem;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background:
+    radial-gradient(circle at 14% 8%, rgba(255, 255, 255, 0.58), transparent 32%),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.56),
+      rgba(245, 248, 255, 0.24) 46%,
+      rgba(236, 240, 248, 0.16)
+    ),
+    linear-gradient(135deg, var(--glass-accent), var(--glass-haze) 54%, rgba(255, 255, 255, 0.05));
+  box-shadow:
+    0 24px 48px rgba(48, 52, 74, 0.08),
+    0 2px 8px rgba(48, 52, 74, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.26);
+  backdrop-filter: blur(38px) saturate(1.18);
+  -webkit-backdrop-filter: blur(38px) saturate(1.18);
+}
+
+.pricing-card::before,
+.pricing-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.pricing-card::before {
+  inset: -82% -16% auto;
+  height: 190%;
+  background:
+    radial-gradient(circle at 14% 58%, rgba(255, 170, 118, 0.3), transparent 15%),
+    radial-gradient(circle at 38% 38%, rgba(255, 255, 255, 0.44), transparent 11%),
+    radial-gradient(circle at 70% 40%, var(--glass-spectral-a), transparent 18%),
+    radial-gradient(circle at 88% 56%, var(--glass-spectral-b), transparent 16%);
+  filter: blur(24px) saturate(1.2);
+  opacity: 0.84;
+}
+
+.pricing-card::after {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.26), rgba(255, 255, 255, 0) 32%),
+    linear-gradient(315deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0) 38%);
+  opacity: 0.8;
+}
+
+.pricing-card-mint {
+  --glass-accent: rgba(97, 217, 130, 0.18);
+  --glass-haze: rgba(244, 255, 250, 0.12);
+  --glass-spectral-a: rgba(97, 217, 130, 0.24);
+  --glass-spectral-b: rgba(70, 200, 255, 0.18);
+}
+
+.pricing-card-blue {
+  --glass-accent: rgba(70, 200, 255, 0.18);
+  --glass-haze: rgba(239, 248, 255, 0.12);
+  --glass-spectral-a: rgba(70, 200, 255, 0.24);
+  --glass-spectral-b: rgba(159, 117, 255, 0.16);
+}
+
+.pricing-card-pink {
+  --glass-accent: rgba(255, 95, 189, 0.18);
+  --glass-haze: rgba(255, 243, 251, 0.12);
+  --glass-spectral-a: rgba(255, 95, 189, 0.22);
+  --glass-spectral-b: rgba(255, 170, 118, 0.18);
+}
+
+.pricing-card-yellow {
+  --glass-accent: rgba(255, 216, 63, 0.18);
+  --glass-haze: rgba(255, 251, 239, 0.12);
+  --glass-spectral-a: rgba(255, 216, 63, 0.2);
+  --glass-spectral-b: rgba(255, 170, 118, 0.16);
+}
+
+.pricing-card-glow {
+  position: absolute;
+  inset: -18% auto auto -20%;
+  width: 13rem;
+  height: 13rem;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.42), transparent 68%);
+  filter: blur(22px);
+  pointer-events: none;
+}
+
+.pricing-card-top,
+.pricing-value,
+.pricing-includes,
+.pricing-features,
+.pricing-cta {
+  position: relative;
+  z-index: 1;
+}
+
+.pricing-plan-name,
+.pricing-plan-blurb,
+.pricing-amount,
+.pricing-cadence,
+.pricing-includes,
+.pricing-features,
+.pricing-features li {
+  margin: 0;
+}
+
+.pricing-plan-name {
+  font-family: var(--headline-font);
+  font-size: clamp(1.5rem, 1.9vw, 1.85rem);
+  font-weight: 700;
+  letter-spacing: -0.045em;
+  line-height: 1;
+}
+
+.pricing-plan-blurb {
+  max-width: none;
+  margin-top: 0.9rem;
+  color: var(--ink-soft);
+  font-size: 0.93rem;
+  line-height: 1.55;
+}
+
+.pricing-value {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  margin-top: 1.35rem;
+}
+
+.pricing-amount {
+  font-family: var(--headline-font);
+  font-size: clamp(2.9rem, 4vw, 3.7rem);
+  font-weight: 700;
+  letter-spacing: -0.06em;
+  line-height: 0.92;
+}
+
+.pricing-cadence {
+  color: rgba(18, 21, 34, 0.56);
+  font-size: 0.95rem;
+  line-height: 1.3;
+}
+
+.pricing-includes {
+  margin-top: 1.15rem;
+  color: rgba(18, 21, 34, 0.52);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.pricing-features {
+  list-style: none;
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 0.7rem;
+  padding: 0;
+  flex: 1;
+}
+
+.pricing-features li {
+  position: relative;
+  padding-left: 1rem;
+  color: var(--ink-soft);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.pricing-features li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.58rem;
+  width: 0.34rem;
+  height: 0.34rem;
+  border-radius: 999px;
+  background: #ff5fbd;
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.22);
+}
+
+.pricing-card-mint .pricing-features li::before {
+  background: #61d982;
+}
+
+.pricing-card-blue .pricing-features li::before {
+  background: #46c8ff;
+}
+
+.pricing-card-pink .pricing-features li::before {
+  background: #ff5fbd;
+}
+
+.pricing-card-yellow .pricing-features li::before {
+  background: #ffd83f;
+}
+
+.pricing-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.8rem;
+  padding: 0.7rem 1rem;
+  border-radius: 999px;
+  margin-top: 1.2rem;
+  background: rgba(5, 7, 12, 0.96);
+  color: white;
+  font-size: 0.92rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+@media (max-width: 1100px) {
+  .pricing-board {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .pricing-board {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: clamp(0.65rem, 3vw, 1rem);
+    width: 100%;
+    max-width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    overflow: visible;
+    padding: 0.1rem 0 0.35rem;
+  }
+
+  .pricing-copy h2 {
+    white-space: normal;
+    text-wrap: balance;
+  }
+
+  .pricing-card {
+    width: 100%;
+    min-width: 0;
+    min-height: clamp(17.5rem, 72vw, 26rem);
+    padding: clamp(0.82rem, 3.4vw, 1.2rem) clamp(0.72rem, 3vw, 1.1rem) clamp(0.78rem, 3vw, 1.05rem);
+    border-radius: clamp(1rem, 3.5vw, 1.25rem);
+  }
+
+  .pricing-card-top {
+    min-width: 0;
+  }
+
+  .pricing-plan-name {
+    font-size: clamp(1.05rem, 4.1vw, 1.42rem);
+    white-space: nowrap;
+  }
+
+  .pricing-plan-blurb {
+    margin-top: clamp(0.45rem, 2vw, 0.72rem);
+    font-size: clamp(0.72rem, 3.1vw, 0.9rem);
+    line-height: 1.45;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .pricing-value {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: baseline;
+    gap: 0.25rem;
+    margin-top: clamp(0.65rem, 2.6vw, 1.1rem);
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .pricing-amount {
+    flex: 0 1 auto;
+    min-width: 0;
+    font-size: clamp(1.65rem, 8.2vw, 2.85rem);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .pricing-cadence {
+    flex: 0 0 auto;
+    font-size: clamp(0.78rem, 3vw, 0.92rem);
+    white-space: nowrap;
+  }
+
+  .pricing-includes {
+    margin-top: clamp(0.65rem, 2.5vw, 1rem);
+    font-size: clamp(0.62rem, 2.4vw, 0.74rem);
+    white-space: nowrap;
+  }
+
+  .pricing-features {
+    gap: clamp(0.28rem, 1.8vw, 0.42rem);
+    margin-top: clamp(0.45rem, 2vw, 0.65rem);
+    min-width: 0;
+  }
+
+  .pricing-features li {
+    padding-left: clamp(0.78rem, 3vw, 1rem);
+    font-size: clamp(0.68rem, 2.85vw, 0.88rem);
+    line-height: 1.25;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .pricing-features li::before {
+    top: 50%;
+    transform: translateY(-50%);
+    width: clamp(0.26rem, 1.1vw, 0.34rem);
+    height: clamp(0.26rem, 1.1vw, 0.34rem);
+  }
+
+  .pricing-cta {
+    min-height: clamp(2.35rem, 10vw, 2.65rem);
+    margin-top: clamp(0.75rem, 3vw, 1.05rem);
+    padding: clamp(0.55rem, 2.2vw, 0.7rem) clamp(0.65rem, 2.8vw, 1rem);
+    font-size: clamp(0.76rem, 3.1vw, 0.92rem);
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: center;
+  }
+}
+
+@media (max-width: 520px) {
+  .pricing-card {
+    min-height: clamp(16.5rem, 70vw, 25rem);
+  }
+}
+
+@media (max-width: 375px) {
+  .pricing-board {
+    gap: clamp(0.55rem, 2.8vw, 0.85rem);
+  }
+
+  .pricing-card {
+    min-height: clamp(15.5rem, 68vw, 23rem);
+    padding: clamp(0.72rem, 3.2vw, 1.05rem) clamp(0.62rem, 2.8vw, 0.95rem)
+      clamp(0.68rem, 3vw, 0.95rem);
+  }
+
+  .pricing-plan-name {
+    font-size: clamp(0.98rem, 4.4vw, 1.28rem);
+  }
+
+  .pricing-plan-blurb {
+    font-size: clamp(0.68rem, 3.2vw, 0.82rem);
+  }
+
+  .pricing-amount {
+    font-size: clamp(1.45rem, 7.8vw, 2.2rem);
+  }
+
+  .pricing-cadence {
+    font-size: clamp(0.72rem, 3vw, 0.86rem);
+  }
+
+  .pricing-features li {
+    font-size: clamp(0.64rem, 2.9vw, 0.82rem);
+    line-height: 1.36;
+  }
+
+  .pricing-cta {
+    min-height: clamp(2.2rem, 10vw, 2.45rem);
+    font-size: clamp(0.72rem, 3vw, 0.84rem);
+  }
+}

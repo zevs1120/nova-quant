@@ -1,0 +1,360 @@
+@media (max-width: 1100px) {
+  .proof-grid {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+  }
+
+  .proof-intro {
+    grid-column: 1 / span 8;
+  }
+
+  .proof-flow {
+    grid-column: 1 / span 8;
+  }
+}
+
+@media (max-width: 760px) {
+  .proof-intro .micro-intro {
+    max-width: 22rem;
+  }
+}
+
+.proof-intro .section-kicker {
+  --kicker-accent: rgba(97, 217, 130, 0.28);
+}
+
+.mosaic-fragment,
+.proof-shot {
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.84);
+  box-shadow: var(--shadow);
+}
+
+.mosaic-fragment img,
+.proof-shot img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+}
+
+.proof-grid {
+  align-items: start;
+}
+
+.proof-spread::before {
+  display: none;
+}
+
+.proof-intro {
+  grid-column: 1 / span 12;
+  padding-top: 0.8rem;
+}
+
+.proof-intro h2 {
+  max-width: none;
+  white-space: nowrap;
+  font-size: clamp(3rem, 5.7vw, 5.4rem);
+}
+
+.proof-intro .micro-intro {
+  max-width: 34rem;
+  margin-top: 1.1rem;
+}
+
+.proof-flow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem 0.95rem;
+  width: min(100%, 100%);
+  margin-top: 2rem;
+}
+
+.proof-flow-step {
+  display: grid;
+  justify-items: stretch;
+}
+
+.proof-node {
+  --proof-glow: rgba(255, 255, 255, 0.48);
+  --proof-tint: rgba(255, 255, 255, 0.18);
+  --proof-spectrum-a: rgba(102, 194, 255, 0.34);
+  --proof-spectrum-b: rgba(255, 102, 194, 0.26);
+  width: 100%;
+  min-height: 100%;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  padding: 1rem 1.05rem 1.08rem;
+  border-radius: 1.35rem;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  background:
+    radial-gradient(circle at 16% 8%, rgba(255, 255, 255, 0.56), transparent 32%),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.58),
+      rgba(245, 248, 255, 0.24) 48%,
+      rgba(236, 240, 249, 0.16)
+    ),
+    linear-gradient(
+      135deg,
+      var(--proof-tint),
+      rgba(255, 255, 255, 0.12) 54%,
+      rgba(255, 255, 255, 0.05)
+    );
+  box-shadow:
+    0 22px 46px rgba(58, 64, 91, 0.08),
+    0 2px 8px rgba(58, 64, 91, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.26);
+  backdrop-filter: blur(34px) saturate(1.18);
+  -webkit-backdrop-filter: blur(34px) saturate(1.18);
+}
+
+.proof-node::before,
+.proof-node::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.proof-node::before {
+  inset: -85% -16% auto;
+  height: 195%;
+  background:
+    radial-gradient(circle at 16% 54%, var(--proof-glow), transparent 16%),
+    radial-gradient(circle at 38% 38%, rgba(255, 255, 255, 0.44), transparent 12%),
+    radial-gradient(circle at 68% 42%, var(--proof-spectrum-a), transparent 18%),
+    radial-gradient(circle at 88% 58%, var(--proof-spectrum-b), transparent 16%);
+  filter: blur(24px) saturate(1.22);
+  opacity: 0.84;
+}
+
+.proof-node::after {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0) 32%),
+    linear-gradient(315deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0) 36%);
+  opacity: 0.8;
+}
+
+.proof-node-mint {
+  --proof-glow: rgba(97, 217, 130, 0.34);
+  --proof-tint: rgba(97, 217, 130, 0.14);
+  --proof-spectrum-a: rgba(97, 217, 130, 0.26);
+  --proof-spectrum-b: rgba(70, 200, 255, 0.22);
+}
+
+.proof-node-blue {
+  --proof-glow: rgba(70, 200, 255, 0.34);
+  --proof-tint: rgba(70, 200, 255, 0.14);
+  --proof-spectrum-a: rgba(70, 200, 255, 0.3);
+  --proof-spectrum-b: rgba(159, 117, 255, 0.2);
+}
+
+.proof-node-pink {
+  --proof-glow: rgba(255, 95, 189, 0.32);
+  --proof-tint: rgba(255, 95, 189, 0.14);
+  --proof-spectrum-a: rgba(255, 95, 189, 0.26);
+  --proof-spectrum-b: rgba(255, 178, 132, 0.24);
+}
+
+.proof-node-violet {
+  --proof-glow: rgba(159, 117, 255, 0.3);
+  --proof-tint: rgba(159, 117, 255, 0.14);
+  --proof-spectrum-a: rgba(159, 117, 255, 0.24);
+  --proof-spectrum-b: rgba(70, 200, 255, 0.22);
+}
+
+.proof-node-yellow {
+  --proof-glow: rgba(255, 216, 63, 0.28);
+  --proof-tint: rgba(255, 216, 63, 0.14);
+  --proof-spectrum-a: rgba(255, 216, 63, 0.22);
+  --proof-spectrum-b: rgba(255, 178, 132, 0.24);
+}
+
+.proof-node-ink {
+  --proof-glow: rgba(255, 255, 255, 0.36);
+  --proof-tint: rgba(214, 222, 248, 0.18);
+  --proof-spectrum-a: rgba(167, 136, 255, 0.18);
+  --proof-spectrum-b: rgba(102, 194, 255, 0.18);
+}
+
+.proof-node-kicker,
+.proof-node h3,
+.proof-node-pill {
+  margin: 0;
+}
+
+.proof-node-kicker {
+  position: relative;
+  z-index: 1;
+  color: rgba(18, 21, 34, 0.46);
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.proof-node h3 {
+  position: relative;
+  z-index: 1;
+  margin-top: 0.42rem;
+  color: rgba(18, 21, 34, 0.96);
+  font-family: var(--headline-font);
+  font-size: clamp(1.4rem, 2vw, 1.85rem);
+  font-weight: 700;
+  letter-spacing: -0.045em;
+  line-height: 1.02;
+}
+
+.proof-node-pills {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.92rem;
+}
+
+.proof-node-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0 0.72rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.44);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.48),
+    inset 0 1px 0 rgba(255, 255, 255, 0.78);
+  color: rgba(18, 21, 34, 0.74);
+  font-size: 0.8rem;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  line-height: 1.12;
+}
+
+.proof-flow-arrow {
+  display: none;
+}
+
+.proof-flow-line {
+  width: 1px;
+  height: 1.4rem;
+  background: linear-gradient(180deg, rgba(18, 21, 34, 0.18), rgba(18, 21, 34, 0.04));
+}
+
+.proof-flow-head {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-right: 1px solid rgba(18, 21, 34, 0.28);
+  border-bottom: 1px solid rgba(18, 21, 34, 0.28);
+  transform: rotate(45deg) translateY(-0.18rem);
+}
+
+@media (max-width: 1100px) {
+  .proof-flow {
+    margin-top: 1.4rem;
+  }
+
+  .proof-intro h2 {
+    white-space: normal;
+    text-wrap: balance;
+  }
+
+  .proof-flow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+}
+
+@media (max-width: 760px) {
+  .proof-intro h2 {
+    text-wrap: balance;
+  }
+
+  .proof-flow {
+    margin-top: 1.15rem;
+    gap: 0.72rem;
+  }
+
+  .proof-node {
+    border-radius: 1.12rem;
+  }
+
+  .proof-node h3 {
+    font-size: clamp(1.08rem, 4.1vw, 1.28rem);
+    white-space: normal;
+    text-wrap: balance;
+  }
+
+  .proof-node-pill {
+    max-width: 100%;
+    min-width: 0;
+    min-height: 1.86rem;
+    font-size: clamp(0.68rem, 2.8vw, 0.74rem);
+    overflow-wrap: anywhere;
+  }
+
+  .proof-node-pills {
+    min-width: 0;
+  }
+
+  .proof-flow {
+    grid-template-columns: 1fr;
+    gap: 0.42rem;
+  }
+
+  .proof-flow-arrow {
+    display: grid;
+    justify-items: center;
+    gap: 0;
+    padding: 0.28rem 0 0.18rem;
+  }
+}
+
+@media (max-width: 520px) {
+  .proof-node {
+    padding: 0.9rem 0.92rem 0.95rem;
+  }
+
+  .proof-node-pills {
+    gap: 0.42rem;
+  }
+
+  .proof-node-pill {
+    min-height: 1.9rem;
+    padding: 0 0.62rem;
+    font-size: 0.76rem;
+  }
+}
+
+@media (max-width: 375px) {
+  .proof-intro .micro-intro {
+    max-width: 19rem;
+    font-size: 0.92rem;
+  }
+
+  .proof-intro h2 {
+    font-size: clamp(2rem, 9vw, 3rem);
+  }
+
+  .proof-node {
+    padding: 0.82rem 0.82rem 0.88rem;
+    border-radius: 1rem;
+  }
+
+  .proof-node h3 {
+    font-size: 1.15rem;
+  }
+
+  .proof-node-pill {
+    min-height: 1.72rem;
+    padding: 0 0.52rem;
+    font-size: 0.7rem;
+  }
+
+  .proof-node-pills {
+    gap: 0.36rem;
+    margin-top: 0.72rem;
+  }
+}

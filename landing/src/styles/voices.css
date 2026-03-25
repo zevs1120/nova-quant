@@ -1,0 +1,483 @@
+@media (max-width: 520px) {
+  .voices-title-block::before,
+  .voices-title-block::after {
+    font-size: clamp(1.6rem, 5vw, 2rem);
+  }
+
+  .voices-spread::before {
+    width: 4.5rem;
+    height: 2.2rem;
+    opacity: 0.42;
+  }
+}
+
+@media (max-width: 1100px) {
+  .voices-grid {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+  }
+
+  .voices-title-block {
+    grid-column: 1 / span 8;
+  }
+}
+
+.voices-link:hover {
+  transform: translateY(-1px);
+}
+
+.voices-spread {
+  overflow: visible;
+  position: relative;
+  border-radius: 0;
+  border: 0;
+  background: none;
+}
+
+.voices-spread::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 4.6rem;
+  width: 11rem;
+  height: 5rem;
+  background: #ff5fbd;
+  opacity: 0.82;
+  pointer-events: none;
+}
+
+.voices-spread::after {
+  content: '';
+  position: absolute;
+  right: 1%;
+  top: 4.8rem;
+  width: 15rem;
+  height: 7rem;
+  pointer-events: none;
+  background: #61d982;
+  opacity: 0.78;
+}
+
+.voices-grid {
+  position: relative;
+  z-index: 1;
+  padding: 1.2rem 0 0;
+  align-items: start;
+  row-gap: 1.7rem;
+}
+
+.voices-grid::before,
+.voices-grid::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+}
+
+.voices-grid::before {
+  left: 58%;
+  top: 13.6rem;
+  width: 9rem;
+  height: 5.2rem;
+  background:
+    linear-gradient(rgba(18, 21, 34, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(18, 21, 34, 0.12) 1px, transparent 1px), #46c8ff;
+  background-size:
+    12px 12px,
+    12px 12px,
+    auto;
+}
+
+.voices-grid::after {
+  right: 12%;
+  bottom: 4.6rem;
+  width: 7rem;
+  height: 3.3rem;
+  background:
+    linear-gradient(rgba(18, 21, 34, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(18, 21, 34, 0.12) 1px, transparent 1px), #ffd83f;
+  background-size:
+    12px 12px,
+    12px 12px,
+    auto;
+}
+
+.voices-title-block,
+.voice-card {
+  margin: 0;
+}
+
+.voices-title-block {
+  grid-column: 5 / span 4;
+  grid-row: 1;
+  align-self: start;
+  position: relative;
+  z-index: 2;
+  padding-top: 0.8rem;
+}
+
+.voices-title-block::before,
+.voices-title-block::after {
+  position: absolute;
+  font-family: var(--headline-font);
+  font-size: clamp(2rem, 3.4vw, 2.8rem);
+  line-height: 1;
+}
+
+.voices-title-block::before {
+  content: '“';
+  left: -1.7rem;
+  top: -0.2rem;
+  color: #ff5fbd;
+}
+
+.voices-title-block::after {
+  content: '”';
+  right: -1.1rem;
+  bottom: 0;
+  color: #4b7dff;
+}
+
+.voices-kicker {
+  margin: 0 0 0.8rem;
+  display: inline-block;
+  position: relative;
+  z-index: 1;
+  padding: 0 0.12rem 0.06rem;
+  color: rgba(18, 21, 34, 0.62);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.voices-kicker::after {
+  content: '';
+  position: absolute;
+  left: -0.08rem;
+  right: -0.08rem;
+  bottom: 0;
+  height: 0.54rem;
+  background: rgba(255, 95, 196, 0.24);
+  z-index: -1;
+}
+
+.voices-title {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.08em;
+  color: #121522;
+  font-size: clamp(3.15rem, 6vw, 4.85rem);
+  line-height: 0.88;
+  max-width: 8.8ch;
+}
+
+.voices-title span {
+  display: inline-block;
+  padding: 0.05em 0.12em 0.08em;
+  border-radius: 0;
+  box-shadow: 6px 6px 0 rgba(18, 21, 34, 0.06);
+}
+
+.voices-title span:nth-child(1) {
+  background: #ffd83f;
+}
+
+.voices-title span:nth-child(2) {
+  background: #ff7bcb;
+}
+
+.voice-card {
+  padding: 1rem 1rem 1.05rem;
+  border-radius: 1rem;
+  border: 1px solid var(--card-line);
+  box-shadow: 6px 6px 0 rgba(18, 21, 34, 0.05);
+  color: var(--ink);
+  position: relative;
+  z-index: 1;
+}
+
+.voice-card::before {
+  content: '';
+  display: block;
+  width: 1rem;
+  height: 0.2rem;
+  margin-bottom: 0.8rem;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.voice-card p {
+  margin: 0;
+  max-width: none;
+  font-size: clamp(0.98rem, 1.1vw, 1.16rem);
+  line-height: 1.34;
+}
+
+.voice-card cite {
+  display: block;
+  margin-top: 0.85rem;
+  color: rgba(18, 21, 34, 0.55);
+  font-style: normal;
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.voice-card-a {
+  grid-column: 1 / span 3;
+  grid-row: 1;
+  background:
+    linear-gradient(rgba(18, 21, 34, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(18, 21, 34, 0.08) 1px, transparent 1px), #fff4cf;
+  background-size:
+    12px 12px,
+    12px 12px,
+    auto;
+  transform: translateY(0.4rem);
+}
+
+.voice-card-b {
+  grid-column: 10 / span 3;
+  grid-row: 1;
+  background: #def0ff;
+}
+
+.voice-card-c {
+  grid-column: 1 / span 3;
+  grid-row: 2;
+  background: #ffe0f3;
+}
+
+.voice-card-d {
+  grid-column: 5 / span 3;
+  grid-row: 2;
+  background: #edf0ff;
+  transform: translateY(0);
+}
+
+.voice-card-e {
+  grid-column: 8 / span 5;
+  grid-row: 2;
+  background:
+    linear-gradient(rgba(18, 21, 34, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(18, 21, 34, 0.08) 1px, transparent 1px), #dcffd9;
+  background-size:
+    12px 12px,
+    12px 12px,
+    auto;
+}
+
+.voices-note {
+  grid-column: 3 / span 8;
+  margin: 0.6rem 0 0;
+  color: rgba(18, 21, 34, 0.5);
+  font-size: 0.84rem;
+  text-align: center;
+}
+
+.voices-link {
+  grid-column: 4 / span 6;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 3.8rem;
+  margin-top: 0.25rem;
+  padding: 0.9rem 1.4rem;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: clamp(1.05rem, 1.55vw, 1.45rem);
+  background: #05070c;
+  color: white;
+  box-shadow:
+    0 16px 30px rgba(5, 7, 12, 0.18),
+    0 0 0 1px rgba(255, 95, 189, 0.12);
+}
+
+.voices-link::after {
+  content: '→';
+  font-size: 1.3em;
+  line-height: 1;
+}
+
+@media (max-width: 1100px) {
+  .voice-card,
+  .voices-note,
+  .voices-link {
+    grid-column: 1 / span 8;
+    grid-row: auto;
+  }
+
+  .voices-title-block {
+    margin-bottom: 0.9rem;
+  }
+
+  .voices-title {
+    font-size: clamp(3rem, 9vw, 4.9rem);
+  }
+
+  .voice-card {
+    transform: none;
+  }
+
+  .voice-card p {
+    max-width: 30rem;
+  }
+
+  .voices-note,
+  .voices-link {
+    grid-column: 2 / span 6;
+  }
+}
+
+@media (max-width: 760px) {
+  .voices-grid {
+    padding: 0.9rem 0 0;
+    row-gap: 1.05rem;
+  }
+
+  .voices-spread::before {
+    width: 6.5rem;
+    height: 3rem;
+    opacity: 0.55;
+  }
+
+  .voices-grid::before {
+    left: auto;
+    right: -1rem;
+    top: 12.7rem;
+    width: 8rem;
+    height: 4.5rem;
+  }
+
+  .voices-grid::after {
+    right: 1rem;
+    bottom: 5.4rem;
+    width: 6.2rem;
+    height: 3rem;
+  }
+
+  .voice-card {
+    padding: 0.95rem 0.95rem 1rem;
+  }
+
+  .voices-note,
+  .voices-link {
+    grid-column: 1 / span 8;
+  }
+
+  .voices-title {
+    font-size: clamp(2.45rem, 11vw, 3.55rem);
+  }
+
+  .voice-card p {
+    font-size: clamp(0.88rem, 3.5vw, 1rem);
+    line-height: 1.34;
+    text-wrap: balance;
+  }
+
+  .voices-link {
+    min-height: 3.35rem;
+    font-size: 1.05rem;
+  }
+
+  .voices-spread::after {
+    width: 8rem;
+    height: 4rem;
+    opacity: 0.52;
+  }
+}
+
+@media (max-width: 520px) {
+  .voices-link {
+    width: 100%;
+  }
+
+  .voices-link {
+    justify-content: space-between;
+  }
+
+  .voices-title {
+    font-size: clamp(2.4rem, 12vw, 3.55rem);
+  }
+
+  .voices-title-block::before {
+    left: -0.7rem;
+    top: -0.6rem;
+  }
+
+  .voices-title-block::after {
+    right: -0.2rem;
+    bottom: -0.5rem;
+  }
+
+  .voices-kicker,
+  .voices-note {
+    text-align: left;
+  }
+
+  .voices-spread::after {
+    width: 5.5rem;
+    height: 2.8rem;
+    opacity: 0.4;
+  }
+
+  .voices-grid::before {
+    width: 5.5rem;
+    height: 3rem;
+  }
+
+  .voices-grid::after {
+    width: 4.5rem;
+    height: 2.4rem;
+  }
+}
+
+@media (max-width: 375px) {
+  .voices-title {
+    font-size: clamp(2.15rem, 11.5vw, 3.2rem);
+  }
+
+  .voice-card {
+    padding: 0.85rem 0.85rem 0.9rem;
+    border-radius: 0.85rem;
+  }
+
+  .voice-card p {
+    font-size: 0.92rem;
+    line-height: 1.3;
+  }
+
+  .voice-card cite {
+    margin-top: 0.72rem;
+    font-size: 0.72rem;
+  }
+
+  .voices-link {
+    min-height: 3.15rem;
+    padding: 0.78rem 1.15rem;
+    font-size: 0.98rem;
+  }
+
+  .voices-spread::before {
+    width: 3.5rem;
+    height: 1.8rem;
+    opacity: 0.35;
+  }
+
+  .voices-spread::after {
+    width: 4.2rem;
+    height: 2.2rem;
+    opacity: 0.32;
+  }
+
+  .voices-grid::before {
+    width: 4rem;
+    height: 2.4rem;
+  }
+
+  .voices-grid::after {
+    width: 3.5rem;
+    height: 1.8rem;
+  }
+}

@@ -2,6 +2,18 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 10.5.1 (2026-03-25)
+
+- Release type: patch
+- **Refactor: decompose monolithic landing page into maintainable component architecture.**
+  - `App.jsx` reduced from 804 lines to 44 lines — now a pure orchestrator composing 10 section components via props.
+  - New `data/index.js` (299 lines): all 7 content arrays (pricing plans, FAQs, action cards, testimonials, credits, legal) extracted as named exports.
+  - New `hooks/useStatementFan.js` (86 lines): ResizeObserver-driven card fan scaling extracted as a reusable hook.
+  - New `components/` directory: `Header`, `HeroSection`, `StatementSection`, `ProofSection`, `AskSection`, `PricingSection`, `FaqSection`, `VoicesSection`, `DistributionSection`, `LegalFooter`.
+  - `styles.css` (3,697 lines) split into 12 ordered CSS modules under `styles/` (base, header, hero, statement, proof, ask, pricing, faq, voices, distribution, legal, animations); each section's responsive `@media` rules co-located with its styles.
+  - `styles.css` replaced with 12-line `@import` hub, matching the main app's CSS architecture pattern.
+  - Zero visual regression: build output CSS 52.70 KB, JS 164.08 KB, build time unchanged.
+
 ## 10.5.0 (2026-03-25)
 
 - Release type: minor
