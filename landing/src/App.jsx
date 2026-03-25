@@ -330,11 +330,7 @@ export default function App() {
       <header className="site-header-shell">
         <div className="site-header">
           <a className="site-brand" href="#top" aria-label="NovaQuant home">
-            <img
-              className="site-brand-logo"
-              src="/brand-assets/nova-logo.png"
-              alt="NovaQuant"
-            />
+            <img className="site-brand-logo" src="/brand-assets/nova-logo.png" alt="NovaQuant" />
           </a>
 
           <nav className="site-nav" aria-label="Primary">
@@ -369,9 +365,9 @@ export default function App() {
                 <span className="hero-title-bottom">differently.</span>
               </h1>
               <p className="micro-intro">
-                NovaQuant turns market complexity into clear daily intelligence, powered
-                by Marvix, our in-house AI model built to surface what matters and help
-                you act with more clarity.
+                NovaQuant turns market complexity into clear daily intelligence, powered by Marvix,
+                our in-house AI model built to surface what matters and help you act with more
+                clarity.
               </p>
 
               <div className="hero-actions">
@@ -393,16 +389,21 @@ export default function App() {
                 Less friction.
               </h2>
               <p className="micro-intro">
-                NovaQuant is designed to help you see what matters faster - without the
-                clutter, density, and friction of traditional trading interfaces. It
-                replaces noise with clarity, so the market feels easier to read and
-                easier to act on.
+                NovaQuant is designed to help you see what matters faster - without the clutter,
+                density, and friction of traditional trading interfaces. It replaces noise with
+                clarity, so the market feels easier to read and easier to act on.
               </p>
             </div>
 
             <div className="statement-showcase" aria-label="NovaQuant action card stack">
-              <div className="statement-showcase-accent statement-showcase-accent-a" aria-hidden="true" />
-              <div className="statement-showcase-accent statement-showcase-accent-b" aria-hidden="true" />
+              <div
+                className="statement-showcase-accent statement-showcase-accent-a"
+                aria-hidden="true"
+              />
+              <div
+                className="statement-showcase-accent statement-showcase-accent-b"
+                aria-hidden="true"
+              />
               <div className="statement-stack-stage">
                 {statementActionCards.map((card, index) => (
                   <button
@@ -483,14 +484,17 @@ export default function App() {
               <p className="section-kicker">AI-powered backend</p>
               <h2>Marvix does the heavy lifting.</h2>
               <p className="micro-intro">
-                The intelligence lives behind the surface. The user meets the result, not the burden.
+                The intelligence lives behind the surface. The user meets the result, not the
+                burden.
               </p>
 
               <div className="proof-flow" aria-label="NovaQuant product architecture">
                 {architectureSteps.map((step, index) => (
                   <div className="proof-flow-step" key={step.title}>
                     <article className={`proof-node proof-node-${step.tone}`}>
-                      <p className="proof-node-kicker">Layer {String(index + 1).padStart(2, '0')}</p>
+                      <p className="proof-node-kicker">
+                        Layer {String(index + 1).padStart(2, '0')}
+                      </p>
                       <h3>{step.title}</h3>
                       <div className="proof-node-pills">
                         {step.items.map((item) => (
@@ -524,9 +528,9 @@ export default function App() {
                 Nova in.
               </h2>
               <p className="micro-intro">
-                Ask Nova is built for the moments when you do not want more charts, tabs,
-                or jargon - just a smart answer. Ask about setups, sentiment, momentum,
-                risk, or what deserves attention now, and get a response you can actually use.
+                Ask Nova is built for the moments when you do not want more charts, tabs, or jargon
+                - just a smart answer. Ask about setups, sentiment, momentum, risk, or what deserves
+                attention now, and get a response you can actually use.
               </p>
 
               <ul className="ask-bullets" aria-label="Ask Nova highlights">
@@ -655,8 +659,8 @@ export default function App() {
             </div>
 
             <p className="distribution-closing">
-              Founded in 2026, NovaQuant began as a search for a calmer, sharper way to
-              read the market — and still carries that spirit in everything it is.
+              Founded in 2026, NovaQuant began as a search for a calmer, sharper way to read the
+              market — and still carries that spirit in everything it is.
             </p>
           </div>
         </section>

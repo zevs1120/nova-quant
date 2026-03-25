@@ -52,13 +52,15 @@ async function listResendDomains(apiKey: string) {
   return {
     ok: response.ok,
     status: response.status,
-    body: parsed as ({ data?: ResendDomain[]; message?: string; name?: string } | null),
+    body: parsed as { data?: ResendDomain[]; message?: string; name?: string } | null,
     raw,
   };
 }
 
 async function sendProbeEmail(apiKey: string, from: string) {
-  const probeTo = String(process.env.RESEND_DOCTOR_PROBE_TO || 'delivered+doctor@resend.dev').trim();
+  const probeTo = String(
+    process.env.RESEND_DOCTOR_PROBE_TO || 'delivered+doctor@resend.dev',
+  ).trim();
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
@@ -111,9 +113,13 @@ async function main() {
 
   if (!config.configured) {
     printSection('Diagnosis');
-    console.log('- Signup success emails are currently skipped before NovaQuant even calls Resend.');
+    console.log(
+      '- Signup success emails are currently skipped before NovaQuant even calls Resend.',
+    );
     console.log(`- Missing items: ${config.missing.join(', ')}`);
-    console.log('- Fix the missing values in your runtime env or `.env`, then run this doctor again.');
+    console.log(
+      '- Fix the missing values in your runtime env or `.env`, then run this doctor again.',
+    );
     process.exitCode = 1;
     return;
   }
@@ -128,21 +134,29 @@ async function main() {
     const probeResponse = await sendProbeEmail(resendApiKey, config.from || '');
     console.log(`- Probe recipient: ${probeResponse.probeTo}`);
     console.log(`- Probe result: HTTP ${probeResponse.status}`);
-    console.log(`- Probe response: ${probeResponse.raw || probeResponse.body?.message || 'empty response'}`);
+    console.log(
+      `- Probe response: ${probeResponse.raw || probeResponse.body?.message || 'empty response'}`,
+    );
     if (
       probeResponse.status === 403 &&
       String(probeResponse.body?.message || probeResponse.raw || '')
         .toLowerCase()
         .includes('domain is not verified')
     ) {
-      console.log('- Diagnosis: your Resend API key works, but the sender domain is not verified yet.');
-      console.log('- Go to the Resend dashboard, add this domain, publish the DNS records it gives you, and wait until the domain shows as verified.');
+      console.log(
+        '- Diagnosis: your Resend API key works, but the sender domain is not verified yet.',
+      );
+      console.log(
+        '- Go to the Resend dashboard, add this domain, publish the DNS records it gives you, and wait until the domain shows as verified.',
+      );
       process.exitCode = 1;
       return true;
     }
     if (probeResponse.ok) {
       console.log('- Diagnosis: Resend accepted a live send probe from the current sender.');
-      console.log('- If real users still do not receive mail, check the Resend Emails/Logs pages for delivery outcomes.');
+      console.log(
+        '- If real users still do not receive mail, check the Resend Emails/Logs pages for delivery outcomes.',
+      );
       return true;
     }
     process.exitCode = 1;
@@ -150,9 +164,7 @@ async function main() {
   };
 
   printSection('Resend domains');
-  let domainResponse:
-    | Awaited<ReturnType<typeof listResendDomains>>
-    | null = null;
+  let domainResponse: Awaited<ReturnType<typeof listResendDomains>> | null = null;
   try {
     domainResponse = await listResendDomains(resendApiKey);
   } catch (error) {
@@ -164,17 +176,23 @@ async function main() {
       return false;
     });
     if (!handled) {
-      console.log('- This looks like a temporary network issue between this machine and api.resend.com. Please retry in a minute.');
+      console.log(
+        '- This looks like a temporary network issue between this machine and api.resend.com. Please retry in a minute.',
+      );
       process.exitCode = 1;
     }
     return;
   }
   if (!domainResponse.ok) {
     console.log(`- Could not query Resend domains API (HTTP ${domainResponse.status}).`);
-    console.log(`- Response: ${domainResponse.raw || domainResponse.body?.message || 'empty response'}`);
+    console.log(
+      `- Response: ${domainResponse.raw || domainResponse.body?.message || 'empty response'}`,
+    );
     if (
       domainResponse.status === 401 &&
-      String(domainResponse.body?.name || '').trim().toLowerCase() === 'restricted_api_key'
+      String(domainResponse.body?.name || '')
+        .trim()
+        .toLowerCase() === 'restricted_api_key'
     ) {
       const handled = await runRestrictedKeyProbe(
         'This key can send email but cannot list domains, so running a send probe instead.',
@@ -190,13 +208,17 @@ async function main() {
   const domains = Array.isArray(domainResponse.body?.data) ? domainResponse.body.data : [];
   if (domains.length === 0) {
     console.log('- Resend API is reachable, but this account has no domains yet.');
-    console.log('- Add your domain in Resend, publish the DNS records, and wait until the status is `verified`.');
+    console.log(
+      '- Add your domain in Resend, publish the DNS records, and wait until the status is `verified`.',
+    );
     process.exitCode = 1;
     return;
   }
 
   const normalizedFromDomain = normalizeDomain(config.fromDomain || '');
-  const exactMatch = domains.find((domain) => normalizeDomain(domain.name || '') === normalizedFromDomain);
+  const exactMatch = domains.find(
+    (domain) => normalizeDomain(domain.name || '') === normalizedFromDomain,
+  );
   const nearbyMatches = domains.filter((domain) => {
     const domainName = normalizeDomain(domain.name || '');
     return domainName && normalizedFromDomain.endsWith(`.${domainName}`);
@@ -215,7 +237,10 @@ async function main() {
     );
     if (nearbyMatches.length > 0) {
       console.log(
-        `- Nearby parent-domain matches: ${nearbyMatches.map((domain) => domain.name || '').filter(Boolean).join(', ')}`,
+        `- Nearby parent-domain matches: ${nearbyMatches
+          .map((domain) => domain.name || '')
+          .filter(Boolean)
+          .join(', ')}`,
       );
       console.log(
         '- If you intend to send from a subdomain, verify in the Resend dashboard that this exact sender domain is supported by your current setup.',
@@ -229,20 +254,26 @@ async function main() {
     console.log(
       `- The sender domain ${exactMatch.name} exists in Resend, but its status is ${exactMatch.status || 'unknown'} instead of verified.`,
     );
-    console.log('- The most common cause is that SPF or DKIM DNS records are still missing, incorrect, or not propagated yet.');
+    console.log(
+      '- The most common cause is that SPF or DKIM DNS records are still missing, incorrect, or not propagated yet.',
+    );
     process.exitCode = 1;
     return;
   }
 
   if (normalizedFromDomain === 'resend.dev') {
     console.log('- You are using the default resend.dev sender domain.');
-    console.log('- That sender is only for testing and cannot be used to send signup emails to arbitrary user addresses.');
+    console.log(
+      '- That sender is only for testing and cannot be used to send signup emails to arbitrary user addresses.',
+    );
     process.exitCode = 1;
     return;
   }
 
   console.log('- Local env is configured and the sender domain is verified in Resend.');
-  console.log('- If users still do not receive mail, check the Resend Emails/Logs pages for the actual delivery outcome.');
+  console.log(
+    '- If users still do not receive mail, check the Resend Emails/Logs pages for the actual delivery outcome.',
+  );
 }
 
 main().catch((error) => {

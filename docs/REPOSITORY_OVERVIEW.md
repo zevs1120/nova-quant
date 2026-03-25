@@ -8,13 +8,13 @@ This document explains the purpose of each major Nova Quant module for rapid onb
 
 See root [`README.md`](../README.md) for full detail. Summary:
 
-| Path      | Role                                                                                       |
-| --------- | ------------------------------------------------------------------------------------------ |
-| `landing/`| Brand landing page (e.g. `novaquant.cloud`)                                                |
-| `app/`    | User-facing H5 frontend (e.g. `app.novaquant.cloud`)                                       |
-| `server/` | API-focused deploy package; implementation lives in root `src/server/` + [`api/`](../api/) |
-| `admin/`  | Internal control dashboard (e.g. `admin.novaquant.cloud`)                                  |
-| `model/`  | EC2-side model boundary; pushes signals to `POST /api/model/signals/ingest` only           |
+| Path       | Role                                                                                       |
+| ---------- | ------------------------------------------------------------------------------------------ |
+| `landing/` | Brand landing page (e.g. `novaquant.cloud`)                                                |
+| `app/`     | User-facing H5 frontend (e.g. `app.novaquant.cloud`)                                       |
+| `server/`  | API-focused deploy package; implementation lives in root `src/server/` + [`api/`](../api/) |
+| `admin/`   | Internal control dashboard (e.g. `admin.novaquant.cloud`)                                  |
+| `model/`   | EC2-side model boundary; pushes signals to `POST /api/model/signals/ingest` only           |
 
 **Local dev** usually runs from the **repo root** (`npm run dev` → API on `8787` + Vite). Database defaults to `data/quant.db` (see `src/server/config.ts` / `DB_PATH`).
 

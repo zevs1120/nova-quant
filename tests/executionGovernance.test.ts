@@ -120,7 +120,8 @@ describe('execution governance', () => {
           headers: { 'content-type': 'application/json' },
         }),
       );
-    const fetchMock = vi.fn()
+    const fetchMock = vi
+      .fn()
       .mockImplementation(defaultResponse)
       .mockResolvedValueOnce(
         new Response(

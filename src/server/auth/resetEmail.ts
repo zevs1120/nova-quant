@@ -63,7 +63,12 @@ function extractEmailDomain(value: string | null) {
   if (!value) return null;
   const atIndex = value.lastIndexOf('@');
   if (atIndex === -1) return null;
-  return value.slice(atIndex + 1).trim().toLowerCase() || null;
+  return (
+    value
+      .slice(atIndex + 1)
+      .trim()
+      .toLowerCase() || null
+  );
 }
 
 export function getAuthEmailConfigStatus(): AuthEmailConfigStatus {
