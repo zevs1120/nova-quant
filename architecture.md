@@ -314,32 +314,32 @@ alpha_promotion_guard/ → 晋升守卫 (Shadow → Canary → Prod)
 
 ### 7.2 主要组件 (35 个)
 
-| 组件                 | 职责                | 大小   |
-| -------------------- | ------------------- | ------ |
+| 组件                 | 职责                    | 大小  |
+| -------------------- | ----------------------- | ----- |
 | `App.jsx`            | 薄编排壳 (hooks + 渲染) | 31 KB |
-| `TodayTab.jsx`       | 今日决策面板 (首页) | 49 KB  |
-| `MenuTab.jsx`        | 设置 & 高级功能     | 70 KB  |
-| `BrowseTab.jsx`      | 资产浏览 & 搜索     | 41 KB  |
-| `HoldingsTab.jsx`    | 持仓管理            | 28 KB  |
-| `OnboardingFlow.jsx` | 首次引导流          | 27 KB  |
-| `ResearchTab.jsx`    | AI 研究工具         | 25 KB  |
-| `ProofTab.jsx`       | 证据 & 回测         | 23 KB  |
-| `SignalsTab.jsx`     | 信号列表            | 21 KB  |
-| `AiPage.jsx`         | Nova 助手对话页     | 16 KB  |
-| `RiskTab.jsx`        | 风险仪表盘          | 13 KB  |
+| `TodayTab.jsx`       | 今日决策面板 (首页)     | 49 KB |
+| `MenuTab.jsx`        | 设置 & 高级功能         | 70 KB |
+| `BrowseTab.jsx`      | 资产浏览 & 搜索         | 41 KB |
+| `HoldingsTab.jsx`    | 持仓管理                | 28 KB |
+| `OnboardingFlow.jsx` | 首次引导流              | 27 KB |
+| `ResearchTab.jsx`    | AI 研究工具             | 25 KB |
+| `ProofTab.jsx`       | 证据 & 回测             | 23 KB |
+| `SignalsTab.jsx`     | 信号列表                | 21 KB |
+| `AiPage.jsx`         | Nova 助手对话页         | 16 KB |
+| `RiskTab.jsx`        | 风险仪表盘              | 13 KB |
 
 ### 7.3 Hooks
 
-| Hook                  | 功能                          |
-| --------------------- | ----------------------------- |
-| `useAuth.js`          | 认证生命周期 (登录/注册/登出) |
+| Hook                  | 功能                           |
+| --------------------- | ------------------------------ |
+| `useAuth.js`          | 认证生命周期 (登录/注册/登出)  |
 | `useAppData.js`       | 11 端点并行数据加载 + 自动刷新 |
-| `useEngagement.js`    | 参与/纪律/执行记录            |
-| `useInvestorDemo.js`  | 投资者 Demo 模式 & 持仓覆盖  |
-| `useNavigation.js`    | Tab/栈导航 & AI 路由          |
-| `useNovaAssistant.js` | Nova 助手交互状态             |
-| `useDemoAssistant.js` | Demo 模式助手                 |
-| `useLocalStorage.js`  | 本地存储封装                  |
+| `useEngagement.js`    | 参与/纪律/执行记录             |
+| `useInvestorDemo.js`  | 投资者 Demo 模式 & 持仓覆盖    |
+| `useNavigation.js`    | Tab/栈导航 & AI 路由           |
+| `useNovaAssistant.js` | Nova 助手交互状态              |
+| `useDemoAssistant.js` | Demo 模式助手                  |
+| `useLocalStorage.js`  | 本地存储封装                   |
 
 ### 7.4 工具函数 (`src/utils/`)
 
