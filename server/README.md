@@ -26,6 +26,6 @@
 
 推荐环境变量：
 
-- `NOVA_APP_ALLOWED_ORIGINS=https://novaquant.cloud`
+- `NOVA_APP_ALLOWED_ORIGINS=https://app.novaquant.cloud,https://novaquant.cloud`
 - `NOVA_ADMIN_ALLOWED_ORIGINS=https://admin.novaquant.cloud`
 - `NOVA_MODEL_INGEST_TOKEN=<strong-random-secret>`

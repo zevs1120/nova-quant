@@ -40,7 +40,7 @@ export function createApiApp() {
   const appAllowedOrigins = new Set(
     String(
       process.env.NOVA_APP_ALLOWED_ORIGINS ||
-        'https://novaquant.cloud,http://localhost:4173,http://127.0.0.1:4173,http://localhost:5173,http://127.0.0.1:5173',
+        'https://app.novaquant.cloud,https://novaquant.cloud,http://localhost:4173,http://127.0.0.1:4173,http://localhost:5173,http://127.0.0.1:5173',
     )
       .split(',')
       .map((row) => String(row || '').trim())

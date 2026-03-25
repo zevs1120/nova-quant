@@ -32,7 +32,7 @@ function resetEmailReplyTo() {
 }
 
 function appUrl() {
-  return String(process.env.NOVA_APP_URL || 'https://novaquant.cloud')
+  return String(process.env.NOVA_APP_URL || 'https://app.novaquant.cloud')
     .trim()
     .replace(/\/+$/, '');
 }

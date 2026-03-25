@@ -6,7 +6,7 @@ This directory is the dedicated control dashboard for `admin.novaquant.cloud`.
 
 ## Deployment model
 
-- User app: `novaquant.cloud`
+- User app: `app.novaquant.cloud`
 - Admin app: `admin.novaquant.cloud`
 - Backend API: `api.novaquant.cloud`
 - Model service: AWS EC2
@@ -51,7 +51,7 @@ Main project environment variables:
 - `NOVA_ADMIN_EMAILS=you@example.com,operator@example.com`
 - `NOVA_OWNER_EMAIL=you@example.com` (optional single-owner fallback)
 - `NOVA_ADMIN_ALLOWED_ORIGINS=https://admin.novaquant.cloud`
-- `NOVA_APP_ALLOWED_ORIGINS=https://novaquant.cloud`
+- `NOVA_APP_ALLOWED_ORIGINS=https://app.novaquant.cloud,https://novaquant.cloud`
 
 Admin frontend environment variables:
 

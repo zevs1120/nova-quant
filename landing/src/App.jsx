@@ -291,19 +291,19 @@ const distributionCredits = [
 const legalLinks = [
   {
     label: 'Open App',
-    href: 'https://novaquant.cloud',
+    href: 'https://app.novaquant.cloud',
   },
   {
     label: 'Guide',
     href: '#guide',
   },
   {
-    label: 'About',
+    label: 'Distribution',
     href: '#about',
   },
   {
-    label: 'novaquant.cloud',
-    href: 'https://novaquant.cloud',
+    label: 'app.novaquant.cloud',
+    href: 'https://app.novaquant.cloud',
   },
 ];
 
@@ -344,7 +344,7 @@ export default function App() {
             <a href="#about">Distrbution</a>
           </nav>
 
-          <a className="site-header-cta" href="https://novaquant.cloud">
+          <a className="site-header-cta" href="https://app.novaquant.cloud">
             sign up
           </a>
         </div>
@@ -375,7 +375,7 @@ export default function App() {
               </p>
 
               <div className="hero-actions">
-                <a className="hero-cta" href="https://novaquant.cloud">
+                <a className="hero-cta" href="https://app.novaquant.cloud">
                   Get started
                 </a>
               </div>
@@ -576,7 +576,7 @@ export default function App() {
                     ))}
                   </ul>
 
-                  <a className="pricing-cta" href="https://novaquant.cloud">
+                  <a className="pricing-cta" href="https://app.novaquant.cloud">
                     {plan.cta}
                   </a>
                 </article>
@@ -621,7 +621,7 @@ export default function App() {
               </blockquote>
             ))}
 
-            <a className="voices-link" href="https://novaquant.cloud" id="enter">
+            <a className="voices-link" href="https://app.novaquant.cloud" id="enter">
               Open NovaQuant
             </a>
           </div>

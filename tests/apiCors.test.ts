@@ -8,9 +8,9 @@ describe('api cors policy', () => {
 
     const appOrigin = await request(app)
       .options('/api/auth/session')
-      .set('Origin', 'https://novaquant.cloud');
+      .set('Origin', 'https://app.novaquant.cloud');
     expect(appOrigin.status).toBe(204);
-    expect(appOrigin.headers['access-control-allow-origin']).toBe('https://novaquant.cloud');
+    expect(appOrigin.headers['access-control-allow-origin']).toBe('https://app.novaquant.cloud');
     expect(appOrigin.headers['access-control-allow-credentials']).toBe('true');
 
     const adminOrigin = await request(app)
@@ -29,10 +29,10 @@ describe('api cors policy', () => {
     const loginOrigin = await request(app)
       .options('/api')
       .query({ route: ['auth', 'login'] })
-      .set('Origin', 'https://novaquant.cloud');
+      .set('Origin', 'https://app.novaquant.cloud');
 
     expect(loginOrigin.status).toBe(204);
-    expect(loginOrigin.headers['access-control-allow-origin']).toBe('https://novaquant.cloud');
+    expect(loginOrigin.headers['access-control-allow-origin']).toBe('https://app.novaquant.cloud');
     expect(loginOrigin.headers['access-control-allow-credentials']).toBe('true');
     expect(loginOrigin.headers['access-control-allow-methods']).toContain('POST');
   });

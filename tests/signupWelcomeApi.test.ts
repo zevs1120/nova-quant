@@ -35,7 +35,7 @@ describe('signup welcome email', () => {
     vi.stubEnv('RESEND_API_KEY', '');
     vi.stubEnv('NOVA_AUTH_EMAIL_FROM', '');
     vi.stubEnv('NOVA_AUTH_REPLY_TO', '');
-    vi.stubEnv('NOVA_APP_URL', 'https://novaquant.cloud');
+    vi.stubEnv('NOVA_APP_URL', 'https://app.novaquant.cloud');
   });
 
   afterEach(() => {

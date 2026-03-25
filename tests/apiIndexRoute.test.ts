@@ -35,7 +35,7 @@ describe('api index route', () => {
         url: '/api?route=auth&route=login',
         method: 'OPTIONS',
         headers: {
-          origin: 'https://novaquant.cloud',
+          origin: 'https://app.novaquant.cloud',
         },
         header(name: string) {
           return this.headers?.[name.toLowerCase()];
@@ -45,7 +45,7 @@ describe('api index route', () => {
     );
 
     expect(res.statusCode).toBe(204);
-    expect(res.headers['access-control-allow-origin']).toBe('https://novaquant.cloud');
+    expect(res.headers['access-control-allow-origin']).toBe('https://app.novaquant.cloud');
     expect(res.headers['access-control-allow-credentials']).toBe('true');
     expect(res.headers['access-control-allow-methods']).toContain('POST');
   });
@@ -60,7 +60,7 @@ describe('api index route', () => {
         url: '/api?route=assets',
         method: 'OPTIONS',
         headers: {
-          origin: 'https://novaquant.cloud',
+          origin: 'https://app.novaquant.cloud',
         },
         header(name: string) {
           return this.headers?.[name.toLowerCase()];
@@ -70,7 +70,7 @@ describe('api index route', () => {
     );
 
     expect(res.statusCode).toBe(204);
-    expect(res.headers['access-control-allow-origin']).toBe('https://novaquant.cloud');
+    expect(res.headers['access-control-allow-origin']).toBe('https://app.novaquant.cloud');
     expect(res.headers['access-control-allow-methods']).toBe('GET,POST,OPTIONS');
   });
 });

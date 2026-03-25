@@ -10,7 +10,8 @@ See root [`README.md`](../README.md) for full detail. Summary:
 
 | Path      | Role                                                                                       |
 | --------- | ------------------------------------------------------------------------------------------ |
-| `app/`    | User-facing H5 frontend (e.g. `novaquant.cloud`)                                           |
+| `landing/`| Brand landing page (e.g. `novaquant.cloud`)                                                |
+| `app/`    | User-facing H5 frontend (e.g. `app.novaquant.cloud`)                                       |
 | `server/` | API-focused deploy package; implementation lives in root `src/server/` + [`api/`](../api/) |
 | `admin/`  | Internal control dashboard (e.g. `admin.novaquant.cloud`)                                  |
 | `model/`  | EC2-side model boundary; pushes signals to `POST /api/model/signals/ingest` only           |

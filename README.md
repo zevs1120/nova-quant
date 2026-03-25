@@ -11,8 +11,9 @@ It is **not** a blind auto-trading bot and does **not** fabricate live performan
 
 ## Monorepo Deployment Layout
 
-This repository now supports a strict four-part deployment layout:
+This repository now supports a strict five-part deployment layout:
 
+- `landing/`: brand landing page on Vercel
 - `app/`: user-facing H5 frontend on Vercel
 - `server/`: pure API layer on Vercel
 - `admin/`: internal control dashboard on Vercel (includes System Health + Research Ops dashboards)
@@ -20,7 +21,8 @@ This repository now supports a strict four-part deployment layout:
 
 Production domains should be split as:
 
-- `https://novaquant.cloud` -> `app/`
+- `https://novaquant.cloud` -> `landing/`
+- `https://app.novaquant.cloud` -> `app/`
 - `https://api.novaquant.cloud` -> `server/`
 - `https://admin.novaquant.cloud` -> `admin/`
 

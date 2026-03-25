@@ -16,7 +16,8 @@ Nova Quant 是一个 **AI-native 量化决策平台**，面向美股与加密货
 
 ```
 nova-quant/
-├── app/       → 用户端 H5 前端 (Vercel)     → novaquant.cloud
+├── landing/   → 品牌落地页 (Vercel)         → novaquant.cloud
+├── app/       → 用户端 H5 前端 (Vercel)     → app.novaquant.cloud
 ├── server/    → 纯 API 层 (Vercel)           → api.novaquant.cloud
 ├── admin/     → 内部管理后台 (Vercel)         → admin.novaquant.cloud
 └── model/     → EC2 端模型边界 & 信号合约

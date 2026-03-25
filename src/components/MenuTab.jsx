@@ -93,7 +93,7 @@ function buildInviteLink(referrals, username) {
     .slice(0, 12)
     .toUpperCase();
   const code = String(referrals?.inviteCode || fallback || 'NQSTART').trim();
-  return `https://novaquant.cloud/invite?code=${encodeURIComponent(code)}`;
+  return `https://app.novaquant.cloud/invite?code=${encodeURIComponent(code)}`;
 }
 
 function itemCatalog(locale) {
