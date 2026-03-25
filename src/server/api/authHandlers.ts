@@ -152,6 +152,7 @@ export async function handleAuthSignup(req: BasicRequest, res: BasicResponse) {
       authenticated: true,
       user: result.user,
       state: result.state,
+      emailDelivery: result.emailDelivery,
     });
   } catch (error) {
     sendAuthServiceError(res, error);

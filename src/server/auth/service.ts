@@ -22,6 +22,7 @@ import {
 import {
   canSendPasswordResetEmail,
   canSendSignupWelcomeEmail,
+  getAuthEmailConfigStatus,
   sendPasswordResetEmail,
   sendSignupWelcomeEmail,
 } from './resetEmail.js';
@@ -51,6 +52,7 @@ const SESSION_COOKIE_NAME = 'novaquant_session';
 const ADMIN_SESSION_COOKIE_NAME = 'novaquant_admin_session';
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30;
 const RESET_TTL_MS = 1000 * 60 * 15;
+const warnedSignupEmailConfigKeys = new Set<string>();
 
 export type AuthTradeMode = 'starter' | 'active' | 'deep';
 export type AuthRole = 'ADMIN' | 'OPERATOR' | 'SUPPORT';
@@ -79,6 +81,25 @@ export type AuthUserState = {
     boundary_kept: string[];
     weekly_reviews: string[];
   };
+};
+
+type SignupWelcomeEmailDelivery =
+  | {
+      status: 'skipped';
+      reason: 'not_configured';
+      missing: string[];
+    }
+  | {
+      status: 'sent';
+    }
+  | {
+      status: 'failed';
+      reason: 'provider_error';
+      error: string;
+    };
+
+type AuthEmailDeliveryReport = {
+  signupWelcome: SignupWelcomeEmailDelivery;
 };
 
 type AuthUserRow = {
@@ -304,21 +325,47 @@ async function trySendSignupWelcomeEmail(user: {
   name: string;
   userId?: string;
   user_id?: string;
-}) {
-  if (!canSendSignupWelcomeEmail()) return;
+}): Promise<SignupWelcomeEmailDelivery> {
+  if (!canSendSignupWelcomeEmail()) {
+    const config = getAuthEmailConfigStatus();
+    const warnKey = `${config.missing.join(',')}|${config.from || ''}`;
+    if (!warnedSignupEmailConfigKeys.has(warnKey)) {
+      warnedSignupEmailConfigKeys.add(warnKey);
+      logWarn('Signup welcome email skipped: Resend is not configured', {
+        scope: 'auth',
+        event_type: 'signup_welcome_email_skipped',
+        user_id: 'userId' in user ? user.userId : user.user_id,
+        email: user.email,
+        missing: config.missing.join(','),
+        from: config.from,
+      });
+    }
+    return {
+      status: 'skipped',
+      reason: 'not_configured',
+      missing: config.missing,
+    };
+  }
   try {
     await sendSignupWelcomeEmail({
       email: user.email,
       name: user.name,
     });
+    return { status: 'sent' };
   } catch (error) {
+    const message = String((error as Error)?.message || error || '');
     logWarn('Signup welcome email failed', {
       scope: 'auth',
       event_type: 'signup_welcome_email_failed',
       user_id: 'userId' in user ? user.userId : user.user_id,
       email: user.email,
-      error: String((error as Error)?.message || error || ''),
+      error: message,
     });
+    return {
+      status: 'failed',
+      reason: 'provider_error',
+      error: message,
+    };
   }
 }
 
@@ -1093,12 +1140,15 @@ export async function signupAuthUser(args: {
       userAgent: args.userAgent,
       ipAddress: args.ipAddress,
     });
-    await trySendSignupWelcomeEmail(user);
+    const signupWelcome = await trySendSignupWelcomeEmail(user);
     return {
       ok: true as const,
       user: mapPublicUser(user),
       state,
       sessionToken,
+      emailDelivery: {
+        signupWelcome,
+      } satisfies AuthEmailDeliveryReport,
     };
   }
   if (!hasRemoteAuthStore()) {
@@ -1153,12 +1203,15 @@ export async function signupAuthUser(args: {
       userAgent: args.userAgent,
       ipAddress: args.ipAddress,
     });
-    await trySendSignupWelcomeEmail(user);
+    const signupWelcome = await trySendSignupWelcomeEmail(user);
     return {
       ok: true as const,
       user: mapPublicUser(user),
       state,
       sessionToken,
+      emailDelivery: {
+        signupWelcome,
+      } satisfies AuthEmailDeliveryReport,
     };
   }
 
@@ -1191,12 +1244,15 @@ export async function signupAuthUser(args: {
       userAgent: args.userAgent,
       ipAddress: args.ipAddress,
     });
-    await trySendSignupWelcomeEmail(user);
+    const signupWelcome = await trySendSignupWelcomeEmail(user);
     return {
       ok: true as const,
       user: mapPublicUser(user),
       state,
       sessionToken,
+      emailDelivery: {
+        signupWelcome,
+      } satisfies AuthEmailDeliveryReport,
     };
   } catch (error) {
     await remoteDeleteKeys([

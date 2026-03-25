@@ -66,8 +66,13 @@ describe('signup welcome email', () => {
 
     expect(signup.status).toBe(200);
     expect(signup.body.ok).toBe(true);
+    expect(signup.body.emailDelivery?.signupWelcome?.status).toBe('sent');
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock.mock.calls[0]?.[0]).toBe('https://api.resend.com/emails');
+    expect(fetchMock.mock.calls[0]?.[1]?.headers).toMatchObject({
+      'Content-Type': 'application/json',
+      'User-Agent': 'nova-quant-auth/1.0',
+    });
     expect(String(fetchMock.mock.calls[0]?.[1]?.body || '')).toContain('Welcome to NovaQuant');
   });
 
@@ -93,7 +98,31 @@ describe('signup welcome email', () => {
 
     expect(signup.status).toBe(200);
     expect(signup.body.ok).toBe(true);
+    expect(signup.body.emailDelivery?.signupWelcome?.status).toBe('failed');
     expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(warnSpy).toHaveBeenCalled();
+  });
+
+  it('surfaces when signup welcome email is skipped because Resend is not configured', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const app = createApiApp();
+    const signup = await request(app).post('/api/auth/signup').send({
+      email,
+      password: 'StrongPass123',
+      name: 'Welcome User',
+      tradeMode: 'active',
+      broker: 'Other',
+    });
+
+    expect(signup.status).toBe(200);
+    expect(signup.body.ok).toBe(true);
+    expect(signup.body.emailDelivery?.signupWelcome?.status).toBe('skipped');
+    expect(signup.body.emailDelivery?.signupWelcome?.reason).toBe('not_configured');
+    expect(signup.body.emailDelivery?.signupWelcome?.missing).toEqual([
+      'RESEND_API_KEY',
+      'NOVA_AUTH_EMAIL_FROM',
+    ]);
     expect(warnSpy).toHaveBeenCalled();
   });
 });

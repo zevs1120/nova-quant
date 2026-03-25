@@ -9,6 +9,16 @@ type SignupWelcomeEmailArgs = {
   name: string;
 };
 
+export type AuthEmailConfigStatus = {
+  configured: boolean;
+  missing: string[];
+  from: string | null;
+  fromEmail: string | null;
+  fromDomain: string | null;
+  replyTo: string | null;
+  appUrl: string;
+};
+
 function resendApiKey() {
   return String(process.env.RESEND_API_KEY || '').trim();
 }
@@ -27,12 +37,63 @@ function appUrl() {
     .replace(/\/+$/, '');
 }
 
+function resendHeaders(apiKey: string, withJsonContentType = true) {
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${apiKey}`,
+    'User-Agent': 'nova-quant-auth/1.0',
+  };
+  if (withJsonContentType) {
+    headers['Content-Type'] = 'application/json';
+  }
+  return headers;
+}
+
+function extractEmailAddress(value: string) {
+  const raw = String(value || '').trim();
+  if (!raw) return null;
+  const bracketMatch = raw.match(/<([^>]+)>/);
+  const email = String(bracketMatch?.[1] || raw)
+    .trim()
+    .replace(/^"+|"+$/g, '')
+    .toLowerCase();
+  return /\S+@\S+\.\S+/.test(email) ? email : null;
+}
+
+function extractEmailDomain(value: string | null) {
+  if (!value) return null;
+  const atIndex = value.lastIndexOf('@');
+  if (atIndex === -1) return null;
+  return value.slice(atIndex + 1).trim().toLowerCase() || null;
+}
+
+export function getAuthEmailConfigStatus(): AuthEmailConfigStatus {
+  const apiKey = resendApiKey();
+  const from = resetEmailFrom();
+  const fromEmail = extractEmailAddress(from);
+  const missing: string[] = [];
+  if (!apiKey) missing.push('RESEND_API_KEY');
+  if (!from) {
+    missing.push('NOVA_AUTH_EMAIL_FROM');
+  } else if (!fromEmail) {
+    missing.push('NOVA_AUTH_EMAIL_FROM_INVALID');
+  }
+  return {
+    configured: missing.length === 0,
+    missing,
+    from: from || null,
+    fromEmail,
+    fromDomain: extractEmailDomain(fromEmail),
+    replyTo: resetEmailReplyTo() || null,
+    appUrl: appUrl(),
+  };
+}
+
 export function canSendPasswordResetEmail() {
-  return Boolean(resendApiKey() && resetEmailFrom());
+  return getAuthEmailConfigStatus().configured;
 }
 
 export function canSendSignupWelcomeEmail() {
-  return Boolean(resendApiKey() && resetEmailFrom());
+  return getAuthEmailConfigStatus().configured;
 }
 
 function buildEmailText(args: PasswordResetEmailArgs) {
@@ -84,10 +145,7 @@ export async function sendPasswordResetEmail(args: PasswordResetEmailArgs) {
 
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
+    headers: resendHeaders(apiKey),
     body: JSON.stringify(payload),
   });
   if (!response.ok) {
@@ -146,10 +204,7 @@ export async function sendSignupWelcomeEmail(args: SignupWelcomeEmailArgs) {
 
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
+    headers: resendHeaders(apiKey),
     body: JSON.stringify(payload),
   });
   if (!response.ok) {
