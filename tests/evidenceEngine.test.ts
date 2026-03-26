@@ -41,6 +41,7 @@ function buildSignal(args: {
   entry: number;
   timeframe: string;
   strategy: string;
+  status?: SignalContract['status'];
 }): SignalContract {
   return {
     id: args.id,
@@ -104,7 +105,7 @@ function buildSignal(args: {
     explain_bullets: ['Test thesis'],
     execution_checklist: ['test'],
     tags: ['status:MODEL_DERIVED', 'source:DB_BACKED'],
-    status: 'NEW',
+    status: args.status || 'NEW',
     payload: {
       kind: 'STOCK_SWING',
       data: {
@@ -268,5 +269,48 @@ describe('evidence engine canonical chain', () => {
     expect(out.records[0].reconciliation_status).toBe('REPLAY_DATA_UNAVAILABLE');
     expect(out.records[0].replay_paper_evidence_available).toBe(false);
     expect(out.records[0].source_transparency?.evidence_mode).toBe('RUNTIME_SIGNAL_FALLBACK');
+  });
+
+  it('excludes expired runtime signals from replay-missing fallback evidence ranking', () => {
+    const db = new Database(':memory:');
+    ensureSchema(db);
+    const repo = new MarketRepository(db);
+    const now = Date.now();
+
+    repo.upsertSignal(
+      buildSignal({
+        id: 'SIG-EVD-EXPIRED',
+        symbol: 'AAPL',
+        market: 'US',
+        createdAt: new Date(now - 10 * 60_000).toISOString(),
+        direction: 'LONG',
+        entry: 214,
+        timeframe: '1d',
+        strategy: 'EQ_TREND_FALLBACK',
+        status: 'EXPIRED',
+      }),
+    );
+
+    repo.upsertSignal(
+      buildSignal({
+        id: 'SIG-EVD-LIVE',
+        symbol: 'MSFT',
+        market: 'US',
+        createdAt: new Date(now - 60 * 60_000).toISOString(),
+        direction: 'LONG',
+        entry: 320,
+        timeframe: '1d',
+        strategy: 'EQ_TREND_FALLBACK',
+      }),
+    );
+
+    const out = getTopSignalEvidence(repo, {
+      userId: 'u-evidence-filter',
+      market: 'US',
+      assetClass: 'US_STOCK',
+      limit: 3,
+    });
+
+    expect(out.records.map((row) => row.signal_id)).toEqual(['SIG-EVD-LIVE']);
   });
 });

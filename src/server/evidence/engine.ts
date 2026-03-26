@@ -1351,6 +1351,10 @@ function buildRuntimeSignalEvidenceFallback(
   const records = signalRows
     .map((row) => parseSignalPayloadSafe(row.payload_json))
     .filter((row): row is SignalContract => Boolean(row))
+    .filter((signal) => {
+      const status = String(signal.status || '').toUpperCase();
+      return !['EXPIRED', 'INVALIDATED', 'CLOSED'].includes(status);
+    })
     .map((signal) => {
       const freshness = Math.max(
         0,

@@ -23,6 +23,13 @@ This is a data migration and mirror step. It does **not** switch the live runtim
 Because the current SQLite database may still be receiving writes from local or EC2 workers during migration,
 the mirror is a point-in-time copy unless you pause writers or rerun hot tables after the first full load.
 
+## Current Mirror Guarantees
+
+- Mirror-enabled scripts now fail fast on `flush()` if a queued Postgres write fails. A successful script exit therefore means both the local SQLite write and the queued mirror write completed.
+- When `NOVA_DATA_DATABASE_URL` is enabled and the app prefers Postgres primary reads, in-process reads now wait for the pending mirror queue before querying Postgres. This avoids local read-after-write races where SQLite had the fresh row but Postgres had not caught up yet.
+- If the pending mirror queue is unhealthy, Postgres primary reads log a fallback warning and serve SQLite data instead of stale Postgres rows.
+- Mixed-source runtime fallback now forces a fresh `syncQuantState()` before reading SQLite signal / market / performance rows, so partial Postgres outages do not reuse pre-sync local data.
+
 ## Why Runtime Cutover Is Not Instant
 
 The current backend is tightly coupled to synchronous SQLite access:

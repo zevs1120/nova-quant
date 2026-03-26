@@ -51,7 +51,6 @@ async function main() {
       maxCandidates: Number.isFinite(parsed.maxCandidates) ? parsed.maxCandidates : 12,
     });
 
-    await flush();
     process.stdout.write(`${result.text}\n\n`);
     process.stdout.write(`${JSON.stringify(result.result, null, 2)}\n`);
   } finally {

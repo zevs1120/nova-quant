@@ -35,7 +35,6 @@ export async function runEvolutionCycleCli(argv = process.argv.slice(2)) {
         coverageSummary: snapshot.coverageSummary,
       },
     });
-    await flush();
     console.log(
       JSON.stringify(
         {

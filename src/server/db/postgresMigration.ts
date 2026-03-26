@@ -151,7 +151,11 @@ export function buildCreateTableSql(schema: string, table: SqliteTableSpec) {
   return `CREATE TABLE IF NOT EXISTS ${qualifyPgTable(schema, table.name)} (\n  ${body}\n);`;
 }
 
-export function buildCreateIndexSql(schema: string, table: SqliteTableSpec, index: SqliteIndexSpec) {
+export function buildCreateIndexSql(
+  schema: string,
+  table: SqliteTableSpec,
+  index: SqliteIndexSpec,
+) {
   if (!index.columns.length) return null;
   const indexName = `${table.name}_${index.name}`;
   const uniqueSql = index.unique ? 'UNIQUE ' : '';
@@ -161,12 +165,19 @@ export function buildCreateIndexSql(schema: string, table: SqliteTableSpec, inde
   )} (${index.columns.map(quotePgIdentifier).join(', ')});`;
 }
 
-export function buildInsertSql(schema: string, tableName: string, columns: string[], rowCount: number) {
+export function buildInsertSql(
+  schema: string,
+  tableName: string,
+  columns: string[],
+  rowCount: number,
+) {
   const qualifiedTable = qualifyPgTable(schema, tableName);
   const columnSql = columns.map(quotePgIdentifier).join(', ');
   const values: string[] = [];
   for (let rowIndex = 0; rowIndex < rowCount; rowIndex += 1) {
-    const placeholders = columns.map((_, columnIndex) => `$${rowIndex * columns.length + columnIndex + 1}`);
+    const placeholders = columns.map(
+      (_, columnIndex) => `$${rowIndex * columns.length + columnIndex + 1}`,
+    );
     values.push(`(${placeholders.join(', ')})`);
   }
   return `INSERT INTO ${qualifiedTable} (${columnSql}) VALUES ${values.join(', ')}`;

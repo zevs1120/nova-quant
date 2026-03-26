@@ -310,7 +310,9 @@ describe('alpha discovery loop', () => {
     });
     repo.upsertSignals([
       ...Array.from({ length: 18 }).map((_, index) => buildSignal(`signal-block-${index}`, 'AAPL')),
-      ...Array.from({ length: 6 }).map((_, index) => buildSignal(`signal-approve-${index}`, 'AAPL')),
+      ...Array.from({ length: 6 }).map((_, index) =>
+        buildSignal(`signal-approve-${index}`, 'AAPL'),
+      ),
     ]);
     repo.upsertAlphaShadowObservations([
       ...Array.from({ length: 18 }).map((_, index) => ({

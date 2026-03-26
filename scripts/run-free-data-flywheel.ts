@@ -53,7 +53,6 @@ async function main() {
       refreshCryptoStructure: args.refreshCryptoStructure,
       cryptoSymbols: args.cryptoSymbols,
     });
-    await flush();
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
   } finally {
     await flush();

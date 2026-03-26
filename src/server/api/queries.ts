@@ -419,19 +419,27 @@ async function getSecSearchUniverse(): Promise<SearchCandidate[]> {
   }
 }
 
+let repoHandleSingleton: ReturnType<typeof createMirroringMarketRepository> | null = null;
 let repoSingleton: MarketRepository | null = null;
 
 function getRepo(): MarketRepository {
   if (repoSingleton) return repoSingleton;
   const db = getDb();
   // ensureSchema is already called inside getDb() on first init
-  repoSingleton = createMirroringMarketRepository(db).repo;
+  repoHandleSingleton = createMirroringMarketRepository(db);
+  repoSingleton = repoHandleSingleton.repo;
   return repoSingleton;
 }
 
 /** Must be called alongside closeDb() to avoid stale-handle usage. */
 export function resetRepoSingleton(): void {
+  repoHandleSingleton = null;
   repoSingleton = null;
+}
+
+async function flushRepoMirror(): Promise<void> {
+  if (!repoHandleSingleton?.mirrorEnabled) return;
+  await repoHandleSingleton.flush();
 }
 
 function midpoint(low?: number | null, high?: number | null) {
@@ -461,6 +469,7 @@ function shouldPreferPostgresPrimaryReads() {
 async function tryPrimaryPostgresRead<T>(label: string, read: () => Promise<T>): Promise<T | null> {
   if (!shouldPreferPostgresPrimaryReads()) return null;
   try {
+    await flushRepoMirror();
     return await read();
   } catch (error) {
     console.warn('[pg-primary-read] falling back to sqlite', {
@@ -3347,7 +3356,7 @@ function loadRuntimeStateCore(args: {
   });
 }
 
-async function loadRuntimeStateCorePrimary(args: {
+export async function loadRuntimeStateCorePrimary(args: {
   userId?: string;
   market?: Market;
   assetClass?: AssetClass;
@@ -3387,20 +3396,46 @@ async function loadRuntimeStateCorePrimary(args: {
     return loadRuntimeStateCore(args);
   }
 
-  const risk = riskPrimary || getRiskProfile(userId, { skipSync: true });
+  // ISSUE-4: warn when mixing Postgres and SQLite data sources
+  const pgSources = [
+    riskPrimary ? 'risk' : null,
+    signalRowsPrimary ? 'signals' : null,
+    marketStatePrimary ? 'market_state' : null,
+    performanceRowsPrimary ? 'performance' : null,
+  ].filter(Boolean) as string[];
+  if (pgSources.length < 4) {
+    console.warn(
+      '[queries] mixed-source runtime read: Postgres served',
+      pgSources.join(', '),
+      '— remaining from SQLite fallback',
+    );
+  }
+
+  const needsLocalFallback =
+    !riskPrimary || !signalRowsPrimary || !marketStatePrimary || !performanceRowsPrimary;
+  if (needsLocalFallback) {
+    syncQuantState(userId, false, { market: args.market, assetClass: args.assetClass });
+  }
+  const risk =
+    riskPrimary || repo.getUserRiskProfile(userId) || getRiskProfile(userId, { skipSync: true });
   const signalRows =
     signalRowsPrimary ||
-    getRepo().listSignals({
+    repo.listSignals({
       assetClass: args.assetClass,
       market: args.market,
       limit: 60,
     });
-  const marketState = marketStatePrimary || getRepo().listMarketState({ market });
-  const performanceRows = performanceRowsPrimary || getRepo().listPerformanceSnapshots({ market });
-  const signals = signalRows
+  const marketState =
+    marketStatePrimary ||
+    repo.listMarketState({
+      market,
+    });
+  const performanceRows = performanceRowsPrimary || repo.listPerformanceSnapshots({ market });
+  // BUG-2: decode once and reuse for both `signals` (UI) and `state.signals`
+  const decodedSignals = signalRows
     .map((row) => decodeSignalContract(row))
-    .filter((row): row is SignalContract => Boolean(row))
-    .map(toUiSignal);
+    .filter((row): row is SignalContract => Boolean(row));
+  const signals = decodedSignals.map(toUiSignal);
   const latestTs = Math.max(
     0,
     risk?.updated_at_ms || 0,
@@ -3415,9 +3450,7 @@ async function loadRuntimeStateCorePrimary(args: {
       : RUNTIME_STATUS.INSUFFICIENT_DATA;
   const state = {
     asofMs,
-    signals: signalRows
-      .map((row) => decodeSignalContract(row))
-      .filter((row): row is SignalContract => Boolean(row)),
+    signals: decodedSignals,
     marketState,
     performanceApi: {},
     sourceStatus,
@@ -3427,13 +3460,13 @@ async function loadRuntimeStateCorePrimary(args: {
       signal_count: signalRows.length,
       market_state_count: marketState.length,
       performance_snapshot_count: performanceRows.length,
-      data_source: 'postgres-primary',
+      data_source: pgSources.length === 4 ? 'postgres-primary' : 'mixed-postgres-sqlite',
     },
     coverageSummary: {
       generated_signals: signalRows.length,
       market_state_count: marketState.length,
       performance_snapshot_count: performanceRows.length,
-      data_source: 'postgres-primary',
+      data_source: pgSources.length === 4 ? 'postgres-primary' : 'mixed-postgres-sqlite',
     },
   };
   const performance = buildPerformanceSummaryFromRows({
@@ -3704,7 +3737,11 @@ async function buildDecisionSnapshotFromCorePrimary(args: {
       assetClass: args.core.assetClass,
       limit: 6,
     }).records;
-  } catch {
+  } catch (error) {
+    console.warn(
+      '[queries] evidence read failed in primary path:',
+      error instanceof Error ? error.message : String(error),
+    );
     evidenceSignals = [];
   }
   const previousRow =

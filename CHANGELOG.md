@@ -2,6 +2,22 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 10.7.1 (2026-03-27)
+
+- Release type: patch
+
+- **Fix: remediate Supabase mirror and fallback consistency bugs from commit review (c190ad5..c1b66a7).**
+  - **BUG-1 — redundant `flush()` in 5 scripts:** `run-alpha-discovery.ts`, `run-evolution-cycle.ts`, `run-free-data-flywheel.ts`, `run-nova-flywheel.ts`, and `run-nova-strategy-lab.ts` called `await flush()` in both the `try` body and the `finally` block. Removed the redundant try-body call; `finally` already ensures flush on both success and error paths.
+  - **BUG-2 — duplicate `decodeSignalContract` in `loadRuntimeStateCorePrimary`:** the same signal rows were decoded twice (once for UI signals, once for `state.signals`). Extracted a shared `decodedSignals` variable, eliminating the redundant JSON.parse + validation pass.
+  - **BUG-3 — stale SQLite rows in mixed Postgres fallback path:** the first patch only added `syncQuantState()` after `getRepo().listSignals()` had already read fallback rows. `loadRuntimeStateCorePrimary` now syncs SQLite first whenever any primary source falls back, then reads risk/signal/market/performance rows from the refreshed local store.
+  - **ISSUE-4 — mixed-source warning:** when some Postgres reads succeed but others fall back to SQLite, a `console.warn` now logs which sources were served by Postgres, aiding production debugging. `data_source` in freshness/coverage summary now correctly reports `mixed-postgres-sqlite` instead of always `postgres-primary`.
+  - **ISSUE-8 — swallowed evidence exception:** `buildDecisionSnapshotFromCorePrimary` silently caught evidence read errors with an empty `catch` block. Added `console.warn` with the error message so evidence engine failures are observable in logs.
+  - **New test:** `tests/postgresFallbackSync.test.ts` (6 tests) verifying Postgres-to-SQLite fallback paths return correct data structures.
+  - **BUG-4 — mirror queue errors were not failing scripts:** `PostgresBusinessWriteMirror.flush()` used to resolve even after background write failures, so mirror-enabled scripts could exit successfully while Postgres was already out of sync. The mirror queue now preserves write failures and makes `flush()` reject.
+  - **BUG-5 — primary Postgres reads could race ahead of local mirror writes:** with `NOVA_DATA_DATABASE_URL` enabled locally, API reads could hit stale Postgres rows immediately after a local SQLite write. Primary-read paths now await the pending mirror queue before querying Postgres, restoring in-process read-after-write consistency and falling back to SQLite if the mirror queue is unhealthy.
+  - **BUG-6 — replay-evidence fallback resurfaced expired signals:** the runtime evidence fallback used `status: 'ALL'`, so a high-score expired signal could outrank a still-live signal when replay evidence was missing. Terminal statuses (`EXPIRED`, `INVALIDATED`, `CLOSED`) are now excluded from fallback evidence ranking.
+  - **New tests:** `tests/postgresMirrorConsistency.test.ts` covering mirror `flush()` failure semantics, flush-before-primary-read consistency, and mixed-source runtime fallback ordering; `tests/evidenceEngine.test.ts` now verifies expired signals are filtered out of runtime evidence fallback.
+
 ## 10.7.0 (2026-03-27)
 
 - Release type: **minor** (new capability)

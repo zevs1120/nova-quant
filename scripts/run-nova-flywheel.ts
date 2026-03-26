@@ -45,7 +45,6 @@ async function main() {
       taskTypes: parsed.taskTypes.length ? parsed.taskTypes : undefined,
     });
 
-    await flush();
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
   } finally {
     await flush();

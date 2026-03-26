@@ -101,7 +101,8 @@ export async function runLoggedNovaTextTask(args: {
       context_json: JSON.stringify(args.context),
       output_json: null,
       status: 'SKIPPED',
-      error: 'Nova runtime is in deterministic fallback mode and no hosted text route is enabled for this task.',
+      error:
+        'Nova runtime is in deterministic fallback mode and no hosted text route is enabled for this task.',
       created_at_ms: nowMs,
       updated_at_ms: nowMs,
     });

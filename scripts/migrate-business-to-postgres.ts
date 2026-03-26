@@ -40,11 +40,16 @@ function parseArgs(argv: string[]): MigrationOptions {
     : null;
 
   return {
-    schema: String(inline.get('schema') || process.env.NOVA_DATA_PG_SCHEMA || 'novaquant_data').trim(),
+    schema: String(
+      inline.get('schema') || process.env.NOVA_DATA_PG_SCHEMA || 'novaquant_data',
+    ).trim(),
     includeAuth: argv.includes('--include-auth'),
     replace: argv.includes('--replace'),
     skipIndexes: argv.includes('--skip-indexes'),
-    batchSize: Math.max(1, Number(inline.get('batch') || process.env.NOVA_DATA_MIGRATION_BATCH_SIZE || 1000)),
+    batchSize: Math.max(
+      1,
+      Number(inline.get('batch') || process.env.NOVA_DATA_MIGRATION_BATCH_SIZE || 1000),
+    ),
     tables: tableList,
   };
 }
@@ -82,9 +87,9 @@ async function migrateTable(
 
   const columns = table.columns.map((column) => column.name);
   const preferredBatch = recommendedBatchSize(columns.length, options.batchSize);
-  const iterator = db.prepare(`SELECT * FROM "${table.name.replace(/"/g, '""')}"`).iterate() as Iterable<
-    Record<string, unknown>
-  >;
+  const iterator = db
+    .prepare(`SELECT * FROM "${table.name.replace(/"/g, '""')}"`)
+    .iterate() as Iterable<Record<string, unknown>>;
   let batch: Array<Record<string, unknown>> = [];
   let inserted = 0;
 
@@ -94,7 +99,14 @@ async function migrateTable(
     const insertSql = buildInsertSql(schema, table.name, columns, batch.length);
     await pool.query(insertSql, flattenBatch(batch, columns));
     inserted += batch.length;
-    console.log(JSON.stringify({ step: 'table_progress', table: table.name, inserted, rowCount: table.rowCount }));
+    console.log(
+      JSON.stringify({
+        step: 'table_progress',
+        table: table.name,
+        inserted,
+        rowCount: table.rowCount,
+      }),
+    );
     batch = [];
   }
 

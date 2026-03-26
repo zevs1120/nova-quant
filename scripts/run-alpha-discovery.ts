@@ -39,7 +39,6 @@ async function main() {
       triggerType: args.triggerType,
       force: args.force,
     });
-    await flush();
     console.log(JSON.stringify(result, null, 2));
   } finally {
     await flush();

@@ -1,6 +1,9 @@
 import dotenv from 'dotenv';
 import { closeDb, getDb } from '../src/server/db/database.js';
-import { listSqliteTableSpecs, resolvePostgresBusinessUrl } from '../src/server/db/postgresMigration.js';
+import {
+  listSqliteTableSpecs,
+  resolvePostgresBusinessUrl,
+} from '../src/server/db/postgresMigration.js';
 
 dotenv.config();
 process.env.NOVA_DISABLE_SQLITE_PROCESS_LOCK = process.env.NOVA_DISABLE_SQLITE_PROCESS_LOCK || '1';

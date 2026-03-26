@@ -448,7 +448,7 @@ export function runAlphaShadowCycle(args: {
       if (!shouldTrackShadowObservation(decision)) continue;
       const execution = latestExecutionForSignal(executions, signal.id);
       const replayPnlPct = shouldCountRealizedShadowPnl(decision.action)
-        ? execution?.pnl_pct ?? deriveReplayPnlPct({ repo: args.repo, candidate, signal })
+        ? (execution?.pnl_pct ?? deriveReplayPnlPct({ repo: args.repo, candidate, signal }))
         : null;
       observations.push({
         id: `alpha-shadow-${randomUUID()}`,

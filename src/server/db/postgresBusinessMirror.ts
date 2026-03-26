@@ -137,13 +137,28 @@ class PostgresBusinessWriteMirror {
   private lastError: Error | null = null;
 
   enqueue(label: string, write: () => Promise<void>) {
-    this.tail = this.tail.then(write).catch((error) => {
-      this.lastError = error instanceof Error ? error : new Error(String(error));
-      console.warn('[pg-mirror] write failed', {
-        label,
-        error: this.lastError.message,
+    this.tail = this.tail
+      .catch(() => undefined)
+      .then(async () => {
+        try {
+          await write();
+          this.lastError = null;
+        } catch (error) {
+          const message =
+            error instanceof Error && error.message
+              ? error.message
+              : String(error || 'POSTGRES_MIRROR_WRITE_FAILED');
+          this.lastError = error instanceof Error ? error : new Error(message);
+          if (!this.lastError.message) {
+            this.lastError = new Error(message);
+          }
+          console.warn('[pg-mirror] write failed', {
+            label,
+            error: message,
+          });
+          throw this.lastError;
+        }
       });
-    });
   }
 
   async flush() {
