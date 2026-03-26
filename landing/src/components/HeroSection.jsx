@@ -18,9 +18,8 @@ export default function HeroSection() {
             <span className="hero-title-bottom">differently.</span>
           </h1>
           <p className="micro-intro">
-            NovaQuant turns market complexity into clear daily intelligence, powered by Marvix,
-            our in-house AI model built to surface what matters and help you act with more
-            clarity.
+            NovaQuant turns market complexity into clear daily intelligence, powered by Marvix, our
+            in-house AI model built to surface what matters and help you act with more clarity.
           </p>
 
           <div className="hero-actions">

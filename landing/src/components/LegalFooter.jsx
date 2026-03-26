@@ -7,11 +7,7 @@ export default function LegalFooter() {
         <div className="campaign-grid legal-grid">
           <div className="legal-topbar">
             <a className="legal-brand" href="#top" aria-label="NovaQuant home">
-              <img
-                className="legal-brand-logo"
-                src="/brand-assets/nova-logo.png"
-                alt="NovaQuant"
-              />
+              <img className="legal-brand-logo" src="/brand-assets/nova-logo.png" alt="NovaQuant" />
             </a>
 
             <nav className="legal-links" aria-label="Footer">

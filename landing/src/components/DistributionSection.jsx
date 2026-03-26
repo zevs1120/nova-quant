@@ -30,8 +30,8 @@ export default function DistributionSection() {
         </div>
 
         <p className="distribution-closing">
-          Founded in 2026, NovaQuant began as a search for a calmer, sharper way to read the
-          market — and still carries that spirit in everything it is.
+          Founded in 2026, NovaQuant began as a search for a calmer, sharper way to read the market
+          — and still carries that spirit in everything it is.
         </p>
       </div>
     </section>

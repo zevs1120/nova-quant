@@ -2,6 +2,18 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 10.5.3 (2026-03-25)
+
+- Release type: patch
+- **CI: fix Prettier formatting failures and add pre-commit enforcement.**
+  - Fix Prettier formatting on 9 files that caused CI failure: 6 landing components (`AskSection`, `DistributionSection`, `HeroSection`, `LegalFooter`, `ProofSection`, `StatementSection`), `src/App.jsx`, `src/server/api/app.ts`, `tests/performanceOptimization.test.ts`.
+  - Add husky + lint-staged pre-commit hook: all staged `.js`, `.jsx`, `.ts`, `.tsx`, `.css`, `.json`, `.md` files are auto-formatted by Prettier before commit, preventing future CI formatting failures.
+  - New `.husky/pre-commit` hook running `npx lint-staged`; `lint-staged` config in `package.json`.
+- **Fix: resolve all npm audit vulnerabilities (5 → 0).**
+  - `picomatch` (high, ReDoS + method injection): resolved via `npm audit fix` (updated to patched version).
+  - `smol-toml` (4 moderate, DoS via commented TOML lines): added `smol-toml: ">=1.6.1"` npm override to fix transitive dependency chain (`@vercel/node` → `@vercel/build-utils` → `@vercel/python-analysis` → `smol-toml`) without breaking `@vercel/node` version.
+- Updated release metadata, build number, and changelog entry.
+
 ## 10.5.2 (2026-03-25)
 
 - Release type: patch

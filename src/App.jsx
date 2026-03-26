@@ -475,8 +475,6 @@ export default function App() {
     return () => document.body.classList.remove('is-standalone');
   }, [displayMode]);
 
-
-
   // Browse warmup — only activates when Browse tab is shown
   useEffect(() => {
     if (typeof window === 'undefined' || activeTab !== 'browse') return undefined;

@@ -10,8 +10,8 @@ export default function AskSection() {
             Nova in.
           </h2>
           <p className="micro-intro">
-            Ask Nova is built for the moments when you do not want more charts, tabs, or jargon
-            - just a smart answer. Ask about setups, sentiment, momentum, risk, or what deserves
+            Ask Nova is built for the moments when you do not want more charts, tabs, or jargon -
+            just a smart answer. Ask about setups, sentiment, momentum, risk, or what deserves
             attention now, and get a response you can actually use.
           </p>
 

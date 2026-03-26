@@ -8,17 +8,14 @@ export default function ProofSection() {
           <p className="section-kicker">AI-powered backend</p>
           <h2>Marvix does the heavy lifting.</h2>
           <p className="micro-intro">
-            The intelligence lives behind the surface. The user meets the result, not the
-            burden.
+            The intelligence lives behind the surface. The user meets the result, not the burden.
           </p>
 
           <div className="proof-flow" aria-label="NovaQuant product architecture">
             {architectureSteps.map((step, index) => (
               <div className="proof-flow-step" key={step.title}>
                 <article className={`proof-node proof-node-${step.tone}`}>
-                  <p className="proof-node-kicker">
-                    Layer {String(index + 1).padStart(2, '0')}
-                  </p>
+                  <p className="proof-node-kicker">Layer {String(index + 1).padStart(2, '0')}</p>
                   <h3>{step.title}</h3>
                   <div className="proof-node-pills">
                     {step.items.map((item) => (

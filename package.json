@@ -1,7 +1,7 @@
 {
   "name": "nova-quant",
   "private": true,
-  "version": "10.5.1",
+  "version": "10.5.3",
   "type": "module",
   "scripts": {
     "dev": "node scripts/dev-stack.mjs",
@@ -51,7 +51,8 @@
     "test": "vitest run",
     "verify": "node scripts/verify.mjs",
     "format": "prettier --write",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "prepare": "husky"
   },
   "dependencies": {
     "better-sqlite3": "^12.6.2",
@@ -76,6 +77,8 @@
     "@vercel/node": "^5.6.10",
     "@vitejs/plugin-react": "^4.3.1",
     "@vitest/coverage-v8": "^4.1.1",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
     "prettier": "^3.8.1",
     "supertest": "^7.2.2",
     "tsx": "^4.21.0",
@@ -88,6 +91,10 @@
     "ajv": "^8.18.0",
     "minimatch": "^10.2.4",
     "path-to-regexp": "^8.3.0",
-    "esbuild": "^0.27.4"
+    "esbuild": "^0.27.4",
+    "smol-toml": ">=1.6.1"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx,css,json,md}": "prettier --write"
   }
 }

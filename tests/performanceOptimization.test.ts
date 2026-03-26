@@ -33,10 +33,9 @@ describe('performance optimization regression', () => {
 
       for (const endpoint of privateEndpoints) {
         const res = await request(app).get(endpoint);
-        expect(
-          res.headers['cache-control'],
-          `${endpoint} should have private, no-store`,
-        ).toBe('private, no-store');
+        expect(res.headers['cache-control'], `${endpoint} should have private, no-store`).toBe(
+          'private, no-store',
+        );
       }
     });
 
@@ -53,7 +52,11 @@ describe('performance optimization regression', () => {
   describe('closeDb repo singleton lifecycle', () => {
     afterEach(() => {
       // Ensure we don't leave a broken state for other tests
-      try { closeDb(); } catch { /* already closed */ }
+      try {
+        closeDb();
+      } catch {
+        /* already closed */
+      }
     });
 
     it('getDb works after closeDb + reopen cycle', () => {

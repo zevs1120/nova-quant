@@ -136,7 +136,10 @@ export function createApiApp() {
     '/api/signals',
   ]);
   app.use((req, res, next) => {
-    if (req.method !== 'GET') { next(); return; }
+    if (req.method !== 'GET') {
+      next();
+      return;
+    }
     const apiPath = resolveApiRequestPath(req);
     if (userScopedPaths.has(apiPath)) {
       res.setHeader('Cache-Control', 'private, no-store');

@@ -21,8 +21,8 @@ export default function StatementSection({ activeCard, onCardSelect, fan }) {
           </h2>
           <p className="micro-intro">
             NovaQuant is designed to help you see what matters faster - without the clutter,
-            density, and friction of traditional trading interfaces. It replaces noise with
-            clarity, so the market feels easier to read and easier to act on.
+            density, and friction of traditional trading interfaces. It replaces noise with clarity,
+            so the market feels easier to read and easier to act on.
           </p>
         </div>
 
