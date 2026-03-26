@@ -2,6 +2,15 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 10.5.6 (2026-03-26)
+
+- Release type: patch
+- **Fix: resolve production layout breakage caused by CSS code-split cascade conflict.**
+  - Root cause: `today-redesign.css` and `today-final.css` were imported by lazy-loaded `TodayTab.jsx`, causing Vite to code-split them into async CSS chunks (`TodayTab-*.css`, `today-redesign-*.css`). The global `index.css` already contained same-specificity selectors for `.today-action-card`, `.today-screen-native`, etc. In dev mode, Vite injects `<style>` tags in import order so the overrides always win. In production, async CSS chunks load after the global `<link>` in `<head>`, and same-specificity rules from the global stylesheet can take precedence — breaking the entire Today tab layout.
+  - Fix: moved `today-redesign.css` and `today-final.css` into the global `@import` chain in `src/styles.css` (appended after `corrections.css`). Removed duplicate imports from `src/components/TodayTab.jsx` and `src/components/DisciplineTab.jsx`.
+  - Result: Today CSS chunks eliminated from build output (was 35KB across 2 async chunks); all styles now in the global bundle (197KB, up from 162KB). Zero visual regression in dev. 618/618 tests pass.
+- Updated release metadata, build number, and changelog entry.
+
 ## 10.6.0 (2026-03-26)
 
 - Release type: **minor** (new feature)

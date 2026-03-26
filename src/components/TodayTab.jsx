@@ -1,5 +1,3 @@
-import '../styles/today-redesign.css';
-import '../styles/today-final.css';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import SignalDetail from './SignalDetail';
 import TradeTicketSheet from './TradeTicketSheet';
