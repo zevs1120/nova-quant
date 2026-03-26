@@ -2,6 +2,14 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 10.5.7 (2026-03-26)
+
+- Release type: patch
+- **Fix: resolve production layout squash caused by onboarding overlay CSS code-splitting.**
+  - Root cause: `.onboarding-flow` positioning CSS (`position: fixed; inset: 0; z-index: 120`) lived exclusively in `holdings.css`, which Vite code-splits into an async chunk (`holdings-*.css`). When the Welcome overlay rendered before the async CSS loaded, it became a normal flex child of `.app-bg` (`display: flex`), sharing horizontal space with `.device-shell` — squashing the Today screen to ~50% width.
+  - Fix: duplicated the critical `.onboarding-flow` positioning rules into `corrections.css` (eagerly loaded in the global CSS chain). The full visual styles remain in `holdings.css` and load later without conflict.
+  - Result: global CSS now includes `.onboarding-flow` positioning on first paint. 618/618 tests pass.
+
 ## 10.5.6 (2026-03-26)
 
 - Release type: patch
