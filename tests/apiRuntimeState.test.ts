@@ -4,6 +4,7 @@ import {
   getDecisionSnapshot,
   getRuntimeState,
   getRuntimeStateResponse,
+  shouldUsePublicDecisionFallback,
 } from '../src/server/api/queries.js';
 import { createBrokerAdapter } from '../src/server/connect/adapters.js';
 
@@ -154,6 +155,43 @@ describe('api runtime state', () => {
     });
 
     expect((decision as { today_call?: { code?: string } }).today_call?.code).toBe('TRADE');
+  });
+
+  it('falls back when runtime is DB-backed but still has no displayable signal cards', () => {
+    expect(
+      shouldUsePublicDecisionFallback({
+        sourceStatus: 'DB_BACKED',
+        signalCount: 0,
+        decision: {
+          today_call: {
+            code: 'WAIT',
+          },
+          ranked_action_cards: [],
+        },
+      }),
+    ).toBe(true);
+  });
+
+  it('keeps the local runtime when decision action cards already carry signal payloads', () => {
+    expect(
+      shouldUsePublicDecisionFallback({
+        sourceStatus: 'DB_BACKED',
+        signalCount: 0,
+        decision: {
+          today_call: {
+            code: 'WAIT',
+          },
+          ranked_action_cards: [
+            {
+              signal_payload: {
+                signal_id: 'keep-local-signal',
+                symbol: 'AAPL',
+              },
+            },
+          ],
+        },
+      }),
+    ).toBe(false);
   });
 
   it('serves honest disconnected broker snapshot when not configured', async () => {

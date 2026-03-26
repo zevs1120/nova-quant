@@ -2,7 +2,7 @@ import Database from 'better-sqlite3';
 import { describe, expect, it } from 'vitest';
 import { ensureSchema } from '../src/server/db/schema.js';
 import { MarketRepository } from '../src/server/db/repository.js';
-import { runEvidenceEngine } from '../src/server/evidence/engine.js';
+import { getTopSignalEvidence, runEvidenceEngine } from '../src/server/evidence/engine.js';
 import type { NormalizedBar, SignalContract } from '../src/server/types.js';
 
 function buildBars(
@@ -232,5 +232,41 @@ describe('evidence engine canonical chain', () => {
     expect(reconciliations.length).toBeGreaterThan(0);
     expect(reconciliations.some((row) => row.status === 'RECONCILED')).toBe(true);
     expect(reconciliations.some((row) => row.status === 'PAPER_DATA_UNAVAILABLE')).toBe(true);
+  });
+
+  it('falls back to current runtime signals when replay evidence has not been generated yet', () => {
+    const db = new Database(':memory:');
+    ensureSchema(db);
+    const repo = new MarketRepository(db);
+    const now = Date.now();
+
+    repo.upsertSignal(
+      buildSignal({
+        id: 'SIG-EVD-FALLBACK-1',
+        symbol: 'AAPL',
+        market: 'US',
+        createdAt: new Date(now - 45 * 60_000).toISOString(),
+        direction: 'LONG',
+        entry: 214,
+        timeframe: '1d',
+        strategy: 'EQ_TREND_FALLBACK',
+      }),
+    );
+
+    const out = getTopSignalEvidence(repo, {
+      userId: 'u-evidence-fallback',
+      market: 'US',
+      assetClass: 'US_STOCK',
+      limit: 3,
+    });
+
+    expect(out.source_status).toBe('MODEL_DERIVED');
+    expect(out.data_status).toBe('MODEL_DERIVED');
+    expect(out.supporting_run_id).toBeNull();
+    expect(out.records.length).toBeGreaterThan(0);
+    expect(out.records[0].signal_id).toBe('SIG-EVD-FALLBACK-1');
+    expect(out.records[0].reconciliation_status).toBe('REPLAY_DATA_UNAVAILABLE');
+    expect(out.records[0].replay_paper_evidence_available).toBe(false);
+    expect(out.records[0].source_transparency?.evidence_mode).toBe('RUNTIME_SIGNAL_FALLBACK');
   });
 });

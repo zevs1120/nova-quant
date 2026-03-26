@@ -1321,6 +1321,106 @@ function parseSignalPayloadSafe(payload: string): SignalContract | null {
   }
 }
 
+function compareTopEvidenceRecords(
+  a: { conviction: number; evidence_status: string; freshness_minutes: number | null },
+  b: { conviction: number; evidence_status: string; freshness_minutes: number | null },
+) {
+  const aPenalty =
+    a.evidence_status === 'WITHHELD' || a.evidence_status === 'INSUFFICIENT_DATA' ? 100 : 0;
+  const bPenalty =
+    b.evidence_status === 'WITHHELD' || b.evidence_status === 'INSUFFICIENT_DATA' ? 100 : 0;
+  const aFresh = a.freshness_minutes ?? 999999;
+  const bFresh = b.freshness_minutes ?? 999999;
+  return b.conviction * 100 - a.conviction * 100 + aPenalty - bPenalty + (aFresh - bFresh) * 0.1;
+}
+
+function buildRuntimeSignalEvidenceFallback(
+  repo: MarketRepository,
+  args: {
+    market?: Market;
+    assetClass?: AssetClass;
+    limit?: number;
+  },
+) {
+  const signalRows = repo.listSignals({
+    market: args.market,
+    assetClass: args.assetClass,
+    status: 'ALL',
+    limit: Math.max(24, Math.min(160, (args.limit || 3) * 20)),
+  });
+  const records = signalRows
+    .map((row) => parseSignalPayloadSafe(row.payload_json))
+    .filter((row): row is SignalContract => Boolean(row))
+    .map((signal) => {
+      const freshness = Math.max(
+        0,
+        Math.round((nowMs() - (Date.parse(signal.created_at) || nowMs())) / 60000),
+      );
+      const actionable =
+        ['NEW', 'TRIGGERED'].includes(String(signal.status).toUpperCase()) &&
+        !['WITHHELD', 'INSUFFICIENT_DATA'].includes(evidenceStatusFromSignal(signal));
+      const signalDataStatus = inferSignalStatus(signal);
+      return {
+        signal_id: signal.id,
+        symbol: signal.symbol,
+        market: signal.market,
+        asset_class: signal.asset_class,
+        timeframe: signal.timeframe,
+        direction: signal.direction,
+        conviction: signal.confidence,
+        regime_id: signal.regime_id || '--',
+        thesis: signal.explain_bullets?.[0] || signal.entry_zone?.notes || '--',
+        entry_zone: signal.entry_zone || null,
+        invalidation: signal.stop_loss?.price || signal.invalidation_level || null,
+        source_transparency: {
+          source_status: RUNTIME_STATUS.MODEL_DERIVED,
+          data_status: signalDataStatus,
+          source_label: signalDataStatus,
+          evidence_mode: 'RUNTIME_SIGNAL_FALLBACK',
+          validation_mode: 'REPLAY_PENDING',
+        },
+        evidence_status: evidenceStatusFromSignal(signal),
+        freshness_minutes: freshness,
+        freshness_label:
+          freshness < 1
+            ? 'just now'
+            : freshness < 60
+              ? `${freshness}m ago`
+              : `${Math.floor(freshness / 60)}h ago`,
+        actionable,
+        created_at: signal.created_at,
+        supporting_run_id: null,
+        strategy_version_id: signal.strategy_version || null,
+        dataset_version_id: null,
+        reconciliation_status: 'REPLAY_DATA_UNAVAILABLE',
+        replay_paper_evidence_available: false,
+      };
+    })
+    .sort(compareTopEvidenceRecords)
+    .slice(0, Math.max(1, Math.min(8, args.limit || 3)));
+
+  const latestCreatedAtMs = Math.max(
+    0,
+    ...records.map((row) => Date.parse(String(row.created_at || '')) || 0),
+  );
+  const fallbackDataStatus = records.some((row) => row.actionable)
+    ? RUNTIME_STATUS.MODEL_DERIVED
+    : normalizeRuntimeStatus(
+        String(records[0]?.source_transparency?.data_status || ''),
+        RUNTIME_STATUS.MODEL_DERIVED,
+      );
+
+  return {
+    asof: new Date(latestCreatedAtMs || nowMs()).toISOString(),
+    source_status: records.length ? RUNTIME_STATUS.MODEL_DERIVED : RUNTIME_STATUS.INSUFFICIENT_DATA,
+    data_status: records.length ? fallbackDataStatus : RUNTIME_STATUS.INSUFFICIENT_DATA,
+    supporting_run_id: null,
+    dataset_version_id: null,
+    strategy_version_id: records[0]?.strategy_version_id || null,
+    records,
+  };
+}
+
 export function getTopSignalEvidence(
   repo: MarketRepository,
   args: {
@@ -1332,12 +1432,7 @@ export function getTopSignalEvidence(
 ) {
   const run = latestSuccessfulRun(repo, args.market);
   if (!run) {
-    return {
-      asof: new Date().toISOString(),
-      source_status: RUNTIME_STATUS.INSUFFICIENT_DATA,
-      data_status: RUNTIME_STATUS.INSUFFICIENT_DATA,
-      records: [],
-    };
+    return buildRuntimeSignalEvidenceFallback(repo, args);
   }
   const metrics = repo.getBacktestMetric(run.id);
   const snapshots = repo.listSignalSnapshots({
@@ -1345,6 +1440,9 @@ export function getTopSignalEvidence(
     market: args.market,
     limit: 300,
   });
+  if (!snapshots.length) {
+    return buildRuntimeSignalEvidenceFallback(repo, args);
+  }
   const reconciliationRows = repo.listReconciliationRows({
     replayRunId: run.id,
     limit: 5000,
@@ -1400,18 +1498,12 @@ export function getTopSignalEvidence(
         replay_paper_evidence_available: rec?.status === 'RECONCILED',
       };
     })
-    .sort((a, b) => {
-      const aPenalty =
-        a.evidence_status === 'WITHHELD' || a.evidence_status === 'INSUFFICIENT_DATA' ? 100 : 0;
-      const bPenalty =
-        b.evidence_status === 'WITHHELD' || b.evidence_status === 'INSUFFICIENT_DATA' ? 100 : 0;
-      const aFresh = a.freshness_minutes ?? 999999;
-      const bFresh = b.freshness_minutes ?? 999999;
-      return (
-        b.conviction * 100 - a.conviction * 100 + aPenalty - bPenalty + (aFresh - bFresh) * 0.1
-      );
-    })
+    .sort(compareTopEvidenceRecords)
     .slice(0, Math.max(1, Math.min(8, args.limit || 3)));
+
+  if (!records.length) {
+    return buildRuntimeSignalEvidenceFallback(repo, args);
+  }
 
   return {
     asof: new Date(run.completed_at_ms || run.started_at_ms).toISOString(),

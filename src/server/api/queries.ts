@@ -4653,7 +4653,7 @@ async function getRuntimeStatePrimary(args: {
   };
 }
 
-function shouldUsePublicDecisionFallback(args: {
+export function shouldUsePublicDecisionFallback(args: {
   sourceStatus?: string | null;
   signalCount?: number;
   decision?: Record<string, unknown> | null;
@@ -4668,17 +4668,22 @@ function shouldUsePublicDecisionFallback(args: {
   if (Array.isArray(args.holdings) && args.holdings.length) return false;
   const runtimeStatus = normalizeRuntimeStatus(args.sourceStatus, RUNTIME_STATUS.INSUFFICIENT_DATA);
   const signalCount = Number(args.signalCount || 0);
+  const decisionSignalCount = signalPayloadsFromDecision(args.decision).length;
   const todayCall = asObject(asObject(args.decision).today_call);
   const decisionCode = String(todayCall.code || '').toUpperCase();
+  const noDisplayableSignalCards = signalCount === 0 && decisionSignalCount === 0;
   // When the DB is completely empty (no signals and not DB-backed) and there
   // are no holdings, fall through to the public live-scan path.
   // This prevents "System offline" on Vercel cold starts where the ephemeral
   // /tmp SQLite is empty.
   if (
     runtimeStatus !== RUNTIME_STATUS.DB_BACKED &&
-    signalCount === 0 &&
+    noDisplayableSignalCards &&
     (decisionCode === 'UNAVAILABLE' || !decisionCode)
   ) {
+    return true;
+  }
+  if (noDisplayableSignalCards) {
     return true;
   }
   return runtimeStatus !== RUNTIME_STATUS.DB_BACKED && signalCount === 0;
