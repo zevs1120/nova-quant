@@ -236,7 +236,7 @@ export default function App() {
     hasLoaded,
     decisionSnapshot,
     setRefreshNonce,
-    now,
+    now: new Date(),
     disciplineLog,
     setDisciplineLog,
     executions,

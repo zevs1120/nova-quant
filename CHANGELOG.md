@@ -2,6 +2,13 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 10.5.5 (2026-03-25)
+
+- Release type: patch
+- **Fix: resolve `Uncaught ReferenceError: now is not defined` crash in `App.jsx`.**
+  - Root cause: the v10.4.2 refactor moved the 30-second `now` timer from `App.jsx` into `TodayTab`, but the `useEngagement` hook options object still referenced the bare `now` shorthand property. With no `now` variable in scope, the app white-screened on mount.
+  - Fix: replace `now,` with `now: new Date(),` in the `useEngagement` call (line 239).
+
 ## 10.5.4 (2026-03-25)
 
 - Release type: patch
