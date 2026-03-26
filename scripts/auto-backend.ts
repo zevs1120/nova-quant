@@ -40,6 +40,26 @@ type AutoBackendOptions = {
 
 const DISCOVERY_DEFAULTS = readAlphaDiscoveryConfig();
 
+function parseBooleanEnv(name: string, fallback = false) {
+  const raw = String(process.env[name] || '')
+    .trim()
+    .toLowerCase();
+  if (!raw) return fallback;
+  if (['1', 'true', 'yes', 'on'].includes(raw)) return true;
+  if (['0', 'false', 'no', 'off'].includes(raw)) return false;
+  return fallback;
+}
+
+function parseTrainerEnv(value: string | undefined, fallback: NovaTrainerKind): NovaTrainerKind {
+  const normalized = String(value || '')
+    .trim()
+    .toLowerCase();
+  if (normalized === 'mlx-lora' || normalized === 'unsloth-lora' || normalized === 'axolotl-qlora') {
+    return normalized;
+  }
+  return fallback;
+}
+
 const DEFAULTS: AutoBackendOptions = {
   userId: 'guest-default',
   apiPort: Number(process.env.PORT || 8787),
@@ -48,16 +68,16 @@ const DEFAULTS: AutoBackendOptions = {
   usRefreshHours: Math.max(1, Number(process.env.NOVA_AUTO_BACKEND_US_REFRESH_HOURS || 6)),
   retrainHours: Math.max(1, Number(process.env.NOVA_AUTO_BACKEND_RETRAIN_HOURS || 24)),
   trainEveryHours: Math.max(1, Number(process.env.NOVA_AUTO_BACKEND_TRAIN_HOURS || 24)),
-  trainer: 'mlx-lora',
-  trainingLimit: 500,
-  executeTraining: false,
+  trainer: parseTrainerEnv(process.env.NOVA_AUTO_BACKEND_TRAINER, 'mlx-lora'),
+  trainingLimit: Math.max(1, Number(process.env.NOVA_AUTO_BACKEND_TRAINING_LIMIT || 500)),
+  executeTraining: parseBooleanEnv('NOVA_AUTO_BACKEND_EXECUTE_TRAINING', false),
   supervisorCheckSec: 20,
   discoveryEveryHours: DISCOVERY_DEFAULTS.intervalHours,
   skipInit: false,
   skipApi: false,
   skipWorker: false,
-  skipTraining: false,
-  skipDiscovery: false,
+  skipTraining: parseBooleanEnv('NOVA_AUTO_BACKEND_SKIP_TRAINING', false),
+  skipDiscovery: parseBooleanEnv('NOVA_AUTO_BACKEND_SKIP_DISCOVERY', false),
   once: false,
 };
 

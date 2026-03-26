@@ -67,7 +67,7 @@ function extractGeminiText(payload: unknown): string {
   );
 }
 
-function shouldUseGroqTextRoute(): boolean {
+function isGroqTextRouteConfigured(): boolean {
   const disabled = String(process.env.NOVA_DISABLE_GROQ || '')
     .trim()
     .toLowerCase();
@@ -75,7 +75,7 @@ function shouldUseGroqTextRoute(): boolean {
   return Boolean(String(process.env.GROQ_API_KEY || '').trim());
 }
 
-function shouldUseGeminiTextRoute(): boolean {
+function isGeminiTextRouteConfigured(): boolean {
   const disabled = String(process.env.NOVA_DISABLE_GEMINI || '')
     .trim()
     .toLowerCase();
@@ -83,8 +83,29 @@ function shouldUseGeminiTextRoute(): boolean {
   return Boolean(String(process.env.GEMINI_API_KEY || '').trim());
 }
 
-function shouldUseHostedExplainer(task: NovaTaskRoute): boolean {
-  return GEMINI_EXPLANATION_TASKS.has(task);
+function isHostedStrategyGenerationEnabled(): boolean {
+  const enabled = String(process.env.NOVA_ENABLE_GEMINI_STRATEGY_GENERATION || '')
+    .trim()
+    .toLowerCase();
+  return enabled === '1' || enabled === 'true';
+}
+
+function shouldUseGroqTextRoute(task: NovaTaskRoute): boolean {
+  return GEMINI_EXPLANATION_TASKS.has(task) && isGroqTextRouteConfigured();
+}
+
+function shouldUseGeminiTextRoute(task: NovaTaskRoute): boolean {
+  if (GEMINI_EXPLANATION_TASKS.has(task)) {
+    return isGeminiTextRouteConfigured();
+  }
+  if (task === 'strategy_generation') {
+    return isHostedStrategyGenerationEnabled() && isGeminiTextRouteConfigured();
+  }
+  return false;
+}
+
+export function canUseHostedTextRoute(task: NovaTaskRoute): boolean {
+  return shouldUseGeminiTextRoute(task) || shouldUseGroqTextRoute(task);
 }
 
 function humanizeFetchError(error: unknown, provider = 'Nova'): Error {
@@ -104,8 +125,8 @@ function humanizeFetchError(error: unknown, provider = 'Nova'): Error {
 
 export async function runNovaChatCompletion(args: NovaChatArgs) {
   const route = resolveNovaRoute(args.task);
-  const useGemini = shouldUseHostedExplainer(args.task) && shouldUseGeminiTextRoute();
-  const useGroq = !useGemini && shouldUseHostedExplainer(args.task) && shouldUseGroqTextRoute();
+  const useGemini = shouldUseGeminiTextRoute(args.task);
+  const useGroq = !useGemini && shouldUseGroqTextRoute(args.task);
   const effectiveRoute = useGroq
     ? {
         ...route,

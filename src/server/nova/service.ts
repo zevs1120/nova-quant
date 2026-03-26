@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { MarketRepository } from '../db/repository.js';
 import type { NovaReviewLabelRecord, NovaTaskRunRecord, NovaTaskType } from '../types.js';
 import { createTraceId, recordAuditEvent } from '../observability/spine.js';
-import { runNovaChatCompletion, runNovaEmbedding } from './client.js';
+import { canUseHostedTextRoute, runNovaChatCompletion, runNovaEmbedding } from './client.js';
 import { resolveBusinessTask, type NovaBusinessTask } from './router.js';
 import { getNovaRuntimeMode, isLocalNovaEnabled } from '../ai/llmOps.js';
 
@@ -48,6 +48,10 @@ function shouldSkipLocalNova(): boolean {
   return getNovaRuntimeMode() === 'deterministic-fallback';
 }
 
+function shouldSkipNovaTextTask(task: Parameters<typeof canUseHostedTextRoute>[0]): boolean {
+  return shouldSkipLocalNova() && !canUseHostedTextRoute(task);
+}
+
 function taskTypeForBusinessTask(task: NovaBusinessTask): NovaTaskType {
   if (task === 'today_risk') return 'risk_regime_explanation';
   if (task === 'daily_stance') return 'daily_stance_generation';
@@ -81,7 +85,7 @@ export async function runLoggedNovaTextTask(args: {
   });
   const nowMs = Date.now();
 
-  if (shouldSkipLocalNova()) {
+  if (shouldSkipNovaTextTask(route.task)) {
     args.repo.upsertNovaTaskRun({
       id: runId,
       user_id: args.userId || null,
@@ -97,7 +101,7 @@ export async function runLoggedNovaTextTask(args: {
       context_json: JSON.stringify(args.context),
       output_json: null,
       status: 'SKIPPED',
-      error: 'Nova runtime is in deterministic fallback mode.',
+      error: 'Nova runtime is in deterministic fallback mode and no hosted text route is enabled for this task.',
       created_at_ms: nowMs,
       updated_at_ms: nowMs,
     });

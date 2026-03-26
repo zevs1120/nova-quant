@@ -100,6 +100,7 @@ Minimum values to set for backend-only Marvix:
 - `NOVA_DISABLE_LOCAL_GENERATION=1`
 - `NOVA_DISABLE_GROQ=1`
 - `DB_PATH=/opt/nova-quant/data/quant.db`
+- `NOVA_DISABLE_SQLITE_PROCESS_LOCK=1` when `marvix.service` and `marvix-backend.service` share the same SQLite file on one box
 - `GEMINI_API_KEY`
 
 Optional but recommended free-data keys for the new Marvix training-input pipeline:
