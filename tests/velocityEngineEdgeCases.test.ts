@@ -292,7 +292,7 @@ describe('OHLCV bars pipeline', () => {
     });
     for (const series of result.series) {
       expect(Array.isArray(series.bars)).toBe(true);
-      expect(series.bars.length).toBe(20); // ohlcv_bar_window default
+      expect(series.bars.length).toBe(30); // ohlcv_bar_window default
     }
   });
 
@@ -375,7 +375,7 @@ describe('OHLCV bars pipeline', () => {
     });
     const series = result.series[0];
     expect(Array.isArray(series.bars)).toBe(true);
-    expect(series.bars.length).toBe(20);
+    expect(series.bars.length).toBe(30);
     for (const bar of series.bars) {
       expect(typeof bar.open).toBe('number');
       // OHLC invariants must hold even on close-only fallback path

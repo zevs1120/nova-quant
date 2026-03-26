@@ -2,6 +2,18 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 10.11.0 (2026-03-27)
+
+- Release type: **minor** (new capability)
+
+- **Feat(P4): Technical Indicators Library.**
+  - **New `src/engines/technicalIndicators.js`:** 10 pure functions ported from DSA's `stock_analyzer.py` — `sma`, `ema`, `emaSeries`, `macd` (12/26/9 with golden/death cross detection), `rsi` (Wilder's method, 6 & 14-period), `bollingerBands` (20/2σ), `biasRate`, `volumeRatio`, `maAlignment` (5-state classification), `computeIndicators` (composite entry point).
+  - **OHLCV bar window increased to 30** (`ohlcv_bar_window` in `params.js`) to ensure MACD(26) has sufficient data at runtime.
+  - **Signal contract addition (`signalEngine.js`):** new `technical_indicators` field on each enriched signal, computed from `series.bars`. Includes MA alignment, MACD state, RSI values, Bollinger bands, bias rates, and volume ratio. Additive — no breaking changes.
+  - **New tests:** `tests/technicalIndicators.test.ts` (32 tests) covering SMA correctness, EMA convergence, MACD cross detection, RSI boundaries (0-100, overbought/oversold), Bollinger invariants, bias rate sign, volume ratio math, MA alignment classification, and composite output shape.
+  - **Updated e2e:** `tests/signalEngineScoring.test.ts` P3 e2e test now also asserts `technical_indicators` presence, RSI type, and bar_count.
+  - Test suite: 113/113 files pass, 774/774 tests pass.
+
 ## 10.10.1 (2026-03-27)
 
 - Release type: **minor** (new capability)

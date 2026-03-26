@@ -12,6 +12,7 @@ import { getSeriesKey } from './velocityEngine.js';
 import { runSentimentCycle } from './sentimentCycleEngine.js';
 import { evaluateStrategy, aggregateEvaluations } from './strategyEvaluator.js';
 import { detectPatterns } from './patternDetector.js';
+import { computeIndicators } from './technicalIndicators.js';
 
 function safeNum(value, fallback = 0) {
   const n = Number(value);
@@ -600,6 +601,7 @@ export function runSignalEngine({ signals, velocityState, regimeState, riskState
         return aggregateEvaluations(evaluations);
       })(),
       detected_patterns: detectPatterns(series?.bars || signal.bars || []),
+      technical_indicators: computeIndicators(series?.bars || signal.bars || null),
 
       // Backward-compatible fields for existing UI components.
       signal_id: signal.signal_id,

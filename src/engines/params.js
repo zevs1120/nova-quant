@@ -4,7 +4,7 @@ export const STRATEGY_TEMPLATE_VERSION = 'strategy-templates-2026-03-27.1';
 
 export const VELOCITY_SETTINGS = {
   lookback: 20,
-  ohlcv_bar_window: 20,
+  ohlcv_bar_window: 30,
   event_threshold_high: 0.9,
   event_threshold_low: 0.1,
   restore_threshold: 0.9,

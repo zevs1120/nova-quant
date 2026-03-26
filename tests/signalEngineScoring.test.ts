@@ -189,7 +189,7 @@ describe('runSignalEngine output contract', () => {
     ) as any;
     expect(spySeries).toBeDefined();
     expect(Array.isArray(spySeries.bars)).toBe(true);
-    expect(spySeries.bars.length).toBe(20);
+    expect(spySeries.bars.length).toBe(30);
 
     const result = runSignalEngine({
       signals: [makeSignal()],
@@ -199,6 +199,15 @@ describe('runSignalEngine output contract', () => {
     });
     // detected_patterns is populated as an array (may be empty if no pattern matches)
     expect(Array.isArray(result[0].detected_patterns)).toBe(true);
+    // P4: technical_indicators is populated from bars
+    expect(result[0].technical_indicators).not.toBeNull();
+    expect(typeof result[0].technical_indicators.rsi_14).toBe('number');
+    expect(result[0].technical_indicators.ma_alignment).toBeDefined();
+    expect(typeof result[0].technical_indicators.macd.dif).toBe('number');
+    // MACD should produce non-zero values with 30 bars (needs ≥26)
+    expect(result[0].technical_indicators.macd.dif).not.toBe(0);
+    expect(typeof result[0].technical_indicators.bollinger.upper).toBe('number');
+    expect(result[0].technical_indicators.bar_count).toBe(30);
   });
 
   it('[P3] detected_patterns finds patterns when bars contain engulfing', () => {
