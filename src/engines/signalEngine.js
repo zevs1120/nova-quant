@@ -149,7 +149,11 @@ function calcCostModel(signal, strategyId, regime, velocity) {
   const baseline = COST_BASELINE_BY_MARKET[signal.market] || COST_BASELINE_BY_MARKET.US;
   const volatilityPenalty = (regime?.vol_percentile || 0.5) > 0.8 ? 2 : 0;
   const spreadBps =
-    signal.market === 'CRYPTO' ? 3 + volatilityPenalty * 0.5 : 1 + volatilityPenalty * 0.3;
+    signal.market === 'CRYPTO'
+      ? 3 + volatilityPenalty * 0.5
+      : signal.market === 'CN'
+        ? 2 + volatilityPenalty * 0.4
+        : 1 + volatilityPenalty * 0.3;
   const fundingAdj =
     signal.market === 'CRYPTO'
       ? baseline.funding_bps + ((regime?.risk_off_score || 0) > 0.65 ? 2 : 0)

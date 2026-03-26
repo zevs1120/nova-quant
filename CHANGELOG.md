@@ -2,6 +2,16 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 10.12.1 (2026-03-27)
+
+- Release type: **patch** (content addition)
+
+- **Feat(P6): DSA strategy migration — 6 CN equity strategies.**
+  - Ported from `daily_stock_analysis`: `CN_BULL_TREND` (默认多头), `CN_SHRINK_PB` (缩量回踩), `CN_VOL_BREAK` (放量突破), `CN_MA_CROSS` (均线金叉), `CN_BOTTOM_VOL` (底部放量), `CN_SENTIMENT` (情绪周期).
+  - All use P5 structured `{field, op, value, label}` trigger conditions — auto-loaded by strategy loader, zero code changes.
+  - 4 DSA strategies deferred (缠论, 波浪, 箱体, 一阳夹三阴) pending missing features (K-line sequences, support/resistance detection).
+  - Test suite: 113/113 files pass, 803/803 tests pass.
+
 ## 10.12.0 (2026-03-27)
 
 - Release type: **minor** (new capability)

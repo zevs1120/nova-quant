@@ -1,0 +1,63 @@
+# Shrink Volume Pullback / 缩量回踩
+# Ported from daily_stock_analysis's shrink_pullback strategy.
+# Volume contracts during pullback to MA support, then enters on bounce.
+
+strategy_id: CN_SHRINK_PB
+strategy_family: Trend/Pullback
+asset_class: CN_STOCK
+market: CN
+default_timeframe: 1D
+name: CN Shrink Volume Pullback
+
+features:
+  - ma_alignment
+  - volume_contraction
+  - bias_rate_proximity
+
+trigger_conditions:
+  - field: ma_alignment.status
+    op: 'in'
+    value: ['BULL', 'WEAK_BULL']
+    label: trend_intact
+  - field: volume_ratio
+    op: '<'
+    value: 0.7
+    label: volume_contracting
+  - field: bias_rate_5
+    op: '<'
+    value: 2
+    label: near_ma5_support
+  - field: rsi_14
+    op: '<='
+    value: 65
+    label: not_overbought
+
+invalidation:
+  - 'Price closes below MA20 with expanding volume.'
+  - 'Volume expands on continued decline (panic selling).'
+
+tp_ladder_rule: 'TP1 at prior swing high (MA5 level), TP2 at 1.6R extension.'
+
+not_to_trade:
+  - 'Broad market in RISK_OFF regime'
+  - 'Stock has negative news within 2 trading days'
+
+cost_assumptions:
+  fee_bps: 5
+  spread_bps: 2
+  slippage_bps: 3
+
+rules:
+  - 'Require bullish or weak-bullish MA alignment (trend intact).'
+  - 'Volume must contract below 70% of 5-day average during pullback.'
+  - 'Bias rate from MA5 must be small (< 2%) — price near support.'
+  - 'Stop below MA20 or pullback low, whichever is tighter.'
+
+trailing_rule:
+  mode: ema-trail
+  trigger_r_multiple: 1.2
+  trail_distance_pct: 1.5
+
+regime_tags:
+  - trending
+  - range

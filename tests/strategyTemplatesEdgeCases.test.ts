@@ -190,6 +190,49 @@ describe('resolveStrategyId (regime-aware)', () => {
     );
     expect(result).toBe('OP_INTRADAY');
   });
+
+  // P6: CN market routing
+  it('CN TREND regime routes to CN_BULL_TREND', () => {
+    const result = resolveStrategyId(
+      { market: 'CN', symbol: '688981', asset_class: 'CN_STOCK' },
+      { regime_label: 'TREND' },
+    );
+    expect(result).toBe('CN_BULL_TREND');
+  });
+
+  it('CN RANGE/NEUTRAL regime routes to CN_SHRINK_PB', () => {
+    const result = resolveStrategyId(
+      { market: 'CN', symbol: '688981', asset_class: 'CN_STOCK' },
+      { regime_label: 'NEUTRAL' },
+    );
+    expect(result).toBe('CN_SHRINK_PB');
+  });
+
+  it('CN HIGH_VOL regime routes to CN_VOL_BREAK', () => {
+    const result = resolveStrategyId(
+      { market: 'CN', symbol: '688981', asset_class: 'CN_STOCK' },
+      { regime_label: 'HIGH_VOL' },
+    );
+    expect(result).toBe('CN_VOL_BREAK');
+  });
+
+  it('CN RISK_OFF regime routes to CN_SENTIMENT', () => {
+    const result = resolveStrategyId(
+      { market: 'CN', symbol: '688981', asset_class: 'CN_STOCK' },
+      { regime_label: 'RISK_OFF' },
+    );
+    expect(result).toBe('CN_SENTIMENT');
+  });
+
+  it('CN symbol-mapped stock uses Tier 3 preference', () => {
+    expect(resolveStrategyId({ market: 'CN', symbol: '600519' })).toBe('CN_BULL_TREND');
+    expect(resolveStrategyId({ market: 'CN', symbol: '000858' })).toBe('CN_SHRINK_PB');
+    expect(resolveStrategyId({ market: 'CN', symbol: '300750' })).toBe('CN_VOL_BREAK');
+  });
+
+  it('CN unmapped stock without regime falls back to CN_BULL_TREND', () => {
+    expect(resolveStrategyId({ market: 'CN', symbol: 'UNKNOWN' })).toBe('CN_BULL_TREND');
+  });
 });
 
 /* ---------- loadExternalStrategies ---------- */

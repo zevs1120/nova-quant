@@ -22,6 +22,7 @@ export const REGIME_THRESHOLDS = {
 
 export const COST_BASELINE_BY_MARKET = {
   US: { fees_bps: 3, slippage_bps: 4, funding_bps: 0, basis_bps: 1 },
+  CN: { fees_bps: 5, slippage_bps: 3, funding_bps: 0, basis_bps: 0 },
   CRYPTO: { fees_bps: 5, slippage_bps: 5, funding_bps: 3, basis_bps: 4 },
 };
 

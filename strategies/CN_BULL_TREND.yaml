@@ -1,0 +1,62 @@
+# Default Bull Trend / 默认多头趋势
+# Ported from daily_stock_analysis's bull_trend strategy.
+# Identifies bullish MA alignment and trend continuation for CN equities.
+
+strategy_id: CN_BULL_TREND
+strategy_family: Trend/Bull
+asset_class: CN_STOCK
+market: CN
+default_timeframe: 1D
+name: CN Bull Trend Following
+
+features:
+  - trend_strength
+  - ma_alignment
+  - rsi_overbought_filter
+
+trigger_conditions:
+  - field: ma_alignment.status
+    op: '=='
+    value: 'BULL'
+    label: ma_bull_aligned
+  - field: trend_strength
+    op: '>='
+    value: 0.55
+    label: trend_confirmed
+  - field: rsi_14
+    op: '<'
+    value: 80
+    label: not_overbought
+  - field: bias_rate_20
+    op: '<'
+    value: 8
+    label: not_overextended
+
+invalidation:
+  - 'MA alignment breaks below WEAK_BULL.'
+  - 'RSI divergence on daily with declining volume.'
+
+tp_ladder_rule: 'TP1 at prior swing high, TP2 at 1.5R extension.'
+
+not_to_trade:
+  - 'Broad A-share market in RISK_OFF regime'
+  - 'Stock suspended or limit-up/limit-down'
+
+cost_assumptions:
+  fee_bps: 5
+  spread_bps: 2
+  slippage_bps: 3
+
+rules:
+  - 'Enter when MA5 > MA10 > MA20 (bull alignment confirmed).'
+  - 'Prefer pullback entries near MA5/MA10 rather than chasing breakouts.'
+  - 'Keep bias rate below 8% to avoid chasing overextended moves.'
+  - 'Stop below MA20 or prior swing low, whichever is tighter.'
+
+trailing_rule:
+  mode: ema-trail
+  trigger_r_multiple: 1.2
+  trail_distance_pct: 1.5
+
+regime_tags:
+  - trending

@@ -1,0 +1,60 @@
+# Sentiment Cycle / 情绪周期
+# Ported from daily_stock_analysis's emotion_cycle strategy.
+# Counter-sentiment entry at fear extremes — contrarian bottom fishing.
+
+strategy_id: CN_SENTIMENT
+strategy_family: Contrarian/Sentiment
+asset_class: CN_STOCK
+market: CN
+default_timeframe: 1D
+name: CN Sentiment Cycle Contrarian
+
+features:
+  - rsi_extreme
+  - risk_off_environment
+  - velocity_collapse
+
+trigger_conditions:
+  - field: rsi_6
+    op: '<'
+    value: 25
+    label: fear_extreme
+  - field: risk_off_score
+    op: '>'
+    value: 0.6
+    label: elevated_risk_off
+  - field: velocity_percentile
+    op: '<'
+    value: 0.3
+    label: momentum_washed_out
+
+invalidation:
+  - 'RSI recovers above 50 without price confirmation (dead cat bounce).'
+  - 'Risk-off score exceeds 0.9 (systemic crisis, not cyclical fear).'
+
+tp_ladder_rule: 'TP1 at RSI-50 recovery, TP2 at MA20 reclaim.'
+
+not_to_trade:
+  - 'Systemic financial crisis (risk_off_score > 0.9)'
+  - 'Stock-specific fundamental collapse'
+
+cost_assumptions:
+  fee_bps: 5
+  spread_bps: 3
+  slippage_bps: 4
+
+rules:
+  - 'Wait for RSI-6 to reach fear extreme (< 25) — contra sentiment entry.'
+  - 'Risk-off environment confirms broad fear, not just single-stock weakness.'
+  - 'Momentum must be washed out (velocity < 30th percentile) — selling exhaustion.'
+  - 'Use small position size — contrarian plays have wider stops.'
+  - 'Do NOT use this strategy during systemic crises (risk_off > 0.9).'
+
+trailing_rule:
+  mode: ema-trail
+  trigger_r_multiple: 0.9
+  trail_distance_pct: 1.3
+
+regime_tags:
+  - risk_off
+  - range

@@ -1,0 +1,60 @@
+# Bottom Volume Surge / 底部放量
+# Ported from daily_stock_analysis's bottom_volume strategy.
+# After extended decline, volume spikes at oversold levels — potential reversal.
+
+strategy_id: CN_BOTTOM_VOL
+strategy_family: Reversal/Bottom
+asset_class: CN_STOCK
+market: CN
+default_timeframe: 1D
+name: CN Bottom Volume Reversal
+
+features:
+  - rsi_oversold
+  - volume_surge
+  - bearish_exhaustion
+
+trigger_conditions:
+  - field: rsi_14
+    op: '<'
+    value: 35
+    label: oversold_territory
+  - field: volume_ratio
+    op: '>='
+    value: 1.5
+    label: volume_surge_at_bottom
+  - field: ma_alignment.status
+    op: 'in'
+    value: ['BEAR', 'WEAK_BEAR']
+    label: prior_downtrend
+
+invalidation:
+  - 'Volume surge without price stabilization (continued decline).'
+  - 'RSI recovers but immediately re-enters oversold.'
+
+tp_ladder_rule: 'TP1 at MA10 resistance, TP2 at MA20.'
+
+not_to_trade:
+  - 'Stock under regulatory investigation'
+  - 'Continuous limit-down (system risk)'
+
+cost_assumptions:
+  fee_bps: 5
+  spread_bps: 3
+  slippage_bps: 4
+
+rules:
+  - 'RSI must be in oversold territory (< 35) — indicates sufficient decline.'
+  - 'Volume surge (>= 1.5x average) at bottom signals institutional interest.'
+  - 'Prior downtrend (bear/weak-bear MA) confirms this is a bottom, not a dip.'
+  - 'Small initial position — reversal trades carry higher risk.'
+  - 'Stop below the volume surge bar low.'
+
+trailing_rule:
+  mode: ema-trail
+  trigger_r_multiple: 0.8
+  trail_distance_pct: 1.2
+
+regime_tags:
+  - range
+  - risk_off

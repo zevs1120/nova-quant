@@ -313,6 +313,11 @@ const SYMBOL_TO_STRATEGY = {
   'US:SPY240621C00540000': 'OP_INTRADAY',
   'US:QQQ240621P00460000': 'OP_INTRADAY',
   'US:AAPL240621C00215000': 'OP_INTRADAY',
+  // CN A-share defaults
+  'CN:000001': 'CN_BULL_TREND', // 上证指数
+  'CN:600519': 'CN_BULL_TREND', // 贵州茅台
+  'CN:000858': 'CN_SHRINK_PB', // 五粮液
+  'CN:300750': 'CN_VOL_BREAK', // 宁德时代
 };
 
 export function listStrategyTemplates() {
@@ -337,6 +342,18 @@ export function getStrategyTemplate(strategyId) {
  * @param {object} [regime] - Optional regime snapshot with regime_label
  * @returns {string} Resolved strategy_id
  */
+
+// Per-market preferred strategy for each regime tag.
+// Used when Tier 2 has multiple regime-matching candidates.
+const MARKET_REGIME_PREFERRED = {
+  CN: {
+    trending: 'CN_BULL_TREND',
+    range: 'CN_SHRINK_PB',
+    high_vol: 'CN_VOL_BREAK',
+    risk_off: 'CN_SENTIMENT',
+  },
+};
+
 export function resolveStrategyId(signal, regime) {
   const all = ensureMergedTemplates();
 
@@ -373,6 +390,18 @@ export function resolveStrategyId(signal, regime) {
         const symbolMapped = SYMBOL_TO_STRATEGY[`${signal.market}:${signal.symbol}`];
         const symbolMatch = candidates.find((t) => t.strategy_id === symbolMapped);
         if (symbolMatch) return symbolMatch.strategy_id;
+
+        // Use market-specific regime preference if available
+        const marketPrefs = MARKET_REGIME_PREFERRED[signal.market];
+        if (marketPrefs) {
+          for (const tag of regimeTags) {
+            const preferred = marketPrefs[tag];
+            if (preferred && candidates.find((t) => t.strategy_id === preferred)) {
+              return preferred;
+            }
+          }
+        }
+
         return candidates[0].strategy_id;
       }
     }
@@ -390,6 +419,7 @@ export function resolveStrategyId(signal, regime) {
       : '');
   if (ac === 'OPTIONS') return 'OP_INTRADAY';
   if (ac === 'US_STOCK') return 'EQ_SWING';
+  if (ac === 'CN_STOCK' || signal.market === 'CN') return 'CN_BULL_TREND';
   return signal.market === 'CRYPTO' ? 'CR_VEL' : 'EQ_REG';
 }
 

@@ -1,0 +1,63 @@
+# Volume Breakout / 放量突破
+# Ported from daily_stock_analysis's volume_breakout strategy.
+# Price breaks resistance on heavy volume (>2x average).
+
+strategy_id: CN_VOL_BREAK
+strategy_family: Momentum/Breakout
+asset_class: CN_STOCK
+market: CN
+default_timeframe: 1D
+name: CN Volume Breakout
+
+features:
+  - volume_expansion
+  - velocity_percentile
+  - bias_rate_filter
+
+trigger_conditions:
+  - field: volume_ratio
+    op: '>='
+    value: 2
+    label: volume_2x_surge
+  - field: velocity_percentile
+    op: '>'
+    value: 0.7
+    label: momentum_breakout
+  - field: bias_rate_5
+    op: '<'
+    value: 5
+    label: not_chasing_high
+  - field: trend_strength
+    op: '>='
+    value: 0.5
+    label: trend_supportive
+
+invalidation:
+  - 'Volume spike fails to sustain — next bar closes below breakout level.'
+  - 'Bias rate exceeds 8% (overextended chase).'
+
+tp_ladder_rule: 'TP1 near breakout extension, TP2 at 1.6R.'
+
+not_to_trade:
+  - 'Stock at daily limit-up (追涨停风险)'
+  - 'PE ratio extreme or recent secondary offering'
+
+cost_assumptions:
+  fee_bps: 5
+  spread_bps: 3
+  slippage_bps: 4
+
+rules:
+  - 'Require volume > 2x 5-day average for valid breakout confirmation.'
+  - 'Velocity percentile must indicate momentum expansion.'
+  - 'Bias rate cap at 5% — avoid chasing overextended breakouts.'
+  - 'Stop below breakout level or prior consolidation low.'
+
+trailing_rule:
+  mode: swing-low
+  trigger_r_multiple: 1.0
+  trail_distance_pct: 1.3
+
+regime_tags:
+  - trending
+  - high_vol

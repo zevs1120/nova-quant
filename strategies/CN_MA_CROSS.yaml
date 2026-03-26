@@ -1,0 +1,59 @@
+# MA Golden Cross / 均线金叉
+# Ported from daily_stock_analysis's ma_golden_cross strategy.
+# MACD golden cross with volume confirmation — classic trend reversal signal.
+
+strategy_id: CN_MA_CROSS
+strategy_family: Trend/Reversal
+asset_class: CN_STOCK
+market: CN
+default_timeframe: 1D
+name: CN MA Golden Cross
+
+features:
+  - macd_cross
+  - volume_confirmation
+  - rsi_filter
+
+trigger_conditions:
+  - field: macd.golden_cross
+    op: '=='
+    value: true
+    label: macd_golden_cross
+  - field: volume_ratio
+    op: '>'
+    value: 1
+    label: volume_expanding
+  - field: rsi_14
+    op: '<'
+    value: 70
+    label: room_to_run
+
+invalidation:
+  - 'MACD death cross within 3 bars of entry.'
+  - 'Volume dries up immediately after cross (false signal).'
+
+tp_ladder_rule: 'TP1 at 1R, TP2 at prior swing high.'
+
+not_to_trade:
+  - 'Stock in continuous limit-down series'
+  - 'Broad market breadth collapse'
+
+cost_assumptions:
+  fee_bps: 5
+  spread_bps: 2
+  slippage_bps: 3
+
+rules:
+  - 'MACD DIF must cross above DEA (golden cross confirmed).'
+  - 'Volume should expand on cross day — confirms participation.'
+  - 'RSI below 70 ensures not entering overbought territory.'
+  - 'Prefer crosses near zero axis (stronger signal) over far above zero.'
+
+trailing_rule:
+  mode: ema-trail
+  trigger_r_multiple: 1.1
+  trail_distance_pct: 1.4
+
+regime_tags:
+  - trending
+  - range
