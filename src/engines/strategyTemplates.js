@@ -1,6 +1,9 @@
 import { STRATEGY_TEMPLATE_VERSION } from './params.js';
+import { loadStrategiesFromDirectory, mergeTemplates } from './strategyLoader.js';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 
-const STRATEGY_TEMPLATES = {
+const BUILTIN_STRATEGY_TEMPLATES = {
   CR_BAS: {
     strategy_id: 'CR_BAS',
     strategy_family: 'Carry/Basis',
@@ -29,6 +32,7 @@ const STRATEGY_TEMPLATES = {
       'Invalidate if basis collapses through neutral with rising liquidation pressure.',
     ],
     trailing_rule: { mode: 'atr-step', trigger_r_multiple: 1.2, trail_distance_pct: 1.1 },
+    regime_tags: ['range'],
   },
   CR_VEL: {
     strategy_id: 'CR_VEL',
@@ -58,6 +62,7 @@ const STRATEGY_TEMPLATES = {
       'Abort when retest fails and acceleration flips negative.',
     ],
     trailing_rule: { mode: 'swing-low', trigger_r_multiple: 1.0, trail_distance_pct: 1.4 },
+    regime_tags: ['trending'],
   },
   CR_TRAP: {
     strategy_id: 'CR_TRAP',
@@ -84,6 +89,7 @@ const STRATEGY_TEMPLATES = {
       'Prefer smaller size and quicker profit realization.',
     ],
     trailing_rule: { mode: 'tight-chandelier', trigger_r_multiple: 0.8, trail_distance_pct: 0.9 },
+    regime_tags: ['high_vol', 'risk_off'],
   },
   CR_CARRY: {
     strategy_id: 'CR_CARRY',
@@ -110,6 +116,7 @@ const STRATEGY_TEMPLATES = {
       'Stop quickly if carry state flips.',
     ],
     trailing_rule: { mode: 'ema-trail', trigger_r_multiple: 1.1, trail_distance_pct: 1.2 },
+    regime_tags: ['trending', 'range'],
   },
   EQ_VEL: {
     strategy_id: 'EQ_VEL',
@@ -130,6 +137,7 @@ const STRATEGY_TEMPLATES = {
       'Exit early when breadth weakens against position direction.',
     ],
     trailing_rule: { mode: 'ema-trail', trigger_r_multiple: 1.4, trail_distance_pct: 1.7 },
+    regime_tags: ['trending'],
   },
   EQ_EVT: {
     strategy_id: 'EQ_EVT',
@@ -150,6 +158,7 @@ const STRATEGY_TEMPLATES = {
       'Tight invalidation if gap fails and IV crush dominates move.',
     ],
     trailing_rule: { mode: 'event-vol', trigger_r_multiple: 0.9, trail_distance_pct: 1.0 },
+    regime_tags: ['high_vol'],
   },
   EQ_REG: {
     strategy_id: 'EQ_REG',
@@ -170,6 +179,7 @@ const STRATEGY_TEMPLATES = {
       'Hold neutral when risk-off score breaches hard threshold.',
     ],
     trailing_rule: { mode: 'index-gated', trigger_r_multiple: 1.1, trail_distance_pct: 1.5 },
+    regime_tags: ['risk_off', 'range'],
   },
   EQ_SWING: {
     strategy_id: 'EQ_SWING',
@@ -190,6 +200,7 @@ const STRATEGY_TEMPLATES = {
       'Exit fast on trend failure.',
     ],
     trailing_rule: { mode: 'ema-trail', trigger_r_multiple: 1.3, trail_distance_pct: 1.5 },
+    regime_tags: ['trending', 'range'],
   },
   OP_INTRADAY: {
     strategy_id: 'OP_INTRADAY',
@@ -210,8 +221,59 @@ const STRATEGY_TEMPLATES = {
       'Force flatten by EOD.',
     ],
     trailing_rule: { mode: 'none' },
+    regime_tags: ['trending', 'high_vol'],
   },
 };
+
+/* ---------- regime label → regime_tags mapping ---------- */
+
+const REGIME_TO_TAGS = {
+  RISK_ON: ['trending'],
+  RISK_OFF: ['risk_off'],
+  NEUTRAL: ['range'],
+  TREND: ['trending'],
+  RANGE: ['range'],
+  HIGH_VOL: ['high_vol'],
+};
+
+/**
+ * OCC options symbol regex: ROOT (1-6 alpha) + YYMMDD + C/P + 8-digit strike.
+ * Matches all US listed options regardless of strike price.
+ * Examples: TSLA260619C00200000, SPX260619C01200000, QQQ240621P00460000
+ */
+const US_OPTIONS_SYMBOL_RE = /^[A-Z]{1,6}\d{6}[CP]\d{8}$/;
+
+/* ---------- YAML loading + merged template map ---------- */
+
+let _mergedTemplates = null;
+
+function getStrategiesDir() {
+  try {
+    const currentDir = dirname(fileURLToPath(import.meta.url));
+    return join(currentDir, '..', '..', 'strategies');
+  } catch {
+    return join(process.cwd(), 'strategies');
+  }
+}
+
+function ensureMergedTemplates() {
+  if (_mergedTemplates) return _mergedTemplates;
+
+  const strategiesDir = getStrategiesDir();
+  const yamlTemplates = loadStrategiesFromDirectory(strategiesDir);
+
+  if (yamlTemplates.length > 0) {
+    _mergedTemplates = mergeTemplates(BUILTIN_STRATEGY_TEMPLATES, yamlTemplates);
+  } else {
+    _mergedTemplates = { ...BUILTIN_STRATEGY_TEMPLATES };
+  }
+
+  return _mergedTemplates;
+}
+
+/* ---------- keep constant reference for built-in-only callers ---------- */
+
+const STRATEGY_TEMPLATES = BUILTIN_STRATEGY_TEMPLATES;
 
 const SYMBOL_TO_STRATEGY = {
   'CRYPTO:BTC-USDT': 'CR_BAS',
@@ -231,21 +293,80 @@ const SYMBOL_TO_STRATEGY = {
 };
 
 export function listStrategyTemplates() {
-  return Object.values(STRATEGY_TEMPLATES);
+  return Object.values(ensureMergedTemplates());
 }
 
 export function getStrategyTemplate(strategyId) {
-  return STRATEGY_TEMPLATES[strategyId] || STRATEGY_TEMPLATES.EQ_REG;
+  const all = ensureMergedTemplates();
+  return all[strategyId] || BUILTIN_STRATEGY_TEMPLATES.EQ_REG;
 }
 
-export function resolveStrategyId(signal) {
-  if (signal.strategy_id && STRATEGY_TEMPLATES[signal.strategy_id]) {
+/**
+ * Resolve which strategy template to use for a signal.
+ *
+ * Resolution order (borrowing DSA's SkillRouter 3-tier pattern):
+ *   1. signal.strategy_id if it exists in templates
+ *   2. Regime-aware match: prefer templates whose regime_tags match the current regime
+ *   3. SYMBOL_TO_STRATEGY static map
+ *   4. Asset class / market fallback
+ *
+ * @param {object} signal - Raw signal with market, symbol, asset_class, strategy_id
+ * @param {object} [regime] - Optional regime snapshot with regime_label
+ * @returns {string} Resolved strategy_id
+ */
+export function resolveStrategyId(signal, regime) {
+  const all = ensureMergedTemplates();
+
+  // Tier 1: explicit strategy_id on signal
+  if (signal.strategy_id && all[signal.strategy_id]) {
     return signal.strategy_id;
   }
+
+  // Tier 2: regime-aware routing (borrowed from DSA SkillRouter)
+  if (regime?.regime_label) {
+    const regimeTags = REGIME_TO_TAGS[regime.regime_label] || [];
+    if (regimeTags.length > 0) {
+      // Infer asset_class from symbol pattern when not explicitly set
+      let signalAssetClass = signal.asset_class || '';
+      if (
+        !signalAssetClass &&
+        signal.market === 'US' &&
+        signal.symbol &&
+        US_OPTIONS_SYMBOL_RE.test(signal.symbol)
+      ) {
+        signalAssetClass = 'OPTIONS';
+      }
+      const candidates = Object.values(all).filter(
+        (t) =>
+          t.market === signal.market &&
+          // Must match asset_class when known — prevents
+          // OPTIONS from being routed to US_STOCK strategies (bug #2)
+          (!signalAssetClass || t.asset_class === signalAssetClass) &&
+          Array.isArray(t.regime_tags) &&
+          t.regime_tags.some((tag) => regimeTags.includes(tag)),
+      );
+      if (candidates.length > 0) {
+        // Among regime-matching candidates, prefer the symbol-mapped one
+        const symbolMapped = SYMBOL_TO_STRATEGY[`${signal.market}:${signal.symbol}`];
+        const symbolMatch = candidates.find((t) => t.strategy_id === symbolMapped);
+        if (symbolMatch) return symbolMatch.strategy_id;
+        return candidates[0].strategy_id;
+      }
+    }
+  }
+
+  // Tier 3: symbol map
   const mapped = SYMBOL_TO_STRATEGY[`${signal.market}:${signal.symbol}`];
   if (mapped) return mapped;
-  if (signal.asset_class === 'OPTIONS') return 'OP_INTRADAY';
-  if (signal.asset_class === 'US_STOCK') return 'EQ_SWING';
+
+  // Tier 4: asset class / market fallback (with symbol inference)
+  const ac =
+    signal.asset_class ||
+    (signal.market === 'US' && signal.symbol && US_OPTIONS_SYMBOL_RE.test(signal.symbol)
+      ? 'OPTIONS'
+      : '');
+  if (ac === 'OPTIONS') return 'OP_INTRADAY';
+  if (ac === 'US_STOCK') return 'EQ_SWING';
   return signal.market === 'CRYPTO' ? 'CR_VEL' : 'EQ_REG';
 }
 
@@ -275,6 +396,23 @@ export function buildSignalExplanation({
     `Expected R=${expectedR.toFixed(2)}, hit-rate est=${hitRatePct}% (n=${risk.sample_size_reference}), estimated cost=${costBps} bps.`,
     `Avoid when: ${template.not_to_trade.slice(0, 2).join('; ')}.`,
   ];
+}
+
+/**
+ * Load external YAML strategies and return count of loaded templates.
+ * Safe to call multiple times (cached after first load).
+ * @returns {number} Total number of available templates (built-in + YAML)
+ */
+export function loadExternalStrategies() {
+  const all = ensureMergedTemplates();
+  return Object.keys(all).length;
+}
+
+/**
+ * Reset the cached merged templates. Used for testing.
+ */
+export function _resetTemplateCache() {
+  _mergedTemplates = null;
 }
 
 export const strategyTemplateVersion = STRATEGY_TEMPLATE_VERSION;

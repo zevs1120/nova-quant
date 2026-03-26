@@ -154,6 +154,122 @@ describe('runSignalEngine output contract', () => {
     expect(result[0].payload.kind).toBe('CRYPTO');
     expect(result[0].cost_model.funding_est_bps).toBeGreaterThan(0);
   });
+
+  it('[regression #4] strategy_evaluation uses aggregate shape for US stock', () => {
+    const result = runSignalEngine({
+      signals: [makeSignal()],
+      velocityState: makeVelocityState(),
+      regimeState: makeRegimeState(),
+      riskState: makeRiskState(),
+    });
+    const sig = result[0];
+    // US stock with multiple matching templates MUST produce aggregate shape
+    expect(sig.strategy_evaluation).toBeDefined();
+    expect(sig.strategy_evaluation.primary).toBeDefined();
+    expect(sig.strategy_evaluation.consensus_signal).toBeDefined();
+    expect(typeof sig.strategy_evaluation.weighted_adjustment).toBe('number');
+    expect(sig.strategy_evaluation.evaluation_count).toBeGreaterThan(1);
+  });
+
+  it('[regression #3] detected_patterns is empty when no real OHLCV bars', () => {
+    const result = runSignalEngine({
+      signals: [makeSignal()],
+      velocityState: makeVelocityState(),
+      regimeState: makeRegimeState(),
+      riskState: makeRiskState(),
+    });
+    const sig = result[0];
+    // Without real bars from the pipeline, detected_patterns MUST be empty —
+    // never fabricate synthetic bars from signal geometry
+    expect(Array.isArray(sig.detected_patterns)).toBe(true);
+    expect(sig.detected_patterns).toHaveLength(0);
+  });
+
+  it('[regression #3] detected_patterns populates when real bars are provided', () => {
+    const bars = [
+      { open: 100, high: 105, low: 98, close: 99, volume: 2000 },
+      { open: 98, high: 108, low: 97, close: 107, volume: 3000 },
+    ];
+    const velocityState = makeVelocityState();
+    // Inject real bars into series (runtime JS allows dynamic props)
+    (velocityState.series_index['US:SPY:1d'] as Record<string, unknown>).bars = bars;
+    const result = runSignalEngine({
+      signals: [makeSignal()],
+      velocityState,
+      regimeState: makeRegimeState(),
+      riskState: makeRiskState(),
+    });
+    const sig = result[0];
+    expect(Array.isArray(sig.detected_patterns)).toBe(true);
+    // With a bullish engulfing pattern (prev bearish, curr bullish engulfs)
+    expect(sig.detected_patterns.length).toBeGreaterThan(0);
+    for (const pattern of sig.detected_patterns) {
+      expect(pattern.type).toBeDefined();
+      expect(typeof pattern.confidence).toBe('number');
+      expect(pattern.direction).toBeDefined();
+      expect(typeof pattern.score_adjustment).toBe('number');
+    }
+  });
+
+  it('sentiment_cycle is present with expected shape', () => {
+    const result = runSignalEngine({
+      signals: [makeSignal()],
+      velocityState: makeVelocityState(),
+      regimeState: makeRegimeState(),
+      riskState: makeRiskState(),
+    });
+    const sig = result[0];
+    expect(sig.sentiment_cycle).toBeDefined();
+    expect(sig.sentiment_cycle.phase).toBeDefined();
+    expect(typeof sig.sentiment_cycle.adjustment).toBe('number');
+    expect(typeof sig.sentiment_cycle.factors.volume_ratio).toBe('number');
+    expect(typeof sig.sentiment_cycle.factors.velocity_percentile).toBe('number');
+    expect(typeof sig.sentiment_cycle.factors.ma_convergence).toBe('number');
+  });
+
+  it('[regression #2] low-strike OPTIONS symbol is correctly inferred', () => {
+    const result = runSignalEngine({
+      signals: [
+        makeSignal({
+          signal_id: 'opt-001',
+          symbol: 'TSLA260619C00200000',
+          market: 'US',
+          entry_min: 5.2,
+          entry_max: 5.8,
+          stop_loss: 3.5,
+          take_profit: 9.0,
+        }),
+      ],
+      velocityState: makeVelocityState(),
+      regimeState: makeRegimeState(),
+      riskState: makeRiskState(),
+    });
+    expect(result).toHaveLength(1);
+    expect(result[0].asset_class).toBe('OPTIONS');
+    expect(result[0].strategy_id).toBe('OP_INTRADAY');
+  });
+
+  it('[regression #2] high-strike OPTIONS symbol (SPX) is correctly inferred', () => {
+    const result = runSignalEngine({
+      signals: [
+        makeSignal({
+          signal_id: 'opt-spx-001',
+          symbol: 'SPX260619C01200000',
+          market: 'US',
+          entry_min: 12.0,
+          entry_max: 13.5,
+          stop_loss: 8.0,
+          take_profit: 20.0,
+        }),
+      ],
+      velocityState: makeVelocityState(),
+      regimeState: makeRegimeState(),
+      riskState: makeRiskState(),
+    });
+    expect(result).toHaveLength(1);
+    expect(result[0].asset_class).toBe('OPTIONS');
+    expect(result[0].strategy_id).toBe('OP_INTRADAY');
+  });
 });
 
 /* ─────────────────────────────────────────────────

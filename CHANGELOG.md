@@ -2,6 +2,51 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 10.10.0 (2026-03-27)
+
+- Release type: **minor** (new capability)
+
+- **Feat: multi-strategy evaluator + K-line pattern detection.**
+  - Borrows the SkillAgent specialist evaluation pattern from `daily_stock_analysis` and adapts it for engine-driven (non-LLM) evaluation.
+  - **New `src/engines/strategyEvaluator.js`:** `evaluateStrategy()` scores each signal against template conditions (trend alignment, velocity, vol, risk-off, volume, carry) and classifies signal strength as `strong|moderate|weak|skip`. `aggregateEvaluations()` computes consensus signal and confidence-weighted score adjustment across multiple strategy perspectives.
+  - **New `src/engines/patternDetector.js`:** 5 K-line candlestick patterns adapted from DSA's `one_yang_three_yin` and `volume_breakout`: `bullish_engulfing`, `bearish_engulfing`, `hammer`, `doji`, `volume_breakout` (放量突破). Each returns `{ type, confidence, direction, score_adjustment }`.
+  - **Signal contract additions (`signalEngine.js`):** two new additive fields: `strategy_evaluation` (per-signal structured eval) and `detected_patterns` (detected K-line patterns). All existing fields preserved — no breaking changes.
+  - **New tests:** `tests/strategyEvaluator.test.ts` (16 tests), `tests/patternDetector.test.ts` (18 tests).
+  - **Updated regression coverage:** `tests/signalEngineScoring.test.ts`, `tests/strategyTemplatesEdgeCases.test.ts`, `tests/riskGuardrailEdgeCases.test.ts`, and `tests/modelIngestApi.test.ts` now cover aggregate strategy-evaluation shape, real-bars-only pattern detection, OCC option symbol inference (including high-strike contracts), and model-ingest option normalization.
+  - Test suite: 112/112 files pass, 736/736 tests pass (up from 110/669 at P0 start).
+
+## 10.9.0 (2026-03-27)
+
+- Release type: **minor** (new capability)
+
+- **Feat: bias-rate guardrail + sentiment cycle factor.**
+  - Borrows the bias-rate (乖离率) core rule from `daily_stock_analysis` and the emotion cycle quantitative factors from its `emotion_cycle.yaml`.
+  - **Bias-rate guardrail (`riskGuardrailEngine.js`):** new `computeBiasRate()` measures entry extension from equilibrium (entry-to-stop distance × regime compatibility scaler). `buildBiasRateWarnings()` emits `'bias_rate_overextended'` (MEDIUM, ≥5%) and `'bias_rate_blocked'` (HIGH, ≥8%) per the DSA core rule "乖离率 > 5% 不追高". Warnings appear in `bias_rate_warnings` array and per-signal `signal_annotations` with `bias_rate_pct`.
+  - **New `src/engines/sentimentCycleEngine.js`:** classifies market sentiment into 5 phases (`cold_bottom`, `warming`, `stable`, `heating`, `euphoria_top`) using volume ratio, velocity percentile, and MA convergence proxy. Each phase produces a score adjustment: cold = +0.12 bonus (contrarian opportunity), euphoria = -0.15 penalty (chasing risk). Inspired by DSA's turnover extremes + volume pulse + MA convergence factors.
+  - **Signal scoring integration (`signalEngine.js`):** sentiment adjustment is added to each signal's score after the core `computeSignalScore()` computation. New `sentiment_cycle` field in the enriched signal contract includes `phase`, `adjustment`, and `factors`.
+  - **New params (`params.js`):** `BIAS_RATE_THRESHOLDS` (warning_pct: 5, block_pct: 8) and `SENTIMENT_CYCLE_PARAMS` (cold_bonus: 0.12, euphoria_penalty: -0.15, volume/convergence thresholds).
+  - **New test:** `tests/sentimentCycleEngine.test.ts` (22 tests) — volume ratio, MA convergence, all 5 phases, adjustment bounds, runSentimentCycle integration.
+  - **Existing tests pass with no regressions** — `riskGuardrailEdgeCases.test.ts` (18 tests), `signalEngineScoring.test.ts` (15 tests).
+
+## 10.8.0 (2026-03-27)
+
+- Release type: **minor** (new capability)
+
+- **Feat: YAML declarative strategy loading + regime-aware strategy routing.**
+  - Borrows the zero-code strategy definition pattern from `daily_stock_analysis`'s SkillManager and the regime-aware routing logic from its SkillRouter.
+  - **New `src/engines/strategyLoader.js`:** YAML parser, validator, normalizer, directory scanner, and template merge system. Validates required fields (`strategy_id`, `strategy_family`, `asset_class`, `market`, `features`, `rules`) on load. Invalid files are skipped with warnings, not fatal.
+  - **New `strategies/` directory** with 2 seed YAML strategy definitions: `EQ_PULLBACK.yaml` (equity pullback-to-EMA, inspired by DSA's `shrink_pullback`) and `CR_MOMENTUM.yaml` (crypto momentum continuation, inspired by DSA's `volume_breakout`).
+  - **New `regime_tags` field** on all 9 built-in strategy templates (e.g., `CR_VEL: ['trending']`, `CR_TRAP: ['high_vol', 'risk_off']`, `EQ_REG: ['risk_off', 'range']`). YAML strategies also declare `regime_tags`.
+  - **Regime-aware `resolveStrategyId(signal, regime)`:** 4-tier resolution borrowed from DSA's SkillRouter pattern: (1) explicit `strategy_id` on signal → (2) regime-matching templates filtered by `regime_tags` → (3) `SYMBOL_TO_STRATEGY` static map → (4) asset class / market fallback. The 2nd parameter is optional — all existing call sites remain backward compatible.
+  - **`signalEngine.js`:** passes regime snapshot to `resolveStrategyId`, enabling dynamic strategy selection based on current market state.
+  - **New exports:** `loadExternalStrategies()` (returns total count), `_resetTemplateCache()` (test utility).
+  - **`STRATEGY_TEMPLATE_VERSION`** bumped to `strategy-templates-2026-03-27.1`.
+  - **New test:** `tests/strategyLoader.test.ts` (22 tests) — YAML parse/validate/normalize, directory scan, merge/override, error handling.
+  - **Updated test:** `tests/strategyTemplatesEdgeCases.test.ts` (22 tests, up from 17) — YAML-loaded template assertions, regime_tags on all templates, regime-aware routing tests.
+  - **New dependency:** `js-yaml` for YAML parsing.
+  - **`npm audit fix` applied:** 0 vulnerabilities remaining.
+  - Test suite: 109/109 files pass, 669/669 tests pass (up from 106 files + 628 tests).
+
 ## 10.7.1 (2026-03-27)
 
 - Release type: patch

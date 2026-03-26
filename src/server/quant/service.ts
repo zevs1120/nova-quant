@@ -345,7 +345,8 @@ function hashCode(input: string): number {
 function inferAssetClass(raw: RawSignal): AssetClass {
   if (raw.asset_class) return raw.asset_class;
   if (raw.market === 'CRYPTO') return 'CRYPTO';
-  if (raw.symbol.includes('C00') || raw.symbol.includes('P00')) return 'OPTIONS';
+  // OCC options symbol: ROOT(1-6 alpha) + YYMMDD + C/P + 8-digit strike
+  if (/^[A-Z]{1,6}\d{6}[CP]\d{8}$/.test(raw.symbol)) return 'OPTIONS';
   return 'US_STOCK';
 }
 
@@ -678,7 +679,7 @@ function parseSignalPayload(payloadJson: string): SignalContract | null {
       parsed.asset_class ??
       (market === 'CRYPTO'
         ? 'CRYPTO'
-        : String(parsed.symbol || '').includes('C00') || String(parsed.symbol || '').includes('P00')
+        : /^[A-Z]{1,6}\d{6}[CP]\d{8}$/.test(String(parsed.symbol || ''))
           ? 'OPTIONS'
           : 'US_STOCK');
     const parsedStatus = String(parsed.status || '').toUpperCase();

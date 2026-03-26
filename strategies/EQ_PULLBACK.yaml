@@ -1,0 +1,51 @@
+# Equity Pullback-to-EMA Entry
+# Inspired by daily_stock_analysis's shrink_pullback strategy.
+# Looks for volume contraction during pullback to key EMA, then enters on bounce.
+
+strategy_id: EQ_PULLBACK
+strategy_family: Trend/Pullback
+asset_class: US_STOCK
+market: US
+default_timeframe: 1D
+name: Equity Pullback to EMA Entry
+
+features:
+  - trend_strength
+  - pullback_depth
+  - volume_contraction
+  - ema_proximity
+
+trigger_conditions:
+  - 'Trend strength above 0.55 and price pulls back to EMA-21 zone.'
+  - 'Volume contracts below 70% of 5-day average during pullback.'
+  - 'Price holds EMA support and shows stabilization candle.'
+
+invalidation:
+  - 'Price closes below EMA-50 with expanding volume.'
+  - 'Trend strength drops below 0.40.'
+
+tp_ladder_rule: 'TP1 at prior swing high, TP2 at 1.6R extension.'
+
+not_to_trade:
+  - 'Broad market in RISK_OFF regime'
+  - 'Earnings within 2 trading days'
+
+cost_assumptions:
+  fee_bps: 3
+  spread_bps: 1
+  slippage_bps: 3
+
+rules:
+  - 'Enter only when daily trend is confirmed (EMA-10 > EMA-21 > EMA-50).'
+  - 'Require pullback depth of 38-62% of prior impulse leg.'
+  - 'Volume must contract during pullback — shrinking volume confirms healthy correction.'
+  - 'Set stop below the pullback low or EMA-50, whichever is tighter.'
+
+trailing_rule:
+  mode: ema-trail
+  trigger_r_multiple: 1.2
+  trail_distance_pct: 1.5
+
+regime_tags:
+  - trending
+  - range

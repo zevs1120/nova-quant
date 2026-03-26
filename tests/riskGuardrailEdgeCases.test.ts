@@ -250,4 +250,50 @@ describe('signal annotations', () => {
     });
     expect(result.signal_annotations['sig-1'].warnings).toContain('regime_mismatch');
   });
+
+  it('[regression #1] bias_rate_blocked causes STAY_OUT recommendation', () => {
+    // Entry 181 with stop at 160 = 11.6% raw distance × 1.0 scaler = 11.6% > block_pct 8%
+    const signal = makeSignal({
+      entry_zone: { low: 180, high: 182 },
+      stop_loss: { price: 160 },
+      regime_compatibility: 65,
+    });
+    const result = runRiskGuardrailEngine({
+      signals: [signal],
+      riskState: makeRiskState(),
+    });
+    expect(result.stay_out_recommendation.action).toBe('STAY_OUT');
+    expect(result.stay_out_recommendation.reason).toContain('乖离率');
+    expect(result.bias_rate_warnings.length).toBeGreaterThan(0);
+    expect(result.bias_rate_warnings[0].type).toBe('bias_rate_blocked');
+  });
+
+  it('[regression #1] bias_rate_overextended does NOT cause STAY_OUT', () => {
+    // Entry 181 with stop at 170 = 6.1% raw distance × 1.0 scaler = 6.1% > warning 5% but < block 8%
+    const signal = makeSignal({
+      entry_zone: { low: 180, high: 182 },
+      stop_loss: { price: 170 },
+      regime_compatibility: 65,
+    });
+    const result = runRiskGuardrailEngine({
+      signals: [signal],
+      riskState: makeRiskState(),
+    });
+    expect(result.stay_out_recommendation.action).not.toBe('STAY_OUT');
+    expect(result.signal_annotations['sig-1'].warnings).toContain('bias_rate_overextended');
+    expect(result.signal_annotations['sig-1'].bias_rate_pct).toBeGreaterThanOrEqual(5);
+  });
+
+  it('bias_rate_pct is null when entry is near stop', () => {
+    const signal = makeSignal({
+      entry_zone: { low: 180, high: 182 },
+      stop_loss: { price: 179 },
+    });
+    const result = runRiskGuardrailEngine({
+      signals: [signal],
+      riskState: makeRiskState(),
+    });
+    expect(result.signal_annotations['sig-1'].bias_rate_pct).toBeNull();
+    expect(result.bias_rate_warnings.length).toBe(0);
+  });
 });

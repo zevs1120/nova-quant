@@ -57,11 +57,20 @@ function toDirection(value: unknown): ModelSignalSide | null {
   return null;
 }
 
-function toAssetClass(market: Market, value?: unknown): AssetClass {
+function toAssetClass(market: Market, value?: unknown, symbol?: string): AssetClass {
   const next = String(value || '')
     .trim()
     .toUpperCase();
-  if (next === 'US_STOCK' || next === 'CRYPTO') return next;
+  if (next === 'US_STOCK' || next === 'CRYPTO' || next === 'OPTIONS') return next as AssetClass;
+  // Infer OPTIONS from OCC symbol format: ROOT(1-6 alpha) + YYMMDD + C/P + 8-digit strike
+  // Matches all strike prices including high-strike (e.g., SPX260619C01200000)
+  if (
+    market === 'US' &&
+    symbol &&
+    /^[A-Z]{1,6}\d{6}[CP]\d{8}$/.test(String(symbol).toUpperCase())
+  ) {
+    return 'OPTIONS';
+  }
   return market === 'CRYPTO' ? 'CRYPTO' : 'US_STOCK';
 }
 
@@ -189,7 +198,7 @@ function mapIngressToSignal(payload: ModelSignalIngress): SignalContract {
     id: buildSignalId(payload),
     created_at: createdAt,
     expires_at: new Date(expiresAtMs).toISOString(),
-    asset_class: toAssetClass(payload.market, payload.asset_class),
+    asset_class: toAssetClass(payload.market, payload.asset_class, payload.symbol),
     market: payload.market,
     symbol: payload.symbol,
     timeframe,
@@ -318,6 +327,7 @@ function normalizeIngressBody(body: unknown): ModelSignalIngress[] {
       asset_class: toAssetClass(
         market,
         (item as { asset_class?: unknown } | null | undefined)?.asset_class,
+        symbol,
       ),
       confidence: toFiniteNumber((item as { confidence?: unknown } | null | undefined)?.confidence),
     };

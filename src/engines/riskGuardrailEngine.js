@@ -1,4 +1,5 @@
 import { clamp, round } from './math.js';
+import { BIAS_RATE_THRESHOLDS } from './params.js';
 
 const ACTIVE_STATUSES = new Set(['NEW', 'TRIGGERED']);
 const US_THEME_BUCKETS = {
@@ -56,6 +57,62 @@ function buildCorrelationAlerts(activeSignals) {
   return alerts;
 }
 
+/**
+ * Compute bias rate (乖离率) — how far entry price deviates from the trend.
+ * Borrowed from DSA core rule: "乖离率 > 5% 不追高".
+ *
+ * Uses trend_strength as a proxy for MA alignment. When trend_strength is
+ * high (e.g., 0.7), price is likely near its MAs. Larger entry/stop distance
+ * with lower trend strength = higher bias rate.
+ */
+function computeBiasRate(signal) {
+  const entryLow = Number(signal.entry_zone?.low ?? signal.entry_min ?? 0);
+  const entryHigh = Number(signal.entry_zone?.high ?? signal.entry_max ?? 0);
+  const entryMid = (entryLow + entryHigh) / 2;
+  if (!Number.isFinite(entryMid) || entryMid <= 0) return 0;
+
+  const stop = Number(
+    signal.stop_loss?.price ?? signal.stop_loss_value ?? signal.stop_loss ?? entryMid,
+  );
+  // The distance from entry to stop as a % of entry is used as a lower-bound
+  // proxy for how far the trade is extended from equilibrium.
+  const rawDistance = Math.abs((entryMid - stop) / entryMid) * 100;
+
+  // Scale by inverse of regime_compatibility to capture extension felt by
+  // the current regime — a poorly-fitting regime amplifies the bias signal.
+  const regimeCompat = Number(signal.regime_compatibility ?? 65);
+  const regimeScaler = regimeCompat < 50 ? 1.3 : regimeCompat < 70 ? 1.0 : 0.85;
+
+  return round(rawDistance * regimeScaler, 2);
+}
+
+function buildBiasRateWarnings(activeSignals) {
+  const warnings = [];
+  for (const signal of activeSignals) {
+    const biasRate = computeBiasRate(signal);
+    if (biasRate >= BIAS_RATE_THRESHOLDS.block_pct) {
+      warnings.push({
+        type: 'bias_rate_blocked',
+        signal_id: signal.signal_id,
+        symbol: signal.symbol,
+        bias_rate_pct: biasRate,
+        threshold_pct: BIAS_RATE_THRESHOLDS.block_pct,
+        severity: 'HIGH',
+      });
+    } else if (biasRate >= BIAS_RATE_THRESHOLDS.warning_pct) {
+      warnings.push({
+        type: 'bias_rate_overextended',
+        signal_id: signal.signal_id,
+        symbol: signal.symbol,
+        bias_rate_pct: biasRate,
+        threshold_pct: BIAS_RATE_THRESHOLDS.warning_pct,
+        severity: 'MEDIUM',
+      });
+    }
+  }
+  return warnings;
+}
+
 function buildRegimeMismatchWarnings(activeSignals) {
   return activeSignals
     .filter((signal) => Number(signal.regime_compatibility ?? 100) < 50)
@@ -75,11 +132,21 @@ function recommendation({
   maxBudgetPct,
   correlationAlerts,
   mismatchWarnings,
+  biasRateWarnings,
 }) {
   if (!riskState?.status?.trading_on) {
     return {
       action: 'STAY_OUT',
       reason: 'Daily loss or drawdown guardrail reached.',
+    };
+  }
+
+  // Bias-rate hard block: any signal exceeding block_pct → refuse new trades
+  const hasBiasBlock = biasRateWarnings.some((w) => w.type === 'bias_rate_blocked');
+  if (hasBiasBlock) {
+    return {
+      action: 'STAY_OUT',
+      reason: 'Entry price deviates too far from equilibrium (乖离率 hard block).',
     };
   }
 
@@ -136,12 +203,14 @@ export function runRiskGuardrailEngine({ signals, riskState }) {
 
   const correlationAlerts = buildCorrelationAlerts(activeSignals);
   const regimeMismatchWarnings = buildRegimeMismatchWarnings(activeSignals);
+  const biasRateWarnings = buildBiasRateWarnings(activeSignals);
   const rec = recommendation({
     riskState,
     budgetUsedPct,
     maxBudgetPct,
     correlationAlerts,
     mismatchWarnings: regimeMismatchWarnings,
+    biasRateWarnings,
   });
 
   const signalAnnotations = Object.fromEntries(
@@ -151,12 +220,15 @@ export function runRiskGuardrailEngine({ signals, riskState }) {
         warnings.push('regime_mismatch');
       if (correlationAlerts.some((item) => item.symbols.includes(signal.symbol)))
         warnings.push('correlation_cluster');
+      const biasWarning = biasRateWarnings.find((item) => item.signal_id === signal.signal_id);
+      if (biasWarning) warnings.push(biasWarning.type);
       return [
         signal.signal_id,
         {
           signal_id: signal.signal_id,
           warnings,
           recommendation: rec.action,
+          bias_rate_pct: biasWarning?.bias_rate_pct ?? null,
         },
       ];
     }),
@@ -173,6 +245,7 @@ export function runRiskGuardrailEngine({ signals, riskState }) {
     },
     correlated_exposure_alerts: correlationAlerts,
     regime_mismatch_warnings: regimeMismatchWarnings,
+    bias_rate_warnings: biasRateWarnings,
     stay_out_recommendation: rec,
     signal_annotations: signalAnnotations,
   };

@@ -4,10 +4,14 @@ import { computePositionPct } from './riskEngine.js';
 import {
   buildSignalExplanation,
   getStrategyTemplate,
+  listStrategyTemplates,
   resolveStrategyId,
   strategyTemplateVersion,
 } from './strategyTemplates.js';
 import { getSeriesKey } from './velocityEngine.js';
+import { runSentimentCycle } from './sentimentCycleEngine.js';
+import { evaluateStrategy, aggregateEvaluations } from './strategyEvaluator.js';
+import { detectPatterns } from './patternDetector.js';
 
 function safeNum(value, fallback = 0) {
   const n = Number(value);
@@ -20,10 +24,20 @@ function inferTimeframe(signal, template) {
   );
 }
 
+/**
+ * OCC options symbol regex: ROOT (1-6 alpha) + YYMMDD + C/P + 8-digit strike.
+ * Matches all US listed options regardless of strike price.
+ */
+const US_OPTIONS_SYMBOL_RE = /^[A-Z]{1,6}\d{6}[CP]\d{8}$/;
+
 function inferAssetClass(signal, strategyId) {
   if (signal.asset_class) return signal.asset_class;
   if (strategyId === 'OP_INTRADAY') return 'OPTIONS';
   if (signal.market === 'CRYPTO') return 'CRYPTO';
+  // Infer from OCC options symbol format (e.g., TSLA260619C00200000, SPX260619C01200000)
+  if (signal.market === 'US' && signal.symbol && US_OPTIONS_SYMBOL_RE.test(signal.symbol)) {
+    return 'OPTIONS';
+  }
   return 'US_STOCK';
 }
 
@@ -394,7 +408,12 @@ export function runSignalEngine({ signals, velocityState, regimeState, riskState
   }, {});
 
   const contracts = signals.map((signal) => {
-    const strategyId = resolveStrategyId(signal);
+    const timeframeForLookup = inferTimeframe(
+      signal,
+      getStrategyTemplate(resolveStrategyId(signal)),
+    );
+    const regimeForRouting = getRegimeSnapshot(signal, timeframeForLookup, regimeState);
+    const strategyId = resolveStrategyId(signal, regimeForRouting);
     const template = getStrategyTemplate(strategyId);
     const assetClass = inferAssetClass(signal, strategyId);
     const timeframe = inferTimeframe(signal, template);
@@ -453,13 +472,15 @@ export function runSignalEngine({ signals, velocityState, regimeState, riskState
         total_bps: costModel.total_bps,
       },
     });
-    const score = computeSignalScore({
-      expectedR,
-      confidenceNorm,
-      regimeId,
-      totalCostBps: costModel.total_bps,
-      volPct: (regime?.vol_percentile || 0.5) * 100,
-    });
+    const sentimentCycle = runSentimentCycle({ series, regime });
+    const score =
+      computeSignalScore({
+        expectedR,
+        confidenceNorm,
+        regimeId,
+        totalCostBps: costModel.total_bps,
+        volPct: (regime?.vol_percentile || 0.5) * 100,
+      }) + sentimentCycle.adjustment;
     const stopType = inferStopType(strategyId);
     const trailingType = inferTrailingType(template);
     const temperaturePercentile = round(
@@ -556,6 +577,29 @@ export function runSignalEngine({ signals, velocityState, regimeState, riskState
         docs_url: `/docs/strategies/${strategyId.toLowerCase()}`,
       },
       score,
+      sentiment_cycle: sentimentCycle,
+      strategy_evaluation: (() => {
+        // Bug #4 fix: run multi-strategy evaluation across regime-matching templates
+        const allTemplates = listStrategyTemplates();
+        const candidates = allTemplates.filter(
+          (t) => t.market === signal.market && t.asset_class === assetClass,
+        );
+        // If only one candidate, single eval is fine; otherwise aggregate
+        if (candidates.length <= 1) {
+          return evaluateStrategy({ template, regime, series, expectedR, confidenceNorm });
+        }
+        const evaluations = candidates.map((candidateTemplate) =>
+          evaluateStrategy({
+            template: candidateTemplate,
+            regime,
+            series,
+            expectedR,
+            confidenceNorm,
+          }),
+        );
+        return aggregateEvaluations(evaluations);
+      })(),
+      detected_patterns: detectPatterns(series?.bars || signal.bars || []),
 
       // Backward-compatible fields for existing UI components.
       signal_id: signal.signal_id,

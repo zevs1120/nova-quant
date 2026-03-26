@@ -1,6 +1,6 @@
 export const PIPELINE_VERSION = 'nova-pipeline-1.0.0';
 export const PARAM_VERSION = 'params-2026-03-04.1';
-export const STRATEGY_TEMPLATE_VERSION = 'strategy-templates-2026-03-04.1';
+export const STRATEGY_TEMPLATE_VERSION = 'strategy-templates-2026-03-27.1';
 
 export const VELOCITY_SETTINGS = {
   lookback: 20,
@@ -82,4 +82,31 @@ export const HOW_USED_RULES = {
     '回落后按 RECOVERY_STEP_1 与 RECOVERY_STEP_2 两阶段恢复，最后回到 BASE。',
     '若 risk-off 分数仍偏高，持续限制杠杆并避免追涨杀跌。',
   ],
+};
+
+/**
+ * Bias-rate (乖离率) thresholds.
+ * Borrowed from daily_stock_analysis core rule: "乖离率 > 5% 不追高".
+ * warning_pct: soft warning when entry deviates >5% from trend proxy
+ * block_pct: hard block when deviation exceeds 8%
+ */
+export const BIAS_RATE_THRESHOLDS = {
+  warning_pct: 5,
+  block_pct: 8,
+};
+
+/**
+ * Sentiment cycle parameters.
+ * Adapted from daily_stock_analysis emotion_cycle.yaml factors:
+ * turnover extremes, volume pulse, MA convergence.
+ */
+export const SENTIMENT_CYCLE_PARAMS = {
+  cold_bonus: 0.12,
+  warming_bonus: 0.06,
+  heating_penalty: -0.06,
+  euphoria_penalty: -0.15,
+  volume_cold_threshold: 0.5,
+  volume_hot_threshold: 2.0,
+  convergence_tight_threshold: 0.3,
+  convergence_wide_threshold: 0.8,
 };

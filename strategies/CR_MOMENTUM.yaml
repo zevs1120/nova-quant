@@ -1,0 +1,52 @@
+# Crypto Momentum Continuation
+# Inspired by daily_stock_analysis's volume_breakout strategy.
+# Captures continuation moves confirmed by volume expansion and velocity.
+
+strategy_id: CR_MOMENTUM
+strategy_family: Momentum/Continuation
+asset_class: CRYPTO
+market: CRYPTO
+default_timeframe: 4H
+name: Crypto Momentum Continuation
+
+features:
+  - velocity_percentile
+  - volume_expansion
+  - trend_strength
+  - breakout_confirmation
+
+trigger_conditions:
+  - 'Velocity percentile crosses above 70th with volume > 2x 5-bar average.'
+  - 'Price closes above prior consolidation high on expanding volume.'
+
+invalidation:
+  - 'Volume spike fails to sustain — next bar closes below breakout level.'
+  - 'Velocity percentile drops below 40th within 2 bars of entry.'
+
+tp_ladder_rule: 'TP1 at 1R, TP2 at structure extension target.'
+
+not_to_trade:
+  - 'Funding rate extreme (> 3x baseline)'
+  - 'Exchange spread blowout'
+
+cost_assumptions:
+  fee_bps: 5
+  spread_bps: 4
+  slippage_bps: 5
+  funding_est_bps: 3
+  basis_est: 2
+
+rules:
+  - 'Require volume confirmation — breakout bar volume must exceed 2x recent average.'
+  - 'Direction follows velocity and trend alignment.'
+  - 'Abort if breakout bar is fully retraced within 2 bars (failed breakout).'
+  - 'Keep leverage conservative when funding is elevated.'
+
+trailing_rule:
+  mode: swing-low
+  trigger_r_multiple: 1.0
+  trail_distance_pct: 1.3
+
+regime_tags:
+  - trending
+  - high_vol
