@@ -310,3 +310,175 @@ describe('mergeTemplates', () => {
     expect(Object.keys(merged)).toEqual(['A']);
   });
 });
+
+/* ---------- P5: structured trigger_conditions ---------- */
+
+const STRUCTURED_YAML = `
+strategy_id: STRUCT_TEST
+strategy_family: Test/Structured
+asset_class: US_STOCK
+market: US
+features:
+  - trend_strength
+trigger_conditions:
+  - field: trend_strength
+    op: '>='
+    value: 0.55
+    label: trend_ok
+  - field: rsi_14
+    op: '<='
+    value: 70
+    label: not_overbought
+rules:
+  - 'Follow trend.'
+regime_tags:
+  - trending
+`;
+
+const MIXED_CONDITIONS_YAML = `
+strategy_id: MIXED
+strategy_family: Test/Mixed
+asset_class: US_STOCK
+market: US
+features:
+  - trend_strength
+trigger_conditions:
+  - 'Legacy NL string'
+  - field: trend_strength
+    op: '>='
+    value: 0.5
+    label: trend_ok
+rules:
+  - 'Follow trend.'
+`;
+
+describe('P5: structured trigger_conditions in loader', () => {
+  it('normalizeTemplate preserves structured condition objects', () => {
+    const data = {
+      strategy_id: 'X',
+      strategy_family: 'Y',
+      asset_class: 'US_STOCK',
+      market: 'US',
+      features: ['a'],
+      rules: ['b'],
+      trigger_conditions: [
+        { field: 'trend_strength', op: '>=', value: 0.55, label: 'trend_ok' },
+        { field: 'rsi_14', op: '<=', value: 70, label: 'not_overbought' },
+      ],
+    };
+    const t = normalizeTemplate(data) as any;
+    expect(t.trigger_conditions).toHaveLength(2);
+    expect(typeof t.trigger_conditions[0]).toBe('object');
+    expect(t.trigger_conditions[0].field).toBe('trend_strength');
+    expect(t.trigger_conditions[0].op).toBe('>=');
+    expect(t.trigger_conditions[0].value).toBe(0.55);
+    expect(t.trigger_conditions[0].label).toBe('trend_ok');
+  });
+
+  it('normalizeTemplate still converts legacy string conditions', () => {
+    const data = {
+      strategy_id: 'X',
+      strategy_family: 'Y',
+      features: ['a'],
+      rules: ['b'],
+      trigger_conditions: ['Trend aligns.', 'Velocity confirms.'],
+    };
+    const t = normalizeTemplate(data) as any;
+    expect(t.trigger_conditions).toEqual(['Trend aligns.', 'Velocity confirms.']);
+  });
+
+  it('validateTemplate rejects mixed NL + structured conditions', () => {
+    const data = {
+      strategy_id: 'X',
+      strategy_family: 'Y',
+      asset_class: 'US_STOCK',
+      market: 'US',
+      features: ['a'],
+      rules: ['b'],
+      trigger_conditions: [
+        'Legacy string',
+        { field: 'trend_strength', op: '>=', value: 0.55, label: 'trend_ok' },
+      ],
+    };
+    const { valid, errors } = validateTemplate(data);
+    expect(valid).toBe(false);
+    expect(errors.some((e: string) => e.includes('not mixed'))).toBe(true);
+  });
+
+  it('loadStrategyFromYaml preserves structured conditions from YAML file', () => {
+    writeTmpYaml('structured.yaml', STRUCTURED_YAML);
+    const t = loadStrategyFromYaml(join(TMP_DIR, 'structured.yaml')) as any;
+    expect(t.strategy_id).toBe('STRUCT_TEST');
+    expect(t.trigger_conditions).toHaveLength(2);
+    expect(typeof t.trigger_conditions[0]).toBe('object');
+    expect(t.trigger_conditions[0].field).toBe('trend_strength');
+    expect(t.trigger_conditions[0].op).toBe('>=');
+    expect(t.trigger_conditions[0].value).toBe(0.55);
+    expect(t.trigger_conditions[1].field).toBe('rsi_14');
+  });
+
+  it('loadStrategyFromYaml rejects mixed conditions in YAML', () => {
+    writeTmpYaml('mixed.yaml', MIXED_CONDITIONS_YAML);
+    expect(() => loadStrategyFromYaml(join(TMP_DIR, 'mixed.yaml'))).toThrow('not mixed');
+  });
+
+  it('validateTemplate rejects condition missing op', () => {
+    const data = {
+      strategy_id: 'X',
+      strategy_family: 'Y',
+      asset_class: 'US_STOCK',
+      market: 'US',
+      features: ['a'],
+      rules: ['b'],
+      trigger_conditions: [{ field: 'trend_strength', value: 0.55, label: 'missing_op' }],
+    };
+    const { valid, errors } = validateTemplate(data);
+    expect(valid).toBe(false);
+    expect(errors.some((e: string) => e.includes("invalid 'op'"))).toBe(true);
+  });
+
+  it('validateTemplate rejects condition missing field', () => {
+    const data = {
+      strategy_id: 'X',
+      strategy_family: 'Y',
+      asset_class: 'US_STOCK',
+      market: 'US',
+      features: ['a'],
+      rules: ['b'],
+      trigger_conditions: [{ op: '>=', value: 0.55, label: 'missing_field' }],
+    };
+    const { valid, errors } = validateTemplate(data);
+    expect(valid).toBe(false);
+    expect(errors.some((e: string) => e.includes("missing required 'field'"))).toBe(true);
+  });
+
+  it('validateTemplate rejects condition with unknown op', () => {
+    const data = {
+      strategy_id: 'X',
+      strategy_family: 'Y',
+      asset_class: 'US_STOCK',
+      market: 'US',
+      features: ['a'],
+      rules: ['b'],
+      trigger_conditions: [{ field: 'rsi_14', op: 'LIKE', value: 50, label: 'bad_op' }],
+    };
+    const { valid, errors } = validateTemplate(data);
+    expect(valid).toBe(false);
+    expect(errors.some((e: string) => e.includes("invalid 'op' 'LIKE'"))).toBe(true);
+  });
+
+  it('validateTemplate rejects condition missing value', () => {
+    const data = {
+      strategy_id: 'X',
+      strategy_family: 'Y',
+      asset_class: 'US_STOCK',
+      market: 'US',
+      features: ['a'],
+      rules: ['b'],
+      trigger_conditions: [{ field: 'rsi_14', op: '>=', label: 'no_value' }],
+    };
+    const { valid, errors } = validateTemplate(data);
+    expect(valid).toBe(false);
+    expect(errors.some((e: string) => e.includes("missing required 'value'"))).toBe(true);
+  });
+});

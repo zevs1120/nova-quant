@@ -16,9 +16,22 @@ features:
   - ema_proximity
 
 trigger_conditions:
-  - 'Trend strength above 0.55 and price pulls back to EMA-21 zone.'
-  - 'Volume contracts below 70% of 5-day average during pullback.'
-  - 'Price holds EMA support and shows stabilization candle.'
+  - field: trend_strength
+    op: '>='
+    value: 0.55
+    label: trend_confirmed
+  - field: volume_ratio
+    op: '<'
+    value: 0.7
+    label: volume_contracting
+  - field: rsi_14
+    op: '<='
+    value: 70
+    label: not_overbought
+  - field: bias_rate_5
+    op: '<'
+    value: 3
+    label: not_chasing_high
 
 invalidation:
   - 'Price closes below EMA-50 with expanding volume.'

@@ -2,6 +2,18 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 10.12.0 (2026-03-27)
+
+- Release type: **minor** (new capability)
+
+- **Feat(P5): YAML Rule Engine — structured trigger conditions.**
+  - **Refactored `strategyEvaluator.js`:** new `buildConditionContext()` (30+ flattened fields from regime/series/technicalIndicators), `evaluateCondition()` (6 operators: `>`, `>=`, `<`, `<=`, `==`, `!=`, `in`), and `evaluateLegacyHeuristic()` fallback for NL strings.
+  - **Structured conditions:** `trigger_conditions` now accept `{ field, op, value, label }` objects. All 9 inline templates and 2 YAML files migrated from natural-language strings to machine-readable conditions.
+  - **P4 integration:** `signalEngine.js` now passes `technicalIndicators` to `evaluateStrategy()`, enabling YAML conditions to reference MACD, RSI, Bollinger, MA alignment, bias rate, and volume ratio.
+  - **Backward compatible:** NL string conditions automatically fall back to the legacy heuristic evaluator.
+  - **New tests:** 14 tests added to `strategyEvaluator.test.ts` covering `evaluateCondition` operators, `buildConditionContext` flattening, and structured + legacy dual-mode evaluation.
+  - Test suite: 113/113 files pass, 788/788 tests pass.
+
 ## 10.11.0 (2026-03-27)
 
 - Release type: **minor** (new capability)

@@ -58,6 +58,40 @@ export function validateTemplate(data, source = 'unknown') {
     errors.push(`${source}: 'trigger_conditions' must be an array`);
   }
 
+  // P5: validate trigger_conditions — reject mixed, validate structured schema
+  if (Array.isArray(data.trigger_conditions) && data.trigger_conditions.length > 0) {
+    const VALID_OPS = ['>', '>=', '<', '<=', '==', '!=', 'in'];
+    const hasStructured = data.trigger_conditions.some(
+      (c) => typeof c === 'object' && c !== null && c.field && c.op,
+    );
+    const hasLegacy = data.trigger_conditions.some((c) => typeof c === 'string');
+    if (hasStructured && hasLegacy) {
+      errors.push(
+        `${source}: 'trigger_conditions' must be all structured objects or all strings, not mixed`,
+      );
+    }
+    // Validate each non-string entry has required schema
+    for (let i = 0; i < data.trigger_conditions.length; i += 1) {
+      const c = data.trigger_conditions[i];
+      if (typeof c === 'string') continue;
+      if (typeof c !== 'object' || c === null) {
+        errors.push(`${source}: trigger_conditions[${i}] must be a string or structured object`);
+        continue;
+      }
+      if (!c.field || typeof c.field !== 'string') {
+        errors.push(`${source}: trigger_conditions[${i}] missing required 'field' (string)`);
+      }
+      if (!c.op || !VALID_OPS.includes(c.op)) {
+        errors.push(
+          `${source}: trigger_conditions[${i}] has invalid 'op' '${c.op}', must be one of: ${VALID_OPS.join(', ')}`,
+        );
+      }
+      if (c.value === undefined || c.value === null) {
+        errors.push(`${source}: trigger_conditions[${i}] missing required 'value'`);
+      }
+    }
+  }
+
   if (data.invalidation && !Array.isArray(data.invalidation)) {
     errors.push(`${source}: 'invalidation' must be an array`);
   }
@@ -87,7 +121,9 @@ export function normalizeTemplate(data) {
     name: String(data.name || data.strategy_id).trim(),
     features: Array.isArray(data.features) ? data.features.map(String) : [],
     trigger_conditions: Array.isArray(data.trigger_conditions)
-      ? data.trigger_conditions.map(String)
+      ? data.trigger_conditions.map((c) =>
+          typeof c === 'object' && c !== null && c.field && c.op ? c : String(c),
+        )
       : [],
     invalidation: Array.isArray(data.invalidation) ? data.invalidation.map(String) : [],
     tp_ladder_rule: String(data.tp_ladder_rule || 'TP1 at 1R, TP2 at 1.6R.'),

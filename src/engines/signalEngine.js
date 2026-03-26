@@ -581,13 +581,22 @@ export function runSignalEngine({ signals, velocityState, regimeState, riskState
       sentiment_cycle: sentimentCycle,
       strategy_evaluation: (() => {
         // Bug #4 fix: run multi-strategy evaluation across regime-matching templates
+        // P5: pass technicalIndicators so the rule engine can use P4 data
+        const ti = computeIndicators(series?.bars || signal.bars || null);
         const allTemplates = listStrategyTemplates();
         const candidates = allTemplates.filter(
           (t) => t.market === signal.market && t.asset_class === assetClass,
         );
         // If only one candidate, single eval is fine; otherwise aggregate
         if (candidates.length <= 1) {
-          return evaluateStrategy({ template, regime, series, expectedR, confidenceNorm });
+          return evaluateStrategy({
+            template,
+            regime,
+            series,
+            expectedR,
+            confidenceNorm,
+            technicalIndicators: ti,
+          });
         }
         const evaluations = candidates.map((candidateTemplate) =>
           evaluateStrategy({
@@ -596,6 +605,7 @@ export function runSignalEngine({ signals, velocityState, regimeState, riskState
             series,
             expectedR,
             confidenceNorm,
+            technicalIndicators: ti,
           }),
         );
         return aggregateEvaluations(evaluations);

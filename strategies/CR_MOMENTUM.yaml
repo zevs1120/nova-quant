@@ -16,8 +16,18 @@ features:
   - breakout_confirmation
 
 trigger_conditions:
-  - 'Velocity percentile crosses above 70th with volume > 2x 5-bar average.'
-  - 'Price closes above prior consolidation high on expanding volume.'
+  - field: velocity_percentile
+    op: '>'
+    value: 0.7
+    label: velocity_breakout
+  - field: volume_ratio
+    op: '>='
+    value: 2
+    label: volume_2x_avg
+  - field: trend_strength
+    op: '>='
+    value: 0.5
+    label: trend_supportive
 
 invalidation:
   - 'Volume spike fails to sustain — next bar closes below breakout level.'
