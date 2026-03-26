@@ -2,6 +2,39 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 10.7.0 (2026-03-27)
+
+- Release type: **minor** (new capability)
+
+- **Feat: Supabase business data migration — SQLite → Postgres mirror layer.**
+  - **Migration tooling (`src/server/db/postgresMigration.ts`, `scripts/migrate-business-to-postgres.ts`):** one-shot bulk migration of all business tables from SQLite to Supabase Postgres. Includes batched upserts (configurable via `NOVA_DATA_MIGRATION_BATCH_SIZE`), progress logging, and audit script (`scripts/audit-business-db-migration.ts`) to verify row-count parity. New `docs/SUPABASE_BUSINESS_DB_MIGRATION.md` walkthrough.
+  - **Write mirror (`src/server/db/postgresBusinessMirror.ts`):** Proxy-based write interceptor that automatically mirrors 20+ SQLite write operations (OHLCV bars, runtime state, decision snapshots, alpha candidates, alpha evaluations, alpha shadow observations, alpha lifecycle events, market state, performance snapshots, backtest runs/metrics, nova task runs, engagement events, notifications, external connections, API keys, etc.) to Supabase Postgres via an async queue with per-table deduplication. Activated when `NOVA_DATA_DATABASE_URL` is set. Backend scripts (`auto-backend.ts`, `run-alpha-discovery.ts`, `run-evolution-cycle.ts`, `run-free-data-flywheel.ts`, `run-nova-flywheel.ts`, `run-nova-strategy-lab.ts`) wired to create the mirror-enabled repository and flush after each cycle.
+  - **Admin read mirror (`src/server/admin/postgresBusinessRead.ts`):** full Supabase-backed read layer for Admin dashboards — System Health, Research Ops, Alpha Lab pages now prefer Supabase reads when the data mirror is available, with SQLite fallback.
+  - **Runtime read preference (`src/server/api/queries.ts`):** live API routes (`/api/signals`, `/api/market-state`, `/api/runtime-state`, `/api/execution/*`, `/api/connect/*`, `/api/engagement/*`) prefer Supabase for reads when the mirror connection is available, reducing EC2/SQLite dependency for the Vercel-hosted app.
+  - **Platform readiness (`scripts/check-platform-readiness.mjs`):** pre-flight script that verifies Supabase connection, schema, row counts, and env vars before enabling the mirror in production.
+  - **New `.env.example` vars:** `NOVA_DATA_DATABASE_URL`, `NOVA_DATA_PG_SCHEMA`, `NOVA_DATA_PG_POOL_MAX`, `NOVA_DATA_MIGRATION_BATCH_SIZE`.
+  - **New test:** `tests/postgresBusinessMigration.test.ts` (migration tooling coverage).
+
+- **Feat: public Alpha supply intake for research discovery.**
+  - **New `src/server/research/publicAlphaSupply.ts`:** builds a readiness-scored supply report by matching public research seed hypotheses against strategy templates, assessing feature-set support via `runtimeFeatureSupport.js`, and classifying each match as `ready_now`, `adapter_quick_win`, or `blocked_missing_data`.
+  - **New `src/research/discovery/runtimeFeatureSupport.js`:** runtime feature assessment engine — classifies features as measured, adapter-ready, or blocking based on current data pipeline capabilities.
+  - Candidate generator and hypothesis registry expanded with public seed filtering and strategy family canonicalization.
+  - API route `GET /api/research/alpha-supply` exposed.
+  - **New tests:** `tests/publicAlphaSupply.test.ts`, extended `tests/strategyDiscoveryEngine.test.ts`.
+
+- **Fix: EC2 deployment alignment and Admin Alpha visibility.**
+  - Restore live Alpha visibility in Admin (`src/server/admin/liveAlpha.ts` — new 636-line dedicated module, extracted from `service.ts`). Admin `AlphaLabPage.jsx` redesigned with richer alpha state display.
+  - Prefer EC2 API base URL for Admin (`admin/src/services/adminApi.js`) and App (`src/utils/api.js`), fixing incorrect routing during Vercel cold starts.
+  - Align EC2 runtime with production: `SERVE_WEB_DIST` env handling, Nova client base URL resolution, `.env.example` updates for EC2 deployment templates.
+  - **New test:** `tests/alphaDiscoveryLoop.test.ts` (103 new test cases for alpha discovery with live Admin integration).
+
+- **Fix: backfill signal cards when replay evidence is missing.**
+  - Evidence engine (`src/server/evidence/engine.ts`) now detects missing replay evidence and backfills signal cards from the runtime state, ensuring the Today tab and Proof tab always display actionable content even when evidence replay hasn't completed.
+  - Runtime state query (`src/server/api/queries.ts`) includes null-safe evidence bundle fallback.
+  - **New tests:** extended `tests/apiRuntimeState.test.ts` (+38 tests), `tests/evidenceEngine.test.ts` (+38 tests).
+
+- Test suite: 106/106 files pass, 628/628 tests pass (up from 102 files and 618 tests).
+
 ## 10.5.8 (2026-03-26)
 
 - Release type: patch

@@ -1,7 +1,7 @@
 # Nova Quant — Architecture Overview
 
-> 自动扫描生成 · 最后更新: 2026-03-25
-> Version: 10.5.1 (build 65)
+> 自动扫描生成 · 最后更新: 2026-03-27
+> Version: 10.7.0 (build 68)
 
 ---
 
@@ -40,6 +40,7 @@ nova-quant/
 | 前端框架   | React 18 + Vite 5, JSX                                     |
 | 后端框架   | Express 5 (TypeScript)                                     |
 | 业务数据库 | SQLite (better-sqlite3) — `data/quant.db`                  |
+| 业务镜像   | Supabase Postgres (可选，镜像写入 + 优先读取)              |
 | 认证数据库 | Postgres (生产推荐) / Upstash Redis (遗留) / SQLite (本地) |
 | 类型检查   | TypeScript 5.9                                             |
 | 测试框架   | Vitest 4 + Supertest                                       |
@@ -231,11 +232,13 @@ nova-quant/
 
 ### 6.2 数据库层 (`src/server/db/`)
 
-| 文件            | 职责                      | 大小   |
-| --------------- | ------------------------- | ------ |
-| `schema.ts`     | 全部 SQLite 表定义 & 迁移 | 49 KB  |
-| `repository.ts` | 数据访问层 (CRUD 操作)    | 128 KB |
-| `database.ts`   | 连接管理 & WAL 模式配置   | 2 KB   |
+| 文件                        | 职责                                    | 大小   |
+| --------------------------- | --------------------------------------- | ------ |
+| `schema.ts`                 | 全部 SQLite 表定义 & 迁移               | 49 KB  |
+| `repository.ts`             | 数据访问层 (CRUD 操作)                  | 128 KB |
+| `database.ts`               | 连接管理 & WAL 模式配置                 | 2 KB   |
+| `postgresBusinessMirror.ts` | Supabase 写镜像 (Proxy 拦截 20+ 写操作) | 新增   |
+| `postgresMigration.ts`      | SQLite → Supabase 批量迁移工具          | 新增   |
 
 **主要 SQLite 表**: `ohlcv_bars`, `runtime_state`, `decision_snapshots`, `chat_threads`, `chat_messages`, `evidence_runs`, `alpha_candidates`, `alpha_evaluations`, `alpha_shadow_observations`, `alpha_lifecycle_events`, `manual_signals`, `engagement_state` 等
 
@@ -389,14 +392,16 @@ src/research/
 
 独立 Vite 应用，包含以下页面:
 
-| 页面                       | 职责                               |
-| -------------------------- | ---------------------------------- |
-| `OverviewPage.jsx`         | 系统概览仪表盘                     |
-| `SystemHealthPage.jsx`     | 系统健康监控                       |
-| `ResearchOpsPage.jsx`      | 研究运维 (工作流、数据摄取、Alpha) |
-| `AlphaLabPage.jsx`         | Alpha 实验室                       |
-| `UsersPage.jsx`            | 用户管理                           |
-| `SignalsExecutionPage.jsx` | 信号与执行监控                     |
+| 页面                       | 职责                            |
+| -------------------------- | ------------------------------- |
+| `OverviewPage.jsx`         | 系统概览仪表盘                  |
+| `SystemHealthPage.jsx`     | 系统健康监控 (支持 Supabase 读) |
+| `ResearchOpsPage.jsx`      | 研究运维 (支持 Supabase 读)     |
+| `AlphaLabPage.jsx`         | Alpha 实验室 (支持 Supabase 读) |
+| `UsersPage.jsx`            | 用户管理                        |
+| `SignalsExecutionPage.jsx` | 信号与执行监控                  |
+
+**Admin 数据源**: 当 `NOVA_DATA_DATABASE_URL` 已配置时，Admin 页面优先从 Supabase Postgres 镜像读取数据 (`src/server/admin/postgresBusinessRead.ts`)，失败时回退到 SQLite。
 
 ---
 
@@ -414,12 +419,19 @@ src/research/
 │  evidence_runs         │     └──────────────────────┘
 │  manual_signals        │
 │  alpha_candidates      │     ┌──────────────────────┐
-│  alpha_evaluations     │     │  Upstash Redis       │
-│  alpha_shadow_obs      │     │  (遗留认证路径)      │
-│  alpha_lifecycle       │     └──────────────────────┘
-│  engagement_state      │
-│  ...                   │
-└────────────────────────┘
+│  alpha_evaluations     │     │  Supabase Postgres   │
+│  alpha_shadow_obs      │     │  (业务数据镜像,可选) │
+│  alpha_lifecycle       │     │  ──────────────────  │
+│  engagement_state      │     │  全部业务表的镜像    │
+│  ...                   │     │  via postgresBusinessMirror │
+│                        │     │  写: Proxy 拦截自动同步    │
+│                        │     │  读: Admin + API 优先      │
+└────────────────────────┘     └──────────────────────┘
+
+                               ┌──────────────────────┐
+                               │  Upstash Redis       │
+                               │  (遗留认证路径)      │
+                               └──────────────────────┘
 ```
 
 ---
@@ -445,31 +457,34 @@ src/research/
 
 ### 12.3 关键运维脚本 (`scripts/`)
 
-| 脚本                           | 用途                   |
-| ------------------------------ | ---------------------- |
-| `auto-backend.ts`              | 自动化后端运维循环     |
-| `auto-quant-engine.mjs`        | 自动化量化引擎 (91 KB) |
-| `backfill.ts`                  | 数据回填               |
-| `db-init.ts` / `db-migrate.ts` | 数据库初始化 & 迁移    |
-| `derive-runtime-state.ts`      | 运行时状态推导         |
-| `massive-smoke-test.ts`        | Massive API 冒烟测试   |
-| `run-alpha-discovery.ts`       | Alpha 发现循环         |
-| `run-evidence.ts`              | 证据引擎执行           |
-| `run-nova-strategy-lab.ts`     | 策略实验室             |
-| `migrate-auth-to-postgres.ts`  | 认证迁移到 Postgres    |
-| `package-source.mjs`           | 源码打包 (DD 用)       |
-| `version-manager.mjs`          | SemVer 版本管理        |
+| 脚本                              | 用途                        |
+| --------------------------------- | --------------------------- |
+| `auto-backend.ts`                 | 自动化后端运维循环          |
+| `auto-quant-engine.mjs`           | 自动化量化引擎 (91 KB)      |
+| `backfill.ts`                     | 数据回填                    |
+| `db-init.ts` / `db-migrate.ts`    | 数据库初始化 & 迁移         |
+| `derive-runtime-state.ts`         | 运行时状态推导              |
+| `massive-smoke-test.ts`           | Massive API 冒烟测试        |
+| `run-alpha-discovery.ts`          | Alpha 发现循环              |
+| `run-evidence.ts`                 | 证据引擎执行                |
+| `run-nova-strategy-lab.ts`        | 策略实验室                  |
+| `migrate-auth-to-postgres.ts`     | 认证迁移到 Postgres         |
+| `migrate-business-to-postgres.ts` | 业务数据迁移到 Supabase     |
+| `audit-business-db-migration.ts`  | 迁移后行数一致性审计        |
+| `check-platform-readiness.mjs`    | 平台就绪预检 (Supabase/EC2) |
+| `package-source.mjs`              | 源码打包 (DD 用)            |
+| `version-manager.mjs`             | SemVer 版本管理             |
 
 ---
 
 ## 13. 测试体系
 
 - **框架**: Vitest 4 + Supertest
-- **测试文件**: 102 个 (均在 `tests/` 目录)
-- **测试用例**: 591 个 (全部通过)
+- **测试文件**: 106 个 (均在 `tests/` 目录)
+- **测试用例**: 628 个 (全部通过)
 - **覆盖率**: `@vitest/coverage-v8`
 
-**覆盖领域**: 决策引擎、信号引擎、风控引擎、证据引擎、参与引擎、API 路由、认证、CORS、缓存隔离、Nova 客户端、Alpha 发现、Massive 摄取、持仓导入、手动信号、新闻提供、组合模拟、策略发现、置信度校准、数学边界等。
+**覆盖领域**: 决策引擎、信号引擎、风控引擎、证据引擎、参与引擎、API 路由、认证、CORS、缓存隔离、Nova 客户端、Alpha 发现、Massive 摄取、持仓导入、手动信号、新闻提供、组合模拟、策略发现、置信度校准、数学边界、Postgres 业务迁移、公开 Alpha 供给等。
 
 ```bash
 npm test                    # 运行全部测试
@@ -508,19 +523,23 @@ API/运行时输出使用的显式状态标签:
 
 ## 16. 环境变量一览
 
-| 变量                     | 用途                 |
-| ------------------------ | -------------------- |
-| `DATABASE_URL`           | Postgres 认证 (生产) |
-| `MASSIVE_API_KEY`        | Massive.com 数据 API |
-| `ALPHA_VANTAGE_API_KEY`  | 股票/ETF 搜索增强    |
-| `COINGECKO_*_API_KEY`    | 加密货币搜索增强     |
-| `KV_REST_API_*`          | Upstash Redis (遗留) |
-| `NOVA_ALPHA_DISCOVERY_*` | Alpha 发现循环配置   |
-| `GEMINI_API_KEY`         | Google Gemini LLM    |
-| `OPENAI_API_KEY`         | OpenAI LLM           |
-| `GROQ_API_KEY`           | Groq LLM             |
-| `DB_PATH`                | 自定义 SQLite 路径   |
-| `SERVE_WEB_DIST`         | EC2 单机部署模式     |
+| 变量                             | 用途                                  |
+| -------------------------------- | ------------------------------------- |
+| `DATABASE_URL`                   | Postgres 认证 (生产)                  |
+| `MASSIVE_API_KEY`                | Massive.com 数据 API                  |
+| `ALPHA_VANTAGE_API_KEY`          | 股票/ETF 搜索增强                     |
+| `COINGECKO_*_API_KEY`            | 加密货币搜索增强                      |
+| `KV_REST_API_*`                  | Upstash Redis (遗留)                  |
+| `NOVA_ALPHA_DISCOVERY_*`         | Alpha 发现循环配置                    |
+| `NOVA_DATA_DATABASE_URL`         | Supabase 业务数据镜像连接             |
+| `NOVA_DATA_PG_SCHEMA`            | 业务镜像 Schema (默认 novaquant_data) |
+| `NOVA_DATA_PG_POOL_MAX`          | 业务镜像连接池大小                    |
+| `NOVA_DATA_MIGRATION_BATCH_SIZE` | 迁移批次大小                          |
+| `GEMINI_API_KEY`                 | Google Gemini LLM                     |
+| `OPENAI_API_KEY`                 | OpenAI LLM                            |
+| `GROQ_API_KEY`                   | Groq LLM                              |
+| `DB_PATH`                        | 自定义 SQLite 路径                    |
+| `SERVE_WEB_DIST`                 | EC2 单机部署模式                      |
 
 ---
 

@@ -1,7 +1,7 @@
 # Nova Quant
 
 Nova Quant is an AI-native quantitative **decision** platform for US equities and crypto.
-Current app version: `10.5.6` (build `68`).
+Current app version: `10.7.0` (build `68`).
 Versioning policy: `package.json` is canonical, `src/config/version.js` is the generated runtime mirror, and release history lives in `CHANGELOG.md` / `docs/VERSIONING.md`.
 Auth supports two backends: **Postgres** (recommended for production, set `DATABASE_URL`) and **Upstash Redis** (legacy deployed path via `KV_REST_API_URL` + `KV_REST_API_TOKEN` or `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN`). Local development uses SQLite auth by default. Without any remote auth backend configured, deployed `/api/auth/*` returns `AUTH_STORE_NOT_CONFIGURED`.
 Browse search can now merge external market results into `/api/assets/search`. By default it augments local assets with the SEC company ticker universe and CoinGecko crypto search; set `ALPHA_VANTAGE_API_KEY` for broader stock / ETF lookup and `COINGECKO_DEMO_API_KEY` (or `COINGECKO_API_KEY` / `COINGECKO_PRO_API_KEY`) for higher-volume crypto search.
@@ -16,7 +16,7 @@ This repository now supports a strict five-part deployment layout:
 - `landing/`: brand landing page on Vercel
 - `app/`: user-facing H5 frontend on Vercel
 - `server/`: pure API layer on Vercel
-- `admin/`: internal control dashboard on Vercel (includes System Health + Research Ops dashboards)
+- `admin/`: internal control dashboard on Vercel (includes System Health + Research Ops dashboards, prefers Supabase read mirror when available)
 - `model/`: EC2-side model boundary and signal contract
 
 Production domains should be split as:
@@ -79,9 +79,13 @@ Primary application layers:
 - `src/server/evidence/engine.ts`: replay / backtest / evidence engine
 - `src/server/holdings/import.ts`: CSV / screenshot holdings import with auto-detection and normalization
 - `src/server/admin/liveOps.ts`: admin Research Ops aggregation (workflows, data intake, Alpha eval, training)
+- `src/server/admin/postgresBusinessRead.ts`: Supabase-backed read layer for Admin dashboards (falls back to SQLite)
+- `src/server/db/postgresBusinessMirror.ts`: Proxy-based write mirror that auto-syncs SQLite writes to Supabase Postgres
+- `src/server/research/publicAlphaSupply.ts`: public Alpha supply intake — readiness-scored research seed matching
 - `src/server/backbone/service.ts`: unified backend backbone summary spanning research, risk, decision, registries, workflows, observability, portfolio, and review
 - SQLite (`data/quant.db` at runtime, excluded from handoff packages)
 - Postgres (auth store, optional, recommended for production)
+- Supabase Postgres (business data mirror, optional — set `NOVA_DATA_DATABASE_URL` to enable write mirroring and preferred reads)
 
 ## Backend Backbone
 
@@ -225,7 +229,10 @@ Primary backend source of truth:
 - `src/server/quant/service.ts`
 - `src/server/quant/runtimeDerivation.ts`
 - `src/server/auth/postgresStore.ts` (auth store schema + queries)
+- `src/server/db/postgresBusinessMirror.ts` (Supabase business data write mirror)
+- `src/server/admin/postgresBusinessRead.ts` (Supabase business data read layer)
 - SQLite (`data/quant.db`) for business data
+- Supabase Postgres (business data mirror, when `NOVA_DATA_DATABASE_URL` is set)
 - Postgres (auth store, when `DATABASE_URL` is set)
 
 ## Decision Engine
@@ -371,6 +378,7 @@ npm run verify
 ## Notes On Data
 
 - **Primary API data source**: Massive.com (formerly Polygon.io) REST API for both US equities and crypto OHLCV. Module: `src/server/ingestion/massive.ts`. Requires `MASSIVE_API_KEY` in `.env`. Basic (free) tier enforces 12s delay between requests.
+- **Business data mirror**: optionally mirror all business data to Supabase Postgres. Set `NOVA_DATA_DATABASE_URL` to enable. Module: `src/server/db/postgresBusinessMirror.ts`. Migration tool: `scripts/migrate-business-to-postgres.ts`. See `docs/SUPABASE_BUSINESS_DB_MIGRATION.md`.
 - US data: Stooq bulk ingestion (`src/server/ingestion/stooq.ts`) with configured symbol whitelist (legacy fallback).
 - Crypto data: Binance public bulk + incremental REST ingestion (legacy fallback).
 - If data is stale/insufficient, APIs return honest degraded states (`INSUFFICIENT_DATA`) instead of synthetic beautification.

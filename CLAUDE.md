@@ -35,9 +35,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Layout
 
-Four-part deploy: `app/` (user H5 frontend), `admin/` (ops dashboard), `server/` (Vercel API wrapper), root (main API + quant core). Each has its own `vercel.json`.
+Five-part deploy: `landing/` (brand landing page), `app/` (user H5 frontend), `admin/` (ops dashboard), `server/` (Vercel API wrapper), root (main API + quant core). Each has its own `vercel.json`.
 
-Core source in `src/`: `server/` (Express 5 backend, ~45 modules), `components/` (React), `engines/` (JS quant), `research/` (quantitative research modules).
+Core source in `src/`: `server/` (Express 5 backend, ~48 modules), `components/` (React), `engines/` (JS quant), `research/` (quantitative research modules). Business data lives in SQLite (`data/quant.db`) with an optional Supabase Postgres mirror (`NOVA_DATA_DATABASE_URL`).
 
 ## Commit Conventions
 
@@ -49,3 +49,4 @@ Conventional Commits: `feat(module):`, `fix(module):`, `test:`, `docs:`. Title s
 - Tests run without any env vars (SQLite test DB is auto-created)
 - On Vercel: DB is ephemeral at `/tmp/nova-quant/quant.db`; `VERCEL=1` switches config paths
 - API proxied at `/api` in dev (Vite config proxies to `http://127.0.0.1:8787`)
+- Set `NOVA_DATA_DATABASE_URL` to enable Supabase business data mirror (optional)
