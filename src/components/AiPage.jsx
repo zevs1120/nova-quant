@@ -1,3 +1,5 @@
+import '../styles/ai-chat.css';
+import '../styles/ai-rebuild.css';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Skeleton from './Skeleton';
 import { useNovaAssistant } from '../hooks/useNovaAssistant';

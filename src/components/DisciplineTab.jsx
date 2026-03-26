@@ -1,3 +1,4 @@
+import '../styles/today-redesign.css';
 export default function DisciplineTab({
   discipline,
   engagementState,

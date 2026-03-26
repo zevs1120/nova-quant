@@ -6,6 +6,7 @@ All notable changes to NovaQuant are recorded here.
 
 - Release type: patch
 - **Perf: frontend + backend performance optimization sprint.**
+  - **CSS code-split:** moved 5 tab-specific CSS files (85 KB) from global `styles.css` into lazy component imports (`TodayTab`, `AiPage`, `HoldingsTab`, `BrowseTab`, `DisciplineTab`). Shell CSS is now 162 KB (down from 247 KB). Note: the default Today view still loads `today-redesign` (20 KB) + `TodayTab` (14 KB) async CSS on first render, so full Today first-paint CSS is ~196 KB. The savings are: (a) non-Today tabs skip Today CSS until visited, (b) AiPage/Holdings/Browse CSS (52 KB) is fully deferred, (c) CSS chunks cache independently per tab.
   - **TodayTab code-split:** moved from eager import to `React.lazy()`, reducing the main `index.js` chunk from 314 KB to 124 KB. First-paint JS is now the main chunk (124 KB) plus the vendor chunk (141 KB). TodayTab (40 KB) loads on demand. Chart.js stays inside the lazy `ProofTab` chunk (178 KB) and is not fetched until that tab is opened.
   - **Vendor splitting:** added `manualChunks` to `vite.config.js` separating `react` + `react-dom` into a `vendor.js` chunk (141 KB) that rarely changes between deploys and can be long-term cached by browsers.
   - **Clock state sunk:** moved the 30-second `now` timer from `App.jsx` into `TodayTab`, eliminating a full-tree re-render every 30 seconds when any other tab is active.

@@ -1,3 +1,4 @@
+import '../styles/holdings.css';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import SegmentedControl from './SegmentedControl';
 import { formatNumber } from '../utils/format';

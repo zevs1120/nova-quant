@@ -1,3 +1,4 @@
+import '../styles/holdings.css';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { formatNumber } from '../utils/format';
 import { fetchApiJson } from '../utils/api';

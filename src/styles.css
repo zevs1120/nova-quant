@@ -1,20 +1,16 @@
 /*
  * Nova Quant — Modular CSS
  *
- * This file imports all domain-specific CSS modules in the correct cascade
- * order. Each module corresponds to a design layer that builds on the previous
- * ones. DO NOT re-order these imports — the cascade depends on this sequence.
+ * This file imports GLOBAL CSS modules needed on first paint. Tab-specific
+ * styles (today, ai, holdings, browse) are imported by their respective
+ * lazy-loaded components so Vite can code-split them. DO NOT re-order
+ * these imports — the cascade depends on this sequence.
  */
 
 @import './styles/base.css';
 @import './styles/mobile-ux.css';
 @import './styles/interaction-system.css';
 @import './styles/consumer-layer.css';
-@import './styles/ai-chat.css';
-@import './styles/today-redesign.css';
-@import './styles/ai-rebuild.css';
 @import './styles/robinhood-surfaces.css';
-@import './styles/today-final.css';
-@import './styles/holdings.css';
 @import './styles/polish.css';
 @import './styles/corrections.css';
