@@ -1,6 +1,6 @@
 import { getDb } from '../src/server/db/database.js';
 import { ensureSchema } from '../src/server/db/schema.js';
-import { MarketRepository } from '../src/server/db/repository.js';
+import { createMirroringMarketRepository } from '../src/server/db/postgresBusinessMirror.js';
 import { runFreeDataFlywheel } from '../src/server/jobs/freeData.js';
 
 function parseArgs(argv: string[]) {
@@ -42,17 +42,22 @@ async function main() {
   const args = parseArgs(process.argv.slice(2));
   const db = getDb();
   ensureSchema(db);
-  const repo = new MarketRepository(db);
-  const result = await runFreeDataFlywheel({
-    repo,
-    market: args.market,
-    userId: args.userId,
-    triggerType: 'manual',
-    refreshNews: args.refreshNews,
-    refreshCryptoStructure: args.refreshCryptoStructure,
-    cryptoSymbols: args.cryptoSymbols,
-  });
-  process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+  const { repo, flush } = createMirroringMarketRepository(db);
+  try {
+    const result = await runFreeDataFlywheel({
+      repo,
+      market: args.market,
+      userId: args.userId,
+      triggerType: 'manual',
+      refreshNews: args.refreshNews,
+      refreshCryptoStructure: args.refreshCryptoStructure,
+      cryptoSymbols: args.cryptoSymbols,
+    });
+    await flush();
+    process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+  } finally {
+    await flush();
+  }
 }
 
 main().catch((error) => {

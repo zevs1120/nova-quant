@@ -1,6 +1,6 @@
 import { getDb } from '../src/server/db/database.js';
 import { ensureSchema } from '../src/server/db/schema.js';
-import { MarketRepository } from '../src/server/db/repository.js';
+import { createMirroringMarketRepository } from '../src/server/db/postgresBusinessMirror.js';
 import { generateGovernedNovaStrategyReply } from '../src/server/nova/strategyLab.js';
 import type { Market } from '../src/server/types.js';
 
@@ -39,19 +39,24 @@ async function main() {
 
   const db = getDb();
   ensureSchema(db);
-  const repo = new MarketRepository(db);
-  const result = await generateGovernedNovaStrategyReply({
-    repo,
-    userId: parsed.userId,
-    prompt: parsed.prompt,
-    locale: parsed.locale,
-    market: parsed.market as 'US' | 'CRYPTO' | undefined,
-    riskProfile: parsed.riskProfile,
-    maxCandidates: Number.isFinite(parsed.maxCandidates) ? parsed.maxCandidates : 12,
-  });
+  const { repo, flush } = createMirroringMarketRepository(db);
+  try {
+    const result = await generateGovernedNovaStrategyReply({
+      repo,
+      userId: parsed.userId,
+      prompt: parsed.prompt,
+      locale: parsed.locale,
+      market: parsed.market as 'US' | 'CRYPTO' | undefined,
+      riskProfile: parsed.riskProfile,
+      maxCandidates: Number.isFinite(parsed.maxCandidates) ? parsed.maxCandidates : 12,
+    });
 
-  process.stdout.write(`${result.text}\n\n`);
-  process.stdout.write(`${JSON.stringify(result.result, null, 2)}\n`);
+    await flush();
+    process.stdout.write(`${result.text}\n\n`);
+    process.stdout.write(`${JSON.stringify(result.result, null, 2)}\n`);
+  } finally {
+    await flush();
+  }
 }
 
 main().catch((error) => {

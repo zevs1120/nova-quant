@@ -1,6 +1,6 @@
 import { getDb } from '../src/server/db/database.js';
 import { ensureSchema } from '../src/server/db/schema.js';
-import { MarketRepository } from '../src/server/db/repository.js';
+import { createMirroringMarketRepository } from '../src/server/db/postgresBusinessMirror.js';
 import { runAlphaDiscoveryCycle } from '../src/server/alpha_discovery/index.js';
 
 function parseArgs(argv: string[]) {
@@ -31,14 +31,19 @@ async function main() {
   const args = parseArgs(process.argv.slice(2));
   const db = getDb();
   ensureSchema(db);
-  const repo = new MarketRepository(db);
-  const result = await runAlphaDiscoveryCycle({
-    repo,
-    userId: args.userId,
-    triggerType: args.triggerType,
-    force: args.force,
-  });
-  console.log(JSON.stringify(result, null, 2));
+  const { repo, flush } = createMirroringMarketRepository(db);
+  try {
+    const result = await runAlphaDiscoveryCycle({
+      repo,
+      userId: args.userId,
+      triggerType: args.triggerType,
+      force: args.force,
+    });
+    await flush();
+    console.log(JSON.stringify(result, null, 2));
+  } finally {
+    await flush();
+  }
 }
 
 main().catch((error) => {

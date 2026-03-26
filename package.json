@@ -51,6 +51,7 @@
     "api:data": "tsx src/server/apiServer.ts",
     "test:data": "vitest run",
     "test": "vitest run",
+    "check:platform": "node scripts/check-platform-readiness.mjs",
     "verify": "node scripts/verify.mjs",
     "format": "prettier --write",
     "format:check": "prettier --check .",

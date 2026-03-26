@@ -3,6 +3,7 @@ import net from 'node:net';
 import { pathToFileURL } from 'node:url';
 import { getDb } from '../src/server/db/database.js';
 import { MarketRepository } from '../src/server/db/repository.js';
+import { createMirroringMarketRepository } from '../src/server/db/postgresBusinessMirror.js';
 import { ensureSchema } from '../src/server/db/schema.js';
 import { runBackfillCli } from '../src/server/jobs/backfill.js';
 import { runFreeDataFlywheel } from '../src/server/jobs/freeData.js';
@@ -54,7 +55,11 @@ function parseTrainerEnv(value: string | undefined, fallback: NovaTrainerKind): 
   const normalized = String(value || '')
     .trim()
     .toLowerCase();
-  if (normalized === 'mlx-lora' || normalized === 'unsloth-lora' || normalized === 'axolotl-qlora') {
+  if (
+    normalized === 'mlx-lora' ||
+    normalized === 'unsloth-lora' ||
+    normalized === 'axolotl-qlora'
+  ) {
     return normalized;
   }
   return fallback;
@@ -272,130 +277,134 @@ async function runNovaTrainingCycle(args: {
 export async function runAutoBackendInitialization(options: AutoBackendOptions) {
   const db = getDb();
   ensureSchema(db);
-  const repo = new MarketRepository(db);
+  const { repo, flush } = createMirroringMarketRepository(db);
 
-  log('initial US backfill starting', { market: 'US', timeframe: '1d' });
   try {
-    await runBackfillCli(['--market', 'US', '--tf', '1d']);
-  } catch (error) {
-    warn('initial US backfill failed; continuing with remaining markets', {
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
+    log('initial US backfill starting', { market: 'US', timeframe: '1d' });
+    try {
+      await runBackfillCli(['--market', 'US', '--tf', '1d']);
+    } catch (error) {
+      warn('initial US backfill failed; continuing with remaining markets', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
 
-  log('initial crypto backfill starting', { market: 'CRYPTO', timeframe: '1h' });
-  try {
-    await runBackfillCli(['--market', 'CRYPTO', '--tf', '1h']);
-  } catch (error) {
-    warn('initial crypto backfill failed', {
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
+    log('initial crypto backfill starting', { market: 'CRYPTO', timeframe: '1h' });
+    try {
+      await runBackfillCli(['--market', 'CRYPTO', '--tf', '1h']);
+    } catch (error) {
+      warn('initial crypto backfill failed', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
 
-  log('free data flywheel starting', { market: 'ALL' });
-  try {
-    const freeData = await runFreeDataFlywheel({
-      repo,
-      market: 'ALL',
-      userId: options.userId,
-      triggerType: 'manual',
-    });
-    log('free data flywheel finished', {
-      news: freeData.news,
-      fundamentals: freeData.fundamentals,
-      options: freeData.options,
-      crypto_structure: freeData.crypto_structure,
-    });
-  } catch (error) {
-    warn('free data flywheel failed; continuing to validation', {
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
+    log('free data flywheel starting', { market: 'ALL' });
+    try {
+      const freeData = await runFreeDataFlywheel({
+        repo,
+        market: 'ALL',
+        userId: options.userId,
+        triggerType: 'manual',
+      });
+      log('free data flywheel finished', {
+        news: freeData.news,
+        fundamentals: freeData.fundamentals,
+        options: freeData.options,
+        crypto_structure: freeData.crypto_structure,
+      });
+    } catch (error) {
+      warn('free data flywheel failed; continuing to validation', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
 
-  log('validation starting', { timeframes: '1d,1h' });
-  try {
-    await runValidationCli(['--tf', '1d,1h', '--lookbackBars', '800']);
-  } catch (error) {
-    warn('validation failed; continuing to runtime derivation', {
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
+    log('validation starting', { timeframes: '1d,1h' });
+    try {
+      await runValidationCli(['--tf', '1d,1h', '--lookbackBars', '800']);
+    } catch (error) {
+      warn('validation failed; continuing to runtime derivation', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
 
-  log('runtime derivation starting', { userId: options.userId });
-  let snapshot = ensureQuantData(repo, options.userId, true);
-  log('runtime derivation finished', {
-    source_status: snapshot.sourceStatus,
-    signals: snapshot.signals.length,
-    market_state_rows: snapshot.marketState.length,
-  });
-
-  log('evolution cycle starting', { userId: options.userId });
-  const evolution = await runEvolutionCycle({
-    repo,
-    userId: options.userId,
-    runtimeSnapshot: {
-      sourceStatus: snapshot.sourceStatus,
-      freshnessSummary: snapshot.freshnessSummary,
-      coverageSummary: snapshot.coverageSummary,
-    },
-  });
-  log('evolution cycle finished', {
-    workflow_id: evolution.workflowId,
-    markets: evolution.markets.map((row) => ({
-      market: row.market,
-      promoted: row.promoted,
-      rolledBack: row.rolledBack,
-      safeMode: row.safeMode,
-    })),
-  });
-  if (evolution.markets.some((row) => row.promoted || row.rolledBack || row.safeMode)) {
-    snapshot = ensureQuantData(repo, options.userId, true);
-    log('runtime derivation refreshed after evolution', {
+    log('runtime derivation starting', { userId: options.userId });
+    let snapshot = ensureQuantData(repo, options.userId, true);
+    log('runtime derivation finished', {
       source_status: snapshot.sourceStatus,
       signals: snapshot.signals.length,
       market_state_rows: snapshot.marketState.length,
     });
-  }
 
-  if (!options.skipTraining) {
-    try {
-      await runNovaTrainingCycle({
-        repo,
-        userId: options.userId,
-        trainer: options.trainer,
-        trainingLimit: options.trainingLimit,
-        executeTraining: options.executeTraining,
-        triggerType: 'manual',
-      });
-    } catch (error) {
-      warn('nova training flywheel failed during initialization', {
-        error: error instanceof Error ? error.message : String(error),
+    log('evolution cycle starting', { userId: options.userId });
+    const evolution = await runEvolutionCycle({
+      repo,
+      userId: options.userId,
+      runtimeSnapshot: {
+        sourceStatus: snapshot.sourceStatus,
+        freshnessSummary: snapshot.freshnessSummary,
+        coverageSummary: snapshot.coverageSummary,
+      },
+    });
+    log('evolution cycle finished', {
+      workflow_id: evolution.workflowId,
+      markets: evolution.markets.map((row) => ({
+        market: row.market,
+        promoted: row.promoted,
+        rolledBack: row.rolledBack,
+        safeMode: row.safeMode,
+      })),
+    });
+    if (evolution.markets.some((row) => row.promoted || row.rolledBack || row.safeMode)) {
+      snapshot = ensureQuantData(repo, options.userId, true);
+      log('runtime derivation refreshed after evolution', {
+        source_status: snapshot.sourceStatus,
+        signals: snapshot.signals.length,
+        market_state_rows: snapshot.marketState.length,
       });
     }
-  }
 
-  if (!options.skipDiscovery) {
-    try {
-      const discovery = await runAlphaDiscoveryCycle({
-        repo,
-        userId: options.userId,
-        triggerType: 'manual',
-      });
-      log('alpha discovery cycle finished', {
-        accepted: (discovery as Record<string, unknown>)?.evaluation_summary
-          ? ((discovery as Record<string, unknown>).evaluation_summary as Record<string, unknown>)
-              .accepted
-          : null,
-        rejected: (discovery as Record<string, unknown>)?.evaluation_summary
-          ? ((discovery as Record<string, unknown>).evaluation_summary as Record<string, unknown>)
-              .rejected
-          : null,
-      });
-    } catch (error) {
-      warn('alpha discovery cycle failed during initialization', {
-        error: error instanceof Error ? error.message : String(error),
-      });
+    if (!options.skipTraining) {
+      try {
+        await runNovaTrainingCycle({
+          repo,
+          userId: options.userId,
+          trainer: options.trainer,
+          trainingLimit: options.trainingLimit,
+          executeTraining: options.executeTraining,
+          triggerType: 'manual',
+        });
+      } catch (error) {
+        warn('nova training flywheel failed during initialization', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
     }
+
+    if (!options.skipDiscovery) {
+      try {
+        const discovery = await runAlphaDiscoveryCycle({
+          repo,
+          userId: options.userId,
+          triggerType: 'manual',
+        });
+        log('alpha discovery cycle finished', {
+          accepted: (discovery as Record<string, unknown>)?.evaluation_summary
+            ? ((discovery as Record<string, unknown>).evaluation_summary as Record<string, unknown>)
+                .accepted
+            : null,
+          rejected: (discovery as Record<string, unknown>)?.evaluation_summary
+            ? ((discovery as Record<string, unknown>).evaluation_summary as Record<string, unknown>)
+                .rejected
+            : null,
+        });
+      } catch (error) {
+        warn('alpha discovery cycle failed during initialization', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+  } finally {
+    await flush();
   }
 }
 
@@ -414,180 +423,184 @@ export async function runAutoBackendMaintenanceCycle(args: {
 }) {
   const db = getDb();
   ensureSchema(db);
-  const repo = new MarketRepository(db);
+  const { repo, flush } = createMirroringMarketRepository(db);
 
-  if (args.refreshUs) {
-    log('scheduled US refresh starting', { cycle: args.cycle, market: 'US', timeframe: '1d' });
-    try {
-      await runBackfillCli(['--market', 'US', '--tf', '1d']);
-    } catch (error) {
-      warn('scheduled US refresh failed; continuing', {
-        cycle: args.cycle,
-        error: error instanceof Error ? error.message : String(error),
-      });
+  try {
+    if (args.refreshUs) {
+      log('scheduled US refresh starting', { cycle: args.cycle, market: 'US', timeframe: '1d' });
+      try {
+        await runBackfillCli(['--market', 'US', '--tf', '1d']);
+      } catch (error) {
+        warn('scheduled US refresh failed; continuing', {
+          cycle: args.cycle,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
     }
-  }
 
-  try {
-    const freeData = await runFreeDataFlywheel({
-      repo,
-      market: 'ALL',
-      userId: args.userId,
-      triggerType: 'scheduled',
-    });
-    log('scheduled free data flywheel finished', {
-      cycle: args.cycle,
-      news: freeData.news,
-      fundamentals: freeData.fundamentals,
-      options: freeData.options,
-      crypto_structure: freeData.crypto_structure,
-    });
-  } catch (error) {
-    warn('scheduled free data flywheel failed; continuing', {
-      cycle: args.cycle,
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
-
-  log('scheduled validation starting', { cycle: args.cycle, timeframes: '1d,1h' });
-  try {
-    await runValidationCli(['--tf', '1d,1h', '--lookbackBars', '800']);
-  } catch (error) {
-    warn('scheduled validation failed; continuing to runtime refresh', {
-      cycle: args.cycle,
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
-
-  let snapshot = ensureQuantData(repo, args.userId, true);
-  log('scheduled runtime refresh finished', {
-    cycle: args.cycle,
-    source_status: snapshot.sourceStatus,
-    signals: snapshot.signals.length,
-    market_state_rows: snapshot.marketState.length,
-  });
-
-  if (args.runEvolution) {
-    const evolution = await runEvolutionCycle({
-      repo,
-      userId: args.userId,
-      runtimeSnapshot: {
-        sourceStatus: snapshot.sourceStatus,
-        freshnessSummary: snapshot.freshnessSummary,
-        coverageSummary: snapshot.coverageSummary,
-      },
-    });
-    log('scheduled evolution cycle finished', {
-      cycle: args.cycle,
-      workflow_id: evolution.workflowId,
-      markets: evolution.markets.map((row) => ({
-        market: row.market,
-        promoted: row.promoted,
-        rolledBack: row.rolledBack,
-        safeMode: row.safeMode,
-      })),
-    });
-    if (evolution.markets.some((row) => row.promoted || row.rolledBack || row.safeMode)) {
-      snapshot = ensureQuantData(repo, args.userId, true);
-      log('runtime refreshed after scheduled evolution', {
-        cycle: args.cycle,
-        source_status: snapshot.sourceStatus,
-        signals: snapshot.signals.length,
-        market_state_rows: snapshot.marketState.length,
-      });
-    }
-  }
-
-  // -------------------------------------------------------------------------
-  // Outcome resolution — close decision → outcome feedback loop
-  // -------------------------------------------------------------------------
-  try {
-    const outcomeResult = resolveRecentOutcomes(repo, args.userId, 7);
-    log('scheduled outcome resolution finished', {
-      cycle: args.cycle,
-      resolved: outcomeResult.resolved,
-      dates_checked: outcomeResult.dates.length,
-    });
-  } catch (error) {
-    warn('scheduled outcome resolution failed', {
-      cycle: args.cycle,
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
-
-  if (args.runTraining && !args.skipTraining) {
     try {
-      await runNovaTrainingCycle({
+      const freeData = await runFreeDataFlywheel({
         repo,
-        userId: args.userId,
-        trainer: args.trainer,
-        trainingLimit: args.trainingLimit,
-        executeTraining: args.executeTraining,
-        triggerType: 'scheduled',
-      });
-    } catch (error) {
-      warn('scheduled nova training flywheel failed', {
-        cycle: args.cycle,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }
-
-  if (!args.skipDiscovery && args.runDiscovery) {
-    try {
-      const discovery = await runAlphaDiscoveryCycle({
-        repo,
+        market: 'ALL',
         userId: args.userId,
         triggerType: 'scheduled',
       });
-      log('scheduled alpha discovery finished', {
+      log('scheduled free data flywheel finished', {
         cycle: args.cycle,
-        accepted: (discovery as Record<string, unknown>)?.evaluation_summary
-          ? ((discovery as Record<string, unknown>).evaluation_summary as Record<string, unknown>)
-              .accepted
-          : null,
-        rejected: (discovery as Record<string, unknown>)?.evaluation_summary
-          ? ((discovery as Record<string, unknown>).evaluation_summary as Record<string, unknown>)
-              .rejected
-          : null,
+        news: freeData.news,
+        fundamentals: freeData.fundamentals,
+        options: freeData.options,
+        crypto_structure: freeData.crypto_structure,
       });
     } catch (error) {
-      warn('scheduled alpha discovery failed', {
+      warn('scheduled free data flywheel failed; continuing', {
         cycle: args.cycle,
         error: error instanceof Error ? error.message : String(error),
       });
     }
-    return;
-  }
 
-  if (!args.skipDiscovery) {
+    log('scheduled validation starting', { cycle: args.cycle, timeframes: '1d,1h' });
     try {
-      const discoveryConfig = readAlphaDiscoveryConfig();
-      const shadow = await runAlphaShadowMonitoringCycle({
+      await runValidationCli(['--tf', '1d,1h', '--lookbackBars', '800']);
+    } catch (error) {
+      warn('scheduled validation failed; continuing to runtime refresh', {
+        cycle: args.cycle,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+
+    let snapshot = ensureQuantData(repo, args.userId, true);
+    log('scheduled runtime refresh finished', {
+      cycle: args.cycle,
+      source_status: snapshot.sourceStatus,
+      signals: snapshot.signals.length,
+      market_state_rows: snapshot.marketState.length,
+    });
+
+    if (args.runEvolution) {
+      const evolution = await runEvolutionCycle({
         repo,
         userId: args.userId,
-        triggerType: 'shadow',
-        thresholds: {
-          minAcceptanceScore: discoveryConfig.minAcceptanceScore,
-          maxCorrelationToActive: discoveryConfig.maxCorrelationToActive,
-          shadowAdmission: discoveryConfig.shadowAdmissionThresholds,
-          shadowPromotion: discoveryConfig.shadowPromotionThresholds,
-          retirement: discoveryConfig.retirementThresholds,
-          allowProdPromotion: discoveryConfig.allowProdPromotion,
+        runtimeSnapshot: {
+          sourceStatus: snapshot.sourceStatus,
+          freshnessSummary: snapshot.freshnessSummary,
+          coverageSummary: snapshot.coverageSummary,
         },
       });
-      log('scheduled alpha shadow monitoring finished', {
+      log('scheduled evolution cycle finished', {
         cycle: args.cycle,
-        candidates_processed: shadow.shadow.candidates_processed,
-        promoted_to_canary: shadow.promotion.promoted_to_canary.length,
-        retired: shadow.promotion.retired.length,
+        workflow_id: evolution.workflowId,
+        markets: evolution.markets.map((row) => ({
+          market: row.market,
+          promoted: row.promoted,
+          rolledBack: row.rolledBack,
+          safeMode: row.safeMode,
+        })),
+      });
+      if (evolution.markets.some((row) => row.promoted || row.rolledBack || row.safeMode)) {
+        snapshot = ensureQuantData(repo, args.userId, true);
+        log('runtime refreshed after scheduled evolution', {
+          cycle: args.cycle,
+          source_status: snapshot.sourceStatus,
+          signals: snapshot.signals.length,
+          market_state_rows: snapshot.marketState.length,
+        });
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // Outcome resolution — close decision → outcome feedback loop
+    // -------------------------------------------------------------------------
+    try {
+      const outcomeResult = resolveRecentOutcomes(repo, args.userId, 7);
+      log('scheduled outcome resolution finished', {
+        cycle: args.cycle,
+        resolved: outcomeResult.resolved,
+        dates_checked: outcomeResult.dates.length,
       });
     } catch (error) {
-      warn('scheduled alpha shadow monitoring failed', {
+      warn('scheduled outcome resolution failed', {
         cycle: args.cycle,
         error: error instanceof Error ? error.message : String(error),
       });
     }
+
+    if (args.runTraining && !args.skipTraining) {
+      try {
+        await runNovaTrainingCycle({
+          repo,
+          userId: args.userId,
+          trainer: args.trainer,
+          trainingLimit: args.trainingLimit,
+          executeTraining: args.executeTraining,
+          triggerType: 'scheduled',
+        });
+      } catch (error) {
+        warn('scheduled nova training flywheel failed', {
+          cycle: args.cycle,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
+    if (!args.skipDiscovery && args.runDiscovery) {
+      try {
+        const discovery = await runAlphaDiscoveryCycle({
+          repo,
+          userId: args.userId,
+          triggerType: 'scheduled',
+        });
+        log('scheduled alpha discovery finished', {
+          cycle: args.cycle,
+          accepted: (discovery as Record<string, unknown>)?.evaluation_summary
+            ? ((discovery as Record<string, unknown>).evaluation_summary as Record<string, unknown>)
+                .accepted
+            : null,
+          rejected: (discovery as Record<string, unknown>)?.evaluation_summary
+            ? ((discovery as Record<string, unknown>).evaluation_summary as Record<string, unknown>)
+                .rejected
+            : null,
+        });
+      } catch (error) {
+        warn('scheduled alpha discovery failed', {
+          cycle: args.cycle,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+      return;
+    }
+
+    if (!args.skipDiscovery) {
+      try {
+        const discoveryConfig = readAlphaDiscoveryConfig();
+        const shadow = await runAlphaShadowMonitoringCycle({
+          repo,
+          userId: args.userId,
+          triggerType: 'shadow',
+          thresholds: {
+            minAcceptanceScore: discoveryConfig.minAcceptanceScore,
+            maxCorrelationToActive: discoveryConfig.maxCorrelationToActive,
+            shadowAdmission: discoveryConfig.shadowAdmissionThresholds,
+            shadowPromotion: discoveryConfig.shadowPromotionThresholds,
+            retirement: discoveryConfig.retirementThresholds,
+            allowProdPromotion: discoveryConfig.allowProdPromotion,
+          },
+        });
+        log('scheduled alpha shadow monitoring finished', {
+          cycle: args.cycle,
+          candidates_processed: shadow.shadow.candidates_processed,
+          promoted_to_canary: shadow.promotion.promoted_to_canary.length,
+          retired: shadow.promotion.retired.length,
+        });
+      } catch (error) {
+        warn('scheduled alpha shadow monitoring failed', {
+          cycle: args.cycle,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+  } finally {
+    await flush();
   }
 }
 
@@ -700,36 +713,40 @@ export async function runAutoBackend(argv = process.argv.slice(2)) {
       } else {
         const db = getDb();
         ensureSchema(db);
-        const repo = new MarketRepository(db);
-        const snapshot = ensureQuantData(repo, options.userId, true);
-        log('scheduled runtime refresh finished', {
-          cycle,
-          source_status: snapshot.sourceStatus,
-          signals: snapshot.signals.length,
-          market_state_rows: snapshot.marketState.length,
-        });
-        if (!options.skipDiscovery) {
-          try {
-            const discoveryConfig = readAlphaDiscoveryConfig();
-            await runAlphaShadowMonitoringCycle({
-              repo,
-              userId: options.userId,
-              triggerType: 'shadow',
-              thresholds: {
-                minAcceptanceScore: discoveryConfig.minAcceptanceScore,
-                maxCorrelationToActive: discoveryConfig.maxCorrelationToActive,
-                shadowAdmission: discoveryConfig.shadowAdmissionThresholds,
-                shadowPromotion: discoveryConfig.shadowPromotionThresholds,
-                retirement: discoveryConfig.retirementThresholds,
-                allowProdPromotion: discoveryConfig.allowProdPromotion,
-              },
-            });
-          } catch (error) {
-            warn('background alpha shadow monitoring failed', {
-              cycle,
-              error: error instanceof Error ? error.message : String(error),
-            });
+        const { repo, flush } = createMirroringMarketRepository(db);
+        try {
+          const snapshot = ensureQuantData(repo, options.userId, true);
+          log('scheduled runtime refresh finished', {
+            cycle,
+            source_status: snapshot.sourceStatus,
+            signals: snapshot.signals.length,
+            market_state_rows: snapshot.marketState.length,
+          });
+          if (!options.skipDiscovery) {
+            try {
+              const discoveryConfig = readAlphaDiscoveryConfig();
+              await runAlphaShadowMonitoringCycle({
+                repo,
+                userId: options.userId,
+                triggerType: 'shadow',
+                thresholds: {
+                  minAcceptanceScore: discoveryConfig.minAcceptanceScore,
+                  maxCorrelationToActive: discoveryConfig.maxCorrelationToActive,
+                  shadowAdmission: discoveryConfig.shadowAdmissionThresholds,
+                  shadowPromotion: discoveryConfig.shadowPromotionThresholds,
+                  retirement: discoveryConfig.retirementThresholds,
+                  allowProdPromotion: discoveryConfig.allowProdPromotion,
+                },
+              });
+            } catch (error) {
+              warn('background alpha shadow monitoring failed', {
+                cycle,
+                error: error instanceof Error ? error.message : String(error),
+              });
+            }
           }
+        } finally {
+          await flush();
         }
       }
     } catch (error) {
