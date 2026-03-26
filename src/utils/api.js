@@ -63,7 +63,22 @@ export function resolveApiUrl(path) {
 }
 
 export async function fetchApi(path, options = {}) {
-  const candidates = unique([cachedApiBase, ...runtimeApiBases()]);
+  // Fast path: use cached base without computing fallback candidates
+  if (cachedApiBase !== null) {
+    const url = buildApiUrl(path, cachedApiBase);
+    try {
+      return await fetch(url, {
+        ...options,
+        mode: cachedApiBase ? 'cors' : options.mode,
+        credentials: options.credentials ?? 'include',
+      });
+    } catch {
+      // Cached base failed — fall through to full candidate list
+      cachedApiBase = null;
+    }
+  }
+
+  const candidates = unique(runtimeApiBases());
   let lastError = null;
 
   for (const base of candidates) {

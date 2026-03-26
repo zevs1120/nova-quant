@@ -401,10 +401,19 @@ async function getSecSearchUniverse(): Promise<SearchCandidate[]> {
   }
 }
 
+let repoSingleton: MarketRepository | null = null;
+
 function getRepo(): MarketRepository {
+  if (repoSingleton) return repoSingleton;
   const db = getDb();
-  ensureSchema(db);
-  return new MarketRepository(db);
+  // ensureSchema is already called inside getDb() on first init
+  repoSingleton = new MarketRepository(db);
+  return repoSingleton;
+}
+
+/** Must be called alongside closeDb() to avoid stale-handle usage. */
+export function resetRepoSingleton(): void {
+  repoSingleton = null;
 }
 
 function midpoint(low?: number | null, high?: number | null) {

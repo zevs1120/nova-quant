@@ -17,7 +17,7 @@ const RiskTab = lazy(() => import('./components/RiskTab'));
 const SettingsTab = lazy(() => import('./components/SettingsTab'));
 import Skeleton from './components/Skeleton';
 const SignalsTab = lazy(() => import('./components/SignalsTab'));
-import TodayTab from './components/TodayTab';
+const TodayTab = lazy(() => import('./components/TodayTab'));
 const WeeklyReviewTab = lazy(() => import('./components/WeeklyReviewTab'));
 import TabBarIcon from './components/icons/TabBarIcon';
 import TopBarMenuGlyph from './components/icons/TopBarMenuGlyph';
@@ -54,7 +54,6 @@ export default function App() {
   });
   const [market, setMarket] = useState('US');
   const [refreshNonce, setRefreshNonce] = useState(0);
-  const [now, setNow] = useState(new Date());
   const [aboutOpen, setAboutOpen] = useState(false);
   const [decisionSnapshot, setDecisionSnapshot] = useState(null);
   const [lang, setLang] = useLocalStorage('nova-quant-lang', getDefaultLang(), {
@@ -476,15 +475,11 @@ export default function App() {
     return () => document.body.classList.remove('is-standalone');
   }, [displayMode]);
 
-  // Clock tick
-  useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 30000);
-    return () => clearInterval(timer);
-  }, []);
 
-  // Browse warmup
+
+  // Browse warmup — only activates when Browse tab is shown
   useEffect(() => {
-    if (typeof window === 'undefined') return undefined;
+    if (typeof window === 'undefined' || activeTab !== 'browse') return undefined;
     const warmBrowse = () => {
       primeBrowseHomeBundle();
       primeBrowseUniverseBundle();
@@ -494,7 +489,7 @@ export default function App() {
     const intervalId = window.setInterval(() => {
       if (document.visibilityState !== 'visible') return;
       warmBrowse();
-    }, 15000);
+    }, 120000);
     const handleVisibility = () => {
       if (document.visibilityState !== 'visible') return;
       warmBrowse();
@@ -505,7 +500,7 @@ export default function App() {
       window.clearInterval(intervalId);
       document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, []);
+  }, [activeTab]);
 
   // Browse top bar reset
   useEffect(() => {
@@ -683,7 +678,6 @@ export default function App() {
     if (activeTab === 'today') {
       return (
         <TodayTab
-          now={now}
           assetClass={assetClass}
           today={finalUiData.today}
           safety={finalUiData.safety}

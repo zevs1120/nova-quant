@@ -56,6 +56,29 @@ export function createApiApp() {
       .filter(Boolean),
   );
   const firstPartyOrigins = new Set([...appAllowedOrigins, ...adminAllowedOrigins]);
+  const crossOriginReadPaths = new Set([
+    '/api/auth/session',
+    '/api/manual/state',
+    '/api/assets',
+    '/api/assets/search',
+    '/api/browse/chart',
+    '/api/browse/home',
+    '/api/browse/news',
+    '/api/browse/overview',
+    '/api/ohlcv',
+    '/api/runtime-state',
+    '/api/signals',
+    '/api/evidence/signals/top',
+    '/api/market-state',
+    '/api/performance',
+    '/api/market/modules',
+    '/api/risk-profile',
+    '/api/control-plane/status',
+    '/api/control-plane/flywheel',
+    '/api/control-plane/research-ops',
+    '/api/connect/broker',
+    '/api/connect/exchange',
+  ]);
 
   // ---------------------------------------------------------------------------
   // CORS middleware
@@ -78,28 +101,7 @@ export function createApiApp() {
       next();
       return;
     }
-    const allowCrossOriginRead =
-      apiPath === '/api/auth/session' ||
-      apiPath === '/api/manual/state' ||
-      apiPath === '/api/assets' ||
-      apiPath === '/api/assets/search' ||
-      apiPath === '/api/browse/chart' ||
-      apiPath === '/api/browse/home' ||
-      apiPath === '/api/browse/news' ||
-      apiPath === '/api/browse/overview' ||
-      apiPath === '/api/ohlcv' ||
-      apiPath === '/api/runtime-state' ||
-      apiPath === '/api/signals' ||
-      apiPath === '/api/evidence/signals/top' ||
-      apiPath === '/api/market-state' ||
-      apiPath === '/api/performance' ||
-      apiPath === '/api/market/modules' ||
-      apiPath === '/api/risk-profile' ||
-      apiPath === '/api/control-plane/status' ||
-      apiPath === '/api/control-plane/flywheel' ||
-      apiPath === '/api/control-plane/research-ops' ||
-      apiPath === '/api/connect/broker' ||
-      apiPath === '/api/connect/exchange';
+    const allowCrossOriginRead = crossOriginReadPaths.has(apiPath);
     if (!(allowCrossOriginRead && (req.method === 'GET' || req.method === 'OPTIONS'))) {
       next();
       return;
@@ -112,6 +114,32 @@ export function createApiApp() {
     if (req.method === 'OPTIONS') {
       res.status(204).end();
       return;
+    }
+    next();
+  });
+
+  // ---------------------------------------------------------------------------
+  // Cache-Control for API GET responses
+  // ---------------------------------------------------------------------------
+  // User-scoped endpoints (session-bound userId): MUST be private, no-store to
+  // prevent shared caches from leaking one user's data to another.
+  // Only truly public (no-session) read paths could safely use public caching,
+  // but the current architecture binds all /api/* through session middleware,
+  // so we default to private.
+  const userScopedPaths = new Set([
+    '/api/assets',
+    '/api/market-state',
+    '/api/market/modules',
+    '/api/performance',
+    '/api/risk-profile',
+    '/api/runtime-state',
+    '/api/signals',
+  ]);
+  app.use((req, res, next) => {
+    if (req.method !== 'GET') { next(); return; }
+    const apiPath = resolveApiRequestPath(req);
+    if (userScopedPaths.has(apiPath)) {
+      res.setHeader('Cache-Control', 'private, no-store');
     }
     next();
   });

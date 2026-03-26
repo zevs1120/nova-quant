@@ -87,5 +87,13 @@ export function closeDb(): void {
   if (!dbSingleton) return;
   dbSingleton.close();
   dbSingleton = null;
+  // Clear the MarketRepository singleton that holds a reference to this db.
+  try {
+    // Dynamic import avoids circular dependency (database -> queries -> database)
+    const { resetRepoSingleton } = require('../api/queries.js');
+    if (typeof resetRepoSingleton === 'function') resetRepoSingleton();
+  } catch {
+    // queries.ts may not be loaded in all contexts (e.g. migration scripts)
+  }
   releaseSqliteProcessLock();
 }

@@ -758,7 +758,6 @@ function riskFromDecision(decision, locale) {
 }
 
 export default function TodayTab({
-  now,
   assetClass,
   today,
   safety,
@@ -778,6 +777,13 @@ export default function TodayTab({
   onConfirmBoundary,
   onCompleteCheckIn,
 }) {
+  // Self-managed clock — keeps App free from 30s re-render cycles
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 30000);
+    return () => clearInterval(timer);
+  }, []);
+
   const [selectedSignalId, setSelectedSignalId] = useState(null);
   const [activeSignal, setActiveSignal] = useState(null);
   const [tradeSignal, setTradeSignal] = useState(null);

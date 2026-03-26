@@ -21,5 +21,14 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // React runtime rarely changes between deploys; keeping it in a
+          // dedicated chunk lets browsers long-term-cache it across releases.
+          vendor: ['react', 'react-dom'],
+        },
+      },
+    },
   },
 });

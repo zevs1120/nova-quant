@@ -2,6 +2,22 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 10.5.2 (2026-03-25)
+
+- Release type: patch
+- **Perf: frontend + backend performance optimization sprint.**
+  - **TodayTab code-split:** moved from eager import to `React.lazy()`, reducing the main `index.js` chunk from 314 KB to 124 KB. First-paint JS is now the main chunk (124 KB) plus the vendor chunk (141 KB). TodayTab (40 KB) loads on demand. Chart.js stays inside the lazy `ProofTab` chunk (178 KB) and is not fetched until that tab is opened.
+  - **Vendor splitting:** added `manualChunks` to `vite.config.js` separating `react` + `react-dom` into a `vendor.js` chunk (141 KB) that rarely changes between deploys and can be long-term cached by browsers.
+  - **Clock state sunk:** moved the 30-second `now` timer from `App.jsx` into `TodayTab`, eliminating a full-tree re-render every 30 seconds when any other tab is active.
+  - **Browse warmup deferred:** warmup network requests now only fire when the Browse tab is activated (previously fired on app mount regardless of active tab). Polling interval increased from 15s to 120s.
+  - **Server Cache-Control:** added `Cache-Control: private, no-store` to user-scoped GET endpoints (`/api/assets`, `/api/market-state`, `/api/signals`, etc.) to explicitly prevent shared-cache leakage across sessions.
+  - **i18n file split:** split 665-line inline `i18n.js` into `src/locales/en.js` and `src/locales/zh.js` for code organisation. Both packs are still statically imported.
+  - **`getRepo()` singleton:** `MarketRepository` now created once instead of per-request. `closeDb()` clears the singleton to prevent stale-handle usage.
+  - **`fetchApi` fast path:** cached API base is used directly without recomputing origin candidates; fallback only triggers on network failure.
+  - **CORS allowlist:** replaced 18-way `||` chain with `Set.has()` for O(1) path matching.
+  - New `tests/performanceOptimization.test.ts` (7 tests): Cache-Control header assertions (private/no-store on user-scoped endpoints), closeDb→getDb repo singleton lifecycle, build output chunk shape (vendor separated, TodayTab lazy, no charts modulepreload).
+  - Zero logic changes. Typecheck clean, 103/103 test files, 599/599 tests pass, build OK.
+
 ## 10.5.1 (2026-03-25)
 
 - Release type: patch
