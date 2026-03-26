@@ -1,13 +1,12 @@
 import { getDb } from '../db/database.js';
 import { ensureSchema } from '../db/schema.js';
 import { MarketRepository } from '../db/repository.js';
-import type { AlphaEvaluationMetrics } from '../alpha_registry/index.js';
-import { buildAlphaRegistrySummary } from '../alpha_registry/index.js';
 import { decodeSignalContract } from '../quant/service.js';
 import { readAlphaDiscoveryConfig } from '../alpha_discovery/index.js';
 import { readNewsPipelineConfig } from '../news/provider.js';
 import { getConfig } from '../config.js';
 import { buildAdminResearchOpsSnapshot } from './liveOps.js';
+import { buildAdminAlphaSnapshot as buildLiveAdminAlphaSnapshot } from './liveAlpha.js';
 
 type JsonObject = Record<string, unknown>;
 
@@ -263,31 +262,6 @@ function mapAdminUsers(rows: AdminUserRow[]) {
   };
 }
 
-function mapLatestAlphaEvaluations(repo: MarketRepository, candidateIds: string[]) {
-  return new Map(
-    candidateIds.map((candidateId) => {
-      const evaluation = repo.getLatestAlphaEvaluation(candidateId);
-      const metrics = evaluation
-        ? parseJson<AlphaEvaluationMetrics & JsonObject>(
-            evaluation.metrics_json,
-            {} as AlphaEvaluationMetrics & JsonObject,
-          )
-        : null;
-      const rejectionReasons = evaluation
-        ? parseJson<string[]>(evaluation.rejection_reasons_json, [])
-        : [];
-      return [
-        candidateId,
-        {
-          evaluation,
-          metrics,
-          rejection_reasons: rejectionReasons,
-        },
-      ] as const;
-    }),
-  );
-}
-
 export function buildAdminUsersSnapshot() {
   const rows = queryAdminUsers();
   return {
@@ -296,46 +270,8 @@ export function buildAdminUsersSnapshot() {
   };
 }
 
-export function buildAdminAlphaSnapshot() {
-  const repo = getRepo();
-  const summary = buildAlphaRegistrySummary(repo);
-  const candidateIds = summary.records.map((row) => row.id);
-  const evaluationMap = mapLatestAlphaEvaluations(repo, candidateIds);
-  const familyMix = countBy(summary.records, (row) => row.family);
-  const integrationMix = countBy(summary.records, (row) => row.integration_path);
-
-  const candidates = summary.records.slice(0, 40).map((row) => {
-    const latest = evaluationMap.get(row.id);
-    return {
-      ...row,
-      latest_evaluation_created_at: latest?.evaluation
-        ? toIso(latest.evaluation.created_at_ms)
-        : null,
-      latest_acceptance_score: latest?.evaluation?.acceptance_score ?? row.acceptance_score ?? null,
-      latest_rejection_reasons: latest?.rejection_reasons || [],
-      metrics: latest?.metrics
-        ? {
-            net_pnl: latest.metrics.net_pnl ?? null,
-            sharpe: latest.metrics.sharpe ?? null,
-            max_drawdown: latest.metrics.max_drawdown ?? null,
-            stability_score: latest.metrics.stability_score ?? null,
-            correlation_to_active: latest.metrics.correlation_to_active ?? null,
-          }
-        : null,
-    };
-  });
-
-  return {
-    generated_at: new Date().toISOString(),
-    inventory: summary.counts,
-    family_mix: familyMix,
-    integration_mix: integrationMix,
-    top_candidates: summary.top_candidates,
-    decaying_candidates: summary.decaying_candidates,
-    correlation_map: summary.correlation_map,
-    state_transitions: summary.state_transitions,
-    candidates,
-  };
+export async function buildAdminAlphaSnapshot(args?: { timeZone?: string; localDate?: string }) {
+  return await buildLiveAdminAlphaSnapshot(args);
 }
 
 export function buildAdminSignalsSnapshot() {
@@ -529,7 +465,7 @@ export async function buildAdminSystemSnapshot() {
 export async function buildAdminOverviewSnapshot() {
   const repo = getRepo();
   const users = buildAdminUsersSnapshot();
-  const alpha = buildAdminAlphaSnapshot();
+  const alpha = await buildAdminAlphaSnapshot();
   const signals = buildAdminSignalsSnapshot();
   const system = await buildAdminSystemSnapshot();
   const workflows = repo.listWorkflowRuns({ limit: 16 });

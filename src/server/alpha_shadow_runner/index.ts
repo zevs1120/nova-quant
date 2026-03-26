@@ -312,6 +312,14 @@ function overlayStrengthForStatus(status: AlphaCandidateRecord['status']) {
   return 0;
 }
 
+function shouldTrackShadowObservation(decision: ShadowDecision) {
+  return decision.alignment >= 0.42;
+}
+
+function shouldCountRealizedShadowPnl(action: AlphaShadowObservationRecord['shadow_action']) {
+  return action === 'APPROVE' || action === 'BOOST';
+}
+
 export function applyAlphaRuntimeOverlays(args: {
   repo: MarketRepository;
   signal: SignalContract;
@@ -376,7 +384,10 @@ export function applyAlphaRuntimeOverlays(args: {
 
 export function summarizeAlphaShadowPerformance(repo: MarketRepository, alphaCandidateId: string) {
   const rows = repo.listAlphaShadowObservations({ alphaCandidateId, limit: 400 });
-  const realized = rows.filter((row) => Number.isFinite(row.realized_pnl_pct));
+  const realized = rows.filter(
+    (row) =>
+      shouldCountRealizedShadowPnl(row.shadow_action) && Number.isFinite(row.realized_pnl_pct),
+  );
   const series = realized.map((row) => Number(row.realized_pnl_pct || 0));
   const expectancy = series.length
     ? series.reduce((sum, value) => sum + value, 0) / series.length
@@ -434,9 +445,11 @@ export function runAlphaShadowCycle(args: {
     for (const signal of signals) {
       if (!candidate.compatible_markets.includes(signal.market)) continue;
       const decision = decideShadowAction(candidate, signal);
+      if (!shouldTrackShadowObservation(decision)) continue;
       const execution = latestExecutionForSignal(executions, signal.id);
-      const replayPnlPct =
-        execution?.pnl_pct ?? deriveReplayPnlPct({ repo: args.repo, candidate, signal });
+      const replayPnlPct = shouldCountRealizedShadowPnl(decision.action)
+        ? execution?.pnl_pct ?? deriveReplayPnlPct({ repo: args.repo, candidate, signal })
+        : null;
       observations.push({
         id: `alpha-shadow-${randomUUID()}`,
         alpha_candidate_id: row.id,

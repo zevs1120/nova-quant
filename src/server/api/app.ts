@@ -77,6 +77,7 @@ export function createApiApp() {
     '/api/control-plane/status',
     '/api/control-plane/flywheel',
     '/api/control-plane/research-ops',
+    '/api/control-plane/alphas',
     '/api/outcomes/recent',
     '/api/connect/broker',
     '/api/connect/exchange',

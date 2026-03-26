@@ -280,6 +280,109 @@ describe('alpha discovery loop', () => {
     expect(repo.getAlphaCandidate(candidate.id)?.status).toBe('CANARY');
   });
 
+  it('does not let blocked shadow rows drag expectancy below retirement thresholds', () => {
+    const db = new Database(':memory:');
+    ensureSchema(db);
+    const repo = new MarketRepository(db);
+    const now = Date.now();
+
+    const candidate = buildCandidate('alpha-shadow-noise-filter');
+    persistAlphaCandidate(repo, {
+      candidate,
+      status: 'SHADOW',
+      acceptanceScore: 0.78,
+    });
+    repo.insertAlphaEvaluation({
+      id: 'alpha-eval-noise-filter',
+      alpha_candidate_id: candidate.id,
+      workflow_run_id: 'workflow-alpha-discovery-test',
+      backtest_run_id: 'alpha-backtest-noise-filter',
+      evaluation_status: 'PASS',
+      acceptance_score: 0.78,
+      metrics_json: JSON.stringify({
+        correlation_to_active: 0.21,
+        sharpe: 0.81,
+        net_pnl: 0.07,
+      }),
+      rejection_reasons_json: JSON.stringify([]),
+      notes: 'shadow candidate',
+      created_at_ms: now,
+    });
+    repo.upsertSignals([
+      ...Array.from({ length: 18 }).map((_, index) => buildSignal(`signal-block-${index}`, 'AAPL')),
+      ...Array.from({ length: 6 }).map((_, index) => buildSignal(`signal-approve-${index}`, 'AAPL')),
+    ]);
+    repo.upsertAlphaShadowObservations([
+      ...Array.from({ length: 18 }).map((_, index) => ({
+        id: `shadow-block-${index}`,
+        alpha_candidate_id: candidate.id,
+        workflow_run_id: 'workflow-alpha-shadow-test',
+        signal_id: `signal-block-${index}`,
+        market: 'US' as const,
+        symbol: 'AAPL',
+        shadow_action: 'BLOCK' as const,
+        alignment_score: 0.46,
+        adjusted_confidence: 0.64,
+        suggested_weight_multiplier: 0,
+        realized_pnl_pct: -1.2,
+        realized_source: 'paper',
+        payload_json: JSON.stringify({}),
+        created_at_ms: now + index,
+        updated_at_ms: now + index,
+      })),
+      ...Array.from({ length: 6 }).map((_, index) => ({
+        id: `shadow-approve-${index}`,
+        alpha_candidate_id: candidate.id,
+        workflow_run_id: 'workflow-alpha-shadow-test',
+        signal_id: `signal-approve-${index}`,
+        market: 'US' as const,
+        symbol: 'AAPL',
+        shadow_action: 'APPROVE' as const,
+        alignment_score: 0.78,
+        adjusted_confidence: 0.72,
+        suggested_weight_multiplier: 1.02,
+        realized_pnl_pct: 0.8,
+        realized_source: 'paper',
+        payload_json: JSON.stringify({}),
+        created_at_ms: now + 100 + index,
+        updated_at_ms: now + 100 + index,
+      })),
+    ]);
+
+    const summary = summarizeAlphaShadowPerformance(repo, candidate.id);
+    expect(summary.sample_size).toBe(6);
+    expect(summary.expectancy).toBeGreaterThan(0);
+
+    const review = reviewAlphaShadowCandidates({
+      repo,
+      thresholds: {
+        minAcceptanceScore: 0.7,
+        maxCorrelationToActive: 0.72,
+        shadowAdmission: {
+          minAcceptanceScore: 0.58,
+          maxDrawdown: 0.28,
+        },
+        shadowPromotion: {
+          minSampleSize: 4,
+          minSharpe: 0.2,
+          minExpectancy: 0.001,
+          maxDrawdown: 0.25,
+          minApprovalRate: 0.45,
+          maxBacktestDegradation: 0.55,
+        },
+        retirement: {
+          minExpectancy: -0.002,
+          maxDrawdown: 0.22,
+          decayStreakLimit: 3,
+        },
+        allowProdPromotion: false,
+      },
+    });
+
+    expect(review.retired).toEqual([]);
+    expect(repo.getAlphaCandidate(candidate.id)?.status).toBe('SHADOW');
+  });
+
   it('admits watch-level candidates into SHADOW through the relaxed shadow admission gate', () => {
     const db = new Database(':memory:');
     ensureSchema(db);

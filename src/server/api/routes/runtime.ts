@@ -4,6 +4,7 @@ import {
   getRuntimeStateResponse,
   getControlPlaneStatus,
   getFlywheelStatus,
+  getAlphaOpsStatus,
   getResearchOpsStatus,
   getBackendBackbone,
 } from '../queries.js';
@@ -55,6 +56,18 @@ router.get('/api/control-plane/research-ops', (req, res) => {
   const localDate = (req.query.localDate as string | undefined) || undefined;
   res.json(
     getResearchOpsStatus({
+      timeZone,
+      localDate,
+    }),
+  );
+});
+
+router.get('/api/control-plane/alphas', (req, res) => {
+  const timeZone =
+    (req.query.tz as string | undefined) || (req.query.timezone as string | undefined) || undefined;
+  const localDate = (req.query.localDate as string | undefined) || undefined;
+  res.json(
+    getAlphaOpsStatus({
       timeZone,
       localDate,
     }),

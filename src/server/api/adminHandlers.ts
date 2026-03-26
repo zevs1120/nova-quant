@@ -100,13 +100,23 @@ export async function handleAdminAlphas(req: BasicRequest, res: BasicResponse) {
   const session = await authorizeAdmin(req, res);
   if (!session) return;
   try {
+    const timeZone =
+      typeof req.query?.tz === 'string'
+        ? req.query.tz
+        : typeof req.query?.timezone === 'string'
+          ? req.query.timezone
+          : undefined;
+    const localDate = typeof req.query?.localDate === 'string' ? req.query.localDate : undefined;
     res.json({
       ok: true,
       session: {
         user: session.user,
         roles: session.roles,
       },
-      data: buildAdminAlphaSnapshot(),
+      data: await buildAdminAlphaSnapshot({
+        timeZone,
+        localDate,
+      }),
     });
   } catch (error) {
     respondAdminError(res, 'ADMIN_ALPHAS_FAILED', error);

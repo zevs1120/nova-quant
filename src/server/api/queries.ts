@@ -74,6 +74,7 @@ import {
   type OrderStatusSnapshot,
 } from '../connect/adapters.js';
 import { buildPrivateMarvixOpsReport } from '../ops/privateMarvixOps.js';
+import { buildLocalAdminAlphaSnapshot } from '../admin/liveAlpha.js';
 import { buildLocalAdminResearchOpsSnapshot } from '../admin/liveOps.js';
 
 const RISK_PROFILE_PRESETS = {
@@ -3701,6 +3702,10 @@ export function getPrivateMarvixOps() {
 
 export function getResearchOpsStatus(args?: { timeZone?: string; localDate?: string }) {
   return buildLocalAdminResearchOpsSnapshot(args);
+}
+
+export function getAlphaOpsStatus(args?: { timeZone?: string; localDate?: string }) {
+  return buildLocalAdminAlphaSnapshot(args);
 }
 
 export async function getNovaHealthState() {
