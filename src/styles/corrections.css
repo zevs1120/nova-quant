@@ -6,20 +6,6 @@ body.is-standalone {
   --tabbar-total-height: 72px;
 }
 
-/*
- * Critical onboarding overlay positioning — loaded eagerly.
- * The full visual styles live in holdings.css (code-split), but this
- * rule MUST be in the global bundle so the overlay gets position:fixed
- * before the async chunk arrives, preventing it from becoming a flex
- * child of .app-bg and squashing the layout.
- */
-.onboarding-flow {
-  position: fixed;
-  inset: 0;
-  z-index: 120;
-  background: rgba(246, 243, 238, 0.98);
-}
-
 .device-shell {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;

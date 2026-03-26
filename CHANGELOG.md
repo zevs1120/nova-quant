@@ -5,10 +5,10 @@ All notable changes to NovaQuant are recorded here.
 ## 10.5.7 (2026-03-26)
 
 - Release type: patch
-- **Fix: resolve production layout squash caused by onboarding overlay CSS code-splitting.**
-  - Root cause: `.onboarding-flow` positioning CSS (`position: fixed; inset: 0; z-index: 120`) lived exclusively in `holdings.css`, which Vite code-splits into an async chunk (`holdings-*.css`). When the Welcome overlay rendered before the async CSS loaded, it became a normal flex child of `.app-bg` (`display: flex`), sharing horizontal space with `.device-shell` — squashing the Today screen to ~50% width.
-  - Fix: duplicated the critical `.onboarding-flow` positioning rules into `corrections.css` (eagerly loaded in the global CSS chain). The full visual styles remain in `holdings.css` and load later without conflict.
-  - Result: global CSS now includes `.onboarding-flow` positioning on first paint. 618/618 tests pass.
+- **Fix: extract OnboardingFlow CSS into eagerly-loaded global module, restoring fully styled Welcome/Login/Signup screens on first visit.**
+  - Root cause: all OnboardingFlow visual styles (~490 lines — buttons, inputs, form layouts, SVG illustration fills, signup cards, broker selector, error/success messages) were defined inside `holdings.css`, which Vite code-splits into an async chunk loaded only when `HoldingsTab` or `BrowseTab` mounts. Since both require login, first-time visitors saw completely unstyled HTML for the Welcome, Login, Signup, and Password Reset screens. A prior patch (v10.5.6) duplicated only the `.onboarding-flow` positioning rule into `corrections.css`, but all other visual styles remained unreachable.
+  - Fix: created `src/styles/onboarding.css` with the full OnboardingFlow CSS extracted from `holdings.css`. Added `@import './styles/onboarding.css'` to the global CSS chain (`src/styles.css`). Removed the temporary positioning patch from `corrections.css`.
+  - Result: `holdings.css` code-split chunk reduced from 58 KB to 38 KB. OnboardingFlow styles now load on first paint via the global CSS bundle. 618/618 tests pass, `npm run verify` clean.
 
 ## 10.5.6 (2026-03-26)
 
