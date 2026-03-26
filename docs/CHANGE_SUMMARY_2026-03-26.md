@@ -5,11 +5,11 @@
 
 ## 今日提交概览
 
-| 时间 | Commit | 标题 |
-| --- | --- | --- |
+| 时间  | Commit    | 标题                                                          |
+| ----- | --------- | ------------------------------------------------------------- |
 | 02:24 | `44c0e60` | `feat(landing): build art-directed mobile-first landing page` |
-| 02:34 | `3fa72e4` | `chore(domains): move app entrypoint to app subdomain` |
-| 02:50 | `3dd00ea` | `fix(landing): refine header glass corners` |
+| 02:34 | `3fa72e4` | `chore(domains): move app entrypoint to app subdomain`        |
+| 02:50 | `3dd00ea` | `fix(landing): refine header glass corners`                   |
 
 ---
 
@@ -188,8 +188,8 @@
 
 今天的工作，本质上完成了三件关键事情：
 
-1. 把 NovaQuant 的外部形象从“产品界面”升级成了“品牌世界”  
-2. 把产品入口从根域中剥离出来，建立了更清晰的域名与部署结构  
+1. 把 NovaQuant 的外部形象从“产品界面”升级成了“品牌世界”
+2. 把产品入口从根域中剥离出来，建立了更清晰的域名与部署结构
 3. 把一批最影响质感和转化的关键视觉与交互细节推进到了可上线状态
 
 这不是简单做了一页 landing，而是在为 NovaQuant 后续的品牌增长、产品承接和部署架构打基础。
