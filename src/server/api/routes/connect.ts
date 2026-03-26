@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { asyncRoute, requireAuthenticatedScope } from '../helpers.js';
-import { upsertExternalConnection, listExternalConnections } from '../queries.js';
+import { upsertExternalConnection, listExternalConnectionsPrimary } from '../queries.js';
 import { createBrokerAdapter, createExchangeAdapter } from '../../connect/adapters.js';
 import { importHoldingsFromCsvText, importHoldingsFromScreenshot } from '../../holdings/import.js';
 
@@ -32,7 +32,10 @@ router.get(
         can_trade: snapshot.can_trade,
       },
     });
-    const connections = listExternalConnections({ userId, connectionType: 'BROKER' });
+    const connections = await listExternalConnectionsPrimary({
+      userId,
+      connectionType: 'BROKER',
+    });
     res.json({
       provider,
       mode: snapshot.mode,
@@ -91,7 +94,10 @@ router.get(
         can_trade: snapshot.can_trade,
       },
     });
-    const connections = listExternalConnections({ userId, connectionType: 'EXCHANGE' });
+    const connections = await listExternalConnectionsPrimary({
+      userId,
+      connectionType: 'EXCHANGE',
+    });
     res.json({
       provider,
       mode: snapshot.mode,

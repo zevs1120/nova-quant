@@ -11,7 +11,22 @@ import {
   resolvePostgresBusinessUrl,
 } from '../db/postgresMigration.js';
 import { decodeSignalContract } from '../quant/service.js';
-import type { AlphaIntegrationPath, AlphaLifecycleState, Market } from '../types.js';
+import type {
+  AlphaIntegrationPath,
+  AlphaLifecycleState,
+  AssetClass,
+  DecisionSnapshotRecord,
+  ExecutionMode,
+  ExecutionRecord,
+  Market,
+  MarketStateRecord,
+  NotificationEventRecord,
+  NotificationPreferenceRecord,
+  PerformanceSnapshotRecord,
+  SignalRecord,
+  UserRiskProfileRecord,
+  UserRitualEventRecord,
+} from '../types.js';
 
 type JsonObject = Record<string, unknown>;
 
@@ -125,6 +140,25 @@ type SignalRow = {
   confidence: number;
   created_at_ms: number;
   payload_json: string;
+};
+
+type ApiKeyRow = {
+  key_id: string;
+  key_hash: string;
+  label: string;
+  scope: string;
+  status: string;
+};
+
+type ExternalConnectionRow = {
+  connection_id: string;
+  user_id: string;
+  connection_type: 'BROKER' | 'EXCHANGE';
+  provider: string;
+  mode: 'READ_ONLY' | 'TRADING';
+  status: 'CONNECTED' | 'DISCONNECTED' | 'PENDING';
+  meta_json: string | null;
+  updated_at_ms: number;
 };
 
 type NovaTaskRunRow = {
@@ -383,6 +417,7 @@ function getBusinessPool() {
   poolSingleton = new Pool({
     connectionString,
     max: Math.max(1, Number(process.env.NOVA_DATA_PG_POOL_MAX || 5)),
+    query_timeout: Math.max(1_000, Number(process.env.NOVA_DATA_PG_QUERY_TIMEOUT_MS || 8_000)),
     ssl: shouldUseSsl(connectionString) ? { rejectUnauthorized: false } : undefined,
   });
   return poolSingleton;
@@ -763,6 +798,778 @@ async function listRecentSignalsSince(limit: number, sinceMs: number): Promise<S
     created_at_ms: toNumber(row.created_at_ms),
     payload_json: String(row.payload_json || '{}'),
   }));
+}
+
+function mapSignalRecord(row: Record<string, unknown>): SignalRecord {
+  return {
+    signal_id: String(row.signal_id || ''),
+    created_at_ms: toNumber(row.created_at_ms),
+    expires_at_ms: toNumber(row.expires_at_ms),
+    asset_class: String(row.asset_class || 'US_STOCK') as SignalRecord['asset_class'],
+    market: String(row.market || 'US') as Market,
+    symbol: String(row.symbol || ''),
+    timeframe: String(row.timeframe || ''),
+    strategy_id: String(row.strategy_id || ''),
+    strategy_family: String(row.strategy_family || ''),
+    strategy_version: String(row.strategy_version || ''),
+    regime_id: String(row.regime_id || ''),
+    temperature_percentile: toNumber(row.temperature_percentile),
+    volatility_percentile: toNumber(row.volatility_percentile),
+    direction: String(row.direction || 'LONG') as SignalRecord['direction'],
+    strength: toNumber(row.strength),
+    confidence: toNumber(row.confidence),
+    entry_low: toNumber(row.entry_low),
+    entry_high: toNumber(row.entry_high),
+    entry_method: String(row.entry_method || ''),
+    invalidation_level: toNumber(row.invalidation_level),
+    stop_type: String(row.stop_type || ''),
+    stop_price: toNumber(row.stop_price),
+    tp1_price: toNullableNumber(row.tp1_price),
+    tp1_size_pct: toNullableNumber(row.tp1_size_pct),
+    tp2_price: toNullableNumber(row.tp2_price),
+    tp2_size_pct: toNullableNumber(row.tp2_size_pct),
+    trailing_type: String(row.trailing_type || ''),
+    trailing_params_json: String(row.trailing_params_json || '{}'),
+    position_pct: toNumber(row.position_pct),
+    leverage_cap: toNumber(row.leverage_cap),
+    risk_bucket_applied: String(row.risk_bucket_applied || ''),
+    fee_bps: toNumber(row.fee_bps),
+    spread_bps: toNumber(row.spread_bps),
+    slippage_bps: toNumber(row.slippage_bps),
+    funding_est_bps: toNullableNumber(row.funding_est_bps),
+    basis_est: toNullableNumber(row.basis_est),
+    expected_r: toNumber(row.expected_r),
+    hit_rate_est: toNumber(row.hit_rate_est),
+    sample_size: toNumber(row.sample_size),
+    expected_max_dd_est: toNullableNumber(row.expected_max_dd_est),
+    status: String(row.status || 'NEW') as SignalRecord['status'],
+    score: toNumber(row.score),
+    payload_json: String(row.payload_json || '{}'),
+    updated_at_ms: toNumber(row.updated_at_ms),
+  };
+}
+
+export async function readPostgresSignalRecords(args?: {
+  assetClass?: AssetClass;
+  market?: Market;
+  symbol?: string;
+  status?: 'ALL' | 'NEW' | 'TRIGGERED' | 'EXPIRED' | 'INVALIDATED' | 'CLOSED';
+  limit?: number;
+}): Promise<SignalRecord[]> {
+  const where: string[] = [];
+  const params: unknown[] = [];
+  if (args?.assetClass) {
+    params.push(args.assetClass);
+    where.push(`asset_class = $${params.length}`);
+  }
+  if (args?.market) {
+    params.push(args.market);
+    where.push(`market = $${params.length}`);
+  }
+  if (args?.symbol) {
+    params.push(String(args.symbol).toUpperCase());
+    where.push(`symbol = $${params.length}`);
+  }
+  if (args?.status && args.status !== 'ALL') {
+    params.push(args.status);
+    where.push(`status = $${params.length}`);
+  }
+  params.push(Math.max(1, Number(args?.limit || 40)));
+  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+  const rows = await queryRows<Record<string, unknown>>(
+    `
+      SELECT
+        signal_id,
+        created_at_ms,
+        expires_at_ms,
+        asset_class,
+        market,
+        symbol,
+        timeframe,
+        strategy_id,
+        strategy_family,
+        strategy_version,
+        regime_id,
+        temperature_percentile,
+        volatility_percentile,
+        direction,
+        strength,
+        confidence,
+        entry_low,
+        entry_high,
+        entry_method,
+        invalidation_level,
+        stop_type,
+        stop_price,
+        tp1_price,
+        tp1_size_pct,
+        tp2_price,
+        tp2_size_pct,
+        trailing_type,
+        trailing_params_json,
+        position_pct,
+        leverage_cap,
+        risk_bucket_applied,
+        fee_bps,
+        spread_bps,
+        slippage_bps,
+        funding_est_bps,
+        basis_est,
+        expected_r,
+        hit_rate_est,
+        sample_size,
+        expected_max_dd_est,
+        status,
+        score,
+        payload_json,
+        updated_at_ms
+      FROM ${qualifyBusinessTable('signals')}
+      ${whereSql}
+      ORDER BY score DESC, created_at_ms DESC
+      LIMIT $${params.length}
+    `,
+    params,
+  );
+  return rows.map(mapSignalRecord);
+}
+
+export async function readPostgresSignalRecord(signalId: string): Promise<SignalRecord | null> {
+  const row = await queryRow<Record<string, unknown>>(
+    `
+      SELECT
+        signal_id,
+        created_at_ms,
+        expires_at_ms,
+        asset_class,
+        market,
+        symbol,
+        timeframe,
+        strategy_id,
+        strategy_family,
+        strategy_version,
+        regime_id,
+        temperature_percentile,
+        volatility_percentile,
+        direction,
+        strength,
+        confidence,
+        entry_low,
+        entry_high,
+        entry_method,
+        invalidation_level,
+        stop_type,
+        stop_price,
+        tp1_price,
+        tp1_size_pct,
+        tp2_price,
+        tp2_size_pct,
+        trailing_type,
+        trailing_params_json,
+        position_pct,
+        leverage_cap,
+        risk_bucket_applied,
+        fee_bps,
+        spread_bps,
+        slippage_bps,
+        funding_est_bps,
+        basis_est,
+        expected_r,
+        hit_rate_est,
+        sample_size,
+        expected_max_dd_est,
+        status,
+        score,
+        payload_json,
+        updated_at_ms
+      FROM ${qualifyBusinessTable('signals')}
+      WHERE signal_id = $1
+      LIMIT 1
+    `,
+    [signalId],
+  );
+  return row ? mapSignalRecord(row) : null;
+}
+
+export async function readPostgresExecutionRecords(args?: {
+  userId?: string;
+  market?: Market;
+  mode?: ExecutionMode;
+  signalId?: string;
+  limit?: number;
+}): Promise<ExecutionRecord[]> {
+  const where: string[] = [];
+  const params: unknown[] = [];
+  if (args?.userId) {
+    params.push(args.userId);
+    where.push(`user_id = $${params.length}`);
+  }
+  if (args?.market) {
+    params.push(args.market);
+    where.push(`market = $${params.length}`);
+  }
+  if (args?.mode) {
+    params.push(args.mode);
+    where.push(`mode = $${params.length}`);
+  }
+  if (args?.signalId) {
+    params.push(args.signalId);
+    where.push(`signal_id = $${params.length}`);
+  }
+  params.push(Math.max(1, Number(args?.limit || 200)));
+  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+  const rows = await queryRows<Record<string, unknown>>(
+    `
+      SELECT
+        execution_id,
+        signal_id,
+        user_id,
+        mode,
+        action,
+        market,
+        symbol,
+        entry_price,
+        stop_price,
+        tp_price,
+        size_pct,
+        pnl_pct,
+        note,
+        created_at_ms,
+        updated_at_ms
+      FROM ${qualifyBusinessTable('executions')}
+      ${whereSql}
+      ORDER BY created_at_ms DESC
+      LIMIT $${params.length}
+    `,
+    params,
+  );
+  return rows.map((row) => ({
+    execution_id: String(row.execution_id || ''),
+    signal_id: String(row.signal_id || ''),
+    user_id: String(row.user_id || ''),
+    mode: String(row.mode || 'PAPER') as ExecutionMode,
+    action: String(row.action || 'EXECUTE') as ExecutionRecord['action'],
+    market: String(row.market || 'US') as Market,
+    symbol: String(row.symbol || ''),
+    entry_price: toNullableNumber(row.entry_price),
+    stop_price: toNullableNumber(row.stop_price),
+    tp_price: toNullableNumber(row.tp_price),
+    size_pct: toNullableNumber(row.size_pct),
+    pnl_pct: toNullableNumber(row.pnl_pct),
+    note: toNullableString(row.note),
+    created_at_ms: toNumber(row.created_at_ms),
+    updated_at_ms: toNumber(row.updated_at_ms),
+  }));
+}
+
+export async function readPostgresRiskProfile(
+  userId: string,
+): Promise<UserRiskProfileRecord | null> {
+  const row = await queryRow<Record<string, unknown>>(
+    `
+      SELECT
+        user_id,
+        profile_key,
+        max_loss_per_trade,
+        max_daily_loss,
+        max_drawdown,
+        exposure_cap,
+        leverage_cap,
+        updated_at_ms
+      FROM ${qualifyBusinessTable('user_risk_profiles')}
+      WHERE user_id = $1
+      LIMIT 1
+    `,
+    [userId],
+  );
+  if (!row) return null;
+  return {
+    user_id: String(row.user_id || ''),
+    profile_key: String(row.profile_key || 'balanced') as UserRiskProfileRecord['profile_key'],
+    max_loss_per_trade: toNumber(row.max_loss_per_trade),
+    max_daily_loss: toNumber(row.max_daily_loss),
+    max_drawdown: toNumber(row.max_drawdown),
+    exposure_cap: toNumber(row.exposure_cap),
+    leverage_cap: toNumber(row.leverage_cap),
+    updated_at_ms: toNumber(row.updated_at_ms),
+  };
+}
+
+export async function readPostgresMarketState(args?: {
+  market?: Market;
+  symbol?: string;
+  timeframe?: string;
+}): Promise<MarketStateRecord[]> {
+  const where: string[] = [];
+  const params: unknown[] = [];
+  if (args?.market) {
+    params.push(args.market);
+    where.push(`market = $${params.length}`);
+  }
+  if (args?.symbol) {
+    params.push(String(args.symbol).toUpperCase());
+    where.push(`symbol = $${params.length}`);
+  }
+  if (args?.timeframe) {
+    params.push(args.timeframe);
+    where.push(`timeframe = $${params.length}`);
+  }
+  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+  const rows = await queryRows<Record<string, unknown>>(
+    `
+      SELECT
+        market,
+        symbol,
+        timeframe,
+        snapshot_ts_ms,
+        regime_id,
+        trend_strength,
+        temperature_percentile,
+        volatility_percentile,
+        risk_off_score,
+        stance,
+        event_stats_json,
+        assumptions_json,
+        updated_at_ms
+      FROM ${qualifyBusinessTable('market_state')}
+      ${whereSql}
+      ORDER BY temperature_percentile DESC, updated_at_ms DESC
+    `,
+    params,
+  );
+  return rows.map((row) => ({
+    market: String(row.market || 'US') as Market,
+    symbol: String(row.symbol || ''),
+    timeframe: String(row.timeframe || ''),
+    snapshot_ts_ms: toNumber(row.snapshot_ts_ms),
+    regime_id: String(row.regime_id || ''),
+    trend_strength: toNumber(row.trend_strength),
+    temperature_percentile: toNumber(row.temperature_percentile),
+    volatility_percentile: toNumber(row.volatility_percentile),
+    risk_off_score: toNumber(row.risk_off_score),
+    stance: String(row.stance || ''),
+    event_stats_json: String(row.event_stats_json || '{}'),
+    assumptions_json: String(row.assumptions_json || '{}'),
+    updated_at_ms: toNumber(row.updated_at_ms),
+  }));
+}
+
+export async function readPostgresPerformanceSnapshots(args?: {
+  market?: Market;
+  range?: string;
+  segmentType?: string;
+}): Promise<PerformanceSnapshotRecord[]> {
+  const where: string[] = [];
+  const params: unknown[] = [];
+  if (args?.market) {
+    params.push(args.market);
+    where.push(`market = $${params.length}`);
+  }
+  if (args?.range) {
+    params.push(args.range);
+    where.push(`range = $${params.length}`);
+  }
+  if (args?.segmentType) {
+    params.push(args.segmentType);
+    where.push(`segment_type = $${params.length}`);
+  }
+  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+  const rows = await queryRows<Record<string, unknown>>(
+    `
+      SELECT
+        market,
+        range,
+        segment_type,
+        segment_key,
+        source_label,
+        sample_size,
+        payload_json,
+        asof_ms,
+        updated_at_ms
+      FROM ${qualifyBusinessTable('performance_snapshots')}
+      ${whereSql}
+      ORDER BY asof_ms DESC, sample_size DESC
+    `,
+    params,
+  );
+  return rows.map((row) => ({
+    market: String(row.market || 'US') as Market,
+    range: String(row.range || ''),
+    segment_type: String(
+      row.segment_type || 'OVERALL',
+    ) as PerformanceSnapshotRecord['segment_type'],
+    segment_key: String(row.segment_key || ''),
+    source_label: String(
+      row.source_label || 'BACKTEST',
+    ) as PerformanceSnapshotRecord['source_label'],
+    sample_size: toNumber(row.sample_size),
+    payload_json: String(row.payload_json || '{}'),
+    asof_ms: toNumber(row.asof_ms),
+    updated_at_ms: toNumber(row.updated_at_ms),
+  }));
+}
+
+export async function readPostgresLatestDecisionSnapshot(args: {
+  userId: string;
+  market?: Market | 'ALL';
+  assetClass?: AssetClass | 'ALL';
+}): Promise<DecisionSnapshotRecord | null> {
+  const where = ['user_id = $1'];
+  const params: unknown[] = [args.userId];
+  if (args.market) {
+    params.push(args.market);
+    where.push(`market = $${params.length}`);
+  }
+  if (args.assetClass) {
+    params.push(args.assetClass);
+    where.push(`asset_class = $${params.length}`);
+  }
+  const row = await queryRow<Record<string, unknown>>(
+    `
+      SELECT
+        id,
+        user_id,
+        market,
+        asset_class,
+        snapshot_date,
+        context_hash,
+        evidence_mode,
+        performance_mode,
+        source_status,
+        data_status,
+        risk_state_json,
+        portfolio_context_json,
+        actions_json,
+        summary_json,
+        top_action_id,
+        created_at_ms,
+        updated_at_ms
+      FROM ${qualifyBusinessTable('decision_snapshots')}
+      WHERE ${where.join(' AND ')}
+      ORDER BY updated_at_ms DESC
+      LIMIT 1
+    `,
+    params,
+  );
+  if (!row) return null;
+  return {
+    id: String(row.id || ''),
+    user_id: String(row.user_id || ''),
+    market: String(row.market || 'US') as DecisionSnapshotRecord['market'],
+    asset_class: String(row.asset_class || 'ALL') as DecisionSnapshotRecord['asset_class'],
+    snapshot_date: String(row.snapshot_date || ''),
+    context_hash: String(row.context_hash || ''),
+    evidence_mode: String(
+      row.evidence_mode || 'UNAVAILABLE',
+    ) as DecisionSnapshotRecord['evidence_mode'],
+    performance_mode: String(
+      row.performance_mode || 'UNAVAILABLE',
+    ) as DecisionSnapshotRecord['performance_mode'],
+    source_status: String(row.source_status || ''),
+    data_status: String(row.data_status || ''),
+    risk_state_json: String(row.risk_state_json || '{}'),
+    portfolio_context_json: String(row.portfolio_context_json || '{}'),
+    actions_json: String(row.actions_json || '[]'),
+    summary_json: String(row.summary_json || '{}'),
+    top_action_id: toNullableString(row.top_action_id),
+    created_at_ms: toNumber(row.created_at_ms),
+    updated_at_ms: toNumber(row.updated_at_ms),
+  };
+}
+
+export async function readPostgresDecisionSnapshots(args: {
+  userId: string;
+  market?: Market | 'ALL';
+  assetClass?: AssetClass | 'ALL';
+  limit?: number;
+}): Promise<DecisionSnapshotRecord[]> {
+  const where = ['user_id = $1'];
+  const params: unknown[] = [args.userId];
+  if (args.market) {
+    params.push(args.market);
+    where.push(`market = $${params.length}`);
+  }
+  if (args.assetClass) {
+    params.push(args.assetClass);
+    where.push(`asset_class = $${params.length}`);
+  }
+  params.push(Math.max(1, Number(args.limit || 6)));
+  const rows = await queryRows<Record<string, unknown>>(
+    `
+      SELECT
+        id,
+        user_id,
+        market,
+        asset_class,
+        snapshot_date,
+        context_hash,
+        evidence_mode,
+        performance_mode,
+        source_status,
+        data_status,
+        risk_state_json,
+        portfolio_context_json,
+        actions_json,
+        summary_json,
+        top_action_id,
+        created_at_ms,
+        updated_at_ms
+      FROM ${qualifyBusinessTable('decision_snapshots')}
+      WHERE ${where.join(' AND ')}
+      ORDER BY updated_at_ms DESC
+      LIMIT $${params.length}
+    `,
+    params,
+  );
+  return rows.map((row) => ({
+    id: String(row.id || ''),
+    user_id: String(row.user_id || ''),
+    market: String(row.market || 'US') as DecisionSnapshotRecord['market'],
+    asset_class: String(row.asset_class || 'ALL') as DecisionSnapshotRecord['asset_class'],
+    snapshot_date: String(row.snapshot_date || ''),
+    context_hash: String(row.context_hash || ''),
+    evidence_mode: String(
+      row.evidence_mode || 'UNAVAILABLE',
+    ) as DecisionSnapshotRecord['evidence_mode'],
+    performance_mode: String(
+      row.performance_mode || 'UNAVAILABLE',
+    ) as DecisionSnapshotRecord['performance_mode'],
+    source_status: String(row.source_status || ''),
+    data_status: String(row.data_status || ''),
+    risk_state_json: String(row.risk_state_json || '{}'),
+    portfolio_context_json: String(row.portfolio_context_json || '{}'),
+    actions_json: String(row.actions_json || '[]'),
+    summary_json: String(row.summary_json || '{}'),
+    top_action_id: toNullableString(row.top_action_id),
+    created_at_ms: toNumber(row.created_at_ms),
+    updated_at_ms: toNumber(row.updated_at_ms),
+  }));
+}
+
+export async function readPostgresUserRitualEvents(args: {
+  userId: string;
+  market?: Market | 'ALL';
+  assetClass?: AssetClass | 'ALL';
+  fromDate?: string;
+  toDate?: string;
+  limit?: number;
+}): Promise<UserRitualEventRecord[]> {
+  const where = ['user_id = $1'];
+  const params: unknown[] = [args.userId];
+  if (args.market) {
+    params.push(args.market);
+    where.push(`market = $${params.length}`);
+  }
+  if (args.assetClass) {
+    params.push(args.assetClass);
+    where.push(`asset_class = $${params.length}`);
+  }
+  if (args.fromDate) {
+    params.push(args.fromDate);
+    where.push(`event_date >= $${params.length}`);
+  }
+  if (args.toDate) {
+    params.push(args.toDate);
+    where.push(`event_date <= $${params.length}`);
+  }
+  params.push(Math.max(1, Number(args.limit || 120)));
+  const rows = await queryRows<Record<string, unknown>>(
+    `
+      SELECT
+        id,
+        user_id,
+        market,
+        asset_class,
+        event_date,
+        week_key,
+        event_type,
+        snapshot_id,
+        reason_json,
+        created_at_ms,
+        updated_at_ms
+      FROM ${qualifyBusinessTable('user_ritual_events')}
+      WHERE ${where.join(' AND ')}
+      ORDER BY updated_at_ms DESC
+      LIMIT $${params.length}
+    `,
+    params,
+  );
+  return rows.map((row) => ({
+    id: String(row.id || ''),
+    user_id: String(row.user_id || ''),
+    market: String(row.market || 'US') as UserRitualEventRecord['market'],
+    asset_class: String(row.asset_class || 'ALL') as UserRitualEventRecord['asset_class'],
+    event_date: String(row.event_date || ''),
+    week_key: toNullableString(row.week_key),
+    event_type: String(
+      row.event_type || 'MORNING_CHECK_COMPLETED',
+    ) as UserRitualEventRecord['event_type'],
+    snapshot_id: toNullableString(row.snapshot_id),
+    reason_json: String(row.reason_json || '{}'),
+    created_at_ms: toNumber(row.created_at_ms),
+    updated_at_ms: toNumber(row.updated_at_ms),
+  }));
+}
+
+export async function readPostgresNotificationPreferences(
+  userId: string,
+): Promise<NotificationPreferenceRecord | null> {
+  const row = await queryRow<Record<string, unknown>>(
+    `
+      SELECT
+        user_id,
+        morning_enabled,
+        state_shift_enabled,
+        protective_enabled,
+        wrap_up_enabled,
+        frequency,
+        quiet_start_hour,
+        quiet_end_hour,
+        updated_at_ms
+      FROM ${qualifyBusinessTable('user_notification_preferences')}
+      WHERE user_id = $1
+      LIMIT 1
+    `,
+    [userId],
+  );
+  if (!row) return null;
+  return {
+    user_id: String(row.user_id || ''),
+    morning_enabled: toNumber(row.morning_enabled),
+    state_shift_enabled: toNumber(row.state_shift_enabled),
+    protective_enabled: toNumber(row.protective_enabled),
+    wrap_up_enabled: toNumber(row.wrap_up_enabled),
+    frequency: String(row.frequency || 'NORMAL') as NotificationPreferenceRecord['frequency'],
+    quiet_start_hour: toNullableNumber(row.quiet_start_hour),
+    quiet_end_hour: toNullableNumber(row.quiet_end_hour),
+    updated_at_ms: toNumber(row.updated_at_ms),
+  };
+}
+
+export async function readPostgresNotificationEvents(args: {
+  userId: string;
+  market?: Market | 'ALL';
+  assetClass?: AssetClass | 'ALL';
+  status?: string;
+  limit?: number;
+}): Promise<NotificationEventRecord[]> {
+  const where = ['user_id = $1'];
+  const params: unknown[] = [args.userId];
+  if (args.market) {
+    params.push(args.market);
+    where.push(`market = $${params.length}`);
+  }
+  if (args.assetClass) {
+    params.push(args.assetClass);
+    where.push(`asset_class = $${params.length}`);
+  }
+  if (args.status) {
+    params.push(args.status);
+    where.push(`status = $${params.length}`);
+  }
+  params.push(Math.max(1, Number(args.limit || 12)));
+  const rows = await queryRows<Record<string, unknown>>(
+    `
+      SELECT
+        id,
+        user_id,
+        market,
+        asset_class,
+        category,
+        trigger_type,
+        fingerprint,
+        title,
+        body,
+        tone,
+        status,
+        action_target,
+        reason_json,
+        created_at_ms,
+        updated_at_ms
+      FROM ${qualifyBusinessTable('notification_events')}
+      WHERE ${where.join(' AND ')}
+      ORDER BY updated_at_ms DESC
+      LIMIT $${params.length}
+    `,
+    params,
+  );
+  return rows.map((row) => ({
+    id: String(row.id || ''),
+    user_id: String(row.user_id || ''),
+    market: String(row.market || 'US') as NotificationEventRecord['market'],
+    asset_class: String(row.asset_class || 'ALL') as NotificationEventRecord['asset_class'],
+    category: String(row.category || 'RHYTHM') as NotificationEventRecord['category'],
+    trigger_type: String(row.trigger_type || ''),
+    fingerprint: String(row.fingerprint || ''),
+    title: String(row.title || ''),
+    body: String(row.body || ''),
+    tone: String(row.tone || ''),
+    status: String(row.status || 'ACTIVE') as NotificationEventRecord['status'],
+    action_target: toNullableString(row.action_target),
+    reason_json: String(row.reason_json || '{}'),
+    created_at_ms: toNumber(row.created_at_ms),
+    updated_at_ms: toNumber(row.updated_at_ms),
+  }));
+}
+
+export async function readPostgresExternalConnections(args: {
+  userId: string;
+  connectionType?: 'BROKER' | 'EXCHANGE';
+}): Promise<ExternalConnectionRow[]> {
+  const where = ['user_id = $1'];
+  const params: unknown[] = [args.userId];
+  if (args.connectionType) {
+    params.push(args.connectionType);
+    where.push(`connection_type = $${params.length}`);
+  }
+  const rows = await queryRows<Record<string, unknown>>(
+    `
+      SELECT
+        connection_id,
+        user_id,
+        connection_type,
+        provider,
+        mode,
+        status,
+        meta_json,
+        updated_at_ms
+      FROM ${qualifyBusinessTable('external_connections')}
+      WHERE ${where.join(' AND ')}
+      ORDER BY updated_at_ms DESC
+    `,
+    params,
+  );
+  return rows.map((row) => ({
+    connection_id: String(row.connection_id || ''),
+    user_id: String(row.user_id || ''),
+    connection_type: String(
+      row.connection_type || 'BROKER',
+    ) as ExternalConnectionRow['connection_type'],
+    provider: String(row.provider || ''),
+    mode: String(row.mode || 'READ_ONLY') as ExternalConnectionRow['mode'],
+    status: String(row.status || 'PENDING') as ExternalConnectionRow['status'],
+    meta_json: toNullableString(row.meta_json),
+    updated_at_ms: toNumber(row.updated_at_ms),
+  }));
+}
+
+export async function readPostgresApiKeyByHash(keyHash: string): Promise<ApiKeyRow | null> {
+  const row = await queryRow<Record<string, unknown>>(
+    `
+      SELECT key_id, key_hash, label, scope, status
+      FROM ${qualifyBusinessTable('api_keys')}
+      WHERE key_hash = $1
+      LIMIT 1
+    `,
+    [keyHash],
+  );
+  if (!row) return null;
+  return {
+    key_id: String(row.key_id || ''),
+    key_hash: String(row.key_hash || ''),
+    label: String(row.label || ''),
+    scope: String(row.scope || ''),
+    status: String(row.status || ''),
+  };
 }
 
 async function listNovaTaskRuns(limit: number): Promise<NovaTaskRunRow[]> {

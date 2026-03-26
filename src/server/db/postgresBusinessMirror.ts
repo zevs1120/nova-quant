@@ -7,15 +7,22 @@ import type {
   AlphaShadowObservationRecord,
   BacktestMetricRecord,
   BacktestRunRecord,
+  DecisionSnapshotRecord,
   DatasetVersionRecord,
+  ExecutionRecord,
   FundamentalSnapshotRecord,
   MarketStateRecord,
   NewsItemRecord,
   NovaTaskRunRecord,
+  NotificationEventRecord,
+  NotificationPreferenceRecord,
   OptionChainSnapshotRecord,
   PerformanceSnapshotRecord,
   SignalContract,
   SignalRecord,
+  SignalEventRecord,
+  UserRiskProfileRecord,
+  UserRitualEventRecord,
   WorkflowRunRecord,
 } from '../types.js';
 import { MarketRepository } from './repository.js';
@@ -35,6 +42,28 @@ type MirrorHandle = {
 
 type MirrorRow = object;
 
+type ApiKeyMirrorRecord = {
+  key_id: string;
+  key_hash: string;
+  label: string;
+  scope: string;
+  status: 'ACTIVE' | 'DISABLED';
+  created_at_ms: number;
+  updated_at_ms: number;
+};
+
+type ExternalConnectionMirrorRecord = {
+  connection_id: string;
+  user_id: string;
+  connection_type: 'BROKER' | 'EXCHANGE';
+  provider: string;
+  mode: 'READ_ONLY' | 'TRADING';
+  status: 'CONNECTED' | 'DISCONNECTED' | 'PENDING';
+  meta_json: string | null;
+  created_at_ms: number;
+  updated_at_ms: number;
+};
+
 let poolSingleton: Pool | null = null;
 
 function shouldUseSsl(connectionString: string) {
@@ -53,6 +82,12 @@ function resolvePostgresBusinessSchema() {
 }
 
 function hasPostgresBusinessMirrorWrites() {
+  if (
+    process.env.NODE_ENV === 'test' &&
+    String(process.env.NOVA_ENABLE_PG_MIRROR_WRITES_TEST || '') !== '1'
+  ) {
+    return false;
+  }
   if (
     String(process.env.NOVA_DISABLE_PG_MIRROR_WRITES || '')
       .trim()
@@ -266,6 +301,74 @@ class PostgresBusinessWriteMirror {
       ],
       rows,
       conflictColumns: ['signal_id'],
+    });
+  }
+
+  async insertSignalEvents(rows: SignalEventRecord[]) {
+    const materialized = rows
+      .filter((row) => Number.isFinite(Number(row.id)))
+      .map((row) => ({
+        ...row,
+        id: Number(row.id),
+        payload_json: row.payload_json ?? null,
+      }));
+    if (!materialized.length) return;
+    await this.upsertRows({
+      table: 'signal_events',
+      columns: ['id', 'signal_id', 'event_type', 'payload_json', 'created_at_ms'],
+      rows: materialized,
+      conflictColumns: ['id'],
+    });
+  }
+
+  async upsertExecutions(rows: ExecutionRecord[]) {
+    await this.upsertRows({
+      table: 'executions',
+      columns: [
+        'execution_id',
+        'signal_id',
+        'user_id',
+        'mode',
+        'action',
+        'market',
+        'symbol',
+        'entry_price',
+        'stop_price',
+        'tp_price',
+        'size_pct',
+        'pnl_pct',
+        'note',
+        'created_at_ms',
+        'updated_at_ms',
+      ],
+      rows: rows.map((row) => ({
+        ...row,
+        entry_price: row.entry_price ?? null,
+        stop_price: row.stop_price ?? null,
+        tp_price: row.tp_price ?? null,
+        size_pct: row.size_pct ?? null,
+        pnl_pct: row.pnl_pct ?? null,
+        note: row.note ?? null,
+      })),
+      conflictColumns: ['execution_id'],
+    });
+  }
+
+  async upsertUserRiskProfiles(rows: UserRiskProfileRecord[]) {
+    await this.upsertRows({
+      table: 'user_risk_profiles',
+      columns: [
+        'user_id',
+        'profile_key',
+        'max_loss_per_trade',
+        'max_daily_loss',
+        'max_drawdown',
+        'exposure_cap',
+        'leverage_cap',
+        'updated_at_ms',
+      ],
+      rows,
+      conflictColumns: ['user_id'],
     });
   }
 
@@ -526,6 +629,160 @@ class PostgresBusinessWriteMirror {
       conflictColumns: ['market', 'range', 'segment_type', 'segment_key'],
     });
   }
+
+  async upsertDecisionSnapshots(rows: DecisionSnapshotRecord[]) {
+    await this.upsertRows({
+      table: 'decision_snapshots',
+      columns: [
+        'id',
+        'user_id',
+        'market',
+        'asset_class',
+        'snapshot_date',
+        'context_hash',
+        'evidence_mode',
+        'performance_mode',
+        'source_status',
+        'data_status',
+        'risk_state_json',
+        'portfolio_context_json',
+        'actions_json',
+        'summary_json',
+        'top_action_id',
+        'created_at_ms',
+        'updated_at_ms',
+      ],
+      rows: rows.map((row) => ({
+        ...row,
+        top_action_id: row.top_action_id ?? null,
+      })),
+      conflictColumns: ['id'],
+    });
+  }
+
+  async upsertUserRitualEvents(rows: UserRitualEventRecord[]) {
+    await this.upsertRows({
+      table: 'user_ritual_events',
+      columns: [
+        'id',
+        'user_id',
+        'market',
+        'asset_class',
+        'event_date',
+        'week_key',
+        'event_type',
+        'snapshot_id',
+        'reason_json',
+        'created_at_ms',
+        'updated_at_ms',
+      ],
+      rows: rows.map((row) => ({
+        ...row,
+        week_key: row.week_key ?? null,
+        snapshot_id: row.snapshot_id ?? null,
+      })),
+      conflictColumns: ['user_id', 'market', 'asset_class', 'event_date', 'event_type'],
+      updateColumns: ['week_key', 'snapshot_id', 'reason_json', 'updated_at_ms'],
+    });
+  }
+
+  async upsertNotificationPreferences(rows: NotificationPreferenceRecord[]) {
+    await this.upsertRows({
+      table: 'user_notification_preferences',
+      columns: [
+        'user_id',
+        'morning_enabled',
+        'state_shift_enabled',
+        'protective_enabled',
+        'wrap_up_enabled',
+        'frequency',
+        'quiet_start_hour',
+        'quiet_end_hour',
+        'updated_at_ms',
+      ],
+      rows: rows.map((row) => ({
+        ...row,
+        quiet_start_hour: row.quiet_start_hour ?? null,
+        quiet_end_hour: row.quiet_end_hour ?? null,
+      })),
+      conflictColumns: ['user_id'],
+    });
+  }
+
+  async upsertNotificationEvents(rows: NotificationEventRecord[]) {
+    await this.upsertRows({
+      table: 'notification_events',
+      columns: [
+        'id',
+        'user_id',
+        'market',
+        'asset_class',
+        'category',
+        'trigger_type',
+        'fingerprint',
+        'title',
+        'body',
+        'tone',
+        'status',
+        'action_target',
+        'reason_json',
+        'created_at_ms',
+        'updated_at_ms',
+      ],
+      rows: rows.map((row) => ({
+        ...row,
+        action_target: row.action_target ?? null,
+      })),
+      conflictColumns: ['fingerprint'],
+      updateColumns: [
+        'title',
+        'body',
+        'tone',
+        'status',
+        'action_target',
+        'reason_json',
+        'updated_at_ms',
+      ],
+    });
+  }
+
+  async upsertExternalConnections(rows: ExternalConnectionMirrorRecord[]) {
+    await this.upsertRows({
+      table: 'external_connections',
+      columns: [
+        'connection_id',
+        'user_id',
+        'connection_type',
+        'provider',
+        'mode',
+        'status',
+        'meta_json',
+        'created_at_ms',
+        'updated_at_ms',
+      ],
+      rows,
+      conflictColumns: ['connection_id'],
+      updateColumns: [
+        'user_id',
+        'connection_type',
+        'provider',
+        'mode',
+        'status',
+        'meta_json',
+        'updated_at_ms',
+      ],
+    });
+  }
+
+  async upsertApiKeys(rows: ApiKeyMirrorRecord[]) {
+    await this.upsertRows({
+      table: 'api_keys',
+      columns: ['key_id', 'key_hash', 'label', 'scope', 'status', 'created_at_ms', 'updated_at_ms'],
+      rows,
+      conflictColumns: ['key_id'],
+      updateColumns: ['key_hash', 'label', 'scope', 'status', 'updated_at_ms'],
+    });
+  }
 }
 
 export function createMirroringMarketRepository(db: Database.Database): MirrorHandle {
@@ -631,6 +888,46 @@ export function createMirroringMarketRepository(db: Database.Database): MirrorHa
             if (rows.length) {
               mirror.enqueue('signals_bulk', async () => {
                 await mirror.upsertSignals(rows);
+              });
+            }
+            break;
+          }
+          case 'appendSignalEvent': {
+            const signalId = String(args[0] || '').trim();
+            if (signalId) {
+              const row = target.listSignalEvents(signalId, 1)[0];
+              if (row?.id !== undefined) {
+                mirror.enqueue('signal_events', async () => {
+                  await mirror.insertSignalEvents([
+                    {
+                      ...row,
+                      payload_json: row.payload_json ?? undefined,
+                    },
+                  ]);
+                });
+              }
+            }
+            break;
+          }
+          case 'upsertExecution': {
+            const row = args[0] as ExecutionRecord | undefined;
+            if (row?.execution_id) {
+              mirror.enqueue('executions', async () => {
+                await mirror.upsertExecutions([
+                  {
+                    ...row,
+                    updated_at_ms: row.updated_at_ms ?? Date.now(),
+                  },
+                ]);
+              });
+            }
+            break;
+          }
+          case 'upsertUserRiskProfile': {
+            const row = args[0] as UserRiskProfileRecord | undefined;
+            if (row?.user_id) {
+              mirror.enqueue('user_risk_profiles', async () => {
+                await mirror.upsertUserRiskProfiles([row]);
               });
             }
             break;
@@ -784,6 +1081,89 @@ export function createMirroringMarketRepository(db: Database.Database): MirrorHa
               mirror.enqueue('performance_snapshots_bulk', async () => {
                 await mirror.upsertPerformanceSnapshots(rows);
               });
+            }
+            break;
+          }
+          case 'upsertDecisionSnapshot': {
+            const row = args[0] as DecisionSnapshotRecord | undefined;
+            if (row?.id) {
+              mirror.enqueue('decision_snapshots', async () => {
+                await mirror.upsertDecisionSnapshots([row]);
+              });
+            }
+            break;
+          }
+          case 'upsertUserRitualEvent': {
+            const row = args[0] as UserRitualEventRecord | undefined;
+            if (row?.id) {
+              mirror.enqueue('user_ritual_events', async () => {
+                await mirror.upsertUserRitualEvents([row]);
+              });
+            }
+            break;
+          }
+          case 'upsertUserNotificationPreferences': {
+            const row = args[0] as NotificationPreferenceRecord | undefined;
+            if (row?.user_id) {
+              mirror.enqueue('user_notification_preferences', async () => {
+                await mirror.upsertNotificationPreferences([row]);
+              });
+            }
+            break;
+          }
+          case 'upsertNotificationEvent': {
+            const row = args[0] as NotificationEventRecord | undefined;
+            if (row?.id) {
+              mirror.enqueue('notification_events', async () => {
+                await mirror.upsertNotificationEvents([row]);
+              });
+            }
+            break;
+          }
+          case 'upsertExternalConnection': {
+            const input = args[0] as
+              | {
+                  connection_id?: string;
+                  user_id?: string;
+                  connection_type?: 'BROKER' | 'EXCHANGE';
+                }
+              | undefined;
+            if (input?.connection_id && input?.user_id) {
+              const row = target
+                .listExternalConnections({
+                  userId: input.user_id,
+                  connectionType: input.connection_type,
+                })
+                .find((item) => item.connection_id === input.connection_id);
+              if (row) {
+                mirror.enqueue('external_connections', async () => {
+                  await mirror.upsertExternalConnections([
+                    {
+                      ...row,
+                      created_at_ms: row.updated_at_ms,
+                    },
+                  ]);
+                });
+              }
+            }
+            break;
+          }
+          case 'upsertApiKey': {
+            const input = args[0] as { key_hash?: string } | undefined;
+            if (input?.key_hash) {
+              const row = target.getApiKeyByHash(input.key_hash);
+              if (row) {
+                mirror.enqueue('api_keys', async () => {
+                  await mirror.upsertApiKeys([
+                    {
+                      ...row,
+                      status: row.status === 'DISABLED' ? 'DISABLED' : 'ACTIVE',
+                      created_at_ms: Date.now(),
+                      updated_at_ms: Date.now(),
+                    },
+                  ]);
+                });
+              }
             }
             break;
           }

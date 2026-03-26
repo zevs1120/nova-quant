@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getDb } from '../db/database.js';
 import { MarketRepository } from '../db/repository.js';
+import { createMirroringMarketRepository } from '../db/postgresBusinessMirror.js';
 import { ensureSchema } from '../db/schema.js';
 import type {
   AssetClass,
@@ -76,6 +77,22 @@ import {
 import { buildPrivateMarvixOpsReport } from '../ops/privateMarvixOps.js';
 import { buildLocalAdminAlphaSnapshot } from '../admin/liveAlpha.js';
 import { buildLocalAdminResearchOpsSnapshot } from '../admin/liveOps.js';
+import {
+  hasPostgresBusinessMirror,
+  readPostgresApiKeyByHash,
+  readPostgresDecisionSnapshots,
+  readPostgresExecutionRecords,
+  readPostgresExternalConnections,
+  readPostgresLatestDecisionSnapshot,
+  readPostgresMarketState,
+  readPostgresNotificationEvents,
+  readPostgresNotificationPreferences,
+  readPostgresPerformanceSnapshots,
+  readPostgresRiskProfile,
+  readPostgresSignalRecord,
+  readPostgresSignalRecords,
+  readPostgresUserRitualEvents,
+} from '../admin/postgresBusinessRead.js';
 
 const RISK_PROFILE_PRESETS = {
   conservative: {
@@ -408,7 +425,7 @@ function getRepo(): MarketRepository {
   if (repoSingleton) return repoSingleton;
   const db = getDb();
   // ensureSchema is already called inside getDb() on first init
-  repoSingleton = new MarketRepository(db);
+  repoSingleton = createMirroringMarketRepository(db).repo;
   return repoSingleton;
 }
 
@@ -426,6 +443,271 @@ function midpoint(low?: number | null, high?: number | null) {
 
 function signalEntryMid(signal: SignalContract): number | null {
   return midpoint(signal.entry_zone?.low, signal.entry_zone?.high);
+}
+
+function shouldPreferPostgresPrimaryReads() {
+  if (
+    process.env.NODE_ENV === 'test' &&
+    String(process.env.NOVA_ENABLE_PG_PRIMARY_READS_TEST || '') !== '1'
+  ) {
+    return false;
+  }
+  if (String(process.env.NOVA_DISABLE_PG_PRIMARY_READS || '') === '1') {
+    return false;
+  }
+  return hasPostgresBusinessMirror();
+}
+
+async function tryPrimaryPostgresRead<T>(label: string, read: () => Promise<T>): Promise<T | null> {
+  if (!shouldPreferPostgresPrimaryReads()) return null;
+  try {
+    return await read();
+  } catch (error) {
+    console.warn('[pg-primary-read] falling back to sqlite', {
+      label,
+      error: String((error as Error)?.message || error || 'unknown_error'),
+    });
+    return null;
+  }
+}
+
+function buildPerformanceSummaryFromRows(args: {
+  rows: ReturnType<MarketRepository['listPerformanceSnapshots']>;
+  asofIso: string;
+  sourceStatus: string;
+}) {
+  const grouped = args.rows.reduce<Record<string, Record<string, unknown>>>((acc, row) => {
+    const key = `${row.market}:${row.range}`;
+    if (!acc[key]) {
+      acc[key] = {
+        market: row.market,
+        range: row.range,
+        overall: null,
+        by_strategy: [],
+        by_regime: [],
+        deviation: null,
+      };
+    }
+    const payload = JSON.parse(row.payload_json) as Record<string, unknown>;
+    if (row.segment_type === 'OVERALL') acc[key].overall = payload;
+    if (row.segment_type === 'STRATEGY')
+      (acc[key].by_strategy as Record<string, unknown>[]).push(payload);
+    if (row.segment_type === 'REGIME')
+      (acc[key].by_regime as Record<string, unknown>[]).push(payload);
+    if (row.segment_type === 'DEVIATION') acc[key].deviation = payload;
+    return acc;
+  }, {});
+
+  return {
+    asof: args.asofIso,
+    source_status: normalizeRuntimeStatus(args.sourceStatus, RUNTIME_STATUS.INSUFFICIENT_DATA),
+    records: Object.values(grouped),
+  };
+}
+
+function buildMarketModulesFromRows(
+  rows: ReturnType<MarketRepository['listMarketState']>,
+  args?: { market?: Market; assetClass?: AssetClass },
+) {
+  const scoped = rows.filter((row) => {
+    if (args?.market && row.market !== args.market) return false;
+    if (!args?.assetClass) return true;
+    if (args.assetClass === 'CRYPTO') return row.market === 'CRYPTO';
+    return row.market === 'US';
+  });
+
+  const bySymbol = new Map<string, (typeof scoped)[number]>();
+  for (const row of scoped) {
+    const existing = bySymbol.get(row.symbol);
+    if (!existing || row.updated_at_ms > existing.updated_at_ms) bySymbol.set(row.symbol, row);
+  }
+
+  return Array.from(bySymbol.values())
+    .slice(0, 36)
+    .map((row, index) => {
+      const event = row.event_stats_json
+        ? (JSON.parse(row.event_stats_json) as Record<string, unknown>)
+        : {};
+      const moduleStatus = withComponentStatus({
+        overallDataStatus: normalizeRuntimeStatus(event.data_status, RUNTIME_STATUS.MODEL_DERIVED),
+        componentSourceStatus: normalizeRuntimeStatus(
+          event.source_status,
+          RUNTIME_STATUS.DB_BACKED,
+        ),
+      });
+      return {
+        id: `module-${row.market}-${row.symbol}-${index + 1}`,
+        market: row.market,
+        asset_class: row.market === 'CRYPTO' ? 'CRYPTO' : 'US_STOCK',
+        title: `${row.symbol} ${row.regime_id}`,
+        summary: row.stance,
+        metric: `Trend ${Number(row.trend_strength || 0).toFixed(2)} · Vol ${Number(row.volatility_percentile || 0).toFixed(1)}p`,
+        source_status: moduleStatus.source_status,
+        data_status: moduleStatus.data_status,
+        source_label: moduleStatus.source_label,
+        as_of: new Date(row.updated_at_ms).toISOString(),
+      };
+    });
+}
+
+export async function listSignalContractsPrimary(args: {
+  userId?: string;
+  assetClass?: AssetClass;
+  market?: Market;
+  symbol?: string;
+  status?: 'ALL' | 'NEW' | 'TRIGGERED' | 'EXPIRED' | 'INVALIDATED' | 'CLOSED';
+  limit?: number;
+}): Promise<SignalContract[]> {
+  const rows = await tryPrimaryPostgresRead('signals', async () =>
+    readPostgresSignalRecords({
+      assetClass: args.assetClass,
+      market: args.market,
+      symbol: args.symbol,
+      status: args.status,
+      limit: args.limit,
+    }),
+  );
+  if (!rows) {
+    return listSignalContracts(args);
+  }
+  return rows
+    .map((row) => decodeSignalContract(row))
+    .filter((row): row is SignalContract => Boolean(row));
+}
+
+export async function getSignalContractPrimary(
+  signalId: string,
+  userId = 'guest-default',
+): Promise<SignalContract | null> {
+  const row = await tryPrimaryPostgresRead('signal', async () =>
+    readPostgresSignalRecord(signalId),
+  );
+  if (!row) {
+    return getSignalContract(signalId, userId);
+  }
+  return decodeSignalContract(row);
+}
+
+export async function listExecutionsPrimary(args: {
+  userId?: string;
+  market?: Market;
+  mode?: ExecutionMode;
+  signalId?: string;
+  limit?: number;
+}) {
+  const rows = await tryPrimaryPostgresRead('executions', async () =>
+    readPostgresExecutionRecords(args),
+  );
+  return rows || listExecutions(args);
+}
+
+export async function getRiskProfilePrimary(
+  userId = 'guest-default',
+  opts?: { skipSync?: boolean },
+) {
+  const row = await tryPrimaryPostgresRead('risk_profile', async () =>
+    readPostgresRiskProfile(userId),
+  );
+  if (row) return row;
+  return getRiskProfile(userId, opts);
+}
+
+export async function getMarketStatePrimary(args: {
+  userId?: string;
+  market?: Market;
+  symbol?: string;
+  timeframe?: string;
+}) {
+  const rows = await tryPrimaryPostgresRead('market_state', async () =>
+    readPostgresMarketState({
+      market: args.market,
+      symbol: args.symbol,
+      timeframe: args.timeframe,
+    }),
+  );
+  return rows || getMarketState(args);
+}
+
+export async function getPerformanceSummaryPrimary(args: {
+  userId?: string;
+  market?: Market;
+  range?: string;
+  asofIso?: string;
+  sourceStatus?: string;
+}) {
+  const rows = await tryPrimaryPostgresRead('performance', async () =>
+    readPostgresPerformanceSnapshots({
+      market: args.market,
+      range: args.range,
+    }),
+  );
+  if (!rows) {
+    return getPerformanceSummary(args);
+  }
+  return buildPerformanceSummaryFromRows({
+    rows,
+    asofIso: args.asofIso || new Date().toISOString(),
+    sourceStatus: args.sourceStatus || RUNTIME_STATUS.DB_BACKED,
+  });
+}
+
+export async function getMarketModulesPrimary(args?: { market?: Market; assetClass?: AssetClass }) {
+  const rows = await tryPrimaryPostgresRead('market_modules', async () =>
+    readPostgresMarketState({
+      market: args?.market,
+    }),
+  );
+  if (!rows) {
+    return getMarketModules(args);
+  }
+  return buildMarketModulesFromRows(rows, args);
+}
+
+export async function listExternalConnectionsPrimary(args: {
+  userId: string;
+  connectionType?: 'BROKER' | 'EXCHANGE';
+}) {
+  const rows = await tryPrimaryPostgresRead('external_connections', async () =>
+    readPostgresExternalConnections(args),
+  );
+  if (!rows) {
+    return listExternalConnections(args);
+  }
+  return rows.map((row) => ({
+    ...row,
+    meta: row.meta_json ? JSON.parse(row.meta_json) : null,
+  }));
+}
+
+export async function getNotificationPreferencesStatePrimary(userId = 'guest-default') {
+  const row = await tryPrimaryPostgresRead('notification_preferences', async () =>
+    readPostgresNotificationPreferences(userId),
+  );
+  if (row) return row;
+  return getNotificationPreferencesState(userId);
+}
+
+async function getLatestDecisionSnapshotPrimary(args: {
+  userId: string;
+  market?: Market | 'ALL';
+  assetClass?: AssetClass | 'ALL';
+}) {
+  const row = await tryPrimaryPostgresRead('decision_snapshot_latest', async () =>
+    readPostgresLatestDecisionSnapshot(args),
+  );
+  return row;
+}
+
+async function listDecisionSnapshotsPrimary(args: {
+  userId: string;
+  market?: Market | 'ALL';
+  assetClass?: AssetClass | 'ALL';
+  limit?: number;
+}) {
+  const rows = await tryPrimaryPostgresRead('decision_snapshots', async () =>
+    readPostgresDecisionSnapshots(args),
+  );
+  return rows;
 }
 
 function inferExecutionProvider(signal: SignalContract, provider?: string | null) {
@@ -2618,6 +2900,17 @@ export function verifyPublicSignalsApiKey(rawKey?: string): boolean {
   return Boolean(row && row.status === 'ACTIVE');
 }
 
+export async function verifyPublicSignalsApiKeyPrimary(rawKey?: string): Promise<boolean> {
+  if (!rawKey) return false;
+  const row = await tryPrimaryPostgresRead('public_api_key', async () =>
+    readPostgresApiKeyByHash(hashApiKey(rawKey)),
+  );
+  if (row) {
+    return row.status === 'ACTIVE';
+  }
+  return verifyPublicSignalsApiKey(rawKey);
+}
+
 export function getMarketModules(args?: { market?: Market; assetClass?: AssetClass }) {
   const repo = getRepo();
   const rows = repo.listMarketState({
@@ -2758,33 +3051,21 @@ type RuntimeStateCore = {
   runtimeTransparency: Record<string, unknown>;
 };
 
-function loadRuntimeStateCore(args: {
-  userId?: string;
-  market?: Market;
+function buildRuntimeStateCoreRecord(args: {
+  repo: MarketRepository;
+  userId: string;
+  market: Market;
   assetClass?: AssetClass;
-  forceSync?: boolean;
+  state: ReturnType<typeof syncQuantState>;
+  risk: ReturnType<typeof getRiskProfile>;
+  signals: Record<string, unknown>[];
+  marketState: ReturnType<typeof getMarketState>;
+  modules: ReturnType<typeof getMarketModules>;
+  performance: ReturnType<typeof getPerformanceSummary>;
 }): RuntimeStateCore {
-  const repo = getRepo();
-  const userId = args.userId || 'guest-default';
-  const market = args.market || (args.assetClass === 'CRYPTO' ? 'CRYPTO' : 'US');
-  const state = syncQuantState(userId, Boolean(args.forceSync), {
-    market: args.market,
-    assetClass: args.assetClass,
-  });
-  const risk = getRiskProfile(userId, { skipSync: true });
-
-  const signals = listSignalContracts({
-    userId,
-    market: args.market,
-    assetClass: args.assetClass,
-    status: 'ALL',
-    limit: 60,
-  }).map(toUiSignal);
-
-  const marketState = getMarketState({ userId, market });
-  const modules = getMarketModules({ market, assetClass: args.assetClass });
-  const performance = getPerformanceSummary({ userId, market });
-  const performanceRecords = Array.isArray(performance?.records) ? performance.records : [];
+  const performanceRecords = Array.isArray(args.performance?.records)
+    ? args.performance.records
+    : [];
   const hasPerformanceSample = performanceRecords.some((record) => {
     const overall = record?.overall as Record<string, unknown> | null;
     const sampleSize = Number(overall?.sample_size || 0);
@@ -2795,32 +3076,32 @@ function loadRuntimeStateCore(args: {
     .filter(Boolean) as string[];
   const performanceSource = derivePerformanceSourceStatus(sourceLabels);
 
-  const active = signals
+  const active = args.signals
     .filter((row) => ['NEW', 'TRIGGERED'].includes(String(row.status)))
     .sort((a, b) => Number(b.score || 0) - Number(a.score || 0));
   const topSignal = active[0] || null;
 
-  const avgVol = marketState.length
-    ? marketState.reduce((acc, row) => acc + Number(row.volatility_percentile || 0), 0) /
-      marketState.length
+  const avgVol = args.marketState.length
+    ? args.marketState.reduce((acc, row) => acc + Number(row.volatility_percentile || 0), 0) /
+      args.marketState.length
     : null;
-  const avgTemp = marketState.length
-    ? marketState.reduce((acc, row) => acc + Number(row.temperature_percentile || 0), 0) /
-      marketState.length
+  const avgTemp = args.marketState.length
+    ? args.marketState.reduce((acc, row) => acc + Number(row.temperature_percentile || 0), 0) /
+      args.marketState.length
     : null;
-  const avgRiskOff = marketState.length
-    ? marketState.reduce((acc, row) => acc + Number(row.risk_off_score || 0), 0) /
-      marketState.length
+  const avgRiskOff = args.marketState.length
+    ? args.marketState.reduce((acc, row) => acc + Number(row.risk_off_score || 0), 0) /
+      args.marketState.length
     : null;
 
-  const mode = modeFromRiskProfile(risk || undefined);
+  const mode = modeFromRiskProfile(args.risk || undefined);
   const suggestedGross = mode === 'do not trade' ? 18 : mode === 'trade light' ? 35 : 55;
   const suggestedNet = mode === 'do not trade' ? 8 : mode === 'trade light' ? 20 : 35;
 
   const today = {
     is_trading_day: true,
     trading_day_message:
-      market === 'CRYPTO'
+      args.market === 'CRYPTO'
         ? 'Crypto market runs 24/7.'
         : 'US market session inferred from bar updates.',
     suggested_gross_exposure_pct: suggestedGross,
@@ -2872,7 +3153,7 @@ function loadRuntimeStateCore(args: {
       avgTemp !== null && avgTemp > 82
         ? 'Temperature is stretched; avoid chasing.'
         : 'Temperature is within normal range.',
-      state.sourceStatus !== RUNTIME_STATUS.DB_BACKED
+      args.state.sourceStatus !== RUNTIME_STATUS.DB_BACKED
         ? 'Data coverage is insufficient for high-confidence actions.'
         : 'Signals are DB-backed from derived OHLCV state.',
     ],
@@ -2901,7 +3182,7 @@ function loadRuntimeStateCore(args: {
       {
         id: 'size-cap',
         title: 'Size cap',
-        rule: `Gross exposure cap ${risk?.exposure_cap ?? '--'}%`,
+        rule: `Gross exposure cap ${args.risk?.exposure_cap ?? '--'}%`,
       },
       {
         id: 'hard-stop',
@@ -2918,18 +3199,18 @@ function loadRuntimeStateCore(args: {
 
   const insights = {
     regime: {
-      tag: marketState[0]?.regime_id || RUNTIME_STATUS.INSUFFICIENT_DATA,
-      description: marketState[0]?.stance || 'No reliable market-state record available.',
+      tag: args.marketState[0]?.regime_id || RUNTIME_STATUS.INSUFFICIENT_DATA,
+      description: args.marketState[0]?.stance || 'No reliable market-state record available.',
     },
     short_commentary: topSignal
       ? `Current best opportunity: ${String(topSignal.symbol)} (${String(topSignal.strategy_id)}).`
       : 'No high-quality opportunity currently passed filters.',
     breadth: {
-      ratio: marketState.length
+      ratio: args.marketState.length
         ? Number(
             (
-              marketState.filter((row) => Number(row.trend_strength || 0) >= 0.55).length /
-              marketState.length
+              args.marketState.filter((row) => Number(row.trend_strength || 0) >= 0.55).length /
+              args.marketState.length
             ).toFixed(4),
           )
         : null,
@@ -2969,7 +3250,7 @@ function loadRuntimeStateCore(args: {
   };
 
   const runtimeStateStatus = normalizeRuntimeStatus(
-    state.sourceStatus,
+    args.state.sourceStatus,
     RUNTIME_STATUS.INSUFFICIENT_DATA,
   );
   const runtimeLineage = buildEvidenceLineage({
@@ -2979,35 +3260,35 @@ function loadRuntimeStateCore(args: {
     dataStatus: runtimeStateStatus,
   });
   const runtimeTransparency = {
-    as_of: new Date(state.asofMs).toISOString(),
+    as_of: new Date(args.state.asofMs).toISOString(),
     source_status: runtimeStateStatus,
     data_status: runtimeStateStatus,
     evidence_mode: runtimeLineage.display_mode,
     performance_mode: runtimeLineage.performance_mode,
     validation_mode: runtimeLineage.validation_mode,
-    freshness_summary: state.freshnessSummary,
-    coverage_summary: state.coverageSummary,
+    freshness_summary: args.state.freshnessSummary,
+    coverage_summary: args.state.coverageSummary,
     db_backed: runtimeStateStatus === RUNTIME_STATUS.DB_BACKED,
     paper_only: performanceSource === RUNTIME_STATUS.PAPER_ONLY,
     realized: performanceSource === RUNTIME_STATUS.REALIZED,
     backtest_only: performanceSource === RUNTIME_STATUS.BACKTEST_ONLY,
-    model_derived: signals.length > 0,
+    model_derived: args.signals.length > 0,
     experimental: runtimeStateStatus === RUNTIME_STATUS.EXPERIMENTAL,
     disconnected: false,
     performance_source: performanceSource,
   };
 
   return {
-    repo,
-    userId,
-    market,
+    repo: args.repo,
+    userId: args.userId,
+    market: args.market,
     assetClass: args.assetClass,
-    state,
-    risk,
-    signals,
-    marketState,
-    modules,
-    performance,
+    state: args.state,
+    risk: args.risk,
+    signals: args.signals,
+    marketState: args.marketState,
+    modules: args.modules,
+    performance: args.performance,
     performanceSource,
     hasPerformanceSample,
     active,
@@ -3024,6 +3305,159 @@ function loadRuntimeStateCore(args: {
     runtimeStateStatus,
     runtimeTransparency,
   };
+}
+
+function loadRuntimeStateCore(args: {
+  userId?: string;
+  market?: Market;
+  assetClass?: AssetClass;
+  forceSync?: boolean;
+}): RuntimeStateCore {
+  const repo = getRepo();
+  const userId = args.userId || 'guest-default';
+  const market = args.market || (args.assetClass === 'CRYPTO' ? 'CRYPTO' : 'US');
+  const state = syncQuantState(userId, Boolean(args.forceSync), {
+    market: args.market,
+    assetClass: args.assetClass,
+  });
+  const risk = getRiskProfile(userId, { skipSync: true });
+
+  const signals = listSignalContracts({
+    userId,
+    market: args.market,
+    assetClass: args.assetClass,
+    status: 'ALL',
+    limit: 60,
+  }).map(toUiSignal);
+
+  const marketState = getMarketState({ userId, market });
+  const modules = getMarketModules({ market, assetClass: args.assetClass });
+  const performance = getPerformanceSummary({ userId, market });
+  return buildRuntimeStateCoreRecord({
+    repo,
+    userId,
+    market,
+    assetClass: args.assetClass,
+    state,
+    risk,
+    signals,
+    marketState,
+    modules,
+    performance,
+  });
+}
+
+async function loadRuntimeStateCorePrimary(args: {
+  userId?: string;
+  market?: Market;
+  assetClass?: AssetClass;
+  forceSync?: boolean;
+}): Promise<RuntimeStateCore> {
+  if (!shouldPreferPostgresPrimaryReads()) {
+    return loadRuntimeStateCore(args);
+  }
+
+  const repo = getRepo();
+  const userId = args.userId || 'guest-default';
+  const market = args.market || (args.assetClass === 'CRYPTO' ? 'CRYPTO' : 'US');
+
+  const [riskPrimary, signalRowsPrimary, marketStatePrimary, performanceRowsPrimary] =
+    await Promise.all([
+      tryPrimaryPostgresRead('runtime_risk', async () => readPostgresRiskProfile(userId)),
+      tryPrimaryPostgresRead('runtime_signals', async () =>
+        readPostgresSignalRecords({
+          market: args.market,
+          assetClass: args.assetClass,
+          limit: 60,
+        }),
+      ),
+      tryPrimaryPostgresRead('runtime_market_state', async () =>
+        readPostgresMarketState({
+          market,
+        }),
+      ),
+      tryPrimaryPostgresRead('runtime_performance', async () =>
+        readPostgresPerformanceSnapshots({
+          market,
+        }),
+      ),
+    ]);
+
+  if (!riskPrimary && !signalRowsPrimary && !marketStatePrimary && !performanceRowsPrimary) {
+    return loadRuntimeStateCore(args);
+  }
+
+  const risk = riskPrimary || getRiskProfile(userId, { skipSync: true });
+  const signalRows =
+    signalRowsPrimary ||
+    getRepo().listSignals({
+      assetClass: args.assetClass,
+      market: args.market,
+      limit: 60,
+    });
+  const marketState = marketStatePrimary || getRepo().listMarketState({ market });
+  const performanceRows = performanceRowsPrimary || getRepo().listPerformanceSnapshots({ market });
+  const signals = signalRows
+    .map((row) => decodeSignalContract(row))
+    .filter((row): row is SignalContract => Boolean(row))
+    .map(toUiSignal);
+  const latestTs = Math.max(
+    0,
+    risk?.updated_at_ms || 0,
+    ...signalRows.map((row) => Number(row.updated_at_ms || row.created_at_ms || 0)),
+    ...marketState.map((row) => Number(row.updated_at_ms || row.snapshot_ts_ms || 0)),
+    ...performanceRows.map((row) => Number(row.updated_at_ms || row.asof_ms || 0)),
+  );
+  const asofMs = latestTs > 0 ? latestTs : Date.now();
+  const sourceStatus =
+    signalRows.length || marketState.length || performanceRows.length
+      ? RUNTIME_STATUS.DB_BACKED
+      : RUNTIME_STATUS.INSUFFICIENT_DATA;
+  const state = {
+    asofMs,
+    signals: signalRows
+      .map((row) => decodeSignalContract(row))
+      .filter((row): row is SignalContract => Boolean(row)),
+    marketState,
+    performanceApi: {},
+    sourceStatus,
+    freshnessSummary: {
+      source_status: sourceStatus,
+      asof: new Date(asofMs).toISOString(),
+      signal_count: signalRows.length,
+      market_state_count: marketState.length,
+      performance_snapshot_count: performanceRows.length,
+      data_source: 'postgres-primary',
+    },
+    coverageSummary: {
+      generated_signals: signalRows.length,
+      market_state_count: marketState.length,
+      performance_snapshot_count: performanceRows.length,
+      data_source: 'postgres-primary',
+    },
+  };
+  const performance = buildPerformanceSummaryFromRows({
+    rows: performanceRows,
+    asofIso: new Date(asofMs).toISOString(),
+    sourceStatus,
+  });
+  const modules = buildMarketModulesFromRows(marketState, {
+    market,
+    assetClass: args.assetClass,
+  });
+
+  return buildRuntimeStateCoreRecord({
+    repo,
+    userId,
+    market,
+    assetClass: args.assetClass,
+    state,
+    risk,
+    signals,
+    marketState,
+    modules,
+    performance,
+  });
 }
 
 function parseJsonObject(text: string | null | undefined): Record<string, unknown> | null {
@@ -3257,6 +3691,62 @@ function buildDecisionSnapshotFromCore(args: {
   return decision;
 }
 
+async function buildDecisionSnapshotFromCorePrimary(args: {
+  core: RuntimeStateCore;
+  holdings?: UserHoldingInput[];
+  locale?: string;
+}) {
+  let evidenceSignals: ReturnType<typeof getTopSignalEvidence>['records'] = [];
+  try {
+    evidenceSignals = getTopSignalEvidence(args.core.repo, {
+      userId: args.core.userId,
+      market: args.core.market,
+      assetClass: args.core.assetClass,
+      limit: 6,
+    }).records;
+  } catch {
+    evidenceSignals = [];
+  }
+  const previousRow =
+    (await getLatestDecisionSnapshotPrimary({
+      userId: args.core.userId,
+      market: args.core.market,
+      assetClass: args.core.assetClass || 'ALL',
+    })) ||
+    args.core.repo.getLatestDecisionSnapshot({
+      userId: args.core.userId,
+      market: args.core.market,
+      assetClass: args.core.assetClass || 'ALL',
+    });
+  const previousDecision = previousRow?.summary_json
+    ? { summary: parseJsonObject(previousRow.summary_json) || {} }
+    : null;
+  const executions = await listExecutionsPrimary({
+    userId: args.core.userId,
+    market: args.core.market,
+    limit: 60,
+  });
+
+  return buildDecisionSnapshot({
+    userId: args.core.userId,
+    market: args.core.market,
+    assetClass: args.core.assetClass,
+    asOf: String(args.core.runtimeTransparency.as_of),
+    locale: args.locale,
+    runtimeSourceStatus: String(args.core.runtimeTransparency.source_status),
+    performanceSourceStatus: String(
+      args.core.performanceSource || RUNTIME_STATUS.INSUFFICIENT_DATA,
+    ),
+    riskProfile: args.core.risk,
+    signals: args.core.signals,
+    evidenceSignals,
+    marketState: args.core.marketState,
+    executions,
+    holdings: args.holdings,
+    previousDecision,
+  });
+}
+
 export async function getDecisionSnapshot(args: {
   userId?: string;
   market?: Market;
@@ -3264,11 +3754,11 @@ export async function getDecisionSnapshot(args: {
   holdings?: UserHoldingInput[];
   locale?: string;
 }) {
-  const core = loadRuntimeStateCore({
+  const core = await loadRuntimeStateCorePrimary({
     ...args,
     forceSync: true,
   });
-  const deterministic = buildDecisionSnapshotFromCore({
+  const deterministic = await buildDecisionSnapshotFromCorePrimary({
     core,
     holdings: args.holdings,
     locale: args.locale,
@@ -3303,11 +3793,17 @@ export async function getDecisionSnapshot(args: {
       symbol: String(row.symbol || ''),
     })),
   });
-  const latest = core.repo.getLatestDecisionSnapshot({
-    userId: core.userId,
-    market: core.market,
-    assetClass: core.assetClass || 'ALL',
-  });
+  const latest =
+    (await getLatestDecisionSnapshotPrimary({
+      userId: core.userId,
+      market: core.market,
+      assetClass: core.assetClass || 'ALL',
+    })) ||
+    core.repo.getLatestDecisionSnapshot({
+      userId: core.userId,
+      market: core.market,
+      assetClass: core.assetClass || 'ALL',
+    });
   const latestSummary = parseJsonObject(latest?.summary_json);
   const latestNovaMeta =
     latestSummary?.nova_local && typeof latestSummary.nova_local === 'object'
@@ -3357,22 +3853,35 @@ async function getDecisionRowsForEngagement(args: {
   const repo = getRepo();
   const userId = args.userId || 'guest-default';
   const assetClass = args.assetClass || undefined;
-  const latest = repo.getLatestDecisionSnapshot({
-    userId,
-    market: args.market,
-    assetClass,
-  });
+  const latest =
+    (await getLatestDecisionSnapshotPrimary({
+      userId,
+      market: args.market,
+      assetClass,
+    })) ||
+    repo.getLatestDecisionSnapshot({
+      userId,
+      market: args.market,
+      assetClass,
+    });
   const canReuseLatest =
     !args.holdings?.length && latest && Date.now() - latest.updated_at_ms < 5 * 60 * 1000;
   if (!canReuseLatest) {
     await getDecisionSnapshot(args);
   }
-  const rows = repo.listDecisionSnapshots({
-    userId,
-    market: args.market,
-    assetClass,
-    limit: 6,
-  });
+  const rows =
+    (await listDecisionSnapshotsPrimary({
+      userId,
+      market: args.market,
+      assetClass,
+      limit: 6,
+    })) ||
+    repo.listDecisionSnapshots({
+      userId,
+      market: args.market,
+      assetClass,
+      limit: 6,
+    });
   const current = rows[0] || null;
   const previous = rows[1] || null;
   return { current, previous };
@@ -3410,13 +3919,25 @@ export async function getEngagementState(args: {
   const market = args.market || 'US';
   const assetClass = args.assetClass || 'ALL';
   const { current, previous } = await getDecisionRowsForEngagement(args);
-  const preferences = resolveNotificationPreferences(repo, userId);
-  const rituals = repo.listUserRitualEvents({
-    userId,
-    market,
-    assetClass,
-    limit: 120,
-  });
+  const preferences =
+    (await tryPrimaryPostgresRead('engagement_preferences', async () =>
+      readPostgresNotificationPreferences(userId),
+    )) || resolveNotificationPreferences(repo, userId);
+  const rituals =
+    (await tryPrimaryPostgresRead('engagement_rituals', async () =>
+      readPostgresUserRitualEvents({
+        userId,
+        market,
+        assetClass,
+        limit: 120,
+      }),
+    )) ||
+    repo.listUserRitualEvents({
+      userId,
+      market,
+      assetClass,
+      limit: 120,
+    });
 
   const snapshot = buildEngagementSnapshot({
     userId,
@@ -3442,6 +3963,15 @@ export async function getEngagementState(args: {
     status: 'ACTIVE',
     limit: 12,
   });
+  const primaryNotifications = await tryPrimaryPostgresRead('engagement_notifications', async () =>
+    readPostgresNotificationEvents({
+      userId,
+      market,
+      assetClass,
+      status: 'ACTIVE',
+      limit: 12,
+    }),
+  );
 
   const enrichedSnapshot = args.skipLanguage
     ? snapshot
@@ -3461,8 +3991,8 @@ export async function getEngagementState(args: {
     ...enrichedSnapshot,
     notification_center: {
       ...((enrichedSnapshot.notification_center as Record<string, unknown>) || {}),
-      active_count: persistedNotifications.length,
-      notifications: serializeNotificationRows(persistedNotifications),
+      active_count: (primaryNotifications || persistedNotifications).length,
+      notifications: serializeNotificationRows(primaryNotifications || persistedNotifications),
     },
     decision_snapshot_id: current?.id || null,
   };
@@ -3992,6 +4522,137 @@ export function getRuntimeState(args: {
   };
 }
 
+async function getRuntimeStatePrimary(args: {
+  userId?: string;
+  market?: Market;
+  assetClass?: AssetClass;
+}) {
+  const core = await loadRuntimeStateCorePrimary(args);
+  const decision = await buildDecisionSnapshotFromCorePrimary({
+    core,
+  });
+  const trades = await listExecutionsPrimary({
+    userId: core.userId,
+    market: core.market,
+    limit: 200,
+  });
+
+  return {
+    asof: core.runtimeTransparency.as_of,
+    source_status: core.runtimeTransparency.source_status,
+    data_status: core.runtimeTransparency.data_status,
+    data_transparency: core.runtimeTransparency,
+    data: {
+      signals: core.signals,
+      performance: core.performance,
+      decision,
+      trades: trades.map((row) => ({
+        ...row,
+        time_in: new Date(row.created_at_ms).toISOString(),
+        time_out: new Date(row.created_at_ms).toISOString(),
+        entry: row.entry_price,
+        exit: row.tp_price ?? row.entry_price,
+      })),
+      velocity: {
+        as_of: core.runtimeTransparency.as_of,
+        market: core.market,
+        volatility_percentile: core.avgVol,
+        temperature_percentile: core.avgTemp,
+        risk_off_score: core.avgRiskOff,
+        ...withComponentStatus({
+          overallDataStatus: normalizeRuntimeStatus(
+            core.runtimeTransparency.data_status,
+            RUNTIME_STATUS.INSUFFICIENT_DATA,
+          ),
+          componentSourceStatus: RUNTIME_STATUS.MODEL_DERIVED,
+        }),
+      },
+      config: {
+        last_updated: core.runtimeTransparency.as_of,
+        ...withComponentStatus({
+          overallDataStatus: normalizeRuntimeStatus(
+            core.runtimeTransparency.data_status,
+            RUNTIME_STATUS.INSUFFICIENT_DATA,
+          ),
+          componentSourceStatus: RUNTIME_STATUS.MODEL_DERIVED,
+        }),
+        risk_rules: {
+          per_trade_risk_pct: core.risk?.max_loss_per_trade ?? null,
+          daily_loss_pct: core.risk?.max_daily_loss ?? null,
+          max_dd_pct: core.risk?.max_drawdown ?? null,
+          exposure_cap_pct: core.risk?.exposure_cap ?? null,
+          vol_switch: true,
+        },
+        risk_status: {
+          current_risk_bucket: core.mode.toUpperCase(),
+          bucket_state: core.mode.toUpperCase(),
+          diagnostics: {
+            daily_pnl_pct: null,
+            max_dd_pct: null,
+          },
+        },
+        runtime: core.runtimeTransparency,
+      },
+      market_modules: core.modules,
+      analytics: {
+        source_status: core.runtimeTransparency.source_status,
+        runtime: core.runtimeTransparency,
+        status_flags: {
+          runtime_source: core.runtimeTransparency.source_status,
+          performance_source: core.performanceSource,
+          has_performance_sample: core.hasPerformanceSample,
+        },
+      },
+      research: {
+        ...withComponentStatus({
+          overallDataStatus: normalizeRuntimeStatus(
+            core.runtimeTransparency.data_status,
+            RUNTIME_STATUS.INSUFFICIENT_DATA,
+          ),
+          componentSourceStatus: RUNTIME_STATUS.MODEL_DERIVED,
+        }),
+        notes: [
+          core.runtimeTransparency.data_status === RUNTIME_STATUS.DB_BACKED
+            ? 'Runtime app state is DB-backed; advanced research modules remain experimental in this API path.'
+            : 'Runtime app state is currently insufficient for high-confidence research overlays.',
+        ],
+      },
+      today: core.today,
+      safety: core.safety,
+      insights: core.insights,
+      ai: {
+        source_transparency: core.runtimeTransparency,
+      },
+      layers: {
+        data_layer: {
+          instruments: core.marketState.map((row) => ({
+            ticker: row.symbol,
+            market: row.market,
+            latest_close: null,
+            sector: row.market === 'CRYPTO' ? 'Crypto' : 'US',
+          })),
+        },
+        portfolio_layer: {
+          candidates: core.active.slice(0, 12).map((row) => ({
+            ticker: row.symbol,
+            direction: row.direction,
+            grade: row.grade,
+            confidence: row.confidence,
+            risk_score: row.volatility_percentile,
+            entry_plan: {
+              entry_zone: row.entry_zone,
+            },
+          })),
+          filtered_out: core.signals
+            .filter((row) => !['NEW', 'TRIGGERED'].includes(String(row.status)))
+            .slice(0, 12)
+            .map((row) => ({ ticker: row.symbol, reason: row.status })),
+        },
+      },
+    },
+  };
+}
+
 function shouldUsePublicDecisionFallback(args: {
   sourceStatus?: string | null;
   signalCount?: number;
@@ -4034,7 +4695,7 @@ export async function getRuntimeStateResponse(args: {
   market?: Market;
   assetClass?: AssetClass;
 }) {
-  const runtime = getRuntimeState(args);
+  const runtime = await getRuntimeStatePrimary(args);
   if (
     !shouldUsePublicDecisionFallback({
       sourceStatus: String(runtime.source_status || ''),
@@ -4361,39 +5022,50 @@ export async function getControlPlaneStatus(args?: { userId?: string }) {
   const repo = getRepo();
   const userId = args?.userId || 'guest-default';
   const markets: Market[] = ['US', 'CRYPTO'];
-  const runtime = markets.map((market) => {
-    const core = loadRuntimeStateCore({
-      userId,
-      market,
-    });
-    const decision = buildDecisionSnapshotFromCore({
-      core,
-    });
-    const topAction =
-      ((decision.ranked_action_cards as Array<Record<string, unknown>> | undefined) || [])[0] ||
-      null;
-    return {
-      market,
-      as_of: core.runtimeTransparency.as_of,
-      source_status: core.runtimeTransparency.source_status,
-      data_status: core.runtimeTransparency.data_status,
-      signal_count: core.signals.length,
-      active_signal_count: core.active.length,
-      decision_code: String(
-        (decision.today_call as Record<string, unknown> | undefined)?.code || 'WAIT',
-      ),
-      top_action_symbol: topAction ? String(topAction.symbol || '') || null : null,
-      top_action_label: topAction ? String(topAction.action_label || '') || null : null,
-      coverage: core.runtimeTransparency.coverage_summary || null,
-      freshness: core.runtimeTransparency.freshness_summary || null,
-    };
-  });
+  const runtime = await Promise.all(
+    markets.map(async (market) => {
+      const core = await loadRuntimeStateCorePrimary({
+        userId,
+        market,
+      });
+      const decision = await buildDecisionSnapshotFromCorePrimary({
+        core,
+      });
+      const topAction =
+        ((decision.ranked_action_cards as Array<Record<string, unknown>> | undefined) || [])[0] ||
+        null;
+      return {
+        userId,
+        market,
+        as_of: core.runtimeTransparency.as_of,
+        source_status: core.runtimeTransparency.source_status,
+        data_status: core.runtimeTransparency.data_status,
+        signal_count: core.signals.length,
+        active_signal_count: core.active.length,
+        decision_code: String(
+          (decision.today_call as Record<string, unknown> | undefined)?.code || 'WAIT',
+        ),
+        top_action_symbol: topAction ? String(topAction.symbol || '') || null : null,
+        top_action_label: topAction ? String(topAction.action_label || '') || null : null,
+        coverage: core.runtimeTransparency.coverage_summary || null,
+        freshness: core.runtimeTransparency.freshness_summary || null,
+      };
+    }),
+  );
 
-  const activeNotifications = repo.listNotificationEvents({
-    userId,
-    status: 'ACTIVE',
-    limit: 50,
-  });
+  const activeNotifications =
+    (await tryPrimaryPostgresRead('control_plane_notifications', async () =>
+      readPostgresNotificationEvents({
+        userId,
+        status: 'ACTIVE',
+        limit: 50,
+      }),
+    )) ||
+    repo.listNotificationEvents({
+      userId,
+      status: 'ACTIVE',
+      limit: 50,
+    });
   const workflowRuns = repo.listWorkflowRuns({
     workflowKey: 'nova_strategy_lab',
     status: 'SUCCEEDED',

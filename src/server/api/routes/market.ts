@@ -1,48 +1,54 @@
 import { Router } from 'express';
-import { parseMarket, parseAssetClass, parseTimeframe } from '../helpers.js';
+import { parseMarket, parseAssetClass, parseTimeframe, asyncRoute } from '../helpers.js';
 import { isoToMs } from '../../utils/time.js';
 import {
-  getMarketModules,
-  getMarketState,
+  getMarketModulesPrimary,
+  getMarketStatePrimary,
   queryOhlcv,
-  getPerformanceSummary,
-  getRiskProfile,
+  getPerformanceSummaryPrimary,
+  getRiskProfilePrimary,
   setRiskProfile,
 } from '../queries.js';
 
 const router = Router();
 
-router.get('/api/market/modules', (req, res) => {
-  const market = parseMarket(req.query.market as string | undefined);
-  const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
-  const modules = getMarketModules({
-    market,
-    assetClass,
-  });
-  res.json({
-    asof: new Date().toISOString(),
-    count: modules.length,
-    data: modules,
-  });
-});
+router.get(
+  '/api/market/modules',
+  asyncRoute(async (req, res) => {
+    const market = parseMarket(req.query.market as string | undefined);
+    const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
+    const modules = await getMarketModulesPrimary({
+      market,
+      assetClass,
+    });
+    res.json({
+      asof: new Date().toISOString(),
+      count: modules.length,
+      data: modules,
+    });
+  }),
+);
 
-router.get('/api/market-state', (req, res) => {
-  const market = parseMarket(req.query.market as string | undefined);
-  const symbol = (req.query.symbol as string | undefined)?.toUpperCase();
-  const timeframe = req.query.tf as string | undefined;
-  const userId = (req.query.userId as string | undefined) || 'guest-default';
-  const data = getMarketState({
-    userId,
-    market,
-    symbol,
-    timeframe,
-  });
-  res.json({
-    asof: new Date().toISOString(),
-    count: data.length,
-    data,
-  });
-});
+router.get(
+  '/api/market-state',
+  asyncRoute(async (req, res) => {
+    const market = parseMarket(req.query.market as string | undefined);
+    const symbol = (req.query.symbol as string | undefined)?.toUpperCase();
+    const timeframe = req.query.tf as string | undefined;
+    const userId = (req.query.userId as string | undefined) || 'guest-default';
+    const data = await getMarketStatePrimary({
+      userId,
+      market,
+      symbol,
+      timeframe,
+    });
+    res.json({
+      asof: new Date().toISOString(),
+      count: data.length,
+      data,
+    });
+  }),
+);
 
 router.get('/api/ohlcv', (req, res) => {
   const market = parseMarket(req.query.market as string | undefined);
@@ -81,19 +87,25 @@ router.get('/api/ohlcv', (req, res) => {
   });
 });
 
-router.get('/api/performance', (req, res) => {
-  const market = parseMarket(req.query.market as string | undefined);
-  const range = (req.query.range as string | undefined) || undefined;
-  const userId = (req.query.userId as string | undefined) || 'guest-default';
-  const data = getPerformanceSummary({ userId, market, range });
-  res.json(data);
-});
+router.get(
+  '/api/performance',
+  asyncRoute(async (req, res) => {
+    const market = parseMarket(req.query.market as string | undefined);
+    const range = (req.query.range as string | undefined) || undefined;
+    const userId = (req.query.userId as string | undefined) || 'guest-default';
+    const data = await getPerformanceSummaryPrimary({ userId, market, range });
+    res.json(data);
+  }),
+);
 
-router.get('/api/risk-profile', (req, res) => {
-  const userId = (req.query.userId as string | undefined) || 'guest-default';
-  const data = getRiskProfile(userId, { skipSync: true });
-  res.json({ data });
-});
+router.get(
+  '/api/risk-profile',
+  asyncRoute(async (req, res) => {
+    const userId = (req.query.userId as string | undefined) || 'guest-default';
+    const data = await getRiskProfilePrimary(userId, { skipSync: true });
+    res.json({ data });
+  }),
+);
 
 router.post('/api/risk-profile', (req, res) => {
   const body = req.body as {

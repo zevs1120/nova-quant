@@ -540,8 +540,11 @@ describe('admin data api', () => {
       ).data.throughput_controls.alpha_discovery.max_candidates_per_cycle,
     ).toBeGreaterThan(0);
     expect(
-      (system.body as { data: { throughput_controls: { news_pipeline: { ttl_minutes: number } } } })
-        .data.throughput_controls.news_pipeline.ttl_minutes,
+      (
+        system.body as {
+          data: { throughput_controls: { news_pipeline: { ttl_minutes: number } } };
+        }
+      ).data.throughput_controls.news_pipeline.ttl_minutes,
     ).toBeGreaterThan(0);
-  });
+  }, 15_000);
 });

@@ -8,7 +8,7 @@ import {
   completeWeeklyReview,
   getWidgetSummary,
   getNotificationPreview,
-  getNotificationPreferencesState,
+  getNotificationPreferencesStatePrimary,
   setNotificationPreferencesState,
 } from '../queries.js';
 
@@ -191,10 +191,13 @@ router.get(
   }),
 );
 
-router.get('/api/notification-preferences', (req, res) => {
-  const userId = (req.query.userId as string | undefined) || 'guest-default';
-  res.json(getNotificationPreferencesState(userId));
-});
+router.get(
+  '/api/notification-preferences',
+  asyncRoute(async (req, res) => {
+    const userId = (req.query.userId as string | undefined) || 'guest-default';
+    res.json(await getNotificationPreferencesStatePrimary(userId));
+  }),
+);
 
 router.post('/api/notification-preferences', (req, res) => {
   const body = (req.body || {}) as {

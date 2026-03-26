@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { parseMarket, asyncRoute, requireAuthenticatedScope } from '../helpers.js';
 import {
-  listExecutions,
+  listExecutionsPrimary,
   submitExecution,
   getExecutionGovernance,
   setExecutionKillSwitch,
@@ -12,20 +12,23 @@ import {
 
 const router = Router();
 
-router.get('/api/executions', (req, res) => {
-  const userId = (req.query.userId as string | undefined) || 'guest-default';
-  const market = parseMarket(req.query.market as string | undefined);
-  const mode =
-    req.query.mode === 'LIVE' ? 'LIVE' : req.query.mode === 'PAPER' ? 'PAPER' : undefined;
-  const signalId = (req.query.signalId as string | undefined) || undefined;
-  const limit = req.query.limit ? Number(req.query.limit) : 200;
-  const data = listExecutions({ userId, market, mode, signalId, limit });
-  res.json({
-    asof: new Date().toISOString(),
-    count: data.length,
-    data,
-  });
-});
+router.get(
+  '/api/executions',
+  asyncRoute(async (req, res) => {
+    const userId = (req.query.userId as string | undefined) || 'guest-default';
+    const market = parseMarket(req.query.market as string | undefined);
+    const mode =
+      req.query.mode === 'LIVE' ? 'LIVE' : req.query.mode === 'PAPER' ? 'PAPER' : undefined;
+    const signalId = (req.query.signalId as string | undefined) || undefined;
+    const limit = req.query.limit ? Number(req.query.limit) : 200;
+    const data = await listExecutionsPrimary({ userId, market, mode, signalId, limit });
+    res.json({
+      asof: new Date().toISOString(),
+      count: data.length,
+      data,
+    });
+  }),
+);
 
 router.post(
   '/api/executions',
