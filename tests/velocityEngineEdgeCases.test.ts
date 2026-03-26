@@ -278,3 +278,112 @@ describe('global stats aggregation', () => {
     expect(result.series[0].symbol).toBe('SPY');
   });
 });
+
+/* ---------- OHLCV bars pipeline ---------- */
+
+describe('OHLCV bars pipeline', () => {
+  it('series state includes bars array of correct length', () => {
+    const result = runVelocityEngine({
+      signals: [makeSignal()],
+      trades: [],
+      velocitySeed: null,
+      featureSeries: null,
+      anchorTime,
+    });
+    for (const series of result.series) {
+      expect(Array.isArray(series.bars)).toBe(true);
+      expect(series.bars.length).toBe(20); // ohlcv_bar_window default
+    }
+  });
+
+  it('each bar has valid OHLCV fields with correct invariants', () => {
+    const result = runVelocityEngine({
+      signals: [makeSignal()],
+      trades: [],
+      velocitySeed: null,
+      featureSeries: null,
+      anchorTime,
+    });
+    for (const series of result.series) {
+      for (const bar of series.bars) {
+        expect(typeof bar.open).toBe('number');
+        expect(typeof bar.high).toBe('number');
+        expect(typeof bar.low).toBe('number');
+        expect(typeof bar.close).toBe('number');
+        expect(typeof bar.volume).toBe('number');
+        // OHLCV invariants: low ≤ open, close ≤ high
+        expect(bar.low).toBeLessThanOrEqual(bar.open);
+        expect(bar.low).toBeLessThanOrEqual(bar.close);
+        expect(bar.high).toBeGreaterThanOrEqual(bar.open);
+        expect(bar.high).toBeGreaterThanOrEqual(bar.close);
+        expect(bar.volume).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('bars are in oldest-first chronological order', () => {
+    const result = runVelocityEngine({
+      signals: [makeSignal()],
+      trades: [],
+      velocitySeed: null,
+      featureSeries: null,
+      anchorTime,
+    });
+    const series = result.series[0];
+    // Bars slice from close array: last bar's close should match last element of close[]
+    const lastClose = series.close[series.close.length - 1];
+    expect(series.bars[series.bars.length - 1].close).toBe(lastClose);
+  });
+
+  it('bars are deterministic across runs', () => {
+    const r1 = runVelocityEngine({
+      signals: [makeSignal()],
+      trades: [],
+      velocitySeed: null,
+      featureSeries: null,
+      anchorTime,
+    });
+    const r2 = runVelocityEngine({
+      signals: [makeSignal()],
+      trades: [],
+      velocitySeed: null,
+      featureSeries: null,
+      anchorTime,
+    });
+    expect(r1.series[0].bars).toEqual(r2.series[0].bars);
+  });
+
+  it('featureSeries with only close produces bars with valid OHLC invariants', () => {
+    // Volatile close data that exercises both upticks and downticks
+    const close = [100, 90, 110, 95, 120, 80, 105, 70, 130, 85];
+    const paddedClose = Array.from({ length: 120 }, (_, i) => close[i % close.length] + i * 0.01);
+    const customSeries = [
+      {
+        market: 'US',
+        symbol: 'SPY',
+        timeframe: '1D',
+        dates: Array.from({ length: 120 }, (_, i) => `2026-01-${String(i + 1).padStart(2, '0')}`),
+        close: paddedClose,
+      },
+    ];
+    const result = runVelocityEngine({
+      signals: [],
+      trades: [],
+      velocitySeed: null,
+      featureSeries: customSeries,
+      anchorTime,
+    });
+    const series = result.series[0];
+    expect(Array.isArray(series.bars)).toBe(true);
+    expect(series.bars.length).toBe(20);
+    for (const bar of series.bars) {
+      expect(typeof bar.open).toBe('number');
+      // OHLC invariants must hold even on close-only fallback path
+      expect(bar.low).toBeLessThanOrEqual(bar.open);
+      expect(bar.low).toBeLessThanOrEqual(bar.close);
+      expect(bar.high).toBeGreaterThanOrEqual(bar.open);
+      expect(bar.high).toBeGreaterThanOrEqual(bar.close);
+      expect(bar.volume).toBe(0); // no volume data in custom series
+    }
+  });
+});

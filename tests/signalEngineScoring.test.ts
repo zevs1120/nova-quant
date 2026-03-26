@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 // @ts-ignore JS runtime module import
 import { runSignalEngine } from '../src/engines/signalEngine.js';
 // @ts-ignore JS runtime module import
+import { runVelocityEngine } from '../src/engines/velocityEngine.js';
+// @ts-ignore JS runtime module import
 import { RISK_PROFILES, DYNAMIC_RISK_BUCKETS } from '../src/engines/params.js';
 
 /* ─────────────────────────────────────────────────
@@ -171,28 +173,51 @@ describe('runSignalEngine output contract', () => {
     expect(sig.strategy_evaluation.evaluation_count).toBeGreaterThan(1);
   });
 
-  it('[regression #3] detected_patterns is empty when no real OHLCV bars', () => {
+  it('[P3 e2e] velocity→signal pipeline plumbs bars to detectPatterns', () => {
+    // Use runVelocityEngine to get real OHLCV bars
+    const velocityState = runVelocityEngine({
+      signals: [makeSignal()],
+      trades: [],
+      velocitySeed: null,
+      featureSeries: null,
+      anchorTime: Date.now(),
+    });
+    // Verify bars exist on the series that signal engine will resolve
+    const seriesKeys = Object.keys(velocityState.series_index);
+    const spySeries = Object.values(velocityState.series_index).find(
+      (s: any) => s.market === 'US' && s.symbol === 'SPY',
+    ) as any;
+    expect(spySeries).toBeDefined();
+    expect(Array.isArray(spySeries.bars)).toBe(true);
+    expect(spySeries.bars.length).toBe(20);
+
     const result = runSignalEngine({
       signals: [makeSignal()],
-      velocityState: makeVelocityState(),
+      velocityState,
       regimeState: makeRegimeState(),
       riskState: makeRiskState(),
     });
-    const sig = result[0];
-    // Without real bars from the pipeline, detected_patterns MUST be empty —
-    // never fabricate synthetic bars from signal geometry
-    expect(Array.isArray(sig.detected_patterns)).toBe(true);
-    expect(sig.detected_patterns).toHaveLength(0);
+    // detected_patterns is populated as an array (may be empty if no pattern matches)
+    expect(Array.isArray(result[0].detected_patterns)).toBe(true);
   });
 
-  it('[regression #3] detected_patterns populates when real bars are provided', () => {
-    const bars = [
-      { open: 100, high: 105, low: 98, close: 99, volume: 2000 },
-      { open: 98, high: 108, low: 97, close: 107, volume: 3000 },
-    ];
+  it('[P3] detected_patterns finds patterns when bars contain engulfing', () => {
+    // Inject specific bars with a bullish engulfing pattern
     const velocityState = makeVelocityState();
-    // Inject real bars into series (runtime JS allows dynamic props)
-    (velocityState.series_index['US:SPY:1d'] as Record<string, unknown>).bars = bars;
+    (velocityState.series_index['US:SPY:1d'] as Record<string, unknown>).bars = [
+      // 18 neutral bars
+      ...Array.from({ length: 18 }, () => ({
+        open: 520,
+        high: 522,
+        low: 518,
+        close: 519,
+        volume: 1000,
+      })),
+      // Bar 19: bearish (prev for engulfing)
+      { open: 525, high: 526, low: 516, close: 517, volume: 1200 },
+      // Bar 20: bullish engulfing — opens below prev close, closes above prev open
+      { open: 515, high: 530, low: 514, close: 528, volume: 1800 },
+    ];
     const result = runSignalEngine({
       signals: [makeSignal()],
       velocityState,
@@ -200,15 +225,25 @@ describe('runSignalEngine output contract', () => {
       riskState: makeRiskState(),
     });
     const sig = result[0];
-    expect(Array.isArray(sig.detected_patterns)).toBe(true);
-    // With a bullish engulfing pattern (prev bearish, curr bullish engulfs)
     expect(sig.detected_patterns.length).toBeGreaterThan(0);
-    for (const pattern of sig.detected_patterns) {
-      expect(pattern.type).toBeDefined();
-      expect(typeof pattern.confidence).toBe('number');
-      expect(pattern.direction).toBeDefined();
-      expect(typeof pattern.score_adjustment).toBe('number');
-    }
+    const engulfing = sig.detected_patterns.find((p: any) => p.type === 'bullish_engulfing');
+    expect(engulfing).toBeDefined();
+    expect(engulfing.direction).toBe('LONG');
+    expect(typeof engulfing.confidence).toBe('number');
+    expect(typeof engulfing.score_adjustment).toBe('number');
+  });
+
+  it('[P3] detected_patterns is empty when velocity state has no bars', () => {
+    // Hand-crafted fixture without bars field — simulates legacy velocity state
+    const result = runSignalEngine({
+      signals: [makeSignal()],
+      velocityState: makeVelocityState(),
+      regimeState: makeRegimeState(),
+      riskState: makeRiskState(),
+    });
+    const sig = result[0];
+    expect(Array.isArray(sig.detected_patterns)).toBe(true);
+    expect(sig.detected_patterns).toHaveLength(0);
   });
 
   it('sentiment_cycle is present with expected shape', () => {

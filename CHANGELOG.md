@@ -2,7 +2,7 @@
 
 All notable changes to NovaQuant are recorded here.
 
-## 10.10.0 (2026-03-27)
+## 10.10.1 (2026-03-27)
 
 - Release type: **minor** (new capability)
 
@@ -13,7 +13,13 @@ All notable changes to NovaQuant are recorded here.
   - **Signal contract additions (`signalEngine.js`):** two new additive fields: `strategy_evaluation` (per-signal structured eval) and `detected_patterns` (detected K-line patterns). All existing fields preserved — no breaking changes.
   - **New tests:** `tests/strategyEvaluator.test.ts` (16 tests), `tests/patternDetector.test.ts` (18 tests).
   - **Updated regression coverage:** `tests/signalEngineScoring.test.ts`, `tests/strategyTemplatesEdgeCases.test.ts`, `tests/riskGuardrailEdgeCases.test.ts`, and `tests/modelIngestApi.test.ts` now cover aggregate strategy-evaluation shape, real-bars-only pattern detection, OCC option symbol inference (including high-strike contracts), and model-ingest option normalization.
-  - Test suite: 112/112 files pass, 736/736 tests pass (up from 110/669 at P0 start).
+  - **Bug fix round 3 — root cause closure:**
+    - US options symbol inference: replaced fragile `C00/P00` string matching with OCC-compliant regex `/^[A-Z]{1,6}\d{6}[CP]\d{8}$/` across 6 locations (`modelHandlers.ts`, `strategyTemplates.js`, `signalEngine.js`, `service.ts`).
+    - Removed `buildSyntheticBars()` — prevents false pattern detection from fabricated K-line geometry.
+    - Strict aggregate assertion: `strategy_evaluation` must always produce aggregate shape with `evaluation_count > 1` for multi-template markets.
+  - **P3: OHLCV data pipeline (`velocityEngine.js`):** `generateSyntheticSeries()` now produces full OHLCV (open/high/low/close/volume) with deterministic gap, spread, and volume spike logic. `buildSeriesState()` attaches trailing 20 bars (`ohlcv_bar_window` param) to each series, enabling `patternDetector.js` to produce real detections at runtime. Close-only `featureSeries` fallback guarantees OHLC invariants (`low ≤ min(o,c)`, `high ≥ max(o,c)`).
+  - **New tests:** `velocityEngineEdgeCases.test.ts` +5 OHLCV pipeline tests (bar count, invariants, ordering, determinism, close-only fallback). `signalEngineScoring.test.ts` +3 P3 tests (e2e pipeline plumbing, known-pattern detection with injected engulfing, no-bars fallback).
+  - Test suite: 112/112 files pass, 742/742 tests pass (up from 110/669 at P0 start).
 
 ## 10.9.0 (2026-03-27)
 

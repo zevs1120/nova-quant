@@ -91,22 +91,54 @@ function generateSyntheticSeries({
   const stepMs = hours * 3600 * 1000;
   const seed = deterministicHash(`${market}:${symbol}:${timeframe}`);
   const dates = [];
+  const open = [];
+  const high = [];
+  const low = [];
   const close = [];
+  const volume = [];
 
   let px = anchorPrice * (0.94 + (seed % 13) / 100);
   const drift = ((seed % 180) - 90) / 100000;
+  const baseVolume = market === 'CRYPTO' ? 5_000_000 : 2_000_000;
 
   for (let i = 0; i < points; i += 1) {
     const t1 = Math.sin((i + (seed % 11)) / 5.2) * 0.0054;
     const t2 = Math.cos((i + (seed % 17)) / 8.1) * 0.0036;
     const pulse = i % 27 === 0 ? (seed % 2 === 0 ? 1 : -1) * 0.009 : 0;
     const ret = drift + t1 + t2 + pulse;
+    const prevPx = px;
     px = Math.max(0.00001, px * (1 + ret));
-    close.push(round(px, 4));
+
+    // Open: previous close with small gap (deterministic)
+    const gapFactor = 1 + ((deterministicHash(`gap:${i}:${seed}`) % 20) - 10) / 10000;
+    const o = round(i === 0 ? prevPx : prevPx * gapFactor, 4);
+    const c = round(px, 4);
+
+    // High/Low: extend beyond open/close with deterministic spread
+    const spreadHash = deterministicHash(`spread:${i}:${seed}`);
+    const highSpread = ((spreadHash % 40) + 10) / 10000; // 0.1% to 0.5%
+    const lowSpread = (((spreadHash >> 4) % 40) + 10) / 10000;
+    const rawHigh = Math.max(o, c) * (1 + highSpread);
+    const rawLow = Math.min(o, c) * (1 - lowSpread);
+    // Guarantee invariant: low ≤ min(o,c) and high ≥ max(o,c)
+    const h = round(Math.max(rawHigh, o, c), 4);
+    const l = round(Math.min(rawLow, o, c), 4);
+
+    // Volume: base with deterministic variation and occasional spikes
+    const volHash = deterministicHash(`vol:${i}:${seed}`);
+    const volMultiplier = 0.6 + (volHash % 80) / 100; // 0.6x to 1.4x
+    const spike = i % 27 === 0 ? 2.5 : 1; // volume spike on pulse bars
+    const v = Math.round(baseVolume * volMultiplier * spike);
+
+    open.push(o);
+    high.push(h);
+    low.push(l);
+    close.push(c);
+    volume.push(v);
     dates.push(new Date(anchorTime - (points - 1 - i) * stepMs).toISOString());
   }
 
-  return { market, symbol, timeframe, dates, close };
+  return { market, symbol, timeframe, dates, open, high, low, close, volume };
 }
 
 function pickAnchorPrice(market, symbol, signals, trades) {
@@ -209,8 +241,27 @@ function buildSeriesState(series) {
   const conditionalStats = calcEventStats(events, horizons, VELOCITY_SETTINGS.tail_quantiles);
   const lastIndex = close.length - 1;
 
+  // Build trailing OHLCV bars for pattern detection
+  const barWindow = VELOCITY_SETTINGS.ohlcv_bar_window || 20;
+  const startIdx = Math.max(0, close.length - barWindow);
+  const bars = [];
+  for (let i = startIdx; i < close.length; i += 1) {
+    const o = series.open?.[i] ?? close[Math.max(0, i - 1)];
+    const c = close[i];
+    const fallbackHigh = Math.max(o, c);
+    const fallbackLow = Math.min(o, c);
+    bars.push({
+      open: o,
+      high: series.high?.[i] ?? fallbackHigh,
+      low: series.low?.[i] ?? fallbackLow,
+      close: c,
+      volume: series.volume?.[i] ?? 0,
+    });
+  }
+
   return {
     ...series,
+    bars,
     velocity: {
       dates,
       v_norm: arrays.vNorm.map((value) => round(value, 4)),
