@@ -3994,18 +3994,27 @@ function shouldUsePublicDecisionFallback(args: {
   holdings?: UserHoldingInput[];
 }) {
   if (String(process.env.NOVA_FORCE_PUBLIC_RUNTIME_FALLBACK || '') === '1') {
-    return !(Array.isArray(args.holdings) && args.holdings.length);
+    return true;
   }
-  if (Array.isArray(args.holdings) && args.holdings.length) return false;
   const runtimeStatus = normalizeRuntimeStatus(args.sourceStatus, RUNTIME_STATUS.INSUFFICIENT_DATA);
   const signalCount = Number(args.signalCount || 0);
   const todayCall = asObject(asObject(args.decision).today_call);
   const decisionCode = String(todayCall.code || '').toUpperCase();
-  return (
+  // When the DB is completely empty (no signals and not DB-backed), always
+  // fall through to the public live-scan path — even if the user has holdings.
+  // This prevents "System offline" on Vercel cold starts where the ephemeral
+  // /tmp SQLite is empty.
+  if (
     runtimeStatus !== RUNTIME_STATUS.DB_BACKED &&
     signalCount === 0 &&
     (decisionCode === 'UNAVAILABLE' || !decisionCode)
-  );
+  ) {
+    return true;
+  }
+  // When the DB has real data, respect the holdings gate — personalized
+  // decision snapshots should not be replaced by the generic public scan.
+  if (Array.isArray(args.holdings) && args.holdings.length) return false;
+  return runtimeStatus !== RUNTIME_STATUS.DB_BACKED && signalCount === 0;
 }
 
 function signalPayloadsFromDecision(decision: Record<string, unknown> | null | undefined) {

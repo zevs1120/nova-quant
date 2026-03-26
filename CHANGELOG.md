@@ -2,9 +2,19 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 10.5.8 (2026-03-26)
+
+- Release type: patch
+- **Fix: resolve "System offline" on Vercel cold starts by unblocking the public decision fallback.**
+  - Root cause: Vercel serverless functions use an ephemeral `/tmp` SQLite database that is empty on every cold start (0 OHLCV bars). The `shouldUsePublicDecisionFallback()` function in `queries.ts` was designed to fall through to the live public market scan when the DB has no data, but it unconditionally returned `false` when the user had holdings (including investor demo or connected broker holdings). This meant any user with holdings saw a raw `UNAVAILABLE` decision code from the empty DB, which the frontend rendered as "System offline".
+  - Fix: restructure `shouldUsePublicDecisionFallback()` so the "DB completely empty" condition (no signals, not DB-backed, `UNAVAILABLE` decision code) always triggers the public fallback, regardless of holdings. The holdings gate now only applies when the DB has real data — preventing the generic public scan from replacing personalized decision snapshots.
+  - Also simplified the `NOVA_FORCE_PUBLIC_RUNTIME_FALLBACK` env flag to unconditionally enable fallback (previously it too was blocked by holdings).
+  - Result: users on Vercel cold starts now see live public market scan results instead of "System offline". 618/618 tests pass, typecheck clean.
+
 ## 10.5.7 (2026-03-26)
 
 - Release type: patch
+
 - **Fix: extract OnboardingFlow CSS into eagerly-loaded global module, restoring fully styled Welcome/Login/Signup screens on first visit.**
   - Root cause: all OnboardingFlow visual styles (~490 lines — buttons, inputs, form layouts, SVG illustration fills, signup cards, broker selector, error/success messages) were defined inside `holdings.css`, which Vite code-splits into an async chunk loaded only when `HoldingsTab` or `BrowseTab` mounts. Since both require login, first-time visitors saw completely unstyled HTML for the Welcome, Login, Signup, and Password Reset screens. A prior patch (v10.5.6) duplicated only the `.onboarding-flow` positioning rule into `corrections.css`, but all other visual styles remained unreachable.
   - Fix: created `src/styles/onboarding.css` with the full OnboardingFlow CSS extracted from `holdings.css`. Added `@import './styles/onboarding.css'` to the global CSS chain (`src/styles.css`). Removed the temporary positioning patch from `corrections.css`.
