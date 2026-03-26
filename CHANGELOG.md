@@ -5,11 +5,11 @@ All notable changes to NovaQuant are recorded here.
 ## 10.5.8 (2026-03-26)
 
 - Release type: patch
-- **Fix: resolve "System offline" on Vercel cold starts by unblocking the public decision fallback.**
-  - Root cause: Vercel serverless functions use an ephemeral `/tmp` SQLite database that is empty on every cold start (0 OHLCV bars). The `shouldUsePublicDecisionFallback()` function in `queries.ts` was designed to fall through to the live public market scan when the DB has no data, but it unconditionally returned `false` when the user had holdings (including investor demo or connected broker holdings). This meant any user with holdings saw a raw `UNAVAILABLE` decision code from the empty DB, which the frontend rendered as "System offline".
-  - Fix: restructure `shouldUsePublicDecisionFallback()` so the "DB completely empty" condition (no signals, not DB-backed, `UNAVAILABLE` decision code) always triggers the public fallback, regardless of holdings. The holdings gate now only applies when the DB has real data — preventing the generic public scan from replacing personalized decision snapshots.
-  - Also simplified the `NOVA_FORCE_PUBLIC_RUNTIME_FALLBACK` env flag to unconditionally enable fallback (previously it too was blocked by holdings).
-  - Result: users on Vercel cold starts now see live public market scan results instead of "System offline". 618/618 tests pass, typecheck clean.
+- **Fix: resolve "System offline" on Vercel cold starts while preserving personalized decisions for users with holdings.**
+  - Root cause: Vercel serverless functions use an ephemeral `/tmp` SQLite database that is empty on every cold start (0 OHLCV bars). The `shouldUsePublicDecisionFallback()` function in `queries.ts` was designed to fall through to the live public market scan when the DB has no data, but it unconditionally returned `false` when the user had holdings, causing "System offline" for holdingless users. An initial fix (a5e1d9f) went too far — it always triggered the public fallback on empty DB regardless of holdings, which lost `portfolio_context` and broke 3 test files (decisionApi, engagementApi, novaLocalStack).
+  - Fix: restructure `shouldUsePublicDecisionFallback()` so the holdings gate is checked **first** — any request with holdings always uses the personalized path (preserving `portfolio_context`). Only holdingless requests fall through to the empty-DB check and the public live-scan path.
+  - Also simplified the `NOVA_FORCE_PUBLIC_RUNTIME_FALLBACK` env flag to unconditionally enable fallback.
+  - Result: holdingless users on Vercel cold starts see live public market scan results instead of "System offline"; users with holdings always get personalized decisions. 618/618 tests pass, typecheck clean.
 
 ## 10.5.7 (2026-03-26)
 
