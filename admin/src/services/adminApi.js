@@ -4,8 +4,9 @@ function detectDefaultApiBase() {
     import.meta.env.VITE_ADMIN_API_BASE || import.meta.env.VITE_API_BASE_URL || '',
   ).trim();
   const { protocol, hostname } = window.location;
+  const normalizedEnvBase = envBase ? envBase.replace(/\/+$/, '') : '';
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return envBase ? envBase.replace(/\/+$/, '') : 'http://127.0.0.1:8787';
+    return normalizedEnvBase || 'http://127.0.0.1:8787';
   }
   if (hostname === 'api.novaquant.cloud') {
     return '';
@@ -15,9 +16,9 @@ function detectDefaultApiBase() {
     hostname === 'novaquant.cloud' ||
     hostname.endsWith('.novaquant.cloud')
   ) {
-    return '';
+    return normalizedEnvBase || 'https://api.novaquant.cloud';
   }
-  if (envBase) return envBase.replace(/\/+$/, '');
+  if (normalizedEnvBase) return normalizedEnvBase;
   return `${protocol}//api.novaquant.cloud`;
 }
 
