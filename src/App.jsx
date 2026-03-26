@@ -591,6 +591,7 @@ export default function App() {
           lang={lang}
           locale={locale}
           investorDemoSummary={investorDemoEnabled ? INVESTOR_DEMO_PERFORMANCE : null}
+          effectiveUserId={effectiveUserId}
         />
       );
     }
@@ -712,6 +713,7 @@ export default function App() {
             )
           }
           onPaperExecute={(signal) => recordExecution({ signal, mode: 'PAPER', action: 'EXECUTE' })}
+          effectiveUserId={effectiveUserId}
         />
       );
     }

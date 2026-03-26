@@ -976,3 +976,154 @@
     letter-spacing: 0.12em;
   }
 }
+
+/* --- Outcome Ledger (Yesterday's Calls) --- */
+.today-outcome-ledger {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.today-section-title {
+  margin: 0;
+  color: rgba(23, 28, 36, 0.45);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.today-outcome-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.today-outcome-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 18px;
+  border: 1px solid rgba(23, 28, 36, 0.05);
+  background: rgba(255, 255, 255, 0.76);
+  box-shadow:
+    0 8px 18px rgba(20, 24, 33, 0.035),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.today-outcome-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.today-outcome-verdict {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.today-outcome-symbol {
+  color: #171c24;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.today-outcome-direction {
+  color: rgba(23, 28, 36, 0.55);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.today-outcome-return {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.today-outcome-pct {
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: rgba(23, 28, 36, 0.72);
+}
+
+.today-outcome-pct.positive {
+  color: #12875d;
+}
+
+.today-outcome-pct.negative {
+  color: #c43636;
+}
+
+.today-outcome-horizon {
+  color: rgba(23, 28, 36, 0.42);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+/* --- Outcome History (ProofTab) --- */
+.outcome-history-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.outcome-stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.outcome-stat-box {
+  padding: 10px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.6);
+  box-shadow: inset 0 0 0 1px rgba(23, 28, 36, 0.04);
+}
+
+.outcome-stat-box .muted {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.outcome-stat-box h2 {
+  margin: 6px 0 0;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #171c24;
+}
+
+@media (max-width: 640px) {
+  .today-outcome-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .today-outcome-card {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 11px 14px;
+  }
+
+  .today-outcome-head {
+    gap: 8px;
+  }
+
+  .today-outcome-return {
+    flex: 0 0 auto;
+    gap: 8px;
+  }
+
+  .outcome-stats-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

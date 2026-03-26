@@ -2,6 +2,40 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 10.6.0 (2026-03-26)
+
+- Release type: **minor** (new feature)
+- **feat(outcome): add Decision Outcome Ledger — automated performance attribution.**
+  - **Backend — Outcome Resolver (`src/server/outcome/resolver.ts`):**
+    - Joins `decision_snapshots` with subsequent OHLCV data to compute T+1, T+3, T+5 forward returns.
+    - Classifies each action as `HIT` (≥+0.3%), `MISS` (≤−0.3%), `INCONCLUSIVE`, or `PENDING`.
+    - Correctly inverts returns for `SHORT` direction; skips `no_action`/`wait` recommendations.
+    - Persists results to the existing `outcome_reviews` table via idempotent upsert.
+    - Exposes aggregate stats: hit rate, resolved count, average T+1/T+3 returns.
+  - **Backend — API (`src/server/api/routes/outcome.ts`):**
+    - `GET /api/outcomes/recent` — returns resolved outcomes with aggregate stats for frontend.
+    - `POST /api/outcomes/resolve` — triggers on-demand resolution for a specific date or lookback window.
+    - Route wired into `app.ts` with CORS cross-origin read and user-scoped cache support.
+  - **Backend — Auto-Backend Integration (`scripts/auto-backend.ts`):**
+    - Outcome resolution runs automatically in the maintenance cycle (last 7 days, post-runtime refresh, pre-training).
+    - Wrapped in try/catch with structured logging.
+  - **Frontend — TodayTab (`src/components/TodayTab.jsx`):**
+    - "Yesterday's Calls" card shows top 3 resolved outcomes with verdict icons (✅/❌/⬜), symbol, direction arrow, forward return %, and horizon label.
+    - Positioned between the action carousel and summary grid.
+    - Gracefully hidden when no outcomes are available.
+  - **Frontend — ProofTab (`src/components/ProofTab.jsx`):**
+    - "Outcome History" section with 4-column stats row (hit rate, resolved/total, avg T+1, avg T+3).
+    - Full outcome table: date, symbol, direction, T+1/T+3/T+5 returns (color-coded), verdict.
+    - Positioned after Performance Proof card.
+  - **CSS — Responsive Design (`src/styles/today-final.css`):**
+    - PC: 3-column outcome card grid; mobile (≤640px): single-column horizontal row layout.
+    - Stats row: 4-column on desktop, 2-column on mobile.
+    - Matches existing design tokens (border-radius, colors, shadows, typography).
+  - **Tests (`tests/outcomeResolver.test.ts`):** 19 test cases covering HIT/MISS/INCONCLUSIVE/PENDING classification, SHORT inversion, no_action skipping, multi-action support, upsert persistence, batch resolution, aggregate stats, malformed data handling, idempotency, single-query verification, and snapshot_date correctness.
+  - **Bugfix: trading-day semantics** — replaced calendar-day offset (`N * 86400000`) with bar-index-based OHLCV lookups. T+1/T+3/T+5 now correctly reference the Nth subsequent trading bar, skipping weekends and holidays. Reduces per-asset OHLCV queries from 4 to 1.
+  - **Bugfix: userId scoping** — TodayTab and ProofTab now thread `effectiveUserId` (from `useAuth`) into outcome fetch URLs, preventing guest users from seeing shared/default-scope data.
+  - **Bugfix: snapshot_date vs resolved_at** — the Outcome History table now displays the original decision date, not the resolver execution timestamp.
+
 ## 10.5.5 (2026-03-25)
 
 - Release type: patch

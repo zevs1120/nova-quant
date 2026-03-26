@@ -778,6 +778,7 @@ export default function TodayTab({
   onOpenWeekly,
   onConfirmBoundary,
   onCompleteCheckIn,
+  effectiveUserId,
 }) {
   // Self-managed clock — keeps App free from 30s re-render cycles
   const [now, setNow] = useState(() => new Date());
@@ -789,6 +790,7 @@ export default function TodayTab({
   const [selectedSignalId, setSelectedSignalId] = useState(null);
   const [activeSignal, setActiveSignal] = useState(null);
   const [tradeSignal, setTradeSignal] = useState(null);
+  const [recentOutcomes, setRecentOutcomes] = useState([]);
   const actionCarouselRef = useRef(null);
   const swipeGestureRef = useRef({
     startX: 0,
@@ -829,6 +831,27 @@ export default function TodayTab({
       setSelectedSignalId(signalCardId(carouselSignals[0]));
     }
   }, [carouselSignals, selectedSignalId]);
+
+  // Fetch recent outcomes
+  useEffect(() => {
+    let cancelled = false;
+    const qs = effectiveUserId
+      ? `?userId=${encodeURIComponent(effectiveUserId)}&limit=10`
+      : '?limit=10';
+    fetch(`/api/outcomes/recent${qs}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled && data?.outcomes) {
+          setRecentOutcomes(
+            data.outcomes.filter((o) => o.verdict !== 'PENDING' && o.symbol).slice(0, 3),
+          );
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [effectiveUserId]);
 
   const featuredSignal = useMemo(() => {
     if (carouselSignals.length) {
@@ -1411,6 +1434,49 @@ export default function TodayTab({
                 })}
               </div>
             ) : null}
+          </section>
+        ) : null}
+
+        {recentOutcomes.length > 0 ? (
+          <section className="today-outcome-ledger">
+            <h3 className="today-section-title">
+              {locale === 'zh' ? '近期判断回顾' : "Yesterday's Calls"}
+            </h3>
+            <div className="today-outcome-grid">
+              {recentOutcomes.map((outcome) => {
+                const verdictIcon =
+                  outcome.verdict === 'HIT' ? '✅' : outcome.verdict === 'MISS' ? '❌' : '⬜';
+                const returnPct = outcome.verdict_return_pct;
+                const returnStr =
+                  returnPct !== null && returnPct !== undefined
+                    ? `${returnPct >= 0 ? '+' : ''}${(returnPct * 100).toFixed(2)}%`
+                    : '--';
+                const returnClass = returnPct > 0 ? 'positive' : returnPct < 0 ? 'negative' : '';
+                return (
+                  <article
+                    key={`${outcome.decision_snapshot_id}-${outcome.action_id}`}
+                    className="glass-card today-outcome-card"
+                  >
+                    <div className="today-outcome-head">
+                      <span className="today-outcome-verdict">{verdictIcon}</span>
+                      <span className="today-outcome-symbol">{outcome.symbol}</span>
+                      <span className="today-outcome-direction">
+                        {outcome.direction === 'LONG'
+                          ? '▲'
+                          : outcome.direction === 'SHORT'
+                            ? '▼'
+                            : '—'}{' '}
+                        {outcome.direction}
+                      </span>
+                    </div>
+                    <div className="today-outcome-return">
+                      <span className={`today-outcome-pct ${returnClass}`}>{returnStr}</span>
+                      <span className="today-outcome-horizon">T+{outcome.verdict_horizon}</span>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
           </section>
         ) : null}
 

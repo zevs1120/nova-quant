@@ -26,6 +26,7 @@ import executionRouter from './routes/execution.js';
 import manualRouter from './routes/manual.js';
 import marketRouter from './routes/market.js';
 import novaRouter from './routes/nova.js';
+import outcomeRouter from './routes/outcome.js';
 import researchRouter from './routes/research.js';
 import runtimeRouter from './routes/runtime.js';
 import signalsRouter from './routes/signals.js';
@@ -76,6 +77,7 @@ export function createApiApp() {
     '/api/control-plane/status',
     '/api/control-plane/flywheel',
     '/api/control-plane/research-ops',
+    '/api/outcomes/recent',
     '/api/connect/broker',
     '/api/connect/exchange',
   ]);
@@ -134,6 +136,7 @@ export function createApiApp() {
     '/api/risk-profile',
     '/api/runtime-state',
     '/api/signals',
+    '/api/outcomes/recent',
   ]);
   app.use((req, res, next) => {
     if (req.method !== 'GET') {
@@ -240,6 +243,7 @@ export function createApiApp() {
   app.use(manualRouter);
   app.use(marketRouter);
   app.use(novaRouter);
+  app.use(outcomeRouter);
   app.use(researchRouter);
   app.use(runtimeRouter);
   app.use(signalsRouter);

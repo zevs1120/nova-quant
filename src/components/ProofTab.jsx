@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   CategoryScale,
   Chart as ChartJS,
@@ -84,8 +84,29 @@ export default function ProofTab({
   locale,
   uiMode = 'standard',
   investorDemoSummary = null,
+  effectiveUserId,
 }) {
   const [sourceTab, setSourceTab] = useState('backtest');
+  const [outcomeData, setOutcomeData] = useState({ outcomes: [], stats: null });
+
+  // Fetch recent outcomes
+  useEffect(() => {
+    let cancelled = false;
+    const qs = effectiveUserId
+      ? `?userId=${encodeURIComponent(effectiveUserId)}&limit=50`
+      : '?limit=50';
+    fetch(`/api/outcomes/recent${qs}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled && data) {
+          setOutcomeData({ outcomes: data.outcomes || [], stats: data.stats || null });
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [effectiveUserId]);
 
   const proof = performance?.proof || { datasets: {} };
   const researchBacktest = research?.champion?.backtest;
@@ -392,6 +413,97 @@ export default function ProofTab({
             <p className="muted status-line">{sourceDescription}</p>
             <p className="muted status-line">{marketBucket.data_origin_note || '--'}</p>
           </article>
+
+          {outcomeData.outcomes.length > 0 ? (
+            <article className="glass-card outcome-history-section">
+              <div className="card-header">
+                <h3 className="card-title">Outcome History</h3>
+              </div>
+              {outcomeData.stats ? (
+                <div className="outcome-stats-row">
+                  <div className="outcome-stat-box">
+                    <p className="muted">Hit Rate</p>
+                    <h2>
+                      {outcomeData.stats.hit_rate !== null
+                        ? formatPercent(outcomeData.stats.hit_rate, 1)
+                        : '--'}
+                    </h2>
+                  </div>
+                  <div className="outcome-stat-box">
+                    <p className="muted">Resolved</p>
+                    <h2>
+                      {outcomeData.stats.resolved} / {outcomeData.stats.total}
+                    </h2>
+                  </div>
+                  <div className="outcome-stat-box">
+                    <p className="muted">Avg T+1</p>
+                    <h2>
+                      {outcomeData.stats.avg_return_t1 !== null
+                        ? formatPercent(outcomeData.stats.avg_return_t1, 2, true)
+                        : '--'}
+                    </h2>
+                  </div>
+                  <div className="outcome-stat-box">
+                    <p className="muted">Avg T+3</p>
+                    <h2>
+                      {outcomeData.stats.avg_return_t3 !== null
+                        ? formatPercent(outcomeData.stats.avg_return_t3, 2, true)
+                        : '--'}
+                    </h2>
+                  </div>
+                </div>
+              ) : null}
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Symbol</th>
+                      <th>Dir</th>
+                      <th>T+1</th>
+                      <th>T+3</th>
+                      <th>T+5</th>
+                      <th>Verdict</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {outcomeData.outcomes.slice(0, 20).map((o) => {
+                      const t1 = o.forward_returns?.find((r) => r.horizon === 1);
+                      const t3 = o.forward_returns?.find((r) => r.horizon === 3);
+                      const t5 = o.forward_returns?.find((r) => r.horizon === 5);
+                      const fmtRet = (ret) =>
+                        ret?.return_pct !== null && ret?.return_pct !== undefined
+                          ? formatPercent(ret.return_pct, 2, true)
+                          : '--';
+                      const retClass = (ret) =>
+                        ret?.return_pct > 0 ? 'positive' : ret?.return_pct < 0 ? 'negative' : '';
+                      const verdictIcon =
+                        o.verdict === 'HIT'
+                          ? '✅'
+                          : o.verdict === 'MISS'
+                            ? '❌'
+                            : o.verdict === 'PENDING'
+                              ? '⏳'
+                              : '⬜';
+                      return (
+                        <tr key={`${o.decision_snapshot_id}-${o.action_id}`}>
+                          <td>{o.snapshot_date || '--'}</td>
+                          <td>{o.symbol || '--'}</td>
+                          <td>{o.direction}</td>
+                          <td className={retClass(t1)}>{fmtRet(t1)}</td>
+                          <td className={retClass(t3)}>{fmtRet(t3)}</td>
+                          <td className={retClass(t5)}>{fmtRet(t5)}</td>
+                          <td>
+                            {verdictIcon} {o.verdict}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </article>
+          ) : null}
 
           {investorDemoSummary ? (
             <article className="glass-card">

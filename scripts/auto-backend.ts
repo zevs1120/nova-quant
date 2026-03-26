@@ -15,6 +15,7 @@ import {
 import { runAlphaShadowMonitoringCycle } from '../src/server/alpha_promotion_guard/index.js';
 import { runEvolutionCycle } from '../src/server/quant/evolution.js';
 import { ensureQuantData } from '../src/server/quant/service.js';
+import { resolveRecentOutcomes } from '../src/server/outcome/resolver.js';
 
 type AutoBackendOptions = {
   userId: string;
@@ -475,6 +476,23 @@ export async function runAutoBackendMaintenanceCycle(args: {
         market_state_rows: snapshot.marketState.length,
       });
     }
+  }
+
+  // -------------------------------------------------------------------------
+  // Outcome resolution — close decision → outcome feedback loop
+  // -------------------------------------------------------------------------
+  try {
+    const outcomeResult = resolveRecentOutcomes(repo, args.userId, 7);
+    log('scheduled outcome resolution finished', {
+      cycle: args.cycle,
+      resolved: outcomeResult.resolved,
+      dates_checked: outcomeResult.dates.length,
+    });
+  } catch (error) {
+    warn('scheduled outcome resolution failed', {
+      cycle: args.cycle,
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
 
   if (args.runTraining && !args.skipTraining) {
