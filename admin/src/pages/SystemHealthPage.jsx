@@ -64,9 +64,10 @@ export default function SystemHealthPage() {
     {
       label: '模型运行模式',
       value: `${runtime.provider || 'unknown'} / ${runtime.mode || 'unknown'}`,
-      detail: dataSource.live_connected
-        ? '当前已经连到 EC2 live upstream 的运行时状态。'
-        : '说明管理后台当前看到的推理供应商和运行模式。',
+      detail:
+        dataSource.live_connected || dataSource.mode === 'postgres-mirror'
+          ? '当前展示的是已连通的实时只读数据源对应的运行时状态。'
+          : '说明管理后台当前看到的推理供应商和运行模式。',
       tone: 'blue',
     },
     {
@@ -96,7 +97,7 @@ export default function SystemHealthPage() {
           <div className="panel-header">
             <h3>数据来源</h3>
             <span
-              className={`status-pill ${dataSource.mode === 'live-upstream' ? 'is-green' : dataSource.mode === 'local-fallback' ? 'is-red' : 'is-slate'}`}
+              className={`status-pill ${dataSource.mode === 'live-upstream' || dataSource.mode === 'postgres-mirror' ? 'is-green' : dataSource.mode === 'local-fallback' ? 'is-red' : 'is-slate'}`}
             >
               {dataSource.label || 'Unknown'}
             </span>
@@ -111,7 +112,12 @@ export default function SystemHealthPage() {
             </article>
             <article className="source-card">
               <strong>Upstream</strong>
-              <p>{dataSource.upstream_base_url || '未配置，当前读本地库'}</p>
+              <p>
+                {dataSource.upstream_base_url ||
+                  (dataSource.mode === 'postgres-mirror'
+                    ? '未配置 upstream，当前直读 Supabase mirror'
+                    : '未配置，当前读本地库')}
+              </p>
             </article>
             <article className="source-card">
               <strong>时间窗起点</strong>
@@ -122,9 +128,11 @@ export default function SystemHealthPage() {
               <p>
                 {dataSource.live_connected
                   ? '管理台当前看到的是 EC2 live 聚合结果。'
-                  : dataSource.error
-                    ? `已回退到本地数据：${dataSource.error}`
-                    : '当前展示本地库数据。'}
+                  : dataSource.mode === 'postgres-mirror'
+                    ? '管理台当前直接读取 Supabase 镜像。'
+                    : dataSource.error
+                      ? `已回退到本地数据：${dataSource.error}`
+                      : '当前展示本地库数据。'}
               </p>
             </article>
           </div>

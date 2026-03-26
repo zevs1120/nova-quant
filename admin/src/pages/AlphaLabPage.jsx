@@ -54,6 +54,18 @@ function toneForStatus(status) {
   return 'is-amber';
 }
 
+function sourceBadgeClass(dataSource) {
+  if (dataSource?.live_connected || dataSource?.mode === 'postgres-mirror') return 'is-green';
+  if (dataSource?.error) return 'is-red';
+  return 'is-slate';
+}
+
+function sourceLabel(dataSource) {
+  if (dataSource?.live_connected) return 'EC2 live';
+  if (dataSource?.mode === 'postgres-mirror') return 'Supabase mirror';
+  return dataSource?.label || '本地';
+}
+
 function CandidateCards({ rows, emptyText, tone = 'is-blue' }) {
   if (!rows.length) {
     return (
@@ -76,10 +88,15 @@ function CandidateCards({ rows, emptyText, tone = 'is-blue' }) {
             <span className={`status-pill ${tone}`}>{row.status || 'UNKNOWN'}</span>
           </div>
           <div className="candidate-card-metrics">
-            <span>接受分 {formatMetric(row.acceptance_score ?? row.latest_acceptance_score, 4)}</span>
-            <span>稳定度 {formatMetric(row.stability_score ?? row.metrics?.stability_score, 4)}</span>
             <span>
-              相关性 {formatMetric(row.correlation_to_active ?? row.metrics?.correlation_to_active, 4)}
+              接受分 {formatMetric(row.acceptance_score ?? row.latest_acceptance_score, 4)}
+            </span>
+            <span>
+              稳定度 {formatMetric(row.stability_score ?? row.metrics?.stability_score, 4)}
+            </span>
+            <span>
+              相关性{' '}
+              {formatMetric(row.correlation_to_active ?? row.metrics?.correlation_to_active, 4)}
             </span>
           </div>
         </article>
@@ -199,16 +216,14 @@ export default function AlphaLabPage() {
               {data?.data_source?.timezone || 'Asia/Shanghai'}
             </p>
           </div>
-          <span
-            className={`status-pill ${
-              data?.data_source?.live_connected ? 'is-green' : data?.data_source?.error ? 'is-red' : 'is-slate'
-            }`}
-          >
-            {data?.data_source?.live_connected ? 'EC2 live' : data?.data_source?.label || '本地'}
+          <span className={`status-pill ${sourceBadgeClass(data?.data_source)}`}>
+            {sourceLabel(data?.data_source)}
           </span>
         </div>
         <p className="panel-copy">
-          这页现在同时显示当前 Alpha 库存、今日 discovery/shadow 活动和当前闸门设置，不再只看静态库存。
+          这页现在同时显示当前 Alpha 库存、今日 discovery/shadow
+          活动和当前闸门设置，不再只看静态库存。
+          {data?.data_source?.mode === 'postgres-mirror' ? ' 当前数据直接来自 Supabase 镜像。' : ''}
           {data?.data_source?.error ? ` 当前 upstream 异常：${data.data_source.error}` : ''}
         </p>
       </section>
@@ -238,7 +253,11 @@ export default function AlphaLabPage() {
             <span className="status-pill is-red">Shadow watch</span>
           </div>
           <CandidateCards
-            rows={data?.decaying_candidates?.length ? data?.decaying_candidates : data?.top_candidates || []}
+            rows={
+              data?.decaying_candidates?.length
+                ? data?.decaying_candidates
+                : data?.top_candidates || []
+            }
             emptyText="当前没有衰减预警候选"
             tone={data?.decaying_candidates?.length ? 'is-red' : 'is-blue'}
           />
@@ -324,7 +343,9 @@ export default function AlphaLabPage() {
             )}
             renderMeta={(row) => (
               <>
-                <span className={`status-pill ${toneForStatus(row.accepted > 0 ? 'TODAY' : 'DRAFT')}`}>
+                <span
+                  className={`status-pill ${toneForStatus(row.accepted > 0 ? 'TODAY' : 'DRAFT')}`}
+                >
                   {row.trigger_type}
                 </span>
                 <span>{row.updated_at || '-'}</span>
@@ -352,7 +373,9 @@ export default function AlphaLabPage() {
             )}
             renderMeta={(row) => (
               <>
-                <span className={`status-pill ${toneForStatus(row.promoted_to_canary > 0 ? 'CANARY' : 'SHADOW')}`}>
+                <span
+                  className={`status-pill ${toneForStatus(row.promoted_to_canary > 0 ? 'CANARY' : 'SHADOW')}`}
+                >
                   {row.status}
                 </span>
                 <span>{row.updated_at || '-'}</span>
@@ -376,7 +399,9 @@ export default function AlphaLabPage() {
                   <p>{row.reason || '系统状态变更'}</p>
                 </div>
                 <div className="candidate-timeline-meta">
-                  <span className={`status-pill ${toneForStatus(row.to_status)}`}>{row.to_status}</span>
+                  <span className={`status-pill ${toneForStatus(row.to_status)}`}>
+                    {row.to_status}
+                  </span>
                   <span>{row.created_at}</span>
                 </div>
               </div>

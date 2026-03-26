@@ -5,6 +5,10 @@ import { buildPrivateMarvixOpsReport } from '../ops/privateMarvixOps.js';
 import { decodeSignalContract } from '../quant/service.js';
 import { MIN_AUTOMATIC_TRAINING_ROWS } from '../nova/flywheel.js';
 import type { NovaTaskRunRecord, WorkflowRunRecord } from '../types.js';
+import {
+  buildPostgresAdminResearchOpsSnapshot,
+  hasPostgresBusinessMirror,
+} from './postgresBusinessRead.js';
 
 type JsonObject = Record<string, unknown>;
 
@@ -52,7 +56,7 @@ type TrainingRunSummary = {
 export type AdminResearchOpsSnapshot = {
   generated_at: string;
   data_source: {
-    mode: 'local-db' | 'live-upstream' | 'local-fallback';
+    mode: 'local-db' | 'postgres-mirror' | 'live-upstream' | 'local-fallback';
     label: string;
     live_connected: boolean;
     timezone: string;
@@ -778,11 +782,27 @@ async function fetchUpstreamSnapshot(args?: { timeZone?: string; localDate?: str
   }
 }
 
-export function buildLocalAdminResearchOpsSnapshot(args?: {
+export async function buildLocalAdminResearchOpsSnapshot(args?: {
   timeZone?: string;
   localDate?: string;
 }) {
-  return buildLocalSnapshot(args);
+  if (!hasPostgresBusinessMirror()) {
+    return buildLocalSnapshot(args);
+  }
+  try {
+    return await buildPostgresAdminResearchOpsSnapshot(args);
+  } catch (error) {
+    const localSnapshot = buildLocalSnapshot(args);
+    return {
+      ...localSnapshot,
+      data_source: {
+        ...localSnapshot.data_source,
+        mode: 'local-fallback',
+        label: 'Local fallback',
+        error: error instanceof Error ? error.message : String(error || 'POSTGRES_READ_FAILED'),
+      },
+    };
+  }
 }
 
 export async function buildAdminResearchOpsSnapshot(args?: {
@@ -791,13 +811,13 @@ export async function buildAdminResearchOpsSnapshot(args?: {
 }) {
   const upstreamBaseUrl = resolveLiveApiBase();
   if (!upstreamBaseUrl) {
-    return buildLocalSnapshot(args);
+    return await buildLocalAdminResearchOpsSnapshot(args);
   }
 
   try {
     const result = await fetchUpstreamSnapshot(args);
     if (!result?.payload) {
-      const localSnapshot = buildLocalSnapshot(args);
+      const localSnapshot = await buildLocalAdminResearchOpsSnapshot(args);
       return {
         ...localSnapshot,
         data_source: {
@@ -821,7 +841,7 @@ export async function buildAdminResearchOpsSnapshot(args?: {
       },
     };
   } catch (error) {
-    const localSnapshot = buildLocalSnapshot(args);
+    const localSnapshot = await buildLocalAdminResearchOpsSnapshot(args);
     return {
       ...localSnapshot,
       data_source: {

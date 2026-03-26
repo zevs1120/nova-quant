@@ -4,6 +4,10 @@ import { MarketRepository } from '../db/repository.js';
 import type { AlphaEvaluationMetrics } from '../alpha_registry/index.js';
 import { buildAlphaRegistrySummary } from '../alpha_registry/index.js';
 import { readAlphaDiscoveryConfig } from '../alpha_discovery/index.js';
+import {
+  buildPostgresAdminAlphaSnapshot,
+  hasPostgresBusinessMirror,
+} from './postgresBusinessRead.js';
 
 type JsonObject = Record<string, unknown>;
 
@@ -13,7 +17,7 @@ type CountItem = {
 };
 
 type AlphaDataSource = {
-  mode: 'local-db' | 'live-upstream' | 'local-fallback';
+  mode: 'local-db' | 'postgres-mirror' | 'live-upstream' | 'local-fallback';
   label: string;
   live_connected: boolean;
   timezone: string;
@@ -383,7 +387,9 @@ function parseRecentShadowRun(
   const shadow =
     output.shadow && typeof output.shadow === 'object' ? (output.shadow as JsonObject) : null;
   const promotion =
-    output.promotion && typeof output.promotion === 'object' ? (output.promotion as JsonObject) : null;
+    output.promotion && typeof output.promotion === 'object'
+      ? (output.promotion as JsonObject)
+      : null;
   return {
     id: row.id,
     updated_at: toIso(row.updated_at_ms),
@@ -475,18 +481,22 @@ function buildLocalSnapshot(args?: { timeZone?: string; localDate?: string }): A
     .filter((row) => row.workflow_key === 'alpha_shadow_runner')
     .map(parseRecentShadowRun);
   const acceptedToday = dedupeAccepted(
-    discoveryRuns.flatMap((run) => run.accepted_candidates).sort((a, b) => {
-      const aMs = Date.parse(String(a.discovered_at || ''));
-      const bMs = Date.parse(String(b.discovered_at || ''));
-      return (Number.isFinite(bMs) ? bMs : 0) - (Number.isFinite(aMs) ? aMs : 0);
-    }),
+    discoveryRuns
+      .flatMap((run) => run.accepted_candidates)
+      .sort((a, b) => {
+        const aMs = Date.parse(String(a.discovered_at || ''));
+        const bMs = Date.parse(String(b.discovered_at || ''));
+        return (Number.isFinite(bMs) ? bMs : 0) - (Number.isFinite(aMs) ? aMs : 0);
+      }),
   );
   const rejectedToday = dedupeRejected(
-    discoveryRuns.flatMap((run) => run.rejected_candidates).sort((a, b) => {
-      const aMs = Date.parse(String(a.discovered_at || ''));
-      const bMs = Date.parse(String(b.discovered_at || ''));
-      return (Number.isFinite(bMs) ? bMs : 0) - (Number.isFinite(aMs) ? aMs : 0);
-    }),
+    discoveryRuns
+      .flatMap((run) => run.rejected_candidates)
+      .sort((a, b) => {
+        const aMs = Date.parse(String(a.discovered_at || ''));
+        const bMs = Date.parse(String(b.discovered_at || ''));
+        return (Number.isFinite(bMs) ? bMs : 0) - (Number.isFinite(aMs) ? aMs : 0);
+      }),
   );
 
   return {
@@ -517,8 +527,7 @@ function buildLocalSnapshot(args?: { timeZone?: string; localDate?: string }): A
       shadow_promotion_min_sharpe: discoveryConfig.shadowPromotionThresholds.minSharpe,
       shadow_promotion_min_expectancy: discoveryConfig.shadowPromotionThresholds.minExpectancy,
       shadow_promotion_max_drawdown: discoveryConfig.shadowPromotionThresholds.maxDrawdown,
-      shadow_promotion_min_approval_rate:
-        discoveryConfig.shadowPromotionThresholds.minApprovalRate,
+      shadow_promotion_min_approval_rate: discoveryConfig.shadowPromotionThresholds.minApprovalRate,
       retirement_min_expectancy: discoveryConfig.retirementThresholds.minExpectancy,
       retirement_max_drawdown: discoveryConfig.retirementThresholds.maxDrawdown,
       retirement_decay_streak_limit: discoveryConfig.retirementThresholds.decayStreakLimit,
@@ -581,23 +590,39 @@ async function fetchUpstreamSnapshot(args?: { timeZone?: string; localDate?: str
   }
 }
 
-export function buildLocalAdminAlphaSnapshot(args?: { timeZone?: string; localDate?: string }) {
-  return buildLocalSnapshot(args);
-}
-
-export async function buildAdminAlphaSnapshot(args?: {
+export async function buildLocalAdminAlphaSnapshot(args?: {
   timeZone?: string;
   localDate?: string;
 }) {
+  if (!hasPostgresBusinessMirror()) {
+    return buildLocalSnapshot(args);
+  }
+  try {
+    return await buildPostgresAdminAlphaSnapshot(args);
+  } catch (error) {
+    const localSnapshot = buildLocalSnapshot(args);
+    return {
+      ...localSnapshot,
+      data_source: {
+        ...localSnapshot.data_source,
+        mode: 'local-fallback',
+        label: 'Local fallback',
+        error: error instanceof Error ? error.message : String(error || 'POSTGRES_READ_FAILED'),
+      },
+    };
+  }
+}
+
+export async function buildAdminAlphaSnapshot(args?: { timeZone?: string; localDate?: string }) {
   const upstreamBaseUrl = resolveLiveApiBase();
   if (!upstreamBaseUrl) {
-    return buildLocalSnapshot(args);
+    return await buildLocalAdminAlphaSnapshot(args);
   }
 
   try {
     const result = await fetchUpstreamSnapshot(args);
     if (!result?.payload) {
-      const localSnapshot = buildLocalSnapshot(args);
+      const localSnapshot = await buildLocalAdminAlphaSnapshot(args);
       return {
         ...localSnapshot,
         data_source: {
@@ -621,7 +646,7 @@ export async function buildAdminAlphaSnapshot(args?: {
       },
     };
   } catch (error) {
-    const localSnapshot = buildLocalSnapshot(args);
+    const localSnapshot = await buildLocalAdminAlphaSnapshot(args);
     return {
       ...localSnapshot,
       data_source: {

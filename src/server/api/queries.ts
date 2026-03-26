@@ -3700,12 +3700,12 @@ export function getPrivateMarvixOps() {
   return buildPrivateMarvixOpsReport(getRepo());
 }
 
-export function getResearchOpsStatus(args?: { timeZone?: string; localDate?: string }) {
-  return buildLocalAdminResearchOpsSnapshot(args);
+export async function getResearchOpsStatus(args?: { timeZone?: string; localDate?: string }) {
+  return await buildLocalAdminResearchOpsSnapshot(args);
 }
 
-export function getAlphaOpsStatus(args?: { timeZone?: string; localDate?: string }) {
-  return buildLocalAdminAlphaSnapshot(args);
+export async function getAlphaOpsStatus(args?: { timeZone?: string; localDate?: string }) {
+  return await buildLocalAdminAlphaSnapshot(args);
 }
 
 export async function getNovaHealthState() {

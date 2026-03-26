@@ -50,29 +50,39 @@ router.get(
   }),
 );
 
-router.get('/api/control-plane/research-ops', (req, res) => {
-  const timeZone =
-    (req.query.tz as string | undefined) || (req.query.timezone as string | undefined) || undefined;
-  const localDate = (req.query.localDate as string | undefined) || undefined;
-  res.json(
-    getResearchOpsStatus({
-      timeZone,
-      localDate,
-    }),
-  );
-});
+router.get(
+  '/api/control-plane/research-ops',
+  asyncRoute(async (req, res) => {
+    const timeZone =
+      (req.query.tz as string | undefined) ||
+      (req.query.timezone as string | undefined) ||
+      undefined;
+    const localDate = (req.query.localDate as string | undefined) || undefined;
+    res.json(
+      await getResearchOpsStatus({
+        timeZone,
+        localDate,
+      }),
+    );
+  }),
+);
 
-router.get('/api/control-plane/alphas', (req, res) => {
-  const timeZone =
-    (req.query.tz as string | undefined) || (req.query.timezone as string | undefined) || undefined;
-  const localDate = (req.query.localDate as string | undefined) || undefined;
-  res.json(
-    getAlphaOpsStatus({
-      timeZone,
-      localDate,
-    }),
-  );
-});
+router.get(
+  '/api/control-plane/alphas',
+  asyncRoute(async (req, res) => {
+    const timeZone =
+      (req.query.tz as string | undefined) ||
+      (req.query.timezone as string | undefined) ||
+      undefined;
+    const localDate = (req.query.localDate as string | undefined) || undefined;
+    res.json(
+      await getAlphaOpsStatus({
+        timeZone,
+        localDate,
+      }),
+    );
+  }),
+);
 
 router.get('/api/backbone/summary', (req, res) => {
   const market = parseMarket(req.query.market as string | undefined);

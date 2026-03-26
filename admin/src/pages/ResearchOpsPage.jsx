@@ -83,6 +83,7 @@ function evaluationTone(status) {
 
 function sourceBadgeClass(mode) {
   if (mode === 'live-upstream') return 'is-green';
+  if (mode === 'postgres-mirror') return 'is-green';
   if (mode === 'local-fallback') return 'is-red';
   return 'is-slate';
 }
@@ -199,7 +200,12 @@ export default function ResearchOpsPage() {
             </article>
             <article className="source-card">
               <strong>Upstream</strong>
-              <p>{dataSource.upstream_base_url || '未配置，当前直接读本地库'}</p>
+              <p>
+                {dataSource.upstream_base_url ||
+                  (dataSource.mode === 'postgres-mirror'
+                    ? '未配置 upstream，当前直读 Supabase mirror'
+                    : '未配置，当前直接读本地库')}
+              </p>
             </article>
             <article className="source-card">
               <strong>时间窗起点</strong>
@@ -210,9 +216,11 @@ export default function ResearchOpsPage() {
               <p>
                 {dataSource.live_connected
                   ? '已连到 EC2 live upstream。'
-                  : dataSource.error
-                    ? `已回退到本地数据：${dataSource.error}`
-                    : '当前展示本地库数据。'}
+                  : dataSource.mode === 'postgres-mirror'
+                    ? '当前直读 Supabase mirror。'
+                    : dataSource.error
+                      ? `已回退到本地数据：${dataSource.error}`
+                      : '当前展示本地库数据。'}
               </p>
             </article>
           </div>
