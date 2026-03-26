@@ -12,6 +12,7 @@ import {
   getFactorInteractionsTool,
   getFactorMeasuredReportTool,
   getFactorResearchSnapshotTool,
+  getPublicAlphaSupplyTool,
   getRegimeDiagnosticsTool,
   getRegimeTaxonomyTool,
   getResearchMemoryTool,
@@ -29,6 +30,12 @@ const router = Router();
 
 router.get('/api/research/factors', (_req, res) => {
   res.json(getFactorCatalogTool());
+});
+
+router.get('/api/research/public-alpha-supply', (req, res) => {
+  const market = parseMarket(req.query.market as string | undefined);
+  const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
+  res.json(getPublicAlphaSupplyTool({ market, assetClass }));
 });
 
 router.get('/api/research/doctrine', (_req, res) => {

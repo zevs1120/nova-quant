@@ -3,6 +3,7 @@ import {
   loadDiscoverySeedRuntime,
   normalizeConstraintList,
 } from './seedRuntime.js';
+import { scoreFeatureReadiness } from './runtimeFeatureSupport.js';
 
 const LEGACY_HYPOTHESIS_REGISTRY = Object.freeze([
   {
@@ -252,7 +253,25 @@ function scoreHypothesisFit(
   )
     ? 0.14
     : 0;
-  return Math.max(0, Math.min(1, regimeFit * 0.62 + starvationBoost + decayBoost + 0.24));
+  const runtimeReadiness = scoreFeatureReadiness(
+    hypothesis.supporting_features || [],
+    hypothesis.relevant_asset_classes || [],
+  );
+  const publicSeedBoost = String(hypothesis.source_metadata?.seed_id || '').startsWith('public_')
+    ? 0.05
+    : 0;
+  return Math.max(
+    0,
+    Math.min(
+      1,
+      regimeFit * 0.44 +
+        starvationBoost +
+        decayBoost +
+        0.21 +
+        runtimeReadiness * 0.3 +
+        publicSeedBoost,
+    ),
+  );
 }
 
 export function listHypotheses({ seedRuntime = null, seedOverrides = {}, hypotheses = null } = {}) {

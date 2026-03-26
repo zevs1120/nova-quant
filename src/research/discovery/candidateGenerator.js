@@ -5,6 +5,7 @@ import {
   normalizeTemplateHint,
   summarizeFeatureAlignment,
 } from './seedRuntime.js';
+import { assessFeatureSet, scoreFeatureReadiness } from './runtimeFeatureSupport.js';
 
 function intersect(a = [], b = []) {
   const set = new Set((b || []).map((item) => String(item).toLowerCase()));
@@ -122,15 +123,34 @@ function summarizeParameterBias(template, parameterSet) {
   };
 }
 
-function qualityPrior({ hypothesis, template, overlapFeatures, regimeIntersection, context }) {
+function qualityPrior({
+  hypothesis,
+  template,
+  overlapFeatures,
+  regimeIntersection,
+  context,
+  runtimeFeatureSupport,
+}) {
   const featureCoverage = template.compatible_features?.length
     ? overlapFeatures.length / template.compatible_features.length
     : 0;
   const regimeFit = regimeIntersection.length ? 1 : 0.42;
   const priority = Number(hypothesis.discovery_priority_score || 0.5);
   const starvationBoost = context.starvation ? 0.06 : 0;
+  const runtimeReadiness = scoreFeatureReadiness(
+    runtimeFeatureSupport?.features?.map((row) => row.feature) || overlapFeatures,
+    runtimeFeatureSupport?.features?.flatMap((row) => row.asset_classes || []) || [],
+  );
   return round(
-    clamp(priority * 0.5 + featureCoverage * 0.25 + regimeFit * 0.19 + starvationBoost, 0, 1),
+    clamp(
+      priority * 0.45 +
+        featureCoverage * 0.22 +
+        regimeFit * 0.17 +
+        starvationBoost +
+        runtimeReadiness * 0.16,
+      0,
+      1,
+    ),
     4,
   );
 }
@@ -272,6 +292,7 @@ function initRejectionCounter() {
     horizon_mismatch: 0,
     template_hint_mismatch: 0,
     feature_mismatch: 0,
+    runtime_blocked: 0,
     capacity_limit: 0,
   };
 }
@@ -369,6 +390,15 @@ export function buildCandidateGenerator({
         hypothesis.supporting_features,
         template.compatible_features,
       );
+      const runtimeFeatureSupport = assessFeatureSet(
+        [
+          ...new Set([
+            ...(hypothesis.supporting_features || []),
+            ...(template.compatible_features || []),
+          ]),
+        ],
+        assetIntersection,
+      );
       const hintMatch = templateHintMatch(hypothesis, template);
 
       if (!supportsMarket(assetIntersection, normalizedConfig.market)) {
@@ -414,6 +444,11 @@ export function buildCandidateGenerator({
       if (featureOverlap.length < normalizedConfig.min_feature_overlap) {
         counters.feature_mismatch += 1;
         rejectedTemplateCounts.feature_mismatch += 1;
+        continue;
+      }
+      if (runtimeFeatureSupport.blocking_features.length) {
+        counters.runtime_blocked += 1;
+        rejectedTemplateCounts.runtime_blocked += 1;
         continue;
       }
 
@@ -478,6 +513,7 @@ export function buildCandidateGenerator({
             overlapFeatures: featureOverlap,
             regimeIntersection,
             context,
+            runtimeFeatureSupport,
           }),
           candidate_source_metadata: {
             source_type: 'seed_driven_runtime',
@@ -502,6 +538,13 @@ export function buildCandidateGenerator({
               feature_overlap_count: featureOverlap.length,
               regime_overlap_count: regimeIntersection.length,
               template_hint_applied: hintMatch.applied,
+            },
+            runtime_feature_support: {
+              readiness: runtimeFeatureSupport.readiness,
+              measured_features: runtimeFeatureSupport.measured_features,
+              adapter_pending_features: runtimeFeatureSupport.adapter_pending_features,
+              blocking_features: runtimeFeatureSupport.blocking_features,
+              summary: runtimeFeatureSupport.summary,
             },
           },
           traceability: {

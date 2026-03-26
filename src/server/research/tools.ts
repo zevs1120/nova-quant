@@ -36,6 +36,7 @@ import {
   buildValidationReport,
 } from './evaluation.js';
 import { buildFactorMeasurementReport } from './factorMeasurements.js';
+import { buildPublicAlphaSupplyReport } from './publicAlphaSupply.js';
 
 type ResearchToolArgs = {
   userId?: string;
@@ -175,6 +176,13 @@ export function getFactorCatalogTool() {
     data_status: RUNTIME_STATUS.MODEL_DERIVED,
     records: listFactorCatalog(),
   };
+}
+
+export function getPublicAlphaSupplyTool(args: ResearchToolArgs = {}) {
+  return buildPublicAlphaSupplyReport({
+    market: args.market,
+    assetClass: args.assetClass,
+  });
 }
 
 export function getResearchDoctrineTool() {

@@ -275,10 +275,50 @@ function normalizeHypothesis(seedRow = {}, index = 0, seedId = 'unknown') {
   };
 }
 
-function templateAliases(templateId, family) {
+function defaultTemplateAliasesByFamily(family = '') {
+  const key = normalizeTemplateHintKey(family);
+
+  if (key.includes('time_series_momentum')) {
+    return ['time_series_momentum', 'multi_horizon_trend_barbell'];
+  }
+  if (key.includes('post_earnings_announcement_drift')) {
+    return ['post_earnings_drift_follow'];
+  }
+  if (key.includes('short_term_reversal')) {
+    return ['short_term_reversal', 'percentile_mean_reversion'];
+  }
+  if (key.includes('pairs_trading')) {
+    return ['pairs_spread_reversion', 'leader_laggard_pair'];
+  }
+  if (key.includes('cross_sectional_value_quality')) {
+    return ['cross_sectional_value_quality'];
+  }
+  if (key.includes('betting_against_beta_defensive')) {
+    return ['betting_against_beta_defensive'];
+  }
+  if (key.includes('factor_momentum_overlay')) {
+    return ['factor_momentum_rotation', 'factor_rotation_overlay'];
+  }
+  if (key.includes('funding_carry_capture')) {
+    return ['funding_basis_carry_capture', 'carry_oriented_setup'];
+  }
+  if (key.includes('crypto_attention_momentum')) {
+    return ['crypto_attention_momentum', 'attention_burst_follow'];
+  }
+  return [];
+}
+
+function templateAliases(templateId, family, explicitAliases = []) {
   const baseFamily = normalizeTemplateHintKey(family);
   const idAlias = normalizeTemplateHintKey(templateId);
-  return [...new Set([baseFamily, idAlias].filter(Boolean))];
+  return [
+    ...new Set(
+      [baseFamily, idAlias]
+        .concat(asArray(explicitAliases).map(normalizeTemplateHintKey))
+        .concat(defaultTemplateAliasesByFamily(family))
+        .filter(Boolean),
+    ),
+  ];
 }
 
 function normalizeTemplate(seedRow = {}, index = 0, seedId = 'unknown') {
@@ -313,7 +353,11 @@ function normalizeTemplate(seedRow = {}, index = 0, seedId = 'unknown') {
     expected_holding_horizon: seedRow.expected_holding_horizon || '1-5 bars',
     expected_trade_density: seedRow.expected_trade_density || 'medium',
     risk_profile: seedRow.risk_profile || 'balanced',
-    template_key_aliases: templateAliases(seedRow.template_id, seedRow.family),
+    template_key_aliases: templateAliases(
+      seedRow.template_id,
+      seedRow.family,
+      seedRow.template_key_aliases,
+    ),
     source_metadata: {
       source_type: 'seed_runtime',
       seed_id: seedId,

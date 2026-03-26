@@ -78,4 +78,19 @@ describe('strategy discovery engine', () => {
       expect(row.supported_asset_classes).toContain('CRYPTO');
     }
   });
+
+  it('keeps public-seed candidates limited to runtime-supported feature sets', () => {
+    const publicCandidates = (discovery?.candidates || []).filter((row: any) =>
+      String(row.candidate_source_metadata?.hypothesis_source?.seed_id || '').startsWith('public_'),
+    );
+    const publicHypotheses = [...new Set(publicCandidates.map((row: any) => row.hypothesis_id))];
+
+    expect(publicCandidates.length).toBeGreaterThan(0);
+    expect(publicHypotheses.length).toBeGreaterThan(1);
+    for (const row of publicCandidates) {
+      expect(
+        row.candidate_source_metadata?.runtime_feature_support?.blocking_features || [],
+      ).toHaveLength(0);
+    }
+  });
 });
