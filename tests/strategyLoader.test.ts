@@ -481,4 +481,78 @@ describe('P5: structured trigger_conditions in loader', () => {
     expect(valid).toBe(false);
     expect(errors.some((e: string) => e.includes("missing required 'value'"))).toBe(true);
   });
+
+  // P7: structured invalidation validation
+  it('normalizeTemplate preserves structured invalidation objects', () => {
+    const data = {
+      strategy_id: 'X',
+      strategy_family: 'Y',
+      features: ['a'],
+      rules: ['b'],
+      invalidation: [{ field: 'trend_strength', op: '<', value: 0.25, label: 'trend_collapsed' }],
+    };
+    const t = normalizeTemplate(data) as any;
+    expect(t.invalidation).toHaveLength(1);
+    expect(typeof t.invalidation[0]).toBe('object');
+    expect(t.invalidation[0].field).toBe('trend_strength');
+  });
+
+  it('normalizeTemplate still converts NL invalidation strings', () => {
+    const data = {
+      strategy_id: 'X',
+      strategy_family: 'Y',
+      features: ['a'],
+      rules: ['b'],
+      invalidation: ['Trend breaks.'],
+    };
+    const t = normalizeTemplate(data) as any;
+    expect(t.invalidation).toEqual(['Trend breaks.']);
+  });
+
+  it('validateTemplate rejects mixed NL + structured invalidation', () => {
+    const data = {
+      strategy_id: 'X',
+      strategy_family: 'Y',
+      asset_class: 'US_STOCK',
+      market: 'US',
+      features: ['a'],
+      rules: ['b'],
+      invalidation: ['Legacy string', { field: 'rsi_14', op: '>', value: 80, label: 'overbought' }],
+    };
+    const { valid, errors } = validateTemplate(data);
+    expect(valid).toBe(false);
+    expect(errors.some((e: string) => e.includes('not mixed'))).toBe(true);
+  });
+
+  it('validateTemplate rejects invalidation with missing field', () => {
+    const data = {
+      strategy_id: 'X',
+      strategy_family: 'Y',
+      asset_class: 'US_STOCK',
+      market: 'US',
+      features: ['a'],
+      rules: ['b'],
+      invalidation: [{ op: '>', value: 80, label: 'no_field' }],
+    };
+    const { valid, errors } = validateTemplate(data);
+    expect(valid).toBe(false);
+    expect(errors.some((e: string) => e.includes("invalidation[0] missing required 'field'"))).toBe(
+      true,
+    );
+  });
+
+  it('validateTemplate rejects invalidation with unknown op', () => {
+    const data = {
+      strategy_id: 'X',
+      strategy_family: 'Y',
+      asset_class: 'US_STOCK',
+      market: 'US',
+      features: ['a'],
+      rules: ['b'],
+      invalidation: [{ field: 'rsi_14', op: 'BETWEEN', value: 80, label: 'bad' }],
+    };
+    const { valid, errors } = validateTemplate(data);
+    expect(valid).toBe(false);
+    expect(errors.some((e: string) => e.includes("invalid 'op' 'BETWEEN'"))).toBe(true);
+  });
 });

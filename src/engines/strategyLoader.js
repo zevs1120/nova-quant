@@ -23,6 +23,8 @@ const REQUIRED_FIELDS = [
   'rules',
 ];
 
+const VALID_OPS = ['>', '>=', '<', '<=', '==', '!=', 'in'];
+
 /**
  * Validate a parsed YAML strategy template against the required schema.
  * @param {object} data - Parsed YAML object
@@ -60,7 +62,6 @@ export function validateTemplate(data, source = 'unknown') {
 
   // P5: validate trigger_conditions — reject mixed, validate structured schema
   if (Array.isArray(data.trigger_conditions) && data.trigger_conditions.length > 0) {
-    const VALID_OPS = ['>', '>=', '<', '<=', '==', '!=', 'in'];
     const hasStructured = data.trigger_conditions.some(
       (c) => typeof c === 'object' && c !== null && c.field && c.op,
     );
@@ -96,6 +97,38 @@ export function validateTemplate(data, source = 'unknown') {
     errors.push(`${source}: 'invalidation' must be an array`);
   }
 
+  // P7: validate invalidation — same schema as trigger_conditions
+  if (Array.isArray(data.invalidation) && data.invalidation.length > 0) {
+    const hasStructuredInval = data.invalidation.some(
+      (c) => typeof c === 'object' && c !== null && c.field && c.op,
+    );
+    const hasLegacyInval = data.invalidation.some((c) => typeof c === 'string');
+    if (hasStructuredInval && hasLegacyInval) {
+      errors.push(
+        `${source}: 'invalidation' must be all structured objects or all strings, not mixed`,
+      );
+    }
+    for (let i = 0; i < data.invalidation.length; i += 1) {
+      const c = data.invalidation[i];
+      if (typeof c === 'string') continue;
+      if (typeof c !== 'object' || c === null) {
+        errors.push(`${source}: invalidation[${i}] must be a string or structured object`);
+        continue;
+      }
+      if (!c.field || typeof c.field !== 'string') {
+        errors.push(`${source}: invalidation[${i}] missing required 'field' (string)`);
+      }
+      if (!c.op || !VALID_OPS.includes(c.op)) {
+        errors.push(
+          `${source}: invalidation[${i}] has invalid 'op' '${c.op}', must be one of: ${VALID_OPS.join(', ')}`,
+        );
+      }
+      if (c.value === undefined || c.value === null) {
+        errors.push(`${source}: invalidation[${i}] missing required 'value'`);
+      }
+    }
+  }
+
   if (data.cost_assumptions && typeof data.cost_assumptions !== 'object') {
     errors.push(`${source}: 'cost_assumptions' must be an object`);
   }
@@ -125,7 +158,11 @@ export function normalizeTemplate(data) {
           typeof c === 'object' && c !== null && c.field && c.op ? c : String(c),
         )
       : [],
-    invalidation: Array.isArray(data.invalidation) ? data.invalidation.map(String) : [],
+    invalidation: Array.isArray(data.invalidation)
+      ? data.invalidation.map((c) =>
+          typeof c === 'object' && c !== null && c.field && c.op ? c : String(c),
+        )
+      : [],
     tp_ladder_rule: String(data.tp_ladder_rule || 'TP1 at 1R, TP2 at 1.6R.'),
     not_to_trade: Array.isArray(data.not_to_trade) ? data.not_to_trade.map(String) : [],
     cost_assumptions: {

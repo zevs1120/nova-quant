@@ -30,8 +30,14 @@ trigger_conditions:
     label: trend_supportive
 
 invalidation:
-  - 'Volume spike fails to sustain — next bar closes below breakout level.'
-  - 'Velocity percentile drops below 40th within 2 bars of entry.'
+  - field: velocity_percentile
+    op: '<'
+    value: 0.4
+    label: momentum_fading
+  - field: volume_ratio
+    op: '<'
+    value: 0.8
+    label: volume_drying_up
 
 tp_ladder_rule: 'TP1 at 1R, TP2 at structure extension target.'
 

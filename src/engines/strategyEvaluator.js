@@ -280,14 +280,34 @@ export function evaluateStrategy({
     conditionsMissed = legacy.conditionsMissed;
   }
 
-  // Invalidation check
+  // P7: Structured invalidation check
   let invalidated = false;
+  const invalidationReasons = [];
   const invalidation = template.invalidation || [];
   if (invalidation.length > 0) {
-    if (context.trend_strength < 0.25 && conditionsMissed.length >= 2) {
-      invalidated = true;
-      conditionsMissed.push('near_invalidation_zone');
+    const hasStructuredInval = invalidation.some(
+      (c) => typeof c === 'object' && c !== null && c.field && c.op,
+    );
+    if (hasStructuredInval) {
+      // Structured: evaluate each invalidation condition
+      for (const cond of invalidation) {
+        if (typeof cond !== 'object' || !cond.field || !cond.op) continue;
+        const result = evaluateCondition(cond, context);
+        if (result.passed) {
+          invalidated = true;
+          invalidationReasons.push(result.label);
+        }
+      }
+    } else {
+      // Legacy: hardcoded heuristic for NL strings
+      if (context.trend_strength < 0.25 && conditionsMissed.length >= 2) {
+        invalidated = true;
+        invalidationReasons.push('near_invalidation_zone');
+      }
     }
+  }
+  if (invalidationReasons.length > 0) {
+    conditionsMissed.push(...invalidationReasons);
   }
 
   // Classify signal strength
@@ -321,6 +341,7 @@ export function evaluateStrategy({
     confidence,
     conditions_met: conditionsMet,
     conditions_missed: conditionsMissed,
+    invalidation_reasons: invalidationReasons,
     score_adjustment: scoreAdjustment,
   };
 }

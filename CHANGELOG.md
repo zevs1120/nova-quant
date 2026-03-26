@@ -2,6 +2,18 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 10.13.0 (2026-03-27)
+
+- Release type: **minor** (new capability)
+
+- **Feat(P7): US template TI enhancement + structured invalidation.**
+  - **Template enhancement:** Added RSI-14, MACD, Bollinger width, MA alignment, bias rate conditions to 5 US templates (EQ_VEL, EQ_EVT, EQ_REG, EQ_SWING, OP_INTRADAY) alongside existing proxy fields.
+  - **Structured invalidation:** `evaluateStrategy` now evaluates `{field, op, value, label}` invalidation rules via `evaluateCondition`. NL string invalidation falls back to legacy heuristic. Output includes `invalidation_reasons` array.
+  - **Loader:** `validateTemplate`/`normalizeTemplate` extended with invalidation schema validation (same as trigger_conditions). `VALID_OPS` hoisted to module scope.
+  - **YAML migration:** `EQ_PULLBACK.yaml` and `CR_MOMENTUM.yaml` invalidation converted to structured objects.
+  - **Tests:** 3 new evaluator tests for structured invalidation (trigger, non-trigger, NL backward compat).
+  - Test suite: 113/113 files pass, 806/806 tests pass.
+
 ## 10.12.1 (2026-03-27)
 
 - Release type: **patch** (content addition)

@@ -34,8 +34,14 @@ trigger_conditions:
     label: not_chasing_high
 
 invalidation:
-  - 'Price closes below EMA-50 with expanding volume.'
-  - 'Trend strength drops below 0.40.'
+  - field: trend_strength
+    op: '<'
+    value: 0.4
+    label: trend_weakened
+  - field: volume_ratio
+    op: '>'
+    value: 2
+    label: vol_expanding_against
 
 tp_ladder_rule: 'TP1 at prior swing high, TP2 at 1.6R extension.'
 

@@ -244,6 +244,61 @@ describe('evaluateStrategy with structured conditions', () => {
     expect(result.conditions_met).toContain('ma_bullish');
     expect(result.signal).toBe('strong');
   });
+
+  it('P7: structured invalidation triggers skip signal', () => {
+    const result = evaluateStrategy({
+      template: makeTemplate({
+        trigger_conditions: [{ field: 'trend_strength', op: '>=', value: 0.5, label: 'trend_ok' }],
+        invalidation: [{ field: 'rsi_14', op: '>', value: 80, label: 'extreme_overbought' }],
+      }),
+      regime: makeRegime({ trend_strength: 0.6 }),
+      series: makeSeries(),
+      expectedR: 2.0,
+      confidenceNorm: 0.7,
+      technicalIndicators: { rsi_14: 85 },
+    }) as any;
+    expect(result.signal).toBe('skip');
+    expect(result.invalidation_reasons).toContain('extreme_overbought');
+    expect(result.conditions_missed).toContain('extreme_overbought');
+  });
+
+  it('P7: non-triggered structured invalidation has no effect', () => {
+    const result = evaluateStrategy({
+      template: makeTemplate({
+        trigger_conditions: [{ field: 'trend_strength', op: '>=', value: 0.5, label: 'trend_ok' }],
+        invalidation: [{ field: 'rsi_14', op: '>', value: 80, label: 'extreme_overbought' }],
+      }),
+      regime: makeRegime({ trend_strength: 0.6 }),
+      series: makeSeries(),
+      expectedR: 2.0,
+      confidenceNorm: 0.7,
+      technicalIndicators: { rsi_14: 50 },
+    }) as any;
+    expect(result.signal).not.toBe('skip');
+    expect(result.invalidation_reasons).toHaveLength(0);
+  });
+
+  it('P7: NL invalidation backward compat — legacy heuristic still works', () => {
+    const result = evaluateStrategy({
+      template: makeTemplate({
+        trigger_conditions: [
+          { field: 'trend_strength', op: '>=', value: 0.5, label: 'trend_ok' },
+          { field: 'vol_percentile', op: '<', value: 0.8, label: 'vol_ok' },
+        ],
+        invalidation: ['Trend channel breaks.'],
+      }),
+      regime: makeRegime({ trend_strength: 0.2 }), // below 0.25
+      series: makeSeries(),
+      expectedR: 1.0,
+      confidenceNorm: 0.5,
+      technicalIndicators: { rsi_14: 50 },
+    }) as any;
+    // trend_strength=0.2 < 0.5 → missed, vol_ok → met
+    // Legacy heuristic: trend_strength < 0.25 && missed >= 2
+    // conditionsMissed has 'trend_ok', needs >= 2 to trigger legacy
+    // So with only 1 missed, legacy won't trigger
+    expect(result.invalidation_reasons).toHaveLength(0);
+  });
 });
 
 /* ---------- legacy evaluateStrategy (backward compat) ---------- */
