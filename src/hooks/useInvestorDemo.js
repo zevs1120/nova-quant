@@ -44,7 +44,7 @@ export function useInvestorDemo({
     'nova-quant-investor-demo-ui-backup',
     null,
   );
-  const [showOnboarding, setShowOnboarding] = useState(!authSession);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   const investorDemoEnvironment = useMemo(
     () => (investorDemoEnabled ? buildInvestorDemoEnvironment(assetClass) : null),

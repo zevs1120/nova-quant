@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useLocalStorage } from './useLocalStorage';
 import { normalizeEmail, classifyAuthError, isLocalAuthRuntime } from '../utils/appHelpers';
 import { DEFAULT_AUTH_WATCHLIST } from '../config/appConstants';
@@ -16,6 +16,7 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
     broker: 'Robinhood',
   });
   const [authSession, setAuthSession] = useLocalStorage('nova-quant-auth-session', null);
+  const [authHydrated, setAuthHydrated] = useState(() => authSession !== null);
   const [onboardingDone, setOnboardingDone] = useLocalStorage('nova-quant-onboarding-done', false, {
     legacyKeys: ['quant-demo-onboarding-done'],
   });
@@ -119,7 +120,12 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
 
   // Session hydration on mount
   useEffect(() => {
-    if (authSession !== null) return undefined;
+    if (authSession !== null) {
+      setAuthHydrated(true);
+      return undefined;
+    }
+    if (authHydrated) return undefined;
+
     let cancelled = false;
     void fetchJson('/api/auth/session')
       .then((payload) => {
@@ -132,12 +138,17 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
         }
         setAuthSession(null);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) {
+          setAuthHydrated(true);
+        }
+      });
 
     return () => {
       cancelled = true;
     };
-  }, [applyAuthenticatedProfile, authSession, setAuthSession, fetchJson]);
+  }, [applyAuthenticatedProfile, authHydrated, authSession, setAuthSession, fetchJson]);
 
   const handleLogin = useCallback(
     async ({ email, password }) => {
@@ -323,6 +334,7 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
   return {
     userProfile,
     authSession,
+    authHydrated,
     setAuthSession,
     onboardingDone,
     setOnboardingDone,

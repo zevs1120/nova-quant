@@ -91,6 +91,7 @@ export default function App() {
   const {
     userProfile,
     authSession,
+    authHydrated,
     setAuthSession,
     onboardingDone,
     setOnboardingDone,
@@ -370,8 +371,12 @@ export default function App() {
 
   // Sync showOnboarding with auth
   useEffect(() => {
+    if (!authHydrated) {
+      setShowOnboarding(false);
+      return;
+    }
     setShowOnboarding(!authSession);
-  }, [authSession, setShowOnboarding]);
+  }, [authHydrated, authSession, setShowOnboarding]);
 
   // Sync market ↔ assetClass
   useEffect(() => {
