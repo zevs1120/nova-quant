@@ -192,6 +192,16 @@
 }
 
 @media (max-width: 760px) {
+  .ask-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .ask-copy {
+    padding-top: 0;
+  }
+
   .ask-copy h2 {
     max-width: none;
   }
@@ -202,34 +212,28 @@
   }
 
   .ask-object {
-    margin-top: 0.2rem;
+    margin-top: 1.2rem;
     width: 100%;
     max-width: none;
-    max-height: min(48vh, 21rem);
-    aspect-ratio: 16 / 10;
+    max-height: none;
+    aspect-ratio: auto;
     min-height: 0;
     border-radius: 1.2rem;
     padding: 0.7rem;
   }
 
   .ask-object img {
-    max-height: min(44vh, 19.5rem);
+    max-height: none;
+    height: auto;
     border-radius: 0.85rem;
-    object-fit: cover;
+    object-fit: contain;
     object-position: top center;
   }
 }
 
 @media (max-width: 520px) {
   .ask-object {
-    max-width: none;
-    max-height: min(46vh, 20rem);
-    aspect-ratio: 16 / 10;
     padding: 0.72rem;
-  }
-
-  .ask-object img {
-    max-height: min(42vh, 18rem);
   }
 }
 
@@ -247,11 +251,9 @@
   .ask-object {
     padding: 0.55rem;
     border-radius: 1rem;
-    max-height: min(42vh, 18rem);
   }
 
   .ask-object img {
     border-radius: 0.72rem;
-    max-height: min(38vh, 16rem);
   }
 }

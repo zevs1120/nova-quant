@@ -273,10 +273,14 @@ export const reactions = [
 ];
 
 export const distributionCredits = [
-  { name: 'Yadi Qiao', role: 'For the concept.' },
-  { name: 'Bowen Yang', role: 'For the code.' },
-  { name: 'Tao Yang', role: 'For the early belief.' },
-  { name: 'Andy Warhol', role: 'For the visual language.' },
+  { name: 'Yadi Qiao', role: 'For the concept.', story: 'Someone who saw it first.' },
+  { name: 'Bowen Yang', role: 'For the code.', story: 'Someone who built it.' },
+  { name: 'Tao Yang', role: 'For the early belief.', story: 'Someone who believed early.' },
+  {
+    name: 'Andy Warhol',
+    role: 'For the visual language.',
+    story: 'Someone whose work changed the way we saw the whole thing.',
+  },
 ];
 
 export const legalLinks = [

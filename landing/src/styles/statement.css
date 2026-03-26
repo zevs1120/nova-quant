@@ -494,7 +494,13 @@
 
 @media (max-width: 760px) {
   .statement-grid {
-    row-gap: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .statement-copy {
+    padding: 0 0 0.6rem;
   }
 
   .statement-copy .micro-intro {
@@ -503,7 +509,19 @@
 
   .statement-showcase {
     min-height: auto;
-    margin-top: 0.2rem;
+    margin-top: 0.8rem;
+    width: 100vw;
+    margin-left: calc(50% - 50vw);
+    margin-right: calc(50% - 50vw);
+    padding: 0 1rem;
+    box-sizing: border-box;
+  }
+
+  .statement-stack-viewport {
+    width: 100%;
+    max-width: none;
+    margin-left: 0;
+    margin-right: 0;
   }
 
   .statement-showcase-accent-a {

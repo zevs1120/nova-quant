@@ -1,31 +1,3 @@
-@media (max-width: 1100px) {
-  .distribution-grid {
-    grid-template-columns: repeat(8, minmax(0, 1fr));
-  }
-
-  .distribution-copy,
-  .distribution-lead,
-  .distribution-context,
-  .distribution-closing {
-    grid-column: 1 / span 8;
-  }
-
-  .distribution-credits {
-    grid-column: 1 / -1;
-    width: 100%;
-    max-width: 100%;
-    min-width: 0;
-    justify-self: stretch;
-  }
-}
-
-@media (max-width: 900px) {
-  .distribution-credits {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 1rem;
-  }
-}
-
 .distribution-spread {
   position: relative;
   padding: 6rem 0 2.8rem;
@@ -93,8 +65,7 @@
 
 .distribution-copy h2,
 .distribution-lead,
-.distribution-intro,
-.distribution-story p,
+.distribution-story-line,
 .distribution-name,
 .distribution-role,
 .distribution-closing {
@@ -117,41 +88,30 @@
   line-height: 1.04;
 }
 
-.distribution-context {
-  grid-column: 1 / span 6;
+/* --- Paired story + credit rows --- */
+
+.distribution-pairs {
+  grid-column: 1 / -1;
   display: grid;
-  gap: 1rem;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
   padding-top: 1.4rem;
   border-top: 1px solid rgba(18, 21, 34, 0.12);
 }
 
-.distribution-intro {
-  max-width: 24rem;
-  color: var(--ink-soft);
-  font-size: 1.02rem;
-  line-height: 1.6;
-}
-
-.distribution-story {
+.distribution-pair {
   display: grid;
-  gap: 0.45rem;
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
+  align-items: start;
+  gap: 1.8rem;
+  padding: 0.65rem 0;
 }
 
-.distribution-story p {
+.distribution-story-line {
   color: var(--ink-soft);
   font-size: 1.02rem;
   line-height: 1.58;
-}
-
-.distribution-credits {
-  grid-column: 7 / span 5;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1.15rem 1.8rem;
-  padding-top: 1.4rem;
-  position: relative;
-  border-top: 1px solid rgba(18, 21, 34, 0.12);
-  min-width: 0;
 }
 
 .distribution-credit {
@@ -197,10 +157,21 @@
   transform: translateX(-50%);
 }
 
+/* --- Responsive --- */
+
 @media (max-width: 1100px) {
-  .distribution-context,
-  .distribution-credits {
-    padding-top: 0;
+  .distribution-grid {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+  }
+
+  .distribution-copy,
+  .distribution-lead,
+  .distribution-closing {
+    grid-column: 1 / span 8;
+  }
+
+  .distribution-pairs {
+    grid-column: 1 / -1;
   }
 
   .distribution-closing {
@@ -213,18 +184,6 @@
     padding-top: 4.5rem;
   }
 
-  .distribution-credits {
-    grid-template-columns: 1fr;
-    gap: 1.1rem;
-    width: 100%;
-    max-width: 100%;
-  }
-
-  .distribution-copy {
-    width: 100%;
-    max-width: 100%;
-  }
-
   .distribution-copy h2 {
     max-width: none;
     width: 100%;
@@ -234,31 +193,22 @@
   }
 
   .distribution-lead {
+    grid-column: 1 / -1;
     width: 100%;
-    max-width: 100%;
     padding-top: 0;
     font-size: clamp(1.15rem, 4vw, 1.32rem);
   }
 
-  .distribution-context {
-    width: 100%;
-    max-width: 100%;
+  .distribution-pairs {
+    gap: 0;
   }
 
-  .distribution-story {
-    max-width: 100%;
+  .distribution-pair {
+    gap: 1rem;
+    padding: 0.5rem 0;
   }
 
-  .distribution-context,
-  .distribution-credits {
-    padding-top: 1rem;
-  }
-
-  .distribution-closing {
-    text-align: left;
-  }
-
-  .distribution-story p {
+  .distribution-story-line {
     font-size: 0.98rem;
     text-wrap: balance;
   }
@@ -273,6 +223,10 @@
     text-wrap: balance;
   }
 
+  .distribution-closing {
+    text-align: left;
+  }
+
   .distribution-spread::after {
     width: 6rem;
     height: 3.5rem;
@@ -283,10 +237,6 @@
 @media (max-width: 520px) {
   .distribution-closing {
     font-size: 0.88rem;
-  }
-
-  .distribution-credits {
-    grid-template-columns: 1fr;
   }
 }
 
@@ -305,7 +255,7 @@
     font-size: 1.18rem;
   }
 
-  .distribution-story p {
+  .distribution-story-line {
     font-size: 0.92rem;
   }
 

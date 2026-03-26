@@ -11,20 +11,14 @@ export default function DistributionSection() {
 
         <p className="distribution-lead">There were people.</p>
 
-        <div className="distribution-context">
-          <div className="distribution-story">
-            <p>Someone who saw it first.</p>
-            <p>Someone who built it.</p>
-            <p>Someone who believed early.</p>
-            <p>Someone whose work changed the way we saw the whole thing.</p>
-          </div>
-        </div>
-
-        <div className="distribution-credits" aria-label="Distribution credits">
+        <div className="distribution-pairs" aria-label="Distribution credits">
           {distributionCredits.map((item) => (
-            <div className="distribution-credit" key={item.name}>
-              <p className="distribution-name">{item.name}</p>
-              <p className="distribution-role">{item.role}</p>
+            <div className="distribution-pair" key={item.name}>
+              <p className="distribution-story-line">{item.story}</p>
+              <div className="distribution-credit">
+                <p className="distribution-name">{item.name}</p>
+                <p className="distribution-role">{item.role}</p>
+              </div>
             </div>
           ))}
         </div>

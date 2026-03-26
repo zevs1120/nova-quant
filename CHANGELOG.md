@@ -2,6 +2,15 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 10.5.4 (2026-03-25)
+
+- Release type: patch
+- **Fix: landing page mobile layout — statement cards, Ask Nova chat, and distribution credits (`landing/`).**
+  - **Statement section:** on ≤760px, switch from side-by-side grid to vertical flex layout; fan card showcase breaks out to full viewport width (`100vw`) so the interactive card stack fills the screen instead of overlapping the copy text.
+  - **Ask Nova section:** on ≤760px, switch to vertical flex layout; remove restrictive `max-height` and `aspect-ratio: 16/10` constraints on the chat screenshot so it displays at natural height, filling the section.
+  - **Distribution credits:** restructure JSX from separate story/credits containers into paired rows (`distribution-pair`), each row containing one "Someone who..." line alongside its corresponding name. Uses CSS subgrid for guaranteed row-level alignment across all breakpoints.
+  - PC / desktop layout unchanged.
+
 ## 10.5.3 (2026-03-25)
 
 - Release type: patch
