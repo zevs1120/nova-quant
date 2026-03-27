@@ -2,6 +2,51 @@
 
 NovaQuant 所有重要变更记录于此。
 
+## 10.16.0 (2026-03-28)
+
+- 发布类型：**minor**（新功能）
+
+- **Feat(nova)：生产级策略包生成工具 `productionStrategyPack.ts`。**
+  - 新增 `generateNovaProductionStrategyPack()`：根据市场数据自动生成可直接用于实盘的生产级策略包。
+  - 支持三种策略风格：`trend_breakout`（趋势突破）、`trend_pullback`（趋势回撤）、`mean_reversion`（均值回归）。
+  - 支持 `1d` 和 `4h` 两种执行时间框架，含完整策略配置（止损/止盈/仓位/ATR 参数）。
+  - 集成 `executionRealismModel` 执行真实性模型，对滑点、流动性进行建模。
+  - 新增 CLI 脚本 `scripts/run-nova-production-strategy-pack.ts`。
+
+- **Feat(nova)：策略健壮性训练系统 `robustnessTraining.ts`。**
+  - 新增 `runNovaRobustnessTraining()`：对策略进行滚动回测（rolling OOS）和参数扰动分析（perturbation），验证策略参数在市场变化下的稳定性。
+  - 分市场（US/CRYPTO/ALL）和风险偏好（conservative/balanced/aggressive）分别评估。
+  - 输出每个市场的 `robust_parameter_intervals`（稳健参数区间）和 `rolling_oos_pass_rate`。
+  - 新增 CLI 脚本 `scripts/run-nova-robustness-training.ts`。
+  - 新增 API `POST /api/nova/training/robustness`。
+
+- **Feat(risk)：风险 Governor 模式升级与方向感知增强。**
+  - 引入四级风控模式升级机制：NORMAL → CAUTION → DERISK → BLOCKED（`MODE_RANK`）。
+  - 新增 `normalizeMarket()` / `normalizeDirection()` / `safeNumber()` 辅助函数。
+  - 新增 `signalEntryMid()` 处理信号入场价格区间。
+  - 大幅扩展风控逻辑，支持连亏计数和逐仓方向感知。
+
+- **Feat(risk)：风险 Bucket 分级阈值全面增强。**
+  - 为 Conservative/Balanced/Aggressive 三种风险配置新增多个风控阈值：
+    - `max_position_cap_pct`（最大持仓上限）、`instrument_concentration_cap_pct`（单品种集中度上限）、`same_direction_cap_pct`（同向仓位上限）
+    - `weekly_loss_limit_pct` / `monthly_loss_limit_pct`（周/月损失限制）
+    - `drawdown_caution_pct` / `drawdown_derisk_pct` / `drawdown_hard_stop_pct`（回撤分级阈值）
+    - `loss_streak_caution_count` / `loss_streak_block_count`（连亏警告/阻断计数）
+
+- **Feat(db)：业务数据库审计脚本增强。**
+  - `scripts/audit-business-db-migration.ts` 大幅增强（+145 行）。
+
+- **Feat(deploy)：生产环境配置完善。**
+  - 更新 `.env.example`、`deployment/aws-ec2/marvix-backend.env.example`、`deployment/aws-ec2/marvix.env.example` 生产环境变量。
+  - 更新 `docs/AWS_EC2_DEPLOYMENT.md` 文档。
+
+- **Test：新增 5 个测试文件覆盖全部新功能。**
+  - `tests/novaProductionStrategyPack.test.ts`（195 行）、`tests/novaRobustnessTraining.test.ts`（278 行）
+  - `tests/portfolioSimulationSharpeUpgrade.test.ts`（324 行）
+  - `tests/riskGovernorEdgeCases.test.ts`（138 行）、`tests/riskBucketSystemDrawdownControl.test.ts`（65 行）
+
+---
+
 ## 10.15.1 (2026-03-28)
 
 - 发布类型：**patch**（工程规范）

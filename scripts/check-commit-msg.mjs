@@ -143,10 +143,7 @@ const [, type, scope, subject] = match;
 /* ── rule 2: type ────────────────────────────────────────────────────── */
 
 if (!ALLOWED_TYPES.includes(type)) {
-  fail(
-    `Invalid type "${type}".\n` +
-      `  Allowed: ${ALLOWED_TYPES.join(', ')}`,
-  );
+  fail(`Invalid type "${type}".\n` + `  Allowed: ${ALLOWED_TYPES.join(', ')}`);
 }
 
 /* ── rule 3: scope ───────────────────────────────────────────────────── */
@@ -182,10 +179,7 @@ if (subject.endsWith('.')) {
 /* ── rule 6: length ──────────────────────────────────────────────────── */
 
 if (title.length > MAX_TITLE_LENGTH) {
-  fail(
-    `Title is ${title.length} characters (max ${MAX_TITLE_LENGTH}).\n` +
-      `  Title: "${title}"`,
-  );
+  fail(`Title is ${title.length} characters (max ${MAX_TITLE_LENGTH}).\n` + `  Title: "${title}"`);
 }
 
 /* ── rule 7: English only (no CJK or other non-ASCII in title) ───────── */

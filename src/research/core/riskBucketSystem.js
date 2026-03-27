@@ -30,7 +30,7 @@ export const USER_RISK_BUCKETS = Object.freeze({
     market_concentration_cap_pct: 36,
     asset_class_concentration_cap_pct: 34,
     max_position_cap_pct: 8,
-    instrument_concentration_cap_pct: 10,
+    instrument_concentration_cap_pct: 12,
     same_direction_cap_pct: 40,
     max_total_active_risk_pct: 3.2,
     daily_loss_limit_pct: 2.5,
