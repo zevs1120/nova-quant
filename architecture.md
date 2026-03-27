@@ -1,7 +1,7 @@
 # Nova Quant — Architecture Overview
 
 > 自动扫描生成 · 最后更新: 2026-03-27
-> Version: 10.7.0 (build 68)
+> Version: 10.14.0 (build 76)
 
 ---
 
@@ -144,6 +144,14 @@ nova-quant/
 ├── config/                       # 摄取配置
 ├── docs/                         # 75+ 文档文件
 ├── deployment/                   # 部署配置 (AWS EC2 / Vultr / launchd)
+├── landing/                      # 品牌落地页 (独立 Vite 应用)
+│   └── src/
+│       ├── App.jsx               # 编排壳 — 组合 hooks + 10 section 组件
+│       ├── data/index.js         # 内容数据 (定价、FAQ、卡片、证言)
+│       ├── components/           # 10 section 组件
+│       ├── hooks/                # 2 hooks (useStatementFan, useViewportMotion)
+│       └── styles/               # 12 有序 CSS 模块
+│
 ├── data/                         # 运行时数据 (quant.db, 不入库)
 ├── public/                       # 静态公共资源
 └── copilot/                      # Copilot 集成 (预留)
@@ -405,6 +413,40 @@ src/research/
 
 ---
 
+## 10b. 品牌落地页 (`landing/`)
+
+独立 Vite + React 单页应用，部署于 `novaquant.cloud`。
+
+### 组件 (10 个)
+
+| 组件                      | 职责                                        |
+| ------------------------- | ------------------------------------------- |
+| `Header.jsx`              | 玻璃拟态导航条，滚动时压缩                  |
+| `HeroSection.jsx`         | Warhol 色调主视觉，视差滚动                 |
+| `StatementSection.jsx`    | 交互式扇形卡片堆叠 (5 张 CSS-variable 驱动) |
+| `ProofSection.jsx`        | Marvix 架构流图                             |
+| `AskSection.jsx`          | Ask Nova 展示                               |
+| `PricingSection.jsx`      | 4 档定价卡片 (Free/Lite/Pro/Ultra)          |
+| `FaqSection.jsx`          | FAQ 手风琴                                  |
+| `VoicesSection.jsx`       | 首批用户证言                                |
+| `DistributionSection.jsx` | 分发渠道 & 致谢                             |
+| `LegalFooter.jsx`         | 法律声明、品牌、监管免责                    |
+
+### Hooks (2 个)
+
+| Hook                   | 功能                                                                                                                                       |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `useStatementFan.js`   | ResizeObserver 驱动卡片缩放 + 三阶段 reveal 状态机 (`pre` → `animating` → `settled`)                                                       |
+| `useViewportMotion.js` | `useViewportReveal` (IO 入场检测)、`useScrollProgress` (滚动进度)、`useMotionPreference` (media query 追踪，支持 `prefers-reduced-motion`) |
+
+### 样式 (12 CSS 模块)
+
+`base.css` → `header.css` → `hero.css` → `statement.css` → `proof.css` → `ask.css` → `pricing.css` → `faq.css` → `voices.css` → `distribution.css` → `legal.css` → `animations.css`
+
+**动效体系**: 每个 section 通过 `useViewportReveal` 获得 `is-motion-visible` class，触发 CSS 入场关键帧 (fade-in + translateY + 交错延迟)。触屏设备通过 `@media (hover: hover)` 门控 hover 效果。`prefers-reduced-motion` 下自动切换为 "soft motion" 模式。
+
+---
+
 ## 11. 数据存储架构
 
 ```
@@ -480,8 +522,8 @@ src/research/
 ## 13. 测试体系
 
 - **框架**: Vitest 4 + Supertest
-- **测试文件**: 106 个 (均在 `tests/` 目录)
-- **测试用例**: 628 个 (全部通过)
+- **测试文件**: 113 个 (均在 `tests/` 目录)
+- **测试用例**: 811 个 (全部通过)
 - **覆盖率**: `@vitest/coverage-v8`
 
 **覆盖领域**: 决策引擎、信号引擎、风控引擎、证据引擎、参与引擎、API 路由、认证、CORS、缓存隔离、Nova 客户端、Alpha 发现、Massive 摄取、持仓导入、手动信号、新闻提供、组合模拟、策略发现、置信度校准、数学边界、Postgres 业务迁移、公开 Alpha 供给等。

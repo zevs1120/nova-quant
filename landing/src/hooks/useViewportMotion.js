@@ -120,6 +120,7 @@ export function useScrollProgress(ref, options = {}) {
       window.removeEventListener('scroll', queueUpdate);
       window.removeEventListener('resize', queueUpdate);
     };
+    // `ref` is a stable useRef object — included for lint completeness, won't trigger re-runs.
   }, [disabled, ref]);
 
   return progress;

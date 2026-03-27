@@ -40,7 +40,7 @@ export default function useStatementFan() {
         const [entry] = entries;
         if (!entry) return;
 
-        if (entry.isIntersecting || entry.intersectionRatio >= 0.34) {
+        if (entry.isIntersecting) {
           setRevealPhase('animating');
           io.disconnect();
         }

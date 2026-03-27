@@ -1,870 +1,922 @@
-# CHANGELOG
+# 变更日志
 
-All notable changes to NovaQuant are recorded here.
+NovaQuant 所有重要变更记录于此。
+
+## 10.15.1 (2026-03-28)
+
+- 发布类型：**patch**（工程规范）
+
+- **Chore(ci)：Pre-commit 全链路质量门禁。**
+  - **新增 `check-changelog.mjs`**：强制每次提交包含 CHANGELOG.md 更新，校验 `package.json` version 与 CHANGELOG 最新版本号一致，`src/` 变更未伴随 `docs/` 更新时发出软警告。
+  - **新增 `check-commit-msg.mjs`**：Conventional Commits 格式校验 —— type 白名单（8 类）、scope 白名单（60+ 模块）、标题必须英文（ASCII only，body 可用中文）、小写开头、≤72 字符、不以句号结尾、title/body 空行分隔。
+  - **新增 `.husky/commit-msg` hook**：自动触发 commit message 校验。
+  - **更新 `.husky/pre-commit` hook**：执行顺序 changelog 检查 → `npm run verify`（lint → typecheck → test → build → build:landing）→ lint-staged（Prettier 格式化）。
+  - **新增 `npm run check:changelog`**：可独立运行 changelog 策略检查。
+  - 绕过方式：`SKIP_CHANGELOG_CHECK=1` / `SKIP_COMMIT_MSG_CHECK=1`，用于纯基建提交。
+
+---
+
+## 10.15.0 (2026-03-28)
+
+- 发布类型：**minor**（新功能）
+
+- **Feat(onboarding)：重建引导流 Intro 海报场景系统。**
+  - **新增 `IntroPoster` 组件**（`OnboardingFlow.jsx` +434 行）：4 个全屏品牌海报场景，替代原有简单文案页面。
+  - **场景 1 — Meet NovaQuant**：品牌介绍页，三张叠层卡片（NVDA/TSLA/AAPL 推荐），粉/蓝/黄/绿色块装饰，`conviction`、`risk` 指标展示。
+  - **场景 2 — Read the Day First**：市场气候页，Wait/Act 比例轮盘、风险等级统计卡、`Trade lighter` / `Wait for confirmation` / `Size down first` 标签组。
+  - **场景 3 — Ask Nova Directly**：AI 对话交互展示，模拟 chat bubble 与建议 chip。
+  - **场景 4 — Broker**：券商连接引导，展示连接流程与状态卡片。
+  - **视觉系统全面升级**（`onboarding.css` +1,315 行）：每场景独立渐变背景 + `radial-gradient` 光晕，精细卡片 UI（毛玻璃、阴影、圆角），`clamp()` / `min()` 响应式布局，中英文 `locale` 感知双语文案。
+
+---
+
+## 10.14.0 (2026-03-27)
+
+- 发布类型：**minor**（新功能）
+
+- **Feat(landing)：电影级视口驱动动效系统。**
+  - 新增 `useViewportMotion.js` hook：`useViewportReveal`（基于 IntersectionObserver 的分区入场检测）和 `useScrollProgress`（滚动位置→进度映射器），用于视差和 reveal 动画。
+  - 增强 `useStatementFan.js`，引入三阶段 reveal 状态机（`pre` → `animating` → `settled`）：卡片初始折叠，视口交叉时展开扇形，1.28 秒后稳定。
+  - 全部 7 个主要 section（Hero、Statement、Proof、Ask、Pricing、Voices、Distribution）接入 `useViewportReveal` —— 滚动进入时各获 `is-motion-visible` CSS class，触发各区入场关键帧。
+  - 新增约 1,100 行 CSS：交错 fade-in + translateY 入场动画，使用 `--xxx-enter-delay` 自定义属性实现逐元素延迟，以及 hover lift、glow overlay 和卡片扇形变换。
+
+- **Fix(landing)：移动端布局与定价卡触控行为修复。**
+  - 将所有定价卡 hover/glow/dimming 效果限制在 `@media (hover: hover) and (pointer: fine)` 内，防止触屏设备出现粘滞高亮。
+  - 定价面板添加 `touch-action: pan-y`；`onPointerEnter` 中过滤 `pointerType !== 'mouse'`，避免触摸触发卡片选中。
+  - 引入 `--mobile-shell-gutter` / `--mobile-shell-gutter-tight` design token，替换 page-shell、header、legal footer 中硬编码的 `100vw - Xrem` 宽度计算。
+  - 为 body、voices、statement、pricing、distribution、legal 各 spread 添加 `overflow-x: clip`，消除窄视口水平滚动条。
+  - Statement showcase 宽度从 `100vw`（负 margin hack）改为 `100%`，根除溢出源。
+
+- **Fix(landing)：平滑全局动效行为，支持 `prefers-reduced-motion`。**
+  - 新增 `useMotionPreference` hook：追踪任意 media query；Hero 用它检测 `prefers-reduced-motion` 或小屏幕，自动切换 "soft motion" 模式（降低视差、放宽 IO 阈值）。
+  - `useViewportReveal` 默认放宽：threshold 0.24→0.16、rootMargin −10%→−4%，确保在短视口上更早触发 reveal。
+  - `useScrollProgress` 新增 `disabled` 选项；soft-motion 模式下将 progress 固定为 0.22 并停止 scroll 监听。
+  - 全局收紧交错延迟：Ask 90→70 ms、Distribution 105→80 ms、Pricing 95→70 ms、Proof 110→70 ms、Voices 100→75 ms。
+  - scroll-progress 更新阈值从 0.008 提高至 0.012，减少高频 re-render。
+
+- **Fix(landing)：稳定 Statement 卡片与 Legal 页脚。**
+  - `useStatementFan` 与 `activeIndex` 解耦 —— 不再在卡片选中时重新测量，防止 layout thrash。
+  - `BBOX_PAD_PX` 从 28 增至 44，防止旋转/缩放/选中卡片被裁剪。
+  - scaler 上添加 `translateZ(0)`、slot 上添加 `backface-visibility: hidden` 以提升 GPU 层；移除逐 slot 的 `filter: saturate() brightness()` 过渡，减少合成层与亚像素闪烁。
+  - viewport 和 showcase 添加 `overflow-anchor: none`，防止浏览器滚动锚点跳动。
+  - Legal 页脚重新设计：背景从绿色调 `#1f3128` 改为深蓝黑 `#0b0d13`，`::after` 装饰替换为顶部渐变发丝线，新增分区线与 `text-transform: uppercase` 品牌处理，移除移动端 border-radius 实现全宽页脚。
+
+- **Fix(landing)：提交后代码审查修复。**
+  - `PricingSection`：20 行内联 `matchMedia` hover 检测替换为共享 `useMotionPreference` hook；新增 `useEffect` 在 hover 能力变化时清除高亮（如平板断开键盘）。
+  - `StatementSection`：点击外部取消选中范围从整个 `<section>` 收窄至卡片 viewport —— 点击文案区域不再意外取消选中。移除未使用的 `sectionRef`。
+  - `useStatementFan`：简化 IntersectionObserver 回调 —— 移除被 `isIntersecting` 已覆盖的冗余 `intersectionRatio >= 0.34` 分支。
+  - `useScrollProgress`：在 effect 依赖数组中注释说明 `ref` 的稳定性。
+
+---
 
 ## 10.13.0 (2026-03-27)
 
-- Release type: **minor** (new capability)
+- 发布类型：**minor**（新功能）
 
-- **Feat(P7): US template TI enhancement + structured invalidation.**
-  - **Template enhancement:** Added RSI-14, MACD, Bollinger width, MA alignment, bias rate conditions to 5 US templates (EQ_VEL, EQ_EVT, EQ_REG, EQ_SWING, OP_INTRADAY) alongside existing proxy fields.
-  - **Structured invalidation:** `evaluateStrategy` now evaluates `{field, op, value, label}` invalidation rules via `evaluateCondition`. NL string invalidation falls back to legacy heuristic. Output includes `invalidation_reasons` array.
-  - **Loader:** `validateTemplate`/`normalizeTemplate` extended with invalidation schema validation (same as trigger_conditions). `VALID_OPS` hoisted to module scope.
-  - **YAML migration:** `EQ_PULLBACK.yaml` and `CR_MOMENTUM.yaml` invalidation converted to structured objects.
-  - **Tests:** 3 new evaluator tests for structured invalidation (trigger, non-trigger, NL backward compat).
-  - Test suite: 113/113 files pass, 806/806 tests pass.
+- **Feat(P7)：美股模板技术指标增强 + 结构化失效规则。**
+  - **模板增强**：为 5 个美股模板（EQ_VEL、EQ_EVT、EQ_REG、EQ_SWING、OP_INTRADAY）添加 RSI-14、MACD、Bollinger width、MA alignment、bias rate 条件。
+  - **结构化失效**：`evaluateStrategy` 通过 `evaluateCondition` 评估 `{field, op, value, label}` 失效规则；NL 字符串失效回退到传统启发式。输出包含 `invalidation_reasons` 数组。
+  - **加载器**：`validateTemplate`/`normalizeTemplate` 扩展失效 schema 验证（与 trigger_conditions 一致）。`VALID_OPS` 提升至模块作用域。
+  - **YAML 迁移**：`EQ_PULLBACK.yaml` 和 `CR_MOMENTUM.yaml` 的失效条件转换为结构化对象。
+  - **测试**：新增 3 个结构化失效评估测试（触发、非触发、NL 向后兼容）。
+  - 测试套件：113/113 文件通过、811/811 测试通过。
+
+---
 
 ## 10.12.1 (2026-03-27)
 
-- Release type: **patch** (content addition)
+- 发布类型：**patch**（内容补充）
 
-- **Feat(P6): DSA strategy migration — 6 CN equity strategies.**
-  - Ported from `daily_stock_analysis`: `CN_BULL_TREND` (默认多头), `CN_SHRINK_PB` (缩量回踩), `CN_VOL_BREAK` (放量突破), `CN_MA_CROSS` (均线金叉), `CN_BOTTOM_VOL` (底部放量), `CN_SENTIMENT` (情绪周期).
-  - All use P5 structured `{field, op, value, label}` trigger conditions — auto-loaded by strategy loader, zero code changes.
-  - 4 DSA strategies deferred (缠论, 波浪, 箱体, 一阳夹三阴) pending missing features (K-line sequences, support/resistance detection).
-  - Test suite: 113/113 files pass, 803/803 tests pass.
+- **Feat(P6)：DSA 策略迁移 —— 6 个 A 股策略。**
+  - 从 `daily_stock_analysis` 移植：`CN_BULL_TREND`（默认多头）、`CN_SHRINK_PB`（缩量回踩）、`CN_VOL_BREAK`（放量突破）、`CN_MA_CROSS`（均线金叉）、`CN_BOTTOM_VOL`（底部放量）、`CN_SENTIMENT`（情绪周期）。
+  - 全部使用 P5 结构化 `{field, op, value, label}` 触发条件 —— 策略加载器自动加载，零代码改动。
+  - 4 个 DSA 策略暂缓（缠论、波浪、箱体、一阳夹三阴），等待缺失特征（K 线序列、支撑阻力检测）。
+  - 测试套件：113/113 文件通过、803/803 测试通过。
+
+---
 
 ## 10.12.0 (2026-03-27)
 
-- Release type: **minor** (new capability)
+- 发布类型：**minor**（新功能）
 
-- **Feat(P5): YAML Rule Engine — structured trigger conditions.**
-  - **Refactored `strategyEvaluator.js`:** new `buildConditionContext()` (30+ flattened fields from regime/series/technicalIndicators), `evaluateCondition()` (6 operators: `>`, `>=`, `<`, `<=`, `==`, `!=`, `in`), and `evaluateLegacyHeuristic()` fallback for NL strings.
-  - **Structured conditions:** `trigger_conditions` now accept `{ field, op, value, label }` objects. All 9 inline templates and 2 YAML files migrated from natural-language strings to machine-readable conditions.
-  - **P4 integration:** `signalEngine.js` now passes `technicalIndicators` to `evaluateStrategy()`, enabling YAML conditions to reference MACD, RSI, Bollinger, MA alignment, bias rate, and volume ratio.
-  - **Backward compatible:** NL string conditions automatically fall back to the legacy heuristic evaluator.
-  - **New tests:** 14 tests added to `strategyEvaluator.test.ts` covering `evaluateCondition` operators, `buildConditionContext` flattening, and structured + legacy dual-mode evaluation.
-  - Test suite: 113/113 files pass, 788/788 tests pass.
+- **Feat(P5)：YAML 规则引擎 —— 结构化触发条件。**
+  - **重构 `strategyEvaluator.js`**：新增 `buildConditionContext()`（30+ 扁平化字段，来自 regime/series/technicalIndicators）、`evaluateCondition()`（6 种运算符：`>`、`>=`、`<`、`<=`、`==`、`!=`、`in`）以及 `evaluateLegacyHeuristic()` NL 字符串回退。
+  - **结构化条件**：`trigger_conditions` 支持 `{ field, op, value, label }` 对象。全部 9 个内联模板和 2 个 YAML 文件从自然语言字符串迁移至机器可读条件。
+  - **P4 集成**：`signalEngine.js` 向 `evaluateStrategy()` 传递 `technicalIndicators`，使 YAML 条件可引用 MACD、RSI、Bollinger、MA alignment、bias rate、volume ratio。
+  - **向后兼容**：NL 字符串条件自动回退至传统启发式评估器。
+  - **测试**：`strategyEvaluator.test.ts` 新增 14 个测试，覆盖 `evaluateCondition` 运算符、`buildConditionContext` 扁平化、结构化 + 传统双模式评估。
+  - 测试套件：113/113 文件通过、788/788 测试通过。
+
+---
 
 ## 10.11.0 (2026-03-27)
 
-- Release type: **minor** (new capability)
+- 发布类型：**minor**（新功能）
 
-- **Feat(P4): Technical Indicators Library.**
-  - **New `src/engines/technicalIndicators.js`:** 10 pure functions ported from DSA's `stock_analyzer.py` — `sma`, `ema`, `emaSeries`, `macd` (12/26/9 with golden/death cross detection), `rsi` (Wilder's method, 6 & 14-period), `bollingerBands` (20/2σ), `biasRate`, `volumeRatio`, `maAlignment` (5-state classification), `computeIndicators` (composite entry point).
-  - **OHLCV bar window increased to 30** (`ohlcv_bar_window` in `params.js`) to ensure MACD(26) has sufficient data at runtime.
-  - **Signal contract addition (`signalEngine.js`):** new `technical_indicators` field on each enriched signal, computed from `series.bars`. Includes MA alignment, MACD state, RSI values, Bollinger bands, bias rates, and volume ratio. Additive — no breaking changes.
-  - **New tests:** `tests/technicalIndicators.test.ts` (32 tests) covering SMA correctness, EMA convergence, MACD cross detection, RSI boundaries (0-100, overbought/oversold), Bollinger invariants, bias rate sign, volume ratio math, MA alignment classification, and composite output shape.
-  - **Updated e2e:** `tests/signalEngineScoring.test.ts` P3 e2e test now also asserts `technical_indicators` presence, RSI type, and bar_count.
-  - Test suite: 113/113 files pass, 774/774 tests pass.
+- **Feat(P4)：技术指标库。**
+  - **新增 `src/engines/technicalIndicators.js`**：从 DSA 的 `stock_analyzer.py` 移植 10 个纯函数 —— `sma`、`ema`、`emaSeries`、`macd`（12/26/9 含金叉/死叉检测）、`rsi`（Wilder 法, 6 & 14 周期）、`bollingerBands`（20/2σ）、`biasRate`、`volumeRatio`、`maAlignment`（5 态分类）、`computeIndicators`（复合入口）。
+  - **OHLCV 窗口扩展至 30**（`params.js` 中 `ohlcv_bar_window`），确保 MACD(26) 在运行时有足够数据。
+  - **信号合约扩展（`signalEngine.js`）**：每个 enriched signal 新增 `technical_indicators` 字段，从 `series.bars` 计算。包含 MA alignment、MACD 状态、RSI 值、Bollinger bands、bias rate、volume ratio。纯增量 —— 无破坏性变更。
+  - **测试**：`technicalIndicators.test.ts` 新增 32 个测试，覆盖 SMA 正确性、EMA 收敛、MACD 交叉检测、RSI 边界（0-100、超买/超卖）、Bollinger 不变量、bias rate 符号、volume ratio 算术、MA alignment 分类、复合输出结构。
+  - **E2E 更新**：`signalEngineScoring.test.ts` P3 E2E 测试新增 `technical_indicators` 存在性、RSI 类型和 bar_count 断言。
+  - 测试套件：113/113 文件通过、774/774 测试通过。
+
+---
 
 ## 10.10.1 (2026-03-27)
 
-- Release type: **minor** (new capability)
+- 发布类型：**minor**（新功能）
 
-- **Feat: multi-strategy evaluator + K-line pattern detection.**
-  - Borrows the SkillAgent specialist evaluation pattern from `daily_stock_analysis` and adapts it for engine-driven (non-LLM) evaluation.
-  - **New `src/engines/strategyEvaluator.js`:** `evaluateStrategy()` scores each signal against template conditions (trend alignment, velocity, vol, risk-off, volume, carry) and classifies signal strength as `strong|moderate|weak|skip`. `aggregateEvaluations()` computes consensus signal and confidence-weighted score adjustment across multiple strategy perspectives.
-  - **New `src/engines/patternDetector.js`:** 5 K-line candlestick patterns adapted from DSA's `one_yang_three_yin` and `volume_breakout`: `bullish_engulfing`, `bearish_engulfing`, `hammer`, `doji`, `volume_breakout` (放量突破). Each returns `{ type, confidence, direction, score_adjustment }`.
-  - **Signal contract additions (`signalEngine.js`):** two new additive fields: `strategy_evaluation` (per-signal structured eval) and `detected_patterns` (detected K-line patterns). All existing fields preserved — no breaking changes.
-  - **New tests:** `tests/strategyEvaluator.test.ts` (16 tests), `tests/patternDetector.test.ts` (18 tests).
-  - **Updated regression coverage:** `tests/signalEngineScoring.test.ts`, `tests/strategyTemplatesEdgeCases.test.ts`, `tests/riskGuardrailEdgeCases.test.ts`, and `tests/modelIngestApi.test.ts` now cover aggregate strategy-evaluation shape, real-bars-only pattern detection, OCC option symbol inference (including high-strike contracts), and model-ingest option normalization.
-  - **Bug fix round 3 — root cause closure:**
-    - US options symbol inference: replaced fragile `C00/P00` string matching with OCC-compliant regex `/^[A-Z]{1,6}\d{6}[CP]\d{8}$/` across 6 locations (`modelHandlers.ts`, `strategyTemplates.js`, `signalEngine.js`, `service.ts`).
-    - Removed `buildSyntheticBars()` — prevents false pattern detection from fabricated K-line geometry.
-    - Strict aggregate assertion: `strategy_evaluation` must always produce aggregate shape with `evaluation_count > 1` for multi-template markets.
-  - **P3: OHLCV data pipeline (`velocityEngine.js`):** `generateSyntheticSeries()` now produces full OHLCV (open/high/low/close/volume) with deterministic gap, spread, and volume spike logic. `buildSeriesState()` attaches trailing 20 bars (`ohlcv_bar_window` param) to each series, enabling `patternDetector.js` to produce real detections at runtime. Close-only `featureSeries` fallback guarantees OHLC invariants (`low ≤ min(o,c)`, `high ≥ max(o,c)`).
-  - **New tests:** `velocityEngineEdgeCases.test.ts` +5 OHLCV pipeline tests (bar count, invariants, ordering, determinism, close-only fallback). `signalEngineScoring.test.ts` +3 P3 tests (e2e pipeline plumbing, known-pattern detection with injected engulfing, no-bars fallback).
-  - Test suite: 112/112 files pass, 742/742 tests pass (up from 110/669 at P0 start).
+- **Feat：多策略评估器 + K 线形态检测。**
+  - 借鉴 `daily_stock_analysis` 的 SkillAgent 专家评估模式，适配为引擎驱动（非 LLM）评估。
+  - **新增 `strategyEvaluator.js`**：`evaluateStrategy()` 按模板条件（趋势对齐、速度、波动率、避险、成交量、carry）为每个信号评分，分类信号强度为 `strong|moderate|weak|skip`。`aggregateEvaluations()` 计算多策略视角的共识信号和置信度加权分数调整。
+  - **新增 `patternDetector.js`**：5 种 K 线形态（改编自 DSA）—— `bullish_engulfing`、`bearish_engulfing`、`hammer`、`doji`、`volume_breakout`（放量突破）。各返回 `{ type, confidence, direction, score_adjustment }`。
+  - **信号合约扩展（`signalEngine.js`）**：两个新增量字段 —— `strategy_evaluation`（逐信号结构化评估）和 `detected_patterns`（检测到的 K 线形态）。全部现有字段保留，无破坏性变更。
+  - **测试**：`strategyEvaluator.test.ts`（16 测试）、`patternDetector.test.ts`（18 测试）。
+  - **回归覆盖更新**：`signalEngineScoring.test.ts`、`strategyTemplatesEdgeCases.test.ts`、`riskGuardrailEdgeCases.test.ts`、`modelIngestApi.test.ts` 新增聚合策略评估结构、真实 K 线形态检测、OCC 期权代码推断（含高行权价合约）、模型摄入期权标准化覆盖。
+  - **Bug 修复第三轮 —— 根因闭环**：
+    - 美股期权代码推断：用 OCC 规范正则 `/^[A-Z]{1,6}\d{6}[CP]\d{8}$/` 替换脆弱的 `C00/P00` 字符串匹配，涉及 6 处（`modelHandlers.ts`、`strategyTemplates.js`、`signalEngine.js`、`service.ts`）。
+    - 移除 `buildSyntheticBars()` —— 防止虚构 K 线几何产生错误形态检测。
+    - 严格聚合断言：`strategy_evaluation` 对多模板市场必须产出 `evaluation_count > 1` 的聚合结构。
+  - **P3：OHLCV 数据管线（`velocityEngine.js`）**：`generateSyntheticSeries()` 现产出完整 OHLCV（open/high/low/close/volume），含确定性缺口、价差和成交量尖峰逻辑。`buildSeriesState()` 附加尾部 20 根 K 线（`ohlcv_bar_window` 参数）至每个 series，使 `patternDetector.js` 在运行时能产出真实检测。仅含 close 的 `featureSeries` 回退保证 OHLC 不变量（`low ≤ min(o,c)`、`high ≥ max(o,c)`）。
+  - **新增测试**：`velocityEngineEdgeCases.test.ts` +5 OHLCV 管线测试；`signalEngineScoring.test.ts` +3 P3 测试。
+  - 测试套件：112/112 文件通过、742/742 测试通过（P0 起始为 110/669）。
+
+---
 
 ## 10.9.0 (2026-03-27)
 
-- Release type: **minor** (new capability)
+- 发布类型：**minor**（新功能）
 
-- **Feat: bias-rate guardrail + sentiment cycle factor.**
-  - Borrows the bias-rate (乖离率) core rule from `daily_stock_analysis` and the emotion cycle quantitative factors from its `emotion_cycle.yaml`.
-  - **Bias-rate guardrail (`riskGuardrailEngine.js`):** new `computeBiasRate()` measures entry extension from equilibrium (entry-to-stop distance × regime compatibility scaler). `buildBiasRateWarnings()` emits `'bias_rate_overextended'` (MEDIUM, ≥5%) and `'bias_rate_blocked'` (HIGH, ≥8%) per the DSA core rule "乖离率 > 5% 不追高". Warnings appear in `bias_rate_warnings` array and per-signal `signal_annotations` with `bias_rate_pct`.
-  - **New `src/engines/sentimentCycleEngine.js`:** classifies market sentiment into 5 phases (`cold_bottom`, `warming`, `stable`, `heating`, `euphoria_top`) using volume ratio, velocity percentile, and MA convergence proxy. Each phase produces a score adjustment: cold = +0.12 bonus (contrarian opportunity), euphoria = -0.15 penalty (chasing risk). Inspired by DSA's turnover extremes + volume pulse + MA convergence factors.
-  - **Signal scoring integration (`signalEngine.js`):** sentiment adjustment is added to each signal's score after the core `computeSignalScore()` computation. New `sentiment_cycle` field in the enriched signal contract includes `phase`, `adjustment`, and `factors`.
-  - **New params (`params.js`):** `BIAS_RATE_THRESHOLDS` (warning_pct: 5, block_pct: 8) and `SENTIMENT_CYCLE_PARAMS` (cold_bonus: 0.12, euphoria_penalty: -0.15, volume/convergence thresholds).
-  - **New test:** `tests/sentimentCycleEngine.test.ts` (22 tests) — volume ratio, MA convergence, all 5 phases, adjustment bounds, runSentimentCycle integration.
-  - **Existing tests pass with no regressions** — `riskGuardrailEdgeCases.test.ts` (18 tests), `signalEngineScoring.test.ts` (15 tests).
+- **Feat：乖离率防护栏 + 情绪周期因子。**
+  - 借鉴 `daily_stock_analysis` 的乖离率核心规则和 `emotion_cycle.yaml` 的情绪周期量化因子。
+  - **乖离率防护栏（`riskGuardrailEngine.js`）**：新增 `computeBiasRate()` 度量入场偏离均衡程度（入场到止损距离 × regime 兼容系数）。`buildBiasRateWarnings()` 在 ≥5% 时发出 `'bias_rate_overextended'`（MEDIUM）、≥8% 时发出 `'bias_rate_blocked'`（HIGH），遵循 DSA 核心规则 "乖离率 > 5% 不追高"。
+  - **新增 `sentimentCycleEngine.js`**：将市场情绪分为 5 阶段（`cold_bottom`、`warming`、`stable`、`heating`、`euphoria_top`），使用 volume ratio、velocity percentile 和 MA convergence proxy。各阶段产出分数调整：cold = +0.12 奖励（逆向机会），euphoria = -0.15 惩罚（追高风险）。
+  - **信号评分集成（`signalEngine.js`）**：情绪调整在核心 `computeSignalScore()` 计算后叠加。enriched signal 新增 `sentiment_cycle` 字段，含 `phase`、`adjustment`、`factors`。
+  - **参数（`params.js`）**：新增 `BIAS_RATE_THRESHOLDS`（warning_pct: 5, block_pct: 8）和 `SENTIMENT_CYCLE_PARAMS`（cold_bonus: 0.12, euphoria_penalty: -0.15）。
+  - **测试**：`sentimentCycleEngine.test.ts`（22 测试）—— volume ratio、MA convergence、全部 5 阶段、调整边界、`runSentimentCycle` 集成。
+  - 现有测试无回归。
+
+---
 
 ## 10.8.0 (2026-03-27)
 
-- Release type: **minor** (new capability)
+- 发布类型：**minor**（新功能）
 
-- **Feat: YAML declarative strategy loading + regime-aware strategy routing.**
-  - Borrows the zero-code strategy definition pattern from `daily_stock_analysis`'s SkillManager and the regime-aware routing logic from its SkillRouter.
-  - **New `src/engines/strategyLoader.js`:** YAML parser, validator, normalizer, directory scanner, and template merge system. Validates required fields (`strategy_id`, `strategy_family`, `asset_class`, `market`, `features`, `rules`) on load. Invalid files are skipped with warnings, not fatal.
-  - **New `strategies/` directory** with 2 seed YAML strategy definitions: `EQ_PULLBACK.yaml` (equity pullback-to-EMA, inspired by DSA's `shrink_pullback`) and `CR_MOMENTUM.yaml` (crypto momentum continuation, inspired by DSA's `volume_breakout`).
-  - **New `regime_tags` field** on all 9 built-in strategy templates (e.g., `CR_VEL: ['trending']`, `CR_TRAP: ['high_vol', 'risk_off']`, `EQ_REG: ['risk_off', 'range']`). YAML strategies also declare `regime_tags`.
-  - **Regime-aware `resolveStrategyId(signal, regime)`:** 4-tier resolution borrowed from DSA's SkillRouter pattern: (1) explicit `strategy_id` on signal → (2) regime-matching templates filtered by `regime_tags` → (3) `SYMBOL_TO_STRATEGY` static map → (4) asset class / market fallback. The 2nd parameter is optional — all existing call sites remain backward compatible.
-  - **`signalEngine.js`:** passes regime snapshot to `resolveStrategyId`, enabling dynamic strategy selection based on current market state.
-  - **New exports:** `loadExternalStrategies()` (returns total count), `_resetTemplateCache()` (test utility).
-  - **`STRATEGY_TEMPLATE_VERSION`** bumped to `strategy-templates-2026-03-27.1`.
-  - **New test:** `tests/strategyLoader.test.ts` (22 tests) — YAML parse/validate/normalize, directory scan, merge/override, error handling.
-  - **Updated test:** `tests/strategyTemplatesEdgeCases.test.ts` (22 tests, up from 17) — YAML-loaded template assertions, regime_tags on all templates, regime-aware routing tests.
-  - **New dependency:** `js-yaml` for YAML parsing.
-  - **`npm audit fix` applied:** 0 vulnerabilities remaining.
-  - Test suite: 109/109 files pass, 669/669 tests pass (up from 106 files + 628 tests).
+- **Feat：YAML 声明式策略加载 + Regime 感知策略路由。**
+  - 借鉴 `daily_stock_analysis` 的 SkillManager 零代码策略定义模式和 SkillRouter 的 regime 路由逻辑。
+  - **新增 `strategyLoader.js`**：YAML 解析器、验证器、标准化器、目录扫描器和模板合并系统。加载时验证必填字段（`strategy_id`、`strategy_family`、`asset_class`、`market`、`features`、`rules`）。无效文件跳过并警告，不致命。
+  - **新增 `strategies/` 目录**：2 个种子 YAML 策略定义 —— `EQ_PULLBACK.yaml`（股票回踩 EMA，源自 DSA 的 `shrink_pullback`）和 `CR_MOMENTUM.yaml`（加密动量延续，源自 DSA 的 `volume_breakout`）。
+  - **`regime_tags` 字段**：全部 9 个内置策略模板添加（如 `CR_VEL: ['trending']`、`CR_TRAP: ['high_vol', 'risk_off']`）。YAML 策略同样声明 `regime_tags`。
+  - **Regime 感知 `resolveStrategyId(signal, regime)`**：4 级解析（借鉴 DSA SkillRouter）：(1) signal 上显式 `strategy_id` → (2) `regime_tags` 匹配的模板 → (3) `SYMBOL_TO_STRATEGY` 静态映射 → (4) asset class / market 回退。第 2 参数可选 —— 所有现有调用点向后兼容。
+  - **`signalEngine.js`**：向 `resolveStrategyId` 传递 regime 快照，启用基于当前市场状态的动态策略选择。
+  - **新增依赖**：`js-yaml`。`npm audit fix` 后 0 漏洞。
+  - **测试**：`strategyLoader.test.ts`（22 测试）、`strategyTemplatesEdgeCases.test.ts` 更新至 22 测试。
+  - 测试套件：109/109 文件通过、669/669 测试通过（之前 106/628）。
+
+---
 
 ## 10.7.1 (2026-03-27)
 
-- Release type: patch
+- 发布类型：**patch**
 
-- **Fix: remediate Supabase mirror and fallback consistency bugs from commit review (c190ad5..c1b66a7).**
-  - **BUG-1 — redundant `flush()` in 5 scripts:** `run-alpha-discovery.ts`, `run-evolution-cycle.ts`, `run-free-data-flywheel.ts`, `run-nova-flywheel.ts`, and `run-nova-strategy-lab.ts` called `await flush()` in both the `try` body and the `finally` block. Removed the redundant try-body call; `finally` already ensures flush on both success and error paths.
-  - **BUG-2 — duplicate `decodeSignalContract` in `loadRuntimeStateCorePrimary`:** the same signal rows were decoded twice (once for UI signals, once for `state.signals`). Extracted a shared `decodedSignals` variable, eliminating the redundant JSON.parse + validation pass.
-  - **BUG-3 — stale SQLite rows in mixed Postgres fallback path:** the first patch only added `syncQuantState()` after `getRepo().listSignals()` had already read fallback rows. `loadRuntimeStateCorePrimary` now syncs SQLite first whenever any primary source falls back, then reads risk/signal/market/performance rows from the refreshed local store.
-  - **ISSUE-4 — mixed-source warning:** when some Postgres reads succeed but others fall back to SQLite, a `console.warn` now logs which sources were served by Postgres, aiding production debugging. `data_source` in freshness/coverage summary now correctly reports `mixed-postgres-sqlite` instead of always `postgres-primary`.
-  - **ISSUE-8 — swallowed evidence exception:** `buildDecisionSnapshotFromCorePrimary` silently caught evidence read errors with an empty `catch` block. Added `console.warn` with the error message so evidence engine failures are observable in logs.
-  - **New test:** `tests/postgresFallbackSync.test.ts` (6 tests) verifying Postgres-to-SQLite fallback paths return correct data structures.
-  - **BUG-4 — mirror queue errors were not failing scripts:** `PostgresBusinessWriteMirror.flush()` used to resolve even after background write failures, so mirror-enabled scripts could exit successfully while Postgres was already out of sync. The mirror queue now preserves write failures and makes `flush()` reject.
-  - **BUG-5 — primary Postgres reads could race ahead of local mirror writes:** with `NOVA_DATA_DATABASE_URL` enabled locally, API reads could hit stale Postgres rows immediately after a local SQLite write. Primary-read paths now await the pending mirror queue before querying Postgres, restoring in-process read-after-write consistency and falling back to SQLite if the mirror queue is unhealthy.
-  - **BUG-6 — replay-evidence fallback resurfaced expired signals:** the runtime evidence fallback used `status: 'ALL'`, so a high-score expired signal could outrank a still-live signal when replay evidence was missing. Terminal statuses (`EXPIRED`, `INVALIDATED`, `CLOSED`) are now excluded from fallback evidence ranking.
-  - **New tests:** `tests/postgresMirrorConsistency.test.ts` covering mirror `flush()` failure semantics, flush-before-primary-read consistency, and mixed-source runtime fallback ordering; `tests/evidenceEngine.test.ts` now verifies expired signals are filtered out of runtime evidence fallback.
+- **Fix：修复 Supabase 镜像与回退一致性 bug（commit c190ad5..c1b66a7 审查）。**
+  - **BUG-1 —— 5 个脚本 `flush()` 冗余调用**：`run-alpha-discovery.ts` 等 5 个脚本在 `try` 和 `finally` 中都调用了 `await flush()`。移除 try 中的冗余调用；`finally` 已确保成功/错误路径均 flush。
+  - **BUG-2 —— `loadRuntimeStateCorePrimary` 重复 `decodeSignalContract`**：相同信号行被解码两次。提取共享 `decodedSignals` 变量，消除冗余 JSON.parse + 验证。
+  - **BUG-3 —— 混合 Postgres 回退路径中 SQLite 行过期**：当部分 Postgres 读取成功、其他回退至 SQLite 时，`loadRuntimeStateCorePrimary` 现在先同步 SQLite，再从刷新后的本地存储读取。
+  - **ISSUE-4 —— 混合数据源警告**：部分 Postgres/部分 SQLite 时 `console.warn` 记录各源来源；`data_source` 正确报告 `mixed-postgres-sqlite`。
+  - **ISSUE-8 —— evidence 异常被吞没**：`buildDecisionSnapshotFromCorePrimary` 的空 `catch` 块添加 `console.warn`。
+  - **BUG-4 —— 镜像队列错误未导致脚本失败**：`flush()` 现在在写入失败时 reject。
+  - **BUG-5 —— 主 Postgres 读取可能跑在本地镜像写入前面**：主读取路径现在在查询 Postgres 前 await 待处理的镜像队列。
+  - **BUG-6 —— replay-evidence 回退显示过期信号**：终态信号（`EXPIRED`、`INVALIDATED`、`CLOSED`）现已从回退 evidence 排名中排除。
+  - **测试**：新增 `postgresFallbackSync.test.ts`（6 测试）、`postgresMirrorConsistency.test.ts`、`evidenceEngine.test.ts` 扩展。
+
+---
 
 ## 10.7.0 (2026-03-27)
 
-- Release type: **minor** (new capability)
+- 发布类型：**minor**（新功能）
 
-- **Feat: Supabase business data migration — SQLite → Postgres mirror layer.**
-  - **Migration tooling (`src/server/db/postgresMigration.ts`, `scripts/migrate-business-to-postgres.ts`):** one-shot bulk migration of all business tables from SQLite to Supabase Postgres. Includes batched upserts (configurable via `NOVA_DATA_MIGRATION_BATCH_SIZE`), progress logging, and audit script (`scripts/audit-business-db-migration.ts`) to verify row-count parity. New `docs/SUPABASE_BUSINESS_DB_MIGRATION.md` walkthrough.
-  - **Write mirror (`src/server/db/postgresBusinessMirror.ts`):** Proxy-based write interceptor that automatically mirrors 20+ SQLite write operations (OHLCV bars, runtime state, decision snapshots, alpha candidates, alpha evaluations, alpha shadow observations, alpha lifecycle events, market state, performance snapshots, backtest runs/metrics, nova task runs, engagement events, notifications, external connections, API keys, etc.) to Supabase Postgres via an async queue with per-table deduplication. Activated when `NOVA_DATA_DATABASE_URL` is set. Backend scripts (`auto-backend.ts`, `run-alpha-discovery.ts`, `run-evolution-cycle.ts`, `run-free-data-flywheel.ts`, `run-nova-flywheel.ts`, `run-nova-strategy-lab.ts`) wired to create the mirror-enabled repository and flush after each cycle.
-  - **Admin read mirror (`src/server/admin/postgresBusinessRead.ts`):** full Supabase-backed read layer for Admin dashboards — System Health, Research Ops, Alpha Lab pages now prefer Supabase reads when the data mirror is available, with SQLite fallback.
-  - **Runtime read preference (`src/server/api/queries.ts`):** live API routes (`/api/signals`, `/api/market-state`, `/api/runtime-state`, `/api/execution/*`, `/api/connect/*`, `/api/engagement/*`) prefer Supabase for reads when the mirror connection is available, reducing EC2/SQLite dependency for the Vercel-hosted app.
-  - **Platform readiness (`scripts/check-platform-readiness.mjs`):** pre-flight script that verifies Supabase connection, schema, row counts, and env vars before enabling the mirror in production.
-  - **New `.env.example` vars:** `NOVA_DATA_DATABASE_URL`, `NOVA_DATA_PG_SCHEMA`, `NOVA_DATA_PG_POOL_MAX`, `NOVA_DATA_MIGRATION_BATCH_SIZE`.
-  - **New test:** `tests/postgresBusinessMigration.test.ts` (migration tooling coverage).
+- **Feat：Supabase 业务数据迁移 —— SQLite → Postgres 镜像层。**
+  - **迁移工具**（`postgresMigration.ts`、`migrate-business-to-postgres.ts`）：SQLite 全表批量迁移至 Supabase Postgres，含批量 upsert、进度日志、审计脚本（`audit-business-db-migration.ts`）验证行数一致。
+  - **写镜像**（`postgresBusinessMirror.ts`）：基于 Proxy 的写拦截器，自动将 20+ SQLite 写操作异步镜像至 Supabase Postgres，含逐表去重队列。`NOVA_DATA_DATABASE_URL` 设置后激活。
+  - **Admin 读镜像**（`postgresBusinessRead.ts`）：Admin 面板（System Health、Research Ops、Alpha Lab）优先从 Supabase 读，SQLite 回退。
+  - **运行时读取偏好**（`queries.ts`）：API 路由在镜像可用时优先 Supabase 读，减少 EC2/SQLite 依赖。
+  - **平台就绪检查**（`check-platform-readiness.mjs`）：预飞脚本验证 Supabase 连接、schema、行数和环境变量。
 
-- **Feat: public Alpha supply intake for research discovery.**
-  - **New `src/server/research/publicAlphaSupply.ts`:** builds a readiness-scored supply report by matching public research seed hypotheses against strategy templates, assessing feature-set support via `runtimeFeatureSupport.js`, and classifying each match as `ready_now`, `adapter_quick_win`, or `blocked_missing_data`.
-  - **New `src/research/discovery/runtimeFeatureSupport.js`:** runtime feature assessment engine — classifies features as measured, adapter-ready, or blocking based on current data pipeline capabilities.
-  - Candidate generator and hypothesis registry expanded with public seed filtering and strategy family canonicalization.
-  - API route `GET /api/research/alpha-supply` exposed.
-  - **New tests:** `tests/publicAlphaSupply.test.ts`, extended `tests/strategyDiscoveryEngine.test.ts`.
+- **Feat：公开 Alpha 供给入口（研究发现）。**
+  - 新增 `publicAlphaSupply.ts`：构建就绪性评分供给报告，匹配公开研究种子假说与策略模板，分类为 `ready_now`、`adapter_quick_win` 或 `blocked_missing_data`。
+  - 新增 `runtimeFeatureSupport.js`：运行时特征评估引擎。
+  - API 路由 `GET /api/research/alpha-supply`。
 
-- **Fix: EC2 deployment alignment and Admin Alpha visibility.**
-  - Restore live Alpha visibility in Admin (`src/server/admin/liveAlpha.ts` — new 636-line dedicated module, extracted from `service.ts`). Admin `AlphaLabPage.jsx` redesigned with richer alpha state display.
-  - Prefer EC2 API base URL for Admin (`admin/src/services/adminApi.js`) and App (`src/utils/api.js`), fixing incorrect routing during Vercel cold starts.
-  - Align EC2 runtime with production: `SERVE_WEB_DIST` env handling, Nova client base URL resolution, `.env.example` updates for EC2 deployment templates.
-  - **New test:** `tests/alphaDiscoveryLoop.test.ts` (103 new test cases for alpha discovery with live Admin integration).
+- **Fix：EC2 部署对齐与 Admin Alpha 可见性。**
+  - 恢复 Admin 中的 live Alpha 可见性（`liveAlpha.ts` —— 636 行独立模块）。Admin `AlphaLabPage.jsx` 重新设计。
+  - Admin 和 App 优先使用 EC2 API base URL，修复 Vercel cold start 期间路由错误。
 
-- **Fix: backfill signal cards when replay evidence is missing.**
-  - Evidence engine (`src/server/evidence/engine.ts`) now detects missing replay evidence and backfills signal cards from the runtime state, ensuring the Today tab and Proof tab always display actionable content even when evidence replay hasn't completed.
-  - Runtime state query (`src/server/api/queries.ts`) includes null-safe evidence bundle fallback.
-  - **New tests:** extended `tests/apiRuntimeState.test.ts` (+38 tests), `tests/evidenceEngine.test.ts` (+38 tests).
+- **Fix：缺失 replay evidence 时回填信号卡片。**
+  - Evidence engine 检测缺失的 replay evidence 并从 runtime state 回填信号卡片，确保 Today 和 Proof 始终展示可操作内容。
 
-- Test suite: 106/106 files pass, 628/628 tests pass (up from 102 files and 618 tests).
+- 测试套件：106/106 文件通过、628/628 测试通过（之前 102/618）。
+
+---
 
 ## 10.5.8 (2026-03-26)
 
-- Release type: patch
-- **Fix: resolve "System offline" on Vercel cold starts while preserving personalized decisions for users with holdings.**
-  - Root cause: Vercel serverless functions use an ephemeral `/tmp` SQLite database that is empty on every cold start (0 OHLCV bars). The `shouldUsePublicDecisionFallback()` function in `queries.ts` was designed to fall through to the live public market scan when the DB has no data, but it unconditionally returned `false` when the user had holdings, causing "System offline" for holdingless users. An initial fix (a5e1d9f) went too far — it always triggered the public fallback on empty DB regardless of holdings, which lost `portfolio_context` and broke 3 test files (decisionApi, engagementApi, novaLocalStack).
-  - Fix: restructure `shouldUsePublicDecisionFallback()` so the holdings gate is checked **first** — any request with holdings always uses the personalized path (preserving `portfolio_context`). Only holdingless requests fall through to the empty-DB check and the public live-scan path.
-  - Also simplified the `NOVA_FORCE_PUBLIC_RUNTIME_FALLBACK` env flag to unconditionally enable fallback.
-  - Result: holdingless users on Vercel cold starts see live public market scan results instead of "System offline"; users with holdings always get personalized decisions. 618/618 tests pass, typecheck clean.
+- 发布类型：**patch**
+- **Fix：解决 Vercel cold start 时 "System offline" 问题，同时保留持仓用户的个性化决策。**
+  - 根因：Vercel serverless 每次 cold start 使用空的 `/tmp` SQLite（0 条 OHLCV bars）。`shouldUsePublicDecisionFallback()` 在用户有持仓时无条件返回 `false`。
+  - 修复：重构判断逻辑 —— 有持仓的请求始终走个性化路径（保留 `portfolio_context`）；仅无持仓请求回退至公开 live-scan。
+
+---
 
 ## 10.5.7 (2026-03-26)
 
-- Release type: patch
+- 发布类型：**patch**
+- **Fix：提取 OnboardingFlow CSS 至全局加载模块。**
+  - 根因：OnboardingFlow 视觉样式（~490 行）定义在 `holdings.css` 中，被 Vite code-split 至异步 chunk。首次访客看到完全无样式的登录/注册界面。
+  - 修复：创建 `src/styles/onboarding.css`，提取完整 OnboardingFlow CSS；添加至全局 CSS 链。`holdings.css` chunk 从 58 KB 降至 38 KB。
 
-- **Fix: extract OnboardingFlow CSS into eagerly-loaded global module, restoring fully styled Welcome/Login/Signup screens on first visit.**
-  - Root cause: all OnboardingFlow visual styles (~490 lines — buttons, inputs, form layouts, SVG illustration fills, signup cards, broker selector, error/success messages) were defined inside `holdings.css`, which Vite code-splits into an async chunk loaded only when `HoldingsTab` or `BrowseTab` mounts. Since both require login, first-time visitors saw completely unstyled HTML for the Welcome, Login, Signup, and Password Reset screens. A prior patch (v10.5.6) duplicated only the `.onboarding-flow` positioning rule into `corrections.css`, but all other visual styles remained unreachable.
-  - Fix: created `src/styles/onboarding.css` with the full OnboardingFlow CSS extracted from `holdings.css`. Added `@import './styles/onboarding.css'` to the global CSS chain (`src/styles.css`). Removed the temporary positioning patch from `corrections.css`.
-  - Result: `holdings.css` code-split chunk reduced from 58 KB to 38 KB. OnboardingFlow styles now load on first paint via the global CSS bundle. 618/618 tests pass, `npm run verify` clean.
+---
 
 ## 10.5.6 (2026-03-26)
 
-- Release type: patch
-- **Fix: resolve production layout breakage caused by CSS code-split cascade conflict.**
-  - Root cause: `today-redesign.css` and `today-final.css` were imported by lazy-loaded `TodayTab.jsx`, causing Vite to code-split them into async CSS chunks (`TodayTab-*.css`, `today-redesign-*.css`). The global `index.css` already contained same-specificity selectors for `.today-action-card`, `.today-screen-native`, etc. In dev mode, Vite injects `<style>` tags in import order so the overrides always win. In production, async CSS chunks load after the global `<link>` in `<head>`, and same-specificity rules from the global stylesheet can take precedence — breaking the entire Today tab layout.
-  - Fix: moved `today-redesign.css` and `today-final.css` into the global `@import` chain in `src/styles.css` (appended after `corrections.css`). Removed duplicate imports from `src/components/TodayTab.jsx` and `src/components/DisciplineTab.jsx`.
-  - Result: Today CSS chunks eliminated from build output (was 35KB across 2 async chunks); all styles now in the global bundle (197KB, up from 162KB). Zero visual regression in dev. 618/618 tests pass.
-- Updated release metadata, build number, and changelog entry.
+- 发布类型：**patch**
+- **Fix：解决 CSS code-split 级联冲突导致的生产布局崩溃。**
+  - 根因：`today-redesign.css` 和 `today-final.css` 被懒加载组件导入，Vite 将其 code-split 至异步 CSS chunk。生产环境中异步 CSS 在全局 `<link>` 之后加载，同优先级规则从全局样式表优先 —— 破坏整个 Today 布局。
+  - 修复：将两文件移入全局 `@import` 链。Today CSS chunk 消除（原 35 KB），无视觉回归。
+
+---
 
 ## 10.6.0 (2026-03-26)
 
-- Release type: **minor** (new feature)
-- **feat(outcome): add Decision Outcome Ledger — automated performance attribution.**
-  - **Backend — Outcome Resolver (`src/server/outcome/resolver.ts`):**
-    - Joins `decision_snapshots` with subsequent OHLCV data to compute T+1, T+3, T+5 forward returns.
-    - Classifies each action as `HIT` (≥+0.3%), `MISS` (≤−0.3%), `INCONCLUSIVE`, or `PENDING`.
-    - Correctly inverts returns for `SHORT` direction; skips `no_action`/`wait` recommendations.
-    - Persists results to the existing `outcome_reviews` table via idempotent upsert.
-    - Exposes aggregate stats: hit rate, resolved count, average T+1/T+3 returns.
-  - **Backend — API (`src/server/api/routes/outcome.ts`):**
-    - `GET /api/outcomes/recent` — returns resolved outcomes with aggregate stats for frontend.
-    - `POST /api/outcomes/resolve` — triggers on-demand resolution for a specific date or lookback window.
-    - Route wired into `app.ts` with CORS cross-origin read and user-scoped cache support.
-  - **Backend — Auto-Backend Integration (`scripts/auto-backend.ts`):**
-    - Outcome resolution runs automatically in the maintenance cycle (last 7 days, post-runtime refresh, pre-training).
-    - Wrapped in try/catch with structured logging.
-  - **Frontend — TodayTab (`src/components/TodayTab.jsx`):**
-    - "Yesterday's Calls" card shows top 3 resolved outcomes with verdict icons (✅/❌/⬜), symbol, direction arrow, forward return %, and horizon label.
-    - Positioned between the action carousel and summary grid.
-    - Gracefully hidden when no outcomes are available.
-  - **Frontend — ProofTab (`src/components/ProofTab.jsx`):**
-    - "Outcome History" section with 4-column stats row (hit rate, resolved/total, avg T+1, avg T+3).
-    - Full outcome table: date, symbol, direction, T+1/T+3/T+5 returns (color-coded), verdict.
-    - Positioned after Performance Proof card.
-  - **CSS — Responsive Design (`src/styles/today-final.css`):**
-    - PC: 3-column outcome card grid; mobile (≤640px): single-column horizontal row layout.
-    - Stats row: 4-column on desktop, 2-column on mobile.
-    - Matches existing design tokens (border-radius, colors, shadows, typography).
-  - **Tests (`tests/outcomeResolver.test.ts`):** 19 test cases covering HIT/MISS/INCONCLUSIVE/PENDING classification, SHORT inversion, no_action skipping, multi-action support, upsert persistence, batch resolution, aggregate stats, malformed data handling, idempotency, single-query verification, and snapshot_date correctness.
-  - **Bugfix: trading-day semantics** — replaced calendar-day offset (`N * 86400000`) with bar-index-based OHLCV lookups. T+1/T+3/T+5 now correctly reference the Nth subsequent trading bar, skipping weekends and holidays. Reduces per-asset OHLCV queries from 4 to 1.
-  - **Bugfix: userId scoping** — TodayTab and ProofTab now thread `effectiveUserId` (from `useAuth`) into outcome fetch URLs, preventing guest users from seeing shared/default-scope data.
-  - **Bugfix: snapshot_date vs resolved_at** — the Outcome History table now displays the original decision date, not the resolver execution timestamp.
+- 发布类型：**minor**（新功能）
+- **Feat(outcome)：决策结果账本 —— 自动绩效归因。**
+  - **Outcome Resolver（`resolver.ts`）**：将 `decision_snapshots` 与后续 OHLCV 数据 join，计算 T+1、T+3、T+5 前瞻回报。分类为 `HIT`（≥+0.3%）、`MISS`（≤−0.3%）、`INCONCLUSIVE` 或 `PENDING`。`SHORT` 方向正确反转回报。
+  - **API**：`GET /api/outcomes/recent`、`POST /api/outcomes/resolve`。
+  - **Auto-Backend 集成**：Outcome resolution 在维护周期中自动运行（最近 7 天）。
+  - **前端**：TodayTab "昨日决策" 卡片展示 top 3 结果；ProofTab "Outcome History" 展示完整表格与统计行。
+  - **测试**：`outcomeResolver.test.ts`（19 测试）。
+  - **Bug 修复**：交易日语义（日历日 → bar 索引）、userId 作用域、`snapshot_date` vs `resolved_at` 显示。
+
+---
 
 ## 10.5.5 (2026-03-25)
 
-- Release type: patch
-- **Fix: resolve `Uncaught ReferenceError: now is not defined` crash in `App.jsx`.**
-  - Root cause: the v10.4.2 refactor moved the 30-second `now` timer from `App.jsx` into `TodayTab`, but the `useEngagement` hook options object still referenced the bare `now` shorthand property. With no `now` variable in scope, the app white-screened on mount.
-  - Fix: replace `now,` with `now: new Date(),` in the `useEngagement` call (line 239).
+- 发布类型：**patch**
+- **Fix：修复 `App.jsx` 中 `now is not defined` 白屏崩溃。**
+  - 根因：v10.4.2 将 30 秒 `now` 定时器移入 TodayTab，但 `useEngagement` 仍引用不存在的 `now` 变量。
+  - 修复：替换为 `now: new Date()`。
+
+---
 
 ## 10.5.4 (2026-03-25)
 
-- Release type: patch
-- **Fix: landing page mobile layout — statement cards, Ask Nova chat, and distribution credits (`landing/`).**
-  - **Statement section:** on ≤760px, switch from side-by-side grid to vertical flex layout; fan card showcase breaks out to full viewport width (`100vw`) so the interactive card stack fills the screen instead of overlapping the copy text.
-  - **Ask Nova section:** on ≤760px, switch to vertical flex layout; remove restrictive `max-height` and `aspect-ratio: 16/10` constraints on the chat screenshot so it displays at natural height, filling the section.
-  - **Distribution credits:** restructure JSX from separate story/credits containers into paired rows (`distribution-pair`), each row containing one "Someone who..." line alongside its corresponding name. Uses CSS subgrid for guaranteed row-level alignment across all breakpoints.
-  - PC / desktop layout unchanged.
+- 发布类型：**patch**
+- **Fix：落地页移动端布局 —— Statement 卡片、Ask Nova、Distribution credits。**
+  - Statement section：≤760px 切换为纵向 flex 布局；卡片扇展示跳出至全视口宽度。
+  - Ask Nova section：≤760px 纵向布局；移除限制性 `max-height` 和 `aspect-ratio`。
+  - Distribution credits：重构为 `distribution-pair` 配对行，使用 CSS subgrid 保证行级对齐。
+  - PC/桌面布局不变。
+
+---
 
 ## 10.5.3 (2026-03-25)
 
-- Release type: patch
-- **CI: fix Prettier formatting failures and add pre-commit enforcement.**
-  - Fix Prettier formatting on 9 files that caused CI failure: 6 landing components (`AskSection`, `DistributionSection`, `HeroSection`, `LegalFooter`, `ProofSection`, `StatementSection`), `src/App.jsx`, `src/server/api/app.ts`, `tests/performanceOptimization.test.ts`.
-  - Add husky + lint-staged pre-commit hook: all staged `.js`, `.jsx`, `.ts`, `.tsx`, `.css`, `.json`, `.md` files are auto-formatted by Prettier before commit, preventing future CI formatting failures.
-  - New `.husky/pre-commit` hook running `npx lint-staged`; `lint-staged` config in `package.json`.
-- **Fix: resolve all npm audit vulnerabilities (5 → 0).**
-  - `picomatch` (high, ReDoS + method injection): resolved via `npm audit fix` (updated to patched version).
-  - `smol-toml` (4 moderate, DoS via commented TOML lines): added `smol-toml: ">=1.6.1"` npm override to fix transitive dependency chain (`@vercel/node` → `@vercel/build-utils` → `@vercel/python-analysis` → `smol-toml`) without breaking `@vercel/node` version.
-- Updated release metadata, build number, and changelog entry.
+- 发布类型：**patch**
+- **CI：修复 Prettier 格式化失败并添加 pre-commit 强制。**
+  - 修复 9 个文件格式化问题。添加 husky + lint-staged pre-commit hook：暂存文件自动 Prettier 格式化。
+- **Fix：解决全部 npm audit 漏洞（5 → 0）。**
+  - `picomatch`（高危, ReDoS）通过 `npm audit fix` 解决。
+  - `smol-toml`（4 中危, DoS）添加 npm override 修复传递依赖链。
+
+---
 
 ## 10.5.2 (2026-03-25)
 
-- Release type: patch
-- **Perf: frontend + backend performance optimization sprint.**
-  - **CSS code-split:** moved 5 tab-specific CSS files (85 KB) from global `styles.css` into lazy component imports (`TodayTab`, `AiPage`, `HoldingsTab`, `BrowseTab`, `DisciplineTab`). Shell CSS is now 162 KB (down from 247 KB). Note: the default Today view still loads `today-redesign` (20 KB) + `TodayTab` (14 KB) async CSS on first render, so full Today first-paint CSS is ~196 KB. The savings are: (a) non-Today tabs skip Today CSS until visited, (b) AiPage/Holdings/Browse CSS (52 KB) is fully deferred, (c) CSS chunks cache independently per tab.
-  - **TodayTab code-split:** moved from eager import to `React.lazy()`, reducing the main `index.js` chunk from 314 KB to 124 KB. First-paint JS is now the main chunk (124 KB) plus the vendor chunk (141 KB). TodayTab (40 KB) loads on demand. Chart.js stays inside the lazy `ProofTab` chunk (178 KB) and is not fetched until that tab is opened.
-  - **Vendor splitting:** added `manualChunks` to `vite.config.js` separating `react` + `react-dom` into a `vendor.js` chunk (141 KB) that rarely changes between deploys and can be long-term cached by browsers.
-  - **Clock state sunk:** moved the 30-second `now` timer from `App.jsx` into `TodayTab`, eliminating a full-tree re-render every 30 seconds when any other tab is active.
-  - **Browse warmup deferred:** warmup network requests now only fire when the Browse tab is activated (previously fired on app mount regardless of active tab). Polling interval increased from 15s to 120s.
-  - **Server Cache-Control:** added `Cache-Control: private, no-store` to user-scoped GET endpoints (`/api/assets`, `/api/market-state`, `/api/signals`, etc.) to explicitly prevent shared-cache leakage across sessions.
-  - **i18n file split:** split 665-line inline `i18n.js` into `src/locales/en.js` and `src/locales/zh.js` for code organisation. Both packs are still statically imported.
-  - **`getRepo()` singleton:** `MarketRepository` now created once instead of per-request. `closeDb()` clears the singleton to prevent stale-handle usage.
-  - **`fetchApi` fast path:** cached API base is used directly without recomputing origin candidates; fallback only triggers on network failure.
-  - **CORS allowlist:** replaced 18-way `||` chain with `Set.has()` for O(1) path matching.
-  - New `tests/performanceOptimization.test.ts` (7 tests): Cache-Control header assertions (private/no-store on user-scoped endpoints), closeDb→getDb repo singleton lifecycle, build output chunk shape (vendor separated, TodayTab lazy, no charts modulepreload).
-  - Zero logic changes. Typecheck clean, 103/103 test files, 599/599 tests pass, build OK.
+- 发布类型：**patch**
+- **Perf：前后端性能优化冲刺。**
+  - **CSS code-split**：5 个 tab CSS 文件（85 KB）从全局 `styles.css` 移至懒加载组件导入。Shell CSS 从 247 KB 降至 162 KB。
+  - **TodayTab code-split**：改用 `React.lazy()`，主 chunk 从 314 KB 降至 124 KB。
+  - **Vendor splitting**：`vite.config.js` 中 `manualChunks` 分离 react/react-dom 至 `vendor.js`（141 KB），利于长期缓存。
+  - **Clock state 下沉**：30 秒 `now` 定时器从 `App.jsx` 移入 TodayTab，消除非 Today tab 时的全树 re-render。
+  - **Browse warmup 延迟**：预热请求仅在 Browse tab 激活时发起；轮询间隔 15s → 120s。
+  - **Server Cache-Control**：用户作用域 GET 端点添加 `Cache-Control: private, no-store`。
+  - **i18n 拆分**：665 行 `i18n.js` 拆分为 `src/locales/en.js` 和 `src/locales/zh.js`。
+  - **`getRepo()` 单例化**、**`fetchApi` 快速路径**、**CORS 白名单 `Set.has()` O(1) 匹配**。
+  - 测试套件：103/103 文件通过、599/599 测试通过。
+
+---
 
 ## 10.5.1 (2026-03-25)
 
-- Release type: patch
-- **Refactor: decompose monolithic landing page into maintainable component architecture.**
-  - `App.jsx` reduced from 804 lines to 44 lines — now a pure orchestrator composing 10 section components via props.
-  - New `data/index.js` (299 lines): all 7 content arrays (pricing plans, FAQs, action cards, testimonials, credits, legal) extracted as named exports.
-  - New `hooks/useStatementFan.js` (86 lines): ResizeObserver-driven card fan scaling extracted as a reusable hook.
-  - New `components/` directory: `Header`, `HeroSection`, `StatementSection`, `ProofSection`, `AskSection`, `PricingSection`, `FaqSection`, `VoicesSection`, `DistributionSection`, `LegalFooter`.
-  - `styles.css` (3,697 lines) split into 12 ordered CSS modules under `styles/` (base, header, hero, statement, proof, ask, pricing, faq, voices, distribution, legal, animations); each section's responsive `@media` rules co-located with its styles.
-  - `styles.css` replaced with 12-line `@import` hub, matching the main app's CSS architecture pattern.
-  - Zero visual regression: build output CSS 52.70 KB, JS 164.08 KB, build time unchanged.
+- 发布类型：**patch**
+- **Refactor：落地页分解为可维护的组件架构。**
+  - `App.jsx` 从 804 行缩减至 44 行 —— 纯编排器。
+  - 新增 `data/index.js`（299 行）：7 个内容数组提取为命名导出。
+  - 新增 `hooks/useStatementFan.js`（86 行）：ResizeObserver 驱动的卡片扇缩放。
+  - 新增 `components/` 目录：10 个 section 组件。
+  - `styles.css`（3,697 行）拆分为 `styles/` 下 12 个有序 CSS 模块。
+  - 零视觉回归。
+
+---
 
 ## 10.5.0 (2026-03-25)
 
-- Release type: minor
-- **Docs: add professional-grade product document for external review.**
-  - New `docs/CURRENT_PRODUCT_DOCUMENT_ZH.md` (436 lines): a comprehensive current-stage product document written for professional reviewers, advisors, and institutional evaluators.
-  - Covers execution summary, product boundary definition, target user fit matrix, 8 existing capability areas (user app, holdings, decision engine, execution/reconciliation, AI assistant, research/evidence, Alpha lifecycle, admin backend), a truth-vs-experiment assessment table, P0/P1/P2 feature gap priorities, a three-phase roadmap (credibility → governance → controlled expansion), and explicit feedback questions for reviewers.
-  - Includes quantified codebase anchors: 15 API route groups, 6 admin pages, 17 Tab pages, 102 test files.
-- **Feat: build art-directed mobile-first landing page as an independent deploy unit.**
-  - New `landing/` sub-project: Vite + React scaffold with independent `package.json`, `vercel.json`, and `vite.config.js` for standalone Vercel deployment.
-  - Full art-directed page (711 lines JSX, 3,125 lines hand-crafted CSS) with 8 sections: glassmorphism header, Warhol-tone hero with halftone visual patterns, interactive action card stack (5 cards with CSS-variable-driven fan layout and `is-selected` state), Marvix architecture flow diagram, Ask Nova showcase, 4-tier pricing board (Free/Lite/Pro/Ultra), FAQ accordion, first-reactions testimonials, distribution credits, and full legal footer with regulatory disclaimers.
-  - 6 brand assets added: `nova-logo.png`, `ask-nova-shot.jpg`, 4 product screen captures (`today-screen.png`, `nova-screen.png`, `browse-screen.png`, `menu-screen.png`).
-  - All content is data-driven (pricing plans, FAQs, action cards, testimonials defined as JS arrays), semantic HTML (`<article>`, `<section>`, `<nav>`, `<blockquote>`, `<cite>`, `<details>`), and accessible (`aria-label`, `aria-pressed`).
-  - Mobile-first responsive design with layered `@media` breakpoints (e.g. 520px, 760px, 900px, 1100px, and sub-375px refinements); see follow-up fix entry below for statement fan, pricing, distribution, and motion.
-- **Fix: landing page narrow-viewport layout, distribution copy, and motion preferences (`landing/`).**
-  - **Statement / action-card fan:** `ResizeObserver` drives fit-to-width scaling; transform uses scale only (no horizontal translate drift); at ≤1100px the stack viewport goes full-bleed (`100vw`) with safe-area horizontal padding so layout math matches real device width.
-  - **Pricing:** small screens use a 2×2 board; card titles stay on one line where needed (`nowrap` / ellipsis); typography tuned per breakpoint.
-  - **Distribution:** headline and story blocks no longer clip to an overly tight `ch`-based max width on small screens; copy/lead/context use full available width. **Credits** list spans the full grid row at ≤1100px (`grid-column: 1 / -1`, `min-width: 0`, `justify-self: stretch`); at ≤900px credits switch to a **single column** so names and roles use the full content width (avoids a “one narrow column + empty grid” look next to the page background grid).
-  - **Other sections:** additional mobile passes for ribbon, proof, ask, FAQ, voices, and legal (spacing, type, touch targets where relevant).
-  - **Accessibility:** `prefers-reduced-motion: reduce` trims transitions (e.g. FAQ disclosure) for users who request reduced motion.
-- **Chore: restructure domain layout from 4-part to 5-part deployment.**
-  - Root domain `novaquant.cloud` now serves the landing page; main app moves to `app.novaquant.cloud`.
-  - CORS default whitelist in `src/server/api/app.ts` updated to include both `app.novaquant.cloud` (primary) and `novaquant.cloud` (backward-compatible).
-  - Password reset email link (`src/server/auth/resetEmail.ts`) and invite link (`src/components/MenuTab.jsx`) updated to new app subdomain.
-  - All landing page CTAs (sign up, Get started, Open NovaQuant, pricing cards) point to `app.novaquant.cloud`.
-  - 4 test files updated with new CORS origin assertions (`apiCors.test.ts`, `apiIndexRoute.test.ts`, `passwordResetApi.test.ts`, `signupWelcomeApi.test.ts`).
-  - 5 documentation files updated: `README.md`, `admin/README.md`, `architecture.md`, `docs/REPOSITORY_OVERVIEW.md`, `server/README.md`.
-  - `.env.example` updated: `NOVA_APP_ALLOWED_ORIGINS` and `NOVA_APP_URL` examples reflect new subdomain.
-- **Fix: refine landing page header glassmorphism.**
-  - Add `background-clip: padding-box` and `clip-path: inset(0 round 999px)` to prevent gradient bleed past pill border-radius.
-  - Tune `::before` pseudo-element inset, height, opacity, and radial-gradient parameters for cleaner glass reflections without corner artifacts.
-- **Fix: correct "Distrbution" → "Distribution" typo in landing page navigation.**
-- **Fix: sync `.env` CORS origins with domain restructure.**
-  - `NOVA_APP_ALLOWED_ORIGINS` in `.env` was still `https://novaquant.cloud` only; added `https://app.novaquant.cloud` as primary origin. Resolved 3 CORS test failures (`apiCors.test.ts`, `apiIndexRoute.test.ts`).
-- **Fix: harden `executionGovernance.test.ts` fetch mock for Node.js 25.**
-  - Root cause: `vi.spyOn(globalThis, 'fetch')` cannot intercept Node.js 25's built-in `fetch` (non-configurable property). Replaced with direct `globalThis.fetch = vi.fn()` assignment with save/restore in `afterEach`.
-  - Added `mockImplementation(defaultResponse)` fallback so extra fetch calls from `fetchWithRetry` don't crash with `undefined`.
-  - Added `vi.stubEnv` for `ALPACA_API_KEY` and `ALPACA_API_SECRET` in `beforeEach` for proper env isolation.
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**minor**（新功能）
+- **Docs：新增面向外部审阅的专业产品文档。**
+  - 新增 `docs/CURRENT_PRODUCT_DOCUMENT_ZH.md`（436 行）：面向专业审阅者的当前阶段产品文档。
+- **Feat：构建品牌落地页作为独立部署单元。**
+  - 新增 `landing/` 子项目：Vite + React，独立 `package.json`、`vercel.json`。711 行 JSX、3,125 行手工 CSS，8 个 section。6 个品牌素材。
+- **Fix：落地页窄视口布局、Distribution 文案和动效偏好。**
+  - Statement 卡片扇 `ResizeObserver` 驱动 fit-to-width 缩放。Pricing 小屏 2×2 网格。Distribution credits CSS subgrid 对齐。`prefers-reduced-motion` 支持。
+- **Chore：域名布局从 4 段重构为 5 段部署。**
+  - `novaquant.cloud` 现服务落地页；主应用迁至 `app.novaquant.cloud`。CORS 白名单、密码重置链接、邀请链接同步更新。
+- **Fix：落地页 header 玻璃拟态渐变泄露修复。**
+- **Fix："Distrbution" → "Distribution" 拼写修正。**
+- **Fix：`.env` CORS origins 与域名重构同步。**
+- **Fix：Node.js 25 下 `executionGovernance.test.ts` fetch mock 加固。**
+
+---
 
 ## 10.4.3 (2026-03-24)
 
-- Release type: patch
-- **Feat: Today tab viewport-fit layout — single-screen, no-scroll homepage.**
-  - All Today tab content (header, climate strip, action card carousel, summary grid) now fits within a single viewport on all iPhone sizes (SE 375×667 through 14 Pro Max 430×932) without vertical scrolling.
-  - CSS-only implementation using `dvh` units and `clamp()` for proportional scaling of padding, gaps, font sizes, and component heights based on viewport height.
-  - Action card dynamically fills available space between climate strip and summary grid via `flex: 1` + `justify-content: space-between`.
-  - Summary cards (Why now / Keep in mind) pinned just above the tab bar.
-  - Stats grid forced to 3-column layout, action buttons remain side-by-side on all screen sizes.
-  - Fix `line-clamp` vendor prefix lint warnings by adding standard `line-clamp` property.
-  - Transparent main content background to eliminate visible container rectangle behind cards.
+- 发布类型：**patch**
+- **Feat：Today tab 视口适配布局 —— 单屏无滚动首页。**
+  - 全部 Today tab 内容适配单一视口（iPhone SE 至 14 Pro Max），使用 `dvh` + `clamp()` 按视口高度比例缩放。
+
+---
 
 ## 10.4.2 (2026-03-24)
 
-- Release type: patch
-- **Fix: resolve flaky `controlPlaneStatus.test.ts` race condition.**
-  - Root cause: `baseTs` random offset of only 10,000 ms allowed parallel test workers' `workflow_runs` to collide in `ORDER BY updated_at_ms DESC LIMIT 6` queries.
-  - Fix: move base epoch from year 2099 to year 2199 and widen random range from 10K to 1B ms. Verified with 5/5 consecutive runs.
-- **Refactor: decompose `src/App.jsx` (2,150 → 955 lines, -56%).**
-  - New `src/hooks/useAuth.js` (397 lines): full auth lifecycle — login, signup, password reset, session hydration, profile sync, logout.
-  - New `src/hooks/useAppData.js` (218 lines): 11-endpoint parallel data loading, 2-minute auto-refresh, `FORCE_DEMO_BUILD` local pipeline fallback.
-  - New `src/hooks/useEngagement.js` (371 lines): engagement state, discipline tracking, morning check, boundary, wrap-up, weekly review, execution recording, VIP redemption.
-  - New `src/hooks/useInvestorDemo.js` (189 lines): investor demo mode, holdings source composition, connected holdings derivation.
-  - New `src/hooks/useNavigation.js` (106 lines): tab/stack navigation, My-tab routing, AI seed requests, cross-tab navigation.
-  - New `src/config/appConstants.js` (163 lines): `MENU_PARENTS`, `DEMO_MANUAL_STATE`, `MY_SECTION_LIST`, `initialData`, `buildTabMeta`, `buildMenuTitles`.
-  - New `src/components/icons/TabBarIcon.jsx` (69 lines): tab bar SVG icon component.
-  - New `src/components/icons/TopBarMenuGlyph.jsx` (27 lines): menu hamburger SVG component.
-  - `App.jsx` is now a thin orchestrator: hook composition + render tree + top bar + tab bar + modals.
-- **Refactor: modularize `src/styles.css` (16,813 → 12 domain modules).**
-  - New `src/styles/` directory with 12 chronologically-ordered CSS modules: `base.css` (2,767), `mobile-ux.css` (878), `interaction-system.css` (1,078), `consumer-layer.css` (1,105), `ai-chat.css` (182), `today-redesign.css` (1,217), `ai-rebuild.css` (389), `robinhood-surfaces.css` (953), `today-final.css` (979), `holdings.css` (3,248), `polish.css` (1,687), `corrections.css` (2,330).
-  - `src/styles.css` reduced to 22 lines of ordered `@import` statements.
-  - CSS output unchanged at 242.98 kB (zero visual regression).
-- Zero logic changes across all three refactors. `npm run verify` passes: lint ✓, typecheck ✓, 102/102 test files ✓, 591/591 tests ✓, build ✓.
-- Update version metadata to 10.4.2 (build 63).
+- 发布类型：**patch**
+- **Fix：修复 `controlPlaneStatus.test.ts` 竞态条件。**
+- **Refactor：分解 `src/App.jsx`（2,150 → 955 行，-56%）。**
+  - 新增 5 个 hooks：`useAuth.js`（397 行）、`useAppData.js`（218 行）、`useEngagement.js`（371 行）、`useInvestorDemo.js`（189 行）、`useNavigation.js`（106 行）。
+  - 新增 `appConstants.js`（163 行）、`TabBarIcon.jsx`、`TopBarMenuGlyph.jsx`。
+- **Refactor：模块化 `src/styles.css`（16,813 行 → 12 个领域模块）。**
+- 测试套件：102/102 文件通过、591/591 测试通过。
+
+---
 
 ## 10.4.1 (2026-03-24)
 
-- Release type: patch
-- **Refactor: extract inline pages and utilities from `src/App.jsx` (3,088 -> 2,149 lines, -30%).**
-  - New `src/utils/date.js`: 7 date utility functions (`pad`, `localDateKey`, `keyToDate`, `shiftDateKey`, `weekStartKey`, `addUniqueKey`, `calcStreak`).
-  - New `src/utils/appHelpers.js`: 7 app-level utilities (`normalizeEmail`, `isLocalAuthRuntime`, `classifyAuthError`, `detectDisplayMode`, `settledValue`, `mapExecutionToTrade`, `runWhenIdle`).
-  - New `src/components/DataStatusTab.jsx`: data freshness/coverage status page (was inline `renderDataStatus()`).
-  - New `src/components/LearningLoopTab.jsx`: learning loop / flywheel status page (was inline `renderLearningStatus()`).
-  - New `src/components/SettingsTab.jsx`: settings page (was inline `renderSettings()`).
-  - New `src/components/DisciplineTab.jsx`: discipline tracking page (was inline in `renderMenuSection()`).
-  - Deduplicate `baseContext` construction: unified into a single `useMemo`, used by both `askAi()` and `<AiPage>`.
-  - All 4 new components are code-split via `React.lazy()`. UX note: first visit to Data Status, Learning Loop, Settings, and Discipline pages now shows a brief Skeleton loading state (previously rendered inline/synchronously). No business logic changes. 102/102 test files, 591/591 tests pass. Build OK.
-- Update version metadata to 10.4.1 (build 62) in `package.json`, `src/config/version.js`, and `README.md`.
+- 发布类型：**patch**
+- **Refactor：从 `App.jsx` 提取内联页面和工具函数（3,088 → 2,149 行，-30%）。**
+  - 新增 `date.js`（7 个日期工具函数）、`appHelpers.js`（7 个应用工具函数）。
+  - 新增 4 个组件：`DataStatusTab`、`LearningLoopTab`、`SettingsTab`、`DisciplineTab`，均通过 `React.lazy()` code-split。
+
+---
 
 ## 10.4.0 (2026-03-24)
 
-- Release type: minor
-- **Refactor: split `src/server/api/app.ts` (2,071 lines / 91 routes) into 15 domain-specific Express Router files + shared helpers.**
-  - New `src/server/api/helpers.ts`: shared parsers (`parseMarket`, `parseTimeframe`, `parseAssetClass`, `parseSignalStatus`), `asyncRoute` wrapper, session/auth scope utilities.
-  - New `src/server/api/routes/`: `auth.ts` (8), `admin.ts` (11), `browse.ts` (6), `signals.ts` (3), `market.ts` (6), `decision.ts` (2), `engagement.ts` (9), `execution.ts` (7), `research.ts` (22), `evidence.ts` (7), `nova.ts` (7), `chat.ts` (4), `connect.ts` (6), `manual.ts` (4), `runtime.ts` (5).
-  - `app.ts` reduced to ~210 lines: middleware (JSON, CORS, session scope), 2 special routes (`/healthz`, `/api/internal/marvix/ops`), 15 router mounts, error handler.
-  - Zero logic changes. All 102 test files and 591 tests pass. Lint, typecheck, format, build all green.
+- 发布类型：**minor**（新功能）
+- **Refactor：拆分 `app.ts`（2,071 行 / 91 路由）为 15 个领域 Express Router 文件 + 共享 helpers。**
+  - `app.ts` 缩减至约 210 行：中间件、2 个特殊路由、15 个 router 挂载、错误处理器。
+  - 零逻辑变更。102/102 文件通过、591/591 测试通过。
+
+---
 
 ## 10.3.5 (2026-03-24)
 
-- Release type: patch
-- Add GitHub Actions CI workflow (`.github/workflows/ci.yml`). Runs on push to `main` and all PRs: lint (repo policy) -> format check -> typecheck -> test -> build. Uses Node.js 22 with npm cache. Tests run with `--retry 2` to handle parallel-worker data races in SQLite.
-- Improve flaky test diagnostics: `executionGovernance.test.ts` now logs the full `submitExecution` response on failure; `controlPlaneStatus.test.ts` now logs available workflow IDs when `.find()` misses.
+- 发布类型：**patch**
+- 添加 GitHub Actions CI 工作流（`.github/workflows/ci.yml`）：push to `main` 和所有 PR 触发 lint → format check → typecheck → test → build。
+- 改进 flaky 测试诊断：`executionGovernance.test.ts` 和 `controlPlaneStatus.test.ts` 失败时记录完整响应。
 
 ## 10.3.4 (2026-03-24)
 
-- Release type: patch
-- Apply Prettier formatting across the entire codebase (490 files). Enforces consistent 2-space indent, single quotes, trailing commas per `.prettierrc`. No logic changes; all 102 test files and 591 tests pass. Future edits are auto-formatted by the PostToolUse hook.
+- 发布类型：**patch**
+- 全代码库 Prettier 格式化（490 个文件）。统一 2 空格缩进、单引号、尾逗号。无逻辑变更。
+
+---
 
 ## 10.3.3 (2026-03-24)
 
-- Release type: patch
-- Fix 12 pre-existing TypeScript strict-mode errors across 4 test files; `tsc --noEmit` now passes cleanly.
-  - `tests/riskGovernorEdgeCases.test.ts`: add `as const` to `asset_class` literal in `makeHolding` helper to satisfy `AssetClass` union type (resolves 10 errors).
-  - `tests/controlPlaneStatus.test.ts`: add non-null assertion on `recentNewsItem` after `.find()` (TS18048).
-  - `tests/decisionEngineEdgeCases.test.ts`: add 8 missing required `MarketStateRecord` properties (`market`, `symbol`, `timeframe`, `snapshot_ts_ms`, `temperature_percentile`, `event_stats_json`, `assumptions_json`, `updated_at_ms`) to `makeMarketState` helper; `market` uses `as const` for `Market` union (TS2740).
-  - `tests/massiveIngestion.test.ts`: use double-cast `as unknown as Record<string, unknown>` for test-only `delete` operation (TS2352).
-- Test suite: 102/102 files pass, 591/591 tests pass (unchanged).
+- 发布类型：**patch**
+- 修复 4 个测试文件中的 12 个预存 TypeScript strict-mode 错误；`tsc --noEmit` 通过。
+
+---
 
 ## 10.3.2 (2026-03-24)
 
-- Release type: patch
-- Add `CLAUDE.md` project instructions for Claude Code: build commands, code style, testing guidelines, commit conventions, environment setup.
-- Add Prettier (`.prettierrc`, `.prettierignore`) with 2-space indent, single quotes, trailing commas to match existing codebase style. New `format` and `format:check` npm scripts.
-- Add `.claude/settings.json` with two PostToolUse hooks: auto-format via Prettier on Write/Edit, and per-file typecheck feedback on `.ts/.tsx` edits.
-- Add `.claude/skills/verify/SKILL.md`: on-demand `/verify` skill that runs the full lint+typecheck+test+build gate.
-- Add `.claude/skills/dev/SKILL.md`: on-demand `/dev` skill with prerequisites checklist for starting the local development stack.
+- 发布类型：**patch**
+- 添加 `CLAUDE.md` 项目指引：构建命令、代码风格、测试指南、提交约定、环境设置。
+- 新增 Prettier 配置（`.prettierrc`、`.prettierignore`），`format` 和 `format:check` npm 脚本。
+- 新增 `.claude/settings.json`：PostToolUse hooks（写入时自动格式化、`.ts/.tsx` 编辑时 typecheck 反馈）。
+- 新增 `.claude/skills/verify/SKILL.md` 和 `.claude/skills/dev/SKILL.md`。
+
+---
 
 ## 10.3.1 (2026-03-24)
 
-- Release type: patch
-- Create `architecture.md` at project root: comprehensive 18-section architecture overview generated from full codebase scan, covering monorepo topology, tech stack, directory structure, data flow pipeline, all 38 backend modules, 29 frontend components, 11 quant engines, data ingestion connectors, Alpha discovery system, Marvix LLM runtime, admin dashboard, database architecture, deployment, testing, environment variables, and documentation index.
-- Audit 10 key documentation files against current codebase and update 5 that were outdated:
-  - `docs/SYSTEM_ARCHITECTURE.md`: add Massive.com as primary ingestion source, Auth layer (Postgres/Redis/SQLite), Holdings Import, News layer (provider + Gemini factor extraction), and Admin/LiveOps layer.
-  - `docs/RUNTIME_DATA_LINEAGE.md`: add Massive.com as primary API for US+Crypto, Postgres auth store lineage, holdings import lineage, Binance derivatives connector, and normalization pipeline.
-  - `docs/REPO_RUNBOOK.md`: add `MASSIVE_API_KEY` and `DATABASE_URL` to prerequisites, new Postgres auth section with migration command, fix quality gates to `npm test` + `npm run verify`.
-  - `docs/TECHNICAL_DUE_DILIGENCE_GUIDE.md`: add Massive.com, Postgres auth store, and holdings import to "What Is Real" section; update honest limitations to reference Massive API key dependency.
-  - `docs/MARVIX_SYSTEM_ARCHITECTURE.md`: add Massive.com REST API as primary data source ahead of legacy Stooq/Binance fallbacks.
-- 5 docs confirmed accurate and unchanged: `NOVA_ASSISTANT_ARCHITECTURE.md`, `DECISION_ENGINE.md`, `ENGAGEMENT_SYSTEM.md`, `REPOSITORY_OVERVIEW.md`, `VERSIONING.md`.
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**patch**
+- 在项目根创建 `architecture.md`：18 章架构概览，覆盖 monorepo 拓扑、技术栈、目录结构、数据流管线、38 个后端模块、29 个前端组件、11 个量化引擎等。
+- 审计 10 个关键文档并更新 5 个过时文件（`SYSTEM_ARCHITECTURE.md`、`RUNTIME_DATA_LINEAGE.md`、`REPO_RUNBOOK.md`、`TECHNICAL_DUE_DILIGENCE_GUIDE.md`、`MARVIX_SYSTEM_ARCHITECTURE.md`）。
+
+---
 
 ## 10.3.0 (2026-03-24)
 
-- Release type: minor
-- Integrate Massive.com (formerly Polygon.io) REST API as a new data source for US equities and crypto OHLCV bars.
-- New `src/server/ingestion/massive.ts`: implements `backfillMassiveStocks` and `backfillMassiveCrypto` with v2 aggregates endpoint, built-in pagination via `next_url`, 429 rate-limit handling (15s backoff), network timeout retry with exponential backoff, and Binance→Massive crypto symbol conversion (`BTCUSDT` → `X:BTCUSD`).
-- Add `massive` configuration block to `AppConfig` type and `config.ts` defaults: `MASSIVE_API_KEY` env var, 12s rate-limit delay (Basic tier), 365-day default lookback, 3 retry attempts.
-- Add `MASSIVE_API_KEY` placeholder to `.env` and `.env.example`.
-- New `tests/massiveIngestion.test.ts` (34 tests): pure function tests (mapTimeframe, convertCryptoSymbol, massiveBarToNormalized with decimal precision), fetchMassiveAggs integration tests (happy path, empty results, undefined results, pagination, 429 retry, 403/401/500/503 error handling, network timeout, invalid JSON, apiKey injection on next_url), backfill graceful skip tests, and full data pipeline round-trip tests (stock/crypto fetch→normalize→upsert→getOhlcv, upsert idempotency, upsert overwrite, getLatestTsOpen).
-- New `scripts/massive-smoke-test.ts` (38 real-API assertions): multi-ticker validation (AAPL, SPY, MSFT, X:BTCUSD, X:ETHUSD), OHLC data integrity invariants (high≥all, low≤all, volume≥0), time continuity checks (sorted, no duplicates, no gap anomalies), invalid ticker handling, and complete DB round-trip verification via getOhlcv/getLatestTsOpen/getOhlcvStats with idempotency proof.
-- Test suite: 102/102 files pass, 591/591 tests pass (up from 101/101 files and 557/557 tests).
+- 发布类型：**minor**（新功能）
+- **Feat：集成 Massive.com REST API 作为美股和加密 OHLCV 新数据源。**
+  - 新增 `massive.ts`：`backfillMassiveStocks` / `backfillMassiveCrypto`，含 v2 聚合端点、分页、429 限速处理（15s 退避）、超时重试指数退避。
+  - 新增 `massiveIngestion.test.ts`（34 测试）、`massive-smoke-test.ts`（38 真实 API 断言）。
+  - 测试套件：102/102 文件通过、591/591 测试通过（之前 101/557）。
+
+---
 
 ## 10.2.4 (2026-03-24)
 
-- Release type: patch
-- Add 82 high-quality tests across 4 new test files targeting weak-coverage pure-logic modules and the manual (loyalty/gamification) service.
-- New `timeUtilsEdgeCases.test.ts` (27 tests): `timeframeToMs` for all 5 timeframes + unsupported throw, `toMsUtc` with number/Date/ISO/numeric-string/invalid-throw, `isoToMs` edge cases, `floorToTimeframe` alignment, `monthRange` including year boundaries and reversed ranges, `dayRange` with month boundaries and zero-count.
-- New `multiAssetSchemaEdgeCases.test.ts` (27 tests): constant enums (ASSET_CLASS, DATA_STATUS, FREQUENCY), REQUIRED_FIELDS contract for all 8 entity types, `buildProvenance` field mapping, `createAssetId` format, `safeNumber` for NaN/Infinity/null/undefined, `toIsoDate` extraction, `toIsoTimestamp` with/without timezone.
-- New `confidenceCalibrationEdgeCases.test.ts` (10 tests): empty-history calibrator summary, full signal calibration field contract, confidence clamping [0.01-0.99], calibrated range [0.18-0.94], monotonicity with no history, execution history with 12/24 samples, filter logic (DONE/CLOSE only, missing signal skip).
-- New `manualServiceEdgeCases.test.ts` (19 tests): guest auth guards (5 variants), default dashboard shape (summary/referrals/rewards/rules/ledger), FK-guard for non-existent users, VIP redemption guards, referral claim guards (empty code, invalid code), prediction entry guards (empty marketId/selectedOption, non-existent market).
-- Fix pre-existing flaky `controlPlaneStatus.test.ts`: replaced `[0]` index-based assertions with `.find()` lookups by unique symbol/market. Root cause: parallel tests seed competing workflow runs and news items that shift ordering in `ORDER BY updated_at_ms DESC LIMIT 6` results, pushing seeded data out of position `[0]`.
-- Test suite: 101/101 files pass, 557/557 tests pass (up from 97/97 files and 475/475 tests).
+- 发布类型：**patch**
+- 新增 82 个高质量测试，覆盖 4 个新测试文件：`timeUtilsEdgeCases.test.ts`（27）、`multiAssetSchemaEdgeCases.test.ts`（27）、`confidenceCalibrationEdgeCases.test.ts`（10）、`manualServiceEdgeCases.test.ts`（19）。
+- 修复 `controlPlaneStatus.test.ts` flaky 问题：索引断言改为 `.find()` 查找。
+- 测试套件：101/101 文件通过、557/557 测试通过（之前 97/475）。
+
+---
 
 ## 10.2.3 (2026-03-24)
 
-- Release type: patch
-- Add 63 high-quality tests across 4 new test files targeting server-side decision logic, risk governance, strategy orchestration, and broker/exchange connectivity.
-- New `riskGovernorEdgeCases.test.ts` (27 tests): all 8 overlay conditions (risk_off_kill_switch, macro_derisk, caution_size_cut, budget_exhausted, budget_thin, same_symbol_block/taper, sector_concentration, loss_streak_kill_switch/recovery, short_asymmetry_haircut, low_calibrated_confidence), compound multiplier stacking, edge cases (empty marketState, null riskProfile).
-- New `strategyTemplatesEdgeCases.test.ts` (17 tests): 9-template catalog completeness, required field contracts, `resolveStrategyId` resolution via strategy_id / SYMBOL_TO_STRATEGY map / asset_class fallback / market fallback, `buildSignalExplanation` line count and content.
-- New `decisionEngineEdgeCases.test.ts` (16 tests): output contract (today_call, risk_state, portfolio_context, summary), action card ranking, publication status, governor integration, edge cases (zero signals, empty marketState, null riskProfile, INSUFFICIENT_DATA), today_call code classification under high risk-off and healthy regime.
-- New `connectAdaptersEdgeCases.test.ts` (15 tests): Alpaca/Binance credential detection (NO_CREDENTIALS, UNSUPPORTED_PROVIDER), trading flag enforcement, order validation (missing orderId, missing credentials), snapshot structure contracts, timestamp validity.
-- Test suite: 97/97 files pass, 475/475 tests pass (up from 93/93 files and 412/412 tests).
+- 发布类型：**patch**
+- 新增 63 个高质量测试，覆盖 4 个新测试文件：`riskGovernorEdgeCases.test.ts`（27）、`strategyTemplatesEdgeCases.test.ts`（17）、`decisionEngineEdgeCases.test.ts`（16）、`connectAdaptersEdgeCases.test.ts`（15）。
+- 测试套件：97/97 文件通过、475/475 测试通过（之前 93/412）。
+
+---
 
 ## 10.2.2 (2026-03-24)
 
-- Release type: patch
-- Add 72 high-quality tests across 5 new test files targeting remaining untested engine modules.
-- New `regimeEngineEdgeCases.test.ts` (9 tests): RISK_ON / NEUTRAL / RISK_OFF classification boundaries, cross-market risk snapshot clamping, primary snapshot selection, output contract verification.
-- New `velocityEngineEdgeCases.test.ts` (14 tests): deterministic synthetic series generation, velocity array invariants (length, bounds, acceleration[0]=0), event study validation, BTC-USDT primary key resolution, custom featureSeries support.
-- New `performanceEngineEdgeCases.test.ts` (11 tests): trade metrics for zero/all-winners/all-losers/mixed, attribution grouping by strategy_id and regime_id, backtest-live deviation decomposition, 3M vs ALL range filtering.
-- New `funnelEngineEdgeCases.test.ts` (19 tests): all 13 rejection reason codes (regime_blocked, score_too_low, risk_budget_exhausted, cost_too_high, etc.), funnel counter pipeline, aggregation by market/strategy, no-trade ranking with share sums, shadow opportunity log cap and near-miss inclusion.
-- New `riskGuardrailEdgeCases.test.ts` (19 tests): mega_tech / crypto_core / single_name theme classification, correlation cluster alert thresholds (MEDIUM vs HIGH severity), regime mismatch warnings, STAY_OUT / REDUCE / TRADE_OK recommendation state machine, portfolio risk budget arithmetic, signal annotation propagation.
-- Fix P1 flaky `novaLocalStack` test: "bypasses local Nova in Vercel runtime" always failed in parallel because `getDecisionSnapshot` took the `shouldUsePublicDecisionFallback` early-return when `signalCount=0 && runtimeStatus=INSUFFICIENT_DATA && no holdings`. The public fallback skips `applyLocalNovaDecisionLanguage` entirely, so `summary.nova_local` was never set. Fixed by sending `holdings` in the test POST and stubbing 5 cloud API env vars (`OPENAI_API_KEY`, `NOVA_CLOUD_API_KEY`, `OPENAI_BASE_URL`, `NOVA_CLOUD_OPENAI_BASE_URL`, `NOVA_PREFER_CLOUD`) to force deterministic-fallback mode.
-- Test suite: 93/93 files pass, 412/412 tests pass (up from 88/88 files and 340/340 tests).
+- 发布类型：**patch**
+- 新增 72 个高质量测试，覆盖 5 个新测试文件：`regimeEngineEdgeCases.test.ts`（9）、`velocityEngineEdgeCases.test.ts`（14）、`performanceEngineEdgeCases.test.ts`（11）、`funnelEngineEdgeCases.test.ts`（19）、`riskGuardrailEdgeCases.test.ts`（19）。
+- 修复 P1 flaky `novaLocalStack` 测试：public fallback 跳过 `applyLocalNovaDecisionLanguage`，导致 `summary.nova_local` 未设置。修复方式：发送 `holdings` 并 stub 5 个 cloud API 环境变量。
+- 测试套件：93/93 文件通过、412/412 测试通过（之前 88/340）。
+
+---
 
 ## 10.2.1 (2026-03-24)
 
-- Release type: patch
-- Add 131 high-quality tests across 5 new test files targeting core financial calculation engines and business logic edge cases.
-- New `riskEngineDeep.test.ts` (17 tests): position sizing with NaN/zero/tiny stops, risk bucket state machine transitions, daily-loss and max-drawdown circuit breakers.
-- New `signalEngineScoring.test.ts` (16 tests): signal scoring under TREND vs RISK_OFF regimes, expected R for LONG/SHORT, direction-conflict muting, time-based expiry, crypto vs US cost model differences.
-- New `mathEdgeCases.test.ts` (35 tests): boundary conditions for all 13 math utility functions including stdDev with constants, correlation with identical arrays, maxDrawdown scenarios, and round with non-finite inputs.
-- New `tradeIntentEdgeCases.test.ts` (20 tests): defensive handling of empty/undefined signals, stop_loss resolution chain (object → value → invalidation → numeric), legacy take_profit fallback, i18n handoff labels, AI prompt generation.
-- New `holdingsSourceDeep.test.ts` (27 tests): portfolio weight rebalancing (sums to 100%), merge/dedup by market:class:symbol key, live-over-manual priority, all 7 summarizeHoldingsSource status classifications, and crypto symbol inference.
-- Fix P1 NaN propagation in `math.js`: `round(NaN)` returned NaN instead of 0 because `Math.round(NaN * scale)` is NaN. Added `Number.isFinite()` guard so non-finite inputs (NaN, Infinity, undefined) return 0, preventing silent corruption in position sizing and signal scoring.
-- Fix P1 DERISKED bucket multiplier ineffective in `riskEngine.js`: `computePositionPct()` applied `bucketMultiplier` only to `rawPct` but not to `perSignalCap`. With tight stops, both BASE and DERISKED clamped to the same cap ceiling, making the risk bucket meaningless. Now `perSignalCap` is also scaled by `bucketMultiplier`, ensuring DERISKED always constrains positions.
-- Fix P2 Postgres auth driver leaking into tests: `adminDataApi.test.ts` and `novaLocalStack.test.ts` stubbed KV/Redis env vars but not `NOVA_AUTH_DRIVER`/`SUPABASE_DB_URL`. When `.env` sets `NOVA_AUTH_DRIVER=postgres`, auth service attempted remote Supabase connections during tests, causing 500 errors. Added env stubs to force local SQLite auth store.
-- Install missing `pg` package, resolving 14 test file import failures.
-- Test suite: 88/88 files pass, 340/340 tests pass (up from 67/83 files and 180/182 tests).
+- 发布类型：**patch**
+- 新增 131 个高质量测试，覆盖 5 个新测试文件：`riskEngineDeep.test.ts`（17）、`signalEngineScoring.test.ts`（16）、`mathEdgeCases.test.ts`（35）、`tradeIntentEdgeCases.test.ts`（20）、`holdingsSourceDeep.test.ts`（27）。
+- **Fix P1**：`math.js` 中 `round(NaN)` 返回 NaN 而非 0，添加 `Number.isFinite()` 守卫。
+- **Fix P1**：`riskEngine.js` 中 DERISKED bucket 乘数无效 —— `perSignalCap` 未按 `bucketMultiplier` 缩放，现已修复。
+- **Fix P2**：`NOVA_AUTH_DRIVER=postgres` 泄漏进测试环境，添加环境变量 stub 强制使用本地 SQLite。
+- 安装缺失的 `pg` 包，解决 14 个测试文件导入失败。
+- 测试套件：88/88 文件通过、340/340 测试通过（之前 67/83 有效文件、180/182 测试）。
+
+---
 
 ## 10.2.0 (2026-03-24)
 
-- Release type: minor
-- Harden authentication with a full Postgres auth store (`auth_users`, `auth_sessions`, `auth_user_roles`, `auth_password_resets`, `auth_user_state_sync`), session-scoped user middleware, RBAC role system (ADMIN / OPERATOR / SUPPORT), and password reset email flow.
-- Add `asyncRoute()` wrapper to all async Express handlers, fixing the Express 4 unhandled async rejection gap.
-- Add session-based user scope resolution: cookie parsing, `RequestWithNovaScope` middleware, `requireAuthenticatedScope` guard, and guest-user fallback.
-- Add `scripts/migrate-auth-to-postgres.ts` for one-step SQLite → Postgres auth migration.
-- Add admin Research Ops dashboard (`ResearchOpsPage.jsx` + `liveOps.ts`) showing daily workflow runs, data intake counts, Alpha evaluation distribution (PASS / WATCH / REJECT), training status, top backtests, and recent signals with upstream / local-fallback data source switching.
-- Add holdings import system with three data ingestion paths: CSV upload, screenshot (vision-model) upload, and read-only broker/exchange sync.
-- CSV parser (`src/server/holdings/import.ts`) auto-detects delimiter (comma / semicolon / tab), maps common column aliases, infers asset class (US_STOCK / CRYPTO / OPTIONS), and normalizes weight/market-value.
-- Add `src/utils/holdingsSource.js` shared utility for holdings merge, dedup (by market:class:symbol key), and market-value weight calculation.
-- Expand `HoldingsTab.jsx` with CSV/screenshot upload UI, import feedback (success/warning/error), and a "most important next step" priority advice section.
-- Add 6 new test files: `authScopeApi.test.ts`, `passwordResetApi.test.ts`, `signupWelcomeApi.test.ts`, `adminAuthApi.test.ts`, `holdingsImport.test.ts`, `holdingsAnalyzer.test.ts`.
+- 发布类型：**minor**（新功能）
+- **Feat：Postgres 认证存储加固。**
+  - 完整 Postgres 认证存储（`auth_users`、`auth_sessions`、`auth_user_roles`、`auth_password_resets`、`auth_user_state_sync`）、session 作用域用户中间件、RBAC 角色系统（ADMIN / OPERATOR / SUPPORT）、密码重置邮件流。
+  - `asyncRoute()` 包装所有 async Express 处理器。session 作用域解析：cookie 解析、`RequestWithNovaScope` 中间件、`requireAuthenticatedScope` 守卫。
+  - 新增 `migrate-auth-to-postgres.ts` 一键迁移脚本。
+- **Feat：Admin 研究运维面板。**
+  - `ResearchOpsPage.jsx` + `liveOps.ts`：日工作流运行、数据摄入计数、Alpha 评估分布、训练状态。
+- **Feat：持仓导入系统。**
+  - 三条数据路径：CSV 上传、截图（vision-model）上传、只读券商/交易所同步。
+  - CSV 解析器自动检测分隔符，推断资产类别，标准化权重/市值。
+- 新增 6 个测试文件。
+
+---
 
 ## 10.1.3 (2026-03-24)
 
-- Release type: patch
-- Comprehensive code audit and bug fix sprint across 9 server-side modules (~14,000 lines reviewed).
-- Fix P0 API fall-through: POST /api/decision/today with non-empty holdings no longer leaks into createApiApp(), preventing duplicate request processing and inconsistent responses.
-- Fix P0 timer leak: withTimeout() in chat streaming now clears setTimeout handles in a finally block, preventing memory pressure under load.
-- Fix P1 hardcoded options expiry: replace static '2026-06-21' with dynamic computeNearestFridayExpiry() for accurate DTE calculations.
-- Fix P1 FK ordering: move decision_snapshots table creation before recommendation_reviews in schema.ts to satisfy foreign key constraints.
-- Fix P1 signal conflict mutation: resolveConflicts() in signalEngine.js now returns new objects via spread instead of mutating inputs.
-- Fix P2 NaN propagation: add safeNum() guards in signalEngine.js to prevent NaN scores from breaking signal ranking.
-- Fix P2 Date sort: use .getTime() instead of implicit Date subtraction in sort comparator.
-- Fix P2 JSON parse guard: wrap unguarded event_stats_json parse in decision/engine.ts with try-catch.
-- Fix P2 Express error middleware: add global app.use error handler to prevent requests from hanging on unhandled sync errors.
-- Fix P3 locale hardcode: wrapUp.lessons in engagement/engine.ts now respects locale parameter instead of always producing Chinese text.
-- Fix P3 chat history waste: reduce MAX_HISTORY_TURNS from 8 to 4 to match actual historyToProviderMessages usage.
-- Fix P3 auth seed guard: gate ensureSeededUserLocal() with a module-level flag to avoid redundant INSERT on every DB read.
-- Fix pre-existing TS error: add allowBackgroundStrategyRefresh to ensureQuantData parameter type in quant/service.ts.
+- 发布类型：**patch**
+- **全面代码审计与 bug 修复冲刺**（9 个服务端模块，约 14,000 行审查）。
+  - Fix P0：POST `/api/decision/today` 非空持仓时不再穿透至 `createApiApp()`。
+  - Fix P0：`withTimeout()` 在 chat streaming 中现于 `finally` 清除 setTimeout 句柄。
+  - Fix P1：期权到期日从硬编码 `'2026-06-21'` 替换为动态 `computeNearestFridayExpiry()`。
+  - Fix P1：`schema.ts` 中 `decision_snapshots` 表创建顺序调整至 `recommendation_reviews` 前。
+  - Fix P1：`resolveConflicts()` 现返回新对象（spread）而非变异输入。
+  - Fix P2 × 4：NaN 传播守卫、Date 排序 `.getTime()`、JSON parse 守卫、Express 全局错误中间件。
+  - Fix P3 × 3：国际化硬编码、chat 历史轮次 8→4、auth seed 守卫。
+
+---
 
 ## 10.1.2 (2026-03-24)
 
-- Release type: patch
-- Resolve all 11 npm audit vulnerabilities (4 moderate, 7 high) by adding npm overrides for transitive dependencies: undici ^6.24.1, ajv ^8.18.0, minimatch ^10.2.4, path-to-regexp ^8.3.0, esbuild ^0.27.4.
-- Affected parent packages: @vercel/node (undici, ajv, minimatch, path-to-regexp) and vite (esbuild). No breaking changes to direct dependencies.
-- Fix 12 failing tests across 9 test files by adding env isolation (vi.stubEnv) for LLM provider keys (GROQ_API_KEY, GEMINI_API_KEY) and remote auth store credentials (KV_REST_API_URL, KV_REST_API_TOKEN, UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN). Tests now pass consistently with or without .env credentials present.
-- Update apiIndexRoute CORS assertion from GET,OPTIONS to GET,POST,OPTIONS to match current applyPublicCors handler.
-- Fix manual service 500 crash for cloud-only auth users: gracefully handle FOREIGN KEY constraint failure in ensureManualUserState when user exists in remote auth store (Upstash Redis) but not in local SQLite auth_users table. Returns default dashboard instead of crashing.
-- Fix duplicate React key warning in BrowseTab Earnings section: todaySignalSymbols can contain multiple signals for the same symbol (e.g. TSLA, META), causing `signal-${symbol}` key collisions. Added array index to disambiguate.
-- Code-split 10 tab components via React.lazy (AiPage, BrowseTab, HoldingsTab, MarketTab, MenuTab, OnboardingFlow, ProofTab, ResearchTab, RiskTab, SignalsTab, WeeklyReviewTab). Main JS bundle reduced from 717 KB to 331 KB (54% reduction), eliminating Vite chunk size warning. TodayTab remains static for zero-delay first paint.
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**patch**
+- 解决全部 11 个 npm audit 漏洞（4 中危 + 7 高危），通过 npm overrides 修复传递依赖。
+- 修复 12 个因环境变量泄露失败的测试（添加 `vi.stubEnv` 隔离 LLM 和远程认证凭据）。
+- 修复 manual service 500 崩溃：当用户存在于远程认证但不在本地 SQLite 时优雅处理 FK 约束失败。
+- 修复 BrowseTab Earnings 重复 React key 警告。
+- 10 个 tab 组件 `React.lazy` code-split，主 JS bundle 从 717 KB 降至 331 KB（-54%）。
+
+---
 
 ## 10.1.1 (2026-03-23)
 
-- Release type: patch
-- Normalize documentation against the repo: monorepo deploy layout, local dev (npm ci, npm run dev stack), REPOSITORY_OVERVIEW/REPO_RUNBOOK/VERSIONING cross-links.
-- Replace stale absolute-path links in research/copy/decision indexes; clarify api/, admin/, model/ READMEs; align SYSTEM_ARCHITECTURE tabs and TECHNICAL_DUE_DILIGENCE_GUIDE with optional LIVE routing and honest defaults.
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**patch**
+- 标准化文档与 repo 对齐：monorepo 部署布局、本地开发命令、文档交叉链接修正。
+
+---
 
 ## 10.1.0 (2026-03-20)
 
-- Release type: minor
-- Promote execution drift monitoring into research and portfolio governance, and add a unified local dev stack plus richer Browse detail/feed surfaces.
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**minor**（新功能）
+- 将执行漂移监控纳入研究和组合治理；添加统一本地开发栈与更丰富的 Browse 详情/信息流界面。
+
+---
 
 ## 10.0.2 (2026-03-20)
 
-- Release type: patch
-- Surface evidence mode, execution boundary, and risk gate directly in Today and Proof by default.
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**patch**
+- 在 Today 和 Proof 中默认显示 evidence mode、执行边界和风险门控。
+
+---
 
 ## 10.0.1 (2026-03-19)
 
-- Release type: patch
-- Add institutional-readiness gates to strategy governance and make runtime-state API tests independent of sandbox port binding.
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**patch**
+- 为策略治理添加机构就绪门控；runtime-state API 测试脱离 sandbox 端口绑定。
+
+---
 
 ## 10.0.0 (2026-03-19)
 
-- Release type: major
-- Separate live, paper, replay, backtest, and demo evidence modes across the runtime, decision, and proof surfaces.
-- Add confidence calibration, portfolio-level risk governor, and news context to the decision pipeline.
-- Isolate demo mode from the production path so demo state no longer contaminates real user flows.
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**major**（重大变更）
+- 跨运行时、决策和证明界面分离 live/paper/replay/backtest/demo evidence 模式。
+- 添加置信度校准、组合级风控治理器和新闻上下文至决策管线。
+- 隔离 demo 模式与生产路径，防止 demo 状态污染真实用户流。
+
+---
 
 ## 9.4.1 (2026-03-19)
 
-- Release type: patch
-- Isolate demo mode from the production path and add explicit Today/Proof provenance labels and watermarks so live, paper, backtest, and demo evidence do not blur together.
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**patch**
+- 隔离 demo 模式，为 Today/Proof 添加数据来源标签和水印，区分 live/paper/backtest/demo evidence。
+
+---
 
 ## 9.4.0 (2026-03-19)
 
-- Release type: minor
-- Harden the production path by isolating demo mode to a small Menu entry and preventing demo state from syncing into real user flows.
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**minor**（新功能）
+- 将 demo 模式隔离至 Menu 小入口，防止 demo 状态同步至真实用户流。
+
+---
 
 ## 9.3.0 (2026-03-18)
 
-- Release type: minor
-- Make Browse feel closer to Robinhood discovery: search results now open a native asset detail screen, users can add symbols to Watchlist from search, and stock/crypto ranking now prioritizes company and coin-name matches. Also refresh the installed app icon set with the NOVA3 artwork.
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**minor**（新功能）
+- Browse 体验对齐 Robinhood 发现页：搜索结果打开原生资产详情页，可从搜索添加自选，排名优先匹配公司名和币名。更新应用图标为 NOVA3 素材。
+
+---
 
 ## 9.2.1 (2026-03-18)
 
-- Release type: patch
-- Refresh the installed app icon set to use the new NOVA3 artwork for apple-touch-icon and PWA home-screen icons.
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**patch**
+- 更新 PWA 图标为 NOVA3 素材。
+
+---
 
 ## 9.2.0 (2026-03-18)
 
-- Release type: minor
-- Turn Browse into a real market search surface by merging external stock and crypto search providers with the existing live asset pool. Also fail fast when deployed auth cannot reach its remote store and surface a clearer login error.
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**minor**（新功能）
+- Browse 增加真实市场搜索（合并外部股票和加密搜索提供商）。认证无法连接远程存储时 fail fast 并显示清晰错误。
+
+---
 
 ## 9.1.1 (2026-03-18)
 
-- Release type: patch
-- Fail fast when deployed auth cannot reach the remote session store and surface a clearer login error.
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**patch**
+- 认证无法连接远程 session 存储时 fail fast 并显示清晰登录错误。
+
+---
 
 ## 9.1.0 (2026-03-18)
 
-- Release type: minor
-- Add real Browse search for stocks and crypto using live assets plus extended fallback universes.
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**minor**（新功能）
+- 为 Browse 添加真实搜索（live assets + 扩展回退宇宙）。
+
+---
 
 ## 9.0.0 (2026-03-18)
 
-- Release type: major
-- Split deployed auth into lightweight Vercel handlers backed by a persistent Redis-compatible store.
-- Keep SQLite auth for local development while requiring a real remote auth store on internet deployments.
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**major**（重大变更）
+- 拆分部署认证为轻量 Vercel handlers + 持久化 Redis 兼容存储。本地开发保留 SQLite 认证。
+
+---
 
 ## 8.0.2 (2026-03-18)
 
-- Release type: patch
-- Fix bottom-tab navigation being reset by auth session hydration.
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**patch**
+- 修复认证 session hydration 重置底部 tab 导航的问题。
+
+---
 
 ## 8.0.1 (2026-03-18)
 
-- Release type: patch
-- Clarify login failures by separating invalid credentials from offline local auth service.
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**patch**
+- 区分登录失败原因：无效凭据 vs 本地认证服务离线。
+
+---
 
 ## 8.0.0 (2026-03-18)
 
-- Release type: major
-- Add SQLite-backed auth, session cookies, password reset, and synced user state.
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**major**（重大变更）
+- 添加 SQLite 认证、session cookie、密码重置和同步用户状态。
+
+---
 
 ## 7.1.0 (2026-03-18)
 
-- Release type: minor
-- Add local demo authentication with a seeded test account and real login/logout flow.
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**minor**（新功能）
+- 添加本地 demo 认证（种子测试账户 + 真实登录/登出流程）。
+
+---
 
 ## 7.0.0 (2026-03-18)
 
-- Release type: major
-- Rebuild onboarding into a four-scene editorial intro and a quieter three-step sign up flow.
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**major**（重大变更）
+- 重建引导流为四场景编辑式 intro + 三步简约注册流程。
+
+---
 
 ## 6.1.0 (2026-03-18)
 
-- Release type: minor
-- Turn Points Hub into a full platform rewards home with balance hero, game and invite actions, VIP redemption, activity, and rules.
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**minor**（新功能）
+- Points Hub 升级为完整平台奖励首页（余额 hero、游戏和邀请动作、VIP 兑换、活动记录、规则）。
+
+---
 
 ## 6.0.0 (2026-03-18)
 
-- Release type: major
-- Refactor navigation into Today, Nova, Browse, and My with a full-screen Menu and Points Hub.
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**major**（重大变更）
+- 导航重构为 Today、Nova、Browse、My，新增全屏 Menu 和 Points Hub。
+
+---
 
 ## 5.1.1 (2026-03-18)
 
-- Release type: patch
-- Use real historical bars for Holdings demo curves whenever market data is available
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**patch**
+- Holdings demo 曲线在市场数据可用时使用真实历史 K 线。
+
+---
 
 ## 5.1.0 (2026-03-18)
 
-- Release type: minor
-- Redesign the Holdings page around a Robinhood-style portfolio overview and a lighter NovaQuant list surface
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**minor**（新功能）
+- 重新设计 Holdings 页面为 Robinhood 式组合概览 + 轻量 NovaQuant 列表。
+
+---
 
 ## 5.0.1 (2026-03-18)
 
-- Release type: patch
-- Fix Today page white screen caused by undefined conviction value
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**patch**
+- 修复 Today 页面因 undefined conviction 值导致的白屏。
+
+---
 
 ## 5.0.0 (2026-03-17)
 
-- Release type: major
-- Rebuild the Today screen around a single-glance decision layout
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**major**（重大变更）
+- 围绕一目了然的决策布局重建 Today 首页。
+
+---
 
 ## 4.6.0 (2026-03-17)
 
-- Release type: minor
-- Refactor Today, Holdings, and More into lighter native-feeling mobile surfaces while keeping the AI tab in a ChatGPT plus iMessage conversation style.
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**minor**（新功能）
+- 重构 Today、Holdings、More 为更轻量的原生风格移动界面；AI tab 保持 ChatGPT + iMessage 对话风格。
+
+---
 
 ## 4.5.2 (2026-03-17)
 
-- Release type: patch
-- Refine the home tab bar into a slimmer, more native-feeling mobile navigation with lighter glass and subtler active states.
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**patch**
+- 精炼 tab bar 为更纤细、更原生的移动导航（更轻的玻璃效果和更微妙的激活态）。
+
+---
 
 ## 4.5.1 (2026-03-17)
 
-- Release type: patch
-- Redesign the home hero ring row for mobile readability, improving ring contrast and separating MOVE / SIZE / RISK labels from Ready / Light / Low states.
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**patch**
+- 重新设计首页 hero 环形行提升移动端可读性（增强环形对比度，分离 MOVE/SIZE/RISK 标签与状态值）。
+
+---
 
 ## 4.5.0 (2026-03-17)
 
-- Release type: minor
-- Turn the home hero into a swipeable two-page card, moving the action card into the second page and adding a scroll-condensing top bar that crossfades into the Nova2 logo.
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**minor**（新功能）
+- 首页 hero 改为可滑动双页卡片，action card 移至第二页；添加滚动收缩顶栏（crossfade 至 Nova2 logo）。
+
+---
 
 ## 4.4.0 (2026-03-17)
 
-- Release type: minor
-- Add a scroll-condensing top bar that crossfades into the Nova2 logo and tighten the home hero into a rings-first layout with compact secondary cards.
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**minor**（新功能）
+- 添加滚动收缩顶栏（crossfade Nova2 logo）；首页 hero 紧凑为 rings-first 布局 + 精简辅助卡片。
+
+---
 
 ## 4.3.1 (2026-03-17)
 
-- Release type: patch
-- Swap the top-bar logo to the new NOVA1 artwork while keeping the thinner header and redesigned home surface.
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**patch**
+- 顶栏 logo 替换为 NOVA1 素材。
+
+---
 
 ## 4.3.0 (2026-03-17)
 
-- Release type: minor
-- Rework the home screen into a lighter pop editorial surface with a new hero card, summary header, and colorful action tiles while keeping the thinner top bar.
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**minor**（新功能）
+- 首页重构为更轻量的 pop editorial 风格（新 hero 卡片、摘要头部、多彩 action tile），保持细顶栏。
+
+---
 
 ## 4.2.6 (2026-03-16)
 
-- Release type: patch
-- Trim another 40px+ from the top bar and reduce the centered logo height for a thinner header.
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**patch**
+- 进一步压缩顶栏 40px+，降低居中 logo 高度。
+
+---
 
 ## 4.2.5 (2026-03-16)
 
-- Release type: patch
-- Reduce the top-bar logo scale and tighten the header height for a thinner brand bar.
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**patch**
+- 缩小顶栏 logo 比例，收紧 header 高度。
+
+---
 
 ## 4.2.4 (2026-03-16)
 
-- Release type: patch
-- Increase the centered top-bar logo to a much larger brand-led presentation.
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**patch**
+- 放大居中顶栏 logo 为品牌主导展示。
+
+---
 
 ## 4.2.3 (2026-03-16)
 
-- Release type: patch
-- Swap the top-bar logo to the updated novaquant2 artwork.
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**patch**
+- 顶栏 logo 替换为 novaquant2 素材。
+
+---
 
 ## 4.2.2 (2026-03-16)
 
-- Release type: patch
-- Replace the top-bar copy with a centered Nova logo and keep only the iOS back action where needed.
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**patch**
+- 顶栏文字替换为居中 Nova logo，仅保留 iOS 返回操作。
+
+---
 
 ## 4.2.1 (2026-03-16)
 
-- Release type: patch
-- Fix the AI chat composer so it stays pinned above the tab bar instead of drifting inside the message flow.
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**patch**
+- 修复 AI chat composer 漂移至消息流内部（应固定在 tab bar 上方）。
+
+---
 
 ## 4.2.0 (2026-03-16)
 
-- Release type: minor
-- Rebuild the mobile AI page around a ChatGPT + iMessage conversation layout with a sticky composer, suggestion chips, and lighter assistant message structure.
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**minor**（新功能）
+- 重建移动端 AI 页面为 ChatGPT + iMessage 对话布局（sticky composer、suggestion chips、更轻量 assistant 消息结构）。
+
+---
 
 ## 4.1.0 (2026-03-16)
 
-- Release type: minor
-- Add local Nova health checks, MLX-LM LoRA bootstrap, and first-wave training task filtering.
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**minor**（新功能）
+- 添加本地 Nova 健康检查、MLX-LM LoRA bootstrap 和首波训练任务过滤。
+
+---
 
 ## 4.0.1 (2026-03-16)
 
-- Release type: patch
-- Shift the rebuilt home screen back to a light Apple Fitness-inspired palette: keep the new structure and rings, but replace the dark hero and support surfaces with bright layered cards, softer cream backgrounds, and more playful multicolor accents.
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**patch**
+- 首页从深色 hero 切换回明亮 Apple Fitness 风格调色板（保留新结构和环形，用明亮分层卡片和柔和奶油色背景替代深色）。
+
+---
 
 ## 4.0.0 (2026-03-16)
 
-- Release type: major
-- Completely rebuild the home screen into an Apple Fitness-inspired action surface with a dark energized palette, a dominant hero decision card, ring-based state cues, a pace selector, and simplified coach-first follow-through so the product no longer reads like a finance dashboard.
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**major**（重大变更）
+- 完全重建首页为 Apple Fitness 式动作界面（深色能量调色板、主 hero 决策卡片、环形状态提示、节奏选择器、简化教练式跟进）。
+
+---
 
 ## 3.1.0 (2026-03-16)
 
-- Release type: minor
-- Redesign the AI tab to align much more closely with ChatGPT mobile: remove the intro card, turn the empty state into a centered prompt stage, keep 'what to ask' as lightweight prompt chips, simplify the top bar, and make the thread and composer feel like a native chat product.
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**minor**（新功能）
+- 重新设计 AI tab 对齐 ChatGPT 移动端：移除 intro 卡片、空态改为居中 prompt stage、简化顶栏。
+
+---
 
 ## 3.0.0 (2026-03-16)
 
-- Release type: major
-- Rebuild the home screen into a bold, Apple Fitness-inspired action panel with a single hero command card, ring-based state cues, and a stronger consumer decision coach feel. Remove the extra perception card from the top fold so the first screen lands on today's call immediately.
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**major**（重大变更）
+- 重建首页为大胆的 Apple Fitness 式动作面板（单一 hero 命令卡片、环形状态提示），移除顶部折叠的额外感知卡片。
+
+---
 
 ## 2.5.2 (2026-03-16)
 
-- Release type: patch
-- Remove the persistent top status layer and recast the Today screen around a stronger action stance, coach-style plan pills, and a cleaner follow-through card so the app feels less like a finance panel and more like a decisive consumer product.
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**patch**
+- 移除持久化顶部状态层，围绕更强动作姿态重构 Today（coach-style plan pills、更干净的跟进卡片）。
+
+---
 
 ## 2.5.1 (2026-03-16)
 
-- Release type: patch
-- Remove the always-visible mode selector from daily surfaces, stop exposing mode in the status bar, and simplify More copy so the app feels less like a configurable finance tool and more like an opinionated consumer product.
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**patch**
+- 从日常界面移除始终可见的 mode selector，简化 More 文案，使应用更像有态度的消费产品而非可配置的金融工具。
+
+---
 
 ## 2.5.0 (2026-03-16)
 
-- Release type: minor
-- Reframe the app as a consumer decision coach: simplify Today into a stronger action-first panel, replace emoji-like financial affordances with cleaner navigation cues, soften Signal cards, and refresh AI/onboarding surfaces to feel more approachable and habit-forming without changing core functionality.
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**minor**（新功能）
+- 将应用重新定位为消费级决策教练：简化 Today 为强动作优先面板、软化信号卡片、刷新 AI/引导界面。
+
+---
 
 ## 2.4.0 (2026-03-16)
 
-- Release type: minor
-- Refresh the UI design system with a warmer premium palette, stronger component tokens, polished mobile navigation chrome, elevated card styling, and more approachable yet disciplined interaction states inspired by Composer and Duolingo.
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**minor**（新功能）
+- 刷新 UI 设计系统（更温暖的高级调色板、更强的组件 token、精致移动导航 chrome、提升卡片样式），灵感来自 Composer 和 Duolingo。
+
+---
 
 ## 2.3.0 (2026-03-16)
 
-- Release type: minor
-- Standardize iOS-style navigation by removing duplicate top bars in More, introducing native-feeling back treatment for nested views, and unifying signal detail back behavior across Today and Signals.
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**minor**（新功能）
+- 统一 iOS 风格导航：移除 More 中重复顶栏、嵌套视图添加原生返回处理、统一 Today 和 Signals 间信号详情返回行为。
+
+---
 
 ## 2.2.1 (2026-03-15)
 
-- Release type: patch
-- Remove redundant Ask Nova and About buttons from the top bar
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**patch**
+- 移除顶栏中冗余的 Ask Nova 和 About 按钮。
+
+---
 
 ## 2.2.0 (2026-03-15)
 
-- Release type: minor
-- Rework the front-end shell, Today hierarchy, and More surfaces for a stronger product-grade decision experience
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**minor**（新功能）
+- 重构前端 shell、Today 层次和 More 界面，打造更强的产品级决策体验。
+
+---
 
 ## 2.1.1 (2026-03-15)
 
-- Release type: patch
-- Fix blank page caused by App render-order TDZ in Today boot sequence
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**patch**
+- 修复 App 渲染顺序 TDZ（暂时性死区）导致的 Today 启动白屏。
+
+---
 
 ## 2.1.0 (2026-03-15)
 
-- Release type: minor
-- Add decision-intelligence data model scaffolding across types, schema, and repository, while restoring Vercel availability by bypassing local Ollama in serverless runtimes.
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**minor**（新功能）
+- 添加决策智能数据模型脚手架（types、schema、repository）；在 serverless 运行时绕过本地 Ollama 恢复 Vercel 可用性。
+
+---
 
 ## 2.0.2 (2026-03-15)
 
-- Release type: patch
-- Restore Vercel availability by bypassing local Ollama in serverless runtimes and falling back immediately to deterministic evidence-backed responses.
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**patch**
+- 在 serverless 运行时绕过本地 Ollama，立即回退至确定性证据驱动响应，恢复 Vercel 可用性。
+
+---
 
 ## 2.0.1 (2026-03-14)
 
-- Release type: patch
-- Hardened version management into a single package.json-driven release flow with generated runtime metadata.
-- Added version:current, README sync, changelog summaries, and About/runtime version consistency updates.
-- Updated release metadata, build number, About runtime source, and changelog entry.
+- 发布类型：**patch**
+- 加固版本管理为单一 `package.json` 驱动的发布流程（生成运行时元数据）。
+- 添加 `version:current`、README 同步、changelog 摘要和 About/runtime 版本一致性更新。
+
+---
 
 ## 2.0.0 (2026-03-14)
 
-- Release type: major
-- Moved Nova onto a single-machine Apple Silicon local stack via Ollama at `http://127.0.0.1:11434/v1`.
-- Added a unified local task router for `Nova-Core`, `Nova-Scout`, and `Nova-Retrieve`, then wired Today Risk, daily stance, action-card language, wrap-up, and assistant answers through that local layer.
-- Added `nova_task_runs` and `nova_review_labels`, plus review-label and MLX-LM export paths so local usage can become supervised training data.
-- Added local runtime APIs, a training export script, local-stack documentation, and test-time SQLite worker isolation so the product remains usable and verifiable on one Mac.
+- 发布类型：**major**（重大变更）
+- 将 Nova 迁移至 Apple Silicon 单机本地栈（Ollama, `http://127.0.0.1:11434/v1`）。
+- 添加统一本地任务路由（`Nova-Core`、`Nova-Scout`、`Nova-Retrieve`），将 Today Risk、每日立场、action card 语言、wrap-up 和助手问答接入本地层。
+- 新增 `nova_task_runs` 和 `nova_review_labels` 表，以及 review-label 和 MLX-LM 数据导出路径（本地使用可转化为监督训练数据）。
+- 添加本地运行时 API、训练导出脚本、文档和测试时 SQLite worker 隔离。
+
+---
 
 ## 1.0.0 (2026-03-15)
 
-- Release type: major
-- Added a professional backend backbone that unifies research, risk governance, decision, portfolio allocation, evidence review, local Nova LLM ops, workflows, registries, and observability.
-- Added canonical backend domain contracts plus a new `/api/backbone/summary` inspection surface for institutional-grade architecture visibility.
-- Added local-first Nova model routing, prompt/model registries, durable workflow blueprints, audit-event tracing, scorecards, and feature-platform contracts without pushing the frontend toward terminal-style complexity.
-- Added open-source borrow mapping, architecture, compliance, and implementation-truth documentation for diligence-ready provenance.
+- 发布类型：**major**（重大变更）
+- 添加专业后端骨干：统一研究、风控治理、决策、组合分配、证据审阅、本地 Nova LLM 运维、工作流、注册表和可观测性。
+- 添加规范化后端领域合约和 `/api/backbone/summary` 检视端点。
+- 添加本地 Nova 模型路由、prompt/模型注册表、持久化工作流蓝图、审计事件追踪、评分卡和特征平台合约。
+- 添加开源借用映射、架构、合规和实现真相文档。
+
+---
 
 ## 0.3.0 (2026-03-15)
 
-- Release type: minor
-- Added a backend-generated perception layer so the product can express “system first, user confirms” with real state rather than decorative UI copy.
-- Upgraded the Today first fold with a decision-presence strip that makes the product feel more like a judgment surface and less like a dashboard.
-- Extended the copy operating system, engagement snapshot, assistant context, and docs to support category-level perception differentiation.
+- 发布类型：**minor**（新功能）
+- 添加后端生成的感知层（"系统先判断，用户确认" 模式，基于真实状态而非装饰性 UI 文案）。
+- Today 首折升级为决策存在感条带。
+- 扩展文案操作系统、参与快照、助手上下文和文档，支持分类级感知差异化。
+
+---
 
 ## 0.2.0 (2026-03-15)
 
-- Release type: minor
-- Added a unified copy operating system with a shared brand voice constitution, tone matrix, guardrails, and state-to-copy selectors.
-- Wired the shared copy system into the decision engine, engagement engine, Today surface, and Nova Assistant prompt layer.
-- Added engineering-ready copy documentation and regression tests for tone, no-action completion, notifications, widgets, and assistant voice.
-- Introduced a lightweight version management system with a single frontend/backend version source, build number support, About page version display, and reusable bump scripts.
+- 发布类型：**minor**（新功能）
+- 添加统一文案操作系统（共享品牌声音宪法、语调矩阵、护栏和状态到文案选择器）。
+- 将共享文案系统接入决策引擎、参与引擎、Today 界面和 Nova Assistant prompt 层。
+- 添加工程就绪文案文档和回归测试（语调、无操作完成、通知、widget、助手声音）。
+- 引入轻量版本管理系统（单一前后端版本源、build number 支持、About 页面版本展示和可复用 bump 脚本）。

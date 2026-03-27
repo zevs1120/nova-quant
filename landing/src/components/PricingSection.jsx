@@ -1,34 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { pricingPlans } from '../data/index.js';
-import { useViewportReveal } from '../hooks/useViewportMotion.js';
+import { useMotionPreference, useViewportReveal } from '../hooks/useViewportMotion.js';
 
 export default function PricingSection() {
   const { ref, isVisible } = useViewportReveal();
   const boardRef = useRef(null);
   const [activePlan, setActivePlan] = useState(null);
-  const [canHover, setCanHover] = useState(false);
+  const canHover = useMotionPreference('(hover: hover) and (pointer: fine)');
 
+  /* Clear highlight when device loses hover capability (e.g. tablet detach keyboard). */
   useEffect(() => {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined;
-
-    const mediaQuery = window.matchMedia('(hover: hover) and (pointer: fine)');
-    const sync = () => {
-      setCanHover(mediaQuery.matches);
-      if (!mediaQuery.matches) {
-        setActivePlan(null);
-      }
-    };
-
-    sync();
-
-    if (typeof mediaQuery.addEventListener === 'function') {
-      mediaQuery.addEventListener('change', sync);
-      return () => mediaQuery.removeEventListener('change', sync);
-    }
-
-    mediaQuery.addListener(sync);
-    return () => mediaQuery.removeListener(sync);
-  }, []);
+    if (!canHover) setActivePlan(null);
+  }, [canHover]);
 
   const handlePointerMove = (event) => {
     const board = boardRef.current;

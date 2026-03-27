@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { statementActionCards, ribbons } from '../data/index.js';
 import { STAGE_HEIGHT_REM } from '../hooks/useStatementFan.js';
 
@@ -23,7 +23,6 @@ function getCardMotionVars(index) {
  * @param {{ activeCard: number, onCardSelect: (i: number) => void, fan: object }} props
  */
 export default function StatementSection({ activeCard, onCardSelect, fan }) {
-  const sectionRef = useRef(null);
   const { viewportRef, scalerRef, stageRef, scale, fitWidthPx, isRevealed, isRevealAnimating } =
     fan;
   const stageClassName = [
@@ -39,10 +38,10 @@ export default function StatementSection({ activeCard, onCardSelect, fan }) {
     if (activeCard == null) return undefined;
 
     const handlePointerDown = (event) => {
-      const section = sectionRef.current;
+      const viewport = viewportRef.current;
       const target = event.target;
       if (!(target instanceof Element)) return;
-      if (!section || !section.contains(target)) return;
+      if (!viewport || !viewport.contains(target)) return;
       if (target.closest('.statement-stack-slot')) return;
       onCardSelect(null);
     };
@@ -54,7 +53,7 @@ export default function StatementSection({ activeCard, onCardSelect, fan }) {
   }, [activeCard, onCardSelect]);
 
   return (
-    <section ref={sectionRef} className="spread statement-spread" id="features">
+    <section className="spread statement-spread" id="features">
       <div className="campaign-grid statement-grid">
         <div className="statement-copy">
           <p className="section-kicker">Not built to look familiar</p>
