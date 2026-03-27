@@ -2,6 +2,34 @@
 
 NovaQuant 所有重要变更记录于此。
 
+## 10.15.1 (2026-03-28)
+
+- 发布类型：**patch**（工程规范）
+
+- **Chore(ci)：Pre-commit 全链路质量门禁。**
+  - **新增 `check-changelog.mjs`**：强制每次提交包含 CHANGELOG.md 更新，校验 `package.json` version 与 CHANGELOG 最新版本号一致，`src/` 变更未伴随 `docs/` 更新时发出软警告。
+  - **新增 `check-commit-msg.mjs`**：Conventional Commits 格式校验 —— type 白名单（8 类）、scope 白名单（60+ 模块）、标题必须英文（ASCII only，body 可用中文）、小写开头、≤72 字符、不以句号结尾、title/body 空行分隔。
+  - **新增 `.husky/commit-msg` hook**：自动触发 commit message 校验。
+  - **更新 `.husky/pre-commit` hook**：执行顺序 changelog 检查 → `npm run verify`（lint → typecheck → test → build → build:landing）→ lint-staged（Prettier 格式化）。
+  - **新增 `npm run check:changelog`**：可独立运行 changelog 策略检查。
+  - 绕过方式：`SKIP_CHANGELOG_CHECK=1` / `SKIP_COMMIT_MSG_CHECK=1`，用于纯基建提交。
+
+---
+
+## 10.15.0 (2026-03-28)
+
+- 发布类型：**minor**（新功能）
+
+- **Feat(onboarding)：重建引导流 Intro 海报场景系统。**
+  - **新增 `IntroPoster` 组件**（`OnboardingFlow.jsx` +434 行）：4 个全屏品牌海报场景，替代原有简单文案页面。
+  - **场景 1 — Meet NovaQuant**：品牌介绍页，三张叠层卡片（NVDA/TSLA/AAPL 推荐），粉/蓝/黄/绿色块装饰，`conviction`、`risk` 指标展示。
+  - **场景 2 — Read the Day First**：市场气候页，Wait/Act 比例轮盘、风险等级统计卡、`Trade lighter` / `Wait for confirmation` / `Size down first` 标签组。
+  - **场景 3 — Ask Nova Directly**：AI 对话交互展示，模拟 chat bubble 与建议 chip。
+  - **场景 4 — Broker**：券商连接引导，展示连接流程与状态卡片。
+  - **视觉系统全面升级**（`onboarding.css` +1,315 行）：每场景独立渐变背景 + `radial-gradient` 光晕，精细卡片 UI（毛玻璃、阴影、圆角），`clamp()` / `min()` 响应式布局，中英文 `locale` 感知双语文案。
+
+---
+
 ## 10.14.0 (2026-03-27)
 
 - 发布类型：**minor**（新功能）

@@ -1,7 +1,7 @@
 {
   "name": "nova-quant",
   "private": true,
-  "version": "10.14.0",
+  "version": "10.15.1",
   "type": "module",
   "scripts": {
     "dev": "node scripts/dev-stack.mjs",
@@ -51,6 +51,7 @@
     "api:data": "tsx src/server/apiServer.ts",
     "test:data": "vitest run",
     "test": "vitest run",
+    "check:changelog": "node scripts/check-changelog.mjs",
     "check:platform": "node scripts/check-platform-readiness.mjs",
     "verify": "node scripts/verify.mjs",
     "format": "prettier --write",
