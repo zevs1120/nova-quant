@@ -25,7 +25,7 @@ export default function ProofSection() {
                 key={step.title}
                 style={{
                   '--proof-order': index,
-                  '--proof-enter-delay': `${index * 110}ms`,
+                  '--proof-enter-delay': `${index * 70}ms`,
                 }}
               >
                 <article className={`proof-node proof-node-${step.tone}`}>

@@ -73,7 +73,7 @@ export default function PricingSection() {
               key={plan.name}
               style={{
                 '--pricing-order': index,
-                '--pricing-enter-delay': `${index * 95}ms`,
+                '--pricing-enter-delay': `${index * 70}ms`,
               }}
               onPointerEnter={(event) => handlePointerEnter(index, event)}
               onFocus={() => setActivePlan(index)}

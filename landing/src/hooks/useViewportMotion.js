@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from 'react';
  * @returns {{ ref: import('react').MutableRefObject<HTMLElement | null>, isVisible: boolean }}
  */
 export function useViewportReveal(options = {}) {
-  const { threshold = 0.24, once = true, rootMargin = '0px 0px -10% 0px' } = options;
+  const { threshold = 0.16, once = true, rootMargin = '0px 0px -4% 0px' } = options;
   const ref = useRef(null);
   const [isVisible, setIsVisible] = useState(false);
 
@@ -43,15 +43,52 @@ export function useViewportReveal(options = {}) {
 }
 
 /**
+ * Tracks a motion-related media query.
+ *
+ * @param {string} query
+ * @returns {boolean}
+ */
+export function useMotionPreference(query) {
+  const [matches, setMatches] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return undefined;
+    }
+
+    const mediaQuery = window.matchMedia(query);
+    const sync = () => setMatches(mediaQuery.matches);
+    sync();
+
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', sync);
+      return () => mediaQuery.removeEventListener('change', sync);
+    }
+
+    mediaQuery.addListener(sync);
+    return () => mediaQuery.removeListener(sync);
+  }, [query]);
+
+  return matches;
+}
+
+/**
  * Lightweight scroll progress for section-driven transforms.
  *
  * @param {import('react').MutableRefObject<HTMLElement | null>} ref
+ * @param {{ disabled?: boolean }} [options]
  * @returns {number}
  */
-export function useScrollProgress(ref) {
+export function useScrollProgress(ref, options = {}) {
+  const { disabled = false } = options;
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
+    if (disabled) {
+      setProgress(0);
+      return undefined;
+    }
+
     const node = ref.current;
     if (!node || typeof window === 'undefined') return undefined;
 
@@ -66,7 +103,7 @@ export function useScrollProgress(ref) {
         Math.max(0, (viewportHeight - rect.top) / (viewportHeight + rect.height)),
       );
 
-      setProgress((prev) => (Math.abs(prev - nextProgress) > 0.008 ? nextProgress : prev));
+      setProgress((prev) => (Math.abs(prev - nextProgress) > 0.012 ? nextProgress : prev));
     };
 
     const queueUpdate = () => {
@@ -83,7 +120,7 @@ export function useScrollProgress(ref) {
       window.removeEventListener('scroll', queueUpdate);
       window.removeEventListener('resize', queueUpdate);
     };
-  }, [ref]);
+  }, [disabled, ref]);
 
   return progress;
 }

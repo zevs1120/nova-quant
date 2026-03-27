@@ -44,12 +44,10 @@
 .ask-copy > h2,
 .ask-copy > .micro-intro {
   opacity: 0;
-  filter: blur(8px);
-  transform: translate3d(0, 1.8rem, 0);
+  transform: translate3d(0, 0.9rem, 0);
   transition:
-    opacity 660ms ease,
-    transform 860ms cubic-bezier(0.16, 1, 0.3, 1),
-    filter 660ms ease;
+    opacity 440ms ease,
+    transform 680ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .ask-copy h2 {
@@ -85,11 +83,11 @@
   box-shadow: none;
   border-radius: 0;
   opacity: 0;
-  transform: translate3d(-1.2rem, 0.2rem, 0);
+  transform: translate3d(-0.5rem, 0.08rem, 0);
   transition:
-    opacity 520ms ease,
-    transform 700ms cubic-bezier(0.16, 1, 0.3, 1);
-  transition-delay: calc(220ms + var(--ask-enter-delay));
+    opacity 380ms ease,
+    transform 580ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: calc(140ms + var(--ask-enter-delay));
 }
 
 .ask-bullets li:first-child {
@@ -150,16 +148,14 @@
     0 2px 8px rgba(58, 64, 91, 0.04),
     inset 0 1px 0 rgba(255, 255, 255, 0.94),
     inset 0 -1px 0 rgba(255, 255, 255, 0.26);
-  backdrop-filter: blur(38px) saturate(1.18);
-  -webkit-backdrop-filter: blur(38px) saturate(1.18);
+  backdrop-filter: blur(28px) saturate(1.12);
+  -webkit-backdrop-filter: blur(28px) saturate(1.12);
   opacity: 0;
-  clip-path: inset(8% 10% 12% 10% round 1.55rem);
-  transform: translate3d(2.4rem, 2rem, 0) rotate(-5deg) scale(0.95);
+  transform: translate3d(0.95rem, 0.9rem, 0) rotate(-2deg) scale(0.985);
   transition:
-    opacity 760ms ease,
-    transform 1100ms cubic-bezier(0.16, 1, 0.3, 1),
-    clip-path 1100ms cubic-bezier(0.16, 1, 0.3, 1),
-    box-shadow 420ms ease;
+    opacity 520ms ease,
+    transform 780ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 320ms ease;
 }
 
 .ask-object::before {
@@ -173,8 +169,8 @@
     radial-gradient(circle at 72% 38%, rgba(102, 194, 255, 0.4), transparent 18%),
     radial-gradient(circle at 88% 56%, rgba(255, 102, 194, 0.28), transparent 16%),
     linear-gradient(135deg, rgba(255, 255, 255, 0.18), transparent 34%);
-  filter: blur(24px) saturate(1.2);
-  opacity: 0.84;
+  filter: blur(18px) saturate(1.12);
+  opacity: 0.74;
 }
 
 .ask-object::after {
@@ -201,11 +197,11 @@
   box-shadow:
     inset 0 0 0 1px rgba(255, 255, 255, 0.52),
     0 10px 24px rgba(56, 62, 91, 0.05);
-  transform: scale(1.08);
-  filter: saturate(0.88) brightness(1.04);
+  transform: scale(1.02);
+  filter: saturate(0.96) brightness(1.02);
   transition:
-    transform 1100ms cubic-bezier(0.16, 1, 0.3, 1),
-    filter 720ms ease;
+    transform 780ms cubic-bezier(0.16, 1, 0.3, 1),
+    filter 520ms ease;
 }
 
 .ask-object-halo {
@@ -219,12 +215,12 @@
     rgba(75, 125, 255, 0.14),
     transparent 72%
   );
-  filter: blur(24px);
+  filter: blur(18px);
   opacity: 0;
-  transform: scale(0.78);
+  transform: scale(0.92);
   transition:
-    opacity 760ms ease,
-    transform 1100ms cubic-bezier(0.16, 1, 0.3, 1);
+    opacity 520ms ease,
+    transform 780ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .ask-object-chip {
@@ -248,36 +244,35 @@
   -webkit-backdrop-filter: blur(22px);
   opacity: 0;
   transition:
-    opacity 600ms ease,
-    transform 820ms cubic-bezier(0.16, 1, 0.3, 1);
+    opacity 420ms ease,
+    transform 620ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .ask-object-chip-query {
   top: 1.2rem;
   left: 1.25rem;
-  transform: translate3d(-1.2rem, 1rem, 0);
+  transform: translate3d(-0.55rem, 0.45rem, 0);
 }
 
 .ask-object-chip-answer {
   right: 1.25rem;
   bottom: 1.55rem;
-  transform: translate3d(1.2rem, 1.2rem, 0);
+  transform: translate3d(0.55rem, 0.55rem, 0);
 }
 
 .ask-spread.is-motion-visible .ask-copy > .section-kicker,
 .ask-spread.is-motion-visible .ask-copy > h2,
 .ask-spread.is-motion-visible .ask-copy > .micro-intro {
   opacity: 1;
-  filter: blur(0);
   transform: none;
 }
 
 .ask-spread.is-motion-visible .ask-copy > h2 {
-  transition-delay: 90ms;
+  transition-delay: 60ms;
 }
 
 .ask-spread.is-motion-visible .ask-copy > .micro-intro {
-  transition-delay: 180ms;
+  transition-delay: 120ms;
 }
 
 .ask-spread.is-motion-visible .ask-bullets li {
@@ -287,8 +282,7 @@
 
 .ask-spread.is-motion-visible .ask-object {
   opacity: 1;
-  clip-path: inset(0 round 1.55rem);
-  transform: translate3d(0, 0, 0) rotate(-1.2deg) scale(1);
+  transform: translate3d(0, 0, 0) rotate(-0.8deg) scale(1);
 }
 
 .ask-spread.is-motion-visible .ask-object img {
@@ -297,9 +291,8 @@
 }
 
 .ask-spread.is-motion-visible .ask-object-halo {
-  opacity: 1;
+  opacity: 0.86;
   transform: scale(1);
-  animation: ask-halo-drift 7.6s ease-in-out infinite;
 }
 
 .ask-spread.is-motion-visible .ask-object-chip {
@@ -308,12 +301,12 @@
 
 .ask-spread.is-motion-visible .ask-object-chip-query {
   transform: translate3d(0, 0, 0);
-  transition-delay: 300ms;
+  transition-delay: 220ms;
 }
 
 .ask-spread.is-motion-visible .ask-object-chip-answer {
   transform: translate3d(0, 0, 0);
-  transition-delay: 420ms;
+  transition-delay: 300ms;
 }
 
 @media (max-width: 760px) {

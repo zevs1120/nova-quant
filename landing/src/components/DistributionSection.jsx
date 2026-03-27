@@ -23,7 +23,7 @@ export default function DistributionSection() {
             <div
               className="distribution-pair"
               key={item.name}
-              style={{ '--distribution-enter-delay': `${index * 105}ms` }}
+              style={{ '--distribution-enter-delay': `${index * 80}ms` }}
             >
               <p className="distribution-story-line">{item.story}</p>
               <div className="distribution-credit">

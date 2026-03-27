@@ -152,23 +152,25 @@
 
 .statement-stack-stage.is-reveal-animating .statement-stack-slot {
   transition:
-    transform 920ms cubic-bezier(0.18, 0.88, 0.22, 1.14),
-    filter 720ms ease;
+    transform 780ms cubic-bezier(0.18, 0.88, 0.22, 1.04),
+    filter 520ms ease;
   transition-delay: var(--stack-enter-delay);
 }
 
-.statement-stack-stage.is-reveal-settled .statement-action-card-stack {
-  animation: statement-stack-float 7.4s ease-in-out infinite;
-  animation-delay: calc(420ms + var(--stack-delay));
+@media (hover: hover) and (pointer: fine) {
+  .statement-stack-stage.is-reveal-settled .statement-action-card-stack {
+    animation: statement-stack-float 9.2s ease-in-out infinite;
+    animation-delay: calc(320ms + var(--stack-delay));
+  }
 }
 
 .statement-stack-slot:hover {
   z-index: 30;
   --stack-hover-shift-x: var(--stack-hover-x);
-  --stack-hover-lift: -0.9rem;
+  --stack-hover-lift: -0.5rem;
   --stack-hover-rotate: var(--stack-hover-r);
-  --stack-scale: 1.028;
-  filter: saturate(1.05) brightness(1.01);
+  --stack-scale: 1.02;
+  filter: saturate(1.03) brightness(1.005);
 }
 
 .statement-stack-slot:focus-visible {
@@ -197,9 +199,9 @@
 
 .statement-stack-slot.is-selected:hover {
   --stack-hover-shift-x: 0rem;
-  --stack-hover-lift: -0.35rem;
+  --stack-hover-lift: -0.2rem;
   --stack-hover-rotate: 0deg;
-  --stack-scale: 1.105;
+  --stack-scale: 1.095;
 }
 
 .statement-stack-slot.is-selected .statement-action-card-stack {

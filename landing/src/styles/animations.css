@@ -5,32 +5,7 @@
   }
 
   50% {
-    transform: translateY(-0.34rem);
-  }
-}
-
-@keyframes proof-node-sweep {
-  0% {
-    transform: translateX(-10%) scale(1);
-  }
-
-  50% {
-    transform: translateX(6%) scale(1.05);
-  }
-
-  100% {
-    transform: translateX(-10%) scale(1);
-  }
-}
-
-@keyframes ask-halo-drift {
-  0%,
-  100% {
-    transform: scale(1) translate3d(0, 0, 0);
-  }
-
-  50% {
-    transform: scale(1.05) translate3d(0.8rem, -0.4rem, 0);
+    transform: translateY(-0.16rem);
   }
 }
 
@@ -81,5 +56,43 @@
     transition-delay: 0ms !important;
     animation: none !important;
     filter: none !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .hero-spread::after,
+  .hero-stage::before,
+  .hero-flat,
+  .hero-pretitle,
+  .hero-title-top,
+  .hero-title-bottom,
+  .hero-copy .micro-intro,
+  .hero-actions,
+  .proof-intro > .section-kicker,
+  .proof-intro > h2,
+  .proof-intro > .micro-intro,
+  .proof-flow-step,
+  .proof-node-pill,
+  .ask-copy > .section-kicker,
+  .ask-copy > h2,
+  .ask-copy > .micro-intro,
+  .ask-bullets li,
+  .ask-object,
+  .ask-object img,
+  .ask-object-halo,
+  .ask-object-chip,
+  .pricing-copy > .section-kicker,
+  .pricing-copy > h2,
+  .pricing-card,
+  .voices-title-block,
+  .voice-card,
+  .voices-link,
+  .distribution-spread::after,
+  .distribution-copy,
+  .distribution-lead,
+  .distribution-pair,
+  .distribution-closing {
+    transition-duration: 420ms !important;
+    transition-delay: 0ms !important;
   }
 }

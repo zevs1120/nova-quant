@@ -48,12 +48,10 @@
 .pricing-copy > .section-kicker,
 .pricing-copy > h2 {
   opacity: 0;
-  filter: blur(8px);
-  transform: translate3d(0, 1.8rem, 0);
+  transform: translate3d(0, 0.9rem, 0);
   transition:
-    opacity 660ms ease,
-    transform 860ms cubic-bezier(0.16, 1, 0.3, 1),
-    filter 660ms ease;
+    opacity 440ms ease,
+    transform 680ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .pricing-copy h2 {
@@ -89,7 +87,7 @@
     transparent 36%
   );
   opacity: 0;
-  transition: opacity 260ms ease;
+  transition: opacity 220ms ease;
 }
 
 .pricing-card {
@@ -120,19 +118,18 @@
     0 2px 8px rgba(48, 52, 74, 0.04),
     inset 0 1px 0 rgba(255, 255, 255, 0.92),
     inset 0 -1px 0 rgba(255, 255, 255, 0.26);
-  backdrop-filter: blur(38px) saturate(1.18);
-  -webkit-backdrop-filter: blur(38px) saturate(1.18);
+  backdrop-filter: blur(28px) saturate(1.12);
+  -webkit-backdrop-filter: blur(28px) saturate(1.12);
   opacity: 0;
-  transform: translate3d(0, 2.2rem, 0) scale(0.965);
+  transform: translate3d(0, 1rem, 0) scale(0.985);
   transform-origin: 50% 100%;
   transition:
-    opacity 660ms ease,
-    transform 860ms cubic-bezier(0.16, 1, 0.3, 1),
-    box-shadow 360ms ease,
-    filter 320ms ease,
+    opacity 460ms ease,
+    transform 720ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 320ms ease,
+    filter 260ms ease,
     border-color 320ms ease;
   transition-delay: var(--pricing-enter-delay);
-  will-change: transform, box-shadow, filter;
 }
 
 .pricing-card::before,
@@ -151,8 +148,8 @@
     radial-gradient(circle at 38% 38%, rgba(255, 255, 255, 0.44), transparent 11%),
     radial-gradient(circle at 70% 40%, var(--glass-spectral-a), transparent 18%),
     radial-gradient(circle at 88% 56%, var(--glass-spectral-b), transparent 16%);
-  filter: blur(24px) saturate(1.2);
-  opacity: 0.84;
+  filter: blur(18px) saturate(1.1);
+  opacity: 0.72;
 }
 
 .pricing-card::after {
@@ -197,11 +194,11 @@
   height: 13rem;
   border-radius: 999px;
   background: radial-gradient(circle, rgba(255, 255, 255, 0.42), transparent 68%);
-  filter: blur(22px);
+  filter: blur(18px);
   pointer-events: none;
   transition:
-    transform 420ms cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 320ms ease;
+    transform 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 260ms ease;
 }
 
 .pricing-card-top,
@@ -335,12 +332,11 @@
 .pricing-spread.is-motion-visible .pricing-copy > .section-kicker,
 .pricing-spread.is-motion-visible .pricing-copy > h2 {
   opacity: 1;
-  filter: blur(0);
   transform: none;
 }
 
 .pricing-spread.is-motion-visible .pricing-copy > h2 {
-  transition-delay: 90ms;
+  transition-delay: 60ms;
 }
 
 .pricing-spread.is-motion-visible .pricing-card {
@@ -357,10 +353,10 @@
   .pricing-card:hover,
   .pricing-card:focus-within,
   .pricing-card.is-highlighted {
-    transform: translate3d(0, -0.9rem, 0) scale(1.018);
+    transform: translate3d(0, -0.38rem, 0) scale(1.01);
     box-shadow:
-      0 34px 68px rgba(48, 52, 74, 0.14),
-      0 10px 24px rgba(48, 52, 74, 0.08),
+      0 28px 56px rgba(48, 52, 74, 0.12),
+      0 8px 20px rgba(48, 52, 74, 0.07),
       inset 0 1px 0 rgba(255, 255, 255, 0.94),
       inset 0 -1px 0 rgba(255, 255, 255, 0.28);
     border-color: rgba(255, 255, 255, 0.84);
@@ -369,8 +365,8 @@
   .pricing-card:hover .pricing-card-glow,
   .pricing-card:focus-within .pricing-card-glow,
   .pricing-card.is-highlighted .pricing-card-glow {
-    transform: translate3d(0.8rem, -0.7rem, 0) scale(1.08);
-    opacity: 0.9;
+    transform: translate3d(0.45rem, -0.32rem, 0) scale(1.04);
+    opacity: 0.78;
   }
 
   .pricing-card:hover .pricing-cta,
@@ -380,9 +376,9 @@
   }
 
   .pricing-board.has-plan-focus .pricing-card:not(.is-highlighted) {
-    transform: translate3d(0, 0.6rem, 0) scale(0.985);
-    filter: saturate(0.88) blur(0.2px);
-    opacity: 0.86;
+    transform: translate3d(0, 0.22rem, 0) scale(0.992);
+    filter: saturate(0.96);
+    opacity: 0.92;
   }
 }
 

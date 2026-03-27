@@ -1,14 +1,23 @@
-import { useScrollProgress, useViewportReveal } from '../hooks/useViewportMotion.js';
+import {
+  useMotionPreference,
+  useScrollProgress,
+  useViewportReveal,
+} from '../hooks/useViewportMotion.js';
 
 export default function HeroSection() {
-  const { ref, isVisible } = useViewportReveal({ threshold: 0.34, rootMargin: '0px 0px -12% 0px' });
-  const scrollProgress = useScrollProgress(ref);
+  const useSoftMotion = useMotionPreference('(prefers-reduced-motion: reduce), (max-width: 760px)');
+  const { ref, isVisible } = useViewportReveal({
+    threshold: useSoftMotion ? 0.08 : 0.18,
+    rootMargin: useSoftMotion ? '0px 0px 0px 0px' : '0px 0px -4% 0px',
+  });
+  const scrollProgress = useScrollProgress(ref, { disabled: useSoftMotion });
+  const heroProgress = useSoftMotion ? 0.22 : scrollProgress;
 
   return (
     <section
       ref={ref}
-      className={`spread hero-spread${isVisible ? ' is-motion-visible' : ''}`}
-      style={{ '--hero-progress': scrollProgress.toFixed(4) }}
+      className={`spread hero-spread${isVisible ? ' is-motion-visible' : ''}${useSoftMotion ? ' is-motion-soft' : ''}`}
+      style={{ '--hero-progress': heroProgress.toFixed(4) }}
     >
       <div className="campaign-grid hero-grid">
         <div className="hero-stage" aria-hidden="true">

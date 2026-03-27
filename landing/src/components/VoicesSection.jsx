@@ -21,7 +21,7 @@ export default function VoicesSection() {
             key={item.quote}
             style={{
               '--voice-order': index,
-              '--voice-enter-delay': `${index * 100}ms`,
+              '--voice-enter-delay': `${index * 75}ms`,
             }}
           >
             <p>{item.quote}</p>

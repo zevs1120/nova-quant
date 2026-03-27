@@ -27,7 +27,7 @@ export default function AskSection() {
 
           <ul className="ask-bullets" aria-label="Ask Nova highlights">
             {askBullets.map((bullet, index) => (
-              <li key={bullet} style={{ '--ask-enter-delay': `${index * 90}ms` }}>
+              <li key={bullet} style={{ '--ask-enter-delay': `${index * 70}ms` }}>
                 {bullet}
               </li>
             ))}
