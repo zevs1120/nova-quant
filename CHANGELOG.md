@@ -2,6 +2,37 @@
 
 All notable changes to NovaQuant are recorded here.
 
+## 10.14.0 (2026-03-27)
+
+- Release type: **minor** (new capability)
+
+- **Feat(landing): cinematic viewport-driven motion system.**
+  - New `useViewportMotion.js` hook: `useViewportReveal` (IntersectionObserver-based section entrance detection) and `useScrollProgress` (scroll-position-to-progress mapper) for parallax and reveal animations.
+  - Enhanced `useStatementFan.js` with a three-phase reveal state machine (`pre` → `animating` → `settled`): cards start collapsed, fan out on viewport intersection, and settle after 1.28 s.
+  - All 7 major sections (Hero, Statement, Proof, Ask, Pricing, Voices, Distribution) wired to `useViewportReveal` — each gains `is-motion-visible` CSS class on scroll-in, triggering per-section entrance keyframes.
+  - ~1,100 lines of new CSS: staggered fade-in + translateY entrance animations with per-element `--xxx-enter-delay` custom properties, hover lifts, glow overlays, and card fan transforms.
+
+- **Fix(landing): mobile layout and pricing touch behavior.**
+  - Gate all pricing hover/glow/dimming effects behind `@media (hover: hover) and (pointer: fine)`, preventing sticky hover highlights on touch devices.
+  - Add `touch-action: pan-y` on pricing board; filter `pointerType !== 'mouse'` in `onPointerEnter` to suppress touch-triggered card selection.
+  - Introduce `--mobile-shell-gutter` / `--mobile-shell-gutter-tight` design tokens, replacing hardcoded `100vw - Xrem` width calculations across page-shell, header, and legal footer.
+  - Add `overflow-x: clip` to body, voices, statement, pricing, distribution, and legal spreads — eliminating horizontal scrollbar on narrow viewports.
+  - Statement showcase width changed from `100vw` (with negative margin hack) to `100%`, removing overflow source.
+
+- **Fix(landing): smooth global motion behavior and `prefers-reduced-motion` support.**
+  - New `useMotionPreference` hook: tracks arbitrary media queries; Hero uses it to detect `prefers-reduced-motion` or small screens and switches to "soft motion" mode (lower parallax, relaxed IO thresholds).
+  - `useViewportReveal` defaults relaxed: threshold 0.24→0.16, rootMargin −10%→−4%, ensuring reveals fire earlier on short viewports.
+  - `useScrollProgress` gains a `disabled` option; soft-motion mode fixes progress at 0.22 and stops scroll listeners.
+  - Stagger delays tightened globally: Ask 90→70 ms, Distribution 105→80 ms, Pricing 95→70 ms, Proof 110→70 ms, Voices 100→75 ms.
+  - Scroll-progress update threshold raised from 0.008 to 0.012, reducing high-frequency re-renders.
+
+- **Fix(landing): stabilize statement cards and legal footer.**
+  - `useStatementFan` decoupled from `activeIndex` — no longer re-measures on card selection, preventing layout thrash.
+  - `BBOX_PAD_PX` increased 28→44 to prevent clipping of rotated/scaled/selected cards.
+  - Added `translateZ(0)` on scaler and `backface-visibility: hidden` on slots for GPU-layer promotion; removed per-slot `filter: saturate() brightness()` transitions to reduce compositing layers and eliminate sub-pixel flicker.
+  - `overflow-anchor: none` on viewport and showcase prevents browser scroll-anchor jumps.
+  - Legal footer redesigned: background changed from green-tinted (`#1f3128`) to deep blue-black (`#0b0d13`), decorative `::after` replaced with a top-edge gradient hairline, section dividers and `text-transform: uppercase` brand treatment added, mobile border-radius removed for edge-to-edge footer.
+
 ## 10.13.0 (2026-03-27)
 
 - Release type: **minor** (new capability)
@@ -12,7 +43,7 @@ All notable changes to NovaQuant are recorded here.
   - **Loader:** `validateTemplate`/`normalizeTemplate` extended with invalidation schema validation (same as trigger_conditions). `VALID_OPS` hoisted to module scope.
   - **YAML migration:** `EQ_PULLBACK.yaml` and `CR_MOMENTUM.yaml` invalidation converted to structured objects.
   - **Tests:** 3 new evaluator tests for structured invalidation (trigger, non-trigger, NL backward compat).
-  - Test suite: 113/113 files pass, 806/806 tests pass.
+  - Test suite: 113/113 files pass, 811/811 tests pass.
 
 ## 10.12.1 (2026-03-27)
 
