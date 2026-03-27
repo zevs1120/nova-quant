@@ -19,12 +19,18 @@
 
 .legal-surface {
   position: relative;
-  overflow: hidden;
-  padding: 2.6rem 0 3.3rem;
+  isolation: isolate;
+  overflow: clip;
+  padding: 2.9rem 0 3.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
   background:
-    radial-gradient(circle at 16% 0%, rgba(255, 95, 196, 0.08), transparent 24%),
-    radial-gradient(circle at 84% 12%, rgba(75, 125, 255, 0.1), transparent 28%),
-    linear-gradient(180deg, #1f3128 0%, #17241f 100%);
+    radial-gradient(circle at 18% 0%, rgba(255, 95, 196, 0.08), transparent 24%),
+    radial-gradient(circle at 84% 8%, rgba(75, 125, 255, 0.1), transparent 28%),
+    radial-gradient(circle at 52% 100%, rgba(97, 217, 130, 0.05), transparent 30%),
+    linear-gradient(180deg, #0b0d13 0%, #080a11 48%, #05060b 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.03),
+    0 -1px 0 rgba(18, 21, 34, 0.16);
   color: rgba(242, 247, 242, 0.78);
 }
 
@@ -38,24 +44,21 @@
 .legal-surface::before {
   inset: 0;
   background-image:
-    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    linear-gradient(rgba(255, 255, 255, 0.026) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.026) 1px, transparent 1px);
   background-size: 10.5rem 10.5rem;
+  opacity: 0.72;
 }
 
 .legal-surface::after {
-  right: 10%;
-  bottom: 3rem;
-  width: 8rem;
-  height: 3.2rem;
+  right: 9%;
+  top: 0;
+  width: 14rem;
+  height: 1px;
   background:
-    linear-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.08) 1px, transparent 1px), rgba(255, 216, 63, 0.88);
-  background-size:
-    12px 12px,
-    12px 12px,
-    auto;
-  opacity: 0.78;
+    linear-gradient(90deg, rgba(255, 95, 196, 0), rgba(255, 95, 196, 0.42)),
+    linear-gradient(90deg, rgba(70, 200, 255, 0), rgba(70, 200, 255, 0.52));
+  opacity: 0.9;
 }
 
 .legal-grid {
@@ -72,7 +75,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding-bottom: 1.4rem;
+  padding-bottom: 1.3rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .legal-brand {
@@ -97,7 +101,7 @@
 }
 
 .legal-links a {
-  color: rgba(242, 247, 242, 0.72);
+  color: rgba(242, 247, 242, 0.68);
   font-size: 0.86rem;
 }
 
@@ -120,7 +124,7 @@
 }
 
 .legal-copy p {
-  color: rgba(242, 247, 242, 0.68);
+  color: rgba(242, 247, 242, 0.66);
   max-width: 60rem;
   font-size: 0.94rem;
   line-height: 1.62;
@@ -129,7 +133,8 @@
 .legal-meta {
   display: grid;
   gap: 0.8rem;
-  padding-top: 1rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .legal-copyright {
@@ -141,7 +146,8 @@
   color: #f7fbf8;
   font-size: 0.94rem;
   font-weight: 700;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .legal-notes {
@@ -150,7 +156,7 @@
 }
 
 .legal-notes p {
-  color: rgba(242, 247, 242, 0.62);
+  color: rgba(242, 247, 242, 0.58);
   font-size: 0.91rem;
   line-height: 1.58;
 }
@@ -160,7 +166,7 @@
   align-items: center;
   gap: 0.55rem;
   width: fit-content;
-  margin-top: 0.25rem;
+  margin-top: 0.35rem;
   padding: 0.3rem 0;
   color: #f7fbf8;
   font-size: 0.88rem;
@@ -190,12 +196,12 @@
   }
 
   .legal-grid {
-    width: min(calc(100% - 1.2rem), var(--page-width));
+    width: min(calc(100% - (var(--mobile-shell-gutter-tight) * 2)), var(--page-width));
   }
 
   .legal-surface {
     padding: 1.9rem 0 calc(env(safe-area-inset-bottom, 0px) + 2.5rem);
-    border-radius: 1.45rem 1.45rem 0 0;
+    border-radius: 0;
   }
 
   .legal-topbar {
@@ -247,7 +253,7 @@
 
 @media (max-width: 375px) {
   .legal-grid {
-    width: min(calc(100% - 0.9rem), var(--page-width));
+    width: min(calc(100% - (var(--mobile-shell-gutter-tight) * 2)), var(--page-width));
   }
 
   .legal-surface {
@@ -282,7 +288,6 @@
   }
 
   .legal-surface::after {
-    width: 5rem;
-    height: 2.2rem;
+    width: 7rem;
   }
 }

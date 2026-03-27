@@ -91,7 +91,7 @@ export default function StatementSection({ activeCard, onCardSelect, fan }) {
               className="statement-stack-scaler"
               style={{
                 width: fitWidthPx != null ? `${fitWidthPx}px` : undefined,
-                transform: `scale(${scale})`,
+                transform: `translateZ(0) scale(${scale})`,
               }}
             >
               <div ref={stageRef} className={stageClassName}>

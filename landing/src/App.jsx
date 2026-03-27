@@ -13,7 +13,7 @@ import LegalFooter from './components/LegalFooter.jsx';
 
 export default function App() {
   const [activeStatementCard, setActiveStatementCard] = useState(null);
-  const fan = useStatementFan(activeStatementCard);
+  const fan = useStatementFan();
 
   return (
     <div className="world">

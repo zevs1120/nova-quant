@@ -8,17 +8,16 @@ const MIN_STAGE_WIDTH_REM = 39;
 const STAGE_HEIGHT_REM = 42;
 const VIEWPORT_PAD_PX = 8;
 /** Extra px around measured card bbox so shadows / rotation / selected scale do not clip. */
-const BBOX_PAD_PX = 28;
+const BBOX_PAD_PX = 44;
 
 export { STAGE_HEIGHT_REM };
 
 /**
  * Manages the ResizeObserver-driven fit-to-width scaling of the fanned action card stack.
  *
- * @param {number} activeIndex - Currently selected card index (re-measures on change).
  * @returns {{ viewportRef, scalerRef, stageRef, scale, fitWidthPx }}
  */
-export default function useStatementFan(activeIndex) {
+export default function useStatementFan() {
   const viewportRef = useRef(null);
   const scalerRef = useRef(null);
   const stageRef = useRef(null);
@@ -118,7 +117,7 @@ export default function useStatementFan(activeIndex) {
     ro.observe(vp);
     apply(vp.getBoundingClientRect().width);
     return () => ro.disconnect();
-  }, [activeIndex, revealPhase]);
+  }, [revealPhase]);
 
   return {
     viewportRef,
