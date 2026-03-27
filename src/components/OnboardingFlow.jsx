@@ -98,23 +98,306 @@ function Dots({ count, activeIndex }) {
   );
 }
 
+function IntroPoster({ pageIndex, locale }) {
+  const zh = locale?.startsWith('zh');
+
+  if (pageIndex === 0) {
+    return (
+      <div className="onboarding-poster onboarding-poster-meet" aria-hidden="true">
+        <div className="onboarding-poster-block onboarding-poster-block-pink onboarding-poster-block-top" />
+        <div className="onboarding-poster-block onboarding-poster-block-blue onboarding-poster-block-right" />
+        <div className="onboarding-poster-block onboarding-poster-block-yellow onboarding-poster-block-bottom" />
+        <div className="onboarding-poster-block onboarding-poster-block-green onboarding-poster-block-strip" />
+
+        <div className="onboarding-poster-copy onboarding-poster-copy-meet">
+          <span className="onboarding-poster-kicker">MEET NOVAQUANT</span>
+          <h1 className="onboarding-poster-title onboarding-poster-title-meet">
+            <span>MEET</span>
+            <span>NOVA</span>
+            <span>QUANT</span>
+          </h1>
+        </div>
+
+        <div className="onboarding-meet-stack">
+          <article className="onboarding-meet-card onboarding-meet-card-back">
+            <span className="onboarding-meet-card-kicker">TODAY PICK 01</span>
+            <strong className="onboarding-meet-symbol">NVDA</strong>
+            <p className="onboarding-meet-caption">{zh ? 'Buy setup' : 'Buy setup'}</p>
+            <div className="onboarding-meet-card-actions">
+              <span className="onboarding-meet-card-button onboarding-meet-card-button-primary">
+                Open
+              </span>
+            </div>
+          </article>
+
+          <article className="onboarding-meet-card onboarding-meet-card-mid">
+            <span className="onboarding-meet-card-kicker">TODAY PICK 02</span>
+            <strong className="onboarding-meet-symbol">TSLA</strong>
+            <p className="onboarding-meet-caption">{zh ? 'Reduce risk' : 'Reduce risk'}</p>
+            <div className="onboarding-meet-card-metrics">
+              <span>69%</span>
+              <span>Low beta</span>
+            </div>
+          </article>
+
+          <article className="onboarding-meet-card onboarding-meet-card-front">
+            <div className="onboarding-meet-card-head">
+              <span className="onboarding-meet-card-kicker">TODAY PICK 03</span>
+              <span className="onboarding-meet-card-kicker onboarding-meet-card-kicker-accent">
+                WATCH FIRST
+              </span>
+            </div>
+            <strong className="onboarding-meet-symbol">AAPL</strong>
+            <p className="onboarding-meet-caption">
+              {zh ? '清楚一点，再行动。' : 'Watch first. Move with clarity.'}
+            </p>
+            <div className="onboarding-meet-card-metrics onboarding-meet-card-metrics-front">
+              <span>64% conviction</span>
+              <span>7% only</span>
+              <span>Low risk</span>
+            </div>
+            <div className="onboarding-meet-card-actions onboarding-meet-card-actions-front">
+              <span className="onboarding-meet-card-button onboarding-meet-card-button-primary">
+                Open broker
+              </span>
+              <span className="onboarding-meet-card-button">Ask Nova</span>
+            </div>
+          </article>
+        </div>
+      </div>
+    );
+  }
+
+  if (pageIndex === 1) {
+    return (
+      <div className="onboarding-poster onboarding-poster-climate" aria-hidden="true">
+        <div className="onboarding-poster-block onboarding-poster-block-indigo onboarding-poster-block-top" />
+        <div className="onboarding-poster-block onboarding-poster-block-cyan onboarding-poster-block-corner" />
+
+        <div className="onboarding-poster-copy onboarding-poster-copy-climate">
+          <span className="onboarding-poster-kicker">READ THE DAY FIRST</span>
+          <h1 className="onboarding-poster-title onboarding-poster-title-tight onboarding-poster-title-climate">
+            <span>READ</span>
+            <span>THE DAY</span>
+            <span>FIRST</span>
+          </h1>
+        </div>
+
+        <div className="onboarding-climate-stage">
+          <article className="onboarding-climate-panel onboarding-climate-panel-main">
+            <div className="onboarding-climate-panel-head">
+              <span className="onboarding-poster-chip">TODAY MODE</span>
+              <span className="onboarding-poster-chip onboarding-poster-chip-light">
+                READ FIRST
+              </span>
+            </div>
+
+            <div className="onboarding-climate-hero">
+              <div className="onboarding-climate-wheel">
+                <span className="onboarding-climate-wheel-label">WAIT</span>
+                <strong>68%</strong>
+                <p>{zh ? '好 setup 才继续看' : 'Only the clearest setups survive.'}</p>
+              </div>
+
+              <div className="onboarding-climate-stats">
+                <div className="onboarding-climate-stat-card onboarding-climate-stat-card-indigo">
+                  <span>Act</span>
+                  <strong>42%</strong>
+                </div>
+                <div className="onboarding-climate-stat-card onboarding-climate-stat-card-cyan">
+                  <span>Risk</span>
+                  <strong>Low</strong>
+                </div>
+              </div>
+            </div>
+
+            <div className="onboarding-climate-meter-group">
+              <div className="onboarding-meter onboarding-meter-climate">
+                <span />
+              </div>
+              <div className="onboarding-climate-tags">
+                <span>Trade lighter</span>
+                <span>Wait for confirmation</span>
+                <span>Size down first</span>
+              </div>
+            </div>
+          </article>
+
+          <article className="onboarding-climate-panel onboarding-climate-panel-note">
+            <strong>{zh ? '今天先读气候' : 'Read the day first'}</strong>
+            <p>{zh ? '先定节奏，再决定是否加风险。' : 'Set the pace before you add risk.'}</p>
+          </article>
+        </div>
+      </div>
+    );
+  }
+
+  if (pageIndex === 2) {
+    return (
+      <div className="onboarding-poster onboarding-poster-ask" aria-hidden="true">
+        <div className="onboarding-poster-block onboarding-poster-block-pink onboarding-poster-block-top" />
+        <div className="onboarding-poster-block onboarding-poster-block-cyan onboarding-poster-block-side" />
+
+        <div className="onboarding-poster-copy onboarding-poster-copy-ask">
+          <span className="onboarding-poster-kicker">ASK NOVA DIRECTLY</span>
+          <h1 className="onboarding-poster-title onboarding-poster-title-tight onboarding-poster-title-ask">
+            <span>ASK</span>
+            <span>NOVA</span>
+            <span>NOW</span>
+          </h1>
+        </div>
+
+        <div className="onboarding-ask-stage">
+          <article className="onboarding-ask-shell">
+            <div className="onboarding-ask-shell-head">
+              <span className="onboarding-poster-chip">ASK NOVA</span>
+              <span className="onboarding-poster-chip onboarding-poster-chip-light">
+                LIVE CONTEXT
+              </span>
+            </div>
+
+            <div className="onboarding-ask-thread">
+              <div className="onboarding-chat-bubble onboarding-chat-bubble-light">
+                {zh ? '现在最重要的是什么？' : 'What matters most right now?'}
+              </div>
+
+              <div className="onboarding-chat-response">
+                <span className="onboarding-chat-response-kicker">NOVA BRIEF</span>
+                <strong>{zh ? '先盯最清楚的 setup。' : 'Focus on the clearest setup.'}</strong>
+                <p>
+                  {zh
+                    ? '减一点仓位，再等确认，不要被噪音带着走。'
+                    : 'Size down first, wait for confirmation, and ignore the noisy names.'}
+                </p>
+                <div className="onboarding-chat-response-tags">
+                  <span>AAPL</span>
+                  <span>Wait</span>
+                  <span>Low risk</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="onboarding-ask-suggestions">
+              <span>{zh ? '为什么是 AAPL？' : 'Why AAPL?'}</span>
+              <span>{zh ? '现在要不要买？' : 'Should I buy now?'}</span>
+            </div>
+
+            <div className="onboarding-ask-input">
+              <span className="onboarding-ask-input-field">
+                {zh ? '用人话问 Nova…' : 'Ask Nova in plain English...'}
+              </span>
+              <span className="onboarding-ask-input-send">{zh ? '发送' : 'Send'}</span>
+            </div>
+          </article>
+
+          <div className="onboarding-ask-float">
+            {zh ? '少一点噪音，多一点判断。' : 'Less noise. More clarity.'}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="onboarding-poster onboarding-poster-broker" aria-hidden="true">
+      <div className="onboarding-poster-block onboarding-poster-block-yellow onboarding-poster-block-top" />
+      <div className="onboarding-poster-block onboarding-poster-block-pink onboarding-poster-block-corner" />
+
+      <div className="onboarding-poster-copy onboarding-poster-copy-broker">
+        <span className="onboarding-poster-kicker">STAY CLOSE TO EXECUTION</span>
+        <h1 className="onboarding-poster-title onboarding-poster-title-broker">
+          <span>MOVE</span>
+          <span>WITH YOUR</span>
+          <span>BROKER</span>
+        </h1>
+      </div>
+
+      <div className="onboarding-broker-stage">
+        <article className="onboarding-broker-shell onboarding-broker-shell-nova">
+          <div className="onboarding-broker-shell-head">
+            <span className="onboarding-poster-chip">NOVA</span>
+            <span className="onboarding-poster-chip onboarding-poster-chip-light">READY</span>
+          </div>
+          <strong className="onboarding-broker-symbol">AAPL</strong>
+          <p className="onboarding-broker-copy">
+            {zh
+              ? 'Watch first. 等确认后再打开券商。'
+              : 'Watch first. Open your broker when confirmation arrives.'}
+          </p>
+          <div className="onboarding-broker-pills">
+            <span>Today</span>
+            <span>Signals</span>
+            <span>Ask Nova</span>
+          </div>
+        </article>
+
+        <div className="onboarding-broker-transfer">
+          <span className="onboarding-broker-transfer-line" />
+          <span className="onboarding-broker-transfer-chip">{zh ? '执行' : 'EXECUTE'}</span>
+        </div>
+
+        <article className="onboarding-broker-shell onboarding-broker-shell-app">
+          <div className="onboarding-broker-shell-head">
+            <span className="onboarding-poster-chip onboarding-poster-chip-light">BROKER</span>
+            <span className="onboarding-broker-dot" />
+          </div>
+          <div className="onboarding-broker-list">
+            <span className="is-active">Robinhood</span>
+            <span>Webull</span>
+            <span>Fidelity</span>
+            <span>Schwab</span>
+          </div>
+          <div className="onboarding-broker-open-row">
+            <span className="onboarding-meet-card-button onboarding-meet-card-button-primary">
+              {zh ? '打开券商' : 'Open broker'}
+            </span>
+          </div>
+        </article>
+      </div>
+    </div>
+  );
+}
+
 function SignalCityArt() {
   return (
     <svg viewBox="0 0 360 300" className="onboarding-artboard" aria-hidden="true">
-      <rect x="0" y="186" width="360" height="114" rx="18" className="ob-ground" />
-      <path d="M22 220C78 202 118 202 170 220C214 236 266 238 338 210" className="ob-route" />
-      <rect x="32" y="118" width="62" height="102" rx="18" className="ob-block ob-block-indigo" />
-      <rect x="112" y="96" width="44" height="124" rx="16" className="ob-block ob-block-cyan" />
-      <rect x="172" y="76" width="56" height="144" rx="20" className="ob-block ob-block-pink" />
-      <rect x="246" y="110" width="70" height="110" rx="18" className="ob-block ob-block-neutral" />
-      <circle cx="62" cy="100" r="16" className="ob-node ob-node-cyan" />
-      <circle cx="142" cy="70" r="14" className="ob-node ob-node-pink" />
-      <circle cx="204" cy="46" r="18" className="ob-node ob-node-indigo" />
-      <circle cx="294" cy="82" r="14" className="ob-node ob-node-cyan" />
-      <path d="M60 100L140 70L204 46L294 82" className="ob-link" />
-      <rect x="138" y="204" width="84" height="58" rx="29" className="ob-ring-shell" />
-      <circle cx="180" cy="233" r="24" className="ob-ring-core" />
-      <path d="M171 233L178 240L192 225" className="ob-glyph" />
+      <rect x="30" y="34" width="300" height="220" rx="32" className="ob-editorial-panel" />
+      <rect x="40" y="46" width="128" height="20" className="ob-flat ob-flat-pink" />
+      <rect x="260" y="48" width="44" height="86" className="ob-flat ob-flat-blue" />
+      <rect x="224" y="188" width="80" height="46" className="ob-flat ob-flat-yellow" />
+      <rect x="66" y="206" width="138" height="20" className="ob-flat ob-flat-green" />
+
+      <text x="52" y="61" className="ob-editorial-kicker">
+        MEET NOVAQUANT
+      </text>
+
+      <text x="52" y="116" className="ob-editorial-title">
+        MEET
+      </text>
+      <text x="52" y="160" className="ob-editorial-title">
+        NOVA
+      </text>
+      <text x="52" y="210" className="ob-editorial-title ob-editorial-title-offset">
+        QUANT
+      </text>
+
+      <rect
+        x="224"
+        y="152"
+        width="74"
+        height="16"
+        rx="8"
+        className="ob-card-pill ob-card-pill-outline"
+      />
+      <rect
+        x="224"
+        y="176"
+        width="52"
+        height="10"
+        rx="5"
+        className="ob-card-line ob-card-line-soft"
+      />
+      <rect x="224" y="192" width="68" height="12" rx="6" className="ob-card-line" />
     </svg>
   );
 }
@@ -123,17 +406,78 @@ function ClimatePanelArt() {
   return (
     <svg viewBox="0 0 360 300" className="onboarding-artboard" aria-hidden="true">
       <rect x="34" y="48" width="292" height="204" rx="34" className="ob-panel" />
-      <circle cx="116" cy="126" r="46" className="ob-ring-shell" />
-      <circle cx="116" cy="126" r="29" className="ob-ring-core" />
-      <circle cx="202" cy="126" r="46" className="ob-ring-shell ob-ring-shell-cyan" />
-      <circle cx="202" cy="126" r="29" className="ob-ring-core ob-ring-core-cyan" />
-      <circle cx="288" cy="126" r="46" className="ob-ring-shell ob-ring-shell-pink" />
-      <circle cx="288" cy="126" r="29" className="ob-ring-core ob-ring-core-pink" />
-      <rect x="74" y="204" width="212" height="18" rx="9" className="ob-pill-track" />
-      <rect x="74" y="204" width="128" height="18" rx="9" className="ob-pill-fill" />
-      <path d="M98 154H134" className="ob-mini-line" />
-      <path d="M184 154H220" className="ob-mini-line" />
-      <path d="M270 154H306" className="ob-mini-line" />
+
+      <rect
+        x="58"
+        y="70"
+        width="64"
+        height="16"
+        rx="8"
+        className="ob-card-pill ob-card-pill-indigo"
+      />
+      <rect
+        x="248"
+        y="70"
+        width="50"
+        height="16"
+        rx="8"
+        className="ob-card-pill ob-card-pill-green"
+      />
+
+      <circle cx="106" cy="134" r="44" className="ob-ring-shell" />
+      <circle cx="106" cy="134" r="28" className="ob-ring-core" />
+      <path d="M106 116V134L124 144" className="ob-mini-line" />
+
+      <rect x="166" y="98" width="118" height="44" rx="18" className="ob-card-stat" />
+      <rect
+        x="182"
+        y="112"
+        width="46"
+        height="10"
+        rx="5"
+        className="ob-card-line ob-card-line-soft"
+      />
+      <rect x="182" y="128" width="74" height="12" rx="6" className="ob-card-line" />
+
+      <rect x="166" y="152" width="52" height="46" rx="18" className="ob-card-stat" />
+      <rect x="228" y="152" width="56" height="46" rx="18" className="ob-card-stat" />
+      <rect
+        x="180"
+        y="168"
+        width="22"
+        height="10"
+        rx="5"
+        className="ob-card-line ob-card-line-soft"
+      />
+      <rect x="180" y="184" width="30" height="10" rx="5" className="ob-card-line" />
+      <rect
+        x="244"
+        y="168"
+        width="24"
+        height="10"
+        rx="5"
+        className="ob-card-line ob-card-line-soft"
+      />
+      <rect x="244" y="184" width="32" height="10" rx="5" className="ob-card-line" />
+
+      <rect x="58" y="214" width="244" height="18" rx="9" className="ob-meter-track" />
+      <rect x="58" y="214" width="156" height="18" rx="9" className="ob-meter-fill" />
+      <rect
+        x="76"
+        y="162"
+        width="60"
+        height="14"
+        rx="7"
+        className="ob-card-pill ob-card-pill-cyan"
+      />
+      <rect
+        x="76"
+        y="184"
+        width="44"
+        height="10"
+        rx="5"
+        className="ob-card-line ob-card-line-soft"
+      />
     </svg>
   );
 }
@@ -141,21 +485,64 @@ function ClimatePanelArt() {
 function AiPresenceArt() {
   return (
     <svg viewBox="0 0 360 300" className="onboarding-artboard" aria-hidden="true">
-      <path d="M40 214C88 160 112 122 180 92C252 60 290 70 320 120" className="ob-wave" />
-      <path
-        d="M48 236C118 192 156 176 196 164C258 146 286 148 324 176"
-        className="ob-wave ob-wave-cyan"
+      <rect x="52" y="58" width="256" height="186" rx="34" className="ob-chat-window" />
+      <rect
+        x="72"
+        y="78"
+        width="84"
+        height="16"
+        rx="8"
+        className="ob-card-pill ob-card-pill-indigo"
       />
-      <path d="M70 76L146 126L112 186" className="ob-link" />
-      <path d="M290 74L218 126L246 188" className="ob-link" />
-      <circle cx="180" cy="154" r="66" className="ob-presence" />
-      <circle cx="180" cy="154" r="34" className="ob-presence-core" />
-      <circle cx="92" cy="70" r="14" className="ob-node ob-node-indigo" />
-      <circle cx="268" cy="76" r="14" className="ob-node ob-node-pink" />
-      <circle cx="88" cy="222" r="12" className="ob-node ob-node-cyan" />
-      <circle cx="276" cy="226" r="12" className="ob-node ob-node-indigo" />
-      <path d="M166 154H194" className="ob-glyph" />
-      <path d="M180 140V168" className="ob-glyph" />
+      <rect
+        x="242"
+        y="78"
+        width="40"
+        height="16"
+        rx="8"
+        className="ob-card-pill ob-card-pill-outline"
+      />
+
+      <rect x="72" y="110" width="166" height="46" rx="20" className="ob-chat-bubble" />
+      <rect
+        x="88"
+        y="126"
+        width="58"
+        height="10"
+        rx="5"
+        className="ob-chat-line ob-chat-line-soft"
+      />
+      <rect x="88" y="142" width="118" height="10" rx="5" className="ob-chat-line" />
+
+      <rect
+        x="122"
+        y="168"
+        width="166"
+        height="52"
+        rx="22"
+        className="ob-chat-bubble ob-chat-bubble-dark"
+      />
+      <rect
+        x="142"
+        y="186"
+        width="70"
+        height="10"
+        rx="5"
+        className="ob-chat-line ob-chat-line-light"
+      />
+      <rect
+        x="142"
+        y="202"
+        width="112"
+        height="10"
+        rx="5"
+        className="ob-chat-line ob-chat-line-light-soft"
+      />
+
+      <circle cx="286" cy="126" r="18" className="ob-node ob-node-cyan" />
+      <circle cx="88" cy="198" r="14" className="ob-node ob-node-pink" />
+      <path d="M88 198H118" className="ob-link" />
+      <path d="M238 132H268" className="ob-link" />
     </svg>
   );
 }
@@ -163,23 +550,51 @@ function AiPresenceArt() {
 function BrokerBridgeArt() {
   return (
     <svg viewBox="0 0 360 300" className="onboarding-artboard" aria-hidden="true">
-      <rect x="44" y="64" width="124" height="172" rx="32" className="ob-device" />
-      <rect x="192" y="96" width="124" height="140" rx="28" className="ob-device ob-device-alt" />
+      <rect x="42" y="60" width="122" height="178" rx="30" className="ob-device" />
+      <rect x="196" y="88" width="122" height="150" rx="28" className="ob-device ob-device-alt" />
+
       <rect
-        x="78"
-        y="102"
-        width="58"
-        height="18"
-        rx="9"
+        x="66"
+        y="88"
+        width="54"
+        height="16"
+        rx="8"
         className="ob-app-pill ob-app-pill-indigo"
       />
-      <rect x="78" y="132" width="74" height="18" rx="9" className="ob-app-pill ob-app-pill-cyan" />
-      <rect x="78" y="162" width="46" height="18" rx="9" className="ob-app-pill ob-app-pill-pink" />
-      <rect x="220" y="132" width="70" height="48" rx="20" className="ob-handoff-core" />
-      <path d="M154 150H206" className="ob-link" />
-      <path d="M198 140L214 150L198 160" className="ob-glyph" />
-      <circle cx="118" cy="208" r="18" className="ob-node ob-node-indigo" />
-      <circle cx="250" cy="208" r="18" className="ob-node ob-node-cyan" />
+      <rect x="66" y="116" width="72" height="16" rx="8" className="ob-app-pill ob-app-pill-cyan" />
+      <rect x="66" y="144" width="48" height="16" rx="8" className="ob-app-pill ob-app-pill-pink" />
+      <rect
+        x="66"
+        y="186"
+        width="74"
+        height="22"
+        rx="11"
+        className="ob-card-button ob-card-button-dark"
+      />
+
+      <path d="M154 156H208" className="ob-link" />
+      <circle cx="181" cy="156" r="20" className="ob-handoff-core" />
+      <path d="M172 156H190" className="ob-glyph" />
+      <path d="M184 148L192 156L184 164" className="ob-glyph" />
+
+      <rect
+        x="220"
+        y="116"
+        width="42"
+        height="16"
+        rx="8"
+        className="ob-card-pill ob-card-pill-outline"
+      />
+      <rect
+        x="220"
+        y="144"
+        width="74"
+        height="18"
+        rx="9"
+        className="ob-broker-tile ob-broker-tile-active"
+      />
+      <rect x="220" y="170" width="74" height="18" rx="9" className="ob-broker-tile" />
+      <rect x="220" y="196" width="74" height="18" rx="9" className="ob-broker-tile" />
     </svg>
   );
 }
@@ -243,9 +658,6 @@ export default function OnboardingFlow({
 
   if (!open) return null;
 
-  const currentPage = copy.onboarding[pageIndex];
-  const Illustration = ILLUSTRATIONS[pageIndex];
-
   const emailValid = /\S+@\S+\.\S+/.test(email);
   const passwordValid = String(password).trim().length >= 8;
   const normalizedLoginIdentifier = String(loginEmail || '')
@@ -293,15 +705,7 @@ export default function OnboardingFlow({
           onTouchStart={handleSwipeStart}
           onTouchEnd={handleSwipeEnd}
         >
-          <div className="onboarding-copy-wrap">
-            <p className="onboarding-subhead">{currentPage.sub || copy.swipe}</p>
-            <h1 className="onboarding-title">{currentPage.title}</h1>
-            <p className="onboarding-body">{currentPage.body}</p>
-          </div>
-
-          <div className="onboarding-art-wrap">
-            <Illustration />
-          </div>
+          <IntroPoster pageIndex={pageIndex} locale={locale} />
 
           <div className="onboarding-fixed-footer">
             <Dots count={copy.onboarding.length} activeIndex={pageIndex} />
