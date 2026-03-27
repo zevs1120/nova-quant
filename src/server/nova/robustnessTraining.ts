@@ -145,6 +145,10 @@ const PROMOTION_GATE_THRESHOLDS = Object.freeze({
   drawdown_pass_rate_min: 0.8,
   rolling_oos_pass_rate_min: 0.45,
   perturbation_pass_rate_min: 0.75,
+  // RT-1 fix: Require average Sharpe to stay within this delta of the target threshold.
+  // If target Sharpe is 1.2, the average across tasks must be >= 1.2 - 0.15 = 1.05.
+  // Previous implicit tolerance of 0.3 was too lenient for production deployment.
+  max_sharpe_delta_from_target: 0.15,
 });
 
 const DEFAULT_SYMBOLS: Record<Market, string[]> = {
@@ -285,7 +289,30 @@ function sampleTaskSpecs(args: {
     });
   }
 
-  return tasks.slice(0, args.taskLimit);
+  const selected = tasks.slice(0, args.taskLimit);
+
+  // RT-2 fix: Validate task diversity — ensure tasks span at least 2 distinct risk
+  // profiles AND 2 distinct duration buckets. Without this, the seeded random could
+  // produce highly similar tasks that reduce the value of robustness evaluation.
+  const uniqueProfiles = new Set(selected.map((t) => t.risk_profile));
+  const uniqueDurations = new Set(selected.map((t) => t.duration_days));
+  const diversityOk =
+    uniqueProfiles.size >= Math.min(2, args.riskProfiles.length) && uniqueDurations.size >= 2;
+
+  if (!diversityOk && selected.length >= 4) {
+    // If diversity is insufficient, inject variety by cycling through available
+    // risk profiles and durations for the second half of the task list.
+    const allDurations = [...new Set(Object.values(durationsByScope).flat())];
+    const halfPoint = Math.floor(selected.length / 2);
+    for (let i = halfPoint; i < selected.length; i += 1) {
+      const task = selected[i];
+      task.risk_profile = args.riskProfiles[i % args.riskProfiles.length];
+      task.duration_days = allDurations[i % allDurations.length];
+      task.label = `${task.market_scope}-${task.risk_profile}-${task.duration_days}d-diversified`;
+    }
+  }
+
+  return selected;
 }
 
 function summarizeTaskResult(
@@ -435,19 +462,32 @@ function summarizeResults(tasks: NovaRobustnessTaskResult[]): RobustnessTraining
 }
 
 function buildPromotionGate(summary: RobustnessTrainingSummary): RobustnessPromotionGate {
+  // RT-1 fix: Add average Sharpe floor check alongside pass rates.
+  // The average Sharpe across completed tasks must be within max_sharpe_delta_from_target
+  // of the TARGET_THRESHOLDS.sharpe. This prevents the gate from opening when many tasks
+  // pass with a Sharpe of ~0.9 (OOS leak) while the target is 1.2.
+  const sharpeDeltaOk =
+    summary.average_sharpe >=
+    TARGET_THRESHOLDS.sharpe - PROMOTION_GATE_THRESHOLDS.max_sharpe_delta_from_target;
   const ready =
     summary.target_pass_rate >= PROMOTION_GATE_THRESHOLDS.target_pass_rate_min &&
     summary.annual_pass_rate >= PROMOTION_GATE_THRESHOLDS.annual_pass_rate_min &&
     summary.sharpe_pass_rate >= PROMOTION_GATE_THRESHOLDS.sharpe_pass_rate_min &&
     summary.drawdown_pass_rate >= PROMOTION_GATE_THRESHOLDS.drawdown_pass_rate_min &&
     summary.average_rolling_oos_pass_rate >= PROMOTION_GATE_THRESHOLDS.rolling_oos_pass_rate_min &&
-    summary.average_perturbation_pass_rate >= PROMOTION_GATE_THRESHOLDS.perturbation_pass_rate_min;
+    summary.average_perturbation_pass_rate >=
+      PROMOTION_GATE_THRESHOLDS.perturbation_pass_rate_min &&
+    sharpeDeltaOk;
+
+  const reason = ready
+    ? 'Random-task pass rate and robustness gates are strong enough for controlled promotion.'
+    : !sharpeDeltaOk
+      ? `Keep training. Average Sharpe (${round(summary.average_sharpe, 4)}) is too far below the ${TARGET_THRESHOLDS.sharpe} target.`
+      : 'Keep training. Random-task pass rate or robustness gates are still below promotion thresholds.';
 
   return {
     ready,
-    reason: ready
-      ? 'Random-task pass rate and robustness gates are strong enough for controlled promotion.'
-      : 'Keep training. Random-task pass rate or robustness gates are still below promotion thresholds.',
+    reason,
     thresholds: { ...PROMOTION_GATE_THRESHOLDS },
     current: {
       target_pass_rate: summary.target_pass_rate,

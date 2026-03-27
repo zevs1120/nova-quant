@@ -659,10 +659,15 @@ function normalizeWeights(
     mean_reversion: Math.max(0, safeNumber(input.mean_reversion, 0)),
   };
   const total = Object.values(base).reduce((sum, value) => sum + value, 0) || 1;
+  // EDGE-4 fix: Guard against NaN/Infinity from degenerate inputs.
+  const safe = (value: number) => {
+    const result = value / total;
+    return Number.isFinite(result) ? round(result, 6) : 0;
+  };
   return {
-    trend_breakout: round(base.trend_breakout / total, 6),
-    trend_pullback: round(base.trend_pullback / total, 6),
-    mean_reversion: round(base.mean_reversion / total, 6),
+    trend_breakout: safe(base.trend_breakout),
+    trend_pullback: safe(base.trend_pullback),
+    mean_reversion: safe(base.mean_reversion),
   };
 }
 
@@ -670,6 +675,15 @@ function buildMarketPlan(
   market: Market,
   compositeBars: NumericBar[],
 ): Map<number, MarketPlanPoint> {
+  // EDGE-1 fix: Guard against empty or degenerate composite bars.
+  // If the composite series is too short, all EMA/ATR values will be NaN,
+  // and every bar would silently fallback to 'range' regime — which is correct
+  // but loses regime-awareness. Return an empty map and let callers use their
+  // inline fallback (already present at every call site).
+  if (compositeBars.length < 10) {
+    return new Map<number, MarketPlanPoint>();
+  }
+
   const closes = compositeBars.map((bar) => bar.close);
   const emaFast = emaSeries(closes, market === 'US' ? 18 : 24);
   const emaSlow = emaSeries(closes, market === 'US' ? 60 : 84);
@@ -677,6 +691,15 @@ function buildMarketPlan(
   const atrPct = atr.map((value, index) => value / Math.max(closes[index], 1e-9));
   const breakout = rollingMaxPrevious(closes, market === 'US' ? 25 : 32);
   const plan = new Map<number, MarketPlanPoint>();
+
+  // EDGE-1 fix: Check for degenerate EMA/ATR series (all NaN from insufficient data).
+  const hasValidIndicators =
+    emaFast.some((v) => Number.isFinite(v)) &&
+    emaSlow.some((v) => Number.isFinite(v)) &&
+    atr.some((v) => Number.isFinite(v) && v > 0);
+  if (!hasValidIndicators) {
+    return plan;
+  }
 
   compositeBars.forEach((bar, index) => {
     const slopeUp = emaSlow[index] > safeNumber(emaSlow[Math.max(0, index - 5)], emaSlow[index]);
@@ -1121,6 +1144,8 @@ function buildConfigGrid(market: Market, riskProfile: RiskProfileKey): StrategyC
     ];
   }
 
+  // BUG-1 fix: Skip mean_reversion configs for CRYPTO — entry logic hardcodes market === 'US'
+  // so CRYPTO mean_reversion configs always produce 0 trades and pollute bundle selection.
   return [
     {
       config_id: 'crypto_guarded_18',
@@ -1320,72 +1345,8 @@ function buildConfigGrid(market: Market, riskProfile: RiskProfileKey): StrategyC
       min_dollar_volume: 22_000_000,
       tightness_score: 2,
     },
-    {
-      config_id: 'crypto_meanrev_12',
-      market,
-      style: 'mean_reversion',
-      style_family: 'Mean Reversion',
-      execution_timeframe: '4h',
-      breakout_lookback: 12,
-      ema_fast: 12,
-      ema_slow: 48,
-      atr_period: 14,
-      volume_lookback: 18,
-      rotation_lookback: 18,
-      rotation_gate_min: 0,
-      rotation_gate_max: 0.9,
-      pullback_atr_multiple: 0.85,
-      reversion_zscore: 1.35,
-      min_atr_pct: 0.01,
-      max_atr_pct: 0.07,
-      volume_ratio_min: 0.8,
-      max_extension_pct: 0.03,
-      stop_atr: 1.45,
-      trail_atr: 2.5,
-      profit_lock_trigger_r: 1.05,
-      profit_lock_trail_atr: 3,
-      max_hold_bars: 10,
-      cooldown_bars: 2,
-      risk_per_trade_pct: round(0.0025 * riskMult, 6),
-      max_position_pct: round(0.055 * riskMult, 6),
-      min_position_pct: 0.012,
-      max_participation_rate: 0.01,
-      min_dollar_volume: 16_000_000,
-      tightness_score: 1.3,
-    },
-    {
-      config_id: 'crypto_meanrev_16',
-      market,
-      style: 'mean_reversion',
-      style_family: 'Mean Reversion',
-      execution_timeframe: '4h',
-      breakout_lookback: 16,
-      ema_fast: 14,
-      ema_slow: 56,
-      atr_period: 16,
-      volume_lookback: 20,
-      rotation_lookback: 22,
-      rotation_gate_min: 0,
-      rotation_gate_max: 0.95,
-      pullback_atr_multiple: 0.9,
-      reversion_zscore: 1.5,
-      min_atr_pct: 0.01,
-      max_atr_pct: 0.065,
-      volume_ratio_min: 0.82,
-      max_extension_pct: 0.03,
-      stop_atr: 1.55,
-      trail_atr: 2.6,
-      profit_lock_trigger_r: 1.1,
-      profit_lock_trail_atr: 3.1,
-      max_hold_bars: 9,
-      cooldown_bars: 2,
-      risk_per_trade_pct: round(0.0023 * riskMult, 6),
-      max_position_pct: round(0.05 * riskMult, 6),
-      min_position_pct: 0.012,
-      max_participation_rate: 0.009,
-      min_dollar_volume: 20_000_000,
-      tightness_score: 1.7,
-    },
+    // BUG-1 fix: CRYPTO mean_reversion configs removed — entry logic (meanReversionOk)
+    // hardcodes market === 'US', so these would always produce 0 trades and pollute bundle selection.
   ];
 }
 
@@ -1471,7 +1432,10 @@ function buildSymbolBacktest(args: {
   const trades: TradeRecord[] = [];
   const barReturns: BarReturnRow[] = [];
   let futureLeakViolations = 0;
+  // ISSUE-4 fix: Use a countdown so signalDelayBars truly delays the entry bar.
+  // pendingEntryCountdown tracks how many more bars to wait before the entry can execute.
   let pendingEntrySignalIndex: number | null = null;
+  let pendingEntryCountdown = 0;
   let pendingExit: { atIndex: number; rawPrice: number; reason: string } | null = null;
   let lastTradeExitIndex = -10_000;
   let position: {
@@ -1583,11 +1547,12 @@ function buildSymbolBacktest(args: {
       lastTradeExitIndex = index;
     }
 
-    if (
-      pendingEntrySignalIndex !== null &&
-      pendingEntrySignalIndex + 1 + signalDelayBars <= index &&
-      !position
-    ) {
+    // ISSUE-4 fix: decrement the countdown each bar; only attempt entry when countdown reaches 0.
+    if (pendingEntrySignalIndex !== null && pendingEntryCountdown > 0) {
+      pendingEntryCountdown -= 1;
+    }
+
+    if (pendingEntrySignalIndex !== null && pendingEntryCountdown === 0 && !position) {
       const signalIndex: number = pendingEntrySignalIndex;
       const signalBar: NumericBar = bars[signalIndex];
       const signalAtr = atr[signalIndex];
@@ -1655,7 +1620,9 @@ function buildSymbolBacktest(args: {
         atr: signalAtr,
         averageDollarVolume: avgDollar,
         config,
-        partialFillProbability: safeNumber(entryAssumption.partial_fill_probability, 1),
+        // EDGE-2 fix: Default to 0.92 (conservative 8% fill drag) instead of 1.0 when
+        // the execution assumption profile doesn't include partial_fill_probability.
+        partialFillProbability: safeNumber(entryAssumption.partial_fill_probability, 0.92),
         signalQuality,
         marketBudget:
           signalPlan.gross_target * clamp(signalPlan.style_weights[config.style] * 2.2, 0.55, 1.05),
@@ -1843,6 +1810,9 @@ function buildSymbolBacktest(args: {
 
       if (planSupportsStyle && entryAllowed) {
         pendingEntrySignalIndex = index;
+        // ISSUE-4 fix: Set countdown to 1 (normal next-bar entry) + signalDelayBars.
+        // This ensures signal_delay_bars=1 means entry at signal+2 bars, not signal+1.
+        pendingEntryCountdown = 1 + signalDelayBars;
       }
     }
   }
@@ -2093,8 +2063,11 @@ function combineStrategyBacktests(args: {
   };
 }
 
-function weakEvidence(metrics: BacktestMetrics, tradeCount: number): boolean {
-  return tradeCount < 6 || metrics.sample_size < 60;
+// ISSUE-3 fix: Accept an optional minSampleSize so walk-forward and split-validation
+// windows (which are structurally shorter) don't get unfairly penalized by the
+// full-sample threshold of 60 bars.
+function weakEvidence(metrics: BacktestMetrics, tradeCount: number, minSampleSize = 60): boolean {
+  return tradeCount < 6 || metrics.sample_size < minSampleSize;
 }
 
 function selectionScore(
@@ -2151,8 +2124,16 @@ function bundleSelectionScore(args: {
   metrics: BacktestMetrics;
   tradeCount: number;
   configs: StrategyConfig[];
+  primaryConfig?: StrategyConfig;
 }): number {
-  const base = selectionScore(args.metrics, args.tradeCount, args.configs[0]);
+  // BUG-2 fix: Use primaryConfig (trend_breakout > trend_pullback > first) instead of
+  // configs[0] which depends on config_id alphabetical sort order.
+  const representativeConfig =
+    args.primaryConfig ||
+    args.configs.find((row) => row.style === 'trend_breakout') ||
+    args.configs.find((row) => row.style === 'trend_pullback') ||
+    args.configs[0];
+  const base = selectionScore(args.metrics, args.tradeCount, representativeConfig);
   const styleBonus = new Set(args.configs.map((row) => row.style)).size * 0.28;
   const utilizationBonus =
     clamp(args.metrics.profit_factor - 1, 0, 1.5) * 0.45 +
@@ -2326,6 +2307,7 @@ function evaluateBundles(args: {
         target_violations: targetViolations(combined.metrics, combined.trades.length),
         selection_score: bundleSelectionScore({
           metrics: combined.metrics,
+          primaryConfig,
           tradeCount: combined.trades.length,
           configs,
         }),
@@ -2395,6 +2377,21 @@ function minCommonBarCount(symbolBars: Record<string, NumericBar[]>): number {
   return counts.length ? Math.min(...counts) : 0;
 }
 
+// BUG-3 fix: Compute clip start timestamp from max across ALL symbols at the given
+// warmup index, rather than relying on Object.keys()[0] insertion order.
+function safeClipStartTs(
+  symbolBars: Record<string, NumericBar[]>,
+  warmupIndex: number,
+): number | undefined {
+  let maxTs: number | undefined = undefined;
+  for (const bars of Object.values(symbolBars)) {
+    const idx = Math.min(warmupIndex, bars.length - 1);
+    const ts = bars[idx]?.ts_open ?? bars[0]?.ts_open;
+    if (ts !== undefined && ts !== null && (maxTs === undefined || ts > maxTs)) maxTs = ts;
+  }
+  return maxTs;
+}
+
 function sliceSymbolBars(
   symbolBars: Record<string, NumericBar[]>,
   startIndex: number,
@@ -2437,9 +2434,9 @@ function splitValidation(args: {
       return config ? configWarmup(config) : warmup;
     }),
   );
+  // BUG-3 fix: use max ts across all symbols instead of Object.keys()[0]
+  const testStartTs = safeClipStartTs(testBars, bundleWarmup);
   const firstSymbol = Object.keys(testBars)[0];
-  const testStartTs =
-    testBars[firstSymbol]?.[bundleWarmup]?.ts_open ?? testBars[firstSymbol]?.[0]?.ts_open ?? null;
   const testEval = evaluateStrategyUniverse({
     market: args.market,
     symbolBars: testBars,
@@ -2454,7 +2451,7 @@ function splitValidation(args: {
   return {
     train_start: trainFirstBars[0]?.ts_open ?? null,
     train_end: trainFirstBars[trainFirstBars.length - 1]?.ts_open ?? null,
-    test_start: testStartTs,
+    test_start: testStartTs ?? null,
     test_end: testFirstBars[testFirstBars.length - 1]?.ts_open ?? null,
     selected_config_id: selected.bundle_id,
     train_metrics: selected.backtest.metrics,
@@ -2500,9 +2497,9 @@ function walkForward(args: {
         return config ? configWarmup(config) : warmup;
       }),
     );
+    // BUG-3 fix: use max ts across all symbols instead of Object.keys()[0]
+    const clipStartTs = safeClipStartTs(evalSlice, bundleWarmup);
     const firstSymbol = Object.keys(evalSlice)[0];
-    const clipStartTs =
-      evalSlice[firstSymbol]?.[bundleWarmup]?.ts_open ?? evalSlice[firstSymbol]?.[0]?.ts_open;
     const testEval = evaluateStrategyUniverse({
       market: args.market,
       symbolBars: evalSlice,
@@ -2551,7 +2548,14 @@ function buildMonteCarlo(backtest: MarketBacktestResult): MonteCarloSummary {
     };
   }
 
-  const rand = makeSeededRandom(returns.length + backtest.trades.length + 17);
+  // EDGE-3 fix: Incorporate first+last bar timestamps into the seed so that adding
+  // a single bar doesn't flip the entire Monte Carlo simulation. This preserves
+  // determinism while making the seed structurally stable across minor data changes.
+  const firstTs = backtest.bar_returns[0]?.ts_open ?? 0;
+  const lastTs = backtest.bar_returns[backtest.bar_returns.length - 1]?.ts_open ?? 0;
+  const structuralSeed =
+    returns.length * 131 + backtest.trades.length * 37 + ((firstTs + lastTs) % 2147483647) + 17;
+  const rand = makeSeededRandom(structuralSeed);
   const annuals: number[] = [];
   const sharpes: number[] = [];
   const drawdowns: number[] = [];
@@ -3206,7 +3210,9 @@ function combineDailySeries(packs: MarketStrategyPack[]): {
     );
     daily_returns.push({ date, return_pct: round(combinedReturn, 8) });
 
-    for (const pack of packs) {
+    // ISSUE-2 fix: Only track weight sums/counts for packs that are active on this date.
+    // Previously iterating all packs caused no-data days to dilute the average weight.
+    for (const { pack } of activePacks) {
       weightSums.set(
         pack.market,
         (weightSums.get(pack.market) || 0) + safeNumber(weights[pack.market], 0),

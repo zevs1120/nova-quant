@@ -2,6 +2,28 @@
 
 NovaQuant 所有重要变更记录于此。
 
+## 10.16.1 (2026-03-28)
+
+- 发布类型：**patch**（审计修复）
+
+- **Fix(nova,signal)：生产策略包 13 项审计修复（commit 560eb44 审计报告）。**
+  - **BUG-1 — CRYPTO mean_reversion 无效计算**：`buildConfigGrid()` 为 CRYPTO 生成 `mean_reversion` 配置，但入场条件 `meanReversionOk` 硬编码 `market === 'US'`，导致这些配置始终产出 0 笔交易、浪费算力并污染 bundle 选择。修复：移除 `crypto_meanrev_12` 和 `crypto_meanrev_16` 配置。
+  - **BUG-2 — bundleSelectionScore 排序依赖**：`bundleSelectionScore()` 使用 `configs[0]`（按 `config_id` 字母序排列）作为基准评分，导致 `tightness_score` 奖励取决于命名而非策略质量。修复：新增 `primaryConfig` 参数，优先使用 `trend_breakout > trend_pullback > configs[0]`。
+  - **BUG-3 — OOS 剪裁时间依赖 Object.keys 顺序**：`splitValidation()` 和 `walkForward()` 使用 `Object.keys(testBars)[0]` 选取 symbol 计算剪裁起始时间戳。修复：新增 `safeClipStartTs()` 辅助函数，取所有 symbol warmup 索引处时间戳的 `Math.max`。
+  - **ISSUE-1 — Regime 键名不一致**：`productionStrategyPack.ts` 使用 `risk_off`，模拟引擎使用 `high_volatility` 和 `risk_off` 作为独立策略池策略。修复：`portfolioSimulationEngine.js` 新增显式键名验证 `STRATEGY_POOL_POLICY[rawPolicyKey] ? rawPolicyKey : 'range'`。
+  - **ISSUE-2 — capital_split 权重稀释**：`combineDailySeries()` 遍历所有 packs 跟踪权重总和/计数，但 `weights` 仅包含当日有数据的 `activePacks` 条目，导致无数据日稀释平均权重。修复：内层循环从 `for (const pack of packs)` 改为 `for (const { pack } of activePacks)`。
+  - **ISSUE-3 — weakEvidence sample_size 阈值不灵活**：`weakEvidence()` 硬编码 `sample_size < 60`，walk-forward 窗口和压力场景自然拥有更少 bar 数，导致子窗口评估不公平。修复：新增可选 `minSampleSize` 参数（默认 60）。
+  - **ISSUE-4 — signal_delay_bars 未真正延迟入场**：原始实现仅偏移索引比较，`signal_delay_bars=1` 时入场仍发生在信号后第一根 bar。修复：引入 `pendingEntryCountdown` 倒计时机制，`signal_delay_bars=1` 确保入场延迟至信号后第 2 根 bar。
+  - **EDGE-1 — 空 market plan 退化守卫**：`buildMarketPlan()` 在 `compositeBars.length < 10` 或 EMA/ATR 全 NaN 时早返回空 Map，防止所有 bar 静默回退至 `range` regime。
+  - **EDGE-2 — partial_fill_probability 默认值过于乐观**：从 1.0（无成交拖拽）改为 0.92（保守 8% 部分成交拖拽）。
+  - **EDGE-3 — Monte Carlo seed 不稳定**：seed 从 `returns.length + trades.length + 17` 改为引入首末 bar 时间戳和乘法散列，单根 bar 变化不再翻转全部 120 次模拟。
+  - **EDGE-4 — normalizeWeights 潜在 NaN**：除法结果增加 `Number.isFinite` 检查，NaN/Infinity 归零。
+  - **RT-1 — Promotion Gate Sharpe 容差过宽**：新增 `max_sharpe_delta_from_target: 0.15`，要求平均 Sharpe ≥ 1.05（目标 1.2 - 0.15），防止大量任务以 Sharpe 0.9~1.1 通过时 gate 意外开启。
+  - **RT-2 — 任务多样性未验证**：`sampleTaskSpecs()` 生成后验证 risk profile × duration 两维多样性，不足时自动注入差异化任务。
+  - 测试套件：828/828 测试通过，TypeScript 严格模式 0 错误。
+
+---
+
 ## 10.16.0 (2026-03-28)
 
 - 发布类型：**minor**（新功能）

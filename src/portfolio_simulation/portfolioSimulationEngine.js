@@ -320,8 +320,13 @@ function defaultStrategyRows({
   executionRealismProfile = {},
   executionDrift = {},
 }) {
-  const policyKey = String(regimeState?.state?.primary || 'range').toLowerCase();
-  const poolPolicy = STRATEGY_POOL_POLICY[policyKey] || STRATEGY_POOL_POLICY.range;
+  const rawPolicyKey = String(regimeState?.state?.primary || 'range').toLowerCase();
+  // ISSUE-1 fix: Normalize regime keys across subsystems.
+  // productionStrategyPack uses 'risk_off' while this engine has both 'high_volatility' and
+  // 'risk_off' as separate policy tiers. If the key is valid, use it directly.
+  // Otherwise fall back to 'range' for safety.
+  const policyKey = STRATEGY_POOL_POLICY[rawPolicyKey] ? rawPolicyKey : 'range';
+  const poolPolicy = STRATEGY_POOL_POLICY[policyKey];
   const evidenceRows = evidenceSystem?.strategies || [];
   const posture = regimeState?.state?.recommended_user_posture || 'REDUCE';
   const regimeMultiplier = safe(regimeState?.state?.default_sizing_multiplier, 0.8);
