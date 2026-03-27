@@ -35,6 +35,53 @@ const INSTITUTIONAL_PORTFOLIO_LIMITS = Object.freeze({
   max_execution_tracking_breaches: 0,
 });
 
+const STRATEGY_POOL_POLICY = Object.freeze({
+  trend: Object.freeze({
+    total_cap_multiplier: 0.96,
+    target_volatility: 0.16,
+    confidence_floor: 0.56,
+    signal_quality_floor: 0.54,
+    max_family_entries: 4,
+    market_caps: {
+      US: 0.72,
+      CRYPTO: 0.24,
+    },
+  }),
+  range: Object.freeze({
+    total_cap_multiplier: 0.78,
+    target_volatility: 0.12,
+    confidence_floor: 0.6,
+    signal_quality_floor: 0.58,
+    max_family_entries: 3,
+    market_caps: {
+      US: 0.58,
+      CRYPTO: 0.16,
+    },
+  }),
+  high_volatility: Object.freeze({
+    total_cap_multiplier: 0.62,
+    target_volatility: 0.095,
+    confidence_floor: 0.64,
+    signal_quality_floor: 0.62,
+    max_family_entries: 2,
+    market_caps: {
+      US: 0.46,
+      CRYPTO: 0.1,
+    },
+  }),
+  risk_off: Object.freeze({
+    total_cap_multiplier: 0.34,
+    target_volatility: 0.06,
+    confidence_floor: 0.72,
+    signal_quality_floor: 0.68,
+    max_family_entries: 2,
+    market_caps: {
+      US: 0.24,
+      CRYPTO: 0.04,
+    },
+  }),
+});
+
 function normalizeWeights(rows = [], totalCap = 1) {
   const raw = rows.map((row) => ({
     ...row,
@@ -273,13 +320,257 @@ function defaultStrategyRows({
   executionRealismProfile = {},
   executionDrift = {},
 }) {
+  const policyKey = String(regimeState?.state?.primary || 'range').toLowerCase();
+  const poolPolicy = STRATEGY_POOL_POLICY[policyKey] || STRATEGY_POOL_POLICY.range;
   const evidenceRows = evidenceSystem?.strategies || [];
   const posture = regimeState?.state?.recommended_user_posture || 'REDUCE';
   const regimeMultiplier = safe(regimeState?.state?.default_sizing_multiplier, 0.8);
   const exposureCap = safe(riskBucketSystem?.user_risk_bucket?.total_exposure_cap_pct, 52) / 100;
   const driftByStrategy = executionTrackingByStrategy(executionDrift);
+  const combinedRegime = String(regimeState?.state?.combined || policyKey).toLowerCase();
 
-  const filtered = evidenceRows
+  function inferMarketHint(row = {}) {
+    const explicit =
+      row.validation_summary?.stage_metrics?.stage_2_quick_backtest?.execution_assumption_profile
+        ?.market ||
+      row.validation_summary?.stage_metrics?.stage_3_robustness_tests?.execution_realism_profile
+        ?.market ||
+      row.assumption_profile?.market ||
+      null;
+    if (String(explicit || '').toUpperCase() === 'CRYPTO') return 'CRYPTO';
+    const asset = String(row.linked_product_recommendation?.asset || '').toUpperCase();
+    if (asset.includes('USDT') || asset.includes('BTC') || asset.includes('ETH')) return 'CRYPTO';
+    const fundingDrag = safe(
+      row.validation_summary?.stage_metrics?.stage_2_quick_backtest?.funding_bps_per_day,
+      0,
+    );
+    if (fundingDrag > 0) return 'CRYPTO';
+    return 'US';
+  }
+
+  function regimeFitScore(regimes = [], marketHint = 'US') {
+    const tags = (regimes || []).map((item) => String(item).toLowerCase());
+    if (!tags.length)
+      return marketHint === 'CRYPTO' && policyKey === 'high_volatility' ? 0.74 : 0.7;
+    if (tags.includes('all')) return 1;
+    if (
+      tags.some(
+        (item) =>
+          item.includes(policyKey) ||
+          policyKey.includes(item) ||
+          item.includes(combinedRegime) ||
+          combinedRegime.includes(item),
+      )
+    ) {
+      return 1;
+    }
+    if (
+      policyKey === 'high_volatility' &&
+      tags.some((item) => item.includes('range') || item.includes('transition'))
+    ) {
+      return 0.7;
+    }
+    if (
+      policyKey === 'risk_off' &&
+      tags.some((item) => item.includes('risk_off') || item.includes('transition'))
+    ) {
+      return 0.82;
+    }
+    if (
+      policyKey === 'trend' &&
+      tags.some((item) => item.includes('uptrend') || item.includes('trend'))
+    ) {
+      return 0.92;
+    }
+    if (policyKey === 'range' && tags.some((item) => item.includes('range'))) {
+      return 0.9;
+    }
+    return 0.34;
+  }
+
+  function executionTrackingScore(executionTracking = null) {
+    if (!executionTracking) return 0.58;
+    if (executionTracking.status === 'aligned') {
+      return clamp(
+        0.76 +
+          Math.min(0.12, safe(executionTracking.capture_rate, 0) * 0.12) +
+          Math.min(0.06, safe(executionTracking.matched_trade_count, 0) * 0.01),
+        0,
+        1,
+      );
+    }
+    if (executionTracking.status === 'watch') return 0.42;
+    if (executionTracking.status === 'breach') return 0.18;
+    return 0.58;
+  }
+
+  function walkForwardScore(row = {}) {
+    const summary =
+      row.walk_forward_results?.summary ||
+      row.validation_summary?.stage_metrics?.stage_4_walkforward ||
+      {};
+    const positiveRatio = safe(
+      summary.positive_window_ratio,
+      safe(summary.avg_test_cumulative_return, 0) > 0 ? 0.62 : 0.48,
+    );
+    const avgReturn = safe(summary.avg_test_return, safe(summary.avg_test_cumulative_return, 0));
+    const degradation = Math.abs(Math.min(0, safe(summary.degradation, 0)));
+    const windowCount = safe(summary.window_count, safe((summary.windows || []).length, 0));
+    return round(
+      clamp(
+        0.46 * positiveRatio +
+          0.24 * clamp(avgReturn / 0.08, 0, 1) +
+          0.18 * clamp(windowCount / 5, 0, 1) -
+          0.12 * clamp(degradation / 0.04, 0, 1),
+        0,
+        1,
+      ),
+      6,
+    );
+  }
+
+  function costEfficiencyScore({
+    baseReturn = 0,
+    stressedReturn = 0,
+    baselineCostDrag = 0,
+    turnover = 0,
+  }) {
+    const retention = baseReturn > 0 ? stressedReturn / Math.max(baseReturn, 1e-9) : 0;
+    return round(
+      clamp(
+        0.58 * clamp(retention, 0, 1.05) +
+          0.42 * clamp(1 - baselineCostDrag * 18 - Math.max(0, turnover - 0.24) * 0.92, 0, 1),
+        0,
+        1,
+      ),
+      6,
+    );
+  }
+
+  function macroMarketMultiplier(marketHint = 'US') {
+    if (policyKey === 'risk_off') return marketHint === 'CRYPTO' ? 0.18 : 0.42;
+    if (policyKey === 'high_volatility') return marketHint === 'CRYPTO' ? 0.52 : 0.74;
+    if (policyKey === 'range') return marketHint === 'CRYPTO' ? 0.8 : 0.92;
+    return marketHint === 'CRYPTO' ? 0.96 : 1;
+  }
+
+  function buildNoisePenalty({
+    turnover = 0,
+    expectedSignalCount = 0,
+    drawdown = 0,
+    regimeFit = 1,
+  }) {
+    return clamp(
+      Math.max(0, turnover - 0.26) * 1.1 +
+        Math.max(0, expectedSignalCount - 14) * 0.015 +
+        Math.max(0, drawdown - 0.12) * 1.8 +
+        Math.max(0, 0.68 - regimeFit) * 0.7,
+      0,
+      1,
+    );
+  }
+
+  function topRowsByFamily(rows = [], maxPerFamily = 3) {
+    const familyCounts = new Map();
+    const selected = [];
+    for (const row of rows) {
+      const family = row.strategy_family || 'unknown';
+      const count = familyCounts.get(family) || 0;
+      if (count >= maxPerFamily) continue;
+      familyCounts.set(family, count + 1);
+      selected.push(row);
+    }
+    return selected;
+  }
+
+  function applyDynamicMarketCaps(rows = [], marketCaps = {}, totalCap = 1) {
+    if (!rows.length) return rows;
+    const working = rows.map((row) => ({ ...row }));
+    const capSum =
+      Object.values(marketCaps || {}).reduce((acc, value) => acc + safe(value, 0), 0) || 1;
+    for (const [market, cap] of Object.entries(marketCaps || {})) {
+      const normalizedCap = (safe(cap, 0) / capSum) * totalCap;
+      const exposure = working
+        .filter((row) => row.market_hint === market)
+        .reduce((acc, row) => acc + safe(row.weight, 0), 0);
+      if (exposure <= normalizedCap + 1e-9 || exposure <= 0) continue;
+      const scale = normalizedCap / exposure;
+      for (const row of working) {
+        if (row.market_hint !== market) continue;
+        row.weight *= scale;
+      }
+    }
+    return working.map((row) => ({
+      ...row,
+      weight: round(row.weight, 6),
+    }));
+  }
+
+  function applyVolatilityTarget(rows = [], targetVol = 0.12) {
+    if (!rows.length) {
+      return {
+        strategy_rows: [],
+        summary: {
+          target_volatility: round(targetVol, 6),
+          pre_scale_volatility: 0,
+          post_scale_volatility: 0,
+          scaling_factor: 0,
+          cash_buffer_added: 0,
+        },
+      };
+    }
+    const corr = buildCorrelationMatrix(rows);
+    const preVol = portfolioVolatility(rows, corr);
+    const scale = preVol > targetVol ? clamp(targetVol / Math.max(preVol, 1e-9), 0.25, 1) : 1;
+    const scaled = rows.map((row) => ({
+      ...row,
+      weight: round(safe(row.weight, 0) * scale, 6),
+      volatility_target_adjustment: round(scale - 1, 6),
+    }));
+    const postVol = portfolioVolatility(scaled, buildCorrelationMatrix(scaled));
+    return {
+      strategy_rows: scaled,
+      summary: {
+        target_volatility: round(targetVol, 6),
+        pre_scale_volatility: round(preVol, 6),
+        post_scale_volatility: round(postVol, 6),
+        scaling_factor: round(scale, 6),
+        cash_buffer_added: round(
+          Math.max(
+            0,
+            rows.reduce((acc, row) => acc + safe(row.weight, 0), 0) -
+              scaled.reduce((acc, row) => acc + safe(row.weight, 0), 0),
+          ),
+          6,
+        ),
+      },
+    };
+  }
+
+  function strategyRowsMetrics(rows = []) {
+    const corr = buildCorrelationMatrix(rows);
+    const portfolioReturn = rows.reduce(
+      (acc, row) => acc + safe(row.weight, 0) * safe(row.expected_return, 0),
+      0,
+    );
+    const volatility = portfolioVolatility(rows, corr);
+    return {
+      portfolio_return: round(portfolioReturn, 6),
+      volatility: round(volatility, 6),
+      sharpe: round(volatility > 0 ? (portfolioReturn / volatility) * Math.sqrt(252) : 0, 4),
+    };
+  }
+
+  function equalWeightRows(rows = [], totalCapValue = 1) {
+    if (!rows.length) return [];
+    const perRow = totalCapValue / rows.length;
+    return rows.map((row) => ({
+      ...row,
+      weight: round(perRow, 6),
+    }));
+  }
+
+  const candidateRows = evidenceRows
     .filter((row) => {
       const rec = String(row.production_recommendation?.recommendation || '').toUpperCase();
       return !['REJECT', 'RETIRE'].includes(rec);
@@ -287,27 +578,23 @@ function defaultStrategyRows({
     .map((row) => {
       const quality = safe(
         row.validation_summary?.candidate_quality_score,
-        safe(row.governance_state?.operational_confidence, 0.5),
+        safe(row.governance_state?.operational_confidence, safe(row.evidence_quality_score, 0.5)),
       );
-      const baseReturn = safe(
-        row.validation_summary?.stage_metrics?.stage_2_quick_backtest?.return,
-        0.012,
-      );
-      const drawdown = safe(
-        row.validation_summary?.stage_metrics?.stage_2_quick_backtest?.drawdown,
-        0.15,
-      );
-      const turnover = safe(
-        row.validation_summary?.stage_metrics?.stage_2_quick_backtest?.turnover,
-        0.28,
-      );
-      const costPenalty = safe(
+      const quickBacktest = row.validation_summary?.stage_metrics?.stage_2_quick_backtest || {};
+      const stage3 = row.validation_summary?.stage_metrics?.stage_3_robustness_tests || {};
+      const stage4 =
+        row.walk_forward_results?.summary ||
+        row.validation_summary?.stage_metrics?.stage_4_walkforward ||
+        {};
+      const stage5 = row.validation_summary?.stage_metrics?.stage_5_portfolio_contribution || {};
+      const baseReturn = safe(quickBacktest.return, 0.012);
+      const drawdown = safe(quickBacktest.drawdown, 0.15);
+      const turnover = safe(quickBacktest.turnover, 0.28);
+      const stressedReturn = safe(
         row.cost_sensitivity?.validation_cost_stress?.plus_50pct_cost,
-        baseReturn - 0.01,
+        safe(stage3?.cost_stress?.plus_50pct_cost, baseReturn - 0.01),
       );
-      const marketHint = row.linked_product_recommendation?.asset?.includes('USDT')
-        ? 'CRYPTO'
-        : 'US';
+      const marketHint = inferMarketHint(row);
       const executionAssumption = resolveExecutionAssumptions({
         profile: executionRealismProfile,
         signal: { market: marketHint },
@@ -316,11 +603,69 @@ function defaultStrategyRows({
       const baselineCostDrag = estimateCostDragPct({
         assumption: executionAssumption,
         turnover,
-        holdingDays: 3,
+        holdingDays: Math.max(2, safe(quickBacktest.average_holding_time, 3)),
         includeFunding: true,
       });
+      const oosReturn = safe(
+        stage4.avg_test_return,
+        safe(stage4.avg_test_cumulative_return, baseReturn * 0.72),
+      );
+      const oosWindows = Array.isArray(stage4.windows) ? stage4.windows : [];
+      const avgOosDrawdown = oosWindows.length
+        ? mean(oosWindows.map((item) => safe(item.drawdown, drawdown)))
+        : drawdown;
+      const perturbationStd = safe(stage3.perturbation_return_std, 0.0095);
+      const diversificationScore = safe(stage5.diversification_score, 0.58);
+      const independentAlphaScore = safe(stage5.independent_alpha_score, 0.04);
+      const expectedSignalCount = safe(
+        row.validation_summary?.stage_metrics?.stage_1_fast_sanity?.estimated_signal_count,
+        9,
+      );
+      const regimeFit = regimeFitScore(row.regime_performance?.expected_regimes || [], marketHint);
+      const executionTracking = driftByStrategy.get(row.strategy_id) || null;
+      const executionScore = executionTrackingScore(executionTracking);
+      const oosScore = walkForwardScore(row);
+      const costScore = costEfficiencyScore({
+        baseReturn,
+        stressedReturn,
+        baselineCostDrag,
+        turnover,
+      });
+      const macroMultiplier = macroMarketMultiplier(marketHint);
+      const operationalConfidence = safe(row.governance_state?.operational_confidence, quality);
+      const noisePenalty = buildNoisePenalty({
+        turnover,
+        expectedSignalCount,
+        drawdown,
+        regimeFit,
+      });
+      const expectedReturn = round(
+        clamp(
+          baseReturn * 0.18 +
+            oosReturn * 0.46 +
+            stressedReturn * 0.22 +
+            independentAlphaScore * 0.14 -
+            baselineCostDrag -
+            Math.max(0, turnover - 0.24) * 0.015,
+          -0.08,
+          0.28,
+        ),
+        6,
+      );
+      const expectedVolatility = round(
+        clamp(
+          drawdown * 0.28 +
+            avgOosDrawdown * 0.22 +
+            perturbationStd * 3.1 +
+            Math.max(0, turnover - 0.22) * 0.08 +
+            Math.max(0, 0.64 - diversificationScore) * 0.07,
+          0.035,
+          0.42,
+        ),
+        6,
+      );
 
-      let allocationMultiplier = regimeMultiplier;
+      let allocationMultiplier = regimeMultiplier * macroMultiplier;
       if (posture === 'SKIP') allocationMultiplier *= 0.3;
       else if (posture === 'REDUCE') allocationMultiplier *= 0.75;
 
@@ -329,26 +674,89 @@ function defaultStrategyRows({
       if (String(row.governance_state?.current_stage || '').toUpperCase() === 'DEGRADE')
         allocationMultiplier *= 0.62;
 
-      const executionTracking = driftByStrategy.get(row.strategy_id) || null;
-      if (executionTracking?.status === 'breach') allocationMultiplier *= 0.58;
-      else if (executionTracking?.status === 'watch') allocationMultiplier *= 0.82;
+      if (executionTracking?.status === 'breach') allocationMultiplier *= 0.52;
+      else if (executionTracking?.status === 'watch') allocationMultiplier *= 0.78;
       else if (
         executionTracking?.status === 'aligned' &&
         safe(executionTracking?.matched_trade_count, 0) >= 3
       ) {
-        allocationMultiplier *= 1.03;
+        allocationMultiplier *= 1.04;
       }
+
+      const confidenceScore = round(
+        clamp(
+          0.22 * quality +
+            0.18 * operationalConfidence +
+            0.2 * oosScore +
+            0.14 * costScore +
+            0.12 * regimeFit +
+            0.08 * executionScore +
+            0.06 * diversificationScore -
+            0.12 * noisePenalty,
+          0,
+          1,
+        ),
+        6,
+      );
+      const edgeRatio = round(expectedReturn / Math.max(expectedVolatility, 0.04), 6);
+      const tailRiskScore = round(
+        clamp(
+          Math.max(0, expectedVolatility - 0.11) * 3.2 +
+            Math.max(0, turnover - 0.26) * 1.05 +
+            Math.max(0, 0.65 - regimeFit) * 0.7 +
+            Math.max(0, 0.62 - costScore) * 0.55,
+          0,
+          1,
+        ),
+        6,
+      );
+      const signalQualityScore = round(
+        clamp(
+          0.34 * confidenceScore +
+            0.24 * oosScore +
+            0.16 * costScore +
+            0.12 * diversificationScore +
+            0.14 * clamp(edgeRatio / 1.35, 0, 1) -
+            0.16 * tailRiskScore,
+          0,
+          1,
+        ),
+        6,
+      );
+      const admissionScore = round(
+        clamp(
+          Math.max(0, edgeRatio) *
+            Math.pow(Math.max(confidenceScore, 0.01), 1.15) *
+            Math.pow(Math.max(signalQualityScore, 0.01), 1.1) *
+            Math.max(allocationMultiplier, 0.05) *
+            (1 - tailRiskScore * 0.5),
+          0,
+          3,
+        ),
+        6,
+      );
+
+      const rejectionReasons = [];
+      if (expectedReturn <= 0) rejectionReasons.push('negative_expected_return');
+      if (confidenceScore < safe(poolPolicy.confidence_floor, 0.58))
+        rejectionReasons.push('low_confidence');
+      if (signalQualityScore < safe(poolPolicy.signal_quality_floor, 0.56))
+        rejectionReasons.push('low_signal_quality');
+      if (turnover > 0.58 && expectedReturn < 0.06) rejectionReasons.push('noisy_turnover');
+      if (regimeFit < 0.42 && posture !== 'GO') rejectionReasons.push('regime_mismatch');
+      if (tailRiskScore > 0.72 && confidenceScore < 0.75)
+        rejectionReasons.push('tail_risk_too_high');
 
       return {
         strategy_id: row.strategy_id,
         candidate_id: row.candidate_id,
         strategy_family: row.audit_chain?.template || row.template_id || 'unknown',
         market_hint: marketHint,
-        expected_return: round(baseReturn * 0.65 + costPenalty * 0.35 - baselineCostDrag, 6),
-        expected_volatility: round(clamp(drawdown * 0.55 + 0.07, 0.04, 0.55), 6),
+        expected_return: expectedReturn,
+        expected_volatility: expectedVolatility,
         turnover: round(turnover, 6),
         quality_score: round(clamp(quality, 0, 1), 6),
-        allocation_multiplier: round(clamp(allocationMultiplier, 0.15, 1.35), 6),
+        allocation_multiplier: round(clamp(allocationMultiplier, 0.08, 1.35), 6),
         compatible_regimes: row.regime_performance?.expected_regimes || [],
         execution_assumption: executionAssumption,
         baseline_cost_drag_pct: baselineCostDrag,
@@ -356,11 +764,121 @@ function defaultStrategyRows({
         execution_tracking_matched_trades: safe(executionTracking?.matched_trade_count, 0),
         execution_tracking_capture_rate: safe(executionTracking?.capture_rate, 0),
         execution_tracking_fill_gap_bps: executionTracking?.avg_abs_fill_gap_bps ?? null,
+        confidence_score: confidenceScore,
+        signal_quality_score: signalQualityScore,
+        regime_fit_score: round(regimeFit, 6),
+        execution_score: round(executionScore, 6),
+        oos_score: oosScore,
+        cost_efficiency_score: costScore,
+        diversification_score: round(diversificationScore, 6),
+        edge_ratio: edgeRatio,
+        tail_risk_score: tailRiskScore,
+        noise_penalty: round(noisePenalty, 6),
+        macro_multiplier: round(macroMultiplier, 6),
+        admission_score: admissionScore,
+        rejection_reasons: rejectionReasons,
       };
     });
 
-  const selected = filtered.slice(0, 24);
-  return normalizeWeights(selected, clamp(exposureCap, 0.12, 0.95));
+  const totalCap = clamp(exposureCap * safe(poolPolicy.total_cap_multiplier, 0.8), 0.08, 0.95);
+  const baselineCandidates = candidateRows.slice(0, 24);
+  const baselineRows = equalWeightRows(baselineCandidates, totalCap);
+  const baselineMetrics = strategyRowsMetrics(baselineRows);
+
+  let optimizedCandidates = candidateRows
+    .filter((row) => !row.rejection_reasons.length)
+    .sort((a, b) => safe(b.admission_score, 0) - safe(a.admission_score, 0));
+
+  if (optimizedCandidates.length < 6) {
+    optimizedCandidates = candidateRows
+      .slice()
+      .sort((a, b) => safe(b.admission_score, 0) - safe(a.admission_score, 0))
+      .slice(0, Math.min(10, Math.max(6, candidateRows.length)));
+  }
+
+  optimizedCandidates = topRowsByFamily(
+    optimizedCandidates,
+    safe(poolPolicy.max_family_entries, 3),
+  ).slice(0, 18);
+
+  const weighted = normalizeWeights(
+    optimizedCandidates.map((row) => ({
+      ...row,
+      quality_score: round(
+        clamp(
+          Math.max(row.admission_score, 0.001) *
+            Math.pow(1 / Math.max(row.expected_volatility, 0.04), 0.65),
+          0.001,
+          4,
+        ),
+        6,
+      ),
+      allocation_multiplier: round(
+        clamp(
+          (1 - safe(row.tail_risk_score, 0) * 0.38) * safe(row.allocation_multiplier, 1),
+          0.06,
+          1.35,
+        ),
+        6,
+      ),
+    })),
+    totalCap,
+  );
+
+  const marketBudgeted = applyDynamicMarketCaps(weighted, poolPolicy.market_caps, totalCap);
+  const volatilityTargeted = applyVolatilityTarget(
+    marketBudgeted,
+    safe(poolPolicy.target_volatility, 0.12),
+  );
+
+  const optimizationSummary = {
+    baseline: baselineMetrics,
+    optimized: strategyRowsMetrics(volatilityTargeted.strategy_rows),
+    uplift: {
+      sharpe: round(
+        safe(strategyRowsMetrics(volatilityTargeted.strategy_rows).sharpe, 0) -
+          safe(baselineMetrics.sharpe, 0),
+        4,
+      ),
+      volatility: round(
+        safe(baselineMetrics.volatility, 0) -
+          safe(strategyRowsMetrics(volatilityTargeted.strategy_rows).volatility, 0),
+        6,
+      ),
+      portfolio_return: round(
+        safe(strategyRowsMetrics(volatilityTargeted.strategy_rows).portfolio_return, 0) -
+          safe(baselineMetrics.portfolio_return, 0),
+        6,
+      ),
+    },
+    filtering: {
+      total_candidates: candidateRows.length,
+      baseline_selected: baselineRows.length,
+      optimized_selected: volatilityTargeted.strategy_rows.length,
+      rejected_candidates: candidateRows.filter((row) => row.rejection_reasons.length).length,
+      rejection_reason_counts: candidateRows
+        .flatMap((row) => row.rejection_reasons || [])
+        .reduce((acc, reason) => {
+          acc[reason] = (acc[reason] || 0) + 1;
+          return acc;
+        }, {}),
+    },
+    policy: {
+      regime: policyKey,
+      posture,
+      total_cap: totalCap,
+      target_volatility: safe(poolPolicy.target_volatility, 0.12),
+      confidence_floor: safe(poolPolicy.confidence_floor, 0.58),
+      signal_quality_floor: safe(poolPolicy.signal_quality_floor, 0.56),
+      market_caps: poolPolicy.market_caps,
+    },
+    volatility_targeting: volatilityTargeted.summary,
+  };
+
+  return {
+    strategy_rows: volatilityTargeted.strategy_rows,
+    optimization_summary: optimizationSummary,
+  };
 }
 
 function correlationValue(a, b) {
@@ -845,13 +1363,14 @@ export function buildPortfolioSimulationEngine({
     profile: executionRealism.profile || {},
     overrides: executionRealism.overrides || {},
   });
-  const strategies = defaultStrategyRows({
+  const strategyPool = defaultStrategyRows({
     evidenceSystem,
     regimeState,
     riskBucketSystem,
     executionRealismProfile: executionProfile,
     executionDrift,
   });
+  const strategies = strategyPool.strategy_rows || [];
   const crowdingGuard = applyFamilyCrowdingGuard(strategies, deriveFamilyCap(riskBucketSystem));
   const institutionalGuard = applyInstitutionalRiskGuard(
     crowdingGuard.strategy_rows,
@@ -958,6 +1477,7 @@ export function buildPortfolioSimulationEngine({
       execution_tracking: executionTracking,
       portfolio_stability_across_regimes: stability,
       institutional_scorecard: institutionalScorecard,
+      sharpe_optimization: strategyPool.optimization_summary || null,
       execution_realism: {
         assumption_profile: {
           profile_id: executionProfile.profile_id,

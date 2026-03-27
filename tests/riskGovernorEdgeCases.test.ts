@@ -39,8 +39,14 @@ function makeProfile(overrides: Record<string, unknown> = {}) {
   return {
     exposure_cap: 55,
     max_daily_loss: 3,
+    max_loss_per_trade: 1,
+    max_drawdown: 10,
     ...overrides,
   } as any;
+}
+
+function recentTimestamp(daysAgo = 0) {
+  return Date.now() - daysAgo * 86400000;
 }
 
 /* ---------- NORMAL mode ---------- */
@@ -345,5 +351,137 @@ describe('risk governor — compound overlays', () => {
     });
     expect(result.allowed).toBe(true);
     expect(result.risk_budget_remaining).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe('risk governor — drawdown and circuit breakers', () => {
+  it('BLOCKED when weekly realized losses breach the weekly circuit breaker', () => {
+    const executions = [
+      { action: 'DONE', pnl_pct: -2.4, created_at_ms: recentTimestamp(1) },
+      { action: 'DONE', pnl_pct: -2.5, created_at_ms: recentTimestamp(2) },
+    ];
+    const result = evaluateRiskGovernor({
+      signal: makeSignal() as any,
+      marketState: [makeMarketState()] as any[],
+      riskProfile: makeProfile({ max_daily_loss: 2.5 }),
+      executions: executions as any[],
+    });
+    expect(result.allowed).toBe(false);
+    expect(result.overlays).toContain('weekly_loss_circuit');
+  });
+
+  it('BLOCKED when monthly realized losses breach the monthly circuit breaker', () => {
+    const executions = [
+      { action: 'DONE', pnl_pct: -3.2, created_at_ms: recentTimestamp(2) },
+      { action: 'DONE', pnl_pct: -2.9, created_at_ms: recentTimestamp(8) },
+      { action: 'DONE', pnl_pct: -2.5, created_at_ms: recentTimestamp(15) },
+    ];
+    const result = evaluateRiskGovernor({
+      signal: makeSignal() as any,
+      marketState: [makeMarketState()] as any[],
+      riskProfile: makeProfile({ max_daily_loss: 2.5, max_drawdown: 10 }),
+      executions: executions as any[],
+    });
+    expect(result.allowed).toBe(false);
+    expect(result.overlays).toContain('monthly_loss_circuit');
+  });
+
+  it('DERISK when current drawdown reaches the drawdown de-risk zone', () => {
+    const executions = [
+      { action: 'DONE', pnl_pct: 4, created_at_ms: recentTimestamp(6) },
+      { action: 'DONE', pnl_pct: -2.8, created_at_ms: recentTimestamp(5) },
+      { action: 'DONE', pnl_pct: -2.8, created_at_ms: recentTimestamp(4) },
+      { action: 'DONE', pnl_pct: -2.6, created_at_ms: recentTimestamp(3) },
+    ];
+    const result = evaluateRiskGovernor({
+      signal: makeSignal() as any,
+      marketState: [makeMarketState()] as any[],
+      riskProfile: makeProfile({ max_drawdown: 10 }),
+      executions: executions as any[],
+    });
+    expect(result.governor_mode).toBe('DERISK');
+    expect(result.overlays).toContain('drawdown_derisk');
+    expect(result.current_drawdown_pct).toBeGreaterThan(0);
+  });
+
+  it('BLOCKED when current drawdown breaches the hard stop', () => {
+    const executions = [
+      { action: 'DONE', pnl_pct: 5, created_at_ms: recentTimestamp(5) },
+      { action: 'DONE', pnl_pct: -6, created_at_ms: recentTimestamp(4) },
+      { action: 'DONE', pnl_pct: -6, created_at_ms: recentTimestamp(3) },
+      { action: 'DONE', pnl_pct: -5, created_at_ms: recentTimestamp(2) },
+    ];
+    const result = evaluateRiskGovernor({
+      signal: makeSignal() as any,
+      marketState: [makeMarketState()] as any[],
+      riskProfile: makeProfile({ max_drawdown: 10 }),
+      executions: executions as any[],
+    });
+    expect(result.allowed).toBe(false);
+    expect(result.overlays).toContain('drawdown_hard_stop');
+  });
+});
+
+describe('risk governor — advanced concentration and deleveraging', () => {
+  it('BLOCKED when same-direction exposure breaches the cap', () => {
+    const holdings = [
+      makeHolding('AAPL', 18, { direction: 'LONG' }),
+      makeHolding('MSFT', 16, { direction: 'LONG' }),
+      makeHolding('NVDA', 10, { direction: 'LONG' }),
+    ];
+    const result = evaluateRiskGovernor({
+      signal: makeSignal({ direction: 'LONG' }) as any,
+      marketState: [makeMarketState()] as any[],
+      riskProfile: makeProfile(),
+      holdings: holdings as any[],
+    });
+    expect(result.allowed).toBe(false);
+    expect(result.overlays).toContain('same_direction_cap');
+  });
+
+  it('auto de-leverages after three consecutive losses', () => {
+    const executions = [
+      { action: 'DONE', pnl_pct: -1.1, created_at_ms: recentTimestamp(1) },
+      { action: 'DONE', pnl_pct: -0.9, created_at_ms: recentTimestamp(2) },
+      { action: 'DONE', pnl_pct: -1.4, created_at_ms: recentTimestamp(3) },
+    ];
+    const result = evaluateRiskGovernor({
+      signal: makeSignal() as any,
+      marketState: [makeMarketState()] as any[],
+      riskProfile: makeProfile(),
+      executions: executions as any[],
+    });
+    expect(result.governor_mode).toBe('DERISK');
+    expect(result.overlays).toContain('loss_streak_derisk');
+    expect(result.size_multiplier).toBeLessThan(1);
+  });
+
+  it('cuts size when requested trade risk exceeds the per-trade risk cap', () => {
+    const result = evaluateRiskGovernor({
+      signal: makeSignal({
+        position_advice: { position_pct: 12 },
+        entry_zone: { low: 100, high: 100, method: 'MARKET' },
+        stop_loss: { price: 90, type: 'ATR', rationale: 'wide stop' },
+      }) as any,
+      marketState: [makeMarketState()] as any[],
+      riskProfile: makeProfile({ max_loss_per_trade: 0.8 }),
+    });
+    expect(result.proposed_trade_risk_pct).toBeGreaterThan(0.8);
+    expect(result.overlays).toContain('single_trade_risk_cap');
+    expect(result.size_multiplier).toBeLessThan(1);
+  });
+});
+
+describe('risk governor — black swan protection', () => {
+  it('BLOCKED when risk-off and volatility jointly indicate a black-swan regime', () => {
+    const result = evaluateRiskGovernor({
+      signal: makeSignal() as any,
+      marketState: [
+        makeMarketState({ risk_off_score: 0.84, volatility_percentile: 96, trend_strength: 0.2 }),
+      ] as any[],
+      riskProfile: makeProfile(),
+    });
+    expect(result.allowed).toBe(false);
+    expect(result.overlays).toContain('black_swan_kill_switch');
   });
 });

@@ -27,6 +27,8 @@
     "nova:train:lora": "tsx scripts/run-nova-mlx-train.ts",
     "nova:flywheel": "tsx scripts/run-nova-flywheel.ts",
     "nova:strategy": "tsx scripts/run-nova-strategy-lab.ts",
+    "nova:train:robustness": "tsx scripts/run-nova-robustness-training.ts",
+    "nova:strategy:pack": "tsx scripts/run-nova-production-strategy-pack.ts",
     "marvix:ops": "tsx scripts/show-marvix-ops.ts",
     "marvix:repair": "tsx scripts/repair-marvix-backend.ts",
     "alpha:discover": "tsx scripts/run-alpha-discovery.ts",

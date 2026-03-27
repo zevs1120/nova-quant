@@ -27,6 +27,8 @@ describe('portfolio simulation engine', () => {
     expect(sim?.diagnostics?.execution_tracking?.by_strategy?.length).toBeGreaterThan(0);
     expect(sim?.diagnostics?.institutional_scorecard?.checks?.length).toBeGreaterThan(0);
     expect(sim?.diagnostics?.tail_risk?.worst_period_return).toBeTypeOf('number');
+    expect(sim?.diagnostics?.sharpe_optimization?.baseline?.sharpe).toBeTypeOf('number');
+    expect(sim?.diagnostics?.sharpe_optimization?.optimized?.sharpe).toBeTypeOf('number');
     expect(sim?.diagnostics?.execution_realism?.assumption_profile?.profile_id).toBeTruthy();
     expect(sim?.diagnostics?.execution_realism?.scenario_sensitivity?.length).toBeGreaterThan(0);
   });

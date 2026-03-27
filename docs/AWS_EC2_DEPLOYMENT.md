@@ -101,7 +101,15 @@ Minimum values to set for backend-only Marvix:
 - `NOVA_DISABLE_GROQ=1`
 - `DB_PATH=/opt/nova-quant/data/quant.db`
 - `NOVA_DISABLE_SQLITE_PROCESS_LOCK=1` when `marvix.service` and `marvix-backend.service` share the same SQLite file on one box
+- `NOVA_DATA_DATABASE_URL=postgresql://...`
+- `NOVA_DATA_PG_SCHEMA=novaquant_data`
 - `GEMINI_API_KEY`
+
+Important note:
+
+- Business runtime is still SQLite-first today, so EC2 continues to keep a local `quant.db`.
+- `NOVA_DATA_DATABASE_URL` makes Supabase the authoritative cloud copy and enables business-data migration/audit flows.
+- Do not treat the runtime as "Supabase-only" until the SQLite repository/runtime layer is fully ported.
 
 Optional but recommended free-data keys for the new Marvix training-input pipeline:
 

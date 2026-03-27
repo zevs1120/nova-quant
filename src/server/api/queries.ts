@@ -60,6 +60,8 @@ import {
   type NovaTrainerKind,
 } from '../nova/flywheel.js';
 import { generateGovernedNovaStrategies } from '../nova/strategyLab.js';
+import { generateNovaProductionStrategyPack } from '../nova/productionStrategyPack.js';
+import { runNovaRobustnessTraining } from '../nova/robustnessTraining.js';
 import {
   buildNewsContext,
   ensureFreshNewsForSymbol,
@@ -4365,6 +4367,52 @@ export async function runNovaStrategyGeneration(args: {
     market: args.market || null,
     riskProfile: args.riskProfile || null,
     maxCandidates: args.maxCandidates,
+  });
+}
+
+export async function runNovaProductionStrategy(args: {
+  userId?: string;
+  locale?: string;
+  market?: Market | 'ALL';
+  symbols?: string[];
+  start?: string;
+  end?: string;
+  riskProfile?: RiskProfileKey;
+}) {
+  const repo = getRepo();
+  return await generateNovaProductionStrategyPack({
+    repo,
+    userId: args.userId || null,
+    locale: args.locale || 'en',
+    market: args.market || 'ALL',
+    symbols: args.symbols,
+    start: args.start,
+    end: args.end,
+    riskProfile: args.riskProfile || 'balanced',
+  });
+}
+
+export async function runNovaRobustnessTrainingNow(args: {
+  userId?: string;
+  locale?: string;
+  market?: Market | 'ALL';
+  start?: string;
+  end?: string;
+  taskLimit?: number;
+  seed?: number;
+  riskProfiles?: RiskProfileKey[];
+}) {
+  const repo = getRepo();
+  return await runNovaRobustnessTraining({
+    repo,
+    userId: args.userId || null,
+    locale: args.locale || 'zh-CN',
+    market: args.market || 'ALL',
+    start: args.start,
+    end: args.end,
+    taskLimit: args.taskLimit,
+    seed: args.seed,
+    riskProfiles: args.riskProfiles,
   });
 }
 

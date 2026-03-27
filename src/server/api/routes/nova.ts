@@ -9,6 +9,8 @@ import {
   exportNovaTrainingDataset,
   runNovaTrainingFlywheelNow,
   runNovaStrategyGeneration,
+  runNovaProductionStrategy,
+  runNovaRobustnessTrainingNow,
 } from '../queries.js';
 
 const router = Router();
@@ -107,6 +109,46 @@ router.post(
 );
 
 router.post(
+  '/api/nova/training/robustness',
+  asyncRoute(async (req, res) => {
+    const body = (req.body || {}) as {
+      userId?: string;
+      locale?: string;
+      market?: string;
+      start?: string;
+      end?: string;
+      taskLimit?: number;
+      seed?: number;
+      riskProfiles?: string[];
+    };
+    const rawMarket = String(body.market || 'ALL')
+      .trim()
+      .toUpperCase();
+    if (!['US', 'CRYPTO', 'ALL'].includes(rawMarket)) {
+      res.status(400).json({ error: 'market must be US, CRYPTO, or ALL' });
+      return;
+    }
+    const riskProfiles = Array.isArray(body.riskProfiles)
+      ? body.riskProfiles
+          .map((value) => String(value).trim().toLowerCase())
+          .filter((value) => ['conservative', 'balanced', 'aggressive'].includes(value))
+      : undefined;
+    res.json(
+      await runNovaRobustnessTrainingNow({
+        userId: String(body.userId || '').trim() || undefined,
+        locale: String(body.locale || '').trim() || undefined,
+        market: rawMarket as 'US' | 'CRYPTO' | 'ALL',
+        start: body.start ? String(body.start) : undefined,
+        end: body.end ? String(body.end) : undefined,
+        taskLimit: Number.isFinite(Number(body.taskLimit)) ? Number(body.taskLimit) : undefined,
+        seed: Number.isFinite(Number(body.seed)) ? Number(body.seed) : undefined,
+        riskProfiles: riskProfiles as ('conservative' | 'balanced' | 'aggressive')[] | undefined,
+      }),
+    );
+  }),
+);
+
+router.post(
   '/api/nova/strategy/generate',
   asyncRoute(async (req, res) => {
     const body = (req.body || {}) as {
@@ -137,6 +179,42 @@ router.post(
         maxCandidates: Number.isFinite(Number(body.maxCandidates))
           ? Number(body.maxCandidates)
           : undefined,
+      }),
+    );
+  }),
+);
+
+router.post(
+  '/api/nova/strategy/production-pack',
+  asyncRoute(async (req, res) => {
+    const body = (req.body || {}) as {
+      userId?: string;
+      locale?: string;
+      market?: string;
+      symbols?: string[];
+      start?: string;
+      end?: string;
+      riskProfile?: 'conservative' | 'balanced' | 'aggressive';
+    };
+    const rawMarket = String(body.market || 'ALL')
+      .trim()
+      .toUpperCase();
+    if (!['US', 'CRYPTO', 'ALL'].includes(rawMarket)) {
+      res.status(400).json({ error: 'market must be US, CRYPTO, or ALL' });
+      return;
+    }
+    const symbols = Array.isArray(body.symbols)
+      ? body.symbols.map((value) => String(value).trim().toUpperCase()).filter(Boolean)
+      : undefined;
+    res.json(
+      await runNovaProductionStrategy({
+        userId: String(body.userId || '').trim() || undefined,
+        locale: String(body.locale || '').trim() || undefined,
+        market: rawMarket as 'US' | 'CRYPTO' | 'ALL',
+        symbols,
+        start: body.start ? String(body.start) : undefined,
+        end: body.end ? String(body.end) : undefined,
+        riskProfile: body.riskProfile,
       }),
     );
   }),

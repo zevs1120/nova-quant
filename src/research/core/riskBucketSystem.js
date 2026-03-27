@@ -7,9 +7,19 @@ export const USER_RISK_BUCKETS = Object.freeze({
     correlated_exposure_cap_pct: 14,
     market_concentration_cap_pct: 24,
     asset_class_concentration_cap_pct: 22,
+    max_position_cap_pct: 6,
+    instrument_concentration_cap_pct: 8,
+    same_direction_cap_pct: 22,
     max_total_active_risk_pct: 1.8,
     daily_loss_limit_pct: 1.2,
+    weekly_loss_limit_pct: 2.2,
+    monthly_loss_limit_pct: 4.5,
     drawdown_threshold_pct: 6,
+    drawdown_caution_pct: 3,
+    drawdown_derisk_pct: 4.5,
+    drawdown_hard_stop_pct: 5.5,
+    loss_streak_caution_count: 2,
+    loss_streak_block_count: 4,
     max_concurrent_trades: 3,
     base_size_multiplier: 0.65,
   },
@@ -19,9 +29,19 @@ export const USER_RISK_BUCKETS = Object.freeze({
     correlated_exposure_cap_pct: 22,
     market_concentration_cap_pct: 36,
     asset_class_concentration_cap_pct: 34,
+    max_position_cap_pct: 8,
+    instrument_concentration_cap_pct: 10,
+    same_direction_cap_pct: 40,
     max_total_active_risk_pct: 3.2,
     daily_loss_limit_pct: 2.5,
+    weekly_loss_limit_pct: 4.5,
+    monthly_loss_limit_pct: 8,
     drawdown_threshold_pct: 10,
+    drawdown_caution_pct: 5,
+    drawdown_derisk_pct: 7.5,
+    drawdown_hard_stop_pct: 9,
+    loss_streak_caution_count: 2,
+    loss_streak_block_count: 4,
     max_concurrent_trades: 5,
     base_size_multiplier: 1,
   },
@@ -31,9 +51,19 @@ export const USER_RISK_BUCKETS = Object.freeze({
     correlated_exposure_cap_pct: 28,
     market_concentration_cap_pct: 44,
     asset_class_concentration_cap_pct: 42,
+    max_position_cap_pct: 9,
+    instrument_concentration_cap_pct: 12,
+    same_direction_cap_pct: 48,
     max_total_active_risk_pct: 4.8,
     daily_loss_limit_pct: 3.5,
+    weekly_loss_limit_pct: 6.2,
+    monthly_loss_limit_pct: 9.5,
     drawdown_threshold_pct: 14,
+    drawdown_caution_pct: 6.5,
+    drawdown_derisk_pct: 8.5,
+    drawdown_hard_stop_pct: 10,
+    loss_streak_caution_count: 2,
+    loss_streak_block_count: 4,
     max_concurrent_trades: 7,
     base_size_multiplier: 1.2,
   },
@@ -43,9 +73,19 @@ export const USER_RISK_BUCKETS = Object.freeze({
     correlated_exposure_cap_pct: 34,
     market_concentration_cap_pct: 52,
     asset_class_concentration_cap_pct: 48,
+    max_position_cap_pct: 10,
+    instrument_concentration_cap_pct: 12,
+    same_direction_cap_pct: 52,
     max_total_active_risk_pct: 6.2,
     daily_loss_limit_pct: 4.8,
+    weekly_loss_limit_pct: 7.8,
+    monthly_loss_limit_pct: 10,
     drawdown_threshold_pct: 18,
+    drawdown_caution_pct: 7,
+    drawdown_derisk_pct: 9,
+    drawdown_hard_stop_pct: 10,
+    loss_streak_caution_count: 2,
+    loss_streak_block_count: 4,
     max_concurrent_trades: 9,
     base_size_multiplier: 1.35,
   },
@@ -56,6 +96,10 @@ const ACTIVE_SIGNAL_STATUS = new Set(['NEW', 'TRIGGERED']);
 function normalizeRiskProfileKey(value) {
   const key = String(value || 'balanced').toLowerCase();
   return USER_RISK_BUCKETS[key] ? key : 'balanced';
+}
+
+function normalizeDirection(value) {
+  return String(value || '').toUpperCase() === 'SHORT' ? 'SHORT' : 'LONG';
 }
 
 function activeSignals(signals = []) {
@@ -110,6 +154,55 @@ function bucketReason(bucket) {
   return 'Setup fails quality/risk gates and is blocked.';
 }
 
+function tradeTimestamp(row = {}, nowMs = Date.now()) {
+  const created = Number(row.created_at_ms ?? row.time_out_ms ?? row.time_in_ms ?? Number.NaN);
+  if (Number.isFinite(created) && created > 0) return created;
+  const iso = row.time_out || row.time_in || row.closed_at || row.created_at;
+  const parsed = Date.parse(String(iso || ''));
+  return Number.isFinite(parsed) ? parsed : nowMs;
+}
+
+function rollingPnlPct(trades = [], nowMs = Date.now(), windowMs = 86400000) {
+  return round(
+    trades
+      .filter((row) => nowMs - tradeTimestamp(row, nowMs) <= windowMs)
+      .reduce((acc, row) => acc + Number(row.pnl_pct || 0), 0),
+    4,
+  );
+}
+
+function consecutiveLossStreak(trades = [], nowMs = Date.now()) {
+  const ordered = [...trades].sort((a, b) => tradeTimestamp(b, nowMs) - tradeTimestamp(a, nowMs));
+  let streak = 0;
+  for (const row of ordered) {
+    const pnl = Number(row.pnl_pct || 0);
+    if (pnl < 0) {
+      streak += 1;
+      continue;
+    }
+    break;
+  }
+  return streak;
+}
+
+function drawdownFromTrades(trades = [], nowMs = Date.now()) {
+  const ordered = [...trades].sort((a, b) => tradeTimestamp(a, nowMs) - tradeTimestamp(b, nowMs));
+  let equity = 1;
+  let peak = 1;
+  let maxDrawdown = 0;
+  for (const row of ordered) {
+    equity *= 1 + Number(row.pnl_pct || 0) / 100;
+    peak = Math.max(peak, equity);
+    const dd = peak > 0 ? (peak - equity) / peak : 0;
+    maxDrawdown = Math.max(maxDrawdown, dd);
+  }
+  const currentDrawdown = peak > 0 ? (peak - equity) / peak : 0;
+  return {
+    current_drawdown_pct: round(currentDrawdown * 100, 4),
+    max_drawdown_pct: round(maxDrawdown * 100, 4),
+  };
+}
+
 function correlationFootprint(signals = []) {
   const byTheme = new Map();
   for (const signal of signals) {
@@ -162,6 +255,33 @@ function concentrationBy(signals = [], keySelector) {
   };
 }
 
+function sameDirectionFootprint(signals = []) {
+  const bucket = new Map();
+  for (const signal of signals) {
+    const direction = normalizeDirection(signal.direction);
+    const value = Number(signal.position_advice?.position_pct ?? signal.position_size_pct ?? 0);
+    bucket.set(direction, (bucket.get(direction) || 0) + value);
+  }
+  const rows = Array.from(bucket.entries()).map(([direction, exposure_pct]) => ({
+    direction,
+    exposure_pct: round(exposure_pct, 4),
+  }));
+  const top = rows.reduce((best, row) => (row.exposure_pct > best.exposure_pct ? row : best), {
+    direction: 'NONE',
+    exposure_pct: 0,
+  });
+  return {
+    rows,
+    top,
+  };
+}
+
+function inferTimeStopBars(signal = {}, userBucket = {}) {
+  const market = String(signal.market || '').toUpperCase();
+  if (market === 'CRYPTO') return Math.max(8, Number(userBucket.max_concurrent_trades || 5) * 3);
+  return Math.max(6, Number(userBucket.max_concurrent_trades || 5) * 2);
+}
+
 function tradeDecision({
   signal,
   tradeBucket,
@@ -177,8 +297,24 @@ function tradeDecision({
   const baseMultiplier = userBucket.base_size_multiplier;
   const qualityMultiplier = qualitySizeMultiplier(tradeBucket);
   const regimeMultiplier = Number(regimeState?.state?.default_sizing_multiplier ?? 0.8);
-  const recommendedPositionPct = round(
+  const rawRecommendedPositionPct = round(
     basePositionPct * baseMultiplier * qualityMultiplier * regimeMultiplier,
+    4,
+  );
+  const recommendedPositionPct = round(
+    Math.min(
+      rawRecommendedPositionPct,
+      Number(userBucket.max_position_cap_pct || rawRecommendedPositionPct),
+    ),
+    4,
+  );
+  const singleTradeRiskPct = round((recommendedPositionPct * stopDistancePct(signal)) / 100, 4);
+  const timeStopBars = inferTimeStopBars(signal, userBucket);
+  const volatilityStopPct = round(
+    Math.max(
+      stopDistancePct(signal),
+      String(signal.market || '').toUpperCase() === 'CRYPTO' ? 3.8 : 2.4,
+    ),
     4,
   );
 
@@ -204,21 +340,73 @@ function tradeDecision({
   ) {
     reasons.push('Asset-class concentration cap has been reached.');
   }
+  if (
+    portfolioBudget.instrument_concentration_pct >= portfolioBudget.instrument_concentration_cap_pct
+  ) {
+    reasons.push('Single-name concentration cap has been reached.');
+  }
+  if (portfolioBudget.same_direction_exposure_pct >= portfolioBudget.same_direction_cap_pct) {
+    reasons.push('Same-direction exposure cap has been reached.');
+  }
   if (portfolioBudget.used_total_active_risk_pct >= portfolioBudget.max_total_active_risk_pct) {
     reasons.push('Total active risk budget is exhausted.');
+  }
+  if (portfolioBudget.current_drawdown_proxy_pct >= portfolioBudget.drawdown_hard_stop_pct) {
+    reasons.push('Portfolio drawdown hard stop is active.');
+  }
+  if (portfolioBudget.current_daily_pnl_pct <= -portfolioBudget.daily_loss_limit_pct) {
+    reasons.push('Daily realized-loss circuit breaker is active.');
+  }
+  if (portfolioBudget.current_weekly_pnl_pct <= -portfolioBudget.weekly_loss_limit_pct) {
+    reasons.push('Weekly realized-loss circuit breaker is active.');
+  }
+  if (portfolioBudget.current_monthly_pnl_pct <= -portfolioBudget.monthly_loss_limit_pct) {
+    reasons.push('Monthly realized-loss circuit breaker is active.');
+  }
+  if (portfolioBudget.consecutive_loss_streak >= portfolioBudget.loss_streak_block_count) {
+    reasons.push('Consecutive-loss deleveraging hard stop is active.');
+  }
+  if (portfolioBudget.black_swan_guard_active) {
+    reasons.push('Black-swan guard is active under the current regime.');
   }
   if (index >= openSlots) {
     reasons.push('Concurrent trade slots are full for the selected risk bucket.');
   }
+  if (basePositionPct > Number(userBucket.max_position_cap_pct || 0)) {
+    reasons.push('Requested size exceeds per-position cap and must be trimmed.');
+  }
+  if (singleTradeRiskPct > Number(userBucket.daily_loss_limit_pct || 0)) {
+    reasons.push('Single-trade risk exceeds the current risk budget.');
+  }
 
   let decision = 'allow';
-  if (tradeBucket === 'blocked' || regimeState?.state?.recommended_user_posture === 'SKIP') {
+  if (
+    tradeBucket === 'blocked' ||
+    regimeState?.state?.recommended_user_posture === 'SKIP' ||
+    portfolioBudget.black_swan_guard_active ||
+    portfolioBudget.current_drawdown_proxy_pct >= portfolioBudget.drawdown_hard_stop_pct ||
+    portfolioBudget.current_daily_pnl_pct <= -portfolioBudget.daily_loss_limit_pct ||
+    portfolioBudget.current_weekly_pnl_pct <= -portfolioBudget.weekly_loss_limit_pct ||
+    portfolioBudget.current_monthly_pnl_pct <= -portfolioBudget.monthly_loss_limit_pct ||
+    portfolioBudget.instrument_concentration_pct >=
+      portfolioBudget.instrument_concentration_cap_pct ||
+    portfolioBudget.same_direction_exposure_pct >= portfolioBudget.same_direction_cap_pct ||
+    portfolioBudget.consecutive_loss_streak >= portfolioBudget.loss_streak_block_count
+  ) {
     decision = 'blocked';
   } else if (
     regimeState?.state?.recommended_user_posture === 'REDUCE' ||
     tradeBucket === 'B_quality' ||
     tradeBucket === 'experimental' ||
-    portfolioBudget.used_total_exposure_pct >= portfolioBudget.total_exposure_cap_pct * 0.8
+    portfolioBudget.used_total_exposure_pct >= portfolioBudget.total_exposure_cap_pct * 0.8 ||
+    portfolioBudget.instrument_concentration_pct >=
+      portfolioBudget.instrument_concentration_cap_pct * 0.8 ||
+    portfolioBudget.same_direction_exposure_pct >= portfolioBudget.same_direction_cap_pct * 0.8 ||
+    portfolioBudget.current_drawdown_proxy_pct >= portfolioBudget.drawdown_caution_pct ||
+    portfolioBudget.current_weekly_pnl_pct <= -portfolioBudget.weekly_loss_limit_pct * 0.8 ||
+    portfolioBudget.current_monthly_pnl_pct <= -portfolioBudget.monthly_loss_limit_pct * 0.8 ||
+    portfolioBudget.consecutive_loss_streak >= portfolioBudget.loss_streak_caution_count ||
+    basePositionPct > Number(userBucket.max_position_cap_pct || 0)
   ) {
     decision = 'reduce';
   }
@@ -237,6 +425,11 @@ function tradeDecision({
         quality_bucket: tradeBucket,
         budget_status: portfolioBudget.budget_status,
       },
+      risk_controls: {
+        time_stop_bars: timeStopBars,
+        volatility_stop_pct: volatilityStopPct,
+        single_trade_risk_pct: singleTradeRiskPct,
+      },
       explainability: 'Trade blocked due to quality, regime, or portfolio budget constraints.',
     };
   }
@@ -254,6 +447,11 @@ function tradeDecision({
       regime_posture: regimeState?.state?.recommended_user_posture || '--',
       quality_bucket: tradeBucket,
       budget_status: portfolioBudget.budget_status,
+    },
+    risk_controls: {
+      time_stop_bars: timeStopBars,
+      volatility_stop_pct: volatilityStopPct,
+      single_trade_risk_pct: singleTradeRiskPct,
     },
     explainability:
       decision === 'reduce'
@@ -302,6 +500,7 @@ export function buildRiskBucketSystem({
 } = {}) {
   const resolvedKey = normalizeRiskProfileKey(riskProfileKey);
   const userBucket = USER_RISK_BUCKETS[resolvedKey];
+  const nowMs = Number.isFinite(Date.parse(asOf)) ? Date.parse(asOf) : Date.now();
 
   const tradableSignals = activeSignals(signals);
   const totalExposure = round(
@@ -327,6 +526,10 @@ export function buildRiskBucketSystem({
     (trades || []).slice(0, 12).reduce((acc, item) => acc + Number(item.pnl_pct || 0), 0),
     4,
   );
+  const weeklyPnlPct = rollingPnlPct(trades || [], nowMs, 7 * 86400000);
+  const monthlyPnlPct = rollingPnlPct(trades || [], nowMs, 30 * 86400000);
+  const lossStreakCount = consecutiveLossStreak(trades || [], nowMs);
+  const drawdownStats = drawdownFromTrades(trades || [], nowMs);
 
   const correlation = correlationFootprint(tradableSignals);
   const marketConcentration = concentrationBy(tradableSignals, (item) =>
@@ -335,11 +538,22 @@ export function buildRiskBucketSystem({
   const assetClassConcentration = concentrationBy(tradableSignals, (item) =>
     String(item.asset_class || 'unknown'),
   );
+  const symbolConcentration = concentrationBy(tradableSignals, (item) =>
+    String(item.symbol || 'unknown'),
+  );
+  const sameDirection = sameDirectionFootprint(tradableSignals);
   const drawdownProxy = round(
-    Math.abs(Number(championState?.safety?.cards?.portfolio?.score ?? 80) - 100) * 0.24,
+    Math.max(
+      Math.abs(Number(championState?.safety?.cards?.portfolio?.score ?? 80) - 100) * 0.24,
+      drawdownStats.current_drawdown_pct,
+    ),
     4,
   );
   const openPositions = (trades || []).filter((item) => item?.time_in && !item?.time_out).length;
+  const blackSwanGuard =
+    ['high_volatility', 'risk_off'].includes(String(regimeState?.state?.primary || '')) &&
+    Number(regimeState?.state?.risk_off_score ?? regimeState?.state?.avg_risk_off_score ?? 0) >=
+      0.68;
 
   const portfolioBudget = {
     total_exposure_cap_pct: userBucket.total_exposure_cap_pct,
@@ -360,19 +574,41 @@ export function buildRiskBucketSystem({
     market_concentration_pct: marketConcentration.top.exposure_pct,
     asset_class_concentration_cap_pct: userBucket.asset_class_concentration_cap_pct,
     asset_class_concentration_pct: assetClassConcentration.top.exposure_pct,
+    instrument_concentration_cap_pct: userBucket.instrument_concentration_cap_pct,
+    instrument_concentration_pct: symbolConcentration.top.exposure_pct,
+    same_direction_cap_pct: userBucket.same_direction_cap_pct,
+    same_direction_exposure_pct: sameDirection.top.exposure_pct,
     max_concurrent_positions: userBucket.max_concurrent_trades,
     open_positions: openPositions,
     daily_loss_limit_pct: userBucket.daily_loss_limit_pct,
     current_daily_pnl_pct: dailyPnlPct,
+    weekly_loss_limit_pct: userBucket.weekly_loss_limit_pct,
+    current_weekly_pnl_pct: weeklyPnlPct,
+    monthly_loss_limit_pct: userBucket.monthly_loss_limit_pct,
+    current_monthly_pnl_pct: monthlyPnlPct,
     drawdown_threshold_pct: userBucket.drawdown_threshold_pct,
+    drawdown_caution_pct: userBucket.drawdown_caution_pct,
+    drawdown_derisk_pct: userBucket.drawdown_derisk_pct,
+    drawdown_hard_stop_pct: userBucket.drawdown_hard_stop_pct,
     current_drawdown_proxy_pct: drawdownProxy,
+    consecutive_loss_streak: lossStreakCount,
+    loss_streak_caution_count: userBucket.loss_streak_caution_count,
+    loss_streak_block_count: userBucket.loss_streak_block_count,
+    black_swan_guard_active: blackSwanGuard,
     budget_status:
       totalExposure >= userBucket.total_exposure_cap_pct ||
       correlation.correlated_exposure_pct >= userBucket.correlated_exposure_cap_pct ||
       marketConcentration.top.exposure_pct >= userBucket.market_concentration_cap_pct ||
       assetClassConcentration.top.exposure_pct >= userBucket.asset_class_concentration_cap_pct ||
+      symbolConcentration.top.exposure_pct >= userBucket.instrument_concentration_cap_pct ||
+      sameDirection.top.exposure_pct >= userBucket.same_direction_cap_pct ||
       totalActiveRisk >= userBucket.max_total_active_risk_pct ||
-      dailyPnlPct <= -userBucket.daily_loss_limit_pct
+      dailyPnlPct <= -userBucket.daily_loss_limit_pct ||
+      weeklyPnlPct <= -userBucket.weekly_loss_limit_pct ||
+      monthlyPnlPct <= -userBucket.monthly_loss_limit_pct ||
+      drawdownProxy >= userBucket.drawdown_hard_stop_pct ||
+      lossStreakCount >= userBucket.loss_streak_block_count ||
+      blackSwanGuard
         ? 'stressed'
         : 'within_limits',
   };
@@ -406,6 +642,9 @@ export function buildRiskBucketSystem({
       correlation_snapshot: correlation,
       market_concentration_snapshot: marketConcentration,
       asset_class_concentration_snapshot: assetClassConcentration,
+      symbol_concentration_snapshot: symbolConcentration,
+      same_direction_snapshot: sameDirection,
+      realized_drawdown_snapshot: drawdownStats,
     },
     trade_level_buckets: tradeDecisions,
     decision_summary: summary,
