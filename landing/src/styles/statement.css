@@ -561,6 +561,10 @@
 }
 
 @media (max-width: 760px) {
+  .statement-spread {
+    overflow-x: clip;
+  }
+
   .statement-grid {
     display: flex;
     flex-direction: column;
@@ -578,10 +582,10 @@
   .statement-showcase {
     min-height: auto;
     margin-top: 0.8rem;
-    width: 100vw;
-    margin-left: calc(50% - 50vw);
-    margin-right: calc(50% - 50vw);
-    padding: 0 1rem;
+    width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+    padding: 0 0.15rem;
     box-sizing: border-box;
   }
 
@@ -590,6 +594,8 @@
     max-width: none;
     margin-left: 0;
     margin-right: 0;
+    padding: 0 0.15rem;
+    box-sizing: border-box;
   }
 
   .statement-showcase-accent-a {

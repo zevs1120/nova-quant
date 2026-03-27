@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { pricingPlans } from '../data/index.js';
 import { useViewportReveal } from '../hooks/useViewportMotion.js';
 
@@ -6,10 +6,33 @@ export default function PricingSection() {
   const { ref, isVisible } = useViewportReveal();
   const boardRef = useRef(null);
   const [activePlan, setActivePlan] = useState(null);
+  const [canHover, setCanHover] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined;
+
+    const mediaQuery = window.matchMedia('(hover: hover) and (pointer: fine)');
+    const sync = () => {
+      setCanHover(mediaQuery.matches);
+      if (!mediaQuery.matches) {
+        setActivePlan(null);
+      }
+    };
+
+    sync();
+
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', sync);
+      return () => mediaQuery.removeEventListener('change', sync);
+    }
+
+    mediaQuery.addListener(sync);
+    return () => mediaQuery.removeListener(sync);
+  }, []);
 
   const handlePointerMove = (event) => {
     const board = boardRef.current;
-    if (!board) return;
+    if (!board || !canHover || event.pointerType !== 'mouse') return;
 
     const rect = board.getBoundingClientRect();
     board.style.setProperty('--pricing-glow-x', `${event.clientX - rect.left}px`);
@@ -18,6 +41,11 @@ export default function PricingSection() {
 
   const clearBoardFocus = () => {
     setActivePlan(null);
+  };
+
+  const handlePointerEnter = (index, event) => {
+    if (!canHover || event.pointerType !== 'mouse') return;
+    setActivePlan(index);
   };
 
   return (
@@ -47,7 +75,7 @@ export default function PricingSection() {
                 '--pricing-order': index,
                 '--pricing-enter-delay': `${index * 95}ms`,
               }}
-              onPointerEnter={() => setActivePlan(index)}
+              onPointerEnter={(event) => handlePointerEnter(index, event)}
               onFocus={() => setActivePlan(index)}
               onBlur={clearBoardFocus}
             >

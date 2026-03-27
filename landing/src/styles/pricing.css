@@ -74,6 +74,7 @@
   position: relative;
   --pricing-glow-x: 50%;
   --pricing-glow-y: 24%;
+  touch-action: pan-y;
 }
 
 .pricing-board::before {
@@ -342,45 +343,47 @@
   transition-delay: 90ms;
 }
 
-.pricing-spread.is-motion-visible .pricing-board::before,
-.pricing-board.has-plan-focus::before {
-  opacity: 1;
-}
-
 .pricing-spread.is-motion-visible .pricing-card {
   opacity: 1;
   transform: none;
 }
 
-.pricing-card:hover,
-.pricing-card:focus-within,
-.pricing-card.is-highlighted {
-  transform: translate3d(0, -0.9rem, 0) scale(1.018);
-  box-shadow:
-    0 34px 68px rgba(48, 52, 74, 0.14),
-    0 10px 24px rgba(48, 52, 74, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.94),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.28);
-  border-color: rgba(255, 255, 255, 0.84);
-}
+@media (hover: hover) and (pointer: fine) {
+  .pricing-spread.is-motion-visible .pricing-board::before,
+  .pricing-board.has-plan-focus::before {
+    opacity: 1;
+  }
 
-.pricing-card:hover .pricing-card-glow,
-.pricing-card:focus-within .pricing-card-glow,
-.pricing-card.is-highlighted .pricing-card-glow {
-  transform: translate3d(0.8rem, -0.7rem, 0) scale(1.08);
-  opacity: 0.9;
-}
+  .pricing-card:hover,
+  .pricing-card:focus-within,
+  .pricing-card.is-highlighted {
+    transform: translate3d(0, -0.9rem, 0) scale(1.018);
+    box-shadow:
+      0 34px 68px rgba(48, 52, 74, 0.14),
+      0 10px 24px rgba(48, 52, 74, 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 0.94),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.28);
+    border-color: rgba(255, 255, 255, 0.84);
+  }
 
-.pricing-card:hover .pricing-cta,
-.pricing-card:focus-within .pricing-cta,
-.pricing-card.is-highlighted .pricing-cta {
-  transform: translateY(-2px);
-}
+  .pricing-card:hover .pricing-card-glow,
+  .pricing-card:focus-within .pricing-card-glow,
+  .pricing-card.is-highlighted .pricing-card-glow {
+    transform: translate3d(0.8rem, -0.7rem, 0) scale(1.08);
+    opacity: 0.9;
+  }
 
-.pricing-board.has-plan-focus .pricing-card:not(.is-highlighted) {
-  transform: translate3d(0, 0.6rem, 0) scale(0.985);
-  filter: saturate(0.88) blur(0.2px);
-  opacity: 0.86;
+  .pricing-card:hover .pricing-cta,
+  .pricing-card:focus-within .pricing-cta,
+  .pricing-card.is-highlighted .pricing-cta {
+    transform: translateY(-2px);
+  }
+
+  .pricing-board.has-plan-focus .pricing-card:not(.is-highlighted) {
+    transform: translate3d(0, 0.6rem, 0) scale(0.985);
+    filter: saturate(0.88) blur(0.2px);
+    opacity: 0.86;
+  }
 }
 
 @media (max-width: 1100px) {
@@ -390,6 +393,10 @@
 }
 
 @media (max-width: 760px) {
+  .pricing-spread {
+    overflow-x: clip;
+  }
+
   .pricing-board {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));

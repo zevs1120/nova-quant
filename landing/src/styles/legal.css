@@ -182,12 +182,20 @@
 }
 
 @media (max-width: 760px) {
+  .legal-spread {
+    width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+    overflow: clip;
+  }
+
   .legal-grid {
-    width: min(100vw - 1.2rem, var(--page-width));
+    width: min(calc(100% - 1.2rem), var(--page-width));
   }
 
   .legal-surface {
     padding: 1.9rem 0 calc(env(safe-area-inset-bottom, 0px) + 2.5rem);
+    border-radius: 1.45rem 1.45rem 0 0;
   }
 
   .legal-topbar {
@@ -239,7 +247,7 @@
 
 @media (max-width: 375px) {
   .legal-grid {
-    width: min(100vw - 0.8rem, var(--page-width));
+    width: min(calc(100% - 0.9rem), var(--page-width));
   }
 
   .legal-surface {

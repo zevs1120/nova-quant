@@ -250,6 +250,7 @@
 @media (max-width: 760px) {
   .distribution-spread {
     padding-top: 4.5rem;
+    overflow-x: clip;
   }
 
   .distribution-copy h2 {
@@ -293,6 +294,12 @@
 
   .distribution-closing {
     text-align: left;
+  }
+
+  .distribution-closing::before {
+    left: 0;
+    width: 100%;
+    transform: none;
   }
 
   .distribution-spread::after {

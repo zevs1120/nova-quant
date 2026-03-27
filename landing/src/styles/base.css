@@ -1,6 +1,8 @@
 :root {
   --page-width: 1180px;
   --page-gutter: 2.8rem;
+  --mobile-shell-gutter: 1.5rem;
+  --mobile-shell-gutter-tight: 1.1rem;
   --paper: #fbf8f4;
   --fog: #f1edf8;
   --lilac: #e9e0ff;
@@ -41,6 +43,7 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  overflow-x: hidden;
 }
 
 a {
@@ -259,7 +262,7 @@ h2 {
   }
 
   .page-shell {
-    width: min(100vw - 0.75rem, var(--page-width));
+    width: min(calc(100vw - var(--mobile-shell-gutter-tight)), var(--page-width));
   }
 
   /* --- Section headings --- */
@@ -302,6 +305,7 @@ h2 {
 
 @media (max-width: 760px) {
   .page-shell {
-    width: min(100vw - 1rem, var(--page-width));
+    width: min(calc(100vw - var(--mobile-shell-gutter)), var(--page-width));
+    overflow-x: clip;
   }
 }

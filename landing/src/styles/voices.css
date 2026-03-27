@@ -385,6 +385,10 @@
 }
 
 @media (max-width: 760px) {
+  .voices-spread {
+    overflow-x: clip;
+  }
+
   .voices-grid {
     padding: 0.9rem 0 0;
     row-gap: 1.05rem;
@@ -398,7 +402,7 @@
 
   .voices-grid::before {
     left: auto;
-    right: -1rem;
+    right: 0.2rem;
     top: 12.7rem;
     width: 8rem;
     height: 4.5rem;
