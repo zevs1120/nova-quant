@@ -45,6 +45,17 @@
   padding-top: 0.8rem;
 }
 
+.pricing-copy > .section-kicker,
+.pricing-copy > h2 {
+  opacity: 0;
+  filter: blur(8px);
+  transform: translate3d(0, 1.8rem, 0);
+  transition:
+    opacity 660ms ease,
+    transform 860ms cubic-bezier(0.16, 1, 0.3, 1),
+    filter 660ms ease;
+}
+
 .pricing-copy h2 {
   max-width: none;
   white-space: nowrap;
@@ -60,6 +71,24 @@
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 1.2rem;
+  position: relative;
+  --pricing-glow-x: 50%;
+  --pricing-glow-y: 24%;
+}
+
+.pricing-board::before {
+  content: '';
+  position: absolute;
+  inset: -12%;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at var(--pricing-glow-x) var(--pricing-glow-y),
+    rgba(255, 255, 255, 0.68),
+    rgba(255, 255, 255, 0.16) 18%,
+    transparent 36%
+  );
+  opacity: 0;
+  transition: opacity 260ms ease;
 }
 
 .pricing-card {
@@ -92,6 +121,17 @@
     inset 0 -1px 0 rgba(255, 255, 255, 0.26);
   backdrop-filter: blur(38px) saturate(1.18);
   -webkit-backdrop-filter: blur(38px) saturate(1.18);
+  opacity: 0;
+  transform: translate3d(0, 2.2rem, 0) scale(0.965);
+  transform-origin: 50% 100%;
+  transition:
+    opacity 660ms ease,
+    transform 860ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 360ms ease,
+    filter 320ms ease,
+    border-color 320ms ease;
+  transition-delay: var(--pricing-enter-delay);
+  will-change: transform, box-shadow, filter;
 }
 
 .pricing-card::before,
@@ -158,6 +198,9 @@
   background: radial-gradient(circle, rgba(255, 255, 255, 0.42), transparent 68%);
   filter: blur(22px);
   pointer-events: none;
+  transition:
+    transform 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 320ms ease;
 }
 
 .pricing-card-top,
@@ -283,6 +326,61 @@
   font-size: 0.92rem;
   font-weight: 700;
   white-space: nowrap;
+  transition:
+    transform 280ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 280ms ease;
+}
+
+.pricing-spread.is-motion-visible .pricing-copy > .section-kicker,
+.pricing-spread.is-motion-visible .pricing-copy > h2 {
+  opacity: 1;
+  filter: blur(0);
+  transform: none;
+}
+
+.pricing-spread.is-motion-visible .pricing-copy > h2 {
+  transition-delay: 90ms;
+}
+
+.pricing-spread.is-motion-visible .pricing-board::before,
+.pricing-board.has-plan-focus::before {
+  opacity: 1;
+}
+
+.pricing-spread.is-motion-visible .pricing-card {
+  opacity: 1;
+  transform: none;
+}
+
+.pricing-card:hover,
+.pricing-card:focus-within,
+.pricing-card.is-highlighted {
+  transform: translate3d(0, -0.9rem, 0) scale(1.018);
+  box-shadow:
+    0 34px 68px rgba(48, 52, 74, 0.14),
+    0 10px 24px rgba(48, 52, 74, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.94),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.28);
+  border-color: rgba(255, 255, 255, 0.84);
+}
+
+.pricing-card:hover .pricing-card-glow,
+.pricing-card:focus-within .pricing-card-glow,
+.pricing-card.is-highlighted .pricing-card-glow {
+  transform: translate3d(0.8rem, -0.7rem, 0) scale(1.08);
+  opacity: 0.9;
+}
+
+.pricing-card:hover .pricing-cta,
+.pricing-card:focus-within .pricing-cta,
+.pricing-card.is-highlighted .pricing-cta {
+  transform: translateY(-2px);
+}
+
+.pricing-board.has-plan-focus .pricing-card:not(.is-highlighted) {
+  transform: translate3d(0, 0.6rem, 0) scale(0.985);
+  filter: saturate(0.88) blur(0.2px);
+  opacity: 0.86;
 }
 
 @media (max-width: 1100px) {

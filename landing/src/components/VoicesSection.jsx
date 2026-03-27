@@ -1,8 +1,11 @@
 import { reactions } from '../data/index.js';
+import { useViewportReveal } from '../hooks/useViewportMotion.js';
 
 export default function VoicesSection() {
+  const { ref, isVisible } = useViewportReveal();
+
   return (
-    <section className="spread voices-spread">
+    <section ref={ref} className={`spread voices-spread${isVisible ? ' is-motion-visible' : ''}`}>
       <div className="campaign-grid voices-grid">
         <div className="voices-title-block">
           <p className="voices-kicker">First reactions</p>
@@ -12,8 +15,15 @@ export default function VoicesSection() {
           </h2>
         </div>
 
-        {reactions.map((item) => (
-          <blockquote className={item.className} key={item.quote}>
+        {reactions.map((item, index) => (
+          <blockquote
+            className={item.className}
+            key={item.quote}
+            style={{
+              '--voice-order': index,
+              '--voice-enter-delay': `${index * 100}ms`,
+            }}
+          >
             <p>{item.quote}</p>
             <cite>{item.source}</cite>
           </blockquote>

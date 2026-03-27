@@ -40,6 +40,18 @@
   padding-top: 0.7rem;
 }
 
+.ask-copy > .section-kicker,
+.ask-copy > h2,
+.ask-copy > .micro-intro {
+  opacity: 0;
+  filter: blur(8px);
+  transform: translate3d(0, 1.8rem, 0);
+  transition:
+    opacity 660ms ease,
+    transform 860ms cubic-bezier(0.16, 1, 0.3, 1),
+    filter 660ms ease;
+}
+
 .ask-copy h2 {
   color: var(--ink);
   max-width: 10.5ch;
@@ -72,6 +84,12 @@
   background: none;
   box-shadow: none;
   border-radius: 0;
+  opacity: 0;
+  transform: translate3d(-1.2rem, 0.2rem, 0);
+  transition:
+    opacity 520ms ease,
+    transform 700ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: calc(220ms + var(--ask-enter-delay));
 }
 
 .ask-bullets li:first-child {
@@ -134,6 +152,14 @@
     inset 0 -1px 0 rgba(255, 255, 255, 0.26);
   backdrop-filter: blur(38px) saturate(1.18);
   -webkit-backdrop-filter: blur(38px) saturate(1.18);
+  opacity: 0;
+  clip-path: inset(8% 10% 12% 10% round 1.55rem);
+  transform: translate3d(2.4rem, 2rem, 0) rotate(-5deg) scale(0.95);
+  transition:
+    opacity 760ms ease,
+    transform 1100ms cubic-bezier(0.16, 1, 0.3, 1),
+    clip-path 1100ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 420ms ease;
 }
 
 .ask-object::before {
@@ -175,6 +201,11 @@
   box-shadow:
     inset 0 0 0 1px rgba(255, 255, 255, 0.52),
     0 10px 24px rgba(56, 62, 91, 0.05);
+  transform: scale(1.08);
+  filter: saturate(0.88) brightness(1.04);
+  transition:
+    transform 1100ms cubic-bezier(0.16, 1, 0.3, 1),
+    filter 720ms ease;
 }
 
 .ask-object-halo {
@@ -189,6 +220,100 @@
     transparent 72%
   );
   filter: blur(24px);
+  opacity: 0;
+  transform: scale(0.78);
+  transition:
+    opacity 760ms ease,
+    transform 1100ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ask-object-chip {
+  position: absolute;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0 0.9rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.76);
+  background: rgba(255, 255, 255, 0.7);
+  box-shadow:
+    0 18px 38px rgba(56, 62, 91, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.94);
+  color: rgba(18, 21, 34, 0.82);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+  opacity: 0;
+  transition:
+    opacity 600ms ease,
+    transform 820ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ask-object-chip-query {
+  top: 1.2rem;
+  left: 1.25rem;
+  transform: translate3d(-1.2rem, 1rem, 0);
+}
+
+.ask-object-chip-answer {
+  right: 1.25rem;
+  bottom: 1.55rem;
+  transform: translate3d(1.2rem, 1.2rem, 0);
+}
+
+.ask-spread.is-motion-visible .ask-copy > .section-kicker,
+.ask-spread.is-motion-visible .ask-copy > h2,
+.ask-spread.is-motion-visible .ask-copy > .micro-intro {
+  opacity: 1;
+  filter: blur(0);
+  transform: none;
+}
+
+.ask-spread.is-motion-visible .ask-copy > h2 {
+  transition-delay: 90ms;
+}
+
+.ask-spread.is-motion-visible .ask-copy > .micro-intro {
+  transition-delay: 180ms;
+}
+
+.ask-spread.is-motion-visible .ask-bullets li {
+  opacity: 1;
+  transform: none;
+}
+
+.ask-spread.is-motion-visible .ask-object {
+  opacity: 1;
+  clip-path: inset(0 round 1.55rem);
+  transform: translate3d(0, 0, 0) rotate(-1.2deg) scale(1);
+}
+
+.ask-spread.is-motion-visible .ask-object img {
+  transform: scale(1);
+  filter: saturate(1) brightness(1);
+}
+
+.ask-spread.is-motion-visible .ask-object-halo {
+  opacity: 1;
+  transform: scale(1);
+  animation: ask-halo-drift 7.6s ease-in-out infinite;
+}
+
+.ask-spread.is-motion-visible .ask-object-chip {
+  opacity: 1;
+}
+
+.ask-spread.is-motion-visible .ask-object-chip-query {
+  transform: translate3d(0, 0, 0);
+  transition-delay: 300ms;
+}
+
+.ask-spread.is-motion-visible .ask-object-chip-answer {
+  transform: translate3d(0, 0, 0);
+  transition-delay: 420ms;
 }
 
 @media (max-width: 760px) {
@@ -220,6 +345,22 @@
     min-height: 0;
     border-radius: 1.2rem;
     padding: 0.7rem;
+  }
+
+  .ask-object-chip {
+    min-height: 1.8rem;
+    padding: 0 0.72rem;
+    font-size: 0.72rem;
+  }
+
+  .ask-object-chip-query {
+    top: 0.92rem;
+    left: 0.92rem;
+  }
+
+  .ask-object-chip-answer {
+    right: 0.92rem;
+    bottom: 1.08rem;
   }
 
   .ask-object img {

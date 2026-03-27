@@ -7,6 +7,24 @@
 
 .hero-spread {
   position: relative;
+  --hero-progress: 0;
+}
+
+.hero-spread::after {
+  content: '';
+  position: absolute;
+  left: 14%;
+  top: 8rem;
+  width: 32rem;
+  height: 32rem;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.78), transparent 68%);
+  filter: blur(40px);
+  opacity: 0;
+  transform: translate3d(3rem, 1.5rem, 0) scale(0.84);
+  transition:
+    opacity 900ms ease,
+    transform 1200ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .hero-grid {
@@ -23,6 +41,27 @@
   overflow: hidden;
 }
 
+.hero-stage::before {
+  content: '';
+  position: absolute;
+  inset: auto auto 10% 18%;
+  width: 22rem;
+  height: 9rem;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 95, 196, 0.16),
+    rgba(70, 200, 255, 0.22),
+    rgba(255, 216, 63, 0.14)
+  );
+  filter: blur(28px);
+  opacity: 0;
+  transform: translate3d(-2rem, 2rem, 0) rotate(-7deg);
+  transition:
+    opacity 900ms ease 160ms,
+    transform 1200ms cubic-bezier(0.16, 1, 0.3, 1) 160ms;
+}
+
 .hero-stage-grid {
   display: none;
 }
@@ -34,6 +73,19 @@
   z-index: 1;
   align-self: center;
   padding: 7rem 0 5rem;
+}
+
+.hero-pretitle,
+.hero-title-top,
+.hero-title-bottom,
+.hero-copy .micro-intro,
+.hero-actions {
+  opacity: 0;
+  filter: blur(10px);
+  transition:
+    opacity 720ms ease,
+    transform 920ms cubic-bezier(0.16, 1, 0.3, 1),
+    filter 720ms ease;
 }
 
 .hero-title {
@@ -58,6 +110,7 @@
   font-weight: 700;
   letter-spacing: -0.045em;
   line-height: 1;
+  transform: translate3d(-1.4rem, 1.7rem, 0) rotate(-3deg);
 }
 
 .hero-title-top {
@@ -67,6 +120,7 @@
   white-space: nowrap;
   font-size: clamp(5.3rem, 13vw, 10.2rem);
   line-height: 0.84;
+  transform: translate3d(0.6rem, 2.4rem, 0) scale(0.965);
 }
 
 .hero-title-top::after {
@@ -90,16 +144,19 @@
   box-shadow: 8px 8px 0 rgba(18, 21, 34, 0.07);
   font-size: clamp(5.3rem, 13vw, 10.2rem);
   line-height: 0.84;
+  transform: translate3d(-0.3rem, 3.1rem, 0) scale(0.94);
 }
 
 .hero-copy .micro-intro {
   max-width: 34rem;
   margin-top: 2rem;
   font-size: 1.04rem;
+  transform: translate3d(0, 2.1rem, 0);
 }
 
 .hero-actions {
   margin-top: 1.55rem;
+  transform: translate3d(0, 2.5rem, 0);
 }
 
 .hero-cta {
@@ -131,6 +188,11 @@
 .hero-flat {
   position: absolute;
   border-radius: 0;
+  opacity: 0;
+  transition:
+    opacity 760ms ease,
+    transform 1200ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform, opacity;
 }
 
 .hero-flat-lilac {
@@ -139,6 +201,7 @@
   width: min(23rem, 28vw);
   height: 9rem;
   background: #61d982;
+  transform: translate3d(-3rem, 2rem, 0) rotate(-8deg);
 }
 
 .hero-flat-blue {
@@ -147,6 +210,7 @@
   width: 26%;
   height: 6.4rem;
   background: #46c8ff;
+  transform: translate3d(2rem, -1rem, 0) rotate(6deg);
 }
 
 .hero-flat-pink {
@@ -155,6 +219,7 @@
   width: 12%;
   height: 5.4rem;
   background: #ff5fbd;
+  transform: translate3d(2.6rem, 1.4rem, 0) rotate(8deg);
 }
 
 .hero-flat-violet {
@@ -163,6 +228,7 @@
   width: 15%;
   height: 7rem;
   background: #ffd83f;
+  transform: translate3d(-1.8rem, 2.2rem, 0) rotate(-6deg);
 }
 
 .hero-flat-mint {
@@ -171,6 +237,114 @@
   width: 7%;
   height: 2.2rem;
   background: #61d982;
+  transform: translate3d(0.8rem, 1.4rem, 0) rotate(4deg);
+}
+
+.hero-spread.is-motion-visible::after {
+  opacity: 0.72;
+  transform: translate3d(calc(var(--hero-progress) * 5rem), calc(var(--hero-progress) * -1.4rem), 0)
+    scale(calc(0.84 + var(--hero-progress) * 0.24));
+}
+
+.hero-spread.is-motion-visible .hero-stage::before {
+  opacity: 0.72;
+  transform: translate3d(
+      calc(var(--hero-progress) * 3.4rem),
+      calc(var(--hero-progress) * -1.2rem),
+      0
+    )
+    rotate(calc(var(--hero-progress) * 7deg - 7deg));
+}
+
+.hero-spread.is-motion-visible .hero-pretitle {
+  opacity: 1;
+  filter: blur(0);
+  transform: translate3d(
+      calc((0.4 - var(--hero-progress)) * 1.8rem),
+      calc((0.52 - var(--hero-progress)) * 1.2rem),
+      0
+    )
+    rotate(calc((0.4 - var(--hero-progress)) * 4deg));
+  transition-delay: 70ms;
+}
+
+.hero-spread.is-motion-visible .hero-title-top {
+  opacity: 1;
+  filter: blur(0);
+  transform: translate3d(
+      calc((0.48 - var(--hero-progress)) * -1.6rem),
+      calc((0.58 - var(--hero-progress)) * 1.6rem),
+      0
+    )
+    scale(calc(0.965 + var(--hero-progress) * 0.05));
+  transition-delay: 150ms;
+}
+
+.hero-spread.is-motion-visible .hero-title-bottom {
+  opacity: 1;
+  filter: blur(0);
+  transform: translate3d(
+      calc((0.44 - var(--hero-progress)) * 1.1rem),
+      calc((0.62 - var(--hero-progress)) * 1.8rem),
+      0
+    )
+    scale(calc(0.94 + var(--hero-progress) * 0.07));
+  transition-delay: 230ms;
+}
+
+.hero-spread.is-motion-visible .hero-copy .micro-intro {
+  opacity: 1;
+  filter: blur(0);
+  transform: translate3d(0, calc((0.55 - var(--hero-progress)) * 1rem), 0);
+  transition-delay: 310ms;
+}
+
+.hero-spread.is-motion-visible .hero-actions {
+  opacity: 1;
+  filter: blur(0);
+  transform: translate3d(0, calc((0.58 - var(--hero-progress)) * 0.8rem), 0);
+  transition-delay: 390ms;
+}
+
+.hero-spread.is-motion-visible .hero-flat {
+  opacity: 1;
+}
+
+.hero-spread.is-motion-visible .hero-flat-lilac {
+  transform: translate3d(
+      calc(var(--hero-progress) * -4rem),
+      calc(var(--hero-progress) * -1.2rem),
+      0
+    )
+    rotate(calc(var(--hero-progress) * -4deg));
+}
+
+.hero-spread.is-motion-visible .hero-flat-blue {
+  transform: translate3d(
+      calc(var(--hero-progress) * 2.8rem),
+      calc(var(--hero-progress) * -1.8rem),
+      0
+    )
+    rotate(calc(var(--hero-progress) * 4deg));
+}
+
+.hero-spread.is-motion-visible .hero-flat-pink {
+  transform: translate3d(calc(var(--hero-progress) * 4rem), calc(var(--hero-progress) * -0.6rem), 0)
+    rotate(calc(var(--hero-progress) * 6deg));
+}
+
+.hero-spread.is-motion-visible .hero-flat-violet {
+  transform: translate3d(
+      calc(var(--hero-progress) * -2.2rem),
+      calc(var(--hero-progress) * -2rem),
+      0
+    )
+    rotate(calc(var(--hero-progress) * -4deg));
+}
+
+.hero-spread.is-motion-visible .hero-flat-mint {
+  transform: translate3d(calc(var(--hero-progress) * 1.6rem), calc(var(--hero-progress) * -1rem), 0)
+    rotate(calc(var(--hero-progress) * 3deg));
 }
 
 .hero-flat-chip {

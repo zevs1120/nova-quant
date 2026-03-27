@@ -1,8 +1,15 @@
 import { distributionCredits } from '../data/index.js';
+import { useViewportReveal } from '../hooks/useViewportMotion.js';
 
 export default function DistributionSection() {
+  const { ref, isVisible } = useViewportReveal();
+
   return (
-    <section className="spread distribution-spread" id="about">
+    <section
+      ref={ref}
+      className={`spread distribution-spread${isVisible ? ' is-motion-visible' : ''}`}
+      id="about"
+    >
       <div className="campaign-grid distribution-grid">
         <div className="distribution-copy">
           <p className="distribution-kicker">Distribution</p>
@@ -12,8 +19,12 @@ export default function DistributionSection() {
         <p className="distribution-lead">There were people.</p>
 
         <div className="distribution-pairs" aria-label="Distribution credits">
-          {distributionCredits.map((item) => (
-            <div className="distribution-pair" key={item.name}>
+          {distributionCredits.map((item, index) => (
+            <div
+              className="distribution-pair"
+              key={item.name}
+              style={{ '--distribution-enter-delay': `${index * 105}ms` }}
+            >
               <p className="distribution-story-line">{item.story}</p>
               <div className="distribution-credit">
                 <p className="distribution-name">{item.name}</p>

@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 /** Default / max layout width for the fanned stack (must match `.statement-stack-scaler` in styles). */
 const STAGE_WIDTH_REM = 41;
@@ -25,6 +25,46 @@ export default function useStatementFan(activeIndex) {
   const scaleRef = useRef(1);
   const [scale, setScale] = useState(1);
   const [fitWidthPx, setFitWidthPx] = useState(null);
+  const [revealPhase, setRevealPhase] = useState('pre');
+
+  useEffect(() => {
+    const vp = viewportRef.current;
+    if (!vp || revealPhase !== 'pre') return undefined;
+
+    if (typeof IntersectionObserver === 'undefined') {
+      setRevealPhase('animating');
+      return undefined;
+    }
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        const [entry] = entries;
+        if (!entry) return;
+
+        if (entry.isIntersecting || entry.intersectionRatio >= 0.34) {
+          setRevealPhase('animating');
+          io.disconnect();
+        }
+      },
+      {
+        threshold: [0.18, 0.34, 0.52],
+        rootMargin: '0px 0px -10% 0px',
+      },
+    );
+
+    io.observe(vp);
+    return () => io.disconnect();
+  }, [revealPhase]);
+
+  useEffect(() => {
+    if (revealPhase !== 'animating') return undefined;
+
+    const timeoutId = window.setTimeout(() => {
+      setRevealPhase('settled');
+    }, 1280);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [revealPhase]);
 
   useLayoutEffect(() => {
     scaleRef.current = scale;
@@ -78,7 +118,15 @@ export default function useStatementFan(activeIndex) {
     ro.observe(vp);
     apply(vp.getBoundingClientRect().width);
     return () => ro.disconnect();
-  }, [activeIndex]);
+  }, [activeIndex, revealPhase]);
 
-  return { viewportRef, scalerRef, stageRef, scale, fitWidthPx };
+  return {
+    viewportRef,
+    scalerRef,
+    stageRef,
+    scale,
+    fitWidthPx,
+    isRevealed: revealPhase !== 'pre',
+    isRevealAnimating: revealPhase === 'animating',
+  };
 }

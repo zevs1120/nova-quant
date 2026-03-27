@@ -1,5 +1,21 @@
+import { useEffect, useRef } from 'react';
 import { statementActionCards, ribbons } from '../data/index.js';
 import { STAGE_HEIGHT_REM } from '../hooks/useStatementFan.js';
+
+function getCardMotionVars(index) {
+  const spreadIndex = index - Math.floor(statementActionCards.length / 2);
+
+  return {
+    '--stack-enter-delay': `${index * 72}ms`,
+    '--stack-rest-z': `${statementActionCards.length - index + 10}`,
+    '--stack-collapsed-x': `${spreadIndex * 0.22}rem`,
+    '--stack-collapsed-y': `${1.15 + index * 0.26}rem`,
+    '--stack-collapsed-r': `${spreadIndex * 0.72}deg`,
+    '--stack-collapsed-scale': `${0.93 + index * 0.018}`,
+    '--stack-hover-x': `${spreadIndex * 0.24}rem`,
+    '--stack-hover-r': `${spreadIndex * 1.1}deg`,
+  };
+}
 
 /**
  * Statement section with interactive fanned action card stack and brand ribbon.
@@ -7,10 +23,38 @@ import { STAGE_HEIGHT_REM } from '../hooks/useStatementFan.js';
  * @param {{ activeCard: number, onCardSelect: (i: number) => void, fan: object }} props
  */
 export default function StatementSection({ activeCard, onCardSelect, fan }) {
-  const { viewportRef, scalerRef, stageRef, scale, fitWidthPx } = fan;
+  const sectionRef = useRef(null);
+  const { viewportRef, scalerRef, stageRef, scale, fitWidthPx, isRevealed, isRevealAnimating } =
+    fan;
+  const stageClassName = [
+    'statement-stack-stage',
+    !isRevealed ? 'is-prereveal' : '',
+    isRevealAnimating ? 'is-reveal-animating' : '',
+    isRevealed && !isRevealAnimating ? 'is-reveal-settled' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  useEffect(() => {
+    if (activeCard == null) return undefined;
+
+    const handlePointerDown = (event) => {
+      const section = sectionRef.current;
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (!section || !section.contains(target)) return;
+      if (target.closest('.statement-stack-slot')) return;
+      onCardSelect(null);
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+    };
+  }, [activeCard, onCardSelect]);
 
   return (
-    <section className="spread statement-spread" id="features">
+    <section ref={sectionRef} className="spread statement-spread" id="features">
       <div className="campaign-grid statement-grid">
         <div className="statement-copy">
           <p className="section-kicker">Not built to look familiar</p>
@@ -50,7 +94,7 @@ export default function StatementSection({ activeCard, onCardSelect, fan }) {
                 transform: `scale(${scale})`,
               }}
             >
-              <div ref={stageRef} className="statement-stack-stage">
+              <div ref={stageRef} className={stageClassName}>
                 {statementActionCards.map((card, index) => (
                   <button
                     type="button"
@@ -62,6 +106,7 @@ export default function StatementSection({ activeCard, onCardSelect, fan }) {
                       '--stack-r': card.layout.r,
                       '--stack-z': card.layout.z,
                       '--stack-delay': card.layout.delay,
+                      ...getCardMotionVars(index),
                     }}
                     aria-pressed={activeCard === index}
                     onClick={() => onCardSelect(index)}

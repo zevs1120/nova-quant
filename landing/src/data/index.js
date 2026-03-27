@@ -51,7 +51,7 @@ export const statementActionCards = [
     kicker: 'Today pick 01',
     tag: 'Actionable',
     tone: 'blue',
-    layout: { x: '-46%', y: '18%', r: '-12deg', z: 1, delay: '0s' },
+    layout: { x: '-34%', y: '8%', r: '-9deg', z: 1, delay: '0s' },
     stats: [
       { label: 'Conviction', value: '71%' },
       { label: 'Size', value: '8% only' },
@@ -70,7 +70,7 @@ export const statementActionCards = [
     kicker: 'Today pick 02',
     tag: 'Actionable',
     tone: 'pink',
-    layout: { x: '-24%', y: '8%', r: '-7deg', z: 2, delay: '0.1s' },
+    layout: { x: '-16%', y: '3.5%', r: '-5deg', z: 2, delay: '0.1s' },
     stats: [
       { label: 'Conviction', value: '69%' },
       { label: 'Size', value: '9% only' },
@@ -108,7 +108,7 @@ export const statementActionCards = [
     kicker: 'Today pick 04',
     tag: 'Actionable',
     tone: 'violet',
-    layout: { x: '24%', y: '8%', r: '7deg', z: 4, delay: '0.3s' },
+    layout: { x: '16%', y: '3.5%', r: '5deg', z: 4, delay: '0.3s' },
     stats: [
       { label: 'Conviction', value: '76%' },
       { label: 'Size', value: '10% only' },
@@ -127,7 +127,7 @@ export const statementActionCards = [
     kicker: 'Today pick 05',
     tag: 'Watch first',
     tone: 'yellow',
-    layout: { x: '46%', y: '18%', r: '12deg', z: 5, delay: '0.4s' },
+    layout: { x: '34%', y: '8%', r: '9deg', z: 5, delay: '0.4s' },
     stats: [
       { label: 'Conviction', value: '61%' },
       { label: 'Size', value: '6% only' },

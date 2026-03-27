@@ -1,6 +1,15 @@
+import { useScrollProgress, useViewportReveal } from '../hooks/useViewportMotion.js';
+
 export default function HeroSection() {
+  const { ref, isVisible } = useViewportReveal({ threshold: 0.34, rootMargin: '0px 0px -12% 0px' });
+  const scrollProgress = useScrollProgress(ref);
+
   return (
-    <section className="spread hero-spread">
+    <section
+      ref={ref}
+      className={`spread hero-spread${isVisible ? ' is-motion-visible' : ''}`}
+      style={{ '--hero-progress': scrollProgress.toFixed(4) }}
+    >
       <div className="campaign-grid hero-grid">
         <div className="hero-stage" aria-hidden="true">
           <div className="hero-stage-grid" />

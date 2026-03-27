@@ -1,6 +1,16 @@
+import { useViewportReveal } from '../hooks/useViewportMotion.js';
+
+const askBullets = ['Ask what matters now', 'Get answers, not overload', 'AI that speaks human'];
+
 export default function AskSection() {
+  const { ref, isVisible } = useViewportReveal();
+
   return (
-    <section className="spread ask-spread" id="ask">
+    <section
+      ref={ref}
+      className={`spread ask-spread${isVisible ? ' is-motion-visible' : ''}`}
+      id="ask"
+    >
       <div className="campaign-grid ask-grid">
         <div className="ask-copy">
           <p className="section-kicker">Ask Nova</p>
@@ -16,14 +26,20 @@ export default function AskSection() {
           </p>
 
           <ul className="ask-bullets" aria-label="Ask Nova highlights">
-            <li>Ask what matters now</li>
-            <li>Get answers, not overload</li>
-            <li>AI that speaks human</li>
+            {askBullets.map((bullet, index) => (
+              <li key={bullet} style={{ '--ask-enter-delay': `${index * 90}ms` }}>
+                {bullet}
+              </li>
+            ))}
           </ul>
         </div>
 
         <div className="ask-object">
           <div className="ask-object-halo" aria-hidden="true" />
+          <div className="ask-object-chip ask-object-chip-query">What matters now?</div>
+          <div className="ask-object-chip ask-object-chip-answer">
+            Summarized in one clean brief.
+          </div>
           <img
             src="/brand-assets/ask-nova-shot.jpg"
             alt="Ask Nova interface showing a plain-language response card."

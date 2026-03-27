@@ -12,7 +12,7 @@ import DistributionSection from './components/DistributionSection.jsx';
 import LegalFooter from './components/LegalFooter.jsx';
 
 export default function App() {
-  const [activeStatementCard, setActiveStatementCard] = useState(2);
+  const [activeStatementCard, setActiveStatementCard] = useState(null);
   const fan = useStatementFan(activeStatementCard);
 
   return (

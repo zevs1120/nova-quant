@@ -1,8 +1,15 @@
 import { architectureSteps } from '../data/index.js';
+import { useViewportReveal } from '../hooks/useViewportMotion.js';
 
 export default function ProofSection() {
+  const { ref, isVisible } = useViewportReveal();
+
   return (
-    <section className="spread proof-spread" id="marvix">
+    <section
+      ref={ref}
+      className={`spread proof-spread${isVisible ? ' is-motion-visible' : ''}`}
+      id="marvix"
+    >
       <div className="campaign-grid proof-grid">
         <div className="proof-intro">
           <p className="section-kicker">AI-powered backend</p>
@@ -13,7 +20,14 @@ export default function ProofSection() {
 
           <div className="proof-flow" aria-label="NovaQuant product architecture">
             {architectureSteps.map((step, index) => (
-              <div className="proof-flow-step" key={step.title}>
+              <div
+                className="proof-flow-step"
+                key={step.title}
+                style={{
+                  '--proof-order': index,
+                  '--proof-enter-delay': `${index * 110}ms`,
+                }}
+              >
                 <article className={`proof-node proof-node-${step.tone}`}>
                   <p className="proof-node-kicker">Layer {String(index + 1).padStart(2, '0')}</p>
                   <h3>{step.title}</h3>
