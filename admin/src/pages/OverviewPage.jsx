@@ -2,29 +2,10 @@ import StatCard from '../components/StatCard';
 import useAdminResource from '../hooks/useAdminResource';
 import { getAdminOverview } from '../services/adminApi';
 
-function RingMeter({ value, label, note, accent }) {
-  return (
-    <div className="ring-card">
-      <div
-        className="ring-meter"
-        style={{
-          '--ring-value': `${Math.max(0, Math.min(Number(value || 0), 100)) * 3.6}deg`,
-          '--ring-accent': accent,
-        }}
-      >
-        <div className="ring-meter-inner">
-          <strong>{Math.round(Number(value || 0))}%</strong>
-          <span>{label}</span>
-        </div>
-      </div>
-      <p className="ring-note">{note}</p>
-    </div>
-  );
-}
+const LIFECYCLE_PALETTE = ['#4b7dff', '#9f75ff', '#ff5fc4', '#ffb199', '#64d2b0', '#8bd4ff'];
 
 function LifecycleStack({ rows }) {
   const total = rows.reduce((sum, item) => sum + Number(item.value || 0), 0) || 1;
-  const palette = ['#4b7dff', '#9f75ff', '#ff5fc4', '#ffb199', '#64d2b0', '#8bd4ff', '#d8d8ff'];
   return (
     <div className="lifecycle-stack">
       <div className="lifecycle-stack-bar">
@@ -34,7 +15,7 @@ function LifecycleStack({ rows }) {
             className="lifecycle-stack-segment"
             style={{
               width: `${(Number(item.value || 0) / total) * 100}%`,
-              background: palette[index % palette.length],
+              background: LIFECYCLE_PALETTE[index % LIFECYCLE_PALETTE.length],
             }}
           />
         ))}
@@ -44,7 +25,7 @@ function LifecycleStack({ rows }) {
           <div key={item.label} className="lifecycle-legend-item">
             <span
               className="lifecycle-dot"
-              style={{ background: palette[index % palette.length] }}
+              style={{ background: LIFECYCLE_PALETTE[index % LIFECYCLE_PALETTE.length] }}
             />
             <span>{item.label}</span>
             <strong>{item.value}</strong>
@@ -55,26 +36,69 @@ function LifecycleStack({ rows }) {
   );
 }
 
-function MixBars({ rows }) {
-  const total = rows.reduce((sum, item) => sum + Number(item.value || 0), 0) || 1;
-  return (
-    <div className="mix-bar-list">
-      {rows.map((item) => (
-        <div key={item.label} className="mix-bar-row">
-          <div className="mix-bar-labels">
-            <strong>{item.label}</strong>
-            <span>{item.value}</span>
-          </div>
-          <div className="mix-bar-track">
-            <span
-              className="mix-bar-fill"
-              style={{ width: `${(Number(item.value || 0) / total) * 100}%` }}
-            />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
+function priorityTone(level) {
+  if (level === 'risk') return '需要处理';
+  if (level === 'watch') return '需要关注';
+  return '运行正常';
+}
+
+function priorityClass(level) {
+  if (level === 'risk') return 'is-red';
+  if (level === 'watch') return 'is-amber';
+  return 'is-green';
+}
+
+function buildPriorityItems(headline, workflowTimeline, activeUserRatio) {
+  const failedWorkflows = (workflowTimeline || []).filter((item) => item.status === 'FAILED');
+  const items = [];
+
+  if (failedWorkflows.length) {
+    items.push({
+      title: '后台工作流有失败任务',
+      detail: `最近 ${failedWorkflows.length} 个任务失败，先看 ${failedWorkflows[0]?.workflow_key || 'workflow'}。`,
+      level: 'risk',
+    });
+  }
+
+  if (Number(headline.shadow_candidates || 0) > Number(headline.canary_candidates || 0) * 3 + 6) {
+    items.push({
+      title: 'Shadow 库存堆积',
+      detail: `Shadow ${headline.shadow_candidates || 0} 个，Canary ${headline.canary_candidates || 0} 个，晋升节奏偏慢。`,
+      level: 'watch',
+    });
+  }
+
+  if (activeUserRatio < 30) {
+    items.push({
+      title: '活跃率偏低',
+      detail: `近 7 天活跃率只有 ${Math.round(activeUserRatio)}%，需要回到用户激活与触达链路。`,
+      level: 'watch',
+    });
+  }
+
+  if (!Number(headline.active_signals || 0)) {
+    items.push({
+      title: '当前没有在线信号',
+      detail: '如果这不是预期状态，优先检查研究、信号生成与上游数据链路。',
+      level: 'risk',
+    });
+  }
+
+  if (!items.length) {
+    items.push({
+      title: '平台主链路稳定',
+      detail: '当前没有明显的工作流失败或库存堵点，可以继续看二级页面做精细判断。',
+      level: 'good',
+    });
+  }
+
+  return items.slice(0, 3);
+}
+
+function workflowTone(status) {
+  if (status === 'SUCCEEDED') return 'is-green';
+  if (status === 'FAILED') return 'is-red';
+  return 'is-slate';
 }
 
 function LoadingBlock() {
@@ -84,7 +108,7 @@ function LoadingBlock() {
         <h3>正在加载总览数据</h3>
         <span className="status-pill is-slate">稍候</span>
       </div>
-      <p className="panel-copy">正在从管理员 API 拉取用户、Alpha、信号和系统健康数据。</p>
+      <p className="panel-copy">正在从管理员 API 拉取用户、策略、信号与工作流脉冲。</p>
     </section>
   );
 }
@@ -107,87 +131,113 @@ export default function OverviewPage() {
   }
 
   const headline = data?.headline_metrics || {};
+  const workflowTimeline = (data?.workflow_timeline || []).slice(0, 5);
   const activeUserRatio = headline.total_users
     ? (Number(headline.active_users_7d || 0) / Number(headline.total_users || 1)) * 100
     : 0;
+
   const stats = [
     {
-      label: '注册用户',
-      value: `${headline.total_users || 0} 个`,
-      detail: `近 7 天活跃 ${headline.active_users_7d || 0} 个。`,
+      label: '近 7 天活跃率',
+      value: `${Math.round(activeUserRatio)}%`,
+      detail: `活跃 ${headline.active_users_7d || 0} / 总用户 ${headline.total_users || 0}。`,
       tone: 'blue',
     },
     {
       label: '在线信号',
       value: `${headline.active_signals || 0} 条`,
-      detail: '后台当前处于 NEW / TRIGGERED 的策略信号总量。',
+      detail: '当前处于 NEW / TRIGGERED 的在线信号总量。',
       tone: 'green',
     },
     {
-      label: 'Shadow 候选',
-      value: `${headline.shadow_candidates || 0} 个`,
-      detail: `Canary ${headline.canary_candidates || 0} 个，说明新策略仍受严格晋升控制。`,
+      label: '策略库存',
+      value: `${headline.shadow_candidates || 0} / ${headline.canary_candidates || 0}`,
+      detail: '前者是 Shadow，后者是 Canary，用来看晋升是否堵塞。',
       tone: 'amber',
     },
     {
       label: 'AI 与因子',
-      value: `${headline.ai_runs || 0} 次 AI 运行`,
-      detail: `最近沉淀新闻因子 ${headline.recent_news_factors || 0} 条。`,
+      value: `${headline.ai_runs || 0} / ${headline.recent_news_factors || 0}`,
+      detail: '最近 AI 运行次数 / 结构化新闻因子沉淀量。',
       tone: 'red',
     },
   ];
 
-  const topSymbols = (data?.top_symbols || []).slice(0, 5);
+  const domainCards = [
+    {
+      label: '用户层',
+      value: `${headline.total_users || 0} 个账户`,
+      detail: `近 7 天活跃 ${headline.active_users_7d || 0} 个。`,
+    },
+    {
+      label: '策略层',
+      value: `${headline.shadow_candidates || 0} 个候选`,
+      detail: `Canary ${headline.canary_candidates || 0} 个，在线信号 ${headline.active_signals || 0} 条。`,
+    },
+    {
+      label: '执行层',
+      value: `${(data?.top_symbols || []).slice(0, 1)[0]?.label || '暂无热点'}`,
+      detail: (data?.top_symbols || []).length
+        ? `当前最活跃标的挂着 ${(data?.top_symbols || [])[0]?.value || 0} 条信号。`
+        : '当前没有需要特别关注的热标的。',
+    },
+    {
+      label: '系统层',
+      value: workflowTimeline.length ? `${workflowTimeline.length} 条最新动态` : '暂无动态',
+      detail: workflowTimeline.length
+        ? `最近一条来自 ${workflowTimeline[0]?.workflow_key || 'workflow'}。`
+        : '等待新的后台任务脉冲。',
+    },
+  ];
+
+  const priorityItems = buildPriorityItems(headline, workflowTimeline, activeUserRatio);
 
   return (
     <section className="page-grid overview-page">
       <section className="hero-board">
         <div className="hero-copy-card">
           <p className="admin-eyebrow">Overview</p>
-          <h3>平台运行总览</h3>
+          <h3>先看结果，再决定去哪一页深挖</h3>
           <p className="hero-summary">
-            这里汇总当前用户规模、信号活跃度、Alpha 生命周期、AI 运行情况和最新工作流状态。
+            总览页现在只负责给出今天平台的脉冲和风险提示，不再重复展示各二级页的细节分布。
           </p>
 
-          <div className="source-card-grid">
-            {(data?.data_story || []).map((item) => (
-              <article key={item.label} className="source-card">
-                <strong>{item.label}</strong>
-                <p>{item.detail}</p>
-                <p>
-                  <strong>{item.value}</strong>
-                </p>
+          <div className="story-list">
+            {priorityItems.map((item) => (
+              <article key={item.title} className="story-item">
+                <div className="story-item-header">
+                  <div>
+                    <strong>{item.title}</strong>
+                    <p>{item.detail}</p>
+                  </div>
+                  <div className={`status-pill ${priorityClass(item.level)}`}>
+                    {priorityTone(item.level)}
+                  </div>
+                </div>
               </article>
             ))}
           </div>
         </div>
 
         <div className="hero-visual-card">
-          <RingMeter
-            value={activeUserRatio}
-            label="近 7 天活跃率"
-            note={`活跃用户 ${headline.active_users_7d || 0} / 总用户 ${headline.total_users || 0}`}
-            accent="#4b7dff"
-          />
+          <div className="source-card-grid">
+            {domainCards.map((item) => (
+              <article key={item.label} className="source-card">
+                <strong>{item.label}</strong>
+                <p>{item.value}</p>
+                <p>{item.detail}</p>
+              </article>
+            ))}
+          </div>
 
           <div className="mini-note-grid">
             <article className="mini-note-card tone-soft">
-              <p>用户层</p>
-              <strong>{headline.total_users || 0} 个账户正在被这套系统服务</strong>
+              <p>今日看板原则</p>
+              <strong>只保留跨域结果，不在这里重复用户、信号和健康页的细分图。</strong>
             </article>
             <article className="mini-note-card tone-dark">
-              <p>策略层</p>
-              <strong>
-                {headline.active_signals || 0} 条在线信号，{headline.shadow_candidates || 0} 个
-                Shadow 候选
-              </strong>
-            </article>
-            <article className="mini-note-card tone-soft">
-              <p>AI 层</p>
-              <strong>
-                {headline.ai_runs || 0} 次最近 AI 运行，{headline.recent_news_factors || 0}{' '}
-                条因子沉淀
-              </strong>
+              <p>动作建议</p>
+              <strong>先读异常，再去对应二级页下钻，而不是在总览里读完所有明细。</strong>
             </article>
           </div>
         </div>
@@ -199,75 +249,39 @@ export default function OverviewPage() {
         ))}
       </div>
 
-      <section className="overview-visual-grid">
+      <section className="page-grid two-up">
         <article className="panel panel-hero">
           <div className="panel-header">
-            <h3>Alpha 生命周期分布</h3>
-            <span className="status-pill is-green">来自真实后台数据</span>
+            <h3>策略生命周期结构</h3>
+            <span className="status-pill is-green">Strategy inventory</span>
           </div>
           <LifecycleStack rows={data?.alpha_lifecycle || []} />
         </article>
 
         <article className="panel">
           <div className="panel-header">
-            <h3>用户交易模式</h3>
-            <span className="status-pill is-blue">用户分层</span>
-          </div>
-          <MixBars rows={data?.user_mix || []} />
-        </article>
-
-        <article className="panel">
-          <div className="panel-header">
-            <h3>信号方向分布</h3>
-            <span className="status-pill is-amber">Signal mix</span>
-          </div>
-          <MixBars rows={data?.signal_direction_mix || []} />
-        </article>
-      </section>
-
-      <section className="page-grid two-up">
-        <article className="panel">
-          <div className="panel-header">
-            <h3>当前最活跃标的</h3>
-            <span className="status-pill is-slate">信号热度</span>
-          </div>
-          <div className="source-card-grid">
-            {topSymbols.map((item) => (
-              <article key={item.label} className="source-card">
-                <strong>{item.label}</strong>
-                <p>当前活跃信号数量：{item.value}</p>
-              </article>
-            ))}
-            {!topSymbols.length ? (
-              <article className="source-card">
-                <strong>暂无活跃标的</strong>
-                <p>当前没有可展示的实时信号热度。</p>
-              </article>
-            ) : null}
-          </div>
-        </article>
-
-        <article className="panel">
-          <div className="panel-header">
             <h3>最新工作流动态</h3>
-            <span className="status-pill is-blue">后台任务时间线</span>
+            <span className="status-pill is-blue">Workflow pulse</span>
           </div>
-          <div className="api-progress-list">
-            {(data?.workflow_timeline || []).map((item) => (
-              <div key={`${item.workflow_key}-${item.updated_at}`} className="api-progress-item">
+          <div className="candidate-timeline">
+            {workflowTimeline.map((item) => (
+              <div
+                key={`${item.workflow_key}-${item.updated_at}`}
+                className="candidate-timeline-item"
+              >
                 <div>
                   <strong>{item.workflow_key}</strong>
-                  <p>
-                    {item.trigger_type} · {item.updated_at || '时间未知'}
-                  </p>
+                  <p>{item.summary || item.status || '后台任务更新'}</p>
                 </div>
-                <span
-                  className={`status-pill ${item.status === 'SUCCEEDED' ? 'is-green' : item.status === 'FAILED' ? 'is-red' : 'is-slate'}`}
-                >
-                  {item.status}
-                </span>
+                <div className="candidate-timeline-meta">
+                  <span className={`status-pill ${workflowTone(item.status)}`}>{item.status}</span>
+                  <span>{item.updated_at}</span>
+                </div>
               </div>
             ))}
+            {!workflowTimeline.length ? (
+              <p className="panel-copy">当前没有新的后台任务动态。</p>
+            ) : null}
           </div>
         </article>
       </section>

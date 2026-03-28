@@ -4,18 +4,16 @@ import Topbar from './components/Topbar';
 import { ADMIN_NAVIGATION } from './config/navigation';
 import OverviewPage from './pages/OverviewPage';
 import UsersPage from './pages/UsersPage';
-import AlphaLabPage from './pages/AlphaLabPage';
+import StrategyFactoryPage from './pages/StrategyFactoryPage';
 import SignalsExecutionPage from './pages/SignalsExecutionPage';
-import ResearchOpsPage from './pages/ResearchOpsPage';
 import SystemHealthPage from './pages/SystemHealthPage';
 import AdminLogin from './components/AdminLogin';
 import { getAdminApiBase, getAdminSession, loginAdmin, logoutAdmin } from './services/adminApi';
 
 function renderPage(active) {
   if (active === 'users') return <UsersPage />;
-  if (active === 'alpha-lab') return <AlphaLabPage />;
+  if (active === 'alpha-lab' || active === 'research-ops') return <StrategyFactoryPage />;
   if (active === 'signals-execution') return <SignalsExecutionPage />;
-  if (active === 'research-ops') return <ResearchOpsPage />;
   if (active === 'system-health') return <SystemHealthPage />;
   return <OverviewPage />;
 }

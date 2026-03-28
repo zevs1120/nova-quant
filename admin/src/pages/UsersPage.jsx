@@ -2,8 +2,6 @@ import StatCard from '../components/StatCard';
 import useAdminResource from '../hooks/useAdminResource';
 import { getAdminUsers } from '../services/adminApi';
 
-const columns = ['邮箱', '角色', '交易模式', '风险档案', '最近登录', '活跃度'];
-
 function MixBars({ rows }) {
   const total = rows.reduce((sum, item) => sum + Number(item.value || 0), 0) || 1;
   return (
@@ -22,6 +20,7 @@ function MixBars({ rows }) {
           </div>
         </div>
       ))}
+      {!rows.length ? <p className="panel-copy">当前没有可展示的数据分层。</p> : null}
     </div>
   );
 }
@@ -53,29 +52,38 @@ export default function UsersPage() {
   }
 
   const summary = data?.summary || {};
+  const highlightUsers = [...(data?.users || [])]
+    .sort((left, right) => {
+      const sessionGap =
+        Number(right.active_session_count || 0) - Number(left.active_session_count || 0);
+      if (sessionGap !== 0) return sessionGap;
+      return Number(right.execution_count || 0) - Number(left.execution_count || 0);
+    })
+    .slice(0, 8);
+
   const stats = [
     {
       label: '注册用户总量',
       value: `${summary.total_users || 0} 个`,
-      detail: '后台当前可识别的全部账户。',
+      detail: '当前后台识别到的全部账户规模。',
       tone: 'blue',
     },
     {
       label: '近 7 天活跃',
       value: `${summary.active_last_7d || 0} 个`,
-      detail: '说明用户是否真的开始使用产品。',
+      detail: '这是判断产品是否真的被持续使用的核心指标。',
       tone: 'green',
     },
     {
       label: '管理员账号',
       value: `${summary.admin_count || 0} 个`,
-      detail: '当前具备后台权限的账户数量。',
+      detail: '只保留具备后台权限的真实运营角色。',
       tone: 'amber',
     },
     {
       label: '通知触达',
       value: `${summary.total_notifications || 0} 次`,
-      detail: '说明系统是否在持续触达和陪伴用户。',
+      detail: '用于观察陪伴式运营是否还在持续发生。',
       tone: 'red',
     },
   ];
@@ -91,94 +99,99 @@ export default function UsersPage() {
       <section className="page-grid two-up">
         <article className="panel">
           <div className="panel-header">
-            <h3>交易模式分布</h3>
-            <span className="status-pill is-blue">用户分层</span>
+            <h3>用户分层总览</h3>
+            <span className="status-pill is-blue">Mode / Risk</span>
           </div>
-          <MixBars rows={data?.trade_mode_mix || []} />
+          <div className="panel-split-grid">
+            <div className="panel-subsection">
+              <p className="panel-subsection-title">交易模式</p>
+              <MixBars rows={data?.trade_mode_mix || []} />
+            </div>
+            <div className="panel-subsection">
+              <p className="panel-subsection-title">风险档案</p>
+              <MixBars rows={data?.risk_profile_mix || []} />
+            </div>
+          </div>
         </article>
 
         <article className="panel">
           <div className="panel-header">
-            <h3>风险档案分布</h3>
-            <span className="status-pill is-amber">风险画像</span>
+            <h3>增长与活跃</h3>
+            <span className="status-pill is-green">Signup / Activity</span>
           </div>
-          <MixBars rows={data?.risk_profile_mix || []} />
-        </article>
-      </section>
-
-      <section className="page-grid two-up">
-        <article className="panel">
-          <div className="panel-header">
-            <h3>最近 8 周注册趋势</h3>
-            <span className="status-pill is-green">增长观察</span>
-          </div>
-          <div className="mini-column-chart">
-            {(data?.signup_trend || []).map((item) => (
-              <div key={item.label} className="mini-column-item">
-                <span className="mini-column-value">{item.value}</span>
-                <div className="mini-column-track">
-                  <span
-                    className="mini-column-fill"
-                    style={{ height: `${Math.max(10, Number(item.value || 0) * 18)}px` }}
-                  />
-                </div>
-                <span className="mini-column-label">{item.label}</span>
+          <div className="panel-split-grid">
+            <div className="panel-subsection">
+              <p className="panel-subsection-title">最近 8 周注册</p>
+              <div className="mini-column-chart compact-chart">
+                {(data?.signup_trend || []).map((item) => (
+                  <div key={item.label} className="mini-column-item">
+                    <span className="mini-column-value">{item.value}</span>
+                    <div className="mini-column-track">
+                      <span
+                        className="mini-column-fill"
+                        style={{ height: `${Math.max(10, Number(item.value || 0) * 18)}px` }}
+                      />
+                    </div>
+                    <span className="mini-column-label">{item.label}</span>
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
+            <div className="panel-subsection">
+              <p className="panel-subsection-title">当前活跃状态</p>
+              <MixBars rows={data?.status_mix || []} />
+            </div>
           </div>
-        </article>
-
-        <article className="panel">
-          <div className="panel-header">
-            <h3>用户活跃状态</h3>
-            <span className="status-pill is-slate">运营视图</span>
-          </div>
-          <MixBars rows={data?.status_mix || []} />
         </article>
       </section>
 
       <section className="panel">
         <div className="panel-header">
-          <h3>用户列表</h3>
-          <span className="status-pill is-blue">前端用户真实数据</span>
+          <h3>重点账户样本</h3>
+          <span className="status-pill is-slate">Highest activity</span>
         </div>
         <div className="table-wrap">
           <table className="admin-table">
             <thead>
               <tr>
-                {columns.map((column) => (
-                  <th key={column}>{column}</th>
-                ))}
-                <th>决策/执行</th>
-                <th>会话</th>
+                <th>账户</th>
+                <th>模式 / 风险</th>
+                <th>最近登录</th>
+                <th>决策 / 执行</th>
+                <th>会话 / 持仓</th>
               </tr>
             </thead>
             <tbody>
-              {(data?.users || []).map((row) => (
+              {highlightUsers.map((row) => (
                 <tr key={row.user_id}>
                   <td>
                     <strong>{row.email}</strong>
-                    <div className="table-subline">{row.name}</div>
+                    <div className="table-subline">{row.roles?.join(', ') || 'USER'}</div>
                   </td>
-                  <td>{row.roles?.join(', ') || 'USER'}</td>
-                  <td>{row.trade_mode}</td>
-                  <td>{row.risk_profile_key}</td>
-                  <td>{row.last_login_at || '未登录'}</td>
-                  <td>{row.status}</td>
                   <td>
-                    决策 {row.decision_count} / 执行 {row.execution_count}
+                    {row.trade_mode || '--'}
+                    <div className="table-subline">{row.risk_profile_key || '--'}</div>
+                  </td>
+                  <td>{row.last_login_at || '未登录'}</td>
+                  <td>
+                    决策 {row.decision_count || 0} / 执行 {row.execution_count || 0}
                     <div className="table-subline">
-                      Paper {row.paper_execution_count} · Live {row.live_execution_count}
+                      Paper {row.paper_execution_count || 0} · Live {row.live_execution_count || 0}
                     </div>
                   </td>
                   <td>
-                    {row.active_session_count} 个活跃会话
+                    {row.active_session_count || 0} 个活跃会话
                     <div className="table-subline">
-                      观察列表 {row.watchlist_count} · 持仓 {row.holding_count}
+                      观察列表 {row.watchlist_count || 0} · 持仓 {row.holding_count || 0}
                     </div>
                   </td>
                 </tr>
               ))}
+              {!highlightUsers.length ? (
+                <tr>
+                  <td colSpan="5">当前没有可展示的重点账户样本。</td>
+                </tr>
+              ) : null}
             </tbody>
           </table>
         </div>

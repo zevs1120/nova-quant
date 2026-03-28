@@ -1080,6 +1080,30 @@ textarea {
   line-height: 1.72;
 }
 
+.panel-split-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.panel-subsection {
+  display: grid;
+  gap: 14px;
+}
+
+.panel-subsection-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #7b8098;
+}
+
+.story-item-header .status-pill {
+  flex-shrink: 0;
+}
+
 .stage-rail {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -1640,6 +1664,7 @@ textarea {
 @media (max-width: 860px) {
   .stats-grid,
   .page-grid.two-up,
+  .panel-split-grid,
   .guardrail-bars,
   .stage-rail,
   .mini-column-chart {
