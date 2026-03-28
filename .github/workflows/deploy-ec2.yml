@@ -70,7 +70,7 @@ jobs:
             # ── Install dependencies ──
             echo ""
             echo "▸ Installing dependencies..."
-            HUSKY=0 npm ci --omit=dev 2>&1 | tail -3
+            npm ci --omit=dev --ignore-scripts 2>&1 | tail -3
 
             # ── Build frontend ──
             echo ""
