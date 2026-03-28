@@ -4,6 +4,13 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+- **Feat(db,auth,manual,admin)：生产运行时继续去 SQLite，主业务链路可直接跑 Supabase/Postgres。**
+  - `auth` 现在会把 `NOVA_DATA_DATABASE_URL` 视为合法的 Postgres 鉴权库回退来源；在 `postgres` 运行时，本地 SQLite auth mirror 不再是必需条件。
+  - `manual service` 新增 Postgres 同步查询与事务桥接路径，积分、邀请、预测市场等流程可直接走 Supabase 业务库，不再依赖本地 `quant.db`。
+  - `admin users` 与 `research ops` 的本地快照补上 Postgres 查询分支；即便 `postgres mirror` 回退，本地管理视图也不会因为 `getDb()` 被禁用而失效。
+  - `postgresSyncBridge` / `postgresSyncWorker` 新增事务命令支持，为后续更多业务写路径切到 Postgres 提供同步事务基础。
+  - 新增 Postgres 运行时回归测试，覆盖 `auth`、`manual` 和配置切换关键路径，确认 `NOVA_DATA_RUNTIME_DRIVER=postgres` 下不会偷偷回退 SQLite。
+
 - **Feat(onboarding)：重做 intro onboarding 前三屏。**
   - 第一屏延续浅色背景与 landing 风格行动卡皮肤，保留截图式中间主卡加两侧扇出切换的交互布局。
   - 第二屏改为 `Ask Nova`，移植 landing page 的手机演示动效，按 `typing → thinking → reply reveal → scroll` 时序展示问答过程，并适配桌面端与移动端。

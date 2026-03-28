@@ -1,4 +1,5 @@
 import { createHash, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
+import { getConfig } from '../config.js';
 import { getDb } from '../db/database.js';
 import {
   hasRemoteAuthStore,
@@ -409,10 +410,26 @@ function assertAuthStoreReady() {
   }
 }
 
+function canUseLocalSqliteAuthMirror() {
+  return getConfig().database.driver === 'sqlite';
+}
+
+function getLocalSqliteAuthMirrorDb() {
+  if (!canUseLocalSqliteAuthMirror()) return null;
+  return getDb();
+}
+
+function requireLocalSqliteAuthStore() {
+  const db = getLocalSqliteAuthMirrorDb();
+  if (db) return db;
+  throw new Error('AUTH_SQLITE_STORE_UNAVAILABLE_IN_POSTGRES_RUNTIME');
+}
+
 function upsertLocalAuthUser(user: AuthUserRow) {
-  getDb()
-    .prepare(
-      `INSERT INTO auth_users(
+  const db = getLocalSqliteAuthMirrorDb();
+  if (!db) return;
+  db.prepare(
+    `INSERT INTO auth_users(
       user_id, email, password_hash, name, trade_mode, broker, locale, created_at_ms, updated_at_ms, last_login_at_ms
     ) VALUES (
       @user_id, @email, @password_hash, @name, @trade_mode, @broker, @locale, @created_at_ms, @updated_at_ms, @last_login_at_ms
@@ -426,15 +443,15 @@ function upsertLocalAuthUser(user: AuthUserRow) {
       locale = excluded.locale,
       updated_at_ms = excluded.updated_at_ms,
       last_login_at_ms = excluded.last_login_at_ms`,
-    )
-    .run(user);
+  ).run(user);
 }
 
 function upsertLocalAuthUserState(userId: string, state: AuthUserState, updatedAtMs = nowMs()) {
+  const db = getLocalSqliteAuthMirrorDb();
+  if (!db) return;
   try {
-    getDb()
-      .prepare(
-        `INSERT INTO auth_user_state_sync(
+    db.prepare(
+      `INSERT INTO auth_user_state_sync(
         user_id, asset_class, market, ui_mode, risk_profile_key, watchlist_json, holdings_json, executions_json, discipline_log_json, updated_at_ms
       ) VALUES (
         @user_id, @asset_class, @market, @ui_mode, @risk_profile_key, @watchlist_json, @holdings_json, @executions_json, @discipline_log_json, @updated_at_ms
@@ -449,21 +466,18 @@ function upsertLocalAuthUserState(userId: string, state: AuthUserState, updatedA
         executions_json = excluded.executions_json,
         discipline_log_json = excluded.discipline_log_json,
         updated_at_ms = excluded.updated_at_ms`,
-      )
-      .run({
-        user_id: userId,
-        asset_class: state.assetClass,
-        market: state.market,
-        ui_mode: state.uiMode,
-        risk_profile_key: state.riskProfileKey,
-        watchlist_json: JSON.stringify(state.watchlist || []),
-        holdings_json: JSON.stringify(state.holdings || []),
-        executions_json: JSON.stringify(state.executions || []),
-        discipline_log_json: JSON.stringify(
-          state.disciplineLog || defaultUserState().disciplineLog,
-        ),
-        updated_at_ms: updatedAtMs,
-      });
+    ).run({
+      user_id: userId,
+      asset_class: state.assetClass,
+      market: state.market,
+      ui_mode: state.uiMode,
+      risk_profile_key: state.riskProfileKey,
+      watchlist_json: JSON.stringify(state.watchlist || []),
+      holdings_json: JSON.stringify(state.holdings || []),
+      executions_json: JSON.stringify(state.executions || []),
+      discipline_log_json: JSON.stringify(state.disciplineLog || defaultUserState().disciplineLog),
+      updated_at_ms: updatedAtMs,
+    });
   } catch (error) {
     if (!String((error as Error)?.message || '').includes('FOREIGN KEY constraint failed')) {
       throw error;
@@ -477,20 +491,20 @@ function upsertLocalAuthUserRole(args: {
   grantedAtMs: number;
   grantedByUserId?: string | null;
 }) {
+  const db = getLocalSqliteAuthMirrorDb();
+  if (!db) return;
   try {
-    getDb()
-      .prepare(
-        `INSERT INTO auth_user_roles(user_id, role, granted_at_ms, granted_by_user_id)
+    db.prepare(
+      `INSERT INTO auth_user_roles(user_id, role, granted_at_ms, granted_by_user_id)
        VALUES (@user_id, @role, @granted_at_ms, @granted_by_user_id)
        ON CONFLICT(user_id, role) DO UPDATE SET
          granted_by_user_id = COALESCE(auth_user_roles.granted_by_user_id, excluded.granted_by_user_id)`,
-      )
-      .run({
-        user_id: args.userId,
-        role: args.role,
-        granted_at_ms: args.grantedAtMs,
-        granted_by_user_id: args.grantedByUserId || null,
-      });
+    ).run({
+      user_id: args.userId,
+      role: args.role,
+      granted_at_ms: args.grantedAtMs,
+      granted_by_user_id: args.grantedByUserId || null,
+    });
   } catch (error) {
     if (!String((error as Error)?.message || '').includes('FOREIGN KEY constraint failed')) {
       throw error;
@@ -499,10 +513,11 @@ function upsertLocalAuthUserRole(args: {
 }
 
 function upsertLocalAuthSession(session: RemoteSessionRecord) {
+  const db = getLocalSqliteAuthMirrorDb();
+  if (!db) return;
   try {
-    getDb()
-      .prepare(
-        `INSERT INTO auth_sessions(
+    db.prepare(
+      `INSERT INTO auth_sessions(
         session_id, user_id, session_token_hash, user_agent, ip_address, expires_at_ms, revoked_at_ms, created_at_ms, updated_at_ms, last_seen_at_ms
       ) VALUES (
         @session_id, @user_id, @session_token_hash, @user_agent, @ip_address, @expires_at_ms, @revoked_at_ms, @created_at_ms, @updated_at_ms, @last_seen_at_ms
@@ -516,8 +531,7 @@ function upsertLocalAuthSession(session: RemoteSessionRecord) {
         revoked_at_ms = excluded.revoked_at_ms,
         updated_at_ms = excluded.updated_at_ms,
         last_seen_at_ms = excluded.last_seen_at_ms`,
-      )
-      .run(session);
+    ).run(session);
   } catch (error) {
     if (!String((error as Error)?.message || '').includes('FOREIGN KEY constraint failed')) {
       throw error;
@@ -526,23 +540,24 @@ function upsertLocalAuthSession(session: RemoteSessionRecord) {
 }
 
 function revokeLocalAuthSessionByTokenHash(tokenHash: string, ts: number) {
-  getDb()
-    .prepare(
-      'UPDATE auth_sessions SET revoked_at_ms = ?, updated_at_ms = ? WHERE session_token_hash = ? AND revoked_at_ms IS NULL',
-    )
-    .run(ts, ts, tokenHash);
+  const db = getLocalSqliteAuthMirrorDb();
+  if (!db) return;
+  db.prepare(
+    'UPDATE auth_sessions SET revoked_at_ms = ?, updated_at_ms = ? WHERE session_token_hash = ? AND revoked_at_ms IS NULL',
+  ).run(ts, ts, tokenHash);
 }
 
 function revokeLocalAuthSessionsByUserId(userId: string, ts: number) {
-  getDb()
-    .prepare(
-      'UPDATE auth_sessions SET revoked_at_ms = ?, updated_at_ms = ? WHERE user_id = ? AND revoked_at_ms IS NULL',
-    )
-    .run(ts, ts, userId);
+  const db = getLocalSqliteAuthMirrorDb();
+  if (!db) return;
+  db.prepare(
+    'UPDATE auth_sessions SET revoked_at_ms = ?, updated_at_ms = ? WHERE user_id = ? AND revoked_at_ms IS NULL',
+  ).run(ts, ts, userId);
 }
 
 function ensureSeededUserLocal() {
-  const db = getDb();
+  const db = getLocalSqliteAuthMirrorDb();
+  if (!db) return;
   for (const seededUser of getSeededUserConfigs()) {
     const existing = db
       .prepare('SELECT user_id FROM auth_users WHERE email = ? LIMIT 1')
@@ -678,7 +693,7 @@ function getUserByEmailLocal(email: string): AuthUserRow | null {
     ensureSeededUserLocal();
     _localSeedDone = true;
   }
-  const row = getDb()
+  const row = requireLocalSqliteAuthStore()
     .prepare(
       `SELECT user_id, email, password_hash, name, trade_mode, broker, locale, created_at_ms, updated_at_ms, last_login_at_ms
        FROM auth_users WHERE email = ? LIMIT 1`,
@@ -709,7 +724,7 @@ function getUserByIdLocal(userId: string): AuthUserRow | null {
     ensureSeededUserLocal();
     _localSeedDone = true;
   }
-  const row = getDb()
+  const row = requireLocalSqliteAuthStore()
     .prepare(
       `SELECT user_id, email, password_hash, name, trade_mode, broker, locale, created_at_ms, updated_at_ms, last_login_at_ms
        FROM auth_users WHERE user_id = ? LIMIT 1`,
@@ -735,7 +750,7 @@ async function getUserById(userId: string): Promise<AuthUserRow | null> {
 
 function listAuthUserRoleRowsLocal(userId: string): AuthUserRoleRow[] {
   return (
-    (getDb()
+    (requireLocalSqliteAuthStore()
       .prepare(
         `SELECT user_id, role, granted_at_ms, granted_by_user_id
          FROM auth_user_roles
@@ -825,7 +840,7 @@ async function upsertAuthUserRole(args: {
     await remoteSetJson(remoteUserRolesKey(args.userId), next);
     return;
   }
-  getDb()
+  requireLocalSqliteAuthStore()
     .prepare(
       `INSERT INTO auth_user_roles(user_id, role, granted_at_ms, granted_by_user_id)
        VALUES (@user_id, @role, @granted_at_ms, @granted_by_user_id)
@@ -856,7 +871,7 @@ function createSessionLocal(args: {
   userAgent?: string | null;
   ipAddress?: string | null;
 }) {
-  const db = getDb();
+  const db = requireLocalSqliteAuthStore();
   const token = randomBytes(24).toString('hex');
   const ts = nowMs();
   const sessionId = createId('sess');
@@ -980,7 +995,7 @@ export async function getAuthSession(
   }
 
   if (!hasRemoteAuthStore()) {
-    const db = getDb();
+    const db = requireLocalSqliteAuthStore();
     const now = nowMs();
     const row = db
       .prepare(
@@ -1164,7 +1179,7 @@ export async function signupAuthUser(args: {
       return { ok: false as const, error: 'EMAIL_EXISTS' };
     }
     const ts = nowMs();
-    const db = getDb();
+    const db = requireLocalSqliteAuthStore();
     const userId = createId('usr');
     const state = buildInitialUserState(args.tradeMode);
     db.prepare(
@@ -1296,7 +1311,7 @@ export async function loginAuthUser(args: {
   } else if (hasRemoteAuthStore()) {
     await remoteSetJson(remoteUserKey(user.user_id), updatedUser);
   } else {
-    getDb()
+    requireLocalSqliteAuthStore()
       .prepare('UPDATE auth_users SET last_login_at_ms = ?, updated_at_ms = ? WHERE user_id = ?')
       .run(ts, ts, user.user_id);
   }
@@ -1356,7 +1371,7 @@ export async function logoutAuthSession(token: string | null | undefined) {
     return;
   }
   const ts = nowMs();
-  getDb()
+  requireLocalSqliteAuthStore()
     .prepare(
       'UPDATE auth_sessions SET revoked_at_ms = ?, updated_at_ms = ? WHERE session_token_hash = ? AND revoked_at_ms IS NULL',
     )
@@ -1476,7 +1491,7 @@ export async function createPasswordReset(args: { email: string }) {
     };
   }
 
-  const db = getDb();
+  const db = requireLocalSqliteAuthStore();
   db.prepare(
     'UPDATE auth_password_resets SET used_at_ms = ?, updated_at_ms = ? WHERE user_id = ? AND used_at_ms IS NULL',
   ).run(ts, ts, user.user_id);
@@ -1577,7 +1592,7 @@ export async function resetPasswordWithCode(args: {
     return { ok: true as const };
   }
 
-  const db = getDb();
+  const db = requireLocalSqliteAuthStore();
   const row = db
     .prepare(
       `SELECT reset_id, code_hash, expires_at_ms, used_at_ms
@@ -1621,7 +1636,7 @@ export async function getAuthUserState(userId: string): Promise<AuthUserState> {
   if (hasRemoteAuthStore()) {
     return (await remoteGetJson<AuthUserState>(remoteUserStateKey(userId))) || defaultUserState();
   }
-  const row = getDb()
+  const row = requireLocalSqliteAuthStore()
     .prepare(
       `SELECT asset_class, market, ui_mode, risk_profile_key, watchlist_json, holdings_json, executions_json, discipline_log_json
        FROM auth_user_state_sync
@@ -1678,7 +1693,7 @@ export async function upsertAuthUserState(userId: string, input: Partial<AuthUse
     return next;
   }
 
-  getDb()
+  requireLocalSqliteAuthStore()
     .prepare(
       `INSERT INTO auth_user_state_sync(
       user_id, asset_class, market, ui_mode, risk_profile_key, watchlist_json, holdings_json, executions_json, discipline_log_json, updated_at_ms

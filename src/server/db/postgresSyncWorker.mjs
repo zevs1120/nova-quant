@@ -54,6 +54,15 @@ const pool = new Pool({
   ssl: shouldUseSsl(connectionString) ? { rejectUnauthorized: false } : undefined,
 });
 
+let transactionClient = null;
+
+async function withQueryTarget(callback) {
+  if (transactionClient) {
+    return await callback(transactionClient);
+  }
+  return await callback(pool);
+}
+
 channel.on('message', async (message) => {
   if (!message || typeof message !== 'object') return;
   const { id, kind, sql, params } = message;
@@ -61,6 +70,14 @@ channel.on('message', async (message) => {
 
   if (kind === 'close') {
     try {
+      if (transactionClient) {
+        try {
+          await transactionClient.query('ROLLBACK');
+        } finally {
+          transactionClient.release();
+          transactionClient = null;
+        }
+      }
       await pool.end();
       channel.postMessage({ id, ok: true, result: { rows: [], rowCount: 0, command: 'CLOSE' } });
     } catch (error) {
@@ -69,6 +86,75 @@ channel.on('message', async (message) => {
         ok: false,
         error: {
           message: error instanceof Error ? error.message : String(error),
+        },
+      });
+    }
+    return;
+  }
+
+  if (kind === 'tx_begin') {
+    try {
+      if (transactionClient) {
+        throw new Error('POSTGRES_SYNC_TRANSACTION_ALREADY_OPEN');
+      }
+      transactionClient = await pool.connect();
+      await transactionClient.query('BEGIN');
+      channel.postMessage({ id, ok: true, result: { rows: [], rowCount: 0, command: 'BEGIN' } });
+    } catch (error) {
+      if (transactionClient) {
+        try {
+          transactionClient.release();
+        } catch {
+          // ignore best-effort release failures
+        }
+        transactionClient = null;
+      }
+      channel.postMessage({
+        id,
+        ok: false,
+        error: {
+          message: error instanceof Error ? error.message : String(error),
+          code:
+            error && typeof error === 'object' && 'code' in error
+              ? String(error.code || '')
+              : undefined,
+        },
+      });
+    }
+    return;
+  }
+
+  if (kind === 'tx_commit' || kind === 'tx_rollback') {
+    try {
+      if (!transactionClient) {
+        throw new Error('POSTGRES_SYNC_TRANSACTION_NOT_OPEN');
+      }
+      await transactionClient.query(kind === 'tx_commit' ? 'COMMIT' : 'ROLLBACK');
+      transactionClient.release();
+      transactionClient = null;
+      channel.postMessage({
+        id,
+        ok: true,
+        result: { rows: [], rowCount: 0, command: kind === 'tx_commit' ? 'COMMIT' : 'ROLLBACK' },
+      });
+    } catch (error) {
+      if (transactionClient) {
+        try {
+          transactionClient.release();
+        } catch {
+          // ignore best-effort release failures
+        }
+        transactionClient = null;
+      }
+      channel.postMessage({
+        id,
+        ok: false,
+        error: {
+          message: error instanceof Error ? error.message : String(error),
+          code:
+            error && typeof error === 'object' && 'code' in error
+              ? String(error.code || '')
+              : undefined,
         },
       });
     }
@@ -87,7 +173,9 @@ channel.on('message', async (message) => {
   }
 
   try {
-    const result = await pool.query(String(sql || ''), Array.isArray(params) ? params : []);
+    const result = await withQueryTarget((client) =>
+      client.query(String(sql || ''), Array.isArray(params) ? params : []),
+    );
     channel.postMessage({
       id,
       ok: true,

@@ -1,4 +1,6 @@
+import { getConfig } from '../config.js';
 import { getDb } from '../db/database.js';
+import { qualifyBusinessTable, queryRowSync, queryRowsSync } from '../db/postgresSyncBridge.js';
 import { getRuntimeRepo } from '../db/runtimeRepository.js';
 import { buildPrivateMarvixOpsReport } from '../ops/privateMarvixOps.js';
 import { decodeSignalContract } from '../quant/service.js';
@@ -423,17 +425,21 @@ function getStartOfDayUtcMs(timeZone: string, localDate?: string) {
   };
 }
 
-function queryTableCount(
-  db: ReturnType<typeof getDb>,
-  table: string,
-  column: string,
-  sinceMs: number,
-): DailyTableCount {
-  const row = db
-    .prepare(
-      `SELECT COUNT(*) AS count, MAX(${column}) AS last_ms FROM ${table} WHERE ${column} >= @since_ms`,
-    )
-    .get({ since_ms: sinceMs }) as { count?: number; last_ms?: number | null } | undefined;
+function queryTableCount(table: string, column: string, sinceMs: number): DailyTableCount {
+  const row =
+    getConfig().database.driver === 'postgres'
+      ? queryRowSync<{ count?: number; last_ms?: number | null }>(
+          `SELECT COUNT(*) AS count, MAX(${column}) AS last_ms
+           FROM ${qualifyBusinessTable(table)}
+           WHERE ${column} >= $1`,
+          [sinceMs],
+        )
+      : ((getDb()
+          .prepare(
+            `SELECT COUNT(*) AS count, MAX(${column}) AS last_ms FROM ${table} WHERE ${column} >= @since_ms`,
+          )
+          .get({ since_ms: sinceMs }) as { count?: number; last_ms?: number | null } | undefined) ??
+        null);
   const count = Number(row?.count || 0);
   const lastMs = row?.last_ms ?? null;
   return {
@@ -455,7 +461,8 @@ function buildLocalSnapshot(args?: {
   localDate?: string;
 }): AdminResearchOpsSnapshot {
   const repo = getRepo();
-  const db = getDb();
+  const usePostgres = getConfig().database.driver === 'postgres';
+  const db = usePostgres ? null : getDb();
   const timeZone = resolveReportTimeZone(args?.timeZone);
   const { localDate, sinceMs } = getStartOfDayUtcMs(timeZone, args?.localDate);
   const now = Date.now();
@@ -470,22 +477,38 @@ function buildLocalSnapshot(args?: {
   const sourceMix = countBy(recentNewsItems, (row) => row.source);
   const novaRuns = repo.listNovaTaskRuns({ limit: 60 });
 
-  const workflowCountRows = db
-    .prepare(
-      `
-        SELECT workflow_key, COUNT(*) AS run_count, MIN(updated_at_ms) AS first_ms, MAX(updated_at_ms) AS last_ms
-        FROM workflow_runs
-        WHERE updated_at_ms >= @since_ms
-        GROUP BY workflow_key
-        ORDER BY run_count DESC, workflow_key ASC
-      `,
-    )
-    .all({ since_ms: sinceMs }) as Array<{
-    workflow_key: string;
-    run_count: number;
-    first_ms: number | null;
-    last_ms: number | null;
-  }>;
+  const workflowCountRows = usePostgres
+    ? queryRowsSync<{
+        workflow_key: string;
+        run_count: number;
+        first_ms: number | null;
+        last_ms: number | null;
+      }>(
+        `
+          SELECT workflow_key, COUNT(*) AS run_count, MIN(updated_at_ms) AS first_ms, MAX(updated_at_ms) AS last_ms
+          FROM ${qualifyBusinessTable('workflow_runs')}
+          WHERE updated_at_ms >= $1
+          GROUP BY workflow_key
+          ORDER BY run_count DESC, workflow_key ASC
+        `,
+        [sinceMs],
+      )
+    : (db
+        ?.prepare(
+          `
+            SELECT workflow_key, COUNT(*) AS run_count, MIN(updated_at_ms) AS first_ms, MAX(updated_at_ms) AS last_ms
+            FROM workflow_runs
+            WHERE updated_at_ms >= @since_ms
+            GROUP BY workflow_key
+            ORDER BY run_count DESC, workflow_key ASC
+          `,
+        )
+        .all({ since_ms: sinceMs }) as Array<{
+        workflow_key: string;
+        run_count: number;
+        first_ms: number | null;
+        last_ms: number | null;
+      }>);
 
   const workflowCounts: DailyWorkflowCount[] = workflowCountRows.map((row) => ({
     workflow_key: row.workflow_key,
@@ -499,29 +522,43 @@ function buildLocalSnapshot(args?: {
   const workflowSummaryTotal = workflowCounts.reduce((sum, row) => sum + row.run_count, 0);
 
   const tableCounts = {
-    news_items: queryTableCount(db, 'news_items', 'updated_at_ms', sinceMs),
-    signals: queryTableCount(db, 'signals', 'created_at_ms', sinceMs),
-    option_chain_snapshots: queryTableCount(db, 'option_chain_snapshots', 'updated_at_ms', sinceMs),
-    fundamental_snapshots: queryTableCount(db, 'fundamental_snapshots', 'updated_at_ms', sinceMs),
-    backtest_runs: queryTableCount(db, 'backtest_runs', 'started_at_ms', sinceMs),
-    backtest_metrics: queryTableCount(db, 'backtest_metrics', 'updated_at_ms', sinceMs),
-    dataset_versions: queryTableCount(db, 'dataset_versions', 'created_at_ms', sinceMs),
+    news_items: queryTableCount('news_items', 'updated_at_ms', sinceMs),
+    signals: queryTableCount('signals', 'created_at_ms', sinceMs),
+    option_chain_snapshots: queryTableCount('option_chain_snapshots', 'updated_at_ms', sinceMs),
+    fundamental_snapshots: queryTableCount('fundamental_snapshots', 'updated_at_ms', sinceMs),
+    backtest_runs: queryTableCount('backtest_runs', 'started_at_ms', sinceMs),
+    backtest_metrics: queryTableCount('backtest_metrics', 'updated_at_ms', sinceMs),
+    dataset_versions: queryTableCount('dataset_versions', 'created_at_ms', sinceMs),
   };
 
-  const alphaEvaluations = db
-    .prepare(
-      `
-        SELECT evaluation_status, acceptance_score, metrics_json
-        FROM alpha_evaluations
-        WHERE created_at_ms >= @since_ms
-        ORDER BY created_at_ms DESC
-      `,
-    )
-    .all({ since_ms: sinceMs }) as Array<{
-    evaluation_status: string;
-    acceptance_score: number;
-    metrics_json: string;
-  }>;
+  const alphaEvaluations = usePostgres
+    ? queryRowsSync<{
+        evaluation_status: string;
+        acceptance_score: number;
+        metrics_json: string;
+      }>(
+        `
+          SELECT evaluation_status, acceptance_score, metrics_json
+          FROM ${qualifyBusinessTable('alpha_evaluations')}
+          WHERE created_at_ms >= $1
+          ORDER BY created_at_ms DESC
+        `,
+        [sinceMs],
+      )
+    : (db
+        ?.prepare(
+          `
+            SELECT evaluation_status, acceptance_score, metrics_json
+            FROM alpha_evaluations
+            WHERE created_at_ms >= @since_ms
+            ORDER BY created_at_ms DESC
+          `,
+        )
+        .all({ since_ms: sinceMs }) as Array<{
+        evaluation_status: string;
+        acceptance_score: number;
+        metrics_json: string;
+      }>);
 
   const alphaEvalMap = new Map<
     string,
@@ -609,27 +646,48 @@ function buildLocalSnapshot(args?: {
     )
     .slice(0, 8);
 
-  const recentSignals = db
-    .prepare(
-      `
-        SELECT signal_id, market, symbol, strategy_id, direction, score, confidence, created_at_ms, payload_json
-        FROM signals
-        WHERE created_at_ms >= @since_ms
-        ORDER BY created_at_ms DESC, score DESC
-        LIMIT 12
-      `,
-    )
-    .all({ since_ms: sinceMs }) as Array<{
-    signal_id: string;
-    market: string;
-    symbol: string;
-    strategy_id: string;
-    direction: string;
-    score: number;
-    confidence: number;
-    created_at_ms: number;
-    payload_json: string;
-  }>;
+  const recentSignals = usePostgres
+    ? queryRowsSync<{
+        signal_id: string;
+        market: string;
+        symbol: string;
+        strategy_id: string;
+        direction: string;
+        score: number;
+        confidence: number;
+        created_at_ms: number;
+        payload_json: string;
+      }>(
+        `
+          SELECT signal_id, market, symbol, strategy_id, direction, score, confidence, created_at_ms, payload_json
+          FROM ${qualifyBusinessTable('signals')}
+          WHERE created_at_ms >= $1
+          ORDER BY created_at_ms DESC, score DESC
+          LIMIT 12
+        `,
+        [sinceMs],
+      )
+    : (db
+        ?.prepare(
+          `
+            SELECT signal_id, market, symbol, strategy_id, direction, score, confidence, created_at_ms, payload_json
+            FROM signals
+            WHERE created_at_ms >= @since_ms
+            ORDER BY created_at_ms DESC, score DESC
+            LIMIT 12
+          `,
+        )
+        .all({ since_ms: sinceMs }) as Array<{
+        signal_id: string;
+        market: string;
+        symbol: string;
+        strategy_id: string;
+        direction: string;
+        score: number;
+        confidence: number;
+        created_at_ms: number;
+        payload_json: string;
+      }>);
 
   const mappedRecentSignals = recentSignals.map((row) => {
     const decoded = decodeSignalContract({

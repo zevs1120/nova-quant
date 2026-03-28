@@ -121,6 +121,24 @@ function dispatchQuery(sql: string, params: unknown[] = [], timeoutMs = DEFAULT_
   return response.result;
 }
 
+function dispatchCommand(
+  kind: 'tx_begin' | 'tx_commit' | 'tx_rollback',
+  timeoutMs = DEFAULT_TIMEOUT_MS,
+) {
+  ensureBridge();
+  const id = nextMessageId++;
+  (channelSingleton as MessagePort).postMessage({ id, kind });
+  const response = waitForResponse(id, timeoutMs);
+  if (!response.ok) {
+    const error = new Error(response.error.message || 'POSTGRES_SYNC_COMMAND_FAILED');
+    if (response.error.code) {
+      (error as Error & { code?: string }).code = response.error.code;
+    }
+    throw error;
+  }
+  return response.result;
+}
+
 export function queryRowsSync<T>(sql: string, params: unknown[] = [], timeoutMs?: number) {
   return dispatchQuery(sql, params, timeoutMs).rows as T[];
 }
@@ -131,6 +149,18 @@ export function queryRowSync<T>(sql: string, params: unknown[] = [], timeoutMs?:
 
 export function executeSync(sql: string, params: unknown[] = [], timeoutMs?: number) {
   return dispatchQuery(sql, params, timeoutMs);
+}
+
+export function beginTransactionSync(timeoutMs?: number) {
+  return dispatchCommand('tx_begin', timeoutMs);
+}
+
+export function commitTransactionSync(timeoutMs?: number) {
+  return dispatchCommand('tx_commit', timeoutMs);
+}
+
+export function rollbackTransactionSync(timeoutMs?: number) {
+  return dispatchCommand('tx_rollback', timeoutMs);
 }
 
 export function getPostgresBusinessSchema() {

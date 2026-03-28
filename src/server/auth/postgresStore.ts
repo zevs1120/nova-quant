@@ -198,6 +198,7 @@ function resolveAuthDriver() {
 function resolveAuthDatabaseUrl() {
   return String(
     process.env.NOVA_AUTH_DATABASE_URL ||
+      process.env.NOVA_DATA_DATABASE_URL ||
       process.env.SUPABASE_DB_URL ||
       process.env.DATABASE_URL ||
       '',

@@ -1,9 +1,10 @@
+import { getConfig } from '../config.js';
 import { getDb } from '../db/database.js';
+import { qualifyBusinessTable, queryRowsSync } from '../db/postgresSyncBridge.js';
 import { getRuntimeRepo } from '../db/runtimeRepository.js';
 import { decodeSignalContract } from '../quant/service.js';
 import { readAlphaDiscoveryConfig } from '../alpha_discovery/index.js';
 import { readNewsPipelineConfig } from '../news/provider.js';
-import { getConfig } from '../config.js';
 import { buildAdminResearchOpsSnapshot } from './liveOps.js';
 import { buildAdminAlphaSnapshot as buildLiveAdminAlphaSnapshot } from './liveAlpha.js';
 
@@ -46,8 +47,11 @@ function getRepo() {
   return getRuntimeRepo();
 }
 
-function parseJson<T>(value: string | null | undefined, fallback: T): T {
-  if (!value) return fallback;
+function parseJson<T>(value: unknown, fallback: T): T {
+  if (value === null || value === undefined || value === '') return fallback;
+  if (typeof value !== 'string') {
+    return value as T;
+  }
   try {
     const parsed = JSON.parse(value) as T;
     return parsed ?? fallback;
@@ -78,6 +82,86 @@ function countBy<T>(rows: T[], keyFn: (row: T) => string | null | undefined) {
 }
 
 function queryAdminUsers(): AdminUserRow[] {
+  if (getConfig().database.driver === 'postgres') {
+    return queryRowsSync<AdminUserRow>(
+      `
+        SELECT
+          u.user_id,
+          u.email,
+          u.name,
+          u.trade_mode,
+          u.broker,
+          u.locale,
+          u.created_at_ms,
+          u.updated_at_ms,
+          u.last_login_at_ms,
+          state.market,
+          state.asset_class,
+          state.ui_mode,
+          COALESCE(risk.profile_key, state.risk_profile_key) AS risk_profile_key,
+          state.watchlist_json,
+          state.holdings_json,
+          sessions.active_session_count,
+          decisions.decision_count,
+          decisions.latest_decision_at_ms,
+          execs.execution_count,
+          execs.paper_execution_count,
+          execs.live_execution_count,
+          execs.avg_execution_pnl_pct,
+          execs.latest_execution_at_ms,
+          notifications.notification_count,
+          notifications.latest_notification_at_ms,
+          manual.vip_days_balance,
+          manual.vip_days_redeemed_total,
+          manual.invite_code,
+          referrals.referral_count,
+          roles.roles_csv
+        FROM auth_users u
+        LEFT JOIN auth_user_state_sync state ON state.user_id = u.user_id
+        LEFT JOIN ${qualifyBusinessTable('user_risk_profiles')} risk ON risk.user_id = u.user_id
+        LEFT JOIN (
+          SELECT user_id, COUNT(*) AS active_session_count
+          FROM auth_sessions
+          WHERE revoked_at_ms IS NULL AND expires_at_ms > $1
+          GROUP BY user_id
+        ) sessions ON sessions.user_id = u.user_id
+        LEFT JOIN (
+          SELECT user_id, COUNT(*) AS decision_count, MAX(updated_at_ms) AS latest_decision_at_ms
+          FROM ${qualifyBusinessTable('decision_snapshots')}
+          GROUP BY user_id
+        ) decisions ON decisions.user_id = u.user_id
+        LEFT JOIN (
+          SELECT
+            user_id,
+            COUNT(*) AS execution_count,
+            SUM(CASE WHEN mode = 'PAPER' THEN 1 ELSE 0 END) AS paper_execution_count,
+            SUM(CASE WHEN mode = 'LIVE' THEN 1 ELSE 0 END) AS live_execution_count,
+            AVG(CASE WHEN pnl_pct IS NOT NULL THEN pnl_pct END) AS avg_execution_pnl_pct,
+            MAX(updated_at_ms) AS latest_execution_at_ms
+          FROM ${qualifyBusinessTable('executions')}
+          GROUP BY user_id
+        ) execs ON execs.user_id = u.user_id
+        LEFT JOIN (
+          SELECT user_id, COUNT(*) AS notification_count, MAX(updated_at_ms) AS latest_notification_at_ms
+          FROM ${qualifyBusinessTable('notification_events')}
+          GROUP BY user_id
+        ) notifications ON notifications.user_id = u.user_id
+        LEFT JOIN ${qualifyBusinessTable('manual_user_state')} manual ON manual.user_id = u.user_id
+        LEFT JOIN (
+          SELECT inviter_user_id AS user_id, COUNT(*) AS referral_count
+          FROM ${qualifyBusinessTable('manual_referrals')}
+          GROUP BY inviter_user_id
+        ) referrals ON referrals.user_id = u.user_id
+        LEFT JOIN (
+          SELECT user_id, STRING_AGG(role, ',' ORDER BY granted_at_ms DESC) AS roles_csv
+          FROM auth_user_roles
+          GROUP BY user_id
+        ) roles ON roles.user_id = u.user_id
+        ORDER BY COALESCE(u.last_login_at_ms, u.created_at_ms) DESC, u.created_at_ms DESC
+      `,
+      [Date.now()],
+    );
+  }
   const db = getDb();
   const now = Date.now();
   return db
