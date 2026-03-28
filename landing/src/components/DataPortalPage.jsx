@@ -24,8 +24,8 @@ function PortalHero() {
             <span>See the flywheel.</span>
           </h1>
           <p className="micro-intro">
-            The product may feel quiet, but the machinery behind it is not. Data Portal is where
-            the research loop, replay system, and promotion evidence become visible.
+            The product may feel quiet, but the machinery behind it is not. Data Portal is where the
+            research loop, replay system, and promotion evidence become visible.
           </p>
 
           <div className="portal-hero-stats" aria-label="Data portal summary metrics">
@@ -138,7 +138,10 @@ function PortalBacktestSection() {
 
           <div className="portal-backtest-metric-grid">
             {portalBacktestMetrics.map((item) => (
-              <article className={`portal-metric-card portal-metric-card-${item.tone}`} key={item.label}>
+              <article
+                className={`portal-metric-card portal-metric-card-${item.tone}`}
+                key={item.label}
+              >
                 <span>{item.label}</span>
                 <strong>{item.value}</strong>
               </article>
@@ -222,7 +225,9 @@ function PortalFabricSection() {
                 key={lane.title}
                 style={{ '--portal-lane-delay': `${index * 80}ms` }}
               >
-                <span className="portal-shell-kicker">LAYER {String(index + 1).padStart(2, '0')}</span>
+                <span className="portal-shell-kicker">
+                  LAYER {String(index + 1).padStart(2, '0')}
+                </span>
                 <h3>{lane.title}</h3>
                 <div className="portal-fabric-items">
                   {lane.items.map((item) => (
@@ -235,8 +240,8 @@ function PortalFabricSection() {
 
           <div className="portal-fabric-footer">
             <p>
-              The point is not just to generate more strategy ideas. It is to keep a clean memory
-              of what was tested, why it passed, and when it should be retired.
+              The point is not just to generate more strategy ideas. It is to keep a clean memory of
+              what was tested, why it passed, and when it should be retired.
             </p>
 
             <div className="portal-fabric-actions">

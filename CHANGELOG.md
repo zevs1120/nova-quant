@@ -11,6 +11,11 @@ NovaQuant 所有重要变更记录于此。
   - 新增独立 `data-portal/` 入口页，展示 `Backtest`、`Flywheel`、`Data Fabric / Audit Loop` 三个模块。
   - 复用现有 landing 视觉语言，新增专属页面组件、样式文件与多入口 Vite 构建配置。
 
+- **Feat(landing)：统一 CTA 语言并重做 Ask Nova 设备演示。**
+  - 首页、导航、Voices 和 Data Portal 的关键 CTA 文案统一为 `Get Started`，并为主 CTA 加入更明显的品牌渐变流动效果。
+  - `Ask Nova` 区从静态截图改为真机比例手机 mockup，按 `typing → 发送清空 → thinking → 回复展开并自动滚动` 的时序展示完整解释。
+  - 手机外壳按 Apple `iPhone 17 Pro` 机身比例重构，内部 UI 独立缩放，提升设备尺寸与界面分辨率感的一致性。
+
 - **Feat(ci)：GitHub Actions 自动部署 EC2 流水线。**
   - **新增 `.github/workflows/deploy-ec2.yml`**：push 到 `main` 后自动触发 CI → Deploy 串行流水线。
   - **CI 门禁复用**：通过 `workflow_call` 复用 `ci.yml`（lint → format → typecheck → test → build），CI 失败时阻断部署。

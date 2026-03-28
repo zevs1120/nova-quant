@@ -122,9 +122,8 @@ export default function AskSection() {
                           <div className="ask-phone-reply-block">
                             <span>Bottom line</span>
                             <p>
-                              This is a clean watchlist candidate, not a full green-light entry.
-                              Let the market prove it first, then size up only if the reclaim
-                              sticks.
+                              This is a clean watchlist candidate, not a full green-light entry. Let
+                              the market prove it first, then size up only if the reclaim sticks.
                             </p>
                           </div>
 
