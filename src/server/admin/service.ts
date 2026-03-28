@@ -464,11 +464,13 @@ export async function buildAdminSystemSnapshot() {
 
 export async function buildAdminOverviewSnapshot() {
   const repo = getRepo();
-  const users = buildAdminUsersSnapshot();
-  const alpha = await buildAdminAlphaSnapshot();
-  const signals = buildAdminSignalsSnapshot();
-  const system = await buildAdminSystemSnapshot();
-  const workflows = repo.listWorkflowRuns({ limit: 16 });
+  const [users, alpha, signals, system, workflows] = await Promise.all([
+    Promise.resolve(buildAdminUsersSnapshot()),
+    buildAdminAlphaSnapshot(),
+    Promise.resolve(buildAdminSignalsSnapshot()),
+    buildAdminSystemSnapshot(),
+    Promise.resolve(repo.listWorkflowRuns({ limit: 16 })),
+  ]);
 
   return {
     generated_at: new Date().toISOString(),

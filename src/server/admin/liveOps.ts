@@ -159,6 +159,51 @@ export type AdminResearchOpsSnapshot = {
   };
 };
 
+const UPSTREAM_SOFT_TIMEOUT_MS = Math.max(
+  400,
+  Number(process.env.NOVA_ADMIN_UPSTREAM_FETCH_TIMEOUT_MS || 1200),
+);
+const UPSTREAM_HARD_TIMEOUT_MS = Math.max(
+  UPSTREAM_SOFT_TIMEOUT_MS + 800,
+  Number(process.env.NOVA_ADMIN_UPSTREAM_HARD_TIMEOUT_MS || 6500),
+);
+const UPSTREAM_SUCCESS_CACHE_TTL_MS = Math.max(
+  1_000,
+  Number(process.env.NOVA_ADMIN_UPSTREAM_SUCCESS_CACHE_TTL_MS || 15_000),
+);
+const UPSTREAM_FAILURE_COOLDOWN_MS = Math.max(
+  1_000,
+  Number(process.env.NOVA_ADMIN_UPSTREAM_FAILURE_COOLDOWN_MS || 30_000),
+);
+const POSTGRES_SOFT_TIMEOUT_MS = Math.max(
+  400,
+  Number(process.env.NOVA_ADMIN_PG_FETCH_TIMEOUT_MS || 900),
+);
+const POSTGRES_SUCCESS_CACHE_TTL_MS = Math.max(
+  1_000,
+  Number(process.env.NOVA_ADMIN_PG_SUCCESS_CACHE_TTL_MS || 15_000),
+);
+const POSTGRES_FAILURE_COOLDOWN_MS = Math.max(
+  1_000,
+  Number(process.env.NOVA_ADMIN_PG_FAILURE_COOLDOWN_MS || 30_000),
+);
+
+const upstreamSnapshotCache = new Map<
+  string,
+  { baseUrl: string; payload: AdminResearchOpsSnapshot; fetchedAt: number }
+>();
+const upstreamFailureCache = new Map<string, { error: string; failedAt: number }>();
+const upstreamInflight = new Map<
+  string,
+  Promise<{ baseUrl: string; payload: AdminResearchOpsSnapshot } | null>
+>();
+const postgresSnapshotCache = new Map<
+  string,
+  { payload: AdminResearchOpsSnapshot; fetchedAt: number }
+>();
+const postgresFailureCache = new Map<string, { error: string; failedAt: number }>();
+const postgresInflight = new Map<string, Promise<AdminResearchOpsSnapshot>>();
+
 function getRepo() {
   const db = getDb();
   ensureSchema(db);
@@ -747,57 +792,283 @@ function resolveReportTimeZone(explicitTimeZone?: string) {
   );
 }
 
+function normalizeLocalDate(value?: string) {
+  return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : '';
+}
+
+function buildSnapshotScopeKey(timeZone: string, localDate?: string) {
+  return `${timeZone}|${normalizeLocalDate(localDate) || 'today'}`;
+}
+
+function buildUpstreamCacheKey(baseUrl: string, timeZone: string, localDate?: string) {
+  return `${baseUrl}|${buildSnapshotScopeKey(timeZone, localDate)}`;
+}
+
+function getFreshCachedUpstreamSnapshot(cacheKey: string) {
+  const cached = upstreamSnapshotCache.get(cacheKey);
+  if (!cached) return null;
+  if (Date.now() - cached.fetchedAt > UPSTREAM_SUCCESS_CACHE_TTL_MS) {
+    upstreamSnapshotCache.delete(cacheKey);
+    return null;
+  }
+  return cached;
+}
+
+function getRecentUpstreamFailure(cacheKey: string) {
+  const failed = upstreamFailureCache.get(cacheKey);
+  if (!failed) return null;
+  if (Date.now() - failed.failedAt > UPSTREAM_FAILURE_COOLDOWN_MS) {
+    upstreamFailureCache.delete(cacheKey);
+    return null;
+  }
+  return failed;
+}
+
+function getFreshCachedPostgresSnapshot(cacheKey: string) {
+  const cached = postgresSnapshotCache.get(cacheKey);
+  if (!cached) return null;
+  if (Date.now() - cached.fetchedAt > POSTGRES_SUCCESS_CACHE_TTL_MS) {
+    postgresSnapshotCache.delete(cacheKey);
+    return null;
+  }
+  return cached;
+}
+
+function getRecentPostgresFailure(cacheKey: string) {
+  const failed = postgresFailureCache.get(cacheKey);
+  if (!failed) return null;
+  if (Date.now() - failed.failedAt > POSTGRES_FAILURE_COOLDOWN_MS) {
+    postgresFailureCache.delete(cacheKey);
+    return null;
+  }
+  return failed;
+}
+
+function rememberUpstreamSuccess(
+  cacheKey: string,
+  result: { baseUrl: string; payload: AdminResearchOpsSnapshot },
+) {
+  upstreamSnapshotCache.set(cacheKey, {
+    ...result,
+    fetchedAt: Date.now(),
+  });
+  upstreamFailureCache.delete(cacheKey);
+}
+
+function rememberUpstreamFailure(cacheKey: string, error: unknown) {
+  upstreamFailureCache.set(cacheKey, {
+    error: error instanceof Error ? error.message : String(error || 'UPSTREAM_FETCH_FAILED'),
+    failedAt: Date.now(),
+  });
+}
+
+function rememberPostgresSuccess(cacheKey: string, payload: AdminResearchOpsSnapshot) {
+  postgresSnapshotCache.set(cacheKey, {
+    payload,
+    fetchedAt: Date.now(),
+  });
+  postgresFailureCache.delete(cacheKey);
+}
+
+function rememberPostgresFailure(cacheKey: string, error: unknown) {
+  postgresFailureCache.set(cacheKey, {
+    error: error instanceof Error ? error.message : String(error || 'POSTGRES_READ_FAILED'),
+    failedAt: Date.now(),
+  });
+}
+
+function markLiveUpstreamSnapshot(
+  snapshot: AdminResearchOpsSnapshot,
+  upstreamBaseUrl: string,
+): AdminResearchOpsSnapshot {
+  return {
+    ...snapshot,
+    data_source: {
+      ...snapshot.data_source,
+      mode: 'live-upstream',
+      label: 'EC2 live upstream',
+      live_connected: true,
+      upstream_base_url: upstreamBaseUrl,
+      error: null,
+    },
+  };
+}
+
+function markLocalFallbackSnapshot(
+  snapshot: AdminResearchOpsSnapshot,
+  upstreamBaseUrl: string,
+  error: string,
+): AdminResearchOpsSnapshot {
+  return {
+    ...snapshot,
+    data_source: {
+      ...snapshot.data_source,
+      mode: 'local-fallback',
+      label: 'Local fallback',
+      upstream_base_url: upstreamBaseUrl,
+      error,
+    },
+  };
+}
+
+function withSoftTimeout<T>(promise: Promise<T>, timeoutMs: number, timeoutLabel: string) {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(timeoutLabel)), timeoutMs);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
+async function fetchPostgresSnapshot(args?: { timeZone?: string; localDate?: string }) {
+  const timeZone = resolveReportTimeZone(args?.timeZone);
+  const localDate = normalizeLocalDate(args?.localDate);
+  const cacheKey = buildSnapshotScopeKey(timeZone, localDate);
+  const existing = postgresInflight.get(cacheKey);
+  if (existing) return await existing;
+
+  const trackedRequest = buildPostgresAdminResearchOpsSnapshot({
+    timeZone,
+    localDate,
+  }).then(
+    (snapshot) => {
+      rememberPostgresSuccess(cacheKey, snapshot);
+      return snapshot;
+    },
+    (error) => {
+      rememberPostgresFailure(cacheKey, error);
+      throw error;
+    },
+  );
+
+  postgresInflight.set(cacheKey, trackedRequest);
+  try {
+    return await trackedRequest;
+  } finally {
+    postgresInflight.delete(cacheKey);
+  }
+}
+
 async function fetchUpstreamSnapshot(args?: { timeZone?: string; localDate?: string }) {
   const baseUrl = resolveLiveApiBase();
   if (!baseUrl) return null;
   const timeZone = resolveReportTimeZone(args?.timeZone);
-  const localDate =
-    typeof args?.localDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(args.localDate)
-      ? args.localDate
-      : '';
+  const localDate = normalizeLocalDate(args?.localDate);
+  const cacheKey = buildUpstreamCacheKey(baseUrl, timeZone, localDate);
+  const existing = upstreamInflight.get(cacheKey);
+  if (existing) return await existing;
   const url = new URL('/api/control-plane/research-ops', baseUrl);
   url.searchParams.set('tz', timeZone);
   if (localDate) url.searchParams.set('localDate', localDate);
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 6500);
-  try {
-    const headers: Record<string, string> = {};
-    const token = resolveLiveApiToken();
-    if (token) headers.authorization = `Bearer ${token}`;
-    const response = await fetch(url, {
-      headers,
-      signal: controller.signal,
-    });
-    if (!response.ok) {
-      throw new Error(`UPSTREAM_HTTP_${response.status}`);
+  const request = (async () => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), UPSTREAM_HARD_TIMEOUT_MS);
+    try {
+      const headers: Record<string, string> = {};
+      const token = resolveLiveApiToken();
+      if (token) headers.authorization = `Bearer ${token}`;
+      const response = await fetch(url, {
+        headers,
+        signal: controller.signal,
+      });
+      if (!response.ok) {
+        throw new Error(`UPSTREAM_HTTP_${response.status}`);
+      }
+      const payload = (await response.json()) as AdminResearchOpsSnapshot;
+      return {
+        baseUrl,
+        payload,
+      };
+    } finally {
+      clearTimeout(timer);
     }
-    const payload = (await response.json()) as AdminResearchOpsSnapshot;
-    return {
-      baseUrl,
-      payload,
-    };
+  })();
+
+  const trackedRequest = request.then(
+    (result) => {
+      if (result?.payload) {
+        rememberUpstreamSuccess(cacheKey, result);
+      }
+      return result;
+    },
+    (error) => {
+      rememberUpstreamFailure(cacheKey, error);
+      throw error;
+    },
+  );
+
+  upstreamInflight.set(cacheKey, trackedRequest);
+  try {
+    return await trackedRequest;
   } finally {
-    clearTimeout(timer);
+    upstreamInflight.delete(cacheKey);
   }
 }
 
 export async function buildLocalAdminResearchOpsSnapshot(args?: {
   timeZone?: string;
   localDate?: string;
-}) {
+}): Promise<AdminResearchOpsSnapshot> {
+  const timeZone = resolveReportTimeZone(args?.timeZone);
+  const localDate = normalizeLocalDate(args?.localDate);
   if (!hasPostgresBusinessMirror()) {
-    return buildLocalSnapshot(args);
+    return buildLocalSnapshot({
+      timeZone,
+      localDate,
+    });
   }
-  try {
-    return await buildPostgresAdminResearchOpsSnapshot(args);
-  } catch (error) {
-    const localSnapshot = buildLocalSnapshot(args);
+
+  const cacheKey = buildSnapshotScopeKey(timeZone, localDate);
+  const cached = getFreshCachedPostgresSnapshot(cacheKey);
+  if (cached) {
+    return cached.payload;
+  }
+
+  const recentFailure = getRecentPostgresFailure(cacheKey);
+  if (recentFailure) {
+    const localSnapshot = buildLocalSnapshot({
+      timeZone,
+      localDate,
+    });
     return {
       ...localSnapshot,
       data_source: {
         ...localSnapshot.data_source,
-        mode: 'local-fallback',
+        mode: 'local-fallback' as const,
+        label: 'Local fallback',
+        error: recentFailure.error,
+      },
+    };
+  }
+
+  try {
+    return await withSoftTimeout(
+      fetchPostgresSnapshot({
+        timeZone,
+        localDate,
+      }),
+      POSTGRES_SOFT_TIMEOUT_MS,
+      'POSTGRES_FAST_TIMEOUT',
+    );
+  } catch (error) {
+    rememberPostgresFailure(cacheKey, error);
+    const localSnapshot = buildLocalSnapshot({
+      timeZone,
+      localDate,
+    });
+    return {
+      ...localSnapshot,
+      data_source: {
+        ...localSnapshot.data_source,
+        mode: 'local-fallback' as const,
         label: 'Local fallback',
         error: error instanceof Error ? error.message : String(error || 'POSTGRES_READ_FAILED'),
       },
@@ -814,43 +1085,49 @@ export async function buildAdminResearchOpsSnapshot(args?: {
     return await buildLocalAdminResearchOpsSnapshot(args);
   }
 
+  const timeZone = resolveReportTimeZone(args?.timeZone);
+  const localDate = normalizeLocalDate(args?.localDate);
+  const cacheKey = buildUpstreamCacheKey(upstreamBaseUrl, timeZone, localDate);
+
+  const cached = getFreshCachedUpstreamSnapshot(cacheKey);
+  if (cached) {
+    return markLiveUpstreamSnapshot(cached.payload, cached.baseUrl);
+  }
+
+  const recentFailure = getRecentUpstreamFailure(cacheKey);
+  if (recentFailure) {
+    const localSnapshot = await buildLocalAdminResearchOpsSnapshot({
+      timeZone,
+      localDate,
+    });
+    return markLocalFallbackSnapshot(localSnapshot, upstreamBaseUrl, recentFailure.error);
+  }
+
   try {
-    const result = await fetchUpstreamSnapshot(args);
+    const result = await withSoftTimeout(
+      fetchUpstreamSnapshot({
+        timeZone,
+        localDate,
+      }),
+      UPSTREAM_SOFT_TIMEOUT_MS,
+      'UPSTREAM_FAST_TIMEOUT',
+    );
     if (!result?.payload) {
+      rememberUpstreamFailure(cacheKey, 'UPSTREAM_EMPTY');
       const localSnapshot = await buildLocalAdminResearchOpsSnapshot(args);
-      return {
-        ...localSnapshot,
-        data_source: {
-          ...localSnapshot.data_source,
-          mode: 'local-fallback',
-          label: 'Local fallback',
-          upstream_base_url: upstreamBaseUrl,
-          error: 'UPSTREAM_EMPTY',
-        },
-      };
+      return markLocalFallbackSnapshot(localSnapshot, upstreamBaseUrl, 'UPSTREAM_EMPTY');
     }
-    return {
-      ...result.payload,
-      data_source: {
-        ...result.payload.data_source,
-        mode: 'live-upstream',
-        label: 'EC2 live upstream',
-        live_connected: true,
-        upstream_base_url: result.baseUrl,
-        error: null,
-      },
-    };
+    return markLiveUpstreamSnapshot(result.payload, result.baseUrl);
   } catch (error) {
-    const localSnapshot = await buildLocalAdminResearchOpsSnapshot(args);
-    return {
-      ...localSnapshot,
-      data_source: {
-        ...localSnapshot.data_source,
-        mode: 'local-fallback',
-        label: 'Local fallback',
-        upstream_base_url: upstreamBaseUrl,
-        error: error instanceof Error ? error.message : String(error || 'UPSTREAM_FETCH_FAILED'),
-      },
-    };
+    rememberUpstreamFailure(cacheKey, error);
+    const localSnapshot = await buildLocalAdminResearchOpsSnapshot({
+      timeZone,
+      localDate,
+    });
+    return markLocalFallbackSnapshot(
+      localSnapshot,
+      upstreamBaseUrl,
+      error instanceof Error ? error.message : String(error || 'UPSTREAM_FETCH_FAILED'),
+    );
   }
 }

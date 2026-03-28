@@ -417,6 +417,11 @@ function getBusinessPool() {
   poolSingleton = new Pool({
     connectionString,
     max: Math.max(1, Number(process.env.NOVA_DATA_PG_POOL_MAX || 5)),
+    connectionTimeoutMillis: Math.max(
+      500,
+      Number(process.env.NOVA_DATA_PG_CONNECT_TIMEOUT_MS || 1_200),
+    ),
+    idleTimeoutMillis: Math.max(1_000, Number(process.env.NOVA_DATA_PG_IDLE_TIMEOUT_MS || 10_000)),
     query_timeout: Math.max(1_000, Number(process.env.NOVA_DATA_PG_QUERY_TIMEOUT_MS || 8_000)),
     ssl: shouldUseSsl(connectionString) ? { rejectUnauthorized: false } : undefined,
   });

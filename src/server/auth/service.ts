@@ -50,6 +50,14 @@ import { logWarn } from '../utils/log.js';
 
 const SESSION_COOKIE_NAME = 'novaquant_session';
 const ADMIN_SESSION_COOKIE_NAME = 'novaquant_admin_session';
+const ADMIN_SESSION_CACHE_TTL_MS = Math.max(
+  1_000,
+  Number(process.env.NOVA_ADMIN_SESSION_CACHE_TTL_MS || 15_000),
+);
+const adminSessionCache = new Map<
+  string,
+  { expiresAt: number; value: { user: PublicAuthUser; roles: AuthRole[] } | null }
+>();
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30;
 const RESET_TTL_MS = 1000 * 60 * 15;
 const warnedSignupEmailConfigKeys = new Set<string>();
@@ -1332,6 +1340,7 @@ export async function loginAdminUser(args: {
 export async function logoutAuthSession(token: string | null | undefined) {
   if (!token) return;
   const tokenHash = hashToken(token);
+  adminSessionCache.delete(tokenHash);
   if (hasPostgresAuthStore()) {
     const ts = nowMs();
     await pgRevokeSessionByTokenHash(tokenHash, ts);
@@ -1357,15 +1366,38 @@ export async function logoutAuthSession(token: string | null | undefined) {
 export async function getAdminSession(
   token: string | null | undefined,
 ): Promise<{ user: PublicAuthUser; roles: AuthRole[] } | null> {
+  if (!token) return null;
+  const tokenHash = hashToken(token);
+  const now = nowMs();
+  const cached = adminSessionCache.get(tokenHash);
+  if (cached && cached.expiresAt > now) {
+    return cached.value;
+  }
+  if (cached) {
+    adminSessionCache.delete(tokenHash);
+  }
+
   const session = await getAuthSession(token);
-  if (!session) return null;
+  if (!session) {
+    adminSessionCache.set(tokenHash, {
+      expiresAt: now + ADMIN_SESSION_CACHE_TTL_MS,
+      value: null,
+    });
+    return null;
+  }
   await syncConfiguredAdminRole(session.user);
   const roles = (await listAuthUserRoleRows(session.user.userId)).map((row) => row.role);
-  if (!roles.includes('ADMIN')) return null;
-  return {
-    user: session.user,
-    roles,
-  };
+  const result = roles.includes('ADMIN')
+    ? {
+        user: session.user,
+        roles,
+      }
+    : null;
+  adminSessionCache.set(tokenHash, {
+    expiresAt: now + ADMIN_SESSION_CACHE_TTL_MS,
+    value: result,
+  });
+  return result;
 }
 
 export async function createPasswordReset(args: { email: string }) {

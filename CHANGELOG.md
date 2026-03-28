@@ -41,6 +41,11 @@ NovaQuant 所有重要变更记录于此。
   - 新增 `策略工厂` 页面，把 Discovery、Shadow、评估、研究回测与训练飞轮合并到一屏，改用统一事件流和重点候选队列表达产出。
   - `总览` 改为只展示跨域脉冲与异常摘要，`用户增长`、`信号执行`、`系统健康` 各自收敛为更适合运营判断的首屏结构，减少默认大表和重复分布图。
 
+- **Fix(admin,auth,db)：管理后台首刷过慢时优先快速回退并复用缓存。**
+  - `总览` 聚合接口改为并发拉取 `users / alpha / signals / system / workflows`，避免刷新时串行等待多个快照源。
+  - 为 `alpha` 与 `research ops` 的 `EC2 live upstream` / `Postgres mirror` 读取链路增加软超时、失败冷却和短时缓存，远端慢或不可达时优先返回本地回退数据。
+  - 为 `Postgres mirror` 连接补上连接超时与空闲超时，并对 admin session 做短缓存，减少一次页面刷新中的重复鉴权解析。
+
 - **Feat(ci)：GitHub Actions 自动部署 EC2 流水线。**
   - **新增 `.github/workflows/deploy-ec2.yml`**：push 到 `main` 后自动触发 CI → Deploy 串行流水线。
   - **CI 门禁复用**：通过 `workflow_call` 复用 `ci.yml`（lint → format → typecheck → test → build），CI 失败时阻断部署。
