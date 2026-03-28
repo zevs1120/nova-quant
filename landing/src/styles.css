@@ -2,6 +2,7 @@
 
 @import './styles/base.css';
 @import './styles/header.css';
+@import './styles/data-portal.css';
 @import './styles/hero.css';
 @import './styles/statement.css';
 @import './styles/proof.css';

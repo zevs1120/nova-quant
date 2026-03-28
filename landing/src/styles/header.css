@@ -104,6 +104,7 @@
 .site-nav a {
   font-size: 0.88rem;
   color: var(--ink-soft);
+  position: relative;
 }
 
 .site-nav {
@@ -121,6 +122,45 @@
 
 .site-nav a:hover {
   color: var(--ink);
+}
+
+.site-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+}
+
+.site-header-return {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.9rem;
+  padding: 0.74rem 1rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.68);
+  color: rgba(18, 21, 34, 0.92);
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  box-shadow:
+    inset 0 0 0 1px rgba(18, 21, 34, 0.08),
+    0 10px 22px rgba(75, 80, 108, 0.06);
+  white-space: nowrap;
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    background 180ms ease;
+}
+
+.site-header-return:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow:
+    inset 0 0 0 1px rgba(18, 21, 34, 0.1),
+    0 14px 26px rgba(75, 80, 108, 0.08);
 }
 
 .site-header-cta {
@@ -173,6 +213,16 @@
     width: 8rem;
   }
 
+  .site-header-actions {
+    gap: 0.5rem;
+  }
+
+  .site-header-return {
+    min-height: 2.65rem;
+    padding: 0.68rem 0.86rem;
+    font-size: 0.82rem;
+  }
+
   .site-header-cta {
     min-height: 2.65rem;
     padding: 0.68rem 0.98rem;
@@ -189,6 +239,11 @@
 
   .site-brand-logo {
     width: 7.4rem;
+  }
+
+  .site-header-return {
+    padding-inline: 0.78rem;
+    font-size: 0.8rem;
   }
 
   .site-header-cta {
@@ -208,6 +263,16 @@
 
   .site-brand-logo {
     width: 6.8rem;
+  }
+
+  .site-header-actions {
+    gap: 0.42rem;
+  }
+
+  .site-header-return {
+    min-height: 2.4rem;
+    padding: 0.6rem 0.72rem;
+    font-size: 0.76rem;
   }
 
   .site-header-cta {

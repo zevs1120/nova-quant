@@ -43,6 +43,77 @@ export const architectureSteps = [
   },
 ];
 
+export const portalHeroStats = [
+  { label: 'Replay windows', value: '12Y' },
+  { label: 'Backtests logged', value: '18.4K' },
+  { label: 'Decision traces', value: '42M' },
+];
+
+export const portalCurveBars = [22, 28, 34, 30, 42, 56, 52, 64, 72, 70, 82, 96];
+
+export const portalBacktestMetrics = [
+  { label: 'Net return', value: '+184%', tone: 'mint' },
+  { label: 'Sharpe', value: '2.14', tone: 'blue' },
+  { label: 'Max DD', value: '-8.6%', tone: 'pink' },
+  { label: 'Hit rate', value: '61%', tone: 'yellow' },
+];
+
+export const portalFlywheelSteps = [
+  {
+    title: 'Collect',
+    body: 'Market feeds, snapshots, and execution traces enter one governed timeline.',
+    tone: 'mint',
+    slot: 'north-west',
+  },
+  {
+    title: 'Generate',
+    body: 'Marvix spins new signals, features, and strategy variants from the same substrate.',
+    tone: 'blue',
+    slot: 'north-east',
+  },
+  {
+    title: 'Replay',
+    body: 'Candidates are backtested, stress-tested, and ranked before they ever surface.',
+    tone: 'pink',
+    slot: 'east',
+  },
+  {
+    title: 'Deploy',
+    body: 'Only gated edges graduate from shadow to canary to live with evidence attached.',
+    tone: 'yellow',
+    slot: 'south-east',
+  },
+  {
+    title: 'Learn',
+    body: 'Every decision comes back as audit data for the next model, next regime, next loop.',
+    tone: 'violet',
+    slot: 'south-west',
+  },
+];
+
+export const portalFabricLanes = [
+  {
+    title: 'Data Ingest',
+    items: ['Realtime feeds', 'Snapshots', 'Feature windows'],
+    tone: 'blue',
+  },
+  {
+    title: 'Research Log',
+    items: ['Experiment registry', 'Versioned params', 'Notebook provenance'],
+    tone: 'mint',
+  },
+  {
+    title: 'Replay + Audit',
+    items: ['Trade-by-trade replay', 'Decision snapshots', 'Execution reconciliation'],
+    tone: 'pink',
+  },
+  {
+    title: 'Promotion Gates',
+    items: ['Shadow / Canary / Prod', 'Risk thresholds', 'Rollback hooks'],
+    tone: 'yellow',
+  },
+];
+
 export const statementActionCards = [
   {
     symbol: 'NVDA',

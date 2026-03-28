@@ -1,21 +1,55 @@
-export default function Header() {
+const homeNavItems = [
+  { label: 'Features', href: '#features' },
+  { label: 'Pricing', href: '#pricing' },
+  { label: 'FAQ', href: '#guide' },
+  { label: 'Distribution', href: '#about' },
+  { label: 'Data Portal', href: '/data-portal/' },
+];
+
+const portalNavItems = [
+  { label: 'Overview', href: '#portal-top' },
+  { label: 'Backtest', href: '#backtest' },
+  { label: 'Flywheel', href: '#flywheel' },
+  { label: 'Data Fabric', href: '#fabric' },
+];
+
+export default function Header({ page = 'home' }) {
+  const isPortalPage = page === 'data-portal';
+  const navItems = isPortalPage ? portalNavItems : homeNavItems;
+  const brandHref = isPortalPage ? '/' : '#top';
+  const ctaHref = 'https://app.novaquant.cloud';
+  const ctaLabel = isPortalPage ? 'open app' : 'sign up';
+
   return (
     <header className="site-header-shell">
       <div className="site-header">
-        <a className="site-brand" href="#top" aria-label="NovaQuant home">
+        <a className="site-brand" href={brandHref} aria-label="NovaQuant home">
           <img className="site-brand-logo" src="/brand-assets/nova-logo.png" alt="NovaQuant" />
         </a>
 
         <nav className="site-nav" aria-label="Primary">
-          <a href="#features">Features</a>
-          <a href="#pricing">Pricing</a>
-          <a href="#guide">FAQ</a>
-          <a href="#about">Distribution</a>
+          {navItems.map((item) => (
+            <a
+              className={`site-nav-link${isPortalPage && item.label === 'Overview' ? ' site-nav-link-active' : ''}`}
+              href={item.href}
+              key={item.label}
+            >
+              {item.label}
+            </a>
+          ))}
         </nav>
 
-        <a className="site-header-cta" href="https://app.novaquant.cloud">
-          sign up
-        </a>
+        <div className="site-header-actions">
+          {isPortalPage ? (
+            <a className="site-header-return" href="/">
+              main page
+            </a>
+          ) : null}
+
+          <a className="site-header-cta" href={ctaHref}>
+            {ctaLabel}
+          </a>
+        </div>
       </div>
     </header>
   );

@@ -6,6 +6,11 @@ NovaQuant 所有重要变更记录于此。
 
 - 发布类型：**patch**（基建增强）
 
+- **Feat(landing)：新增 Data Portal 子页面。**
+  - 顶部导航新增 `Data Portal` 入口，并为子页面补充更明显的 `main page` 返回按钮。
+  - 新增独立 `data-portal/` 入口页，展示 `Backtest`、`Flywheel`、`Data Fabric / Audit Loop` 三个模块。
+  - 复用现有 landing 视觉语言，新增专属页面组件、样式文件与多入口 Vite 构建配置。
+
 - **Feat(ci)：GitHub Actions 自动部署 EC2 流水线。**
   - **新增 `.github/workflows/deploy-ec2.yml`**：push 到 `main` 后自动触发 CI → Deploy 串行流水线。
   - **CI 门禁复用**：通过 `workflow_call` 复用 `ci.yml`（lint → format → typecheck → test → build），CI 失败时阻断部署。

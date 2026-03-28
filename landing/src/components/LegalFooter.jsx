@@ -1,17 +1,22 @@
 import { legalLinks, legalParagraphs, legalNotes } from '../data/index.js';
 
-export default function LegalFooter() {
+export default function LegalFooter({
+  brandHref = '#top',
+  links = legalLinks,
+  privacyHref = '#guide',
+  privacyLabel = 'Your privacy choices',
+}) {
   return (
     <section className="spread legal-spread" id="legal">
       <div className="legal-surface">
         <div className="campaign-grid legal-grid">
           <div className="legal-topbar">
-            <a className="legal-brand" href="#top" aria-label="NovaQuant home">
+            <a className="legal-brand" href={brandHref} aria-label="NovaQuant home">
               <img className="legal-brand-logo" src="/brand-assets/nova-logo.png" alt="NovaQuant" />
             </a>
 
             <nav className="legal-links" aria-label="Footer">
-              {legalLinks.map((link) => (
+              {links.map((link) => (
                 <a href={link.href} key={link.label}>
                   {link.label}
                 </a>
@@ -35,8 +40,8 @@ export default function LegalFooter() {
               ))}
             </div>
 
-            <a className="legal-privacy" href="#guide">
-              Your privacy choices
+            <a className="legal-privacy" href={privacyHref}>
+              {privacyLabel}
             </a>
           </div>
         </div>

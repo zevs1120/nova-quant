@@ -21,7 +21,7 @@ export default function App() {
       <div className="page-gradient page-gradient-one" aria-hidden="true" />
       <div className="page-gradient page-gradient-two" aria-hidden="true" />
 
-      <Header />
+      <Header page="home" />
 
       <main className="page-shell" id="top">
         <HeroSection />
