@@ -16,6 +16,15 @@ NovaQuant 所有重要变更记录于此。
   - `Ask Nova` 区从静态截图改为真机比例手机 mockup，按 `typing → 发送清空 → thinking → 回复展开并自动滚动` 的时序展示完整解释。
   - 手机外壳按 Apple `iPhone 17 Pro` 机身比例重构，内部 UI 独立缩放，提升设备尺寸与界面分辨率感的一致性。
 
+- **Fix(landing)：去掉 Data Portal 底部与页脚之间的白色断层。**
+  - 为 `Data Portal` 页面增加专用间距覆盖，让 `Data Fabric` 末屏与 `LegalFooter` 紧贴，避免深色背景之间露出浅色白边。
+  - 保持修复范围只在 `page-shell-portal` 下生效，不影响主 landing 其他 section 的全局间距规则。
+
+- **Feat(landing)：扩展 Data Portal 分析层并重构首页封面。**
+  - 新增 `Analytics` 区块，集中展示 `月度收益热力图`、`Monte Carlo 模拟` 与 `策略 vs S&P 500 / Nasdaq` 基准对比，并为顶部导航补充对应锚点。
+  - `Data Portal` 首页 hero 改为全屏居中的封面构图，只保留门户定位文案、原则 chips 与核心统计卡，不再预先重复下方模块内容。
+  - 调整 `Data Portal` 首屏的氛围色块、数字卡层次与 section 衔接，整体更接近统一的 landing editorial 视觉语言。
+
 - **Feat(admin)：管理后台整体视觉语言向 landing page 对齐。**
   - 为 `admin` 入口新增统一品牌背景层，复用暖白底、蓝粉薄荷光斑、细网格和玻璃质感卡片语言。
   - 重做侧栏、顶栏、登录页、统计卡、面板、表格、状态标签和图表条形/环形样式，在不改页面架构的前提下整体换皮。

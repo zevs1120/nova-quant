@@ -9,6 +9,7 @@ const homeNavItems = [
 const portalNavItems = [
   { label: 'Overview', href: '#portal-top' },
   { label: 'Backtest', href: '#backtest' },
+  { label: 'Analytics', href: '#analytics' },
   { label: 'Flywheel', href: '#flywheel' },
   { label: 'Data Fabric', href: '#fabric' },
 ];

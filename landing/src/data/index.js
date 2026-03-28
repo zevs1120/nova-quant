@@ -58,6 +58,66 @@ export const portalBacktestMetrics = [
   { label: 'Hit rate', value: '61%', tone: 'yellow' },
 ];
 
+export const portalHeatmapMonths = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
+
+export const portalMonthlyHeatmap = [
+  { year: '2023', values: [3.4, -1.8, 4.2, 2.6, -0.9, 5.3, 1.6, -2.4, 2.8, 4.5, 1.9, 3.7] },
+  { year: '2024', values: [4.1, 2.4, -1.2, 5.9, 3.1, -2.6, 4.8, 2.1, 1.5, -0.7, 3.6, 5.4] },
+  { year: '2025', values: [2.7, 4.9, 3.2, -1.5, 6.1, 2.3, -0.8, 4.4, 3.8, 1.7, 5.2, 2.9] },
+  { year: '2026 YTD', values: [3.6, 1.9, 2.8, null, null, null, null, null, null, null, null, null] },
+];
+
+export const portalMonteCarloPaths = [
+  { label: 'P10', tone: 'pink', values: [100, 102, 101, 105, 103, 107, 106, 109, 111, 113, 112, 115] },
+  { label: 'P25', tone: 'yellow', values: [100, 103, 105, 106, 109, 112, 114, 117, 119, 121, 124, 127] },
+  { label: 'Median', tone: 'blue', values: [100, 105, 108, 112, 116, 120, 124, 129, 133, 137, 142, 147] },
+  { label: 'P75', tone: 'mint', values: [100, 106, 111, 117, 123, 128, 135, 141, 147, 153, 160, 168] },
+  { label: 'P90', tone: 'violet', values: [100, 108, 114, 122, 130, 138, 147, 156, 166, 176, 187, 199] },
+];
+
+export const portalMonteCarloStats = [
+  { label: 'Median ending value', value: '$147k', tone: 'blue' },
+  { label: '90% band', value: '$115k-$199k', tone: 'violet' },
+  { label: 'Positive paths', value: '78%', tone: 'mint' },
+];
+
+export const portalBenchmarkComparison = [
+  {
+    label: 'NovaQuant strategy',
+    value: '+184%',
+    height: 100,
+    tone: 'ink',
+    note: 'Model-led live / replay window',
+  },
+  {
+    label: 'S&P 500',
+    value: '+91%',
+    height: 57,
+    tone: 'blue',
+    note: 'Same lookback window',
+  },
+  {
+    label: 'Nasdaq',
+    value: '+128%',
+    height: 74,
+    tone: 'pink',
+    note: 'Same lookback window',
+  },
+];
+
 export const portalFlywheelSteps = [
   {
     title: 'Collect',
