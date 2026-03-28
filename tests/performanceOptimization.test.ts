@@ -7,6 +7,7 @@ import { getDb, closeDb } from '../src/server/db/database.js';
 import { resetRepoSingleton } from '../src/server/api/queries.js';
 
 vi.stubEnv('NOVA_AUTH_DRIVER', 'sqlite');
+vi.stubEnv('NODE_ENV', 'production');
 vi.stubEnv('KV_REST_API_URL', '');
 vi.stubEnv('KV_REST_API_TOKEN', '');
 vi.stubEnv('UPSTASH_REDIS_REST_URL', '');
@@ -32,7 +33,8 @@ describe('performance optimization regression', () => {
       const app = createApiApp();
 
       for (const endpoint of privateEndpoints) {
-        const res = await request(app).get(endpoint);
+        const res = await request(app).get(endpoint).query({ userId: 'usr_private_scope' });
+        expect(res.status, `${endpoint} should be blocked before route work runs`).toBe(401);
         expect(res.headers['cache-control'], `${endpoint} should have private, no-store`).toBe(
           'private, no-store',
         );

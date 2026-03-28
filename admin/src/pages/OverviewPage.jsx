@@ -24,7 +24,7 @@ function RingMeter({ value, label, note, accent }) {
 
 function LifecycleStack({ rows }) {
   const total = rows.reduce((sum, item) => sum + Number(item.value || 0), 0) || 1;
-  const palette = ['#c8b089', '#ef8d56', '#1f1f1f', '#5e7f69', '#7a6e61', '#d8cfc1', '#b86e54'];
+  const palette = ['#4b7dff', '#9f75ff', '#ff5fc4', '#ffb199', '#64d2b0', '#8bd4ff', '#d8d8ff'];
   return (
     <div className="lifecycle-stack">
       <div className="lifecycle-stack-bar">
@@ -167,7 +167,7 @@ export default function OverviewPage() {
             value={activeUserRatio}
             label="近 7 天活跃率"
             note={`活跃用户 ${headline.active_users_7d || 0} / 总用户 ${headline.total_users || 0}`}
-            accent="#ef8d56"
+            accent="#4b7dff"
           />
 
           <div className="mini-note-grid">
