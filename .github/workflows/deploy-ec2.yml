@@ -44,6 +44,7 @@ jobs:
           command_timeout: 8m
           script: |
             set -euo pipefail
+            export HUSKY=0
 
             echo "══════════════════════════════════════════"
             echo "  Nova Quant EC2 Deploy"
