@@ -1,0 +1,120 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      skip_ci:
+        description: 'Skip CI checks and deploy directly'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+concurrency:
+  group: deploy-ec2
+  cancel-in-progress: false
+
+jobs:
+  # ── Gate: reuse existing CI checks ──────────────────────────
+  ci:
+    if: ${{ github.event.inputs.skip_ci != 'true' }}
+    uses: ./.github/workflows/ci.yml
+
+  # ── Deploy to EC2 ───────────────────────────────────────────
+  deploy:
+    needs: [ci]
+    if: |
+      always() &&
+      (needs.ci.result == 'success' || github.event.inputs.skip_ci == 'true')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          command_timeout: 8m
+          script: |
+            set -euo pipefail
+
+            echo "══════════════════════════════════════════"
+            echo "  Nova Quant EC2 Deploy"
+            echo "  $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+            echo "══════════════════════════════════════════"
+
+            cd /opt/nova-quant
+
+            # ── Pull latest code ──
+            echo ""
+            echo "▸ Pulling latest code..."
+            git fetch origin main
+            BEFORE=$(git rev-parse HEAD)
+            git reset --hard origin/main
+            AFTER=$(git rev-parse HEAD)
+            echo "  Before: ${BEFORE:0:8}"
+            echo "  After:  ${AFTER:0:8}"
+
+            if [ "$BEFORE" = "$AFTER" ]; then
+              echo "  ⚠ No changes detected, deploying anyway."
+            fi
+
+            # ── Install dependencies ──
+            echo ""
+            echo "▸ Installing dependencies..."
+            npm ci --omit=dev 2>&1 | tail -3
+
+            # ── Build frontend ──
+            echo ""
+            echo "▸ Building frontend..."
+            npm run build 2>&1 | tail -5
+
+            # ── Restart services ──
+            echo ""
+            echo "▸ Restarting services..."
+            sudo systemctl restart marvix.service
+            sleep 3
+            sudo systemctl restart marvix-backend.service
+            sleep 3
+
+            # ── Health check ──
+            echo ""
+            echo "▸ Health check..."
+            MARVIX_STATUS=$(systemctl is-active marvix.service)
+            BACKEND_STATUS=$(systemctl is-active marvix-backend.service)
+
+            echo "  marvix.service:         $MARVIX_STATUS"
+            echo "  marvix-backend.service: $BACKEND_STATUS"
+
+            if [ "$MARVIX_STATUS" != "active" ] || [ "$BACKEND_STATUS" != "active" ]; then
+              echo ""
+              echo "✖ DEPLOY FAILED — services not healthy"
+              echo "── marvix.service logs ──"
+              journalctl -u marvix.service --no-pager -n 15
+              echo "── marvix-backend.service logs ──"
+              journalctl -u marvix-backend.service --no-pager -n 15
+              exit 1
+            fi
+
+            # ── Verify API responds ──
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8787/ --max-time 5 || echo "000")
+            echo "  API HTTP response:      $HTTP_CODE"
+
+            if [ "$HTTP_CODE" = "000" ]; then
+              echo "✖ DEPLOY FAILED — API not responding"
+              exit 1
+            fi
+
+            echo ""
+            echo "══════════════════════════════════════════"
+            echo "  ✔ Deploy successful"
+            echo "  Commit: ${AFTER:0:8}"
+            echo "  $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+            echo "══════════════════════════════════════════"

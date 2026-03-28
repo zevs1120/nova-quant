@@ -2,6 +2,26 @@
 
 NovaQuant 所有重要变更记录于此。
 
+## 10.17.1 (2026-03-28)
+
+- 发布类型：**patch**（基建增强）
+
+- **Feat(ci)：GitHub Actions 自动部署 EC2 流水线。**
+  - **新增 `.github/workflows/deploy-ec2.yml`**：push 到 `main` 后自动触发 CI → Deploy 串行流水线。
+  - **CI 门禁复用**：通过 `workflow_call` 复用 `ci.yml`（lint → format → typecheck → test → build），CI 失败时阻断部署。
+  - **部署流程**：SSH 连接 EC2 → `git reset --hard origin/main` → `npm ci --omit=dev` → `npm run build` → `systemctl restart marvix.service marvix-backend.service`。
+  - **健康检查**：部署后自动验证两个 systemd 服务状态 + API HTTP 响应码，失败时输出最近 15 行 journalctl 日志并标记 workflow 失败。
+  - **手动触发**：支持 `workflow_dispatch`，可选 `skip_ci` 参数跳过 CI 直接部署。
+  - **并发控制**：`concurrency.group: deploy-ec2` 防止多个部署同时执行。
+  - **更新 `ci.yml`**：添加 `workflow_call` trigger，允许被 deploy workflow 作为 reusable workflow 调用。
+
+- **Fix(ec2)：修复 AWS Console EC2 Instance Connect 连接失败。**
+  - 根因：`ec2-instance-connect` 包已安装但 `AuthorizedKeysCommand` 未配置到 sshd。
+  - 修复：创建 `/etc/ssh/sshd_config.d/50-ec2-instance-connect.conf`，配置 `eic_run_authorized_keys` 脚本，重启 SSH 服务。
+  - 安全组：添加 `3.16.146.0/29`（us-east-2 EC2 Instance Connect 服务 IP）的 22 端口入站规则。
+
+---
+
 ## 10.17.0 (2026-03-28)
 
 - 发布类型：**minor**（架构重构）
