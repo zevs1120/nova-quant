@@ -34,6 +34,7 @@ describe('signup welcome email', () => {
     vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', '');
     vi.stubEnv('RESEND_API_KEY', '');
     vi.stubEnv('NOVA_AUTH_EMAIL_FROM', '');
+    vi.stubEnv('RESEND_FROM_EMAIL', '');
     vi.stubEnv('NOVA_AUTH_REPLY_TO', '');
     vi.stubEnv('NOVA_APP_URL', 'https://app.novaquant.cloud');
   });

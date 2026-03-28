@@ -74,6 +74,10 @@ describe('admin auth api', () => {
     vi.stubEnv('NOVA_AUTH_DATABASE_URL', '');
     vi.stubEnv('NOVA_AUTH_PG_SSL', '');
     vi.stubEnv('NOVA_AUTH_PG_POOL_MAX', '');
+    vi.stubEnv('RESEND_API_KEY', '');
+    vi.stubEnv('NOVA_AUTH_EMAIL_FROM', '');
+    vi.stubEnv('RESEND_FROM_EMAIL', '');
+    vi.stubEnv('NOVA_AUTH_REPLY_TO', '');
     vi.stubEnv('KV_REST_API_URL', '');
     vi.stubEnv('KV_REST_API_TOKEN', '');
     vi.stubEnv('UPSTASH_REDIS_REST_URL', '');

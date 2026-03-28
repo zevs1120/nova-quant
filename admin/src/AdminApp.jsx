@@ -20,6 +20,18 @@ function renderPage(active) {
   return <OverviewPage />;
 }
 
+function AdminBackdrop({ children }) {
+  return (
+    <div className="admin-world">
+      <div className="admin-noise" aria-hidden="true" />
+      <div className="admin-gradient admin-gradient-one" aria-hidden="true" />
+      <div className="admin-gradient admin-gradient-two" aria-hidden="true" />
+      <div className="admin-gradient admin-gradient-three" aria-hidden="true" />
+      {children}
+    </div>
+  );
+}
+
 export default function AdminApp() {
   const [active, setActive] = useState('overview');
   const [session, setSession] = useState(null);
@@ -55,63 +67,69 @@ export default function AdminApp() {
 
   if (checking) {
     return (
-      <div className="admin-login-shell">
-        <section className="admin-login-card">
-          <p className="admin-eyebrow">NovaQuant 管理后台</p>
-          <h1>正在检查管理员会话</h1>
-          <p className="admin-muted">正在通过受保护的管理员 API 验证访问权限。</p>
-        </section>
-      </div>
+      <AdminBackdrop>
+        <div className="admin-login-shell">
+          <section className="admin-login-card">
+            <p className="admin-eyebrow">NovaQuant 管理后台</p>
+            <h1>正在检查管理员会话</h1>
+            <p className="admin-muted">正在通过受保护的管理员 API 验证访问权限。</p>
+          </section>
+        </div>
+      </AdminBackdrop>
     );
   }
 
   if (!session?.authenticated || !session?.authorized) {
     return (
-      <AdminLogin
-        apiBase={getAdminApiBase()}
-        loading={authLoading}
-        error={authError}
-        onSubmit={async (credentials) => {
-          setAuthLoading(true);
-          setAuthError('');
-          try {
-            const payload = await loginAdmin(credentials);
-            setSession(payload);
-          } catch (error) {
-            const code = String(error?.message || 'ADMIN_ACCESS_DENIED');
-            setAuthError(
-              code === 'INVALID_CREDENTIALS'
-                ? '邮箱或密码错误。'
-                : code === 'AUTH_STORE_NOT_CONFIGURED' ||
-                    code === 'AUTH_STORE_UNREACHABLE' ||
-                    code === 'AUTH_SERVICE_ERROR'
-                  ? '管理员登录服务当前未连上认证存储。'
-                  : '当前账号没有管理员权限。',
-            );
-          } finally {
-            setAuthLoading(false);
-          }
-        }}
-      />
+      <AdminBackdrop>
+        <AdminLogin
+          apiBase={getAdminApiBase()}
+          loading={authLoading}
+          error={authError}
+          onSubmit={async (credentials) => {
+            setAuthLoading(true);
+            setAuthError('');
+            try {
+              const payload = await loginAdmin(credentials);
+              setSession(payload);
+            } catch (error) {
+              const code = String(error?.message || 'ADMIN_ACCESS_DENIED');
+              setAuthError(
+                code === 'INVALID_CREDENTIALS'
+                  ? '邮箱或密码错误。'
+                  : code === 'AUTH_STORE_NOT_CONFIGURED' ||
+                      code === 'AUTH_STORE_UNREACHABLE' ||
+                      code === 'AUTH_SERVICE_ERROR'
+                    ? '管理员登录服务当前未连上认证存储。'
+                    : '当前账号没有管理员权限。',
+              );
+            } finally {
+              setAuthLoading(false);
+            }
+          }}
+        />
+      </AdminBackdrop>
     );
   }
 
   return (
-    <div className="admin-shell">
-      <Sidebar items={ADMIN_NAVIGATION} activeId={active} onSelect={setActive} />
-      <main className="admin-main">
-        <Topbar
-          title={activeItem.label}
-          subtitle={activeItem.description}
-          session={session}
-          onLogout={async () => {
-            await logoutAdmin().catch(() => {});
-            setSession(null);
-          }}
-        />
+    <AdminBackdrop>
+      <div className="admin-shell">
+        <Sidebar items={ADMIN_NAVIGATION} activeId={active} onSelect={setActive} />
+        <main className="admin-main">
+          <Topbar
+            title={activeItem.label}
+            subtitle={activeItem.description}
+            session={session}
+            onLogout={async () => {
+              await logoutAdmin().catch(() => {});
+              setSession(null);
+            }}
+          />
 
-        {renderPage(active)}
-      </main>
-    </div>
+          {renderPage(active)}
+        </main>
+      </div>
+    </AdminBackdrop>
   );
 }
