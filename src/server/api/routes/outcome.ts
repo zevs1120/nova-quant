@@ -1,8 +1,6 @@
 import { Router } from 'express';
 import { asyncRoute, parseMarket, parseAssetClass } from '../helpers.js';
-import { getDb } from '../../db/database.js';
-import { MarketRepository } from '../../db/repository.js';
-import { ensureSchema } from '../../db/schema.js';
+import { getRuntimeRepo } from '../../db/runtimeRepository.js';
 import {
   getOutcomeSummaryStats,
   resolveOutcomesForDate,
@@ -17,9 +15,7 @@ router.get(
     const userId = (req.query.userId as string | undefined) || 'guest-default';
     const limit = req.query.limit ? Math.min(Number(req.query.limit), 200) : 100;
 
-    const db = getDb();
-    ensureSchema(db);
-    const repo = new MarketRepository(db);
+    const repo = getRuntimeRepo();
 
     const { outcomes, stats } = getOutcomeSummaryStats(repo, userId, limit);
 
@@ -37,9 +33,7 @@ router.post(
     };
     const userId = body.userId || 'guest-default';
 
-    const db = getDb();
-    ensureSchema(db);
-    const repo = new MarketRepository(db);
+    const repo = getRuntimeRepo();
 
     if (body.date) {
       const entries = resolveOutcomesForDate(repo, body.date, userId);

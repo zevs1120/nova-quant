@@ -1,6 +1,4 @@
-import { getDb } from '../db/database.js';
-import { ensureSchema } from '../db/schema.js';
-import { MarketRepository } from '../db/repository.js';
+import { getRuntimeRepo } from '../db/runtimeRepository.js';
 import {
   getMarketState,
   getRuntimeState,
@@ -50,9 +48,7 @@ type ResearchToolArgs = {
 };
 
 function getRepo() {
-  const db = getDb();
-  ensureSchema(db);
-  return new MarketRepository(db);
+  return getRuntimeRepo();
 }
 
 function first<T>(rows: T[]): T | null {

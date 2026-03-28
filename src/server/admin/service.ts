@@ -1,6 +1,5 @@
 import { getDb } from '../db/database.js';
-import { ensureSchema } from '../db/schema.js';
-import { MarketRepository } from '../db/repository.js';
+import { getRuntimeRepo } from '../db/runtimeRepository.js';
 import { decodeSignalContract } from '../quant/service.js';
 import { readAlphaDiscoveryConfig } from '../alpha_discovery/index.js';
 import { readNewsPipelineConfig } from '../news/provider.js';
@@ -44,9 +43,7 @@ type AdminUserRow = {
 };
 
 function getRepo() {
-  const db = getDb();
-  ensureSchema(db);
-  return new MarketRepository(db);
+  return getRuntimeRepo();
 }
 
 function parseJson<T>(value: string | null | undefined, fallback: T): T {
@@ -82,7 +79,6 @@ function countBy<T>(rows: T[], keyFn: (row: T) => string | null | undefined) {
 
 function queryAdminUsers(): AdminUserRow[] {
   const db = getDb();
-  ensureSchema(db);
   const now = Date.now();
   return db
     .prepare(

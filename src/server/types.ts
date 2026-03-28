@@ -487,10 +487,16 @@ export interface AlphaLifecycleEventRecord {
 }
 
 export interface AppConfig {
-  database: {
-    driver: 'sqlite';
-    path: string;
-  };
+  database:
+    | {
+        driver: 'sqlite';
+        path: string;
+      }
+    | {
+        driver: 'postgres';
+        url: string;
+        schema?: string;
+      };
   markets: {
     US: {
       venue: string;

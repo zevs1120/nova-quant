@@ -1,6 +1,4 @@
-import { getDb } from '../src/server/db/database.js';
-import { ensureSchema } from '../src/server/db/schema.js';
-import { MarketRepository } from '../src/server/db/repository.js';
+import { getRuntimeRepo } from '../src/server/db/runtimeRepository.js';
 import { runEvidenceEngine } from '../src/server/evidence/engine.js';
 import type { AssetClass, Market } from '../src/server/types.js';
 
@@ -62,9 +60,7 @@ function parseArgs(argv: string[]) {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
-  const db = getDb();
-  ensureSchema(db);
-  const repo = new MarketRepository(db);
+  const repo = getRuntimeRepo();
   const out = runEvidenceEngine(repo, {
     userId: args.userId,
     market: args.market,

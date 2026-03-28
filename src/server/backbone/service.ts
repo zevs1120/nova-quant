@@ -1,6 +1,5 @@
-import { getDb } from '../db/database.js';
-import { ensureSchema } from '../db/schema.js';
-import { MarketRepository } from '../db/repository.js';
+import type { MarketRepository } from '../db/repository.js';
+import { getRuntimeRepo } from '../db/runtimeRepository.js';
 import type { AssetClass, DecisionSnapshotRecord, Market } from '../types.js';
 import {
   toActionCardContracts,
@@ -38,9 +37,7 @@ function parseJsonArray(text: string | null | undefined): Array<Record<string, u
 }
 
 function getRepo(): MarketRepository {
-  const db = getDb();
-  ensureSchema(db);
-  return new MarketRepository(db);
+  return getRuntimeRepo();
 }
 
 export function buildBackendBackboneSummary(args: {

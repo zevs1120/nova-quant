@@ -1,6 +1,4 @@
-import { getDb } from '../src/server/db/database.js';
-import { ensureSchema } from '../src/server/db/schema.js';
-import { createMirroringMarketRepository } from '../src/server/db/postgresBusinessMirror.js';
+import { flushRuntimeRepoMirror, getRuntimeRepo } from '../src/server/db/runtimeRepository.js';
 import { generateGovernedNovaStrategyReply } from '../src/server/nova/strategyLab.js';
 import type { Market } from '../src/server/types.js';
 
@@ -37,9 +35,7 @@ async function main() {
     throw new Error('market must be US or CRYPTO');
   }
 
-  const db = getDb();
-  ensureSchema(db);
-  const { repo, flush } = createMirroringMarketRepository(db);
+  const repo = getRuntimeRepo();
   try {
     const result = await generateGovernedNovaStrategyReply({
       repo,
@@ -54,7 +50,7 @@ async function main() {
     process.stdout.write(`${result.text}\n\n`);
     process.stdout.write(`${JSON.stringify(result.result, null, 2)}\n`);
   } finally {
-    await flush();
+    await flushRuntimeRepoMirror();
   }
 }
 

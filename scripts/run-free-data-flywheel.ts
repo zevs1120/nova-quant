@@ -1,6 +1,4 @@
-import { getDb } from '../src/server/db/database.js';
-import { ensureSchema } from '../src/server/db/schema.js';
-import { createMirroringMarketRepository } from '../src/server/db/postgresBusinessMirror.js';
+import { flushRuntimeRepoMirror, getRuntimeRepo } from '../src/server/db/runtimeRepository.js';
 import { runFreeDataFlywheel } from '../src/server/jobs/freeData.js';
 
 function parseArgs(argv: string[]) {
@@ -40,9 +38,7 @@ function parseArgs(argv: string[]) {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
-  const db = getDb();
-  ensureSchema(db);
-  const { repo, flush } = createMirroringMarketRepository(db);
+  const repo = getRuntimeRepo();
   try {
     const result = await runFreeDataFlywheel({
       repo,
@@ -55,7 +51,7 @@ async function main() {
     });
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
   } finally {
-    await flush();
+    await flushRuntimeRepoMirror();
   }
 }
 

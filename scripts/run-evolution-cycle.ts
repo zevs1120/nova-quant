@@ -1,7 +1,5 @@
 import { pathToFileURL } from 'node:url';
-import { getDb } from '../src/server/db/database.js';
-import { ensureSchema } from '../src/server/db/schema.js';
-import { createMirroringMarketRepository } from '../src/server/db/postgresBusinessMirror.js';
+import { flushRuntimeRepoMirror, getRuntimeRepo } from '../src/server/db/runtimeRepository.js';
 import { ensureQuantData } from '../src/server/quant/service.js';
 import { runEvolutionCycle } from '../src/server/quant/evolution.js';
 
@@ -21,9 +19,7 @@ export function parseArgs(argv: string[]) {
 
 export async function runEvolutionCycleCli(argv = process.argv.slice(2)) {
   const args = parseArgs(argv);
-  const db = getDb();
-  ensureSchema(db);
-  const { repo, flush } = createMirroringMarketRepository(db);
+  const repo = getRuntimeRepo();
   try {
     const snapshot = ensureQuantData(repo, args.userId, true);
     const result = await runEvolutionCycle({
@@ -47,7 +43,7 @@ export async function runEvolutionCycleCli(argv = process.argv.slice(2)) {
       ),
     );
   } finally {
-    await flush();
+    await flushRuntimeRepoMirror();
   }
 }
 

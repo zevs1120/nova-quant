@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import Database from 'better-sqlite3';
-import { resolveDbPath } from '../config.js';
+import { getConfig, resolveDbPath } from '../config.js';
 import { ensureSchema } from './schema.js';
 
 let dbSingleton: Database.Database | null = null;
@@ -70,6 +70,13 @@ function releaseSqliteProcessLock() {
 export function getDb(): Database.Database {
   if (dbSingleton) return dbSingleton;
 
+  const config = getConfig();
+  if (config.database.driver !== 'sqlite') {
+    throw new Error(
+      'BUSINESS_RUNTIME_POSTGRES_ONLY: getDb() cannot be used when NOVA_DATA_RUNTIME_DRIVER=postgres.',
+    );
+  }
+
   const dbPath = resolveDbPath();
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
   tryAcquireSqliteProcessLock(dbPath);
@@ -87,13 +94,13 @@ export function closeDb(): void {
   if (!dbSingleton) return;
   dbSingleton.close();
   dbSingleton = null;
-  // Clear the MarketRepository singleton that holds a reference to this db.
+  // Clear the runtime repository singleton that holds a reference to this db.
   try {
-    // Dynamic import avoids circular dependency (database -> queries -> database)
-    const { resetRepoSingleton } = require('../api/queries.js');
-    if (typeof resetRepoSingleton === 'function') resetRepoSingleton();
+    // Dynamic import avoids circular dependency (database -> runtimeRepository -> database)
+    const { resetRuntimeRepoSingleton } = require('./runtimeRepository.js');
+    if (typeof resetRuntimeRepoSingleton === 'function') resetRuntimeRepoSingleton();
   } catch {
-    // queries.ts may not be loaded in all contexts (e.g. migration scripts)
+    // runtimeRepository.ts may not be loaded in all contexts (e.g. migration scripts)
   }
   releaseSqliteProcessLock();
 }

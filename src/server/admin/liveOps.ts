@@ -1,6 +1,5 @@
 import { getDb } from '../db/database.js';
-import { ensureSchema } from '../db/schema.js';
-import { MarketRepository } from '../db/repository.js';
+import { getRuntimeRepo } from '../db/runtimeRepository.js';
 import { buildPrivateMarvixOpsReport } from '../ops/privateMarvixOps.js';
 import { decodeSignalContract } from '../quant/service.js';
 import { MIN_AUTOMATIC_TRAINING_ROWS } from '../nova/flywheel.js';
@@ -205,9 +204,7 @@ const postgresFailureCache = new Map<string, { error: string; failedAt: number }
 const postgresInflight = new Map<string, Promise<AdminResearchOpsSnapshot>>();
 
 function getRepo() {
-  const db = getDb();
-  ensureSchema(db);
-  return new MarketRepository(db);
+  return getRuntimeRepo();
 }
 
 function parseJsonObject(value: string | null | undefined): JsonObject {
@@ -459,7 +456,6 @@ function buildLocalSnapshot(args?: {
 }): AdminResearchOpsSnapshot {
   const repo = getRepo();
   const db = getDb();
-  ensureSchema(db);
   const timeZone = resolveReportTimeZone(args?.timeZone);
   const { localDate, sinceMs } = getStartOfDayUtcMs(timeZone, args?.localDate);
   const now = Date.now();

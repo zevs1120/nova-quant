@@ -1,10 +1,8 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import net from 'node:net';
 import { pathToFileURL } from 'node:url';
-import { getDb } from '../src/server/db/database.js';
 import { MarketRepository } from '../src/server/db/repository.js';
-import { createMirroringMarketRepository } from '../src/server/db/postgresBusinessMirror.js';
-import { ensureSchema } from '../src/server/db/schema.js';
+import { flushRuntimeRepoMirror, getRuntimeRepo } from '../src/server/db/runtimeRepository.js';
 import { runBackfillCli } from '../src/server/jobs/backfill.js';
 import { runFreeDataFlywheel } from '../src/server/jobs/freeData.js';
 import { runNovaTrainingFlywheel, type NovaTrainerKind } from '../src/server/nova/flywheel.js';
@@ -275,9 +273,7 @@ async function runNovaTrainingCycle(args: {
 }
 
 export async function runAutoBackendInitialization(options: AutoBackendOptions) {
-  const db = getDb();
-  ensureSchema(db);
-  const { repo, flush } = createMirroringMarketRepository(db);
+  const repo = getRuntimeRepo();
 
   try {
     log('initial US backfill starting', { market: 'US', timeframe: '1d' });
@@ -404,7 +400,7 @@ export async function runAutoBackendInitialization(options: AutoBackendOptions) 
       }
     }
   } finally {
-    await flush();
+    await flushRuntimeRepoMirror();
   }
 }
 
@@ -421,9 +417,7 @@ export async function runAutoBackendMaintenanceCycle(args: {
   skipTraining: boolean;
   skipDiscovery: boolean;
 }) {
-  const db = getDb();
-  ensureSchema(db);
-  const { repo, flush } = createMirroringMarketRepository(db);
+  const repo = getRuntimeRepo();
 
   try {
     if (args.refreshUs) {
@@ -600,7 +594,7 @@ export async function runAutoBackendMaintenanceCycle(args: {
       }
     }
   } finally {
-    await flush();
+    await flushRuntimeRepoMirror();
   }
 }
 
@@ -711,9 +705,7 @@ export async function runAutoBackend(argv = process.argv.slice(2)) {
           skipDiscovery: options.skipDiscovery,
         });
       } else {
-        const db = getDb();
-        ensureSchema(db);
-        const { repo, flush } = createMirroringMarketRepository(db);
+        const repo = getRuntimeRepo();
         try {
           const snapshot = ensureQuantData(repo, options.userId, true);
           log('scheduled runtime refresh finished', {
@@ -746,7 +738,7 @@ export async function runAutoBackend(argv = process.argv.slice(2)) {
             }
           }
         } finally {
-          await flush();
+          await flushRuntimeRepoMirror();
         }
       }
     } catch (error) {

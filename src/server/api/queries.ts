@@ -2,10 +2,12 @@ import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { getDb } from '../db/database.js';
 import { MarketRepository } from '../db/repository.js';
-import { createMirroringMarketRepository } from '../db/postgresBusinessMirror.js';
-import { ensureSchema } from '../db/schema.js';
+import {
+  flushRuntimeRepoMirror,
+  getRuntimeRepo,
+  resetRuntimeRepoSingleton,
+} from '../db/runtimeRepository.js';
 import type {
   AssetClass,
   DecisionSnapshotRecord,
@@ -421,27 +423,17 @@ async function getSecSearchUniverse(): Promise<SearchCandidate[]> {
   }
 }
 
-let repoHandleSingleton: ReturnType<typeof createMirroringMarketRepository> | null = null;
-let repoSingleton: MarketRepository | null = null;
-
 function getRepo(): MarketRepository {
-  if (repoSingleton) return repoSingleton;
-  const db = getDb();
-  // ensureSchema is already called inside getDb() on first init
-  repoHandleSingleton = createMirroringMarketRepository(db);
-  repoSingleton = repoHandleSingleton.repo;
-  return repoSingleton;
+  return getRuntimeRepo();
 }
 
 /** Must be called alongside closeDb() to avoid stale-handle usage. */
 export function resetRepoSingleton(): void {
-  repoHandleSingleton = null;
-  repoSingleton = null;
+  resetRuntimeRepoSingleton();
 }
 
 async function flushRepoMirror(): Promise<void> {
-  if (!repoHandleSingleton?.mirrorEnabled) return;
-  await repoHandleSingleton.flush();
+  await flushRuntimeRepoMirror();
 }
 
 function midpoint(low?: number | null, high?: number | null) {

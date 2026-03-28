@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto';
+import { getConfig } from '../config.js';
 import { getDb } from '../db/database.js';
-import { ensureSchema } from '../db/schema.js';
 import type { MarketRepository } from '../db/repository.js';
+import { qualifyBusinessTable, queryRowsSync } from '../db/postgresSyncBridge.js';
 
 export function createTraceId(prefix = 'nq'): string {
   return `${prefix}-${randomUUID().replace(/-/g, '').slice(0, 20)}`;
@@ -32,8 +33,17 @@ export function recordAuditEvent(
 }
 
 function readChatAuditSummary() {
+  if (getConfig().database.driver === 'postgres') {
+    return queryRowsSync<Array<{ provider: string; status: string; count: number }>[number]>(
+      `
+        SELECT provider, status, COUNT(*) AS count
+        FROM ${qualifyBusinessTable('chat_audit_logs')}
+        GROUP BY provider, status
+        ORDER BY count DESC
+      `,
+    );
+  }
   const db = getDb();
-  ensureSchema(db);
   const rows = db
     .prepare(
       `

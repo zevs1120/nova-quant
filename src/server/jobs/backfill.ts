@@ -1,7 +1,5 @@
 import { getConfig } from '../config.js';
-import { getDb } from '../db/database.js';
-import { MarketRepository } from '../db/repository.js';
-import { ensureSchema } from '../db/schema.js';
+import { getRuntimeRepo } from '../db/runtimeRepository.js';
 import { backfillBinancePublic } from '../ingestion/binancePublic.js';
 import { backfillAlphaVantageDaily } from '../ingestion/hostedData.js';
 import { backfillNasdaqHistorical } from '../ingestion/nasdaq.js';
@@ -22,9 +20,7 @@ export async function runBackfillCli(argv: string[]): Promise<void> {
   const market = (args.market || 'ALL').toUpperCase() as Market | 'ALL';
   const tfArg = args.tf;
 
-  const db = getDb();
-  ensureSchema(db);
-  const repo = new MarketRepository(db);
+  const repo = getRuntimeRepo();
 
   if (market === 'US' || market === 'ALL') {
     const usTfs = parseTimeframes(tfArg, ['1d', '1h', '5m']);

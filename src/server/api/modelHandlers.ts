@@ -1,8 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { Request, Response } from 'express';
-import { ensureSchema } from '../db/schema.js';
-import { getDb } from '../db/database.js';
-import { MarketRepository } from '../db/repository.js';
+import { getRuntimeRepo } from '../db/runtimeRepository.js';
 import type { AssetClass, Market, SignalContract, SignalPayload } from '../types.js';
 
 type ModelSignalSide = 'LONG' | 'SHORT';
@@ -344,9 +342,7 @@ export async function handleModelSignalIngest(req: Request, res: Response) {
       return;
     }
 
-    const db = getDb();
-    ensureSchema(db);
-    const repo = new MarketRepository(db);
+    const repo = getRuntimeRepo();
     const signals = rows.map(mapIngressToSignal);
     repo.upsertSignals(signals);
 

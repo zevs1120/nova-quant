@@ -7,6 +7,23 @@ dotenv.config();
 
 const DEFAULT_CONFIG_PATH = process.env.INGEST_CONFIG_PATH || 'config/ingestion.config.json';
 
+function resolvePostgresBusinessUrl() {
+  return String(
+    process.env.NOVA_DATA_DATABASE_URL ||
+      process.env.SUPABASE_DB_URL ||
+      process.env.DATABASE_URL ||
+      process.env.NOVA_AUTH_DATABASE_URL ||
+      '',
+  ).trim();
+}
+
+function resolveRequestedRuntimeDriver(): 'sqlite' | 'postgres' {
+  const value = String(process.env.NOVA_DATA_RUNTIME_DRIVER || '')
+    .trim()
+    .toLowerCase();
+  return value === 'postgres' ? 'postgres' : 'sqlite';
+}
+
 function buildFallbackConfig(): AppConfig {
   return {
     database: {
@@ -200,17 +217,40 @@ export function getConfig(): AppConfig {
   if (cached) return cached;
 
   const config = readConfigFile(DEFAULT_CONFIG_PATH);
-  if (process.env.DB_PATH) {
-    config.database.path = process.env.DB_PATH;
-  } else if (process.env.VITEST_WORKER_ID) {
-    config.database.path = path.join(
-      process.cwd(),
-      '.tmp',
-      `nova-quant-test-${process.env.VITEST_WORKER_ID}.db`,
-    );
-  } else if (process.env.VERCEL === '1') {
-    // Vercel serverless functions can only write to the ephemeral /tmp volume.
-    config.database.path = '/tmp/nova-quant/quant.db';
+  const runtimeDriver = resolveRequestedRuntimeDriver();
+  if (runtimeDriver === 'postgres') {
+    const url = resolvePostgresBusinessUrl();
+    if (!url) {
+      throw new Error(
+        'NOVA_DATA_RUNTIME_DRIVER=postgres requires NOVA_DATA_DATABASE_URL (or another Postgres business URL source).',
+      );
+    }
+    config.database = {
+      driver: 'postgres',
+      url,
+      schema:
+        String(process.env.NOVA_DATA_PG_SCHEMA || 'novaquant_data').trim() || 'novaquant_data',
+    };
+  } else {
+    config.database = {
+      driver: 'sqlite',
+      path:
+        'path' in config.database && config.database.driver === 'sqlite'
+          ? config.database.path
+          : './data/quant.db',
+    };
+    if (process.env.DB_PATH) {
+      config.database.path = process.env.DB_PATH;
+    } else if (process.env.VITEST_WORKER_ID) {
+      config.database.path = path.join(
+        process.cwd(),
+        '.tmp',
+        `nova-quant-test-${process.env.VITEST_WORKER_ID}.db`,
+      );
+    } else if (process.env.VERCEL === '1') {
+      // Vercel serverless functions can only write to the ephemeral /tmp volume.
+      config.database.path = '/tmp/nova-quant/quant.db';
+    }
   }
 
   if (process.env.CRYPTO_SYMBOLS) {
@@ -229,8 +269,17 @@ export function getConfig(): AppConfig {
   return config;
 }
 
+export function resetConfigCache(): void {
+  cached = null;
+}
+
 export function resolveDbPath(): string {
   const config = getConfig();
+  if (config.database.driver !== 'sqlite') {
+    throw new Error(
+      'BUSINESS_RUNTIME_POSTGRES_ONLY: resolveDbPath() is unavailable when NOVA_DATA_RUNTIME_DRIVER=postgres.',
+    );
+  }
   const dbPath = config.database.path;
   return path.isAbsolute(dbPath) ? dbPath : path.join(process.cwd(), dbPath);
 }

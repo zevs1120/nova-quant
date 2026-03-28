@@ -1,6 +1,6 @@
 import { getDb } from '../db/database.js';
-import { ensureSchema } from '../db/schema.js';
-import { MarketRepository } from '../db/repository.js';
+import type { MarketRepository } from '../db/repository.js';
+import { getRuntimeRepo } from '../db/runtimeRepository.js';
 import type { AlphaEvaluationMetrics } from '../alpha_registry/index.js';
 import { buildAlphaRegistrySummary } from '../alpha_registry/index.js';
 import { readAlphaDiscoveryConfig } from '../alpha_discovery/index.js';
@@ -187,9 +187,7 @@ const postgresFailureCache = new Map<string, { error: string; failedAt: number }
 const postgresInflight = new Map<string, Promise<AdminAlphaSnapshot>>();
 
 function getRepo() {
-  const db = getDb();
-  ensureSchema(db);
-  return new MarketRepository(db);
+  return getRuntimeRepo();
 }
 
 function parseJson<T>(value: string | null | undefined, fallback: T): T {

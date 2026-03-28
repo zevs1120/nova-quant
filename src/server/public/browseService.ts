@@ -2,8 +2,8 @@ import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { getDb } from '../db/database.js';
-import { MarketRepository } from '../db/repository.js';
+import type { MarketRepository } from '../db/repository.js';
+import { getRuntimeRepo } from '../db/runtimeRepository.js';
 import type { AssetClass, Market, Timeframe } from '../types.js';
 import { fetchWithRetry } from '../utils/http.js';
 
@@ -1338,8 +1338,6 @@ function startOfLocalDayUnixSeconds(nowMs = Date.now()): number {
   return Math.floor(local.getTime() / 1000);
 }
 
-let browseRepoSingleton: MarketRepository | null = null;
-
 function shouldUseLocalBrowseStore() {
   if (process.env.BROWSE_DISABLE_LOCAL_STORE === '1') return false;
   if (process.env.VERCEL) return false;
@@ -1348,9 +1346,7 @@ function shouldUseLocalBrowseStore() {
 
 function getBrowseRepo() {
   if (!shouldUseLocalBrowseStore()) return null;
-  if (browseRepoSingleton) return browseRepoSingleton;
-  browseRepoSingleton = new MarketRepository(getDb());
-  return browseRepoSingleton;
+  return getRuntimeRepo();
 }
 
 function queryLocalOhlcv(args: {

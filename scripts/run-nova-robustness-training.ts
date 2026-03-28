@@ -1,8 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { getDb } from '../src/server/db/database.js';
-import { ensureSchema } from '../src/server/db/schema.js';
-import { createMirroringMarketRepository } from '../src/server/db/postgresBusinessMirror.js';
+import { flushRuntimeRepoMirror, getRuntimeRepo } from '../src/server/db/runtimeRepository.js';
 import { runNovaRobustnessTraining } from '../src/server/nova/robustnessTraining.js';
 
 function parseArgs() {
@@ -32,9 +30,7 @@ async function main() {
     throw new Error('market must be US, CRYPTO, or ALL');
   }
 
-  const db = getDb();
-  ensureSchema(db);
-  const { repo, flush } = createMirroringMarketRepository(db);
+  const repo = getRuntimeRepo();
   try {
     const result = await runNovaRobustnessTraining({
       repo,
@@ -62,7 +58,7 @@ async function main() {
     process.stdout.write(`JSON: ${jsonPath}\n`);
     process.stdout.write(`Markdown: ${mdPath}\n`);
   } finally {
-    await flush();
+    await flushRuntimeRepoMirror();
   }
 }
 

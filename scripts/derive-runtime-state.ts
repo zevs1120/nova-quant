@@ -1,6 +1,4 @@
-import { getDb } from '../src/server/db/database.js';
-import { ensureSchema } from '../src/server/db/schema.js';
-import { MarketRepository } from '../src/server/db/repository.js';
+import { getRuntimeRepo } from '../src/server/db/runtimeRepository.js';
 import { ensureQuantData } from '../src/server/quant/service.js';
 
 function parseArgs(argv: string[]): { userId: string; force: boolean } {
@@ -26,9 +24,7 @@ function parseArgs(argv: string[]): { userId: string; force: boolean } {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
-  const db = getDb();
-  ensureSchema(db);
-  const repo = new MarketRepository(db);
+  const repo = getRuntimeRepo();
   const snapshot = ensureQuantData(repo, args.userId, args.force);
   const asOf = new Date(snapshot.asofMs).toISOString();
   const signalCount = snapshot.signals.length;

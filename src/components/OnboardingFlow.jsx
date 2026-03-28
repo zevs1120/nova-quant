@@ -14,16 +14,10 @@ function buildCopy(locale) {
           : 'AI-native guidance for people who want clearer daily signals and simpler decisions.',
       },
       {
-        title: zh ? '先看今天的气候' : 'Know today’s climate',
+        title: zh ? '直接问 Nova' : 'Ask Nova directly',
         body: zh
-          ? '几秒内判断：今天该行动、该等待，还是应该更轻一点。'
-          : 'See whether today calls for action, patience, or a lighter touch — in seconds.',
-      },
-      {
-        title: zh ? '先问，不必自己解码' : 'Ask. Don’t decode.',
-        body: zh
-          ? '直接用人话问 Nova，不必独自翻噪音、拆信号。'
-          : 'Talk to Nova in plain language instead of digging through noise and signals alone.',
+          ? '直接问 setup、风险和现在该不该动，拿到真正能执行的回答。'
+          : 'Ask about setups, risk, and what deserves action now, then get an answer you can use.',
       },
       {
         title: zh ? '接上你常用的券商' : 'Move with your broker',
@@ -98,71 +92,300 @@ function Dots({ count, activeIndex }) {
   );
 }
 
+function getCircularOffset(index, activeIndex, total) {
+  const rawOffset = (index - activeIndex + total) % total;
+  return rawOffset > total / 2 ? rawOffset - total : rawOffset;
+}
+
+function getMeetSlotClass(offset) {
+  if (offset === -2) return 'onboarding-meet-carousel-slot-neg-2';
+  if (offset === -1) return 'onboarding-meet-carousel-slot-neg-1';
+  if (offset === 1) return 'onboarding-meet-carousel-slot-1';
+  if (offset === 2) return 'onboarding-meet-carousel-slot-2';
+  return 'onboarding-meet-carousel-slot-0';
+}
+
 function IntroPoster({ pageIndex, locale }) {
   const zh = locale?.startsWith('zh');
+  const askBullets = zh
+    ? ['问今天最重要的事', '拿到结论，不是信息过载', '像人一样说话的 AI']
+    : ['Ask what matters now', 'Get answers, not overload', 'AI that speaks human'];
+  const askFollowups = zh
+    ? ['今天我该做什么？', '现在适合试单吗？', '什么会让这个 setup 失效？']
+    : ['What should I do today?', 'Is it safe to try anything?', 'What breaks the setup?'];
+  const askActionPoints = zh
+    ? [
+        '等关键位收复并站稳，再把它当成可动作的 setup。',
+        '如果确认出现，先用更小仓位，不要一开始就满确信。',
+        '如果价格重新跌回触发位下方，就继续空仓，等 setup 重置。',
+      ]
+    : [
+        'Wait for a reclaim and hold before treating this as actionable.',
+        'If it confirms, start with smaller size instead of full conviction size.',
+        'If price slips back under the trigger, stay flat and let the setup reset.',
+      ];
+  const askEvidenceTags = zh
+    ? ['先放观察', '先小仓位', '风控门开启']
+    : ['Watchlist First', 'Starter Size', 'Risk Gate Active'];
+  const meetActions = useMemo(
+    () => [
+      {
+        key: 'nvda',
+        symbol: 'NVDA',
+        direction: zh ? '买入 setup' : 'Buy setup',
+        meta: zh ? '模型生成 · 实时 · 龙头突破' : 'Model-derived · live · LEADERSHIP_BREAK',
+        kicker: zh ? '今日卡片 01' : 'Today pick 01',
+        tag: zh ? '可动作' : 'Actionable',
+        tone: 'blue',
+        layout: { x: '-34%', y: '8%', r: '-9deg', z: 1, delay: '0s' },
+        summary: zh
+          ? '今天最清楚的是领涨突破，能做，但仓位仍然必须受控。'
+          : 'The cleanest leadership break on the board, with size still kept under control.',
+        stats: [
+          { label: zh ? '确信' : 'Conviction', value: '71%' },
+          { label: zh ? '仓位' : 'Size', value: zh ? '仅 8%' : '8% only' },
+          { label: zh ? '风险' : 'Risk', value: zh ? '中等风险' : 'Medium risk' },
+        ],
+        context: [
+          { label: zh ? '来源' : 'Source', value: zh ? '模型生成' : 'Model-derived' },
+          { label: zh ? '执行' : 'Execution', value: zh ? '可以执行' : 'Action allowed' },
+          { label: zh ? '风控' : 'Risk gate', value: zh ? '仓位受控' : 'Size controlled' },
+        ],
+      },
+      {
+        key: 'tsla',
+        symbol: 'TSLA',
+        direction: zh ? '先降风险' : 'Reduce risk',
+        meta: zh ? '模型生成 · 实时 · 波动转弱' : 'Model-derived · live · VOL_BREAKDOWN',
+        kicker: zh ? '今日卡片 02' : 'Today pick 02',
+        tag: zh ? '可动作' : 'Actionable',
+        tone: 'pink',
+        layout: { x: '-16%', y: '3.5%', r: '-5deg', z: 2, delay: '0.1s' },
+        summary: zh
+          ? '这不是继续加风险的时候，最好的动作是先把敞口降下来。'
+          : 'This is not the moment to add more risk. De-risk first and keep the pace clean.',
+        stats: [
+          { label: zh ? '确信' : 'Conviction', value: '69%' },
+          { label: zh ? '仓位' : 'Size', value: zh ? '仅 9%' : '9% only' },
+          { label: zh ? '风险' : 'Risk', value: zh ? '高风险' : 'High risk' },
+        ],
+        context: [
+          { label: zh ? '来源' : 'Source', value: zh ? '模型生成' : 'Model-derived' },
+          { label: zh ? '执行' : 'Execution', value: zh ? '别再加仓' : 'Do not add risk' },
+          { label: zh ? '风控' : 'Risk gate', value: zh ? '先收缩' : 'Stay defensive' },
+        ],
+      },
+      {
+        key: 'aapl',
+        symbol: 'AAPL',
+        direction: zh ? '先观察' : 'Watch first',
+        meta: zh ? '模型生成 · 实时 · 区间尊重' : 'Model-derived · live · RANGE_RESPECT',
+        kicker: zh ? '今日卡片 03' : 'Today pick 03',
+        tag: zh ? '先观察' : 'Watch first',
+        tone: 'mint',
+        layout: { x: '0%', y: '0%', r: '-1deg', z: 3, delay: '0.2s' },
+        summary: zh
+          ? '这是今天最像“等一下再动”的主卡，先确认跟随，再决定是否执行。'
+          : 'The lead card today is a wait-for-confirmation setup. Let follow-through earn the action.',
+        stats: [
+          { label: zh ? '确信' : 'Conviction', value: '64%' },
+          { label: zh ? '仓位' : 'Size', value: zh ? '仅 7%' : '7% only' },
+          { label: zh ? '风险' : 'Risk', value: zh ? '低风险' : 'Low risk' },
+        ],
+        context: [
+          { label: zh ? '来源' : 'Source', value: zh ? '模型生成' : 'Model-derived' },
+          { label: zh ? '执行' : 'Execution', value: zh ? '等跟随' : 'Wait for follow-through' },
+          { label: zh ? '风控' : 'Risk gate', value: zh ? '保持耐心' : 'Stay patient' },
+        ],
+      },
+      {
+        key: 'btc',
+        symbol: 'BTC',
+        direction: zh ? '趋势仍在' : 'Momentum intact',
+        meta: zh ? '模型生成 · 实时 · 趋势加速' : 'Model-derived · live · TREND_ACCELERATION',
+        kicker: zh ? '今日卡片 04' : 'Today pick 04',
+        tag: zh ? '可动作' : 'Actionable',
+        tone: 'violet',
+        layout: { x: '16%', y: '3.5%', r: '5deg', z: 4, delay: '0.3s' },
+        summary: zh
+          ? '趋势卡可以做，但一定要配合更紧的失效线和更快的决策节奏。'
+          : 'The trend is still intact, but it only stays attractive with tighter invalidation.',
+        stats: [
+          { label: zh ? '确信' : 'Conviction', value: '76%' },
+          { label: zh ? '仓位' : 'Size', value: zh ? '仅 10%' : '10% only' },
+          { label: zh ? '风险' : 'Risk', value: zh ? '高风险' : 'High risk' },
+        ],
+        context: [
+          { label: zh ? '来源' : 'Source', value: zh ? '模型生成' : 'Model-derived' },
+          { label: zh ? '执行' : 'Execution', value: zh ? '趋势持续' : 'Crypto session live' },
+          { label: zh ? '风控' : 'Risk gate', value: zh ? '止损更紧' : 'Tight invalidation' },
+        ],
+      },
+      {
+        key: 'eth',
+        symbol: 'ETH',
+        direction: zh ? '等重新站回' : 'Wait for reclaim',
+        meta: zh ? '模型生成 · 实时 · 支撑重测' : 'Model-derived · live · SUPPORT_RETEST',
+        kicker: zh ? '今日卡片 05' : 'Today pick 05',
+        tag: zh ? '先观察' : 'Watch first',
+        tone: 'yellow',
+        layout: { x: '34%', y: '8%', r: '9deg', z: 5, delay: '0.4s' },
+        summary: zh
+          ? '不是所有强名字都该立刻追，收复关键位之前，先把它留在观察区。'
+          : 'Do not force the trade before reclaim. The useful move is to keep it on watch.',
+        stats: [
+          { label: zh ? '确信' : 'Conviction', value: '61%' },
+          { label: zh ? '仓位' : 'Size', value: zh ? '仅 6%' : '6% only' },
+          { label: zh ? '风险' : 'Risk', value: zh ? '中等风险' : 'Medium risk' },
+        ],
+        context: [
+          { label: zh ? '来源' : 'Source', value: zh ? '模型生成' : 'Model-derived' },
+          { label: zh ? '执行' : 'Execution', value: zh ? '等站回' : 'Wait for reclaim' },
+          { label: zh ? '风控' : 'Risk gate', value: zh ? '守线' : 'Hold the line' },
+        ],
+      },
+    ],
+    [zh],
+  );
+  const [activeMeetAction, setActiveMeetAction] = useState(2);
+  const [askMotionVisible, setAskMotionVisible] = useState(false);
+
+  useEffect(() => {
+    if (pageIndex !== 0) return;
+    setActiveMeetAction(2);
+  }, [pageIndex]);
+
+  useEffect(() => {
+    if (pageIndex !== 0 || typeof window === 'undefined') return undefined;
+    const motionQuery = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+    if (motionQuery?.matches) return undefined;
+
+    const intervalId = window.setInterval(() => {
+      setActiveMeetAction((value) => (value + 1) % meetActions.length);
+    }, 2600);
+
+    return () => window.clearInterval(intervalId);
+  }, [meetActions.length, pageIndex]);
+
+  useEffect(() => {
+    if (pageIndex !== 1) {
+      setAskMotionVisible(false);
+      return undefined;
+    }
+
+    if (typeof window === 'undefined') {
+      setAskMotionVisible(true);
+      return undefined;
+    }
+
+    const motionQuery = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+    if (motionQuery?.matches) {
+      setAskMotionVisible(true);
+      return undefined;
+    }
+
+    let timeoutId;
+    const frameId = window.requestAnimationFrame(() => {
+      timeoutId = window.setTimeout(() => setAskMotionVisible(true), 40);
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      if (timeoutId) window.clearTimeout(timeoutId);
+    };
+  }, [pageIndex]);
 
   if (pageIndex === 0) {
     return (
-      <div className="onboarding-poster onboarding-poster-meet" aria-hidden="true">
+      <div className="onboarding-poster onboarding-poster-meet">
         <div className="onboarding-poster-block onboarding-poster-block-pink onboarding-poster-block-top" />
         <div className="onboarding-poster-block onboarding-poster-block-blue onboarding-poster-block-right" />
         <div className="onboarding-poster-block onboarding-poster-block-yellow onboarding-poster-block-bottom" />
         <div className="onboarding-poster-block onboarding-poster-block-green onboarding-poster-block-strip" />
 
-        <div className="onboarding-poster-copy onboarding-poster-copy-meet">
-          <span className="onboarding-poster-kicker">MEET NOVAQUANT</span>
-          <h1 className="onboarding-poster-title onboarding-poster-title-meet">
-            <span>MEET</span>
-            <span>NOVA</span>
-            <span>QUANT</span>
-          </h1>
-        </div>
-
-        <div className="onboarding-meet-stack">
-          <article className="onboarding-meet-card onboarding-meet-card-back">
-            <span className="onboarding-meet-card-kicker">TODAY PICK 01</span>
-            <strong className="onboarding-meet-symbol">NVDA</strong>
-            <p className="onboarding-meet-caption">{zh ? 'Buy setup' : 'Buy setup'}</p>
-            <div className="onboarding-meet-card-actions">
-              <span className="onboarding-meet-card-button onboarding-meet-card-button-primary">
-                Open
-              </span>
-            </div>
-          </article>
-
-          <article className="onboarding-meet-card onboarding-meet-card-mid">
-            <span className="onboarding-meet-card-kicker">TODAY PICK 02</span>
-            <strong className="onboarding-meet-symbol">TSLA</strong>
-            <p className="onboarding-meet-caption">{zh ? 'Reduce risk' : 'Reduce risk'}</p>
-            <div className="onboarding-meet-card-metrics">
-              <span>69%</span>
-              <span>Low beta</span>
-            </div>
-          </article>
-
-          <article className="onboarding-meet-card onboarding-meet-card-front">
-            <div className="onboarding-meet-card-head">
-              <span className="onboarding-meet-card-kicker">TODAY PICK 03</span>
-              <span className="onboarding-meet-card-kicker onboarding-meet-card-kicker-accent">
-                WATCH FIRST
-              </span>
-            </div>
-            <strong className="onboarding-meet-symbol">AAPL</strong>
-            <p className="onboarding-meet-caption">
-              {zh ? '清楚一点，再行动。' : 'Watch first. Move with clarity.'}
+        <div className="onboarding-meet-layout">
+          <div className="onboarding-poster-copy onboarding-poster-copy-meet">
+            <span className="onboarding-poster-kicker">MEET NOVAQUANT</span>
+            <h1 className="onboarding-poster-title onboarding-poster-title-meet">
+              <span>MEET</span>
+              <span>NOVAQUANT</span>
+            </h1>
+            <p className="onboarding-poster-note onboarding-poster-note-meet">
+              {zh
+                ? '直接看今天最重要的行动卡。先看清楚，再决定该等、该问，还是该执行。'
+                : 'Start with the action card that matters most today, then decide whether to wait, ask, or execute.'}
             </p>
-            <div className="onboarding-meet-card-metrics onboarding-meet-card-metrics-front">
-              <span>64% conviction</span>
-              <span>7% only</span>
-              <span>Low risk</span>
+          </div>
+
+          <div
+            className="onboarding-meet-carousel"
+            aria-label={zh ? 'NovaQuant 行动卡堆栈' : 'NovaQuant action card stack'}
+          >
+            <div className="onboarding-meet-carousel-glow" aria-hidden="true" />
+            <div className="onboarding-meet-carousel-track">
+              {meetActions.map((item, index) => {
+                const offset = getCircularOffset(index, activeMeetAction, meetActions.length);
+                return (
+                  <button
+                    type="button"
+                    key={item.key}
+                    className={`onboarding-meet-carousel-slot onboarding-meet-stack-slot-${item.tone} ${getMeetSlotClass(offset)}${activeMeetAction === index ? ' is-selected' : ''}`}
+                    style={{ zIndex: meetActions.length - Math.abs(offset) }}
+                    aria-pressed={activeMeetAction === index}
+                    onClick={() => setActiveMeetAction(index)}
+                    onFocus={() => setActiveMeetAction(index)}
+                  >
+                    <article className="onboarding-meet-action-card onboarding-meet-action-card-stack">
+                      <div className="onboarding-meet-action-card-head">
+                        <span className="onboarding-meet-action-kicker">{item.kicker}</span>
+                        <span className="onboarding-meet-action-tag">{item.tag}</span>
+                      </div>
+
+                      <div className="onboarding-meet-action-main">
+                        <div className="onboarding-meet-action-symbol-block">
+                          <h3 className="onboarding-meet-action-symbol">{item.symbol}</h3>
+                          <p className="onboarding-meet-action-direction">{item.direction}</p>
+                          <p className="onboarding-meet-action-meta">{item.meta}</p>
+                        </div>
+                        <span className="onboarding-meet-action-mark" aria-hidden="true" />
+                      </div>
+
+                      <div className="onboarding-meet-action-stats">
+                        {item.stats.map((stat) => (
+                          <div className="onboarding-meet-action-stat" key={stat.label}>
+                            <span className="onboarding-meet-action-stat-label">{stat.label}</span>
+                            <span className="onboarding-meet-action-stat-value">{stat.value}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="onboarding-meet-action-context-row">
+                        {item.context.map((context) => (
+                          <span className="onboarding-meet-action-context-pill" key={context.label}>
+                            <span className="onboarding-meet-action-context-label">
+                              {context.label}
+                            </span>
+                            <span className="onboarding-meet-action-context-value">
+                              {context.value}
+                            </span>
+                          </span>
+                        ))}
+                      </div>
+
+                      <div className="onboarding-meet-action-links">
+                        <span className="onboarding-meet-action-link onboarding-meet-action-link-primary">
+                          {zh ? '打开 Robinhood' : 'Open Robinhood'}
+                        </span>
+                        <span className="onboarding-meet-action-link onboarding-meet-action-link-secondary">
+                          {zh ? '问 Nova' : 'Ask Nova'}
+                        </span>
+                      </div>
+                    </article>
+                  </button>
+                );
+              })}
             </div>
-            <div className="onboarding-meet-card-actions onboarding-meet-card-actions-front">
-              <span className="onboarding-meet-card-button onboarding-meet-card-button-primary">
-                Open broker
-              </span>
-              <span className="onboarding-meet-card-button">Ask Nova</span>
-            </div>
-          </article>
+          </div>
         </div>
       </div>
     );
@@ -170,128 +393,172 @@ function IntroPoster({ pageIndex, locale }) {
 
   if (pageIndex === 1) {
     return (
-      <div className="onboarding-poster onboarding-poster-climate" aria-hidden="true">
-        <div className="onboarding-poster-block onboarding-poster-block-indigo onboarding-poster-block-top" />
-        <div className="onboarding-poster-block onboarding-poster-block-cyan onboarding-poster-block-corner" />
-
-        <div className="onboarding-poster-copy onboarding-poster-copy-climate">
-          <span className="onboarding-poster-kicker">READ THE DAY FIRST</span>
-          <h1 className="onboarding-poster-title onboarding-poster-title-tight onboarding-poster-title-climate">
-            <span>READ</span>
-            <span>THE DAY</span>
-            <span>FIRST</span>
-          </h1>
-        </div>
-
-        <div className="onboarding-climate-stage">
-          <article className="onboarding-climate-panel onboarding-climate-panel-main">
-            <div className="onboarding-climate-panel-head">
-              <span className="onboarding-poster-chip">TODAY MODE</span>
-              <span className="onboarding-poster-chip onboarding-poster-chip-light">
-                READ FIRST
-              </span>
-            </div>
-
-            <div className="onboarding-climate-hero">
-              <div className="onboarding-climate-wheel">
-                <span className="onboarding-climate-wheel-label">WAIT</span>
-                <strong>68%</strong>
-                <p>{zh ? '好 setup 才继续看' : 'Only the clearest setups survive.'}</p>
-              </div>
-
-              <div className="onboarding-climate-stats">
-                <div className="onboarding-climate-stat-card onboarding-climate-stat-card-indigo">
-                  <span>Act</span>
-                  <strong>42%</strong>
-                </div>
-                <div className="onboarding-climate-stat-card onboarding-climate-stat-card-cyan">
-                  <span>Risk</span>
-                  <strong>Low</strong>
-                </div>
-              </div>
-            </div>
-
-            <div className="onboarding-climate-meter-group">
-              <div className="onboarding-meter onboarding-meter-climate">
-                <span />
-              </div>
-              <div className="onboarding-climate-tags">
-                <span>Trade lighter</span>
-                <span>Wait for confirmation</span>
-                <span>Size down first</span>
-              </div>
-            </div>
-          </article>
-
-          <article className="onboarding-climate-panel onboarding-climate-panel-note">
-            <strong>{zh ? '今天先读气候' : 'Read the day first'}</strong>
-            <p>{zh ? '先定节奏，再决定是否加风险。' : 'Set the pace before you add risk.'}</p>
-          </article>
-        </div>
-      </div>
-    );
-  }
-
-  if (pageIndex === 2) {
-    return (
       <div className="onboarding-poster onboarding-poster-ask" aria-hidden="true">
         <div className="onboarding-poster-block onboarding-poster-block-pink onboarding-poster-block-top" />
         <div className="onboarding-poster-block onboarding-poster-block-cyan onboarding-poster-block-side" />
 
-        <div className="onboarding-poster-copy onboarding-poster-copy-ask">
-          <span className="onboarding-poster-kicker">ASK NOVA DIRECTLY</span>
-          <h1 className="onboarding-poster-title onboarding-poster-title-tight onboarding-poster-title-ask">
-            <span>ASK</span>
-            <span>NOVA</span>
-            <span>NOW</span>
-          </h1>
-        </div>
+        <div className={`onboarding-ask-layout${askMotionVisible ? ' is-visible' : ''}`}>
+          <div className="onboarding-poster-copy onboarding-poster-copy-ask onboarding-ask-copy-block">
+            <span className="onboarding-poster-kicker">ASK NOVA</span>
+            <h1 className="onboarding-poster-title onboarding-poster-title-ask">
+              <span>ASK</span>
+              <span>NOVA</span>
+            </h1>
+            <p className="onboarding-poster-note onboarding-poster-note-ask">
+              {zh
+                ? '问 setup、情绪、风险，或者现在最该关注什么。Nova 会直接把噪音压下去，把你真正能用的判断留下来。'
+                : 'Ask about setups, momentum, sentiment, or what matters most right now, and Nova turns noise into something you can actually use.'}
+            </p>
 
-        <div className="onboarding-ask-stage">
-          <article className="onboarding-ask-shell">
-            <div className="onboarding-ask-shell-head">
-              <span className="onboarding-poster-chip">ASK NOVA</span>
-              <span className="onboarding-poster-chip onboarding-poster-chip-light">
-                LIVE CONTEXT
-              </span>
-            </div>
+            <ul
+              className="onboarding-ask-bullets"
+              aria-label={zh ? 'Ask Nova 亮点' : 'Ask Nova highlights'}
+            >
+              {askBullets.map((bullet, index) => (
+                <li key={bullet} style={{ '--onboarding-ask-enter-delay': `${index * 70}ms` }}>
+                  {bullet}
+                </li>
+              ))}
+            </ul>
+          </div>
 
-            <div className="onboarding-ask-thread">
-              <div className="onboarding-chat-bubble onboarding-chat-bubble-light">
-                {zh ? '现在最重要的是什么？' : 'What matters most right now?'}
-              </div>
+          <div className="onboarding-ask-object">
+            <div className="onboarding-ask-object-halo" aria-hidden="true" />
 
-              <div className="onboarding-chat-response">
-                <span className="onboarding-chat-response-kicker">NOVA BRIEF</span>
-                <strong>{zh ? '先盯最清楚的 setup。' : 'Focus on the clearest setup.'}</strong>
-                <p>
-                  {zh
-                    ? '减一点仓位，再等确认，不要被噪音带着走。'
-                    : 'Size down first, wait for confirmation, and ignore the noisy names.'}
-                </p>
-                <div className="onboarding-chat-response-tags">
-                  <span>AAPL</span>
-                  <span>Wait</span>
-                  <span>Low risk</span>
+            <div className="onboarding-ask-phone-stage" aria-hidden="true">
+              <div className="onboarding-ask-phone-flat onboarding-ask-phone-flat-pink" />
+              <div className="onboarding-ask-phone-flat onboarding-ask-phone-flat-blue" />
+              <div className="onboarding-ask-phone-flat onboarding-ask-phone-flat-mint" />
+
+              <div className="onboarding-ask-phone-shell">
+                <div className="onboarding-ask-phone-frame">
+                  <div className="onboarding-ask-phone-island" />
+
+                  <div className="onboarding-ask-phone-screen">
+                    <div className="onboarding-ask-phone-ui">
+                      <div className="onboarding-ask-phone-statusbar">
+                        <span>9:41</span>
+                        <span>NovaQuant Live</span>
+                      </div>
+
+                      <div className="onboarding-ask-phone-header">
+                        <div className="onboarding-ask-phone-header-copy">
+                          <span className="onboarding-ask-phone-header-kicker">Ask Nova</span>
+                          <strong>{zh ? '信号简报' : 'Signal Brief'}</strong>
+                        </div>
+                        <span className="onboarding-ask-phone-header-pill">
+                          {zh ? '实时' : 'Live'}
+                        </span>
+                      </div>
+
+                      <div className="onboarding-ask-phone-thread">
+                        <div className="onboarding-ask-phone-thread-scroll">
+                          <span className="onboarding-ask-phone-thread-scroll-thumb" />
+                        </div>
+
+                        <div className="onboarding-ask-phone-thread-track">
+                          <div className="onboarding-ask-phone-message onboarding-ask-phone-message-user">
+                            <div className="onboarding-ask-phone-bubble onboarding-ask-phone-bubble-user">
+                              {zh
+                                ? '现在帮我读一下 AAPL 的信号。'
+                                : 'Read the signal on AAPL right now.'}
+                            </div>
+                          </div>
+
+                          <div className="onboarding-ask-phone-thinking">
+                            <div className="onboarding-ask-phone-thinking-dots">
+                              <span />
+                              <span />
+                              <span />
+                            </div>
+                            <span>
+                              {zh
+                                ? '正在检查 setup、节奏和风险门...'
+                                : 'Checking setup, regime, and risk gate...'}
+                            </span>
+                          </div>
+
+                          <article className="onboarding-ask-phone-reply">
+                            <span className="onboarding-ask-phone-reply-kicker">
+                              {zh ? '信号解读' : 'Signal Read'}
+                            </span>
+                            <h3>
+                              {zh
+                                ? 'AAPL 在转好，但最干净的做多仍然要等确认。'
+                                : 'AAPL is improving, but the clean long still needs confirmation.'}
+                            </h3>
+                            <p className="onboarding-ask-phone-reply-lead">
+                              {zh
+                                ? '动能在回升，但价格还没有给出完整的收复并站稳，所以现在更像是优先观察，而不是立刻执行。'
+                                : 'Momentum is rebuilding, but price has not given a full reclaim-and-hold yet, so this still belongs in watchlist-first territory.'}
+                            </p>
+
+                            <div className="onboarding-ask-phone-reply-block">
+                              <span>{zh ? '现在最重要的' : 'What matters'}</span>
+                              <p>
+                                {zh
+                                  ? '龙头属性还在，市场也更安静了，但确信度还没到 Nova 会直接推送满仓行动卡的程度。'
+                                  : 'Leadership is intact and the tape is calmer, but conviction is still below the level where Nova would push a full-size action card.'}
+                              </p>
+                            </div>
+
+                            <div className="onboarding-ask-phone-reply-block">
+                              <span>{zh ? '现在怎么做' : 'What to do'}</span>
+                              <ul>
+                                {askActionPoints.map((point) => (
+                                  <li key={point}>{point}</li>
+                                ))}
+                              </ul>
+                            </div>
+
+                            <div className="onboarding-ask-phone-reply-block">
+                              <span>{zh ? '结论' : 'Bottom line'}</span>
+                              <p>
+                                {zh
+                                  ? '这是一个很干净的观察名单候选，不是已经完全绿灯的进场。让市场先证明自己，再考虑逐步加大仓位。'
+                                  : 'This is a clean watchlist candidate, not a full green-light entry. Let the market prove it first, then size up only if the reclaim sticks.'}
+                              </p>
+                            </div>
+
+                            <div className="onboarding-ask-phone-reply-tags">
+                              {askEvidenceTags.map((tag) => (
+                                <span key={tag}>{tag}</span>
+                              ))}
+                            </div>
+                          </article>
+
+                          <div className="onboarding-ask-phone-followups">
+                            {askFollowups.map((item) => (
+                              <span key={item}>{item}</span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="onboarding-ask-phone-composer">
+                        <div className="onboarding-ask-phone-input">
+                          <span className="onboarding-ask-phone-input-placeholder">
+                            {zh ? '用人话直接问 Nova' : 'Ask in plain words'}
+                          </span>
+                          <span className="onboarding-ask-phone-input-text">
+                            <span className="onboarding-ask-phone-input-typed">
+                              {zh
+                                ? '现在帮我读一下 AAPL 的信号。'
+                                : 'Read the signal on AAPL right now.'}
+                            </span>
+                            <span className="onboarding-ask-phone-input-caret" />
+                          </span>
+                        </div>
+
+                        <div className="onboarding-ask-phone-send">
+                          <span className="onboarding-ask-phone-send-icon">↑</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
-
-            <div className="onboarding-ask-suggestions">
-              <span>{zh ? '为什么是 AAPL？' : 'Why AAPL?'}</span>
-              <span>{zh ? '现在要不要买？' : 'Should I buy now?'}</span>
-            </div>
-
-            <div className="onboarding-ask-input">
-              <span className="onboarding-ask-input-field">
-                {zh ? '用人话问 Nova…' : 'Ask Nova in plain English...'}
-              </span>
-              <span className="onboarding-ask-input-send">{zh ? '发送' : 'Send'}</span>
-            </div>
-          </article>
-
-          <div className="onboarding-ask-float">
-            {zh ? '少一点噪音，多一点判断。' : 'Less noise. More clarity.'}
           </div>
         </div>
       </div>

@@ -2,6 +2,13 @@
 
 NovaQuant 所有重要变更记录于此。
 
+## Unreleased
+
+- **Feat(onboarding)：重做 intro onboarding 前三屏。**
+  - 第一屏延续浅色背景与 landing 风格行动卡皮肤，保留截图式中间主卡加两侧扇出切换的交互布局。
+  - 第二屏改为 `Ask Nova`，移植 landing page 的手机演示动效，按 `typing → thinking → reply reveal → scroll` 时序展示问答过程，并适配桌面端与移动端。
+  - intro 页序收敛为 `Meet NovaQuant → Ask Nova → Move with your broker`，让 onboarding 首轮叙事更贴近产品核心路径。
+
 ## 10.17.1 (2026-03-28)
 
 - 发布类型：**patch**（基建增强）

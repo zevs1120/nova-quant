@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { getDb } from '../db/database.js';
-import { ensureSchema } from '../db/schema.js';
-import { MarketRepository } from '../db/repository.js';
+import type { MarketRepository } from '../db/repository.js';
+import { getRuntimeRepo } from '../db/runtimeRepository.js';
 import type { ChatMessageRecord, ChatThreadRecord } from '../types.js';
 import type {
   ChatHistoryMessage,
@@ -30,9 +29,7 @@ const MAX_HISTORY_TURNS = 4;
 const PROVIDER_TIMEOUT_MS = Number(process.env.AI_PROVIDER_TIMEOUT_MS || 18_000);
 
 function getRepo(): MarketRepository {
-  const db = getDb();
-  ensureSchema(db);
-  return new MarketRepository(db);
+  return getRuntimeRepo();
 }
 
 function detectMode(input: ChatRequestInput): ChatMode {
