@@ -35,7 +35,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Layout
 
-Five-part deploy: `landing/` (brand landing page), `app/` (user H5 frontend), `admin/` (ops dashboard), `server/` (Vercel API wrapper), root (main API + quant core). Each has its own `vercel.json`.
+Four-part deploy: `landing/` (brand landing page), `app/` (user H5 frontend), `admin/` (ops dashboard), root (main API + quant core). `landing/`, `app/`, and `admin/` each have their own `vercel.json` and are deployed independently on Vercel.
 
 Core source in `src/`: `server/` (Express 5 backend, ~48 modules), `components/` (React), `engines/` (JS quant), `research/` (quantitative research modules). Business data lives in SQLite (`data/quant.db`) with an optional Supabase Postgres mirror (`NOVA_DATA_DATABASE_URL`).
 

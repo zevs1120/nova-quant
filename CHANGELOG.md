@@ -2,6 +2,18 @@
 
 NovaQuant 所有重要变更记录于此。
 
+## 10.17.0 (2026-03-28)
+
+- 发布类型：**minor**（架构重构）
+
+- **Refactor(deploy)：清理空壳部署单元，统一四端部署描述。**
+  - **删除 `server/` 目录**：该目录只是 `api/index.ts` 的空壳包装，无真实代码，删除以减少维护负担。
+  - **统一部署口径**：更新 10 份文档（CLAUDE.md、AGENTS.md、README.md、api/README.md、REPOSITORY_OVERVIEW.md、REPO_RUNBOOK.md、PROJECT_MEMORY.md、CURRENT_PRODUCT_DOCUMENT_ZH.md、SESSION_HANDOFF_PROTOCOL.md、NOVAQUANT_BACKEND_ARCHITECTURE_AFTER_REFACTOR.md），将部署边界描述从"五端（landing/app/admin/server/model）"统一为"四端（landing/app/admin/仓库根目录）"。
+  - **API 入口路径确认**：`api/index.ts` → `src/server/api/app.ts`。
+  - 验证：`npm run lint`、`npm run typecheck`、`npm run build`、`npm test` 全部通过（828 tests）。
+
+---
+
 ## 10.16.1 (2026-03-28)
 
 - 发布类型：**patch**（审计修复）

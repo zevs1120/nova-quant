@@ -28,7 +28,7 @@ Nova Quant is:
 
 Core runtime remains in `src/` and is orchestrated by `src/engines/pipeline.js`.
 
-Production deploy is split across `app/`, `server/`, `admin/`, and `model/` (see root `README.md` and `docs/REPOSITORY_OVERVIEW.md`). **Local development** still typically uses the **root** `package.json` (`npm run dev` → API + Vite).
+Production deploy is split across `app/`, `admin/`, and repository root (see root `README.md` and `docs/REPOSITORY_OVERVIEW.md`). **Local development** still typically uses the **root** `package.json` (`npm run dev` → API + Vite).
 
 Current canonical product AI path:
 

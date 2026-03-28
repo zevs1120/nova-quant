@@ -11,26 +11,25 @@ It is **not** a blind auto-trading bot and does **not** fabricate live performan
 
 ## Monorepo Deployment Layout
 
-This repository now supports a strict five-part deployment layout:
+This repository supports a four-part deployment layout:
 
 - `landing/`: brand landing page on Vercel
 - `app/`: user-facing H5 frontend on Vercel
-- `server/`: pure API layer on Vercel
 - `admin/`: internal control dashboard on Vercel (includes System Health + Research Ops dashboards, prefers Supabase read mirror when available)
-- `model/`: EC2-side model boundary and signal contract
+- Repository root: main API + quant core on Vercel Serverless Functions (entry: `api/index.ts` → `src/server/api/app.ts`)
 
 Production domains should be split as:
 
 - `https://novaquant.cloud` -> `landing/`
 - `https://app.novaquant.cloud` -> `app/`
-- `https://api.novaquant.cloud` -> `server/`
+- `https://api.novaquant.cloud` -> repository root (Vercel Serverless Functions, `api/index.ts`)
 - `https://admin.novaquant.cloud` -> `admin/`
 
 Runtime rules:
 
 - `app/` and `admin/` call API only
-- `server/` is the only layer allowed to read/write the database
-- `model/` pushes standardized signals to `server/` and does not touch user data
+- Repository root is the only layer allowed to read/write the database
+- `EC2` runs Marvix backend worker independently and does not touch user data directly
 
 ## What This Repository Now Guarantees
 
@@ -452,7 +451,7 @@ This means Nova can now help with:
 
 - Frontend build: `npm run build`
 - Static output: `dist/`
-- API runtime: `api/[...route].ts` delegates to `src/server/api/app.ts`
+- API runtime: `api/index.ts` loads `src/server/api/app.ts`
 - On Vercel, SQLite defaults to `/tmp/nova-quant/quant.db` unless `DB_PATH` is explicitly provided
 - The Vercel runtime will auto-create schema on first cold start, but it will start with an empty ephemeral database unless you connect a persistent backend later
 - For investor walkthroughs, use the in-app `Demo Mode / 体验 Demo` switch after deploy

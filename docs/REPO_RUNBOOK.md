@@ -105,7 +105,7 @@ npm run dev
 
 This runs `scripts/dev-stack.mjs`: `npm run api:data` plus `npm run dev:web` (Vite). Vite proxies `/api` to the backend (default `http://127.0.0.1:8787`, overridable via `VITE_API_PROXY_TARGET`).
 
-Split deploy apps (`app/`, `admin/`, `server/` packages) use their own `package.json` scripts but share the same canonical implementation under root `src/server/`.
+Split deploy apps (`app/`, `admin/`) use their own `package.json` scripts but share the same canonical implementation under root `src/server/`.
 
 ## 6) Quality Gates
 
@@ -204,8 +204,8 @@ Expected Vercel settings:
 
 API path:
 
-- `api/[...route].ts` is the Vercel catch-all wrapper
-- It delegates all `/api/*` traffic to `src/server/api/app.ts`
+- `api/index.ts` is the Vercel Serverless Function entry point
+- It loads `src/server/api/app.ts` which handles all `/api/*` routes
 
 Database behavior on Vercel:
 

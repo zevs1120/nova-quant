@@ -14,5 +14,4 @@ Last updated: 2026-03-23
 
 ## Related packages
 
-- **`server/`** — deploy-focused package metadata; still uses root `src/server` sources.
 - Root [`README.md`](../README.md) — production domain split (`api.novaquant.cloud`, etc.).
