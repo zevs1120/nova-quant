@@ -1,0 +1,4290 @@
+{
+  "generated_at": "2026-03-27T14:14:12.364Z",
+  "workflow_id": "workflow-nova-prod-strategy-ceaaf6c2-976",
+  "trace_id": "nova-prod-strategy-3ac87175336842c99071",
+  "market_scope": "ALL",
+  "risk_profile": "balanced",
+  "target_metrics": {
+    "sharpe_min": 1.2,
+    "max_drawdown_max": 0.1,
+    "annual_return_min": 0.15
+  },
+  "markets": [
+    {
+      "market": "US",
+      "strategy_id": "NQ_US_TREND_VOL_BREAK",
+      "strategy_family": "Trend Following + Volatility Filter + Breakout Confirmation",
+      "timeframe": "1d",
+      "selected_config": {
+        "config_id": "us_guarded_50",
+        "market": "US",
+        "execution_timeframe": "1d",
+        "breakout_lookback": 50,
+        "ema_fast": 45,
+        "ema_slow": 180,
+        "atr_period": 22,
+        "volume_lookback": 20,
+        "min_atr_pct": 0.011,
+        "max_atr_pct": 0.032,
+        "volume_ratio_min": 1.22,
+        "max_extension_pct": 0.045,
+        "stop_atr": 2.6,
+        "trail_atr": 3.2,
+        "max_hold_bars": 12,
+        "cooldown_bars": 10,
+        "risk_per_trade_pct": 0.0025,
+        "max_position_pct": 0.055,
+        "min_position_pct": 0.01,
+        "max_participation_rate": 0.008,
+        "min_dollar_volume": 75000000,
+        "tightness_score": 4
+      },
+      "grid_results": [
+        {
+          "config": {
+            "config_id": "us_guarded_50",
+            "market": "US",
+            "execution_timeframe": "1d",
+            "breakout_lookback": 50,
+            "ema_fast": 45,
+            "ema_slow": 180,
+            "atr_period": 22,
+            "volume_lookback": 20,
+            "min_atr_pct": 0.011,
+            "max_atr_pct": 0.032,
+            "volume_ratio_min": 1.22,
+            "max_extension_pct": 0.045,
+            "stop_atr": 2.6,
+            "trail_atr": 3.2,
+            "max_hold_bars": 12,
+            "cooldown_bars": 10,
+            "risk_per_trade_pct": 0.0025,
+            "max_position_pct": 0.055,
+            "min_position_pct": 0.01,
+            "max_participation_rate": 0.008,
+            "min_dollar_volume": 75000000,
+            "tightness_score": 4
+          },
+          "metrics": {
+            "sample_size": 0,
+            "cumulative_return": 0,
+            "annual_return": 0,
+            "sharpe": 0,
+            "sortino": 0,
+            "max_drawdown": 0,
+            "win_rate": 0,
+            "volatility": 0,
+            "profit_factor": 0
+          },
+          "trade_count": 0,
+          "average_holding_bars": 0,
+          "target_violations": 3,
+          "selection_score": -10.78
+        },
+        {
+          "config": {
+            "config_id": "us_guarded_40",
+            "market": "US",
+            "execution_timeframe": "1d",
+            "breakout_lookback": 40,
+            "ema_fast": 40,
+            "ema_slow": 160,
+            "atr_period": 22,
+            "volume_lookback": 20,
+            "min_atr_pct": 0.01,
+            "max_atr_pct": 0.036,
+            "volume_ratio_min": 1.16,
+            "max_extension_pct": 0.05,
+            "stop_atr": 2.4,
+            "trail_atr": 3,
+            "max_hold_bars": 14,
+            "cooldown_bars": 8,
+            "risk_per_trade_pct": 0.0028,
+            "max_position_pct": 0.064,
+            "min_position_pct": 0.01,
+            "max_participation_rate": 0.009,
+            "min_dollar_volume": 50000000,
+            "tightness_score": 3
+          },
+          "metrics": {
+            "sample_size": 18,
+            "cumulative_return": -0.001043,
+            "annual_return": -0.0145,
+            "sharpe": -1.8686,
+            "sortino": -1.4916,
+            "max_drawdown": 0.002349,
+            "win_rate": 0.5,
+            "volatility": 0.0078,
+            "profit_factor": 0.7203
+          },
+          "trade_count": 2,
+          "average_holding_bars": 8,
+          "target_violations": 3,
+          "selection_score": -21.038268
+        },
+        {
+          "config": {
+            "config_id": "us_guarded_30",
+            "market": "US",
+            "execution_timeframe": "1d",
+            "breakout_lookback": 30,
+            "ema_fast": 35,
+            "ema_slow": 140,
+            "atr_period": 20,
+            "volume_lookback": 20,
+            "min_atr_pct": 0.009,
+            "max_atr_pct": 0.04,
+            "volume_ratio_min": 1.1,
+            "max_extension_pct": 0.055,
+            "stop_atr": 2.3,
+            "trail_atr": 2.9,
+            "max_hold_bars": 16,
+            "cooldown_bars": 7,
+            "risk_per_trade_pct": 0.0031,
+            "max_position_pct": 0.072,
+            "min_position_pct": 0.01,
+            "max_participation_rate": 0.01,
+            "min_dollar_volume": 35000000,
+            "tightness_score": 2
+          },
+          "metrics": {
+            "sample_size": 25,
+            "cumulative_return": -0.005382,
+            "annual_return": -0.052944,
+            "sharpe": -4.2879,
+            "sortino": -3.0272,
+            "max_drawdown": 0.006862,
+            "win_rate": 0.52,
+            "volatility": 0.012666,
+            "profit_factor": 0.4462
+          },
+          "trade_count": 3,
+          "average_holding_bars": 8,
+          "target_violations": 3,
+          "selection_score": -34.648262
+        },
+        {
+          "config": {
+            "config_id": "us_guarded_20",
+            "market": "US",
+            "execution_timeframe": "1d",
+            "breakout_lookback": 20,
+            "ema_fast": 30,
+            "ema_slow": 120,
+            "atr_period": 20,
+            "volume_lookback": 20,
+            "min_atr_pct": 0.008,
+            "max_atr_pct": 0.045,
+            "volume_ratio_min": 1.05,
+            "max_extension_pct": 0.06,
+            "stop_atr": 2.2,
+            "trail_atr": 2.8,
+            "max_hold_bars": 18,
+            "cooldown_bars": 6,
+            "risk_per_trade_pct": 0.0036,
+            "max_position_pct": 0.08,
+            "min_position_pct": 0.01,
+            "max_participation_rate": 0.012,
+            "min_dollar_volume": 25000000,
+            "tightness_score": 1
+          },
+          "metrics": {
+            "sample_size": 51,
+            "cumulative_return": -0.014859,
+            "annual_return": -0.071303,
+            "sharpe": -4.6445,
+            "sortino": -3.6652,
+            "max_drawdown": 0.015195,
+            "win_rate": 0.4314,
+            "volatility": 0.015898,
+            "profit_factor": 0.4093
+          },
+          "trade_count": 8,
+          "average_holding_bars": 8,
+          "target_violations": 3,
+          "selection_score": -37.030341
+        }
+      ],
+      "stability_summary": {
+        "configs_tested": 4,
+        "configs_meeting_targets": 0,
+        "median_sharpe": -3.0782,
+        "median_annual_return": -0.033722,
+        "median_max_drawdown": 0.004606,
+        "fragile": true
+      },
+      "split_validation": {
+        "train_start": 1735776000000,
+        "train_end": 1768435200000,
+        "test_start": 1768521600000,
+        "test_end": 1774483200000,
+        "selected_config_id": "us_guarded_50",
+        "train_metrics": {
+          "sample_size": 0,
+          "cumulative_return": 0,
+          "annual_return": 0,
+          "sharpe": 0,
+          "sortino": 0,
+          "max_drawdown": 0,
+          "win_rate": 0,
+          "volatility": 0,
+          "profit_factor": 0
+        },
+        "test_metrics": {
+          "sample_size": 0,
+          "cumulative_return": 0,
+          "annual_return": 0,
+          "sharpe": 0,
+          "sortino": 0,
+          "max_drawdown": 0,
+          "win_rate": 0,
+          "volatility": 0,
+          "profit_factor": 0
+        },
+        "target_violations_test": 3
+      },
+      "walk_forward": {
+        "windows": [],
+        "out_of_sample_summary": null
+      },
+      "monte_carlo": {
+        "simulations": 0,
+        "median_annual_return": 0,
+        "p10_annual_return": 0,
+        "p50_sharpe": 0,
+        "p10_sharpe": 0,
+        "p90_max_drawdown": 0,
+        "target_pass_rate": 0
+      },
+      "scenario_sensitivity": [
+        {
+          "scenario_id": "baseline",
+          "label": "Baseline assumptions",
+          "metrics": {
+            "sample_size": 0,
+            "cumulative_return": 0,
+            "annual_return": 0,
+            "sharpe": 0,
+            "sortino": 0,
+            "max_drawdown": 0,
+            "win_rate": 0,
+            "volatility": 0,
+            "profit_factor": 0
+          }
+        },
+        {
+          "scenario_id": "slippage_plus_25",
+          "label": "+25% slippage",
+          "metrics": {
+            "sample_size": 0,
+            "cumulative_return": 0,
+            "annual_return": 0,
+            "sharpe": 0,
+            "sortino": 0,
+            "max_drawdown": 0,
+            "win_rate": 0,
+            "volatility": 0,
+            "profit_factor": 0
+          }
+        },
+        {
+          "scenario_id": "slippage_plus_50",
+          "label": "+50% slippage",
+          "metrics": {
+            "sample_size": 0,
+            "cumulative_return": 0,
+            "annual_return": 0,
+            "sharpe": 0,
+            "sortino": 0,
+            "max_drawdown": 0,
+            "win_rate": 0,
+            "volatility": 0,
+            "profit_factor": 0
+          }
+        },
+        {
+          "scenario_id": "wider_spread",
+          "label": "Wider spread",
+          "metrics": {
+            "sample_size": 0,
+            "cumulative_return": 0,
+            "annual_return": 0,
+            "sharpe": 0,
+            "sortino": 0,
+            "max_drawdown": 0,
+            "win_rate": 0,
+            "volatility": 0,
+            "profit_factor": 0
+          }
+        },
+        {
+          "scenario_id": "adverse_funding",
+          "label": "More adverse funding",
+          "metrics": {
+            "sample_size": 0,
+            "cumulative_return": 0,
+            "annual_return": 0,
+            "sharpe": 0,
+            "sortino": 0,
+            "max_drawdown": 0,
+            "win_rate": 0,
+            "volatility": 0,
+            "profit_factor": 0
+          }
+        },
+        {
+          "scenario_id": "strict_fill",
+          "label": "Stricter fill policy",
+          "metrics": {
+            "sample_size": 0,
+            "cumulative_return": 0,
+            "annual_return": 0,
+            "sharpe": 0,
+            "sortino": 0,
+            "max_drawdown": 0,
+            "win_rate": 0,
+            "volatility": 0,
+            "profit_factor": 0
+          }
+        }
+      ],
+      "backtest": {
+        "market": "US",
+        "timeframe": "1d",
+        "bars_per_year": 252,
+        "config": {
+          "config_id": "us_guarded_50",
+          "market": "US",
+          "execution_timeframe": "1d",
+          "breakout_lookback": 50,
+          "ema_fast": 45,
+          "ema_slow": 180,
+          "atr_period": 22,
+          "volume_lookback": 20,
+          "min_atr_pct": 0.011,
+          "max_atr_pct": 0.032,
+          "volume_ratio_min": 1.22,
+          "max_extension_pct": 0.045,
+          "stop_atr": 2.6,
+          "trail_atr": 3.2,
+          "max_hold_bars": 12,
+          "cooldown_bars": 10,
+          "risk_per_trade_pct": 0.0025,
+          "max_position_pct": 0.055,
+          "min_position_pct": 0.01,
+          "max_participation_rate": 0.008,
+          "min_dollar_volume": 75000000,
+          "tightness_score": 4
+        },
+        "metrics": {
+          "sample_size": 0,
+          "cumulative_return": 0,
+          "annual_return": 0,
+          "sharpe": 0,
+          "sortino": 0,
+          "max_drawdown": 0,
+          "win_rate": 0,
+          "volatility": 0,
+          "profit_factor": 0
+        },
+        "trades": [],
+        "bar_returns": [],
+        "daily_returns": [],
+        "data_lineage": [
+          {
+            "symbol": "SPY",
+            "market": "US",
+            "timeframe": "1d",
+            "execution_timeframe": "1d",
+            "source": "NASDAQ_API",
+            "bar_count": 308,
+            "first_ts_open": 1735776000000,
+            "last_ts_open": 1774483200000
+          },
+          {
+            "symbol": "QQQ",
+            "market": "US",
+            "timeframe": "1d",
+            "execution_timeframe": "1d",
+            "source": "NASDAQ_API",
+            "bar_count": 308,
+            "first_ts_open": 1735776000000,
+            "last_ts_open": 1774483200000
+          },
+          {
+            "symbol": "AAPL",
+            "market": "US",
+            "timeframe": "1d",
+            "execution_timeframe": "1d",
+            "source": "NASDAQ_API",
+            "bar_count": 308,
+            "first_ts_open": 1735776000000,
+            "last_ts_open": 1774483200000
+          },
+          {
+            "symbol": "MSFT",
+            "market": "US",
+            "timeframe": "1d",
+            "execution_timeframe": "1d",
+            "source": "NASDAQ_API",
+            "bar_count": 308,
+            "first_ts_open": 1735776000000,
+            "last_ts_open": 1774483200000
+          }
+        ],
+        "realism_profile": {
+          "profile_id": "exec-realism.paper.v2",
+          "mode": "paper",
+          "allow_optimistic_fill_policy": false,
+          "fill_policy": {
+            "entry": "conservative_fill",
+            "exit": "conservative_fill"
+          },
+          "markets": {
+            "US": {
+              "fee_bps_per_side": 3,
+              "funding_bps_per_day": 0,
+              "leverage_cap": 2,
+              "spread_bps_by_vol_bucket": {
+                "low": 1.3,
+                "normal": 2.1,
+                "high": 3.8,
+                "stress": 5.4
+              },
+              "slippage_bps_by_vol_bucket": {
+                "low": {
+                  "entry": 2.5,
+                  "exit": 2.8
+                },
+                "normal": {
+                  "entry": 4.4,
+                  "exit": 4.9
+                },
+                "high": {
+                  "entry": 7.5,
+                  "exit": 8.2
+                },
+                "stress": {
+                  "entry": 10.4,
+                  "exit": 11.5
+                }
+              }
+            },
+            "CRYPTO": {
+              "fee_bps_per_side": 5,
+              "funding_bps_per_day": 2.2,
+              "leverage_cap": 3,
+              "spread_bps_by_vol_bucket": {
+                "low": 1.8,
+                "normal": 3.5,
+                "high": 6.4,
+                "stress": 10
+              },
+              "slippage_bps_by_vol_bucket": {
+                "low": {
+                  "entry": 3.5,
+                  "exit": 4.2
+                },
+                "normal": {
+                  "entry": 6.8,
+                  "exit": 7.8
+                },
+                "high": {
+                  "entry": 11.2,
+                  "exit": 12.5
+                },
+                "stress": {
+                  "entry": 16,
+                  "exit": 17.8
+                }
+              }
+            }
+          },
+          "volatility_buckets": {
+            "low": {
+              "max_range_pct": 0.012,
+              "max_percentile": 25
+            },
+            "normal": {
+              "max_range_pct": 0.024,
+              "max_percentile": 65
+            },
+            "high": {
+              "max_range_pct": 0.045,
+              "max_percentile": 85
+            },
+            "stress": {
+              "max_range_pct": null,
+              "max_percentile": 100
+            }
+          },
+          "notes": [
+            "Paper profile is the strictest default profile.",
+            "Used for portfolio and governance realism stress."
+          ]
+        },
+        "diagnostics": {
+          "future_leak_violations": 0,
+          "average_holding_bars": 0,
+          "average_trade_weight": 0,
+          "trade_count": 0,
+          "turnover_proxy": 0
+        }
+      }
+    },
+    {
+      "market": "CRYPTO",
+      "strategy_id": "NQ_CR_TREND_VOL_BREAK",
+      "strategy_family": "Trend Following + Volatility Filter + Breakout Confirmation",
+      "timeframe": "4h",
+      "selected_config": {
+        "config_id": "crypto_guarded_36",
+        "market": "CRYPTO",
+        "execution_timeframe": "4h",
+        "breakout_lookback": 36,
+        "ema_fast": 24,
+        "ema_slow": 96,
+        "atr_period": 16,
+        "volume_lookback": 22,
+        "min_atr_pct": 0.015,
+        "max_atr_pct": 0.065,
+        "volume_ratio_min": 1.25,
+        "max_extension_pct": 0.06,
+        "stop_atr": 2.8,
+        "trail_atr": 3.6,
+        "max_hold_bars": 16,
+        "cooldown_bars": 7,
+        "risk_per_trade_pct": 0.0022,
+        "max_position_pct": 0.05,
+        "min_position_pct": 0.01,
+        "max_participation_rate": 0.007,
+        "min_dollar_volume": 40000000,
+        "tightness_score": 4
+      },
+      "grid_results": [
+        {
+          "config": {
+            "config_id": "crypto_guarded_36",
+            "market": "CRYPTO",
+            "execution_timeframe": "4h",
+            "breakout_lookback": 36,
+            "ema_fast": 24,
+            "ema_slow": 96,
+            "atr_period": 16,
+            "volume_lookback": 22,
+            "min_atr_pct": 0.015,
+            "max_atr_pct": 0.065,
+            "volume_ratio_min": 1.25,
+            "max_extension_pct": 0.06,
+            "stop_atr": 2.8,
+            "trail_atr": 3.6,
+            "max_hold_bars": 16,
+            "cooldown_bars": 7,
+            "risk_per_trade_pct": 0.0022,
+            "max_position_pct": 0.05,
+            "min_position_pct": 0.01,
+            "max_participation_rate": 0.007,
+            "min_dollar_volume": 40000000,
+            "tightness_score": 4
+          },
+          "metrics": {
+            "sample_size": 308,
+            "cumulative_return": 0.011275,
+            "annual_return": 0.082983,
+            "sharpe": 2.8798,
+            "sortino": 3.575,
+            "max_drawdown": 0.006465,
+            "win_rate": 0.4805,
+            "volatility": 0.027817,
+            "profit_factor": 1.2049
+          },
+          "trade_count": 27,
+          "average_holding_bars": 12.5185,
+          "target_violations": 1,
+          "selection_score": 6.776671
+        },
+        {
+          "config": {
+            "config_id": "crypto_guarded_30",
+            "market": "CRYPTO",
+            "execution_timeframe": "4h",
+            "breakout_lookback": 30,
+            "ema_fast": 20,
+            "ema_slow": 84,
+            "atr_period": 16,
+            "volume_lookback": 20,
+            "min_atr_pct": 0.014,
+            "max_atr_pct": 0.075,
+            "volume_ratio_min": 1.18,
+            "max_extension_pct": 0.068,
+            "stop_atr": 2.6,
+            "trail_atr": 3.4,
+            "max_hold_bars": 20,
+            "cooldown_bars": 6,
+            "risk_per_trade_pct": 0.0025,
+            "max_position_pct": 0.057,
+            "min_position_pct": 0.01,
+            "max_participation_rate": 0.008,
+            "min_dollar_volume": 30000000,
+            "tightness_score": 3
+          },
+          "metrics": {
+            "sample_size": 460,
+            "cumulative_return": 0.013637,
+            "annual_return": 0.066609,
+            "sharpe": 1.6647,
+            "sortino": 2.0046,
+            "max_drawdown": 0.018239,
+            "win_rate": 0.4565,
+            "volatility": 0.039198,
+            "profit_factor": 1.112
+          },
+          "trade_count": 52,
+          "average_holding_bars": 12.6154,
+          "target_violations": 1,
+          "selection_score": 3.482295
+        },
+        {
+          "config": {
+            "config_id": "crypto_guarded_24",
+            "market": "CRYPTO",
+            "execution_timeframe": "4h",
+            "breakout_lookback": 24,
+            "ema_fast": 18,
+            "ema_slow": 72,
+            "atr_period": 14,
+            "volume_lookback": 20,
+            "min_atr_pct": 0.013,
+            "max_atr_pct": 0.085,
+            "volume_ratio_min": 1.12,
+            "max_extension_pct": 0.075,
+            "stop_atr": 2.5,
+            "trail_atr": 3.2,
+            "max_hold_bars": 24,
+            "cooldown_bars": 5,
+            "risk_per_trade_pct": 0.0028,
+            "max_position_pct": 0.064,
+            "min_position_pct": 0.01,
+            "max_participation_rate": 0.009,
+            "min_dollar_volume": 20000000,
+            "tightness_score": 2
+          },
+          "metrics": {
+            "sample_size": 612,
+            "cumulative_return": 0.021401,
+            "annual_return": 0.078719,
+            "sharpe": 1.5987,
+            "sortino": 1.7709,
+            "max_drawdown": 0.021646,
+            "win_rate": 0.4853,
+            "volatility": 0.048122,
+            "profit_factor": 1.1091
+          },
+          "trade_count": 70,
+          "average_holding_bars": 14.0857,
+          "target_violations": 1,
+          "selection_score": 3.265481
+        },
+        {
+          "config": {
+            "config_id": "crypto_guarded_18",
+            "market": "CRYPTO",
+            "execution_timeframe": "4h",
+            "breakout_lookback": 18,
+            "ema_fast": 16,
+            "ema_slow": 64,
+            "atr_period": 14,
+            "volume_lookback": 18,
+            "min_atr_pct": 0.012,
+            "max_atr_pct": 0.1,
+            "volume_ratio_min": 1.08,
+            "max_extension_pct": 0.085,
+            "stop_atr": 2.3,
+            "trail_atr": 3,
+            "max_hold_bars": 30,
+            "cooldown_bars": 4,
+            "risk_per_trade_pct": 0.0031,
+            "max_position_pct": 0.07,
+            "min_position_pct": 0.01,
+            "max_participation_rate": 0.01,
+            "min_dollar_volume": 15000000,
+            "tightness_score": 1
+          },
+          "metrics": {
+            "sample_size": 676,
+            "cumulative_return": 0.023961,
+            "annual_return": 0.079728,
+            "sharpe": 1.3853,
+            "sortino": 1.5476,
+            "max_drawdown": 0.027664,
+            "win_rate": 0.4734,
+            "volatility": 0.056526,
+            "profit_factor": 1.0938
+          },
+          "trade_count": 81,
+          "average_holding_bars": 13.6543,
+          "target_violations": 1,
+          "selection_score": 2.474598
+        }
+      ],
+      "stability_summary": {
+        "configs_tested": 4,
+        "configs_meeting_targets": 0,
+        "median_sharpe": 1.6317,
+        "median_annual_return": 0.079224,
+        "median_max_drawdown": 0.019943,
+        "fragile": true
+      },
+      "split_validation": {
+        "train_start": 1735689600000,
+        "train_end": 1760155200000,
+        "test_start": 1760169600000,
+        "test_end": 1773950400000,
+        "selected_config_id": "crypto_guarded_24",
+        "train_metrics": {
+          "sample_size": 479,
+          "cumulative_return": 0.034802,
+          "annual_return": 0.169304,
+          "sharpe": 3.2215,
+          "sortino": 3.7453,
+          "max_drawdown": 0.021646,
+          "win_rate": 0.4864,
+          "volatility": 0.048924,
+          "profit_factor": 1.2367
+        },
+        "test_metrics": {
+          "sample_size": 133,
+          "cumulative_return": -0.01295,
+          "annual_return": -0.193162,
+          "sharpe": -4.7936,
+          "sortino": -4.4526,
+          "max_drawdown": 0.014561,
+          "win_rate": 0.4812,
+          "volatility": 0.044565,
+          "profit_factor": 0.7473
+        },
+        "target_violations_test": 2
+      },
+      "walk_forward": {
+        "windows": [
+          {
+            "window_id": "wf-1",
+            "train_start": 1735689600000,
+            "train_end": 1752624000000,
+            "test_start": 1752638400000,
+            "test_end": 1758643200000,
+            "selected_config_id": "crypto_guarded_36",
+            "train_metrics": {
+              "sample_size": 101,
+              "cumulative_return": 0.011032,
+              "annual_return": 0.268573,
+              "sharpe": 6.8897,
+              "sortino": 12.1823,
+              "max_drawdown": 0.006465,
+              "win_rate": 0.4455,
+              "volatility": 0.034617,
+              "profit_factor": 1.6414
+            },
+            "test_metrics": {
+              "sample_size": 113,
+              "cumulative_return": 0.000447,
+              "annual_return": 0.008702,
+              "sharpe": 0.4008,
+              "sortino": 0.3808,
+              "max_drawdown": 0.00446,
+              "win_rate": 0.531,
+              "volatility": 0.022236,
+              "profit_factor": 1.0242
+            }
+          },
+          {
+            "window_id": "wf-2",
+            "train_start": 1741708800000,
+            "train_end": 1758643200000,
+            "test_start": 1758657600000,
+            "test_end": 1764662400000,
+            "selected_config_id": "crypto_guarded_36",
+            "train_metrics": {
+              "sample_size": 194,
+              "cumulative_return": 0.013379,
+              "annual_return": 0.16187,
+              "sharpe": 5.0197,
+              "sortino": 6.765,
+              "max_drawdown": 0.006465,
+              "win_rate": 0.5052,
+              "volatility": 0.029979,
+              "profit_factor": 1.3959
+            },
+            "test_metrics": {
+              "sample_size": 34,
+              "cumulative_return": 0.003724,
+              "annual_return": 0.270501,
+              "sharpe": 12.8193,
+              "sortino": 18.1525,
+              "max_drawdown": 0.000869,
+              "win_rate": 0.5294,
+              "volatility": 0.018691,
+              "profit_factor": 2.0617
+            }
+          },
+          {
+            "window_id": "wf-3",
+            "train_start": 1747728000000,
+            "train_end": 1764662400000,
+            "test_start": 1764676800000,
+            "test_end": 1770681600000,
+            "selected_config_id": "crypto_guarded_18",
+            "train_metrics": {
+              "sample_size": 363,
+              "cumulative_return": 0.023323,
+              "annual_return": 0.149229,
+              "sharpe": 2.9318,
+              "sortino": 3.4337,
+              "max_drawdown": 0.010091,
+              "win_rate": 0.4711,
+              "volatility": 0.047834,
+              "profit_factor": 1.2046
+            },
+            "test_metrics": {
+              "sample_size": 66,
+              "cumulative_return": -0.003395,
+              "annual_return": -0.106699,
+              "sharpe": -1.8871,
+              "sortino": -1.8087,
+              "max_drawdown": 0.006453,
+              "win_rate": 0.5152,
+              "volatility": 0.058872,
+              "profit_factor": 0.8956
+            }
+          }
+        ],
+        "out_of_sample_summary": {
+          "sample_size": 213,
+          "cumulative_return": 0.000764,
+          "annual_return": 0.007882,
+          "sharpe": 0.2287,
+          "sortino": 0.22,
+          "max_drawdown": 0.007175,
+          "win_rate": 0.5258,
+          "volatility": 0.037389,
+          "profit_factor": 1.0152
+        }
+      },
+      "monte_carlo": {
+        "simulations": 120,
+        "median_annual_return": -0.551059,
+        "p10_annual_return": -0.591734,
+        "p50_sharpe": -25.8507,
+        "p10_sharpe": -30.3812,
+        "p90_max_drawdown": 0.118625,
+        "target_pass_rate": 0
+      },
+      "scenario_sensitivity": [
+        {
+          "scenario_id": "baseline",
+          "label": "Baseline assumptions",
+          "metrics": {
+            "sample_size": 308,
+            "cumulative_return": 0.011275,
+            "annual_return": 0.082983,
+            "sharpe": 2.8798,
+            "sortino": 3.575,
+            "max_drawdown": 0.006465,
+            "win_rate": 0.4805,
+            "volatility": 0.027817,
+            "profit_factor": 1.2049
+          }
+        },
+        {
+          "scenario_id": "slippage_plus_25",
+          "label": "+25% slippage",
+          "metrics": {
+            "sample_size": 308,
+            "cumulative_return": 0.010818,
+            "annual_return": 0.079512,
+            "sharpe": 2.7625,
+            "sortino": 3.4196,
+            "max_drawdown": 0.006648,
+            "win_rate": 0.4805,
+            "volatility": 0.027836,
+            "profit_factor": 1.1955
+          }
+        },
+        {
+          "scenario_id": "slippage_plus_50",
+          "label": "+50% slippage",
+          "metrics": {
+            "sample_size": 308,
+            "cumulative_return": 0.010363,
+            "annual_return": 0.076056,
+            "sharpe": 2.6453,
+            "sortino": 3.2651,
+            "max_drawdown": 0.007013,
+            "win_rate": 0.4805,
+            "volatility": 0.027857,
+            "profit_factor": 1.1862
+          }
+        },
+        {
+          "scenario_id": "wider_spread",
+          "label": "Wider spread",
+          "metrics": {
+            "sample_size": 308,
+            "cumulative_return": 0.011034,
+            "annual_return": 0.081153,
+            "sharpe": 2.818,
+            "sortino": 3.4931,
+            "max_drawdown": 0.006512,
+            "win_rate": 0.4805,
+            "volatility": 0.027826,
+            "profit_factor": 1.1999
+          }
+        },
+        {
+          "scenario_id": "adverse_funding",
+          "label": "More adverse funding",
+          "metrics": {
+            "sample_size": 308,
+            "cumulative_return": 0.010966,
+            "annual_return": 0.080631,
+            "sharpe": 2.7994,
+            "sortino": 3.4691,
+            "max_drawdown": 0.006516,
+            "win_rate": 0.4805,
+            "volatility": 0.02784,
+            "profit_factor": 1.1983
+          }
+        },
+        {
+          "scenario_id": "strict_fill",
+          "label": "Stricter fill policy",
+          "metrics": {
+            "sample_size": 308,
+            "cumulative_return": 0.011044,
+            "annual_return": 0.081227,
+            "sharpe": 2.8205,
+            "sortino": 3.4964,
+            "max_drawdown": 0.006509,
+            "win_rate": 0.4805,
+            "volatility": 0.027826,
+            "profit_factor": 1.2001
+          }
+        }
+      ],
+      "backtest": {
+        "market": "CRYPTO",
+        "timeframe": "4h",
+        "bars_per_year": 2190,
+        "config": {
+          "config_id": "crypto_guarded_36",
+          "market": "CRYPTO",
+          "execution_timeframe": "4h",
+          "breakout_lookback": 36,
+          "ema_fast": 24,
+          "ema_slow": 96,
+          "atr_period": 16,
+          "volume_lookback": 22,
+          "min_atr_pct": 0.015,
+          "max_atr_pct": 0.065,
+          "volume_ratio_min": 1.25,
+          "max_extension_pct": 0.06,
+          "stop_atr": 2.8,
+          "trail_atr": 3.6,
+          "max_hold_bars": 16,
+          "cooldown_bars": 7,
+          "risk_per_trade_pct": 0.0022,
+          "max_position_pct": 0.05,
+          "min_position_pct": 0.01,
+          "max_participation_rate": 0.007,
+          "min_dollar_volume": 40000000,
+          "tightness_score": 4
+        },
+        "metrics": {
+          "sample_size": 308,
+          "cumulative_return": 0.011275,
+          "annual_return": 0.082983,
+          "sharpe": 2.8798,
+          "sortino": 3.575,
+          "max_drawdown": 0.006465,
+          "win_rate": 0.4805,
+          "volatility": 0.027817,
+          "profit_factor": 1.2049
+        },
+        "trades": [
+          {
+            "trade_id": "CRYPTO-BTCUSDT-1737403200000-1",
+            "symbol": "BTCUSDT",
+            "market": "CRYPTO",
+            "signal_ts": 1737345600000,
+            "entry_ts": 1737360000000,
+            "exit_ts": 1737403200000,
+            "entry_price": 107419.480713,
+            "exit_price": 102330.157903,
+            "stop_price_initial": 100624.370713,
+            "stop_price_exit": 102577.236102,
+            "weight": 0.032182,
+            "holding_bars": 3,
+            "raw_return": -0.047378,
+            "net_return": -0.001564,
+            "exit_reason": "stop_or_trail",
+            "assumption_profile_id": "exec-realism.paper.v2",
+            "assumption_mode": "paper",
+            "volatility_bucket": "stress",
+            "liquidity_bucket": "deep",
+            "partial_fill_probability": 0.92535,
+            "fees_and_funding_drag": 0.000039
+          },
+          {
+            "trade_id": "CRYPTO-BNBUSDT-1742400000000-1",
+            "symbol": "BNBUSDT",
+            "market": "CRYPTO",
+            "signal_ts": 1742169600000,
+            "entry_ts": 1742184000000,
+            "exit_ts": 1742400000000,
+            "entry_price": 626.053661,
+            "exit_price": 608.806574,
+            "stop_price_initial": 596.949411,
+            "stop_price_exit": 611.844024,
+            "weight": 0.01,
+            "holding_bars": 15,
+            "raw_return": -0.027549,
+            "net_return": -0.000291,
+            "exit_reason": "stop_or_trail",
+            "assumption_profile_id": "exec-realism.paper.v2",
+            "assumption_mode": "paper",
+            "volatility_bucket": "normal",
+            "liquidity_bucket": "thin",
+            "partial_fill_probability": 0.88,
+            "fees_and_funding_drag": 0.000016
+          },
+          {
+            "trade_id": "CRYPTO-SOLUSDT-1745568000000-1",
+            "symbol": "SOLUSDT",
+            "market": "CRYPTO",
+            "signal_ts": 1745323200000,
+            "entry_ts": 1745337600000,
+            "exit_ts": 1745568000000,
+            "entry_price": 145.337792,
+            "exit_price": 154.666408,
+            "stop_price_initial": 136.174792,
+            "stop_price_exit": 145.925495,
+            "weight": 0.034721,
+            "holding_bars": 16,
+            "raw_return": 0.064186,
+            "net_return": 0.002174,
+            "exit_reason": "time_stop",
+            "assumption_profile_id": "exec-realism.paper.v2",
+            "assumption_mode": "paper",
+            "volatility_bucket": "normal",
+            "liquidity_bucket": "deep",
+            "partial_fill_probability": 0.995,
+            "fees_and_funding_drag": 0.000055
+          },
+          {
+            "trade_id": "CRYPTO-ETHUSDT-1746907200000-1",
+            "symbol": "ETHUSDT",
+            "market": "CRYPTO",
+            "signal_ts": 1746662400000,
+            "entry_ts": 1746676800000,
+            "exit_ts": 1746907200000,
+            "entry_price": 1901.979094,
+            "exit_price": 2491.30937,
+            "stop_price_initial": 1805.125344,
+            "stop_price_exit": 2160.3955,
+            "weight": 0.042987,
+            "holding_bars": 16,
+            "raw_return": 0.309851,
+            "net_return": 0.013249,
+            "exit_reason": "time_stop",
+            "assumption_profile_id": "exec-realism.paper.v2",
+            "assumption_mode": "paper",
+            "volatility_bucket": "stress",
+            "liquidity_bucket": "deep",
+            "partial_fill_probability": 0.995,
+            "fees_and_funding_drag": 0.00007
+          },
+          {
+            "trade_id": "CRYPTO-SOLUSDT-1746936000000-2",
+            "symbol": "SOLUSDT",
+            "market": "CRYPTO",
+            "signal_ts": 1746691200000,
+            "entry_ts": 1746705600000,
+            "exit_ts": 1746936000000,
+            "entry_price": 154.639444,
+            "exit_price": 175.284632,
+            "stop_price_initial": 146.692694,
+            "stop_price_exit": 162.901498,
+            "weight": 0.030877,
+            "holding_bars": 16,
+            "raw_return": 0.133505,
+            "net_return": 0.004072,
+            "exit_reason": "time_stop",
+            "assumption_profile_id": "exec-realism.paper.v2",
+            "assumption_mode": "paper",
+            "volatility_bucket": "stress",
+            "liquidity_bucket": "deep",
+            "partial_fill_probability": 0.995,
+            "fees_and_funding_drag": 0.00005
+          },
+          {
+            "trade_id": "CRYPTO-BTCUSDT-1748016000000-2",
+            "symbol": "BTCUSDT",
+            "market": "CRYPTO",
+            "signal_ts": 1747872000000,
+            "entry_ts": 1747886400000,
+            "exit_ts": 1748016000000,
+            "entry_price": 112006.859049,
+            "exit_price": 107706.757285,
+            "stop_price_initial": 106925.699049,
+            "stop_price_exit": 107966.81739,
+            "weight": 0.044876,
+            "holding_bars": 9,
+            "raw_return": -0.038391,
+            "net_return": -0.001783,
+            "exit_reason": "stop_or_trail",
+            "assumption_profile_id": "exec-realism.paper.v2",
+            "assumption_mode": "paper",
+            "volatility_bucket": "stress",
+            "liquidity_bucket": "deep",
+            "partial_fill_probability": 0.92535,
+            "fees_and_funding_drag": 0.00006
+          },
+          {
+            "trade_id": "CRYPTO-ETHUSDT-1748563200000-2",
+            "symbol": "ETHUSDT",
+            "market": "CRYPTO",
+            "signal_ts": 1748476800000,
+            "entry_ts": 1748491200000,
+            "exit_ts": 1748563200000,
+            "entry_price": 2764.175057,
+            "exit_price": 2615.406402,
+            "stop_price_initial": 2603.719307,
+            "stop_price_exit": 2617.665447,
+            "weight": 0.03771,
+            "holding_bars": 5,
+            "raw_return": -0.05382,
+            "net_return": -0.002076,
+            "exit_reason": "stop_or_trail",
+            "assumption_profile_id": "exec-realism.paper.v2",
+            "assumption_mode": "paper",
+            "volatility_bucket": "normal",
+            "liquidity_bucket": "deep",
+            "partial_fill_probability": 0.995,
+            "fees_and_funding_drag": 0.000046
+          },
+          {
+            "trade_id": "CRYPTO-ETHUSDT-1751644800000-3",
+            "symbol": "ETHUSDT",
+            "market": "CRYPTO",
+            "signal_ts": 1751472000000,
+            "entry_ts": 1751486400000,
+            "exit_ts": 1751644800000,
+            "entry_price": 2605.588877,
+            "exit_price": 2497.523026,
+            "stop_price_initial": 2474.475377,
+            "stop_price_exit": 2507.12894,
+            "weight": 0.043633,
+            "holding_bars": 11,
+            "raw_return": -0.041475,
+            "net_return": -0.001871,
+            "exit_reason": "stop_or_trail",
+            "assumption_profile_id": "exec-realism.paper.v2",
+            "assumption_mode": "paper",
+            "volatility_bucket": "normal",
+            "liquidity_bucket": "deep",
+            "partial_fill_probability": 0.998,
+            "fees_and_funding_drag": 0.000061
+          },
+          {
+            "trade_id": "CRYPTO-SOLUSDT-1752321600000-3",
+            "symbol": "SOLUSDT",
+            "market": "CRYPTO",
+            "signal_ts": 1752076800000,
+            "entry_ts": 1752091200000,
+            "exit_ts": 1752321600000,
+            "entry_price": 157.290565,
+            "exit_price": 161.286717,
+            "stop_price_initial": 150.425315,
+            "stop_price_exit": 157.981406,
+            "weight": 0.032125,
+            "holding_bars": 16,
+            "raw_return": 0.025406,
+            "net_return": 0.000764,
+            "exit_reason": "time_stop",
+            "assumption_profile_id": "exec-realism.paper.v2",
+            "assumption_mode": "paper",
+            "volatility_bucket": "high",
+            "liquidity_bucket": "deep",
+            "partial_fill_probability": 0.998,
+            "fees_and_funding_drag": 0.000052
+          },
+          {
+            "trade_id": "CRYPTO-BNBUSDT-1753041600000-2",
+            "symbol": "BNBUSDT",
+            "market": "CRYPTO",
+            "signal_ts": 1752796800000,
+            "entry_ts": 1752811200000,
+            "exit_ts": 1753041600000,
+            "entry_price": 739.319177,
+            "exit_price": 750.670834,
+            "stop_price_initial": 707.194427,
+            "stop_price_exit": 727.058724,
+            "weight": 0.01,
+            "holding_bars": 16,
+            "raw_return": 0.015354,
+            "net_return": 0.000137,
+            "exit_reason": "time_stop",
+            "assumption_profile_id": "exec-realism.paper.v2",
+            "assumption_mode": "paper",
+            "volatility_bucket": "stress",
+            "liquidity_bucket": "thin",
+            "partial_fill_probability": 0.8184,
+            "fees_and_funding_drag": 0.000016
+          },
+          {
+            "trade_id": "CRYPTO-SOLUSDT-1753286400000-4",
+            "symbol": "SOLUSDT",
+            "market": "CRYPTO",
+            "signal_ts": 1753056000000,
+            "entry_ts": 1753070400000,
+            "exit_ts": 1753286400000,
+            "entry_price": 186.854327,
+            "exit_price": 189.538294,
+            "stop_price_initial": 176.267877,
+            "stop_price_exit": 189.995938,
+            "weight": 0.038637,
+            "holding_bars": 15,
+            "raw_return": 0.014364,
+            "net_return": 0.000495,
+            "exit_reason": "stop_or_trail",
+            "assumption_profile_id": "exec-realism.paper.v2",
+            "assumption_mode": "paper",
+            "volatility_bucket": "stress",
+            "liquidity_bucket": "deep",
+            "partial_fill_probability": 0.995,
+            "fees_and_funding_drag": 0.00006
+          },
+          {
+            "trade_id": "CRYPTO-BNBUSDT-1753300800000-3",
+            "symbol": "BNBUSDT",
+            "market": "CRYPTO",
+            "signal_ts": 1753228800000,
+            "entry_ts": 1753243200000,
+            "exit_ts": 1753300800000,
+            "entry_price": 800.496119,
+            "exit_price": 759.07346,
+            "stop_price_initial": 756.987619,
+            "stop_price_exit": 761.096882,
+            "weight": 0.01,
+            "holding_bars": 4,
+            "raw_return": -0.051746,
+            "net_return": -0.00053,
+            "exit_reason": "stop_or_trail",
+            "assumption_profile_id": "exec-realism.paper.v2",
+            "assumption_mode": "paper",
+            "volatility_bucket": "stress",
+            "liquidity_bucket": "normal",
+            "partial_fill_probability": 0.8184,
+            "fees_and_funding_drag": 0.000012
+          },
+          {
+            "trade_id": "CRYPTO-ETHUSDT-1754798400000-4",
+            "symbol": "ETHUSDT",
+            "market": "CRYPTO",
+            "signal_ts": 1754553600000,
+            "entry_ts": 1754568000000,
+            "exit_ts": 1754798400000,
+            "entry_price": 3828.627243,
+            "exit_price": 4236.871038,
+            "stop_price_initial": 3616.075743,
+            "stop_price_exit": 3950.000343,
+            "weight": 0.03943,
+            "holding_bars": 16,
+            "raw_return": 0.106629,
+            "net_return": 0.00414,
+            "exit_reason": "time_stop",
+            "assumption_profile_id": "exec-realism.paper.v2",
+            "assumption_mode": "paper",
+            "volatility_bucket": "normal",
+            "liquidity_bucket": "deep",
+            "partial_fill_probability": 0.995,
+            "fees_and_funding_drag": 0.000064
+          },
+          {
+            "trade_id": "CRYPTO-SOLUSDT-1754928000000-5",
+            "symbol": "SOLUSDT",
+            "market": "CRYPTO",
+            "signal_ts": 1754784000000,
+            "entry_ts": 1754798400000,
+            "exit_ts": 1754928000000,
+            "entry_price": 185.082728,
+            "exit_price": 177.032398,
+            "stop_price_initial": 174.346478,
+            "stop_price_exit": 177.276047,
+            "weight": 0.035849,
+            "holding_bars": 9,
+            "raw_return": -0.043496,
+            "net_return": -0.001607,
+            "exit_reason": "stop_or_trail",
+            "assumption_profile_id": "exec-realism.paper.v2",
+            "assumption_mode": "paper",
+            "volatility_bucket": "high",
+            "liquidity_bucket": "deep",
+            "partial_fill_probability": 0.94525,
+            "fees_and_funding_drag": 0.000048
+          },
+          {
+            "trade_id": "CRYPTO-BNBUSDT-1755187200000-4",
+            "symbol": "BNBUSDT",
+            "market": "CRYPTO",
+            "signal_ts": 1755014400000,
+            "entry_ts": 1755028800000,
+            "exit_ts": 1755187200000,
+            "entry_price": 833.241354,
+            "exit_price": 825.124675,
+            "stop_price_initial": 794.611854,
+            "stop_price_exit": 826.380774,
+            "weight": 0.01,
+            "holding_bars": 11,
+            "raw_return": -0.009741,
+            "net_return": -0.000111,
+            "exit_reason": "stop_or_trail",
+            "assumption_profile_id": "exec-realism.paper.v2",
+            "assumption_mode": "paper",
+            "volatility_bucket": "high",
+            "liquidity_bucket": "normal",
+            "partial_fill_probability": 0.8976,
+            "fees_and_funding_drag": 0.000014
+          },
+          {
+            "trade_id": "CRYPTO-BNBUSDT-1755806400000-5",
+            "symbol": "BNBUSDT",
+            "market": "CRYPTO",
+            "signal_ts": 1755705600000,
+            "entry_ts": 1755720000000,
+            "exit_ts": 1755806400000,
+            "entry_price": 871.18871,
+            "exit_price": 835.17569,
+            "stop_price_initial": 830.63946,
+            "stop_price_exit": 841.0382,
+            "weight": 0.01,
+            "holding_bars": 6,
+            "raw_return": -0.041338,
+            "net_return": -0.000426,
+            "exit_reason": "stop_or_trail",
+            "assumption_profile_id": "exec-realism.paper.v2",
+            "assumption_mode": "paper",
+            "volatility_bucket": "high",
+            "liquidity_bucket": "thin",
+            "partial_fill_probability": 0.8976,
+            "fees_and_funding_drag": 0.000012
+          },
+          {
+            "trade_id": "CRYPTO-SOLUSDT-1757635200000-6",
+            "symbol": "SOLUSDT",
+            "market": "CRYPTO",
+            "signal_ts": 1757390400000,
+            "entry_ts": 1757404800000,
+            "exit_ts": 1757635200000,
+            "entry_price": 219.287198,
+            "exit_price": 228.41271,
+            "stop_price_initial": 209.523948,
+            "stop_price_exit": 217.938691,
+            "weight": 0.046908,
+            "holding_bars": 16,
+            "raw_return": 0.041614,
+            "net_return": 0.001878,
+            "exit_reason": "time_stop",
+            "assumption_profile_id": "exec-realism.paper.v2",
+            "assumption_mode": "paper",
+            "volatility_bucket": "normal",
+            "liquidity_bucket": "deep",
+            "partial_fill_probability": 0.995,
+            "fees_and_funding_drag": 0.000074
+          },
+          {
+            "trade_id": "CRYPTO-ETHUSDT-1757937600000-5",
+            "symbol": "ETHUSDT",
+            "market": "CRYPTO",
+            "signal_ts": 1757692800000,
+            "entry_ts": 1757707200000,
+            "exit_ts": 1757937600000,
+            "entry_price": 4659.485109,
+            "exit_price": 4524.34212,
+            "stop_price_initial": 4461.864609,
+            "stop_price_exit": 4556.927992,
+            "weight": 0.0499,
+            "holding_bars": 16,
+            "raw_return": -0.029004,
+            "net_return": -0.001526,
+            "exit_reason": "stop_or_trail",
+            "assumption_profile_id": "exec-realism.paper.v2",
+            "assumption_mode": "paper",
+            "volatility_bucket": "normal",
+            "liquidity_bucket": "deep",
+            "partial_fill_probability": 0.998,
+            "fees_and_funding_drag": 0.000079
+          },
+          {
+            "trade_id": "CRYPTO-SOLUSDT-1757937600000-7",
+            "symbol": "SOLUSDT",
+            "market": "CRYPTO",
+            "signal_ts": 1757808000000,
+            "entry_ts": 1757822400000,
+            "exit_ts": 1757937600000,
+            "entry_price": 247.030541,
+            "exit_price": 235.609823,
+            "stop_price_initial": 234.210041,
+            "stop_price_exit": 235.944723,
+            "weight": 0.04007,
+            "holding_bars": 8,
+            "raw_return": -0.046232,
+            "net_return": -0.001904,
+            "exit_reason": "stop_or_trail",
+            "assumption_profile_id": "exec-realism.paper.v2",
+            "assumption_mode": "paper",
+            "volatility_bucket": "high",
+            "liquidity_bucket": "deep",
+            "partial_fill_probability": 0.94525,
+            "fees_and_funding_drag": 0.000052
+          },
+          {
+            "trade_id": "CRYPTO-ETHUSDT-1759651200000-6",
+            "symbol": "ETHUSDT",
+            "market": "CRYPTO",
+            "signal_ts": 1759406400000,
+            "entry_ts": 1759420800000,
+            "exit_ts": 1759651200000,
+            "entry_price": 4438.928642,
+            "exit_price": 4600.274882,
+            "stop_price_initial": 4240.247641,
+            "stop_price_exit": 4409.332203,
+            "weight": 0.048907,
+            "holding_bars": 16,
+            "raw_return": 0.036348,
+            "net_return": 0.001698,
+            "exit_reason": "time_stop",
+            "assumption_profile_id": "exec-realism.paper.v2",
+            "assumption_mode": "paper",
+            "volatility_bucket": "normal",
+            "liquidity_bucket": "deep",
+            "partial_fill_probability": 0.995,
+            "fees_and_funding_drag": 0.00008
+          },
+          {
+            "trade_id": "CRYPTO-BNBUSDT-1759968000000-6",
+            "symbol": "BNBUSDT",
+            "market": "CRYPTO",
+            "signal_ts": 1759723200000,
+            "entry_ts": 1759737600000,
+            "exit_ts": 1759968000000,
+            "entry_price": 1200.641682,
+            "exit_price": 1303.591718,
+            "stop_price_initial": 1124.814182,
+            "stop_price_exit": 1232.401788,
+            "weight": 0.02427,
+            "holding_bars": 16,
+            "raw_return": 0.085746,
+            "net_return": 0.002043,
+            "exit_reason": "time_stop",
+            "assumption_profile_id": "exec-realism.paper.v2",
+            "assumption_mode": "paper",
+            "volatility_bucket": "stress",
+            "liquidity_bucket": "deep",
+            "partial_fill_probability": 0.995,
+            "fees_and_funding_drag": 0.000039
+          },
+          {
+            "trade_id": "CRYPTO-ETHUSDT-1765425600000-7",
+            "symbol": "ETHUSDT",
+            "market": "CRYPTO",
+            "signal_ts": 1765281600000,
+            "entry_ts": 1765296000000,
+            "exit_ts": 1765425600000,
+            "entry_price": 3249.146184,
+            "exit_price": 3181.678009,
+            "stop_price_initial": 3042.700434,
+            "stop_price_exit": 3189.606094,
+            "weight": 0.034452,
+            "holding_bars": 9,
+            "raw_return": -0.020765,
+            "net_return": -0.000761,
+            "exit_reason": "stop_or_trail",
+            "assumption_profile_id": "exec-realism.paper.v2",
+            "assumption_mode": "paper",
+            "volatility_bucket": "stress",
+            "liquidity_bucket": "deep",
+            "partial_fill_probability": 0.995,
+            "fees_and_funding_drag": 0.000046
+          },
+          {
+            "trade_id": "CRYPTO-SOLUSDT-1767801600000-8",
+            "symbol": "SOLUSDT",
+            "market": "CRYPTO",
+            "signal_ts": 1767571200000,
+            "entry_ts": 1767585600000,
+            "exit_ts": 1767801600000,
+            "entry_price": 136.685576,
+            "exit_price": 134.915728,
+            "stop_price_initial": 130.634076,
+            "stop_price_exit": 135.241485,
+            "weight": 0.02462,
+            "holding_bars": 15,
+            "raw_return": -0.012948,
+            "net_return": -0.000357,
+            "exit_reason": "stop_or_trail",
+            "assumption_profile_id": "exec-realism.paper.v2",
+            "assumption_mode": "paper",
+            "volatility_bucket": "stress",
+            "liquidity_bucket": "deep",
+            "partial_fill_probability": 0.995,
+            "fees_and_funding_drag": 0.000038
+          },
+          {
+            "trade_id": "CRYPTO-ETHUSDT-1768579200000-8",
+            "symbol": "ETHUSDT",
+            "market": "CRYPTO",
+            "signal_ts": 1768334400000,
+            "entry_ts": 1768348800000,
+            "exit_ts": 1768579200000,
+            "entry_price": 3328.876012,
+            "exit_price": 3258.555278,
+            "stop_price_initial": 3182.530512,
+            "stop_price_exit": 3247.888932,
+            "weight": 0.0499,
+            "holding_bars": 16,
+            "raw_return": -0.021124,
+            "net_return": -0.001133,
+            "exit_reason": "time_stop",
+            "assumption_profile_id": "exec-realism.paper.v2",
+            "assumption_mode": "paper",
+            "volatility_bucket": "high",
+            "liquidity_bucket": "deep",
+            "partial_fill_probability": 0.998,
+            "fees_and_funding_drag": 0.000079
+          },
+          {
+            "trade_id": "CRYPTO-SOLUSDT-1768492800000-9",
+            "symbol": "SOLUSDT",
+            "market": "CRYPTO",
+            "signal_ts": 1768334400000,
+            "entry_ts": 1768348800000,
+            "exit_ts": 1768492800000,
+            "entry_price": 145.653595,
+            "exit_price": 141.72095,
+            "stop_price_initial": 136.961345,
+            "stop_price_exit": 141.915999,
+            "weight": 0.036791,
+            "holding_bars": 10,
+            "raw_return": -0.027,
+            "net_return": -0.001044,
+            "exit_reason": "stop_or_trail",
+            "assumption_profile_id": "exec-realism.paper.v2",
+            "assumption_mode": "paper",
+            "volatility_bucket": "high",
+            "liquidity_bucket": "deep",
+            "partial_fill_probability": 0.998,
+            "fees_and_funding_drag": 0.00005
+          },
+          {
+            "trade_id": "CRYPTO-ETHUSDT-1773604800000-9",
+            "symbol": "ETHUSDT",
+            "market": "CRYPTO",
+            "signal_ts": 1773360000000,
+            "entry_ts": 1773374400000,
+            "exit_ts": 1773604800000,
+            "entry_price": 2119.417044,
+            "exit_price": 2111.145347,
+            "stop_price_initial": 1993.508044,
+            "stop_price_exit": 2070.882558,
+            "weight": 0.036847,
+            "holding_bars": 16,
+            "raw_return": -0.003903,
+            "net_return": -0.000204,
+            "exit_reason": "time_stop",
+            "assumption_profile_id": "exec-realism.paper.v2",
+            "assumption_mode": "paper",
+            "volatility_bucket": "low",
+            "liquidity_bucket": "deep",
+            "partial_fill_probability": 0.995,
+            "fees_and_funding_drag": 0.00006
+          },
+          {
+            "trade_id": "CRYPTO-SOLUSDT-1773604800000-10",
+            "symbol": "SOLUSDT",
+            "market": "CRYPTO",
+            "signal_ts": 1773360000000,
+            "entry_ts": 1773374400000,
+            "exit_ts": 1773604800000,
+            "entry_price": 89.729307,
+            "exit_price": 88.076135,
+            "stop_price_initial": 83.730307,
+            "stop_price_exit": 86.928692,
+            "weight": 0.028736,
+            "holding_bars": 16,
+            "raw_return": -0.018424,
+            "net_return": -0.000576,
+            "exit_reason": "time_stop",
+            "assumption_profile_id": "exec-realism.paper.v2",
+            "assumption_mode": "paper",
+            "volatility_bucket": "low",
+            "liquidity_bucket": "normal",
+            "partial_fill_probability": 0.995,
+            "fees_and_funding_drag": 0.000047
+          }
+        ],
+        "bar_returns": [
+          {
+            "ts_open": 1737360000000,
+            "date": "2025-01-20",
+            "return_pct": 0.00025406,
+            "gross_exposure": 0.032182
+          },
+          {
+            "ts_open": 1737374400000,
+            "date": "2025-01-20",
+            "return_pct": -0.00096866,
+            "gross_exposure": 0.032182
+          },
+          {
+            "ts_open": 1737388800000,
+            "date": "2025-01-20",
+            "return_pct": -0.00040898,
+            "gross_exposure": 0.032182
+          },
+          {
+            "ts_open": 1737403200000,
+            "date": "2025-01-20",
+            "return_pct": -0.00045647,
+            "gross_exposure": 0
+          },
+          {
+            "ts_open": 1742184000000,
+            "date": "2025-03-17",
+            "return_pct": 0.00005617,
+            "gross_exposure": 0.01
+          },
+          {
+            "ts_open": 1742198400000,
+            "date": "2025-03-17",
+            "return_pct": 0.00002176,
+            "gross_exposure": 0.01
+          },
+          {
+            "ts_open": 1742212800000,
+            "date": "2025-03-17",
+            "return_pct": -0.0000149,
+            "gross_exposure": 0.01
+          },
+          {
+            "ts_open": 1742227200000,
+            "date": "2025-03-17",
+            "return_pct": -0.00003476,
+            "gross_exposure": 0.01
+          },
+          {
+            "ts_open": 1742241600000,
+            "date": "2025-03-17",
+            "return_pct": 0.00005702,
+            "gross_exposure": 0.01
+          },
+          {
+            "ts_open": 1742256000000,
+            "date": "2025-03-18",
+            "return_pct": -0.00005163,
+            "gross_exposure": 0.01
+          },
+          {
+            "ts_open": 1742270400000,
+            "date": "2025-03-18",
+            "return_pct": 0.00008008,
+            "gross_exposure": 0.01
+          },
+          {
+            "ts_open": 1742284800000,
+            "date": "2025-03-18",
+            "return_pct": -0.00003522,
+            "gross_exposure": 0.01
+          },
+          {
+            "ts_open": 1742299200000,
+            "date": "2025-03-18",
+            "return_pct": -0.00006102,
+            "gross_exposure": 0.01
+          },
+          {
+            "ts_open": 1742313600000,
+            "date": "2025-03-18",
+            "return_pct": 0.00007591,
+            "gross_exposure": 0.01
+          },
+          {
+            "ts_open": 1742328000000,
+            "date": "2025-03-18",
+            "return_pct": -0.00006995,
+            "gross_exposure": 0.01
+          },
+          {
+            "ts_open": 1742342400000,
+            "date": "2025-03-19",
+            "return_pct": -0.00014599,
+            "gross_exposure": 0.01
+          },
+          {
+            "ts_open": 1742356800000,
+            "date": "2025-03-19",
+            "return_pct": -0.00004885,
+            "gross_exposure": 0.01
+          },
+          {
+            "ts_open": 1742371200000,
+            "date": "2025-03-19",
+            "return_pct": 0.00002666,
+            "gross_exposure": 0.01
+          },
+          {
+            "ts_open": 1742385600000,
+            "date": "2025-03-19",
+            "return_pct": -0.00011963,
+            "gross_exposure": 0.01
+          },
+          {
+            "ts_open": 1742400000000,
+            "date": "2025-03-19",
+            "return_pct": -0.00002688,
+            "gross_exposure": 0
+          },
+          {
+            "ts_open": 1745337600000,
+            "date": "2025-04-22",
+            "return_pct": -0.00027898,
+            "gross_exposure": 0.034721
+          },
+          {
+            "ts_open": 1745352000000,
+            "date": "2025-04-22",
+            "return_pct": 0.00109339,
+            "gross_exposure": 0.034721
+          },
+          {
+            "ts_open": 1745366400000,
+            "date": "2025-04-23",
+            "return_pct": 0.00010273,
+            "gross_exposure": 0.034721
+          },
+          {
+            "ts_open": 1745380800000,
+            "date": "2025-04-23",
+            "return_pct": 0.00054939,
+            "gross_exposure": 0.034721
+          },
+          {
+            "ts_open": 1745395200000,
+            "date": "2025-04-23",
+            "return_pct": 0.00011458,
+            "gross_exposure": 0.034721
+          },
+          {
+            "ts_open": 1745409600000,
+            "date": "2025-04-23",
+            "return_pct": -0.00015075,
+            "gross_exposure": 0.034721
+          },
+          {
+            "ts_open": 1745424000000,
+            "date": "2025-04-23",
+            "return_pct": -0.00028676,
+            "gross_exposure": 0.034721
+          },
+          {
+            "ts_open": 1745438400000,
+            "date": "2025-04-23",
+            "return_pct": 0.00021975,
+            "gross_exposure": 0.034721
+          },
+          {
+            "ts_open": 1745452800000,
+            "date": "2025-04-24",
+            "return_pct": -0.00076315,
+            "gross_exposure": 0.034721
+          },
+          {
+            "ts_open": 1745467200000,
+            "date": "2025-04-24",
+            "return_pct": -0.00014572,
+            "gross_exposure": 0.034721
+          },
+          {
+            "ts_open": 1745481600000,
+            "date": "2025-04-24",
+            "return_pct": 0.00012037,
+            "gross_exposure": 0.034721
+          },
+          {
+            "ts_open": 1745496000000,
+            "date": "2025-04-24",
+            "return_pct": 0.00039044,
+            "gross_exposure": 0.034721
+          },
+          {
+            "ts_open": 1745510400000,
+            "date": "2025-04-24",
+            "return_pct": 0.00051868,
+            "gross_exposure": 0.034721
+          },
+          {
+            "ts_open": 1745524800000,
+            "date": "2025-04-24",
+            "return_pct": 0.00022229,
+            "gross_exposure": 0.034721
+          },
+          {
+            "ts_open": 1745539200000,
+            "date": "2025-04-25",
+            "return_pct": -0.00018217,
+            "gross_exposure": 0.034721
+          },
+          {
+            "ts_open": 1745553600000,
+            "date": "2025-04-25",
+            "return_pct": 0.0007142,
+            "gross_exposure": 0.034721
+          },
+          {
+            "ts_open": 1745568000000,
+            "date": "2025-04-25",
+            "return_pct": -0.00008505,
+            "gross_exposure": 0
+          },
+          {
+            "ts_open": 1746676800000,
+            "date": "2025-05-08",
+            "return_pct": 0.00058358,
+            "gross_exposure": 0.042987
+          },
+          {
+            "ts_open": 1746691200000,
+            "date": "2025-05-08",
+            "return_pct": 0.00064331,
+            "gross_exposure": 0.042987
+          },
+          {
+            "ts_open": 1746705600000,
+            "date": "2025-05-08",
+            "return_pct": 0.00316946,
+            "gross_exposure": 0.073864
+          },
+          {
+            "ts_open": 1746720000000,
+            "date": "2025-05-08",
+            "return_pct": 0.00146687,
+            "gross_exposure": 0.073864
+          },
+          {
+            "ts_open": 1746734400000,
+            "date": "2025-05-08",
+            "return_pct": 0.00255981,
+            "gross_exposure": 0.073864
+          },
+          {
+            "ts_open": 1746748800000,
+            "date": "2025-05-09",
+            "return_pct": -0.00061697,
+            "gross_exposure": 0.073864
+          },
+          {
+            "ts_open": 1746763200000,
+            "date": "2025-05-09",
+            "return_pct": 0.00381143,
+            "gross_exposure": 0.073864
+          },
+          {
+            "ts_open": 1746777600000,
+            "date": "2025-05-09",
+            "return_pct": 0.00111541,
+            "gross_exposure": 0.073864
+          },
+          {
+            "ts_open": 1746792000000,
+            "date": "2025-05-09",
+            "return_pct": -0.00119061,
+            "gross_exposure": 0.073864
+          },
+          {
+            "ts_open": 1746806400000,
+            "date": "2025-05-09",
+            "return_pct": 0.00076934,
+            "gross_exposure": 0.073864
+          },
+          {
+            "ts_open": 1746820800000,
+            "date": "2025-05-09",
+            "return_pct": 0.00040551,
+            "gross_exposure": 0.073864
+          },
+          {
+            "ts_open": 1746835200000,
+            "date": "2025-05-10",
+            "return_pct": -0.00031159,
+            "gross_exposure": 0.073864
+          },
+          {
+            "ts_open": 1746849600000,
+            "date": "2025-05-10",
+            "return_pct": 0.00123359,
+            "gross_exposure": 0.073864
+          },
+          {
+            "ts_open": 1746864000000,
+            "date": "2025-05-10",
+            "return_pct": -0.00087501,
+            "gross_exposure": 0.073864
+          },
+          {
+            "ts_open": 1746878400000,
+            "date": "2025-05-10",
+            "return_pct": 0.00126267,
+            "gross_exposure": 0.073864
+          },
+          {
+            "ts_open": 1746892800000,
+            "date": "2025-05-10",
+            "return_pct": 0.0013699,
+            "gross_exposure": 0.073864
+          },
+          {
+            "ts_open": 1746907200000,
+            "date": "2025-05-10",
+            "return_pct": 0.00083278,
+            "gross_exposure": 0.030877
+          },
+          {
+            "ts_open": 1746921600000,
+            "date": "2025-05-11",
+            "return_pct": -0.00036109,
+            "gross_exposure": 0.030877
+          },
+          {
+            "ts_open": 1746936000000,
+            "date": "2025-05-11",
+            "return_pct": -0.00013746,
+            "gross_exposure": 0
+          },
+          {
+            "ts_open": 1747886400000,
+            "date": "2025-05-22",
+            "return_pct": -0.00040108,
+            "gross_exposure": 0.044876
+          },
+          {
+            "ts_open": 1747900800000,
+            "date": "2025-05-22",
+            "return_pct": -0.00002494,
+            "gross_exposure": 0.044876
+          },
+          {
+            "ts_open": 1747915200000,
+            "date": "2025-05-22",
+            "return_pct": 0.00012398,
+            "gross_exposure": 0.044876
+          },
+          {
+            "ts_open": 1747929600000,
+            "date": "2025-05-22",
+            "return_pct": -0.00004619,
+            "gross_exposure": 0.044876
+          },
+          {
+            "ts_open": 1747944000000,
+            "date": "2025-05-22",
+            "return_pct": 0.00021264,
+            "gross_exposure": 0.044876
+          },
+          {
+            "ts_open": 1747958400000,
+            "date": "2025-05-23",
+            "return_pct": -0.00024865,
+            "gross_exposure": 0.044876
+          },
+          {
+            "ts_open": 1747972800000,
+            "date": "2025-05-23",
+            "return_pct": -0.000145,
+            "gross_exposure": 0.044876
+          },
+          {
+            "ts_open": 1747987200000,
+            "date": "2025-05-23",
+            "return_pct": -0.00066978,
+            "gross_exposure": 0.044876
+          },
+          {
+            "ts_open": 1748001600000,
+            "date": "2025-05-23",
+            "return_pct": -0.00005795,
+            "gross_exposure": 0.044876
+          },
+          {
+            "ts_open": 1748016000000,
+            "date": "2025-05-23",
+            "return_pct": -0.0005483,
+            "gross_exposure": 0
+          },
+          {
+            "ts_open": 1748491200000,
+            "date": "2025-05-29",
+            "return_pct": -0.00046623,
+            "gross_exposure": 0.03771
+          },
+          {
+            "ts_open": 1748505600000,
+            "date": "2025-05-29",
+            "return_pct": -0.00020941,
+            "gross_exposure": 0.03771
+          },
+          {
+            "ts_open": 1748520000000,
+            "date": "2025-05-29",
+            "return_pct": -0.00100538,
+            "gross_exposure": 0.03771
+          },
+          {
+            "ts_open": 1748534400000,
+            "date": "2025-05-29",
+            "return_pct": 0.00009833,
+            "gross_exposure": 0.03771
+          },
+          {
+            "ts_open": 1748548800000,
+            "date": "2025-05-29",
+            "return_pct": -0.00027115,
+            "gross_exposure": 0.03771
+          },
+          {
+            "ts_open": 1748563200000,
+            "date": "2025-05-30",
+            "return_pct": -0.00025953,
+            "gross_exposure": 0
+          },
+          {
+            "ts_open": 1751486400000,
+            "date": "2025-07-02",
+            "return_pct": -0.00060652,
+            "gross_exposure": 0.043633
+          },
+          {
+            "ts_open": 1751500800000,
+            "date": "2025-07-03",
+            "return_pct": -0.00015539,
+            "gross_exposure": 0.043633
+          },
+          {
+            "ts_open": 1751515200000,
+            "date": "2025-07-03",
+            "return_pct": 0.00066501,
+            "gross_exposure": 0.043633
+          },
+          {
+            "ts_open": 1751529600000,
+            "date": "2025-07-03",
+            "return_pct": -0.00005019,
+            "gross_exposure": 0.043633
+          },
+          {
+            "ts_open": 1751544000000,
+            "date": "2025-07-03",
+            "return_pct": -0.00045562,
+            "gross_exposure": 0.043633
+          },
+          {
+            "ts_open": 1751558400000,
+            "date": "2025-07-03",
+            "return_pct": 0.00026307,
+            "gross_exposure": 0.043633
+          },
+          {
+            "ts_open": 1751572800000,
+            "date": "2025-07-03",
+            "return_pct": 0.00009352,
+            "gross_exposure": 0.043633
+          },
+          {
+            "ts_open": 1751587200000,
+            "date": "2025-07-04",
+            "return_pct": -0.00022758,
+            "gross_exposure": 0.043633
+          },
+          {
+            "ts_open": 1751601600000,
+            "date": "2025-07-04",
+            "return_pct": -0.00072494,
+            "gross_exposure": 0.043633
+          },
+          {
+            "ts_open": 1751616000000,
+            "date": "2025-07-04",
+            "return_pct": 0.00024384,
+            "gross_exposure": 0.043633
+          },
+          {
+            "ts_open": 1751630400000,
+            "date": "2025-07-04",
+            "return_pct": -0.00082882,
+            "gross_exposure": 0.043633
+          },
+          {
+            "ts_open": 1751644800000,
+            "date": "2025-07-04",
+            "return_pct": -0.00009766,
+            "gross_exposure": 0
+          },
+          {
+            "ts_open": 1752091200000,
+            "date": "2025-07-09",
+            "return_pct": -0.00006139,
+            "gross_exposure": 0.032125
+          },
+          {
+            "ts_open": 1752105600000,
+            "date": "2025-07-10",
+            "return_pct": 0.00005934,
+            "gross_exposure": 0.032125
+          },
+          {
+            "ts_open": 1752120000000,
+            "date": "2025-07-10",
+            "return_pct": 0.0001103,
+            "gross_exposure": 0.032125
+          },
+          {
+            "ts_open": 1752134400000,
+            "date": "2025-07-10",
+            "return_pct": -0.00005496,
+            "gross_exposure": 0.032125
+          },
+          {
+            "ts_open": 1752148800000,
+            "date": "2025-07-10",
+            "return_pct": -0.00023857,
+            "gross_exposure": 0.032125
+          },
+          {
+            "ts_open": 1752163200000,
+            "date": "2025-07-10",
+            "return_pct": 0.00059164,
+            "gross_exposure": 0.032125
+          },
+          {
+            "ts_open": 1752177600000,
+            "date": "2025-07-10",
+            "return_pct": 0.00101462,
+            "gross_exposure": 0.032125
+          },
+          {
+            "ts_open": 1752192000000,
+            "date": "2025-07-11",
+            "return_pct": 0.00016034,
+            "gross_exposure": 0.032125
+          },
+          {
+            "ts_open": 1752206400000,
+            "date": "2025-07-11",
+            "return_pct": -0.00036968,
+            "gross_exposure": 0.032125
+          },
+          {
+            "ts_open": 1752220800000,
+            "date": "2025-07-11",
+            "return_pct": 0.0001181,
+            "gross_exposure": 0.032125
+          },
+          {
+            "ts_open": 1752235200000,
+            "date": "2025-07-11",
+            "return_pct": -0.00030397,
+            "gross_exposure": 0.032125
+          },
+          {
+            "ts_open": 1752249600000,
+            "date": "2025-07-11",
+            "return_pct": 0.00044745,
+            "gross_exposure": 0.032125
+          },
+          {
+            "ts_open": 1752264000000,
+            "date": "2025-07-11",
+            "return_pct": -0.00032219,
+            "gross_exposure": 0.032125
+          },
+          {
+            "ts_open": 1752278400000,
+            "date": "2025-07-12",
+            "return_pct": 0.00010651,
+            "gross_exposure": 0.032125
+          },
+          {
+            "ts_open": 1752292800000,
+            "date": "2025-07-12",
+            "return_pct": -0.00004915,
+            "gross_exposure": 0.032125
+          },
+          {
+            "ts_open": 1752307200000,
+            "date": "2025-07-12",
+            "return_pct": -0.00031503,
+            "gross_exposure": 0.032125
+          },
+          {
+            "ts_open": 1752321600000,
+            "date": "2025-07-12",
+            "return_pct": -0.00010682,
+            "gross_exposure": 0
+          },
+          {
+            "ts_open": 1752811200000,
+            "date": "2025-07-18",
+            "return_pct": 0.00001489,
+            "gross_exposure": 0.01
+          },
+          {
+            "ts_open": 1752825600000,
+            "date": "2025-07-18",
+            "return_pct": -0.00004281,
+            "gross_exposure": 0.01
+          },
+          {
+            "ts_open": 1752840000000,
+            "date": "2025-07-18",
+            "return_pct": 0.00000922,
+            "gross_exposure": 0.01
+          },
+          {
+            "ts_open": 1752854400000,
+            "date": "2025-07-18",
+            "return_pct": -0.00007833,
+            "gross_exposure": 0.01
+          },
+          {
+            "ts_open": 1752868800000,
+            "date": "2025-07-18",
+            "return_pct": -0.00002404,
+            "gross_exposure": 0.01
+          },
+          {
+            "ts_open": 1752883200000,
+            "date": "2025-07-19",
+            "return_pct": 0.00006654,
+            "gross_exposure": 0.01
+          },
+          {
+            "ts_open": 1752897600000,
+            "date": "2025-07-19",
+            "return_pct": -0.00003523,
+            "gross_exposure": 0.01
+          },
+          {
+            "ts_open": 1752912000000,
+            "date": "2025-07-19",
+            "return_pct": 0.00006156,
+            "gross_exposure": 0.01
+          },
+          {
+            "ts_open": 1752926400000,
+            "date": "2025-07-19",
+            "return_pct": -0.00008166,
+            "gross_exposure": 0.01
+          },
+          {
+            "ts_open": 1752940800000,
+            "date": "2025-07-19",
+            "return_pct": 0.00005019,
+            "gross_exposure": 0.01
+          },
+          {
+            "ts_open": 1752955200000,
+            "date": "2025-07-19",
+            "return_pct": -0.00001892,
+            "gross_exposure": 0.01
+          },
+          {
+            "ts_open": 1752969600000,
+            "date": "2025-07-20",
+            "return_pct": 0.00013594,
+            "gross_exposure": 0.01
+          },
+          {
+            "ts_open": 1752984000000,
+            "date": "2025-07-20",
+            "return_pct": 0.00002139,
+            "gross_exposure": 0.01
+          },
+          {
+            "ts_open": 1752998400000,
+            "date": "2025-07-20",
+            "return_pct": 0.00005651,
+            "gross_exposure": 0.01
+          },
+          {
+            "ts_open": 1753012800000,
+            "date": "2025-07-20",
+            "return_pct": 0.0000295,
+            "gross_exposure": 0.01
+          },
+          {
+            "ts_open": 1753027200000,
+            "date": "2025-07-20",
+            "return_pct": 0.00002755,
+            "gross_exposure": 0.01
+          },
+          {
+            "ts_open": 1753041600000,
+            "date": "2025-07-20",
+            "return_pct": -0.00005362,
+            "gross_exposure": 0
+          },
+          {
+            "ts_open": 1753070400000,
+            "date": "2025-07-21",
+            "return_pct": 0.00067113,
+            "gross_exposure": 0.038637
+          },
+          {
+            "ts_open": 1753084800000,
+            "date": "2025-07-21",
+            "return_pct": 0.0003008,
+            "gross_exposure": 0.038637
+          },
+          {
+            "ts_open": 1753099200000,
+            "date": "2025-07-21",
+            "return_pct": 0.00106888,
+            "gross_exposure": 0.038637
+          },
+          {
+            "ts_open": 1753113600000,
+            "date": "2025-07-21",
+            "return_pct": -0.00042978,
+            "gross_exposure": 0.038637
+          },
+          {
+            "ts_open": 1753128000000,
+            "date": "2025-07-21",
+            "return_pct": 0.00021036,
+            "gross_exposure": 0.038637
+          },
+          {
+            "ts_open": 1753142400000,
+            "date": "2025-07-22",
+            "return_pct": 0.00086057,
+            "gross_exposure": 0.038637
+          },
+          {
+            "ts_open": 1753156800000,
+            "date": "2025-07-22",
+            "return_pct": -0.00038809,
+            "gross_exposure": 0.038637
+          },
+          {
+            "ts_open": 1753171200000,
+            "date": "2025-07-22",
+            "return_pct": 0.00036082,
+            "gross_exposure": 0.038637
+          },
+          {
+            "ts_open": 1753185600000,
+            "date": "2025-07-22",
+            "return_pct": 0.00036908,
+            "gross_exposure": 0.038637
+          },
+          {
+            "ts_open": 1753200000000,
+            "date": "2025-07-22",
+            "return_pct": -0.00056082,
+            "gross_exposure": 0.038637
+          },
+          {
+            "ts_open": 1753214400000,
+            "date": "2025-07-22",
+            "return_pct": 0.00133044,
+            "gross_exposure": 0.038637
+          },
+          {
+            "ts_open": 1753228800000,
+            "date": "2025-07-23",
+            "return_pct": -0.00079985,
+            "gross_exposure": 0.038637
+          },
+          {
+            "ts_open": 1753243200000,
+            "date": "2025-07-23",
+            "return_pct": -0.00045745,
+            "gross_exposure": 0.048637
+          },
+          {
+            "ts_open": 1753257600000,
+            "date": "2025-07-23",
+            "return_pct": -0.00022107,
+            "gross_exposure": 0.048637
+          },
+          {
+            "ts_open": 1753272000000,
+            "date": "2025-07-23",
+            "return_pct": -0.0012218,
+            "gross_exposure": 0.048637
+          },
+          {
+            "ts_open": 1753286400000,
+            "date": "2025-07-23",
+            "return_pct": -0.00087473,
+            "gross_exposure": 0.01
+          },
+          {
+            "ts_open": 1753300800000,
+            "date": "2025-07-23",
+            "return_pct": -0.00016702,
+            "gross_exposure": 0
+          },
+          {
+            "ts_open": 1754568000000,
+            "date": "2025-08-07",
+            "return_pct": 0.00006718,
+            "gross_exposure": 0.03943
+          },
+          {
+            "ts_open": 1754582400000,
+            "date": "2025-08-07",
+            "return_pct": 0.00031183,
+            "gross_exposure": 0.03943
+          },
+          {
+            "ts_open": 1754596800000,
+            "date": "2025-08-07",
+            "return_pct": 0.00043781,
+            "gross_exposure": 0.03943
+          },
+          {
+            "ts_open": 1754611200000,
+            "date": "2025-08-08",
+            "return_pct": 0.00029912,
+            "gross_exposure": 0.03943
+          },
+          {
+            "ts_open": 1754625600000,
+            "date": "2025-08-08",
+            "return_pct": -0.00023199,
+            "gross_exposure": 0.03943
+          },
+          {
+            "ts_open": 1754640000000,
+            "date": "2025-08-08",
+            "return_pct": 0.0000142,
+            "gross_exposure": 0.03943
+          },
+          {
+            "ts_open": 1754654400000,
+            "date": "2025-08-08",
+            "return_pct": 0.0003696,
+            "gross_exposure": 0.03943
+          },
+          {
+            "ts_open": 1754668800000,
+            "date": "2025-08-08",
+            "return_pct": 0.00106719,
+            "gross_exposure": 0.03943
+          },
+          {
+            "ts_open": 1754683200000,
+            "date": "2025-08-08",
+            "return_pct": -0.00049472,
+            "gross_exposure": 0.03943
+          },
+          {
+            "ts_open": 1754697600000,
+            "date": "2025-08-09",
+            "return_pct": 0.00039616,
+            "gross_exposure": 0.03943
+          },
+          {
+            "ts_open": 1754712000000,
+            "date": "2025-08-09",
+            "return_pct": 0.00117209,
+            "gross_exposure": 0.03943
+          },
+          {
+            "ts_open": 1754726400000,
+            "date": "2025-08-09",
+            "return_pct": 0.00018619,
+            "gross_exposure": 0.03943
+          },
+          {
+            "ts_open": 1754740800000,
+            "date": "2025-08-09",
+            "return_pct": 0.00017054,
+            "gross_exposure": 0.03943
+          },
+          {
+            "ts_open": 1754755200000,
+            "date": "2025-08-09",
+            "return_pct": 0.00046041,
+            "gross_exposure": 0.03943
+          },
+          {
+            "ts_open": 1754769600000,
+            "date": "2025-08-09",
+            "return_pct": 0.00002279,
+            "gross_exposure": 0.03943
+          },
+          {
+            "ts_open": 1754784000000,
+            "date": "2025-08-10",
+            "return_pct": -0.00016627,
+            "gross_exposure": 0.03943
+          },
+          {
+            "ts_open": 1754798400000,
+            "date": "2025-08-10",
+            "return_pct": -0.00130939,
+            "gross_exposure": 0.035849
+          },
+          {
+            "ts_open": 1754812800000,
+            "date": "2025-08-10",
+            "return_pct": 0.00020845,
+            "gross_exposure": 0.035849
+          },
+          {
+            "ts_open": 1754827200000,
+            "date": "2025-08-10",
+            "return_pct": 0.00031086,
+            "gross_exposure": 0.035849
+          },
+          {
+            "ts_open": 1754841600000,
+            "date": "2025-08-10",
+            "return_pct": 0.0002509,
+            "gross_exposure": 0.035849
+          },
+          {
+            "ts_open": 1754856000000,
+            "date": "2025-08-10",
+            "return_pct": -0.00002747,
+            "gross_exposure": 0.035849
+          },
+          {
+            "ts_open": 1754870400000,
+            "date": "2025-08-11",
+            "return_pct": 0.00049084,
+            "gross_exposure": 0.035849
+          },
+          {
+            "ts_open": 1754884800000,
+            "date": "2025-08-11",
+            "return_pct": -0.00042029,
+            "gross_exposure": 0.035849
+          },
+          {
+            "ts_open": 1754899200000,
+            "date": "2025-08-11",
+            "return_pct": -0.00077021,
+            "gross_exposure": 0.035849
+          },
+          {
+            "ts_open": 1754913600000,
+            "date": "2025-08-11",
+            "return_pct": 0.00022432,
+            "gross_exposure": 0.035849
+          },
+          {
+            "ts_open": 1754928000000,
+            "date": "2025-08-11",
+            "return_pct": -0.00066024,
+            "gross_exposure": 0
+          },
+          {
+            "ts_open": 1755028800000,
+            "date": "2025-08-12",
+            "return_pct": -0.0000023,
+            "gross_exposure": 0.01
+          },
+          {
+            "ts_open": 1755043200000,
+            "date": "2025-08-13",
+            "return_pct": 0.00004418,
+            "gross_exposure": 0.01
+          },
+          {
+            "ts_open": 1755057600000,
+            "date": "2025-08-13",
+            "return_pct": 0.00012644,
+            "gross_exposure": 0.01
+          },
+          {
+            "ts_open": 1755072000000,
+            "date": "2025-08-13",
+            "return_pct": 0.00009607,
+            "gross_exposure": 0.01
+          },
+          {
+            "ts_open": 1755086400000,
+            "date": "2025-08-13",
+            "return_pct": -0.00015395,
+            "gross_exposure": 0.01
+          },
+          {
+            "ts_open": 1755100800000,
+            "date": "2025-08-13",
+            "return_pct": 0.00004025,
+            "gross_exposure": 0.01
+          },
+          {
+            "ts_open": 1755115200000,
+            "date": "2025-08-13",
+            "return_pct": 0.0000311,
+            "gross_exposure": 0.01
+          },
+          {
+            "ts_open": 1755129600000,
+            "date": "2025-08-14",
+            "return_pct": 0.00008653,
+            "gross_exposure": 0.01
+          },
+          {
+            "ts_open": 1755144000000,
+            "date": "2025-08-14",
+            "return_pct": 0.00003085,
+            "gross_exposure": 0.01
+          },
+          {
+            "ts_open": 1755158400000,
+            "date": "2025-08-14",
+            "return_pct": 0.00005115,
+            "gross_exposure": 0.01
+          },
+          {
+            "ts_open": 1755172800000,
+            "date": "2025-08-14",
+            "return_pct": -0.00017736,
+            "gross_exposure": 0.01
+          },
+          {
+            "ts_open": 1755187200000,
+            "date": "2025-08-14",
+            "return_pct": -0.00027656,
+            "gross_exposure": 0
+          },
+          {
+            "ts_open": 1755720000000,
+            "date": "2025-08-20",
+            "return_pct": -0.00001697,
+            "gross_exposure": 0.01
+          },
+          {
+            "ts_open": 1755734400000,
+            "date": "2025-08-21",
+            "return_pct": -0.0000338,
+            "gross_exposure": 0.01
+          },
+          {
+            "ts_open": 1755748800000,
+            "date": "2025-08-21",
+            "return_pct": -0.00004419,
+            "gross_exposure": 0.01
+          },
+          {
+            "ts_open": 1755763200000,
+            "date": "2025-08-21",
+            "return_pct": -0.00012967,
+            "gross_exposure": 0.01
+          },
+          {
+            "ts_open": 1755777600000,
+            "date": "2025-08-21",
+            "return_pct": -0.00010907,
+            "gross_exposure": 0.01
+          },
+          {
+            "ts_open": 1755792000000,
+            "date": "2025-08-21",
+            "return_pct": -0.00006802,
+            "gross_exposure": 0.01
+          },
+          {
+            "ts_open": 1755806400000,
+            "date": "2025-08-21",
+            "return_pct": -0.00003078,
+            "gross_exposure": 0
+          },
+          {
+            "ts_open": 1757404800000,
+            "date": "2025-09-09",
+            "return_pct": -0.00044861,
+            "gross_exposure": 0.046908
+          },
+          {
+            "ts_open": 1757419200000,
+            "date": "2025-09-09",
+            "return_pct": -0.00090926,
+            "gross_exposure": 0.046908
+          },
+          {
+            "ts_open": 1757433600000,
+            "date": "2025-09-09",
+            "return_pct": 0.00072241,
+            "gross_exposure": 0.046908
+          },
+          {
+            "ts_open": 1757448000000,
+            "date": "2025-09-09",
+            "return_pct": 0.00018437,
+            "gross_exposure": 0.046908
+          },
+          {
+            "ts_open": 1757462400000,
+            "date": "2025-09-10",
+            "return_pct": 0.00043643,
+            "gross_exposure": 0.046908
+          },
+          {
+            "ts_open": 1757476800000,
+            "date": "2025-09-10",
+            "return_pct": 0.00064648,
+            "gross_exposure": 0.046908
+          },
+          {
+            "ts_open": 1757491200000,
+            "date": "2025-09-10",
+            "return_pct": -0.00042231,
+            "gross_exposure": 0.046908
+          },
+          {
+            "ts_open": 1757505600000,
+            "date": "2025-09-10",
+            "return_pct": 0.00061791,
+            "gross_exposure": 0.046908
+          },
+          {
+            "ts_open": 1757520000000,
+            "date": "2025-09-10",
+            "return_pct": -0.00040168,
+            "gross_exposure": 0.046908
+          },
+          {
+            "ts_open": 1757534400000,
+            "date": "2025-09-10",
+            "return_pct": 0.00059393,
+            "gross_exposure": 0.046908
+          },
+          {
+            "ts_open": 1757548800000,
+            "date": "2025-09-11",
+            "return_pct": 0.00002095,
+            "gross_exposure": 0.046908
+          },
+          {
+            "ts_open": 1757563200000,
+            "date": "2025-09-11",
+            "return_pct": -0.000201,
+            "gross_exposure": 0.046908
+          },
+          {
+            "ts_open": 1757577600000,
+            "date": "2025-09-11",
+            "return_pct": 0.00039111,
+            "gross_exposure": 0.046908
+          },
+          {
+            "ts_open": 1757592000000,
+            "date": "2025-09-11",
+            "return_pct": 0.00036494,
+            "gross_exposure": 0.046908
+          },
+          {
+            "ts_open": 1757606400000,
+            "date": "2025-09-11",
+            "return_pct": -0.00003725,
+            "gross_exposure": 0.046908
+          },
+          {
+            "ts_open": 1757620800000,
+            "date": "2025-09-11",
+            "return_pct": 0.00043696,
+            "gross_exposure": 0.046908
+          },
+          {
+            "ts_open": 1757635200000,
+            "date": "2025-09-12",
+            "return_pct": -0.00011696,
+            "gross_exposure": 0
+          },
+          {
+            "ts_open": 1757707200000,
+            "date": "2025-09-12",
+            "return_pct": 0.00054987,
+            "gross_exposure": 0.0499
+          },
+          {
+            "ts_open": 1757721600000,
+            "date": "2025-09-13",
+            "return_pct": 0.00046523,
+            "gross_exposure": 0.0499
+          },
+          {
+            "ts_open": 1757736000000,
+            "date": "2025-09-13",
+            "return_pct": -0.00047289,
+            "gross_exposure": 0.0499
+          },
+          {
+            "ts_open": 1757750400000,
+            "date": "2025-09-13",
+            "return_pct": 0.00008656,
+            "gross_exposure": 0.0499
+          },
+          {
+            "ts_open": 1757764800000,
+            "date": "2025-09-13",
+            "return_pct": -0.00070251,
+            "gross_exposure": 0.0499
+          },
+          {
+            "ts_open": 1757779200000,
+            "date": "2025-09-13",
+            "return_pct": -0.00016725,
+            "gross_exposure": 0.0499
+          },
+          {
+            "ts_open": 1757793600000,
+            "date": "2025-09-13",
+            "return_pct": 0.00031097,
+            "gross_exposure": 0.0499
+          },
+          {
+            "ts_open": 1757808000000,
+            "date": "2025-09-14",
+            "return_pct": -0.00004001,
+            "gross_exposure": 0.0499
+          },
+          {
+            "ts_open": 1757822400000,
+            "date": "2025-09-14",
+            "return_pct": -0.00025549,
+            "gross_exposure": 0.08997
+          },
+          {
+            "ts_open": 1757836800000,
+            "date": "2025-09-14",
+            "return_pct": -0.00021503,
+            "gross_exposure": 0.08997
+          },
+          {
+            "ts_open": 1757851200000,
+            "date": "2025-09-14",
+            "return_pct": -0.00094011,
+            "gross_exposure": 0.08997
+          },
+          {
+            "ts_open": 1757865600000,
+            "date": "2025-09-14",
+            "return_pct": 0.00015384,
+            "gross_exposure": 0.08997
+          },
+          {
+            "ts_open": 1757880000000,
+            "date": "2025-09-14",
+            "return_pct": -0.00058725,
+            "gross_exposure": 0.08997
+          },
+          {
+            "ts_open": 1757894400000,
+            "date": "2025-09-15",
+            "return_pct": 0.00083355,
+            "gross_exposure": 0.08997
+          },
+          {
+            "ts_open": 1757908800000,
+            "date": "2025-09-15",
+            "return_pct": -0.00119219,
+            "gross_exposure": 0.08997
+          },
+          {
+            "ts_open": 1757923200000,
+            "date": "2025-09-15",
+            "return_pct": -0.00098366,
+            "gross_exposure": 0.08997
+          },
+          {
+            "ts_open": 1757937600000,
+            "date": "2025-09-15",
+            "return_pct": -0.00029617,
+            "gross_exposure": 0
+          },
+          {
+            "ts_open": 1759420800000,
+            "date": "2025-10-02",
+            "return_pct": 0.00059641,
+            "gross_exposure": 0.048907
+          },
+          {
+            "ts_open": 1759435200000,
+            "date": "2025-10-02",
+            "return_pct": -0.00012365,
+            "gross_exposure": 0.048907
+          },
+          {
+            "ts_open": 1759449600000,
+            "date": "2025-10-03",
+            "return_pct": 0.00018835,
+            "gross_exposure": 0.048907
+          },
+          {
+            "ts_open": 1759464000000,
+            "date": "2025-10-03",
+            "return_pct": -0.00041439,
+            "gross_exposure": 0.048907
+          },
+          {
+            "ts_open": 1759478400000,
+            "date": "2025-10-03",
+            "return_pct": 0.0001684,
+            "gross_exposure": 0.048907
+          },
+          {
+            "ts_open": 1759492800000,
+            "date": "2025-10-03",
+            "return_pct": 0.00062278,
+            "gross_exposure": 0.048907
+          },
+          {
+            "ts_open": 1759507200000,
+            "date": "2025-10-03",
+            "return_pct": -0.00016776,
+            "gross_exposure": 0.048907
+          },
+          {
+            "ts_open": 1759521600000,
+            "date": "2025-10-03",
+            "return_pct": -0.0000708,
+            "gross_exposure": 0.048907
+          },
+          {
+            "ts_open": 1759536000000,
+            "date": "2025-10-04",
+            "return_pct": -0.00028871,
+            "gross_exposure": 0.048907
+          },
+          {
+            "ts_open": 1759550400000,
+            "date": "2025-10-04",
+            "return_pct": 0.00012814,
+            "gross_exposure": 0.048907
+          },
+          {
+            "ts_open": 1759564800000,
+            "date": "2025-10-04",
+            "return_pct": -0.00015011,
+            "gross_exposure": 0.048907
+          },
+          {
+            "ts_open": 1759579200000,
+            "date": "2025-10-04",
+            "return_pct": -0.00031969,
+            "gross_exposure": 0.048907
+          },
+          {
+            "ts_open": 1759593600000,
+            "date": "2025-10-04",
+            "return_pct": 0.00013465,
+            "gross_exposure": 0.048907
+          },
+          {
+            "ts_open": 1759608000000,
+            "date": "2025-10-04",
+            "return_pct": 0.00021248,
+            "gross_exposure": 0.048907
+          },
+          {
+            "ts_open": 1759622400000,
+            "date": "2025-10-05",
+            "return_pct": 0.00049422,
+            "gross_exposure": 0.048907
+          },
+          {
+            "ts_open": 1759636800000,
+            "date": "2025-10-05",
+            "return_pct": 0.00080754,
+            "gross_exposure": 0.048907
+          },
+          {
+            "ts_open": 1759651200000,
+            "date": "2025-10-05",
+            "return_pct": -0.00012912,
+            "gross_exposure": 0
+          },
+          {
+            "ts_open": 1759737600000,
+            "date": "2025-10-06",
+            "return_pct": 0.00045559,
+            "gross_exposure": 0.02427
+          },
+          {
+            "ts_open": 1759752000000,
+            "date": "2025-10-06",
+            "return_pct": -0.00002143,
+            "gross_exposure": 0.02427
+          },
+          {
+            "ts_open": 1759766400000,
+            "date": "2025-10-06",
+            "return_pct": 0.00007467,
+            "gross_exposure": 0.02427
+          },
+          {
+            "ts_open": 1759780800000,
+            "date": "2025-10-06",
+            "return_pct": -0.00003742,
+            "gross_exposure": 0.02427
+          },
+          {
+            "ts_open": 1759795200000,
+            "date": "2025-10-07",
+            "return_pct": -0.00000337,
+            "gross_exposure": 0.02427
+          },
+          {
+            "ts_open": 1759809600000,
+            "date": "2025-10-07",
+            "return_pct": 0.0005303,
+            "gross_exposure": 0.02427
+          },
+          {
+            "ts_open": 1759824000000,
+            "date": "2025-10-07",
+            "return_pct": 0.001232,
+            "gross_exposure": 0.02427
+          },
+          {
+            "ts_open": 1759838400000,
+            "date": "2025-10-07",
+            "return_pct": -0.00059935,
+            "gross_exposure": 0.02427
+          },
+          {
+            "ts_open": 1759852800000,
+            "date": "2025-10-07",
+            "return_pct": 0.00030679,
+            "gross_exposure": 0.02427
+          },
+          {
+            "ts_open": 1759867200000,
+            "date": "2025-10-07",
+            "return_pct": 0.00014138,
+            "gross_exposure": 0.02427
+          },
+          {
+            "ts_open": 1759881600000,
+            "date": "2025-10-08",
+            "return_pct": -0.00053994,
+            "gross_exposure": 0.02427
+          },
+          {
+            "ts_open": 1759896000000,
+            "date": "2025-10-08",
+            "return_pct": 0.00068458,
+            "gross_exposure": 0.02427
+          },
+          {
+            "ts_open": 1759910400000,
+            "date": "2025-10-08",
+            "return_pct": 0.00002238,
+            "gross_exposure": 0.02427
+          },
+          {
+            "ts_open": 1759924800000,
+            "date": "2025-10-08",
+            "return_pct": -0.0003701,
+            "gross_exposure": 0.02427
+          },
+          {
+            "ts_open": 1759939200000,
+            "date": "2025-10-08",
+            "return_pct": 0.00042274,
+            "gross_exposure": 0.02427
+          },
+          {
+            "ts_open": 1759953600000,
+            "date": "2025-10-08",
+            "return_pct": -0.00016893,
+            "gross_exposure": 0.02427
+          },
+          {
+            "ts_open": 1759968000000,
+            "date": "2025-10-09",
+            "return_pct": -0.00009883,
+            "gross_exposure": 0
+          },
+          {
+            "ts_open": 1765296000000,
+            "date": "2025-12-09",
+            "return_pct": 0.00114425,
+            "gross_exposure": 0.034452
+          },
+          {
+            "ts_open": 1765310400000,
+            "date": "2025-12-09",
+            "return_pct": -0.00041635,
+            "gross_exposure": 0.034452
+          },
+          {
+            "ts_open": 1765324800000,
+            "date": "2025-12-10",
+            "return_pct": -0.00008819,
+            "gross_exposure": 0.034452
+          },
+          {
+            "ts_open": 1765339200000,
+            "date": "2025-12-10",
+            "return_pct": 0.00018382,
+            "gross_exposure": 0.034452
+          },
+          {
+            "ts_open": 1765353600000,
+            "date": "2025-12-10",
+            "return_pct": -0.0000922,
+            "gross_exposure": 0.034452
+          },
+          {
+            "ts_open": 1765368000000,
+            "date": "2025-12-10",
+            "return_pct": 0.00010263,
+            "gross_exposure": 0.034452
+          },
+          {
+            "ts_open": 1765382400000,
+            "date": "2025-12-10",
+            "return_pct": 0.00064562,
+            "gross_exposure": 0.034452
+          },
+          {
+            "ts_open": 1765396800000,
+            "date": "2025-12-10",
+            "return_pct": -0.00067278,
+            "gross_exposure": 0.034452
+          },
+          {
+            "ts_open": 1765411200000,
+            "date": "2025-12-11",
+            "return_pct": -0.0013791,
+            "gross_exposure": 0.034452
+          },
+          {
+            "ts_open": 1765425600000,
+            "date": "2025-12-11",
+            "return_pct": -0.00013333,
+            "gross_exposure": 0
+          },
+          {
+            "ts_open": 1767585600000,
+            "date": "2026-01-05",
+            "return_pct": -0.00024237,
+            "gross_exposure": 0.02462
+          },
+          {
+            "ts_open": 1767600000000,
+            "date": "2026-01-05",
+            "return_pct": 0.00006185,
+            "gross_exposure": 0.02462
+          },
+          {
+            "ts_open": 1767614400000,
+            "date": "2026-01-05",
+            "return_pct": 0.00007258,
+            "gross_exposure": 0.02462
+          },
+          {
+            "ts_open": 1767628800000,
+            "date": "2026-01-05",
+            "return_pct": 0.00038356,
+            "gross_exposure": 0.02462
+          },
+          {
+            "ts_open": 1767643200000,
+            "date": "2026-01-05",
+            "return_pct": -0.00006413,
+            "gross_exposure": 0.02462
+          },
+          {
+            "ts_open": 1767657600000,
+            "date": "2026-01-06",
+            "return_pct": 0.00008395,
+            "gross_exposure": 0.02462
+          },
+          {
+            "ts_open": 1767672000000,
+            "date": "2026-01-06",
+            "return_pct": -0.0001424,
+            "gross_exposure": 0.02462
+          },
+          {
+            "ts_open": 1767686400000,
+            "date": "2026-01-06",
+            "return_pct": 0.00034555,
+            "gross_exposure": 0.02462
+          },
+          {
+            "ts_open": 1767700800000,
+            "date": "2026-01-06",
+            "return_pct": 0.00037431,
+            "gross_exposure": 0.02462
+          },
+          {
+            "ts_open": 1767715200000,
+            "date": "2026-01-06",
+            "return_pct": -0.00071481,
+            "gross_exposure": 0.02462
+          },
+          {
+            "ts_open": 1767729600000,
+            "date": "2026-01-06",
+            "return_pct": 0.00064125,
+            "gross_exposure": 0.02462
+          },
+          {
+            "ts_open": 1767744000000,
+            "date": "2026-01-07",
+            "return_pct": -0.0002636,
+            "gross_exposure": 0.02462
+          },
+          {
+            "ts_open": 1767758400000,
+            "date": "2026-01-07",
+            "return_pct": -0.00003706,
+            "gross_exposure": 0.02462
+          },
+          {
+            "ts_open": 1767772800000,
+            "date": "2026-01-07",
+            "return_pct": -0.00025979,
+            "gross_exposure": 0.02462
+          },
+          {
+            "ts_open": 1767787200000,
+            "date": "2026-01-07",
+            "return_pct": -0.00039831,
+            "gross_exposure": 0.02462
+          },
+          {
+            "ts_open": 1767801600000,
+            "date": "2026-01-07",
+            "return_pct": -0.00016421,
+            "gross_exposure": 0
+          },
+          {
+            "ts_open": 1768348800000,
+            "date": "2026-01-14",
+            "return_pct": 0.00047531,
+            "gross_exposure": 0.086691
+          },
+          {
+            "ts_open": 1768363200000,
+            "date": "2026-01-14",
+            "return_pct": -0.00059793,
+            "gross_exposure": 0.086691
+          },
+          {
+            "ts_open": 1768377600000,
+            "date": "2026-01-14",
+            "return_pct": -0.00102285,
+            "gross_exposure": 0.086691
+          },
+          {
+            "ts_open": 1768392000000,
+            "date": "2026-01-14",
+            "return_pct": 0.00174603,
+            "gross_exposure": 0.086691
+          },
+          {
+            "ts_open": 1768406400000,
+            "date": "2026-01-14",
+            "return_pct": 0.00026518,
+            "gross_exposure": 0.086691
+          },
+          {
+            "ts_open": 1768420800000,
+            "date": "2026-01-14",
+            "return_pct": -0.00023105,
+            "gross_exposure": 0.086691
+          },
+          {
+            "ts_open": 1768435200000,
+            "date": "2026-01-15",
+            "return_pct": -0.00182458,
+            "gross_exposure": 0.086691
+          },
+          {
+            "ts_open": 1768449600000,
+            "date": "2026-01-15",
+            "return_pct": 0.00105852,
+            "gross_exposure": 0.086691
+          },
+          {
+            "ts_open": 1768464000000,
+            "date": "2026-01-15",
+            "return_pct": 0.00025666,
+            "gross_exposure": 0.086691
+          },
+          {
+            "ts_open": 1768478400000,
+            "date": "2026-01-15",
+            "return_pct": -0.00064175,
+            "gross_exposure": 0.086691
+          },
+          {
+            "ts_open": 1768492800000,
+            "date": "2026-01-15",
+            "return_pct": -0.00100197,
+            "gross_exposure": 0.0499
+          },
+          {
+            "ts_open": 1768507200000,
+            "date": "2026-01-15",
+            "return_pct": 0.00034827,
+            "gross_exposure": 0.0499
+          },
+          {
+            "ts_open": 1768521600000,
+            "date": "2026-01-16",
+            "return_pct": -0.00034751,
+            "gross_exposure": 0.0499
+          },
+          {
+            "ts_open": 1768536000000,
+            "date": "2026-01-16",
+            "return_pct": 0.00021603,
+            "gross_exposure": 0.0499
+          },
+          {
+            "ts_open": 1768550400000,
+            "date": "2026-01-16",
+            "return_pct": -0.00011268,
+            "gross_exposure": 0.0499
+          },
+          {
+            "ts_open": 1768564800000,
+            "date": "2026-01-16",
+            "return_pct": -0.00056919,
+            "gross_exposure": 0.0499
+          },
+          {
+            "ts_open": 1768579200000,
+            "date": "2026-01-16",
+            "return_pct": -0.00014776,
+            "gross_exposure": 0
+          },
+          {
+            "ts_open": 1773374400000,
+            "date": "2026-03-13",
+            "return_pct": -0.00071978,
+            "gross_exposure": 0.065583
+          },
+          {
+            "ts_open": 1773388800000,
+            "date": "2026-03-13",
+            "return_pct": 0.00091378,
+            "gross_exposure": 0.065583
+          },
+          {
+            "ts_open": 1773403200000,
+            "date": "2026-03-13",
+            "return_pct": -0.00014926,
+            "gross_exposure": 0.065583
+          },
+          {
+            "ts_open": 1773417600000,
+            "date": "2026-03-13",
+            "return_pct": -0.0006179,
+            "gross_exposure": 0.065583
+          },
+          {
+            "ts_open": 1773432000000,
+            "date": "2026-03-13",
+            "return_pct": -0.00042707,
+            "gross_exposure": 0.065583
+          },
+          {
+            "ts_open": 1773446400000,
+            "date": "2026-03-14",
+            "return_pct": 0.00023342,
+            "gross_exposure": 0.065583
+          },
+          {
+            "ts_open": 1773460800000,
+            "date": "2026-03-14",
+            "return_pct": -0.00076711,
+            "gross_exposure": 0.065583
+          },
+          {
+            "ts_open": 1773475200000,
+            "date": "2026-03-14",
+            "return_pct": -0.0001866,
+            "gross_exposure": 0.065583
+          },
+          {
+            "ts_open": 1773489600000,
+            "date": "2026-03-14",
+            "return_pct": -0.00006006,
+            "gross_exposure": 0.065583
+          },
+          {
+            "ts_open": 1773504000000,
+            "date": "2026-03-14",
+            "return_pct": 0.00014082,
+            "gross_exposure": 0.065583
+          },
+          {
+            "ts_open": 1773518400000,
+            "date": "2026-03-14",
+            "return_pct": 0.00068126,
+            "gross_exposure": 0.065583
+          },
+          {
+            "ts_open": 1773532800000,
+            "date": "2026-03-15",
+            "return_pct": -0.00006708,
+            "gross_exposure": 0.065583
+          },
+          {
+            "ts_open": 1773547200000,
+            "date": "2026-03-15",
+            "return_pct": 0.00029673,
+            "gross_exposure": 0.065583
+          },
+          {
+            "ts_open": 1773561600000,
+            "date": "2026-03-15",
+            "return_pct": 0.0003494,
+            "gross_exposure": 0.065583
+          },
+          {
+            "ts_open": 1773576000000,
+            "date": "2026-03-15",
+            "return_pct": -0.00065749,
+            "gross_exposure": 0.065583
+          },
+          {
+            "ts_open": 1773590400000,
+            "date": "2026-03-15",
+            "return_pct": 0.00043313,
+            "gross_exposure": 0.065583
+          },
+          {
+            "ts_open": 1773604800000,
+            "date": "2026-03-15",
+            "return_pct": -0.00014862,
+            "gross_exposure": 0
+          }
+        ],
+        "daily_returns": [
+          {
+            "date": "2025-01-20",
+            "return_pct": -0.00157949
+          },
+          {
+            "date": "2025-03-17",
+            "return_pct": 0.00008529
+          },
+          {
+            "date": "2025-03-18",
+            "return_pct": -0.00006184
+          },
+          {
+            "date": "2025-03-19",
+            "return_pct": -0.00031466
+          },
+          {
+            "date": "2025-04-22",
+            "return_pct": 0.0008141
+          },
+          {
+            "date": "2025-04-23",
+            "return_pct": 0.00054885
+          },
+          {
+            "date": "2025-04-24",
+            "return_pct": 0.00034242
+          },
+          {
+            "date": "2025-04-25",
+            "return_pct": 0.0004468
+          },
+          {
+            "date": "2025-05-08",
+            "return_pct": 0.00844879
+          },
+          {
+            "date": "2025-05-09",
+            "return_pct": 0.00429416
+          },
+          {
+            "date": "2025-05-10",
+            "return_pct": 0.00351523
+          },
+          {
+            "date": "2025-05-11",
+            "return_pct": -0.0004985
+          },
+          {
+            "date": "2025-05-22",
+            "return_pct": -0.00013569
+          },
+          {
+            "date": "2025-05-23",
+            "return_pct": -0.0016687
+          },
+          {
+            "date": "2025-05-29",
+            "return_pct": -0.0018528
+          },
+          {
+            "date": "2025-05-30",
+            "return_pct": -0.00025953
+          },
+          {
+            "date": "2025-07-02",
+            "return_pct": -0.00060652
+          },
+          {
+            "date": "2025-07-03",
+            "return_pct": 0.00036009
+          },
+          {
+            "date": "2025-07-04",
+            "return_pct": -0.00163449
+          },
+          {
+            "date": "2025-07-09",
+            "return_pct": -0.00006139
+          },
+          {
+            "date": "2025-07-10",
+            "return_pct": 0.00148274
+          },
+          {
+            "date": "2025-07-11",
+            "return_pct": -0.0002702
+          },
+          {
+            "date": "2025-07-12",
+            "return_pct": -0.00036449
+          },
+          {
+            "date": "2025-07-18",
+            "return_pct": -0.00012107
+          },
+          {
+            "date": "2025-07-19",
+            "return_pct": 0.00004247
+          },
+          {
+            "date": "2025-07-20",
+            "return_pct": 0.00021728
+          },
+          {
+            "date": "2025-07-21",
+            "return_pct": 0.00182209
+          },
+          {
+            "date": "2025-07-22",
+            "return_pct": 0.00197232
+          },
+          {
+            "date": "2025-07-23",
+            "return_pct": -0.00373651
+          },
+          {
+            "date": "2025-08-07",
+            "return_pct": 0.00081701
+          },
+          {
+            "date": "2025-08-08",
+            "return_pct": 0.00102309
+          },
+          {
+            "date": "2025-08-09",
+            "return_pct": 0.00241018
+          },
+          {
+            "date": "2025-08-10",
+            "return_pct": -0.00073362
+          },
+          {
+            "date": "2025-08-11",
+            "return_pct": -0.00113568
+          },
+          {
+            "date": "2025-08-12",
+            "return_pct": -0.0000023
+          },
+          {
+            "date": "2025-08-13",
+            "return_pct": 0.00018408
+          },
+          {
+            "date": "2025-08-14",
+            "return_pct": -0.00028541
+          },
+          {
+            "date": "2025-08-20",
+            "return_pct": -0.00001697
+          },
+          {
+            "date": "2025-08-21",
+            "return_pct": -0.00041546
+          },
+          {
+            "date": "2025-09-09",
+            "return_pct": -0.00045178
+          },
+          {
+            "date": "2025-09-10",
+            "return_pct": 0.001471
+          },
+          {
+            "date": "2025-09-11",
+            "return_pct": 0.00097593
+          },
+          {
+            "date": "2025-09-12",
+            "return_pct": 0.00043285
+          },
+          {
+            "date": "2025-09-13",
+            "return_pct": -0.00048031
+          },
+          {
+            "date": "2025-09-14",
+            "return_pct": -0.00188296
+          },
+          {
+            "date": "2025-09-15",
+            "return_pct": -0.00163871
+          },
+          {
+            "date": "2025-10-02",
+            "return_pct": 0.00047269
+          },
+          {
+            "date": "2025-10-03",
+            "return_pct": 0.00032631
+          },
+          {
+            "date": "2025-10-04",
+            "return_pct": -0.00028334
+          },
+          {
+            "date": "2025-10-05",
+            "return_pct": 0.00117287
+          },
+          {
+            "date": "2025-10-06",
+            "return_pct": 0.00047141
+          },
+          {
+            "date": "2025-10-07",
+            "return_pct": 0.00160791
+          },
+          {
+            "date": "2025-10-08",
+            "return_pct": 0.00005018
+          },
+          {
+            "date": "2025-10-09",
+            "return_pct": -0.00009883
+          },
+          {
+            "date": "2025-12-09",
+            "return_pct": 0.00072742
+          },
+          {
+            "date": "2025-12-10",
+            "return_pct": 0.00007844
+          },
+          {
+            "date": "2025-12-11",
+            "return_pct": -0.00151225
+          },
+          {
+            "date": "2026-01-05",
+            "return_pct": 0.0002114
+          },
+          {
+            "date": "2026-01-06",
+            "return_pct": 0.00058742
+          },
+          {
+            "date": "2026-01-07",
+            "return_pct": -0.0011225
+          },
+          {
+            "date": "2026-01-14",
+            "return_pct": 0.00063249
+          },
+          {
+            "date": "2026-01-15",
+            "return_pct": -0.00180625
+          },
+          {
+            "date": "2026-01-16",
+            "return_pct": -0.00096091
+          },
+          {
+            "date": "2026-03-13",
+            "return_pct": -0.0010007
+          },
+          {
+            "date": "2026-03-14",
+            "return_pct": 0.00004115
+          },
+          {
+            "date": "2026-03-15",
+            "return_pct": 0.00020566
+          }
+        ],
+        "data_lineage": [
+          {
+            "symbol": "BTCUSDT",
+            "market": "CRYPTO",
+            "timeframe": "1h",
+            "execution_timeframe": "4h",
+            "source": "BINANCE_PUBLIC_MONTHLY",
+            "bar_count": 2628,
+            "first_ts_open": 1735689600000,
+            "last_ts_open": 1774123200000
+          },
+          {
+            "symbol": "ETHUSDT",
+            "market": "CRYPTO",
+            "timeframe": "1h",
+            "execution_timeframe": "4h",
+            "source": "BINANCE_PUBLIC_MONTHLY",
+            "bar_count": 2628,
+            "first_ts_open": 1735689600000,
+            "last_ts_open": 1774123200000
+          },
+          {
+            "symbol": "SOLUSDT",
+            "market": "CRYPTO",
+            "timeframe": "1h",
+            "execution_timeframe": "4h",
+            "source": "BINANCE_PUBLIC_MONTHLY",
+            "bar_count": 2616,
+            "first_ts_open": 1735689600000,
+            "last_ts_open": 1774123200000
+          },
+          {
+            "symbol": "BNBUSDT",
+            "market": "CRYPTO",
+            "timeframe": "1h",
+            "execution_timeframe": "4h",
+            "source": "BINANCE_PUBLIC_MONTHLY",
+            "bar_count": 2616,
+            "first_ts_open": 1735689600000,
+            "last_ts_open": 1774123200000
+          }
+        ],
+        "realism_profile": {
+          "profile_id": "exec-realism.paper.v2",
+          "mode": "paper",
+          "allow_optimistic_fill_policy": false,
+          "fill_policy": {
+            "entry": "conservative_fill",
+            "exit": "conservative_fill"
+          },
+          "markets": {
+            "US": {
+              "fee_bps_per_side": 3,
+              "funding_bps_per_day": 0,
+              "leverage_cap": 2,
+              "spread_bps_by_vol_bucket": {
+                "low": 1.3,
+                "normal": 2.1,
+                "high": 3.8,
+                "stress": 5.4
+              },
+              "slippage_bps_by_vol_bucket": {
+                "low": {
+                  "entry": 2.5,
+                  "exit": 2.8
+                },
+                "normal": {
+                  "entry": 4.4,
+                  "exit": 4.9
+                },
+                "high": {
+                  "entry": 7.5,
+                  "exit": 8.2
+                },
+                "stress": {
+                  "entry": 10.4,
+                  "exit": 11.5
+                }
+              }
+            },
+            "CRYPTO": {
+              "fee_bps_per_side": 5,
+              "funding_bps_per_day": 2.2,
+              "leverage_cap": 3,
+              "spread_bps_by_vol_bucket": {
+                "low": 1.8,
+                "normal": 3.5,
+                "high": 6.4,
+                "stress": 10
+              },
+              "slippage_bps_by_vol_bucket": {
+                "low": {
+                  "entry": 3.5,
+                  "exit": 4.2
+                },
+                "normal": {
+                  "entry": 6.8,
+                  "exit": 7.8
+                },
+                "high": {
+                  "entry": 11.2,
+                  "exit": 12.5
+                },
+                "stress": {
+                  "entry": 16,
+                  "exit": 17.8
+                }
+              }
+            }
+          },
+          "volatility_buckets": {
+            "low": {
+              "max_range_pct": 0.012,
+              "max_percentile": 25
+            },
+            "normal": {
+              "max_range_pct": 0.024,
+              "max_percentile": 65
+            },
+            "high": {
+              "max_range_pct": 0.045,
+              "max_percentile": 85
+            },
+            "stress": {
+              "max_range_pct": null,
+              "max_percentile": 100
+            }
+          },
+          "notes": [
+            "Paper profile is the strictest default profile.",
+            "Used for portfolio and governance realism stress."
+          ]
+        },
+        "diagnostics": {
+          "future_leak_violations": 0,
+          "average_holding_bars": 12.5185,
+          "average_trade_weight": 0.032757,
+          "trade_count": 27,
+          "turnover_proxy": 1.768856
+        }
+      }
+    }
+  ],
+  "combined_portfolio": {
+    "capital_split": {
+      "US": 0.65,
+      "CRYPTO": 0.35
+    },
+    "metrics": {
+      "sample_size": 66,
+      "cumulative_return": 0.003952,
+      "annual_return": 0.02205,
+      "sharpe": 2.027,
+      "sortino": 2.7908,
+      "max_drawdown": 0.002223,
+      "win_rate": 0.5152,
+      "volatility": 0.010789,
+      "profit_factor": 1.4186
+    },
+    "daily_returns": [
+      {
+        "date": "2025-01-20",
+        "return_pct": -0.00055282
+      },
+      {
+        "date": "2025-03-17",
+        "return_pct": 0.00002985
+      },
+      {
+        "date": "2025-03-18",
+        "return_pct": -0.00002164
+      },
+      {
+        "date": "2025-03-19",
+        "return_pct": -0.00011013
+      },
+      {
+        "date": "2025-04-22",
+        "return_pct": 0.00028494
+      },
+      {
+        "date": "2025-04-23",
+        "return_pct": 0.0001921
+      },
+      {
+        "date": "2025-04-24",
+        "return_pct": 0.00011985
+      },
+      {
+        "date": "2025-04-25",
+        "return_pct": 0.00015638
+      },
+      {
+        "date": "2025-05-08",
+        "return_pct": 0.00295708
+      },
+      {
+        "date": "2025-05-09",
+        "return_pct": 0.00150296
+      },
+      {
+        "date": "2025-05-10",
+        "return_pct": 0.00123033
+      },
+      {
+        "date": "2025-05-11",
+        "return_pct": -0.00017447
+      },
+      {
+        "date": "2025-05-22",
+        "return_pct": -0.00004749
+      },
+      {
+        "date": "2025-05-23",
+        "return_pct": -0.00058404
+      },
+      {
+        "date": "2025-05-29",
+        "return_pct": -0.00064848
+      },
+      {
+        "date": "2025-05-30",
+        "return_pct": -0.00009084
+      },
+      {
+        "date": "2025-07-02",
+        "return_pct": -0.00021228
+      },
+      {
+        "date": "2025-07-03",
+        "return_pct": 0.00012603
+      },
+      {
+        "date": "2025-07-04",
+        "return_pct": -0.00057207
+      },
+      {
+        "date": "2025-07-09",
+        "return_pct": -0.00002149
+      },
+      {
+        "date": "2025-07-10",
+        "return_pct": 0.00051896
+      },
+      {
+        "date": "2025-07-11",
+        "return_pct": -0.00009457
+      },
+      {
+        "date": "2025-07-12",
+        "return_pct": -0.00012757
+      },
+      {
+        "date": "2025-07-18",
+        "return_pct": -0.00004237
+      },
+      {
+        "date": "2025-07-19",
+        "return_pct": 0.00001486
+      },
+      {
+        "date": "2025-07-20",
+        "return_pct": 0.00007605
+      },
+      {
+        "date": "2025-07-21",
+        "return_pct": 0.00063773
+      },
+      {
+        "date": "2025-07-22",
+        "return_pct": 0.00069031
+      },
+      {
+        "date": "2025-07-23",
+        "return_pct": -0.00130778
+      },
+      {
+        "date": "2025-08-07",
+        "return_pct": 0.00028595
+      },
+      {
+        "date": "2025-08-08",
+        "return_pct": 0.00035808
+      },
+      {
+        "date": "2025-08-09",
+        "return_pct": 0.00084356
+      },
+      {
+        "date": "2025-08-10",
+        "return_pct": -0.00025677
+      },
+      {
+        "date": "2025-08-11",
+        "return_pct": -0.00039749
+      },
+      {
+        "date": "2025-08-12",
+        "return_pct": -8e-7
+      },
+      {
+        "date": "2025-08-13",
+        "return_pct": 0.00006443
+      },
+      {
+        "date": "2025-08-14",
+        "return_pct": -0.00009989
+      },
+      {
+        "date": "2025-08-20",
+        "return_pct": -0.00000594
+      },
+      {
+        "date": "2025-08-21",
+        "return_pct": -0.00014541
+      },
+      {
+        "date": "2025-09-09",
+        "return_pct": -0.00015812
+      },
+      {
+        "date": "2025-09-10",
+        "return_pct": 0.00051485
+      },
+      {
+        "date": "2025-09-11",
+        "return_pct": 0.00034158
+      },
+      {
+        "date": "2025-09-12",
+        "return_pct": 0.0001515
+      },
+      {
+        "date": "2025-09-13",
+        "return_pct": -0.00016811
+      },
+      {
+        "date": "2025-09-14",
+        "return_pct": -0.00065904
+      },
+      {
+        "date": "2025-09-15",
+        "return_pct": -0.00057355
+      },
+      {
+        "date": "2025-10-02",
+        "return_pct": 0.00016544
+      },
+      {
+        "date": "2025-10-03",
+        "return_pct": 0.00011421
+      },
+      {
+        "date": "2025-10-04",
+        "return_pct": -0.00009917
+      },
+      {
+        "date": "2025-10-05",
+        "return_pct": 0.0004105
+      },
+      {
+        "date": "2025-10-06",
+        "return_pct": 0.00016499
+      },
+      {
+        "date": "2025-10-07",
+        "return_pct": 0.00056277
+      },
+      {
+        "date": "2025-10-08",
+        "return_pct": 0.00001756
+      },
+      {
+        "date": "2025-10-09",
+        "return_pct": -0.00003459
+      },
+      {
+        "date": "2025-12-09",
+        "return_pct": 0.0002546
+      },
+      {
+        "date": "2025-12-10",
+        "return_pct": 0.00002745
+      },
+      {
+        "date": "2025-12-11",
+        "return_pct": -0.00052929
+      },
+      {
+        "date": "2026-01-05",
+        "return_pct": 0.00007399
+      },
+      {
+        "date": "2026-01-06",
+        "return_pct": 0.0002056
+      },
+      {
+        "date": "2026-01-07",
+        "return_pct": -0.00039287
+      },
+      {
+        "date": "2026-01-14",
+        "return_pct": 0.00022137
+      },
+      {
+        "date": "2026-01-15",
+        "return_pct": -0.00063219
+      },
+      {
+        "date": "2026-01-16",
+        "return_pct": -0.00033632
+      },
+      {
+        "date": "2026-03-13",
+        "return_pct": -0.00035024
+      },
+      {
+        "date": "2026-03-14",
+        "return_pct": 0.0000144
+      },
+      {
+        "date": "2026-03-15",
+        "return_pct": 0.00007198
+      }
+    ]
+  },
+  "sections": {
+    "A": {
+      "title": "Strategy Hypothesis",
+      "bullets": [
+        "Use trend-following as the core edge, but only trade when volatility is controlled and breakouts are confirmed by volume.",
+        "Keep the model low-parameter and rule-based so every signal remains auditable.",
+        "Current blended target check: Sharpe 2.027, annual 2.21%, max DD 0.22%."
+      ]
+    },
+    "B": {
+      "title": "Markets And Timeframes",
+      "bullets": [
+        "US: execution on 1d, holding window 12 bars max.",
+        "CRYPTO: execution on 4h, holding window 16 bars max."
+      ]
+    },
+    "C": {
+      "title": "Entry Logic",
+      "bullets": [
+        "Close must be above fast EMA, and fast EMA above slow EMA.",
+        "Close must break the rolling prior-high lookback with a volume ratio filter.",
+        "ATR percent must stay inside a bounded range to avoid dead markets and panic markets."
+      ]
+    },
+    "D": {
+      "title": "Exit Logic",
+      "bullets": [
+        "Hard ATR stop is placed at entry and only tightens afterward.",
+        "Trend break below fast and slow EMA triggers next-bar exit.",
+        "Time stop forces capital recycling when momentum stalls."
+      ]
+    },
+    "E": {
+      "title": "Position Sizing",
+      "bullets": [
+        "Position size is risk-budgeted from stop distance, then clipped by max position and liquidity participation caps.",
+        "More aggressive profiles raise size modestly; they do not loosen signal filters.",
+        "Current template range: us_guarded_50 max position 5.5%, us_guarded_40 max position 6.4%, us_guarded_30 max position 7.2%, us_guarded_20 max position 8.0%."
+      ]
+    },
+    "F": {
+      "title": "Risk Controls",
+      "bullets": [
+        "One-bar execution delay, paper-grade slippage/spread assumptions, and partial-fill sizing are always on.",
+        "Liquidity filter rejects thin symbols before entry.",
+        "Selection favors lower drawdown and lower trade density when targets conflict."
+      ]
+    },
+    "G": {
+      "title": "Anti-Overfitting",
+      "bullets": [
+        "Only a small predeclared config grid is evaluated. No unconstrained optimizer is used.",
+        "Each market pack includes train/test split, walk-forward windows, and a full robustness grid.",
+        "US: 0/4 configs meet all targets. CRYPTO: 0/4 configs meet all targets."
+      ]
+    },
+    "H": {
+      "title": "Anti-Lookahead",
+      "bullets": [
+        "Signals are generated from completed bar close only.",
+        "Entries always happen on the next bar open, never the same bar.",
+        "Detected future-leak violations in this run: 0."
+      ]
+    },
+    "I": {
+      "title": "Backtest Realism",
+      "bullets": [
+        "Backtests include spread, slippage, fees, funding/borrow drag proxy, execution delay, and partial-fill sizing.",
+        "Stress scenarios include wider spread, more slippage, adverse funding, and stricter fills.",
+        "US worst stress: baseline annual 0.00%, DD 0.00%. CRYPTO worst stress: slippage_plus_50 annual 7.61%, DD 0.70%."
+      ]
+    },
+    "J": {
+      "title": "Key Metrics",
+      "bullets": [
+        "Combined annual return: 2.21%",
+        "Combined max drawdown: 0.22%",
+        "Combined sharpe: 2.027"
+      ]
+    },
+    "K": {
+      "title": "Runnable Code",
+      "bullets": [
+        "Strategy engine: src/server/nova/productionStrategyPack.ts",
+        "CLI runner: scripts/run-nova-production-strategy-pack.ts",
+        "Coverage test: tests/novaProductionStrategyPack.test.ts"
+      ]
+    },
+    "L": {
+      "title": "Deployment",
+      "bullets": [
+        "Vercel API: POST /api/nova/strategy/production-pack",
+        "AWS job: npm run nova:strategy:pack -- --market ALL --risk-profile balanced --start 2023-01-01 --end 2026-03-27",
+        "Workflow runs and audit events are already mirror-friendly, so the JSON payload can be read from Supabase-backed mirrors without changing the strategy contract."
+      ]
+    },
+    "M": {
+      "title": "Operator Guide",
+      "bullets": [
+        "Load OHLCV into SQLite/Supabase mirror first, then call the API or run the CLI.",
+        "Review the returned sections, grid, walk-forward, and stress blocks before publishing a strategy.",
+        "If targets are missed, keep the tighter config; do not loosen filters to chase backtest performance."
+      ]
+    }
+  },
+  "markdown_report": "A. Strategy Hypothesis\n- Use trend-following as the core edge, but only trade when volatility is controlled and breakouts are confirmed by volume.\n- Keep the model low-parameter and rule-based so every signal remains auditable.\n- Current blended target check: Sharpe 2.027, annual 2.21%, max DD 0.22%.\n\nB. Markets And Timeframes\n- US: execution on 1d, holding window 12 bars max.\n- CRYPTO: execution on 4h, holding window 16 bars max.\n\nC. Entry Logic\n- Close must be above fast EMA, and fast EMA above slow EMA.\n- Close must break the rolling prior-high lookback with a volume ratio filter.\n- ATR percent must stay inside a bounded range to avoid dead markets and panic markets.\n\nD. Exit Logic\n- Hard ATR stop is placed at entry and only tightens afterward.\n- Trend break below fast and slow EMA triggers next-bar exit.\n- Time stop forces capital recycling when momentum stalls.\n\nE. Position Sizing\n- Position size is risk-budgeted from stop distance, then clipped by max position and liquidity participation caps.\n- More aggressive profiles raise size modestly; they do not loosen signal filters.\n- Current template range: us_guarded_50 max position 5.5%, us_guarded_40 max position 6.4%, us_guarded_30 max position 7.2%, us_guarded_20 max position 8.0%.\n\nF. Risk Controls\n- One-bar execution delay, paper-grade slippage/spread assumptions, and partial-fill sizing are always on.\n- Liquidity filter rejects thin symbols before entry.\n- Selection favors lower drawdown and lower trade density when targets conflict.\n\nG. Anti-Overfitting\n- Only a small predeclared config grid is evaluated. No unconstrained optimizer is used.\n- Each market pack includes train/test split, walk-forward windows, and a full robustness grid.\n- US: 0/4 configs meet all targets. CRYPTO: 0/4 configs meet all targets.\n\nH. Anti-Lookahead\n- Signals are generated from completed bar close only.\n- Entries always happen on the next bar open, never the same bar.\n- Detected future-leak violations in this run: 0.\n\nI. Backtest Realism\n- Backtests include spread, slippage, fees, funding/borrow drag proxy, execution delay, and partial-fill sizing.\n- Stress scenarios include wider spread, more slippage, adverse funding, and stricter fills.\n- US worst stress: baseline annual 0.00%, DD 0.00%. CRYPTO worst stress: slippage_plus_50 annual 7.61%, DD 0.70%.\n\nJ. Key Metrics\n- Combined annual return: 2.21%\n- Combined max drawdown: 0.22%\n- Combined sharpe: 2.027\n\nK. Runnable Code\n- Strategy engine: src/server/nova/productionStrategyPack.ts\n- CLI runner: scripts/run-nova-production-strategy-pack.ts\n- Coverage test: tests/novaProductionStrategyPack.test.ts\n\nL. Deployment\n- Vercel API: POST /api/nova/strategy/production-pack\n- AWS job: npm run nova:strategy:pack -- --market ALL --risk-profile balanced --start 2023-01-01 --end 2026-03-27\n- Workflow runs and audit events are already mirror-friendly, so the JSON payload can be read from Supabase-backed mirrors without changing the strategy contract.\n\nM. Operator Guide\n- Load OHLCV into SQLite/Supabase mirror first, then call the API or run the CLI.\n- Review the returned sections, grid, walk-forward, and stress blocks before publishing a strategy.\n- If targets are missed, keep the tighter config; do not loosen filters to chase backtest performance.",
+  "deployment": {
+    "api_route": "POST /api/nova/strategy/production-pack",
+    "aws_command": "npm run nova:strategy:pack -- --market ALL --risk-profile balanced --start 2023-01-01 --end 2026-03-27",
+    "vercel_note": "Expose the production pack route from the existing Express/Vercel API layer.",
+    "supabase_note": "Workflow runs and audit events are already mirror-friendly, so the JSON payload can be read from Supabase-backed mirrors without changing the strategy contract."
+  }
+}

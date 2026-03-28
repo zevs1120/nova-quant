@@ -11,6 +11,10 @@ NovaQuant 所有重要变更记录于此。
   - `postgresSyncBridge` / `postgresSyncWorker` 新增事务命令支持，为后续更多业务写路径切到 Postgres 提供同步事务基础。
   - 新增 Postgres 运行时回归测试，覆盖 `auth`、`manual` 和配置切换关键路径，确认 `NOVA_DATA_RUNTIME_DRIVER=postgres` 下不会偷偷回退 SQLite。
 
+- **Docs(nova)：归档 2026-03-27 生产策略包回测产物。**
+  - 将 11 组 `production_strategy_pack_*.json/.md` 结果写入仓库，保留从保守版到强化版的完整演进轨迹。
+  - 这些产物覆盖年化、夏普、回撤、鲁棒性和过拟合审计结果，方便后续做版本对比与对外汇报。
+
 - **Feat(onboarding)：重做 intro onboarding 前三屏。**
   - 第一屏延续浅色背景与 landing 风格行动卡皮肤，保留截图式中间主卡加两侧扇出切换的交互布局。
   - 第二屏改为 `Ask Nova`，移植 landing page 的手机演示动效，按 `typing → thinking → reply reveal → scroll` 时序展示问答过程，并适配桌面端与移动端。
