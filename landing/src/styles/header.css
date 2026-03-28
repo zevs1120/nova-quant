@@ -169,25 +169,47 @@
   justify-content: center;
   min-height: 2.9rem;
   padding: 0.74rem 1.2rem;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
   border-radius: 999px;
-  background: #05070c;
+  background: linear-gradient(118deg, #4b7dff 0%, #876cff 24%, #ff5fc4 52%, #ffb05b 74%, #61d982 100%);
+  background-size: 220% 100%;
   color: white;
   font-size: 0.95rem;
   font-weight: 700;
+  text-shadow: 0 1px 0 rgba(18, 21, 34, 0.12);
   box-shadow:
-    0 16px 30px rgba(5, 7, 12, 0.18),
-    0 0 0 1px rgba(255, 95, 189, 0.12);
+    0 18px 32px rgba(86, 85, 176, 0.22),
+    0 0 0 1px rgba(255, 255, 255, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.26);
+  animation: cta-flow-gradient 8.8s linear infinite;
   white-space: nowrap;
   transition:
     transform 180ms ease,
-    box-shadow 180ms ease;
+    box-shadow 180ms ease,
+    filter 180ms ease;
+}
+
+.site-header-cta::before {
+  content: '';
+  position: absolute;
+  inset: -35%;
+  border-radius: inherit;
+  background: linear-gradient(112deg, transparent 28%, rgba(255, 255, 255, 0.44) 49%, transparent 67%);
+  transform: translate3d(-62%, 0, 0) skewX(-18deg);
+  opacity: 0.62;
+  pointer-events: none;
+  animation: cta-flow-sheen 5.6s ease-in-out infinite;
 }
 
 .site-header-cta:hover {
   transform: translateY(-1px);
+  filter: saturate(1.08) brightness(1.03);
   box-shadow:
-    0 20px 34px rgba(5, 7, 12, 0.22),
-    0 0 0 1px rgba(255, 95, 189, 0.16);
+    0 22px 38px rgba(86, 85, 176, 0.26),
+    0 0 0 1px rgba(255, 255, 255, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.32);
 }
 
 @media (max-width: 760px) {

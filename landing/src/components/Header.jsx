@@ -18,7 +18,7 @@ export default function Header({ page = 'home' }) {
   const navItems = isPortalPage ? portalNavItems : homeNavItems;
   const brandHref = isPortalPage ? '/' : '#top';
   const ctaHref = 'https://app.novaquant.cloud';
-  const ctaLabel = isPortalPage ? 'open app' : 'sign up';
+  const ctaLabel = 'Get Started';
 
   return (
     <header className="site-header-shell">
@@ -42,7 +42,7 @@ export default function Header({ page = 'home' }) {
         <div className="site-header-actions">
           {isPortalPage ? (
             <a className="site-header-return" href="/">
-              main page
+              Main Page
             </a>
           ) : null}
 

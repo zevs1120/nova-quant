@@ -18,7 +18,7 @@ function PortalHero() {
     >
       <div className="campaign-grid portal-hero-grid">
         <div className="portal-hero-copy">
-          <p className="section-kicker">Data portal</p>
+          <p className="section-kicker">Data Portal</p>
           <h1>
             <span>Backtest the edge.</span>
             <span>See the flywheel.</span>
@@ -207,7 +207,7 @@ function PortalFabricSection() {
       <div className="portal-fabric-shell">
         <div className="campaign-grid portal-fabric-grid">
           <div className="portal-fabric-copy">
-            <p className="section-kicker-light">Data fabric</p>
+            <p className="section-kicker-light">Data Fabric</p>
             <h2>One research surface. Multiple evidence layers.</h2>
             <p className="micro-intro-light">
               This is where the work becomes inspectable: ingest, experiments, replay, audit, and
@@ -241,10 +241,10 @@ function PortalFabricSection() {
 
             <div className="portal-fabric-actions">
               <a className="portal-dark-cta" href="https://app.novaquant.cloud">
-                Open app
+                Get Started
               </a>
               <a className="portal-ghost-link" href="/">
-                Back to landing
+                Back to Main Page
               </a>
             </div>
           </div>

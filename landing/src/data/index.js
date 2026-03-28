@@ -355,7 +355,7 @@ export const distributionCredits = [
 ];
 
 export const legalLinks = [
-  { label: 'Open App', href: 'https://app.novaquant.cloud' },
+  { label: 'Get Started', href: 'https://app.novaquant.cloud' },
   { label: 'Guide', href: '#guide' },
   { label: 'Distribution', href: '#about' },
   { label: 'app.novaquant.cloud', href: 'https://app.novaquant.cloud' },

@@ -30,7 +30,7 @@ export default function VoicesSection() {
         ))}
 
         <a className="voices-link" href="https://app.novaquant.cloud" id="enter">
-          Open NovaQuant
+          Get Started
         </a>
       </div>
     </section>

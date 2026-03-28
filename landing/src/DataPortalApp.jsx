@@ -6,7 +6,7 @@ const portalFooterLinks = [
   { label: 'Overview', href: '#portal-top' },
   { label: 'Backtest', href: '#backtest' },
   { label: 'Flywheel', href: '#flywheel' },
-  { label: 'Open App', href: 'https://app.novaquant.cloud' },
+  { label: 'Get Started', href: 'https://app.novaquant.cloud' },
 ];
 
 export default function DataPortalApp() {
@@ -24,7 +24,7 @@ export default function DataPortalApp() {
           brandHref="/"
           links={portalFooterLinks}
           privacyHref="#fabric"
-          privacyLabel="Inspect the fabric"
+          privacyLabel="Inspect the Fabric"
         />
       </main>
     </div>

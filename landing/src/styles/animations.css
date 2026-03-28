@@ -19,7 +19,47 @@
   }
 }
 
+@keyframes cta-flow-gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes cta-flow-sheen {
+  0%,
+  16% {
+    transform: translate3d(-62%, 0, 0) skewX(-18deg);
+    opacity: 0;
+  }
+
+  34% {
+    opacity: 0.54;
+  }
+
+  54%,
+  100% {
+    transform: translate3d(62%, 0, 0) skewX(-18deg);
+    opacity: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .site-header-cta,
+  .hero-cta:not(.hero-cta-secondary),
+  .voices-link,
+  .portal-dark-cta,
+  .site-header-cta::before,
+  .hero-cta:not(.hero-cta-secondary)::before,
+  .voices-link::before,
+  .portal-dark-cta::before,
   .hero-spread::after,
   .hero-stage::before,
   .hero-flat,
@@ -38,9 +78,27 @@
   .ask-copy > .micro-intro,
   .ask-bullets li,
   .ask-object,
-  .ask-object img,
+  .ask-phone-shell,
   .ask-object-halo,
-  .ask-object-chip,
+  .ask-phone-thread-track,
+  .ask-phone-thread-scroll,
+  .ask-phone-thread-scroll-thumb,
+  .ask-phone-message-user,
+  .ask-phone-thinking,
+  .ask-phone-reply,
+  .ask-phone-reply-kicker,
+  .ask-phone-reply h3,
+  .ask-phone-reply-lead,
+  .ask-phone-reply-block,
+  .ask-phone-reply-tags span,
+  .ask-phone-followups span,
+  .ask-phone-input-placeholder,
+  .ask-phone-input-text,
+  .ask-phone-input-typed,
+  .ask-phone-input-caret,
+  .ask-phone-send,
+  .ask-phone-send::before,
+  .ask-phone-thinking-dots span,
   .pricing-copy > .section-kicker,
   .pricing-copy > h2,
   .pricing-card,
@@ -78,9 +136,27 @@
   .ask-copy > .micro-intro,
   .ask-bullets li,
   .ask-object,
-  .ask-object img,
+  .ask-phone-shell,
   .ask-object-halo,
-  .ask-object-chip,
+  .ask-phone-thread-track,
+  .ask-phone-thread-scroll,
+  .ask-phone-thread-scroll-thumb,
+  .ask-phone-message-user,
+  .ask-phone-thinking,
+  .ask-phone-reply,
+  .ask-phone-reply-kicker,
+  .ask-phone-reply h3,
+  .ask-phone-reply-lead,
+  .ask-phone-reply-block,
+  .ask-phone-reply-tags span,
+  .ask-phone-followups span,
+  .ask-phone-input-placeholder,
+  .ask-phone-input-text,
+  .ask-phone-input-typed,
+  .ask-phone-input-caret,
+  .ask-phone-send,
+  .ask-phone-send::before,
+  .ask-phone-thinking-dots span,
   .pricing-copy > .section-kicker,
   .pricing-copy > h2,
   .pricing-card,

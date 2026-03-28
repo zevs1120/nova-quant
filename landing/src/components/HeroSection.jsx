@@ -42,7 +42,10 @@ export default function HeroSection() {
 
           <div className="hero-actions">
             <a className="hero-cta" href="https://app.novaquant.cloud">
-              Get started
+              Get Started
+            </a>
+            <a className="hero-cta hero-cta-secondary" href="/data-portal/">
+              Data Portal
             </a>
           </div>
         </div>
