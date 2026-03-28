@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import {
   portalBacktestMetrics,
   portalBenchmarkComparison,
@@ -10,7 +11,7 @@ import {
   portalMonteCarloPaths,
   portalMonteCarloStats,
 } from '../data/index.js';
-import { useViewportReveal } from '../hooks/useViewportMotion.js';
+import { useMotionPreference, useViewportReveal } from '../hooks/useViewportMotion.js';
 
 const PORTAL_MONTE_CARLO_WIDTH = 320;
 const PORTAL_MONTE_CARLO_HEIGHT = 188;
@@ -46,7 +47,85 @@ function buildMonteCarloPath(values) {
     .join(' ');
 }
 
-function PortalHero() {
+function formatAnimatedValue(value, motion) {
+  if (!motion) return '';
+
+  const prefix = motion.prefix ?? '';
+  const suffix = motion.suffix ?? '';
+  const decimals = motion.decimals ?? 0;
+  return `${prefix}${value.toFixed(decimals)}${suffix}`;
+}
+
+function useAnimatedMetric(motion, isActive, disabled) {
+  const target = motion?.value ?? 0;
+  const decimals = motion?.decimals ?? 0;
+
+  const [currentValue, setCurrentValue] = useState(target);
+
+  useEffect(() => {
+    if (!motion) return undefined;
+
+    if (disabled) {
+      setCurrentValue(target);
+      return undefined;
+    }
+
+    if (!isActive) {
+      setCurrentValue(0);
+      return undefined;
+    }
+
+    const duration = motion.duration ?? 1000;
+    const from = motion.from ?? 0;
+    let rafId = 0;
+    let startTime = 0;
+
+    setCurrentValue(from);
+
+    const tick = (timestamp) => {
+      if (!startTime) startTime = timestamp;
+
+      const progress = Math.min(1, (timestamp - startTime) / duration);
+      const easedProgress = 1 - Math.pow(1 - progress, 3);
+      const nextValue = from + (target - from) * easedProgress;
+
+      setCurrentValue(progress >= 1 ? target : nextValue);
+
+      if (progress < 1) {
+        rafId = window.requestAnimationFrame(tick);
+      }
+    };
+
+    rafId = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(rafId);
+  }, [decimals, disabled, isActive, motion, target]);
+
+  if (!motion) return '';
+  return formatAnimatedValue(Number(currentValue.toFixed(decimals)), motion);
+}
+
+function AnimatedMetricValue({ value, motion, isActive, disabled }) {
+  const animatedValue = useAnimatedMetric(motion, isActive, disabled);
+
+  return <>{motion ? animatedValue : value}</>;
+}
+
+function AnimatedMetricRange({ value, rangeMotion, isActive, disabled }) {
+  const startValue = useAnimatedMetric(rangeMotion?.start, isActive, disabled);
+  const endValue = useAnimatedMetric(rangeMotion?.end, isActive, disabled);
+
+  if (!rangeMotion) return <>{value}</>;
+
+  return (
+    <>
+      {startValue}
+      {'-'}
+      {endValue}
+    </>
+  );
+}
+
+function PortalHero({ reduceMotion = false }) {
   const { ref, isVisible } = useViewportReveal({ threshold: 0.14 });
   const heroPrinciples = ['Replayable', 'Benchmark-aware', 'Promotion-gated'];
 
@@ -87,7 +166,14 @@ function PortalHero() {
             {portalHeroStats.map((item) => (
               <article className="portal-mini-stat" key={item.label}>
                 <span>{item.label}</span>
-                <strong>{item.value}</strong>
+                <strong>
+                  <AnimatedMetricValue
+                    disabled={reduceMotion}
+                    isActive={isVisible}
+                    motion={item.motion}
+                    value={item.value}
+                  />
+                </strong>
               </article>
             ))}
           </div>
@@ -97,7 +183,7 @@ function PortalHero() {
   );
 }
 
-function PortalBacktestSection() {
+function PortalBacktestSection({ reduceMotion = false }) {
   const { ref, isVisible } = useViewportReveal();
 
   return (
@@ -109,7 +195,7 @@ function PortalBacktestSection() {
       <div className="campaign-grid portal-backtest-grid">
         <div className="portal-section-copy">
           <p className="section-kicker">Backtest</p>
-          <h2>Nothing graduates into product without surviving replay.</h2>
+          <h2>Replay before release.</h2>
           <p className="micro-intro">
             We do not want a model that looks smart once. We want a system that holds up across
             windows, regime shifts, promotion gates, and actual execution context.
@@ -127,7 +213,10 @@ function PortalBacktestSection() {
               {portalCurveBars.map((value, index) => (
                 <span
                   key={`backtest-${value}-${index}`}
-                  style={{ '--portal-line-height': `${Math.max(18, value)}%` }}
+                  style={{
+                    '--portal-line-height': `${Math.max(18, value)}%`,
+                    '--portal-bar-order': index,
+                  }}
                 />
               ))}
             </div>
@@ -153,7 +242,14 @@ function PortalBacktestSection() {
                 key={item.label}
               >
                 <span>{item.label}</span>
-                <strong>{item.value}</strong>
+                <strong>
+                  <AnimatedMetricValue
+                    disabled={reduceMotion}
+                    isActive={isVisible}
+                    motion={item.motion}
+                    value={item.value}
+                  />
+                </strong>
               </article>
             ))}
           </div>
@@ -163,11 +259,18 @@ function PortalBacktestSection() {
   );
 }
 
-function PortalAnalyticsSection() {
+function PortalAnalyticsSection({ reduceMotion = false }) {
   const { ref, isVisible } = useViewportReveal();
   const strategyReturn = Number.parseFloat(portalBenchmarkComparison[0]?.value ?? '0');
   const sp500Return = Number.parseFloat(portalBenchmarkComparison[1]?.value ?? '0');
   const alphaVsSp500 = Math.round(strategyReturn - sp500Return);
+  const alphaMotion = {
+    value: alphaVsSp500,
+    prefix: alphaVsSp500 >= 0 ? '+' : '',
+    suffix: ' pts',
+    decimals: 0,
+    duration: 980,
+  };
 
   return (
     <section
@@ -177,8 +280,8 @@ function PortalAnalyticsSection() {
     >
       <div className="campaign-grid portal-analytics-grid">
         <div className="portal-section-copy">
-          <p className="section-kicker">Analytics Layer</p>
-          <h2>See the path, not just the headline number.</h2>
+          <p className="section-kicker">Analytics</p>
+          <h2>Read the edge.</h2>
           <p className="micro-intro">
             The portal should show where return came from, how future paths distribute, and how the
             strategy compares against broad market baselines like the S&amp;P 500 and Nasdaq.
@@ -188,8 +291,8 @@ function PortalAnalyticsSection() {
         <div className="portal-analytics-stage">
           <article className="portal-analytics-card portal-heatmap-card">
             <div className="portal-card-head">
-              <span className="portal-shell-kicker">MONTHLY RETURN HEATMAP</span>
-              <span className="portal-shell-pill">REGIME MEMORY</span>
+              <span className="portal-shell-kicker">HEATMAP</span>
+              <span className="portal-shell-pill">MONTHLY</span>
             </div>
 
             <div className="portal-heatmap-scroll">
@@ -209,7 +312,7 @@ function PortalAnalyticsSection() {
                   ))}
                 </div>
 
-                {portalMonthlyHeatmap.map((row) => (
+                {portalMonthlyHeatmap.map((row, rowIndex) => (
                   <div className="portal-heatmap-row" key={row.year} role="row">
                     <span className="portal-heatmap-year" role="rowheader">
                       {row.year}
@@ -220,6 +323,7 @@ function PortalAnalyticsSection() {
                         className={`portal-heatmap-cell portal-heatmap-cell-${getHeatmapTone(value)}`}
                         key={`${row.year}-${portalHeatmapMonths[index]}`}
                         role="cell"
+                        style={{ '--portal-cell-order': rowIndex * 12 + index }}
                         aria-label={
                           value == null
                             ? `${row.year} ${portalHeatmapMonths[index]} no data`
@@ -245,7 +349,7 @@ function PortalAnalyticsSection() {
 
           <article className="portal-analytics-card portal-monte-carlo-card">
             <div className="portal-card-head">
-              <span className="portal-shell-kicker">MONTE CARLO SIMULATION</span>
+              <span className="portal-shell-kicker">MONTE CARLO</span>
               <span className="portal-shell-pill">10K PATHS</span>
             </div>
 
@@ -261,12 +365,14 @@ function PortalAnalyticsSection() {
                   d={`M0 ${PORTAL_MONTE_CARLO_HEIGHT - 1} H${PORTAL_MONTE_CARLO_WIDTH}`}
                 />
 
-                {portalMonteCarloPaths.map((path) => (
+                {portalMonteCarloPaths.map((path, index) => (
                   <polyline
                     className={`portal-monte-carlo-path portal-monte-carlo-path-${path.tone}`}
                     fill="none"
                     key={path.label}
+                    pathLength="100"
                     points={buildMonteCarloPath(path.values)}
+                    style={{ '--portal-path-order': index }}
                   />
                 ))}
               </svg>
@@ -287,7 +393,23 @@ function PortalAnalyticsSection() {
                   key={item.label}
                 >
                   <span>{item.label}</span>
-                  <strong>{item.value}</strong>
+                  <strong>
+                    {item.rangeMotion ? (
+                      <AnimatedMetricRange
+                        disabled={reduceMotion}
+                        isActive={isVisible}
+                        rangeMotion={item.rangeMotion}
+                        value={item.value}
+                      />
+                    ) : (
+                      <AnimatedMetricValue
+                        disabled={reduceMotion}
+                        isActive={isVisible}
+                        motion={item.motion}
+                        value={item.value}
+                      />
+                    )}
+                  </strong>
                 </article>
               ))}
             </div>
@@ -295,30 +417,49 @@ function PortalAnalyticsSection() {
 
           <article className="portal-analytics-card portal-benchmark-card">
             <div className="portal-card-head">
-              <span className="portal-shell-kicker">STRATEGY VS BENCHMARKS</span>
+              <span className="portal-shell-kicker">VS BENCHMARKS</span>
               <span className="portal-shell-pill">SAME WINDOW</span>
             </div>
 
             <div className="portal-benchmark-bars" aria-label="Strategy benchmark comparison">
-              {portalBenchmarkComparison.map((item) => (
+              {portalBenchmarkComparison.map((item, index) => (
                 <article className="portal-benchmark-bar" key={item.label}>
                   <div className="portal-benchmark-track">
                     <span
                       className={`portal-benchmark-fill portal-benchmark-fill-${item.tone}`}
-                      style={{ '--portal-benchmark-height': `${item.height}%` }}
+                      style={{
+                        '--portal-benchmark-height': `${item.height}%`,
+                        '--portal-bar-order': index,
+                      }}
                     />
                   </div>
 
-                  <strong>{item.value}</strong>
-                  <h3>{item.label}</h3>
-                  <p>{item.note}</p>
+                  <div className="portal-benchmark-copy">
+                    <strong>
+                      <AnimatedMetricValue
+                        disabled={reduceMotion}
+                        isActive={isVisible}
+                        motion={item.motion}
+                        value={item.value}
+                      />
+                    </strong>
+                    <h3>{item.label}</h3>
+                    <p>{item.note}</p>
+                  </div>
                 </article>
               ))}
             </div>
 
             <div className="portal-benchmark-footer">
               <span>Alpha vs S&amp;P 500</span>
-              <strong>{`+${alphaVsSp500} pts`}</strong>
+              <strong>
+                <AnimatedMetricValue
+                  disabled={reduceMotion}
+                  isActive={isVisible}
+                  motion={alphaMotion}
+                  value={`${alphaMotion.prefix}${alphaVsSp500} pts`}
+                />
+              </strong>
             </div>
           </article>
         </div>
@@ -339,7 +480,7 @@ function PortalFlywheelSection() {
       <div className="campaign-grid portal-flywheel-grid">
         <div className="portal-section-copy">
           <p className="section-kicker">Flywheel</p>
-          <h2>The loop is the product advantage.</h2>
+          <h2>The loop compounds.</h2>
           <p className="micro-intro">
             Data Portal makes the cycle inspectable: what came in, what was generated, what got
             replayed, what shipped, and what came back as evidence.
@@ -385,7 +526,7 @@ function PortalFabricSection() {
         <div className="campaign-grid portal-fabric-grid">
           <div className="portal-fabric-copy">
             <p className="section-kicker-light">Data Fabric</p>
-            <h2>One research surface. Multiple evidence layers.</h2>
+            <h2>One surface. Full memory.</h2>
             <p className="micro-intro-light">
               This is where the work becomes inspectable: ingest, experiments, replay, audit, and
               promotion gates all tied to the same decision timeline.
@@ -434,11 +575,13 @@ function PortalFabricSection() {
 }
 
 export default function DataPortalPage() {
+  const reduceMotion = useMotionPreference('(prefers-reduced-motion: reduce)');
+
   return (
     <>
-      <PortalHero />
-      <PortalBacktestSection />
-      <PortalAnalyticsSection />
+      <PortalHero reduceMotion={reduceMotion} />
+      <PortalBacktestSection reduceMotion={reduceMotion} />
+      <PortalAnalyticsSection reduceMotion={reduceMotion} />
       <PortalFlywheelSection />
       <PortalFabricSection />
     </>

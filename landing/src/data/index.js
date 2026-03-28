@@ -44,18 +44,50 @@ export const architectureSteps = [
 ];
 
 export const portalHeroStats = [
-  { label: 'Replay windows', value: '12Y' },
-  { label: 'Backtests logged', value: '18.4K' },
-  { label: 'Decision traces', value: '42M' },
+  {
+    label: 'Replay windows',
+    value: '12Y',
+    motion: { value: 12, suffix: 'Y', decimals: 0, duration: 960 },
+  },
+  {
+    label: 'Backtests logged',
+    value: '18.4K',
+    motion: { value: 18.4, suffix: 'K', decimals: 1, duration: 1080 },
+  },
+  {
+    label: 'Decision traces',
+    value: '42M',
+    motion: { value: 42, suffix: 'M', decimals: 0, duration: 1140 },
+  },
 ];
 
 export const portalCurveBars = [22, 28, 34, 30, 42, 56, 52, 64, 72, 70, 82, 96];
 
 export const portalBacktestMetrics = [
-  { label: 'Net return', value: '+184%', tone: 'mint' },
-  { label: 'Sharpe', value: '2.14', tone: 'blue' },
-  { label: 'Max DD', value: '-8.6%', tone: 'pink' },
-  { label: 'Hit rate', value: '61%', tone: 'yellow' },
+  {
+    label: 'Net return',
+    value: '+184%',
+    tone: 'mint',
+    motion: { value: 184, prefix: '+', suffix: '%', decimals: 0, duration: 1100 },
+  },
+  {
+    label: 'Sharpe',
+    value: '2.14',
+    tone: 'blue',
+    motion: { value: 2.14, decimals: 2, duration: 920 },
+  },
+  {
+    label: 'Max DD',
+    value: '-8.6%',
+    tone: 'pink',
+    motion: { value: -8.6, suffix: '%', decimals: 1, duration: 980 },
+  },
+  {
+    label: 'Hit rate',
+    value: '61%',
+    tone: 'yellow',
+    motion: { value: 61, suffix: '%', decimals: 0, duration: 1020 },
+  },
 ];
 
 export const portalHeatmapMonths = [
@@ -89,9 +121,27 @@ export const portalMonteCarloPaths = [
 ];
 
 export const portalMonteCarloStats = [
-  { label: 'Median ending value', value: '$147k', tone: 'blue' },
-  { label: '90% band', value: '$115k-$199k', tone: 'violet' },
-  { label: 'Positive paths', value: '78%', tone: 'mint' },
+  {
+    label: 'Median value',
+    value: '$147k',
+    tone: 'blue',
+    motion: { value: 147, prefix: '$', suffix: 'k', decimals: 0, duration: 1080 },
+  },
+  {
+    label: '90% band',
+    value: '$115k-$199k',
+    tone: 'violet',
+    rangeMotion: {
+      start: { value: 115, prefix: '$', suffix: 'k', decimals: 0, duration: 980 },
+      end: { value: 199, prefix: '$', suffix: 'k', decimals: 0, duration: 1120 },
+    },
+  },
+  {
+    label: 'Positive paths',
+    value: '78%',
+    tone: 'mint',
+    motion: { value: 78, suffix: '%', decimals: 0, duration: 1040 },
+  },
 ];
 
 export const portalBenchmarkComparison = [
@@ -101,6 +151,7 @@ export const portalBenchmarkComparison = [
     height: 100,
     tone: 'ink',
     note: 'Model-led live / replay window',
+    motion: { value: 184, prefix: '+', suffix: '%', decimals: 0, duration: 1100 },
   },
   {
     label: 'S&P 500',
@@ -108,6 +159,7 @@ export const portalBenchmarkComparison = [
     height: 57,
     tone: 'blue',
     note: 'Same lookback window',
+    motion: { value: 91, prefix: '+', suffix: '%', decimals: 0, duration: 980 },
   },
   {
     label: 'Nasdaq',
@@ -115,6 +167,7 @@ export const portalBenchmarkComparison = [
     height: 74,
     tone: 'pink',
     note: 'Same lookback window',
+    motion: { value: 128, prefix: '+', suffix: '%', decimals: 0, duration: 1040 },
   },
 ];
 

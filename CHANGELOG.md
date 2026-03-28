@@ -25,6 +25,12 @@ NovaQuant 所有重要变更记录于此。
   - `Data Portal` 首页 hero 改为全屏居中的封面构图，只保留门户定位文案、原则 chips 与核心统计卡，不再预先重复下方模块内容。
   - 调整 `Data Portal` 首屏的氛围色块、数字卡层次与 section 衔接，整体更接近统一的 landing editorial 视觉语言。
 
+- **Fix(landing)：精修 Data Portal 首页与分析图表动效。**
+  - 删除 `Data Portal` 首页右侧遗留的 research replay 玻璃面板，首页回归纯居中的封面布局，避免与下方模块内容重复。
+  - 为 `Heatmap`、`Monte Carlo`、`Strategy vs Benchmarks` 三张分析卡补齐真实图表动画：热力图按格点亮、路径按顺序绘制、柱状图自底部生长。
+  - 为 `Replay windows`、回测指标、Monte Carlo 统计值、benchmark 百分比和 `Alpha vs S&P 500` 补充 count-up 动画，并统一 `prefers-reduced-motion` 兜底。
+  - 收短 `Backtest / Analytics / Flywheel / Data Fabric` 各 section 标题及 analytics 卡片标题，减少营销式长句。
+
 - **Feat(admin)：管理后台整体视觉语言向 landing page 对齐。**
   - 为 `admin` 入口新增统一品牌背景层，复用暖白底、蓝粉薄荷光斑、细网格和玻璃质感卡片语言。
   - 重做侧栏、顶栏、登录页、统计卡、面板、表格、状态标签和图表条形/环形样式，在不改页面架构的前提下整体换皮。
