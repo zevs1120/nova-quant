@@ -186,6 +186,67 @@ const postgresSnapshotCache = new Map<string, { payload: AdminAlphaSnapshot; fet
 const postgresFailureCache = new Map<string, { error: string; failedAt: number }>();
 const postgresInflight = new Map<string, Promise<AdminAlphaSnapshot>>();
 
+// Cache cleanup interval (run every 5 minutes)
+const CACHE_CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
+const MAX_CACHE_ENTRIES = 100;
+
+function pruneExpiredCache(
+  snapshotCache: Map<string, { fetchedAt: number }>,
+  failureCache: Map<string, { failedAt: number }>,
+  successTtlMs: number,
+  failureTtlMs: number,
+) {
+  const now = Date.now();
+  // Evict expired success entries
+  for (const [key, entry] of snapshotCache.entries()) {
+    if (now - entry.fetchedAt > successTtlMs) {
+      snapshotCache.delete(key);
+    }
+  }
+  // Evict expired failure entries
+  for (const [key, entry] of failureCache.entries()) {
+    if (now - entry.failedAt > failureTtlMs) {
+      failureCache.delete(key);
+    }
+  }
+  // If still too large, evict oldest entries
+  if (snapshotCache.size > MAX_CACHE_ENTRIES) {
+    const sorted = [...snapshotCache.entries()].sort((a, b) => a[1].fetchedAt - b[1].fetchedAt);
+    const toRemove = sorted.slice(0, Math.ceil(MAX_CACHE_ENTRIES * 0.3));
+    toRemove.forEach(([key]) => snapshotCache.delete(key));
+  }
+  if (failureCache.size > MAX_CACHE_ENTRIES) {
+    const sorted = [...failureCache.entries()].sort((a, b) => a[1].failedAt - b[1].failedAt);
+    const toRemove = sorted.slice(0, Math.ceil(MAX_CACHE_ENTRIES * 0.3));
+    toRemove.forEach(([key]) => failureCache.delete(key));
+  }
+}
+
+let cleanupTimer: ReturnType<typeof setInterval> | null = null;
+
+function startCacheCleanup() {
+  if (cleanupTimer) return;
+  cleanupTimer = setInterval(() => {
+    pruneExpiredCache(
+      upstreamSnapshotCache,
+      upstreamFailureCache,
+      UPSTREAM_SUCCESS_CACHE_TTL_MS,
+      UPSTREAM_FAILURE_COOLDOWN_MS,
+    );
+    pruneExpiredCache(
+      postgresSnapshotCache,
+      postgresFailureCache,
+      POSTGRES_SUCCESS_CACHE_TTL_MS,
+      POSTGRES_FAILURE_COOLDOWN_MS,
+    );
+  }, CACHE_CLEANUP_INTERVAL_MS);
+  // Ensure cleanup does not prevent process exit
+  cleanupTimer.unref();
+}
+
+// Start cleanup on module load
+startCacheCleanup();
+
 function getRepo() {
   return getRuntimeRepo();
 }

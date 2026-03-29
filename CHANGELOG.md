@@ -39,35 +39,38 @@ NovaQuant 所有重要变更记录于此。
   - `Ask Nova` 区从静态截图改为真机比例手机 mockup，按 `typing → 发送清空 → thinking → 回复展开并自动滚动` 的时序展示完整解释。
   - 手机外壳按 Apple `iPhone 17 Pro` 机身比例重构，内部 UI 独立缩放，提升设备尺寸与界面分辨率感的一致性。
 
-- **Fix(landing)：去掉 Data Portal 底部与页脚之间的白色断层。**
+- **fix(landing): 去掉 Data Portal 底部与页脚之间的白色断层。**
   - 为 `Data Portal` 页面增加专用间距覆盖，让 `Data Fabric` 末屏与 `LegalFooter` 紧贴，避免深色背景之间露出浅色白边。
   - 保持修复范围只在 `page-shell-portal` 下生效，不影响主 landing 其他 section 的全局间距规则。
 
-- **Feat(landing)：扩展 Data Portal 分析层并重构首页封面。**
+- **feat(landing): 扩展 Data Portal 分析层并重构首页封面。**
   - 新增 `Analytics` 区块，集中展示 `月度收益热力图`、`Monte Carlo 模拟` 与 `策略 vs S&P 500 / Nasdaq` 基准对比，并为顶部导航补充对应锚点。
   - `Data Portal` 首页 hero 改为全屏居中的封面构图，只保留门户定位文案、原则 chips 与核心统计卡，不再预先重复下方模块内容。
   - 调整 `Data Portal` 首屏的氛围色块、数字卡层次与 section 衔接，整体更接近统一的 landing editorial 视觉语言。
 
-- **Fix(landing)：精修 Data Portal 首页与分析图表动效。**
+- **fix(landing): 精修 Data Portal 首页与分析图表动效。**
   - 删除 `Data Portal` 首页右侧遗留的 research replay 玻璃面板，首页回归纯居中的封面布局，避免与下方模块内容重复。
   - 为 `Heatmap`、`Monte Carlo`、`Strategy vs Benchmarks` 三张分析卡补齐真实图表动画：热力图按格点亮、路径按顺序绘制、柱状图自底部生长。
   - 为 `Replay windows`、回测指标、Monte Carlo 统计值、benchmark 百分比和 `Alpha vs S&P 500` 补充 count-up 动画，并统一 `prefers-reduced-motion` 兜底。
   - 收短 `Backtest / Analytics / Flywheel / Data Fabric` 各 section 标题及 analytics 卡片标题，减少营销式长句。
 
-- **Feat(admin)：管理后台整体视觉语言向 landing page 对齐。**
+- **feat(admin): 管理后台整体视觉语言向 landing page 对齐。**
   - 为 `admin` 入口新增统一品牌背景层，复用暖白底、蓝粉薄荷光斑、细网格和玻璃质感卡片语言。
   - 重做侧栏、顶栏、登录页、统计卡、面板、表格、状态标签和图表条形/环形样式，在不改页面架构的前提下整体换皮。
   - 将总览页生命周期和活跃率等关键图表配色切换到 landing 的品牌色带，减少后台与官网之间的视觉割裂。
 
-- **Feat(admin)：重构后台信息架构，让核心数据一眼可读。**
+- **feat(admin): 重构后台信息架构，让核心数据一眼可读。**
   - 一级导航从 6 项收敛为 `总览 / 用户增长 / 策略工厂 / 信号执行 / 系统健康` 5 项，合并 `Alpha 实验室` 与 `今天后台成果`。
   - 新增 `策略工厂` 页面，把 Discovery、Shadow、评估、研究回测与训练飞轮合并到一屏，改用统一事件流和重点候选队列表达产出。
   - `总览` 改为只展示跨域脉冲与异常摘要，`用户增长`、`信号执行`、`系统健康` 各自收敛为更适合运营判断的首屏结构，减少默认大表和重复分布图。
 
-- **Fix(admin,auth,db)：管理后台首刷过慢时优先快速回退并复用缓存。**
+- **fix(admin,auth,db): 管理后台首刷过慢时优先快速回退并复用缓存。**
   - `总览` 聚合接口改为并发拉取 `users / alpha / signals / system / workflows`，避免刷新时串行等待多个快照源。
   - 为 `alpha` 与 `research ops` 的 `EC2 live upstream` / `Postgres mirror` 读取链路增加软超时、失败冷却和短时缓存，远端慢或不可达时优先返回本地回退数据。
-  - 为 `Postgres mirror` 连接补上连接超时与空闲超时，并对 admin session 做短缓存，减少一次页面刷新中的重复鉴权解析。
+    - Upstream 软超时 1200ms，硬超时 6500ms；缓存命中有效期 15s，失败冷却 30s（全部可通过环境变量配置）。
+    - Postgres 软超时 900ms，缓存有效期 15s，失败冷却 30s。
+  - 为 `Postgres mirror` 连接补上连接超时与空闲超时，并对 admin session 做短缓存（默认 5s，可通过 `NOVA_ADMIN_SESSION_CACHE_TTL_MS` 配置），减少一次页面刷新中的重复鉴权解析。
+  - Admin session 缓存在权限变更时主动失效，防止权限回收后最长 5s 才生效的问题。
 
 - **Feat(ci)：GitHub Actions 自动部署 EC2 流水线。**
   - **新增 `.github/workflows/deploy-ec2.yml`**：push 到 `main` 后自动触发 CI → Deploy 串行流水线。

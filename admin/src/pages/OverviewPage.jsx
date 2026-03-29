@@ -4,6 +4,13 @@ import { getAdminOverview } from '../services/adminApi';
 
 const LIFECYCLE_PALETTE = ['#4b7dff', '#9f75ff', '#ff5fc4', '#ffb199', '#64d2b0', '#8bd4ff'];
 
+// Thresholds for priority alerts
+// Shadow inventory pile-up: Shadow > Canary * 3 + 6 indicates slow promotion cadence
+const SHADOW_PILEUP_MULTIPLIER = 3;
+const SHADOW_PILEUP_PAD = 6;
+// Active user ratio below this % triggers low-activation alert
+const LOW_ACTIVATION_THRESHOLD_PCT = 30;
+
 function LifecycleStack({ rows }) {
   const total = rows.reduce((sum, item) => sum + Number(item.value || 0), 0) || 1;
   return (
@@ -60,7 +67,10 @@ function buildPriorityItems(headline, workflowTimeline, activeUserRatio) {
     });
   }
 
-  if (Number(headline.shadow_candidates || 0) > Number(headline.canary_candidates || 0) * 3 + 6) {
+  if (
+    Number(headline.shadow_candidates || 0) >
+    Number(headline.canary_candidates || 0) * SHADOW_PILEUP_MULTIPLIER + SHADOW_PILEUP_PAD
+  ) {
     items.push({
       title: 'Shadow 库存堆积',
       detail: `Shadow ${headline.shadow_candidates || 0} 个，Canary ${headline.canary_candidates || 0} 个，晋升节奏偏慢。`,
@@ -68,7 +78,7 @@ function buildPriorityItems(headline, workflowTimeline, activeUserRatio) {
     });
   }
 
-  if (activeUserRatio < 30) {
+  if (activeUserRatio < LOW_ACTIVATION_THRESHOLD_PCT) {
     items.push({
       title: '活跃率偏低',
       detail: `近 7 天活跃率只有 ${Math.round(activeUserRatio)}%，需要回到用户激活与触达链路。`,

@@ -162,38 +162,65 @@ function buildUnifiedEvents(alphaData, researchData) {
     .slice(0, 8);
 }
 
-function buildCandidateQueue(alphaData) {
-  const queue = [];
-  const pushUnique = (row, kind) => {
-    const id = row.id || row.alpha_id;
-    if (!id || queue.some((item) => item.id === id)) return;
-    queue.push({
-      id,
-      family: row.family || 'Unknown',
-      thesis: row.thesis || row.integration_path || '待补充 thesis',
-      status: row.status || kind,
-      acceptance: row.acceptance_score ?? row.latest_acceptance_score,
-      stability: row.stability_score ?? row.metrics?.stability_score,
-      correlation: row.correlation_to_active ?? row.metrics?.correlation_to_active,
-    });
+function buildCandidateQueueItem(
+  row: Record<string, unknown>,
+  kind: string,
+): {
+  id: string;
+  family: string;
+  thesis: string;
+  status: string;
+  acceptance: number | null;
+  stability: number | null;
+  correlation: number | null;
+} | null {
+  const id = String(row.id || row.alpha_id || '');
+  if (!id) return null;
+  const metrics = row.metrics as {
+    stability_score?: number;
+    correlation_to_active?: number;
+  } | null;
+  return {
+    id,
+    family: String(row.family || 'Unknown'),
+    thesis: String(row.thesis || row.integration_path || '待补充 thesis'),
+    status: String(row.status || kind),
+    acceptance: (row.acceptance_score ?? row.latest_acceptance_score) as number | null,
+    stability: (row.stability_score ?? metrics?.stability_score) as number | null,
+    correlation: (row.correlation_to_active ?? metrics?.correlation_to_active) as number | null,
+  };
+}
+
+function buildCandidateQueue(alphaData: Record<string, unknown>) {
+  const queue: ReturnType<typeof buildCandidateQueueItem>[] = [];
+  const seen = new Set<string>();
+
+  const pushUnique = (row: Record<string, unknown>, kind: string) => {
+    const item = buildCandidateQueueItem(row, kind);
+    if (!item || seen.has(item.id)) return;
+    seen.add(item.id);
+    queue.push(item);
   };
 
-  (alphaData?.decaying_candidates || []).slice(0, 3).forEach((row) => pushUnique(row, 'REJECT'));
+  (alphaData?.decaying_candidates || [])
+    .slice(0, 3)
+    .forEach((row: Record<string, unknown>) => pushUnique(row, 'REJECT'));
 
-  (alphaData?.today?.recent_acceptances || []).slice(0, 3).forEach((row) =>
+  (alphaData?.today?.recent_acceptances || []).slice(0, 3).forEach((row: Record<string, unknown>) =>
     pushUnique(
       {
+        ...row,
         id: row.alpha_id,
-        family: row.family,
         thesis: `${row.integration_path || 'unknown'} · 今日发现`,
         status: 'TODAY',
-        acceptance_score: row.acceptance_score,
       },
       'TODAY',
     ),
   );
 
-  (alphaData?.top_candidates || []).forEach((row) => pushUnique(row, 'SHADOW'));
+  (alphaData?.top_candidates || []).forEach((row: Record<string, unknown>) =>
+    pushUnique(row, 'SHADOW'),
+  );
 
   return queue.slice(0, 6);
 }
