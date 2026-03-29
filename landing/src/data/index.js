@@ -61,32 +61,32 @@ export const portalHeroStats = [
   },
 ];
 
-export const portalCurveBars = [22, 28, 34, 30, 42, 56, 52, 64, 72, 70, 82, 96];
+export const portalCurveBars = [19, 24, 29, 27, 35, 44, 42, 53, 60, 63, 73, 89];
 
 export const portalBacktestMetrics = [
   {
     label: 'Net return',
-    value: '+184%',
+    value: '+151%',
     tone: 'mint',
-    motion: { value: 184, prefix: '+', suffix: '%', decimals: 0, duration: 1100 },
+    motion: { value: 151, prefix: '+', suffix: '%', decimals: 0, duration: 1100 },
   },
   {
     label: 'Sharpe',
-    value: '2.14',
+    value: '1.61',
     tone: 'blue',
-    motion: { value: 2.14, decimals: 2, duration: 920 },
+    motion: { value: 1.61, decimals: 2, duration: 920 },
   },
   {
     label: 'Max DD',
-    value: '-8.6%',
+    value: '-11.8%',
     tone: 'pink',
-    motion: { value: -8.6, suffix: '%', decimals: 1, duration: 980 },
+    motion: { value: -11.8, suffix: '%', decimals: 1, duration: 980 },
   },
   {
     label: 'Hit rate',
-    value: '61%',
+    value: '59%',
     tone: 'yellow',
-    motion: { value: 61, suffix: '%', decimals: 0, duration: 1020 },
+    motion: { value: 59, suffix: '%', decimals: 0, duration: 1020 },
   },
 ];
 
@@ -106,68 +106,68 @@ export const portalHeatmapMonths = [
 ];
 
 export const portalMonthlyHeatmap = [
-  { year: '2023', values: [3.4, -1.8, 4.2, 2.6, -0.9, 5.3, 1.6, -2.4, 2.8, 4.5, 1.9, 3.7] },
-  { year: '2024', values: [4.1, 2.4, -1.2, 5.9, 3.1, -2.6, 4.8, 2.1, 1.5, -0.7, 3.6, 5.4] },
-  { year: '2025', values: [2.7, 4.9, 3.2, -1.5, 6.1, 2.3, -0.8, 4.4, 3.8, 1.7, 5.2, 2.9] },
-  { year: '2026 YTD', values: [3.6, 1.9, 2.8, null, null, null, null, null, null, null, null, null] },
+  { year: '2023', values: [2.5, -1.4, 3.4, 1.9, -0.7, 3.9, 1.5, -1.9, 2.3, 3.6, 1.4, 2.9] },
+  { year: '2024', values: [3.3, 2.1, -0.8, 4.6, 2.7, -2.1, 3.9, 1.9, 1.5, -0.4, 3.1, 4.2] },
+  { year: '2025', values: [2.2, 4.1, 2.7, -1.2, 4.9, 2.0, -0.7, 3.6, 3.0, 1.4, 4.3, 2.4] },
+  { year: '2026 YTD', values: [2.7, 1.6, 2.2, null, null, null, null, null, null, null, null, null] },
 ];
 
 export const portalMonteCarloPaths = [
-  { label: 'P10', tone: 'pink', values: [100, 102, 101, 105, 103, 107, 106, 109, 111, 113, 112, 115] },
-  { label: 'P25', tone: 'yellow', values: [100, 103, 105, 106, 109, 112, 114, 117, 119, 121, 124, 127] },
-  { label: 'Median', tone: 'blue', values: [100, 105, 108, 112, 116, 120, 124, 129, 133, 137, 142, 147] },
-  { label: 'P75', tone: 'mint', values: [100, 106, 111, 117, 123, 128, 135, 141, 147, 153, 160, 168] },
-  { label: 'P90', tone: 'violet', values: [100, 108, 114, 122, 130, 138, 147, 156, 166, 176, 187, 199] },
+  { label: 'P10', tone: 'pink', values: [100, 101, 101, 103, 102, 105, 105, 108, 110, 112, 111, 108] },
+  { label: 'P25', tone: 'yellow', values: [100, 103, 104, 106, 108, 111, 113, 116, 119, 121, 123, 125] },
+  { label: 'Median', tone: 'blue', values: [100, 104, 107, 111, 115, 119, 123, 128, 132, 136, 140, 144] },
+  { label: 'P75', tone: 'mint', values: [100, 105, 110, 115, 120, 125, 131, 137, 143, 149, 155, 161] },
+  { label: 'P90', tone: 'violet', values: [100, 106, 112, 119, 126, 134, 142, 150, 159, 167, 176, 184] },
 ];
 
 export const portalMonteCarloStats = [
   {
     label: 'Median value',
-    value: '$147k',
+    value: '$144k',
     tone: 'blue',
-    motion: { value: 147, prefix: '$', suffix: 'k', decimals: 0, duration: 1080 },
+    motion: { value: 144, prefix: '$', suffix: 'k', decimals: 0, duration: 1080 },
   },
   {
     label: '90% band',
-    value: '$115k-$199k',
+    value: '$108k-$184k',
     tone: 'violet',
     rangeMotion: {
-      start: { value: 115, prefix: '$', suffix: 'k', decimals: 0, duration: 980 },
-      end: { value: 199, prefix: '$', suffix: 'k', decimals: 0, duration: 1120 },
+      start: { value: 108, prefix: '$', suffix: 'k', decimals: 0, duration: 980 },
+      end: { value: 184, prefix: '$', suffix: 'k', decimals: 0, duration: 1120 },
     },
   },
   {
     label: 'Positive paths',
-    value: '78%',
+    value: '75%',
     tone: 'mint',
-    motion: { value: 78, suffix: '%', decimals: 0, duration: 1040 },
+    motion: { value: 75, suffix: '%', decimals: 0, duration: 1040 },
   },
 ];
 
 export const portalBenchmarkComparison = [
   {
     label: 'NovaQuant strategy',
-    value: '+184%',
+    value: '+151%',
     height: 100,
     tone: 'ink',
     note: 'Model-led live / replay window',
-    motion: { value: 184, prefix: '+', suffix: '%', decimals: 0, duration: 1100 },
+    motion: { value: 151, prefix: '+', suffix: '%', decimals: 0, duration: 1100 },
   },
   {
     label: 'S&P 500',
-    value: '+91%',
-    height: 57,
+    value: '+98%',
+    height: 65,
     tone: 'blue',
     note: 'Same lookback window',
-    motion: { value: 91, prefix: '+', suffix: '%', decimals: 0, duration: 980 },
+    motion: { value: 98, prefix: '+', suffix: '%', decimals: 0, duration: 980 },
   },
   {
     label: 'Nasdaq',
-    value: '+128%',
-    height: 74,
+    value: '+126%',
+    height: 83,
     tone: 'pink',
     note: 'Same lookback window',
-    motion: { value: 128, prefix: '+', suffix: '%', decimals: 0, duration: 1040 },
+    motion: { value: 126, prefix: '+', suffix: '%', decimals: 0, duration: 1040 },
   },
 ];
 

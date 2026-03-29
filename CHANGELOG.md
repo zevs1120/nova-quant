@@ -4,6 +4,11 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+- **Fix(landing)：校准 Data Portal 展示型业绩数据。**
+  - 将 `Data Portal` 回测面板中的 `Sharpe` 调整为 `1.61`，并同步重估净收益、回撤、胜率与柱状走势，使整组表现落在更可信的风险收益区间。
+  - 上调但收敛 `Strategy vs Benchmarks`、`Monte Carlo` 和月度热力图数据，保持策略表现高于 `S&P 500 / Nasdaq`，同时避免与新的 Sharpe 水平失真。
+  - 保持现有 count-up 与图表动效不变，只更新展示数据源与对应动画终值。
+
 - **Feat(db,auth,manual,admin)：生产运行时继续去 SQLite，主业务链路可直接跑 Supabase/Postgres。**
   - `auth` 现在会把 `NOVA_DATA_DATABASE_URL` 视为合法的 Postgres 鉴权库回退来源；在 `postgres` 运行时，本地 SQLite auth mirror 不再是必需条件。
   - `manual service` 新增 Postgres 同步查询与事务桥接路径，积分、邀请、预测市场等流程可直接走 Supabase 业务库，不再依赖本地 `quant.db`。
