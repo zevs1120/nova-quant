@@ -4,6 +4,15 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+- **Fix(全局)：修复 code review 发现的 17 项 bug 与代码质量问题。**
+  - **前端崩溃修复**：`TodayTab` 中 `handleSignalAction` 在 `const` 声明前被引用（temporal dead zone），点击交易按钮时 `ReferenceError` 崩溃；`todayPickSymbol` 从未声明，fallback 路径同样崩溃。
+  - **Postgres 运行时修复**：`PostgresRuntimeRepository` 补齐 `upsertNovaReviewLabel` / `listNovaReviewLabels` 覆写，防止 Postgres 模式下调用基类触发 `NOT_IMPLEMENTED` 崩溃；`postgresSyncBridge` 批量写入补上事务包裹，恢复与 SQLite 版本一致的原子性保证；worker `error` 事件处理改为存储错误并在 `waitForResponse` 循环顶部（`receiveMessageOnPort` 之前）检查，确保 worker 崩溃后调用方拿到原始异常而非 `TypeError`；`ensureSequences` 加 `LOCK TABLE` + 事务防止多进程冷启动竞态。
+  - **数据丢失修复**：`derive-runtime-state.ts` 和 `run-evidence.ts` 补齐 `flushRuntimeRepoMirror()` 调用，防止 Postgres mirror 启用时写入丢失。
+  - **内存泄漏修复**：`liveOps.ts` 补齐与 `liveAlpha.ts` 相同的 `pruneExpiredCache` + 定时清理机制（6 个 cache Map 此前按日累积无上限）；`adminSessionCache` 增加 5 分钟周期性过期清扫；`recentlyModifiedRoles` 的 `setTimeout` 改为条件删除，避免多次角色修改时首次定时器提前清除后续追踪。
+  - **并发安全修复**：`redeemManualVipDay` 余额检查移入事务内部，Postgres 路径使用 `SELECT ... FOR UPDATE` 防止并发双重扣减；`appendPointsLedger` 新增 `knownBalance` 参数，避免落账时二次读取绕过行锁（消除 READ COMMITTED 下的 stale-read 窗口）。
+  - **Landing a11y/UX 修复**：Heatmap Evidence 按钮在无选中 cell 时禁用；三组控件从错误的 `tablist/tab` 语义改为 `role="group"` + `aria-pressed`（filter 按钮组的正确语义）；Evidence drawer 增加 Escape 关闭和自动聚焦。
+  - **测试覆盖补充**：`performanceOptimization.test.ts` 补齐 `/api/outcomes/recent` 端点覆盖；`manualServicePostgresRuntime.test.ts` 新增事务 rollback 路径测试。
+
 - **Feat(ui)：app 视觉对齐 landing，并修复手机端 onboarding 版式。**
   - app 全局底色、玻璃卡面、按钮和主要页面表面统一切到 landing 的白底与蓝粉渐变体系，移除旧的 beige 主底色。
   - `Today` 页改成更极简的“日期 + 状态话 + 单张主卡”结构，并加入 `左滑今天不做 / 右滑接受今天计划 / 下滑稍后再看` 的判断型手势语义。

@@ -90,4 +90,41 @@ describe('manual service in postgres runtime', () => {
     expect(mockExecuteSync).toHaveBeenCalled();
     expect(mockGetDb).not.toHaveBeenCalled();
   });
+
+  it('rolls back the transaction when an error occurs inside the callback', async () => {
+    mockQueryRowSync.mockImplementation((sql: string) => {
+      if (
+        sql.includes('FROM "novaquant_data"."manual_user_state"') &&
+        sql.includes('WHERE user_id')
+      ) {
+        return {
+          user_id: 'usr_manual_pg',
+          invite_code: 'NV000123',
+          referred_by_code: null,
+          vip_days_balance: 0,
+          vip_days_redeemed_total: 0,
+        };
+      }
+      if (sql.includes('FROM "novaquant_data"."manual_points_ledger"')) {
+        return { balance_after: 5000 };
+      }
+      return null;
+    });
+    mockQueryRowsSync.mockReturnValue([]);
+    mockExecuteSync.mockImplementation((sql: string) => {
+      if (sql.includes('UPDATE')) {
+        throw new Error('SIMULATED_PG_FAILURE');
+      }
+    });
+
+    const { redeemManualVipDay } = await import('../src/server/manual/service.js');
+
+    expect(() => redeemManualVipDay({ userId: 'usr_manual_pg', days: 1 })).toThrow(
+      'SIMULATED_PG_FAILURE',
+    );
+    expect(mockBeginTransactionSync).toHaveBeenCalledTimes(1);
+    expect(mockRollbackTransactionSync).toHaveBeenCalledTimes(1);
+    expect(mockCommitTransactionSync).not.toHaveBeenCalled();
+    expect(mockGetDb).not.toHaveBeenCalled();
+  });
 });

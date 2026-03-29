@@ -312,9 +312,11 @@ function appendPointsLedger(args: {
   eventType: string;
   pointsDelta: number;
   metadata?: LedgerMetadata;
+  knownBalance?: number;
 }) {
   if (!ensureManualUserState(args.userId)) return 0;
-  const balanceBefore = currentPointsBalance(args.userId);
+  const balanceBefore =
+    args.knownBalance !== undefined ? args.knownBalance : currentPointsBalance(args.userId);
   const balanceAfter = balanceBefore + Math.trunc(args.pointsDelta);
   const payload = {
     entry_id: createId('pts'),
@@ -591,39 +593,62 @@ export function redeemManualVipDay(args: { userId: string; days?: number }) {
   const userId = String(args.userId).trim();
   const days = Math.max(1, Math.min(30, Math.trunc(Number(args.days || 1))));
   const cost = days * VIP_REDEEM_POINTS;
-  const balance = currentPointsBalance(userId);
-  if (balance < cost) {
-    return { ok: false as const, error: 'INSUFFICIENT_POINTS' };
-  }
-  runManualTransaction(() => {
-    const ts = nowMs();
-    if (isPostgresBusinessRuntime()) {
-      executeSync(
-        `UPDATE ${manualTable('manual_user_state')}
-         SET vip_days_balance = vip_days_balance + $1, vip_days_redeemed_total = vip_days_redeemed_total + $2, updated_at_ms = $3
-         WHERE user_id = $4`,
-        [days, days, ts, userId],
-      );
-    } else {
-      getManualDb()
-        .prepare(
-          `UPDATE manual_user_state
-           SET vip_days_balance = vip_days_balance + ?, vip_days_redeemed_total = vip_days_redeemed_total + ?, updated_at_ms = ?
-           WHERE user_id = ?`,
-        )
-        .run(days, days, ts, userId);
-    }
-    appendPointsLedger({
-      userId,
-      eventType: 'VIP_REDEEM',
-      pointsDelta: -cost,
-      metadata: {
-        title: `Redeemed ${days} VIP day${days > 1 ? 's' : ''}`,
-        description: `${cost} points converted into premium access.`,
-      },
+  try {
+    runManualTransaction(() => {
+      const balance = isPostgresBusinessRuntime()
+        ? (() => {
+            const row = queryRowSync<{ balance_after: number }>(
+              `SELECT balance_after
+               FROM ${manualTable('manual_points_ledger')}
+               WHERE user_id = $1
+               ORDER BY created_at_ms DESC
+               LIMIT 1
+               FOR UPDATE`,
+              [userId],
+            );
+            return Number(row?.balance_after || 0);
+          })()
+        : currentPointsBalance(userId);
+      if (balance < cost) {
+        throw Object.assign(new Error('INSUFFICIENT_POINTS'), {
+          __manualEarlyReturn: true,
+        });
+      }
+      const ts = nowMs();
+      if (isPostgresBusinessRuntime()) {
+        executeSync(
+          `UPDATE ${manualTable('manual_user_state')}
+           SET vip_days_balance = vip_days_balance + $1, vip_days_redeemed_total = vip_days_redeemed_total + $2, updated_at_ms = $3
+           WHERE user_id = $4`,
+          [days, days, ts, userId],
+        );
+      } else {
+        getManualDb()
+          .prepare(
+            `UPDATE manual_user_state
+             SET vip_days_balance = vip_days_balance + ?, vip_days_redeemed_total = vip_days_redeemed_total + ?, updated_at_ms = ?
+             WHERE user_id = ?`,
+          )
+          .run(days, days, ts, userId);
+      }
+      appendPointsLedger({
+        userId,
+        eventType: 'VIP_REDEEM',
+        pointsDelta: -cost,
+        knownBalance: balance,
+        metadata: {
+          title: `Redeemed ${days} VIP day${days > 1 ? 's' : ''}`,
+          description: `${cost} points converted into premium access.`,
+        },
+      });
     });
-  });
-  return { ok: true as const, data: getManualDashboard(userId) };
+    return { ok: true as const, data: getManualDashboard(userId) };
+  } catch (error) {
+    if ((error as { __manualEarlyReturn?: boolean }).__manualEarlyReturn) {
+      return { ok: false as const, error: 'INSUFFICIENT_POINTS' };
+    }
+    throw error;
+  }
 }
 
 export function claimManualReferral(args: { userId: string; inviteCode: string }) {

@@ -1,4 +1,4 @@
-import { getRuntimeRepo } from '../src/server/db/runtimeRepository.js';
+import { flushRuntimeRepoMirror, getRuntimeRepo } from '../src/server/db/runtimeRepository.js';
 import { runEvidenceEngine } from '../src/server/evidence/engine.js';
 import type { AssetClass, Market } from '../src/server/types.js';
 
@@ -61,15 +61,19 @@ function parseArgs(argv: string[]) {
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const repo = getRuntimeRepo();
-  const out = runEvidenceEngine(repo, {
-    userId: args.userId,
-    market: args.market,
-    assetClass: args.assetClass,
-    timeframe: args.timeframe,
-    maxSignals: args.maxSignals,
-  });
-  // eslint-disable-next-line no-console
-  console.log(JSON.stringify({ ok: true, ...out }, null, 2));
+  try {
+    const out = runEvidenceEngine(repo, {
+      userId: args.userId,
+      market: args.market,
+      assetClass: args.assetClass,
+      timeframe: args.timeframe,
+      maxSignals: args.maxSignals,
+    });
+    // eslint-disable-next-line no-console
+    console.log(JSON.stringify({ ok: true, ...out }, null, 2));
+  } finally {
+    await flushRuntimeRepoMirror();
+  }
 }
 
 main().catch((error) => {

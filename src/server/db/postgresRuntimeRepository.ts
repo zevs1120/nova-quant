@@ -62,12 +62,15 @@ import type {
 } from '../types.js';
 import { MarketRepository } from './repository.js';
 import {
+  beginTransactionSync,
+  commitTransactionSync,
   executeSync,
   getPostgresBusinessSchema,
   insertRowsSync,
   qualifyBusinessTable,
   queryRowSync,
   queryRowsSync,
+  rollbackTransactionSync,
   upsertRowsSync,
 } from './postgresSyncBridge.js';
 import { quotePgIdentifier } from './postgresMigration.js';
@@ -127,13 +130,21 @@ function ensureSequences() {
   for (const table of AUTO_ID_TABLES) {
     const sequence = qualifySequence(table);
     const qualifiedTable = qualifyBusinessTable(table);
-    executeSync(`CREATE SEQUENCE IF NOT EXISTS ${sequence};`);
-    executeSync(
-      `ALTER TABLE ${qualifiedTable} ALTER COLUMN ${quotePgIdentifier('id')} SET DEFAULT nextval('${sequence}'::regclass);`,
-    );
-    executeSync(
-      `SELECT setval('${sequence}'::regclass, COALESCE((SELECT MAX(id) FROM ${qualifiedTable}), 0), true);`,
-    );
+    beginTransactionSync();
+    try {
+      executeSync(`CREATE SEQUENCE IF NOT EXISTS ${sequence};`);
+      executeSync(
+        `ALTER TABLE ${qualifiedTable} ALTER COLUMN ${quotePgIdentifier('id')} SET DEFAULT nextval('${sequence}'::regclass);`,
+      );
+      executeSync(`LOCK TABLE ${qualifiedTable} IN EXCLUSIVE MODE;`);
+      executeSync(
+        `SELECT setval('${sequence}'::regclass, COALESCE((SELECT MAX(id) FROM ${qualifiedTable}), 0), true);`,
+      );
+      commitTransactionSync();
+    } catch (error) {
+      rollbackTransactionSync();
+      throw error;
+    }
   }
   sequencesReady = true;
 }
@@ -3100,6 +3111,68 @@ export class PostgresRuntimeRepository extends MarketRepository {
         ${whereSql}
         ORDER BY updated_at_ms DESC
         LIMIT $${values.length}
+      `,
+      values,
+    );
+  }
+
+  upsertNovaReviewLabel(input: NovaReviewLabelRecord): void {
+    executeSync(
+      `
+        INSERT INTO ${qualifyBusinessTable('nova_review_labels')}(
+          id, run_id, reviewer_id, label, score, notes, include_in_training, created_at_ms, updated_at_ms
+        ) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        ON CONFLICT(id) DO UPDATE SET
+          run_id = EXCLUDED.run_id,
+          reviewer_id = EXCLUDED.reviewer_id,
+          label = EXCLUDED.label,
+          score = EXCLUDED.score,
+          notes = EXCLUDED.notes,
+          include_in_training = EXCLUDED.include_in_training,
+          updated_at_ms = EXCLUDED.updated_at_ms
+      `,
+      [
+        input.id,
+        input.run_id,
+        input.reviewer_id,
+        input.label,
+        input.score,
+        input.notes,
+        input.include_in_training,
+        input.created_at_ms,
+        input.updated_at_ms,
+      ],
+    );
+  }
+
+  listNovaReviewLabels(params?: {
+    runId?: string;
+    includeInTraining?: boolean;
+    limit?: number;
+  }): NovaReviewLabelRecord[] {
+    const where: string[] = [];
+    const values: unknown[] = [];
+    if (params?.runId) {
+      values.push(params.runId);
+      where.push(`run_id = $${values.length}`);
+    }
+    if (typeof params?.includeInTraining === 'boolean') {
+      values.push(params.includeInTraining ? 1 : 0);
+      where.push(`include_in_training = $${values.length}`);
+    }
+    if (params?.limit) {
+      values.push(params.limit);
+    }
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    const limitSql = params?.limit ? `LIMIT $${values.length}` : '';
+    return queryRowsSync<NovaReviewLabelRecord>(
+      `
+        SELECT
+          id, run_id, reviewer_id, label, score, notes, include_in_training, created_at_ms, updated_at_ms
+        FROM ${qualifyBusinessTable('nova_review_labels')}
+        ${whereSql}
+        ORDER BY updated_at_ms DESC
+        ${limitSql}
       `,
       values,
     );

@@ -60,6 +60,19 @@ const adminSessionCache = new Map<
   { expiresAt: number; value: { user: PublicAuthUser; roles: AuthRole[] } | null }
 >();
 
+// Periodic sweep of expired admin session cache entries (every 5 minutes)
+setInterval(
+  () => {
+    const now = Date.now();
+    for (const [key, entry] of adminSessionCache.entries()) {
+      if (entry.expiresAt < now) {
+        adminSessionCache.delete(key);
+      }
+    }
+  },
+  5 * 60 * 1000,
+).unref();
+
 // Tracks roles invalidated for a given userId to bust admin session cache
 const recentlyModifiedRoles = new Map<string, number>();
 const ROLE_MODIFICATION_LOOKBACK_MS = 60_000;
@@ -825,8 +838,13 @@ async function upsertAuthUserRole(args: {
       grantedByUserId: args.grantedByUserId || null,
     });
     // Bust admin session cache for this user on role change
-    recentlyModifiedRoles.set(args.userId, ts);
-    setTimeout(() => recentlyModifiedRoles.delete(args.userId), ROLE_MODIFICATION_LOOKBACK_MS);
+    const modTsPg = ts;
+    recentlyModifiedRoles.set(args.userId, modTsPg);
+    setTimeout(() => {
+      if (recentlyModifiedRoles.get(args.userId) === modTsPg) {
+        recentlyModifiedRoles.delete(args.userId);
+      }
+    }, ROLE_MODIFICATION_LOOKBACK_MS);
     return;
   }
   if (hasRemoteAuthStore()) {
@@ -853,8 +871,13 @@ async function upsertAuthUserRole(args: {
     }
     await remoteSetJson(remoteUserRolesKey(args.userId), next);
     // Bust admin session cache for this user on role change
-    recentlyModifiedRoles.set(args.userId, ts);
-    setTimeout(() => recentlyModifiedRoles.delete(args.userId), ROLE_MODIFICATION_LOOKBACK_MS);
+    const modTsRemote = ts;
+    recentlyModifiedRoles.set(args.userId, modTsRemote);
+    setTimeout(() => {
+      if (recentlyModifiedRoles.get(args.userId) === modTsRemote) {
+        recentlyModifiedRoles.delete(args.userId);
+      }
+    }, ROLE_MODIFICATION_LOOKBACK_MS);
     return;
   }
   requireLocalSqliteAuthStore()
@@ -871,8 +894,13 @@ async function upsertAuthUserRole(args: {
       granted_by_user_id: args.grantedByUserId || null,
     });
   // Bust admin session cache for this user on role change
-  recentlyModifiedRoles.set(args.userId, ts);
-  setTimeout(() => recentlyModifiedRoles.delete(args.userId), ROLE_MODIFICATION_LOOKBACK_MS);
+  const modTsLocal = ts;
+  recentlyModifiedRoles.set(args.userId, modTsLocal);
+  setTimeout(() => {
+    if (recentlyModifiedRoles.get(args.userId) === modTsLocal) {
+      recentlyModifiedRoles.delete(args.userId);
+    }
+  }, ROLE_MODIFICATION_LOOKBACK_MS);
 }
 
 async function syncConfiguredAdminRole(user: AuthUserRow | PublicAuthUser | null | undefined) {
