@@ -4,6 +4,12 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+- **Feat(landing)：将 Data Portal 升级为可交互研究门户。**
+  - 新增统一 `control bar`，支持在 `Time Window / Benchmark / Mode` 之间切换，并让回测、热力图、Monte Carlo 与基准对比共用同一组上下文。
+  - 为 `Backtest`、`Heatmap`、`Monte Carlo`、`Strategy vs Benchmarks` 增加联动高亮、可点击二级状态与 `Evidence drawer`，让图表之间可以相互解释，不再只是静态展示。
+  - 为 `Monte Carlo` 增加 `Scenario / Band` 控件，为月度热力图增加 tooltip 与年份/月度锁定焦点，同时兼顾桌面端 hover 与移动端 tap 的可持续选中态。
+  - 调整 `Data Portal` `control bar` 的宽度规则，使其在桌面端和移动端都与页面主内容保持同一条版心边界。
+
 - **Fix(landing)：校准 Data Portal 展示型业绩数据。**
   - 将 `Data Portal` 回测面板中的 `Sharpe` 调整为 `1.61`，并同步重估净收益、回撤、胜率与柱状走势，使整组表现落在更可信的风险收益区间。
   - 上调但收敛 `Strategy vs Benchmarks`、`Monte Carlo` 和月度热力图数据，保持策略表现高于 `S&P 500 / Nasdaq`，同时避免与新的 Sharpe 水平失真。
