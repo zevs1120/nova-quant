@@ -4258,3 +4258,434 @@
     width: auto;
   }
 }
+
+.onboarding-broker-layout {
+  position: relative;
+  width: min(100%, 1240px);
+  min-height: calc(
+    100dvh - max(env(safe-area-inset-top), 24px) - env(safe-area-inset-bottom) - 10rem
+  );
+  margin: 0 auto;
+  padding: clamp(3.3rem, 9vh, 5.8rem) clamp(0.2rem, 2vw, 1.4rem) 0.8rem;
+  display: grid;
+  gap: clamp(1.4rem, 3vw, 2.6rem);
+  align-content: start;
+}
+
+.onboarding-poster-copy-broker {
+  width: 100%;
+  max-width: none;
+  padding-top: 0;
+}
+
+.onboarding-broker-stage {
+  position: relative;
+  left: auto;
+  right: auto;
+  bottom: auto;
+  width: 100%;
+  height: clamp(18.5rem, 52vw, 28rem);
+  margin-top: 0.2rem;
+}
+
+@media (min-width: 960px) {
+  .onboarding-broker-layout {
+    grid-template-columns: minmax(0, 29rem) minmax(0, 1fr);
+    align-items: center;
+    gap: clamp(3rem, 6vw, 7rem);
+    padding: clamp(4.4rem, 10vh, 6.8rem) clamp(1rem, 4vw, 2.5rem) clamp(0.5rem, 4vh, 1.8rem);
+  }
+
+  .onboarding-broker-stage {
+    justify-self: end;
+    max-width: 32rem;
+    height: min(34rem, 64vh);
+  }
+
+  .onboarding-poster-title-broker {
+    font-size: clamp(5.1rem, 8vw, 7rem);
+  }
+}
+
+@media (max-width: 760px) {
+  .onboarding-stage {
+    --onboarding-intro-footer-reserve: calc(env(safe-area-inset-bottom) + 9.75rem);
+    padding-bottom: var(--onboarding-intro-footer-reserve);
+  }
+
+  .onboarding-poster {
+    min-height: calc(100dvh - var(--onboarding-intro-footer-reserve));
+    padding: max(env(safe-area-inset-top), 18px) 18px 0;
+  }
+
+  .onboarding-fixed-footer {
+    left: 14px;
+    right: 14px;
+    bottom: calc(env(safe-area-inset-bottom) + 14px);
+    gap: 12px;
+    padding: 0.75rem;
+    border-radius: 1.5rem;
+  }
+
+  .onboarding-page-dots {
+    gap: 6px;
+  }
+
+  .onboarding-page-dot {
+    width: 7px;
+    height: 7px;
+  }
+
+  .onboarding-page-dot.active {
+    width: 18px;
+  }
+
+  .onboarding-actions {
+    gap: 10px;
+  }
+
+  .onboarding-btn {
+    min-height: 52px;
+    font-size: 18px;
+  }
+
+  .onboarding-meet-layout,
+  .onboarding-ask-layout,
+  .onboarding-broker-layout {
+    min-height: calc(
+      100dvh - max(env(safe-area-inset-top), 18px) - var(--onboarding-intro-footer-reserve)
+    );
+    padding-top: clamp(2.35rem, 7vh, 4.1rem);
+    padding-bottom: 0.35rem;
+  }
+
+  .onboarding-poster-copy-meet,
+  .onboarding-poster-copy-ask,
+  .onboarding-poster-copy-broker {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .onboarding-poster-title-meet {
+    font-size: clamp(3.3rem, 15.2vw, 5.1rem);
+    line-height: 0.84;
+    letter-spacing: -0.095em;
+  }
+
+  .onboarding-poster-title-ask {
+    font-size: clamp(3.5rem, 15.8vw, 5.2rem);
+    line-height: 0.84;
+  }
+
+  .onboarding-poster-title-broker {
+    font-size: clamp(3.15rem, 13.8vw, 4.75rem);
+    line-height: 0.84;
+    letter-spacing: -0.1em;
+  }
+
+  .onboarding-poster-title-broker span:nth-child(2),
+  .onboarding-poster-title-broker span:nth-child(3) {
+    margin-left: 0;
+  }
+
+  .onboarding-poster-note-meet {
+    margin-top: 0.95rem;
+    max-width: 28ch;
+    font-size: 0.92rem;
+    line-height: 1.42;
+  }
+
+  .onboarding-poster-note-ask {
+    margin-top: 0.92rem;
+    font-size: 0.92rem;
+    line-height: 1.42;
+  }
+
+  .onboarding-meet-carousel {
+    min-height: clamp(15.4rem, 54vw, 18.5rem);
+    width: 100%;
+    margin: 0;
+  }
+
+  .onboarding-meet-carousel-track {
+    width: min(100%, 19.75rem);
+    height: clamp(14.5rem, 52vw, 17.25rem);
+  }
+
+  .onboarding-meet-carousel-slot {
+    width: clamp(7.9rem, 36vw, 10.6rem);
+  }
+
+  .onboarding-meet-carousel-slot-neg-2 {
+    transform: translate3d(-118%, -50%, -120px) rotateY(62deg) scale(0.62);
+    opacity: 0.28;
+  }
+
+  .onboarding-meet-carousel-slot-neg-1 {
+    transform: translate3d(-82%, -50%, -66px) rotateY(38deg) scale(0.76);
+    opacity: 0.55;
+  }
+
+  .onboarding-meet-carousel-slot-0 {
+    transform: translate3d(-50%, -50%, 0) rotateY(0deg) scale(0.98);
+  }
+
+  .onboarding-meet-carousel-slot-1 {
+    transform: translate3d(-18%, -50%, -66px) rotateY(-38deg) scale(0.76);
+    opacity: 0.55;
+  }
+
+  .onboarding-meet-carousel-slot-2 {
+    transform: translate3d(14%, -50%, -120px) rotateY(-62deg) scale(0.62);
+    opacity: 0.28;
+  }
+
+  .onboarding-meet-action-card {
+    gap: 0.7rem;
+    padding: 0.92rem 0.88rem 0.86rem;
+    border-radius: 1.35rem;
+  }
+
+  .onboarding-meet-action-symbol {
+    font-size: clamp(2.15rem, 8.8vw, 2.9rem);
+  }
+
+  .onboarding-meet-action-direction {
+    margin-top: 0.28rem;
+    font-size: 0.82rem;
+  }
+
+  .onboarding-meet-action-meta {
+    margin-top: 0.32rem;
+    font-size: 0.56rem;
+  }
+
+  .onboarding-meet-action-stats {
+    gap: 0.4rem;
+  }
+
+  .onboarding-meet-action-stat {
+    min-height: 3.45rem;
+    padding: 0.56rem;
+    border-radius: 0.9rem;
+  }
+
+  .onboarding-meet-action-stat-value {
+    font-size: 0.78rem;
+  }
+
+  .onboarding-meet-action-context-row {
+    gap: 0.32rem;
+  }
+
+  .onboarding-meet-action-context-pill {
+    min-height: 1.56rem;
+    padding: 0 0.54rem;
+  }
+
+  .onboarding-meet-action-context-label {
+    font-size: 0.48rem;
+  }
+
+  .onboarding-meet-action-context-value {
+    font-size: 0.62rem;
+  }
+
+  .onboarding-meet-action-links {
+    gap: 0.44rem;
+  }
+
+  .onboarding-meet-action-link {
+    min-height: 2.2rem;
+    padding: 0 0.56rem;
+    font-size: 0.72rem;
+  }
+
+  .onboarding-ask-layout {
+    gap: 0.9rem;
+  }
+
+  .onboarding-ask-bullets {
+    margin-top: 1.1rem;
+  }
+
+  .onboarding-ask-bullets li {
+    padding: 0.72rem 0 0.74rem 1rem;
+    font-size: 0.86rem;
+  }
+
+  .onboarding-ask-object {
+    margin-top: 0;
+  }
+
+  .onboarding-ask-phone-stage {
+    padding: 0.2rem 0 0.2rem;
+  }
+
+  .onboarding-ask-phone-flat-pink {
+    left: 0.25rem;
+    top: 0.6rem;
+    width: 3.4rem;
+    height: 4.8rem;
+  }
+
+  .onboarding-ask-phone-flat-blue {
+    right: 0.2rem;
+    top: 4.5rem;
+    width: 4rem;
+    height: 6.2rem;
+  }
+
+  .onboarding-ask-phone-flat-mint {
+    left: 0;
+    bottom: 2.2rem;
+    width: 3.4rem;
+    height: 1.15rem;
+  }
+
+  .onboarding-ask-phone-shell {
+    width: min(13.8rem, 66vw);
+    transform: rotate(-1.25deg) translate3d(0, 0.45rem, 0);
+  }
+
+  .onboarding-broker-stage {
+    height: clamp(15.25rem, 56vw, 18.8rem);
+    margin-top: 0.15rem;
+  }
+
+  .onboarding-broker-shell {
+    gap: 0.62rem;
+    padding: 0.82rem;
+    border-radius: 1.5rem;
+  }
+
+  .onboarding-broker-shell-nova {
+    left: 0.2rem;
+    bottom: 0.3rem;
+    width: 55%;
+    height: 69%;
+    transform: rotate(-6deg);
+  }
+
+  .onboarding-broker-shell-app {
+    right: 0.15rem;
+    top: 0.2rem;
+    width: 54%;
+    height: 58%;
+    transform: rotate(6deg);
+  }
+
+  .onboarding-broker-transfer {
+    top: 42%;
+    gap: 0.4rem;
+  }
+
+  .onboarding-broker-transfer-line {
+    width: 3rem;
+  }
+
+  .onboarding-broker-transfer-line::after {
+    width: 0.6rem;
+    height: 0.6rem;
+    border-top-width: 0.18rem;
+    border-right-width: 0.18rem;
+  }
+
+  .onboarding-broker-transfer-chip {
+    min-height: 1.55rem;
+    padding: 0 0.6rem;
+    font-size: 0.62rem;
+  }
+
+  .onboarding-broker-symbol {
+    font-size: clamp(1.7rem, 8.5vw, 2.4rem);
+  }
+
+  .onboarding-broker-copy {
+    max-width: 12ch;
+    font-size: 0.74rem;
+    line-height: 1.3;
+  }
+
+  .onboarding-broker-pills {
+    gap: 0.32rem;
+  }
+
+  .onboarding-broker-pills span,
+  .onboarding-broker-list span,
+  .onboarding-meet-card-button {
+    min-height: 1.5rem;
+    padding: 0 0.56rem;
+    font-size: 0.62rem;
+  }
+}
+
+@media (max-width: 520px) {
+  .onboarding-stage {
+    --onboarding-intro-footer-reserve: calc(env(safe-area-inset-bottom) + 9.35rem);
+  }
+
+  .onboarding-fixed-footer {
+    left: 12px;
+    right: 12px;
+    bottom: calc(env(safe-area-inset-bottom) + 12px);
+    padding: 0.68rem;
+  }
+
+  .onboarding-btn {
+    min-height: 48px;
+    font-size: 17px;
+  }
+
+  .onboarding-poster-title-meet {
+    font-size: clamp(2.95rem, 14.2vw, 4.4rem);
+  }
+
+  .onboarding-poster-title-ask {
+    font-size: clamp(3.15rem, 14.6vw, 4.7rem);
+  }
+
+  .onboarding-poster-title-broker {
+    font-size: clamp(2.7rem, 12.4vw, 4rem);
+  }
+
+  .onboarding-meet-carousel-track {
+    width: min(100%, 18.4rem);
+    height: clamp(13.4rem, 50vw, 15.8rem);
+  }
+
+  .onboarding-meet-carousel-slot {
+    width: clamp(7.3rem, 35vw, 9.8rem);
+  }
+
+  .onboarding-meet-action-stat {
+    min-height: 3.1rem;
+    padding: 0.5rem;
+  }
+
+  .onboarding-meet-action-stat-label {
+    font-size: 0.46rem;
+  }
+
+  .onboarding-meet-action-stat-value {
+    font-size: 0.7rem;
+  }
+
+  .onboarding-ask-phone-shell {
+    width: min(12.8rem, 62vw);
+  }
+
+  .onboarding-broker-stage {
+    height: clamp(14.4rem, 54vw, 17.5rem);
+  }
+
+  .onboarding-broker-shell-nova {
+    width: 57%;
+    height: 70%;
+  }
+
+  .onboarding-broker-shell-app {
+    width: 55%;
+    height: 56%;
+  }
+}

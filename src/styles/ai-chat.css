@@ -74,10 +74,10 @@
   justify-content: flex-start;
   text-align: left;
   border-radius: 20px;
-  background: rgba(255, 252, 248, 0.96);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(247, 244, 255, 0.95));
   box-shadow:
-    inset 0 0 0 1px rgba(23, 28, 36, 0.06),
-    0 10px 22px rgba(20, 24, 33, 0.04);
+    inset 0 0 0 1px rgba(255, 255, 255, 0.84),
+    0 10px 22px rgba(86, 85, 176, 0.06);
 }
 
 .ai-chip-prompt:hover {
@@ -94,15 +94,15 @@
   margin-left: auto;
   margin-right: 0;
   max-width: min(88%, 540px);
-  background: rgba(232, 238, 250, 0.92);
-  border-color: rgba(22, 86, 217, 0.08);
+  background: linear-gradient(135deg, rgba(75, 125, 255, 0.14), rgba(255, 95, 196, 0.14));
+  border-color: rgba(75, 125, 255, 0.08);
 }
 
 .ai-assistant {
   margin-right: auto;
   margin-left: 0;
-  background: rgba(255, 252, 248, 0.94);
-  border-color: rgba(23, 28, 36, 0.05);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(247, 244, 255, 0.95));
+  border-color: rgba(255, 255, 255, 0.8);
 }
 
 .ai-rich-bubble {
@@ -127,16 +127,16 @@
   min-height: 34px;
   padding: 7px 12px;
   border-radius: 999px;
-  background: rgba(247, 244, 239, 0.94);
+  background: rgba(255, 255, 255, 0.86);
 }
 
 .ai-input-dock {
   border: 1px solid rgba(23, 28, 36, 0.06);
   border-radius: 24px;
-  background: rgba(255, 252, 248, 0.98);
+  background: rgba(255, 255, 255, 0.96);
   box-shadow:
-    0 12px 30px rgba(20, 24, 33, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.78);
+    0 12px 30px rgba(86, 85, 176, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.84);
   padding: 10px 10px 12px;
 }
 
@@ -149,7 +149,7 @@
 .ai-input {
   min-height: 50px;
   border-radius: 18px;
-  background: rgba(250, 247, 242, 0.96);
+  background: rgba(247, 244, 255, 0.92);
 }
 
 .ai-send {
