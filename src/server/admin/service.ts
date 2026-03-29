@@ -342,12 +342,23 @@ function mapAdminUsers(rows: AdminUserRow[]) {
   };
 }
 
+let _usersCache: {
+  data: { generated_at: string } & ReturnType<typeof mapAdminUsers>;
+  fetchedAt: number;
+} | null = null;
+const USERS_CACHE_TTL_MS = 15_000;
+
 export function buildAdminUsersSnapshot() {
+  if (_usersCache && Date.now() - _usersCache.fetchedAt < USERS_CACHE_TTL_MS) {
+    return _usersCache.data;
+  }
   const rows = queryAdminUsers();
-  return {
+  const result = {
     generated_at: new Date().toISOString(),
     ...mapAdminUsers(rows),
   };
+  _usersCache = { data: result, fetchedAt: Date.now() };
+  return result;
 }
 
 export async function buildAdminAlphaSnapshot(args?: { timeZone?: string; localDate?: string }) {
@@ -358,10 +369,19 @@ export function buildAdminSignalsSnapshot() {
   const repo = getRepo();
   const signalRows = repo.listSignals({ status: 'ALL', limit: 160 });
   const executionRows = repo.listExecutions({ limit: 240 });
+
+  const executionsBySignal = new Map<string, typeof executionRows>();
+  for (const exec of executionRows) {
+    const key = exec.signal_id;
+    const bucket = executionsBySignal.get(key);
+    if (bucket) bucket.push(exec);
+    else executionsBySignal.set(key, [exec]);
+  }
+
   const signals = signalRows
     .map((row) => {
       const signal = decodeSignalContract(row);
-      const executions = executionRows.filter((execution) => execution.signal_id === row.signal_id);
+      const executions = executionsBySignal.get(row.signal_id) || [];
       return {
         signal_id: row.signal_id,
         market: row.market,
@@ -542,7 +562,42 @@ export async function buildAdminSystemSnapshot() {
   };
 }
 
-export async function buildAdminOverviewSnapshot() {
+// -- Overview snapshot with stale-while-revalidate cache --
+type OverviewSnapshot = Awaited<ReturnType<typeof buildAdminOverviewSnapshotUncached>>;
+let _overviewCache: { data: OverviewSnapshot; fetchedAt: number } | null = null;
+let _overviewInflight: Promise<OverviewSnapshot> | null = null;
+const OVERVIEW_FRESH_TTL_MS = 12_000;
+const OVERVIEW_STALE_TTL_MS = 60_000;
+
+export async function buildAdminOverviewSnapshot(): Promise<OverviewSnapshot> {
+  const age = _overviewCache ? Date.now() - _overviewCache.fetchedAt : Infinity;
+
+  // Fresh cache -- return immediately
+  if (_overviewCache && age < OVERVIEW_FRESH_TTL_MS) {
+    return _overviewCache.data;
+  }
+
+  // Stale cache -- return stale data, refresh in background
+  if (_overviewCache && age < OVERVIEW_STALE_TTL_MS) {
+    if (!_overviewInflight) {
+      _overviewInflight = buildAdminOverviewSnapshotUncached().finally(() => {
+        _overviewInflight = null;
+      });
+      // Prevent unhandled rejection -- caller already received stale cache data
+      _overviewInflight.catch(() => {});
+    }
+    return _overviewCache.data;
+  }
+
+  // No cache -- block on fresh data (deduplicate concurrent requests)
+  if (_overviewInflight) return _overviewInflight;
+  _overviewInflight = buildAdminOverviewSnapshotUncached().finally(() => {
+    _overviewInflight = null;
+  });
+  return _overviewInflight;
+}
+
+async function buildAdminOverviewSnapshotUncached() {
   const repo = getRepo();
   const [users, alpha, signals, system, workflows] = await Promise.all([
     Promise.resolve(buildAdminUsersSnapshot()),
@@ -552,7 +607,7 @@ export async function buildAdminOverviewSnapshot() {
     Promise.resolve(repo.listWorkflowRuns({ limit: 16 })),
   ]);
 
-  return {
+  const result = {
     generated_at: new Date().toISOString(),
     headline_metrics: {
       total_users: users.summary.total_users,
@@ -613,8 +668,85 @@ export async function buildAdminOverviewSnapshot() {
       option_chain_count: system.data_summary.option_chain_count,
     },
   };
+  _overviewCache = { data: result, fetchedAt: Date.now() };
+  return result;
+}
+
+// -- Fast headline: only local queries, no Postgres cascade --
+export function buildAdminOverviewHeadlineFast() {
+  // If a full overview is cached and still within stale window, return it directly
+  if (_overviewCache && Date.now() - _overviewCache.fetchedAt < OVERVIEW_STALE_TTL_MS) {
+    return _overviewCache.data;
+  }
+
+  // Compute headline from fast local sources only
+  const repo = getRepo();
+  const users = buildAdminUsersSnapshot();
+  const signalRows = repo.listSignals({ status: 'ALL', limit: 160 });
+  const activeSignals = signalRows.filter(
+    (row) => row.status === 'NEW' || row.status === 'TRIGGERED',
+  );
+  const topSymbols = countBy(activeSignals, (row) => row.symbol).slice(0, 8);
+  const directionMix = countBy(activeSignals, (row) => row.direction);
+  const workflows = repo.listWorkflowRuns({ limit: 16 });
+
+  return {
+    generated_at: new Date().toISOString(),
+    _partial: true as const,
+    headline_metrics: {
+      total_users: users.summary.total_users,
+      active_users_7d: users.summary.active_last_7d,
+      active_signals: activeSignals.length,
+      shadow_candidates: 0,
+      canary_candidates: 0,
+      recent_news_factors: 0,
+      ai_runs: 0,
+    },
+    user_mix: users.trade_mode_mix,
+    alpha_lifecycle: [],
+    signal_direction_mix: directionMix,
+    top_symbols: topSymbols,
+    workflow_timeline: workflows.slice(0, 10).map((row) => ({
+      workflow_key: row.workflow_key,
+      status: row.status,
+      trigger_type: row.trigger_type,
+      updated_at: toIso(row.updated_at_ms),
+    })),
+    data_story: [
+      {
+        label: '前端用户层',
+        value: `${users.summary.total_users} 个账户`,
+        detail: `近 7 天活跃 ${users.summary.active_last_7d} 个，管理员 ${users.summary.admin_count} 个。`,
+      },
+      {
+        label: '策略与 Alpha 层',
+        value: '加载中...',
+        detail: '正在拉取策略库存数据。',
+      },
+      {
+        label: '因子与 AI 层',
+        value: '加载中...',
+        detail: '正在拉取 AI 运行与新闻因子数据。',
+      },
+    ],
+    guardrails: [
+      { label: '先 Shadow 再上线', value: 100 },
+      { label: '实盘自动直推关闭', value: 100 },
+      { label: '数据因子覆盖', value: 0 },
+      { label: 'Alpha 发现活跃度', value: 0 },
+      { label: '用户使用活跃度', value: Math.min(100, users.summary.active_last_30d * 10) },
+    ],
+    system_cards: null,
+  };
 }
 
 export async function buildAdminTodayOpsSnapshot(args?: { timeZone?: string; localDate?: string }) {
   return await buildAdminResearchOpsSnapshot(args);
+}
+
+/** Clear in-memory caches -- test-only */
+export function _resetAdminCachesForTesting() {
+  _overviewCache = null;
+  _overviewInflight = null;
+  _usersCache = null;
 }

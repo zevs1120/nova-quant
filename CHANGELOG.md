@@ -2,6 +2,18 @@
 
 NovaQuant 所有重要变更记录于此。
 
+## 10.18.1 (2026-03-29)
+
+- **Perf(admin)：admin 总览加载性能全面优化，首屏响应从数十秒降至秒级。**
+  - **P0 -- AlphaRegistryBundle 缓存去重**：`buildAlphaRegistryBundle` 增加 15s TTL 内存缓存 + inflight 请求去重，消除 overview 请求中因 alpha + system 快照各自调用一次造成的重复 Postgres 查询（约减少 40% 查询量）。
+  - **P0 -- Overview 响应 stale-while-revalidate**：`buildAdminOverviewSnapshot` 增加 12s fresh / 60s stale-while-revalidate 缓存，过期后返回旧数据并在后台异步刷新，同时 deduplicate 并发请求。
+  - **P1 -- Users 快照缓存**：`buildAdminUsersSnapshot` 增加 15s TTL 缓存，避免 8 表 JOIN + 6 个全表聚合子查询在短时间内重复执行（此查询通过 `queryRowsSync` 阻塞主线程）。
+  - **P1 -- Signals 匹配算法优化**：`buildAdminSignalsSnapshot` 中 execution-to-signal 匹配从 O(n*m) 嵌套 filter 改为 `Map<signal_id, Execution[]>` 预构建 + O(1) lookup（160 signals * 240 executions = 38,400 次比较降至约 400 次）。
+  - **P2 -- 前端渐进式加载**：新增 `/api/admin/overview/headline` 轻量端点（仅读取本地 SQLite 数据，不触发 Postgres 级联），OverviewPage 先加载 headline 立即展示用户/信号/工作流指标，再在后台加载完整 overview 后无缝替换。
+  - **Fix -- SWR 后台刷新异常安全**：stale-while-revalidate 后台 promise 增加 `.catch()` 消费 rejection，防止 Postgres/网络抖动时未处理拒绝打掉 API 进程。
+  - **Fix -- OverviewPage 双请求状态机**：重写 headline/overview 双请求合并逻辑 -- loading 仅在无任何数据且有请求在飞时展示；error 仅在两请求均已结束且均无数据时展示；overview 永久失败时在页面顶部展示警告横条而非静默停留在部分数据；`isPartial` 驱动策略库存/AI 因子/生命周期区域显示加载占位，不再误报零值。
+  - **Test -- headline 端点与 cache 分支覆盖**：新增 3 个测试覆盖 `/api/admin/overview/headline` 返回 `_partial: true` 的部分数据、headline 返回缓存完整数据、overview cache 在 TTL 内返回相同快照；`beforeEach` 调用 `_resetAdminCachesForTesting()` 确保模块级缓存不在用例间泄漏。
+
 ## 10.18.0 (2026-03-29)
 
 - 发布类型：**minor**（新功能 + 重要修复）

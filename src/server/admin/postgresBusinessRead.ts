@@ -2002,7 +2002,25 @@ function shadowStatsForRows(rows: AlphaShadowObservationRow[]) {
   };
 }
 
+let _alphaRegistryCache: { data: AlphaRegistryBundle; fetchedAt: number } | null = null;
+let _alphaRegistryInflight: Promise<AlphaRegistryBundle> | null = null;
+const ALPHA_REGISTRY_CACHE_TTL_MS = 15_000;
+
 async function buildAlphaRegistryBundle(): Promise<AlphaRegistryBundle> {
+  if (
+    _alphaRegistryCache &&
+    Date.now() - _alphaRegistryCache.fetchedAt < ALPHA_REGISTRY_CACHE_TTL_MS
+  ) {
+    return _alphaRegistryCache.data;
+  }
+  if (_alphaRegistryInflight) return _alphaRegistryInflight;
+  _alphaRegistryInflight = buildAlphaRegistryBundleUncached().finally(() => {
+    _alphaRegistryInflight = null;
+  });
+  return _alphaRegistryInflight;
+}
+
+async function buildAlphaRegistryBundleUncached(): Promise<AlphaRegistryBundle> {
   const candidates = await listAlphaCandidates(200);
   const candidateIds = candidates.map((candidate) => candidate.id);
   const shadowCandidateIds = candidateIds.slice(0, PG_ALPHA_SHADOW_CANDIDATE_LIMIT);
@@ -2122,7 +2140,7 @@ async function buildAlphaRegistryBundle(): Promise<AlphaRegistryBundle> {
     return acc;
   }, {});
 
-  return {
+  const result = {
     counts,
     registry_records: topCandidates,
     candidate_rows: candidateRows,
@@ -2138,6 +2156,8 @@ async function buildAlphaRegistryBundle(): Promise<AlphaRegistryBundle> {
     })) as AdminAlphaSnapshot['state_transitions'],
     evaluationMap,
   };
+  _alphaRegistryCache = { data: result, fetchedAt: Date.now() };
+  return result;
 }
 
 async function buildPostgresOpsReport() {

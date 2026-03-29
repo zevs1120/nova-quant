@@ -6,6 +6,7 @@ import { handleAdminLogin, handleAuthSignup } from '../src/server/api/authHandle
 import {
   handleAdminAlphas,
   handleAdminOverview,
+  handleAdminOverviewHeadline,
   handleAdminSignals,
   handleAdminSystem,
   handleAdminUsers,
@@ -15,6 +16,7 @@ import {
   type AutonomousAlphaCandidate,
 } from '../src/server/alpha_registry/index.js';
 import type { SignalContract } from '../src/server/types.js';
+import { _resetAdminCachesForTesting } from '../src/server/admin/service.js';
 
 type MockResponse = {
   statusCode: number;
@@ -208,6 +210,7 @@ describe('admin data api', () => {
   const email = 'admin-data-api@example.com';
 
   beforeEach(() => {
+    _resetAdminCachesForTesting();
     vi.stubEnv('KV_REST_API_URL', '');
     vi.stubEnv('KV_REST_API_TOKEN', '');
     vi.stubEnv('UPSTASH_REDIS_REST_URL', '');
@@ -546,5 +549,98 @@ describe('admin data api', () => {
         }
       ).data.throughput_controls.news_pipeline.ttl_minutes,
     ).toBeGreaterThan(0);
+  }, 15_000);
+
+  it('headline endpoint returns partial data with headline metrics', async () => {
+    process.env.NOVA_ADMIN_EMAILS = email;
+
+    await callHandler(handleAuthSignup, {
+      body: {
+        email,
+        password: 'StrongPass123',
+        name: 'Headline Tester',
+        tradeMode: 'active',
+        broker: 'Other',
+      },
+    });
+
+    const login = await callHandler(handleAdminLogin, {
+      body: { email, password: 'StrongPass123' },
+    });
+    expect(login.statusCode).toBe(200);
+    const cookie = login.headers['Set-Cookie'];
+    expect(typeof cookie).toBe('string');
+
+    const headline = await callHandler(handleAdminOverviewHeadline, { cookie });
+    expect(headline.statusCode).toBe(200);
+
+    const data = (headline.body as { data: Record<string, unknown> }).data;
+    expect(data._partial).toBe(true);
+    expect(data.headline_metrics).toBeDefined();
+    expect(data.workflow_timeline).toBeDefined();
+    expect(data.top_symbols).toBeDefined();
+    expect(data.system_cards).toBeNull();
+  });
+
+  it('headline returns cached overview when full overview is in cache', async () => {
+    process.env.NOVA_ADMIN_EMAILS = email;
+
+    await callHandler(handleAuthSignup, {
+      body: {
+        email,
+        password: 'StrongPass123',
+        name: 'Cache Tester',
+        tradeMode: 'active',
+        broker: 'Other',
+      },
+    });
+
+    const login = await callHandler(handleAdminLogin, {
+      body: { email, password: 'StrongPass123' },
+    });
+    expect(login.statusCode).toBe(200);
+    const cookie = login.headers['Set-Cookie'];
+
+    // Load full overview to populate cache
+    const overview = await callHandler(handleAdminOverview, { cookie });
+    expect(overview.statusCode).toBe(200);
+
+    // Headline should return full cached data (no _partial flag)
+    const headline = await callHandler(handleAdminOverviewHeadline, { cookie });
+    expect(headline.statusCode).toBe(200);
+    const data = (headline.body as { data: Record<string, unknown> }).data;
+    expect(data._partial).toBeUndefined();
+    expect(data.system_cards).toBeDefined();
+  }, 15_000);
+
+  it('overview cache returns same data within fresh TTL', async () => {
+    process.env.NOVA_ADMIN_EMAILS = email;
+
+    await callHandler(handleAuthSignup, {
+      body: {
+        email,
+        password: 'StrongPass123',
+        name: 'SWR Tester',
+        tradeMode: 'active',
+        broker: 'Other',
+      },
+    });
+
+    const login = await callHandler(handleAdminLogin, {
+      body: { email, password: 'StrongPass123' },
+    });
+    expect(login.statusCode).toBe(200);
+    const cookie = login.headers['Set-Cookie'];
+
+    // First call populates cache
+    const first = await callHandler(handleAdminOverview, { cookie });
+    expect(first.statusCode).toBe(200);
+    const firstTs = (first.body as { data: { generated_at: string } }).data.generated_at;
+
+    // Second call within fresh TTL should return cached data (same generated_at)
+    const second = await callHandler(handleAdminOverview, { cookie });
+    expect(second.statusCode).toBe(200);
+    const secondTs = (second.body as { data: { generated_at: string } }).data.generated_at;
+    expect(secondTs).toBe(firstTs);
   }, 15_000);
 });

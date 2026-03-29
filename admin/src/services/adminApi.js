@@ -65,6 +65,12 @@ export function getAdminOverview() {
   });
 }
 
+export function getAdminOverviewHeadline() {
+  return adminRequest('/api/admin/overview/headline', {
+    method: 'GET',
+  });
+}
+
 export function getAdminUsers() {
   return adminRequest('/api/admin/users', {
     method: 'GET',
