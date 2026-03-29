@@ -4,6 +4,10 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+- **Feat(onboarding)：将 intro onboarding 收成纯文字引导。**
+  - 前三屏移除截图式卡片、手机 mockup 和 broker 面板，只保留更短的标题、副标题与说明文案。
+  - intro 首屏改为真正的 text-only 版式，重新分配可用视口高度，避免手机端出现元素叠放、遮挡和底部按钮挤压。
+
 - **Feat(ui)：app 视觉对齐 landing，并修复手机端 onboarding 版式。**
   - app 全局底色、玻璃卡面、按钮和主要页面表面统一切到 landing 的白底与蓝粉渐变体系，移除旧的 beige 主底色。
   - `Today` 页改成更极简的“日期 + 状态话 + 单张主卡”结构，并加入 `左滑今天不做 / 右滑接受今天计划 / 下滑稍后再看` 的判断型手势语义。
