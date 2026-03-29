@@ -91,6 +91,46 @@ describe('manual service in postgres runtime', () => {
     expect(mockGetDb).not.toHaveBeenCalled();
   });
 
+  it('uses the locked balance when writing the ledger entry', async () => {
+    mockQueryRowSync.mockImplementation((sql: string) => {
+      if (
+        sql.includes('FROM "novaquant_data"."manual_user_state"') &&
+        sql.includes('WHERE user_id')
+      ) {
+        return {
+          user_id: 'usr_manual_pg',
+          invite_code: 'NV000123',
+          referred_by_code: null,
+          vip_days_balance: 0,
+          vip_days_redeemed_total: 0,
+        };
+      }
+      if (sql.includes('FROM "novaquant_data"."manual_points_ledger"')) {
+        if (sql.includes('FOR UPDATE')) {
+          return { balance_after: 1200 };
+        }
+        return { balance_after: 50 };
+      }
+      if (sql.includes('FROM "novaquant_data"."manual_referrals"')) {
+        return { total: 0, rewarded: 0 };
+      }
+      return null;
+    });
+    mockQueryRowsSync.mockReturnValue([]);
+
+    const { redeemManualVipDay } = await import('../src/server/manual/service.js');
+    const result = redeemManualVipDay({ userId: 'usr_manual_pg', days: 1 });
+
+    expect(result.ok).toBe(true);
+    const ledgerInsertCall = mockExecuteSync.mock.calls.find(([sql]) =>
+      String(sql).includes('INSERT INTO "novaquant_data"."manual_points_ledger"'),
+    );
+    expect(ledgerInsertCall).toBeDefined();
+    expect(ledgerInsertCall?.[1]).toEqual(
+      expect.arrayContaining([expect.any(String), 'usr_manual_pg', 'VIP_REDEEM', -1000, 200]),
+    );
+  });
+
   it('rolls back the transaction when an error occurs inside the callback', async () => {
     mockQueryRowSync.mockImplementation((sql: string) => {
       if (

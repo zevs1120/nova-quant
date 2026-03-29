@@ -11,7 +11,7 @@ NovaQuant 所有重要变更记录于此。
   - **内存泄漏修复**：`liveOps.ts` 补齐与 `liveAlpha.ts` 相同的 `pruneExpiredCache` + 定时清理机制（6 个 cache Map 此前按日累积无上限）；`adminSessionCache` 增加 5 分钟周期性过期清扫；`recentlyModifiedRoles` 的 `setTimeout` 改为条件删除，避免多次角色修改时首次定时器提前清除后续追踪。
   - **并发安全修复**：`redeemManualVipDay` 余额检查移入事务内部，Postgres 路径使用 `SELECT ... FOR UPDATE` 防止并发双重扣减；`appendPointsLedger` 新增 `knownBalance` 参数，避免落账时二次读取绕过行锁（消除 READ COMMITTED 下的 stale-read 窗口）。
   - **Landing a11y/UX 修复**：Heatmap Evidence 按钮在无选中 cell 时禁用；三组控件从错误的 `tablist/tab` 语义改为 `role="group"` + `aria-pressed`（filter 按钮组的正确语义）；Evidence drawer 增加 Escape 关闭和自动聚焦。
-  - **测试覆盖补充**：`performanceOptimization.test.ts` 补齐 `/api/outcomes/recent` 端点覆盖；`manualServicePostgresRuntime.test.ts` 新增事务 rollback 路径测试。
+  - **测试覆盖补充**：`performanceOptimization.test.ts` 补齐 `/api/outcomes/recent` 端点覆盖；`manualServicePostgresRuntime.test.ts` 新增事务 rollback 路径测试，并直接断言 `knownBalance` 会驱动积分落账；新增 `postgresSyncBridge.test.ts`，覆盖同步查询、worker error 原样透传、以及崩溃后的桥接重建路径。
 
 - **Feat(ui)：app 视觉对齐 landing，并修复手机端 onboarding 版式。**
   - app 全局底色、玻璃卡面、按钮和主要页面表面统一切到 landing 的白底与蓝粉渐变体系，移除旧的 beige 主底色。
