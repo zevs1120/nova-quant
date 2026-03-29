@@ -611,7 +611,7 @@ export default function App() {
           research={finalUiData.research}
           uiMode={uiMode}
           t={t}
-          lang={lang}
+          locale={locale}
           onExplain={() => askAi('哪些风险在压制系统仓位？')}
         />
       );

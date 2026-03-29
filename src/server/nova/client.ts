@@ -10,11 +10,6 @@ type NovaChatArgs = {
   maxTokens?: number;
 };
 
-type NovaEmbeddingArgs = {
-  task: 'retrieval_embedding';
-  input: string;
-};
-
 const DEFAULT_LOCAL_TIMEOUT_MS = Number(process.env.NOVA_LOCAL_TIMEOUT_MS || 4500);
 const DEFAULT_CLOUD_TIMEOUT_MS = Number(process.env.NOVA_CLOUD_TIMEOUT_MS || 20000);
 const GROQ_OPENAI_BASE_URL = 'https://api.groq.com/openai/v1';
@@ -240,46 +235,6 @@ export async function runNovaChatCompletion(args: NovaChatArgs) {
     route: effectiveRoute,
     endpoint,
     text,
-    raw,
-  };
-}
-
-export async function runNovaEmbedding(args: NovaEmbeddingArgs) {
-  const route = resolveNovaRoute(args.task);
-  const endpoint = `${cleanBase(route.endpoint)}/embeddings`;
-  const { init, clear } = withTimeoutInit(
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(route.apiKey ? { Authorization: `Bearer ${route.apiKey}` } : {}),
-        ...(route.headers || {}),
-      },
-      body: JSON.stringify({
-        model: route.model,
-        input: args.input,
-      }),
-    },
-    route.provider === 'openai' ? DEFAULT_CLOUD_TIMEOUT_MS : DEFAULT_LOCAL_TIMEOUT_MS,
-  );
-  const response = await fetch(endpoint, init)
-    .catch((error) => {
-      throw humanizeFetchError(error, 'Marvix embedding');
-    })
-    .finally(clear);
-
-  if (!response.ok) {
-    const text = await response.text().catch(() => '');
-    throw new Error(`Marvix embedding request failed (${response.status}): ${text}`);
-  }
-
-  const raw = (await response.json()) as {
-    data?: Array<{ embedding?: number[] }>;
-  };
-  return {
-    route,
-    endpoint,
-    vector: raw.data?.[0]?.embedding || [],
     raw,
   };
 }

@@ -51,10 +51,6 @@ export function detectMessageLanguage(message, fallback = 'en') {
   return normalizeLanguage(fallback);
 }
 
-export function resolveAssistantLanguage({ message, locale } = {}) {
-  return detectMessageLanguage(message, locale || 'en');
-}
-
 export function getAssistantSectionLabels(language = 'en') {
   return SECTION_LABELS[normalizeLanguage(language)] || SECTION_LABELS.en;
 }

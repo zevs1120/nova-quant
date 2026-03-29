@@ -13,13 +13,6 @@ export function formatPercent(value, digits = 1, signed = false) {
   return `${prefix}${n.toFixed(digits)}%`;
 }
 
-export function formatPnlPercent(value) {
-  if (value === null || value === undefined || Number.isNaN(Number(value))) return '--';
-  const n = Number(value);
-  const prefix = n > 0 ? '+' : '';
-  return `${prefix}${n.toFixed(2)}%`;
-}
-
 export function formatDateTime(iso, locale) {
   if (!iso) return '--';
   const date = new Date(iso);
@@ -29,17 +22,6 @@ export function formatDateTime(iso, locale) {
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-  });
-}
-
-export function formatDate(iso, locale) {
-  if (!iso) return '--';
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return '--';
-  return date.toLocaleDateString(locale, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
   });
 }
 

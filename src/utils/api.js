@@ -50,7 +50,7 @@ function runtimeApiBases() {
   return unique([...envBases, 'https://api.novaquant.cloud']);
 }
 
-export function buildApiUrl(path, base = '') {
+function buildApiUrl(path, base = '') {
   const normalizedPath = String(path || '').startsWith('/')
     ? String(path)
     : `/${String(path || '')}`;
@@ -58,7 +58,7 @@ export function buildApiUrl(path, base = '') {
   return `${trimTrailingSlash(base)}${normalizedPath}`;
 }
 
-export function resolveApiUrl(path) {
+function resolveApiUrl(path) {
   return buildApiUrl(path, cachedApiBase ?? runtimeApiBases()[0] ?? '');
 }
 

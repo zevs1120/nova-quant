@@ -23,11 +23,6 @@ type FlywheelArgs = {
   executeWhenReady?: boolean;
 };
 
-function safeNumber(value: unknown, fallback = 0): number {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : fallback;
-}
-
 function ensureDir(dir: string) {
   fs.mkdirSync(dir, { recursive: true });
 }

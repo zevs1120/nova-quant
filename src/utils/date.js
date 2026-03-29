@@ -1,4 +1,4 @@
-export function pad(n) {
+function pad(n) {
   return String(n).padStart(2, '0');
 }
 
@@ -8,7 +8,7 @@ export function localDateKey(input = new Date()) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-export function keyToDate(key) {
+function keyToDate(key) {
   const [y, m, d] = String(key || '')
     .split('-')
     .map((value) => Number(value));
@@ -16,7 +16,7 @@ export function keyToDate(key) {
   return new Date(y, m - 1, d);
 }
 
-export function shiftDateKey(key, deltaDays) {
+function shiftDateKey(key, deltaDays) {
   const base = keyToDate(key);
   if (!base) return '';
   base.setDate(base.getDate() + deltaDays);

@@ -106,11 +106,6 @@ function toNullableNumber(value: unknown) {
   return Number.isFinite(numeric) ? numeric : null;
 }
 
-function toNullableString(value: unknown) {
-  if (value === null || value === undefined || value === '') return null;
-  return String(value);
-}
-
 function limitValue(limit: number | undefined, fallback: number) {
   return Math.max(1, Number(limit || fallback));
 }

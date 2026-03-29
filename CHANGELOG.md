@@ -2,6 +2,15 @@
 
 NovaQuant 所有重要变更记录于此。
 
+## Unreleased
+
+- **Chore(cleanup)：清理零引用前端/后端残留与静态资源，并修复 `RiskTab` 的 `locale` 接线。**
+  - 删除零引用组件：`ChatAssistant`、`MoreTab`、`QuickAccessSheet`、`SystemStatusBar`、`VelocityTab`、`WhyTab`、`GridOverlay`、`NoiseOverlay`。
+  - 删除零引用后端入口与工具：`src/server/api/vercelChatHandler.ts`、`src/utils/downloads.js`。
+  - 删除零引用静态资源：未使用的 app/root 图标源图、landing 截图素材与未引用的旧 app 资源。
+  - 清掉一批已验证零调用的内部函数与不必要导出，减少维护噪音。
+  - 修复 `App -> RiskTab` 传参错误，改为传递 `locale` 而不是未消费的 `lang`。
+
 ## 10.18.1 (2026-03-29)
 
 - **Perf(admin)：admin 总览加载性能全面优化，首屏响应从数十秒降至秒级。**

@@ -1025,12 +1025,6 @@ function deriveOptionEntries(args: {
   ];
 }
 
-function isBrowseChartPoint(value: unknown): value is BrowseChartPoint {
-  if (!value || typeof value !== 'object') return false;
-  const point = value as BrowseChartPoint;
-  return Number.isFinite(point.ts) && Number.isFinite(point.close);
-}
-
 function buildDirectEquityCandidate(symbolInput: string): SearchCandidate {
   const symbol = String(symbolInput || '')
     .trim()

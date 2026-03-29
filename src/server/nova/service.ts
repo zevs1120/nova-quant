@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { MarketRepository } from '../db/repository.js';
 import type { NovaReviewLabelRecord, NovaTaskRunRecord, NovaTaskType } from '../types.js';
 import { createTraceId, recordAuditEvent } from '../observability/spine.js';
-import { canUseHostedTextRoute, runNovaChatCompletion, runNovaEmbedding } from './client.js';
+import { canUseHostedTextRoute, runNovaChatCompletion } from './client.js';
 import { resolveBusinessTask, type NovaBusinessTask } from './router.js';
 import { getNovaRuntimeMode, isLocalNovaEnabled } from '../ai/llmOps.js';
 
@@ -490,90 +490,6 @@ export async function logNovaAssistantAnswer(args: {
     created_at_ms: nowMs,
     updated_at_ms: nowMs,
   });
-}
-
-export async function retrieveNovaEmbedding(args: {
-  repo: MarketRepository;
-  userId?: string | null;
-  traceId?: string | null;
-  input: string;
-  context?: JsonObject;
-}) {
-  const route = resolveBusinessTask('retrieval');
-  const runId = `nova-run-${randomUUID()}`;
-  const traceId = args.traceId || createTraceId('nova-embed');
-  const nowMs = Date.now();
-
-  if (shouldSkipLocalNova()) {
-    args.repo.upsertNovaTaskRun({
-      id: runId,
-      user_id: args.userId || null,
-      thread_id: null,
-      task_type: 'retrieval_embedding',
-      route_alias: route.alias,
-      model_name: route.model,
-      endpoint: route.endpoint,
-      trace_id: traceId,
-      prompt_version_id: null,
-      parent_run_id: null,
-      input_json: JSON.stringify({ input: args.input }),
-      context_json: JSON.stringify(args.context || {}),
-      output_json: null,
-      status: 'SKIPPED',
-      error: 'NOVA_DISABLE_LOCAL_GENERATION=1',
-      created_at_ms: nowMs,
-      updated_at_ms: nowMs,
-    });
-    return [];
-  }
-
-  try {
-    const result = await runNovaEmbedding({
-      task: 'retrieval_embedding',
-      input: args.input,
-    });
-    args.repo.upsertNovaTaskRun({
-      id: runId,
-      user_id: args.userId || null,
-      thread_id: null,
-      task_type: 'retrieval_embedding',
-      route_alias: result.route.alias,
-      model_name: result.route.model,
-      endpoint: result.endpoint,
-      trace_id: traceId,
-      prompt_version_id: null,
-      parent_run_id: null,
-      input_json: JSON.stringify({ input: args.input }),
-      context_json: JSON.stringify(args.context || {}),
-      output_json: JSON.stringify({ vector_length: result.vector.length }),
-      status: 'SUCCEEDED',
-      error: null,
-      created_at_ms: nowMs,
-      updated_at_ms: Date.now(),
-    });
-    return result.vector;
-  } catch (error) {
-    args.repo.upsertNovaTaskRun({
-      id: runId,
-      user_id: args.userId || null,
-      thread_id: null,
-      task_type: 'retrieval_embedding',
-      route_alias: route.alias,
-      model_name: route.model,
-      endpoint: route.endpoint,
-      trace_id: traceId,
-      prompt_version_id: null,
-      parent_run_id: null,
-      input_json: JSON.stringify({ input: args.input }),
-      context_json: JSON.stringify(args.context || {}),
-      output_json: null,
-      status: 'FAILED',
-      error: error instanceof Error ? error.message : String(error),
-      created_at_ms: nowMs,
-      updated_at_ms: Date.now(),
-    });
-    return [];
-  }
 }
 
 export function labelNovaRun(args: {
