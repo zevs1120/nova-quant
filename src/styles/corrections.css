@@ -2088,7 +2088,7 @@ body.app-modal-open .native-tabbar {
 }
 
 html {
-  background: #f3f0ff;
+  background: #f8f6ff;
 }
 
 body {
@@ -2097,34 +2097,46 @@ body {
 
 .app-bg {
   background:
-    radial-gradient(circle at 12% 0%, rgba(255, 87, 209, 0.18), transparent 28%),
-    radial-gradient(circle at 88% 0%, rgba(85, 104, 255, 0.18), transparent 30%),
-    linear-gradient(180deg, #fff9ff 0%, #eef0ff 100%);
+    radial-gradient(circle at 12% 6%, rgba(255, 95, 196, 0.16), transparent 24%),
+    radial-gradient(circle at 88% 8%, rgba(75, 125, 255, 0.18), transparent 26%),
+    linear-gradient(180deg, #ffffff 0%, #f8f6ff 56%, #f2efff 100%);
 }
 
 body.is-standalone .app-bg {
-  background: linear-gradient(180deg, #fff9ff 0%, #eef0ff 100%);
+  background: linear-gradient(180deg, #ffffff 0%, #f8f6ff 56%, #f2efff 100%);
 }
 
 .device-shell {
   background:
-    radial-gradient(circle at top left, rgba(255, 87, 209, 0.08), transparent 26%),
-    radial-gradient(circle at top right, rgba(85, 104, 255, 0.08), transparent 28%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(244, 242, 255, 0.96) 100%);
+    radial-gradient(circle at top left, rgba(255, 95, 196, 0.08), transparent 24%),
+    radial-gradient(circle at top right, rgba(75, 125, 255, 0.1), transparent 26%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(248, 246, 255, 0.96) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.76);
   box-shadow:
-    0 26px 72px rgba(93, 81, 187, 0.16),
-    0 6px 20px rgba(93, 81, 187, 0.06);
+    0 28px 70px rgba(86, 85, 176, 0.12),
+    0 6px 20px rgba(86, 85, 176, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.82);
 }
 
 .top-bar {
-  background: linear-gradient(180deg, rgba(255, 251, 255, 0.94), rgba(244, 241, 255, 0.82));
-  border-bottom: 1px solid rgba(93, 102, 255, 0.08);
+  background:
+    radial-gradient(circle at 18% 0%, rgba(255, 255, 255, 0.5), transparent 26%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(246, 243, 255, 0.78));
+  border-bottom: 1px solid rgba(99, 95, 175, 0.08);
+  backdrop-filter: blur(28px) saturate(1.16);
 }
 
 .top-bar-root.is-condensed,
 .top-bar-detail.is-condensed {
-  background: rgba(251, 247, 255, 0.88);
-  box-shadow: 0 10px 24px rgba(98, 88, 145, 0.08);
+  background: rgba(250, 247, 255, 0.92);
+  box-shadow: 0 10px 24px rgba(86, 85, 176, 0.08);
+}
+
+.top-bar-action-button {
+  background: rgba(255, 255, 255, 0.76);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 10px 22px rgba(86, 85, 176, 0.08);
 }
 
 .glass-card,
@@ -2133,39 +2145,49 @@ body.is-standalone .app-bg {
 .sheet-card,
 .chat-sheet,
 .more-list {
-  border: 1px solid rgba(255, 255, 255, 0.78);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(246, 242, 255, 0.94));
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  background:
+    radial-gradient(circle at top right, rgba(75, 125, 255, 0.08), transparent 34%),
+    radial-gradient(circle at left bottom, rgba(255, 95, 196, 0.06), transparent 30%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(247, 244, 255, 0.96));
   box-shadow:
-    0 20px 38px rgba(103, 89, 255, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    0 18px 36px rgba(86, 85, 176, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92);
 }
 
 .primary-btn {
-  background: linear-gradient(135deg, #5168ff 0%, #ff57d1 100%);
-  border-color: rgba(91, 98, 255, 0.28);
-  box-shadow: 0 14px 30px rgba(104, 90, 255, 0.24);
+  background: linear-gradient(
+    118deg,
+    var(--brand-blue) 0%,
+    var(--brand-violet) 24%,
+    var(--brand-pink) 52%,
+    var(--brand-peach) 74%,
+    var(--brand-mint) 100%
+  );
+  border-color: rgba(91, 98, 255, 0.22);
+  box-shadow: 0 18px 30px rgba(86, 85, 176, 0.2);
 }
 
 .secondary-btn,
 .ghost-btn,
 .info-btn,
 .pill-btn {
-  background: rgba(255, 255, 255, 0.74);
+  background: rgba(255, 255, 255, 0.76);
   border-color: rgba(99, 95, 175, 0.1);
 }
 
 .native-tabbar {
-  background: linear-gradient(180deg, rgba(255, 251, 255, 0.94), rgba(242, 240, 255, 0.98));
-  border-top: 1px solid rgba(99, 95, 175, 0.1);
-  box-shadow: 0 -10px 28px rgba(103, 89, 255, 0.08);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(246, 242, 255, 0.98));
+  border-top: 1px solid rgba(99, 95, 175, 0.08);
+  box-shadow: 0 -8px 24px rgba(86, 85, 176, 0.06);
 }
 
 .native-tabbar-button {
-  color: rgba(65, 57, 109, 0.48);
+  color: rgba(18, 21, 34, 0.48);
 }
 
 .native-tabbar-button.is-active {
-  color: #221d42;
+  color: #121522;
 }
 
 .native-tabbar-icon-wrap {
@@ -2173,47 +2195,61 @@ body.is-standalone .app-bg {
 }
 
 .native-tabbar-button.is-active .native-tabbar-icon-wrap {
-  background: linear-gradient(135deg, rgba(85, 104, 255, 0.16), rgba(255, 87, 209, 0.16));
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.72);
+  background: linear-gradient(135deg, rgba(75, 125, 255, 0.16), rgba(255, 95, 196, 0.14));
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.8),
+    0 8px 16px rgba(86, 85, 176, 0.08);
 }
 
 .ai-empty-stage-panel,
 .ai-assistant-card {
   background:
-    radial-gradient(circle at top right, rgba(85, 104, 255, 0.12), transparent 34%),
-    radial-gradient(circle at left bottom, rgba(255, 87, 209, 0.1), transparent 34%),
-    linear-gradient(180deg, rgba(255, 253, 255, 0.98), rgba(245, 240, 255, 0.95));
+    radial-gradient(circle at top right, rgba(75, 125, 255, 0.12), transparent 34%),
+    radial-gradient(circle at left bottom, rgba(255, 95, 196, 0.1), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 244, 255, 0.96));
 }
 
 .ai-composer-send {
-  background: linear-gradient(135deg, #5168ff 0%, #ff57d1 100%);
-  box-shadow: 0 10px 18px rgba(104, 90, 255, 0.22);
+  background: linear-gradient(
+    118deg,
+    var(--brand-blue) 0%,
+    var(--brand-violet) 24%,
+    var(--brand-pink) 52%,
+    var(--brand-peach) 74%,
+    var(--brand-mint) 100%
+  );
+  box-shadow: 0 14px 20px rgba(86, 85, 176, 0.18);
 }
 
 .browse-rh-screen {
-  --browse-ink: #1d1738;
-  --browse-muted: rgba(42, 34, 80, 0.58);
-  --browse-muted-strong: rgba(42, 34, 80, 0.74);
-  --browse-line: rgba(108, 100, 196, 0.14);
+  --browse-ink: #121522;
+  --browse-muted: rgba(18, 21, 34, 0.58);
+  --browse-muted-strong: rgba(18, 21, 34, 0.74);
+  --browse-line: rgba(75, 125, 255, 0.12);
   --browse-shell: linear-gradient(
     180deg,
-    rgba(245, 239, 255, 0.98) 0%,
-    rgba(236, 233, 255, 0.98) 100%
+    rgba(255, 255, 255, 0.98) 0%,
+    rgba(248, 246, 255, 0.98) 100%
   );
   --browse-shell-strong: linear-gradient(
     180deg,
-    rgba(238, 231, 255, 0.98) 0%,
-    rgba(228, 223, 255, 0.98) 100%
+    rgba(250, 247, 255, 0.98) 0%,
+    rgba(242, 238, 255, 0.98) 100%
   );
-  --browse-panel: linear-gradient(180deg, rgba(255, 252, 255, 0.98), rgba(245, 240, 255, 0.98));
-  --browse-panel-soft: rgba(243, 237, 255, 0.92);
-  --browse-pill-idle: rgba(225, 217, 255, 0.94);
-  --browse-pill-active: linear-gradient(135deg, #5168ff 0%, #ff57d1 100%);
-  --browse-pill-active-shadow: 0 14px 30px rgba(104, 90, 255, 0.24);
-  --browse-link: #4f64ff;
-  --browse-positive: #5570ff;
-  --browse-negative: #ff57d1;
-  --browse-neutral: #8b86b8;
+  --browse-panel: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 244, 255, 0.96));
+  --browse-panel-soft: rgba(243, 239, 255, 0.9);
+  --browse-pill-idle: rgba(233, 224, 255, 0.76);
+  --browse-pill-active: linear-gradient(
+    118deg,
+    var(--brand-blue) 0%,
+    var(--brand-violet) 38%,
+    var(--brand-pink) 100%
+  );
+  --browse-pill-active-shadow: 0 14px 28px rgba(86, 85, 176, 0.18);
+  --browse-link: var(--brand-blue);
+  --browse-positive: var(--brand-blue);
+  --browse-negative: var(--brand-pink);
+  --browse-neutral: #7a74a1;
 }
 
 .browse-rh-search-shell,
@@ -2274,16 +2310,16 @@ body.is-standalone .app-bg {
 
 .device-shell[data-active-tab='browse'] .top-bar-root,
 .device-shell[data-active-tab='browse'] .top-bar-detail {
-  background: rgba(250, 245, 255, 0.9);
+  background: rgba(251, 248, 255, 0.92);
 }
 
 .device-shell[data-active-tab='browse'] .top-bar-center-title {
-  color: #2a2152;
+  color: #121522;
 }
 
 .device-shell[data-active-tab='browse'] .top-bar-back {
-  background: rgba(85, 104, 255, 0.1);
-  color: #5168ff;
+  background: rgba(75, 125, 255, 0.08);
+  color: var(--brand-blue);
 }
 
 .today-screen-redesign,

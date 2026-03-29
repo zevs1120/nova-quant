@@ -570,56 +570,58 @@ function IntroPoster({ pageIndex, locale }) {
       <div className="onboarding-poster-block onboarding-poster-block-yellow onboarding-poster-block-top" />
       <div className="onboarding-poster-block onboarding-poster-block-pink onboarding-poster-block-corner" />
 
-      <div className="onboarding-poster-copy onboarding-poster-copy-broker">
-        <span className="onboarding-poster-kicker">STAY CLOSE TO EXECUTION</span>
-        <h1 className="onboarding-poster-title onboarding-poster-title-broker">
-          <span>MOVE</span>
-          <span>WITH YOUR</span>
-          <span>BROKER</span>
-        </h1>
-      </div>
-
-      <div className="onboarding-broker-stage">
-        <article className="onboarding-broker-shell onboarding-broker-shell-nova">
-          <div className="onboarding-broker-shell-head">
-            <span className="onboarding-poster-chip">NOVA</span>
-            <span className="onboarding-poster-chip onboarding-poster-chip-light">READY</span>
-          </div>
-          <strong className="onboarding-broker-symbol">AAPL</strong>
-          <p className="onboarding-broker-copy">
-            {zh
-              ? 'Watch first. 等确认后再打开券商。'
-              : 'Watch first. Open your broker when confirmation arrives.'}
-          </p>
-          <div className="onboarding-broker-pills">
-            <span>Today</span>
-            <span>Signals</span>
-            <span>Ask Nova</span>
-          </div>
-        </article>
-
-        <div className="onboarding-broker-transfer">
-          <span className="onboarding-broker-transfer-line" />
-          <span className="onboarding-broker-transfer-chip">{zh ? '执行' : 'EXECUTE'}</span>
+      <div className="onboarding-broker-layout">
+        <div className="onboarding-poster-copy onboarding-poster-copy-broker">
+          <span className="onboarding-poster-kicker">STAY CLOSE TO EXECUTION</span>
+          <h1 className="onboarding-poster-title onboarding-poster-title-broker">
+            <span>MOVE</span>
+            <span>WITH YOUR</span>
+            <span>BROKER</span>
+          </h1>
         </div>
 
-        <article className="onboarding-broker-shell onboarding-broker-shell-app">
-          <div className="onboarding-broker-shell-head">
-            <span className="onboarding-poster-chip onboarding-poster-chip-light">BROKER</span>
-            <span className="onboarding-broker-dot" />
+        <div className="onboarding-broker-stage">
+          <article className="onboarding-broker-shell onboarding-broker-shell-nova">
+            <div className="onboarding-broker-shell-head">
+              <span className="onboarding-poster-chip">NOVA</span>
+              <span className="onboarding-poster-chip onboarding-poster-chip-light">READY</span>
+            </div>
+            <strong className="onboarding-broker-symbol">AAPL</strong>
+            <p className="onboarding-broker-copy">
+              {zh
+                ? 'Watch first. 等确认后再打开券商。'
+                : 'Watch first. Open your broker when confirmation arrives.'}
+            </p>
+            <div className="onboarding-broker-pills">
+              <span>Today</span>
+              <span>Signals</span>
+              <span>Ask Nova</span>
+            </div>
+          </article>
+
+          <div className="onboarding-broker-transfer">
+            <span className="onboarding-broker-transfer-line" />
+            <span className="onboarding-broker-transfer-chip">{zh ? '执行' : 'EXECUTE'}</span>
           </div>
-          <div className="onboarding-broker-list">
-            <span className="is-active">Robinhood</span>
-            <span>Webull</span>
-            <span>Fidelity</span>
-            <span>Schwab</span>
-          </div>
-          <div className="onboarding-broker-open-row">
-            <span className="onboarding-meet-card-button onboarding-meet-card-button-primary">
-              {zh ? '打开券商' : 'Open broker'}
-            </span>
-          </div>
-        </article>
+
+          <article className="onboarding-broker-shell onboarding-broker-shell-app">
+            <div className="onboarding-broker-shell-head">
+              <span className="onboarding-poster-chip onboarding-poster-chip-light">BROKER</span>
+              <span className="onboarding-broker-dot" />
+            </div>
+            <div className="onboarding-broker-list">
+              <span className="is-active">Robinhood</span>
+              <span>Webull</span>
+              <span>Fidelity</span>
+              <span>Schwab</span>
+            </div>
+            <div className="onboarding-broker-open-row">
+              <span className="onboarding-meet-card-button onboarding-meet-card-button-primary">
+                {zh ? '打开券商' : 'Open broker'}
+              </span>
+            </div>
+          </article>
+        </div>
       </div>
     </div>
   );

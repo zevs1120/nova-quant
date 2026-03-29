@@ -693,6 +693,49 @@ function sortSignalsForDisplay(list = []) {
   });
 }
 
+function clampNumber(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function resolveTodayGestureIntent(dx, dy) {
+  const absDx = Math.abs(dx);
+  const absDy = Math.abs(dy);
+  if (dy >= 84 && dy > absDx * 1.08) return 'later';
+  if (absDx >= 72 && absDx > Math.max(absDy * 1.08, 18)) return dx > 0 ? 'accept' : 'skip';
+  return null;
+}
+
+function todayGestureLabel(intent, locale) {
+  if (intent === 'accept') return locale === 'zh' ? '接受今天计划' : 'Accept today';
+  if (intent === 'later') return locale === 'zh' ? '稍后再看' : 'Review later';
+  return locale === 'zh' ? '今天不做' : 'Pass today';
+}
+
+function todayGestureSummary(intent, locale, symbol) {
+  const safeSymbol = symbol || (locale === 'zh' ? '这张卡' : 'This card');
+  if (intent === 'accept') {
+    return locale === 'zh'
+      ? `${safeSymbol} 已进入今天计划。`
+      : `${safeSymbol} is now part of today's plan.`;
+  }
+  if (intent === 'later') {
+    return locale === 'zh'
+      ? `${safeSymbol} 已暂存，稍后再看。`
+      : `${safeSymbol} is saved for a later look.`;
+  }
+  return locale === 'zh'
+    ? `${safeSymbol} 已归档为今天不做。`
+    : `${safeSymbol} is filed as a pass for today.`;
+}
+
+function isNestedInteractiveTarget(target, currentTarget) {
+  return (
+    target instanceof HTMLElement &&
+    target !== currentTarget &&
+    Boolean(target.closest('[data-gesture-ignore="true"], button, a, input, textarea, select'))
+  );
+}
+
 function overallFromDecision(decision, locale) {
   const call = decision?.today_call;
   if (!call) return null;
@@ -789,10 +832,21 @@ export default function TodayTab({
   const [activeSignal, setActiveSignal] = useState(null);
   const [tradeSignal, setTradeSignal] = useState(null);
   const [recentOutcomes, setRecentOutcomes] = useState([]);
-  const actionCarouselRef = useRef(null);
+  const [gesturePreview, setGesturePreview] = useState({
+    signalId: null,
+    dx: 0,
+    dy: 0,
+    intent: null,
+    active: false,
+  });
+  const [gestureDecisions, setGestureDecisions] = useState({});
   const swipeGestureRef = useRef({
+    pointerId: null,
+    signalId: null,
     startX: 0,
     startY: 0,
+    dx: 0,
+    dy: 0,
     dragging: false,
     suppressTapUntil: 0,
   });
@@ -1000,26 +1054,13 @@ export default function TodayTab({
                 line: locale === 'zh' ? '先防守，不要扩张风险。' : 'Defend first. Do not add risk.',
                 tone: 'defense',
               };
-  const climateBand = [
-    overall.code === 'TRADE'
-      ? 'high'
-      : overall.code === 'WAIT' || overall.code === 'UNAVAILABLE'
-        ? 'mid'
-        : 'low',
-    noActionDay
-      ? 'low'
-      : Number(featuredSignal?.position_advice?.position_pct ?? 0) >= 14
-        ? 'high'
-        : 'mid',
-    risk.level === 'safe' ? 'low' : risk.level === 'medium' ? 'mid' : 'high',
-  ];
   const actionCardKicker = noActionDay
     ? locale === 'zh'
-      ? '今日观察'
-      : 'Today watch'
+      ? '今天先观察'
+      : 'Today, wait'
     : locale === 'zh'
-      ? '今日主选'
-      : 'Today pick';
+      ? '今天计划'
+      : 'Today plan';
   const askPrompt = noActionDay
     ? locale === 'zh'
       ? '为什么今天应该先等？'
@@ -1027,6 +1068,14 @@ export default function TodayTab({
     : locale === 'zh'
       ? '用人话告诉我今天怎么买。'
       : 'Tell me how to take this trade in plain words.';
+  const gestureActions = useMemo(
+    () => [
+      { key: 'skip', label: todayGestureLabel('skip', locale) },
+      { key: 'accept', label: todayGestureLabel('accept', locale) },
+      { key: 'later', label: todayGestureLabel('later', locale) },
+    ],
+    [locale],
+  );
   const tradeIntent = useMemo(
     () =>
       tradeSignal
@@ -1139,60 +1188,99 @@ export default function TodayTab({
   };
 
   const scrollToCardIndex = (index) => {
-    const node = actionCarouselRef.current;
     const targetSignal = carouselSignals[index];
-    if (!node || !targetSignal) return;
-    const target = node.children[index];
-    if (!(target instanceof HTMLElement)) return;
-    node.scrollTo({ left: target.offsetLeft, behavior: 'smooth' });
+    if (!targetSignal) return;
+    triggerFeedback('soft');
     setSelectedSignalId(signalCardId(targetSignal));
   };
 
-  const handleCarouselScroll = () => {
-    const node = actionCarouselRef.current;
-    if (!node || !carouselSignals.length) return;
-    const children = Array.from(node.children);
-    if (!children.length) return;
-    let bestIndex = 0;
-    let bestDistance = Number.POSITIVE_INFINITY;
-    children.forEach((child, index) => {
-      if (!(child instanceof HTMLElement)) return;
-      const distance = Math.abs(child.offsetLeft - node.scrollLeft);
-      if (distance < bestDistance) {
-        bestDistance = distance;
-        bestIndex = index;
-      }
-    });
-    const nextSignal = carouselSignals[bestIndex];
-    if (nextSignal) {
-      const nextId = signalCardId(nextSignal);
-      if (nextId !== selectedSignalId) setSelectedSignalId(nextId);
-    }
-  };
-
-  const markGestureStart = (clientX, clientY) => {
-    swipeGestureRef.current.startX = clientX;
-    swipeGestureRef.current.startY = clientY;
-    swipeGestureRef.current.dragging = false;
-  };
-
-  const markGestureMove = (clientX, clientY) => {
-    const dx = Math.abs(clientX - swipeGestureRef.current.startX);
-    const dy = Math.abs(clientY - swipeGestureRef.current.startY);
-    if (dx > 14 && dx > dy) {
-      swipeGestureRef.current.dragging = true;
-      swipeGestureRef.current.suppressTapUntil = Date.now() + 280;
-    }
-  };
-
   const clearGesture = () => {
+    swipeGestureRef.current.pointerId = null;
+    swipeGestureRef.current.signalId = null;
     swipeGestureRef.current.startX = 0;
     swipeGestureRef.current.startY = 0;
+    swipeGestureRef.current.dx = 0;
+    swipeGestureRef.current.dy = 0;
     swipeGestureRef.current.dragging = false;
+    setGesturePreview({
+      signalId: null,
+      dx: 0,
+      dy: 0,
+      intent: null,
+      active: false,
+    });
+  };
+
+  const markGestureStart = (signalId, clientX, clientY, pointerId = null) => {
+    swipeGestureRef.current.pointerId = pointerId;
+    swipeGestureRef.current.signalId = signalId;
+    swipeGestureRef.current.startX = clientX;
+    swipeGestureRef.current.startY = clientY;
+    swipeGestureRef.current.dx = 0;
+    swipeGestureRef.current.dy = 0;
+    swipeGestureRef.current.dragging = false;
+    setGesturePreview({
+      signalId,
+      dx: 0,
+      dy: 0,
+      intent: null,
+      active: false,
+    });
+  };
+
+  const markGestureMove = (signalId, clientX, clientY) => {
+    if (swipeGestureRef.current.signalId !== signalId) return;
+    const dx = clampNumber(clientX - swipeGestureRef.current.startX, -132, 132);
+    const dy = clampNumber(clientY - swipeGestureRef.current.startY, -18, 132);
+    const absDx = Math.abs(dx);
+    const absDy = Math.abs(dy);
+    if (absDx > 14 || absDy > 14) {
+      swipeGestureRef.current.dragging = true;
+      swipeGestureRef.current.suppressTapUntil = Date.now() + 320;
+    }
+    swipeGestureRef.current.dx = dx;
+    swipeGestureRef.current.dy = dy;
+    setGesturePreview({
+      signalId,
+      dx,
+      dy,
+      intent: resolveTodayGestureIntent(dx, dy),
+      active: swipeGestureRef.current.dragging,
+    });
   };
 
   const shouldSuppressTap = () =>
     swipeGestureRef.current.dragging || swipeGestureRef.current.suppressTapUntil > Date.now();
+
+  const commitGestureDecision = (signal, intent) => {
+    if (!signal || !intent) return;
+    const signalId = signalCardId(signal);
+    triggerFeedback(intent === 'accept' ? 'confirm' : 'soft');
+    setGestureDecisions((current) => ({
+      ...current,
+      [signalId]: {
+        key: intent,
+        label: todayGestureLabel(intent, locale),
+        summary: todayGestureSummary(intent, locale, signal?.symbol),
+      },
+    }));
+    swipeGestureRef.current.suppressTapUntil = Date.now() + 420;
+  };
+
+  const finishGesture = (signal) => {
+    const intent = resolveTodayGestureIntent(
+      swipeGestureRef.current.dx,
+      swipeGestureRef.current.dy,
+    );
+    if (intent) {
+      commitGestureDecision(signal, intent);
+    }
+    clearGesture();
+  };
+
+  useEffect(() => {
+    clearGesture();
+  }, [selectedSignalId]);
 
   const openSignalDetail = (signal, signalId) => {
     if (shouldSuppressTap()) return;
@@ -1200,42 +1288,24 @@ export default function TodayTab({
     setSelectedSignalId(signalId);
     setActiveSignal(signal);
   };
+  const featuredSignalId = featuredSignal ? signalCardId(featuredSignal) : null;
 
   return (
     <section className="stack-gap today-screen-redesign today-screen-native">
       <section className="today-summary-header">
         <div className="today-summary-copy">
           <p className="today-summary-date">{todayDateLabel}</p>
-          <h1 className="today-summary-title">{locale === 'zh' ? '今日行动' : 'Today'}</h1>
+          <p className={`today-summary-line today-summary-line-${climate.tone}`}>{climate.line}</p>
         </div>
       </section>
 
       <section className="today-screen-flow">
-        <article className={`glass-card today-climate-strip today-climate-${climate.tone}`}>
-          <div className="today-climate-copy">
-            <p className="today-climate-name">{climate.name}</p>
-            <p className="today-climate-line">{climate.line}</p>
-          </div>
-          <div className="today-climate-band" aria-hidden="true">
-            {climateBand.map((level, index) => (
-              <span
-                key={`${level}-${index}`}
-                className={`today-climate-pill today-climate-pill-${level}`}
-              />
-            ))}
-          </div>
-        </article>
-
-        {carouselSignals.length > 0 ? (
+        {featuredSignal ? (
           <section className="today-action-carousel">
-            <div
-              className="today-action-track"
-              ref={actionCarouselRef}
-              onScroll={handleCarouselScroll}
-            >
-              {carouselSignals.map((signal, index) => {
-                const signalId = signalCardId(signal);
-                const selected = signalId === signalCardId(featuredSignal);
+            <div className="today-action-track">
+              {(() => {
+                const signal = featuredSignal;
+                const signalId = featuredSignalId;
                 const signalBlocked =
                   !signal ||
                   !signal._actionable ||
@@ -1289,48 +1359,72 @@ export default function TodayTab({
                         ? '高风险'
                         : 'High risk';
                 const signalMetaLine = buildActionMetaText({ locale, signal, provenance });
-                const signalIntent = buildSignalIntent(signal);
-                const primaryActionLabel = signalIntent?.canOpenBroker
-                  ? tradeIntentHandoffLabel(signalIntent, locale)
-                  : locale === 'zh'
-                    ? '打开交易票据'
-                    : 'Open trade ticket';
+                const preview = gesturePreview.signalId === signalId ? gesturePreview : null;
+                const decision = gestureDecisions[signalId] || null;
+                const activeGestureKey = preview?.intent || decision?.key || 'idle';
                 return (
                   <article
                     key={signalId}
-                    className={`glass-card today-action-card today-action-card-${signalTone} today-action-slide${selected ? ' is-selected' : ''}`}
+                    className={`glass-card today-action-card today-action-card-${signalTone} today-action-slide is-selected`}
+                    data-gesture-active={preview?.active ? 'true' : 'false'}
+                    data-gesture-intent={activeGestureKey}
+                    data-gesture-committed={decision ? 'true' : 'false'}
+                    style={{
+                      '--gesture-x': `${preview?.dx || 0}px`,
+                      '--gesture-y': `${preview?.dy || 0}px`,
+                      '--gesture-rotate': `${(preview?.dx || 0) * 0.05}deg`,
+                    }}
                     onClick={() => openSignalDetail(signal, signalId)}
                     role="button"
                     tabIndex={0}
-                    onTouchStart={(event) => {
-                      const touch = event.touches?.[0];
-                      if (!touch) return;
-                      markGestureStart(touch.clientX, touch.clientY);
+                    onPointerDown={(event) => {
+                      if (
+                        (event.pointerType === 'mouse' && event.button !== 0) ||
+                        isNestedInteractiveTarget(event.target, event.currentTarget)
+                      ) {
+                        return;
+                      }
+                      event.currentTarget.setPointerCapture?.(event.pointerId);
+                      markGestureStart(signalId, event.clientX, event.clientY, event.pointerId);
                     }}
-                    onTouchMove={(event) => {
-                      const touch = event.touches?.[0];
-                      if (!touch) return;
-                      markGestureMove(touch.clientX, touch.clientY);
+                    onPointerMove={(event) => {
+                      if (swipeGestureRef.current.pointerId !== event.pointerId) return;
+                      markGestureMove(signalId, event.clientX, event.clientY);
                     }}
-                    onTouchEnd={() => {
-                      window.setTimeout(() => {
-                        clearGesture();
-                      }, 0);
+                    onPointerUp={(event) => {
+                      if (swipeGestureRef.current.pointerId !== event.pointerId) return;
+                      event.currentTarget.releasePointerCapture?.(event.pointerId);
+                      finishGesture(signal);
                     }}
-                    onTouchCancel={() => {
+                    onPointerCancel={(event) => {
+                      if (swipeGestureRef.current.pointerId !== event.pointerId) return;
+                      event.currentTarget.releasePointerCapture?.(event.pointerId);
                       clearGesture();
                     }}
                     onKeyDown={(event) => {
                       if (event.key === 'Enter' || event.key === ' ') {
                         event.preventDefault();
                         openSignalDetail(signal, signalId);
+                        return;
+                      }
+                      if (event.key === 'ArrowLeft') {
+                        event.preventDefault();
+                        commitGestureDecision(signal, 'skip');
+                        return;
+                      }
+                      if (event.key === 'ArrowRight') {
+                        event.preventDefault();
+                        commitGestureDecision(signal, 'accept');
+                        return;
+                      }
+                      if (event.key === 'ArrowDown') {
+                        event.preventDefault();
+                        commitGestureDecision(signal, 'later');
                       }
                     }}
                   >
                     <div className="today-action-card-head">
-                      <span className="today-action-kicker">
-                        {actionCardKicker} {String(index + 1).padStart(2, '0')}
-                      </span>
+                      <span className="today-action-kicker">{actionCardKicker}</span>
                       <span className={`today-action-tag today-action-tag-${signalTone}`}>
                         {signalActionBandLabel}
                       </span>
@@ -1375,39 +1469,56 @@ export default function TodayTab({
                       ))}
                     </div>
 
-                    <div className="today-action-links">
-                      <button
-                        type="button"
-                        className="today-action-link today-action-link-primary"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          handleSignalAction(signal);
-                        }}
+                    <div className="today-action-footer">
+                      <p className={`today-action-decision${decision ? ' is-visible' : ''}`}>
+                        {decision?.summary ||
+                          (locale === 'zh'
+                            ? '点按看细节，或直接用手势给今天一个决定。'
+                            : 'Tap for detail, or use a gesture to make today’s call.')}
+                      </p>
+                      <div
+                        className="today-action-gesture-guide"
+                        aria-label={locale === 'zh' ? '手势动作' : 'Gesture actions'}
                       >
-                        {primaryActionLabel}
-                      </button>
-                      <button
-                        type="button"
-                        className="today-action-link today-action-link-secondary"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          triggerFeedback('soft');
-                          if (!signalBlocked) {
-                            askNovaAboutSignal(signal);
-                            return;
-                          }
-                          onAskAi?.(askPrompt, {
-                            page: 'today',
-                            focus: signalBlocked ? 'restraint' : 'top_action',
-                          });
-                        }}
-                      >
-                        {locale === 'zh' ? '问 Nova' : 'Ask Nova'}
-                      </button>
+                        {gestureActions.map((action) => (
+                          <span
+                            key={`${signalId}-${action.key}`}
+                            className={`today-action-gesture-pill today-action-gesture-pill-${action.key}${activeGestureKey === action.key ? ' is-active' : ''}`}
+                          >
+                            {action.label}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="today-action-quiet-row">
+                        <button
+                          type="button"
+                          className="today-action-quiet-link"
+                          data-gesture-ignore="true"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            triggerFeedback('soft');
+                            if (!signalBlocked) {
+                              askNovaAboutSignal(signal);
+                              return;
+                            }
+                            onAskAi?.(askPrompt, {
+                              page: 'today',
+                              focus: signalBlocked ? 'restraint' : 'top_action',
+                            });
+                          }}
+                        >
+                          {locale === 'zh' ? '问 Nova' : 'Ask Nova'}
+                        </button>
+                        <span className="today-action-quiet-hint">
+                          {locale === 'zh'
+                            ? '左滑不做 · 右滑接受 · 下滑稍后'
+                            : 'Left pass · Right accept · Down later'}
+                        </span>
+                      </div>
                     </div>
                   </article>
                 );
-              })}
+              })()}
             </div>
 
             {carouselSignals.length > 1 ? (
