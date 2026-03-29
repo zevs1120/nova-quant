@@ -2,7 +2,9 @@
 
 NovaQuant 所有重要变更记录于此。
 
-## Unreleased
+## 10.18.0 (2026-03-29)
+
+- 发布类型：**minor**（新功能 + 重要修复）
 
 - **Fix(全局)：修复 code review 发现的 17 项 bug 与代码质量问题。**
   - **前端崩溃修复**：`TodayTab` 中 `handleSignalAction` 在 `const` 声明前被引用（temporal dead zone），点击交易按钮时 `ReferenceError` 崩溃；`todayPickSymbol` 从未声明，fallback 路径同样崩溃。
