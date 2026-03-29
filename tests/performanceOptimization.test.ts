@@ -23,6 +23,7 @@ describe('performance optimization regression', () => {
       '/api/assets',
       '/api/market-state',
       '/api/market/modules',
+      '/api/outcomes/recent',
       '/api/performance',
       '/api/risk-profile',
       '/api/runtime-state',

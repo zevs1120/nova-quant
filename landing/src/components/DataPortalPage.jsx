@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   portalBacktestMetrics,
   portalBenchmarkComparison,
@@ -724,9 +724,10 @@ function PortalControlBar({
         <div className="portal-control-shell">
           <div className="portal-control-group">
             <span className="portal-control-label">Window</span>
-            <div className="portal-control-pills" role="tablist" aria-label="Time window">
+            <div className="portal-control-pills" role="group" aria-label="Time window">
               {PORTAL_TIME_WINDOWS.map((item) => (
                 <button
+                  aria-pressed={controls.windowId === item.id}
                   className={`portal-control-pill${controls.windowId === item.id ? ' is-active' : ''}`}
                   key={item.id}
                   onClick={() => onWindowChange(item.id)}
@@ -740,9 +741,10 @@ function PortalControlBar({
 
           <div className="portal-control-group">
             <span className="portal-control-label">Benchmark</span>
-            <div className="portal-control-pills" role="tablist" aria-label="Benchmark selection">
+            <div className="portal-control-pills" role="group" aria-label="Benchmark selection">
               {PORTAL_BENCHMARK_OPTIONS.map((item) => (
                 <button
+                  aria-pressed={controls.benchmarkId === item.id}
                   className={`portal-control-pill${controls.benchmarkId === item.id ? ' is-active' : ''}`}
                   key={item.id}
                   onClick={() => onBenchmarkChange(item.id)}
@@ -756,9 +758,10 @@ function PortalControlBar({
 
           <div className="portal-control-group">
             <span className="portal-control-label">Mode</span>
-            <div className="portal-control-pills" role="tablist" aria-label="Mode selection">
+            <div className="portal-control-pills" role="group" aria-label="Mode selection">
               {PORTAL_MODE_OPTIONS.map((item) => (
                 <button
+                  aria-pressed={controls.modeId === item.id}
                   className={`portal-control-pill${controls.modeId === item.id ? ' is-active' : ''}`}
                   key={item.id}
                   onClick={() => onModeChange(item.id)}
@@ -1029,10 +1032,12 @@ function PortalAnalyticsSection({
                 <span className="portal-shell-pill">MONTHLY</span>
                 <button
                   className="portal-card-trigger"
+                  disabled={!focusedCell}
                   onClick={(event) => {
                     event.stopPropagation();
+                    if (!focusedCell) return;
                     onActivateCard('heatmap');
-                    onOpenDrawer({ type: 'heatmap' });
+                    onOpenDrawer({ type: 'heatmap', cell: focusedCell });
                   }}
                   type="button"
                 >
@@ -1512,6 +1517,25 @@ function PortalFabricSection() {
 }
 
 function PortalEvidenceDrawer({ drawer, onClose }) {
+  const drawerRef = useRef(null);
+
+  useEffect(() => {
+    if (drawer && drawerRef.current) {
+      drawerRef.current.focus();
+    }
+  }, [drawer]);
+
+  useEffect(() => {
+    if (!drawer) return;
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [drawer, onClose]);
+
   if (!drawer) return null;
 
   return (
@@ -1525,9 +1549,11 @@ function PortalEvidenceDrawer({ drawer, onClose }) {
 
       <aside
         className="portal-evidence-drawer"
+        ref={drawerRef}
         role="dialog"
         aria-modal="true"
         aria-label="Evidence details"
+        tabIndex={-1}
       >
         <div className="portal-evidence-shell">
           <div className="portal-evidence-head">

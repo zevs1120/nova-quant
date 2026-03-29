@@ -1,8 +1,15 @@
 import StatCard from '../components/StatCard';
 import useAdminResource from '../hooks/useAdminResource';
-import { getAdminOverview } from '../services/adminApi';
+import { getAdminOverview, getAdminOverviewHeadline } from '../services/adminApi';
 
 const LIFECYCLE_PALETTE = ['#4b7dff', '#9f75ff', '#ff5fc4', '#ffb199', '#64d2b0', '#8bd4ff'];
+
+// Thresholds for priority alerts
+// Shadow inventory pile-up: Shadow > Canary * 3 + 6 indicates slow promotion cadence
+const SHADOW_PILEUP_MULTIPLIER = 3;
+const SHADOW_PILEUP_PAD = 6;
+// Active user ratio below this % triggers low-activation alert
+const LOW_ACTIVATION_THRESHOLD_PCT = 30;
 
 function LifecycleStack({ rows }) {
   const total = rows.reduce((sum, item) => sum + Number(item.value || 0), 0) || 1;
@@ -60,7 +67,10 @@ function buildPriorityItems(headline, workflowTimeline, activeUserRatio) {
     });
   }
 
-  if (Number(headline.shadow_candidates || 0) > Number(headline.canary_candidates || 0) * 3 + 6) {
+  if (
+    Number(headline.shadow_candidates || 0) >
+    Number(headline.canary_candidates || 0) * SHADOW_PILEUP_MULTIPLIER + SHADOW_PILEUP_PAD
+  ) {
     items.push({
       title: 'Shadow 库存堆积',
       detail: `Shadow ${headline.shadow_candidates || 0} 个，Canary ${headline.canary_candidates || 0} 个，晋升节奏偏慢。`,
@@ -68,7 +78,7 @@ function buildPriorityItems(headline, workflowTimeline, activeUserRatio) {
     });
   }
 
-  if (activeUserRatio < 30) {
+  if (activeUserRatio < LOW_ACTIVATION_THRESHOLD_PCT) {
     items.push({
       title: '活跃率偏低',
       detail: `近 7 天活跃率只有 ${Math.round(activeUserRatio)}%，需要回到用户激活与触达链路。`,
@@ -114,21 +124,40 @@ function LoadingBlock() {
 }
 
 export default function OverviewPage() {
-  const { data, loading, error } = useAdminResource(getAdminOverview, []);
+  const {
+    data: headlineData,
+    loading: headlineLoading,
+    error: headlineError,
+  } = useAdminResource(getAdminOverviewHeadline, []);
+  const {
+    data: fullData,
+    loading: fullLoading,
+    error: fullError,
+  } = useAdminResource(getAdminOverview, []);
 
-  if (loading) return <LoadingBlock />;
+  // Prefer full data; fall back to headline for fast first paint
+  const data = fullData || headlineData;
+  const isPartial = !fullData && !!headlineData;
+  const anyLoading = headlineLoading || fullLoading;
 
-  if (error) {
+  // Show spinner only when we have no data and at least one request is still in flight
+  if (!data && anyLoading) return <LoadingBlock />;
+
+  // Show error only when we have no data and both requests have settled
+  if (!data && !anyLoading) {
     return (
       <section className="panel">
         <div className="panel-header">
           <h3>总览加载失败</h3>
           <span className="status-pill is-red">异常</span>
         </div>
-        <p className="panel-copy">管理员后台总览接口暂时不可用：{error}</p>
+        <p className="panel-copy">管理员后台总览接口暂时不可用：{headlineError || fullError}</p>
       </section>
     );
   }
+
+  // Partial data showing but full overview permanently failed -- warn the user
+  const fullLoadFailed = isPartial && !fullLoading && !!fullError;
 
   const headline = data?.headline_metrics || {};
   const workflowTimeline = (data?.workflow_timeline || []).slice(0, 5);
@@ -151,14 +180,18 @@ export default function OverviewPage() {
     },
     {
       label: '策略库存',
-      value: `${headline.shadow_candidates || 0} / ${headline.canary_candidates || 0}`,
-      detail: '前者是 Shadow，后者是 Canary，用来看晋升是否堵塞。',
+      value: isPartial
+        ? '...'
+        : `${headline.shadow_candidates || 0} / ${headline.canary_candidates || 0}`,
+      detail: isPartial
+        ? '正在加载策略数据...'
+        : '前者是 Shadow，后者是 Canary，用来看晋升是否堵塞。',
       tone: 'amber',
     },
     {
       label: 'AI 与因子',
-      value: `${headline.ai_runs || 0} / ${headline.recent_news_factors || 0}`,
-      detail: '最近 AI 运行次数 / 结构化新闻因子沉淀量。',
+      value: isPartial ? '...' : `${headline.ai_runs || 0} / ${headline.recent_news_factors || 0}`,
+      detail: isPartial ? '正在加载 AI 运行数据...' : '最近 AI 运行次数 / 结构化新闻因子沉淀量。',
       tone: 'red',
     },
   ];
@@ -171,8 +204,10 @@ export default function OverviewPage() {
     },
     {
       label: '策略层',
-      value: `${headline.shadow_candidates || 0} 个候选`,
-      detail: `Canary ${headline.canary_candidates || 0} 个，在线信号 ${headline.active_signals || 0} 条。`,
+      value: isPartial ? '加载中...' : `${headline.shadow_candidates || 0} 个候选`,
+      detail: isPartial
+        ? '正在拉取策略库存数据。'
+        : `Canary ${headline.canary_candidates || 0} 个，在线信号 ${headline.active_signals || 0} 条。`,
     },
     {
       label: '执行层',
@@ -194,6 +229,17 @@ export default function OverviewPage() {
 
   return (
     <section className="page-grid overview-page">
+      {fullLoadFailed ? (
+        <article className="panel" style={{ marginBottom: '1rem' }}>
+          <div className="panel-header">
+            <h3>完整数据加载失败</h3>
+            <span className="status-pill is-amber">部分数据</span>
+          </div>
+          <p className="panel-copy">
+            策略与 AI 模块数据拉取失败（{fullError}），当前展示的是本地快速指标。刷新页面重试。
+          </p>
+        </article>
+      ) : null}
       <section className="hero-board">
         <div className="hero-copy-card">
           <p className="admin-eyebrow">Overview</p>
@@ -255,7 +301,11 @@ export default function OverviewPage() {
             <h3>策略生命周期结构</h3>
             <span className="status-pill is-green">Strategy inventory</span>
           </div>
-          <LifecycleStack rows={data?.alpha_lifecycle || []} />
+          {isPartial && !(data?.alpha_lifecycle || []).length ? (
+            <p className="panel-copy">正在加载策略生命周期数据...</p>
+          ) : (
+            <LifecycleStack rows={data?.alpha_lifecycle || []} />
+          )}
         </article>
 
         <article className="panel">

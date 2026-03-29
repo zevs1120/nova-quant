@@ -2,6 +2,7 @@ import { getAdminSession } from '../auth/service.js';
 import {
   buildAdminAlphaSnapshot,
   buildAdminOverviewSnapshot,
+  buildAdminOverviewHeadlineFast,
   buildAdminSignalsSnapshot,
   buildAdminSystemSnapshot,
   buildAdminTodayOpsSnapshot,
@@ -76,6 +77,23 @@ export async function handleAdminOverview(req: BasicRequest, res: BasicResponse)
     });
   } catch (error) {
     respondAdminError(res, 'ADMIN_OVERVIEW_FAILED', error);
+  }
+}
+
+export async function handleAdminOverviewHeadline(req: BasicRequest, res: BasicResponse) {
+  const session = await authorizeAdmin(req, res);
+  if (!session) return;
+  try {
+    res.json({
+      ok: true,
+      session: {
+        user: session.user,
+        roles: session.roles,
+      },
+      data: buildAdminOverviewHeadlineFast(),
+    });
+  } catch (error) {
+    respondAdminError(res, 'ADMIN_OVERVIEW_HEADLINE_FAILED', error);
   }
 }
 

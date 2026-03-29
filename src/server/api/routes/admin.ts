@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { handleAdminSession, handleAdminLogin, handleAdminLogout } from '../authHandlers.js';
 import {
   handleAdminOverview,
+  handleAdminOverviewHeadline,
   handleAdminUsers,
   handleAdminAlphas,
   handleAdminSignals,
@@ -16,6 +17,7 @@ router.get('/api/admin/session', handleAdminSession);
 router.post('/api/admin/login', handleAdminLogin);
 router.post('/api/admin/logout', handleAdminLogout);
 router.get('/api/admin/overview', handleAdminOverview);
+router.get('/api/admin/overview/headline', handleAdminOverviewHeadline);
 router.get('/api/admin/users', handleAdminUsers);
 router.get('/api/admin/alphas', handleAdminAlphas);
 router.get('/api/admin/signals', handleAdminSignals);

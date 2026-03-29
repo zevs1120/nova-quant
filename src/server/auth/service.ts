@@ -53,12 +53,36 @@ const SESSION_COOKIE_NAME = 'novaquant_session';
 const ADMIN_SESSION_COOKIE_NAME = 'novaquant_admin_session';
 const ADMIN_SESSION_CACHE_TTL_MS = Math.max(
   1_000,
-  Number(process.env.NOVA_ADMIN_SESSION_CACHE_TTL_MS || 15_000),
+  Number(process.env.NOVA_ADMIN_SESSION_CACHE_TTL_MS || 5_000),
 );
 const adminSessionCache = new Map<
   string,
   { expiresAt: number; value: { user: PublicAuthUser; roles: AuthRole[] } | null }
 >();
+
+// Periodic sweep of expired admin session cache entries (every 5 minutes)
+setInterval(
+  () => {
+    const now = Date.now();
+    for (const [key, entry] of adminSessionCache.entries()) {
+      if (entry.expiresAt < now) {
+        adminSessionCache.delete(key);
+      }
+    }
+  },
+  5 * 60 * 1000,
+).unref();
+
+// Tracks roles invalidated for a given userId to bust admin session cache
+const recentlyModifiedRoles = new Map<string, number>();
+const ROLE_MODIFICATION_LOOKBACK_MS = 60_000;
+
+function isRoleCacheValid(userId: string, cacheTime: number): boolean {
+  const modTime = recentlyModifiedRoles.get(userId);
+  if (!modTime) return true;
+  // If a role was modified more recently than the cache entry, invalidate
+  return modTime <= cacheTime;
+}
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30;
 const RESET_TTL_MS = 1000 * 60 * 15;
 const warnedSignupEmailConfigKeys = new Set<string>();
@@ -813,6 +837,14 @@ async function upsertAuthUserRole(args: {
       grantedAtMs: ts,
       grantedByUserId: args.grantedByUserId || null,
     });
+    // Bust admin session cache for this user on role change
+    const modTsPg = ts;
+    recentlyModifiedRoles.set(args.userId, modTsPg);
+    setTimeout(() => {
+      if (recentlyModifiedRoles.get(args.userId) === modTsPg) {
+        recentlyModifiedRoles.delete(args.userId);
+      }
+    }, ROLE_MODIFICATION_LOOKBACK_MS);
     return;
   }
   if (hasRemoteAuthStore()) {
@@ -838,6 +870,14 @@ async function upsertAuthUserRole(args: {
       });
     }
     await remoteSetJson(remoteUserRolesKey(args.userId), next);
+    // Bust admin session cache for this user on role change
+    const modTsRemote = ts;
+    recentlyModifiedRoles.set(args.userId, modTsRemote);
+    setTimeout(() => {
+      if (recentlyModifiedRoles.get(args.userId) === modTsRemote) {
+        recentlyModifiedRoles.delete(args.userId);
+      }
+    }, ROLE_MODIFICATION_LOOKBACK_MS);
     return;
   }
   requireLocalSqliteAuthStore()
@@ -853,6 +893,14 @@ async function upsertAuthUserRole(args: {
       granted_at_ms: ts,
       granted_by_user_id: args.grantedByUserId || null,
     });
+  // Bust admin session cache for this user on role change
+  const modTsLocal = ts;
+  recentlyModifiedRoles.set(args.userId, modTsLocal);
+  setTimeout(() => {
+    if (recentlyModifiedRoles.get(args.userId) === modTsLocal) {
+      recentlyModifiedRoles.delete(args.userId);
+    }
+  }, ROLE_MODIFICATION_LOOKBACK_MS);
 }
 
 async function syncConfiguredAdminRole(user: AuthUserRow | PublicAuthUser | null | undefined) {
@@ -1386,7 +1434,15 @@ export async function getAdminSession(
   const now = nowMs();
   const cached = adminSessionCache.get(tokenHash);
   if (cached && cached.expiresAt > now) {
-    return cached.value;
+    // Check if roles were modified since this was cached
+    if (
+      cached.value &&
+      !isRoleCacheValid(cached.value.user.userId, cached.expiresAt - ADMIN_SESSION_CACHE_TTL_MS)
+    ) {
+      adminSessionCache.delete(tokenHash);
+    } else {
+      return cached.value;
+    }
   }
   if (cached) {
     adminSessionCache.delete(tokenHash);

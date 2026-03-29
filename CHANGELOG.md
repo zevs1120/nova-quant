@@ -2,7 +2,30 @@
 
 NovaQuant 所有重要变更记录于此。
 
-## Unreleased
+## 10.18.1 (2026-03-29)
+
+- **Perf(admin)：admin 总览加载性能全面优化，首屏响应从数十秒降至秒级。**
+  - **P0 -- AlphaRegistryBundle 缓存去重**：`buildAlphaRegistryBundle` 增加 15s TTL 内存缓存 + inflight 请求去重，消除 overview 请求中因 alpha + system 快照各自调用一次造成的重复 Postgres 查询（约减少 40% 查询量）。
+  - **P0 -- Overview 响应 stale-while-revalidate**：`buildAdminOverviewSnapshot` 增加 12s fresh / 60s stale-while-revalidate 缓存，过期后返回旧数据并在后台异步刷新，同时 deduplicate 并发请求。
+  - **P1 -- Users 快照缓存**：`buildAdminUsersSnapshot` 增加 15s TTL 缓存，避免 8 表 JOIN + 6 个全表聚合子查询在短时间内重复执行（此查询通过 `queryRowsSync` 阻塞主线程）。
+  - **P1 -- Signals 匹配算法优化**：`buildAdminSignalsSnapshot` 中 execution-to-signal 匹配从 O(n*m) 嵌套 filter 改为 `Map<signal_id, Execution[]>` 预构建 + O(1) lookup（160 signals * 240 executions = 38,400 次比较降至约 400 次）。
+  - **P2 -- 前端渐进式加载**：新增 `/api/admin/overview/headline` 轻量端点（仅读取本地 SQLite 数据，不触发 Postgres 级联），OverviewPage 先加载 headline 立即展示用户/信号/工作流指标，再在后台加载完整 overview 后无缝替换。
+  - **Fix -- SWR 后台刷新异常安全**：stale-while-revalidate 后台 promise 增加 `.catch()` 消费 rejection，防止 Postgres/网络抖动时未处理拒绝打掉 API 进程。
+  - **Fix -- OverviewPage 双请求状态机**：重写 headline/overview 双请求合并逻辑 -- loading 仅在无任何数据且有请求在飞时展示；error 仅在两请求均已结束且均无数据时展示；overview 永久失败时在页面顶部展示警告横条而非静默停留在部分数据；`isPartial` 驱动策略库存/AI 因子/生命周期区域显示加载占位，不再误报零值。
+  - **Test -- headline 端点与 cache 分支覆盖**：新增 3 个测试覆盖 `/api/admin/overview/headline` 返回 `_partial: true` 的部分数据、headline 返回缓存完整数据、overview cache 在 TTL 内返回相同快照；`beforeEach` 调用 `_resetAdminCachesForTesting()` 确保模块级缓存不在用例间泄漏。
+
+## 10.18.0 (2026-03-29)
+
+- 发布类型：**minor**（新功能 + 重要修复）
+
+- **Fix(全局)：修复 code review 发现的 17 项 bug 与代码质量问题。**
+  - **前端崩溃修复**：`TodayTab` 中 `handleSignalAction` 在 `const` 声明前被引用（temporal dead zone），点击交易按钮时 `ReferenceError` 崩溃；`todayPickSymbol` 从未声明，fallback 路径同样崩溃。
+  - **Postgres 运行时修复**：`PostgresRuntimeRepository` 补齐 `upsertNovaReviewLabel` / `listNovaReviewLabels` 覆写，防止 Postgres 模式下调用基类触发 `NOT_IMPLEMENTED` 崩溃；`postgresSyncBridge` 批量写入补上事务包裹，恢复与 SQLite 版本一致的原子性保证；worker `error` 事件处理改为存储错误并在 `waitForResponse` 循环顶部（`receiveMessageOnPort` 之前）检查，确保 worker 崩溃后调用方拿到原始异常而非 `TypeError`；`ensureSequences` 加 `LOCK TABLE` + 事务防止多进程冷启动竞态。
+  - **数据丢失修复**：`derive-runtime-state.ts` 和 `run-evidence.ts` 补齐 `flushRuntimeRepoMirror()` 调用，防止 Postgres mirror 启用时写入丢失。
+  - **内存泄漏修复**：`liveOps.ts` 补齐与 `liveAlpha.ts` 相同的 `pruneExpiredCache` + 定时清理机制（6 个 cache Map 此前按日累积无上限）；`adminSessionCache` 增加 5 分钟周期性过期清扫；`recentlyModifiedRoles` 的 `setTimeout` 改为条件删除，避免多次角色修改时首次定时器提前清除后续追踪。
+  - **并发安全修复**：`redeemManualVipDay` 余额检查移入事务内部，Postgres 路径使用 `SELECT ... FOR UPDATE` 防止并发双重扣减；`appendPointsLedger` 新增 `knownBalance` 参数，避免落账时二次读取绕过行锁（消除 READ COMMITTED 下的 stale-read 窗口）。
+  - **Landing a11y/UX 修复**：Heatmap Evidence 按钮在无选中 cell 时禁用；三组控件从错误的 `tablist/tab` 语义改为 `role="group"` + `aria-pressed`（filter 按钮组的正确语义）；Evidence drawer 增加 Escape 关闭和自动聚焦。
+  - **测试覆盖补充**：`performanceOptimization.test.ts` 补齐 `/api/outcomes/recent` 端点覆盖；`manualServicePostgresRuntime.test.ts` 新增事务 rollback 路径测试，并直接断言 `knownBalance` 会驱动积分落账；新增 `postgresSyncBridge.test.ts`，覆盖同步查询、worker error 原样透传、以及崩溃后的桥接重建路径。
 
 - **Feat(onboarding)：将 intro onboarding 收成纯文字引导。**
   - 前三屏移除截图式卡片、手机 mockup 和 broker 面板，只保留更短的标题、副标题与说明文案。
@@ -54,35 +77,38 @@ NovaQuant 所有重要变更记录于此。
   - `Ask Nova` 区从静态截图改为真机比例手机 mockup，按 `typing → 发送清空 → thinking → 回复展开并自动滚动` 的时序展示完整解释。
   - 手机外壳按 Apple `iPhone 17 Pro` 机身比例重构，内部 UI 独立缩放，提升设备尺寸与界面分辨率感的一致性。
 
-- **Fix(landing)：去掉 Data Portal 底部与页脚之间的白色断层。**
+- **fix(landing): 去掉 Data Portal 底部与页脚之间的白色断层。**
   - 为 `Data Portal` 页面增加专用间距覆盖，让 `Data Fabric` 末屏与 `LegalFooter` 紧贴，避免深色背景之间露出浅色白边。
   - 保持修复范围只在 `page-shell-portal` 下生效，不影响主 landing 其他 section 的全局间距规则。
 
-- **Feat(landing)：扩展 Data Portal 分析层并重构首页封面。**
+- **feat(landing): 扩展 Data Portal 分析层并重构首页封面。**
   - 新增 `Analytics` 区块，集中展示 `月度收益热力图`、`Monte Carlo 模拟` 与 `策略 vs S&P 500 / Nasdaq` 基准对比，并为顶部导航补充对应锚点。
   - `Data Portal` 首页 hero 改为全屏居中的封面构图，只保留门户定位文案、原则 chips 与核心统计卡，不再预先重复下方模块内容。
   - 调整 `Data Portal` 首屏的氛围色块、数字卡层次与 section 衔接，整体更接近统一的 landing editorial 视觉语言。
 
-- **Fix(landing)：精修 Data Portal 首页与分析图表动效。**
+- **fix(landing): 精修 Data Portal 首页与分析图表动效。**
   - 删除 `Data Portal` 首页右侧遗留的 research replay 玻璃面板，首页回归纯居中的封面布局，避免与下方模块内容重复。
   - 为 `Heatmap`、`Monte Carlo`、`Strategy vs Benchmarks` 三张分析卡补齐真实图表动画：热力图按格点亮、路径按顺序绘制、柱状图自底部生长。
   - 为 `Replay windows`、回测指标、Monte Carlo 统计值、benchmark 百分比和 `Alpha vs S&P 500` 补充 count-up 动画，并统一 `prefers-reduced-motion` 兜底。
   - 收短 `Backtest / Analytics / Flywheel / Data Fabric` 各 section 标题及 analytics 卡片标题，减少营销式长句。
 
-- **Feat(admin)：管理后台整体视觉语言向 landing page 对齐。**
+- **feat(admin): 管理后台整体视觉语言向 landing page 对齐。**
   - 为 `admin` 入口新增统一品牌背景层，复用暖白底、蓝粉薄荷光斑、细网格和玻璃质感卡片语言。
   - 重做侧栏、顶栏、登录页、统计卡、面板、表格、状态标签和图表条形/环形样式，在不改页面架构的前提下整体换皮。
   - 将总览页生命周期和活跃率等关键图表配色切换到 landing 的品牌色带，减少后台与官网之间的视觉割裂。
 
-- **Feat(admin)：重构后台信息架构，让核心数据一眼可读。**
+- **feat(admin): 重构后台信息架构，让核心数据一眼可读。**
   - 一级导航从 6 项收敛为 `总览 / 用户增长 / 策略工厂 / 信号执行 / 系统健康` 5 项，合并 `Alpha 实验室` 与 `今天后台成果`。
   - 新增 `策略工厂` 页面，把 Discovery、Shadow、评估、研究回测与训练飞轮合并到一屏，改用统一事件流和重点候选队列表达产出。
   - `总览` 改为只展示跨域脉冲与异常摘要，`用户增长`、`信号执行`、`系统健康` 各自收敛为更适合运营判断的首屏结构，减少默认大表和重复分布图。
 
-- **Fix(admin,auth,db)：管理后台首刷过慢时优先快速回退并复用缓存。**
+- **fix(admin,auth,db): 管理后台首刷过慢时优先快速回退并复用缓存。**
   - `总览` 聚合接口改为并发拉取 `users / alpha / signals / system / workflows`，避免刷新时串行等待多个快照源。
   - 为 `alpha` 与 `research ops` 的 `EC2 live upstream` / `Postgres mirror` 读取链路增加软超时、失败冷却和短时缓存，远端慢或不可达时优先返回本地回退数据。
-  - 为 `Postgres mirror` 连接补上连接超时与空闲超时，并对 admin session 做短缓存，减少一次页面刷新中的重复鉴权解析。
+    - Upstream 软超时 1200ms，硬超时 6500ms；缓存命中有效期 15s，失败冷却 30s（全部可通过环境变量配置）。
+    - Postgres 软超时 900ms，缓存有效期 15s，失败冷却 30s。
+  - 为 `Postgres mirror` 连接补上连接超时与空闲超时，并对 admin session 做短缓存（默认 5s，可通过 `NOVA_ADMIN_SESSION_CACHE_TTL_MS` 配置），减少一次页面刷新中的重复鉴权解析。
+  - Admin session 缓存在权限变更时主动失效，防止权限回收后最长 5s 才生效的问题。
 
 - **Feat(ci)：GitHub Actions 自动部署 EC2 流水线。**
   - **新增 `.github/workflows/deploy-ec2.yml`**：push 到 `main` 后自动触发 CI → Deploy 串行流水线。

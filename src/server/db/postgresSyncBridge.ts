@@ -36,6 +36,7 @@ const DEFAULT_TIMEOUT_MS = Math.max(
 let workerSingleton: Worker | null = null;
 let channelSingleton: MessagePort | null = null;
 let nextMessageId = 1;
+let bridgeError: Error | null = null;
 const pendingMessages = new Map<number, WorkerResponse>();
 
 function resolvePostgresBusinessUrl() {
@@ -66,11 +67,11 @@ function ensureBridge() {
     pendingMessages.clear();
   });
 
-  worker.on('error', (error) => {
+  worker.on('error', (error: Error) => {
     pendingMessages.clear();
     workerSingleton = null;
     channelSingleton = null;
-    throw error;
+    bridgeError = error;
   });
 
   workerSingleton = worker;
@@ -79,6 +80,12 @@ function ensureBridge() {
 }
 
 function waitForResponse(id: number, timeoutMs: number): WorkerResponse {
+  if (bridgeError) {
+    const err = bridgeError;
+    bridgeError = null;
+    throw err;
+  }
+
   const existing = pendingMessages.get(id);
   if (existing) {
     pendingMessages.delete(id);
@@ -87,6 +94,11 @@ function waitForResponse(id: number, timeoutMs: number): WorkerResponse {
 
   const deadline = Date.now() + timeoutMs;
   while (Date.now() <= deadline) {
+    if (bridgeError) {
+      const err = bridgeError;
+      bridgeError = null;
+      throw err;
+    }
     const message = receiveMessageOnPort(channelSingleton as MessagePort)?.message as
       | WorkerResponse
       | undefined;
@@ -188,29 +200,51 @@ export function upsertRowsSync<T>(args: {
         .join(', ')}`
     : ' DO NOTHING';
   const batchSize = recommendedBatchSize(args.columns.length, 200);
+  const needsTransaction = args.rows.length > batchSize;
 
-  for (let index = 0; index < args.rows.length; index += batchSize) {
-    const batch = args.rows.slice(index, index + batchSize);
-    const sql =
-      `${buildInsertSql(getPostgresBusinessSchema(), args.table, args.columns, batch.length)}` +
-      ` ON CONFLICT (${args.conflictColumns.map(quotePgIdentifier).join(', ')})${updateSql}`;
-    const params = batch.flatMap((row) =>
-      args.columns.map((column) => (row as Record<string, unknown>)[column] ?? null),
-    );
-    executeSync(sql, params);
+  if (needsTransaction) beginTransactionSync();
+  try {
+    for (let index = 0; index < args.rows.length; index += batchSize) {
+      const batch = args.rows.slice(index, index + batchSize);
+      const sql =
+        `${buildInsertSql(getPostgresBusinessSchema(), args.table, args.columns, batch.length)}` +
+        ` ON CONFLICT (${args.conflictColumns.map(quotePgIdentifier).join(', ')})${updateSql}`;
+      const params = batch.flatMap((row) =>
+        args.columns.map((column) => (row as Record<string, unknown>)[column] ?? null),
+      );
+      executeSync(sql, params);
+    }
+    if (needsTransaction) commitTransactionSync();
+  } catch (error) {
+    if (needsTransaction) rollbackTransactionSync();
+    throw error;
   }
 }
 
 export function insertRowsSync<T>(args: { table: string; columns: string[]; rows: T[] }) {
   if (!args.rows.length) return;
   const batchSize = recommendedBatchSize(args.columns.length, 200);
-  for (let index = 0; index < args.rows.length; index += batchSize) {
-    const batch = args.rows.slice(index, index + batchSize);
-    const sql = buildInsertSql(getPostgresBusinessSchema(), args.table, args.columns, batch.length);
-    const params = batch.flatMap((row) =>
-      args.columns.map((column) => (row as Record<string, unknown>)[column] ?? null),
-    );
-    executeSync(sql, params);
+  const needsTransaction = args.rows.length > batchSize;
+
+  if (needsTransaction) beginTransactionSync();
+  try {
+    for (let index = 0; index < args.rows.length; index += batchSize) {
+      const batch = args.rows.slice(index, index + batchSize);
+      const sql = buildInsertSql(
+        getPostgresBusinessSchema(),
+        args.table,
+        args.columns,
+        batch.length,
+      );
+      const params = batch.flatMap((row) =>
+        args.columns.map((column) => (row as Record<string, unknown>)[column] ?? null),
+      );
+      executeSync(sql, params);
+    }
+    if (needsTransaction) commitTransactionSync();
+  } catch (error) {
+    if (needsTransaction) rollbackTransactionSync();
+    throw error;
   }
 }
 

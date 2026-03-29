@@ -1115,39 +1115,6 @@ export default function TodayTab({
     });
   };
 
-  if (activeSignal) {
-    return (
-      <>
-        <SignalDetail
-          signal={activeSignal}
-          locale={locale}
-          onBack={() => setActiveSignal(null)}
-          onOpenTradeTicket={() => handleSignalAction(activeSignal)}
-          primaryActionLabel={
-            activeSignalIntent?.canOpenBroker
-              ? tradeIntentHandoffLabel(activeSignalIntent, locale)
-              : locale === 'zh'
-                ? '打开交易票据'
-                : 'Open trade ticket'
-          }
-          onAskAi={() => askNovaAboutSignal(activeSignal)}
-          onPaperExecute={() => onPaperExecute?.(activeSignal)}
-          t={(key, _v, fallback) => fallback || key}
-          backLabel={locale === 'zh' ? '今天' : 'Today'}
-        />
-        <TradeTicketSheet
-          open={Boolean(tradeSignal)}
-          signal={tradeSignal}
-          intent={tradeIntent}
-          locale={locale}
-          onClose={() => setTradeSignal(null)}
-          onAskAi={(signal, intent) => askNovaAboutSignal(signal, intent)}
-          onPaperExecute={onPaperExecute}
-        />
-      </>
-    );
-  }
-
   const handleSignalAction = (signal) => {
     const nextIntent = buildSignalIntent(signal);
     const signalBlocked =
@@ -1186,6 +1153,39 @@ export default function TodayTab({
     }
     onOpenSignals?.();
   };
+
+  if (activeSignal) {
+    return (
+      <>
+        <SignalDetail
+          signal={activeSignal}
+          locale={locale}
+          onBack={() => setActiveSignal(null)}
+          onOpenTradeTicket={() => handleSignalAction(activeSignal)}
+          primaryActionLabel={
+            activeSignalIntent?.canOpenBroker
+              ? tradeIntentHandoffLabel(activeSignalIntent, locale)
+              : locale === 'zh'
+                ? '打开交易票据'
+                : 'Open trade ticket'
+          }
+          onAskAi={() => askNovaAboutSignal(activeSignal)}
+          onPaperExecute={() => onPaperExecute?.(activeSignal)}
+          t={(key, _v, fallback) => fallback || key}
+          backLabel={locale === 'zh' ? '今天' : 'Today'}
+        />
+        <TradeTicketSheet
+          open={Boolean(tradeSignal)}
+          signal={tradeSignal}
+          intent={tradeIntent}
+          locale={locale}
+          onClose={() => setTradeSignal(null)}
+          onAskAi={(signal, intent) => askNovaAboutSignal(signal, intent)}
+          onPaperExecute={onPaperExecute}
+        />
+      </>
+    );
+  }
 
   const scrollToCardIndex = (index) => {
     const targetSignal = carouselSignals[index];
@@ -1432,7 +1432,7 @@ export default function TodayTab({
 
                     <div className="today-action-main">
                       <div className="today-action-symbol-block">
-                        <h2 className="today-action-symbol">{signal?.symbol || todayPickSymbol}</h2>
+                        <h2 className="today-action-symbol">{signal?.symbol || '--'}</h2>
                         <p className="today-action-direction">{signalDirectionLabel}</p>
                         <p className="today-action-meta">{signalMetaLine}</p>
                       </div>
