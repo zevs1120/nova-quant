@@ -4,6 +4,11 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+- **Fix(ai): 修复 Nova 任务失败时记录错误 provider 的问题，并为 Gemini 调用增加结构化可观测日志。**
+  - **根因**：`runLoggedNovaTextTask` 的 error 和 skip 路径记录的是 `resolveBusinessTask` 返回的原始路由（`ollama/qwen3:4b`），而实际调用经 `runNovaChatCompletion` 内部 override 走了 Gemini。管理后台显示的 provider/model 信息具有误导性（如显示 `Marvix-Core / qwen3:4b` 实际调用的是 `gemini-3.1-flash-lite-preview`）。
+  - **修复**：`client.ts` 新增 `resolveEffectiveTextRoute()` 导出函数，与 `runNovaChatCompletion` 内部路由 override 逻辑一致（Gemini → Groq → Ollama 优先级）；`service.ts` 在 `runLoggedNovaTextTask` 入口解析 `effectiveRoute`，skip/error/success 三条路径统一使用该路由写入 `nova_task_runs`。
+  - **可观测性增强**：Gemini 调用前后增加 `[nova-gemini]` 结构化日志，记录模型名、任务类型、耗时和响应状态（OK/HTTP_xxx/NETWORK_ERROR/EMPTY_RESPONSE），支持通过 `journalctl | grep nova-gemini` 快速排障。
+
 - **Fix(test): 修复 `controlPlaneStatus` 和 `postgresMirrorConsistency` 两个 Postgres 热路径测试失败。**
   - **根因**：`readPostgresRuntimeStateBundle`（将 risk/signals/market_state/performance 合并为单次 CTE 查询）在测试编写后引入，但测试未添加对应 mock。`controlPlaneStatus` 中未 mock 的 bundle 查询连接假 Postgres URL 失败后触发 60 秒冷却期，导致后续所有已 mock 的个体读取函数被短路；`postgresMirrorConsistency` 中 `Pool.prototype.query` mock 按 SQL 文本匹配 `signals` 抛出异常，但 bundle SQL 包含全部表名，导致整个查询失败而非仅 signals 部分。
   - **修复**：两个测试均添加 `readPostgresRuntimeStateBundle` mock；`postgresMirrorConsistency` 的 `listSignals` spy 条件从 `limit === 60` 更新为兼容 `limit === 24`（匹配 `RUNTIME_STATE_SIGNAL_LIMIT`）。

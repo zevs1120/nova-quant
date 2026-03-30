@@ -103,6 +103,36 @@ export function canUseHostedTextRoute(task: NovaTaskRoute): boolean {
   return shouldUseGeminiTextRoute(task) || shouldUseGroqTextRoute(task);
 }
 
+/**
+ * Resolve the effective route that `runNovaChatCompletion` will actually use,
+ * accounting for Gemini/Groq overrides. Callers can use this to log the
+ * correct provider on both success and error paths.
+ */
+export function resolveEffectiveTextRoute(task: NovaTaskRoute) {
+  const route = resolveNovaRoute(task);
+  const useGemini = shouldUseGeminiTextRoute(task);
+  const useGroq = !useGemini && shouldUseGroqTextRoute(task);
+  if (useGroq) {
+    return {
+      ...route,
+      provider: 'groq' as const,
+      model: getDefaultGroqModel(),
+      endpoint: GROQ_OPENAI_BASE_URL,
+      apiKey: String(process.env.GROQ_API_KEY || '').trim(),
+    };
+  }
+  if (useGemini) {
+    return {
+      ...route,
+      provider: 'gemini' as const,
+      model: getDefaultGeminiModel(),
+      endpoint: GEMINI_API_BASE_URL,
+      apiKey: String(process.env.GEMINI_API_KEY || '').trim(),
+    };
+  }
+  return route;
+}
+
 function humanizeFetchError(error: unknown, provider = 'Nova'): Error {
   if (error instanceof Error) {
     if (
@@ -142,6 +172,8 @@ export async function runNovaChatCompletion(args: NovaChatArgs) {
 
   if (effectiveRoute.provider === 'gemini') {
     const endpoint = `${String(effectiveRoute.endpoint || GEMINI_API_BASE_URL).replace(/\/$/, '')}/${effectiveRoute.model}:generateContent?key=${effectiveRoute.apiKey}`;
+    const startMs = Date.now();
+    console.log(`[nova-gemini] calling ${effectiveRoute.model} for task=${args.task}`);
     const { init, clear } = withTimeoutInit(
       {
         method: 'POST',
@@ -169,21 +201,35 @@ export async function runNovaChatCompletion(args: NovaChatArgs) {
     );
     const response = await fetch(endpoint, init)
       .catch((error) => {
+        const elapsed = Date.now() - startMs;
+        console.warn(
+          `[nova-gemini] ${effectiveRoute.model} task=${args.task} NETWORK_ERROR ${elapsed}ms: ${error instanceof Error ? error.message : String(error)}`,
+        );
         throw humanizeFetchError(error, 'Gemini');
       })
       .finally(clear);
 
+    const elapsed = Date.now() - startMs;
     if (!response.ok) {
       const text = await response.text().catch(() => '');
+      console.warn(
+        `[nova-gemini] ${effectiveRoute.model} task=${args.task} HTTP_${response.status} ${elapsed}ms: ${text.slice(0, 200)}`,
+      );
       throw new Error(`Nova request failed (${response.status}): ${text}`);
     }
 
     const raw = (await response.json()) as Record<string, unknown>;
     const text = extractGeminiText(raw).trim();
     if (!text) {
+      console.warn(
+        `[nova-gemini] ${effectiveRoute.model} task=${args.task} EMPTY_RESPONSE ${elapsed}ms`,
+      );
       throw new Error('Gemini Nova returned an empty response.');
     }
 
+    console.log(
+      `[nova-gemini] ${effectiveRoute.model} task=${args.task} OK ${elapsed}ms (${text.length} chars)`,
+    );
     return {
       route: effectiveRoute,
       endpoint,

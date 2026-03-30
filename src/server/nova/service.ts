@@ -2,7 +2,11 @@ import { randomUUID } from 'node:crypto';
 import type { MarketRepository } from '../db/repository.js';
 import type { NovaReviewLabelRecord, NovaTaskRunRecord, NovaTaskType } from '../types.js';
 import { createTraceId, recordAuditEvent } from '../observability/spine.js';
-import { canUseHostedTextRoute, runNovaChatCompletion } from './client.js';
+import {
+  canUseHostedTextRoute,
+  resolveEffectiveTextRoute,
+  runNovaChatCompletion,
+} from './client.js';
 import { resolveBusinessTask, type NovaBusinessTask } from './router.js';
 import { getNovaRuntimeMode, isLocalNovaEnabled } from '../ai/llmOps.js';
 
@@ -76,6 +80,7 @@ export async function runLoggedNovaTextTask(args: {
   parentRunId?: string | null;
 }) {
   const route = resolveBusinessTask(args.task);
+  const effectiveRoute = resolveEffectiveTextRoute(route.task);
   const runId = `nova-run-${randomUUID()}`;
   const traceId = args.traceId || createTraceId('nova');
   const promptVersionId = findPromptVersionId(args.repo, args.promptTaskKey);
@@ -91,9 +96,9 @@ export async function runLoggedNovaTextTask(args: {
       user_id: args.userId || null,
       thread_id: args.threadId || null,
       task_type: taskTypeForBusinessTask(args.task),
-      route_alias: route.alias,
-      model_name: route.model,
-      endpoint: route.endpoint,
+      route_alias: effectiveRoute.alias,
+      model_name: effectiveRoute.model,
+      endpoint: effectiveRoute.endpoint,
       trace_id: traceId,
       prompt_version_id: promptVersionId,
       parent_run_id: args.parentRunId || null,
@@ -158,9 +163,9 @@ export async function runLoggedNovaTextTask(args: {
       user_id: args.userId || null,
       thread_id: args.threadId || null,
       task_type: taskTypeForBusinessTask(args.task),
-      route_alias: route.alias,
-      model_name: route.model,
-      endpoint: route.endpoint,
+      route_alias: effectiveRoute.alias,
+      model_name: effectiveRoute.model,
+      endpoint: effectiveRoute.endpoint,
       trace_id: traceId,
       prompt_version_id: promptVersionId,
       parent_run_id: args.parentRunId || null,
@@ -177,7 +182,7 @@ export async function runLoggedNovaTextTask(args: {
       skipped: false as const,
       traceId,
       runId,
-      route,
+      route: effectiveRoute,
       error: message,
     };
   }
