@@ -75,6 +75,92 @@ function signalDecisionTone(signal) {
   return String(signal?.direction || '').toUpperCase() === 'SHORT' ? 'sell' : 'buy';
 }
 
+const ACTION_CARD_PALETTES = ['mint', 'pink', 'blue', 'violet', 'yellow'];
+
+function hashCardPaletteSeed(seed) {
+  const input = String(seed || 'novaquant');
+  let hash = 0;
+  for (let index = 0; index < input.length; index += 1) {
+    hash = (hash * 31 + input.charCodeAt(index)) >>> 0;
+  }
+  return hash;
+}
+
+function signalCardPalette(signal, offset = 0) {
+  const seed = signalCardId(signal) || signal?.symbol || signal?.strategy_source || 'novaquant';
+  const hash = hashCardPaletteSeed(seed);
+  return ACTION_CARD_PALETTES[(hash + offset) % ACTION_CARD_PALETTES.length];
+}
+
+function actionCardDecisionLabel(signal, locale) {
+  if (!signal || !signal._actionable) {
+    return locale === 'zh' ? '先观察' : 'Watch first';
+  }
+  if (String(signal?.direction || '').toUpperCase() === 'SHORT') {
+    return locale === 'zh' ? '先降风险' : 'Reduce risk';
+  }
+  return locale === 'zh' ? '买入准备' : 'Buy setup';
+}
+
+function actionCardTagLabel(signal, locale) {
+  if (!signal || !signal._actionable) {
+    return locale === 'zh' ? '先观察' : 'Watch first';
+  }
+  if (String(signal?.direction || '').toUpperCase() === 'SHORT') {
+    return locale === 'zh' ? '风险收缩' : 'Reduce risk';
+  }
+  return locale === 'zh' ? '可执行' : 'Actionable';
+}
+
+function actionCardRiskText(signal, locale) {
+  if (!signal || !signal._actionable) {
+    return locale === 'zh' ? '观察优先' : 'Watch only';
+  }
+  if (String(signal?.direction || '').toUpperCase() === 'SHORT') {
+    return locale === 'zh' ? '高风险' : 'High risk';
+  }
+  const confidence = Number(signal?.confidence ?? signal?.conviction);
+  if (Number.isFinite(confidence) && confidence >= 0.72) {
+    return locale === 'zh' ? '低风险' : 'Low risk';
+  }
+  if (Number.isFinite(confidence) && confidence >= 0.6) {
+    return locale === 'zh' ? '中等风险' : 'Medium risk';
+  }
+  return locale === 'zh' ? '高风险' : 'High risk';
+}
+
+function actionCardExecutionText(signal, locale) {
+  if (!signal || !signal._actionable) {
+    return locale === 'zh' ? '等待确认后再动' : 'Wait for follow-through';
+  }
+  if (String(signal?.direction || '').toUpperCase() === 'SHORT') {
+    return locale === 'zh' ? '反弹中先减仓' : 'Reduce into strength';
+  }
+  return locale === 'zh' ? '确认后再进场' : 'Open on confirmation';
+}
+
+function actionCardRiskGateText(signal, locale) {
+  if (!signal || !signal._actionable) {
+    return locale === 'zh' ? '保持耐心' : 'Stay patient';
+  }
+  if (String(signal?.direction || '').toUpperCase() === 'SHORT') {
+    return locale === 'zh' ? '不要再加风险' : 'Do not add risk';
+  }
+  return locale === 'zh' ? '仓位继续放轻' : 'Keep size light';
+}
+
+function actionCardMetaLine(text, locale) {
+  if (!text) {
+    return locale === 'zh' ? '等待下一次系统快照' : 'WAITING FOR THE NEXT SYSTEM SNAPSHOT';
+  }
+  return String(text).replaceAll('•', '·').toUpperCase();
+}
+
+function actionCardPickLabel(position, locale) {
+  const numeric = String(Math.max(1, Number(position) || 1)).padStart(2, '0');
+  return locale === 'zh' ? `Today 卡片 ${numeric}` : `Today pick ${numeric}`;
+}
+
 function mergeEvidenceSignals(allSignals, evidenceSignals) {
   if (!Array.isArray(evidenceSignals) || !evidenceSignals.length) return allSignals || [];
   const signalById = new Map((allSignals || []).map((row) => [row.signal_id, row]));
@@ -979,18 +1065,6 @@ export default function TodayTab({
   const buildSignalIntent = (signal) =>
     buildTradeIntent(signal, { broker: brokerProfile?.broker, brokerSnapshot: brokerConnection });
   const activeSignalIntent = activeSignal ? buildSignalIntent(activeSignal) : null;
-  const queueCountLabel =
-    hiddenDeckCount > 0 && queuedSignals.length <= 1
-      ? locale === 'zh'
-        ? `还有 ${hiddenDeckCount} 张待解锁`
-        : `${hiddenDeckCount} locked`
-      : queuedSignals.length <= 1
-        ? locale === 'zh'
-          ? '最后一张'
-          : 'Final card'
-        : locale === 'zh'
-          ? `队列中还有 ${queuedSignals.length} 张`
-          : `${queuedSignals.length} cards in queue`;
   const actionLogic = featuredSignal
     ? featuredSignal?.brief_why_now ||
       featuredSignal?.explain_bullets?.[0] ||
@@ -1002,6 +1076,27 @@ export default function TodayTab({
     signal: featuredSignal,
     provenance,
   });
+  const featuredSignalIntent = featuredSignal ? buildSignalIntent(featuredSignal) : null;
+  const featuredCardPalette = signalCardPalette(featuredSignal);
+  const featuredCardPosition = featuredSignalId
+    ? Math.max(
+        1,
+        deckSignals.findIndex((signal) => signalCardId(signal) === featuredSignalId) + 1,
+      )
+    : 1;
+  const featuredCardKicker = actionCardPickLabel(featuredCardPosition, locale);
+  const featuredDecisionLabel = actionCardDecisionLabel(featuredSignal, locale);
+  const featuredTagLabel = actionCardTagLabel(featuredSignal, locale);
+  const featuredRiskLabel = actionCardRiskText(featuredSignal, locale);
+  const featuredExecutionLabel = actionCardExecutionText(featuredSignal, locale);
+  const featuredRiskGateLabel = actionCardRiskGateText(featuredSignal, locale);
+  const featuredMetaLine = actionCardMetaLine(actionMetaText, locale);
+  const featuredPrimaryActionLabel =
+    featuredSignalIntent?.canOpenBroker
+      ? tradeIntentHandoffLabel(featuredSignalIntent, locale)
+      : locale === 'zh'
+        ? '打开交易票据'
+        : 'Open trade ticket';
   const stackedSignals = queuedSignals.slice(1, 3);
   const activeSwipeIntent =
     gesturePreview.signalId === featuredSignalId ? gesturePreview.intent || null : null;
@@ -1011,26 +1106,6 @@ export default function TodayTab({
         ? '运行警告'
         : 'Runtime caution'
       : risk?.label || (locale === 'zh' ? '已准备' : 'Ready');
-  const deckTitle =
-    locale === 'zh' ? '一张卡，只做一个清楚决定' : 'One card. One clean decision.';
-  const deckFootCopy =
-    normalizedMembershipPlan === 'free'
-      ? locale === 'zh'
-        ? '先滑动浏览今天队列。准备执行时，再升级 Lite 保留券商联动。'
-        : 'Swipe through today first. Upgrade to Lite when you are ready to keep broker handoff.'
-      : locale === 'zh'
-        ? '左滑放弃，上滑暂存，右滑确认，并继续在你的券商里完成动作。'
-        : 'Swipe left to pass, up to save, and right to confirm while keeping execution inside your broker.';
-  const deckBenefitBroker =
-    brokerProfile?.broker
-      ? locale === 'zh'
-        ? `Keep ${brokerProfile.broker}`
-        : `Keep ${brokerProfile.broker}`
-      : locale === 'zh'
-        ? 'Keep your broker'
-        : 'Keep your broker';
-  const deckBenefitNova =
-    locale === 'zh' ? 'Ask Nova 带当前标的' : 'Ask Nova with ticker context';
 
   const openTradeTicket = (signal) => {
     if (!signal) return;
@@ -1283,49 +1358,24 @@ export default function TodayTab({
         className={`today-summary-header today-summary-header-climate today-summary-tone-${climate.tone}`}
       >
         <div className="today-climate-panel">
-          <div className="today-summary-copy today-climate-copy">
+          <div className="today-summary-copy today-climate-copy today-climate-copy-compact">
             <div className="today-climate-meta-row">
               <p className="today-summary-date">{todayDateLabel}</p>
               <span className={`today-climate-status-pill today-climate-status-pill-${climate.tone}`}>
                 {climateStatusLabel}
               </span>
             </div>
-            <p className="today-climate-label">{locale === 'zh' ? 'Climate 建议' : 'Climate'}</p>
-            <p className="today-climate-name">{climate.name}</p>
-            <p className={`today-summary-line today-summary-line-${climate.tone}`}>{climate.line}</p>
-            <div className="today-climate-summary-row">
-              <span className="today-climate-summary-pill">
-                <span className="today-climate-summary-label">
-                  {locale === 'zh' ? 'Source' : 'Source'}
-                </span>
-                <strong className="today-climate-summary-value">{provenance.label}</strong>
-              </span>
-              <span className="today-climate-summary-pill">
-                <span className="today-climate-summary-label">
-                  {locale === 'zh' ? 'Queue' : 'Queue'}
-                </span>
-                <strong className="today-climate-summary-value">{queueCountLabel}</strong>
-              </span>
-              <span className="today-climate-summary-pill">
-                <span className="today-climate-summary-label">
-                  {locale === 'zh' ? 'Market' : 'Market'}
-                </span>
-                <strong className="today-climate-summary-value">
-                  {assetClass === 'CRYPTO' ? 'Crypto' : 'US Equities'}
-                </strong>
-              </span>
+            <div className="today-climate-inline">
+              <p className="today-climate-label">{locale === 'zh' ? 'Climate 建议' : 'Climate'}</p>
+              <p className="today-climate-name">{climate.name}</p>
             </div>
           </div>
 
-          <aside className="today-climate-orbit" aria-hidden="true">
+          <aside className="today-climate-orbit today-climate-orbit-visual" aria-hidden="true">
             <div className={`today-climate-orbit-ring today-climate-orbit-ring-${climate.tone}`}>
               <span className="today-climate-orbit-core" />
-            </div>
-            <div className="today-climate-orbit-copy">
-              <span className="today-climate-orbit-label">
-                {locale === 'zh' ? 'Today mode' : 'Today mode'}
-              </span>
-              <strong className="today-climate-orbit-value">{overall.headline}</strong>
+              <span className="today-climate-orbit-satellite today-climate-orbit-satellite-a" />
+              <span className="today-climate-orbit-satellite today-climate-orbit-satellite-b" />
             </div>
           </aside>
         </div>
@@ -1333,32 +1383,56 @@ export default function TodayTab({
 
       <section className="today-screen-flow today-decision-stack">
         <div className="today-deck-shell">
-          <div className="today-deck-head">
-            <div className="today-deck-head-copy">
-              <p className="today-deck-kicker">{locale === 'zh' ? 'Action Queue' : 'Action Queue'}</p>
-              <h2 className="today-deck-title">{deckTitle}</h2>
-            </div>
-            <span className="today-deck-pill">{queueCountLabel}</span>
-          </div>
-
           {featuredSignal ? (
             <>
             <div className="today-tinder-deck">
               {stackedSignals.map((signal, index) => (
                 <article
                   key={`stack-${signalCardId(signal)}`}
-                  className={`glass-card today-action-card today-action-card-stack today-action-card-${signalDecisionTone(signal)} today-action-card-stack-${
-                    index + 1
-                  }`}
+                  className={`glass-card today-action-card today-action-card-stack today-action-card-${signalDecisionTone(signal)} today-action-card-palette-${signalCardPalette(
+                    signal,
+                    index + 1,
+                  )} today-action-card-stack-${index + 1}`}
                   aria-hidden="true"
                 >
-                  <p className="today-action-kicker">{locale === 'zh' ? 'Up next' : 'Up next'}</p>
-                  <h3 className="today-action-stack-symbol">{signal?.symbol || '--'}</h3>
+                  <div className="today-action-card-head today-action-card-head-stack">
+                    <span className="today-action-kicker">
+                      {actionCardPickLabel(
+                        Math.max(
+                          1,
+                          deckSignals.findIndex((row) => signalCardId(row) === signalCardId(signal)) +
+                            1,
+                        ),
+                        locale,
+                      )}
+                    </span>
+                    <span
+                      className={`today-action-decision-chip today-action-decision-chip-${signalDecisionTone(signal)}`}
+                    >
+                      {actionCardTagLabel(signal, locale)}
+                    </span>
+                  </div>
+                  <div className="today-action-stack-copy">
+                    <h3 className="today-action-stack-symbol">{signal?.symbol || '--'}</h3>
+                    <p className="today-action-stack-direction">
+                      {actionCardDecisionLabel(signal, locale)}
+                    </p>
+                    <p className="today-action-stack-meta">
+                      {actionCardMetaLine(
+                        buildActionMetaText({
+                          locale,
+                          signal,
+                          provenance,
+                        }),
+                        locale,
+                      )}
+                    </p>
+                  </div>
                 </article>
               ))}
 
               <article
-                className={`glass-card today-action-card today-action-card-swipe today-action-card-${decisionTone}`}
+                className={`glass-card today-action-card today-action-card-swipe today-action-card-${decisionTone} today-action-card-palette-${featuredCardPalette}`}
                 data-gesture-active={
                   gesturePreview.signalId === featuredSignalId && gesturePreview.active
                     ? 'true'
@@ -1461,51 +1535,31 @@ export default function TodayTab({
                   </span>
                 </div>
 
-                <div className="today-action-card-head today-action-card-head-minimal">
-                  <span className="today-action-kicker">
-                    {locale === 'zh' ? 'Action Card' : 'Action Card'}
-                  </span>
+                <div className="today-action-card-head today-action-card-head-showcase">
+                  <span className="today-action-kicker">{featuredCardKicker}</span>
                   <span
                     className={`today-action-decision-chip today-action-decision-chip-${decisionTone}`}
                   >
-                    {actionLabel}
+                    {featuredTagLabel}
                   </span>
                 </div>
 
-                <div className="today-action-main today-action-main-landing">
-                  <div className="today-action-symbol-block">
+                <div className="today-action-main today-action-main-showcase">
+                  <div className="today-action-symbol-block today-action-symbol-block-showcase">
                     <h2 className="today-action-symbol">{featuredSignal?.symbol || '--'}</h2>
-                    <p className="today-action-direction">
-                      {actionLabel === 'Buy'
-                        ? locale === 'zh'
-                          ? 'Buy setup'
-                          : 'Buy setup'
-                        : actionLabel === 'Sell'
-                          ? locale === 'zh'
-                            ? 'Sell setup'
-                            : 'Sell setup'
-                          : locale === 'zh'
-                            ? 'Hold / wait'
-                            : 'Hold / wait'}
-                    </p>
+                    <p className="today-action-direction">{featuredDecisionLabel}</p>
                     <p className="today-action-thesis">{actionLogic || overall.subtitle}</p>
-                    <p className="today-action-meta">{actionMetaText}</p>
+                    <p className="today-action-meta">{featuredMetaLine}</p>
                   </div>
                   <DecisionMark code={noActionDay ? overall.code : 'TRADE'} />
                 </div>
 
-                <div className="today-action-stats today-action-stats-landing">
+                <div className="today-action-stats today-action-stats-showcase">
                   <div className="today-action-stat">
                     <span className="today-action-stat-label">
-                      {locale === 'zh' ? 'Entry' : 'Entry'}
+                      {locale === 'zh' ? 'Conviction' : 'Conviction'}
                     </span>
-                    <span className="today-action-stat-value">{entryRangeText(featuredSignal)}</span>
-                  </div>
-                  <div className="today-action-stat">
-                    <span className="today-action-stat-label">
-                      {locale === 'zh' ? 'Stop' : 'Stop'}
-                    </span>
-                    <span className="today-action-stat-value">{stopLossText(featuredSignal)}</span>
+                    <span className="today-action-stat-value">{confidenceText(featuredSignal)}</span>
                   </div>
                   <div className="today-action-stat">
                     <span className="today-action-stat-label">
@@ -1515,36 +1569,54 @@ export default function TodayTab({
                       {suggestedPositionText(featuredSignal)}
                     </span>
                   </div>
+                  <div className="today-action-stat">
+                    <span className="today-action-stat-label">
+                      {locale === 'zh' ? 'Risk' : 'Risk'}
+                    </span>
+                    <span className="today-action-stat-value">{featuredRiskLabel}</span>
+                  </div>
                 </div>
 
-                <div className="today-action-context-row today-action-context-row-landing">
-                  <span className="today-action-context-pill">
-                    <span className="today-action-context-label">
-                      {locale === 'zh' ? 'Conviction' : 'Conviction'}
-                    </span>
-                    <span className="today-action-context-value">
-                      {confidenceText(featuredSignal)}
-                    </span>
-                  </span>
-                  <span className="today-action-context-pill">
-                    <span className="today-action-context-label">
-                      {locale === 'zh' ? 'Take profit' : 'Take profit'}
-                    </span>
-                    <span className="today-action-context-value">{takeProfitText(featuredSignal)}</span>
-                  </span>
+                <div className="today-action-context-row today-action-context-row-showcase">
                   <span className="today-action-context-pill">
                     <span className="today-action-context-label">
                       {locale === 'zh' ? 'Source' : 'Source'}
                     </span>
-                    <span className="today-action-context-value">{provenance.label}</span>
+                    <span className="today-action-context-value">
+                      {provenance.label}
+                    </span>
+                  </span>
+                  <span className="today-action-context-pill">
+                    <span className="today-action-context-label">
+                      {locale === 'zh' ? 'Execution' : 'Execution'}
+                    </span>
+                    <span className="today-action-context-value">{featuredExecutionLabel}</span>
+                  </span>
+                  <span className="today-action-context-pill">
+                    <span className="today-action-context-label">
+                      {locale === 'zh' ? 'Risk gate' : 'Risk gate'}
+                    </span>
+                    <span className="today-action-context-value">{featuredRiskGateLabel}</span>
                   </span>
                 </div>
 
-                <div className="today-action-footer today-action-footer-minimal">
-                  <span className="today-action-powered">Powered by Marvix AI Engine</span>
+                <p className="today-action-powered-inline">Powered by Marvix AI Engine</p>
+
+                <div className="today-action-links">
                   <button
                     type="button"
-                    className="today-ask-nova-button"
+                    className="today-action-link today-action-link-primary"
+                    data-gesture-ignore="true"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      applyQueueAction(featuredSignal, 'accept');
+                    }}
+                  >
+                    <span>{featuredPrimaryActionLabel}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="today-action-link today-action-link-secondary"
                     data-gesture-ignore="true"
                     onClick={(event) => {
                       event.stopPropagation();
@@ -1552,12 +1624,6 @@ export default function TodayTab({
                       askNovaAboutSignal(featuredSignal);
                     }}
                   >
-                    <svg viewBox="0 0 20 20" className="today-ask-nova-icon" aria-hidden="true">
-                      <path
-                        d="M10 2.8 11.85 8.15 17.2 10l-5.35 1.85L10 17.2l-1.85-5.35L2.8 10l5.35-1.85L10 2.8Z"
-                        fill="currentColor"
-                      />
-                    </svg>
                     <span>Ask Nova</span>
                   </button>
                 </div>
@@ -1682,14 +1748,6 @@ export default function TodayTab({
             </div>
             </article>
           )}
-
-          <div className="today-deck-foot">
-            <p className="today-deck-foot-copy">{deckFootCopy}</p>
-            <div className="today-deck-benefits" aria-hidden="true">
-              <span className="today-deck-benefit">{deckBenefitBroker}</span>
-              <span className="today-deck-benefit">{deckBenefitNova}</span>
-            </div>
-          </div>
         </div>
       </section>
 

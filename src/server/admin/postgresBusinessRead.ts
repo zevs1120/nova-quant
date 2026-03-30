@@ -291,6 +291,21 @@ function toIso(ms: number | null | undefined) {
   return Number.isFinite(ms) ? new Date(Number(ms)).toISOString() : null;
 }
 
+function asRecordValue(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function asRecordArray(value: unknown): Record<string, unknown>[] {
+  return Array.isArray(value)
+    ? value.filter(
+        (entry): entry is Record<string, unknown> =>
+          Boolean(entry) && typeof entry === 'object' && !Array.isArray(entry),
+      )
+    : [];
+}
+
 function round(value: number, digits = 4) {
   const factor = 10 ** digits;
   return Math.round(value * factor) / factor;
@@ -866,6 +881,55 @@ function mapSignalRecord(row: Record<string, unknown>): SignalRecord {
   };
 }
 
+function mapRiskProfileRow(row: Record<string, unknown>): UserRiskProfileRecord {
+  return {
+    user_id: String(row.user_id || ''),
+    profile_key: String(row.profile_key || 'balanced') as UserRiskProfileRecord['profile_key'],
+    max_loss_per_trade: toNumber(row.max_loss_per_trade),
+    max_daily_loss: toNumber(row.max_daily_loss),
+    max_drawdown: toNumber(row.max_drawdown),
+    exposure_cap: toNumber(row.exposure_cap),
+    leverage_cap: toNumber(row.leverage_cap),
+    updated_at_ms: toNumber(row.updated_at_ms),
+  };
+}
+
+function mapMarketStateRow(row: Record<string, unknown>): MarketStateRecord {
+  return {
+    market: String(row.market || 'US') as Market,
+    symbol: String(row.symbol || ''),
+    timeframe: String(row.timeframe || ''),
+    snapshot_ts_ms: toNumber(row.snapshot_ts_ms),
+    regime_id: String(row.regime_id || ''),
+    trend_strength: toNumber(row.trend_strength),
+    temperature_percentile: toNumber(row.temperature_percentile),
+    volatility_percentile: toNumber(row.volatility_percentile),
+    risk_off_score: toNumber(row.risk_off_score),
+    stance: String(row.stance || ''),
+    event_stats_json: String(row.event_stats_json || '{}'),
+    assumptions_json: String(row.assumptions_json || '{}'),
+    updated_at_ms: toNumber(row.updated_at_ms),
+  };
+}
+
+function mapPerformanceSnapshotRow(row: Record<string, unknown>): PerformanceSnapshotRecord {
+  return {
+    market: String(row.market || 'US') as Market,
+    range: String(row.range || ''),
+    segment_type: String(
+      row.segment_type || 'OVERALL',
+    ) as PerformanceSnapshotRecord['segment_type'],
+    segment_key: String(row.segment_key || ''),
+    source_label: String(
+      row.source_label || 'BACKTEST',
+    ) as PerformanceSnapshotRecord['source_label'],
+    sample_size: toNumber(row.sample_size),
+    payload_json: String(row.payload_json || '{}'),
+    asof_ms: toNumber(row.asof_ms),
+    updated_at_ms: toNumber(row.updated_at_ms),
+  };
+}
+
 export async function readPostgresSignalRecords(args?: {
   assetClass?: AssetClass;
   market?: Market;
@@ -1218,22 +1282,14 @@ export async function readPostgresRiskProfile(
     [userId],
   );
   if (!row) return null;
-  return {
-    user_id: String(row.user_id || ''),
-    profile_key: String(row.profile_key || 'balanced') as UserRiskProfileRecord['profile_key'],
-    max_loss_per_trade: toNumber(row.max_loss_per_trade),
-    max_daily_loss: toNumber(row.max_daily_loss),
-    max_drawdown: toNumber(row.max_drawdown),
-    exposure_cap: toNumber(row.exposure_cap),
-    leverage_cap: toNumber(row.leverage_cap),
-    updated_at_ms: toNumber(row.updated_at_ms),
-  };
+  return mapRiskProfileRow(row);
 }
 
 export async function readPostgresMarketState(args?: {
   market?: Market;
   symbol?: string;
   timeframe?: string;
+  limit?: number;
 }): Promise<MarketStateRecord[]> {
   const where: string[] = [];
   const params: unknown[] = [];
@@ -1250,6 +1306,12 @@ export async function readPostgresMarketState(args?: {
     where.push(`timeframe = $${params.length}`);
   }
   const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+  const limitSql = Number.isFinite(Number(args?.limit))
+    ? (() => {
+        params.push(Math.max(1, Number(args?.limit || 1)));
+        return `LIMIT $${params.length}`;
+      })()
+    : '';
   const rows = await queryRows<Record<string, unknown>>(
     `
       SELECT
@@ -1269,24 +1331,11 @@ export async function readPostgresMarketState(args?: {
       FROM ${qualifyBusinessTable('market_state')}
       ${whereSql}
       ORDER BY temperature_percentile DESC, updated_at_ms DESC
+      ${limitSql}
     `,
     params,
   );
-  return rows.map((row) => ({
-    market: String(row.market || 'US') as Market,
-    symbol: String(row.symbol || ''),
-    timeframe: String(row.timeframe || ''),
-    snapshot_ts_ms: toNumber(row.snapshot_ts_ms),
-    regime_id: String(row.regime_id || ''),
-    trend_strength: toNumber(row.trend_strength),
-    temperature_percentile: toNumber(row.temperature_percentile),
-    volatility_percentile: toNumber(row.volatility_percentile),
-    risk_off_score: toNumber(row.risk_off_score),
-    stance: String(row.stance || ''),
-    event_stats_json: String(row.event_stats_json || '{}'),
-    assumptions_json: String(row.assumptions_json || '{}'),
-    updated_at_ms: toNumber(row.updated_at_ms),
-  }));
+  return rows.map(mapMarketStateRow);
 }
 
 export async function readPostgresPerformanceSnapshots(args?: {
@@ -1327,21 +1376,194 @@ export async function readPostgresPerformanceSnapshots(args?: {
     `,
     params,
   );
-  return rows.map((row) => ({
-    market: String(row.market || 'US') as Market,
-    range: String(row.range || ''),
-    segment_type: String(
-      row.segment_type || 'OVERALL',
-    ) as PerformanceSnapshotRecord['segment_type'],
-    segment_key: String(row.segment_key || ''),
-    source_label: String(
-      row.source_label || 'BACKTEST',
-    ) as PerformanceSnapshotRecord['source_label'],
-    sample_size: toNumber(row.sample_size),
-    payload_json: String(row.payload_json || '{}'),
-    asof_ms: toNumber(row.asof_ms),
-    updated_at_ms: toNumber(row.updated_at_ms),
-  }));
+  return rows.map(mapPerformanceSnapshotRow);
+}
+
+export async function readPostgresRuntimeStateBundle(args: {
+  userId: string;
+  market: Market;
+  assetClass?: AssetClass;
+  signalLimit?: number;
+  marketStateLimit?: number;
+}): Promise<{
+  risk: UserRiskProfileRecord | null;
+  signals: SignalListItem[];
+  marketState: MarketStateRecord[];
+  performance: PerformanceSnapshotRecord[];
+}> {
+  const params: unknown[] = [args.userId, args.market];
+  const signalWhere = [`market = $2`];
+  if (args.assetClass) {
+    params.push(args.assetClass);
+    signalWhere.push(`asset_class = $${params.length}`);
+  }
+  params.push(Math.max(1, Number(args.signalLimit || 24)));
+  const signalLimitParam = params.length;
+  params.push(Math.max(1, Number(args.marketStateLimit || 24)));
+  const marketStateLimitParam = params.length;
+  const row = await queryRow<Record<string, unknown>>(
+    `
+      WITH risk_row AS (
+        SELECT
+          user_id,
+          profile_key,
+          max_loss_per_trade,
+          max_daily_loss,
+          max_drawdown,
+          exposure_cap,
+          leverage_cap,
+          updated_at_ms
+        FROM ${qualifyBusinessTable('user_risk_profiles')}
+        WHERE user_id = $1
+        LIMIT 1
+      ),
+      scoped_signals AS (
+        SELECT
+          signal_id,
+          created_at_ms,
+          expires_at_ms,
+          asset_class,
+          market,
+          symbol,
+          timeframe,
+          strategy_id,
+          strategy_family,
+          strategy_version,
+          regime_id,
+          direction,
+          confidence,
+          entry_low,
+          entry_high,
+          entry_method,
+          invalidation_level,
+          stop_type,
+          stop_price,
+          tp1_price,
+          tp1_size_pct,
+          tp2_price,
+          tp2_size_pct,
+          position_pct,
+          leverage_cap,
+          risk_bucket_applied,
+          status,
+          score,
+          updated_at_ms,
+          payload_json::jsonb AS payload
+        FROM ${qualifyBusinessTable('signals')}
+        WHERE ${signalWhere.join(' AND ')}
+        ORDER BY score DESC, created_at_ms DESC
+        LIMIT $${signalLimitParam}
+      ),
+      signal_rows AS (
+        SELECT
+          signal_id,
+          created_at_ms,
+          expires_at_ms,
+          asset_class,
+          market,
+          symbol,
+          timeframe,
+          strategy_id,
+          strategy_family,
+          strategy_version,
+          regime_id,
+          direction,
+          confidence,
+          entry_low,
+          entry_high,
+          entry_method,
+          invalidation_level,
+          stop_type,
+          stop_price,
+          tp1_price,
+          tp1_size_pct,
+          tp2_price,
+          tp2_size_pct,
+          position_pct,
+          leverage_cap,
+          risk_bucket_applied,
+          status,
+          score,
+          updated_at_ms,
+          payload ->> 'generated_at' AS generated_at,
+          payload ->> 'strategy_source' AS strategy_source,
+          payload ->> 'grade' AS grade,
+          payload ->> 'source_status' AS source_status,
+          payload ->> 'source_label' AS source_label,
+          payload ->> 'data_status' AS data_status,
+          payload ->> 'validity' AS validity,
+          payload ->> 'model_version' AS model_version,
+          payload ->> 'quick_pnl_pct' AS quick_pnl_pct,
+          payload ->> 'holding_horizon_days' AS holding_horizon_days,
+          payload ->> 'risk_score' AS risk_score,
+          payload ->> 'regime_compatibility' AS regime_compatibility,
+          payload -> 'explain_bullets' AS explain_bullets_json,
+          payload -> 'execution_checklist' AS execution_checklist_json,
+          payload -> 'risk_warnings' AS risk_warnings_json
+        FROM scoped_signals
+      ),
+      market_rows AS (
+        SELECT
+          market,
+          symbol,
+          timeframe,
+          snapshot_ts_ms,
+          regime_id,
+          trend_strength,
+          temperature_percentile,
+          volatility_percentile,
+          risk_off_score,
+          stance,
+          event_stats_json,
+          assumptions_json,
+          updated_at_ms
+        FROM ${qualifyBusinessTable('market_state')}
+        WHERE market = $2
+        ORDER BY temperature_percentile DESC, updated_at_ms DESC
+        LIMIT $${marketStateLimitParam}
+      ),
+      performance_rows AS (
+        SELECT
+          market,
+          range,
+          segment_type,
+          segment_key,
+          source_label,
+          sample_size,
+          payload_json,
+          asof_ms,
+          updated_at_ms
+        FROM ${qualifyBusinessTable('performance_snapshots')}
+        WHERE market = $2
+        ORDER BY asof_ms DESC, sample_size DESC
+      )
+      SELECT
+        (SELECT row_to_json(r) FROM risk_row r) AS risk,
+        COALESCE(
+          (SELECT json_agg(s ORDER BY s.score DESC, s.created_at_ms DESC) FROM signal_rows s),
+          '[]'::json
+        ) AS signals,
+        COALESCE(
+          (
+            SELECT json_agg(m ORDER BY m.temperature_percentile DESC, m.updated_at_ms DESC)
+            FROM market_rows m
+          ),
+          '[]'::json
+        ) AS market_state,
+        COALESCE(
+          (SELECT json_agg(p ORDER BY p.asof_ms DESC, p.sample_size DESC) FROM performance_rows p),
+          '[]'::json
+        ) AS performance
+    `,
+    params,
+  );
+
+  return {
+    risk: row?.risk ? mapRiskProfileRow(asRecordValue(row.risk) || {}) : null,
+    signals: asRecordArray(row?.signals).map(buildSignalListItemFromPgRow),
+    marketState: asRecordArray(row?.market_state).map(mapMarketStateRow),
+    performance: asRecordArray(row?.performance).map(mapPerformanceSnapshotRow),
+  };
 }
 
 export async function readPostgresAssets(args?: { market?: Market }): Promise<Asset[]> {

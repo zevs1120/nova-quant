@@ -17,6 +17,7 @@ import type {
   Market,
   NovaTaskType,
   RiskProfileKey,
+  SignalDirection,
   SignalContract,
   Timeframe,
   UserHoldingInput,
@@ -99,6 +100,7 @@ import {
   readPostgresSignalListItems,
   readPostgresSignalRecord,
   readPostgresSignalRecords,
+  readPostgresRuntimeStateBundle,
   readPostgresUserRitualEvents,
   readPostgresWorkflowRuns,
 } from '../admin/postgresBusinessRead.js';
@@ -131,6 +133,25 @@ const RISK_PROFILE_PRESETS = {
     leverage_cap: 3,
   },
 } as const;
+
+const FRONTEND_READ_CACHE_TTL_MS = Math.max(
+  5_000,
+  Number(process.env.NOVA_FRONTEND_READ_CACHE_TTL_MS || 20_000),
+);
+const RUNTIME_STATE_SIGNAL_LIMIT = Math.max(
+  8,
+  Number(process.env.NOVA_RUNTIME_STATE_SIGNAL_LIMIT || 24),
+);
+const RUNTIME_STATE_MARKET_STATE_LIMIT = Math.max(
+  12,
+  Number(process.env.NOVA_RUNTIME_STATE_MARKET_STATE_LIMIT || 24),
+);
+const RUNTIME_STATE_TRADE_LIMIT = Math.max(
+  20,
+  Number(process.env.NOVA_RUNTIME_STATE_TRADE_LIMIT || 60),
+);
+const frontendReadCache = new Map<string, { expiresAt: number; value: unknown }>();
+const frontendReadInflight = new Map<string, Promise<unknown>>();
 
 type AssetSearchResult = {
   symbol: string;
@@ -446,6 +467,22 @@ async function flushRepoMirror(): Promise<void> {
   await flushRuntimeRepoMirror();
 }
 
+function createLazyMarketRepository(): MarketRepository {
+  let resolved: MarketRepository | null = null;
+  const ensure = () => {
+    if (!resolved) {
+      resolved = getRepo();
+    }
+    return resolved;
+  };
+  return new Proxy({} as MarketRepository, {
+    get(_target, prop) {
+      const value = ensure()[prop as keyof MarketRepository];
+      return typeof value === 'function' ? value.bind(ensure()) : value;
+    },
+  });
+}
+
 function midpoint(low?: number | null, high?: number | null) {
   if (Number.isFinite(low) && Number.isFinite(high)) return (Number(low) + Number(high)) / 2;
   if (Number.isFinite(low)) return Number(low);
@@ -486,6 +523,58 @@ let pgPrimaryReadCooldownUntilMs = 0;
 
 export function __resetPgPrimaryReadFailureCooldownForTesting() {
   pgPrimaryReadCooldownUntilMs = 0;
+}
+
+function stableCacheValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((entry) => stableCacheValue(entry));
+  }
+  if (value && typeof value === 'object') {
+    return Object.keys(value as Record<string, unknown>)
+      .sort()
+      .reduce<Record<string, unknown>>((acc, key) => {
+        acc[key] = stableCacheValue((value as Record<string, unknown>)[key]);
+        return acc;
+      }, {});
+  }
+  return value;
+}
+
+function buildFrontendReadCacheKey(scope: string, args: unknown) {
+  return `${scope}:${JSON.stringify(stableCacheValue(args))}`;
+}
+
+async function cachedFrontendRead<T>(
+  scope: string,
+  args: unknown,
+  read: () => Promise<T>,
+  ttlMs = FRONTEND_READ_CACHE_TTL_MS,
+): Promise<T> {
+  const key = buildFrontendReadCacheKey(scope, args);
+  const now = Date.now();
+  const cached = frontendReadCache.get(key);
+  if (cached && cached.expiresAt > now) {
+    return cached.value as T;
+  }
+
+  const inflight = frontendReadInflight.get(key);
+  if (inflight) {
+    return (await inflight) as T;
+  }
+
+  const next = read()
+    .then((value) => {
+      frontendReadCache.set(key, {
+        value,
+        expiresAt: Date.now() + Math.max(1_000, ttlMs),
+      });
+      return value;
+    })
+    .finally(() => {
+      frontendReadInflight.delete(key);
+    });
+  frontendReadInflight.set(key, next as Promise<unknown>);
+  return await next;
 }
 
 async function tryPrimaryPostgresRead<T>(label: string, read: () => Promise<T>): Promise<T | null> {
@@ -575,15 +664,27 @@ function buildRuntimeSignalEvidenceFromContracts(
   limit = 3,
   _sourceStatus: string = RUNTIME_STATUS.MODEL_DERIVED,
 ) {
+  return buildRuntimeSignalEvidenceFromSignals(
+    signals.map((signal) => toUiSignal(signal)),
+    limit,
+    _sourceStatus,
+  );
+}
+
+function buildRuntimeSignalEvidenceFromSignals(
+  signals: Array<Record<string, unknown>>,
+  limit = 3,
+  _sourceStatus: string = RUNTIME_STATUS.MODEL_DERIVED,
+) {
   const records = signals
     .map((signal) => {
-      const uiSignal = toUiSignal(signal);
-      const createdAtMs = Date.parse(String(signal.created_at || ''));
+      const createdAtText = String(signal.created_at || signal.generated_at || '');
+      const createdAtMs = Date.parse(createdAtText);
       const freshnessMinutes = Number.isFinite(createdAtMs)
         ? Math.max(0, Math.round((Date.now() - createdAtMs) / 60000))
         : 0;
       const signalDataStatus = normalizeRuntimeStatus(
-        String(uiSignal.data_status || uiSignal.source_label || uiSignal.source_status || ''),
+        String(signal.data_status || signal.source_label || signal.source_status || ''),
         RUNTIME_STATUS.MODEL_DERIVED,
       );
       const evidenceStatus = runtimeStatusToEvidenceStatus(signalDataStatus);
@@ -591,18 +692,38 @@ function buildRuntimeSignalEvidenceFromContracts(
         ['NEW', 'TRIGGERED'].includes(String(signal.status || '').toUpperCase()) &&
         signalDataStatus !== RUNTIME_STATUS.WITHHELD &&
         signalDataStatus !== RUNTIME_STATUS.INSUFFICIENT_DATA;
+      const entryZone =
+        signal.entry_zone && typeof signal.entry_zone === 'object'
+          ? (signal.entry_zone as Record<string, unknown>)
+          : null;
+      const stopLoss =
+        signal.stop_loss && typeof signal.stop_loss === 'object'
+          ? (signal.stop_loss as Record<string, unknown>)
+          : null;
+      const explainBullets = Array.isArray(signal.explain_bullets)
+        ? signal.explain_bullets
+        : Array.isArray(signal.rationale)
+          ? signal.rationale
+          : [];
+      const invalidationValue = Number(stopLoss?.price ?? signal.invalidation_level);
       return {
-        signal_id: signal.id,
-        symbol: signal.symbol,
-        market: signal.market,
-        asset_class: signal.asset_class,
-        timeframe: signal.timeframe,
-        direction: signal.direction,
-        conviction: signal.confidence,
-        regime_id: signal.regime_id || '--',
-        thesis: signal.explain_bullets?.[0] || signal.entry_zone?.notes || '--',
+        signal_id: String(signal.signal_id || signal.id || ''),
+        symbol: String(signal.symbol || ''),
+        market: (String(signal.market || 'US').toUpperCase() === 'CRYPTO' ? 'CRYPTO' : 'US') as Market,
+        asset_class: (String(signal.asset_class || 'US_STOCK').toUpperCase() === 'CRYPTO'
+          ? 'CRYPTO'
+          : 'US_STOCK') as AssetClass,
+        timeframe: String(signal.timeframe || ''),
+        direction: (String(signal.direction || 'LONG').toUpperCase() === 'SHORT'
+          ? 'SHORT'
+          : String(signal.direction || 'LONG').toUpperCase() === 'FLAT'
+            ? 'FLAT'
+            : 'LONG') as SignalDirection,
+        conviction: Number(signal.confidence || signal.conviction || 0),
+        regime_id: String(signal.regime_id || '--'),
+        thesis: String(explainBullets[0] || entryZone?.notes || signal.summary || '--'),
         entry_zone: signal.entry_zone || null,
-        invalidation: signal.stop_loss?.price || signal.invalidation_level || null,
+        invalidation: Number.isFinite(invalidationValue) ? invalidationValue : null,
         source_transparency: {
           source_status: RUNTIME_STATUS.MODEL_DERIVED,
           data_status: RUNTIME_STATUS.MODEL_DERIVED,
@@ -612,9 +733,9 @@ function buildRuntimeSignalEvidenceFromContracts(
         },
         evidence_status: evidenceStatus,
         freshness_minutes: freshnessMinutes,
-        freshness_label: evidenceFreshnessLabel(signal.created_at),
+        freshness_label: evidenceFreshnessLabel(createdAtText),
         actionable,
-        created_at: signal.created_at,
+        created_at: createdAtText || null,
         supporting_run_id: null,
         strategy_version_id: signal.strategy_version || null,
         dataset_version_id: null,
@@ -717,22 +838,36 @@ export async function listSignalContractSummariesPrimary(args: {
   status?: 'ALL' | 'NEW' | 'TRIGGERED' | 'EXPIRED' | 'INVALIDATED' | 'CLOSED';
   limit?: number;
 }): Promise<SignalListItem[]> {
-  const rows = await tryPrimaryPostgresRead('signals_list', async () =>
-    readPostgresSignalListItems({
-      assetClass: args.assetClass,
-      market: args.market,
-      symbol: args.symbol,
-      status: args.status,
-      limit: args.limit,
-    }),
+  return cachedFrontendRead(
+    'signals_list',
+    {
+      userId: args.userId || 'guest-default',
+      assetClass: args.assetClass || 'ALL',
+      market: args.market || 'ALL',
+      symbol: args.symbol || null,
+      status: args.status || 'ALL',
+      limit: Number(args.limit || 0),
+    },
+    async () => {
+      const rows = await tryPrimaryPostgresRead('signals_list', async () =>
+        readPostgresSignalListItems({
+          assetClass: args.assetClass,
+          market: args.market,
+          symbol: args.symbol,
+          status: args.status,
+          limit: args.limit,
+        }),
+      );
+      if (!rows) {
+        if (shouldAvoidSyncHotPathFallback()) {
+          return [];
+        }
+        return listSignalContractSummaries(args);
+      }
+      return rows;
+    },
+    15_000,
   );
-  if (!rows) {
-    if (shouldAvoidSyncHotPathFallback()) {
-      return [];
-    }
-    return listSignalContractSummaries(args);
-  }
-  return rows;
 }
 
 export async function getSignalContractPrimary(
@@ -758,24 +893,47 @@ export async function listExecutionsPrimary(args: {
   signalId?: string;
   limit?: number;
 }) {
-  const rows = await tryPrimaryPostgresRead('executions', async () =>
-    readPostgresExecutionRecords(args),
+  return cachedFrontendRead(
+    'executions',
+    {
+      userId: args.userId || 'guest-default',
+      market: args.market || 'ALL',
+      mode: args.mode || 'ALL',
+      signalId: args.signalId || null,
+      limit: Number(args.limit || 0),
+    },
+    async () => {
+      const rows = await tryPrimaryPostgresRead('executions', async () =>
+        readPostgresExecutionRecords(args),
+      );
+      if (rows) return rows;
+      if (shouldAvoidSyncHotPathFallback()) return [];
+      return listExecutions(args);
+    },
+    10_000,
   );
-  if (rows) return rows;
-  if (shouldAvoidSyncHotPathFallback()) return [];
-  return listExecutions(args);
 }
 
 export async function getRiskProfilePrimary(
   userId = 'guest-default',
   opts?: { skipSync?: boolean },
 ) {
-  const row = await tryPrimaryPostgresRead('risk_profile', async () =>
-    readPostgresRiskProfile(userId),
+  return cachedFrontendRead(
+    'risk_profile',
+    {
+      userId,
+      skipSync: Boolean(opts?.skipSync),
+    },
+    async () => {
+      const row = await tryPrimaryPostgresRead('risk_profile', async () =>
+        readPostgresRiskProfile(userId),
+      );
+      if (row) return row;
+      if (shouldAvoidSyncHotPathFallback()) return null;
+      return getRiskProfile(userId, opts);
+    },
+    30_000,
   );
-  if (row) return row;
-  if (shouldAvoidSyncHotPathFallback()) return null;
-  return getRiskProfile(userId, opts);
 }
 
 export async function getMarketStatePrimary(args: {
@@ -783,17 +941,35 @@ export async function getMarketStatePrimary(args: {
   market?: Market;
   symbol?: string;
   timeframe?: string;
+  limit?: number;
 }) {
-  const rows = await tryPrimaryPostgresRead('market_state', async () =>
-    readPostgresMarketState({
-      market: args.market,
-      symbol: args.symbol,
-      timeframe: args.timeframe,
-    }),
+  return cachedFrontendRead(
+    'market_state',
+    {
+      userId: args.userId || 'guest-default',
+      market: args.market || 'ALL',
+      symbol: args.symbol || null,
+      timeframe: args.timeframe || null,
+      limit: Number(args.limit || 0),
+    },
+    async () => {
+      const rows = await tryPrimaryPostgresRead('market_state', async () =>
+        readPostgresMarketState({
+          market: args.market,
+          symbol: args.symbol,
+          timeframe: args.timeframe,
+          limit: args.limit,
+        }),
+      );
+      if (rows) return rows;
+      if (shouldAvoidSyncHotPathFallback()) return [];
+      const fallback = getMarketState(args);
+      return Number.isFinite(Number(args.limit))
+        ? fallback.slice(0, Math.max(1, Number(args.limit || 1)))
+        : fallback;
+    },
+    15_000,
   );
-  if (rows) return rows;
-  if (shouldAvoidSyncHotPathFallback()) return [];
-  return getMarketState(args);
 }
 
 export async function getPerformanceSummaryPrimary(args: {
@@ -803,46 +979,76 @@ export async function getPerformanceSummaryPrimary(args: {
   asofIso?: string;
   sourceStatus?: string;
 }) {
-  const rows = await tryPrimaryPostgresRead('performance', async () =>
-    readPostgresPerformanceSnapshots({
-      market: args.market,
-      range: args.range,
-    }),
+  return cachedFrontendRead(
+    'performance',
+    {
+      userId: args.userId || 'guest-default',
+      market: args.market || 'ALL',
+      range: args.range || 'ALL',
+    },
+    async () => {
+      const rows = await tryPrimaryPostgresRead('performance', async () =>
+        readPostgresPerformanceSnapshots({
+          market: args.market,
+          range: args.range,
+        }),
+      );
+      if (!rows && !shouldAvoidSyncHotPathFallback()) {
+        return getPerformanceSummary(args);
+      }
+      return buildPerformanceSummaryFromRowsOrEmpty({
+        rows,
+        asofIso: args.asofIso || new Date().toISOString(),
+        sourceStatus:
+          rows && rows.length
+            ? args.sourceStatus || RUNTIME_STATUS.DB_BACKED
+            : RUNTIME_STATUS.INSUFFICIENT_DATA,
+      });
+    },
+    15_000,
   );
-  if (!rows && !shouldAvoidSyncHotPathFallback()) {
-    return getPerformanceSummary(args);
-  }
-  return buildPerformanceSummaryFromRowsOrEmpty({
-    rows,
-    asofIso: args.asofIso || new Date().toISOString(),
-    sourceStatus:
-      rows && rows.length
-        ? args.sourceStatus || RUNTIME_STATUS.DB_BACKED
-        : RUNTIME_STATUS.INSUFFICIENT_DATA,
-  });
 }
 
 export async function getMarketModulesPrimary(args?: { market?: Market; assetClass?: AssetClass }) {
-  const rows = await tryPrimaryPostgresRead('market_modules', async () =>
-    readPostgresMarketState({
-      market: args?.market,
-    }),
+  return cachedFrontendRead(
+    'market_modules',
+    {
+      market: args?.market || 'ALL',
+      assetClass: args?.assetClass || 'ALL',
+    },
+    async () => {
+      const rows = await tryPrimaryPostgresRead('market_modules', async () =>
+        readPostgresMarketState({
+          market: args?.market,
+        }),
+      );
+      if (!rows && !shouldAvoidSyncHotPathFallback()) {
+        return getMarketModules(args);
+      }
+      return buildMarketModulesFromRows(rows || [], args);
+    },
+    15_000,
   );
-  if (!rows && !shouldAvoidSyncHotPathFallback()) {
-    return getMarketModules(args);
-  }
-  return buildMarketModulesFromRows(rows || [], args);
 }
 
 export async function listAssetsPrimary(market?: Market): Promise<Asset[]> {
-  const rows = await tryPrimaryPostgresRead('assets', async () =>
-    readPostgresAssets({
-      market,
-    }),
+  return cachedFrontendRead(
+    'assets',
+    {
+      market: market || 'ALL',
+    },
+    async () => {
+      const rows = await tryPrimaryPostgresRead('assets', async () =>
+        readPostgresAssets({
+          market,
+        }),
+      );
+      if (rows) return rows;
+      if (shouldAvoidSyncHotPathFallback()) return [];
+      return listAssets(market);
+    },
+    60_000,
   );
-  if (rows) return rows;
-  if (shouldAvoidSyncHotPathFallback()) return [];
-  return listAssets(market);
 }
 
 export async function listExternalConnectionsPrimary(args: {
@@ -3580,31 +3786,23 @@ export async function loadRuntimeStateCorePrimary(args: {
     return loadRuntimeStateCore(args);
   }
 
-  const repo = getRepo();
+  const repo = createLazyMarketRepository();
   const userId = args.userId || 'guest-default';
   const market = args.market || (args.assetClass === 'CRYPTO' ? 'CRYPTO' : 'US');
 
-  const [riskPrimary, signalRowsPrimary, marketStatePrimary, performanceRowsPrimary] =
-    await Promise.all([
-      tryPrimaryPostgresRead('runtime_risk', async () => readPostgresRiskProfile(userId)),
-      tryPrimaryPostgresRead('runtime_signals', async () =>
-        readPostgresSignalRecords({
-          market: args.market,
-          assetClass: args.assetClass,
-          limit: 60,
-        }),
-      ),
-      tryPrimaryPostgresRead('runtime_market_state', async () =>
-        readPostgresMarketState({
-          market,
-        }),
-      ),
-      tryPrimaryPostgresRead('runtime_performance', async () =>
-        readPostgresPerformanceSnapshots({
-          market,
-        }),
-      ),
-    ]);
+  const bundlePrimary = await tryPrimaryPostgresRead('runtime_bundle', async () =>
+    readPostgresRuntimeStateBundle({
+      userId,
+      market,
+      assetClass: args.assetClass,
+      signalLimit: RUNTIME_STATE_SIGNAL_LIMIT,
+      marketStateLimit: RUNTIME_STATE_MARKET_STATE_LIMIT,
+    }),
+  );
+  const riskPrimary = bundlePrimary?.risk || null;
+  const signalRowsPrimary = bundlePrimary?.signals || null;
+  const marketStatePrimary = bundlePrimary?.marketState || null;
+  const performanceRowsPrimary = bundlePrimary?.performance || null;
 
   const avoidSyncFallback = shouldAvoidSyncHotPathFallback();
 
@@ -3644,29 +3842,33 @@ export async function loadRuntimeStateCorePrimary(args: {
   const signalRows = avoidSyncFallback
     ? signalRowsPrimary || []
     : signalRowsPrimary ||
-      repo.listSignals({
+      listSignalContractSummaries({
+        userId,
         assetClass: args.assetClass,
         market: args.market,
-        limit: 60,
+        limit: RUNTIME_STATE_SIGNAL_LIMIT,
       });
   const marketState = avoidSyncFallback
     ? marketStatePrimary || []
     : marketStatePrimary ||
-      repo.listMarketState({
-        market,
-      });
+      repo
+        .listMarketState({
+          market,
+        })
+        .slice(0, RUNTIME_STATE_MARKET_STATE_LIMIT);
   const performanceRows = avoidSyncFallback
     ? performanceRowsPrimary || []
     : performanceRowsPrimary || repo.listPerformanceSnapshots({ market });
-  // BUG-2: decode once and reuse for both `signals` (UI) and `state.signals`
-  const decodedSignals = signalRows
-    .map((row) => decodeSignalContract(row))
-    .filter((row): row is SignalContract => Boolean(row));
-  const signals = decodedSignals.map(toUiSignal);
   const latestTs = Math.max(
     0,
     risk?.updated_at_ms || 0,
-    ...signalRows.map((row) => Number(row.updated_at_ms || row.created_at_ms || 0)),
+    ...signalRows.map((row) =>
+      Math.max(
+        0,
+        Date.parse(String((row as Record<string, unknown>).generated_at || '')) || 0,
+        Date.parse(String((row as Record<string, unknown>).created_at || '')) || 0,
+      ),
+    ),
     ...marketState.map((row) => Number(row.updated_at_ms || row.snapshot_ts_ms || 0)),
     ...performanceRows.map((row) => Number(row.updated_at_ms || row.asof_ms || 0)),
   );
@@ -3677,7 +3879,7 @@ export async function loadRuntimeStateCorePrimary(args: {
       : RUNTIME_STATUS.INSUFFICIENT_DATA;
   const state = {
     asofMs,
-    signals: decodedSignals,
+    signals: [] as ReturnType<typeof syncQuantState>['signals'],
     marketState,
     performanceApi: {},
     sourceStatus,
@@ -3713,7 +3915,7 @@ export async function loadRuntimeStateCorePrimary(args: {
     assetClass: args.assetClass,
     state,
     risk,
-    signals,
+    signals: signalRows as Record<string, unknown>[],
     marketState,
     modules,
     performance,
@@ -3957,12 +4159,12 @@ async function buildDecisionSnapshotFromCorePrimary(args: {
   locale?: string;
 }) {
   const avoidSyncFallback = shouldAvoidSyncHotPathFallback();
-  const runtimeSignals = Array.isArray(args.core.state?.signals)
-    ? (args.core.state.signals as SignalContract[])
+  const runtimeSignals = Array.isArray(args.core.signals)
+    ? (args.core.signals as Array<Record<string, unknown>>)
     : [];
-  let evidenceSignals: ReturnType<typeof getTopSignalEvidence>['records'] = [];
+  let evidenceSignals: Record<string, unknown>[] = [];
   if (avoidSyncFallback) {
-    evidenceSignals = buildRuntimeSignalEvidenceFromContracts(
+    evidenceSignals = buildRuntimeSignalEvidenceFromSignals(
       runtimeSignals,
       6,
       String(args.core.runtimeTransparency.source_status || RUNTIME_STATUS.MODEL_DERIVED),
@@ -3974,13 +4176,13 @@ async function buildDecisionSnapshotFromCorePrimary(args: {
         market: args.core.market,
         assetClass: args.core.assetClass,
         limit: 6,
-      }).records;
+      }).records as Record<string, unknown>[];
     } catch (error) {
       console.warn(
         '[queries] evidence read failed in primary path:',
         error instanceof Error ? error.message : String(error),
       );
-      evidenceSignals = buildRuntimeSignalEvidenceFromContracts(
+      evidenceSignals = buildRuntimeSignalEvidenceFromSignals(
         runtimeSignals,
         6,
         String(args.core.runtimeTransparency.source_status || RUNTIME_STATUS.MODEL_DERIVED),
@@ -4890,19 +5092,31 @@ async function getRuntimeStatePrimary(args: {
   assetClass?: AssetClass;
 }) {
   const core = await loadRuntimeStateCorePrimary(args);
-  const decision = shouldAvoidSyncHotPathFallback()
-    ? await getPublicTodayDecision({
-        userId: core.userId,
-        market: core.market,
-        assetClass: core.assetClass,
-      })
-    : await buildDecisionSnapshotFromCorePrimary({
-        core,
-      });
+  let decision:
+    | Awaited<ReturnType<typeof buildDecisionSnapshotFromCorePrimary>>
+    | Awaited<ReturnType<typeof getPublicTodayDecision>>;
+  try {
+    decision = await buildDecisionSnapshotFromCorePrimary({
+      core,
+    });
+  } catch (error) {
+    if (!shouldAvoidSyncHotPathFallback()) {
+      throw error;
+    }
+    console.warn(
+      '[queries] runtime decision fell back to public scan:',
+      error instanceof Error ? error.message : String(error),
+    );
+    decision = await getPublicTodayDecision({
+      userId: core.userId,
+      market: core.market,
+      assetClass: core.assetClass,
+    });
+  }
   const trades = await listExecutionsPrimary({
     userId: core.userId,
     market: core.market,
-    limit: 200,
+    limit: RUNTIME_STATE_TRADE_LIMIT,
   });
 
   return {
@@ -5068,35 +5282,46 @@ export async function getRuntimeStateResponse(args: {
   market?: Market;
   assetClass?: AssetClass;
 }) {
-  const runtime = await getRuntimeStatePrimary(args);
-  if (
-    !shouldUsePublicDecisionFallback({
-      sourceStatus: String(runtime.source_status || ''),
-      signalCount: Array.isArray(runtime?.data?.signals) ? runtime.data.signals.length : 0,
-      decision: asObject(runtime?.data?.decision),
-    })
-  ) {
-    return runtime;
-  }
+  return cachedFrontendRead(
+    'runtime_state',
+    {
+      userId: args.userId || 'guest-default',
+      market: args.market || 'ALL',
+      assetClass: args.assetClass || 'ALL',
+    },
+    async () => {
+      const runtime = await getRuntimeStatePrimary(args);
+      if (
+        !shouldUsePublicDecisionFallback({
+          sourceStatus: String(runtime.source_status || ''),
+          signalCount: Array.isArray(runtime?.data?.signals) ? runtime.data.signals.length : 0,
+          decision: asObject(runtime?.data?.decision),
+        })
+      ) {
+        return runtime;
+      }
 
-  try {
-    const publicDecision = await getPublicTodayDecision({
-      userId: args.userId,
-      market: args.market,
-      assetClass: args.assetClass,
-    });
-    const publicSignals = signalPayloadsFromDecision(publicDecision as Record<string, unknown>);
-    return {
-      ...runtime,
-      data: {
-        ...runtime.data,
-        signals: publicSignals.length ? publicSignals : runtime.data.signals,
-        decision: publicDecision,
-      },
-    };
-  } catch {
-    return runtime;
-  }
+      try {
+        const publicDecision = await getPublicTodayDecision({
+          userId: args.userId,
+          market: args.market,
+          assetClass: args.assetClass,
+        });
+        const publicSignals = signalPayloadsFromDecision(publicDecision as Record<string, unknown>);
+        return {
+          ...runtime,
+          data: {
+            ...runtime.data,
+            signals: publicSignals.length ? publicSignals : runtime.data.signals,
+            decision: publicDecision,
+          },
+        };
+      } catch {
+        return runtime;
+      }
+    },
+    30_000,
+  );
 }
 
 function parseJsonValue(text: string | null | undefined): unknown {

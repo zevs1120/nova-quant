@@ -697,11 +697,10 @@
   --today-card-shadow: rgba(62, 66, 96, 0.1);
   position: relative;
   overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 16px;
-  border-radius: 28px;
+  display: grid;
+  gap: 10px;
+  padding: 18px 16px 16px;
+  border-radius: 26px;
   border: 1px solid rgba(18, 21, 34, 0.07);
   background:
     radial-gradient(circle at 18% 10%, var(--today-card-top-glow), transparent 34%),
@@ -749,6 +748,56 @@
   --today-card-accent-c: #b58cff;
   --today-card-tag-bg: rgba(126, 124, 255, 0.14);
   --today-card-tag-fg: #5a58cf;
+}
+
+.today-action-card-palette-blue {
+  --today-card-surface: rgba(236, 246, 255, 0.96);
+  --today-card-top-glow: rgba(70, 200, 255, 0.2);
+  --today-card-accent-a: #32d4ff;
+  --today-card-accent-b: #6e6cff;
+  --today-card-accent-c: #46c8ff;
+  --today-card-tag-bg: rgba(70, 200, 255, 0.14);
+  --today-card-tag-fg: #2372dc;
+}
+
+.today-action-card-palette-pink {
+  --today-card-surface: rgba(255, 239, 248, 0.96);
+  --today-card-top-glow: rgba(255, 95, 189, 0.18);
+  --today-card-accent-a: #39c5ff;
+  --today-card-accent-b: #6e6cff;
+  --today-card-accent-c: #ff4bb7;
+  --today-card-tag-bg: rgba(255, 95, 189, 0.12);
+  --today-card-tag-fg: #d53e97;
+}
+
+.today-action-card-palette-mint {
+  --today-card-surface: rgba(241, 255, 247, 0.96);
+  --today-card-top-glow: rgba(97, 217, 130, 0.18);
+  --today-card-accent-a: #61d982;
+  --today-card-accent-b: #46c8ff;
+  --today-card-accent-c: #8ce3ab;
+  --today-card-tag-bg: rgba(97, 217, 130, 0.14);
+  --today-card-tag-fg: #268f55;
+}
+
+.today-action-card-palette-violet {
+  --today-card-surface: rgba(241, 240, 255, 0.96);
+  --today-card-top-glow: rgba(126, 124, 255, 0.18);
+  --today-card-accent-a: #7e7cff;
+  --today-card-accent-b: #46c8ff;
+  --today-card-accent-c: #b58cff;
+  --today-card-tag-bg: rgba(126, 124, 255, 0.14);
+  --today-card-tag-fg: #5a58cf;
+}
+
+.today-action-card-palette-yellow {
+  --today-card-surface: rgba(255, 249, 229, 0.97);
+  --today-card-top-glow: rgba(255, 216, 63, 0.2);
+  --today-card-accent-a: #ffd83f;
+  --today-card-accent-b: #ffb96a;
+  --today-card-accent-c: #ff5fbd;
+  --today-card-tag-bg: rgba(255, 216, 63, 0.16);
+  --today-card-tag-fg: #8f7013;
 }
 
 .today-action-track {
@@ -803,7 +852,7 @@
 .today-action-card::after {
   content: '';
   position: absolute;
-  inset: auto 16px 0;
+  inset: auto 18px 0;
   height: 5px;
   border-radius: 999px 999px 0 0;
   background: linear-gradient(
@@ -883,7 +932,7 @@
 }
 
 .today-action-direction {
-  margin: 8px 0 0;
+  margin: 6px 0 0;
   color: rgba(18, 21, 34, 0.74);
   font-size: 15px;
   line-height: 1.25;
@@ -1448,38 +1497,43 @@
 }
 
 .today-tinder-shell {
-  gap: 20px;
+  gap: 10px;
 }
 
 .today-summary-header-climate {
-  padding-top: 10px;
+  max-height: min(16svh, 108px);
+  min-height: 82px;
+  padding-top: 2px;
 }
 
 .today-climate-panel {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: stretch;
-  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) 92px;
+  align-items: center;
+  gap: 12px;
   width: 100%;
-  padding: 18px 18px 16px;
-  border-radius: 28px;
+  height: 100%;
+  min-height: 0;
+  padding: 12px 14px;
+  border-radius: 24px;
   border: 1px solid rgba(255, 255, 255, 0.82);
   background:
-    radial-gradient(circle at 14% 10%, rgba(255, 255, 255, 0.76), transparent 24%),
-    radial-gradient(circle at 100% 0%, rgba(75, 125, 255, 0.14), transparent 28%),
-    radial-gradient(circle at 0% 100%, rgba(255, 95, 196, 0.1), transparent 24%),
+    radial-gradient(circle at 14% 10%, rgba(255, 255, 255, 0.72), transparent 24%),
+    radial-gradient(circle at 100% 0%, rgba(75, 125, 255, 0.12), transparent 28%),
+    radial-gradient(circle at 0% 100%, rgba(255, 95, 196, 0.08), transparent 24%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.97), rgba(244, 241, 255, 0.95));
   box-shadow:
-    0 20px 42px rgba(54, 59, 90, 0.08),
+    0 14px 28px rgba(54, 59, 90, 0.07),
     inset 0 1px 0 rgba(255, 255, 255, 0.92);
+  overflow: hidden;
 }
 
 .today-climate-panel::after {
   content: '';
   position: absolute;
-  inset: auto 18px 0;
-  height: 4px;
+  inset: auto 14px 0;
+  height: 3px;
   border-radius: 999px 999px 0 0;
   background: linear-gradient(
     90deg,
@@ -1512,19 +1566,19 @@
 
 .today-climate-status-pill {
   flex: 0 0 auto;
-  min-height: 26px;
-  padding: 0 10px;
+  min-height: 24px;
+  padding: 0 9px;
   border-radius: 999px;
   border: 1px solid rgba(18, 21, 34, 0.05);
   background: rgba(255, 255, 255, 0.78);
   color: rgba(18, 21, 34, 0.7);
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.8),
-    0 10px 18px rgba(20, 24, 33, 0.04);
+    0 8px 14px rgba(20, 24, 33, 0.04);
 }
 
 .today-climate-status-pill-trade {
@@ -1544,36 +1598,35 @@
 }
 
 .today-climate-label {
-  margin: 0 0 7px;
+  margin: 0 0 4px;
   color: rgba(18, 21, 34, 0.42);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
+.today-climate-inline {
+  display: grid;
+  gap: 0;
+  align-content: start;
+}
+
 .today-climate-name {
-  margin: 0 0 10px;
+  margin: 0;
   color: #121522;
-  font-size: clamp(22px, 6vw, 28px);
+  font-size: clamp(20px, 5vw, 24px);
   line-height: 0.96;
-  font-weight: 800;
-  letter-spacing: -0.055em;
+  font-weight: 780;
+  letter-spacing: -0.05em;
 }
 
 .today-summary-header-climate .today-summary-line {
-  max-width: 28ch;
-  color: rgba(18, 21, 34, 0.88);
-  font-size: clamp(24px, 6.2vw, 32px);
-  line-height: 0.98;
-  letter-spacing: -0.058em;
+  display: none;
 }
 
 .today-climate-summary-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 14px;
+  display: none;
 }
 
 .today-climate-summary-pill {
@@ -1606,16 +1659,17 @@
 
 .today-climate-orbit {
   align-self: center;
-  min-width: 112px;
+  min-width: 0;
   display: grid;
   justify-items: center;
-  gap: 10px;
-  padding: 8px 4px 0 0;
+  gap: 0;
+  padding: 0;
 }
 
 .today-climate-orbit-ring {
-  width: 76px;
-  height: 76px;
+  position: relative;
+  width: 70px;
+  height: 70px;
   display: grid;
   place-items: center;
   border-radius: 50%;
@@ -1629,7 +1683,7 @@
     );
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.84),
-    0 16px 28px rgba(54, 59, 90, 0.12);
+    0 14px 24px rgba(54, 59, 90, 0.12);
 }
 
 .today-climate-orbit-ring-trade {
@@ -1653,8 +1707,8 @@
 }
 
 .today-climate-orbit-core {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   background: linear-gradient(180deg, rgba(18, 21, 34, 0.94), rgba(43, 47, 66, 0.84));
   box-shadow:
@@ -1662,61 +1716,46 @@
     0 8px 14px rgba(18, 21, 34, 0.2);
 }
 
-.today-climate-orbit-copy {
-  display: grid;
-  gap: 4px;
-  justify-items: center;
+.today-climate-orbit-satellite {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.74);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.86),
+    0 4px 10px rgba(54, 59, 90, 0.08);
 }
 
-.today-climate-orbit-label {
-  color: rgba(18, 21, 34, 0.4);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+.today-climate-orbit-satellite-a {
+  top: 5px;
+  right: 11px;
+  width: 10px;
+  height: 10px;
 }
 
-.today-climate-orbit-value {
-  max-width: 11ch;
-  color: #121522;
-  font-size: 13px;
-  line-height: 1.05;
-  font-weight: 760;
-  letter-spacing: -0.03em;
-  text-align: center;
+.today-climate-orbit-satellite-b {
+  bottom: 9px;
+  left: 6px;
+  width: 7px;
+  height: 7px;
 }
 
 .today-decision-stack {
-  min-height: min(72vh, 640px);
-  align-content: start;
+  min-height: 0;
+  height: 100%;
+  align-content: stretch;
 }
 
 .today-deck-shell {
   position: relative;
   display: grid;
-  gap: 18px;
-  padding: 18px 16px 16px;
-  border-radius: 32px;
-  border: 1px solid rgba(255, 255, 255, 0.82);
-  background:
-    radial-gradient(circle at 8% 10%, rgba(255, 255, 255, 0.72), transparent 22%),
-    radial-gradient(circle at 100% 0%, rgba(75, 125, 255, 0.12), transparent 24%),
-    radial-gradient(circle at 0% 100%, rgba(97, 217, 130, 0.08), transparent 22%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(242, 239, 251, 0.92));
-  box-shadow:
-    0 24px 50px rgba(54, 59, 90, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.92);
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 10px;
+  height: 100%;
+  min-height: 0;
 }
 
 .today-deck-shell::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0) 42%),
-    linear-gradient(315deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0) 38%);
+  display: none;
 }
 
 .today-deck-head,
@@ -1727,107 +1766,93 @@
   z-index: 1;
 }
 
-.today-deck-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.today-deck-head-copy {
-  min-width: 0;
-}
-
-.today-deck-kicker {
-  margin: 0 0 6px;
-  color: rgba(18, 21, 34, 0.42);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
-.today-deck-title {
-  margin: 0;
-  max-width: 14ch;
-  color: #121522;
-  font-size: clamp(24px, 6vw, 30px);
-  line-height: 0.95;
-  font-weight: 790;
-  letter-spacing: -0.055em;
-}
-
-.today-deck-pill {
-  flex: 0 0 auto;
-  min-height: 30px;
-  padding: 0 12px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.76);
-  color: rgba(18, 21, 34, 0.72);
-  font-size: 11px;
-  font-weight: 780;
-  letter-spacing: -0.02em;
-  display: inline-flex;
-  align-items: center;
-  box-shadow:
-    inset 0 0 0 1px rgba(18, 21, 34, 0.05),
-    0 10px 18px rgba(20, 24, 33, 0.04);
-}
-
 .today-tinder-deck {
   position: relative;
-  min-height: clamp(430px, 62vh, 540px);
-  padding-top: 26px;
+  height: 100%;
+  min-height: clamp(392px, 51dvh, 468px);
+  padding-top: 18px;
 }
 
 .today-action-card-stack {
   position: absolute;
-  inset: 0 10px auto;
-  min-height: calc(100% - 18px);
-  padding: 18px 16px;
-  border-radius: 28px;
+  inset: 0 12px auto;
+  min-height: calc(100% - 12px);
+  padding: 16px 16px 18px;
+  border-radius: 26px;
   pointer-events: none;
   border: 1px solid rgba(18, 21, 34, 0.07);
   background:
     radial-gradient(circle at 18% 10%, var(--today-card-top-glow), transparent 34%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.98), var(--today-card-surface));
   box-shadow:
-    0 14px 32px rgba(62, 66, 96, 0.08),
+    0 18px 34px rgba(62, 66, 96, 0.08),
     inset 0 1px 0 rgba(255, 255, 255, 0.82);
 }
 
 .today-action-card-stack-1 {
-  transform: translateY(16px) scale(0.983) rotate(-1.3deg);
-  opacity: 0.76;
+  transform: translateY(13px) scale(0.986) rotate(-4.5deg);
+  opacity: 0.84;
 }
 
 .today-action-card-stack-2 {
-  transform: translateY(31px) scale(0.965) rotate(1.4deg);
-  opacity: 0.48;
+  transform: translateY(28px) scale(0.972) rotate(5.4deg);
+  opacity: 0.56;
+}
+
+.today-action-card-head-stack {
+  margin-bottom: 2px;
+}
+
+.today-action-stack-copy {
+  display: grid;
+  gap: 4px;
+  align-content: end;
+  margin-top: auto;
 }
 
 .today-action-stack-symbol {
-  margin: 6px 0 0;
-  color: rgba(18, 21, 34, 0.3);
-  font-size: 28px;
-  line-height: 0.92;
-  letter-spacing: -0.06em;
+  margin: 0;
+  color: rgba(18, 21, 34, 0.54);
+  font-size: clamp(42px, 11vw, 58px);
+  line-height: 0.84;
+  letter-spacing: -0.08em;
   font-weight: 800;
+}
+
+.today-action-stack-direction,
+.today-action-stack-meta {
+  margin: 0;
+}
+
+.today-action-stack-direction {
+  color: rgba(18, 21, 34, 0.66);
+  font-size: 16px;
+  font-weight: 760;
+  letter-spacing: -0.03em;
+}
+
+.today-action-stack-meta {
+  color: rgba(18, 21, 34, 0.38);
+  font-size: 10px;
+  font-weight: 760;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
 }
 
 .today-action-card-swipe {
   position: relative;
   overflow: hidden;
-  min-height: 408px;
-  padding: 20px 18px 18px;
-  border-radius: 28px;
+  min-height: 100%;
+  height: 100%;
+  padding: 18px 16px 16px;
+  border-radius: 26px;
   border: 1px solid rgba(20, 24, 33, 0.08);
   background:
     radial-gradient(circle at 14% 10%, rgba(255, 255, 255, 0.82), transparent 22%),
     radial-gradient(circle at 18% 10%, var(--today-card-top-glow), transparent 36%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.985), var(--today-card-surface));
   box-shadow:
-    0 28px 56px rgba(62, 66, 96, 0.12),
+    0 20px 44px rgba(62, 66, 96, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.92);
   touch-action: none;
   user-select: none;
@@ -1933,6 +1958,10 @@
   margin-bottom: 2px;
 }
 
+.today-action-card-head-showcase {
+  margin-bottom: 2px;
+}
+
 .today-action-title-block {
   min-width: 0;
 }
@@ -1971,10 +2000,10 @@
 }
 
 .today-action-thesis {
-  margin: 10px 0 0;
+  margin: 8px 0 0;
   color: #121522;
-  font-size: clamp(26px, 6.6vw, 34px);
-  line-height: 0.98;
+  font-size: clamp(24px, 6vw, 30px);
+  line-height: 0.99;
   letter-spacing: -0.055em;
   font-weight: 780;
   text-wrap: balance;
@@ -1993,21 +2022,62 @@
   gap: 14px;
 }
 
+.today-action-main-showcase {
+  gap: 14px;
+}
+
+.today-action-symbol-block-showcase {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.today-action-main-showcase .today-action-symbol {
+  font-size: clamp(56px, 17vw, 78px);
+  line-height: 0.84;
+  letter-spacing: -0.09em;
+}
+
+.today-action-main-showcase .today-action-direction {
+  margin-top: 4px;
+  color: rgba(18, 21, 34, 0.82);
+  font-size: 15px;
+  font-weight: 780;
+  letter-spacing: -0.035em;
+  line-height: 1.04;
+}
+
+.today-action-main-showcase .today-action-thesis {
+  margin-top: 4px;
+  font-size: clamp(24px, 6.8vw, 34px);
+  line-height: 0.96;
+}
+
+.today-action-main-showcase .today-action-meta {
+  max-width: 100%;
+  margin-top: 8px;
+  color: rgba(18, 21, 34, 0.5);
+  font-size: 10px;
+  font-weight: 780;
+  letter-spacing: 0.12em;
+  line-height: 1.22;
+  text-transform: uppercase;
+}
+
 .today-action-main-landing .today-action-symbol-block {
   min-width: 0;
   max-width: 15rem;
 }
 
 .today-action-main-landing .today-action-symbol {
-  font-size: clamp(42px, 11vw, 58px);
+  font-size: clamp(38px, 10vw, 50px);
   line-height: 0.86;
   letter-spacing: -0.075em;
 }
 
 .today-action-main-landing .today-action-direction {
-  margin-top: 6px;
+  margin-top: 4px;
   color: rgba(18, 21, 34, 0.76);
-  font-size: 17px;
+  font-size: 15px;
   font-weight: 760;
   letter-spacing: -0.03em;
   line-height: 1.08;
@@ -2015,12 +2085,12 @@
 
 .today-action-main-landing .today-action-meta {
   max-width: 15rem;
-  margin-top: 10px;
+  margin-top: 8px;
   color: rgba(18, 21, 34, 0.54);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: -0.01em;
-  line-height: 1.35;
+  line-height: 1.28;
   text-transform: none;
 }
 
@@ -2039,11 +2109,41 @@
   gap: 10px;
 }
 
+.today-action-stats-showcase {
+  gap: 10px;
+}
+
+.today-action-stats-showcase .today-action-stat {
+  gap: 4px;
+  min-height: 74px;
+  padding: 12px 12px 10px;
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(250, 250, 255, 0.74)),
+    rgba(255, 255, 255, 0.84);
+  box-shadow:
+    inset 0 0 0 1px rgba(18, 21, 34, 0.04),
+    0 10px 20px rgba(20, 24, 33, 0.04);
+}
+
+.today-action-stats-showcase .today-action-stat-label {
+  font-size: 9px;
+  letter-spacing: 0.13em;
+}
+
+.today-action-stats-showcase .today-action-stat-value {
+  font-size: 15px;
+  font-weight: 780;
+  letter-spacing: -0.045em;
+  line-height: 1.02;
+  text-wrap: balance;
+}
+
 .today-action-stats-landing .today-action-stat {
   gap: 5px;
-  min-height: 72px;
-  padding: 12px 12px 11px;
-  border-radius: 18px;
+  min-height: 62px;
+  padding: 10px 10px 9px;
+  border-radius: 16px;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(250, 250, 255, 0.74)),
     rgba(255, 255, 255, 0.84);
@@ -2058,7 +2158,7 @@
 }
 
 .today-action-stats-landing .today-action-stat-value {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 780;
   letter-spacing: -0.045em;
   line-height: 1.02;
@@ -2071,12 +2171,95 @@
   gap: 8px;
 }
 
+.today-action-context-row-showcase {
+  display: grid;
+  gap: 7px;
+}
+
+.today-action-context-row-showcase .today-action-context-pill {
+  width: fit-content;
+  max-width: 100%;
+  min-height: 32px;
+  padding: 0 11px;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.8);
+  box-shadow:
+    inset 0 0 0 1px rgba(18, 21, 34, 0.045),
+    0 8px 16px rgba(20, 24, 33, 0.03);
+}
+
+.today-action-context-row-showcase .today-action-context-label {
+  font-size: 8px;
+  letter-spacing: 0.11em;
+}
+
+.today-action-context-row-showcase .today-action-context-value {
+  font-size: 11px;
+  font-weight: 740;
+  letter-spacing: -0.02em;
+}
+
+.today-action-powered-inline {
+  margin: -1px 0 0;
+  color: rgba(18, 21, 34, 0.4);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.25;
+}
+
+.today-action-links {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+}
+
+.today-action-link {
+  min-height: 44px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #121522;
+  font-size: 14px;
+  font-weight: 780;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  text-align: center;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 12px 22px rgba(20, 24, 33, 0.05);
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.today-action-link:active {
+  transform: scale(0.985);
+}
+
+.today-action-link-primary {
+  color: #fff;
+  background: linear-gradient(135deg, #39c5ff 0%, #5f79ff 48%, #ff4bb7 100%);
+  box-shadow:
+    0 14px 28px rgba(83, 104, 224, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.today-action-link-secondary {
+  background: rgba(255, 255, 255, 0.84);
+  box-shadow:
+    inset 0 0 0 1px rgba(18, 21, 34, 0.04),
+    0 10px 20px rgba(20, 24, 33, 0.04);
+}
+
 .today-action-context-row-landing .today-action-context-pill {
   width: 100%;
   justify-content: space-between;
   gap: 8px;
-  min-height: 38px;
-  padding: 0 12px;
+  min-height: 34px;
+  padding: 0 10px;
   background: rgba(255, 255, 255, 0.78);
   box-shadow:
     inset 0 0 0 1px rgba(18, 21, 34, 0.045),
@@ -2084,12 +2267,12 @@
 }
 
 .today-action-context-row-landing .today-action-context-label {
-  font-size: 9px;
+  font-size: 8px;
   letter-spacing: 0.11em;
 }
 
 .today-action-context-row-landing .today-action-context-value {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 740;
   letter-spacing: -0.02em;
 }
@@ -2135,8 +2318,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  margin-top: 18px;
-  padding-top: 16px;
+  margin-top: 12px;
+  padding-top: 12px;
   border-top: 1px solid rgba(20, 24, 33, 0.08);
 }
 
@@ -2151,8 +2334,8 @@
 
 .today-ask-nova-button {
   flex: 0 0 auto;
-  min-height: 42px;
-  padding: 0 14px;
+  min-height: 38px;
+  padding: 0 12px;
   border: 1px solid rgba(18, 21, 34, 0.04);
   border-radius: 999px;
   display: inline-flex;
@@ -2187,14 +2370,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 16px;
-  padding-top: 2px;
+  gap: 14px;
+  padding-top: 0;
 }
 
 .today-tinder-control {
   position: relative;
-  width: 68px;
-  height: 68px;
+  width: 60px;
+  height: 60px;
   border: 1px solid rgba(18, 21, 34, 0.05);
   border-radius: 50%;
   display: inline-flex;
@@ -2233,13 +2416,13 @@
 }
 
 .today-tinder-control-icon {
-  font-size: 28px;
+  font-size: 24px;
   line-height: 1;
   font-weight: 700;
 }
 
 .today-tinder-control-label {
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -2250,8 +2433,8 @@
 }
 
 .today-tinder-control-later {
-  width: 60px;
-  height: 60px;
+  width: 52px;
+  height: 52px;
   color: #0f6cb3;
 }
 
@@ -2266,41 +2449,6 @@
 .today-empty-card {
   padding: 22px 18px 18px;
   border-radius: 28px;
-}
-
-.today-deck-foot {
-  display: grid;
-  gap: 10px;
-  padding-top: 2px;
-}
-
-.today-deck-foot-copy {
-  margin: 0;
-  color: rgba(18, 21, 34, 0.56);
-  font-size: 13px;
-  line-height: 1.48;
-}
-
-.today-deck-benefits {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.today-deck-benefit {
-  display: inline-flex;
-  align-items: center;
-  min-height: 30px;
-  padding: 0 11px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.76);
-  color: rgba(18, 21, 34, 0.68);
-  font-size: 11px;
-  font-weight: 760;
-  letter-spacing: -0.02em;
-  box-shadow:
-    inset 0 0 0 1px rgba(18, 21, 34, 0.04),
-    0 8px 14px rgba(20, 24, 33, 0.03);
 }
 
 .today-empty-title {
@@ -2395,40 +2543,22 @@
 
 @media (max-width: 640px) {
   .today-climate-panel {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 14px;
-    padding: 16px 15px 14px;
+    grid-template-columns: minmax(0, 1fr) 82px;
+    gap: 8px;
+    padding: 10px 12px;
   }
 
   .today-climate-orbit {
-    grid-auto-flow: column;
-    justify-content: flex-start;
-    justify-items: start;
-    align-items: center;
-    min-width: 0;
-    padding: 0;
-  }
-
-  .today-climate-orbit-copy {
-    justify-items: start;
-  }
-
-  .today-climate-orbit-value {
-    text-align: left;
+    justify-items: end;
   }
 
   .today-deck-shell {
-    padding: 16px 14px 14px;
-    border-radius: 28px;
-  }
-
-  .today-deck-title {
-    max-width: 12ch;
+    gap: 10px;
   }
 
   .today-action-card-swipe,
   .today-empty-card {
-    padding: 18px 16px 16px;
+    padding: 16px 14px 14px;
   }
 
   .today-action-card-stack {
@@ -2436,20 +2566,22 @@
   }
 
   .today-action-thesis {
-    font-size: clamp(22px, 7vw, 28px);
+    font-size: clamp(21px, 6.4vw, 26px);
   }
 
   .today-action-main-landing .today-action-symbol-block,
-  .today-action-main-landing .today-action-meta {
+  .today-action-main-landing .today-action-meta,
+  .today-action-main-showcase .today-action-symbol-block,
+  .today-action-main-showcase .today-action-meta {
     max-width: 100%;
   }
 
-  .today-action-context-row-landing {
+  .today-action-links {
     grid-template-columns: 1fr;
   }
 
-  .today-action-footer-minimal {
-    align-items: flex-end;
+  .today-action-link {
+    min-height: 42px;
   }
 
   .today-empty-actions {
@@ -2462,16 +2594,16 @@
   }
 
   .today-tinder-controls {
-    gap: 14px;
+    gap: 12px;
   }
 
   .today-tinder-control {
-    width: 64px;
-    height: 64px;
+    width: 58px;
+    height: 58px;
   }
 
   .today-tinder-control-later {
-    width: 56px;
-    height: 56px;
+    width: 50px;
+    height: 50px;
   }
 }

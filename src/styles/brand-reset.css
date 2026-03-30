@@ -1,0 +1,129 @@
+:root {
+  --brand-panel-radius: 14px;
+  --brand-panel-border: rgba(255, 255, 255, 0.78);
+  --brand-panel-shadow:
+    0 22px 42px rgba(48, 52, 74, 0.06),
+    0 3px 10px rgba(48, 52, 74, 0.03),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.24);
+  --brand-panel-surface:
+    radial-gradient(circle at 14% 8%, rgba(255, 255, 255, 0.58), transparent 32%),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.88),
+      rgba(245, 248, 255, 0.4) 46%,
+      rgba(236, 240, 248, 0.22)
+    ),
+    linear-gradient(
+      135deg,
+      rgba(97, 217, 130, 0.08),
+      rgba(255, 255, 255, 0.08) 54%,
+      rgba(70, 200, 255, 0.08)
+    );
+}
+
+.glass-card:not(.today-action-card),
+.signal-card,
+.holding-card,
+.status-box,
+.modal-card,
+.sheet-card,
+.chat-sheet,
+.skeleton-card,
+.more-list,
+.market-mini-card,
+.opportunity-card,
+.top-signal-item,
+.quick-access-row {
+  border-radius: var(--brand-panel-radius) !important;
+  border: 1px solid var(--brand-panel-border) !important;
+  background: var(--brand-panel-surface) !important;
+  box-shadow: var(--brand-panel-shadow) !important;
+  backdrop-filter: blur(24px) saturate(1.08);
+  -webkit-backdrop-filter: blur(24px) saturate(1.08);
+}
+
+.glass-card:not(.today-action-card),
+.signal-card,
+.holding-card,
+.status-box,
+.modal-card,
+.sheet-card,
+.chat-sheet,
+.more-list {
+  position: relative;
+  isolation: isolate;
+}
+
+.glass-card:not(.today-action-card)::before,
+.signal-card::before,
+.holding-card::before,
+.status-box::before,
+.modal-card::before,
+.sheet-card::before,
+.chat-sheet::before,
+.more-list::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0) 34%),
+    linear-gradient(315deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0) 38%);
+  opacity: 0.74;
+}
+
+.glass-card:not(.today-action-card)::after,
+.signal-card::after,
+.holding-card::after,
+.status-box::after,
+.modal-card::after,
+.sheet-card::after,
+.chat-sheet::after,
+.more-list::after {
+  content: '';
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 0;
+  height: 3px;
+  border-radius: 999px 999px 0 0;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    rgba(75, 125, 255, 0.88),
+    rgba(135, 108, 255, 0.82) 48%,
+    rgba(255, 95, 196, 0.8)
+  );
+  opacity: 0.88;
+}
+
+.glass-card:not(.today-action-card) > *,
+.signal-card > *,
+.holding-card > *,
+.status-box > *,
+.modal-card > *,
+.sheet-card > *,
+.chat-sheet > *,
+.more-list > * {
+  position: relative;
+  z-index: 1;
+}
+
+@media (max-width: 640px) {
+  :root {
+    --brand-panel-radius: 12px;
+  }
+
+  .glass-card:not(.today-action-card)::after,
+  .signal-card::after,
+  .holding-card::after,
+  .status-box::after,
+  .modal-card::after,
+  .sheet-card::after,
+  .chat-sheet::after,
+  .more-list::after {
+    left: 12px;
+    right: 12px;
+  }
+}
