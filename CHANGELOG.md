@@ -14,6 +14,7 @@ NovaQuant 所有重要变更记录于此。
   - **P0 -- admin 角色判定并入 session 读取**：新增 `pgGetAdminSessionBundle`，在 session 查询内直接取回角色，移除额外的 role 查询。
   - **P0 -- 移除 `getAdminSession` 热路径角色写入**：配置型管理员现在在鉴权阶段直接合成 `ADMIN` 角色，不再在每次 session 校验时做 `upsertAuthUserRole`。
   - **Fix -- Postgres roles 兼容解析**：兼容 `text[]` 被驱动解析为字符串（如 `'{ADMIN}'`）的返回形态，避免管理员登录后 session 校验误判无权限。
+  - **Fix -- admin 登录错误文案纠偏**：`admin` 前端现在会把 `502/503/504`、请求超时和服务端 `500` 统一显示为“管理员登录服务当前不可用”，不再误导成“当前账号没有管理员权限”。
   - **Test -- Postgres admin hot path 回归覆盖**：新增测试覆盖 touch 节流与配置型管理员无需额外 role I/O 的判权路径。
 
 ## 10.18.3 (2026-03-29)

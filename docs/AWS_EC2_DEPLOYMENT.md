@@ -104,6 +104,13 @@ Minimum values to set for backend-only Marvix:
 - `NOVA_DATA_DATABASE_URL=postgresql://...`
 - `NOVA_DATA_PG_SCHEMA=novaquant_data`
 - `GEMINI_API_KEY`
+- `NOVA_ADMIN_EMAILS=admin@your-domain.com` when you need admin console access
+
+Admin auth note:
+
+- `POST /api/admin/login` and `GET /api/admin/session` treat `NOVA_ADMIN_EMAILS` and `NOVA_OWNER_EMAIL` as the configured-admin source of truth.
+- If your runtime env file omits both values, the admin console can reject a valid account with `ADMIN_ACCESS_DENIED` even when the user previously existed in auth storage.
+- After editing `/etc/novaquant/marvix.env` or `/etc/novaquant/marvix-backend.env`, restart the API service before retesting admin login.
 
 Important note:
 

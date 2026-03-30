@@ -10,6 +10,24 @@ import SystemHealthPage from './pages/SystemHealthPage';
 import AdminLogin from './components/AdminLogin';
 import { getAdminApiBase, getAdminSession, loginAdmin, logoutAdmin } from './services/adminApi';
 
+function mapAdminAuthErrorMessage(error) {
+  const code = String(error?.message || 'ADMIN_ACCESS_DENIED');
+  if (code === 'INVALID_CREDENTIALS') return '邮箱或密码错误。';
+  if (
+    code === 'AUTH_STORE_NOT_CONFIGURED' ||
+    code === 'AUTH_STORE_UNREACHABLE' ||
+    code === 'AUTH_SERVICE_ERROR' ||
+    code === 'ADMIN_REQUEST_TIMEOUT' ||
+    code === 'HTTP_500' ||
+    code === 'HTTP_502' ||
+    code === 'HTTP_503' ||
+    code === 'HTTP_504'
+  ) {
+    return '管理员登录服务当前不可用，请稍后重试。';
+  }
+  return '当前账号没有管理员权限。';
+}
+
 function renderPage(active) {
   if (active === 'users') return <UsersPage />;
   if (active === 'alpha-lab' || active === 'research-ops') return <StrategyFactoryPage />;
@@ -51,9 +69,11 @@ export default function AdminApp() {
         setSession(payload);
         setAuthError('');
       })
-      .catch(() => {
+      .catch((error) => {
         if (cancelled) return;
         setSession(null);
+        const code = String(error?.message || '');
+        setAuthError(code === 'HTTP_401' ? '' : mapAdminAuthErrorMessage(error));
       })
       .finally(() => {
         if (!cancelled) setChecking(false);
@@ -91,16 +111,7 @@ export default function AdminApp() {
               const payload = await loginAdmin(credentials);
               setSession(payload);
             } catch (error) {
-              const code = String(error?.message || 'ADMIN_ACCESS_DENIED');
-              setAuthError(
-                code === 'INVALID_CREDENTIALS'
-                  ? '邮箱或密码错误。'
-                  : code === 'AUTH_STORE_NOT_CONFIGURED' ||
-                      code === 'AUTH_STORE_UNREACHABLE' ||
-                      code === 'AUTH_SERVICE_ERROR'
-                    ? '管理员登录服务当前未连上认证存储。'
-                    : '当前账号没有管理员权限。',
-              );
+              setAuthError(mapAdminAuthErrorMessage(error));
             } finally {
               setAuthLoading(false);
             }
