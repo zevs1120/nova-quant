@@ -107,11 +107,25 @@ jobs:
             fi
 
             # ── Verify API responds ──
-            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8787/ --max-time 5 || echo "000")
-            echo "  API HTTP response:      $HTTP_CODE"
+            HTTP_CODE=""
+            for attempt in 1 2 3 4 5 6; do
+              HTTP_CODE=$(curl -sS -o /tmp/nova-healthz.json -w "%{http_code}" http://127.0.0.1:8787/healthz --max-time 5 || true)
+              echo "  healthz attempt ${attempt}: ${HTTP_CODE:-<empty>}"
+              if [ "$HTTP_CODE" = "200" ]; then
+                break
+              fi
+              sleep 5
+            done
 
-            if [ "$HTTP_CODE" = "000" ]; then
-              echo "✖ DEPLOY FAILED — API not responding"
+            echo "  API HTTP response:      ${HTTP_CODE:-<empty>}"
+
+            if [ "$HTTP_CODE" != "200" ]; then
+              echo "✖ DEPLOY FAILED — API healthz not responding"
+              echo "── healthz body ──"
+              cat /tmp/nova-healthz.json 2>/dev/null || true
+              echo
+              echo "── marvix.service logs ──"
+              journalctl -u marvix.service --no-pager -n 20
               exit 1
             fi
 

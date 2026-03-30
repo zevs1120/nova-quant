@@ -43,6 +43,10 @@ export function useAppData({
           assetClass,
         });
 
+        const controlPlaneRequest = silent
+          ? Promise.resolve(null)
+          : fetchJson(`/api/control-plane/status?userId=${effectiveUserId}`).catch(() => null);
+
         const [
           runtimeResult,
           assetsResult,
@@ -64,7 +68,7 @@ export function useAppData({
           fetchJson(`/api/performance?${query.toString()}`),
           fetchJson(`/api/market/modules?${query.toString()}`),
           fetchJson(`/api/risk-profile?userId=${effectiveUserId}`),
-          fetchJson(`/api/control-plane/status?userId=${effectiveUserId}`).catch(() => null),
+          controlPlaneRequest,
           authSession
             ? fetchJson(`/api/connect/broker?userId=${effectiveUserId}&provider=ALPACA`)
             : Promise.resolve(null),

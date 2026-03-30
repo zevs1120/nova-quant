@@ -15,6 +15,8 @@ NovaQuant 所有重要变更记录于此。
   - **P0 -- 移除 `getAdminSession` 热路径角色写入**：配置型管理员现在在鉴权阶段直接合成 `ADMIN` 角色，不再在每次 session 校验时做 `upsertAuthUserRole`。
   - **Fix -- Postgres roles 兼容解析**：兼容 `text[]` 被驱动解析为字符串（如 `'{ADMIN}'`）的返回形态，避免管理员登录后 session 校验误判无权限。
   - **Fix -- admin 登录错误文案纠偏**：`admin` 前端现在会把 `502/503/504`、请求超时和服务端 `500` 统一显示为“管理员登录服务当前不可用”，不再误导成“当前账号没有管理员权限”。
+  - **Fix -- control-plane/status 减压**：控制面板状态新增 60s 服务端缓存 + inflight 去重，前端静默刷新不再每 120s 同步拉这个重接口，降低单线程 API 被控制面板轮询拖死的概率。
+  - **Fix -- EC2 deploy 健康检查纠错**：部署工作流改为轮询 `/healthz` 并严格以 `200` 判成功，修复 `curl` 超时被拼成 `000000` 仍误判成功的问题。
   - **Test -- Postgres admin hot path 回归覆盖**：新增测试覆盖 touch 节流与配置型管理员无需额外 role I/O 的判权路径。
 
 ## 10.18.3 (2026-03-29)

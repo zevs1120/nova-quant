@@ -5089,12 +5089,22 @@ function buildFlywheelStatus(repo: MarketRepository) {
   };
 }
 
+const CONTROL_PLANE_STATUS_CACHE_TTL_MS = 60_000;
+const controlPlaneStatusCache = new Map<
+  string,
+  { expiresAt: number; value: Awaited<ReturnType<typeof getControlPlaneStatusUncached>> }
+>();
+const controlPlaneStatusInflight = new Map<
+  string,
+  Promise<Awaited<ReturnType<typeof getControlPlaneStatusUncached>>>
+>();
+
 export async function getFlywheelStatus(_args?: { userId?: string }) {
   const repo = getRepo();
   return buildFlywheelStatus(repo);
 }
 
-export async function getControlPlaneStatus(args?: { userId?: string }) {
+async function getControlPlaneStatusUncached(args?: { userId?: string }) {
   const repo = getRepo();
   const userId = args?.userId || 'guest-default';
   const markets: Market[] = ['US', 'CRYPTO'];
@@ -5189,6 +5199,32 @@ export async function getControlPlaneStatus(args?: { userId?: string }) {
         : null,
     },
   };
+}
+
+export async function getControlPlaneStatus(args?: { userId?: string }) {
+  const userId = args?.userId || 'guest-default';
+  const now = Date.now();
+  const cached = controlPlaneStatusCache.get(userId);
+  if (cached && cached.expiresAt > now) {
+    return cached.value;
+  }
+  const inflight = controlPlaneStatusInflight.get(userId);
+  if (inflight) {
+    return await inflight;
+  }
+  const next = getControlPlaneStatusUncached({ userId })
+    .then((value) => {
+      controlPlaneStatusCache.set(userId, {
+        expiresAt: Date.now() + CONTROL_PLANE_STATUS_CACHE_TTL_MS,
+        value,
+      });
+      return value;
+    })
+    .finally(() => {
+      controlPlaneStatusInflight.delete(userId);
+    });
+  controlPlaneStatusInflight.set(userId, next);
+  return await next;
 }
 
 export function getBackendBackbone(args: {
