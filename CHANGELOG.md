@@ -4,6 +4,10 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+- **Fix(test): 修复 `controlPlaneStatus` 和 `postgresMirrorConsistency` 两个 Postgres 热路径测试失败。**
+  - **根因**：`readPostgresRuntimeStateBundle`（将 risk/signals/market_state/performance 合并为单次 CTE 查询）在测试编写后引入，但测试未添加对应 mock。`controlPlaneStatus` 中未 mock 的 bundle 查询连接假 Postgres URL 失败后触发 60 秒冷却期，导致后续所有已 mock 的个体读取函数被短路；`postgresMirrorConsistency` 中 `Pool.prototype.query` mock 按 SQL 文本匹配 `signals` 抛出异常，但 bundle SQL 包含全部表名，导致整个查询失败而非仅 signals 部分。
+  - **修复**：两个测试均添加 `readPostgresRuntimeStateBundle` mock；`postgresMirrorConsistency` 的 `listSignals` spy 条件从 `limit === 60` 更新为兼容 `limit === 24`（匹配 `RUNTIME_STATE_SIGNAL_LIMIT`）。
+
 - **Fix(format): 修复 7 个文件的 Prettier 格式问题，确保 CI format check 通过。**
   - 格式化 `SignalsTab.jsx`、`TodayTab.jsx`、`useAppData.js`、`queries.ts`、`signalListProjection.ts`、`brand-reset.css`、`runtimeRepository.test.ts`。
 

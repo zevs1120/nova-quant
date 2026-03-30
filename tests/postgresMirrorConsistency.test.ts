@@ -17,6 +17,7 @@ import { closeDb } from '../src/server/db/database.js';
 import { createMirroringMarketRepository } from '../src/server/db/postgresBusinessMirror.js';
 import { MarketRepository } from '../src/server/db/repository.js';
 import { ensureSchema } from '../src/server/db/schema.js';
+import * as pgReads from '../src/server/admin/postgresBusinessRead.js';
 
 describe('postgres mirror consistency', () => {
   const originalQuery = Pool.prototype.query;
@@ -201,6 +202,22 @@ describe('postgres mirror consistency', () => {
     }
     resetRepoSingleton();
 
+    vi.spyOn(pgReads, 'readPostgresRuntimeStateBundle').mockResolvedValue({
+      risk: {
+        user_id: 'runtime-fallback-user',
+        profile_key: 'balanced',
+        max_loss_per_trade: 1,
+        max_daily_loss: 2,
+        max_drawdown: 3,
+        exposure_cap: 50,
+        leverage_cap: 1,
+        updated_at_ms: Date.now(),
+      },
+      signals: null as unknown as [],
+      marketState: null as unknown as [],
+      performance: null as unknown as [],
+    });
+
     const originalUpsertUserRiskProfile = MarketRepository.prototype.upsertUserRiskProfile;
     const originalListSignals = MarketRepository.prototype.listSignals;
     let syncStarted = false;
@@ -218,7 +235,7 @@ describe('postgres mirror consistency', () => {
       this: MarketRepository,
       params,
     ) {
-      if (params?.limit === 60 && params?.market === 'US') {
+      if (params?.market === 'US' && (params?.limit === 24 || params?.limit === 60)) {
         fallbackSignalReadSawSync = syncStarted;
       }
       return originalListSignals.call(this, params);

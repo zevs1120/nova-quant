@@ -241,6 +241,12 @@ describe('control plane flywheel status', () => {
     const repoNewsSpy = vi.spyOn(MarketRepository.prototype, 'listNewsItems');
     const repoExecutionSpy = vi.spyOn(MarketRepository.prototype, 'listExecutions');
 
+    vi.spyOn(pgReads, 'readPostgresRuntimeStateBundle').mockResolvedValue({
+      risk: null,
+      signals: [],
+      marketState: [],
+      performance: [],
+    });
     vi.spyOn(pgReads, 'readPostgresRiskProfile').mockResolvedValue(null);
     vi.spyOn(pgReads, 'readPostgresSignalRecords').mockResolvedValue([]);
     vi.spyOn(pgReads, 'readPostgresMarketState').mockResolvedValue([]);
