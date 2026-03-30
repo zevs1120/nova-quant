@@ -13,6 +13,7 @@ NovaQuant 所有重要变更记录于此。
   - **P0 -- session touch 节流**：Postgres 会话读取改为按 5 分钟活动窗口节流 `pgTouchSession`，避免每次 admin 校验都触发远端 `UPDATE`。
   - **P0 -- admin 角色判定并入 session 读取**：新增 `pgGetAdminSessionBundle`，在 session 查询内直接取回角色，移除额外的 role 查询。
   - **P0 -- 移除 `getAdminSession` 热路径角色写入**：配置型管理员现在在鉴权阶段直接合成 `ADMIN` 角色，不再在每次 session 校验时做 `upsertAuthUserRole`。
+  - **Fix -- Postgres roles 兼容解析**：兼容 `text[]` 被驱动解析为字符串（如 `'{ADMIN}'`）的返回形态，避免管理员登录后 session 校验误判无权限。
   - **Test -- Postgres admin hot path 回归覆盖**：新增测试覆盖 touch 节流与配置型管理员无需额外 role I/O 的判权路径。
 
 ## 10.18.3 (2026-03-29)

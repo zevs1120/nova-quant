@@ -320,8 +320,28 @@ function mapStateRow(row: Record<string, unknown> | null | undefined): PgAuthUse
 }
 
 function parseRoleList(value: unknown): PgAuthRole[] {
-  if (!Array.isArray(value)) return [];
-  return value
+  let rawItems: unknown[] = [];
+  if (Array.isArray(value)) {
+    rawItems = value;
+  } else if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed || trimmed === '{}') return [];
+    if (trimmed.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        rawItems = Array.isArray(parsed) ? parsed : [];
+      } catch {
+        rawItems = [];
+      }
+    } else {
+      rawItems = trimmed
+        .replace(/^\{/, '')
+        .replace(/\}$/, '')
+        .split(',')
+        .map((item) => item.replace(/^"(.*)"$/, '$1'));
+    }
+  }
+  return rawItems
     .map((item) => String(item || '').trim())
     .filter(
       (item): item is PgAuthRole => item === 'ADMIN' || item === 'OPERATOR' || item === 'SUPPORT',
