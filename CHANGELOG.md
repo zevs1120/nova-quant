@@ -4,6 +4,10 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+- **Fix(hub): Admin 后台「系统健康」面板 Provider/Mode 显示修正。**
+  - **根因**：`getNovaRuntimeState()`、`buildPrivateMarvixOpsReport()`、`buildPostgresOpsReport()` 三处均直接使用 `getNovaModelPlan().provider`（返回 ollama），未反映 Gemini/Groq 的 runtime override。面板显示 `ollama / deterministic-fallback` 但实际调用的是 `gemini / gemini-3.1-flash-lite-preview`。
+  - **修复**：三处统一改用 `resolveEffectiveTextRoute('decision_reasoning')` 获取实际 provider 和 model。路由表也增加 `effective_provider` / `effective_model` 标注，保留 `base_provider` 用于追溯原始配置。
+
 - **Fix(ai): 修复 Nova 任务失败时记录错误 provider 的问题，并为 Gemini 调用增加结构化可观测日志。**
   - **根因**：`runLoggedNovaTextTask` 的 error 和 skip 路径记录的是 `resolveBusinessTask` 返回的原始路由（`ollama/qwen3:4b`），而实际调用经 `runNovaChatCompletion` 内部 override 走了 Gemini。管理后台显示的 provider/model 信息具有误导性（如显示 `Marvix-Core / qwen3:4b` 实际调用的是 `gemini-3.1-flash-lite-preview`）。
   - **修复**：`client.ts` 新增 `resolveEffectiveTextRoute()` 导出函数，与 `runNovaChatCompletion` 内部路由 override 逻辑一致（Gemini → Groq → Ollama 优先级）；`service.ts` 在 `runLoggedNovaTextTask` 入口解析 `effectiveRoute`，skip/error/success 三条路径统一使用该路由写入 `nova_task_runs`。

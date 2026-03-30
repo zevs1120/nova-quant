@@ -2,6 +2,7 @@ import { Pool } from 'pg';
 import type { AdminAlphaSnapshot } from './liveAlpha.js';
 import type { AdminResearchOpsSnapshot } from './liveOps.js';
 import { getNovaModelPlan, getNovaRoutingPolicies, getNovaRuntimeMode } from '../ai/llmOps.js';
+import { resolveEffectiveTextRoute } from '../nova/client.js';
 import type { AlphaEvaluationMetrics } from '../alpha_registry/index.js';
 import { readAlphaDiscoveryConfig } from '../alpha_discovery/index.js';
 import { MIN_AUTOMATIC_TRAINING_ROWS } from '../nova/flywheel.js';
@@ -2779,16 +2780,28 @@ async function buildPostgresOpsReport() {
   }));
 
   const plan = getNovaModelPlan();
+  const primaryEffective = resolveEffectiveTextRoute('decision_reasoning');
+  const baseRouting = getNovaRoutingPolicies();
+  const effectiveRouting = baseRouting.map((row) => {
+    const effective = resolveEffectiveTextRoute(row.task);
+    return {
+      ...row,
+      effective_provider: effective.provider,
+      effective_model: effective.model,
+    };
+  });
 
   return {
     generated_at: new Date(now).toISOString(),
     visibility: 'private-loopback-only',
     runtime: {
       mode: getNovaRuntimeMode(),
-      provider: plan.provider,
+      provider: primaryEffective.provider,
+      model: primaryEffective.model,
+      base_provider: plan.provider,
       endpoint: plan.endpoint,
       aliases: plan.models,
-      routes: getNovaRoutingPolicies(),
+      routes: effectiveRouting,
     },
     workflows,
     alpha_inventory: alphaRegistry.counts,

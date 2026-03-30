@@ -49,6 +49,7 @@ import {
   applyLocalNovaWrapUpLanguage,
   logNovaAssistantAnswer,
 } from '../nova/service.js';
+import { resolveEffectiveTextRoute } from '../nova/client.js';
 import { buildMlxLmTrainingDataset } from '../nova/training.js';
 import {
   getNovaModelPlan,
@@ -4779,11 +4780,23 @@ export function setNotificationPreferencesState(args: {
 export function getNovaRuntimeState() {
   const plan = getNovaModelPlan();
   const mode = getNovaRuntimeMode();
+  const baseRouting = getNovaRoutingPolicies();
+  const effectiveRouting = baseRouting.map((row) => {
+    const effective = resolveEffectiveTextRoute(row.task);
+    return {
+      ...row,
+      effective_provider: effective.provider,
+      effective_model: effective.model,
+    };
+  });
+  const primaryEffective = resolveEffectiveTextRoute('decision_reasoning');
   return {
     endpoint: plan.endpoint,
     plan,
-    routing: getNovaRoutingPolicies(),
-    provider: plan.provider,
+    routing: effectiveRouting,
+    provider: primaryEffective.provider,
+    model: primaryEffective.model,
+    base_provider: plan.provider,
     local_only: plan.local_only,
     mode,
     availability_reason: getNovaRuntimeAvailabilityReason(mode),

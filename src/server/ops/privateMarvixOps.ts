@@ -1,6 +1,7 @@
 import type { MarketRepository } from '../db/repository.js';
 import { decodeSignalContract } from '../quant/service.js';
 import { getNovaModelPlan, getNovaRoutingPolicies, getNovaRuntimeMode } from '../ai/llmOps.js';
+import { resolveEffectiveTextRoute } from '../nova/client.js';
 import { buildAlphaRegistrySummary } from '../alpha_registry/index.js';
 
 type JsonObject = Record<string, unknown>;
@@ -206,6 +207,16 @@ export function buildPrivateMarvixOpsReport(repo: MarketRepository) {
   }));
 
   const plan = getNovaModelPlan();
+  const primaryEffective = resolveEffectiveTextRoute('decision_reasoning');
+  const baseRouting = getNovaRoutingPolicies();
+  const effectiveRouting = baseRouting.map((row) => {
+    const effective = resolveEffectiveTextRoute(row.task);
+    return {
+      ...row,
+      effective_provider: effective.provider,
+      effective_model: effective.model,
+    };
+  });
   const alphaRegistry = buildAlphaRegistrySummary(repo);
 
   return {
@@ -213,10 +224,12 @@ export function buildPrivateMarvixOpsReport(repo: MarketRepository) {
     visibility: 'private-loopback-only',
     runtime: {
       mode: getNovaRuntimeMode(),
-      provider: plan.provider,
+      provider: primaryEffective.provider,
+      model: primaryEffective.model,
+      base_provider: plan.provider,
       endpoint: plan.endpoint,
       aliases: plan.models,
-      routes: getNovaRoutingPolicies(),
+      routes: effectiveRouting,
     },
     workflows: workflowRuns,
     alpha_inventory: alphaRegistry.counts,
