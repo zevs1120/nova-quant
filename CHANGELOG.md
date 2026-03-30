@@ -4,6 +4,8 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+- **Chore(tooling)：增强 EC2 skill，新增 admin 端点 benchmark 和部署验证操作。**
+
 ## 10.18.3 (2026-03-29)
 
 - **Perf(admin)：admin 系统健康与总览端点从 65s 降至秒级（SQLite 查询优化）。**

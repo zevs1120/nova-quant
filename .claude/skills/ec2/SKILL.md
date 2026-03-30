@@ -112,6 +112,55 @@ ssh -i ~/.ssh/marvix-prod.pem ubuntu@16.58.223.95 "echo '=== Hostname ===' && ho
 ssh -i ~/.ssh/marvix-prod.pem ubuntu@16.58.223.95 "echo '=== Recent ERRORs (marvix) ===' && journalctl -u marvix.service --no-pager -n 100 2>&1 | grep -i 'error\|fatal\|exception\|crash' | tail -10 && echo '' && echo '=== Recent ERRORs (marvix-backend) ===' && journalctl -u marvix-backend.service --no-pager -n 100 2>&1 | grep -i 'error\|fatal\|exception\|crash' | tail -10 && echo '' && echo '=== Nginx ERRORs (last 10) ===' && sudo tail -10 /var/log/nginx/error.log 2>/dev/null || echo 'no error log'"
 ```
 
+## Admin Endpoint Benchmark
+
+Run the 6 admin data functions directly on EC2 to measure response times. Write a temp tsx file, execute, then clean up.
+
+```bash
+ssh -i ~/.ssh/marvix-prod.pem ubuntu@16.58.223.95 'cd /opt/nova-quant && cat > /opt/nova-quant/_bench.ts << '\''SCRIPT'\''
+import { buildAdminOverviewHeadlineFast, buildAdminOverviewSnapshot, buildAdminUsersSnapshot, buildAdminAlphaSnapshot, buildAdminSignalsSnapshot, buildAdminSystemSnapshot } from "./src/server/admin/service.js";
+
+async function main() {
+  const tests: [string, () => Promise<unknown> | unknown][] = [
+    ["headline", buildAdminOverviewHeadlineFast],
+    ["overview", buildAdminOverviewSnapshot],
+    ["users", buildAdminUsersSnapshot],
+    ["alphas", buildAdminAlphaSnapshot],
+    ["signals", buildAdminSignalsSnapshot],
+    ["system", buildAdminSystemSnapshot],
+  ];
+  for (const [name, fn] of tests) {
+    const t = Date.now();
+    try {
+      await fn();
+      console.log(name + ": " + (Date.now() - t) + "ms");
+    } catch(e: any) {
+      console.log(name + ": ERROR " + (Date.now() - t) + "ms -- " + e.message.slice(0, 150));
+    }
+  }
+  process.exit(0);
+}
+main();
+SCRIPT
+npx tsx /opt/nova-quant/_bench.ts && rm /opt/nova-quant/_bench.ts'
+```
+
+Baseline (2026-03-29 post-optimization): headline 32ms, overview 2s, users 0ms, alphas 59ms, signals 7ms, system 194ms.
+
+## Deployment Verification
+
+After a deploy, verify the EC2 commit matches local main and services are healthy:
+
+```bash
+# Parallel call 1: local HEAD
+git log --oneline -1
+
+# Parallel call 2: EC2 HEAD + service status
+ssh -i ~/.ssh/marvix-prod.pem ubuntu@16.58.223.95 "cd /opt/nova-quant && echo '=== EC2 HEAD ===' && git log --oneline -1 && echo '' && echo '=== Services ===' && systemctl is-active marvix.service marvix-backend.service nginx && echo '' && echo '=== Port 8787 ===' && ss -tlnp | grep 8787"
+```
+
+Compare the two commit hashes -- they should match after a successful deploy.
+
 ## Workflow
 
 1. BW asks about EC2 / server status
