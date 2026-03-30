@@ -62,6 +62,25 @@ function buildAiCopy(locale = 'en-US') {
   };
 }
 
+function buildLinkedContext(seedRequest, locale = 'en-US') {
+  const symbol =
+    seedRequest?.context?.symbol ||
+    seedRequest?.context?.decisionSummary?.top_action_symbol ||
+    null;
+  if (!symbol) return null;
+  const zh = String(locale || '')
+    .toLowerCase()
+    .startsWith('zh');
+  return {
+    eyebrow: zh ? '已联动当前标的' : 'Linked setup',
+    title: `${symbol}`,
+    note: zh
+      ? '这个标的已经自动带入，直接继续问，不需要重复输入代码。'
+      : 'This ticker is already attached, so you can keep asking without typing it again.',
+    action: zh ? '返回 Today' : 'Back to Today',
+  };
+}
+
 function parseStructuredReply(raw) {
   const text = String(raw || '').trim();
   if (!text) return null;
@@ -340,6 +359,7 @@ function AiConversationShell({
   sendMessage,
   onNavigate,
   locale,
+  linkedContext,
 }) {
   const listRef = useRef(null);
   const endRef = useRef(null);
@@ -357,6 +377,23 @@ function AiConversationShell({
 
   return (
     <section className={`ai-page-shell ${hasMessages ? 'ai-page-thread' : 'ai-page-empty'}`}>
+      {linkedContext ? (
+        <section className="ai-linked-context">
+          <div className="ai-linked-context-copy">
+            <p className="ai-linked-context-eyebrow">{linkedContext.eyebrow}</p>
+            <p className="ai-linked-context-title">{linkedContext.title}</p>
+            <p className="ai-linked-context-note">{linkedContext.note}</p>
+          </div>
+          <button
+            type="button"
+            className="ai-linked-context-action"
+            onClick={() => onNavigate?.('today')}
+          >
+            {linkedContext.action}
+          </button>
+        </section>
+      ) : null}
+
       <div className="ai-thread-scroll" ref={listRef}>
         {!hasMessages ? (
           <section className="ai-empty-stage">
@@ -409,6 +446,10 @@ function AiConversationShell({
 }
 
 function LiveAiConversation({ seedRequest, onNavigate, userId, baseContext, locale }) {
+  const linkedContext = useMemo(
+    () => buildLinkedContext(seedRequest, locale),
+    [seedRequest, locale],
+  );
   const assistant = useNovaAssistant({
     userId,
     seedRequest,
@@ -425,11 +466,22 @@ function LiveAiConversation({ seedRequest, onNavigate, userId, baseContext, loca
     },
   });
 
-  return <AiConversationShell {...assistant} onNavigate={onNavigate} locale={locale} />;
+  return (
+    <AiConversationShell
+      {...assistant}
+      onNavigate={onNavigate}
+      locale={locale}
+      linkedContext={linkedContext}
+    />
+  );
 }
 
 function DemoAiConversation({ quantState, seedRequest, onNavigate, userId, baseContext, locale }) {
   const copy = useMemo(() => buildAiCopy(locale), [locale]);
+  const linkedContext = useMemo(
+    () => buildLinkedContext(seedRequest, locale),
+    [seedRequest, locale],
+  );
   const assistant = useDemoAssistant({
     userId,
     seedRequest,
@@ -465,7 +517,14 @@ function DemoAiConversation({ quantState, seedRequest, onNavigate, userId, baseC
     copy.autoQuestion,
   ]);
 
-  return <AiConversationShell {...assistant} onNavigate={onNavigate} locale={locale} />;
+  return (
+    <AiConversationShell
+      {...assistant}
+      onNavigate={onNavigate}
+      locale={locale}
+      linkedContext={linkedContext}
+    />
+  );
 }
 
 export default function AiPage({

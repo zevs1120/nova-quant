@@ -374,6 +374,62 @@ body.keyboard-open .ai-composer-shell {
   bottom: max(8px, calc(var(--keyboard-inset) + 8px));
 }
 
+.ai-linked-context {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 4px 2px 12px;
+  padding: 14px;
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at top right, rgba(13, 84, 168, 0.08), transparent 32%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(244, 246, 250, 0.96));
+  border: 1px solid rgba(20, 24, 33, 0.08);
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.05);
+}
+
+.ai-linked-context-copy {
+  min-width: 0;
+}
+
+.ai-linked-context-eyebrow {
+  margin: 0 0 6px;
+  color: rgba(20, 24, 33, 0.42);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.ai-linked-context-title {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 20px;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  font-weight: 760;
+}
+
+.ai-linked-context-note {
+  margin: 8px 0 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.ai-linked-context-action {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid rgba(20, 24, 33, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
 @media (max-width: 640px) {
   .main-content-ai {
     padding-bottom: calc(var(--tabbar-total-height) + 164px);
@@ -394,5 +450,9 @@ body.keyboard-open .ai-composer-shell {
 
   .ai-assistant-card {
     padding: 13px 13px 11px;
+  }
+
+  .ai-linked-context {
+    flex-direction: column;
   }
 }

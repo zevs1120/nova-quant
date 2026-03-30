@@ -115,7 +115,7 @@ export function buildTabMeta(locale) {
   const zh = locale?.startsWith('zh');
   return {
     today: { icon: 'today', label: zh ? '今日' : 'Today' },
-    ai: { icon: 'nova', label: 'Nova' },
+    ai: { icon: 'nova', label: 'Ask Nova' },
     browse: { icon: 'browse', label: zh ? '发现' : 'Browse' },
     my: { icon: 'my', label: zh ? '我的' : 'My' },
   };

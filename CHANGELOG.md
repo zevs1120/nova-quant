@@ -4,6 +4,12 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+- **Feat(app): Today 改为 landing 风格的单卡决策流，并保留完整 Browse 入口。**
+  - `Today` 主流程重做为单张 `Action Card` + 卡堆预览，支持 `左滑放弃 / 右滑执行 / 上滑暂存`，并加入更接近 Tinder 的圆形操作按钮与极简反馈。
+  - 决策卡视觉语言对齐 landing page 行动卡，统一顶部 glow、渐变 accent bar、pill 标签、stats/context 信息块与 `Powered by Marvix AI Engine` / `Ask Nova` 底部动作区。
+  - `Ask Nova` 支持从 `Today` 卡片直接带入当前标的信息进入提问界面，减少重复输入。
+  - 恢复底部主导航中的 `Browse` 入口，确保原有高完成度的发现页体验不被新 `Today` 流程覆盖。
+
 - **Perf(admin): 管理员后台 Tab 切换卡顿修复 -- 缓存层 + 超时控制 + 后端 TTL 全面提升。**
   - **P0 -- 前端请求超时控制**：`adminApi.js` 所有 fetch 增加 `AbortController`，10s 超时强制 cancel，防止请求永远 pending。
   - **P0 -- Tab 数据模块级缓存**：`useAdminResource` hook 升级为跨 Tab 生命周期缓存（30s TTL），首次加载后切换 Tab 瞬间呈现无需重请求，同时后台静默刷新保持数据新鲜。

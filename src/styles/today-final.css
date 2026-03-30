@@ -687,6 +687,14 @@
 }
 
 .today-action-card {
+  --today-card-surface: rgba(241, 240, 255, 0.96);
+  --today-card-top-glow: rgba(126, 124, 255, 0.18);
+  --today-card-accent-a: #7e7cff;
+  --today-card-accent-b: #46c8ff;
+  --today-card-accent-c: #b58cff;
+  --today-card-tag-bg: rgba(126, 124, 255, 0.14);
+  --today-card-tag-fg: #5a58cf;
+  --today-card-shadow: rgba(62, 66, 96, 0.1);
   position: relative;
   overflow: hidden;
   display: flex;
@@ -694,14 +702,12 @@
   gap: 14px;
   padding: 16px;
   border-radius: 28px;
-  border: 1px solid rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(18, 21, 34, 0.07);
   background:
-    radial-gradient(circle at 16% 10%, rgba(255, 255, 255, 0.72), transparent 26%),
-    radial-gradient(circle at top right, rgba(75, 125, 255, 0.12), transparent 34%),
-    radial-gradient(circle at bottom left, rgba(255, 95, 196, 0.1), transparent 30%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 244, 255, 0.96));
+    radial-gradient(circle at 18% 10%, var(--today-card-top-glow), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), var(--today-card-surface));
   box-shadow:
-    0 22px 40px rgba(86, 85, 176, 0.08),
+    0 20px 40px var(--today-card-shadow),
     inset 0 1px 0 rgba(255, 255, 255, 0.92);
   transform: translate3d(var(--gesture-x, 0px), var(--gesture-y, 0px), 0)
     rotate(var(--gesture-rotate, 0deg));
@@ -713,6 +719,36 @@
   touch-action: none;
   user-select: none;
   cursor: grab;
+}
+
+.today-action-card-buy {
+  --today-card-surface: rgba(241, 255, 247, 0.96);
+  --today-card-top-glow: rgba(97, 217, 130, 0.18);
+  --today-card-accent-a: #61d982;
+  --today-card-accent-b: #46c8ff;
+  --today-card-accent-c: #8ce3ab;
+  --today-card-tag-bg: rgba(97, 217, 130, 0.14);
+  --today-card-tag-fg: #268f55;
+}
+
+.today-action-card-sell {
+  --today-card-surface: rgba(255, 239, 248, 0.96);
+  --today-card-top-glow: rgba(255, 95, 189, 0.18);
+  --today-card-accent-a: #39c5ff;
+  --today-card-accent-b: #6e6cff;
+  --today-card-accent-c: #ff4bb7;
+  --today-card-tag-bg: rgba(255, 95, 189, 0.12);
+  --today-card-tag-fg: #d53e97;
+}
+
+.today-action-card-hold {
+  --today-card-surface: rgba(241, 240, 255, 0.96);
+  --today-card-top-glow: rgba(126, 124, 255, 0.18);
+  --today-card-accent-a: #7e7cff;
+  --today-card-accent-b: #46c8ff;
+  --today-card-accent-c: #b58cff;
+  --today-card-tag-bg: rgba(126, 124, 255, 0.14);
+  --today-card-tag-fg: #5a58cf;
 }
 
 .today-action-track {
@@ -739,7 +775,7 @@
   transition-duration: 0ms;
   cursor: grabbing;
   box-shadow:
-    0 28px 48px rgba(86, 85, 176, 0.14),
+    0 28px 48px rgba(62, 66, 96, 0.14),
     inset 0 1px 0 rgba(255, 255, 255, 0.94);
 }
 
@@ -760,7 +796,7 @@
 
 .today-action-card[data-gesture-committed='true'] {
   box-shadow:
-    0 28px 52px rgba(86, 85, 176, 0.12),
+    0 28px 52px rgba(62, 66, 96, 0.12),
     inset 0 1px 0 rgba(255, 255, 255, 0.94);
 }
 
@@ -772,9 +808,9 @@
   border-radius: 999px 999px 0 0;
   background: linear-gradient(
     90deg,
-    var(--brand-blue) 0%,
-    var(--brand-violet) 42%,
-    var(--brand-pink) 100%
+    var(--today-card-accent-a),
+    var(--today-card-accent-b) 52%,
+    var(--today-card-accent-c)
   );
   opacity: 0.95;
 }
@@ -1408,5 +1444,630 @@
 
   .outcome-stats-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.today-tinder-shell {
+  gap: 18px;
+}
+
+.today-summary-header-climate {
+  padding-top: 8px;
+}
+
+.today-climate-label {
+  margin: 0 0 6px;
+  color: rgba(18, 21, 34, 0.42);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.today-climate-name {
+  margin: 0 0 8px;
+  color: #121522;
+  font-size: 18px;
+  line-height: 1.1;
+  font-weight: 760;
+  letter-spacing: -0.04em;
+}
+
+.today-decision-stack {
+  min-height: min(68vh, 560px);
+  align-content: start;
+}
+
+.today-tinder-deck {
+  position: relative;
+  padding-top: 22px;
+}
+
+.today-action-card-stack {
+  position: absolute;
+  inset: 0 10px auto;
+  min-height: 100%;
+  padding: 18px 16px;
+  border-radius: 28px;
+  pointer-events: none;
+  border: 1px solid rgba(18, 21, 34, 0.07);
+  background:
+    radial-gradient(circle at 18% 10%, var(--today-card-top-glow), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), var(--today-card-surface));
+  box-shadow:
+    0 14px 32px rgba(62, 66, 96, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.82);
+}
+
+.today-action-card-stack-1 {
+  transform: translateY(12px) scale(0.985);
+  opacity: 0.8;
+}
+
+.today-action-card-stack-2 {
+  transform: translateY(24px) scale(0.97);
+  opacity: 0.56;
+}
+
+.today-action-stack-symbol {
+  margin: 6px 0 0;
+  color: rgba(18, 21, 34, 0.3);
+  font-size: 28px;
+  line-height: 0.92;
+  letter-spacing: -0.06em;
+  font-weight: 800;
+}
+
+.today-action-card-swipe {
+  position: relative;
+  overflow: hidden;
+  padding: 20px 18px 18px;
+  border-radius: 28px;
+  border: 1px solid rgba(20, 24, 33, 0.08);
+  background:
+    radial-gradient(circle at 18% 10%, var(--today-card-top-glow), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), var(--today-card-surface));
+  box-shadow:
+    0 22px 44px rgba(62, 66, 96, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92);
+  touch-action: none;
+  user-select: none;
+  transform: translate3d(var(--gesture-x, 0px), var(--gesture-y, 0px), 0)
+    rotate(var(--gesture-rotate, 0deg));
+  transition:
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 180ms ease,
+    border-color 180ms ease,
+    background 180ms ease;
+}
+
+.today-action-card-swipe[data-gesture-active='true'] {
+  transition:
+    box-shadow 180ms ease,
+    border-color 180ms ease,
+    background 180ms ease;
+}
+
+.today-tinder-badges {
+  position: absolute;
+  inset: 18px 18px auto;
+  display: flex;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.today-tinder-badge {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 2px solid currentColor;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  opacity: 0;
+  transform: rotate(-10deg) scale(0.94);
+  transition:
+    opacity 140ms ease,
+    transform 180ms ease;
+}
+
+.today-tinder-badge.is-visible {
+  opacity: 1;
+}
+
+.today-tinder-badge-skip {
+  color: #cc3b4a;
+}
+
+.today-tinder-badge-skip.is-visible {
+  transform: rotate(-10deg) scale(1);
+}
+
+.today-tinder-badge-later {
+  margin: 0 auto;
+  color: #0f6cb3;
+  transform: translateY(-6px) scale(0.94);
+}
+
+.today-tinder-badge-later.is-visible {
+  transform: translateY(0) scale(1);
+}
+
+.today-tinder-badge-accept {
+  color: #18a768;
+  transform: rotate(10deg) scale(0.94);
+}
+
+.today-tinder-badge-accept.is-visible {
+  transform: rotate(10deg) scale(1);
+}
+
+.today-action-card-swipe[data-gesture-intent='skip'] {
+  border-color: rgba(179, 53, 53, 0.18);
+  box-shadow:
+    0 22px 44px rgba(62, 66, 96, 0.1),
+    0 0 0 1px rgba(179, 53, 53, 0.06);
+}
+
+.today-action-card-swipe[data-gesture-intent='accept'] {
+  border-color: rgba(18, 135, 93, 0.18);
+  box-shadow:
+    0 22px 44px rgba(62, 66, 96, 0.1),
+    0 0 0 1px rgba(18, 135, 93, 0.06);
+}
+
+.today-action-card-swipe[data-gesture-intent='later'] {
+  border-color: rgba(13, 84, 168, 0.16);
+  box-shadow:
+    0 22px 44px rgba(62, 66, 96, 0.1),
+    0 0 0 1px rgba(13, 84, 168, 0.05);
+}
+
+.today-action-card-head-minimal {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 2px;
+}
+
+.today-action-title-block {
+  min-width: 0;
+}
+
+.today-action-card-head-minimal .today-action-kicker {
+  margin: 0;
+  background: rgba(18, 21, 34, 0.05);
+  color: rgba(18, 21, 34, 0.48);
+}
+
+.today-action-decision-chip {
+  flex: 0 0 auto;
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.today-action-decision-chip-buy {
+  background: var(--today-card-tag-bg);
+  color: var(--today-card-tag-fg);
+}
+
+.today-action-decision-chip-sell {
+  background: var(--today-card-tag-bg);
+  color: var(--today-card-tag-fg);
+}
+
+.today-action-decision-chip-hold {
+  background: var(--today-card-tag-bg);
+  color: var(--today-card-tag-fg);
+}
+
+.today-action-main-minimal {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.today-action-thesis {
+  margin: 0;
+  color: #121522;
+  font-size: clamp(24px, 6.2vw, 31px);
+  line-height: 1.04;
+  letter-spacing: -0.045em;
+  font-weight: 760;
+  text-wrap: balance;
+}
+
+.today-action-meta-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.today-action-main-landing {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.today-action-main-landing .today-action-symbol-block {
+  min-width: 0;
+  max-width: 14rem;
+}
+
+.today-action-main-landing .today-action-symbol {
+  font-size: clamp(42px, 11vw, 58px);
+  line-height: 0.86;
+  letter-spacing: -0.075em;
+}
+
+.today-action-main-landing .today-action-direction {
+  margin-top: 6px;
+  color: rgba(18, 21, 34, 0.76);
+  font-size: 17px;
+  font-weight: 760;
+  letter-spacing: -0.03em;
+  line-height: 1.08;
+}
+
+.today-action-main-landing .today-action-meta {
+  max-width: 14rem;
+  margin-top: 8px;
+  color: rgba(18, 21, 34, 0.5);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  line-height: 1.22;
+  text-transform: uppercase;
+}
+
+.today-action-card .decision-mark {
+  width: 30px;
+  height: 30px;
+  margin-top: 5px;
+  color: rgba(168, 172, 88, 0.86);
+  background: rgba(255, 251, 220, 0.96);
+  box-shadow:
+    inset 0 0 0 1px rgba(18, 21, 34, 0.06),
+    0 10px 18px rgba(20, 24, 33, 0.04);
+}
+
+.today-action-stats-landing {
+  gap: 10px;
+}
+
+.today-action-stats-landing .today-action-stat {
+  gap: 5px;
+  min-height: 72px;
+  padding: 12px 12px 11px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.84);
+  box-shadow:
+    inset 0 0 0 1px rgba(18, 21, 34, 0.04),
+    0 8px 18px rgba(20, 24, 33, 0.03);
+}
+
+.today-action-stats-landing .today-action-stat-label {
+  font-size: 9px;
+  letter-spacing: 0.13em;
+}
+
+.today-action-stats-landing .today-action-stat-value {
+  font-size: 15px;
+  font-weight: 780;
+  letter-spacing: -0.045em;
+  line-height: 1.02;
+  text-wrap: balance;
+}
+
+.today-action-context-row-landing {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.today-action-context-row-landing .today-action-context-pill {
+  gap: 5px;
+  min-height: 30px;
+  padding: 0 11px;
+  background: rgba(255, 255, 255, 0.8);
+  box-shadow: inset 0 0 0 1px rgba(18, 21, 34, 0.045);
+}
+
+.today-action-context-row-landing .today-action-context-label {
+  font-size: 9px;
+  letter-spacing: 0.11em;
+}
+
+.today-action-context-row-landing .today-action-context-value {
+  font-size: 12px;
+  font-weight: 740;
+  letter-spacing: -0.02em;
+}
+
+.today-action-meta-pill {
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  background: rgba(20, 24, 33, 0.05);
+  color: rgba(20, 24, 33, 0.62);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.today-action-gesture-guide-minimal {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(20, 24, 33, 0.08);
+}
+
+.today-action-gesture-guide-minimal .today-action-gesture-pill {
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(20, 24, 33, 0.08);
+  background: rgba(255, 255, 255, 0.72);
+  color: rgba(20, 24, 33, 0.5);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.today-action-gesture-guide-minimal .today-action-gesture-pill.is-active {
+  color: #121522;
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.today-action-footer-minimal {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(20, 24, 33, 0.08);
+}
+
+.today-action-powered {
+  flex: 1;
+  min-width: 0;
+  color: rgba(18, 21, 34, 0.4);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.today-ask-nova-button {
+  flex: 0 0 auto;
+  min-height: 42px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.82);
+  color: #121522;
+  font-size: 13px;
+  font-weight: 780;
+  letter-spacing: -0.02em;
+  box-shadow:
+    inset 0 0 0 1px rgba(18, 21, 34, 0.04),
+    0 8px 18px rgba(20, 24, 33, 0.03);
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease,
+    background 160ms ease;
+}
+
+.today-ask-nova-button:active {
+  transform: scale(0.98);
+}
+
+.today-ask-nova-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.today-tinder-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding-top: 6px;
+}
+
+.today-tinder-control {
+  width: 68px;
+  height: 68px;
+  border: 0;
+  border-radius: 50%;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow:
+    0 18px 30px rgba(15, 23, 42, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.88);
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.today-tinder-control:active {
+  transform: scale(0.96);
+}
+
+.today-tinder-control-icon {
+  font-size: 28px;
+  line-height: 1;
+  font-weight: 700;
+}
+
+.today-tinder-control-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.today-tinder-control-skip {
+  color: #cc3b4a;
+}
+
+.today-tinder-control-later {
+  width: 58px;
+  height: 58px;
+  color: #0f6cb3;
+}
+
+.today-tinder-control-later .today-tinder-control-icon {
+  font-size: 22px;
+}
+
+.today-tinder-control-accept {
+  color: #18a768;
+}
+
+.today-empty-card {
+  padding: 22px 18px 18px;
+  border-radius: 28px;
+}
+
+.today-empty-title {
+  margin: 0 0 10px;
+  color: #121522;
+  font-size: 25px;
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+}
+
+.today-empty-copy {
+  margin: 0;
+  color: rgba(18, 21, 34, 0.66);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.today-execution-confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 46;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 20px 14px calc(var(--native-tabbar-reserve) + 14px);
+  background: rgba(12, 16, 24, 0.18);
+  backdrop-filter: blur(8px);
+}
+
+.today-execution-confirm {
+  width: min(100%, 420px);
+  padding: 18px 18px 16px;
+  border-radius: 24px;
+}
+
+.today-execution-confirm-kicker {
+  margin: 0 0 8px;
+  color: rgba(18, 21, 34, 0.42);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.today-execution-confirm-title {
+  margin: 0;
+  color: #121522;
+  font-size: 23px;
+  line-height: 1.08;
+  letter-spacing: -0.04em;
+}
+
+.today-execution-confirm-copy {
+  margin: 10px 0 0;
+  color: rgba(18, 21, 34, 0.62);
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.today-execution-confirm-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.today-execution-secondary,
+.today-execution-primary {
+  min-height: 44px;
+  border-radius: 16px;
+  border: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.today-execution-secondary {
+  background: rgba(20, 24, 33, 0.07);
+  color: rgba(20, 24, 33, 0.72);
+}
+
+.today-execution-primary {
+  background: #121522;
+  color: #fbfbf7;
+}
+
+@media (max-width: 640px) {
+  .today-action-card-swipe,
+  .today-empty-card {
+    padding: 18px 16px 16px;
+  }
+
+  .today-action-card-stack {
+    inset-inline: 8px;
+  }
+
+  .today-action-thesis {
+    font-size: clamp(22px, 7vw, 28px);
+  }
+
+  .today-action-footer-minimal {
+    align-items: flex-end;
+  }
+
+  .today-ask-nova-button {
+    min-height: 38px;
+    padding: 0 12px;
+  }
+
+  .today-tinder-controls {
+    gap: 12px;
+  }
+
+  .today-tinder-control {
+    width: 62px;
+    height: 62px;
+  }
+
+  .today-tinder-control-later {
+    width: 54px;
+    height: 54px;
   }
 }

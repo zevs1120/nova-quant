@@ -68,6 +68,11 @@ function isActionable(signal) {
   return true;
 }
 
+function signalDecisionTone(signal) {
+  if (!isActionable(signal)) return 'hold';
+  return String(signal?.direction || '').toUpperCase() === 'SHORT' ? 'sell' : 'buy';
+}
+
 function mergeEvidenceSignals(allSignals, evidenceSignals) {
   if (!Array.isArray(evidenceSignals) || !evidenceSignals.length) return allSignals || [];
   const signalById = new Map((allSignals || []).map((row) => [row.signal_id, row]));
@@ -357,96 +362,6 @@ function strategySourceText(signal) {
   return signal?.strategy_source || 'AI quant strategy';
 }
 
-function executionBoundaryLabel(mode, locale) {
-  const zh = locale === 'zh';
-  if (mode === 'REALIZED') return zh ? '已成交' : 'Realized';
-  if (mode === 'DB_BACKED') return zh ? '数据库快照' : 'DB snapshot';
-  if (mode === 'PAPER_ONLY') return zh ? '仅纸面' : 'Paper only';
-  if (mode === 'BACKTEST_ONLY') return zh ? '仅回测' : 'Backtest only';
-  if (mode === 'DEMO_ONLY') return zh ? '仅演示' : 'Demo only';
-  if (mode === 'WITHHELD' || mode === 'INSUFFICIENT_DATA') return zh ? '禁止执行' : 'Do not act';
-  return zh ? '模型推导' : 'Model-derived';
-}
-
-function riskGuardLabel(overallCode, riskLevelValue, locale) {
-  const zh = locale === 'zh';
-  if (overallCode === 'UNAVAILABLE') {
-    return zh ? '系统未就绪' : 'System unavailable';
-  }
-  if (overallCode === 'DEFENSE' || overallCode === 'NO_TRADE') {
-    return zh ? '防守优先' : 'Defense first';
-  }
-  if (riskLevelValue === 'medium') {
-    return zh ? '只做轻仓' : 'Light size only';
-  }
-  if (riskLevelValue === 'safe') {
-    return zh ? '可小仓动作' : 'Small size allowed';
-  }
-  return zh ? '先别加风险' : 'Do not add risk';
-}
-
-function buildKeepInMindText({
-  locale,
-  signal,
-  noActionDay,
-  overallCode,
-  provenance,
-  riskLevelValue,
-}) {
-  const zh = locale === 'zh';
-  if (overallCode === 'UNAVAILABLE') {
-    return zh
-      ? '当前不是交易判断问题，而是系统运行状态还不够完整。先看数据状态和运行状态，不要凭空下单。'
-      : 'This is not a trade-quality issue. The system runtime is not complete enough yet, so check data and runtime status before acting.';
-  }
-  if (!signal) {
-    return zh
-      ? '当前没有任何标的通过执行过滤。保持空仓，等下一次更干净的数据快照。'
-      : 'No symbol cleared the execution filter. Stay in cash and wait for the next cleaner snapshot.';
-  }
-
-  const size = suggestedPositionText(signal);
-  const stop = stopLossText(signal);
-  const source = provenance?.label || strategySourceText(signal);
-  const riskGate = riskGuardLabel(overallCode, riskLevelValue, locale);
-
-  if (noActionDay) {
-    return zh
-      ? `风险约束仍然是“${riskGate}”。来源是 ${source}，在执行边界放开前不要新增仓位。`
-      : `The risk gate stays "${riskGate}." Source quality is ${source}, so do not add exposure before execution clears.`;
-  }
-
-  return zh
-    ? `仓位上限维持在 ${size}。失效位参考 ${stop === '--' ? '系统未给出' : stop}，不允许放大风险。`
-    : `Size stays capped at ${size}. Invalidation sits near ${stop === '--' ? 'the system boundary' : stop}, so do not oversize this trade.`;
-}
-
-function buildWhyNowText({ locale, signal, noActionDay, provenance }) {
-  const zh = locale === 'zh';
-  if (!signal) {
-    return zh
-      ? '这次没有任何设置通过系统排序和质量过滤，所以今天不给执行卡。'
-      : 'No setup survived the system ranking and quality filters, so today does not get an execution card.';
-  }
-
-  const symbol = signal.symbol || (zh ? '当前主选' : 'Top setup');
-  const conviction = confidenceText(signal);
-  const entry = entryRangeText(signal);
-  const target = takeProfitText(signal);
-  const freshness = generatedText(signal);
-  const boundary = executionBoundaryLabel(provenance?.mode, locale);
-
-  if (noActionDay) {
-    return zh
-      ? `${symbol} 仍是当前最强候选，但执行边界是 ${boundary}。把握 ${conviction}，最近更新 ${freshness}。`
-      : `${symbol} is still the top-ranked candidate, but execution remains ${boundary.toLowerCase()}. Conviction is ${conviction}, refreshed ${freshness}.`;
-  }
-
-  return zh
-    ? `${symbol} 目前排在最前。入场区 ${entry === '--' ? '待确认' : entry}，第一目标 ${target === '--' ? '待确认' : target}，最近更新 ${freshness}。`
-    : `${symbol} is the top-ranked setup. Entry sits at ${entry === '--' ? 'pending confirmation' : entry}, first target ${target === '--' ? 'pending confirmation' : target}, refreshed ${freshness}.`;
-}
-
 function buildActionMetaText({ locale, signal, provenance }) {
   const parts = [
     provenance?.label || null,
@@ -700,32 +615,9 @@ function clampNumber(value, min, max) {
 function resolveTodayGestureIntent(dx, dy) {
   const absDx = Math.abs(dx);
   const absDy = Math.abs(dy);
-  if (dy >= 84 && dy > absDx * 1.08) return 'later';
+  if (dy <= -84 && absDy > absDx * 1.08) return 'later';
   if (absDx >= 72 && absDx > Math.max(absDy * 1.08, 18)) return dx > 0 ? 'accept' : 'skip';
   return null;
-}
-
-function todayGestureLabel(intent, locale) {
-  if (intent === 'accept') return locale === 'zh' ? '接受今天计划' : 'Accept today';
-  if (intent === 'later') return locale === 'zh' ? '稍后再看' : 'Review later';
-  return locale === 'zh' ? '今天不做' : 'Pass today';
-}
-
-function todayGestureSummary(intent, locale, symbol) {
-  const safeSymbol = symbol || (locale === 'zh' ? '这张卡' : 'This card');
-  if (intent === 'accept') {
-    return locale === 'zh'
-      ? `${safeSymbol} 已进入今天计划。`
-      : `${safeSymbol} is now part of today's plan.`;
-  }
-  if (intent === 'later') {
-    return locale === 'zh'
-      ? `${safeSymbol} 已暂存，稍后再看。`
-      : `${safeSymbol} is saved for a later look.`;
-  }
-  return locale === 'zh'
-    ? `${safeSymbol} 已归档为今天不做。`
-    : `${safeSymbol} is filed as a pass for today.`;
 }
 
 function isNestedInteractiveTarget(target, currentTarget) {
@@ -828,18 +720,19 @@ export default function TodayTab({
     return () => clearInterval(timer);
   }, []);
 
-  const [selectedSignalId, setSelectedSignalId] = useState(null);
   const [activeSignal, setActiveSignal] = useState(null);
   const [tradeSignal, setTradeSignal] = useState(null);
-  const [recentOutcomes, setRecentOutcomes] = useState([]);
+  const [queueIds, setQueueIds] = useState([]);
+  const [queueReady, setQueueReady] = useState(false);
+  const [pendingExecution, setPendingExecution] = useState(null);
   const [gesturePreview, setGesturePreview] = useState({
     signalId: null,
     dx: 0,
     dy: 0,
     intent: null,
     active: false,
+    committed: false,
   });
-  const [gestureDecisions, setGestureDecisions] = useState({});
   const swipeGestureRef = useRef({
     pointerId: null,
     signalId: null,
@@ -850,6 +743,8 @@ export default function TodayTab({
     dragging: false,
     suppressTapUntil: 0,
   });
+  const swipeTimerRef = useRef(null);
+  const previousDeckIdsRef = useRef([]);
   const desiredSignalCount = useMemo(
     () => signalQuotaForTradeMode(brokerProfile?.tradeMode),
     [brokerProfile?.tradeMode],
@@ -869,63 +764,43 @@ export default function TodayTab({
     if (fallbackSignals.length) return fallbackSignals.slice(0, desiredSignalCount);
     return investorDemoEnabled ? [buildDemoFallbackSignal(assetClass, now)] : [];
   }, [decisionSignals, fallbackSignals, desiredSignalCount, investorDemoEnabled, assetClass, now]);
-  const carouselSignals = useMemo(() => sortSignalsForDisplay(actionSignals), [actionSignals]);
+  const deckSignals = useMemo(() => sortSignalsForDisplay(actionSignals), [actionSignals]);
 
   useEffect(() => {
-    if (!carouselSignals.length) {
-      if (selectedSignalId !== null) setSelectedSignalId(null);
-      return;
-    }
-    if (
-      !selectedSignalId ||
-      !carouselSignals.some((signal) => signalCardId(signal) === selectedSignalId)
-    ) {
-      setSelectedSignalId(signalCardId(carouselSignals[0]));
-    }
-  }, [carouselSignals, selectedSignalId]);
+    const nextIds = deckSignals.map((signal) => signalCardId(signal));
+    const previousIds = previousDeckIdsRef.current;
+    const deckChanged =
+      nextIds.length !== previousIds.length ||
+      nextIds.some((id, index) => id !== previousIds[index]);
 
-  // Fetch recent outcomes
-  useEffect(() => {
-    let cancelled = false;
-    const qs = effectiveUserId
-      ? `?userId=${encodeURIComponent(effectiveUserId)}&limit=10`
-      : '?limit=10';
-    fetch(`/api/outcomes/recent${qs}`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (!cancelled && data?.outcomes) {
-          setRecentOutcomes(
-            data.outcomes.filter((o) => o.verdict !== 'PENDING' && o.symbol).slice(0, 3),
-          );
-        }
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [effectiveUserId]);
+    setQueueIds((current) => {
+      if (!nextIds.length) return [];
+      if (!current.length && !queueReady) return nextIds;
+      const retained = current.filter((id) => nextIds.includes(id));
+      if (!deckChanged) return retained;
+      const appended = nextIds.filter((id) => !retained.includes(id));
+      return [...retained, ...appended];
+    });
+    previousDeckIdsRef.current = nextIds;
+    setQueueReady(true);
+  }, [deckSignals, queueReady]);
 
-  const featuredSignal = useMemo(() => {
-    if (carouselSignals.length) {
-      return (
-        carouselSignals.find((signal) => signalCardId(signal) === selectedSignalId) ||
-        carouselSignals[0]
-      );
-    }
-    return (
-      buildSignalFromDecision(decision, now) ||
-      bestSignal ||
-      (investorDemoEnabled ? buildDemoFallbackSignal(assetClass, now) : null)
-    );
-  }, [
-    carouselSignals,
-    selectedSignalId,
-    decision,
-    now,
-    bestSignal,
-    investorDemoEnabled,
-    assetClass,
-  ]);
+  useEffect(
+    () => () => {
+      if (swipeTimerRef.current) {
+        window.clearTimeout(swipeTimerRef.current);
+      }
+    },
+    [],
+  );
+
+  const queuedSignals = useMemo(() => {
+    if (!queueReady) return deckSignals;
+    const byId = new Map(deckSignals.map((signal) => [signalCardId(signal), signal]));
+    return queueIds.map((id) => byId.get(id)).filter(Boolean);
+  }, [deckSignals, queueIds, queueReady]);
+
+  const featuredSignal = queuedSignals[0] || null;
   const overall =
     overallFromDecision(decision, locale) ||
     deriveOverallStatus({
@@ -976,44 +851,6 @@ export default function TodayTab({
       runtime?.source_type,
     ],
   );
-  const quickTiles = [
-    {
-      key: 'why',
-      label: locale === 'zh' ? '为什么现在看它' : 'Why now',
-      value: buildWhyNowText({ locale, signal: featuredSignal, noActionDay, provenance }),
-      tone: 'sky',
-    },
-    {
-      key: 'mind',
-      label: locale === 'zh' ? '先记住什么' : 'Keep in mind',
-      value: buildKeepInMindText({
-        locale,
-        signal: featuredSignal,
-        noActionDay,
-        overallCode: overall.code,
-        provenance,
-        riskLevelValue: risk.level,
-      }),
-      tone: 'mint',
-    },
-  ];
-  const trustFacts = [
-    {
-      key: 'source',
-      label: locale === 'zh' ? '来源' : 'Source',
-      value: provenance.label,
-    },
-    {
-      key: 'execution',
-      label: locale === 'zh' ? '执行边界' : 'Execution',
-      value: executionBoundaryLabel(provenance.mode, locale),
-    },
-    {
-      key: 'guard',
-      label: locale === 'zh' ? '风险约束' : 'Risk gate',
-      value: riskGuardLabel(overall.code, risk.level, locale),
-    },
-  ];
   const climate =
     overall.code === 'TRADE'
       ? {
@@ -1054,28 +891,27 @@ export default function TodayTab({
                 line: locale === 'zh' ? '先防守，不要扩张风险。' : 'Defend first. Do not add risk.',
                 tone: 'defense',
               };
-  const actionCardKicker = noActionDay
-    ? locale === 'zh'
-      ? '今天先观察'
-      : 'Today, wait'
+  const featuredSignalId = featuredSignal ? signalCardId(featuredSignal) : null;
+  const signalDirectionValue = String(featuredSignal?.direction || '').toUpperCase();
+  const actionLabel =
+    !featuredSignal || noActionDay
+      ? 'Hold'
+      : signalDecisionTone(featuredSignal) === 'sell'
+        ? 'Sell'
+        : 'Buy';
+  const decisionTone = actionLabel.toLowerCase();
+  const askPrompt = featuredSignal
+    ? buildNovaTradeQuestion(
+        featuredSignal,
+        buildTradeIntent(featuredSignal, {
+          broker: brokerProfile?.broker,
+          brokerSnapshot: brokerConnection,
+        }),
+        locale,
+      )
     : locale === 'zh'
-      ? '今天计划'
-      : 'Today plan';
-  const askPrompt = noActionDay
-    ? locale === 'zh'
-      ? '为什么今天应该先等？'
-      : 'Why should I wait today?'
-    : locale === 'zh'
-      ? '用人话告诉我今天怎么买。'
-      : 'Tell me how to take this trade in plain words.';
-  const gestureActions = useMemo(
-    () => [
-      { key: 'skip', label: todayGestureLabel('skip', locale) },
-      { key: 'accept', label: todayGestureLabel('accept', locale) },
-      { key: 'later', label: todayGestureLabel('later', locale) },
-    ],
-    [locale],
-  );
+      ? '用人话告诉我，今天为什么应该先等。'
+      : 'Tell me in plain words why today should stay in wait mode.';
   const tradeIntent = useMemo(
     () =>
       tradeSignal
@@ -1089,6 +925,23 @@ export default function TodayTab({
   const buildSignalIntent = (signal) =>
     buildTradeIntent(signal, { broker: brokerProfile?.broker, brokerSnapshot: brokerConnection });
   const activeSignalIntent = activeSignal ? buildSignalIntent(activeSignal) : null;
+  const queueCountLabel =
+    queuedSignals.length <= 1
+      ? locale === 'zh'
+        ? '最后一张'
+        : 'Final card'
+      : locale === 'zh'
+        ? `队列中还有 ${queuedSignals.length} 张`
+        : `${queuedSignals.length} cards in queue`;
+  const actionLogic = featuredSignal
+    ? featuredSignal?.brief_why_now ||
+      featuredSignal?.explain_bullets?.[0] ||
+      featuredSignal?.risk_note ||
+      overall.subtitle
+    : overall.subtitle;
+  const stackedSignals = queuedSignals.slice(1, 3);
+  const activeSwipeIntent =
+    gesturePreview.signalId === featuredSignalId ? gesturePreview.intent || null : null;
 
   const openTradeTicket = (signal) => {
     if (!signal) return;
@@ -1115,8 +968,25 @@ export default function TodayTab({
     });
   };
 
-  const handleSignalAction = (signal) => {
-    const nextIntent = buildSignalIntent(signal);
+  const clearGesture = () => {
+    swipeGestureRef.current.pointerId = null;
+    swipeGestureRef.current.signalId = null;
+    swipeGestureRef.current.startX = 0;
+    swipeGestureRef.current.startY = 0;
+    swipeGestureRef.current.dx = 0;
+    swipeGestureRef.current.dy = 0;
+    swipeGestureRef.current.dragging = false;
+    setGesturePreview({
+      signalId: null,
+      dx: 0,
+      dy: 0,
+      intent: null,
+      active: false,
+      committed: false,
+    });
+  };
+
+  const performQueuedExecution = (signal, nextIntent) => {
     const signalBlocked =
       !signal ||
       !signal._actionable ||
@@ -1142,16 +1012,130 @@ export default function TodayTab({
       return;
     }
     triggerFeedback('soft');
-    if (overall.code === 'UNAVAILABLE') {
-      onOpenSignals?.();
-      return;
-    }
     if (overall.code === 'DEFENSE' || overall.code === 'NO_TRADE') {
       onConfirmBoundary?.();
       onAskAi?.('Give me today defense plan in simple actions.');
       return;
     }
-    onOpenSignals?.();
+    askNovaAboutSignal(signal, nextIntent);
+  };
+
+  const markGestureStart = (signalId, clientX, clientY, pointerId = null) => {
+    swipeGestureRef.current.pointerId = pointerId;
+    swipeGestureRef.current.signalId = signalId;
+    swipeGestureRef.current.startX = clientX;
+    swipeGestureRef.current.startY = clientY;
+    swipeGestureRef.current.dx = 0;
+    swipeGestureRef.current.dy = 0;
+    swipeGestureRef.current.dragging = false;
+    setGesturePreview({
+      signalId,
+      dx: 0,
+      dy: 0,
+      intent: null,
+      active: false,
+      committed: false,
+    });
+  };
+
+  const markGestureMove = (signalId, clientX, clientY) => {
+    if (swipeGestureRef.current.signalId !== signalId) return;
+    const dx = clampNumber(clientX - swipeGestureRef.current.startX, -160, 160);
+    const dy = clampNumber(clientY - swipeGestureRef.current.startY, -160, 56);
+    const absDx = Math.abs(dx);
+    const absDy = Math.abs(dy);
+    if (absDx > 14 || absDy > 14) {
+      swipeGestureRef.current.dragging = true;
+      swipeGestureRef.current.suppressTapUntil = Date.now() + 320;
+    }
+    swipeGestureRef.current.dx = dx;
+    swipeGestureRef.current.dy = dy;
+    setGesturePreview({
+      signalId,
+      dx,
+      dy,
+      intent: resolveTodayGestureIntent(dx, dy),
+      active: swipeGestureRef.current.dragging,
+      committed: false,
+    });
+  };
+
+  const shouldSuppressTap = () =>
+    swipeGestureRef.current.dragging || swipeGestureRef.current.suppressTapUntil > Date.now();
+
+  const applyQueueAction = (signal, intent) => {
+    if (!signal || !intent) return;
+    const signalId = signalCardId(signal);
+    const exit =
+      intent === 'accept'
+        ? { dx: 420, dy: 18 }
+        : intent === 'later'
+          ? { dx: 0, dy: -420 }
+          : { dx: -420, dy: 18 };
+    triggerFeedback(intent === 'accept' ? 'confirm' : 'soft');
+    setGesturePreview({
+      signalId,
+      dx: exit.dx,
+      dy: exit.dy,
+      intent,
+      active: false,
+      committed: true,
+    });
+    swipeGestureRef.current.suppressTapUntil = Date.now() + 420;
+    if (swipeTimerRef.current) {
+      window.clearTimeout(swipeTimerRef.current);
+    }
+    swipeTimerRef.current = window.setTimeout(() => {
+      setQueueIds((current) => {
+        const remaining = current.filter((id) => id !== signalId);
+        if (intent === 'later') {
+          return remaining.length ? [...remaining, signalId] : [signalId];
+        }
+        return remaining;
+      });
+      if (intent === 'accept') {
+        setPendingExecution({
+          signal,
+          intent: buildSignalIntent(signal),
+          actionLabel:
+            !signal._actionable || noActionDay
+              ? 'Hold'
+              : String(signal?.direction || '').toUpperCase() === 'SHORT'
+                ? 'Sell'
+                : 'Buy',
+        });
+      }
+      clearGesture();
+    }, 210);
+  };
+
+  const finishGesture = (signal) => {
+    const intent = resolveTodayGestureIntent(
+      swipeGestureRef.current.dx,
+      swipeGestureRef.current.dy,
+    );
+    if (intent) {
+      applyQueueAction(signal, intent);
+      return;
+    }
+    clearGesture();
+  };
+
+  const openSignalDetail = (signal, signalId) => {
+    if (shouldSuppressTap()) return;
+    triggerFeedback('soft');
+    setActiveSignal(signal);
+  };
+
+  const restorePendingExecution = () => {
+    if (!pendingExecution?.signal) {
+      setPendingExecution(null);
+      return;
+    }
+    const restoreId = signalCardId(pendingExecution.signal);
+    triggerFeedback('soft');
+    setQueueIds((current) => [restoreId, ...current.filter((id) => id !== restoreId)]);
+    setPendingExecution(null);
   };
 
   if (activeSignal) {
@@ -1161,7 +1145,7 @@ export default function TodayTab({
           signal={activeSignal}
           locale={locale}
           onBack={() => setActiveSignal(null)}
-          onOpenTradeTicket={() => handleSignalAction(activeSignal)}
+          onOpenTradeTicket={() => performQueuedExecution(activeSignal, activeSignalIntent)}
           primaryActionLabel={
             activeSignalIntent?.canOpenBroker
               ? tradeIntentHandoffLabel(activeSignalIntent, locale)
@@ -1187,420 +1171,361 @@ export default function TodayTab({
     );
   }
 
-  const scrollToCardIndex = (index) => {
-    const targetSignal = carouselSignals[index];
-    if (!targetSignal) return;
-    triggerFeedback('soft');
-    setSelectedSignalId(signalCardId(targetSignal));
-  };
-
-  const clearGesture = () => {
-    swipeGestureRef.current.pointerId = null;
-    swipeGestureRef.current.signalId = null;
-    swipeGestureRef.current.startX = 0;
-    swipeGestureRef.current.startY = 0;
-    swipeGestureRef.current.dx = 0;
-    swipeGestureRef.current.dy = 0;
-    swipeGestureRef.current.dragging = false;
-    setGesturePreview({
-      signalId: null,
-      dx: 0,
-      dy: 0,
-      intent: null,
-      active: false,
-    });
-  };
-
-  const markGestureStart = (signalId, clientX, clientY, pointerId = null) => {
-    swipeGestureRef.current.pointerId = pointerId;
-    swipeGestureRef.current.signalId = signalId;
-    swipeGestureRef.current.startX = clientX;
-    swipeGestureRef.current.startY = clientY;
-    swipeGestureRef.current.dx = 0;
-    swipeGestureRef.current.dy = 0;
-    swipeGestureRef.current.dragging = false;
-    setGesturePreview({
-      signalId,
-      dx: 0,
-      dy: 0,
-      intent: null,
-      active: false,
-    });
-  };
-
-  const markGestureMove = (signalId, clientX, clientY) => {
-    if (swipeGestureRef.current.signalId !== signalId) return;
-    const dx = clampNumber(clientX - swipeGestureRef.current.startX, -132, 132);
-    const dy = clampNumber(clientY - swipeGestureRef.current.startY, -18, 132);
-    const absDx = Math.abs(dx);
-    const absDy = Math.abs(dy);
-    if (absDx > 14 || absDy > 14) {
-      swipeGestureRef.current.dragging = true;
-      swipeGestureRef.current.suppressTapUntil = Date.now() + 320;
-    }
-    swipeGestureRef.current.dx = dx;
-    swipeGestureRef.current.dy = dy;
-    setGesturePreview({
-      signalId,
-      dx,
-      dy,
-      intent: resolveTodayGestureIntent(dx, dy),
-      active: swipeGestureRef.current.dragging,
-    });
-  };
-
-  const shouldSuppressTap = () =>
-    swipeGestureRef.current.dragging || swipeGestureRef.current.suppressTapUntil > Date.now();
-
-  const commitGestureDecision = (signal, intent) => {
-    if (!signal || !intent) return;
-    const signalId = signalCardId(signal);
-    triggerFeedback(intent === 'accept' ? 'confirm' : 'soft');
-    setGestureDecisions((current) => ({
-      ...current,
-      [signalId]: {
-        key: intent,
-        label: todayGestureLabel(intent, locale),
-        summary: todayGestureSummary(intent, locale, signal?.symbol),
-      },
-    }));
-    swipeGestureRef.current.suppressTapUntil = Date.now() + 420;
-  };
-
-  const finishGesture = (signal) => {
-    const intent = resolveTodayGestureIntent(
-      swipeGestureRef.current.dx,
-      swipeGestureRef.current.dy,
-    );
-    if (intent) {
-      commitGestureDecision(signal, intent);
-    }
-    clearGesture();
-  };
-
-  useEffect(() => {
-    clearGesture();
-  }, [selectedSignalId]);
-
-  const openSignalDetail = (signal, signalId) => {
-    if (shouldSuppressTap()) return;
-    triggerFeedback('soft');
-    setSelectedSignalId(signalId);
-    setActiveSignal(signal);
-  };
-  const featuredSignalId = featuredSignal ? signalCardId(featuredSignal) : null;
-
   return (
-    <section className="stack-gap today-screen-redesign today-screen-native">
-      <section className="today-summary-header">
+    <section className="stack-gap today-screen-redesign today-screen-native today-tinder-shell">
+      <section className="today-summary-header today-summary-header-climate">
         <div className="today-summary-copy">
           <p className="today-summary-date">{todayDateLabel}</p>
+          <p className="today-climate-label">{locale === 'zh' ? 'Climate 建议' : 'Climate'}</p>
+          <p className="today-climate-name">{climate.name}</p>
           <p className={`today-summary-line today-summary-line-${climate.tone}`}>{climate.line}</p>
         </div>
       </section>
 
-      <section className="today-screen-flow">
+      <section className="today-screen-flow today-decision-stack">
         {featuredSignal ? (
-          <section className="today-action-carousel">
-            <div className="today-action-track">
-              {(() => {
-                const signal = featuredSignal;
-                const signalId = featuredSignalId;
-                const signalBlocked =
-                  !signal ||
-                  !signal._actionable ||
-                  overall.code === 'WAIT' ||
-                  overall.code === 'DEFENSE' ||
-                  overall.code === 'NO_TRADE' ||
-                  overall.code === 'UNAVAILABLE';
-                const signalDirectionValue = String(signal?.direction || '').toUpperCase();
-                const signalTone = !signal?._actionable
-                  ? 'wait'
-                  : signalDirectionValue === 'SHORT'
-                    ? 'defense'
-                    : 'trade';
-                const signalActionBandLabel = signalBlocked
-                  ? overall.code === 'DEFENSE' || signalDirectionValue === 'SHORT'
-                    ? locale === 'zh'
-                      ? '优先防守'
-                      : 'Defense first'
-                    : locale === 'zh'
-                      ? '先观察'
-                      : 'Watch first'
-                  : locale === 'zh'
-                    ? '可以动作'
-                    : 'Actionable';
-                const signalDirectionLabel = signalBlocked
-                  ? locale === 'zh'
-                    ? '先观察'
-                    : 'Watch only'
-                  : signalDirectionValue === 'SHORT'
-                    ? locale === 'zh'
-                      ? '偏防守'
-                      : 'Reduce risk'
-                    : locale === 'zh'
-                      ? '可以买入'
-                      : 'Buy setup';
-                const signalPositionLabel = signalBlocked
-                  ? locale === 'zh'
-                    ? '先空仓'
-                    : 'Stay in cash'
-                  : suggestedPositionText(signal);
-                const signalRiskLabel =
-                  risk.level === 'safe'
-                    ? locale === 'zh'
-                      ? '低风险'
-                      : 'Low risk'
-                    : risk.level === 'medium'
-                      ? locale === 'zh'
-                        ? '中风险'
-                        : 'Medium risk'
-                      : locale === 'zh'
-                        ? '高风险'
-                        : 'High risk';
-                const signalMetaLine = buildActionMetaText({ locale, signal, provenance });
-                const preview = gesturePreview.signalId === signalId ? gesturePreview : null;
-                const decision = gestureDecisions[signalId] || null;
-                const activeGestureKey = preview?.intent || decision?.key || 'idle';
-                return (
-                  <article
-                    key={signalId}
-                    className={`glass-card today-action-card today-action-card-${signalTone} today-action-slide is-selected`}
-                    data-gesture-active={preview?.active ? 'true' : 'false'}
-                    data-gesture-intent={activeGestureKey}
-                    data-gesture-committed={decision ? 'true' : 'false'}
-                    style={{
-                      '--gesture-x': `${preview?.dx || 0}px`,
-                      '--gesture-y': `${preview?.dy || 0}px`,
-                      '--gesture-rotate': `${(preview?.dx || 0) * 0.05}deg`,
-                    }}
-                    onClick={() => openSignalDetail(signal, signalId)}
-                    role="button"
-                    tabIndex={0}
-                    onPointerDown={(event) => {
-                      if (
-                        (event.pointerType === 'mouse' && event.button !== 0) ||
-                        isNestedInteractiveTarget(event.target, event.currentTarget)
-                      ) {
-                        return;
-                      }
-                      event.currentTarget.setPointerCapture?.(event.pointerId);
-                      markGestureStart(signalId, event.clientX, event.clientY, event.pointerId);
-                    }}
-                    onPointerMove={(event) => {
-                      if (swipeGestureRef.current.pointerId !== event.pointerId) return;
-                      markGestureMove(signalId, event.clientX, event.clientY);
-                    }}
-                    onPointerUp={(event) => {
-                      if (swipeGestureRef.current.pointerId !== event.pointerId) return;
-                      event.currentTarget.releasePointerCapture?.(event.pointerId);
-                      finishGesture(signal);
-                    }}
-                    onPointerCancel={(event) => {
-                      if (swipeGestureRef.current.pointerId !== event.pointerId) return;
-                      event.currentTarget.releasePointerCapture?.(event.pointerId);
-                      clearGesture();
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault();
-                        openSignalDetail(signal, signalId);
-                        return;
-                      }
-                      if (event.key === 'ArrowLeft') {
-                        event.preventDefault();
-                        commitGestureDecision(signal, 'skip');
-                        return;
-                      }
-                      if (event.key === 'ArrowRight') {
-                        event.preventDefault();
-                        commitGestureDecision(signal, 'accept');
-                        return;
-                      }
-                      if (event.key === 'ArrowDown') {
-                        event.preventDefault();
-                        commitGestureDecision(signal, 'later');
-                      }
-                    }}
-                  >
-                    <div className="today-action-card-head">
-                      <span className="today-action-kicker">{actionCardKicker}</span>
-                      <span className={`today-action-tag today-action-tag-${signalTone}`}>
-                        {signalActionBandLabel}
-                      </span>
-                    </div>
+          <>
+            <div className="today-tinder-deck">
+              {stackedSignals.map((signal, index) => (
+                <article
+                  key={`stack-${signalCardId(signal)}`}
+                  className={`glass-card today-action-card today-action-card-stack today-action-card-${signalDecisionTone(signal)} today-action-card-stack-${
+                    index + 1
+                  }`}
+                  aria-hidden="true"
+                >
+                  <p className="today-action-kicker">{locale === 'zh' ? 'Up next' : 'Up next'}</p>
+                  <h3 className="today-action-stack-symbol">{signal?.symbol || '--'}</h3>
+                </article>
+              ))}
 
-                    <div className="today-action-main">
-                      <div className="today-action-symbol-block">
-                        <h2 className="today-action-symbol">{signal?.symbol || '--'}</h2>
-                        <p className="today-action-direction">{signalDirectionLabel}</p>
-                        <p className="today-action-meta">{signalMetaLine}</p>
-                      </div>
-                      <DecisionMark code={signalBlocked ? overall.code : 'TRADE'} />
-                    </div>
-
-                    <div className="today-action-stats">
-                      <div className="today-action-stat">
-                        <span className="today-action-stat-label">
-                          {locale === 'zh' ? '把握' : 'Conviction'}
-                        </span>
-                        <span className="today-action-stat-value">{confidenceText(signal)}</span>
-                      </div>
-                      <div className="today-action-stat">
-                        <span className="today-action-stat-label">
-                          {locale === 'zh' ? '仓位' : 'Size'}
-                        </span>
-                        <span className="today-action-stat-value">{signalPositionLabel}</span>
-                      </div>
-                      <div className="today-action-stat">
-                        <span className="today-action-stat-label">
-                          {locale === 'zh' ? '风险' : 'Risk'}
-                        </span>
-                        <span className="today-action-stat-value">{signalRiskLabel}</span>
-                      </div>
-                    </div>
-
-                    <div className="today-action-context-row">
-                      {trustFacts.map((item) => (
-                        <span key={`${signalId}-${item.key}`} className="today-action-context-pill">
-                          <span className="today-action-context-label">{item.label}</span>
-                          <span className="today-action-context-value">{item.value}</span>
-                        </span>
-                      ))}
-                    </div>
-
-                    <div className="today-action-footer">
-                      <p className={`today-action-decision${decision ? ' is-visible' : ''}`}>
-                        {decision?.summary ||
-                          (locale === 'zh'
-                            ? '点按看细节，或直接用手势给今天一个决定。'
-                            : 'Tap for detail, or use a gesture to make today’s call.')}
-                      </p>
-                      <div
-                        className="today-action-gesture-guide"
-                        aria-label={locale === 'zh' ? '手势动作' : 'Gesture actions'}
-                      >
-                        {gestureActions.map((action) => (
-                          <span
-                            key={`${signalId}-${action.key}`}
-                            className={`today-action-gesture-pill today-action-gesture-pill-${action.key}${activeGestureKey === action.key ? ' is-active' : ''}`}
-                          >
-                            {action.label}
-                          </span>
-                        ))}
-                      </div>
-                      <div className="today-action-quiet-row">
-                        <button
-                          type="button"
-                          className="today-action-quiet-link"
-                          data-gesture-ignore="true"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            triggerFeedback('soft');
-                            if (!signalBlocked) {
-                              askNovaAboutSignal(signal);
-                              return;
-                            }
-                            onAskAi?.(askPrompt, {
-                              page: 'today',
-                              focus: signalBlocked ? 'restraint' : 'top_action',
-                            });
-                          }}
-                        >
-                          {locale === 'zh' ? '问 Nova' : 'Ask Nova'}
-                        </button>
-                        <span className="today-action-quiet-hint">
-                          {locale === 'zh'
-                            ? '左滑不做 · 右滑接受 · 下滑稍后'
-                            : 'Left pass · Right accept · Down later'}
-                        </span>
-                      </div>
-                    </div>
-                  </article>
-                );
-              })()}
-            </div>
-
-            {carouselSignals.length > 1 ? (
-              <div
-                className="today-action-dots"
-                aria-label={locale === 'zh' ? '行动卡位置' : 'Signal position'}
+              <article
+                className={`glass-card today-action-card today-action-card-swipe today-action-card-${decisionTone}`}
+                data-gesture-active={
+                  gesturePreview.signalId === featuredSignalId && gesturePreview.active
+                    ? 'true'
+                    : 'false'
+                }
+                data-gesture-intent={
+                  gesturePreview.signalId === featuredSignalId
+                    ? gesturePreview.intent || 'idle'
+                    : 'idle'
+                }
+                data-gesture-committed={
+                  gesturePreview.signalId === featuredSignalId && gesturePreview.committed
+                    ? 'true'
+                    : 'false'
+                }
+                style={{
+                  '--gesture-x':
+                    gesturePreview.signalId === featuredSignalId
+                      ? `${gesturePreview.dx || 0}px`
+                      : '0px',
+                  '--gesture-y':
+                    gesturePreview.signalId === featuredSignalId
+                      ? `${gesturePreview.dy || 0}px`
+                      : '0px',
+                  '--gesture-rotate':
+                    gesturePreview.signalId === featuredSignalId
+                      ? `${(gesturePreview.dx || 0) * 0.05}deg`
+                      : '0deg',
+                }}
+                onClick={() => openSignalDetail(featuredSignal, featuredSignalId)}
+                role="button"
+                tabIndex={0}
+                onPointerDown={(event) => {
+                  if (
+                    (event.pointerType === 'mouse' && event.button !== 0) ||
+                    isNestedInteractiveTarget(event.target, event.currentTarget)
+                  ) {
+                    return;
+                  }
+                  event.currentTarget.setPointerCapture?.(event.pointerId);
+                  markGestureStart(featuredSignalId, event.clientX, event.clientY, event.pointerId);
+                }}
+                onPointerMove={(event) => {
+                  if (swipeGestureRef.current.pointerId !== event.pointerId) return;
+                  markGestureMove(featuredSignalId, event.clientX, event.clientY);
+                }}
+                onPointerUp={(event) => {
+                  if (swipeGestureRef.current.pointerId !== event.pointerId) return;
+                  event.currentTarget.releasePointerCapture?.(event.pointerId);
+                  finishGesture(featuredSignal);
+                }}
+                onPointerCancel={(event) => {
+                  if (swipeGestureRef.current.pointerId !== event.pointerId) return;
+                  event.currentTarget.releasePointerCapture?.(event.pointerId);
+                  clearGesture();
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    openSignalDetail(featuredSignal, featuredSignalId);
+                    return;
+                  }
+                  if (event.key === 'ArrowLeft') {
+                    event.preventDefault();
+                    applyQueueAction(featuredSignal, 'skip');
+                    return;
+                  }
+                  if (event.key === 'ArrowRight') {
+                    event.preventDefault();
+                    applyQueueAction(featuredSignal, 'accept');
+                    return;
+                  }
+                  if (event.key === 'ArrowUp') {
+                    event.preventDefault();
+                    applyQueueAction(featuredSignal, 'later');
+                  }
+                }}
               >
-                {carouselSignals.map((signal, index) => {
-                  const selected = signalCardId(signal) === signalCardId(featuredSignal);
-                  return (
-                    <button
-                      key={`dot-${signalCardId(signal)}`}
-                      type="button"
-                      className={`today-action-dot${selected ? ' is-active' : ''}`}
-                      aria-label={
-                        locale === 'zh' ? `查看第 ${index + 1} 张卡` : `Open card ${index + 1}`
-                      }
-                      aria-pressed={selected}
-                      onClick={() => scrollToCardIndex(index)}
-                    />
-                  );
-                })}
-              </div>
-            ) : null}
-          </section>
-        ) : null}
-
-        {recentOutcomes.length > 0 ? (
-          <section className="today-outcome-ledger">
-            <h3 className="today-section-title">
-              {locale === 'zh' ? '近期判断回顾' : "Yesterday's Calls"}
-            </h3>
-            <div className="today-outcome-grid">
-              {recentOutcomes.map((outcome) => {
-                const verdictIcon =
-                  outcome.verdict === 'HIT' ? '✅' : outcome.verdict === 'MISS' ? '❌' : '⬜';
-                const returnPct = outcome.verdict_return_pct;
-                const returnStr =
-                  returnPct !== null && returnPct !== undefined
-                    ? `${returnPct >= 0 ? '+' : ''}${(returnPct * 100).toFixed(2)}%`
-                    : '--';
-                const returnClass = returnPct > 0 ? 'positive' : returnPct < 0 ? 'negative' : '';
-                return (
-                  <article
-                    key={`${outcome.decision_snapshot_id}-${outcome.action_id}`}
-                    className="glass-card today-outcome-card"
+                <div className="today-tinder-badges" aria-hidden="true">
+                  <span
+                    className={`today-tinder-badge today-tinder-badge-skip${
+                      activeSwipeIntent === 'skip' ? ' is-visible' : ''
+                    }`}
                   >
-                    <div className="today-outcome-head">
-                      <span className="today-outcome-verdict">{verdictIcon}</span>
-                      <span className="today-outcome-symbol">{outcome.symbol}</span>
-                      <span className="today-outcome-direction">
-                        {outcome.direction === 'LONG'
-                          ? '▲'
-                          : outcome.direction === 'SHORT'
-                            ? '▼'
-                            : '—'}{' '}
-                        {outcome.direction}
-                      </span>
-                    </div>
-                    <div className="today-outcome-return">
-                      <span className={`today-outcome-pct ${returnClass}`}>{returnStr}</span>
-                      <span className="today-outcome-horizon">T+{outcome.verdict_horizon}</span>
-                    </div>
-                  </article>
-                );
-              })}
+                    NOPE
+                  </span>
+                  <span
+                    className={`today-tinder-badge today-tinder-badge-later${
+                      activeSwipeIntent === 'later' ? ' is-visible' : ''
+                    }`}
+                  >
+                    SAVE
+                  </span>
+                  <span
+                    className={`today-tinder-badge today-tinder-badge-accept${
+                      activeSwipeIntent === 'accept' ? ' is-visible' : ''
+                    }`}
+                  >
+                    GO
+                  </span>
+                </div>
+
+                <div className="today-action-card-head today-action-card-head-minimal">
+                  <span className="today-action-kicker">
+                    {locale === 'zh' ? 'Action Card' : 'Action Card'}
+                  </span>
+                  <span
+                    className={`today-action-decision-chip today-action-decision-chip-${decisionTone}`}
+                  >
+                    {actionLabel}
+                  </span>
+                </div>
+
+                <div className="today-action-main today-action-main-landing">
+                  <div className="today-action-symbol-block">
+                    <h2 className="today-action-symbol">{featuredSignal?.symbol || '--'}</h2>
+                    <p className="today-action-direction">
+                      {actionLabel === 'Buy'
+                        ? locale === 'zh'
+                          ? 'Buy setup'
+                          : 'Buy setup'
+                        : actionLabel === 'Sell'
+                          ? locale === 'zh'
+                            ? 'Sell setup'
+                            : 'Sell setup'
+                          : locale === 'zh'
+                            ? 'Hold / wait'
+                            : 'Hold / wait'}
+                    </p>
+                    <p className="today-action-meta">{actionLogic || overall.subtitle}</p>
+                  </div>
+                  <DecisionMark code={noActionDay ? overall.code : 'TRADE'} />
+                </div>
+
+                <div className="today-action-stats today-action-stats-landing">
+                  <div className="today-action-stat">
+                    <span className="today-action-stat-label">
+                      {locale === 'zh' ? 'Source' : 'Source'}
+                    </span>
+                    <span className="today-action-stat-value">{provenance.label}</span>
+                  </div>
+                  <div className="today-action-stat">
+                    <span className="today-action-stat-label">
+                      {locale === 'zh' ? 'Freshness' : 'Freshness'}
+                    </span>
+                    <span className="today-action-stat-value">
+                      {featuredSignal?._freshness || freshnessLabel(featuredSignal, now)}
+                    </span>
+                  </div>
+                  <div className="today-action-stat">
+                    <span className="today-action-stat-label">
+                      {locale === 'zh' ? 'Queue' : 'Queue'}
+                    </span>
+                    <span className="today-action-stat-value">{queueCountLabel}</span>
+                  </div>
+                </div>
+
+                <div className="today-action-context-row today-action-context-row-landing">
+                  <span className="today-action-context-pill">
+                    <span className="today-action-context-label">
+                      {locale === 'zh' ? 'Conviction' : 'Conviction'}
+                    </span>
+                    <span className="today-action-context-value">
+                      {confidenceText(featuredSignal)}
+                    </span>
+                  </span>
+                  <span className="today-action-context-pill">
+                    <span className="today-action-context-label">
+                      {locale === 'zh' ? 'Market' : 'Market'}
+                    </span>
+                    <span className="today-action-context-value">
+                      {featuredSignal?.market || '--'}
+                    </span>
+                  </span>
+                  <span className="today-action-context-pill">
+                    <span className="today-action-context-label">
+                      {locale === 'zh' ? 'Status' : 'Status'}
+                    </span>
+                    <span className="today-action-context-value">{actionLabel}</span>
+                  </span>
+                </div>
+
+                <div className="today-action-footer today-action-footer-minimal">
+                  <span className="today-action-powered">Powered by Marvix AI Engine</span>
+                  <button
+                    type="button"
+                    className="today-ask-nova-button"
+                    data-gesture-ignore="true"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      triggerFeedback('soft');
+                      askNovaAboutSignal(featuredSignal);
+                    }}
+                  >
+                    <svg viewBox="0 0 20 20" className="today-ask-nova-icon" aria-hidden="true">
+                      <path
+                        d="M10 2.8 11.85 8.15 17.2 10l-5.35 1.85L10 17.2l-1.85-5.35L2.8 10l5.35-1.85L10 2.8Z"
+                        fill="currentColor"
+                      />
+                    </svg>
+                    <span>Ask Nova</span>
+                  </button>
+                </div>
+              </article>
+            </div>
+
+            <div
+              className="today-tinder-controls"
+              aria-label={locale === 'zh' ? '卡片动作按钮' : 'Card actions'}
+            >
+              <button
+                type="button"
+                className="today-tinder-control today-tinder-control-skip"
+                onClick={() => applyQueueAction(featuredSignal, 'skip')}
+              >
+                <span className="today-tinder-control-icon" aria-hidden="true">
+                  ×
+                </span>
+                <span className="today-tinder-control-label">
+                  {locale === 'zh' ? '放弃' : 'Pass'}
+                </span>
+              </button>
+              <button
+                type="button"
+                className="today-tinder-control today-tinder-control-later"
+                onClick={() => applyQueueAction(featuredSignal, 'later')}
+              >
+                <span className="today-tinder-control-icon" aria-hidden="true">
+                  ★
+                </span>
+                <span className="today-tinder-control-label">
+                  {locale === 'zh' ? '暂存' : 'Save'}
+                </span>
+              </button>
+              <button
+                type="button"
+                className="today-tinder-control today-tinder-control-accept"
+                onClick={() => applyQueueAction(featuredSignal, 'accept')}
+              >
+                <span className="today-tinder-control-icon" aria-hidden="true">
+                  ✓
+                </span>
+                <span className="today-tinder-control-label">
+                  {locale === 'zh' ? '执行' : 'Go'}
+                </span>
+              </button>
+            </div>
+          </>
+        ) : (
+          <article className="glass-card today-action-card today-empty-card">
+            <p className="today-action-kicker">{locale === 'zh' ? 'Action Card' : 'Action Card'}</p>
+            <h2 className="today-empty-title">
+              {locale === 'zh' ? '当前没有更多标的卡片' : 'No more cards right now'}
+            </h2>
+            <p className="today-empty-copy">
+              {locale === 'zh'
+                ? '这一轮队列已经处理完了。你可以去 Ask Nova 追问，或等待下一次系统快照。'
+                : 'This queue is done for now. Ask Nova for context or wait for the next system snapshot.'}
+            </p>
+            <div className="today-action-footer today-action-footer-minimal">
+              <span className="today-action-powered">Powered by Marvix AI Engine</span>
+              <button
+                type="button"
+                className="today-ask-nova-button"
+                data-gesture-ignore="true"
+                onClick={() => {
+                  triggerFeedback('soft');
+                  onAskAi?.(askPrompt, {
+                    page: 'today',
+                    focus: 'restraint',
+                  });
+                }}
+              >
+                <svg viewBox="0 0 20 20" className="today-ask-nova-icon" aria-hidden="true">
+                  <path
+                    d="M10 2.8 11.85 8.15 17.2 10l-5.35 1.85L10 17.2l-1.85-5.35L2.8 10l5.35-1.85L10 2.8Z"
+                    fill="currentColor"
+                  />
+                </svg>
+                <span>Ask Nova</span>
+              </button>
+            </div>
+          </article>
+        )}
+      </section>
+
+      {pendingExecution ? (
+        <div className="today-execution-confirm-backdrop" role="presentation">
+          <section className="glass-card today-execution-confirm" role="dialog" aria-modal="true">
+            <p className="today-execution-confirm-kicker">
+              {locale === 'zh' ? 'Keep your broker' : 'Keep your broker'}
+            </p>
+            <h3 className="today-execution-confirm-title">
+              {pendingExecution.actionLabel === 'Hold'
+                ? locale === 'zh'
+                  ? `Confirm to review ${pendingExecution.signal?.symbol || '--'} in your broker`
+                  : `Confirm to review ${pendingExecution.signal?.symbol || '--'} in your broker`
+                : `Confirm to execute suggestion for ${pendingExecution.signal?.symbol || '--'}`}
+            </h3>
+            <p className="today-execution-confirm-copy">Link to your broker.</p>
+            <div className="today-execution-confirm-actions">
+              <button
+                type="button"
+                className="today-execution-secondary"
+                onClick={restorePendingExecution}
+              >
+                {locale === 'zh' ? '取消' : 'Cancel'}
+              </button>
+              <button
+                type="button"
+                className="today-execution-primary"
+                onClick={() => {
+                  const nextIntent =
+                    pendingExecution.intent || buildSignalIntent(pendingExecution.signal);
+                  const nextSignal = pendingExecution.signal;
+                  setPendingExecution(null);
+                  performQueuedExecution(nextSignal, nextIntent);
+                }}
+              >
+                {locale === 'zh' ? '确认' : 'Confirm'}
+              </button>
             </div>
           </section>
-        ) : null}
-
-        <section className="today-summary-grid">
-          {quickTiles.map((item) => (
-            <article
-              key={item.key}
-              className={`glass-card today-summary-card today-summary-card-${item.tone}`}
-            >
-              <p className="today-summary-card-label">{item.label}</p>
-              <p className="today-summary-card-value">{item.value}</p>
-            </article>
-          ))}
-        </section>
-      </section>
+        </div>
+      ) : null}
 
       <TradeTicketSheet
         open={Boolean(tradeSignal)}
