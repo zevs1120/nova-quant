@@ -43,9 +43,7 @@ export function useAppData({
           assetClass,
         });
 
-        const controlPlaneRequest = silent
-          ? Promise.resolve(null)
-          : fetchJson(`/api/control-plane/status?userId=${effectiveUserId}`).catch(() => null);
+        const controlPlaneRequest = Promise.resolve(null);
 
         const [
           runtimeResult,

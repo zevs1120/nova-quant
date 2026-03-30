@@ -646,11 +646,18 @@ export default function App() {
     }
 
     if (section === 'data') {
-      return <DataStatusTab data={data} />;
+      return <DataStatusTab data={data} fetchJson={fetchJson} effectiveUserId={effectiveUserId} />;
     }
 
     if (section === 'learning') {
-      return <LearningLoopTab data={data} locale={locale} />;
+      return (
+        <LearningLoopTab
+          data={data}
+          locale={locale}
+          fetchJson={fetchJson}
+          effectiveUserId={effectiveUserId}
+        />
+      );
     }
 
     if (section === 'settings') {

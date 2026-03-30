@@ -186,4 +186,33 @@ describe('control plane flywheel status', () => {
     );
     expect(evoRun).toBeTruthy();
   });
+
+  it('collapses guest control-plane reads onto the shared public scope', async () => {
+    const repo = new MarketRepository(getDb());
+    const baseTs = Date.UTC(2199, 0, 2, 0, 0, 0) + Math.floor(Math.random() * 1_000_000_000);
+
+    repo.upsertNotificationEvent({
+      id: `notif-${baseTs}`,
+      user_id: 'guest-default',
+      market: 'ALL',
+      asset_class: 'ALL',
+      category: 'STATE_SHIFT',
+      trigger_type: 'test',
+      fingerprint: `guest-public-${baseTs}`,
+      title: 'Shared guest notification',
+      body: 'This should be visible through the public guest scope.',
+      tone: 'INFO',
+      status: 'ACTIVE',
+      action_target: null,
+      reason_json: JSON.stringify({ seeded: true }),
+      created_at_ms: baseTs,
+      updated_at_ms: baseTs,
+    });
+
+    const status = await getControlPlaneStatus({
+      userId: `guest-${Math.random().toString(36).slice(2, 10)}`,
+    });
+
+    expect(status.delivery.active_notification_count).toBeGreaterThanOrEqual(1);
+  });
 });

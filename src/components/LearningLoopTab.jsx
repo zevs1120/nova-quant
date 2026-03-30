@@ -1,8 +1,13 @@
 import { formatDateTime, formatNumber } from '../utils/format';
+import { useControlPlaneStatus } from '../hooks/useControlPlaneStatus';
 
-export default function LearningLoopTab({ data, locale }) {
+export default function LearningLoopTab({ data, locale, fetchJson, effectiveUserId }) {
   const runtime = data?.config?.runtime || {};
-  const controlPlane = runtime?.control_plane || data?.control_plane || null;
+  const { controlPlane, loading: controlPlaneLoading } = useControlPlaneStatus({
+    data,
+    fetchJson,
+    effectiveUserId,
+  });
   const flywheel = controlPlane?.flywheel || null;
   const latestDataRun = flywheel?.free_data?.recent_runs?.[0] || null;
   const latestEvolutionRun = flywheel?.evolution?.recent_runs?.[0] || null;
@@ -20,9 +25,13 @@ export default function LearningLoopTab({ data, locale }) {
         <article className="glass-card">
           <h3 className="card-title">Learning Loop</h3>
           <p className="muted status-line">
-            {isZh
-              ? '学习飞轮状态暂时不可用，请先让后端完成一轮 control-plane 刷新。'
-              : 'Learning loop status is not available yet.'}
+            {controlPlaneLoading
+              ? isZh
+                ? '学习飞轮状态正在按需加载。'
+                : 'Learning loop status is loading on demand.'
+              : isZh
+                ? '学习飞轮状态暂时不可用，请先让后端完成一轮 control-plane 刷新。'
+                : 'Learning loop status is not available yet.'}
           </p>
         </article>
       </section>

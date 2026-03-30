@@ -1,6 +1,12 @@
-export default function DataStatusTab({ data }) {
+import { useControlPlaneStatus } from '../hooks/useControlPlaneStatus';
+
+export default function DataStatusTab({ data, fetchJson, effectiveUserId }) {
   const runtime = data?.config?.runtime || {};
-  const controlPlane = runtime?.control_plane || data?.control_plane || null;
+  const { controlPlane, loading: controlPlaneLoading } = useControlPlaneStatus({
+    data,
+    fetchJson,
+    effectiveUserId,
+  });
   const freshnessRows = runtime?.freshness_summary?.rows || [];
   const coverage = runtime?.coverage_summary || {};
   const topIssues = [];
@@ -109,6 +115,11 @@ export default function DataStatusTab({ data }) {
               </tbody>
             </table>
           </div>
+        </article>
+      ) : controlPlaneLoading ? (
+        <article className="glass-card">
+          <h3 className="card-title">Control Plane</h3>
+          <p className="muted status-line">Control plane 正在按需加载。</p>
         </article>
       ) : null}
 

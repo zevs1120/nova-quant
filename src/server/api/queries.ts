@@ -97,6 +97,7 @@ import {
   readPostgresSignalRecords,
   readPostgresUserRitualEvents,
 } from '../admin/postgresBusinessRead.js';
+import { isGuestScopedUserId } from './helpers.js';
 
 const RISK_PROFILE_PRESETS = {
   conservative: {
@@ -5099,6 +5100,20 @@ const controlPlaneStatusInflight = new Map<
   Promise<Awaited<ReturnType<typeof getControlPlaneStatusUncached>>>
 >();
 
+function resolveControlPlaneScope(userId?: string) {
+  const requestedUserId = userId || 'guest-default';
+  if (isGuestScopedUserId(requestedUserId)) {
+    return {
+      cacheKey: 'guest-public',
+      effectiveUserId: 'guest-default',
+    };
+  }
+  return {
+    cacheKey: requestedUserId,
+    effectiveUserId: requestedUserId,
+  };
+}
+
 export async function getFlywheelStatus(_args?: { userId?: string }) {
   const repo = getRepo();
   return buildFlywheelStatus(repo);
@@ -5106,7 +5121,7 @@ export async function getFlywheelStatus(_args?: { userId?: string }) {
 
 async function getControlPlaneStatusUncached(args?: { userId?: string }) {
   const repo = getRepo();
-  const userId = args?.userId || 'guest-default';
+  const { effectiveUserId: userId } = resolveControlPlaneScope(args?.userId);
   const markets: Market[] = ['US', 'CRYPTO'];
   const runtime = await Promise.all(
     markets.map(async (market) => {
@@ -5202,28 +5217,28 @@ async function getControlPlaneStatusUncached(args?: { userId?: string }) {
 }
 
 export async function getControlPlaneStatus(args?: { userId?: string }) {
-  const userId = args?.userId || 'guest-default';
+  const { cacheKey, effectiveUserId } = resolveControlPlaneScope(args?.userId);
   const now = Date.now();
-  const cached = controlPlaneStatusCache.get(userId);
+  const cached = controlPlaneStatusCache.get(cacheKey);
   if (cached && cached.expiresAt > now) {
     return cached.value;
   }
-  const inflight = controlPlaneStatusInflight.get(userId);
+  const inflight = controlPlaneStatusInflight.get(cacheKey);
   if (inflight) {
     return await inflight;
   }
-  const next = getControlPlaneStatusUncached({ userId })
+  const next = getControlPlaneStatusUncached({ userId: effectiveUserId })
     .then((value) => {
-      controlPlaneStatusCache.set(userId, {
+      controlPlaneStatusCache.set(cacheKey, {
         expiresAt: Date.now() + CONTROL_PLANE_STATUS_CACHE_TTL_MS,
         value,
       });
       return value;
     })
     .finally(() => {
-      controlPlaneStatusInflight.delete(userId);
+      controlPlaneStatusInflight.delete(cacheKey);
     });
-  controlPlaneStatusInflight.set(userId, next);
+  controlPlaneStatusInflight.set(cacheKey, next);
   return await next;
 }
 
