@@ -151,6 +151,7 @@ const RUNTIME_STATE_TRADE_LIMIT = Math.max(
   Number(process.env.NOVA_RUNTIME_STATE_TRADE_LIMIT || 60),
 );
 const frontendReadCache = new Map<string, { expiresAt: number; value: unknown }>();
+const wrapUpLanguageCache = new Map<string, { ts: number; patch: Record<string, unknown> }>();
 const frontendReadInflight = new Map<string, Promise<unknown>>();
 
 type AssetSearchResult = {
@@ -4341,17 +4342,27 @@ export async function getDecisionSnapshot(args: {
       : null;
   const cachedNovaApplied = Boolean(latestNovaMeta?.applied);
   const cachedNovaAttempted = Boolean(latestNovaMeta?.attempted);
+  const NOVA_ENRICHMENT_TTL_MS = Math.max(
+    60_000,
+    Number(process.env.NOVA_ENRICHMENT_TTL_MS || 2 * 60 * 60 * 1000),
+  );
   const cachedNovaFreshFailure =
     cachedNovaAttempted && !cachedNovaApplied && latest
-      ? Date.now() - latest.updated_at_ms < 5 * 60 * 1000
+      ? Date.now() - latest.updated_at_ms < NOVA_ENRICHMENT_TTL_MS
       : false;
-  if (
+  const novaEnrichmentStillFresh =
     latest &&
     latest.snapshot_date === snapshotDate &&
-    latest.context_hash === contextHash &&
-    (cachedNovaApplied ||
-      cachedNovaFreshFailure ||
-      String(process.env.NOVA_DISABLE_LOCAL_GENERATION || '') === '1')
+    cachedNovaApplied &&
+    Date.now() - latest.updated_at_ms < NOVA_ENRICHMENT_TTL_MS;
+  if (
+    novaEnrichmentStillFresh ||
+    (latest &&
+      latest.snapshot_date === snapshotDate &&
+      latest.context_hash === contextHash &&
+      (cachedNovaApplied ||
+        cachedNovaFreshFailure ||
+        String(process.env.NOVA_DISABLE_LOCAL_GENERATION || '') === '1'))
   ) {
     return decisionSnapshotFromRow(latest);
   }
@@ -4394,8 +4405,14 @@ async function getDecisionRowsForEngagement(args: {
       market: args.market,
       assetClass,
     });
+  const ENGAGEMENT_DECISION_REUSE_TTL_MS = Math.max(
+    60_000,
+    Number(process.env.NOVA_ENRICHMENT_TTL_MS || 2 * 60 * 60 * 1000),
+  );
   const canReuseLatest =
-    !args.holdings?.length && latest && Date.now() - latest.updated_at_ms < 5 * 60 * 1000;
+    !args.holdings?.length &&
+    latest &&
+    Date.now() - latest.updated_at_ms < ENGAGEMENT_DECISION_REUSE_TTL_MS;
   if (!canReuseLatest) {
     await getDecisionSnapshot(args);
   }
@@ -4503,19 +4520,36 @@ export async function getEngagementState(args: {
     }),
   );
 
-  const enrichedSnapshot = args.skipLanguage
-    ? snapshot
-    : await applyLocalNovaWrapUpLanguage({
-        repo,
-        userId,
-        locale: args.locale,
-        engagement: snapshot,
-        decision: {
-          today_call: parseOptionalJson(current?.summary_json)?.today_call || null,
-          risk_state: parseOptionalJson(current?.risk_state_json) || {},
-          ranked_action_cards: parseJsonArray(current?.actions_json),
-        },
-      });
+  const wrapUpCacheKey = `wrap-${userId}:${market}:${assetClass}:${current?.snapshot_date || 'none'}`;
+  const wrapUpCached = wrapUpLanguageCache.get(wrapUpCacheKey);
+  const WRAP_UP_TTL_MS = Math.max(
+    60_000,
+    Number(process.env.NOVA_ENRICHMENT_TTL_MS || 2 * 60 * 60 * 1000),
+  );
+  let enrichedSnapshot: typeof snapshot;
+  if (args.skipLanguage) {
+    enrichedSnapshot = snapshot;
+  } else if (wrapUpCached && Date.now() - wrapUpCached.ts < WRAP_UP_TTL_MS) {
+    enrichedSnapshot = snapshot;
+  } else {
+    const result = await applyLocalNovaWrapUpLanguage({
+      repo,
+      userId,
+      locale: args.locale,
+      engagement: snapshot,
+      decision: {
+        today_call: parseOptionalJson(current?.summary_json)?.today_call || null,
+        risk_state: parseOptionalJson(current?.risk_state_json) || {},
+        ranked_action_cards: parseJsonArray(current?.actions_json),
+      },
+    });
+    wrapUpLanguageCache.set(wrapUpCacheKey, { ts: Date.now(), patch: {} });
+    if (wrapUpLanguageCache.size > 200) {
+      const oldest = wrapUpLanguageCache.keys().next().value;
+      if (oldest) wrapUpLanguageCache.delete(oldest);
+    }
+    enrichedSnapshot = result;
+  }
 
   return {
     ...enrichedSnapshot,

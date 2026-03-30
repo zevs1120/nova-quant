@@ -9,6 +9,11 @@ NovaQuant 所有重要变更记录于此。
   - **修复**：`client.ts` 新增 `resolveEffectiveTextRoute()` 导出函数，与 `runNovaChatCompletion` 内部路由 override 逻辑一致（Gemini → Groq → Ollama 优先级）；`service.ts` 在 `runLoggedNovaTextTask` 入口解析 `effectiveRoute`，skip/error/success 三条路径统一使用该路由写入 `nova_task_runs`。
   - **可观测性增强**：Gemini 调用前后增加 `[nova-gemini]` 结构化日志，记录模型名、任务类型、耗时和响应状态（OK/HTTP_xxx/NETWORK_ERROR/EMPTY_RESPONSE），支持通过 `journalctl | grep nova-gemini` 快速排障。
 
+- **Fix(ai): 修复 `/api/engagement/state` 前端轮询导致 Gemini 调用 >100 次/分钟的频率爆炸问题。**
+  - **根因**：`getDecisionSnapshot()` 的缓存判断要求 `contextHash` 精确匹配，但每次 runtime 数据刷新或服务重启后 hash 变化，导致每次 engagement/state 轮询（前端 3 个 IP 以每秒 3-5 次频率请求）都重新触发 `applyLocalNovaDecisionLanguage`（2 次 Gemini 调用）和 `applyLocalNovaWrapUpLanguage`（N 次 Gemini 调用）。5 分钟内产生 ~493 次 Gemini API 调用。
+  - **修复**：引入 `NOVA_ENRICHMENT_TTL_MS`（默认 2 小时），三层节流：(1) `getDecisionSnapshot` 当天已有 Nova enriched snapshot 且在 TTL 内时跳过 contextHash 直接复用；(2) `getDecisionRowsForEngagement` 的快照复用窗口从 5 分钟提升至 TTL；(3) `getEngagementState` 新增 `wrapUpLanguageCache` 内存缓存，TTL 内跳过 `applyLocalNovaWrapUpLanguage` Gemini 调用。
+  - **安全性**：wrap-up 缓存只缓存"已调用"标记，不缓存快照状态 diff，避免 daily_check_state 等实时状态被过期缓存覆盖。
+
 - **Fix(test): 修复 `controlPlaneStatus` 和 `postgresMirrorConsistency` 两个 Postgres 热路径测试失败。**
   - **根因**：`readPostgresRuntimeStateBundle`（将 risk/signals/market_state/performance 合并为单次 CTE 查询）在测试编写后引入，但测试未添加对应 mock。`controlPlaneStatus` 中未 mock 的 bundle 查询连接假 Postgres URL 失败后触发 60 秒冷却期，导致后续所有已 mock 的个体读取函数被短路；`postgresMirrorConsistency` 中 `Pool.prototype.query` mock 按 SQL 文本匹配 `signals` 抛出异常，但 bundle SQL 包含全部表名，导致整个查询失败而非仅 signals 部分。
   - **修复**：两个测试均添加 `readPostgresRuntimeStateBundle` mock；`postgresMirrorConsistency` 的 `listSignals` spy 条件从 `limit === 60` 更新为兼容 `limit === 24`（匹配 `RUNTIME_STATE_SIGNAL_LIMIT`）。
