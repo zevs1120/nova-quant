@@ -36,6 +36,10 @@ NovaQuant 所有重要变更记录于此。
   - **Landing a11y/UX 修复**：Heatmap Evidence 按钮在无选中 cell 时禁用；三组控件从错误的 `tablist/tab` 语义改为 `role="group"` + `aria-pressed`（filter 按钮组的正确语义）；Evidence drawer 增加 Escape 关闭和自动聚焦。
   - **测试覆盖补充**：`performanceOptimization.test.ts` 补齐 `/api/outcomes/recent` 端点覆盖；`manualServicePostgresRuntime.test.ts` 新增事务 rollback 路径测试，并直接断言 `knownBalance` 会驱动积分落账；新增 `postgresSyncBridge.test.ts`，覆盖同步查询、worker error 原样透传、以及崩溃后的桥接重建路径。
 
+- **Feat(onboarding)：将 intro onboarding 收成纯文字引导。**
+  - 前三屏移除截图式卡片、手机 mockup 和 broker 面板，只保留更短的标题、副标题与说明文案。
+  - intro 首屏改为真正的 text-only 版式，重新分配可用视口高度，避免手机端出现元素叠放、遮挡和底部按钮挤压。
+
 - **Feat(ui)：app 视觉对齐 landing，并修复手机端 onboarding 版式。**
   - app 全局底色、玻璃卡面、按钮和主要页面表面统一切到 landing 的白底与蓝粉渐变体系，移除旧的 beige 主底色。
   - `Today` 页改成更极简的“日期 + 状态话 + 单张主卡”结构，并加入 `左滑今天不做 / 右滑接受今天计划 / 下滑稍后再看` 的判断型手势语义。

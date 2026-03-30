@@ -4689,3 +4689,139 @@
     height: 56%;
   }
 }
+
+.onboarding-poster-text {
+  display: flex;
+  align-items: stretch;
+}
+
+.onboarding-poster-text-1 {
+  background: linear-gradient(180deg, #fcfdff 0%, #edf3ff 56%, #e6eefc 100%);
+}
+
+.onboarding-poster-text-2 {
+  background: linear-gradient(180deg, #fdfdff 0%, #f0eeff 54%, #e9e7ff 100%);
+}
+
+.onboarding-poster-text-3 {
+  background: linear-gradient(180deg, #fcfeff 0%, #edf8fb 54%, #e6f3f7 100%);
+}
+
+.onboarding-poster-text::before {
+  background:
+    radial-gradient(circle at 14% 18%, rgba(255, 255, 255, 0.8), transparent 26%),
+    radial-gradient(circle at 88% 16%, rgba(255, 255, 255, 0.54), transparent 20%),
+    radial-gradient(circle at 72% 74%, rgba(70, 200, 255, 0.12), transparent 26%);
+  opacity: 1;
+}
+
+.onboarding-poster-text-shell {
+  width: min(100%, 34rem);
+  min-height: calc(
+    100dvh - max(env(safe-area-inset-top), 24px) -
+      var(--onboarding-intro-footer-reserve, calc(env(safe-area-inset-bottom) + 124px))
+  );
+  margin: 0 auto;
+  padding: clamp(2rem, 7vh, 4.75rem) 0 clamp(1.25rem, 4vh, 2.4rem);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.95rem;
+}
+
+.onboarding-poster-text-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  color: rgba(18, 24, 35, 0.36);
+  font-size: 0.72rem;
+  line-height: 1;
+  font-weight: 760;
+  letter-spacing: 0.22em;
+}
+
+.onboarding-poster-text-step {
+  min-width: 2ch;
+}
+
+.onboarding-poster-text-divider {
+  width: clamp(2.8rem, 12vw, 4.8rem);
+  height: 1px;
+  background: rgba(18, 24, 35, 0.14);
+}
+
+.onboarding-poster-kicker-text {
+  width: max-content;
+  background: rgba(255, 123, 203, 0.18);
+  color: rgba(18, 24, 35, 0.76);
+  box-shadow: inset 0 0 0 1px rgba(255, 123, 203, 0.14);
+}
+
+.onboarding-poster-title-text {
+  display: block;
+  margin: 0.35rem 0 0;
+  max-width: 10ch;
+  color: rgba(18, 24, 35, 0.98);
+  font-size: clamp(2.85rem, 10.8vw, 4.9rem);
+  line-height: 0.95;
+  letter-spacing: -0.085em;
+  font-weight: 820;
+  text-shadow: none;
+}
+
+.onboarding-poster-text-sub {
+  margin: 0;
+  color: rgba(18, 24, 35, 0.72);
+  font-size: clamp(1.02rem, 4.6vw, 1.34rem);
+  line-height: 1.28;
+  font-weight: 720;
+  letter-spacing: -0.04em;
+}
+
+.onboarding-poster-note-text {
+  margin: 0.1rem 0 0;
+  max-width: min(29ch, 100%);
+  color: rgba(18, 24, 35, 0.62);
+  font-size: clamp(0.98rem, 3.8vw, 1.08rem);
+  line-height: 1.58;
+  font-weight: 580;
+}
+
+@media (max-width: 760px) {
+  .onboarding-poster-text-shell {
+    width: 100%;
+    padding-top: clamp(1.6rem, 6vh, 3rem);
+    padding-bottom: 0.35rem;
+  }
+
+  .onboarding-poster-title-text {
+    max-width: 9ch;
+    font-size: clamp(2.5rem, 12vw, 4rem);
+  }
+
+  .onboarding-poster-note-text {
+    max-width: 26ch;
+  }
+}
+
+@media (max-width: 520px) {
+  .onboarding-poster-text-shell {
+    min-height: calc(
+      100dvh - max(env(safe-area-inset-top), 18px) - var(--onboarding-intro-footer-reserve)
+    );
+    gap: 0.8rem;
+  }
+
+  .onboarding-poster-title-text {
+    font-size: clamp(2.25rem, 11vw, 3.45rem);
+  }
+
+  .onboarding-poster-text-sub {
+    font-size: 1rem;
+  }
+
+  .onboarding-poster-note-text {
+    font-size: 0.94rem;
+    line-height: 1.54;
+  }
+}
