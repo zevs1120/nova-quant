@@ -1,5 +1,13 @@
-import { describe, expect, it } from 'vitest';
-import { parseAutoBackendArgs, runAutoBackend } from '../scripts/auto-backend.js';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+  inspectInitialBackfillState,
+  parseAutoBackendArgs,
+  runAutoBackend,
+} from '../scripts/auto-backend.js';
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 describe('auto-backend automation entrypoints', () => {
   it('parses operator flags into a predictable automation config', () => {
@@ -64,5 +72,62 @@ describe('auto-backend automation entrypoints', () => {
         '--skip-discovery',
       ]),
     ).resolves.toBeUndefined();
+  });
+
+  it('skips initial backfill when representative symbols already have fresh bars', () => {
+    const nowMs = Date.UTC(2026, 2, 30, 12, 0, 0);
+    const latestBarTs = nowMs - 2 * 60 * 60 * 1000;
+    const repo = {
+      getAssetBySymbol: (_market: string, symbol: string) => ({
+        asset_id: symbol.charCodeAt(0),
+      }),
+      getOhlcv: () => [
+        {
+          ts_open: latestBarTs,
+        },
+      ],
+    };
+
+    const result = inspectInitialBackfillState({
+      repo: repo as any,
+      market: 'CRYPTO',
+      timeframe: '1h',
+      symbols: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT'],
+      nowMs,
+    });
+
+    expect(result.skip).toBe(true);
+    expect(result.reason).toBe('READY');
+    expect(result.ready).toBe(3);
+  });
+
+  it('forces initial backfill when representative bars are missing or stale', () => {
+    const nowMs = Date.UTC(2026, 2, 30, 12, 0, 0);
+    const staleBarTs = nowMs - 5 * 24 * 60 * 60 * 1000;
+    const repo = {
+      getAssetBySymbol: (_market: string, symbol: string) =>
+        symbol === 'BTCUSDT'
+          ? {
+              asset_id: 1,
+            }
+          : null,
+      getOhlcv: () => [
+        {
+          ts_open: staleBarTs,
+        },
+      ],
+    };
+
+    const result = inspectInitialBackfillState({
+      repo: repo as any,
+      market: 'CRYPTO',
+      timeframe: '1h',
+      symbols: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT'],
+      nowMs,
+    });
+
+    expect(result.skip).toBe(false);
+    expect(result.reason).toBe('EMPTY');
+    expect(result.ready).toBe(0);
   });
 });

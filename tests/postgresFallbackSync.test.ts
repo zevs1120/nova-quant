@@ -1,9 +1,12 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
 import * as queries from '../src/server/api/queries.js';
+import * as pgReads from '../src/server/admin/postgresBusinessRead.js';
 
 describe('postgres fallback sync', () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllEnvs();
+    queries.__resetPgPrimaryReadFailureCooldownForTesting();
   });
 
   it('loadRuntimeStateCorePrimary falls back to loadRuntimeStateCore when all Postgres reads fail', async () => {
@@ -113,5 +116,20 @@ describe('postgres fallback sync', () => {
         process.env.NOVA_DATA_DATABASE_URL = origEnv;
       }
     }
+  });
+
+  it('cools down postgres primary reads after a timeout failure', async () => {
+    vi.stubEnv('NOVA_DATA_DATABASE_URL', 'postgres://runtime-host/db');
+    vi.stubEnv('NOVA_PG_PRIMARY_READ_FAILURE_COOLDOWN_MS', '60000');
+    vi.stubEnv('NOVA_ENABLE_PG_PRIMARY_READS_TEST', '1');
+
+    const readSpy = vi
+      .spyOn(pgReads, 'readPostgresRiskProfile')
+      .mockRejectedValue(new Error('timeout exceeded when trying to connect'));
+
+    await queries.getRiskProfilePrimary('guest-default', { skipSync: true });
+    await queries.getRiskProfilePrimary('guest-default', { skipSync: true });
+
+    expect(readSpy).toHaveBeenCalledTimes(1);
   });
 });

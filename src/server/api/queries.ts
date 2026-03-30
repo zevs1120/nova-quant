@@ -461,15 +461,30 @@ function shouldPreferPostgresPrimaryReads() {
   return hasPostgresBusinessMirror();
 }
 
+const PG_PRIMARY_READ_FAILURE_COOLDOWN_MS = Math.max(
+  5_000,
+  Number(process.env.NOVA_PG_PRIMARY_READ_FAILURE_COOLDOWN_MS || 60_000),
+);
+let pgPrimaryReadCooldownUntilMs = 0;
+
+export function __resetPgPrimaryReadFailureCooldownForTesting() {
+  pgPrimaryReadCooldownUntilMs = 0;
+}
+
 async function tryPrimaryPostgresRead<T>(label: string, read: () => Promise<T>): Promise<T | null> {
   if (!shouldPreferPostgresPrimaryReads()) return null;
+  if (Date.now() < pgPrimaryReadCooldownUntilMs) {
+    return null;
+  }
   try {
     await flushRepoMirror();
     return await read();
   } catch (error) {
+    pgPrimaryReadCooldownUntilMs = Date.now() + PG_PRIMARY_READ_FAILURE_COOLDOWN_MS;
     console.warn('[pg-primary-read] falling back to sqlite', {
       label,
       error: String((error as Error)?.message || error || 'unknown_error'),
+      cooldown_ms: PG_PRIMARY_READ_FAILURE_COOLDOWN_MS,
     });
     return null;
   }

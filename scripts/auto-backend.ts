@@ -2,6 +2,7 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import net from 'node:net';
 import { pathToFileURL } from 'node:url';
 import { MarketRepository } from '../src/server/db/repository.js';
+import { getConfig } from '../src/server/config.js';
 import { flushRuntimeRepoMirror, getRuntimeRepo } from '../src/server/db/runtimeRepository.js';
 import { runBackfillCli } from '../src/server/jobs/backfill.js';
 import { runFreeDataFlywheel } from '../src/server/jobs/freeData.js';
@@ -15,6 +16,7 @@ import { runAlphaShadowMonitoringCycle } from '../src/server/alpha_promotion_gua
 import { runEvolutionCycle } from '../src/server/quant/evolution.js';
 import { ensureQuantData } from '../src/server/quant/service.js';
 import { resolveRecentOutcomes } from '../src/server/outcome/resolver.js';
+import type { Market, Timeframe } from '../src/server/types.js';
 
 type AutoBackendOptions = {
   userId: string;
@@ -152,6 +154,88 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+const INITIAL_BACKFILL_SAMPLE_SIZE = 5;
+const INITIAL_BACKFILL_MIN_READY_RATIO = 0.6;
+const INITIAL_BACKFILL_MAX_AGE_MS = {
+  US: 14 * 24 * 60 * 60 * 1000,
+  CRYPTO: 48 * 60 * 60 * 1000,
+} as const;
+
+type InitialBackfillInspection = {
+  skip: boolean;
+  sampled: number;
+  ready: number;
+  oldestFreshBarAt: string | null;
+  reason: 'FORCED' | 'EMPTY' | 'STALE' | 'READY';
+};
+
+export function inspectInitialBackfillState(args: {
+  repo: Pick<MarketRepository, 'getAssetBySymbol' | 'getOhlcv'>;
+  market: Market;
+  timeframe: Timeframe;
+  symbols: string[];
+  nowMs?: number;
+}): InitialBackfillInspection {
+  if (parseBooleanEnv('NOVA_AUTO_BACKEND_FORCE_INIT_BACKFILL', false)) {
+    return {
+      skip: false,
+      sampled: 0,
+      ready: 0,
+      oldestFreshBarAt: null,
+      reason: 'FORCED',
+    };
+  }
+
+  const sampledSymbols = args.symbols
+    .map((symbol) =>
+      String(symbol || '')
+        .trim()
+        .toUpperCase(),
+    )
+    .filter(Boolean)
+    .slice(0, INITIAL_BACKFILL_SAMPLE_SIZE);
+  if (!sampledSymbols.length) {
+    return {
+      skip: false,
+      sampled: 0,
+      ready: 0,
+      oldestFreshBarAt: null,
+      reason: 'EMPTY',
+    };
+  }
+
+  const nowMs = args.nowMs || Date.now();
+  const freshnessCutoffMs = nowMs - INITIAL_BACKFILL_MAX_AGE_MS[args.market];
+  let ready = 0;
+  let oldestFreshBarMs: number | null = null;
+
+  for (const symbol of sampledSymbols) {
+    const asset = args.repo.getAssetBySymbol(args.market, symbol);
+    if (!asset) continue;
+    const latestBar = args.repo.getOhlcv({
+      assetId: asset.asset_id,
+      timeframe: args.timeframe,
+      limit: 1,
+    })[0];
+    const tsOpen = Number(latestBar?.ts_open || 0);
+    if (!Number.isFinite(tsOpen) || tsOpen < freshnessCutoffMs) continue;
+    ready += 1;
+    oldestFreshBarMs = oldestFreshBarMs === null ? tsOpen : Math.min(oldestFreshBarMs, tsOpen);
+  }
+
+  const requiredReady = Math.max(
+    1,
+    Math.ceil(sampledSymbols.length * INITIAL_BACKFILL_MIN_READY_RATIO),
+  );
+  return {
+    skip: ready >= requiredReady,
+    sampled: sampledSymbols.length,
+    ready,
+    oldestFreshBarAt: oldestFreshBarMs ? new Date(oldestFreshBarMs).toISOString() : null,
+    reason: ready >= requiredReady ? 'READY' : ready === 0 ? 'EMPTY' : 'STALE',
+  };
+}
+
 function isPortListening(port: number, host = '127.0.0.1'): Promise<boolean> {
   return new Promise((resolve) => {
     const socket = net.createConnection({ port, host });
@@ -274,24 +358,69 @@ async function runNovaTrainingCycle(args: {
 
 export async function runAutoBackendInitialization(options: AutoBackendOptions) {
   const repo = getRuntimeRepo();
+  const config = getConfig();
 
   try {
-    log('initial US backfill starting', { market: 'US', timeframe: '1d' });
-    try {
-      await runBackfillCli(['--market', 'US', '--tf', '1d']);
-    } catch (error) {
-      warn('initial US backfill failed; continuing with remaining markets', {
-        error: error instanceof Error ? error.message : String(error),
+    const usInit = inspectInitialBackfillState({
+      repo,
+      market: 'US',
+      timeframe: '1d',
+      symbols: config.markets.US.symbols,
+    });
+    if (usInit.skip) {
+      log('initial US backfill skipped', {
+        market: 'US',
+        timeframe: '1d',
+        sampled: usInit.sampled,
+        ready: usInit.ready,
+        oldest_fresh_bar_at: usInit.oldestFreshBarAt,
       });
+    } else {
+      log('initial US backfill starting', {
+        market: 'US',
+        timeframe: '1d',
+        sampled: usInit.sampled,
+        ready: usInit.ready,
+        reason: usInit.reason,
+      });
+      try {
+        await runBackfillCli(['--market', 'US', '--tf', '1d']);
+      } catch (error) {
+        warn('initial US backfill failed; continuing with remaining markets', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
     }
 
-    log('initial crypto backfill starting', { market: 'CRYPTO', timeframe: '1h' });
-    try {
-      await runBackfillCli(['--market', 'CRYPTO', '--tf', '1h']);
-    } catch (error) {
-      warn('initial crypto backfill failed', {
-        error: error instanceof Error ? error.message : String(error),
+    const cryptoInit = inspectInitialBackfillState({
+      repo,
+      market: 'CRYPTO',
+      timeframe: '1h',
+      symbols: config.markets.CRYPTO.symbols,
+    });
+    if (cryptoInit.skip) {
+      log('initial crypto backfill skipped', {
+        market: 'CRYPTO',
+        timeframe: '1h',
+        sampled: cryptoInit.sampled,
+        ready: cryptoInit.ready,
+        oldest_fresh_bar_at: cryptoInit.oldestFreshBarAt,
       });
+    } else {
+      log('initial crypto backfill starting', {
+        market: 'CRYPTO',
+        timeframe: '1h',
+        sampled: cryptoInit.sampled,
+        ready: cryptoInit.ready,
+        reason: cryptoInit.reason,
+      });
+      try {
+        await runBackfillCli(['--market', 'CRYPTO', '--tf', '1h']);
+      } catch (error) {
+        warn('initial crypto backfill failed', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
     }
 
     log('free data flywheel starting', { market: 'ALL' });
