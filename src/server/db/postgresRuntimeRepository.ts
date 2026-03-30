@@ -121,6 +121,19 @@ function qualifySequence(table: string) {
   return `${schema}.${sequence}`;
 }
 
+export function __buildSequenceResetSqlForTesting(table: (typeof AUTO_ID_TABLES)[number]) {
+  const sequence = qualifySequence(table);
+  const qualifiedTable = qualifyBusinessTable(table);
+  return `
+        SELECT setval(
+          '${sequence}'::regclass,
+          CASE WHEN seq.max_id IS NULL OR seq.max_id < 1 THEN 1 ELSE seq.max_id END,
+          COALESCE(seq.max_id, 0) > 0
+        )
+        FROM (SELECT MAX(id) AS max_id FROM ${qualifiedTable}) AS seq;
+      `;
+}
+
 function ensureSequences() {
   if (sequencesReady) return;
   for (const table of AUTO_ID_TABLES) {
@@ -133,9 +146,7 @@ function ensureSequences() {
         `ALTER TABLE ${qualifiedTable} ALTER COLUMN ${quotePgIdentifier('id')} SET DEFAULT nextval('${sequence}'::regclass);`,
       );
       executeSync(`LOCK TABLE ${qualifiedTable} IN EXCLUSIVE MODE;`);
-      executeSync(
-        `SELECT setval('${sequence}'::regclass, COALESCE((SELECT MAX(id) FROM ${qualifiedTable}), 0), true);`,
-      );
+      executeSync(__buildSequenceResetSqlForTesting(table));
       commitTransactionSync();
     } catch (error) {
       rollbackTransactionSync();

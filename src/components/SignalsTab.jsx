@@ -5,6 +5,7 @@ import SignalDetail from './SignalDetail';
 import Skeleton from './Skeleton';
 import EligibilitySheet from './EligibilitySheet';
 import { formatNumber } from '../utils/format';
+import { fetchSignalDetail, hasSignalDetailPayload, mergeSignalDetail } from '../utils/signalDetails';
 
 const ACTIVE_STATUSES = new Set(['NEW', 'TRIGGERED']);
 
@@ -114,6 +115,7 @@ export default function SignalsTab({
   todayPlan,
   safety,
   alphaLibrary,
+  effectiveUserId,
   uiMode = 'standard',
   t,
   locale,
@@ -122,6 +124,8 @@ export default function SignalsTab({
   const [sortBy, setSortBy] = useState('score');
   const [activeSignal, setActiveSignal] = useState(null);
   const [eligibilitySignal, setEligibilitySignal] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState('');
 
   useEffect(() => {
     if (assetClass === 'CRYPTO' && market !== 'CRYPTO') {
@@ -242,11 +246,48 @@ export default function SignalsTab({
     return Object.entries(map);
   }, [alphaLibrary]);
 
+  useEffect(() => {
+    if (!activeSignal?.signal_id || hasSignalDetailPayload(activeSignal)) {
+      setDetailLoading(false);
+      setDetailError('');
+      return undefined;
+    }
+
+    let cancelled = false;
+    setDetailLoading(true);
+    setDetailError('');
+
+    fetchSignalDetail(activeSignal.signal_id, { userId: effectiveUserId })
+      .then((detail) => {
+        if (cancelled || !detail) return;
+        setActiveSignal((current) => {
+          if (!current || current.signal_id !== activeSignal.signal_id) return current;
+          return mergeSignalDetail(current, detail);
+        });
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setDetailError(
+          locale?.startsWith('zh') ? '完整计划加载失败，先展示摘要。' : 'Full plan unavailable. Showing the summary first.',
+        );
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setDetailLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSignal, effectiveUserId, locale]);
+
   if (activeSignal) {
     return (
       <SignalDetail
         signal={activeSignal}
         onBack={() => setActiveSignal(null)}
+        loadingDetails={detailLoading}
+        loadError={detailError}
         t={t}
         backLabel="Signals"
       />

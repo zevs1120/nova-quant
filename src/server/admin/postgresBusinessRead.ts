@@ -10,6 +10,10 @@ import {
   quotePgIdentifier,
   resolvePostgresBusinessUrl,
 } from '../db/postgresMigration.js';
+import {
+  buildSignalListItemFromPgRow,
+  type SignalListItem,
+} from '../quant/signalListProjection.js';
 import { decodeSignalContract } from '../quant/service.js';
 import type {
   AlphaIntegrationPath,
@@ -426,7 +430,9 @@ function getBusinessPool() {
       Number(process.env.NOVA_DATA_PG_CONNECT_TIMEOUT_MS || 1_200),
     ),
     idleTimeoutMillis: Math.max(1_000, Number(process.env.NOVA_DATA_PG_IDLE_TIMEOUT_MS || 10_000)),
-    query_timeout: Math.max(1_000, Number(process.env.NOVA_DATA_PG_QUERY_TIMEOUT_MS || 8_000)),
+    // Supabase poolers can spuriously trip pg's client-side query_timeout when Pool.query()
+    // performs the first cold connection; rely on server-side statement timeouts instead.
+    statement_timeout: Math.max(1_000, Number(process.env.NOVA_DATA_PG_QUERY_TIMEOUT_MS || 8_000)),
     ssl: shouldUseSsl(connectionString) ? { rejectUnauthorized: false } : undefined,
   });
   return poolSingleton;
@@ -942,6 +948,125 @@ export async function readPostgresSignalRecords(args?: {
     params,
   );
   return rows.map(mapSignalRecord);
+}
+
+export async function readPostgresSignalListItems(args?: {
+  assetClass?: AssetClass;
+  market?: Market;
+  symbol?: string;
+  status?: 'ALL' | 'NEW' | 'TRIGGERED' | 'EXPIRED' | 'INVALIDATED' | 'CLOSED';
+  limit?: number;
+}): Promise<SignalListItem[]> {
+  const where: string[] = [];
+  const params: unknown[] = [];
+  if (args?.assetClass) {
+    params.push(args.assetClass);
+    where.push(`asset_class = $${params.length}`);
+  }
+  if (args?.market) {
+    params.push(args.market);
+    where.push(`market = $${params.length}`);
+  }
+  if (args?.symbol) {
+    params.push(String(args.symbol).toUpperCase());
+    where.push(`symbol = $${params.length}`);
+  }
+  if (args?.status && args.status !== 'ALL') {
+    params.push(args.status);
+    where.push(`status = $${params.length}`);
+  }
+  params.push(Math.max(1, Number(args?.limit || 40)));
+  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+  const rows = await queryRows<Record<string, unknown>>(
+    `
+      WITH scoped_signals AS (
+        SELECT
+          signal_id,
+          created_at_ms,
+          expires_at_ms,
+          asset_class,
+          market,
+          symbol,
+          timeframe,
+          strategy_id,
+          strategy_family,
+          strategy_version,
+          regime_id,
+          direction,
+          confidence,
+          entry_low,
+          entry_high,
+          entry_method,
+          invalidation_level,
+          stop_type,
+          stop_price,
+          tp1_price,
+          tp1_size_pct,
+          tp2_price,
+          tp2_size_pct,
+          position_pct,
+          leverage_cap,
+          risk_bucket_applied,
+          status,
+          score,
+          updated_at_ms,
+          payload_json::jsonb AS payload
+        FROM ${qualifyBusinessTable('signals')}
+        ${whereSql}
+        ORDER BY score DESC, created_at_ms DESC
+        LIMIT $${params.length}
+      )
+      SELECT
+        signal_id,
+        created_at_ms,
+        expires_at_ms,
+        asset_class,
+        market,
+        symbol,
+        timeframe,
+        strategy_id,
+        strategy_family,
+        strategy_version,
+        regime_id,
+        direction,
+        confidence,
+        entry_low,
+        entry_high,
+        entry_method,
+        invalidation_level,
+        stop_type,
+        stop_price,
+        tp1_price,
+        tp1_size_pct,
+        tp2_price,
+        tp2_size_pct,
+        position_pct,
+        leverage_cap,
+        risk_bucket_applied,
+        status,
+        score,
+        updated_at_ms,
+        payload ->> 'generated_at' AS generated_at,
+        payload ->> 'strategy_source' AS strategy_source,
+        payload ->> 'grade' AS grade,
+        payload ->> 'source_status' AS source_status,
+        payload ->> 'source_label' AS source_label,
+        payload ->> 'data_status' AS data_status,
+        payload ->> 'validity' AS validity,
+        payload ->> 'model_version' AS model_version,
+        payload ->> 'quick_pnl_pct' AS quick_pnl_pct,
+        payload ->> 'holding_horizon_days' AS holding_horizon_days,
+        payload ->> 'risk_score' AS risk_score,
+        payload ->> 'regime_compatibility' AS regime_compatibility,
+        payload -> 'explain_bullets' AS explain_bullets_json,
+        payload -> 'execution_checklist' AS execution_checklist_json,
+        payload -> 'risk_warnings' AS risk_warnings_json
+      FROM scoped_signals
+      ORDER BY score DESC, created_at_ms DESC
+    `,
+    params,
+  );
+  return rows.map(buildSignalListItemFromPgRow);
 }
 
 export async function readPostgresSignalRecord(signalId: string): Promise<SignalRecord | null> {

@@ -607,6 +607,7 @@ export default function App() {
           todayPlan={finalUiData.today || {}}
           safety={finalUiData.safety || {}}
           alphaLibrary={finalUiData.research?.alpha_registry || []}
+          effectiveUserId={effectiveUserId}
           uiMode={uiMode}
           t={t}
           locale={locale}

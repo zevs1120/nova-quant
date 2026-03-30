@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { initialData } from '../config/appConstants';
 import { mapExecutionToTrade, settledValue } from '../utils/appHelpers';
 import { runQuantPipeline } from '../engines/pipeline';
@@ -25,13 +25,16 @@ export function useAppData({
 
   useEffect(() => {
     let mounted = true;
+    let activeLoadId = 0;
 
     async function load({ silent = false } = {}) {
+      const loadId = activeLoadId + 1;
+      activeLoadId = loadId;
       if (!silent) setLoading(true);
       try {
         if (FORCE_DEMO_BUILD) {
           await new Promise((resolve) => setTimeout(resolve, 280));
-          if (!mounted) return;
+          if (!mounted || loadId !== activeLoadId) return;
           setRawData({ as_of: new Date().toISOString() });
           setHasLoaded(true);
           return;
@@ -44,11 +47,13 @@ export function useAppData({
         });
 
         const controlPlaneRequest = Promise.resolve(null);
+        const signalsRequest = fetchJson(`/api/signals?${query.toString()}&limit=60`).catch(
+          () => null,
+        );
 
         const [
           runtimeResult,
           assetsResult,
-          signalsResult,
           evidenceTopSignalsResult,
           marketStateResult,
           performanceResult,
@@ -60,7 +65,6 @@ export function useAppData({
         ] = await Promise.allSettled([
           fetchJson(`/api/runtime-state?${query.toString()}`),
           fetchJson(`/api/assets?market=${market}`),
-          fetchJson(`/api/signals?${query.toString()}&limit=60`),
           fetchJson(`/api/evidence/signals/top?${query.toString()}&limit=3`).catch(() => null),
           fetchJson(`/api/market-state?${query.toString()}`),
           fetchJson(`/api/performance?${query.toString()}`),
@@ -75,10 +79,9 @@ export function useAppData({
             : Promise.resolve(null),
         ]);
 
-        if (!mounted) return;
+        if (!mounted || loadId !== activeLoadId) return;
         const runtime = settledValue(runtimeResult, null);
         const assets = settledValue(assetsResult, null);
-        const signals = settledValue(signalsResult, null);
         const evidenceTopSignals = settledValue(evidenceTopSignalsResult, null);
         const marketState = settledValue(marketStateResult, null);
         const performance = settledValue(performanceResult, null);
@@ -88,6 +91,9 @@ export function useAppData({
         const brokerConnection = settledValue(brokerConnectionResult, null);
         const exchangeConnection = settledValue(exchangeConnectionResult, null);
         const runtimeData = runtime?.data || initialData;
+        const runtimeSignals = Array.isArray(runtimeData.signals) ? runtimeData.signals : [];
+        const runtimeSignalCount =
+          runtimeData?.config?.runtime?.api_checks?.signal_count ?? runtimeSignals.length ?? null;
         const evidenceData = {
           top_signals: Array.isArray(evidenceTopSignals?.records) ? evidenceTopSignals.records : [],
           source_status: evidenceTopSignals?.source_status || 'INSUFFICIENT_DATA',
@@ -97,11 +103,10 @@ export function useAppData({
           dataset_version_id: evidenceTopSignals?.dataset_version_id || null,
           strategy_version_id: evidenceTopSignals?.strategy_version_id || null,
         };
-        const apiSignals = Array.isArray(signals?.data) ? signals.data : null;
         const nextData = {
           ...runtimeData,
           decision: runtimeData.decision || null,
-          signals: apiSignals?.length ? apiSignals : runtimeData.signals || [],
+          signals: runtimeSignals,
           evidence: evidenceData,
           market_modules: Array.isArray(modules?.data)
             ? modules.data
@@ -126,7 +131,7 @@ export function useAppData({
               coverage_summary: runtime?.data_transparency?.coverage_summary || null,
               api_checks: {
                 assets_count: assets?.count ?? null,
-                signal_count: signals?.count ?? null,
+                signal_count: runtimeSignalCount,
                 market_state_count: marketState?.count ?? null,
                 modules_count: modules?.count ?? null,
                 performance_records: performance?.records?.length ?? null,
@@ -158,19 +163,62 @@ export function useAppData({
             },
           },
         };
-        setData(nextData);
+        setData((current) => {
+          const currentSignals = Array.isArray(current?.signals) ? current.signals : [];
+          const fallbackSignals = runtimeSignals.length ? runtimeSignals : currentSignals;
+          const currentSignalCount = current?.config?.runtime?.api_checks?.signal_count ?? null;
+          return {
+            ...nextData,
+            signals: fallbackSignals,
+            config: {
+              ...nextData.config,
+              runtime: {
+                ...(nextData.config?.runtime || {}),
+                api_checks: {
+                  ...(nextData.config?.runtime?.api_checks || {}),
+                  signal_count: runtimeSignalCount ?? currentSignalCount,
+                },
+              },
+            },
+          };
+        });
         setRawData({
           as_of: runtime?.asof || new Date().toISOString(),
           source_status: runtime?.source_status || 'INSUFFICIENT_DATA',
         });
         setHasLoaded(true);
+
+        void signalsRequest.then((signals) => {
+          if (!mounted || loadId !== activeLoadId || !signals) return;
+          const apiSignals = Array.isArray(signals?.data) ? signals.data : null;
+          setData((current) => {
+            const currentSignals = Array.isArray(current?.signals) ? current.signals : [];
+            const nextSignals = apiSignals?.length ? apiSignals : currentSignals;
+            const nextSignalCount =
+              signals?.count ?? current?.config?.runtime?.api_checks?.signal_count ?? null;
+            return {
+              ...current,
+              signals: nextSignals,
+              config: {
+                ...(current?.config || {}),
+                runtime: {
+                  ...(current?.config?.runtime || {}),
+                  api_checks: {
+                    ...(current?.config?.runtime?.api_checks || {}),
+                    signal_count: nextSignalCount,
+                  },
+                },
+              },
+            };
+          });
+        });
       } catch {
-        if (!mounted) return;
+        if (!mounted || loadId !== activeLoadId) return;
         setData(initialData);
         setRawData(null);
         setHasLoaded(true);
       } finally {
-        if (mounted && !silent) setLoading(false);
+        if (mounted && loadId === activeLoadId && !silent) setLoading(false);
       }
     }
 
@@ -179,6 +227,7 @@ export function useAppData({
 
     return () => {
       mounted = false;
+      activeLoadId += 1;
       clearInterval(refresh);
     };
   }, [assetClass, market, effectiveUserId, refreshNonce, authSession, fetchJson]);

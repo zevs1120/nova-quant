@@ -18,6 +18,8 @@ export default function SignalDetail({
   primaryActionLabel,
   onAskAi,
   onPaperExecute,
+  loadingDetails = false,
+  loadError = '',
   t,
   backLabel = 'Back',
 }) {
@@ -130,6 +132,13 @@ export default function SignalDetail({
             {t(`status.${signal.status}`, undefined, signal.status)}
           </div>
         </div>
+
+        {loadingDetails ? (
+          <p className="muted status-line">
+            {isZh ? '正在补全完整计划…' : 'Loading the full execution plan…'}
+          </p>
+        ) : null}
+        {loadError ? <p className="muted status-line">{loadError}</p> : null}
 
         <div className="detail-list">
           {[

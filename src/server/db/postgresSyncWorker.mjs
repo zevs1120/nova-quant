@@ -50,7 +50,8 @@ const pool = new Pool({
     Number(process.env.NOVA_DATA_PG_CONNECT_TIMEOUT_MS || 1_200),
   ),
   idleTimeoutMillis: Math.max(1_000, Number(process.env.NOVA_DATA_PG_IDLE_TIMEOUT_MS || 10_000)),
-  query_timeout: Math.max(1_000, Number(process.env.NOVA_DATA_PG_QUERY_TIMEOUT_MS || 8_000)),
+  // Supabase poolers can spuriously trip pg's client-side query_timeout on pooled reads.
+  statement_timeout: Math.max(1_000, Number(process.env.NOVA_DATA_PG_QUERY_TIMEOUT_MS || 8_000)),
   ssl: shouldUseSsl(connectionString) ? { rejectUnauthorized: false } : undefined,
 });
 

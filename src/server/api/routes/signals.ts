@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { parseMarket, parseAssetClass, parseSignalStatus, asyncRoute } from '../helpers.js';
 import {
+  listSignalContractSummariesPrimary,
   listSignalContractsPrimary,
   getSignalContractPrimary,
   listExecutionsPrimary,
@@ -22,7 +23,7 @@ router.get(
       res.status(400).json({ error: 'Invalid assetClass, use OPTIONS | US_STOCK | CRYPTO' });
       return;
     }
-    const data = await listSignalContractsPrimary({
+    const data = await listSignalContractSummariesPrimary({
       userId,
       assetClass,
       market,

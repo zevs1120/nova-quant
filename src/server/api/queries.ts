@@ -96,12 +96,17 @@ import {
   readPostgresNotificationPreferences,
   readPostgresPerformanceSnapshots,
   readPostgresRiskProfile,
+  readPostgresSignalListItems,
   readPostgresSignalRecord,
   readPostgresSignalRecords,
   readPostgresUserRitualEvents,
   readPostgresWorkflowRuns,
 } from '../admin/postgresBusinessRead.js';
 import { isGuestScopedUserId } from './helpers.js';
+import {
+  buildSignalListItemFromContract,
+  type SignalListItem,
+} from '../quant/signalListProjection.js';
 
 const RISK_PROFILE_PRESETS = {
   conservative: {
@@ -702,6 +707,32 @@ export async function listSignalContractsPrimary(args: {
   return rows
     .map((row) => decodeSignalContract(row))
     .filter((row): row is SignalContract => Boolean(row));
+}
+
+export async function listSignalContractSummariesPrimary(args: {
+  userId?: string;
+  assetClass?: AssetClass;
+  market?: Market;
+  symbol?: string;
+  status?: 'ALL' | 'NEW' | 'TRIGGERED' | 'EXPIRED' | 'INVALIDATED' | 'CLOSED';
+  limit?: number;
+}): Promise<SignalListItem[]> {
+  const rows = await tryPrimaryPostgresRead('signals_list', async () =>
+    readPostgresSignalListItems({
+      assetClass: args.assetClass,
+      market: args.market,
+      symbol: args.symbol,
+      status: args.status,
+      limit: args.limit,
+    }),
+  );
+  if (!rows) {
+    if (shouldAvoidSyncHotPathFallback()) {
+      return [];
+    }
+    return listSignalContractSummaries(args);
+  }
+  return rows;
 }
 
 export async function getSignalContractPrimary(
@@ -2246,6 +2277,19 @@ export function listSignalContracts(args: {
   return rows
     .map((row) => decodeSignalContract(row))
     .filter((row): row is SignalContract => Boolean(row));
+}
+
+export function listSignalContractSummaries(args: {
+  userId?: string;
+  assetClass?: AssetClass;
+  market?: Market;
+  symbol?: string;
+  status?: 'ALL' | 'NEW' | 'TRIGGERED' | 'EXPIRED' | 'INVALIDATED' | 'CLOSED';
+  limit?: number;
+}): SignalListItem[] {
+  return listSignalContracts(args).map((row) =>
+    buildSignalListItemFromContract(row as SignalContract & Record<string, unknown>),
+  );
 }
 
 export function getSignalContract(

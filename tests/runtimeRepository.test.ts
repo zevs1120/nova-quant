@@ -9,6 +9,7 @@ import {
   getRuntimeRepoStatus,
   resetRuntimeRepoSingleton,
 } from '../src/server/db/runtimeRepository.js';
+import { __buildSequenceResetSqlForTesting } from '../src/server/db/postgresRuntimeRepository.js';
 
 describe('runtime repository', () => {
   const tempDirs = new Set<string>();
@@ -31,6 +32,7 @@ describe('runtime repository', () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nova-runtime-repo-'));
     tempDirs.add(tempDir);
     vi.stubEnv('DB_PATH', path.join(tempDir, 'quant.db'));
+    vi.stubEnv('NOVA_DATA_RUNTIME_DRIVER', 'sqlite');
 
     const first = getRuntimeRepo();
     const second = getRuntimeRepo();
@@ -47,6 +49,7 @@ describe('runtime repository', () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nova-runtime-repo-reset-'));
     tempDirs.add(tempDir);
     vi.stubEnv('DB_PATH', path.join(tempDir, 'quant.db'));
+    vi.stubEnv('NOVA_DATA_RUNTIME_DRIVER', 'sqlite');
 
     const first = getRuntimeRepo();
     resetRuntimeRepoSingleton();
@@ -54,5 +57,15 @@ describe('runtime repository', () => {
     const second = getRuntimeRepo();
 
     expect(second).not.toBe(first);
+  });
+
+  it('resets postgres auto-id sequences without setting empty tables to zero', () => {
+    const sql = __buildSequenceResetSqlForTesting('signal_deliveries');
+
+    expect(sql).toContain('setval');
+    expect(sql).toContain('CASE WHEN seq.max_id IS NULL OR seq.max_id < 1 THEN 1 ELSE seq.max_id END');
+    expect(sql).toContain('COALESCE(seq.max_id, 0) > 0');
+    expect(sql).toContain('"novaquant_data"."signal_deliveries"');
+    expect(sql).toContain('"novaquant_data"."signal_deliveries_id_seq"');
   });
 });
