@@ -3,6 +3,7 @@ import {
   inspectInitialBackfillState,
   parseAutoBackendArgs,
   runAutoBackend,
+  shouldSkipWarmStartInitialization,
 } from '../scripts/auto-backend.js';
 
 afterEach(() => {
@@ -74,6 +75,14 @@ describe('auto-backend automation entrypoints', () => {
     ).resolves.toBeUndefined();
   });
 
+  it('supports skipping initialization from env without flags', () => {
+    vi.stubEnv('NOVA_AUTO_BACKEND_SKIP_INIT', '1');
+
+    const args = parseAutoBackendArgs([]);
+
+    expect(args.skipInit).toBe(true);
+  });
+
   it('skips initial backfill when representative symbols already have fresh bars', () => {
     const nowMs = Date.UTC(2026, 2, 30, 12, 0, 0);
     const latestBarTs = nowMs - 2 * 60 * 60 * 1000;
@@ -129,5 +138,45 @@ describe('auto-backend automation entrypoints', () => {
     expect(result.skip).toBe(false);
     expect(result.reason).toBe('EMPTY');
     expect(result.ready).toBe(0);
+  });
+
+  it('skips warm-start initialization only when both markets are already ready', () => {
+    expect(
+      shouldSkipWarmStartInitialization([
+        {
+          skip: true,
+          sampled: 5,
+          ready: 5,
+          oldestFreshBarAt: '2026-03-30T00:00:00.000Z',
+          reason: 'READY',
+        },
+        {
+          skip: true,
+          sampled: 5,
+          ready: 5,
+          oldestFreshBarAt: '2026-03-30T01:00:00.000Z',
+          reason: 'READY',
+        },
+      ]),
+    ).toBe(true);
+
+    expect(
+      shouldSkipWarmStartInitialization([
+        {
+          skip: true,
+          sampled: 5,
+          ready: 5,
+          oldestFreshBarAt: '2026-03-30T00:00:00.000Z',
+          reason: 'READY',
+        },
+        {
+          skip: false,
+          sampled: 5,
+          ready: 0,
+          oldestFreshBarAt: null,
+          reason: 'EMPTY',
+        },
+      ]),
+    ).toBe(false);
   });
 });

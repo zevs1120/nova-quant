@@ -78,7 +78,7 @@ const DEFAULTS: AutoBackendOptions = {
   executeTraining: parseBooleanEnv('NOVA_AUTO_BACKEND_EXECUTE_TRAINING', false),
   supervisorCheckSec: 20,
   discoveryEveryHours: DISCOVERY_DEFAULTS.intervalHours,
-  skipInit: false,
+  skipInit: parseBooleanEnv('NOVA_AUTO_BACKEND_SKIP_INIT', false),
   skipApi: false,
   skipWorker: false,
   skipTraining: parseBooleanEnv('NOVA_AUTO_BACKEND_SKIP_TRAINING', false),
@@ -87,7 +87,10 @@ const DEFAULTS: AutoBackendOptions = {
 };
 
 export function parseAutoBackendArgs(argv: string[]): AutoBackendOptions {
-  const out = { ...DEFAULTS };
+  const out = {
+    ...DEFAULTS,
+    skipInit: parseBooleanEnv('NOVA_AUTO_BACKEND_SKIP_INIT', DEFAULTS.skipInit),
+  };
   for (let i = 0; i < argv.length; i += 1) {
     const token = argv[i];
     if (!token.startsWith('--')) continue;
@@ -168,6 +171,10 @@ type InitialBackfillInspection = {
   oldestFreshBarAt: string | null;
   reason: 'FORCED' | 'EMPTY' | 'STALE' | 'READY';
 };
+
+export function shouldSkipWarmStartInitialization(checks: InitialBackfillInspection[]) {
+  return checks.length > 0 && checks.every((check) => check.skip);
+}
 
 export function inspectInitialBackfillState(args: {
   repo: Pick<MarketRepository, 'getAssetBySymbol' | 'getOhlcv'>;
@@ -421,6 +428,25 @@ export async function runAutoBackendInitialization(options: AutoBackendOptions) 
           error: error instanceof Error ? error.message : String(error),
         });
       }
+    }
+
+    if (shouldSkipWarmStartInitialization([usInit, cryptoInit])) {
+      log('warm-start initialization skipped', {
+        userId: options.userId,
+        checks: {
+          US: {
+            sampled: usInit.sampled,
+            ready: usInit.ready,
+            oldest_fresh_bar_at: usInit.oldestFreshBarAt,
+          },
+          CRYPTO: {
+            sampled: cryptoInit.sampled,
+            ready: cryptoInit.ready,
+            oldest_fresh_bar_at: cryptoInit.oldestFreshBarAt,
+          },
+        },
+      });
+      return;
     }
 
     log('free data flywheel starting', { market: 'ALL' });
