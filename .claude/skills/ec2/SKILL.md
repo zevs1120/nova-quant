@@ -33,9 +33,16 @@ Three services run on this instance:
 | `marvix-backend.service` | Automated worker (signal generation, market collection, 120s cycle)            | --   |
 | `nginx`                  | Reverse proxy `api.novaquant.cloud:443` -> `localhost:8787`, Let's Encrypt SSL | 443  |
 
-## Available Operations
+## Permission Model
 
-**IMPORTANT**: Every operation that modifies state (restart, deploy) MUST be confirmed with BW before execution. Read-only status checks can proceed after confirmation too -- always ask before running SSH commands.
+- **Read-only operations** (status, logs, curl, resource checks, git status): execute directly, NO need to ask BW for confirmation.
+- **State-changing operations** (restart, deploy, edit files on server): MUST get explicit confirmation from BW before execution.
+
+### 0. API Endpoint Check (external)
+
+```bash
+curl -s -o /dev/null -w "HTTP %{http_code} | Time: %{time_total}s | Size: %{size_download} bytes" https://api.novaquant.cloud/
+```
 
 ### 1. Service Status
 
@@ -89,16 +96,25 @@ ssh -i ~/.ssh/marvix-prod.pem ubuntu@16.58.223.95 "cd /opt/nova-quant && git pul
 
 ## Quick Health Check
 
-Combine the most important checks in one command:
+Combine the most important checks (run curl and SSH in parallel):
 
 ```bash
+# Parallel call 1: external API check
+curl -s -o /dev/null -w "HTTP %{http_code} | Time: %{time_total}s | Size: %{size_download} bytes" https://api.novaquant.cloud/
+
+# Parallel call 2: internal checks
 ssh -i ~/.ssh/marvix-prod.pem ubuntu@16.58.223.95 "echo '=== Hostname ===' && hostname && echo '' && echo '=== Uptime ===' && uptime && echo '' && echo '=== Services ===' && systemctl is-active marvix.service marvix-backend.service nginx && echo '' && echo '=== Memory ===' && free -h | grep Mem && echo '' && echo '=== Disk ===' && df -h / | tail -1 && echo '' && echo '=== Port 8787 ===' && ss -tlnp | grep 8787 && echo '' && echo '=== Git HEAD ===' && cd /opt/nova-quant && git log --oneline -1"
+```
+
+## Deep Check (include error scanning)
+
+```bash
+ssh -i ~/.ssh/marvix-prod.pem ubuntu@16.58.223.95 "echo '=== Recent ERRORs (marvix) ===' && journalctl -u marvix.service --no-pager -n 100 2>&1 | grep -i 'error\|fatal\|exception\|crash' | tail -10 && echo '' && echo '=== Recent ERRORs (marvix-backend) ===' && journalctl -u marvix-backend.service --no-pager -n 100 2>&1 | grep -i 'error\|fatal\|exception\|crash' | tail -10 && echo '' && echo '=== Nginx ERRORs (last 10) ===' && sudo tail -10 /var/log/nginx/error.log 2>/dev/null || echo 'no error log'"
 ```
 
 ## Workflow
 
 1. BW asks about EC2 / server status
-2. Describe which checks you will run and ask for confirmation
-3. Run the approved SSH command(s)
-4. Present results in a clean table format
-5. For state-changing operations (restart, deploy), always explain what will happen and get explicit approval
+2. **Read-only checks**: execute directly without asking
+3. Present results in a clean table format
+4. **State-changing operations** (restart, deploy, file edits): explain what will happen and get explicit approval from BW before executing

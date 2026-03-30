@@ -258,6 +258,7 @@ CREATE TABLE IF NOT EXISTS news_items (
 );
 
 CREATE INDEX IF NOT EXISTS idx_news_items_lookup ON news_items(market, symbol, published_at_ms DESC);
+CREATE INDEX IF NOT EXISTS idx_news_items_recent ON news_items(published_at_ms DESC);
 
 CREATE TABLE IF NOT EXISTS fundamental_snapshots (
   id TEXT PRIMARY KEY,
@@ -319,6 +320,8 @@ CREATE INDEX IF NOT EXISTS idx_alpha_candidates_lookup
   ON alpha_candidates(status, acceptance_score DESC, updated_at_ms DESC);
 CREATE INDEX IF NOT EXISTS idx_alpha_candidates_family
   ON alpha_candidates(family, status, updated_at_ms DESC);
+CREATE INDEX IF NOT EXISTS idx_alpha_candidates_recent
+  ON alpha_candidates(updated_at_ms DESC);
 
 CREATE TABLE IF NOT EXISTS alpha_evaluations (
   id TEXT PRIMARY KEY,
@@ -374,6 +377,8 @@ CREATE TABLE IF NOT EXISTS alpha_lifecycle_events (
 
 CREATE INDEX IF NOT EXISTS idx_alpha_lifecycle_events_lookup
   ON alpha_lifecycle_events(alpha_candidate_id, created_at_ms DESC);
+CREATE INDEX IF NOT EXISTS idx_alpha_lifecycle_events_recent
+  ON alpha_lifecycle_events(created_at_ms DESC);
 
 CREATE TABLE IF NOT EXISTS api_keys (
   key_id TEXT PRIMARY KEY,
@@ -663,6 +668,7 @@ CREATE TABLE IF NOT EXISTS workflow_runs (
 );
 
 CREATE INDEX IF NOT EXISTS idx_workflow_runs_lookup ON workflow_runs(workflow_key, status, updated_at_ms DESC);
+CREATE INDEX IF NOT EXISTS idx_workflow_runs_recent ON workflow_runs(updated_at_ms DESC);
 
 CREATE TABLE IF NOT EXISTS audit_events (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -811,6 +817,8 @@ CREATE INDEX IF NOT EXISTS idx_nova_task_runs_user
   ON nova_task_runs(user_id, created_at_ms DESC);
 CREATE INDEX IF NOT EXISTS idx_nova_task_runs_thread
   ON nova_task_runs(thread_id, created_at_ms DESC);
+CREATE INDEX IF NOT EXISTS idx_nova_task_runs_recent
+  ON nova_task_runs(created_at_ms DESC);
 
 CREATE TABLE IF NOT EXISTS nova_review_labels (
   id TEXT PRIMARY KEY,
@@ -1319,6 +1327,20 @@ export function ensureSchema(db: Database.Database): void {
       END
     `);
   }
+  // Covering indexes for unfiltered ORDER BY queries (admin dashboard perf)
+  db.exec(
+    'CREATE INDEX IF NOT EXISTS idx_nova_task_runs_recent ON nova_task_runs(created_at_ms DESC);',
+  );
+  db.exec('CREATE INDEX IF NOT EXISTS idx_news_items_recent ON news_items(published_at_ms DESC);');
+  db.exec(
+    'CREATE INDEX IF NOT EXISTS idx_workflow_runs_recent ON workflow_runs(updated_at_ms DESC);',
+  );
+  db.exec(
+    'CREATE INDEX IF NOT EXISTS idx_alpha_candidates_recent ON alpha_candidates(updated_at_ms DESC);',
+  );
+  db.exec(
+    'CREATE INDEX IF NOT EXISTS idx_alpha_lifecycle_events_recent ON alpha_lifecycle_events(created_at_ms DESC);',
+  );
   try {
     db.prepare('SELECT evidence_mode FROM decision_snapshots LIMIT 1').get();
   } catch {

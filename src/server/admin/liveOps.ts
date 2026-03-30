@@ -5,7 +5,7 @@ import { getRuntimeRepo } from '../db/runtimeRepository.js';
 import { buildPrivateMarvixOpsReport } from '../ops/privateMarvixOps.js';
 import { decodeSignalContract } from '../quant/service.js';
 import { MIN_AUTOMATIC_TRAINING_ROWS } from '../nova/flywheel.js';
-import type { NovaTaskRunRecord, WorkflowRunRecord } from '../types.js';
+import type { NovaTaskRunRecord, NovaTaskRunSlimRecord, WorkflowRunRecord } from '../types.js';
 import {
   buildPostgresAdminResearchOpsSnapshot,
   hasPostgresBusinessMirror,
@@ -301,7 +301,7 @@ function countBy<T>(rows: T[], keyFn: (row: T) => string | null | undefined) {
     .sort((a, b) => b.value - a.value || a.label.localeCompare(b.label));
 }
 
-function summarizeNovaRuns(rows: NovaTaskRunRecord[]) {
+function summarizeNovaRuns(rows: NovaTaskRunSlimRecord[] | NovaTaskRunRecord[]) {
   return {
     total: rows.length,
     by_status: countBy(rows, (row) => row.status),
@@ -536,7 +536,7 @@ function buildLocalSnapshot(args?: {
     (row) => String(row),
   );
   const sourceMix = countBy(recentNewsItems, (row) => row.source);
-  const novaRuns = repo.listNovaTaskRuns({ limit: 60 });
+  const novaRuns = repo.listNovaTaskRuns({ limit: 60, slim: true });
 
   const workflowCountRows = usePostgres
     ? queryRowsSync<{

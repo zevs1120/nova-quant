@@ -1,7 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import type {
   AlphaCandidateRecord,
-  AlphaEvaluationRecord,
   AlphaIntegrationPath,
   AlphaLifecycleEventRecord,
   AlphaLifecycleState,
@@ -259,61 +258,69 @@ export function transitionAlphaCandidate(
   return updated;
 }
 
-function shadowStatsForCandidate(repo: MarketRepository, alphaCandidateId: string) {
-  const rows = repo.listAlphaShadowObservations({ alphaCandidateId, limit: 400 });
-  const realized = rows.filter((row) => Number.isFinite(row.realized_pnl_pct));
-  const pnlSeries = realized.map((row) => Number(row.realized_pnl_pct || 0));
+function shadowStatsFromPnl(pnlSeries: number[]) {
   const expectancy = pnlSeries.length
-    ? pnlSeries.reduce((sum, value) => sum + value, 0) / pnlSeries.length
+    ? pnlSeries.reduce((sum, v) => sum + v, 0) / pnlSeries.length
     : null;
-  const wins = pnlSeries.filter((value) => value > 0).length;
+  const wins = pnlSeries.filter((v) => v > 0).length;
   let equity = 1;
   let peak = 1;
   let maxDrawdown = 0;
-  for (const value of pnlSeries) {
-    equity *= 1 + value / 100;
+  for (const v of pnlSeries) {
+    equity *= 1 + v / 100;
     peak = Math.max(peak, equity);
     maxDrawdown = Math.min(maxDrawdown, (equity - peak) / peak);
   }
-  const mean = pnlSeries.length
-    ? pnlSeries.reduce((sum, value) => sum + value, 0) / pnlSeries.length
-    : 0;
+  const mean = pnlSeries.length ? pnlSeries.reduce((sum, v) => sum + v, 0) / pnlSeries.length : 0;
   const variance =
     pnlSeries.length > 1
-      ? pnlSeries.reduce((sum, value) => sum + (value - mean) ** 2, 0) / (pnlSeries.length - 1)
+      ? pnlSeries.reduce((sum, v) => sum + (v - mean) ** 2, 0) / (pnlSeries.length - 1)
       : 0;
   const sigma = Math.sqrt(Math.max(variance, 0));
   const sharpe =
     pnlSeries.length > 1 && sigma > 0
       ? round((mean / sigma) * Math.sqrt(Math.min(pnlSeries.length, 252)), 4)
       : null;
-
   return {
-    total_observations: rows.length,
-    realized_sample_size: realized.length,
     expectancy: expectancy === null ? null : round(expectancy, 4),
-    win_rate: realized.length ? round(wins / realized.length, 4) : null,
-    max_drawdown: realized.length ? round(Math.abs(maxDrawdown), 4) : null,
+    win_rate: pnlSeries.length ? round(wins / pnlSeries.length, 4) : null,
+    max_drawdown: pnlSeries.length ? round(Math.abs(maxDrawdown), 4) : null,
     sharpe,
   };
 }
 
 export function buildAlphaRegistrySummary(repo: MarketRepository) {
   const candidates = repo.listAlphaCandidates({ limit: 200 });
-  const evaluations = candidates
-    .map((candidate) => repo.getLatestAlphaEvaluation(candidate.id))
-    .filter((row): row is AlphaEvaluationRecord => Boolean(row));
+  const candidateIds = candidates.map((c) => c.id);
+
+  // Batch queries instead of N+1
+  const evalMap = repo.getLatestAlphaEvaluationsBatch(candidateIds);
+  const shadowMap = repo.getAlphaShadowStatsBatch(candidateIds);
   const lifecycleEvents = repo.listAlphaLifecycleEvents({ limit: 120 });
 
   const records = candidates.map((candidate) => {
-    const latestEval = evaluations.find((row) => row.alpha_candidate_id === candidate.id) || null;
+    const latestEval = evalMap.get(candidate.id) || null;
     const metrics = latestEval
       ? parseJson<AlphaEvaluationMetrics & JsonObject>(
           latestEval.metrics_json,
           {} as AlphaEvaluationMetrics & JsonObject,
         )
       : null;
-    const shadow = shadowStatsForCandidate(repo, candidate.id);
+    const raw = shadowMap.get(candidate.id);
+    const shadow = raw
+      ? {
+          total_observations: raw.total_observations,
+          realized_sample_size: raw.realized_sample_size,
+          ...shadowStatsFromPnl(raw.pnl_values),
+        }
+      : {
+          total_observations: 0,
+          realized_sample_size: 0,
+          expectancy: null,
+          win_rate: null,
+          max_drawdown: null,
+          sharpe: null,
+        };
     return {
       id: candidate.id,
       thesis: candidate.thesis,

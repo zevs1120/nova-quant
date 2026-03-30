@@ -986,6 +986,11 @@ export interface NovaTaskRunRecord {
   updated_at_ms: number;
 }
 
+export type NovaTaskRunSlimRecord = Omit<
+  NovaTaskRunRecord,
+  'input_json' | 'context_json' | 'output_json'
+>;
+
 export interface NovaReviewLabelRecord {
   id: string;
   run_id: string;

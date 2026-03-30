@@ -4,6 +4,13 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+## 10.18.3 (2026-03-29)
+
+- **Perf(admin)：admin 系统健康与总览端点从 65s 降至秒级（SQLite 查询优化）。**
+  - **索引覆盖**：为 `nova_task_runs`、`news_items`、`workflow_runs`、`alpha_candidates`、`alpha_lifecycle_events` 添加 `created_at_ms DESC` / `updated_at_ms DESC` 单列索引，消除 6 个无 WHERE 条件的 ORDER BY 全表扫描。
+  - **N+1 消除**：`buildAlphaRegistrySummary` 中对 200 个 alpha candidates 的逐个查询（200x `getLatestAlphaEvaluation` + 200x `listAlphaShadowObservations`，共 ~408 次 SQLite 查询）改为 2 次批量查询（`getLatestAlphaEvaluationsBatch` + `getAlphaShadowStatsBatch`）。
+  - **SELECT 瘦身**：`listNovaTaskRuns` 新增 `slim` 模式，admin 调用方跳过 `input_json`、`context_json`、`output_json` 三个大字段（每行可达数十 KB），减少 EBS 磁盘 I/O。
+
 ## 10.18.2 (2026-03-29)
 
 - **Security：移除误入 repo 的 SSH 私钥，`.gitignore` 添加 `*.pem` 规则。**

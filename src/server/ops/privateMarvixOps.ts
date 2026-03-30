@@ -195,7 +195,7 @@ export function buildPrivateMarvixOpsReport(repo: MarketRepository) {
     };
   });
 
-  const novaRuns = repo.listNovaTaskRuns({ limit: 12 }).map((row) => ({
+  const novaRuns = repo.listNovaTaskRuns({ limit: 12, slim: true }).map((row) => ({
     id: row.id,
     task_type: row.task_type,
     status: row.status,

@@ -58,6 +58,7 @@ import type {
   ExternalSurfaceRecord,
   ComplianceLogRecord,
   NovaTaskRunRecord,
+  NovaTaskRunSlimRecord,
   NovaReviewLabelRecord,
 } from '../types.js';
 import { MarketRepository } from './repository.js';
@@ -1430,6 +1431,74 @@ export class PostgresRuntimeRepository extends MarketRepository {
     );
   }
 
+  getLatestAlphaEvaluationsBatch(candidateIds: string[]): Map<string, AlphaEvaluationRecord> {
+    if (!candidateIds.length) return new Map();
+    const placeholders = candidateIds.map((_, i) => `$${i + 1}`).join(',');
+    const rows = queryRowsSync<AlphaEvaluationRecord>(
+      `
+        SELECT e.*
+        FROM ${qualifyBusinessTable('alpha_evaluations')} e
+        INNER JOIN (
+          SELECT alpha_candidate_id, MAX(created_at_ms) AS max_ts
+          FROM ${qualifyBusinessTable('alpha_evaluations')}
+          WHERE alpha_candidate_id IN (${placeholders})
+          GROUP BY alpha_candidate_id
+        ) latest ON e.alpha_candidate_id = latest.alpha_candidate_id
+                AND e.created_at_ms = latest.max_ts
+      `,
+      candidateIds,
+    );
+    const map = new Map<string, AlphaEvaluationRecord>();
+    for (const row of rows) {
+      map.set(row.alpha_candidate_id, row);
+    }
+    return map;
+  }
+
+  getAlphaShadowStatsBatch(
+    candidateIds: string[],
+  ): Map<
+    string,
+    { total_observations: number; realized_sample_size: number; pnl_values: number[] }
+  > {
+    if (!candidateIds.length) return new Map();
+    const placeholders = candidateIds.map((_, i) => `$${i + 1}`).join(',');
+    const rows = queryRowsSync<{
+      alpha_candidate_id: string;
+      realized_pnl_pct: number | null;
+    }>(
+      `
+        SELECT alpha_candidate_id, realized_pnl_pct
+        FROM (
+          SELECT alpha_candidate_id, realized_pnl_pct,
+                 ROW_NUMBER() OVER (PARTITION BY alpha_candidate_id ORDER BY updated_at_ms DESC) AS rn
+          FROM ${qualifyBusinessTable('alpha_shadow_observations')}
+          WHERE alpha_candidate_id IN (${placeholders})
+        ) sub
+        WHERE rn <= 400
+        ORDER BY alpha_candidate_id, rn ASC
+      `,
+      candidateIds,
+    );
+    const map = new Map<
+      string,
+      { total_observations: number; realized_sample_size: number; pnl_values: number[] }
+    >();
+    for (const row of rows) {
+      let entry = map.get(row.alpha_candidate_id);
+      if (!entry) {
+        entry = { total_observations: 0, realized_sample_size: 0, pnl_values: [] };
+        map.set(row.alpha_candidate_id, entry);
+      }
+      entry.total_observations += 1;
+      if (Number.isFinite(row.realized_pnl_pct)) {
+        entry.realized_sample_size += 1;
+        entry.pnl_values.push(Number(row.realized_pnl_pct || 0));
+      }
+    }
+    return map;
+  }
+
   upsertAlphaShadowObservation(input: AlphaShadowObservationRecord): void {
     this.upsertAlphaShadowObservations([input]);
   }
@@ -2127,13 +2196,30 @@ export class PostgresRuntimeRepository extends MarketRepository {
     });
   }
 
+  listNovaTaskRuns(params: {
+    userId?: string;
+    threadId?: string;
+    taskType?: string;
+    status?: string;
+    limit?: number;
+    slim: true;
+  }): NovaTaskRunSlimRecord[];
   listNovaTaskRuns(params?: {
     userId?: string;
     threadId?: string;
     taskType?: string;
     status?: string;
     limit?: number;
-  }): NovaTaskRunRecord[] {
+    slim?: false;
+  }): NovaTaskRunRecord[];
+  listNovaTaskRuns(params?: {
+    userId?: string;
+    threadId?: string;
+    taskType?: string;
+    status?: string;
+    limit?: number;
+    slim?: boolean;
+  }): NovaTaskRunRecord[] | NovaTaskRunSlimRecord[] {
     const where: string[] = [];
     const values: unknown[] = [];
     if (params?.userId) {
@@ -2154,9 +2240,12 @@ export class PostgresRuntimeRepository extends MarketRepository {
     }
     values.push(limitValue(params?.limit, 60));
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    const columns = params?.slim
+      ? 'id, user_id, thread_id, task_type, route_alias, model_name, endpoint, trace_id, prompt_version_id, parent_run_id, status, error, created_at_ms, updated_at_ms'
+      : '*';
     return queryRowsSync<NovaTaskRunRecord>(
       `
-        SELECT *
+        SELECT ${columns}
         FROM ${qualifyBusinessTable('nova_task_runs')}
         ${whereSql}
         ORDER BY created_at_ms DESC

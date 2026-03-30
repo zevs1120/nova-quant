@@ -29,6 +29,7 @@ import type {
   OutcomeReviewRecord,
   NovaReviewLabelRecord,
   NovaTaskRunRecord,
+  NovaTaskRunSlimRecord,
   ActionSnapshotRecord,
   ComplianceLogRecord,
   DecisionIntelligenceDatasetRecord,
@@ -1369,6 +1370,82 @@ export class MarketRepository {
       )
       .get(alphaCandidateId) as AlphaEvaluationRecord | undefined;
     return row ?? null;
+  }
+
+  /** Batch: fetch latest evaluation for each candidate in one query */
+  getLatestAlphaEvaluationsBatch(candidateIds: string[]): Map<string, AlphaEvaluationRecord> {
+    if (!candidateIds.length) return new Map();
+    const placeholders = candidateIds.map(() => '?').join(',');
+    const rows = this.db
+      .prepare(
+        `
+          SELECT e.id, e.alpha_candidate_id, e.workflow_run_id, e.backtest_run_id,
+                 e.evaluation_status, e.acceptance_score, e.metrics_json,
+                 e.rejection_reasons_json, e.notes, e.created_at_ms
+          FROM alpha_evaluations e
+          INNER JOIN (
+            SELECT alpha_candidate_id, MAX(created_at_ms) AS max_ts
+            FROM alpha_evaluations
+            WHERE alpha_candidate_id IN (${placeholders})
+            GROUP BY alpha_candidate_id
+          ) latest ON e.alpha_candidate_id = latest.alpha_candidate_id
+                  AND e.created_at_ms = latest.max_ts
+        `,
+      )
+      .all(...candidateIds) as AlphaEvaluationRecord[];
+    const map = new Map<string, AlphaEvaluationRecord>();
+    for (const row of rows) {
+      map.set(row.alpha_candidate_id, row);
+    }
+    return map;
+  }
+
+  /** Batch: fetch shadow observation stats for all candidates in one query */
+  getAlphaShadowStatsBatch(candidateIds: string[]): Map<
+    string,
+    {
+      total_observations: number;
+      realized_sample_size: number;
+      pnl_values: number[];
+    }
+  > {
+    if (!candidateIds.length) return new Map();
+    const placeholders = candidateIds.map(() => '?').join(',');
+    const rows = this.db
+      .prepare(
+        `
+          SELECT alpha_candidate_id, realized_pnl_pct
+          FROM (
+            SELECT alpha_candidate_id, realized_pnl_pct,
+                   ROW_NUMBER() OVER (PARTITION BY alpha_candidate_id ORDER BY updated_at_ms DESC) AS rn
+            FROM alpha_shadow_observations
+            WHERE alpha_candidate_id IN (${placeholders})
+          )
+          WHERE rn <= 400
+          ORDER BY alpha_candidate_id, rn ASC
+        `,
+      )
+      .all(...candidateIds) as Array<{
+      alpha_candidate_id: string;
+      realized_pnl_pct: number | null;
+    }>;
+    const map = new Map<
+      string,
+      { total_observations: number; realized_sample_size: number; pnl_values: number[] }
+    >();
+    for (const row of rows) {
+      let entry = map.get(row.alpha_candidate_id);
+      if (!entry) {
+        entry = { total_observations: 0, realized_sample_size: 0, pnl_values: [] };
+        map.set(row.alpha_candidate_id, entry);
+      }
+      entry.total_observations += 1;
+      if (Number.isFinite(row.realized_pnl_pct)) {
+        entry.realized_sample_size += 1;
+        entry.pnl_values.push(Number(row.realized_pnl_pct || 0));
+      }
+    }
+    return map;
   }
 
   upsertAlphaShadowObservation(input: AlphaShadowObservationRecord): void {
@@ -3005,13 +3082,30 @@ export class MarketRepository {
       .run(input);
   }
 
+  listNovaTaskRuns(params: {
+    userId?: string;
+    threadId?: string;
+    taskType?: string;
+    status?: string;
+    limit?: number;
+    slim: true;
+  }): NovaTaskRunSlimRecord[];
   listNovaTaskRuns(params?: {
     userId?: string;
     threadId?: string;
     taskType?: string;
     status?: string;
     limit?: number;
-  }): NovaTaskRunRecord[] {
+    slim?: false;
+  }): NovaTaskRunRecord[];
+  listNovaTaskRuns(params?: {
+    userId?: string;
+    threadId?: string;
+    taskType?: string;
+    status?: string;
+    limit?: number;
+    slim?: boolean;
+  }): NovaTaskRunRecord[] | NovaTaskRunSlimRecord[] {
     const where: string[] = [];
     const q: Record<string, unknown> = {};
     if (params?.userId) {
@@ -3033,12 +3127,13 @@ export class MarketRepository {
     if (params?.limit) q.limit = params.limit;
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
     const limitSql = params?.limit ? 'LIMIT @limit' : '';
+    const columns = params?.slim
+      ? 'id, user_id, thread_id, task_type, route_alias, model_name, endpoint, trace_id, prompt_version_id, parent_run_id, status, error, created_at_ms, updated_at_ms'
+      : 'id, user_id, thread_id, task_type, route_alias, model_name, endpoint, trace_id, prompt_version_id, parent_run_id, input_json, context_json, output_json, status, error, created_at_ms, updated_at_ms';
     return this.db
       .prepare(
         `
-          SELECT
-            id, user_id, thread_id, task_type, route_alias, model_name, endpoint, trace_id, prompt_version_id,
-            parent_run_id, input_json, context_json, output_json, status, error, created_at_ms, updated_at_ms
+          SELECT ${columns}
           FROM nova_task_runs
           ${whereSql}
           ORDER BY created_at_ms DESC
