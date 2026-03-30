@@ -4,6 +4,13 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+## 10.18.2 (2026-03-29)
+
+- **Security：移除误入 repo 的 SSH 私钥，`.gitignore` 添加 `*.pem` 规则。**
+- **Chore(tooling)：新增 EC2 实例管理 skill（`.claude/skills/ec2/`），支持服务状态/日志/系统资源/部署状态查看。**
+
+## 10.18.1+cleanup (unreleased)
+
 - **Chore(cleanup)：清理零引用前端/后端残留与静态资源，并修复 `RiskTab` 的 `locale` 接线。**
   - 删除零引用组件：`ChatAssistant`、`MoreTab`、`QuickAccessSheet`、`SystemStatusBar`、`VelocityTab`、`WhyTab`、`GridOverlay`、`NoiseOverlay`。
   - 删除零引用后端入口与工具：`src/server/api/vercelChatHandler.ts`、`src/utils/downloads.js`。

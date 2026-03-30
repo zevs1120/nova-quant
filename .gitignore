@@ -8,6 +8,7 @@ build-ts/
 !.env.example
 *.log
 logs/
+*.pem
 coverage/
 artifacts/
 release/
