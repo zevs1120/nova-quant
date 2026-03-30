@@ -8,6 +8,7 @@ import {
   openTradeIntentHandoff,
   tradeIntentHandoffLabel,
 } from '../utils/tradeIntent';
+import { getTodayCardLimit, normalizeMembershipPlan } from '../utils/membership';
 
 const ACTIVE_SIGNAL_STATUS = new Set(['NEW', 'TRIGGERED']);
 const DATA_STATUS_PENALTY = {
@@ -712,6 +713,8 @@ export default function TodayTab({
   onConfirmBoundary,
   onCompleteCheckIn,
   effectiveUserId,
+  membershipPlan = 'free',
+  onOpenMembershipPrompt,
 }) {
   // Self-managed clock — keeps App free from 30s re-render cycles
   const [now, setNow] = useState(() => new Date());
@@ -749,6 +752,14 @@ export default function TodayTab({
     () => signalQuotaForTradeMode(brokerProfile?.tradeMode),
     [brokerProfile?.tradeMode],
   );
+  const normalizedMembershipPlan = useMemo(
+    () => normalizeMembershipPlan(membershipPlan),
+    [membershipPlan],
+  );
+  const todayCardLimit = useMemo(
+    () => getTodayCardLimit(normalizedMembershipPlan),
+    [normalizedMembershipPlan],
+  );
 
   const bestSignal = useMemo(
     () => pickBestSignal(signals, topSignalEvidence, assetClass, now),
@@ -765,9 +776,14 @@ export default function TodayTab({
     return investorDemoEnabled ? [buildDemoFallbackSignal(assetClass, now)] : [];
   }, [decisionSignals, fallbackSignals, desiredSignalCount, investorDemoEnabled, assetClass, now]);
   const deckSignals = useMemo(() => sortSignalsForDisplay(actionSignals), [actionSignals]);
+  const visibleDeckSignals = useMemo(
+    () => (todayCardLimit === null ? deckSignals : deckSignals.slice(0, todayCardLimit)),
+    [deckSignals, todayCardLimit],
+  );
+  const hiddenDeckCount = Math.max(0, deckSignals.length - visibleDeckSignals.length);
 
   useEffect(() => {
-    const nextIds = deckSignals.map((signal) => signalCardId(signal));
+    const nextIds = visibleDeckSignals.map((signal) => signalCardId(signal));
     const previousIds = previousDeckIdsRef.current;
     const deckChanged =
       nextIds.length !== previousIds.length ||
@@ -783,7 +799,7 @@ export default function TodayTab({
     });
     previousDeckIdsRef.current = nextIds;
     setQueueReady(true);
-  }, [deckSignals, queueReady]);
+  }, [queueReady, visibleDeckSignals]);
 
   useEffect(
     () => () => {
@@ -795,10 +811,10 @@ export default function TodayTab({
   );
 
   const queuedSignals = useMemo(() => {
-    if (!queueReady) return deckSignals;
-    const byId = new Map(deckSignals.map((signal) => [signalCardId(signal), signal]));
+    if (!queueReady) return visibleDeckSignals;
+    const byId = new Map(visibleDeckSignals.map((signal) => [signalCardId(signal), signal]));
     return queueIds.map((id) => byId.get(id)).filter(Boolean);
-  }, [deckSignals, queueIds, queueReady]);
+  }, [queueIds, queueReady, visibleDeckSignals]);
 
   const featuredSignal = queuedSignals[0] || null;
   const overall =
@@ -926,13 +942,17 @@ export default function TodayTab({
     buildTradeIntent(signal, { broker: brokerProfile?.broker, brokerSnapshot: brokerConnection });
   const activeSignalIntent = activeSignal ? buildSignalIntent(activeSignal) : null;
   const queueCountLabel =
-    queuedSignals.length <= 1
+    hiddenDeckCount > 0 && queuedSignals.length <= 1
       ? locale === 'zh'
-        ? '最后一张'
-        : 'Final card'
-      : locale === 'zh'
-        ? `队列中还有 ${queuedSignals.length} 张`
-        : `${queuedSignals.length} cards in queue`;
+        ? `还有 ${hiddenDeckCount} 张待解锁`
+        : `${hiddenDeckCount} locked`
+      : queuedSignals.length <= 1
+        ? locale === 'zh'
+          ? '最后一张'
+          : 'Final card'
+        : locale === 'zh'
+          ? `队列中还有 ${queuedSignals.length} 张`
+          : `${queuedSignals.length} cards in queue`;
   const actionLogic = featuredSignal
     ? featuredSignal?.brief_why_now ||
       featuredSignal?.explain_bullets?.[0] ||
@@ -987,6 +1007,13 @@ export default function TodayTab({
   };
 
   const performQueuedExecution = (signal, nextIntent) => {
+    if (normalizedMembershipPlan === 'free') {
+      triggerFeedback('soft');
+      onOpenMembershipPrompt?.('today_execution', {
+        symbol: signal?.symbol,
+      });
+      return;
+    }
     const signalBlocked =
       !signal ||
       !signal._actionable ||
@@ -1065,6 +1092,14 @@ export default function TodayTab({
 
   const applyQueueAction = (signal, intent) => {
     if (!signal || !intent) return;
+    if (intent === 'accept' && normalizedMembershipPlan === 'free') {
+      triggerFeedback('soft');
+      onOpenMembershipPrompt?.('today_execution', {
+        symbol: signal?.symbol,
+      });
+      clearGesture();
+      return;
+    }
     const signalId = signalCardId(signal);
     const exit =
       intent === 'accept'
@@ -1449,6 +1484,46 @@ export default function TodayTab({
               </button>
             </div>
           </>
+        ) : hiddenDeckCount > 0 ? (
+          <article className="glass-card today-action-card today-empty-card">
+            <p className="today-action-kicker">{locale === 'zh' ? 'Membership' : 'Membership'}</p>
+            <h2 className="today-empty-title">
+              {locale === 'zh'
+                ? `解锁剩余 ${hiddenDeckCount} 张 Today 卡片`
+                : `Unlock ${hiddenDeckCount} more Today cards`}
+            </h2>
+            <p className="today-empty-copy">
+              {locale === 'zh'
+                ? `免费版今天先看前 ${todayCardLimit || 3} 张。升级 Lite 继续浏览完整队列，并保留 Keep your broker 路径。`
+                : `Free includes the first ${todayCardLimit || 3} cards. Upgrade to Lite to keep the full queue and broker handoff ready.`}
+            </p>
+            <div className="today-empty-actions">
+              <button
+                type="button"
+                className="today-execution-primary"
+                onClick={() =>
+                  onOpenMembershipPrompt?.('today_locked', {
+                    freeCardLimit: todayCardLimit || 3,
+                    hiddenDeckCount,
+                  })
+                }
+              >
+                {locale === 'zh' ? '升级 Lite' : 'Start Lite'}
+              </button>
+              <button
+                type="button"
+                className="today-execution-secondary"
+                onClick={() =>
+                  onOpenMembershipPrompt?.('today_locked', {
+                    freeCardLimit: todayCardLimit || 3,
+                    hiddenDeckCount,
+                  })
+                }
+              >
+                {locale === 'zh' ? '查看计划' : 'See plans'}
+              </button>
+            </div>
+          </article>
         ) : (
           <article className="glass-card today-action-card today-empty-card">
             <p className="today-action-kicker">{locale === 'zh' ? 'Action Card' : 'Action Card'}</p>

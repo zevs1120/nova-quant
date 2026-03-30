@@ -16,6 +16,7 @@ import {
 
 import adminRouter from './routes/admin.js';
 import authRouter from './routes/auth.js';
+import billingRouter from './routes/billing.js';
 import browseRouter from './routes/browse.js';
 import chatRouter from './routes/chat.js';
 import connectRouter from './routes/connect.js';
@@ -131,6 +132,7 @@ export function createApiApp() {
   // so we default to private.
   const userScopedPaths = new Set([
     '/api/assets',
+    '/api/billing/state',
     '/api/market-state',
     '/api/market/modules',
     '/api/performance',
@@ -234,6 +236,7 @@ export function createApiApp() {
   // ---------------------------------------------------------------------------
   app.use(adminRouter);
   app.use(authRouter);
+  app.use(billingRouter);
   app.use(browseRouter);
   app.use(chatRouter);
   app.use(connectRouter);

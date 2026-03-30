@@ -1,5 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AboutModal from './components/AboutModal';
+import BillingCheckoutSheet from './components/BillingCheckoutSheet';
+import MembershipSheet from './components/MembershipSheet';
 const AiPage = lazy(() => import('./components/AiPage'));
 import novaLogo from './assets/NOVA1.png';
 import novaLogoCompact from './assets/Nova2.png';
@@ -23,9 +25,11 @@ import TabBarIcon from './components/icons/TabBarIcon';
 import TopBarMenuGlyph from './components/icons/TopBarMenuGlyph';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { useAuth } from './hooks/useAuth';
+import { useBilling } from './hooks/useBilling';
 import { useAppData } from './hooks/useAppData';
 import { useEngagement } from './hooks/useEngagement';
 import { useInvestorDemo } from './hooks/useInvestorDemo';
+import { useMembership } from './hooks/useMembership';
 import { useNavigation } from './hooks/useNavigation';
 import { createTranslator, getDefaultLang, getLocale } from './i18n';
 import { buildHoldingsReview } from './research/holdingsAnalyzer';
@@ -71,6 +75,7 @@ export default function App() {
   const locale = useMemo(() => getLocale(lang), [lang]);
   const tabMeta = useMemo(() => buildTabMeta(locale), [locale]);
   const menuTitles = useMemo(() => buildMenuTitles(locale), [locale]);
+  const membership = useMembership({ locale });
 
   // --- Navigation hook ---
   const {
@@ -122,6 +127,14 @@ export default function App() {
     setActiveTab,
     setMyStack,
     locale,
+  });
+
+  const billing = useBilling({
+    locale,
+    authSession,
+    userProfile,
+    fetchJson,
+    onApplyPlan: membership.setMembershipPlan,
   });
 
   // --- Data loading hook (runs first, no demo dependency) ---
@@ -359,8 +372,58 @@ export default function App() {
 
   // Wrapped askAi with baseContext
   const askAi = useCallback(
-    (message, context = {}) => askAiRaw(message, context, baseContext),
-    [askAiRaw, baseContext],
+    (message, context = {}) => {
+      const text = String(message || '').trim();
+      if (!text) return false;
+      const gateContext = {
+        page: activeTab === 'my' ? mySection || 'my' : activeTab,
+        ...(context || {}),
+      };
+      if (!membership.requestAiAccess({ message: text, context: gateContext })) {
+        return false;
+      }
+      askAiRaw(text, context, baseContext);
+      return true;
+    },
+    [activeTab, askAiRaw, baseContext, membership, mySection],
+  );
+
+  const requestAiAccessFromComposer = useCallback(
+    (message, context = {}) =>
+      membership.requestAiAccess({
+        message,
+        context: {
+          page: 'ai',
+          ...(context || {}),
+        },
+      }),
+    [membership],
+  );
+
+  const openMembershipCenter = useCallback(() => {
+    membership.closePrompt();
+    openMySection('membership');
+  }, [membership, openMySection]);
+
+  const openCheckoutFromPrompt = useCallback(
+    (planKey) => {
+      membership.closePrompt();
+      void billing.openCheckout({
+        planKey,
+        source: membership.prompt?.source || 'membership_sheet',
+      });
+    },
+    [billing, membership],
+  );
+
+  const openCheckoutFromMembershipCenter = useCallback(
+    (planKey) => {
+      void billing.openCheckout({
+        planKey,
+        source: 'membership_center',
+      });
+    },
+    [billing],
   );
 
   // --- Refresh holdings sources ---
@@ -727,6 +790,8 @@ export default function App() {
           }
           onPaperExecute={(signal) => recordExecution({ signal, mode: 'PAPER', action: 'EXECUTE' })}
           effectiveUserId={effectiveUserId}
+          membershipPlan={membership.currentPlan}
+          onOpenMembershipPrompt={membership.openPrompt}
         />
       );
     }
@@ -740,6 +805,9 @@ export default function App() {
           userId={effectiveUserId}
           locale={locale}
           baseContext={baseContext}
+          membershipPlan={membership.currentPlan}
+          remainingAskNova={membership.remainingAskNova}
+          onRequestAiAccess={requestAiAccessFromComposer}
         />
       );
     }
@@ -831,6 +899,11 @@ export default function App() {
             setShowOnboarding(true);
           }}
           appMeta={finalUiData?.config || {}}
+          membershipPlan={membership.currentPlan}
+          remainingAskNova={membership.remainingAskNova}
+          membershipLimits={membership.limits}
+          billingState={billing.billingState}
+          onSelectMembershipPlan={openCheckoutFromMembershipCenter}
         />
       );
     }
@@ -994,6 +1067,26 @@ export default function App() {
         config={data.config}
         t={t}
         locale={locale}
+      />
+
+      <MembershipSheet
+        open={Boolean(membership.prompt)}
+        prompt={membership.prompt}
+        locale={locale}
+        currentPlan={membership.currentPlan}
+        remainingAskNova={membership.remainingAskNova}
+        onClose={membership.closePrompt}
+        onSelectPlan={openCheckoutFromPrompt}
+        onOpenMembershipCenter={openMembershipCenter}
+      />
+
+      <BillingCheckoutSheet
+        open={Boolean(billing.checkoutState?.open)}
+        locale={locale}
+        checkoutState={billing.checkoutState}
+        prefillEmail={userProfile?.email || authSession?.email || ''}
+        onClose={billing.closeCheckout}
+        onConfirm={billing.submitCheckout}
       />
 
       <Suspense fallback={null}>

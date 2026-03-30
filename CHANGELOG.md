@@ -4,6 +4,12 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+- **Feat(billing,membership): 客户端会员体系接入 checkout 入口与后端订阅状态。**
+  - 新增 `Free / Lite / Pro` 的会员权益模型、Today/Ask Nova/My 入口的升级引导，以及独立的 `Membership & Plans` 页面与 paywall sheet。
+  - 新增移动端 H5 checkout 底部支付页，升级按钮不再直接切本地 plan，而是统一走 checkout session；未登录或本地 API 不可用时自动回退到 preview 模式，方便本地演示。
+  - 后端新增 `billing_customers`、`billing_checkout_sessions`、`billing_subscriptions` 三张表，并补齐 `/api/billing/state`、创建 checkout、完成 checkout、取消订阅接口。
+  - 新增 Postgres runtime 测试，确认 Supabase/Postgres 主路径下 checkout 与订阅激活不会回退本地 SQLite。
+
 - **Feat(app): Today 改为 landing 风格的单卡决策流，并保留完整 Browse 入口。**
   - `Today` 主流程重做为单张 `Action Card` + 卡堆预览，支持 `左滑放弃 / 右滑执行 / 上滑暂存`，并加入更接近 Tinder 的圆形操作按钮与极简反馈。
   - 决策卡视觉语言对齐 landing page 行动卡，统一顶部 glow、渐变 accent bar、pill 标签、stats/context 信息块与 `Powered by Marvix AI Engine` / `Ask Nova` 底部动作区。

@@ -430,6 +430,34 @@ body.keyboard-open .ai-composer-shell {
   font-weight: 700;
 }
 
+.ai-access-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 2px 2px 12px;
+}
+
+.ai-access-pill {
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(75, 125, 255, 0.12);
+  color: #3d5cd8;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.ai-access-copy {
+  color: rgba(20, 24, 33, 0.54);
+  font-size: 12px;
+  font-weight: 700;
+}
+
 @media (max-width: 640px) {
   .main-content-ai {
     padding-bottom: calc(var(--tabbar-total-height) + 164px);
@@ -454,5 +482,9 @@ body.keyboard-open .ai-composer-shell {
 
   .ai-linked-context {
     flex-direction: column;
+  }
+
+  .ai-access-strip {
+    flex-wrap: wrap;
   }
 }

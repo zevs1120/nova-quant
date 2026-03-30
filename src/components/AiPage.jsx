@@ -5,6 +5,7 @@ import Skeleton from './Skeleton';
 import { useNovaAssistant } from '../hooks/useNovaAssistant';
 import { useDemoAssistant } from '../hooks/useDemoAssistant';
 import { parseAssistantSectionHeading } from '../utils/assistantLanguage';
+import { normalizeMembershipPlan } from '../utils/membership';
 
 const COPILOT_SECTIONS = ['VERDICT', 'PLAN', 'WHY', 'RISK', 'EVIDENCE'];
 
@@ -78,6 +79,24 @@ function buildLinkedContext(seedRequest, locale = 'en-US') {
       ? '这个标的已经自动带入，直接继续问，不需要重复输入代码。'
       : 'This ticker is already attached, so you can keep asking without typing it again.',
     action: zh ? '返回 Today' : 'Back to Today',
+  };
+}
+
+function buildAccessBadge(plan, remainingAskNova, locale = 'en-US') {
+  const zh = String(locale || '')
+    .toLowerCase()
+    .startsWith('zh');
+  const normalizedPlan = normalizeMembershipPlan(plan);
+  return {
+    planLabel: normalizedPlan === 'pro' ? 'Pro' : normalizedPlan === 'lite' ? 'Lite' : 'Free',
+    usageLabel:
+      remainingAskNova === null
+        ? zh
+          ? '高额度'
+          : 'High limit'
+        : zh
+          ? `今日剩余 ${remainingAskNova} 次`
+          : `${remainingAskNova} left today`,
   };
 }
 
@@ -360,11 +379,17 @@ function AiConversationShell({
   onNavigate,
   locale,
   linkedContext,
+  membershipPlan,
+  remainingAskNova,
 }) {
   const listRef = useRef(null);
   const endRef = useRef(null);
   const hasMessages = messages.length > 0;
   const copy = useMemo(() => buildAiCopy(locale), [locale]);
+  const accessBadge = useMemo(
+    () => buildAccessBadge(membershipPlan, remainingAskNova, locale),
+    [locale, membershipPlan, remainingAskNova],
+  );
 
   useEffect(() => {
     if (!listRef.current) return undefined;
@@ -393,6 +418,11 @@ function AiConversationShell({
           </button>
         </section>
       ) : null}
+
+      <div className="ai-access-strip" aria-label={copy.emptyBadge}>
+        <span className="ai-access-pill">{accessBadge.planLabel}</span>
+        <span className="ai-access-copy">{accessBadge.usageLabel}</span>
+      </div>
 
       <div className="ai-thread-scroll" ref={listRef}>
         {!hasMessages ? (
@@ -445,7 +475,16 @@ function AiConversationShell({
   );
 }
 
-function LiveAiConversation({ seedRequest, onNavigate, userId, baseContext, locale }) {
+function LiveAiConversation({
+  seedRequest,
+  onNavigate,
+  userId,
+  baseContext,
+  locale,
+  membershipPlan,
+  remainingAskNova,
+  onRequestAiAccess,
+}) {
   const linkedContext = useMemo(
     () => buildLinkedContext(seedRequest, locale),
     [seedRequest, locale],
@@ -465,18 +504,46 @@ function LiveAiConversation({ seedRequest, onNavigate, userId, baseContext, loca
       holdingsSummary: baseContext?.holdingsSummary,
     },
   });
+  const guardedSendMessage = useMemo(
+    () =>
+      async (rawText, contextOverride = {}) => {
+        if (
+          onRequestAiAccess &&
+          !onRequestAiAccess(rawText, {
+            ...(contextOverride || {}),
+          })
+        ) {
+          return;
+        }
+        return assistant.sendMessage(rawText, contextOverride);
+      },
+    [assistant, onRequestAiAccess],
+  );
 
   return (
     <AiConversationShell
       {...assistant}
+      sendMessage={guardedSendMessage}
       onNavigate={onNavigate}
       locale={locale}
       linkedContext={linkedContext}
+      membershipPlan={membershipPlan}
+      remainingAskNova={remainingAskNova}
     />
   );
 }
 
-function DemoAiConversation({ quantState, seedRequest, onNavigate, userId, baseContext, locale }) {
+function DemoAiConversation({
+  quantState,
+  seedRequest,
+  onNavigate,
+  userId,
+  baseContext,
+  locale,
+  membershipPlan,
+  remainingAskNova,
+  onRequestAiAccess,
+}) {
   const copy = useMemo(() => buildAiCopy(locale), [locale]);
   const linkedContext = useMemo(
     () => buildLinkedContext(seedRequest, locale),
@@ -499,6 +566,21 @@ function DemoAiConversation({ quantState, seedRequest, onNavigate, userId, baseC
     },
   });
   const { messages, sendMessage } = assistant;
+  const guardedSendMessage = useMemo(
+    () =>
+      async (rawText, contextOverride = {}) => {
+        if (
+          onRequestAiAccess &&
+          !onRequestAiAccess(rawText, {
+            ...(contextOverride || {}),
+          })
+        ) {
+          return;
+        }
+        return sendMessage(rawText, contextOverride);
+      },
+    [onRequestAiAccess, sendMessage],
+  );
 
   useEffect(() => {
     if (seedRequest?.message) return;
@@ -520,9 +602,12 @@ function DemoAiConversation({ quantState, seedRequest, onNavigate, userId, baseC
   return (
     <AiConversationShell
       {...assistant}
+      sendMessage={guardedSendMessage}
       onNavigate={onNavigate}
       locale={locale}
       linkedContext={linkedContext}
+      membershipPlan={membershipPlan}
+      remainingAskNova={remainingAskNova}
     />
   );
 }
@@ -534,6 +619,9 @@ export default function AiPage({
   userId,
   baseContext,
   locale,
+  membershipPlan = 'free',
+  remainingAskNova = 0,
+  onRequestAiAccess,
 }) {
   const isDemoMode = Boolean(quantState?.performance?.investor_demo);
 
@@ -546,6 +634,9 @@ export default function AiPage({
         userId={userId}
         baseContext={baseContext}
         locale={locale}
+        membershipPlan={membershipPlan}
+        remainingAskNova={remainingAskNova}
+        onRequestAiAccess={onRequestAiAccess}
       />
     );
   }
@@ -557,6 +648,9 @@ export default function AiPage({
       userId={userId}
       baseContext={baseContext}
       locale={locale}
+      membershipPlan={membershipPlan}
+      remainingAskNova={remainingAskNova}
+      onRequestAiAccess={onRequestAiAccess}
     />
   );
 }

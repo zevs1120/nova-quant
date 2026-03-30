@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { buildMembershipPlans, normalizeMembershipPlan } from '../utils/membership';
 
 const MENU_GROUPS = [
   {
@@ -28,6 +29,11 @@ function localeCopy(locale) {
     supportRootCopy: zh
       ? '帮助中心、联系支持、查看你的支持会话。'
       : 'Help Center, contact us 24/7, and check your support chats.',
+    membership: zh ? '会员' : 'Membership',
+    membershipRootTitle: zh ? '会员与计划' : 'Membership & Plans',
+    membershipRootCopy: zh
+      ? '查看当前计划、Ask Nova 额度和升级入口。'
+      : 'See your current plan, Ask Nova allowance, and upgrade paths.',
     predictionGames: zh ? '预测游戏' : 'Prediction Games',
     rewards: zh ? '奖励 / 邀请好友' : 'Rewards / Invite Friends',
     rewardsRootCopy: zh
@@ -149,6 +155,19 @@ function formatPoints(value, locale) {
   return locale?.startsWith('zh') ? `${next} 积分` : `${next} pts`;
 }
 
+function formatMembershipDate(value, locale) {
+  if (!value) return null;
+  try {
+    return new Date(value).toLocaleDateString(locale, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  } catch {
+    return null;
+  }
+}
+
 function pointsHint(points, locale) {
   if (points?.status === 'gain') return '+200';
   if (points?.status === 'vip')
@@ -197,6 +216,11 @@ export default function MenuTab({
   onOpenAbout,
   onLogout,
   appMeta,
+  membershipPlan = 'free',
+  remainingAskNova = 0,
+  membershipLimits,
+  billingState,
+  onSelectMembershipPlan,
 }) {
   const copy = localeCopy(locale);
   const catalog = itemCatalog(locale);
@@ -224,6 +248,10 @@ export default function MenuTab({
   const [privacyProductUpdates, setPrivacyProductUpdates] = useState(false);
   const [privacyResearchSharing, setPrivacyResearchSharing] = useState(false);
   const isZh = locale?.startsWith('zh');
+  const membershipPlans = useMemo(() => buildMembershipPlans(locale), [locale]);
+  const normalizedMembershipPlan = normalizeMembershipPlan(membershipPlan);
+  const activeMembershipPlan =
+    membershipPlans.find((item) => item.key === normalizedMembershipPlan) || membershipPlans[0];
   const inviteLink = useMemo(() => buildInviteLink(referrals, username), [referrals, username]);
   const firstName = useMemo(() => firstNameFromUsername(username), [username]);
   const securityRows = [
@@ -416,6 +444,182 @@ export default function MenuTab({
       </div>
     </section>
   );
+
+  if (section === 'membership') {
+    const activeSubscription = billingState?.subscription || null;
+    const renewalLabel = formatMembershipDate(activeSubscription?.currentPeriodEndAt, locale);
+    const todayAccess =
+      membershipLimits?.todayCards === null
+        ? isZh
+          ? '完整 Today'
+          : 'Full Today'
+        : isZh
+          ? `前 ${membershipLimits?.todayCards || 3} 张`
+          : `First ${membershipLimits?.todayCards || 3}`;
+    const askNovaAllowance =
+      remainingAskNova === null
+        ? isZh
+          ? '高额度'
+          : 'High limit'
+        : isZh
+          ? `剩余 ${remainingAskNova} 次`
+          : `${remainingAskNova} left`;
+    const portfolioContext = membershipLimits?.portfolioAi
+      ? isZh
+        ? '已解锁'
+        : 'Unlocked'
+      : isZh
+        ? 'Pro 解锁'
+        : 'Pro only';
+
+    return (
+      <section className="stack-gap menu-screen membership-center-shell">
+        <div className="glass-card membership-hero">
+          <p className="membership-hero-eyebrow">{copy.membership}</p>
+          <h1 className="membership-hero-title">{activeMembershipPlan.name}</h1>
+          <p className="membership-hero-copy">{activeMembershipPlan.blurb}</p>
+          {activeSubscription ? (
+            <p className="membership-hero-meta">
+              {isZh
+                ? `${activeSubscription.billingCycle === 'annual' ? '年付' : '月付'} ${activeSubscription.status === 'ACTIVE' ? '已生效' : activeSubscription.status}`
+                : `${activeSubscription.billingCycle === 'annual' ? 'Annual' : 'Monthly'} ${activeSubscription.status.toLowerCase()}`}
+              {renewalLabel
+                ? isZh
+                  ? ` · 下次周期至 ${renewalLabel}`
+                  : ` · Renews through ${renewalLabel}`
+                : ''}
+            </p>
+          ) : null}
+
+          <div className="membership-hero-stats">
+            <div className="membership-hero-stat">
+              <span>{isZh ? 'Today' : 'Today'}</span>
+              <strong>{todayAccess}</strong>
+            </div>
+            <div className="membership-hero-stat">
+              <span>{isZh ? 'Ask Nova' : 'Ask Nova'}</span>
+              <strong>{askNovaAllowance}</strong>
+            </div>
+          </div>
+
+          <div className="membership-hero-actions">
+            <button
+              type="button"
+              className="membership-hero-primary"
+              disabled={normalizedMembershipPlan === 'pro'}
+              onClick={() =>
+                onSelectMembershipPlan?.(normalizedMembershipPlan === 'free' ? 'lite' : 'pro')
+              }
+            >
+              {normalizedMembershipPlan === 'pro'
+                ? isZh
+                  ? '当前已是最高层'
+                  : 'You are on Pro'
+                : normalizedMembershipPlan === 'lite'
+                  ? isZh
+                    ? '升级到 Pro'
+                    : 'Go Pro'
+                  : isZh
+                    ? '升级到 Lite'
+                    : 'Start Lite'}
+            </button>
+            <button
+              type="button"
+              className="membership-hero-secondary"
+              onClick={() => onSectionChange('menu')}
+            >
+              {isZh ? '返回菜单' : 'Back to menu'}
+            </button>
+          </div>
+        </div>
+
+        <div className="membership-limit-grid">
+          <article className="membership-limit-card">
+            <p className="membership-stat-label">{isZh ? 'Today' : 'Today'}</p>
+            <p className="membership-limit-value">{todayAccess}</p>
+            <p className="membership-limit-note">
+              {isZh
+                ? 'Free 先看 3 张，Lite/Pro 解锁完整队列。'
+                : 'Free sees 3 cards first. Lite and Pro unlock the full queue.'}
+            </p>
+          </article>
+          <article className="membership-limit-card">
+            <p className="membership-stat-label">{isZh ? 'Ask Nova' : 'Ask Nova'}</p>
+            <p className="membership-limit-value">{askNovaAllowance}</p>
+            <p className="membership-limit-note">
+              {isZh
+                ? 'Free 每天 3 次，Lite 每天 20 次，Pro 高额度。'
+                : 'Free gets 3 per day, Lite gets 20, Pro runs at a much higher limit.'}
+            </p>
+          </article>
+          <article className="membership-limit-card">
+            <p className="membership-stat-label">{isZh ? 'Portfolio AI' : 'Portfolio AI'}</p>
+            <p className="membership-limit-value">{portfolioContext}</p>
+            <p className="membership-limit-note">
+              {isZh
+                ? '持仓、仓位和组合感知问答由 Pro 提供。'
+                : 'Holdings, sizing, and portfolio-aware answers are unlocked in Pro.'}
+            </p>
+          </article>
+        </div>
+
+        <div className="membership-plan-grid">
+          {membershipPlans.map((plan) => {
+            const isCurrent = plan.key === normalizedMembershipPlan;
+            return (
+              <article
+                key={plan.key}
+                className={`membership-plan-card ${isCurrent ? 'is-current' : ''}`}
+              >
+                <div className="membership-plan-head">
+                  <div>
+                    <p className="membership-plan-name">{plan.name}</p>
+                    <p className="membership-plan-price">
+                      <strong>{plan.price}</strong>
+                      {plan.cadence ? <span>{plan.cadence}</span> : null}
+                    </p>
+                  </div>
+                  {isCurrent ? (
+                    <span className="membership-plan-badge">{isZh ? '当前' : 'Current'}</span>
+                  ) : null}
+                </div>
+                <p className="membership-plan-blurb">{plan.blurb}</p>
+                <div className="membership-plan-features">
+                  {plan.features.map((feature) => (
+                    <span key={feature} className="membership-plan-feature">
+                      {feature}
+                    </span>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  className={`membership-plan-cta ${isCurrent ? 'is-disabled' : ''}`}
+                  disabled={isCurrent}
+                  onClick={() => onSelectMembershipPlan?.(plan.key)}
+                >
+                  {isCurrent
+                    ? isZh
+                      ? '当前计划'
+                      : 'Current plan'
+                    : plan.key === 'pro'
+                      ? isZh
+                        ? '升级到 Pro'
+                        : 'Go Pro'
+                      : plan.key === 'lite'
+                        ? isZh
+                          ? '升级到 Lite'
+                          : 'Start Lite'
+                        : isZh
+                          ? '切到 Free'
+                          : 'Switch to Free'}
+                </button>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+    );
+  }
 
   if (section === 'points') {
     if (!manualAvailable) return renderManualUnavailable();
@@ -1592,6 +1796,11 @@ export default function MenuTab({
 
         <div className="menu-group-list">
           {[
+            {
+              key: 'membership',
+              title: copy.membershipRootTitle,
+              desc: copy.membershipRootCopy,
+            },
             { key: 'support', title: copy.supportRootTitle, desc: copy.supportRootCopy },
             { key: 'rewards', title: copy.rewards, desc: copy.rewardsRootCopy },
             {
@@ -1610,14 +1819,28 @@ export default function MenuTab({
             <button
               key={item.key}
               type="button"
-              className="menu-list-row"
+              className={`menu-list-row ${item.key === 'membership' ? 'membership-card-trigger' : ''}`}
               onClick={() => onSectionChange(item.key)}
             >
               <span>
                 <span className="menu-list-title">{item.title}</span>
-                <span className="menu-list-desc">{item.desc}</span>
+                <span className="menu-list-desc">
+                  {item.key === 'membership'
+                    ? `${item.desc} ${
+                        activeMembershipPlan?.name
+                          ? isZh
+                            ? `当前 ${activeMembershipPlan.name}`
+                            : `Currently ${activeMembershipPlan.name}`
+                          : ''
+                      }`.trim()
+                    : item.desc}
+                </span>
               </span>
-              <span className="menu-list-arrow">›</span>
+              {item.key === 'membership' ? (
+                <span className="membership-trigger-badge">{activeMembershipPlan.name}</span>
+              ) : (
+                <span className="menu-list-arrow">›</span>
+              )}
             </button>
           ))}
         </div>

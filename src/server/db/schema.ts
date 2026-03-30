@@ -1134,6 +1134,77 @@ CREATE TABLE IF NOT EXISTS auth_user_state_sync (
   FOREIGN KEY(user_id) REFERENCES auth_users(user_id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS billing_customers (
+  user_id TEXT PRIMARY KEY,
+  email TEXT NOT NULL,
+  provider TEXT NOT NULL DEFAULT 'internal_checkout',
+  provider_customer_id TEXT,
+  default_currency TEXT NOT NULL DEFAULT 'USD',
+  default_billing_cycle TEXT NOT NULL CHECK (default_billing_cycle IN ('monthly', 'annual')),
+  metadata_json TEXT NOT NULL DEFAULT '{}',
+  created_at_ms INTEGER NOT NULL,
+  updated_at_ms INTEGER NOT NULL,
+  FOREIGN KEY(user_id) REFERENCES auth_users(user_id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_billing_customers_email ON billing_customers(email);
+
+CREATE TABLE IF NOT EXISTS billing_checkout_sessions (
+  session_id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  plan_key TEXT NOT NULL CHECK (plan_key IN ('lite', 'pro')),
+  billing_cycle TEXT NOT NULL CHECK (billing_cycle IN ('monthly', 'annual')),
+  status TEXT NOT NULL CHECK (status IN ('OPEN', 'COMPLETED', 'EXPIRED', 'ABANDONED')),
+  provider TEXT NOT NULL DEFAULT 'internal_checkout',
+  provider_session_id TEXT,
+  amount_cents INTEGER NOT NULL,
+  currency TEXT NOT NULL DEFAULT 'USD',
+  checkout_email TEXT,
+  payment_method_last4 TEXT,
+  success_subscription_id TEXT,
+  metadata_json TEXT NOT NULL DEFAULT '{}',
+  created_at_ms INTEGER NOT NULL,
+  expires_at_ms INTEGER NOT NULL,
+  completed_at_ms INTEGER,
+  updated_at_ms INTEGER NOT NULL,
+  FOREIGN KEY(user_id) REFERENCES auth_users(user_id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_billing_checkout_sessions_user
+  ON billing_checkout_sessions(user_id, created_at_ms DESC);
+
+CREATE INDEX IF NOT EXISTS idx_billing_checkout_sessions_status
+  ON billing_checkout_sessions(status, expires_at_ms DESC);
+
+CREATE TABLE IF NOT EXISTS billing_subscriptions (
+  subscription_id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  plan_key TEXT NOT NULL CHECK (plan_key IN ('free', 'lite', 'pro')),
+  status TEXT NOT NULL CHECK (status IN ('ACTIVE', 'CANCELLED', 'EXPIRED', 'PENDING')),
+  provider TEXT NOT NULL DEFAULT 'internal_checkout',
+  provider_subscription_id TEXT,
+  billing_cycle TEXT NOT NULL CHECK (billing_cycle IN ('monthly', 'annual')),
+  amount_cents INTEGER NOT NULL,
+  currency TEXT NOT NULL DEFAULT 'USD',
+  started_at_ms INTEGER NOT NULL,
+  current_period_start_ms INTEGER NOT NULL,
+  current_period_end_ms INTEGER,
+  cancel_at_period_end INTEGER NOT NULL DEFAULT 0,
+  cancelled_at_ms INTEGER,
+  checkout_session_id TEXT,
+  metadata_json TEXT NOT NULL DEFAULT '{}',
+  created_at_ms INTEGER NOT NULL,
+  updated_at_ms INTEGER NOT NULL,
+  FOREIGN KEY(user_id) REFERENCES auth_users(user_id) ON DELETE CASCADE,
+  FOREIGN KEY(checkout_session_id) REFERENCES billing_checkout_sessions(session_id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_billing_subscriptions_user
+  ON billing_subscriptions(user_id, updated_at_ms DESC);
+
+CREATE INDEX IF NOT EXISTS idx_billing_subscriptions_status
+  ON billing_subscriptions(user_id, status, updated_at_ms DESC);
+
 CREATE TABLE IF NOT EXISTS manual_user_state (
   user_id TEXT PRIMARY KEY,
   invite_code TEXT NOT NULL UNIQUE,
