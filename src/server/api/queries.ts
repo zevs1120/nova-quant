@@ -9,6 +9,7 @@ import {
   resetRuntimeRepoSingleton,
 } from '../db/runtimeRepository.js';
 import type {
+  Asset,
   AssetClass,
   DecisionSnapshotRecord,
   ExecutionAction,
@@ -84,6 +85,7 @@ import { buildLocalAdminResearchOpsSnapshot } from '../admin/liveOps.js';
 import {
   hasPostgresBusinessMirror,
   readPostgresApiKeyByHash,
+  readPostgresAssets,
   readPostgresDecisionSnapshots,
   readPostgresExecutionRecords,
   readPostgresExternalConnections,
@@ -461,6 +463,14 @@ function shouldPreferPostgresPrimaryReads() {
   return hasPostgresBusinessMirror();
 }
 
+function shouldAvoidSyncHotPathFallback() {
+  const allowSyncFallback = String(process.env.NOVA_ALLOW_SYNC_HOT_PATH_FALLBACK || '').trim();
+  if (process.env.NODE_ENV === 'test' && !allowSyncFallback) {
+    return false;
+  }
+  return shouldPreferPostgresPrimaryReads() && allowSyncFallback !== '1';
+}
+
 const PG_PRIMARY_READ_FAILURE_COOLDOWN_MS = Math.max(
   5_000,
   Number(process.env.NOVA_PG_PRIMARY_READ_FAILURE_COOLDOWN_MS || 60_000),
@@ -521,6 +531,88 @@ function buildPerformanceSummaryFromRows(args: {
     asof: args.asofIso,
     source_status: normalizeRuntimeStatus(args.sourceStatus, RUNTIME_STATUS.INSUFFICIENT_DATA),
     records: Object.values(grouped),
+  };
+}
+
+function buildPerformanceSummaryFromRowsOrEmpty(args: {
+  rows?: ReturnType<MarketRepository['listPerformanceSnapshots']> | null;
+  asofIso: string;
+  sourceStatus: string;
+}) {
+  return buildPerformanceSummaryFromRows({
+    rows: args.rows || [],
+    asofIso: args.asofIso,
+    sourceStatus: args.sourceStatus,
+  });
+}
+
+function evidenceFreshnessLabel(createdAtIso: string | null | undefined) {
+  const createdAtMs = Date.parse(String(createdAtIso || ''));
+  if (!Number.isFinite(createdAtMs)) return '--';
+  const freshnessMinutes = Math.max(0, Math.round((Date.now() - createdAtMs) / 60000));
+  if (freshnessMinutes < 1) return 'just now';
+  if (freshnessMinutes < 60) return `${freshnessMinutes}m ago`;
+  return `${Math.floor(freshnessMinutes / 60)}h ago`;
+}
+
+function buildRuntimeSignalEvidenceFromContracts(
+  signals: SignalContract[],
+  limit = 3,
+  sourceStatus = RUNTIME_STATUS.MODEL_DERIVED,
+) {
+  const records = signals
+    .map((signal) => {
+      const uiSignal = toUiSignal(signal);
+      const signalDataStatus = normalizeRuntimeStatus(
+        String(uiSignal.data_status || uiSignal.source_label || uiSignal.source_status || ''),
+        RUNTIME_STATUS.MODEL_DERIVED,
+      );
+      const actionable =
+        ['NEW', 'TRIGGERED'].includes(String(signal.status || '').toUpperCase()) &&
+        signalDataStatus !== RUNTIME_STATUS.WITHHELD &&
+        signalDataStatus !== RUNTIME_STATUS.INSUFFICIENT_DATA;
+      return {
+        signal_id: signal.id,
+        symbol: signal.symbol,
+        market: signal.market,
+        asset_class: signal.asset_class,
+        timeframe: signal.timeframe,
+        direction: signal.direction,
+        conviction: signal.confidence,
+        regime_id: signal.regime_id || '--',
+        thesis: signal.explain_bullets?.[0] || signal.entry_zone?.notes || '--',
+        entry_zone: signal.entry_zone || null,
+        invalidation: signal.stop_loss?.price || signal.invalidation_level || null,
+        source_transparency: {
+          source_status: sourceStatus,
+          data_status: signalDataStatus,
+          source_label: signalDataStatus,
+          evidence_mode: 'RUNTIME_SIGNAL_FALLBACK',
+          validation_mode: 'REPLAY_PENDING',
+        },
+        evidence_status: signalDataStatus,
+        freshness_minutes: null,
+        freshness_label: evidenceFreshnessLabel(signal.created_at),
+        actionable,
+        created_at: signal.created_at,
+        supporting_run_id: null,
+        strategy_version_id: signal.strategy_version || null,
+        dataset_version_id: null,
+        reconciliation_status: 'REPLAY_DATA_UNAVAILABLE',
+        replay_paper_evidence_available: false,
+      };
+    })
+    .sort((a, b) => Number(b.conviction || 0) - Number(a.conviction || 0))
+    .slice(0, Math.max(1, Math.min(8, limit)));
+
+  return {
+    asof: new Date().toISOString(),
+    source_status: records.length ? sourceStatus : RUNTIME_STATUS.INSUFFICIENT_DATA,
+    data_status: records.length ? sourceStatus : RUNTIME_STATUS.INSUFFICIENT_DATA,
+    supporting_run_id: null,
+    dataset_version_id: null,
+    strategy_version_id: records[0]?.strategy_version_id || null,
+    records,
   };
 }
 
@@ -587,6 +679,9 @@ export async function listSignalContractsPrimary(args: {
     }),
   );
   if (!rows) {
+    if (shouldAvoidSyncHotPathFallback()) {
+      return [];
+    }
     return listSignalContracts(args);
   }
   return rows
@@ -602,6 +697,9 @@ export async function getSignalContractPrimary(
     readPostgresSignalRecord(signalId),
   );
   if (!row) {
+    if (shouldAvoidSyncHotPathFallback()) {
+      return null;
+    }
     return getSignalContract(signalId, userId);
   }
   return decodeSignalContract(row);
@@ -617,7 +715,9 @@ export async function listExecutionsPrimary(args: {
   const rows = await tryPrimaryPostgresRead('executions', async () =>
     readPostgresExecutionRecords(args),
   );
-  return rows || listExecutions(args);
+  if (rows) return rows;
+  if (shouldAvoidSyncHotPathFallback()) return [];
+  return listExecutions(args);
 }
 
 export async function getRiskProfilePrimary(
@@ -628,6 +728,7 @@ export async function getRiskProfilePrimary(
     readPostgresRiskProfile(userId),
   );
   if (row) return row;
+  if (shouldAvoidSyncHotPathFallback()) return null;
   return getRiskProfile(userId, opts);
 }
 
@@ -644,7 +745,9 @@ export async function getMarketStatePrimary(args: {
       timeframe: args.timeframe,
     }),
   );
-  return rows || getMarketState(args);
+  if (rows) return rows;
+  if (shouldAvoidSyncHotPathFallback()) return [];
+  return getMarketState(args);
 }
 
 export async function getPerformanceSummaryPrimary(args: {
@@ -660,13 +763,16 @@ export async function getPerformanceSummaryPrimary(args: {
       range: args.range,
     }),
   );
-  if (!rows) {
+  if (!rows && !shouldAvoidSyncHotPathFallback()) {
     return getPerformanceSummary(args);
   }
-  return buildPerformanceSummaryFromRows({
+  return buildPerformanceSummaryFromRowsOrEmpty({
     rows,
     asofIso: args.asofIso || new Date().toISOString(),
-    sourceStatus: args.sourceStatus || RUNTIME_STATUS.DB_BACKED,
+    sourceStatus:
+      rows && rows.length
+        ? args.sourceStatus || RUNTIME_STATUS.DB_BACKED
+        : RUNTIME_STATUS.INSUFFICIENT_DATA,
   });
 }
 
@@ -676,10 +782,21 @@ export async function getMarketModulesPrimary(args?: { market?: Market; assetCla
       market: args?.market,
     }),
   );
-  if (!rows) {
+  if (!rows && !shouldAvoidSyncHotPathFallback()) {
     return getMarketModules(args);
   }
-  return buildMarketModulesFromRows(rows, args);
+  return buildMarketModulesFromRows(rows || [], args);
+}
+
+export async function listAssetsPrimary(market?: Market): Promise<Asset[]> {
+  const rows = await tryPrimaryPostgresRead('assets', async () =>
+    readPostgresAssets({
+      market,
+    }),
+  );
+  if (rows) return rows;
+  if (shouldAvoidSyncHotPathFallback()) return [];
+  return listAssets(market);
 }
 
 export async function listExternalConnectionsPrimary(args: {
@@ -3396,7 +3513,15 @@ export async function loadRuntimeStateCorePrimary(args: {
       ),
     ]);
 
-  if (!riskPrimary && !signalRowsPrimary && !marketStatePrimary && !performanceRowsPrimary) {
+  const avoidSyncFallback = shouldAvoidSyncHotPathFallback();
+
+  if (
+    !avoidSyncFallback &&
+    !riskPrimary &&
+    !signalRowsPrimary &&
+    !marketStatePrimary &&
+    !performanceRowsPrimary
+  ) {
     return loadRuntimeStateCore(args);
   }
 
@@ -3417,24 +3542,29 @@ export async function loadRuntimeStateCorePrimary(args: {
 
   const needsLocalFallback =
     !riskPrimary || !signalRowsPrimary || !marketStatePrimary || !performanceRowsPrimary;
-  if (needsLocalFallback) {
+  if (needsLocalFallback && !avoidSyncFallback) {
     syncQuantState(userId, false, { market: args.market, assetClass: args.assetClass });
   }
-  const risk =
-    riskPrimary || repo.getUserRiskProfile(userId) || getRiskProfile(userId, { skipSync: true });
-  const signalRows =
-    signalRowsPrimary ||
-    repo.listSignals({
-      assetClass: args.assetClass,
-      market: args.market,
-      limit: 60,
-    });
-  const marketState =
-    marketStatePrimary ||
-    repo.listMarketState({
-      market,
-    });
-  const performanceRows = performanceRowsPrimary || repo.listPerformanceSnapshots({ market });
+  const risk = avoidSyncFallback
+    ? riskPrimary
+    : riskPrimary || repo.getUserRiskProfile(userId) || getRiskProfile(userId, { skipSync: true });
+  const signalRows = avoidSyncFallback
+    ? signalRowsPrimary || []
+    : signalRowsPrimary ||
+      repo.listSignals({
+        assetClass: args.assetClass,
+        market: args.market,
+        limit: 60,
+      });
+  const marketState = avoidSyncFallback
+    ? marketStatePrimary || []
+    : marketStatePrimary ||
+      repo.listMarketState({
+        market,
+      });
+  const performanceRows = avoidSyncFallback
+    ? performanceRowsPrimary || []
+    : performanceRowsPrimary || repo.listPerformanceSnapshots({ market });
   // BUG-2: decode once and reuse for both `signals` (UI) and `state.signals`
   const decodedSignals = signalRows
     .map((row) => decodeSignalContract(row))
@@ -3795,6 +3925,17 @@ export async function getDecisionSnapshot(args: {
   holdings?: UserHoldingInput[];
   locale?: string;
 }) {
+  if (
+    shouldAvoidSyncHotPathFallback() &&
+    (!Array.isArray(args.holdings) || args.holdings.length === 0)
+  ) {
+    return await getPublicTodayDecision({
+      userId: args.userId,
+      market: args.market,
+      assetClass: args.assetClass,
+      locale: args.locale,
+    });
+  }
   const core = await loadRuntimeStateCorePrimary({
     ...args,
     forceSync: true,
@@ -4615,9 +4756,15 @@ async function getRuntimeStatePrimary(args: {
   assetClass?: AssetClass;
 }) {
   const core = await loadRuntimeStateCorePrimary(args);
-  const decision = await buildDecisionSnapshotFromCorePrimary({
-    core,
-  });
+  const decision = shouldAvoidSyncHotPathFallback()
+    ? await getPublicTodayDecision({
+        userId: core.userId,
+        market: core.market,
+        assetClass: core.assetClass,
+      })
+    : await buildDecisionSnapshotFromCorePrimary({
+        core,
+      });
   const trades = await listExecutionsPrimary({
     userId: core.userId,
     market: core.market,
@@ -5306,6 +5453,25 @@ export function getEvidenceTopSignals(args: {
     assetClass: args.assetClass,
     limit: args.limit,
   });
+}
+
+export async function getEvidenceTopSignalsPrimary(args: {
+  userId?: string;
+  market?: Market;
+  assetClass?: AssetClass;
+  limit?: number;
+}) {
+  const contracts = await listSignalContractsPrimary({
+    userId: args.userId || 'guest-default',
+    market: args.market,
+    assetClass: args.assetClass,
+    status: 'ALL',
+    limit: Math.max(3, Number(args.limit || 3) * 3),
+  });
+  if (shouldAvoidSyncHotPathFallback()) {
+    return buildRuntimeSignalEvidenceFromContracts(contracts, args.limit);
+  }
+  return getEvidenceTopSignals(args);
 }
 
 export function getEvidenceSignalDetail(args: { signalId: string; userId?: string }) {

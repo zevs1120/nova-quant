@@ -14,6 +14,7 @@ import { decodeSignalContract } from '../quant/service.js';
 import type {
   AlphaIntegrationPath,
   AlphaLifecycleState,
+  Asset,
   AssetClass,
   DecisionSnapshotRecord,
   ExecutionMode,
@@ -1210,6 +1211,36 @@ export async function readPostgresPerformanceSnapshots(args?: {
     payload_json: String(row.payload_json || '{}'),
     asof_ms: toNumber(row.asof_ms),
     updated_at_ms: toNumber(row.updated_at_ms),
+  }));
+}
+
+export async function readPostgresAssets(args?: { market?: Market }): Promise<Asset[]> {
+  const params: unknown[] = [];
+  const whereSql = args?.market
+    ? (() => {
+        params.push(args.market);
+        return `WHERE market = $${params.length}`;
+      })()
+    : '';
+  const rows = await queryRows<Record<string, unknown>>(
+    `
+      SELECT asset_id, symbol, market, venue, base, quote, status, created_at, updated_at
+      FROM ${qualifyBusinessTable('assets')}
+      ${whereSql}
+      ORDER BY ${args?.market ? 'symbol' : 'market, symbol'}
+    `,
+    params,
+  );
+  return rows.map((row) => ({
+    asset_id: toNumber(row.asset_id),
+    symbol: String(row.symbol || ''),
+    market: String(row.market || 'US') as Market,
+    venue: String(row.venue || ''),
+    base: toNullableString(row.base),
+    quote: toNullableString(row.quote),
+    status: String(row.status || 'ACTIVE'),
+    created_at: toNumber(row.created_at),
+    updated_at: toNumber(row.updated_at),
   }));
 }
 

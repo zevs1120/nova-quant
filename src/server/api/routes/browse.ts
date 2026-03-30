@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { parseMarket, asyncRoute } from '../helpers.js';
 import {
-  listAssets,
+  listAssetsPrimary,
   searchAssets,
   getSearchHealth,
   getBrowseHomePayload,
@@ -12,16 +12,19 @@ import {
 
 const router = Router();
 
-router.get('/api/assets', (req, res) => {
-  const market = parseMarket(req.query.market as string | undefined);
-  if (req.query.market && !market) {
-    res.status(400).json({ error: 'Invalid market, use US or CRYPTO' });
-    return;
-  }
+router.get(
+  '/api/assets',
+  asyncRoute(async (req, res) => {
+    const market = parseMarket(req.query.market as string | undefined);
+    if (req.query.market && !market) {
+      res.status(400).json({ error: 'Invalid market, use US or CRYPTO' });
+      return;
+    }
 
-  const assets = listAssets(market);
-  res.json({ market: market ?? 'ALL', count: assets.length, data: assets });
-});
+    const assets = await listAssetsPrimary(market);
+    res.json({ market: market ?? 'ALL', count: assets.length, data: assets });
+  }),
+);
 
 router.get(
   '/api/assets/search',

@@ -50,3 +50,5 @@ Conventional Commits: `feat(module):`, `fix(module):`, `test:`, `docs:`. Title s
 - On Vercel: DB is ephemeral at `/tmp/nova-quant/quant.db`; `VERCEL=1` switches config paths
 - API proxied at `/api` in dev (Vite config proxies to `http://127.0.0.1:8787`)
 - Set `NOVA_DATA_DATABASE_URL` to enable Supabase business data mirror (optional)
+- `NOVA_DATA_RUNTIME_DRIVER=postgres` is an EC2 canary switch for Postgres runtime reads; current implementation still uses the synchronous Postgres bridge, so validate latency before treating it as a full replacement for SQLite runtime reads
+- Hot-path protection envs for EC2 incidents: `NOVA_PG_PRIMARY_READ_FAILURE_COOLDOWN_MS`, `NOVA_ALLOW_SYNC_HOT_PATH_FALLBACK`, and `NOVA_AUTO_BACKEND_SKIP_INIT`

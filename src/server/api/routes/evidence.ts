@@ -1,8 +1,8 @@
 import { Router } from 'express';
-import { parseMarket, parseAssetClass } from '../helpers.js';
+import { parseMarket, parseAssetClass, asyncRoute } from '../helpers.js';
 import {
   runEvidence,
-  getEvidenceTopSignals,
+  getEvidenceTopSignalsPrimary,
   getEvidenceSignalDetail,
   listEvidenceBacktests,
   getEvidenceBacktestDetail,
@@ -34,19 +34,22 @@ router.post('/api/evidence/run', (req, res) => {
   res.json(out);
 });
 
-router.get('/api/evidence/signals/top', (req, res) => {
-  const userId = (req.query.userId as string | undefined) || 'guest-default';
-  const market = parseMarket(req.query.market as string | undefined);
-  const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
-  const limit = req.query.limit ? Number(req.query.limit) : 3;
-  const out = getEvidenceTopSignals({
-    userId,
-    market,
-    assetClass,
-    limit,
-  });
-  res.json(out);
-});
+router.get(
+  '/api/evidence/signals/top',
+  asyncRoute(async (req, res) => {
+    const userId = (req.query.userId as string | undefined) || 'guest-default';
+    const market = parseMarket(req.query.market as string | undefined);
+    const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
+    const limit = req.query.limit ? Number(req.query.limit) : 3;
+    const out = await getEvidenceTopSignalsPrimary({
+      userId,
+      market,
+      assetClass,
+      limit,
+    });
+    res.json(out);
+  }),
+);
 
 router.get('/api/evidence/signals/:id', (req, res) => {
   const signalId = String(req.params.id || '');

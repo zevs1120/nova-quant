@@ -1,6 +1,102 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
 import * as queries from '../src/server/api/queries.js';
 import * as pgReads from '../src/server/admin/postgresBusinessRead.js';
+import type { SignalContract, SignalRecord } from '../src/server/types.js';
+
+function seedSignal(id: string, symbol: string, createdAt: string, entry: number): SignalContract {
+  return {
+    id,
+    created_at: createdAt,
+    expires_at: new Date(Date.parse(createdAt) + 3 * 24 * 3600_000).toISOString(),
+    asset_class: 'US_STOCK',
+    market: 'US',
+    symbol,
+    timeframe: '1d',
+    strategy_id: 'PG_FALLBACK_TEST',
+    strategy_family: 'Momentum / Trend Following',
+    strategy_version: 'runtime-bars-rules.v1',
+    regime_id: 'TREND',
+    temperature_percentile: 50,
+    volatility_percentile: 44,
+    direction: 'LONG',
+    strength: 75,
+    confidence: 0.7,
+    entry_zone: { low: entry - 0.5, high: entry + 0.5, method: 'LIMIT', notes: 'seed' },
+    invalidation_level: entry - 1.1,
+    stop_loss: { type: 'ATR', price: entry - 1.1, rationale: 'seed' },
+    take_profit_levels: [{ price: entry + 1.6, size_pct: 0.6, rationale: 'seed' }],
+    trailing_rule: { type: 'EMA', params: { fast: 10, slow: 30 } },
+    position_advice: {
+      position_pct: 7,
+      leverage_cap: 1.4,
+      risk_bucket_applied: 'BASE',
+      rationale: 'seed',
+    },
+    cost_model: { fee_bps: 1.2, spread_bps: 1.1, slippage_bps: 2.2, basis_est: 0 },
+    expected_metrics: {
+      expected_R: 1.2,
+      hit_rate_est: 0.56,
+      sample_size: 20,
+      expected_max_dd_est: 0.08,
+    },
+    explain_bullets: ['API seed signal'],
+    execution_checklist: ['seed'],
+    tags: ['status:MODEL_DERIVED', 'source:DB_BACKED'],
+    status: 'NEW',
+    payload: { kind: 'STOCK_SWING', data: { horizon: 'MEDIUM', catalysts: ['seed'] } },
+    score: 76,
+    payload_version: 'signal-contract.v1',
+  };
+}
+
+function toSignalRecord(signal: SignalContract): SignalRecord {
+  return {
+    signal_id: signal.id,
+    created_at_ms: Date.parse(signal.created_at),
+    expires_at_ms: Date.parse(signal.expires_at),
+    asset_class: signal.asset_class,
+    market: signal.market,
+    symbol: signal.symbol,
+    timeframe: signal.timeframe,
+    strategy_id: signal.strategy_id,
+    strategy_family: signal.strategy_family,
+    strategy_version: signal.strategy_version,
+    regime_id: signal.regime_id,
+    temperature_percentile: signal.temperature_percentile,
+    volatility_percentile: signal.volatility_percentile,
+    direction: signal.direction,
+    strength: signal.strength,
+    confidence: signal.confidence,
+    entry_low: signal.entry_zone.low,
+    entry_high: signal.entry_zone.high,
+    entry_method: signal.entry_zone.method,
+    invalidation_level: signal.invalidation_level,
+    stop_type: signal.stop_loss.type,
+    stop_price: signal.stop_loss.price,
+    tp1_price: signal.take_profit_levels[0]?.price ?? null,
+    tp1_size_pct: signal.take_profit_levels[0]?.size_pct ?? null,
+    tp2_price: signal.take_profit_levels[1]?.price ?? null,
+    tp2_size_pct: signal.take_profit_levels[1]?.size_pct ?? null,
+    trailing_type: signal.trailing_rule.type,
+    trailing_params_json: JSON.stringify(signal.trailing_rule.params || {}),
+    position_pct: signal.position_advice.position_pct,
+    leverage_cap: signal.position_advice.leverage_cap,
+    risk_bucket_applied: signal.position_advice.risk_bucket_applied,
+    fee_bps: signal.cost_model.fee_bps,
+    spread_bps: signal.cost_model.spread_bps,
+    slippage_bps: signal.cost_model.slippage_bps,
+    funding_est_bps: signal.cost_model.funding_est_bps ?? null,
+    basis_est: signal.cost_model.basis_est ?? null,
+    expected_r: signal.expected_metrics.expected_R,
+    hit_rate_est: signal.expected_metrics.hit_rate_est,
+    sample_size: signal.expected_metrics.sample_size,
+    expected_max_dd_est: signal.expected_metrics.expected_max_dd_est ?? null,
+    status: signal.status,
+    score: signal.score,
+    payload_json: JSON.stringify(signal),
+    updated_at_ms: Date.parse(signal.created_at),
+  };
+}
 
 describe('postgres fallback sync', () => {
   afterEach(() => {
@@ -131,5 +227,51 @@ describe('postgres fallback sync', () => {
     await queries.getRiskProfilePrimary('guest-default', { skipSync: true });
 
     expect(readSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns degraded empty assets instead of syncing SQLite on hot-path read failure', async () => {
+    vi.stubEnv('NOVA_DATA_DATABASE_URL', 'postgres://runtime-host/db');
+    vi.stubEnv('NOVA_ENABLE_PG_PRIMARY_READS_TEST', '1');
+    vi.stubEnv('NOVA_ALLOW_SYNC_HOT_PATH_FALLBACK', '0');
+
+    vi.spyOn(pgReads, 'readPostgresAssets').mockRejectedValue(new Error('pg down'));
+
+    await expect(queries.listAssetsPrimary('US')).resolves.toEqual([]);
+  });
+
+  it('returns degraded performance summary instead of syncing SQLite on hot-path read failure', async () => {
+    vi.stubEnv('NOVA_DATA_DATABASE_URL', 'postgres://runtime-host/db');
+    vi.stubEnv('NOVA_ENABLE_PG_PRIMARY_READS_TEST', '1');
+    vi.stubEnv('NOVA_ALLOW_SYNC_HOT_PATH_FALLBACK', '0');
+
+    vi.spyOn(pgReads, 'readPostgresPerformanceSnapshots').mockRejectedValue(new Error('pg down'));
+
+    const summary = await queries.getPerformanceSummaryPrimary({
+      userId: 'guest-default',
+      market: 'US',
+    });
+    expect(summary.records).toEqual([]);
+    expect(summary.source_status).toBe('INSUFFICIENT_DATA');
+  });
+
+  it('builds evidence-top response from async postgres signal payloads', async () => {
+    vi.stubEnv('NOVA_DATA_DATABASE_URL', 'postgres://runtime-host/db');
+    vi.stubEnv('NOVA_ENABLE_PG_PRIMARY_READS_TEST', '1');
+    vi.stubEnv('NOVA_ALLOW_SYNC_HOT_PATH_FALLBACK', '0');
+
+    const signal = seedSignal('SIG-PG-EVIDENCE-1', 'SPY', new Date().toISOString(), 500);
+    vi.spyOn(pgReads, 'readPostgresSignalRecords').mockResolvedValue([toSignalRecord(signal)]);
+
+    const result = await queries.getEvidenceTopSignalsPrimary({
+      userId: 'guest-default',
+      market: 'US',
+      assetClass: 'US_STOCK',
+      limit: 3,
+    });
+
+    expect(result.source_status).toBe('MODEL_DERIVED');
+    expect(Array.isArray(result.records)).toBe(true);
+    expect(result.records[0]?.signal_id).toBe(signal.id);
+    expect(result.records[0]?.symbol).toBe(signal.symbol);
   });
 });

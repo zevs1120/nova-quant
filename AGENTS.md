@@ -2,7 +2,7 @@
 
 ## 项目结构与模块组织
 
-根目录是主开发入口。`src/` 放核心实现：`src/server/` 为 API、鉴权、决策、风险与研究后端，`src/components/` 与 `src/App.jsx` 为主前端壳层，`src/research/`、`src/quant/`、`src/training/` 承载量化逻辑。`tests/` 放 Vitest 用例，例如 `tests/decisionEngine.test.ts`。部署边界按四段拆分：`landing/` 品牌落地页、`app/` 用户端、`admin/` 内部控制台、仓库根目录（主 API + 量化核心，通过 `api/index.ts` 部署到 Vercel Serverless Functions）。数据与快照位于 `data/`，设计与运行说明集中在 `docs/`。业务数据主存在 SQLite (`data/quant.db`)，可选通过 `NOVA_DATA_DATABASE_URL` 启用 Supabase Postgres 镜像（写入自动同步 + Admin/API 优先读取）。EC2 部署配置位于 `deployment/aws-ec2/`，平台就绪预检脚本为 `scripts/check-platform-readiness.mjs`。
+根目录是主开发入口。`src/` 放核心实现：`src/server/` 为 API、鉴权、决策、风险与研究后端，`src/components/` 与 `src/App.jsx` 为主前端壳层，`src/research/`、`src/quant/`、`src/training/` 承载量化逻辑。`tests/` 放 Vitest 用例，例如 `tests/decisionEngine.test.ts`。部署边界按四段拆分：`landing/` 品牌落地页、`app/` 用户端、`admin/` 内部控制台、仓库根目录（主 API + 量化核心，通过 `api/index.ts` 部署到 Vercel Serverless Functions）。数据与快照位于 `data/`，设计与运行说明集中在 `docs/`。业务数据默认仍以 SQLite (`data/quant.db`) 为运行时主路径，可选通过 `NOVA_DATA_DATABASE_URL` 启用 Supabase Postgres 镜像（写入自动同步 + Admin/API 优先读取）；`NOVA_DATA_RUNTIME_DRIVER=postgres` 可用于 EC2 canary，但当前 Postgres runtime 仍经由同步 bridge。EC2 部署配置位于 `deployment/aws-ec2/`，平台就绪预检脚本为 `scripts/check-platform-readiness.mjs`。
 
 ## 构建、测试与开发命令
 

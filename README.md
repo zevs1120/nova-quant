@@ -230,8 +230,9 @@ Primary backend source of truth:
 - `src/server/auth/postgresStore.ts` (auth store schema + queries)
 - `src/server/db/postgresBusinessMirror.ts` (Supabase business data write mirror)
 - `src/server/admin/postgresBusinessRead.ts` (Supabase business data read layer)
-- SQLite (`data/quant.db`) for business data
+- SQLite (`data/quant.db`) for business data in the default runtime path
 - Supabase Postgres (business data mirror, when `NOVA_DATA_DATABASE_URL` is set)
+- Optional EC2 canary: `NOVA_DATA_RUNTIME_DRIVER=postgres` switches runtime reads to the Postgres repository, but the current implementation still uses the synchronous `postgresSyncBridge`, so evaluate it as a staged cutover rather than an automatic latency fix
 - Postgres (auth store, when `DATABASE_URL` is set)
 
 ## Decision Engine
