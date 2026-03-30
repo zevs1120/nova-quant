@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
 import * as queries from '../src/server/api/queries.js';
 import * as pgReads from '../src/server/admin/postgresBusinessRead.js';
+import { MarketRepository } from '../src/server/db/repository.js';
 import type { SignalContract, SignalRecord } from '../src/server/types.js';
 
 function seedSignal(id: string, symbol: string, createdAt: string, entry: number): SignalContract {
@@ -273,5 +274,42 @@ describe('postgres fallback sync', () => {
     expect(Array.isArray(result.records)).toBe(true);
     expect(result.records[0]?.signal_id).toBe(signal.id);
     expect(result.records[0]?.symbol).toBe(signal.symbol);
+  });
+
+  it('skips sqlite decision snapshot reads and writes for personalized hot-path decisions', async () => {
+    vi.stubEnv('NOVA_DATA_DATABASE_URL', 'postgres://runtime-host/db');
+    vi.stubEnv('NOVA_ENABLE_PG_PRIMARY_READS_TEST', '1');
+    vi.stubEnv('NOVA_ALLOW_SYNC_HOT_PATH_FALLBACK', '0');
+
+    const signal = seedSignal('SIG-PG-DECISION-1', 'AAPL', new Date().toISOString(), 210);
+    vi.spyOn(pgReads, 'readPostgresRiskProfile').mockResolvedValue(null);
+    vi.spyOn(pgReads, 'readPostgresSignalRecords').mockResolvedValue([toSignalRecord(signal)]);
+    vi.spyOn(pgReads, 'readPostgresMarketState').mockResolvedValue([]);
+    vi.spyOn(pgReads, 'readPostgresPerformanceSnapshots').mockResolvedValue([]);
+    vi.spyOn(pgReads, 'readPostgresLatestDecisionSnapshot').mockResolvedValue(null);
+
+    const latestSpy = vi.spyOn(MarketRepository.prototype, 'getLatestDecisionSnapshot');
+    const persistSpy = vi.spyOn(MarketRepository.prototype, 'upsertDecisionSnapshot');
+
+    const decision = await queries.getDecisionSnapshot({
+      userId: 'hot-path-user',
+      market: 'US',
+      assetClass: 'US_STOCK',
+      holdings: [
+        {
+          symbol: 'AAPL',
+          market: 'US',
+          asset_class: 'US_STOCK',
+          weight_pct: 12,
+          sector: 'Technology',
+        },
+      ],
+    });
+
+    expect(String((decision as { audit_snapshot_id?: string }).audit_snapshot_id || '')).toContain(
+      'decision-hot-',
+    );
+    expect(latestSpy).not.toHaveBeenCalled();
+    expect(persistSpy).not.toHaveBeenCalled();
   });
 });

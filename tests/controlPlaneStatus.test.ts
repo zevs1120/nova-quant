@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getDb } from '../src/server/db/database.js';
 import { MarketRepository } from '../src/server/db/repository.js';
 import { getControlPlaneStatus, getFlywheelStatus } from '../src/server/api/queries.js';
+import * as pgReads from '../src/server/admin/postgresBusinessRead.js';
 
 function seedWorkflowRun(
   repo: MarketRepository,
@@ -30,6 +31,11 @@ function seedWorkflowRun(
 }
 
 describe('control plane flywheel status', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllEnvs();
+  });
+
   it('surfaces recent ingestion, evolution, and training state through the status APIs', async () => {
     const repo = new MarketRepository(getDb());
 
@@ -214,5 +220,140 @@ describe('control plane flywheel status', () => {
     });
 
     expect(status.delivery.active_notification_count).toBeGreaterThanOrEqual(1);
+  });
+
+  it('uses async postgres flywheel reads and lightweight governance on hot-path mode', async () => {
+    vi.stubEnv('NOVA_DATA_DATABASE_URL', 'postgres://runtime-host/db');
+    vi.stubEnv('NOVA_ENABLE_PG_PRIMARY_READS_TEST', '1');
+    vi.stubEnv('NOVA_ALLOW_SYNC_HOT_PATH_FALLBACK', '0');
+
+    const baseTs = Date.UTC(2199, 0, 3, 0, 0, 0);
+    const repoWorkflowSpy = vi.spyOn(MarketRepository.prototype, 'listWorkflowRuns');
+    const repoNewsSpy = vi.spyOn(MarketRepository.prototype, 'listNewsItems');
+    const repoExecutionSpy = vi.spyOn(MarketRepository.prototype, 'listExecutions');
+
+    vi.spyOn(pgReads, 'readPostgresRiskProfile').mockResolvedValue(null);
+    vi.spyOn(pgReads, 'readPostgresSignalRecords').mockResolvedValue([]);
+    vi.spyOn(pgReads, 'readPostgresMarketState').mockResolvedValue([]);
+    vi.spyOn(pgReads, 'readPostgresPerformanceSnapshots').mockResolvedValue([]);
+    vi.spyOn(pgReads, 'readPostgresAssets').mockResolvedValue([]);
+    vi.spyOn(pgReads, 'readPostgresNotificationEvents').mockResolvedValue([]);
+    vi.spyOn(pgReads, 'readPostgresNewsItems').mockResolvedValue([
+      {
+        id: `news-hot-${baseTs}`,
+        market: 'US',
+        symbol: 'SPY',
+        headline: 'Hot-path PG news',
+        source: 'PG Test',
+        url: null,
+        published_at_ms: baseTs + 50,
+        sentiment_label: 'NEUTRAL',
+        relevance_score: 0.5,
+        payload_json: '{}',
+        updated_at_ms: baseTs + 50,
+      },
+    ]);
+    vi.spyOn(pgReads, 'readPostgresWorkflowRuns').mockImplementation(async (args) => {
+      const workflowKeys = args?.workflowKeys || [];
+      if (workflowKeys.includes('nova_strategy_lab')) {
+        return [
+          {
+            id: `workflow-strategy-${baseTs}`,
+            workflow_key: 'nova_strategy_lab',
+            workflow_version: 'nova_strategy_lab.test',
+            trigger_type: 'scheduled',
+            status: 'SUCCEEDED',
+            trace_id: 'trace-strategy',
+            input_json: '{}',
+            output_json: '{}',
+            attempt_count: 1,
+            started_at_ms: baseTs + 10,
+            updated_at_ms: baseTs + 10,
+            completed_at_ms: baseTs + 10,
+          },
+        ];
+      }
+      return [
+        {
+          id: `workflow-free-${baseTs}`,
+          workflow_key: 'free_data_flywheel',
+          workflow_version: 'free.test',
+          trigger_type: 'scheduled',
+          status: 'SUCCEEDED',
+          trace_id: 'trace-free',
+          input_json: '{}',
+          output_json: JSON.stringify({
+            workflow_id: `workflow-free-${baseTs}`,
+            news: { refreshed_symbols: 2, skipped_symbols: 0, rows_upserted: 10, errors: [] },
+            crypto_structure: { funding_points: 4, basis_points: 1, symbols: [] },
+          }),
+          attempt_count: 1,
+          started_at_ms: baseTs + 20,
+          updated_at_ms: baseTs + 20,
+          completed_at_ms: baseTs + 20,
+        },
+        {
+          id: `workflow-evo-${baseTs}`,
+          workflow_key: 'quant_evolution_cycle',
+          workflow_version: 'evo.test',
+          trigger_type: 'scheduled',
+          status: 'SUCCEEDED',
+          trace_id: 'trace-evo',
+          input_json: '{}',
+          output_json: JSON.stringify([
+            {
+              market: 'US',
+              factorEvalCount: 3,
+              promoted: true,
+              rolledBack: false,
+              safeMode: false,
+              activeModelId: 'model-us',
+              challengerModelId: 'model-us-shadow',
+              summary: 'ok',
+            },
+          ]),
+          attempt_count: 1,
+          started_at_ms: baseTs + 30,
+          updated_at_ms: baseTs + 30,
+          completed_at_ms: baseTs + 30,
+        },
+        {
+          id: `workflow-train-${baseTs}`,
+          workflow_key: 'nova_training_flywheel',
+          workflow_version: 'train.test',
+          trigger_type: 'scheduled',
+          status: 'SUCCEEDED',
+          trace_id: 'trace-train',
+          input_json: '{}',
+          output_json: JSON.stringify({
+            trainer: 'mlx-lora',
+            dataset_count: 12,
+            ready_for_training: true,
+            task_types: ['assistant_grounded_answer'],
+            execution: {
+              attempted: true,
+              executed: false,
+              success: false,
+              reason: 'scheduled',
+              exit_code: null,
+            },
+          }),
+          attempt_count: 1,
+          started_at_ms: baseTs + 40,
+          updated_at_ms: baseTs + 40,
+          completed_at_ms: baseTs + 40,
+        },
+      ];
+    });
+
+    const status = await getControlPlaneStatus({ userId: 'control-plane-hot-path-user' });
+
+    expect(status.flywheel.training.current_dataset_count).toBe(12);
+    expect(status.flywheel.training.current_dataset_source).toBe('latest_training_run');
+    expect(status.execution_governance.kill_switch.active).toBe(false);
+    expect(status.strategy_factory.latest_status).toBe('SUCCEEDED');
+    expect(repoWorkflowSpy).not.toHaveBeenCalled();
+    expect(repoNewsSpy).not.toHaveBeenCalled();
+    expect(repoExecutionSpy).not.toHaveBeenCalled();
   });
 });

@@ -20,6 +20,7 @@ NovaQuant 所有重要变更记录于此。
   - **Fix -- 生产启动 I/O 风暴止血**：`auto-backend` 现在会在已有新鲜行情数据时跳过启动期 full initial backfill，避免每次 deploy 都对同一个 `quant.db` 重灌历史数据；`pg-primary-read` 在 Supabase 超时后会进入短暂冷却，避免每个请求都重复等待远端超时再回退本地库。
   - **Fix -- warm start 不再重跑整段重初始化**：当 US / CRYPTO 两个市场都已有足够新鲜的代表性数据时，`auto-backend` 会直接跳过启动期 `free data flywheel + validation + runtime derivation + evolution/training/discovery` 全套初始化；同时支持 `NOVA_AUTO_BACKEND_SKIP_INIT=1` 明确禁用启动期初始化。
   - **Fix -- 公共热接口去同步回退**：`/api/assets`、`/api/signals`、`/api/market-state`、`/api/performance`、`/api/risk-profile`、`/api/runtime-state`、`/api/evidence/signals/top` 与无持仓的 `decision/today` 现在优先走真正异步的 Postgres 读取路径；当 Supabase 慢或超时时，默认返回降级/空数据而不是立刻掉回同步 SQLite 热路径把 API 主线程拖死。
+  - **Fix -- Phase 2 热路径继续异步化**：`control-plane/status` 与 `control-plane/flywheel` 现在优先走异步 Postgres 聚合，不再默认扫本地 SQLite 的 workflow/news/execution 热路径；热路径模式下 `execution_governance` 会返回轻量默认值，避免为了控制面板概览再触发 live/paper reconciliation。完整个性化 `decision/today` 在热路径模式下也会跳过本地 decision snapshot 读写和本地 Nova enrich，改为直接返回基于异步 PG runtime 的个性化结果，避免再次把主线程拖回同步 SQLite。
   - **Fix -- EC2 deploy 健康检查纠错**：部署工作流改为轮询 `/healthz` 并严格以 `200` 判成功，修复 `curl` 超时被拼成 `000000` 仍误判成功的问题。
   - **Test -- Postgres admin hot path 回归覆盖**：新增测试覆盖 touch 节流与配置型管理员无需额外 role I/O 的判权路径。
 

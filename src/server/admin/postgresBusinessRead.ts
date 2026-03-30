@@ -21,12 +21,14 @@ import type {
   ExecutionRecord,
   Market,
   MarketStateRecord,
+  NewsItemRecord,
   NotificationEventRecord,
   NotificationPreferenceRecord,
   PerformanceSnapshotRecord,
   SignalRecord,
   UserRiskProfileRecord,
   UserRitualEventRecord,
+  WorkflowRunRecord,
 } from '../types.js';
 
 type JsonObject = Record<string, unknown>;
@@ -103,6 +105,7 @@ type NewsItemRow = {
   symbol: string;
   headline: string;
   source: string;
+  url: string | null;
   published_at_ms: number;
   sentiment_label: string;
   relevance_score: number;
@@ -634,6 +637,7 @@ async function listNewsItems(limit: number, sinceMs?: number): Promise<NewsItemR
         symbol,
         headline,
         source,
+        url,
         published_at_ms,
         sentiment_label,
         relevance_score,
@@ -652,6 +656,7 @@ async function listNewsItems(limit: number, sinceMs?: number): Promise<NewsItemR
     symbol: String(row.symbol || ''),
     headline: String(row.headline || ''),
     source: String(row.source || ''),
+    url: toNullableString(row.url),
     published_at_ms: toNumber(row.published_at_ms),
     sentiment_label: String(row.sentiment_label || ''),
     relevance_score: toNumber(row.relevance_score),
@@ -1241,6 +1246,50 @@ export async function readPostgresAssets(args?: { market?: Market }): Promise<As
     status: String(row.status || 'ACTIVE'),
     created_at: toNumber(row.created_at),
     updated_at: toNumber(row.updated_at),
+  }));
+}
+
+export async function readPostgresWorkflowRuns(args?: {
+  workflowKeys?: string[];
+  limit?: number;
+}): Promise<WorkflowRunRecord[]> {
+  const rows = await listWorkflowRuns(
+    Math.max(1, Number(args?.limit || 20)),
+    args?.workflowKeys?.length ? args.workflowKeys : undefined,
+  );
+  return rows.map((row) => ({
+    id: row.id,
+    workflow_key: row.workflow_key,
+    workflow_version: row.workflow_version,
+    trigger_type: row.trigger_type as WorkflowRunRecord['trigger_type'],
+    status: row.status as WorkflowRunRecord['status'],
+    trace_id: row.trace_id,
+    input_json: row.input_json,
+    output_json: row.output_json,
+    attempt_count: row.attempt_count,
+    started_at_ms: row.started_at_ms,
+    updated_at_ms: row.updated_at_ms,
+    completed_at_ms: row.completed_at_ms,
+  }));
+}
+
+export async function readPostgresNewsItems(args?: {
+  limit?: number;
+  sinceMs?: number;
+}): Promise<NewsItemRecord[]> {
+  const rows = await listNewsItems(Math.max(1, Number(args?.limit || 20)), args?.sinceMs);
+  return rows.map((row) => ({
+    id: row.id,
+    market: row.market as NewsItemRecord['market'],
+    symbol: row.symbol,
+    headline: row.headline,
+    source: row.source,
+    url: row.url,
+    published_at_ms: row.published_at_ms,
+    sentiment_label: row.sentiment_label as NewsItemRecord['sentiment_label'],
+    relevance_score: row.relevance_score,
+    payload_json: row.payload_json,
+    updated_at_ms: row.updated_at_ms,
   }));
 }
 

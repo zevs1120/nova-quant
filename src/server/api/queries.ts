@@ -91,6 +91,7 @@ import {
   readPostgresExternalConnections,
   readPostgresLatestDecisionSnapshot,
   readPostgresMarketState,
+  readPostgresNewsItems,
   readPostgresNotificationEvents,
   readPostgresNotificationPreferences,
   readPostgresPerformanceSnapshots,
@@ -98,6 +99,7 @@ import {
   readPostgresSignalRecord,
   readPostgresSignalRecords,
   readPostgresUserRitualEvents,
+  readPostgresWorkflowRuns,
 } from '../admin/postgresBusinessRead.js';
 import { isGuestScopedUserId } from './helpers.js';
 
@@ -555,18 +557,31 @@ function evidenceFreshnessLabel(createdAtIso: string | null | undefined) {
   return `${Math.floor(freshnessMinutes / 60)}h ago`;
 }
 
+function runtimeStatusToEvidenceStatus(status: string) {
+  const normalized = normalizeRuntimeStatus(status, RUNTIME_STATUS.INSUFFICIENT_DATA);
+  if (normalized === RUNTIME_STATUS.WITHHELD) return 'WITHHELD' as const;
+  if (normalized === RUNTIME_STATUS.INSUFFICIENT_DATA) return 'INSUFFICIENT_DATA' as const;
+  if (normalized === RUNTIME_STATUS.EXPERIMENTAL) return 'EXPERIMENTAL' as const;
+  return 'PARTIAL_DATA' as const;
+}
+
 function buildRuntimeSignalEvidenceFromContracts(
   signals: SignalContract[],
   limit = 3,
-  sourceStatus = RUNTIME_STATUS.MODEL_DERIVED,
+  _sourceStatus: string = RUNTIME_STATUS.MODEL_DERIVED,
 ) {
   const records = signals
     .map((signal) => {
       const uiSignal = toUiSignal(signal);
+      const createdAtMs = Date.parse(String(signal.created_at || ''));
+      const freshnessMinutes = Number.isFinite(createdAtMs)
+        ? Math.max(0, Math.round((Date.now() - createdAtMs) / 60000))
+        : 0;
       const signalDataStatus = normalizeRuntimeStatus(
         String(uiSignal.data_status || uiSignal.source_label || uiSignal.source_status || ''),
         RUNTIME_STATUS.MODEL_DERIVED,
       );
+      const evidenceStatus = runtimeStatusToEvidenceStatus(signalDataStatus);
       const actionable =
         ['NEW', 'TRIGGERED'].includes(String(signal.status || '').toUpperCase()) &&
         signalDataStatus !== RUNTIME_STATUS.WITHHELD &&
@@ -584,14 +599,14 @@ function buildRuntimeSignalEvidenceFromContracts(
         entry_zone: signal.entry_zone || null,
         invalidation: signal.stop_loss?.price || signal.invalidation_level || null,
         source_transparency: {
-          source_status: sourceStatus,
-          data_status: signalDataStatus,
-          source_label: signalDataStatus,
+          source_status: RUNTIME_STATUS.MODEL_DERIVED,
+          data_status: RUNTIME_STATUS.MODEL_DERIVED,
+          source_label: RUNTIME_STATUS.MODEL_DERIVED,
           evidence_mode: 'RUNTIME_SIGNAL_FALLBACK',
           validation_mode: 'REPLAY_PENDING',
         },
-        evidence_status: signalDataStatus,
-        freshness_minutes: null,
+        evidence_status: evidenceStatus,
+        freshness_minutes: freshnessMinutes,
         freshness_label: evidenceFreshnessLabel(signal.created_at),
         actionable,
         created_at: signal.created_at,
@@ -607,8 +622,8 @@ function buildRuntimeSignalEvidenceFromContracts(
 
   return {
     asof: new Date().toISOString(),
-    source_status: records.length ? sourceStatus : RUNTIME_STATUS.INSUFFICIENT_DATA,
-    data_status: records.length ? sourceStatus : RUNTIME_STATUS.INSUFFICIENT_DATA,
+    source_status: records.length ? RUNTIME_STATUS.MODEL_DERIVED : RUNTIME_STATUS.INSUFFICIENT_DATA,
+    data_status: records.length ? RUNTIME_STATUS.MODEL_DERIVED : RUNTIME_STATUS.INSUFFICIENT_DATA,
     supporting_run_id: null,
     dataset_version_id: null,
     strategy_version_id: records[0]?.strategy_version_id || null,
@@ -1671,6 +1686,40 @@ export async function searchAssets(args: { query: string; limit?: number; market
 export function getSearchHealth(args?: { market?: Market; query?: string; resultCount?: number }) {
   const repo = getRepo();
   const liveAssets = repo.listAssets(args?.market).length;
+  const referenceAssets = getReferenceSearchUniverse().filter(
+    (candidate) => !args?.market || candidate.market === args.market,
+  ).length;
+  const query = String(args?.query || '').trim();
+  const resultCount = Number(args?.resultCount || 0);
+  const status =
+    resultCount > 0 ? 'READY' : liveAssets > 0 || referenceAssets > 0 ? 'DEGRADED' : 'UNAVAILABLE';
+  const reason =
+    resultCount > 0
+      ? null
+      : !query
+        ? 'QUERY_EMPTY'
+        : liveAssets === 0 && referenceAssets === 0
+          ? 'NO_ASSET_UNIVERSE'
+          : 'NO_MATCHES';
+
+  return {
+    status,
+    reason,
+    market: args?.market || 'ALL',
+    query: query || null,
+    result_count: resultCount,
+    live_asset_count: liveAssets,
+    reference_asset_count: referenceAssets,
+    remote_lookup_enabled: query.length >= 2,
+  };
+}
+
+async function getSearchHealthPrimary(args?: {
+  market?: Market;
+  query?: string;
+  resultCount?: number;
+}) {
+  const liveAssets = (await listAssetsPrimary(args?.market)).length;
   const referenceAssets = getReferenceSearchUniverse().filter(
     (candidate) => !args?.market || candidate.market === args.market,
   ).length;
@@ -3863,20 +3912,36 @@ async function buildDecisionSnapshotFromCorePrimary(args: {
   holdings?: UserHoldingInput[];
   locale?: string;
 }) {
+  const avoidSyncFallback = shouldAvoidSyncHotPathFallback();
+  const runtimeSignals = Array.isArray(args.core.state?.signals)
+    ? (args.core.state.signals as SignalContract[])
+    : [];
   let evidenceSignals: ReturnType<typeof getTopSignalEvidence>['records'] = [];
-  try {
-    evidenceSignals = getTopSignalEvidence(args.core.repo, {
-      userId: args.core.userId,
-      market: args.core.market,
-      assetClass: args.core.assetClass,
-      limit: 6,
-    }).records;
-  } catch (error) {
-    console.warn(
-      '[queries] evidence read failed in primary path:',
-      error instanceof Error ? error.message : String(error),
-    );
-    evidenceSignals = [];
+  if (avoidSyncFallback) {
+    evidenceSignals = buildRuntimeSignalEvidenceFromContracts(
+      runtimeSignals,
+      6,
+      String(args.core.runtimeTransparency.source_status || RUNTIME_STATUS.MODEL_DERIVED),
+    ).records;
+  } else {
+    try {
+      evidenceSignals = getTopSignalEvidence(args.core.repo, {
+        userId: args.core.userId,
+        market: args.core.market,
+        assetClass: args.core.assetClass,
+        limit: 6,
+      }).records;
+    } catch (error) {
+      console.warn(
+        '[queries] evidence read failed in primary path:',
+        error instanceof Error ? error.message : String(error),
+      );
+      evidenceSignals = buildRuntimeSignalEvidenceFromContracts(
+        runtimeSignals,
+        6,
+        String(args.core.runtimeTransparency.source_status || RUNTIME_STATUS.MODEL_DERIVED),
+      ).records;
+    }
   }
   const previousRow =
     (await getLatestDecisionSnapshotPrimary({
@@ -3884,11 +3949,13 @@ async function buildDecisionSnapshotFromCorePrimary(args: {
       market: args.core.market,
       assetClass: args.core.assetClass || 'ALL',
     })) ||
-    args.core.repo.getLatestDecisionSnapshot({
-      userId: args.core.userId,
-      market: args.core.market,
-      assetClass: args.core.assetClass || 'ALL',
-    });
+    (avoidSyncFallback
+      ? null
+      : args.core.repo.getLatestDecisionSnapshot({
+          userId: args.core.userId,
+          market: args.core.market,
+          assetClass: args.core.assetClass || 'ALL',
+        }));
   const previousDecision = previousRow?.summary_json
     ? { summary: parseJsonObject(previousRow.summary_json) || {} }
     : null;
@@ -3925,10 +3992,8 @@ export async function getDecisionSnapshot(args: {
   holdings?: UserHoldingInput[];
   locale?: string;
 }) {
-  if (
-    shouldAvoidSyncHotPathFallback() &&
-    (!Array.isArray(args.holdings) || args.holdings.length === 0)
-  ) {
+  const avoidSyncFallback = shouldAvoidSyncHotPathFallback();
+  if (avoidSyncFallback && (!Array.isArray(args.holdings) || args.holdings.length === 0)) {
     return await getPublicTodayDecision({
       userId: args.userId,
       market: args.market,
@@ -3960,6 +4025,29 @@ export async function getDecisionSnapshot(args: {
       locale: args.locale,
     });
   }
+  if (avoidSyncFallback) {
+    const hotPathAuditHash = createHash('sha1')
+      .update(
+        JSON.stringify({
+          userId: core.userId,
+          market: core.market,
+          assetClass: core.assetClass || 'ALL',
+          asOf: core.runtimeTransparency.as_of,
+          holdings: args.holdings || [],
+          topActionIds: (
+            (deterministic.ranked_action_cards as Array<Record<string, unknown>> | undefined) || []
+          ).map((row) => String(row.action_id || row.signal_id || '')),
+        }),
+      )
+      .digest('hex')
+      .slice(0, 24);
+    return {
+      ...deterministic,
+      audit_snapshot_id: `decision-hot-${hotPathAuditHash}`,
+      trace_id: null,
+      from_cache: false,
+    };
+  }
   const snapshotDate = snapshotDateKey(String(core.runtimeTransparency.as_of));
   const contextHash = buildDecisionContextHash({
     userId: core.userId,
@@ -3981,11 +4069,13 @@ export async function getDecisionSnapshot(args: {
       market: core.market,
       assetClass: core.assetClass || 'ALL',
     })) ||
-    core.repo.getLatestDecisionSnapshot({
-      userId: core.userId,
-      market: core.market,
-      assetClass: core.assetClass || 'ALL',
-    });
+    (avoidSyncFallback
+      ? null
+      : core.repo.getLatestDecisionSnapshot({
+          userId: core.userId,
+          market: core.market,
+          assetClass: core.assetClass || 'ALL',
+        }));
   const latestSummary = parseJsonObject(latest?.summary_json);
   const latestNovaMeta =
     latestSummary?.nova_local && typeof latestSummary.nova_local === 'object'
@@ -5145,8 +5235,19 @@ function summarizeTrainingRun(run: WorkflowRunRecord) {
   };
 }
 
-function summarizeRecentNews(repo: MarketRepository) {
-  return repo.listNewsItems({ limit: 8 }).map((row) => ({
+function summarizeRecentNewsRows(
+  rows: Array<{
+    id: string;
+    market: Market | 'ALL';
+    symbol: string;
+    headline: string;
+    source: string;
+    published_at_ms: number;
+    updated_at_ms: number;
+    sentiment_label: string;
+  }>,
+) {
+  return rows.map((row) => ({
     id: row.id,
     market: row.market,
     symbol: row.symbol,
@@ -5158,29 +5259,31 @@ function summarizeRecentNews(repo: MarketRepository) {
   }));
 }
 
-function buildFlywheelStatus(repo: MarketRepository) {
-  const freeDataRuns = repo.listWorkflowRuns({
-    workflowKey: 'free_data_flywheel',
-    limit: 6,
-  });
-  const evolutionRuns = repo.listWorkflowRuns({
-    workflowKey: 'quant_evolution_cycle',
-    limit: 6,
-  });
-  const trainingRuns = repo.listWorkflowRuns({
-    workflowKey: 'nova_training_flywheel',
-    limit: 6,
-  });
+function summarizeRecentNews(repo: MarketRepository) {
+  return summarizeRecentNewsRows(repo.listNewsItems({ limit: 8 }));
+}
 
-  const latestTrainingSummary = trainingRuns[0] ? summarizeTrainingRun(trainingRuns[0]) : null;
-  const liveTrainingDataset = buildMlxLmTrainingDataset(repo, {
-    onlyIncluded: true,
-    limit: 500,
-  });
-  const currentDatasetCount = latestTrainingSummary?.dataset_count ?? liveTrainingDataset.count;
+function filterWorkflowRuns(
+  rows: WorkflowRunRecord[],
+  workflowKey: string,
+  limit = 6,
+): WorkflowRunRecord[] {
+  return rows.filter((row) => row.workflow_key === workflowKey).slice(0, limit);
+}
 
+function buildFlywheelStatusFromSources(args: {
+  freeDataRuns: WorkflowRunRecord[];
+  evolutionRuns: WorkflowRunRecord[];
+  trainingRuns: WorkflowRunRecord[];
+  recentNews: ReturnType<typeof summarizeRecentNewsRows>;
+  currentDatasetCount: number;
+  currentDatasetSource: string;
+}) {
+  const latestTrainingSummary = args.trainingRuns[0]
+    ? summarizeTrainingRun(args.trainingRuns[0])
+    : null;
   const recentActivity = [
-    ...freeDataRuns.slice(0, 2).map((run) => {
+    ...args.freeDataRuns.slice(0, 2).map((run) => {
       const summary = summarizeFreeDataRun(run);
       return {
         workflow_key: run.workflow_key,
@@ -5190,7 +5293,7 @@ function buildFlywheelStatus(repo: MarketRepository) {
         detail: summary.detail,
       };
     }),
-    ...evolutionRuns.slice(0, 2).map((run) => {
+    ...args.evolutionRuns.slice(0, 2).map((run) => {
       const summary = summarizeEvolutionRun(run);
       return {
         workflow_key: run.workflow_key,
@@ -5200,7 +5303,7 @@ function buildFlywheelStatus(repo: MarketRepository) {
         detail: `${summary.promoted_count} promoted · ${summary.rollback_count} rolled back · ${summary.safe_mode_count} safe mode`,
       };
     }),
-    ...trainingRuns.slice(0, 2).map((run) => {
+    ...args.trainingRuns.slice(0, 2).map((run) => {
       const summary = summarizeTrainingRun(run);
       return {
         workflow_key: run.workflow_key,
@@ -5219,37 +5322,125 @@ function buildFlywheelStatus(repo: MarketRepository) {
     last_activity_at: recentActivity[0]?.updated_at || null,
     recent_activity: recentActivity,
     free_data: {
-      latest_status: freeDataRuns[0]?.status || 'IDLE',
-      latest_run_at: toIso(freeDataRuns[0]?.updated_at_ms),
-      latest_trigger_type: freeDataRuns[0]?.trigger_type || null,
-      recent_runs: freeDataRuns.map(summarizeFreeDataRun),
-      recent_news: summarizeRecentNews(repo),
+      latest_status: args.freeDataRuns[0]?.status || 'IDLE',
+      latest_run_at: toIso(args.freeDataRuns[0]?.updated_at_ms),
+      latest_trigger_type: args.freeDataRuns[0]?.trigger_type || null,
+      recent_runs: args.freeDataRuns.map(summarizeFreeDataRun),
+      recent_news: args.recentNews,
     },
     evolution: {
-      latest_status: evolutionRuns[0]?.status || 'IDLE',
-      latest_run_at: toIso(evolutionRuns[0]?.updated_at_ms),
-      latest_trigger_type: evolutionRuns[0]?.trigger_type || null,
-      recent_runs: evolutionRuns.map(summarizeEvolutionRun),
+      latest_status: args.evolutionRuns[0]?.status || 'IDLE',
+      latest_run_at: toIso(args.evolutionRuns[0]?.updated_at_ms),
+      latest_trigger_type: args.evolutionRuns[0]?.trigger_type || null,
+      recent_runs: args.evolutionRuns.map(summarizeEvolutionRun),
     },
     training: {
-      latest_status: trainingRuns[0]?.status || 'IDLE',
-      latest_run_at: toIso(trainingRuns[0]?.updated_at_ms),
-      latest_trigger_type: trainingRuns[0]?.trigger_type || null,
-      current_dataset_count: currentDatasetCount,
-      current_dataset_source:
-        latestTrainingSummary?.dataset_count !== undefined ? 'latest_training_run' : 'live_scan',
+      latest_status: args.trainingRuns[0]?.status || 'IDLE',
+      latest_run_at: toIso(args.trainingRuns[0]?.updated_at_ms),
+      latest_trigger_type: args.trainingRuns[0]?.trigger_type || null,
+      current_dataset_count: args.currentDatasetCount,
+      current_dataset_source: args.currentDatasetSource,
       minimum_training_rows: MIN_AUTOMATIC_TRAINING_ROWS,
-      ready_for_training: currentDatasetCount >= MIN_AUTOMATIC_TRAINING_ROWS,
+      ready_for_training: args.currentDatasetCount >= MIN_AUTOMATIC_TRAINING_ROWS,
       latest_execution_reason: latestTrainingSummary?.execution.reason || null,
       latest_execution_success: latestTrainingSummary
         ? latestTrainingSummary.execution.success
         : null,
-      task_types: latestTrainingSummary?.task_types?.length
-        ? latestTrainingSummary.task_types
-        : liveTrainingDataset.task_types,
-      recent_runs: trainingRuns.map(summarizeTrainingRun),
+      task_types: latestTrainingSummary?.task_types?.length ? latestTrainingSummary.task_types : [],
+      recent_runs: args.trainingRuns.map(summarizeTrainingRun),
     },
   };
+}
+
+function buildFlywheelStatus(repo: MarketRepository) {
+  const freeDataRuns = repo.listWorkflowRuns({
+    workflowKey: 'free_data_flywheel',
+    limit: 6,
+  });
+  const evolutionRuns = repo.listWorkflowRuns({
+    workflowKey: 'quant_evolution_cycle',
+    limit: 6,
+  });
+  const trainingRuns = repo.listWorkflowRuns({
+    workflowKey: 'nova_training_flywheel',
+    limit: 6,
+  });
+  const latestTrainingSummary = trainingRuns[0] ? summarizeTrainingRun(trainingRuns[0]) : null;
+  const liveTrainingDataset = buildMlxLmTrainingDataset(repo, {
+    onlyIncluded: true,
+    limit: 500,
+  });
+  const currentDatasetCount = latestTrainingSummary?.dataset_count ?? liveTrainingDataset.count;
+  const currentDatasetSource =
+    latestTrainingSummary?.dataset_count !== undefined ? 'latest_training_run' : 'live_scan';
+
+  return buildFlywheelStatusFromSources({
+    freeDataRuns,
+    evolutionRuns,
+    trainingRuns,
+    recentNews: summarizeRecentNews(repo),
+    currentDatasetCount,
+    currentDatasetSource,
+  });
+}
+
+async function buildFlywheelStatusPrimary() {
+  const repo = getRepo();
+  const avoidSyncFallback = shouldAvoidSyncHotPathFallback();
+  const workflowRunsPrimary = await tryPrimaryPostgresRead(
+    'control_plane_flywheel_runs',
+    async () =>
+      readPostgresWorkflowRuns({
+        workflowKeys: ['free_data_flywheel', 'quant_evolution_cycle', 'nova_training_flywheel'],
+        limit: 24,
+      }),
+  );
+  const recentNewsPrimary = await tryPrimaryPostgresRead('control_plane_news', async () =>
+    readPostgresNewsItems({
+      limit: 8,
+    }),
+  );
+
+  if (!workflowRunsPrimary && !recentNewsPrimary && !avoidSyncFallback) {
+    return buildFlywheelStatus(repo);
+  }
+
+  const workflowRuns =
+    workflowRunsPrimary ||
+    (avoidSyncFallback
+      ? []
+      : repo.listWorkflowRuns({
+          limit: 24,
+        }));
+  const freeDataRuns = filterWorkflowRuns(workflowRuns, 'free_data_flywheel');
+  const evolutionRuns = filterWorkflowRuns(workflowRuns, 'quant_evolution_cycle');
+  const trainingRuns = filterWorkflowRuns(workflowRuns, 'nova_training_flywheel');
+  const latestTrainingSummary = trainingRuns[0] ? summarizeTrainingRun(trainingRuns[0]) : null;
+
+  let currentDatasetCount = latestTrainingSummary?.dataset_count ?? 0;
+  let currentDatasetSource =
+    latestTrainingSummary?.dataset_count !== undefined ? 'latest_training_run' : 'unavailable';
+  if (latestTrainingSummary?.dataset_count === undefined && !avoidSyncFallback) {
+    const liveTrainingDataset = buildMlxLmTrainingDataset(repo, {
+      onlyIncluded: true,
+      limit: 500,
+    });
+    currentDatasetCount = liveTrainingDataset.count;
+    currentDatasetSource = 'live_scan';
+  }
+
+  return buildFlywheelStatusFromSources({
+    freeDataRuns,
+    evolutionRuns,
+    trainingRuns,
+    recentNews: recentNewsPrimary
+      ? summarizeRecentNewsRows(recentNewsPrimary)
+      : avoidSyncFallback
+        ? summarizeRecentNewsRows([])
+        : summarizeRecentNews(repo),
+    currentDatasetCount,
+    currentDatasetSource,
+  });
 }
 
 const CONTROL_PLANE_STATUS_CACHE_TTL_MS = 60_000;
@@ -5276,13 +5467,71 @@ function resolveControlPlaneScope(userId?: string) {
   };
 }
 
+function buildDefaultExecutionGovernance(provider?: string) {
+  const thresholds = executionGovernanceThresholds();
+  return {
+    as_of: new Date().toISOString(),
+    provider_filter: provider ? String(provider).toUpperCase() : 'ALL',
+    champion_challenger: {
+      route_key: 'live_champion_paper_challenger',
+      champion_mode: 'LIVE',
+      challenger_mode: 'PAPER',
+      live_count: 0,
+      shadow_count: 0,
+      paired_count: 0,
+      recent_pairs: [],
+    },
+    reconciliation: {
+      refreshed: false,
+      rows: [],
+      shadow_count: 0,
+      paired_count: 0,
+      summary: {
+        total: 0,
+        reconciled: 0,
+        pending: 0,
+        drift: 0,
+        lookup_failed: 0,
+        no_challenger: 0,
+        cancelled: 0,
+        avg_entry_gap_bps: null,
+        avg_challenger_gap_bps: null,
+      },
+    },
+    kill_switch: {
+      active: false,
+      mode: 'OFF',
+      manual_enabled: false,
+      automatic_enabled: false,
+      reasons: [],
+      thresholds,
+      last_manual_update_at: null,
+      last_manual_reason: null,
+      provider_scope: provider ? String(provider).toUpperCase() : null,
+    },
+  };
+}
+
+function summarizeControlPlaneDecision(core: RuntimeStateCore) {
+  const actionable = (core.active[0] as Record<string, unknown> | undefined) || null;
+  const fallback = actionable || (core.signals[0] as Record<string, unknown> | undefined) || null;
+  return {
+    decision_code: actionable ? 'TRADE' : core.signals.length ? 'WAIT' : 'WAIT',
+    top_action_symbol: fallback ? String(fallback.symbol || '') || null : null,
+    top_action_label: actionable ? 'Open new risk' : fallback ? 'Watch only' : null,
+  };
+}
+
 export async function getFlywheelStatus(_args?: { userId?: string }) {
-  const repo = getRepo();
-  return buildFlywheelStatus(repo);
+  if (!shouldPreferPostgresPrimaryReads()) {
+    return buildFlywheelStatus(getRepo());
+  }
+  return await buildFlywheelStatusPrimary();
 }
 
 async function getControlPlaneStatusUncached(args?: { userId?: string }) {
   const repo = getRepo();
+  const avoidSyncFallback = shouldAvoidSyncHotPathFallback();
   const { effectiveUserId: userId } = resolveControlPlaneScope(args?.userId);
   const markets: Market[] = ['US', 'CRYPTO'];
   const runtime = await Promise.all(
@@ -5291,12 +5540,28 @@ async function getControlPlaneStatusUncached(args?: { userId?: string }) {
         userId,
         market,
       });
-      const decision = await buildDecisionSnapshotFromCorePrimary({
-        core,
-      });
-      const topAction =
-        ((decision.ranked_action_cards as Array<Record<string, unknown>> | undefined) || [])[0] ||
-        null;
+      let decisionCode = 'WAIT';
+      let topActionSymbol: string | null = null;
+      let topActionLabel: string | null = null;
+
+      if (avoidSyncFallback) {
+        const decisionSummary = summarizeControlPlaneDecision(core);
+        decisionCode = decisionSummary.decision_code;
+        topActionSymbol = decisionSummary.top_action_symbol;
+        topActionLabel = decisionSummary.top_action_label;
+      } else {
+        const decision = await buildDecisionSnapshotFromCorePrimary({
+          core,
+        });
+        const topAction =
+          ((decision.ranked_action_cards as Array<Record<string, unknown>> | undefined) || [])[0] ||
+          null;
+        decisionCode = String(
+          (decision.today_call as Record<string, unknown> | undefined)?.code || 'WAIT',
+        );
+        topActionSymbol = topAction ? String(topAction.symbol || '') || null : null;
+        topActionLabel = topAction ? String(topAction.action_label || '') || null : null;
+      }
       return {
         userId,
         market,
@@ -5305,11 +5570,9 @@ async function getControlPlaneStatusUncached(args?: { userId?: string }) {
         data_status: core.runtimeTransparency.data_status,
         signal_count: core.signals.length,
         active_signal_count: core.active.length,
-        decision_code: String(
-          (decision.today_call as Record<string, unknown> | undefined)?.code || 'WAIT',
-        ),
-        top_action_symbol: topAction ? String(topAction.symbol || '') || null : null,
-        top_action_label: topAction ? String(topAction.action_label || '') || null : null,
+        decision_code: decisionCode,
+        top_action_symbol: topActionSymbol,
+        top_action_label: topActionLabel,
         coverage: core.runtimeTransparency.coverage_summary || null,
         freshness: core.runtimeTransparency.freshness_summary || null,
       };
@@ -5324,32 +5587,49 @@ async function getControlPlaneStatusUncached(args?: { userId?: string }) {
         limit: 50,
       }),
     )) ||
-    repo.listNotificationEvents({
-      userId,
-      status: 'ACTIVE',
-      limit: 50,
-    });
-  const workflowRuns = repo.listWorkflowRuns({
-    workflowKey: 'nova_strategy_lab',
-    status: 'SUCCEEDED',
-    limit: 10,
-  });
-  const latestStrategyLabRun = workflowRuns[0] || null;
+    (avoidSyncFallback
+      ? []
+      : repo.listNotificationEvents({
+          userId,
+          status: 'ACTIVE',
+          limit: 50,
+        }));
+  const workflowRuns =
+    (await tryPrimaryPostgresRead('control_plane_strategy_lab', async () =>
+      readPostgresWorkflowRuns({
+        workflowKeys: ['nova_strategy_lab'],
+        limit: 10,
+      }),
+    )) ||
+    (avoidSyncFallback
+      ? []
+      : repo.listWorkflowRuns({
+          workflowKey: 'nova_strategy_lab',
+          status: 'SUCCEEDED',
+          limit: 10,
+        }));
+  const successfulWorkflowRuns = workflowRuns.filter((row) => row.status === 'SUCCEEDED');
+  const latestStrategyLabRun = successfulWorkflowRuns[0] || null;
   const browseHome = await getBrowseHomePayload({
     view: 'NOW',
   }).catch(() => null);
-  const flywheel = buildFlywheelStatus(repo);
-  const executionGovernance = await buildExecutionGovernance({
-    repo,
-    userId,
-    limit: 8,
-    refreshOrders: false,
-  });
+  const [search, flywheel, executionGovernance] = await Promise.all([
+    getSearchHealthPrimary(),
+    getFlywheelStatus({ userId }),
+    avoidSyncFallback
+      ? Promise.resolve(buildDefaultExecutionGovernance())
+      : buildExecutionGovernance({
+          repo,
+          userId,
+          limit: 8,
+          refreshOrders: false,
+        }),
+  ]);
 
   return {
     as_of: new Date().toISOString(),
     search: {
-      ...getSearchHealth(),
+      ...search,
       query_path: '/api/assets/search',
       browse_home_status: browseHome ? 'READY' : 'UNAVAILABLE',
       browse_home_featured_count: browseHome?.futuresMarkets?.length || 0,
@@ -5361,7 +5641,7 @@ async function getControlPlaneStatusUncached(args?: { userId?: string }) {
         ? new Date(latestStrategyLabRun.updated_at_ms).toISOString()
         : null,
       latest_status: latestStrategyLabRun?.status || 'IDLE',
-      recent_run_count: workflowRuns.length,
+      recent_run_count: successfulWorkflowRuns.length,
     },
     execution_governance: {
       kill_switch: executionGovernance.kill_switch,
