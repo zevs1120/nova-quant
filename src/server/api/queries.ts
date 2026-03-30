@@ -525,6 +525,16 @@ export function __resetPgPrimaryReadFailureCooldownForTesting() {
   pgPrimaryReadCooldownUntilMs = 0;
 }
 
+export function __resetFrontendReadCacheForTesting() {
+  frontendReadCache.clear();
+  frontendReadInflight.clear();
+}
+
+export function __resetControlPlaneStatusCacheForTesting() {
+  controlPlaneStatusCache.clear();
+  controlPlaneStatusInflight.clear();
+}
+
 function stableCacheValue(value: unknown): unknown {
   if (Array.isArray(value)) {
     return value.map((entry) => stableCacheValue(entry));
@@ -709,7 +719,9 @@ function buildRuntimeSignalEvidenceFromSignals(
       return {
         signal_id: String(signal.signal_id || signal.id || ''),
         symbol: String(signal.symbol || ''),
-        market: (String(signal.market || 'US').toUpperCase() === 'CRYPTO' ? 'CRYPTO' : 'US') as Market,
+        market: (String(signal.market || 'US').toUpperCase() === 'CRYPTO'
+          ? 'CRYPTO'
+          : 'US') as Market,
         asset_class: (String(signal.asset_class || 'US_STOCK').toUpperCase() === 'CRYPTO'
           ? 'CRYPTO'
           : 'US_STOCK') as AssetClass,

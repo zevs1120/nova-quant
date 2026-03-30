@@ -9,7 +9,11 @@ import {
   tradeIntentHandoffLabel,
 } from '../utils/tradeIntent';
 import { getTodayCardLimit, normalizeMembershipPlan } from '../utils/membership';
-import { fetchSignalDetail, hasSignalDetailPayload, mergeSignalDetail } from '../utils/signalDetails';
+import {
+  fetchSignalDetail,
+  hasSignalDetailPayload,
+  mergeSignalDetail,
+} from '../utils/signalDetails';
 
 const ACTIVE_SIGNAL_STATUS = new Set(['NEW', 'TRIGGERED']);
 const DATA_STATUS_PENALTY = {
@@ -921,7 +925,9 @@ export default function TodayTab({
       .catch(() => {
         if (cancelled) return;
         setDetailError(
-          locale === 'zh' ? '完整计划加载失败，先展示摘要。' : 'Full plan unavailable. Showing the summary first.',
+          locale === 'zh'
+            ? '完整计划加载失败，先展示摘要。'
+            : 'Full plan unavailable. Showing the summary first.',
         );
       })
       .finally(() => {
@@ -1079,10 +1085,7 @@ export default function TodayTab({
   const featuredSignalIntent = featuredSignal ? buildSignalIntent(featuredSignal) : null;
   const featuredCardPalette = signalCardPalette(featuredSignal);
   const featuredCardPosition = featuredSignalId
-    ? Math.max(
-        1,
-        deckSignals.findIndex((signal) => signalCardId(signal) === featuredSignalId) + 1,
-      )
+    ? Math.max(1, deckSignals.findIndex((signal) => signalCardId(signal) === featuredSignalId) + 1)
     : 1;
   const featuredCardKicker = actionCardPickLabel(featuredCardPosition, locale);
   const featuredDecisionLabel = actionCardDecisionLabel(featuredSignal, locale);
@@ -1091,12 +1094,11 @@ export default function TodayTab({
   const featuredExecutionLabel = actionCardExecutionText(featuredSignal, locale);
   const featuredRiskGateLabel = actionCardRiskGateText(featuredSignal, locale);
   const featuredMetaLine = actionCardMetaLine(actionMetaText, locale);
-  const featuredPrimaryActionLabel =
-    featuredSignalIntent?.canOpenBroker
-      ? tradeIntentHandoffLabel(featuredSignalIntent, locale)
-      : locale === 'zh'
-        ? '打开交易票据'
-        : 'Open trade ticket';
+  const featuredPrimaryActionLabel = featuredSignalIntent?.canOpenBroker
+    ? tradeIntentHandoffLabel(featuredSignalIntent, locale)
+    : locale === 'zh'
+      ? '打开交易票据'
+      : 'Open trade ticket';
   const stackedSignals = queuedSignals.slice(1, 3);
   const activeSwipeIntent =
     gesturePreview.signalId === featuredSignalId ? gesturePreview.intent || null : null;
@@ -1361,7 +1363,9 @@ export default function TodayTab({
           <div className="today-summary-copy today-climate-copy today-climate-copy-compact">
             <div className="today-climate-meta-row">
               <p className="today-summary-date">{todayDateLabel}</p>
-              <span className={`today-climate-status-pill today-climate-status-pill-${climate.tone}`}>
+              <span
+                className={`today-climate-status-pill today-climate-status-pill-${climate.tone}`}
+              >
                 {climateStatusLabel}
               </span>
             </div>
@@ -1385,367 +1389,375 @@ export default function TodayTab({
         <div className="today-deck-shell">
           {featuredSignal ? (
             <>
-            <div className="today-tinder-deck">
-              {stackedSignals.map((signal, index) => (
-                <article
-                  key={`stack-${signalCardId(signal)}`}
-                  className={`glass-card today-action-card today-action-card-stack today-action-card-${signalDecisionTone(signal)} today-action-card-palette-${signalCardPalette(
-                    signal,
-                    index + 1,
-                  )} today-action-card-stack-${index + 1}`}
-                  aria-hidden="true"
-                >
-                  <div className="today-action-card-head today-action-card-head-stack">
-                    <span className="today-action-kicker">
-                      {actionCardPickLabel(
-                        Math.max(
-                          1,
-                          deckSignals.findIndex((row) => signalCardId(row) === signalCardId(signal)) +
+              <div className="today-tinder-deck">
+                {stackedSignals.map((signal, index) => (
+                  <article
+                    key={`stack-${signalCardId(signal)}`}
+                    className={`glass-card today-action-card today-action-card-stack today-action-card-${signalDecisionTone(signal)} today-action-card-palette-${signalCardPalette(
+                      signal,
+                      index + 1,
+                    )} today-action-card-stack-${index + 1}`}
+                    aria-hidden="true"
+                  >
+                    <div className="today-action-card-head today-action-card-head-stack">
+                      <span className="today-action-kicker">
+                        {actionCardPickLabel(
+                          Math.max(
                             1,
-                        ),
-                        locale,
-                      )}
+                            deckSignals.findIndex(
+                              (row) => signalCardId(row) === signalCardId(signal),
+                            ) + 1,
+                          ),
+                          locale,
+                        )}
+                      </span>
+                      <span
+                        className={`today-action-decision-chip today-action-decision-chip-${signalDecisionTone(signal)}`}
+                      >
+                        {actionCardTagLabel(signal, locale)}
+                      </span>
+                    </div>
+                    <div className="today-action-stack-copy">
+                      <h3 className="today-action-stack-symbol">{signal?.symbol || '--'}</h3>
+                      <p className="today-action-stack-direction">
+                        {actionCardDecisionLabel(signal, locale)}
+                      </p>
+                      <p className="today-action-stack-meta">
+                        {actionCardMetaLine(
+                          buildActionMetaText({
+                            locale,
+                            signal,
+                            provenance,
+                          }),
+                          locale,
+                        )}
+                      </p>
+                    </div>
+                  </article>
+                ))}
+
+                <article
+                  className={`glass-card today-action-card today-action-card-swipe today-action-card-${decisionTone} today-action-card-palette-${featuredCardPalette}`}
+                  data-gesture-active={
+                    gesturePreview.signalId === featuredSignalId && gesturePreview.active
+                      ? 'true'
+                      : 'false'
+                  }
+                  data-gesture-intent={
+                    gesturePreview.signalId === featuredSignalId
+                      ? gesturePreview.intent || 'idle'
+                      : 'idle'
+                  }
+                  data-gesture-committed={
+                    gesturePreview.signalId === featuredSignalId && gesturePreview.committed
+                      ? 'true'
+                      : 'false'
+                  }
+                  style={{
+                    '--gesture-x':
+                      gesturePreview.signalId === featuredSignalId
+                        ? `${gesturePreview.dx || 0}px`
+                        : '0px',
+                    '--gesture-y':
+                      gesturePreview.signalId === featuredSignalId
+                        ? `${gesturePreview.dy || 0}px`
+                        : '0px',
+                    '--gesture-rotate':
+                      gesturePreview.signalId === featuredSignalId
+                        ? `${(gesturePreview.dx || 0) * 0.05}deg`
+                        : '0deg',
+                  }}
+                  onClick={() => openSignalDetail(featuredSignal, featuredSignalId)}
+                  role="button"
+                  tabIndex={0}
+                  onPointerDown={(event) => {
+                    if (
+                      (event.pointerType === 'mouse' && event.button !== 0) ||
+                      isNestedInteractiveTarget(event.target, event.currentTarget)
+                    ) {
+                      return;
+                    }
+                    event.currentTarget.setPointerCapture?.(event.pointerId);
+                    markGestureStart(
+                      featuredSignalId,
+                      event.clientX,
+                      event.clientY,
+                      event.pointerId,
+                    );
+                  }}
+                  onPointerMove={(event) => {
+                    if (swipeGestureRef.current.pointerId !== event.pointerId) return;
+                    markGestureMove(featuredSignalId, event.clientX, event.clientY);
+                  }}
+                  onPointerUp={(event) => {
+                    if (swipeGestureRef.current.pointerId !== event.pointerId) return;
+                    event.currentTarget.releasePointerCapture?.(event.pointerId);
+                    finishGesture(featuredSignal);
+                  }}
+                  onPointerCancel={(event) => {
+                    if (swipeGestureRef.current.pointerId !== event.pointerId) return;
+                    event.currentTarget.releasePointerCapture?.(event.pointerId);
+                    clearGesture();
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      openSignalDetail(featuredSignal, featuredSignalId);
+                      return;
+                    }
+                    if (event.key === 'ArrowLeft') {
+                      event.preventDefault();
+                      applyQueueAction(featuredSignal, 'skip');
+                      return;
+                    }
+                    if (event.key === 'ArrowRight') {
+                      event.preventDefault();
+                      applyQueueAction(featuredSignal, 'accept');
+                      return;
+                    }
+                    if (event.key === 'ArrowUp') {
+                      event.preventDefault();
+                      applyQueueAction(featuredSignal, 'later');
+                    }
+                  }}
+                >
+                  <div className="today-tinder-badges" aria-hidden="true">
+                    <span
+                      className={`today-tinder-badge today-tinder-badge-skip${
+                        activeSwipeIntent === 'skip' ? ' is-visible' : ''
+                      }`}
+                    >
+                      NOPE
                     </span>
                     <span
-                      className={`today-action-decision-chip today-action-decision-chip-${signalDecisionTone(signal)}`}
+                      className={`today-tinder-badge today-tinder-badge-later${
+                        activeSwipeIntent === 'later' ? ' is-visible' : ''
+                      }`}
                     >
-                      {actionCardTagLabel(signal, locale)}
+                      SAVE
+                    </span>
+                    <span
+                      className={`today-tinder-badge today-tinder-badge-accept${
+                        activeSwipeIntent === 'accept' ? ' is-visible' : ''
+                      }`}
+                    >
+                      GO
                     </span>
                   </div>
-                  <div className="today-action-stack-copy">
-                    <h3 className="today-action-stack-symbol">{signal?.symbol || '--'}</h3>
-                    <p className="today-action-stack-direction">
-                      {actionCardDecisionLabel(signal, locale)}
-                    </p>
-                    <p className="today-action-stack-meta">
-                      {actionCardMetaLine(
-                        buildActionMetaText({
-                          locale,
-                          signal,
-                          provenance,
-                        }),
-                        locale,
-                      )}
-                    </p>
+
+                  <div className="today-action-card-head today-action-card-head-showcase">
+                    <span className="today-action-kicker">{featuredCardKicker}</span>
+                    <span
+                      className={`today-action-decision-chip today-action-decision-chip-${decisionTone}`}
+                    >
+                      {featuredTagLabel}
+                    </span>
+                  </div>
+
+                  <div className="today-action-main today-action-main-showcase">
+                    <div className="today-action-symbol-block today-action-symbol-block-showcase">
+                      <h2 className="today-action-symbol">{featuredSignal?.symbol || '--'}</h2>
+                      <p className="today-action-direction">{featuredDecisionLabel}</p>
+                      <p className="today-action-thesis">{actionLogic || overall.subtitle}</p>
+                      <p className="today-action-meta">{featuredMetaLine}</p>
+                    </div>
+                    <DecisionMark code={noActionDay ? overall.code : 'TRADE'} />
+                  </div>
+
+                  <div className="today-action-stats today-action-stats-showcase">
+                    <div className="today-action-stat">
+                      <span className="today-action-stat-label">
+                        {locale === 'zh' ? 'Conviction' : 'Conviction'}
+                      </span>
+                      <span className="today-action-stat-value">
+                        {confidenceText(featuredSignal)}
+                      </span>
+                    </div>
+                    <div className="today-action-stat">
+                      <span className="today-action-stat-label">
+                        {locale === 'zh' ? 'Size' : 'Size'}
+                      </span>
+                      <span className="today-action-stat-value">
+                        {suggestedPositionText(featuredSignal)}
+                      </span>
+                    </div>
+                    <div className="today-action-stat">
+                      <span className="today-action-stat-label">
+                        {locale === 'zh' ? 'Risk' : 'Risk'}
+                      </span>
+                      <span className="today-action-stat-value">{featuredRiskLabel}</span>
+                    </div>
+                  </div>
+
+                  <div className="today-action-context-row today-action-context-row-showcase">
+                    <span className="today-action-context-pill">
+                      <span className="today-action-context-label">
+                        {locale === 'zh' ? 'Source' : 'Source'}
+                      </span>
+                      <span className="today-action-context-value">{provenance.label}</span>
+                    </span>
+                    <span className="today-action-context-pill">
+                      <span className="today-action-context-label">
+                        {locale === 'zh' ? 'Execution' : 'Execution'}
+                      </span>
+                      <span className="today-action-context-value">{featuredExecutionLabel}</span>
+                    </span>
+                    <span className="today-action-context-pill">
+                      <span className="today-action-context-label">
+                        {locale === 'zh' ? 'Risk gate' : 'Risk gate'}
+                      </span>
+                      <span className="today-action-context-value">{featuredRiskGateLabel}</span>
+                    </span>
+                  </div>
+
+                  <p className="today-action-powered-inline">Powered by Marvix AI Engine</p>
+
+                  <div className="today-action-links">
+                    <button
+                      type="button"
+                      className="today-action-link today-action-link-primary"
+                      data-gesture-ignore="true"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        applyQueueAction(featuredSignal, 'accept');
+                      }}
+                    >
+                      <span>{featuredPrimaryActionLabel}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="today-action-link today-action-link-secondary"
+                      data-gesture-ignore="true"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        triggerFeedback('soft');
+                        askNovaAboutSignal(featuredSignal);
+                      }}
+                    >
+                      <span>Ask Nova</span>
+                    </button>
                   </div>
                 </article>
-              ))}
+              </div>
 
-              <article
-                className={`glass-card today-action-card today-action-card-swipe today-action-card-${decisionTone} today-action-card-palette-${featuredCardPalette}`}
-                data-gesture-active={
-                  gesturePreview.signalId === featuredSignalId && gesturePreview.active
-                    ? 'true'
-                    : 'false'
-                }
-                data-gesture-intent={
-                  gesturePreview.signalId === featuredSignalId
-                    ? gesturePreview.intent || 'idle'
-                    : 'idle'
-                }
-                data-gesture-committed={
-                  gesturePreview.signalId === featuredSignalId && gesturePreview.committed
-                    ? 'true'
-                    : 'false'
-                }
-                style={{
-                  '--gesture-x':
-                    gesturePreview.signalId === featuredSignalId
-                      ? `${gesturePreview.dx || 0}px`
-                      : '0px',
-                  '--gesture-y':
-                    gesturePreview.signalId === featuredSignalId
-                      ? `${gesturePreview.dy || 0}px`
-                      : '0px',
-                  '--gesture-rotate':
-                    gesturePreview.signalId === featuredSignalId
-                      ? `${(gesturePreview.dx || 0) * 0.05}deg`
-                      : '0deg',
-                }}
-                onClick={() => openSignalDetail(featuredSignal, featuredSignalId)}
-                role="button"
-                tabIndex={0}
-                onPointerDown={(event) => {
-                  if (
-                    (event.pointerType === 'mouse' && event.button !== 0) ||
-                    isNestedInteractiveTarget(event.target, event.currentTarget)
-                  ) {
-                    return;
-                  }
-                  event.currentTarget.setPointerCapture?.(event.pointerId);
-                  markGestureStart(featuredSignalId, event.clientX, event.clientY, event.pointerId);
-                }}
-                onPointerMove={(event) => {
-                  if (swipeGestureRef.current.pointerId !== event.pointerId) return;
-                  markGestureMove(featuredSignalId, event.clientX, event.clientY);
-                }}
-                onPointerUp={(event) => {
-                  if (swipeGestureRef.current.pointerId !== event.pointerId) return;
-                  event.currentTarget.releasePointerCapture?.(event.pointerId);
-                  finishGesture(featuredSignal);
-                }}
-                onPointerCancel={(event) => {
-                  if (swipeGestureRef.current.pointerId !== event.pointerId) return;
-                  event.currentTarget.releasePointerCapture?.(event.pointerId);
-                  clearGesture();
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    openSignalDetail(featuredSignal, featuredSignalId);
-                    return;
-                  }
-                  if (event.key === 'ArrowLeft') {
-                    event.preventDefault();
-                    applyQueueAction(featuredSignal, 'skip');
-                    return;
-                  }
-                  if (event.key === 'ArrowRight') {
-                    event.preventDefault();
-                    applyQueueAction(featuredSignal, 'accept');
-                    return;
-                  }
-                  if (event.key === 'ArrowUp') {
-                    event.preventDefault();
-                    applyQueueAction(featuredSignal, 'later');
-                  }
-                }}
+              <div
+                className="today-tinder-controls"
+                aria-label={locale === 'zh' ? '卡片动作按钮' : 'Card actions'}
               >
-                <div className="today-tinder-badges" aria-hidden="true">
-                  <span
-                    className={`today-tinder-badge today-tinder-badge-skip${
-                      activeSwipeIntent === 'skip' ? ' is-visible' : ''
-                    }`}
-                  >
-                    NOPE
+                <button
+                  type="button"
+                  className="today-tinder-control today-tinder-control-skip"
+                  onClick={() => applyQueueAction(featuredSignal, 'skip')}
+                >
+                  <span className="today-tinder-control-icon" aria-hidden="true">
+                    ×
                   </span>
-                  <span
-                    className={`today-tinder-badge today-tinder-badge-later${
-                      activeSwipeIntent === 'later' ? ' is-visible' : ''
-                    }`}
-                  >
-                    SAVE
+                  <span className="today-tinder-control-label">
+                    {locale === 'zh' ? '放弃' : 'Pass'}
                   </span>
-                  <span
-                    className={`today-tinder-badge today-tinder-badge-accept${
-                      activeSwipeIntent === 'accept' ? ' is-visible' : ''
-                    }`}
-                  >
-                    GO
+                </button>
+                <button
+                  type="button"
+                  className="today-tinder-control today-tinder-control-later"
+                  onClick={() => applyQueueAction(featuredSignal, 'later')}
+                >
+                  <span className="today-tinder-control-icon" aria-hidden="true">
+                    ★
                   </span>
-                </div>
-
-                <div className="today-action-card-head today-action-card-head-showcase">
-                  <span className="today-action-kicker">{featuredCardKicker}</span>
-                  <span
-                    className={`today-action-decision-chip today-action-decision-chip-${decisionTone}`}
-                  >
-                    {featuredTagLabel}
+                  <span className="today-tinder-control-label">
+                    {locale === 'zh' ? '暂存' : 'Save'}
                   </span>
-                </div>
-
-                <div className="today-action-main today-action-main-showcase">
-                  <div className="today-action-symbol-block today-action-symbol-block-showcase">
-                    <h2 className="today-action-symbol">{featuredSignal?.symbol || '--'}</h2>
-                    <p className="today-action-direction">{featuredDecisionLabel}</p>
-                    <p className="today-action-thesis">{actionLogic || overall.subtitle}</p>
-                    <p className="today-action-meta">{featuredMetaLine}</p>
-                  </div>
-                  <DecisionMark code={noActionDay ? overall.code : 'TRADE'} />
-                </div>
-
-                <div className="today-action-stats today-action-stats-showcase">
-                  <div className="today-action-stat">
-                    <span className="today-action-stat-label">
-                      {locale === 'zh' ? 'Conviction' : 'Conviction'}
-                    </span>
-                    <span className="today-action-stat-value">{confidenceText(featuredSignal)}</span>
-                  </div>
-                  <div className="today-action-stat">
-                    <span className="today-action-stat-label">
-                      {locale === 'zh' ? 'Size' : 'Size'}
-                    </span>
-                    <span className="today-action-stat-value">
-                      {suggestedPositionText(featuredSignal)}
-                    </span>
-                  </div>
-                  <div className="today-action-stat">
-                    <span className="today-action-stat-label">
-                      {locale === 'zh' ? 'Risk' : 'Risk'}
-                    </span>
-                    <span className="today-action-stat-value">{featuredRiskLabel}</span>
-                  </div>
-                </div>
-
-                <div className="today-action-context-row today-action-context-row-showcase">
-                  <span className="today-action-context-pill">
-                    <span className="today-action-context-label">
-                      {locale === 'zh' ? 'Source' : 'Source'}
-                    </span>
-                    <span className="today-action-context-value">
-                      {provenance.label}
-                    </span>
+                </button>
+                <button
+                  type="button"
+                  className="today-tinder-control today-tinder-control-accept"
+                  onClick={() => applyQueueAction(featuredSignal, 'accept')}
+                >
+                  <span className="today-tinder-control-icon" aria-hidden="true">
+                    ✓
                   </span>
-                  <span className="today-action-context-pill">
-                    <span className="today-action-context-label">
-                      {locale === 'zh' ? 'Execution' : 'Execution'}
-                    </span>
-                    <span className="today-action-context-value">{featuredExecutionLabel}</span>
+                  <span className="today-tinder-control-label">
+                    {locale === 'zh' ? '执行' : 'Go'}
                   </span>
-                  <span className="today-action-context-pill">
-                    <span className="today-action-context-label">
-                      {locale === 'zh' ? 'Risk gate' : 'Risk gate'}
-                    </span>
-                    <span className="today-action-context-value">{featuredRiskGateLabel}</span>
-                  </span>
-                </div>
-
-                <p className="today-action-powered-inline">Powered by Marvix AI Engine</p>
-
-                <div className="today-action-links">
-                  <button
-                    type="button"
-                    className="today-action-link today-action-link-primary"
-                    data-gesture-ignore="true"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      applyQueueAction(featuredSignal, 'accept');
-                    }}
-                  >
-                    <span>{featuredPrimaryActionLabel}</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="today-action-link today-action-link-secondary"
-                    data-gesture-ignore="true"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      triggerFeedback('soft');
-                      askNovaAboutSignal(featuredSignal);
-                    }}
-                  >
-                    <span>Ask Nova</span>
-                  </button>
-                </div>
-              </article>
-            </div>
-
-            <div
-              className="today-tinder-controls"
-              aria-label={locale === 'zh' ? '卡片动作按钮' : 'Card actions'}
-            >
-              <button
-                type="button"
-                className="today-tinder-control today-tinder-control-skip"
-                onClick={() => applyQueueAction(featuredSignal, 'skip')}
-              >
-                <span className="today-tinder-control-icon" aria-hidden="true">
-                  ×
-                </span>
-                <span className="today-tinder-control-label">
-                  {locale === 'zh' ? '放弃' : 'Pass'}
-                </span>
-              </button>
-              <button
-                type="button"
-                className="today-tinder-control today-tinder-control-later"
-                onClick={() => applyQueueAction(featuredSignal, 'later')}
-              >
-                <span className="today-tinder-control-icon" aria-hidden="true">
-                  ★
-                </span>
-                <span className="today-tinder-control-label">
-                  {locale === 'zh' ? '暂存' : 'Save'}
-                </span>
-              </button>
-              <button
-                type="button"
-                className="today-tinder-control today-tinder-control-accept"
-                onClick={() => applyQueueAction(featuredSignal, 'accept')}
-              >
-                <span className="today-tinder-control-icon" aria-hidden="true">
-                  ✓
-                </span>
-                <span className="today-tinder-control-label">
-                  {locale === 'zh' ? '执行' : 'Go'}
-                </span>
-              </button>
-            </div>
+                </button>
+              </div>
             </>
           ) : hiddenDeckCount > 0 ? (
             <article className="glass-card today-action-card today-empty-card">
-            <p className="today-action-kicker">{locale === 'zh' ? 'Membership' : 'Membership'}</p>
-            <h2 className="today-empty-title">
-              {locale === 'zh'
-                ? `解锁剩余 ${hiddenDeckCount} 张 Today 卡片`
-                : `Unlock ${hiddenDeckCount} more Today cards`}
-            </h2>
-            <p className="today-empty-copy">
-              {locale === 'zh'
-                ? `免费版今天先看前 ${todayCardLimit || 3} 张。升级 Lite 继续浏览完整队列，并保留 Keep your broker 路径。`
-                : `Free includes the first ${todayCardLimit || 3} cards. Upgrade to Lite to keep the full queue and broker handoff ready.`}
-            </p>
-            <div className="today-empty-actions">
-              <button
-                type="button"
-                className="today-execution-primary"
-                onClick={() =>
-                  onOpenMembershipPrompt?.('today_locked', {
-                    freeCardLimit: todayCardLimit || 3,
-                    hiddenDeckCount,
-                  })
-                }
-              >
-                {locale === 'zh' ? '升级 Lite' : 'Start Lite'}
-              </button>
-              <button
-                type="button"
-                className="today-execution-secondary"
-                onClick={() =>
-                  onOpenMembershipPrompt?.('today_locked', {
-                    freeCardLimit: todayCardLimit || 3,
-                    hiddenDeckCount,
-                  })
-                }
-              >
-                {locale === 'zh' ? '查看计划' : 'See plans'}
-              </button>
-            </div>
+              <p className="today-action-kicker">{locale === 'zh' ? 'Membership' : 'Membership'}</p>
+              <h2 className="today-empty-title">
+                {locale === 'zh'
+                  ? `解锁剩余 ${hiddenDeckCount} 张 Today 卡片`
+                  : `Unlock ${hiddenDeckCount} more Today cards`}
+              </h2>
+              <p className="today-empty-copy">
+                {locale === 'zh'
+                  ? `免费版今天先看前 ${todayCardLimit || 3} 张。升级 Lite 继续浏览完整队列，并保留 Keep your broker 路径。`
+                  : `Free includes the first ${todayCardLimit || 3} cards. Upgrade to Lite to keep the full queue and broker handoff ready.`}
+              </p>
+              <div className="today-empty-actions">
+                <button
+                  type="button"
+                  className="today-execution-primary"
+                  onClick={() =>
+                    onOpenMembershipPrompt?.('today_locked', {
+                      freeCardLimit: todayCardLimit || 3,
+                      hiddenDeckCount,
+                    })
+                  }
+                >
+                  {locale === 'zh' ? '升级 Lite' : 'Start Lite'}
+                </button>
+                <button
+                  type="button"
+                  className="today-execution-secondary"
+                  onClick={() =>
+                    onOpenMembershipPrompt?.('today_locked', {
+                      freeCardLimit: todayCardLimit || 3,
+                      hiddenDeckCount,
+                    })
+                  }
+                >
+                  {locale === 'zh' ? '查看计划' : 'See plans'}
+                </button>
+              </div>
             </article>
           ) : (
             <article className="glass-card today-action-card today-empty-card">
-            <p className="today-action-kicker">{locale === 'zh' ? 'Action Card' : 'Action Card'}</p>
-            <h2 className="today-empty-title">
-              {locale === 'zh' ? '当前没有更多标的卡片' : 'No more cards right now'}
-            </h2>
-            <p className="today-empty-copy">
-              {locale === 'zh'
-                ? '这一轮队列已经处理完了。你可以去 Ask Nova 追问，或等待下一次系统快照。'
-                : 'This queue is done for now. Ask Nova for context or wait for the next system snapshot.'}
-            </p>
-            <div className="today-action-footer today-action-footer-minimal">
-              <span className="today-action-powered">Powered by Marvix AI Engine</span>
-              <button
-                type="button"
-                className="today-ask-nova-button"
-                data-gesture-ignore="true"
-                onClick={() => {
-                  triggerFeedback('soft');
-                  onAskAi?.(askPrompt, {
-                    page: 'today',
-                    focus: 'restraint',
-                  });
-                }}
-              >
-                <svg viewBox="0 0 20 20" className="today-ask-nova-icon" aria-hidden="true">
-                  <path
-                    d="M10 2.8 11.85 8.15 17.2 10l-5.35 1.85L10 17.2l-1.85-5.35L2.8 10l5.35-1.85L10 2.8Z"
-                    fill="currentColor"
-                  />
-                </svg>
-                <span>Ask Nova</span>
-              </button>
-            </div>
+              <p className="today-action-kicker">
+                {locale === 'zh' ? 'Action Card' : 'Action Card'}
+              </p>
+              <h2 className="today-empty-title">
+                {locale === 'zh' ? '当前没有更多标的卡片' : 'No more cards right now'}
+              </h2>
+              <p className="today-empty-copy">
+                {locale === 'zh'
+                  ? '这一轮队列已经处理完了。你可以去 Ask Nova 追问，或等待下一次系统快照。'
+                  : 'This queue is done for now. Ask Nova for context or wait for the next system snapshot.'}
+              </p>
+              <div className="today-action-footer today-action-footer-minimal">
+                <span className="today-action-powered">Powered by Marvix AI Engine</span>
+                <button
+                  type="button"
+                  className="today-ask-nova-button"
+                  data-gesture-ignore="true"
+                  onClick={() => {
+                    triggerFeedback('soft');
+                    onAskAi?.(askPrompt, {
+                      page: 'today',
+                      focus: 'restraint',
+                    });
+                  }}
+                >
+                  <svg viewBox="0 0 20 20" className="today-ask-nova-icon" aria-hidden="true">
+                    <path
+                      d="M10 2.8 11.85 8.15 17.2 10l-5.35 1.85L10 17.2l-1.85-5.35L2.8 10l5.35-1.85L10 2.8Z"
+                      fill="currentColor"
+                    />
+                  </svg>
+                  <span>Ask Nova</span>
+                </button>
+              </div>
             </article>
           )}
         </div>

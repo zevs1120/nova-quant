@@ -114,9 +114,7 @@ export function useAppData({
           const runtimeData = runtime.data || initialData;
           const runtimeSignals = Array.isArray(runtimeData.signals) ? runtimeData.signals : [];
           const runtimeSignalCount =
-            runtimeData?.config?.runtime?.api_checks?.signal_count ??
-            runtimeSignals.length ??
-            null;
+            runtimeData?.config?.runtime?.api_checks?.signal_count ?? runtimeSignals.length ?? null;
 
           setData((current) => {
             const currentSignals = Array.isArray(current?.signals) ? current.signals : [];
@@ -126,7 +124,8 @@ export function useAppData({
               signals: runtimeSignals.length ? runtimeSignals : currentSignals,
               evidence: runtimeData.evidence || current?.evidence || null,
               market_modules: runtimeData.market_modules || current?.market_modules || [],
-              performance: runtimeData.performance || current?.performance || initialData.performance,
+              performance:
+                runtimeData.performance || current?.performance || initialData.performance,
               control_plane: runtimeData.control_plane || current?.control_plane || null,
               config: {
                 ...(runtimeData.config || {}),
@@ -251,15 +250,17 @@ export function useAppData({
                     ...(current?.config?.runtime || {}),
                     api_checks: {
                       ...(current?.config?.runtime?.api_checks || {}),
-                      assets_count: assets?.count ?? current?.config?.runtime?.api_checks?.assets_count ?? null,
-                      signal_count:
-                        current?.config?.runtime?.api_checks?.signal_count ?? null,
+                      assets_count:
+                        assets?.count ?? current?.config?.runtime?.api_checks?.assets_count ?? null,
+                      signal_count: current?.config?.runtime?.api_checks?.signal_count ?? null,
                       market_state_count:
                         marketState?.count ??
                         current?.config?.runtime?.api_checks?.market_state_count ??
                         null,
                       modules_count:
-                        modules?.count ?? current?.config?.runtime?.api_checks?.modules_count ?? null,
+                        modules?.count ??
+                        current?.config?.runtime?.api_checks?.modules_count ??
+                        null,
                       performance_records:
                         performance?.records?.length ??
                         current?.config?.runtime?.api_checks?.performance_records ??
@@ -267,7 +268,10 @@ export function useAppData({
                     },
                     connectivity: {
                       ...(current?.config?.runtime?.connectivity || {}),
-                      broker: brokerConnection?.snapshot || current?.config?.runtime?.connectivity?.broker || null,
+                      broker:
+                        brokerConnection?.snapshot ||
+                        current?.config?.runtime?.connectivity?.broker ||
+                        null,
                       exchange:
                         exchangeConnection?.snapshot ||
                         current?.config?.runtime?.connectivity?.exchange ||

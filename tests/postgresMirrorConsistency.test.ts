@@ -9,6 +9,9 @@ import {
   loadRuntimeStateCorePrimary,
   resetRepoSingleton,
   setRiskProfile,
+  __resetPgPrimaryReadFailureCooldownForTesting,
+  __resetFrontendReadCacheForTesting,
+  __resetControlPlaneStatusCacheForTesting,
 } from '../src/server/api/queries.js';
 import { closeDb } from '../src/server/db/database.js';
 import { createMirroringMarketRepository } from '../src/server/db/postgresBusinessMirror.js';
@@ -34,6 +37,9 @@ describe('postgres mirror consistency', () => {
     vi.restoreAllMocks();
     vi.unstubAllEnvs();
     resetRepoSingleton();
+    __resetPgPrimaryReadFailureCooldownForTesting();
+    __resetFrontendReadCacheForTesting();
+    __resetControlPlaneStatusCacheForTesting();
     try {
       closeDb();
     } catch {

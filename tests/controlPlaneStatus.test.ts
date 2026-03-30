@@ -1,7 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getDb } from '../src/server/db/database.js';
 import { MarketRepository } from '../src/server/db/repository.js';
-import { getControlPlaneStatus, getFlywheelStatus } from '../src/server/api/queries.js';
+import {
+  getControlPlaneStatus,
+  getFlywheelStatus,
+  resetRepoSingleton,
+  __resetFrontendReadCacheForTesting,
+  __resetControlPlaneStatusCacheForTesting,
+} from '../src/server/api/queries.js';
 import * as pgReads from '../src/server/admin/postgresBusinessRead.js';
 
 function seedWorkflowRun(
@@ -34,6 +40,9 @@ describe('control plane flywheel status', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllEnvs();
+    resetRepoSingleton();
+    __resetFrontendReadCacheForTesting();
+    __resetControlPlaneStatusCacheForTesting();
   });
 
   it('surfaces recent ingestion, evolution, and training state through the status APIs', async () => {

@@ -4,6 +4,9 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+- **Fix(format): 修复 7 个文件的 Prettier 格式问题，确保 CI format check 通过。**
+  - 格式化 `SignalsTab.jsx`、`TodayTab.jsx`、`useAppData.js`、`queries.ts`、`signalListProjection.ts`、`brand-reset.css`、`runtimeRepository.test.ts`。
+
 - **Feat(billing,membership): 客户端会员体系接入 checkout 入口与后端订阅状态。**
   - 新增 `Free / Lite / Pro` 的会员权益模型、Today/Ask Nova/My 入口的升级引导，以及独立的 `Membership & Plans` 页面与 paywall sheet。
   - 新增移动端 H5 checkout 底部支付页，升级按钮不再直接切本地 plan，而是统一走 checkout session；未登录或本地 API 不可用时自动回退到 preview 模式，方便本地演示。

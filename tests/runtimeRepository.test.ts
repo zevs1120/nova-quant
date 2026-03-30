@@ -63,7 +63,9 @@ describe('runtime repository', () => {
     const sql = __buildSequenceResetSqlForTesting('signal_deliveries');
 
     expect(sql).toContain('setval');
-    expect(sql).toContain('CASE WHEN seq.max_id IS NULL OR seq.max_id < 1 THEN 1 ELSE seq.max_id END');
+    expect(sql).toContain(
+      'CASE WHEN seq.max_id IS NULL OR seq.max_id < 1 THEN 1 ELSE seq.max_id END',
+    );
     expect(sql).toContain('COALESCE(seq.max_id, 0) > 0');
     expect(sql).toContain('"novaquant_data"."signal_deliveries"');
     expect(sql).toContain('"novaquant_data"."signal_deliveries_id_seq"');

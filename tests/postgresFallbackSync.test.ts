@@ -1,5 +1,9 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
 import * as queries from '../src/server/api/queries.js';
+import {
+  __resetPgPrimaryReadFailureCooldownForTesting,
+  __resetFrontendReadCacheForTesting,
+} from '../src/server/api/queries.js';
 import * as pgReads from '../src/server/admin/postgresBusinessRead.js';
 import { MarketRepository } from '../src/server/db/repository.js';
 import type { SignalContract, SignalRecord } from '../src/server/types.js';
@@ -103,7 +107,8 @@ describe('postgres fallback sync', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllEnvs();
-    queries.__resetPgPrimaryReadFailureCooldownForTesting();
+    __resetPgPrimaryReadFailureCooldownForTesting();
+    __resetFrontendReadCacheForTesting();
   });
 
   it('loadRuntimeStateCorePrimary falls back to loadRuntimeStateCore when all Postgres reads fail', async () => {

@@ -5,7 +5,11 @@ import SignalDetail from './SignalDetail';
 import Skeleton from './Skeleton';
 import EligibilitySheet from './EligibilitySheet';
 import { formatNumber } from '../utils/format';
-import { fetchSignalDetail, hasSignalDetailPayload, mergeSignalDetail } from '../utils/signalDetails';
+import {
+  fetchSignalDetail,
+  hasSignalDetailPayload,
+  mergeSignalDetail,
+} from '../utils/signalDetails';
 
 const ACTIVE_STATUSES = new Set(['NEW', 'TRIGGERED']);
 
@@ -268,7 +272,9 @@ export default function SignalsTab({
       .catch(() => {
         if (cancelled) return;
         setDetailError(
-          locale?.startsWith('zh') ? '完整计划加载失败，先展示摘要。' : 'Full plan unavailable. Showing the summary first.',
+          locale?.startsWith('zh')
+            ? '完整计划加载失败，先展示摘要。'
+            : 'Full plan unavailable. Showing the summary first.',
         );
       })
       .finally(() => {

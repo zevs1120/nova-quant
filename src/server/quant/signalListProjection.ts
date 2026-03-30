@@ -77,7 +77,9 @@ export type SignalListItem = {
 };
 
 function asRecord(value: unknown): UnknownRecord {
-  return value && typeof value === 'object' && !Array.isArray(value) ? (value as UnknownRecord) : {};
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as UnknownRecord)
+    : {};
 }
 
 function asArray(value: unknown): unknown[] {
