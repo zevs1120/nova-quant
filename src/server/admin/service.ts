@@ -346,7 +346,7 @@ let _usersCache: {
   data: { generated_at: string } & ReturnType<typeof mapAdminUsers>;
   fetchedAt: number;
 } | null = null;
-const USERS_CACHE_TTL_MS = 15_000;
+const USERS_CACHE_TTL_MS = 30_000;
 
 export function buildAdminUsersSnapshot() {
   if (_usersCache && Date.now() - _usersCache.fetchedAt < USERS_CACHE_TTL_MS) {
@@ -566,8 +566,8 @@ export async function buildAdminSystemSnapshot() {
 type OverviewSnapshot = Awaited<ReturnType<typeof buildAdminOverviewSnapshotUncached>>;
 let _overviewCache: { data: OverviewSnapshot; fetchedAt: number } | null = null;
 let _overviewInflight: Promise<OverviewSnapshot> | null = null;
-const OVERVIEW_FRESH_TTL_MS = 12_000;
-const OVERVIEW_STALE_TTL_MS = 60_000;
+const OVERVIEW_FRESH_TTL_MS = 20_000;
+const OVERVIEW_STALE_TTL_MS = 90_000;
 
 export async function buildAdminOverviewSnapshot(): Promise<OverviewSnapshot> {
   const age = _overviewCache ? Date.now() - _overviewCache.fetchedAt : Infinity;

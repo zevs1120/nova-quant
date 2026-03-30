@@ -170,7 +170,7 @@ const UPSTREAM_HARD_TIMEOUT_MS = Math.max(
 );
 const UPSTREAM_SUCCESS_CACHE_TTL_MS = Math.max(
   1_000,
-  Number(process.env.NOVA_ADMIN_UPSTREAM_SUCCESS_CACHE_TTL_MS || 15_000),
+  Number(process.env.NOVA_ADMIN_UPSTREAM_SUCCESS_CACHE_TTL_MS || 30_000),
 );
 const UPSTREAM_FAILURE_COOLDOWN_MS = Math.max(
   1_000,
@@ -182,7 +182,7 @@ const POSTGRES_SOFT_TIMEOUT_MS = Math.max(
 );
 const POSTGRES_SUCCESS_CACHE_TTL_MS = Math.max(
   1_000,
-  Number(process.env.NOVA_ADMIN_PG_SUCCESS_CACHE_TTL_MS || 15_000),
+  Number(process.env.NOVA_ADMIN_PG_SUCCESS_CACHE_TTL_MS || 30_000),
 );
 const POSTGRES_FAILURE_COOLDOWN_MS = Math.max(
   1_000,

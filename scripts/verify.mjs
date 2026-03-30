@@ -5,13 +5,14 @@ import process from 'node:process';
 const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 
 const steps = [
-  ['run', 'lint'],
-  ['run', 'typecheck'],
-  ['test'],
-  ['run', 'build'],
-  ['run', 'build:landing'],
+  [['run', 'lint'], {}],
+  [['run', 'typecheck'], {}],
+  [['test'], {}],
+  [['run', 'build'], {}],
+  [['run', 'build:landing'], {}],
+  [['run', 'build'], { cwd: 'admin' }],
 ];
 
-for (const args of steps) {
-  execFileSync(npmCmd, args, { stdio: 'inherit' });
+for (const [args, opts] of steps) {
+  execFileSync(npmCmd, args, { stdio: 'inherit', ...opts });
 }

@@ -4,7 +4,11 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
-- **Chore(tooling)：增强 EC2 skill，新增 admin 端点 benchmark 和部署验证操作。**
+- **Perf(admin): 管理员后台 Tab 切换卡顿修复 -- 缓存层 + 超时控制 + 后端 TTL 全面提升。**
+  - **P0 -- 前端请求超时控制**：`adminApi.js` 所有 fetch 增加 `AbortController`，10s 超时强制 cancel，防止请求永远 pending。
+  - **P0 -- Tab 数据模块级缓存**：`useAdminResource` hook 升级为跨 Tab 生命周期缓存（30s TTL），首次加载后切换 Tab 瞬间呈现无需重请求，同时后台静默刷新保持数据新鲜。
+  - **P1 -- 后端缓存 TTL 提升**：Admin 快照缓存全面提升 -- Users 缓存 15s→30s，Overview fresh 12s→20s / stale 60s→90s，AlphaRegistry 15s→30s，liveAlpha/liveOps Postgres 缓存 15s→30s。
+  - **Chore(tooling)：增强 EC2 skill，新增 admin 端点 benchmark 和部署验证操作。**
 
 ## 10.18.3 (2026-03-29)
 

@@ -24,6 +24,8 @@ function detectDefaultApiBase() {
 
 const API_BASE = detectDefaultApiBase();
 
+const DEFAULT_TIMEOUT_MS = 10_000;
+
 async function parseJson(response) {
   try {
     return await response.json();
@@ -33,20 +35,32 @@ async function parseJson(response) {
 }
 
 export async function adminRequest(path, init = {}) {
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(init.headers || {}),
-    },
-  });
-  const payload = await parseJson(response);
-  if (!response.ok) {
-    const error = payload?.error || `HTTP_${response.status}`;
-    throw new Error(String(error));
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
+  try {
+    const response = await fetch(`${API_BASE}${path}`, {
+      ...init,
+      credentials: 'include',
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(init.headers || {}),
+      },
+    });
+    clearTimeout(timer);
+    const payload = await parseJson(response);
+    if (!response.ok) {
+      const error = payload?.error || `HTTP_${response.status}`;
+      throw new Error(String(error));
+    }
+    return payload;
+  } catch (err) {
+    clearTimeout(timer);
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error('ADMIN_REQUEST_TIMEOUT');
+    }
+    throw err;
   }
-  return payload;
 }
 
 export function getAdminApiBase() {

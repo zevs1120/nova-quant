@@ -2004,7 +2004,7 @@ function shadowStatsForRows(rows: AlphaShadowObservationRow[]) {
 
 let _alphaRegistryCache: { data: AlphaRegistryBundle; fetchedAt: number } | null = null;
 let _alphaRegistryInflight: Promise<AlphaRegistryBundle> | null = null;
-const ALPHA_REGISTRY_CACHE_TTL_MS = 15_000;
+const ALPHA_REGISTRY_CACHE_TTL_MS = 30_000;
 
 async function buildAlphaRegistryBundle(): Promise<AlphaRegistryBundle> {
   if (
