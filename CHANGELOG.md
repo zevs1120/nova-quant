@@ -9,6 +9,11 @@ NovaQuant 所有重要变更记录于此。
   - **P0 -- Tab 数据模块级缓存**：`useAdminResource` hook 升级为跨 Tab 生命周期缓存（30s TTL），首次加载后切换 Tab 瞬间呈现无需重请求，同时后台静默刷新保持数据新鲜。
   - **P1 -- 后端缓存 TTL 提升**：Admin 快照缓存全面提升 -- Users 缓存 15s→30s，Overview fresh 12s→20s / stale 60s→90s，AlphaRegistry 15s→30s，liveAlpha/liveOps Postgres 缓存 15s→30s。
   - **Chore(tooling)：增强 EC2 skill，新增 admin 端点 benchmark 和部署验证操作。**
+- **Perf(auth): 管理员鉴权热路径去副作用，显著减少 Postgres 往返与本地镜像写入。**
+  - **P0 -- session touch 节流**：Postgres 会话读取改为按 5 分钟活动窗口节流 `pgTouchSession`，避免每次 admin 校验都触发远端 `UPDATE`。
+  - **P0 -- admin 角色判定并入 session 读取**：新增 `pgGetAdminSessionBundle`，在 session 查询内直接取回角色，移除额外的 role 查询。
+  - **P0 -- 移除 `getAdminSession` 热路径角色写入**：配置型管理员现在在鉴权阶段直接合成 `ADMIN` 角色，不再在每次 session 校验时做 `upsertAuthUserRole`。
+  - **Test -- Postgres admin hot path 回归覆盖**：新增测试覆盖 touch 节流与配置型管理员无需额外 role I/O 的判权路径。
 
 ## 10.18.3 (2026-03-29)
 

@@ -76,6 +76,7 @@ type PgAuthSessionBundleRow = PgAuthSessionRow &
     holdings_json: unknown;
     executions_json: unknown;
     discipline_log_json: unknown;
+    roles?: unknown;
   };
 
 let poolSingleton: Pool | null = null;
@@ -318,6 +319,15 @@ function mapStateRow(row: Record<string, unknown> | null | undefined): PgAuthUse
   };
 }
 
+function parseRoleList(value: unknown): PgAuthRole[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => String(item || '').trim())
+    .filter(
+      (item): item is PgAuthRole => item === 'ADMIN' || item === 'OPERATOR' || item === 'SUPPORT',
+    );
+}
+
 export async function pgGetUserByEmail(email: string) {
   await ensurePostgresAuthSchema();
   const pool = getAuthPool();
@@ -541,6 +551,74 @@ export async function pgGetSessionBundle(tokenHash: string, now: number) {
       updated_at_ms: bundle.user_updated_at_ms,
     }),
     state: mapStateRow(bundle),
+  };
+}
+
+export async function pgGetAdminSessionBundle(tokenHash: string, now: number) {
+  await ensurePostgresAuthSchema();
+  const pool = getAuthPool();
+  const result = await pool.query(
+    `SELECT
+       s.session_id,
+       s.user_id,
+       s.session_token_hash,
+       s.user_agent,
+       s.ip_address,
+       s.expires_at_ms,
+       s.revoked_at_ms,
+       s.created_at_ms AS session_created_at_ms,
+       s.updated_at_ms AS session_updated_at_ms,
+       s.last_seen_at_ms,
+       u.email,
+       u.password_hash,
+       u.name,
+       u.trade_mode,
+       u.broker,
+       u.locale,
+       u.created_at_ms AS user_created_at_ms,
+       u.updated_at_ms AS user_updated_at_ms,
+       u.last_login_at_ms,
+       sync.asset_class,
+       sync.market,
+       sync.ui_mode,
+       sync.risk_profile_key,
+       sync.watchlist_json,
+       sync.holdings_json,
+       sync.executions_json,
+       sync.discipline_log_json,
+       COALESCE(
+         (
+           SELECT array_agg(role_map.role ORDER BY role_map.granted_at_ms DESC)
+           FROM auth_user_roles role_map
+           WHERE role_map.user_id = u.user_id
+         ),
+         ARRAY[]::text[]
+       ) AS roles
+     FROM auth_sessions s
+     JOIN auth_users u ON u.user_id = s.user_id
+     LEFT JOIN auth_user_state_sync sync ON sync.user_id = u.user_id
+     WHERE s.session_token_hash = $1
+       AND s.revoked_at_ms IS NULL
+       AND s.expires_at_ms > $2
+     LIMIT 1`,
+    [tokenHash, now],
+  );
+  if (!result.rows[0]) return null;
+  const row = result.rows[0] as Record<string, unknown>;
+  const bundle = row as unknown as PgAuthSessionBundleRow;
+  return {
+    session: mapSessionRow({
+      ...bundle,
+      created_at_ms: bundle.session_created_at_ms,
+      updated_at_ms: bundle.session_updated_at_ms,
+    }),
+    user: mapUserRow({
+      ...bundle,
+      created_at_ms: bundle.user_created_at_ms,
+      updated_at_ms: bundle.user_updated_at_ms,
+    }),
+    state: mapStateRow(bundle),
+    roles: parseRoleList(bundle.roles),
   };
 }
 

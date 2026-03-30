@@ -29,6 +29,7 @@ import {
 } from './resetEmail.js';
 import {
   hasPostgresAuthStore,
+  pgGetAdminSessionBundle,
   pgGetLatestPasswordReset,
   pgGetSessionBundle,
   pgGetUserByEmail,
@@ -53,8 +54,9 @@ const SESSION_COOKIE_NAME = 'novaquant_session';
 const ADMIN_SESSION_COOKIE_NAME = 'novaquant_admin_session';
 const ADMIN_SESSION_CACHE_TTL_MS = Math.max(
   1_000,
-  Number(process.env.NOVA_ADMIN_SESSION_CACHE_TTL_MS || 5_000),
+  Number(process.env.NOVA_ADMIN_SESSION_CACHE_TTL_MS || 30_000),
 );
+const SESSION_ACTIVITY_TOUCH_INTERVAL_MS = 5 * 60 * 1000;
 const adminSessionCache = new Map<
   string,
   { expiresAt: number; value: { user: PublicAuthUser; roles: AuthRole[] } | null }
@@ -115,6 +117,9 @@ export type AuthUserState = {
     weekly_reviews: string[];
   };
 };
+
+type PostgresAuthSessionBundle = NonNullable<Awaited<ReturnType<typeof pgGetSessionBundle>>>;
+type PostgresAdminSessionBundle = NonNullable<Awaited<ReturnType<typeof pgGetAdminSessionBundle>>>;
 
 type SignupWelcomeEmailDelivery =
   | {
@@ -223,6 +228,27 @@ function configuredAdminEmails() {
 
 function isConfiguredAdminEmail(email: string) {
   return configuredAdminEmails().has(normalizeEmail(email));
+}
+
+function normalizeAuthRoles(roles: Iterable<AuthRole | null | undefined>): AuthRole[] {
+  const next = new Set<AuthRole>();
+  for (const role of roles) {
+    if (role === 'ADMIN' || role === 'OPERATOR' || role === 'SUPPORT') {
+      next.add(role);
+    }
+  }
+  return Array.from(next);
+}
+
+function resolveEffectiveAuthRoles(
+  user: Pick<AuthUserRow, 'email'> | Pick<PublicAuthUser, 'email'>,
+  roles: Iterable<AuthRole | null | undefined>,
+): AuthRole[] {
+  const next = normalizeAuthRoles(roles);
+  if (isConfiguredAdminEmail(user.email) && !next.includes('ADMIN')) {
+    next.unshift('ADMIN');
+  }
+  return next;
 }
 
 function mergeSeededUserState(user: SeededUserConfig): AuthUserState {
@@ -422,6 +448,45 @@ function mapPublicUser(row: AuthUserRow): PublicAuthUser {
     createdAtMs: row.created_at_ms,
     lastLoginAtMs: row.last_login_at_ms ?? null,
   };
+}
+
+function shouldTouchSessionActivity(lastSeenAtMs: number | null | undefined, now: number) {
+  if (!Number.isFinite(lastSeenAtMs)) return true;
+  return now - Number(lastSeenAtMs) >= SESSION_ACTIVITY_TOUCH_INTERVAL_MS;
+}
+
+function mirrorPostgresSessionBundle(
+  bundle: PostgresAuthSessionBundle | PostgresAdminSessionBundle,
+) {
+  if (!canUseLocalSqliteAuthMirror()) return;
+  upsertLocalAuthUser(bundle.user);
+  upsertLocalAuthUserState(bundle.user.user_id, bundle.state, bundle.session.updated_at_ms);
+  upsertLocalAuthSession(bundle.session);
+}
+
+async function refreshPostgresSessionActivity<
+  T extends PostgresAuthSessionBundle | PostgresAdminSessionBundle,
+>(bundle: T, now: number): Promise<T> {
+  if (!shouldTouchSessionActivity(bundle.session.last_seen_at_ms, now)) {
+    return bundle;
+  }
+  await pgTouchSession(bundle.session.session_id, now);
+  bundle.session.updated_at_ms = now;
+  bundle.session.last_seen_at_ms = now;
+  mirrorPostgresSessionBundle(bundle);
+  return bundle;
+}
+
+async function loadPostgresSessionBundle(tokenHash: string, now: number) {
+  const bundle = await pgGetSessionBundle(tokenHash, now);
+  if (!bundle) return null;
+  return refreshPostgresSessionActivity(bundle, now);
+}
+
+async function loadPostgresAdminSessionBundle(tokenHash: string, now: number) {
+  const bundle = await pgGetAdminSessionBundle(tokenHash, now);
+  if (!bundle) return null;
+  return refreshPostgresSessionActivity(bundle, now);
 }
 
 function shouldRequireRemoteAuthStore() {
@@ -1026,16 +1091,8 @@ export async function getAuthSession(
 
   if (hasPostgresAuthStore()) {
     const now = nowMs();
-    const bundle = await pgGetSessionBundle(hashToken(token), now);
+    const bundle = await loadPostgresSessionBundle(hashToken(token), now);
     if (!bundle) return null;
-    await pgTouchSession(bundle.session.session_id, now);
-    upsertLocalAuthUser(bundle.user);
-    upsertLocalAuthUserState(bundle.user.user_id, bundle.state, now);
-    upsertLocalAuthSession({
-      ...bundle.session,
-      updated_at_ms: now,
-      last_seen_at_ms: now,
-    });
     return {
       user: mapPublicUser(bundle.user),
       state: bundle.state,
@@ -1387,7 +1444,10 @@ export async function loginAdminUser(args: {
 }) {
   const result = await loginAuthUser(args);
   if (!result.ok) return result;
-  const roles = (await listAuthUserRoleRows(result.user.userId)).map((row) => row.role);
+  const roles = resolveEffectiveAuthRoles(
+    result.user,
+    (await listAuthUserRoleRows(result.user.userId)).map((row) => row.role),
+  );
   if (!roles.includes('ADMIN')) {
     await logoutAuthSession(result.sessionToken);
     return { ok: false as const, error: 'ADMIN_ACCESS_DENIED' };
@@ -1448,6 +1508,31 @@ export async function getAdminSession(
     adminSessionCache.delete(tokenHash);
   }
 
+  await ensureSeededUser();
+
+  if (hasPostgresAuthStore()) {
+    const bundle = await loadPostgresAdminSessionBundle(tokenHash, now);
+    if (!bundle) {
+      adminSessionCache.set(tokenHash, {
+        expiresAt: now + ADMIN_SESSION_CACHE_TTL_MS,
+        value: null,
+      });
+      return null;
+    }
+    const roles = resolveEffectiveAuthRoles(bundle.user, bundle.roles);
+    const result = roles.includes('ADMIN')
+      ? {
+          user: mapPublicUser(bundle.user),
+          roles,
+        }
+      : null;
+    adminSessionCache.set(tokenHash, {
+      expiresAt: now + ADMIN_SESSION_CACHE_TTL_MS,
+      value: result,
+    });
+    return result;
+  }
+
   const session = await getAuthSession(token);
   if (!session) {
     adminSessionCache.set(tokenHash, {
@@ -1456,8 +1541,10 @@ export async function getAdminSession(
     });
     return null;
   }
-  await syncConfiguredAdminRole(session.user);
-  const roles = (await listAuthUserRoleRows(session.user.userId)).map((row) => row.role);
+  const roles = resolveEffectiveAuthRoles(
+    session.user,
+    (await listAuthUserRoleRows(session.user.userId)).map((row) => row.role),
+  );
   const result = roles.includes('ADMIN')
     ? {
         user: session.user,
