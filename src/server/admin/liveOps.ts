@@ -178,7 +178,7 @@ const UPSTREAM_FAILURE_COOLDOWN_MS = Math.max(
 );
 const POSTGRES_SOFT_TIMEOUT_MS = Math.max(
   400,
-  Number(process.env.NOVA_ADMIN_PG_FETCH_TIMEOUT_MS || 900),
+  Number(process.env.NOVA_ADMIN_PG_FETCH_TIMEOUT_MS || 3_000),
 );
 const POSTGRES_SUCCESS_CACHE_TTL_MS = Math.max(
   1_000,

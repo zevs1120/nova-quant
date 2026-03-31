@@ -4,6 +4,15 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+- **Fix(db): Supabase Postgres 连接池调优，消除 POSTGRES_FAST_TIMEOUT 告警。**
+  - **根因**：EC2 (us-east-1) → Supabase Pooler (us-east-2) 跨 AZ 延迟 ~70ms，Mirror Pool 默认 `max: 3` 无 `connectionTimeoutMillis` 易耗尽排队超时；Admin 面板 soft timeout 仅 900ms，12+ 并行聚合查询在 `news_items`（8000+ 行）上无法按时完成，触发冷却后级联 degraded 告警。
+  - **修复**：
+    - Mirror Pool：`max: 3→6`，新增 `connectionTimeoutMillis: 3000`、`idleTimeoutMillis: 10000`、`statement_timeout: 8000`
+    - Sync Worker Pool：`max: 3→6`，`connectionTimeoutMillis: 1200→3000`
+    - Admin Pool：`max: 5→6`，`connectionTimeoutMillis: 1200→3000`
+    - Admin soft timeout（liveOps + liveAlpha）：`900ms→3000ms`
+  - 所有新默认值均通过 `NOVA_DATA_PG_*` 和 `NOVA_ADMIN_PG_*` 环境变量可覆盖。
+
 - **Fix(hub): Admin 后台「系统健康」面板 Provider/Mode 显示修正。**
   - **根因**：`getNovaRuntimeState()`、`buildPrivateMarvixOpsReport()`、`buildPostgresOpsReport()` 三处均直接使用 `getNovaModelPlan().provider`（返回 ollama），未反映 Gemini/Groq 的 runtime override。面板显示 `ollama / deterministic-fallback` 但实际调用的是 `gemini / gemini-3.1-flash-lite-preview`。
   - **修复**：三处统一改用 `resolveEffectiveTextRoute('decision_reasoning')` 获取实际 provider 和 model。路由表也增加 `effective_provider` / `effective_model` 标注，保留 `base_provider` 用于追溯原始配置。

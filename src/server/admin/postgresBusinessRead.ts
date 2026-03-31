@@ -440,10 +440,10 @@ function getBusinessPool() {
   const connectionString = resolvePostgresBusinessUrl();
   poolSingleton = new Pool({
     connectionString,
-    max: Math.max(1, Number(process.env.NOVA_DATA_PG_POOL_MAX || 5)),
+    max: Math.max(1, Number(process.env.NOVA_DATA_PG_POOL_MAX || 6)),
     connectionTimeoutMillis: Math.max(
       500,
-      Number(process.env.NOVA_DATA_PG_CONNECT_TIMEOUT_MS || 1_200),
+      Number(process.env.NOVA_DATA_PG_CONNECT_TIMEOUT_MS || 3_000),
     ),
     idleTimeoutMillis: Math.max(1_000, Number(process.env.NOVA_DATA_PG_IDLE_TIMEOUT_MS || 10_000)),
     // Supabase poolers can spuriously trip pg's client-side query_timeout when Pool.query()

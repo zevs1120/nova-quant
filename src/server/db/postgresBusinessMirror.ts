@@ -106,7 +106,13 @@ function getMirrorPool() {
   const connectionString = resolvePostgresBusinessUrl();
   poolSingleton = new Pool({
     connectionString,
-    max: Math.max(1, Number(process.env.NOVA_DATA_PG_POOL_MAX || 3)),
+    max: Math.max(1, Number(process.env.NOVA_DATA_PG_POOL_MAX || 6)),
+    connectionTimeoutMillis: Math.max(
+      500,
+      Number(process.env.NOVA_DATA_PG_CONNECT_TIMEOUT_MS || 3_000),
+    ),
+    idleTimeoutMillis: Math.max(1_000, Number(process.env.NOVA_DATA_PG_IDLE_TIMEOUT_MS || 10_000)),
+    statement_timeout: Math.max(1_000, Number(process.env.NOVA_DATA_PG_QUERY_TIMEOUT_MS || 8_000)),
     ssl: shouldUseSsl(connectionString) ? { rejectUnauthorized: false } : undefined,
   });
   return poolSingleton;
