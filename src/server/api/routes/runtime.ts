@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { parseMarket, parseAssetClass, asyncRoute } from '../helpers.js';
+import { parseMarket, parseAssetClass, asyncRoute, getRequestScope } from '../helpers.js';
 import {
   getRuntimeStateResponse,
   getControlPlaneStatus,
@@ -8,6 +8,7 @@ import {
   getResearchOpsStatus,
   getBackendBackbone,
 } from '../queries.js';
+import { applyMembershipAccessToRuntimeState, getMembershipState } from '../../membership/service.js';
 
 const router = Router();
 
@@ -16,13 +17,19 @@ router.get(
   asyncRoute(async (req, res) => {
     const market = parseMarket(req.query.market as string | undefined);
     const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
-    const userId = (req.query.userId as string | undefined) || 'guest-default';
+    const userId = getRequestScope(req).userId;
     const runtime = await getRuntimeStateResponse({
       userId,
       market,
       assetClass,
     });
-    res.json(runtime);
+    const membership = getMembershipState({ userId });
+    res.json(
+      applyMembershipAccessToRuntimeState({
+        runtime: runtime as Record<string, unknown>,
+        currentPlan: membership.currentPlan,
+      }),
+    );
   }),
 );
 

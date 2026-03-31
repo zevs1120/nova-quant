@@ -23,16 +23,15 @@ export const MEMBERSHIP_LIMITS = Object.freeze({
 
 export const MEMBERSHIP_PRICING = Object.freeze({
   free: Object.freeze({
+    weekly: 0,
     monthly: 0,
     annual: 0,
   }),
   lite: Object.freeze({
-    monthly: 1900,
-    annual: 19000,
+    weekly: 1900,
   }),
   pro: Object.freeze({
-    monthly: 4900,
-    annual: 49000,
+    weekly: 2900,
   }),
 });
 
@@ -49,9 +48,9 @@ export function normalizeMembershipPlan(value) {
 }
 
 export function membershipUsageDay(date = new Date()) {
-  const year = date.getFullYear();
-  const month = `${date.getMonth() + 1}`.padStart(2, '0');
-  const day = `${date.getDate()}`.padStart(2, '0');
+  const year = date.getUTCFullYear();
+  const month = `${date.getUTCMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getUTCDate()}`.padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
 
@@ -77,13 +76,18 @@ export function getMembershipLimits(plan) {
   return MEMBERSHIP_LIMITS[normalizeMembershipPlan(plan)];
 }
 
-export function getMembershipPriceCents(plan, billingCycle = 'monthly') {
+export function getMembershipPriceCents(plan, billingCycle = 'weekly') {
   const normalizedPlan = normalizeMembershipPlan(plan);
-  const normalizedCycle = billingCycle === 'annual' ? 'annual' : 'monthly';
-  return MEMBERSHIP_PRICING[normalizedPlan]?.[normalizedCycle] ?? 0;
+  const normalizedCycle =
+    billingCycle === 'annual' ? 'annual' : billingCycle === 'monthly' ? 'monthly' : 'weekly';
+  return (
+    MEMBERSHIP_PRICING[normalizedPlan]?.[normalizedCycle] ??
+    MEMBERSHIP_PRICING[normalizedPlan]?.weekly ??
+    0
+  );
 }
 
-export function formatMembershipPrice(plan, billingCycle = 'monthly', locale = 'en-US') {
+export function formatMembershipPrice(plan, billingCycle = 'weekly', locale = 'en-US') {
   const amountCents = getMembershipPriceCents(plan, billingCycle);
   if (amountCents <= 0) {
     return String(locale || '')
@@ -99,15 +103,19 @@ export function formatMembershipPrice(plan, billingCycle = 'monthly', locale = '
   }).format(amountCents / 100);
 }
 
-export function membershipBillingCycleLabel(billingCycle = 'monthly', locale = 'en-US') {
-  const normalizedCycle = billingCycle === 'annual' ? 'annual' : 'monthly';
+export function membershipBillingCycleLabel(billingCycle = 'weekly', locale = 'en-US') {
+  const normalizedCycle =
+    billingCycle === 'annual' ? 'annual' : billingCycle === 'monthly' ? 'monthly' : 'weekly';
   const zh = String(locale || '')
     .toLowerCase()
     .startsWith('zh');
   if (normalizedCycle === 'annual') {
     return zh ? '/ 年' : '/ year';
   }
-  return zh ? '/ 月' : '/ month';
+  if (normalizedCycle === 'monthly') {
+    return zh ? '/ 月' : '/ month';
+  }
+  return zh ? '/ 周' : '/ week';
 }
 
 export function getRemainingAskNova(plan, usage) {
@@ -186,7 +194,7 @@ export function buildMembershipPlans(locale = 'en-US') {
       key: 'lite',
       name: 'Lite',
       price: '$19',
-      cadence: zh ? '/ 月' : '/ month',
+      cadence: zh ? '/ 周' : '/ week',
       blurb: zh
         ? '给日常使用而设计。完整 Today，加更多 Ask Nova。'
         : 'Built for daily use. Full Today plus more Ask Nova.',
@@ -197,8 +205,8 @@ export function buildMembershipPlans(locale = 'en-US') {
     {
       key: 'pro',
       name: 'Pro',
-      price: '$49',
-      cadence: zh ? '/ 月' : '/ month',
+      price: '$29',
+      cadence: zh ? '/ 周' : '/ week',
       blurb: zh
         ? '更深的 AI 决策层。带持仓、风险和组合上下文。'
         : 'The deeper AI layer with holdings, risk, and portfolio context.',

@@ -1140,7 +1140,7 @@ CREATE TABLE IF NOT EXISTS billing_customers (
   provider TEXT NOT NULL DEFAULT 'internal_checkout',
   provider_customer_id TEXT,
   default_currency TEXT NOT NULL DEFAULT 'USD',
-  default_billing_cycle TEXT NOT NULL CHECK (default_billing_cycle IN ('monthly', 'annual')),
+  default_billing_cycle TEXT NOT NULL CHECK (default_billing_cycle IN ('weekly', 'monthly', 'annual')),
   metadata_json TEXT NOT NULL DEFAULT '{}',
   created_at_ms INTEGER NOT NULL,
   updated_at_ms INTEGER NOT NULL,
@@ -1148,12 +1148,13 @@ CREATE TABLE IF NOT EXISTS billing_customers (
 );
 
 CREATE INDEX IF NOT EXISTS idx_billing_customers_email ON billing_customers(email);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_billing_customers_provider_customer ON billing_customers(provider_customer_id);
 
 CREATE TABLE IF NOT EXISTS billing_checkout_sessions (
   session_id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,
   plan_key TEXT NOT NULL CHECK (plan_key IN ('lite', 'pro')),
-  billing_cycle TEXT NOT NULL CHECK (billing_cycle IN ('monthly', 'annual')),
+  billing_cycle TEXT NOT NULL CHECK (billing_cycle IN ('weekly', 'monthly', 'annual')),
   status TEXT NOT NULL CHECK (status IN ('OPEN', 'COMPLETED', 'EXPIRED', 'ABANDONED')),
   provider TEXT NOT NULL DEFAULT 'internal_checkout',
   provider_session_id TEXT,
@@ -1176,6 +1177,9 @@ CREATE INDEX IF NOT EXISTS idx_billing_checkout_sessions_user
 CREATE INDEX IF NOT EXISTS idx_billing_checkout_sessions_status
   ON billing_checkout_sessions(status, expires_at_ms DESC);
 
+CREATE UNIQUE INDEX IF NOT EXISTS idx_billing_checkout_sessions_provider_session
+  ON billing_checkout_sessions(provider_session_id);
+
 CREATE TABLE IF NOT EXISTS billing_subscriptions (
   subscription_id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,
@@ -1183,7 +1187,7 @@ CREATE TABLE IF NOT EXISTS billing_subscriptions (
   status TEXT NOT NULL CHECK (status IN ('ACTIVE', 'CANCELLED', 'EXPIRED', 'PENDING')),
   provider TEXT NOT NULL DEFAULT 'internal_checkout',
   provider_subscription_id TEXT,
-  billing_cycle TEXT NOT NULL CHECK (billing_cycle IN ('monthly', 'annual')),
+  billing_cycle TEXT NOT NULL CHECK (billing_cycle IN ('weekly', 'monthly', 'annual')),
   amount_cents INTEGER NOT NULL,
   currency TEXT NOT NULL DEFAULT 'USD',
   started_at_ms INTEGER NOT NULL,
@@ -1204,6 +1208,33 @@ CREATE INDEX IF NOT EXISTS idx_billing_subscriptions_user
 
 CREATE INDEX IF NOT EXISTS idx_billing_subscriptions_status
   ON billing_subscriptions(user_id, status, updated_at_ms DESC);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_billing_subscriptions_provider_subscription
+  ON billing_subscriptions(provider_subscription_id);
+
+CREATE TABLE IF NOT EXISTS billing_webhook_events (
+  event_id TEXT PRIMARY KEY,
+  provider TEXT NOT NULL,
+  event_type TEXT NOT NULL,
+  received_at_ms INTEGER NOT NULL,
+  payload_json TEXT NOT NULL DEFAULT '{}'
+);
+
+CREATE INDEX IF NOT EXISTS idx_billing_webhook_events_recent
+  ON billing_webhook_events(received_at_ms DESC);
+
+CREATE TABLE IF NOT EXISTS membership_usage_daily (
+  user_id TEXT NOT NULL,
+  usage_day TEXT NOT NULL,
+  ask_nova_used INTEGER NOT NULL DEFAULT 0,
+  created_at_ms INTEGER NOT NULL,
+  updated_at_ms INTEGER NOT NULL,
+  PRIMARY KEY (user_id, usage_day),
+  FOREIGN KEY(user_id) REFERENCES auth_users(user_id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_membership_usage_daily_recent
+  ON membership_usage_daily(user_id, updated_at_ms DESC);
 
 CREATE TABLE IF NOT EXISTS manual_user_state (
   user_id TEXT PRIMARY KEY,
@@ -1283,6 +1314,148 @@ CREATE INDEX IF NOT EXISTS idx_manual_prediction_entries_user ON manual_predicti
 
 export function ensureSchema(db: Database.Database): void {
   db.exec(SCHEMA_SQL);
+  try {
+    const billingCheckoutRow = db
+      .prepare(
+        "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'billing_checkout_sessions'",
+      )
+      .get() as { sql?: string } | undefined;
+    const billingCheckoutSql = String(billingCheckoutRow?.sql || '');
+    if (billingCheckoutSql && !billingCheckoutSql.includes("'weekly'")) {
+      db.exec('PRAGMA foreign_keys = OFF;');
+      db.exec('BEGIN;');
+      db.exec('ALTER TABLE billing_subscriptions RENAME TO billing_subscriptions_old;');
+      db.exec('ALTER TABLE billing_checkout_sessions RENAME TO billing_checkout_sessions_old;');
+      db.exec('ALTER TABLE billing_customers RENAME TO billing_customers_old;');
+      db.exec(`
+        CREATE TABLE billing_customers (
+          user_id TEXT PRIMARY KEY,
+          email TEXT NOT NULL,
+          provider TEXT NOT NULL DEFAULT 'internal_checkout',
+          provider_customer_id TEXT,
+          default_currency TEXT NOT NULL DEFAULT 'USD',
+          default_billing_cycle TEXT NOT NULL CHECK (default_billing_cycle IN ('weekly', 'monthly', 'annual')),
+          metadata_json TEXT NOT NULL DEFAULT '{}',
+          created_at_ms INTEGER NOT NULL,
+          updated_at_ms INTEGER NOT NULL,
+          FOREIGN KEY(user_id) REFERENCES auth_users(user_id) ON DELETE CASCADE
+        );
+      `);
+      db.exec('CREATE INDEX IF NOT EXISTS idx_billing_customers_email ON billing_customers(email);');
+      db.exec(
+        'CREATE UNIQUE INDEX IF NOT EXISTS idx_billing_customers_provider_customer ON billing_customers(provider_customer_id);',
+      );
+      db.exec(`
+        INSERT INTO billing_customers(
+          user_id, email, provider, provider_customer_id, default_currency, default_billing_cycle, metadata_json, created_at_ms, updated_at_ms
+        )
+        SELECT
+          user_id, email, provider, provider_customer_id, default_currency, default_billing_cycle, metadata_json, created_at_ms, updated_at_ms
+        FROM billing_customers_old;
+      `);
+      db.exec(`
+        CREATE TABLE billing_checkout_sessions (
+          session_id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          plan_key TEXT NOT NULL CHECK (plan_key IN ('lite', 'pro')),
+          billing_cycle TEXT NOT NULL CHECK (billing_cycle IN ('weekly', 'monthly', 'annual')),
+          status TEXT NOT NULL CHECK (status IN ('OPEN', 'COMPLETED', 'EXPIRED', 'ABANDONED')),
+          provider TEXT NOT NULL DEFAULT 'internal_checkout',
+          provider_session_id TEXT,
+          amount_cents INTEGER NOT NULL,
+          currency TEXT NOT NULL DEFAULT 'USD',
+          checkout_email TEXT,
+          payment_method_last4 TEXT,
+          success_subscription_id TEXT,
+          metadata_json TEXT NOT NULL DEFAULT '{}',
+          created_at_ms INTEGER NOT NULL,
+          expires_at_ms INTEGER NOT NULL,
+          completed_at_ms INTEGER,
+          updated_at_ms INTEGER NOT NULL,
+          FOREIGN KEY(user_id) REFERENCES auth_users(user_id) ON DELETE CASCADE
+        );
+      `);
+      db.exec(
+        'CREATE INDEX IF NOT EXISTS idx_billing_checkout_sessions_user ON billing_checkout_sessions(user_id, created_at_ms DESC);',
+      );
+      db.exec(
+        'CREATE INDEX IF NOT EXISTS idx_billing_checkout_sessions_status ON billing_checkout_sessions(status, expires_at_ms DESC);',
+      );
+      db.exec(
+        'CREATE UNIQUE INDEX IF NOT EXISTS idx_billing_checkout_sessions_provider_session ON billing_checkout_sessions(provider_session_id);',
+      );
+      db.exec(`
+        INSERT INTO billing_checkout_sessions(
+          session_id, user_id, plan_key, billing_cycle, status, provider, provider_session_id,
+          amount_cents, currency, checkout_email, payment_method_last4, success_subscription_id,
+          metadata_json, created_at_ms, expires_at_ms, completed_at_ms, updated_at_ms
+        )
+        SELECT
+          session_id, user_id, plan_key, billing_cycle, status, provider, provider_session_id,
+          amount_cents, currency, checkout_email, payment_method_last4, success_subscription_id,
+          metadata_json, created_at_ms, expires_at_ms, completed_at_ms, updated_at_ms
+        FROM billing_checkout_sessions_old;
+      `);
+      db.exec(`
+        CREATE TABLE billing_subscriptions (
+          subscription_id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          plan_key TEXT NOT NULL CHECK (plan_key IN ('free', 'lite', 'pro')),
+          status TEXT NOT NULL CHECK (status IN ('ACTIVE', 'CANCELLED', 'EXPIRED', 'PENDING')),
+          provider TEXT NOT NULL DEFAULT 'internal_checkout',
+          provider_subscription_id TEXT,
+          billing_cycle TEXT NOT NULL CHECK (billing_cycle IN ('weekly', 'monthly', 'annual')),
+          amount_cents INTEGER NOT NULL,
+          currency TEXT NOT NULL DEFAULT 'USD',
+          started_at_ms INTEGER NOT NULL,
+          current_period_start_ms INTEGER NOT NULL,
+          current_period_end_ms INTEGER,
+          cancel_at_period_end INTEGER NOT NULL DEFAULT 0,
+          cancelled_at_ms INTEGER,
+          checkout_session_id TEXT,
+          metadata_json TEXT NOT NULL DEFAULT '{}',
+          created_at_ms INTEGER NOT NULL,
+          updated_at_ms INTEGER NOT NULL,
+          FOREIGN KEY(user_id) REFERENCES auth_users(user_id) ON DELETE CASCADE,
+          FOREIGN KEY(checkout_session_id) REFERENCES billing_checkout_sessions(session_id) ON DELETE SET NULL
+        );
+      `);
+      db.exec(
+        'CREATE INDEX IF NOT EXISTS idx_billing_subscriptions_user ON billing_subscriptions(user_id, updated_at_ms DESC);',
+      );
+      db.exec(
+        'CREATE INDEX IF NOT EXISTS idx_billing_subscriptions_status ON billing_subscriptions(user_id, status, updated_at_ms DESC);',
+      );
+      db.exec(
+        'CREATE UNIQUE INDEX IF NOT EXISTS idx_billing_subscriptions_provider_subscription ON billing_subscriptions(provider_subscription_id);',
+      );
+      db.exec(`
+        INSERT INTO billing_subscriptions(
+          subscription_id, user_id, plan_key, status, provider, provider_subscription_id,
+          billing_cycle, amount_cents, currency, started_at_ms, current_period_start_ms,
+          current_period_end_ms, cancel_at_period_end, cancelled_at_ms, checkout_session_id,
+          metadata_json, created_at_ms, updated_at_ms
+        )
+        SELECT
+          subscription_id, user_id, plan_key, status, provider, provider_subscription_id,
+          billing_cycle, amount_cents, currency, started_at_ms, current_period_start_ms,
+          current_period_end_ms, cancel_at_period_end, cancelled_at_ms, checkout_session_id,
+          metadata_json, created_at_ms, updated_at_ms
+        FROM billing_subscriptions_old;
+      `);
+      db.exec('DROP TABLE billing_subscriptions_old;');
+      db.exec('DROP TABLE billing_checkout_sessions_old;');
+      db.exec('DROP TABLE billing_customers_old;');
+      db.exec('COMMIT;');
+      db.exec('PRAGMA foreign_keys = ON;');
+    }
+  } catch {
+    try {
+      db.exec('ROLLBACK;');
+    } catch {}
+    db.exec('PRAGMA foreign_keys = ON;');
+    throw new Error('Failed to migrate billing schema for weekly billing support.');
+  }
   try {
     const novaTaskRunsRow = db
       .prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'nova_task_runs'")

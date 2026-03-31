@@ -103,7 +103,7 @@ export function useNovaAssistant({ userId, seedRequest, contextBase }) {
 
         if (!response.ok || !response.body) {
           const payload = await response.json().catch(() => ({}));
-          throw new Error(payload.error || `HTTP ${response.status}`);
+          throw new Error(payload.message || payload.error || `HTTP ${response.status}`);
         }
 
         const reader = response.body.getReader();

@@ -3,6 +3,7 @@ import { asyncRoute, requireAuthenticatedScope } from '../helpers.js';
 import { upsertExternalConnection, listExternalConnectionsPrimary } from '../queries.js';
 import { createBrokerAdapter, createExchangeAdapter } from '../../connect/adapters.js';
 import { importHoldingsFromCsvText, importHoldingsFromScreenshot } from '../../holdings/import.js';
+import { requireBrokerHandoffAccess } from '../../membership/service.js';
 
 const router = Router();
 
@@ -50,6 +51,17 @@ router.post('/api/connect/broker', (req, res) => {
   if (!scope) return;
   const body = req.body as { userId?: string; provider?: string; mode?: 'READ_ONLY' | 'TRADING' };
   const userId = scope.userId;
+  const membershipAccess = requireBrokerHandoffAccess({ userId });
+  if (!membershipAccess.ok) {
+    res.status(403).json({
+      error: membershipAccess.error,
+      message: 'Lite or Pro is required before broker handoff can be enabled.',
+      reason: membershipAccess.reason,
+      targetPlan: membershipAccess.targetPlan,
+      membership: membershipAccess.state,
+    });
+    return;
+  }
   const provider = String(body.provider || 'ALPACA').toUpperCase();
   const mode = body.mode || 'READ_ONLY';
   const saved = upsertExternalConnection({

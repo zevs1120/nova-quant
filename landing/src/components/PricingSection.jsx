@@ -40,7 +40,7 @@ export default function PricingSection() {
       <div className="campaign-grid pricing-grid">
         <div className="pricing-copy">
           <p className="section-kicker">Pricing</p>
-          <h2>4 ways to enter.</h2>
+          <h2>3 ways to enter.</h2>
         </div>
 
         <div

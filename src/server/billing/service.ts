@@ -1,5 +1,13 @@
 import { randomBytes } from 'node:crypto';
 import { getMembershipPriceCents, normalizeMembershipPlan } from '../../utils/membership.js';
+import {
+  createStripeCheckoutSession,
+  createStripePortalSession,
+  readBillingProviderConfig,
+  resolveStripePriceId,
+  verifyStripeWebhookEvent,
+  type BillingProviderMode,
+} from './provider.js';
 import { getConfig } from '../config.js';
 import { getDb } from '../db/database.js';
 import { quotePgIdentifier } from '../db/postgresMigration.js';
@@ -17,16 +25,21 @@ import {
 const CHECKOUT_TTL_MS = 30 * 60 * 1000;
 const BILLING_PROVIDER = 'internal_checkout';
 const BILLING_CURRENCY = 'USD';
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const MONTH_MS = 30 * 24 * 60 * 60 * 1000;
 const YEAR_MS = 365 * 24 * 60 * 60 * 1000;
+const BILLING_CYCLE_CHECK_SQL = "('weekly', 'monthly', 'annual')";
 
 export type BillingPlan = 'free' | 'lite' | 'pro';
-export type BillingCycle = 'monthly' | 'annual';
+export type BillingCycle = 'weekly' | 'monthly' | 'annual';
 export type BillingSubscriptionStatus = 'ACTIVE' | 'CANCELLED' | 'EXPIRED' | 'PENDING';
 export type BillingCheckoutStatus = 'OPEN' | 'COMPLETED' | 'EXPIRED' | 'ABANDONED';
 export type BillingErrorCode =
   | 'AUTH_REQUIRED'
   | 'PLAN_NOT_SUPPORTED'
+  | 'BILLING_PROVIDER_NOT_CONFIGURED'
+  | 'BILLING_PORTAL_UNAVAILABLE'
+  | 'BILLING_WEBHOOK_INVALID'
   | 'CHECKOUT_NOT_FOUND'
   | 'CHECKOUT_NOT_OPEN'
   | 'CHECKOUT_EXPIRED'
@@ -93,10 +106,14 @@ type AuthUserRow = {
 export type BillingState = {
   available: boolean;
   authenticated: boolean;
+  providerMode: BillingProviderMode;
+  checkoutConfigured: boolean;
+  portalConfigured: boolean;
   currentPlan: BillingPlan;
   customer: {
     email: string;
     provider: string;
+    providerCustomerId: string | null;
     defaultCurrency: string;
     defaultBillingCycle: BillingCycle;
   } | null;
@@ -121,9 +138,12 @@ export type BillingState = {
     id: string;
     planKey: BillingPlan;
     status: BillingCheckoutStatus;
+    provider: string;
+    providerSessionId: string | null;
     billingCycle: BillingCycle;
     amountCents: number;
     currency: string;
+    checkoutUrl: string | null;
     checkoutEmail: string | null;
     paymentMethodLast4: string | null;
     createdAt: string;
@@ -150,11 +170,12 @@ function createId(prefix: string) {
 }
 
 function normalizeBillingCycle(value: unknown): BillingCycle {
-  return String(value || '')
+  const normalized = String(value || '')
     .trim()
-    .toLowerCase() === 'annual'
-    ? 'annual'
-    : 'monthly';
+    .toLowerCase();
+  if (normalized === 'annual') return 'annual';
+  if (normalized === 'monthly') return 'monthly';
+  return 'weekly';
 }
 
 function normalizeBillingPlan(value: unknown): BillingPlan {
@@ -198,7 +219,22 @@ function sanitizeLast4(value: unknown) {
 }
 
 function cycleDurationMs(cycle: BillingCycle) {
+  if (cycle === 'weekly') return WEEK_MS;
   return cycle === 'annual' ? YEAR_MS : MONTH_MS;
+}
+
+function getBillingProviderMode() {
+  return readBillingProviderConfig().mode;
+}
+
+function parseMetadataJson<T extends Record<string, unknown>>(value: unknown): T {
+  if (!value) return {} as T;
+  try {
+    const parsed = JSON.parse(String(value || ''));
+    return parsed && typeof parsed === 'object' ? (parsed as T) : ({} as T);
+  } catch {
+    return {} as T;
+  }
 }
 
 function billingTable(tableName: string) {
@@ -216,6 +252,7 @@ function buildPgBillingSchemaSql() {
   const customerTable = billingTable('billing_customers');
   const checkoutTable = billingTable('billing_checkout_sessions');
   const subscriptionTable = billingTable('billing_subscriptions');
+  const webhookTable = billingTable('billing_webhook_events');
   return [
     `CREATE SCHEMA IF NOT EXISTS ${schemaName};`,
     `CREATE TABLE IF NOT EXISTS ${customerTable} (
@@ -224,17 +261,18 @@ function buildPgBillingSchemaSql() {
       provider TEXT NOT NULL DEFAULT '${BILLING_PROVIDER}',
       provider_customer_id TEXT,
       default_currency TEXT NOT NULL DEFAULT '${BILLING_CURRENCY}',
-      default_billing_cycle TEXT NOT NULL CHECK (default_billing_cycle IN ('monthly', 'annual')),
+      default_billing_cycle TEXT NOT NULL CHECK (default_billing_cycle IN ${BILLING_CYCLE_CHECK_SQL}),
       metadata_json TEXT NOT NULL DEFAULT '{}',
       created_at_ms BIGINT NOT NULL,
       updated_at_ms BIGINT NOT NULL
     );`,
     `CREATE INDEX IF NOT EXISTS ${quotePgIdentifier('idx_billing_customers_email')} ON ${customerTable} (email);`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS ${quotePgIdentifier('idx_billing_customers_provider_customer')} ON ${customerTable} (provider_customer_id);`,
     `CREATE TABLE IF NOT EXISTS ${checkoutTable} (
       session_id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES auth_users(user_id) ON DELETE CASCADE,
       plan_key TEXT NOT NULL CHECK (plan_key IN ('lite', 'pro')),
-      billing_cycle TEXT NOT NULL CHECK (billing_cycle IN ('monthly', 'annual')),
+      billing_cycle TEXT NOT NULL CHECK (billing_cycle IN ${BILLING_CYCLE_CHECK_SQL}),
       status TEXT NOT NULL CHECK (status IN ('OPEN', 'COMPLETED', 'EXPIRED', 'ABANDONED')),
       provider TEXT NOT NULL DEFAULT '${BILLING_PROVIDER}',
       provider_session_id TEXT,
@@ -251,6 +289,7 @@ function buildPgBillingSchemaSql() {
     );`,
     `CREATE INDEX IF NOT EXISTS ${quotePgIdentifier('idx_billing_checkout_sessions_user')} ON ${checkoutTable} (user_id, created_at_ms DESC);`,
     `CREATE INDEX IF NOT EXISTS ${quotePgIdentifier('idx_billing_checkout_sessions_status')} ON ${checkoutTable} (status, expires_at_ms DESC);`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS ${quotePgIdentifier('idx_billing_checkout_sessions_provider_session')} ON ${checkoutTable} (provider_session_id);`,
     `CREATE TABLE IF NOT EXISTS ${subscriptionTable} (
       subscription_id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES auth_users(user_id) ON DELETE CASCADE,
@@ -258,7 +297,7 @@ function buildPgBillingSchemaSql() {
       status TEXT NOT NULL CHECK (status IN ('ACTIVE', 'CANCELLED', 'EXPIRED', 'PENDING')),
       provider TEXT NOT NULL DEFAULT '${BILLING_PROVIDER}',
       provider_subscription_id TEXT,
-      billing_cycle TEXT NOT NULL CHECK (billing_cycle IN ('monthly', 'annual')),
+      billing_cycle TEXT NOT NULL CHECK (billing_cycle IN ${BILLING_CYCLE_CHECK_SQL}),
       amount_cents BIGINT NOT NULL,
       currency TEXT NOT NULL DEFAULT '${BILLING_CURRENCY}',
       started_at_ms BIGINT NOT NULL,
@@ -273,6 +312,21 @@ function buildPgBillingSchemaSql() {
     );`,
     `CREATE INDEX IF NOT EXISTS ${quotePgIdentifier('idx_billing_subscriptions_user')} ON ${subscriptionTable} (user_id, updated_at_ms DESC);`,
     `CREATE INDEX IF NOT EXISTS ${quotePgIdentifier('idx_billing_subscriptions_status')} ON ${subscriptionTable} (user_id, status, updated_at_ms DESC);`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS ${quotePgIdentifier('idx_billing_subscriptions_provider_subscription')} ON ${subscriptionTable} (provider_subscription_id);`,
+    `CREATE TABLE IF NOT EXISTS ${webhookTable} (
+      event_id TEXT PRIMARY KEY,
+      provider TEXT NOT NULL,
+      event_type TEXT NOT NULL,
+      received_at_ms BIGINT NOT NULL,
+      payload_json TEXT NOT NULL DEFAULT '{}'
+    );`,
+    `CREATE INDEX IF NOT EXISTS ${quotePgIdentifier('idx_billing_webhook_events_recent')} ON ${webhookTable} (received_at_ms DESC);`,
+    `ALTER TABLE ${customerTable} DROP CONSTRAINT IF EXISTS billing_customers_default_billing_cycle_check;`,
+    `ALTER TABLE ${customerTable} ADD CONSTRAINT billing_customers_default_billing_cycle_check CHECK (default_billing_cycle IN ${BILLING_CYCLE_CHECK_SQL});`,
+    `ALTER TABLE ${checkoutTable} DROP CONSTRAINT IF EXISTS billing_checkout_sessions_billing_cycle_check;`,
+    `ALTER TABLE ${checkoutTable} ADD CONSTRAINT billing_checkout_sessions_billing_cycle_check CHECK (billing_cycle IN ${BILLING_CYCLE_CHECK_SQL});`,
+    `ALTER TABLE ${subscriptionTable} DROP CONSTRAINT IF EXISTS billing_subscriptions_billing_cycle_check;`,
+    `ALTER TABLE ${subscriptionTable} ADD CONSTRAINT billing_subscriptions_billing_cycle_check CHECK (billing_cycle IN ${BILLING_CYCLE_CHECK_SQL});`,
   ];
 }
 
@@ -375,6 +429,35 @@ function readLatestSubscription(userId: string) {
   );
 }
 
+function readSubscriptionByProviderSubscriptionId(providerSubscriptionId: string) {
+  if (!providerSubscriptionId) return null;
+  ensureBillingSchema();
+  if (!isPostgresBusinessRuntime()) {
+    const db = getBillingDb();
+    return (
+      (db
+        .prepare(
+          `SELECT subscription_id, user_id, plan_key, status, provider, provider_subscription_id, billing_cycle,
+                  amount_cents, currency, started_at_ms, current_period_start_ms, current_period_end_ms,
+                  cancel_at_period_end, cancelled_at_ms, checkout_session_id, metadata_json, created_at_ms, updated_at_ms
+           FROM billing_subscriptions
+           WHERE provider_subscription_id = ?
+           LIMIT 1`,
+        )
+        .get(providerSubscriptionId) as BillingSubscriptionRow | undefined) || null
+    );
+  }
+  return queryRowSync<BillingSubscriptionRow>(
+    `SELECT subscription_id, user_id, plan_key, status, provider, provider_subscription_id, billing_cycle,
+            amount_cents, currency, started_at_ms, current_period_start_ms, current_period_end_ms,
+            cancel_at_period_end, cancelled_at_ms, checkout_session_id, metadata_json, created_at_ms, updated_at_ms
+     FROM ${billingTable('billing_subscriptions')}
+     WHERE provider_subscription_id = $1
+     LIMIT 1`,
+    [providerSubscriptionId],
+  );
+}
+
 function readCheckoutSession(userId: string, sessionId: string, forUpdate = false) {
   ensureBillingSchema();
   if (!isPostgresBusinessRuntime()) {
@@ -433,6 +516,35 @@ function readLatestCheckout(userId: string) {
   );
 }
 
+function readCheckoutSessionByProviderSessionId(providerSessionId: string) {
+  if (!providerSessionId) return null;
+  ensureBillingSchema();
+  if (!isPostgresBusinessRuntime()) {
+    const db = getBillingDb();
+    return (
+      (db
+        .prepare(
+          `SELECT session_id, user_id, plan_key, billing_cycle, status, provider, provider_session_id,
+                  amount_cents, currency, checkout_email, payment_method_last4, success_subscription_id,
+                  metadata_json, created_at_ms, expires_at_ms, completed_at_ms, updated_at_ms
+           FROM billing_checkout_sessions
+           WHERE provider_session_id = ?
+           LIMIT 1`,
+        )
+        .get(providerSessionId) as BillingCheckoutRow | undefined) || null
+    );
+  }
+  return queryRowSync<BillingCheckoutRow>(
+    `SELECT session_id, user_id, plan_key, billing_cycle, status, provider, provider_session_id,
+            amount_cents, currency, checkout_email, payment_method_last4, success_subscription_id,
+            metadata_json, created_at_ms, expires_at_ms, completed_at_ms, updated_at_ms
+     FROM ${billingTable('billing_checkout_sessions')}
+     WHERE provider_session_id = $1
+     LIMIT 1`,
+    [providerSessionId],
+  );
+}
+
 function markCheckoutExpired(userId: string, sessionId: string, ts: number) {
   ensureBillingSchema();
   if (!isPostgresBusinessRuntime()) {
@@ -457,26 +569,33 @@ function upsertBillingCustomer(args: {
   email: string;
   billingCycle: BillingCycle;
   now: number;
+  provider?: string;
+  providerCustomerId?: string | null;
 }) {
   ensureBillingSchema();
   const metadataJson = JSON.stringify({});
+  const provider = String(args.provider || BILLING_PROVIDER);
+  const providerCustomerId = args.providerCustomerId || null;
   if (!isPostgresBusinessRuntime()) {
     const db = getBillingDb();
     db.prepare(
       `INSERT INTO billing_customers(
         user_id, email, provider, provider_customer_id, default_currency, default_billing_cycle, metadata_json, created_at_ms, updated_at_ms
       ) VALUES(
-        @user_id, @email, @provider, NULL, @default_currency, @default_billing_cycle, @metadata_json, @created_at_ms, @updated_at_ms
+        @user_id, @email, @provider, @provider_customer_id, @default_currency, @default_billing_cycle, @metadata_json, @created_at_ms, @updated_at_ms
       )
       ON CONFLICT(user_id) DO UPDATE SET
         email = excluded.email,
+        provider = excluded.provider,
+        provider_customer_id = COALESCE(excluded.provider_customer_id, provider_customer_id),
         default_currency = excluded.default_currency,
         default_billing_cycle = excluded.default_billing_cycle,
         updated_at_ms = excluded.updated_at_ms`,
     ).run({
       user_id: args.userId,
       email: args.email,
-      provider: BILLING_PROVIDER,
+      provider,
+      provider_customer_id: providerCustomerId,
       default_currency: BILLING_CURRENCY,
       default_billing_cycle: args.billingCycle,
       metadata_json: metadataJson,
@@ -488,16 +607,19 @@ function upsertBillingCustomer(args: {
   executeSync(
     `INSERT INTO ${billingTable('billing_customers')}(
       user_id, email, provider, provider_customer_id, default_currency, default_billing_cycle, metadata_json, created_at_ms, updated_at_ms
-    ) VALUES($1, $2, $3, NULL, $4, $5, $6, $7, $8)
+    ) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9)
     ON CONFLICT (user_id) DO UPDATE SET
       email = EXCLUDED.email,
+      provider = EXCLUDED.provider,
+      provider_customer_id = COALESCE(EXCLUDED.provider_customer_id, provider_customer_id),
       default_currency = EXCLUDED.default_currency,
       default_billing_cycle = EXCLUDED.default_billing_cycle,
       updated_at_ms = EXCLUDED.updated_at_ms`,
     [
       args.userId,
       args.email,
-      BILLING_PROVIDER,
+      provider,
+      providerCustomerId,
       BILLING_CURRENCY,
       args.billingCycle,
       metadataJson,
@@ -516,8 +638,12 @@ function insertCheckoutSession(args: {
   now: number;
   expiresAt: number;
   metadataJson: string;
+  provider?: string;
+  providerSessionId?: string | null;
+  checkoutEmail?: string | null;
 }) {
   ensureBillingSchema();
+  const provider = String(args.provider || BILLING_PROVIDER);
   if (!isPostgresBusinessRuntime()) {
     const db = getBillingDb();
     db.prepare(
@@ -526,8 +652,8 @@ function insertCheckoutSession(args: {
         amount_cents, currency, checkout_email, payment_method_last4, success_subscription_id,
         metadata_json, created_at_ms, expires_at_ms, completed_at_ms, updated_at_ms
       ) VALUES(
-        @session_id, @user_id, @plan_key, @billing_cycle, 'OPEN', @provider, NULL,
-        @amount_cents, @currency, NULL, NULL, NULL,
+        @session_id, @user_id, @plan_key, @billing_cycle, 'OPEN', @provider, @provider_session_id,
+        @amount_cents, @currency, @checkout_email, NULL, NULL,
         @metadata_json, @created_at_ms, @expires_at_ms, NULL, @updated_at_ms
       )`,
     ).run({
@@ -535,9 +661,11 @@ function insertCheckoutSession(args: {
       user_id: args.userId,
       plan_key: args.planKey,
       billing_cycle: args.billingCycle,
-      provider: BILLING_PROVIDER,
+      provider,
+      provider_session_id: args.providerSessionId || null,
       amount_cents: args.amountCents,
       currency: BILLING_CURRENCY,
+      checkout_email: args.checkoutEmail || null,
       metadata_json: args.metadataJson,
       created_at_ms: args.now,
       expires_at_ms: args.expiresAt,
@@ -550,15 +678,17 @@ function insertCheckoutSession(args: {
       session_id, user_id, plan_key, billing_cycle, status, provider, provider_session_id,
       amount_cents, currency, checkout_email, payment_method_last4, success_subscription_id,
       metadata_json, created_at_ms, expires_at_ms, completed_at_ms, updated_at_ms
-    ) VALUES($1, $2, $3, $4, 'OPEN', $5, NULL, $6, $7, NULL, NULL, NULL, $8, $9, $10, NULL, $11)`,
+    ) VALUES($1, $2, $3, $4, 'OPEN', $5, $6, $7, $8, $9, NULL, NULL, $10, $11, $12, NULL, $13)`,
     [
       args.sessionId,
       args.userId,
       args.planKey,
       args.billingCycle,
-      BILLING_PROVIDER,
+      provider,
+      args.providerSessionId || null,
       args.amountCents,
       BILLING_CURRENCY,
+      args.checkoutEmail || null,
       args.metadataJson,
       args.now,
       args.expiresAt,
@@ -596,14 +726,21 @@ function insertSubscription(args: {
   subscriptionId: string;
   userId: string;
   planKey: BillingPlan;
+  status?: BillingSubscriptionStatus;
+  provider?: string;
+  providerSubscriptionId?: string | null;
   billingCycle: BillingCycle;
   amountCents: number;
   startedAt: number;
   currentPeriodEndAt: number;
-  checkoutSessionId: string;
+  checkoutSessionId: string | null;
   metadataJson: string;
+  cancelAtPeriodEnd?: boolean;
+  cancelledAt?: number | null;
 }) {
   ensureBillingSchema();
+  const provider = String(args.provider || BILLING_PROVIDER);
+  const status = String(args.status || 'ACTIVE') as BillingSubscriptionStatus;
   if (!isPostgresBusinessRuntime()) {
     const db = getBillingDb();
     db.prepare(
@@ -613,23 +750,27 @@ function insertSubscription(args: {
         current_period_end_ms, cancel_at_period_end, cancelled_at_ms, checkout_session_id,
         metadata_json, created_at_ms, updated_at_ms
       ) VALUES(
-        @subscription_id, @user_id, @plan_key, 'ACTIVE', @provider, NULL,
+        @subscription_id, @user_id, @plan_key, @status, @provider, @provider_subscription_id,
         @billing_cycle, @amount_cents, @currency, @started_at_ms, @current_period_start_ms,
-        @current_period_end_ms, 0, NULL, @checkout_session_id,
+        @current_period_end_ms, @cancel_at_period_end, @cancelled_at_ms, @checkout_session_id,
         @metadata_json, @created_at_ms, @updated_at_ms
       )`,
     ).run({
       subscription_id: args.subscriptionId,
       user_id: args.userId,
       plan_key: args.planKey,
-      provider: BILLING_PROVIDER,
+      status,
+      provider,
+      provider_subscription_id: args.providerSubscriptionId || null,
       billing_cycle: args.billingCycle,
       amount_cents: args.amountCents,
       currency: BILLING_CURRENCY,
       started_at_ms: args.startedAt,
       current_period_start_ms: args.startedAt,
       current_period_end_ms: args.currentPeriodEndAt,
-      checkout_session_id: args.checkoutSessionId,
+      cancel_at_period_end: args.cancelAtPeriodEnd ? 1 : 0,
+      cancelled_at_ms: args.cancelledAt || null,
+      checkout_session_id: args.checkoutSessionId || null,
       metadata_json: args.metadataJson,
       created_at_ms: args.startedAt,
       updated_at_ms: args.startedAt,
@@ -642,19 +783,23 @@ function insertSubscription(args: {
       billing_cycle, amount_cents, currency, started_at_ms, current_period_start_ms,
       current_period_end_ms, cancel_at_period_end, cancelled_at_ms, checkout_session_id,
       metadata_json, created_at_ms, updated_at_ms
-    ) VALUES($1, $2, $3, 'ACTIVE', $4, NULL, $5, $6, $7, $8, $9, $10, 0, NULL, $11, $12, $13, $14)`,
+    ) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`,
     [
       args.subscriptionId,
       args.userId,
       args.planKey,
-      BILLING_PROVIDER,
+      status,
+      provider,
+      args.providerSubscriptionId || null,
       args.billingCycle,
       args.amountCents,
       BILLING_CURRENCY,
       args.startedAt,
       args.startedAt,
       args.currentPeriodEndAt,
-      args.checkoutSessionId,
+      args.cancelAtPeriodEnd ? 1 : 0,
+      args.cancelledAt || null,
+      args.checkoutSessionId || null,
       args.metadataJson,
       args.startedAt,
       args.startedAt,
@@ -714,11 +859,245 @@ function completeCheckoutSessionRow(args: {
   );
 }
 
+function updateCheckoutSessionFromProvider(args: {
+  sessionId: string;
+  userId: string;
+  provider?: string;
+  providerSessionId?: string | null;
+  checkoutEmail?: string | null;
+  checkoutUrl?: string | null;
+  status?: BillingCheckoutStatus;
+  subscriptionId?: string | null;
+  paymentMethodLast4?: string | null;
+  completedAt?: number | null;
+  updatedAt: number;
+}) {
+  const existing = readCheckoutSession(args.userId, args.sessionId);
+  if (!existing) return;
+  const metadata = parseMetadataJson<Record<string, unknown>>(existing.metadata_json);
+  if (args.checkoutUrl) {
+    metadata.checkout_url = args.checkoutUrl;
+  }
+  const metadataJson = JSON.stringify(metadata);
+  const provider = String(args.provider || existing.provider || BILLING_PROVIDER);
+  const status = String(args.status || existing.status || 'OPEN') as BillingCheckoutStatus;
+  if (!isPostgresBusinessRuntime()) {
+    const db = getBillingDb();
+    db.prepare(
+      `UPDATE billing_checkout_sessions
+       SET provider = ?,
+           provider_session_id = COALESCE(?, provider_session_id),
+           status = ?,
+           checkout_email = COALESCE(?, checkout_email),
+           payment_method_last4 = COALESCE(?, payment_method_last4),
+           success_subscription_id = COALESCE(?, success_subscription_id),
+           metadata_json = ?,
+           completed_at_ms = COALESCE(?, completed_at_ms),
+           updated_at_ms = ?
+       WHERE session_id = ? AND user_id = ?`,
+    ).run(
+      provider,
+      args.providerSessionId || null,
+      status,
+      args.checkoutEmail || null,
+      args.paymentMethodLast4 || null,
+      args.subscriptionId || null,
+      metadataJson,
+      args.completedAt || null,
+      args.updatedAt,
+      args.sessionId,
+      args.userId,
+    );
+    return;
+  }
+  executeSync(
+    `UPDATE ${billingTable('billing_checkout_sessions')}
+     SET provider = $1,
+         provider_session_id = COALESCE($2, provider_session_id),
+         status = $3,
+         checkout_email = COALESCE($4, checkout_email),
+         payment_method_last4 = COALESCE($5, payment_method_last4),
+         success_subscription_id = COALESCE($6, success_subscription_id),
+         metadata_json = $7,
+         completed_at_ms = COALESCE($8, completed_at_ms),
+         updated_at_ms = $9
+     WHERE session_id = $10 AND user_id = $11`,
+    [
+      provider,
+      args.providerSessionId || null,
+      status,
+      args.checkoutEmail || null,
+      args.paymentMethodLast4 || null,
+      args.subscriptionId || null,
+      metadataJson,
+      args.completedAt || null,
+      args.updatedAt,
+      args.sessionId,
+      args.userId,
+    ],
+  );
+}
+
+function upsertSubscriptionFromProvider(args: {
+  provider: string;
+  providerSubscriptionId: string;
+  userId: string;
+  planKey: BillingPlan;
+  status: BillingSubscriptionStatus;
+  billingCycle: BillingCycle;
+  amountCents: number;
+  startedAt: number;
+  currentPeriodStartAt: number;
+  currentPeriodEndAt: number | null;
+  cancelAtPeriodEnd: boolean;
+  cancelledAt: number | null;
+  checkoutSessionId: string | null;
+  metadataJson: string;
+}) {
+  ensureBillingSchema();
+  const existing = readSubscriptionByProviderSubscriptionId(args.providerSubscriptionId);
+  if (!existing) {
+    insertSubscription({
+      subscriptionId: createId('sub'),
+      userId: args.userId,
+      planKey: args.planKey,
+      status: args.status,
+      provider: args.provider,
+      providerSubscriptionId: args.providerSubscriptionId,
+      billingCycle: args.billingCycle,
+      amountCents: args.amountCents,
+      startedAt: args.startedAt,
+      currentPeriodEndAt: args.currentPeriodEndAt || args.startedAt,
+      checkoutSessionId: args.checkoutSessionId,
+      metadataJson: args.metadataJson,
+      cancelAtPeriodEnd: args.cancelAtPeriodEnd,
+      cancelledAt: args.cancelledAt,
+    });
+    return;
+  }
+  if (!isPostgresBusinessRuntime()) {
+    const db = getBillingDb();
+    db.prepare(
+      `UPDATE billing_subscriptions
+       SET user_id = ?,
+           plan_key = ?,
+           status = ?,
+           provider = ?,
+           billing_cycle = ?,
+           amount_cents = ?,
+           currency = ?,
+           started_at_ms = ?,
+           current_period_start_ms = ?,
+           current_period_end_ms = ?,
+           cancel_at_period_end = ?,
+           cancelled_at_ms = ?,
+           checkout_session_id = ?,
+           metadata_json = ?,
+           updated_at_ms = ?
+       WHERE provider_subscription_id = ?`,
+    ).run(
+      args.userId,
+      args.planKey,
+      args.status,
+      args.provider,
+      args.billingCycle,
+      args.amountCents,
+      BILLING_CURRENCY,
+      args.startedAt,
+      args.currentPeriodStartAt,
+      args.currentPeriodEndAt,
+      args.cancelAtPeriodEnd ? 1 : 0,
+      args.cancelledAt,
+      args.checkoutSessionId,
+      args.metadataJson,
+      nowMs(),
+      args.providerSubscriptionId,
+    );
+    return;
+  }
+  executeSync(
+    `UPDATE ${billingTable('billing_subscriptions')}
+     SET user_id = $1,
+         plan_key = $2,
+         status = $3,
+         provider = $4,
+         billing_cycle = $5,
+         amount_cents = $6,
+         currency = $7,
+         started_at_ms = $8,
+         current_period_start_ms = $9,
+         current_period_end_ms = $10,
+         cancel_at_period_end = $11,
+         cancelled_at_ms = $12,
+         checkout_session_id = $13,
+         metadata_json = $14,
+         updated_at_ms = $15
+     WHERE provider_subscription_id = $16`,
+    [
+      args.userId,
+      args.planKey,
+      args.status,
+      args.provider,
+      args.billingCycle,
+      args.amountCents,
+      BILLING_CURRENCY,
+      args.startedAt,
+      args.currentPeriodStartAt,
+      args.currentPeriodEndAt,
+      args.cancelAtPeriodEnd ? 1 : 0,
+      args.cancelledAt,
+      args.checkoutSessionId,
+      args.metadataJson,
+      nowMs(),
+      args.providerSubscriptionId,
+    ],
+  );
+}
+
+function hasProcessedWebhookEvent(eventId: string) {
+  if (!eventId) return false;
+  ensureBillingSchema();
+  if (!isPostgresBusinessRuntime()) {
+    const db = getBillingDb();
+    const row = db
+      .prepare('SELECT event_id FROM billing_webhook_events WHERE event_id = ? LIMIT 1')
+      .get(eventId) as { event_id?: string } | undefined;
+    return Boolean(row?.event_id);
+  }
+  return Boolean(
+    queryRowSync<{ event_id: string }>(
+      `SELECT event_id FROM ${billingTable('billing_webhook_events')} WHERE event_id = $1 LIMIT 1`,
+      [eventId],
+    )?.event_id,
+  );
+}
+
+function recordWebhookEvent(eventId: string, eventType: string, provider: string, payloadJson: string) {
+  ensureBillingSchema();
+  const ts = nowMs();
+  if (!isPostgresBusinessRuntime()) {
+    const db = getBillingDb();
+    db.prepare(
+      `INSERT INTO billing_webhook_events(event_id, provider, event_type, received_at_ms, payload_json)
+       VALUES(?, ?, ?, ?, ?)
+       ON CONFLICT(event_id) DO NOTHING`,
+    ).run(eventId, provider, eventType, ts, payloadJson);
+    return;
+  }
+  executeSync(
+    `INSERT INTO ${billingTable('billing_webhook_events')}(event_id, provider, event_type, received_at_ms, payload_json)
+     VALUES($1, $2, $3, $4, $5)
+     ON CONFLICT(event_id) DO NOTHING`,
+    [eventId, provider, eventType, ts, payloadJson],
+  );
+}
+
 function mapCustomer(row: BillingCustomerRow | null) {
   if (!row) return null;
   return {
     email: String(row.email || ''),
     provider: String(row.provider || BILLING_PROVIDER),
+    providerCustomerId: row.provider_customer_id ? String(row.provider_customer_id) : null,
     defaultCurrency: String(row.default_currency || BILLING_CURRENCY),
     defaultBillingCycle: normalizeBillingCycle(row.default_billing_cycle),
   };
@@ -726,13 +1105,17 @@ function mapCustomer(row: BillingCustomerRow | null) {
 
 function mapCheckout(row: BillingCheckoutRow | null): BillingCheckoutSession {
   if (!row) return null;
+  const metadata = parseMetadataJson<Record<string, unknown>>(row.metadata_json);
   return {
     id: row.session_id,
     planKey: normalizeBillingPlan(row.plan_key),
     status: String(row.status || 'OPEN') as BillingCheckoutStatus,
+    provider: String(row.provider || BILLING_PROVIDER),
+    providerSessionId: row.provider_session_id ? String(row.provider_session_id) : null,
     billingCycle: normalizeBillingCycle(row.billing_cycle),
     amountCents: Number(row.amount_cents || 0),
     currency: String(row.currency || BILLING_CURRENCY),
+    checkoutUrl: metadata.checkout_url ? String(metadata.checkout_url) : null,
     checkoutEmail: row.checkout_email ? String(row.checkout_email) : null,
     paymentMethodLast4: row.payment_method_last4 ? String(row.payment_method_last4) : null,
     createdAt: toIso(row.created_at_ms) || new Date(0).toISOString(),
@@ -764,9 +1147,13 @@ function mapSubscription(row: BillingSubscriptionRow | null): BillingSubscriptio
 }
 
 function defaultBillingState(authenticated: boolean): BillingState {
+  const providerMode = getBillingProviderMode();
   return {
     available: authenticated,
     authenticated,
+    providerMode,
+    checkoutConfigured: providerMode === 'stripe',
+    portalConfigured: providerMode === 'stripe',
     currentPlan: 'free',
     customer: null,
     subscription: null,
@@ -792,6 +1179,7 @@ export function getBillingState(userId: string): BillingState {
   ensureBillingSchema();
   const authUser = getAuthUser(userId);
   if (!authUser) return defaultBillingState(false);
+  const providerMode = getBillingProviderMode();
 
   const customer = readBillingCustomer(userId);
   const latestSubscription = readLatestSubscription(userId);
@@ -801,6 +1189,9 @@ export function getBillingState(userId: string): BillingState {
   return {
     available: true,
     authenticated: true,
+    providerMode,
+    checkoutConfigured: providerMode === 'stripe',
+    portalConfigured: providerMode === 'stripe' && Boolean(customer?.provider_customer_id),
     currentPlan:
       normalizedSubscription?.status === 'ACTIVE'
         ? normalizeBillingPlan(normalizedSubscription.planKey)
@@ -811,13 +1202,13 @@ export function getBillingState(userId: string): BillingState {
   };
 }
 
-export function createBillingCheckoutSession(args: {
+export async function createBillingCheckoutSession(args: {
   userId: string;
   planKey: string;
   billingCycle?: string;
   source?: string | null;
   locale?: string | null;
-}): BillingResult<{ session: BillingCheckoutSession; state: BillingState }> | BillingFailure {
+}): Promise<BillingResult<{ session: BillingCheckoutSession; state: BillingState }> | BillingFailure> {
   if (isGuestUser(args.userId)) {
     return { ok: false, error: 'AUTH_REQUIRED' };
   }
@@ -838,30 +1229,79 @@ export function createBillingCheckoutSession(args: {
     return { ok: false, error: 'PLAN_NOT_SUPPORTED' };
   }
 
+  const providerConfig = readBillingProviderConfig();
+  const existingCustomer = readBillingCustomer(args.userId);
   const ts = nowMs();
   const sessionId = createId('chk');
   const expiresAt = ts + CHECKOUT_TTL_MS;
-  const metadataJson = JSON.stringify({
-    source: args.source || null,
-    locale: args.locale || null,
-  });
+  const checkoutEmail = sanitizeEmail(authUser.email);
 
-  upsertBillingCustomer({
-    userId: args.userId,
-    email: sanitizeEmail(authUser.email),
-    billingCycle,
-    now: ts,
-  });
-  insertCheckoutSession({
-    sessionId,
-    userId: args.userId,
-    planKey,
-    billingCycle,
-    amountCents,
-    now: ts,
-    expiresAt,
-    metadataJson,
-  });
+  if (providerConfig.mode === 'stripe') {
+    const priceId = resolveStripePriceId(providerConfig, planKey, billingCycle);
+    if (!priceId) {
+      return { ok: false, error: 'BILLING_PROVIDER_NOT_CONFIGURED' };
+    }
+    const stripeSession = await createStripeCheckoutSession(providerConfig, {
+      localSessionId: sessionId,
+      userId: args.userId,
+      planKey,
+      billingCycle,
+      priceId,
+      customerId: existingCustomer?.provider_customer_id || null,
+      customerEmail: checkoutEmail,
+      source: args.source,
+      locale: args.locale,
+    });
+    const metadataJson = JSON.stringify({
+      source: args.source || null,
+      locale: args.locale || null,
+      checkout_url: stripeSession.url || null,
+      price_id: priceId,
+    });
+    upsertBillingCustomer({
+      userId: args.userId,
+      email: checkoutEmail,
+      billingCycle,
+      now: ts,
+      provider: 'stripe',
+      providerCustomerId: stripeSession.customer || existingCustomer?.provider_customer_id || null,
+    });
+    insertCheckoutSession({
+      sessionId,
+      userId: args.userId,
+      planKey,
+      billingCycle,
+      amountCents,
+      now: ts,
+      expiresAt,
+      metadataJson,
+      provider: 'stripe',
+      providerSessionId: stripeSession.id,
+      checkoutEmail,
+    });
+  } else {
+    const metadataJson = JSON.stringify({
+      source: args.source || null,
+      locale: args.locale || null,
+    });
+    upsertBillingCustomer({
+      userId: args.userId,
+      email: checkoutEmail,
+      billingCycle,
+      now: ts,
+    });
+    insertCheckoutSession({
+      sessionId,
+      userId: args.userId,
+      planKey,
+      billingCycle,
+      amountCents,
+      now: ts,
+      expiresAt,
+      metadataJson,
+      checkoutEmail,
+    });
+  }
 
   return {
     ok: true,
@@ -927,6 +1367,9 @@ export function completeBillingCheckoutSession(args: {
     if (!lockedSession) {
       return { ok: false, error: 'CHECKOUT_NOT_FOUND' };
     }
+    if (String(lockedSession.provider || BILLING_PROVIDER) !== BILLING_PROVIDER) {
+      return { ok: false, error: 'CHECKOUT_NOT_OPEN' };
+    }
 
     const status = String(lockedSession.status || '').toUpperCase();
     if (status === 'COMPLETED') {
@@ -956,11 +1399,13 @@ export function completeBillingCheckoutSession(args: {
       email: checkoutEmail || sanitizeEmail(authUser.email),
       billingCycle,
       now: ts,
+      provider: String(lockedSession.provider || BILLING_PROVIDER),
     });
     insertSubscription({
       subscriptionId,
       userId: args.userId,
       planKey,
+      provider: String(lockedSession.provider || BILLING_PROVIDER),
       billingCycle,
       amountCents,
       startedAt: ts,
@@ -1008,6 +1453,10 @@ export function cancelBillingSubscription(args: {
   if (!authUser) {
     return { ok: false, error: 'AUTH_REQUIRED' };
   }
+  const latestSubscription = readLatestSubscription(args.userId);
+  if (latestSubscription && String(latestSubscription.provider || BILLING_PROVIDER) !== BILLING_PROVIDER) {
+    return { ok: false, error: 'BILLING_PORTAL_UNAVAILABLE' };
+  }
 
   runBillingTransaction(() => {
     cancelActiveSubscriptions(args.userId, nowMs());
@@ -1017,4 +1466,229 @@ export function cancelBillingSubscription(args: {
     ok: true,
     state: getBillingState(args.userId),
   };
+}
+
+function stripeTimestampToMs(value: unknown) {
+  const next = Number(value);
+  return Number.isFinite(next) && next > 0 ? next * 1000 : null;
+}
+
+function normalizeStripeInterval(value: unknown): BillingCycle {
+  const normalized = String(value || '')
+    .trim()
+    .toLowerCase();
+  if (normalized === 'year') return 'annual';
+  if (normalized === 'month') return 'monthly';
+  return 'weekly';
+}
+
+function normalizeStripeSubscriptionStatus(value: unknown): BillingSubscriptionStatus {
+  const normalized = String(value || '')
+    .trim()
+    .toLowerCase();
+  if (normalized === 'active' || normalized === 'trialing') return 'ACTIVE';
+  if (normalized === 'canceled') return 'CANCELLED';
+  if (normalized === 'incomplete_expired') return 'EXPIRED';
+  return 'PENDING';
+}
+
+function asRecord(value: unknown) {
+  return value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+}
+
+function handleStripeCheckoutLifecycleEvent(
+  object: Record<string, unknown>,
+  status: BillingCheckoutStatus,
+) {
+  const metadata = asRecord(object.metadata);
+  const sessionId = String(metadata.local_checkout_session_id || object.client_reference_id || '').trim();
+  const userId = String(metadata.user_id || '').trim();
+  if (!sessionId || !userId) return;
+  const providerSessionId = String(object.id || '').trim();
+  const customerDetails = asRecord(object.customer_details);
+  const authUser = getAuthUser(userId);
+  const checkoutEmail = sanitizeEmail(
+    customerDetails.email,
+    String(object.customer_email || authUser?.email || ''),
+  );
+  updateCheckoutSessionFromProvider({
+    sessionId,
+    userId,
+    provider: 'stripe',
+    providerSessionId: providerSessionId || null,
+    checkoutEmail: checkoutEmail || null,
+    status,
+    updatedAt: nowMs(),
+  });
+  if (checkoutEmail || object.customer) {
+    upsertBillingCustomer({
+      userId,
+      email: checkoutEmail,
+      billingCycle: normalizeBillingCycle(metadata.billing_cycle),
+      now: nowMs(),
+      provider: 'stripe',
+      providerCustomerId: object.customer ? String(object.customer) : null,
+    });
+  }
+}
+
+function handleStripeSubscriptionEvent(object: Record<string, unknown>) {
+  const metadata = asRecord(object.metadata);
+  const providerSubscriptionId = String(object.id || '').trim();
+  if (!providerSubscriptionId) return;
+
+  const existing = readSubscriptionByProviderSubscriptionId(providerSubscriptionId);
+  const checkoutSessionId = String(
+    metadata.local_checkout_session_id || existing?.checkout_session_id || '',
+  ).trim();
+  const userId = String(metadata.user_id || existing?.user_id || '').trim();
+  if (!userId) return;
+  const billingCustomer = readBillingCustomer(userId);
+  const authUser = getAuthUser(userId);
+
+  const items = asRecord(object.items);
+  const data = Array.isArray(items.data) ? items.data : [];
+  const firstItem = asRecord(data[0]);
+  const price = asRecord(firstItem.price);
+  const plan = asRecord(object.plan);
+  const recurring = asRecord(price.recurring);
+  const amountCents = Number(price.unit_amount ?? plan.amount ?? existing?.amount_cents ?? 0);
+  const billingCycle = normalizeBillingCycle(
+    metadata.billing_cycle || normalizeStripeInterval(recurring.interval),
+  );
+  const planKey = normalizeBillingPlan(
+    metadata.plan_key ||
+      existing?.plan_key ||
+      (amountCents >= getMembershipPriceCents('pro', 'weekly') ? 'pro' : 'lite'),
+  );
+  const status = normalizeStripeSubscriptionStatus(object.status);
+  const startedAt = stripeTimestampToMs(object.start_date || object.created) || nowMs();
+  const currentPeriodStartAt =
+    stripeTimestampToMs(object.current_period_start || object.start_date || object.created) ||
+    startedAt;
+  const currentPeriodEndAt = stripeTimestampToMs(object.current_period_end);
+  const cancelAtPeriodEnd = asBoolean(object.cancel_at_period_end);
+  const cancelledAt = stripeTimestampToMs(object.canceled_at);
+  if (object.customer) {
+    upsertBillingCustomer({
+      userId,
+      email: sanitizeEmail(billingCustomer?.email, authUser?.email || ''),
+      billingCycle,
+      now: nowMs(),
+      provider: 'stripe',
+      providerCustomerId: String(object.customer),
+    });
+  }
+
+  if (status === 'ACTIVE') {
+    cancelActiveSubscriptions(userId, nowMs());
+  }
+  upsertSubscriptionFromProvider({
+    provider: 'stripe',
+    providerSubscriptionId,
+    userId,
+    planKey,
+    status,
+    billingCycle,
+    amountCents,
+    startedAt,
+    currentPeriodStartAt,
+    currentPeriodEndAt,
+    cancelAtPeriodEnd,
+    cancelledAt,
+    checkoutSessionId: checkoutSessionId || null,
+    metadataJson: JSON.stringify(metadata),
+  });
+  const savedSubscription = readSubscriptionByProviderSubscriptionId(providerSubscriptionId);
+  if (checkoutSessionId) {
+    updateCheckoutSessionFromProvider({
+      sessionId: checkoutSessionId,
+      userId,
+      provider: 'stripe',
+      status: status === 'ACTIVE' ? 'COMPLETED' : 'OPEN',
+      subscriptionId: savedSubscription?.subscription_id || null,
+      completedAt: status === 'ACTIVE' ? nowMs() : null,
+      updatedAt: nowMs(),
+    });
+  }
+}
+
+export async function createBillingPortalSession(args: {
+  userId: string;
+  returnUrl?: string | null;
+}): Promise<BillingResult<{ url: string; state: BillingState }> | BillingFailure> {
+  if (isGuestUser(args.userId)) {
+    return { ok: false, error: 'AUTH_REQUIRED' };
+  }
+  ensureBillingSchema();
+  const authUser = getAuthUser(args.userId);
+  if (!authUser) {
+    return { ok: false, error: 'AUTH_REQUIRED' };
+  }
+  const providerConfig = readBillingProviderConfig();
+  const customer = readBillingCustomer(args.userId);
+  if (
+    providerConfig.mode !== 'stripe' ||
+    !customer?.provider_customer_id ||
+    String(customer.provider || '').toLowerCase() !== 'stripe'
+  ) {
+    return { ok: false, error: 'BILLING_PORTAL_UNAVAILABLE' };
+  }
+  const portalSession = await createStripePortalSession(providerConfig, {
+    customerId: customer.provider_customer_id,
+    returnUrl: args.returnUrl || null,
+  });
+  if (!portalSession.url) {
+    return { ok: false, error: 'BILLING_PORTAL_UNAVAILABLE' };
+  }
+  return {
+    ok: true,
+    url: portalSession.url,
+    state: getBillingState(args.userId),
+  };
+}
+
+export function processBillingWebhook(args: {
+  signature: string;
+  rawBody: string;
+}): BillingResult<{ received: true }> | BillingFailure {
+  const providerConfig = readBillingProviderConfig();
+  if (providerConfig.mode !== 'stripe' || !providerConfig.stripeWebhookSecret) {
+    return { ok: false, error: 'BILLING_PROVIDER_NOT_CONFIGURED' };
+  }
+  let event;
+  try {
+    event = verifyStripeWebhookEvent(args.rawBody, args.signature, providerConfig.stripeWebhookSecret);
+  } catch {
+    return { ok: false, error: 'BILLING_WEBHOOK_INVALID' };
+  }
+  if (!event?.id || !event?.type) {
+    return { ok: false, error: 'BILLING_WEBHOOK_INVALID' };
+  }
+  if (hasProcessedWebhookEvent(event.id)) {
+    return { ok: true, received: true };
+  }
+
+  const payloadJson = JSON.stringify(event);
+  runBillingTransaction(() => {
+    recordWebhookEvent(event.id, event.type, 'stripe', payloadJson);
+    const object = asRecord(event.data?.object);
+    if (event.type === 'checkout.session.completed') {
+      handleStripeCheckoutLifecycleEvent(object, 'COMPLETED');
+      return;
+    }
+    if (event.type === 'checkout.session.expired') {
+      handleStripeCheckoutLifecycleEvent(object, 'EXPIRED');
+      return;
+    }
+    if (
+      event.type === 'customer.subscription.created' ||
+      event.type === 'customer.subscription.updated' ||
+      event.type === 'customer.subscription.deleted'
+    ) {
+      handleStripeSubscriptionEvent(object);
+    }
+  });
+
+  return { ok: true, received: true };
 }

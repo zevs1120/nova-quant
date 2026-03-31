@@ -68,7 +68,30 @@ function buildPromptCopy(reason, locale, extras = {}) {
   };
 }
 
-export function useMembership({ locale }) {
+function normalizeRemoteMembershipState(value, fallbackDay) {
+  if (!value || typeof value !== 'object') return null;
+  const plan = normalizeMembershipPlan(value.currentPlan);
+  const usageDay = String(value?.usage?.day || fallbackDay || '').trim() || fallbackDay;
+  const askNovaUsed = Number(value?.usage?.askNovaUsed || 0);
+  return {
+    ...value,
+    currentPlan: plan,
+    limits: value?.limits || getMembershipLimits(plan),
+    usage: {
+      day: usageDay,
+      askNovaUsed: Number.isFinite(askNovaUsed) ? Math.max(0, Math.floor(askNovaUsed)) : 0,
+    },
+    remainingAskNova:
+      value?.remainingAskNova === null || Number.isFinite(Number(value?.remainingAskNova))
+        ? value?.remainingAskNova
+        : getRemainingAskNova(plan, {
+            day: usageDay,
+            askNovaUsed,
+          }),
+  };
+}
+
+export function useMembership({ locale, authSession, fetchJson }) {
   const today = membershipUsageDay();
   const [plan, setPlan] = useLocalStorage('nova-quant-membership-plan', 'free');
   const [usageState, setUsageState] = useLocalStorage('nova-quant-membership-usage', {
@@ -76,18 +99,62 @@ export function useMembership({ locale }) {
     askNovaUsed: 0,
   });
   const [prompt, setPrompt] = useState(null);
+  const [remoteState, setRemoteState] = useState(null);
 
-  const currentPlan = normalizeMembershipPlan(plan);
-  const usage = useMemo(() => normalizeMembershipUsage(usageState, today), [usageState, today]);
-  const limits = useMemo(() => getMembershipLimits(currentPlan), [currentPlan]);
+  const currentPlan = normalizeMembershipPlan(remoteState?.currentPlan || plan);
+  const localUsage = useMemo(
+    () => normalizeMembershipUsage(usageState, today),
+    [usageState, today],
+  );
+  const usage = useMemo(
+    () =>
+      remoteState?.usage
+        ? normalizeMembershipUsage(remoteState.usage, remoteState.usage?.day || today)
+        : localUsage,
+    [localUsage, remoteState, today],
+  );
+  const limits = useMemo(
+    () => remoteState?.limits || getMembershipLimits(currentPlan),
+    [currentPlan, remoteState],
+  );
   const remainingAskNova = useMemo(
-    () => getRemainingAskNova(currentPlan, usage),
-    [currentPlan, usage],
+    () =>
+      remoteState?.remainingAskNova === null ||
+      Number.isFinite(Number(remoteState?.remainingAskNova))
+        ? remoteState?.remainingAskNova
+        : getRemainingAskNova(currentPlan, usage),
+    [currentPlan, remoteState, usage],
   );
 
   useEffect(() => {
     setUsageState((current) => normalizeMembershipUsage(current, today));
   }, [today, setUsageState]);
+
+  const syncMembershipState = useCallback(async () => {
+    if (!authSession?.userId || !fetchJson) {
+      setRemoteState(null);
+      return false;
+    }
+    try {
+      const payload = await fetchJson('/api/membership/state');
+      const normalized = normalizeRemoteMembershipState(payload, today);
+      setRemoteState(normalized);
+      if (normalized?.currentPlan) {
+        setPlan(normalized.currentPlan);
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  }, [authSession?.userId, fetchJson, setPlan, today]);
+
+  useEffect(() => {
+    if (!authSession?.userId || !fetchJson) {
+      setRemoteState(null);
+      return;
+    }
+    void syncMembershipState();
+  }, [authSession?.userId, fetchJson, syncMembershipState]);
 
   const openPrompt = useCallback(
     (reasonOrPrompt, extras = {}) => {
@@ -107,10 +174,21 @@ export function useMembership({ locale }) {
 
   const setMembershipPlan = useCallback(
     (nextPlan) => {
-      setPlan(normalizeMembershipPlan(nextPlan));
+      const normalizedPlan = normalizeMembershipPlan(nextPlan);
+      setPlan(normalizedPlan);
+      setRemoteState((current) =>
+        current
+          ? {
+              ...current,
+              currentPlan: normalizedPlan,
+              limits: getMembershipLimits(normalizedPlan),
+              remainingAskNova: getRemainingAskNova(normalizedPlan, current.usage || usage),
+            }
+          : current,
+      );
       setPrompt(null);
     },
-    [setPlan],
+    [setPlan, usage],
   );
 
   const requestAiAccess = useCallback(
@@ -123,6 +201,24 @@ export function useMembership({ locale }) {
         return openPrompt('ai_limit', { currentPlan });
       }
 
+      if (authSession?.userId && remoteState?.usage && remainingAskNova !== null) {
+        setRemoteState((current) => {
+          if (!current) return current;
+          const normalized = normalizeMembershipUsage(current.usage, current.usage?.day || today);
+          const nextUsed = normalized.askNovaUsed + 1;
+          return {
+            ...current,
+            usage: {
+              day: normalized.day,
+              askNovaUsed: nextUsed,
+            },
+            remainingAskNova:
+              current.remainingAskNova === null ? null : Math.max(0, current.remainingAskNova - 1),
+          };
+        });
+        return true;
+      }
+
       setUsageState((current) => {
         const normalized = normalizeMembershipUsage(current, today);
         return {
@@ -132,7 +228,15 @@ export function useMembership({ locale }) {
       });
       return true;
     },
-    [currentPlan, openPrompt, remainingAskNova, setUsageState, today],
+    [
+      authSession?.userId,
+      currentPlan,
+      openPrompt,
+      remainingAskNova,
+      remoteState,
+      setUsageState,
+      today,
+    ],
   );
 
   return {
@@ -143,6 +247,7 @@ export function useMembership({ locale }) {
     remainingAskNova,
     prompt,
     setMembershipPlan,
+    syncMembershipState,
     openPrompt,
     closePrompt,
     requestAiAccess,

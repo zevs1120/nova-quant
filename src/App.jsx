@@ -77,7 +77,6 @@ export default function App() {
   const locale = useMemo(() => getLocale(lang), [lang]);
   const tabMeta = useMemo(() => buildTabMeta(locale), [locale]);
   const menuTitles = useMemo(() => buildMenuTitles(locale), [locale]);
-  const membership = useMembership({ locale });
 
   // --- Navigation hook ---
   const {
@@ -130,6 +129,12 @@ export default function App() {
     setActiveTab,
     setMyStack,
     locale,
+  });
+
+  const membership = useMembership({
+    locale,
+    authSession,
+    fetchJson,
   });
 
   const billing = useBilling({
@@ -912,6 +917,7 @@ export default function App() {
           membershipLimits={membership.limits}
           billingState={billing.billingState}
           onSelectMembershipPlan={openCheckoutFromMembershipCenter}
+          onOpenBillingPortal={billing.openPortal}
         />
       );
     }

@@ -221,6 +221,7 @@ export default function MenuTab({
   membershipLimits,
   billingState,
   onSelectMembershipPlan,
+  onOpenBillingPortal,
 }) {
   const copy = localeCopy(locale);
   const catalog = itemCatalog(locale);
@@ -481,8 +482,8 @@ export default function MenuTab({
           {activeSubscription ? (
             <p className="membership-hero-meta">
               {isZh
-                ? `${activeSubscription.billingCycle === 'annual' ? '年付' : '月付'} ${activeSubscription.status === 'ACTIVE' ? '已生效' : activeSubscription.status}`
-                : `${activeSubscription.billingCycle === 'annual' ? 'Annual' : 'Monthly'} ${activeSubscription.status.toLowerCase()}`}
+                ? `${activeSubscription.billingCycle === 'annual' ? '年付' : activeSubscription.billingCycle === 'monthly' ? '月付' : '周付'} ${activeSubscription.status === 'ACTIVE' ? '已生效' : activeSubscription.status}`
+                : `${activeSubscription.billingCycle === 'annual' ? 'Annual' : activeSubscription.billingCycle === 'monthly' ? 'Monthly' : 'Weekly'} ${activeSubscription.status.toLowerCase()}`}
               {renewalLabel
                 ? isZh
                   ? ` · 下次周期至 ${renewalLabel}`
@@ -530,6 +531,15 @@ export default function MenuTab({
             >
               {isZh ? '返回菜单' : 'Back to menu'}
             </button>
+            {billingState?.portalConfigured ? (
+              <button
+                type="button"
+                className="membership-hero-secondary"
+                onClick={() => onOpenBillingPortal?.()}
+              >
+                {isZh ? '管理订阅' : 'Manage billing'}
+              </button>
+            ) : null}
           </div>
         </div>
 

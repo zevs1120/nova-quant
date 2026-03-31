@@ -27,6 +27,7 @@ import evidenceRouter from './routes/evidence.js';
 import executionRouter from './routes/execution.js';
 import manualRouter from './routes/manual.js';
 import marketRouter from './routes/market.js';
+import membershipRouter from './routes/membership.js';
 import novaRouter from './routes/nova.js';
 import outcomeRouter from './routes/outcome.js';
 import researchRouter from './routes/research.js';
@@ -35,7 +36,14 @@ import signalsRouter from './routes/signals.js';
 
 export function createApiApp() {
   const app = express();
-  app.use(express.json({ limit: '8mb' }));
+  app.use(
+    express.json({
+      limit: '8mb',
+      verify: (req, _res, buf) => {
+        (req as RequestWithNovaScope & { rawBody?: string }).rawBody = buf.toString('utf8');
+      },
+    }),
+  );
 
   // ---------------------------------------------------------------------------
   // CORS origins
@@ -137,6 +145,7 @@ export function createApiApp() {
     '/api/billing/state',
     '/api/market-state',
     '/api/market/modules',
+    '/api/membership/state',
     '/api/performance',
     '/api/risk-profile',
     '/api/runtime-state',
@@ -256,6 +265,7 @@ export function createApiApp() {
   app.use(executionRouter);
   app.use(manualRouter);
   app.use(marketRouter);
+  app.use(membershipRouter);
   app.use(novaRouter);
   app.use(outcomeRouter);
   app.use(researchRouter);

@@ -46,6 +46,7 @@ export type RequestWithNovaScope = express.Request & {
     userId: string;
     authUserId: string | null;
   };
+  rawBody?: string;
 };
 
 export type AsyncRouteHandler = (

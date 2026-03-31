@@ -2,26 +2,32 @@ import { useCallback, useEffect, useState } from 'react';
 import { getMembershipPriceCents, normalizeMembershipPlan } from '../utils/membership';
 
 function normalizeCycle(value) {
-  return String(value || '')
+  const normalized = String(value || '')
     .trim()
-    .toLowerCase() === 'annual'
-    ? 'annual'
-    : 'monthly';
+    .toLowerCase();
+  if (normalized === 'annual') return 'annual';
+  if (normalized === 'monthly') return 'monthly';
+  return 'weekly';
 }
 
 function buildPreviewState({ planKey, billingCycle, email }) {
   const now = new Date();
+  const durationDays = billingCycle === 'annual' ? 365 : billingCycle === 'monthly' ? 30 : 7;
   const currentPeriodEnd = new Date(
-    now.getTime() + (billingCycle === 'annual' ? 365 : 30) * 24 * 60 * 60 * 1000,
+    now.getTime() + durationDays * 24 * 60 * 60 * 1000,
   );
   return {
     available: true,
     authenticated: false,
+    providerMode: 'internal_checkout',
+    checkoutConfigured: false,
+    portalConfigured: false,
     currentPlan: planKey,
     customer: email
       ? {
           email,
           provider: 'internal_checkout',
+          providerCustomerId: null,
           defaultCurrency: 'USD',
           defaultBillingCycle: billingCycle,
         }
@@ -47,9 +53,12 @@ function buildPreviewState({ planKey, billingCycle, email }) {
       id: `preview-checkout-${now.getTime()}`,
       planKey,
       status: 'COMPLETED',
+      provider: 'internal_checkout',
+      providerSessionId: null,
       billingCycle,
       amountCents: getMembershipPriceCents(planKey, billingCycle),
       currency: 'USD',
+      checkoutUrl: null,
       checkoutEmail: email || null,
       paymentMethodLast4: '4242',
       createdAt: now.toISOString(),
@@ -58,6 +67,11 @@ function buildPreviewState({ planKey, billingCycle, email }) {
       updatedAt: now.toISOString(),
     },
   };
+}
+
+function currentReturnUrl() {
+  if (typeof window === 'undefined') return '';
+  return `${window.location.origin}${window.location.pathname}`;
 }
 
 export function useBilling({ locale, authSession, userProfile, fetchJson, onApplyPlan }) {
@@ -101,12 +115,65 @@ export function useBilling({ locale, authSession, userProfile, fetchJson, onAppl
     setCheckoutState(null);
   }, []);
 
+  const openPortal = useCallback(async () => {
+    if (!authSession?.userId) return false;
+    try {
+      const payload = await fetchJson('/api/billing/portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          returnUrl: currentReturnUrl(),
+        }),
+      });
+      if (payload?.state) {
+        applyRemoteState(payload.state);
+      }
+      if (payload?.url && typeof window !== 'undefined') {
+        window.location.assign(payload.url);
+        return true;
+      }
+      throw new Error('Unable to open billing portal.');
+    } catch (error) {
+      setCheckoutState((current) =>
+        current
+          ? {
+              ...current,
+              submitting: false,
+              error: String(error?.message || 'Unable to open billing portal.'),
+            }
+          : current,
+      );
+      return false;
+    }
+  }, [applyRemoteState, authSession?.userId, fetchJson]);
+
   const openCheckout = useCallback(
     async ({ planKey, source = 'membership' }) => {
       const normalizedPlan = normalizeMembershipPlan(planKey);
-      const billingCycle = 'monthly';
+      const billingCycle = 'weekly';
+      const activeSubscription = billingState?.subscription || null;
+      const stripeManaged =
+        billingState?.providerMode === 'stripe' && activeSubscription?.provider === 'stripe';
 
       if (normalizedPlan === 'free') {
+        if (stripeManaged) {
+          setCheckoutState({
+            open: true,
+            mode: 'portal',
+            preview: false,
+            planKey: normalizedPlan,
+            billingCycle,
+            source,
+            session: billingState?.latestCheckout || null,
+            loading: false,
+            submitting: false,
+            error: '',
+            note: locale?.startsWith('zh')
+              ? 'Stripe 订阅的降级和取消统一在 Billing Portal 里处理。'
+              : 'Stripe-managed subscriptions are changed or cancelled in the billing portal.',
+          });
+          return;
+        }
         setCheckoutState({
           open: true,
           mode: 'downgrade',
@@ -147,9 +214,12 @@ export function useBilling({ locale, authSession, userProfile, fetchJson, onAppl
             id: `preview-checkout-${Date.now()}`,
             planKey: normalizedPlan,
             status: 'OPEN',
+            provider: 'internal_checkout',
+            providerSessionId: null,
             billingCycle,
             amountCents: getMembershipPriceCents(normalizedPlan, billingCycle),
             currency: 'USD',
+            checkoutUrl: null,
             checkoutEmail: userProfile?.email || null,
           },
         });
@@ -184,7 +254,7 @@ export function useBilling({ locale, authSession, userProfile, fetchJson, onAppl
         applyRemoteState(payload.state);
         setCheckoutState({
           open: true,
-          mode: 'checkout',
+          mode: payload?.session?.checkoutUrl ? 'redirect' : 'checkout',
           preview: false,
           planKey: normalizedPlan,
           billingCycle,
@@ -195,37 +265,29 @@ export function useBilling({ locale, authSession, userProfile, fetchJson, onAppl
           error: '',
           note: '',
         });
-      } catch {
+      } catch (error) {
         setCheckoutState({
           open: true,
           mode: 'checkout',
-          preview: true,
+          preview: false,
           planKey: normalizedPlan,
           billingCycle,
           source,
           loading: false,
           submitting: false,
-          error: '',
+          error: String(error?.message || 'Unable to start checkout.'),
           note: locale?.startsWith('zh')
-            ? '本地 API 当前不可用，已切换到本地预览 checkout。'
-            : 'The billing API is unavailable right now, so checkout has switched to local preview mode.',
-          session: {
-            id: `preview-checkout-${Date.now()}`,
-            planKey: normalizedPlan,
-            status: 'OPEN',
-            billingCycle,
-            amountCents: getMembershipPriceCents(normalizedPlan, billingCycle),
-            currency: 'USD',
-            checkoutEmail: userProfile?.email || null,
-          },
+            ? '当前环境没有可用的正式结账配置。'
+            : 'Formal checkout is not configured in this environment right now.',
+          session: null,
         });
       }
     },
-    [applyRemoteState, authSession?.userId, fetchJson, locale, userProfile?.email],
+    [applyRemoteState, authSession?.userId, billingState, fetchJson, locale, userProfile?.email],
   );
 
   const submitCheckout = useCallback(
-    async ({ billingEmail, paymentMethodLast4 }) => {
+    async ({ billingEmail, paymentMethodLast4 } = {}) => {
       if (!checkoutState?.open) return false;
 
       setCheckoutState((current) =>
@@ -237,6 +299,10 @@ export function useBilling({ locale, authSession, userProfile, fetchJson, onAppl
             }
           : current,
       );
+
+      if (checkoutState.mode === 'portal') {
+        return openPortal();
+      }
 
       if (checkoutState.mode === 'downgrade') {
         if (!authSession?.userId || checkoutState.preview) {
@@ -267,6 +333,12 @@ export function useBilling({ locale, authSession, userProfile, fetchJson, onAppl
           );
           return false;
         }
+      }
+
+      if (checkoutState.session?.checkoutUrl && typeof window !== 'undefined') {
+        window.location.assign(checkoutState.session.checkoutUrl);
+        setCheckoutState(null);
+        return true;
       }
 
       if (checkoutState.preview || !authSession?.userId) {
@@ -315,6 +387,7 @@ export function useBilling({ locale, authSession, userProfile, fetchJson, onAppl
       authSession?.userId,
       checkoutState,
       fetchJson,
+      openPortal,
       onApplyPlan,
       userProfile?.email,
     ],
@@ -324,6 +397,7 @@ export function useBilling({ locale, authSession, userProfile, fetchJson, onAppl
     billingState,
     checkoutState,
     openCheckout,
+    openPortal,
     closeCheckout,
     submitCheckout,
     syncBillingState,

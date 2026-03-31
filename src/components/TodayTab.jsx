@@ -894,7 +894,11 @@ export default function TodayTab({
     () => (todayCardLimit === null ? deckSignals : deckSignals.slice(0, todayCardLimit)),
     [deckSignals, todayCardLimit],
   );
-  const hiddenDeckCount = Math.max(0, deckSignals.length - visibleDeckSignals.length);
+  const hiddenDeckCount = Math.max(
+    0,
+    Number(decision?.membership_gate?.hidden_action_cards || 0) ||
+      deckSignals.length - visibleDeckSignals.length,
+  );
 
   useEffect(() => {
     const nextIds = visibleDeckSignals.map((signal) => signalCardId(signal));

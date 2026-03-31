@@ -3,9 +3,42 @@ import type { AssetClass, Market } from '../../types.js';
 import { checkRateLimit } from '../../chat/rateLimit.js';
 import { getChatThreadMessages, listChatThreads, streamChat } from '../../chat/service.js';
 import { logChatAudit } from '../../chat/audit.js';
+import { consumeAskNovaAccess } from '../../membership/service.js';
 import { recordNovaAssistantRun } from '../queries.js';
+import { getRequestScope } from '../helpers.js';
 
 const router = Router();
+
+function isZhLocale(value: unknown) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .startsWith('zh');
+}
+
+function membershipErrorMessage(args: {
+  error: 'ASK_NOVA_LIMIT_REACHED' | 'PORTFOLIO_AI_REQUIRES_PRO' | 'BROKER_HANDOFF_REQUIRES_LITE';
+  targetPlan: 'lite' | 'pro';
+  locale?: string;
+}) {
+  const zh = isZhLocale(args.locale);
+  if (args.error === 'PORTFOLIO_AI_REQUIRES_PRO') {
+    return zh
+      ? '涉及持仓、仓位和组合的问题需要 Pro 才能继续。'
+      : 'Portfolio-aware questions require Pro.';
+  }
+  if (args.targetPlan === 'pro') {
+    return zh
+      ? '你今天的 Ask Nova 次数已经用完。升级 Pro 可以继续。'
+      : 'You have used today’s Ask Nova limit. Upgrade to Pro to continue.';
+  }
+  if (args.error === 'BROKER_HANDOFF_REQUIRES_LITE') {
+    return zh ? '升级 Lite 后才能继续连接券商。' : 'Upgrade to Lite to continue with broker handoff.';
+  }
+  return zh
+    ? '你今天的 Ask Nova 次数已经用完。升级 Lite 可以继续。'
+    : 'You have used today’s Ask Nova limit. Upgrade to Lite to continue.';
+}
 
 async function handleChat(req: express.Request, res: express.Response) {
   const startedAt = Date.now();
@@ -40,12 +73,15 @@ async function handleChat(req: express.Request, res: express.Response) {
         risk_level?: string;
         recommendation?: string;
       };
+      locale?: string;
     };
   };
-  const userId = String(body?.userId || '').trim();
+  const scope = getRequestScope(req);
+  const userId = String(scope.userId || body?.userId || '').trim();
   const message = String(body?.message || '').trim();
   const threadId = String(body?.threadId || '').trim() || undefined;
   const context = body?.context;
+  const locale = String(context?.locale || req.header('accept-language') || '').trim();
 
   if (!userId || !message) {
     res.status(400).json({ error: 'userId and message are required' });
@@ -66,6 +102,47 @@ async function handleChat(req: express.Request, res: express.Response) {
     res.status(429).json({
       error: 'Rate limit exceeded',
       resetAt: rate.resetAt,
+    });
+    return;
+  }
+
+  const membershipAccess = consumeAskNovaAccess({
+    userId,
+    message,
+    context: (context || {}) as Record<string, unknown>,
+  });
+  if (!membershipAccess.ok) {
+    const errorMessage = membershipErrorMessage({
+      error: membershipAccess.error,
+      targetPlan: membershipAccess.targetPlan,
+      locale,
+    });
+    logChatAudit({
+      userId,
+      mode: context ? 'context-aware' : 'general-coach',
+      provider: 'none',
+      message,
+      contextJson: JSON.stringify(context ?? {}),
+      status: 'error',
+      error: membershipAccess.error,
+      durationMs: Date.now() - startedAt,
+    });
+    await recordNovaAssistantRun({
+      userId,
+      threadId,
+      context: (context || {}) as Record<string, unknown>,
+      message,
+      responseText: '',
+      provider: 'none',
+      status: 'FAILED',
+      error: membershipAccess.error,
+    });
+    res.status(403).json({
+      error: membershipAccess.error,
+      message: errorMessage,
+      reason: membershipAccess.reason,
+      targetPlan: membershipAccess.targetPlan,
+      membership: membershipAccess.state,
     });
     return;
   }

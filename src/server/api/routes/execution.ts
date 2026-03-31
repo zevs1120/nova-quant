@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { parseMarket, asyncRoute, requireAuthenticatedScope } from '../helpers.js';
+import { requireBrokerHandoffAccess } from '../../membership/service.js';
 import {
   listExecutionsPrimary,
   submitExecution,
@@ -61,6 +62,19 @@ router.post(
     }
     if (mode === 'LIVE' && !requireAuthenticatedScope(req, res)) {
       return;
+    }
+    if (mode === 'LIVE') {
+      const membershipAccess = requireBrokerHandoffAccess({ userId });
+      if (!membershipAccess.ok) {
+        res.status(403).json({
+          error: membershipAccess.error,
+          message: 'Lite or Pro is required before live execution is enabled.',
+          reason: membershipAccess.reason,
+          targetPlan: membershipAccess.targetPlan,
+          membership: membershipAccess.state,
+        });
+        return;
+      }
     }
 
     const result = await submitExecution({

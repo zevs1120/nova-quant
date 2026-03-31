@@ -116,7 +116,7 @@ describe('billing service in postgres runtime', () => {
     });
 
     const { createBillingCheckoutSession } = await import('../src/server/billing/service.js');
-    const result = createBillingCheckoutSession({
+    const result = await createBillingCheckoutSession({
       userId: 'usr_billing_pg',
       planKey: 'lite',
       billingCycle: 'monthly',

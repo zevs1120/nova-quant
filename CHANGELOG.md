@@ -4,6 +4,13 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+- **Feat(billing,membership): 正式接入周付 Stripe 结账链路，并把会员权限下沉到服务端执行。**
+  - 支付主链路从本地 demo checkout 升级为 `Stripe Checkout + Customer Portal + Webhook`，后端新增 provider 配置、hosted checkout session、portal session、webhook 验签与订阅状态镜像；数据表同步补上 `provider_customer_id`、`provider_session_id`、`provider_subscription_id` 与 webhook 事件存档。
+  - 定价统一收口为 `Lite $19/week`、`Pro $29/week`，app 与 landing 的套餐文案、billing cycle 展示和 `.env.example` 的 Stripe price 配置保持一致。
+  - 前端 checkout sheet 删除伪信用卡输入，改为 plan summary + hosted checkout 跳转；会员中心新增 `Manage billing` 入口，Stripe 管理的降级/取消统一交给 billing portal。
+  - 新增服务端 membership 状态与 usage 表，`Ask Nova` 日配额、`portfolio-aware` 的 Pro 限制、`broker handoff / live execution` 的 Lite 限制、以及 Free 档 Today 卡片裁剪现在都由后端强制执行，不再只依赖前端 localStorage 和 paywall 提示。
+  - 补充 Stripe billing flow、Postgres runtime 兼容、以及 membership entitlement 的测试，覆盖周付 checkout、webhook 同步、免费档 AI 额度、Lite/Pro 权限边界。
+
 - **Feat(auth): App 认证主链切到 Supabase Auth，并完成老用户迁移。**
   - 前端新增 Supabase 浏览器端 client 与运行时 `provider-config` 配置拉取，`login / signup / session / forgot password / recovery` 正式支持标准 Supabase Auth 流程。
   - 服务端新增 Supabase token 校验与 app 用户映射桥接，`/api/auth/session`、`/api/auth/profile` 和用户作用域中间件现在都能识别 `Bearer access token`。
