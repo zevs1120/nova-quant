@@ -2399,6 +2399,10 @@ body.is-standalone .main-content-today {
   flex-shrink: 0;
 }
 
+.today-summary-header-climate {
+  flex: 0 0 auto !important;
+}
+
 .today-summary-date {
   margin-bottom: clamp(1px, 0.3dvh, 6px) !important;
   font-size: clamp(10px, 1.6dvh, 13px) !important;
@@ -2412,9 +2416,26 @@ body.is-standalone .main-content-today {
   flex: 1 1 0 !important;
   min-height: 0 !important;
   overflow: hidden !important;
-  gap: clamp(6px, 1dvh, 14px) !important;
+  gap: 0 !important;
   display: flex !important;
   flex-direction: column !important;
+}
+
+.today-decision-stack,
+.today-deck-shell,
+.today-tinder-deck {
+  flex: 1 1 0 !important;
+  min-height: 0 !important;
+  height: 100% !important;
+}
+
+.today-deck-shell {
+  grid-template-rows: minmax(0, 1fr) !important;
+  gap: 0 !important;
+}
+
+.today-tinder-deck {
+  max-height: none !important;
 }
 
 .today-climate-strip {

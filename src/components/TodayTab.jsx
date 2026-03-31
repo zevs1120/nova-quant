@@ -704,11 +704,18 @@ function clampNumber(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
-function resolveTodayGestureIntent(dx, dy) {
+function resolveTodayGestureIntent(dx, dy, vx = 0, vy = 0) {
   const absDx = Math.abs(dx);
   const absDy = Math.abs(dy);
-  if (dy <= -84 && absDy > absDx * 1.08) return 'later';
-  if (absDx >= 72 && absDx > Math.max(absDy * 1.08, 18)) return dx > 0 ? 'accept' : 'skip';
+  const absVx = Math.abs(vx);
+  const absVy = Math.abs(vy);
+  if ((dy <= -78 || (vy < -0.48 && absDy > 18)) && absDy > absDx * 1.02) return 'later';
+  if (
+    (absDx >= 68 || (absVx > 0.42 && absDx > 16)) &&
+    absDx > Math.max(absDy * 1.02, 18)
+  ) {
+    return dx > 0 ? 'accept' : 'skip';
+  }
   return null;
 }
 
@@ -718,6 +725,18 @@ function isNestedInteractiveTarget(target, currentTarget) {
     target !== currentTarget &&
     Boolean(target.closest('[data-gesture-ignore="true"], button, a, input, textarea, select'))
   );
+}
+
+function createGesturePreview() {
+  return {
+    signalId: null,
+    dx: 0,
+    dy: 0,
+    rotate: 0,
+    intent: null,
+    active: false,
+    committed: false,
+  };
 }
 
 function overallFromDecision(decision, locale) {
@@ -821,14 +840,7 @@ export default function TodayTab({
   const [queueIds, setQueueIds] = useState([]);
   const [queueReady, setQueueReady] = useState(false);
   const [pendingExecution, setPendingExecution] = useState(null);
-  const [gesturePreview, setGesturePreview] = useState({
-    signalId: null,
-    dx: 0,
-    dy: 0,
-    intent: null,
-    active: false,
-    committed: false,
-  });
+  const [gesturePreview, setGesturePreview] = useState(createGesturePreview);
   const swipeGestureRef = useRef({
     pointerId: null,
     signalId: null,
@@ -836,11 +848,20 @@ export default function TodayTab({
     startY: 0,
     dx: 0,
     dy: 0,
+    vx: 0,
+    vy: 0,
+    lastX: 0,
+    lastY: 0,
+    lastTime: 0,
+    rotationDirection: 1,
     dragging: false,
     suppressTapUntil: 0,
   });
   const swipeTimerRef = useRef(null);
+  const gestureFrameRef = useRef(0);
+  const gesturePreviewRef = useRef(createGesturePreview());
   const previousDeckIdsRef = useRef([]);
+  const featuredCardRef = useRef(null);
   const desiredSignalCount = useMemo(
     () => signalQuotaForTradeMode(brokerProfile?.tradeMode),
     [brokerProfile?.tradeMode],
@@ -898,6 +919,9 @@ export default function TodayTab({
     () => () => {
       if (swipeTimerRef.current) {
         window.clearTimeout(swipeTimerRef.current);
+      }
+      if (gestureFrameRef.current) {
+        window.cancelAnimationFrame(gestureFrameRef.current);
       }
     },
     [],
@@ -1083,6 +1107,7 @@ export default function TodayTab({
   const buildSignalIntent = (signal) =>
     buildTradeIntent(signal, { broker: brokerProfile?.broker, brokerSnapshot: brokerConnection });
   const activeSignalIntent = activeSignal ? buildSignalIntent(activeSignal) : null;
+  const featuredSignalIntent = featuredSignal ? buildSignalIntent(featuredSignal) : null;
   const actionMetaText = buildActionMetaText({
     locale,
     signal: featuredSignal,
@@ -1099,9 +1124,24 @@ export default function TodayTab({
   const featuredExecutionLabel = actionCardExecutionText(featuredSignal, locale);
   const featuredRiskGateLabel = actionCardRiskGateText(featuredSignal, locale);
   const featuredMetaLine = actionCardMetaLine(actionMetaText, locale);
-  const stackedSignals = queuedSignals.slice(1, 3);
+  const featuredPrimaryActionLabel = featuredSignalIntent?.canOpenBroker
+    ? tradeIntentHandoffLabel(featuredSignalIntent, locale)
+    : locale === 'zh'
+      ? '打开交易票据'
+      : 'Open trade ticket';
   const activeSwipeIntent =
     gesturePreview.signalId === featuredSignalId ? gesturePreview.intent || null : null;
+  const deckGestureActive =
+    gesturePreview.signalId === featuredSignalId &&
+    (gesturePreview.active || gesturePreview.committed);
+  const gestureStrengths =
+    gesturePreview.signalId === featuredSignalId && deckGestureActive
+      ? {
+          skip: clampNumber(Math.max(0, -(gesturePreview.dx || 0)) / 132, 0, 1),
+          accept: clampNumber(Math.max(0, gesturePreview.dx || 0) / 132, 0, 1),
+          later: clampNumber(Math.max(0, -(gesturePreview.dy || 0)) / 138, 0, 1),
+        }
+      : { skip: 0, accept: 0, later: 0 };
   const climateStatusLabel =
     overall.code === 'UNAVAILABLE'
       ? locale === 'zh'
@@ -1134,6 +1174,39 @@ export default function TodayTab({
     });
   };
 
+  const syncGestureCard = (preview) => {
+    const cardElement = featuredCardRef.current;
+    if (!cardElement) return;
+    cardElement.style.setProperty('--gesture-x', `${preview.dx || 0}px`);
+    cardElement.style.setProperty('--gesture-y', `${preview.dy || 0}px`);
+    cardElement.style.setProperty('--gesture-rotate', `${preview.rotate || 0}deg`);
+    cardElement.style.setProperty(
+      '--gesture-skip-strength',
+      `${clampNumber(Math.max(0, -(preview.dx || 0)) / 132, 0, 1)}`,
+    );
+    cardElement.style.setProperty(
+      '--gesture-accept-strength',
+      `${clampNumber(Math.max(0, preview.dx || 0) / 132, 0, 1)}`,
+    );
+    cardElement.style.setProperty(
+      '--gesture-later-strength',
+      `${clampNumber(Math.max(0, -(preview.dy || 0)) / 138, 0, 1)}`,
+    );
+    cardElement.dataset.gestureActive = preview.active ? 'true' : 'false';
+    cardElement.dataset.gestureIntent = preview.intent || 'idle';
+    cardElement.dataset.gestureCommitted = preview.committed ? 'true' : 'false';
+  };
+
+  const pushGesturePreview = (nextPreview) => {
+    gesturePreviewRef.current = nextPreview;
+    syncGestureCard(nextPreview);
+    if (gestureFrameRef.current) return;
+    gestureFrameRef.current = window.requestAnimationFrame(() => {
+      gestureFrameRef.current = 0;
+      setGesturePreview(gesturePreviewRef.current);
+    });
+  };
+
   const clearGesture = () => {
     swipeGestureRef.current.pointerId = null;
     swipeGestureRef.current.signalId = null;
@@ -1141,15 +1214,14 @@ export default function TodayTab({
     swipeGestureRef.current.startY = 0;
     swipeGestureRef.current.dx = 0;
     swipeGestureRef.current.dy = 0;
+    swipeGestureRef.current.vx = 0;
+    swipeGestureRef.current.vy = 0;
+    swipeGestureRef.current.lastX = 0;
+    swipeGestureRef.current.lastY = 0;
+    swipeGestureRef.current.lastTime = 0;
+    swipeGestureRef.current.rotationDirection = 1;
     swipeGestureRef.current.dragging = false;
-    setGesturePreview({
-      signalId: null,
-      dx: 0,
-      dy: 0,
-      intent: null,
-      active: false,
-      committed: false,
-    });
+    pushGesturePreview(createGesturePreview());
   };
 
   const performQueuedExecution = (signal, nextIntent) => {
@@ -1193,42 +1265,72 @@ export default function TodayTab({
     askNovaAboutSignal(signal, nextIntent);
   };
 
-  const markGestureStart = (signalId, clientX, clientY, pointerId = null) => {
+  const markGestureStart = (signalId, clientX, clientY, pointerId = null, cardElement = null) => {
+    const bounds = cardElement?.getBoundingClientRect?.() || null;
+    const nowMs = Date.now();
     swipeGestureRef.current.pointerId = pointerId;
     swipeGestureRef.current.signalId = signalId;
     swipeGestureRef.current.startX = clientX;
     swipeGestureRef.current.startY = clientY;
     swipeGestureRef.current.dx = 0;
     swipeGestureRef.current.dy = 0;
+    swipeGestureRef.current.vx = 0;
+    swipeGestureRef.current.vy = 0;
+    swipeGestureRef.current.lastX = clientX;
+    swipeGestureRef.current.lastY = clientY;
+    swipeGestureRef.current.lastTime = nowMs;
+    swipeGestureRef.current.rotationDirection =
+      bounds && clientY > bounds.top + bounds.height * 0.5 ? -1 : 1;
     swipeGestureRef.current.dragging = false;
-    setGesturePreview({
+    pushGesturePreview({
       signalId,
       dx: 0,
       dy: 0,
+      rotate: 0,
       intent: null,
-      active: false,
+      active: true,
       committed: false,
     });
   };
 
   const markGestureMove = (signalId, clientX, clientY) => {
     if (swipeGestureRef.current.signalId !== signalId) return;
-    const dx = clampNumber(clientX - swipeGestureRef.current.startX, -160, 160);
-    const dy = clampNumber(clientY - swipeGestureRef.current.startY, -160, 56);
+    const nowMs = Date.now();
+    const dt = Math.max(16, nowMs - swipeGestureRef.current.lastTime);
+    const dx = clampNumber(clientX - swipeGestureRef.current.startX, -220, 220);
+    const dy = clampNumber(clientY - swipeGestureRef.current.startY, -220, 96);
     const absDx = Math.abs(dx);
     const absDy = Math.abs(dy);
-    if (absDx > 14 || absDy > 14) {
+    if (absDx > 4 || absDy > 4) {
       swipeGestureRef.current.dragging = true;
       swipeGestureRef.current.suppressTapUntil = Date.now() + 320;
     }
+    const instantVx = (clientX - swipeGestureRef.current.lastX) / dt;
+    const instantVy = (clientY - swipeGestureRef.current.lastY) / dt;
+    swipeGestureRef.current.vx = swipeGestureRef.current.vx * 0.58 + instantVx * 0.42;
+    swipeGestureRef.current.vy = swipeGestureRef.current.vy * 0.58 + instantVy * 0.42;
+    swipeGestureRef.current.lastX = clientX;
+    swipeGestureRef.current.lastY = clientY;
+    swipeGestureRef.current.lastTime = nowMs;
     swipeGestureRef.current.dx = dx;
     swipeGestureRef.current.dy = dy;
-    setGesturePreview({
+    const rotate = clampNumber(
+      dx * 0.055 * swipeGestureRef.current.rotationDirection + dy * 0.015,
+      -16,
+      16,
+    );
+    pushGesturePreview({
       signalId,
       dx,
       dy,
-      intent: resolveTodayGestureIntent(dx, dy),
-      active: swipeGestureRef.current.dragging,
+      rotate,
+      intent: resolveTodayGestureIntent(
+        dx,
+        dy,
+        swipeGestureRef.current.vx,
+        swipeGestureRef.current.vy,
+      ),
+      active: true,
       committed: false,
     });
   };
@@ -1254,10 +1356,16 @@ export default function TodayTab({
           ? { dx: 0, dy: -420 }
           : { dx: -420, dy: 18 };
     triggerFeedback(intent === 'accept' ? 'confirm' : 'soft');
-    setGesturePreview({
+    pushGesturePreview({
       signalId,
       dx: exit.dx,
       dy: exit.dy,
+      rotate:
+        intent === 'accept'
+          ? 14
+          : intent === 'skip'
+            ? -14
+            : clampNumber((swipeGestureRef.current.dx || 0) * 0.035, -8, 8),
       intent,
       active: false,
       committed: true,
@@ -1294,6 +1402,8 @@ export default function TodayTab({
     const intent = resolveTodayGestureIntent(
       swipeGestureRef.current.dx,
       swipeGestureRef.current.dy,
+      swipeGestureRef.current.vx,
+      swipeGestureRef.current.vy,
     );
     if (intent) {
       applyQueueAction(signal, intent);
@@ -1384,57 +1494,16 @@ export default function TodayTab({
       </section>
 
       <section className="today-screen-flow today-decision-stack">
-        <div className="today-deck-shell">
+        <div
+          className="today-deck-shell"
+          data-gesture-active={deckGestureActive ? 'true' : 'false'}
+          data-gesture-intent={activeSwipeIntent || 'idle'}
+        >
           {featuredSignal ? (
             <>
               <div className="today-tinder-deck">
-                {stackedSignals.map((signal, index) => (
-                  <article
-                    key={`stack-${signalCardId(signal)}`}
-                    className={`glass-card today-action-card today-action-card-stack today-action-card-${signalDecisionTone(signal)} today-action-card-palette-${signalCardPalette(
-                      signal,
-                      index + 1,
-                    )} today-action-card-stack-${index + 1}`}
-                    aria-hidden="true"
-                  >
-                    <div className="today-action-card-head today-action-card-head-stack">
-                      <span className="today-action-kicker">
-                        {actionCardPickLabel(
-                          Math.max(
-                            1,
-                            deckSignals.findIndex(
-                              (row) => signalCardId(row) === signalCardId(signal),
-                            ) + 1,
-                          ),
-                          locale,
-                        )}
-                      </span>
-                      <span
-                        className={`today-action-decision-chip today-action-decision-chip-${signalDecisionTone(signal)}`}
-                      >
-                        {actionCardTagLabel(signal, locale)}
-                      </span>
-                    </div>
-                    <div className="today-action-stack-copy">
-                      <h3 className="today-action-stack-symbol">{signal?.symbol || '--'}</h3>
-                      <p className="today-action-stack-direction">
-                        {actionCardDecisionLabel(signal, locale)}
-                      </p>
-                      <p className="today-action-stack-meta">
-                        {actionCardMetaLine(
-                          buildActionMetaText({
-                            locale,
-                            signal,
-                            provenance,
-                          }),
-                          locale,
-                        )}
-                      </p>
-                    </div>
-                  </article>
-                ))}
-
                 <article
+                  ref={featuredCardRef}
                   className={`glass-card today-action-card today-action-card-swipe today-action-card-${decisionTone} today-action-card-palette-${featuredCardPalette}`}
                   data-gesture-active={
                     gesturePreview.signalId === featuredSignalId && gesturePreview.active
@@ -1462,8 +1531,16 @@ export default function TodayTab({
                         : '0px',
                     '--gesture-rotate':
                       gesturePreview.signalId === featuredSignalId
-                        ? `${(gesturePreview.dx || 0) * 0.05}deg`
+                        ? `${gesturePreview.rotate || 0}deg`
                         : '0deg',
+                    '--gesture-skip-strength':
+                      gesturePreview.signalId === featuredSignalId ? `${gestureStrengths.skip}` : '0',
+                    '--gesture-accept-strength':
+                      gesturePreview.signalId === featuredSignalId
+                        ? `${gestureStrengths.accept}`
+                        : '0',
+                    '--gesture-later-strength':
+                      gesturePreview.signalId === featuredSignalId ? `${gestureStrengths.later}` : '0',
                   }}
                   onClick={() => openSignalDetail(featuredSignal, featuredSignalId)}
                   role="button"
@@ -1475,25 +1552,30 @@ export default function TodayTab({
                     ) {
                       return;
                     }
+                    event.preventDefault();
                     event.currentTarget.setPointerCapture?.(event.pointerId);
                     markGestureStart(
                       featuredSignalId,
                       event.clientX,
                       event.clientY,
                       event.pointerId,
+                      event.currentTarget,
                     );
                   }}
                   onPointerMove={(event) => {
                     if (swipeGestureRef.current.pointerId !== event.pointerId) return;
+                    event.preventDefault();
                     markGestureMove(featuredSignalId, event.clientX, event.clientY);
                   }}
                   onPointerUp={(event) => {
                     if (swipeGestureRef.current.pointerId !== event.pointerId) return;
+                    event.preventDefault();
                     event.currentTarget.releasePointerCapture?.(event.pointerId);
                     finishGesture(featuredSignal);
                   }}
                   onPointerCancel={(event) => {
                     if (swipeGestureRef.current.pointerId !== event.pointerId) return;
+                    event.preventDefault();
                     event.currentTarget.releasePointerCapture?.(event.pointerId);
                     clearGesture();
                   }}
@@ -1519,27 +1601,24 @@ export default function TodayTab({
                     }
                   }}
                 >
-                  <div className="today-tinder-badges" aria-hidden="true">
-                    <span
-                      className={`today-tinder-badge today-tinder-badge-skip${
-                        activeSwipeIntent === 'skip' ? ' is-visible' : ''
-                      }`}
-                    >
-                      NOPE
+                  <div className="today-swipe-markers" aria-hidden="true">
+                    <span className="today-swipe-marker today-swipe-marker-skip">
+                      <span className="today-swipe-marker-icon">×</span>
+                      <span className="today-swipe-marker-label">
+                        {locale === 'zh' ? '不要这张卡' : 'Pass'}
+                      </span>
                     </span>
-                    <span
-                      className={`today-tinder-badge today-tinder-badge-later${
-                        activeSwipeIntent === 'later' ? ' is-visible' : ''
-                      }`}
-                    >
-                      SAVE
+                    <span className="today-swipe-marker today-swipe-marker-later">
+                      <span className="today-swipe-marker-icon">↑</span>
+                      <span className="today-swipe-marker-label">
+                        {locale === 'zh' ? '稍后再看' : 'Later'}
+                      </span>
                     </span>
-                    <span
-                      className={`today-tinder-badge today-tinder-badge-accept${
-                        activeSwipeIntent === 'accept' ? ' is-visible' : ''
-                      }`}
-                    >
-                      GO
+                    <span className="today-swipe-marker today-swipe-marker-accept">
+                      <span className="today-swipe-marker-icon">↗</span>
+                      <span className="today-swipe-marker-label">
+                        {locale === 'zh' ? '去券商下单' : 'Broker'}
+                      </span>
                     </span>
                   </div>
 
@@ -1607,15 +1686,26 @@ export default function TodayTab({
                     </span>
                   </div>
 
-                  <div className="today-action-links today-action-links-single">
+                  <div className="today-action-links today-action-links-reference">
                     <button
                       type="button"
-                      className="today-action-link today-action-link-ask"
+                      className="today-action-link today-action-link-primary"
+                      data-gesture-ignore="true"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        performQueuedExecution(featuredSignal, featuredSignalIntent);
+                      }}
+                    >
+                      <span>{featuredPrimaryActionLabel}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="today-action-link today-action-link-secondary"
                       data-gesture-ignore="true"
                       onClick={(event) => {
                         event.stopPropagation();
                         triggerFeedback('soft');
-                        askNovaAboutSignal(featuredSignal);
+                        askNovaAboutSignal(featuredSignal, featuredSignalIntent);
                       }}
                     >
                       <span>Ask Nova</span>

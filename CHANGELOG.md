@@ -4,6 +4,12 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+- **Feat(today): 首页 Today 主舞台继续向 landing 参考卡精修，并收成真正的一屏布局。**
+  - 移除底部 `queue / more` 提示与任何背卡叠放，Today 首页现在只保留 `climate + 主卡` 两块，并强制在移动端一屏内完成展示。
+  - Swipe 手势改为更贴手的即时拖拽更新，卡片拖到半程时可以自然停住，同时保留左右 / 上滑的大号状态标记反馈。
+  - 默认行动卡继续向参考稿对齐：统一奶白底与淡青高光、放大 symbol / title 节奏、重做三块 stats 和三条 context pills，并恢复 `broker handoff + Ask Nova` 底部双按钮。
+  - 首页 `climate` 和主卡外轮廓一起减小圆角，降低漂浮感，让中段内容与顶部栏、底部导航更像同一页里的连续界面。
+
 - **Feat(today)：将 Today 主卡舞台进一步收向 Tinder 式决策界面。**
   - 保留顶部 climate 和底部导航不动，只重做中段卡片舞台，让主卡更高、更接近参考稿的单卡主体比例。
   - Today 主卡收成更极简的 landing 式结构：移除 broker CTA，只保留卡内长条 `Ask Nova` 按钮，并压缩标题、统计卡和 context pills 的留白节奏。
