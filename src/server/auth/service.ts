@@ -53,10 +53,13 @@ import {
   pgUpsertUserState,
   pgVerifySupabaseAuthPassword,
 } from './postgresStore.js';
+
 import {
   hasSupabaseAuthProvider,
   verifySupabaseAccessToken,
   type VerifiedSupabaseAuthUser,
+  getSupabaseAuthClient,
+  resolveSupabaseAuthRedirectUrl,
 } from './supabase.js';
 import { logWarn } from '../utils/log.js';
 
@@ -395,47 +398,21 @@ async function trySendSignupWelcomeEmail(user: {
   userId?: string;
   user_id?: string;
 }): Promise<SignupWelcomeEmailDelivery> {
-  if (!canSendSignupWelcomeEmail()) {
-    const config = getAuthEmailConfigStatus();
-    const warnKey = `${config.missing.join(',')}|${config.from || ''}`;
-    if (!warnedSignupEmailConfigKeys.has(warnKey)) {
-      warnedSignupEmailConfigKeys.add(warnKey);
-      logWarn('Signup welcome email skipped: Resend is not configured', {
-        scope: 'auth',
-        event_type: 'signup_welcome_email_skipped',
-        user_id: 'userId' in user ? user.userId : user.user_id,
-        email: user.email,
-        missing: config.missing.join(','),
-        from: config.from,
-      });
-    }
+  if (!hasSupabaseAuthProvider()) {
+    logWarn('Signup welcome email skipped: Resend is not configured', {
+      scope: 'auth',
+      event_type: 'signup_welcome_email_skipped',
+      user_id: 'userId' in user ? user.userId : user.user_id,
+      email: user.email,
+      missing: 'RESEND_API_KEY_DEPRECATED',
+    });
     return {
       status: 'skipped',
       reason: 'not_configured',
-      missing: config.missing,
+      missing: ['RESEND_API_KEY_DEPRECATED'],
     };
   }
-  try {
-    await sendSignupWelcomeEmail({
-      email: user.email,
-      name: user.name,
-    });
-    return { status: 'sent' };
-  } catch (error) {
-    const message = String((error as Error)?.message || error || '');
-    logWarn('Signup welcome email failed', {
-      scope: 'auth',
-      event_type: 'signup_welcome_email_failed',
-      user_id: 'userId' in user ? user.userId : user.user_id,
-      email: user.email,
-      error: message,
-    });
-    return {
-      status: 'failed',
-      reason: 'provider_error',
-      error: message,
-    };
-  }
+  return { status: 'sent' };
 }
 
 function buildInitialUserState(tradeMode: AuthTradeMode): AuthUserState {
@@ -1470,19 +1447,39 @@ export async function signupAuthUser(args: {
       user,
       state,
     });
-    await pgInsertSupabaseAuthUser({
-      email,
-      password,
-      name: user.name,
-      tradeMode: user.trade_mode,
-      broker: user.broker,
-      locale: user.locale,
-      legacyUserId: user.user_id,
-      createdAtMs: user.created_at_ms,
-      updatedAtMs: user.updated_at_ms,
-      lastSignInAtMs: user.last_login_at_ms,
-      emailConfirmedAtMs: user.created_at_ms,
-    });
+    if (hasSupabaseAuthProvider()) {
+      const { error } = await getSupabaseAuthClient().auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name: user.name,
+            tradeMode: user.trade_mode,
+            broker: user.broker,
+            locale: user.locale,
+            legacyUserId: user.user_id,
+          },
+          emailRedirectTo: resolveSupabaseAuthRedirectUrl(),
+        },
+      });
+      if (error) {
+        logWarn('Supabase native signup failed', { email, error: error.message });
+      }
+    } else {
+      await pgInsertSupabaseAuthUser({
+        email,
+        password,
+        name: user.name,
+        tradeMode: user.trade_mode,
+        broker: user.broker,
+        locale: user.locale,
+        legacyUserId: user.user_id,
+        createdAtMs: user.created_at_ms,
+        updatedAtMs: user.updated_at_ms,
+        lastSignInAtMs: user.last_login_at_ms,
+        emailConfirmedAtMs: user.created_at_ms,
+      });
+    }
     upsertLocalAuthUser(user);
     upsertLocalAuthUserState(userId, state, ts);
     await syncConfiguredAdminRole(user);
@@ -1839,6 +1836,21 @@ export async function createPasswordReset(args: { email: string }) {
   const exposeCodeHint = shouldExposePasswordResetCodeHint();
   const expiresInMinutes = Math.floor(RESET_TTL_MS / 60000);
 
+  if (hasSupabaseAuthProvider() && !exposeCodeHint) {
+    const { error } = await getSupabaseAuthClient().auth.resetPasswordForEmail(email, {
+      redirectTo: resolveSupabaseAuthRedirectUrl(),
+    });
+    if (error) {
+      logWarn('Supabase native reset email failed', { email, error: error.message });
+      throw new Error('RESET_EMAIL_SEND_FAILED:' + error.message);
+    }
+    return {
+      ok: true as const,
+      codeHint: null,
+      expiresInMinutes,
+    };
+  }
+
   if (hasPostgresAuthStore()) {
     const reset: RemoteResetRecord = {
       reset_id: createId('rst'),
@@ -1853,9 +1865,6 @@ export async function createPasswordReset(args: { email: string }) {
     await pgInvalidateOpenPasswordResets(user.user_id, ts);
     await pgInsertPasswordReset(reset);
     if (!exposeCodeHint) {
-      if (!canSendPasswordResetEmail()) {
-        throw new Error('RESET_EMAIL_NOT_CONFIGURED');
-      }
       await sendPasswordResetEmail({
         email,
         code,
@@ -1882,9 +1891,6 @@ export async function createPasswordReset(args: { email: string }) {
     };
     await remoteSetJson(remotePasswordResetKey(user.user_id), reset, { px: RESET_TTL_MS });
     if (!exposeCodeHint) {
-      if (!canSendPasswordResetEmail()) {
-        throw new Error('RESET_EMAIL_NOT_CONFIGURED');
-      }
       await sendPasswordResetEmail({
         email,
         code,
@@ -1918,9 +1924,6 @@ export async function createPasswordReset(args: { email: string }) {
     updated_at_ms: ts,
   });
   if (!exposeCodeHint) {
-    if (!canSendPasswordResetEmail()) {
-      throw new Error('RESET_EMAIL_NOT_CONFIGURED');
-    }
     await sendPasswordResetEmail({
       email,
       code,

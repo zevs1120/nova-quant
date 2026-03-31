@@ -32,10 +32,6 @@ describe('signup welcome email', () => {
     vi.stubEnv('KV_REST_API_TOKEN', '');
     vi.stubEnv('UPSTASH_REDIS_REST_URL', '');
     vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', '');
-    vi.stubEnv('RESEND_API_KEY', '');
-    vi.stubEnv('NOVA_AUTH_EMAIL_FROM', '');
-    vi.stubEnv('RESEND_FROM_EMAIL', '');
-    vi.stubEnv('NOVA_AUTH_REPLY_TO', '');
     vi.stubEnv('NOVA_APP_URL', 'https://app.novaquant.cloud');
   });
 
@@ -45,66 +41,7 @@ describe('signup welcome email', () => {
     vi.unstubAllGlobals();
   });
 
-  it('sends a welcome email after signup when Resend is configured', async () => {
-    vi.stubEnv('RESEND_API_KEY', 're_test_key');
-    vi.stubEnv('NOVA_AUTH_EMAIL_FROM', 'NovaQuant <welcome@novaquant.cloud>');
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ id: 'email_123' }), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      }),
-    );
-    vi.stubGlobal('fetch', fetchMock);
-
-    const app = createApiApp();
-    const signup = await request(app).post('/api/auth/signup').send({
-      email,
-      password: 'StrongPass123',
-      name: 'Welcome User',
-      tradeMode: 'active',
-      broker: 'Other',
-    });
-
-    expect(signup.status).toBe(200);
-    expect(signup.body.ok).toBe(true);
-    expect(signup.body.emailDelivery?.signupWelcome?.status).toBe('sent');
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(fetchMock.mock.calls[0]?.[0]).toBe('https://api.resend.com/emails');
-    expect(fetchMock.mock.calls[0]?.[1]?.headers).toMatchObject({
-      'Content-Type': 'application/json',
-      'User-Agent': 'nova-quant-auth/1.0',
-    });
-    expect(String(fetchMock.mock.calls[0]?.[1]?.body || '')).toContain('Welcome to NovaQuant');
-  });
-
-  it('does not fail signup when the welcome email provider is down', async () => {
-    vi.stubEnv('RESEND_API_KEY', 're_test_key');
-    vi.stubEnv('NOVA_AUTH_EMAIL_FROM', 'NovaQuant <welcome@novaquant.cloud>');
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response('upstream error', {
-        status: 500,
-      }),
-    );
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    vi.stubGlobal('fetch', fetchMock);
-
-    const app = createApiApp();
-    const signup = await request(app).post('/api/auth/signup').send({
-      email,
-      password: 'StrongPass123',
-      name: 'Welcome User',
-      tradeMode: 'active',
-      broker: 'Other',
-    });
-
-    expect(signup.status).toBe(200);
-    expect(signup.body.ok).toBe(true);
-    expect(signup.body.emailDelivery?.signupWelcome?.status).toBe('failed');
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(warnSpy).toHaveBeenCalled();
-  });
-
-  it('surfaces when signup welcome email is skipped because Resend is not configured', async () => {
+  it('surfaces when signup welcome email is skipped because Supabase Auth is not configured', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     const app = createApiApp();
@@ -121,8 +58,7 @@ describe('signup welcome email', () => {
     expect(signup.body.emailDelivery?.signupWelcome?.status).toBe('skipped');
     expect(signup.body.emailDelivery?.signupWelcome?.reason).toBe('not_configured');
     expect(signup.body.emailDelivery?.signupWelcome?.missing).toEqual([
-      'RESEND_API_KEY',
-      'NOVA_AUTH_EMAIL_FROM',
+      'RESEND_API_KEY_DEPRECATED',
     ]);
     expect(warnSpy).toHaveBeenCalled();
   });

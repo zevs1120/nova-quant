@@ -68,7 +68,7 @@ export function readSupabaseBrowserRuntimeConfig() {
   };
 }
 
-function getSupabaseAuthClient() {
+export function getSupabaseAuthClient() {
   if (!hasSupabaseAuthProvider()) {
     throw new Error('SUPABASE_AUTH_NOT_CONFIGURED');
   }

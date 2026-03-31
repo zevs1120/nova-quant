@@ -21,7 +21,6 @@
     "auth:migrate:postgres": "tsx scripts/migrate-auth-to-postgres.ts",
     "data:audit:postgres": "tsx scripts/audit-business-db-migration.ts",
     "data:migrate:postgres": "tsx scripts/migrate-business-to-postgres.ts",
-    "email:check": "tsx scripts/check-resend-config.ts",
     "nova:health": "tsx scripts/check-nova-local.ts",
     "nova:export-mlx": "tsx scripts/export-nova-mlx-data.ts --only-included",
     "nova:train:lora": "tsx scripts/run-nova-mlx-train.ts",

@@ -45,7 +45,7 @@ Last updated: 2026-03-24
 - Service: `src/server/auth/service.ts` — session-scoped auth, RBAC, middleware.
 - Postgres store (production): `src/server/auth/postgresStore.ts` — users, sessions, roles, password resets.
 - Legacy KV store: `src/server/auth/remoteKv.ts` (Upstash Redis).
-- Password reset emails: `src/server/auth/resetEmail.ts`.
+- Native Supabase Auth Delivery: `src/server/auth/supabase.ts` (handles emails via Supabase Edge).
 
 4c. **Holdings Import**
 

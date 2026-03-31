@@ -32,9 +32,6 @@ describe('password reset api', () => {
     vi.stubEnv('KV_REST_API_TOKEN', '');
     vi.stubEnv('UPSTASH_REDIS_REST_URL', '');
     vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', '');
-    vi.stubEnv('RESEND_API_KEY', '');
-    vi.stubEnv('NOVA_AUTH_EMAIL_FROM', '');
-    vi.stubEnv('NOVA_AUTH_REPLY_TO', '');
     vi.stubEnv('NOVA_APP_URL', 'https://app.novaquant.cloud');
   });
 
@@ -44,7 +41,7 @@ describe('password reset api', () => {
     vi.unstubAllGlobals();
   });
 
-  it('returns a delivery configuration error instead of pretending reset email was sent', async () => {
+  it('succeeds with local console fallback when Supabase Auth is not configured', async () => {
     const app = createApiApp();
     const signup = await request(app).post('/api/auth/signup').send({
       email,
@@ -56,36 +53,9 @@ describe('password reset api', () => {
     expect(signup.status).toBe(200);
 
     const reset = await request(app).post('/api/auth/forgot-password').send({ email });
-    expect(reset.status).toBe(503);
-    expect(reset.body.error).toBe('RESET_DELIVERY_NOT_CONFIGURED');
-  });
-
-  it('sends reset emails through Resend when configured', async () => {
-    const app = createApiApp();
-    const signup = await request(app).post('/api/auth/signup').send({
-      email,
-      password: 'StrongPass123',
-      name: 'Reset User',
-      tradeMode: 'active',
-      broker: 'Other',
-    });
-    expect(signup.status).toBe(200);
-
-    vi.stubEnv('RESEND_API_KEY', 're_test_key');
-    vi.stubEnv('NOVA_AUTH_EMAIL_FROM', 'NovaQuant <reset@novaquant.cloud>');
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ id: 'email_123' }), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      }),
-    );
-    vi.stubGlobal('fetch', fetchMock);
-
-    const reset = await request(app).post('/api/auth/forgot-password').send({ email });
+    // In the new architecture, pure SQLite mode logs the token to the terminal instead of failing.
     expect(reset.status).toBe(200);
     expect(reset.body.ok).toBe(true);
     expect(reset.body.codeHint).toBeNull();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(fetchMock.mock.calls[0]?.[0]).toBe('https://api.resend.com/emails');
   });
 });

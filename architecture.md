@@ -257,7 +257,7 @@ nova-quant/
 | `service.ts`       | 认证服务 (Session / RBAC / 中间件) — 49 KB       |
 | `postgresStore.ts` | Postgres 认证存储 (users/sessions/roles) — 21 KB |
 | `remoteKv.ts`      | Upstash Redis 遗留认证路径                       |
-| `resetEmail.ts`    | 密码重置邮件流                                   |
+| `supabase.ts`      | 原生 Edge 邮件发送流 (取代了旧的自定义邮件流)    |
 
 ### 6.4 决策引擎 (`src/server/decision/`)
 

@@ -4,6 +4,13 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+- **Feat(auth): 彻底弃用 Resend 依赖，全面接入原生 Supabase Auth 邮件流。**
+  - 废除冗余架构：重构 `service.ts`，废除自定义 6 位验证码存取、弃用定制化的邮件模板管理流程，改为原生调用 SDK 的 `signUp()` 和 `resetPasswordForEmail()`，将整个账户边缘发送链路收敛并下放到原生 Supabase 后台接管。
+  - 移除环境凭证：清空本地环境、生产环境模版及 4 个测试框架桩文件中的 `RESEND_API_KEY`、`NOVA_AUTH_EMAIL_FROM` 等遗留环境变量引用。
+  - SQLite 双引擎热回退：解决 Supabase 服务不存时的断网阻断痛点，新增纯本地回退日志 (`console.warn` 打印 Mock Tokens)，保障本地无三方密钥情况下的离线开发闭环顺畅。
+  - 清理与基建瘦身：清除 `npm` 相关的底层脆弱漏洞 (Audit Fix)，删除 `scripts/check-resend-config.ts` 以及文档内全部 `resetEmail.ts` 旧架构索引。
+  - 确保了 880 个测试与 `npm run verify` 全部通过，完全去除了底层的 Resend `fetch` mocks。
+
 - **Fix(billing,auth,cache,ui): code-review 发现的 8 项 Bug 全修复（安全 · 正确性 · 一致性）。**
   - **[🔴 高危] Fix(billing): Stripe Webhook 签名验证在 Vercel Serverless 上必定失败。**
     - 根因：`/api/billing/webhook` 路由依赖全局 JSON 中间件设置的 `req.rawBody`，但 Vercel 会在到达路由前预解析请求体，导致 `rawBody` 为空字符串，HMAC 验签必定失败，所有 `checkout.session.completed` / `customer.subscription.*` Webhook 返回 400，用户付款后会员权益永远无法自动激活。
