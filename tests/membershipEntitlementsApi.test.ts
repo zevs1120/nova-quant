@@ -23,9 +23,9 @@ function seedAuthUser(email: string) {
   const db = getDb();
   ensureSchema(db);
   const now = Date.now();
-  const existing = db.prepare('SELECT user_id FROM auth_users WHERE email = ? LIMIT 1').get(email) as
-    | { user_id?: string }
-    | undefined;
+  const existing = db
+    .prepare('SELECT user_id FROM auth_users WHERE email = ? LIMIT 1')
+    .get(email) as { user_id?: string } | undefined;
   if (existing?.user_id) return existing.user_id;
   const userId = `usr_${Math.random().toString(36).slice(2, 10)}`;
   db.prepare(

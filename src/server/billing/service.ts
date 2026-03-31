@@ -1072,7 +1072,12 @@ function hasProcessedWebhookEvent(eventId: string) {
   );
 }
 
-function recordWebhookEvent(eventId: string, eventType: string, provider: string, payloadJson: string) {
+function recordWebhookEvent(
+  eventId: string,
+  eventType: string,
+  provider: string,
+  payloadJson: string,
+) {
   ensureBillingSchema();
   const ts = nowMs();
   if (!isPostgresBusinessRuntime()) {
@@ -1208,7 +1213,9 @@ export async function createBillingCheckoutSession(args: {
   billingCycle?: string;
   source?: string | null;
   locale?: string | null;
-}): Promise<BillingResult<{ session: BillingCheckoutSession; state: BillingState }> | BillingFailure> {
+}): Promise<
+  BillingResult<{ session: BillingCheckoutSession; state: BillingState }> | BillingFailure
+> {
   if (isGuestUser(args.userId)) {
     return { ok: false, error: 'AUTH_REQUIRED' };
   }
@@ -1454,7 +1461,10 @@ export function cancelBillingSubscription(args: {
     return { ok: false, error: 'AUTH_REQUIRED' };
   }
   const latestSubscription = readLatestSubscription(args.userId);
-  if (latestSubscription && String(latestSubscription.provider || BILLING_PROVIDER) !== BILLING_PROVIDER) {
+  if (
+    latestSubscription &&
+    String(latestSubscription.provider || BILLING_PROVIDER) !== BILLING_PROVIDER
+  ) {
     return { ok: false, error: 'BILLING_PORTAL_UNAVAILABLE' };
   }
 
@@ -1501,7 +1511,9 @@ function handleStripeCheckoutLifecycleEvent(
   status: BillingCheckoutStatus,
 ) {
   const metadata = asRecord(object.metadata);
-  const sessionId = String(metadata.local_checkout_session_id || object.client_reference_id || '').trim();
+  const sessionId = String(
+    metadata.local_checkout_session_id || object.client_reference_id || '',
+  ).trim();
   const userId = String(metadata.user_id || '').trim();
   if (!sessionId || !userId) return;
   const providerSessionId = String(object.id || '').trim();
@@ -1658,7 +1670,11 @@ export function processBillingWebhook(args: {
   }
   let event;
   try {
-    event = verifyStripeWebhookEvent(args.rawBody, args.signature, providerConfig.stripeWebhookSecret);
+    event = verifyStripeWebhookEvent(
+      args.rawBody,
+      args.signature,
+      providerConfig.stripeWebhookSecret,
+    );
   } catch {
     return { ok: false, error: 'BILLING_WEBHOOK_INVALID' };
   }

@@ -1868,8 +1868,7 @@
   left: 12px;
   color: #ff3e95;
   opacity: var(--gesture-skip-strength, 0);
-  transform: translate3d(calc((1 - var(--gesture-skip-strength, 0)) * -20px), 0, 0)
-    rotate(-10deg)
+  transform: translate3d(calc((1 - var(--gesture-skip-strength, 0)) * -20px), 0, 0) rotate(-10deg)
     scale(calc(0.86 + var(--gesture-skip-strength, 0) * 0.18));
 }
 
@@ -1878,11 +1877,7 @@
   left: 50%;
   color: #4c8cff;
   opacity: var(--gesture-later-strength, 0);
-  transform: translate3d(
-      -50%,
-      calc((1 - var(--gesture-later-strength, 0)) * -18px),
-      0
-    )
+  transform: translate3d(-50%, calc((1 - var(--gesture-later-strength, 0)) * -18px), 0)
     scale(calc(0.86 + var(--gesture-later-strength, 0) * 0.18));
 }
 
@@ -1891,8 +1886,7 @@
   right: 12px;
   color: #7ddf34;
   opacity: var(--gesture-accept-strength, 0);
-  transform: translate3d(calc((1 - var(--gesture-accept-strength, 0)) * 20px), 0, 0)
-    rotate(10deg)
+  transform: translate3d(calc((1 - var(--gesture-accept-strength, 0)) * 20px), 0, 0) rotate(10deg)
     scale(calc(0.86 + var(--gesture-accept-strength, 0) * 0.18));
 }
 

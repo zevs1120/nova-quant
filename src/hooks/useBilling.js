@@ -13,9 +13,7 @@ function normalizeCycle(value) {
 function buildPreviewState({ planKey, billingCycle, email }) {
   const now = new Date();
   const durationDays = billingCycle === 'annual' ? 365 : billingCycle === 'monthly' ? 30 : 7;
-  const currentPeriodEnd = new Date(
-    now.getTime() + durationDays * 24 * 60 * 60 * 1000,
-  );
+  const currentPeriodEnd = new Date(now.getTime() + durationDays * 24 * 60 * 60 * 1000);
   return {
     available: true,
     authenticated: false,

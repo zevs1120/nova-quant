@@ -129,7 +129,9 @@ export default function BillingCheckoutSheet({
         <div className="billing-checkout-summary">
           <div className="billing-checkout-plan">
             <div>
-              <p className="membership-plan-name">{isDowngrade ? 'Free' : planMeta?.name || 'Lite'}</p>
+              <p className="membership-plan-name">
+                {isDowngrade ? 'Free' : planMeta?.name || 'Lite'}
+              </p>
               <p className="membership-plan-price">
                 <strong>{isDowngrade ? (isZh ? '免费' : 'Free') : priceLabel}</strong>
                 {!isDowngrade ? <span>{cadenceLabel}</span> : null}
@@ -161,7 +163,9 @@ export default function BillingCheckoutSheet({
               ))}
             </div>
           ) : null}
-          {checkoutState.note ? <p className="billing-checkout-note">{checkoutState.note}</p> : null}
+          {checkoutState.note ? (
+            <p className="billing-checkout-note">{checkoutState.note}</p>
+          ) : null}
           {!isPortal && !isDowngrade && (prefillEmail || checkoutState?.session?.checkoutEmail) ? (
             <p className="billing-checkout-disclaimer billing-checkout-disclaimer-plain">
               {isZh ? '账单邮箱' : 'Billing email'}:{' '}
@@ -185,11 +189,7 @@ export default function BillingCheckoutSheet({
                 className="membership-plan-cta"
                 disabled={Boolean(checkoutState.submitting || checkoutState.loading)}
               >
-                {checkoutState.submitting
-                  ? isZh
-                    ? '处理中...'
-                    : 'Working...'
-                  : primaryLabel}
+                {checkoutState.submitting ? (isZh ? '处理中...' : 'Working...') : primaryLabel}
               </button>
               <button
                 type="button"

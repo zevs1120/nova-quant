@@ -79,7 +79,9 @@ function membershipUsageDayUtc(date = new Date()) {
 }
 
 function isGuestUser(userId: string | null | undefined) {
-  const normalized = String(userId || '').trim().toLowerCase();
+  const normalized = String(userId || '')
+    .trim()
+    .toLowerCase();
   return !normalized || normalized === 'guest-default' || normalized.startsWith('guest-');
 }
 
@@ -249,7 +251,11 @@ function usageCountForUser(userId: string, usageDay: string) {
   return readPersistedUsage(userId, usageDay);
 }
 
-function membershipStateFor(userId: string, usageDay: string, askNovaUsed: number): MembershipState {
+function membershipStateFor(
+  userId: string,
+  usageDay: string,
+  askNovaUsed: number,
+): MembershipState {
   const billingState = isGuestUser(userId) ? null : getBillingState(userId);
   const currentPlan = normalizeMembershipPlan(billingState?.currentPlan || 'free') as BillingPlan;
   const limits = getMembershipLimits(currentPlan);
@@ -362,7 +368,9 @@ export function applyMembershipAccessToDecision(args: {
   if (!args.decision || typeof args.decision !== 'object') return args.decision || null;
   const currentPlan = normalizeMembershipPlan(args.currentPlan || 'free') as BillingPlan;
   const todayCardLimit = getTodayCardLimit(currentPlan);
-  const cards = Array.isArray(args.decision.ranked_action_cards) ? args.decision.ranked_action_cards : [];
+  const cards = Array.isArray(args.decision.ranked_action_cards)
+    ? args.decision.ranked_action_cards
+    : [];
 
   if (todayCardLimit === null) {
     return args.decision;

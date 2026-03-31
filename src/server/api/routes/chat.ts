@@ -33,7 +33,9 @@ function membershipErrorMessage(args: {
       : 'You have used today’s Ask Nova limit. Upgrade to Pro to continue.';
   }
   if (args.error === 'BROKER_HANDOFF_REQUIRES_LITE') {
-    return zh ? '升级 Lite 后才能继续连接券商。' : 'Upgrade to Lite to continue with broker handoff.';
+    return zh
+      ? '升级 Lite 后才能继续连接券商。'
+      : 'Upgrade to Lite to continue with broker handoff.';
   }
   return zh
     ? '你今天的 Ask Nova 次数已经用完。升级 Lite 可以继续。'

@@ -638,11 +638,7 @@ export default function OnboardingFlow({
                 }
               }}
             >
-              {submitting
-                ? locale?.startsWith('zh')
-                  ? '正在发送…'
-                  : 'Sending…'
-                : copy.sendCode}
+              {submitting ? (locale?.startsWith('zh') ? '正在发送…' : 'Sending…') : copy.sendCode}
             </button>
           </div>
         </section>

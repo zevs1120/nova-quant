@@ -103,7 +103,9 @@ async function readLegacyUsers(client) {
 }
 
 async function readSupabaseEmails(client) {
-  const result = await client.query(`select lower(email) as email from auth.users where email is not null`);
+  const result = await client.query(
+    `select lower(email) as email from auth.users where email is not null`,
+  );
   return new Set(result.rows.map((row) => normalizeEmail(row.email)).filter(Boolean));
 }
 

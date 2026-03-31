@@ -710,10 +710,7 @@ function resolveTodayGestureIntent(dx, dy, vx = 0, vy = 0) {
   const absVx = Math.abs(vx);
   const absVy = Math.abs(vy);
   if ((dy <= -78 || (vy < -0.48 && absDy > 18)) && absDy > absDx * 1.02) return 'later';
-  if (
-    (absDx >= 68 || (absVx > 0.42 && absDx > 16)) &&
-    absDx > Math.max(absDy * 1.02, 18)
-  ) {
+  if ((absDx >= 68 || (absVx > 0.42 && absDx > 16)) && absDx > Math.max(absDy * 1.02, 18)) {
     return dx > 0 ? 'accept' : 'skip';
   }
   return null;
@@ -1538,13 +1535,17 @@ export default function TodayTab({
                         ? `${gesturePreview.rotate || 0}deg`
                         : '0deg',
                     '--gesture-skip-strength':
-                      gesturePreview.signalId === featuredSignalId ? `${gestureStrengths.skip}` : '0',
+                      gesturePreview.signalId === featuredSignalId
+                        ? `${gestureStrengths.skip}`
+                        : '0',
                     '--gesture-accept-strength':
                       gesturePreview.signalId === featuredSignalId
                         ? `${gestureStrengths.accept}`
                         : '0',
                     '--gesture-later-strength':
-                      gesturePreview.signalId === featuredSignalId ? `${gestureStrengths.later}` : '0',
+                      gesturePreview.signalId === featuredSignalId
+                        ? `${gestureStrengths.later}`
+                        : '0',
                   }}
                   onClick={() => openSignalDetail(featuredSignal, featuredSignalId)}
                   role="button"

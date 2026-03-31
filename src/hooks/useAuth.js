@@ -26,8 +26,12 @@ function classifySupabaseLoginError(error, locale) {
 function classifySupabaseSignupError(error, locale) {
   const zh = locale?.startsWith('zh');
   const message = String(error?.message || '');
-  if (/already registered|user already registered|email address is invalid|password/i.test(message)) {
-    return zh ? '这个邮箱已经存在，或注册信息无效。' : 'That email already exists, or the signup details are invalid.';
+  if (
+    /already registered|user already registered|email address is invalid|password/i.test(message)
+  ) {
+    return zh
+      ? '这个邮箱已经存在，或注册信息无效。'
+      : 'That email already exists, or the signup details are invalid.';
   }
   if (/supabase auth not configured/i.test(message)) {
     return zh ? 'Supabase Auth 还没有配置完成。' : 'Supabase Auth is not configured yet.';
@@ -312,7 +316,13 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
       cancelled = true;
       subscription?.unsubscribe();
     };
-  }, [applyAuthenticatedProfile, fetchJson, hydrateSessionFromApi, resetLocalAuthState, setAuthSession]);
+  }, [
+    applyAuthenticatedProfile,
+    fetchJson,
+    hydrateSessionFromApi,
+    resetLocalAuthState,
+    setAuthSession,
+  ]);
 
   const handleLogin = useCallback(
     async ({ email, password }) => {
@@ -492,14 +502,13 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
       } catch (error) {
         return {
           ok: false,
-          error:
-            locale?.startsWith('zh')
-              ? isLocalAuthRuntime()
-                ? '重置服务未连接。请先启动本地 API：npm run api:data'
-                : '重置服务暂时不可用。请稍后再试。'
-              : isLocalAuthRuntime()
-                ? 'The reset service is offline. Start the local API first: npm run api:data'
-                : 'The reset service is temporarily unavailable.',
+          error: locale?.startsWith('zh')
+            ? isLocalAuthRuntime()
+              ? '重置服务未连接。请先启动本地 API：npm run api:data'
+              : '重置服务暂时不可用。请稍后再试。'
+            : isLocalAuthRuntime()
+              ? 'The reset service is offline. Start the local API first: npm run api:data'
+              : 'The reset service is temporarily unavailable.',
         };
       }
     },

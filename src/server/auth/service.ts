@@ -53,7 +53,11 @@ import {
   pgUpsertUserState,
   pgVerifySupabaseAuthPassword,
 } from './postgresStore.js';
-import { hasSupabaseAuthProvider, verifySupabaseAccessToken, type VerifiedSupabaseAuthUser } from './supabase.js';
+import {
+  hasSupabaseAuthProvider,
+  verifySupabaseAccessToken,
+  type VerifiedSupabaseAuthUser,
+} from './supabase.js';
 import { logWarn } from '../utils/log.js';
 
 const SESSION_COOKIE_NAME = 'novaquant_session';
@@ -465,8 +469,9 @@ function readSupabaseUserMetadata(user: VerifiedSupabaseAuthUser) {
 function inferSupabaseDisplayName(user: VerifiedSupabaseAuthUser) {
   const metadata = readSupabaseUserMetadata(user);
   const candidate =
-    String(metadata.name || metadata.full_name || metadata.display_name || '')
-      .trim() || String(user.email || '').split('@')[0] || 'NovaQuant User';
+    String(metadata.name || metadata.full_name || metadata.display_name || '').trim() ||
+    String(user.email || '').split('@')[0] ||
+    'NovaQuant User';
   return candidate.slice(0, 120);
 }
 
@@ -511,7 +516,9 @@ async function getOrCreateSupabaseBackedUser(user: VerifiedSupabaseAuthUser) {
       await remoteSetJson(remoteUserKey(updatedUser.user_id), updatedUser);
     } else {
       requireLocalSqliteAuthStore()
-        .prepare('UPDATE auth_users SET email = ?, name = ?, updated_at_ms = ?, last_login_at_ms = ? WHERE user_id = ?')
+        .prepare(
+          'UPDATE auth_users SET email = ?, name = ?, updated_at_ms = ?, last_login_at_ms = ? WHERE user_id = ?',
+        )
         .run(email, updatedUser.name, ts, ts, updatedUser.user_id);
     }
 

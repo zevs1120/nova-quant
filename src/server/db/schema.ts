@@ -1341,7 +1341,9 @@ export function ensureSchema(db: Database.Database): void {
           FOREIGN KEY(user_id) REFERENCES auth_users(user_id) ON DELETE CASCADE
         );
       `);
-      db.exec('CREATE INDEX IF NOT EXISTS idx_billing_customers_email ON billing_customers(email);');
+      db.exec(
+        'CREATE INDEX IF NOT EXISTS idx_billing_customers_email ON billing_customers(email);',
+      );
       db.exec(
         'CREATE UNIQUE INDEX IF NOT EXISTS idx_billing_customers_provider_customer ON billing_customers(provider_customer_id);',
       );

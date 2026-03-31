@@ -8,7 +8,10 @@ import {
   getResearchOpsStatus,
   getBackendBackbone,
 } from '../queries.js';
-import { applyMembershipAccessToRuntimeState, getMembershipState } from '../../membership/service.js';
+import {
+  applyMembershipAccessToRuntimeState,
+  getMembershipState,
+} from '../../membership/service.js';
 
 const router = Router();
 

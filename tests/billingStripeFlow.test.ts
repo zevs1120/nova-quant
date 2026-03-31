@@ -4,7 +4,11 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-function signStripePayload(payload: string, secret: string, timestamp = Math.floor(Date.now() / 1000)) {
+function signStripePayload(
+  payload: string,
+  secret: string,
+  timestamp = Math.floor(Date.now() / 1000),
+) {
   const signature = createHmac('sha256', secret)
     .update(`${timestamp}.${payload}`, 'utf8')
     .digest('hex');
@@ -80,11 +84,8 @@ describe('stripe billing flow', () => {
       Date.now(),
     );
 
-    const {
-      createBillingCheckoutSession,
-      getBillingState,
-      processBillingWebhook,
-    } = await import('../src/server/billing/service.js');
+    const { createBillingCheckoutSession, getBillingState, processBillingWebhook } =
+      await import('../src/server/billing/service.js');
 
     const checkout = await createBillingCheckoutSession({
       userId: 'usr_stripe_test',

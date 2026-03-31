@@ -6,6 +6,7 @@ const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 
 const steps = [
   [['run', 'lint'], {}],
+  [['run', 'format:check'], {}],
   [['run', 'typecheck'], {}],
   [['test'], {}],
   [['run', 'build'], {}],
