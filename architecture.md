@@ -35,18 +35,18 @@ nova-quant/
 
 ## 3. 技术栈
 
-| 类别       | 选型                                                       |
-| ---------- | ---------------------------------------------------------- |
-| 前端框架   | React 18 + Vite 5, JSX                                     |
-| 后端框架   | Express 5 (TypeScript)                                     |
-| 业务数据库 | SQLite (better-sqlite3) — `data/quant.db`                  |
-| 业务镜像   | Supabase Postgres (可选，镜像写入 + 优先读取)              |
-| 认证数据库 | Postgres (生产推荐) / Upstash Redis (遗留) / SQLite (本地) |
-| 类型检查   | TypeScript 5.9                                             |
-| 测试框架   | Vitest 4 + Supertest                                       |
-| 部署平台   | Vercel (前端 + API) / AWS EC2 (模型 + 后端自动化)          |
-| LLM 运行时 | Ollama (本地 Marvix 模型族) + Gemini / OpenAI / Groq 回退  |
-| 图表       | Chart.js + react-chartjs-2                                 |
+| 类别       | 选型                                                      |
+| ---------- | --------------------------------------------------------- |
+| 前端框架   | React 18 + Vite 5, JSX                                    |
+| 后端框架   | Express 5 (TypeScript)                                    |
+| 业务数据库 | SQLite (better-sqlite3) — `data/quant.db`                 |
+| 业务镜像   | Supabase Postgres (可选，镜像写入 + 优先读取)             |
+| 认证体系   | Supabase Auth (原生生产推荐) / SQLite (本地Mock回退)      |
+| 类型检查   | TypeScript 5.9                                            |
+| 测试框架   | Vitest 4 + Supertest                                      |
+| 部署平台   | Vercel (前端 + API) / AWS EC2 (模型 + 后端自动化)         |
+| LLM 运行时 | Ollama (本地 Marvix 模型族) + Gemini / OpenAI / Groq 回退 |
+| 图表       | Chart.js + react-chartjs-2                                |
 
 ---
 
@@ -63,7 +63,7 @@ nova-quant/
 │   │
 │   ├── components/               # 35 个 UI 组件
 │   │   └── icons/                # TabBarIcon, TopBarMenuGlyph
-│   ├── hooks/                    # 8 个 React Hooks (auth, data, engagement, demo, nav 等)
+│   ├── hooks/                    # 9 个 React Hooks (auth, billing, data, engagement, demo, nav 等)
 │   ├── utils/                    # 前端工具 (API、格式化、意图解析等)
 │   ├── copy/                     # 品牌文案操作系统
 │   ├── config/                   # 运行时版本 + appConstants
@@ -81,9 +81,12 @@ nova-quant/
 │   ├── training/                 # 多资产训练服务
 │   ├── portfolio_simulation/     # 组合模拟
 │   │
-│   └── server/                   # 后端核心 (38 个子模块)
+│   └── server/                   # 后端核心 (41 个子模块)
 │       ├── api/                  # API 路由 & 查询层 (109 条路由)
-│       ├── auth/                 # 认证 (Postgres / Redis / SQLite)
+│       ├── auth/                 # 认证 (Supabase Native / SQLite)
+│       ├── billing/              # 账单及 Stripe 支付集成
+│       ├── membership/           # 会员等级网关与订阅状态判断
+│       ├── outcome/              # 策略成果判定与解析
 │       ├── db/                   # 数据库 Schema, Repository, 连接管理
 │       ├── decision/             # 决策引擎
 │       ├── evidence/             # 回测 / 重放 / 证据引擎
@@ -191,6 +194,8 @@ nova-quant/
 ┌─────────────────────────────────────────────────────────────────────┐
 │                         决策 & 交付层                                │
 │                                                                     │
+│  Membership & Billing ──→ 订阅层级与调用限额网关                      │
+│                                                                     │
 │  Decision Engine ──→ 个性化行动卡片                                  │
 │    └─ risk state + holdings context + policy filter                 │
 │    └─ evidence bundle (证据包)                                      │
@@ -252,12 +257,11 @@ nova-quant/
 
 ### 6.3 认证层 (`src/server/auth/`)
 
-| 文件               | 职责                                             |
-| ------------------ | ------------------------------------------------ |
-| `service.ts`       | 认证服务 (Session / RBAC / 中间件) — 49 KB       |
-| `postgresStore.ts` | Postgres 认证存储 (users/sessions/roles) — 21 KB |
-| `remoteKv.ts`      | Upstash Redis 遗留认证路径                       |
-| `supabase.ts`      | 原生 Edge 邮件发送流 (取代了旧的自定义邮件流)    |
+| 文件               | 职责                                                    |
+| ------------------ | ------------------------------------------------------- |
+| `service.ts`       | 认证服务 (Session / RBAC / 中间件) — 49 KB              |
+| `postgresStore.ts` | Postgres 认证存储 (users/sessions/roles) — 21 KB        |
+| `supabase.ts`      | 原生 Supabase 认证集成，接管邮件及 Session (取代遗留流) |
 
 ### 6.4 决策引擎 (`src/server/decision/`)
 
@@ -345,6 +349,7 @@ alpha_promotion_guard/ → 晋升守卫 (Shadow → Canary → Prod)
 | Hook                  | 功能                           |
 | --------------------- | ------------------------------ |
 | `useAuth.js`          | 认证生命周期 (登录/注册/登出)  |
+| `useBilling.js`       | 全站订阅层级与计费门户状态同步 |
 | `useAppData.js`       | 11 端点并行数据加载 + 自动刷新 |
 | `useEngagement.js`    | 参与/纪律/执行记录             |
 | `useInvestorDemo.js`  | 投资者 Demo 模式 & 持仓覆盖    |
@@ -469,11 +474,6 @@ src/research/
 │                        │     │  写: Proxy 拦截自动同步    │
 │                        │     │  读: Admin + API 优先      │
 └────────────────────────┘     └──────────────────────┘
-
-                               ┌──────────────────────┐
-                               │  Upstash Redis       │
-                               │  (遗留认证路径)      │
-                               └──────────────────────┘
 ```
 
 ---
@@ -580,6 +580,8 @@ API/运行时输出使用的显式状态标签:
 | `GEMINI_API_KEY`                 | Google Gemini LLM                     |
 | `OPENAI_API_KEY`                 | OpenAI LLM                            |
 | `GROQ_API_KEY`                   | Groq LLM                              |
+| `STRIPE_SECRET_KEY`              | Stripe 计费门户后端通信密钥           |
+| `STRIPE_WEBHOOK_SECRET`          | Stripe Webhook 安全验签密钥           |
 | `DB_PATH`                        | 自定义 SQLite 路径                    |
 | `SERVE_WEB_DIST`                 | EC2 单机部署模式                      |
 

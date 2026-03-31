@@ -4,6 +4,15 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+## 10.19.0 (2026-03-31)
+
+- 发布类型：**minor**（架构重构与特性发布）
+
+- **Docs(architecture)：全栈架构与部署环境全局文档治理与同步。**
+  - **核心架构升级同步**：在 `README.md` 与 `docs/SYSTEM_ARCHITECTURE.md`、`architecture.md` 等架构文档中，全面记录了原生 Supabase Auth 的结构变迁（替换了原有的本地验证代理和 Upstash Redis 等冗余依赖）。
+  - **计费与会员模块文档补齐**：在图表及文档中加入了专门负责全局数据同步的 `useBilling.js` Hook 的记述，以及关于 Membership & Billing 订阅层级与限额网关的详细说明。
+  - **环境变量模板清理**：清除了 `deployment/` 目录下（aws-ec2, vultr 等）`.env.example` 关于 `RESEND_API_KEY` 等依赖邮件发送参数，指导开发者直接使用 Supabase 原生 SMTP。
+
 - **Feat(auth): 彻底弃用 Resend 依赖，全面接入原生 Supabase Auth 邮件流。**
   - 废除冗余架构：重构 `service.ts`，废除自定义 6 位验证码存取、弃用定制化的邮件模板管理流程，改为原生调用 SDK 的 `signUp()` 和 `resetPasswordForEmail()`，将整个账户边缘发送链路收敛并下放到原生 Supabase 后台接管。
   - 移除环境凭证：清空本地环境、生产环境模版及 4 个测试框架桩文件中的 `RESEND_API_KEY`、`NOVA_AUTH_EMAIL_FROM` 等遗留环境变量引用。

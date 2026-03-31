@@ -1,9 +1,9 @@
 # Nova Quant
 
 Nova Quant is an AI-native quantitative **decision** platform for US equities and crypto.
-Current app version: `10.14.0` (build `76`).
+Current app version: `10.19.0` (build `77`).
 Versioning policy: `package.json` is canonical, `src/config/version.js` is the generated runtime mirror, and release history lives in `CHANGELOG.md` / `docs/VERSIONING.md`.
-Auth supports two backends: **Postgres** (recommended for production, set `DATABASE_URL`) and **Upstash Redis** (legacy deployed path via `KV_REST_API_URL` + `KV_REST_API_TOKEN` or `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN`). Local development uses SQLite auth by default. Without any remote auth backend configured, deployed `/api/auth/*` returns `AUTH_STORE_NOT_CONFIGURED`.
+Auth is primarily driven by **Supabase Native Auth** (`supabase.ts`) for production deployments. Local development natively falls back to SQLite mock tokens for offline compatibility. Legacy Postgres/Upstash Redis manual tracking paths remain available as remote fallbacks but are deprecated in favor of Supabase Auth. Without any local or remote auth configured, deployed `/api/auth/*` returns `AUTH_STORE_NOT_CONFIGURED`.
 Browse search can now merge external market results into `/api/assets/search`. By default it augments local assets with the SEC company ticker universe and CoinGecko crypto search; set `ALPHA_VANTAGE_API_KEY` for broader stock / ETF lookup and `COINGECKO_DEMO_API_KEY` (or `COINGECKO_API_KEY` / `COINGECKO_PRO_API_KEY`) for higher-volume crypto search.
 
 It is designed to help self-directed traders reduce emotional trading and execute with discipline.
@@ -45,7 +45,7 @@ Runtime rules:
 - A perception-layer system that makes NovaQuant feel like a judgment surface, not a traditional finance dashboard
 - A professional backend backbone that unifies research, risk, decision, portfolio, evidence, local Nova LLM ops, workflows, registries, and observability
 - A single-machine **local Nova** runtime on Apple Silicon via Ollama, with model routing, task logging, review labels, and MLX-LM export
-- Session-scoped authentication with Postgres-backed user/session/role store, RBAC guards, and password reset email flow
+- Session-scoped authentication delegating to Supabase Native Auth (Auth hooks + PKCE flow), RBAC guards, and magic-link password recovery
 - Holdings import from CSV files, broker screenshots (vision-model), and read-only exchange sync
 - Admin Research Ops dashboard for daily workflow, data intake, Alpha evaluation, and training monitoring
 - Clean handoff tooling that excludes local databases, build artifacts, cached node modules, and platform junk
@@ -374,6 +374,15 @@ npm run typecheck
 npm run build
 npm run verify
 ```
+
+## Membership & Monetization
+
+Nova Quant utilizes Stripe for checkout and billing administration.
+To access guarded Deep Mode features locally or deploy paid layers:
+
+1. Provide `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` in your `.env`.
+2. Configure price keys for Lite/Pro tiers (e.g., `STRIPE_PRICE_LITE_MONTHLY`).
+   If omitted, the platform gracefully degrades to `free` usage boundaries via internal checkout fallback.
 
 ## Notes On Data
 

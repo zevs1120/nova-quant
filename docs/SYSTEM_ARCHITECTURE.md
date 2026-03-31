@@ -8,6 +8,7 @@ Last updated: 2026-03-24
 
 - `src/App.jsx`: thin orchestrator shell (~955 lines); composes custom hooks and renders top bar, tab bar, and screen routing.
 - `src/hooks/useAuth.js`: full auth lifecycle (login, signup, session hydration, profile sync, logout).
+- `src/hooks/useBilling.js`: unified site-wide subscription state, tier gating, and billing portal synchronization.
 - `src/hooks/useAppData.js`: 11-endpoint parallel data loading with 2-minute auto-refresh.
 - `src/hooks/useEngagement.js`: engagement state, discipline tracking, execution recording, VIP redemption.
 - `src/hooks/useInvestorDemo.js`: investor demo mode, holdings source composition, data overlay.
@@ -43,9 +44,8 @@ Last updated: 2026-03-24
 4b. **Auth Layer**
 
 - Service: `src/server/auth/service.ts` — session-scoped auth, RBAC, middleware.
-- Postgres store (production): `src/server/auth/postgresStore.ts` — users, sessions, roles, password resets.
-- Legacy KV store: `src/server/auth/remoteKv.ts` (Upstash Redis).
-- Native Supabase Auth Delivery: `src/server/auth/supabase.ts` (handles emails via Supabase Edge).
+- Postgres store: `src/server/auth/postgresStore.ts` — primary roles/sessions sync fallback.
+- Native Supabase Auth: `src/server/auth/supabase.ts` — manages email lifecycles, PKCE sessions, and primary deployments.
 
 4c. **Holdings Import**
 
@@ -60,6 +60,7 @@ Last updated: 2026-03-24
 
 - Admin service: `src/server/admin/service.ts`.
 - Research Ops aggregation: `src/server/admin/liveOps.ts` — workflows, data intake, Alpha eval, training.
+- Diagnostics: Monitors LLM enrichment caching strategies (e.g., 2-hour limits) and surfaces connection telemetry via `postgresBusinessRead.ts` (e.g., POSTGRES_FAST_TIMEOUT debugging).
 
 5. **Derived Runtime Layer**
 
@@ -154,6 +155,12 @@ Last updated: 2026-03-24
   - `user_ritual_events`
   - `notification_events`
   - `user_notification_preferences`
+
+12. **Monetization & Membership Layer**
+
+- Canonical modules: `src/server/billing/provider.ts` and `src/server/membership/service.ts`.
+- Manages the translation of Stripe webhooks, checkout sessions, and portal URLs into immutable `membership_plans`.
+- Resolves gating access logic (`lite` vs `pro`) before passing control to the decision/strategy layers.
 
 ## 2) Runtime Data Flow
 
