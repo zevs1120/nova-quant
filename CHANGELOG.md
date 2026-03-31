@@ -5,8 +5,9 @@ NovaQuant 所有重要变更记录于此。
 ## Unreleased
 
 - **Feat(today)：将 Today 主卡舞台进一步收向 Tinder 式决策界面。**
-  - 保留顶部 climate 和底部导航不动，只重做中段卡片舞台，让主卡更高、更接近全屏主体视野。
-  - 将卡内主 CTA 拆到卡外，改成独立的底部 action dock，形成 `Pass / Save / Go` 的 Tinder 式决策操作区，并保留 `Ask Nova` 次级入口。
+  - 保留顶部 climate 和底部导航不动，只重做中段卡片舞台，让主卡更高、更接近参考稿的单卡主体比例。
+  - Today 主卡收成更极简的 landing 式结构：移除 broker CTA，只保留卡内长条 `Ask Nova` 按钮，并压缩标题、统计卡和 context pills 的留白节奏。
+  - Climate 右侧视觉从环形轨道改成极简状态信号点，并统一 `safe / medium / danger` 的颜色映射，避免 `medium` 文案和视觉状态错位。
 
 - **Fix(db): Supabase Postgres 连接池调优，消除 POSTGRES_FAST_TIMEOUT 告警。**
   - **根因**：EC2 (us-east-1) → Supabase Pooler (us-east-2) 跨 AZ 延迟 ~70ms，Mirror Pool 默认 `max: 3` 无 `connectionTimeoutMillis` 易耗尽排队超时；Admin 面板 soft timeout 仅 900ms，12+ 并行聚合查询在 `news_items`（8000+ 行）上无法按时完成，触发冷却后级联 degraded 告警。

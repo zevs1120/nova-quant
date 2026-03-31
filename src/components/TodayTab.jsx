@@ -380,7 +380,7 @@ function riskLevel(overallCode, bestSignal, locale) {
     return {
       level: 'medium',
       icon: '🟡',
-      label: locale === 'zh' ? '中等' : 'Medium',
+      label: locale === 'zh' ? '谨慎' : 'Caution',
       explanation:
         locale === 'zh'
           ? '条件偏混合，保持低风险和高选择性。'
@@ -766,7 +766,7 @@ function riskFromDecision(decision, locale) {
     return {
       level: 'medium',
       icon: '🟡',
-      label: locale === 'zh' ? '中等' : 'Medium',
+      label: locale === 'zh' ? '谨慎' : 'Caution',
       explanation:
         decision?.risk_state?.user_message ||
         (locale === 'zh'
@@ -959,6 +959,18 @@ export default function TodayTab({
 
   const risk =
     riskFromDecision(decision, locale) || riskLevel(overall.code, featuredSignal, locale);
+  const climateVisualTone =
+    risk?.level === 'danger'
+      ? 'danger'
+      : risk?.level === 'medium'
+        ? 'medium'
+        : risk?.level === 'safe'
+          ? 'safe'
+          : overall.code === 'DEFENSE' || overall.code === 'UNAVAILABLE'
+            ? 'danger'
+            : overall.code === 'TRADE'
+              ? 'safe'
+              : 'medium';
   const noActionDay =
     !featuredSignal ||
     !featuredSignal._actionable ||
@@ -1071,18 +1083,11 @@ export default function TodayTab({
   const buildSignalIntent = (signal) =>
     buildTradeIntent(signal, { broker: brokerProfile?.broker, brokerSnapshot: brokerConnection });
   const activeSignalIntent = activeSignal ? buildSignalIntent(activeSignal) : null;
-  const actionLogic = featuredSignal
-    ? featuredSignal?.brief_why_now ||
-      featuredSignal?.explain_bullets?.[0] ||
-      featuredSignal?.risk_note ||
-      overall.subtitle
-    : overall.subtitle;
   const actionMetaText = buildActionMetaText({
     locale,
     signal: featuredSignal,
     provenance,
   });
-  const featuredSignalIntent = featuredSignal ? buildSignalIntent(featuredSignal) : null;
   const featuredCardPalette = signalCardPalette(featuredSignal);
   const featuredCardPosition = featuredSignalId
     ? Math.max(1, deckSignals.findIndex((signal) => signalCardId(signal) === featuredSignalId) + 1)
@@ -1094,11 +1099,6 @@ export default function TodayTab({
   const featuredExecutionLabel = actionCardExecutionText(featuredSignal, locale);
   const featuredRiskGateLabel = actionCardRiskGateText(featuredSignal, locale);
   const featuredMetaLine = actionCardMetaLine(actionMetaText, locale);
-  const featuredPrimaryActionLabel = featuredSignalIntent?.canOpenBroker
-    ? tradeIntentHandoffLabel(featuredSignalIntent, locale)
-    : locale === 'zh'
-      ? '打开交易票据'
-      : 'Open trade ticket';
   const stackedSignals = queuedSignals.slice(1, 3);
   const activeSwipeIntent =
     gesturePreview.signalId === featuredSignalId ? gesturePreview.intent || null : null;
@@ -1357,14 +1357,14 @@ export default function TodayTab({
   return (
     <section className="stack-gap today-screen-redesign today-screen-native today-tinder-shell">
       <section
-        className={`today-summary-header today-summary-header-climate today-summary-tone-${climate.tone}`}
+        className={`today-summary-header today-summary-header-climate today-summary-tone-${climateVisualTone}`}
       >
         <div className="today-climate-panel">
           <div className="today-summary-copy today-climate-copy today-climate-copy-compact">
             <div className="today-climate-meta-row">
               <p className="today-summary-date">{todayDateLabel}</p>
               <span
-                className={`today-climate-status-pill today-climate-status-pill-${climate.tone}`}
+                className={`today-climate-status-pill today-climate-status-pill-${climateVisualTone}`}
               >
                 {climateStatusLabel}
               </span>
@@ -1375,12 +1375,10 @@ export default function TodayTab({
             </div>
           </div>
 
-          <aside className="today-climate-orbit today-climate-orbit-visual" aria-hidden="true">
-            <div className={`today-climate-orbit-ring today-climate-orbit-ring-${climate.tone}`}>
-              <span className="today-climate-orbit-core" />
-              <span className="today-climate-orbit-satellite today-climate-orbit-satellite-a" />
-              <span className="today-climate-orbit-satellite today-climate-orbit-satellite-b" />
-            </div>
+          <aside className="today-climate-signal" aria-hidden="true">
+            <span
+              className={`today-climate-signal-dot today-climate-signal-dot-${climateVisualTone}`}
+            />
           </aside>
         </div>
       </section>
@@ -1558,7 +1556,6 @@ export default function TodayTab({
                     <div className="today-action-symbol-block today-action-symbol-block-showcase">
                       <h2 className="today-action-symbol">{featuredSignal?.symbol || '--'}</h2>
                       <p className="today-action-direction">{featuredDecisionLabel}</p>
-                      <p className="today-action-thesis">{actionLogic || overall.subtitle}</p>
                       <p className="today-action-meta">{featuredMetaLine}</p>
                     </div>
                     <DecisionMark code={noActionDay ? overall.code : 'TRADE'} />
@@ -1610,70 +1607,21 @@ export default function TodayTab({
                     </span>
                   </div>
 
-                  <p className="today-action-powered-inline">
-                    {locale === 'zh' ? '轻扫决定，轻点查看详情。' : 'Swipe to decide, tap to open detail.'}
-                  </p>
+                  <div className="today-action-links today-action-links-single">
+                    <button
+                      type="button"
+                      className="today-action-link today-action-link-ask"
+                      data-gesture-ignore="true"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        triggerFeedback('soft');
+                        askNovaAboutSignal(featuredSignal);
+                      }}
+                    >
+                      <span>Ask Nova</span>
+                    </button>
+                  </div>
                 </article>
-              </div>
-
-              <div className="today-tinder-action-dock">
-                <div
-                  className="today-tinder-controls"
-                  aria-label={locale === 'zh' ? '卡片动作按钮' : 'Card actions'}
-                >
-                  <button
-                    type="button"
-                    className="today-tinder-control today-tinder-control-skip"
-                    onClick={() => applyQueueAction(featuredSignal, 'skip')}
-                  >
-                    <span className="today-tinder-control-icon" aria-hidden="true">
-                      ×
-                    </span>
-                    <span className="today-tinder-control-label">
-                      {locale === 'zh' ? '放弃' : 'Pass'}
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    className="today-tinder-control today-tinder-control-later"
-                    onClick={() => applyQueueAction(featuredSignal, 'later')}
-                  >
-                    <span className="today-tinder-control-icon" aria-hidden="true">
-                      ★
-                    </span>
-                    <span className="today-tinder-control-label">
-                      {locale === 'zh' ? '暂存' : 'Save'}
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    className="today-tinder-control today-tinder-control-accept"
-                    onClick={() => applyQueueAction(featuredSignal, 'accept')}
-                  >
-                    <span className="today-tinder-control-icon" aria-hidden="true">
-                      ✓
-                    </span>
-                    <span className="today-tinder-control-label">
-                      {locale === 'zh' ? '执行' : 'Go'}
-                    </span>
-                  </button>
-                </div>
-
-                <div className="today-tinder-subactions">
-                  <button
-                    type="button"
-                    className="today-tinder-subaction"
-                    onClick={() => {
-                      triggerFeedback('soft');
-                      askNovaAboutSignal(featuredSignal);
-                    }}
-                  >
-                    <span>{locale === 'zh' ? 'Ask Nova' : 'Ask Nova'}</span>
-                  </button>
-                  <span className="today-tinder-subhint">
-                    {featuredPrimaryActionLabel}
-                  </span>
-                </div>
               </div>
             </>
           ) : hiddenDeckCount > 0 ? (
