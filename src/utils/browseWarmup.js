@@ -3,11 +3,11 @@ import { fetchApiJson } from './api';
 const HOME_VIEWS = ['STOCK', 'CRYPTO'];
 const MARKETS = ['US', 'CRYPTO'];
 const HOME_STORAGE_TTL_MS = 1000 * 60 * 5;
-const HOME_FRESH_MS = 1000 * 8;
+const HOME_FRESH_MS = 1000 * 60;
 const UNIVERSE_STORAGE_TTL_MS = 1000 * 60 * 60 * 12;
-const UNIVERSE_FRESH_MS = 1000 * 60 * 10;
+const UNIVERSE_FRESH_MS = 1000 * 60 * 30;
 const DETAIL_STORAGE_TTL_MS = 1000 * 60 * 3;
-const DETAIL_FRESH_MS = 1000 * 20;
+const DETAIL_FRESH_MS = 1000 * 60 * 2;
 
 const homeCache = new Map();
 const homeInflight = new Map();

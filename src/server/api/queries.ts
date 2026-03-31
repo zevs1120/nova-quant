@@ -1082,8 +1082,14 @@ export async function listExternalConnectionsPrimary(args: {
 }
 
 export async function getNotificationPreferencesStatePrimary(userId = 'guest-default') {
-  const row = await tryPrimaryPostgresRead('notification_preferences', async () =>
-    readPostgresNotificationPreferences(userId),
+  const row = await cachedFrontendRead(
+    'notification_preferences',
+    { userId },
+    async () =>
+      await tryPrimaryPostgresRead('notification_preferences', async () =>
+        readPostgresNotificationPreferences(userId),
+      ),
+    Math.max(15_000, Number(process.env.NOVA_NOTIFICATION_PREFERENCES_CACHE_TTL_MS || 60_000)),
   );
   if (row) return row;
   return getNotificationPreferencesState(userId);
@@ -1094,8 +1100,14 @@ async function getLatestDecisionSnapshotPrimary(args: {
   market?: Market | 'ALL';
   assetClass?: AssetClass | 'ALL';
 }) {
-  const row = await tryPrimaryPostgresRead('decision_snapshot_latest', async () =>
-    readPostgresLatestDecisionSnapshot(args),
+  const row = await cachedFrontendRead(
+    'decision_snapshot_latest',
+    args,
+    async () =>
+      await tryPrimaryPostgresRead('decision_snapshot_latest', async () =>
+        readPostgresLatestDecisionSnapshot(args),
+      ),
+    Math.max(15_000, Number(process.env.NOVA_DECISION_SNAPSHOT_CACHE_TTL_MS || 60_000)),
   );
   return row;
 }
@@ -1106,8 +1118,14 @@ async function listDecisionSnapshotsPrimary(args: {
   assetClass?: AssetClass | 'ALL';
   limit?: number;
 }) {
-  const rows = await tryPrimaryPostgresRead('decision_snapshots', async () =>
-    readPostgresDecisionSnapshots(args),
+  const rows = await cachedFrontendRead(
+    'decision_snapshots',
+    args,
+    async () =>
+      await tryPrimaryPostgresRead('decision_snapshots', async () =>
+        readPostgresDecisionSnapshots(args),
+      ),
+    Math.max(15_000, Number(process.env.NOVA_DECISION_SNAPSHOT_CACHE_TTL_MS || 60_000)),
   );
   return rows;
 }
@@ -4395,17 +4413,43 @@ async function getDecisionRowsForEngagement(args: {
   const repo = getRepo();
   const userId = args.userId || 'guest-default';
   const assetClass = args.assetClass || undefined;
-  const latest =
-    (await getLatestDecisionSnapshotPrimary({
-      userId,
-      market: args.market,
-      assetClass,
-    })) ||
-    repo.getLatestDecisionSnapshot({
-      userId,
-      market: args.market,
-      assetClass,
-    });
+  const readRows = async (bypassCache = false) => {
+    if (!bypassCache) {
+      return (
+        (await listDecisionSnapshotsPrimary({
+          userId,
+          market: args.market,
+          assetClass,
+          limit: 2,
+        })) ||
+        repo.listDecisionSnapshots({
+          userId,
+          market: args.market,
+          assetClass,
+          limit: 2,
+        })
+      );
+    }
+    return (
+      (await tryPrimaryPostgresRead('decision_snapshots_engagement', async () =>
+        readPostgresDecisionSnapshots({
+          userId,
+          market: args.market,
+          assetClass,
+          limit: 2,
+        }),
+      )) ||
+      repo.listDecisionSnapshots({
+        userId,
+        market: args.market,
+        assetClass,
+        limit: 2,
+      })
+    );
+  };
+
+  let rows = await readRows();
+  const latest = rows[0] || null;
   const ENGAGEMENT_DECISION_REUSE_TTL_MS = Math.max(
     60_000,
     Number(process.env.NOVA_ENRICHMENT_TTL_MS || 2 * 60 * 60 * 1000),
@@ -4416,20 +4460,8 @@ async function getDecisionRowsForEngagement(args: {
     Date.now() - latest.updated_at_ms < ENGAGEMENT_DECISION_REUSE_TTL_MS;
   if (!canReuseLatest) {
     await getDecisionSnapshot(args);
+    rows = await readRows(true);
   }
-  const rows =
-    (await listDecisionSnapshotsPrimary({
-      userId,
-      market: args.market,
-      assetClass,
-      limit: 6,
-    })) ||
-    repo.listDecisionSnapshots({
-      userId,
-      market: args.market,
-      assetClass,
-      limit: 6,
-    });
   const current = rows[0] || null;
   const previous = rows[1] || null;
   return { current, previous };
@@ -4450,6 +4482,26 @@ function resolveNotificationPreferences(repo: MarketRepository, userId: string) 
   const defaults = defaultNotificationPreferences(userId);
   repo.upsertUserNotificationPreferences(defaults);
   return defaults;
+}
+
+function shouldEnrichWrapUpLanguage(args: {
+  userId: string;
+  snapshot: ReturnType<typeof buildEngagementSnapshot>;
+  currentDecisionId: string | null;
+  skipLanguage?: boolean;
+}) {
+  if (args.skipLanguage) return false;
+  if (String(process.env.NOVA_ENABLE_WRAP_UP_LANGUAGE || '').trim() !== '1') return false;
+  if (!args.userId || args.userId === 'guest-default') return false;
+  if (!args.currentDecisionId) return false;
+  const wrapUp =
+    args.snapshot.daily_wrap_up && typeof args.snapshot.daily_wrap_up === 'object'
+      ? (args.snapshot.daily_wrap_up as Record<string, unknown>)
+      : null;
+  if (!wrapUp) return false;
+  if (!Boolean(wrapUp.ready)) return false;
+  if (Boolean(wrapUp.completed)) return false;
+  return true;
 }
 
 export async function getEngagementState(args: {
@@ -4500,26 +4552,47 @@ export async function getEngagementState(args: {
     notificationPreferences: preferences,
   });
 
-  for (const notification of snapshot.notification_center.notifications || []) {
-    repo.upsertNotificationEvent(notification);
-  }
-
-  const persistedNotifications = repo.listNotificationEvents({
+  let persistedNotifications = repo.listNotificationEvents({
     userId,
     market,
     assetClass,
     status: 'ACTIVE',
     limit: 12,
   });
-  const primaryNotifications = await tryPrimaryPostgresRead('engagement_notifications', async () =>
-    readPostgresNotificationEvents({
+  const primaryNotifications = await cachedFrontendRead(
+    'engagement_notifications',
+    { userId, market, assetClass, status: 'ACTIVE', limit: 12 },
+    async () =>
+      await tryPrimaryPostgresRead('engagement_notifications', async () =>
+        readPostgresNotificationEvents({
+          userId,
+          market,
+          assetClass,
+          status: 'ACTIVE',
+          limit: 12,
+        }),
+      ),
+    Math.max(15_000, Number(process.env.NOVA_ENGAGEMENT_NOTIFICATIONS_CACHE_TTL_MS || 60_000)),
+  );
+  const existingNotificationIds = new Set(
+    (primaryNotifications || persistedNotifications).map((row) => row.id),
+  );
+  let insertedNotifications = false;
+  for (const notification of snapshot.notification_center.notifications || []) {
+    if (existingNotificationIds.has(notification.id)) continue;
+    existingNotificationIds.add(notification.id);
+    insertedNotifications = true;
+    repo.upsertNotificationEvent(notification);
+  }
+  if (insertedNotifications) {
+    persistedNotifications = repo.listNotificationEvents({
       userId,
       market,
       assetClass,
       status: 'ACTIVE',
       limit: 12,
-    }),
-  );
+    });
+  }
 
   const wrapUpCacheKey = `wrap-${userId}:${market}:${assetClass}:${current?.snapshot_date || 'none'}`;
   const wrapUpCached = wrapUpLanguageCache.get(wrapUpCacheKey);
@@ -4528,7 +4601,14 @@ export async function getEngagementState(args: {
     Number(process.env.NOVA_ENRICHMENT_TTL_MS || 2 * 60 * 60 * 1000),
   );
   let enrichedSnapshot: typeof snapshot;
-  if (args.skipLanguage) {
+  if (
+    !shouldEnrichWrapUpLanguage({
+      userId,
+      snapshot,
+      currentDecisionId: current?.id || null,
+      skipLanguage: args.skipLanguage,
+    })
+  ) {
     enrichedSnapshot = snapshot;
   } else if (wrapUpCached && Date.now() - wrapUpCached.ts < WRAP_UP_TTL_MS) {
     enrichedSnapshot = snapshot;

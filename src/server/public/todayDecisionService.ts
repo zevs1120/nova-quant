@@ -100,6 +100,67 @@ const PUBLIC_MARKET_PROXIES = [
   { symbol: 'QQQ', market: 'US' as const },
   { symbol: 'BTCUSDT', market: 'CRYPTO' as const },
 ];
+const PUBLIC_SCAN_STATS_TTL_MS = 15_000;
+const PUBLIC_TODAY_DECISION_TTL_MS = 15_000;
+const publicScanStatsCache = new Map<string, { expiresAt: number; value: ScanStats | null }>();
+const publicScanStatsInflight = new Map<string, Promise<ScanStats | null>>();
+
+type PublicTodayDecision = {
+  as_of: string;
+  source_status: string;
+  data_status: string;
+  evidence_mode: string;
+  performance_mode: string;
+  today_call: {
+    code: string;
+    headline: string;
+    subtitle: string;
+  };
+  risk_state: {
+    posture: string;
+    summary: string;
+    user_message: string;
+    machine: {
+      risk_bucket: string;
+    };
+  };
+  ranked_action_cards: Array<Record<string, unknown>>;
+  top_action_id: string | null;
+  audit_snapshot_id: string;
+  summary: {
+    today_call: {
+      code: string;
+      headline: string;
+      subtitle: string;
+    };
+    risk_posture: string;
+    top_action_id: string | null;
+    top_action_symbol: string | null;
+    top_action_label: string | null;
+    source_status: string;
+    data_status: string;
+  };
+  audit: {
+    candidate_count: number;
+    actionable_count: number;
+    strategy_backed_count: number;
+    publishable_count: number;
+    created_for_user: string;
+  };
+};
+
+const publicTodayDecisionCache = new Map<
+  string,
+  { expiresAt: number; value: PublicTodayDecision }
+>();
+const publicTodayDecisionInflight = new Map<string, Promise<PublicTodayDecision>>();
+
+function cloneSerializable<T>(value: T): T {
+  if (typeof structuredClone === 'function') {
+    return structuredClone(value);
+  }
+  return JSON.parse(JSON.stringify(value));
+}
 
 function average(values: number[]) {
   if (!values.length) return 0;
@@ -455,32 +516,54 @@ function scanSymbol(
 }
 
 async function loadStats(symbol: string, market: Market): Promise<ScanStats | null> {
-  const history = await queryPublicOhlcv({
-    market,
-    symbol,
-    timeframe: '1d',
-    limit: 120,
-  });
-  if (!history.rows.length) return null;
-  const chart = await getPublicBrowseAssetChart({ market, symbol }).catch(() => null);
-  const rows = [...history.rows];
-  if (chart?.latest && rows.length) {
-    rows[rows.length - 1] = {
-      ...rows[rows.length - 1],
-      close: chart.latest,
-      high: Math.max(rows[rows.length - 1].high ?? chart.latest, chart.latest),
-      low: Math.min(rows[rows.length - 1].low ?? chart.latest, chart.latest),
-    };
+  const cacheKey = `${market}:${symbol}`;
+  const cached = publicScanStatsCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.value;
   }
-  return buildStats(symbol, market, rows);
+  const inflight = publicScanStatsInflight.get(cacheKey);
+  if (inflight) return inflight;
+
+  const request = (async () => {
+    const history = await queryPublicOhlcv({
+      market,
+      symbol,
+      timeframe: '1d',
+      limit: 120,
+    });
+    if (!history.rows.length) return null;
+    const chart = await getPublicBrowseAssetChart({ market, symbol }).catch(() => null);
+    const rows = [...history.rows];
+    if (chart?.latest && rows.length) {
+      rows[rows.length - 1] = {
+        ...rows[rows.length - 1],
+        close: chart.latest,
+        high: Math.max(rows[rows.length - 1].high ?? chart.latest, chart.latest),
+        low: Math.min(rows[rows.length - 1].low ?? chart.latest, chart.latest),
+      };
+    }
+    return buildStats(symbol, market, rows);
+  })()
+    .then((value) => {
+      publicScanStatsCache.set(cacheKey, {
+        expiresAt: Date.now() + PUBLIC_SCAN_STATS_TTL_MS,
+        value,
+      });
+      return value;
+    })
+    .finally(() => {
+      publicScanStatsInflight.delete(cacheKey);
+    });
+
+  publicScanStatsInflight.set(cacheKey, request);
+  return request;
 }
 
-export async function getPublicTodayDecision(args: {
+async function buildPublicTodayDecisionBase(args: {
   market?: Market;
   assetClass?: AssetClass;
   locale?: string;
-  userId?: string;
-}) {
+}): Promise<PublicTodayDecision> {
   const assetClass = args.assetClass || (args.market === 'CRYPTO' ? 'CRYPTO' : 'US_STOCK');
   const market = args.market || (assetClass === 'CRYPTO' ? 'CRYPTO' : 'US');
   const universe = market === 'CRYPTO' ? PUBLIC_CRYPTO_UNIVERSE : PUBLIC_STOCK_UNIVERSE;
@@ -552,7 +635,55 @@ export async function getPublicTodayDecision(args: {
       actionable_count: ranked.filter((row) => row.eligible).length,
       strategy_backed_count: ranked.length,
       publishable_count: ranked.filter((row) => row.publication_status === 'ACTIONABLE').length,
-      created_for_user: args.userId || 'guest-default',
+      created_for_user: 'guest-default',
     },
   };
+}
+
+async function readPublicTodayDecisionBase(args: {
+  market?: Market;
+  assetClass?: AssetClass;
+  locale?: string;
+}) {
+  const assetClass = args.assetClass || (args.market === 'CRYPTO' ? 'CRYPTO' : 'US_STOCK');
+  const market = args.market || (assetClass === 'CRYPTO' ? 'CRYPTO' : 'US');
+  const locale = String(args.locale || 'en');
+  const cacheKey = `${market}:${assetClass}:${locale}`;
+  const cached = publicTodayDecisionCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.value;
+  }
+  const inflight = publicTodayDecisionInflight.get(cacheKey);
+  if (inflight) return inflight;
+
+  const request = buildPublicTodayDecisionBase({ market, assetClass, locale })
+    .then((value) => {
+      publicTodayDecisionCache.set(cacheKey, {
+        expiresAt: Date.now() + PUBLIC_TODAY_DECISION_TTL_MS,
+        value,
+      });
+      return value;
+    })
+    .finally(() => {
+      publicTodayDecisionInflight.delete(cacheKey);
+    });
+  publicTodayDecisionInflight.set(cacheKey, request);
+  return request;
+}
+
+export async function getPublicTodayDecision(args: {
+  market?: Market;
+  assetClass?: AssetClass;
+  locale?: string;
+  userId?: string;
+}): Promise<PublicTodayDecision> {
+  const base = cloneSerializable(
+    await readPublicTodayDecisionBase({
+      market: args.market,
+      assetClass: args.assetClass,
+      locale: args.locale,
+    }),
+  );
+  base.audit.created_for_user = args.userId || 'guest-default';
+  return base;
 }

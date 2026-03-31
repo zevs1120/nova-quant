@@ -97,6 +97,30 @@ const AUTO_ID_TABLES = [
 ] as const;
 
 let sequencesReady = false;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const PG_RETENTION_PRUNE_INTERVAL_MS = Math.max(
+  15 * 60 * 1000,
+  Number(process.env.NOVA_PG_RETENTION_PRUNE_INTERVAL_MS || 6 * 60 * 60 * 1000),
+);
+const PG_RETENTION_PRUNE_TIMEOUT_MS = Math.max(
+  10_000,
+  Number(process.env.NOVA_PG_RETENTION_PRUNE_TIMEOUT_MS || 120_000),
+);
+const NOVA_TASK_RUN_SUCCESS_RETENTION_MS = Math.max(
+  DAY_MS,
+  Number(process.env.NOVA_TASK_RUN_SUCCESS_RETENTION_MS || 14 * DAY_MS),
+);
+const NOVA_TASK_RUN_FAILURE_RETENTION_MS = Math.max(
+  60 * 60 * 1000,
+  Number(process.env.NOVA_TASK_RUN_FAILURE_RETENTION_MS || 3 * DAY_MS),
+);
+const OHLCV_RETENTION_MS_BY_TIMEFRAME: Partial<Record<Timeframe, number>> = {
+  '5m': Math.max(DAY_MS, Number(process.env.NOVA_OHLCV_RETENTION_5M_MS || 180 * DAY_MS)),
+  '1h': Math.max(DAY_MS, Number(process.env.NOVA_OHLCV_RETENTION_1H_MS || 365 * DAY_MS)),
+  '1d': Math.max(DAY_MS, Number(process.env.NOVA_OHLCV_RETENTION_1D_MS || 3650 * DAY_MS)),
+};
+let lastNovaTaskRunPruneAtMs = 0;
+const lastOhlcvPruneAtMs = new Map<Timeframe, number>();
 
 function nowMs() {
   return Date.now();
@@ -119,6 +143,56 @@ function qualifySequence(table: string) {
   const schema = quotePgIdentifier(getPostgresBusinessSchema());
   const sequence = quotePgIdentifier(`${table}_id_seq`);
   return `${schema}.${sequence}`;
+}
+
+function shouldPersistNovaTaskRun(row: NovaTaskRunRecord) {
+  return !(
+    row.task_type === 'daily_wrap_up_generation' &&
+    (row.status === 'FAILED' || row.status === 'SKIPPED')
+  );
+}
+
+function maybePruneNovaTaskRunsSync(now = Date.now()) {
+  if (now - lastNovaTaskRunPruneAtMs < PG_RETENTION_PRUNE_INTERVAL_MS) return;
+  lastNovaTaskRunPruneAtMs = now;
+  try {
+    executeSync(
+      `
+        DELETE FROM ${qualifyBusinessTable('nova_task_runs')}
+        WHERE (status IN ('FAILED', 'SKIPPED') AND created_at_ms < $1)
+           OR created_at_ms < $2
+      `,
+      [now - NOVA_TASK_RUN_FAILURE_RETENTION_MS, now - NOVA_TASK_RUN_SUCCESS_RETENTION_MS],
+      PG_RETENTION_PRUNE_TIMEOUT_MS,
+    );
+  } catch (error) {
+    console.warn('[pg-runtime] nova_task_runs prune failed', {
+      error: String((error as Error)?.message || error || 'unknown_error'),
+    });
+  }
+}
+
+function maybePruneOhlcvSync(timeframe: Timeframe, now = Date.now()) {
+  const lastPruneAt = lastOhlcvPruneAtMs.get(timeframe) || 0;
+  if (now - lastPruneAt < PG_RETENTION_PRUNE_INTERVAL_MS) return;
+  const retentionMs = OHLCV_RETENTION_MS_BY_TIMEFRAME[timeframe];
+  if (retentionMs === undefined || !Number.isFinite(retentionMs) || retentionMs <= 0) return;
+  lastOhlcvPruneAtMs.set(timeframe, now);
+  try {
+    executeSync(
+      `
+        DELETE FROM ${qualifyBusinessTable('ohlcv')}
+        WHERE timeframe = $1 AND ts_open < $2
+      `,
+      [timeframe, now - retentionMs],
+      PG_RETENTION_PRUNE_TIMEOUT_MS,
+    );
+  } catch (error) {
+    console.warn('[pg-runtime] ohlcv prune failed', {
+      timeframe,
+      error: String((error as Error)?.message || error || 'unknown_error'),
+    });
+  }
 }
 
 export function __buildSequenceResetSqlForTesting(table: (typeof AUTO_ID_TABLES)[number]) {
@@ -364,6 +438,7 @@ export class PostgresRuntimeRepository extends MarketRepository {
       })),
       conflictColumns: ['asset_id', 'timeframe', 'ts_open'],
     });
+    maybePruneOhlcvSync(timeframe, ingestAt);
     return bars.length;
   }
 
@@ -2181,6 +2256,10 @@ export class PostgresRuntimeRepository extends MarketRepository {
   }
 
   upsertNovaTaskRun(input: NovaTaskRunRecord): void {
+    if (!shouldPersistNovaTaskRun(input)) {
+      maybePruneNovaTaskRunsSync(input.created_at_ms || nowMs());
+      return;
+    }
     upsertRowsSync({
       table: 'nova_task_runs',
       columns: [
@@ -2205,6 +2284,7 @@ export class PostgresRuntimeRepository extends MarketRepository {
       rows: [input],
       conflictColumns: ['id'],
     });
+    maybePruneNovaTaskRunsSync(input.created_at_ms || nowMs());
   }
 
   listNovaTaskRuns(params: {

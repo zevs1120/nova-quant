@@ -67,6 +67,18 @@ function taskTypeForBusinessTask(task: NovaBusinessTask): NovaTaskType {
   return 'retrieval_embedding';
 }
 
+function shouldPersistNovaRun(taskType: NovaTaskType, status: NovaTaskRunRecord['status']) {
+  return !(
+    taskType === 'daily_wrap_up_generation' &&
+    (status === 'FAILED' || status === 'SKIPPED')
+  );
+}
+
+function persistNovaTaskRun(repo: MarketRepository, input: NovaTaskRunRecord) {
+  if (!shouldPersistNovaRun(input.task_type, input.status)) return;
+  repo.upsertNovaTaskRun(input);
+}
+
 export async function runLoggedNovaTextTask(args: {
   repo: MarketRepository;
   userId?: string | null;
@@ -91,7 +103,7 @@ export async function runLoggedNovaTextTask(args: {
   const nowMs = Date.now();
 
   if (shouldSkipNovaTextTask(route.task)) {
-    args.repo.upsertNovaTaskRun({
+    persistNovaTaskRun(args.repo, {
       id: runId,
       user_id: args.userId || null,
       thread_id: args.threadId || null,
@@ -126,7 +138,7 @@ export async function runLoggedNovaTextTask(args: {
       systemPrompt: args.systemPrompt,
       userPrompt: args.userPrompt,
     });
-    args.repo.upsertNovaTaskRun({
+    persistNovaTaskRun(args.repo, {
       id: runId,
       user_id: args.userId || null,
       thread_id: args.threadId || null,
@@ -158,7 +170,7 @@ export async function runLoggedNovaTextTask(args: {
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    args.repo.upsertNovaTaskRun({
+    persistNovaTaskRun(args.repo, {
       id: runId,
       user_id: args.userId || null,
       thread_id: args.threadId || null,

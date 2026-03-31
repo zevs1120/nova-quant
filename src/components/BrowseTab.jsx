@@ -14,9 +14,9 @@ import {
 
 const CATEGORY_KEYS = ['STOCK', 'CRYPTO'];
 const DETAIL_RANGES = ['1D', '1W', '1M', '3M'];
-const HOME_POLL_MS = 1000;
-const DETAIL_POLL_MS = 1000;
-const DETAIL_META_POLL_MS = 30000;
+const HOME_POLL_MS = 60_000;
+const DETAIL_POLL_MS = 30_000;
+const DETAIL_META_POLL_MS = 300_000;
 const DETAIL_RANGE_CONFIG = {
   '1D': { live: true },
   '1W': { tf: '1d', limit: 7 },

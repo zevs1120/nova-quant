@@ -11,12 +11,36 @@ import {
 import { getPublicTodayDecision } from '../src/server/public/todayDecisionService.js';
 import type { AssetClass, Market } from '../src/server/types.js';
 
+let cachedApiAppPromise: Promise<any> | null = null;
+
 function applyPublicCors(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
   res.setHeader('Vary', 'Origin');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('Access-Control-Max-Age', '600');
+}
+
+function applyPublicCache(
+  res: VercelResponse,
+  options: { sMaxAge: number; staleWhileRevalidate: number },
+) {
+  res.setHeader(
+    'Cache-Control',
+    `public, max-age=0, s-maxage=${Math.max(1, Math.floor(options.sMaxAge))}, stale-while-revalidate=${Math.max(1, Math.floor(options.staleWhileRevalidate))}`,
+  );
+}
+
+async function getCachedApiApp() {
+  if (!cachedApiAppPromise) {
+    cachedApiAppPromise = import('../src/server/api/app.js')
+      .then(({ createApiApp }) => createApiApp())
+      .catch((error) => {
+        cachedApiAppPromise = null;
+        throw error;
+      });
+  }
+  return cachedApiAppPromise;
 }
 
 function handlePublicOptions(req: VercelRequest, res: VercelResponse) {
@@ -347,6 +371,7 @@ async function handlePublicBrowseRoute(req: VercelRequest, res: VercelResponse, 
   }
 
   if ((path === '/api' || path === '/api/healthz') && req.method === 'GET') {
+    applyPublicCache(res, { sMaxAge: 5, staleWhileRevalidate: 30 });
     res.status(200).json({
       ok: true,
       service: 'novaquant-api',
@@ -356,6 +381,7 @@ async function handlePublicBrowseRoute(req: VercelRequest, res: VercelResponse, 
   }
 
   if (path === '/api/assets' && req.method === 'GET') {
+    applyPublicCache(res, { sMaxAge: 3600, staleWhileRevalidate: 86400 });
     const market = parseMarket(req.query.market as string | undefined);
     if (req.query.market && !market) {
       res.status(400).json({ error: 'Invalid market, use US or CRYPTO' });
@@ -367,6 +393,7 @@ async function handlePublicBrowseRoute(req: VercelRequest, res: VercelResponse, 
   }
 
   if (path === '/api/assets/search' && req.method === 'GET') {
+    applyPublicCache(res, { sMaxAge: 300, staleWhileRevalidate: 1800 });
     const market = parseMarket(req.query.market as string | undefined);
     if (req.query.market && !market) {
       res.status(400).json({ error: 'Invalid market, use US or CRYPTO' });
@@ -380,6 +407,7 @@ async function handlePublicBrowseRoute(req: VercelRequest, res: VercelResponse, 
   }
 
   if (path === '/api/browse/chart' && req.method === 'GET') {
+    applyPublicCache(res, { sMaxAge: 15, staleWhileRevalidate: 60 });
     const market = parseMarket(req.query.market as string | undefined);
     const symbol = String(req.query.symbol || '')
       .trim()
@@ -394,6 +422,7 @@ async function handlePublicBrowseRoute(req: VercelRequest, res: VercelResponse, 
   }
 
   if (path === '/api/browse/home' && req.method === 'GET') {
+    applyPublicCache(res, { sMaxAge: 30, staleWhileRevalidate: 180 });
     const view = String(req.query.view || 'NOW');
     const data = await getPublicBrowseHome({ view });
     res.status(200).json(data);
@@ -401,6 +430,7 @@ async function handlePublicBrowseRoute(req: VercelRequest, res: VercelResponse, 
   }
 
   if (path === '/api/browse/news' && req.method === 'GET') {
+    applyPublicCache(res, { sMaxAge: 120, staleWhileRevalidate: 600 });
     const market = parseMarket(req.query.market as string | undefined);
     if (!market) {
       res.status(400).json({ error: 'Required query param: market' });
@@ -417,6 +447,7 @@ async function handlePublicBrowseRoute(req: VercelRequest, res: VercelResponse, 
   }
 
   if (path === '/api/browse/overview' && req.method === 'GET') {
+    applyPublicCache(res, { sMaxAge: 300, staleWhileRevalidate: 900 });
     const market = parseMarket(req.query.market as string | undefined);
     const symbol = String(req.query.symbol || '')
       .trim()
@@ -435,6 +466,7 @@ async function handlePublicBrowseRoute(req: VercelRequest, res: VercelResponse, 
   }
 
   if (path === '/api/ohlcv' && req.method === 'GET') {
+    applyPublicCache(res, { sMaxAge: 300, staleWhileRevalidate: 900 });
     const market = parseMarket(req.query.market as string | undefined);
     const symbol = String(req.query.symbol || '')
       .trim()
@@ -462,6 +494,7 @@ async function handlePublicBrowseRoute(req: VercelRequest, res: VercelResponse, 
   }
 
   if (path === '/api/signals' && req.method === 'GET') {
+    applyPublicCache(res, { sMaxAge: 15, staleWhileRevalidate: 45 });
     const market = parseMarket(req.query.market as string | undefined) || 'US';
     const assetClass =
       parseAssetClass(req.query.assetClass as string | undefined) ||
@@ -478,6 +511,7 @@ async function handlePublicBrowseRoute(req: VercelRequest, res: VercelResponse, 
   }
 
   if (path === '/api/runtime-state' && req.method === 'GET') {
+    applyPublicCache(res, { sMaxAge: 15, staleWhileRevalidate: 45 });
     const market = parseMarket(req.query.market as string | undefined) || 'US';
     const assetClass =
       parseAssetClass(req.query.assetClass as string | undefined) ||
@@ -504,6 +538,7 @@ async function handlePublicBrowseRoute(req: VercelRequest, res: VercelResponse, 
     const userId = String(body.userId || req.query.userId || 'guest-default');
     const locale = typeof body.locale === 'string' ? body.locale : undefined;
     if (!holdings.length) {
+      applyPublicCache(res, { sMaxAge: 15, staleWhileRevalidate: 45 });
       const decision = await getPublicTodayDecision({ market, assetClass, userId, locale });
       res.status(200).json(decision);
       return true;
@@ -521,7 +556,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
   req.url = buildForwardUrl(req, path);
-  const { createApiApp } = await import('../src/server/api/app.js');
-  const app = createApiApp();
+  const app = await getCachedApiApp();
   return app(req as any, res as any);
 }

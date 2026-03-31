@@ -51,6 +51,8 @@ async function fetchJson(url, options) {
   return response.json();
 }
 
+const BROWSE_WARMUP_REFRESH_MS = 10 * 60 * 1000;
+
 export default function App() {
   const primaryTabKeys = ['today', 'ai', 'browse', 'my'];
   const [displayMode, setDisplayMode] = useState(() => detectDisplayMode());
@@ -556,7 +558,7 @@ export default function App() {
     const intervalId = window.setInterval(() => {
       if (document.visibilityState !== 'visible') return;
       warmBrowse();
-    }, 120000);
+    }, BROWSE_WARMUP_REFRESH_MS);
     const handleVisibility = () => {
       if (document.visibilityState !== 'visible') return;
       warmBrowse();

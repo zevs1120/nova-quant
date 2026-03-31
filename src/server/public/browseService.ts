@@ -177,11 +177,44 @@ const REMOTE_SEARCH_TIMEOUT_MS = 3200;
 const remoteSearchCache = new Map<string, { expiresAt: number; results: SearchCandidate[] }>();
 const REMOTE_SEARCH_TTL_MS = 1000 * 60 * 8;
 const SEC_UNIVERSE_TTL_MS = 1000 * 60 * 60 * 24;
+const BROWSE_HOME_CACHE_TTL_MS = 1000 * 30;
+const BROWSE_CHART_LIVE_TTL_MS = 1000 * 15;
+const BROWSE_CHART_FALLBACK_TTL_MS = 1000 * 60;
+const PUBLIC_OHLCV_TTL_MS = 1000 * 60 * 5;
 let cachedSecUniverse: { expiresAt: number; results: SearchCandidate[] } | null = null;
 let cachedReferenceSearchUniverse: SearchCandidate[] | null = null;
 const browseHomeCache = new Map<string, { expiresAt: number; data: BrowseHomePayload }>();
 const browseChartCache = new Map<string, { expiresAt: number; data: BrowseChartSnapshot | null }>();
 const browseChartInflight = new Map<string, Promise<BrowseChartSnapshot | null>>();
+const publicOhlcvCache = new Map<
+  string,
+  {
+    expiresAt: number;
+    data: {
+      asset: {
+        symbol: string;
+        market: Market;
+        venue: string;
+        base: string | null;
+        quote: string | null;
+      } | null;
+      rows: PublicOhlcvRow[];
+    };
+  }
+>();
+const publicOhlcvInflight = new Map<
+  string,
+  Promise<{
+    asset: {
+      symbol: string;
+      market: Market;
+      venue: string;
+      base: string | null;
+      quote: string | null;
+    } | null;
+    rows: PublicOhlcvRow[];
+  }>
+>();
 const DEFAULT_PUBLIC_US_SYMBOLS = [
   'SPY',
   'QQQ',
@@ -1537,51 +1570,73 @@ export async function queryPublicOhlcv(args: {
   const market = args.market;
   const timeframe = args.timeframe;
   const limit = Math.max(2, Math.min(Number(args.limit || 120), 500));
-  const local = queryLocalOhlcv({ market, symbol, timeframe, limit });
-  if (local.asset && local.rows.length) {
-    return {
-      asset: {
-        symbol,
-        market,
-        venue:
-          local.asset.venue ||
-          (market === 'CRYPTO' ? 'GATEIO' : knownEtfSymbols.has(symbol) ? 'ETF' : 'US'),
-        base:
-          local.asset.base ??
-          (market === 'CRYPTO' ? parseCryptoLookupSymbol(symbol)?.base || symbol : null),
-        quote:
-          local.asset.quote ??
-          (market === 'CRYPTO' ? parseCryptoLookupSymbol(symbol)?.quote || 'USDT' : 'USD'),
-      },
-      rows: local.rows,
-    };
+  const cacheKey = `${market}:${symbol}:${timeframe}:${limit}`;
+  const cached = publicOhlcvCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.data;
   }
-  let rows: PublicOhlcvRow[] = [];
-  try {
-    rows =
-      market === 'CRYPTO'
-        ? await fetchGateOhlcv(symbol, timeframe, limit)
-        : timeframe === '1d'
-          ? await fetchUsDailyOhlcv(symbol, limit)
-          : [];
-  } catch {
-    rows = [];
-  }
-  if (!rows.length && market === 'US') {
-    rows = getStaticUsFallbackRows(symbol, limit);
-  }
-  return {
-    asset: rows.length
-      ? {
+  const inflight = publicOhlcvInflight.get(cacheKey);
+  if (inflight) return inflight;
+
+  const request = (async () => {
+    const local = queryLocalOhlcv({ market, symbol, timeframe, limit });
+    if (local.asset && local.rows.length) {
+      return {
+        asset: {
           symbol,
           market,
-          venue: market === 'CRYPTO' ? 'GATEIO' : knownEtfSymbols.has(symbol) ? 'ETF' : 'US',
-          base: market === 'CRYPTO' ? parseCryptoLookupSymbol(symbol)?.base || symbol : null,
-          quote: market === 'CRYPTO' ? parseCryptoLookupSymbol(symbol)?.quote || 'USDT' : 'USD',
-        }
-      : null,
-    rows,
-  };
+          venue:
+            local.asset.venue ||
+            (market === 'CRYPTO' ? 'GATEIO' : knownEtfSymbols.has(symbol) ? 'ETF' : 'US'),
+          base:
+            local.asset.base ??
+            (market === 'CRYPTO' ? parseCryptoLookupSymbol(symbol)?.base || symbol : null),
+          quote:
+            local.asset.quote ??
+            (market === 'CRYPTO' ? parseCryptoLookupSymbol(symbol)?.quote || 'USDT' : 'USD'),
+        },
+        rows: local.rows,
+      };
+    }
+    let rows: PublicOhlcvRow[] = [];
+    try {
+      rows =
+        market === 'CRYPTO'
+          ? await fetchGateOhlcv(symbol, timeframe, limit)
+          : timeframe === '1d'
+            ? await fetchUsDailyOhlcv(symbol, limit)
+            : [];
+    } catch {
+      rows = [];
+    }
+    if (!rows.length && market === 'US') {
+      rows = getStaticUsFallbackRows(symbol, limit);
+    }
+    return {
+      asset: rows.length
+        ? {
+            symbol,
+            market,
+            venue: market === 'CRYPTO' ? 'GATEIO' : knownEtfSymbols.has(symbol) ? 'ETF' : 'US',
+            base: market === 'CRYPTO' ? parseCryptoLookupSymbol(symbol)?.base || symbol : null,
+            quote: market === 'CRYPTO' ? parseCryptoLookupSymbol(symbol)?.quote || 'USDT' : 'USD',
+          }
+        : null,
+      rows,
+    };
+  })()
+    .then((data) => {
+      publicOhlcvCache.set(cacheKey, {
+        expiresAt: Date.now() + PUBLIC_OHLCV_TTL_MS,
+        data,
+      });
+      return data;
+    })
+    .finally(() => {
+      publicOhlcvInflight.delete(cacheKey);
+    });
+  publicOhlcvInflight.set(cacheKey, request);
+  return request;
 }
 
 export async function getPublicBrowseAssetChart(args: {
@@ -2171,7 +2226,7 @@ function readBrowseHomeCache(key: string): BrowseHomePayload | null {
 
 function writeBrowseHomeCache(key: string, data: BrowseHomePayload) {
   browseHomeCache.set(key, {
-    expiresAt: Date.now() + 1000,
+    expiresAt: Date.now() + BROWSE_HOME_CACHE_TTL_MS,
     data,
   });
 }
@@ -2187,7 +2242,8 @@ function readBrowseChartCache(key: string): BrowseChartSnapshot | null | undefin
 }
 
 function writeBrowseChartCache(key: string, data: BrowseChartSnapshot | null) {
-  const ttlMs = data?.sourceStatus === 'LIVE' ? 5_000 : 12_000;
+  const ttlMs =
+    data?.sourceStatus === 'LIVE' ? BROWSE_CHART_LIVE_TTL_MS : BROWSE_CHART_FALLBACK_TTL_MS;
   browseChartCache.set(key, {
     expiresAt: Date.now() + ttlMs,
     data,

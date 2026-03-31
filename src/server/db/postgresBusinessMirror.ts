@@ -137,6 +137,28 @@ function schemaTable(tableName: string) {
   return qualifyPgTable(resolvePostgresBusinessSchema(), tableName);
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+const PG_RETENTION_PRUNE_INTERVAL_MS = Math.max(
+  15 * 60 * 1000,
+  Number(process.env.NOVA_PG_RETENTION_PRUNE_INTERVAL_MS || 6 * 60 * 60 * 1000),
+);
+const NOVA_TASK_RUN_SUCCESS_RETENTION_MS = Math.max(
+  DAY_MS,
+  Number(process.env.NOVA_TASK_RUN_SUCCESS_RETENTION_MS || 14 * DAY_MS),
+);
+const NOVA_TASK_RUN_FAILURE_RETENTION_MS = Math.max(
+  60 * 60 * 1000,
+  Number(process.env.NOVA_TASK_RUN_FAILURE_RETENTION_MS || 3 * DAY_MS),
+);
+let lastNovaTaskRunPruneAtMs = 0;
+
+function shouldPersistNovaTaskRun(row: NovaTaskRunRecord) {
+  return !(
+    row.task_type === 'daily_wrap_up_generation' &&
+    (row.status === 'FAILED' || row.status === 'SKIPPED')
+  );
+}
+
 class PostgresBusinessWriteMirror {
   private readonly pool = getMirrorPool();
   private tail: Promise<void> = Promise.resolve();
@@ -173,6 +195,26 @@ class PostgresBusinessWriteMirror {
 
   getLastError() {
     return this.lastError;
+  }
+
+  private async maybePruneNovaTaskRuns() {
+    const now = Date.now();
+    if (now - lastNovaTaskRunPruneAtMs < PG_RETENTION_PRUNE_INTERVAL_MS) return;
+    lastNovaTaskRunPruneAtMs = now;
+    try {
+      await this.pool.query(
+        `
+          DELETE FROM ${schemaTable('nova_task_runs')}
+          WHERE (status IN ('FAILED', 'SKIPPED') AND created_at_ms < $1)
+             OR created_at_ms < $2
+        `,
+        [now - NOVA_TASK_RUN_FAILURE_RETENTION_MS, now - NOVA_TASK_RUN_SUCCESS_RETENTION_MS],
+      );
+    } catch (error) {
+      console.warn('[pg-mirror] nova_task_runs prune failed', {
+        error: String((error as Error)?.message || error || 'unknown_error'),
+      });
+    }
   }
 
   private async upsertRows<T extends MirrorRow>(args: {
@@ -583,6 +625,8 @@ class PostgresBusinessWriteMirror {
   }
 
   async upsertNovaTaskRuns(rows: NovaTaskRunRecord[]) {
+    const filteredRows = rows.filter(shouldPersistNovaTaskRun);
+    if (!filteredRows.length) return;
     await this.upsertRows({
       table: 'nova_task_runs',
       columns: [
@@ -604,9 +648,10 @@ class PostgresBusinessWriteMirror {
         'created_at_ms',
         'updated_at_ms',
       ],
-      rows,
+      rows: filteredRows,
       conflictColumns: ['id'],
     });
+    await this.maybePruneNovaTaskRuns();
   }
 
   async upsertMarketStates(rows: MarketStateRecord[]) {

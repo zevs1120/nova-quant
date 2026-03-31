@@ -6,6 +6,7 @@ import { FORCE_DEMO_BUILD } from '../demo/runtime';
 
 const APP_DATA_CACHE_TTL_MS = 90_000;
 const APP_DATA_CACHE_PREFIX = 'nova-app-data-cache:v2';
+const APP_DATA_REFRESH_MS = 300_000;
 const appDataMemoryCache = new Map();
 
 function buildAppDataCacheKey({ userId, market, assetClass }) {
@@ -357,12 +358,25 @@ export function useAppData({
     } else {
       void load();
     }
-    const refresh = setInterval(() => load({ silent: true }), 120000);
+    const handleVisibilityChange = () => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+      void load({ silent: true });
+    };
+    const refresh = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+      void load({ silent: true });
+    }, APP_DATA_REFRESH_MS);
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+    }
 
     return () => {
       mounted = false;
       activeLoadId += 1;
       clearInterval(refresh);
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      }
     };
   }, [assetClass, market, effectiveUserId, refreshNonce, authSession, fetchJson]);
 
