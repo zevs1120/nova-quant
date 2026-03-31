@@ -562,15 +562,36 @@ async function getOrCreateSupabaseBackedUser(user: VerifiedSupabaseAuthUser) {
     await remoteSetJson(remoteUserStateKey(nextUser.user_id), state);
   } else {
     const db = requireLocalSqliteAuthStore();
+    // INSERT OR IGNORE prevents a UNIQUE constraint error when two concurrent
+    // Supabase token verifications race to create the same user (same email).
+    // If the row already exists the INSERT is silently skipped and we fall
+    // through to re-read the winner's row below.
+    const insertResult = db
+      .prepare(
+        `INSERT OR IGNORE INTO auth_users(
+          user_id, email, password_hash, name, trade_mode, broker, locale, created_at_ms, updated_at_ms, last_login_at_ms
+        ) VALUES (
+          @user_id, @email, @password_hash, @name, @trade_mode, @broker, @locale, @created_at_ms, @updated_at_ms, @last_login_at_ms
+        )`,
+      )
+      .run(nextUser);
+
+    if (insertResult.changes === 0) {
+      // A concurrent request already inserted the user — re-use their record.
+      const winner = await getUserByEmail(email);
+      if (winner) {
+        await syncConfiguredAdminRole(winner);
+        return {
+          user: winner,
+          state: await getAuthUserState(winner.user_id),
+        };
+      }
+      // Extremely unlikely: INSERT was skipped but row is gone — retry once.
+      return getOrCreateSupabaseBackedUser(user);
+    }
+
     db.prepare(
-      `INSERT INTO auth_users(
-        user_id, email, password_hash, name, trade_mode, broker, locale, created_at_ms, updated_at_ms, last_login_at_ms
-      ) VALUES (
-        @user_id, @email, @password_hash, @name, @trade_mode, @broker, @locale, @created_at_ms, @updated_at_ms, @last_login_at_ms
-      )`,
-    ).run(nextUser);
-    db.prepare(
-      `INSERT INTO auth_user_state_sync(
+      `INSERT OR IGNORE INTO auth_user_state_sync(
         user_id, asset_class, market, ui_mode, risk_profile_key, watchlist_json, holdings_json, executions_json, discipline_log_json, updated_at_ms
       ) VALUES (
         @user_id, @asset_class, @market, @ui_mode, @risk_profile_key, @watchlist_json, @holdings_json, @executions_json, @discipline_log_json, @updated_at_ms

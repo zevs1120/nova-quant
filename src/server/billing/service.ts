@@ -1489,7 +1489,11 @@ function normalizeStripeInterval(value: unknown): BillingCycle {
     .toLowerCase();
   if (normalized === 'year') return 'annual';
   if (normalized === 'month') return 'monthly';
-  return 'weekly';
+  // Stripe uses 'week' (not 'weekly') as the interval value for weekly plans.
+  if (normalized === 'week') return 'weekly';
+  // Unknown intervals (e.g. 'day', empty string) fall back to 'monthly' — safer
+  // than 'weekly' because it avoids misclassifying higher-value subscriptions.
+  return 'monthly';
 }
 
 function normalizeStripeSubscriptionStatus(value: unknown): BillingSubscriptionStatus {
@@ -1569,9 +1573,12 @@ function handleStripeSubscriptionEvent(object: Record<string, unknown>) {
     metadata.billing_cycle || normalizeStripeInterval(recurring.interval),
   );
   const planKey = normalizeBillingPlan(
-    metadata.plan_key ||
-      existing?.plan_key ||
-      (amountCents >= getMembershipPriceCents('pro', 'weekly') ? 'pro' : 'lite'),
+    // Priority 1: explicit plan_key in Stripe subscription metadata (set at checkout time)
+    // Priority 2: existing local subscription record's plan_key (handles upgrades/renewals)
+    // Priority 3: never infer from amountCents alone — prices vary by cycle and region,
+    //             so a monthly Pro price can be lower than a weekly Lite price.
+    //             Fall back to 'lite' as the safer default rather than misgranting Pro access.
+    metadata.plan_key || existing?.plan_key || 'lite',
   );
   const status = normalizeStripeSubscriptionStatus(object.status);
   const startedAt = stripeTimestampToMs(object.start_date || object.created) || nowMs();
@@ -1668,7 +1675,7 @@ export function processBillingWebhook(args: {
   if (providerConfig.mode !== 'stripe' || !providerConfig.stripeWebhookSecret) {
     return { ok: false, error: 'BILLING_PROVIDER_NOT_CONFIGURED' };
   }
-  let event;
+  let event: ReturnType<typeof verifyStripeWebhookEvent>;
   try {
     event = verifyStripeWebhookEvent(
       args.rawBody,

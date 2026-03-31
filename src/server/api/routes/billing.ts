@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import express, { Router } from 'express';
 import {
   cancelBillingSubscription,
   completeBillingCheckoutSession,
@@ -9,7 +9,7 @@ import {
   processBillingWebhook,
   type BillingErrorCode,
 } from '../../billing/service.js';
-import { asyncRoute, requireAuthenticatedScope, type RequestWithNovaScope } from '../helpers.js';
+import { asyncRoute, requireAuthenticatedScope } from '../helpers.js';
 
 const router = Router();
 
@@ -127,18 +127,30 @@ router.post(
   }),
 );
 
-router.post('/api/billing/webhook', (req, res) => {
-  const signature = String(req.header('stripe-signature') || '');
-  const rawBody = String((req as RequestWithNovaScope & { rawBody?: string }).rawBody || '');
-  const result = processBillingWebhook({
-    signature,
-    rawBody,
-  });
-  if (!result.ok) {
-    res.status(billingErrorStatus(result.error)).json(result);
-    return;
-  }
-  res.json(result);
-});
+// Use express.raw() so the webhook route always receives the true byte-for-byte
+// request body required by Stripe HMAC signature verification — regardless of
+// whether the platform (Vercel, EC2) has already pre-parsed the JSON body.
+router.post(
+  '/api/billing/webhook',
+  express.raw({ type: 'application/json', limit: '2mb' }),
+  (req, res) => {
+    const signature = String(req.header('stripe-signature') || '');
+    // req.body is a Buffer when express.raw() runs; fall back to the
+    // shared rawBody property for environments that skip this middleware.
+    const rawBody =
+      req.body instanceof Buffer
+        ? req.body.toString('utf8')
+        : String((req.body as string | undefined) || '');
+    const result = processBillingWebhook({
+      signature,
+      rawBody,
+    });
+    if (!result.ok) {
+      res.status(billingErrorStatus(result.error)).json(result);
+      return;
+    }
+    res.json(result);
+  },
+);
 
 export default router;

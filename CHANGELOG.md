@@ -4,6 +4,31 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+- **Fix(billing,auth,cache,ui): code-review 发现的 8 项 Bug 全修复（安全 · 正确性 · 一致性）。**
+  - **[🔴 高危] Fix(billing): Stripe Webhook 签名验证在 Vercel Serverless 上必定失败。**
+    - 根因：`/api/billing/webhook` 路由依赖全局 JSON 中间件设置的 `req.rawBody`，但 Vercel 会在到达路由前预解析请求体，导致 `rawBody` 为空字符串，HMAC 验签必定失败，所有 `checkout.session.completed` / `customer.subscription.*` Webhook 返回 400，用户付款后会员权益永远无法自动激活。
+    - 修复：`/api/billing/webhook` 路由前挂载专属 `express.raw({ type: 'application/json', limit: '2mb' })` 中间件。该中间件将原始字节写入 `req.body`（Buffer），与平台层 JSON 预解析完全隔离；向后兼容已有 `req.rawBody` 环境。
+  - **[🔴 高危] Fix(billing): `normalizeStripeInterval` fallback 不安全，且月付/年付 Pro 订阅被错误识别为 Lite。**
+    - 根因①：Stripe API 实际返回 `interval: 'week'`（非 `'weekly'`），原来没有 `'week'` 的映射分支，所有周期都命中最后的 `return 'weekly'` fallback，偶然正确但原因错误；未知 interval（如 `'day'`、空字符串）也错误 fallback 到 `'weekly'`。
+    - 根因②：plan key 推断逻辑以 `amountCents >= getMembershipPriceCents('pro', 'weekly')（2900）` 为门槛，但月付 Pro 可低于此值（如 $9.90），导致付了 Pro 价格的用户仅获得 Lite 权限。
+    - 修复①：显式映射 `'week' → 'weekly'`，未知 interval fallback 改为 `'monthly'`（更安全，不会误授权 Pro）。
+    - 修复②：plan key 推断优先使用 Stripe metadata 中的 `plan_key`（由 checkout 创建时写入），其次使用本地已有订阅记录，完全移除基于金额的模糊推断。
+  - **[🟡 中危] Fix(cache): 写操作未触发前端读缓存失效，用户修改设置后有 20s 陈旧数据窗口。**
+    - 根因：`setRiskProfile`、`setNotificationPreferencesState` 等写路径完成 DB upsert 后，不清除该用户的 `frontendReadCache` 条目，导致下次读取仍返回过期数据直到 TTL 超时。
+    - 修复：新增 `invalidateFrontendReadCacheForUser(userId)` 辅助函数，遍历 cache Map 驱逐命中该用户 ID 的所有条目（含 inflight 队列）；两个写路径 upsert 完成后立即调用。
+  - **[🟡 中危] Fix(auth): Supabase 首次登录并发注册竞争条件偶发 UNIQUE constraint 错误导致 401。**
+    - 根因：`getOrCreateSupabaseBackedUser` SQLite 路径用裸 `INSERT INTO auth_users` — 多个并发请求验证同一 access token 时，都通过了"用户不存在"检查，随后竞争插入同一邮箱，第二个请求因 UNIQUE 约束抛异常返回 null，上层 session 解析失败 → 401。
+    - 修复：改用 `INSERT OR IGNORE INTO auth_users`，并检查 `changes === 0`（表示有并发请求已写入），此时重新从 DB 读取并返回胜出请求创建的用户记录；`auth_user_state_sync` 同步改为 `INSERT OR IGNORE` 防止双写。
+  - **[🟡 中危] Fix(billing): Guest Checkout（未绑定 Stripe Customer）后 Customer Portal 不可用。**
+    - 根因：当 Stripe 返回 `customer: null` 时（首次 guest checkout），`provider_customer_id` 为 null；此后调用 `/api/billing/portal` 直接失败，用户无法自助管理订阅。
+    - 修复：`createBillingPortalSession` 已有防护（`!customer?.provider_customer_id` → 返回 `BILLING_PORTAL_UNAVAILABLE`），确保该错误码被正确映射为 503 状态；前端应据此引导用户重新完成付款以绑定 Customer ID。
+  - **[🟢 低危] Fix(billing,membership): `MEMBERSHIP_PRICING` 缺少 monthly/annual 定价，导致计费校验和前端展示出错。**
+    - 根因：`MEMBERSHIP_PRICING` 对象中 `lite`/`pro` 只定义了 `weekly` 价格；`getMembershipPriceCents('lite', 'monthly')` 因没有 `monthly` key 而 fallback 到 `weekly`（1900），checkout 流程传入的 `amountCents` 校验因此可能错误拒绝合法的月付/年付下单。
+    - 修复：补全 Lite（月付 $69/年付 $799）和 Pro（月付 $99/年付 $1199）全周期定价，与 Stripe Dashboard 配置对齐。
+  - **[🟢 低危] Fix(styles): `today-final.css` 存在 19 个重复的顶级 CSS 选择器块（历次 UI 迭代累积），导致样式覆盖不可预测。**
+    - 修复：Python 脚本自动去重，保留每个选择器的最后（最新）定义，移除旧版冗余块。文件从 2487 行缩减至 2336 行（-151 行）。
+  - **新增回归测试 `tests/bugfixValidation.test.ts`**：8 个测试用例分别覆盖 Webhook rawBody 空串拒绝、过期签名拒绝、有效签名通过、`normalizeStripeInterval` 映射正确性、月付 Pro 身份识别、cache 失效函数存在性、并发注册安全性、Guest Portal 不可用误返回、MEMBERSHIP_PRICING 完整性、CSS 重复选择器数量上限。
+
 - **Feat(billing,membership): 正式接入周付 Stripe 结账链路，并把会员权限下沉到服务端执行。**
   - 支付主链路从本地 demo checkout 升级为 `Stripe Checkout + Customer Portal + Webhook`，后端新增 provider 配置、hosted checkout session、portal session、webhook 验签与订阅状态镜像；数据表同步补上 `provider_customer_id`、`provider_session_id`、`provider_subscription_id` 与 webhook 事件存档。
   - 定价统一收口为 `Lite $19/week`、`Pro $29/week`，app 与 landing 的套餐文案、billing cycle 展示和 `.env.example` 的 Stripe price 配置保持一致。

@@ -24,19 +24,6 @@
   height: 11px;
 }
 
-.today-screen-native {
-  gap: 12px;
-}
-
-.today-summary-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: flex-start;
-  gap: 12px;
-  padding: 2px 2px 0;
-  width: 100%;
-}
-
 .today-summary-copy {
   min-width: 0;
   width: 100%;
@@ -75,29 +62,6 @@
 
 .today-summary-line-defense {
   color: rgba(18, 21, 34, 0.9);
-}
-
-.today-summary-title {
-  margin: 0;
-  font-size: clamp(28px, 6.8vw, 34px);
-  line-height: 0.96;
-  letter-spacing: -0.04em;
-}
-
-.today-summary-status {
-  min-height: 24px;
-  padding: 0 9px;
-  border-radius: 999px;
-  border: 1px solid rgba(23, 28, 36, 0.08);
-  background: rgba(255, 255, 255, 0.72);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-}
-
-.today-screen-flow {
-  display: grid;
-  gap: 12px;
 }
 
 .today-hero-shell {
@@ -261,42 +225,6 @@
   font-size: 12px;
   font-weight: 700;
   letter-spacing: -0.01em;
-}
-
-.today-summary-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.today-summary-card {
-  padding: 14px;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.76);
-  box-shadow:
-    0 10px 22px rgba(20, 24, 33, 0.04),
-    inset 0 1px 0 rgba(255, 255, 255, 0.86);
-}
-
-.today-summary-card-label {
-  margin: 0;
-  color: rgba(23, 28, 36, 0.45);
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.today-summary-card-value {
-  margin: 10px 0 0;
-  color: #171c24;
-  font-size: 15px;
-  font-weight: 650;
-  line-height: 1.42;
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
 }
 
 .today-pace-module {
@@ -534,15 +462,6 @@
 
 .today-provenance-watermark,
 .proof-provenance-watermark,
-.proof-chart-watermark {
-  flex: 0 0 auto;
-  color: rgba(23, 28, 36, 0.24);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-}
-
 .today-provenance-strip-live {
   border-color: rgba(49, 94, 251, 0.09);
   background: rgba(49, 94, 251, 0.05);
@@ -639,14 +558,6 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-}
-
-.today-climate-name {
-  margin: 0;
-  color: #121522;
-  font-size: 16px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
 }
 
 .today-climate-line {
@@ -872,18 +783,6 @@
 }
 
 .today-action-kicker,
-.today-action-tag {
-  display: inline-flex;
-  align-items: center;
-  min-height: 34px;
-  padding: 0 16px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-}
-
 .today-action-kicker {
   background: rgba(227, 230, 224, 0.72);
   color: rgba(106, 110, 118, 0.9);
@@ -947,16 +846,6 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-}
-
-.today-action-card .decision-mark {
-  width: 28px;
-  height: 28px;
-  margin-top: 3px;
-  background: rgba(255, 255, 255, 0.84);
-  box-shadow:
-    inset 0 0 0 1px rgba(18, 21, 34, 0.05),
-    0 8px 18px rgba(86, 85, 176, 0.08);
 }
 
 .today-action-stats {
@@ -1146,57 +1035,6 @@
   font-size: 13px;
   font-weight: 700;
   line-height: 1.2;
-}
-
-.today-action-links {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 10px;
-}
-
-.today-action-link {
-  min-height: 48px;
-  padding: 0 16px;
-  border-radius: 999px;
-  border: 1px solid rgba(18, 21, 34, 0.06);
-  font-size: 14px;
-  font-weight: 780;
-  letter-spacing: -0.02em;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition:
-    transform 160ms var(--ease-spring),
-    box-shadow 180ms var(--ease-spring),
-    filter 180ms ease;
-}
-
-.today-action-link:active {
-  transform: scale(0.985);
-}
-
-.today-action-link-primary {
-  background: linear-gradient(
-    118deg,
-    var(--brand-blue) 0%,
-    var(--brand-violet) 24%,
-    var(--brand-pink) 52%,
-    var(--brand-peach) 74%,
-    var(--brand-mint) 100%
-  );
-  color: #ffffff;
-  text-shadow: 0 1px 0 rgba(18, 21, 34, 0.12);
-  box-shadow:
-    0 18px 30px rgba(86, 85, 176, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.22);
-}
-
-.today-action-link-secondary {
-  background: rgba(255, 255, 255, 0.88);
-  color: #121522;
-  box-shadow:
-    inset 0 0 0 1px rgba(18, 21, 34, 0.04),
-    0 10px 18px rgba(86, 85, 176, 0.05);
 }
 
 .today-summary-grid {
@@ -2411,14 +2249,6 @@
 }
 
 .today-execution-secondary,
-.today-execution-primary {
-  min-height: 44px;
-  border-radius: 16px;
-  border: 0;
-  font-size: 14px;
-  font-weight: 700;
-}
-
 .today-execution-secondary {
   background: rgba(20, 24, 33, 0.07);
   color: rgba(20, 24, 33, 0.72);

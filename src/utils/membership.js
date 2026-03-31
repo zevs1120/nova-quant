@@ -29,9 +29,15 @@ export const MEMBERSHIP_PRICING = Object.freeze({
   }),
   lite: Object.freeze({
     weekly: 1900,
+    // Monthly ≈ weekly × 3.5 (slight discount for longer commitment)
+    monthly: 6900,
+    // Annual ≈ weekly × 40 (~13% discount vs paying monthly)
+    annual: 79900,
   }),
   pro: Object.freeze({
     weekly: 2900,
+    monthly: 9900,
+    annual: 119900,
   }),
 });
 

@@ -532,6 +532,24 @@ export function __resetFrontendReadCacheForTesting() {
   frontendReadInflight.clear();
 }
 
+/**
+ * Evict all cached frontend-read entries that are scoped to a specific user.
+ * Must be called after any write operation that alters per-user data so that
+ * the next read reflects the update without waiting for the TTL to expire.
+ */
+export function invalidateFrontendReadCacheForUser(userId: string) {
+  if (!userId) return;
+  // Cache keys are built as `scope:JSON({...userId...})` — evict any entry
+  // that contains the user's id string to cover all scope variants.
+  const userMarker = JSON.stringify(userId);
+  for (const key of frontendReadCache.keys()) {
+    if (key.includes(userMarker)) {
+      frontendReadCache.delete(key);
+      frontendReadInflight.delete(key);
+    }
+  }
+}
+
 export function __resetControlPlaneStatusCacheForTesting() {
   controlPlaneStatusCache.clear();
   controlPlaneStatusInflight.clear();
@@ -3334,6 +3352,9 @@ export function setRiskProfile(
     leverage_cap: preset.leverage_cap,
     updated_at_ms: Date.now(),
   });
+  // Invalidate per-user caches so the next read reflects the updated risk profile
+  // instead of serving stale data for the remainder of the TTL window.
+  invalidateFrontendReadCacheForUser(userId);
   return repo.getUserRiskProfile(userId);
 }
 
@@ -4854,6 +4875,9 @@ export function setNotificationPreferencesState(args: {
     updated_at_ms: Date.now(),
   };
   repo.upsertUserNotificationPreferences(next);
+  // Evict cached notification-preferences reads for this user so that the
+  // updated preferences are visible on the very next request.
+  invalidateFrontendReadCacheForUser(userId);
   return next;
 }
 
