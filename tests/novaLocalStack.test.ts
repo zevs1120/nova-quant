@@ -3,6 +3,9 @@ import request from 'supertest';
 import { createApiApp } from '../src/server/api/app.js';
 import { MARVIX_MODEL_ALIASES } from '../src/server/ai/llmOps.js';
 import { resolveBusinessTask } from '../src/server/nova/router.js';
+import { resetConfigCache } from '../src/server/config.js';
+import { closeDb } from '../src/server/db/database.js';
+import { resetRuntimeRepoSingleton } from '../src/server/db/runtimeRepository.js';
 
 function readNdjsonText(response: { body?: unknown; text?: string }) {
   const body = String(response.body || response.text || '');
@@ -29,10 +32,23 @@ describe('nova local stack', () => {
     vi.stubEnv('NOVA_AUTH_DRIVER', '');
     vi.stubEnv('SUPABASE_DB_URL', '');
     vi.stubEnv('DATABASE_URL', '');
+    // Prevent the real Supabase PG URL from activating the business mirror,
+    // which can cause FK violations when chat_threads is written to SQLite
+    // but chat_messages tries to reference it via a PG FK path.
+    vi.stubEnv('NOVA_DATA_DATABASE_URL', '');
+    // Reset config AFTER stubs so getConfig() picks up the clean env when
+    // getDb() is first called inside this test.
+    resetConfigCache();
   });
 
   afterEach(() => {
     vi.unstubAllEnvs();
+    // Close the DB and reset all singletons so the next test starts clean.
+    // Note: closeDb()'s internal require()-based reset doesn't work in ESM
+    // vitest contexts, so we call resetRuntimeRepoSingleton() explicitly.
+    resetRuntimeRepoSingleton();
+    closeDb();
+    resetConfigCache();
   });
 
   it('routes local tasks to the expected Nova aliases', () => {
@@ -44,7 +60,7 @@ describe('nova local stack', () => {
 
   it('records assistant runs and exports MLX-LM training records', async () => {
     const app = createApiApp();
-    const userId = `nova-local-${Date.now()}`;
+    const userId = `guest-nova-local-${Date.now()}`;
 
     const chatRes = await request(app)
       .post('/api/chat')
@@ -113,7 +129,7 @@ describe('nova local stack', () => {
     vi.stubEnv('NOVA_FORCE_LOCAL_GENERATION', '');
 
     const app = createApiApp();
-    const userId = `nova-vercel-${Date.now()}`;
+    const userId = `guest-nova-vercel-${Date.now()}`;
 
     const decisionRes = await request(app)
       .post('/api/decision/today')
@@ -169,7 +185,7 @@ describe('nova local stack', () => {
     const res = await request(app)
       .post('/api/nova/strategy/generate')
       .send({
-        userId: `nova-strategy-${Date.now()}`,
+        userId: `guest-nova-strategy-${Date.now()}`,
         prompt:
           'Generate a conservative crypto swing strategy with trend bias and clear risk notes',
         market: 'CRYPTO',
@@ -190,7 +206,7 @@ describe('nova local stack', () => {
     vi.stubEnv('NOVA_FORCE_LOCAL_GENERATION', '');
 
     const app = createApiApp();
-    const userId = `nova-flywheel-${Date.now()}`;
+    const userId = `guest-nova-flywheel-${Date.now()}`;
 
     const labelSeedRes = await request(app)
       .post('/api/chat')

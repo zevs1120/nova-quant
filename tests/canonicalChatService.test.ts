@@ -1,13 +1,21 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import request from 'supertest';
 import { createApiApp } from '../src/server/api/app.js';
+import { resetConfigCache } from '../src/server/config.js';
+import { closeDb } from '../src/server/db/database.js';
+import { resetRuntimeRepoSingleton } from '../src/server/db/runtimeRepository.js';
 
 function clearProviderEnv() {
-  process.env.GROQ_API_KEY = '';
-  process.env.GEMINI_API_KEY = '';
-  process.env.OPENAI_API_KEY = '';
-  process.env.OLLAMA_BASE_URL = '';
-  process.env.OLLAMA_MODEL = '';
+  vi.stubEnv('GROQ_API_KEY', '');
+  vi.stubEnv('GEMINI_API_KEY', '');
+  vi.stubEnv('OPENAI_API_KEY', '');
+  vi.stubEnv('OLLAMA_BASE_URL', '');
+  vi.stubEnv('OLLAMA_MODEL', '');
+  // Isolate from real NOVA_DATA_DATABASE_URL in .env to prevent PG mirror
+  // activity that can trigger FK violations in chat_threads / chat_messages.
+  vi.stubEnv('NOVA_DATA_DATABASE_URL', '');
+  // Reset config AFTER stubs so getConfig()/getDb() use the clean env.
+  resetConfigCache();
 }
 
 function readNdjsonText(response: { body?: unknown; text?: string }) {
@@ -24,9 +32,18 @@ describe('canonical chat service', () => {
     clearProviderEnv();
   });
 
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    // Note: closeDb()'s internal require()-based reset doesn't work in ESM
+    // vitest contexts, so we call resetRuntimeRepoSingleton() explicitly.
+    resetRuntimeRepoSingleton();
+    closeDb();
+    resetConfigCache();
+  });
+
   it('persists a thread and restores messages through the canonical api', async () => {
     const app = createApiApp();
-    const userId = `chat-user-${Date.now()}`;
+    const userId = `guest-chat-user-${Date.now()}`;
 
     const chatRes = await request(app)
       .post('/api/chat')

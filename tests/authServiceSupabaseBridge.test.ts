@@ -63,6 +63,10 @@ describe('auth service supabase bridge', () => {
     vi.stubEnv('NOVA_AUTH_DRIVER', 'postgres');
     vi.stubEnv('NOVA_AUTH_DATABASE_URL', 'postgres://runtime-host/db');
     vi.stubEnv('NOVA_AUTH_PG_SSL', 'disable');
+    // Stub the data runtime driver to postgres so that canUseLocalSqliteAuthMirror()
+    // returns false and the mocked getDb() is never called by auth mirror code.
+    vi.stubEnv('NOVA_DATA_RUNTIME_DRIVER', 'postgres');
+    vi.stubEnv('NOVA_DATA_DATABASE_URL', 'postgres://runtime-host/db');
     vi.stubEnv('NOVA_DISABLE_TEST_ACCOUNT', '1');
     vi.stubEnv('NOVA_ENABLE_SEEDED_DEMO_USER', '0');
     vi.stubEnv('KV_REST_API_URL', '');
