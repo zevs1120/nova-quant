@@ -4,6 +4,13 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+- **Feat(auth): App 认证主链切到 Supabase Auth，并完成老用户迁移。**
+  - 前端新增 Supabase 浏览器端 client 与运行时 `provider-config` 配置拉取，`login / signup / session / forgot password / recovery` 正式支持标准 Supabase Auth 流程。
+  - 服务端新增 Supabase token 校验与 app 用户映射桥接，`/api/auth/session`、`/api/auth/profile` 和用户作用域中间件现在都能识别 `Bearer access token`。
+  - Postgres 认证层新增 `auth.users` 读写能力，并为迁移窗口补上密码桥接：老账号即使先命中 legacy 密码，也能自动把密码同步回 Supabase Auth。
+  - 新增老用户迁移脚本，将历史 `public.auth_users` 用户写入 Supabase `auth.users / auth.identities`；当前远端已完成 9 个有效账号迁移，跳过 1 个无效邮箱 `test`。
+  - 补充 Supabase Auth 运行时与迁移桥测试，覆盖 `provider-config` 输出以及老账号登录后同步 `auth.users` 的过渡路径。
+
 - **Feat(today): 首页 Today 主舞台继续向 landing 参考卡精修，并收成真正的一屏布局。**
   - 移除底部 `queue / more` 提示与任何背卡叠放，Today 首页现在只保留 `climate + 主卡` 两块，并强制在移动端一屏内完成展示。
   - Swipe 手势改为更贴手的即时拖拽更新，卡片拖到半程时可以自然停住，同时保留左右 / 上滑的大号状态标记反馈。

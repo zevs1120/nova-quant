@@ -62,6 +62,18 @@ export type PgAuthUserState = {
   };
 };
 
+export type PgSupabaseAuthUserRow = {
+  auth_user_id: string;
+  email: string;
+  encrypted_password: string;
+  email_confirmed_at_ms: number | null;
+  last_sign_in_at_ms: number | null;
+  created_at_ms: number | null;
+  updated_at_ms: number | null;
+  raw_user_meta_data: Record<string, unknown> | null;
+  raw_app_meta_data: Record<string, unknown> | null;
+};
+
 type PgAuthSessionBundleRow = PgAuthSessionRow &
   PgAuthUserRow & {
     session_created_at_ms: number;
@@ -159,6 +171,12 @@ function toNumber(value: unknown, fallback = 0) {
 function asNullableString(value: unknown) {
   if (value === null || value === undefined || value === '') return null;
   return String(value);
+}
+
+function toTimestampMs(value: unknown) {
+  if (value === null || value === undefined || value === '') return null;
+  const timestamp = Date.parse(String(value));
+  return Number.isFinite(timestamp) ? timestamp : null;
 }
 
 function parseJsonValue<T>(value: unknown, fallback: T): T {
@@ -319,6 +337,26 @@ function mapStateRow(row: Record<string, unknown> | null | undefined): PgAuthUse
   };
 }
 
+function mapSupabaseAuthUserRow(row: Record<string, unknown>): PgSupabaseAuthUserRow {
+  return {
+    auth_user_id: String(row.id || ''),
+    email: String(row.email || ''),
+    encrypted_password: String(row.encrypted_password || ''),
+    email_confirmed_at_ms: toTimestampMs(row.email_confirmed_at),
+    last_sign_in_at_ms: toTimestampMs(row.last_sign_in_at),
+    created_at_ms: toTimestampMs(row.created_at),
+    updated_at_ms: toTimestampMs(row.updated_at),
+    raw_user_meta_data:
+      row.raw_user_meta_data && typeof row.raw_user_meta_data === 'object'
+        ? (row.raw_user_meta_data as Record<string, unknown>)
+        : null,
+    raw_app_meta_data:
+      row.raw_app_meta_data && typeof row.raw_app_meta_data === 'object'
+        ? (row.raw_app_meta_data as Record<string, unknown>)
+        : null,
+  };
+}
+
 function parseRoleList(value: unknown): PgAuthRole[] {
   let rawItems: unknown[] = [];
   if (Array.isArray(value)) {
@@ -372,6 +410,200 @@ export async function pgGetUserById(userId: string) {
     [userId],
   );
   return result.rows[0] ? mapUserRow(result.rows[0]) : null;
+}
+
+export async function pgGetSupabaseAuthUserByEmail(email: string) {
+  await ensurePostgresAuthSchema();
+  const pool = getAuthPool();
+  const result = await pool.query(
+    `SELECT
+       id,
+       email,
+       encrypted_password,
+       email_confirmed_at,
+       last_sign_in_at,
+       created_at,
+       updated_at,
+       raw_user_meta_data,
+       raw_app_meta_data
+     FROM auth.users
+     WHERE lower(email) = lower($1::text)
+       AND deleted_at IS NULL
+     LIMIT 1`,
+    [email],
+  );
+  return result.rows[0] ? mapSupabaseAuthUserRow(result.rows[0]) : null;
+}
+
+export async function pgVerifySupabaseAuthPassword(email: string, password: string) {
+  await ensurePostgresAuthSchema();
+  const pool = getAuthPool();
+  const result = await pool.query(
+    `SELECT
+       id,
+       email,
+       encrypted_password,
+       email_confirmed_at,
+       last_sign_in_at,
+       created_at,
+       updated_at,
+       raw_user_meta_data,
+       raw_app_meta_data
+     FROM auth.users
+     WHERE lower(email) = lower($1::text)
+       AND deleted_at IS NULL
+       AND encrypted_password IS NOT NULL
+       AND encrypted_password <> ''
+       AND encrypted_password = crypt($2::text, encrypted_password)
+     LIMIT 1`,
+    [email, password],
+  );
+  return result.rows[0] ? mapSupabaseAuthUserRow(result.rows[0]) : null;
+}
+
+export async function pgInsertSupabaseAuthUser(args: {
+  email: string;
+  password: string;
+  name: string;
+  tradeMode: PgAuthTradeMode;
+  broker: string;
+  locale?: string | null;
+  legacyUserId?: string | null;
+  createdAtMs?: number | null;
+  updatedAtMs?: number | null;
+  lastSignInAtMs?: number | null;
+  emailConfirmedAtMs?: number | null;
+}) {
+  await ensurePostgresAuthSchema();
+  const pool = getAuthPool();
+  const result = await pool.query(
+    `WITH new_user AS (
+       INSERT INTO auth.users (
+         id,
+         aud,
+         role,
+         email,
+         encrypted_password,
+         email_confirmed_at,
+         last_sign_in_at,
+         raw_app_meta_data,
+         raw_user_meta_data,
+         created_at,
+         updated_at,
+         is_sso_user,
+         is_anonymous
+       ) VALUES (
+         gen_random_uuid(),
+         'authenticated',
+         'authenticated',
+         $1::text,
+         crypt($2::text, gen_salt('bf')),
+         CASE
+           WHEN $8::bigint IS NULL THEN now()
+           ELSE to_timestamp($8::double precision / 1000.0)
+         END,
+         CASE
+           WHEN $7::bigint IS NULL THEN NULL
+           ELSE to_timestamp($7::double precision / 1000.0)
+         END,
+         jsonb_build_object('provider', 'email', 'providers', jsonb_build_array('email')),
+         jsonb_build_object(
+           'name', $3::text,
+           'tradeMode', $4::text,
+           'broker', $5::text,
+           'locale', $6::text,
+           'legacyUserId', $9::text
+         ),
+         CASE
+           WHEN $10::bigint IS NULL THEN now()
+           ELSE to_timestamp($10::double precision / 1000.0)
+         END,
+         CASE
+           WHEN $11::bigint IS NULL THEN now()
+           ELSE to_timestamp($11::double precision / 1000.0)
+         END,
+         false,
+         false
+       )
+       RETURNING id, email
+     )
+     INSERT INTO auth.identities (
+       user_id,
+       identity_data,
+       provider,
+       provider_id,
+       last_sign_in_at,
+       created_at,
+       updated_at
+     )
+     SELECT
+       id,
+       jsonb_build_object(
+         'sub', id::text,
+         'email', email,
+         'email_verified', true
+       ),
+       'email',
+       email,
+       CASE
+         WHEN $7::bigint IS NULL THEN NULL
+         ELSE to_timestamp($7::double precision / 1000.0)
+       END,
+       CASE
+         WHEN $10::bigint IS NULL THEN now()
+         ELSE to_timestamp($10::double precision / 1000.0)
+       END,
+       CASE
+         WHEN $11::bigint IS NULL THEN now()
+         ELSE to_timestamp($11::double precision / 1000.0)
+       END
+     FROM new_user
+     RETURNING user_id`,
+    [
+      args.email,
+      args.password,
+      args.name,
+      args.tradeMode,
+      args.broker,
+      args.locale || null,
+      args.lastSignInAtMs || null,
+      args.emailConfirmedAtMs || args.lastSignInAtMs || null,
+      args.legacyUserId || null,
+      args.createdAtMs || null,
+      args.updatedAtMs || null,
+    ],
+  );
+  return result.rows[0] ? String(result.rows[0].user_id || '') : null;
+}
+
+export async function pgTouchSupabaseAuthUser(email: string, lastSignInAtMs: number) {
+  await ensurePostgresAuthSchema();
+  const pool = getAuthPool();
+  await pool.query(
+    `UPDATE auth.users
+     SET last_sign_in_at = to_timestamp($2::double precision / 1000.0),
+         updated_at = to_timestamp($2::double precision / 1000.0)
+     WHERE lower(email) = lower($1::text)
+       AND deleted_at IS NULL`,
+    [email, lastSignInAtMs],
+  );
+}
+
+export async function pgUpdateSupabaseAuthPassword(
+  email: string,
+  password: string,
+  updatedAtMs: number,
+) {
+  await ensurePostgresAuthSchema();
+  const pool = getAuthPool();
+  await pool.query(
+    `UPDATE auth.users
+     SET encrypted_password = crypt($2::text, gen_salt('bf')),
+         updated_at = to_timestamp($3::double precision / 1000.0)
+     WHERE lower(email) = lower($1::text)
+       AND deleted_at IS NULL`,
+    [email, password, updatedAtMs],
+  );
 }
 
 export async function pgInsertUserWithState(args: { user: PgAuthUserRow; state: PgAuthUserState }) {

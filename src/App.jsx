@@ -100,6 +100,7 @@ export default function App() {
     userProfile,
     authSession,
     authHydrated,
+    passwordRecoveryMode,
     setAuthSession,
     onboardingDone,
     setOnboardingDone,
@@ -441,8 +442,12 @@ export default function App() {
       setShowOnboarding(false);
       return;
     }
+    if (passwordRecoveryMode) {
+      setShowOnboarding(true);
+      return;
+    }
     setShowOnboarding(!authSession);
-  }, [authHydrated, authSession, setShowOnboarding]);
+  }, [authHydrated, authSession, passwordRecoveryMode, setShowOnboarding]);
 
   // Sync market ↔ assetClass
   useEffect(() => {
@@ -1097,7 +1102,7 @@ export default function App() {
           open={showOnboarding}
           locale={locale}
           profile={userProfile}
-          initialMode={onboardingDone ? 'login' : 'intro'}
+          initialMode={passwordRecoveryMode ? 'recover' : onboardingDone ? 'login' : 'intro'}
           onLogin={handleLogin}
           onRequestReset={handleRequestReset}
           onResetPassword={handleResetPassword}

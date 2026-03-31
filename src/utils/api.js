@@ -1,3 +1,5 @@
+import { getSupabaseAccessToken } from './supabaseAuth';
+
 let cachedApiBase = null;
 
 function trimTrailingSlash(value) {
@@ -62,13 +64,32 @@ function resolveApiUrl(path) {
   return buildApiUrl(path, cachedApiBase ?? runtimeApiBases()[0] ?? '');
 }
 
+async function withAuthHeaders(options = {}) {
+  const headers = new Headers(options.headers || {});
+  if (!headers.has('Authorization')) {
+    try {
+      const accessToken = await getSupabaseAccessToken();
+      if (accessToken) {
+        headers.set('Authorization', `Bearer ${accessToken}`);
+      }
+    } catch {
+      // Best-effort: unauthenticated calls should still proceed.
+    }
+  }
+  return {
+    ...options,
+    headers,
+  };
+}
+
 export async function fetchApi(path, options = {}) {
+  const requestOptions = await withAuthHeaders(options);
   // Fast path: use cached base without computing fallback candidates
   if (cachedApiBase !== null) {
     const url = buildApiUrl(path, cachedApiBase);
     try {
       return await fetch(url, {
-        ...options,
+        ...requestOptions,
         mode: cachedApiBase ? 'cors' : options.mode,
         credentials: options.credentials ?? 'include',
       });
@@ -85,7 +106,7 @@ export async function fetchApi(path, options = {}) {
     const url = buildApiUrl(path, base);
     try {
       const response = await fetch(url, {
-        ...options,
+        ...requestOptions,
         mode: base ? 'cors' : options.mode,
         credentials: options.credentials ?? 'include',
       });

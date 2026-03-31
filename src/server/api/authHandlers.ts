@@ -5,6 +5,7 @@ import {
   getAdminAuthCookieHeader,
   getAdminSession,
   getAuthSession,
+  getAuthSessionFromAccessToken,
   getAuthUserState,
   getAuthCookieHeader,
   loginAdminUser,
@@ -14,6 +15,7 @@ import {
   signupAuthUser,
   upsertAuthUserState,
 } from '../auth/service.js';
+import { readSupabaseBrowserRuntimeConfig } from '../auth/supabase.js';
 
 type BasicRequest = {
   body?: unknown;
@@ -51,6 +53,22 @@ function parseCookies(req: BasicRequest) {
   }, {});
 }
 
+function parseBearerToken(req: BasicRequest) {
+  const header = getHeader(req, 'authorization');
+  const match = String(header || '').match(/^Bearer\s+(.+)$/i);
+  return match?.[1]?.trim() || null;
+}
+
+async function resolveUserSession(req: BasicRequest) {
+  const bearerToken = parseBearerToken(req);
+  if (bearerToken) {
+    const session = await getAuthSessionFromAccessToken(bearerToken);
+    if (session) return session;
+  }
+  const cookies = parseCookies(req);
+  return getAuthSession(cookies.novaquant_session);
+}
+
 function requestIp(req: BasicRequest) {
   return (req.ip || req.socket?.remoteAddress || '').slice(0, 120) || null;
 }
@@ -59,7 +77,8 @@ function sendAuthServiceError(res: BasicResponse, error: unknown) {
   const message = String((error as Error)?.message || error || '');
   if (
     message.includes('REMOTE_AUTH_STORE_NOT_CONFIGURED') ||
-    message.includes('POSTGRES_AUTH_STORE_NOT_CONFIGURED')
+    message.includes('POSTGRES_AUTH_STORE_NOT_CONFIGURED') ||
+    message.includes('SUPABASE_AUTH_NOT_CONFIGURED')
   ) {
     res.status(503).json({ ok: false, error: 'AUTH_STORE_NOT_CONFIGURED' });
     return;
@@ -87,8 +106,7 @@ function sendAuthServiceError(res: BasicResponse, error: unknown) {
 
 export async function handleAuthSession(req: BasicRequest, res: BasicResponse) {
   try {
-    const cookies = parseCookies(req);
-    const session = await getAuthSession(cookies.novaquant_session);
+    const session = await resolveUserSession(req);
     if (!session) {
       res.json({ authenticated: false });
       return;
@@ -98,6 +116,14 @@ export async function handleAuthSession(req: BasicRequest, res: BasicResponse) {
       user: session.user,
       state: session.state,
     });
+  } catch (error) {
+    sendAuthServiceError(res, error);
+  }
+}
+
+export function handleGetAuthProviderConfig(_req: BasicRequest, res: BasicResponse) {
+  try {
+    res.json(readSupabaseBrowserRuntimeConfig());
   } catch (error) {
     sendAuthServiceError(res, error);
   }
@@ -270,8 +296,7 @@ export async function handleResetPassword(req: BasicRequest, res: BasicResponse)
 
 export async function handleGetAuthProfile(req: BasicRequest, res: BasicResponse) {
   try {
-    const cookies = parseCookies(req);
-    const session = await getAuthSession(cookies.novaquant_session);
+    const session = await resolveUserSession(req);
     if (!session) {
       res.status(401).json({ ok: false, error: 'UNAUTHENTICATED' });
       return;
@@ -288,8 +313,7 @@ export async function handleGetAuthProfile(req: BasicRequest, res: BasicResponse
 
 export async function handlePostAuthProfile(req: BasicRequest, res: BasicResponse) {
   try {
-    const cookies = parseCookies(req);
-    const session = await getAuthSession(cookies.novaquant_session);
+    const session = await resolveUserSession(req);
     if (!session) {
       res.status(401).json({ ok: false, error: 'UNAUTHENTICATED' });
       return;

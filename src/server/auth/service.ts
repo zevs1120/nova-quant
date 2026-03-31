@@ -32,22 +32,28 @@ import {
   pgGetAdminSessionBundle,
   pgGetLatestPasswordReset,
   pgGetSessionBundle,
+  pgGetSupabaseAuthUserByEmail,
   pgGetUserByEmail,
   pgGetUserById,
   pgGetUserState,
   pgInsertPasswordReset,
+  pgInsertSupabaseAuthUser,
   pgInsertUserWithState,
   pgInvalidateOpenPasswordResets,
   pgListUserRoles,
   pgMarkPasswordResetUsed,
   pgRevokeSessionByTokenHash,
   pgRevokeUserSessions,
+  pgTouchSupabaseAuthUser,
+  pgUpdateSupabaseAuthPassword,
   pgTouchSession,
   pgUpsertSession,
   pgUpsertUser,
   pgUpsertUserRole,
   pgUpsertUserState,
+  pgVerifySupabaseAuthPassword,
 } from './postgresStore.js';
+import { hasSupabaseAuthProvider, verifySupabaseAccessToken, type VerifiedSupabaseAuthUser } from './supabase.js';
 import { logWarn } from '../utils/log.js';
 
 const SESSION_COOKIE_NAME = 'novaquant_session';
@@ -450,6 +456,153 @@ function mapPublicUser(row: AuthUserRow): PublicAuthUser {
   };
 }
 
+function readSupabaseUserMetadata(user: VerifiedSupabaseAuthUser) {
+  const metadata =
+    user.user_metadata && typeof user.user_metadata === 'object' ? user.user_metadata : {};
+  return metadata as Record<string, unknown>;
+}
+
+function inferSupabaseDisplayName(user: VerifiedSupabaseAuthUser) {
+  const metadata = readSupabaseUserMetadata(user);
+  const candidate =
+    String(metadata.name || metadata.full_name || metadata.display_name || '')
+      .trim() || String(user.email || '').split('@')[0] || 'NovaQuant User';
+  return candidate.slice(0, 120);
+}
+
+function inferSupabaseTradeMode(user: VerifiedSupabaseAuthUser): AuthTradeMode {
+  const metadata = readSupabaseUserMetadata(user);
+  return normalizeTradeMode(
+    String(metadata.tradeMode || metadata.trade_mode || metadata.mode || 'starter'),
+  );
+}
+
+function inferSupabaseBroker(user: VerifiedSupabaseAuthUser) {
+  const metadata = readSupabaseUserMetadata(user);
+  return String(metadata.broker || 'Other').trim() || 'Other';
+}
+
+function inferSupabaseLocale(user: VerifiedSupabaseAuthUser) {
+  const metadata = readSupabaseUserMetadata(user);
+  const candidate = String(metadata.locale || metadata.language || '').trim();
+  return candidate || null;
+}
+
+async function getOrCreateSupabaseBackedUser(user: VerifiedSupabaseAuthUser) {
+  const email = normalizeEmail(user.email || '');
+  if (!email) return null;
+
+  const existing = await getUserByEmail(email);
+  const ts = nowMs();
+
+  if (existing) {
+    const updatedUser: AuthUserRow = {
+      ...existing,
+      email,
+      name: existing.name || inferSupabaseDisplayName(user),
+      updated_at_ms: ts,
+      last_login_at_ms: ts,
+    };
+
+    if (hasPostgresAuthStore()) {
+      await pgUpsertUser(updatedUser);
+      upsertLocalAuthUser(updatedUser);
+    } else if (hasRemoteAuthStore()) {
+      await remoteSetJson(remoteUserKey(updatedUser.user_id), updatedUser);
+    } else {
+      requireLocalSqliteAuthStore()
+        .prepare('UPDATE auth_users SET email = ?, name = ?, updated_at_ms = ?, last_login_at_ms = ? WHERE user_id = ?')
+        .run(email, updatedUser.name, ts, ts, updatedUser.user_id);
+    }
+
+    await syncConfiguredAdminRole(updatedUser);
+    return {
+      user: updatedUser,
+      state: await getAuthUserState(updatedUser.user_id),
+    };
+  }
+
+  const tradeMode = inferSupabaseTradeMode(user);
+  const state = buildInitialUserState(tradeMode);
+  const nextUser: AuthUserRow = {
+    user_id: createId('usr'),
+    email,
+    password_hash: 'supabase-managed',
+    name: inferSupabaseDisplayName(user),
+    trade_mode: tradeMode,
+    broker: inferSupabaseBroker(user),
+    locale: inferSupabaseLocale(user),
+    created_at_ms: ts,
+    updated_at_ms: ts,
+    last_login_at_ms: ts,
+  };
+
+  if (hasPostgresAuthStore()) {
+    await pgInsertUserWithState({
+      user: nextUser,
+      state,
+    });
+    upsertLocalAuthUser(nextUser);
+    upsertLocalAuthUserState(nextUser.user_id, state, ts);
+  } else if (hasRemoteAuthStore()) {
+    const reserved = await remoteSetString(remoteUserIdByEmailKey(email), nextUser.user_id, {
+      nx: true,
+    });
+    if (!reserved) {
+      return getOrCreateSupabaseBackedUser(user);
+    }
+    await remoteSetJson(remoteUserKey(nextUser.user_id), nextUser);
+    await remoteSetJson(remoteUserStateKey(nextUser.user_id), state);
+  } else {
+    const db = requireLocalSqliteAuthStore();
+    db.prepare(
+      `INSERT INTO auth_users(
+        user_id, email, password_hash, name, trade_mode, broker, locale, created_at_ms, updated_at_ms, last_login_at_ms
+      ) VALUES (
+        @user_id, @email, @password_hash, @name, @trade_mode, @broker, @locale, @created_at_ms, @updated_at_ms, @last_login_at_ms
+      )`,
+    ).run(nextUser);
+    db.prepare(
+      `INSERT INTO auth_user_state_sync(
+        user_id, asset_class, market, ui_mode, risk_profile_key, watchlist_json, holdings_json, executions_json, discipline_log_json, updated_at_ms
+      ) VALUES (
+        @user_id, @asset_class, @market, @ui_mode, @risk_profile_key, @watchlist_json, @holdings_json, @executions_json, @discipline_log_json, @updated_at_ms
+      )`,
+    ).run({
+      user_id: nextUser.user_id,
+      asset_class: state.assetClass,
+      market: state.market,
+      ui_mode: state.uiMode,
+      risk_profile_key: state.riskProfileKey,
+      watchlist_json: JSON.stringify(state.watchlist),
+      holdings_json: JSON.stringify(state.holdings),
+      executions_json: JSON.stringify(state.executions),
+      discipline_log_json: JSON.stringify(state.disciplineLog),
+      updated_at_ms: ts,
+    });
+  }
+
+  await syncConfiguredAdminRole(nextUser);
+  return {
+    user: nextUser,
+    state,
+  };
+}
+
+export async function getAuthSessionFromAccessToken(
+  accessToken: string | null | undefined,
+): Promise<{ user: PublicAuthUser; state: AuthUserState } | null> {
+  if (!accessToken || !hasSupabaseAuthProvider()) return null;
+  const verifiedUser = await verifySupabaseAccessToken(accessToken);
+  if (!verifiedUser) return null;
+  const ensured = await getOrCreateSupabaseBackedUser(verifiedUser);
+  if (!ensured) return null;
+  return {
+    user: mapPublicUser(ensured.user),
+    state: ensured.state,
+  };
+}
+
 function shouldTouchSessionActivity(lastSeenAtMs: number | null | undefined, now: number) {
   if (!Number.isFinite(lastSeenAtMs)) return true;
   return now - Number(lastSeenAtMs) >= SESSION_ACTIVITY_TOUCH_INTERVAL_MS;
@@ -732,6 +885,22 @@ async function ensureSeededUserPostgres() {
   for (const seededUser of getSeededUserConfigs()) {
     const existing = await pgGetUserByEmail(seededUser.email);
     if (existing) {
+      const existingSupabaseUser = await pgGetSupabaseAuthUserByEmail(seededUser.email);
+      if (!existingSupabaseUser) {
+        await pgInsertSupabaseAuthUser({
+          email: existing.email,
+          password: seededUser.password,
+          name: existing.name,
+          tradeMode: existing.trade_mode,
+          broker: existing.broker,
+          locale: existing.locale,
+          legacyUserId: existing.user_id,
+          createdAtMs: existing.created_at_ms,
+          updatedAtMs: existing.updated_at_ms,
+          lastSignInAtMs: existing.last_login_at_ms,
+          emailConfirmedAtMs: existing.last_login_at_ms || existing.created_at_ms,
+        });
+      }
       upsertLocalAuthUser(existing);
       const state = await pgGetUserState(existing.user_id);
       upsertLocalAuthUserState(existing.user_id, state, existing.updated_at_ms);
@@ -756,6 +925,19 @@ async function ensureSeededUserPostgres() {
     await pgInsertUserWithState({
       user,
       state,
+    });
+    await pgInsertSupabaseAuthUser({
+      email: user.email,
+      password: seededUser.password,
+      name: user.name,
+      tradeMode: user.trade_mode,
+      broker: user.broker,
+      locale: user.locale,
+      legacyUserId: user.user_id,
+      createdAtMs: user.created_at_ms,
+      updatedAtMs: user.updated_at_ms,
+      lastSignInAtMs: user.last_login_at_ms,
+      emailConfirmedAtMs: user.created_at_ms,
     });
     upsertLocalAuthUser(user);
     upsertLocalAuthUserState(userId, state, ts);
@@ -1238,7 +1420,7 @@ export async function signupAuthUser(args: {
     return { ok: false as const, error: 'WEAK_PASSWORD' };
   }
   if (hasPostgresAuthStore()) {
-    if (await pgGetUserByEmail(email)) {
+    if ((await pgGetUserByEmail(email)) || (await pgGetSupabaseAuthUserByEmail(email))) {
       return { ok: false as const, error: 'EMAIL_EXISTS' };
     }
     const ts = nowMs();
@@ -1259,6 +1441,19 @@ export async function signupAuthUser(args: {
     await pgInsertUserWithState({
       user,
       state,
+    });
+    await pgInsertSupabaseAuthUser({
+      email,
+      password,
+      name: user.name,
+      tradeMode: user.trade_mode,
+      broker: user.broker,
+      locale: user.locale,
+      legacyUserId: user.user_id,
+      createdAtMs: user.created_at_ms,
+      updatedAtMs: user.updated_at_ms,
+      lastSignInAtMs: user.last_login_at_ms,
+      emailConfirmedAtMs: user.created_at_ms,
     });
     upsertLocalAuthUser(user);
     upsertLocalAuthUserState(userId, state, ts);
@@ -1399,8 +1594,31 @@ export async function loginAuthUser(args: {
   ipAddress?: string | null;
 }) {
   await ensureSeededUser();
-  const user = await getUserByEmail(args.email);
-  if (!user || !verifyPassword(String(args.password || ''), user.password_hash)) {
+  const normalizedEmail = normalizeEmail(args.email);
+  const user = await getUserByEmail(normalizedEmail);
+  if (!user) {
+    return { ok: false as const, error: 'INVALID_CREDENTIALS' };
+  }
+  const password = String(args.password || '');
+  let shouldSyncSupabasePassword = false;
+  let shouldCreateSupabaseUser = false;
+  if (hasPostgresAuthStore()) {
+    const supabaseUser = await pgGetSupabaseAuthUserByEmail(normalizedEmail);
+    if (supabaseUser) {
+      const verifiedSupabaseUser = await pgVerifySupabaseAuthPassword(normalizedEmail, password);
+      if (!verifiedSupabaseUser) {
+        if (!verifyPassword(password, user.password_hash)) {
+          return { ok: false as const, error: 'INVALID_CREDENTIALS' };
+        }
+        shouldSyncSupabasePassword = true;
+      }
+    } else {
+      if (!verifyPassword(password, user.password_hash)) {
+        return { ok: false as const, error: 'INVALID_CREDENTIALS' };
+      }
+      shouldCreateSupabaseUser = /\S+@\S+\.\S+/.test(normalizedEmail);
+    }
+  } else if (!verifyPassword(password, user.password_hash)) {
     return { ok: false as const, error: 'INVALID_CREDENTIALS' };
   }
   const ts = nowMs();
@@ -1411,6 +1629,24 @@ export async function loginAuthUser(args: {
   };
 
   if (hasPostgresAuthStore()) {
+    if (shouldCreateSupabaseUser) {
+      await pgInsertSupabaseAuthUser({
+        email: normalizedEmail,
+        password,
+        name: user.name,
+        tradeMode: user.trade_mode,
+        broker: user.broker,
+        locale: user.locale,
+        legacyUserId: user.user_id,
+        createdAtMs: user.created_at_ms,
+        updatedAtMs: ts,
+        lastSignInAtMs: ts,
+        emailConfirmedAtMs: user.last_login_at_ms || user.created_at_ms,
+      });
+    } else if (shouldSyncSupabasePassword) {
+      await pgUpdateSupabaseAuthPassword(normalizedEmail, password, ts);
+    }
+    await pgTouchSupabaseAuthUser(normalizedEmail, ts).catch(() => {});
     await pgUpsertUser(updatedUser);
     upsertLocalAuthUser(updatedUser);
   } else if (hasRemoteAuthStore()) {
@@ -1692,6 +1928,24 @@ export async function resetPasswordWithCode(args: {
       row.code_hash !== hashResetCode(args.code)
     ) {
       return { ok: false as const, error: 'INVALID_RESET' };
+    }
+    const supabaseUser = await pgGetSupabaseAuthUserByEmail(email);
+    if (supabaseUser) {
+      await pgUpdateSupabaseAuthPassword(email, args.newPassword, ts);
+    } else {
+      await pgInsertSupabaseAuthUser({
+        email,
+        password: args.newPassword,
+        name: user.name,
+        tradeMode: user.trade_mode,
+        broker: user.broker,
+        locale: user.locale,
+        legacyUserId: user.user_id,
+        createdAtMs: user.created_at_ms,
+        updatedAtMs: ts,
+        lastSignInAtMs: user.last_login_at_ms,
+        emailConfirmedAtMs: user.last_login_at_ms || user.created_at_ms,
+      });
     }
     const updatedUser: AuthUserRow = {
       ...user,

@@ -1,5 +1,6 @@
 import express from 'express';
-import { getAuthSession } from '../auth/service.js';
+import { getAuthSession, getAuthSessionFromAccessToken } from '../auth/service.js';
+import { readSupabaseBrowserRuntimeConfig } from '../auth/supabase.js';
 import { ensureDefaultPublicSignalsApiKey, getPrivateMarvixOps } from './queries.js';
 import { isLoopbackAddress } from '../ops/privateMarvixOps.js';
 import {
@@ -59,6 +60,7 @@ export function createApiApp() {
   );
   const firstPartyOrigins = new Set([...appAllowedOrigins, ...adminAllowedOrigins]);
   const crossOriginReadPaths = new Set([
+    '/api/auth/provider-config',
     '/api/auth/session',
     '/api/manual/state',
     '/api/assets',
@@ -168,7 +170,12 @@ export function createApiApp() {
 
       try {
         const cookies = parseCookiesFromHeader(req.header('cookie') || '');
-        const session = await getAuthSession(cookies.novaquant_session);
+        const authorization = String(req.header('authorization') || '');
+        const bearerMatch = authorization.match(/^Bearer\s+(.+)$/i);
+        const bearerToken = bearerMatch?.[1]?.trim() || null;
+        const session =
+          (bearerToken ? await getAuthSessionFromAccessToken(bearerToken) : null) ||
+          (await getAuthSession(cookies.novaquant_session));
         const requestedUserId = readRequestedUserId(req);
 
         if (session) {
@@ -213,6 +220,9 @@ export function createApiApp() {
   // ---------------------------------------------------------------------------
   app.get('/healthz', (_req, res) => {
     res.json({ ok: true, ts: Date.now() });
+  });
+  app.get('/api/auth/provider-config', (_req, res) => {
+    res.json(readSupabaseBrowserRuntimeConfig());
   });
 
   const requireLoopbackOnly = (

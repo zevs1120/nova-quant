@@ -61,6 +61,7 @@
     "prepare": "husky"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.101.0",
     "better-sqlite3": "^12.6.2",
     "chart.js": "^4.4.2",
     "csv-parse": "^6.1.0",

@@ -136,7 +136,10 @@ export function getRequestScope(req: express.Request) {
 
 export function sendUserScopeAuthError(res: express.Response, error: unknown) {
   const message = String((error as Error)?.message || error || '');
-  if (message.includes('REMOTE_AUTH_STORE_NOT_CONFIGURED')) {
+  if (
+    message.includes('REMOTE_AUTH_STORE_NOT_CONFIGURED') ||
+    message.includes('SUPABASE_AUTH_NOT_CONFIGURED')
+  ) {
     res.status(503).json({ error: 'AUTH_STORE_NOT_CONFIGURED' });
     return;
   }

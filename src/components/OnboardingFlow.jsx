@@ -43,20 +43,19 @@ function buildCopy(locale) {
     finish: zh ? '开始使用' : 'Start',
     forgotPassword: zh ? '忘记密码？' : 'Forgot password?',
     resetPassword: zh ? '重置密码' : 'Reset password',
-    sendCode: zh ? '发送重置码' : 'Send code',
-    resetCodeLabel: zh ? '重置码' : 'Reset code',
-    resetCodePlaceholder: zh ? '输入 6 位重置码' : 'Enter the 6-digit code',
+    sendCode: zh ? '发送恢复邮件' : 'Send recovery email',
     newPasswordPlaceholder: zh
       ? '设置新密码（至少 8 位）'
       : 'Create a new password (8+ characters)',
     resetHelper: zh
-      ? '先发送重置码，再输入新密码完成重置。'
-      : 'Send a reset code first, then choose a new password.',
+      ? '我们会把恢复链接发到你的邮箱。点开邮件里的链接后，再回来设置新密码。'
+      : 'We will send a recovery link to your email. Open that link, then come back here to set a new password.',
+    recoveryHelper: zh
+      ? '邮箱链接已经验证。现在直接设置一个新密码。'
+      : 'Your recovery link is verified. Set a new password now.',
     resetInfoTemplate: zh
-      ? ({ minutes, code }) =>
-          `重置码 ${code ? `已发送：${code}` : '已发送'}，${minutes} 分钟内有效。`
-      : ({ minutes, code }) =>
-          `Reset code ${code ? `${code}` : 'sent'} — valid for ${minutes} minutes.`,
+      ? () => '恢复邮件已发送，请从邮件里的链接继续。'
+      : () => 'Recovery email sent. Continue from the link in your inbox.',
     resetSuccess: zh ? '密码已更新，现在可以直接登录。' : 'Password updated. You can log in now.',
     step: zh ? '步骤' : 'Step',
     modeCards: [
@@ -386,8 +385,8 @@ export default function OnboardingFlow({
   const [loginError, setLoginError] = useState('');
   const [loginInfo, setLoginInfo] = useState('');
   const [signupError, setSignupError] = useState('');
+  const [signupInfo, setSignupInfo] = useState('');
   const [resetEmail, setResetEmail] = useState(profile?.email || '');
-  const [resetCode, setResetCode] = useState('');
   const [resetPasswordValue, setResetPasswordValue] = useState('');
   const [resetError, setResetError] = useState('');
   const [resetInfo, setResetInfo] = useState('');
@@ -408,8 +407,8 @@ export default function OnboardingFlow({
     setLoginError('');
     setLoginInfo('');
     setSignupError('');
+    setSignupInfo('');
     setResetEmail(profile?.email || '');
-    setResetCode('');
     setResetPasswordValue('');
     setResetError('');
     setResetInfo('');
@@ -431,10 +430,8 @@ export default function OnboardingFlow({
   const loginReady =
     (/\S+@\S+\.\S+/.test(loginEmail) && String(loginPassword).trim().length >= 8) ||
     testAccountLogin;
-  const resetCodeReady =
-    /\S+@\S+\.\S+/.test(resetEmail) &&
-    String(resetCode).trim().length >= 6 &&
-    String(resetPasswordValue).trim().length >= 8;
+  const resetRequestReady = /\S+@\S+\.\S+/.test(resetEmail);
+  const recoveryReady = String(resetPasswordValue).trim().length >= 8;
   const canContinue =
     signupStep === 0
       ? emailValid && passwordValid
@@ -479,6 +476,7 @@ export default function OnboardingFlow({
                 onClick={() => {
                   setMode('login');
                   setLoginError('');
+                  setSignupInfo('');
                 }}
               >
                 {copy.login}
@@ -540,6 +538,7 @@ export default function OnboardingFlow({
               </button>
               {loginInfo ? <p className="signup-success">{loginInfo}</p> : null}
               {loginError ? <p className="signup-error">{loginError}</p> : null}
+              {signupInfo ? <p className="signup-success">{signupInfo}</p> : null}
             </div>
           </div>
 
@@ -607,52 +606,57 @@ export default function OnboardingFlow({
                   onChange={(event) => setResetEmail(event.target.value)}
                 />
               </div>
-              <div className="signup-inline-row">
-                <div className="signup-input-shell signup-input-shell-flex">
-                  <input
-                    className="signup-input"
-                    type="text"
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    placeholder={copy.resetCodePlaceholder}
-                    value={resetCode}
-                    onChange={(event) => setResetCode(event.target.value)}
-                  />
-                </div>
-                <button
-                  type="button"
-                  className="signup-inline-cta"
-                  disabled={submitting || !/\S+@\S+\.\S+/.test(resetEmail)}
-                  onClick={async () => {
-                    if (!onRequestReset || submitting || !/\S+@\S+\.\S+/.test(resetEmail)) return;
-                    setSubmitting(true);
-                    setResetError('');
-                    setResetInfo('');
-                    try {
-                      const result = await onRequestReset({ email: resetEmail });
-                      if (result?.ok === false) {
-                        setResetError(
-                          result.error ||
-                            (locale?.startsWith('zh')
-                              ? '暂时没法发送重置码。'
-                              : 'Could not send a reset code right now.'),
-                        );
-                        return;
-                      }
-                      setResetInfo(
-                        copy.resetInfoTemplate({
-                          minutes: result?.expiresInMinutes || 15,
-                          code: result?.codeHint || '',
-                        }),
-                      );
-                    } finally {
-                      setSubmitting(false);
-                    }
-                  }}
-                >
-                  {copy.sendCode}
-                </button>
-              </div>
+              {resetInfo ? <p className="signup-success">{resetInfo}</p> : null}
+              {resetError ? <p className="signup-error">{resetError}</p> : null}
+            </div>
+          </div>
+
+          <div className="signup-fixed-footer">
+            <button
+              type="button"
+              className="onboarding-btn onboarding-btn-primary signup-continue"
+              disabled={!resetRequestReady || submitting}
+              onClick={async () => {
+                if (!onRequestReset || submitting || !resetRequestReady) return;
+                setSubmitting(true);
+                setResetError('');
+                setResetInfo('');
+                try {
+                  const result = await onRequestReset({ email: resetEmail });
+                  if (result?.ok === false) {
+                    setResetError(
+                      result.error ||
+                        (locale?.startsWith('zh')
+                          ? '暂时没法发送恢复邮件。'
+                          : 'Could not send a recovery email right now.'),
+                    );
+                    return;
+                  }
+                  setResetInfo(result?.info || copy.resetInfoTemplate({}));
+                } finally {
+                  setSubmitting(false);
+                }
+              }}
+            >
+              {submitting
+                ? locale?.startsWith('zh')
+                  ? '正在发送…'
+                  : 'Sending…'
+                : copy.sendCode}
+            </button>
+          </div>
+        </section>
+      ) : mode === 'recover' ? (
+        <section className="signup-stage">
+          <div className="signup-stage-head">
+            <span className="signup-back" aria-hidden="true" />
+            <Dots count={1} activeIndex={0} />
+          </div>
+
+          <div className="signup-stage-body">
+            <div className="signup-field-wrap signup-field-wrap-wide">
+              <h1 className="signup-title">{copy.resetPassword}</h1>
+              <p className="signup-note">{copy.recoveryHelper}</p>
               <div className="signup-input-shell">
                 <input
                   className="signup-input"
@@ -672,15 +676,13 @@ export default function OnboardingFlow({
             <button
               type="button"
               className="onboarding-btn onboarding-btn-primary signup-continue"
-              disabled={!resetCodeReady || submitting}
+              disabled={!recoveryReady || submitting}
               onClick={async () => {
-                if (!onResetPassword || submitting || !resetCodeReady) return;
+                if (!onResetPassword || submitting || !recoveryReady) return;
                 setSubmitting(true);
                 setResetError('');
                 try {
                   const result = await onResetPassword({
-                    email: resetEmail,
-                    code: resetCode,
                     newPassword: resetPasswordValue,
                   });
                   if (result?.ok === false) {
@@ -692,13 +694,8 @@ export default function OnboardingFlow({
                     );
                     return;
                   }
-                  setLoginInfo(copy.resetSuccess);
-                  setLoginEmail(resetEmail);
-                  setLoginPassword('');
-                  setResetCode('');
+                  setResetInfo(copy.resetSuccess);
                   setResetPasswordValue('');
-                  setResetInfo('');
-                  setMode('login');
                 } finally {
                   setSubmitting(false);
                 }
@@ -762,6 +759,9 @@ export default function OnboardingFlow({
                 </div>
                 {signupError && signupStep === 0 ? (
                   <p className="signup-error">{signupError}</p>
+                ) : null}
+                {signupInfo && signupStep === 0 ? (
+                  <p className="signup-success">{signupInfo}</p>
                 ) : null}
               </div>
             ) : null}
@@ -836,6 +836,7 @@ export default function OnboardingFlow({
                   if (submitting) return;
                   setSubmitting(true);
                   setSignupError('');
+                  setSignupInfo('');
                   try {
                     const result = await onComplete({
                       email,
@@ -852,6 +853,17 @@ export default function OnboardingFlow({
                             : 'Sign up did not complete. Please try again.'),
                       );
                       setSignupStep(0);
+                      return;
+                    }
+                    if (result?.pendingConfirmation) {
+                      setSignupInfo(
+                        result.info ||
+                          (locale?.startsWith('zh')
+                            ? '验证邮件已经发出。请先完成邮箱验证，再回来登录。'
+                            : 'Check your inbox and confirm your email before logging in.'),
+                      );
+                      setSignupStep(0);
+                      setMode('login');
                     }
                   } finally {
                     setSubmitting(false);
