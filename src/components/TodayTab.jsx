@@ -1610,76 +1610,70 @@ export default function TodayTab({
                     </span>
                   </div>
 
-                  <p className="today-action-powered-inline">Powered by Marvix AI Engine</p>
-
-                  <div className="today-action-links">
-                    <button
-                      type="button"
-                      className="today-action-link today-action-link-primary"
-                      data-gesture-ignore="true"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        applyQueueAction(featuredSignal, 'accept');
-                      }}
-                    >
-                      <span>{featuredPrimaryActionLabel}</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="today-action-link today-action-link-secondary"
-                      data-gesture-ignore="true"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        triggerFeedback('soft');
-                        askNovaAboutSignal(featuredSignal);
-                      }}
-                    >
-                      <span>Ask Nova</span>
-                    </button>
-                  </div>
+                  <p className="today-action-powered-inline">
+                    {locale === 'zh' ? '轻扫决定，轻点查看详情。' : 'Swipe to decide, tap to open detail.'}
+                  </p>
                 </article>
               </div>
 
-              <div
-                className="today-tinder-controls"
-                aria-label={locale === 'zh' ? '卡片动作按钮' : 'Card actions'}
-              >
-                <button
-                  type="button"
-                  className="today-tinder-control today-tinder-control-skip"
-                  onClick={() => applyQueueAction(featuredSignal, 'skip')}
+              <div className="today-tinder-action-dock">
+                <div
+                  className="today-tinder-controls"
+                  aria-label={locale === 'zh' ? '卡片动作按钮' : 'Card actions'}
                 >
-                  <span className="today-tinder-control-icon" aria-hidden="true">
-                    ×
+                  <button
+                    type="button"
+                    className="today-tinder-control today-tinder-control-skip"
+                    onClick={() => applyQueueAction(featuredSignal, 'skip')}
+                  >
+                    <span className="today-tinder-control-icon" aria-hidden="true">
+                      ×
+                    </span>
+                    <span className="today-tinder-control-label">
+                      {locale === 'zh' ? '放弃' : 'Pass'}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    className="today-tinder-control today-tinder-control-later"
+                    onClick={() => applyQueueAction(featuredSignal, 'later')}
+                  >
+                    <span className="today-tinder-control-icon" aria-hidden="true">
+                      ★
+                    </span>
+                    <span className="today-tinder-control-label">
+                      {locale === 'zh' ? '暂存' : 'Save'}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    className="today-tinder-control today-tinder-control-accept"
+                    onClick={() => applyQueueAction(featuredSignal, 'accept')}
+                  >
+                    <span className="today-tinder-control-icon" aria-hidden="true">
+                      ✓
+                    </span>
+                    <span className="today-tinder-control-label">
+                      {locale === 'zh' ? '执行' : 'Go'}
+                    </span>
+                  </button>
+                </div>
+
+                <div className="today-tinder-subactions">
+                  <button
+                    type="button"
+                    className="today-tinder-subaction"
+                    onClick={() => {
+                      triggerFeedback('soft');
+                      askNovaAboutSignal(featuredSignal);
+                    }}
+                  >
+                    <span>{locale === 'zh' ? 'Ask Nova' : 'Ask Nova'}</span>
+                  </button>
+                  <span className="today-tinder-subhint">
+                    {featuredPrimaryActionLabel}
                   </span>
-                  <span className="today-tinder-control-label">
-                    {locale === 'zh' ? '放弃' : 'Pass'}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  className="today-tinder-control today-tinder-control-later"
-                  onClick={() => applyQueueAction(featuredSignal, 'later')}
-                >
-                  <span className="today-tinder-control-icon" aria-hidden="true">
-                    ★
-                  </span>
-                  <span className="today-tinder-control-label">
-                    {locale === 'zh' ? '暂存' : 'Save'}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  className="today-tinder-control today-tinder-control-accept"
-                  onClick={() => applyQueueAction(featuredSignal, 'accept')}
-                >
-                  <span className="today-tinder-control-icon" aria-hidden="true">
-                    ✓
-                  </span>
-                  <span className="today-tinder-control-label">
-                    {locale === 'zh' ? '执行' : 'Go'}
-                  </span>
-                </button>
+                </div>
               </div>
             </>
           ) : hiddenDeckCount > 0 ? (

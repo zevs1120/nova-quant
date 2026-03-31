@@ -1743,13 +1743,14 @@
   min-height: 0;
   height: 100%;
   align-content: stretch;
+  padding-top: 2px;
 }
 
 .today-deck-shell {
   position: relative;
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto;
-  gap: 10px;
+  gap: 16px;
   height: 100%;
   min-height: 0;
 }
@@ -1768,35 +1769,51 @@
 
 .today-tinder-deck {
   position: relative;
-  height: 100%;
-  min-height: clamp(392px, 51dvh, 468px);
+  height: min(64dvh, 548px);
+  min-height: 420px;
+  max-height: 548px;
   padding-top: 18px;
+  padding-inline: 2px;
+}
+
+.today-tinder-deck::after {
+  content: '';
+  position: absolute;
+  left: 7%;
+  right: 7%;
+  bottom: 16px;
+  height: 22px;
+  border-radius: 999px;
+  background: rgba(18, 21, 34, 0.12);
+  filter: blur(18px);
+  opacity: 0.52;
+  pointer-events: none;
 }
 
 .today-action-card-stack {
   position: absolute;
-  inset: 0 12px auto;
-  min-height: calc(100% - 12px);
-  padding: 16px 16px 18px;
-  border-radius: 26px;
+  inset: 8px 8px auto;
+  min-height: calc(100% - 16px);
+  padding: 18px 18px 18px;
+  border-radius: 32px;
   pointer-events: none;
   border: 1px solid rgba(18, 21, 34, 0.07);
   background:
     radial-gradient(circle at 18% 10%, var(--today-card-top-glow), transparent 34%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.98), var(--today-card-surface));
   box-shadow:
-    0 18px 34px rgba(62, 66, 96, 0.08),
+    0 22px 40px rgba(62, 66, 96, 0.09),
     inset 0 1px 0 rgba(255, 255, 255, 0.82);
 }
 
 .today-action-card-stack-1 {
-  transform: translateY(13px) scale(0.986) rotate(-4.5deg);
-  opacity: 0.84;
+  transform: translateY(18px) scale(0.978) rotate(-5.8deg);
+  opacity: 0.82;
 }
 
 .today-action-card-stack-2 {
-  transform: translateY(28px) scale(0.972) rotate(5.4deg);
-  opacity: 0.56;
+  transform: translateY(38px) scale(0.954) rotate(7deg);
+  opacity: 0.5;
 }
 
 .today-action-card-head-stack {
@@ -1842,17 +1859,20 @@
 .today-action-card-swipe {
   position: relative;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   min-height: 100%;
   height: 100%;
-  padding: 18px 16px 16px;
-  border-radius: 26px;
+  padding: 20px 18px 18px;
+  border-radius: 34px;
   border: 1px solid rgba(20, 24, 33, 0.08);
   background:
     radial-gradient(circle at 14% 10%, rgba(255, 255, 255, 0.82), transparent 22%),
     radial-gradient(circle at 18% 10%, var(--today-card-top-glow), transparent 36%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.985), var(--today-card-surface));
   box-shadow:
-    0 20px 44px rgba(62, 66, 96, 0.1),
+    0 24px 54px rgba(62, 66, 96, 0.12),
     inset 0 1px 0 rgba(255, 255, 255, 0.92);
   touch-action: none;
   user-select: none;
@@ -1874,21 +1894,21 @@
 
 .today-tinder-badges {
   position: absolute;
-  inset: 18px 18px auto;
+  inset: 20px 20px auto;
   display: flex;
   justify-content: space-between;
   pointer-events: none;
 }
 
 .today-tinder-badge {
-  min-height: 34px;
-  padding: 0 12px;
-  border: 2px solid currentColor;
-  border-radius: 10px;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 3px solid currentColor;
+  border-radius: 12px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 900;
   letter-spacing: 0.12em;
   opacity: 0;
@@ -1959,7 +1979,7 @@
 }
 
 .today-action-card-head-showcase {
-  margin-bottom: 2px;
+  margin-bottom: 4px;
 }
 
 .today-action-title-block {
@@ -2023,7 +2043,7 @@
 }
 
 .today-action-main-showcase {
-  gap: 14px;
+  gap: 16px;
 }
 
 .today-action-symbol-block-showcase {
@@ -2032,7 +2052,7 @@
 }
 
 .today-action-main-showcase .today-action-symbol {
-  font-size: clamp(56px, 17vw, 78px);
+  font-size: clamp(58px, 18vw, 82px);
   line-height: 0.84;
   letter-spacing: -0.09em;
 }
@@ -2040,23 +2060,23 @@
 .today-action-main-showcase .today-action-direction {
   margin-top: 4px;
   color: rgba(18, 21, 34, 0.82);
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 780;
   letter-spacing: -0.035em;
   line-height: 1.04;
 }
 
 .today-action-main-showcase .today-action-thesis {
-  margin-top: 4px;
-  font-size: clamp(24px, 6.8vw, 34px);
-  line-height: 0.96;
+  margin-top: 6px;
+  font-size: clamp(28px, 7.2vw, 38px);
+  line-height: 0.94;
 }
 
 .today-action-main-showcase .today-action-meta {
   max-width: 100%;
-  margin-top: 8px;
+  margin-top: 10px;
   color: rgba(18, 21, 34, 0.5);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 780;
   letter-spacing: 0.12em;
   line-height: 1.22;
@@ -2111,13 +2131,14 @@
 
 .today-action-stats-showcase {
   gap: 10px;
+  margin-top: auto;
 }
 
 .today-action-stats-showcase .today-action-stat {
   gap: 4px;
-  min-height: 74px;
-  padding: 12px 12px 10px;
-  border-radius: 18px;
+  min-height: 78px;
+  padding: 12px 12px 11px;
+  border-radius: 20px;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(250, 250, 255, 0.74)),
     rgba(255, 255, 255, 0.84);
@@ -2172,15 +2193,16 @@
 }
 
 .today-action-context-row-showcase {
-  display: grid;
-  gap: 7px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .today-action-context-row-showcase .today-action-context-pill {
   width: fit-content;
   max-width: 100%;
-  min-height: 32px;
-  padding: 0 11px;
+  min-height: 34px;
+  padding: 0 12px;
   gap: 8px;
   background: rgba(255, 255, 255, 0.8);
   box-shadow:
@@ -2200,10 +2222,11 @@
 }
 
 .today-action-powered-inline {
-  margin: -1px 0 0;
+  margin: 0;
+  padding-top: 2px;
   color: rgba(18, 21, 34, 0.4);
-  font-size: 11px;
-  font-weight: 650;
+  font-size: 12px;
+  font-weight: 700;
   line-height: 1.25;
 }
 
@@ -2366,19 +2389,25 @@
   height: 14px;
 }
 
+.today-tinder-action-dock {
+  display: grid;
+  gap: 10px;
+  padding-inline: 4px;
+}
+
 .today-tinder-controls {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 14px;
+  gap: 18px;
   padding-top: 0;
 }
 
 .today-tinder-control {
   position: relative;
-  width: 60px;
-  height: 60px;
-  border: 1px solid rgba(18, 21, 34, 0.05);
+  width: 74px;
+  height: 74px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 50%;
   display: inline-flex;
   flex-direction: column;
@@ -2386,11 +2415,11 @@
   justify-content: center;
   gap: 3px;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(246, 247, 255, 0.9)),
-    rgba(255, 255, 255, 0.96);
+    radial-gradient(circle at 30% 24%, rgba(255, 255, 255, 0.12), transparent 28%),
+    linear-gradient(180deg, rgba(29, 33, 44, 0.98), rgba(9, 11, 16, 0.98));
   box-shadow:
-    0 18px 30px rgba(15, 23, 42, 0.09),
-    inset 0 1px 0 rgba(255, 255, 255, 0.92);
+    0 20px 34px rgba(10, 13, 18, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
   transition:
     transform 160ms ease,
     box-shadow 160ms ease;
@@ -2399,10 +2428,10 @@
 .today-tinder-control::before {
   content: '';
   position: absolute;
-  inset: 4px;
+  inset: 5px;
   border-radius: inherit;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.38), rgba(255, 255, 255, 0));
-  opacity: 0.8;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0));
+  opacity: 1;
 }
 
 .today-tinder-control:active {
@@ -2416,15 +2445,15 @@
 }
 
 .today-tinder-control-icon {
-  font-size: 24px;
+  font-size: 31px;
   line-height: 1;
-  font-weight: 700;
+  font-weight: 800;
 }
 
 .today-tinder-control-label {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 800;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
@@ -2433,17 +2462,57 @@
 }
 
 .today-tinder-control-later {
-  width: 52px;
-  height: 52px;
+  width: 62px;
+  height: 62px;
   color: #0f6cb3;
 }
 
 .today-tinder-control-later .today-tinder-control-icon {
-  font-size: 22px;
+  font-size: 25px;
 }
 
 .today-tinder-control-accept {
   color: #18a768;
+}
+
+.today-tinder-subactions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.today-tinder-subaction {
+  min-height: 38px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(245, 247, 255, 0.86)),
+    rgba(255, 255, 255, 0.9);
+  color: #121522;
+  font-size: 13px;
+  font-weight: 780;
+  letter-spacing: -0.02em;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    0 12px 22px rgba(20, 24, 33, 0.06);
+}
+
+.today-tinder-subaction:active {
+  transform: scale(0.98);
+}
+
+.today-tinder-subhint {
+  min-width: 0;
+  color: rgba(18, 21, 34, 0.42);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-align: right;
 }
 
 .today-empty-card {
@@ -2553,16 +2622,16 @@
   }
 
   .today-deck-shell {
-    gap: 10px;
+    gap: 14px;
   }
 
   .today-action-card-swipe,
   .today-empty-card {
-    padding: 16px 14px 14px;
+    padding: 18px 16px 16px;
   }
 
   .today-action-card-stack {
-    inset-inline: 8px;
+    inset-inline: 6px;
   }
 
   .today-action-thesis {
@@ -2576,14 +2645,6 @@
     max-width: 100%;
   }
 
-  .today-action-links {
-    grid-template-columns: 1fr;
-  }
-
-  .today-action-link {
-    min-height: 42px;
-  }
-
   .today-empty-actions {
     grid-template-columns: 1fr;
   }
@@ -2593,17 +2654,21 @@
     padding: 0 12px;
   }
 
-  .today-tinder-controls {
-    gap: 12px;
+  .today-tinder-control {
+    width: 68px;
+    height: 68px;
   }
 
-  .today-tinder-control {
+  .today-tinder-control-later {
     width: 58px;
     height: 58px;
   }
 
-  .today-tinder-control-later {
-    width: 50px;
-    height: 50px;
+  .today-tinder-subactions {
+    gap: 10px;
+  }
+
+  .today-tinder-subhint {
+    font-size: 10px;
   }
 }
