@@ -1,11 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getDb } from '../src/server/db/database.js';
 import { ensureSchema } from '../src/server/db/schema.js';
-import {
-  handleAdminLogin,
-  handleAdminSession,
-  handleAuthSignup,
-} from '../src/server/api/authHandlers.js';
+import { handleAdminLogin, handleAdminSession } from '../src/server/api/authHandlers.js';
+import { signupAuthUser } from '../src/server/auth/service.js';
 
 type MockResponse = {
   statusCode: number;
@@ -66,6 +63,17 @@ function resetAuthTables(email: string) {
   db.prepare('DELETE FROM auth_users WHERE user_id = ?').run(row.user_id);
 }
 
+async function seedAuthUser(email: string, name: string) {
+  const result = await signupAuthUser({
+    email,
+    password: 'StrongPass123',
+    name,
+    tradeMode: 'active',
+    broker: 'Other',
+  });
+  expect(result.ok).toBe(true);
+}
+
 describe('admin auth api', () => {
   const email = 'admin-api-test@example.com';
 
@@ -88,16 +96,7 @@ describe('admin auth api', () => {
 
   it('creates an admin session for configured admin emails', async () => {
     process.env.NOVA_ADMIN_EMAILS = email;
-    const signup = await callHandler(handleAuthSignup, {
-      body: {
-        email,
-        password: 'StrongPass123',
-        name: 'Admin Tester',
-        tradeMode: 'active',
-        broker: 'Other',
-      },
-    });
-    expect(signup.statusCode).toBe(200);
+    await seedAuthUser(email, 'Admin Tester');
 
     const login = await callHandler(handleAdminLogin, {
       body: {
@@ -118,16 +117,7 @@ describe('admin auth api', () => {
   });
 
   it('rejects non-admin users from admin login', async () => {
-    const signup = await callHandler(handleAuthSignup, {
-      body: {
-        email,
-        password: 'StrongPass123',
-        name: 'Plain User',
-        tradeMode: 'active',
-        broker: 'Other',
-      },
-    });
-    expect(signup.statusCode).toBe(200);
+    await seedAuthUser(email, 'Plain User');
 
     const login = await callHandler(handleAdminLogin, {
       body: {

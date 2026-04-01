@@ -1,65 +1,50 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import request from 'supertest';
-import { createApiApp } from '../src/server/api/app.js';
-import { ensureSchema } from '../src/server/db/schema.js';
-import { getDb } from '../src/server/db/database.js';
+import { describe, expect, it } from 'vitest';
+import { handleAuthSignup } from '../src/server/api/authHandlers.js';
 
-function resetAuthUser(email: string) {
-  const db = getDb();
-  ensureSchema(db);
-  const row = db.prepare('SELECT user_id FROM auth_users WHERE email = ? LIMIT 1').get(email) as
-    | { user_id?: string }
-    | undefined;
-  if (!row?.user_id) return;
-  db.prepare('DELETE FROM auth_password_resets WHERE user_id = ?').run(row.user_id);
-  db.prepare('DELETE FROM auth_sessions WHERE user_id = ?').run(row.user_id);
-  db.prepare('DELETE FROM auth_user_roles WHERE user_id = ?').run(row.user_id);
-  db.prepare('DELETE FROM auth_user_state_sync WHERE user_id = ?').run(row.user_id);
-  db.prepare('DELETE FROM auth_users WHERE user_id = ?').run(row.user_id);
+type MockResponse = {
+  statusCode: number;
+  body: unknown;
+  status: (code: number) => MockResponse;
+  json: (body: unknown) => void;
+  setHeader: (_name: string, _value: string) => void;
+};
+
+function createMockResponse(): MockResponse {
+  return {
+    statusCode: 200,
+    body: null,
+    status(code: number) {
+      this.statusCode = code;
+      return this;
+    },
+    json(body: unknown) {
+      this.body = body;
+    },
+    setHeader() {},
+  };
 }
 
 describe('signup welcome email', () => {
-  const email = 'signup-welcome@example.com';
+  it('returns a Supabase-managed response for signup requests', async () => {
+    const res = createMockResponse();
 
-  beforeEach(() => {
-    vi.stubEnv('NODE_ENV', 'production');
-    vi.stubEnv('VERCEL', '');
-    vi.stubEnv('NOVA_AUTH_DRIVER', 'sqlite');
-    vi.stubEnv('NOVA_AUTH_DATABASE_URL', '');
-    vi.stubEnv('NOVA_AUTH_PG_SSL', '');
-    vi.stubEnv('NOVA_AUTH_PG_POOL_MAX', '');
-    vi.stubEnv('KV_REST_API_URL', '');
-    vi.stubEnv('KV_REST_API_TOKEN', '');
-    vi.stubEnv('UPSTASH_REDIS_REST_URL', '');
-    vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', '');
-    vi.stubEnv('NOVA_APP_URL', 'https://app.novaquant.cloud');
-  });
+    await handleAuthSignup(
+      {
+        body: {
+          email: 'signup-welcome@example.com',
+          password: 'StrongPass123',
+          name: 'Welcome User',
+          tradeMode: 'active',
+          broker: 'Other',
+        },
+      },
+      res,
+    );
 
-  afterEach(() => {
-    resetAuthUser(email);
-    vi.unstubAllEnvs();
-    vi.unstubAllGlobals();
-  });
-
-  it('surfaces when signup welcome email is skipped because Supabase Auth is not configured', async () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-
-    const app = createApiApp();
-    const signup = await request(app).post('/api/auth/signup').send({
-      email,
-      password: 'StrongPass123',
-      name: 'Welcome User',
-      tradeMode: 'active',
-      broker: 'Other',
+    expect(res.statusCode).toBe(410);
+    expect(res.body).toMatchObject({
+      ok: false,
+      error: 'AUTH_MANAGED_BY_SUPABASE',
     });
-
-    expect(signup.status).toBe(200);
-    expect(signup.body.ok).toBe(true);
-    expect(signup.body.emailDelivery?.signupWelcome?.status).toBe('skipped');
-    expect(signup.body.emailDelivery?.signupWelcome?.reason).toBe('not_configured');
-    expect(signup.body.emailDelivery?.signupWelcome?.missing).toEqual([
-      'RESEND_API_KEY_DEPRECATED',
-    ]);
-    expect(warnSpy).toHaveBeenCalled();
   });
 });

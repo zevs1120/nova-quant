@@ -56,6 +56,7 @@ describe('postgres mirror consistency', () => {
     vi.stubEnv('NOVA_DATA_DATABASE_URL', 'postgres://fake-host/db');
     vi.stubEnv('NOVA_DATA_PG_SSL', 'disable');
     vi.stubEnv('NOVA_ENABLE_PG_MIRROR_WRITES_TEST', '1');
+    vi.stubEnv('NOVA_DISABLE_PG_MIRROR_WRITES', '0');
 
     Pool.prototype.query = async function query() {
       throw new Error('PG_WRITE_FAILED');
@@ -91,6 +92,7 @@ describe('postgres mirror consistency', () => {
     vi.stubEnv('NOVA_DATA_PG_SSL', 'disable');
     vi.stubEnv('NOVA_ENABLE_PG_PRIMARY_READS_TEST', '1');
     vi.stubEnv('NOVA_ENABLE_PG_MIRROR_WRITES_TEST', '1');
+    vi.stubEnv('NOVA_DISABLE_PG_MIRROR_WRITES', '0');
 
     const store = new Map<
       string,

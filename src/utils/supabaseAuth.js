@@ -160,11 +160,51 @@ export function getSupabaseBrowserClient() {
   return browserClient;
 }
 
+function createIsolatedSupabaseBrowserClient() {
+  if (!hasSupabaseAuthBrowserConfig()) return null;
+  return createClient(resolveSupabaseBrowserUrl(), resolveSupabaseBrowserAnonKey(), {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+      detectSessionInUrl: false,
+      storageKey: `novaquant-signup-isolated-${Date.now()}`,
+    },
+  });
+}
+
 export async function ensureSupabaseBrowserClient() {
   if (!hasSupabaseAuthBrowserConfig()) {
     await loadSupabaseBrowserConfig();
   }
   return getSupabaseBrowserClient();
+}
+
+export async function signUpWithSupabaseEmailVerification({ email, password, options } = {}) {
+  await loadSupabaseBrowserConfig();
+  const client = createIsolatedSupabaseBrowserClient();
+  if (!client) {
+    throw new Error('SUPABASE_AUTH_NOT_CONFIGURED');
+  }
+  return client.auth.signUp({
+    email,
+    password,
+    options,
+  });
+}
+
+export async function resendSupabaseSignupVerification({ email, emailRedirectTo } = {}) {
+  await loadSupabaseBrowserConfig();
+  const client = createIsolatedSupabaseBrowserClient();
+  if (!client) {
+    throw new Error('SUPABASE_AUTH_NOT_CONFIGURED');
+  }
+  return client.auth.resend({
+    type: 'signup',
+    email,
+    options: {
+      emailRedirectTo,
+    },
+  });
 }
 
 export async function getSupabaseAccessToken() {

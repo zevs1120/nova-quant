@@ -6,6 +6,7 @@ import {
 } from '../src/server/api/queries.js';
 import * as pgReads from '../src/server/admin/postgresBusinessRead.js';
 import { MarketRepository } from '../src/server/db/repository.js';
+import { buildSignalListItemFromContract } from '../src/server/quant/signalListProjection.js';
 import type { SignalContract, SignalRecord } from '../src/server/types.js';
 
 function seedSignal(id: string, symbol: string, createdAt: string, entry: number): SignalContract {
@@ -287,10 +288,15 @@ describe('postgres fallback sync', () => {
     vi.stubEnv('NOVA_ALLOW_SYNC_HOT_PATH_FALLBACK', '0');
 
     const signal = seedSignal('SIG-PG-DECISION-1', 'AAPL', new Date().toISOString(), 210);
-    vi.spyOn(pgReads, 'readPostgresRiskProfile').mockResolvedValue(null);
-    vi.spyOn(pgReads, 'readPostgresSignalRecords').mockResolvedValue([toSignalRecord(signal)]);
-    vi.spyOn(pgReads, 'readPostgresMarketState').mockResolvedValue([]);
-    vi.spyOn(pgReads, 'readPostgresPerformanceSnapshots').mockResolvedValue([]);
+    vi.spyOn(pgReads, 'readPostgresRuntimeStateBundle').mockResolvedValue({
+      risk: null,
+      signals: [
+        buildSignalListItemFromContract(signal as SignalContract & Record<string, unknown>),
+      ],
+      marketState: [],
+      performance: [],
+    });
+    vi.spyOn(pgReads, 'readPostgresExecutionRecords').mockResolvedValue([]);
     vi.spyOn(pgReads, 'readPostgresLatestDecisionSnapshot').mockResolvedValue(null);
 
     const latestSpy = vi.spyOn(MarketRepository.prototype, 'getLatestDecisionSnapshot');

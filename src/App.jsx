@@ -119,6 +119,7 @@ export default function App() {
     effectiveUserId,
     handleLogin,
     handleSignup,
+    handleResendSignupVerification,
     handleRequestReset,
     handleResetPassword,
     handleLogout,
@@ -1121,6 +1122,7 @@ export default function App() {
           onRequestReset={handleRequestReset}
           onResetPassword={handleResetPassword}
           onComplete={handleSignup}
+          onResendVerification={handleResendSignupVerification}
         />
       </Suspense>
     </div>

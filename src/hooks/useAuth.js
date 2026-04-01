@@ -6,6 +6,8 @@ import {
   getSupabaseAuthRedirectUrl,
   hasSupabaseAuthBrowserConfig,
   loadSupabaseBrowserConfig,
+  resendSupabaseSignupVerification,
+  signUpWithSupabaseEmailVerification,
 } from '../utils/supabaseAuth';
 import { DEFAULT_AUTH_WATCHLIST } from '../config/appConstants';
 
@@ -42,6 +44,22 @@ function classifySupabaseSignupError(error, locale) {
       : 'Signup must require email verification. Check the Supabase Auth confirm-email setting.';
   }
   return zh ? '注册服务暂时不可用。请稍后再试。' : 'The signup service is temporarily unavailable.';
+}
+
+function classifySupabaseVerificationError(error, locale) {
+  const zh = locale?.startsWith('zh');
+  const message = String(error?.message || '');
+  if (/supabase auth not configured/i.test(message)) {
+    return zh ? 'Supabase Auth 还没有配置完成。' : 'Supabase Auth is not configured yet.';
+  }
+  if (/email.*rate limit|over_email_send_rate_limit/i.test(message)) {
+    return zh
+      ? '邮件发送太频繁了，请稍后再试。'
+      : 'Too many verification email attempts. Please try again shortly.';
+  }
+  return zh
+    ? '暂时没法重发验证邮件。请稍后再试。'
+    : 'Could not resend the verification email right now.';
 }
 
 function classifySupabaseResetError(error, locale) {
@@ -358,10 +376,10 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
 
   const handleSignup = useCallback(
     async (payload) => {
-      const supabase = await ensureSupabaseBrowserClient();
-      if (supabase) {
+      if (hasSupabaseAuthBrowserConfig()) {
         try {
-          const { data, error } = await supabase.auth.signUp({
+          const mainClient = await ensureSupabaseBrowserClient();
+          const { data, error } = await signUpWithSupabaseEmailVerification({
             email: normalizeEmail(payload.email),
             password: String(payload.password || ''),
             options: {
@@ -383,7 +401,7 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
           const emailConfirmedImmediately = Boolean(
             data?.user?.email_confirmed_at || data?.user?.confirmed_at,
           );
-          await supabase.auth.signOut().catch(() => {});
+          await mainClient?.auth.signOut().catch(() => {});
           if (data?.session?.access_token || emailConfirmedImmediately) {
             return {
               ok: false,
@@ -413,6 +431,52 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
           ? 'Supabase Auth 还没有配置完成。'
           : 'Supabase Auth is not configured yet.',
       };
+    },
+    [locale],
+  );
+
+  const handleResendSignupVerification = useCallback(
+    async ({ email }) => {
+      const normalizedEmail = normalizeEmail(email);
+      if (!/\S+@\S+\.\S+/.test(normalizedEmail)) {
+        return {
+          ok: false,
+          error: locale?.startsWith('zh')
+            ? '请先输入有效邮箱。'
+            : 'Enter a valid email address first.',
+        };
+      }
+      if (!hasSupabaseAuthBrowserConfig()) {
+        return {
+          ok: false,
+          error: locale?.startsWith('zh')
+            ? 'Supabase Auth 还没有配置完成。'
+            : 'Supabase Auth is not configured yet.',
+        };
+      }
+      try {
+        const { error } = await resendSupabaseSignupVerification({
+          email: normalizedEmail,
+          emailRedirectTo: getSupabaseAuthRedirectUrl(),
+        });
+        if (error) {
+          return {
+            ok: false,
+            error: classifySupabaseVerificationError(error, locale),
+          };
+        }
+        return {
+          ok: true,
+          info: locale?.startsWith('zh')
+            ? '验证邮件已重新发送，请检查收件箱和垃圾邮件。'
+            : 'Verification email resent. Please check your inbox and spam folder.',
+        };
+      } catch (error) {
+        return {
+          ok: false,
+          error: classifySupabaseVerificationError(error, locale),
+        };
+      }
     },
     [locale],
   );
@@ -527,6 +591,7 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
     applyAuthenticatedProfile,
     handleLogin,
     handleSignup,
+    handleResendSignupVerification,
     handleRequestReset,
     handleResetPassword,
     handleLogout,

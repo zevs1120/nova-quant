@@ -212,7 +212,11 @@ function resolveAuthDriver() {
   const configured = String(process.env.NOVA_AUTH_DRIVER || '')
     .trim()
     .toLowerCase();
-  if (process.env.NODE_ENV === 'test') {
+  const isVitestRuntime =
+    Boolean(process.env.VITEST || process.env.VITEST_WORKER_ID) ||
+    process.env.NODE_ENV === 'test' ||
+    process.argv.some((arg) => arg.toLowerCase().includes('vitest'));
+  if (isVitestRuntime) {
     return configured;
   }
   return 'postgres';

@@ -7,16 +7,15 @@ describe('config runtime driver', () => {
     resetConfigCache();
   });
 
-  it('defaults to postgres runtime outside tests', () => {
-    vi.stubEnv('NOVA_DATA_DATABASE_URL', 'postgres://runtime-host/db');
+  it('defaults to sqlite runtime in Vitest unless postgres is explicitly requested', () => {
     const config = getConfig();
-    expect(config.database.driver).toBe('postgres');
-    if (config.database.driver === 'postgres') {
-      expect(config.database.url).toBe('postgres://runtime-host/db');
+    expect(config.database.driver).toBe('sqlite');
+    if (config.database.driver === 'sqlite') {
+      expect(config.database.path).toContain('.tmp');
     }
   });
 
-  it('still resolves postgres runtime when NOVA_DATA_RUNTIME_DRIVER=postgres is set', () => {
+  it('still resolves postgres runtime when NOVA_DATA_RUNTIME_DRIVER=postgres is set in Vitest', () => {
     vi.stubEnv('NOVA_DATA_RUNTIME_DRIVER', 'postgres');
     vi.stubEnv('NOVA_DATA_DATABASE_URL', 'postgres://runtime-host/db');
 
@@ -30,6 +29,7 @@ describe('config runtime driver', () => {
   });
 
   it('throws when postgres runtime has no business database url', () => {
+    vi.stubEnv('NOVA_DATA_RUNTIME_DRIVER', 'postgres');
     vi.stubEnv('NOVA_DATA_DATABASE_URL', '');
     vi.stubEnv('SUPABASE_DB_URL', '');
     vi.stubEnv('DATABASE_URL', '');

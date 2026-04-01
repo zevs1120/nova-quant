@@ -11,6 +11,7 @@ import {
   writeResolvedUserId,
   strictUserScopeEnabled,
   sendUserScopeAuthError,
+  resolveRequestNovaScope,
   type RequestWithNovaScope,
 } from './helpers.js';
 
@@ -177,42 +178,13 @@ export function createApiApp() {
       }
 
       try {
-        const authorization = String(req.header('authorization') || '');
-        const bearerMatch = authorization.match(/^Bearer\s+(.+)$/i);
-        const bearerToken = bearerMatch?.[1]?.trim() || null;
-        const session = bearerToken ? await getAuthSessionFromAccessToken(bearerToken) : null;
-        const requestedUserId = readRequestedUserId(req);
-
-        if (session) {
-          if (
-            requestedUserId &&
-            requestedUserId !== session.user.userId &&
-            !isGuestScopedUserId(requestedUserId)
-          ) {
-            res.status(403).json({ error: 'USER_SCOPE_MISMATCH' });
-            return;
-          }
-          (req as RequestWithNovaScope).novaScope = {
-            authenticated: true,
-            userId: session.user.userId,
-            authUserId: session.user.userId,
-          };
-          writeResolvedUserId(req, session.user.userId);
-          next();
+        const resolution = await resolveRequestNovaScope(req, getAuthSessionFromAccessToken);
+        if (!resolution.ok) {
+          res.status(resolution.status).json(resolution.body);
           return;
         }
-
-        const resolvedGuestUserId = requestedUserId || 'guest-default';
-        if (strictUserScopeEnabled() && !isGuestScopedUserId(resolvedGuestUserId)) {
-          res.status(401).json({ error: 'AUTH_REQUIRED' });
-          return;
-        }
-        (req as RequestWithNovaScope).novaScope = {
-          authenticated: false,
-          userId: resolvedGuestUserId,
-          authUserId: null,
-        };
-        writeResolvedUserId(req, resolvedGuestUserId);
+        (req as RequestWithNovaScope).novaScope = resolution.scope;
+        writeResolvedUserId(req, resolution.scope.userId);
         next();
       } catch (error) {
         sendUserScopeAuthError(res, error);

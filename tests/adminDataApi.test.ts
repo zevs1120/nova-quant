@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getDb } from '../src/server/db/database.js';
 import { ensureSchema } from '../src/server/db/schema.js';
 import { MarketRepository } from '../src/server/db/repository.js';
-import { handleAdminLogin, handleAuthSignup } from '../src/server/api/authHandlers.js';
+import { handleAdminLogin } from '../src/server/api/authHandlers.js';
 import {
   handleAdminAlphas,
   handleAdminOverview,
@@ -15,6 +15,7 @@ import {
   persistAlphaCandidate,
   type AutonomousAlphaCandidate,
 } from '../src/server/alpha_registry/index.js';
+import { signupAuthUser } from '../src/server/auth/service.js';
 import type { SignalContract } from '../src/server/types.js';
 import { _resetAdminCachesForTesting } from '../src/server/admin/service.js';
 
@@ -206,6 +207,17 @@ function cleanupAdminData(email: string) {
   }
 }
 
+async function seedAuthUser(email: string, name: string) {
+  const result = await signupAuthUser({
+    email,
+    password: 'StrongPass123',
+    name,
+    tradeMode: 'active',
+    broker: 'Other',
+  });
+  expect(result.ok).toBe(true);
+}
+
 describe('admin data api', () => {
   const email = 'admin-data-api@example.com';
 
@@ -237,17 +249,7 @@ describe('admin data api', () => {
 
   it('returns real user, alpha, signal and system snapshots for authorized admins', async () => {
     process.env.NOVA_ADMIN_EMAILS = email;
-
-    const signup = await callHandler(handleAuthSignup, {
-      body: {
-        email,
-        password: 'StrongPass123',
-        name: 'Admin Data Tester',
-        tradeMode: 'active',
-        broker: 'Other',
-      },
-    });
-    expect(signup.statusCode).toBe(200);
+    await seedAuthUser(email, 'Admin Data Tester');
 
     const login = await callHandler(handleAdminLogin, {
       body: {
@@ -553,16 +555,7 @@ describe('admin data api', () => {
 
   it('headline endpoint returns partial data with headline metrics', async () => {
     process.env.NOVA_ADMIN_EMAILS = email;
-
-    await callHandler(handleAuthSignup, {
-      body: {
-        email,
-        password: 'StrongPass123',
-        name: 'Headline Tester',
-        tradeMode: 'active',
-        broker: 'Other',
-      },
-    });
+    await seedAuthUser(email, 'Headline Tester');
 
     const login = await callHandler(handleAdminLogin, {
       body: { email, password: 'StrongPass123' },
@@ -584,16 +577,7 @@ describe('admin data api', () => {
 
   it('headline returns cached overview when full overview is in cache', async () => {
     process.env.NOVA_ADMIN_EMAILS = email;
-
-    await callHandler(handleAuthSignup, {
-      body: {
-        email,
-        password: 'StrongPass123',
-        name: 'Cache Tester',
-        tradeMode: 'active',
-        broker: 'Other',
-      },
-    });
+    await seedAuthUser(email, 'Cache Tester');
 
     const login = await callHandler(handleAdminLogin, {
       body: { email, password: 'StrongPass123' },
@@ -615,16 +599,7 @@ describe('admin data api', () => {
 
   it('overview cache returns same data within fresh TTL', async () => {
     process.env.NOVA_ADMIN_EMAILS = email;
-
-    await callHandler(handleAuthSignup, {
-      body: {
-        email,
-        password: 'StrongPass123',
-        name: 'SWR Tester',
-        tradeMode: 'active',
-        broker: 'Other',
-      },
-    });
+    await seedAuthUser(email, 'SWR Tester');
 
     const login = await callHandler(handleAdminLogin, {
       body: { email, password: 'StrongPass123' },

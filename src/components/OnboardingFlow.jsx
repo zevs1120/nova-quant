@@ -44,6 +44,15 @@ function buildCopy(locale) {
     forgotPassword: zh ? '忘记密码？' : 'Forgot password?',
     resetPassword: zh ? '重置密码' : 'Reset password',
     sendCode: zh ? '发送恢复邮件' : 'Send recovery email',
+    resendVerification: zh ? '重发验证邮件' : 'Resend verification email',
+    backToLogin: zh ? '回到登录' : 'Back to login',
+    verifyEmailTitle: zh ? '先验证你的邮箱' : 'Verify your email first',
+    verifyEmailBody: zh
+      ? '我们已经把验证邮件发到这个邮箱。完成验证之前，账号不会进入系统。'
+      : 'We sent a verification email to this address. Your account will not enter the app until that email is confirmed.',
+    verifyEmailHint: zh
+      ? '如果没看到邮件，请先检查垃圾邮件，再点下面重发。'
+      : 'If you do not see the message, check spam first and then resend below.',
     newPasswordPlaceholder: zh
       ? '设置新密码（至少 8 位）'
       : 'Create a new password (8+ characters)',
@@ -372,6 +381,7 @@ export default function OnboardingFlow({
   onRequestReset,
   onResetPassword,
   onComplete,
+  onResendVerification,
 }) {
   const copy = useMemo(() => buildCopy(locale), [locale]);
   const [mode, setMode] = useState('intro');
@@ -386,6 +396,7 @@ export default function OnboardingFlow({
   const [loginInfo, setLoginInfo] = useState('');
   const [signupError, setSignupError] = useState('');
   const [signupInfo, setSignupInfo] = useState('');
+  const [verificationEmail, setVerificationEmail] = useState('');
   const [resetEmail, setResetEmail] = useState(profile?.email || '');
   const [resetPasswordValue, setResetPasswordValue] = useState('');
   const [resetError, setResetError] = useState('');
@@ -408,6 +419,7 @@ export default function OnboardingFlow({
     setLoginInfo('');
     setSignupError('');
     setSignupInfo('');
+    setVerificationEmail('');
     setResetEmail(profile?.email || '');
     setResetPasswordValue('');
     setResetError('');
@@ -477,6 +489,7 @@ export default function OnboardingFlow({
                   setMode('login');
                   setLoginError('');
                   setSignupInfo('');
+                  setVerificationEmail('');
                 }}
               >
                 {copy.login}
@@ -484,7 +497,10 @@ export default function OnboardingFlow({
               <button
                 type="button"
                 className="onboarding-btn onboarding-btn-primary"
-                onClick={() => setMode('signup')}
+                onClick={() => {
+                  setMode('signup');
+                  setVerificationEmail('');
+                }}
               >
                 {copy.signUp}
               </button>
@@ -705,6 +721,95 @@ export default function OnboardingFlow({
             </button>
           </div>
         </section>
+      ) : mode === 'verify' ? (
+        <section className="signup-stage">
+          <div className="signup-stage-head">
+            <button
+              type="button"
+              className="signup-back"
+              onClick={() => {
+                setMode('login');
+                setLoginEmail(verificationEmail || email || profile?.email || '');
+                setSignupError('');
+              }}
+            >
+              {copy.back}
+            </button>
+            <Dots count={1} activeIndex={0} />
+          </div>
+
+          <div className="signup-stage-body">
+            <div className="signup-field-wrap signup-field-wrap-wide">
+              <h1 className="signup-title">{copy.verifyEmailTitle}</h1>
+              <p className="signup-note">{copy.verifyEmailBody}</p>
+              <div className="signup-input-shell">
+                <input
+                  className="signup-input"
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  value={verificationEmail || email || profile?.email || ''}
+                  readOnly
+                />
+              </div>
+              <p className="signup-note">{copy.verifyEmailHint}</p>
+              {signupInfo ? <p className="signup-success">{signupInfo}</p> : null}
+              {signupError ? <p className="signup-error">{signupError}</p> : null}
+            </div>
+          </div>
+
+          <div className="signup-fixed-footer">
+            <button
+              type="button"
+              className="onboarding-btn onboarding-btn-primary signup-continue"
+              disabled={submitting}
+              onClick={async () => {
+                if (!onResendVerification || submitting) return;
+                setSubmitting(true);
+                setSignupError('');
+                try {
+                  const result = await onResendVerification({
+                    email: verificationEmail || email,
+                  });
+                  if (result?.ok === false) {
+                    setSignupError(
+                      result.error ||
+                        (locale?.startsWith('zh')
+                          ? '暂时没法重发验证邮件。'
+                          : 'Could not resend the verification email right now.'),
+                    );
+                    return;
+                  }
+                  setSignupInfo(
+                    result?.info ||
+                      (locale?.startsWith('zh')
+                        ? '验证邮件已重新发送，请检查收件箱。'
+                        : 'Verification email resent. Please check your inbox.'),
+                  );
+                } finally {
+                  setSubmitting(false);
+                }
+              }}
+            >
+              {submitting
+                ? locale?.startsWith('zh')
+                  ? '正在发送…'
+                  : 'Sending…'
+                : copy.resendVerification}
+            </button>
+            <button
+              type="button"
+              className="onboarding-btn onboarding-btn-secondary"
+              onClick={() => {
+                setMode('login');
+                setLoginEmail(verificationEmail || email || profile?.email || '');
+                setSignupError('');
+              }}
+            >
+              {copy.backToLogin}
+            </button>
+          </div>
+        </section>
       ) : (
         <section className="signup-stage">
           <div className="signup-stage-head">
@@ -852,6 +957,7 @@ export default function OnboardingFlow({
                       return;
                     }
                     if (result?.pendingConfirmation) {
+                      setVerificationEmail(email);
                       setSignupInfo(
                         result.info ||
                           (locale?.startsWith('zh')
@@ -859,7 +965,8 @@ export default function OnboardingFlow({
                             : 'Check your inbox and confirm your email before logging in.'),
                       );
                       setSignupStep(0);
-                      setMode('login');
+                      setPassword('');
+                      setMode('verify');
                     }
                   } finally {
                     setSubmitting(false);

@@ -124,6 +124,79 @@ export function strictUserScopeEnabled() {
   return process.env.NOVA_DISABLE_SESSION_USER_SCOPE !== '1' && process.env.NODE_ENV !== 'test';
 }
 
+type ScopeResolverSession = {
+  user: {
+    userId: string;
+  };
+};
+
+type ScopeResolutionResult =
+  | {
+      ok: true;
+      scope: {
+        authenticated: boolean;
+        userId: string;
+        authUserId: string | null;
+      };
+    }
+  | {
+      ok: false;
+      status: number;
+      body: {
+        error: 'AUTH_REQUIRED' | 'USER_SCOPE_MISMATCH';
+      };
+    };
+
+export async function resolveRequestNovaScope(
+  req: express.Request,
+  resolveSession: (bearerToken: string) => Promise<ScopeResolverSession | null>,
+): Promise<ScopeResolutionResult> {
+  const authorization = String(req.header('authorization') || '');
+  const bearerMatch = authorization.match(/^Bearer\s+(.+)$/i);
+  const bearerToken = bearerMatch?.[1]?.trim() || null;
+  const session = bearerToken ? await resolveSession(bearerToken) : null;
+  const requestedUserId = readRequestedUserId(req);
+
+  if (session) {
+    if (
+      requestedUserId &&
+      requestedUserId !== session.user.userId &&
+      !isGuestScopedUserId(requestedUserId)
+    ) {
+      return {
+        ok: false,
+        status: 403,
+        body: { error: 'USER_SCOPE_MISMATCH' },
+      };
+    }
+    return {
+      ok: true,
+      scope: {
+        authenticated: true,
+        userId: session.user.userId,
+        authUserId: session.user.userId,
+      },
+    };
+  }
+
+  const resolvedGuestUserId = requestedUserId || 'guest-default';
+  if (strictUserScopeEnabled() && !isGuestScopedUserId(resolvedGuestUserId)) {
+    return {
+      ok: false,
+      status: 401,
+      body: { error: 'AUTH_REQUIRED' },
+    };
+  }
+  return {
+    ok: true,
+    scope: {
+      authenticated: false,
+      userId: resolvedGuestUserId,
+      authUserId: null,
+    },
+  };
+}
+
 export function getRequestScope(req: express.Request) {
   const scope = (req as RequestWithNovaScope).novaScope;
   return (

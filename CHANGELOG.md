@@ -4,6 +4,17 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+- **Fix(auth): 注册流程改为隔离的 Supabase 邮箱验证链路。**
+  - 前端注册不再复用主浏览器 auth client，改为使用不持久化、独立 storage key 的 Supabase client 发起 `signUp` / `resend`，避免注册时把未验证用户直接写进主登录态。
+  - Onboarding 新增明确的 `verify email` 等待页与 resend 按钮；如果 Supabase 误配置成注册即返回 session，前端会直接报配置错误而不是偷偷进入系统。
+  - 认证 hook 和 App 壳层同步更新，注册成功后只停留在待验证态，直到用户完成邮箱验证后再走正常登录。
+
+- **Fix(test,auth,db): 统一全量验证到新的 Supabase-only 鉴权与可重复测试运行时。**
+  - 将已废弃的 `/api/auth/signup`、`/api/auth/forgot-password` 旧假设从测试中移除，改为断言 `AUTH_MANAGED_BY_SUPABASE`；admin 场景改为直接 seed auth service 用户，而不是依赖已关闭的公共注册 API。
+  - 新增可直接单测的 request scope resolver，并将 user-scope 相关测试改为验证 Bearer token 绑定、guest 限制和 `AUTH_REQUIRED / USER_SCOPE_MISMATCH` 返回，不再依赖旧 cookie 注册流。
+  - Vitest 运行时默认固定到隔离 sqlite，并禁用 Postgres mirror 写入；只有显式声明的 Postgres/runtime 测试才会重新打开对应路径，保证 `npm run verify` 在本地可重复且不依赖真实 Supabase 网络。
+  - 对齐新的 runtime bundle / mirror 读写路径，修复 Postgres fallback 与 mirror consistency 测试中过时的断言和数据桩。
+
 ## 10.21.2 (2026-04-01)
 
 - 发布类型：**patch**（Qlib Bridge 接口契约全面对齐）

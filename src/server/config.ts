@@ -21,8 +21,12 @@ function resolveRequestedRuntimeDriver(): 'sqlite' | 'postgres' {
   const value = String(process.env.NOVA_DATA_RUNTIME_DRIVER || '')
     .trim()
     .toLowerCase();
-  if (process.env.NODE_ENV === 'test') {
-    return value === 'sqlite' ? 'sqlite' : 'postgres';
+  const isVitestRuntime =
+    Boolean(process.env.VITEST || process.env.VITEST_WORKER_ID) ||
+    process.env.NODE_ENV === 'test' ||
+    process.argv.some((arg) => arg.toLowerCase().includes('vitest'));
+  if (isVitestRuntime) {
+    return value === 'postgres' ? 'postgres' : 'sqlite';
   }
   return 'postgres';
 }

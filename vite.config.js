@@ -10,6 +10,7 @@ export default defineConfig({
   plugins: vitestRunning ? [] : [react()],
   test: {
     exclude: ['**/node_modules/**', 'artifacts/**', 'dist/**', 'build/**', 'coverage/**'],
+    setupFiles: ['tests/vitest.setup.ts'],
   },
   server: {
     proxy: {
