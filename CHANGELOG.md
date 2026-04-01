@@ -4,6 +4,14 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+- **Fix(research): data_sync.py 修复 symbol 映射和数据清理。**
+  - JOIN `assets` 表将 `asset_id` 映射为真实 ticker symbol（之前用数字 ID 导致因子查询失败）。
+  - Sync 前清理旧的 CSV staging 和 Qlib binary 数据，防止新旧数据混合。
+  - 仅同步 `1d` 日线数据（Qlib 因子计算基于日线，跳过 1h/5m 减少 90% 数据量）。
+
+- **Fix(deploy): nova-qlib-bridge.service uv 路径修正。**
+  - ExecStart 从 `/root/.local/bin/uv` 改为 `/home/ubuntu/.local/bin/uv`，匹配 EC2 实际安装位置。
+
 ## 10.21.2 (2026-04-01)
 
 - 发布类型：**patch**（Qlib Bridge 接口契约全面对齐）
