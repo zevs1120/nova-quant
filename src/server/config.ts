@@ -194,6 +194,14 @@ function buildFallbackConfig(): AppConfig {
       },
       defaultLookbackDays: 365,
     },
+    qlibBridge: {
+      enabled:
+        String(process.env.QLIB_BRIDGE_ENABLED || 'true')
+          .trim()
+          .toLowerCase() === 'true',
+      baseUrl: (process.env.QLIB_BRIDGE_URL || 'http://127.0.0.1:8788').replace(/\/$/, ''),
+      timeoutMs: Number(process.env.QLIB_BRIDGE_TIMEOUT_MS) || 20000,
+    },
   };
 }
 
@@ -263,6 +271,17 @@ export function getConfig(): AppConfig {
     config.markets.US.symbols = process.env.US_SYMBOLS.split(',')
       .map((x) => x.trim())
       .filter(Boolean);
+  }
+
+  if (!config.qlibBridge) {
+    config.qlibBridge = {
+      enabled:
+        String(process.env.QLIB_BRIDGE_ENABLED || 'true')
+          .trim()
+          .toLowerCase() === 'true',
+      baseUrl: (process.env.QLIB_BRIDGE_URL || 'http://127.0.0.1:8788').replace(/\/$/, ''),
+      timeoutMs: Number(process.env.QLIB_BRIDGE_TIMEOUT_MS) || 20000,
+    };
   }
 
   cached = config;

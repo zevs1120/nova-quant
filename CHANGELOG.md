@@ -4,6 +4,15 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+## 10.21.0 (2026-03-31)
+
+- 发布类型：**minor**（架构完善与端到端集成）
+
+- **Feat(research,quant): 深度整合 Qlib Bridge 客户端与自动化数据同步管道。**
+  - **核心客户端引擎 (`qlibClient.ts`)**：构建了完全类型安全的高性能 HTTP API 透传层，匹配 Python 端 `/api/data/sync`、`/api/factors/compute` 等服务；添加自动回退容错并区分长短任务超时（最长容忍高达 300s）。
+  - **自动化影子同步**：在 Node.js 端行情的全量抓取管道 (`scripts/backfill.ts`) 完成后自动触发非阻塞挂起的同步指令，无需外部干预即可使得 Python 端 SQLite -> Bin 数据矩阵保持时效最高同步。
+  - **非阻塞信号增强 (`featureSignalLayer.js`)**：使用修饰器模式为原始量化引擎注入 Alpha158 外部算力补全；一旦桥接侧（Sidecar）出现崩溃、挂起或 OOM，TS 系统自动降级回归到纯本地指标进行信号计算，保证整体交易系统的永不掉线（Graceful Degradation）。
+
 ## 10.20.0 (2026-03-31)
 
 - 发布类型：**minor**（架构重构与特性发布）
@@ -1283,6 +1292,12 @@ NovaQuant 所有重要变更记录于此。
 - 引入轻量版本管理系统（单一前后端版本源、build number 支持、About 页面版本展示和可复用 bump 脚本）。
 
 ## 10.20.0 (2026-04-01)
+
+- Release type: minor
+- Automated version bump via version-manager.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
+## 10.21.0 (2026-04-01)
 
 - Release type: minor
 - Automated version bump via version-manager.

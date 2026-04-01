@@ -312,16 +312,23 @@ alpha_promotion_guard/ → 晋升守卫 (Shadow → Canary → Prod)
 
 ### 6.8 Marvix LLM 运行时 (`src/server/nova/`)
 
-| 文件             | 职责                           |
-| ---------------- | ------------------------------ |
-| `service.ts`     | Nova 服务 (任务日志、路由)     |
-| `client.ts`      | Ollama 客户端                  |
-| `router.ts`      | 模型路由 (Core/Scout/Retrieve) |
-| `health.ts`      | 健康检查                       |
-| `flywheel.ts`    | 策略飞轮                       |
-| `strategyLab.ts` | 策略实验室                     |
-| `training.ts`    | MLX 训练导出                   |
-| `mlx.ts`         | MLX-LM 集成                    |
+| 文件             | 职责                                              |
+| ---------------- | ------------------------------------------------- |
+| `service.ts`     | Nova 服务 (任务日志、路由)                        |
+| `client.ts`      | Ollama 客户端                                     |
+| `router.ts`      | 模型路由 (Core/Scout/Retrieve)                    |
+| `health.ts`      | 健康检查                                          |
+| `flywheel.ts`    | 策略飞轮                                          |
+| `strategyLab.ts` | 策略实验室                                        |
+| `training.ts`    | MLX 训练导出                                      |
+| `mlx.ts`         | MLX-LM 集成                                       |
+| `qlibClient.ts`  | 桥接 Qlib Python Sidecar，提取 Factor 与 模型推理 |
+
+### 6.9 量化特征与信号降级 (`src/research/core/`)
+
+| 文件                    | 职责                                                   |
+| ----------------------- | ------------------------------------------------------ |
+| `featureSignalLayer.js` | 构建信号层并注入 Alpha158 外部算力补全；异常时自动降级 |
 
 ---
 

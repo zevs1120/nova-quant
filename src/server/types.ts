@@ -588,6 +588,11 @@ export interface AppConfig {
     retry: RetryConfig;
     defaultLookbackDays: number;
   };
+  qlibBridge?: {
+    enabled: boolean;
+    baseUrl: string;
+    timeoutMs: number;
+  };
 }
 
 export type StrategyLifecycleStatus =

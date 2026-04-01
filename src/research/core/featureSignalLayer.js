@@ -238,3 +238,62 @@ export function buildFeatureSignalLayer({
     },
   };
 }
+
+/**
+ * Async wrapper to enrich the generated opportunity objects with Qlib Alpha158 base factors
+ * before submitting them to the AI Evaluator or execution layer.
+ *
+ * @param {Array} opportunityObjects - Array of base opportunity objects from featureSignalLayer
+ * @param {Function} fetchQlibFactors - Injected fetcher reference to avoid circular TS/JS deps
+ */
+export async function enrichWithQlibFeatures(opportunityObjects = [], fetchQlibFactors) {
+  if (!opportunityObjects.length || !fetchQlibFactors) return opportunityObjects;
+
+  try {
+    const symbols = Array.from(new Set(opportunityObjects.map((o) => o.asset).filter(Boolean)));
+    if (!symbols.length) return opportunityObjects;
+
+    // Use a recent lookback window for the factors (e.g. 5 days ago to now)
+    const now = new Date();
+    const start = new Date(now.getTime() - 5 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+    const end = now.toISOString().slice(0, 10);
+
+    const qlibRes = await fetchQlibFactors({
+      symbols,
+      factors: ['Alpha158'],
+      start_date: start,
+      end_date: end,
+    });
+
+    if (qlibRes?.status === 'ok' && qlibRes.data) {
+      return opportunityObjects.map((opp) => {
+        const symbolData = qlibRes.data[opp.asset];
+        if (!symbolData) return opp;
+
+        // Take the latest available date for the symbol
+        const dates = Object.keys(symbolData).sort();
+        const latestDate = dates[dates.length - 1];
+        if (!latestDate) return opp;
+
+        const factors = symbolData[latestDate];
+        return {
+          ...opp,
+          evidence_fields: {
+            ...(opp.evidence_fields || {}),
+            qlib_alpha158_snapshot: factors, // Enrich with the fetched factors
+          },
+          audit_lineage: {
+            ...(opp.audit_lineage || {}),
+            qlib_enriched_at: new Date().toISOString(),
+          },
+        };
+      });
+    }
+  } catch (error) {
+    // Graceful degradation: log but don't crash
+    console.warn('[Qlib Enrichment] Failed to attach Alpha158 factors:', error.message);
+  }
+
+  // Fallback to purely classical TS rules
+  return opportunityObjects;
+}

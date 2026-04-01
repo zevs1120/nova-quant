@@ -5,8 +5,9 @@ import { backfillAlphaVantageDaily } from '../ingestion/hostedData.js';
 import { backfillNasdaqHistorical } from '../ingestion/nasdaq.js';
 import { backfillStooqBulk } from '../ingestion/stooq.js';
 import { backfillYahooChart } from '../ingestion/yahoo.js';
+import { syncQlibData } from '../nova/qlibClient.js';
 import type { Market, Timeframe } from '../types.js';
-import { logInfo, logWarn } from '../utils/log.js';
+import { logInfo, logWarn, logError } from '../utils/log.js';
 import { parseArgs } from './args.js';
 
 function parseTimeframes(input: string | undefined, fallback: Timeframe[]): Timeframe[] {
@@ -86,6 +87,13 @@ export async function runBackfillCli(argv: string[]): Promise<void> {
       symbols: cfg.markets.CRYPTO.symbols,
       timeframes: cryptoTfs,
       repo,
+    });
+  }
+
+  // Dispatch Qlib Proxy data sync asynchronously without blocking the CLI
+  if (cfg.qlibBridge?.enabled) {
+    syncQlibData({ force: false }).catch((error) => {
+      logError('Background Qlib ETL Sync failed', error);
     });
   }
 
