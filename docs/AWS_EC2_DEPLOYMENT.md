@@ -101,6 +101,10 @@ Minimum values to set for backend-only Marvix:
 - `NOVA_DISABLE_GROQ=1`
 - `NOVA_DATA_DATABASE_URL=postgresql://...`
 - `NOVA_DATA_PG_SCHEMA=novaquant_data`
+- `SUPABASE_URL=https://<project-ref>.supabase.co`
+- `SUPABASE_PUBLISHABLE_KEY=sb_publishable_xxx`
+- `SUPABASE_AUTH_REDIRECT_URL=https://app.novaquant.cloud/`
+- `NOVA_APP_URL=https://app.novaquant.cloud/`
 - `GEMINI_API_KEY`
 - `NOVA_ADMIN_EMAILS=admin@your-domain.com` when you need admin console access
 
@@ -113,6 +117,7 @@ Admin auth note:
 Important note:
 
 - `NOVA_DATA_DATABASE_URL` is required because Supabase/Postgres is the only supported business runtime.
+- `SUPABASE_URL` plus `SUPABASE_PUBLISHABLE_KEY` are also required on the API host if signup, login, password reset, or `/api/auth/provider-config` should work for the public app.
 - `NOVA_PG_PRIMARY_READ_FAILURE_COOLDOWN_MS` and `NOVA_ALLOW_SYNC_HOT_PATH_FALLBACK=0` can keep public hot paths responsive when Supabase is slow.
 - `NOVA_AUTO_BACKEND_SKIP_INIT=1` can be used on warm hosts to suppress startup-time worker initialization if deploy-time restarts are still causing I/O pressure.
 

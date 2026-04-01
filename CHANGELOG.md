@@ -4,6 +4,8 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+- fix(db,auth,deploy): repaired production Supabase signup config by requiring API-host `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, and redirect envs in EC2/Vultr templates; added build-time public Supabase injection to the standalone `app/` Vite config so the deployed H5 app no longer depends on a missing backend env to discover browser auth settings.
+
 - **Fix(db,test,docs): 仓库完全收口到 Supabase/Postgres，清除本地数据库残留。**
   - 移除历史本地数据库与旧 HTTP 测试依赖，删除本地库初始化/迁移脚本，并将底层 SQL helper 收口到 `postgresSql.ts`。
   - API 测试改为进程内 HTTP harness，不再依赖端口监听；全量 `875` 个 Vitest 用例在受限环境下可稳定通过。

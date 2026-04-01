@@ -53,6 +53,10 @@ Minimum values to set:
 - `NOVA_CLOUD_API_KEY`
 - `NOVA_AUTH_DATABASE_URL=postgresql://...`
 - `NOVA_DATA_DATABASE_URL=postgresql://...`
+- `SUPABASE_URL=https://<project-ref>.supabase.co`
+- `SUPABASE_PUBLISHABLE_KEY=sb_publishable_xxx`
+- `SUPABASE_AUTH_REDIRECT_URL=https://app.novaquant.cloud/`
+- `NOVA_APP_URL=https://app.novaquant.cloud/`
 
 ## Systemd Service
 
