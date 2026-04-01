@@ -4,6 +4,17 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+- **Fix(auth): 认证系统安全加固 — 8 项审计问题全部处理。**
+  - **[高危] Fix(auth): 登录端点新增 IP 级别 rate limiting（默认 60s/10 次）。** 防止暴力破解攻击，`/api/auth/login` 和 `/api/admin/login` 均受保护，超限返回 429。
+  - **[高危] Perf(auth): Supabase access token 验证新增内存缓存（默认 TTL 30s）。** 避免每次 API 请求都对 Supabase 做网络调用，减少延迟和 Supabase 不可达时的全站影响。
+  - **[中危] Fix(auth): 修复 Postgres 注册 TOCTOU 竞态。** `signupAuthUser` 的 `pgInsertUserWithState` 在 unique constraint 错误时返回 `EMAIL_EXISTS`，而非抛出 raw Postgres 错误。
+  - **[中危] Fix(auth): Admin session cache 默认 TTL 从 30s 降至 10s。** 多实例部署下角色变更传播更快。
+  - **[中危] Feat(auth): 新增 AuthContext。** `useAuthContext()` 可在深层组件中直接获取认证状态，消除 prop drilling。
+  - **[低危] Fix(auth): 测试账号改为 opt-in。** `NOVA_DISABLE_TEST_ACCOUNT` 废弃，新增 `NOVA_ENABLE_TEST_ACCOUNT=1` 显式启用；默认不再创建 test/test 账号。
+  - **[低危] Fix(auth): 密码重置 code hint 改为显式 opt-in。** `shouldExposePasswordResetCodeHint` 仅在 `NOVA_EXPOSE_RESET_CODE_HINT=1` 时返回 true，防止 staging 泄露。
+  - **[信息] Fix(auth): 未认证时不再渲染主应用内容。** 使用 early return 模式，未登录用户只看到 OnboardingFlow，不再只是视觉层遮挡。
+  - **Test: 新增 `authRateLimitAndHardening.test.ts`，覆盖 rate limiting、token cache、signup 竞态、test account 默认、reset code hint。**
+
 - **Fix(auth,signal,hub,db): 认证系统全面审计修复 — 5 项 Issues 全部清除。**
   - **[🔴 高危] Fix(cors): CORS preflight 未允许 `Authorization` header，跨域 Bearer token 请求可能被浏览器拦截。**
     - `app.ts` 和 `api/index.ts` 两处 `Access-Control-Allow-Headers` 均从 `Content-Type` 更新为 `Content-Type, Authorization`，覆盖 first-party、cross-origin-read 和 Vercel public CORS 三条路径。

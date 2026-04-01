@@ -93,13 +93,33 @@ export function isSupabaseEmailConfirmed(user: SupabaseUser | null | undefined) 
   );
 }
 
+const TOKEN_CACHE_TTL_MS = Math.max(
+  1_000,
+  Number(process.env.NOVA_SUPABASE_TOKEN_CACHE_TTL_MS || 30_000),
+);
+const tokenCache = new Map<string, { user: SupabaseUser; expiresAt: number }>();
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, entry] of tokenCache.entries()) {
+    if (entry.expiresAt < now) tokenCache.delete(key);
+  }
+}, 60_000).unref();
+
 export async function verifySupabaseAccessToken(
   accessToken: string | null | undefined,
 ): Promise<VerifiedSupabaseAuthUser | null> {
   const normalized = trim(accessToken);
   if (!normalized) return null;
+
+  const now = Date.now();
+  const cached = tokenCache.get(normalized);
+  if (cached && cached.expiresAt > now) return cached.user;
+
   const client = getSupabaseAuthClient();
   const { data, error } = await client.auth.getUser(normalized);
   if (error || !data.user || !isSupabaseEmailConfirmed(data.user)) return null;
+
+  tokenCache.set(normalized, { user: data.user, expiresAt: now + TOKEN_CACHE_TTL_MS });
   return data.user;
 }

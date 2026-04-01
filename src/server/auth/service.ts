@@ -66,7 +66,7 @@ const SESSION_COOKIE_NAME = 'novaquant_session';
 const ADMIN_SESSION_COOKIE_NAME = 'novaquant_admin_session';
 const ADMIN_SESSION_CACHE_TTL_MS = Math.max(
   1_000,
-  Number(process.env.NOVA_ADMIN_SESSION_CACHE_TTL_MS || 30_000),
+  Number(process.env.NOVA_ADMIN_SESSION_CACHE_TTL_MS || 10_000),
 );
 const SESSION_ACTIVITY_TOUCH_INTERVAL_MS = 5 * 60 * 1000;
 const adminSessionCache = new Map<
@@ -287,7 +287,7 @@ function mergeSeededUserState(user: SeededUserConfig): AuthUserState {
 function getSeededUserConfigs(): SeededUserConfig[] {
   const seededUsers: SeededUserConfig[] = [];
 
-  if (process.env.NOVA_DISABLE_TEST_ACCOUNT !== '1') {
+  if (process.env.NOVA_ENABLE_TEST_ACCOUNT === '1') {
     seededUsers.push({
       email: 'test',
       password: 'test',
@@ -365,7 +365,7 @@ function buildCookieHeader(name: string, token: string, maxAgeSeconds: number) {
 }
 
 function shouldExposePasswordResetCodeHint() {
-  return process.env.VERCEL !== '1' && process.env.NODE_ENV !== 'production';
+  return process.env.NOVA_EXPOSE_RESET_CODE_HINT === '1';
 }
 
 function clearCookieHeader(name: string) {
@@ -1471,10 +1471,18 @@ export async function signupAuthUser(args: {
       updated_at_ms: ts,
       last_login_at_ms: ts,
     };
-    await pgInsertUserWithState({
-      user,
-      state,
-    });
+    try {
+      await pgInsertUserWithState({
+        user,
+        state,
+      });
+    } catch (insertError: unknown) {
+      const msg = String((insertError as Error)?.message || '');
+      if (msg.includes('unique') || msg.includes('duplicate') || msg.includes('23505')) {
+        return { ok: false as const, error: 'EMAIL_EXISTS' };
+      }
+      throw insertError;
+    }
     if (hasSupabaseAuthProvider()) {
       const { error } = await getSupabaseAuthClient().auth.signUp({
         email,

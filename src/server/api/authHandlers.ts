@@ -13,6 +13,7 @@ import {
   upsertAuthUserState,
 } from '../auth/service.js';
 import { readSupabaseBrowserRuntimeConfig } from '../auth/supabase.js';
+import { checkAuthRateLimit } from '../auth/rateLimit.js';
 
 type BasicRequest = {
   body?: unknown;
@@ -155,6 +156,12 @@ export async function handleAuthSignup(req: BasicRequest, res: BasicResponse) {
 
 export async function handleAdminLogin(req: BasicRequest, res: BasicResponse) {
   try {
+    const ip = requestIp(req) || 'unknown';
+    const rl = checkAuthRateLimit(ip);
+    if (!rl.allowed) {
+      res.status(429).json({ ok: false, error: 'RATE_LIMITED', retryAfterMs: rl.retryAfterMs });
+      return;
+    }
     const body = (req.body || {}) as { email?: string; password?: string };
     const result = await loginAdminUser({
       email: String(body.email || ''),
@@ -183,6 +190,12 @@ export async function handleAdminLogin(req: BasicRequest, res: BasicResponse) {
 
 export async function handleAuthLogin(req: BasicRequest, res: BasicResponse) {
   try {
+    const ip = requestIp(req) || 'unknown';
+    const rl = checkAuthRateLimit(ip);
+    if (!rl.allowed) {
+      res.status(429).json({ ok: false, error: 'RATE_LIMITED', retryAfterMs: rl.retryAfterMs });
+      return;
+    }
     const body = (req.body || {}) as { email?: string; password?: string };
     const result = await loginAuthUser({
       email: String(body.email || ''),

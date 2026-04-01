@@ -31,6 +31,7 @@ import { useEngagement } from './hooks/useEngagement';
 import { useInvestorDemo } from './hooks/useInvestorDemo';
 import { useMembership } from './hooks/useMembership';
 import { useNavigation } from './hooks/useNavigation';
+import { AuthProvider } from './contexts/AuthContext';
 import { createTranslator, getDefaultLang, getLocale } from './i18n';
 import { buildHoldingsReview } from './research/holdingsAnalyzer';
 import { fetchApi } from './utils/api';
@@ -131,6 +132,17 @@ export default function App() {
     setMyStack,
     locale,
   });
+
+  const authContextValue = useMemo(
+    () => ({
+      authSession,
+      authHydrated,
+      userProfile,
+      effectiveUserId,
+      handleLogout,
+    }),
+    [authSession, authHydrated, userProfile, effectiveUserId, handleLogout],
+  );
 
   const membership = useMembership({
     locale,
@@ -980,151 +992,161 @@ export default function App() {
     return () => node.removeEventListener('scroll', handleScroll);
   }, [activeTab, mySection]);
 
-  return (
-    <div className={`app-bg app-bg-${displayMode} app-tone-${appTone}`}>
-      <div
-        className={`device-shell device-shell-${displayMode} ui-tone-${appTone} ui-motion-${motionProfile} daily-check-${dailyCheckState}`}
-        data-active-tab={activeTab}
-      >
-        <header
-          className={`top-bar top-bar-${topBarMode} ${topBarCondensed ? 'is-condensed' : ''}`}
-        >
-          <div className="top-bar-leading">
-            {canGoBackInMyTopBar ? (
-              <button
-                type="button"
-                className="ios-nav-back top-bar-back"
-                onClick={popMySection}
-                aria-label={`Back to ${topBarBackLabel}`}
-              >
-                <span className="ios-back-chevron" aria-hidden="true">
-                  ‹
-                </span>
-                <span className="ios-back-label">{topBarBackLabel}</span>
-              </button>
-            ) : canGoBackInBrowseTopBar ? (
-              <button
-                type="button"
-                className="ios-nav-back top-bar-back"
-                onClick={() => setBrowseBackToken((current) => current + 1)}
-                aria-label={`Back to ${topBarBackLabel}`}
-              >
-                <span className="ios-back-chevron" aria-hidden="true">
-                  ‹
-                </span>
-                <span className="ios-back-label">{topBarBackLabel}</span>
-              </button>
-            ) : null}
-          </div>
-          {showCenterTopBarTitle ? (
-            <div className="top-bar-center-title" aria-label={topBarCenterTitle}>
-              {topBarCenterTitle}
-            </div>
-          ) : (
-            <div className="top-bar-logo-wrap" aria-label="Nova Quant">
-              <img
-                src={novaLogo}
-                alt="Nova Quant"
-                className={`top-bar-logo top-bar-logo-expanded ${topBarCondensed ? 'is-hidden' : ''}`}
-              />
-              <img
-                src={novaLogoCompact}
-                alt="Nova Quant"
-                className={`top-bar-logo top-bar-logo-compact ${topBarCondensed ? 'is-visible' : ''}`}
-              />
-            </div>
-          )}
-          {showHoldingsMenuAction ? (
-            <button
-              type="button"
-              className="top-bar-action-button"
-              aria-label={locale === 'zh' ? '打开菜单' : 'Open menu'}
-              onClick={() => openMySection('menu')}
-            >
-              <TopBarMenuGlyph />
-            </button>
-          ) : canGoBackInTopBar ? (
-            <div className="top-bar-spacer" aria-hidden="true" />
-          ) : null}
-        </header>
-
-        <main ref={mainContentRef} className={`main-content main-content-${activeTab}`}>
-          <Suspense fallback={<Skeleton lines={6} />}>
-            <div className="screen-transition" key={`${activeTab}-${mySection}-${uiMode}`}>
-              {renderScreen()}
-            </div>
+  if (authHydrated && showOnboarding && !investorDemoEnabled) {
+    return (
+      <AuthProvider value={authContextValue}>
+        <div className={`app-bg app-bg-${displayMode} app-tone-${appTone}`}>
+          <Suspense fallback={null}>
+            <OnboardingFlow
+              open
+              locale={locale}
+              profile={userProfile}
+              initialMode={passwordRecoveryMode ? 'recover' : onboardingDone ? 'login' : 'intro'}
+              onLogin={handleLogin}
+              onRequestReset={handleRequestReset}
+              onResetPassword={handleResetPassword}
+              onComplete={handleSignup}
+              onResendVerification={handleResendSignupVerification}
+            />
           </Suspense>
-        </main>
-      </div>
+        </div>
+      </AuthProvider>
+    );
+  }
 
-      <nav className="native-tabbar" aria-label="Primary navigation">
-        {primaryTabKeys.map((key) => {
-          const value = tabMeta[key];
-          return (
-            <button
-              key={key}
-              type="button"
-              className={`native-tabbar-button ${activeTab === key ? 'is-active' : ''}`}
-              aria-current={activeTab === key ? 'page' : undefined}
-              onClick={() => {
-                setActiveTab(key);
-                if (key !== 'my') {
-                  resetMy();
-                } else {
-                  setMyStack(['portfolio']);
-                }
-              }}
-            >
-              <span className="native-tabbar-icon-wrap">
-                <TabBarIcon name={value.icon} />
-              </span>
-              <span className="native-tabbar-label">{value.label}</span>
-            </button>
-          );
-        })}
-      </nav>
+  return (
+    <AuthProvider value={authContextValue}>
+      <div className={`app-bg app-bg-${displayMode} app-tone-${appTone}`}>
+        <div
+          className={`device-shell device-shell-${displayMode} ui-tone-${appTone} ui-motion-${motionProfile} daily-check-${dailyCheckState}`}
+          data-active-tab={activeTab}
+        >
+          <header
+            className={`top-bar top-bar-${topBarMode} ${topBarCondensed ? 'is-condensed' : ''}`}
+          >
+            <div className="top-bar-leading">
+              {canGoBackInMyTopBar ? (
+                <button
+                  type="button"
+                  className="ios-nav-back top-bar-back"
+                  onClick={popMySection}
+                  aria-label={`Back to ${topBarBackLabel}`}
+                >
+                  <span className="ios-back-chevron" aria-hidden="true">
+                    ‹
+                  </span>
+                  <span className="ios-back-label">{topBarBackLabel}</span>
+                </button>
+              ) : canGoBackInBrowseTopBar ? (
+                <button
+                  type="button"
+                  className="ios-nav-back top-bar-back"
+                  onClick={() => setBrowseBackToken((current) => current + 1)}
+                  aria-label={`Back to ${topBarBackLabel}`}
+                >
+                  <span className="ios-back-chevron" aria-hidden="true">
+                    ‹
+                  </span>
+                  <span className="ios-back-label">{topBarBackLabel}</span>
+                </button>
+              ) : null}
+            </div>
+            {showCenterTopBarTitle ? (
+              <div className="top-bar-center-title" aria-label={topBarCenterTitle}>
+                {topBarCenterTitle}
+              </div>
+            ) : (
+              <div className="top-bar-logo-wrap" aria-label="Nova Quant">
+                <img
+                  src={novaLogo}
+                  alt="Nova Quant"
+                  className={`top-bar-logo top-bar-logo-expanded ${topBarCondensed ? 'is-hidden' : ''}`}
+                />
+                <img
+                  src={novaLogoCompact}
+                  alt="Nova Quant"
+                  className={`top-bar-logo top-bar-logo-compact ${topBarCondensed ? 'is-visible' : ''}`}
+                />
+              </div>
+            )}
+            {showHoldingsMenuAction ? (
+              <button
+                type="button"
+                className="top-bar-action-button"
+                aria-label={locale === 'zh' ? '打开菜单' : 'Open menu'}
+                onClick={() => openMySection('menu')}
+              >
+                <TopBarMenuGlyph />
+              </button>
+            ) : canGoBackInTopBar ? (
+              <div className="top-bar-spacer" aria-hidden="true" />
+            ) : null}
+          </header>
 
-      <AboutModal
-        open={aboutOpen}
-        onClose={() => setAboutOpen(false)}
-        config={data.config}
-        t={t}
-        locale={locale}
-      />
+          <main ref={mainContentRef} className={`main-content main-content-${activeTab}`}>
+            <Suspense fallback={<Skeleton lines={6} />}>
+              <div className="screen-transition" key={`${activeTab}-${mySection}-${uiMode}`}>
+                {renderScreen()}
+              </div>
+            </Suspense>
+          </main>
+        </div>
 
-      <MembershipSheet
-        open={Boolean(membership.prompt)}
-        prompt={membership.prompt}
-        locale={locale}
-        currentPlan={membership.currentPlan}
-        remainingAskNova={membership.remainingAskNova}
-        onClose={membership.closePrompt}
-        onSelectPlan={openCheckoutFromPrompt}
-        onOpenMembershipCenter={openMembershipCenter}
-      />
+        <nav className="native-tabbar" aria-label="Primary navigation">
+          {primaryTabKeys.map((key) => {
+            const value = tabMeta[key];
+            return (
+              <button
+                key={key}
+                type="button"
+                className={`native-tabbar-button ${activeTab === key ? 'is-active' : ''}`}
+                aria-current={activeTab === key ? 'page' : undefined}
+                onClick={() => {
+                  setActiveTab(key);
+                  if (key !== 'my') {
+                    resetMy();
+                  } else {
+                    setMyStack(['portfolio']);
+                  }
+                }}
+              >
+                <span className="native-tabbar-icon-wrap">
+                  <TabBarIcon name={value.icon} />
+                </span>
+                <span className="native-tabbar-label">{value.label}</span>
+              </button>
+            );
+          })}
+        </nav>
 
-      <BillingCheckoutSheet
-        open={Boolean(billing.checkoutState?.open)}
-        locale={locale}
-        checkoutState={billing.checkoutState}
-        prefillEmail={userProfile?.email || authSession?.email || ''}
-        onClose={billing.closeCheckout}
-        onConfirm={billing.submitCheckout}
-      />
-
-      <Suspense fallback={null}>
-        <OnboardingFlow
-          open={showOnboarding}
+        <AboutModal
+          open={aboutOpen}
+          onClose={() => setAboutOpen(false)}
+          config={data.config}
+          t={t}
           locale={locale}
-          profile={userProfile}
-          initialMode={passwordRecoveryMode ? 'recover' : onboardingDone ? 'login' : 'intro'}
-          onLogin={handleLogin}
-          onRequestReset={handleRequestReset}
-          onResetPassword={handleResetPassword}
-          onComplete={handleSignup}
-          onResendVerification={handleResendSignupVerification}
         />
-      </Suspense>
-    </div>
+
+        <MembershipSheet
+          open={Boolean(membership.prompt)}
+          prompt={membership.prompt}
+          locale={locale}
+          currentPlan={membership.currentPlan}
+          remainingAskNova={membership.remainingAskNova}
+          onClose={membership.closePrompt}
+          onSelectPlan={openCheckoutFromPrompt}
+          onOpenMembershipCenter={openMembershipCenter}
+        />
+
+        <BillingCheckoutSheet
+          open={Boolean(billing.checkoutState?.open)}
+          locale={locale}
+          checkoutState={billing.checkoutState}
+          prefillEmail={userProfile?.email || authSession?.email || ''}
+          onClose={billing.closeCheckout}
+          onConfirm={billing.submitCheckout}
+        />
+      </div>
+    </AuthProvider>
   );
 }

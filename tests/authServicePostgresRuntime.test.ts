@@ -44,7 +44,7 @@ describe('auth service in postgres runtime', () => {
     vi.stubEnv('NOVA_DATA_RUNTIME_DRIVER', 'postgres');
     vi.stubEnv('NOVA_DATA_DATABASE_URL', 'postgres://runtime-host/db');
     vi.stubEnv('NOVA_AUTH_DRIVER', 'postgres');
-    vi.stubEnv('NOVA_DISABLE_TEST_ACCOUNT', '1');
+    // Test account is disabled by default (requires NOVA_ENABLE_TEST_ACCOUNT=1)
     vi.stubEnv('NOVA_ENABLE_SEEDED_DEMO_USER', '0');
     vi.stubEnv('KV_REST_API_URL', '');
     vi.stubEnv('KV_REST_API_TOKEN', '');
