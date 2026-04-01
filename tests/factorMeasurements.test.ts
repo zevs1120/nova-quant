@@ -48,6 +48,8 @@ function carrySeries(
   };
 }
 
+const MEASURED_FACTOR_BAR_COUNT = 140;
+
 describe('factor measurement research layer', () => {
   it('computes measured momentum diagnostics from aligned cross-sectional bars', () => {
     const repo = buildRepo();
@@ -65,7 +67,12 @@ describe('factor measurement research layer', () => {
         venue: 'TEST',
         status: 'ACTIVE',
       });
-      repo.upsertOhlcvBars(asset.asset_id, '1d', series(100, item.rate, 220), 'test_seed');
+      repo.upsertOhlcvBars(
+        asset.asset_id,
+        '1d',
+        series(100, item.rate, MEASURED_FACTOR_BAR_COUNT),
+        'test_seed',
+      );
     }
 
     const result = buildFactorMeasurementReport(repo, {
@@ -111,7 +118,13 @@ describe('factor measurement research layer', () => {
         venue: 'TEST',
         status: 'ACTIVE',
       });
-      const payload = carrySeries(100, item.rate, item.funding, item.basis, 220);
+      const payload = carrySeries(
+        100,
+        item.rate,
+        item.funding,
+        item.basis,
+        MEASURED_FACTOR_BAR_COUNT,
+      );
       repo.upsertOhlcvBars(asset.asset_id, '1d', payload.bars, 'test_seed');
       repo.upsertFundingRates(asset.asset_id, payload.funding, 'test_seed');
       repo.upsertBasisSnapshots(asset.asset_id, payload.basis, 'test_seed');
