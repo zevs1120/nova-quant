@@ -36,3 +36,13 @@ npm-debug.log*
 yarn-error.log*
 .vercel
 *.pem
+
+# Python (qlib-bridge sidecar)
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+qlib-bridge/models/*.pkl
+qlib-bridge/models/*.pickle
+qlib-bridge/models/*.joblib
+qlib-bridge/_csv_staging/

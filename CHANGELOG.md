@@ -4,14 +4,21 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
-## 10.19.0 (2026-03-31)
+## 10.20.0 (2026-03-31)
 
 - 发布类型：**minor**（架构重构与特性发布）
+
+- **Feat(research,quant): 初始化 qlib-bridge Python sidecar 服务，引入 Microsoft Qlib 量化引擎。**
+  - 为克服 TypeScript/Node.js 生态在量化因子计算和传统 ML 推理上的算力及生态局限，搭建了无侵入式的独立 Python 微服务 `qlib-bridge`。
+  - 新增基于 FastAPI 和 PyQlib 的 REST API 桥接层：提供 Alpha158/Alpha360 因子日频计算接口（`/api/factors/compute`），以及预训练决策树/传统机器模型的远程推理端点（`/api/models/predict`）。
+  - 新增 `data_sync.py` 执行同步：自动化桥接 Nova Quant 存量的 SQLite OHLCV K线数据到 Qlib 原生二进制格式 (dump_bin)，避免双重抓取。
+  - 工程化限制与环境适配：基于 2GB 发行版限制设计内存安全机制 (`max_universe_size: 50`) 和 systemd 内存熔断；开发工作流彻底摒弃传统 venv 切换到更现代极速的 `uv` 虚拟环境。
+  - 架构文档同步更新，明确了四端（app, admin, web, serverless）外挂一个模型端的部署拓扑。
 
 - **Docs(architecture)：全栈架构与部署环境全局文档治理与同步。**
   - **核心架构升级同步**：在 `README.md` 与 `docs/SYSTEM_ARCHITECTURE.md`、`architecture.md` 等架构文档中，全面记录了原生 Supabase Auth 的结构变迁（替换了原有的本地验证代理和 Upstash Redis 等冗余依赖）。
   - **计费与会员模块文档补齐**：在图表及文档中加入了专门负责全局数据同步的 `useBilling.js` Hook 的记述，以及关于 Membership & Billing 订阅层级与限额网关的详细说明。
-  - **环境变量模板清理**：清除了 `deployment/` 目录下（aws-ec2, vultr 等）`.env.example` 关于 `RESEND_API_KEY` 等依赖邮件发送参数，指导开发者直接使用 Supabase 原生 SMTP。
+  - **环境配模板清理**：清除了 `deployment/` 目录下（aws-ec2, vultr 等）`.env.example` 关于 `RESEND_API_KEY` 等依赖邮件发送参数，指导开发者直接使用 Supabase 原生 SMTP。
 
 - **Feat(auth): 彻底弃用 Resend 依赖，全面接入原生 Supabase Auth 邮件流。**
   - 废除冗余架构：重构 `service.ts`，废除自定义 6 位验证码存取、弃用定制化的邮件模板管理流程，改为原生调用 SDK 的 `signUp()` 和 `resetPasswordForEmail()`，将整个账户边缘发送链路收敛并下放到原生 Supabase 后台接管。
@@ -1274,3 +1281,9 @@ NovaQuant 所有重要变更记录于此。
 - 将共享文案系统接入决策引擎、参与引擎、Today 界面和 Nova Assistant prompt 层。
 - 添加工程就绪文案文档和回归测试（语调、无操作完成、通知、widget、助手声音）。
 - 引入轻量版本管理系统（单一前后端版本源、build number 支持、About 页面版本展示和可复用 bump 脚本）。
+
+## 10.20.0 (2026-04-01)
+
+- Release type: minor
+- Automated version bump via version-manager.
+- Updated release metadata, build number, About runtime source, and changelog entry.

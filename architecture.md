@@ -20,7 +20,8 @@ nova-quant/
 ├── app/       → 用户端 H5 前端 (Vercel)     → app.novaquant.cloud
 ├── server/    → 纯 API 层 (Vercel)           → api.novaquant.cloud
 ├── admin/     → 内部管理后台 (Vercel)         → admin.novaquant.cloud
-└── model/     → EC2 端模型边界 & 信号合约
+├── model/     → EC2 端模型边界 & 信号合约
+└── qlib-bridge/ → EC2 端 Python 微服务 (提供 Alpha158 因子与 ML 模型推理)
 ```
 
 **运行时规则**:
@@ -30,6 +31,7 @@ nova-quant/
 | `admin/` | 仅调用 API | 直接读写数据库 |
 | `server/`| 读写数据库、响应 API 请求 | — |
 | `model/` | 推送标准信号到 server | 触碰用户数据 |
+| `qlib-bridge/` | 接受 HTTP 请求，读本地 DB 同步并算因子 | 触碰用户状态或主动写入 DB |
 
 ---
 
@@ -154,6 +156,11 @@ nova-quant/
 │       ├── components/           # 10 section 组件
 │       ├── hooks/                # 2 hooks (useStatementFan, useViewportMotion)
 │       └── styles/               # 12 有序 CSS 模块
+│
+├── qlib-bridge/                  # Python Sidecar 微服务 (FastAPI)
+│   ├── bridge/                   # 因子与模型适配器 (Alpha158/360, LightGBM)
+│   ├── models/                   # 预训练模型挂载点 (.pkl)
+│   └── pyproject.toml            # uv 依赖清单 (pyqlib 等)
 │
 ├── data/                         # 运行时数据 (quant.db, 不入库)
 ├── public/                       # 静态公共资源
