@@ -13,6 +13,10 @@ NovaQuant 所有重要变更记录于此。
   - **自动化影子同步**：在 Node.js 端行情的全量抓取管道 (`scripts/backfill.ts`) 完成后自动触发非阻塞挂起的同步指令，无需外部干预即可使得 Python 端 SQLite -> Bin 数据矩阵保持时效最高同步。
   - **非阻塞信号增强 (`featureSignalLayer.js`)**：使用修饰器模式为原始量化引擎注入 Alpha158 外部算力补全；一旦桥接侧（Sidecar）出现崩溃、挂起或 OOM，TS 系统自动降级回归到纯本地指标进行信号计算，保证整体交易系统的永不掉线（Graceful Degradation）。
 
+- **Feat(ai,strategy): 原生引入 Qlib 因子的认知对齐与算法级算力挂钩。**
+  - **LLM 认知对齐 (`service.ts`)**：将 `qlib_alpha158_snapshot` 有条件地映射进入 Marvix AI 的上下文环境（`buildActionCardNarrativePrompts`），并重写了底层预设的 System Prompt，要求模型在数据存在时“抽取诸如量价/动量等定量因子来丰富它的 `brief_why_now`（逻辑理由）”。
+  - **决策算力挂钩 (`engine.ts`)**：无需等待独立的 ML 模型建立，在基础量化推荐引擎（`rankCard`）中直接加入了针对 Qlib Alpha 因子的 `qlibFeatureBoost` 加成算子：当检测到有效的 Alpha 截面数据时基础分权重增加 4 点；若其中动量截面因子（`ROCP5`）与交易挂单方向同向，则赋予额外 3 点的共振增益提升排名。
+
 ## 10.20.0 (2026-03-31)
 
 - 发布类型：**minor**（架构重构与特性发布）

@@ -897,6 +897,26 @@ function rankCard(args: {
       : 64;
   const publicationBoost = args.publicationGate.publishable ? 12 : 0;
   const factoryBoost = factoryPromotionBoost(args.signal);
+
+  let qlibFeatureBoost = 0;
+  const evidenceFields =
+    (args.signal as Record<string, unknown>).evidence_fields ||
+    (args.signal.signal_payload as Record<string, unknown>)?.evidence_fields;
+  const qlibSnapshot = (evidenceFields as Record<string, unknown>)?.qlib_alpha158_snapshot as
+    | Record<string, number>
+    | undefined;
+
+  if (qlibSnapshot) {
+    qlibFeatureBoost += 4; // Base boost for having institutional cross-sectional data
+    const roc = Number(qlibSnapshot.ROCP5 || 0);
+    if (
+      (args.signal.direction === 'LONG' && roc > 0.03) ||
+      (args.signal.direction === 'SHORT' && roc < -0.03)
+    ) {
+      qlibFeatureBoost += 3; // Directional momentum alignment boost
+    }
+  }
+
   return (
     score +
     confidence * 35 +
@@ -910,7 +930,8 @@ function rankCard(args: {
     posturePenalty -
     freshnessPenalty -
     dataPenalty(String(args.signal.data_status || '')) +
-    factoryBoost
+    factoryBoost +
+    qlibFeatureBoost
   );
 }
 

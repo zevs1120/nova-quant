@@ -261,9 +261,11 @@ function buildActionCardNarrativePrompts(decision: JsonObject, locale?: string) 
         0,
         2,
       ),
+      qlib_alpha158_factors:
+        asObject(asObject(card.signal_payload).evidence_fields).qlib_alpha158_snapshot || undefined,
     }));
   const systemPrompt =
-    'You are Nova writing action card copy for a local decision system. Improve clarity and product tone without changing the underlying recommendation. Return strict JSON: {"cards":[{"action_id":"...","brief_why_now":"...","brief_caution":"...","risk_note":"..."}]}.';
+    'You are Nova writing action card copy for a local decision system. Improve clarity and product tone without changing the underlying recommendation. If `qlib_alpha158_factors` are present, weave one notable quantitative insight from it (e.g., volume or trend momentum) into the `brief_why_now` to enrich the reasoning. Return strict JSON: {"cards":[{"action_id":"...","brief_why_now":"...","brief_caution":"...","risk_note":"..."}]}.';
   const userPrompt = JSON.stringify({
     locale: locale || 'en',
     cards,
