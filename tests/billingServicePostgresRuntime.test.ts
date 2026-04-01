@@ -33,122 +33,48 @@ describe('billing service in postgres runtime', () => {
     vi.clearAllMocks();
     vi.stubEnv('NOVA_DATA_RUNTIME_DRIVER', 'postgres');
     vi.stubEnv('NOVA_DATA_DATABASE_URL', 'postgres://runtime-host/db');
+    vi.stubEnv('STRIPE_SECRET_KEY', 'sk_test_123');
+    vi.stubEnv('STRIPE_WEBHOOK_SECRET', 'whsec_test_123');
+    vi.stubEnv('STRIPE_PRICE_LITE_WEEKLY', 'price_lite_weekly');
+    vi.stubEnv('STRIPE_PRICE_PRO_WEEKLY', 'price_pro_weekly');
+    vi.stubEnv('NOVA_APP_URL', 'https://app.novaquant.cloud');
+    vi.stubEnv('STRIPE_PORTAL_RETURN_URL', 'https://app.novaquant.cloud');
   });
 
   afterEach(() => {
     vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
     vi.resetModules();
   });
 
-  it('creates a persisted checkout session without sqlite fallback', async () => {
-    mockQueryRowSync.mockImplementation((sql: string) => {
-      if (sql.includes('FROM auth_users')) {
-        return {
-          user_id: 'usr_billing_pg',
-          email: 'billing@novaquant.cloud',
-          name: 'Billing User',
-        };
-      }
-      if (
-        sql.includes('FROM "novaquant_data"."billing_checkout_sessions"') &&
-        sql.includes('session_id = $1')
-      ) {
-        return {
-          session_id: 'chk_123',
-          user_id: 'usr_billing_pg',
-          plan_key: 'lite',
-          billing_cycle: 'monthly',
-          status: 'OPEN',
-          provider: 'internal_checkout',
-          provider_session_id: null,
-          amount_cents: 1900,
-          currency: 'USD',
-          checkout_email: 'billing@novaquant.cloud',
-          payment_method_last4: null,
-          success_subscription_id: null,
-          metadata_json: '{}',
-          created_at_ms: 1_700_000_000_000,
-          expires_at_ms: 1_700_000_180_000,
-          completed_at_ms: null,
-          updated_at_ms: 1_700_000_000_000,
-        };
-      }
-      if (sql.includes('FROM "novaquant_data"."billing_customers"')) {
-        return {
-          user_id: 'usr_billing_pg',
-          email: 'billing@novaquant.cloud',
-          provider: 'internal_checkout',
-          provider_customer_id: null,
-          default_currency: 'USD',
-          default_billing_cycle: 'monthly',
-          created_at_ms: 1_700_000_000_000,
-          updated_at_ms: 1_700_000_000_000,
-        };
-      }
-      if (sql.includes('FROM "novaquant_data"."billing_subscriptions"')) {
-        return null;
-      }
-      if (
-        sql.includes('FROM "novaquant_data"."billing_checkout_sessions"') &&
-        sql.includes('ORDER BY created_at_ms DESC')
-      ) {
-        return {
-          session_id: 'chk_123',
-          user_id: 'usr_billing_pg',
-          plan_key: 'lite',
-          billing_cycle: 'monthly',
-          status: 'OPEN',
-          provider: 'internal_checkout',
-          provider_session_id: null,
-          amount_cents: 1900,
-          currency: 'USD',
-          checkout_email: 'billing@novaquant.cloud',
-          payment_method_last4: null,
-          success_subscription_id: null,
-          metadata_json: '{}',
-          created_at_ms: 1_700_000_000_000,
-          expires_at_ms: 1_700_000_180_000,
-          completed_at_ms: null,
-          updated_at_ms: 1_700_000_000_000,
-        };
-      }
-      return null;
-    });
-
-    const { createBillingCheckoutSession } = await import('../src/server/billing/service.js');
-    const result = await createBillingCheckoutSession({
-      userId: 'usr_billing_pg',
-      planKey: 'lite',
-      billingCycle: 'monthly',
-      source: 'membership_center',
-    });
-
-    expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.session?.planKey).toBe('lite');
-      expect(result.state.currentPlan).toBe('free');
-    }
-    expect(mockExecuteSync).toHaveBeenCalledWith(
-      expect.stringContaining('INSERT INTO "novaquant_data"."billing_checkout_sessions"'),
-      expect.any(Array),
-    );
-    expect(mockGetDb).not.toHaveBeenCalled();
-  });
-
-  it('completes checkout into an active subscription without sqlite fallback', async () => {
+  it('creates a Stripe checkout session without sqlite fallback', async () => {
     let customerUpserted = false;
-    let subscriptionCreated = false;
-    let checkoutCompleted = false;
+    let checkoutInserted = false;
+
+    const fetchMock = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          id: 'cs_test_123',
+          url: 'https://checkout.stripe.test/session/cs_test_123',
+          customer: 'cus_test_123',
+          subscription: null,
+          payment_status: 'unpaid',
+          status: 'open',
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      );
+    });
+    vi.stubGlobal('fetch', fetchMock);
 
     mockExecuteSync.mockImplementation((sql: string) => {
       if (sql.includes('INSERT INTO "novaquant_data"."billing_customers"')) {
         customerUpserted = true;
       }
-      if (sql.includes('INSERT INTO "novaquant_data"."billing_subscriptions"')) {
-        subscriptionCreated = true;
-      }
-      if (sql.includes('UPDATE "novaquant_data"."billing_checkout_sessions"')) {
-        checkoutCompleted = true;
+      if (sql.includes('INSERT INTO "novaquant_data"."billing_checkout_sessions"')) {
+        checkoutInserted = true;
       }
     });
 
@@ -165,112 +91,86 @@ describe('billing service in postgres runtime', () => {
           ? {
               user_id: 'usr_billing_pg',
               email: 'billing@novaquant.cloud',
-              provider: 'internal_checkout',
-              provider_customer_id: null,
+              provider: 'stripe',
+              provider_customer_id: 'cus_test_123',
               default_currency: 'USD',
-              default_billing_cycle: 'monthly',
+              default_billing_cycle: 'weekly',
               created_at_ms: 1_700_000_000_000,
               updated_at_ms: 1_700_000_000_000,
             }
           : null;
       }
-      if (
-        sql.includes('FROM "novaquant_data"."billing_checkout_sessions"') &&
-        sql.includes('session_id = $1')
-      ) {
-        return {
-          session_id: 'chk_live',
-          user_id: 'usr_billing_pg',
-          plan_key: 'pro',
-          billing_cycle: 'monthly',
-          status: checkoutCompleted ? 'COMPLETED' : 'OPEN',
-          provider: 'internal_checkout',
-          provider_session_id: null,
-          amount_cents: 4900,
-          currency: 'USD',
-          checkout_email: 'billing@novaquant.cloud',
-          payment_method_last4: checkoutCompleted ? '4242' : null,
-          success_subscription_id: checkoutCompleted ? 'sub_live' : null,
-          metadata_json: '{}',
-          created_at_ms: 1_700_000_000_000,
-          expires_at_ms: Date.now() + 60_000,
-          completed_at_ms: checkoutCompleted ? Date.now() : null,
-          updated_at_ms: Date.now(),
-        };
-      }
       if (sql.includes('FROM "novaquant_data"."billing_subscriptions"')) {
-        return subscriptionCreated
-          ? {
-              subscription_id: 'sub_live',
-              user_id: 'usr_billing_pg',
-              plan_key: 'pro',
-              status: 'ACTIVE',
-              provider: 'internal_checkout',
-              provider_subscription_id: null,
-              billing_cycle: 'monthly',
-              amount_cents: 4900,
-              currency: 'USD',
-              started_at_ms: Date.now(),
-              current_period_start_ms: Date.now(),
-              current_period_end_ms: Date.now() + 30 * 24 * 60 * 60 * 1000,
-              cancel_at_period_end: 0,
-              cancelled_at_ms: null,
-              checkout_session_id: 'chk_live',
-              metadata_json: '{}',
-              created_at_ms: Date.now(),
-              updated_at_ms: Date.now(),
-            }
-          : null;
+        return null;
       }
-      if (
-        sql.includes('FROM "novaquant_data"."billing_checkout_sessions"') &&
-        sql.includes('ORDER BY created_at_ms DESC')
-      ) {
-        return checkoutCompleted
+      if (sql.includes('FROM "novaquant_data"."billing_checkout_sessions"')) {
+        return checkoutInserted
           ? {
-              session_id: 'chk_live',
+              session_id: 'chk_123',
               user_id: 'usr_billing_pg',
-              plan_key: 'pro',
-              billing_cycle: 'monthly',
-              status: 'COMPLETED',
-              provider: 'internal_checkout',
-              provider_session_id: null,
-              amount_cents: 4900,
+              plan_key: 'lite',
+              billing_cycle: 'weekly',
+              status: 'OPEN',
+              provider: 'stripe',
+              provider_session_id: 'cs_test_123',
+              amount_cents: 1900,
               currency: 'USD',
               checkout_email: 'billing@novaquant.cloud',
-              payment_method_last4: '4242',
-              success_subscription_id: 'sub_live',
-              metadata_json: '{}',
+              payment_method_last4: null,
+              success_subscription_id: null,
+              metadata_json:
+                '{"checkout_url":"https://checkout.stripe.test/session/cs_test_123","price_id":"price_lite_weekly"}',
               created_at_ms: 1_700_000_000_000,
-              expires_at_ms: Date.now() + 60_000,
-              completed_at_ms: Date.now(),
-              updated_at_ms: Date.now(),
+              expires_at_ms: 1_700_000_180_000,
+              completed_at_ms: null,
+              updated_at_ms: 1_700_000_000_000,
             }
           : null;
       }
       return null;
     });
 
-    const { completeBillingCheckoutSession } = await import('../src/server/billing/service.js');
-    const result = completeBillingCheckoutSession({
+    const { createBillingCheckoutSession } = await import('../src/server/billing/service.js');
+    const result = await createBillingCheckoutSession({
       userId: 'usr_billing_pg',
-      sessionId: 'chk_live',
-      billingEmail: 'billing@novaquant.cloud',
-      paymentMethodLast4: '4242',
+      planKey: 'lite',
+      billingCycle: 'weekly',
+      source: 'membership_center',
     });
 
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.subscription?.status).toBe('ACTIVE');
-      expect(result.state.currentPlan).toBe('pro');
+      expect(result.session?.provider).toBe('stripe');
+      expect(result.session?.providerSessionId).toBe('cs_test_123');
+      expect(result.session?.checkoutUrl).toBe('https://checkout.stripe.test/session/cs_test_123');
+      expect(result.state.providerMode).toBe('stripe');
+      expect(result.state.portalConfigured).toBe(true);
     }
-    expect(mockBeginTransactionSync).toHaveBeenCalledTimes(1);
-    expect(mockCommitTransactionSync).toHaveBeenCalledTimes(1);
-    expect(mockRollbackTransactionSync).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(mockExecuteSync).toHaveBeenCalledWith(
-      expect.stringContaining('INSERT INTO "novaquant_data"."billing_subscriptions"'),
+      expect.stringContaining('INSERT INTO "novaquant_data"."billing_checkout_sessions"'),
       expect.any(Array),
     );
     expect(mockGetDb).not.toHaveBeenCalled();
+  });
+
+  it('disables manual checkout completion in postgres runtime', async () => {
+    const { completeBillingCheckoutSession } = await import('../src/server/billing/service.js');
+
+    expect(
+      completeBillingCheckoutSession({
+        userId: 'usr_billing_pg',
+        sessionId: 'chk_live',
+        billingEmail: 'billing@novaquant.cloud',
+        paymentMethodLast4: '4242',
+      }),
+    ).toEqual({
+      ok: false,
+      error: 'CHECKOUT_COMPLETION_DISABLED',
+    });
+    expect(mockGetDb).not.toHaveBeenCalled();
+    expect(mockBeginTransactionSync).not.toHaveBeenCalled();
+    expect(mockCommitTransactionSync).not.toHaveBeenCalled();
+    expect(mockRollbackTransactionSync).not.toHaveBeenCalled();
   });
 });

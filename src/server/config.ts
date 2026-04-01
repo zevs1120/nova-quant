@@ -21,7 +21,10 @@ function resolveRequestedRuntimeDriver(): 'sqlite' | 'postgres' {
   const value = String(process.env.NOVA_DATA_RUNTIME_DRIVER || '')
     .trim()
     .toLowerCase();
-  return value === 'postgres' ? 'postgres' : 'sqlite';
+  if (process.env.NODE_ENV === 'test') {
+    return value === 'sqlite' ? 'sqlite' : 'postgres';
+  }
+  return 'postgres';
 }
 
 function buildFallbackConfig(): AppConfig {

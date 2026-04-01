@@ -1,7 +1,6 @@
 import express, { Router } from 'express';
 import {
   cancelBillingSubscription,
-  completeBillingCheckoutSession,
   createBillingCheckoutSession,
   createBillingPortalSession,
   getBillingCheckoutSession,
@@ -21,6 +20,7 @@ function billingErrorStatus(error: BillingErrorCode) {
   if (error === 'BILLING_PROVIDER_NOT_CONFIGURED' || error === 'BILLING_PORTAL_UNAVAILABLE') {
     return 503;
   }
+  if (error === 'CHECKOUT_COMPLETION_DISABLED') return 410;
   if (error === 'CHECKOUT_EXPIRED' || error === 'CHECKOUT_NOT_OPEN') return 410;
   return 400;
 }
@@ -65,27 +65,6 @@ router.get('/api/billing/checkout/:sessionId', (req, res) => {
   const result = getBillingCheckoutSession({
     userId: scope.userId,
     sessionId: String(req.params.sessionId || ''),
-  });
-  if (!result.ok) {
-    res.status(billingErrorStatus(result.error)).json(result);
-    return;
-  }
-  res.json(result);
-});
-
-router.post('/api/billing/checkout/:sessionId/complete', (req, res) => {
-  const scope = requireAuthenticatedScope(req, res);
-  if (!scope) return;
-
-  const body = req.body as {
-    billingEmail?: string;
-    paymentMethodLast4?: string;
-  };
-  const result = completeBillingCheckoutSession({
-    userId: scope.userId,
-    sessionId: String(req.params.sessionId || ''),
-    billingEmail: body.billingEmail,
-    paymentMethodLast4: body.paymentMethodLast4,
   });
   if (!result.ok) {
     res.status(billingErrorStatus(result.error)).json(result);

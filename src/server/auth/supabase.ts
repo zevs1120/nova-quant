@@ -85,6 +85,14 @@ export function getSupabaseAuthClient() {
 
 export type VerifiedSupabaseAuthUser = SupabaseUser;
 
+export function isSupabaseEmailConfirmed(user: SupabaseUser | null | undefined) {
+  if (!user) return false;
+  return Boolean(
+    (user as SupabaseUser & { email_confirmed_at?: string | null; confirmed_at?: string | null })
+      .email_confirmed_at || (user as SupabaseUser & { confirmed_at?: string | null }).confirmed_at,
+  );
+}
+
 export async function verifySupabaseAccessToken(
   accessToken: string | null | undefined,
 ): Promise<VerifiedSupabaseAuthUser | null> {
@@ -92,6 +100,6 @@ export async function verifySupabaseAccessToken(
   if (!normalized) return null;
   const client = getSupabaseAuthClient();
   const { data, error } = await client.auth.getUser(normalized);
-  if (error || !data.user) return null;
+  if (error || !data.user || !isSupabaseEmailConfirmed(data.user)) return null;
   return data.user;
 }
