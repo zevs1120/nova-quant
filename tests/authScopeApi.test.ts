@@ -29,6 +29,7 @@ function createMockResponse(): MockResponse {
 function createRequest(args: {
   userId?: string;
   authorization?: string;
+  cookie?: string;
   scope?: RequestWithNovaScope['novaScope'];
 }) {
   return {
@@ -37,6 +38,9 @@ function createRequest(args: {
     header(name: string) {
       if (name.toLowerCase() === 'authorization') {
         return args.authorization || '';
+      }
+      if (name.toLowerCase() === 'cookie') {
+        return args.cookie || '';
       }
       return '';
     },
@@ -88,6 +92,29 @@ describe('api user scope enforcement', () => {
         authenticated: true,
         userId: 'usr_primary',
         authUserId: 'usr_primary',
+      },
+    });
+  });
+
+  it('accepts a first-party session cookie when no bearer token is present', async () => {
+    const result = await resolveRequestNovaScope(
+      createRequest({
+        cookie: 'novaquant_session=session-123',
+      }),
+      async () => null,
+      async () => ({
+        user: {
+          userId: 'usr_cookie',
+        },
+      }),
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      scope: {
+        authenticated: true,
+        userId: 'usr_cookie',
+        authUserId: 'usr_cookie',
       },
     });
   });

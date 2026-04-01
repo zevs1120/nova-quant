@@ -9,6 +9,7 @@ import {
   resendSupabaseSignupVerification,
   signUpWithSupabaseEmailVerification,
 } from '../utils/supabaseAuth';
+import { fetchApi } from '../utils/api';
 import { DEFAULT_AUTH_WATCHLIST } from '../config/appConstants';
 
 function classifySupabaseLoginError(error, locale) {
@@ -23,6 +24,11 @@ function classifySupabaseLoginError(error, locale) {
     return zh ? '请先完成邮箱验证。' : 'Please confirm your email first.';
   }
   return classifyAuthError(error, locale);
+}
+
+function shouldAttemptLegacyServerLogin(error) {
+  const message = String(error?.message || '');
+  return /invalid login credentials/i.test(message);
 }
 
 function classifySupabaseSignupError(error, locale) {
@@ -251,11 +257,84 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
     [applyAuthenticatedProfile, fetchJson, setAuthSession],
   );
 
+  const handleLegacyServerLogin = useCallback(
+    async ({ email, password }) => {
+      try {
+        const response = await fetchApi('/api/auth/login', {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: normalizeEmail(email),
+            password: String(password || ''),
+          }),
+        });
+        const payload = await response.json().catch(() => null);
+        if (response.ok && payload?.authenticated && payload?.user) {
+          const authenticated = await hydrateSessionFromApi({ resetNavigation: true });
+          if (authenticated) {
+            return { ok: true };
+          }
+          return {
+            ok: false,
+            error: locale?.startsWith('zh')
+              ? '登录成功了，但应用资料还没有同步完成。'
+              : 'Login succeeded, but app profile sync is not ready yet.',
+          };
+        }
+        if (response.status === 401) {
+          return {
+            ok: false,
+            error: locale?.startsWith('zh')
+              ? '账号或密码错误。'
+              : 'The email or password is incorrect.',
+          };
+        }
+        if (response.status === 503) {
+          return {
+            ok: false,
+            error: locale?.startsWith('zh')
+              ? '登录服务暂时不可用。请稍后再试。'
+              : 'The login service is temporarily unavailable. Please try again shortly.',
+          };
+        }
+        return {
+          ok: false,
+          error:
+            String(payload?.message || payload?.error || '').trim() ||
+            (locale?.startsWith('zh')
+              ? '登录暂时不可用。请稍后再试。'
+              : 'The login service is temporarily unavailable.'),
+        };
+      } catch (error) {
+        return {
+          ok: false,
+          error: locale?.startsWith('zh')
+            ? '登录服务暂时不可用。请稍后再试。'
+            : 'The login service is temporarily unavailable. Please try again shortly.',
+        };
+      }
+    },
+    [hydrateSessionFromApi, locale],
+  );
+
   useEffect(() => {
     let cancelled = false;
 
     const hydrate = async () => {
       await loadSupabaseBrowserConfig();
+      try {
+        const authenticated = await hydrateSessionFromApi({ resetNavigation: false });
+        if (cancelled) return;
+        if (authenticated) {
+          setAuthHydrated(true);
+          return;
+        }
+      } catch {
+        // Fall through to direct Supabase session inspection below.
+      }
       const supabaseEnabled = hasSupabaseAuthBrowserConfig();
       if (!supabaseEnabled) {
         if (!cancelled) {
@@ -345,14 +424,23 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
 
   const handleLogin = useCallback(
     async ({ email, password }) => {
+      const normalizedEmail = normalizeEmail(email);
+      const normalizedPassword = String(password || '');
       const supabase = await ensureSupabaseBrowserClient();
       if (supabase) {
         try {
           const { error } = await supabase.auth.signInWithPassword({
-            email: normalizeEmail(email),
-            password: String(password || ''),
+            email: normalizedEmail,
+            password: normalizedPassword,
           });
           if (error) {
+            if (shouldAttemptLegacyServerLogin(error)) {
+              const legacyResult = await handleLegacyServerLogin({
+                email: normalizedEmail,
+                password: normalizedPassword,
+              });
+              if (legacyResult.ok) return legacyResult;
+            }
             return {
               ok: false,
               error: classifySupabaseLoginError(error, locale),
@@ -371,6 +459,13 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
                   : 'Supabase login succeeded, but app profile sync is not ready yet.',
               };
         } catch (error) {
+          if (shouldAttemptLegacyServerLogin(error)) {
+            const legacyResult = await handleLegacyServerLogin({
+              email: normalizedEmail,
+              password: normalizedPassword,
+            });
+            if (legacyResult.ok) return legacyResult;
+          }
           return {
             ok: false,
             error: classifySupabaseLoginError(error, locale),
@@ -378,14 +473,12 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
         }
       }
 
-      return {
-        ok: false,
-        error: locale?.startsWith('zh')
-          ? 'Supabase Auth 还没有配置完成。'
-          : 'Supabase Auth is not configured yet.',
-      };
+      return handleLegacyServerLogin({
+        email: normalizedEmail,
+        password: normalizedPassword,
+      });
     },
-    [hydrateSessionFromApi, locale],
+    [handleLegacyServerLogin, hydrateSessionFromApi, locale],
   );
 
   const handleSignup = useCallback(
@@ -554,14 +647,20 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
   );
 
   const handleLogout = useCallback(() => {
-    void ensureSupabaseBrowserClient()
-      .then((supabase) => {
-        if (supabase) {
-          return supabase.auth.signOut();
-        }
-        return null;
-      })
-      .catch(() => {});
+    void Promise.allSettled([
+      ensureSupabaseBrowserClient()
+        .then((supabase) => {
+          if (supabase) {
+            return supabase.auth.signOut();
+          }
+          return null;
+        })
+        .catch(() => {}),
+      fetchApi('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      }).catch(() => null),
+    ]);
     resetLocalAuthState({ clearProfile: true });
   }, [resetLocalAuthState]);
 

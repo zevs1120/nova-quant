@@ -1,5 +1,5 @@
 import express from 'express';
-import { getAuthSessionFromAccessToken } from '../auth/service.js';
+import { getAuthSession, getAuthSessionFromAccessToken } from '../auth/service.js';
 import { readSupabaseBrowserRuntimeConfig } from '../auth/supabase.js';
 import { getPrivateMarvixOps } from './queries.js';
 import { isLoopbackAddress } from '../ops/privateMarvixOps.js';
@@ -176,7 +176,11 @@ export function createApiApp() {
       }
 
       try {
-        const resolution = await resolveRequestNovaScope(req, getAuthSessionFromAccessToken);
+        const resolution = await resolveRequestNovaScope(
+          req,
+          getAuthSessionFromAccessToken,
+          getAuthSession,
+        );
         if (!resolution.ok) {
           res.status(resolution.status).json(resolution.body);
           return;

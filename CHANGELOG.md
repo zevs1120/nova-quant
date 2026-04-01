@@ -4,6 +4,7 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+- fix(auth,deploy): restored production login for legacy Supabase-backed accounts by reopening the server-side `/api/auth/login` path, teaching request scope/session hydration to honor first-party `novaquant_session` cookies, adding a frontend fallback from failed Supabase password sign-in to the server login bridge, and repointing `app.novaquant.cloud` `/api/*` traffic to the new `nova-quant-api.vercel.app` Vercel backend so `zevs1120@gmail.com` can sign in with `Zevs1120` again.
 - fix(db,auth,deploy): repaired production Supabase signup config by requiring API-host `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, and redirect envs in EC2/Vultr templates; added build-time public Supabase injection to the standalone `app/` Vite config so the deployed H5 app no longer depends on a missing backend env to discover browser auth settings.
 - fix(auth): surface Supabase `over_email_send_rate_limit` honestly in signup UX instead of collapsing it into a generic "signup unavailable" error.
 

@@ -150,11 +150,18 @@ type ScopeResolutionResult =
 export async function resolveRequestNovaScope(
   req: express.Request,
   resolveSession: (bearerToken: string) => Promise<ScopeResolverSession | null>,
+  resolveCookieSession?: (sessionToken: string) => Promise<ScopeResolverSession | null>,
 ): Promise<ScopeResolutionResult> {
   const authorization = String(req.header('authorization') || '');
   const bearerMatch = authorization.match(/^Bearer\s+(.+)$/i);
   const bearerToken = bearerMatch?.[1]?.trim() || null;
-  const session = bearerToken ? await resolveSession(bearerToken) : null;
+  const cookieSessionToken =
+    parseCookiesFromHeader(String(req.header('cookie') || '')).novaquant_session || null;
+  const session = bearerToken
+    ? await resolveSession(bearerToken)
+    : cookieSessionToken && resolveCookieSession
+      ? await resolveCookieSession(cookieSessionToken)
+      : null;
   const requestedUserId = readRequestedUserId(req);
 
   if (session) {

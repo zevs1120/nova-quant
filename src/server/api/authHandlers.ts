@@ -3,8 +3,11 @@ import {
   clearAuthCookieHeader,
   getAdminAuthCookieHeader,
   getAdminSession,
+  getAuthCookieHeader,
+  getAuthSession,
   getAuthSessionFromAccessToken,
   getAuthUserState,
+  loginAuthUser,
   loginAdminUser,
   logoutAuthSession,
   upsertAuthUserState,
@@ -55,7 +58,11 @@ function parseBearerToken(req: BasicRequest) {
 
 async function resolveUserSession(req: BasicRequest) {
   const bearerToken = parseBearerToken(req);
-  return bearerToken ? getAuthSessionFromAccessToken(bearerToken) : null;
+  if (bearerToken) {
+    return getAuthSessionFromAccessToken(bearerToken);
+  }
+  const cookies = parseCookies(req);
+  return getAuthSession(cookies.novaquant_session);
 }
 
 function requestIp(req: BasicRequest) {
@@ -175,11 +182,31 @@ export async function handleAdminLogin(req: BasicRequest, res: BasicResponse) {
 }
 
 export async function handleAuthLogin(req: BasicRequest, res: BasicResponse) {
-  res.status(410).json({
-    ok: false,
-    error: 'AUTH_MANAGED_BY_SUPABASE',
-    message: 'Login is managed by Supabase browser auth and no longer supported via this API.',
-  });
+  try {
+    const body = (req.body || {}) as { email?: string; password?: string };
+    const result = await loginAuthUser({
+      email: String(body.email || ''),
+      password: String(body.password || ''),
+      userAgent: getHeader(req, 'user-agent') || null,
+      ipAddress: requestIp(req),
+    });
+    if (!result.ok) {
+      res.status(result.error === 'INVALID_CREDENTIALS' ? 401 : 403).json({
+        ok: false,
+        error: result.error,
+      });
+      return;
+    }
+    res.setHeader('Set-Cookie', getAuthCookieHeader(result.sessionToken));
+    res.json({
+      ok: true,
+      authenticated: true,
+      user: result.user,
+      state: result.state,
+    });
+  } catch (error) {
+    sendAuthServiceError(res, error);
+  }
 }
 
 export async function handleAdminLogout(req: BasicRequest, res: BasicResponse) {
