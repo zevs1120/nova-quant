@@ -4,6 +4,7 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+- fix(deploy,research): repaired EC2 deploys for the Qlib sidecar by running `nova-qlib-bridge.service` as `ubuntu`, syncing systemd units from the repo during GitHub Actions deploys, and making unhealthy-service checks print journal logs instead of exiting early on `systemctl is-active`.
 - fix(test,ci): reduced the synthetic bar history used by measured factor diagnostics tests so the momentum/carry coverage still exercises aligned OHLCV, funding, and basis logic without riding GitHub Actions' 5s timeout boundary.
 - fix(auth,deploy): restored production login for legacy Supabase-backed accounts by reopening the server-side `/api/auth/login` path, teaching request scope/session hydration to honor first-party `novaquant_session` cookies, adding a frontend fallback from failed Supabase password sign-in to the server login bridge, and repointing `app.novaquant.cloud` `/api/*` traffic to the new `nova-quant-api.vercel.app` Vercel backend so `zevs1120@gmail.com` can sign in with `Zevs1120` again.
 - fix(db,auth,deploy): repaired production Supabase signup config by requiring API-host `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, and redirect envs in EC2/Vultr templates; added build-time public Supabase injection to the standalone `app/` Vite config so the deployed H5 app no longer depends on a missing backend env to discover browser auth settings.

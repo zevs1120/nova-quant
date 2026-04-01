@@ -74,6 +74,14 @@ jobs:
             echo "▸ Installing dependencies..."
             npm ci 2>&1 | tail -5
 
+            # ── Sync systemd units from repo ──
+            echo ""
+            echo "▸ Syncing systemd units..."
+            sudo cp deployment/aws-ec2/marvix.service /etc/systemd/system/marvix.service
+            sudo cp deployment/aws-ec2/marvix-backend.service /etc/systemd/system/marvix-backend.service
+            sudo cp qlib-bridge/deployment/nova-qlib-bridge.service /etc/systemd/system/nova-qlib-bridge.service
+            sudo systemctl daemon-reload
+
             # ── Build frontend ──
             echo ""
             echo "▸ Building frontend..."
@@ -92,9 +100,9 @@ jobs:
             # ── Health check ──
             echo ""
             echo "▸ Health check..."
-            MARVIX_STATUS=$(systemctl is-active marvix.service)
-            BACKEND_STATUS=$(systemctl is-active marvix-backend.service)
-            QLIB_STATUS=$(systemctl is-active nova-qlib-bridge.service)
+            MARVIX_STATUS=$(sudo systemctl is-active marvix.service || true)
+            BACKEND_STATUS=$(sudo systemctl is-active marvix-backend.service || true)
+            QLIB_STATUS=$(sudo systemctl is-active nova-qlib-bridge.service || true)
 
             echo "  marvix.service:             $MARVIX_STATUS"
             echo "  marvix-backend.service:     $BACKEND_STATUS"
@@ -104,11 +112,11 @@ jobs:
               echo ""
               echo "✖ DEPLOY FAILED — services not healthy"
               echo "── marvix.service logs ──"
-              journalctl -u marvix.service --no-pager -n 15
+              sudo journalctl -u marvix.service --no-pager -n 15
               echo "── marvix-backend.service logs ──"
-              journalctl -u marvix-backend.service --no-pager -n 15
+              sudo journalctl -u marvix-backend.service --no-pager -n 15
               echo "── nova-qlib-bridge.service logs ──"
-              journalctl -u nova-qlib-bridge.service --no-pager -n 15
+              sudo journalctl -u nova-qlib-bridge.service --no-pager -n 30
               exit 1
             fi
 
@@ -131,7 +139,7 @@ jobs:
               cat /tmp/nova-healthz.json 2>/dev/null || true
               echo
               echo "── marvix.service logs ──"
-              journalctl -u marvix.service --no-pager -n 20
+              sudo journalctl -u marvix.service --no-pager -n 20
               exit 1
             fi
 

@@ -4,7 +4,10 @@ After=network.target marvix-backend.service
 
 [Service]
 Type=simple
+User=ubuntu
+Group=ubuntu
 WorkingDirectory=/opt/nova-quant/qlib-bridge
+Environment=HOME=/home/ubuntu
 EnvironmentFile=/etc/novaquant/qlib-bridge.env
 ExecStart=/home/ubuntu/.local/bin/uv run python -m bridge
 Restart=always

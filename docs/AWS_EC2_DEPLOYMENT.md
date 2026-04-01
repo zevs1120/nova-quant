@@ -33,6 +33,7 @@ Backend-only assets included in this repo:
 
 - `deployment/aws-ec2/marvix-backend.env.example`
 - `deployment/aws-ec2/marvix-backend.service`
+- `qlib-bridge/deployment/nova-qlib-bridge.service`
 
 ## Recommended EC2 Shape
 
@@ -173,6 +174,21 @@ sudo systemctl start marvix-backend
 sudo systemctl status marvix-backend
 ```
 
+Qlib sidecar service:
+
+```bash
+sudo cp qlib-bridge/deployment/nova-qlib-bridge.service /etc/systemd/system/nova-qlib-bridge.service
+sudo systemctl daemon-reload
+sudo systemctl enable nova-qlib-bridge
+sudo systemctl start nova-qlib-bridge
+sudo systemctl status nova-qlib-bridge
+```
+
+Important:
+
+- `qlib-bridge/deployment/nova-qlib-bridge.service` is expected to run as the `ubuntu` user so `uv` can build and launch the sidecar from `/opt/nova-quant` without Git safe-directory ownership errors.
+- Keep `/etc/novaquant/qlib-bridge.env` present before enabling the service.
+
 ## Nginx
 
 ```bash
@@ -194,6 +210,8 @@ cd /opt/nova-quant
 git pull
 npm ci
 npm run build
+sudo cp qlib-bridge/deployment/nova-qlib-bridge.service /etc/systemd/system/nova-qlib-bridge.service
+sudo systemctl daemon-reload
 sudo systemctl restart marvix
 ```
 
@@ -201,6 +219,7 @@ Backend-only worker refresh:
 
 ```bash
 sudo systemctl restart marvix-backend
+sudo systemctl restart nova-qlib-bridge
 ```
 
 ## Autonomous Alpha Discovery On EC2
