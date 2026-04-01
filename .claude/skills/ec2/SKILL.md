@@ -25,13 +25,14 @@ ssh -i ~/.ssh/marvix-prod.pem ubuntu@16.58.223.95
 
 ## Services
 
-Three services run on this instance:
+Four services run on this instance:
 
-| Service                  | Role                                                                           | Port |
-| ------------------------ | ------------------------------------------------------------------------------ | ---- |
-| `marvix.service`         | API server + Web frontend (`tsx src/server/apiServer.ts`)                      | 8787 |
-| `marvix-backend.service` | Automated worker (signal generation, market collection, 120s cycle)            | --   |
-| `nginx`                  | Reverse proxy `api.novaquant.cloud:443` -> `localhost:8787`, Let's Encrypt SSL | 443  |
+| Service                    | Role                                                                           | Port |
+| -------------------------- | ------------------------------------------------------------------------------ | ---- |
+| `marvix.service`           | API server + Web frontend (`tsx src/server/apiServer.ts`)                      | 8787 |
+| `marvix-backend.service`   | Automated worker (signal generation, market collection, 120s cycle)            | --   |
+| `nova-qlib-bridge.service` | Qlib Python sidecar (factor/prediction API, depends on marvix-backend)         | --   |
+| `nginx`                    | Reverse proxy `api.novaquant.cloud:443` -> `localhost:8787`, Let's Encrypt SSL | 443  |
 
 ## Permission Model
 
@@ -47,7 +48,7 @@ curl -s -o /dev/null -w "HTTP %{http_code} | Time: %{time_total}s | Size: %{size
 ### 1. Service Status
 
 ```bash
-ssh -i ~/.ssh/marvix-prod.pem ubuntu@16.58.223.95 "echo '=== Services ===' && systemctl status marvix.service marvix-backend.service nginx --no-pager -l"
+ssh -i ~/.ssh/marvix-prod.pem ubuntu@16.58.223.95 "echo '=== Services ===' && systemctl status marvix.service marvix-backend.service nova-qlib-bridge.service nginx --no-pager -l"
 ```
 
 ### 2. Service Logs
@@ -56,6 +57,7 @@ ssh -i ~/.ssh/marvix-prod.pem ubuntu@16.58.223.95 "echo '=== Services ===' && sy
 # Last N lines (default 50)
 ssh -i ~/.ssh/marvix-prod.pem ubuntu@16.58.223.95 "journalctl -u marvix.service --no-pager -n 50"
 ssh -i ~/.ssh/marvix-prod.pem ubuntu@16.58.223.95 "journalctl -u marvix-backend.service --no-pager -n 50"
+ssh -i ~/.ssh/marvix-prod.pem ubuntu@16.58.223.95 "journalctl -u nova-qlib-bridge.service --no-pager -n 50"
 ```
 
 ### 3. System Resources
@@ -85,13 +87,13 @@ ssh -i ~/.ssh/marvix-prod.pem ubuntu@16.58.223.95 "ls -lh /opt/nova-quant/data/q
 ### 7. Restart Services (REQUIRES CONFIRMATION)
 
 ```bash
-ssh -i ~/.ssh/marvix-prod.pem ubuntu@16.58.223.95 "sudo systemctl restart marvix.service marvix-backend.service"
+ssh -i ~/.ssh/marvix-prod.pem ubuntu@16.58.223.95 "sudo systemctl restart marvix.service marvix-backend.service nova-qlib-bridge.service"
 ```
 
 ### 8. Deploy Update (REQUIRES CONFIRMATION)
 
 ```bash
-ssh -i ~/.ssh/marvix-prod.pem ubuntu@16.58.223.95 "cd /opt/nova-quant && git pull origin main && npm ci --production && npm run build && sudo systemctl restart marvix.service marvix-backend.service"
+ssh -i ~/.ssh/marvix-prod.pem ubuntu@16.58.223.95 "cd /opt/nova-quant && git pull origin main && npm ci --production && npm run build && sudo systemctl restart marvix.service marvix-backend.service nova-qlib-bridge.service"
 ```
 
 ## Quick Health Check
@@ -103,13 +105,13 @@ Combine the most important checks (run curl and SSH in parallel):
 curl -s -o /dev/null -w "HTTP %{http_code} | Time: %{time_total}s | Size: %{size_download} bytes" https://api.novaquant.cloud/
 
 # Parallel call 2: internal checks
-ssh -i ~/.ssh/marvix-prod.pem ubuntu@16.58.223.95 "echo '=== Hostname ===' && hostname && echo '' && echo '=== Uptime ===' && uptime && echo '' && echo '=== Services ===' && systemctl is-active marvix.service marvix-backend.service nginx && echo '' && echo '=== Memory ===' && free -h | grep Mem && echo '' && echo '=== Disk ===' && df -h / | tail -1 && echo '' && echo '=== Port 8787 ===' && ss -tlnp | grep 8787 && echo '' && echo '=== Git HEAD ===' && cd /opt/nova-quant && git log --oneline -1"
+ssh -i ~/.ssh/marvix-prod.pem ubuntu@16.58.223.95 "echo '=== Hostname ===' && hostname && echo '' && echo '=== Uptime ===' && uptime && echo '' && echo '=== Services ===' && systemctl is-active marvix.service marvix-backend.service nova-qlib-bridge.service nginx && echo '' && echo '=== Memory ===' && free -h | grep Mem && echo '' && echo '=== Disk ===' && df -h / | tail -1 && echo '' && echo '=== Port 8787 ===' && ss -tlnp | grep 8787 && echo '' && echo '=== Git HEAD ===' && cd /opt/nova-quant && git log --oneline -1"
 ```
 
 ## Deep Check (include error scanning)
 
 ```bash
-ssh -i ~/.ssh/marvix-prod.pem ubuntu@16.58.223.95 "echo '=== Recent ERRORs (marvix) ===' && journalctl -u marvix.service --no-pager -n 100 2>&1 | grep -i 'error\|fatal\|exception\|crash' | tail -10 && echo '' && echo '=== Recent ERRORs (marvix-backend) ===' && journalctl -u marvix-backend.service --no-pager -n 100 2>&1 | grep -i 'error\|fatal\|exception\|crash' | tail -10 && echo '' && echo '=== Nginx ERRORs (last 10) ===' && sudo tail -10 /var/log/nginx/error.log 2>/dev/null || echo 'no error log'"
+ssh -i ~/.ssh/marvix-prod.pem ubuntu@16.58.223.95 "echo '=== Recent ERRORs (marvix) ===' && journalctl -u marvix.service --no-pager -n 100 2>&1 | grep -i 'error\|fatal\|exception\|crash' | tail -10 && echo '' && echo '=== Recent ERRORs (marvix-backend) ===' && journalctl -u marvix-backend.service --no-pager -n 100 2>&1 | grep -i 'error\|fatal\|exception\|crash' | tail -10 && echo '' && echo '=== Recent ERRORs (nova-qlib-bridge) ===' && journalctl -u nova-qlib-bridge.service --no-pager -n 100 2>&1 | grep -i 'error\|fatal\|exception\|crash' | tail -10 && echo '' && echo '=== Nginx ERRORs (last 10) ===' && sudo tail -10 /var/log/nginx/error.log 2>/dev/null || echo 'no error log'"
 ```
 
 ## Admin Endpoint Benchmark
@@ -156,7 +158,7 @@ After a deploy, verify the EC2 commit matches local main and services are health
 git log --oneline -1
 
 # Parallel call 2: EC2 HEAD + service status
-ssh -i ~/.ssh/marvix-prod.pem ubuntu@16.58.223.95 "cd /opt/nova-quant && echo '=== EC2 HEAD ===' && git log --oneline -1 && echo '' && echo '=== Services ===' && systemctl is-active marvix.service marvix-backend.service nginx && echo '' && echo '=== Port 8787 ===' && ss -tlnp | grep 8787"
+ssh -i ~/.ssh/marvix-prod.pem ubuntu@16.58.223.95 "cd /opt/nova-quant && echo '=== EC2 HEAD ===' && git log --oneline -1 && echo '' && echo '=== Services ===' && systemctl is-active marvix.service marvix-backend.service nova-qlib-bridge.service nginx && echo '' && echo '=== Port 8787 ===' && ss -tlnp | grep 8787"
 ```
 
 Compare the two commit hashes -- they should match after a successful deploy.

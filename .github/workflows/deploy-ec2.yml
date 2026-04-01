@@ -85,6 +85,8 @@ jobs:
             sudo systemctl restart marvix.service
             sleep 5
             sudo systemctl restart marvix-backend.service
+            sleep 5
+            sudo systemctl restart nova-qlib-bridge.service
             sleep 10
 
             # ── Health check ──
@@ -92,17 +94,21 @@ jobs:
             echo "▸ Health check..."
             MARVIX_STATUS=$(systemctl is-active marvix.service)
             BACKEND_STATUS=$(systemctl is-active marvix-backend.service)
+            QLIB_STATUS=$(systemctl is-active nova-qlib-bridge.service)
 
-            echo "  marvix.service:         $MARVIX_STATUS"
-            echo "  marvix-backend.service: $BACKEND_STATUS"
+            echo "  marvix.service:             $MARVIX_STATUS"
+            echo "  marvix-backend.service:     $BACKEND_STATUS"
+            echo "  nova-qlib-bridge.service:   $QLIB_STATUS"
 
-            if [ "$MARVIX_STATUS" != "active" ] || [ "$BACKEND_STATUS" != "active" ]; then
+            if [ "$MARVIX_STATUS" != "active" ] || [ "$BACKEND_STATUS" != "active" ] || [ "$QLIB_STATUS" != "active" ]; then
               echo ""
               echo "✖ DEPLOY FAILED — services not healthy"
               echo "── marvix.service logs ──"
               journalctl -u marvix.service --no-pager -n 15
               echo "── marvix-backend.service logs ──"
               journalctl -u marvix-backend.service --no-pager -n 15
+              echo "── nova-qlib-bridge.service logs ──"
+              journalctl -u nova-qlib-bridge.service --no-pager -n 15
               exit 1
             fi
 

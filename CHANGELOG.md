@@ -4,6 +4,11 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+- **Feat(deploy): GitHub Actions 部署流程纳入 nova-qlib-bridge.service。**
+  - deploy-ec2.yml 重启阶段新增 qlib-bridge，按 systemd 依赖链顺序（marvix -> marvix-backend -> nova-qlib-bridge）。
+  - 健康检查和失败日志输出同步覆盖 qlib-bridge 服务。
+  - EC2 skill 全部命令模板同步更新为四服务。
+
 - **Fix(research): data_sync.py 修复 symbol 映射和数据清理。**
   - JOIN `assets` 表将 `asset_id` 映射为真实 ticker symbol（之前用数字 ID 导致因子查询失败）。
   - Sync 前清理旧的 CSV staging 和 Qlib binary 数据，防止新旧数据混合。
