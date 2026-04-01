@@ -1,77 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
+import {
+  trim,
+  readDefinedGlobal,
+  trimTrailingSlash,
+  runtimeApiBases,
+  buildApiUrl,
+} from './apiBase';
 
 let browserClient = null;
 let browserClientKey = '';
 let runtimeConfig = null;
 let runtimeConfigPromise = null;
-
-function trim(value) {
-  return String(value || '').trim();
-}
-
-function readDefinedGlobal(key) {
-  return trim(globalThis?.[key]);
-}
-
-function trimTrailingSlash(value) {
-  return trim(value).replace(/\/+$/, '');
-}
-
-function unique(values) {
-  const seen = new Set();
-  const next = [];
-  values.forEach((value) => {
-    if (value === null || value === undefined) return;
-    const normalized = String(value);
-    if (seen.has(normalized)) return;
-    seen.add(normalized);
-    next.push(normalized);
-  });
-  return next;
-}
-
-function isLocalHost(hostname) {
-  return hostname === 'localhost' || hostname === '127.0.0.1';
-}
-
-function runtimeApiBases() {
-  const envBases = unique([
-    trimTrailingSlash(import.meta.env?.VITE_API_BASE_URL),
-    trimTrailingSlash(import.meta.env?.VITE_PUBLIC_API_BASE_URL),
-    trimTrailingSlash(readDefinedGlobal('__NOVA_PUBLIC_API_BASE_URL__')),
-  ]);
-
-  if (typeof window === 'undefined') return envBases;
-
-  const hostname = String(window.location?.hostname || '');
-  const protocol = String(window.location?.protocol || 'https:');
-  if (protocol === 'file:' || isLocalHost(hostname)) {
-    return unique(['', ...envBases, 'http://127.0.0.1:8787', 'http://localhost:8787']);
-  }
-
-  if (hostname === 'api.novaquant.cloud') {
-    return unique(['', ...envBases]);
-  }
-
-  if (
-    hostname === 'novaquant.cloud' ||
-    hostname === 'app.novaquant.cloud' ||
-    hostname === 'admin.novaquant.cloud' ||
-    hostname.endsWith('.novaquant.cloud')
-  ) {
-    return unique(['', ...envBases, 'https://api.novaquant.cloud']);
-  }
-
-  return unique(['', ...envBases, 'https://api.novaquant.cloud']);
-}
-
-function buildApiUrl(path, base = '') {
-  const normalizedPath = String(path || '').startsWith('/')
-    ? String(path)
-    : `/${String(path || '')}`;
-  if (!base) return normalizedPath;
-  return `${trimTrailingSlash(base)}${normalizedPath}`;
-}
 
 function readStaticSupabaseBrowserConfig() {
   const url = trim(
@@ -126,6 +65,30 @@ async function fetchRuntimeSupabaseBrowserConfig() {
   return null;
 }
 
+const SESSION_STORAGE_KEY = 'novaquant-supabase-browser-config';
+
+function readCachedRuntimeConfig() {
+  try {
+    if (typeof sessionStorage === 'undefined') return null;
+    const raw = sessionStorage.getItem(SESSION_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed?.url && parsed?.anonKey) return parsed;
+  } catch {
+    // sessionStorage may be blocked (e.g. incognito Safari)
+  }
+  return null;
+}
+
+function writeCachedRuntimeConfig(config) {
+  try {
+    if (typeof sessionStorage === 'undefined' || !config) return;
+    sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(config));
+  } catch {
+    // Best-effort — ignore quota or access errors.
+  }
+}
+
 export async function loadSupabaseBrowserConfig() {
   const staticConfig = readStaticSupabaseBrowserConfig();
   if (staticConfig) {
@@ -133,11 +96,20 @@ export async function loadSupabaseBrowserConfig() {
     return runtimeConfig;
   }
   if (runtimeConfig) return runtimeConfig;
+
+  // Check sessionStorage before issuing network requests.
+  const cached = readCachedRuntimeConfig();
+  if (cached) {
+    runtimeConfig = cached;
+    return runtimeConfig;
+  }
+
   if (runtimeConfigPromise) return runtimeConfigPromise;
 
   runtimeConfigPromise = fetchRuntimeSupabaseBrowserConfig()
     .then((config) => {
       runtimeConfig = config;
+      writeCachedRuntimeConfig(config);
       return runtimeConfig;
     })
     .finally(() => {

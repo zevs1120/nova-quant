@@ -4,6 +4,17 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+- **Fix(auth,signal,hub,db): 认证系统全面审计修复 — 5 项 Issues 全部清除。**
+  - **[🔴 高危] Fix(cors): CORS preflight 未允许 `Authorization` header，跨域 Bearer token 请求可能被浏览器拦截。**
+    - `app.ts` 和 `api/index.ts` 两处 `Access-Control-Allow-Headers` 均从 `Content-Type` 更新为 `Content-Type, Authorization`，覆盖 first-party、cross-origin-read 和 Vercel public CORS 三条路径。
+  - **[🟡 中危] Fix(auth): 注册流程 `signOut()` 触发 `onAuthStateChange` 的 `SIGNED_OUT` 事件导致 UI 状态闪烁。**
+    - `useAuth.js` 新增 `signupInProgressRef` 门控——注册期间 `SIGNED_OUT` listener 被忽略，注册完成（包括异常路径）后通过 `finally` 解锁。
+  - **[🟢 低危] Refactor(utils): 抽取 `api.js` 和 `supabaseAuth.js` 重复的运行时 API 基地址发现逻辑到共享 `apiBase.js`。**
+    - 新增 `src/utils/apiBase.js`（`runtimeApiBases`、`buildApiUrl`、`trimTrailingSlash`、`unique`、`isLocalHost`）；两个消费者文件各减少约 60 行重复代码。
+  - **[🟢 低危] Perf(auth): Supabase 浏览器运行时配置新增 `sessionStorage` 缓存，避免每次页面加载重复执行瀑布式 API 发现。**
+    - `loadSupabaseBrowserConfig` 在 `VITE_SUPABASE_URL` 未配置时，先检查 `sessionStorage` 缓存再发起网络请求；成功获取后写入缓存。
+  - **Test: 新增 `authHardeningFixes.test.ts`，覆盖 CORS Authorization 验证、共享工具函数正确性、API 废弃端点 410 返回。**
+
 - **Fix(deploy,research): 修复 Qlib Sidecar 的 EC2 部署问题。**
   - 以 `ubuntu` 用户身份运行 `nova-qlib-bridge.service`，在 GitHub Actions 部署时从仓库同步 systemd 单元文件，并修正不健康服务检查逻辑——不再在 `systemctl is-active` 提前退出，而是打印 journal 日志。
 

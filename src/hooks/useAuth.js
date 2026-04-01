@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocalStorage } from './useLocalStorage';
 import { normalizeEmail, classifyAuthError } from '../utils/appHelpers';
 import {
@@ -135,6 +135,7 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
   );
 
   const effectiveUserId = authSession?.userId || chatUserId;
+  const signupInProgressRef = useRef(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -386,6 +387,7 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
           setPasswordRecoveryMode(true);
         }
         if (event === 'SIGNED_OUT') {
+          if (signupInProgressRef.current) return;
           resetLocalAuthState({ clearProfile: false });
           setAuthHydrated(true);
           return;
@@ -484,6 +486,7 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
   const handleSignup = useCallback(
     async (payload) => {
       try {
+        signupInProgressRef.current = true;
         setAuthSession(null);
         const mainClient = await ensureSupabaseBrowserClient();
         await mainClient?.auth.signOut().catch(() => {});
@@ -530,6 +533,8 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
           ok: false,
           error: classifySupabaseSignupError(error, locale),
         };
+      } finally {
+        signupInProgressRef.current = false;
       }
     },
     [locale],
