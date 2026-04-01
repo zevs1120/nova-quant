@@ -16,7 +16,7 @@ export interface QlibSyncResult {
 
 export interface QlibFactorRequest {
   symbols: string[];
-  factors: string[];
+  factor_set?: string;
   start_date: string;
   end_date: string;
 }
@@ -41,15 +41,24 @@ export interface QlibFactorResult {
 export interface QlibModelRequest {
   model_name: string;
   symbols: string[];
-  start_date: string;
-  end_date: string;
+  predict_date: string;
+  factor_set?: string;
+  lookback_days?: number;
+}
+
+export interface QlibPredictionRow {
+  symbol: string;
+  score: number;
+  rank: number;
 }
 
 export interface QlibModelResult {
   status: string;
   model_name: string;
+  predict_date: string;
+  prediction_count: number;
   elapsed_ms: number;
-  predictions: Record<string, Record<string, number>>; // { symbol: { date: float } }
+  predictions: QlibPredictionRow[];
 }
 
 function getBridgeConfig() {
@@ -82,7 +91,7 @@ export async function checkQlibHealth(): Promise<boolean> {
   try {
     const res = await fetch(endpoint, init);
     const data = await res.json();
-    return res.ok && data.status === 'running';
+    return res.ok && data.status === 'running' && data.qlib_ready === true;
   } catch (error) {
     return false;
   } finally {

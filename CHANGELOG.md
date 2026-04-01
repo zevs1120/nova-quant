@@ -4,6 +4,28 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+## 10.21.2 (2026-04-01)
+
+- 发布类型：**patch**（Qlib Bridge 接口契约全面对齐）
+
+- **Fix(research): predictQlibModel TS 契约与 Python sidecar 完全对齐。**
+  - `QlibModelRequest` 从 `start_date/end_date` 改为 `predict_date/lookback_days/factor_set`，与 Python `ModelPredictRequest` 一致。
+  - `QlibModelResult` 从嵌套 map 改为 `QlibPredictionRow[]`（`symbol/score/rank`），与 Python `ModelPredictResult` 一致。
+
+- **Fix(research): 因子请求字段从 factors[] 对齐为 factor_set 字符串。**
+  - `QlibFactorRequest.factors: string[]` 改为 `factor_set?: string`，与 Python `FactorRequest.factor_set` 一致。
+  - `featureSignalLayer.js` 调用点从 `factors: ['Alpha158']` 改为 `factor_set: 'Alpha158'`。
+
+- **Fix(research): 数据同步二进制转换失败时返回 status="partial" 而非 "ok"。**
+  - 防止 `server.py` 在同步不完整时错误地重新初始化 Qlib，避免"看似成功但因子不可用"的误判。
+
+- **Fix(nova): checkQlibHealth 同时验证 qlib_ready 标志。**
+  - 仅进程存活不再视为健康，必须 Qlib 数据已初始化才返回 true。
+
+- **Test(bridge): 补充 sidecar 契约测试。**
+  - 新增 `test_compute_factors_rejects_invalid_request`、`test_predict_rejects_invalid_request`、`test_predict_contract` 三个测试，验证请求 schema 422 拒绝和响应结构。
+  - 收紧 `test_compute_factors_requires_qlib` 在 200 响应时的字段断言。
+
 ## 10.21.1 (2026-04-01)
 
 - 发布类型：**patch**（审查后二次修复）

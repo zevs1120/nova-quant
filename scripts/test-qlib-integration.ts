@@ -2,12 +2,14 @@ import { checkQlibHealth, fetchQlibFactors, syncQlibData } from '../src/server/n
 import { enrichWithQlibFeatures } from '../src/research/core/featureSignalLayer.js';
 
 async function run() {
-  console.log('1. Checking Qlib Bridge Health...');
+  console.log('1. Checking Qlib Bridge Health (process alive + qlib_ready)...');
   const isHealthy = await checkQlibHealth();
-  console.log(` Health: ${isHealthy ? 'OK' : 'DOWN'}`);
+  console.log(` Health: ${isHealthy ? 'OK (Qlib initialised)' : 'DOWN or not ready'}`);
 
   if (!isHealthy) {
-    console.error('Qlib Bridge is not running or disabled. Start it first!');
+    console.error(
+      'Qlib Bridge is not running, disabled, or Qlib data not initialised. Start it and sync data first!',
+    );
     process.exit(1);
   }
 

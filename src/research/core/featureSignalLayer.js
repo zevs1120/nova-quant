@@ -262,7 +262,7 @@ export async function enrichWithQlibFeatures(opportunityObjects = [], fetchQlibF
 
     const qlibRes = await fetchQlibFactors({
       symbols,
-      factors: ['Alpha158'],
+      factor_set: 'Alpha158',
       start_date: start,
       end_date: end,
     });

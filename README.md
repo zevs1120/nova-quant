@@ -1,7 +1,7 @@
 # Nova Quant
 
 Nova Quant is an AI-native quantitative **decision** platform for US equities and crypto.
-Current app version: `10.21.1` (build `80`).
+Current app version: `10.21.2` (build `81`).
 Versioning policy: `package.json` is canonical, `src/config/version.js` is the generated runtime mirror, and release history lives in `CHANGELOG.md` / `docs/VERSIONING.md`.
 Auth is primarily driven by **Supabase Native Auth** (`supabase.ts`) for production deployments. Local development natively falls back to SQLite mock tokens for offline compatibility. Legacy Postgres/Upstash Redis manual tracking paths remain available as remote fallbacks but are deprecated in favor of Supabase Auth. Without any local or remote auth configured, deployed `/api/auth/*` returns `AUTH_STORE_NOT_CONFIGURED`.
 Browse search can now merge external market results into `/api/assets/search`. By default it augments local assets with the SEC company ticker universe and CoinGecko crypto search; set `ALPHA_VANTAGE_API_KEY` for broader stock / ETF lookup and `COINGECKO_DEMO_API_KEY` (or `COINGECKO_API_KEY` / `COINGECKO_PRO_API_KEY`) for higher-volume crypto search.

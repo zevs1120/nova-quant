@@ -282,8 +282,10 @@ def run_sync(req: SyncRequest | None = None) -> SyncResult:
     # 3. Convert to Qlib binary
     target_dir = _qlib_target_dir()
     dump_result = _run_dump_bin(staging_dir, target_dir)
+    sync_status = "ok"
     if dump_result != "ok":
-        notes.append(f"Binary conversion: {dump_result}")
+        sync_status = "partial"
+        notes.append(f"Binary conversion failed: {dump_result}")
         notes.append(
             "You can manually convert with: "
             "python scripts/dump_bin.py dump_all "
@@ -292,7 +294,7 @@ def run_sync(req: SyncRequest | None = None) -> SyncResult:
 
     elapsed_ms = int((time.time() - t0) * 1000)
     return SyncResult(
-        status="ok",
+        status=sync_status,
         symbols_synced=len(grouped),
         rows_exported=total_rows,
         elapsed_ms=elapsed_ms,
