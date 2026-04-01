@@ -4,10 +4,20 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
-- fix(test,ci): reduced the synthetic bar history used by measured factor diagnostics tests so the momentum/carry coverage still exercises aligned OHLCV, funding, and basis logic without riding GitHub Actions' 5s timeout boundary.
-- fix(auth,deploy): restored production login for legacy Supabase-backed accounts by reopening the server-side `/api/auth/login` path, teaching request scope/session hydration to honor first-party `novaquant_session` cookies, adding a frontend fallback from failed Supabase password sign-in to the server login bridge, and repointing `app.novaquant.cloud` `/api/*` traffic to the new `nova-quant-api.vercel.app` Vercel backend so `zevs1120@gmail.com` can sign in with `Zevs1120` again.
-- fix(db,auth,deploy): repaired production Supabase signup config by requiring API-host `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, and redirect envs in EC2/Vultr templates; added build-time public Supabase injection to the standalone `app/` Vite config so the deployed H5 app no longer depends on a missing backend env to discover browser auth settings.
-- fix(auth): surface Supabase `over_email_send_rate_limit` honestly in signup UX instead of collapsing it into a generic "signup unavailable" error.
+- **Fix(deploy,research): 修复 Qlib Sidecar 的 EC2 部署问题。**
+  - 以 `ubuntu` 用户身份运行 `nova-qlib-bridge.service`，在 GitHub Actions 部署时从仓库同步 systemd 单元文件，并修正不健康服务检查逻辑——不再在 `systemctl is-active` 提前退出，而是打印 journal 日志。
+
+- **Fix(test,ci): 缩减因子诊断测试中的合成K线历史数据。**
+  - 缩减用于因子诊断测试的合成K线历史数据，使动量/carry 覆盖仍能执行对齐的 OHLCV、funding 和 basis 逻辑，同时避免触及 GitHub Actions 的 5 秒超时边界。
+
+- **Fix(auth,deploy): 恢复旧版 Supabase 账户的生产环境登录。**
+  - 重启服务端 `/api/auth/login` 路径，修复请求 scope/session 水化逻辑以支持第一方 `novaquant_session` cookie；添加前端降级路径——当 Supabase 密码登录失败时回退到服务端登录桥接；将 `app.novaquant.cloud` `/api/*` 流量重新指向新的 `nova-quant-api.vercel.app` Vercel 后端，使 `zevs1120@gmail.com` 可以使用 `Zevs1120` 登录。
+
+- **Fix(db,auth,deploy): 修复生产环境 Supabase Signup 配置。**
+  - 在 EC2/Vultr 模板中要求提供 API 宿主 `SUPABASE_URL`、`SUPABASE_PUBLISHABLE_KEY` 和 redirect 环境变量；在独立的 `app/` Vite 配置中添加构建时公开 Supabase 注入，使已部署的 H5 应用不再依赖缺失的后端环境变量来发现浏览器认证设置。
+
+- **Fix(auth): 在注册界面诚实展示 Supabase 邮件发送频率限制。**
+  - 在注册体验中诚实展示 Supabase `over_email_send_rate_limit` 错误，而不是将其泛化为"注册不可用"错误。
 
 - **Fix(db,test,docs): 仓库完全收口到 Supabase/Postgres，清除本地数据库残留。**
   - 移除历史本地数据库与旧 HTTP 测试依赖，删除本地库初始化/迁移脚本，并将底层 SQL helper 收口到 `postgresSql.ts`。

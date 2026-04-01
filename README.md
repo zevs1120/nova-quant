@@ -11,9 +11,9 @@ It is **not** a blind auto-trading bot and does **not** fabricate live performan
 
 ## Monorepo Deployment Layout
 
-This repository supports a four-part deployment layout:
+This repository supports a five-part deployment layout:
 
-- `landing/`: brand landing page on Vercel
+- `landing/`: brand landing page + data research portal on Vercel (`novaquant.cloud` + `novaquant.cloud/data-portal`)
 - `app/`: user-facing H5 frontend on Vercel
 - `admin/`: internal control dashboard on Vercel (includes System Health + Research Ops dashboards, prefers Supabase read mirror when available)
 - `qlib-bridge/`: Python sidecar for Alpha158 factor computation and ML model inference (EC2 only)
@@ -146,6 +146,10 @@ Local operator commands:
 - `npm run nova:health`
 - `npm run nova:export-mlx`
 - `npm run nova:train:lora`
+- `npm run nova:flywheel`
+- `npm run nova:strategy`
+- `npm run nova:train:robustness`
+- `npm run nova:strategy:pack`
 
 This keeps the product grounded:
 

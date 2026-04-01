@@ -1,7 +1,7 @@
 # Nova Quant — Architecture Overview
 
-> 自动扫描生成 · 最后更新: 2026-03-27
-> Version: 10.14.0 (build 76)
+> 自动扫描生成 · 最后更新: 2026-04-01
+> Version: 10.21.2 (build 81)
 
 ---
 
@@ -16,12 +16,13 @@ Nova Quant 是一个 **AI-native 量化决策平台**，面向美股与加密货
 
 ```
 nova-quant/
-├── landing/   → 品牌落地页 (Vercel)         → novaquant.cloud
-├── app/       → 用户端 H5 前端 (Vercel)     → app.novaquant.cloud
-├── server/    → 纯 API 层 (Vercel)           → api.novaquant.cloud
-├── admin/     → 内部管理后台 (Vercel)         → admin.novaquant.cloud
-├── model/     → EC2 端模型边界 & 信号合约
-└── qlib-bridge/ → EC2 端 Python 微服务 (提供 Alpha158 因子与 ML 模型推理)
+├── landing/         → 品牌落地页 (Vercel)         → novaquant.cloud
+│   └── data-portal/ → 数据研究门户 (Vercel)     → novaquant.cloud/data-portal
+├── app/            → 用户端 H5 前端 (Vercel)     → app.novaquant.cloud
+├── admin/          → 内部管理后台 (Vercel)       → admin.novaquant.cloud
+├── api/            → Vercel Serverless Functions  → api.novaquant.cloud
+├── model/          → EC2 端模型边界 & 信号合约
+└── qlib-bridge/   → EC2 端 Python 微服务 (提供 Alpha158 因子与 ML 模型推理)
 ```
 
 **运行时规则**:
@@ -29,9 +30,9 @@ nova-quant/
 |----------|--------------------------|--------------------------|
 | `app/` | 仅调用 API | 直接读写数据库 |
 | `admin/` | 仅调用 API | 直接读写数据库 |
-| `server/`| 读写数据库、响应 API 请求 | — |
+| API 层 | 读写数据库、响应 API 请求 | — |
 | `model/` | 推送标准信号到 server | 触碰用户数据 |
-| `qlib-bridge/` | 接受 HTTP 请求，读本地 DB 同步并算因子 | 触碰用户状态或主动写入 DB |
+| `qlib-bridge/` | 接受 HTTP 请求，读 Supabase/Postgres 同步并算因子 | 触碰用户状态或主动写入 DB |
 
 ---
 
@@ -42,13 +43,15 @@ nova-quant/
 | 前端框架   | React 18 + Vite 5, JSX                                    |
 | 后端框架   | Express 5 (TypeScript)                                    |
 | 业务数据库 | Supabase Postgres — `NOVA_DATA_DATABASE_URL`              |
+| 认证数据库 | Supabase Postgres — `NOVA_AUTH_DATABASE_URL`              |
 | 运行时桥接 | Postgres runtime repository + in-memory test harness      |
-| 认证体系   | Supabase Auth + Postgres profile/session store            |
+| 认证体系   | Supabase Native Auth + Postgres profile/session store     |
 | 类型检查   | TypeScript 5.9                                            |
 | 测试框架   | Vitest 4 + Supertest                                      |
 | 部署平台   | Vercel (前端 + API) / AWS EC2 (模型 + 后端自动化)         |
 | LLM 运行时 | Ollama (本地 Marvix 模型族) + Gemini / OpenAI / Groq 回退 |
 | 图表       | Chart.js + react-chartjs-2                                |
+| 数据管道   | Massive.com (主) + Stooq/Binance/Yahoo/Nasdaq 回退        |
 
 ---
 
@@ -58,22 +61,22 @@ nova-quant/
 nova-quant/
 │
 ├── src/                          # 核心源码
-│   ├── App.jsx                   # 薄编排壳层 (31 KB) — 组合 hooks + 渲染
+│   ├── App.jsx                   # 薄编排壳层 — 组合 hooks + 渲染
 │   ├── main.jsx                  # React 入口
-│   ├── styles.css                # @import 入口 (→ src/styles/ 12 模块)
+│   ├── styles.css                # @import 入口 (→ src/styles/ 模块)
 │   ├── i18n.js                   # 国际化 (中/英)
 │   │
-│   ├── components/               # 35 个 UI 组件
-│   │   └── icons/                # TabBarIcon, TopBarMenuGlyph
-│   ├── hooks/                    # 9 个 React Hooks (auth, billing, data, engagement, demo, nav 等)
+│   ├── components/               # 28 个 UI 组件
+│   │   └── icons/               # TabBarIcon, TopBarMenuGlyph
+│   ├── hooks/                    # 11 个 React Hooks
 │   ├── utils/                    # 前端工具 (API、格式化、意图解析等)
 │   ├── copy/                     # 品牌文案操作系统
 │   ├── config/                   # 运行时版本 + appConstants
-│   ├── styles/                   # 12 个有序 CSS 领域模块
+│   ├── styles/                   # CSS 领域模块
 │   ├── assets/                   # 静态资源
 │   ├── demo/                     # Demo 模式相关
 │   │
-│   ├── engines/                  # 11 个量化引擎 (前端共享)
+│   ├── engines/                  # 16 个量化引擎
 │   ├── quant/                    # 量化研究系统 (AI检索、研究循环)
 │   ├── research/                 # 研究治理 & 验证管线
 │   ├── data_sources/             # 数据源定义 (Crypto / Equities / Options)
@@ -84,7 +87,32 @@ nova-quant/
 │   ├── portfolio_simulation/     # 组合模拟
 │   │
 │   └── server/                   # 后端核心 (41 个子模块)
-│       ├── api/                  # API 路由 & 查询层 (109 条路由)
+│       ├── api/                  # API 路由 & 查询层
+│       │   ├── app.ts           # Express 应用入口
+│       │   ├── queries.ts       # Runtime 查询编排封装
+│       │   ├── helpers.ts      # 辅助函数
+│       │   ├── authHandlers.ts  # 认证路由处理
+│       │   ├── adminHandlers.ts # 管理端路由处理
+│       │   ├── modelHandlers.ts # 模型/信号摄入路由
+│       │   └── routes/          # 18 个路由子模块
+│       │       ├── admin.ts
+│       │       ├── auth.ts
+│       │       ├── billing.ts
+│       │       ├── browse.ts
+│       │       ├── chat.ts
+│       │       ├── connect.ts
+│       │       ├── decision.ts
+│       │       ├── engagement.ts
+│       │       ├── evidence.ts
+│       │       ├── execution.ts
+│       │       ├── manual.ts
+│       │       ├── market.ts
+│       │       ├── membership.ts
+│       │       ├── nova.ts
+│       │       ├── outcome.ts
+│       │       ├── research.ts
+│       │       ├── runtime.ts
+│       │       └── signals.ts
 │       ├── auth/                 # 认证 (Supabase Native / Postgres store)
 │       ├── billing/              # 账单及 Stripe 支付集成
 │       ├── membership/           # 会员等级网关与订阅状态判断
@@ -100,7 +128,7 @@ nova-quant/
 │       ├── engagement/           # 参与引擎 (晨检 / 复盘 / 周回顾)
 │       ├── portfolio/            # 组合分配器
 │       ├── ingestion/            # 数据摄取 (10 个连接器)
-│       ├── alpha_discovery/      # 自动 Alpha 发现循环
+│       ├── alpha_discovery/       # 自动 Alpha 发现循环
 │       ├── alpha_registry/       # Alpha 注册 & 生命周期
 │       ├── alpha_evaluator/      # Alpha 评估
 │       ├── alpha_mutation/       # Alpha 突变 / 优化
@@ -117,7 +145,7 @@ nova-quant/
 │       ├── jobs/                 # 后台任务 (回填、数据验证等)
 │       ├── manual/               # 手动信号服务
 │       ├── news/                 # 新闻提供 (Gemini Factors)
-│       ├── observability/        # 可观测性脊柱
+│       ├── observability/         # 可观测性脊柱
 │       ├── ops/                  # Marvix 运维检视
 │       ├── public/               # 公开资源路由
 │       ├── quant/                # 量化运行时同步 & 缓存隔离
@@ -129,13 +157,10 @@ nova-quant/
 ├── admin/                        # 管理后台 (独立 Vite 应用)
 │   └── src/
 │       ├── AdminApp.jsx          # 管理应用壳
-│       ├── pages/                # 6 个页面 (Overview, SystemHealth, ResearchOps, AlphaLab, Users, SignalsExecution)
-│       ├── components/           # 4 个组件 (Login, Sidebar, StatCard, Topbar)
+│       ├── pages/                # 页面
+│       ├── components/           # 组件
 │       ├── hooks/                # Admin Hooks
 │       └── services/             # Admin 服务层
-│
-├── server/                       # Vercel API 部署入口
-│   └── api/[...route].ts        # 代理到 src/server/api/app.ts
 │
 ├── api/                          # Vercel Serverless 函数入口
 │   └── index.ts                  # 路由分发 (主 API 入口点)
@@ -144,22 +169,39 @@ nova-quant/
 │   ├── signal.schema.json        # 信号合约 JSON Schema
 │   └── README.md
 │
-├── tests/                        # 102 个测试文件 (Vitest)
-├── scripts/                      # 35 个运维脚本
+├── tests/                        # 133 个测试文件 (Vitest)
+├── scripts/                      # 41 个运维脚本
 ├── config/                       # 摄取配置
-├── docs/                         # 75+ 文档文件
+├── docs/                         # 88 个文档文件
 ├── deployment/                   # 部署配置 (AWS EC2 / Vultr / launchd)
 ├── landing/                      # 品牌落地页 (独立 Vite 应用)
 │   └── src/
-│       ├── App.jsx               # 编排壳 — 组合 hooks + 10 section 组件
+│       ├── App.jsx               # 编排壳 — 组合 hooks + 组件
+│       ├── DataPortalApp.jsx     # 数据研究门户应用壳
+│       ├── dataPortalMain.jsx    # 数据门户入口
 │       ├── data/index.js         # 内容数据 (定价、FAQ、卡片、证言)
-│       ├── components/           # 10 section 组件
+│       ├── components/           # 11 个落地页组件
+│       │   ├── AskSection.jsx
+│       │   ├── DataPortalPage.jsx
+│       │   ├── DistributionSection.jsx
+│       │   ├── FaqSection.jsx
+│       │   ├── Header.jsx
+│       │   ├── HeroSection.jsx
+│       │   ├── LegalFooter.jsx
+│       │   ├── PricingSection.jsx
+│       │   ├── ProofSection.jsx
+│       │   ├── StatementSection.jsx
+│       │   └── VoicesSection.jsx
 │       ├── hooks/                # 2 hooks (useStatementFan, useViewportMotion)
-│       └── styles/               # 12 有序 CSS 模块
+│       └── styles/               # CSS 模块
+├── data-portal/                  # 数据研究门户 (独立 Vite 应用)
+│   └── index.html
 │
 ├── qlib-bridge/                  # Python Sidecar 微服务 (FastAPI)
 │   ├── bridge/                   # 因子与模型适配器 (Alpha158/360, LightGBM)
 │   ├── models/                   # 预训练模型挂载点 (.pkl)
+│   ├── scripts/                  # 运维脚本
+│   ├── tests/                    # 测试
 │   └── pyproject.toml            # uv 依赖清单 (pyqlib 等)
 │
 ├── data/                         # 数据快照 / 研究输入（不作为运行时主库）
@@ -176,7 +218,7 @@ nova-quant/
 │                          数据摄取层                                  │
 │  Massive.com ──┐                                                    │
 │  Stooq ────────┤                                                    │
-│  Binance ──────┼──→ normalize ──→ Postgres runtime tables ──→ 验证   │
+│  Binance ──────┼──→ normalize ──→ Supabase/Postgres ──→ 验证       │
 │  Yahoo ────────┤                                                    │
 │  Nasdaq ───────┘                                                    │
 └─────────────────────────────────────────────────────────────────────┘
@@ -191,9 +233,14 @@ nova-quant/
 │    → funnelEngine (信号过滤漏斗)                                     │
 │    → regimeEngine (市场状态识别)                                     │
 │    → riskEngine + riskGuardrailEngine (风控 & 防护栏)                │
-│    → performanceEngine (绩效测量)                                    │
+│    → performanceEngine (绩效测量)                                   │
 │    → velocityEngine (动量/速度跟踪)                                  │
-│    → strategyTemplates (策略模板库)                                  │
+│    → patternDetector (形态检测)                                      │
+│    → sentimentCycleEngine (情绪周期)                                 │
+│    → technicalIndicators (技术指标)                                  │
+│    → strategyEvaluator (策略评估)                                     │
+│    → strategyLoader (策略加载)                                       │
+│    → strategyTemplates (策略模板库)                                   │
 │    → pipeline (完整管线编排)                                         │
 └─────────────────────────────────────────────────────────────────────┘
          │
@@ -220,18 +267,22 @@ nova-quant/
 ┌─────────────────────────────────────────────────────────────────────┐
 │                       前端呈现层                                     │
 │                                                                     │
-│  TodayTab ──────── 今日决策面板 (主着陆页)                           │
+│  TodayTab ──────── 今日决策面板 (主着陆页)                          │
 │  SignalsTab ─────── 信号列表                                         │
-│  HoldingsTab ────── 持仓管理                                         │
-│  RiskTab ────────── 风险仪表盘                                       │
-│  ProofTab ───────── 证据 & 回测                                      │
-│  MarketTab ──────── 市场概况                                         │
+│  HoldingsTab ────── 持仓管理                                        │
+│  RiskTab ────────── 风险仪表盘                                      │
+│  ProofTab ───────── 证据 & 回测                                     │
+│  MarketTab ──────── 市场概况                                        │
 │  ResearchTab ────── AI 研究工具                                      │
-│  AiPage ─────────── Nova 助手对话                                    │
-│  BrowseTab ──────── 资产浏览 & 搜索                                  │
-│  MenuTab ────────── 设置 & 高级功能                                   │
-│  WeeklyReviewTab ── 周度复盘                                         │
+│  AiPage ─────────── Nova 助手对话                                   │
+│  BrowseTab ──────── 资产浏览 & 搜索                                 │
+│  MenuTab ────────── 设置 & 高级功能                                  │
+│  WeeklyReviewTab ── 周度复盘                                        │
 │  OnboardingFlow ─── 首次引导流                                       │
+│  DisciplineTab ──── 纪律执行                                        │
+│  DataStatusTab ──── 数据状态                                        │
+│  LearningLoopTab ── 学习循环                                        │
+│  SettingsTab ────── 设置                                            │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -241,48 +292,51 @@ nova-quant/
 
 ### 6.1 API 层 (`src/server/api/`)
 
-| 文件                   | 职责                      | 大小   |
-| ---------------------- | ------------------------- | ------ |
-| `app.ts`               | Express 应用 (109 条路由) | 63 KB  |
-| `queries.ts`           | Runtime 查询编排封装      | 140 KB |
-| `authHandlers.ts`      | 认证路由处理              | 9 KB   |
-| `adminHandlers.ts`     | 管理端路由处理            | 5 KB   |
-| `modelHandlers.ts`     | 模型/信号摄入路由         | 10 KB  |
-| `vercelChatHandler.ts` | Vercel 端对话处理         | 10 KB  |
+| 文件               | 职责                 |
+| ------------------ | -------------------- |
+| `app.ts`           | Express 应用入口     |
+| `queries.ts`       | Runtime 查询编排封装 |
+| `helpers.ts`       | 辅助函数             |
+| `authHandlers.ts`  | 认证路由处理         |
+| `adminHandlers.ts` | 管理端路由处理       |
+| `modelHandlers.ts` | 模型/信号摄入路由    |
+
+**路由子模块 (18 个)**: admin, auth, billing, browse, chat, connect, decision, engagement, evidence, execution, manual, market, membership, nova, outcome, research, runtime, signals
 
 ### 6.2 数据库层 (`src/server/db/`)
 
-| 文件                        | 职责                                    | 大小   |
-| --------------------------- | --------------------------------------- | ------ |
-| `schema.ts`                 | 业务表 bootstrap SQL                    | 49 KB  |
-| `repository.ts`             | 同步数据访问层 (CRUD 操作)              | 128 KB |
-| `database.ts`               | 测试用 in-memory runtime 入口           | 2 KB   |
-| `postgresBusinessMirror.ts` | Supabase 写镜像 (Proxy 拦截 20+ 写操作) | 新增   |
-| `postgresSql.ts`            | Postgres SQL helpers                    | 新增   |
+| 文件                           | 职责                                    |
+| ------------------------------ | --------------------------------------- |
+| `schema.ts`                    | 业务表 bootstrap SQL                    |
+| `repository.ts`                | 同步数据访问层 (CRUD 操作)              |
+| `database.ts`                  | 测试用 in-memory runtime 入口           |
+| `postgresBusinessMirror.ts`    | Supabase 写镜像 (Proxy 拦截 20+ 写操作) |
+| `postgresSql.ts`               | Postgres SQL helpers                    |
+| `postgresRuntimeRepository.ts` | Postgres 运行时 Repository              |
 
-**主要运行时表**: `ohlcv_bars`, `runtime_state`, `decision_snapshots`, `chat_threads`, `chat_messages`, `evidence_runs`, `alpha_candidates`, `alpha_evaluations`, `alpha_shadow_observations`, `alpha_lifecycle_events`, `manual_signals`, `engagement_state` 等
+**主要运行时表**: `ohlcv_bars`, `runtime_state`, `decision_snapshots`, `chat_threads`, `chat_messages`, `evidence_runs`, `alpha_candidates`, `alpha_evaluations`, `alpha_shadow_observations`, `alpha_lifecycle_events`, `manual_signals`, `engagement_state`, `billing_customers`, `billing_subscriptions` 等
 
 ### 6.3 认证层 (`src/server/auth/`)
 
-| 文件               | 职责                                                    |
-| ------------------ | ------------------------------------------------------- |
-| `service.ts`       | 认证服务 (Session / RBAC / 中间件) — 49 KB              |
-| `postgresStore.ts` | Postgres 认证存储 (users/sessions/roles) — 21 KB        |
-| `supabase.ts`      | 原生 Supabase 认证集成，接管邮件及 Session (取代遗留流) |
+| 文件               | 职责                                       |
+| ------------------ | ------------------------------------------ |
+| `service.ts`       | 认证服务 (Session / RBAC / 中间件)         |
+| `postgresStore.ts` | Postgres 认证存储 (users/sessions/roles)   |
+| `supabase.ts`      | 原生 Supabase 认证集成，接管邮件及 Session |
 
 ### 6.4 决策引擎 (`src/server/decision/`)
 
-单文件 `engine.ts` (50 KB)，实现了从原始信号到个性化行动卡片的完整决策链：信号 → 资格过滤 → 风险状态 → 组合意图 → 行动卡片 → 证据包。
+单文件 `engine.ts`，实现了从原始信号到个性化行动卡片的完整决策链：信号 → 资格过滤 → 风险状态 → 组合意图 → 行动卡片 → 证据包。
 
 ### 6.5 Nova Assistant (`src/server/chat/`)
 
-| 文件         | 职责                                              |
-| ------------ | ------------------------------------------------- |
-| `service.ts` | 对话服务 (线程持久化、多轮记忆、回退) — 26 KB     |
-| `tools.ts`   | 内部工具层 (信号、市场、绩效、风险、检索) — 23 KB |
-| `prompts.ts` | Prompt 组装 (结构化、证据感知) — 16 KB            |
-| `providers/` | 4 个 LLM Provider (Ollama/Gemini/OpenAI/Groq)     |
-| `audit.ts`   | 对话审计                                          |
+| 文件         | 职责                                          |
+| ------------ | --------------------------------------------- |
+| `service.ts` | 对话服务 (线程持久化、多轮记忆、回退)         |
+| `tools.ts`   | 内部工具层 (信号、市场、绩效、风险、检索)     |
+| `prompts.ts` | Prompt 组装 (结构化、证据感知)                |
+| `providers/` | 4 个 LLM Provider (Ollama/Gemini/OpenAI/Groq) |
+| `audit.ts`   | 对话审计                                      |
 
 ### 6.6 数据摄取 (`src/server/ingestion/`)
 
@@ -299,30 +353,30 @@ nova-quant/
 | `normalize.ts`          | 数据归一化管线                |
 | `validation.ts`         | 数据质量验证                  |
 
-### 6.7 Alpha 发现系统 (6 个模块)
+### 6.7 Alpha 发现系统 (7 个模块)
 
 ```
-alpha_discovery/     → 自动 Alpha 发现循环
-alpha_registry/      → 生命周期注册 & 追踪
+alpha_discovery/      → 自动 Alpha 发现循环
+alpha_registry/       → 生命周期注册 & 追踪
 alpha_evaluator/     → 代理回测评估 & 拒绝门
-alpha_mutation/      → 突变 / 简化优化
-alpha_shadow_runner/ → Shadow 模式观察
-alpha_promotion_guard/ → 晋升守卫 (Shadow → Canary → Prod)
+alpha_mutation/       → 突变 / 简化优化
+alpha_shadow_runner/  → Shadow 模式观察
+alpha_promotion_guard/→ 晋升守卫 (Shadow → Canary → Prod)
 ```
 
 ### 6.8 Marvix LLM 运行时 (`src/server/nova/`)
 
-| 文件             | 职责                                              |
-| ---------------- | ------------------------------------------------- |
-| `service.ts`     | Nova 服务 (任务日志、路由)                        |
-| `client.ts`      | Ollama 客户端                                     |
-| `router.ts`      | 模型路由 (Core/Scout/Retrieve)                    |
-| `health.ts`      | 健康检查                                          |
-| `flywheel.ts`    | 策略飞轮                                          |
-| `strategyLab.ts` | 策略实验室                                        |
-| `training.ts`    | MLX 训练导出                                      |
-| `mlx.ts`         | MLX-LM 集成                                       |
-| `qlibClient.ts`  | 桥接 Qlib Python Sidecar，提取 Factor 与 模型推理 |
+| 文件             | 职责                                         |
+| ---------------- | -------------------------------------------- |
+| `service.ts`     | Nova 服务 (任务日志、路由)                   |
+| `client.ts`      | Ollama 客户端                                |
+| `router.ts`      | 模型路由 (Core/Scout/Retrieve)               |
+| `health.ts`      | 健康检查                                     |
+| `flywheel.ts`    | 策略飞轮                                     |
+| `strategyLab.ts` | 策略实验室                                   |
+| `training.ts`    | MLX 训练导出                                 |
+| `mlx.ts`         | MLX-LM 集成                                  |
+| `qlibClient.ts`  | 桥接 Qlib Python Sidecar，提取因子与模型推理 |
 
 ### 6.9 量化特征与信号降级 (`src/research/core/`)
 
@@ -337,40 +391,48 @@ alpha_promotion_guard/ → 晋升守卫 (Shadow → Canary → Prod)
 ### 7.1 技术选型
 
 - **框架**: React 18 + Vite 5 (SPA)
-- **样式**: 12 个有序 CSS 模块 (`src/styles/` via `@import`)
-- **路由/状态**: App.jsx 编排 + 5 个 custom hooks (无第三方路由)
+- **样式**: CSS 模块 (`src/styles/` via `@import`)
+- **路由/状态**: App.jsx 编排 + 11 个 custom hooks (无第三方路由)
 - **代码分割**: `React.lazy` 用于次级 Tab 组件
 - **国际化**: `i18n.js` (中/英双语)
 
-### 7.2 主要组件 (35 个)
+### 7.2 主要组件 (28 个)
 
-| 组件                 | 职责                    | 大小  |
-| -------------------- | ----------------------- | ----- |
-| `App.jsx`            | 薄编排壳 (hooks + 渲染) | 31 KB |
-| `TodayTab.jsx`       | 今日决策面板 (首页)     | 49 KB |
-| `MenuTab.jsx`        | 设置 & 高级功能         | 70 KB |
-| `BrowseTab.jsx`      | 资产浏览 & 搜索         | 41 KB |
-| `HoldingsTab.jsx`    | 持仓管理                | 28 KB |
-| `OnboardingFlow.jsx` | 首次引导流              | 27 KB |
-| `ResearchTab.jsx`    | AI 研究工具             | 25 KB |
-| `ProofTab.jsx`       | 证据 & 回测             | 23 KB |
-| `SignalsTab.jsx`     | 信号列表                | 21 KB |
-| `AiPage.jsx`         | Nova 助手对话页         | 16 KB |
-| `RiskTab.jsx`        | 风险仪表盘              | 13 KB |
+| 组件                  | 职责                    |
+| --------------------- | ----------------------- |
+| `App.jsx`             | 薄编排壳 (hooks + 渲染) |
+| `TodayTab.jsx`        | 今日决策面板 (首页)     |
+| `MenuTab.jsx`         | 设置 & 高级功能         |
+| `BrowseTab.jsx`       | 资产浏览 & 搜索         |
+| `HoldingsTab.jsx`     | 持仓管理                |
+| `OnboardingFlow.jsx`  | 首次引导流              |
+| `ResearchTab.jsx`     | AI 研究工具             |
+| `ProofTab.jsx`        | 证据 & 回测             |
+| `SignalsTab.jsx`      | 信号列表                |
+| `AiPage.jsx`          | Nova 助手对话页         |
+| `RiskTab.jsx`         | 风险仪表盘              |
+| `MarketTab.jsx`       | 市场概况                |
+| `WeeklyReviewTab.jsx` | 周度复盘                |
+| `DisciplineTab.jsx`   | 纪律执行                |
+| `LearningLoopTab.jsx` | 学习循环                |
+| `SettingsTab.jsx`     | 设置                    |
+| `DataStatusTab.jsx`   | 数据状态                |
 
-### 7.3 Hooks
+### 7.3 Hooks (11 个)
 
-| Hook                  | 功能                           |
-| --------------------- | ------------------------------ |
-| `useAuth.js`          | 认证生命周期 (登录/注册/登出)  |
-| `useBilling.js`       | 全站订阅层级与计费门户状态同步 |
-| `useAppData.js`       | 11 端点并行数据加载 + 自动刷新 |
-| `useEngagement.js`    | 参与/纪律/执行记录             |
-| `useInvestorDemo.js`  | 投资者 Demo 模式 & 持仓覆盖    |
-| `useNavigation.js`    | Tab/栈导航 & AI 路由           |
-| `useNovaAssistant.js` | Nova 助手交互状态              |
-| `useDemoAssistant.js` | Demo 模式助手                  |
-| `useLocalStorage.js`  | 本地存储封装                   |
+| Hook                       | 功能                           |
+| -------------------------- | ------------------------------ |
+| `useAuth.js`               | 认证生命周期 (登录/注册/登出)  |
+| `useBilling.js`            | 全站订阅层级与计费门户状态同步 |
+| `useAppData.js`            | 多端点并行数据加载 + 自动刷新  |
+| `useEngagement.js`         | 参与/纪律/执行记录             |
+| `useInvestorDemo.js`       | 投资者 Demo 模式 & 持仓覆盖    |
+| `useNavigation.js`         | Tab/栈导航 & AI 路由           |
+| `useNovaAssistant.js`      | Nova 助手交互状态              |
+| `useDemoAssistant.js`      | Demo 模式助手                  |
+| `useLocalStorage.js`       | 本地存储封装                   |
+| `useMembership.js`         | 会员状态同步                   |
+| `useControlPlaneStatus.js` | 控制面板状态                   |
 
 ### 7.4 工具函数 (`src/utils/`)
 
@@ -380,19 +442,24 @@ alpha_promotion_guard/ → 晋升守卫 (Shadow → Canary → Prod)
 
 ## 8. 量化引擎管线 (`src/engines/`)
 
-| 引擎                     | 职责                   | 大小  |
-| ------------------------ | ---------------------- | ----- |
-| `signalEngine.js`        | 信号生成 & 评分 (核心) | 21 KB |
-| `velocityEngine.js`      | 动量 / 速度跟踪        | 11 KB |
-| `strategyTemplates.js`   | 策略模板注册           | 11 KB |
-| `funnelEngine.js`        | 信号过滤漏斗           | 10 KB |
-| `pipeline.js`            | 完整管线编排           | 7 KB  |
-| `riskEngine.js`          | 风险评分               | 6 KB  |
-| `riskGuardrailEngine.js` | 风险防护栏             | 6 KB  |
-| `performanceEngine.js`   | 绩效测量               | 5 KB  |
-| `regimeEngine.js`        | 市场状态/体制分类      | 3 KB  |
-| `math.js`                | 数学工具               | 4 KB  |
-| `params.js`              | 引擎参数               | 3 KB  |
+| 引擎                      | 职责                   |
+| ------------------------- | ---------------------- |
+| `signalEngine.js`         | 信号生成 & 评分 (核心) |
+| `velocityEngine.js`       | 动量 / 速度跟踪        |
+| `strategyTemplates.js`    | 策略模板注册           |
+| `funnelEngine.js`         | 信号过滤漏斗           |
+| `pipeline.js`             | 完整管线编排           |
+| `riskEngine.js`           | 风险评分               |
+| `riskGuardrailEngine.js`  | 风险防护栏             |
+| `performanceEngine.js`    | 绩效测量               |
+| `regimeEngine.js`         | 市场状态/体制分类      |
+| `math.js`                 | 数学工具               |
+| `params.js`               | 引擎参数               |
+| `patternDetector.js`      | 形态检测               |
+| `sentimentCycleEngine.js` | 情绪周期               |
+| `technicalIndicators.js`  | 技术指标               |
+| `strategyEvaluator.js`    | 策略评估               |
+| `strategyLoader.js`       | 策略加载               |
 
 ---
 
@@ -408,48 +475,38 @@ src/research/
 ├── reliability/       # 可靠性检验
 ├── validation/        # 验证管线
 ├── weekly_cycle/      # 周度研究循环
-├── holdingsAnalyzer.js        # 持仓分析器
-├── multiAssetPipeline.js      # 多资产管线
-└── dataQualityChecks.js       # 数据质量检查
+├── holdingsAnalyzer.js       # 持仓分析器
+├── multiAssetPipeline.js     # 多资产管线
+└── dataQualityChecks.js      # 数据质量检查
 ```
 
 ---
 
 ## 10. 管理后台 (`admin/`)
 
-独立 Vite 应用，包含以下页面:
-
-| 页面                       | 职责                            |
-| -------------------------- | ------------------------------- |
-| `OverviewPage.jsx`         | 系统概览仪表盘                  |
-| `SystemHealthPage.jsx`     | 系统健康监控 (支持 Supabase 读) |
-| `ResearchOpsPage.jsx`      | 研究运维 (支持 Supabase 读)     |
-| `AlphaLabPage.jsx`         | Alpha 实验室 (支持 Supabase 读) |
-| `UsersPage.jsx`            | 用户管理                        |
-| `SignalsExecutionPage.jsx` | 信号与执行监控                  |
-
-**Admin 数据源**: Admin 页面从 Supabase/Postgres 运行时读取数据（`src/server/admin/postgresBusinessRead.ts`），并与共享 runtime 保持一致。
+独立 Vite 应用，通过 `postgresBusinessRead.ts` 从 Supabase/Postgres 读取数据。
 
 ---
 
-## 10b. 品牌落地页 (`landing/`)
+## 11. 品牌落地页 (`landing/`)
 
 独立 Vite + React 单页应用，部署于 `novaquant.cloud`。
 
-### 组件 (10 个)
+### 组件 (11 个)
 
-| 组件                      | 职责                                        |
-| ------------------------- | ------------------------------------------- |
-| `Header.jsx`              | 玻璃拟态导航条，滚动时压缩                  |
-| `HeroSection.jsx`         | Warhol 色调主视觉，视差滚动                 |
-| `StatementSection.jsx`    | 交互式扇形卡片堆叠 (5 张 CSS-variable 驱动) |
-| `ProofSection.jsx`        | Marvix 架构流图                             |
-| `AskSection.jsx`          | Ask Nova 展示                               |
-| `PricingSection.jsx`      | 4 档定价卡片 (Free/Lite/Pro/Ultra)          |
-| `FaqSection.jsx`          | FAQ 手风琴                                  |
-| `VoicesSection.jsx`       | 首批用户证言                                |
-| `DistributionSection.jsx` | 分发渠道 & 致谢                             |
-| `LegalFooter.jsx`         | 法律声明、品牌、监管免责                    |
+| 组件                      | 职责                               |
+| ------------------------- | ---------------------------------- |
+| `Header.jsx`              | 玻璃拟态导航条，滚动时压缩         |
+| `HeroSection.jsx`         | Warhol 色调主视觉，视差滚动        |
+| `StatementSection.jsx`    | 交互式扇形卡片堆叠                 |
+| `ProofSection.jsx`        | Marvix 架构流图                    |
+| `AskSection.jsx`          | Ask Nova 展示                      |
+| `PricingSection.jsx`      | 4 档定价卡片 (Free/Lite/Pro/Ultra) |
+| `FaqSection.jsx`          | FAQ 手风琴                         |
+| `VoicesSection.jsx`       | 首批用户证言                       |
+| `DistributionSection.jsx` | 分发渠道 & 致谢                    |
+| `LegalFooter.jsx`         | 法律声明、品牌、监管免责           |
+| `DataPortalPage.jsx`      | 数据研究门户页面                   |
 
 ### Hooks (2 个)
 
@@ -458,43 +515,41 @@ src/research/
 | `useStatementFan.js`   | ResizeObserver 驱动卡片缩放 + 三阶段 reveal 状态机 (`pre` → `animating` → `settled`)                                                       |
 | `useViewportMotion.js` | `useViewportReveal` (IO 入场检测)、`useScrollProgress` (滚动进度)、`useMotionPreference` (media query 追踪，支持 `prefers-reduced-motion`) |
 
-### 样式 (12 CSS 模块)
+### 数据研究门户 (`data-portal/`)
 
-`base.css` → `header.css` → `hero.css` → `statement.css` → `proof.css` → `ask.css` → `pricing.css` → `faq.css` → `voices.css` → `distribution.css` → `legal.css` → `animations.css`
-
-**动效体系**: 每个 section 通过 `useViewportReveal` 获得 `is-motion-visible` class，触发 CSS 入场关键帧 (fade-in + translateY + 交错延迟)。触屏设备通过 `@media (hover: hover)` 门控 hover 效果。`prefers-reduced-motion` 下自动切换为 "soft motion" 模式。
+独立子应用，包含 Backtest、Flywheel、Data Fabric / Audit Loop、Analytics 等分析模块。
 
 ---
 
-## 11. 数据存储架构
+## 12. 数据存储架构
 
 ```
 ┌────────────────────────┐     ┌──────────────────────┐
 │  Postgres (Business)   │     │     Postgres (Auth)  │
-│  ──────────────────    │     │  ──────────────────  │
-│  ohlcv_bars            │     │  users               │
-│  runtime_state         │     │  sessions            │
-│  decision_snapshots    │     │  roles               │
-│  chat_threads          │     │  password_resets      │
-│  chat_messages         │     │  user_state_sync     │
-│  evidence_runs         │     └──────────────────────┘
-│  manual_signals        │
-│  alpha_candidates      │     ┌──────────────────────┐
-│  alpha_evaluations     │     │  Supabase Postgres   │
-│  alpha_shadow_obs      │     │  (业务数据镜像,可选) │
-│  alpha_lifecycle       │     │  ──────────────────  │
-│  engagement_state      │     │  全部业务表的镜像    │
-│  ...                   │     │  via postgresBusinessMirror │
-│                        │     │  写: Proxy 拦截自动同步    │
-│                        │     │  读: Admin + API 优先      │
+│  ──────────────────   │     │  ──────────────────  │
+│  ohlcv_bars           │     │  users               │
+│  runtime_state        │     │  sessions            │
+│  decision_snapshots   │     │  roles               │
+│  chat_threads         │     │  password_resets     │
+│  chat_messages        │     │  user_state_sync     │
+│  evidence_runs        │     └──────────────────────┘
+│  manual_signals       │
+│  alpha_candidates     │     ┌──────────────────────┐
+│  alpha_evaluations    │     │  Supabase Postgres   │
+│  alpha_shadow_obs    │     │  (业务数据镜像)      │
+│  alpha_lifecycle      │     │  ──────────────────  │
+│  engagement_state     │     │  全部业务表的镜像    │
+│  billing_customers    │     │  via postgresBusinessMirror │
+│  billing_subscriptions│     │  写: Proxy 拦截自动同步   │
+│  ...                  │     │  读: Admin + API 优先    │
 └────────────────────────┘     └──────────────────────┘
 ```
 
 ---
 
-## 12. 部署 & 运维
+## 13. 部署 & 运维
 
-### 12.1 Vercel 部署
+### 13.1 Vercel 部署
 
 | 目标  | 入口                 | 路由规则              |
 | ----- | -------------------- | --------------------- |
@@ -502,55 +557,53 @@ src/research/
 | API   | `api/index.ts`       | `/api/:route*` → 代理 |
 | Admin | `admin/` (独立 Vite) | —                     |
 
-`vercel.json` 配置 1024 MB 内存，30s 超时。
-
-### 12.2 EC2 / VPS 部署
+### 13.2 EC2 / VPS 部署
 
 - `npm run start:api` + `SERVE_WEB_DIST=1` 单机部署
 - `deployment/aws-ec2/` — AWS EC2 部署脚本
 - `deployment/vultr/` — Vultr 部署脚本
 - `deployment/launchd/` — macOS launchd 守护进程
 
-### 12.3 关键运维脚本 (`scripts/`)
+### 13.3 关键运维脚本 (`scripts/`)
 
-| 脚本                           | 用途                        |
-| ------------------------------ | --------------------------- |
-| `auto-backend.ts`              | 自动化后端运维循环          |
-| `auto-quant-engine.mjs`        | 自动化量化引擎 (91 KB)      |
-| `backfill.ts`                  | 数据回填                    |
-| `db-init.ts` / `db-migrate.ts` | 数据库初始化 & 迁移         |
-| `derive-runtime-state.ts`      | 运行时状态推导              |
-| `massive-smoke-test.ts`        | Massive API 冒烟测试        |
-| `run-alpha-discovery.ts`       | Alpha 发现循环              |
-| `run-evidence.ts`              | 证据引擎执行                |
-| `run-nova-strategy-lab.ts`     | 策略实验室                  |
-| `check-platform-readiness.mjs` | 平台就绪预检 (Supabase/EC2) |
-| `package-source.mjs`           | 源码打包 (DD 用)            |
-| `version-manager.mjs`          | SemVer 版本管理             |
+| 脚本                                   | 用途                 |
+| -------------------------------------- | -------------------- |
+| `auto-backend.ts`                      | 自动化后端运维循环   |
+| `auto-quant-engine.mjs`                | 自动化量化引擎       |
+| `backfill.ts`                          | 数据回填             |
+| `derive-runtime-state.ts`              | 运行时状态推导       |
+| `massive-smoke-test.ts`                | Massive API 冒烟测试 |
+| `run-alpha-discovery.ts`               | Alpha 发现循环       |
+| `run-evidence.ts`                      | 证据引擎执行         |
+| `run-nova-strategy-lab.ts`             | 策略实验室           |
+| `run-nova-production-strategy-pack.ts` | 生产策略包生成       |
+| `run-nova-robustness-training.ts`      | 策略鲁棒性训练       |
+| `run-nova-flywheel.ts`                 | Nova 飞轮            |
+| `run-evolution-cycle.ts`               | 演化循环             |
+| `check-platform-readiness.mjs`         | 平台就绪预检         |
+| `package-source.mjs`                   | 源码打包 (DD 用)     |
+| `version-manager.mjs`                  | SemVer 版本管理      |
+| `check-changelog.mjs`                  | Changelog 校验       |
+| `check-commit-msg.mjs`                 | Commit message 校验  |
 
 ---
 
-## 13. 测试体系
+## 14. 测试体系
 
 - **框架**: Vitest 4 + Supertest
-- **测试文件**: 113 个 (均在 `tests/` 目录)
-- **测试用例**: 811 个 (全部通过)
+- **测试文件**: 133 个 (均在 `tests/` 目录)
 - **覆盖率**: `@vitest/coverage-v8`
-
-**覆盖领域**: 决策引擎、信号引擎、风控引擎、证据引擎、参与引擎、API 路由、认证、CORS、缓存隔离、Nova 客户端、Alpha 发现、Massive 摄取、持仓导入、手动信号、新闻提供、组合模拟、策略发现、置信度校准、数学边界、Postgres 业务迁移、公开 Alpha 供给等。
 
 ```bash
 npm test                    # 运行全部测试
-npm run test:data           # 数据层测试
-npm run verify              # 完整验证管线
+npm run test:data          # 数据层测试
+npm run verify             # 完整验证管线
 npm run stress:reliability  # 可靠性压力测试
 ```
 
 ---
 
-## 14. 运行时状态标签
-
-API/运行时输出使用的显式状态标签:
+## 15. 运行时状态标签
 
 | 标签                | 含义       |
 | ------------------- | ---------- |
@@ -566,38 +619,39 @@ API/运行时输出使用的显式状态标签:
 
 ---
 
-## 15. 文案 & 感知层
+## 16. 文案 & 感知层
 
-- **文案操作系统**: `src/copy/novaCopySystem.js` (52 KB) — 品牌声音宪法、状态到文案选择器
+- **文案操作系统**: `src/copy/novaCopySystem.js` — 品牌声音宪法、状态到文案选择器
 - **感知层**: 让产品感觉像一个新的 AI 判断表面，而非传统金融仪表盘
-- **国际化**: `src/i18n.js` (21 KB) — 中英双语
+- **国际化**: `src/i18n.js` — 中英双语
 
 ---
 
-## 16. 环境变量一览
+## 17. 环境变量一览
 
-| 变量                             | 用途                                  |
-| -------------------------------- | ------------------------------------- |
-| `DATABASE_URL`                   | Postgres 认证 (生产)                  |
-| `MASSIVE_API_KEY`                | Massive.com 数据 API                  |
-| `ALPHA_VANTAGE_API_KEY`          | 股票/ETF 搜索增强                     |
-| `COINGECKO_*_API_KEY`            | 加密货币搜索增强                      |
-| `KV_REST_API_*`                  | Upstash Redis (遗留)                  |
-| `NOVA_ALPHA_DISCOVERY_*`         | Alpha 发现循环配置                    |
-| `NOVA_DATA_DATABASE_URL`         | Supabase 业务数据镜像连接             |
-| `NOVA_DATA_PG_SCHEMA`            | 业务镜像 Schema (默认 novaquant_data) |
-| `NOVA_DATA_PG_POOL_MAX`          | 业务镜像连接池大小                    |
-| `NOVA_DATA_MIGRATION_BATCH_SIZE` | 迁移批次大小                          |
-| `GEMINI_API_KEY`                 | Google Gemini LLM                     |
-| `OPENAI_API_KEY`                 | OpenAI LLM                            |
-| `GROQ_API_KEY`                   | Groq LLM                              |
-| `STRIPE_SECRET_KEY`              | Stripe 计费门户后端通信密钥           |
-| `STRIPE_WEBHOOK_SECRET`          | Stripe Webhook 安全验签密钥           |
-| `SERVE_WEB_DIST`                 | EC2 单机部署模式                      |
+| 变量                           | 用途                                         |
+| ------------------------------ | -------------------------------------------- |
+| `NOVA_DATA_DATABASE_URL`       | Supabase 业务数据连接                        |
+| `NOVA_AUTH_DATABASE_URL`       | Supabase 认证数据连接                        |
+| `NOVA_DATA_PG_SCHEMA`          | 业务镜像 Schema (默认 novaquant_data)        |
+| `NOVA_DATA_PG_POOL_MAX`        | 业务镜像连接池大小                           |
+| `NOVA_AUTH_DRIVER`             | 认证驱动 (postgres)                          |
+| `MASSIVE_API_KEY`              | Massive.com 数据 API                         |
+| `ALPHA_VANTAGE_API_KEY`        | 股票/ETF 搜索增强                            |
+| `COINGECKO_API_KEY`            | 加密货币搜索增强                             |
+| `NOVA_ALPHA_DISCOVERY_*`       | Alpha 发现循环配置                           |
+| `GEMINI_API_KEY`               | Google Gemini LLM                            |
+| `OPENAI_API_KEY`               | OpenAI LLM                                   |
+| `GROQ_API_KEY`                 | Groq LLM                                     |
+| `OLLAMA_BASE_URL`              | Ollama 端点 (默认 http://127.0.0.1:11434/v1) |
+| `STRIPE_SECRET_KEY`            | Stripe 计费门户后端通信密钥                  |
+| `STRIPE_WEBHOOK_SECRET`        | Stripe Webhook 安全验签密钥                  |
+| `SERVE_WEB_DIST`               | EC2 单机部署模式                             |
+| `NOVA_ENABLE_SEEDED_DEMO_USER` | 启用内置演示用户                             |
 
 ---
 
-## 17. 快速启动
+## 18. 快速启动
 
 ```bash
 # 首次克隆
@@ -614,19 +668,21 @@ npm test && npm run lint && npm run typecheck && npm run build && npm run verify
 
 ---
 
-## 18. 文档索引
+## 19. 文档索引
 
-全部技术文档位于 `docs/` (75+ 文件)。核心文档:
+全部技术文档位于 `docs/` (88 个文件)。核心文档:
 
-| 文档                               | 内容            |
-| ---------------------------------- | --------------- |
-| `SYSTEM_ARCHITECTURE.md`           | 系统架构        |
-| `NOVA_ASSISTANT_ARCHITECTURE.md`   | 助手架构        |
-| `DECISION_ENGINE.md`               | 决策引擎        |
-| `ENGAGEMENT_SYSTEM.md`             | 参与系统        |
-| `QUANT_RESEARCH_DOCTRINE.md`       | 量化研究方法论  |
-| `REPOSITORY_OVERVIEW.md`           | 仓库概览        |
-| `REPO_RUNBOOK.md`                  | 运维手册        |
-| `TECHNICAL_DUE_DILIGENCE_GUIDE.md` | 技术尽调指南    |
-| `MARVIX_SYSTEM_ARCHITECTURE.md`    | Marvix 系统架构 |
-| `AWS_EC2_DEPLOYMENT.md`            | EC2 部署指南    |
+| 文档                                  | 内容            |
+| ------------------------------------- | --------------- |
+| `SYSTEM_ARCHITECTURE.md`              | 系统架构        |
+| `NOVA_ASSISTANT_ARCHITECTURE.md`      | 助手架构        |
+| `DECISION_ENGINE.md`                  | 决策引擎        |
+| `ENGAGEMENT_SYSTEM.md`                | 参与系统        |
+| `QUANT_RESEARCH_DOCTRINE.md`          | 量化研究方法论  |
+| `REPOSITORY_OVERVIEW.md`              | 仓库概览        |
+| `REPO_RUNBOOK.md`                     | 运维手册        |
+| `TECHNICAL_DUE_DILIGENCE_GUIDE.md`    | 技术尽调指南    |
+| `MARVIX_SYSTEM_ARCHITECTURE.md`       | Marvix 系统架构 |
+| `AWS_EC2_DEPLOYMENT.md`               | EC2 部署指南    |
+| `COPY_OPERATING_SYSTEM.md`            | 文案操作系统    |
+| `PERCEPTION_LAYER_DIFFERENTIATION.md` | 感知层差异化    |
