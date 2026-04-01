@@ -101,6 +101,9 @@ def _read_ohlcv_from_sqlite(
             raise ValueError(f"Invalid column name: {name}")
         return name
 
+    uses_asset_id = "symbol" not in col_names and "asset_id" in col_names
+    has_assets_table = "assets" in tables
+
     symbol_col = _safe_col("symbol" if "symbol" in col_names else "asset_id")
     date_col = _safe_col(
         next(
@@ -114,23 +117,55 @@ def _read_ohlcv_from_sqlite(
     close_col = _safe_col("close" if "close" in col_names else "close_price")
     volume_col = _safe_col("volume" if "volume" in col_names else "vol")
 
-    query = f"""
-        SELECT
-            {symbol_col} as symbol,
-            {date_col} as date,
-            {open_col} as open,
-            {high_col} as high,
-            {low_col} as low,
-            {close_col} as close,
-            {volume_col} as volume
-        FROM {ohlcv_table}
-    """
-    if symbols:
-        placeholders = ", ".join("?" * len(symbols))
-        query += f" WHERE {symbol_col} IN ({placeholders})"
-        rows = cursor.execute(query, symbols).fetchall()
+    has_timeframe = "timeframe" in col_names
+
+    if uses_asset_id and has_assets_table:
+        query = f"""
+            SELECT
+                a.symbol as symbol,
+                o.{date_col} as date,
+                o.{open_col} as open,
+                o.{high_col} as high,
+                o.{low_col} as low,
+                o.{close_col} as close,
+                o.{volume_col} as volume
+            FROM {ohlcv_table} o
+            JOIN assets a ON a.asset_id = o.asset_id
+        """
+        where_clauses = []
+        params: list[str] = []
+        if has_timeframe:
+            where_clauses.append("o.timeframe = '1d'")
+        if symbols:
+            placeholders = ", ".join("?" * len(symbols))
+            where_clauses.append(f"a.symbol IN ({placeholders})")
+            params = list(symbols)
+        if where_clauses:
+            query += " WHERE " + " AND ".join(where_clauses)
+        rows = cursor.execute(query, params).fetchall()
     else:
-        rows = cursor.execute(query).fetchall()
+        query = f"""
+            SELECT
+                {symbol_col} as symbol,
+                {date_col} as date,
+                {open_col} as open,
+                {high_col} as high,
+                {low_col} as low,
+                {close_col} as close,
+                {volume_col} as volume
+            FROM {ohlcv_table}
+        """
+        where_clauses = []
+        params = []
+        if has_timeframe:
+            where_clauses.append("timeframe = '1d'")
+        if symbols:
+            placeholders = ", ".join("?" * len(symbols))
+            where_clauses.append(f"{symbol_col} IN ({placeholders})")
+            params = list(symbols)
+        if where_clauses:
+            query += " WHERE " + " AND ".join(where_clauses)
+        rows = cursor.execute(query, params).fetchall()
 
     conn.close()
 
@@ -274,13 +309,22 @@ def run_sync(req: SyncRequest | None = None) -> SyncResult:
             notes=notes,
         )
 
-    # 2. Write CSVs
+    # 2. Write CSVs (clean stale staging first)
     staging_dir = _csv_staging_dir()
+    for old_csv in staging_dir.glob("*.csv"):
+        old_csv.unlink()
     total_rows = _write_csvs(grouped, staging_dir)
     notes.append(f"Exported {len(grouped)} symbols, {total_rows} rows to CSV staging")
 
-    # 3. Convert to Qlib binary
+    # 3. Clean stale Qlib binary data before re-dump
     target_dir = _qlib_target_dir()
+    import shutil
+
+    for subdir in ("features", "instruments", "calendars"):
+        stale = target_dir / subdir
+        if stale.exists():
+            shutil.rmtree(stale)
+
     dump_result = _run_dump_bin(staging_dir, target_dir)
     sync_status = "ok"
     if dump_result != "ok":
