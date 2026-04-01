@@ -28,6 +28,11 @@ function classifySupabaseLoginError(error, locale) {
 function classifySupabaseSignupError(error, locale) {
   const zh = locale?.startsWith('zh');
   const message = String(error?.message || '');
+  if (/email.*rate limit|over_email_send_rate_limit|email rate limit exceeded/i.test(message)) {
+    return zh
+      ? '注册邮件发送太频繁了，当前被 Supabase 临时限流。请稍后再试。'
+      : 'Signup emails are temporarily rate limited by Supabase. Please try again shortly.';
+  }
   if (
     /already registered|user already registered|email address is invalid|password/i.test(message)
   ) {
