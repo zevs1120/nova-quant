@@ -30,6 +30,7 @@ export default function BillingCheckoutSheet({
   );
   const isDowngrade = checkoutState?.mode === 'downgrade';
   const isPortal = checkoutState?.mode === 'portal';
+  const isAuthRequired = checkoutState?.mode === 'auth_required';
   const isRedirect = Boolean(checkoutState?.session?.checkoutUrl);
   const checkoutError = checkoutState?.error || '';
 
@@ -37,6 +38,10 @@ export default function BillingCheckoutSheet({
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (isAuthRequired) {
+      onClose?.();
+      return;
+    }
     await onConfirm?.({
       billingEmail: prefillEmail || checkoutState?.session?.checkoutEmail || '',
       paymentMethodLast4: null,
@@ -51,17 +56,17 @@ export default function BillingCheckoutSheet({
       ? isZh
         ? '这会结束当前付费计划，并立即回到免费层。'
         : 'This ends the current paid plan and moves the account back to Free right away.'
-      : isRedirect
+      : isAuthRequired
         ? isZh
-          ? '确认后会跳转到安全结账页完成支付。'
-          : 'Confirm to continue to the secure hosted checkout page.'
-        : checkoutState.preview
+          ? '请先登录，再继续会员购买或管理。'
+          : 'Sign in first before purchasing or managing membership.'
+        : isRedirect
           ? isZh
-            ? '当前不会真实扣款，只会在本地预览升级效果。'
-            : 'No real charge is made in preview mode. This only updates the local upgrade preview.'
+            ? '确认后会跳转到安全结账页完成支付。'
+            : 'Confirm to continue to the secure hosted checkout page.'
           : isZh
-            ? '当前环境会使用内部 checkout 流程，仅用于本地或测试环境。'
-            : 'This environment is using the internal checkout flow for local or test use only.';
+            ? '我们会为你准备正式的 Stripe Hosted Checkout。'
+            : 'We will prepare a secure Stripe-hosted checkout session.';
 
   const primaryLabel = isPortal
     ? isZh
@@ -71,17 +76,17 @@ export default function BillingCheckoutSheet({
       ? isZh
         ? '确认切回 Free'
         : 'Confirm switch'
-      : isRedirect
+      : isAuthRequired
         ? isZh
-          ? `前往 ${membershipPlanName(plan, locale)} 结账`
-          : `Continue to ${membershipPlanName(plan, locale)} checkout`
-        : checkoutState.preview
+          ? '先去登录'
+          : 'Sign in first'
+        : isRedirect
           ? isZh
-            ? `预览升级到 ${membershipPlanName(plan, locale)}`
-            : `Preview ${membershipPlanName(plan, locale)}`
+            ? `前往 ${membershipPlanName(plan, locale)} 结账`
+            : `Continue to ${membershipPlanName(plan, locale)} checkout`
           : isZh
-            ? `完成 ${membershipPlanName(plan, locale)} 升级`
-            : `Complete ${membershipPlanName(plan, locale)}`;
+            ? `继续 ${membershipPlanName(plan, locale)} 购买`
+            : `Continue ${membershipPlanName(plan, locale)} purchase`;
 
   return (
     <div
@@ -110,9 +115,13 @@ export default function BillingCheckoutSheet({
                   ? isZh
                     ? '切回 Free'
                     : 'Switch back to Free'
-                  : isZh
-                    ? `升级到 ${membershipPlanName(plan, locale)}`
-                    : `Upgrade to ${membershipPlanName(plan, locale)}`}
+                  : isAuthRequired
+                    ? isZh
+                      ? '登录后继续'
+                      : 'Sign in to continue'
+                    : isZh
+                      ? `升级到 ${membershipPlanName(plan, locale)}`
+                      : `Upgrade to ${membershipPlanName(plan, locale)}`}
             </h2>
             <p className="membership-sheet-copy">{bodyCopy}</p>
           </div>
@@ -130,27 +139,31 @@ export default function BillingCheckoutSheet({
           <div className="billing-checkout-plan">
             <div>
               <p className="membership-plan-name">
-                {isDowngrade ? 'Free' : planMeta?.name || 'Lite'}
+                {isDowngrade
+                  ? 'Free'
+                  : isAuthRequired
+                    ? membershipPlanName(plan, locale)
+                    : planMeta?.name || 'Lite'}
               </p>
               <p className="membership-plan-price">
                 <strong>{isDowngrade ? (isZh ? '免费' : 'Free') : priceLabel}</strong>
                 {!isDowngrade ? <span>{cadenceLabel}</span> : null}
               </p>
             </div>
-            {checkoutState.preview ? (
-              <span className="membership-plan-badge membership-plan-badge-accent">
-                {isZh ? '预览模式' : 'Preview mode'}
-              </span>
-            ) : isPortal ? (
+            {isPortal ? (
               <span className="membership-plan-badge membership-plan-badge-accent">
                 {isZh ? '外部管理' : 'Provider-managed'}
+              </span>
+            ) : isAuthRequired ? (
+              <span className="membership-plan-badge membership-plan-badge-accent">
+                {isZh ? '需要登录' : 'Sign-in required'}
               </span>
             ) : isRedirect ? (
               <span className="membership-plan-badge membership-plan-badge-accent">
                 {isZh ? '安全结账' : 'Hosted checkout'}
               </span>
             ) : (
-              <span className="membership-plan-badge">{isZh ? '内部环境' : 'Internal env'}</span>
+              <span className="membership-plan-badge">{isZh ? '正式支付' : 'Secure billing'}</span>
             )}
           </div>
           {!isDowngrade ? <p className="membership-plan-blurb">{planMeta?.blurb}</p> : null}

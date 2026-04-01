@@ -1,8 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  completeBillingCheckoutSession,
-  createBillingCheckoutSession,
-} from '../src/server/billing/service.js';
 import { getDb } from '../src/server/db/database.js';
 import { ensureSchema } from '../src/server/db/schema.js';
 import {
@@ -54,23 +50,57 @@ function resetAuthUser(email: string) {
   db.prepare('DELETE FROM auth_users WHERE user_id = ?').run(row.user_id);
 }
 
-async function upgradeToLite(userId: string) {
-  const checkout = await createBillingCheckoutSession({
+function seedActiveSubscription(userId: string, planKey: 'lite' | 'pro') {
+  const db = getDb();
+  ensureSchema(db);
+  const now = Date.now();
+  db.prepare(
+    `INSERT INTO billing_customers(
+      user_id, email, provider, provider_customer_id, default_currency, default_billing_cycle, metadata_json, created_at_ms, updated_at_ms
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(user_id) DO UPDATE SET
+      provider = excluded.provider,
+      provider_customer_id = excluded.provider_customer_id,
+      default_billing_cycle = excluded.default_billing_cycle,
+      updated_at_ms = excluded.updated_at_ms`,
+  ).run(
     userId,
-    planKey: 'lite',
-    billingCycle: 'weekly',
-    source: 'membership-test',
-    locale: 'en-US',
-  });
-  expect(checkout.ok).toBe(true);
-  if (!checkout.ok || !checkout.session?.id) return;
-  const completed = completeBillingCheckoutSession({
+    'member@example.com',
+    'stripe',
+    'cus_membership_test',
+    'USD',
+    'weekly',
+    '{}',
+    now,
+    now,
+  );
+  db.prepare(
+    `INSERT INTO billing_subscriptions(
+      subscription_id, user_id, plan_key, status, provider, provider_subscription_id,
+      billing_cycle, amount_cents, currency, started_at_ms, current_period_start_ms,
+      current_period_end_ms, cancel_at_period_end, cancelled_at_ms, checkout_session_id,
+      metadata_json, created_at_ms, updated_at_ms
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    `sub_${planKey}_${Math.random().toString(36).slice(2, 10)}`,
     userId,
-    sessionId: checkout.session.id,
-    billingEmail: 'member@example.com',
-    paymentMethodLast4: '4242',
-  });
-  expect(completed.ok).toBe(true);
+    planKey,
+    'ACTIVE',
+    'stripe',
+    `stripe_${planKey}_subscription`,
+    'weekly',
+    planKey === 'pro' ? 2900 : 1900,
+    'USD',
+    now,
+    now,
+    now + 7 * 24 * 60 * 60 * 1000,
+    0,
+    null,
+    null,
+    '{}',
+    now,
+    now,
+  );
 }
 
 describe('membership entitlements', () => {
@@ -125,7 +155,7 @@ describe('membership entitlements', () => {
     if (freeBroker.ok) return;
     expect(freeBroker.error).toBe('BROKER_HANDOFF_REQUIRES_LITE');
 
-    await upgradeToLite(userId);
+    seedActiveSubscription(userId, 'lite');
 
     const liteMembershipState = getMembershipState({ userId });
     expect(liteMembershipState.currentPlan).toBe('lite');

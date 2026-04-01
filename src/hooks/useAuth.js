@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useLocalStorage } from './useLocalStorage';
-import { normalizeEmail, classifyAuthError, isLocalAuthRuntime } from '../utils/appHelpers';
+import { normalizeEmail, classifyAuthError } from '../utils/appHelpers';
 import {
   ensureSupabaseBrowserClient,
   getSupabaseAuthRedirectUrl,
@@ -36,13 +36,12 @@ function classifySupabaseSignupError(error, locale) {
   if (/supabase auth not configured/i.test(message)) {
     return zh ? 'Supabase Auth 还没有配置完成。' : 'Supabase Auth is not configured yet.';
   }
-  return zh
-    ? isLocalAuthRuntime()
-      ? '注册服务未连接。请先补齐本地 Supabase Auth 配置。'
-      : '注册服务暂时不可用。请稍后再试。'
-    : isLocalAuthRuntime()
-      ? 'Supabase Auth is not configured for local development yet.'
-      : 'The signup service is temporarily unavailable.';
+  if (/email verification|confirm email/i.test(message)) {
+    return zh
+      ? '注册必须先经过邮箱验证。请检查 Supabase Auth 的 Confirm email 配置。'
+      : 'Signup must require email verification. Check the Supabase Auth confirm-email setting.';
+  }
+  return zh ? '注册服务暂时不可用。请稍后再试。' : 'The signup service is temporarily unavailable.';
 }
 
 function classifySupabaseResetError(error, locale) {
@@ -51,13 +50,7 @@ function classifySupabaseResetError(error, locale) {
   if (/same password|password/i.test(message)) {
     return zh ? '密码不符合要求，请换一个更强的新密码。' : 'Please choose a stronger new password.';
   }
-  return zh
-    ? isLocalAuthRuntime()
-      ? '重置服务未连接。请先补齐本地 Supabase Auth 配置。'
-      : '重置服务暂时不可用。请稍后再试。'
-    : isLocalAuthRuntime()
-      ? 'Supabase Auth reset is not configured for local development yet.'
-      : 'The reset service is temporarily unavailable.';
+  return zh ? '重置服务暂时不可用。请稍后再试。' : 'The reset service is temporarily unavailable.';
 }
 
 /**
@@ -233,24 +226,9 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
       await loadSupabaseBrowserConfig();
       const supabaseEnabled = hasSupabaseAuthBrowserConfig();
       if (!supabaseEnabled) {
-        try {
-          const payload = await fetchJson('/api/auth/session');
-          if (cancelled) return;
-          if (payload?.authenticated && payload?.user) {
-            applyAuthenticatedProfile(payload.user, payload.state || null, {
-              resetNavigation: false,
-            });
-            return;
-          }
+        if (!cancelled) {
           setAuthSession(null);
-        } catch {
-          if (!cancelled) {
-            setAuthSession(null);
-          }
-        } finally {
-          if (!cancelled) {
-            setAuthHydrated(true);
-          }
+          setAuthHydrated(true);
         }
         return;
       }
@@ -267,7 +245,10 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
         } = await supabase.auth.getSession();
         if (cancelled) return;
         if (session?.access_token) {
-          await hydrateSessionFromApi({ resetNavigation: false });
+          const hydrated = await hydrateSessionFromApi({ resetNavigation: false });
+          if (!hydrated) {
+            await supabase.auth.signOut().catch(() => {});
+          }
         } else {
           setAuthSession(null);
         }
@@ -299,11 +280,17 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
           return;
         }
         if (session?.access_token) {
-          void hydrateSessionFromApi({ resetNavigation: event === 'SIGNED_IN' }).finally(() => {
-            if (!cancelled) {
-              setAuthHydrated(true);
-            }
-          });
+          void hydrateSessionFromApi({ resetNavigation: event === 'SIGNED_IN' })
+            .then(async (hydrated) => {
+              if (!hydrated) {
+                await supabase.auth.signOut().catch(() => {});
+              }
+            })
+            .finally(() => {
+              if (!cancelled) {
+                setAuthHydrated(true);
+              }
+            });
           return;
         }
         setAuthSession(null);
@@ -340,6 +327,9 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
             };
           }
           const authenticated = await hydrateSessionFromApi({ resetNavigation: true });
+          if (!authenticated) {
+            await supabase.auth.signOut().catch(() => {});
+          }
           return authenticated
             ? { ok: true }
             : {
@@ -356,24 +346,14 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
         }
       }
 
-      try {
-        const payload = await fetchJson('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password }),
-        });
-        applyAuthenticatedProfile(payload.user, payload.state || null, {
-          resetNavigation: true,
-        });
-        return { ok: true };
-      } catch (error) {
-        return {
-          ok: false,
-          error: classifyAuthError(error, locale),
-        };
-      }
+      return {
+        ok: false,
+        error: locale?.startsWith('zh')
+          ? 'Supabase Auth 还没有配置完成。'
+          : 'Supabase Auth is not configured yet.',
+      };
     },
-    [applyAuthenticatedProfile, fetchJson, hydrateSessionFromApi, locale],
+    [hydrateSessionFromApi, locale],
   );
 
   const handleSignup = useCallback(
@@ -400,9 +380,17 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
               error: classifySupabaseSignupError(error, locale),
             };
           }
-          if (data?.session?.access_token) {
-            await hydrateSessionFromApi({ resetNavigation: true });
-            return { ok: true };
+          const emailConfirmedImmediately = Boolean(
+            data?.user?.email_confirmed_at || data?.user?.confirmed_at,
+          );
+          await supabase.auth.signOut().catch(() => {});
+          if (data?.session?.access_token || emailConfirmedImmediately) {
+            return {
+              ok: false,
+              error: locale?.startsWith('zh')
+                ? '注册流程必须先经过邮箱验证。请在 Supabase Auth 里开启 Confirm email。'
+                : 'Signup must require email verification. Enable Confirm email in Supabase Auth.',
+            };
           }
           return {
             ok: true,
@@ -419,45 +407,14 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
         }
       }
 
-      try {
-        const response = await fetchJson('/api/auth/signup', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: payload.email,
-            password: payload.password,
-            name: payload.name,
-            tradeMode: payload.tradeMode,
-            broker: payload.broker,
-            locale,
-          }),
-        });
-        applyAuthenticatedProfile(response.user, response.state || null, {
-          resetNavigation: true,
-        });
-        return { ok: true };
-      } catch (error) {
-        return {
-          ok: false,
-          error:
-            String(error?.message || '').includes('(400)') ||
-            String(error?.message || '').includes('EMAIL_EXISTS') ||
-            String(error?.message || '').includes('INVALID_EMAIL') ||
-            String(error?.message || '').includes('WEAK_PASSWORD')
-              ? locale?.startsWith('zh')
-                ? '这个邮箱已经存在，或注册信息无效。'
-                : 'That email already exists, or the signup details are invalid.'
-              : locale?.startsWith('zh')
-                ? isLocalAuthRuntime()
-                  ? '注册服务未连接。请先启动本地 API：npm run api:data'
-                  : '注册服务暂时不可用。请稍后再试。'
-                : isLocalAuthRuntime()
-                  ? 'The signup service is offline. Start the local API first: npm run api:data'
-                  : 'The signup service is temporarily unavailable.',
-        };
-      }
+      return {
+        ok: false,
+        error: locale?.startsWith('zh')
+          ? 'Supabase Auth 还没有配置完成。'
+          : 'Supabase Auth is not configured yet.',
+      };
     },
-    [applyAuthenticatedProfile, fetchJson, hydrateSessionFromApi, locale],
+    [locale],
   );
 
   const handleRequestReset = useCallback(
@@ -488,31 +445,14 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
         }
       }
 
-      try {
-        const payload = await fetchJson('/api/auth/forgot-password', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email }),
-        });
-        return {
-          ok: true,
-          codeHint: payload.codeHint || null,
-          expiresInMinutes: payload.expiresInMinutes || 15,
-        };
-      } catch (error) {
-        return {
-          ok: false,
-          error: locale?.startsWith('zh')
-            ? isLocalAuthRuntime()
-              ? '重置服务未连接。请先启动本地 API：npm run api:data'
-              : '重置服务暂时不可用。请稍后再试。'
-            : isLocalAuthRuntime()
-              ? 'The reset service is offline. Start the local API first: npm run api:data'
-              : 'The reset service is temporarily unavailable.',
-        };
-      }
+      return {
+        ok: false,
+        error: locale?.startsWith('zh')
+          ? 'Supabase Auth 还没有配置完成。'
+          : 'Supabase Auth is not configured yet.',
+      };
     },
-    [fetchJson, locale],
+    [locale],
   );
 
   const handleResetPassword = useCallback(
@@ -540,35 +480,14 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
         }
       }
 
-      try {
-        await fetchJson('/api/auth/reset-password', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, code, newPassword }),
-        });
-        return { ok: true };
-      } catch (error) {
-        const message = String(error?.message || '');
-        return {
-          ok: false,
-          error:
-            message.includes('(400)') ||
-            message.includes('INVALID_RESET_CODE') ||
-            message.includes('WEAK_PASSWORD')
-              ? locale?.startsWith('zh')
-                ? '重置码无效，或密码不符合要求。'
-                : 'The reset code is invalid, or the password is too weak.'
-              : locale?.startsWith('zh')
-                ? isLocalAuthRuntime()
-                  ? '重置服务未连接。请先启动本地 API：npm run api:data'
-                  : '重置服务暂时不可用。请稍后再试。'
-                : isLocalAuthRuntime()
-                  ? 'The reset service is offline. Start the local API first: npm run api:data'
-                  : 'The reset service is temporarily unavailable.',
-        };
-      }
+      return {
+        ok: false,
+        error: locale?.startsWith('zh')
+          ? 'Supabase Auth 还没有配置完成。'
+          : 'Supabase Auth is not configured yet.',
+      };
     },
-    [fetchJson, hydrateSessionFromApi, locale],
+    [hydrateSessionFromApi, locale],
   );
 
   const handleLogout = useCallback(() => {
@@ -577,11 +496,11 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
         if (supabase) {
           return supabase.auth.signOut();
         }
-        return fetchJson('/api/auth/logout', { method: 'POST' }).catch(() => {});
+        return null;
       })
       .catch(() => {});
     resetLocalAuthState({ clearProfile: true });
-  }, [fetchJson, resetLocalAuthState]);
+  }, [resetLocalAuthState]);
 
   return {
     userProfile,

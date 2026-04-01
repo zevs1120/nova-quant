@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
-export type BillingProviderMode = 'internal_checkout' | 'stripe';
+export type BillingProviderMode = 'unconfigured' | 'stripe';
 export type BillingPlan = 'free' | 'lite' | 'pro';
 export type BillingCycle = 'weekly' | 'monthly' | 'annual';
 
@@ -77,7 +77,8 @@ export function readBillingProviderConfig(): BillingProviderConfig {
 
   const hasRequiredStripePrices = Boolean(stripePriceIds.lite.weekly && stripePriceIds.pro.weekly);
   return {
-    mode: stripeSecretKey && hasRequiredStripePrices ? 'stripe' : 'internal_checkout',
+    mode:
+      stripeSecretKey && stripeWebhookSecret && hasRequiredStripePrices ? 'stripe' : 'unconfigured',
     appUrl,
     portalReturnUrl,
     stripeApiBaseUrl: trimTrailingSlash(

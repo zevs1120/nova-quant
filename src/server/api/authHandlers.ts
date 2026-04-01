@@ -1,18 +1,12 @@
 import {
   clearAdminAuthCookieHeader,
   clearAuthCookieHeader,
-  createPasswordReset,
   getAdminAuthCookieHeader,
   getAdminSession,
-  getAuthSession,
   getAuthSessionFromAccessToken,
   getAuthUserState,
-  getAuthCookieHeader,
   loginAdminUser,
-  loginAuthUser,
   logoutAuthSession,
-  resetPasswordWithCode,
-  signupAuthUser,
   upsertAuthUserState,
 } from '../auth/service.js';
 import { readSupabaseBrowserRuntimeConfig } from '../auth/supabase.js';
@@ -61,12 +55,7 @@ function parseBearerToken(req: BasicRequest) {
 
 async function resolveUserSession(req: BasicRequest) {
   const bearerToken = parseBearerToken(req);
-  if (bearerToken) {
-    const session = await getAuthSessionFromAccessToken(bearerToken);
-    if (session) return session;
-  }
-  const cookies = parseCookies(req);
-  return getAuthSession(cookies.novaquant_session);
+  return bearerToken ? getAuthSessionFromAccessToken(bearerToken) : null;
 }
 
 function requestIp(req: BasicRequest) {
@@ -78,6 +67,7 @@ function sendAuthServiceError(res: BasicResponse, error: unknown) {
   if (
     message.includes('REMOTE_AUTH_STORE_NOT_CONFIGURED') ||
     message.includes('POSTGRES_AUTH_STORE_NOT_CONFIGURED') ||
+    message.includes('BUSINESS_RUNTIME_POSTGRES_REQUIRED') ||
     message.includes('SUPABASE_AUTH_NOT_CONFIGURED')
   ) {
     res.status(503).json({ ok: false, error: 'AUTH_STORE_NOT_CONFIGURED' });
@@ -149,40 +139,11 @@ export async function handleAdminSession(req: BasicRequest, res: BasicResponse) 
 }
 
 export async function handleAuthSignup(req: BasicRequest, res: BasicResponse) {
-  try {
-    const body = (req.body || {}) as {
-      email?: string;
-      password?: string;
-      name?: string;
-      tradeMode?: 'starter' | 'active' | 'deep';
-      broker?: string;
-      locale?: string;
-    };
-    const result = await signupAuthUser({
-      email: String(body.email || ''),
-      password: String(body.password || ''),
-      name: String(body.name || ''),
-      tradeMode: (body.tradeMode || 'starter') as 'starter' | 'active' | 'deep',
-      broker: String(body.broker || 'Other'),
-      locale: body.locale || null,
-      userAgent: getHeader(req, 'user-agent') || null,
-      ipAddress: requestIp(req),
-    });
-    if (!result.ok) {
-      res.status(400).json({ ok: false, error: result.error });
-      return;
-    }
-    res.setHeader('Set-Cookie', getAuthCookieHeader(result.sessionToken));
-    res.json({
-      ok: true,
-      authenticated: true,
-      user: result.user,
-      state: result.state,
-      emailDelivery: result.emailDelivery,
-    });
-  } catch (error) {
-    sendAuthServiceError(res, error);
-  }
+  res.status(410).json({
+    ok: false,
+    error: 'AUTH_MANAGED_BY_SUPABASE',
+    message: 'Sign up is managed by Supabase browser auth and no longer supported via this API.',
+  });
 }
 
 export async function handleAdminLogin(req: BasicRequest, res: BasicResponse) {
@@ -214,28 +175,11 @@ export async function handleAdminLogin(req: BasicRequest, res: BasicResponse) {
 }
 
 export async function handleAuthLogin(req: BasicRequest, res: BasicResponse) {
-  try {
-    const body = (req.body || {}) as { email?: string; password?: string };
-    const result = await loginAuthUser({
-      email: String(body.email || ''),
-      password: String(body.password || ''),
-      userAgent: getHeader(req, 'user-agent') || null,
-      ipAddress: requestIp(req),
-    });
-    if (!result.ok) {
-      res.status(401).json({ ok: false, error: result.error });
-      return;
-    }
-    res.setHeader('Set-Cookie', getAuthCookieHeader(result.sessionToken));
-    res.json({
-      ok: true,
-      authenticated: true,
-      user: result.user,
-      state: result.state,
-    });
-  } catch (error) {
-    sendAuthServiceError(res, error);
-  }
+  res.status(410).json({
+    ok: false,
+    error: 'AUTH_MANAGED_BY_SUPABASE',
+    message: 'Login is managed by Supabase browser auth and no longer supported via this API.',
+  });
 }
 
 export async function handleAdminLogout(req: BasicRequest, res: BasicResponse) {
@@ -261,37 +205,21 @@ export async function handleAuthLogout(req: BasicRequest, res: BasicResponse) {
 }
 
 export async function handleForgotPassword(req: BasicRequest, res: BasicResponse) {
-  try {
-    const body = (req.body || {}) as { email?: string };
-    const result = await createPasswordReset({
-      email: String(body.email || ''),
-    });
-    res.json({
-      ok: true,
-      expiresInMinutes: result.expiresInMinutes,
-      codeHint: result.codeHint || null,
-    });
-  } catch (error) {
-    sendAuthServiceError(res, error);
-  }
+  res.status(410).json({
+    ok: false,
+    error: 'AUTH_MANAGED_BY_SUPABASE',
+    message:
+      'Password reset is managed by Supabase browser auth and no longer supported via this API.',
+  });
 }
 
 export async function handleResetPassword(req: BasicRequest, res: BasicResponse) {
-  try {
-    const body = (req.body || {}) as { email?: string; code?: string; newPassword?: string };
-    const result = await resetPasswordWithCode({
-      email: String(body.email || ''),
-      code: String(body.code || ''),
-      newPassword: String(body.newPassword || ''),
-    });
-    if (!result.ok) {
-      res.status(400).json({ ok: false, error: result.error });
-      return;
-    }
-    res.json({ ok: true });
-  } catch (error) {
-    sendAuthServiceError(res, error);
-  }
+  res.status(410).json({
+    ok: false,
+    error: 'AUTH_MANAGED_BY_SUPABASE',
+    message:
+      'Password reset is managed by Supabase browser auth and no longer supported via this API.',
+  });
 }
 
 export async function handleGetAuthProfile(req: BasicRequest, res: BasicResponse) {

@@ -209,9 +209,13 @@ function buildDefaultState(): PgAuthUserState {
 }
 
 function resolveAuthDriver() {
-  return String(process.env.NOVA_AUTH_DRIVER || '')
+  const configured = String(process.env.NOVA_AUTH_DRIVER || '')
     .trim()
     .toLowerCase();
+  if (process.env.NODE_ENV === 'test') {
+    return configured;
+  }
+  return 'postgres';
 }
 
 function resolveAuthDatabaseUrl() {

@@ -416,22 +416,30 @@ export default function App() {
   const openCheckoutFromPrompt = useCallback(
     (planKey) => {
       membership.closePrompt();
+      if (!authSession?.userId) {
+        setShowOnboarding(true);
+        return;
+      }
       void billing.openCheckout({
         planKey,
         source: membership.prompt?.source || 'membership_sheet',
       });
     },
-    [billing, membership],
+    [authSession?.userId, billing, membership, setShowOnboarding],
   );
 
   const openCheckoutFromMembershipCenter = useCallback(
     (planKey) => {
+      if (!authSession?.userId) {
+        setShowOnboarding(true);
+        return;
+      }
       void billing.openCheckout({
         planKey,
         source: 'membership_center',
       });
     },
-    [billing],
+    [authSession?.userId, billing, setShowOnboarding],
   );
 
   // --- Refresh holdings sources ---

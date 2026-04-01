@@ -1,12 +1,11 @@
 import express from 'express';
-import { getAuthSession, getAuthSessionFromAccessToken } from '../auth/service.js';
+import { getAuthSessionFromAccessToken } from '../auth/service.js';
 import { readSupabaseBrowserRuntimeConfig } from '../auth/supabase.js';
 import { ensureDefaultPublicSignalsApiKey, getPrivateMarvixOps } from './queries.js';
 import { isLoopbackAddress } from '../ops/privateMarvixOps.js';
 import {
   asyncRoute,
   resolveApiRequestPath,
-  parseCookiesFromHeader,
   isGuestScopedUserId,
   readRequestedUserId,
   writeResolvedUserId,
@@ -178,13 +177,10 @@ export function createApiApp() {
       }
 
       try {
-        const cookies = parseCookiesFromHeader(req.header('cookie') || '');
         const authorization = String(req.header('authorization') || '');
         const bearerMatch = authorization.match(/^Bearer\s+(.+)$/i);
         const bearerToken = bearerMatch?.[1]?.trim() || null;
-        const session =
-          (bearerToken ? await getAuthSessionFromAccessToken(bearerToken) : null) ||
-          (await getAuthSession(cookies.novaquant_session));
+        const session = bearerToken ? await getAuthSessionFromAccessToken(bearerToken) : null;
         const requestedUserId = readRequestedUserId(req);
 
         if (session) {

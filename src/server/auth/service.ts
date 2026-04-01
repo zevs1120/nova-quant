@@ -471,6 +471,7 @@ function inferSupabaseLocale(user: VerifiedSupabaseAuthUser) {
 }
 
 async function getOrCreateSupabaseBackedUser(user: VerifiedSupabaseAuthUser) {
+  assertSupabaseManagedProfileStoreReady();
   const email = normalizeEmail(user.email || '');
   if (!email) return null;
 
@@ -597,6 +598,7 @@ async function getOrCreateSupabaseBackedUser(user: VerifiedSupabaseAuthUser) {
 export async function getAuthSessionFromAccessToken(
   accessToken: string | null | undefined,
 ): Promise<{ user: PublicAuthUser; state: AuthUserState } | null> {
+  assertSupabaseManagedProfileStoreReady();
   if (!accessToken || !hasSupabaseAuthProvider()) return null;
   const verifiedUser = await verifySupabaseAccessToken(accessToken);
   if (!verifiedUser) return null;
@@ -652,13 +654,33 @@ function shouldRequireRemoteAuthStore() {
 }
 
 function assertAuthStoreReady() {
+  if (process.env.NODE_ENV !== 'test') {
+    if (!hasPostgresAuthStore()) {
+      throw new Error('POSTGRES_AUTH_STORE_NOT_CONFIGURED');
+    }
+    return;
+  }
   if (shouldRequireRemoteAuthStore() && !hasRemoteAuthStore() && !hasPostgresAuthStore()) {
     throw new Error('REMOTE_AUTH_STORE_NOT_CONFIGURED');
   }
 }
 
+function shouldRequireSupabaseManagedProfileStore() {
+  return process.env.NODE_ENV !== 'test';
+}
+
+function assertSupabaseManagedProfileStoreReady() {
+  if (!shouldRequireSupabaseManagedProfileStore()) return;
+  if (!hasPostgresAuthStore()) {
+    throw new Error('POSTGRES_AUTH_STORE_NOT_CONFIGURED');
+  }
+  if (getConfig().database.driver !== 'postgres') {
+    throw new Error('BUSINESS_RUNTIME_POSTGRES_REQUIRED');
+  }
+}
+
 function canUseLocalSqliteAuthMirror() {
-  return getConfig().database.driver === 'sqlite';
+  return process.env.NODE_ENV === 'test' && getConfig().database.driver === 'sqlite';
 }
 
 function getLocalSqliteAuthMirrorDb() {
@@ -2055,6 +2077,7 @@ export async function resetPasswordWithCode(args: {
 }
 
 export async function getAuthUserState(userId: string): Promise<AuthUserState> {
+  assertSupabaseManagedProfileStoreReady();
   await ensureSeededUser();
   if (hasPostgresAuthStore()) {
     const state = await pgGetUserState(userId);
@@ -2096,6 +2119,7 @@ export async function getAuthUserState(userId: string): Promise<AuthUserState> {
 }
 
 export async function upsertAuthUserState(userId: string, input: Partial<AuthUserState>) {
+  assertSupabaseManagedProfileStoreReady();
   await ensureSeededUser();
   const current = await getAuthUserState(userId);
   const next: AuthUserState = {

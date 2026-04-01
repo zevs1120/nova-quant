@@ -1,78 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
-import { getMembershipPriceCents, normalizeMembershipPlan } from '../utils/membership';
-
-function normalizeCycle(value) {
-  const normalized = String(value || '')
-    .trim()
-    .toLowerCase();
-  if (normalized === 'annual') return 'annual';
-  if (normalized === 'monthly') return 'monthly';
-  return 'weekly';
-}
-
-function buildPreviewState({ planKey, billingCycle, email }) {
-  const now = new Date();
-  const durationDays = billingCycle === 'annual' ? 365 : billingCycle === 'monthly' ? 30 : 7;
-  const currentPeriodEnd = new Date(now.getTime() + durationDays * 24 * 60 * 60 * 1000);
-  return {
-    available: true,
-    authenticated: false,
-    providerMode: 'internal_checkout',
-    checkoutConfigured: false,
-    portalConfigured: false,
-    currentPlan: planKey,
-    customer: email
-      ? {
-          email,
-          provider: 'internal_checkout',
-          providerCustomerId: null,
-          defaultCurrency: 'USD',
-          defaultBillingCycle: billingCycle,
-        }
-      : null,
-    subscription: {
-      id: `preview-sub-${now.getTime()}`,
-      planKey,
-      status: 'ACTIVE',
-      provider: 'internal_checkout',
-      billingCycle,
-      amountCents: getMembershipPriceCents(planKey, billingCycle),
-      currency: 'USD',
-      startedAt: now.toISOString(),
-      currentPeriodStartAt: now.toISOString(),
-      currentPeriodEndAt: currentPeriodEnd.toISOString(),
-      cancelAtPeriodEnd: false,
-      cancelledAt: null,
-      checkoutSessionId: `preview-checkout-${now.getTime()}`,
-      createdAt: now.toISOString(),
-      updatedAt: now.toISOString(),
-    },
-    latestCheckout: {
-      id: `preview-checkout-${now.getTime()}`,
-      planKey,
-      status: 'COMPLETED',
-      provider: 'internal_checkout',
-      providerSessionId: null,
-      billingCycle,
-      amountCents: getMembershipPriceCents(planKey, billingCycle),
-      currency: 'USD',
-      checkoutUrl: null,
-      checkoutEmail: email || null,
-      paymentMethodLast4: '4242',
-      createdAt: now.toISOString(),
-      expiresAt: currentPeriodEnd.toISOString(),
-      completedAt: now.toISOString(),
-      updatedAt: now.toISOString(),
-    },
-  };
-}
+import { normalizeMembershipPlan } from '../utils/membership';
 
 function currentReturnUrl() {
   if (typeof window === 'undefined') return '';
   return `${window.location.origin}${window.location.pathname}`;
 }
 
-export function useBilling({ locale, authSession, userProfile, fetchJson, onApplyPlan }) {
+export function useBilling({ locale, authSession, fetchJson, onApplyPlan }) {
   const [billingState, setBillingState] = useState(null);
   const [checkoutState, setCheckoutState] = useState(null);
 
@@ -154,11 +88,29 @@ export function useBilling({ locale, authSession, userProfile, fetchJson, onAppl
         billingState?.providerMode === 'stripe' && activeSubscription?.provider === 'stripe';
 
       if (normalizedPlan === 'free') {
+        if (!authSession?.userId) {
+          setCheckoutState({
+            open: true,
+            mode: 'auth_required',
+            planKey: normalizedPlan,
+            billingCycle,
+            source,
+            session: null,
+            loading: false,
+            submitting: false,
+            error: locale?.startsWith('zh')
+              ? '请先登录，再管理你的订阅。'
+              : 'Please sign in before managing your subscription.',
+            note: locale?.startsWith('zh')
+              ? '会员升级、取消和账单管理都需要先登录。'
+              : 'Membership upgrades, cancellations, and billing management require sign-in first.',
+          });
+          return;
+        }
         if (stripeManaged) {
           setCheckoutState({
             open: true,
             mode: 'portal',
-            preview: false,
             planKey: normalizedPlan,
             billingCycle,
             source,
@@ -175,7 +127,6 @@ export function useBilling({ locale, authSession, userProfile, fetchJson, onAppl
         setCheckoutState({
           open: true,
           mode: 'downgrade',
-          preview: !authSession?.userId,
           planKey: normalizedPlan,
           billingCycle,
           source,
@@ -183,13 +134,9 @@ export function useBilling({ locale, authSession, userProfile, fetchJson, onAppl
           loading: false,
           submitting: false,
           error: '',
-          note: authSession?.userId
-            ? locale?.startsWith('zh')
-              ? '确认后会取消当前订阅，并立即回到 Free。'
-              : 'Confirming will cancel the current subscription and move the account back to Free.'
-            : locale?.startsWith('zh')
-              ? '当前会以本地预览方式回到 Free。'
-              : 'This change will be applied locally in preview mode.',
+          note: locale?.startsWith('zh')
+            ? '仅遗留订阅允许在应用内直接取消；Stripe 订阅请改走 Billing Portal。'
+            : 'Only legacy subscriptions can be cancelled in-app. Stripe subscriptions are managed in the billing portal.',
         });
         return;
       }
@@ -197,29 +144,19 @@ export function useBilling({ locale, authSession, userProfile, fetchJson, onAppl
       if (!authSession?.userId) {
         setCheckoutState({
           open: true,
-          mode: 'checkout',
-          preview: true,
+          mode: 'auth_required',
           planKey: normalizedPlan,
           billingCycle,
           source,
+          session: null,
           loading: false,
           submitting: false,
-          error: '',
+          error: locale?.startsWith('zh')
+            ? '请先登录，再进入支付。'
+            : 'Please sign in before starting checkout.',
           note: locale?.startsWith('zh')
-            ? '当前未登录，完成后会只在本地预览升级效果。'
-            : 'You are not signed in. Completing checkout will preview the upgrade locally only.',
-          session: {
-            id: `preview-checkout-${Date.now()}`,
-            planKey: normalizedPlan,
-            status: 'OPEN',
-            provider: 'internal_checkout',
-            providerSessionId: null,
-            billingCycle,
-            amountCents: getMembershipPriceCents(normalizedPlan, billingCycle),
-            currency: 'USD',
-            checkoutUrl: null,
-            checkoutEmail: userProfile?.email || null,
-          },
+            ? '付费会员只能在已登录账号上购买，支付完成后也会绑定到当前账号。'
+            : 'Paid membership can only be purchased on a signed-in account, and payment will be attached to that account.',
         });
         return;
       }
@@ -227,7 +164,6 @@ export function useBilling({ locale, authSession, userProfile, fetchJson, onAppl
       setCheckoutState({
         open: true,
         mode: 'checkout',
-        preview: false,
         planKey: normalizedPlan,
         billingCycle,
         source,
@@ -250,10 +186,16 @@ export function useBilling({ locale, authSession, userProfile, fetchJson, onAppl
           }),
         });
         applyRemoteState(payload.state);
+        if (!payload?.session?.checkoutUrl) {
+          throw new Error(
+            locale?.startsWith('zh')
+              ? '支付服务没有返回可跳转的 Stripe Checkout 地址。'
+              : 'Billing did not return a hosted Stripe checkout URL.',
+          );
+        }
         setCheckoutState({
           open: true,
-          mode: payload?.session?.checkoutUrl ? 'redirect' : 'checkout',
-          preview: false,
+          mode: 'redirect',
           planKey: normalizedPlan,
           billingCycle,
           source,
@@ -267,7 +209,6 @@ export function useBilling({ locale, authSession, userProfile, fetchJson, onAppl
         setCheckoutState({
           open: true,
           mode: 'checkout',
-          preview: false,
           planKey: normalizedPlan,
           billingCycle,
           source,
@@ -281,12 +222,14 @@ export function useBilling({ locale, authSession, userProfile, fetchJson, onAppl
         });
       }
     },
-    [applyRemoteState, authSession?.userId, billingState, fetchJson, locale, userProfile?.email],
+    [applyRemoteState, authSession?.userId, billingState, fetchJson, locale],
   );
 
   const submitCheckout = useCallback(
     async ({ billingEmail, paymentMethodLast4 } = {}) => {
       if (!checkoutState?.open) return false;
+      void billingEmail;
+      void paymentMethodLast4;
 
       setCheckoutState((current) =>
         current
@@ -302,12 +245,32 @@ export function useBilling({ locale, authSession, userProfile, fetchJson, onAppl
         return openPortal();
       }
 
+      if (checkoutState.mode === 'auth_required') {
+        setCheckoutState((current) =>
+          current
+            ? {
+                ...current,
+                submitting: false,
+              }
+            : current,
+        );
+        return false;
+      }
+
       if (checkoutState.mode === 'downgrade') {
-        if (!authSession?.userId || checkoutState.preview) {
-          setBillingState(null);
-          onApplyPlan?.('free');
-          setCheckoutState(null);
-          return true;
+        if (!authSession?.userId) {
+          setCheckoutState((current) =>
+            current
+              ? {
+                  ...current,
+                  submitting: false,
+                  error: locale?.startsWith('zh')
+                    ? '请先登录，再管理你的订阅。'
+                    : 'Please sign in before managing your subscription.',
+                }
+              : current,
+          );
+          return false;
         }
 
         try {
@@ -339,55 +302,27 @@ export function useBilling({ locale, authSession, userProfile, fetchJson, onAppl
         return true;
       }
 
-      if (checkoutState.preview || !authSession?.userId) {
-        const previewState = buildPreviewState({
-          planKey: checkoutState.planKey,
-          billingCycle: checkoutState.billingCycle,
-          email: billingEmail || userProfile?.email || '',
-        });
-        setBillingState(previewState);
-        onApplyPlan?.(checkoutState.planKey);
-        setCheckoutState(null);
-        return true;
-      }
-
-      try {
-        const payload = await fetchJson(
-          `/api/billing/checkout/${encodeURIComponent(checkoutState.session?.id || '')}/complete`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              billingEmail,
-              paymentMethodLast4,
-            }),
-          },
-        );
-        applyRemoteState(payload.state);
-        onApplyPlan?.(payload.state?.currentPlan || checkoutState.planKey);
-        setCheckoutState(null);
-        return true;
-      } catch (error) {
-        setCheckoutState((current) =>
-          current
-            ? {
-                ...current,
-                submitting: false,
-                error: String(error?.message || 'Unable to complete checkout.'),
-              }
-            : current,
-        );
-        return false;
-      }
+      setCheckoutState((current) =>
+        current
+          ? {
+              ...current,
+              submitting: false,
+              error: locale?.startsWith('zh')
+                ? '当前没有拿到可跳转的 Stripe Checkout 地址。'
+                : 'No hosted Stripe checkout URL is available for this session.',
+            }
+          : current,
+      );
+      return false;
     },
     [
       applyRemoteState,
       authSession?.userId,
       checkoutState,
       fetchJson,
+      locale,
       openPortal,
       onApplyPlan,
-      userProfile?.email,
     ],
   );
 

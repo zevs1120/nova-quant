@@ -23,11 +23,8 @@ import {
 } from '../db/postgresSyncBridge.js';
 
 const CHECKOUT_TTL_MS = 30 * 60 * 1000;
-const BILLING_PROVIDER = 'internal_checkout';
+const BILLING_PROVIDER = 'stripe';
 const BILLING_CURRENCY = 'USD';
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-const MONTH_MS = 30 * 24 * 60 * 60 * 1000;
-const YEAR_MS = 365 * 24 * 60 * 60 * 1000;
 const BILLING_CYCLE_CHECK_SQL = "('weekly', 'monthly', 'annual')";
 
 export type BillingPlan = 'free' | 'lite' | 'pro';
@@ -40,6 +37,7 @@ export type BillingErrorCode =
   | 'BILLING_PROVIDER_NOT_CONFIGURED'
   | 'BILLING_PORTAL_UNAVAILABLE'
   | 'BILLING_WEBHOOK_INVALID'
+  | 'CHECKOUT_COMPLETION_DISABLED'
   | 'CHECKOUT_NOT_FOUND'
   | 'CHECKOUT_NOT_OPEN'
   | 'CHECKOUT_EXPIRED'
@@ -211,16 +209,6 @@ function sanitizeEmail(value: unknown, fallback = '') {
       .toLowerCase() ||
     ''
   );
-}
-
-function sanitizeLast4(value: unknown) {
-  const digits = String(value || '').replace(/\D+/g, '');
-  return digits ? digits.slice(-4) : null;
-}
-
-function cycleDurationMs(cycle: BillingCycle) {
-  if (cycle === 'weekly') return WEEK_MS;
-  return cycle === 'annual' ? YEAR_MS : MONTH_MS;
 }
 
 function getBillingProviderMode() {
@@ -807,58 +795,6 @@ function insertSubscription(args: {
   );
 }
 
-function completeCheckoutSessionRow(args: {
-  userId: string;
-  sessionId: string;
-  email: string;
-  paymentMethodLast4: string | null;
-  subscriptionId: string;
-  completedAt: number;
-}) {
-  ensureBillingSchema();
-  if (!isPostgresBusinessRuntime()) {
-    const db = getBillingDb();
-    db.prepare(
-      `UPDATE billing_checkout_sessions
-       SET status = 'COMPLETED',
-           checkout_email = ?,
-           payment_method_last4 = ?,
-           success_subscription_id = ?,
-           completed_at_ms = ?,
-           updated_at_ms = ?
-       WHERE session_id = ? AND user_id = ?`,
-    ).run(
-      args.email,
-      args.paymentMethodLast4,
-      args.subscriptionId,
-      args.completedAt,
-      args.completedAt,
-      args.sessionId,
-      args.userId,
-    );
-    return;
-  }
-  executeSync(
-    `UPDATE ${billingTable('billing_checkout_sessions')}
-     SET status = 'COMPLETED',
-         checkout_email = $1,
-         payment_method_last4 = $2,
-         success_subscription_id = $3,
-         completed_at_ms = $4,
-         updated_at_ms = $5
-     WHERE session_id = $6 AND user_id = $7`,
-    [
-      args.email,
-      args.paymentMethodLast4,
-      args.subscriptionId,
-      args.completedAt,
-      args.completedAt,
-      args.sessionId,
-      args.userId,
-    ],
-  );
-}
-
 function updateCheckoutSessionFromProvider(args: {
   sessionId: string;
   userId: string;
@@ -1243,72 +1179,51 @@ export async function createBillingCheckoutSession(args: {
   const expiresAt = ts + CHECKOUT_TTL_MS;
   const checkoutEmail = sanitizeEmail(authUser.email);
 
-  if (providerConfig.mode === 'stripe') {
-    const priceId = resolveStripePriceId(providerConfig, planKey, billingCycle);
-    if (!priceId) {
-      return { ok: false, error: 'BILLING_PROVIDER_NOT_CONFIGURED' };
-    }
-    const stripeSession = await createStripeCheckoutSession(providerConfig, {
-      localSessionId: sessionId,
-      userId: args.userId,
-      planKey,
-      billingCycle,
-      priceId,
-      customerId: existingCustomer?.provider_customer_id || null,
-      customerEmail: checkoutEmail,
-      source: args.source,
-      locale: args.locale,
-    });
-    const metadataJson = JSON.stringify({
-      source: args.source || null,
-      locale: args.locale || null,
-      checkout_url: stripeSession.url || null,
-      price_id: priceId,
-    });
-    upsertBillingCustomer({
-      userId: args.userId,
-      email: checkoutEmail,
-      billingCycle,
-      now: ts,
-      provider: 'stripe',
-      providerCustomerId: stripeSession.customer || existingCustomer?.provider_customer_id || null,
-    });
-    insertCheckoutSession({
-      sessionId,
-      userId: args.userId,
-      planKey,
-      billingCycle,
-      amountCents,
-      now: ts,
-      expiresAt,
-      metadataJson,
-      provider: 'stripe',
-      providerSessionId: stripeSession.id,
-      checkoutEmail,
-    });
-  } else {
-    const metadataJson = JSON.stringify({
-      source: args.source || null,
-      locale: args.locale || null,
-    });
-    upsertBillingCustomer({
-      userId: args.userId,
-      email: checkoutEmail,
-      billingCycle,
-      now: ts,
-    });
-    insertCheckoutSession({
-      sessionId,
-      userId: args.userId,
-      planKey,
-      billingCycle,
-      amountCents,
-      now: ts,
-      expiresAt,
-      metadataJson,
-      checkoutEmail,
-    });
+  if (providerConfig.mode !== 'stripe') {
+    return { ok: false, error: 'BILLING_PROVIDER_NOT_CONFIGURED' };
   }
+  const priceId = resolveStripePriceId(providerConfig, planKey, billingCycle);
+  if (!priceId) {
+    return { ok: false, error: 'BILLING_PROVIDER_NOT_CONFIGURED' };
+  }
+  const stripeSession = await createStripeCheckoutSession(providerConfig, {
+    localSessionId: sessionId,
+    userId: args.userId,
+    planKey,
+    billingCycle,
+    priceId,
+    customerId: existingCustomer?.provider_customer_id || null,
+    customerEmail: checkoutEmail,
+    source: args.source,
+    locale: args.locale,
+  });
+  const metadataJson = JSON.stringify({
+    source: args.source || null,
+    locale: args.locale || null,
+    checkout_url: stripeSession.url || null,
+    price_id: priceId,
+  });
+  upsertBillingCustomer({
+    userId: args.userId,
+    email: checkoutEmail,
+    billingCycle,
+    now: ts,
+    provider: 'stripe',
+    providerCustomerId: stripeSession.customer || existingCustomer?.provider_customer_id || null,
+  });
+  insertCheckoutSession({
+    sessionId,
+    userId: args.userId,
+    planKey,
+    billingCycle,
+    amountCents,
+    now: ts,
+    expiresAt,
+    metadataJson,
+    provider: 'stripe',
+    providerSessionId: stripeSession.id,
+    checkoutEmail,
+  });
 
   return {
     ok: true,
@@ -1356,96 +1271,10 @@ export function completeBillingCheckoutSession(args: {
   if (isGuestUser(args.userId)) {
     return { ok: false, error: 'AUTH_REQUIRED' };
   }
-  ensureBillingSchema();
-
-  const authUser = getAuthUser(args.userId);
-  if (!authUser) {
-    return { ok: false, error: 'AUTH_REQUIRED' };
-  }
-
-  const transactionResult = runBillingTransaction<
-    | BillingFailure
-    | BillingResult<{
-        session: BillingCheckoutSession;
-        subscription: BillingSubscription;
-      }>
-  >(() => {
-    const lockedSession = readCheckoutSession(args.userId, args.sessionId, true);
-    if (!lockedSession) {
-      return { ok: false, error: 'CHECKOUT_NOT_FOUND' };
-    }
-    if (String(lockedSession.provider || BILLING_PROVIDER) !== BILLING_PROVIDER) {
-      return { ok: false, error: 'CHECKOUT_NOT_OPEN' };
-    }
-
-    const status = String(lockedSession.status || '').toUpperCase();
-    if (status === 'COMPLETED') {
-      return { ok: false, error: 'CHECKOUT_ALREADY_COMPLETED' };
-    }
-    if (status !== 'OPEN') {
-      return { ok: false, error: status === 'EXPIRED' ? 'CHECKOUT_EXPIRED' : 'CHECKOUT_NOT_OPEN' };
-    }
-
-    const ts = nowMs();
-    if (Number(lockedSession.expires_at_ms || 0) <= ts) {
-      markCheckoutExpired(args.userId, args.sessionId, ts);
-      return { ok: false, error: 'CHECKOUT_EXPIRED' };
-    }
-
-    const billingCycle = normalizeBillingCycle(lockedSession.billing_cycle);
-    const planKey = normalizeBillingPlan(lockedSession.plan_key);
-    const amountCents = Number(lockedSession.amount_cents || 0);
-    const checkoutEmail = sanitizeEmail(args.billingEmail, authUser.email);
-    const paymentMethodLast4 = sanitizeLast4(args.paymentMethodLast4);
-    const subscriptionId = createId('sub');
-    const currentPeriodEndAt = ts + cycleDurationMs(billingCycle);
-
-    cancelActiveSubscriptions(args.userId, ts);
-    upsertBillingCustomer({
-      userId: args.userId,
-      email: checkoutEmail || sanitizeEmail(authUser.email),
-      billingCycle,
-      now: ts,
-      provider: String(lockedSession.provider || BILLING_PROVIDER),
-    });
-    insertSubscription({
-      subscriptionId,
-      userId: args.userId,
-      planKey,
-      provider: String(lockedSession.provider || BILLING_PROVIDER),
-      billingCycle,
-      amountCents,
-      startedAt: ts,
-      currentPeriodEndAt,
-      checkoutSessionId: args.sessionId,
-      metadataJson: JSON.stringify({ source: 'checkout_session' }),
-    });
-    completeCheckoutSessionRow({
-      userId: args.userId,
-      sessionId: args.sessionId,
-      email: checkoutEmail || sanitizeEmail(authUser.email),
-      paymentMethodLast4,
-      subscriptionId,
-      completedAt: ts,
-    });
-
-    return {
-      ok: true,
-      session: mapCheckout(readCheckoutSession(args.userId, args.sessionId)),
-      subscription: mapSubscription(readLatestSubscription(args.userId)),
-    };
-  });
-
-  if (!transactionResult.ok) {
-    return transactionResult;
-  }
-
-  return {
-    ok: true,
-    session: transactionResult.session,
-    subscription: transactionResult.subscription,
-    state: getBillingState(args.userId),
-  };
+  void args.sessionId;
+  void args.billingEmail;
+  void args.paymentMethodLast4;
+  return { ok: false, error: 'CHECKOUT_COMPLETION_DISABLED' };
 }
 
 export function cancelBillingSubscription(args: {
@@ -1461,10 +1290,7 @@ export function cancelBillingSubscription(args: {
     return { ok: false, error: 'AUTH_REQUIRED' };
   }
   const latestSubscription = readLatestSubscription(args.userId);
-  if (
-    latestSubscription &&
-    String(latestSubscription.provider || BILLING_PROVIDER) !== BILLING_PROVIDER
-  ) {
+  if (latestSubscription && String(latestSubscription.provider || '').toLowerCase() === 'stripe') {
     return { ok: false, error: 'BILLING_PORTAL_UNAVAILABLE' };
   }
 
