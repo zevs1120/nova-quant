@@ -3,7 +3,7 @@
 Nova Quant is an AI-native quantitative **decision** platform for US equities and crypto.
 Current app version: `10.21.2` (build `81`).
 Versioning policy: `package.json` is canonical, `src/config/version.js` is the generated runtime mirror, and release history lives in `CHANGELOG.md` / `docs/VERSIONING.md`.
-Auth is primarily driven by **Supabase Native Auth** (`supabase.ts`) for production deployments. Local development natively falls back to SQLite mock tokens for offline compatibility. Legacy Postgres/Upstash Redis manual tracking paths remain available as remote fallbacks but are deprecated in favor of Supabase Auth. Without any local or remote auth configured, deployed `/api/auth/*` returns `AUTH_STORE_NOT_CONFIGURED`.
+Auth is driven by **Supabase Native Auth** (`supabase.ts`) with Supabase/Postgres as the only supported deployed backend. Signup requires Supabase Auth `Confirm email`, and deployed `/api/auth/*` returns `AUTH_STORE_NOT_CONFIGURED` if the required Supabase settings are missing.
 Browse search can now merge external market results into `/api/assets/search`. By default it augments local assets with the SEC company ticker universe and CoinGecko crypto search; set `ALPHA_VANTAGE_API_KEY` for broader stock / ETF lookup and `COINGECKO_DEMO_API_KEY` (or `COINGECKO_API_KEY` / `COINGECKO_PRO_API_KEY`) for higher-volume crypto search.
 
 It is designed to help self-directed traders reduce emotional trading and execute with discipline.
@@ -53,7 +53,7 @@ Runtime rules:
 
 ## What Changed In This Runtime-Realism Upgrade
 
-- Runtime now derives from **SQLite + ingested bars + derived state**.
+- Runtime now derives from **Supabase/Postgres + ingested bars + derived state**.
 - Frontend default path is now **API-first** (not local pipeline-first).
 - Chat tools no longer read `public/mock/*` in runtime path.
 - Connectors no longer return fake balances/positions by default.
@@ -79,13 +79,11 @@ Primary application layers:
 - `src/server/evidence/engine.ts`: replay / backtest / evidence engine
 - `src/server/holdings/import.ts`: CSV / screenshot holdings import with auto-detection and normalization
 - `src/server/admin/liveOps.ts`: admin Research Ops aggregation (workflows, data intake, Alpha eval, training)
-- `src/server/admin/postgresBusinessRead.ts`: Supabase-backed read layer for Admin dashboards (falls back to SQLite)
-- `src/server/db/postgresBusinessMirror.ts`: Proxy-based write mirror that auto-syncs SQLite writes to Supabase Postgres
+- `src/server/admin/postgresBusinessRead.ts`: Supabase-backed read layer for Admin dashboards
+- `src/server/db/postgresBusinessMirror.ts`: Supabase/Postgres business data bridge
 - `src/server/research/publicAlphaSupply.ts`: public Alpha supply intake — readiness-scored research seed matching
 - `src/server/backbone/service.ts`: unified backend backbone summary spanning research, risk, decision, registries, workflows, observability, portfolio, and review
-- SQLite (`data/quant.db` at runtime, excluded from handoff packages)
-- Postgres (auth store, optional, recommended for production)
-- Supabase Postgres (business data mirror, optional — set `NOVA_DATA_DATABASE_URL` to enable write mirroring and preferred reads)
+- Supabase Postgres (auth + business data runtime)
 
 ## Backend Backbone
 
@@ -207,7 +205,7 @@ Key environment variables:
 - `NOVA_ALPHA_RETIRE_MAX_DRAWDOWN`
 - `NOVA_ALPHA_ALLOW_PROD_PROMOTION`
 
-Results live in SQLite tables:
+Results live in the business data tables:
 
 - `alpha_candidates`
 - `alpha_evaluations`
@@ -231,10 +229,7 @@ Primary backend source of truth:
 - `src/server/auth/postgresStore.ts` (auth store schema + queries)
 - `src/server/db/postgresBusinessMirror.ts` (Supabase business data write mirror)
 - `src/server/admin/postgresBusinessRead.ts` (Supabase business data read layer)
-- SQLite (`data/quant.db`) for business data in the default runtime path
-- Supabase Postgres (business data mirror, when `NOVA_DATA_DATABASE_URL` is set)
-- Optional EC2 canary: `NOVA_DATA_RUNTIME_DRIVER=postgres` switches runtime reads to the Postgres repository, but the current implementation still uses the synchronous `postgresSyncBridge`, so evaluate it as a staged cutover rather than an automatic latency fix
-- Postgres (auth store, when `DATABASE_URL` is set)
+- Supabase Postgres for business data and auth
 
 ## Decision Engine
 
@@ -353,7 +348,6 @@ Nova Quant uses explicit status labels in API/runtime outputs:
 
 ```bash
 npm ci
-npm run db:init
 npm run backfill -- --market CRYPTO --tf 1h
 npm run validate:data -- --tf 1h --lookbackBars 800
 npm run derive:runtime
@@ -388,7 +382,7 @@ To access guarded Deep Mode features locally or deploy paid layers:
 ## Notes On Data
 
 - **Primary API data source**: Massive.com (formerly Polygon.io) REST API for both US equities and crypto OHLCV. Module: `src/server/ingestion/massive.ts`. Requires `MASSIVE_API_KEY` in `.env`. Basic (free) tier enforces 12s delay between requests.
-- **Business data mirror**: optionally mirror all business data to Supabase Postgres. Set `NOVA_DATA_DATABASE_URL` to enable. Module: `src/server/db/postgresBusinessMirror.ts`. Migration tool: `scripts/migrate-business-to-postgres.ts`. See `docs/SUPABASE_BUSINESS_DB_MIGRATION.md`.
+- **Business runtime**: business data now runs on Supabase/Postgres. Set `NOVA_DATA_DATABASE_URL` for the shared runtime and `NOVA_AUTH_DATABASE_URL` for auth/profile state. Modules: `src/server/db/postgresBusinessMirror.ts`, `src/server/db/postgresRuntimeRepository.ts`.
 - US data: Stooq bulk ingestion (`src/server/ingestion/stooq.ts`) with configured symbol whitelist (legacy fallback).
 - Crypto data: Binance public bulk + incremental REST ingestion (legacy fallback).
 - If data is stale/insufficient, APIs return honest degraded states (`INSUFFICIENT_DATA`) instead of synthetic beautification.
@@ -397,7 +391,6 @@ To access guarded Deep Mode features locally or deploy paid layers:
 
 - `npm run clean`
 - `npm run lint`
-- `npm run db:init`
 - `npm run backfill`
 - `npm run validate:data`
 - `npm run derive:runtime`
@@ -415,7 +408,7 @@ To access guarded Deep Mode features locally or deploy paid layers:
 Nova Quant now exposes a single canonical assistant stack:
 
 - Frontend AI page and Ask Nova entry both use `/api/chat`
-- Conversation threads persist in SQLite (`chat_threads`, `chat_messages`)
+- Conversation threads persist in the business data store (`chat_threads`, `chat_messages`)
 - Recent thread memory is fed into the assistant for multi-turn continuity
 - Internal context is selected through tools, not by dumping raw runtime JSON into the prompt
 - If no provider is configured or a provider fails, Nova degrades honestly to deterministic internal guidance instead of pretending the LLM succeeded
@@ -463,8 +456,8 @@ This means Nova can now help with:
 - Frontend build: `npm run build`
 - Static output: `dist/`
 - API runtime: `api/index.ts` loads `src/server/api/app.ts`
-- On Vercel, SQLite defaults to `/tmp/nova-quant/quant.db` unless `DB_PATH` is explicitly provided
-- The Vercel runtime will auto-create schema on first cold start, but it will start with an empty ephemeral database unless you connect a persistent backend later
+- Vercel requires a configured Supabase/Postgres connection for auth and business data
+- The Vercel runtime auto-creates the required schemas in Postgres on first cold start
 - For investor walkthroughs, use the in-app `Demo Mode / 体验 Demo` switch after deploy
 
 ## Clean Source Package (For Advisors / DD)
@@ -484,7 +477,7 @@ node scripts/package-source.mjs --dry-run
 Default exclusions include local/runtime artifacts:
 
 - `node_modules/`, `dist/`, `build/`, `coverage/`
-- `data/*.db`, `data/*.db-wal`, `data/*.db-shm`, `*.sqlite*`, `*.wal`, `*.shm`
+- `data/*.db`, `data/*.db-wal`, `data/*.db-shm`, `*.wal`, `*.shm`
 - `__MACOSX/`, `.DS_Store`, local logs/tmp artifacts
 - `.vercel/`, `artifacts/`, `release/`
 

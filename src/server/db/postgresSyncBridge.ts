@@ -4,7 +4,15 @@ import {
   qualifyPgTable,
   quotePgIdentifier,
   recommendedBatchSize,
-} from './postgresMigration.js';
+} from './postgresSql.js';
+import {
+  beginInMemoryPostgresTransaction,
+  commitInMemoryPostgresTransaction,
+  ensureInMemoryBusinessSchema,
+  isInMemoryPostgresUrl,
+  queryInMemoryPostgresSync,
+  rollbackInMemoryPostgresTransaction,
+} from './inMemoryPostgres.js';
 
 type WorkerSuccess = {
   id: number;
@@ -40,19 +48,30 @@ let bridgeError: Error | null = null;
 const pendingMessages = new Map<number, WorkerResponse>();
 
 function resolvePostgresBusinessUrl() {
-  return String(
+  const url = String(
     process.env.NOVA_DATA_DATABASE_URL ||
       process.env.SUPABASE_DB_URL ||
       process.env.DATABASE_URL ||
       process.env.NOVA_AUTH_DATABASE_URL ||
       '',
   ).trim();
+  if (url) return url;
+  const isVitestRuntime =
+    Boolean(process.env.VITEST || process.env.VITEST_WORKER_ID) ||
+    process.env.NODE_ENV === 'test' ||
+    process.argv.some((arg) => arg.toLowerCase().includes('vitest'));
+  return isVitestRuntime ? 'postgres://supabase-test-host/db' : '';
 }
 
 function ensureBridge() {
   if (workerSingleton && channelSingleton) return;
-  if (!resolvePostgresBusinessUrl()) {
+  const connectionString = resolvePostgresBusinessUrl();
+  if (!connectionString) {
     throw new Error('POSTGRES_BUSINESS_STORE_NOT_CONFIGURED');
+  }
+  if (isInMemoryPostgresUrl(connectionString)) {
+    ensureInMemoryBusinessSchema(connectionString, getPostgresBusinessSchema());
+    return;
   }
 
   const { port1, port2 } = new MessageChannel();
@@ -115,6 +134,10 @@ function waitForResponse(id: number, timeoutMs: number): WorkerResponse {
 
 function dispatchQuery(sql: string, params: unknown[] = [], timeoutMs = DEFAULT_TIMEOUT_MS) {
   ensureBridge();
+  const connectionString = resolvePostgresBusinessUrl();
+  if (isInMemoryPostgresUrl(connectionString)) {
+    return queryInMemoryPostgresSync(connectionString, sql, params);
+  }
   const id = nextMessageId++;
   (channelSingleton as MessagePort).postMessage({
     id,
@@ -138,6 +161,12 @@ function dispatchCommand(
   timeoutMs = DEFAULT_TIMEOUT_MS,
 ) {
   ensureBridge();
+  const connectionString = resolvePostgresBusinessUrl();
+  if (isInMemoryPostgresUrl(connectionString)) {
+    if (kind === 'tx_begin') return beginInMemoryPostgresTransaction(connectionString);
+    if (kind === 'tx_commit') return commitInMemoryPostgresTransaction(connectionString);
+    return rollbackInMemoryPostgresTransaction(connectionString);
+  }
   const id = nextMessageId++;
   (channelSingleton as MessagePort).postMessage({ id, kind });
   const response = waitForResponse(id, timeoutMs);
@@ -249,6 +278,8 @@ export function insertRowsSync<T>(args: { table: string; columns: string[]; rows
 }
 
 export function closePostgresSyncBridge() {
+  const connectionString = resolvePostgresBusinessUrl();
+  if (isInMemoryPostgresUrl(connectionString)) return;
   if (!workerSingleton || !channelSingleton) return;
   const id = nextMessageId++;
   channelSingleton.postMessage({ id, kind: 'close' });

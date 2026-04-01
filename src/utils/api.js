@@ -6,6 +6,10 @@ function trimTrailingSlash(value) {
   return String(value || '').replace(/\/+$/, '');
 }
 
+function readDefinedGlobal(key) {
+  return String(globalThis?.[key] || '').trim();
+}
+
 function unique(values) {
   const seen = new Set();
   const next = [];
@@ -27,6 +31,7 @@ function runtimeApiBases() {
   const envBases = unique([
     trimTrailingSlash(import.meta.env?.VITE_API_BASE_URL),
     trimTrailingSlash(import.meta.env?.VITE_PUBLIC_API_BASE_URL),
+    trimTrailingSlash(readDefinedGlobal('__NOVA_PUBLIC_API_BASE_URL__')),
   ]);
 
   if (typeof window === 'undefined') return envBases;
@@ -34,22 +39,23 @@ function runtimeApiBases() {
   const hostname = String(window.location?.hostname || '');
   const protocol = String(window.location?.protocol || 'https:');
   if (protocol === 'file:' || isLocalHost(hostname)) {
-    return unique([...envBases, 'http://127.0.0.1:8787', 'http://localhost:8787', '']);
+    return unique(['', ...envBases, 'http://127.0.0.1:8787', 'http://localhost:8787']);
   }
 
   if (hostname === 'api.novaquant.cloud') {
-    return unique([...envBases, '']);
+    return unique(['', ...envBases]);
   }
 
   if (
     hostname === 'novaquant.cloud' ||
+    hostname === 'app.novaquant.cloud' ||
     hostname === 'admin.novaquant.cloud' ||
     hostname.endsWith('.novaquant.cloud')
   ) {
-    return unique([...envBases, 'https://api.novaquant.cloud', '']);
+    return unique(['', ...envBases, 'https://api.novaquant.cloud']);
   }
 
-  return unique([...envBases, 'https://api.novaquant.cloud']);
+  return unique(['', ...envBases, 'https://api.novaquant.cloud']);
 }
 
 function buildApiUrl(path, base = '') {

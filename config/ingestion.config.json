@@ -1,7 +1,8 @@
 {
   "database": {
-    "driver": "sqlite",
-    "path": "./data/quant.db"
+    "driver": "postgres",
+    "url": "__NOVA_DATA_DATABASE_URL__",
+    "schema": "novaquant_data"
   },
   "markets": {
     "US": {

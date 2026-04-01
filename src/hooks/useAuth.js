@@ -83,7 +83,7 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
     tradeMode: 'starter',
     broker: 'Robinhood',
   });
-  const [authSession, setAuthSession] = useLocalStorage('nova-quant-auth-session', null);
+  const [authSession, setAuthSession] = useState(null);
   const [authHydrated, setAuthHydrated] = useState(false);
   const [passwordRecoveryMode, setPasswordRecoveryMode] = useState(false);
   const [onboardingDone, setOnboardingDone] = useLocalStorage('nova-quant-onboarding-done', false, {
@@ -124,6 +124,15 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
   );
 
   const effectiveUserId = authSession?.userId || chatUserId;
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.removeItem('nova-quant-auth-session');
+    } catch {
+      // ignore storage access failures
+    }
+  }, []);
 
   const resetLocalAuthState = useCallback(
     ({ clearProfile = false } = {}) => {
@@ -376,61 +385,54 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
 
   const handleSignup = useCallback(
     async (payload) => {
-      if (hasSupabaseAuthBrowserConfig()) {
-        try {
-          const mainClient = await ensureSupabaseBrowserClient();
-          const { data, error } = await signUpWithSupabaseEmailVerification({
-            email: normalizeEmail(payload.email),
-            password: String(payload.password || ''),
-            options: {
-              emailRedirectTo: getSupabaseAuthRedirectUrl(),
-              data: {
-                name: payload.name,
-                tradeMode: payload.tradeMode,
-                broker: payload.broker,
-                locale,
-              },
+      try {
+        setAuthSession(null);
+        const mainClient = await ensureSupabaseBrowserClient();
+        await mainClient?.auth.signOut().catch(() => {});
+        const { data, error } = await signUpWithSupabaseEmailVerification({
+          email: normalizeEmail(payload.email),
+          password: String(payload.password || ''),
+          options: {
+            emailRedirectTo: getSupabaseAuthRedirectUrl(),
+            data: {
+              name: payload.name,
+              tradeMode: payload.tradeMode,
+              broker: payload.broker,
+              locale,
             },
-          });
-          if (error) {
-            return {
-              ok: false,
-              error: classifySupabaseSignupError(error, locale),
-            };
-          }
-          const emailConfirmedImmediately = Boolean(
-            data?.user?.email_confirmed_at || data?.user?.confirmed_at,
-          );
-          await mainClient?.auth.signOut().catch(() => {});
-          if (data?.session?.access_token || emailConfirmedImmediately) {
-            return {
-              ok: false,
-              error: locale?.startsWith('zh')
-                ? '注册流程必须先经过邮箱验证。请在 Supabase Auth 里开启 Confirm email。'
-                : 'Signup must require email verification. Enable Confirm email in Supabase Auth.',
-            };
-          }
-          return {
-            ok: true,
-            pendingConfirmation: true,
-            info: locale?.startsWith('zh')
-              ? '验证邮件已经发出。请先完成邮箱验证，再回来登录。'
-              : 'Check your inbox and confirm your email before logging in.',
-          };
-        } catch (error) {
+          },
+        });
+        if (error) {
           return {
             ok: false,
             error: classifySupabaseSignupError(error, locale),
           };
         }
+        const emailConfirmedImmediately = Boolean(
+          data?.user?.email_confirmed_at || data?.user?.confirmed_at,
+        );
+        await mainClient?.auth.signOut().catch(() => {});
+        if (data?.session?.access_token || emailConfirmedImmediately) {
+          return {
+            ok: false,
+            error: locale?.startsWith('zh')
+              ? '注册流程必须先经过邮箱验证。请在 Supabase Auth 里开启 Confirm email。'
+              : 'Signup must require email verification. Enable Confirm email in Supabase Auth.',
+          };
+        }
+        return {
+          ok: true,
+          pendingConfirmation: true,
+          info: locale?.startsWith('zh')
+            ? '验证邮件已经发出。请先完成邮箱验证，再回来登录。'
+            : 'Check your inbox and confirm your email before logging in.',
+        };
+      } catch (error) {
+        return {
+          ok: false,
+          error: classifySupabaseSignupError(error, locale),
+        };
       }
-
-      return {
-        ok: false,
-        error: locale?.startsWith('zh')
-          ? 'Supabase Auth 还没有配置完成。'
-          : 'Supabase Auth is not configured yet.',
-      };
     },
     [locale],
   );
@@ -444,14 +446,6 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
           error: locale?.startsWith('zh')
             ? '请先输入有效邮箱。'
             : 'Enter a valid email address first.',
-        };
-      }
-      if (!hasSupabaseAuthBrowserConfig()) {
-        return {
-          ok: false,
-          error: locale?.startsWith('zh')
-            ? 'Supabase Auth 还没有配置完成。'
-            : 'Supabase Auth is not configured yet.',
         };
       }
       try {

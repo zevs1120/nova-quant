@@ -33,7 +33,7 @@ Production deploy is split across `app/`, `admin/`, and repository root (see roo
 Current canonical product AI path:
 
 - `AiPage` / Ask Nova / Chat sheet now share one backend assistant path via `/api/chat`
-- chat threads persist in SQLite (`chat_threads`, `chat_messages`)
+- chat threads persist in the durable runtime tables (`chat_threads`, `chat_messages`)
 - deterministic retrieval is no longer a separate frontend AI brain; it is now a backend fallback/tool
 - provider fallback now covers timeout/network/malformed/empty/rate-limit style failures, not only 429
 
@@ -369,7 +369,7 @@ Canonical files:
 
 2. Thread persistence is now first-class.
 
-- chat threads persist in SQLite via:
+- chat threads persist via:
   - `chat_threads`
   - `chat_messages`
 - page refresh no longer destroys the recent conversation state.
@@ -635,7 +635,7 @@ Focused cleanup completed (no feature expansion):
 - `src/server/evidence/engine.ts`
 - Canonical run path: `portfolio_replay` (bar/event replay + execution profile assumptions + artifacts + reconciliation).
 
-2. Added evidence-chain persistence entities in SQLite:
+2. Added evidence-chain persistence entities in the runtime store:
 
 - `strategy_versions`
 - `dataset_versions`

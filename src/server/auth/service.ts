@@ -1,6 +1,5 @@
 import { createHash, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import { getConfig } from '../config.js';
-import { getDb } from '../db/database.js';
 import {
   hasRemoteAuthStore,
   remoteDeleteKey,
@@ -101,6 +100,14 @@ function isRoleCacheValid(userId: string, cacheTime: number): boolean {
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30;
 const RESET_TTL_MS = 1000 * 60 * 15;
 const warnedSignupEmailConfigKeys = new Set<string>();
+
+type LegacyAuthShadowStore = {
+  prepare: (...args: any[]) => {
+    run: (...args: any[]) => any;
+    get: (...args: any[]) => any;
+    all: (...args: any[]) => any[];
+  };
+};
 
 export type AuthTradeMode = 'starter' | 'active' | 'deep';
 export type AuthRole = 'ADMIN' | 'OPERATOR' | 'SUPPORT';
@@ -493,7 +500,7 @@ async function getOrCreateSupabaseBackedUser(user: VerifiedSupabaseAuthUser) {
     } else if (hasRemoteAuthStore()) {
       await remoteSetJson(remoteUserKey(updatedUser.user_id), updatedUser);
     } else {
-      requireLocalSqliteAuthStore()
+      requireAuthShadowStore()
         .prepare(
           'UPDATE auth_users SET email = ?, name = ?, updated_at_ms = ?, last_login_at_ms = ? WHERE user_id = ?',
         )
@@ -539,7 +546,7 @@ async function getOrCreateSupabaseBackedUser(user: VerifiedSupabaseAuthUser) {
     await remoteSetJson(remoteUserKey(nextUser.user_id), nextUser);
     await remoteSetJson(remoteUserStateKey(nextUser.user_id), state);
   } else {
-    const db = requireLocalSqliteAuthStore();
+    const db = requireAuthShadowStore();
     // INSERT OR IGNORE prevents a UNIQUE constraint error when two concurrent
     // Supabase token verifications race to create the same user (same email).
     // If the row already exists the INSERT is silently skipped and we fall
@@ -618,7 +625,7 @@ function shouldTouchSessionActivity(lastSeenAtMs: number | null | undefined, now
 function mirrorPostgresSessionBundle(
   bundle: PostgresAuthSessionBundle | PostgresAdminSessionBundle,
 ) {
-  if (!canUseLocalSqliteAuthMirror()) return;
+  if (!canUseLocalAuthShadow()) return;
   upsertLocalAuthUser(bundle.user);
   upsertLocalAuthUserState(bundle.user.user_id, bundle.state, bundle.session.updated_at_ms);
   upsertLocalAuthSession(bundle.session);
@@ -679,23 +686,22 @@ function assertSupabaseManagedProfileStoreReady() {
   }
 }
 
-function canUseLocalSqliteAuthMirror() {
-  return process.env.NODE_ENV === 'test' && getConfig().database.driver === 'sqlite';
+function canUseLocalAuthShadow() {
+  return false;
 }
 
-function getLocalSqliteAuthMirrorDb() {
-  if (!canUseLocalSqliteAuthMirror()) return null;
-  return getDb();
+function getLocalAuthShadowStore(): LegacyAuthShadowStore | null {
+  return null;
 }
 
-function requireLocalSqliteAuthStore() {
-  const db = getLocalSqliteAuthMirrorDb();
+function requireAuthShadowStore() {
+  const db = getLocalAuthShadowStore();
   if (db) return db;
-  throw new Error('AUTH_SQLITE_STORE_UNAVAILABLE_IN_POSTGRES_RUNTIME');
+  throw new Error('AUTH_LOCAL_SHADOW_UNAVAILABLE_IN_POSTGRES_RUNTIME');
 }
 
 function upsertLocalAuthUser(user: AuthUserRow) {
-  const db = getLocalSqliteAuthMirrorDb();
+  const db = getLocalAuthShadowStore();
   if (!db) return;
   db.prepare(
     `INSERT INTO auth_users(
@@ -716,7 +722,7 @@ function upsertLocalAuthUser(user: AuthUserRow) {
 }
 
 function upsertLocalAuthUserState(userId: string, state: AuthUserState, updatedAtMs = nowMs()) {
-  const db = getLocalSqliteAuthMirrorDb();
+  const db = getLocalAuthShadowStore();
   if (!db) return;
   try {
     db.prepare(
@@ -760,7 +766,7 @@ function upsertLocalAuthUserRole(args: {
   grantedAtMs: number;
   grantedByUserId?: string | null;
 }) {
-  const db = getLocalSqliteAuthMirrorDb();
+  const db = getLocalAuthShadowStore();
   if (!db) return;
   try {
     db.prepare(
@@ -782,7 +788,7 @@ function upsertLocalAuthUserRole(args: {
 }
 
 function upsertLocalAuthSession(session: RemoteSessionRecord) {
-  const db = getLocalSqliteAuthMirrorDb();
+  const db = getLocalAuthShadowStore();
   if (!db) return;
   try {
     db.prepare(
@@ -809,7 +815,7 @@ function upsertLocalAuthSession(session: RemoteSessionRecord) {
 }
 
 function revokeLocalAuthSessionByTokenHash(tokenHash: string, ts: number) {
-  const db = getLocalSqliteAuthMirrorDb();
+  const db = getLocalAuthShadowStore();
   if (!db) return;
   db.prepare(
     'UPDATE auth_sessions SET revoked_at_ms = ?, updated_at_ms = ? WHERE session_token_hash = ? AND revoked_at_ms IS NULL',
@@ -817,7 +823,7 @@ function revokeLocalAuthSessionByTokenHash(tokenHash: string, ts: number) {
 }
 
 function revokeLocalAuthSessionsByUserId(userId: string, ts: number) {
-  const db = getLocalSqliteAuthMirrorDb();
+  const db = getLocalAuthShadowStore();
   if (!db) return;
   db.prepare(
     'UPDATE auth_sessions SET revoked_at_ms = ?, updated_at_ms = ? WHERE user_id = ? AND revoked_at_ms IS NULL',
@@ -825,7 +831,7 @@ function revokeLocalAuthSessionsByUserId(userId: string, ts: number) {
 }
 
 function ensureSeededUserLocal() {
-  const db = getLocalSqliteAuthMirrorDb();
+  const db = getLocalAuthShadowStore();
   if (!db) return;
   for (const seededUser of getSeededUserConfigs()) {
     const existing = db
@@ -991,7 +997,7 @@ function getUserByEmailLocal(email: string): AuthUserRow | null {
     ensureSeededUserLocal();
     _localSeedDone = true;
   }
-  const row = requireLocalSqliteAuthStore()
+  const row = requireAuthShadowStore()
     .prepare(
       `SELECT user_id, email, password_hash, name, trade_mode, broker, locale, created_at_ms, updated_at_ms, last_login_at_ms
        FROM auth_users WHERE email = ? LIMIT 1`,
@@ -1022,7 +1028,7 @@ function getUserByIdLocal(userId: string): AuthUserRow | null {
     ensureSeededUserLocal();
     _localSeedDone = true;
   }
-  const row = requireLocalSqliteAuthStore()
+  const row = requireAuthShadowStore()
     .prepare(
       `SELECT user_id, email, password_hash, name, trade_mode, broker, locale, created_at_ms, updated_at_ms, last_login_at_ms
        FROM auth_users WHERE user_id = ? LIMIT 1`,
@@ -1048,7 +1054,7 @@ async function getUserById(userId: string): Promise<AuthUserRow | null> {
 
 function listAuthUserRoleRowsLocal(userId: string): AuthUserRoleRow[] {
   return (
-    (requireLocalSqliteAuthStore()
+    (requireAuthShadowStore()
       .prepare(
         `SELECT user_id, role, granted_at_ms, granted_by_user_id
          FROM auth_user_roles
@@ -1154,7 +1160,7 @@ async function upsertAuthUserRole(args: {
     }, ROLE_MODIFICATION_LOOKBACK_MS);
     return;
   }
-  requireLocalSqliteAuthStore()
+  requireAuthShadowStore()
     .prepare(
       `INSERT INTO auth_user_roles(user_id, role, granted_at_ms, granted_by_user_id)
        VALUES (@user_id, @role, @granted_at_ms, @granted_by_user_id)
@@ -1193,7 +1199,7 @@ function createSessionLocal(args: {
   userAgent?: string | null;
   ipAddress?: string | null;
 }) {
-  const db = requireLocalSqliteAuthStore();
+  const db = requireAuthShadowStore();
   const token = randomBytes(24).toString('hex');
   const ts = nowMs();
   const sessionId = createId('sess');
@@ -1309,7 +1315,7 @@ export async function getAuthSession(
   }
 
   if (!hasRemoteAuthStore()) {
-    const db = requireLocalSqliteAuthStore();
+    const db = requireAuthShadowStore();
     const now = nowMs();
     const row = db
       .prepare(
@@ -1526,7 +1532,7 @@ export async function signupAuthUser(args: {
       return { ok: false as const, error: 'EMAIL_EXISTS' };
     }
     const ts = nowMs();
-    const db = requireLocalSqliteAuthStore();
+    const db = requireAuthShadowStore();
     const userId = createId('usr');
     const state = buildInitialUserState(args.tradeMode);
     db.prepare(
@@ -1699,7 +1705,7 @@ export async function loginAuthUser(args: {
   } else if (hasRemoteAuthStore()) {
     await remoteSetJson(remoteUserKey(user.user_id), updatedUser);
   } else {
-    requireLocalSqliteAuthStore()
+    requireAuthShadowStore()
       .prepare('UPDATE auth_users SET last_login_at_ms = ?, updated_at_ms = ? WHERE user_id = ?')
       .run(ts, ts, user.user_id);
   }
@@ -1762,7 +1768,7 @@ export async function logoutAuthSession(token: string | null | undefined) {
     return;
   }
   const ts = nowMs();
-  requireLocalSqliteAuthStore()
+  requireAuthShadowStore()
     .prepare(
       'UPDATE auth_sessions SET revoked_at_ms = ?, updated_at_ms = ? WHERE session_token_hash = ? AND revoked_at_ms IS NULL',
     )
@@ -1926,7 +1932,7 @@ export async function createPasswordReset(args: { email: string }) {
     };
   }
 
-  const db = requireLocalSqliteAuthStore();
+  const db = requireAuthShadowStore();
   db.prepare(
     'UPDATE auth_password_resets SET used_at_ms = ?, updated_at_ms = ? WHERE user_id = ? AND used_at_ms IS NULL',
   ).run(ts, ts, user.user_id);
@@ -2042,7 +2048,7 @@ export async function resetPasswordWithCode(args: {
     return { ok: true as const };
   }
 
-  const db = requireLocalSqliteAuthStore();
+  const db = requireAuthShadowStore();
   const row = db
     .prepare(
       `SELECT reset_id, code_hash, expires_at_ms, used_at_ms
@@ -2087,7 +2093,7 @@ export async function getAuthUserState(userId: string): Promise<AuthUserState> {
   if (hasRemoteAuthStore()) {
     return (await remoteGetJson<AuthUserState>(remoteUserStateKey(userId))) || defaultUserState();
   }
-  const row = requireLocalSqliteAuthStore()
+  const row = requireAuthShadowStore()
     .prepare(
       `SELECT asset_class, market, ui_mode, risk_profile_key, watchlist_json, holdings_json, executions_json, discipline_log_json
        FROM auth_user_state_sync
@@ -2145,7 +2151,7 @@ export async function upsertAuthUserState(userId: string, input: Partial<AuthUse
     return next;
   }
 
-  requireLocalSqliteAuthStore()
+  requireAuthShadowStore()
     .prepare(
       `INSERT INTO auth_user_state_sync(
       user_id, asset_class, market, ui_mode, risk_profile_key, watchlist_json, holdings_json, executions_json, discipline_log_json, updated_at_ms

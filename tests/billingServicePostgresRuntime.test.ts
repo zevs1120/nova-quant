@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockGetDb = vi.fn(() => {
-  throw new Error('SQLITE_SHOULD_NOT_RUN');
+  throw new Error('LEGACY_LOCAL_DB_SHOULD_NOT_RUN');
 });
 const mockQueryRowSync = vi.fn();
 const mockExecuteSync = vi.fn();
@@ -47,7 +47,7 @@ describe('billing service in postgres runtime', () => {
     vi.resetModules();
   });
 
-  it('creates a Stripe checkout session without sqlite fallback', async () => {
+  it('creates a Stripe checkout session without any legacy local fallback', async () => {
     let customerUpserted = false;
     let checkoutInserted = false;
 

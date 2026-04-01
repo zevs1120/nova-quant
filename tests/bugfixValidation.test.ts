@@ -1,6 +1,5 @@
 import { createHmac } from 'node:crypto';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -27,14 +26,12 @@ function staleSignStripePayload(payload: string, secret: string) {
 // ---------------------------------------------------------------------------
 // Shared env setup
 // ---------------------------------------------------------------------------
-let dbPath = '';
-
 function setupTestEnv() {
   vi.resetModules();
   vi.clearAllMocks();
-  dbPath = path.join(os.tmpdir(), `nova-bugfix-${Date.now()}-${Math.random()}.db`);
-  vi.stubEnv('DB_PATH', dbPath);
-  vi.stubEnv('NOVA_DATA_RUNTIME_DRIVER', 'sqlite');
+  vi.stubEnv('NOVA_DATA_RUNTIME_DRIVER', 'postgres');
+  vi.stubEnv('NOVA_DATA_DATABASE_URL', 'postgres://supabase-test-host/db');
+  vi.stubEnv('NOVA_AUTH_DATABASE_URL', 'postgres://supabase-test-host/db');
   vi.stubEnv('STRIPE_SECRET_KEY', 'sk_test_bugfix');
   vi.stubEnv('STRIPE_WEBHOOK_SECRET', 'whsec_bugfix');
   vi.stubEnv('STRIPE_PRICE_LITE_WEEKLY', 'price_lite_weekly');
@@ -44,20 +41,45 @@ function setupTestEnv() {
   vi.stubEnv('STRIPE_PRICE_PRO_MONTHLY', 'price_pro_monthly');
   vi.stubEnv('STRIPE_PRICE_PRO_ANNUAL', 'price_pro_annual');
   vi.stubEnv('NOVA_APP_URL', 'https://app.novaquant.cloud');
+  vi.stubEnv('SUPABASE_URL', '');
+  vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', '');
+  vi.stubEnv('SUPABASE_ANON_KEY', '');
+  vi.stubEnv('VITE_SUPABASE_URL', '');
+  vi.stubEnv('VITE_SUPABASE_ANON_KEY', '');
 }
 
 async function cleanupTestEnv() {
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
-  try {
-    const { closeDb } = await import('../src/server/db/database.js');
-    closeDb();
-  } catch {
-    // ignore
-  }
-  fs.rmSync(dbPath, { force: true });
-  fs.rmSync(`${dbPath}-shm`, { force: true });
-  fs.rmSync(`${dbPath}-wal`, { force: true });
+}
+
+async function seedAuthUser(userId: string, email: string) {
+  const { pgInsertUserWithState } = await import('../src/server/auth/postgresStore.js');
+  const now = Date.now();
+  await pgInsertUserWithState({
+    user: {
+      user_id: userId,
+      email,
+      password_hash: 'hash',
+      name: email.split('@')[0] || 'Bugfix User',
+      trade_mode: 'active',
+      broker: 'Other',
+      locale: 'en',
+      created_at_ms: now,
+      updated_at_ms: now,
+      last_login_at_ms: now,
+    },
+    state: {
+      assetClass: 'US_STOCK',
+      market: 'US',
+      uiMode: 'standard',
+      riskProfileKey: 'balanced',
+      watchlist: [],
+      holdings: [],
+      executions: [],
+      disciplineLog: { checkins: [], boundary_kept: [], weekly_reviews: [] },
+    },
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -117,23 +139,7 @@ describe('Issue 2 — normalizeStripeInterval safe fallback', () => {
   it('Stripe interval "week" should produce billing_cycle = weekly', async () => {
     const { processBillingWebhook, getBillingState } =
       await import('../src/server/billing/service.js');
-    const { getDb } = await import('../src/server/db/database.js');
-    const db = getDb();
-    db.prepare(
-      `INSERT INTO auth_users(user_id,email,password_hash,name,trade_mode,broker,locale,created_at_ms,updated_at_ms,last_login_at_ms)
-       VALUES(?,?,?,?,?,?,?,?,?,?)`,
-    ).run(
-      'usr_interval_test',
-      'interval@test.com',
-      'hash',
-      'Interval User',
-      'active',
-      'Other',
-      'en',
-      Date.now(),
-      Date.now(),
-      Date.now(),
-    );
+    await seedAuthUser('usr_interval_test', 'interval@test.com');
 
     const subPayload = JSON.stringify({
       id: 'evt_sub_week',
@@ -172,23 +178,7 @@ describe('Issue 2 — normalizeStripeInterval safe fallback', () => {
     // with no metadata.billing_cycle and interval='day'
     const { processBillingWebhook, getBillingState } =
       await import('../src/server/billing/service.js');
-    const { getDb } = await import('../src/server/db/database.js');
-    const db = getDb();
-    db.prepare(
-      `INSERT INTO auth_users(user_id,email,password_hash,name,trade_mode,broker,locale,created_at_ms,updated_at_ms,last_login_at_ms)
-       VALUES(?,?,?,?,?,?,?,?,?,?)`,
-    ).run(
-      'usr_fallback_cycle',
-      'fallback@test.com',
-      'hash',
-      'Fallback User',
-      'active',
-      'Other',
-      'en',
-      Date.now(),
-      Date.now(),
-      Date.now(),
-    );
+    await seedAuthUser('usr_fallback_cycle', 'fallback@test.com');
 
     const subPayload = JSON.stringify({
       id: 'evt_sub_day',
@@ -234,23 +224,7 @@ describe('Issue 3 — plan key inference by price uses metadata, not amount comp
   it('Pro subscription identified via metadata.plan_key even when amountCents < weekly Pro price', async () => {
     const { processBillingWebhook, getBillingState } =
       await import('../src/server/billing/service.js');
-    const { getDb } = await import('../src/server/db/database.js');
-    const db = getDb();
-    db.prepare(
-      `INSERT INTO auth_users(user_id,email,password_hash,name,trade_mode,broker,locale,created_at_ms,updated_at_ms,last_login_at_ms)
-       VALUES(?,?,?,?,?,?,?,?,?,?)`,
-    ).run(
-      'usr_pro_monthly',
-      'promonthly@test.com',
-      'hash',
-      'Pro Monthly',
-      'active',
-      'Other',
-      'en',
-      Date.now(),
-      Date.now(),
-      Date.now(),
-    );
+    await seedAuthUser('usr_pro_monthly', 'promonthly@test.com');
 
     // Simulate monthly Pro at $9.90 (990 cents) — less than weekly Pro 2900 cents
     const subPayload = JSON.stringify({
@@ -305,52 +279,38 @@ describe('Issue 4 — frontendReadCache invalidated after write', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Issue 5 — Concurrent Supabase user creation: SQLite path uses INSERT OR IGNORE
+// Issue 5 — Concurrent Supabase user creation: Postgres auth store stays single-writer safe
 // ---------------------------------------------------------------------------
-describe('Issue 5 — getOrCreateSupabaseBackedUser concurrent safety (SQLite)', () => {
+describe('Issue 5 — getOrCreateSupabaseBackedUser concurrent safety', () => {
   beforeEach(setupTestEnv);
   afterEach(cleanupTestEnv);
 
-  it('INSERT OR IGNORE prevents duplicate-key error when two requests race on same email', async () => {
-    const { getDb } = await import('../src/server/db/database.js');
-    const db = getDb();
-
-    const userId1 = 'usr_race_winner';
-    const userId2 = 'usr_race_loser';
+  it('rejects a second signup for the same email through the shared Postgres auth store', async () => {
+    const { signupAuthUser } = await import('../src/server/auth/service.js');
+    const { pgGetUserByEmail } = await import('../src/server/auth/postgresStore.js');
     const email = 'race@concurrent.test';
-    const now = Date.now();
+    const first = await signupAuthUser({
+      email,
+      password: 'StrongPass123',
+      name: 'Race Winner',
+      tradeMode: 'active',
+      broker: 'Other',
+    });
+    const second = await signupAuthUser({
+      email,
+      password: 'StrongPass123',
+      name: 'Race Loser',
+      tradeMode: 'active',
+      broker: 'Other',
+    });
 
-    // Simulate two concurrent INSERT OR IGNORE calls for the same email
-    const run1 = db
-      .prepare(
-        `INSERT OR IGNORE INTO auth_users(
-          user_id, email, password_hash, name, trade_mode, broker, locale,
-          created_at_ms, updated_at_ms, last_login_at_ms
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      )
-      .run(userId1, email, 'hash', 'Race Winner', 'active', 'Other', 'en', now, now, now);
-
-    // Second concurrent insert for same email — OR IGNORE silently skips
-    const run2 = db
-      .prepare(
-        `INSERT OR IGNORE INTO auth_users(
-          user_id, email, password_hash, name, trade_mode, broker, locale,
-          created_at_ms, updated_at_ms, last_login_at_ms
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      )
-      .run(userId2, email, 'hash', 'Race Loser', 'active', 'Other', 'en', now, now, now);
-
-    // First insert should succeed
-    expect(run1.changes).toBe(1);
-    // Second insert should be silently ignored (no exception, changes = 0)
-    expect(run2.changes).toBe(0);
-
-    // Only one user record exists for this email
-    const rows = db.prepare('SELECT user_id FROM auth_users WHERE email = ?').all(email) as {
-      user_id: string;
-    }[];
-    expect(rows.length).toBe(1);
-    expect(rows[0].user_id).toBe(userId1);
+    expect(first.ok).toBe(true);
+    expect(second.ok).toBe(false);
+    if (!second.ok) {
+      expect(second.error).toBe('EMAIL_EXISTS');
+    }
+    const stored = await pgGetUserByEmail(email);
+    expect(stored?.email).toBe(email);
   });
 });
 
@@ -382,23 +342,7 @@ describe('Issue 6 — createBillingPortalSession returns BILLING_PORTAL_UNAVAILA
 
     const { createBillingCheckoutSession, createBillingPortalSession } =
       await import('../src/server/billing/service.js');
-    const { getDb } = await import('../src/server/db/database.js');
-    const db = getDb();
-    db.prepare(
-      `INSERT INTO auth_users(user_id,email,password_hash,name,trade_mode,broker,locale,created_at_ms,updated_at_ms,last_login_at_ms)
-       VALUES(?,?,?,?,?,?,?,?,?,?)`,
-    ).run(
-      'usr_guest_checkout',
-      'guest@test.com',
-      'hash',
-      'Guest',
-      'active',
-      'Other',
-      'en',
-      Date.now(),
-      Date.now(),
-      Date.now(),
-    );
+    await seedAuthUser('usr_guest_checkout', 'guest@test.com');
 
     // Checkout without customer returned → no provider_customer_id stored
     await createBillingCheckoutSession({

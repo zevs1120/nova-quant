@@ -3395,7 +3395,7 @@ function buildSections(
     M: {
       title: 'Operator Guide',
       bullets: [
-        'Load OHLCV into SQLite/Supabase mirror first, then call the API or run the CLI.',
+        'Load OHLCV into the Supabase-backed runtime first, then call the API or run the CLI.',
         'Review the returned sections, grid, walk-forward, and stress blocks before publishing a strategy.',
         'If targets are missed, keep the tighter config; do not loosen filters to chase backtest performance.',
       ],

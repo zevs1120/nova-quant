@@ -9,6 +9,10 @@ function trim(value) {
   return String(value || '').trim();
 }
 
+function readDefinedGlobal(key) {
+  return trim(globalThis?.[key]);
+}
+
 function trimTrailingSlash(value) {
   return trim(value).replace(/\/+$/, '');
 }
@@ -34,6 +38,7 @@ function runtimeApiBases() {
   const envBases = unique([
     trimTrailingSlash(import.meta.env?.VITE_API_BASE_URL),
     trimTrailingSlash(import.meta.env?.VITE_PUBLIC_API_BASE_URL),
+    trimTrailingSlash(readDefinedGlobal('__NOVA_PUBLIC_API_BASE_URL__')),
   ]);
 
   if (typeof window === 'undefined') return envBases;
@@ -41,11 +46,11 @@ function runtimeApiBases() {
   const hostname = String(window.location?.hostname || '');
   const protocol = String(window.location?.protocol || 'https:');
   if (protocol === 'file:' || isLocalHost(hostname)) {
-    return unique([...envBases, 'http://127.0.0.1:8787', 'http://localhost:8787', '']);
+    return unique(['', ...envBases, 'http://127.0.0.1:8787', 'http://localhost:8787']);
   }
 
   if (hostname === 'api.novaquant.cloud') {
-    return unique([...envBases, '']);
+    return unique(['', ...envBases]);
   }
 
   if (
@@ -54,10 +59,10 @@ function runtimeApiBases() {
     hostname === 'admin.novaquant.cloud' ||
     hostname.endsWith('.novaquant.cloud')
   ) {
-    return unique([...envBases, 'https://api.novaquant.cloud', '']);
+    return unique(['', ...envBases, 'https://api.novaquant.cloud']);
   }
 
-  return unique([...envBases, 'https://api.novaquant.cloud']);
+  return unique(['', ...envBases, 'https://api.novaquant.cloud']);
 }
 
 function buildApiUrl(path, base = '') {
@@ -69,15 +74,23 @@ function buildApiUrl(path, base = '') {
 }
 
 function readStaticSupabaseBrowserConfig() {
-  const url = trim(import.meta.env?.VITE_SUPABASE_URL);
+  const url = trim(
+    import.meta.env?.VITE_SUPABASE_URL || readDefinedGlobal('__NOVA_PUBLIC_SUPABASE_URL__'),
+  );
   const anonKey = trim(
-    import.meta.env?.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env?.VITE_SUPABASE_ANON_KEY,
+    import.meta.env?.VITE_SUPABASE_PUBLISHABLE_KEY ||
+      import.meta.env?.VITE_SUPABASE_ANON_KEY ||
+      readDefinedGlobal('__NOVA_PUBLIC_SUPABASE_PUBLISHABLE_KEY__'),
   );
   if (!url || !anonKey) return null;
   return {
     url,
     anonKey,
-    redirectUrl: trim(import.meta.env?.VITE_SUPABASE_AUTH_REDIRECT_URL) || null,
+    redirectUrl:
+      trim(
+        import.meta.env?.VITE_SUPABASE_AUTH_REDIRECT_URL ||
+          readDefinedGlobal('__NOVA_PUBLIC_SUPABASE_REDIRECT_URL__'),
+      ) || null,
   };
 }
 
@@ -88,8 +101,9 @@ async function fetchRuntimeSupabaseBrowserConfig() {
   for (const base of candidates) {
     try {
       const response = await fetch(buildApiUrl('/api/auth/provider-config', base), {
-        credentials: 'include',
+        credentials: 'omit',
         mode: base ? 'cors' : undefined,
+        cache: 'no-store',
       });
       if (!response.ok) continue;
       const payload = await response.json().catch(() => null);

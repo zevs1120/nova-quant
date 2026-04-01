@@ -1,43 +1,51 @@
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { closeDb } from '../src/server/db/database.js';
-import {
-  flushRuntimeRepoMirror,
-  getRuntimeRepo,
-  getRuntimeRepoStatus,
-  resetRuntimeRepoSingleton,
-} from '../src/server/db/runtimeRepository.js';
-import { __buildSequenceResetSqlForTesting } from '../src/server/db/postgresRuntimeRepository.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+const mockClosePostgresSyncBridge = vi.fn();
+const constructorCalls: unknown[][] = [];
+
+vi.mock('../src/server/db/postgresSyncBridge.js', () => ({
+  closePostgresSyncBridge: mockClosePostgresSyncBridge,
+}));
+
+vi.mock('../src/server/db/postgresRuntimeRepository.js', () => ({
+  __buildSequenceResetSqlForTesting: (table: string) => `
+        SELECT setval(
+          '"novaquant_data"."${table}_id_seq"'::regclass,
+          CASE WHEN seq.max_id IS NULL OR seq.max_id < 1 THEN 1 ELSE seq.max_id END,
+          COALESCE(seq.max_id, 0) > 0
+        )
+        FROM (SELECT MAX(id) AS max_id FROM "novaquant_data"."${table}") AS seq;
+      `,
+  PostgresRuntimeRepository: class MockPostgresRuntimeRepository {
+    constructor(...args: unknown[]) {
+      constructorCalls.push(args);
+    }
+  },
+}));
 
 describe('runtime repository', () => {
-  const tempDirs = new Set<string>();
-
-  afterEach(() => {
-    resetRuntimeRepoSingleton();
-    try {
-      closeDb();
-    } catch {
-      // ignore already closed handles
-    }
-    vi.unstubAllEnvs();
-    for (const dir of tempDirs) {
-      fs.rmSync(dir, { recursive: true, force: true });
-    }
-    tempDirs.clear();
+  beforeEach(() => {
+    constructorCalls.length = 0;
+    vi.resetModules();
+    vi.clearAllMocks();
   });
 
-  it('reuses a single runtime repository instance and reports mirror status', async () => {
-    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nova-runtime-repo-'));
-    tempDirs.add(tempDir);
-    vi.stubEnv('DB_PATH', path.join(tempDir, 'quant.db'));
-    vi.stubEnv('NOVA_DATA_RUNTIME_DRIVER', 'sqlite');
+  afterEach(async () => {
+    const { resetRuntimeRepoSingleton } = await import('../src/server/db/runtimeRepository.js');
+    resetRuntimeRepoSingleton();
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  it('reuses a single runtime repository instance and reports postgres-only status', async () => {
+    const { flushRuntimeRepoMirror, getRuntimeRepo, getRuntimeRepoStatus } =
+      await import('../src/server/db/runtimeRepository.js');
 
     const first = getRuntimeRepo();
     const second = getRuntimeRepo();
 
     expect(first).toBe(second);
+    expect(constructorCalls).toHaveLength(1);
     expect(getRuntimeRepoStatus()).toEqual({
       initialized: true,
       mirrorEnabled: false,
@@ -45,21 +53,21 @@ describe('runtime repository', () => {
     await expect(flushRuntimeRepoMirror()).resolves.toBeUndefined();
   });
 
-  it('builds a fresh repository after reset and db close', () => {
-    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nova-runtime-repo-reset-'));
-    tempDirs.add(tempDir);
-    vi.stubEnv('DB_PATH', path.join(tempDir, 'quant.db'));
-    vi.stubEnv('NOVA_DATA_RUNTIME_DRIVER', 'sqlite');
+  it('builds a fresh repository after reset', async () => {
+    const { getRuntimeRepo, resetRuntimeRepoSingleton } =
+      await import('../src/server/db/runtimeRepository.js');
 
     const first = getRuntimeRepo();
     resetRuntimeRepoSingleton();
-    closeDb();
     const second = getRuntimeRepo();
 
     expect(second).not.toBe(first);
+    expect(constructorCalls).toHaveLength(2);
   });
 
-  it('resets postgres auto-id sequences without setting empty tables to zero', () => {
+  it('resets postgres auto-id sequences without setting empty tables to zero', async () => {
+    const { __buildSequenceResetSqlForTesting } =
+      await import('../src/server/db/postgresRuntimeRepository.js');
     const sql = __buildSequenceResetSqlForTesting('signal_deliveries');
 
     expect(sql).toContain('setval');

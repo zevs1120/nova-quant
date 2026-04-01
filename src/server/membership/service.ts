@@ -7,10 +7,7 @@ import {
   isPortfolioAwareRequest,
   normalizeMembershipPlan,
 } from '../../utils/membership.js';
-import { getConfig } from '../config.js';
-import { getDb } from '../db/database.js';
-import { quotePgIdentifier } from '../db/postgresMigration.js';
-import { ensureSchema } from '../db/schema.js';
+import { quotePgIdentifier } from '../db/postgresSql.js';
 import {
   beginTransactionSync,
   commitTransactionSync,
@@ -85,18 +82,8 @@ function isGuestUser(userId: string | null | undefined) {
   return !normalized || normalized === 'guest-default' || normalized.startsWith('guest-');
 }
 
-function isPostgresBusinessRuntime() {
-  return getConfig().database.driver === 'postgres';
-}
-
 function membershipTable(tableName: string) {
   return qualifyBusinessTable(tableName);
-}
-
-function getMembershipDb() {
-  const db = getDb();
-  ensureSchema(db);
-  return db;
 }
 
 function buildPgMembershipSchemaSql() {
@@ -110,25 +97,18 @@ function buildPgMembershipSchemaSql() {
       updated_at_ms BIGINT NOT NULL,
       PRIMARY KEY (user_id, usage_day)
     );`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS ${quotePgIdentifier('idx_membership_usage_daily_user_day')} ON ${usageTable} (user_id, usage_day);`,
     `CREATE INDEX IF NOT EXISTS ${quotePgIdentifier('idx_membership_usage_daily_recent')} ON ${usageTable} (user_id, updated_at_ms DESC);`,
   ];
 }
 
 function ensureMembershipSchema() {
-  if (!isPostgresBusinessRuntime()) {
-    getMembershipDb();
-    return;
-  }
   if (pgMembershipSchemaReady) return;
   buildPgMembershipSchemaSql().forEach((sql) => executeSync(sql));
   pgMembershipSchemaReady = true;
 }
 
 function runMembershipTransaction<T>(callback: () => T): T {
-  if (!isPostgresBusinessRuntime()) {
-    const db = getMembershipDb();
-    return db.transaction(callback)();
-  }
   beginTransactionSync();
   try {
     const result = callback();
@@ -154,18 +134,6 @@ function readGuestUsage(userId: string, usageDay: string) {
 
 function readPersistedUsage(userId: string, usageDay: string) {
   ensureMembershipSchema();
-  if (!isPostgresBusinessRuntime()) {
-    const row = getMembershipDb()
-      .prepare(
-        `SELECT user_id, usage_day, ask_nova_used, created_at_ms, updated_at_ms
-         FROM membership_usage_daily
-         WHERE user_id = ? AND usage_day = ?
-         LIMIT 1`,
-      )
-      .get(userId, usageDay) as MembershipUsageRow | undefined;
-    return Number(row?.ask_nova_used || 0);
-  }
-
   const row = queryRowSync<MembershipUsageRow>(
     `SELECT user_id, usage_day, ask_nova_used, created_at_ms, updated_at_ms
      FROM ${membershipTable('membership_usage_daily')}
@@ -179,21 +147,6 @@ function readPersistedUsage(userId: string, usageDay: string) {
 function writePersistedUsage(userId: string, usageDay: string) {
   const ts = nowMs();
   ensureMembershipSchema();
-
-  if (!isPostgresBusinessRuntime()) {
-    getMembershipDb()
-      .prepare(
-        `INSERT INTO membership_usage_daily(
-           user_id, usage_day, ask_nova_used, created_at_ms, updated_at_ms
-         )
-         VALUES (?, ?, 1, ?, ?)
-         ON CONFLICT(user_id, usage_day) DO UPDATE SET
-           ask_nova_used = membership_usage_daily.ask_nova_used + 1,
-           updated_at_ms = excluded.updated_at_ms`,
-      )
-      .run(userId, usageDay, ts, ts);
-    return;
-  }
 
   executeSync(
     `INSERT INTO ${membershipTable('membership_usage_daily')}(

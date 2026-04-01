@@ -3,18 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const ROOT = process.cwd();
-const TARGETS = [
-  'dist',
-  'build',
-  'coverage',
-  'node_modules',
-  'artifacts',
-  'release',
-  '.vercel',
-  path.join('data', 'quant.db'),
-  path.join('data', 'quant.db-wal'),
-  path.join('data', 'quant.db-shm'),
-];
+const TARGETS = ['dist', 'build', 'coverage', 'node_modules', 'artifacts', 'release', '.vercel'];
 
 function removeByName(root, targetName) {
   if (!fs.existsSync(root)) return;

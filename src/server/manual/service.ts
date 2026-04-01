@@ -1,7 +1,4 @@
 import { randomBytes } from 'node:crypto';
-import { getConfig } from '../config.js';
-import { getDb } from '../db/database.js';
-import { ensureSchema } from '../db/schema.js';
 import {
   beginTransactionSync,
   commitTransactionSync,
@@ -96,28 +93,11 @@ function parseJson<T>(value: string | null | undefined, fallback: T): T {
   }
 }
 
-function isPostgresBusinessRuntime() {
-  return getConfig().database.driver === 'postgres';
-}
-
-function getManualDb() {
-  const db = getDb();
-  ensureSchema(db);
-  return db;
-}
-
 function manualTable(tableName: string) {
   return qualifyBusinessTable(tableName);
 }
 
 function authUserExists(userId: string) {
-  if (!isPostgresBusinessRuntime()) {
-    const db = getManualDb();
-    const row = db
-      .prepare('SELECT user_id FROM auth_users WHERE user_id = ? LIMIT 1')
-      .get(userId) as { user_id: string } | undefined;
-    return Boolean(row?.user_id);
-  }
   const row = queryRowSync<{ user_id: string }>(
     'SELECT user_id FROM auth_users WHERE user_id = $1 LIMIT 1',
     [userId],
@@ -126,10 +106,6 @@ function authUserExists(userId: string) {
 }
 
 function runManualTransaction<T>(callback: () => T): T {
-  if (!isPostgresBusinessRuntime()) {
-    const db = getManualDb();
-    return db.transaction(callback)();
-  }
   beginTransactionSync();
   try {
     const result = callback();
@@ -193,77 +169,40 @@ function buildInviteCode(userId: string) {
 }
 
 function ensureManualUserState(userId: string) {
-  const existing = isPostgresBusinessRuntime()
-    ? queryRowSync<{
-        user_id: string;
-        invite_code: string;
-        referred_by_code: string | null;
-        vip_days_balance: number;
-        vip_days_redeemed_total: number;
-      }>(
-        `SELECT user_id, invite_code, referred_by_code, vip_days_balance, vip_days_redeemed_total
-         FROM ${manualTable('manual_user_state')}
-         WHERE user_id = $1
-         LIMIT 1`,
-        [userId],
-      )
-    : ((getManualDb()
-        .prepare(
-          `SELECT user_id, invite_code, referred_by_code, vip_days_balance, vip_days_redeemed_total
-           FROM manual_user_state
-           WHERE user_id = ?
-           LIMIT 1`,
-        )
-        .get(userId) as
-        | {
-            user_id: string;
-            invite_code: string;
-            referred_by_code: string | null;
-            vip_days_balance: number;
-            vip_days_redeemed_total: number;
-          }
-        | undefined) ?? null);
+  const existing = queryRowSync<{
+    user_id: string;
+    invite_code: string;
+    referred_by_code: string | null;
+    vip_days_balance: number;
+    vip_days_redeemed_total: number;
+  }>(
+    `SELECT user_id, invite_code, referred_by_code, vip_days_balance, vip_days_redeemed_total
+     FROM ${manualTable('manual_user_state')}
+     WHERE user_id = $1
+     LIMIT 1`,
+    [userId],
+  );
   if (existing) return existing;
   if (!authUserExists(userId)) return null;
 
   let inviteCode = buildInviteCode(userId);
   const ts = nowMs();
   while (
-    isPostgresBusinessRuntime()
-      ? queryRowSync<{ user_id: string }>(
-          `SELECT user_id FROM ${manualTable('manual_user_state')} WHERE invite_code = $1 LIMIT 1`,
-          [inviteCode],
-        )
-      : ((getManualDb()
-          .prepare('SELECT user_id FROM manual_user_state WHERE invite_code = ? LIMIT 1')
-          .get(inviteCode) as { user_id: string } | undefined) ?? null)
+    queryRowSync<{ user_id: string }>(
+      `SELECT user_id FROM ${manualTable('manual_user_state')} WHERE invite_code = $1 LIMIT 1`,
+      [inviteCode],
+    )
   ) {
     inviteCode = `${buildInviteCode(userId)}${randomBytes(2).toString('hex').toUpperCase()}`;
   }
 
   try {
-    if (isPostgresBusinessRuntime()) {
-      executeSync(
-        `INSERT INTO ${manualTable('manual_user_state')}(
-          user_id, invite_code, referred_by_code, vip_days_balance, vip_days_redeemed_total, updated_at_ms
-        ) VALUES($1, $2, NULL, 0, 0, $3)`,
-        [userId, inviteCode, ts],
-      );
-    } else {
-      getManualDb()
-        .prepare(
-          `INSERT INTO manual_user_state(
-            user_id, invite_code, referred_by_code, vip_days_balance, vip_days_redeemed_total, updated_at_ms
-          ) VALUES(
-            @user_id, @invite_code, NULL, 0, 0, @updated_at_ms
-          )`,
-        )
-        .run({
-          user_id: userId,
-          invite_code: inviteCode,
-          updated_at_ms: ts,
-        });
-    }
+    executeSync(
+      `INSERT INTO ${manualTable('manual_user_state')}(
+        user_id, invite_code, referred_by_code, vip_days_balance, vip_days_redeemed_total, updated_at_ms
+      ) VALUES($1, $2, NULL, 0, 0, $3)`,
+      [userId, inviteCode, ts],
+    );
   } catch (error) {
     const message = String((error as Error)?.message || error || '');
     if (
@@ -286,24 +225,14 @@ function ensureManualUserState(userId: string) {
 }
 
 function currentPointsBalance(userId: string) {
-  const row = isPostgresBusinessRuntime()
-    ? queryRowSync<{ balance_after: number }>(
-        `SELECT balance_after
-         FROM ${manualTable('manual_points_ledger')}
-         WHERE user_id = $1
-         ORDER BY created_at_ms DESC
-         LIMIT 1`,
-        [userId],
-      )
-    : ((getManualDb()
-        .prepare(
-          `SELECT balance_after
-           FROM manual_points_ledger
-           WHERE user_id = ?
-           ORDER BY created_at_ms DESC
-           LIMIT 1`,
-        )
-        .get(userId) as { balance_after: number } | undefined) ?? null);
+  const row = queryRowSync<{ balance_after: number }>(
+    `SELECT balance_after
+     FROM ${manualTable('manual_points_ledger')}
+     WHERE user_id = $1
+     ORDER BY created_at_ms DESC
+     LIMIT 1`,
+    [userId],
+  );
   return Number(row?.balance_after || 0);
 }
 
@@ -327,77 +256,39 @@ function appendPointsLedger(args: {
     metadata_json: JSON.stringify(args.metadata || {}),
     created_at_ms: nowMs(),
   };
-  if (isPostgresBusinessRuntime()) {
-    executeSync(
-      `INSERT INTO ${manualTable('manual_points_ledger')}(
-        entry_id, user_id, event_type, points_delta, balance_after, metadata_json, created_at_ms
-      ) VALUES($1, $2, $3, $4, $5, $6, $7)`,
-      [
-        payload.entry_id,
-        payload.user_id,
-        payload.event_type,
-        payload.points_delta,
-        payload.balance_after,
-        payload.metadata_json,
-        payload.created_at_ms,
-      ],
-    );
-  } else {
-    getManualDb()
-      .prepare(
-        `INSERT INTO manual_points_ledger(
-          entry_id, user_id, event_type, points_delta, balance_after, metadata_json, created_at_ms
-        ) VALUES(
-          @entry_id, @user_id, @event_type, @points_delta, @balance_after, @metadata_json, @created_at_ms
-        )`,
-      )
-      .run(payload);
-  }
+  executeSync(
+    `INSERT INTO ${manualTable('manual_points_ledger')}(
+      entry_id, user_id, event_type, points_delta, balance_after, metadata_json, created_at_ms
+    ) VALUES($1, $2, $3, $4, $5, $6, $7)`,
+    [
+      payload.entry_id,
+      payload.user_id,
+      payload.event_type,
+      payload.points_delta,
+      payload.balance_after,
+      payload.metadata_json,
+      payload.created_at_ms,
+    ],
+  );
   return balanceAfter;
 }
 
 function listPointsLedger(userId: string, limit = 8): ManualDashboard['ledger'] {
-  const rows = (
-    isPostgresBusinessRuntime()
-      ? queryRowsSync<{
-          entry_id: string;
-          event_type: string;
-          points_delta: number;
-          balance_after: number;
-          metadata_json: string | null;
-          created_at_ms: number;
-        }>(
-          `SELECT entry_id, event_type, points_delta, balance_after, metadata_json, created_at_ms
-         FROM ${manualTable('manual_points_ledger')}
-         WHERE user_id = $1
-         ORDER BY created_at_ms DESC
-         LIMIT $2`,
-          [userId, limit],
-        )
-      : (getManualDb()
-          .prepare(
-            `SELECT entry_id, event_type, points_delta, balance_after, metadata_json, created_at_ms
-           FROM manual_points_ledger
-           WHERE user_id = ?
-           ORDER BY created_at_ms DESC
-           LIMIT ?`,
-          )
-          .all(userId, limit) as Array<{
-          entry_id: string;
-          event_type: string;
-          points_delta: number;
-          balance_after: number;
-          metadata_json: string | null;
-          created_at_ms: number;
-        }>)
-  ) as Array<{
+  const rows = queryRowsSync<{
     entry_id: string;
     event_type: string;
     points_delta: number;
     balance_after: number;
     metadata_json: string | null;
     created_at_ms: number;
-  }>;
+  }>(
+    `SELECT entry_id, event_type, points_delta, balance_after, metadata_json, created_at_ms
+     FROM ${manualTable('manual_points_ledger')}
+     WHERE user_id = $1
+     ORDER BY created_at_ms DESC
+     LIMIT $2`,
+    [userId, limit],
+  );
 
   return rows.map((row) => {
     const metadata = parseJson<LedgerMetadata>(row.metadata_json, {});
@@ -414,80 +305,7 @@ function listPointsLedger(userId: string, limit = 8): ManualDashboard['ledger'] 
 }
 
 function listPredictionMarkets(userId: string): ManualDashboard['predictions'] {
-  const rows = (
-    isPostgresBusinessRuntime()
-      ? queryRowsSync<{
-          market_id: string;
-          prompt: string;
-          market: string | null;
-          symbol: string | null;
-          status: string;
-          closes_at_ms: number;
-          resolves_at_ms: number | null;
-          options_json: string;
-          selected_option: string | null;
-          entry_status: string | null;
-          points_staked: number | null;
-          points_awarded: number | null;
-        }>(
-          `SELECT
-           m.market_id,
-           m.prompt,
-           m.market,
-           m.symbol,
-           m.status,
-           m.closes_at_ms,
-           m.resolves_at_ms,
-           m.options_json,
-           e.selected_option,
-           e.status AS entry_status,
-           e.points_staked,
-           e.points_awarded
-         FROM ${manualTable('manual_prediction_markets')} m
-         LEFT JOIN ${manualTable('manual_prediction_entries')} e
-           ON e.market_id = m.market_id AND e.user_id = $1
-         WHERE m.status IN ('OPEN', 'LOCKED', 'RESOLVED')
-         ORDER BY m.closes_at_ms ASC, m.created_at_ms DESC
-         LIMIT 12`,
-          [userId],
-        )
-      : (getManualDb()
-          .prepare(
-            `SELECT
-             m.market_id,
-             m.prompt,
-             m.market,
-             m.symbol,
-             m.status,
-             m.closes_at_ms,
-             m.resolves_at_ms,
-             m.options_json,
-             e.selected_option,
-             e.status AS entry_status,
-             e.points_staked,
-             e.points_awarded
-           FROM manual_prediction_markets m
-           LEFT JOIN manual_prediction_entries e
-             ON e.market_id = m.market_id AND e.user_id = ?
-           WHERE m.status IN ('OPEN', 'LOCKED', 'RESOLVED')
-           ORDER BY m.closes_at_ms ASC, m.created_at_ms DESC
-           LIMIT 12`,
-          )
-          .all(userId) as Array<{
-          market_id: string;
-          prompt: string;
-          market: string | null;
-          symbol: string | null;
-          status: string;
-          closes_at_ms: number;
-          resolves_at_ms: number | null;
-          options_json: string;
-          selected_option: string | null;
-          entry_status: string | null;
-          points_staked: number | null;
-          points_awarded: number | null;
-        }>)
-  ) as Array<{
+  const rows = queryRowsSync<{
     market_id: string;
     prompt: string;
     market: string | null;
@@ -500,7 +318,28 @@ function listPredictionMarkets(userId: string): ManualDashboard['predictions'] {
     entry_status: string | null;
     points_staked: number | null;
     points_awarded: number | null;
-  }>;
+  }>(
+    `SELECT
+       m.market_id,
+       m.prompt,
+       m.market,
+       m.symbol,
+       m.status,
+       m.closes_at_ms,
+       m.resolves_at_ms,
+       m.options_json,
+       e.selected_option,
+       e.status AS entry_status,
+       e.points_staked,
+       e.points_awarded
+     FROM ${manualTable('manual_prediction_markets')} m
+     LEFT JOIN ${manualTable('manual_prediction_entries')} e
+       ON e.market_id = m.market_id AND e.user_id = $1
+     WHERE m.status IN ('OPEN', 'LOCKED', 'RESOLVED')
+     ORDER BY m.closes_at_ms ASC, m.created_at_ms DESC
+     LIMIT 12`,
+    [userId],
+  );
 
   return rows.map((row) => ({
     id: row.market_id,
@@ -530,25 +369,14 @@ export function getManualDashboard(userId: string | null | undefined): ManualDas
   const userState = ensureManualUserState(normalizedUserId);
   if (!userState) return defaultDashboard(null);
   const balance = currentPointsBalance(normalizedUserId);
-  const referralCounts = isPostgresBusinessRuntime()
-    ? queryRowSync<{ total: number | null; rewarded: number | null }>(
-        `SELECT
-           COUNT(*) AS total,
-           SUM(CASE WHEN status = 'REWARDED' THEN 1 ELSE 0 END) AS rewarded
-         FROM ${manualTable('manual_referrals')}
-         WHERE inviter_user_id = $1`,
-        [normalizedUserId],
-      )
-    : ((getManualDb()
-        .prepare(
-          `SELECT
-             COUNT(*) AS total,
-             SUM(CASE WHEN status = 'REWARDED' THEN 1 ELSE 0 END) AS rewarded
-           FROM manual_referrals
-           WHERE inviter_user_id = ?`,
-        )
-        .get(normalizedUserId) as { total: number | null; rewarded: number | null } | undefined) ??
-      null);
+  const referralCounts = queryRowSync<{ total: number | null; rewarded: number | null }>(
+    `SELECT
+       COUNT(*) AS total,
+       SUM(CASE WHEN status = 'REWARDED' THEN 1 ELSE 0 END) AS rewarded
+     FROM ${manualTable('manual_referrals')}
+     WHERE inviter_user_id = $1`,
+    [normalizedUserId],
+  );
 
   return {
     available: true,
@@ -595,42 +423,30 @@ export function redeemManualVipDay(args: { userId: string; days?: number }) {
   const cost = days * VIP_REDEEM_POINTS;
   try {
     runManualTransaction(() => {
-      const balance = isPostgresBusinessRuntime()
-        ? (() => {
-            const row = queryRowSync<{ balance_after: number }>(
-              `SELECT balance_after
-               FROM ${manualTable('manual_points_ledger')}
-               WHERE user_id = $1
-               ORDER BY created_at_ms DESC
-               LIMIT 1
-               FOR UPDATE`,
-              [userId],
-            );
-            return Number(row?.balance_after || 0);
-          })()
-        : currentPointsBalance(userId);
+      const balance = (() => {
+        const row = queryRowSync<{ balance_after: number }>(
+          `SELECT balance_after
+           FROM ${manualTable('manual_points_ledger')}
+           WHERE user_id = $1
+           ORDER BY created_at_ms DESC
+           LIMIT 1
+           FOR UPDATE`,
+          [userId],
+        );
+        return Number(row?.balance_after || 0);
+      })();
       if (balance < cost) {
         throw Object.assign(new Error('INSUFFICIENT_POINTS'), {
           __manualEarlyReturn: true,
         });
       }
       const ts = nowMs();
-      if (isPostgresBusinessRuntime()) {
-        executeSync(
-          `UPDATE ${manualTable('manual_user_state')}
-           SET vip_days_balance = vip_days_balance + $1, vip_days_redeemed_total = vip_days_redeemed_total + $2, updated_at_ms = $3
-           WHERE user_id = $4`,
-          [days, days, ts, userId],
-        );
-      } else {
-        getManualDb()
-          .prepare(
-            `UPDATE manual_user_state
-             SET vip_days_balance = vip_days_balance + ?, vip_days_redeemed_total = vip_days_redeemed_total + ?, updated_at_ms = ?
-             WHERE user_id = ?`,
-          )
-          .run(days, days, ts, userId);
-      }
+      executeSync(
+        `UPDATE ${manualTable('manual_user_state')}
+         SET vip_days_balance = vip_days_balance + $1, vip_days_redeemed_total = vip_days_redeemed_total + $2, updated_at_ms = $3
+         WHERE user_id = $4`,
+        [days, days, ts, userId],
+      );
       appendPointsLedger({
         userId,
         eventType: 'VIP_REDEEM',
@@ -668,62 +484,29 @@ export function claimManualReferral(args: { userId: string; inviteCode: string }
   if (currentUserState.referred_by_code)
     return { ok: false as const, error: 'REFERRAL_ALREADY_CLAIMED' };
 
-  const inviter = isPostgresBusinessRuntime()
-    ? queryRowSync<{ user_id: string }>(
-        `SELECT user_id
-         FROM ${manualTable('manual_user_state')}
-         WHERE invite_code = $1
-         LIMIT 1`,
-        [inviteCode],
-      )
-    : ((getManualDb()
-        .prepare(
-          `SELECT user_id
-           FROM manual_user_state
-           WHERE invite_code = ?
-           LIMIT 1`,
-        )
-        .get(inviteCode) as { user_id: string } | undefined) ?? null);
+  const inviter = queryRowSync<{ user_id: string }>(
+    `SELECT user_id
+     FROM ${manualTable('manual_user_state')}
+     WHERE invite_code = $1
+     LIMIT 1`,
+    [inviteCode],
+  );
   if (!inviter) return { ok: false as const, error: 'INVITE_CODE_INVALID' };
 
   const ts = nowMs();
   runManualTransaction(() => {
-    if (isPostgresBusinessRuntime()) {
-      executeSync(
-        `UPDATE ${manualTable('manual_user_state')}
-         SET referred_by_code = $1, updated_at_ms = $2
-         WHERE user_id = $3`,
-        [inviteCode, ts, userId],
-      );
-      executeSync(
-        `INSERT INTO ${manualTable('manual_referrals')}(
-          referral_id, inviter_user_id, invite_code, referred_user_id, status, reward_points, created_at_ms, updated_at_ms
-        ) VALUES($1, $2, $3, $4, 'REWARDED', $5, $6, $7)`,
-        [createId('ref'), inviter.user_id, inviteCode, userId, REFERRAL_REWARD_POINTS, ts, ts],
-      );
-    } else {
-      const db = getManualDb();
-      db.prepare(
-        `UPDATE manual_user_state
-         SET referred_by_code = ?, updated_at_ms = ?
-         WHERE user_id = ?`,
-      ).run(inviteCode, ts, userId);
-      db.prepare(
-        `INSERT INTO manual_referrals(
-          referral_id, inviter_user_id, invite_code, referred_user_id, status, reward_points, created_at_ms, updated_at_ms
-        ) VALUES(
-          @referral_id, @inviter_user_id, @invite_code, @referred_user_id, 'REWARDED', @reward_points, @created_at_ms, @updated_at_ms
-        )`,
-      ).run({
-        referral_id: createId('ref'),
-        inviter_user_id: inviter.user_id,
-        invite_code: inviteCode,
-        referred_user_id: userId,
-        reward_points: REFERRAL_REWARD_POINTS,
-        created_at_ms: ts,
-        updated_at_ms: ts,
-      });
-    }
+    executeSync(
+      `UPDATE ${manualTable('manual_user_state')}
+       SET referred_by_code = $1, updated_at_ms = $2
+       WHERE user_id = $3`,
+      [inviteCode, ts, userId],
+    );
+    executeSync(
+      `INSERT INTO ${manualTable('manual_referrals')}(
+        referral_id, inviter_user_id, invite_code, referred_user_id, status, reward_points, created_at_ms, updated_at_ms
+      ) VALUES($1, $2, $3, $4, 'REWARDED', $5, $6, $7)`,
+      [createId('ref'), inviter.user_id, inviteCode, userId, REFERRAL_REWARD_POINTS, ts, ts],
+    );
     appendPointsLedger({
       userId: inviter.user_id,
       eventType: 'REFERRAL_REWARD',
@@ -767,36 +550,19 @@ export function submitManualPredictionEntry(args: {
     return { ok: false as const, error: 'PREDICTION_INPUT_REQUIRED' };
   }
 
-  const market = isPostgresBusinessRuntime()
-    ? queryRowSync<{
-        market_id: string;
-        prompt: string;
-        options_json: string;
-        status: string;
-        closes_at_ms: number;
-      }>(
-        `SELECT market_id, prompt, options_json, status, closes_at_ms
-         FROM ${manualTable('manual_prediction_markets')}
-         WHERE market_id = $1
-         LIMIT 1`,
-        [marketId],
-      )
-    : ((getManualDb()
-        .prepare(
-          `SELECT market_id, prompt, options_json, status, closes_at_ms
-           FROM manual_prediction_markets
-           WHERE market_id = ?
-           LIMIT 1`,
-        )
-        .get(marketId) as
-        | {
-            market_id: string;
-            prompt: string;
-            options_json: string;
-            status: string;
-            closes_at_ms: number;
-          }
-        | undefined) ?? null);
+  const market = queryRowSync<{
+    market_id: string;
+    prompt: string;
+    options_json: string;
+    status: string;
+    closes_at_ms: number;
+  }>(
+    `SELECT market_id, prompt, options_json, status, closes_at_ms
+     FROM ${manualTable('manual_prediction_markets')}
+     WHERE market_id = $1
+     LIMIT 1`,
+    [marketId],
+  );
   if (!market) return { ok: false as const, error: 'PREDICTION_NOT_FOUND' };
   if (market.status !== 'OPEN' || market.closes_at_ms <= nowMs()) {
     return { ok: false as const, error: 'PREDICTION_CLOSED' };
@@ -805,54 +571,25 @@ export function submitManualPredictionEntry(args: {
   if (!options.some((item) => item?.key === selectedOption)) {
     return { ok: false as const, error: 'PREDICTION_OPTION_INVALID' };
   }
-  const existing = isPostgresBusinessRuntime()
-    ? queryRowSync<{ entry_id: string }>(
-        `SELECT entry_id
-         FROM ${manualTable('manual_prediction_entries')}
-         WHERE market_id = $1 AND user_id = $2
-         LIMIT 1`,
-        [marketId, userId],
-      )
-    : ((getManualDb()
-        .prepare(
-          `SELECT entry_id
-           FROM manual_prediction_entries
-           WHERE market_id = ? AND user_id = ?
-           LIMIT 1`,
-        )
-        .get(marketId, userId) as { entry_id: string } | undefined) ?? null);
+  const existing = queryRowSync<{ entry_id: string }>(
+    `SELECT entry_id
+     FROM ${manualTable('manual_prediction_entries')}
+     WHERE market_id = $1 AND user_id = $2
+     LIMIT 1`,
+    [marketId, userId],
+  );
   if (existing) return { ok: false as const, error: 'PREDICTION_ALREADY_SUBMITTED' };
   const balance = currentPointsBalance(userId);
   if (pointsStaked > balance) return { ok: false as const, error: 'INSUFFICIENT_POINTS' };
 
   runManualTransaction(() => {
     const ts = nowMs();
-    if (isPostgresBusinessRuntime()) {
-      executeSync(
-        `INSERT INTO ${manualTable('manual_prediction_entries')}(
-          entry_id, market_id, user_id, selected_option, status, points_staked, points_awarded, created_at_ms, updated_at_ms
-        ) VALUES($1, $2, $3, $4, 'OPEN', $5, 0, $6, $7)`,
-        [createId('pred'), marketId, userId, selectedOption, pointsStaked, ts, ts],
-      );
-    } else {
-      getManualDb()
-        .prepare(
-          `INSERT INTO manual_prediction_entries(
-            entry_id, market_id, user_id, selected_option, status, points_staked, points_awarded, created_at_ms, updated_at_ms
-          ) VALUES(
-            @entry_id, @market_id, @user_id, @selected_option, 'OPEN', @points_staked, 0, @created_at_ms, @updated_at_ms
-          )`,
-        )
-        .run({
-          entry_id: createId('pred'),
-          market_id: marketId,
-          user_id: userId,
-          selected_option: selectedOption,
-          points_staked: pointsStaked,
-          created_at_ms: ts,
-          updated_at_ms: ts,
-        });
-    }
+    executeSync(
+      `INSERT INTO ${manualTable('manual_prediction_entries')}(
+        entry_id, market_id, user_id, selected_option, status, points_staked, points_awarded, created_at_ms, updated_at_ms
+      ) VALUES($1, $2, $3, $4, 'OPEN', $5, 0, $6, $7)`,
+      [createId('pred'), marketId, userId, selectedOption, pointsStaked, ts, ts],
+    );
     if (pointsStaked > 0) {
       appendPointsLedger({
         userId,

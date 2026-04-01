@@ -1,6 +1,4 @@
 import { randomUUID } from 'node:crypto';
-import { getConfig } from '../config.js';
-import { getDb } from '../db/database.js';
 import type { MarketRepository } from '../db/repository.js';
 import { qualifyBusinessTable, queryRowsSync } from '../db/postgresSyncBridge.js';
 
@@ -33,28 +31,14 @@ export function recordAuditEvent(
 }
 
 function readChatAuditSummary() {
-  if (getConfig().database.driver === 'postgres') {
-    return queryRowsSync<Array<{ provider: string; status: string; count: number }>[number]>(
-      `
-        SELECT provider, status, COUNT(*) AS count
-        FROM ${qualifyBusinessTable('chat_audit_logs')}
-        GROUP BY provider, status
-        ORDER BY count DESC
-      `,
-    );
-  }
-  const db = getDb();
-  const rows = db
-    .prepare(
-      `
-        SELECT provider, status, COUNT(*) AS count
-        FROM chat_audit_logs
-        GROUP BY provider, status
-        ORDER BY count DESC
-      `,
-    )
-    .all() as Array<{ provider: string; status: string; count: number }>;
-  return rows;
+  return queryRowsSync<Array<{ provider: string; status: string; count: number }>[number]>(
+    `
+      SELECT provider, status, COUNT(*) AS count
+      FROM ${qualifyBusinessTable('chat_audit_logs')}
+      GROUP BY provider, status
+      ORDER BY count DESC
+    `,
+  );
 }
 
 export function buildObservabilitySummary(repo: MarketRepository) {

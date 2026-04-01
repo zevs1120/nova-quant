@@ -41,9 +41,9 @@ nova-quant/
 | ---------- | --------------------------------------------------------- |
 | 前端框架   | React 18 + Vite 5, JSX                                    |
 | 后端框架   | Express 5 (TypeScript)                                    |
-| 业务数据库 | SQLite (better-sqlite3) — `data/quant.db`                 |
-| 业务镜像   | Supabase Postgres (可选，镜像写入 + 优先读取)             |
-| 认证体系   | Supabase Auth (原生生产推荐) / SQLite (本地Mock回退)      |
+| 业务数据库 | Supabase Postgres — `NOVA_DATA_DATABASE_URL`              |
+| 运行时桥接 | Postgres runtime repository + in-memory test harness      |
+| 认证体系   | Supabase Auth + Postgres profile/session store            |
 | 类型检查   | TypeScript 5.9                                            |
 | 测试框架   | Vitest 4 + Supertest                                      |
 | 部署平台   | Vercel (前端 + API) / AWS EC2 (模型 + 后端自动化)         |
@@ -85,7 +85,7 @@ nova-quant/
 │   │
 │   └── server/                   # 后端核心 (41 个子模块)
 │       ├── api/                  # API 路由 & 查询层 (109 条路由)
-│       ├── auth/                 # 认证 (Supabase Native / SQLite)
+│       ├── auth/                 # 认证 (Supabase Native / Postgres store)
 │       ├── billing/              # 账单及 Stripe 支付集成
 │       ├── membership/           # 会员等级网关与订阅状态判断
 │       ├── outcome/              # 策略成果判定与解析
@@ -162,7 +162,7 @@ nova-quant/
 │   ├── models/                   # 预训练模型挂载点 (.pkl)
 │   └── pyproject.toml            # uv 依赖清单 (pyqlib 等)
 │
-├── data/                         # 运行时数据 (quant.db, 不入库)
+├── data/                         # 数据快照 / 研究输入（不作为运行时主库）
 ├── public/                       # 静态公共资源
 └── copilot/                      # Copilot 集成 (预留)
 ```
@@ -176,7 +176,7 @@ nova-quant/
 │                          数据摄取层                                  │
 │  Massive.com ──┐                                                    │
 │  Stooq ────────┤                                                    │
-│  Binance ──────┼──→ normalize ──→ SQLite (ohlcv_bars) ──→ 验证      │
+│  Binance ──────┼──→ normalize ──→ Postgres runtime tables ──→ 验证   │
 │  Yahoo ────────┤                                                    │
 │  Nasdaq ───────┘                                                    │
 └─────────────────────────────────────────────────────────────────────┘
@@ -244,7 +244,7 @@ nova-quant/
 | 文件                   | 职责                      | 大小   |
 | ---------------------- | ------------------------- | ------ |
 | `app.ts`               | Express 应用 (109 条路由) | 63 KB  |
-| `queries.ts`           | SQLite 查询封装           | 140 KB |
+| `queries.ts`           | Runtime 查询编排封装      | 140 KB |
 | `authHandlers.ts`      | 认证路由处理              | 9 KB   |
 | `adminHandlers.ts`     | 管理端路由处理            | 5 KB   |
 | `modelHandlers.ts`     | 模型/信号摄入路由         | 10 KB  |
@@ -254,13 +254,13 @@ nova-quant/
 
 | 文件                        | 职责                                    | 大小   |
 | --------------------------- | --------------------------------------- | ------ |
-| `schema.ts`                 | 全部 SQLite 表定义 & 迁移               | 49 KB  |
-| `repository.ts`             | 数据访问层 (CRUD 操作)                  | 128 KB |
-| `database.ts`               | 连接管理 & WAL 模式配置                 | 2 KB   |
+| `schema.ts`                 | 业务表 bootstrap SQL                    | 49 KB  |
+| `repository.ts`             | 同步数据访问层 (CRUD 操作)              | 128 KB |
+| `database.ts`               | 测试用 in-memory runtime 入口           | 2 KB   |
 | `postgresBusinessMirror.ts` | Supabase 写镜像 (Proxy 拦截 20+ 写操作) | 新增   |
-| `postgresMigration.ts`      | SQLite → Supabase 批量迁移工具          | 新增   |
+| `postgresSql.ts`            | Postgres SQL helpers                    | 新增   |
 
-**主要 SQLite 表**: `ohlcv_bars`, `runtime_state`, `decision_snapshots`, `chat_threads`, `chat_messages`, `evidence_runs`, `alpha_candidates`, `alpha_evaluations`, `alpha_shadow_observations`, `alpha_lifecycle_events`, `manual_signals`, `engagement_state` 等
+**主要运行时表**: `ohlcv_bars`, `runtime_state`, `decision_snapshots`, `chat_threads`, `chat_messages`, `evidence_runs`, `alpha_candidates`, `alpha_evaluations`, `alpha_shadow_observations`, `alpha_lifecycle_events`, `manual_signals`, `engagement_state` 等
 
 ### 6.3 认证层 (`src/server/auth/`)
 
@@ -428,7 +428,7 @@ src/research/
 | `UsersPage.jsx`            | 用户管理                        |
 | `SignalsExecutionPage.jsx` | 信号与执行监控                  |
 
-**Admin 数据源**: 当 `NOVA_DATA_DATABASE_URL` 已配置时，Admin 页面优先从 Supabase Postgres 镜像读取数据 (`src/server/admin/postgresBusinessRead.ts`)，失败时回退到 SQLite。
+**Admin 数据源**: Admin 页面从 Supabase/Postgres 运行时读取数据（`src/server/admin/postgresBusinessRead.ts`），并与共享 runtime 保持一致。
 
 ---
 
@@ -470,7 +470,7 @@ src/research/
 
 ```
 ┌────────────────────────┐     ┌──────────────────────┐
-│     SQLite (quant.db)  │     │     Postgres (Auth)  │
+│  Postgres (Business)   │     │     Postgres (Auth)  │
 │  ──────────────────    │     │  ──────────────────  │
 │  ohlcv_bars            │     │  users               │
 │  runtime_state         │     │  sessions            │
@@ -513,23 +513,20 @@ src/research/
 
 ### 12.3 关键运维脚本 (`scripts/`)
 
-| 脚本                              | 用途                        |
-| --------------------------------- | --------------------------- |
-| `auto-backend.ts`                 | 自动化后端运维循环          |
-| `auto-quant-engine.mjs`           | 自动化量化引擎 (91 KB)      |
-| `backfill.ts`                     | 数据回填                    |
-| `db-init.ts` / `db-migrate.ts`    | 数据库初始化 & 迁移         |
-| `derive-runtime-state.ts`         | 运行时状态推导              |
-| `massive-smoke-test.ts`           | Massive API 冒烟测试        |
-| `run-alpha-discovery.ts`          | Alpha 发现循环              |
-| `run-evidence.ts`                 | 证据引擎执行                |
-| `run-nova-strategy-lab.ts`        | 策略实验室                  |
-| `migrate-auth-to-postgres.ts`     | 认证迁移到 Postgres         |
-| `migrate-business-to-postgres.ts` | 业务数据迁移到 Supabase     |
-| `audit-business-db-migration.ts`  | 迁移后行数一致性审计        |
-| `check-platform-readiness.mjs`    | 平台就绪预检 (Supabase/EC2) |
-| `package-source.mjs`              | 源码打包 (DD 用)            |
-| `version-manager.mjs`             | SemVer 版本管理             |
+| 脚本                           | 用途                        |
+| ------------------------------ | --------------------------- |
+| `auto-backend.ts`              | 自动化后端运维循环          |
+| `auto-quant-engine.mjs`        | 自动化量化引擎 (91 KB)      |
+| `backfill.ts`                  | 数据回填                    |
+| `db-init.ts` / `db-migrate.ts` | 数据库初始化 & 迁移         |
+| `derive-runtime-state.ts`      | 运行时状态推导              |
+| `massive-smoke-test.ts`        | Massive API 冒烟测试        |
+| `run-alpha-discovery.ts`       | Alpha 发现循环              |
+| `run-evidence.ts`              | 证据引擎执行                |
+| `run-nova-strategy-lab.ts`     | 策略实验室                  |
+| `check-platform-readiness.mjs` | 平台就绪预检 (Supabase/EC2) |
+| `package-source.mjs`           | 源码打包 (DD 用)            |
+| `version-manager.mjs`          | SemVer 版本管理             |
 
 ---
 
@@ -596,7 +593,6 @@ API/运行时输出使用的显式状态标签:
 | `GROQ_API_KEY`                   | Groq LLM                              |
 | `STRIPE_SECRET_KEY`              | Stripe 计费门户后端通信密钥           |
 | `STRIPE_WEBHOOK_SECRET`          | Stripe Webhook 安全验签密钥           |
-| `DB_PATH`                        | 自定义 SQLite 路径                    |
 | `SERVE_WEB_DIST`                 | EC2 单机部署模式                      |
 
 ---
@@ -606,7 +602,6 @@ API/运行时输出使用的显式状态标签:
 ```bash
 # 首次克隆
 npm ci
-npm run db:init
 npm run backfill -- --market CRYPTO --tf 1h
 npm run validate:data -- --tf 1h --lookbackBars 800
 npm run derive:runtime

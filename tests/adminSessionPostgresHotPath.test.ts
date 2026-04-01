@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockGetDb = vi.fn(() => {
-  throw new Error('SQLITE_SHOULD_NOT_RUN');
+  throw new Error('LEGACY_LOCAL_DB_SHOULD_NOT_RUN');
 });
 const mockPgGetUserByEmail = vi.fn(async () => null);
 const mockPgGetSessionBundle = vi.fn<

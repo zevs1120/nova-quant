@@ -23,8 +23,6 @@ const EXCLUDES = [
   '.DS_Store',
   'data/*.db',
   'data/*.db-*',
-  'data/*.sqlite',
-  'data/*.sqlite-*',
   '*.wal',
   '*.shm',
 ];

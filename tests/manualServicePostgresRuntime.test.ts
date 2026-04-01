@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockGetDb = vi.fn(() => {
-  throw new Error('SQLITE_SHOULD_NOT_RUN');
+  throw new Error('LEGACY_LOCAL_DB_SHOULD_NOT_RUN');
 });
 const mockQueryRowSync = vi.fn();
 const mockQueryRowsSync = vi.fn();
@@ -56,7 +56,7 @@ describe('manual service in postgres runtime', () => {
     expect(mockGetDb).not.toHaveBeenCalled();
   });
 
-  it('redeems vip days through postgres queries without sqlite fallback', async () => {
+  it('redeems vip days through postgres queries without any legacy local fallback', async () => {
     mockQueryRowSync.mockImplementation((sql: string) => {
       if (
         sql.includes('FROM "novaquant_data"."manual_user_state"') &&

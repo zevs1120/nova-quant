@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import request from 'supertest';
 import { createApiApp } from '../src/server/api/app.js';
+import { requestLocalHttp } from './helpers/httpTestClient.js';
 
 describe('backend backbone api', () => {
   beforeEach(() => {
@@ -20,9 +20,10 @@ describe('backend backbone api', () => {
     const app = createApiApp();
     const userId = `backbone-${Date.now()}`;
 
-    await request(app)
-      .post('/api/decision/today')
-      .send({
+    await requestLocalHttp(app, {
+      method: 'POST',
+      path: '/api/decision/today',
+      body: {
         userId,
         market: 'US',
         assetClass: 'US_STOCK',
@@ -36,12 +37,16 @@ describe('backend backbone api', () => {
           },
           { symbol: 'QQQ', market: 'US', asset_class: 'US_STOCK', weight_pct: 16, sector: 'ETF' },
         ],
-      });
+      },
+    });
 
-    const res = await request(app).get('/api/backbone/summary').query({
-      userId,
-      market: 'US',
-      assetClass: 'US_STOCK',
+    const res = await requestLocalHttp(app, {
+      path: '/api/backbone/summary',
+      query: {
+        userId,
+        market: 'US',
+        assetClass: 'US_STOCK',
+      },
     });
 
     expect(res.status).toBe(200);

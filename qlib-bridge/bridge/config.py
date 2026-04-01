@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     qlib_region: str = "us"
 
     # ── nova quant data source ──────────────────────────────
-    nova_quant_db: str = str(_NOVA_QUANT_ROOT / "data" / "quant.db")
+    nova_quant_database_url: str = ""
 
     # ── model storage ───────────────────────────────────────
     model_dir: str = str(_BRIDGE_ROOT / "models")

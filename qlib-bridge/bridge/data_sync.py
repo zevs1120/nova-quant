@@ -1,7 +1,7 @@
-"""Data sync — converts Nova Quant OHLCV (SQLite) into Qlib binary format.
+"""Data sync — converts Nova Quant OHLCV (Postgres) into Qlib binary format.
 
 Qlib needs data in a specific binary columnar format under ~/.qlib/qlib_data/.
-This module reads from Nova Quant's SQLite database and writes Qlib-compatible
+This module reads from Nova Quant's Postgres database and writes Qlib-compatible
 CSV files, then calls Qlib's dump_bin utility to convert them.
 
 Run manually:  POST /api/data/sync
@@ -11,14 +11,15 @@ Run via cron:  python -m bridge.data_sync
 from __future__ import annotations
 
 import csv
-import re
-import sqlite3
 import subprocess
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, Field
+from psycopg import connect
+from psycopg.rows import dict_row
 
 from bridge.config import settings
 
@@ -52,122 +53,56 @@ def _qlib_target_dir() -> Path:
     return p
 
 
-def _read_ohlcv_from_sqlite(
-    db_path: str,
+def _normalize_date(raw_date: Any) -> str:
+    if isinstance(raw_date, (int, float)) and raw_date > 1_000_000_000_000:
+        return datetime.fromtimestamp(raw_date / 1000, tz=timezone.utc).strftime(
+            "%Y-%m-%d"
+        )
+    if isinstance(raw_date, (int, float)):
+        return datetime.fromtimestamp(raw_date, tz=timezone.utc).strftime("%Y-%m-%d")
+    return str(raw_date)[:10]
+
+
+def _read_ohlcv_from_postgres(
+    database_url: str,
     symbols: list[str] | None = None,
 ) -> dict[str, list[dict[str, Any]]]:
-    """Read OHLCV data from Nova Quant's SQLite database.
+    """Read OHLCV data from Nova Quant's Postgres database.
 
     Returns {symbol: [{date, open, high, low, close, volume, factor, change}, ...]}
     grouped by symbol.
     """
-    if not Path(db_path).exists():
-        raise FileNotFoundError(f"Nova Quant database not found: {db_path}")
+    if not database_url.strip():
+        raise ValueError("QLIB_BRIDGE_NOVA_QUANT_DATABASE_URL is required")
 
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
+    with connect(database_url, row_factory=dict_row) as conn:
+        with conn.cursor() as cursor:
+            rows = cursor.execute(
+                """
+                SELECT
+                  a.symbol AS symbol,
+                  o.ts_open AS date,
+                  o.open AS open,
+                  o.high AS high,
+                  o.low AS low,
+                  o.close AS close,
+                  o.volume AS volume
+                FROM novaquant_data.ohlcv AS o
+                JOIN novaquant_data.assets AS a
+                  ON a.asset_id = o.asset_id
+                WHERE o.timeframe = '1d'
+                  AND (
+                    %(symbols)s::text[] IS NULL
+                    OR cardinality(%(symbols)s::text[]) = 0
+                    OR a.symbol = ANY(%(symbols)s::text[])
+                  )
+                ORDER BY a.symbol ASC, o.ts_open ASC
+                """,
+                {"symbols": symbols or None},
+            ).fetchall()
 
-    # Discover the OHLCV table — Nova Quant may use different names
-    tables = [
-        row[0]
-        for row in cursor.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'"
-        ).fetchall()
-    ]
-
-    ohlcv_table = None
-    for candidate in ("ohlcv", "market_ohlcv", "candles", "bars", "price_history"):
-        if candidate in tables:
-            ohlcv_table = candidate
-            break
-
-    if ohlcv_table is None:
-        conn.close()
+    if not rows:
         return {}
-
-    if not re.match(r"^[a-zA-Z0-9_]+$", ohlcv_table):
-        raise ValueError(f"Invalid table name: {ohlcv_table}")
-
-    # Read columns to adapt to actual schema
-    col_info = cursor.execute(f"PRAGMA table_info({ohlcv_table})").fetchall()
-    col_names = {row["name"].lower() for row in col_info}
-
-    # Build query — validate all column identifiers against safe pattern
-    _COL_RE = re.compile(r"^[a-zA-Z0-9_]+$")
-
-    def _safe_col(name: str) -> str:
-        if not _COL_RE.match(name):
-            raise ValueError(f"Invalid column name: {name}")
-        return name
-
-    uses_asset_id = "symbol" not in col_names and "asset_id" in col_names
-    has_assets_table = "assets" in tables
-
-    symbol_col = _safe_col("symbol" if "symbol" in col_names else "asset_id")
-    date_col = _safe_col(
-        next(
-            (c for c in ("date", "ts_open", "timestamp", "dt") if c in col_names),
-            "date",
-        )
-    )
-    open_col = _safe_col("open" if "open" in col_names else "open_price")
-    high_col = _safe_col("high" if "high" in col_names else "high_price")
-    low_col = _safe_col("low" if "low" in col_names else "low_price")
-    close_col = _safe_col("close" if "close" in col_names else "close_price")
-    volume_col = _safe_col("volume" if "volume" in col_names else "vol")
-
-    has_timeframe = "timeframe" in col_names
-
-    if uses_asset_id and has_assets_table:
-        query = f"""
-            SELECT
-                a.symbol as symbol,
-                o.{date_col} as date,
-                o.{open_col} as open,
-                o.{high_col} as high,
-                o.{low_col} as low,
-                o.{close_col} as close,
-                o.{volume_col} as volume
-            FROM {ohlcv_table} o
-            JOIN assets a ON a.asset_id = o.asset_id
-        """
-        where_clauses = []
-        params: list[str] = []
-        if has_timeframe:
-            where_clauses.append("o.timeframe = '1d'")
-        if symbols:
-            placeholders = ", ".join("?" * len(symbols))
-            where_clauses.append(f"a.symbol IN ({placeholders})")
-            params = list(symbols)
-        if where_clauses:
-            query += " WHERE " + " AND ".join(where_clauses)
-        rows = cursor.execute(query, params).fetchall()
-    else:
-        query = f"""
-            SELECT
-                {symbol_col} as symbol,
-                {date_col} as date,
-                {open_col} as open,
-                {high_col} as high,
-                {low_col} as low,
-                {close_col} as close,
-                {volume_col} as volume
-            FROM {ohlcv_table}
-        """
-        where_clauses = []
-        params = []
-        if has_timeframe:
-            where_clauses.append("timeframe = '1d'")
-        if symbols:
-            placeholders = ", ".join("?" * len(symbols))
-            where_clauses.append(f"{symbol_col} IN ({placeholders})")
-            params = list(symbols)
-        if where_clauses:
-            query += " WHERE " + " AND ".join(where_clauses)
-        rows = cursor.execute(query, params).fetchall()
-
-    conn.close()
 
     # Group by symbol
     grouped: dict[str, list[dict[str, Any]]] = {}
@@ -175,28 +110,9 @@ def _read_ohlcv_from_sqlite(
         sym = str(row["symbol"]).upper()
         if sym not in grouped:
             grouped[sym] = []
-
-        # Normalize date — could be epoch ms, ISO string, or date string
-        raw_date = row["date"]
-        if isinstance(raw_date, (int, float)) and raw_date > 1_000_000_000_000:
-            # Epoch ms → YYYY-MM-DD
-            from datetime import datetime, timezone
-
-            raw_date = datetime.fromtimestamp(
-                raw_date / 1000, tz=timezone.utc
-            ).strftime("%Y-%m-%d")
-        elif isinstance(raw_date, (int, float)):
-            from datetime import datetime, timezone
-
-            raw_date = datetime.fromtimestamp(raw_date, tz=timezone.utc).strftime(
-                "%Y-%m-%d"
-            )
-        else:
-            raw_date = str(raw_date)[:10]
-
         grouped[sym].append(
             {
-                "date": raw_date,
+                "date": _normalize_date(row["date"]),
                 "open": float(row["open"] or 0),
                 "high": float(row["high"] or 0),
                 "low": float(row["low"] or 0),
@@ -285,10 +201,13 @@ def run_sync(req: SyncRequest | None = None) -> SyncResult:
     req = req or SyncRequest()
     notes: list[str] = []
 
-    # 1. Read from SQLite
+    # 1. Read from Postgres
     try:
-        grouped = _read_ohlcv_from_sqlite(settings.nova_quant_db, req.symbols)
-    except FileNotFoundError as e:
+        grouped = _read_ohlcv_from_postgres(
+            settings.nova_quant_database_url,
+            req.symbols,
+        )
+    except ValueError as e:
         return SyncResult(
             status="error",
             symbols_synced=0,
@@ -299,7 +218,7 @@ def run_sync(req: SyncRequest | None = None) -> SyncResult:
         )
 
     if not grouped:
-        notes.append("No OHLCV data found in Nova Quant database")
+        notes.append("No OHLCV data found in Nova Quant Postgres")
         return SyncResult(
             status="no_data",
             symbols_synced=0,

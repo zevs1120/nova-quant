@@ -1,7 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { getDb } from '../src/server/db/database.js';
-import { ensureSchema } from '../src/server/db/schema.js';
-import { MarketRepository } from '../src/server/db/repository.js';
+import { getRuntimeRepo } from '../src/server/db/runtimeRepository.js';
 import type { SignalContract } from '../src/server/types.js';
 import {
   getExecutionGovernance,
@@ -96,9 +94,7 @@ describe('execution governance', () => {
   });
 
   it('creates live champion + paper challenger pair and reconciles the order state', async () => {
-    const db = getDb();
-    ensureSchema(db);
-    const repo = new MarketRepository(db);
+    const repo = getRuntimeRepo();
     const now = Date.now();
     const userId = `exec-governance-${now}`;
     const signal = seedSignal(
@@ -213,9 +209,7 @@ describe('execution governance', () => {
   });
 
   it('blocks new live routing when the manual kill switch is enabled', async () => {
-    const db = getDb();
-    ensureSchema(db);
-    const repo = new MarketRepository(db);
+    const repo = getRuntimeRepo();
     const now = Date.now();
     const userId = `exec-kill-${now}`;
     const signal = seedSignal(
@@ -250,7 +244,9 @@ describe('execution governance', () => {
     });
 
     expect(result.ok).toBe(false);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes('api.alpaca.markets'))).toBe(
+      false,
+    );
     expect('error' in result ? String(result.error) : '').toContain('kill switch');
   });
 });

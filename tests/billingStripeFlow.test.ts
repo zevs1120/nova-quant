@@ -1,7 +1,4 @@
 import { createHmac } from 'node:crypto';
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 function signStripePayload(
@@ -16,14 +13,12 @@ function signStripePayload(
 }
 
 describe('stripe billing flow', () => {
-  let dbPath = '';
-
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
-    dbPath = path.join(os.tmpdir(), `nova-quant-billing-${Date.now()}-${Math.random()}.db`);
-    vi.stubEnv('DB_PATH', dbPath);
-    vi.stubEnv('NOVA_DATA_RUNTIME_DRIVER', 'sqlite');
+    vi.stubEnv('NOVA_DATA_DATABASE_URL', 'postgres://supabase-test-host/db');
+    vi.stubEnv('NOVA_AUTH_DATABASE_URL', 'postgres://supabase-test-host/db');
+    vi.stubEnv('NOVA_AUTH_DRIVER', 'postgres');
     vi.stubEnv('STRIPE_SECRET_KEY', 'sk_test_123');
     vi.stubEnv('STRIPE_WEBHOOK_SECRET', 'whsec_test_123');
     vi.stubEnv('STRIPE_PRICE_LITE_WEEKLY', 'price_lite_weekly');
@@ -35,15 +30,6 @@ describe('stripe billing flow', () => {
   afterEach(async () => {
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
-    try {
-      const { closeDb } = await import('../src/server/db/database.js');
-      closeDb();
-    } catch {
-      // ignore cleanup misses
-    }
-    fs.rmSync(dbPath, { force: true });
-    fs.rmSync(`${dbPath}-shm`, { force: true });
-    fs.rmSync(`${dbPath}-wal`, { force: true });
   });
 
   it('creates a Stripe checkout session and activates Lite after webhook sync', async () => {
@@ -65,30 +51,43 @@ describe('stripe billing flow', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    const { getDb } = await import('../src/server/db/database.js');
-    const db = getDb();
-    db.prepare(
-      `INSERT INTO auth_users(
-        user_id, email, password_hash, name, trade_mode, broker, locale, created_at_ms, updated_at_ms, last_login_at_ms
-      ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    ).run(
-      'usr_stripe_test',
-      'stripe@novaquant.cloud',
-      'hash',
-      'Stripe User',
-      'active',
-      'Robinhood',
-      'en',
-      Date.now(),
-      Date.now(),
-      Date.now(),
-    );
+    const { pgInsertUserWithState } = await import('../src/server/auth/postgresStore.js');
+    const userId = 'usr_stripe_test';
+    const now = Date.now();
+    await pgInsertUserWithState({
+      user: {
+        user_id: userId,
+        email: 'stripe@novaquant.cloud',
+        password_hash: 'hash',
+        name: 'Stripe User',
+        trade_mode: 'active',
+        broker: 'Robinhood',
+        locale: 'en',
+        created_at_ms: now,
+        updated_at_ms: now,
+        last_login_at_ms: now,
+      },
+      state: {
+        assetClass: 'US_STOCK',
+        market: 'US',
+        uiMode: 'standard',
+        riskProfileKey: 'balanced',
+        watchlist: [],
+        holdings: [],
+        executions: [],
+        disciplineLog: {
+          checkins: [],
+          boundary_kept: [],
+          weekly_reviews: [],
+        },
+      },
+    });
 
     const { createBillingCheckoutSession, getBillingState, processBillingWebhook } =
       await import('../src/server/billing/service.js');
 
     const checkout = await createBillingCheckoutSession({
-      userId: 'usr_stripe_test',
+      userId,
       planKey: 'lite',
       billingCycle: 'weekly',
       source: 'membership_center',
@@ -115,7 +114,7 @@ describe('stripe billing flow', () => {
           customer_details: { email: 'stripe@novaquant.cloud' },
           metadata: {
             local_checkout_session_id: checkout.session?.id,
-            user_id: 'usr_stripe_test',
+            user_id: userId,
             plan_key: 'lite',
             billing_cycle: 'weekly',
           },
@@ -144,7 +143,7 @@ describe('stripe billing flow', () => {
           cancel_at_period_end: false,
           metadata: {
             local_checkout_session_id: checkout.session?.id,
-            user_id: 'usr_stripe_test',
+            user_id: userId,
             plan_key: 'lite',
             billing_cycle: 'weekly',
           },
@@ -171,7 +170,7 @@ describe('stripe billing flow', () => {
       }),
     ).toEqual({ ok: true, received: true });
 
-    const state = getBillingState('usr_stripe_test');
+    const state = getBillingState(userId);
     expect(state.currentPlan).toBe('lite');
     expect(state.portalConfigured).toBe(true);
     expect(state.subscription?.provider).toBe('stripe');

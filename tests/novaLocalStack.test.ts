@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import request from 'supertest';
 import { createApiApp } from '../src/server/api/app.js';
 import { MARVIX_MODEL_ALIASES } from '../src/server/ai/llmOps.js';
 import { resolveBusinessTask } from '../src/server/nova/router.js';
 import { resetConfigCache } from '../src/server/config.js';
 import { closeDb } from '../src/server/db/database.js';
 import { resetRuntimeRepoSingleton } from '../src/server/db/runtimeRepository.js';
+import { requestLocalHttp } from './helpers/httpTestClient.js';
 
 function readNdjsonText(response: { body?: unknown; text?: string }) {
-  const body = String(response.body || response.text || '');
+  const body = String(response.text || response.body || '');
   return body
     .split('\n')
     .map((line) => line.trim())
@@ -33,8 +33,8 @@ describe('nova local stack', () => {
     vi.stubEnv('SUPABASE_DB_URL', '');
     vi.stubEnv('DATABASE_URL', '');
     // Prevent the real Supabase PG URL from activating the business mirror,
-    // which can cause FK violations when chat_threads is written to SQLite
-    // but chat_messages tries to reference it via a PG FK path.
+    // which can cause FK violations when chat_threads and chat_messages are
+    // intentionally isolated inside the in-memory test runtime.
     vi.stubEnv('NOVA_DATA_DATABASE_URL', '');
     // Reset config AFTER stubs so getConfig() picks up the clean env when
     // getDb() is first called inside this test.
@@ -62,9 +62,10 @@ describe('nova local stack', () => {
     const app = createApiApp();
     const userId = `guest-nova-local-${Date.now()}`;
 
-    const chatRes = await request(app)
-      .post('/api/chat')
-      .send({
+    const chatRes = await requestLocalHttp(app, {
+      method: 'POST',
+      path: '/api/chat',
+      body: {
         userId,
         message: 'Why does today look cautious?',
         context: {
@@ -72,24 +73,19 @@ describe('nova local stack', () => {
           market: 'US',
           assetClass: 'US_STOCK',
         },
-      })
-      .buffer(true)
-      .parse((res, done) => {
-        let text = '';
-        res.setEncoding('utf8');
-        res.on('data', (chunk) => {
-          text += chunk;
-        });
-        res.on('end', () => done(null, text));
-      });
+      },
+    });
 
     expect(chatRes.status).toBe(200);
     const events = readNdjsonText(chatRes);
     expect(events.some((row) => row.type === 'done')).toBe(true);
 
-    const runsRes = await request(app).get('/api/nova/runs').query({
-      userId,
-      limit: 20,
+    const runsRes = await requestLocalHttp(app, {
+      path: '/api/nova/runs',
+      query: {
+        userId,
+        limit: 20,
+      },
     });
     expect(runsRes.status).toBe(200);
     expect(runsRes.body.count).toBeGreaterThan(0);
@@ -98,26 +94,33 @@ describe('nova local stack', () => {
     );
     expect(assistantRun?.id).toBeTruthy();
 
-    const labelRes = await request(app).post('/api/nova/review-label').send({
-      runId: assistantRun.id,
-      reviewerId: 'test-reviewer',
-      label: 'high_quality',
-      score: 0.92,
-      includeInTraining: true,
+    const labelRes = await requestLocalHttp(app, {
+      method: 'POST',
+      path: '/api/nova/review-label',
+      body: {
+        runId: assistantRun.id,
+        reviewerId: 'test-reviewer',
+        label: 'high_quality',
+        score: 0.92,
+        includeInTraining: true,
+      },
     });
     expect(labelRes.status).toBe(200);
     expect(labelRes.body.run_id).toBe(assistantRun.id);
 
-    const exportRes = await request(app).get('/api/nova/training/export').query({
-      onlyIncluded: true,
-      limit: 50,
+    const exportRes = await requestLocalHttp(app, {
+      path: '/api/nova/training/export',
+      query: {
+        onlyIncluded: true,
+        limit: 50,
+      },
     });
     expect(exportRes.status).toBe(200);
     expect(exportRes.body.format).toBe('mlx-lm-chat-jsonl');
     expect(exportRes.body.count).toBeGreaterThan(0);
     expect(Array.isArray(exportRes.body.records[0].messages)).toBe(true);
 
-    const runtimeRes = await request(app).get('/api/nova/runtime');
+    const runtimeRes = await requestLocalHttp(app, { path: '/api/nova/runtime' });
     expect(runtimeRes.status).toBe(200);
     expect(runtimeRes.body.endpoint).toContain('127.0.0.1:11434');
     expect(runtimeRes.body.local_only).toBe(true);
@@ -131,26 +134,29 @@ describe('nova local stack', () => {
     const app = createApiApp();
     const userId = `guest-nova-vercel-${Date.now()}`;
 
-    const decisionRes = await request(app)
-      .post('/api/decision/today')
-      .send({
+    const decisionRes = await requestLocalHttp(app, {
+      method: 'POST',
+      path: '/api/decision/today',
+      body: {
         userId,
         market: 'US',
         assetClass: 'US_STOCK',
         holdings: [{ symbol: 'AAPL', asset_class: 'US_STOCK', weight_pct: 10 }],
-      });
+      },
+    });
 
     expect(decisionRes.status).toBe(200);
     expect(decisionRes.body.summary?.nova_local?.skipped).toBe(true);
 
-    const runtimeRes = await request(app).get('/api/nova/runtime');
+    const runtimeRes = await requestLocalHttp(app, { path: '/api/nova/runtime' });
     expect(runtimeRes.status).toBe(200);
     expect(runtimeRes.body.local_only).toBe(false);
     expect(runtimeRes.body.mode).toBe('deterministic-fallback');
 
-    const chatRes = await request(app)
-      .post('/api/chat')
-      .send({
+    const chatRes = await requestLocalHttp(app, {
+      method: 'POST',
+      path: '/api/chat',
+      body: {
         userId,
         message: 'Why does today look cautious?',
         context: {
@@ -158,16 +164,8 @@ describe('nova local stack', () => {
           market: 'US',
           assetClass: 'US_STOCK',
         },
-      })
-      .buffer(true)
-      .parse((res, done) => {
-        let text = '';
-        res.setEncoding('utf8');
-        res.on('data', (chunk) => {
-          text += chunk;
-        });
-        res.on('end', () => done(null, text));
-      });
+      },
+    });
 
     expect(chatRes.status).toBe(200);
     const events = readNdjsonText(chatRes);
@@ -182,16 +180,18 @@ describe('nova local stack', () => {
     vi.stubEnv('NOVA_FORCE_LOCAL_GENERATION', '');
 
     const app = createApiApp();
-    const res = await request(app)
-      .post('/api/nova/strategy/generate')
-      .send({
+    const res = await requestLocalHttp(app, {
+      method: 'POST',
+      path: '/api/nova/strategy/generate',
+      body: {
         userId: `guest-nova-strategy-${Date.now()}`,
         prompt:
           'Generate a conservative crypto swing strategy with trend bias and clear risk notes',
         market: 'CRYPTO',
         riskProfile: 'conservative',
         maxCandidates: 6,
-      });
+      },
+    });
 
     expect(res.status).toBe(200);
     expect(res.body.workflow_id).toBeTruthy();
@@ -208,46 +208,50 @@ describe('nova local stack', () => {
     const app = createApiApp();
     const userId = `guest-nova-flywheel-${Date.now()}`;
 
-    const labelSeedRes = await request(app)
-      .post('/api/chat')
-      .send({
+    const labelSeedRes = await requestLocalHttp(app, {
+      method: 'POST',
+      path: '/api/chat',
+      body: {
         userId,
         message: 'Explain today risk posture in plain English',
-      })
-      .buffer(true)
-      .parse((res, done) => {
-        let text = '';
-        res.setEncoding('utf8');
-        res.on('data', (chunk) => {
-          text += chunk;
-        });
-        res.on('end', () => done(null, text));
-      });
+      },
+    });
     expect(labelSeedRes.status).toBe(200);
 
-    const runsRes = await request(app).get('/api/nova/runs').query({
-      userId,
-      limit: 20,
+    const runsRes = await requestLocalHttp(app, {
+      path: '/api/nova/runs',
+      query: {
+        userId,
+        limit: 20,
+      },
     });
     const run = runsRes.body.records.find(
       (row: { task_type?: string }) => row.task_type === 'assistant_grounded_answer',
     );
     expect(run?.id).toBeTruthy();
 
-    const labelRes = await request(app).post('/api/nova/review-label').send({
-      runId: run.id,
-      reviewerId: 'test-reviewer',
-      label: 'train',
-      score: 0.88,
-      includeInTraining: true,
+    const labelRes = await requestLocalHttp(app, {
+      method: 'POST',
+      path: '/api/nova/review-label',
+      body: {
+        runId: run.id,
+        reviewerId: 'test-reviewer',
+        label: 'train',
+        score: 0.88,
+        includeInTraining: true,
+      },
     });
     expect(labelRes.status).toBe(200);
 
-    const flywheelRes = await request(app).post('/api/nova/training/flywheel').send({
-      userId,
-      trainer: 'mlx-lora',
-      onlyIncluded: true,
-      limit: 20,
+    const flywheelRes = await requestLocalHttp(app, {
+      method: 'POST',
+      path: '/api/nova/training/flywheel',
+      body: {
+        userId,
+        trainer: 'mlx-lora',
+        onlyIncluded: true,
+        limit: 20,
+      },
     });
     expect(flywheelRes.status).toBe(200);
     expect(flywheelRes.body.workflow_id).toBeTruthy();

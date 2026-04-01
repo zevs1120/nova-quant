@@ -205,16 +205,16 @@ AI 不是孤立聊天框，而是接入了产品上下文：
 
 ## 5. 什么已经是真实产品能力，什么仍然偏实验
 
-| 层级           | 已经进入真实产品路径                                                     | 仍然偏实验、半成品或内部能力                                               |
-| -------------- | ------------------------------------------------------------------------ | -------------------------------------------------------------------------- |
-| 用户应用       | Today、Browse、Nova、My 已具备完整产品入口                               | 用户长期留存机制、native widget/notification 还未真正交付                  |
-| 数据与运行时   | SQLite + ingestion + runtime derivation + status transparency 已落地     | 某些高级研究结果仍带有 model-derived / partial synthetic 性质              |
-| 决策系统       | 决策快照、action card、risk gate、portfolio context 已存在               | 事件驱动风险、结果归因深度还不够                                           |
-| 执行系统       | paper/live execution path、kill switch、reconciliation 接口已存在        | 成本、滑点、成交、venue calibration 仍需加强                               |
-| AI 能力        | 线程持久化、上下文装配、provider fallback、deterministic fallback 已可用 | structured tool calling、citation coverage、评估台还不够成熟               |
-| 研究系统       | 因子/状态/诊断/证据/工作流接口已形成体系                                 | factor-level artifact、workflow artifact、seed policy enforcement 还不够深 |
-| Alpha 生命周期 | discovery、shadow、canary/prod registry 与 admin 面板已存在              | human sign-off、promotion memo、review workflow 尚未完全制度化             |
-| 连接器         | Alpaca/Binance adapter 已有真实接口姿态                                  | broker OAuth、生产级运营化、异常恢复与流程化接入仍不完整                   |
+| 层级           | 已经进入真实产品路径                                                            | 仍然偏实验、半成品或内部能力                                               |
+| -------------- | ------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| 用户应用       | Today、Browse、Nova、My 已具备完整产品入口                                      | 用户长期留存机制、native widget/notification 还未真正交付                  |
+| 数据与运行时   | Supabase/Postgres + ingestion + runtime derivation + status transparency 已落地 | 某些高级研究结果仍带有 model-derived / partial synthetic 性质              |
+| 决策系统       | 决策快照、action card、risk gate、portfolio context 已存在                      | 事件驱动风险、结果归因深度还不够                                           |
+| 执行系统       | paper/live execution path、kill switch、reconciliation 接口已存在               | 成本、滑点、成交、venue calibration 仍需加强                               |
+| AI 能力        | 线程持久化、上下文装配、provider fallback、deterministic fallback 已可用        | structured tool calling、citation coverage、评估台还不够成熟               |
+| 研究系统       | 因子/状态/诊断/证据/工作流接口已形成体系                                        | factor-level artifact、workflow artifact、seed policy enforcement 还不够深 |
+| Alpha 生命周期 | discovery、shadow、canary/prod registry 与 admin 面板已存在                     | human sign-off、promotion memo、review workflow 尚未完全制度化             |
+| 连接器         | Alpaca/Binance adapter 已有真实接口姿态                                         | broker OAuth、生产级运营化、异常恢复与流程化接入仍不完整                   |
 
 专业人士如果只用一句话评价这一阶段，可以说：
 

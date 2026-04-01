@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockGetDb = vi.fn(() => {
-  throw new Error('SQLITE_SHOULD_NOT_RUN');
+  throw new Error('LEGACY_LOCAL_DB_SHOULD_NOT_RUN');
 });
 const mockPgGetUserState = vi.fn(async () => ({
   assetClass: 'US_STOCK',
@@ -57,7 +57,7 @@ describe('auth service in postgres runtime', () => {
     vi.resetModules();
   });
 
-  it('reads auth state without touching sqlite', async () => {
+  it('reads auth state without touching any legacy local database path', async () => {
     const { getAuthUserState } = await import('../src/server/auth/service.js');
 
     const state = await getAuthUserState('usr_runtime_pg');

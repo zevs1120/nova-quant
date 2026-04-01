@@ -6,7 +6,7 @@ Python sidecar service that connects **Nova Quant** (TypeScript) to **Microsoft 
 
 - **Factor Computation**: Exposes Qlib's Alpha158/Alpha360 factor engines via REST API
 - **Model Inference**: Loads pre-trained ML models and returns ranked predictions
-- **Data Sync**: Converts Nova Quant's SQLite OHLCV data into Qlib binary format
+- **Data Sync**: Converts Nova Quant's Supabase/Postgres OHLCV data into Qlib binary format
 
 ## Architecture
 
@@ -69,14 +69,14 @@ curl -X POST http://localhost:8788/api/factors/compute \
 
 All settings are overridable via env vars prefixed `QLIB_BRIDGE_`:
 
-| Variable                        | Default                   | Description                            |
-| ------------------------------- | ------------------------- | -------------------------------------- |
-| `QLIB_BRIDGE_PORT`              | 8788                      | Server port                            |
-| `QLIB_BRIDGE_HOST`              | 127.0.0.1                 | Server host                            |
-| `QLIB_BRIDGE_QLIB_PROVIDER_URI` | ~/.qlib/qlib_data/us_data | Qlib data directory                    |
-| `QLIB_BRIDGE_QLIB_REGION`       | us                        | Region (us / cn)                       |
-| `QLIB_BRIDGE_NOVA_QUANT_DB`     | ../data/quant.db          | Nova Quant SQLite path                 |
-| `QLIB_BRIDGE_MAX_UNIVERSE_SIZE` | 50                        | Max symbols per request (2GB RAM safe) |
+| Variable                              | Default                   | Description                            |
+| ------------------------------------- | ------------------------- | -------------------------------------- |
+| `QLIB_BRIDGE_PORT`                    | 8788                      | Server port                            |
+| `QLIB_BRIDGE_HOST`                    | 127.0.0.1                 | Server host                            |
+| `QLIB_BRIDGE_QLIB_PROVIDER_URI`       | ~/.qlib/qlib_data/us_data | Qlib data directory                    |
+| `QLIB_BRIDGE_QLIB_REGION`             | us                        | Region (us / cn)                       |
+| `QLIB_BRIDGE_NOVA_QUANT_DATABASE_URL` | Supabase Postgres URL     | Nova Quant online Postgres source      |
+| `QLIB_BRIDGE_MAX_UNIVERSE_SIZE`       | 50                        | Max symbols per request (2GB RAM safe) |
 
 ## Pre-trained Models
 

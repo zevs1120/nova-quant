@@ -1,4 +1,4 @@
-import Database from 'better-sqlite3';
+import { InMemorySyncDb as Database } from '../src/server/db/inMemorySyncDb.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ensureSchema } from '../src/server/db/schema.js';
 import { MarketRepository } from '../src/server/db/repository.js';

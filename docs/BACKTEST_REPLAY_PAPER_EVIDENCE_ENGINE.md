@@ -34,7 +34,7 @@ The goal is traceability and realism, not vanity metrics.
 
 ## 3) Core Evidence Entities
 
-Implemented in SQLite schema:
+Implemented in the shared Postgres runtime schema:
 
 - `strategy_versions`
 - `dataset_versions`
@@ -120,7 +120,6 @@ Evidence output quality always takes precedence over cosmetic completeness.
 ## 9) How To Run
 
 ```bash
-npm run db:init
 npm run backfill -- --market CRYPTO --tf 1h
 npm run validate:data -- --tf 1h --lookbackBars 800
 npm run derive:runtime

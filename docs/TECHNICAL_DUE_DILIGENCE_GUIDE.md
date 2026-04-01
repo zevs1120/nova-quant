@@ -12,7 +12,7 @@ Nova Quant is an AI-native quantitative **decision** platform for US equities an
 
 ### DB-backed runtime (real)
 
-- Primary ingestion via **Massive.com** REST API (`src/server/ingestion/massive.ts`) writing to SQLite (`assets`, `ohlcv`).
+- Primary ingestion via **Massive.com** REST API (`src/server/ingestion/massive.ts`) writing to Supabase/Postgres (`assets`, `ohlcv`).
 - Legacy fallback ingestion: Stooq (US equities), Binance (crypto).
 - Additional data sources: Yahoo, Nasdaq, hosted data.
 - Derived market state from historical bars (`market_state`).
@@ -35,7 +35,7 @@ Nova Quant is an AI-native quantitative **decision** platform for US equities an
 - Postgres-backed session auth store (production):
   - `users`, `sessions`, `roles`, `password_resets`, `user_state_sync`
   - Module: `src/server/auth/postgresStore.ts`
-  - Local dev falls back to SQLite auth
+  - Supabase Native Auth is the browser-facing auth provider
 - Holdings import (`src/server/holdings/import.ts`):
   - CSV parsing with auto-detection
   - Broker screenshot parsing via vision-model
@@ -105,7 +105,6 @@ Fresh clone baseline:
 ```bash
 npm ci
 npm run clean
-npm run db:init
 npm run backfill -- --market CRYPTO --tf 1h
 npm run validate:data -- --tf 1h --lookbackBars 800
 npm run derive:runtime

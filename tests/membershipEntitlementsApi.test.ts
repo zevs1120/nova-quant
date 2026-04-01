@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { getDb } from '../src/server/db/database.js';
-import { ensureSchema } from '../src/server/db/schema.js';
 import {
   applyMembershipAccessToDecision,
   consumeAskNovaAccess,
   getMembershipState,
   requireBrokerHandoffAccess,
 } from '../src/server/membership/service.js';
+import { pgGetUserByEmail, pgInsertUserWithState } from '../src/server/auth/postgresStore.js';
+import { executeSync, qualifyBusinessTable } from '../src/server/db/postgresSyncBridge.js';
 
 function clearBillingEnv() {
   vi.stubEnv('STRIPE_SECRET_KEY', '');
@@ -15,91 +15,94 @@ function clearBillingEnv() {
   vi.stubEnv('STRIPE_PRICE_PRO_WEEKLY', '');
 }
 
-function seedAuthUser(email: string) {
-  const db = getDb();
-  ensureSchema(db);
-  const now = Date.now();
-  const existing = db
-    .prepare('SELECT user_id FROM auth_users WHERE email = ? LIMIT 1')
-    .get(email) as { user_id?: string } | undefined;
+async function seedAuthUser(email: string) {
+  const existing = await pgGetUserByEmail(email);
   if (existing?.user_id) return existing.user_id;
+  const now = Date.now();
   const userId = `usr_${Math.random().toString(36).slice(2, 10)}`;
-  db.prepare(
-    `INSERT INTO auth_users(
-      user_id, email, password_hash, name, trade_mode, broker, created_at_ms, updated_at_ms
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-  ).run(userId, email, 'test-hash', 'Membership User', 'active', 'Other', now, now);
+  await pgInsertUserWithState({
+    user: {
+      user_id: userId,
+      email,
+      password_hash: 'test-hash',
+      name: 'Membership User',
+      trade_mode: 'active',
+      broker: 'Other',
+      locale: 'en',
+      created_at_ms: now,
+      updated_at_ms: now,
+      last_login_at_ms: now,
+    },
+    state: {
+      assetClass: 'US_STOCK',
+      market: 'US',
+      uiMode: 'standard',
+      riskProfileKey: 'balanced',
+      watchlist: [],
+      holdings: [],
+      executions: [],
+      disciplineLog: {
+        checkins: [],
+        boundary_kept: [],
+        weekly_reviews: [],
+      },
+    },
+  });
   return userId;
 }
 
-function resetAuthUser(email: string) {
-  const db = getDb();
-  ensureSchema(db);
-  const row = db.prepare('SELECT user_id FROM auth_users WHERE email = ? LIMIT 1').get(email) as
-    | { user_id?: string }
-    | undefined;
-  if (!row?.user_id) return;
-  db.prepare('DELETE FROM membership_usage_daily WHERE user_id = ?').run(row.user_id);
-  db.prepare('DELETE FROM billing_subscriptions WHERE user_id = ?').run(row.user_id);
-  db.prepare('DELETE FROM billing_checkout_sessions WHERE user_id = ?').run(row.user_id);
-  db.prepare('DELETE FROM billing_customers WHERE user_id = ?').run(row.user_id);
-  db.prepare('DELETE FROM external_connections WHERE user_id = ?').run(row.user_id);
-  db.prepare('DELETE FROM auth_sessions WHERE user_id = ?').run(row.user_id);
-  db.prepare('DELETE FROM auth_user_roles WHERE user_id = ?').run(row.user_id);
-  db.prepare('DELETE FROM auth_user_state_sync WHERE user_id = ?').run(row.user_id);
-  db.prepare('DELETE FROM auth_users WHERE user_id = ?').run(row.user_id);
-}
-
 function seedActiveSubscription(userId: string, planKey: 'lite' | 'pro') {
-  const db = getDb();
-  ensureSchema(db);
+  const billingTable = (name: string) => qualifyBusinessTable(name);
+  getMembershipState({ userId });
   const now = Date.now();
-  db.prepare(
-    `INSERT INTO billing_customers(
+  executeSync(
+    `INSERT INTO ${billingTable('billing_customers')}(
       user_id, email, provider, provider_customer_id, default_currency, default_billing_cycle, metadata_json, created_at_ms, updated_at_ms
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ON CONFLICT(user_id) DO UPDATE SET
-      provider = excluded.provider,
-      provider_customer_id = excluded.provider_customer_id,
-      default_billing_cycle = excluded.default_billing_cycle,
-      updated_at_ms = excluded.updated_at_ms`,
-  ).run(
-    userId,
-    'member@example.com',
-    'stripe',
-    'cus_membership_test',
-    'USD',
-    'weekly',
-    '{}',
-    now,
-    now,
+    ) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    ON CONFLICT (user_id) DO UPDATE SET
+      provider = EXCLUDED.provider,
+      provider_customer_id = EXCLUDED.provider_customer_id,
+      default_billing_cycle = EXCLUDED.default_billing_cycle,
+      updated_at_ms = EXCLUDED.updated_at_ms`,
+    [
+      userId,
+      'member@example.com',
+      'stripe',
+      'cus_membership_test',
+      'USD',
+      'weekly',
+      '{}',
+      now,
+      now,
+    ],
   );
-  db.prepare(
-    `INSERT INTO billing_subscriptions(
+  executeSync(
+    `INSERT INTO ${billingTable('billing_subscriptions')}(
       subscription_id, user_id, plan_key, status, provider, provider_subscription_id,
       billing_cycle, amount_cents, currency, started_at_ms, current_period_start_ms,
       current_period_end_ms, cancel_at_period_end, cancelled_at_ms, checkout_session_id,
       metadata_json, created_at_ms, updated_at_ms
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-  ).run(
-    `sub_${planKey}_${Math.random().toString(36).slice(2, 10)}`,
-    userId,
-    planKey,
-    'ACTIVE',
-    'stripe',
-    `stripe_${planKey}_subscription`,
-    'weekly',
-    planKey === 'pro' ? 2900 : 1900,
-    'USD',
-    now,
-    now,
-    now + 7 * 24 * 60 * 60 * 1000,
-    0,
-    null,
-    null,
-    '{}',
-    now,
-    now,
+    ) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`,
+    [
+      `sub_${planKey}_${Math.random().toString(36).slice(2, 10)}`,
+      userId,
+      planKey,
+      'ACTIVE',
+      'stripe',
+      `stripe_${planKey}_subscription`,
+      'weekly',
+      planKey === 'pro' ? 2900 : 1900,
+      'USD',
+      now,
+      now,
+      now + 7 * 24 * 60 * 60 * 1000,
+      0,
+      null,
+      null,
+      '{}',
+      now,
+      now,
+    ],
   );
 }
 
@@ -108,19 +111,18 @@ describe('membership entitlements', () => {
   const liteEmail = 'membership-lite@example.com';
 
   beforeEach(() => {
-    vi.stubEnv('NOVA_DATA_RUNTIME_DRIVER', 'sqlite');
-    vi.stubEnv('NOVA_DATA_DATABASE_URL', '');
+    vi.stubEnv('NOVA_DATA_DATABASE_URL', 'postgres://supabase-test-host/db');
+    vi.stubEnv('NOVA_AUTH_DATABASE_URL', 'postgres://supabase-test-host/db');
+    vi.stubEnv('NOVA_AUTH_DRIVER', 'postgres');
     clearBillingEnv();
   });
 
   afterEach(() => {
-    resetAuthUser(freeEmail);
-    resetAuthUser(liteEmail);
     vi.unstubAllEnvs();
   });
 
-  it('tracks Ask Nova daily usage on the server and blocks the fourth free request', () => {
-    const userId = seedAuthUser(freeEmail);
+  it('tracks Ask Nova daily usage on the server and blocks the fourth free request', async () => {
+    const userId = await seedAuthUser(freeEmail);
 
     for (let index = 0; index < 3; index += 1) {
       const result = consumeAskNovaAccess({
@@ -148,7 +150,7 @@ describe('membership entitlements', () => {
   });
 
   it('keeps broker handoff on Lite and reserves portfolio-aware chat for Pro', async () => {
-    const userId = seedAuthUser(liteEmail);
+    const userId = await seedAuthUser(liteEmail);
 
     const freeBroker = requireBrokerHandoffAccess({ userId });
     expect(freeBroker.ok).toBe(false);

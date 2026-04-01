@@ -149,7 +149,7 @@ async def predict_endpoint(req: ModelPredictRequest):
 
 @app.post("/api/data/sync", response_model=SyncResult)
 async def sync_data(req: SyncRequest | None = None):
-    """Sync OHLCV data from Nova Quant SQLite into Qlib binary format."""
+    """Sync OHLCV data from Nova Quant Postgres into Qlib binary format."""
     try:
         result = run_sync(req or SyncRequest())
         if result.status == "ok":

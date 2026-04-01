@@ -1,7 +1,7 @@
 import express from 'express';
 import { getAuthSessionFromAccessToken } from '../auth/service.js';
 import { readSupabaseBrowserRuntimeConfig } from '../auth/supabase.js';
-import { ensureDefaultPublicSignalsApiKey, getPrivateMarvixOps } from './queries.js';
+import { getPrivateMarvixOps } from './queries.js';
 import { isLoopbackAddress } from '../ops/privateMarvixOps.js';
 import {
   asyncRoute,
@@ -163,8 +163,6 @@ export function createApiApp() {
     }
     next();
   });
-
-  ensureDefaultPublicSignalsApiKey();
 
   // ---------------------------------------------------------------------------
   // Session / user-scope middleware

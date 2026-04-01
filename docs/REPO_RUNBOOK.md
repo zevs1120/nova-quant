@@ -8,8 +8,8 @@ Last updated: 2026-03-24
 - npm 10+
 - `MASSIVE_API_KEY` for primary market data ingestion (Massive.com REST API)
 - Network access for ingestion (Massive.com primary; Stooq/Binance legacy fallback)
-- Native toolchain for `better-sqlite3` (standard on macOS with Xcode CLT)
-- Optional: `DATABASE_URL` for Postgres auth store (recommended for production)
+- `NOVA_DATA_DATABASE_URL` for the Supabase/Postgres business runtime
+- `NOVA_AUTH_DATABASE_URL` for the Supabase/Postgres auth store
 
 ## 2) First-time Setup
 
@@ -17,7 +17,6 @@ Fresh clone / CI-style install:
 
 ```bash
 npm ci
-npm run db:init
 ```
 
 For ad-hoc local work, `npm install` is acceptable; releases and diligence should prefer `npm ci`.
@@ -125,7 +124,7 @@ export DATABASE_URL="postgresql://user:pass@host:5432/nova_auth"
 npm run auth:migrate:postgres
 ```
 
-Local dev uses SQLite auth by default. Without any remote auth backend configured, deployed `/api/auth/*` returns `AUTH_STORE_NOT_CONFIGURED`.
+Local dev and production both require Supabase/Postgres auth configuration. Without it, deployed `/api/auth/*` returns `AUTH_STORE_NOT_CONFIGURED`.
 
 ## 8) Run Evidence Engine
 
@@ -191,7 +190,7 @@ node scripts/package-source.mjs --dry-run
 Excluded by default:
 
 - `node_modules`, `dist`, `build`, `coverage`, `artifacts`
-- `data/*.db`, `data/*.db-wal`, `data/*.db-shm`, `*.sqlite*`, `*.wal`, `*.shm`
+- `data/*.db`, `data/*.db-wal`, `data/*.db-shm`, `*.wal`, `*.shm`
 - `__MACOSX`, `.DS_Store`, local logs/tmp files
 
 ## 12) Vercel Deployment
@@ -209,9 +208,9 @@ API path:
 
 Database behavior on Vercel:
 
-- If `DB_PATH` is not set, the server defaults to `/tmp/nova-quant/quant.db`
-- Schema is auto-created on cold start
-- This database is ephemeral; it is suitable for demo/runtime continuity within a function lifecycle, not long-term persistence
+- Supabase/Postgres is required for auth and business data
+- Schema is auto-created in Postgres on cold start
+- Do not deploy without `NOVA_AUTH_DATABASE_URL` and `NOVA_DATA_DATABASE_URL`
 
 Recommended env for an investor demo deployment:
 

@@ -10,7 +10,12 @@ import {
   qualifyPgTable,
   quotePgIdentifier,
   resolvePostgresBusinessUrl,
-} from '../db/postgresMigration.js';
+} from '../db/postgresSql.js';
+import {
+  createPgPool,
+  ensureInMemoryBusinessSchema,
+  isInMemoryPostgresUrl,
+} from '../db/inMemoryPostgres.js';
 import {
   buildSignalListItemFromPgRow,
   type SignalListItem,
@@ -438,7 +443,10 @@ function getBusinessPool() {
   }
   if (poolSingleton) return poolSingleton;
   const connectionString = resolvePostgresBusinessUrl();
-  poolSingleton = new Pool({
+  if (isInMemoryPostgresUrl(connectionString)) {
+    ensureInMemoryBusinessSchema(connectionString, resolvePostgresBusinessSchema());
+  }
+  poolSingleton = createPgPool(connectionString, {
     connectionString,
     max: Math.max(1, Number(process.env.NOVA_DATA_PG_POOL_MAX || 6)),
     connectionTimeoutMillis: Math.max(
@@ -450,7 +458,7 @@ function getBusinessPool() {
     // performs the first cold connection; rely on server-side statement timeouts instead.
     statement_timeout: Math.max(1_000, Number(process.env.NOVA_DATA_PG_QUERY_TIMEOUT_MS || 8_000)),
     ssl: shouldUseSsl(connectionString) ? { rejectUnauthorized: false } : undefined,
-  });
+  }) as Pool;
   return poolSingleton;
 }
 
@@ -463,6 +471,13 @@ async function queryRows<T extends Record<string, unknown>>(sql: string, params:
 async function queryRow<T extends Record<string, unknown>>(sql: string, params: unknown[] = []) {
   const rows = await queryRows<T>(sql, params);
   return rows[0] || null;
+}
+
+export async function closePostgresBusinessReadPoolForTesting() {
+  if (!poolSingleton) return;
+  const pool = poolSingleton;
+  poolSingleton = null;
+  await pool.end();
 }
 
 async function listAlphaCandidates(limit = 200): Promise<AlphaCandidateRow[]> {
@@ -557,35 +572,23 @@ async function listAlphaShadowObservations(
         payload_json,
         created_at_ms,
         updated_at_ms
-      FROM (
-        SELECT
-          id,
-          alpha_candidate_id,
-          signal_id,
-          market,
-          symbol,
-          shadow_action,
-          alignment_score,
-          adjusted_confidence,
-          suggested_weight_multiplier,
-          realized_pnl_pct,
-          realized_source,
-          payload_json,
-          created_at_ms,
-          updated_at_ms,
-          ROW_NUMBER() OVER (
-            PARTITION BY alpha_candidate_id
-            ORDER BY updated_at_ms DESC, created_at_ms DESC
-          ) AS rn
-        FROM ${qualifyBusinessTable('alpha_shadow_observations')}
-        WHERE alpha_candidate_id = ANY($1::text[])
-      ) ranked
-      WHERE rn <= $2
+      FROM ${qualifyBusinessTable('alpha_shadow_observations')}
+      WHERE alpha_candidate_id = ANY($1::text[])
       ORDER BY alpha_candidate_id ASC, updated_at_ms DESC, created_at_ms DESC
     `,
-    [candidateIds, perCandidateLimit],
+    [candidateIds],
   );
-  return rows.map((row) => ({
+  const limitedRows: Record<string, unknown>[] = [];
+  const seenByCandidate = new Map<string, number>();
+  for (const row of rows) {
+    const candidateId = String(row.alpha_candidate_id || '');
+    if (!candidateId) continue;
+    const seenCount = seenByCandidate.get(candidateId) || 0;
+    if (seenCount >= perCandidateLimit) continue;
+    seenByCandidate.set(candidateId, seenCount + 1);
+    limitedRows.push(row);
+  }
+  return limitedRows.map((row) => ({
     id: String(row.id || ''),
     alpha_candidate_id: String(row.alpha_candidate_id || ''),
     signal_id: String(row.signal_id || ''),

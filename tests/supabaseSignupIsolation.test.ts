@@ -7,9 +7,27 @@ vi.mock('@supabase/supabase-js', () => ({
 }));
 
 describe('supabase signup isolation', () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+  const globalWithPublicConfig = globalThis as typeof globalThis & Record<string, unknown>;
+
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
+    fetchMock = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            configured: true,
+            url: 'https://project.supabase.co',
+            anonKey: 'anon-key',
+            redirectUrl: 'https://app.novaquant.cloud/',
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        ),
+    );
     vi.stubGlobal('window', {
       location: {
         hostname: 'app.novaquant.cloud',
@@ -17,24 +35,11 @@ describe('supabase signup isolation', () => {
         origin: 'https://app.novaquant.cloud',
       },
     });
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(
-        async () =>
-          new Response(
-            JSON.stringify({
-              configured: true,
-              url: 'https://project.supabase.co',
-              anonKey: 'anon-key',
-              redirectUrl: 'https://app.novaquant.cloud/',
-            }),
-            {
-              status: 200,
-              headers: { 'Content-Type': 'application/json' },
-            },
-          ),
-      ),
-    );
+    vi.stubGlobal('fetch', fetchMock);
+    delete globalWithPublicConfig.__NOVA_PUBLIC_SUPABASE_URL__;
+    delete globalWithPublicConfig.__NOVA_PUBLIC_SUPABASE_PUBLISHABLE_KEY__;
+    delete globalWithPublicConfig.__NOVA_PUBLIC_SUPABASE_REDIRECT_URL__;
+    delete globalWithPublicConfig.__NOVA_PUBLIC_API_BASE_URL__;
   });
 
   afterEach(() => {
@@ -67,6 +72,11 @@ describe('supabase signup isolation', () => {
     });
 
     expect(createClientMock).toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledWith('/api/auth/provider-config', {
+      credentials: 'omit',
+      mode: undefined,
+      cache: 'no-store',
+    });
     const isolatedCall = createClientMock.mock.calls.at(-1);
     expect(isolatedCall?.[2]).toMatchObject({
       auth: {
@@ -87,5 +97,32 @@ describe('supabase signup isolation', () => {
         emailRedirectTo: 'https://app.novaquant.cloud/',
       },
     });
+  });
+
+  it('prefers build-time injected public config without fetching runtime provider config', async () => {
+    globalWithPublicConfig.__NOVA_PUBLIC_SUPABASE_URL__ = 'https://defined.supabase.co';
+    globalWithPublicConfig.__NOVA_PUBLIC_SUPABASE_PUBLISHABLE_KEY__ = 'defined-anon-key';
+    globalWithPublicConfig.__NOVA_PUBLIC_SUPABASE_REDIRECT_URL__ =
+      'https://defined.novaquant.cloud/';
+
+    createClientMock.mockImplementation((_url, _key, options) => ({
+      options,
+      auth: {
+        signUp: vi.fn(async () => ({ data: { user: null, session: null }, error: null })),
+      },
+    }));
+
+    const { signUpWithSupabaseEmailVerification } = await import('../src/utils/supabaseAuth.js');
+    await signUpWithSupabaseEmailVerification({
+      email: 'new@example.com',
+      password: 'password123',
+    });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(createClientMock).toHaveBeenCalledWith(
+      'https://defined.supabase.co',
+      'defined-anon-key',
+      expect.any(Object),
+    );
   });
 });

@@ -1,7 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { getDb } from '../src/server/db/database.js';
-import { ensureSchema } from '../src/server/db/schema.js';
-import { MarketRepository } from '../src/server/db/repository.js';
 import { handleAdminLogin } from '../src/server/api/authHandlers.js';
 import {
   handleAdminAlphas,
@@ -11,11 +8,13 @@ import {
   handleAdminSystem,
   handleAdminUsers,
 } from '../src/server/api/adminHandlers.js';
+import { getRuntimeRepo } from '../src/server/db/runtimeRepository.js';
 import {
   persistAlphaCandidate,
   type AutonomousAlphaCandidate,
 } from '../src/server/alpha_registry/index.js';
 import { signupAuthUser } from '../src/server/auth/service.js';
+import { pgGetUserByEmail, pgUpsertUserState } from '../src/server/auth/postgresStore.js';
 import type { SignalContract } from '../src/server/types.js';
 import { _resetAdminCachesForTesting } from '../src/server/admin/service.js';
 
@@ -174,37 +173,7 @@ function buildSignal(id: string, symbol = 'AAPL'): SignalContract {
 }
 
 function cleanupAdminData(email: string) {
-  const db = getDb();
-  ensureSchema(db);
-  const row = db.prepare('SELECT user_id FROM auth_users WHERE email = ? LIMIT 1').get(email) as
-    | { user_id?: string }
-    | undefined;
-  const userId = row?.user_id || null;
-
-  db.prepare("DELETE FROM alpha_shadow_observations WHERE id LIKE 'admin-data-%'").run();
-  db.prepare("DELETE FROM alpha_lifecycle_events WHERE id LIKE 'admin-data-%'").run();
-  db.prepare("DELETE FROM alpha_evaluations WHERE id LIKE 'admin-data-%'").run();
-  db.prepare("DELETE FROM alpha_candidates WHERE id LIKE 'admin-data-%'").run();
-  db.prepare("DELETE FROM workflow_runs WHERE id LIKE 'admin-data-%'").run();
-  db.prepare("DELETE FROM nova_task_runs WHERE id LIKE 'admin-data-%'").run();
-  db.prepare("DELETE FROM news_items WHERE id LIKE 'admin-data-%'").run();
-  db.prepare("DELETE FROM fundamental_snapshots WHERE id LIKE 'admin-data-%'").run();
-  db.prepare("DELETE FROM option_chain_snapshots WHERE id LIKE 'admin-data-%'").run();
-  db.prepare("DELETE FROM executions WHERE execution_id LIKE 'admin-data-%'").run();
-  db.prepare("DELETE FROM signals WHERE signal_id LIKE 'admin-data-%'").run();
-
-  if (userId) {
-    db.prepare('DELETE FROM notification_events WHERE user_id = ?').run(userId);
-    db.prepare('DELETE FROM user_risk_profiles WHERE user_id = ?').run(userId);
-    db.prepare(
-      'DELETE FROM manual_referrals WHERE inviter_user_id = ? OR referred_user_id = ?',
-    ).run(userId, userId);
-    db.prepare('DELETE FROM auth_sessions WHERE user_id = ?').run(userId);
-    db.prepare('DELETE FROM auth_user_roles WHERE user_id = ?').run(userId);
-    db.prepare('DELETE FROM auth_user_state_sync WHERE user_id = ?').run(userId);
-    db.prepare('DELETE FROM manual_user_state WHERE user_id = ?').run(userId);
-    db.prepare('DELETE FROM auth_users WHERE user_id = ?').run(userId);
-  }
+  void email;
 }
 
 async function seedAuthUser(email: string, name: string) {
@@ -227,12 +196,10 @@ describe('admin data api', () => {
     vi.stubEnv('KV_REST_API_TOKEN', '');
     vi.stubEnv('UPSTASH_REDIS_REST_URL', '');
     vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', '');
-    vi.stubEnv('NOVA_DATA_DATABASE_URL', '');
-    vi.stubEnv('NOVA_DATA_PG_SCHEMA', '');
-    vi.stubEnv('NOVA_AUTH_DRIVER', '');
-    vi.stubEnv('NOVA_AUTH_DATABASE_URL', '');
-    vi.stubEnv('SUPABASE_DB_URL', '');
-    vi.stubEnv('DATABASE_URL', '');
+    vi.stubEnv('NOVA_DATA_DATABASE_URL', 'postgres://supabase-test-host/db');
+    vi.stubEnv('NOVA_DATA_PG_SCHEMA', 'novaquant_data');
+    vi.stubEnv('NOVA_AUTH_DRIVER', 'postgres');
+    vi.stubEnv('NOVA_AUTH_DATABASE_URL', 'postgres://supabase-test-host/db');
   });
 
   afterEach(() => {
@@ -262,47 +229,59 @@ describe('admin data api', () => {
     const cookie = login.headers['Set-Cookie'];
     expect(typeof cookie).toBe('string');
 
-    const db = getDb();
-    ensureSchema(db);
-    const repo = new MarketRepository(db);
-    const userRow = db
-      .prepare('SELECT user_id FROM auth_users WHERE email = ? LIMIT 1')
-      .get(email) as { user_id: string };
-    const userId = userRow.user_id;
+    const repo = getRuntimeRepo();
+    const user = await pgGetUserByEmail(email);
+    expect(user).toBeTruthy();
+    const userId = user?.user_id as string;
     const now = Date.now();
 
-    db.prepare(
-      `
-        INSERT OR REPLACE INTO auth_user_state_sync(
-          user_id, asset_class, market, ui_mode, risk_profile_key, watchlist_json, holdings_json, executions_json, discipline_log_json, updated_at_ms
-        ) VALUES(
-          @user_id, 'US_STOCK', 'US', 'standard', 'balanced', '["AAPL","MSFT"]', '[{"symbol":"AAPL","weight":0.25}]', '[]',
-          '{"checkins":[1],"boundary_kept":[1],"weekly_reviews":[1]}', @updated_at_ms
-        )
-      `,
-    ).run({ user_id: userId, updated_at_ms: now });
+    await pgUpsertUserState(
+      userId,
+      {
+        assetClass: 'US_STOCK',
+        market: 'US',
+        uiMode: 'standard',
+        riskProfileKey: 'balanced',
+        watchlist: ['AAPL', 'MSFT'],
+        holdings: [{ symbol: 'AAPL', weight: 0.25 }],
+        executions: [],
+        disciplineLog: {
+          checkins: ['1'],
+          boundary_kept: ['1'],
+          weekly_reviews: ['1'],
+        },
+      },
+      now,
+    );
 
-    db.prepare(
-      `
-        INSERT OR REPLACE INTO user_risk_profiles(
-          user_id, profile_key, max_loss_per_trade, max_daily_loss, max_drawdown, exposure_cap, leverage_cap, updated_at_ms
-        ) VALUES(
-          @user_id, 'balanced', 0.02, 0.04, 0.12, 0.8, 1.0, @updated_at_ms
-        )
-      `,
-    ).run({ user_id: userId, updated_at_ms: now });
+    repo.upsertUserRiskProfile({
+      user_id: userId,
+      profile_key: 'balanced',
+      max_loss_per_trade: 0.02,
+      max_daily_loss: 0.04,
+      max_drawdown: 0.12,
+      exposure_cap: 0.8,
+      leverage_cap: 1,
+      updated_at_ms: now,
+    });
 
-    db.prepare(
-      `
-        INSERT OR REPLACE INTO notification_events(
-          id, user_id, market, asset_class, category, trigger_type, fingerprint, title, body, tone, status,
-          action_target, reason_json, created_at_ms, updated_at_ms
-        ) VALUES(
-          'admin-data-note-1', @user_id, 'US', 'US_STOCK', 'RHYTHM', 'daily_digest', 'admin-data-note-1',
-          'Daily digest', 'Latest signal ready', 'neutral', 'ACTIVE', null, '{}', @created_at_ms, @updated_at_ms
-        )
-      `,
-    ).run({ user_id: userId, created_at_ms: now - 10_000, updated_at_ms: now - 10_000 });
+    repo.upsertNotificationEvent({
+      id: 'admin-data-note-1',
+      user_id: userId,
+      market: 'US',
+      asset_class: 'US_STOCK',
+      category: 'RHYTHM',
+      trigger_type: 'daily_digest',
+      fingerprint: 'admin-data-note-1',
+      title: 'Daily digest',
+      body: 'Latest signal ready',
+      tone: 'neutral',
+      status: 'ACTIVE',
+      action_target: null,
+      reason_json: '{}',
+      created_at_ms: now - 10_000,
+      updated_at_ms: now - 10_000,
+    });
 
     repo.upsertSignal(buildSignal('admin-data-signal-1'));
 

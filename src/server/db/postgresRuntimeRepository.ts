@@ -1,4 +1,3 @@
-import type Database from 'better-sqlite3';
 import type {
   AlphaCandidateRecord,
   AlphaEvaluationRecord,
@@ -74,7 +73,10 @@ import {
   rollbackTransactionSync,
   upsertRowsSync,
 } from './postgresSyncBridge.js';
-import { quotePgIdentifier } from './postgresMigration.js';
+import { quotePgIdentifier, resolvePostgresBusinessUrl } from './postgresSql.js';
+import { ensureInMemoryBusinessSchema, isInMemoryPostgresUrl } from './inMemoryPostgres.js';
+
+type LegacySyncDb = any;
 
 const UNSUPPORTED_DB = {
   prepare() {
@@ -83,7 +85,7 @@ const UNSUPPORTED_DB = {
   transaction() {
     throw new Error('POSTGRES_RUNTIME_METHOD_NOT_IMPLEMENTED');
   },
-} as unknown as Database.Database;
+} as unknown as LegacySyncDb;
 
 const AUTO_ID_TABLES = [
   'ingest_anomalies',
@@ -210,6 +212,12 @@ export function __buildSequenceResetSqlForTesting(table: (typeof AUTO_ID_TABLES)
 
 function ensureSequences() {
   if (sequencesReady) return;
+  const connectionString = resolvePostgresBusinessUrl();
+  if (isInMemoryPostgresUrl(connectionString)) {
+    ensureInMemoryBusinessSchema(connectionString, getPostgresBusinessSchema());
+    sequencesReady = true;
+    return;
+  }
   for (const table of AUTO_ID_TABLES) {
     const sequence = qualifySequence(table);
     const qualifiedTable = qualifyBusinessTable(table);
@@ -1555,14 +1563,9 @@ export class PostgresRuntimeRepository extends MarketRepository {
     }>(
       `
         SELECT alpha_candidate_id, realized_pnl_pct
-        FROM (
-          SELECT alpha_candidate_id, realized_pnl_pct,
-                 ROW_NUMBER() OVER (PARTITION BY alpha_candidate_id ORDER BY updated_at_ms DESC) AS rn
-          FROM ${qualifyBusinessTable('alpha_shadow_observations')}
-          WHERE alpha_candidate_id IN (${placeholders})
-        ) sub
-        WHERE rn <= 400
-        ORDER BY alpha_candidate_id, rn ASC
+        FROM ${qualifyBusinessTable('alpha_shadow_observations')}
+        WHERE alpha_candidate_id IN (${placeholders})
+        ORDER BY alpha_candidate_id ASC, updated_at_ms DESC
       `,
       candidateIds,
     );
@@ -1575,6 +1578,9 @@ export class PostgresRuntimeRepository extends MarketRepository {
       if (!entry) {
         entry = { total_observations: 0, realized_sample_size: 0, pnl_values: [] };
         map.set(row.alpha_candidate_id, entry);
+      }
+      if (entry.total_observations >= 400) {
+        continue;
       }
       entry.total_observations += 1;
       if (Number.isFinite(row.realized_pnl_pct)) {
@@ -2986,7 +2992,7 @@ export class PostgresRuntimeRepository extends MarketRepository {
           r.expected_fill_price, r.paper_fill_price, r.expected_pnl, r.paper_pnl, r.expected_hold_period, r.actual_hold_period,
           r.slippage_gap, r.attribution_json, r.status, r.created_at_ms,
           ss.symbol AS symbol, ss.strategy_version_id AS strategy_version_id,
-          ss.regime_context_json ->> 'regime_id' AS regime_id
+          ss.regime_context_json::jsonb ->> 'regime_id' AS regime_id
         FROM ${qualifyBusinessTable('replay_paper_reconciliation')} r
         JOIN ${qualifyBusinessTable('signal_snapshots')} ss ON ss.id = r.signal_snapshot_id
         ${whereSql}

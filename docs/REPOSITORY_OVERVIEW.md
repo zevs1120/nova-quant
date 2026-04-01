@@ -16,7 +16,7 @@ See root [`README.md`](../README.md) for full detail. Summary:
 | Repository root | API + quant core (deployed via `api/index.ts` → `src/server/api/app.ts`)         |
 | `model/`        | EC2-side model boundary; pushes signals to `POST /api/model/signals/ingest` only |
 
-**Local dev** usually runs from the **repo root** (`npm run dev` → API on `8787` + Vite). Database defaults to `data/quant.db` (see `src/server/config.ts` / `DB_PATH`).
+**Local dev** usually runs from the **repo root** (`npm run dev` → API on `8787` + Vite). Auth and business data should point at Supabase/Postgres via `.env`.
 
 ## Top-Level Review Modules
 

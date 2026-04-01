@@ -51,8 +51,8 @@ Minimum values to set:
 - `NOVA_RUNTIME_MODE=cloud-openai-compatible`
 - `NOVA_CLOUD_OPENAI_BASE_URL`
 - `NOVA_CLOUD_API_KEY`
-- `DB_PATH=/opt/nova-quant/data/quant.db`
-- any auth/Redis secrets you use in production
+- `NOVA_AUTH_DATABASE_URL=postgresql://...`
+- `NOVA_DATA_DATABASE_URL=postgresql://...`
 
 ## Systemd Service
 

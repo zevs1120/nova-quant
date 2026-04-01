@@ -1,4 +1,8 @@
+import { scryptSync, timingSafeEqual } from 'node:crypto';
 import { Pool } from 'pg';
+import { createPgPool } from '../db/inMemoryPostgres.js';
+import { buildInMemoryAuthBootstrapSql } from '../db/inMemoryPostgres.js';
+import { isInMemoryPostgresUrl } from '../db/inMemoryPostgres.js';
 
 export type PgAuthTradeMode = 'starter' | 'active' | 'deep';
 export type PgAuthRole = 'ADMIN' | 'OPERATOR' | 'SUPPORT';
@@ -208,6 +212,20 @@ function buildDefaultState(): PgAuthUserState {
   };
 }
 
+function hashCompatPassword(password: string, salt = 'pg-mem-auth-salt') {
+  const derived = scryptSync(password, salt, 64).toString('hex');
+  return `scrypt:${salt}:${derived}`;
+}
+
+function verifyCompatPassword(password: string, stored: string) {
+  const [kind, salt, digest] = String(stored || '').split(':');
+  if (kind !== 'scrypt' || !salt || !digest) return false;
+  const candidate = scryptSync(password, salt, 64);
+  const expected = Buffer.from(digest, 'hex');
+  if (candidate.length !== expected.length) return false;
+  return timingSafeEqual(candidate, expected);
+}
+
 function resolveAuthDriver() {
   const configured = String(process.env.NOVA_AUTH_DRIVER || '')
     .trim()
@@ -217,19 +235,29 @@ function resolveAuthDriver() {
     process.env.NODE_ENV === 'test' ||
     process.argv.some((arg) => arg.toLowerCase().includes('vitest'));
   if (isVitestRuntime) {
-    return configured;
+    return configured === 'remote' ? 'remote' : 'postgres';
   }
   return 'postgres';
 }
 
 function resolveAuthDatabaseUrl() {
-  return String(
+  const url = String(
     process.env.NOVA_AUTH_DATABASE_URL ||
       process.env.NOVA_DATA_DATABASE_URL ||
       process.env.SUPABASE_DB_URL ||
       process.env.DATABASE_URL ||
       '',
   ).trim();
+  if (url) return url;
+  const isVitestRuntime =
+    Boolean(process.env.VITEST || process.env.VITEST_WORKER_ID) ||
+    process.env.NODE_ENV === 'test' ||
+    process.argv.some((arg) => arg.toLowerCase().includes('vitest'));
+  return isVitestRuntime ? 'postgres://supabase-test-host/db' : '';
+}
+
+function isInMemoryAuthStore() {
+  return isInMemoryPostgresUrl(resolveAuthDatabaseUrl());
 }
 
 function shouldUseSsl(connectionString: string) {
@@ -253,18 +281,24 @@ function getAuthPool() {
   }
   if (poolSingleton) return poolSingleton;
   const connectionString = resolveAuthDatabaseUrl();
-  poolSingleton = new Pool({
+  poolSingleton = createPgPool(connectionString, {
     connectionString,
     max: Math.max(1, Number(process.env.NOVA_AUTH_PG_POOL_MAX || 5)),
     ssl: shouldUseSsl(connectionString) ? { rejectUnauthorized: false } : undefined,
-  });
+  }) as Pool;
   return poolSingleton;
 }
 
 export async function ensurePostgresAuthSchema() {
   if (!hasPostgresAuthStore() || schemaReady) return;
   const pool = getAuthPool();
-  await pool.query(AUTH_SCHEMA_SQL);
+  if (isInMemoryPostgresUrl(resolveAuthDatabaseUrl())) {
+    for (const statement of buildInMemoryAuthBootstrapSql()) {
+      await pool.query(statement);
+    }
+  } else {
+    await pool.query(AUTH_SCHEMA_SQL);
+  }
   schemaReady = true;
 }
 
@@ -422,6 +456,30 @@ export async function pgGetUserById(userId: string) {
 
 export async function pgGetSupabaseAuthUserByEmail(email: string) {
   await ensurePostgresAuthSchema();
+  if (isInMemoryAuthStore()) {
+    const user = await pgGetUserByEmail(email);
+    if (!user) return null;
+    return {
+      auth_user_id: user.user_id,
+      email: user.email,
+      encrypted_password: user.password_hash,
+      email_confirmed_at_ms: user.created_at_ms,
+      last_sign_in_at_ms: user.last_login_at_ms,
+      created_at_ms: user.created_at_ms,
+      updated_at_ms: user.updated_at_ms,
+      raw_user_meta_data: {
+        name: user.name,
+        tradeMode: user.trade_mode,
+        broker: user.broker,
+        locale: user.locale,
+        legacyUserId: user.user_id,
+      },
+      raw_app_meta_data: {
+        provider: 'email',
+        providers: ['email'],
+      },
+    } satisfies PgSupabaseAuthUserRow;
+  }
   const pool = getAuthPool();
   const result = await pool.query(
     `SELECT
@@ -445,6 +503,30 @@ export async function pgGetSupabaseAuthUserByEmail(email: string) {
 
 export async function pgVerifySupabaseAuthPassword(email: string, password: string) {
   await ensurePostgresAuthSchema();
+  if (isInMemoryAuthStore()) {
+    const user = await pgGetUserByEmail(email);
+    if (!user || !verifyCompatPassword(password, user.password_hash)) return null;
+    return {
+      auth_user_id: user.user_id,
+      email: user.email,
+      encrypted_password: user.password_hash,
+      email_confirmed_at_ms: user.created_at_ms,
+      last_sign_in_at_ms: user.last_login_at_ms,
+      created_at_ms: user.created_at_ms,
+      updated_at_ms: user.updated_at_ms,
+      raw_user_meta_data: {
+        name: user.name,
+        tradeMode: user.trade_mode,
+        broker: user.broker,
+        locale: user.locale,
+        legacyUserId: user.user_id,
+      },
+      raw_app_meta_data: {
+        provider: 'email',
+        providers: ['email'],
+      },
+    } satisfies PgSupabaseAuthUserRow;
+  }
   const pool = getAuthPool();
   const result = await pool.query(
     `SELECT
@@ -483,6 +565,24 @@ export async function pgInsertSupabaseAuthUser(args: {
   emailConfirmedAtMs?: number | null;
 }) {
   await ensurePostgresAuthSchema();
+  if (isInMemoryAuthStore()) {
+    const existing = await pgGetUserByEmail(args.email);
+    if (existing) return existing.user_id;
+    const userId = args.legacyUserId || `usr_mem_${Math.random().toString(36).slice(2, 10)}`;
+    await pgUpsertUser({
+      user_id: userId,
+      email: args.email,
+      password_hash: hashCompatPassword(args.password),
+      name: args.name,
+      trade_mode: args.tradeMode,
+      broker: args.broker,
+      locale: args.locale || null,
+      created_at_ms: Number(args.createdAtMs || Date.now()),
+      updated_at_ms: Number(args.updatedAtMs || args.createdAtMs || Date.now()),
+      last_login_at_ms: Number(args.lastSignInAtMs || args.createdAtMs || Date.now()),
+    });
+    return userId;
+  }
   const pool = getAuthPool();
   const result = await pool.query(
     `WITH new_user AS (
@@ -586,6 +686,16 @@ export async function pgInsertSupabaseAuthUser(args: {
 
 export async function pgTouchSupabaseAuthUser(email: string, lastSignInAtMs: number) {
   await ensurePostgresAuthSchema();
+  if (isInMemoryAuthStore()) {
+    const user = await pgGetUserByEmail(email);
+    if (!user) return;
+    await pgUpsertUser({
+      ...user,
+      updated_at_ms: lastSignInAtMs,
+      last_login_at_ms: lastSignInAtMs,
+    });
+    return;
+  }
   const pool = getAuthPool();
   await pool.query(
     `UPDATE auth.users
@@ -603,6 +713,16 @@ export async function pgUpdateSupabaseAuthPassword(
   updatedAtMs: number,
 ) {
   await ensurePostgresAuthSchema();
+  if (isInMemoryAuthStore()) {
+    const user = await pgGetUserByEmail(email);
+    if (!user) return;
+    await pgUpsertUser({
+      ...user,
+      password_hash: hashCompatPassword(password),
+      updated_at_ms: updatedAtMs,
+    });
+    return;
+  }
   const pool = getAuthPool();
   await pool.query(
     `UPDATE auth.users
@@ -816,6 +936,15 @@ export async function pgGetSessionBundle(tokenHash: string, now: number) {
 
 export async function pgGetAdminSessionBundle(tokenHash: string, now: number) {
   await ensurePostgresAuthSchema();
+  if (isInMemoryAuthStore()) {
+    const bundle = await pgGetSessionBundle(tokenHash, now);
+    if (!bundle) return null;
+    const roles = await pgListUserRoles(bundle.user.user_id);
+    return {
+      ...bundle,
+      roles: roles.map((row) => row.role),
+    };
+  }
   const pool = getAuthPool();
   const result = await pool.query(
     `SELECT

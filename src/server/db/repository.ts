@@ -1,4 +1,4 @@
-import type Database from 'better-sqlite3';
+import type { SyncDb } from './syncDb.js';
 import type {
   AlphaCandidateRecord,
   AlphaEvaluationRecord,
@@ -66,7 +66,7 @@ function nowMs(): number {
 }
 
 export class MarketRepository {
-  constructor(private readonly db: Database.Database) {}
+  constructor(private readonly db: SyncDb) {}
 
   upsertAsset(input: AssetInput): Asset {
     const ts = nowMs();
@@ -1411,24 +1411,31 @@ export class MarketRepository {
   > {
     if (!candidateIds.length) return new Map();
     const placeholders = candidateIds.map(() => '?').join(',');
-    const rows = this.db
+    const rawRows = this.db
       .prepare(
         `
-          SELECT alpha_candidate_id, realized_pnl_pct
-          FROM (
-            SELECT alpha_candidate_id, realized_pnl_pct,
-                   ROW_NUMBER() OVER (PARTITION BY alpha_candidate_id ORDER BY updated_at_ms DESC) AS rn
-            FROM alpha_shadow_observations
-            WHERE alpha_candidate_id IN (${placeholders})
-          )
-          WHERE rn <= 400
-          ORDER BY alpha_candidate_id, rn ASC
+          SELECT alpha_candidate_id, realized_pnl_pct, updated_at_ms
+          FROM alpha_shadow_observations
+          WHERE alpha_candidate_id IN (${placeholders})
+          ORDER BY alpha_candidate_id ASC, updated_at_ms DESC
         `,
       )
       .all(...candidateIds) as Array<{
       alpha_candidate_id: string;
       realized_pnl_pct: number | null;
+      updated_at_ms: number;
     }>;
+    const rows: Array<{ alpha_candidate_id: string; realized_pnl_pct: number | null }> = [];
+    const seenCounts = new Map<string, number>();
+    for (const row of rawRows) {
+      const nextCount = (seenCounts.get(row.alpha_candidate_id) || 0) + 1;
+      seenCounts.set(row.alpha_candidate_id, nextCount);
+      if (nextCount > 400) continue;
+      rows.push({
+        alpha_candidate_id: row.alpha_candidate_id,
+        realized_pnl_pct: row.realized_pnl_pct,
+      });
+    }
     const map = new Map<
       string,
       { total_observations: number; realized_sample_size: number; pnl_values: number[] }
@@ -2410,7 +2417,7 @@ export class MarketRepository {
     if (params?.limit) q.limit = params.limit;
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
     const limitSql = params?.limit ? 'LIMIT @limit' : '';
-    return this.db
+    const rows = this.db
       .prepare(
         `
           SELECT
@@ -2418,7 +2425,7 @@ export class MarketRepository {
             r.expected_fill_price, r.paper_fill_price, r.expected_pnl, r.paper_pnl, r.expected_hold_period, r.actual_hold_period,
             r.slippage_gap, r.attribution_json, r.status, r.created_at_ms,
             ss.symbol AS symbol, ss.strategy_version_id AS strategy_version_id,
-            json_extract(ss.regime_context_json, '$.regime_id') AS regime_id
+            ss.regime_context_json AS regime_context_json
           FROM replay_paper_reconciliation r
           JOIN signal_snapshots ss ON ss.id = r.signal_snapshot_id
           ${whereSql}
@@ -2427,6 +2434,27 @@ export class MarketRepository {
         `,
       )
       .all(q) as Array<
+      ReplayPaperReconciliationRecord & {
+        symbol: string | null;
+        strategy_version_id: string | null;
+        regime_context_json: string | null;
+      }
+    >;
+    return rows.map((row) => {
+      let regimeId: string | null = null;
+      try {
+        const parsed = JSON.parse(String(row.regime_context_json || '{}')) as {
+          regime_id?: string | null;
+        };
+        regimeId = parsed.regime_id || null;
+      } catch {
+        regimeId = null;
+      }
+      return {
+        ...row,
+        regime_id: regimeId,
+      };
+    }) as Array<
       ReplayPaperReconciliationRecord & {
         symbol: string | null;
         strategy_version_id: string | null;

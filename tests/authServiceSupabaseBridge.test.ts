@@ -6,7 +6,7 @@ function hashLegacyPassword(password: string, salt = 'bridge-test-salt') {
 }
 
 const mockGetDb = vi.fn(() => {
-  throw new Error('SQLITE_SHOULD_NOT_RUN');
+  throw new Error('LEGACY_LOCAL_DB_SHOULD_NOT_RUN');
 });
 const mockPgGetUserState = vi.fn().mockResolvedValue({
   assetClass: 'US_STOCK',
@@ -63,8 +63,8 @@ describe('auth service supabase bridge', () => {
     vi.stubEnv('NOVA_AUTH_DRIVER', 'postgres');
     vi.stubEnv('NOVA_AUTH_DATABASE_URL', 'postgres://runtime-host/db');
     vi.stubEnv('NOVA_AUTH_PG_SSL', 'disable');
-    // Stub the data runtime driver to postgres so that canUseLocalSqliteAuthMirror()
-    // returns false and the mocked getDb() is never called by auth mirror code.
+    // Stub the data runtime driver to postgres so the mocked getDb() is never
+    // called by any removed local-database compatibility path.
     vi.stubEnv('NOVA_DATA_RUNTIME_DRIVER', 'postgres');
     vi.stubEnv('NOVA_DATA_DATABASE_URL', 'postgres://runtime-host/db');
     vi.stubEnv('NOVA_DISABLE_TEST_ACCOUNT', '1');

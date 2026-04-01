@@ -133,9 +133,8 @@ Key lineage anchors:
 
 - Service: `src/server/auth/service.ts` (session, RBAC, middleware).
 - Postgres store (production): `src/server/auth/postgresStore.ts` — `users`, `sessions`, `roles`, `password_resets`, `user_state_sync`.
-- Legacy KV store: `src/server/auth/remoteKv.ts` (Upstash Redis, deployed fallback).
-- Local dev: SQLite-backed auth by default.
-- Without any remote auth backend configured, deployed `/api/auth/*` returns `AUTH_STORE_NOT_CONFIGURED`.
+- Supabase Native Auth provides browser signup/login and verified access tokens.
+- Without Supabase/Postgres auth configured, deployed `/api/auth/*` returns `AUTH_STORE_NOT_CONFIGURED`.
 
 ## 9) Holdings Import Lineage
 

@@ -1,4 +1,3 @@
-import type Database from 'better-sqlite3';
 import { Pool } from 'pg';
 import type {
   AlphaCandidateRecord,
@@ -32,13 +31,20 @@ import {
   quotePgIdentifier,
   recommendedBatchSize,
   resolvePostgresBusinessUrl,
-} from './postgresMigration.js';
+} from './postgresSql.js';
+import {
+  createPgPool,
+  ensureInMemoryBusinessSchema,
+  isInMemoryPostgresUrl,
+} from './inMemoryPostgres.js';
 
 type MirrorHandle = {
   repo: MarketRepository;
   flush: () => Promise<void>;
   mirrorEnabled: boolean;
 };
+
+type LegacySyncDb = any;
 
 type MirrorRow = object;
 
@@ -104,7 +110,10 @@ function getMirrorPool() {
   }
   if (poolSingleton) return poolSingleton;
   const connectionString = resolvePostgresBusinessUrl();
-  poolSingleton = new Pool({
+  if (isInMemoryPostgresUrl(connectionString)) {
+    ensureInMemoryBusinessSchema(connectionString, resolvePostgresBusinessSchema());
+  }
+  poolSingleton = createPgPool(connectionString, {
     connectionString,
     max: Math.max(1, Number(process.env.NOVA_DATA_PG_POOL_MAX || 6)),
     connectionTimeoutMillis: Math.max(
@@ -114,7 +123,7 @@ function getMirrorPool() {
     idleTimeoutMillis: Math.max(1_000, Number(process.env.NOVA_DATA_PG_IDLE_TIMEOUT_MS || 10_000)),
     statement_timeout: Math.max(1_000, Number(process.env.NOVA_DATA_PG_QUERY_TIMEOUT_MS || 8_000)),
     ssl: shouldUseSsl(connectionString) ? { rejectUnauthorized: false } : undefined,
-  });
+  }) as Pool;
   return poolSingleton;
 }
 
@@ -851,7 +860,7 @@ class PostgresBusinessWriteMirror {
   }
 }
 
-export function createMirroringMarketRepository(db: Database.Database): MirrorHandle {
+export function createMirroringMarketRepository(db: LegacySyncDb): MirrorHandle {
   const repo = new MarketRepository(db);
   if (!hasPostgresBusinessMirrorWrites()) {
     return {
@@ -1249,4 +1258,11 @@ export function createMirroringMarketRepository(db: Database.Database): MirrorHa
     },
     mirrorEnabled: true,
   };
+}
+
+export async function closePostgresBusinessMirrorPoolForTesting() {
+  if (!poolSingleton) return;
+  const pool = poolSingleton;
+  poolSingleton = null;
+  await pool.end();
 }

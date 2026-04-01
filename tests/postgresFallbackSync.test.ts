@@ -169,7 +169,7 @@ describe('postgres fallback sync', () => {
     }
   });
 
-  it('getRiskProfilePrimary falls back to SQLite path', async () => {
+  it('getRiskProfilePrimary falls back to the shared Postgres runtime path', async () => {
     const origEnv = process.env.NOVA_DATA_DATABASE_URL;
     delete process.env.NOVA_DATA_DATABASE_URL;
 
@@ -186,7 +186,7 @@ describe('postgres fallback sync', () => {
     }
   });
 
-  it('getMarketStatePrimary falls back to SQLite path', async () => {
+  it('getMarketStatePrimary falls back to the shared Postgres runtime path', async () => {
     const origEnv = process.env.NOVA_DATA_DATABASE_URL;
     delete process.env.NOVA_DATA_DATABASE_URL;
 
@@ -203,7 +203,7 @@ describe('postgres fallback sync', () => {
     }
   });
 
-  it('getPerformanceSummaryPrimary falls back to SQLite path', async () => {
+  it('getPerformanceSummaryPrimary falls back to the shared Postgres runtime path', async () => {
     const origEnv = process.env.NOVA_DATA_DATABASE_URL;
     delete process.env.NOVA_DATA_DATABASE_URL;
 
@@ -222,7 +222,7 @@ describe('postgres fallback sync', () => {
   });
 
   it('cools down postgres primary reads after a timeout failure', async () => {
-    vi.stubEnv('NOVA_DATA_DATABASE_URL', 'postgres://runtime-host/db');
+    vi.stubEnv('NOVA_DATA_DATABASE_URL', 'postgres://supabase-test-host/db');
     vi.stubEnv('NOVA_PG_PRIMARY_READ_FAILURE_COOLDOWN_MS', '60000');
     vi.stubEnv('NOVA_ENABLE_PG_PRIMARY_READS_TEST', '1');
 
@@ -236,8 +236,8 @@ describe('postgres fallback sync', () => {
     expect(readSpy).toHaveBeenCalledTimes(1);
   });
 
-  it('returns degraded empty assets instead of syncing SQLite on hot-path read failure', async () => {
-    vi.stubEnv('NOVA_DATA_DATABASE_URL', 'postgres://runtime-host/db');
+  it('returns degraded empty assets instead of syncing the shared runtime on hot-path read failure', async () => {
+    vi.stubEnv('NOVA_DATA_DATABASE_URL', 'postgres://supabase-test-host/db');
     vi.stubEnv('NOVA_ENABLE_PG_PRIMARY_READS_TEST', '1');
     vi.stubEnv('NOVA_ALLOW_SYNC_HOT_PATH_FALLBACK', '0');
 
@@ -246,8 +246,8 @@ describe('postgres fallback sync', () => {
     await expect(queries.listAssetsPrimary('US')).resolves.toEqual([]);
   });
 
-  it('returns degraded performance summary instead of syncing SQLite on hot-path read failure', async () => {
-    vi.stubEnv('NOVA_DATA_DATABASE_URL', 'postgres://runtime-host/db');
+  it('returns degraded performance summary instead of syncing the shared runtime on hot-path read failure', async () => {
+    vi.stubEnv('NOVA_DATA_DATABASE_URL', 'postgres://supabase-test-host/db');
     vi.stubEnv('NOVA_ENABLE_PG_PRIMARY_READS_TEST', '1');
     vi.stubEnv('NOVA_ALLOW_SYNC_HOT_PATH_FALLBACK', '0');
 
@@ -262,7 +262,7 @@ describe('postgres fallback sync', () => {
   });
 
   it('builds evidence-top response from async postgres signal payloads', async () => {
-    vi.stubEnv('NOVA_DATA_DATABASE_URL', 'postgres://runtime-host/db');
+    vi.stubEnv('NOVA_DATA_DATABASE_URL', 'postgres://supabase-test-host/db');
     vi.stubEnv('NOVA_ENABLE_PG_PRIMARY_READS_TEST', '1');
     vi.stubEnv('NOVA_ALLOW_SYNC_HOT_PATH_FALLBACK', '0');
 
@@ -282,8 +282,8 @@ describe('postgres fallback sync', () => {
     expect(result.records[0]?.symbol).toBe(signal.symbol);
   });
 
-  it('skips sqlite decision snapshot reads and writes for personalized hot-path decisions', async () => {
-    vi.stubEnv('NOVA_DATA_DATABASE_URL', 'postgres://runtime-host/db');
+  it('skips local decision snapshot reads and writes for personalized hot-path decisions', async () => {
+    vi.stubEnv('NOVA_DATA_DATABASE_URL', 'postgres://supabase-test-host/db');
     vi.stubEnv('NOVA_ENABLE_PG_PRIMARY_READS_TEST', '1');
     vi.stubEnv('NOVA_ALLOW_SYNC_HOT_PATH_FALLBACK', '0');
 

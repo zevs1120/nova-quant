@@ -7,35 +7,32 @@ describe('config runtime driver', () => {
     resetConfigCache();
   });
 
-  it('defaults to sqlite runtime in Vitest unless postgres is explicitly requested', () => {
+  it('defaults to postgres runtime', () => {
     const config = getConfig();
-    expect(config.database.driver).toBe('sqlite');
-    if (config.database.driver === 'sqlite') {
-      expect(config.database.path).toContain('.tmp');
-    }
+    expect(config.database.driver).toBe('postgres');
+    expect(config.database.url.startsWith('postgres')).toBe(true);
+    expect(config.database.schema).toBe('novaquant_data');
   });
 
-  it('still resolves postgres runtime when NOVA_DATA_RUNTIME_DRIVER=postgres is set in Vitest', () => {
-    vi.stubEnv('NOVA_DATA_RUNTIME_DRIVER', 'postgres');
+  it('resolves explicit postgres runtime configuration from env', () => {
     vi.stubEnv('NOVA_DATA_DATABASE_URL', 'postgres://runtime-host/db');
 
     const config = getConfig();
     expect(config.database.driver).toBe('postgres');
-    if (config.database.driver === 'postgres') {
-      expect(config.database.url).toBe('postgres://runtime-host/db');
-      expect(config.database.schema).toBe('novaquant_data');
-    }
-    expect(() => resolveDbPath()).toThrow('BUSINESS_RUNTIME_POSTGRES_ONLY');
+    expect(config.database.url).toBe('postgres://runtime-host/db');
+    expect(config.database.schema).toBe('novaquant_data');
+    expect(() => resolveDbPath()).toThrow(
+      'BUSINESS_RUNTIME_POSTGRES_ONLY: resolveDbPath() is unavailable because local database runtimes have been removed.',
+    );
   });
 
-  it('throws when postgres runtime has no business database url', () => {
-    vi.stubEnv('NOVA_DATA_RUNTIME_DRIVER', 'postgres');
+  it('falls back to the shared in-memory postgres url in vitest when no business url is set', () => {
     vi.stubEnv('NOVA_DATA_DATABASE_URL', '');
     vi.stubEnv('SUPABASE_DB_URL', '');
     vi.stubEnv('DATABASE_URL', '');
     vi.stubEnv('NOVA_AUTH_DATABASE_URL', '');
-    expect(() => getConfig()).toThrow(
-      'NOVA_DATA_RUNTIME_DRIVER=postgres requires NOVA_DATA_DATABASE_URL',
-    );
+    const config = getConfig();
+    expect(config.database.driver).toBe('postgres');
+    expect(config.database.url).toBe('postgres://supabase-test-host/db');
   });
 });

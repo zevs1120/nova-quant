@@ -1,10 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import request from 'supertest';
-import { getDb } from '../src/server/db/database.js';
-import { ensureSchema } from '../src/server/db/schema.js';
-import { MarketRepository } from '../src/server/db/repository.js';
 import { createApiApp } from '../src/server/api/app.js';
+import { getRuntimeRepo } from '../src/server/db/runtimeRepository.js';
 import type { SignalContract } from '../src/server/types.js';
+import { requestLocalHttp } from './helpers/httpTestClient.js';
 
 function seedSignal(id: string, symbol: string, createdAt: string, entry: number): SignalContract {
   return {
@@ -54,9 +52,7 @@ function seedSignal(id: string, symbol: string, createdAt: string, entry: number
 
 describe('evidence api', () => {
   it('exposes top signals/backtests/reconciliation/champion endpoints with transparency', async () => {
-    const db = getDb();
-    ensureSchema(db);
-    const repo = new MarketRepository(db);
+    const repo = getRuntimeRepo();
     const now = Date.now();
     const start = now - 110 * 24 * 3600_000;
     const asset = repo.upsertAsset({
@@ -114,21 +110,28 @@ describe('evidence api', () => {
 
     const app = createApiApp();
 
-    const runRes = await request(app).post('/api/evidence/run').send({
-      userId: 'api-evidence-user',
-      market: 'US',
-      assetClass: 'US_STOCK',
-      timeframe: '1d',
-      maxSignals: 30,
+    const runRes = await requestLocalHttp(app, {
+      method: 'POST',
+      path: '/api/evidence/run',
+      body: {
+        userId: 'api-evidence-user',
+        market: 'US',
+        assetClass: 'US_STOCK',
+        timeframe: '1d',
+        maxSignals: 30,
+      },
     });
     expect(runRes.status).toBe(200);
     expect(runRes.body.run_id).toBeTruthy();
 
-    const topRes = await request(app).get('/api/evidence/signals/top').query({
-      userId: 'api-evidence-user',
-      market: 'US',
-      assetClass: 'US_STOCK',
-      limit: 3,
+    const topRes = await requestLocalHttp(app, {
+      path: '/api/evidence/signals/top',
+      query: {
+        userId: 'api-evidence-user',
+        market: 'US',
+        assetClass: 'US_STOCK',
+        limit: 3,
+      },
     });
     expect(topRes.status).toBe(200);
     expect(topRes.body.source_status).toBe('DB_BACKED');
@@ -138,25 +141,33 @@ describe('evidence api', () => {
       expect(topRes.body.records[0]).toHaveProperty('source_transparency');
     }
 
-    const runsRes = await request(app).get('/api/evidence/backtests').query({ limit: 10 });
+    const runsRes = await requestLocalHttp(app, {
+      path: '/api/evidence/backtests',
+      query: { limit: 10 },
+    });
     expect(runsRes.status).toBe(200);
     expect(Array.isArray(runsRes.body.records)).toBe(true);
     const runId = runsRes.body.records?.[0]?.id;
     expect(runId).toBeTruthy();
 
-    const runDetailRes = await request(app).get(`/api/evidence/backtests/${runId}`);
+    const runDetailRes = await requestLocalHttp(app, {
+      path: `/api/evidence/backtests/${runId}`,
+    });
     expect(runDetailRes.status).toBe(200);
     expect(runDetailRes.body.detail).toHaveProperty('run');
     expect(runDetailRes.body.detail).toHaveProperty('metrics');
     expect(runDetailRes.body.detail).toHaveProperty('transparency');
 
-    const reconRes = await request(app)
-      .get('/api/evidence/reconciliation')
-      .query({ replayRunId: runId });
+    const reconRes = await requestLocalHttp(app, {
+      path: '/api/evidence/reconciliation',
+      query: { replayRunId: runId },
+    });
     expect(reconRes.status).toBe(200);
     expect(Array.isArray(reconRes.body.records)).toBe(true);
 
-    const championRes = await request(app).get('/api/evidence/strategies/champion');
+    const championRes = await requestLocalHttp(app, {
+      path: '/api/evidence/strategies/champion',
+    });
     expect(championRes.status).toBe(200);
     expect(Array.isArray(championRes.body.records)).toBe(true);
   });

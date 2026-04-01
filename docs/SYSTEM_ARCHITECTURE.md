@@ -28,7 +28,7 @@ Last updated: 2026-03-24
 
 3. **Persistence Layer**
 
-- SQLite database (`data/quant.db`).
+- Supabase/Postgres business database.
 - Schema: `src/server/db/schema.ts`.
 - Repository operations: `src/server/db/repository.ts`.
 

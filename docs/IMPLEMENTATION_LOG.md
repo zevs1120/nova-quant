@@ -410,7 +410,7 @@
   - provider-chain execution,
   - deterministic fallback,
   - message persistence.
-- Added thread/message persistence via SQLite.
+- Added thread/message persistence via the local runtime store used at the time.
 
 3. Assistant tool/prompt improvements
 

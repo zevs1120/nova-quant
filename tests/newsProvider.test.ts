@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { NewsItemRecord } from '../src/server/types.js';
-import Database from 'better-sqlite3';
+import { InMemorySyncDb as Database } from '../src/server/db/inMemorySyncDb.js';
 import { ensureSchema } from '../src/server/db/schema.js';
 import { MarketRepository } from '../src/server/db/repository.js';
 import { enrichNewsRowsWithGeminiFactors } from '../src/server/news/geminiFactors.js';

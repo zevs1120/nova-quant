@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import request from 'supertest';
 import { createApiApp } from '../src/server/api/app.js';
+import { requestLocalHttp } from './helpers/httpTestClient.js';
 
 describe('decision api', () => {
   beforeEach(() => {
@@ -20,9 +20,10 @@ describe('decision api', () => {
     const app = createApiApp();
     const userId = `decision-user-${Date.now()}`;
 
-    const decisionRes = await request(app)
-      .post('/api/decision/today')
-      .send({
+    const decisionRes = await requestLocalHttp(app, {
+      method: 'POST',
+      path: '/api/decision/today',
+      body: {
         userId,
         market: 'US',
         assetClass: 'US_STOCK',
@@ -42,7 +43,8 @@ describe('decision api', () => {
             sector: 'ETF',
           },
         ],
-      });
+      },
+    });
 
     expect(decisionRes.status).toBe(200);
     expect(decisionRes.body).toHaveProperty('audit_snapshot_id');
@@ -61,11 +63,14 @@ describe('decision api', () => {
     expect(topAction.evidence_bundle).toHaveProperty('regime_context');
     expect(topAction.evidence_bundle).toHaveProperty('data_quality');
 
-    const auditRes = await request(app).get('/api/decision/audit').query({
-      userId,
-      market: 'US',
-      assetClass: 'US_STOCK',
-      limit: 5,
+    const auditRes = await requestLocalHttp(app, {
+      path: '/api/decision/audit',
+      query: {
+        userId,
+        market: 'US',
+        assetClass: 'US_STOCK',
+        limit: 5,
+      },
     });
 
     expect(auditRes.status).toBe(200);

@@ -4,6 +4,17 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+- **Fix(db,test,docs): 仓库完全收口到 Supabase/Postgres，清除本地数据库残留。**
+  - 移除历史本地数据库与旧 HTTP 测试依赖，删除本地库初始化/迁移脚本，并将底层 SQL helper 收口到 `postgresSql.ts`。
+  - API 测试改为进程内 HTTP harness，不再依赖端口监听；全量 `875` 个 Vitest 用例在受限环境下可稳定通过。
+  - README、runbook、架构文档、历史说明与自动生成策略报告统一改写为 Supabase/Postgres 语义，去除本地数据库路径和旧迁移入口。
+
+- **Fix(auth,db,deploy): 注册验证链路收口到 Supabase，线上数据源统一为 Supabase/Postgres。**
+  - 前端注册/重发验证不再依赖“本地是否已经拿到 Supabase 配置”的瞬时状态，而是始终先拉取运行时配置再执行；修复页面刚打开时误报 “Supabase Auth 还没有配置完成” 的问题。
+  - 浏览器端废弃本地持久化的 `nova-quant-auth-session` 假登录态，只认 Supabase 会话与服务端 Bearer token 校验；注册开始前会主动清空主 client 会话，避免旧账号残留把新注册流程伪装成“直接进系统”。
+  - Qlib sidecar 数据同步改为直接读取 Supabase/Postgres，不再依赖本地 `legacy local runtime store`；相关 `.env.example`、EC2/Vultr 部署模板、README 与运行文档统一改为线上数据库配置。
+  - `/api` 读路径与文案同步去除 `mixed-postgres-fallback` / “falling back to legacy local runtime” 表述，统一说明当前链路是 Postgres primary / bridge path。
+
 - **Feat(deploy): GitHub Actions 部署流程纳入 nova-qlib-bridge.service。**
   - deploy-ec2.yml 重启阶段新增 qlib-bridge，按 systemd 依赖链顺序（marvix -> marvix-backend -> nova-qlib-bridge）。
   - 健康检查和失败日志输出同步覆盖 qlib-bridge 服务。
@@ -25,7 +36,7 @@ NovaQuant 所有重要变更记录于此。
 - **Fix(test,auth,db): 统一全量验证到新的 Supabase-only 鉴权与可重复测试运行时。**
   - 将已废弃的 `/api/auth/signup`、`/api/auth/forgot-password` 旧假设从测试中移除，改为断言 `AUTH_MANAGED_BY_SUPABASE`；admin 场景改为直接 seed auth service 用户，而不是依赖已关闭的公共注册 API。
   - 新增可直接单测的 request scope resolver，并将 user-scope 相关测试改为验证 Bearer token 绑定、guest 限制和 `AUTH_REQUIRED / USER_SCOPE_MISMATCH` 返回，不再依赖旧 cookie 注册流。
-  - Vitest 运行时默认固定到隔离 sqlite，并禁用 Postgres mirror 写入；只有显式声明的 Postgres/runtime 测试才会重新打开对应路径，保证 `npm run verify` 在本地可重复且不依赖真实 Supabase 网络。
+  - Vitest 运行时默认固定到隔离 legacy local runtime，并禁用 Postgres mirror 写入；只有显式声明的 Postgres/runtime 测试才会重新打开对应路径，保证 `npm run verify` 在本地可重复且不依赖真实 Supabase 网络。
   - 对齐新的 runtime bundle / mirror 读写路径，修复 Postgres fallback 与 mirror consistency 测试中过时的断言和数据桩。
 
 ## 10.21.2 (2026-04-01)
@@ -73,7 +84,7 @@ NovaQuant 所有重要变更记录于此。
 
 - **Feat(research,quant): 深度整合 Qlib Bridge 客户端与自动化数据同步管道。**
   - **核心客户端引擎 (`qlibClient.ts`)**：构建了完全类型安全的高性能 HTTP API 透传层，匹配 Python 端 `/api/data/sync`、`/api/factors/compute` 等服务；添加自动回退容错并区分长短任务超时（最长容忍高达 300s）。
-  - **自动化影子同步**：在 Node.js 端行情的全量抓取管道 (`scripts/backfill.ts`) 完成后自动触发非阻塞挂起的同步指令，无需外部干预即可使得 Python 端 SQLite -> Bin 数据矩阵保持时效最高同步。
+  - **自动化影子同步**：在 Node.js 端行情的全量抓取管道 (`scripts/backfill.ts`) 完成后自动触发非阻塞挂起的同步指令，无需外部干预即可使得 Python 端 legacy local runtime -> Bin 数据矩阵保持时效最高同步。
   - **非阻塞信号增强 (`featureSignalLayer.js`)**：使用修饰器模式为原始量化引擎注入 Alpha158 外部算力补全；一旦桥接侧（Sidecar）出现崩溃、挂起或 OOM，TS 系统自动降级回归到纯本地指标进行信号计算，保证整体交易系统的永不掉线（Graceful Degradation）。
 
 - **Feat(ai,strategy): 原生引入 Qlib 因子的认知对齐与算法级算力挂钩。**
@@ -84,7 +95,7 @@ NovaQuant 所有重要变更记录于此。
   - **接口形态适配 (`featureSignalLayer.js`)**：修正由桥接层嵌套格式不匹配导致的取值错误，重写内部符号分组聚合逻辑，清理阻断日志的隐式 catch 静默失败问题，废弃所有 `console.warn` 以遵循项目日志监控规范。
   - **端到端注入补全 (`queries.ts`)**：修复 `decision engine` 信号对象在流转中脱离 Alpha 增强处理的生命周期缺陷；改造了 `buildDecisionSnapshotFromCorePrimary` 查询核心切面，在此直接完成特征清洗赋予，保障 `rankCard` 阶段的因子加速得以真正运行及反馈至 LLM。
   - **环境默认降级 (`config.ts`)**：修改 Qlib Bridge 开关默认为 `false` 避免无侧车的纯 Vercel 生产环境对 `/api/data/sync` 发起无效长轮询。
-  - **侧车安全硬化 (`model_adapter.py`, `data_sync.py`)**：为 Python 端的静态模型加载重写了 `RestrictedUnpickler` 细粒度过滤加载类，阻止高危库及未知组件的载入；为 SQLite ETL 同步脚本针对表名的 `f-string` 拼接增加了高强度的纯数字字母下划线强制正则断言，彻底封堵 SQL 注入风险。
+  - **侧车安全硬化 (`model_adapter.py`, `data_sync.py`)**：为 Python 端的静态模型加载重写了 `RestrictedUnpickler` 细粒度过滤加载类，阻止高危库及未知组件的载入；为 legacy local runtime ETL 同步脚本针对表名的 `f-string` 拼接增加了高强度的纯数字字母下划线强制正则断言，彻底封堵 SQL 注入风险。
 
 ## 10.20.0 (2026-03-31)
 
@@ -93,7 +104,7 @@ NovaQuant 所有重要变更记录于此。
 - **Feat(research,quant): 初始化 qlib-bridge Python sidecar 服务，引入 Microsoft Qlib 量化引擎。**
   - 为克服 TypeScript/Node.js 生态在量化因子计算和传统 ML 推理上的算力及生态局限，搭建了无侵入式的独立 Python 微服务 `qlib-bridge`。
   - 新增基于 FastAPI 和 PyQlib 的 REST API 桥接层：提供 Alpha158/Alpha360 因子日频计算接口（`/api/factors/compute`），以及预训练决策树/传统机器模型的远程推理端点（`/api/models/predict`）。
-  - 新增 `data_sync.py` 执行同步：自动化桥接 Nova Quant 存量的 SQLite OHLCV K线数据到 Qlib 原生二进制格式 (dump_bin)，避免双重抓取。
+  - 新增 `data_sync.py` 执行同步：自动化桥接 Nova Quant 存量的 legacy local runtime OHLCV K线数据到 Qlib 原生二进制格式 (dump_bin)，避免双重抓取。
   - 工程化限制与环境适配：基于 2GB 发行版限制设计内存安全机制 (`max_universe_size: 50`) 和 systemd 内存熔断；开发工作流彻底摒弃传统 venv 切换到更现代极速的 `uv` 虚拟环境。
   - 架构文档同步更新，明确了四端（app, admin, web, serverless）外挂一个模型端的部署拓扑。
 
@@ -105,7 +116,7 @@ NovaQuant 所有重要变更记录于此。
 - **Feat(auth): 彻底弃用 Resend 依赖，全面接入原生 Supabase Auth 邮件流。**
   - 废除冗余架构：重构 `service.ts`，废除自定义 6 位验证码存取、弃用定制化的邮件模板管理流程，改为原生调用 SDK 的 `signUp()` 和 `resetPasswordForEmail()`，将整个账户边缘发送链路收敛并下放到原生 Supabase 后台接管。
   - 移除环境凭证：清空本地环境、生产环境模版及 4 个测试框架桩文件中的 `RESEND_API_KEY`、`NOVA_AUTH_EMAIL_FROM` 等遗留环境变量引用。
-  - SQLite 双引擎热回退：解决 Supabase 服务不存时的断网阻断痛点，新增纯本地回退日志 (`console.warn` 打印 Mock Tokens)，保障本地无三方密钥情况下的离线开发闭环顺畅。
+  - legacy local runtime 双引擎热回退：解决 Supabase 服务不存时的断网阻断痛点，新增纯本地回退日志 (`console.warn` 打印 Mock Tokens)，保障本地无三方密钥情况下的离线开发闭环顺畅。
   - 清理与基建瘦身：清除 `npm` 相关的底层脆弱漏洞 (Audit Fix)，删除 `scripts/check-resend-config.ts` 以及文档内全部 `resetEmail.ts` 旧架构索引。
   - 确保了 880 个测试与 `npm run verify` 全部通过，完全去除了底层的 Resend `fetch` mocks。
 
@@ -122,7 +133,7 @@ NovaQuant 所有重要变更记录于此。
     - 根因：`setRiskProfile`、`setNotificationPreferencesState` 等写路径完成 DB upsert 后，不清除该用户的 `frontendReadCache` 条目，导致下次读取仍返回过期数据直到 TTL 超时。
     - 修复：新增 `invalidateFrontendReadCacheForUser(userId)` 辅助函数，遍历 cache Map 驱逐命中该用户 ID 的所有条目（含 inflight 队列）；两个写路径 upsert 完成后立即调用。
   - **[🟡 中危] Fix(auth): Supabase 首次登录并发注册竞争条件偶发 UNIQUE constraint 错误导致 401。**
-    - 根因：`getOrCreateSupabaseBackedUser` SQLite 路径用裸 `INSERT INTO auth_users` — 多个并发请求验证同一 access token 时，都通过了"用户不存在"检查，随后竞争插入同一邮箱，第二个请求因 UNIQUE 约束抛异常返回 null，上层 session 解析失败 → 401。
+    - 根因：`getOrCreateSupabaseBackedUser` legacy local runtime 路径用裸 `INSERT INTO auth_users` — 多个并发请求验证同一 access token 时，都通过了"用户不存在"检查，随后竞争插入同一邮箱，第二个请求因 UNIQUE 约束抛异常返回 null，上层 session 解析失败 → 401。
     - 修复：改用 `INSERT OR IGNORE INTO auth_users`，并检查 `changes === 0`（表示有并发请求已写入），此时重新从 DB 读取并返回胜出请求创建的用户记录；`auth_user_state_sync` 同步改为 `INSERT OR IGNORE` 防止双写。
   - **[🟡 中危] Fix(billing): Guest Checkout（未绑定 Stripe Customer）后 Customer Portal 不可用。**
     - 根因：当 Stripe 返回 `customer: null` 时（首次 guest checkout），`provider_customer_id` 为 null；此后调用 `/api/billing/portal` 直接失败，用户无法自助管理订阅。
@@ -193,7 +204,7 @@ NovaQuant 所有重要变更记录于此。
   - 新增 `Free / Lite / Pro` 的会员权益模型、Today/Ask Nova/My 入口的升级引导，以及独立的 `Membership & Plans` 页面与 paywall sheet。
   - 新增移动端 H5 checkout 底部支付页，升级按钮不再直接切本地 plan，而是统一走 checkout session；未登录或本地 API 不可用时自动回退到 preview 模式，方便本地演示。
   - 后端新增 `billing_customers`、`billing_checkout_sessions`、`billing_subscriptions` 三张表，并补齐 `/api/billing/state`、创建 checkout、完成 checkout、取消订阅接口。
-  - 新增 Postgres runtime 测试，确认 Supabase/Postgres 主路径下 checkout 与订阅激活不会回退本地 SQLite。
+  - 新增 Postgres runtime 测试，确认 Supabase/Postgres 主路径下 checkout 与订阅激活不会回退本地 legacy local runtime。
 
 - **Feat(app): Today 改为 landing 风格的单卡决策流，并保留完整 Browse 入口。**
   - `Today` 主流程重做为单张 `Action Card` + 卡堆预览，支持 `左滑放弃 / 右滑执行 / 上滑暂存`，并加入更接近 Tinder 的圆形操作按钮与极简反馈。
@@ -214,18 +225,18 @@ NovaQuant 所有重要变更记录于此。
   - **Fix -- admin 登录错误文案纠偏**：`admin` 前端现在会把 `502/503/504`、请求超时和服务端 `500` 统一显示为“管理员登录服务当前不可用”，不再误导成“当前账号没有管理员权限”。
   - **Fix -- control-plane/status 减压**：控制面板状态新增 60s 服务端缓存 + inflight 去重，前端静默刷新不再每 120s 同步拉这个重接口，降低单线程 API 被控制面板轮询拖死的概率。
   - **Fix -- public control-plane 冷启动风暴继续减压**：前台首屏不再主动拉取 `control-plane/status`，仅在 Data / Learning tab 按需请求；后端把 `guest-*` 的 control-plane 缓存键归一到共享 public scope，避免每个匿名访客都触发一轮独立的重查询。
-  - **Fix -- 生产启动 I/O 风暴止血**：`auto-backend` 现在会在已有新鲜行情数据时跳过启动期 full initial backfill，避免每次 deploy 都对同一个 `quant.db` 重灌历史数据；`pg-primary-read` 在 Supabase 超时后会进入短暂冷却，避免每个请求都重复等待远端超时再回退本地库。
+  - **Fix -- 生产启动 I/O 风暴止血**：`auto-backend` 现在会在已有新鲜行情数据时跳过启动期 full initial backfill，避免每次 deploy 都对同一个 `legacy local runtime store` 重灌历史数据；`pg-primary-read` 在 Supabase 超时后会进入短暂冷却，避免每个请求都重复等待远端超时再回退本地库。
   - **Fix -- warm start 不再重跑整段重初始化**：当 US / CRYPTO 两个市场都已有足够新鲜的代表性数据时，`auto-backend` 会直接跳过启动期 `free data flywheel + validation + runtime derivation + evolution/training/discovery` 全套初始化；同时支持 `NOVA_AUTO_BACKEND_SKIP_INIT=1` 明确禁用启动期初始化。
-  - **Fix -- 公共热接口去同步回退**：`/api/assets`、`/api/signals`、`/api/market-state`、`/api/performance`、`/api/risk-profile`、`/api/runtime-state`、`/api/evidence/signals/top` 与无持仓的 `decision/today` 现在优先走真正异步的 Postgres 读取路径；当 Supabase 慢或超时时，默认返回降级/空数据而不是立刻掉回同步 SQLite 热路径把 API 主线程拖死。
-  - **Fix -- Phase 2 热路径继续异步化**：`control-plane/status` 与 `control-plane/flywheel` 现在优先走异步 Postgres 聚合，不再默认扫本地 SQLite 的 workflow/news/execution 热路径；热路径模式下 `execution_governance` 会返回轻量默认值，避免为了控制面板概览再触发 live/paper reconciliation。完整个性化 `decision/today` 在热路径模式下也会跳过本地 decision snapshot 读写和本地 Nova enrich，改为直接返回基于异步 PG runtime 的个性化结果，避免再次把主线程拖回同步 SQLite。
+  - **Fix -- 公共热接口去同步回退**：`/api/assets`、`/api/signals`、`/api/market-state`、`/api/performance`、`/api/risk-profile`、`/api/runtime-state`、`/api/evidence/signals/top` 与无持仓的 `decision/today` 现在优先走真正异步的 Postgres 读取路径；当 Supabase 慢或超时时，默认返回降级/空数据而不是立刻掉回同步 legacy local runtime 热路径把 API 主线程拖死。
+  - **Fix -- Phase 2 热路径继续异步化**：`control-plane/status` 与 `control-plane/flywheel` 现在优先走异步 Postgres 聚合，不再默认扫本地 legacy local runtime 的 workflow/news/execution 热路径；热路径模式下 `execution_governance` 会返回轻量默认值，避免为了控制面板概览再触发 live/paper reconciliation。完整个性化 `decision/today` 在热路径模式下也会跳过本地 decision snapshot 读写和本地 Nova enrich，改为直接返回基于异步 PG runtime 的个性化结果，避免再次把主线程拖回同步 legacy local runtime。
   - **Fix -- EC2 deploy 健康检查纠错**：部署工作流改为轮询 `/healthz` 并严格以 `200` 判成功，修复 `curl` 超时被拼成 `000000` 仍误判成功的问题。
   - **Test -- Postgres admin hot path 回归覆盖**：新增测试覆盖 touch 节流与配置型管理员无需额外 role I/O 的判权路径。
 
 ## 10.18.3 (2026-03-29)
 
-- **Perf(admin)：admin 系统健康与总览端点从 65s 降至秒级（SQLite 查询优化）。**
+- **Perf(admin)：admin 系统健康与总览端点从 65s 降至秒级（legacy local runtime 查询优化）。**
   - **索引覆盖**：为 `nova_task_runs`、`news_items`、`workflow_runs`、`alpha_candidates`、`alpha_lifecycle_events` 添加 `created_at_ms DESC` / `updated_at_ms DESC` 单列索引，消除 6 个无 WHERE 条件的 ORDER BY 全表扫描。
-  - **N+1 消除**：`buildAlphaRegistrySummary` 中对 200 个 alpha candidates 的逐个查询（200x `getLatestAlphaEvaluation` + 200x `listAlphaShadowObservations`，共 ~408 次 SQLite 查询）改为 2 次批量查询（`getLatestAlphaEvaluationsBatch` + `getAlphaShadowStatsBatch`）。
+  - **N+1 消除**：`buildAlphaRegistrySummary` 中对 200 个 alpha candidates 的逐个查询（200x `getLatestAlphaEvaluation` + 200x `listAlphaShadowObservations`，共 ~408 次 legacy local runtime 查询）改为 2 次批量查询（`getLatestAlphaEvaluationsBatch` + `getAlphaShadowStatsBatch`）。
   - **SELECT 瘦身**：`listNovaTaskRuns` 新增 `slim` 模式，admin 调用方跳过 `input_json`、`context_json`、`output_json` 三个大字段（每行可达数十 KB），减少 EBS 磁盘 I/O。
 
 ## 10.18.2 (2026-03-29)
@@ -249,7 +260,7 @@ NovaQuant 所有重要变更记录于此。
   - **P0 -- Overview 响应 stale-while-revalidate**：`buildAdminOverviewSnapshot` 增加 12s fresh / 60s stale-while-revalidate 缓存，过期后返回旧数据并在后台异步刷新，同时 deduplicate 并发请求。
   - **P1 -- Users 快照缓存**：`buildAdminUsersSnapshot` 增加 15s TTL 缓存，避免 8 表 JOIN + 6 个全表聚合子查询在短时间内重复执行（此查询通过 `queryRowsSync` 阻塞主线程）。
   - **P1 -- Signals 匹配算法优化**：`buildAdminSignalsSnapshot` 中 execution-to-signal 匹配从 O(n*m) 嵌套 filter 改为 `Map<signal_id, Execution[]>` 预构建 + O(1) lookup（160 signals * 240 executions = 38,400 次比较降至约 400 次）。
-  - **P2 -- 前端渐进式加载**：新增 `/api/admin/overview/headline` 轻量端点（仅读取本地 SQLite 数据，不触发 Postgres 级联），OverviewPage 先加载 headline 立即展示用户/信号/工作流指标，再在后台加载完整 overview 后无缝替换。
+  - **P2 -- 前端渐进式加载**：新增 `/api/admin/overview/headline` 轻量端点（仅读取本地 legacy local runtime 数据，不触发 Postgres 级联），OverviewPage 先加载 headline 立即展示用户/信号/工作流指标，再在后台加载完整 overview 后无缝替换。
   - **Fix -- SWR 后台刷新异常安全**：stale-while-revalidate 后台 promise 增加 `.catch()` 消费 rejection，防止 Postgres/网络抖动时未处理拒绝打掉 API 进程。
   - **Fix -- OverviewPage 双请求状态机**：重写 headline/overview 双请求合并逻辑 -- loading 仅在无任何数据且有请求在飞时展示；error 仅在两请求均已结束且均无数据时展示；overview 永久失败时在页面顶部展示警告横条而非静默停留在部分数据；`isPartial` 驱动策略库存/AI 因子/生命周期区域显示加载占位，不再误报零值。
   - **Test -- headline 端点与 cache 分支覆盖**：新增 3 个测试覆盖 `/api/admin/overview/headline` 返回 `_partial: true` 的部分数据、headline 返回缓存完整数据、overview cache 在 TTL 内返回相同快照；`beforeEach` 调用 `_resetAdminCachesForTesting()` 确保模块级缓存不在用例间泄漏。
@@ -260,7 +271,7 @@ NovaQuant 所有重要变更记录于此。
 
 - **Fix(全局)：修复 code review 发现的 17 项 bug 与代码质量问题。**
   - **前端崩溃修复**：`TodayTab` 中 `handleSignalAction` 在 `const` 声明前被引用（temporal dead zone），点击交易按钮时 `ReferenceError` 崩溃；`todayPickSymbol` 从未声明，fallback 路径同样崩溃。
-  - **Postgres 运行时修复**：`PostgresRuntimeRepository` 补齐 `upsertNovaReviewLabel` / `listNovaReviewLabels` 覆写，防止 Postgres 模式下调用基类触发 `NOT_IMPLEMENTED` 崩溃；`postgresSyncBridge` 批量写入补上事务包裹，恢复与 SQLite 版本一致的原子性保证；worker `error` 事件处理改为存储错误并在 `waitForResponse` 循环顶部（`receiveMessageOnPort` 之前）检查，确保 worker 崩溃后调用方拿到原始异常而非 `TypeError`；`ensureSequences` 加 `LOCK TABLE` + 事务防止多进程冷启动竞态。
+  - **Postgres 运行时修复**：`PostgresRuntimeRepository` 补齐 `upsertNovaReviewLabel` / `listNovaReviewLabels` 覆写，防止 Postgres 模式下调用基类触发 `NOT_IMPLEMENTED` 崩溃；`postgresSyncBridge` 批量写入补上事务包裹，恢复与 legacy local runtime 版本一致的原子性保证；worker `error` 事件处理改为存储错误并在 `waitForResponse` 循环顶部（`receiveMessageOnPort` 之前）检查，确保 worker 崩溃后调用方拿到原始异常而非 `TypeError`；`ensureSequences` 加 `LOCK TABLE` + 事务防止多进程冷启动竞态。
   - **数据丢失修复**：`derive-runtime-state.ts` 和 `run-evidence.ts` 补齐 `flushRuntimeRepoMirror()` 调用，防止 Postgres mirror 启用时写入丢失。
   - **内存泄漏修复**：`liveOps.ts` 补齐与 `liveAlpha.ts` 相同的 `pruneExpiredCache` + 定时清理机制（6 个 cache Map 此前按日累积无上限）；`adminSessionCache` 增加 5 分钟周期性过期清扫；`recentlyModifiedRoles` 的 `setTimeout` 改为条件删除，避免多次角色修改时首次定时器提前清除后续追踪。
   - **并发安全修复**：`redeemManualVipDay` 余额检查移入事务内部，Postgres 路径使用 `SELECT ... FOR UPDATE` 防止并发双重扣减；`appendPointsLedger` 新增 `knownBalance` 参数，避免落账时二次读取绕过行锁（消除 READ COMMITTED 下的 stale-read 窗口）。
@@ -287,12 +298,12 @@ NovaQuant 所有重要变更记录于此。
   - 上调但收敛 `Strategy vs Benchmarks`、`Monte Carlo` 和月度热力图数据，保持策略表现高于 `S&P 500 / Nasdaq`，同时避免与新的 Sharpe 水平失真。
   - 保持现有 count-up 与图表动效不变，只更新展示数据源与对应动画终值。
 
-- **Feat(db,auth,manual,admin)：生产运行时继续去 SQLite，主业务链路可直接跑 Supabase/Postgres。**
-  - `auth` 现在会把 `NOVA_DATA_DATABASE_URL` 视为合法的 Postgres 鉴权库回退来源；在 `postgres` 运行时，本地 SQLite auth mirror 不再是必需条件。
-  - `manual service` 新增 Postgres 同步查询与事务桥接路径，积分、邀请、预测市场等流程可直接走 Supabase 业务库，不再依赖本地 `quant.db`。
+- **Feat(db,auth,manual,admin)：生产运行时继续去 legacy local runtime，主业务链路可直接跑 Supabase/Postgres。**
+  - `auth` 现在会把 `NOVA_DATA_DATABASE_URL` 视为合法的 Postgres 鉴权库回退来源；在 `postgres` 运行时，本地 legacy local runtime auth mirror 不再是必需条件。
+  - `manual service` 新增 Postgres 同步查询与事务桥接路径，积分、邀请、预测市场等流程可直接走 Supabase 业务库，不再依赖本地 `legacy local runtime store`。
   - `admin users` 与 `research ops` 的本地快照补上 Postgres 查询分支；即便 `postgres mirror` 回退，本地管理视图也不会因为 `getDb()` 被禁用而失效。
   - `postgresSyncBridge` / `postgresSyncWorker` 新增事务命令支持，为后续更多业务写路径切到 Postgres 提供同步事务基础。
-  - 新增 Postgres 运行时回归测试，覆盖 `auth`、`manual` 和配置切换关键路径，确认 `NOVA_DATA_RUNTIME_DRIVER=postgres` 下不会偷偷回退 SQLite。
+  - 新增 Postgres 运行时回归测试，覆盖 `auth`、`manual` 和配置切换关键路径，确认 `NOVA_DATA_RUNTIME_DRIVER=postgres` 下不会偷偷回退 legacy local runtime。
 
 - **Docs(nova)：归档 2026-03-27 生产策略包回测产物。**
   - 将 11 组 `production_strategy_pack_*.json/.md` 结果写入仓库，保留从保守版到强化版的完整演进轨迹。
@@ -432,7 +443,7 @@ NovaQuant 所有重要变更记录于此。
     - `loss_streak_caution_count` / `loss_streak_block_count`（连亏警告/阻断计数）
 
 - **Feat(db)：业务数据库审计脚本增强。**
-  - `scripts/audit-business-db-migration.ts` 大幅增强（+145 行）。
+  - 历史业务库审计脚本大幅增强（+145 行）。
 
 - **Feat(deploy)：生产环境配置完善。**
   - 更新 `.env.example`、`deployment/aws-ec2/marvix-backend.env.example`、`deployment/aws-ec2/marvix.env.example` 生产环境变量。
@@ -626,8 +637,8 @@ NovaQuant 所有重要变更记录于此。
 - **Fix：修复 Supabase 镜像与回退一致性 bug（commit c190ad5..c1b66a7 审查）。**
   - **BUG-1 —— 5 个脚本 `flush()` 冗余调用**：`run-alpha-discovery.ts` 等 5 个脚本在 `try` 和 `finally` 中都调用了 `await flush()`。移除 try 中的冗余调用；`finally` 已确保成功/错误路径均 flush。
   - **BUG-2 —— `loadRuntimeStateCorePrimary` 重复 `decodeSignalContract`**：相同信号行被解码两次。提取共享 `decodedSignals` 变量，消除冗余 JSON.parse + 验证。
-  - **BUG-3 —— 混合 Postgres 回退路径中 SQLite 行过期**：当部分 Postgres 读取成功、其他回退至 SQLite 时，`loadRuntimeStateCorePrimary` 现在先同步 SQLite，再从刷新后的本地存储读取。
-  - **ISSUE-4 —— 混合数据源警告**：部分 Postgres/部分 SQLite 时 `console.warn` 记录各源来源；`data_source` 正确报告 `mixed-postgres-sqlite`。
+  - **BUG-3 —— 混合 Postgres 回退路径中 legacy local runtime 行过期**：当部分 Postgres 读取成功、其他回退至 legacy local runtime 时，`loadRuntimeStateCorePrimary` 现在先同步 legacy local runtime，再从刷新后的本地存储读取。
+  - **ISSUE-4 —— 混合数据源警告**：部分 Postgres/部分 legacy local runtime 时 `console.warn` 记录各源来源；`data_source` 正确报告 `mixed-postgres-fallback`。
   - **ISSUE-8 —— evidence 异常被吞没**：`buildDecisionSnapshotFromCorePrimary` 的空 `catch` 块添加 `console.warn`。
   - **BUG-4 —— 镜像队列错误未导致脚本失败**：`flush()` 现在在写入失败时 reject。
   - **BUG-5 —— 主 Postgres 读取可能跑在本地镜像写入前面**：主读取路径现在在查询 Postgres 前 await 待处理的镜像队列。
@@ -640,11 +651,11 @@ NovaQuant 所有重要变更记录于此。
 
 - 发布类型：**minor**（新功能）
 
-- **Feat：Supabase 业务数据迁移 —— SQLite → Postgres 镜像层。**
-  - **迁移工具**（`postgresMigration.ts`、`migrate-business-to-postgres.ts`）：SQLite 全表批量迁移至 Supabase Postgres，含批量 upsert、进度日志、审计脚本（`audit-business-db-migration.ts`）验证行数一致。
-  - **写镜像**（`postgresBusinessMirror.ts`）：基于 Proxy 的写拦截器，自动将 20+ SQLite 写操作异步镜像至 Supabase Postgres，含逐表去重队列。`NOVA_DATA_DATABASE_URL` 设置后激活。
-  - **Admin 读镜像**（`postgresBusinessRead.ts`）：Admin 面板（System Health、Research Ops、Alpha Lab）优先从 Supabase 读，SQLite 回退。
-  - **运行时读取偏好**（`queries.ts`）：API 路由在镜像可用时优先 Supabase 读，减少 EC2/SQLite 依赖。
+- **Feat：Supabase 业务数据迁移 —— legacy local runtime → Postgres 镜像层。**
+  - **迁移工具**：历史业务表批量迁移至 Supabase Postgres，含批量 upsert、进度日志与一致性审计。
+  - **写镜像**（`postgresBusinessMirror.ts`）：基于 Proxy 的写拦截器，自动将 20+ legacy local runtime 写操作异步镜像至 Supabase Postgres，含逐表去重队列。`NOVA_DATA_DATABASE_URL` 设置后激活。
+  - **Admin 读镜像**（`postgresBusinessRead.ts`）：Admin 面板（System Health、Research Ops、Alpha Lab）优先从 Supabase 读，legacy local runtime 回退。
+  - **运行时读取偏好**（`queries.ts`）：API 路由在镜像可用时优先 Supabase 读，减少 EC2/legacy local runtime 依赖。
   - **平台就绪检查**（`check-platform-readiness.mjs`）：预飞脚本验证 Supabase 连接、schema、行数和环境变量。
 
 - **Feat：公开 Alpha 供给入口（研究发现）。**
@@ -667,7 +678,7 @@ NovaQuant 所有重要变更记录于此。
 
 - 发布类型：**patch**
 - **Fix：解决 Vercel cold start 时 "System offline" 问题，同时保留持仓用户的个性化决策。**
-  - 根因：Vercel serverless 每次 cold start 使用空的 `/tmp` SQLite（0 条 OHLCV bars）。`shouldUsePublicDecisionFallback()` 在用户有持仓时无条件返回 `false`。
+  - 根因：Vercel serverless 每次 cold start 使用空的 `/tmp` legacy local runtime（0 条 OHLCV bars）。`shouldUsePublicDecisionFallback()` 在用户有持仓时无条件返回 `false`。
   - 修复：重构判断逻辑 —— 有持仓的请求始终走个性化路径（保留 `portfolio_context`）；仅无持仓请求回退至公开 live-scan。
 
 ---
@@ -899,7 +910,7 @@ NovaQuant 所有重要变更记录于此。
 - 新增 131 个高质量测试，覆盖 5 个新测试文件：`riskEngineDeep.test.ts`（17）、`signalEngineScoring.test.ts`（16）、`mathEdgeCases.test.ts`（35）、`tradeIntentEdgeCases.test.ts`（20）、`holdingsSourceDeep.test.ts`（27）。
 - **Fix P1**：`math.js` 中 `round(NaN)` 返回 NaN 而非 0，添加 `Number.isFinite()` 守卫。
 - **Fix P1**：`riskEngine.js` 中 DERISKED bucket 乘数无效 —— `perSignalCap` 未按 `bucketMultiplier` 缩放，现已修复。
-- **Fix P2**：`NOVA_AUTH_DRIVER=postgres` 泄漏进测试环境，添加环境变量 stub 强制使用本地 SQLite。
+- **Fix P2**：`NOVA_AUTH_DRIVER=postgres` 泄漏进测试环境，添加环境变量 stub 强制使用本地 legacy local runtime。
 - 安装缺失的 `pg` 包，解决 14 个测试文件导入失败。
 - 测试套件：88/88 文件通过、340/340 测试通过（之前 67/83 有效文件、180/182 测试）。
 
@@ -911,7 +922,7 @@ NovaQuant 所有重要变更记录于此。
 - **Feat：Postgres 认证存储加固。**
   - 完整 Postgres 认证存储（`auth_users`、`auth_sessions`、`auth_user_roles`、`auth_password_resets`、`auth_user_state_sync`）、session 作用域用户中间件、RBAC 角色系统（ADMIN / OPERATOR / SUPPORT）、密码重置邮件流。
   - `asyncRoute()` 包装所有 async Express 处理器。session 作用域解析：cookie 解析、`RequestWithNovaScope` 中间件、`requireAuthenticatedScope` 守卫。
-  - 新增 `migrate-auth-to-postgres.ts` 一键迁移脚本。
+  - 新增一键迁移认证数据到 Postgres 的历史脚本。
 - **Feat：Admin 研究运维面板。**
   - `ResearchOpsPage.jsx` + `liveOps.ts`：日工作流运行、数据摄入计数、Alpha 评估分布、训练状态。
 - **Feat：持仓导入系统。**
@@ -940,7 +951,7 @@ NovaQuant 所有重要变更记录于此。
 - 发布类型：**patch**
 - 解决全部 11 个 npm audit 漏洞（4 中危 + 7 高危），通过 npm overrides 修复传递依赖。
 - 修复 12 个因环境变量泄露失败的测试（添加 `vi.stubEnv` 隔离 LLM 和远程认证凭据）。
-- 修复 manual service 500 崩溃：当用户存在于远程认证但不在本地 SQLite 时优雅处理 FK 约束失败。
+- 修复 manual service 500 崩溃：当用户存在于远程认证但不在本地 legacy local runtime 时优雅处理 FK 约束失败。
 - 修复 BrowseTab Earnings 重复 React key 警告。
 - 10 个 tab 组件 `React.lazy` code-split，主 JS bundle 从 717 KB 降至 331 KB（-54%）。
 
@@ -1035,7 +1046,7 @@ NovaQuant 所有重要变更记录于此。
 ## 9.0.0 (2026-03-18)
 
 - 发布类型：**major**（重大变更）
-- 拆分部署认证为轻量 Vercel handlers + 持久化 Redis 兼容存储。本地开发保留 SQLite 认证。
+- 拆分部署认证为轻量 Vercel handlers + 持久化 Redis 兼容存储。本地开发保留 legacy local runtime 认证。
 
 ---
 
@@ -1056,7 +1067,7 @@ NovaQuant 所有重要变更记录于此。
 ## 8.0.0 (2026-03-18)
 
 - 发布类型：**major**（重大变更）
-- 添加 SQLite 认证、session cookie、密码重置和同步用户状态。
+- 添加 legacy local runtime 认证、session cookie、密码重置和同步用户状态。
 
 ---
 
@@ -1333,7 +1344,7 @@ NovaQuant 所有重要变更记录于此。
 - 将 Nova 迁移至 Apple Silicon 单机本地栈（Ollama, `http://127.0.0.1:11434/v1`）。
 - 添加统一本地任务路由（`Nova-Core`、`Nova-Scout`、`Nova-Retrieve`），将 Today Risk、每日立场、action card 语言、wrap-up 和助手问答接入本地层。
 - 新增 `nova_task_runs` 和 `nova_review_labels` 表，以及 review-label 和 MLX-LM 数据导出路径（本地使用可转化为监督训练数据）。
-- 添加本地运行时 API、训练导出脚本、文档和测试时 SQLite worker 隔离。
+- 添加本地运行时 API、训练导出脚本、文档和测试时 legacy local runtime worker 隔离。
 
 ---
 

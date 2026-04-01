@@ -1,6 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { getDb } from '../src/server/db/database.js';
-import { ensureSchema } from '../src/server/db/schema.js';
 import { handleAdminLogin, handleAdminSession } from '../src/server/api/authHandlers.js';
 import { signupAuthUser } from '../src/server/auth/service.js';
 
@@ -50,19 +48,6 @@ async function callHandler(
   return res;
 }
 
-function resetAuthTables(email: string) {
-  const db = getDb();
-  ensureSchema(db);
-  const row = db.prepare('SELECT user_id FROM auth_users WHERE email = ? LIMIT 1').get(email) as
-    | { user_id?: string }
-    | undefined;
-  if (!row?.user_id) return;
-  db.prepare('DELETE FROM auth_sessions WHERE user_id = ?').run(row.user_id);
-  db.prepare('DELETE FROM auth_user_roles WHERE user_id = ?').run(row.user_id);
-  db.prepare('DELETE FROM auth_user_state_sync WHERE user_id = ?').run(row.user_id);
-  db.prepare('DELETE FROM auth_users WHERE user_id = ?').run(row.user_id);
-}
-
 async function seedAuthUser(email: string, name: string) {
   const result = await signupAuthUser({
     email,
@@ -78,19 +63,23 @@ describe('admin auth api', () => {
   const email = 'admin-api-test@example.com';
 
   beforeEach(() => {
-    vi.stubEnv('NOVA_AUTH_DRIVER', 'sqlite');
-    vi.stubEnv('NOVA_AUTH_DATABASE_URL', '');
+    vi.stubEnv('NOVA_AUTH_DRIVER', 'postgres');
+    vi.stubEnv('NOVA_AUTH_DATABASE_URL', 'postgres://supabase-test-host/db');
     vi.stubEnv('NOVA_AUTH_PG_SSL', '');
     vi.stubEnv('NOVA_AUTH_PG_POOL_MAX', '');
     vi.stubEnv('KV_REST_API_URL', '');
     vi.stubEnv('KV_REST_API_TOKEN', '');
     vi.stubEnv('UPSTASH_REDIS_REST_URL', '');
     vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', '');
+    vi.stubEnv('SUPABASE_URL', '');
+    vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', '');
+    vi.stubEnv('SUPABASE_ANON_KEY', '');
+    vi.stubEnv('VITE_SUPABASE_URL', '');
+    vi.stubEnv('VITE_SUPABASE_ANON_KEY', '');
   });
 
   afterEach(() => {
     process.env.NOVA_ADMIN_EMAILS = '';
-    resetAuthTables(email);
     vi.unstubAllEnvs();
   });
 

@@ -1,20 +1,24 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import request from 'supertest';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createApiApp } from '../src/server/api/app.js';
-import { getDb, closeDb } from '../src/server/db/database.js';
+import { getDb } from '../src/server/db/database.js';
 import { resetRepoSingleton } from '../src/server/api/queries.js';
-
-vi.stubEnv('NOVA_AUTH_DRIVER', 'sqlite');
-vi.stubEnv('NODE_ENV', 'production');
-vi.stubEnv('KV_REST_API_URL', '');
-vi.stubEnv('KV_REST_API_TOKEN', '');
-vi.stubEnv('UPSTASH_REDIS_REST_URL', '');
-vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', '');
-vi.stubEnv('NOVA_DISABLE_SQLITE_PROCESS_LOCK', '1');
+import { requestLocalHttp } from './helpers/httpTestClient.js';
 
 describe('performance optimization regression', () => {
+  beforeEach(() => {
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('KV_REST_API_URL', '');
+    vi.stubEnv('KV_REST_API_TOKEN', '');
+    vi.stubEnv('UPSTASH_REDIS_REST_URL', '');
+    vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', '');
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   // -------------------------------------------------------------------------
   // 1. Cache-Control: user-scoped endpoints MUST be private, no-store
   // -------------------------------------------------------------------------
@@ -34,7 +38,10 @@ describe('performance optimization regression', () => {
       const app = createApiApp();
 
       for (const endpoint of privateEndpoints) {
-        const res = await request(app).get(endpoint).query({ userId: 'usr_private_scope' });
+        const res = await requestLocalHttp(app, {
+          path: endpoint,
+          query: { userId: 'usr_private_scope' },
+        });
         expect(res.status, `${endpoint} should be blocked before route work runs`).toBe(401);
         expect(res.headers['cache-control'], `${endpoint} should have private, no-store`).toBe(
           'private, no-store',
@@ -44,37 +51,19 @@ describe('performance optimization regression', () => {
 
     it('does not set cache-control on non-listed endpoints', async () => {
       const app = createApiApp();
-      const res = await request(app).get('/healthz');
+      const res = await requestLocalHttp(app, { path: '/healthz' });
       expect(res.headers['cache-control']).toBeUndefined();
     });
   });
 
   // -------------------------------------------------------------------------
-  // 2. closeDb() clears the repo singleton so re-open works
+  // 2. Runtime repo lifecycle guards
   // -------------------------------------------------------------------------
-  describe('closeDb repo singleton lifecycle', () => {
-    afterEach(() => {
-      // Ensure we don't leave a broken state for other tests
-      try {
-        closeDb();
-      } catch {
-        /* already closed */
-      }
-    });
-
-    it('getDb works after closeDb + reopen cycle', () => {
-      // First access — creates the singleton
-      const db1 = getDb();
-      expect(db1).toBeDefined();
-      expect(db1.open).toBe(true);
-
-      // Close — should clear both db and repo singletons
-      closeDb();
-
-      // Re-open — must get a fresh, open handle
-      const db2 = getDb();
-      expect(db2).toBeDefined();
-      expect(db2.open).toBe(true);
+  describe('runtime repo lifecycle', () => {
+    it('getDb rejects legacy local-db access outside tests', () => {
+      expect(() => getDb()).toThrow(
+        'BUSINESS_RUNTIME_POSTGRES_ONLY: local SQL runtimes have been removed.',
+      );
     });
 
     it('resetRepoSingleton is callable and idempotent', () => {

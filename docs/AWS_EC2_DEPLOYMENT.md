@@ -99,8 +99,6 @@ Minimum values to set for backend-only Marvix:
 - `NOVA_RUNTIME_MODE=deterministic-fallback`
 - `NOVA_DISABLE_LOCAL_GENERATION=1`
 - `NOVA_DISABLE_GROQ=1`
-- `DB_PATH=/opt/nova-quant/data/quant.db`
-- `NOVA_DISABLE_SQLITE_PROCESS_LOCK=1` when `marvix.service` and `marvix-backend.service` share the same SQLite file on one box
 - `NOVA_DATA_DATABASE_URL=postgresql://...`
 - `NOVA_DATA_PG_SCHEMA=novaquant_data`
 - `GEMINI_API_KEY`
@@ -114,11 +112,8 @@ Admin auth note:
 
 Important note:
 
-- Business runtime is still SQLite-first today, so EC2 continues to keep a local `quant.db`.
-- `NOVA_DATA_DATABASE_URL` makes Supabase the authoritative cloud copy and enables business-data migration/audit flows.
-- Do not treat the runtime as "Supabase-only" until the SQLite repository/runtime layer is fully ported.
-- `NOVA_DATA_RUNTIME_DRIVER=postgres` is now available as an EC2 canary switch, but the current Postgres runtime still uses the synchronous `postgresSyncBridge`, so treat it as a staged cutover rather than a free performance win.
-- `NOVA_PG_PRIMARY_READ_FAILURE_COOLDOWN_MS` and `NOVA_ALLOW_SYNC_HOT_PATH_FALLBACK=0` can keep public hot paths responsive when Supabase is slow by avoiding repeated timeout → SQLite fallback storms.
+- `NOVA_DATA_DATABASE_URL` is required because Supabase/Postgres is the only supported business runtime.
+- `NOVA_PG_PRIMARY_READ_FAILURE_COOLDOWN_MS` and `NOVA_ALLOW_SYNC_HOT_PATH_FALLBACK=0` can keep public hot paths responsive when Supabase is slow.
 - `NOVA_AUTO_BACKEND_SKIP_INIT=1` can be used on warm hosts to suppress startup-time worker initialization if deploy-time restarts are still causing I/O pressure.
 
 Optional but recommended free-data keys for the new Marvix training-input pipeline:
@@ -224,7 +219,7 @@ sudo systemctl status marvix-backend --no-pager
 - refreshes runtime state and research evolution
 - advances the autonomous alpha discovery + shadow monitoring loop
 
-Results are stored in the main SQLite database:
+Results are stored in the main business-data schema:
 
 - `alpha_candidates`
 - `alpha_evaluations`

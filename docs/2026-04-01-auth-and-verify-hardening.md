@@ -17,7 +17,7 @@
 
 ## Test Runtime
 
-- Vitest 通过 `tests/vitest.setup.ts` 默认使用隔离 sqlite runtime，并关闭 Postgres mirror writes。
+- Vitest 通过 `tests/vitest.setup.ts` 默认使用隔离的 in-memory Postgres runtime，并关闭 mirror writes。
 - 需要真实 Postgres 语义的测试会显式打开 `NOVA_DATA_RUNTIME_DRIVER=postgres` 或 `NOVA_ENABLE_PG_MIRROR_WRITES_TEST=1`。
 - 这样做的目的不是回退产品架构，而是让测试保持 hermetic：默认不依赖真实 Supabase 网络，也不会把 mirror 副作用带进无关测试。
 

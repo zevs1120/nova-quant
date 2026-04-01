@@ -15,7 +15,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Data Pipeline (first-time / after schema changes)
 
-`npm run db:init` -> `npm run backfill` -> `npm run validate:data` -> `npm run derive:runtime`
+`npm run backfill` -> `npm run validate:data` -> `npm run derive:runtime`
 
 ## Code Style
 
@@ -31,13 +31,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Framework: Vitest 4 with `@vitest/coverage-v8`
 - Run single test: `npx vitest run tests/<feature>.test.ts`
 - New features must have matching `tests/<feature>.test.ts` covering normal path, edge cases, and regressions
-- Test DB uses `.tmp/nova-quant-test-{workerId}.db` (auto-created, isolated per worker)
+- Tests use the in-memory Postgres harness defined under `tests/vitest.setup.ts`
 
 ## Project Layout
 
 Four-part deploy: `landing/` (brand landing page), `app/` (user H5 frontend), `admin/` (ops dashboard), root (main API + quant core). `landing/`, `app/`, and `admin/` each have their own `vercel.json` and are deployed independently on Vercel.
 
-Core source in `src/`: `server/` (Express 5 backend, ~48 modules), `components/` (React), `engines/` (JS quant), `research/` (quantitative research modules). Business data lives in SQLite (`data/quant.db`) with an optional Supabase Postgres mirror (`NOVA_DATA_DATABASE_URL`).
+Core source in `src/`: `server/` (Express 5 backend, ~48 modules), `components/` (React), `engines/` (JS quant), `research/` (quantitative research modules). Business and auth data live in Supabase/Postgres via `NOVA_DATA_DATABASE_URL` and `NOVA_AUTH_DATABASE_URL`.
 
 ## Commit Conventions
 
@@ -46,9 +46,8 @@ Conventional Commits: `feat(module):`, `fix(module):`, `test:`, `docs:`. Title s
 ## Environment
 
 - Copy `.env.example` to `.env` for local dev; see it for all available vars
-- Tests run without any env vars (SQLite test DB is auto-created)
-- On Vercel: DB is ephemeral at `/tmp/nova-quant/quant.db`; `VERCEL=1` switches config paths
+- Tests run against the in-memory Postgres harness without requiring a live Supabase instance
 - API proxied at `/api` in dev (Vite config proxies to `http://127.0.0.1:8787`)
-- Set `NOVA_DATA_DATABASE_URL` to enable Supabase business data mirror (optional)
-- `NOVA_DATA_RUNTIME_DRIVER=postgres` is an EC2 canary switch for Postgres runtime reads; current implementation still uses the synchronous Postgres bridge, so validate latency before treating it as a full replacement for SQLite runtime reads
+- Set `NOVA_DATA_DATABASE_URL` and `NOVA_AUTH_DATABASE_URL` to point at Supabase/Postgres in every non-test environment
+- `NOVA_DATA_RUNTIME_DRIVER=postgres` keeps the runtime on the Postgres-backed path; validate latency before changing hot-path fallback settings
 - Hot-path protection envs for EC2 incidents: `NOVA_PG_PRIMARY_READ_FAILURE_COOLDOWN_MS`, `NOVA_ALLOW_SYNC_HOT_PATH_FALLBACK`, and `NOVA_AUTO_BACKEND_SKIP_INIT`

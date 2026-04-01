@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import request from 'supertest';
 import { createApiApp } from '../src/server/api/app.js';
 import { resetConfigCache } from '../src/server/config.js';
 import { closeDb } from '../src/server/db/database.js';
 import { resetRuntimeRepoSingleton } from '../src/server/db/runtimeRepository.js';
+import { requestLocalHttp } from './helpers/httpTestClient.js';
 
 function clearProviderEnv() {
   vi.stubEnv('GROQ_API_KEY', '');
@@ -19,7 +19,7 @@ function clearProviderEnv() {
 }
 
 function readNdjsonText(response: { body?: unknown; text?: string }) {
-  const body = String(response.body || response.text || '');
+  const body = String(response.text || response.body || '');
   return body
     .split('\n')
     .map((line) => line.trim())
@@ -45,9 +45,10 @@ describe('canonical chat service', () => {
     const app = createApiApp();
     const userId = `guest-chat-user-${Date.now()}`;
 
-    const chatRes = await request(app)
-      .post('/api/chat')
-      .send({
+    const chatRes = await requestLocalHttp(app, {
+      method: 'POST',
+      path: '/api/chat',
+      body: {
         userId,
         message: 'Why this signal?',
         context: {
@@ -55,16 +56,8 @@ describe('canonical chat service', () => {
           market: 'US',
           assetClass: 'US_STOCK',
         },
-      })
-      .buffer(true)
-      .parse((res, done) => {
-        let text = '';
-        res.setEncoding('utf8');
-        res.on('data', (chunk) => {
-          text += chunk;
-        });
-        res.on('end', () => done(null, text));
-      });
+      },
+    });
 
     expect(chatRes.status).toBe(200);
     const events = readNdjsonText(chatRes);
@@ -73,14 +66,18 @@ describe('canonical chat service', () => {
     expect(meta?.threadId).toBeTruthy();
     expect(done).toBeTruthy();
 
-    const threadListRes = await request(app).get('/api/chat/threads').query({ userId, limit: 5 });
+    const threadListRes = await requestLocalHttp(app, {
+      path: '/api/chat/threads',
+      query: { userId, limit: 5 },
+    });
     expect(threadListRes.status).toBe(200);
     expect(threadListRes.body.count).toBeGreaterThan(0);
     expect(threadListRes.body.data[0].id).toBe(meta?.threadId);
 
-    const threadRes = await request(app)
-      .get(`/api/chat/threads/${meta?.threadId}`)
-      .query({ userId, limit: 20 });
+    const threadRes = await requestLocalHttp(app, {
+      path: `/api/chat/threads/${meta?.threadId}`,
+      query: { userId, limit: 20 },
+    });
     expect(threadRes.status).toBe(200);
     expect(Array.isArray(threadRes.body.messages)).toBe(true);
     expect(threadRes.body.messages.length).toBeGreaterThanOrEqual(2);

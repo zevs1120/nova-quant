@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { getDb } from '../src/server/db/database.js';
 import { MarketRepository } from '../src/server/db/repository.js';
+import { executeSync, qualifyBusinessTable } from '../src/server/db/postgresSyncBridge.js';
+import { getRuntimeRepo } from '../src/server/db/runtimeRepository.js';
 import {
   getControlPlaneStatus,
   getFlywheelStatus,
@@ -46,13 +47,15 @@ describe('control plane flywheel status', () => {
   });
 
   it('surfaces recent ingestion, evolution, and training state through the status APIs', async () => {
-    const repo = new MarketRepository(getDb());
+    const repo = getRuntimeRepo();
 
     // Clean up future-dated workflow_runs that may have accumulated from prior
     // test executions. Without this, old rows with high updated_at_ms values
     // occupy the LIMIT 6 window and evict freshly seeded rows.
     const cleanupThreshold = Date.UTC(2100, 0, 1, 0, 0, 0);
-    getDb().exec(`DELETE FROM workflow_runs WHERE updated_at_ms >= ${cleanupThreshold}`);
+    executeSync(`DELETE FROM ${qualifyBusinessTable('workflow_runs')} WHERE updated_at_ms >= $1`, [
+      cleanupThreshold,
+    ]);
 
     const baseTs = Date.UTC(2199, 0, 1, 0, 0, 0) + Math.floor(Math.random() * 1_000_000_000);
     const userId = `control-plane-${baseTs}`;
@@ -203,7 +206,7 @@ describe('control plane flywheel status', () => {
   });
 
   it('collapses guest control-plane reads onto the shared public scope', async () => {
-    const repo = new MarketRepository(getDb());
+    const repo = getRuntimeRepo();
     const baseTs = Date.UTC(2199, 0, 2, 0, 0, 0) + Math.floor(Math.random() * 1_000_000_000);
 
     repo.upsertNotificationEvent({

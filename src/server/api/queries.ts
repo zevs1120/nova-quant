@@ -619,7 +619,7 @@ async function tryPrimaryPostgresRead<T>(label: string, read: () => Promise<T>):
     return await read();
   } catch (error) {
     pgPrimaryReadCooldownUntilMs = Date.now() + PG_PRIMARY_READ_FAILURE_COOLDOWN_MS;
-    console.warn('[pg-primary-read] falling back to sqlite', {
+    console.warn('[pg-primary-read] primary read unavailable, keeping sync bridge path', {
       label,
       error: String((error as Error)?.message || error || 'unknown_error'),
       cooldown_ms: PG_PRIMARY_READ_FAILURE_COOLDOWN_MS,
@@ -3379,6 +3379,7 @@ export function ensureDefaultPublicSignalsApiKey(): string {
 
 export function verifyPublicSignalsApiKey(rawKey?: string): boolean {
   if (!rawKey) return false;
+  ensureDefaultPublicSignalsApiKey();
   const repo = getRepo();
   const row = repo.getApiKeyByHash(hashApiKey(rawKey));
   return Boolean(row && row.status === 'ACTIVE');
@@ -3871,7 +3872,7 @@ export async function loadRuntimeStateCorePrimary(args: {
     return loadRuntimeStateCore(args);
   }
 
-  // ISSUE-4: warn when mixing Postgres and SQLite data sources
+  // ISSUE-4: warn when a primary Postgres read mixes with the shared runtime fallback.
   const pgSources = [
     riskPrimary ? 'risk' : null,
     signalRowsPrimary ? 'signals' : null,
@@ -3882,7 +3883,7 @@ export async function loadRuntimeStateCorePrimary(args: {
     console.warn(
       '[queries] mixed-source runtime read: Postgres served',
       pgSources.join(', '),
-      '— remaining from SQLite fallback',
+      '— remaining served by the shared runtime fallback',
     );
   }
 
@@ -3944,13 +3945,13 @@ export async function loadRuntimeStateCorePrimary(args: {
       signal_count: signalRows.length,
       market_state_count: marketState.length,
       performance_snapshot_count: performanceRows.length,
-      data_source: pgSources.length === 4 ? 'postgres-primary' : 'mixed-postgres-sqlite',
+      data_source: pgSources.length === 4 ? 'postgres-primary' : 'postgres-bridge',
     },
     coverageSummary: {
       generated_signals: signalRows.length,
       market_state_count: marketState.length,
       performance_snapshot_count: performanceRows.length,
-      data_source: pgSources.length === 4 ? 'postgres-primary' : 'mixed-postgres-sqlite',
+      data_source: pgSources.length === 4 ? 'postgres-primary' : 'postgres-bridge',
     },
   };
   const performance = buildPerformanceSummaryFromRows({
@@ -5419,7 +5420,7 @@ export function shouldUsePublicDecisionFallback(args: {
   }
   // When the user provides holdings, always use the personalized path so
   // portfolio_context is populated — even on Vercel cold starts with an
-  // empty /tmp SQLite.
+  // empty ephemeral runtime cache.
   if (Array.isArray(args.holdings) && args.holdings.length) return false;
   const runtimeStatus = normalizeRuntimeStatus(args.sourceStatus, RUNTIME_STATUS.INSUFFICIENT_DATA);
   const signalCount = Number(args.signalCount || 0);
@@ -5430,7 +5431,7 @@ export function shouldUsePublicDecisionFallback(args: {
   // When the DB is completely empty (no signals and not DB-backed) and there
   // are no holdings, fall through to the public live-scan path.
   // This prevents "System offline" on Vercel cold starts where the ephemeral
-  // /tmp SQLite is empty.
+  // runtime cache is empty.
   if (
     runtimeStatus !== RUNTIME_STATUS.DB_BACKED &&
     noDisplayableSignalCards &&

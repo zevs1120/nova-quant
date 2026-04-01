@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import request from 'supertest';
 import { createApiApp } from '../src/server/api/app.js';
+import { requestLocalHttp } from './helpers/httpTestClient.js';
 
 describe('engagement api', () => {
   beforeEach(() => {
@@ -20,9 +20,10 @@ describe('engagement api', () => {
     const app = createApiApp();
     const userId = `engagement-api-${Date.now()}`;
 
-    const stateRes = await request(app)
-      .post('/api/engagement/state')
-      .send({
+    const stateRes = await requestLocalHttp(app, {
+      method: 'POST',
+      path: '/api/engagement/state',
+      body: {
         userId,
         market: 'US',
         assetClass: 'US_STOCK',
@@ -38,7 +39,8 @@ describe('engagement api', () => {
           },
           { symbol: 'QQQ', market: 'US', asset_class: 'US_STOCK', weight_pct: 18, sector: 'ETF' },
         ],
-      });
+      },
+    });
 
     expect(stateRes.status).toBe(200);
     expect(stateRes.body).toHaveProperty('daily_check_state');
@@ -48,24 +50,31 @@ describe('engagement api', () => {
     expect(stateRes.body).toHaveProperty('notification_center');
     expect(stateRes.body).toHaveProperty('decision_snapshot_id');
 
-    const morningRes = await request(app).post('/api/engagement/morning-check').send({
-      userId,
-      market: 'US',
-      assetClass: 'US_STOCK',
-      localDate: '2026-03-14',
-      localHour: 9,
+    const morningRes = await requestLocalHttp(app, {
+      method: 'POST',
+      path: '/api/engagement/morning-check',
+      body: {
+        userId,
+        market: 'US',
+        assetClass: 'US_STOCK',
+        localDate: '2026-03-14',
+        localHour: 9,
+      },
     });
 
     expect(morningRes.status).toBe(200);
     expect(morningRes.body.daily_check_state.status).toBe('COMPLETED');
     expect(morningRes.body.habit_state.checkedToday).toBe(true);
 
-    const widgetRes = await request(app).get('/api/widgets/summary').query({
-      userId,
-      market: 'US',
-      assetClass: 'US_STOCK',
-      localDate: '2026-03-14',
-      localHour: 9,
+    const widgetRes = await requestLocalHttp(app, {
+      path: '/api/widgets/summary',
+      query: {
+        userId,
+        market: 'US',
+        assetClass: 'US_STOCK',
+        localDate: '2026-03-14',
+        localHour: 9,
+      },
     });
 
     expect(widgetRes.status).toBe(200);
@@ -73,22 +82,29 @@ describe('engagement api', () => {
     expect(widgetRes.body.widget_summary).toHaveProperty('state_widget');
     expect(widgetRes.body.widget_summary.state_widget.spark).toBeTruthy();
 
-    const prefsRes = await request(app).post('/api/notification-preferences').send({
-      userId,
-      frequency: 'LOW',
-      protective_enabled: false,
+    const prefsRes = await requestLocalHttp(app, {
+      method: 'POST',
+      path: '/api/notification-preferences',
+      body: {
+        userId,
+        frequency: 'LOW',
+        protective_enabled: false,
+      },
     });
 
     expect(prefsRes.status).toBe(200);
     expect(prefsRes.body.frequency).toBe('LOW');
     expect(prefsRes.body.protective_enabled).toBe(0);
 
-    const previewRes = await request(app).get('/api/notifications/preview').query({
-      userId,
-      market: 'US',
-      assetClass: 'US_STOCK',
-      localDate: '2026-03-14',
-      localHour: 19,
+    const previewRes = await requestLocalHttp(app, {
+      path: '/api/notifications/preview',
+      query: {
+        userId,
+        market: 'US',
+        assetClass: 'US_STOCK',
+        localDate: '2026-03-14',
+        localHour: 19,
+      },
     });
 
     expect(previewRes.status).toBe(200);
