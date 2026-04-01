@@ -11,6 +11,7 @@ Run via cron:  python -m bridge.data_sync
 from __future__ import annotations
 
 import csv
+import re
 import sqlite3
 import subprocess
 import time
@@ -85,21 +86,33 @@ def _read_ohlcv_from_sqlite(
         conn.close()
         return {}
 
+    if not re.match(r"^[a-zA-Z0-9_]+$", ohlcv_table):
+        raise ValueError(f"Invalid table name: {ohlcv_table}")
+
     # Read columns to adapt to actual schema
     col_info = cursor.execute(f"PRAGMA table_info({ohlcv_table})").fetchall()
     col_names = {row["name"].lower() for row in col_info}
 
-    # Build query
-    symbol_col = "symbol" if "symbol" in col_names else "asset_id"
-    date_col = next(
-        (c for c in ("date", "ts_open", "timestamp", "dt") if c in col_names),
-        "date",
+    # Build query — validate all column identifiers against safe pattern
+    _COL_RE = re.compile(r"^[a-zA-Z0-9_]+$")
+
+    def _safe_col(name: str) -> str:
+        if not _COL_RE.match(name):
+            raise ValueError(f"Invalid column name: {name}")
+        return name
+
+    symbol_col = _safe_col("symbol" if "symbol" in col_names else "asset_id")
+    date_col = _safe_col(
+        next(
+            (c for c in ("date", "ts_open", "timestamp", "dt") if c in col_names),
+            "date",
+        )
     )
-    open_col = "open" if "open" in col_names else "open_price"
-    high_col = "high" if "high" in col_names else "high_price"
-    low_col = "low" if "low" in col_names else "low_price"
-    close_col = "close" if "close" in col_names else "close_price"
-    volume_col = "volume" if "volume" in col_names else "vol"
+    open_col = _safe_col("open" if "open" in col_names else "open_price")
+    high_col = _safe_col("high" if "high" in col_names else "high_price")
+    low_col = _safe_col("low" if "low" in col_names else "low_price")
+    close_col = _safe_col("close" if "close" in col_names else "close_price")
+    volume_col = _safe_col("volume" if "volume" in col_names else "vol")
 
     query = f"""
         SELECT

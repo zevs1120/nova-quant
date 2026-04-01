@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import pickle
 import time
+import builtins
+import io
 from pathlib import Path
 from typing import Any
 
@@ -121,8 +123,17 @@ def _load_model(name: str) -> Any:
             f"{[c.name for c in candidates]}"
         )
 
+    class RestrictedUnpickler(pickle.Unpickler):
+        _SAFE_MODULES = {"numpy", "sklearn", "lightgbm", "xgboost", "qlib", "pandas", "collections", "builtins", "__builtin__"}
+        
+        def find_class(self, module, name):
+            base_module = module.split(".")[0]
+            if base_module in self._SAFE_MODULES:
+                return super().find_class(module, name)
+            raise pickle.UnpicklingError(f"Global '{module}.{name}' is forbidden for security")
+
     with open(path, "rb") as f:
-        model = pickle.load(f)
+        model = RestrictedUnpickler(f).load()
 
     _model_cache[name] = model
     print(

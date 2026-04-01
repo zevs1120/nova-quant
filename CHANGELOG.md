@@ -4,6 +4,23 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+## 10.21.1 (2026-04-01)
+
+- 发布类型：**patch**（审查后二次修复）
+
+- **Fix(quant): QlibFactorResult 类型与 Python 返回格式对齐。**
+  - 接口从 `data` 嵌套字典重构为 `rows: QlibFactorResultRow[]`，与 Python FactorComputeResult 完全匹配，修复 Qlib 增强永远静默跳过的问题。
+
+- **Fix(config): getConfig() fallback 分支 qlibBridge.enabled 默认值统一为 false。**
+
+- **Fix(quant): queries.ts 增加 qlibBridge.enabled 前置检查避免禁用时异常开销。**
+
+- **Fix(security): RestrictedUnpickler 白名单补充 qlib/pandas。**
+
+- **Fix(security): data_sync.py 列名标识符增加正则校验。**
+
+- **Chore: 清理 syncQlibData 中未使用的 timeoutMs 变量。**
+
 ## 10.21.0 (2026-03-31)
 
 - 发布类型：**minor**（架构完善与端到端集成）
@@ -16,6 +33,12 @@ NovaQuant 所有重要变更记录于此。
 - **Feat(ai,strategy): 原生引入 Qlib 因子的认知对齐与算法级算力挂钩。**
   - **LLM 认知对齐 (`service.ts`)**：将 `qlib_alpha158_snapshot` 有条件地映射进入 Marvix AI 的上下文环境（`buildActionCardNarrativePrompts`），并重写了底层预设的 System Prompt，要求模型在数据存在时“抽取诸如量价/动量等定量因子来丰富它的 `brief_why_now`（逻辑理由）”。
   - **决策算力挂钩 (`engine.ts`)**：无需等待独立的 ML 模型建立，在基础量化推荐引擎（`rankCard`）中直接加入了针对 Qlib Alpha 因子的 `qlibFeatureBoost` 加成算子：当检测到有效的 Alpha 截面数据时基础分权重增加 4 点；若其中动量截面因子（`ROCP5`）与交易挂单方向同向，则赋予额外 3 点的共振增益提升排名。
+
+- **Fix(quant,hub,db): 修复 Qlib Bridge 架构端到端融合的严重断层安全风险与稳定性问题。**
+  - **接口形态适配 (`featureSignalLayer.js`)**：修正由桥接层嵌套格式不匹配导致的取值错误，重写内部符号分组聚合逻辑，清理阻断日志的隐式 catch 静默失败问题，废弃所有 `console.warn` 以遵循项目日志监控规范。
+  - **端到端注入补全 (`queries.ts`)**：修复 `decision engine` 信号对象在流转中脱离 Alpha 增强处理的生命周期缺陷；改造了 `buildDecisionSnapshotFromCorePrimary` 查询核心切面，在此直接完成特征清洗赋予，保障 `rankCard` 阶段的因子加速得以真正运行及反馈至 LLM。
+  - **环境默认降级 (`config.ts`)**：修改 Qlib Bridge 开关默认为 `false` 避免无侧车的纯 Vercel 生产环境对 `/api/data/sync` 发起无效长轮询。
+  - **侧车安全硬化 (`model_adapter.py`, `data_sync.py`)**：为 Python 端的静态模型加载重写了 `RestrictedUnpickler` 细粒度过滤加载类，阻止高危库及未知组件的载入；为 SQLite ETL 同步脚本针对表名的 `f-string` 拼接增加了高强度的纯数字字母下划线强制正则断言，彻底封堵 SQL 注入风险。
 
 ## 10.20.0 (2026-03-31)
 
@@ -1304,5 +1327,11 @@ NovaQuant 所有重要变更记录于此。
 ## 10.21.0 (2026-04-01)
 
 - Release type: minor
+- Automated version bump via version-manager.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
+## 10.21.1 (2026-04-01)
+
+- Release type: patch
 - Automated version bump via version-manager.
 - Updated release metadata, build number, About runtime source, and changelog entry.

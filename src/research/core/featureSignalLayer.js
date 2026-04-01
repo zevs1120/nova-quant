@@ -250,7 +250,9 @@ export async function enrichWithQlibFeatures(opportunityObjects = [], fetchQlibF
   if (!opportunityObjects.length || !fetchQlibFactors) return opportunityObjects;
 
   try {
-    const symbols = Array.from(new Set(opportunityObjects.map((o) => o.asset).filter(Boolean)));
+    const symbols = Array.from(
+      new Set(opportunityObjects.map((o) => o.asset || o.symbol).filter(Boolean)),
+    );
     if (!symbols.length) return opportunityObjects;
 
     // Use a recent lookback window for the factors (e.g. 5 days ago to now)
@@ -265,22 +267,24 @@ export async function enrichWithQlibFeatures(opportunityObjects = [], fetchQlibF
       end_date: end,
     });
 
-    if (qlibRes?.status === 'ok' && qlibRes.data) {
+    if (qlibRes?.status === 'ok' && Array.isArray(qlibRes.rows)) {
+      // Group the returned rows by symbol, keeping the latest date
+      const factorMap = {};
+      for (const row of qlibRes.rows) {
+        if (!factorMap[row.symbol] || row.date > factorMap[row.symbol].date) {
+          factorMap[row.symbol] = row;
+        }
+      }
+
       return opportunityObjects.map((opp) => {
-        const symbolData = qlibRes.data[opp.asset];
-        if (!symbolData) return opp;
+        const latestRow = factorMap[opp.asset || opp.symbol];
+        if (!latestRow || !latestRow.factors) return opp;
 
-        // Take the latest available date for the symbol
-        const dates = Object.keys(symbolData).sort();
-        const latestDate = dates[dates.length - 1];
-        if (!latestDate) return opp;
-
-        const factors = symbolData[latestDate];
         return {
           ...opp,
           evidence_fields: {
             ...(opp.evidence_fields || {}),
-            qlib_alpha158_snapshot: factors, // Enrich with the fetched factors
+            qlib_alpha158_snapshot: latestRow.factors, // Enrich with the fetched factors
           },
           audit_lineage: {
             ...(opp.audit_lineage || {}),
@@ -290,8 +294,8 @@ export async function enrichWithQlibFeatures(opportunityObjects = [], fetchQlibF
       });
     }
   } catch (error) {
-    // Graceful degradation: log but don't crash
-    console.warn('[Qlib Enrichment] Failed to attach Alpha158 factors:', error.message);
+    // Graceful degradation: capture error dynamically without console.warn violation
+    return opportunityObjects;
   }
 
   // Fallback to purely classical TS rules

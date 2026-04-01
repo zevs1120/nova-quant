@@ -24,6 +24,8 @@ import type {
   WorkflowRunRecord,
 } from '../types.js';
 import { createExecutionRecord, decodeSignalContract, ensureQuantData } from '../quant/service.js';
+import { enrichWithQlibFeatures } from '../../research/core/featureSignalLayer.js';
+import { fetchQlibFactors } from '../nova/qlibClient.js';
 import {
   getBacktestEvidenceDetail,
   getChampionStrategies,
@@ -4215,6 +4217,14 @@ async function buildDecisionSnapshotFromCorePrimary(args: {
   const runtimeSignals = Array.isArray(args.core.signals)
     ? (args.core.signals as Array<Record<string, unknown>>)
     : [];
+
+  const qlibEnabled = getConfig().qlibBridge?.enabled === true;
+  const enrichedSignals = qlibEnabled
+    ? ((await enrichWithQlibFeatures(runtimeSignals, fetchQlibFactors)) as Array<
+        Record<string, unknown>
+      >)
+    : runtimeSignals;
+
   let evidenceSignals: Record<string, unknown>[] = [];
   if (avoidSyncFallback) {
     evidenceSignals = buildRuntimeSignalEvidenceFromSignals(
@@ -4275,7 +4285,7 @@ async function buildDecisionSnapshotFromCorePrimary(args: {
       args.core.performanceSource || RUNTIME_STATUS.INSUFFICIENT_DATA,
     ),
     riskProfile: args.core.risk,
-    signals: args.core.signals,
+    signals: enrichedSignals as unknown as typeof args.core.signals,
     evidenceSignals,
     marketState: args.core.marketState,
     executions,

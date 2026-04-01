@@ -21,10 +21,21 @@ export interface QlibFactorRequest {
   end_date: string;
 }
 
+export interface QlibFactorResultRow {
+  symbol: string;
+  date: string;
+  factors: Record<string, number | null>;
+}
+
 export interface QlibFactorResult {
   status: string;
+  factor_set: string;
+  factor_count: number;
+  row_count: number;
+  symbols_used: string[];
+  date_range: Record<string, string>;
   elapsed_ms: number;
-  data: Record<string, Record<string, Record<string, number>>>; // { symbol: { date: { factor: value } } }
+  rows: QlibFactorResultRow[];
 }
 
 export interface QlibModelRequest {
@@ -80,7 +91,7 @@ export async function checkQlibHealth(): Promise<boolean> {
 }
 
 export async function syncQlibData(req: QlibSyncRequest = {}): Promise<QlibSyncResult> {
-  const { enabled, baseUrl, timeoutMs } = getBridgeConfig();
+  const { enabled, baseUrl } = getBridgeConfig();
   if (!enabled) throw new Error('Qlib Bridge is disabled in configuration.');
 
   const endpoint = `${baseUrl}/api/data/sync`;

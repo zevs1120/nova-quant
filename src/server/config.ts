@@ -196,7 +196,7 @@ function buildFallbackConfig(): AppConfig {
     },
     qlibBridge: {
       enabled:
-        String(process.env.QLIB_BRIDGE_ENABLED || 'true')
+        String(process.env.QLIB_BRIDGE_ENABLED || 'false')
           .trim()
           .toLowerCase() === 'true',
       baseUrl: (process.env.QLIB_BRIDGE_URL || 'http://127.0.0.1:8788').replace(/\/$/, ''),
@@ -276,7 +276,7 @@ export function getConfig(): AppConfig {
   if (!config.qlibBridge) {
     config.qlibBridge = {
       enabled:
-        String(process.env.QLIB_BRIDGE_ENABLED || 'true')
+        String(process.env.QLIB_BRIDGE_ENABLED || 'false')
           .trim()
           .toLowerCase() === 'true',
       baseUrl: (process.env.QLIB_BRIDGE_URL || 'http://127.0.0.1:8788').replace(/\/$/, ''),
