@@ -49,44 +49,50 @@ function carrySeries(
 }
 
 const MEASURED_FACTOR_BAR_COUNT = 140;
+/** Measured-report tests do heavy in-memory SQLite + computation; CI needs headroom beyond Vitest default 5s. */
+const MEASURED_REPORT_TEST_TIMEOUT_MS = 20_000;
 
 describe('factor measurement research layer', () => {
-  it('computes measured momentum diagnostics from aligned cross-sectional bars', () => {
-    const repo = buildRepo();
-    const assets = [
-      { symbol: 'AAA', rate: 0.006 },
-      { symbol: 'BBB', rate: 0.0035 },
-      { symbol: 'CCC', rate: 0.001 },
-      { symbol: 'DDD', rate: -0.0015 },
-    ];
+  it(
+    'computes measured momentum diagnostics from aligned cross-sectional bars',
+    () => {
+      const repo = buildRepo();
+      const assets = [
+        { symbol: 'AAA', rate: 0.006 },
+        { symbol: 'BBB', rate: 0.0035 },
+        { symbol: 'CCC', rate: 0.001 },
+        { symbol: 'DDD', rate: -0.0015 },
+      ];
 
-    for (const item of assets) {
-      const asset = repo.upsertAsset({
-        symbol: item.symbol,
+      for (const item of assets) {
+        const asset = repo.upsertAsset({
+          symbol: item.symbol,
+          market: 'US',
+          venue: 'TEST',
+          status: 'ACTIVE',
+        });
+        repo.upsertOhlcvBars(
+          asset.asset_id,
+          '1d',
+          series(100, item.rate, MEASURED_FACTOR_BAR_COUNT),
+          'test_seed',
+        );
+      }
+
+      const result = buildFactorMeasurementReport(repo, {
+        factorId: 'momentum',
         market: 'US',
-        venue: 'TEST',
-        status: 'ACTIVE',
+        assetClass: 'US_STOCK',
       });
-      repo.upsertOhlcvBars(
-        asset.asset_id,
-        '1d',
-        series(100, item.rate, MEASURED_FACTOR_BAR_COUNT),
-        'test_seed',
-      );
-    }
 
-    const result = buildFactorMeasurementReport(repo, {
-      factorId: 'momentum',
-      market: 'US',
-      assetClass: 'US_STOCK',
-    });
-
-    expect(result.report?.availability).toBe('measured');
-    expect((result.report?.measured_metrics?.sample_dates || 0) > 20).toBe(true);
-    expect((result.report?.measured_metrics?.ic || 0) > 0).toBe(true);
-    expect((result.report?.measured_metrics?.rank_ic || 0) > 0).toBe(true);
-    expect((result.report?.regime_conditioned_metrics?.length || 0) > 0).toBe(true);
-  });
+      expect(result.report?.availability).toBe('measured');
+      expect((result.report?.measured_metrics?.sample_dates || 0) > 20).toBe(true);
+      expect((result.report?.measured_metrics?.ic || 0) > 0).toBe(true);
+      expect((result.report?.measured_metrics?.rank_ic || 0) > 0).toBe(true);
+      expect((result.report?.regime_conditioned_metrics?.length || 0) > 0).toBe(true);
+    },
+    MEASURED_REPORT_TEST_TIMEOUT_MS,
+  );
 
   it('honestly downgrades unsupported factors to knowledge-only', () => {
     const repo = buildRepo();
@@ -102,42 +108,46 @@ describe('factor measurement research layer', () => {
     expect(result.report?.notes?.[0]).toContain('fundamental');
   });
 
-  it('computes measured carry diagnostics from funding and basis history', () => {
-    const repo = buildRepo();
-    const assets = [
-      { symbol: 'BTCUSDT', rate: 0.005, funding: 0.0009, basis: 18 },
-      { symbol: 'ETHUSDT', rate: 0.0038, funding: 0.0006, basis: 12 },
-      { symbol: 'SOLUSDT', rate: 0.0018, funding: 0.0002, basis: 4 },
-      { symbol: 'ADAUSDT', rate: -0.0008, funding: -0.0004, basis: -6 },
-    ];
+  it(
+    'computes measured carry diagnostics from funding and basis history',
+    () => {
+      const repo = buildRepo();
+      const assets = [
+        { symbol: 'BTCUSDT', rate: 0.005, funding: 0.0009, basis: 18 },
+        { symbol: 'ETHUSDT', rate: 0.0038, funding: 0.0006, basis: 12 },
+        { symbol: 'SOLUSDT', rate: 0.0018, funding: 0.0002, basis: 4 },
+        { symbol: 'ADAUSDT', rate: -0.0008, funding: -0.0004, basis: -6 },
+      ];
 
-    for (const item of assets) {
-      const asset = repo.upsertAsset({
-        symbol: item.symbol,
+      for (const item of assets) {
+        const asset = repo.upsertAsset({
+          symbol: item.symbol,
+          market: 'CRYPTO',
+          venue: 'TEST',
+          status: 'ACTIVE',
+        });
+        const payload = carrySeries(
+          100,
+          item.rate,
+          item.funding,
+          item.basis,
+          MEASURED_FACTOR_BAR_COUNT,
+        );
+        repo.upsertOhlcvBars(asset.asset_id, '1d', payload.bars, 'test_seed');
+        repo.upsertFundingRates(asset.asset_id, payload.funding, 'test_seed');
+        repo.upsertBasisSnapshots(asset.asset_id, payload.basis, 'test_seed');
+      }
+
+      const result = buildFactorMeasurementReport(repo, {
+        factorId: 'carry',
         market: 'CRYPTO',
-        venue: 'TEST',
-        status: 'ACTIVE',
+        assetClass: 'CRYPTO',
       });
-      const payload = carrySeries(
-        100,
-        item.rate,
-        item.funding,
-        item.basis,
-        MEASURED_FACTOR_BAR_COUNT,
-      );
-      repo.upsertOhlcvBars(asset.asset_id, '1d', payload.bars, 'test_seed');
-      repo.upsertFundingRates(asset.asset_id, payload.funding, 'test_seed');
-      repo.upsertBasisSnapshots(asset.asset_id, payload.basis, 'test_seed');
-    }
 
-    const result = buildFactorMeasurementReport(repo, {
-      factorId: 'carry',
-      market: 'CRYPTO',
-      assetClass: 'CRYPTO',
-    });
-
-    expect(result.report?.availability).toBe('measured');
-    expect((result.report?.measured_metrics?.sample_dates || 0) > 20).toBe(true);
-    expect((result.report?.measured_metrics?.ic || 0) > 0).toBe(true);
-  });
+      expect(result.report?.availability).toBe('measured');
+      expect((result.report?.measured_metrics?.sample_dates || 0) > 20).toBe(true);
+      expect((result.report?.measured_metrics?.ic || 0) > 0).toBe(true);
+    },
+    MEASURED_REPORT_TEST_TIMEOUT_MS,
+  );
 });
