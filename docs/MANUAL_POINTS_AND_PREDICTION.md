@@ -43,16 +43,16 @@
 
 **鉴权：** 除 `GET /api/manual/state` 外，下列 `POST` 均需**已登录会话**（Bearer 或 `novaquant_session`）。服务端只认 `resolveRequestNovaScope` 解析出的 `userId`，**请勿在 body 中传 `userId` 冒充他人**（与 `USER_SCOPE_MISMATCH` / `AUTH_REQUIRED` 策略一致）。
 
-| 方法 | 路径                                    | 说明                                                                                                                                  |
-| ---- | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| GET  | `/api/manual/state`                     | Dashboard：余额、规则快照、预测列表等（`userId` 来自会话；未登录时在测试环境可能受 query 影响 guest scope，生产应依赖 cookie/Bearer） |
-| POST | `/api/manual/rewards/redeem`            | VIP 天兑换（body：`days?`）                                                                                                           |
-| POST | `/api/manual/referrals/claim`           | 填写邀请码（阶段一）（body：`inviteCode`）                                                                                            |
-| POST | `/api/manual/referrals/complete-stage2` | 仅阶段二（一般可由 onboarding 接口顺带触发）；并发下以 `UPDATE … WHERE status='PARTIAL' RETURNING` 幂等                               |
-| POST | `/api/manual/bonuses/onboarding`        | Onboarding 完成赠分 + 尝试阶段二；响应含 `referralStage2`: `{ status: 'granted' }` 或 `{ status: 'skipped', reason }`                 |
-| POST | `/api/manual/checkin`                   | 每日签到                                                                                                                              |
-| POST | `/api/manual/engagement/signal`         | 当日 signal 互动赠分                                                                                                                  |
-| POST | `/api/manual/predictions/entry`         | 提交预测（body：`marketId`, `selectedOption`, `pointsStaked?`）                                                                       |
+| 方法 | 路径                                    | 说明                                                                                                                                            |
+| ---- | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET  | `/api/manual/state`                     | Dashboard：余额、规则快照、预测列表等；**不要**带 `userId` query，未登录与会话用户一律由 `resolveRequestNovaScope`（cookie / Bearer）决定 scope |
+| POST | `/api/manual/rewards/redeem`            | VIP 天兑换（body：`days?`）                                                                                                                     |
+| POST | `/api/manual/referrals/claim`           | 填写邀请码（阶段一）（body：`inviteCode`）                                                                                                      |
+| POST | `/api/manual/referrals/complete-stage2` | 仅阶段二（一般可由 onboarding 接口顺带触发）；并发下以 `UPDATE … WHERE status='PARTIAL' RETURNING` 幂等                                         |
+| POST | `/api/manual/bonuses/onboarding`        | Onboarding 完成赠分 + 尝试阶段二；响应含 `referralStage2`: `{ status: 'granted' }` 或 `{ status: 'skipped', reason }`                           |
+| POST | `/api/manual/checkin`                   | 每日签到                                                                                                                                        |
+| POST | `/api/manual/engagement/signal`         | 当日 signal 互动赠分                                                                                                                            |
+| POST | `/api/manual/predictions/entry`         | 提交预测（body：`marketId`, `selectedOption`, `pointsStaked?`）                                                                                 |
 
 `GET /api/manual/state` 与 `Cache-Control: private, no-store` 一同列入 `app.ts` 的 user-scoped GET 列表，避免共享缓存串号。
 

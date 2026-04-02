@@ -8,6 +8,7 @@ NovaQuant 所有重要变更记录于此。
   - **Schema：** 新增 `manual_main_prediction_daily`、`manual_engagement_daily`（已有库需按 `schema.ts` 补表）。
   - **Service：** `MAIN` 日限次在事务内 `SELECT … FOR UPDATE` + 计数，避免 pg-mem 对条件 `ON CONFLICT` 的偏差与超发；engagement 改为事务内去重 + 固定 ledger `ENGAGEMENT_SIGNAL`；推荐阶段二在事务内对邀请人 `user_state` 加锁、`UPDATE … RETURNING` 防止重复发奖；onboarding 响应 `referralStage2` 带 `skipped` 原因；Dashboard VIP 文案使用 `VIP_REDEEM_POINTS`；签到去掉与 `manual_checkins` 重复的同日分支。
   - **API：** `POST /api/manual/*` 使用 `requireAuthenticatedScope`，不再接受 body `userId`；`GET /api/manual/state` 使用会话 scope；`app.ts` 为 `/api/manual/state` 设置 `Cache-Control: private, no-store`。
+  - **Frontend：** `useEngagement` 拉取 `/api/manual/state` 不再附加 `userId` query；VIP 兑换请求体仅传 `days`，与会话绑定一致。
   - **Test：** 扩充 `manualGamificationIntegration`；新增 `manualApiRoutes`。
   - **Docs：** 更新 `docs/MANUAL_POINTS_AND_PREDICTION.md`。
 

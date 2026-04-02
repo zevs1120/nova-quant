@@ -70,6 +70,7 @@ describe('useEngagement', () => {
     const fetchJson = vi.fn().mockResolvedValue({ habit_state: { checkedToday: true } });
     const { result } = renderHook(() => useEngagement(buildArgs({ fetchJson })));
     await waitFor(() => expect(fetchJson).toHaveBeenCalled());
+    expect(fetchJson).toHaveBeenCalledWith('/api/manual/state');
     await act(async () => {
       await result.current.markDailyCheckin();
     });

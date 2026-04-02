@@ -36,7 +36,7 @@ export function useEngagement({
       return undefined;
     }
     let cancelled = false;
-    void fetchJson(`/api/manual/state?userId=${encodeURIComponent(effectiveUserId)}`)
+    void fetchJson('/api/manual/state')
       .then((payload) => {
         if (!cancelled) setManualState(payload || null);
       })
@@ -311,9 +311,7 @@ export function useEngagement({
       setManualState(DEMO_MANUAL_STATE);
       return DEMO_MANUAL_STATE;
     }
-    const payload = await fetchJson(
-      `/api/manual/state?userId=${encodeURIComponent(effectiveUserId)}`,
-    );
+    const payload = await fetchJson('/api/manual/state');
     setManualState(payload || null);
     return payload || null;
   }, [effectiveUserId, isDemoRuntime, fetchJson]);
@@ -339,10 +337,7 @@ export function useEngagement({
         const payload = await fetchJson('/api/manual/rewards/redeem', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId: effectiveUserId,
-            days,
-          }),
+          body: JSON.stringify({ days }),
         });
         if (payload?.data) setManualState(payload.data);
         else await refreshManualState();
