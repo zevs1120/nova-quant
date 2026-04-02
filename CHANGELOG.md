@@ -4,6 +4,14 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+- **Fix(manual,db): 并发安全加固与代码审查问题修复。**
+  - **Service：** `claimManualOnboardingBonus`、`manualDailyCheckin`、`claimManualReferral` 的去重检查移入 `runManualTransaction` + `FOR UPDATE`，消除 TOCTOU 双授竞态；签到 streak 奖励链式传递 `knownBalance` 防止同毫秒余额错乱。
+  - **Schema：** `manualGamificationSchemaPatchStatements` 补全 3 张新表 `CREATE TABLE IF NOT EXISTS`（`manual_checkins`、`manual_main_prediction_daily`、`manual_engagement_daily`）+ 索引，确保存量库升级路径完整；in-memory harness 跳过 patch 中 CREATE TABLE/INDEX（bootstrap 已建表）。
+  - **API：** 从 `crossOriginReadPaths` 移除 `/api/manual/state`，消除与 `userScopedPaths` 的语义矛盾。
+  - **Dashboard：** `rules` 新增 `standardWinMultiplier: 2`，前端可获取 STANDARD 赔率信息。
+  - **Test：** 新增签到幂等、onboarding 幂等、rules 字段测试；重命名 "atomically" 为 "sequentially"；移除 `manualServicePostgresRuntime` 中死代码 mock。
+  - **Docs：** 更新 `MANUAL_POINTS_AND_PREDICTION.md` 测试覆盖说明。
+
 - **Chore(db,auth,docs): manual 积分存量库迁移与注册赠分去重。**
   - **Schema：** 导出 `manualGamificationSchemaPatchStatements`，in-memory business / `InMemorySyncDb` 启动后追加 `ALTER … ADD COLUMN IF NOT EXISTS`（`last_checkin_day`、`checkin_streak`、`market_kind`）。
   - **Auth：** `getOrCreateSupabaseBackedUser` 在 Postgres 路径不再让 `pgInsertUserWithState` 与尾部 `tryGrantManualSignupBonus` 重复发放 signup 积分。

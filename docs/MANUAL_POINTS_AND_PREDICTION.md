@@ -80,7 +80,7 @@
 ## 相关测试
 
 - `tests/manualService*.test.ts` — 守卫与规则形状
-- `tests/manualGamificationIntegration.test.ts` — MAIN 场结算、MAIN 日限次、engagement 幂等、推荐阶段二幂等（in-memory Postgres）
+- `tests/manualGamificationIntegration.test.ts` — MAIN 场结算、MAIN 日限次、engagement 幂等、推荐阶段二幂等、签到+连续签到、onboarding 幂等（in-memory Postgres）
 - `tests/manualApiRoutes.test.ts` — 未登录时 mutating 路由返回 401
 
 ## 合规与产品表述

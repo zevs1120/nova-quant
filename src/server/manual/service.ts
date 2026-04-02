@@ -115,6 +115,7 @@ export type ManualDashboard = {
     checkinDailyPoints: number;
     checkinStreak7Bonus: number;
     checkinStreak30Bonus: number;
+    standardWinMultiplier: number;
     engagementSignalPoints: number;
     signupBonusPoints: number;
     onboardingBonusPoints: number;
@@ -284,6 +285,7 @@ function buildRulesSnapshot(): ManualDashboard['rules'] {
     mainPredictionMaxPerDay: MAIN_PREDICTION_MAX_PER_DAY,
     freeDailyRewardPoints: FREE_DAILY_REWARD_POINTS,
     winReturnPoints: effectiveWinReturnPoints({}),
+    standardWinMultiplier: 2,
     checkinDailyPoints: DAILY_CHECKIN_POINTS,
     checkinStreak7Bonus: CHECKIN_STREAK_7_BONUS,
     checkinStreak30Bonus: CHECKIN_STREAK_30_BONUS,
@@ -758,38 +760,56 @@ export function claimManualReferral(args: { userId: string; inviteCode: string }
   if (!inviter) return { ok: false as const, error: 'INVITE_CODE_INVALID' };
 
   const ts = nowMs();
-  runManualTransaction(() => {
-    executeSync(
-      `UPDATE ${manualTable('manual_user_state')}
-       SET referred_by_code = $1, updated_at_ms = $2
-       WHERE user_id = $3`,
-      [inviteCode, ts, userId],
-    );
-    executeSync(
-      `INSERT INTO ${manualTable('manual_referrals')}(
-        referral_id, inviter_user_id, invite_code, referred_user_id, status, reward_points, created_at_ms, updated_at_ms
-      ) VALUES($1, $2, $3, $4, 'PARTIAL', $5, $6, $7)`,
-      [createId('ref'), inviter.user_id, inviteCode, userId, REFERRAL_STAGE1_POINTS * 2, ts, ts],
-    );
-    appendPointsLedger({
-      userId: inviter.user_id,
-      eventType: 'REFERRAL_STAGE1',
-      pointsDelta: REFERRAL_STAGE1_POINTS,
-      metadata: {
-        title: 'Referral reward (stage 1)',
-        description: `${inviteCode} signed up — first milestone.`,
-      },
+  try {
+    runManualTransaction(() => {
+      const locked = queryRowSync<{ referred_by_code: string | null }>(
+        `SELECT referred_by_code FROM ${manualTable('manual_user_state')}
+         WHERE user_id = $1 FOR UPDATE`,
+        [userId],
+      );
+      if (locked?.referred_by_code) {
+        throw Object.assign(new Error('REFERRAL_ALREADY_CLAIMED'), {
+          __manualEarlyReturn: true,
+          code: 'REFERRAL_ALREADY_CLAIMED',
+        });
+      }
+      executeSync(
+        `UPDATE ${manualTable('manual_user_state')}
+         SET referred_by_code = $1, updated_at_ms = $2
+         WHERE user_id = $3`,
+        [inviteCode, ts, userId],
+      );
+      executeSync(
+        `INSERT INTO ${manualTable('manual_referrals')}(
+          referral_id, inviter_user_id, invite_code, referred_user_id, status, reward_points, created_at_ms, updated_at_ms
+        ) VALUES($1, $2, $3, $4, 'PARTIAL', $5, $6, $7)`,
+        [createId('ref'), inviter.user_id, inviteCode, userId, REFERRAL_STAGE1_POINTS * 2, ts, ts],
+      );
+      appendPointsLedger({
+        userId: inviter.user_id,
+        eventType: 'REFERRAL_STAGE1',
+        pointsDelta: REFERRAL_STAGE1_POINTS,
+        metadata: {
+          title: 'Referral reward (stage 1)',
+          description: `${inviteCode} signed up — first milestone.`,
+        },
+      });
+      appendPointsLedger({
+        userId,
+        eventType: 'REFERRAL_WELCOME_STAGE1',
+        pointsDelta: REFERRAL_STAGE1_POINTS,
+        metadata: {
+          title: 'Referral welcome (stage 1)',
+          description: `Joined through ${inviteCode}.`,
+        },
+      });
     });
-    appendPointsLedger({
-      userId,
-      eventType: 'REFERRAL_WELCOME_STAGE1',
-      pointsDelta: REFERRAL_STAGE1_POINTS,
-      metadata: {
-        title: 'Referral welcome (stage 1)',
-        description: `Joined through ${inviteCode}.`,
-      },
-    });
-  });
+  } catch (error) {
+    if ((error as { __manualEarlyReturn?: boolean }).__manualEarlyReturn) {
+      return { ok: false as const, error: 'REFERRAL_ALREADY_CLAIMED' as const };
+    }
+    throw error;
+  }
 
   return { ok: true as const, data: getManualDashboard(userId) };
 }
@@ -902,18 +922,30 @@ export function claimManualOnboardingBonus(args: { userId: string }) {
   }
   const userId = String(args.userId).trim();
   if (!ensureManualUserState(userId)) return { ok: false as const, error: 'AUTH_REQUIRED' };
-  if (hasLedgerEvent(userId, 'ONBOARDING_BONUS')) {
-    return { ok: false as const, error: 'ONBOARDING_BONUS_ALREADY_CLAIMED' };
+  try {
+    runManualTransaction(() => {
+      if (hasLedgerEvent(userId, 'ONBOARDING_BONUS')) {
+        throw Object.assign(new Error('ONBOARDING_BONUS_ALREADY_CLAIMED'), {
+          __manualEarlyReturn: true,
+          code: 'ONBOARDING_BONUS_ALREADY_CLAIMED',
+        });
+      }
+      appendPointsLedger({
+        userId,
+        eventType: 'ONBOARDING_BONUS',
+        pointsDelta: ONBOARDING_BONUS_POINTS,
+        metadata: {
+          title: 'Onboarding complete',
+          description: 'Points for finishing setup.',
+        },
+      });
+    });
+  } catch (error) {
+    if ((error as { __manualEarlyReturn?: boolean }).__manualEarlyReturn) {
+      return { ok: false as const, error: 'ONBOARDING_BONUS_ALREADY_CLAIMED' as const };
+    }
+    throw error;
   }
-  appendPointsLedger({
-    userId,
-    eventType: 'ONBOARDING_BONUS',
-    pointsDelta: ONBOARDING_BONUS_POINTS,
-    metadata: {
-      title: 'Onboarding complete',
-      description: 'Points for finishing setup.',
-    },
-  });
   const stage2 = completeManualReferralStage2({ userId });
   return {
     ok: true as const,
@@ -933,13 +965,6 @@ export function manualDailyCheckin(args: { userId: string }) {
   if (!st) return { ok: false as const, error: 'AUTH_REQUIRED' };
 
   const today = utcDayKeyFromMs(nowMs());
-  const existing = queryRowSync<{ day_key: string }>(
-    `SELECT day_key FROM ${manualTable('manual_checkins')} WHERE user_id = $1 AND day_key = $2 LIMIT 1`,
-    [userId, today],
-  );
-  if (existing) {
-    return { ok: false as const, error: 'CHECKIN_ALREADY_DONE' };
-  }
 
   let nextStreak = 1;
   if (st.last_checkin_day === previousUtcDayKey(today)) {
@@ -949,40 +974,59 @@ export function manualDailyCheckin(args: { userId: string }) {
   }
 
   const ts = nowMs();
-  runManualTransaction(() => {
-    executeSync(
-      `INSERT INTO ${manualTable('manual_checkins')}(user_id, day_key, created_at_ms) VALUES($1, $2, $3)`,
-      [userId, today, ts],
-    );
-    executeSync(
-      `UPDATE ${manualTable('manual_user_state')}
-       SET last_checkin_day = $1, checkin_streak = $2, updated_at_ms = $3
-       WHERE user_id = $4`,
-      [today, nextStreak, ts, userId],
-    );
-    appendPointsLedger({
-      userId,
-      eventType: 'CHECKIN_DAILY',
-      pointsDelta: DAILY_CHECKIN_POINTS,
-      metadata: { title: 'Daily check-in', description: `Streak ${nextStreak}` },
+  try {
+    runManualTransaction(() => {
+      const existing = queryRowSync<{ day_key: string }>(
+        `SELECT day_key FROM ${manualTable('manual_checkins')} WHERE user_id = $1 AND day_key = $2 LIMIT 1`,
+        [userId, today],
+      );
+      if (existing) {
+        throw Object.assign(new Error('CHECKIN_ALREADY_DONE'), {
+          __manualEarlyReturn: true,
+          code: 'CHECKIN_ALREADY_DONE',
+        });
+      }
+      executeSync(
+        `INSERT INTO ${manualTable('manual_checkins')}(user_id, day_key, created_at_ms) VALUES($1, $2, $3)`,
+        [userId, today, ts],
+      );
+      executeSync(
+        `UPDATE ${manualTable('manual_user_state')}
+         SET last_checkin_day = $1, checkin_streak = $2, updated_at_ms = $3
+         WHERE user_id = $4`,
+        [today, nextStreak, ts, userId],
+      );
+      let bal = appendPointsLedger({
+        userId,
+        eventType: 'CHECKIN_DAILY',
+        pointsDelta: DAILY_CHECKIN_POINTS,
+        metadata: { title: 'Daily check-in', description: `Streak ${nextStreak}` },
+      });
+      if (nextStreak > 0 && nextStreak % 7 === 0) {
+        bal = appendPointsLedger({
+          userId,
+          eventType: 'CHECKIN_STREAK_7',
+          pointsDelta: CHECKIN_STREAK_7_BONUS,
+          knownBalance: bal,
+          metadata: { title: '7-day streak bonus', description: 'Thanks for coming back.' },
+        });
+      }
+      if (nextStreak > 0 && nextStreak % 30 === 0) {
+        appendPointsLedger({
+          userId,
+          eventType: 'CHECKIN_STREAK_30',
+          pointsDelta: CHECKIN_STREAK_30_BONUS,
+          knownBalance: bal,
+          metadata: { title: '30-day streak bonus', description: 'Outstanding consistency.' },
+        });
+      }
     });
-    if (nextStreak > 0 && nextStreak % 7 === 0) {
-      appendPointsLedger({
-        userId,
-        eventType: 'CHECKIN_STREAK_7',
-        pointsDelta: CHECKIN_STREAK_7_BONUS,
-        metadata: { title: '7-day streak bonus', description: 'Thanks for coming back.' },
-      });
+  } catch (error) {
+    if ((error as { __manualEarlyReturn?: boolean }).__manualEarlyReturn) {
+      return { ok: false as const, error: 'CHECKIN_ALREADY_DONE' as const };
     }
-    if (nextStreak > 0 && nextStreak % 30 === 0) {
-      appendPointsLedger({
-        userId,
-        eventType: 'CHECKIN_STREAK_30',
-        pointsDelta: CHECKIN_STREAK_30_BONUS,
-        metadata: { title: '30-day streak bonus', description: 'Outstanding consistency.' },
-      });
-    }
-  });
+    throw error;
+  }
 
   return { ok: true as const, data: getManualDashboard(userId), streak: nextStreak };
 }

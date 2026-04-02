@@ -78,9 +78,6 @@ describe('manual service in postgres runtime', () => {
       if (sql.includes('FROM "novaquant_data"."manual_referrals"')) {
         return { total: 0, rewarded: 0 };
       }
-      if (sql.includes('manual_prediction_entries') && sql.includes('INNER JOIN')) {
-        return [];
-      }
       return null;
     });
     mockQueryRowsSync.mockReturnValue([]);
@@ -121,9 +118,6 @@ describe('manual service in postgres runtime', () => {
       if (sql.includes('FROM "novaquant_data"."manual_referrals"')) {
         return { total: 0, rewarded: 0 };
       }
-      if (sql.includes('manual_prediction_entries') && sql.includes('INNER JOIN')) {
-        return [];
-      }
       return null;
     });
     mockQueryRowsSync.mockReturnValue([]);
@@ -159,9 +153,6 @@ describe('manual service in postgres runtime', () => {
       }
       if (sql.includes('FROM "novaquant_data"."manual_points_ledger"')) {
         return { balance_after: 5000 };
-      }
-      if (sql.includes('manual_prediction_entries') && sql.includes('INNER JOIN')) {
-        return [];
       }
       return null;
     });

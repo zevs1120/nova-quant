@@ -87,6 +87,7 @@ export class InMemorySyncDb implements SyncDb {
     }
     const qualifyShort = (name: string) => `"${String(name).replace(/"/g, '""')}"`;
     for (const stmt of manualGamificationSchemaPatchStatements(qualifyShort)) {
+      if (/^CREATE\s+(TABLE|INDEX)/i.test(stmt)) continue;
       this.db.public.none(stmt);
     }
   }

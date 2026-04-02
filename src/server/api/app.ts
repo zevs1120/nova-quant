@@ -70,7 +70,6 @@ export function createApiApp() {
   const crossOriginReadPaths = new Set([
     '/api/auth/provider-config',
     '/api/auth/session',
-    '/api/manual/state',
     '/api/assets',
     '/api/assets/search',
     '/api/browse/chart',

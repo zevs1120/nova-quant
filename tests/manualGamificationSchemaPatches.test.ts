@@ -2,13 +2,24 @@ import { describe, expect, it } from 'vitest';
 import { manualGamificationSchemaPatchStatements } from '../src/server/db/schema.js';
 
 describe('manualGamificationSchemaPatchStatements', () => {
-  it('emits idempotent ALTERs for legacy manual columns', () => {
+  it('emits idempotent ALTERs for legacy manual columns and CREATE TABLEs for new tables', () => {
     const q = (name: string) => `"biz"."${name}"`;
     const stmts = manualGamificationSchemaPatchStatements(q);
-    expect(stmts).toEqual([
+    expect(stmts.length).toBe(7);
+    expect(stmts[0]).toBe(
       'ALTER TABLE "biz"."manual_user_state" ADD COLUMN IF NOT EXISTS last_checkin_day TEXT',
+    );
+    expect(stmts[1]).toBe(
       'ALTER TABLE "biz"."manual_user_state" ADD COLUMN IF NOT EXISTS checkin_streak BIGINT NOT NULL DEFAULT 0',
+    );
+    expect(stmts[2]).toBe(
       `ALTER TABLE "biz"."manual_prediction_markets" ADD COLUMN IF NOT EXISTS market_kind TEXT NOT NULL DEFAULT 'STANDARD'`,
-    ]);
+    );
+    expect(stmts[3]).toContain('CREATE TABLE IF NOT EXISTS "biz"."manual_checkins"');
+    expect(stmts[3]).toContain('PRIMARY KEY (user_id, day_key)');
+    expect(stmts[4]).toContain('CREATE INDEX IF NOT EXISTS idx_manual_checkins_user_recent');
+    expect(stmts[5]).toContain('CREATE TABLE IF NOT EXISTS "biz"."manual_main_prediction_daily"');
+    expect(stmts[5]).toContain('used_count BIGINT');
+    expect(stmts[6]).toContain('CREATE TABLE IF NOT EXISTS "biz"."manual_engagement_daily"');
   });
 });

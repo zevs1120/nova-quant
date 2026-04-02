@@ -7,10 +7,12 @@ import {
   queryRowsSync,
 } from '../src/server/db/postgresSyncBridge.js';
 import {
+  claimManualOnboardingBonus,
   claimManualReferral,
   completeManualReferralStage2,
   getManualDashboard,
   grantManualEngagementSignal,
+  manualDailyCheckin,
   resolveAndSettleManualPredictionMarket,
   submitManualPredictionEntry,
 } from '../src/server/manual/service.js';
@@ -109,7 +111,7 @@ describe('manual gamification integration (in-memory postgres)', () => {
     expect(finalDash.summary.balance).toBe(5900);
   });
 
-  it('enforces MAIN daily cap atomically (third OPEN MAIN in same UTC day fails)', async () => {
+  it('enforces MAIN daily cap sequentially (third OPEN MAIN in same UTC day fails)', async () => {
     vi.stubEnv('NOVA_MANUAL_PREDICTION_MAIN_MAX_PER_DAY', '2');
     const now = Date.now();
     const userId = `usr_mg_cap_${randomBytes(4).toString('hex')}`;
@@ -294,5 +296,101 @@ describe('manual gamification integration (in-memory postgres)', () => {
     const twice = completeManualReferralStage2({ userId: refereeId });
     expect(twice.ok).toBe(false);
     if (!twice.ok) expect(twice.error).toBe('REFERRAL_ALREADY_COMPLETED');
+  });
+
+  it('daily checkin records streak and rejects duplicate same-day checkin', async () => {
+    const now = Date.now();
+    const userId = `usr_mg_chk_${randomBytes(4).toString('hex')}`;
+    await pgInsertUserWithState({
+      user: {
+        user_id: userId,
+        email: `${userId}@test.local`,
+        password_hash: 'x',
+        name: 'MG Checkin',
+        trade_mode: 'active',
+        broker: 'Other',
+        locale: 'en',
+        created_at_ms: now,
+        updated_at_ms: now,
+        last_login_at_ms: now,
+      },
+      state: {
+        assetClass: 'US_STOCK',
+        market: 'US',
+        uiMode: 'standard',
+        riskProfileKey: 'balanced',
+        watchlist: [],
+        holdings: [],
+        executions: [],
+        disciplineLog: { checkins: [], boundary_kept: [], weekly_reviews: [] },
+      },
+      grantManualSignupBonus: false,
+    });
+
+    const first = manualDailyCheckin({ userId });
+    expect(first.ok).toBe(true);
+    if (first.ok) {
+      expect(first.streak).toBe(1);
+      expect(first.data.summary.checkinStreak).toBe(1);
+    }
+
+    const dup = manualDailyCheckin({ userId });
+    expect(dup.ok).toBe(false);
+    if (!dup.ok) expect(dup.error).toBe('CHECKIN_ALREADY_DONE');
+
+    const ledger = queryRowsSync<{ event_type: string }>(
+      `SELECT event_type FROM ${t('manual_points_ledger')} WHERE user_id = $1 ORDER BY created_at_ms ASC`,
+      [userId],
+    );
+    const types = ledger.map((r) => r.event_type);
+    expect(types.filter((x) => x === 'CHECKIN_DAILY').length).toBe(1);
+  });
+
+  it('onboarding bonus is granted only once (transactional dedupe)', async () => {
+    const now = Date.now();
+    const userId = `usr_mg_onb_${randomBytes(4).toString('hex')}`;
+    await pgInsertUserWithState({
+      user: {
+        user_id: userId,
+        email: `${userId}@test.local`,
+        password_hash: 'x',
+        name: 'MG Onboarding',
+        trade_mode: 'active',
+        broker: 'Other',
+        locale: 'en',
+        created_at_ms: now,
+        updated_at_ms: now,
+        last_login_at_ms: now,
+      },
+      state: {
+        assetClass: 'US_STOCK',
+        market: 'US',
+        uiMode: 'standard',
+        riskProfileKey: 'balanced',
+        watchlist: [],
+        holdings: [],
+        executions: [],
+        disciplineLog: { checkins: [], boundary_kept: [], weekly_reviews: [] },
+      },
+      grantManualSignupBonus: false,
+    });
+
+    const first = claimManualOnboardingBonus({ userId });
+    expect(first.ok).toBe(true);
+
+    const second = claimManualOnboardingBonus({ userId });
+    expect(second.ok).toBe(false);
+    if (!second.ok) expect(second.error).toBe('ONBOARDING_BONUS_ALREADY_CLAIMED');
+
+    const ledger = queryRowsSync<{ event_type: string }>(
+      `SELECT event_type FROM ${t('manual_points_ledger')} WHERE user_id = $1 AND event_type = 'ONBOARDING_BONUS'`,
+      [userId],
+    );
+    expect(ledger.length).toBe(1);
+  });
+
+  it('dashboard exposes standardWinMultiplier in rules', async () => {
+    const dash = getManualDashboard('guest-default');
+    expect(dash.rules.standardWinMultiplier).toBe(2);
   });
 });

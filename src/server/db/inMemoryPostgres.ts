@@ -233,6 +233,7 @@ export function ensureInMemoryBusinessSchema(connectionString: string, schema: s
     state.db.public.none(statement);
   }
   for (const stmt of manualGamificationSchemaPatchStatements(qualifyTable)) {
+    if (/^CREATE\s+(TABLE|INDEX)/i.test(stmt)) continue;
     state.db.public.none(stmt);
   }
   state.businessSchemaReady.add(schema);

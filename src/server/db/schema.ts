@@ -1354,6 +1354,10 @@ export function manualGamificationSchemaPatchStatements(
     `ALTER TABLE ${qualifyTable('manual_user_state')} ADD COLUMN IF NOT EXISTS last_checkin_day TEXT`,
     `ALTER TABLE ${qualifyTable('manual_user_state')} ADD COLUMN IF NOT EXISTS checkin_streak BIGINT NOT NULL DEFAULT 0`,
     `ALTER TABLE ${qualifyTable('manual_prediction_markets')} ADD COLUMN IF NOT EXISTS market_kind TEXT NOT NULL DEFAULT 'STANDARD'`,
+    `CREATE TABLE IF NOT EXISTS ${qualifyTable('manual_checkins')} (user_id TEXT NOT NULL, day_key TEXT NOT NULL, created_at_ms BIGINT NOT NULL, PRIMARY KEY (user_id, day_key), FOREIGN KEY(user_id) REFERENCES ${qualifyTable('auth_users')}(user_id) ON DELETE CASCADE)`,
+    `CREATE INDEX IF NOT EXISTS idx_manual_checkins_user_recent ON ${qualifyTable('manual_checkins')}(user_id, day_key DESC)`,
+    `CREATE TABLE IF NOT EXISTS ${qualifyTable('manual_main_prediction_daily')} (user_id TEXT NOT NULL, day_key TEXT NOT NULL, used_count BIGINT NOT NULL DEFAULT 0, updated_at_ms BIGINT NOT NULL, PRIMARY KEY (user_id, day_key), FOREIGN KEY(user_id) REFERENCES ${qualifyTable('auth_users')}(user_id) ON DELETE CASCADE)`,
+    `CREATE TABLE IF NOT EXISTS ${qualifyTable('manual_engagement_daily')} (user_id TEXT NOT NULL, day_key TEXT NOT NULL, created_at_ms BIGINT NOT NULL, PRIMARY KEY (user_id, day_key), FOREIGN KEY(user_id) REFERENCES ${qualifyTable('auth_users')}(user_id) ON DELETE CASCADE)`,
   ];
 }
 
