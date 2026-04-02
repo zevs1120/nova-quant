@@ -565,13 +565,24 @@ export default function App() {
     ],
   );
 
-  // Startup retry: if a previous onboarding bonus claim failed (network drop,
-  // server error, etc.), the pending flag survives in localStorage.  Each time
-  // manualState is refreshed (including on first load) we attempt the claim
-  // again.  The flag is cleared once the API returns ok or ALREADY_CLAIMED.
+  // Startup retry for pending onboarding bonus.
+  //
+  // Design rationale — why NOT [manualState]:
+  //   claimManualOnboardingBonus() calls refreshManualState() on every failure
+  //   path, which calls setManualState(), which would re-trigger a [manualState]
+  //   effect — creating a tight retry loop instead of a "next startup" retry.
+  //
+  // [effectiveUserId] fires exactly once per login session (when auth resolves).
+  // onboardingRetryAttemptedRef prevents re-entry within the same session even
+  // if something causes the effect to run a second time.
+  // If the claim fails, the localStorage flag stays set and the effect re-fires
+  // on the next page load (new mount → new ref → attempt again).
+  const onboardingRetryAttemptedRef = useRef(false);
   useEffect(() => {
     if (!effectiveUserId || isDemoRuntime) return;
     if (!pendingOnboardingBonusByUser?.[effectiveUserId]) return;
+    if (onboardingRetryAttemptedRef.current) return; // already attempted this session
+    onboardingRetryAttemptedRef.current = true;
     void claimManualOnboardingBonus().then((res) => {
       if (res?.ok || res?.skipped || res?.error === 'ONBOARDING_BONUS_ALREADY_CLAIMED') {
         setPendingOnboardingBonusByUser((current) => {
@@ -579,10 +590,12 @@ export default function App() {
           delete next[effectiveUserId];
           return next;
         });
+      } else {
+        // Claim failed — reset so the next page load (new ref) can retry.
+        onboardingRetryAttemptedRef.current = false;
       }
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [manualState]); // intentionally keyed on manualState to retry after each refresh
+  }, [effectiveUserId]); // one attempt per login session; page reload = new ref = new attempt
 
   const handleSkipFirstRunSetup = useCallback(() => {
     if (!authSession?.userId) return;

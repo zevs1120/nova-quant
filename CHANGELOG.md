@@ -4,7 +4,10 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
-- **Fix(db,server,frontend): 三项并发安全加固 — 幂等/原子性全部收口。**
+- **Fix(db,frontend): 迁移安全性与重试回路修复（两项跟进）。**
+  - **[Critical] Fix(db): 迁移 SQL 建唯一索引前先去重。** `docs/sql/manual_gamification_existing_db.sql` 新增 `DELETE` 步骤，用 `DISTINCT ON (user_id, event_type) ... ORDER BY created_at_ms ASC` 保留最早一条，删除其余重复的 `SIGNUP_BONUS` / `ONBOARDING_BONUS` 流水；之后再执行 `CREATE UNIQUE INDEX`（旧库无脏数据时 DELETE 影响 0 行，幂等）。
+  - **[Major] Fix(frontend): Onboarding 重试回路。** `App.jsx` 的 pending retry `useEffect` 依赖从 `[manualState]` 改为 `[effectiveUserId]`，每次登录会话只触发一次，彻底断开 `claimManualOnboardingBonus` 失败路径调用 `refreshManualState()` → `setManualState()` → 重触发 effect 的紧密循环。新增 `onboardingRetryAttemptedRef` 防止同一会话内重入；失败时重置 ref，下次页面刷新（新 mount = 新 ref）可再次尝试。
+
   - **[Critical] Fix(db,server): 注册/Onboarding 赠分幂等改为原子保证。**
     - `manual_points_ledger` 新增条件唯一索引 `idx_manual_points_ledger_singleton`（`WHERE event_type IN ('SIGNUP_BONUS','ONBOARDING_BONUS')`），作为 DB 层最终屏障；并发 INSERT 中后到的事务命中 UNIQUE 冲突，被应用层捕获并等同为"已发放"。
     - `tryGrantManualSignupBonus` 包进 `runManualTransaction`，UNIQUE 冲突被显式吞掉（之前完全在事务外运行）。

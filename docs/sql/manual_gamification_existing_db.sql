@@ -64,8 +64,23 @@ ALTER TABLE novaquant_data.manual_referrals
   CHECK (status IN ('PARTIAL', 'COMPLETED', 'CANCELLED', 'REWARDED'));
 
 -- === 4) Singleton-event unique index on manual_points_ledger ================
+-- STEP 4a: Deduplicate — keep the EARLIEST row per (user_id, event_type) for
+-- singleton bonus events.  This handles dirty data written before this patch
+-- (when there was no unique constraint).  Must run BEFORE the index creation;
+-- any surviving duplicate would cause CREATE UNIQUE INDEX to fail.
+-- Safe to run even when no duplicates exist: DELETE affects 0 rows.
+DELETE FROM novaquant_data.manual_points_ledger
+WHERE event_type IN ('SIGNUP_BONUS', 'ONBOARDING_BONUS')
+  AND entry_id NOT IN (
+    SELECT DISTINCT ON (user_id, event_type) entry_id
+    FROM novaquant_data.manual_points_ledger
+    WHERE event_type IN ('SIGNUP_BONUS', 'ONBOARDING_BONUS')
+    ORDER BY user_id, event_type, created_at_ms ASC
+  );
+
+-- STEP 4b: Create the singleton guard index (idempotent).
 -- Prevents SIGNUP_BONUS and ONBOARDING_BONUS from being written more than once
--- per user even under concurrent requests (final DB-level atomic guard).
+-- per user even under concurrent requests (final DB-level atomic barrier).
 CREATE UNIQUE INDEX IF NOT EXISTS idx_manual_points_ledger_singleton
   ON novaquant_data.manual_points_ledger(user_id, event_type)
   WHERE event_type IN ('SIGNUP_BONUS', 'ONBOARDING_BONUS');
