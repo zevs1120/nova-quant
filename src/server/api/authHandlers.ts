@@ -1,6 +1,7 @@
 import {
   clearAdminAuthCookieHeader,
   clearAuthCookieHeader,
+  getEffectiveAuthRolesForUser,
   getAdminAuthCookieHeader,
   getAdminSession,
   getAuthCookieHeader,
@@ -109,10 +110,13 @@ export async function handleAuthSession(req: BasicRequest, res: BasicResponse) {
       res.json({ authenticated: false });
       return;
     }
+    const roles = await getEffectiveAuthRolesForUser(session.user);
     res.json({
       authenticated: true,
       user: session.user,
       state: session.state,
+      roles,
+      isAdmin: roles.includes('ADMIN'),
     });
   } catch (error) {
     sendAuthServiceError(res, error);
@@ -269,10 +273,13 @@ export async function handleGetAuthProfile(req: BasicRequest, res: BasicResponse
       res.status(401).json({ ok: false, error: 'UNAUTHENTICATED' });
       return;
     }
+    const roles = await getEffectiveAuthRolesForUser(session.user);
     res.json({
       ok: true,
       user: session.user,
       state: await getAuthUserState(session.user.userId),
+      roles,
+      isAdmin: roles.includes('ADMIN'),
     });
   } catch (error) {
     sendAuthServiceError(res, error);

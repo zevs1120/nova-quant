@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 const MARKET_OPTIONS = {
   US: ['AAPL', 'NVDA', 'TSLA', 'MSFT', 'SPY', 'QQQ'],
@@ -143,6 +143,7 @@ export default function FirstRunSetupFlow({
 }) {
   const copy = useMemo(() => buildCopy(locale), [locale]);
   const initialMarket = assetClass === 'CRYPTO' ? 'CRYPTO' : 'US';
+  const flowRef = useRef(null);
   const [stepIndex, setStepIndex] = useState(0);
   const [goal, setGoal] = useState('');
   const [risk, setRisk] = useState(riskProfileKey || 'balanced');
@@ -166,6 +167,10 @@ export default function FirstRunSetupFlow({
         : stepIndex === 2
           ? Boolean(marketFocus)
           : Boolean(currentState);
+
+  useEffect(() => {
+    flowRef.current?.scrollTo({ top: 0, left: 0 });
+  }, [stepIndex]);
 
   const summaryItems = [
     goal
@@ -231,7 +236,7 @@ export default function FirstRunSetupFlow({
   };
 
   return (
-    <div className="first-run-flow">
+    <div ref={flowRef} className="first-run-flow">
       <div className="first-run-shell">
         <header className="first-run-header">
           <div className="first-run-header-copy">
@@ -368,7 +373,7 @@ export default function FirstRunSetupFlow({
           ) : null}
         </section>
 
-        <footer className="first-run-footer">
+        <footer className={`first-run-footer ${stepIndex === 0 ? 'first-run-footer-single' : ''}`}>
           {stepIndex > 0 ? (
             <button
               type="button"

@@ -65,6 +65,7 @@ describe('auth login api', () => {
     vi.stubEnv('SUPABASE_ANON_KEY', '');
     vi.stubEnv('VITE_SUPABASE_URL', '');
     vi.stubEnv('VITE_SUPABASE_ANON_KEY', '');
+    vi.stubEnv('NOVA_ADMIN_EMAILS', '');
   });
 
   afterEach(() => {
@@ -99,5 +100,40 @@ describe('auth login api', () => {
     expect(session.statusCode).toBe(200);
     expect((session.body as { authenticated?: boolean }).authenticated).toBe(true);
     expect((session.body as { user?: { email?: string } }).user?.email).toBe(email);
+    expect((session.body as { isAdmin?: boolean }).isAdmin).toBe(false);
+    expect((session.body as { roles?: string[] }).roles).toEqual([]);
+  });
+
+  it('marks configured admin emails as admin in auth session payloads', async () => {
+    const adminEmail = 'cookie-admin-test@example.com';
+    vi.stubEnv('NOVA_ADMIN_EMAILS', adminEmail);
+
+    const signup = await signupAuthUser({
+      email: adminEmail,
+      password: 'StrongPass123',
+      name: 'Cookie Admin Tester',
+      tradeMode: 'active',
+      broker: 'Robinhood',
+    });
+    expect(signup.ok).toBe(true);
+
+    const login = await callHandler(handleAuthLogin, {
+      body: {
+        email: adminEmail,
+        password: 'StrongPass123',
+      },
+    });
+    expect(login.statusCode).toBe(200);
+
+    const cookie = login.headers['Set-Cookie'];
+    expect(typeof cookie).toBe('string');
+    expect(cookie).toContain('novaquant_session=');
+
+    const session = await callHandler(handleAuthSession, { cookie });
+    expect(session.statusCode).toBe(200);
+    expect((session.body as { authenticated?: boolean }).authenticated).toBe(true);
+    expect((session.body as { user?: { email?: string } }).user?.email).toBe(adminEmail);
+    expect((session.body as { isAdmin?: boolean }).isAdmin).toBe(true);
+    expect((session.body as { roles?: string[] }).roles).toContain('ADMIN');
   });
 });

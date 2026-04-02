@@ -197,6 +197,7 @@ export default function App() {
     clearInvestorDemo,
   } = useInvestorDemo({
     assetClass,
+    canUseInvestorDemo: Boolean(DEMO_ENTRY_ENABLED && authSession?.isAdmin),
     setAssetClass,
     market,
     setMarket,
@@ -212,6 +213,7 @@ export default function App() {
     authSession,
     data,
   });
+  const canUseInvestorDemo = Boolean(DEMO_ENTRY_ENABLED && authSession?.isAdmin);
 
   const isDemoRuntime = getIsDemoRuntime(investorDemoEnabled);
   const firstRunSetupState = authSession?.userId
@@ -1003,9 +1005,10 @@ export default function App() {
           }
           manualState={manualState}
           onSectionChange={pushMySection}
-          showDemoEntry={DEMO_ENTRY_ENABLED}
+          showDemoEntry={canUseInvestorDemo}
           demoEnabled={investorDemoEnabled}
           onToggleDemo={() => {
+            if (!canUseInvestorDemo) return;
             if (investorDemoEnabled) {
               clearInvestorDemo();
               return;

@@ -137,6 +137,20 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
   const effectiveUserId = authSession?.userId || chatUserId;
   const signupInProgressRef = useRef(false);
 
+  const normalizeRoles = useCallback(
+    (roles) =>
+      Array.isArray(roles)
+        ? roles
+            .map((role) =>
+              String(role || '')
+                .trim()
+                .toUpperCase(),
+            )
+            .filter(Boolean)
+        : [],
+    [],
+  );
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
@@ -183,7 +197,8 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
 
   const applyAuthenticatedProfile = useCallback(
     (account, syncedState = null, options = {}) => {
-      const { resetNavigation = false } = options;
+      const { resetNavigation = false, roles = [] } = options;
+      const normalizedRoles = normalizeRoles(roles);
       const tradeModeMap = {
         starter: 'beginner',
         active: 'standard',
@@ -202,6 +217,8 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
         tradeMode: account.tradeMode,
         broker: account.broker,
         loggedInAt: new Date().toISOString(),
+        roles: normalizedRoles,
+        isAdmin: normalizedRoles.includes('ADMIN'),
       });
       setUiMode(syncedState?.uiMode || tradeModeMap[account.tradeMode] || 'standard');
       setRiskProfileKey(
@@ -236,6 +253,7 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
       setMarket,
       setMyStack,
       setOnboardingDone,
+      normalizeRoles,
       setRiskProfileKey,
       setUiMode,
       setUserProfile,
@@ -249,6 +267,7 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
       if (payload?.authenticated && payload?.user) {
         applyAuthenticatedProfile(payload.user, payload.state || null, {
           resetNavigation,
+          roles: payload.roles || [],
         });
         return true;
       }

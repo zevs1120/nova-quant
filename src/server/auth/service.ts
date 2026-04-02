@@ -271,6 +271,16 @@ function resolveEffectiveAuthRoles(
   return next;
 }
 
+export async function getEffectiveAuthRolesForUser(
+  user: Pick<PublicAuthUser, 'userId' | 'email'>,
+): Promise<AuthRole[]> {
+  const rows = await listAuthUserRoleRows(user.userId);
+  return resolveEffectiveAuthRoles(
+    user,
+    rows.map((row) => row.role),
+  );
+}
+
 function mergeSeededUserState(user: SeededUserConfig): AuthUserState {
   const base = buildInitialUserState(user.tradeMode);
   const next = user.initialState || {};

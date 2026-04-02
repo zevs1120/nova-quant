@@ -46,7 +46,13 @@ export function runtimeApiBases() {
   const hostname = String(window.location?.hostname || '');
   const protocol = String(window.location?.protocol || 'https:');
   if (protocol === 'file:' || isLocalHost(hostname)) {
-    return unique(['', ...envBases, 'http://127.0.0.1:8787', 'http://localhost:8787']);
+    return unique([
+      '',
+      ...envBases,
+      'http://127.0.0.1:8787',
+      'http://localhost:8787',
+      'https://api.novaquant.cloud',
+    ]);
   }
 
   if (hostname === 'api.novaquant.cloud') {

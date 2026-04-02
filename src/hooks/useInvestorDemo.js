@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocalStorage } from './useLocalStorage';
 import {
   buildInvestorDemoEnvironment,
@@ -17,6 +17,7 @@ import {
  */
 export function useInvestorDemo({
   assetClass,
+  canUseInvestorDemo = false,
   setAssetClass,
   market,
   setMarket,
@@ -45,14 +46,29 @@ export function useInvestorDemo({
     null,
   );
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const demoAccessAllowed = Boolean(canUseInvestorDemo);
+  const demoActive = Boolean(investorDemoEnabled && demoAccessAllowed);
+
+  useEffect(() => {
+    if (demoAccessAllowed || !investorDemoEnabled) return;
+    setInvestorDemoEnabled(false);
+    setInvestorDemoHoldingsBackup(null);
+    setInvestorDemoUiBackup(null);
+  }, [
+    demoAccessAllowed,
+    investorDemoEnabled,
+    setInvestorDemoEnabled,
+    setInvestorDemoHoldingsBackup,
+    setInvestorDemoUiBackup,
+  ]);
 
   const investorDemoEnvironment = useMemo(
-    () => (investorDemoEnabled ? buildInvestorDemoEnvironment(assetClass) : null),
-    [investorDemoEnabled, assetClass],
+    () => (demoActive ? buildInvestorDemoEnvironment(assetClass) : null),
+    [demoActive, assetClass],
   );
 
   const uiData = useMemo(() => {
-    if (!investorDemoEnabled) return data;
+    if (!demoActive) return data;
     return {
       ...data,
       signals: investorDemoEnvironment?.signals || [],
@@ -80,7 +96,7 @@ export function useInvestorDemo({
         },
       },
     };
-  }, [investorDemoEnabled, investorDemoEnvironment, data]);
+  }, [demoActive, investorDemoEnvironment, data]);
 
   const connectedHoldings = useMemo(
     () =>
@@ -96,7 +112,7 @@ export function useInvestorDemo({
 
   const holdingsSource = useMemo(() => {
     return summarizeHoldingsSource({
-      investorDemoEnabled,
+      investorDemoEnabled: demoActive,
       manualHoldings: holdings,
       connectedHoldings,
       brokerSnapshot: uiData?.config?.runtime?.connectivity?.broker || null,
@@ -105,20 +121,21 @@ export function useInvestorDemo({
   }, [
     connectedHoldings,
     holdings,
-    investorDemoEnabled,
+    demoActive,
     uiData?.config?.runtime?.connectivity?.broker,
     uiData?.config?.runtime?.connectivity?.exchange,
   ]);
 
   const effectiveHoldings = useMemo(() => {
-    if (investorDemoEnabled) return holdings;
+    if (demoActive) return holdings;
     return mergeHoldingsSources({
       manualHoldings: holdings,
       connectedHoldings,
     });
-  }, [connectedHoldings, holdings, investorDemoEnabled]);
+  }, [connectedHoldings, demoActive, holdings]);
 
   const enableInvestorDemo = useCallback(() => {
+    if (!demoAccessAllowed) return;
     if (!investorDemoEnabled) {
       setInvestorDemoHoldingsBackup(Array.isArray(holdings) ? holdings : []);
       setInvestorDemoUiBackup({
@@ -138,6 +155,7 @@ export function useInvestorDemo({
     setActiveTab('today');
   }, [
     assetClass,
+    demoAccessAllowed,
     executions,
     holdings,
     investorDemoEnabled,
@@ -180,7 +198,7 @@ export function useInvestorDemo({
   ]);
 
   return {
-    investorDemoEnabled,
+    investorDemoEnabled: demoActive,
     showOnboarding,
     setShowOnboarding,
     uiData,
