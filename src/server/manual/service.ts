@@ -9,9 +9,42 @@ import {
   rollbackTransactionSync,
 } from '../db/postgresSyncBridge.js';
 
-const VIP_REDEEM_POINTS = 1000;
-const REFERRAL_REWARD_POINTS = 200;
-const DEFAULT_PREDICTION_STAKE = 100;
+function readIntEnv(key: string, fallback: number) {
+  const raw = String(process.env[key] || '').trim();
+  if (!raw) return fallback;
+  const n = Math.trunc(Number(raw));
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function readBoolEnv(key: string) {
+  const v = String(process.env[key] || '')
+    .trim()
+    .toLowerCase();
+  return v === '1' || v === 'true' || v === 'yes';
+}
+
+const VIP_REDEEM_POINTS = readIntEnv('NOVA_MANUAL_VIP_REDEEM_POINTS', 1000);
+const VIP_REDEEM_MAX_DAYS_PER_MONTH = readIntEnv('NOVA_MANUAL_VIP_MAX_DAYS_PER_MONTH', 7);
+const SIGNUP_BONUS_POINTS = readIntEnv('NOVA_MANUAL_SIGNUP_BONUS_POINTS', 300);
+const ONBOARDING_BONUS_POINTS = readIntEnv('NOVA_MANUAL_ONBOARDING_BONUS_POINTS', 700);
+const REFERRAL_STAGE1_POINTS = readIntEnv('NOVA_MANUAL_REFERRAL_STAGE1_POINTS', 300);
+const REFERRAL_STAGE2_POINTS = readIntEnv('NOVA_MANUAL_REFERRAL_STAGE2_POINTS', 700);
+const REFERRAL_MAX_COMPLETED_PER_MONTH = readIntEnv(
+  'NOVA_MANUAL_REFERRAL_MAX_COMPLETED_PER_MONTH',
+  10,
+);
+const DAILY_CHECKIN_POINTS = readIntEnv('NOVA_MANUAL_CHECKIN_DAILY_POINTS', 20);
+const CHECKIN_STREAK_7_BONUS = readIntEnv('NOVA_MANUAL_CHECKIN_STREAK_7_BONUS', 100);
+const CHECKIN_STREAK_30_BONUS = readIntEnv('NOVA_MANUAL_CHECKIN_STREAK_30_BONUS', 500);
+const DEFAULT_PREDICTION_STAKE_STANDARD = readIntEnv('NOVA_MANUAL_PREDICTION_STAKE_STANDARD', 100);
+const MAIN_PREDICTION_STAKE = readIntEnv('NOVA_MANUAL_PREDICTION_MAIN_STAKE', 1000);
+const MAIN_PREDICTION_MAX_PER_DAY = readIntEnv('NOVA_MANUAL_PREDICTION_MAIN_MAX_PER_DAY', 2);
+const FREE_DAILY_REWARD_POINTS = readIntEnv('NOVA_MANUAL_PREDICTION_FREE_REWARD', 30);
+const WIN_RETURN_POINTS = readIntEnv('NOVA_MANUAL_PREDICTION_WIN_RETURN', 1900);
+const WIN_RETURN_COLD_POINTS = readIntEnv('NOVA_MANUAL_PREDICTION_WIN_RETURN_COLD', 2000);
+const ENGAGEMENT_SIGNAL_POINTS = readIntEnv('NOVA_MANUAL_ENGAGEMENT_SIGNAL_POINTS', 20);
+
+export type ManualMarketKind = 'STANDARD' | 'FREE_DAILY' | 'MAIN';
 
 type ManualAvailabilityReason = 'AUTH_REQUIRED' | 'MANUAL_UNAVAILABLE';
 
@@ -24,6 +57,9 @@ export type ManualDashboard = {
     expiringSoon: number;
     vipDays: number;
     vipDaysRedeemed: number;
+    checkinStreak: number;
+    lastCheckinDay: string | null;
+    mainPredictionsToday: number;
   };
   referrals: {
     inviteCode: string | null;
@@ -53,6 +89,7 @@ export type ManualDashboard = {
     prompt: string;
     market: string | null;
     symbol: string | null;
+    marketKind: ManualMarketKind;
     status: string;
     closesAt: string | null;
     resolvesAt: string | null;
@@ -66,14 +103,33 @@ export type ManualDashboard = {
   }>;
   rules: {
     vipRedeemPoints: number;
-    referralRewardPoints: number;
+    vipMaxDaysPerMonth: number;
+    referralStage1Points: number;
+    referralStage2Points: number;
+    referralRewardPointsTotal: number;
     defaultPredictionStake: number;
+    mainPredictionStake: number;
+    mainPredictionMaxPerDay: number;
+    freeDailyRewardPoints: number;
+    winReturnPoints: number;
+    checkinDailyPoints: number;
+    checkinStreak7Bonus: number;
+    checkinStreak30Bonus: number;
+    engagementSignalPoints: number;
+    signupBonusPoints: number;
+    onboardingBonusPoints: number;
+    pointsExpiryDays: number;
   };
 };
 
 type LedgerMetadata = {
   title?: string;
   description?: string;
+};
+
+type MarketMeta = {
+  winReturnPoints?: number;
+  freeRewardPoints?: number;
 };
 
 function nowMs() {
@@ -91,6 +147,25 @@ function parseJson<T>(value: string | null | undefined, fallback: T): T {
   } catch {
     return fallback;
   }
+}
+
+function utcDayKeyFromMs(ms: number) {
+  return new Date(ms).toISOString().slice(0, 10);
+}
+
+function utcMonthStartEndKeys(ms: number) {
+  const d = new Date(ms);
+  const y = d.getUTCFullYear();
+  const m = d.getUTCMonth();
+  const start = Date.UTC(y, m, 1, 0, 0, 0, 0);
+  const end = Date.UTC(y, m + 1, 1, 0, 0, 0, 0);
+  return { startMs: start, endMs: end };
+}
+
+function previousUtcDayKey(dayKey: string) {
+  const [yy, mm, dd] = dayKey.split('-').map((x) => Number(x));
+  const t = Date.UTC(yy, mm - 1, dd, 12, 0, 0, 0) - 86400000;
+  return utcDayKeyFromMs(t);
 }
 
 function manualTable(tableName: string) {
@@ -126,7 +201,40 @@ function isGuestUser(userId: string | null | undefined) {
   return !normalized || normalized.startsWith('guest-');
 }
 
+function normalizeMarketKind(raw: string | null | undefined): ManualMarketKind {
+  const u = String(raw || 'STANDARD').toUpperCase();
+  if (u === 'FREE_DAILY' || u === 'FREE') return 'FREE_DAILY';
+  if (u === 'MAIN') return 'MAIN';
+  return 'STANDARD';
+}
+
+function parseMarketMeta(metadataJson: string | null | undefined): MarketMeta {
+  return parseJson<MarketMeta>(metadataJson, {});
+}
+
+function effectiveWinReturnPoints(marketMeta: MarketMeta): number {
+  if (Number.isFinite(marketMeta.winReturnPoints)) {
+    return Math.trunc(Number(marketMeta.winReturnPoints));
+  }
+  const coldUntil = Number(process.env.NOVA_MANUAL_PREDICTION_COLDSTART_UNTIL_MS || NaN);
+  if (readBoolEnv('NOVA_MANUAL_PREDICTION_COLDSTART')) {
+    return WIN_RETURN_COLD_POINTS;
+  }
+  if (Number.isFinite(coldUntil) && nowMs() < coldUntil) {
+    return WIN_RETURN_COLD_POINTS;
+  }
+  return WIN_RETURN_POINTS;
+}
+
+function effectiveFreeReward(marketMeta: MarketMeta): number {
+  if (Number.isFinite(marketMeta.freeRewardPoints)) {
+    return Math.trunc(Number(marketMeta.freeRewardPoints));
+  }
+  return FREE_DAILY_REWARD_POINTS;
+}
+
 function defaultDashboard(reason: ManualAvailabilityReason | null): ManualDashboard {
+  const rules = buildRulesSnapshot();
   return {
     available: false,
     mode: 'REAL',
@@ -136,6 +244,9 @@ function defaultDashboard(reason: ManualAvailabilityReason | null): ManualDashbo
       expiringSoon: 0,
       vipDays: 0,
       vipDaysRedeemed: 0,
+      checkinStreak: 0,
+      lastCheckinDay: null,
+      mainPredictionsToday: 0,
     },
     referrals: {
       inviteCode: null,
@@ -155,11 +266,29 @@ function defaultDashboard(reason: ManualAvailabilityReason | null): ManualDashbo
       },
     ],
     predictions: [],
-    rules: {
-      vipRedeemPoints: VIP_REDEEM_POINTS,
-      referralRewardPoints: REFERRAL_REWARD_POINTS,
-      defaultPredictionStake: DEFAULT_PREDICTION_STAKE,
-    },
+    rules,
+  };
+}
+
+function buildRulesSnapshot(): ManualDashboard['rules'] {
+  return {
+    vipRedeemPoints: VIP_REDEEM_POINTS,
+    vipMaxDaysPerMonth: VIP_REDEEM_MAX_DAYS_PER_MONTH,
+    referralStage1Points: REFERRAL_STAGE1_POINTS,
+    referralStage2Points: REFERRAL_STAGE2_POINTS,
+    referralRewardPointsTotal: REFERRAL_STAGE1_POINTS + REFERRAL_STAGE2_POINTS,
+    defaultPredictionStake: DEFAULT_PREDICTION_STAKE_STANDARD,
+    mainPredictionStake: MAIN_PREDICTION_STAKE,
+    mainPredictionMaxPerDay: MAIN_PREDICTION_MAX_PER_DAY,
+    freeDailyRewardPoints: FREE_DAILY_REWARD_POINTS,
+    winReturnPoints: effectiveWinReturnPoints({}),
+    checkinDailyPoints: DAILY_CHECKIN_POINTS,
+    checkinStreak7Bonus: CHECKIN_STREAK_7_BONUS,
+    checkinStreak30Bonus: CHECKIN_STREAK_30_BONUS,
+    engagementSignalPoints: ENGAGEMENT_SIGNAL_POINTS,
+    signupBonusPoints: SIGNUP_BONUS_POINTS,
+    onboardingBonusPoints: ONBOARDING_BONUS_POINTS,
+    pointsExpiryDays: readIntEnv('NOVA_MANUAL_POINTS_EXPIRY_DAYS', 90),
   };
 }
 
@@ -175,8 +304,11 @@ function ensureManualUserState(userId: string) {
     referred_by_code: string | null;
     vip_days_balance: number;
     vip_days_redeemed_total: number;
+    last_checkin_day: string | null;
+    checkin_streak: number;
   }>(
-    `SELECT user_id, invite_code, referred_by_code, vip_days_balance, vip_days_redeemed_total
+    `SELECT user_id, invite_code, referred_by_code, vip_days_balance, vip_days_redeemed_total,
+            last_checkin_day, checkin_streak
      FROM ${manualTable('manual_user_state')}
      WHERE user_id = $1
      LIMIT 1`,
@@ -199,8 +331,9 @@ function ensureManualUserState(userId: string) {
   try {
     executeSync(
       `INSERT INTO ${manualTable('manual_user_state')}(
-        user_id, invite_code, referred_by_code, vip_days_balance, vip_days_redeemed_total, updated_at_ms
-      ) VALUES($1, $2, NULL, 0, 0, $3)`,
+        user_id, invite_code, referred_by_code, vip_days_balance, vip_days_redeemed_total,
+        last_checkin_day, checkin_streak, updated_at_ms
+      ) VALUES($1, $2, NULL, 0, 0, NULL, 0, $3)`,
       [userId, inviteCode, ts],
     );
   } catch (error) {
@@ -221,6 +354,8 @@ function ensureManualUserState(userId: string) {
     referred_by_code: null,
     vip_days_balance: 0,
     vip_days_redeemed_total: 0,
+    last_checkin_day: null,
+    checkin_streak: 0,
   };
 }
 
@@ -234,6 +369,16 @@ function currentPointsBalance(userId: string) {
     [userId],
   );
   return Number(row?.balance_after || 0);
+}
+
+function hasLedgerEvent(userId: string, eventType: string) {
+  const row = queryRowSync<{ entry_id: string }>(
+    `SELECT entry_id FROM ${manualTable('manual_points_ledger')}
+     WHERE user_id = $1 AND event_type = $2
+     LIMIT 1`,
+    [userId, eventType],
+  );
+  return Boolean(row?.entry_id);
 }
 
 function appendPointsLedger(args: {
@@ -304,12 +449,57 @@ function listPointsLedger(userId: string, limit = 8): ManualDashboard['ledger'] 
   });
 }
 
+function countMainPredictionsTodayUtc(userId: string) {
+  const { startMs, endMs } = (() => {
+    const k = utcDayKeyFromMs(nowMs());
+    const [y, m, d] = k.split('-').map((x) => Number(x));
+    const start = Date.UTC(y, m - 1, d, 0, 0, 0, 0);
+    return { startMs: start, endMs: start + 86400000 };
+  })();
+  const rows = queryRowsSync<{ market_kind: string | null }>(
+    `SELECT m.market_kind
+     FROM ${manualTable('manual_prediction_entries')} e
+     INNER JOIN ${manualTable('manual_prediction_markets')} m ON m.market_id = e.market_id
+     WHERE e.user_id = $1 AND e.created_at_ms >= $2 AND e.created_at_ms < $3`,
+    [userId, startMs, endMs],
+  );
+  return rows.filter((r) => normalizeMarketKind(r.market_kind) === 'MAIN').length;
+}
+
+function vipDaysRedeemedThisUtcMonth(userId: string) {
+  const { startMs, endMs } = utcMonthStartEndKeys(nowMs());
+  const row = queryRowSync<{ pts: string | null }>(
+    `SELECT SUM(-points_delta)::text AS pts
+     FROM ${manualTable('manual_points_ledger')}
+     WHERE user_id = $1 AND event_type = 'VIP_REDEEM'
+       AND created_at_ms >= $2 AND created_at_ms < $3`,
+    [userId, startMs, endMs],
+  );
+  const redeemedPoints = Number(row?.pts || 0);
+  if (!Number.isFinite(redeemedPoints) || redeemedPoints <= 0) return 0;
+  return Math.ceil(redeemedPoints / VIP_REDEEM_POINTS);
+}
+
+function countInviterReferralCompletionsThisUtcMonth(inviterUserId: string) {
+  const { startMs, endMs } = utcMonthStartEndKeys(nowMs());
+  const row = queryRowSync<{ c: string | null }>(
+    `SELECT COUNT(*)::text AS c
+     FROM ${manualTable('manual_referrals')}
+     WHERE inviter_user_id = $1
+       AND status IN ('COMPLETED', 'REWARDED')
+       AND updated_at_ms >= $2 AND updated_at_ms < $3`,
+    [inviterUserId, startMs, endMs],
+  );
+  return Number(row?.c || 0);
+}
+
 function listPredictionMarkets(userId: string): ManualDashboard['predictions'] {
   const rows = queryRowsSync<{
     market_id: string;
     prompt: string;
     market: string | null;
     symbol: string | null;
+    market_kind: string | null;
     status: string;
     closes_at_ms: number;
     resolves_at_ms: number | null;
@@ -324,6 +514,7 @@ function listPredictionMarkets(userId: string): ManualDashboard['predictions'] {
        m.prompt,
        m.market,
        m.symbol,
+       m.market_kind,
        m.status,
        m.closes_at_ms,
        m.resolves_at_ms,
@@ -346,6 +537,7 @@ function listPredictionMarkets(userId: string): ManualDashboard['predictions'] {
     prompt: row.prompt,
     market: row.market || null,
     symbol: row.symbol || null,
+    marketKind: normalizeMarketKind(row.market_kind),
     status: row.status,
     closesAt: Number.isFinite(row.closes_at_ms) ? new Date(row.closes_at_ms).toISOString() : null,
     resolvesAt: Number.isFinite(row.resolves_at_ms || NaN)
@@ -372,7 +564,7 @@ export function getManualDashboard(userId: string | null | undefined): ManualDas
   const referralCounts = queryRowSync<{ total: number | null; rewarded: number | null }>(
     `SELECT
        COUNT(*) AS total,
-       SUM(CASE WHEN status = 'REWARDED' THEN 1 ELSE 0 END) AS rewarded
+       SUM(CASE WHEN status IN ('COMPLETED', 'REWARDED') THEN 1 ELSE 0 END) AS rewarded
      FROM ${manualTable('manual_referrals')}
      WHERE inviter_user_id = $1`,
     [normalizedUserId],
@@ -387,6 +579,9 @@ export function getManualDashboard(userId: string | null | undefined): ManualDas
       expiringSoon: 0,
       vipDays: Number(userState.vip_days_balance || 0),
       vipDaysRedeemed: Number(userState.vip_days_redeemed_total || 0),
+      checkinStreak: Number(userState.checkin_streak || 0),
+      lastCheckinDay: userState.last_checkin_day || null,
+      mainPredictionsToday: countMainPredictionsTodayUtc(normalizedUserId),
     },
     referrals: {
       inviteCode: userState.invite_code,
@@ -406,12 +601,30 @@ export function getManualDashboard(userId: string | null | undefined): ManualDas
       },
     ],
     predictions: listPredictionMarkets(normalizedUserId),
-    rules: {
-      vipRedeemPoints: VIP_REDEEM_POINTS,
-      referralRewardPoints: REFERRAL_REWARD_POINTS,
-      defaultPredictionStake: DEFAULT_PREDICTION_STAKE,
-    },
+    rules: buildRulesSnapshot(),
   };
+}
+
+/** Best-effort signup points; safe to call from auth registration paths. */
+export function tryGrantManualSignupBonus(userId: string) {
+  if (isGuestUser(userId)) return;
+  if (readBoolEnv('NOVA_MANUAL_DISABLE_SIGNUP_BONUS')) return;
+  const uid = String(userId).trim();
+  try {
+    if (!authUserExists(uid)) return;
+    if (hasLedgerEvent(uid, 'SIGNUP_BONUS')) return;
+    appendPointsLedger({
+      userId: uid,
+      eventType: 'SIGNUP_BONUS',
+      pointsDelta: SIGNUP_BONUS_POINTS,
+      metadata: {
+        title: 'Welcome bonus',
+        description: 'Points for creating your account.',
+      },
+    });
+  } catch {
+    // ignore — auth/business DB may be split or schema not migrated yet
+  }
 }
 
 export function redeemManualVipDay(args: { userId: string; days?: number }) {
@@ -423,6 +636,13 @@ export function redeemManualVipDay(args: { userId: string; days?: number }) {
   const cost = days * VIP_REDEEM_POINTS;
   try {
     runManualTransaction(() => {
+      const already = vipDaysRedeemedThisUtcMonth(userId);
+      if (already + days > VIP_REDEEM_MAX_DAYS_PER_MONTH) {
+        throw Object.assign(new Error('VIP_MONTHLY_CAP'), {
+          __manualEarlyReturn: true,
+          code: 'VIP_MONTHLY_CAP',
+        });
+      }
       const balance = (() => {
         const row = queryRowSync<{ balance_after: number }>(
           `SELECT balance_after
@@ -461,6 +681,10 @@ export function redeemManualVipDay(args: { userId: string; days?: number }) {
     return { ok: true as const, data: getManualDashboard(userId) };
   } catch (error) {
     if ((error as { __manualEarlyReturn?: boolean }).__manualEarlyReturn) {
+      const code = (error as { code?: string }).code;
+      if (code === 'VIP_MONTHLY_CAP') {
+        return { ok: false as const, error: 'VIP_MONTHLY_CAP' as const };
+      }
       return { ok: false as const, error: 'INSUFFICIENT_POINTS' };
     }
     throw error;
@@ -504,29 +728,207 @@ export function claimManualReferral(args: { userId: string; inviteCode: string }
     executeSync(
       `INSERT INTO ${manualTable('manual_referrals')}(
         referral_id, inviter_user_id, invite_code, referred_user_id, status, reward_points, created_at_ms, updated_at_ms
-      ) VALUES($1, $2, $3, $4, 'REWARDED', $5, $6, $7)`,
-      [createId('ref'), inviter.user_id, inviteCode, userId, REFERRAL_REWARD_POINTS, ts, ts],
+      ) VALUES($1, $2, $3, $4, 'PARTIAL', $5, $6, $7)`,
+      [createId('ref'), inviter.user_id, inviteCode, userId, REFERRAL_STAGE1_POINTS * 2, ts, ts],
     );
     appendPointsLedger({
       userId: inviter.user_id,
-      eventType: 'REFERRAL_REWARD',
-      pointsDelta: REFERRAL_REWARD_POINTS,
+      eventType: 'REFERRAL_STAGE1',
+      pointsDelta: REFERRAL_STAGE1_POINTS,
       metadata: {
-        title: 'Referral reward',
-        description: `${inviteCode} converted into a confirmed referral.`,
+        title: 'Referral reward (stage 1)',
+        description: `${inviteCode} signed up — first milestone.`,
       },
     });
     appendPointsLedger({
       userId,
-      eventType: 'REFERRAL_WELCOME',
-      pointsDelta: REFERRAL_REWARD_POINTS,
+      eventType: 'REFERRAL_WELCOME_STAGE1',
+      pointsDelta: REFERRAL_STAGE1_POINTS,
       metadata: {
-        title: 'Referral welcome reward',
+        title: 'Referral welcome (stage 1)',
         description: `Joined through ${inviteCode}.`,
       },
     });
   });
 
+  return { ok: true as const, data: getManualDashboard(userId) };
+}
+
+/**
+ * Call when referred user completes onboarding / key milestone (stage 2).
+ * Grants +REFERRAL_STAGE2_POINTS to inviter and referee if monthly cap allows.
+ */
+export function completeManualReferralStage2(args: { userId: string }) {
+  if (isGuestUser(args.userId)) {
+    return { ok: false as const, error: 'AUTH_REQUIRED' };
+  }
+  const refereeId = String(args.userId).trim();
+  const referral = queryRowSync<{
+    referral_id: string;
+    inviter_user_id: string;
+    invite_code: string;
+    status: string;
+  }>(
+    `SELECT referral_id, inviter_user_id, invite_code, status
+     FROM ${manualTable('manual_referrals')}
+     WHERE referred_user_id = $1
+     LIMIT 1`,
+    [refereeId],
+  );
+  if (!referral) return { ok: false as const, error: 'REFERRAL_NOT_FOUND' };
+  if (referral.status === 'COMPLETED' || referral.status === 'REWARDED') {
+    return { ok: false as const, error: 'REFERRAL_ALREADY_COMPLETED' };
+  }
+  if (referral.status !== 'PARTIAL') {
+    return { ok: false as const, error: 'REFERRAL_NOT_ELIGIBLE' };
+  }
+
+  const inviterId = referral.inviter_user_id;
+  const completedThisMonth = countInviterReferralCompletionsThisUtcMonth(inviterId);
+  if (completedThisMonth >= REFERRAL_MAX_COMPLETED_PER_MONTH) {
+    return { ok: false as const, error: 'REFERRAL_MONTHLY_CAP' };
+  }
+
+  const ts = nowMs();
+  runManualTransaction(() => {
+    executeSync(
+      `UPDATE ${manualTable('manual_referrals')}
+       SET status = 'COMPLETED', reward_points = $1, updated_at_ms = $2
+       WHERE referral_id = $3 AND status = 'PARTIAL'`,
+      [REFERRAL_STAGE1_POINTS * 2 + REFERRAL_STAGE2_POINTS * 2, ts, referral.referral_id],
+    );
+    appendPointsLedger({
+      userId: inviterId,
+      eventType: 'REFERRAL_STAGE2',
+      pointsDelta: REFERRAL_STAGE2_POINTS,
+      metadata: {
+        title: 'Referral reward (stage 2)',
+        description: `${referral.invite_code} completed onboarding.`,
+      },
+    });
+    appendPointsLedger({
+      userId: refereeId,
+      eventType: 'REFERRAL_WELCOME_STAGE2',
+      pointsDelta: REFERRAL_STAGE2_POINTS,
+      metadata: {
+        title: 'Referral welcome (stage 2)',
+        description: 'You completed onboarding as a referred user.',
+      },
+    });
+  });
+
+  return { ok: true as const, data: getManualDashboard(refereeId) };
+}
+
+export function claimManualOnboardingBonus(args: { userId: string }) {
+  if (isGuestUser(args.userId)) {
+    return { ok: false as const, error: 'AUTH_REQUIRED' };
+  }
+  const userId = String(args.userId).trim();
+  if (!ensureManualUserState(userId)) return { ok: false as const, error: 'AUTH_REQUIRED' };
+  if (hasLedgerEvent(userId, 'ONBOARDING_BONUS')) {
+    return { ok: false as const, error: 'ONBOARDING_BONUS_ALREADY_CLAIMED' };
+  }
+  appendPointsLedger({
+    userId,
+    eventType: 'ONBOARDING_BONUS',
+    pointsDelta: ONBOARDING_BONUS_POINTS,
+    metadata: {
+      title: 'Onboarding complete',
+      description: 'Points for finishing setup.',
+    },
+  });
+  const stage2 = completeManualReferralStage2({ userId });
+  return {
+    ok: true as const,
+    data: getManualDashboard(userId),
+    referralStage2: stage2.ok ? ('granted' as const) : ('skipped' as const),
+  };
+}
+
+export function manualDailyCheckin(args: { userId: string }) {
+  if (isGuestUser(args.userId)) {
+    return { ok: false as const, error: 'AUTH_REQUIRED' };
+  }
+  const userId = String(args.userId).trim();
+  const st = ensureManualUserState(userId);
+  if (!st) return { ok: false as const, error: 'AUTH_REQUIRED' };
+
+  const today = utcDayKeyFromMs(nowMs());
+  const existing = queryRowSync<{ day_key: string }>(
+    `SELECT day_key FROM ${manualTable('manual_checkins')} WHERE user_id = $1 AND day_key = $2 LIMIT 1`,
+    [userId, today],
+  );
+  if (existing) {
+    return { ok: false as const, error: 'CHECKIN_ALREADY_DONE' };
+  }
+
+  let nextStreak = 1;
+  if (st.last_checkin_day === today) {
+    nextStreak = Number(st.checkin_streak || 0);
+  } else if (st.last_checkin_day === previousUtcDayKey(today)) {
+    nextStreak = Number(st.checkin_streak || 0) + 1;
+  } else {
+    nextStreak = 1;
+  }
+
+  const ts = nowMs();
+  runManualTransaction(() => {
+    executeSync(
+      `INSERT INTO ${manualTable('manual_checkins')}(user_id, day_key, created_at_ms) VALUES($1, $2, $3)`,
+      [userId, today, ts],
+    );
+    executeSync(
+      `UPDATE ${manualTable('manual_user_state')}
+       SET last_checkin_day = $1, checkin_streak = $2, updated_at_ms = $3
+       WHERE user_id = $4`,
+      [today, nextStreak, ts, userId],
+    );
+    appendPointsLedger({
+      userId,
+      eventType: 'CHECKIN_DAILY',
+      pointsDelta: DAILY_CHECKIN_POINTS,
+      metadata: { title: 'Daily check-in', description: `Streak ${nextStreak}` },
+    });
+    if (nextStreak > 0 && nextStreak % 7 === 0) {
+      appendPointsLedger({
+        userId,
+        eventType: 'CHECKIN_STREAK_7',
+        pointsDelta: CHECKIN_STREAK_7_BONUS,
+        metadata: { title: '7-day streak bonus', description: 'Thanks for coming back.' },
+      });
+    }
+    if (nextStreak > 0 && nextStreak % 30 === 0) {
+      appendPointsLedger({
+        userId,
+        eventType: 'CHECKIN_STREAK_30',
+        pointsDelta: CHECKIN_STREAK_30_BONUS,
+        metadata: { title: '30-day streak bonus', description: 'Outstanding consistency.' },
+      });
+    }
+  });
+
+  return { ok: true as const, data: getManualDashboard(userId), streak: nextStreak };
+}
+
+/** Idempotent per UTC day — e.g. after viewing the daily signal. */
+export function grantManualEngagementSignal(args: { userId: string }) {
+  if (isGuestUser(args.userId)) {
+    return { ok: false as const, error: 'AUTH_REQUIRED' };
+  }
+  const userId = String(args.userId).trim();
+  if (!ensureManualUserState(userId)) return { ok: false as const, error: 'AUTH_REQUIRED' };
+  const day = utcDayKeyFromMs(nowMs());
+  const dedupeKey = `SIGNAL_VIEW_${day}`;
+  if (hasLedgerEvent(userId, dedupeKey)) {
+    return { ok: false as const, error: 'ENGAGEMENT_ALREADY_GRANTED' };
+  }
+  appendPointsLedger({
+    userId,
+    eventType: dedupeKey,
+    pointsDelta: ENGAGEMENT_SIGNAL_POINTS,
+    metadata: { title: 'Daily signal', description: 'Engagement reward.' },
+  });
   return { ok: true as const, data: getManualDashboard(userId) };
 }
 
@@ -542,10 +944,6 @@ export function submitManualPredictionEntry(args: {
   const userId = String(args.userId).trim();
   const marketId = String(args.marketId || '').trim();
   const selectedOption = String(args.selectedOption || '').trim();
-  const pointsStaked = Math.max(
-    0,
-    Math.trunc(Number(args.pointsStaked ?? DEFAULT_PREDICTION_STAKE)),
-  );
   if (!marketId || !selectedOption) {
     return { ok: false as const, error: 'PREDICTION_INPUT_REQUIRED' };
   }
@@ -554,10 +952,12 @@ export function submitManualPredictionEntry(args: {
     market_id: string;
     prompt: string;
     options_json: string;
+    metadata_json: string;
+    market_kind: string | null;
     status: string;
     closes_at_ms: number;
   }>(
-    `SELECT market_id, prompt, options_json, status, closes_at_ms
+    `SELECT market_id, prompt, options_json, metadata_json, market_kind, status, closes_at_ms
      FROM ${manualTable('manual_prediction_markets')}
      WHERE market_id = $1
      LIMIT 1`,
@@ -567,6 +967,18 @@ export function submitManualPredictionEntry(args: {
   if (market.status !== 'OPEN' || market.closes_at_ms <= nowMs()) {
     return { ok: false as const, error: 'PREDICTION_CLOSED' };
   }
+  const kind = normalizeMarketKind(market.market_kind);
+  const meta = parseMarketMeta(market.metadata_json);
+
+  let pointsStaked = Math.max(0, Math.trunc(Number(args.pointsStaked ?? 0)));
+  if (kind === 'FREE_DAILY') {
+    pointsStaked = 0;
+  } else if (kind === 'MAIN') {
+    pointsStaked = MAIN_PREDICTION_STAKE;
+  } else {
+    if (!pointsStaked) pointsStaked = DEFAULT_PREDICTION_STAKE_STANDARD;
+  }
+
   const options = parseJson<Array<{ key: string; label: string }>>(market.options_json, []);
   if (!options.some((item) => item?.key === selectedOption)) {
     return { ok: false as const, error: 'PREDICTION_OPTION_INVALID' };
@@ -579,6 +991,34 @@ export function submitManualPredictionEntry(args: {
     [marketId, userId],
   );
   if (existing) return { ok: false as const, error: 'PREDICTION_ALREADY_SUBMITTED' };
+
+  if (kind === 'MAIN') {
+    const used = countMainPredictionsTodayUtc(userId);
+    if (used >= MAIN_PREDICTION_MAX_PER_DAY) {
+      return { ok: false as const, error: 'MAIN_PREDICTION_DAILY_CAP' };
+    }
+  }
+
+  if (kind === 'FREE_DAILY') {
+    const dayStart = (() => {
+      const k = utcDayKeyFromMs(nowMs());
+      const [y, m, d] = k.split('-').map((x) => Number(x));
+      return Date.UTC(y, m - 1, d, 0, 0, 0, 0);
+    })();
+    const dayEnd = dayStart + 86400000;
+    const freeRow = queryRowSync<{ c: string | null }>(
+      `SELECT COUNT(*)::text AS c
+       FROM ${manualTable('manual_prediction_entries')} e
+       INNER JOIN ${manualTable('manual_prediction_markets')} m ON m.market_id = e.market_id
+       WHERE e.user_id = $1 AND m.market_kind = 'FREE_DAILY'
+         AND e.created_at_ms >= $2 AND e.created_at_ms < $3`,
+      [userId, dayStart, dayEnd],
+    );
+    if (Number(freeRow?.c || 0) >= 1) {
+      return { ok: false as const, error: 'FREE_DAILY_ALREADY_PLAYED' };
+    }
+  }
+
   const balance = currentPointsBalance(userId);
   if (pointsStaked > balance) return { ok: false as const, error: 'INSUFFICIENT_POINTS' };
 
@@ -604,4 +1044,153 @@ export function submitManualPredictionEntry(args: {
   });
 
   return { ok: true as const, data: getManualDashboard(userId) };
+}
+
+export function resolveAndSettleManualPredictionMarket(args: {
+  marketId: string;
+  correctOption: string;
+}) {
+  const marketId = String(args.marketId || '').trim();
+  const correctOption = String(args.correctOption || '').trim();
+  if (!marketId || !correctOption) {
+    return { ok: false as const, error: 'SETTLE_INPUT_REQUIRED' };
+  }
+
+  const market = queryRowSync<{
+    market_id: string;
+    prompt: string;
+    options_json: string;
+    metadata_json: string;
+    market_kind: string | null;
+    status: string;
+  }>(
+    `SELECT market_id, prompt, options_json, metadata_json, market_kind, status
+     FROM ${manualTable('manual_prediction_markets')}
+     WHERE market_id = $1
+     LIMIT 1`,
+    [marketId],
+  );
+  if (!market) return { ok: false as const, error: 'PREDICTION_NOT_FOUND' };
+  if (market.status === 'RESOLVED') {
+    return { ok: false as const, error: 'PREDICTION_ALREADY_RESOLVED' };
+  }
+  if (market.status !== 'OPEN' && market.status !== 'LOCKED') {
+    return { ok: false as const, error: 'PREDICTION_NOT_SETTLEABLE' };
+  }
+  const options = parseJson<Array<{ key: string; label: string }>>(market.options_json, []);
+  if (!options.some((item) => item?.key === correctOption)) {
+    return { ok: false as const, error: 'PREDICTION_OPTION_INVALID' };
+  }
+
+  const kind = normalizeMarketKind(market.market_kind);
+  const meta = parseMarketMeta(market.metadata_json);
+  const winReturn = effectiveWinReturnPoints(meta);
+  const freeReward = effectiveFreeReward(meta);
+
+  let settled = 0;
+  runManualTransaction(() => {
+    const ts = nowMs();
+    executeSync(
+      `UPDATE ${manualTable('manual_prediction_markets')}
+       SET status = 'RESOLVED', correct_option = $1, resolves_at_ms = $2, settled_at_ms = $2, updated_at_ms = $2
+       WHERE market_id = $3`,
+      [correctOption, ts, marketId],
+    );
+
+    const entries = queryRowsSync<{
+      entry_id: string;
+      user_id: string;
+      selected_option: string;
+      status: string;
+      points_staked: number;
+    }>(
+      `SELECT entry_id, user_id, selected_option, status, points_staked
+       FROM ${manualTable('manual_prediction_entries')}
+       WHERE market_id = $1 AND status = 'OPEN'`,
+      [marketId],
+    );
+
+    for (const en of entries) {
+      const won = en.selected_option === correctOption;
+      if (kind === 'FREE_DAILY') {
+        if (won) {
+          executeSync(
+            `UPDATE ${manualTable('manual_prediction_entries')}
+             SET status = 'WON', points_awarded = $1, updated_at_ms = $2
+             WHERE entry_id = $3`,
+            [freeReward, ts, en.entry_id],
+          );
+          appendPointsLedger({
+            userId: en.user_id,
+            eventType: 'PREDICTION_FREE_WIN',
+            pointsDelta: freeReward,
+            metadata: { title: 'Free pick — correct', description: market.prompt },
+          });
+        } else {
+          executeSync(
+            `UPDATE ${manualTable('manual_prediction_entries')}
+             SET status = 'LOST', points_awarded = 0, updated_at_ms = $1
+             WHERE entry_id = $2`,
+            [ts, en.entry_id],
+          );
+        }
+      } else if (kind === 'MAIN') {
+        if (won) {
+          executeSync(
+            `UPDATE ${manualTable('manual_prediction_entries')}
+             SET status = 'WON', points_awarded = $1, updated_at_ms = $2
+             WHERE entry_id = $3`,
+            [winReturn, ts, en.entry_id],
+          );
+          appendPointsLedger({
+            userId: en.user_id,
+            eventType: 'PREDICTION_MAIN_WIN',
+            pointsDelta: winReturn,
+            metadata: { title: 'Main prediction — win', description: market.prompt },
+          });
+        } else {
+          executeSync(
+            `UPDATE ${manualTable('manual_prediction_entries')}
+             SET status = 'LOST', points_awarded = 0, updated_at_ms = $1
+             WHERE entry_id = $2`,
+            [ts, en.entry_id],
+          );
+        }
+      } else {
+        const stake = Number(en.points_staked || 0);
+        if (won && stake > 0) {
+          const payout = stake * 2;
+          executeSync(
+            `UPDATE ${manualTable('manual_prediction_entries')}
+             SET status = 'WON', points_awarded = $1, updated_at_ms = $2
+             WHERE entry_id = $3`,
+            [payout, ts, en.entry_id],
+          );
+          appendPointsLedger({
+            userId: en.user_id,
+            eventType: 'PREDICTION_STANDARD_WIN',
+            pointsDelta: payout,
+            metadata: { title: 'Prediction win', description: market.prompt },
+          });
+        } else if (won) {
+          executeSync(
+            `UPDATE ${manualTable('manual_prediction_entries')}
+             SET status = 'WON', points_awarded = 0, updated_at_ms = $1
+             WHERE entry_id = $2`,
+            [ts, en.entry_id],
+          );
+        } else {
+          executeSync(
+            `UPDATE ${manualTable('manual_prediction_entries')}
+             SET status = 'LOST', points_awarded = 0, updated_at_ms = $1
+             WHERE entry_id = $2`,
+            [ts, en.entry_id],
+          );
+        }
+      }
+      settled += 1;
+    }
+  });
+
+  return { ok: true as const, settled };
 }

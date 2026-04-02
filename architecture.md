@@ -143,7 +143,7 @@ nova-quant/
 │       ├── evals/                # 评分卡
 │       ├── feature/              # 平台特征
 │       ├── jobs/                 # 后台任务 (回填、数据验证等)
-│       ├── manual/               # 手动信号服务
+│       ├── manual/               # 积分 / 邀请 / VIP 兑换 / 预测游戏（manual_* 表）
 │       ├── news/                 # 新闻提供 (Gemini Factors)
 │       ├── observability/         # 可观测性脊柱
 │       ├── ops/                  # Marvix 运维检视
@@ -315,7 +315,7 @@ nova-quant/
 | `postgresSql.ts`               | Postgres SQL helpers                    |
 | `postgresRuntimeRepository.ts` | Postgres 运行时 Repository              |
 
-**主要运行时表**: `ohlcv_bars`, `runtime_state`, `decision_snapshots`, `chat_threads`, `chat_messages`, `evidence_runs`, `alpha_candidates`, `alpha_evaluations`, `alpha_shadow_observations`, `alpha_lifecycle_events`, `manual_signals`, `engagement_state`, `billing_customers`, `billing_subscriptions` 等
+**主要运行时表**: `ohlcv_bars`, `runtime_state`, `decision_snapshots`, `chat_threads`, `chat_messages`, `evidence_runs`, `alpha_candidates`, `alpha_evaluations`, `alpha_shadow_observations`, `alpha_lifecycle_events`, `manual_user_state`, `manual_points_ledger`, `manual_referrals`, `manual_prediction_markets`, `manual_prediction_entries`, `manual_checkins`, `engagement_state`, `billing_customers`, `billing_subscriptions` 等（积分与预测玩法详见 `docs/MANUAL_POINTS_AND_PREDICTION.md`）
 
 ### 6.3 认证层 (`src/server/auth/`)
 

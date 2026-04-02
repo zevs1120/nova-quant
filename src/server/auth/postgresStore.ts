@@ -1,5 +1,6 @@
 import { scryptSync, timingSafeEqual } from 'node:crypto';
 import { Pool } from 'pg';
+import { tryGrantManualSignupBonus } from '../manual/service.js';
 import { createPgPool } from '../db/inMemoryPostgres.js';
 import { buildInMemoryAuthBootstrapSql } from '../db/inMemoryPostgres.js';
 import { isInMemoryPostgresUrl } from '../db/inMemoryPostgres.js';
@@ -734,7 +735,11 @@ export async function pgUpdateSupabaseAuthPassword(
   );
 }
 
-export async function pgInsertUserWithState(args: { user: PgAuthUserRow; state: PgAuthUserState }) {
+export async function pgInsertUserWithState(args: {
+  user: PgAuthUserRow;
+  state: PgAuthUserState;
+  grantManualSignupBonus?: boolean;
+}) {
   await ensurePostgresAuthSchema();
   const pool = getAuthPool();
   const client = await pool.connect();
@@ -775,6 +780,9 @@ export async function pgInsertUserWithState(args: { user: PgAuthUserRow; state: 
       ],
     );
     await client.query('COMMIT');
+    if (args.grantManualSignupBonus === true) {
+      tryGrantManualSignupBonus(args.user.user_id);
+    }
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;

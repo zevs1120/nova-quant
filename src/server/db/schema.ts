@@ -1242,6 +1242,8 @@ CREATE TABLE IF NOT EXISTS manual_user_state (
   referred_by_code TEXT,
   vip_days_balance INTEGER NOT NULL DEFAULT 0,
   vip_days_redeemed_total INTEGER NOT NULL DEFAULT 0,
+  last_checkin_day TEXT,
+  checkin_streak INTEGER NOT NULL DEFAULT 0,
   updated_at_ms INTEGER NOT NULL,
   FOREIGN KEY(user_id) REFERENCES auth_users(user_id) ON DELETE CASCADE
 );
@@ -1264,7 +1266,7 @@ CREATE TABLE IF NOT EXISTS manual_referrals (
   inviter_user_id TEXT NOT NULL,
   invite_code TEXT NOT NULL,
   referred_user_id TEXT NOT NULL,
-  status TEXT NOT NULL CHECK (status IN ('REWARDED', 'CANCELLED')),
+  status TEXT NOT NULL CHECK (status IN ('PARTIAL', 'COMPLETED', 'CANCELLED', 'REWARDED')),
   reward_points INTEGER NOT NULL DEFAULT 0,
   created_at_ms INTEGER NOT NULL,
   updated_at_ms INTEGER NOT NULL,
@@ -1281,6 +1283,7 @@ CREATE TABLE IF NOT EXISTS manual_prediction_markets (
   prompt TEXT NOT NULL,
   market TEXT,
   symbol TEXT,
+  market_kind TEXT NOT NULL DEFAULT 'STANDARD',
   options_json TEXT NOT NULL,
   status TEXT NOT NULL CHECK (status IN ('OPEN', 'LOCKED', 'RESOLVED', 'CANCELLED')),
   correct_option TEXT,
@@ -1310,6 +1313,16 @@ CREATE TABLE IF NOT EXISTS manual_prediction_entries (
 );
 
 CREATE INDEX IF NOT EXISTS idx_manual_prediction_entries_user ON manual_prediction_entries(user_id, created_at_ms DESC);
+
+CREATE TABLE IF NOT EXISTS manual_checkins (
+  user_id TEXT NOT NULL,
+  day_key TEXT NOT NULL,
+  created_at_ms INTEGER NOT NULL,
+  PRIMARY KEY (user_id, day_key),
+  FOREIGN KEY(user_id) REFERENCES auth_users(user_id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_manual_checkins_user_recent ON manual_checkins(user_id, day_key DESC);
 `;
 
 export function ensureSchema(db: SyncDb): void {

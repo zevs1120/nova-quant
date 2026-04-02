@@ -8,6 +8,7 @@ import {
   handleAdminSignals,
   handleAdminSystem,
   handleAdminResearchOps,
+  handleAdminManualPredictionSettle,
 } from '../adminHandlers.js';
 import { handleModelSignalIngest, handleModelHeartbeat } from '../modelHandlers.js';
 
@@ -23,6 +24,7 @@ router.get('/api/admin/alphas', handleAdminAlphas);
 router.get('/api/admin/signals', handleAdminSignals);
 router.get('/api/admin/system', handleAdminSystem);
 router.get('/api/admin/research-ops', handleAdminResearchOps);
+router.post('/api/admin/manual/predictions/settle', handleAdminManualPredictionSettle);
 
 router.post('/api/model/signals/ingest', handleModelSignalIngest);
 router.post('/api/model/heartbeat', handleModelHeartbeat);

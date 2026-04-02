@@ -71,6 +71,9 @@ describe('manual dashboard — default shape', () => {
     expect(d.summary.expiringSoon).toBe(0);
     expect(d.summary.vipDays).toBe(0);
     expect(d.summary.vipDaysRedeemed).toBe(0);
+    expect(d.summary.checkinStreak).toBe(0);
+    expect(d.summary.lastCheckinDay).toBeNull();
+    expect(d.summary.mainPredictionsToday).toBe(0);
   });
 
   it('guest dashboard has correct referral defaults', () => {
@@ -92,8 +95,12 @@ describe('manual dashboard — default shape', () => {
   it('guest dashboard has rules', () => {
     const d = getManualDashboard('guest-test');
     expect(d.rules.vipRedeemPoints).toBe(1000);
-    expect(d.rules.referralRewardPoints).toBe(200);
+    expect(d.rules.referralStage1Points).toBe(300);
+    expect(d.rules.referralStage2Points).toBe(700);
+    expect(d.rules.referralRewardPointsTotal).toBe(1000);
     expect(d.rules.defaultPredictionStake).toBe(100);
+    expect(d.rules.mainPredictionStake).toBe(1000);
+    expect(d.rules.winReturnPoints).toBeGreaterThanOrEqual(1900);
   });
 
   it('guest dashboard has empty ledger and predictions', () => {

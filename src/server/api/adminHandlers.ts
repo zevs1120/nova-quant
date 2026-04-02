@@ -8,6 +8,7 @@ import {
   buildAdminTodayOpsSnapshot,
   buildAdminUsersSnapshot,
 } from '../admin/service.js';
+import { resolveAndSettleManualPredictionMarket } from '../manual/service.js';
 
 type BasicRequest = {
   body?: unknown;
@@ -199,5 +200,24 @@ export async function handleAdminResearchOps(req: BasicRequest, res: BasicRespon
     });
   } catch (error) {
     respondAdminError(res, 'ADMIN_RESEARCH_OPS_FAILED', error);
+  }
+}
+
+export async function handleAdminManualPredictionSettle(req: BasicRequest, res: BasicResponse) {
+  const session = await authorizeAdmin(req, res);
+  if (!session) return;
+  try {
+    const body = (req.body || {}) as { marketId?: string; correctOption?: string };
+    const result = resolveAndSettleManualPredictionMarket({
+      marketId: String(body.marketId || ''),
+      correctOption: String(body.correctOption || ''),
+    });
+    if (!result.ok) {
+      res.status(400).json(result);
+      return;
+    }
+    res.json(result);
+  } catch (error) {
+    respondAdminError(res, 'ADMIN_MANUAL_PREDICTION_SETTLE_FAILED', error);
   }
 }

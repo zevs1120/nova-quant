@@ -1,7 +1,11 @@
 import { Router } from 'express';
 import {
+  claimManualOnboardingBonus,
   claimManualReferral,
+  completeManualReferralStage2,
   getManualDashboard,
+  grantManualEngagementSignal,
+  manualDailyCheckin,
   redeemManualVipDay,
   submitManualPredictionEntry,
 } from '../../manual/service.js';
@@ -52,6 +56,46 @@ router.post('/api/manual/predictions/entry', (req, res) => {
     selectedOption: String(body.selectedOption || ''),
     pointsStaked: body.pointsStaked,
   });
+  if (!result.ok) {
+    res.status(result.error === 'AUTH_REQUIRED' ? 401 : 400).json(result);
+    return;
+  }
+  res.json(result);
+});
+
+router.post('/api/manual/bonuses/onboarding', (req, res) => {
+  const body = req.body as { userId?: string };
+  const result = claimManualOnboardingBonus({ userId: String(body.userId || '') });
+  if (!result.ok) {
+    res.status(result.error === 'AUTH_REQUIRED' ? 401 : 400).json(result);
+    return;
+  }
+  res.json(result);
+});
+
+router.post('/api/manual/referrals/complete-stage2', (req, res) => {
+  const body = req.body as { userId?: string };
+  const result = completeManualReferralStage2({ userId: String(body.userId || '') });
+  if (!result.ok) {
+    res.status(result.error === 'AUTH_REQUIRED' ? 401 : 400).json(result);
+    return;
+  }
+  res.json(result);
+});
+
+router.post('/api/manual/checkin', (req, res) => {
+  const body = req.body as { userId?: string };
+  const result = manualDailyCheckin({ userId: String(body.userId || '') });
+  if (!result.ok) {
+    res.status(result.error === 'AUTH_REQUIRED' ? 401 : 400).json(result);
+    return;
+  }
+  res.json(result);
+});
+
+router.post('/api/manual/engagement/signal', (req, res) => {
+  const body = req.body as { userId?: string };
+  const result = grantManualEngagementSignal({ userId: String(body.userId || '') });
   if (!result.ok) {
     res.status(result.error === 'AUTH_REQUIRED' ? 401 : 400).json(result);
     return;

@@ -4,6 +4,14 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+- **Feat(manual,auth,admin,docs): 积分体系与 Prediction Game 后端首版。**
+  - **Schema：** `manual_user_state` 增加签到字段；`manual_referrals` 支持 `PARTIAL`/`COMPLETED`（保留 `REWARDED`）；`manual_prediction_markets.market_kind`；新增 `manual_checkins`。
+  - **规则：** 注册/onboarding 赠分、邀请两阶段、VIP 月兑上限、签到与 streak 奖励、MAIN/FREE_DAILY/STANDARD 预测与每日限次、结算入账；冷启动返还可通过 `NOVA_MANUAL_PREDICTION_COLDSTART*` 配置。
+  - **API：** `/api/manual/bonuses/onboarding`、`checkin`、`engagement/signal`、`referrals/complete-stage2`；管理端 `POST /api/admin/manual/predictions/settle`。
+  - **Auth：** `pgInsertUserWithState({ grantManualSignupBonus })`；真实注册路径发放 signup 积分（种子用户关闭）。
+  - **Docs：** 新增 `docs/MANUAL_POINTS_AND_PREDICTION.md`；更新 `architecture.md`、`CLAUDE.md`、`AGENTS.md`、`CURRENT_PRODUCT_DOCUMENT_ZH.md`、`.env.example`。
+  - **Test：** `tests/manualGamificationIntegration.test.ts`；更新 manual 相关单测。
+
 - **Test(hooks,admin,utils): 全量补齐 Browse/信号详情/日期、Hooks、Admin 组件与 HTTP 下载测试；修复 Nova Assistant 线程加载。**
   - **Fix(app,chat):** `useNovaAssistant` 将错误的 `fetchJson` 调用改为 `fetchApiJson`，避免运行时 `ReferenceError`。
   - **Test:** 新增 `tests/browseWarmup.test.ts`、`tests/signalDetailsDeep.test.ts`、`tests/disciplineDate.test.ts`、`tests/httpDownloadToFile.test.ts`；`tests/hooks/*` 覆盖 `useAuth`、`useAppData`、`useBilling`、`useMembership`、`useEngagement`、`useInvestorDemo`、`useNavigation`、`useLocalStorage`、`useControlPlaneStatus`、`useDemoAssistant`、`useNovaAssistant`；`tests/admin/*` 覆盖 `StatCard`、`Topbar`、`Sidebar`、`AdminLogin`。

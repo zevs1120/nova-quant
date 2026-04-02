@@ -52,6 +52,7 @@ import {
   pgUpsertUserState,
   pgVerifySupabaseAuthPassword,
 } from './postgresStore.js';
+import { tryGrantManualSignupBonus } from '../manual/service.js';
 
 import {
   hasSupabaseAuthProvider,
@@ -543,6 +544,7 @@ async function getOrCreateSupabaseBackedUser(user: VerifiedSupabaseAuthUser) {
     await pgInsertUserWithState({
       user: nextUser,
       state,
+      grantManualSignupBonus: true,
     });
     upsertLocalAuthUser(nextUser);
     upsertLocalAuthUserState(nextUser.user_id, state, ts);
@@ -605,6 +607,7 @@ async function getOrCreateSupabaseBackedUser(user: VerifiedSupabaseAuthUser) {
     });
   }
 
+  tryGrantManualSignupBonus(nextUser.user_id);
   await syncConfiguredAdminRole(nextUser);
   return {
     user: nextUser,
@@ -968,6 +971,7 @@ async function ensureSeededUserPostgres() {
     await pgInsertUserWithState({
       user,
       state,
+      grantManualSignupBonus: false,
     });
     await pgInsertSupabaseAuthUser({
       email: user.email,
@@ -1485,6 +1489,7 @@ export async function signupAuthUser(args: {
       await pgInsertUserWithState({
         user,
         state,
+        grantManualSignupBonus: true,
       });
     } catch (insertError: unknown) {
       const msg = String((insertError as Error)?.message || '');
@@ -1591,6 +1596,7 @@ export async function signupAuthUser(args: {
     });
     const user = getUserByIdLocal(userId);
     if (!user) return { ok: false as const, error: 'SIGNUP_FAILED' };
+    tryGrantManualSignupBonus(userId);
     await syncConfiguredAdminRole(user);
     const sessionToken = await createSession({
       userId,
@@ -1632,6 +1638,7 @@ export async function signupAuthUser(args: {
   try {
     await remoteSetJson(remoteUserKey(userId), user);
     await remoteSetJson(remoteUserStateKey(userId), state);
+    tryGrantManualSignupBonus(userId);
     await syncConfiguredAdminRole(user);
     const sessionToken = await createSession({
       userId,

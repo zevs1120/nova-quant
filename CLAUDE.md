@@ -17,6 +17,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `npm run backfill` -> `npm run validate:data` -> `npm run derive:runtime`
 
+## Manual points & Prediction game
+
+- Implementation: `src/server/manual/service.ts`, routes `src/server/api/routes/manual.ts`, admin settle `POST /api/admin/manual/predictions/settle`.
+- Schema: `manual_*` tables in `src/server/db/schema.ts`. **Production DB** may need explicit migrations when new columns/tables are added.
+- Product/ops reference: `docs/MANUAL_POINTS_AND_PREDICTION.md`; env knobs: `.env.example` (`NOVA_MANUAL_*`).
+
 ## Code Style
 
 - 2-space indent, single quotes, trailing commas

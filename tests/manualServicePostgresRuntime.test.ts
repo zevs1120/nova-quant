@@ -68,6 +68,8 @@ describe('manual service in postgres runtime', () => {
           referred_by_code: null,
           vip_days_balance: 0,
           vip_days_redeemed_total: 0,
+          last_checkin_day: null,
+          checkin_streak: 0,
         };
       }
       if (sql.includes('FROM "novaquant_data"."manual_points_ledger"')) {
@@ -75,6 +77,9 @@ describe('manual service in postgres runtime', () => {
       }
       if (sql.includes('FROM "novaquant_data"."manual_referrals"')) {
         return { total: 0, rewarded: 0 };
+      }
+      if (sql.includes('manual_prediction_entries') && sql.includes('INNER JOIN')) {
+        return [];
       }
       return null;
     });
@@ -103,6 +108,8 @@ describe('manual service in postgres runtime', () => {
           referred_by_code: null,
           vip_days_balance: 0,
           vip_days_redeemed_total: 0,
+          last_checkin_day: null,
+          checkin_streak: 0,
         };
       }
       if (sql.includes('FROM "novaquant_data"."manual_points_ledger"')) {
@@ -113,6 +120,9 @@ describe('manual service in postgres runtime', () => {
       }
       if (sql.includes('FROM "novaquant_data"."manual_referrals"')) {
         return { total: 0, rewarded: 0 };
+      }
+      if (sql.includes('manual_prediction_entries') && sql.includes('INNER JOIN')) {
+        return [];
       }
       return null;
     });
@@ -143,10 +153,15 @@ describe('manual service in postgres runtime', () => {
           referred_by_code: null,
           vip_days_balance: 0,
           vip_days_redeemed_total: 0,
+          last_checkin_day: null,
+          checkin_streak: 0,
         };
       }
       if (sql.includes('FROM "novaquant_data"."manual_points_ledger"')) {
         return { balance_after: 5000 };
+      }
+      if (sql.includes('manual_prediction_entries') && sql.includes('INNER JOIN')) {
+        return [];
       }
       return null;
     });

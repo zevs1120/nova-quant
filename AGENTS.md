@@ -2,7 +2,7 @@
 
 ## 项目结构与模块组织
 
-根目录是主开发入口。`src/` 放核心实现：`src/server/` 为 API、鉴权、决策、风险与研究后端；`src/components/` 与 `src/App.jsx` 为主前端壳层；`src/engines/` 为 JS 量化引擎管线；`src/research/` 为研究治理与验证；`src/quant/` 为偏前端的量化辅助与检索（与后端 `src/server/quant/` 运行时推导区分）；`src/training/` 含多资产训练服务入口等。`tests/` 放 Vitest 用例（体量已上百个，按特性拆分文件名）。**部署边界按五段拆分**：`landing/` 品牌落地页与数据门户相关路由、`app/` 用户端 H5、`admin/` 内部控制台、**`qlib-bridge/`**（EC2 上 Python 侧车，因子与模型推理）、仓库根目录（主 Vite 壳 + 通过 `api/index.ts` 部署到 Vercel Serverless 的主 API）。数据与快照位于 `data/`，**仓库根目录 `architecture.md` 为当前架构总览**；`docs/` 为专题设计与运维文档索引。业务与鉴权数据统一走 Supabase/Postgres：`NOVA_DATA_DATABASE_URL` 负责业务运行时，`NOVA_AUTH_DATABASE_URL` 负责 Auth/Profile；会话接口可返回 `roles` / `isAdmin`（含 `NOVA_ADMIN_EMAILS` 等解析）。EC2 部署配置位于 `deployment/aws-ec2/`，平台就绪预检脚本为 `scripts/check-platform-readiness.mjs`。
+根目录是主开发入口。`src/` 放核心实现：`src/server/` 为 API、鉴权、决策、风险与研究后端；其中 **`src/server/manual/`** 承载积分、邀请分阶段、VIP 天兑换与预测市场（`manual_*` 表），说明见 **`docs/MANUAL_POINTS_AND_PREDICTION.md`**；`src/components/` 与 `src/App.jsx` 为主前端壳层；`src/engines/` 为 JS 量化引擎管线；`src/research/` 为研究治理与验证；`src/quant/` 为偏前端的量化辅助与检索（与后端 `src/server/quant/` 运行时推导区分）；`src/training/` 含多资产训练服务入口等。`tests/` 放 Vitest 用例（体量已上百个，按特性拆分文件名）。**部署边界按五段拆分**：`landing/` 品牌落地页与数据门户相关路由、`app/` 用户端 H5、`admin/` 内部控制台、**`qlib-bridge/`**（EC2 上 Python 侧车，因子与模型推理）、仓库根目录（主 Vite 壳 + 通过 `api/index.ts` 部署到 Vercel Serverless 的主 API）。数据与快照位于 `data/`，**仓库根目录 `architecture.md` 为当前架构总览**；`docs/` 为专题设计与运维文档索引。业务与鉴权数据统一走 Supabase/Postgres：`NOVA_DATA_DATABASE_URL` 负责业务运行时，`NOVA_AUTH_DATABASE_URL` 负责 Auth/Profile；会话接口可返回 `roles` / `isAdmin`（含 `NOVA_ADMIN_EMAILS` 等解析）。EC2 部署配置位于 `deployment/aws-ec2/`，平台就绪预检脚本为 `scripts/check-platform-readiness.mjs`。
 
 ## 构建、测试与开发命令
 
