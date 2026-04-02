@@ -32,6 +32,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Run single test: `npx vitest run tests/<feature>.test.ts`
 - New features must have matching `tests/<feature>.test.ts` covering normal path, edge cases, and regressions
 - Tests use the in-memory Postgres harness defined under `tests/vitest.setup.ts`
+- Vitest uses default **file + worker parallelism** (do not reintroduce global `maxWorkers: 1` / `fileParallelism: false` unless debugging flakes). `test.env.DOTENV_CONFIG_QUIET` suppresses per-file dotenv noise.
+- JSX shell is not typechecked: prefer tests on **`src/utils/*` helpers** (`fetchApi`, `appHelpers`, `format`, etc.) for frontend robustness. See `docs/TESTING.md`.
 
 ## Project Layout
 

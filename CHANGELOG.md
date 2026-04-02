@@ -4,6 +4,12 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+- **Test(perf,frontend,api): Vitest 并行恢复、dotenv 静默与 API/工具链鲁棒性测试。**
+  - `vite.config.js`：去掉强制单 worker + 关闭 `fileParallelism` 的配置（全量测试墙钟时间从约 50s+ 降至约 10s 量级，视机器而定）；`test.env.DOTENV_CONFIG_QUIET` 减少测试进程中重复的 dotenv 提示。
+  - `src/utils/api.js`：在 **localhost** 下对 `/api/*` 的 404/405/HTML 回退不再因「已缓存非空 base」而失效；当所有候选 base 仅返回可旋转类响应时返回最后一次响应，避免误将失败 base 写入缓存。
+  - 测试：`tests/apiFallback.test.ts` 扩充（405、HTML、`fetchApiJson` 错误体、缓存绝对 dev base 后再次 404 的轮转）；新增 `tests/appHelpers.test.ts`、`tests/formatUtils.test.ts`、`tests/fetchWithRetry.test.ts`（`src/server/utils/http.ts` 重试语义）。
+  - 文档：新增 `docs/TESTING.md`；更新 `CLAUDE.md`、`AGENTS.md` 测试说明。
+
 - **Fix(billing): Stripe 支付链路官方最佳实践加固 — 4 项合规项全部落地。**
   - **[强烈推荐] Feat(billing): 新增 `invoice.paid` webhook handler，确保订阅续费窗口实时刷新。**
     - 以往续费成功后仅依赖 `customer.subscription.updated` 隐式更新，但 Stripe 官方文档强制要求监听 `invoice.paid` 来刷新 `current_period_end`（"Your site receives an invoice.paid event... updates the customer's access expiration date"）。新 handler 在每次 Stripe 扣款成功后重刷 `current_period_start_ms`/`current_period_end_ms` 并重断言 `status = ACTIVE`，同时防御性跳过 `CANCELLED`/`EXPIRED` 订阅，避免误复活已取消账号。

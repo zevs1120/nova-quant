@@ -8,7 +8,6 @@ function resolveApiUrl(path) {
 }
 
 function shouldRetryWithNextBase(path, base, response) {
-  if (base) return false;
   if (!String(path || '').startsWith('/api/')) return false;
   if (typeof window === 'undefined') return false;
   if (!isLocalHost(String(window.location?.hostname || ''))) return false;
@@ -59,6 +58,7 @@ export async function fetchApi(path, options = {}) {
 
   const candidates = unique(runtimeApiBases());
   let lastError = null;
+  let lastRetryableResponse = null;
 
   for (const base of candidates) {
     const url = buildApiUrl(path, base);
@@ -69,6 +69,7 @@ export async function fetchApi(path, options = {}) {
         credentials: options.credentials ?? 'include',
       });
       if (shouldRetryWithNextBase(path, base, response)) {
+        lastRetryableResponse = response;
         continue;
       }
       cachedApiBase = base;
@@ -78,7 +79,9 @@ export async function fetchApi(path, options = {}) {
     }
   }
 
-  throw lastError || new Error(`Unable to reach API for ${path}`);
+  if (lastError) throw lastError;
+  if (lastRetryableResponse) return lastRetryableResponse;
+  throw new Error(`Unable to reach API for ${path}`);
 }
 
 export async function fetchApiJson(path, options = {}) {

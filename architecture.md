@@ -169,7 +169,7 @@ nova-quant/
 │   ├── signal.schema.json        # 信号合约 JSON Schema
 │   └── README.md
 │
-├── tests/                        # 约 138 个测试文件 (Vitest，按特性拆分)
+├── tests/                        # 约 140+ 个测试文件 (Vitest，按特性拆分)
 ├── scripts/                      # 约 37 个运维脚本 (mjs/ts/js)
 ├── config/                       # 摄取配置
 ├── docs/                         # 专题设计与运维文档（具体条目以目录为准）
@@ -599,8 +599,9 @@ src/research/
 ## 14. 测试体系
 
 - **框架**: Vitest 4 + Supertest
-- **测试文件**: 约 138 个 (均在 `tests/` 目录)
+- **测试文件**: 约 140+ 个 (均在 `tests/` 目录)
 - **覆盖率**: `@vitest/coverage-v8`
+- **策略与性能**: 默认并行执行；避免无故全局串行。详见 `docs/TESTING.md`（含前端 `src/utils` 工具链测试建议）。
 
 ```bash
 npm test                    # 运行全部测试

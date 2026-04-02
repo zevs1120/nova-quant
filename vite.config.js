@@ -31,9 +31,10 @@ export default defineConfig({
   test: {
     exclude: ['**/node_modules/**', 'artifacts/**', 'dist/**', 'build/**', 'coverage/**'],
     setupFiles: ['tests/vitest.setup.ts'],
-    fileParallelism: false,
-    maxWorkers: 1,
-    minWorkers: 1,
+    // Default Vitest parallelism (file + worker pool) — serial mode was ~5× slower on 138 files.
+    env: {
+      DOTENV_CONFIG_QUIET: 'true',
+    },
   },
   server: {
     proxy: {
