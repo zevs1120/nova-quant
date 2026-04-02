@@ -1,5 +1,6 @@
 import { newDb } from 'pg-mem';
 import { buildBusinessBootstrapSql } from './inMemoryPostgres.js';
+import { manualGamificationSchemaPatchStatements } from './schema.js';
 import type { SyncDb, SyncPreparedStatement, SyncQueryArgs, SyncRunResult } from './syncDb.js';
 
 function quoteLiteral(value: unknown): string {
@@ -83,6 +84,10 @@ export class InMemorySyncDb implements SyncDb {
   constructor(_connectionString?: string) {
     for (const statement of buildBusinessBootstrapSql()) {
       this.db.public.none(statement);
+    }
+    const qualifyShort = (name: string) => `"${String(name).replace(/"/g, '""')}"`;
+    for (const stmt of manualGamificationSchemaPatchStatements(qualifyShort)) {
+      this.db.public.none(stmt);
     }
   }
 

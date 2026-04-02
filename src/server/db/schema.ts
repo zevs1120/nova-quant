@@ -1342,6 +1342,21 @@ CREATE TABLE IF NOT EXISTS manual_engagement_daily (
 );
 `;
 
+/**
+ * Idempotent Postgres DDL for **existing** business tables that predate new manual columns.
+ * `qualifyTable('foo')` must return the fully qualified relation id (e.g. `"novaquant_data"."manual_user_state"`).
+ * Used by in-memory business bootstrap; production operators should run `docs/sql/manual_gamification_existing_db.sql` (or equivalent) on Supabase.
+ */
+export function manualGamificationSchemaPatchStatements(
+  qualifyTable: (shortName: string) => string,
+): string[] {
+  return [
+    `ALTER TABLE ${qualifyTable('manual_user_state')} ADD COLUMN IF NOT EXISTS last_checkin_day TEXT`,
+    `ALTER TABLE ${qualifyTable('manual_user_state')} ADD COLUMN IF NOT EXISTS checkin_streak BIGINT NOT NULL DEFAULT 0`,
+    `ALTER TABLE ${qualifyTable('manual_prediction_markets')} ADD COLUMN IF NOT EXISTS market_kind TEXT NOT NULL DEFAULT 'STANDARD'`,
+  ];
+}
+
 export function ensureSchema(db: SyncDb): void {
   db.ensureBootstrapped?.();
   if (db.ensureBootstrapped) return;

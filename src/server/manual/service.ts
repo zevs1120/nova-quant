@@ -465,7 +465,8 @@ function mainPredictionMainCountToday(userId: string) {
 
 /**
  * 在**当前事务内**占用一次 MAIN 当日名额；失败表示已达上限。
- * 使用 `SELECT … FOR UPDATE` + `INSERT`/`UPDATE`，兼容 in-memory Postgres（pg-mem）与生产 PG。
+ * 使用 `SELECT … FOR UPDATE` + `INSERT`/`UPDATE`；与 `submitManualPredictionEntry` 的 `runManualTransaction` 组合，在生产 PostgreSQL 上提供行级互斥。
+ * 说明：`postgresSyncBridge` 对 **ALTER … CONSTRAINT** 的 in-memory 归一化会丢弃语句，但**不会**削弱本函数的 `FOR UPDATE`；Vitest 下的 MAIN 日限次用例即覆盖此路径。
  */
 function reserveMainPredictionDailySlotOrThrow(userId: string) {
   const dayKey = utcDayKeyFromMs(nowMs());

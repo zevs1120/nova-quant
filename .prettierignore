@@ -7,3 +7,4 @@ node_modules/
 *.db
 *.sqlite
 package-lock.json
+docs/sql/*.sql

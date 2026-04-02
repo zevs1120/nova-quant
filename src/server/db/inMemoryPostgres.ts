@@ -1,7 +1,7 @@
 import { newDb } from 'pg-mem';
 import type { PoolConfig } from 'pg';
 import { Pool as NodePgPool } from 'pg';
-import { BUSINESS_BOOTSTRAP_SQL } from './schema.js';
+import { BUSINESS_BOOTSTRAP_SQL, manualGamificationSchemaPatchStatements } from './schema.js';
 
 type InMemoryPgState = {
   db: ReturnType<typeof newDb>;
@@ -231,6 +231,9 @@ export function ensureInMemoryBusinessSchema(connectionString: string, schema: s
     if (/^CREATE TABLE IF NOT EXISTS "?auth_/i.test(statement)) continue;
     if (/^CREATE (UNIQUE )?INDEX IF NOT EXISTS "?idx_auth_/i.test(statement)) continue;
     state.db.public.none(statement);
+  }
+  for (const stmt of manualGamificationSchemaPatchStatements(qualifyTable)) {
+    state.db.public.none(stmt);
   }
   state.businessSchemaReady.add(schema);
 }

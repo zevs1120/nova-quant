@@ -544,7 +544,8 @@ async function getOrCreateSupabaseBackedUser(user: VerifiedSupabaseAuthUser) {
     await pgInsertUserWithState({
       user: nextUser,
       state,
-      grantManualSignupBonus: true,
+      // Signup bonus is granted once below via tryGrantManualSignupBonus (pgInsertUserWithState
+      // would also call it when true — avoid double invocation on this path).
     });
     upsertLocalAuthUser(nextUser);
     upsertLocalAuthUserState(nextUser.user_id, state, ts);
