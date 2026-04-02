@@ -393,4 +393,152 @@ describe('manual gamification integration (in-memory postgres)', () => {
     const dash = getManualDashboard('guest-default');
     expect(dash.rules.standardWinMultiplier).toBe(2);
   });
+
+  it('tryGrantManualSignupBonus is idempotent — sequential double call writes exactly one row', async () => {
+    const { tryGrantManualSignupBonus } = await import('../src/server/manual/service.js');
+    const now = Date.now();
+    const userId = `usr_sg_idem_${randomBytes(4).toString('hex')}`;
+    await pgInsertUserWithState({
+      user: {
+        user_id: userId,
+        email: `${userId}@test.local`,
+        password_hash: 'x',
+        name: 'SG Idem',
+        trade_mode: 'active',
+        broker: 'Other',
+        locale: 'en',
+        created_at_ms: now,
+        updated_at_ms: now,
+        last_login_at_ms: now,
+      },
+      state: {
+        assetClass: 'US_STOCK',
+        market: 'US',
+        uiMode: 'standard',
+        riskProfileKey: 'balanced',
+        watchlist: [],
+        holdings: [],
+        executions: [],
+        disciplineLog: { checkins: [], boundary_kept: [], weekly_reviews: [] },
+      },
+      grantManualSignupBonus: false,
+    });
+
+    // Call twice sequentially — only one ledger row should exist.
+    tryGrantManualSignupBonus(userId);
+    tryGrantManualSignupBonus(userId);
+
+    const rows = queryRowsSync<{ event_type: string }>(
+      `SELECT event_type FROM ${t('manual_points_ledger')} WHERE user_id = $1 AND event_type = 'SIGNUP_BONUS'`,
+      [userId],
+    );
+    expect(rows.length).toBe(1);
+  });
+
+  it('claimManualOnboardingBonus sequential double call — ledger count stays at 1', async () => {
+    const now = Date.now();
+    const userId = `usr_ob_idem2_${randomBytes(4).toString('hex')}`;
+    await pgInsertUserWithState({
+      user: {
+        user_id: userId,
+        email: `${userId}@test.local`,
+        password_hash: 'x',
+        name: 'OB Idem',
+        trade_mode: 'active',
+        broker: 'Other',
+        locale: 'en',
+        created_at_ms: now,
+        updated_at_ms: now,
+        last_login_at_ms: now,
+      },
+      state: {
+        assetClass: 'US_STOCK',
+        market: 'US',
+        uiMode: 'standard',
+        riskProfileKey: 'balanced',
+        watchlist: [],
+        holdings: [],
+        executions: [],
+        disciplineLog: { checkins: [], boundary_kept: [], weekly_reviews: [] },
+      },
+      grantManualSignupBonus: false,
+    });
+
+    claimManualOnboardingBonus({ userId });
+    claimManualOnboardingBonus({ userId }); // second call must NOT add a second row
+
+    const rows = queryRowsSync<{ event_type: string }>(
+      `SELECT event_type FROM ${t('manual_points_ledger')} WHERE user_id = $1 AND event_type = 'ONBOARDING_BONUS'`,
+      [userId],
+    );
+    expect(rows.length).toBe(1);
+  });
+
+  it('FREE_DAILY prediction: second submission same day returns FREE_DAILY_ALREADY_PLAYED', async () => {
+    const now = Date.now();
+    const userId = `usr_fd_idem_${randomBytes(4).toString('hex')}`;
+    await pgInsertUserWithState({
+      user: {
+        user_id: userId,
+        email: `${userId}@test.local`,
+        password_hash: 'x',
+        name: 'FD Idem',
+        trade_mode: 'active',
+        broker: 'Other',
+        locale: 'en',
+        created_at_ms: now,
+        updated_at_ms: now,
+        last_login_at_ms: now,
+      },
+      state: {
+        assetClass: 'US_STOCK',
+        market: 'US',
+        uiMode: 'standard',
+        riskProfileKey: 'balanced',
+        watchlist: [],
+        holdings: [],
+        executions: [],
+        disciplineLog: { checkins: [], boundary_kept: [], weekly_reviews: [] },
+      },
+      grantManualSignupBonus: false,
+    });
+
+    // Create two different FREE_DAILY markets.
+    const m1 = createId('mkt');
+    const m2 = createId('mkt');
+    for (const mid of [m1, m2]) {
+      executeSync(
+        `INSERT INTO ${t('manual_prediction_markets')}
+         (market_id, prompt, market_kind, options_json, status, closes_at_ms, created_at_ms, updated_at_ms)
+         VALUES ($1, $2, 'FREE_DAILY', $3, 'OPEN', $4, $4, $4)`,
+        [
+          mid,
+          'Up or down?',
+          JSON.stringify([
+            { key: 'UP', label: 'Up' },
+            { key: 'DOWN', label: 'Down' },
+          ]),
+          now + 86400000,
+        ],
+      );
+    }
+
+    const first = submitManualPredictionEntry({
+      userId,
+      marketId: m1,
+      selectedOption: 'UP',
+      pointsStaked: 0,
+    });
+    expect(first.ok).toBe(true);
+
+    // A different FREE_DAILY market on the same day must be blocked.
+    const second = submitManualPredictionEntry({
+      userId,
+      marketId: m2,
+      selectedOption: 'DOWN',
+      pointsStaked: 0,
+    });
+    expect(second.ok).toBe(false);
+    if (!second.ok) expect(second.error).toBe('FREE_DAILY_ALREADY_PLAYED');
+  });
 });

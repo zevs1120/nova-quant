@@ -82,6 +82,13 @@ export default function App() {
     'nova-quant-first-run-setup-by-user',
     {},
   );
+  // Tracks users for whom the onboarding bonus claim is pending (i.e. the
+  // FirstRun was completed but the API call failed or hasn't resolved yet).
+  // Checked on every startup so the claim is retried automatically.
+  const [pendingOnboardingBonusByUser, setPendingOnboardingBonusByUser] = useLocalStorage(
+    'nova-quant-pending-onboarding-bonus',
+    {},
+  );
   const [browseTopBarState, setBrowseTopBarState] = useState({
     canGoBack: false,
     title: 'Browse',
@@ -522,7 +529,24 @@ export default function App() {
       setActiveTab(targetTab);
 
       if (!isDemoRuntime) {
-        void claimManualOnboardingBonus();
+        // Mark the bonus as pending BEFORE the async call so that even if the
+        // app is closed or the connection drops mid-flight, the flag persists
+        // and the claim will be retried on the next app load.
+        setPendingOnboardingBonusByUser((current) => ({
+          ...(current || {}),
+          [authSession.userId]: true,
+        }));
+        void claimManualOnboardingBonus().then((res) => {
+          if (res?.ok || res?.skipped || res?.error === 'ONBOARDING_BONUS_ALREADY_CLAIMED') {
+            // Claim succeeded (or was already claimed) — clear the pending flag.
+            setPendingOnboardingBonusByUser((current) => {
+              const next = { ...(current || {}) };
+              delete next[authSession.userId];
+              return next;
+            });
+          }
+          // On any other failure the flag stays set and will be retried on next load.
+        });
       }
     },
     [
@@ -535,10 +559,30 @@ export default function App() {
       setFirstRunSetupByUser,
       setMarket,
       setMyStack,
+      setPendingOnboardingBonusByUser,
       setRiskProfileKey,
       setWatchlist,
     ],
   );
+
+  // Startup retry: if a previous onboarding bonus claim failed (network drop,
+  // server error, etc.), the pending flag survives in localStorage.  Each time
+  // manualState is refreshed (including on first load) we attempt the claim
+  // again.  The flag is cleared once the API returns ok or ALREADY_CLAIMED.
+  useEffect(() => {
+    if (!effectiveUserId || isDemoRuntime) return;
+    if (!pendingOnboardingBonusByUser?.[effectiveUserId]) return;
+    void claimManualOnboardingBonus().then((res) => {
+      if (res?.ok || res?.skipped || res?.error === 'ONBOARDING_BONUS_ALREADY_CLAIMED') {
+        setPendingOnboardingBonusByUser((current) => {
+          const next = { ...(current || {}) };
+          delete next[effectiveUserId];
+          return next;
+        });
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [manualState]); // intentionally keyed on manualState to retry after each refresh
 
   const handleSkipFirstRunSetup = useCallback(() => {
     if (!authSession?.userId) return;

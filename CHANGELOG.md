@@ -4,6 +4,23 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+- **Fix(db,server,frontend): 三项并发安全加固 — 幂等/原子性全部收口。**
+  - **[Critical] Fix(db,server): 注册/Onboarding 赠分幂等改为原子保证。**
+    - `manual_points_ledger` 新增条件唯一索引 `idx_manual_points_ledger_singleton`（`WHERE event_type IN ('SIGNUP_BONUS','ONBOARDING_BONUS')`），作为 DB 层最终屏障；并发 INSERT 中后到的事务命中 UNIQUE 冲突，被应用层捕获并等同为"已发放"。
+    - `tryGrantManualSignupBonus` 包进 `runManualTransaction`，UNIQUE 冲突被显式吞掉（之前完全在事务外运行）。
+    - `claimManualOnboardingBonus` 的 `catch` 块新增 UNIQUE 冲突收口，防止两个并发请求各自通过 `hasLedgerEvent` SELECT 后再双写。
+    - Schema patch 函数 + `docs/sql/manual_gamification_existing_db.sql` 同步新增索引语句（幂等）。
+  - **[Critical] Fix(frontend): Onboarding Bonus fire-and-forget 改为持久化重试。**
+    - `App.jsx` 引入 `nova-quant-pending-onboarding-bonus` localStorage flag（per userId）。
+    - `handleCompleteFirstRunSetup` 先写 pending flag 再发起 API 调用并在 `.then()` 成功后清除；网络失败时 flag 持久化。
+    - 新增 startup retry `useEffect`（依赖 `manualState`）：每次刷新状态时检查 pending flag，自动重试直到 `ok` 或 `ALREADY_CLAIMED`；用户下次打开 App 也会重试，积分不再漏发。
+  - **[Major] Fix(db,server): FREE_DAILY 每日限次改为事务级槽位原子锁。**
+    - 新建 `manual_free_daily_entries(user_id, day_key, PRIMARY KEY)` 槽位表，对标 MAIN 场的 `manual_main_prediction_daily` 模式。
+    - 新增 `reserveFreeDailySlotOrThrow`：事务内 `SELECT FOR UPDATE` → 存在则抛 `FREE_DAILY_ALREADY_PLAYED`，不存在则 `INSERT`（PK 冲突也被捕获为幂等）。
+    - 删除旧的非原子 `COUNT(*)` 跨表聚合查询。
+    - Schema patch 函数 + 迁移 SQL 同步。
+  - **Test:** `manualGamificationIntegration` 新增三个幂等测试（signup bonus 双调、onboarding bonus 双调各只写一行、FREE_DAILY 同天第二次提交返回 `FREE_DAILY_ALREADY_PLAYED`）；`manualGamificationSchemaPatches` 断言条数更新为 9。
+
 - **Fix(ui,manual): MenuTab 交互层三项 bug 修复。**
   - **Bug 1（中）预测提交成功后 pick 状态残留**：`handleSubmitPrediction` 在成功路径新增 `setPredictionPickById` 删除对应 key，确保提交成功后选项立即清除，防止在后端状态刷新延迟期间出现可重复点击的短暂窗口。
   - **Bug 2（低）反馈文案永久驻留**：`referralMessage`、`predictionMessage`、`shareFeedback` 三类提示文字统一增加 4 秒自动消失（`useEffect` + `useRef` timer，防重复 & 组件卸载自动清除）。

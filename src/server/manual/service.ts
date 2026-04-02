@@ -508,6 +508,44 @@ function reserveMainPredictionDailySlotOrThrow(userId: string) {
   );
 }
 
+/**
+ * 在**当前事务内**占用 FREE_DAILY 当日名额（每用户每天仅一次）。
+ * 与 `reserveMainPredictionDailySlotOrThrow` 完全对称：先 SELECT FOR UPDATE，
+ * 不存在则 INSERT；PK 冲突（并发重复写）等同于"已参与"。
+ */
+function reserveFreeDailySlotOrThrow(userId: string) {
+  const dayKey = utcDayKeyFromMs(nowMs());
+  const tbl = manualTable('manual_free_daily_entries');
+  const existing = queryRowSync<{ user_id: string }>(
+    `SELECT user_id FROM ${tbl} WHERE user_id = $1 AND day_key = $2 FOR UPDATE`,
+    [userId, dayKey],
+  );
+  if (existing?.user_id) {
+    throw Object.assign(new Error('FREE_DAILY_ALREADY_PLAYED'), {
+      __manualEarlyReturn: true,
+      code: 'FREE_DAILY_ALREADY_PLAYED',
+    });
+  }
+  try {
+    executeSync(`INSERT INTO ${tbl} (user_id, day_key) VALUES ($1, $2)`, [userId, dayKey]);
+  } catch (error) {
+    const msg = String((error as Error)?.message || error || '');
+    // PK duplicate = another concurrent request already wrote the slot.
+    if (
+      msg.includes('UNIQUE constraint') ||
+      msg.includes('unique constraint') ||
+      msg.includes('duplicate key value') ||
+      msg.includes('23505')
+    ) {
+      throw Object.assign(new Error('FREE_DAILY_ALREADY_PLAYED'), {
+        __manualEarlyReturn: true,
+        code: 'FREE_DAILY_ALREADY_PLAYED',
+      });
+    }
+    throw error;
+  }
+}
+
 function vipDaysRedeemedThisUtcMonth(userId: string) {
   const { startMs, endMs } = utcMonthStartEndKeys(nowMs());
   const row = queryRowSync<{ pts: string | null }>(
@@ -647,25 +685,49 @@ export function getManualDashboard(userId: string | null | undefined): ManualDas
   };
 }
 
-/** Best-effort signup points; safe to call from auth registration paths. */
+/**
+ * Best-effort signup points; safe to call from auth registration paths.
+ *
+ * Atomicity guarantee: runs inside `runManualTransaction` so the CHECK +
+ * INSERT pair is serialized.  The conditional unique index on
+ * `manual_points_ledger(user_id, event_type)` for 'SIGNUP_BONUS' is the
+ * final DB-level barrier: if two concurrent transactions both pass the
+ * hasLedgerEvent SELECT, only one INSERT will succeed; the loser receives
+ * a UNIQUE constraint violation which is swallowed and treated as
+ * "already granted".
+ */
 export function tryGrantManualSignupBonus(userId: string) {
   if (isGuestUser(userId)) return;
   if (readBoolEnv('NOVA_MANUAL_DISABLE_SIGNUP_BONUS')) return;
   const uid = String(userId).trim();
   try {
     if (!authUserExists(uid)) return;
-    if (hasLedgerEvent(uid, 'SIGNUP_BONUS')) return;
-    appendPointsLedger({
-      userId: uid,
-      eventType: 'SIGNUP_BONUS',
-      pointsDelta: SIGNUP_BONUS_POINTS,
-      metadata: {
-        title: 'Welcome bonus',
-        description: 'Points for creating your account.',
-      },
+    runManualTransaction(() => {
+      if (hasLedgerEvent(uid, 'SIGNUP_BONUS')) return; // fast path inside tx
+      appendPointsLedger({
+        userId: uid,
+        eventType: 'SIGNUP_BONUS',
+        pointsDelta: SIGNUP_BONUS_POINTS,
+        metadata: {
+          title: 'Welcome bonus',
+          description: 'Points for creating your account.',
+        },
+      });
     });
-  } catch {
-    // ignore — auth/business DB may be split or schema not migrated yet
+  } catch (error) {
+    const msg = String((error as Error)?.message || error || '');
+    // A UNIQUE violation (PG 23505 / SQLite constraint) means another request
+    // already wrote the bonus — treat as success and swallow the error.
+    if (
+      msg.includes('UNIQUE constraint') ||
+      msg.includes('unique constraint') ||
+      msg.includes('duplicate key value') ||
+      msg.includes('23505')
+    ) {
+      return;
+    }
+    // All other errors (auth/business DB split, schema not migrated, etc.) are
+    // also swallowed — this is intentionally best-effort.
   }
 }
 
@@ -924,6 +986,9 @@ export function claimManualOnboardingBonus(args: { userId: string }) {
   if (!ensureManualUserState(userId)) return { ok: false as const, error: 'AUTH_REQUIRED' };
   try {
     runManualTransaction(() => {
+      // hasLedgerEvent is a fast check inside the transaction; the
+      // conditional unique index on 'ONBOARDING_BONUS' is the final atomic
+      // guard — a concurrent INSERT will raise UNIQUE and be caught below.
       if (hasLedgerEvent(userId, 'ONBOARDING_BONUS')) {
         throw Object.assign(new Error('ONBOARDING_BONUS_ALREADY_CLAIMED'), {
           __manualEarlyReturn: true,
@@ -942,6 +1007,17 @@ export function claimManualOnboardingBonus(args: { userId: string }) {
     });
   } catch (error) {
     if ((error as { __manualEarlyReturn?: boolean }).__manualEarlyReturn) {
+      return { ok: false as const, error: 'ONBOARDING_BONUS_ALREADY_CLAIMED' as const };
+    }
+    const msg = String((error as Error)?.message || error || '');
+    // UNIQUE constraint from the singleton index = concurrent request already
+    // wrote the bonus; treat as idempotent ALREADY_CLAIMED.
+    if (
+      msg.includes('UNIQUE constraint') ||
+      msg.includes('unique constraint') ||
+      msg.includes('duplicate key value') ||
+      msg.includes('23505')
+    ) {
       return { ok: false as const, error: 'ONBOARDING_BONUS_ALREADY_CLAIMED' as const };
     }
     throw error;
@@ -1149,26 +1225,10 @@ export function submitManualPredictionEntry(args: {
       }
 
       if (kind === 'FREE_DAILY') {
-        const dayStart = (() => {
-          const k = utcDayKeyFromMs(nowMs());
-          const [y, m, d] = k.split('-').map((x) => Number(x));
-          return Date.UTC(y, m - 1, d, 0, 0, 0, 0);
-        })();
-        const dayEnd = dayStart + 86400000;
-        const freeRow = queryRowSync<{ c: string | null }>(
-          `SELECT COUNT(*)::text AS c
-           FROM ${manualTable('manual_prediction_entries')} e
-           INNER JOIN ${manualTable('manual_prediction_markets')} m ON m.market_id = e.market_id
-           WHERE e.user_id = $1 AND m.market_kind = 'FREE_DAILY'
-             AND e.created_at_ms >= $2 AND e.created_at_ms < $3`,
-          [userId, dayStart, dayEnd],
-        );
-        if (Number(freeRow?.c || 0) >= 1) {
-          throw Object.assign(new Error('FREE_DAILY_ALREADY_PLAYED'), {
-            __manualEarlyReturn: true,
-            code: 'FREE_DAILY_ALREADY_PLAYED',
-          });
-        }
+        // Atomic one-per-day guard: uses the manual_free_daily_entries slot
+        // table with SELECT FOR UPDATE + INSERT, identical to the MAIN daily
+        // slot pattern.  Replaces the previous non-atomic COUNT(*) check.
+        reserveFreeDailySlotOrThrow(userId);
       }
 
       if (kind === 'MAIN') {

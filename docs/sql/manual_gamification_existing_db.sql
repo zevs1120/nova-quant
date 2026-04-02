@@ -62,3 +62,20 @@ ALTER TABLE novaquant_data.manual_referrals
 ALTER TABLE novaquant_data.manual_referrals
   ADD CONSTRAINT manual_referrals_status_check
   CHECK (status IN ('PARTIAL', 'COMPLETED', 'CANCELLED', 'REWARDED'));
+
+-- === 4) Singleton-event unique index on manual_points_ledger ================
+-- Prevents SIGNUP_BONUS and ONBOARDING_BONUS from being written more than once
+-- per user even under concurrent requests (final DB-level atomic guard).
+CREATE UNIQUE INDEX IF NOT EXISTS idx_manual_points_ledger_singleton
+  ON novaquant_data.manual_points_ledger(user_id, event_type)
+  WHERE event_type IN ('SIGNUP_BONUS', 'ONBOARDING_BONUS');
+
+-- === 5) FREE_DAILY prediction slot table ====================================
+-- Mirrors the MAIN daily slot pattern to make FREE_DAILY one-per-day atomic.
+-- A PK violation on (user_id, day_key) means the user already played today.
+CREATE TABLE IF NOT EXISTS novaquant_data.manual_free_daily_entries (
+  user_id TEXT NOT NULL,
+  day_key TEXT NOT NULL,
+  PRIMARY KEY (user_id, day_key),
+  FOREIGN KEY(user_id) REFERENCES public.auth_users(user_id) ON DELETE CASCADE
+);

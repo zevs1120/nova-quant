@@ -1261,6 +1261,13 @@ CREATE TABLE IF NOT EXISTS manual_points_ledger (
 
 CREATE INDEX IF NOT EXISTS idx_manual_points_ledger_user ON manual_points_ledger(user_id, created_at_ms DESC);
 
+-- Singleton-event guard: SIGNUP_BONUS and ONBOARDING_BONUS must only ever appear once
+-- per user. This unique index acts as the final atomic barrier even if application-layer
+-- dedup logic has a TOCTOU race under concurrent requests.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_manual_points_ledger_singleton
+  ON manual_points_ledger(user_id, event_type)
+  WHERE event_type IN ('SIGNUP_BONUS', 'ONBOARDING_BONUS');
+
 CREATE TABLE IF NOT EXISTS manual_referrals (
   referral_id TEXT PRIMARY KEY,
   inviter_user_id TEXT NOT NULL,
@@ -1340,6 +1347,15 @@ CREATE TABLE IF NOT EXISTS manual_engagement_daily (
   PRIMARY KEY (user_id, day_key),
   FOREIGN KEY(user_id) REFERENCES auth_users(user_id) ON DELETE CASCADE
 );
+
+-- FREE_DAILY prediction slot: one row per (user, UTC day) acts as an atomic mutex
+-- identical to the MAIN daily slot pattern.  INSERT fails on duplicate PK = already played.
+CREATE TABLE IF NOT EXISTS manual_free_daily_entries (
+  user_id TEXT NOT NULL,
+  day_key TEXT NOT NULL,
+  PRIMARY KEY (user_id, day_key),
+  FOREIGN KEY(user_id) REFERENCES auth_users(user_id) ON DELETE CASCADE
+);
 `;
 
 /**
@@ -1358,6 +1374,11 @@ export function manualGamificationSchemaPatchStatements(
     `CREATE INDEX IF NOT EXISTS idx_manual_checkins_user_recent ON ${qualifyTable('manual_checkins')}(user_id, day_key DESC)`,
     `CREATE TABLE IF NOT EXISTS ${qualifyTable('manual_main_prediction_daily')} (user_id TEXT NOT NULL, day_key TEXT NOT NULL, used_count BIGINT NOT NULL DEFAULT 0, updated_at_ms BIGINT NOT NULL, PRIMARY KEY (user_id, day_key), FOREIGN KEY(user_id) REFERENCES ${qualifyTable('auth_users')}(user_id) ON DELETE CASCADE)`,
     `CREATE TABLE IF NOT EXISTS ${qualifyTable('manual_engagement_daily')} (user_id TEXT NOT NULL, day_key TEXT NOT NULL, created_at_ms BIGINT NOT NULL, PRIMARY KEY (user_id, day_key), FOREIGN KEY(user_id) REFERENCES ${qualifyTable('auth_users')}(user_id) ON DELETE CASCADE)`,
+    // Singleton-event unique index for SIGNUP_BONUS / ONBOARDING_BONUS (partial index may not
+    // be supported on pg-mem; the CREATE INDEX is still safe to attempt — it is idempotent).
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_manual_points_ledger_singleton ON ${qualifyTable('manual_points_ledger')}(user_id, event_type) WHERE event_type IN ('SIGNUP_BONUS', 'ONBOARDING_BONUS')`,
+    // FREE_DAILY slot table mirrors the MAIN daily slot pattern for atomic one-per-day enforcement.
+    `CREATE TABLE IF NOT EXISTS ${qualifyTable('manual_free_daily_entries')} (user_id TEXT NOT NULL, day_key TEXT NOT NULL, PRIMARY KEY (user_id, day_key), FOREIGN KEY(user_id) REFERENCES ${qualifyTable('auth_users')}(user_id) ON DELETE CASCADE)`,
   ];
 }
 
