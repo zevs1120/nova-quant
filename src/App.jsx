@@ -8,6 +8,7 @@ import novaLogoCompact from './assets/Nova2.png';
 const BrowseTab = lazy(() => import('./components/BrowseTab'));
 const DataStatusTab = lazy(() => import('./components/DataStatusTab'));
 const DisciplineTab = lazy(() => import('./components/DisciplineTab'));
+const FirstRunSetupFlow = lazy(() => import('./components/FirstRunSetupFlow'));
 const HoldingsTab = lazy(() => import('./components/HoldingsTab'));
 const LearningLoopTab = lazy(() => import('./components/LearningLoopTab'));
 const MarketTab = lazy(() => import('./components/MarketTab'));
@@ -54,6 +55,16 @@ async function fetchJson(url, options) {
 
 const BROWSE_WARMUP_REFRESH_MS = 10 * 60 * 1000;
 
+function resolveFirstRunTarget(goal, currentState) {
+  if (currentState === 'have_holdings' || goal === 'manage_holdings') {
+    return 'my';
+  }
+  if (currentState === 'just_exploring' || goal === 'understand_market') {
+    return 'browse';
+  }
+  return 'today';
+}
+
 export default function App() {
   const primaryTabKeys = ['today', 'ai', 'browse', 'my'];
   const [displayMode, setDisplayMode] = useState(() => detectDisplayMode());
@@ -67,6 +78,10 @@ export default function App() {
   const [lang, setLang] = useLocalStorage('nova-quant-lang', getDefaultLang(), {
     legacyKeys: ['quant-demo-lang'],
   });
+  const [firstRunSetupByUser, setFirstRunSetupByUser] = useLocalStorage(
+    'nova-quant-first-run-setup-by-user',
+    {},
+  );
   const [browseTopBarState, setBrowseTopBarState] = useState({
     canGoBack: false,
     title: 'Browse',
@@ -199,6 +214,17 @@ export default function App() {
   });
 
   const isDemoRuntime = getIsDemoRuntime(investorDemoEnabled);
+  const firstRunSetupState = authSession?.userId
+    ? firstRunSetupByUser?.[authSession.userId] || null
+    : null;
+  const showFirstRunSetup =
+    authHydrated &&
+    Boolean(authSession?.userId) &&
+    !showOnboarding &&
+    !investorDemoEnabled &&
+    !passwordRecoveryMode &&
+    !firstRunSetupState?.completedAt &&
+    !firstRunSetupState?.skippedAt;
 
   // --- Profile sync to server ---
   // Lives here (not in useAuth) because it needs the canonical investorDemoEnabled
@@ -390,6 +416,8 @@ export default function App() {
       engagementState,
     ],
   );
+  const appTone = engagementState?.ui_regime_state?.tone || 'quiet';
+  const motionProfile = engagementState?.ui_regime_state?.motion_profile || 'calm';
 
   // Wrapped askAi with baseContext
   const askAi = useCallback(
@@ -454,6 +482,65 @@ export default function App() {
     },
     [authSession?.userId, billing, setShowOnboarding],
   );
+
+  const handleCompleteFirstRunSetup = useCallback(
+    (payload) => {
+      if (!authSession?.userId) return;
+      const nextAssetClass = payload?.assetClass || 'US_STOCK';
+      const nextMarket = payload?.market || (nextAssetClass === 'CRYPTO' ? 'CRYPTO' : 'US');
+      const nextWatchlist = Array.isArray(payload?.watchlist) ? payload.watchlist.slice(0, 5) : [];
+      const nextRiskProfile = String(payload?.riskProfileKey || riskProfileKey || 'balanced');
+
+      setAssetClass(nextAssetClass);
+      setMarket(nextMarket);
+      setRiskProfileKey(nextRiskProfile);
+      if (nextWatchlist.length) {
+        setWatchlist(nextWatchlist);
+      }
+
+      setFirstRunSetupByUser((current) => ({
+        ...(current || {}),
+        [authSession.userId]: {
+          completedAt: new Date().toISOString(),
+          goal: String(payload?.goal || ''),
+          currentState: String(payload?.currentState || ''),
+          marketFocus: String(payload?.marketFocus || ''),
+          riskProfileKey: nextRiskProfile,
+          assetClass: nextAssetClass,
+          market: nextMarket,
+          watchlist: nextWatchlist,
+        },
+      }));
+
+      const targetTab = resolveFirstRunTarget(payload?.goal, payload?.currentState);
+      setMyStack(['portfolio']);
+      setActiveTab(targetTab);
+    },
+    [
+      authSession?.userId,
+      riskProfileKey,
+      setActiveTab,
+      setAssetClass,
+      setFirstRunSetupByUser,
+      setMarket,
+      setMyStack,
+      setRiskProfileKey,
+      setWatchlist,
+    ],
+  );
+
+  const handleSkipFirstRunSetup = useCallback(() => {
+    if (!authSession?.userId) return;
+    setFirstRunSetupByUser((current) => ({
+      ...(current || {}),
+      [authSession.userId]: {
+        ...(current?.[authSession.userId] || {}),
+        skippedAt: new Date().toISOString(),
+      },
+    }));
+    setMyStack(['portfolio']);
+    setActiveTab('today');
+  }, [authSession?.userId, setActiveTab, setFirstRunSetupByUser, setMyStack]);
 
   // --- Refresh holdings sources ---
   const refreshHoldingsSources = useCallback(() => {
@@ -971,8 +1058,6 @@ export default function App() {
               : menuTitles[mySection] || tabMeta.my.label
           : '';
   const topBarMode = canGoBackInTopBar ? 'detail' : 'root';
-  const appTone = engagementState?.ui_regime_state?.tone || 'quiet';
-  const motionProfile = engagementState?.ui_regime_state?.motion_profile || 'calm';
   const dailyCheckState = String(
     engagementState?.daily_check_state?.status || 'PENDING',
   ).toLowerCase();
@@ -1007,6 +1092,26 @@ export default function App() {
               onResetPassword={handleResetPassword}
               onComplete={handleSignup}
               onResendVerification={handleResendSignupVerification}
+            />
+          </Suspense>
+        </div>
+      </AuthProvider>
+    );
+  }
+
+  if (showFirstRunSetup) {
+    return (
+      <AuthProvider value={authContextValue}>
+        <div className={`app-bg app-bg-${displayMode} app-tone-${appTone}`}>
+          <Suspense fallback={null}>
+            <FirstRunSetupFlow
+              locale={locale}
+              profile={userProfile}
+              riskProfileKey={riskProfileKey}
+              assetClass={assetClass}
+              watchlist={watchlist}
+              onComplete={handleCompleteFirstRunSetup}
+              onSkip={handleSkipFirstRunSetup}
             />
           </Suspense>
         </div>

@@ -525,7 +525,7 @@ export default function OnboardingFlow({
                   type="text"
                   inputMode="email"
                   autoComplete="username"
-                  placeholder={locale?.startsWith('zh') ? '输入邮箱或 test' : 'Enter email or test'}
+                  placeholder={locale?.startsWith('zh') ? '输入邮箱' : 'Enter email'}
                   value={loginEmail}
                   onChange={(event) => setLoginEmail(event.target.value)}
                 />

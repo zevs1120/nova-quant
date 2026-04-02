@@ -320,20 +320,22 @@ function Composer({ input, setInput, streaming, sendMessage, hasMessages, copy }
 
   return (
     <div className="ai-composer-shell">
-      <div className={`ai-suggestion-row ${hasMessages ? 'has-thread' : 'is-empty'}`}>
-        {copy.quickQuestions.map((prompt) => (
-          <button
-            key={prompt}
-            type="button"
-            className="ai-suggestion-chip"
-            onClick={() => {
-              setInput(prompt);
-            }}
-          >
-            {prompt}
-          </button>
-        ))}
-      </div>
+      {!hasMessages ? (
+        <div className="ai-suggestion-row is-empty">
+          {copy.quickQuestions.map((prompt) => (
+            <button
+              key={prompt}
+              type="button"
+              className="ai-suggestion-chip"
+              onClick={() => {
+                setInput(prompt);
+              }}
+            >
+              {prompt}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       <form
         className="ai-composer"
@@ -402,59 +404,61 @@ function AiConversationShell({
 
   return (
     <section className={`ai-page-shell ${hasMessages ? 'ai-page-thread' : 'ai-page-empty'}`}>
-      {linkedContext ? (
-        <section className="ai-linked-context">
-          <div className="ai-linked-context-copy">
-            <p className="ai-linked-context-eyebrow">{linkedContext.eyebrow}</p>
-            <p className="ai-linked-context-title">{linkedContext.title}</p>
-            <p className="ai-linked-context-note">{linkedContext.note}</p>
-          </div>
-          <button
-            type="button"
-            className="ai-linked-context-action"
-            onClick={() => onNavigate?.('today')}
-          >
-            {linkedContext.action}
-          </button>
-        </section>
-      ) : null}
-
-      <div className="ai-access-strip" aria-label={copy.emptyBadge}>
-        <span className="ai-access-pill">{accessBadge.planLabel}</span>
-        <span className="ai-access-copy">{accessBadge.usageLabel}</span>
-      </div>
-
       <div className="ai-thread-scroll" ref={listRef}>
-        {!hasMessages ? (
-          <section className="ai-empty-stage">
-            <div className="ai-empty-stage-panel">
-              <div className="ai-empty-stage-mark" aria-hidden="true">
-                ✦
+        <div className={`ai-thread-flow ${hasMessages ? 'has-thread' : 'is-empty'}`}>
+          {linkedContext ? (
+            <section className="ai-linked-context">
+              <div className="ai-linked-context-copy">
+                <p className="ai-linked-context-eyebrow">{linkedContext.eyebrow}</p>
+                <p className="ai-linked-context-title">{linkedContext.title}</p>
+                <p className="ai-linked-context-note">{linkedContext.note}</p>
               </div>
-              <div className="ai-empty-stage-copy">
-                <p className="ai-empty-badge">{copy.emptyBadge}</p>
-                <h1 className="ai-empty-heading">{copy.emptyHeading}</h1>
-                <p className="ai-empty-subheading">{copy.emptySubheading}</p>
-              </div>
-            </div>
-          </section>
-        ) : (
-          <div className="ai-thread-stack">
-            {messages.map((item) =>
-              item.role === 'assistant' ? (
-                <AssistantMessage
-                  key={item.id}
-                  message={item}
-                  onNavigate={onNavigate}
-                  copy={copy}
-                />
-              ) : (
-                <UserMessage key={item.id} content={item.content} />
-              ),
-            )}
-            <div ref={endRef} className="ai-thread-end" aria-hidden="true" />
+              <button
+                type="button"
+                className="ai-linked-context-action"
+                onClick={() => onNavigate?.('today')}
+              >
+                {linkedContext.action}
+              </button>
+            </section>
+          ) : null}
+
+          <div className="ai-access-strip" aria-label={copy.emptyBadge}>
+            <span className="ai-access-pill">{accessBadge.planLabel}</span>
+            <span className="ai-access-copy">{accessBadge.usageLabel}</span>
           </div>
-        )}
+
+          {!hasMessages ? (
+            <section className="ai-empty-stage">
+              <div className="ai-empty-stage-panel">
+                <div className="ai-empty-stage-mark" aria-hidden="true">
+                  ✦
+                </div>
+                <div className="ai-empty-stage-copy">
+                  <p className="ai-empty-badge">{copy.emptyBadge}</p>
+                  <h1 className="ai-empty-heading">{copy.emptyHeading}</h1>
+                  <p className="ai-empty-subheading">{copy.emptySubheading}</p>
+                </div>
+              </div>
+            </section>
+          ) : (
+            <div className="ai-thread-stack">
+              {messages.map((item) =>
+                item.role === 'assistant' ? (
+                  <AssistantMessage
+                    key={item.id}
+                    message={item}
+                    onNavigate={onNavigate}
+                    copy={copy}
+                  />
+                ) : (
+                  <UserMessage key={item.id} content={item.content} />
+                ),
+              )}
+              <div ref={endRef} className="ai-thread-end" aria-hidden="true" />
+            </div>
+          )}
+        </div>
       </div>
 
       {error ? (

@@ -1,26 +1,47 @@
 :root {
-  --brand-panel-radius: 14px;
-  --brand-panel-border: rgba(255, 255, 255, 0.78);
-  --brand-panel-shadow:
-    0 22px 42px rgba(48, 52, 74, 0.06), 0 3px 10px rgba(48, 52, 74, 0.03),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 -1px 0 rgba(255, 255, 255, 0.24);
-  --brand-panel-surface:
-    radial-gradient(circle at 14% 8%, rgba(255, 255, 255, 0.58), transparent 32%),
-    linear-gradient(
-      180deg,
-      rgba(255, 255, 255, 0.88),
-      rgba(245, 248, 255, 0.4) 46%,
-      rgba(236, 240, 248, 0.22)
-    ),
-    linear-gradient(
-      135deg,
-      rgba(97, 217, 130, 0.08),
-      rgba(255, 255, 255, 0.08) 54%,
-      rgba(70, 200, 255, 0.08)
-    );
+  --radius-card: 14px;
+  --radius-btn: 10px;
+  --radius-chip: 8px;
+  --brand-panel-radius: 10px;
+  --brand-panel-radius-large: 12px;
+  --brand-chip-radius: 8px;
+  --brand-button-radius: 10px;
+  --brand-panel-border: rgba(18, 21, 34, 0.09);
+  --brand-divider: rgba(18, 21, 34, 0.08);
+  --brand-divider-strong: rgba(18, 21, 34, 0.12);
+  --brand-panel-shadow: 0 1px 0 rgba(255, 255, 255, 0.84), 0 10px 22px rgba(18, 21, 34, 0.04);
 }
 
-.glass-card:not(.today-action-card),
+.device-shell {
+  border-radius: 24px;
+  border-color: rgba(18, 21, 34, 0.08);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 246, 255, 0.94));
+  box-shadow: 0 16px 36px rgba(58, 52, 107, 0.08);
+}
+
+.top-bar,
+.system-status-bar,
+.ai-status-bar,
+.mode-strip {
+  background: rgba(251, 249, 255, 0.88);
+  border-bottom-color: var(--brand-divider);
+}
+
+.lang-toggle {
+  border-radius: var(--brand-chip-radius);
+  background: rgba(255, 255, 255, 0.74);
+}
+
+.lang-option {
+  border-radius: 0;
+}
+
+.tab-btn span:first-child,
+.native-tabbar-icon-wrap {
+  border-radius: var(--brand-chip-radius);
+}
+
+.glass-card:not(.today-action-card):not(.today-action-card-swipe),
 .signal-card,
 .holding-card,
 .status-box,
@@ -32,16 +53,34 @@
 .market-mini-card,
 .opportunity-card,
 .top-signal-item,
-.quick-access-row {
-  border-radius: var(--brand-panel-radius) !important;
+.quick-access-row,
+.today-summary-card,
+.today-climate-panel,
+.today-outcome-card,
+.today-empty-card,
+.browse-v2-card,
+.browse-v2-signal-card,
+.browse-v2-chart-panel,
+.ai-assistant-card,
+.ai-empty-stage-panel,
+.membership-sheet,
+.billing-checkout-sheet,
+.membership-plan-card,
+.membership-inline-stat,
+.membership-hero-stat,
+.membership-limit-card,
+.first-run-panel,
+.first-run-option,
+.first-run-summary-item,
+.onboarding-card {
+  border-radius: var(--brand-panel-radius-large) !important;
   border: 1px solid var(--brand-panel-border) !important;
-  background: var(--brand-panel-surface) !important;
   box-shadow: var(--brand-panel-shadow) !important;
-  backdrop-filter: blur(24px) saturate(1.08);
-  -webkit-backdrop-filter: blur(24px) saturate(1.08);
+  backdrop-filter: blur(16px) saturate(1.02);
+  -webkit-backdrop-filter: blur(16px) saturate(1.02);
 }
 
-.glass-card:not(.today-action-card),
+.glass-card:not(.today-action-card):not(.today-action-card-swipe),
 .signal-card,
 .holding-card,
 .status-box,
@@ -53,7 +92,7 @@
   isolation: isolate;
 }
 
-.glass-card:not(.today-action-card)::before,
+.glass-card:not(.today-action-card):not(.today-action-card-swipe)::before,
 .signal-card::before,
 .holding-card::before,
 .status-box::before,
@@ -63,15 +102,21 @@
 .more-list::before {
   content: '';
   position: absolute;
-  inset: 0;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 1px;
   pointer-events: none;
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0) 34%),
-    linear-gradient(315deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0) 38%);
-  opacity: 0.74;
+  background: linear-gradient(
+    90deg,
+    rgba(75, 125, 255, 0.2),
+    rgba(18, 21, 34, 0.06) 42%,
+    rgba(18, 21, 34, 0) 100%
+  );
+  opacity: 0.9;
 }
 
-.glass-card:not(.today-action-card)::after,
+.glass-card:not(.today-action-card):not(.today-action-card-swipe)::after,
 .signal-card::after,
 .holding-card::after,
 .status-box::after,
@@ -79,24 +124,10 @@
 .sheet-card::after,
 .chat-sheet::after,
 .more-list::after {
-  content: '';
-  position: absolute;
-  left: 14px;
-  right: 14px;
-  bottom: 0;
-  height: 3px;
-  border-radius: 999px 999px 0 0;
-  pointer-events: none;
-  background: linear-gradient(
-    90deg,
-    rgba(75, 125, 255, 0.88),
-    rgba(135, 108, 255, 0.82) 48%,
-    rgba(255, 95, 196, 0.8)
-  );
-  opacity: 0.88;
+  display: none;
 }
 
-.glass-card:not(.today-action-card) > *,
+.glass-card:not(.today-action-card):not(.today-action-card-swipe) > *,
 .signal-card > *,
 .holding-card > *,
 .status-box > *,
@@ -108,20 +139,94 @@
   z-index: 1;
 }
 
+.primary-btn,
+.secondary-btn,
+.ghost-btn,
+.today-action-cta,
+.today-action-secondary,
+.membership-plan-cta,
+.membership-sheet-secondary,
+.membership-hero-primary,
+.membership-hero-secondary,
+.membership-card-trigger,
+.first-run-button,
+.ai-linked-context-action,
+.top-bar-action-button,
+.membership-sheet-close {
+  border-radius: var(--brand-button-radius) !important;
+  box-shadow: none !important;
+}
+
+.secondary-btn,
+.ghost-btn,
+.today-action-secondary,
+.membership-sheet-secondary,
+.membership-hero-secondary,
+.first-run-button-secondary,
+.ai-linked-context-action,
+.top-bar-action-button,
+.membership-sheet-close {
+  border: 1px solid var(--brand-divider-strong) !important;
+  background: rgba(255, 255, 255, 0.76) !important;
+}
+
+.primary-btn,
+.today-action-cta,
+.membership-plan-cta,
+.membership-hero-primary,
+.membership-card-trigger,
+.first-run-button-primary {
+  border: 1px solid rgba(18, 21, 34, 0.12) !important;
+  box-shadow: none !important;
+}
+
+.pill-btn,
+.status-chip,
+.today-action-context-pill,
+.today-action-meta-pill,
+.today-validity-pill,
+.today-climate-pill,
+.today-climate-status-pill,
+.today-climate-summary-pill,
+.today-action-gesture-pill,
+.ai-access-pill,
+.ai-suggestion-chip,
+.membership-plan-badge,
+.membership-plan-feature,
+.first-run-symbol-chip,
+.first-run-skip {
+  border-radius: var(--brand-chip-radius) !important;
+  border: 1px solid var(--brand-divider-strong) !important;
+  box-shadow: none !important;
+}
+
+.membership-sheet-head,
+.first-run-header,
+.today-command-top,
+.browse-v2-card-head,
+.card-header {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--brand-divider);
+}
+
+.membership-sheet-footer,
+.first-run-footer,
+.browse-v2-card-foot {
+  padding-top: 12px;
+  border-top: 1px solid var(--brand-divider);
+}
+
+.detail-row + .detail-row,
+.more-list-row + .more-list-row,
+.quick-access-row + .quick-access-row {
+  border-top: 1px solid var(--brand-divider);
+}
+
 @media (max-width: 640px) {
   :root {
-    --brand-panel-radius: 12px;
-  }
-
-  .glass-card:not(.today-action-card)::after,
-  .signal-card::after,
-  .holding-card::after,
-  .status-box::after,
-  .modal-card::after,
-  .sheet-card::after,
-  .chat-sheet::after,
-  .more-list::after {
-    left: 12px;
-    right: 12px;
+    --brand-panel-radius: 9px;
+    --brand-panel-radius-large: 10px;
+    --brand-chip-radius: 7px;
+    --brand-button-radius: 9px;
   }
 }
