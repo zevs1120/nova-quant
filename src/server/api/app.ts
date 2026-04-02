@@ -143,6 +143,7 @@ export function createApiApp() {
   const userScopedPaths = new Set([
     '/api/assets',
     '/api/billing/state',
+    '/api/manual/state',
     '/api/market-state',
     '/api/market/modules',
     '/api/membership/state',

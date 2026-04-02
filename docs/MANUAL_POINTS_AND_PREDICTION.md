@@ -7,10 +7,12 @@
 - **1000 积分 = 1 天 VIP**（兑换走 `VIP_REDEEM` ledger，并增加 `manual_user_state.vip_days_balance`）。
 - 核心表（定义见 `src/server/db/schema.ts`）：
   - `manual_user_state` — 邀请码、`vip_days_*`、签到 streak 字段
-  - `manual_points_ledger` — 积分流水（`balance_after` 为运行余额）
+  - `manual_points_ledger` — 积分流水（`balance_after` 为运行余额）；每日 engagement 使用固定 `event_type = ENGAGEMENT_SIGNAL`（按日幂等由 `manual_engagement_daily` 保证）
   - `manual_referrals` — 邀请关系与阶段状态
   - `manual_prediction_markets` / `manual_prediction_entries` — 预测题目与用户选择
   - `manual_checkins` — 按 UTC 日 `day_key` 的签到记录
+  - `manual_main_prediction_daily` — 每用户每 UTC 日 `MAIN` 场参与次数（与限次、Dashboard `mainPredictionsToday` 同源，避免竞态下超发）
+  - `manual_engagement_daily` — 每用户每 UTC 日 engagement 是否已发放（与 ledger 配合）
 
 **已有生产库**若在建表之后创建，需自行执行与 schema 一致的 `ALTER` / 迁移（仓库内 `CREATE TABLE IF NOT EXISTS` 不会为旧表补列）。
 
@@ -23,7 +25,7 @@
 | 邀请            | 阶段一各 300；阶段二各 700；完成态计入邀请人**当月**上限                                                  | `NOVA_MANUAL_REFERRAL_STAGE1_POINTS`, `STAGE2`, `NOVA_MANUAL_REFERRAL_MAX_COMPLETED_PER_MONTH` |
 | VIP 兑换        | 每自然月最多兑换 **7 天**                                                                                 | `NOVA_MANUAL_VIP_MAX_DAYS_PER_MONTH`, `NOVA_MANUAL_VIP_REDEEM_POINTS`                          |
 | 签到            | 每日 20；每满 7 天 +100；满 30 天 +500                                                                    | `NOVA_MANUAL_CHECKIN_*`                                                                        |
-| 每日 signal     | 每 UTC 日一次小额奖励                                                                                     | `NOVA_MANUAL_ENGAGEMENT_SIGNAL_POINTS`                                                         |
+| 每日 signal     | 每 UTC 日一次小额奖励（`manual_engagement_daily` + ledger `ENGAGEMENT_SIGNAL`）                           | `NOVA_MANUAL_ENGAGEMENT_SIGNAL_POINTS`                                                         |
 | 预测 `STANDARD` | 默认 stake 100；胜方返还 **2× stake**                                                                     | `NOVA_MANUAL_PREDICTION_STAKE_STANDARD`                                                        |
 | 预测 `MAIN`     | 固定 stake **1000**；每用户每 UTC 日最多 **2** 场；胜方 ledger 返还默认 **1900**                          | `NOVA_MANUAL_PREDICTION_MAIN_*`, `NOVA_MANUAL_PREDICTION_WIN_RETURN`                           |
 | 冷启动返还      | `NOVA_MANUAL_PREDICTION_COLDSTART=1` 或 `NOVA_MANUAL_PREDICTION_COLDSTART_UNTIL_MS` 未过期时使用 **2000** | 同上                                                                                           |
@@ -39,16 +41,20 @@
 
 ## HTTP API（用户侧）
 
-| 方法 | 路径                                    | 说明                                         |
-| ---- | --------------------------------------- | -------------------------------------------- |
-| GET  | `/api/manual/state?userId=`             | Dashboard：余额、规则快照、预测列表等        |
-| POST | `/api/manual/rewards/redeem`            | VIP 天兑换                                   |
-| POST | `/api/manual/referrals/claim`           | 填写邀请码（阶段一）                         |
-| POST | `/api/manual/referrals/complete-stage2` | 仅阶段二（一般可由 onboarding 接口顺带触发） |
-| POST | `/api/manual/bonuses/onboarding`        | Onboarding 完成赠分 + 尝试阶段二             |
-| POST | `/api/manual/checkin`                   | 每日签到                                     |
-| POST | `/api/manual/engagement/signal`         | 当日 signal 互动赠分                         |
-| POST | `/api/manual/predictions/entry`         | 提交预测                                     |
+**鉴权：** 除 `GET /api/manual/state` 外，下列 `POST` 均需**已登录会话**（Bearer 或 `novaquant_session`）。服务端只认 `resolveRequestNovaScope` 解析出的 `userId`，**请勿在 body 中传 `userId` 冒充他人**（与 `USER_SCOPE_MISMATCH` / `AUTH_REQUIRED` 策略一致）。
+
+| 方法 | 路径                                    | 说明                                                                                                                                  |
+| ---- | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| GET  | `/api/manual/state`                     | Dashboard：余额、规则快照、预测列表等（`userId` 来自会话；未登录时在测试环境可能受 query 影响 guest scope，生产应依赖 cookie/Bearer） |
+| POST | `/api/manual/rewards/redeem`            | VIP 天兑换（body：`days?`）                                                                                                           |
+| POST | `/api/manual/referrals/claim`           | 填写邀请码（阶段一）（body：`inviteCode`）                                                                                            |
+| POST | `/api/manual/referrals/complete-stage2` | 仅阶段二（一般可由 onboarding 接口顺带触发）；并发下以 `UPDATE … WHERE status='PARTIAL' RETURNING` 幂等                               |
+| POST | `/api/manual/bonuses/onboarding`        | Onboarding 完成赠分 + 尝试阶段二；响应含 `referralStage2`: `{ status: 'granted' }` 或 `{ status: 'skipped', reason }`                 |
+| POST | `/api/manual/checkin`                   | 每日签到                                                                                                                              |
+| POST | `/api/manual/engagement/signal`         | 当日 signal 互动赠分                                                                                                                  |
+| POST | `/api/manual/predictions/entry`         | 提交预测（body：`marketId`, `selectedOption`, `pointsStaked?`）                                                                       |
+
+`GET /api/manual/state` 与 `Cache-Control: private, no-store` 一同列入 `app.ts` 的 user-scoped GET 列表，避免共享缓存串号。
 
 ## 管理端结算
 
@@ -68,7 +74,8 @@
 ## 相关测试
 
 - `tests/manualService*.test.ts` — 守卫与规则形状
-- `tests/manualGamificationIntegration.test.ts` — MAIN 场结算与余额端到端（in-memory Postgres）
+- `tests/manualGamificationIntegration.test.ts` — MAIN 场结算、MAIN 日限次、engagement 幂等、推荐阶段二幂等（in-memory Postgres）
+- `tests/manualApiRoutes.test.ts` — 未登录时 mutating 路由返回 401
 
 ## 合规与产品表述
 

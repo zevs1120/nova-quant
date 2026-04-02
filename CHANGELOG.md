@@ -4,6 +4,13 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+- **Fix(manual,api,db,docs): manual 积分/预测硬ening — 鉴权绑定、并发幂等、pg-mem 兼容。**
+  - **Schema：** 新增 `manual_main_prediction_daily`、`manual_engagement_daily`（已有库需按 `schema.ts` 补表）。
+  - **Service：** `MAIN` 日限次在事务内 `SELECT … FOR UPDATE` + 计数，避免 pg-mem 对条件 `ON CONFLICT` 的偏差与超发；engagement 改为事务内去重 + 固定 ledger `ENGAGEMENT_SIGNAL`；推荐阶段二在事务内对邀请人 `user_state` 加锁、`UPDATE … RETURNING` 防止重复发奖；onboarding 响应 `referralStage2` 带 `skipped` 原因；Dashboard VIP 文案使用 `VIP_REDEEM_POINTS`；签到去掉与 `manual_checkins` 重复的同日分支。
+  - **API：** `POST /api/manual/*` 使用 `requireAuthenticatedScope`，不再接受 body `userId`；`GET /api/manual/state` 使用会话 scope；`app.ts` 为 `/api/manual/state` 设置 `Cache-Control: private, no-store`。
+  - **Test：** 扩充 `manualGamificationIntegration`；新增 `manualApiRoutes`。
+  - **Docs：** 更新 `docs/MANUAL_POINTS_AND_PREDICTION.md`。
+
 - **Feat(manual,auth,admin,docs): 积分体系与 Prediction Game 后端首版。**
   - **Schema：** `manual_user_state` 增加签到字段；`manual_referrals` 支持 `PARTIAL`/`COMPLETED`（保留 `REWARDED`）；`manual_prediction_markets.market_kind`；新增 `manual_checkins`。
   - **规则：** 注册/onboarding 赠分、邀请两阶段、VIP 月兑上限、签到与 streak 奖励、MAIN/FREE_DAILY/STANDARD 预测与每日限次、结算入账；冷启动返还可通过 `NOVA_MANUAL_PREDICTION_COLDSTART*` 配置。

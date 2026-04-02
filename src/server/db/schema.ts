@@ -1323,6 +1323,23 @@ CREATE TABLE IF NOT EXISTS manual_checkins (
 );
 
 CREATE INDEX IF NOT EXISTS idx_manual_checkins_user_recent ON manual_checkins(user_id, day_key DESC);
+
+CREATE TABLE IF NOT EXISTS manual_main_prediction_daily (
+  user_id TEXT NOT NULL,
+  day_key TEXT NOT NULL,
+  used_count INTEGER NOT NULL DEFAULT 0,
+  updated_at_ms INTEGER NOT NULL,
+  PRIMARY KEY (user_id, day_key),
+  FOREIGN KEY(user_id) REFERENCES auth_users(user_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS manual_engagement_daily (
+  user_id TEXT NOT NULL,
+  day_key TEXT NOT NULL,
+  created_at_ms INTEGER NOT NULL,
+  PRIMARY KEY (user_id, day_key),
+  FOREIGN KEY(user_id) REFERENCES auth_users(user_id) ON DELETE CASCADE
+);
 `;
 
 export function ensureSchema(db: SyncDb): void {
