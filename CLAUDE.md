@@ -35,9 +35,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Layout
 
-Four-part deploy: `landing/` (brand landing page), `app/` (user H5 frontend), `admin/` (ops dashboard), root (main API + quant core). `landing/`, `app/`, and `admin/` each have their own `vercel.json` and are deployed independently on Vercel.
+Five-part deploy (see root `README.md` / `architecture.md`): `landing/` (brand site + data portal paths), `app/` (user H5 on Vercel), `admin/` (ops dashboard on Vercel), `qlib-bridge/` (Python sidecar on EC2 — factors / ML inference; no user-state writes), and repository root (main web shell + Express API packaged as Vercel Serverless via `api/index.ts` → `src/server/api/app.ts`). `landing/`, `app/`, and `admin/` each ship with their own `vercel.json`.
 
-Core source in `src/`: `server/` (Express 5 backend, ~48 modules), `components/` (React), `engines/` (JS quant), `research/` (quantitative research modules). Business and auth data live in Supabase/Postgres via `NOVA_DATA_DATABASE_URL` and `NOVA_AUTH_DATABASE_URL`.
+Core source in `src/`: `server/` (Express 5 TypeScript backend — on the order of **41** top-level domain folders under `src/server/`), `components/` + `App.jsx` (React), `engines/` (JS quant engines), `quant/` (legacy front-end quant helpers + retrieval), `research/` (research governance and pipelines), `training/` (e.g. multi-asset training service). Business and auth data live in Supabase/Postgres via `NOVA_DATA_DATABASE_URL` and `NOVA_AUTH_DATABASE_URL`.
+
+Product shell notes: **first-run setup** (`FirstRunSetupFlow`, gated in `App.jsx`) runs after login for users who have not completed or skipped it; **auth session** payloads include `roles` and `isAdmin` from the server. **Investor demo** is only actionable when `VITE_ENABLE_DEMO_ENTRY` is not `'0'` **and** the session user is an admin (`isAdmin`). Local dev: `fetchApi` may rotate API bases (including `https://api.novaquant.cloud`) when the dev server returns 404/405 or HTML for `/api/*`.
 
 ## Commit Conventions
 

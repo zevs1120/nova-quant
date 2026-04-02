@@ -1,7 +1,7 @@
 # Nova Quant — Architecture Overview
 
-> 自动扫描生成 · 最后更新: 2026-04-01
-> Version: 10.21.2 (build 81)
+> 自动扫描生成 · 最后更新: 2026-04-03
+> Version: 10.21.3 (build 82) — 与 `package.json` / `src/config/version.js` 保持一致
 
 ---
 
@@ -66,7 +66,7 @@ nova-quant/
 │   ├── styles.css                # @import 入口 (→ src/styles/ 模块)
 │   ├── i18n.js                   # 国际化 (中/英)
 │   │
-│   ├── components/               # 28 个 UI 组件
+│   ├── components/               # 29 个 UI 组件（含 `FirstRunSetupFlow` 等）
 │   │   └── icons/               # TabBarIcon, TopBarMenuGlyph
 │   ├── hooks/                    # 11 个 React Hooks
 │   ├── utils/                    # 前端工具 (API、格式化、意图解析等)
@@ -77,7 +77,7 @@ nova-quant/
 │   ├── demo/                     # Demo 模式相关
 │   │
 │   ├── engines/                  # 16 个量化引擎
-│   ├── quant/                    # 量化研究系统 (AI检索、研究循环)
+│   ├── quant/                    # 前端量化辅助 (sample/检索/研究循环等；服务端运行时见 server/quant/)
 │   ├── research/                 # 研究治理 & 验证管线
 │   ├── data_sources/             # 数据源定义 (Crypto / Equities / Options)
 │   ├── dataset_builders/         # 数据集构建
@@ -169,10 +169,10 @@ nova-quant/
 │   ├── signal.schema.json        # 信号合约 JSON Schema
 │   └── README.md
 │
-├── tests/                        # 133 个测试文件 (Vitest)
-├── scripts/                      # 41 个运维脚本
+├── tests/                        # 约 138 个测试文件 (Vitest，按特性拆分)
+├── scripts/                      # 约 37 个运维脚本 (mjs/ts/js)
 ├── config/                       # 摄取配置
-├── docs/                         # 88 个文档文件
+├── docs/                         # 专题设计与运维文档（具体条目以目录为准）
 ├── deployment/                   # 部署配置 (AWS EC2 / Vultr / launchd)
 ├── landing/                      # 品牌落地页 (独立 Vite 应用)
 │   └── src/
@@ -267,7 +267,7 @@ nova-quant/
 ┌─────────────────────────────────────────────────────────────────────┐
 │                       前端呈现层                                     │
 │                                                                     │
-│  TodayTab ──────── 今日决策面板 (主着陆页)                          │
+│  TodayTab ──────── 今日决策面板 (主着陆页；行动卡有效期倒计时 pill)   │
 │  SignalsTab ─────── 信号列表                                         │
 │  HoldingsTab ────── 持仓管理                                        │
 │  RiskTab ────────── 风险仪表盘                                      │
@@ -278,7 +278,8 @@ nova-quant/
 │  BrowseTab ──────── 资产浏览 & 搜索                                 │
 │  MenuTab ────────── 设置 & 高级功能                                  │
 │  WeeklyReviewTab ── 周度复盘                                        │
-│  OnboardingFlow ─── 首次引导流                                       │
+│  OnboardingFlow ─── 注册/登录侧 onboarding                            │
+│  FirstRunSetupFlow ─ 登录后首次设置（目标/风险/市场/自选）            │
 │  DisciplineTab ──── 纪律执行                                        │
 │  DataStatusTab ──── 数据状态                                        │
 │  LearningLoopTab ── 学习循环                                        │
@@ -318,11 +319,11 @@ nova-quant/
 
 ### 6.3 认证层 (`src/server/auth/`)
 
-| 文件               | 职责                                       |
-| ------------------ | ------------------------------------------ |
-| `service.ts`       | 认证服务 (Session / RBAC / 中间件)         |
-| `postgresStore.ts` | Postgres 认证存储 (users/sessions/roles)   |
-| `supabase.ts`      | 原生 Supabase 认证集成，接管邮件及 Session |
+| 文件               | 职责                                                                                           |
+| ------------------ | ---------------------------------------------------------------------------------------------- |
+| `service.ts`       | 认证服务 (Session / RBAC / 中间件)；`getEffectiveAuthRolesForUser` 供 session/profile 返回角色 |
+| `postgresStore.ts` | Postgres 认证存储 (users/sessions/roles)                                                       |
+| `supabase.ts`      | 原生 Supabase 认证集成，接管邮件及 Session                                                     |
 
 ### 6.4 决策引擎 (`src/server/decision/`)
 
@@ -396,47 +397,54 @@ alpha_promotion_guard/→ 晋升守卫 (Shadow → Canary → Prod)
 - **代码分割**: `React.lazy` 用于次级 Tab 组件
 - **国际化**: `i18n.js` (中/英双语)
 
-### 7.2 主要组件 (28 个)
+### 7.2 主要组件 (29 个)
 
-| 组件                  | 职责                    |
-| --------------------- | ----------------------- |
-| `App.jsx`             | 薄编排壳 (hooks + 渲染) |
-| `TodayTab.jsx`        | 今日决策面板 (首页)     |
-| `MenuTab.jsx`         | 设置 & 高级功能         |
-| `BrowseTab.jsx`       | 资产浏览 & 搜索         |
-| `HoldingsTab.jsx`     | 持仓管理                |
-| `OnboardingFlow.jsx`  | 首次引导流              |
-| `ResearchTab.jsx`     | AI 研究工具             |
-| `ProofTab.jsx`        | 证据 & 回测             |
-| `SignalsTab.jsx`      | 信号列表                |
-| `AiPage.jsx`          | Nova 助手对话页         |
-| `RiskTab.jsx`         | 风险仪表盘              |
-| `MarketTab.jsx`       | 市场概况                |
-| `WeeklyReviewTab.jsx` | 周度复盘                |
-| `DisciplineTab.jsx`   | 纪律执行                |
-| `LearningLoopTab.jsx` | 学习循环                |
-| `SettingsTab.jsx`     | 设置                    |
-| `DataStatusTab.jsx`   | 数据状态                |
+| 组件                    | 职责                                      |
+| ----------------------- | ----------------------------------------- |
+| `App.jsx`               | 薄编排壳 (hooks + 渲染)                   |
+| `TodayTab.jsx`          | 今日决策面板 (首页；信号有效期与失效说明) |
+| `MenuTab.jsx`           | 设置 & 高级功能                           |
+| `BrowseTab.jsx`         | 资产浏览 & 搜索                           |
+| `HoldingsTab.jsx`       | 持仓管理                                  |
+| `OnboardingFlow.jsx`    | 认证侧 onboarding                         |
+| `FirstRunSetupFlow.jsx` | 登录后首次设置（localStorage 按用户记录） |
+| `ResearchTab.jsx`       | AI 研究工具                               |
+| `ProofTab.jsx`          | 证据 & 回测                               |
+| `SignalsTab.jsx`        | 信号列表                                  |
+| `AiPage.jsx`            | Nova 助手对话页                           |
+| `RiskTab.jsx`           | 风险仪表盘                                |
+| `MarketTab.jsx`         | 市场概况                                  |
+| `WeeklyReviewTab.jsx`   | 周度复盘                                  |
+| `DisciplineTab.jsx`     | 纪律执行                                  |
+| `LearningLoopTab.jsx`   | 学习循环                                  |
+| `SettingsTab.jsx`       | 设置                                      |
+| `DataStatusTab.jsx`     | 数据状态                                  |
 
 ### 7.3 Hooks (11 个)
 
-| Hook                       | 功能                           |
-| -------------------------- | ------------------------------ |
-| `useAuth.js`               | 认证生命周期 (登录/注册/登出)  |
-| `useBilling.js`            | 全站订阅层级与计费门户状态同步 |
-| `useAppData.js`            | 多端点并行数据加载 + 自动刷新  |
-| `useEngagement.js`         | 参与/纪律/执行记录             |
-| `useInvestorDemo.js`       | 投资者 Demo 模式 & 持仓覆盖    |
-| `useNavigation.js`         | Tab/栈导航 & AI 路由           |
-| `useNovaAssistant.js`      | Nova 助手交互状态              |
-| `useDemoAssistant.js`      | Demo 模式助手                  |
-| `useLocalStorage.js`       | 本地存储封装                   |
-| `useMembership.js`         | 会员状态同步                   |
-| `useControlPlaneStatus.js` | 控制面板状态                   |
+| Hook                       | 功能                                       |
+| -------------------------- | ------------------------------------------ |
+| `useAuth.js`               | 认证生命周期；应用会话 `roles` / `isAdmin` |
+| `useBilling.js`            | 全站订阅层级与计费门户状态同步             |
+| `useAppData.js`            | 多端点并行数据加载 + 自动刷新              |
+| `useEngagement.js`         | 参与/纪律/执行记录                         |
+| `useInvestorDemo.js`       | 投资者 Demo（需构建开关 + ADMIN 会话）     |
+| `useNavigation.js`         | Tab/栈导航 & AI 路由                       |
+| `useNovaAssistant.js`      | Nova 助手交互状态                          |
+| `useDemoAssistant.js`      | Demo 模式助手                              |
+| `useLocalStorage.js`       | 本地存储封装                               |
+| `useMembership.js`         | 会员状态同步                               |
+| `useControlPlaneStatus.js` | 控制面板状态                               |
 
 ### 7.4 工具函数 (`src/utils/`)
 
-`api.js` (API 客户端)、`tradeIntent.js` (交易意图解析)、`holdingsSource.js` (持仓数据源)、`browseWarmup.js` (浏览预热)、`assistantLanguage.js` (助手语言)、`format.js`、`provenance.js`、`downloads.js`
+`api.js`（含本地开发下多候选 API base 与 404/405/HTML 回退）、`apiBase.js`（运行时 base 列表）、`tradeIntent.js`、`holdingsSource.js`、`browseWarmup.js`、`assistantLanguage.js`、`format.js`、`provenance.js`、`downloads.js`
+
+### 7.5 会话、演示与本地 API 发现
+
+- **会话载荷：** 服务端 `handleAuthSession` / `handleGetAuthProfile` 在 `authenticated` 响应中带 `roles: string[]` 与 `isAdmin: boolean`（`getEffectiveAuthRolesForUser` 合并数据库角色行与 `NOVA_ADMIN_EMAILS` / `NOVA_OWNER_EMAIL` 等环境解析）。前端登录成功后写入 `authSession.roles` / `isAdmin`。
+- **投资者演示：** 入口由 `VITE_ENABLE_DEMO_ENTRY` 控制（`!== '0'` 时允许展示入口）；**实际启用**还需当前用户 `isAdmin === true`，否则 `useInvestorDemo` 会关闭演示并恢复备份数据。
+- **本地联调：** 当前端与 API 基地址不一致时，`fetchApi` 可对 `/api/*` 在 404、405 或 HTML 响应时尝试下一候选 base（含生产 API 主机名），减少「只起 Vite、未起本地 API」时的假失败。
 
 ---
 
@@ -591,7 +599,7 @@ src/research/
 ## 14. 测试体系
 
 - **框架**: Vitest 4 + Supertest
-- **测试文件**: 133 个 (均在 `tests/` 目录)
+- **测试文件**: 约 138 个 (均在 `tests/` 目录)
 - **覆盖率**: `@vitest/coverage-v8`
 
 ```bash
@@ -629,25 +637,27 @@ npm run stress:reliability  # 可靠性压力测试
 
 ## 17. 环境变量一览
 
-| 变量                           | 用途                                         |
-| ------------------------------ | -------------------------------------------- |
-| `NOVA_DATA_DATABASE_URL`       | Supabase 业务数据连接                        |
-| `NOVA_AUTH_DATABASE_URL`       | Supabase 认证数据连接                        |
-| `NOVA_DATA_PG_SCHEMA`          | 业务镜像 Schema (默认 novaquant_data)        |
-| `NOVA_DATA_PG_POOL_MAX`        | 业务镜像连接池大小                           |
-| `NOVA_AUTH_DRIVER`             | 认证驱动 (postgres)                          |
-| `MASSIVE_API_KEY`              | Massive.com 数据 API                         |
-| `ALPHA_VANTAGE_API_KEY`        | 股票/ETF 搜索增强                            |
-| `COINGECKO_API_KEY`            | 加密货币搜索增强                             |
-| `NOVA_ALPHA_DISCOVERY_*`       | Alpha 发现循环配置                           |
-| `GEMINI_API_KEY`               | Google Gemini LLM                            |
-| `OPENAI_API_KEY`               | OpenAI LLM                                   |
-| `GROQ_API_KEY`                 | Groq LLM                                     |
-| `OLLAMA_BASE_URL`              | Ollama 端点 (默认 http://127.0.0.1:11434/v1) |
-| `STRIPE_SECRET_KEY`            | Stripe 计费门户后端通信密钥                  |
-| `STRIPE_WEBHOOK_SECRET`        | Stripe Webhook 安全验签密钥                  |
-| `SERVE_WEB_DIST`               | EC2 单机部署模式                             |
-| `NOVA_ENABLE_SEEDED_DEMO_USER` | 启用内置演示用户                             |
+| 变量                           | 用途                                                           |
+| ------------------------------ | -------------------------------------------------------------- |
+| `NOVA_DATA_DATABASE_URL`       | Supabase 业务数据连接                                          |
+| `NOVA_AUTH_DATABASE_URL`       | Supabase 认证数据连接                                          |
+| `NOVA_DATA_PG_SCHEMA`          | 业务镜像 Schema (默认 novaquant_data)                          |
+| `NOVA_DATA_PG_POOL_MAX`        | 业务镜像连接池大小                                             |
+| `NOVA_AUTH_DRIVER`             | 认证驱动 (postgres)                                            |
+| `MASSIVE_API_KEY`              | Massive.com 数据 API                                           |
+| `ALPHA_VANTAGE_API_KEY`        | 股票/ETF 搜索增强                                              |
+| `COINGECKO_API_KEY`            | 加密货币搜索增强                                               |
+| `NOVA_ALPHA_DISCOVERY_*`       | Alpha 发现循环配置                                             |
+| `GEMINI_API_KEY`               | Google Gemini LLM                                              |
+| `OPENAI_API_KEY`               | OpenAI LLM                                                     |
+| `GROQ_API_KEY`                 | Groq LLM                                                       |
+| `OLLAMA_BASE_URL`              | Ollama 端点 (默认 http://127.0.0.1:11434/v1)                   |
+| `STRIPE_SECRET_KEY`            | Stripe 计费门户后端通信密钥                                    |
+| `STRIPE_WEBHOOK_SECRET`        | Stripe Webhook 安全验签密钥                                    |
+| `SERVE_WEB_DIST`               | EC2 单机部署模式                                               |
+| `NOVA_ENABLE_SEEDED_DEMO_USER` | 启用内置演示用户                                               |
+| `NOVA_ADMIN_EMAILS`            | 逗号分隔邮箱列表，解析为 `ADMIN` 角色（与会话 `isAdmin` 对齐） |
+| `VITE_ENABLE_DEMO_ENTRY`       | 构建时设为 `0` 可隐藏投资者演示入口（仍需 ADMIN 才能启用演示） |
 
 ---
 
@@ -670,7 +680,7 @@ npm test && npm run lint && npm run typecheck && npm run build && npm run verify
 
 ## 19. 文档索引
 
-全部技术文档位于 `docs/` (88 个文件)。核心文档:
+专题与深度说明位于 `docs/`（文件数量随迭代变化，不在此硬编码统计）。以下为常用入口示例:
 
 | 文档                                  | 内容            |
 | ------------------------------------- | --------------- |

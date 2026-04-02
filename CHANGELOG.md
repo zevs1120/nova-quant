@@ -94,6 +94,18 @@ NovaQuant 所有重要变更记录于此。
   - Vitest 运行时默认固定到隔离 legacy local runtime，并禁用 Postgres mirror 写入；只有显式声明的 Postgres/runtime 测试才会重新打开对应路径，保证 `npm run verify` 在本地可重复且不依赖真实 Supabase 网络。
   - 对齐新的 runtime bundle / mirror 读写路径，修复 Postgres fallback 与 mirror consistency 测试中过时的断言和数据桩。
 
+## 10.21.3 (2026-04-02)
+
+- 发布类型：**patch**（首次设置 / 信号有效期 / 鉴权会话与演示收口 + 文档同步）
+
+- **Feat(app,ui,signal,auth): 首次设置、信号有效期 UI、鉴权角色载荷与演示模式收口。**
+  - **Feat(app,auth,ai,ui):** 登录且非 onboarding / 非演示 / 非找回密码时展示 `FirstRunSetupFlow`（目标、风险画像、市场焦点、自选最多 5 只）；按 `userId` 将完成或跳过写入 `localStorage`（`nova-quant-first-run-setup-by-user`），完成后按目标跳转 Today / Browse / My。`AiPage` 重组滚动结构：关联上下文、用量条与空态/线程同轨；快捷建议 chip 仅在无消息线程时显示。`src/server/chat/prompts.ts` 增加行动卡「翻译摘要」装配（`formatActionCardTranslationBrief` 等），便于 Nova 解释当前焦点信号；`tests/chatPrompt.test.ts` 覆盖。
+  - **Feat(ui,signal):** `TodayTab` 行动卡增加有效期解析（`valid_until_at` / `expires_at`、horizon 文本或天数回推）、美东与 UTC 展示、倒计时 pill（每秒刷新、30 分钟内警告、过期态）与中英失效说明（止损 + 「未在截止前触发」等）；`today-final.css` / `corrections.css` 强化滑动动效。
+  - **Fix(auth,ui,onboarding):** `handleAuthSession` / `handleGetAuthProfile` 返回 `roles` 与 `isAdmin`（`getEffectiveAuthRolesForUser` + DB 角色行 + `NOVA_ADMIN_EMAILS` / `NOVA_OWNER_EMAIL` 等）；前端 `useAuth` 将会话角色规范化并设置 `isAdmin`。投资者演示：仅当构建时 `VITE_ENABLE_DEMO_ENTRY !== '0'` **且** 当前用户为 ADMIN 时可开启；`useInvestorDemo` 在失权时自动关闭演示并清理备份。本地 `fetchApi`：在 localhost 上对 `/api/*` 若收到 404/405 或 HTML 响应则轮换候选 API base（含 `https://api.novaquant.cloud`）。首次设置流换步滚动回顶、footer 与全屏层滚动/安全区样式优化。
+  - **Test:** `tests/authLoginApi.test.ts` 断言 `roles` / `isAdmin` 及 `NOVA_ADMIN_EMAILS` 场景；`tests/apiFallback.test.ts` 等覆盖本地 base 轮换。
+
+- **Docs:** 更新根目录 `architecture.md`、`CLAUDE.md`、`AGENTS.md`（五段部署、模块规模、会话/演示/API 发现说明）；`CHANGELOG` 与本版本号、`README` 版本行由 `version-manager` 同步。
+
 ## 10.21.2 (2026-04-01)
 
 - 发布类型：**patch**（Qlib Bridge 接口契约全面对齐）
