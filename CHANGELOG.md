@@ -4,6 +4,16 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+- **Fix(ui,manual): MenuTab 交互层三项 bug 修复。**
+  - **Bug 1（中）预测提交成功后 pick 状态残留**：`handleSubmitPrediction` 在成功路径新增 `setPredictionPickById` 删除对应 key，确保提交成功后选项立即清除，防止在后端状态刷新延迟期间出现可重复点击的短暂窗口。
+  - **Bug 2（低）反馈文案永久驻留**：`referralMessage`、`predictionMessage`、`shareFeedback` 三类提示文字统一增加 4 秒自动消失（`useEffect` + `useRef` timer，防重复 & 组件卸载自动清除）。
+  - **Import**：补充 `useEffect`、`useRef` import。
+
+- **Feat(ui,manual): 主壳打通预测提交、邀请码 claim、首次设置 onboarding 领奖。**
+  - **Frontend：** `useEngagement` 经 `fetchApi` 调用 `POST /api/manual/predictions/entry`、`/referrals/claim`、`/bonuses/onboarding`；`MenuTab` 预测游戏与奖励页接线；`App` 在 `FirstRunSetupFlow` 完成后触发 onboarding 领奖（非 Demo 运行时）。
+  - **Docs：** `docs/MANUAL_POINTS_AND_PREDICTION.md`、`architecture.md` 补充主壳接线说明。
+  - **Test：** `tests/hooks/useEngagement.hook.test.ts` 补充 Demo 模式下邀请码 claim。
+
 - **Fix(manual,db): 并发安全加固与代码审查问题修复。**
   - **Service：** `claimManualOnboardingBonus`、`manualDailyCheckin`、`claimManualReferral` 的去重检查移入 `runManualTransaction` + `FOR UPDATE`，消除 TOCTOU 双授竞态；签到 streak 奖励链式传递 `knownBalance` 防止同毫秒余额错乱。
   - **Schema：** `manualGamificationSchemaPatchStatements` 补全 3 张新表 `CREATE TABLE IF NOT EXISTS`（`manual_checkins`、`manual_main_prediction_daily`、`manual_engagement_daily`）+ 索引，确保存量库升级路径完整；in-memory harness 跳过 patch 中 CREATE TABLE/INDEX（bootstrap 已建表）。

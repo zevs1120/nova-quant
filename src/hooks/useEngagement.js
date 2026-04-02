@@ -1,6 +1,26 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { DEMO_MANUAL_STATE } from '../config/appConstants';
 import { localDateKey, weekStartKey, addUniqueKey, calcStreak } from '../utils/date';
+import { fetchApi } from '../utils/api';
+
+async function postManualJson(path, body) {
+  const response = await fetchApi(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(body ?? {}),
+  });
+  let payload = null;
+  try {
+    payload = await response.json();
+  } catch {
+    payload = null;
+  }
+  if (!response.ok) {
+    return { ok: false, error: payload?.error || 'REQUEST_FAILED', payload };
+  }
+  return { ok: true, payload };
+}
 
 /**
  * Handles engagement state loading, daily check-in, boundary, wrap-up, weekly review,
@@ -348,6 +368,102 @@ export function useEngagement({
     [effectiveUserId, isDemoRuntime, refreshManualState, fetchJson],
   );
 
+  const claimManualReferral = useCallback(
+    async (inviteCode) => {
+      const raw = String(inviteCode || '').trim();
+      if (isDemoRuntime) {
+        setManualState((current) => {
+          const base = current || DEMO_MANUAL_STATE;
+          return {
+            ...base,
+            referrals: {
+              ...base.referrals,
+              referredByCode: raw.toUpperCase() || base.referrals?.referredByCode,
+            },
+            summary: {
+              ...base.summary,
+              balance: Number(base.summary?.balance || 0) + 500,
+            },
+          };
+        });
+        return { ok: true, error: null };
+      }
+      const result = await postManualJson('/api/manual/referrals/claim', { inviteCode: raw });
+      if (result.ok && result.payload?.data) {
+        setManualState(result.payload.data);
+        return { ok: true, error: null };
+      }
+      await refreshManualState().catch(() => {});
+      return { ok: false, error: result.error || 'REQUEST_FAILED' };
+    },
+    [isDemoRuntime, refreshManualState],
+  );
+
+  const submitManualPrediction = useCallback(
+    async ({ marketId, selectedOption, pointsStaked }) => {
+      if (isDemoRuntime) {
+        setManualState((current) => {
+          const base = current || DEMO_MANUAL_STATE;
+          const list = Array.isArray(base.predictions) ? base.predictions : [];
+          const next = list.map((m) =>
+            String(m.id) === String(marketId)
+              ? {
+                  ...m,
+                  entry: {
+                    selectedOption: String(selectedOption || ''),
+                    status: 'OPEN',
+                    pointsStaked: Number(pointsStaked || 0),
+                    pointsAwarded: 0,
+                  },
+                }
+              : m,
+          );
+          return { ...base, predictions: next };
+        });
+        return { ok: true, error: null };
+      }
+      const result = await postManualJson('/api/manual/predictions/entry', {
+        marketId: String(marketId || ''),
+        selectedOption: String(selectedOption || ''),
+        pointsStaked,
+      });
+      if (result.ok && result.payload?.data) {
+        setManualState(result.payload.data);
+        return { ok: true, error: null };
+      }
+      await refreshManualState().catch(() => {});
+      return { ok: false, error: result.error || 'REQUEST_FAILED' };
+    },
+    [isDemoRuntime, refreshManualState],
+  );
+
+  const claimManualOnboardingBonus = useCallback(async () => {
+    if (isDemoRuntime) {
+      setManualState((current) => {
+        const base = current || DEMO_MANUAL_STATE;
+        return {
+          ...base,
+          summary: {
+            ...base.summary,
+            balance: Number(base.summary?.balance || 0) + 700,
+          },
+        };
+      });
+      return { ok: true, error: null };
+    }
+    const result = await postManualJson('/api/manual/bonuses/onboarding', {});
+    if (result.ok && result.payload?.data) {
+      setManualState(result.payload.data);
+      return { ok: true, error: null, referralStage2: result.payload?.referralStage2 };
+    }
+    if (result.error === 'ONBOARDING_BONUS_ALREADY_CLAIMED') {
+      await refreshManualState().catch(() => {});
+      return { ok: true, error: null, skipped: true };
+    }
+    await refreshManualState().catch(() => {});
+    return { ok: false, error: result.error || 'REQUEST_FAILED' };
+  }, [isDemoRuntime, refreshManualState]);
+
   return {
     engagementState,
     setEngagementState,
@@ -362,5 +478,9 @@ export function useEngagement({
     markWeeklyReviewed,
     recordExecution,
     redeemVipDay,
+    refreshManualState,
+    claimManualReferral,
+    submitManualPrediction,
+    claimManualOnboardingBonus,
   };
 }

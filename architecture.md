@@ -276,10 +276,10 @@ nova-quant/
 │  ResearchTab ────── AI 研究工具                                      │
 │  AiPage ─────────── Nova 助手对话                                   │
 │  BrowseTab ──────── 资产浏览 & 搜索                                 │
-│  MenuTab ────────── 设置 & 高级功能                                  │
+│  MenuTab ────────── 设置 & 高级功能（含积分中心 / 预测游戏 / 邀请等 manual UI）│
 │  WeeklyReviewTab ── 周度复盘                                        │
 │  OnboardingFlow ─── 注册/登录侧 onboarding                            │
-│  FirstRunSetupFlow ─ 登录后首次设置（目标/风险/市场/自选）            │
+│  FirstRunSetupFlow ─ 登录后首次设置（完成后触发 onboarding 积分领奖）  │
 │  DisciplineTab ──── 纪律执行                                        │
 │  DataStatusTab ──── 数据状态                                        │
 │  LearningLoopTab ── 学习循环                                        │
@@ -399,42 +399,42 @@ alpha_promotion_guard/→ 晋升守卫 (Shadow → Canary → Prod)
 
 ### 7.2 主要组件 (29 个)
 
-| 组件                    | 职责                                      |
-| ----------------------- | ----------------------------------------- |
-| `App.jsx`               | 薄编排壳 (hooks + 渲染)                   |
-| `TodayTab.jsx`          | 今日决策面板 (首页；信号有效期与失效说明) |
-| `MenuTab.jsx`           | 设置 & 高级功能                           |
-| `BrowseTab.jsx`         | 资产浏览 & 搜索                           |
-| `HoldingsTab.jsx`       | 持仓管理                                  |
-| `OnboardingFlow.jsx`    | 认证侧 onboarding                         |
-| `FirstRunSetupFlow.jsx` | 登录后首次设置（localStorage 按用户记录） |
-| `ResearchTab.jsx`       | AI 研究工具                               |
-| `ProofTab.jsx`          | 证据 & 回测                               |
-| `SignalsTab.jsx`        | 信号列表                                  |
-| `AiPage.jsx`            | Nova 助手对话页                           |
-| `RiskTab.jsx`           | 风险仪表盘                                |
-| `MarketTab.jsx`         | 市场概况                                  |
-| `WeeklyReviewTab.jsx`   | 周度复盘                                  |
-| `DisciplineTab.jsx`     | 纪律执行                                  |
-| `LearningLoopTab.jsx`   | 学习循环                                  |
-| `SettingsTab.jsx`       | 设置                                      |
-| `DataStatusTab.jsx`     | 数据状态                                  |
+| 组件                    | 职责                                            |
+| ----------------------- | ----------------------------------------------- |
+| `App.jsx`               | 薄编排壳 (hooks + 渲染)                         |
+| `TodayTab.jsx`          | 今日决策面板 (首页；信号有效期与失效说明)       |
+| `MenuTab.jsx`           | 设置 & 高级功能；积分 / 预测 / 邀请 manual 接线 |
+| `BrowseTab.jsx`         | 资产浏览 & 搜索                                 |
+| `HoldingsTab.jsx`       | 持仓管理                                        |
+| `OnboardingFlow.jsx`    | 认证侧 onboarding                               |
+| `FirstRunSetupFlow.jsx` | 登录后首次设置（localStorage 按用户记录）       |
+| `ResearchTab.jsx`       | AI 研究工具                                     |
+| `ProofTab.jsx`          | 证据 & 回测                                     |
+| `SignalsTab.jsx`        | 信号列表                                        |
+| `AiPage.jsx`            | Nova 助手对话页                                 |
+| `RiskTab.jsx`           | 风险仪表盘                                      |
+| `MarketTab.jsx`         | 市场概况                                        |
+| `WeeklyReviewTab.jsx`   | 周度复盘                                        |
+| `DisciplineTab.jsx`     | 纪律执行                                        |
+| `LearningLoopTab.jsx`   | 学习循环                                        |
+| `SettingsTab.jsx`       | 设置                                            |
+| `DataStatusTab.jsx`     | 数据状态                                        |
 
 ### 7.3 Hooks (11 个)
 
-| Hook                       | 功能                                       |
-| -------------------------- | ------------------------------------------ |
-| `useAuth.js`               | 认证生命周期；应用会话 `roles` / `isAdmin` |
-| `useBilling.js`            | 全站订阅层级与计费门户状态同步             |
-| `useAppData.js`            | 多端点并行数据加载 + 自动刷新              |
-| `useEngagement.js`         | 参与/纪律/执行记录                         |
-| `useInvestorDemo.js`       | 投资者 Demo（需构建开关 + ADMIN 会话）     |
-| `useNavigation.js`         | Tab/栈导航 & AI 路由                       |
-| `useNovaAssistant.js`      | Nova 助手交互状态                          |
-| `useDemoAssistant.js`      | Demo 模式助手                              |
-| `useLocalStorage.js`       | 本地存储封装                               |
-| `useMembership.js`         | 会员状态同步                               |
-| `useControlPlaneStatus.js` | 控制面板状态                               |
+| Hook                       | 功能                                                              |
+| -------------------------- | ----------------------------------------------------------------- |
+| `useAuth.js`               | 认证生命周期；应用会话 `roles` / `isAdmin`                        |
+| `useBilling.js`            | 全站订阅层级与计费门户状态同步                                    |
+| `useAppData.js`            | 多端点并行数据加载 + 自动刷新                                     |
+| `useEngagement.js`         | 参与/纪律/执行记录；manual state 与 VIP/预测/邀请/onboarding POST |
+| `useInvestorDemo.js`       | 投资者 Demo（需构建开关 + ADMIN 会话）                            |
+| `useNavigation.js`         | Tab/栈导航 & AI 路由                                              |
+| `useNovaAssistant.js`      | Nova 助手交互状态                                                 |
+| `useDemoAssistant.js`      | Demo 模式助手                                                     |
+| `useLocalStorage.js`       | 本地存储封装                                                      |
+| `useMembership.js`         | 会员状态同步                                                      |
+| `useControlPlaneStatus.js` | 控制面板状态                                                      |
 
 ### 7.4 工具函数 (`src/utils/`)
 

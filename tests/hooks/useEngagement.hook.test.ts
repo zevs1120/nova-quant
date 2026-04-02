@@ -107,4 +107,17 @@ describe('useEngagement', () => {
     });
     expect(setExecutions).toHaveBeenCalled();
   });
+
+  it('claimManualReferral updates demo manual referredByCode', async () => {
+    const fetchJson = vi.fn();
+    const { result } = renderHook(() =>
+      useEngagement(buildArgs({ isDemoRuntime: true, fetchJson })),
+    );
+    await waitFor(() => expect(result.current.manualState?.mode).toBe('DEMO'));
+    await act(async () => {
+      const r = await result.current.claimManualReferral('friend-code');
+      expect(r?.ok).toBe(true);
+    });
+    expect(result.current.manualState?.referrals?.referredByCode).toBe('FRIEND-CODE');
+  });
 });

@@ -62,6 +62,22 @@
 
 `GET /api/manual/state` 与 `Cache-Control: private, no-store` 一同列入 `app.ts` 的 user-scoped GET 列表，避免共享缓存串号。
 
+## 主 Web 壳接线（根目录 Vite）
+
+实现位置：`src/hooks/useEngagement.js`（mutating 请求经 `fetchApi` 发起，便于读取 4xx 响应体中的 `error` 码）、`src/components/MenuTab.jsx`、`src/App.jsx`。
+
+| 用户可见入口                                         | HTTP                                                                                                                       |
+| ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| 菜单 · 积分中心 / 预测游戏 / 奖励与邀请等            | `GET /api/manual/state`（展示 dashboard；与 VIP 兑换等读路径一致）                                                         |
+| 积分中心 · VIP 兑换                                  | `POST /api/manual/rewards/redeem`                                                                                          |
+| `FirstRunSetupFlow` 完成「进入系统」（非演示运行时） | `POST /api/manual/bonuses/onboarding`（已领过时服务端返回 `ONBOARDING_BONUS_ALREADY_CLAIMED`，前端视为可继续并刷新 state） |
+| 奖励页 · 填写好友邀请码                              | `POST /api/manual/referrals/claim`                                                                                         |
+| 预测游戏页 · `OPEN` 且本人尚无 entry 的题目          | `POST /api/manual/predictions/entry`                                                                                       |
+
+**尚未在主壳从 UI 调用的用户侧 POST**（后端仍可用 Postman/脚本调用）：`/api/manual/checkin`、`/api/manual/engagement/signal`、`/api/manual/referrals/complete-stage2`（阶段二仍可由 onboarding 接口内顺带尝试）。**管理端结算** `POST /api/admin/manual/predictions/settle` 无专用管理前端页。
+
+投资者演示（Demo）运行时：上述 mutating 为本地乐观更新，不真实请求 API。
+
 ## 管理端结算
 
 - `POST /api/admin/manual/predictions/settle`，JSON：`{ "marketId", "correctOption" }`。
@@ -82,6 +98,7 @@
 - `tests/manualService*.test.ts` — 守卫与规则形状
 - `tests/manualGamificationIntegration.test.ts` — MAIN 场结算、MAIN 日限次、engagement 幂等、推荐阶段二幂等、签到+连续签到、onboarding 幂等（in-memory Postgres）
 - `tests/manualApiRoutes.test.ts` — 未登录时 mutating 路由返回 401
+- `tests/hooks/useEngagement.hook.test.ts` — 含 manual 演示模式下 `claimManualReferral` 等钩子行为
 
 ## 合规与产品表述
 

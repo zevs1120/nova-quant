@@ -289,6 +289,9 @@ export default function App() {
     markWeeklyReviewed,
     recordExecution,
     redeemVipDay,
+    claimManualReferral,
+    submitManualPrediction,
+    claimManualOnboardingBonus,
   } = useEngagement({
     fetchJson,
     effectiveUserId,
@@ -517,9 +520,15 @@ export default function App() {
       const targetTab = resolveFirstRunTarget(payload?.goal, payload?.currentState);
       setMyStack(['portfolio']);
       setActiveTab(targetTab);
+
+      if (!isDemoRuntime) {
+        void claimManualOnboardingBonus();
+      }
     },
     [
       authSession?.userId,
+      claimManualOnboardingBonus,
+      isDemoRuntime,
       riskProfileKey,
       setActiveTab,
       setAssetClass,
@@ -1016,6 +1025,8 @@ export default function App() {
             enableInvestorDemo();
           }}
           onRedeemVip={redeemVipDay}
+          onClaimReferral={claimManualReferral}
+          onSubmitPrediction={submitManualPrediction}
           onOpenAbout={() => setAboutOpen(true)}
           onLogout={() => {
             clearInvestorDemo();

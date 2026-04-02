@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { buildMembershipPlans, normalizeMembershipPlan } from '../utils/membership';
 
 const MENU_GROUPS = [
@@ -74,7 +74,58 @@ function localeCopy(locale) {
     marketDescription: zh ? '更宽的市场背景和观察。' : 'Broader context and market notes.',
     settingsDescription: zh ? '语言、偏好和模式设置。' : 'Language, preferences, and modes.',
     username: zh ? '用户名' : 'Username',
+    enterFriendCode: zh ? '填写好友邀请码' : 'Enter a friend’s invite code',
+    claimInviteCta: zh ? '提交邀请码' : 'Apply code',
+    linkedInvite: zh ? '已绑定邀请码' : 'Invite code linked',
+    predictPickHint: zh ? '选择你的判断' : 'Pick your call',
+    predictStakeFree: zh ? '本场免费，不扣积分。' : 'Free round — no points staked.',
+    predictStakeMain: (n) =>
+      zh
+        ? `主玩法将冻结 ${n} 积分（结算后按规则返还或奖励）。`
+        : `Main round locks ${n} points until settlement.`,
+    predictStakeStd: (n) => (zh ? `将押注 ${n} 积分。` : `Stakes ${n} points.`),
+    predictSubmit: zh ? '提交预测' : 'Submit pick',
+    predictSubmitting: zh ? '提交中…' : 'Submitting…',
+    predictClosed: zh ? '本场已截止或未开放提交。' : 'This round is closed for entries.',
+    predictLocked: zh ? '已提交，等待结算。' : 'Entry locked — awaiting settlement.',
+    errInviteRequired: zh ? '请输入邀请码。' : 'Enter an invite code.',
+    errSelfReferral: zh ? '不能使用自己的邀请码。' : 'You can’t use your own code.',
+    errReferralClaimed: zh ? '你已经绑定过邀请关系。' : 'You already linked an invite.',
+    errInviteInvalid: zh ? '邀请码无效。' : 'That invite code isn’t valid.',
+    errPredictionClosed: zh ? '本场已截止。' : 'This market is closed.',
+    errPredictionDuplicate: zh ? '你已经提交过本题。' : 'You already entered this market.',
+    errPredictionOption: zh ? '请选择有效选项。' : 'Pick a valid option.',
+    errGeneric: zh ? '暂时无法完成，请稍后再试。' : 'Something went wrong. Try again.',
+    referralClaimOk: zh ? '邀请码已记录。' : 'Invite code applied.',
   };
+}
+
+function mapManualMutationError(code, copy) {
+  switch (code) {
+    case 'INVITE_CODE_REQUIRED':
+      return copy.errInviteRequired;
+    case 'SELF_REFERRAL_NOT_ALLOWED':
+      return copy.errSelfReferral;
+    case 'REFERRAL_ALREADY_CLAIMED':
+      return copy.errReferralClaimed;
+    case 'INVITE_CODE_INVALID':
+      return copy.errInviteInvalid;
+    case 'PREDICTION_CLOSED':
+      return copy.errPredictionClosed;
+    case 'PREDICTION_ALREADY_SUBMITTED':
+      return copy.errPredictionDuplicate;
+    case 'PREDICTION_OPTION_INVALID':
+    case 'PREDICTION_INPUT_REQUIRED':
+      return copy.errPredictionOption;
+    default:
+      return copy.errGeneric;
+  }
+}
+
+function stakeForPredictionMarket(item, rules) {
+  if (item?.marketKind === 'FREE_DAILY') return 0;
+  if (item?.marketKind === 'MAIN') return Number(rules?.mainPredictionStake ?? 100);
+  return Number(rules?.defaultPredictionStake ?? 100);
 }
 
 function buildVersionLabel(appMeta) {
@@ -213,6 +264,8 @@ export default function MenuTab({
   demoEnabled = false,
   onToggleDemo,
   onRedeemVip,
+  onClaimReferral,
+  onSubmitPrediction,
   onOpenAbout,
   onLogout,
   appMeta,
@@ -242,7 +295,14 @@ export default function MenuTab({
     total: 0,
     rewarded: 0,
   };
+  const rules = manualState?.rules || {};
   const [shareFeedback, setShareFeedback] = useState('');
+  const [inviteCodeDraft, setInviteCodeDraft] = useState('');
+  const [referralBusy, setReferralBusy] = useState(false);
+  const [referralMessage, setReferralMessage] = useState('');
+  const [predictionPickById, setPredictionPickById] = useState({});
+  const [predictionBusyId, setPredictionBusyId] = useState(null);
+  const [predictionMessage, setPredictionMessage] = useState('');
   const [profileVisibility, setProfileVisibility] = useState('none');
   const [deviceSecurityMode, setDeviceSecurityMode] = useState('face-id');
   const [privacyPersonalization, setPrivacyPersonalization] = useState(true);
@@ -255,6 +315,93 @@ export default function MenuTab({
     membershipPlans.find((item) => item.key === normalizedMembershipPlan) || membershipPlans[0];
   const inviteLink = useMemo(() => buildInviteLink(referrals, username), [referrals, username]);
   const firstName = useMemo(() => firstNameFromUsername(username), [username]);
+
+  // Auto-clear transient feedback messages after 4 s so they never get stuck.
+  const shareFeedbackTimerRef = useRef(null);
+  const referralMessageTimerRef = useRef(null);
+  const predictionMessageTimerRef = useRef(null);
+
+  useEffect(() => {
+    if (!shareFeedback) return;
+    clearTimeout(shareFeedbackTimerRef.current);
+    shareFeedbackTimerRef.current = setTimeout(() => setShareFeedback(''), 4000);
+    return () => clearTimeout(shareFeedbackTimerRef.current);
+  }, [shareFeedback]);
+
+  useEffect(() => {
+    if (!referralMessage) return;
+    clearTimeout(referralMessageTimerRef.current);
+    referralMessageTimerRef.current = setTimeout(() => setReferralMessage(''), 4000);
+    return () => clearTimeout(referralMessageTimerRef.current);
+  }, [referralMessage]);
+
+  useEffect(() => {
+    if (!predictionMessage) return;
+    clearTimeout(predictionMessageTimerRef.current);
+    predictionMessageTimerRef.current = setTimeout(() => setPredictionMessage(''), 4000);
+    return () => clearTimeout(predictionMessageTimerRef.current);
+  }, [predictionMessage]);
+
+  const handleClaimReferral = useCallback(async () => {
+    const trimmed = String(inviteCodeDraft || '').trim();
+    if (!trimmed) {
+      setReferralMessage(copy.errInviteRequired);
+      return;
+    }
+    if (!onClaimReferral) return;
+    setReferralBusy(true);
+    setReferralMessage('');
+    try {
+      const result = await onClaimReferral(trimmed);
+      if (result?.ok) {
+        setInviteCodeDraft('');
+        setReferralMessage(copy.referralClaimOk);
+      } else {
+        setReferralMessage(mapManualMutationError(result?.error, copy));
+      }
+    } catch {
+      setReferralMessage(copy.errGeneric);
+    } finally {
+      setReferralBusy(false);
+    }
+  }, [copy, inviteCodeDraft, onClaimReferral]);
+
+  const handleSubmitPrediction = useCallback(
+    async (item) => {
+      if (!onSubmitPrediction || !item?.id) return;
+      const selected = predictionPickById[item.id];
+      if (!selected) {
+        setPredictionMessage(copy.errPredictionOption);
+        return;
+      }
+      const stake = stakeForPredictionMarket(item, rules);
+      setPredictionBusyId(item.id);
+      setPredictionMessage('');
+      try {
+        const result = await onSubmitPrediction({
+          marketId: item.id,
+          selectedOption: selected,
+          pointsStaked: stake,
+        });
+        if (result?.ok) {
+          // Clear the stored pick so the card re-renders into the locked state
+          // immediately, even before the refreshed manualState arrives.
+          setPredictionPickById((prev) => {
+            const next = { ...prev };
+            delete next[item.id];
+            return next;
+          });
+        } else {
+          setPredictionMessage(mapManualMutationError(result?.error, copy));
+        }
+      } catch {
+        setPredictionMessage(copy.errGeneric);
+      } finally {
+        setPredictionBusyId(null);
+      }
+    },
+    [copy, onSubmitPrediction, predictionPickById, rules],
+  );
   const securityRows = [
     { key: 'create-passkey', title: isZh ? '创建通行密钥' : 'Create passkey' },
     { key: 'change-password', title: isZh ? '修改密码' : 'Change password' },
@@ -776,32 +923,99 @@ export default function MenuTab({
           <h1>{copy.predictionGames}</h1>
           <p>{copy.predictionCopy}</p>
         </div>
+        {predictionMessage ? <p className="menu-inline-feedback">{predictionMessage}</p> : null}
         <div className="menu-points-actions">
-          {(predictions.length
-            ? predictions.map((item) => ({
-                title: item.prompt,
-                copy: item.entry
-                  ? locale?.startsWith('zh')
-                    ? `已选择 ${item.entry.selectedOption} · ${item.entry.pointsStaked} 积分`
-                    : `${item.entry.selectedOption} selected · ${item.entry.pointsStaked} pts`
-                  : locale?.startsWith('zh')
-                    ? '等待题目开放或结算。'
-                    : 'Waiting for entry or settlement.',
-              }))
-            : [
-                locale?.startsWith('zh')
-                  ? { title: '当前没有正在进行的真实题目', copy: '新题目上线后会直接出现在这里。' }
-                  : {
-                      title: 'No live rounds right now',
-                      copy: 'New prediction markets will appear here as soon as they are published.',
-                    },
-              ]
-          ).map((item) => (
-            <article key={item.title} className="menu-primary-tile">
-              <span className="menu-primary-title">{item.title}</span>
-              <span className="menu-primary-copy">{item.copy}</span>
+          {predictions.length ? (
+            predictions.map((item) => {
+              const optLabel = (key) => item.options?.find((o) => o.key === key)?.label || key;
+              if (item.entry) {
+                return (
+                  <article key={item.id} className="menu-primary-tile">
+                    <span className="menu-primary-title">{item.prompt}</span>
+                    <span className="menu-primary-copy">
+                      {isZh
+                        ? `已选「${optLabel(item.entry.selectedOption)}」· ${item.entry.pointsStaked} 积分`
+                        : `${optLabel(item.entry.selectedOption)} selected · ${item.entry.pointsStaked} pts`}
+                    </span>
+                    <span className="menu-primary-copy menu-prediction-status-note">
+                      {copy.predictLocked}
+                    </span>
+                  </article>
+                );
+              }
+              if (item.status === 'OPEN') {
+                const stake = stakeForPredictionMarket(item, rules);
+                const busy = predictionBusyId === item.id;
+                const selected = predictionPickById[item.id];
+                return (
+                  <article
+                    key={item.id}
+                    className="menu-primary-tile menu-primary-tile-accent menu-prediction-entry-card"
+                  >
+                    <span className="menu-primary-title">{item.prompt}</span>
+                    {item.market || item.symbol ? (
+                      <span className="menu-prediction-meta">
+                        {[item.market, item.symbol].filter(Boolean).join(' · ')}
+                      </span>
+                    ) : null}
+                    <p className="menu-prediction-stake-hint">
+                      {stake === 0
+                        ? copy.predictStakeFree
+                        : item.marketKind === 'MAIN'
+                          ? copy.predictStakeMain(stake)
+                          : copy.predictStakeStd(stake)}
+                    </p>
+                    <p className="menu-primary-copy menu-prediction-pick-label">
+                      {copy.predictPickHint}
+                    </p>
+                    <div
+                      className="menu-prediction-options"
+                      role="group"
+                      aria-label={copy.predictPickHint}
+                    >
+                      {(item.options || []).map((opt) => (
+                        <button
+                          key={opt.key}
+                          type="button"
+                          className={`first-run-symbol-chip ${selected === opt.key ? 'is-active' : ''}`}
+                          onClick={() =>
+                            setPredictionPickById((prev) => ({ ...prev, [item.id]: opt.key }))
+                          }
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      className="menu-solid-cta menu-prediction-submit-cta"
+                      disabled={!selected || busy || !onSubmitPrediction}
+                      onClick={() => void handleSubmitPrediction(item)}
+                    >
+                      {busy ? copy.predictSubmitting : copy.predictSubmit}
+                    </button>
+                  </article>
+                );
+              }
+              return (
+                <article key={item.id} className="menu-primary-tile">
+                  <span className="menu-primary-title">{item.prompt}</span>
+                  <span className="menu-primary-copy">{copy.predictClosed}</span>
+                </article>
+              );
+            })
+          ) : (
+            <article className="menu-primary-tile">
+              <span className="menu-primary-title">
+                {isZh ? '当前没有正在进行的真实题目' : 'No live rounds right now'}
+              </span>
+              <span className="menu-primary-copy">
+                {isZh
+                  ? '新题目上线后会直接出现在这里。'
+                  : 'New markets appear here when published.'}
+              </span>
             </article>
-          ))}
+          )}
         </div>
       </section>
     );
@@ -868,6 +1082,40 @@ export default function MenuTab({
               <span>
                 {isZh ? `已邀请 ${referrals.total || 0} 人` : `${referrals.total || 0} invited`}
               </span>
+            </div>
+
+            <div className="menu-invite-claim-block">
+              <p className="menu-invite-claim-label">{copy.enterFriendCode}</p>
+              {referrals.referredByCode ? (
+                <p className="menu-invite-linked-note">
+                  {isZh
+                    ? `${copy.linkedInvite} · ${referrals.referredByCode}`
+                    : `${copy.linkedInvite}: ${referrals.referredByCode}`}
+                </p>
+              ) : (
+                <>
+                  <input
+                    type="text"
+                    className="menu-invite-code-field"
+                    inputMode="text"
+                    autoCapitalize="characters"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    placeholder={isZh ? '例如 NOVA123' : 'e.g. NOVA123'}
+                    value={inviteCodeDraft}
+                    onChange={(e) => setInviteCodeDraft(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="menu-outline-cta menu-invite-claim-button"
+                    disabled={referralBusy || !onClaimReferral}
+                    onClick={() => void handleClaimReferral()}
+                  >
+                    {referralBusy ? (isZh ? '提交中…' : 'Applying…') : copy.claimInviteCta}
+                  </button>
+                </>
+              )}
+              {referralMessage ? <p className="menu-inline-feedback">{referralMessage}</p> : null}
             </div>
 
             {shareFeedback ? <p className="menu-inline-feedback">{shareFeedback}</p> : null}
