@@ -782,6 +782,15 @@
   gap: 10px;
 }
 
+.today-action-head-pills {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: flex-start;
+  gap: 8px;
+}
+
 .today-action-kicker,
 .today-action-kicker {
   background: rgba(227, 230, 224, 0.72);
@@ -1609,6 +1618,7 @@
 }
 
 .today-action-card-swipe {
+  --gesture-progress: 0;
   position: relative;
   overflow: hidden;
   z-index: 2;
@@ -1622,12 +1632,29 @@
   border-radius: 24px;
   border: 1px solid rgba(255, 255, 255, 0.9);
   background:
+    radial-gradient(
+      circle at 12% 24%,
+      rgba(255, 62, 149, calc(var(--gesture-skip-strength, 0) * 0.26)),
+      transparent 30%
+    ),
+    radial-gradient(
+      circle at 88% 24%,
+      rgba(86, 212, 80, calc(var(--gesture-accept-strength, 0) * 0.26)),
+      transparent 30%
+    ),
+    radial-gradient(
+      circle at 50% 0%,
+      rgba(76, 140, 255, calc(var(--gesture-later-strength, 0) * 0.26)),
+      transparent 32%
+    ),
     radial-gradient(circle at 16% 10%, rgba(224, 247, 232, 0.72), transparent 30%),
     radial-gradient(circle at 88% 78%, rgba(219, 244, 250, 0.62), transparent 30%),
     radial-gradient(circle at 48% 50%, rgba(255, 255, 255, 0.92), transparent 44%),
     linear-gradient(180deg, rgba(255, 253, 249, 0.995), var(--today-card-surface));
   box-shadow:
-    0 22px 40px rgba(98, 98, 122, 0.1),
+    0 calc(22px + var(--gesture-progress, 0) * 18px) calc(40px + var(--gesture-progress, 0) * 22px)
+      rgba(98, 98, 122, calc(0.1 + var(--gesture-progress, 0) * 0.08)),
+    0 0 0 calc(var(--gesture-progress, 0) * 1.5px) rgba(255, 255, 255, 0.22),
     inset 0 1px 0 rgba(255, 255, 255, 0.96);
   touch-action: none;
   user-select: none;
@@ -1637,22 +1664,24 @@
   cursor: grab;
   will-change: transform;
   transform: translate3d(var(--gesture-x, 0px), var(--gesture-y, 0px), 0)
-    rotate(var(--gesture-rotate, 0deg));
+    rotate(var(--gesture-rotate, 0deg)) scale(calc(1 + var(--gesture-progress, 0) * 0.032));
   transition:
-    transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 180ms ease,
-    border-color 180ms ease,
-    background 180ms ease;
+    transform 180ms cubic-bezier(0.18, 0.88, 0.28, 1.12),
+    box-shadow 160ms ease,
+    border-color 160ms ease,
+    background 160ms ease;
 }
 
 .today-action-card-swipe[data-gesture-active='true'] {
   cursor: grabbing;
   transition:
-    box-shadow 180ms ease,
-    border-color 180ms ease,
-    background 180ms ease;
+    box-shadow 140ms ease,
+    border-color 140ms ease,
+    background 140ms ease;
   box-shadow:
-    0 28px 54px rgba(98, 98, 122, 0.14),
+    0 calc(30px + var(--gesture-progress, 0) * 18px) calc(58px + var(--gesture-progress, 0) * 26px)
+      rgba(98, 98, 122, calc(0.14 + var(--gesture-progress, 0) * 0.12)),
+    0 0 0 calc(var(--gesture-progress, 0) * 2px) rgba(255, 255, 255, 0.24),
     inset 0 1px 0 rgba(255, 255, 255, 0.96);
 }
 
@@ -1669,23 +1698,25 @@
   justify-items: center;
   gap: 6px;
   transition:
-    opacity 140ms ease,
-    transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
+    opacity 90ms linear,
+    transform 150ms cubic-bezier(0.16, 1, 0.3, 1),
+    filter 150ms ease;
+  filter: drop-shadow(0 12px 24px rgba(20, 24, 33, 0.1));
 }
 
 .today-swipe-marker-icon {
   display: block;
   color: currentColor;
-  font-size: 92px;
+  font-size: 118px;
   line-height: 0.84;
   font-weight: 800;
   letter-spacing: -0.08em;
-  text-shadow: 0 10px 24px rgba(20, 24, 33, 0.12);
+  text-shadow: 0 14px 32px rgba(20, 24, 33, 0.16);
 }
 
 .today-swipe-marker-label {
-  min-height: 30px;
-  padding: 0 12px;
+  min-height: 34px;
+  padding: 0 14px;
   border-radius: 999px;
   display: inline-flex;
   align-items: center;
@@ -1695,68 +1726,70 @@
     inset 0 0 0 1px rgba(18, 21, 34, 0.04),
     0 10px 18px rgba(20, 24, 33, 0.05);
   color: #121522;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
 .today-swipe-marker-skip {
-  top: 106px;
-  left: 12px;
+  top: 96px;
+  left: 8px;
   color: #ff3e95;
   opacity: var(--gesture-skip-strength, 0);
-  transform: translate3d(calc((1 - var(--gesture-skip-strength, 0)) * -20px), 0, 0) rotate(-10deg)
-    scale(calc(0.86 + var(--gesture-skip-strength, 0) * 0.18));
+  transform: translate3d(calc((1 - var(--gesture-skip-strength, 0)) * -38px), 0, 0)
+    rotate(calc(-14deg * var(--gesture-skip-strength, 0)))
+    scale(calc(0.76 + var(--gesture-skip-strength, 0) * 0.42));
 }
 
 .today-swipe-marker-later {
-  top: 48px;
+  top: 28px;
   left: 50%;
   color: #4c8cff;
   opacity: var(--gesture-later-strength, 0);
-  transform: translate3d(-50%, calc((1 - var(--gesture-later-strength, 0)) * -18px), 0)
-    scale(calc(0.86 + var(--gesture-later-strength, 0) * 0.18));
+  transform: translate3d(-50%, calc((1 - var(--gesture-later-strength, 0)) * -34px), 0)
+    scale(calc(0.76 + var(--gesture-later-strength, 0) * 0.42));
 }
 
 .today-swipe-marker-accept {
-  top: 106px;
-  right: 12px;
+  top: 96px;
+  right: 8px;
   color: #7ddf34;
   opacity: var(--gesture-accept-strength, 0);
-  transform: translate3d(calc((1 - var(--gesture-accept-strength, 0)) * 20px), 0, 0) rotate(10deg)
-    scale(calc(0.86 + var(--gesture-accept-strength, 0) * 0.18));
+  transform: translate3d(calc((1 - var(--gesture-accept-strength, 0)) * 38px), 0, 0)
+    rotate(calc(14deg * var(--gesture-accept-strength, 0)))
+    scale(calc(0.76 + var(--gesture-accept-strength, 0) * 0.42));
 }
 
 .today-action-card-swipe[data-gesture-intent='skip'] {
-  border-color: rgba(255, 225, 239, 0.92);
+  border-color: rgba(255, 208, 229, 0.98);
   box-shadow:
-    0 28px 56px rgba(98, 98, 122, 0.14),
-    0 0 0 1px rgba(255, 62, 149, 0.08);
+    0 36px 72px rgba(98, 98, 122, 0.18),
+    0 0 0 2px rgba(255, 62, 149, 0.14);
   background:
-    radial-gradient(circle at 12% 10%, rgba(255, 225, 239, 0.82), transparent 28%),
+    radial-gradient(circle at 12% 10%, rgba(255, 210, 232, 0.92), transparent 30%),
     radial-gradient(circle at 88% 78%, rgba(219, 244, 250, 0.62), transparent 30%),
     linear-gradient(180deg, rgba(255, 253, 249, 0.995), var(--today-card-surface));
 }
 
 .today-action-card-swipe[data-gesture-intent='accept'] {
-  border-color: rgba(208, 245, 216, 0.92);
+  border-color: rgba(197, 245, 207, 0.98);
   box-shadow:
-    0 28px 56px rgba(98, 98, 122, 0.14),
-    0 0 0 1px rgba(39, 155, 83, 0.08);
+    0 36px 72px rgba(98, 98, 122, 0.18),
+    0 0 0 2px rgba(39, 155, 83, 0.14);
   background:
-    radial-gradient(circle at 14% 10%, rgba(224, 247, 232, 0.86), transparent 32%),
+    radial-gradient(circle at 14% 10%, rgba(214, 247, 220, 0.92), transparent 34%),
     radial-gradient(circle at 88% 78%, rgba(219, 244, 250, 0.62), transparent 30%),
     linear-gradient(180deg, rgba(255, 253, 249, 0.995), var(--today-card-surface));
 }
 
 .today-action-card-swipe[data-gesture-intent='later'] {
-  border-color: rgba(220, 239, 255, 0.92);
+  border-color: rgba(209, 231, 255, 0.98);
   box-shadow:
-    0 28px 56px rgba(98, 98, 122, 0.14),
-    0 0 0 1px rgba(76, 140, 255, 0.08);
+    0 36px 72px rgba(98, 98, 122, 0.18),
+    0 0 0 2px rgba(76, 140, 255, 0.14);
   background:
-    radial-gradient(circle at 50% 0%, rgba(223, 240, 255, 0.9), transparent 32%),
+    radial-gradient(circle at 50% 0%, rgba(213, 235, 255, 0.96), transparent 34%),
     radial-gradient(circle at 88% 78%, rgba(219, 244, 250, 0.62), transparent 30%),
     linear-gradient(180deg, rgba(255, 253, 249, 0.995), var(--today-card-surface));
 }
@@ -1866,6 +1899,16 @@
   letter-spacing: 0.15em;
   line-height: 1.18;
   text-transform: uppercase;
+}
+
+.today-action-validity-note {
+  margin: 8px 0 0;
+  max-width: min(32ch, 100%);
+  color: rgba(18, 21, 34, 0.48);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.28;
+  letter-spacing: -0.01em;
 }
 
 .today-action-main-landing .today-action-symbol-block {
@@ -2017,6 +2060,70 @@
 
 .today-action-links-reference {
   align-items: stretch;
+}
+
+.today-validity-pill {
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: 8px 12px 7px;
+  border-radius: 18px;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  text-align: right;
+  white-space: nowrap;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow:
+    inset 0 0 0 1px rgba(18, 21, 34, 0.04),
+    0 12px 22px rgba(20, 24, 33, 0.04);
+}
+
+.today-validity-pill-live {
+  color: var(--today-card-tag-fg);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0.86)),
+    var(--today-card-tag-bg);
+  box-shadow:
+    inset 0 0 0 1px rgba(18, 21, 34, 0.04),
+    0 12px 22px rgba(20, 24, 33, 0.04);
+}
+
+.today-validity-pill-warning {
+  color: #8e5a00;
+  background:
+    linear-gradient(180deg, rgba(255, 249, 232, 0.98), rgba(255, 243, 214, 0.94)),
+    rgba(255, 214, 102, 0.18);
+  box-shadow:
+    inset 0 0 0 1px rgba(222, 167, 54, 0.22),
+    0 12px 22px rgba(194, 144, 42, 0.1);
+}
+
+.today-validity-pill-expired {
+  color: rgba(18, 21, 34, 0.58);
+  background:
+    linear-gradient(180deg, rgba(243, 244, 247, 0.98), rgba(233, 236, 241, 0.94)),
+    rgba(18, 21, 34, 0.05);
+  box-shadow:
+    inset 0 0 0 1px rgba(18, 21, 34, 0.08),
+    0 10px 18px rgba(20, 24, 33, 0.03);
+}
+
+.today-validity-pill-label {
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  font-family: ui-monospace, 'SFMono-Regular', 'SF Mono', Menlo, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.today-validity-pill-subtitle {
+  color: rgba(18, 21, 34, 0.54);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.02em;
 }
 
 .today-action-link {

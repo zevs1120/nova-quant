@@ -2492,6 +2492,10 @@ body.is-standalone .main-content-today {
   flex-shrink: 0;
 }
 
+.today-action-head-pills {
+  gap: clamp(4px, 0.6dvh, 8px) !important;
+}
+
 .today-action-kicker,
 .today-action-tag {
   min-height: clamp(20px, 3dvh, 25px) !important;
@@ -2515,6 +2519,26 @@ body.is-standalone .main-content-today {
 .today-action-meta {
   margin-top: clamp(2px, 0.4dvh, 7px) !important;
   font-size: clamp(9px, 1.4dvh, 11px) !important;
+}
+
+.today-action-validity-note {
+  margin-top: clamp(4px, 0.6dvh, 8px) !important;
+  font-size: clamp(9px, 1.25dvh, 11px) !important;
+}
+
+.today-validity-pill {
+  max-width: min(100%, 48vw) !important;
+  min-height: clamp(24px, 3.8dvh, 34px) !important;
+  padding: clamp(5px, 0.8dvh, 8px) clamp(8px, 1.1dvh, 12px) !important;
+  gap: clamp(2px, 0.35dvh, 4px) !important;
+}
+
+.today-validity-pill-label {
+  font-size: clamp(10px, 1.35dvh, 12px) !important;
+}
+
+.today-validity-pill-subtitle {
+  font-size: clamp(8px, 1.05dvh, 10px) !important;
 }
 
 .today-action-card .decision-mark {

@@ -16,6 +16,8 @@ import {
 } from '../utils/signalDetails';
 
 const ACTIVE_SIGNAL_STATUS = new Set(['NEW', 'TRIGGERED']);
+const DAY_MS = 24 * 60 * 60 * 1000;
+const VALIDITY_WARNING_MS = 30 * 60 * 1000;
 const DATA_STATUS_PENALTY = {
   DB_BACKED: 0,
   MODEL_DERIVED: 6,
@@ -57,6 +59,143 @@ function freshnessLabel(signal, now) {
   const hours = Math.floor(minutes / 60);
   if (hours < 24) return `${hours}h ago`;
   return `${Math.floor(hours / 24)}d ago`;
+}
+
+function localeTag(locale) {
+  return locale?.startsWith('zh') ? 'zh-CN' : 'en-US';
+}
+
+function resolveSignalTimeZone(signal) {
+  return String(signal?.market || '').toUpperCase() === 'US' ? 'America/New_York' : 'UTC';
+}
+
+function resolveSignalTimeZoneLabel(signal) {
+  return String(signal?.market || '').toUpperCase() === 'US' ? 'ET' : 'UTC';
+}
+
+function formatDurationClock(ms) {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+function marketDateKey(ms, signal) {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: resolveSignalTimeZone(signal),
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(ms));
+}
+
+function formatSignalClock(ms, signal, locale) {
+  return new Intl.DateTimeFormat(localeTag(locale), {
+    timeZone: resolveSignalTimeZone(signal),
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(new Date(ms));
+}
+
+function formatSignalMonthDay(ms, signal, locale) {
+  return new Intl.DateTimeFormat(localeTag(locale), {
+    timeZone: resolveSignalTimeZone(signal),
+    month: locale?.startsWith('zh') ? 'numeric' : 'short',
+    day: 'numeric',
+  }).format(new Date(ms));
+}
+
+function formatSignalValidityMoment(ms, signal, locale, nowMs = Date.now()) {
+  const timeText = formatSignalClock(ms, signal, locale);
+  const zoneLabel = resolveSignalTimeZoneLabel(signal);
+  if (marketDateKey(ms, signal) === marketDateKey(nowMs, signal)) {
+    return `${timeText} ${zoneLabel}`;
+  }
+  const dateText = formatSignalMonthDay(ms, signal, locale);
+  return locale?.startsWith('zh')
+    ? `${dateText} ${timeText} ${zoneLabel}`
+    : `${dateText}, ${timeText} ${zoneLabel}`;
+}
+
+function formatSignalPrice(value, locale) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return '--';
+  const abs = Math.abs(numeric);
+  const maximumFractionDigits = abs >= 1000 || Number.isInteger(numeric) ? 0 : abs >= 100 ? 1 : 2;
+  return new Intl.NumberFormat(localeTag(locale), {
+    minimumFractionDigits: 0,
+    maximumFractionDigits,
+  }).format(numeric);
+}
+
+function resolveSignalValidityMs(signal) {
+  const explicitExpiryMs = timestampMs(signal?.valid_until_at || signal?.expires_at);
+  if (explicitExpiryMs) return explicitExpiryMs;
+
+  const createdAtMs = timestampMs(signal?.created_at || signal?.generated_at);
+  const horizonDays = Number(signal?.time_horizon_days);
+  if (createdAtMs && Number.isFinite(horizonDays) && horizonDays > 0) {
+    return createdAtMs + horizonDays * DAY_MS;
+  }
+  const horizonText = String(signal?.time_horizon || '').toLowerCase();
+  const rangeMatch = horizonText.match(/(\d+(?:\.\d+)?)\s*(?:to|-)\s*(\d+(?:\.\d+)?)\s*days?/i);
+  if (createdAtMs && rangeMatch) {
+    return createdAtMs + Number(rangeMatch[2]) * DAY_MS;
+  }
+  const singleDayMatch = horizonText.match(/(\d+(?:\.\d+)?)\s*days?/i);
+  if (createdAtMs && singleDayMatch) {
+    return createdAtMs + Number(singleDayMatch[1]) * DAY_MS;
+  }
+  if (createdAtMs && /today only|same day|by close/i.test(horizonText)) {
+    return createdAtMs + 12 * 60 * 60 * 1000;
+  }
+  return null;
+}
+
+function isUsCloseCutoff(ms, signal) {
+  if (String(signal?.market || '').toUpperCase() !== 'US') return false;
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: resolveSignalTimeZone(signal),
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(new Date(ms));
+  const hour = parts.find((part) => part.type === 'hour')?.value;
+  const minute = parts.find((part) => part.type === 'minute')?.value;
+  return hour === '16' && minute === '00';
+}
+
+function buildSignalInvalidationNote(signal, locale, nowMs = Date.now()) {
+  if (!signal) return null;
+  const stopPrice = Number(signal?.stop_loss?.price ?? signal?.invalidation_level);
+  const stopLabel = Number.isFinite(stopPrice) ? formatSignalPrice(stopPrice, locale) : null;
+  const validUntilMs = resolveSignalValidityMs(signal);
+  const cutoffLabel = Number.isFinite(validUntilMs)
+    ? formatSignalValidityMoment(validUntilMs, signal, locale, nowMs)
+    : null;
+
+  let triggerNote = null;
+  if (cutoffLabel) {
+    if (isUsCloseCutoff(validUntilMs, signal)) {
+      triggerNote = locale?.startsWith('zh') ? '收盘前未触发' : 'untriggered by close';
+    } else {
+      triggerNote = locale?.startsWith('zh')
+        ? `未在 ${cutoffLabel} 前触发`
+        : `untriggered by ${cutoffLabel}`;
+    }
+  }
+
+  if (!stopLabel && !triggerNote) return null;
+  if (locale?.startsWith('zh')) {
+    if (stopLabel && triggerNote) return `若跌破 ${stopLabel} 或 ${triggerNote} 则失效`;
+    if (stopLabel) return `若跌破 ${stopLabel} 则失效`;
+    return `若${triggerNote}则失效`;
+  }
+  if (stopLabel && triggerNote) return `Invalid if < ${stopLabel} or ${triggerNote}`;
+  if (stopLabel) return `Invalid if < ${stopLabel}`;
+  return `Invalid if ${triggerNote}`;
 }
 
 function signalDirection(signal) {
@@ -465,6 +604,46 @@ function buildActionMetaText({ locale, signal, provenance }) {
   return locale === 'zh' ? '等待下一次系统快照' : 'Waiting for the next system snapshot';
 }
 
+function ActionCardValidityPill({ signal, locale }) {
+  const validUntilMs = resolveSignalValidityMs(signal);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!validUntilMs || typeof window === 'undefined') return undefined;
+    setNowMs(Date.now());
+    const intervalId = window.setInterval(() => {
+      setNowMs(Date.now());
+    }, 1000);
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [validUntilMs]);
+
+  if (!validUntilMs) return null;
+
+  const remainingMs = validUntilMs - nowMs;
+  const expired = remainingMs <= 0;
+  const warning = !expired && remainingMs <= VALIDITY_WARNING_MS;
+  const state = expired ? 'expired' : warning ? 'warning' : 'live';
+  const primaryLabel = expired
+    ? locale?.startsWith('zh')
+      ? '已失效'
+      : 'Expired'
+    : `${locale?.startsWith('zh') ? '剩余 ' : 'Valid for '}${formatDurationClock(remainingMs)}`;
+  const secondaryLabel = `${locale?.startsWith('zh') ? '截止 ' : 'Until '}${formatSignalValidityMoment(validUntilMs, signal, locale, nowMs)}`;
+
+  return (
+    <span
+      className={`today-validity-pill today-validity-pill-${state}`}
+      aria-live="polite"
+      aria-label={`${primaryLabel}. ${secondaryLabel}.`}
+    >
+      <span className="today-validity-pill-label">{primaryLabel}</span>
+      <span className="today-validity-pill-subtitle">{secondaryLabel}</span>
+    </span>
+  );
+}
+
 function triggerFeedback(kind = 'soft') {
   if (typeof navigator === 'undefined' || typeof navigator.vibrate !== 'function') return;
   if (kind === 'confirm') {
@@ -537,7 +716,10 @@ function buildDemoFallbackSignal(assetClass, now) {
       position_advice: { position_pct: 12 },
       strategy_source: 'AI quant strategy',
       created_at: generatedAt,
+      expires_at: new Date(now.getTime() + 12 * 60 * 60 * 1000).toISOString(),
       generated_at: generatedAt,
+      time_horizon: '12 hours',
+      time_horizon_days: 0.5,
       freshness_label: '4m ago',
       data_status: 'DEMO_ONLY',
       source_status: 'DEMO_ONLY',
@@ -570,7 +752,10 @@ function buildDemoFallbackSignal(assetClass, now) {
     position_advice: { position_pct: 12 },
     strategy_source: 'AI quant strategy',
     created_at: generatedAt,
+    expires_at: new Date(now.getTime() + 6 * 60 * 60 * 1000).toISOString(),
     generated_at: generatedAt,
+    time_horizon: 'same day',
+    time_horizon_days: 0.25,
     freshness_label: '4m ago',
     data_status: 'DEMO_ONLY',
     source_status: 'DEMO_ONLY',
@@ -603,6 +788,14 @@ function buildSignalFromDecision(decision, now) {
     _freshness: signal?.freshness_label || freshnessLabel(signal, now),
     strategy_source: topAction?.strategy_source || signal?.strategy_source || 'AI quant strategy',
     action_label: topAction?.action_label || null,
+    time_horizon: topAction?.time_horizon || signal?.time_horizon || null,
+    time_horizon_days: Number.isFinite(
+      Number(topAction?.time_horizon_days ?? signal?.time_horizon_days),
+    )
+      ? Number(topAction?.time_horizon_days ?? signal?.time_horizon_days)
+      : null,
+    expires_at: signal?.expires_at || topAction?.expires_at || null,
+    valid_until_at: signal?.valid_until_at || topAction?.valid_until_at || null,
     portfolio_intent: topAction?.portfolio_intent || null,
     risk_note: topAction?.risk_note || null,
     brief_why_now: topAction?.brief_why_now || null,
@@ -610,24 +803,48 @@ function buildSignalFromDecision(decision, now) {
   };
 }
 
-function buildSignalsFromDecision(decision, now) {
+function buildSignalsFromDecision(decision, sourceSignals, now) {
+  const signalLookup = new Map(
+    (Array.isArray(sourceSignals) ? sourceSignals : []).map((row) => [
+      String(row?.signal_id || ''),
+      row,
+    ]),
+  );
   return (decision?.ranked_action_cards || [])
     .map((card, index) => {
       const signal = card?.signal_payload;
       if (!signal) return null;
+      const sourceSignal =
+        signalLookup.get(String(card?.signal_id || signal?.signal_id || '')) || {};
       const dataStatus = normalizeDataStatus({
         ...signal,
+        ...sourceSignal,
         data_status: card?.data_status,
         source_status: card?.source_status,
         source_label: card?.source_label,
       });
       return {
+        ...sourceSignal,
         ...signal,
         _actionable: Boolean(card?.eligible),
         _dataStatus: dataStatus,
-        _freshness: signal?.freshness_label || freshnessLabel(signal, now),
-        strategy_source: card?.strategy_source || signal?.strategy_source || 'AI quant strategy',
+        _freshness:
+          signal?.freshness_label || sourceSignal?.freshness_label || freshnessLabel(signal, now),
+        strategy_source:
+          card?.strategy_source ||
+          signal?.strategy_source ||
+          sourceSignal?.strategy_source ||
+          'AI quant strategy',
         action_label: card?.action_label || null,
+        time_horizon: card?.time_horizon || signal?.time_horizon || null,
+        time_horizon_days: Number.isFinite(
+          Number(card?.time_horizon_days ?? signal?.time_horizon_days),
+        )
+          ? Number(card?.time_horizon_days ?? signal?.time_horizon_days)
+          : null,
+        expires_at: signal?.expires_at || sourceSignal?.expires_at || card?.expires_at || null,
+        valid_until_at:
+          signal?.valid_until_at || sourceSignal?.valid_until_at || card?.valid_until_at || null,
         portfolio_intent: card?.portfolio_intent || null,
         risk_note: card?.risk_note || null,
         brief_why_now: card?.brief_why_now || null,
@@ -709,8 +926,8 @@ function resolveTodayGestureIntent(dx, dy, vx = 0, vy = 0) {
   const absDy = Math.abs(dy);
   const absVx = Math.abs(vx);
   const absVy = Math.abs(vy);
-  if ((dy <= -78 || (vy < -0.48 && absDy > 18)) && absDy > absDx * 1.02) return 'later';
-  if ((absDx >= 68 || (absVx > 0.42 && absDx > 16)) && absDx > Math.max(absDy * 1.02, 18)) {
+  if ((dy <= -68 || (vy < -0.44 && absDy > 16)) && absDy > absDx * 0.98) return 'later';
+  if ((absDx >= 60 || (absVx > 0.4 && absDx > 15)) && absDx > Math.max(absDy * 0.98, 16)) {
     return dx > 0 ? 'accept' : 'skip';
   }
   return null;
@@ -876,7 +1093,10 @@ export default function TodayTab({
     () => pickBestSignal(signals, topSignalEvidence, assetClass, now),
     [signals, topSignalEvidence, assetClass, now],
   );
-  const decisionSignals = useMemo(() => buildSignalsFromDecision(decision, now), [decision, now]);
+  const decisionSignals = useMemo(
+    () => buildSignalsFromDecision(decision, signals, now),
+    [decision, signals, now],
+  );
   const fallbackSignals = useMemo(
     () => buildSignalRail(signals, topSignalEvidence, assetClass, now, desiredSignalCount),
     [signals, topSignalEvidence, assetClass, now, desiredSignalCount],
@@ -1125,6 +1345,7 @@ export default function TodayTab({
   const featuredExecutionLabel = actionCardExecutionText(featuredSignal, locale);
   const featuredRiskGateLabel = actionCardRiskGateText(featuredSignal, locale);
   const featuredMetaLine = actionCardMetaLine(actionMetaText, locale);
+  const featuredInvalidationNote = buildSignalInvalidationNote(featuredSignal, locale);
   const featuredPrimaryActionLabel = featuredSignalIntent?.canOpenBroker
     ? tradeIntentHandoffLabel(featuredSignalIntent, locale)
     : locale === 'zh'
@@ -1138,9 +1359,9 @@ export default function TodayTab({
   const gestureStrengths =
     gesturePreview.signalId === featuredSignalId && deckGestureActive
       ? {
-          skip: clampNumber(Math.max(0, -(gesturePreview.dx || 0)) / 132, 0, 1),
-          accept: clampNumber(Math.max(0, gesturePreview.dx || 0) / 132, 0, 1),
-          later: clampNumber(Math.max(0, -(gesturePreview.dy || 0)) / 138, 0, 1),
+          skip: clampNumber(Math.max(0, -(gesturePreview.dx || 0)) / 104, 0, 1),
+          accept: clampNumber(Math.max(0, gesturePreview.dx || 0) / 104, 0, 1),
+          later: clampNumber(Math.max(0, -(gesturePreview.dy || 0)) / 112, 0, 1),
         }
       : { skip: 0, accept: 0, later: 0 };
   const climateStatusLabel =
@@ -1178,20 +1399,26 @@ export default function TodayTab({
   const syncGestureCard = (preview) => {
     const cardElement = featuredCardRef.current;
     if (!cardElement) return;
+    const horizontalStrength = clampNumber(Math.abs(preview.dx || 0) / 104, 0, 1);
+    const verticalStrength = clampNumber(Math.max(0, -(preview.dy || 0)) / 112, 0, 1);
+    const gestureProgress = clampNumber(Math.max(horizontalStrength, verticalStrength), 0, 1);
     cardElement.style.setProperty('--gesture-x', `${preview.dx || 0}px`);
     cardElement.style.setProperty('--gesture-y', `${preview.dy || 0}px`);
     cardElement.style.setProperty('--gesture-rotate', `${preview.rotate || 0}deg`);
+    cardElement.style.setProperty('--gesture-progress', `${gestureProgress}`);
+    cardElement.style.setProperty('--gesture-horizontal-progress', `${horizontalStrength}`);
+    cardElement.style.setProperty('--gesture-vertical-progress', `${verticalStrength}`);
     cardElement.style.setProperty(
       '--gesture-skip-strength',
-      `${clampNumber(Math.max(0, -(preview.dx || 0)) / 132, 0, 1)}`,
+      `${clampNumber(Math.max(0, -(preview.dx || 0)) / 104, 0, 1)}`,
     );
     cardElement.style.setProperty(
       '--gesture-accept-strength',
-      `${clampNumber(Math.max(0, preview.dx || 0) / 132, 0, 1)}`,
+      `${clampNumber(Math.max(0, preview.dx || 0) / 104, 0, 1)}`,
     );
     cardElement.style.setProperty(
       '--gesture-later-strength',
-      `${clampNumber(Math.max(0, -(preview.dy || 0)) / 138, 0, 1)}`,
+      `${clampNumber(Math.max(0, -(preview.dy || 0)) / 112, 0, 1)}`,
     );
     cardElement.dataset.gestureActive = preview.active ? 'true' : 'false';
     cardElement.dataset.gestureIntent = preview.intent || 'idle';
@@ -1298,11 +1525,11 @@ export default function TodayTab({
     if (swipeGestureRef.current.signalId !== signalId) return;
     const nowMs = Date.now();
     const dt = Math.max(16, nowMs - swipeGestureRef.current.lastTime);
-    const dx = clampNumber(clientX - swipeGestureRef.current.startX, -220, 220);
-    const dy = clampNumber(clientY - swipeGestureRef.current.startY, -220, 96);
-    const absDx = Math.abs(dx);
-    const absDy = Math.abs(dy);
-    if (absDx > 4 || absDy > 4) {
+    const rawDx = clampNumber(clientX - swipeGestureRef.current.startX, -260, 260);
+    const rawDy = clampNumber(clientY - swipeGestureRef.current.startY, -260, 118);
+    const absDx = Math.abs(rawDx);
+    const absDy = Math.abs(rawDy);
+    if (absDx > 3 || absDy > 3) {
       swipeGestureRef.current.dragging = true;
       swipeGestureRef.current.suppressTapUntil = Date.now() + 320;
     }
@@ -1313,12 +1540,14 @@ export default function TodayTab({
     swipeGestureRef.current.lastX = clientX;
     swipeGestureRef.current.lastY = clientY;
     swipeGestureRef.current.lastTime = nowMs;
-    swipeGestureRef.current.dx = dx;
-    swipeGestureRef.current.dy = dy;
+    swipeGestureRef.current.dx = rawDx;
+    swipeGestureRef.current.dy = rawDy;
+    const dx = clampNumber(rawDx * 1.14, -312, 312);
+    const dy = clampNumber(rawDy * 1.08, -286, 132);
     const rotate = clampNumber(
-      dx * 0.055 * swipeGestureRef.current.rotationDirection + dy * 0.015,
-      -16,
-      16,
+      rawDx * 0.074 * swipeGestureRef.current.rotationDirection + rawDy * 0.022,
+      -20,
+      20,
     );
     pushGesturePreview({
       signalId,
@@ -1326,8 +1555,8 @@ export default function TodayTab({
       dy,
       rotate,
       intent: resolveTodayGestureIntent(
-        dx,
-        dy,
+        rawDx,
+        rawDy,
         swipeGestureRef.current.vx,
         swipeGestureRef.current.vy,
       ),
@@ -1352,10 +1581,10 @@ export default function TodayTab({
     const signalId = signalCardId(signal);
     const exit =
       intent === 'accept'
-        ? { dx: 420, dy: 18 }
+        ? { dx: 560, dy: 26 }
         : intent === 'later'
-          ? { dx: 0, dy: -420 }
-          : { dx: -420, dy: 18 };
+          ? { dx: 0, dy: -540 }
+          : { dx: -560, dy: 26 };
     triggerFeedback(intent === 'accept' ? 'confirm' : 'soft');
     pushGesturePreview({
       signalId,
@@ -1363,10 +1592,10 @@ export default function TodayTab({
       dy: exit.dy,
       rotate:
         intent === 'accept'
-          ? 14
+          ? 18
           : intent === 'skip'
-            ? -14
-            : clampNumber((swipeGestureRef.current.dx || 0) * 0.035, -8, 8),
+            ? -18
+            : clampNumber((swipeGestureRef.current.dx || 0) * 0.045, -12, 12),
       intent,
       active: false,
       committed: true,
@@ -1396,7 +1625,7 @@ export default function TodayTab({
         });
       }
       clearGesture();
-    }, 210);
+    }, 180);
   };
 
   const finishGesture = (signal) => {
@@ -1629,11 +1858,14 @@ export default function TodayTab({
 
                   <div className="today-action-card-head today-action-card-head-showcase">
                     <span className="today-action-kicker">{featuredCardKicker}</span>
-                    <span
-                      className={`today-action-decision-chip today-action-decision-chip-${decisionTone}`}
-                    >
-                      {featuredTagLabel}
-                    </span>
+                    <div className="today-action-head-pills">
+                      <span
+                        className={`today-action-decision-chip today-action-decision-chip-${decisionTone}`}
+                      >
+                        {featuredTagLabel}
+                      </span>
+                      <ActionCardValidityPill signal={featuredSignal} locale={locale} />
+                    </div>
                   </div>
 
                   <div className="today-action-main today-action-main-showcase">
@@ -1641,6 +1873,9 @@ export default function TodayTab({
                       <h2 className="today-action-symbol">{featuredSignal?.symbol || '--'}</h2>
                       <p className="today-action-direction">{featuredDecisionLabel}</p>
                       <p className="today-action-meta">{featuredMetaLine}</p>
+                      {featuredInvalidationNote ? (
+                        <p className="today-action-validity-note">{featuredInvalidationNote}</p>
+                      ) : null}
                     </div>
                     <DecisionMark code={noActionDay ? overall.code : 'TRADE'} />
                   </div>
