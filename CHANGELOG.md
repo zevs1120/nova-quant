@@ -4,6 +4,17 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+- **Fix(billing): Stripe 支付链路官方最佳实践加固 — 4 项合规项全部落地。**
+  - **[强烈推荐] Feat(billing): 新增 `invoice.paid` webhook handler，确保订阅续费窗口实时刷新。**
+    - 以往续费成功后仅依赖 `customer.subscription.updated` 隐式更新，但 Stripe 官方文档强制要求监听 `invoice.paid` 来刷新 `current_period_end`（"Your site receives an invoice.paid event... updates the customer's access expiration date"）。新 handler 在每次 Stripe 扣款成功后重刷 `current_period_start_ms`/`current_period_end_ms` 并重断言 `status = ACTIVE`，同时防御性跳过 `CANCELLED`/`EXPIRED` 订阅，避免误复活已取消账号。
+  - **[强烈推荐] Feat(billing): 新增 `invoice.payment_failed` webhook handler，扣款失败时立即降级权限。**
+    - 以往续费失败后平台无感知，用户仍可访问付费功能直到 `customer.subscription.updated` 到达。新 handler 在 `invoice.payment_failed` 触发时立即将 ACTIVE 订阅降级为 `PENDING`，与随后到来的 `customer.subscription.updated`（`past_due → PENDING`）幂等合并，无重复处理风险。
+  - **[推荐] Feat(billing): 新增 `checkout.session.async_payment_succeeded` / `async_payment_failed` 事件处理，支持 ACH/SEPA 等异步支付方式。**
+    - Stripe 官方文档明确："Delayed payment methods generate a `checkout.session.async_payment_succeeded` event when payment succeeds later." 以往仅处理同步的 `checkout.session.completed`，若未来开启 ACH/BACS/SEPA 等异步支付方式将在未实际收款时误激活订阅。`async_payment_succeeded` 现路由至统一的 `handleStripeCheckoutLifecycleEvent(object, 'COMPLETED')`，`async_payment_failed` 路由至 `'ABANDONED'`。
+  - **[推荐] Feat(billing): Stripe Checkout Session 创建请求新增 `Idempotency-Key` header。**
+    - `stripeRequest<T>` 新增可选 `idempotencyKey` 参数；`createStripeCheckoutSession` 自动以本地 `localSessionId` 作为 key，确保网络超时重试时 Stripe 返回同一个 Checkout Session 而不是创建重复订单（Stripe 官方幂等性最佳实践）。
+  - **Test: 新增 `tests/billingInvoiceWebhooks.test.ts`（6 个测试）：** `invoice.paid` 刷新续费周期和重断言 ACTIVE、`invoice.paid` 不复活 CANCELLED 订阅、`invoice.payment_failed` 将 ACTIVE 降级为 PENDING、`async_payment_succeeded` 标记 COMPLETED、`async_payment_failed` 标记 ABANDONED、`Idempotency-Key` header 值与 localSessionId 一致。
+
 - **Feat(admin,research): Admin 管理界面接入 Qlib Bridge 健康状态与因子/模型面板。**
   - **后端 (`service.ts`)**：新增统一的 Qlib Bridge 状态汇总，完整 system snapshot 会先读取 `/api/status` 生成 `disabled / offline / data_not_ready / online` 四态，再仅在 Bridge 进程在线时补拉 `/api/factors/sets` 与 `/api/models`。headline 快路径改为只请求轻量 `/api/status`，并使用更短 timeout 与短 TTL 缓存，避免首屏被重型端点拖慢。
   - **前端 SystemHealthPage**：新增 Qlib Bridge 健康面板（Disabled / Online / Data Not Ready / Offline 四态 pill、version/uptime/region/provider、最大标的容量）和因子引擎/模型面板（Alpha158/360 因子集列表、预训练模型列表及大小）。告警列表改为只消费后端 diagnostics，不再重复拼装 Qlib 告警。

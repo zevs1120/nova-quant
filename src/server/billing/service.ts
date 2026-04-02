@@ -1063,6 +1063,73 @@ function handleStripeCheckoutLifecycleEvent(
   }
 }
 
+// invoice.paid — Stripe has successfully charged for a billing period.
+// Priority actions per Stripe docs:
+//   1. Refresh current_period_start/end so the subscription's access window is current.
+//   2. Re-assert status = ACTIVE in case a prior invoice.payment_failed flipped it to PENDING.
+//   3. Keep the billing_customer record in sync with the latest Stripe Customer ID.
+function handleStripeInvoicePaidEvent(object: Record<string, unknown>) {
+  const providerSubscriptionId = String(object.subscription || '').trim();
+  if (!providerSubscriptionId) return;
+  const existing = readSubscriptionByProviderSubscriptionId(providerSubscriptionId);
+  if (!existing) return;
+
+  const periodStart = stripeTimestampToMs(object.period_start);
+  const periodEnd = stripeTimestampToMs(object.period_end);
+  const ts = nowMs();
+
+  // Re-assert ACTIVE and refresh billing window. Skip if subscription was
+  // intentionally CANCELLED so we never resurrect a cancelled subscription.
+  executeSync(
+    `UPDATE ${billingTable('billing_subscriptions')}
+     SET current_period_start_ms = COALESCE($1, current_period_start_ms),
+         current_period_end_ms   = COALESCE($2, current_period_end_ms),
+         status = CASE
+           WHEN status NOT IN ('CANCELLED', 'EXPIRED') THEN 'ACTIVE'
+           ELSE status
+         END,
+         updated_at_ms = $3
+     WHERE provider_subscription_id = $4`,
+    [periodStart, periodEnd, ts, providerSubscriptionId],
+  );
+
+  if (object.customer) {
+    const billingCustomer = readBillingCustomer(existing.user_id);
+    const authUser = getAuthUser(existing.user_id);
+    upsertBillingCustomer({
+      userId: existing.user_id,
+      email: sanitizeEmail(billingCustomer?.email, authUser?.email || ''),
+      billingCycle: normalizeBillingCycle(existing.billing_cycle),
+      now: ts,
+      provider: 'stripe',
+      providerCustomerId: String(object.customer),
+    });
+  }
+}
+
+// invoice.payment_failed — Stripe could not collect payment for this period.
+// Per Stripe docs: notify customer and handle subscription recovery.
+// Status management: downgrade to PENDING now; Stripe will also fire
+// customer.subscription.updated (status → past_due) which maps to PENDING
+// via normalizeStripeSubscriptionStatus — making this idempotent.
+function handleStripeInvoicePaymentFailedEvent(object: Record<string, unknown>) {
+  const providerSubscriptionId = String(object.subscription || '').trim();
+  if (!providerSubscriptionId) return;
+  const existing = readSubscriptionByProviderSubscriptionId(providerSubscriptionId);
+  if (!existing) return;
+  // Only downgrade if currently ACTIVE — avoid touching already-CANCELLED records.
+  if (String(existing.status || '').toUpperCase() !== 'ACTIVE') return;
+
+  executeSync(
+    `UPDATE ${billingTable('billing_subscriptions')}
+     SET status = 'PENDING',
+         updated_at_ms = $1
+     WHERE provider_subscription_id = $2
+       AND status = 'ACTIVE'`,
+    [nowMs(), providerSubscriptionId],
+  );
+}
+
 function handleStripeSubscriptionEvent(object: Record<string, unknown>) {
   const metadata = asRecord(object.metadata);
   const providerSubscriptionId = String(object.id || '').trim();
@@ -1217,6 +1284,25 @@ export function processBillingWebhook(args: {
     }
     if (event.type === 'checkout.session.expired') {
       handleStripeCheckoutLifecycleEvent(object, 'EXPIRED');
+      return;
+    }
+    // Async payment methods (e.g. ACH, SEPA, BACS): checkout.session.completed
+    // fires immediately but payment_status is 'processing'. Actual fulfillment
+    // must wait for async_payment_succeeded (or handle async_payment_failed).
+    if (event.type === 'checkout.session.async_payment_succeeded') {
+      handleStripeCheckoutLifecycleEvent(object, 'COMPLETED');
+      return;
+    }
+    if (event.type === 'checkout.session.async_payment_failed') {
+      handleStripeCheckoutLifecycleEvent(object, 'ABANDONED');
+      return;
+    }
+    if (event.type === 'invoice.paid') {
+      handleStripeInvoicePaidEvent(object);
+      return;
+    }
+    if (event.type === 'invoice.payment_failed') {
+      handleStripeInvoicePaymentFailedEvent(object);
       return;
     }
     if (

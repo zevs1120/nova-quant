@@ -119,16 +119,21 @@ async function stripeRequest<T>(
   config: BillingProviderConfig,
   path: string,
   payload: Record<string, string | number | boolean | null | undefined>,
+  idempotencyKey?: string,
 ): Promise<T> {
   if (!config.stripeSecretKey) {
     throw new Error('STRIPE_NOT_CONFIGURED');
   }
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${config.stripeSecretKey}`,
+    'Content-Type': 'application/x-www-form-urlencoded',
+  };
+  if (idempotencyKey) {
+    headers['Idempotency-Key'] = idempotencyKey;
+  }
   const response = await fetch(`${config.stripeApiBaseUrl}${path}`, {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${config.stripeSecretKey}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
+    headers,
     body: encodeFormBody(payload),
   });
   if (!response.ok) {
@@ -178,7 +183,14 @@ export async function createStripeCheckoutSession(
     'subscription_data[metadata][source]': args.source || '',
     'subscription_data[metadata][locale]': args.locale || '',
   };
-  return stripeRequest<StripeCheckoutSession>(config, '/checkout/sessions', payload);
+  // Pass localSessionId as Idempotency-Key so a network retry never creates a
+  // duplicate Checkout Session for the same internal order.
+  return stripeRequest<StripeCheckoutSession>(
+    config,
+    '/checkout/sessions',
+    payload,
+    args.localSessionId,
+  );
 }
 
 export async function createStripePortalSession(
