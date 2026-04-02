@@ -90,7 +90,7 @@ export async function handleAdminOverviewHeadline(req: BasicRequest, res: BasicR
         user: session.user,
         roles: session.roles,
       },
-      data: buildAdminOverviewHeadlineFast(),
+      data: await buildAdminOverviewHeadlineFast(),
     });
   } catch (error) {
     respondAdminError(res, 'ADMIN_OVERVIEW_HEADLINE_FAILED', error);

@@ -6,6 +6,173 @@ import { readAlphaDiscoveryConfig } from '../alpha_discovery/index.js';
 import { readNewsPipelineConfig } from '../news/provider.js';
 import { buildAdminResearchOpsSnapshot } from './liveOps.js';
 import { buildAdminAlphaSnapshot as buildLiveAdminAlphaSnapshot } from './liveAlpha.js';
+import { logWarn } from '../utils/log.js';
+
+// ── Qlib Bridge admin helpers ──────────────────────────────
+
+type QlibBridgeState = 'disabled' | 'offline' | 'data_not_ready' | 'online';
+
+interface QlibBridgeAdminStatus {
+  enabled: boolean;
+  healthy: boolean;
+  state: QlibBridgeState;
+  version: string | null;
+  qlib_ready: boolean;
+  uptime_seconds: number | null;
+  provider_uri: string | null;
+  region: string | null;
+  max_universe_size: number | null;
+  available_factor_sets: Array<{ id: string; factor_count: number; description: string }>;
+  available_models: Array<{ name: string; file: string | null; size_kb: number }>;
+}
+
+const QLIB_STATUS_DISABLED: QlibBridgeAdminStatus = {
+  enabled: false,
+  healthy: false,
+  state: 'disabled',
+  version: null,
+  qlib_ready: false,
+  uptime_seconds: null,
+  provider_uri: null,
+  region: null,
+  max_universe_size: null,
+  available_factor_sets: [],
+  available_models: [],
+};
+
+const QLIB_ADMIN_FETCH_TIMEOUT_MS = 4000;
+const QLIB_HEADLINE_FETCH_TIMEOUT_MS = 800;
+const QLIB_HEADLINE_CACHE_TTL_MS = 15_000;
+
+let _qlibHeadlineCache: { data: QlibBridgeAdminStatus; fetchedAt: number } | null = null;
+
+function deriveQlibBridgeState(args: {
+  enabled: boolean;
+  healthy: boolean;
+  qlibReady: boolean;
+}): QlibBridgeState {
+  if (!args.enabled) return 'disabled';
+  if (!args.healthy) return 'offline';
+  if (!args.qlibReady) return 'data_not_ready';
+  return 'online';
+}
+
+async function safeFetchQlibBridgeJson<T>(
+  baseUrl: string,
+  path: string,
+  timeoutMs: number,
+  fallback: T,
+): Promise<T> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(`${baseUrl}${path}`, { method: 'GET', signal: controller.signal });
+    if (!res.ok) return fallback;
+    return (await res.json()) as T;
+  } catch {
+    return fallback;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function fetchQlibBridgeStatusSummary(args?: {
+  includeInventory?: boolean;
+  timeoutMs?: number;
+}): Promise<QlibBridgeAdminStatus> {
+  const config = getConfig();
+  const bridge = config.qlibBridge;
+  if (!bridge?.enabled) return { ...QLIB_STATUS_DISABLED };
+
+  const baseUrl = bridge.baseUrl;
+  const includeInventory = args?.includeInventory ?? true;
+  const timeoutMs = args?.timeoutMs ?? QLIB_ADMIN_FETCH_TIMEOUT_MS;
+  try {
+    const status = await safeFetchQlibBridgeJson<Record<string, unknown>>(
+      baseUrl,
+      '/api/status',
+      timeoutMs,
+      {},
+    );
+    const healthy = status.status === 'running';
+    const qlibReady = Boolean(status.qlib_ready);
+    const summary: QlibBridgeAdminStatus = {
+      enabled: true,
+      healthy,
+      state: deriveQlibBridgeState({ enabled: true, healthy, qlibReady }),
+      version: (status.version as string) || null,
+      qlib_ready: qlibReady,
+      uptime_seconds: typeof status.uptime_seconds === 'number' ? status.uptime_seconds : null,
+      provider_uri: (status.provider_uri as string) || null,
+      region: (status.region as string) || null,
+      max_universe_size:
+        typeof status.max_universe_size === 'number' ? status.max_universe_size : null,
+      available_factor_sets: [],
+      available_models: [],
+    };
+
+    if (!includeInventory || !healthy) return summary;
+
+    const [factorSets, models] = await Promise.all([
+      safeFetchQlibBridgeJson<Array<Record<string, unknown>>>(
+        baseUrl,
+        '/api/factors/sets',
+        timeoutMs,
+        [],
+      ),
+      safeFetchQlibBridgeJson<Array<Record<string, unknown>>>(
+        baseUrl,
+        '/api/models',
+        timeoutMs,
+        [],
+      ),
+    ]);
+
+    return {
+      ...summary,
+      available_factor_sets: (factorSets || []).map((fs) => ({
+        id: String(fs.id || ''),
+        factor_count: Number(fs.factor_count || 0),
+        description: String(fs.description || ''),
+      })),
+      available_models: (models || [])
+        .filter((m) => m.name !== '(none)')
+        .map((m) => ({
+          name: String(m.name || ''),
+          file: (m.file as string) || null,
+          size_kb: Number(m.size_kb || 0),
+        })),
+    };
+  } catch (error) {
+    logWarn('Failed to fetch Qlib Bridge admin status', {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return {
+      ...QLIB_STATUS_DISABLED,
+      enabled: true,
+      state: 'offline',
+    };
+  }
+}
+
+async function fetchQlibBridgeAdminStatus(): Promise<QlibBridgeAdminStatus> {
+  return await fetchQlibBridgeStatusSummary({ includeInventory: true });
+}
+
+async function fetchQlibBridgeHeadlineStatus(): Promise<QlibBridgeAdminStatus> {
+  if (
+    _qlibHeadlineCache &&
+    Date.now() - _qlibHeadlineCache.fetchedAt < QLIB_HEADLINE_CACHE_TTL_MS
+  ) {
+    return _qlibHeadlineCache.data;
+  }
+  const data = await fetchQlibBridgeStatusSummary({
+    includeInventory: false,
+    timeoutMs: QLIB_HEADLINE_FETCH_TIMEOUT_MS,
+  });
+  _qlibHeadlineCache = { data, fetchedAt: Date.now() };
+  return data;
+}
 
 type JsonObject = Record<string, unknown>;
 
@@ -394,7 +561,10 @@ export function buildAdminSignalsSnapshot() {
 
 export async function buildAdminSystemSnapshot() {
   const config = getConfig();
-  const ops = await buildAdminResearchOpsSnapshot();
+  const [ops, qlibBridge] = await Promise.all([
+    buildAdminResearchOpsSnapshot(),
+    fetchQlibBridgeAdminStatus(),
+  ]);
   const discoveryConfig = readAlphaDiscoveryConfig();
   const newsPipeline = readNewsPipelineConfig();
   const diagnostics: Array<{ severity: 'INFO' | 'WARN'; title: string; detail: string }> = [];
@@ -427,6 +597,30 @@ export async function buildAdminSystemSnapshot() {
       severity: 'INFO',
       title: '新闻因子链已经开始沉淀',
       detail: `近 72 小时结构化覆盖率 ${factorCoveragePct}% ，说明新闻到因子的主链正在工作。`,
+    });
+  }
+  // Qlib Bridge diagnostics
+  if (qlibBridge.enabled && !qlibBridge.healthy) {
+    diagnostics.push({
+      severity: 'WARN',
+      title: 'Qlib Bridge 已启用但当前不可达',
+      detail: `Bridge 配置为 ${config.qlibBridge?.baseUrl || 'unknown'}，但健康检查失败。因子增强和模型推理不可用。`,
+    });
+  }
+  if (qlibBridge.enabled && qlibBridge.healthy && !qlibBridge.qlib_ready) {
+    diagnostics.push({
+      severity: 'WARN',
+      title: 'Qlib Bridge 在线但数据未就绪',
+      detail: 'Bridge 服务在运行，但 Qlib 核心尚未初始化。请先执行 POST /api/data/sync 同步数据。',
+    });
+  }
+  if (qlibBridge.enabled && qlibBridge.healthy && qlibBridge.qlib_ready) {
+    const factorSetNames = qlibBridge.available_factor_sets.map((fs) => fs.id).join(', ') || 'none';
+    const modelCount = qlibBridge.available_models.length;
+    diagnostics.push({
+      severity: 'INFO',
+      title: 'Qlib Bridge 因子引擎在线',
+      detail: `因子集: ${factorSetNames}，预训练模型: ${modelCount} 个，uptime ${Math.round(qlibBridge.uptime_seconds || 0)}s。`,
     });
   }
 
@@ -493,6 +687,7 @@ export async function buildAdminSystemSnapshot() {
     active_signals: ops.active_signals,
     recent_nova_runs: ops.recent_nova_runs,
     daily_ops: ops.daily_ops,
+    qlib_bridge: qlibBridge,
   };
 }
 
@@ -551,6 +746,10 @@ async function buildAdminOverviewSnapshotUncached() {
       canary_candidates: Number(alpha.inventory.CANARY || 0),
       recent_news_factors: system.data_summary.news_factor_count,
       ai_runs: system.ai_summary.total,
+      qlib_bridge_enabled: system.qlib_bridge?.enabled ?? false,
+      qlib_bridge_healthy: system.qlib_bridge?.healthy ?? false,
+      qlib_bridge_ready: system.qlib_bridge?.qlib_ready ?? false,
+      qlib_bridge_state: system.qlib_bridge?.state ?? 'disabled',
     },
     user_mix: users.trade_mode_mix,
     alpha_lifecycle: Object.entries(alpha.inventory).map(([label, value]) => ({
@@ -600,6 +799,11 @@ async function buildAdminOverviewSnapshotUncached() {
       runtime_mode: system.runtime.mode,
       news_factor_count: system.data_summary.news_factor_count,
       option_chain_count: system.data_summary.option_chain_count,
+      qlib_bridge_enabled: system.qlib_bridge?.enabled ?? false,
+      qlib_bridge_healthy: system.qlib_bridge?.healthy ?? false,
+      qlib_bridge_ready: system.qlib_bridge?.qlib_ready ?? false,
+      qlib_bridge_state: system.qlib_bridge?.state ?? 'disabled',
+      qlib_bridge_version: system.qlib_bridge?.version ?? null,
     },
   };
   _overviewCache = { data: result, fetchedAt: Date.now() };
@@ -607,15 +811,18 @@ async function buildAdminOverviewSnapshotUncached() {
 }
 
 // -- Fast headline: only local queries, no Postgres cascade --
-export function buildAdminOverviewHeadlineFast() {
+export async function buildAdminOverviewHeadlineFast() {
   // If a full overview is cached and still within stale window, return it directly
   if (_overviewCache && Date.now() - _overviewCache.fetchedAt < OVERVIEW_STALE_TTL_MS) {
     return _overviewCache.data;
   }
 
-  // Compute headline from fast local sources only
+  // Compute headline from fast local sources + lightweight Qlib status
   const repo = getRepo();
-  const users = buildAdminUsersSnapshot();
+  const [users, qlibBridge] = await Promise.all([
+    Promise.resolve(buildAdminUsersSnapshot()),
+    fetchQlibBridgeHeadlineStatus(),
+  ]);
   const signalRows = repo.listSignals({ status: 'ALL', limit: 160 });
   const activeSignals = signalRows.filter(
     (row) => row.status === 'NEW' || row.status === 'TRIGGERED',
@@ -635,6 +842,10 @@ export function buildAdminOverviewHeadlineFast() {
       canary_candidates: 0,
       recent_news_factors: 0,
       ai_runs: 0,
+      qlib_bridge_enabled: qlibBridge.enabled,
+      qlib_bridge_healthy: qlibBridge.healthy,
+      qlib_bridge_ready: qlibBridge.qlib_ready,
+      qlib_bridge_state: qlibBridge.state,
     },
     user_mix: users.trade_mode_mix,
     alpha_lifecycle: [],
@@ -660,7 +871,9 @@ export function buildAdminOverviewHeadlineFast() {
       {
         label: '因子与 AI 层',
         value: '加载中...',
-        detail: '正在拉取 AI 运行与新闻因子数据。',
+        detail: qlibBridge.enabled
+          ? `Qlib Bridge ${qlibBridge.state === 'online' ? '✅ 在线' : qlibBridge.state === 'data_not_ready' ? '⚠️ 数据未就绪' : '❌ 不可达'}，AI 数据加载中。`
+          : '正在拉取 AI 运行与新闻因子数据。',
       },
     ],
     guardrails: [
@@ -670,7 +883,17 @@ export function buildAdminOverviewHeadlineFast() {
       { label: 'Alpha 发现活跃度', value: 0 },
       { label: '用户使用活跃度', value: Math.min(100, users.summary.active_last_30d * 10) },
     ],
-    system_cards: null,
+    system_cards: {
+      runtime_provider: null,
+      runtime_mode: null,
+      news_factor_count: 0,
+      option_chain_count: 0,
+      qlib_bridge_enabled: qlibBridge.enabled,
+      qlib_bridge_healthy: qlibBridge.healthy,
+      qlib_bridge_ready: qlibBridge.qlib_ready,
+      qlib_bridge_state: qlibBridge.state,
+      qlib_bridge_version: qlibBridge.version,
+    },
   };
 }
 
@@ -683,4 +906,5 @@ export function _resetAdminCachesForTesting() {
   _overviewCache = null;
   _overviewInflight = null;
   _usersCache = null;
+  _qlibHeadlineCache = null;
 }

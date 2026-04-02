@@ -551,7 +551,23 @@ describe('admin data api', () => {
     expect(data.headline_metrics).toBeDefined();
     expect(data.workflow_timeline).toBeDefined();
     expect(data.top_symbols).toBeDefined();
-    expect(data.system_cards).toBeNull();
+    expect(data.system_cards).toBeDefined();
+    expect(
+      (
+        data.headline_metrics as {
+          qlib_bridge_state?: string;
+          qlib_bridge_ready?: boolean;
+        }
+      ).qlib_bridge_state,
+    ).toBeDefined();
+    expect(
+      (
+        data.system_cards as {
+          qlib_bridge_state?: string;
+          qlib_bridge_ready?: boolean;
+        }
+      ).qlib_bridge_state,
+    ).toBeDefined();
   });
 
   it('headline returns cached overview when full overview is in cache', async () => {

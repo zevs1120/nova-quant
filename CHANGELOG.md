@@ -4,6 +4,13 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+- **Feat(admin,research): Admin 管理界面接入 Qlib Bridge 健康状态与因子/模型面板。**
+  - **后端 (`service.ts`)**：新增统一的 Qlib Bridge 状态汇总，完整 system snapshot 会先读取 `/api/status` 生成 `disabled / offline / data_not_ready / online` 四态，再仅在 Bridge 进程在线时补拉 `/api/factors/sets` 与 `/api/models`。headline 快路径改为只请求轻量 `/api/status`，并使用更短 timeout 与短 TTL 缓存，避免首屏被重型端点拖慢。
+  - **前端 SystemHealthPage**：新增 Qlib Bridge 健康面板（Disabled / Online / Data Not Ready / Offline 四态 pill、version/uptime/region/provider、最大标的容量）和因子引擎/模型面板（Alpha158/360 因子集列表、预训练模型列表及大小）。告警列表改为只消费后端 diagnostics，不再重复拼装 Qlib 告警。
+  - **前端 OverviewPage**：AI/因子卡片、系统层摘要与 priority items 全部切换为消费统一的 `qlib_bridge_state`，`data_not_ready` 会单独显示为“数据未就绪”，不再误报为“在线”。
+  - **Overview headline_metrics 与 system_cards**：新增 `qlib_bridge_ready`、`qlib_bridge_state` 字段，并保留 `qlib_bridge_enabled`、`qlib_bridge_healthy`、`qlib_bridge_version`，使渐进式加载和完整快照使用同一套状态契约。
+  - **Diagnostics**：后端根据 Bridge 状态自动产出 3 类诊断项——已启用但不可达 (WARN)、在线但数据未就绪 (WARN)、因子引擎在线 (INFO)。
+  - **Test: 新增 `adminQlibBridge.test.ts`**，覆盖 disabled 路径（无 Qlib 诊断）、enabled-but-unreachable（WARN 诊断）、running-but-not-ready（`data_not_ready` 分支）、headline 快路径字段与“仅访问 `/api/status`”约束，以及 graceful degradation（无异常抛出）。
 - **Fix(auth): 认证系统安全加固 — 8 项审计问题全部处理。**
   - **[高危] Fix(auth): 登录端点新增 IP 级别 rate limiting（默认 60s/10 次）。** 防止暴力破解攻击，`/api/auth/login` 和 `/api/admin/login` 均受保护，超限返回 429。
   - **[高危] Perf(auth): Supabase access token 验证新增内存缓存（默认 TTL 30s）。** 避免每次 API 请求都对 Supabase 做网络调用，减少延迟和 Supabase 不可达时的全站影响。

@@ -57,6 +57,28 @@ function toneForStatus(status) {
   return 'is-slate';
 }
 
+function getQlibBridgeState(qlibBridge) {
+  if (qlibBridge?.state) return qlibBridge.state;
+  if (!qlibBridge?.enabled) return 'disabled';
+  if (!qlibBridge?.healthy) return 'offline';
+  if (!qlibBridge?.qlib_ready) return 'data_not_ready';
+  return 'online';
+}
+
+function qlibBridgeTone(state) {
+  if (state === 'online') return 'is-green';
+  if (state === 'data_not_ready') return 'is-amber';
+  if (state === 'offline') return 'is-red';
+  return 'is-slate';
+}
+
+function qlibBridgeLabel(state) {
+  if (state === 'online') return 'Online';
+  if (state === 'data_not_ready') return 'Data Not Ready';
+  if (state === 'offline') return 'Offline';
+  return 'Disabled';
+}
+
 function buildAlerts(dataSource, workflowSummary, diagnostics, recentRuns) {
   const alerts = [];
   const failedWorkflows =
@@ -148,6 +170,8 @@ export default function SystemHealthPage() {
   const aiSummary = data?.ai_summary || {};
   const dataSummary = data?.data_summary || {};
   const dailyOps = data?.daily_ops || {};
+  const qlibBridge = data?.qlib_bridge || {};
+  const qlibBridgeState = getQlibBridgeState(qlibBridge);
   const alerts = buildAlerts(
     dataSource,
     workflowSummary,
@@ -281,6 +305,112 @@ export default function SystemHealthPage() {
               </p>
             </article>
           </div>
+        </article>
+      </section>
+
+      <section className="page-grid two-up">
+        <article className="panel">
+          <div className="panel-header">
+            <h3>Qlib Bridge 健康</h3>
+            <span className={`status-pill ${qlibBridgeTone(qlibBridgeState)}`}>
+              {qlibBridgeLabel(qlibBridgeState)}
+            </span>
+          </div>
+          {!qlibBridge.enabled ? (
+            <p className="panel-copy">
+              Qlib Bridge 未启用。在环境变量中设置 QLIB_BRIDGE_ENABLED=true 并确保 Bridge 服务在 EC2
+              上运行。
+            </p>
+          ) : (
+            <div className="source-card-grid">
+              <article className="source-card">
+                <strong>状态</strong>
+                <p>
+                  {qlibBridge.healthy ? '在线' : '不可达'} · Qlib{' '}
+                  {qlibBridge.qlib_ready ? '已就绪' : '未初始化'}
+                </p>
+              </article>
+              <article className="source-card">
+                <strong>Version / Uptime</strong>
+                <p>
+                  {qlibBridge.version || '--'} ·{' '}
+                  {qlibBridge.uptime_seconds != null
+                    ? `${formatNumber(Math.round(qlibBridge.uptime_seconds / 60))} 分钟`
+                    : '--'}
+                </p>
+              </article>
+              <article className="source-card">
+                <strong>Region / Provider</strong>
+                <p>
+                  {qlibBridge.region || '--'} · {qlibBridge.provider_uri || '--'}
+                </p>
+              </article>
+              <article className="source-card">
+                <strong>最大标的容量</strong>
+                <p>
+                  {qlibBridge.max_universe_size != null
+                    ? `${formatNumber(qlibBridge.max_universe_size)} symbols/请求`
+                    : '--'}
+                </p>
+              </article>
+            </div>
+          )}
+        </article>
+
+        <article className="panel">
+          <div className="panel-header">
+            <h3>因子引擎与模型</h3>
+            <span className="status-pill is-blue">Qlib Engine</span>
+          </div>
+          {(qlibBridge.available_factor_sets || []).length > 0 ? (
+            <div className="health-route-list">
+              {qlibBridge.available_factor_sets.map((fs) => (
+                <div key={fs.id} className="health-route-item">
+                  <div>
+                    <strong>{fs.id}</strong>
+                    <p>
+                      {formatNumber(fs.factor_count)} 个因子 ·{' '}
+                      {fs.description?.slice(0, 80) || '--'}
+                    </p>
+                  </div>
+                  <span className="status-pill is-green">Available</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="panel-copy">
+              {qlibBridge.enabled
+                ? '当前没有可用因子集（Bridge 可能离线或数据未同步）。'
+                : '因子引擎未启用。'}
+            </p>
+          )}
+
+          {(qlibBridge.available_models || []).length > 0 ? (
+            <>
+              <p className="panel-subsection-title" style={{ marginTop: 14 }}>
+                预训练模型
+              </p>
+              <div className="health-route-list">
+                {qlibBridge.available_models.map((m) => (
+                  <div key={m.name} className="health-route-item">
+                    <div>
+                      <strong>{m.name}</strong>
+                      <p>
+                        {m.file || '--'} · {formatNumber(m.size_kb, 1)} KB
+                      </p>
+                    </div>
+                    <span className="status-pill is-blue">Loaded</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <p className="panel-copy" style={{ marginTop: 10 }}>
+              {qlibBridge.enabled
+                ? '当前没有部署的预训练模型。将 .pkl 文件放入 qlib-bridge/models/ 目录。'
+                : '预训练模型功能依赖 Qlib Bridge。'}
+            </p>
+          )}
         </article>
       </section>
 

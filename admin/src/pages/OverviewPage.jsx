@@ -11,6 +11,28 @@ const SHADOW_PILEUP_PAD = 6;
 // Active user ratio below this % triggers low-activation alert
 const LOW_ACTIVATION_THRESHOLD_PCT = 30;
 
+function getQlibBridgeState(headline) {
+  if (headline?.qlib_bridge_state) return headline.qlib_bridge_state;
+  if (!headline?.qlib_bridge_enabled) return 'disabled';
+  if (!headline?.qlib_bridge_healthy) return 'offline';
+  if (headline?.qlib_bridge_ready === false) return 'data_not_ready';
+  return 'online';
+}
+
+function getQlibBridgeStatusLabel(state) {
+  if (state === 'online') return '✅ 在线';
+  if (state === 'data_not_ready') return '⚠️ 数据未就绪';
+  if (state === 'offline') return '❌ 离线';
+  return '未启用';
+}
+
+function getQlibBridgeStatusShortLabel(state) {
+  if (state === 'online') return '✅';
+  if (state === 'data_not_ready') return '⚠️';
+  if (state === 'offline') return '❌';
+  return '未启用';
+}
+
 function LifecycleStack({ rows }) {
   const total = rows.reduce((sum, item) => sum + Number(item.value || 0), 0) || 1;
   return (
@@ -57,6 +79,7 @@ function priorityClass(level) {
 
 function buildPriorityItems(headline, workflowTimeline, activeUserRatio) {
   const failedWorkflows = (workflowTimeline || []).filter((item) => item.status === 'FAILED');
+  const qlibBridgeState = getQlibBridgeState(headline);
   const items = [];
 
   if (failedWorkflows.length) {
@@ -91,6 +114,22 @@ function buildPriorityItems(headline, workflowTimeline, activeUserRatio) {
       title: '当前没有在线信号',
       detail: '如果这不是预期状态，优先检查研究、信号生成与上游数据链路。',
       level: 'risk',
+    });
+  }
+
+  if (qlibBridgeState === 'offline') {
+    items.push({
+      title: 'Qlib Bridge 不可达',
+      detail: 'Qlib 因子引擎已启用但健康检查失败，因子增强当前不可用。',
+      level: 'watch',
+    });
+  }
+
+  if (qlibBridgeState === 'data_not_ready') {
+    items.push({
+      title: 'Qlib 数据未就绪',
+      detail: 'Bridge 已在线，但 Qlib 核心尚未初始化；先完成数据同步再看因子和模型结果。',
+      level: 'watch',
     });
   }
 
@@ -161,6 +200,9 @@ export default function OverviewPage() {
 
   const headline = data?.headline_metrics || {};
   const workflowTimeline = (data?.workflow_timeline || []).slice(0, 5);
+  const qlibBridgeState = getQlibBridgeState(headline);
+  const qlibBridgeStatusLabel = getQlibBridgeStatusLabel(qlibBridgeState);
+  const qlibBridgeStatusShortLabel = getQlibBridgeStatusShortLabel(qlibBridgeState);
   const activeUserRatio = headline.total_users
     ? (Number(headline.active_users_7d || 0) / Number(headline.total_users || 1)) * 100
     : 0;
@@ -191,7 +233,13 @@ export default function OverviewPage() {
     {
       label: 'AI 与因子',
       value: isPartial ? '...' : `${headline.ai_runs || 0} / ${headline.recent_news_factors || 0}`,
-      detail: isPartial ? '正在加载 AI 运行数据...' : '最近 AI 运行次数 / 结构化新闻因子沉淀量。',
+      detail: isPartial
+        ? qlibBridgeState === 'disabled'
+          ? '正在加载 AI 运行数据...'
+          : `AI 运行数据加载中。Qlib Bridge ${qlibBridgeStatusLabel}`
+        : qlibBridgeState === 'disabled'
+          ? '最近 AI 运行次数 / 结构化新闻因子沉淀量。Qlib 未启用'
+          : `AI ${headline.ai_runs || 0} 次 / 新闻因子 ${headline.recent_news_factors || 0} 条。Qlib Bridge ${qlibBridgeStatusLabel}`,
       tone: 'red',
     },
   ];
@@ -220,8 +268,8 @@ export default function OverviewPage() {
       label: '系统层',
       value: workflowTimeline.length ? `${workflowTimeline.length} 条最新动态` : '暂无动态',
       detail: workflowTimeline.length
-        ? `最近一条来自 ${workflowTimeline[0]?.workflow_key || 'workflow'}。`
-        : '等待新的后台任务脉冲。',
+        ? `最近一条来自 ${workflowTimeline[0]?.workflow_key || 'workflow'}。 Qlib Bridge ${qlibBridgeStatusShortLabel}`
+        : `等待新的后台任务脉冲。Qlib Bridge ${qlibBridgeStatusShortLabel}`,
     },
   ];
 
