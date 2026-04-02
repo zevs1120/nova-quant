@@ -12,6 +12,8 @@ NovaQuant 所有重要变更记录于此。
   - **Docs：** 新增 `docs/MANUAL_POINTS_AND_PREDICTION.md`；更新 `architecture.md`、`CLAUDE.md`、`AGENTS.md`、`CURRENT_PRODUCT_DOCUMENT_ZH.md`、`.env.example`。
   - **Test：** `tests/manualGamificationIntegration.test.ts`；更新 manual 相关单测。
 
+- **Fix(test,ci): `tests/factorMeasurements.test.ts` 为动量/carry 实测报告用例设置 20s Vitest 超时，避免 GitHub Actions 默认 5s 在慢 runner 上超时失败。**
+
 - **Test(hooks,admin,utils): 全量补齐 Browse/信号详情/日期、Hooks、Admin 组件与 HTTP 下载测试；修复 Nova Assistant 线程加载。**
   - **Fix(app,chat):** `useNovaAssistant` 将错误的 `fetchJson` 调用改为 `fetchApiJson`，避免运行时 `ReferenceError`。
   - **Test:** 新增 `tests/browseWarmup.test.ts`、`tests/signalDetailsDeep.test.ts`、`tests/disciplineDate.test.ts`、`tests/httpDownloadToFile.test.ts`；`tests/hooks/*` 覆盖 `useAuth`、`useAppData`、`useBilling`、`useMembership`、`useEngagement`、`useInvestorDemo`、`useNavigation`、`useLocalStorage`、`useControlPlaneStatus`、`useDemoAssistant`、`useNovaAssistant`；`tests/admin/*` 覆盖 `StatCard`、`Topbar`、`Sidebar`、`AdminLogin`。
