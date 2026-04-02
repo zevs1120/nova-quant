@@ -24,7 +24,7 @@
 
 测试框架为 Vitest，覆盖 API、决策引擎、研究流程、数据接入与可靠性边界。新增功能应补对应 `tests/*.test.ts`，至少覆盖正常路径、边界条件与回归场景。涉及 API 或状态机时，可参考 `tests/apiServer.test.ts`、`tests/runtimeDerivation.test.ts`。修改数据管道或风险逻辑后，先跑相关测试，再跑 `npm test`。
 
-全量测试默认 **并行**（勿无故改回单线程串行，以免 `npm test` 从约 10s 级恶化到 50s+）。前端主壳为 JSX 时，优先为 **`src/utils` 关键路径**（如 `fetchApi` 本地 base 轮换、`appHelpers` 错误文案、`format`）补充 Node 侧单测；策略与说明见 `docs/TESTING.md`。
+全量测试默认 **并行**（勿无故改回单线程串行，以免 `npm test` 从约 10s 级恶化到 50s+）。前端主壳为 JSX 时，优先为 **`src/utils` 关键路径**（如 `fetchApi` 本地 base 轮换、`appHelpers` 错误文案、`format`）补充 Node 侧单测；**Hooks** 使用 `happy-dom` + `@testing-library/react` 的 `renderHook`（见 `tests/hooks/`），**admin 组件**见 `tests/admin/`。策略与说明见 `docs/TESTING.md`。
 
 ## 提交与 Pull Request 规范
 

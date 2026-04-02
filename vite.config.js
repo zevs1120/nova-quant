@@ -1,11 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-// Vitest 4+ bundles Vite 8 (oxc/rolldown); @vitejs/plugin-react 4.x still registers legacy
-// esbuild hooks and prints deprecation noise. Tests only import TS/JS (no JSX), so omit
-// the React plugin during `vitest` — keeps `vite build` / dev unchanged.
-const vitestRunning = Boolean(process.env.VITEST);
-
 const publicSupabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
 const publicSupabaseKey =
   process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
@@ -21,7 +16,8 @@ const publicSupabaseRedirectUrl =
 const publicApiBase = process.env.VITE_API_BASE_URL || process.env.VITE_PUBLIC_API_BASE_URL || '';
 
 export default defineConfig({
-  plugins: vitestRunning ? [] : [react()],
+  // React plugin required for Vitest when importing JSX (e.g. admin components, hook suites).
+  plugins: [react()],
   define: {
     'globalThis.__NOVA_PUBLIC_SUPABASE_URL__': JSON.stringify(publicSupabaseUrl),
     'globalThis.__NOVA_PUBLIC_SUPABASE_PUBLISHABLE_KEY__': JSON.stringify(publicSupabaseKey),

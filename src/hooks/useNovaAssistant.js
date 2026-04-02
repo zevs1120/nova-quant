@@ -29,7 +29,7 @@ export function useNovaAssistant({ userId, seedRequest, contextBase }) {
   const loadThread = useCallback(
     async (threadId) => {
       if (!threadId || !userId) return;
-      const payload = await fetchJson(
+      const payload = await fetchApiJson(
         `/api/chat/threads/${threadId}?userId=${encodeURIComponent(userId)}&limit=40`,
       );
       setMessages(normalizeMessages(payload.messages || []));
@@ -49,7 +49,7 @@ export function useNovaAssistant({ userId, seedRequest, contextBase }) {
           await loadThread(activeThreadId);
           return;
         }
-        const payload = await fetchJson(
+        const payload = await fetchApiJson(
           `/api/chat/threads?userId=${encodeURIComponent(userId)}&limit=1`,
         );
         const first = payload.data?.[0];

@@ -1,4 +1,27 @@
+import { Window } from 'happy-dom';
 import { afterEach } from 'vitest';
+
+// Node 25+ may expose a broken global `localStorage` (e.g. missing .clear). Patch only storage to avoid clobbering locked globals like `navigator`.
+if (typeof globalThis.localStorage?.clear !== 'function') {
+  const w = new Window();
+  Object.defineProperty(globalThis, 'localStorage', {
+    value: w.localStorage,
+    configurable: true,
+    writable: true,
+  });
+  if (typeof globalThis.window === 'undefined') {
+    Object.defineProperty(globalThis, 'window', {
+      value: w,
+      configurable: true,
+    });
+  }
+  if (typeof globalThis.document === 'undefined') {
+    Object.defineProperty(globalThis, 'document', {
+      value: w.document,
+      configurable: true,
+    });
+  }
+}
 import { resetConfigCache } from '../src/server/config.js';
 import { closePostgresAuthStore } from '../src/server/auth/postgresStore.js';
 import { closePostgresBusinessReadPoolForTesting } from '../src/server/admin/postgresBusinessRead.js';

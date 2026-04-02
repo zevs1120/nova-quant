@@ -28,7 +28,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Testing
 
-- Framework: Vitest 4 with `@vitest/coverage-v8`
+- Framework: Vitest 4 with `@vitest/coverage-v8`; hook/component tests use `happy-dom` + `@testing-library/react` (see `docs/TESTING.md`)
 - Run single test: `npx vitest run tests/<feature>.test.ts`
 - New features must have matching `tests/<feature>.test.ts` covering normal path, edge cases, and regressions
 - Tests use the in-memory Postgres harness defined under `tests/vitest.setup.ts`

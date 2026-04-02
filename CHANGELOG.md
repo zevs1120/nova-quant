@@ -4,6 +4,11 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+- **Test(hooks,admin,utils): 全量补齐 Browse/信号详情/日期、Hooks、Admin 组件与 HTTP 下载测试；修复 Nova Assistant 线程加载。**
+  - **Fix(app,chat):** `useNovaAssistant` 将错误的 `fetchJson` 调用改为 `fetchApiJson`，避免运行时 `ReferenceError`。
+  - **Test:** 新增 `tests/browseWarmup.test.ts`、`tests/signalDetailsDeep.test.ts`、`tests/disciplineDate.test.ts`、`tests/httpDownloadToFile.test.ts`；`tests/hooks/*` 覆盖 `useAuth`、`useAppData`、`useBilling`、`useMembership`、`useEngagement`、`useInvestorDemo`、`useNavigation`、`useLocalStorage`、`useControlPlaneStatus`、`useDemoAssistant`、`useNovaAssistant`；`tests/admin/*` 覆盖 `StatCard`、`Topbar`、`Sidebar`、`AdminLogin`。
+  - **Chore(test):** `vite.config.js` 在 Vitest 下启用 React 插件以编译 JSX；`tests/vitest.setup.ts` 对残缺 `localStorage` 注入 happy-dom；新增 devDependencies `happy-dom`、`@testing-library/react`。
+
 - **Test(perf,frontend,api): Vitest 并行恢复、dotenv 静默与 API/工具链鲁棒性测试。**
   - `vite.config.js`：去掉强制单 worker + 关闭 `fileParallelism` 的配置（全量测试墙钟时间从约 50s+ 降至约 10s 量级，视机器而定）；`test.env.DOTENV_CONFIG_QUIET` 减少测试进程中重复的 dotenv 提示。
   - `src/utils/api.js`：在 **localhost** 下对 `/api/*` 的 404/405/HTML 回退不再因「已缓存非空 base」而失效；当所有候选 base 仅返回可旋转类响应时返回最后一次响应，避免误将失败 base 写入缓存。
