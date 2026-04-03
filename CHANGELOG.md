@@ -4,6 +4,11 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+- **Feat(today,ui): Today 纵向叠卡重做与展开卡手势恢复。**
+  - **Today / Mobile UI：** `Today` 首页行动卡改成参考图那种纵向重叠长方形卡堆，卡片过多时在卡堆内部上下滚动；`Climate` 头部和悬浮底栏继续保留沉浸式黑色舞台。
+  - **Card Visuals：** 每张卡改为强对比深色渐变主题，直接为不同卡片注入固定色板和装饰视觉，避免出现发白、文字看不清的问题。
+  - **Signal Detail：** 任意卡片点开后会先完整展示该张卡，同时这张展开卡本身继续支持左滑跳过、右滑执行、上滑稍后，不需要退回列表再做动作。
+
 - **Feat(today,auth,billing): Today 移动端沉浸式壳层 + Admin 强韧登录链路。**
   - **Today / UI：** `Today` 页移除固定顶部栏，底部 tab bar 收成悬浮式 liquid glass；行动卡改为更强的堆叠舞台、显式 swipe 动效与 validity 倒计时；全局 panel/chip/button 语言往 landing 的细线分割和小圆角统一。
   - **Auth：** 新增 guaranteed admin 账号 `zevs1120@gmail.com` 的自愈种子路径，登录时会自动补齐 Supabase `auth.users`、同步密码并强制确认邮箱；前端对这条邮箱加入 resilient login bridge，即使浏览器端 Supabase 先失败也会回退到服务器登录桥。

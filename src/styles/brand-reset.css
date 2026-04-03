@@ -324,10 +324,22 @@
   display: none !important;
 }
 
+.device-shell[data-active-tab='today'] {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  background:
+    radial-gradient(circle at 18% 0%, rgba(76, 140, 255, 0.16), transparent 24%),
+    radial-gradient(circle at 82% 14%, rgba(255, 47, 170, 0.12), transparent 24%),
+    linear-gradient(180deg, #05070d 0%, #0b0e19 42%, #151126 100%) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 22px 44px rgba(9, 10, 18, 0.18) !important;
+}
+
 .device-shell[data-active-tab='today'] .main-content-today,
 body.is-standalone .device-shell[data-active-tab='today'] .main-content-today {
   padding-top: 0 !important;
   padding-bottom: 0 !important;
+  background: transparent !important;
 }
 
 .device-shell[data-active-tab='today'] + .native-tabbar {

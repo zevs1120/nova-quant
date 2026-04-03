@@ -2483,6 +2483,20 @@ body.is-standalone .main-content-today {
   gap: clamp(4px, 0.8dvh, 12px) !important;
 }
 
+.main-content-today .screen-transition,
+body.is-standalone .main-content-today .screen-transition {
+  flex: 1 1 auto !important;
+  min-height: 100% !important;
+}
+
+.today-screen-redesign.today-tinder-shell {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  min-height: 100% !important;
+  height: 100% !important;
+}
+
 .today-summary-header {
   padding: 0 2px !important;
   gap: clamp(2px, 0.4dvh, 8px) !important;
@@ -2517,6 +2531,37 @@ body.is-standalone .main-content-today {
   flex: 1 1 0 !important;
   min-height: 0 !important;
   height: 100% !important;
+}
+
+.today-screen-redesign .today-decision-stack {
+  display: flex !important;
+  flex-direction: column !important;
+  min-height: clamp(320px, 52svh, 720px) !important;
+}
+
+.today-screen-redesign .today-deck-shell {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 0 !important;
+  min-height: clamp(320px, 52svh, 720px) !important;
+}
+
+.today-screen-redesign .today-analytics-scroll {
+  flex: 1 1 0 !important;
+  min-height: 0 !important;
+  height: 100% !important;
+}
+
+.today-screen-redesign .today-tinder-deck,
+.today-screen-redesign .today-deck-shell > .today-empty-card {
+  flex: 1 1 auto !important;
+  min-height: clamp(300px, 50svh, 660px) !important;
+}
+
+.today-screen-redesign .today-deck-shell > .today-empty-card {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
 }
 
 .today-deck-shell {

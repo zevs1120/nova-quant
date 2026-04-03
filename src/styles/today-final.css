@@ -2425,8 +2425,12 @@
 /* Stacked Today deck inspired by the mobile analytics reference */
 .today-screen-redesign.today-tinder-shell {
   position: relative;
-  gap: 14px;
-  padding: 14px 12px calc(var(--native-tabbar-reserve) + 16px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 100%;
+  height: 100%;
+  padding: 10px 12px calc(var(--native-tabbar-reserve) + 14px);
   border-radius: 32px;
   background:
     radial-gradient(circle at 18% 0%, rgba(76, 140, 255, 0.18), transparent 22%),
@@ -2465,7 +2469,7 @@
   grid-template-columns: minmax(0, 1fr);
   gap: 4px;
   width: 100%;
-  padding: 2px 2px 0;
+  padding: 0 2px;
 }
 
 .today-screen-redesign .today-summary-header-climate .today-climate-panel::after {
@@ -2533,11 +2537,17 @@
 
 .today-screen-redesign .today-decision-stack {
   flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
   min-height: 0;
 }
 
 .today-screen-redesign .today-deck-shell {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-height: 0;
   perspective: 1400px;
   transform-style: preserve-3d;
   overflow: visible !important;
@@ -2617,6 +2627,425 @@
   --today-card-soft: rgba(255, 255, 255, 0.14);
   --today-card-orb-core: #ffd2aa;
   --today-card-orb-shadow: rgba(255, 166, 104, 0.42);
+}
+
+.today-screen-redesign .today-analytics-scroll {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 2px 2px calc(var(--native-tabbar-reserve) + 26px);
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: y proximity;
+  scrollbar-width: none;
+}
+
+.today-screen-redesign .today-analytics-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.today-screen-redesign .today-analytics-card {
+  --today-card-gradient:
+    radial-gradient(circle at 50% 12%, rgba(139, 198, 255, 0.24), transparent 22%),
+    linear-gradient(150deg, #0b1434 0%, #0d2e78 52%, #1569ff 100%);
+  --today-card-text: #fbfdff;
+  --today-card-muted: rgba(235, 244, 255, 0.78);
+  --today-card-soft: rgba(255, 255, 255, 0.14);
+  --today-card-orb-core: #85c4ff;
+  --today-card-orb-shadow: rgba(71, 143, 255, 0.52);
+  position: relative;
+  z-index: var(--stack-order, 1);
+  width: 100%;
+  min-height: clamp(228px, 29svh, 286px) !important;
+  height: clamp(228px, 29svh, 286px) !important;
+  padding: 18px 16px 18px !important;
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background:
+    radial-gradient(circle at 50% -8%, rgba(255, 255, 255, 0.12), transparent 30%),
+    var(--today-card-gradient, linear-gradient(150deg, #0b1434 0%, #0d2e78 52%, #1569ff 100%));
+  color: var(--today-card-text, #ffffff);
+  display: flex !important;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 14px;
+  overflow: hidden;
+  box-shadow:
+    0 24px 48px rgba(4, 5, 10, 0.22),
+    0 0 0 1px rgba(255, 255, 255, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  cursor: pointer;
+  touch-action: pan-y;
+  user-select: none;
+  scroll-snap-align: start;
+  transform: none;
+}
+
+.today-screen-redesign .today-analytics-card + .today-analytics-card {
+  margin-top: clamp(-86px, -10.4svh, -68px);
+}
+
+.today-screen-redesign .today-analytics-card::before {
+  opacity: 0;
+}
+
+.today-screen-redesign .today-analytics-card::after {
+  display: none;
+}
+
+.today-screen-redesign .today-analytics-card:active {
+  transform: scale(0.992);
+}
+
+.today-detail-screen {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.today-detail-hero-card {
+  touch-action: none;
+  user-select: none;
+  cursor: grab;
+  box-shadow:
+    0 30px 58px rgba(4, 5, 10, 0.26),
+    0 0 0 1px rgba(255, 255, 255, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+.today-detail-hero-card[data-gesture-active='true'] {
+  cursor: grabbing;
+  transition-duration: 0ms;
+  box-shadow:
+    0 34px 66px rgba(4, 5, 10, 0.28),
+    0 0 0 1px rgba(255, 255, 255, 0.07),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+.today-detail-hero-card[data-gesture-intent='skip']::before {
+  opacity: 1;
+  background: linear-gradient(135deg, rgba(18, 21, 34, 0.12), rgba(255, 255, 255, 0.06));
+}
+
+.today-detail-hero-card[data-gesture-intent='accept']::before {
+  opacity: 1;
+  background: linear-gradient(135deg, rgba(75, 125, 255, 0.24), rgba(255, 95, 196, 0.18));
+}
+
+.today-detail-hero-card[data-gesture-intent='later']::before {
+  opacity: 1;
+  background: linear-gradient(180deg, rgba(75, 125, 255, 0.18), rgba(86, 221, 199, 0.12));
+}
+
+.today-detail-hero-card .today-swipe-marker {
+  opacity: 0.88;
+}
+
+.today-detail-hero-card .today-analytics-card-title {
+  font-size: clamp(38px, 10vw, 52px);
+}
+
+.today-detail-hero-card .today-analytics-card-footer {
+  max-width: 70%;
+}
+
+.today-analytics-card-head {
+  position: relative;
+  z-index: 2;
+}
+
+.today-analytics-card-copy {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.today-analytics-card-kicker {
+  margin: 0;
+  color: var(--today-card-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.today-analytics-card-title {
+  margin: 0;
+  color: var(--today-card-text);
+  font-size: clamp(32px, 8.4vw, 42px);
+  line-height: 0.9;
+  font-weight: 820;
+  letter-spacing: -0.07em;
+  text-shadow: 0 12px 26px rgba(0, 0, 0, 0.14);
+}
+
+.today-analytics-card-pills {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.today-analytics-card-chip {
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.96);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(14px) saturate(1.08);
+  -webkit-backdrop-filter: blur(14px) saturate(1.08);
+}
+
+.today-analytics-card-chip-buy {
+  background: rgba(126, 255, 205, 0.16);
+}
+
+.today-analytics-card-chip-sell {
+  background: rgba(255, 211, 157, 0.18);
+}
+
+.today-analytics-card-chip-hold {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.today-analytics-card .today-validity-pill {
+  min-height: 32px;
+  padding: 6px 10px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  box-shadow: none;
+}
+
+.today-analytics-card .today-validity-pill-warning {
+  background: rgba(255, 216, 113, 0.18);
+  color: #fff2cb;
+}
+
+.today-analytics-card .today-validity-pill-expired {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.today-analytics-card .today-validity-pill-subtitle {
+  color: var(--today-card-muted);
+}
+
+.today-analytics-card-art {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.today-analytics-art-ring {
+  position: absolute;
+  pointer-events: none;
+  left: 50%;
+  top: 24px;
+  width: 188px;
+  height: 188px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  border: 1px dashed rgba(255, 255, 255, 0.24);
+  opacity: 0.52;
+}
+
+.today-analytics-art-orb {
+  position: absolute;
+  pointer-events: none;
+  left: 50%;
+  bottom: -44px;
+  width: 192px;
+  height: 192px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background:
+    radial-gradient(
+      circle at 34% 30%,
+      rgba(255, 255, 255, 0.98),
+      var(--today-card-orb-core) 34%,
+      transparent 68%
+    ),
+    radial-gradient(circle, var(--today-card-orb-shadow), transparent 72%);
+  box-shadow:
+    0 30px 52px rgba(0, 0, 0, 0.24),
+    0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.today-analytics-art-trace {
+  position: absolute;
+  pointer-events: none;
+  right: 24px;
+  bottom: 34px;
+  width: 132px;
+  height: 88px;
+  opacity: 0.46;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 224, 120, 0.78);
+  border-left-color: transparent;
+  border-bottom-color: transparent;
+  transform: rotate(12deg);
+}
+
+.today-analytics-card-art-orb .today-analytics-art-orb {
+  bottom: -54px;
+  width: 178px;
+  height: 178px;
+}
+
+.today-analytics-card-art-orb .today-analytics-art-trace {
+  display: none;
+}
+
+.today-analytics-card-art-moon .today-analytics-art-ring {
+  display: none;
+}
+
+.today-analytics-card-art-moon .today-analytics-art-orb {
+  bottom: -82px;
+  width: 234px;
+  height: 234px;
+  background: radial-gradient(
+    circle at 36% 28%,
+    rgba(255, 255, 255, 0.98),
+    #d9dde3 44%,
+    #8f98a8 100%
+  );
+  box-shadow:
+    0 24px 46px rgba(0, 0, 0, 0.22),
+    0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+.today-analytics-card-art-moon .today-analytics-art-trace {
+  display: none;
+}
+
+.today-analytics-card-art-wave .today-analytics-art-ring {
+  left: auto;
+  right: -18px;
+  top: auto;
+  bottom: -54px;
+  width: 220px;
+  height: 220px;
+  transform: none;
+  border-style: solid;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.today-analytics-card-art-wave .today-analytics-art-orb {
+  display: none;
+}
+
+.today-analytics-card-art-wave .today-analytics-art-trace {
+  right: 28px;
+  bottom: 42px;
+  width: 126px;
+  height: 72px;
+  border-color: rgba(255, 217, 71, 0.88);
+  border-radius: 46% 54% 50% 50%;
+  transform: rotate(-8deg);
+  box-shadow: -40px 22px 0 -2px rgba(255, 217, 71, 0.84);
+}
+
+.today-analytics-card-art-arc .today-analytics-art-ring {
+  left: auto;
+  right: -38px;
+  top: auto;
+  bottom: -92px;
+  width: 256px;
+  height: 256px;
+  transform: none;
+  border-color: rgba(201, 255, 102, 0.42);
+}
+
+.today-analytics-card-art-arc .today-analytics-art-orb {
+  display: none;
+}
+
+.today-analytics-card-art-arc .today-analytics-art-trace {
+  right: 48px;
+  bottom: 48px;
+  width: 98px;
+  height: 98px;
+  border-color: rgba(214, 255, 108, 0.88);
+  border-left-color: transparent;
+  border-bottom-color: transparent;
+  transform: rotate(28deg);
+}
+
+.today-analytics-card-art-pulse .today-analytics-art-ring {
+  left: auto;
+  right: -24px;
+  top: auto;
+  bottom: -48px;
+  width: 196px;
+  height: 196px;
+  transform: none;
+}
+
+.today-analytics-card-art-pulse .today-analytics-art-trace {
+  display: none;
+}
+
+.today-analytics-card-footer {
+  position: relative;
+  z-index: 2;
+  max-width: 64%;
+  display: grid;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.today-analytics-card-subtitle {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.96);
+  font-size: 15px;
+  font-weight: 760;
+  letter-spacing: -0.02em;
+  line-height: 1.18;
+}
+
+.today-analytics-card-note {
+  margin: 0;
+  color: var(--today-card-muted);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.28;
+  text-wrap: balance;
+}
+
+.today-analytics-card-lock {
+  background:
+    radial-gradient(circle at 14% 14%, rgba(255, 255, 255, 0.12), transparent 22%),
+    linear-gradient(150deg, #2a1e46 0%, #4a2a7f 54%, #8f63ff 100%);
+}
+
+.today-analytics-card-lock .today-analytics-card-footer {
+  max-width: 100%;
+}
+
+.today-analytics-card-lock .today-action-link-primary {
+  width: fit-content;
+  min-height: 42px;
+  padding: 0 14px;
+  border-radius: 16px;
+  box-shadow: none;
 }
 
 .today-screen-redesign .today-stack-preview {
@@ -3046,11 +3475,55 @@
 @media (max-width: 640px) {
   .today-screen-redesign.today-tinder-shell {
     border-radius: 26px;
-    padding: 12px 10px calc(var(--native-tabbar-reserve) + 12px);
+    gap: 8px;
+    padding: 10px 10px calc(var(--native-tabbar-reserve) + 12px);
   }
 
   .today-climate-title {
     font-size: clamp(32px, 9vw, 40px);
+  }
+
+  .today-screen-redesign .today-analytics-card {
+    min-height: clamp(212px, 26.5svh, 252px) !important;
+    height: clamp(212px, 26.5svh, 252px) !important;
+    padding: 16px 14px 16px !important;
+    border-radius: 20px;
+  }
+
+  .today-screen-redesign .today-analytics-card + .today-analytics-card {
+    margin-top: clamp(-74px, -9.1svh, -58px);
+  }
+
+  .today-analytics-card-title {
+    font-size: clamp(28px, 7.6vw, 36px);
+  }
+
+  .today-analytics-card-footer {
+    max-width: 68%;
+  }
+
+  .today-analytics-card-subtitle {
+    font-size: 14px;
+  }
+
+  .today-analytics-card-note {
+    font-size: 11px;
+  }
+
+  .today-analytics-art-ring {
+    width: 166px;
+    height: 166px;
+    top: 26px;
+  }
+
+  .today-analytics-art-orb {
+    width: 168px;
+    height: 168px;
+  }
+
+  .today-analytics-card-art-moon .today-analytics-art-orb {
+    width: 214px;
+    height: 214px;
   }
 
   .today-tinder-deck {
