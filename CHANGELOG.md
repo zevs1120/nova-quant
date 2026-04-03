@@ -4,6 +4,14 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+- **Test(landing): 定向补齐流量转化网关 (Landing Page) 测试防护网络。**
+  - **组件深度防线**: 为 `HeroSection`（承接流）、`PricingSection`（支付流）、`DataPortalPage`（长页面数据流）设立单独 Vitest 拦截域与 ErrorBoundary，确保底层修改不击穿落地页样式树。
+  - **E2E 商业游走**: 完全重写了 `landing.spec.js` 机器人，强制检验由首页向后跨域跨组件跳转至 `/data-portal` 的路由过渡情况并校验深层 DOM 载入量。
+
+- **Test(ui): 批量生成 100+ UI 参数化自动化测试。**
+  - **组件覆盖率**：使用 Vitest Parameterized (it.each) 机制为 `TodayTab`, `MenuTab`, `AiPage` 等 10 个顶级核心面板生成健壮性保障矩阵（100个条件分支用例）。
+  - **护城河**：成功拦截并合并至 `npm run verify` 严格流水线门禁。
+
 - **Test(ui,membership,app): 补齐主壳与信号链路关键测试（约 +110 用例）。**
   - **Utils：** 新增 `signalHumanLabels` / `signalEntryBounds` 并由 `SignalDetail` 引用；`firstRunRouting` 单测扩充。
   - **Membership：** `applyMembershipAccessToDecision` / runtime 包装、`membership.js` 策略与 Ask Nova 剩余次数（按当日 `membershipUsageDay`）。
