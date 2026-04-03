@@ -16,6 +16,15 @@
   position: relative;
 }
 
+.app-bg.app-tab-today {
+  justify-content: stretch;
+  align-items: stretch;
+  background:
+    radial-gradient(circle at 18% 0%, rgba(76, 140, 255, 0.16), transparent 24%),
+    radial-gradient(circle at 82% 14%, rgba(255, 47, 170, 0.12), transparent 24%),
+    linear-gradient(180deg, #05070d 0%, #0b0e19 42%, #151126 100%) !important;
+}
+
 .device-shell {
   border-radius: 24px;
   border-color: rgba(18, 21, 34, 0.08);
@@ -65,8 +74,6 @@
 .browse-v2-card,
 .browse-v2-signal-card,
 .browse-v2-chart-panel,
-.ai-assistant-card,
-.ai-empty-stage-panel,
 .membership-sheet,
 .billing-checkout-sheet,
 .membership-plan-card,
@@ -154,7 +161,6 @@
 .membership-hero-secondary,
 .membership-card-trigger,
 .first-run-button,
-.ai-linked-context-action,
 .top-bar-action-button,
 .membership-sheet-close {
   border-radius: var(--brand-button-radius) !important;
@@ -167,7 +173,6 @@
 .membership-sheet-secondary,
 .membership-hero-secondary,
 .first-run-button-secondary,
-.ai-linked-context-action,
 .top-bar-action-button,
 .membership-sheet-close {
   border: 1px solid var(--brand-divider-strong) !important;
@@ -265,6 +270,34 @@
   -webkit-backdrop-filter: blur(28px) saturate(1.22);
 }
 
+.native-tabbar-thumb {
+  position: absolute;
+  left: 6px;
+  top: 4px;
+  bottom: var(--native-tabbar-bottom-pad);
+  width: calc((100% - 12px) / 4);
+  border-radius: 20px;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(72, 126, 255, 0.96),
+      rgba(123, 101, 255, 0.92) 48%,
+      rgba(255, 92, 188, 0.88) 100%
+    ),
+    rgba(255, 255, 255, 0.12);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.24),
+    0 10px 22px rgba(0, 0, 0, 0.24);
+  transform: translateX(calc(var(--native-tabbar-active-index, 0) * 100%));
+  transition:
+    transform 320ms var(--ease-spring),
+    width 220ms var(--ease-spring),
+    background 220ms var(--ease-spring),
+    box-shadow 220ms var(--ease-spring);
+  pointer-events: none;
+  z-index: 0;
+}
+
 .native-tabbar-track::before,
 .native-tabbar-track::after {
   content: '';
@@ -289,6 +322,8 @@
 }
 
 .native-tabbar-button {
+  position: relative;
+  z-index: 1;
   min-height: calc(var(--native-tabbar-height) - 4px) !important;
   border-radius: 20px;
   color: rgba(18, 21, 34, 0.54);
@@ -296,21 +331,27 @@
     color 180ms var(--ease-spring),
     background 180ms var(--ease-spring),
     box-shadow 180ms var(--ease-spring),
-    transform 180ms var(--ease-spring);
+    transform 220ms var(--ease-spring),
+    filter 220ms var(--ease-spring);
+  transform: translateY(0) scale(1);
+  filter: saturate(0.94);
 }
 
 .native-tabbar-button.is-active {
-  color: #0b1222;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(252, 244, 108, 0.92)),
-    rgba(255, 255, 255, 0.86);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.78),
-    0 12px 24px rgba(18, 21, 34, 0.12);
+  color: #f8fbff;
+  background: transparent;
+  box-shadow: none;
+  transform: translateY(-2px) scale(1.01);
+  filter: saturate(1.04);
 }
 
 .native-tabbar-icon-wrap {
   background: transparent;
+  transition:
+    background 220ms var(--ease-spring),
+    box-shadow 220ms var(--ease-spring),
+    transform 220ms var(--ease-spring);
+  transform: scale(1);
 }
 
 .native-tabbar-button.is-active .native-tabbar-icon-wrap {
@@ -318,6 +359,41 @@
   box-shadow:
     inset 0 0 0 1px rgba(255, 255, 255, 0.42),
     0 8px 16px rgba(18, 21, 34, 0.08);
+  transform: scale(1.06);
+}
+
+.native-tabbar-label,
+.native-tabbar-icon-svg {
+  transition:
+    color 220ms var(--ease-spring),
+    transform 220ms var(--ease-spring),
+    opacity 220ms var(--ease-spring);
+}
+
+.native-tabbar-button.is-active .native-tabbar-label,
+.native-tabbar-button.is-active .native-tabbar-icon-svg {
+  transform: translateY(-0.5px);
+}
+
+.native-tabbar-button::after {
+  content: '';
+  position: absolute;
+  inset: auto 18% 6px;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(98, 128, 255, 0.26);
+  filter: blur(10px);
+  opacity: 0;
+  transform: translateY(4px) scaleX(0.72);
+  transition:
+    opacity 220ms var(--ease-spring),
+    transform 220ms var(--ease-spring);
+  pointer-events: none;
+}
+
+.native-tabbar-button.is-active::after {
+  opacity: 1;
+  transform: translateY(0) scaleX(1);
 }
 
 .device-shell[data-active-tab='today'] .top-bar {
@@ -325,27 +401,42 @@
 }
 
 .device-shell[data-active-tab='today'] {
-  border-color: rgba(255, 255, 255, 0.08) !important;
+  width: 100% !important;
+  min-width: 100% !important;
+  max-width: 100% !important;
+  min-height: var(--app-height) !important;
+  height: var(--app-height) !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+  border: 0 !important;
   background:
     radial-gradient(circle at 18% 0%, rgba(76, 140, 255, 0.16), transparent 24%),
     radial-gradient(circle at 82% 14%, rgba(255, 47, 170, 0.12), transparent 24%),
     linear-gradient(180deg, #05070d 0%, #0b0e19 42%, #151126 100%) !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.04),
-    0 22px 44px rgba(9, 10, 18, 0.18) !important;
+  box-shadow: none !important;
+  overflow: hidden !important;
 }
 
 .device-shell[data-active-tab='today'] .main-content-today,
 body.is-standalone .device-shell[data-active-tab='today'] .main-content-today {
+  min-height: 0 !important;
+  height: 100% !important;
   padding-top: 0 !important;
   padding-bottom: 0 !important;
   background: transparent !important;
 }
 
-.device-shell[data-active-tab='today'] + .native-tabbar {
+.device-shell[data-active-tab='today'] .main-content {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+.device-shell[data-active-tab='today'] + .native-tabbar,
+.device-shell[data-active-tab='ai'] + .native-tabbar,
+.device-shell[data-active-tab='browse'] + .native-tabbar {
   position: absolute !important;
   left: 50% !important;
-  bottom: 12px !important;
+  bottom: 18px !important;
   transform: translateX(-50%) !important;
   width: min(calc(100% - 24px), calc(var(--shell-max-width) - 24px)) !important;
   height: auto !important;
@@ -357,7 +448,9 @@ body.is-standalone .device-shell[data-active-tab='today'] .main-content-today {
   z-index: 72 !important;
 }
 
-.device-shell[data-active-tab='today'] + .native-tabbar .native-tabbar-track {
+.device-shell[data-active-tab='today'] + .native-tabbar .native-tabbar-track,
+.device-shell[data-active-tab='ai'] + .native-tabbar .native-tabbar-track,
+.device-shell[data-active-tab='browse'] + .native-tabbar .native-tabbar-track {
   padding: 5px 6px calc(var(--native-tabbar-bottom-pad) + 1px);
   border-color: rgba(255, 255, 255, 0.16);
   background:
@@ -369,40 +462,70 @@ body.is-standalone .device-shell[data-active-tab='today'] .main-content-today {
   -webkit-backdrop-filter: blur(24px) saturate(1.18);
 }
 
-.device-shell[data-active-tab='today'] + .native-tabbar .native-tabbar-track::before {
+.device-shell[data-active-tab='today'] + .native-tabbar .native-tabbar-thumb,
+.device-shell[data-active-tab='ai'] + .native-tabbar .native-tabbar-thumb,
+.device-shell[data-active-tab='browse'] + .native-tabbar .native-tabbar-thumb {
+  background:
+    linear-gradient(
+      135deg,
+      rgba(72, 126, 255, 0.96),
+      rgba(123, 101, 255, 0.92) 48%,
+      rgba(255, 92, 188, 0.88) 100%
+    ),
+    rgba(255, 255, 255, 0.1);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.24),
+    0 10px 22px rgba(0, 0, 0, 0.24);
+}
+
+.device-shell[data-active-tab='today'] + .native-tabbar .native-tabbar-track::before,
+.device-shell[data-active-tab='ai'] + .native-tabbar .native-tabbar-track::before,
+.device-shell[data-active-tab='browse'] + .native-tabbar .native-tabbar-track::before {
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.42), transparent);
 }
 
-.device-shell[data-active-tab='today'] + .native-tabbar .native-tabbar-track::after {
+.device-shell[data-active-tab='today'] + .native-tabbar .native-tabbar-track::after,
+.device-shell[data-active-tab='ai'] + .native-tabbar .native-tabbar-track::after,
+.device-shell[data-active-tab='browse'] + .native-tabbar .native-tabbar-track::after {
   background: rgba(7, 10, 18, 0.42);
   filter: blur(20px);
 }
 
-.device-shell[data-active-tab='today'] + .native-tabbar .native-tabbar-button {
+.device-shell[data-active-tab='today'] + .native-tabbar .native-tabbar-button,
+.device-shell[data-active-tab='ai'] + .native-tabbar .native-tabbar-button,
+.device-shell[data-active-tab='browse'] + .native-tabbar .native-tabbar-button {
   color: rgba(231, 238, 255, 0.58);
 }
 
-.device-shell[data-active-tab='today'] + .native-tabbar .native-tabbar-button.is-active {
-  color: #0b1222;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(244, 250, 122, 0.96)),
-    rgba(255, 255, 255, 0.9);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.8),
-    0 10px 22px rgba(0, 0, 0, 0.24);
+.device-shell[data-active-tab='today'] + .native-tabbar .native-tabbar-button.is-active,
+.device-shell[data-active-tab='ai'] + .native-tabbar .native-tabbar-button.is-active,
+.device-shell[data-active-tab='browse'] + .native-tabbar .native-tabbar-button.is-active {
+  color: #f8fbff;
+  background: transparent;
+  box-shadow: none;
 }
 
-.device-shell[data-active-tab='today'] + .native-tabbar .native-tabbar-icon-wrap {
+.device-shell[data-active-tab='today'] + .native-tabbar .native-tabbar-icon-wrap,
+.device-shell[data-active-tab='ai'] + .native-tabbar .native-tabbar-icon-wrap,
+.device-shell[data-active-tab='browse'] + .native-tabbar .native-tabbar-icon-wrap {
   background: transparent;
 }
 
 .device-shell[data-active-tab='today']
   + .native-tabbar
   .native-tabbar-button.is-active
+  .native-tabbar-icon-wrap,
+.device-shell[data-active-tab='ai']
+  + .native-tabbar
+  .native-tabbar-button.is-active
+  .native-tabbar-icon-wrap,
+.device-shell[data-active-tab='browse']
+  + .native-tabbar
+  .native-tabbar-button.is-active
   .native-tabbar-icon-wrap {
-  background: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.16);
   box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.28),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.2),
     0 8px 16px rgba(0, 0, 0, 0.16);
 }
 
@@ -410,6 +533,59 @@ body.is-standalone .device-shell[data-active-tab='today'] .main-content-today {
 .more-list-row + .more-list-row,
 .quick-access-row + .quick-access-row {
   border-top: 1px solid var(--brand-divider);
+}
+
+.device-shell[data-active-tab='today'] .today-screen-redesign .today-analytics-card,
+.device-shell[data-active-tab='today'] .today-screen-redesign .today-detail-hero-card,
+.device-shell[data-active-tab='today'] .today-screen-redesign .today-action-card-stack-top,
+.device-shell[data-active-tab='today'] .today-screen-redesign .today-stack-preview {
+  background:
+    radial-gradient(circle at 50% -10%, rgba(255, 255, 255, 0.16), transparent 30%),
+    var(--today-card-gradient) !important;
+  color: var(--today-card-text, #ffffff) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  box-shadow:
+    0 28px 56px rgba(3, 5, 12, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  filter: none !important;
+  opacity: 1 !important;
+}
+
+.device-shell[data-active-tab='today'] .today-screen-redesign .today-analytics-card::before,
+.device-shell[data-active-tab='today'] .today-screen-redesign .today-detail-hero-card::before,
+.device-shell[data-active-tab='today'] .today-screen-redesign .today-action-card-stack-top::before,
+.device-shell[data-active-tab='today'] .today-screen-redesign .today-stack-preview::before {
+  display: none !important;
+}
+
+.device-shell[data-active-tab='today'] .today-screen-redesign .today-analytics-card-kicker,
+.device-shell[data-active-tab='today'] .today-screen-redesign .today-analytics-card-note,
+.device-shell[data-active-tab='today'] .today-screen-redesign .today-validity-pill-subtitle,
+.device-shell[data-active-tab='today'] .today-screen-redesign .today-action-meta,
+.device-shell[data-active-tab='today'] .today-screen-redesign .today-action-validity-note {
+  color: var(--today-card-muted, rgba(232, 241, 255, 0.78)) !important;
+}
+
+.device-shell[data-active-tab='today'] .today-screen-redesign .today-analytics-card-title,
+.device-shell[data-active-tab='today'] .today-screen-redesign .today-action-symbol,
+.device-shell[data-active-tab='today'] .today-screen-redesign .today-action-direction,
+.device-shell[data-active-tab='today']
+  .today-screen-redesign
+  .today-detail-hero-card
+  .today-analytics-card-title {
+  color: var(--today-card-text, #ffffff) !important;
+  text-shadow: 0 14px 28px rgba(0, 0, 0, 0.2) !important;
+}
+
+.device-shell[data-active-tab='today'] .today-screen-redesign .today-analytics-card-chip,
+.device-shell[data-active-tab='today'] .today-screen-redesign .today-validity-pill,
+.device-shell[data-active-tab='today'] .today-screen-redesign .today-action-decision-chip {
+  background: rgba(255, 255, 255, 0.14) !important;
+  border-color: rgba(255, 255, 255, 0.16) !important;
+  color: rgba(255, 255, 255, 0.96) !important;
+  box-shadow: none !important;
 }
 
 @media (max-width: 640px) {
@@ -433,13 +609,17 @@ body.is-standalone .device-shell[data-active-tab='today'] .main-content-today {
     border-radius: 18px;
   }
 
-  .device-shell[data-active-tab='today'] + .native-tabbar {
+  .device-shell[data-active-tab='today'] + .native-tabbar,
+  .device-shell[data-active-tab='ai'] + .native-tabbar,
+  .device-shell[data-active-tab='browse'] + .native-tabbar {
     bottom: 10px !important;
     width: min(calc(100% - 16px), calc(var(--shell-max-width) - 16px)) !important;
     padding: 0 8px !important;
   }
 
-  .device-shell[data-active-tab='today'] + .native-tabbar .native-tabbar-track {
+  .device-shell[data-active-tab='today'] + .native-tabbar .native-tabbar-track,
+  .device-shell[data-active-tab='ai'] + .native-tabbar .native-tabbar-track,
+  .device-shell[data-active-tab='browse'] + .native-tabbar .native-tabbar-track {
     border-radius: 24px;
   }
 }

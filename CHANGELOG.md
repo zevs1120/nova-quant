@@ -4,6 +4,10 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+- **Feat(app,ui): 全局壳层收口到 edge-to-edge 舞台与滑动 tab bar。**
+  - **Shell：** `Today / Nova / Browse` 三页统一成更沉浸的 edge-to-edge 舞台，底部栏固定在一致的悬浮高度。
+  - **Tab Bar：** 底部导航改成会横向移动的激活滑块，不再只是当前按钮单独变色；激活状态、辉光和位置关系也统一到同一套视觉语言。
+
 - **Feat(nova,ui): Nova 对话页重写并统一 Browse 深色舞台。**
   - **Nova：** 旧聊天页壳层整体移除，改成新的 `nova-ai-*` 结构，上方轻引导、中间留白/消息流、下方 suggestions + 输入 dock 紧贴悬浮 tab bar。
   - **Browse：** 发现页切换到和 Today / Nova 一致的深色舞台，搜索、卡片、详情与新闻块统一成高对比玻璃暗面。

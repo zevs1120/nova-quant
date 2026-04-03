@@ -1210,7 +1210,7 @@ export default function App() {
 
   return (
     <AuthProvider value={authContextValue}>
-      <div className={`app-bg app-bg-${displayMode} app-tone-${appTone}`}>
+      <div className={`app-bg app-bg-${displayMode} app-tone-${appTone} app-tab-${activeTab}`}>
         <div
           className={`device-shell device-shell-${displayMode} ui-tone-${appTone} ui-motion-${motionProfile} daily-check-${dailyCheckState}`}
           data-active-tab={activeTab}
@@ -1287,7 +1287,13 @@ export default function App() {
         </div>
 
         <nav className="native-tabbar" aria-label="Primary navigation">
-          <div className="native-tabbar-track">
+          <div
+            className="native-tabbar-track"
+            style={{
+              '--native-tabbar-active-index': `${Math.max(0, primaryTabKeys.indexOf(activeTab))}`,
+            }}
+          >
+            <span className="native-tabbar-thumb" aria-hidden="true" />
             {primaryTabKeys.map((key) => {
               const value = tabMeta[key];
               return (
