@@ -1,3 +1,4 @@
+import '../styles/onboarding.css';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 const MARKET_OPTIONS = {

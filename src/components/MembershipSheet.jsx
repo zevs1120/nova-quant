@@ -1,3 +1,4 @@
+import '../styles/membership.css';
 import { buildMembershipPlans, normalizeMembershipPlan } from '../utils/membership';
 
 export default function MembershipSheet({

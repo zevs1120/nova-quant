@@ -535,59 +535,6 @@ body.is-standalone .device-shell[data-active-tab='today'] .main-content-today {
   border-top: 1px solid var(--brand-divider);
 }
 
-.device-shell[data-active-tab='today'] .today-screen-redesign .today-analytics-card,
-.device-shell[data-active-tab='today'] .today-screen-redesign .today-detail-hero-card,
-.device-shell[data-active-tab='today'] .today-screen-redesign .today-action-card-stack-top,
-.device-shell[data-active-tab='today'] .today-screen-redesign .today-stack-preview {
-  background:
-    radial-gradient(circle at 50% -10%, rgba(255, 255, 255, 0.16), transparent 30%),
-    var(--today-card-gradient) !important;
-  color: var(--today-card-text, #ffffff) !important;
-  border: 1px solid rgba(255, 255, 255, 0.14) !important;
-  box-shadow:
-    0 28px 56px rgba(3, 5, 12, 0.34),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  filter: none !important;
-  opacity: 1 !important;
-}
-
-.device-shell[data-active-tab='today'] .today-screen-redesign .today-analytics-card::before,
-.device-shell[data-active-tab='today'] .today-screen-redesign .today-detail-hero-card::before,
-.device-shell[data-active-tab='today'] .today-screen-redesign .today-action-card-stack-top::before,
-.device-shell[data-active-tab='today'] .today-screen-redesign .today-stack-preview::before {
-  display: none !important;
-}
-
-.device-shell[data-active-tab='today'] .today-screen-redesign .today-analytics-card-kicker,
-.device-shell[data-active-tab='today'] .today-screen-redesign .today-analytics-card-note,
-.device-shell[data-active-tab='today'] .today-screen-redesign .today-validity-pill-subtitle,
-.device-shell[data-active-tab='today'] .today-screen-redesign .today-action-meta,
-.device-shell[data-active-tab='today'] .today-screen-redesign .today-action-validity-note {
-  color: var(--today-card-muted, rgba(232, 241, 255, 0.78)) !important;
-}
-
-.device-shell[data-active-tab='today'] .today-screen-redesign .today-analytics-card-title,
-.device-shell[data-active-tab='today'] .today-screen-redesign .today-action-symbol,
-.device-shell[data-active-tab='today'] .today-screen-redesign .today-action-direction,
-.device-shell[data-active-tab='today']
-  .today-screen-redesign
-  .today-detail-hero-card
-  .today-analytics-card-title {
-  color: var(--today-card-text, #ffffff) !important;
-  text-shadow: 0 14px 28px rgba(0, 0, 0, 0.2) !important;
-}
-
-.device-shell[data-active-tab='today'] .today-screen-redesign .today-analytics-card-chip,
-.device-shell[data-active-tab='today'] .today-screen-redesign .today-validity-pill,
-.device-shell[data-active-tab='today'] .today-screen-redesign .today-action-decision-chip {
-  background: rgba(255, 255, 255, 0.14) !important;
-  border-color: rgba(255, 255, 255, 0.16) !important;
-  color: rgba(255, 255, 255, 0.96) !important;
-  box-shadow: none !important;
-}
-
 @media (max-width: 640px) {
   :root {
     --brand-panel-radius: 9px;

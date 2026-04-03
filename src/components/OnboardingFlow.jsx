@@ -1,3 +1,4 @@
+import '../styles/onboarding.css';
 import { useEffect, useMemo, useState } from 'react';
 
 const BROKER_OPTIONS = ['Robinhood', 'Webull', 'Fidelity', 'Schwab', 'IBKR', 'E*TRADE', 'Other'];

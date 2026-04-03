@@ -4,6 +4,11 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+- **Refactor(styles): 删除旧 UI 表层并把重做页面的样式改成按页加载。**
+  - **Today / Onboarding / Detail：** `Today`、首次引导和信号详情页不再依赖全局入口去预先加载旧样式，改成页面组件自己引入所需 CSS，减少系统刚进入时白白加载的首屏样式。
+  - **Cleanup：** 删除已废弃的 `today-redesign.css`、`robinhood-surfaces.css`，并从 `corrections.css`、`polish.css`、`brand-reset.css` 里继续拔掉一大批不再使用的旧 Today 选择器和过时补丁。
+  - **Menu / Membership：** `Menu`、会员弹层与结账弹层改为各自携带需要的样式，不再把整套会员相关样式压到全局首屏链路里。
+
 - **Feat(menu,onboarding,today): Menu 清晰化、首次引导压缩为两步，并补上首次使用教学。**
   - **Menu：** 根菜单重排成更清楚的主入口结构，把 `Support`、`Membership & Plans`、`Prediction Games` 提到最上方，下面再分 `Account` 和 `Tools`，减少“所有入口一个重量”的迷失感。
   - **First Run：** 登录后的首次设置从 4 步压成 2 步，先选最想做的事，再一次性定市场、风险和关注标的，让用户更快进入系统。

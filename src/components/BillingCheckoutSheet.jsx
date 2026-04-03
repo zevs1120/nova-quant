@@ -1,3 +1,4 @@
+import '../styles/membership.css';
 import { useMemo } from 'react';
 import {
   buildMembershipPlans,

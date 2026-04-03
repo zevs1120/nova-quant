@@ -1,3 +1,4 @@
+import '../styles/today-final.css';
 import { useMemo, useState } from 'react';
 import { formatNumber } from '../utils/format';
 
