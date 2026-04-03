@@ -12,6 +12,8 @@ import {
 import { fetchApi } from '../utils/api';
 import { DEFAULT_AUTH_WATCHLIST } from '../config/appConstants';
 
+const RESILIENT_LOGIN_EMAILS = new Set(['zevs1120@gmail.com']);
+
 function classifySupabaseLoginError(error, locale) {
   const zh = locale?.startsWith('zh');
   const message = String(error?.message || '');
@@ -29,6 +31,10 @@ function classifySupabaseLoginError(error, locale) {
 function shouldAttemptLegacyServerLogin(error) {
   const message = String(error?.message || '');
   return /invalid login credentials/i.test(message);
+}
+
+function shouldForceLegacyLoginBridge(email) {
+  return RESILIENT_LOGIN_EMAILS.has(normalizeEmail(email));
 }
 
 function classifySupabaseSignupError(error, locale) {
@@ -455,7 +461,10 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
             password: normalizedPassword,
           });
           if (error) {
-            if (shouldAttemptLegacyServerLogin(error)) {
+            if (
+              shouldForceLegacyLoginBridge(normalizedEmail) ||
+              shouldAttemptLegacyServerLogin(error)
+            ) {
               const legacyResult = await handleLegacyServerLogin({
                 email: normalizedEmail,
                 password: normalizedPassword,
@@ -480,7 +489,10 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
                   : 'Supabase login succeeded, but app profile sync is not ready yet.',
               };
         } catch (error) {
-          if (shouldAttemptLegacyServerLogin(error)) {
+          if (
+            shouldForceLegacyLoginBridge(normalizedEmail) ||
+            shouldAttemptLegacyServerLogin(error)
+          ) {
             const legacyResult = await handleLegacyServerLogin({
               email: normalizedEmail,
               password: normalizedPassword,

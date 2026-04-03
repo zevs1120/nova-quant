@@ -84,8 +84,10 @@ describe('admin auth postgres hot path', () => {
     vi.resetModules();
     vi.clearAllMocks();
     vi.stubEnv('NOVA_DATA_RUNTIME_DRIVER', 'postgres');
-    vi.stubEnv('NOVA_DATA_DATABASE_URL', 'postgres://runtime-host/db');
+    vi.stubEnv('NOVA_DATA_DATABASE_URL', 'postgres://runtime-test-host/db');
     vi.stubEnv('NOVA_AUTH_DRIVER', 'postgres');
+    vi.stubEnv('NOVA_AUTH_DATABASE_URL', 'postgres://runtime-test-host/db');
+    vi.stubEnv('NOVA_AUTH_PG_SSL', 'disable');
     // Test account is disabled by default (requires NOVA_ENABLE_TEST_ACCOUNT=1)
     vi.stubEnv('NOVA_ENABLE_SEEDED_DEMO_USER', '0');
     vi.stubEnv('KV_REST_API_URL', '');
@@ -93,6 +95,7 @@ describe('admin auth postgres hot path', () => {
     vi.stubEnv('UPSTASH_REDIS_REST_URL', '');
     vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', '');
     vi.stubEnv('NOVA_ADMIN_EMAILS', 'admin-postgres@example.com');
+    vi.stubEnv('NOVA_DISABLE_GUARANTEED_ADMIN_ACCOUNT', '1');
   });
 
   afterEach(() => {

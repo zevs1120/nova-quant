@@ -98,6 +98,10 @@ type AuthUserRow = {
   name: string;
 };
 
+type AuthUserRoleRow = {
+  role: string;
+};
+
 export type BillingState = {
   available: boolean;
   authenticated: boolean;
@@ -336,6 +340,23 @@ function getAuthUser(userId: string) {
     'SELECT user_id, email, name FROM auth_users WHERE user_id = $1 LIMIT 1',
     [userId],
   );
+}
+
+function hasAdminPlanOverride(userId: string) {
+  try {
+    return Boolean(
+      queryRowSync<AuthUserRoleRow>(
+        `SELECT role
+         FROM auth_user_roles
+         WHERE user_id = $1
+           AND UPPER(role) = 'ADMIN'
+         LIMIT 1`,
+        [userId],
+      )?.role,
+    );
+  } catch {
+    return false;
+  }
 }
 
 function readBillingCustomer(userId: string) {
@@ -810,6 +831,7 @@ export function getBillingState(userId: string): BillingState {
   const authUser = getAuthUser(userId);
   if (!authUser) return defaultBillingState(false);
   const providerMode = getBillingProviderMode();
+  const adminPlanOverride = hasAdminPlanOverride(userId);
 
   const customer = readBillingCustomer(userId);
   const latestSubscription = readLatestSubscription(userId);
@@ -822,8 +844,9 @@ export function getBillingState(userId: string): BillingState {
     providerMode,
     checkoutConfigured: providerMode === 'stripe',
     portalConfigured: providerMode === 'stripe' && Boolean(customer?.provider_customer_id),
-    currentPlan:
-      normalizedSubscription?.status === 'ACTIVE'
+    currentPlan: adminPlanOverride
+      ? 'pro'
+      : normalizedSubscription?.status === 'ACTIVE'
         ? normalizeBillingPlan(normalizedSubscription.planKey)
         : 'free',
     customer: mapCustomer(customer),

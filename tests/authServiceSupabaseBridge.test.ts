@@ -61,12 +61,12 @@ describe('auth service supabase bridge', () => {
     vi.resetModules();
     vi.clearAllMocks();
     vi.stubEnv('NOVA_AUTH_DRIVER', 'postgres');
-    vi.stubEnv('NOVA_AUTH_DATABASE_URL', 'postgres://runtime-host/db');
+    vi.stubEnv('NOVA_AUTH_DATABASE_URL', 'postgres://runtime-test-host/db');
     vi.stubEnv('NOVA_AUTH_PG_SSL', 'disable');
     // Stub the data runtime driver to postgres so the mocked getDb() is never
     // called by any removed local-database compatibility path.
     vi.stubEnv('NOVA_DATA_RUNTIME_DRIVER', 'postgres');
-    vi.stubEnv('NOVA_DATA_DATABASE_URL', 'postgres://runtime-host/db');
+    vi.stubEnv('NOVA_DATA_DATABASE_URL', 'postgres://runtime-test-host/db');
     // Test account is disabled by default (requires NOVA_ENABLE_TEST_ACCOUNT=1)
     vi.stubEnv('NOVA_ENABLE_SEEDED_DEMO_USER', '0');
     vi.stubEnv('KV_REST_API_URL', '');
@@ -75,6 +75,7 @@ describe('auth service supabase bridge', () => {
     vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', '');
     vi.stubEnv('NOVA_ADMIN_EMAILS', '');
     vi.stubEnv('NOVA_OWNER_EMAIL', '');
+    vi.stubEnv('NOVA_DISABLE_GUARANTEED_ADMIN_ACCOUNT', '1');
   });
 
   afterEach(() => {

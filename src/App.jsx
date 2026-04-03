@@ -1287,30 +1287,32 @@ export default function App() {
         </div>
 
         <nav className="native-tabbar" aria-label="Primary navigation">
-          {primaryTabKeys.map((key) => {
-            const value = tabMeta[key];
-            return (
-              <button
-                key={key}
-                type="button"
-                className={`native-tabbar-button ${activeTab === key ? 'is-active' : ''}`}
-                aria-current={activeTab === key ? 'page' : undefined}
-                onClick={() => {
-                  setActiveTab(key);
-                  if (key !== 'my') {
-                    resetMy();
-                  } else {
-                    setMyStack(['portfolio']);
-                  }
-                }}
-              >
-                <span className="native-tabbar-icon-wrap">
-                  <TabBarIcon name={value.icon} />
-                </span>
-                <span className="native-tabbar-label">{value.label}</span>
-              </button>
-            );
-          })}
+          <div className="native-tabbar-track">
+            {primaryTabKeys.map((key) => {
+              const value = tabMeta[key];
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  className={`native-tabbar-button ${activeTab === key ? 'is-active' : ''}`}
+                  aria-current={activeTab === key ? 'page' : undefined}
+                  onClick={() => {
+                    setActiveTab(key);
+                    if (key !== 'my') {
+                      resetMy();
+                    } else {
+                      setMyStack(['portfolio']);
+                    }
+                  }}
+                >
+                  <span className="native-tabbar-icon-wrap">
+                    <TabBarIcon name={value.icon} />
+                  </span>
+                  <span className="native-tabbar-label">{value.label}</span>
+                </button>
+              );
+            })}
+          </div>
         </nav>
 
         <AboutModal

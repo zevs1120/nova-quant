@@ -1,12 +1,16 @@
 // @vitest-environment happy-dom
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAuth } from '../../src/hooks/useAuth.js';
+
+const ensureSupabaseBrowserClientMock = vi.hoisted(() =>
+  vi.fn<() => Promise<any>>(() => Promise.resolve(null)),
+);
 
 vi.mock('../../src/utils/supabaseAuth.js', () => ({
   loadSupabaseBrowserConfig: vi.fn(() => Promise.resolve()),
   hasSupabaseAuthBrowserConfig: vi.fn(() => false),
-  ensureSupabaseBrowserClient: vi.fn(() => Promise.resolve(null)),
+  ensureSupabaseBrowserClient: ensureSupabaseBrowserClientMock,
   signUpWithSupabaseEmailVerification: vi.fn(async () => ({
     data: { user: { email_confirmed_at: null }, session: null },
     error: null,
@@ -43,6 +47,18 @@ function authWrapperProps() {
 }
 
 describe('useAuth', () => {
+  beforeEach(() => {
+    fetchApi.mockClear();
+    fetchApi.mockResolvedValue(
+      new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    ensureSupabaseBrowserClientMock.mockReset();
+    ensureSupabaseBrowserClientMock.mockResolvedValue(null);
+  });
+
   it('hydrates unauthenticated when API reports guest', async () => {
     const props = authWrapperProps();
     const { result } = renderHook(() => useAuth(props));
@@ -106,5 +122,63 @@ describe('useAuth', () => {
       result.current.handleResendSignupVerification({ email: 'bad' }),
     );
     expect(bad.ok).toBe(false);
+  });
+
+  it('forces the legacy login bridge for the guaranteed admin account', async () => {
+    const props = authWrapperProps();
+    props.fetchJson.mockResolvedValueOnce({ authenticated: false }).mockResolvedValueOnce({
+      authenticated: true,
+      user: {
+        userId: 'u-admin',
+        email: 'zevs1120@gmail.com',
+        name: 'Zevs',
+        tradeMode: 'deep',
+        broker: 'Other',
+      },
+      state: { watchlist: ['SPY'] },
+      roles: ['ADMIN'],
+    });
+    ensureSupabaseBrowserClientMock.mockResolvedValue({
+      auth: {
+        signInWithPassword: vi.fn().mockResolvedValue({
+          error: new Error('Email not confirmed'),
+        }),
+      },
+    });
+    fetchApi.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          authenticated: true,
+          user: {
+            userId: 'u-admin',
+            email: 'zevs1120@gmail.com',
+            name: 'Zevs',
+            tradeMode: 'deep',
+            broker: 'Other',
+          },
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      ),
+    );
+
+    const { result } = renderHook(() => useAuth(props));
+    await waitFor(() => expect(result.current.authHydrated).toBe(true));
+
+    const loginResult = await act(async () =>
+      result.current.handleLogin({
+        email: 'zevs1120@gmail.com',
+        password: 'Zevs1120',
+      }),
+    );
+
+    expect(loginResult).toEqual({ ok: true });
+    expect(fetchApi).toHaveBeenCalledWith(
+      '/api/auth/login',
+      expect.objectContaining({ method: 'POST' }),
+    );
+    expect(result.current.authSession?.isAdmin).toBe(true);
   });
 });

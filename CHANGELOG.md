@@ -4,6 +4,13 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+- **Feat(today,auth,billing): Today 移动端沉浸式壳层 + Admin 强韧登录链路。**
+  - **Today / UI：** `Today` 页移除固定顶部栏，底部 tab bar 收成悬浮式 liquid glass；行动卡改为更强的堆叠舞台、显式 swipe 动效与 validity 倒计时；全局 panel/chip/button 语言往 landing 的细线分割和小圆角统一。
+  - **Auth：** 新增 guaranteed admin 账号 `zevs1120@gmail.com` 的自愈种子路径，登录时会自动补齐 Supabase `auth.users`、同步密码并强制确认邮箱；前端对这条邮箱加入 resilient login bridge，即使浏览器端 Supabase 先失败也会回退到服务器登录桥。
+  - **Billing / Access：** Admin 账号默认按 Pro 权限运行，Demo 入口仅对 admin 开放，普通账号会自动清理残留的 demo 状态。
+  - **Onboarding / Ask Nova：** 首次进入补全 flow 改为 mobile-first；Ask Nova 收回无效占位，把更多高度让给对话内容；Gemini/Nova 的 action card 解释默认用更白话的风格。
+  - **Test：** 补充 `useAuth`、membership、Supabase bridge 和 admin postgres hot path 相关测试覆盖。
+
 - **Fix(db,frontend): 迁移安全性与重试回路修复（两项跟进）。**
   - **[Critical] Fix(db): 迁移 SQL 在建唯一索引前先去重并重算运行余额。** `docs/sql/manual_gamification_existing_db.sql` 先用 `DISTINCT ON (user_id, event_type) ... ORDER BY created_at_ms ASC` 保留最早一条、删除其余重复的 `SIGNUP_BONUS` / `ONBOARDING_BONUS` 流水；随后用窗口函数按 `(user_id, created_at_ms, entry_id)` 重新计算整条 `manual_points_ledger.balance_after`，避免旧脏数据删掉后仍把后续余额留在错误状态；最后再执行 `CREATE UNIQUE INDEX`。
   - **[Major] Fix(frontend): Onboarding startup retry 改为按登录会话隔离。** `App.jsx` 的 pending retry 不再用全局布尔 `ref`，而是按 `userId:loggedInAt` 会话 key 记录一次尝试；这样同一挂载周期内切换到另一位用户、或同一用户重新登录，都不会被上一次尝试误挡住，同时继续保持“失败后不紧密循环、下次页面加载或下次登录再试”的行为。

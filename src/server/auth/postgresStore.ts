@@ -735,6 +735,38 @@ export async function pgUpdateSupabaseAuthPassword(
   );
 }
 
+export async function pgEnsureSupabaseAuthUserConfirmed(email: string, confirmedAtMs: number) {
+  await ensurePostgresAuthSchema();
+  if (isInMemoryAuthStore()) {
+    return;
+  }
+  const pool = getAuthPool();
+  await pool.query(
+    `UPDATE auth.users
+     SET email_confirmed_at = COALESCE(
+           email_confirmed_at,
+           to_timestamp($2::double precision / 1000.0)
+         ),
+         updated_at = to_timestamp($2::double precision / 1000.0)
+     WHERE lower(email) = lower($1::text)
+       AND deleted_at IS NULL`,
+    [email, confirmedAtMs],
+  );
+  await pool.query(
+    `UPDATE auth.identities
+     SET identity_data = jsonb_set(
+           COALESCE(identity_data, '{}'::jsonb),
+           '{email_verified}',
+           'true'::jsonb,
+           true
+         ),
+         updated_at = to_timestamp($2::double precision / 1000.0)
+     WHERE provider = 'email'
+       AND lower(provider_id) = lower($1::text)`,
+    [email, confirmedAtMs],
+  );
+}
+
 export async function pgInsertUserWithState(args: {
   user: PgAuthUserRow;
   state: PgAuthUserState;

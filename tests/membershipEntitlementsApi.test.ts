@@ -5,6 +5,7 @@ import {
   getMembershipState,
   requireBrokerHandoffAccess,
 } from '../src/server/membership/service.js';
+import { getBillingState } from '../src/server/billing/service.js';
 import { pgGetUserByEmail, pgInsertUserWithState } from '../src/server/auth/postgresStore.js';
 import { executeSync, qualifyBusinessTable } from '../src/server/db/postgresSyncBridge.js';
 
@@ -106,6 +107,16 @@ function seedActiveSubscription(userId: string, planKey: 'lite' | 'pro') {
   );
 }
 
+function seedAdminRole(userId: string) {
+  const now = Date.now();
+  executeSync(
+    `INSERT INTO auth_user_roles(user_id, role, granted_at_ms, granted_by_user_id)
+     VALUES($1, 'ADMIN', $2, NULL)
+     ON CONFLICT (user_id, role) DO UPDATE SET granted_at_ms = EXCLUDED.granted_at_ms`,
+    [userId, now],
+  );
+}
+
 describe('membership entitlements', () => {
   const freeEmail = 'membership-free@example.com';
   const liteEmail = 'membership-lite@example.com';
@@ -201,5 +212,27 @@ describe('membership entitlements', () => {
       total_action_cards: 5,
       hidden_action_cards: 2,
     });
+  });
+
+  it('treats admin accounts as Pro even without a paid subscription', async () => {
+    const userId = await seedAuthUser('membership-admin@example.com');
+    seedAdminRole(userId);
+
+    const billingState = getBillingState(userId);
+    expect(billingState.currentPlan).toBe('pro');
+
+    const membershipState = getMembershipState({ userId });
+    expect(membershipState.currentPlan).toBe('pro');
+    expect(membershipState.remainingAskNova).toBe(null);
+
+    const brokerAccess = requireBrokerHandoffAccess({ userId });
+    expect(brokerAccess.ok).toBe(true);
+
+    const portfolioAccess = consumeAskNovaAccess({
+      userId,
+      message: 'Review my holdings and portfolio risk for me',
+      context: { page: 'holdings' },
+    });
+    expect(portfolioAccess.ok).toBe(true);
   });
 });
