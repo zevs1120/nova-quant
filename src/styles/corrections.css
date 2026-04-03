@@ -1728,24 +1728,6 @@ body.is-standalone .main-content-today {
   padding-bottom: calc(var(--native-tabbar-reserve) + 8px);
 }
 
-.main-content-ai,
-body.is-standalone .main-content-ai {
-  padding-bottom: calc(var(--native-tabbar-reserve) + 164px);
-}
-
-.ai-composer-shell {
-  bottom: calc(var(--native-tabbar-reserve) + 10px);
-}
-
-.ai-thread-scroll {
-  padding-bottom: calc(var(--native-tabbar-reserve) + 110px);
-  scroll-padding-bottom: calc(var(--native-tabbar-reserve) + 110px);
-}
-
-.ai-thread-end {
-  scroll-margin-bottom: calc(var(--native-tabbar-reserve) + 110px);
-}
-
 .native-tabbar {
   position: fixed;
   left: 50%;
@@ -1821,15 +1803,6 @@ body.keyboard-open .native-tabbar {
 }
 
 @media (max-width: 640px) {
-  .main-content-ai,
-  body.is-standalone .main-content-ai {
-    padding-bottom: calc(var(--native-tabbar-reserve) + 156px);
-  }
-
-  .ai-composer-shell {
-    bottom: calc(var(--native-tabbar-reserve) + 8px);
-  }
-
   .native-tabbar {
     padding-inline: 8px;
   }
@@ -1840,121 +1813,12 @@ body.keyboard-open .native-tabbar {
   }
 }
 
-/* Final Nova chat shell correction */
+/* Final shell correction */
 body,
 body.is-standalone {
   --native-tabbar-bottom-pad: max(0px, clamp(0px, var(--native-tabbar-safe), 6px));
   --native-tabbar-height: 46px;
   --native-tabbar-reserve: calc(var(--native-tabbar-height) + var(--native-tabbar-bottom-pad));
-}
-
-.main-content-ai,
-body.is-standalone .main-content-ai {
-  overflow: hidden;
-  padding-top: 8px;
-  padding-bottom: calc(var(--native-tabbar-reserve) + 4px);
-}
-
-.main-content-ai .screen-transition {
-  height: 100%;
-  min-height: 0;
-}
-
-.ai-page-shell {
-  min-height: 0;
-  height: 100%;
-  display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
-  align-content: stretch;
-  gap: 0;
-}
-
-.ai-thread-scroll {
-  min-height: 0;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: contain;
-  touch-action: pan-y;
-  padding: 0 0 10px;
-  scroll-padding-bottom: 18px;
-}
-
-.ai-thread-flow {
-  min-height: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.ai-thread-flow.is-empty .ai-empty-stage {
-  flex: 1 1 auto;
-  min-height: 0;
-  justify-content: center;
-  padding: 4px 0 0;
-}
-
-.ai-thread-stack {
-  padding-bottom: 6px;
-  gap: 10px;
-}
-
-.ai-thread-end {
-  scroll-margin-bottom: 18px;
-}
-
-.ai-error-toast {
-  margin: 0 0 8px;
-}
-
-.ai-composer-shell {
-  position: relative;
-  left: auto;
-  bottom: auto;
-  transform: none;
-  width: 100%;
-  z-index: 2;
-  padding-top: 4px;
-  background: linear-gradient(
-    180deg,
-    rgba(252, 250, 246, 0) 0%,
-    rgba(252, 250, 246, 0.78) 20%,
-    rgba(252, 250, 246, 0.98) 52%
-  );
-  backdrop-filter: blur(12px);
-}
-
-.ai-suggestion-row {
-  gap: 6px;
-  padding: 0 0 6px;
-}
-
-.ai-composer {
-  padding-bottom: 0;
-}
-
-.ai-linked-context {
-  margin: 0 0 2px;
-  padding: 16px 16px 15px;
-}
-
-.ai-access-strip {
-  gap: 8px;
-  margin: 0 0 2px;
-}
-
-.ai-empty-stage {
-  padding-inline: 0;
-}
-
-.ai-empty-stage-panel {
-  width: 100%;
-  gap: 16px;
-  padding: 18px;
-}
-
-.ai-empty-stage-copy,
-.ai-empty-subheading {
-  max-width: none;
 }
 
 .native-tabbar {
@@ -1989,19 +1853,6 @@ body.keyboard-open .native-tabbar {
 }
 
 @media (max-width: 640px) {
-  .main-content-ai,
-  body.is-standalone .main-content-ai {
-    padding-bottom: calc(var(--native-tabbar-reserve) + 2px);
-  }
-
-  .ai-thread-scroll {
-    padding-bottom: 10px;
-  }
-
-  .ai-composer-shell {
-    padding-top: 6px;
-  }
-
   .native-tabbar {
     padding-inline: 6px;
   }
@@ -2030,121 +1881,6 @@ body.app-modal-open .native-tabbar {
 @media (max-width: 640px) {
   .trade-ticket-sheet {
     width: min(calc(100% - 16px), var(--shell-max-width));
-  }
-}
-
-/* Final Nova width correction */
-.main-content-ai,
-.main-content-ai .screen-transition,
-.ai-page-shell,
-.ai-thread-scroll,
-.ai-thread-stack,
-.ai-message,
-.ai-message-body,
-.ai-composer-shell,
-.ai-composer,
-.ai-composer-field {
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-}
-
-.ai-page-shell,
-.ai-thread-scroll {
-  overflow-x: clip;
-}
-
-.ai-thread-stack {
-  padding-inline: 0;
-}
-
-.ai-message {
-  align-items: flex-end;
-  gap: 6px;
-}
-
-.ai-message-body {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.ai-message-avatar {
-  width: 22px;
-  height: 22px;
-  flex: 0 0 22px;
-  font-size: 11px;
-}
-
-.ai-message-assistant .ai-message-body {
-  max-width: calc(100% - 28px);
-}
-
-.ai-message-user .ai-message-body {
-  max-width: 100%;
-}
-
-.ai-assistant-card,
-.ai-user-bubble,
-.ai-assistant-lead,
-.ai-assistant-copy,
-.ai-response-section-body p {
-  max-width: 100%;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
-
-.ai-composer-shell {
-  padding-inline: 0;
-}
-
-.ai-composer-field {
-  min-height: 58px;
-  padding: 12px 56px 12px 16px;
-}
-
-.ai-composer-input {
-  max-height: 148px;
-  line-height: 1.44;
-}
-
-.ai-composer-send {
-  right: 12px;
-  bottom: 11px;
-}
-
-.ai-user-bubble {
-  max-width: min(92%, 380px);
-}
-
-@media (max-width: 640px) {
-  .ai-thread-flow {
-    gap: 8px;
-  }
-
-  .ai-thread-flow.is-empty .ai-empty-stage {
-    padding-top: 0;
-  }
-
-  .ai-linked-context {
-    gap: 12px;
-    padding: 14px 14px 13px;
-  }
-
-  .ai-access-strip {
-    margin-bottom: 0;
-  }
-
-  .ai-empty-stage-panel {
-    padding: 16px;
-    border-radius: 26px;
-  }
-
-  .ai-message-assistant .ai-message-body {
-    max-width: calc(100% - 26px);
-  }
-
-  .ai-user-bubble {
-    max-width: 94%;
   }
 }
 
@@ -2289,26 +2025,6 @@ body.is-standalone .app-bg {
   box-shadow:
     inset 0 0 0 1px rgba(255, 255, 255, 0.8),
     0 8px 16px rgba(86, 85, 176, 0.08);
-}
-
-.ai-empty-stage-panel,
-.ai-assistant-card {
-  background:
-    radial-gradient(circle at top right, rgba(75, 125, 255, 0.12), transparent 34%),
-    radial-gradient(circle at left bottom, rgba(255, 95, 196, 0.1), transparent 34%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 244, 255, 0.96));
-}
-
-.ai-composer-send {
-  background: linear-gradient(
-    118deg,
-    var(--brand-blue) 0%,
-    var(--brand-violet) 24%,
-    var(--brand-pink) 52%,
-    var(--brand-peach) 74%,
-    var(--brand-mint) 100%
-  );
-  box-shadow: 0 14px 20px rgba(86, 85, 176, 0.18);
 }
 
 .browse-rh-screen {
@@ -2462,8 +2178,16 @@ body.is-standalone .app-bg {
 
 .main-content-today,
 body.is-standalone .main-content-today {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  min-height: 100% !important;
+  height: 100% !important;
   overflow: hidden !important;
+  width: 100% !important;
   padding-top: clamp(4px, 0.8dvh, 8px) !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
   padding-bottom: calc(var(--native-tabbar-reserve) + 2px) !important;
   background: transparent !important;
 }
@@ -2473,6 +2197,7 @@ body.is-standalone .main-content-today {
   min-height: 0 !important;
   display: flex !important;
   flex-direction: column !important;
+  width: 100% !important;
 }
 
 .today-screen-native {
@@ -2495,6 +2220,10 @@ body.is-standalone .main-content-today .screen-transition {
   flex: 1 1 auto !important;
   min-height: 100% !important;
   height: 100% !important;
+  width: 100% !important;
+  padding-left: clamp(10px, 3.2vw, 16px) !important;
+  padding-right: clamp(10px, 3.2vw, 16px) !important;
+  padding-bottom: calc(var(--native-tabbar-reserve) + clamp(10px, 2.2dvh, 20px)) !important;
 }
 
 .today-summary-header {
@@ -2523,6 +2252,7 @@ body.is-standalone .main-content-today .screen-transition {
   gap: 0 !important;
   display: flex !important;
   flex-direction: column !important;
+  width: 100% !important;
 }
 
 .today-decision-stack,
@@ -2531,6 +2261,7 @@ body.is-standalone .main-content-today .screen-transition {
   flex: 1 1 0 !important;
   min-height: 0 !important;
   height: 100% !important;
+  width: 100% !important;
 }
 
 .today-screen-redesign .today-decision-stack {
@@ -2543,19 +2274,20 @@ body.is-standalone .main-content-today .screen-transition {
   display: flex !important;
   flex-direction: column !important;
   flex: 1 1 0 !important;
-  min-height: clamp(320px, 52svh, 720px) !important;
+  min-height: clamp(360px, 58svh, 820px) !important;
 }
 
 .today-screen-redesign .today-analytics-scroll {
   flex: 1 1 0 !important;
   min-height: 0 !important;
   height: 100% !important;
+  width: 100% !important;
 }
 
 .today-screen-redesign .today-tinder-deck,
 .today-screen-redesign .today-deck-shell > .today-empty-card {
   flex: 1 1 auto !important;
-  min-height: clamp(300px, 50svh, 660px) !important;
+  min-height: clamp(340px, 56svh, 760px) !important;
 }
 
 .today-screen-redesign .today-deck-shell > .today-empty-card {

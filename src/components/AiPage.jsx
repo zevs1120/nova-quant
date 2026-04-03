@@ -1,4 +1,3 @@
-import '../styles/ai-chat.css';
 import '../styles/ai-rebuild.css';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Skeleton from './Skeleton';
@@ -15,21 +14,22 @@ function buildAiCopy(locale = 'en-US') {
     .startsWith('zh')
     ? 'zh'
     : 'en';
+
   return {
     quickQuestions:
       lang === 'zh'
-        ? ['我今天该怎么做？', '现在适合出手吗？', '为什么我们还在等？', '我现在应该进场吗？']
+        ? ['我今天该怎么做？', '现在适合出手吗？', '为什么我们还在等？', '这张卡到底在说什么？']
         : [
             'What should I do today?',
             'Is it safe to try anything?',
             'Why are we waiting?',
-            'Should I enter now?',
+            'What is this card really saying?',
           ],
     nextStep: {
       holdings: lang === 'zh' ? '打开持仓' : 'Open Holdings',
       weekly: lang === 'zh' ? '打开周复盘' : 'Open Weekly Review',
       safety: lang === 'zh' ? '打开安全页' : 'Open Safety',
-      today: lang === 'zh' ? '打开今日' : 'Open Today',
+      today: lang === 'zh' ? '回到 Today' : 'Back to Today',
     },
     fallback: {
       showLess: lang === 'zh' ? '收起' : 'Show less',
@@ -38,19 +38,20 @@ function buildAiCopy(locale = 'en-US') {
       showDetail: lang === 'zh' ? '展开细节' : 'Show detail',
     },
     sections: {
-      verdict: lang === 'zh' ? '今日判断' : 'Today’s call',
-      plan: lang === 'zh' ? '该怎么做' : 'What to do',
+      verdict: lang === 'zh' ? '结论' : 'Call',
+      plan: lang === 'zh' ? '现在怎么做' : 'What to do now',
       why: lang === 'zh' ? '为什么' : 'Why',
-      risk: lang === 'zh' ? '风险' : 'Risk',
-      evidence: lang === 'zh' ? '证据' : 'Source',
+      risk: lang === 'zh' ? '什么情况下不成立' : 'When it breaks',
+      evidence: lang === 'zh' ? '依据' : 'Evidence',
     },
-    composerPlaceholder: lang === 'zh' ? '直接用自然语言问我' : 'Ask in plain words',
+    composerPlaceholder: lang === 'zh' ? '直接问我，越白话越好' : 'Ask in plain language',
     emptyBadge: 'Nova',
-    emptyHeading: lang === 'zh' ? '问我，今天到底意味着什么。' : 'Ask what today means.',
+    emptyHeading:
+      lang === 'zh' ? '直接问我今天最重要的事。' : 'Ask the one thing that matters today.',
     emptySubheading:
       lang === 'zh'
-        ? '短问题就可以。我们会先告诉你判断，再告诉你原因。'
-        : 'Short questions work best. We will give you the call first, then the reason.',
+        ? '不用写长问题。直接问该不该做、为什么、什么时候失效。'
+        : 'Keep it short. Ask what to do, why it matters, or when it stops being valid.',
     autoQuestion: lang === 'zh' ? '我今天该怎么做？' : 'What should I do today?',
     aiError: {
       failed: lang === 'zh' ? '生成回答失败' : 'Failed to generate response',
@@ -59,7 +60,6 @@ function buildAiCopy(locale = 'en-US') {
           ? '我在准备回答时遇到了一点问题。'
           : 'I hit a problem while preparing an answer.',
     },
-    locale: lang,
   };
 }
 
@@ -68,16 +68,19 @@ function buildLinkedContext(seedRequest, locale = 'en-US') {
     seedRequest?.context?.symbol ||
     seedRequest?.context?.decisionSummary?.top_action_symbol ||
     null;
+
   if (!symbol) return null;
+
   const zh = String(locale || '')
     .toLowerCase()
     .startsWith('zh');
+
   return {
-    eyebrow: zh ? '已联动当前标的' : 'Linked setup',
-    title: `${symbol}`,
+    eyebrow: zh ? '已带入当前标的' : 'Linked setup',
+    title: symbol,
     note: zh
-      ? '这个标的已经自动带入，直接继续问，不需要重复输入代码。'
-      : 'This ticker is already attached, so you can keep asking without typing it again.',
+      ? '这个标的已经自动带进来了，继续追问就行。'
+      : 'This ticker is already attached, so you can keep asking about it.',
     action: zh ? '返回 Today' : 'Back to Today',
   };
 }
@@ -87,6 +90,7 @@ function buildAccessBadge(plan, remainingAskNova, locale = 'en-US') {
     .toLowerCase()
     .startsWith('zh');
   const normalizedPlan = normalizeMembershipPlan(plan);
+
   return {
     planLabel: normalizedPlan === 'pro' ? 'Pro' : normalizedPlan === 'lite' ? 'Lite' : 'Free',
     usageLabel:
@@ -103,6 +107,7 @@ function buildAccessBadge(plan, remainingAskNova, locale = 'en-US') {
 function parseStructuredReply(raw) {
   const text = String(raw || '').trim();
   if (!text) return null;
+
   const sections = {};
   let current = null;
 
@@ -124,6 +129,7 @@ function parseStructuredReply(raw) {
   const normalized = Object.fromEntries(
     COPILOT_SECTIONS.map((key) => [key, String(sections[key] || '').trim()]),
   );
+
   return Object.values(normalized).some(Boolean) ? normalized : null;
 }
 
@@ -158,9 +164,9 @@ function chooseNextStep(question = '', copy = buildAiCopy()) {
 function AssistantResponseSection({ title, lines }) {
   if (!lines.length) return null;
   return (
-    <section className="ai-response-section">
-      <p className="ai-response-section-title">{title}</p>
-      <div className="ai-response-section-body">
+    <section className="nova-ai-section">
+      <p className="nova-ai-section-title">{title}</p>
+      <div className="nova-ai-section-body">
         {lines.map((line, index) => (
           <p key={`${title}-${index}`}>{line}</p>
         ))}
@@ -172,12 +178,12 @@ function AssistantResponseSection({ title, lines }) {
 function AssistantMessage({ message, onNavigate, copy }) {
   if (!String(message.content || '').trim()) {
     return (
-      <article className="ai-message ai-message-assistant">
-        <div className="ai-message-avatar" aria-hidden="true">
+      <article className="nova-ai-message is-assistant">
+        <div className="nova-ai-avatar" aria-hidden="true">
           ✦
         </div>
-        <div className="ai-message-body">
-          <div className="ai-assistant-card ai-assistant-loading">
+        <div className="nova-ai-message-body">
+          <div className="nova-ai-message-card is-loading">
             <Skeleton lines={2} compact className="ai-response-skeleton" />
           </div>
         </div>
@@ -197,31 +203,31 @@ function AssistantMessage({ message, onNavigate, copy }) {
     const showToggle = rest.length > 1;
 
     return (
-      <article className="ai-message ai-message-assistant">
-        <div className="ai-message-avatar" aria-hidden="true">
+      <article className="nova-ai-message is-assistant">
+        <div className="nova-ai-avatar" aria-hidden="true">
           ✦
         </div>
-        <div className="ai-message-body">
-          <div className="ai-assistant-card">
-            <p className="ai-assistant-lead">{lead}</p>
+        <div className="nova-ai-message-body">
+          <div className="nova-ai-message-card">
+            <p className="nova-ai-lead">{lead}</p>
             {visible.map((paragraph, index) => (
-              <p key={`fallback-${index}`} className="ai-assistant-copy">
+              <p key={`fallback-${index}`} className="nova-ai-copy">
                 {paragraph}
               </p>
             ))}
             {showToggle ? (
               <button
                 type="button"
-                className="ai-inline-toggle"
+                className="nova-ai-inline-toggle"
                 onClick={() => setExpanded((value) => !value)}
               >
                 {expanded ? copy.fallback.showLess : copy.fallback.showMore}
               </button>
             ) : null}
-            <div className="ai-assistant-footer">
+            <div className="nova-ai-card-footer">
               <button
                 type="button"
-                className="ai-inline-link"
+                className="nova-ai-inline-link"
                 onClick={() => onNavigate?.(nextStep.target)}
               >
                 {nextStep.label}
@@ -245,15 +251,15 @@ function AssistantMessage({ message, onNavigate, copy }) {
     splitList(parsed.EVIDENCE).length > 1;
 
   return (
-    <article className="ai-message ai-message-assistant">
-      <div className="ai-message-avatar" aria-hidden="true">
+    <article className="nova-ai-message is-assistant">
+      <div className="nova-ai-avatar" aria-hidden="true">
         ✦
       </div>
-      <div className="ai-message-body">
-        <div className="ai-assistant-card">
-          <section className="ai-response-section ai-response-section-lead">
-            <p className="ai-response-section-title">{copy.sections.verdict}</p>
-            <p className="ai-assistant-lead">{verdict}</p>
+      <div className="nova-ai-message-body">
+        <div className="nova-ai-message-card">
+          <section className="nova-ai-section is-lead">
+            <p className="nova-ai-section-title">{copy.sections.verdict}</p>
+            <p className="nova-ai-lead">{verdict}</p>
           </section>
 
           <AssistantResponseSection title={copy.sections.plan} lines={planLines} />
@@ -263,7 +269,7 @@ function AssistantMessage({ message, onNavigate, copy }) {
           {hasExtraContent ? (
             <button
               type="button"
-              className="ai-inline-toggle"
+              className="nova-ai-inline-toggle"
               onClick={() => setExpanded((value) => !value)}
             >
               {expanded ? copy.fallback.hideDetail : copy.fallback.showDetail}
@@ -271,9 +277,9 @@ function AssistantMessage({ message, onNavigate, copy }) {
           ) : null}
 
           {expanded && evidenceLines.length ? (
-            <section className="ai-response-section ai-response-section-evidence">
-              <p className="ai-response-section-title">{copy.sections.evidence}</p>
-              <div className="ai-response-section-body">
+            <section className="nova-ai-section is-evidence">
+              <p className="nova-ai-section-title">{copy.sections.evidence}</p>
+              <div className="nova-ai-section-body">
                 {evidenceLines.map((line, index) => (
                   <p key={`evidence-${index}`}>{line}</p>
                 ))}
@@ -281,10 +287,10 @@ function AssistantMessage({ message, onNavigate, copy }) {
             </section>
           ) : null}
 
-          <div className="ai-assistant-footer">
+          <div className="nova-ai-card-footer">
             <button
               type="button"
-              className="ai-inline-link"
+              className="nova-ai-inline-link"
               onClick={() => onNavigate?.(nextStep.target)}
             >
               {nextStep.label}
@@ -298,9 +304,9 @@ function AssistantMessage({ message, onNavigate, copy }) {
 
 function UserMessage({ content }) {
   return (
-    <article className="ai-message ai-message-user">
-      <div className="ai-message-body">
-        <div className="ai-user-bubble">{content}</div>
+    <article className="nova-ai-message is-user">
+      <div className="nova-ai-message-body">
+        <div className="nova-ai-user-card">{content}</div>
       </div>
     </article>
   );
@@ -319,17 +325,15 @@ function Composer({ input, setInput, streaming, sendMessage, hasMessages, copy }
   const canSend = Boolean(input.trim()) && !streaming;
 
   return (
-    <div className="ai-composer-shell">
+    <div className="nova-ai-dock">
       {!hasMessages ? (
-        <div className="ai-suggestion-row is-empty">
+        <div className="nova-ai-suggestions" aria-label="Suggested prompts">
           {copy.quickQuestions.map((prompt) => (
             <button
               key={prompt}
               type="button"
-              className="ai-suggestion-chip"
-              onClick={() => {
-                setInput(prompt);
-              }}
+              className="nova-ai-suggestion"
+              onClick={() => setInput(prompt)}
             >
               {prompt}
             </button>
@@ -338,19 +342,19 @@ function Composer({ input, setInput, streaming, sendMessage, hasMessages, copy }
       ) : null}
 
       <form
-        className="ai-composer"
+        className="nova-ai-composer"
         onSubmit={(event) => {
           event.preventDefault();
           if (!canSend) return;
           void sendMessage(input);
         }}
       >
-        <div className="ai-composer-field">
+        <div className="nova-ai-composer-field">
           <textarea
             ref={textareaRef}
             value={input}
             onChange={(event) => setInput(event.target.value)}
-            className="ai-composer-input"
+            className="nova-ai-input"
             placeholder={copy.composerPlaceholder}
             rows={1}
             disabled={streaming}
@@ -362,7 +366,7 @@ function Composer({ input, setInput, streaming, sendMessage, hasMessages, copy }
               }
             }}
           />
-          <button type="submit" className="ai-composer-send" disabled={!canSend}>
+          <button type="submit" className="nova-ai-send" disabled={!canSend}>
             {streaming ? '…' : '↑'}
           </button>
         </div>
@@ -394,75 +398,75 @@ function AiConversationShell({
   );
 
   useEffect(() => {
-    if (!listRef.current) return undefined;
+    if (!listRef.current || !hasMessages) return undefined;
     const frame = window.requestAnimationFrame(() => {
       const thread = listRef.current;
       thread.scrollTop = thread.scrollHeight;
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [messages, streaming]);
+  }, [hasMessages, messages, streaming]);
 
   return (
-    <section className={`ai-page-shell ${hasMessages ? 'ai-page-thread' : 'ai-page-empty'}`}>
-      <div className="ai-thread-scroll" ref={listRef}>
-        <div className={`ai-thread-flow ${hasMessages ? 'has-thread' : 'is-empty'}`}>
-          {linkedContext ? (
-            <section className="ai-linked-context">
-              <div className="ai-linked-context-copy">
-                <p className="ai-linked-context-eyebrow">{linkedContext.eyebrow}</p>
-                <p className="ai-linked-context-title">{linkedContext.title}</p>
-                <p className="ai-linked-context-note">{linkedContext.note}</p>
-              </div>
-              <button
-                type="button"
-                className="ai-linked-context-action"
-                onClick={() => onNavigate?.('today')}
-              >
-                {linkedContext.action}
-              </button>
-            </section>
-          ) : null}
-
-          <div className="ai-access-strip" aria-label={copy.emptyBadge}>
-            <span className="ai-access-pill">{accessBadge.planLabel}</span>
-            <span className="ai-access-copy">{accessBadge.usageLabel}</span>
-          </div>
-
-          {!hasMessages ? (
-            <section className="ai-empty-stage">
-              <div className="ai-empty-stage-panel">
-                <div className="ai-empty-stage-mark" aria-hidden="true">
-                  ✦
-                </div>
-                <div className="ai-empty-stage-copy">
-                  <p className="ai-empty-badge">{copy.emptyBadge}</p>
-                  <h1 className="ai-empty-heading">{copy.emptyHeading}</h1>
-                  <p className="ai-empty-subheading">{copy.emptySubheading}</p>
-                </div>
-              </div>
-            </section>
-          ) : (
-            <div className="ai-thread-stack">
-              {messages.map((item) =>
-                item.role === 'assistant' ? (
-                  <AssistantMessage
-                    key={item.id}
-                    message={item}
-                    onNavigate={onNavigate}
-                    copy={copy}
-                  />
-                ) : (
-                  <UserMessage key={item.id} content={item.content} />
-                ),
-              )}
-              <div ref={endRef} className="ai-thread-end" aria-hidden="true" />
+    <section className={`nova-ai-page ${hasMessages ? 'has-thread' : 'is-empty'}`}>
+      <div className="nova-ai-top">
+        {linkedContext ? (
+          <section className="nova-ai-context">
+            <div className="nova-ai-context-copy">
+              <p className="nova-ai-context-eyebrow">{linkedContext.eyebrow}</p>
+              <p className="nova-ai-context-title">{linkedContext.title}</p>
+              <p className="nova-ai-context-note">{linkedContext.note}</p>
             </div>
-          )}
+            <button
+              type="button"
+              className="nova-ai-context-action"
+              onClick={() => onNavigate?.('today')}
+            >
+              {linkedContext.action}
+            </button>
+          </section>
+        ) : null}
+
+        <section className="nova-ai-hero">
+          <div className="nova-ai-hero-mark" aria-hidden="true">
+            ✦
+          </div>
+          <div className="nova-ai-hero-copy">
+            <p className="nova-ai-kicker">{copy.emptyBadge}</p>
+            <h1 className="nova-ai-title">{copy.emptyHeading}</h1>
+            <p className="nova-ai-subtitle">{copy.emptySubheading}</p>
+          </div>
+        </section>
+
+        <div className="nova-ai-meta" aria-label={copy.emptyBadge}>
+          <span className="nova-ai-plan">{accessBadge.planLabel}</span>
+          <span className="nova-ai-usage">{accessBadge.usageLabel}</span>
         </div>
       </div>
 
+      <div className="nova-ai-scroll" ref={listRef}>
+        {hasMessages ? (
+          <div className="nova-ai-thread">
+            {messages.map((item) =>
+              item.role === 'assistant' ? (
+                <AssistantMessage
+                  key={item.id}
+                  message={item}
+                  onNavigate={onNavigate}
+                  copy={copy}
+                />
+              ) : (
+                <UserMessage key={item.id} content={item.content} />
+              ),
+            )}
+            <div ref={endRef} className="nova-ai-thread-end" aria-hidden="true" />
+          </div>
+        ) : (
+          <div className="nova-ai-void" aria-hidden="true" />
+        )}
+      </div>
+
       {error ? (
-        <div className="ai-error-toast" role="status">
+        <div className="nova-ai-error" role="status">
           {error}
         </div>
       ) : null}
@@ -508,6 +512,7 @@ function LiveAiConversation({
       holdingsSummary: baseContext?.holdingsSummary,
     },
   });
+
   const guardedSendMessage = useMemo(
     () =>
       async (rawText, contextOverride = {}) => {
@@ -570,6 +575,7 @@ function DemoAiConversation({
     },
   });
   const { messages, sendMessage } = assistant;
+
   const guardedSendMessage = useMemo(
     () =>
       async (rawText, contextOverride = {}) => {
