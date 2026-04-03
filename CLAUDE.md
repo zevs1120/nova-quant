@@ -39,7 +39,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - New features must have matching `tests/<feature>.test.ts` covering normal path, edge cases, and regressions
 - Tests use the in-memory Postgres harness defined under `tests/vitest.setup.ts`
 - Vitest uses default **file + worker parallelism** (do not reintroduce global `maxWorkers: 1` / `fileParallelism: false` unless debugging flakes). `test.env.DOTENV_CONFIG_QUIET` suppresses per-file dotenv noise.
-- JSX shell is not typechecked: prefer tests on **`src/utils/*` helpers** (`fetchApi`, `appHelpers`, `format`, etc.) for frontend robustness. See `docs/TESTING.md`.
+- JSX shell is not typechecked: prefer tests on **`src/utils/*` helpers** (`fetchApi`, `appHelpers`, `format`, `firstRunRouting`, `signalHumanLabels`, `signalEntryBounds`, etc.) for frontend robustness. Shell/markdown contract tests live under `tests/*Shell*.test.ts`, `tests/appShellLazy*.test.ts`, `tests/membershipDecisionAccess.test.ts`. See `docs/TESTING.md`.
 
 ## Project Layout
 

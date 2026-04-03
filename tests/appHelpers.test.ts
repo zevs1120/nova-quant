@@ -2,8 +2,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   buildOnboardingRetrySessionKey,
   classifyAuthError,
+  detectDisplayMode,
   mapExecutionToTrade,
   normalizeEmail,
+  runWhenIdle,
   settledValue,
   shouldAttemptPendingOnboardingBonusRetry,
 } from '../src/utils/appHelpers.js';
@@ -159,5 +161,153 @@ describe('appHelpers', () => {
         isDemoRuntime: true,
       }),
     ).toBe(false);
+  });
+
+  it('buildOnboardingRetrySessionKey trims fields and rejects blanks', () => {
+    expect(
+      buildOnboardingRetrySessionKey({
+        userId: '  u1  ',
+        loggedInAt: '  ts  ',
+      }),
+    ).toBe('u1:ts');
+    expect(buildOnboardingRetrySessionKey({ userId: '', loggedInAt: 't' })).toBeNull();
+    expect(buildOnboardingRetrySessionKey({ userId: 'u', loggedInAt: '' })).toBeNull();
+  });
+
+  it('shouldAttemptPendingOnboardingBonusRetry rejects missing keys or user mismatch', () => {
+    expect(
+      shouldAttemptPendingOnboardingBonusRetry({
+        retrySessionKey: '',
+        effectiveUserId: 'u',
+        pendingByUser: { u: true },
+        attemptedSessionKey: null,
+        isDemoRuntime: false,
+      }),
+    ).toBe(false);
+    expect(
+      shouldAttemptPendingOnboardingBonusRetry({
+        retrySessionKey: 'a:b',
+        effectiveUserId: '',
+        pendingByUser: { x: true },
+        attemptedSessionKey: null,
+        isDemoRuntime: false,
+      }),
+    ).toBe(false);
+    expect(
+      shouldAttemptPendingOnboardingBonusRetry({
+        retrySessionKey: 'a:b',
+        effectiveUserId: 'u',
+        pendingByUser: {},
+        attemptedSessionKey: null,
+        isDemoRuntime: false,
+      }),
+    ).toBe(false);
+  });
+});
+
+describe('detectDisplayMode', () => {
+  it('returns browser when window undefined', () => {
+    const w = globalThis.window;
+    Reflect.deleteProperty(globalThis, 'window');
+    expect(detectDisplayMode()).toBe('browser');
+    Object.defineProperty(globalThis, 'window', { configurable: true, value: w });
+  });
+
+  it('detects standalone from matchMedia', () => {
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: {
+        matchMedia: (q: string) => ({
+          matches: q.includes('standalone'),
+        }),
+        navigator: {},
+      },
+    });
+    expect(detectDisplayMode()).toBe('standalone');
+  });
+
+  it('detects fullscreen when standalone media not matched', () => {
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: {
+        matchMedia: (q: string) => ({
+          matches: q.includes('fullscreen'),
+        }),
+        navigator: {},
+      },
+    });
+    expect(detectDisplayMode()).toBe('fullscreen');
+  });
+
+  it('uses legacy navigator.standalone on iOS', () => {
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: {
+        matchMedia: () => ({ matches: false }),
+        navigator: { standalone: true },
+      },
+    });
+    expect(detectDisplayMode()).toBe('standalone');
+  });
+
+  it('defaults to browser', () => {
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: {
+        matchMedia: () => ({ matches: false }),
+        navigator: {},
+      },
+    });
+    expect(detectDisplayMode()).toBe('browser');
+  });
+});
+
+describe('runWhenIdle', () => {
+  it('no-ops cancel when window missing', () => {
+    const w = globalThis.window;
+    Reflect.deleteProperty(globalThis, 'window');
+    expect(runWhenIdle(() => {})).toEqual(expect.any(Function));
+    runWhenIdle(() => {})();
+    Object.defineProperty(globalThis, 'window', { configurable: true, value: w });
+  });
+
+  it('uses requestIdleCallback when available', () => {
+    const cancel = vi.fn();
+    const ric = vi.fn((cb: () => void) => {
+      cb();
+      return 7;
+    });
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: {
+        requestIdleCallback: ric,
+        cancelIdleCallback: cancel,
+      },
+    });
+    const task = vi.fn();
+    const stop = runWhenIdle(task);
+    expect(ric).toHaveBeenCalled();
+    expect(task).toHaveBeenCalled();
+    stop();
+    expect(cancel).toHaveBeenCalledWith(7);
+  });
+
+  it('falls back to setTimeout when ric missing', () => {
+    const clear = vi.fn();
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: {
+        setTimeout: (fn: () => void) => {
+          fn();
+          return 99;
+        },
+        clearTimeout: clear,
+      },
+    });
+    const task = vi.fn();
+    const stop = runWhenIdle(task);
+    expect(task).toHaveBeenCalled();
+    stop();
+    expect(clear).toHaveBeenCalledWith(99);
   });
 });

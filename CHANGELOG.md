@@ -4,6 +4,13 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+- **Test(ui,membership,app): 补齐主壳与信号链路关键测试（约 +110 用例）。**
+  - **Utils：** 新增 `signalHumanLabels` / `signalEntryBounds` 并由 `SignalDetail` 引用；`firstRunRouting` 单测扩充。
+  - **Membership：** `applyMembershipAccessToDecision` / runtime 包装、`membership.js` 策略与 Ask Nova 剩余次数（按当日 `membershipUsageDay`）。
+  - **App / Menu：** `App.jsx` lazy 目录全量校验、Menu section 路由锚点、首启 `onboarding.css` 入口。
+  - **appHelpers：** onboarding 重试 session key、`detectDisplayMode`、`runWhenIdle` 分支。
+  - **Docs：** `docs/TESTING.md` 增加上表索引。
+
 ## 10.21.4 (2026-04-03)
 
 - **Chore(docs,release): 根目录文档与版本对齐，并校正本条目前一组 UI/鉴权变更日志表述。**

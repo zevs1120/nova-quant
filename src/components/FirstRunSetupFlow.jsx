@@ -1,5 +1,6 @@
 import '../styles/onboarding.css';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { mapEntryIntent } from '../utils/firstRunRouting.js';
 
 const MARKET_OPTIONS = {
   US: ['AAPL', 'NVDA', 'TSLA', 'MSFT', 'SPY', 'QQQ'],
@@ -102,16 +103,6 @@ function buildCopy(locale) {
 
 function labelFor(options, key) {
   return options.find((item) => item.key === key)?.label || '';
-}
-
-function mapEntryIntent(entryIntent) {
-  if (entryIntent === 'have_holdings') {
-    return { goal: 'manage_holdings', currentState: 'have_holdings' };
-  }
-  if (entryIntent === 'just_exploring') {
-    return { goal: 'understand_market', currentState: 'just_exploring' };
-  }
-  return { goal: 'daily_calls', currentState: 'ready_to_trade' };
 }
 
 export default function FirstRunSetupFlow({

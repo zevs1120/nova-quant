@@ -107,14 +107,18 @@ function seedActiveSubscription(userId: string, planKey: 'lite' | 'pro') {
   );
 }
 
-function seedAdminRole(userId: string) {
+function seedAuthRole(userId: string, role: string) {
   const now = Date.now();
   executeSync(
     `INSERT INTO auth_user_roles(user_id, role, granted_at_ms, granted_by_user_id)
-     VALUES($1, 'ADMIN', $2, NULL)
+     VALUES($1, $2, $3, NULL)
      ON CONFLICT (user_id, role) DO UPDATE SET granted_at_ms = EXCLUDED.granted_at_ms`,
-    [userId, now],
+    [userId, role, now],
   );
+}
+
+function seedAdminRole(userId: string) {
+  seedAuthRole(userId, 'ADMIN');
 }
 
 describe('membership entitlements', () => {
@@ -234,5 +238,24 @@ describe('membership entitlements', () => {
       context: { page: 'holdings' },
     });
     expect(portfolioAccess.ok).toBe(true);
+  });
+
+  it('does not grant Pro billing override for OPERATOR role without subscription', async () => {
+    const userId = await seedAuthUser('membership-operator@example.com');
+    seedAuthRole(userId, 'OPERATOR');
+
+    const billingState = getBillingState(userId);
+    expect(billingState.currentPlan).toBe('free');
+
+    const membershipState = getMembershipState({ userId });
+    expect(membershipState.currentPlan).toBe('free');
+  });
+
+  it('does not grant Pro billing override for SUPPORT role without subscription', async () => {
+    const userId = await seedAuthUser('membership-support@example.com');
+    seedAuthRole(userId, 'SUPPORT');
+
+    const billingState = getBillingState(userId);
+    expect(billingState.currentPlan).toBe('free');
   });
 });

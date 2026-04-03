@@ -1,6 +1,16 @@
 import '../styles/today-final.css';
 import { useMemo, useState } from 'react';
 import { formatNumber } from '../utils/format';
+import { resolveSignalEntryBounds } from '../utils/signalEntryBounds.js';
+import {
+  formatSignalDetailTimestamp,
+  humanizeSignalToken,
+  humanSignalAssetLabel,
+  humanSignalDirectionLabel,
+  humanSignalPositionSizeText,
+  humanSignalStatusLabel,
+  humanSignalValidityText,
+} from '../utils/signalHumanLabels.js';
 
 function infoRow(label, value) {
   return (
@@ -9,71 +19,6 @@ function infoRow(label, value) {
       <span className="detail-value">{value}</span>
     </div>
   );
-}
-
-function humanizeToken(value) {
-  const raw = String(value || '').trim();
-  if (!raw || raw === '--') return '--';
-  return raw
-    .replace(/^signals?\./i, '')
-    .replace(/^validity\./i, '')
-    .replace(/[_-]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .replace(/\b\w/g, (char) => char.toUpperCase());
-}
-
-function formatTimestamp(value, locale) {
-  if (!value) return '--';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return String(value);
-  return date.toLocaleString(locale || undefined, {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-function humanAssetLabel(signal, isZh) {
-  if (signal.asset_class === 'OPTIONS') return isZh ? '期权' : 'Options';
-  if (signal.asset_class === 'US_STOCK') return isZh ? '美股' : 'US stocks';
-  if (signal.market === 'US') return isZh ? '美股' : 'US stocks';
-  return isZh ? '加密货币' : 'Crypto';
-}
-
-function humanDirectionLabel(direction, isZh) {
-  const key = String(direction || '').toUpperCase();
-  if (key === 'LONG' || key === 'BUY') return isZh ? '做多' : 'Long';
-  if (key === 'SHORT' || key === 'SELL') return isZh ? '做空' : 'Short';
-  return humanizeToken(key);
-}
-
-function humanStatusLabel(status, isZh) {
-  const key = String(status || '').toUpperCase();
-  if (key === 'NEW') return isZh ? '新机会' : 'New';
-  if (key === 'WITHHELD') return isZh ? '先观察' : 'Watch first';
-  if (key === 'EXPIRED') return isZh ? '已失效' : 'Expired';
-  if (key === 'TRIGGERED') return isZh ? '已触发' : 'Triggered';
-  return isZh ? humanizeToken(key) : humanizeToken(key);
-}
-
-function humanPositionSizeText(signal, isZh) {
-  const raw = signal.position_pct ?? signal.position_size_pct;
-  const numeric = Number(raw);
-  if (Number.isFinite(numeric)) {
-    return isZh ? `最多 ${Math.round(numeric)}% 仓位` : `Up to ${Math.round(numeric)}% size`;
-  }
-  return '--';
-}
-
-function humanValidityText(signal, isZh) {
-  const raw = String(signal.validity || '').trim();
-  if (!raw || raw === 'undefined') return isZh ? '直到条件失效' : 'Until conditions break';
-  const key = raw.toUpperCase();
-  if (key === 'INTRADAY') return isZh ? '仅限今天' : 'Today only';
-  if (key === 'SWING') return isZh ? '可持有几天' : 'Multi-day';
-  return humanizeToken(raw);
 }
 
 export default function SignalDetail({
@@ -92,13 +37,7 @@ export default function SignalDetail({
   const [copied, setCopied] = useState(false);
   const isZh = String(locale || '').startsWith('zh');
 
-  const entryMin = signal.entry_zone?.low ?? signal.entry_zone?.min ?? signal.entry_min;
-  const entryMax = signal.entry_zone?.high ?? signal.entry_zone?.max ?? signal.entry_max;
-  const stopLossPrice = signal.stop_loss?.price ?? signal.stop_loss_value ?? signal.stop_loss;
-  const takeProfitLevels =
-    signal.take_profit_levels && signal.take_profit_levels.length
-      ? signal.take_profit_levels.map((level) => (typeof level === 'number' ? level : level.price))
-      : [signal.take_profit].filter((value) => value !== null && value !== undefined);
+  const { entryMin, entryMax, stopLossPrice, takeProfitLevels } = resolveSignalEntryBounds(signal);
   const primaryActionCount = onOpenTradeTicket ? 3 : 2;
   const secondaryActionCount = [onAskAi, onPaperExecute].filter(Boolean).length;
   const detailRows = useMemo(
@@ -114,15 +53,15 @@ export default function SignalDetail({
       ],
       [
         isZh ? '创建时间' : 'Created',
-        formatTimestamp(signal.generated_at || signal.created_at, locale),
+        formatSignalDetailTimestamp(signal.generated_at || signal.created_at, locale),
       ],
       [
         isZh ? '策略来源' : 'Strategy',
-        humanizeToken(signal.strategy_source || 'AI quant strategy'),
+        humanizeSignalToken(signal.strategy_source || 'AI quant strategy'),
       ],
-      [isZh ? '建议仓位' : 'Suggested size', humanPositionSizeText(signal, isZh)],
-      [isZh ? '有效期' : 'Valid for', humanValidityText(signal, isZh)],
-      [isZh ? '模型版本' : 'Model version', humanizeToken(signal.model_version)],
+      [isZh ? '建议仓位' : 'Suggested size', humanSignalPositionSizeText(signal, isZh)],
+      [isZh ? '有效期' : 'Valid for', humanSignalValidityText(signal, isZh)],
+      [isZh ? '模型版本' : 'Model version', humanizeSignalToken(signal.model_version)],
       [isZh ? '参考编号' : 'Reference ID', signal.signal_id || '--'],
     ],
     [entryMax, entryMin, isZh, locale, signal, stopLossPrice],
@@ -217,11 +156,12 @@ export default function SignalDetail({
             <div>
               <h2 className="headline today-detail-headline">{signal.symbol}</h2>
               <p className="muted today-detail-muted">
-                {humanAssetLabel(signal, isZh)} · {humanDirectionLabel(signal.direction, isZh)}
+                {humanSignalAssetLabel(signal, isZh)} ·{' '}
+                {humanSignalDirectionLabel(signal.direction, isZh)}
               </p>
             </div>
             <div className={`badge badge-${signal.status.toLowerCase()} today-detail-status-badge`}>
-              {humanStatusLabel(signal.status, isZh)}
+              {humanSignalStatusLabel(signal.status, isZh)}
             </div>
           </div>
 

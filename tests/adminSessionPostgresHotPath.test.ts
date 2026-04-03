@@ -147,4 +147,26 @@ describe('admin auth postgres hot path', () => {
     expect(mockPgUpsertUserRole).not.toHaveBeenCalled();
     expect(mockPgTouchSession).not.toHaveBeenCalled();
   });
+
+  it('returns null when postgres bundle user has no ADMIN role and is not env-configured admin', async () => {
+    vi.stubEnv('NOVA_ADMIN_EMAILS', '');
+    vi.stubEnv('NOVA_OWNER_EMAIL', '');
+
+    const now = Date.now();
+    const base = buildBundle(now);
+    mockPgGetAdminSessionBundle.mockResolvedValueOnce({
+      ...base,
+      user: {
+        ...base.user,
+        email: 'plain-user@example.com',
+      },
+      roles: [],
+    });
+
+    const { getAdminSession } = await import('../src/server/auth/service.js');
+    const session = await getAdminSession('non-admin-token');
+
+    expect(session).toBe(null);
+    expect(mockPgGetSessionBundle).not.toHaveBeenCalled();
+  });
 });

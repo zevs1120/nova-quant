@@ -22,6 +22,23 @@
 - **后端**：API、鉴权、Postgres 内存桩、决策/证据/参与引擎等以 `tests/*.test.ts` 为主；新增逻辑应带回归与边界用例。
 - **前端**：主壳组件为 JSX 且未进 `tsc`。除 `src/utils/*` 工具链外，补充了 **`src/hooks/*.js` 的 `renderHook` 用例**、`browseWarmup` / `signalDetails` 缓存语义、**`admin/src/components` 的轻量组件测试**（`tests/admin/*.jsx`）。Vite 在 Vitest 下启用 **React 插件** 以编译 JSX 测试与 admin 引用。
 
+### 主壳 / Today / Nova 相关（关键链路，非 UI 快照）
+
+以下用例针对 **lazy 分包、会员裁剪、信号详情文案、首启路由** 等高风险路径；**不**替代 E2E / 真机手势测试。
+
+| 区域             | 测试文件                                                                                                           | 说明                                                                                                             |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| 首启路由         | `tests/firstRunRouting.test.ts`                                                                                    | `mapEntryIntent` / `resolveFirstRunTarget`（`src/utils/firstRunRouting.js`）                                     |
+| App lazy 清单    | `tests/appShellLazyImports.test.ts`、`tests/appShellLazyCatalog.test.ts`                                           | 断言 `App.jsx` 对主 Tab 与常用弹层保持 `React.lazy`                                                              |
+| 全局 CSS 入口    | `tests/stylesCssEntryPolicy.test.ts`                                                                               | `src/styles.css` 不拉回 `today-final` / `ai-rebuild` 等重页面样式                                                |
+| 会员裁剪         | `tests/membershipDecisionAccess.test.ts`                                                                           | `applyMembershipAccessToDecision` / `applyMembershipAccessToRuntimeState`                                        |
+| 会员策略常量     | `tests/membershipUtilsPolicy.test.ts`                                                                              | `normalizeMembershipPlan`、`getTodayCardLimit`、`isPortfolioAwareRequest`、`getRemainingAskNova`                 |
+| 信号详情可读字段 | `tests/signalHumanLabels.test.ts`、`tests/signalEntryBounds.test.ts`                                               | `src/utils/signalHumanLabels.js`、`signalEntryBounds.js`（由 `SignalDetail.jsx` 引用）                           |
+| Menu 分区路由    | `tests/menuTabSectionCatalog.test.ts`、`tests/menuSupportPredictionShortcut.test.ts`                               | Support / Prediction Games 等 section 不丢                                                                       |
+| 首启样式入口     | `tests/firstRunSetupCssMarker.test.ts`                                                                             | `FirstRunSetupFlow` 顶层 `onboarding.css`                                                                        |
+| Onboarding 重试  | `tests/appHelpers.test.ts`（节选）                                                                                 | `buildOnboardingRetrySessionKey`、`shouldAttemptPendingOnboardingBonusRetry`、`detectDisplayMode`、`runWhenIdle` |
+| JSX 结构锚点     | `tests/todayTabShellMarkers.test.ts`、`tests/aiPageShellMarkers.test.ts`、`tests/signalDetailShellMarkers.test.ts` | 轻量字符串契约，防大改版静默破坏                                                                                 |
+
 ## Pre-commit
 
 `.husky/pre-commit`：`check-changelog` → `npm run verify` → `lint-staged`（Prettier）。提交前需同步更新并暂存 `CHANGELOG.md`（见 `scripts/check-changelog.mjs`）。

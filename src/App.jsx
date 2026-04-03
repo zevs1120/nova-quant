@@ -42,6 +42,7 @@ import {
   runWhenIdle,
   shouldAttemptPendingOnboardingBonusRetry,
 } from './utils/appHelpers';
+import { resolveFirstRunTarget } from './utils/firstRunRouting.js';
 import { primeBrowseHomeBundle, primeBrowseUniverseBundle } from './utils/browseWarmup';
 import { DEMO_ENTRY_ENABLED, isDemoRuntime as getIsDemoRuntime } from './demo/runtime';
 import { INVESTOR_DEMO_PERFORMANCE } from './demo/investorDemo';
@@ -59,16 +60,6 @@ async function fetchJson(url, options) {
 }
 
 const BROWSE_WARMUP_REFRESH_MS = 10 * 60 * 1000;
-
-function resolveFirstRunTarget(goal, currentState) {
-  if (currentState === 'have_holdings' || goal === 'manage_holdings') {
-    return 'my';
-  }
-  if (currentState === 'just_exploring' || goal === 'understand_market') {
-    return 'browse';
-  }
-  return 'today';
-}
 
 export default function App() {
   const primaryTabKeys = ['today', 'ai', 'browse', 'my'];
