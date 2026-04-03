@@ -4,6 +4,9 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+- **Fix(ui): 移除 Support 页面冗余的 Prediction Games 入口。**
+  - **Menu / Support**：因为主界面已在最外层增加了独立的 Prediction Games 大卡片快捷入口，因此移除了 `Support tools` 列表中的旧重复入口，并同步更新了 `Support` 的副标题文本，消除入口冗余。
+
 - **Test(landing): 定向补齐流量转化网关 (Landing Page) 测试防护网络。**
   - **组件深度防线**: 为 `HeroSection`（承接流）、`PricingSection`（支付流）、`DataPortalPage`（长页面数据流）设立单独 Vitest 拦截域与 ErrorBoundary，确保底层修改不击穿落地页样式树。
   - **E2E 商业游走**: 完全重写了 `landing.spec.js` 机器人，强制检验由首页向后跨域跨组件跳转至 `/data-portal` 的路由过渡情况并校验深层 DOM 载入量。
