@@ -63,7 +63,7 @@ nova-quant/
 ├── src/                          # 核心源码
 │   ├── App.jsx                   # 薄编排壳层 — 组合 hooks + 渲染
 │   ├── main.jsx                  # React 入口
-│   ├── styles.css                # @import 入口 (→ src/styles/ 模块)
+│   ├── styles.css                # 首屏全局 @import 入口；各 Tab 页面可再自引领域 CSS（配合 lazy chunk）
 │   ├── i18n.js                   # 国际化 (中/英)
 │   │
 │   ├── components/               # 29 个 UI 组件（含 `FirstRunSetupFlow` 等）
@@ -319,11 +319,11 @@ nova-quant/
 
 ### 6.3 认证层 (`src/server/auth/`)
 
-| 文件               | 职责                                                                                           |
-| ------------------ | ---------------------------------------------------------------------------------------------- |
-| `service.ts`       | 认证服务 (Session / RBAC / 中间件)；`getEffectiveAuthRolesForUser` 供 session/profile 返回角色 |
-| `postgresStore.ts` | Postgres 认证存储 (users/sessions/roles)                                                       |
-| `supabase.ts`      | 原生 Supabase 认证集成，接管邮件及 Session                                                     |
+| 文件               | 职责                                                                                                                                                                               |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `service.ts`       | 认证服务 (Session / RBAC / 中间件)；`loginAdminUser` 非 ADMIN 即撤销会话；`getAdminSession` 短 TTL 缓存 + 角色变更失效；`getEffectiveAuthRolesForUser` 供 session/profile 返回角色 |
+| `postgresStore.ts` | Postgres 认证存储；`pgGetAdminSessionBundle` 单次查询拉取 session + user + roles 等                                                                                                |
+| `supabase.ts`      | 原生 Supabase 认证集成，接管邮件及 Session                                                                                                                                         |
 
 ### 6.4 决策引擎 (`src/server/decision/`)
 
@@ -392,33 +392,33 @@ alpha_promotion_guard/→ 晋升守卫 (Shadow → Canary → Prod)
 ### 7.1 技术选型
 
 - **框架**: React 18 + Vite 5 (SPA)
-- **样式**: CSS 模块 (`src/styles/` via `@import`)
-- **路由/状态**: App.jsx 编排 + 11 个 custom hooks (无第三方路由)
-- **代码分割**: `React.lazy` 用于次级 Tab 组件
+- **样式**: `src/styles/` 领域 CSS；全局入口 `styles.css` 控制首屏 cascade，Today / Nova 等重页面在组件内 `import` 专用表（如 `today-final.css`、`ai-rebuild.css`）
+- **路由/状态**: App.jsx 编排 + 11 个 custom hooks (无第三方路由)；主导航为 **Today / Nova / Browse / My** 四 Tab
+- **代码分割**: `App.jsx` 对绝大多数 Tab 页面、`FirstRunSetupFlow`、`OnboardingFlow` 及常用弹层（如 `AboutModal`、会员/结账 Sheet）使用 `React.lazy` + `Suspense`，配套 CSS 随 chunk 加载；`src/styles.css` 仅聚合首屏必需的全局样式模块
 - **国际化**: `i18n.js` (中/英双语)
 
 ### 7.2 主要组件 (29 个)
 
-| 组件                    | 职责                                            |
-| ----------------------- | ----------------------------------------------- |
-| `App.jsx`               | 薄编排壳 (hooks + 渲染)                         |
-| `TodayTab.jsx`          | 今日决策面板 (首页；信号有效期与失效说明)       |
-| `MenuTab.jsx`           | 设置 & 高级功能；积分 / 预测 / 邀请 manual 接线 |
-| `BrowseTab.jsx`         | 资产浏览 & 搜索                                 |
-| `HoldingsTab.jsx`       | 持仓管理                                        |
-| `OnboardingFlow.jsx`    | 认证侧 onboarding                               |
-| `FirstRunSetupFlow.jsx` | 登录后首次设置（localStorage 按用户记录）       |
-| `ResearchTab.jsx`       | AI 研究工具                                     |
-| `ProofTab.jsx`          | 证据 & 回测                                     |
-| `SignalsTab.jsx`        | 信号列表                                        |
-| `AiPage.jsx`            | Nova 助手对话页                                 |
-| `RiskTab.jsx`           | 风险仪表盘                                      |
-| `MarketTab.jsx`         | 市场概况                                        |
-| `WeeklyReviewTab.jsx`   | 周度复盘                                        |
-| `DisciplineTab.jsx`     | 纪律执行                                        |
-| `LearningLoopTab.jsx`   | 学习循环                                        |
-| `SettingsTab.jsx`       | 设置                                            |
-| `DataStatusTab.jsx`     | 数据状态                                        |
+| 组件                    | 职责                                                                       |
+| ----------------------- | -------------------------------------------------------------------------- |
+| `App.jsx`               | 薄编排壳 (hooks + 渲染)                                                    |
+| `TodayTab.jsx`          | 今日决策面板 (首页；信号有效期与失效说明)                                  |
+| `MenuTab.jsx`           | 设置 & 高级功能；积分 / 预测 / 邀请 manual 接线                            |
+| `BrowseTab.jsx`         | 资产浏览 & 搜索                                                            |
+| `HoldingsTab.jsx`       | 持仓管理                                                                   |
+| `OnboardingFlow.jsx`    | 认证侧 onboarding                                                          |
+| `FirstRunSetupFlow.jsx` | 登录后首次设置：两步（入口意图 + 市场/风险/关注），localStorage 按用户记录 |
+| `ResearchTab.jsx`       | AI 研究工具                                                                |
+| `ProofTab.jsx`          | 证据 & 回测                                                                |
+| `SignalsTab.jsx`        | 信号列表                                                                   |
+| `AiPage.jsx`            | Nova 助手对话页                                                            |
+| `RiskTab.jsx`           | 风险仪表盘                                                                 |
+| `MarketTab.jsx`         | 市场概况                                                                   |
+| `WeeklyReviewTab.jsx`   | 周度复盘                                                                   |
+| `DisciplineTab.jsx`     | 纪律执行                                                                   |
+| `LearningLoopTab.jsx`   | 学习循环                                                                   |
+| `SettingsTab.jsx`       | 设置                                                                       |
+| `DataStatusTab.jsx`     | 数据状态                                                                   |
 
 ### 7.3 Hooks (11 个)
 

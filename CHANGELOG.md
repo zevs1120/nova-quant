@@ -4,10 +4,16 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
-- **Perf(app): 顶栏 logo 换成 WebP，并把非首屏弹层改成按需加载。**
+## 10.21.4 (2026-04-03)
+
+- **Chore(docs,release): 根目录文档与版本对齐，并校正本条目前一组 UI/鉴权变更日志表述。**
+  - **Docs：** 更新 `architecture.md`（主壳四 Tab、`React.lazy` 与页级 CSS、`FirstRunSetupFlow` 两步流程、顶栏 WebP）、根目录 `README.md`（壳层与代码分割摘要）、`AGENTS.md` / `CLAUDE.md`（与实现一致的样式与懒加载说明）；本条内 Perf / Shell / Admin 描述已与当前 `App.jsx`、`auth/service.ts` 对齐。
+  - **Release：** SemVer `10.21.4`，`APP_BUILD_NUMBER` 递增至 `83`；`README` 版本行与 `src/config/version.js`、`package.json` / `package-lock.json` 同步。
+
+- **Perf(app): 顶栏 logo 换成 WebP，并把多数字页与弹层改成按需加载。**
   - **Logo：** 顶栏两张品牌图切成更轻的 WebP，并且运行时只渲染当前需要的一张，减少进入系统时的图片体积和无效 DOM。
-  - **Lazy Load：** `AboutModal`、`MembershipSheet`、`BillingCheckoutSheet` 改成真正按需加载，用户没打开这些弹层时，不再跟着首屏一起进入主包。
-  - **Bundle：** 会员相关样式拆成独立 chunk，主入口 CSS/JS 继续变轻，进入系统时要加载的首屏资源更少。
+  - **Lazy Load：** `App.jsx` 对绝大多数 Tab（如 `TodayTab`、`AiPage`、`BrowseTab`、`MenuTab` 等）、`FirstRunSetupFlow`、`OnboardingFlow` 以及 `AboutModal`、`MembershipSheet`、`BillingCheckoutSheet` 等使用 `React.lazy`；未进入对应界面或未打开弹层时不进入首包。
+  - **Bundle：** 业务页面样式随懒加载 chunk 拆分；全局入口 `src/styles.css` 仅保留首屏必需模块，`today-final.css` / `ai-rebuild.css` / `holdings.css` / `onboarding.css` 等由各自组件显式引入。
 
 - **Refactor(styles): 删除旧 UI 表层并把重做页面的样式改成按页加载。**
   - **Today / Onboarding / Detail：** `Today`、首次引导和信号详情页不再依赖全局入口去预先加载旧样式，改成页面组件自己引入所需 CSS，减少系统刚进入时白白加载的首屏样式。
@@ -23,7 +29,7 @@ NovaQuant 所有重要变更记录于此。
   - **Menu / Support：** 在 `Support tools` 列表最上面加入 `Prediction Games` 入口，方便直接进入昨日接入的预测游戏页面，不需要再从别的路径绕过去。
 
 - **Feat(app,ui): 全局壳层收口到 edge-to-edge 舞台与滑动 tab bar。**
-  - **Shell：** `Today / Nova / Browse` 三页统一成更沉浸的 edge-to-edge 舞台，底部栏固定在一致的悬浮高度。
+  - **Shell：** `Today` / `Nova` / `Browse` / `My` 四枚主导航下的主舞台统一成更沉浸的 edge-to-edge 布局，底部栏固定在一致的悬浮高度。
   - **Tab Bar：** 底部导航改成会横向移动的激活滑块，不再只是当前按钮单独变色；激活状态、辉光和位置关系也统一到同一套视觉语言。
 
 - **Feat(nova,ui): Nova 对话页重写并统一 Browse 深色舞台。**
@@ -40,10 +46,10 @@ NovaQuant 所有重要变更记录于此。
   - **Card Visuals：** 每张卡改为强对比深色渐变主题，直接为不同卡片注入固定色板和装饰视觉，避免出现发白、文字看不清的问题。
   - **Signal Detail：** 任意卡片点开后会先完整展示该张卡，同时这张展开卡本身继续支持左滑跳过、右滑执行、上滑稍后，不需要退回列表再做动作。
 
-- **Feat(today,auth,billing): Today 移动端沉浸式壳层 + Admin 强韧登录链路。**
+- **Feat(today,auth,billing): Today 移动端沉浸式壳层 + Admin 登录与会话链路加固。**
   - **Today / UI：** `Today` 页移除固定顶部栏，底部 tab bar 收成悬浮式 liquid glass；行动卡改为更强的堆叠舞台、显式 swipe 动效与 validity 倒计时；全局 panel/chip/button 语言往 landing 的细线分割和小圆角统一。
-  - **Auth：** 新增 guaranteed admin 账号 `zevs1120@gmail.com` 的自愈种子路径，登录时会自动补齐 Supabase `auth.users`、同步密码并强制确认邮箱；前端对这条邮箱加入 resilient login bridge，即使浏览器端 Supabase 先失败也会回退到服务器登录桥。
-  - **Billing / Access：** Admin 账号默认按 Pro 权限运行，Demo 入口仅对 admin 开放，普通账号会自动清理残留的 demo 状态。
+  - **Auth：** 可选 `GUARANTEED_ADMIN_ACCOUNT`（默认 `zevs1120@gmail.com`，可用 `NOVA_DISABLE_GUARANTEED_ADMIN_ACCOUNT=1` 关闭）用于自愈种子；`/api/admin/login` 经 `loginAdminUser`，非 `ADMIN` 角色会在登录后立即撤销会话并返回 `ADMIN_ACCESS_DENIED`。Postgres 路径使用 `pgGetAdminSessionBundle` 单查询拉取 session、用户与角色；`getAdminSession` 带短 TTL 内存缓存并在角色变更时失效。前端对配置邮箱保留 resilient login bridge（Supabase 失败时回退服务端登录）。
+  - **Billing / Access：** 数据库角色含 `ADMIN` 的用户在 `getBillingState` 中视为 Pro（`hasAdminPlanOverride`）；Demo 入口仅对 admin 开放，普通账号会自动清理残留的 demo 状态。
   - **Onboarding / Ask Nova：** 首次进入补全 flow 改为 mobile-first；Ask Nova 收回无效占位，把更多高度让给对话内容；Gemini/Nova 的 action card 解释默认用更白话的风格。
   - **Test：** 补充 `useAuth`、membership、Supabase bridge 和 admin postgres hot path 相关测试覆盖。
 
