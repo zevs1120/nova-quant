@@ -2551,8 +2551,18 @@
   margin-top: 1.2rem;
 }
 
+.first-run-stage-copy,
+.first-run-risk-stage {
+  display: grid;
+  gap: 0.78rem;
+}
+
 .first-run-market-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 0;
+}
+
+.first-run-option-grid-tight {
   margin-top: 0;
 }
 

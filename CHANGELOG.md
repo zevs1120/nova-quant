@@ -4,6 +4,11 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+- **Feat(menu,onboarding,today): Menu 清晰化、首次引导压缩为两步，并补上首次使用教学。**
+  - **Menu：** 根菜单重排成更清楚的主入口结构，把 `Support`、`Membership & Plans`、`Prediction Games` 提到最上方，下面再分 `Account` 和 `Tools`，减少“所有入口一个重量”的迷失感。
+  - **First Run：** 登录后的首次设置从 4 步压成 2 步，先选最想做的事，再一次性定市场、风险和关注标的，让用户更快进入系统。
+  - **Today 教学：** 第一次进入 `Today` 时增加轻量使用引导，先提示用户点开卡片，再提示完整卡支持左滑/右滑/上滑以及如何进入详情；完成后会自动记住，不再重复打扰。
+
 - **Feat(ui): Support 页面增加 Prediction Games 快捷入口。**
   - **Menu / Support：** 在 `Support tools` 列表最上面加入 `Prediction Games` 入口，方便直接进入昨日接入的预测游戏页面，不需要再从别的路径绕过去。
 

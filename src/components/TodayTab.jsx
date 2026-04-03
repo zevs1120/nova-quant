@@ -1080,6 +1080,8 @@ export default function TodayTab({
   effectiveUserId,
   membershipPlan = 'free',
   onOpenMembershipPrompt,
+  showUsageGuide = false,
+  onCompleteUsageGuide,
 }) {
   // Self-managed clock — keeps App free from 30s re-render cycles
   const [now, setNow] = useState(() => new Date());
@@ -1100,6 +1102,7 @@ export default function TodayTab({
   const [gesturePreview, setGesturePreview] = useState(createGesturePreview);
   const [previewGesture, setPreviewGesture] = useState(createGesturePreview);
   const [isPreviewClosing, setIsPreviewClosing] = useState(false);
+  const [usageGuideStep, setUsageGuideStep] = useState(showUsageGuide ? 'tap' : null);
   const analyticsPaletteBySignalIdRef = useRef(new Map());
   const analyticsPaletteCursorRef = useRef(0);
   const swipeGestureRef = useRef({
@@ -1143,6 +1146,9 @@ export default function TodayTab({
     rotationDirection: 1,
   });
   const previewGestureTimerRef = useRef(null);
+  useEffect(() => {
+    setUsageGuideStep(showUsageGuide ? 'tap' : null);
+  }, [showUsageGuide, effectiveUserId]);
   const previewCloseTimerRef = useRef(null);
   const gestureFrameRef = useRef(0);
   const gesturePreviewRef = useRef(createGesturePreview());
@@ -1553,10 +1559,43 @@ export default function TodayTab({
       ? 'Small size allowed'
       : 'Small size allowed'
     : '--';
+  const guideCopy =
+    locale === 'zh'
+      ? {
+          tapTitle: '先点开一张卡',
+          tapBody: '先看完整卡片，再决定要不要看更细的详情。',
+          tapHint: '点这张卡试试看',
+          swipeTitle: '这张完整卡可以直接滑动',
+          swipeBody: '左滑跳过，右滑接住，上滑先放一边。想深看就点 Details。',
+          swipeBack: '点卡外区域会回到选卡界面',
+          done: '知道了',
+          skip: '跳过引导',
+        }
+      : {
+          tapTitle: 'Start by opening one card',
+          tapBody: 'See the full card first, then decide whether to go deeper.',
+          tapHint: 'Tap this card',
+          swipeTitle: 'This full card is swipeable',
+          swipeBody:
+            'Swipe left to pass, right to keep, and up to save for later. Tap Details for the full breakdown.',
+          swipeBack: 'Tap outside the card to return to the stack',
+          done: 'Got it',
+          skip: 'Skip guide',
+        };
+  const completeUsageGuide = () => {
+    setUsageGuideStep(null);
+    onCompleteUsageGuide?.();
+  };
 
   useEffect(() => {
     setWalletIndex((current) => Math.min(current, Math.max(walletCards.length - 1, 0)));
   }, [walletCards.length]);
+
+  useEffect(() => {
+    if (usageGuideStep === 'tap' && activeSignal && activeSignalScreen === 'preview') {
+      setUsageGuideStep('swipe');
+    }
+  }, [activeSignal, activeSignalScreen, usageGuideStep]);
 
   const openTradeTicket = (signal) => {
     if (!signal) return;
@@ -1930,6 +1969,9 @@ export default function TodayTab({
     }
     setIsPreviewClosing(false);
     setActiveSignalScreen('detail');
+    if (usageGuideStep) {
+      completeUsageGuide();
+    }
   };
 
   const clearPreviewGesture = () => {
@@ -1979,6 +2021,9 @@ export default function TodayTab({
     previewGestureTimerRef.current = window.setTimeout(() => {
       closeActiveSignal({ animated: false });
       applyQueueAction(activeSignal, intent);
+      if (usageGuideStep === 'swipe') {
+        completeUsageGuide();
+      }
       clearPreviewGesture();
     }, 160);
   };
@@ -2169,7 +2214,11 @@ export default function TodayTab({
               {walletCards.map((card, index) => (
                 <article
                   key={card.id}
-                  className={`${card.kind === 'lock' ? 'today-stack-card today-stack-card-lock' : `today-stack-card today-rebuild-card today-rebuild-card-${card.palette}`}`}
+                  className={`${card.kind === 'lock' ? 'today-stack-card today-stack-card-lock' : `today-stack-card today-rebuild-card today-rebuild-card-${card.palette}`} ${
+                    usageGuideStep === 'tap' && index === 0 && card.kind !== 'lock'
+                      ? 'is-usage-guide-target'
+                      : ''
+                  }`}
                   data-visual={card.visual}
                   style={{
                     '--stack-index': `${index}`,
@@ -2320,6 +2369,19 @@ export default function TodayTab({
         </div>
       </section>
 
+      {usageGuideStep === 'tap' && !isPreviewOpen ? (
+        <div className="today-usage-guide today-usage-guide-stack">
+          <div className="today-usage-guide-panel" data-gesture-ignore="true">
+            <p className="today-usage-guide-kicker">{guideCopy.tapHint}</p>
+            <h3 className="today-usage-guide-title">{guideCopy.tapTitle}</h3>
+            <p className="today-usage-guide-copy">{guideCopy.tapBody}</p>
+            <button type="button" className="today-usage-guide-skip" onClick={completeUsageGuide}>
+              {guideCopy.skip}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       {isPreviewOpen ? (
         <section className="today-preview-overlay">
           <button
@@ -2438,6 +2500,31 @@ export default function TodayTab({
                   {locale === 'zh' ? 'Ask Nova' : 'Ask Nova'}
                 </button>
               </div>
+
+              {usageGuideStep === 'swipe' ? (
+                <div
+                  className="today-usage-guide today-usage-guide-preview"
+                  data-gesture-ignore="true"
+                >
+                  <div className="today-usage-guide-panel">
+                    <p className="today-usage-guide-kicker">{guideCopy.swipeBack}</p>
+                    <h3 className="today-usage-guide-title">{guideCopy.swipeTitle}</h3>
+                    <p className="today-usage-guide-copy">{guideCopy.swipeBody}</p>
+                    <div className="today-usage-guide-gestures">
+                      <span>← {locale === 'zh' ? '跳过' : 'Pass'}</span>
+                      <span>↑ {locale === 'zh' ? '稍后' : 'Later'}</span>
+                      <span>→ {locale === 'zh' ? '接住' : 'Keep'}</span>
+                    </div>
+                    <button
+                      type="button"
+                      className="today-usage-guide-done"
+                      onClick={completeUsageGuide}
+                    >
+                      {guideCopy.done}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
             </article>
           </div>
         </section>

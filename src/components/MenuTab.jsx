@@ -2045,15 +2045,105 @@ export default function MenuTab({
     );
   }
 
+  const rootPrimaryActions = [
+    {
+      key: 'support',
+      kicker: isZh ? 'Start here' : 'Start here',
+      title: copy.supportRootTitle,
+      desc: isZh
+        ? '帮助中心、Support chats、Prediction Games 和披露信息都从这里进。'
+        : 'Help center, support chats, Prediction Games, and disclosures all live here.',
+      badge: isZh ? '24/7' : '24/7',
+      tone: 'support',
+    },
+    {
+      key: 'membership',
+      kicker: isZh ? 'Plan' : 'Plan',
+      title: copy.membershipRootTitle,
+      desc: isZh
+        ? '查看当前计划、剩余 Ask Nova 次数，以及升级入口。'
+        : 'See your current plan, remaining Ask Nova uses, and upgrade paths.',
+      badge: activeMembershipPlan?.name || 'Free',
+      tone: 'membership',
+    },
+    {
+      key: 'prediction-games',
+      kicker: isZh ? 'Play' : 'Play',
+      title: copy.predictionGames,
+      desc: isZh
+        ? '每天快速做判断，顺手拿积分和奖励。'
+        : 'Make a fast daily call and pick up points and rewards.',
+      badge: isZh ? 'Daily' : 'Daily',
+      tone: 'prediction',
+    },
+  ];
+
+  const rootAccountRows = [
+    {
+      key: 'rewards',
+      title: copy.rewards,
+      desc: isZh ? '邀请、奖励、VIP 兑换都在这里。' : 'Invites, rewards, and VIP redemption.',
+    },
+    {
+      key: 'security-privacy',
+      title: copy.securityPrivacy,
+      desc: isZh
+        ? '密码、设备安全、隐私和数据控制。'
+        : 'Password, device safety, privacy, and data controls.',
+    },
+    {
+      key: 'settings',
+      title: copy.settings,
+      desc: isZh
+        ? '通知、语言、模式和账户偏好。'
+        : 'Notifications, language, mode, and account preferences.',
+    },
+  ];
+
+  const rootToolRows = [
+    { key: 'group:review', title: copy.review, desc: copy.reviewDescription },
+    { key: 'group:system', title: copy.system, desc: copy.systemDescription },
+    { key: 'group:market', title: copy.marketNotes, desc: copy.marketDescription },
+    ...(showDemoEntry
+      ? [
+          {
+            key: 'demo',
+            title: locale?.startsWith('zh') ? '演示模式' : 'Demo Mode',
+            desc: locale?.startsWith('zh')
+              ? '用样例数据快速走完整个平台。'
+              : 'Walk the whole product with sample data.',
+          },
+        ]
+      : []),
+    {
+      key: 'about',
+      title: copy.about,
+      desc: locale?.startsWith('zh')
+        ? '版本、支持与合规信息。'
+        : 'Version, support, and compliance.',
+    },
+  ];
+
   return (
     <section className="stack-gap menu-screen menu-root-screen">
-      <div className="menu-root-main">
-        <div className="menu-identity-row menu-identity-row-plain">
-          <div className="menu-identity-copy">
-            <p className="menu-identity-kicker">{copy.username}</p>
-            <p className="menu-identity-value">{username}</p>
+      <div className="menu-root-shell">
+        <div className="menu-root-hero">
+          <div className="menu-root-hero-copy">
+            <p className="menu-root-kicker">{copy.menu}</p>
+            <h1 className="menu-root-title">
+              {isZh ? `${firstName}，先去哪里？` : `Where to next, ${firstName}?`}
+            </h1>
+            <p className="menu-root-subtitle">
+              {isZh
+                ? '最常用的入口放在最上面。先从支持、会员和预测游戏开始。'
+                : 'The clearest paths are up top. Start with support, membership, or Prediction Games.'}
+            </p>
           </div>
-          <button type="button" className="points-pill" onClick={() => onSectionChange('points')}>
+          <button
+            type="button"
+            className="points-pill menu-root-points-pill"
+            onClick={() => onSectionChange('points')}
+          >
             <span className="points-pill-balance">
               {manualAvailable ? formatPoints(points.balance, locale) : copy.pointsHub}
             </span>
@@ -2067,83 +2157,60 @@ export default function MenuTab({
           </button>
         </div>
 
-        <div className="menu-group-list">
-          {[
-            {
-              key: 'membership',
-              title: copy.membershipRootTitle,
-              desc: copy.membershipRootCopy,
-            },
-            { key: 'support', title: copy.supportRootTitle, desc: copy.supportRootCopy },
-            { key: 'rewards', title: copy.rewards, desc: copy.rewardsRootCopy },
-            {
-              key: 'security-privacy',
-              title: copy.securityPrivacy,
-              desc: copy.securityPrivacyCopy,
-            },
-            {
-              key: 'settings',
-              title: copy.settings,
-              desc: locale?.startsWith('zh')
-                ? '通知、偏好、账户与模式。'
-                : 'Notifications, preferences, account, and mode.',
-            },
-          ].map((item) => (
-            <button
-              key={item.key}
-              type="button"
-              className={`menu-list-row ${item.key === 'membership' ? 'membership-card-trigger' : ''}`}
-              onClick={() => onSectionChange(item.key)}
-            >
-              <span>
-                <span className="menu-list-title">{item.title}</span>
-                <span className="menu-list-desc">
-                  {item.key === 'membership'
-                    ? `${item.desc} ${
-                        activeMembershipPlan?.name
-                          ? isZh
-                            ? `当前 ${activeMembershipPlan.name}`
-                            : `Currently ${activeMembershipPlan.name}`
-                          : ''
-                      }`.trim()
-                    : item.desc}
+        <div className="menu-root-section">
+          <div className="menu-root-section-head">
+            <span>{isZh ? '常用入口' : 'Start here'}</span>
+            <span>{username}</span>
+          </div>
+          <div className="menu-root-primary-grid">
+            {rootPrimaryActions.map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                className={`menu-root-primary-card menu-root-primary-card-${item.tone}`}
+                onClick={() => onSectionChange(item.key)}
+              >
+                <span className="menu-root-primary-topline">
+                  <span className="menu-root-primary-kicker">{item.kicker}</span>
+                  <span className="menu-root-primary-badge">{item.badge}</span>
                 </span>
-              </span>
-              {item.key === 'membership' ? (
-                <span className="membership-trigger-badge">{activeMembershipPlan.name}</span>
-              ) : (
-                <span className="menu-list-arrow">›</span>
-              )}
-            </button>
-          ))}
+                <span className="menu-root-primary-title">{item.title}</span>
+                <span className="menu-root-primary-copy">{item.desc}</span>
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="menu-utility-section">
-          <p className="menu-utility-kicker">{isZh ? 'NovaQuant 工具' : 'NovaQuant tools'}</p>
-          <div className="menu-group-list">
-            {[
-              { key: 'group:review', title: copy.review, desc: copy.reviewDescription },
-              { key: 'group:system', title: copy.system, desc: copy.systemDescription },
-              { key: 'group:market', title: copy.marketNotes, desc: copy.marketDescription },
-              ...(showDemoEntry
-                ? [
-                    {
-                      key: 'demo',
-                      title: locale?.startsWith('zh') ? '演示模式' : 'Demo Mode',
-                      desc: locale?.startsWith('zh')
-                        ? '用样例数据走完整个平台，不影响真实账户路径。'
-                        : 'Run a sample-data walkthrough without touching the real account path.',
-                    },
-                  ]
-                : []),
-              {
-                key: 'about',
-                title: copy.about,
-                desc: locale?.startsWith('zh')
-                  ? '版本、支持与合规信息。'
-                  : 'Version, support, and compliance.',
-              },
-            ].map((item) => {
+        <div className="menu-root-section">
+          <div className="menu-root-section-head">
+            <span>{isZh ? '账户与偏好' : 'Account'}</span>
+            <span>{isZh ? '基础设置' : 'Basics'}</span>
+          </div>
+          <div className="menu-group-list menu-root-list">
+            {rootAccountRows.map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                className="menu-list-row"
+                onClick={() => onSectionChange(item.key)}
+              >
+                <span>
+                  <span className="menu-list-title">{item.title}</span>
+                  <span className="menu-list-desc">{item.desc}</span>
+                </span>
+                <span className="menu-list-arrow">›</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="menu-root-section">
+          <div className="menu-root-section-head">
+            <span>{isZh ? '工具与系统' : 'Tools'}</span>
+            <span>{isZh ? '更多' : 'More'}</span>
+          </div>
+          <div className="menu-group-list menu-root-list">
+            {rootToolRows.map((item) => {
               const onClick =
                 item.key === 'about'
                   ? onOpenAbout
@@ -2157,16 +2224,14 @@ export default function MenuTab({
                     <span className="menu-list-desc">{item.desc}</span>
                   </span>
                   <span className="menu-list-arrow">
-                    {item.key === 'demo' ? (demoEnabled ? 'On' : 'Off') : '›'}
+                    {item.key === 'demo' ? (demoEnabled ? 'On' : '›') : '›'}
                   </span>
                 </button>
               );
             })}
           </div>
         </div>
-      </div>
 
-      <div className="menu-root-footer">
         <button
           type="button"
           className="menu-outline-cta menu-outline-cta-logout"

@@ -15,57 +15,41 @@ function buildCopy(locale) {
     finish: zh ? '进入系统' : 'Enter Nova',
     steps: [
       {
-        key: 'goal',
+        key: 'entry',
         stepLabel: zh ? '步骤 1' : 'Step 1',
-        title: zh ? '你想先用 Nova 做什么？' : 'What do you want Nova to help with first?',
+        title: zh ? '你现在最想先做什么？' : 'What do you want to do first?',
         body: zh
-          ? '我们会根据这个决定你进入系统后的第一屏。'
-          : 'We will shape your first screen around this.',
+          ? '只选一个最接近你的入口，我们会把你直接送过去。'
+          : 'Pick the closest path and we will drop you straight into it.',
       },
       {
-        key: 'risk',
+        key: 'setup',
         stepLabel: zh ? '步骤 2' : 'Step 2',
-        title: zh ? '你的风险节奏更像哪种？' : 'What risk pace feels most like you?',
+        title: zh ? '把默认节奏定一下' : 'Set your default rhythm',
         body: zh
-          ? '这会直接影响仓位和提醒语气。'
-          : 'This directly affects sizing and how Nova frames risk.',
-      },
-      {
-        key: 'market',
-        stepLabel: zh ? '步骤 3' : 'Step 3',
-        title: zh ? '你想先从哪个市场开始？' : 'Which market do you want to start with?',
-        body: zh
-          ? '再选几个你最关心的名字，Nova 会先围着这些展开。'
-          : 'Pick a few names you care about and Nova will center the first pass around them.',
-      },
-      {
-        key: 'state',
-        stepLabel: zh ? '步骤 4' : 'Step 4',
-        title: zh ? '你现在更接近哪种状态？' : 'Which state feels most true right now?',
-        body: zh
-          ? '我们会把你送到最合适的入口。'
-          : 'We will drop you into the most useful starting point.',
+          ? '市场、风险和你关心的名字，先用最少的选择定清楚。'
+          : 'Set market, risk, and a few names with the fewest possible choices.',
       },
     ],
-    goalOptions: [
+    entryOptions: [
       {
-        key: 'daily_calls',
-        label: zh ? '每天拿最重要的判断' : 'Get the clearest daily call',
-        body: zh ? '先看今天最值得行动的一张卡。' : 'Open to the strongest action card first.',
+        key: 'ready_to_trade',
+        label: zh ? '我准备开始交易' : 'I am ready to trade',
+        body: zh ? '先看今天最值得动作的一张卡。' : 'Take me to the clearest action card first.',
       },
       {
-        key: 'manage_holdings',
-        label: zh ? '先管理已有持仓' : 'Manage existing holdings',
+        key: 'have_holdings',
+        label: zh ? '我已经有持仓' : 'I already have positions',
         body: zh
-          ? '先围绕你的仓位和风险来用 Nova。'
-          : 'Start from positions, exposure, and portfolio context.',
+          ? '先从仓位、风险和组合上下文开始。'
+          : 'Start from positions, risk, and portfolio context.',
       },
       {
-        key: 'understand_market',
-        label: zh ? '先看懂市场再决定' : 'Understand the market first',
+        key: 'just_exploring',
+        label: zh ? '我先看看' : 'I am just exploring',
         body: zh
-          ? '先进入更偏观察和理解的入口。'
-          : 'Start from a mode built for context before action.',
+          ? '先从更轻松的观察和理解入口开始。'
+          : 'Start from a lower-pressure context-first mode.',
       },
     ],
     riskOptions: [
@@ -97,32 +81,19 @@ function buildCopy(locale) {
         body: zh ? '全天候、更快的波动' : '24/7 and structurally faster',
       },
     ],
-    stateOptions: [
-      {
-        key: 'have_holdings',
-        label: zh ? '我已经有持仓' : 'I already have positions',
-        body: zh ? '让我先从仓位和风险看起。' : 'Start from my holdings and current risk.',
-      },
-      {
-        key: 'ready_to_trade',
-        label: zh ? '我准备开始交易' : 'I am ready to trade',
-        body: zh ? '把我带到最可执行的判断上。' : 'Take me straight to the most actionable call.',
-      },
-      {
-        key: 'just_exploring',
-        label: zh ? '我先看看' : 'I am just exploring',
-        body: zh ? '先给我更容易进入的理解入口。' : 'Start me in a lower-pressure discovery mode.',
-      },
-    ],
+    marketStageTitle: zh ? '先看哪个市场？' : 'Which market first?',
+    riskStageTitle: zh ? '你的风险节奏' : 'Your risk pace',
+    riskStageBody: zh
+      ? '这会影响仓位和提醒语气。'
+      : 'This affects sizing and how Nova frames risk.',
     pickNames: zh ? '选择 1 到 5 个你最关心的名字' : 'Pick 1 to 5 names you care about',
     namesHint: zh
       ? '不选也可以，我们会先帮你放入一组默认关注。'
       : 'You can skip this and we will seed a default starter set.',
     summaryLabels: {
-      goal: zh ? '目标' : 'Goal',
+      entry: zh ? '入口' : 'Start',
       risk: zh ? '风险' : 'Risk',
       market: zh ? '市场' : 'Market',
-      state: zh ? '状态' : 'State',
       names: zh ? '关注' : 'Watchlist',
     },
   };
@@ -130,6 +101,16 @@ function buildCopy(locale) {
 
 function labelFor(options, key) {
   return options.find((item) => item.key === key)?.label || '';
+}
+
+function mapEntryIntent(entryIntent) {
+  if (entryIntent === 'have_holdings') {
+    return { goal: 'manage_holdings', currentState: 'have_holdings' };
+  }
+  if (entryIntent === 'just_exploring') {
+    return { goal: 'understand_market', currentState: 'just_exploring' };
+  }
+  return { goal: 'daily_calls', currentState: 'ready_to_trade' };
 }
 
 export default function FirstRunSetupFlow({
@@ -145,7 +126,7 @@ export default function FirstRunSetupFlow({
   const initialMarket = assetClass === 'CRYPTO' ? 'CRYPTO' : 'US';
   const flowRef = useRef(null);
   const [stepIndex, setStepIndex] = useState(0);
-  const [goal, setGoal] = useState('');
+  const [entryIntent, setEntryIntent] = useState('');
   const [risk, setRisk] = useState(riskProfileKey || 'balanced');
   const [marketFocus, setMarketFocus] = useState(initialMarket);
   const [selectedSymbols, setSelectedSymbols] = useState(() =>
@@ -155,28 +136,20 @@ export default function FirstRunSetupFlow({
           .slice(0, 5)
       : [],
   );
-  const [currentState, setCurrentState] = useState('');
 
   const currentStep = copy.steps[stepIndex];
   const symbolOptions = MARKET_OPTIONS[marketFocus] || MARKET_OPTIONS.US;
-  const canContinue =
-    stepIndex === 0
-      ? Boolean(goal)
-      : stepIndex === 1
-        ? Boolean(risk)
-        : stepIndex === 2
-          ? Boolean(marketFocus)
-          : Boolean(currentState);
+  const canContinue = stepIndex === 0 ? Boolean(entryIntent) : Boolean(risk && marketFocus);
 
   useEffect(() => {
     flowRef.current?.scrollTo({ top: 0, left: 0 });
   }, [stepIndex]);
 
   const summaryItems = [
-    goal
+    entryIntent
       ? {
-          label: copy.summaryLabels.goal,
-          value: labelFor(copy.goalOptions, goal),
+          label: copy.summaryLabels.entry,
+          value: labelFor(copy.entryOptions, entryIntent),
         }
       : null,
     risk
@@ -189,12 +162,6 @@ export default function FirstRunSetupFlow({
       ? {
           label: copy.summaryLabels.market,
           value: labelFor(copy.marketOptions, marketFocus),
-        }
-      : null,
-    currentState
-      ? {
-          label: copy.summaryLabels.state,
-          value: labelFor(copy.stateOptions, currentState),
         }
       : null,
     selectedSymbols.length
@@ -218,6 +185,7 @@ export default function FirstRunSetupFlow({
   };
 
   const handleFinish = () => {
+    const { goal, currentState } = mapEntryIntent(entryIntent);
     const fallbackSymbols =
       selectedSymbols.length > 0
         ? selectedSymbols
@@ -252,7 +220,11 @@ export default function FirstRunSetupFlow({
           </button>
         </header>
 
-        <div className="first-run-progress" aria-hidden="true">
+        <div
+          className="first-run-progress"
+          aria-hidden="true"
+          style={{ gridTemplateColumns: `repeat(${copy.steps.length}, minmax(0, 1fr))` }}
+        >
           {copy.steps.map((item, index) => (
             <span
               key={item.key}
@@ -270,12 +242,12 @@ export default function FirstRunSetupFlow({
 
           {stepIndex === 0 ? (
             <div className="first-run-option-grid">
-              {copy.goalOptions.map((item) => (
+              {copy.entryOptions.map((item) => (
                 <button
                   key={item.key}
                   type="button"
-                  className={`first-run-option ${goal === item.key ? 'is-active' : ''}`}
-                  onClick={() => setGoal(item.key)}
+                  className={`first-run-option ${entryIntent === item.key ? 'is-active' : ''}`}
+                  onClick={() => setEntryIntent(item.key)}
                 >
                   <span className="first-run-option-title">{item.label}</span>
                   <span className="first-run-option-body">{item.body}</span>
@@ -285,23 +257,10 @@ export default function FirstRunSetupFlow({
           ) : null}
 
           {stepIndex === 1 ? (
-            <div className="first-run-option-grid">
-              {copy.riskOptions.map((item) => (
-                <button
-                  key={item.key}
-                  type="button"
-                  className={`first-run-option ${risk === item.key ? 'is-active' : ''}`}
-                  onClick={() => setRisk(item.key)}
-                >
-                  <span className="first-run-option-title">{item.label}</span>
-                  <span className="first-run-option-body">{item.body}</span>
-                </button>
-              ))}
-            </div>
-          ) : null}
-
-          {stepIndex === 2 ? (
             <div className="first-run-market-stage">
+              <div className="first-run-stage-copy">
+                <h3 className="first-run-symbol-title">{copy.marketStageTitle}</h3>
+              </div>
               <div className="first-run-market-grid">
                 {copy.marketOptions.map((item) => (
                   <button
@@ -322,6 +281,27 @@ export default function FirstRunSetupFlow({
                   </button>
                 ))}
               </div>
+
+              <div className="first-run-risk-stage">
+                <div className="first-run-stage-copy">
+                  <h3 className="first-run-symbol-title">{copy.riskStageTitle}</h3>
+                  <p className="first-run-symbol-note">{copy.riskStageBody}</p>
+                </div>
+                <div className="first-run-option-grid first-run-option-grid-tight">
+                  {copy.riskOptions.map((item) => (
+                    <button
+                      key={item.key}
+                      type="button"
+                      className={`first-run-option ${risk === item.key ? 'is-active' : ''}`}
+                      onClick={() => setRisk(item.key)}
+                    >
+                      <span className="first-run-option-title">{item.label}</span>
+                      <span className="first-run-option-body">{item.body}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div className="first-run-symbol-stage">
                 <div className="first-run-symbol-copy">
                   <h3 className="first-run-symbol-title">{copy.pickNames}</h3>
@@ -342,22 +322,6 @@ export default function FirstRunSetupFlow({
                   ))}
                 </div>
               </div>
-            </div>
-          ) : null}
-
-          {stepIndex === 3 ? (
-            <div className="first-run-option-grid">
-              {copy.stateOptions.map((item) => (
-                <button
-                  key={item.key}
-                  type="button"
-                  className={`first-run-option ${currentState === item.key ? 'is-active' : ''}`}
-                  onClick={() => setCurrentState(item.key)}
-                >
-                  <span className="first-run-option-title">{item.label}</span>
-                  <span className="first-run-option-body">{item.body}</span>
-                </button>
-              ))}
             </div>
           ) : null}
 

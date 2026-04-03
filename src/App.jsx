@@ -628,6 +628,17 @@ export default function App() {
     setActiveTab('today');
   }, [authSession?.userId, setActiveTab, setFirstRunSetupByUser, setMyStack]);
 
+  const handleCompleteTodayGuide = useCallback(() => {
+    if (!authSession?.userId) return;
+    setFirstRunSetupByUser((current) => ({
+      ...(current || {}),
+      [authSession.userId]: {
+        ...(current?.[authSession.userId] || {}),
+        tutorialCompletedAt: new Date().toISOString(),
+      },
+    }));
+  }, [authSession?.userId, setFirstRunSetupByUser]);
+
   // --- Refresh holdings sources ---
   const refreshHoldingsSources = useCallback(() => {
     setRefreshNonce((current) => current + 1);
@@ -958,6 +969,11 @@ export default function App() {
 
   const renderScreen = () => {
     if (activeTab === 'today') {
+      const showTodayGuide =
+        Boolean(authSession?.userId) &&
+        !showOnboarding &&
+        !showFirstRunSetup &&
+        !firstRunSetupState?.tutorialCompletedAt;
       return (
         <TodayTab
           assetClass={assetClass}
@@ -999,6 +1015,8 @@ export default function App() {
           effectiveUserId={effectiveUserId}
           membershipPlan={membership.currentPlan}
           onOpenMembershipPrompt={membership.openPrompt}
+          showUsageGuide={showTodayGuide}
+          onCompleteUsageGuide={handleCompleteTodayGuide}
         />
       );
     }
