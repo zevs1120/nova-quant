@@ -1228,6 +1228,21 @@ export default function MenuTab({
             <button
               type="button"
               className="menu-list-row"
+              onClick={() => onSectionChange('prediction-games')}
+            >
+              <span>
+                <span className="menu-list-title">{copy.predictionGames}</span>
+                <span className="menu-list-desc">
+                  {isZh
+                    ? '查看正在进行的题目、提交你的选择，并回看锁定状态。'
+                    : 'Open live rounds, place your pick, and review locked entries.'}
+                </span>
+              </span>
+              <span className="menu-list-arrow">›</span>
+            </button>
+            <button
+              type="button"
+              className="menu-list-row"
               onClick={() => onSectionChange('help-center')}
             >
               <span>

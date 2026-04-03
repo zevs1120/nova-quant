@@ -4,6 +4,9 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+- **Feat(ui): Support 页面增加 Prediction Games 快捷入口。**
+  - **Menu / Support：** 在 `Support tools` 列表最上面加入 `Prediction Games` 入口，方便直接进入昨日接入的预测游戏页面，不需要再从别的路径绕过去。
+
 - **Feat(app,ui): 全局壳层收口到 edge-to-edge 舞台与滑动 tab bar。**
   - **Shell：** `Today / Nova / Browse` 三页统一成更沉浸的 edge-to-edge 舞台，底部栏固定在一致的悬浮高度。
   - **Tab Bar：** 底部导航改成会横向移动的激活滑块，不再只是当前按钮单独变色；激活状态、辉光和位置关系也统一到同一套视觉语言。
