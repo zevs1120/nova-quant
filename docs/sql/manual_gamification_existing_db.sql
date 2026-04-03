@@ -78,7 +78,27 @@ WHERE event_type IN ('SIGNUP_BONUS', 'ONBOARDING_BONUS')
     ORDER BY user_id, event_type, created_at_ms ASC
   );
 
--- STEP 4b: Create the singleton guard index (idempotent).
+-- STEP 4b: Recompute running balances after deduplication.
+-- `balance_after` is persisted as an audited running balance, not derived at
+-- read time. Deleting duplicate singleton bonus rows without rebalancing would
+-- leave later ledger rows with stale inflated values.
+WITH recomputed AS (
+  SELECT
+    entry_id,
+    SUM(points_delta) OVER (
+      PARTITION BY user_id
+      ORDER BY created_at_ms ASC, entry_id ASC
+      ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+    ) AS next_balance_after
+  FROM novaquant_data.manual_points_ledger
+)
+UPDATE novaquant_data.manual_points_ledger AS ledger
+SET balance_after = recomputed.next_balance_after
+FROM recomputed
+WHERE recomputed.entry_id = ledger.entry_id
+  AND ledger.balance_after IS DISTINCT FROM recomputed.next_balance_after;
+
+-- STEP 4c: Create the singleton guard index (idempotent).
 -- Prevents SIGNUP_BONUS and ONBOARDING_BONUS from being written more than once
 -- per user even under concurrent requests (final DB-level atomic barrier).
 CREATE UNIQUE INDEX IF NOT EXISTS idx_manual_points_ledger_singleton

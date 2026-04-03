@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { manualGamificationSchemaPatchStatements } from '../src/server/db/schema.js';
 
@@ -30,5 +31,22 @@ describe('manualGamificationSchemaPatchStatements', () => {
     // New: FREE_DAILY slot table for atomic one-per-day enforcement.
     expect(stmts[8]).toContain('CREATE TABLE IF NOT EXISTS "biz"."manual_free_daily_entries"');
     expect(stmts[8]).toContain('PRIMARY KEY (user_id, day_key)');
+  });
+
+  it('migration SQL deduplicates singleton bonus rows before rebalancing and indexing', () => {
+    const sql = readFileSync(
+      new URL('../docs/sql/manual_gamification_existing_db.sql', import.meta.url),
+      'utf8',
+    );
+    const deleteIndex = sql.indexOf('DELETE FROM novaquant_data.manual_points_ledger');
+    const rebalanceIndex = sql.indexOf('SUM(points_delta) OVER');
+    const uniqueIndex = sql.indexOf(
+      'CREATE UNIQUE INDEX IF NOT EXISTS idx_manual_points_ledger_singleton',
+    );
+    expect(deleteIndex).toBeGreaterThanOrEqual(0);
+    expect(rebalanceIndex).toBeGreaterThan(deleteIndex);
+    expect(uniqueIndex).toBeGreaterThan(rebalanceIndex);
+    expect(sql).toContain('SET balance_after = recomputed.next_balance_after');
+    expect(sql).toContain('ORDER BY created_at_ms ASC, entry_id ASC');
   });
 });

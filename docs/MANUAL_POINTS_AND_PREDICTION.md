@@ -18,7 +18,7 @@
 
 ### 生产 / 存量库迁移脚本
 
-- **推荐：** 在 Supabase SQL 编辑器（或运维流水线）执行仓库内 **[`docs/sql/manual_gamification_existing_db.sql`](./sql/manual_gamification_existing_db.sql)**，为旧表补列、补新表，并按需替换 `manual_referrals.status` 的 `CHECK` 约束。
+- **推荐：** 在 Supabase SQL 编辑器（或运维流水线）执行仓库内 **[`docs/sql/manual_gamification_existing_db.sql`](./sql/manual_gamification_existing_db.sql)**，为旧表补列、补新表，并按需替换 `manual_referrals.status` 的 `CHECK` 约束。该脚本还会在建立 singleton bonus 唯一索引前清理历史重复 `SIGNUP_BONUS` / `ONBOARDING_BONUS`，并重算 `manual_points_ledger.balance_after` 运行余额，避免旧脏数据把余额留在错误状态。
 - **代码内（测试 / in-memory PG）：** 启动时会额外执行 `manualGamificationSchemaPatchStatements()`（见 `src/server/db/schema.ts`），与上述脚本中的 `ALTER … ADD COLUMN IF NOT EXISTS` 语义一致；**不会**自动在你真实的 Supabase 上执行，仍需手工跑 SQL 文件或等价迁移。
 - **外键说明：** 脚本里子表用户外键指向 `public.auth_users`。若你的部署把 `auth_users` 放在其它 schema，请改写 `REFERENCES` 子句后再执行。
 

@@ -65,6 +65,21 @@ export function mapExecutionToTrade(execution) {
   };
 }
 
+export function buildOnboardingRetrySessionKey(authSession) {
+  const userId = String(authSession?.userId || '').trim();
+  const loggedInAt = String(authSession?.loggedInAt || '').trim();
+  if (!userId || !loggedInAt) return null;
+  return `${userId}:${loggedInAt}`;
+}
+
+export function shouldAttemptPendingOnboardingBonusRetry(args) {
+  const retrySessionKey = String(args?.retrySessionKey || '').trim();
+  const effectiveUserId = String(args?.effectiveUserId || '').trim();
+  if (!retrySessionKey || !effectiveUserId || args?.isDemoRuntime) return false;
+  if (!args?.pendingByUser?.[effectiveUserId]) return false;
+  return String(args?.attemptedSessionKey || '').trim() !== retrySessionKey;
+}
+
 export function runWhenIdle(task) {
   if (typeof window === 'undefined') return () => {};
   if (typeof window.requestIdleCallback === 'function') {

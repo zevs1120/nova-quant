@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  buildOnboardingRetrySessionKey,
   classifyAuthError,
   mapExecutionToTrade,
   normalizeEmail,
   settledValue,
+  shouldAttemptPendingOnboardingBonusRetry,
 } from '../src/utils/appHelpers.js';
 
 const originalWindow = globalThis.window;
@@ -85,5 +87,77 @@ describe('appHelpers', () => {
     expect(row.exit).toBe(50);
     expect(row.pnl_pct).toBe(0);
     expect(row.source).toBe('PAPER');
+  });
+
+  it('buildOnboardingRetrySessionKey only returns a value for authenticated sessions', () => {
+    expect(buildOnboardingRetrySessionKey(null)).toBeNull();
+    expect(buildOnboardingRetrySessionKey({ userId: 'usr_1' })).toBeNull();
+    expect(
+      buildOnboardingRetrySessionKey({
+        userId: 'usr_1',
+        loggedInAt: '2026-04-02T17:11:00.000Z',
+      }),
+    ).toBe('usr_1:2026-04-02T17:11:00.000Z');
+  });
+
+  it('shouldAttemptPendingOnboardingBonusRetry is scoped to the current login session', () => {
+    const sessionA = buildOnboardingRetrySessionKey({
+      userId: 'usr_a',
+      loggedInAt: '2026-04-02T17:11:00.000Z',
+    });
+    const sessionANextLogin = buildOnboardingRetrySessionKey({
+      userId: 'usr_a',
+      loggedInAt: '2026-04-02T18:22:00.000Z',
+    });
+    const sessionB = buildOnboardingRetrySessionKey({
+      userId: 'usr_b',
+      loggedInAt: '2026-04-02T17:11:00.000Z',
+    });
+
+    expect(
+      shouldAttemptPendingOnboardingBonusRetry({
+        retrySessionKey: sessionA,
+        effectiveUserId: 'usr_a',
+        pendingByUser: { usr_a: true },
+        attemptedSessionKey: null,
+        isDemoRuntime: false,
+      }),
+    ).toBe(true);
+    expect(
+      shouldAttemptPendingOnboardingBonusRetry({
+        retrySessionKey: sessionA,
+        effectiveUserId: 'usr_a',
+        pendingByUser: { usr_a: true },
+        attemptedSessionKey: sessionA,
+        isDemoRuntime: false,
+      }),
+    ).toBe(false);
+    expect(
+      shouldAttemptPendingOnboardingBonusRetry({
+        retrySessionKey: sessionANextLogin,
+        effectiveUserId: 'usr_a',
+        pendingByUser: { usr_a: true },
+        attemptedSessionKey: sessionA,
+        isDemoRuntime: false,
+      }),
+    ).toBe(true);
+    expect(
+      shouldAttemptPendingOnboardingBonusRetry({
+        retrySessionKey: sessionB,
+        effectiveUserId: 'usr_b',
+        pendingByUser: { usr_b: true },
+        attemptedSessionKey: sessionA,
+        isDemoRuntime: false,
+      }),
+    ).toBe(true);
+    expect(
+      shouldAttemptPendingOnboardingBonusRetry({
+        retrySessionKey: sessionA,
+        effectiveUserId: 'usr_a',
+        pendingByUser: { usr_a: true },
+        attemptedSessionKey: null,
+        isDemoRuntime: true,
+      }),
+    ).toBe(false);
   });
 });

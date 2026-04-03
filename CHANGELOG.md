@@ -5,8 +5,8 @@ NovaQuant 所有重要变更记录于此。
 ## Unreleased
 
 - **Fix(db,frontend): 迁移安全性与重试回路修复（两项跟进）。**
-  - **[Critical] Fix(db): 迁移 SQL 建唯一索引前先去重。** `docs/sql/manual_gamification_existing_db.sql` 新增 `DELETE` 步骤，用 `DISTINCT ON (user_id, event_type) ... ORDER BY created_at_ms ASC` 保留最早一条，删除其余重复的 `SIGNUP_BONUS` / `ONBOARDING_BONUS` 流水；之后再执行 `CREATE UNIQUE INDEX`（旧库无脏数据时 DELETE 影响 0 行，幂等）。
-  - **[Major] Fix(frontend): Onboarding 重试回路。** `App.jsx` 的 pending retry `useEffect` 依赖从 `[manualState]` 改为 `[effectiveUserId]`，每次登录会话只触发一次，彻底断开 `claimManualOnboardingBonus` 失败路径调用 `refreshManualState()` → `setManualState()` → 重触发 effect 的紧密循环。新增 `onboardingRetryAttemptedRef` 防止同一会话内重入；失败时重置 ref，下次页面刷新（新 mount = 新 ref）可再次尝试。
+  - **[Critical] Fix(db): 迁移 SQL 在建唯一索引前先去重并重算运行余额。** `docs/sql/manual_gamification_existing_db.sql` 先用 `DISTINCT ON (user_id, event_type) ... ORDER BY created_at_ms ASC` 保留最早一条、删除其余重复的 `SIGNUP_BONUS` / `ONBOARDING_BONUS` 流水；随后用窗口函数按 `(user_id, created_at_ms, entry_id)` 重新计算整条 `manual_points_ledger.balance_after`，避免旧脏数据删掉后仍把后续余额留在错误状态；最后再执行 `CREATE UNIQUE INDEX`。
+  - **[Major] Fix(frontend): Onboarding startup retry 改为按登录会话隔离。** `App.jsx` 的 pending retry 不再用全局布尔 `ref`，而是按 `userId:loggedInAt` 会话 key 记录一次尝试；这样同一挂载周期内切换到另一位用户、或同一用户重新登录，都不会被上一次尝试误挡住，同时继续保持“失败后不紧密循环、下次页面加载或下次登录再试”的行为。
 
   - **[Critical] Fix(db,server): 注册/Onboarding 赠分幂等改为原子保证。**
     - `manual_points_ledger` 新增条件唯一索引 `idx_manual_points_ledger_singleton`（`WHERE event_type IN ('SIGNUP_BONUS','ONBOARDING_BONUS')`），作为 DB 层最终屏障；并发 INSERT 中后到的事务命中 UNIQUE 冲突，被应用层捕获并等同为"已发放"。

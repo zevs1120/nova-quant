@@ -36,7 +36,12 @@ import { AuthProvider } from './contexts/AuthContext';
 import { createTranslator, getDefaultLang, getLocale } from './i18n';
 import { buildHoldingsReview } from './research/holdingsAnalyzer';
 import { fetchApi } from './utils/api';
-import { detectDisplayMode, runWhenIdle } from './utils/appHelpers';
+import {
+  buildOnboardingRetrySessionKey,
+  detectDisplayMode,
+  runWhenIdle,
+  shouldAttemptPendingOnboardingBonusRetry,
+} from './utils/appHelpers';
 import { primeBrowseHomeBundle, primeBrowseUniverseBundle } from './utils/browseWarmup';
 import { DEMO_ENTRY_ENABLED, isDemoRuntime as getIsDemoRuntime } from './demo/runtime';
 import { INVESTOR_DEMO_PERFORMANCE } from './demo/investorDemo';
@@ -223,6 +228,10 @@ export default function App() {
   const canUseInvestorDemo = Boolean(DEMO_ENTRY_ENABLED && authSession?.isAdmin);
 
   const isDemoRuntime = getIsDemoRuntime(investorDemoEnabled);
+  const onboardingRetrySessionKey = useMemo(
+    () => buildOnboardingRetrySessionKey(authSession),
+    [authSession?.loggedInAt, authSession?.userId],
+  );
   const firstRunSetupState = authSession?.userId
     ? firstRunSetupByUser?.[authSession.userId] || null
     : null;
@@ -572,17 +581,26 @@ export default function App() {
   //   path, which calls setManualState(), which would re-trigger a [manualState]
   //   effect — creating a tight retry loop instead of a "next startup" retry.
   //
-  // [effectiveUserId] fires exactly once per login session (when auth resolves).
-  // onboardingRetryAttemptedRef prevents re-entry within the same session even
-  // if something causes the effect to run a second time.
+  // The retry gate is keyed by an auth-session key (`userId:loggedInAt`) rather
+  // than a global boolean. That keeps retries isolated per login session:
+  // another user on the same mounted App, or the same user after logging in
+  // again, should not be blocked by an earlier attempt.
   // If the claim fails, the localStorage flag stays set and the effect re-fires
-  // on the next page load (new mount → new ref → attempt again).
-  const onboardingRetryAttemptedRef = useRef(false);
+  // on the next page load or next login session.
+  const onboardingRetryAttemptedSessionKeyRef = useRef(null);
   useEffect(() => {
-    if (!effectiveUserId || isDemoRuntime) return;
-    if (!pendingOnboardingBonusByUser?.[effectiveUserId]) return;
-    if (onboardingRetryAttemptedRef.current) return; // already attempted this session
-    onboardingRetryAttemptedRef.current = true;
+    if (
+      !shouldAttemptPendingOnboardingBonusRetry({
+        retrySessionKey: onboardingRetrySessionKey,
+        effectiveUserId,
+        isDemoRuntime,
+        pendingByUser: pendingOnboardingBonusByUser,
+        attemptedSessionKey: onboardingRetryAttemptedSessionKeyRef.current,
+      })
+    ) {
+      return;
+    }
+    onboardingRetryAttemptedSessionKeyRef.current = onboardingRetrySessionKey;
     void claimManualOnboardingBonus().then((res) => {
       if (res?.ok || res?.skipped || res?.error === 'ONBOARDING_BONUS_ALREADY_CLAIMED') {
         setPendingOnboardingBonusByUser((current) => {
@@ -590,12 +608,12 @@ export default function App() {
           delete next[effectiveUserId];
           return next;
         });
-      } else {
-        // Claim failed — reset so the next page load (new ref) can retry.
-        onboardingRetryAttemptedRef.current = false;
+      } else if (onboardingRetryAttemptedSessionKeyRef.current === onboardingRetrySessionKey) {
+        // Claim failed — reset so the next page load or next login session can retry.
+        onboardingRetryAttemptedSessionKeyRef.current = null;
       }
     });
-  }, [effectiveUserId]); // one attempt per login session; page reload = new ref = new attempt
+  }, [onboardingRetrySessionKey]); // one attempt per login session
 
   const handleSkipFirstRunSetup = useCallback(() => {
     if (!authSession?.userId) return;
