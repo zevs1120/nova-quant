@@ -1,10 +1,10 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import AboutModal from './components/AboutModal';
-import BillingCheckoutSheet from './components/BillingCheckoutSheet';
-import MembershipSheet from './components/MembershipSheet';
+const AboutModal = lazy(() => import('./components/AboutModal'));
+const BillingCheckoutSheet = lazy(() => import('./components/BillingCheckoutSheet'));
+const MembershipSheet = lazy(() => import('./components/MembershipSheet'));
 const AiPage = lazy(() => import('./components/AiPage'));
-import novaLogo from './assets/NOVA1.png';
-import novaLogoCompact from './assets/Nova2.png';
+import novaLogo from './assets/NOVA1.webp';
+import novaLogoCompact from './assets/Nova2.webp';
 const BrowseTab = lazy(() => import('./components/BrowseTab'));
 const DataStatusTab = lazy(() => import('./components/DataStatusTab'));
 const DisciplineTab = lazy(() => import('./components/DisciplineTab'));
@@ -1270,14 +1270,11 @@ export default function App() {
             ) : (
               <div className="top-bar-logo-wrap" aria-label="Nova Quant">
                 <img
-                  src={novaLogo}
+                  src={topBarCondensed ? novaLogoCompact : novaLogo}
                   alt="Nova Quant"
-                  className={`top-bar-logo top-bar-logo-expanded ${topBarCondensed ? 'is-hidden' : ''}`}
-                />
-                <img
-                  src={novaLogoCompact}
-                  alt="Nova Quant"
-                  className={`top-bar-logo top-bar-logo-compact ${topBarCondensed ? 'is-visible' : ''}`}
+                  className={`top-bar-logo ${
+                    topBarCondensed ? 'top-bar-logo-compact is-visible' : 'top-bar-logo-expanded'
+                  }`}
                 />
               </div>
             )}
@@ -1339,33 +1336,45 @@ export default function App() {
           </div>
         </nav>
 
-        <AboutModal
-          open={aboutOpen}
-          onClose={() => setAboutOpen(false)}
-          config={data.config}
-          t={t}
-          locale={locale}
-        />
+        {aboutOpen ? (
+          <Suspense fallback={null}>
+            <AboutModal
+              open={aboutOpen}
+              onClose={() => setAboutOpen(false)}
+              config={data.config}
+              t={t}
+              locale={locale}
+            />
+          </Suspense>
+        ) : null}
 
-        <MembershipSheet
-          open={Boolean(membership.prompt)}
-          prompt={membership.prompt}
-          locale={locale}
-          currentPlan={membership.currentPlan}
-          remainingAskNova={membership.remainingAskNova}
-          onClose={membership.closePrompt}
-          onSelectPlan={openCheckoutFromPrompt}
-          onOpenMembershipCenter={openMembershipCenter}
-        />
+        {membership.prompt ? (
+          <Suspense fallback={null}>
+            <MembershipSheet
+              open={Boolean(membership.prompt)}
+              prompt={membership.prompt}
+              locale={locale}
+              currentPlan={membership.currentPlan}
+              remainingAskNova={membership.remainingAskNova}
+              onClose={membership.closePrompt}
+              onSelectPlan={openCheckoutFromPrompt}
+              onOpenMembershipCenter={openMembershipCenter}
+            />
+          </Suspense>
+        ) : null}
 
-        <BillingCheckoutSheet
-          open={Boolean(billing.checkoutState?.open)}
-          locale={locale}
-          checkoutState={billing.checkoutState}
-          prefillEmail={userProfile?.email || authSession?.email || ''}
-          onClose={billing.closeCheckout}
-          onConfirm={billing.submitCheckout}
-        />
+        {billing.checkoutState?.open ? (
+          <Suspense fallback={null}>
+            <BillingCheckoutSheet
+              open={Boolean(billing.checkoutState?.open)}
+              locale={locale}
+              checkoutState={billing.checkoutState}
+              prefillEmail={userProfile?.email || authSession?.email || ''}
+              onClose={billing.closeCheckout}
+              onConfirm={billing.submitCheckout}
+            />
+          </Suspense>
+        ) : null}
       </div>
     </AuthProvider>
   );

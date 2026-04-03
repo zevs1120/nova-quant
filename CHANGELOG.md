@@ -4,6 +4,11 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+- **Perf(app): 顶栏 logo 换成 WebP，并把非首屏弹层改成按需加载。**
+  - **Logo：** 顶栏两张品牌图切成更轻的 WebP，并且运行时只渲染当前需要的一张，减少进入系统时的图片体积和无效 DOM。
+  - **Lazy Load：** `AboutModal`、`MembershipSheet`、`BillingCheckoutSheet` 改成真正按需加载，用户没打开这些弹层时，不再跟着首屏一起进入主包。
+  - **Bundle：** 会员相关样式拆成独立 chunk，主入口 CSS/JS 继续变轻，进入系统时要加载的首屏资源更少。
+
 - **Refactor(styles): 删除旧 UI 表层并把重做页面的样式改成按页加载。**
   - **Today / Onboarding / Detail：** `Today`、首次引导和信号详情页不再依赖全局入口去预先加载旧样式，改成页面组件自己引入所需 CSS，减少系统刚进入时白白加载的首屏样式。
   - **Cleanup：** 删除已废弃的 `today-redesign.css`、`robinhood-surfaces.css`，并从 `corrections.css`、`polish.css`、`brand-reset.css` 里继续拔掉一大批不再使用的旧 Today 选择器和过时补丁。
