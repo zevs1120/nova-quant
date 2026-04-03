@@ -1,6 +1,13 @@
 import React from 'react';
+import { scan } from 'react-scan';
 import { createRoot } from 'react-dom/client';
 import App from './App';
+
+if (import.meta.env.DEV && typeof window !== 'undefined') {
+  scan({
+    enabled: true,
+  });
+}
 import './styles.css';
 
 function detectDisplayMode() {

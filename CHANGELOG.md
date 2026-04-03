@@ -11,6 +11,11 @@ NovaQuant 所有重要变更记录于此。
   - **appHelpers：** onboarding 重试 session key、`detectDisplayMode`、`runWhenIdle` 分支。
   - **Docs：** `docs/TESTING.md` 增加上表索引。
 
+- **Test(ui): 新增 Vitest 组件测试与 Playwright 端到端自动化架构。**
+  - **组件测试**：引入 `@testing-library/jest-dom/vitest`，为 `KpiCard` 等核心组件补充了包含快照基准比对的 DOM 测试逻辑。
+  - **端到端测试**：引入 Playwright 并配合 `playwright.config.js`，自动代理加载本地 Vite 服务器，补充了入口级的冒烟测试（smoke.spec.js），以真实无头浏览器挂载。
+  - **UI Debug**：在开发环境下（`npm run dev:web`）非侵入式接入了 `react-scan` 防冗余渲染调优工具。
+
 ## 10.21.4 (2026-04-03)
 
 - **Chore(docs,release): 根目录文档与版本对齐，并校正本条目前一组 UI/鉴权变更日志表述。**

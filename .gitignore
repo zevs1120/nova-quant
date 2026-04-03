@@ -46,3 +46,7 @@ qlib-bridge/models/*.pkl
 qlib-bridge/models/*.pickle
 qlib-bridge/models/*.joblib
 qlib-bridge/_csv_staging/
+
+# Playwright Test Output
+playwright-report/
+test-results/

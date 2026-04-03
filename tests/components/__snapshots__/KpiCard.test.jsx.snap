@@ -1,0 +1,25 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`KpiCard Component > matches the baseline snapshot 1`] = `
+<div>
+  <article
+    class="kpi-card"
+  >
+    <p
+      class="kpi-label"
+    >
+      Win Rate
+    </p>
+    <h3
+      class="kpi-value"
+    >
+      65%
+    </h3>
+    <p
+      class="kpi-sub"
+    >
+      Moving Average
+    </p>
+  </article>
+</div>
+`;

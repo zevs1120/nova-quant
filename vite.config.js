@@ -25,7 +25,14 @@ export default defineConfig({
     'globalThis.__NOVA_PUBLIC_API_BASE_URL__': JSON.stringify(publicApiBase),
   },
   test: {
-    exclude: ['**/node_modules/**', 'artifacts/**', 'dist/**', 'build/**', 'coverage/**'],
+    exclude: [
+      '**/node_modules/**',
+      'artifacts/**',
+      'dist/**',
+      'build/**',
+      'coverage/**',
+      'tests/e2e/**',
+    ],
     setupFiles: ['tests/vitest.setup.ts'],
     // Default Vitest parallelism (file + worker pool) — serial mode was ~5× slower on 138 files.
     env: {
