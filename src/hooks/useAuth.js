@@ -187,7 +187,7 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
       }
       setPasswordRecoveryMode(false);
       setActiveTab('today');
-      setMyStack(['portfolio']);
+      setMyStack(['watchlist']);
     },
     [
       setActiveTab,
@@ -246,7 +246,7 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
       setOnboardingDone(true);
       if (resetNavigation) {
         setActiveTab('today');
-        setMyStack(['portfolio']);
+        setMyStack(['watchlist']);
       }
     },
     [

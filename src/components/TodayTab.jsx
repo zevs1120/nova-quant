@@ -1,5 +1,5 @@
 import '../styles/today-final.css';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import SignalDetail from './SignalDetail';
 import TradeTicketSheet from './TradeTicketSheet';
 import { describeEvidenceMode } from '../utils/provenance';
@@ -1069,10 +1069,12 @@ export default function TodayTab({
   engagement,
   runtime,
   locale = 'en',
+  watchlist = [],
   investorDemoEnabled,
   brokerProfile,
   brokerConnection,
   onAskAi,
+  onToggleWatchlist,
   onPaperExecute,
   onOpenSignals,
   onOpenWeekly,
@@ -1103,6 +1105,7 @@ export default function TodayTab({
   const [gesturePreview, setGesturePreview] = useState(createGesturePreview);
   const [previewGesture, setPreviewGesture] = useState(createGesturePreview);
   const [isPreviewClosing, setIsPreviewClosing] = useState(false);
+  const [showPreviewGestureHint, setShowPreviewGestureHint] = useState(false);
   const [usageGuideStep, setUsageGuideStep] = useState(showUsageGuide ? 'tap' : null);
   const analyticsPaletteBySignalIdRef = useRef(new Map());
   const analyticsPaletteCursorRef = useRef(0);
@@ -1147,6 +1150,7 @@ export default function TodayTab({
     rotationDirection: 1,
   });
   const previewGestureTimerRef = useRef(null);
+  const previewHintTimerRef = useRef(null);
   useEffect(() => {
     setUsageGuideStep(showUsageGuide ? 'tap' : null);
   }, [showUsageGuide, effectiveUserId]);
@@ -1158,6 +1162,32 @@ export default function TodayTab({
   const desiredSignalCount = useMemo(
     () => signalQuotaForTradeMode(brokerProfile?.tradeMode),
     [brokerProfile?.tradeMode],
+  );
+  const watchlistSymbols = useMemo(
+    () =>
+      Array.isArray(watchlist)
+        ? watchlist
+            .map((item) =>
+              String(item || '')
+                .trim()
+                .toUpperCase(),
+            )
+            .filter(Boolean)
+        : [],
+    [watchlist],
+  );
+  const saveSignalToWatchlist = useCallback(
+    (signal) => {
+      const symbol = String(signal?.symbol || signal?.ticker || '')
+        .trim()
+        .toUpperCase();
+      if (!symbol) return;
+      onToggleWatchlist?.(symbol, {
+        mode: 'add',
+        source: 'today',
+      });
+    },
+    [onToggleWatchlist],
   );
   const normalizedMembershipPlan = useMemo(
     () => normalizeMembershipPlan(membershipPlan),
@@ -1598,6 +1628,33 @@ export default function TodayTab({
     }
   }, [activeSignal, activeSignalScreen, usageGuideStep]);
 
+  useEffect(() => {
+    if (!activeSignal || activeSignalScreen !== 'preview' || isPreviewClosing) {
+      setShowPreviewGestureHint(false);
+      if (previewHintTimerRef.current) {
+        window.clearTimeout(previewHintTimerRef.current);
+        previewHintTimerRef.current = null;
+      }
+      return undefined;
+    }
+
+    setShowPreviewGestureHint(true);
+    if (previewHintTimerRef.current) {
+      window.clearTimeout(previewHintTimerRef.current);
+    }
+    previewHintTimerRef.current = window.setTimeout(() => {
+      setShowPreviewGestureHint(false);
+      previewHintTimerRef.current = null;
+    }, 1800);
+
+    return () => {
+      if (previewHintTimerRef.current) {
+        window.clearTimeout(previewHintTimerRef.current);
+        previewHintTimerRef.current = null;
+      }
+    };
+  }, [activeSignal, activeSignalScreen, isPreviewClosing]);
+
   const openTradeTicket = (signal) => {
     if (!signal) return;
     triggerFeedback('confirm');
@@ -1835,6 +1892,7 @@ export default function TodayTab({
       setQueueIds((current) => {
         const remaining = current.filter((id) => id !== signalId);
         if (intent === 'later') {
+          saveSignalToWatchlist(signal);
           return remaining.length ? [...remaining, signalId] : [signalId];
         }
         return remaining;
@@ -1947,6 +2005,7 @@ export default function TodayTab({
 
   const closeActiveSignal = ({ animated = true } = {}) => {
     if (!activeSignal) return;
+    setShowPreviewGestureHint(false);
     if (previewCloseTimerRef.current) {
       window.clearTimeout(previewCloseTimerRef.current);
       previewCloseTimerRef.current = null;
@@ -1964,6 +2023,7 @@ export default function TodayTab({
   };
 
   const openActiveSignalDetail = () => {
+    setShowPreviewGestureHint(false);
     if (previewCloseTimerRef.current) {
       window.clearTimeout(previewCloseTimerRef.current);
       previewCloseTimerRef.current = null;
@@ -2037,6 +2097,7 @@ export default function TodayTab({
     ) {
       return;
     }
+    setShowPreviewGestureHint(false);
     const bounds = event.currentTarget.getBoundingClientRect();
     previewGestureRef.current.pointerId = event.pointerId;
     previewGestureRef.current.signalId = signalCardId(activeSignal);
@@ -2212,35 +2273,26 @@ export default function TodayTab({
         <div className="today-rebuild-deck">
           {analyticsCards.length ? (
             <div className="today-stack-list" role="list" aria-label="Today action cards">
-              {walletCards.map((card, index) => (
-                <article
-                  key={card.id}
-                  className={`${card.kind === 'lock' ? 'today-stack-card today-stack-card-lock' : `today-stack-card today-rebuild-card today-rebuild-card-${card.palette}`} ${
-                    usageGuideStep === 'tap' && index === 0 && card.kind !== 'lock'
-                      ? 'is-usage-guide-target'
-                      : ''
-                  }`}
-                  data-visual={card.visual}
-                  style={{
-                    '--stack-index': `${index}`,
-                    '--stack-z': `${index + 1}`,
-                    ...(card.themeStyle || {}),
-                  }}
-                  onClick={() => {
-                    if (card.kind === 'lock') {
-                      onOpenMembershipPrompt?.('today_locked', {
-                        freeCardLimit: todayCardLimit || 3,
-                        hiddenDeckCount,
-                      });
-                      return;
-                    }
-                    openSignalDetail(card.signal, card.id);
-                  }}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault();
+              {walletCards.map((card, index) => {
+                const cardSymbol = String(card?.signal?.symbol || '')
+                  .trim()
+                  .toUpperCase();
+                const isSaved = cardSymbol ? watchlistSymbols.includes(cardSymbol) : false;
+                return (
+                  <article
+                    key={card.id}
+                    className={`${card.kind === 'lock' ? 'today-stack-card today-stack-card-lock' : `today-stack-card today-rebuild-card today-rebuild-card-${card.palette}`} ${
+                      usageGuideStep === 'tap' && index === 0 && card.kind !== 'lock'
+                        ? 'is-usage-guide-target'
+                        : ''
+                    }`}
+                    data-visual={card.visual}
+                    style={{
+                      '--stack-index': `${index}`,
+                      '--stack-z': `${index + 1}`,
+                      ...(card.themeStyle || {}),
+                    }}
+                    onClick={() => {
                       if (card.kind === 'lock') {
                         onOpenMembershipPrompt?.('today_locked', {
                           freeCardLimit: todayCardLimit || 3,
@@ -2249,50 +2301,86 @@ export default function TodayTab({
                         return;
                       }
                       openSignalDetail(card.signal, card.id);
-                    }
-                  }}
-                >
-                  {card.kind === 'lock' ? (
-                    <>
-                      <p className="today-rebuild-card-kicker">{card.kicker}</p>
-                      <h2 className="today-rebuild-card-title">{card.title}</h2>
-                      <div className="today-rebuild-card-footer">
-                        <p className="today-rebuild-card-note">{card.note}</p>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="today-rebuild-card-head">
-                        <div className="today-rebuild-card-copy">
-                          <p className="today-rebuild-card-kicker">{card.kicker}</p>
-                          <h2 className="today-rebuild-card-title">
-                            {card.signal?.symbol || '--'}
-                          </h2>
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        if (card.kind === 'lock') {
+                          onOpenMembershipPrompt?.('today_locked', {
+                            freeCardLimit: todayCardLimit || 3,
+                            hiddenDeckCount,
+                          });
+                          return;
+                        }
+                        openSignalDetail(card.signal, card.id);
+                      }
+                    }}
+                  >
+                    {card.kind === 'lock' ? (
+                      <>
+                        <p className="today-rebuild-card-kicker">{card.kicker}</p>
+                        <h2 className="today-rebuild-card-title">{card.title}</h2>
+                        <div className="today-rebuild-card-footer">
+                          <p className="today-rebuild-card-note">{card.note}</p>
                         </div>
-                        <div className="today-rebuild-card-pills">
-                          <span
-                            className={`today-rebuild-card-chip today-rebuild-card-chip-${card.tone}`}
-                          >
-                            {card.chipLabel}
-                          </span>
-                          <ActionCardValidityPill signal={card.signal} locale={locale} />
+                      </>
+                    ) : (
+                      <>
+                        <div className="today-rebuild-card-head">
+                          <div className="today-rebuild-card-copy">
+                            <p className="today-rebuild-card-kicker">{card.kicker}</p>
+                            <div className="today-rebuild-card-title-row">
+                              <h2 className="today-rebuild-card-title">
+                                {card.signal?.symbol || '--'}
+                              </h2>
+                              <button
+                                type="button"
+                                className={`today-rebuild-watchlist-button ${isSaved ? 'is-saved' : ''}`}
+                                data-gesture-ignore="true"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  saveSignalToWatchlist(card.signal);
+                                }}
+                              >
+                                {isSaved
+                                  ? locale === 'zh'
+                                    ? '已加'
+                                    : 'Saved'
+                                  : locale === 'zh'
+                                    ? '+ 观察'
+                                    : '+ Watchlist'}
+                              </button>
+                            </div>
+                          </div>
+                          <div className="today-rebuild-card-pills">
+                            <span
+                              className={`today-rebuild-card-chip today-rebuild-card-chip-${card.tone}`}
+                            >
+                              {card.chipLabel}
+                            </span>
+                            <ActionCardValidityPill signal={card.signal} locale={locale} />
+                          </div>
                         </div>
-                      </div>
 
-                      <div className="today-rebuild-art" aria-hidden="true">
-                        <span className="today-rebuild-art-ring" />
-                        <span className="today-rebuild-art-orb" />
-                        <span className="today-rebuild-art-trace" />
-                      </div>
+                        <div className="today-rebuild-art" aria-hidden="true">
+                          <span className="today-rebuild-art-ring" />
+                          <span className="today-rebuild-art-orb" />
+                          <span className="today-rebuild-art-trace" />
+                        </div>
 
-                      <div className="today-rebuild-card-footer">
-                        <p className="today-rebuild-card-subtitle">{card.subtitle}</p>
-                        {card.note ? <p className="today-rebuild-card-note">{card.note}</p> : null}
-                      </div>
-                    </>
-                  )}
-                </article>
-              ))}
+                        <div className="today-rebuild-card-footer">
+                          <p className="today-rebuild-card-subtitle">{card.subtitle}</p>
+                          {card.note ? (
+                            <p className="today-rebuild-card-note">{card.note}</p>
+                          ) : null}
+                        </div>
+                      </>
+                    )}
+                  </article>
+                );
+              })}
             </div>
           ) : hiddenDeckCount > 0 ? (
             <article className="today-rebuild-empty">
@@ -2393,140 +2481,227 @@ export default function TodayTab({
           />
 
           <div className="today-preview-shell" onClick={closeActiveSignal}>
-            <article
-              className={`today-preview-card today-rebuild-card today-rebuild-card-${activeSignalPalette}`}
-              data-visual={activeSignalVisual}
-              data-closing={isPreviewClosing ? 'true' : 'false'}
+            <div
+              className="today-preview-card-stage"
+              data-hinting={showPreviewGestureHint ? 'true' : 'false'}
+              data-guidance-visible={!isPreviewClosing ? 'true' : 'false'}
               data-gesture-active={previewGesture.active ? 'true' : 'false'}
               data-gesture-intent={previewGesture.intent || 'idle'}
-              data-gesture-committed={previewGesture.committed ? 'true' : 'false'}
               style={{
-                '--gesture-x': `${previewGesture.dx || 0}px`,
-                '--gesture-y': `${previewGesture.dy || 0}px`,
-                '--gesture-rotate': `${previewGesture.rotate || 0}deg`,
-                ...(activeSignalThemeStyle || {}),
+                '--preview-skip-strength': `${clampNumber(
+                  Math.max(0, -(previewGesture.dx || 0)) / 132,
+                  0,
+                  1,
+                )}`,
+                '--preview-accept-strength': `${clampNumber(
+                  Math.max(0, previewGesture.dx || 0) / 132,
+                  0,
+                  1,
+                )}`,
+                '--preview-later-strength': `${clampNumber(
+                  Math.max(0, -(previewGesture.dy || 0)) / 132,
+                  0,
+                  1,
+                )}`,
+                '--preview-glow-left':
+                  previewGesture.active && previewGesture.intent === 'skip'
+                    ? `${clampNumber(Math.max(0, -(previewGesture.dx || 0)) / 132, 0, 1)}`
+                    : '0',
+                '--preview-glow-right':
+                  previewGesture.active && previewGesture.intent === 'accept'
+                    ? `${clampNumber(Math.max(0, previewGesture.dx || 0) / 132, 0, 1)}`
+                    : '0',
+                '--preview-glow-top':
+                  previewGesture.active && previewGesture.intent === 'later'
+                    ? `${clampNumber(Math.max(0, -(previewGesture.dy || 0)) / 132, 0, 1)}`
+                    : '0',
               }}
-              onPointerDown={startPreviewGesture}
-              onPointerMove={movePreviewGesture}
-              onPointerUp={finishPreviewGesture}
-              onPointerCancel={clearPreviewGesture}
-              onClick={(event) => event.stopPropagation()}
             >
-              <div className="today-preview-card-head">
-                <span className="today-preview-kicker">{activeSignalKicker}</span>
-                <div className="today-preview-head-pills">
-                  <span
-                    className={`today-rebuild-card-chip today-rebuild-card-chip-${activeSignalChipTone}`}
-                  >
-                    {activeSignalChipLabel}
+              <div className="today-preview-guidance" aria-hidden="true">
+                <span className="today-preview-guidance-line today-preview-guidance-line-top" />
+                <span className="today-preview-guidance-line today-preview-guidance-line-left" />
+                <span className="today-preview-guidance-line today-preview-guidance-line-right" />
+                <span className="today-preview-guidance-line today-preview-guidance-line-bottom" />
+
+                <div className="today-preview-guidance-label today-preview-guidance-label-top">
+                  <span className="today-preview-guidance-index">03</span>
+                  <span className="today-preview-guidance-kicker">
+                    {locale === 'zh' ? '上滑' : 'UP'}
                   </span>
-                  <ActionCardValidityPill signal={activeSignal} locale={locale} />
-                </div>
-              </div>
-
-              <div className="today-preview-main">
-                <div className="today-preview-copy">
-                  <h2 className="today-preview-symbol">{activeSignal.symbol || '--'}</h2>
-                  <p className="today-preview-direction">{activeSignalSubtitle}</p>
-                  <p className="today-preview-meta">{activeSignalMetaText}</p>
-                </div>
-
-                <div className="today-preview-art today-rebuild-art" aria-hidden="true">
-                  <span className="today-rebuild-art-ring" />
-                  <span className="today-rebuild-art-orb" />
-                  <span className="today-rebuild-art-trace" />
-                </div>
-
-                <div className="today-preview-metrics">
-                  <div className="today-preview-metric">
-                    <span className="today-preview-metric-label">
-                      {locale === 'zh' ? 'Conviction' : 'Conviction'}
-                    </span>
-                    <span className="today-preview-metric-value">
-                      {confidenceText(activeSignal)}
-                    </span>
-                  </div>
-                  <div className="today-preview-metric">
-                    <span className="today-preview-metric-label">
-                      {locale === 'zh' ? 'Size' : 'Size'}
-                    </span>
-                    <span className="today-preview-metric-value">{activeSignalSizeText}</span>
-                  </div>
-                  <div className="today-preview-metric">
-                    <span className="today-preview-metric-label">
-                      {locale === 'zh' ? 'Risk' : 'Risk'}
-                    </span>
-                    <span className="today-preview-metric-value">{activeSignalRiskText}</span>
-                  </div>
-                </div>
-
-                <div className="today-preview-tags">
-                  <span className="today-preview-tag">
-                    <span className="today-preview-tag-label">
-                      {locale === 'zh' ? 'Source' : 'Source'}
-                    </span>
-                    <span className="today-preview-tag-value">{activeSignalSourceText}</span>
+                  <span className="today-preview-guidance-copy">
+                    {locale === 'zh' ? '先放一边' : 'Save for later'}
                   </span>
-                  <span className="today-preview-tag">
-                    <span className="today-preview-tag-label">
-                      {locale === 'zh' ? 'Execution' : 'Execution'}
-                    </span>
-                    <span className="today-preview-tag-value">{activeSignalExecutionText}</span>
+                </div>
+
+                <div className="today-preview-guidance-label today-preview-guidance-label-left">
+                  <span className="today-preview-guidance-index">01</span>
+                  <span className="today-preview-guidance-arrow">←</span>
+                  <span className="today-preview-guidance-kicker">
+                    {locale === 'zh' ? '左滑' : 'LEFT'}
                   </span>
-                  <span className="today-preview-tag">
-                    <span className="today-preview-tag-label">
-                      {locale === 'zh' ? 'Risk Gate' : 'Risk Gate'}
-                    </span>
-                    <span className="today-preview-tag-value">{activeSignalRiskGateText}</span>
+                  <span className="today-preview-guidance-copy">
+                    {locale === 'zh' ? '先跳过' : 'Pass for now'}
+                  </span>
+                </div>
+
+                <div className="today-preview-guidance-label today-preview-guidance-label-right">
+                  <span className="today-preview-guidance-index">02</span>
+                  <span className="today-preview-guidance-arrow">→</span>
+                  <span className="today-preview-guidance-kicker">
+                    {locale === 'zh' ? '右滑' : 'RIGHT'}
+                  </span>
+                  <span className="today-preview-guidance-copy">
+                    {locale === 'zh' ? '接住这张' : 'Keep this one'}
+                  </span>
+                </div>
+
+                <div className="today-preview-guidance-label today-preview-guidance-label-bottom">
+                  <span className="today-preview-guidance-kicker">
+                    {locale === 'zh' ? '返回' : 'RETURN'}
+                  </span>
+                  <span className="today-preview-guidance-copy">
+                    {locale === 'zh'
+                      ? '点卡外的虚化区域，回到选卡界面'
+                      : 'Tap the haze outside the card to return to the stack'}
                   </span>
                 </div>
               </div>
-              {activeSignalNote ? <p className="today-preview-note">{activeSignalNote}</p> : null}
 
-              <div className="today-preview-actions">
-                <button
-                  type="button"
-                  className="today-rebuild-lock-cta"
-                  onClick={openActiveSignalDetail}
-                  data-gesture-ignore="true"
-                >
-                  {locale === 'zh' ? 'Details' : 'Details'}
-                </button>
-                <button
-                  type="button"
-                  className="today-rebuild-ghost-cta"
-                  onClick={() => askNovaAboutSignal(activeSignal)}
-                  data-gesture-ignore="true"
-                >
-                  {locale === 'zh' ? 'Ask Nova' : 'Ask Nova'}
-                </button>
-              </div>
-
-              {usageGuideStep === 'swipe' ? (
-                <div
-                  className="today-usage-guide today-usage-guide-preview"
-                  data-gesture-ignore="true"
-                >
-                  <div className="today-usage-guide-panel">
-                    <p className="today-usage-guide-kicker">{guideCopy.swipeBack}</p>
-                    <h3 className="today-usage-guide-title">{guideCopy.swipeTitle}</h3>
-                    <p className="today-usage-guide-copy">{guideCopy.swipeBody}</p>
-                    <div className="today-usage-guide-gestures">
-                      <span>← {locale === 'zh' ? '跳过' : 'Pass'}</span>
-                      <span>↑ {locale === 'zh' ? '稍后' : 'Later'}</span>
-                      <span>→ {locale === 'zh' ? '接住' : 'Keep'}</span>
-                    </div>
-                    <button
-                      type="button"
-                      className="today-usage-guide-done"
-                      onClick={completeUsageGuide}
+              <article
+                className={`today-preview-card today-rebuild-card today-rebuild-card-${activeSignalPalette}`}
+                data-visual={activeSignalVisual}
+                data-closing={isPreviewClosing ? 'true' : 'false'}
+                data-gesture-active={previewGesture.active ? 'true' : 'false'}
+                data-gesture-intent={previewGesture.intent || 'idle'}
+                data-gesture-committed={previewGesture.committed ? 'true' : 'false'}
+                style={{
+                  '--gesture-x': `${previewGesture.dx || 0}px`,
+                  '--gesture-y': `${previewGesture.dy || 0}px`,
+                  '--gesture-rotate': `${previewGesture.rotate || 0}deg`,
+                  ...(activeSignalThemeStyle || {}),
+                }}
+                onPointerDown={startPreviewGesture}
+                onPointerMove={movePreviewGesture}
+                onPointerUp={finishPreviewGesture}
+                onPointerCancel={clearPreviewGesture}
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="today-preview-card-head">
+                  <span className="today-preview-kicker">{activeSignalKicker}</span>
+                  <div className="today-preview-head-pills">
+                    <span
+                      className={`today-rebuild-card-chip today-rebuild-card-chip-${activeSignalChipTone}`}
                     >
-                      {guideCopy.done}
-                    </button>
+                      {activeSignalChipLabel}
+                    </span>
+                    <ActionCardValidityPill signal={activeSignal} locale={locale} />
                   </div>
                 </div>
-              ) : null}
-            </article>
+
+                <div className="today-preview-main">
+                  <div className="today-preview-copy">
+                    <h2 className="today-preview-symbol">{activeSignal.symbol || '--'}</h2>
+                    <p className="today-preview-direction">{activeSignalSubtitle}</p>
+                    <p className="today-preview-meta">{activeSignalMetaText}</p>
+                  </div>
+
+                  <div className="today-preview-art today-rebuild-art" aria-hidden="true">
+                    <span className="today-rebuild-art-ring" />
+                    <span className="today-rebuild-art-orb" />
+                    <span className="today-rebuild-art-trace" />
+                  </div>
+
+                  <div className="today-preview-metrics">
+                    <div className="today-preview-metric">
+                      <span className="today-preview-metric-label">
+                        {locale === 'zh' ? 'Conviction' : 'Conviction'}
+                      </span>
+                      <span className="today-preview-metric-value">
+                        {confidenceText(activeSignal)}
+                      </span>
+                    </div>
+                    <div className="today-preview-metric">
+                      <span className="today-preview-metric-label">
+                        {locale === 'zh' ? 'Size' : 'Size'}
+                      </span>
+                      <span className="today-preview-metric-value">{activeSignalSizeText}</span>
+                    </div>
+                    <div className="today-preview-metric">
+                      <span className="today-preview-metric-label">
+                        {locale === 'zh' ? 'Risk' : 'Risk'}
+                      </span>
+                      <span className="today-preview-metric-value">{activeSignalRiskText}</span>
+                    </div>
+                  </div>
+
+                  <div className="today-preview-tags">
+                    <span className="today-preview-tag">
+                      <span className="today-preview-tag-label">
+                        {locale === 'zh' ? 'Source' : 'Source'}
+                      </span>
+                      <span className="today-preview-tag-value">{activeSignalSourceText}</span>
+                    </span>
+                    <span className="today-preview-tag">
+                      <span className="today-preview-tag-label">
+                        {locale === 'zh' ? 'Execution' : 'Execution'}
+                      </span>
+                      <span className="today-preview-tag-value">{activeSignalExecutionText}</span>
+                    </span>
+                    <span className="today-preview-tag">
+                      <span className="today-preview-tag-label">
+                        {locale === 'zh' ? 'Risk Gate' : 'Risk Gate'}
+                      </span>
+                      <span className="today-preview-tag-value">{activeSignalRiskGateText}</span>
+                    </span>
+                  </div>
+                </div>
+                {activeSignalNote ? <p className="today-preview-note">{activeSignalNote}</p> : null}
+
+                <div className="today-preview-actions">
+                  <button
+                    type="button"
+                    className="today-rebuild-lock-cta"
+                    onClick={openActiveSignalDetail}
+                    data-gesture-ignore="true"
+                  >
+                    {locale === 'zh' ? 'Details' : 'Details'}
+                  </button>
+                  <button
+                    type="button"
+                    className="today-rebuild-ghost-cta"
+                    onClick={() => askNovaAboutSignal(activeSignal)}
+                    data-gesture-ignore="true"
+                  >
+                    {locale === 'zh' ? 'Ask Nova' : 'Ask Nova'}
+                  </button>
+                </div>
+
+                {usageGuideStep === 'swipe' ? (
+                  <div
+                    className="today-usage-guide today-usage-guide-preview"
+                    data-gesture-ignore="true"
+                  >
+                    <div className="today-usage-guide-panel">
+                      <p className="today-usage-guide-kicker">{guideCopy.swipeBack}</p>
+                      <h3 className="today-usage-guide-title">{guideCopy.swipeTitle}</h3>
+                      <p className="today-usage-guide-copy">{guideCopy.swipeBody}</p>
+                      <div className="today-usage-guide-gestures">
+                        <span>← {locale === 'zh' ? '跳过' : 'Pass'}</span>
+                        <span>↑ {locale === 'zh' ? '稍后' : 'Later'}</span>
+                        <span>→ {locale === 'zh' ? '接住' : 'Keep'}</span>
+                      </div>
+                      <button
+                        type="button"
+                        className="today-usage-guide-done"
+                        onClick={completeUsageGuide}
+                      >
+                        {guideCopy.done}
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+              </article>
+            </div>
           </div>
         </section>
       ) : null}

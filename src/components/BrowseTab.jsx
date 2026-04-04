@@ -459,6 +459,7 @@ export default function BrowseTab({
   signals = [],
   watchlist = [],
   setWatchlist,
+  onToggleWatchlist,
   topBarBackToken = 0,
   onTopBarStateChange,
 }) {
@@ -931,8 +932,16 @@ export default function BrowseTab({
   }
 
   function toggleWatch() {
-    if (!selectedAsset || typeof setWatchlist !== 'function') return;
+    if (!selectedAsset) return;
     const symbol = normalizeSymbol(selectedAsset.symbol);
+    if (typeof onToggleWatchlist === 'function') {
+      onToggleWatchlist(symbol, {
+        mode: watchedSymbols.includes(symbol) ? 'remove' : 'add',
+        source: 'custom',
+      });
+      return;
+    }
+    if (typeof setWatchlist !== 'function') return;
     setWatchlist((current) => {
       const list = Array.isArray(current)
         ? current.map((item) => normalizeSymbol(item)).filter(Boolean)
@@ -1161,7 +1170,7 @@ export default function BrowseTab({
               className={`browse-rh-watch-btn ${watched ? 'active' : ''}`}
               onClick={toggleWatch}
             >
-              {watched ? copy.removeWatch : copy.addWatch}
+              {watched ? copy.removeWatch : `+ ${copy.addWatch}`}
             </button>
           </div>
 

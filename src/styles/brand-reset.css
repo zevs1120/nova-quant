@@ -10,6 +10,18 @@
   --brand-divider: rgba(18, 21, 34, 0.08);
   --brand-divider-strong: rgba(18, 21, 34, 0.12);
   --brand-panel-shadow: 0 1px 0 rgba(255, 255, 255, 0.84), 0 10px 22px rgba(18, 21, 34, 0.04);
+  --stage-shell-background:
+    radial-gradient(circle at 16% 0%, rgba(76, 140, 255, 0.14), transparent 24%),
+    radial-gradient(circle at 84% 12%, rgba(255, 95, 196, 0.1), transparent 22%),
+    linear-gradient(180deg, #f5f6fa 0%, #eef1f6 48%, #e8ebf1 100%);
+  --stage-shell-dot: rgba(18, 21, 34, 0.1);
+  --stage-topbar-background: rgba(248, 249, 252, 0.88);
+  --stage-topbar-border: rgba(18, 21, 34, 0.08);
+  --stage-tabbar-track:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(237, 241, 248, 0.62)),
+    rgba(255, 255, 255, 0.4);
+  --stage-tabbar-border: rgba(18, 21, 34, 0.12);
+  --stage-tabbar-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78), 0 20px 34px rgba(18, 21, 34, 0.1);
 }
 
 .app-bg {
@@ -19,10 +31,7 @@
 .app-bg.app-tab-today {
   justify-content: stretch;
   align-items: stretch;
-  background:
-    radial-gradient(circle at 18% 0%, rgba(76, 140, 255, 0.16), transparent 24%),
-    radial-gradient(circle at 82% 14%, rgba(255, 47, 170, 0.12), transparent 24%),
-    linear-gradient(180deg, #05070d 0%, #0b0e19 42%, #151126 100%) !important;
+  background: var(--stage-shell-background) !important;
 }
 
 .device-shell {
@@ -258,13 +267,14 @@
   height: 100%;
   padding: 4px 6px var(--native-tabbar-bottom-pad);
   border-radius: 28px;
-  border: 1px solid rgba(255, 255, 255, 0.44);
+  border: 1px solid rgba(18, 21, 34, 0.12);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.62), rgba(239, 242, 255, 0.38)),
     rgba(255, 255, 255, 0.24);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.72),
-    0 18px 34px rgba(18, 21, 34, 0.1);
+    0 18px 34px rgba(18, 21, 34, 0.1),
+    0 0 0 1px rgba(255, 255, 255, 0.42);
   overflow: hidden;
   backdrop-filter: blur(28px) saturate(1.22);
   -webkit-backdrop-filter: blur(28px) saturate(1.22);
@@ -409,10 +419,7 @@
   margin: 0 !important;
   border-radius: 0 !important;
   border: 0 !important;
-  background:
-    radial-gradient(circle at 18% 0%, rgba(76, 140, 255, 0.16), transparent 24%),
-    radial-gradient(circle at 82% 14%, rgba(255, 47, 170, 0.12), transparent 24%),
-    linear-gradient(180deg, #05070d 0%, #0b0e19 42%, #151126 100%) !important;
+  background: var(--stage-shell-background) !important;
   box-shadow: none !important;
   overflow: hidden !important;
 }
@@ -431,9 +438,28 @@ body.is-standalone .device-shell[data-active-tab='today'] .main-content-today {
   padding-right: 0 !important;
 }
 
+.device-shell[data-active-tab='my'] {
+  background: var(--stage-shell-background) !important;
+}
+
+.device-shell[data-active-tab='my'] .main-content-my,
+body.is-standalone .device-shell[data-active-tab='my'] .main-content-my {
+  min-height: 0 !important;
+  height: 100% !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  background: transparent !important;
+}
+
+.device-shell[data-active-tab='my'] .main-content {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
 .device-shell[data-active-tab='today'] + .native-tabbar,
 .device-shell[data-active-tab='ai'] + .native-tabbar,
-.device-shell[data-active-tab='browse'] + .native-tabbar {
+.device-shell[data-active-tab='browse'] + .native-tabbar,
+.device-shell[data-active-tab='my'] + .native-tabbar {
   position: absolute !important;
   left: 50% !important;
   bottom: 18px !important;
@@ -450,56 +476,60 @@ body.is-standalone .device-shell[data-active-tab='today'] .main-content-today {
 
 .device-shell[data-active-tab='today'] + .native-tabbar .native-tabbar-track,
 .device-shell[data-active-tab='ai'] + .native-tabbar .native-tabbar-track,
-.device-shell[data-active-tab='browse'] + .native-tabbar .native-tabbar-track {
+.device-shell[data-active-tab='browse'] + .native-tabbar .native-tabbar-track,
+.device-shell[data-active-tab='my'] + .native-tabbar .native-tabbar-track {
   padding: 5px 6px calc(var(--native-tabbar-bottom-pad) + 1px);
-  border-color: rgba(255, 255, 255, 0.16);
-  background:
-    linear-gradient(180deg, rgba(21, 27, 48, 0.7), rgba(8, 11, 20, 0.52)), rgba(255, 255, 255, 0.08);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.18),
-    0 22px 40px rgba(0, 0, 0, 0.28);
+  border-color: var(--stage-tabbar-border);
+  background: var(--stage-tabbar-track);
+  box-shadow: var(--stage-tabbar-shadow);
   backdrop-filter: blur(24px) saturate(1.18);
   -webkit-backdrop-filter: blur(24px) saturate(1.18);
 }
 
 .device-shell[data-active-tab='today'] + .native-tabbar .native-tabbar-thumb,
 .device-shell[data-active-tab='ai'] + .native-tabbar .native-tabbar-thumb,
-.device-shell[data-active-tab='browse'] + .native-tabbar .native-tabbar-thumb {
+.device-shell[data-active-tab='browse'] + .native-tabbar .native-tabbar-thumb,
+.device-shell[data-active-tab='my'] + .native-tabbar .native-tabbar-thumb {
   background:
     linear-gradient(
       135deg,
-      rgba(72, 126, 255, 0.96),
-      rgba(123, 101, 255, 0.92) 48%,
-      rgba(255, 92, 188, 0.88) 100%
+      rgba(36, 79, 196, 0.94) 0%,
+      rgba(68, 110, 228, 0.94) 34%,
+      rgba(121, 84, 196, 0.9) 68%,
+      rgba(187, 88, 160, 0.84) 100%
     ),
     rgba(255, 255, 255, 0.1);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.24),
-    0 10px 22px rgba(0, 0, 0, 0.24);
+    0 10px 22px rgba(63, 77, 140, 0.22);
 }
 
 .device-shell[data-active-tab='today'] + .native-tabbar .native-tabbar-track::before,
 .device-shell[data-active-tab='ai'] + .native-tabbar .native-tabbar-track::before,
-.device-shell[data-active-tab='browse'] + .native-tabbar .native-tabbar-track::before {
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.42), transparent);
+.device-shell[data-active-tab='browse'] + .native-tabbar .native-tabbar-track::before,
+.device-shell[data-active-tab='my'] + .native-tabbar .native-tabbar-track::before {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.92), transparent);
 }
 
 .device-shell[data-active-tab='today'] + .native-tabbar .native-tabbar-track::after,
 .device-shell[data-active-tab='ai'] + .native-tabbar .native-tabbar-track::after,
-.device-shell[data-active-tab='browse'] + .native-tabbar .native-tabbar-track::after {
-  background: rgba(7, 10, 18, 0.42);
-  filter: blur(20px);
+.device-shell[data-active-tab='browse'] + .native-tabbar .native-tabbar-track::after,
+.device-shell[data-active-tab='my'] + .native-tabbar .native-tabbar-track::after {
+  background: rgba(146, 154, 180, 0.24);
+  filter: blur(18px);
 }
 
 .device-shell[data-active-tab='today'] + .native-tabbar .native-tabbar-button,
 .device-shell[data-active-tab='ai'] + .native-tabbar .native-tabbar-button,
-.device-shell[data-active-tab='browse'] + .native-tabbar .native-tabbar-button {
-  color: rgba(231, 238, 255, 0.58);
+.device-shell[data-active-tab='browse'] + .native-tabbar .native-tabbar-button,
+.device-shell[data-active-tab='my'] + .native-tabbar .native-tabbar-button {
+  color: rgba(18, 21, 34, 0.56);
 }
 
 .device-shell[data-active-tab='today'] + .native-tabbar .native-tabbar-button.is-active,
 .device-shell[data-active-tab='ai'] + .native-tabbar .native-tabbar-button.is-active,
-.device-shell[data-active-tab='browse'] + .native-tabbar .native-tabbar-button.is-active {
+.device-shell[data-active-tab='browse'] + .native-tabbar .native-tabbar-button.is-active,
+.device-shell[data-active-tab='my'] + .native-tabbar .native-tabbar-button.is-active {
   color: #f8fbff;
   background: transparent;
   box-shadow: none;
@@ -507,7 +537,8 @@ body.is-standalone .device-shell[data-active-tab='today'] .main-content-today {
 
 .device-shell[data-active-tab='today'] + .native-tabbar .native-tabbar-icon-wrap,
 .device-shell[data-active-tab='ai'] + .native-tabbar .native-tabbar-icon-wrap,
-.device-shell[data-active-tab='browse'] + .native-tabbar .native-tabbar-icon-wrap {
+.device-shell[data-active-tab='browse'] + .native-tabbar .native-tabbar-icon-wrap,
+.device-shell[data-active-tab='my'] + .native-tabbar .native-tabbar-icon-wrap {
   background: transparent;
 }
 
@@ -522,11 +553,15 @@ body.is-standalone .device-shell[data-active-tab='today'] .main-content-today {
 .device-shell[data-active-tab='browse']
   + .native-tabbar
   .native-tabbar-button.is-active
+  .native-tabbar-icon-wrap,
+.device-shell[data-active-tab='my']
+  + .native-tabbar
+  .native-tabbar-button.is-active
   .native-tabbar-icon-wrap {
-  background: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.26);
   box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.2),
-    0 8px 16px rgba(0, 0, 0, 0.16);
+    inset 0 0 0 1px rgba(255, 255, 255, 0.42),
+    0 8px 16px rgba(18, 21, 34, 0.08);
 }
 
 .detail-row + .detail-row,
@@ -558,7 +593,8 @@ body.is-standalone .device-shell[data-active-tab='today'] .main-content-today {
 
   .device-shell[data-active-tab='today'] + .native-tabbar,
   .device-shell[data-active-tab='ai'] + .native-tabbar,
-  .device-shell[data-active-tab='browse'] + .native-tabbar {
+  .device-shell[data-active-tab='browse'] + .native-tabbar,
+  .device-shell[data-active-tab='my'] + .native-tabbar {
     bottom: 10px !important;
     width: min(calc(100% - 16px), calc(var(--shell-max-width) - 16px)) !important;
     padding: 0 8px !important;
@@ -566,7 +602,8 @@ body.is-standalone .device-shell[data-active-tab='today'] .main-content-today {
 
   .device-shell[data-active-tab='today'] + .native-tabbar .native-tabbar-track,
   .device-shell[data-active-tab='ai'] + .native-tabbar .native-tabbar-track,
-  .device-shell[data-active-tab='browse'] + .native-tabbar .native-tabbar-track {
+  .device-shell[data-active-tab='browse'] + .native-tabbar .native-tabbar-track,
+  .device-shell[data-active-tab='my'] + .native-tabbar .native-tabbar-track {
     border-radius: 24px;
   }
 }

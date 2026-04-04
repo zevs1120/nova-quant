@@ -4,21 +4,21 @@ import { describe, expect, it } from 'vitest';
 import { useNavigation } from '../../src/hooks/useNavigation.js';
 
 describe('useNavigation', () => {
-  it('defaults to today tab and portfolio stack', () => {
+  it('defaults to today tab and watchlist stack', () => {
     const { result } = renderHook(() => useNavigation());
     expect(result.current.activeTab).toBe('today');
-    expect(result.current.myStack).toEqual(['portfolio']);
-    expect(result.current.mySection).toBe('portfolio');
+    expect(result.current.myStack).toEqual(['watchlist']);
+    expect(result.current.mySection).toBe('watchlist');
   });
 
   it('openMySection builds stack for menu and grouped sections', () => {
     const { result } = renderHook(() => useNavigation());
     act(() => result.current.openMySection('menu'));
     expect(result.current.activeTab).toBe('my');
-    expect(result.current.myStack).toEqual(['portfolio', 'menu']);
+    expect(result.current.myStack).toEqual(['watchlist', 'menu']);
 
     act(() => result.current.openMySection('group:alpha'));
-    expect(result.current.myStack).toEqual(['portfolio', 'menu', 'group:alpha']);
+    expect(result.current.myStack).toEqual(['watchlist', 'menu', 'group:alpha']);
   });
 
   it('pushMySection dedupes top and popMySection shrinks', () => {
@@ -27,7 +27,7 @@ describe('useNavigation', () => {
     act(() => result.current.pushMySection('settings'));
     expect(result.current.myStack[result.current.myStack.length - 1]).toBe('settings');
     act(() => result.current.popMySection());
-    expect(result.current.myStack).toEqual(['portfolio']);
+    expect(result.current.myStack).toEqual(['watchlist']);
   });
 
   it('askAi ignores empty message', () => {
@@ -50,7 +50,7 @@ describe('useNavigation', () => {
     const { result } = renderHook(() => useNavigation());
     act(() => result.current.navigateFromAi('holdings'));
     expect(result.current.activeTab).toBe('my');
-    expect(result.current.myStack).toEqual(['portfolio']);
+    expect(result.current.myStack).toEqual(['watchlist']);
 
     act(() => result.current.navigateFromAi('more'));
     expect(result.current.mySection).toBe('menu');
@@ -63,6 +63,6 @@ describe('useNavigation', () => {
     const { result } = renderHook(() => useNavigation());
     act(() => result.current.openMySection('menu'));
     act(() => result.current.resetMy());
-    expect(result.current.myStack).toEqual(['portfolio']);
+    expect(result.current.myStack).toEqual(['watchlist']);
   });
 });

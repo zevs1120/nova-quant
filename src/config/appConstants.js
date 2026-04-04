@@ -118,7 +118,7 @@ export function buildTabMeta(locale) {
     today: { icon: 'today', label: zh ? '今日' : 'Today' },
     ai: { icon: 'nova', label: 'Ask Nova' },
     browse: { icon: 'browse', label: zh ? '发现' : 'Browse' },
-    my: { icon: 'my', label: zh ? '我的' : 'My' },
+    my: { icon: 'my', label: zh ? '观察列表' : 'Watchlist' },
   };
 }
 

@@ -4,6 +4,12 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+- **Feat(ui,watchlist,today): 第四 Tab 切为 Watchlist，并重做 Today 展开卡的手势引导层。**
+  - **Watchlist Only：** 删除旧 `Holdings / manual portfolio import` 主页面与对应测试，第 4 个底部 Tab 改成真正的 `Watchlist`；新增极简 `WatchlistTab`，按 `Saved from Today` / `My Custom Favorites` 两个文件夹展示收藏标的，保留顶层 hamburger 但去掉全局 header。
+  - **Save Entrypoints：** `Today` 卡片、`Ask Nova` 会话底部和 `Browse` 详情页都接入最小化 `Add to Watchlist` 入口；`Today` 上滑稍后看的标的会自动同步到 `Saved from Today`。
+  - **Today Guidance：** `Today` 选中卡展开后，模糊区域新增持续可见的虚线手势引导层；卡片初次打开会轻微示意可滑动，手势进行时虚线区域与卡片上的 orb 会朝对应方向给出更明显的动态反馈。
+  - **UI Polish：** `Watchlist` 底部导航文案与全局悬浮 tab bar 对齐；`Today` 卡片的 `Watchlist` 按钮移到标的名称旁边，减少底部操作噪音。
+
 - **Feat(quant): 全面打通 QLib 原生量化回测与数据喂取闭环流程。**
   - **Native Backtest**: 在 `qlib-bridge` 中新增 `backtest_adapter`，正式引入 QLib 原生的 `SimulatorExecutor` 与 `TopkDropoutStrategy`。现在支持通过标准 API `/api/v2/backtest/native` 一键获取美股策略的 Sharpe Ratio、年化收益及最大回撤等机构级指标。
   - **Data Sync Hardening**: 重构 `data_sync.py`，增加了自动价格变动 (`change`) 计算逻辑，并支持在同步时自动生成 QLib 必需的基准索引文件（如 `spy.txt`, `all.txt`），彻底解决了此前美股回测中找不到 `SH000300` 指数的底层兼容性问题。

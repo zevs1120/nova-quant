@@ -151,7 +151,7 @@ export function useInvestorDemo({
     setInvestorDemoEnabled(true);
     setOnboardingDone(true);
     setShowOnboarding(false);
-    setMyStack(['portfolio']);
+    setMyStack(['watchlist']);
     setActiveTab('today');
   }, [
     assetClass,

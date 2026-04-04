@@ -1,12 +1,18 @@
 import React from 'react';
-import { scan } from 'react-scan';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 
 if (import.meta.env.DEV && typeof window !== 'undefined') {
-  scan({
-    enabled: true,
-  });
+  const optionalProfilerModule = 'react-scan';
+  import(/* @vite-ignore */ optionalProfilerModule)
+    .then(({ scan }) => {
+      scan({
+        enabled: true,
+      });
+    })
+    .catch(() => {
+      // Optional local profiling dependency; skip silently when unavailable.
+    });
 }
 import './styles.css';
 

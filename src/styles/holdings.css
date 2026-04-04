@@ -1,434 +1,29 @@
-/* Holdings redesign: Robinhood reading path, Nova palette */
-.holdings-rh-screen {
-  gap: 14px;
-}
-
-.holdings-overview-surface {
-  padding: 18px 18px 14px;
-  border-radius: 24px;
-  background:
-    radial-gradient(circle at top right, rgba(75, 125, 255, 0.14), transparent 40%),
-    radial-gradient(circle at left bottom, rgba(255, 95, 196, 0.1), transparent 32%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 244, 255, 0.96));
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.84),
-    0 18px 34px rgba(86, 85, 176, 0.06);
-}
-
-.holdings-priority-surface,
-.holdings-import-surface {
-  padding: 18px;
-  border-radius: 24px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(247, 244, 255, 0.95));
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.82),
-    0 16px 30px rgba(86, 85, 176, 0.05);
-}
-
-.holdings-priority-surface {
-  background:
-    radial-gradient(circle at top left, rgba(75, 125, 255, 0.12), transparent 38%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 244, 255, 0.96));
-}
-
-.holdings-priority-kicker,
-.holdings-import-kicker {
-  margin: 0;
-  color: rgba(22, 28, 39, 0.5);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
-.holdings-priority-title,
-.holdings-import-title {
-  margin: 10px 0 0;
-  color: var(--text-primary);
-  font-size: 24px;
-  line-height: 1.05;
-  letter-spacing: -0.04em;
-  font-weight: 760;
-}
-
-.holdings-priority-copy,
-.holdings-import-copy {
-  margin: 10px 0 0;
-  color: rgba(22, 28, 39, 0.58);
-  font-size: 14px;
-  line-height: 1.5;
-}
-
-.holdings-priority-actions,
-.holdings-import-actions {
-  margin-top: 14px;
-}
-
-.holdings-import-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 14px;
-}
-
-.holdings-import-badge {
-  flex-shrink: 0;
-  align-self: flex-start;
-  padding: 7px 11px;
-  border-radius: 999px;
-  background: rgba(75, 125, 255, 0.1);
-  color: #4468d5;
-  font-size: 11px;
-  line-height: 1;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.holdings-import-status {
-  margin-top: 12px;
-}
-
-.holdings-import-status-success {
-  color: rgba(18, 126, 93, 0.92);
-}
-
-.holdings-import-status-error {
-  color: rgba(183, 18, 98, 0.88);
-}
-
-.holdings-import-detail {
-  margin-top: 6px;
-}
-
-.holdings-overview-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 14px;
-}
-
-.holdings-overview-kicker {
-  margin: 0;
-  color: rgba(22, 28, 39, 0.5);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
-.holdings-overview-total {
-  margin: 8px 0 0;
-  color: var(--text-primary);
-  font-size: 34px;
-  line-height: 0.96;
-  letter-spacing: -0.06em;
-  font-weight: 780;
-}
-
-.holdings-overview-pnl {
-  margin: 8px 0 0;
-  font-size: 14px;
-  line-height: 1.2;
-  font-weight: 680;
-}
-
-.holdings-overview-pnl span {
-  color: rgba(22, 28, 39, 0.56);
-  font-weight: 620;
-}
-
-.holdings-overview-demo {
-  flex-shrink: 0;
-  align-self: flex-start;
-  padding: 7px 11px;
-  border-radius: 999px;
-  background: rgba(255, 95, 196, 0.1);
-  color: #c84a98;
-  font-size: 11px;
-  line-height: 1;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.holdings-overview-chart {
-  margin-top: 14px;
-  padding: 8px 0 2px;
-}
-
-.holdings-sparkline {
-  width: 100%;
-  height: 88px;
-  display: block;
-}
-
-.holdings-sparkline path {
-  fill: none;
-  stroke: rgba(75, 125, 255, 0.9);
-  stroke-width: 4.2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.holdings-overview-range {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  margin-top: 10px;
-}
-
-.holdings-range-pill {
-  border: 0;
-  border-radius: 999px;
-  padding: 7px 11px;
-  background: rgba(18, 21, 34, 0.05);
-  color: rgba(18, 21, 34, 0.54);
-  font-size: 12px;
-  line-height: 1;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  transition: all 180ms ease;
-}
-
-.holdings-range-pill.active {
-  background: rgba(75, 125, 255, 0.12);
-  color: #4468d5;
-}
-
-.holdings-switch-row .segment-wrap {
-  gap: 0;
-}
-
-.holdings-switch-row .segment {
-  width: 100%;
-  padding: 3px;
-  border-radius: 999px;
-  background: rgba(243, 239, 255, 0.84);
-  box-shadow: inset 0 0 0 1px rgba(75, 125, 255, 0.05);
-}
-
-.holdings-switch-row .segment-btn {
-  min-height: 36px;
-  border-radius: 999px;
-  padding: 8px 14px;
-  font-size: 14px;
-  font-weight: 680;
-}
-
-.holdings-switch-row .segment-btn.active {
-  background: rgba(75, 125, 255, 0.1);
-  color: #4468d5;
-  box-shadow: inset 0 0 0 1px rgba(75, 125, 255, 0.08);
-}
-
-.holdings-list-surface-rh {
-  overflow: hidden;
-  border-radius: 24px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(247, 244, 255, 0.95));
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.82),
-    0 16px 30px rgba(86, 85, 176, 0.05);
-}
-
-.holdings-rh-list {
-  display: grid;
-}
-
-.holdings-rh-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 88px auto;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: 14px 16px;
-  border: 0;
-  border-bottom: 1px solid rgba(18, 26, 39, 0.05);
-  background: transparent;
-  text-align: left;
-  transition: background 160ms ease;
-}
-
-.holdings-rh-row:last-child {
-  border-bottom: 0;
-}
-
-.holdings-rh-row:hover {
-  background: rgba(75, 125, 255, 0.03);
-}
-
-.holdings-rh-row-left,
-.holdings-rh-row-right {
-  min-width: 0;
-}
-
-.holdings-rh-symbol-line {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-.holdings-rh-symbol {
-  color: var(--text-primary);
-  font-size: 17px;
-  line-height: 1;
-  letter-spacing: -0.03em;
-  font-weight: 750;
-}
-
-.holdings-rh-meta {
-  margin: 5px 0 0;
-  color: rgba(22, 28, 39, 0.48);
-  font-size: 13px;
-  line-height: 1.3;
-}
-
-.holdings-rh-ai-tag {
-  flex-shrink: 0;
-  padding: 4px 8px;
-  border-radius: 999px;
-  font-size: 10px;
-  line-height: 1;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.holdings-rh-ai-tag-favored {
-  background: rgba(72, 225, 255, 0.14);
-  color: rgba(5, 131, 164, 0.92);
-}
-
-.holdings-rh-ai-tag-watch,
-.holdings-rh-ai-tag-neutral {
-  background: rgba(65, 93, 255, 0.09);
-  color: rgba(50, 71, 193, 0.88);
-}
-
-.holdings-rh-ai-tag-caution {
-  background: rgba(255, 63, 156, 0.12);
-  color: rgba(183, 18, 98, 0.88);
-}
-
-.holdings-rh-row-spark {
-  width: 88px;
-}
-
-.holdings-rh-row-spark .holdings-sparkline {
-  height: 42px;
-}
-
-.holdings-rh-row-spark .holdings-sparkline path {
-  stroke-width: 3.4;
-}
-
-.holdings-sparkline-favored path {
-  stroke: rgba(31, 176, 205, 0.88);
-}
-
-.holdings-sparkline-watch path,
-.holdings-sparkline-neutral path {
-  stroke: rgba(65, 93, 255, 0.8);
-}
-
-.holdings-sparkline-caution path {
-  stroke: rgba(240, 55, 144, 0.82);
-}
-
-.holdings-rh-row-right {
-  text-align: right;
-}
-
-.holdings-rh-market {
-  margin: 0;
-  color: var(--text-primary);
-  font-size: 17px;
-  line-height: 1.06;
-  letter-spacing: -0.03em;
-  font-weight: 720;
-}
-
-.holdings-rh-pnl {
-  margin: 6px 0 0;
-  font-size: 13px;
-  line-height: 1.25;
-  font-weight: 650;
-}
-
-.holdings-rh-pnl.neutral {
-  color: rgba(22, 28, 39, 0.46);
-}
-
-.holdings-empty-state {
-  padding: 22px 18px;
-}
-
-.holdings-empty-title {
-  margin: 0;
-  color: var(--text-primary);
-  font-size: 18px;
-  line-height: 1.12;
-  font-weight: 730;
-}
-
-.holdings-empty-copy {
-  margin: 8px 0 0;
-  color: rgba(22, 28, 39, 0.54);
-  font-size: 14px;
-  line-height: 1.45;
-}
-
-.holdings-empty-actions {
-  margin-top: 14px;
-}
-
-@media (max-width: 640px) {
-  .holdings-overview-surface {
-    padding: 16px 16px 12px;
-  }
-
-  .holdings-priority-surface,
-  .holdings-import-surface {
-    padding: 16px;
-  }
-
-  .holdings-overview-total {
-    font-size: 30px;
-  }
-
-  .holdings-priority-title,
-  .holdings-import-title {
-    font-size: 22px;
-  }
-
-  .holdings-rh-row {
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 10px;
-  }
-
-  .holdings-rh-row-spark {
-    grid-column: 1 / -1;
-    width: 100%;
-  }
-
-  .holdings-rh-row-spark .holdings-sparkline {
-    height: 34px;
-  }
-
-  .holdings-rh-row-right {
-    text-align: right;
-  }
-}
-
 .main-content-browse,
 .main-content-my {
   padding-top: 10px;
 }
 
+.main-content-my {
+  min-height: 0;
+  height: 100%;
+}
+
+.main-content-my .screen-transition {
+  min-height: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
 .browse-screen,
 .menu-screen {
   padding-inline: 18px;
+}
+
+.menu-screen {
+  min-height: 100%;
+  height: 100%;
+  padding-bottom: calc(var(--native-tabbar-reserve) + 14px);
 }
 
 .browse-head {
@@ -972,6 +567,256 @@
   box-shadow:
     inset 0 0 0 1px rgba(18, 26, 39, 0.05),
     0 10px 24px rgba(20, 24, 33, 0.04);
+}
+
+.watchlist-root-screen {
+  padding-bottom: calc(var(--native-tabbar-reserve) + 22px);
+}
+
+.watchlist-root-shell {
+  display: grid;
+  gap: 16px;
+}
+
+.watchlist-hero {
+  display: grid;
+  gap: 8px;
+  padding: 2px 2px 4px;
+}
+
+.watchlist-hero-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.watchlist-kicker,
+.watchlist-subtitle,
+.watchlist-folder-kicker,
+.watchlist-folder-copy,
+.watchlist-card-line,
+.watchlist-card-footer,
+.watchlist-empty-title,
+.watchlist-empty-copy {
+  margin: 0;
+}
+
+.watchlist-kicker {
+  color: rgba(22, 28, 39, 0.46);
+  font-size: 12px;
+  line-height: 1;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 760;
+}
+
+.watchlist-title {
+  margin: 0;
+  color: rgba(18, 24, 35, 0.98);
+  font-size: clamp(31px, 5vw, 42px);
+  line-height: 0.96;
+  letter-spacing: -0.06em;
+  font-weight: 790;
+}
+
+.watchlist-menu-button {
+  flex-shrink: 0;
+  display: grid;
+  gap: 4px;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 14px;
+  background: rgba(18, 24, 35, 0.05);
+  box-shadow: inset 0 0 0 1px rgba(18, 26, 39, 0.04);
+}
+
+.watchlist-menu-button span {
+  display: block;
+  width: 16px;
+  height: 1.8px;
+  border-radius: 999px;
+  background: rgba(18, 24, 35, 0.82);
+}
+
+.watchlist-subtitle {
+  max-width: 34rem;
+  color: rgba(22, 28, 39, 0.56);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.watchlist-folder {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 28px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(247, 244, 255, 0.9));
+  box-shadow:
+    inset 0 0 0 1px rgba(18, 26, 39, 0.05),
+    0 16px 34px rgba(40, 48, 79, 0.05);
+}
+
+.watchlist-folder-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.watchlist-folder-kicker {
+  color: rgba(18, 24, 35, 0.96);
+  font-size: 20px;
+  line-height: 1.08;
+  letter-spacing: -0.04em;
+  font-weight: 760;
+}
+
+.watchlist-folder-copy {
+  margin-top: 6px;
+  color: rgba(22, 28, 39, 0.52);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.watchlist-folder-count {
+  flex-shrink: 0;
+  min-width: 30px;
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(83, 96, 255, 0.08);
+  color: rgba(52, 65, 172, 0.92);
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 760;
+}
+
+.watchlist-card-list {
+  display: grid;
+  gap: 10px;
+}
+
+.watchlist-card,
+.watchlist-empty-card {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.76);
+  box-shadow: inset 0 0 0 1px rgba(18, 26, 39, 0.05);
+}
+
+.watchlist-card-main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.watchlist-card-copy {
+  min-width: 0;
+}
+
+.watchlist-card-symbol {
+  margin: 0;
+  color: rgba(18, 24, 35, 0.98);
+  font-size: 26px;
+  line-height: 0.94;
+  letter-spacing: -0.05em;
+  font-weight: 780;
+}
+
+.watchlist-card-line {
+  margin-top: 8px;
+  color: rgba(18, 24, 35, 0.86);
+  font-size: 15px;
+  line-height: 1.35;
+  font-weight: 650;
+}
+
+.watchlist-card-line.is-secondary {
+  color: rgba(22, 28, 39, 0.54);
+  font-size: 13px;
+  font-weight: 560;
+}
+
+.watchlist-card-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.watchlist-action-button {
+  flex: 1 1 0;
+  min-height: 42px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 16px;
+  background: rgba(18, 24, 35, 0.06);
+  color: rgba(18, 24, 35, 0.76);
+  font-size: 14px;
+  line-height: 1;
+  font-weight: 700;
+  transition:
+    transform 180ms ease,
+    background 180ms ease,
+    color 180ms ease;
+}
+
+.watchlist-action-button.is-primary {
+  background: linear-gradient(135deg, rgba(73, 118, 255, 0.92), rgba(224, 82, 193, 0.86));
+  color: rgba(250, 252, 255, 0.98);
+}
+
+.watchlist-action-button:hover {
+  transform: translateY(-1px);
+}
+
+.watchlist-card-footer {
+  color: rgba(22, 28, 39, 0.36);
+  font-size: 11px;
+  line-height: 1.2;
+  font-weight: 600;
+}
+
+.watchlist-empty-title {
+  color: rgba(18, 24, 35, 0.9);
+  font-size: 16px;
+  line-height: 1.12;
+  font-weight: 730;
+}
+
+.watchlist-empty-copy {
+  color: rgba(22, 28, 39, 0.52);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+@media (max-width: 640px) {
+  .watchlist-folder {
+    padding: 15px;
+    border-radius: 24px;
+  }
+
+  .watchlist-card,
+  .watchlist-empty-card {
+    padding: 14px;
+    border-radius: 20px;
+  }
+
+  .watchlist-card-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .watchlist-card-symbol {
+    font-size: 24px;
+  }
 }
 
 .browse-news-card,
@@ -1632,31 +1477,6 @@
   box-shadow: inset 0 0 0 1px rgba(18, 26, 39, 0.05);
 }
 
-.holdings-overview-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.holdings-menu-button {
-  display: grid;
-  gap: 4px;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  border: 0;
-  border-radius: 14px;
-  background: rgba(18, 24, 35, 0.05);
-}
-
-.holdings-menu-button span {
-  display: block;
-  width: 16px;
-  height: 1.8px;
-  border-radius: 999px;
-  background: rgba(18, 24, 35, 0.82);
-}
-
 .menu-page-head h1,
 .menu-hero-kicker,
 .menu-identity-value {
@@ -1870,12 +1690,14 @@
 
 .menu-root-screen {
   min-height: 100%;
+  height: 100%;
 }
 
 .menu-root-shell {
   display: grid;
   gap: 16px;
   min-height: 100%;
+  align-content: start;
   padding-bottom: 4px;
 }
 
@@ -2828,10 +2650,6 @@
     align-self: flex-start;
   }
 
-  .holdings-overview-actions {
-    gap: 6px;
-  }
-
   .menu-page-head h1 {
     font-size: 38px;
   }
@@ -3094,18 +2912,18 @@
 /* Browse tab: align with Today/Nova dark stage */
 .device-shell[data-active-tab='browse'] {
   background:
-    radial-gradient(circle at 18% 0%, rgba(76, 140, 255, 0.16), transparent 24%),
-    radial-gradient(circle at 82% 14%, rgba(255, 47, 170, 0.12), transparent 24%),
-    linear-gradient(180deg, #05070d 0%, #0b0e19 42%, #151126 100%) !important;
-  border-color: rgba(255, 255, 255, 0.08);
+    radial-gradient(circle at 18% 0%, rgba(76, 140, 255, 0.14), transparent 24%),
+    radial-gradient(circle at 82% 14%, rgba(255, 47, 170, 0.1), transparent 24%),
+    linear-gradient(180deg, #f5f6fa 0%, #eef1f6 42%, #e8ebf1 100%) !important;
+  border-color: rgba(18, 21, 34, 0.08);
   box-shadow: none !important;
 }
 
 .device-shell[data-active-tab='browse'] .top-bar,
 .device-shell[data-active-tab='browse'] .system-status-bar,
 .device-shell[data-active-tab='browse'] .mode-strip {
-  background: rgba(8, 11, 20, 0.72);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(248, 249, 252, 0.88);
+  border-bottom: 1px solid rgba(18, 21, 34, 0.08);
 }
 
 .device-shell[data-active-tab='browse'] .main-content {
@@ -3115,7 +2933,7 @@
 .browse-rh-screen {
   position: relative;
   padding: 10px 14px calc(var(--native-tabbar-reserve) + 22px);
-  color: #f4f8ff;
+  color: #121522;
   background: transparent !important;
 }
 
@@ -3124,9 +2942,9 @@
   position: fixed;
   inset: 0;
   pointer-events: none;
-  background-image: radial-gradient(rgba(255, 255, 255, 0.12) 0.7px, transparent 0.7px);
+  background-image: radial-gradient(rgba(18, 21, 34, 0.08) 0.7px, transparent 0.7px);
   background-size: 9px 9px;
-  opacity: 0.1;
+  opacity: 0.58;
 }
 
 .browse-rh-screen > * {
@@ -3146,11 +2964,15 @@
 .browse-rh-news-asset-pill,
 .browse-rh-detail-stat,
 .browse-rh-detail-hero {
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
-  background: linear-gradient(180deg, rgba(24, 30, 52, 0.78), rgba(10, 14, 25, 0.9)) !important;
+  border: 1px solid rgba(18, 21, 34, 0.08) !important;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.94),
+    rgba(242, 245, 250, 0.96)
+  ) !important;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 18px 34px rgba(0, 0, 0, 0.18) !important;
+    inset 0 1px 0 rgba(255, 255, 255, 0.82),
+    0 16px 30px rgba(18, 21, 34, 0.08) !important;
   backdrop-filter: blur(20px) saturate(1.08);
   -webkit-backdrop-filter: blur(20px) saturate(1.08);
 }
@@ -3200,7 +3022,7 @@
 .browse-rh-news-visual-source,
 .browse-rh-empty,
 .browse-rh-empty.muted {
-  color: #f1f6ff !important;
+  color: #121522 !important;
 }
 
 .browse-rh-search-input::placeholder,
@@ -3218,7 +3040,7 @@
 .browse-rh-news-story-summary,
 .browse-rh-news-visual-source,
 .browse-rh-empty.muted {
-  color: rgba(226, 236, 252, 0.62) !important;
+  color: rgba(18, 21, 34, 0.54) !important;
 }
 
 .browse-rh-pill,
@@ -3226,9 +3048,9 @@
 .browse-rh-expand,
 .browse-rh-watch-btn,
 .browse-rh-news-link {
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(236, 242, 255, 0.84);
+  border: 1px solid rgba(18, 21, 34, 0.08);
+  background: rgba(255, 255, 255, 0.76);
+  color: rgba(18, 21, 34, 0.84);
   box-shadow: none;
 }
 
@@ -3252,7 +3074,7 @@
 .browse-rh-result-symbol,
 .browse-rh-news-feature-title,
 .browse-rh-news-story-title {
-  color: #fbfdff !important;
+  color: #121522 !important;
 }
 
 .browse-rh-market-card-change.positive,
@@ -3298,21 +3120,21 @@
   padding: 16px;
   border-radius: 28px;
   background:
-    radial-gradient(circle at top right, rgba(76, 140, 255, 0.18), transparent 28%),
-    linear-gradient(180deg, rgba(18, 26, 49, 0.82), rgba(10, 14, 25, 0.94)) !important;
+    radial-gradient(circle at top right, rgba(76, 140, 255, 0.12), transparent 28%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(242, 245, 250, 0.96)) !important;
 }
 
 .browse-rh-detail-chart-shell {
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(18, 21, 34, 0.08);
   border-radius: 22px;
   padding: 14px;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.74);
 }
 
 .browse-rh-news-visual {
   box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
-    0 12px 22px rgba(0, 0, 0, 0.14);
+    inset 0 0 0 1px rgba(255, 255, 255, 0.68),
+    0 12px 22px rgba(18, 21, 34, 0.08);
 }
 
 .browse-rh-news-link {

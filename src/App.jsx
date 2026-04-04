@@ -9,7 +9,6 @@ const BrowseTab = lazy(() => import('./components/BrowseTab'));
 const DataStatusTab = lazy(() => import('./components/DataStatusTab'));
 const DisciplineTab = lazy(() => import('./components/DisciplineTab'));
 const FirstRunSetupFlow = lazy(() => import('./components/FirstRunSetupFlow'));
-const HoldingsTab = lazy(() => import('./components/HoldingsTab'));
 const LearningLoopTab = lazy(() => import('./components/LearningLoopTab'));
 const MarketTab = lazy(() => import('./components/MarketTab'));
 const MenuTab = lazy(() => import('./components/MenuTab'));
@@ -21,6 +20,7 @@ const SettingsTab = lazy(() => import('./components/SettingsTab'));
 import Skeleton from './components/Skeleton';
 const SignalsTab = lazy(() => import('./components/SignalsTab'));
 const TodayTab = lazy(() => import('./components/TodayTab'));
+const WatchlistTab = lazy(() => import('./components/WatchlistTab'));
 const WeeklyReviewTab = lazy(() => import('./components/WeeklyReviewTab'));
 import TabBarIcon from './components/icons/TabBarIcon';
 import TopBarMenuGlyph from './components/icons/TopBarMenuGlyph';
@@ -61,6 +61,12 @@ async function fetchJson(url, options) {
 
 const BROWSE_WARMUP_REFRESH_MS = 10 * 60 * 1000;
 
+function normalizeWatchSymbol(value) {
+  return String(value || '')
+    .trim()
+    .toUpperCase();
+}
+
 export default function App() {
   const primaryTabKeys = ['today', 'ai', 'browse', 'my'];
   const [displayMode, setDisplayMode] = useState(() => detectDisplayMode());
@@ -76,6 +82,10 @@ export default function App() {
   });
   const [firstRunSetupByUser, setFirstRunSetupByUser] = useLocalStorage(
     'nova-quant-first-run-setup-by-user',
+    {},
+  );
+  const [watchlistMetaByUser, setWatchlistMetaByUser] = useLocalStorage(
+    'nova-quant-watchlist-meta-by-user',
     {},
   );
   // Tracks users for whom the onboarding bonus claim is pending (i.e. the
@@ -194,7 +204,6 @@ export default function App() {
     showOnboarding,
     setShowOnboarding,
     uiData: finalUiData,
-    holdingsSource: finalHoldingsSource,
     effectiveHoldings: finalEffectiveHoldings,
     enableInvestorDemo,
     clearInvestorDemo,
@@ -226,6 +235,8 @@ export default function App() {
   const firstRunSetupState = authSession?.userId
     ? firstRunSetupByUser?.[authSession.userId] || null
     : null;
+  const watchlistOwnerKey = authSession?.userId || effectiveUserId || 'guest';
+  const watchlistMeta = watchlistMetaByUser?.[watchlistOwnerKey] || {};
   const showFirstRunSetup =
     authHydrated &&
     Boolean(authSession?.userId) &&
@@ -525,7 +536,7 @@ export default function App() {
       }));
 
       const targetTab = resolveFirstRunTarget(payload?.goal, payload?.currentState);
-      setMyStack(['portfolio']);
+      setMyStack(['watchlist']);
       setActiveTab(targetTab);
 
       if (!isDemoRuntime) {
@@ -615,7 +626,7 @@ export default function App() {
         skippedAt: new Date().toISOString(),
       },
     }));
-    setMyStack(['portfolio']);
+    setMyStack(['watchlist']);
     setActiveTab('today');
   }, [authSession?.userId, setActiveTab, setFirstRunSetupByUser, setMyStack]);
 
@@ -630,10 +641,93 @@ export default function App() {
     }));
   }, [authSession?.userId, setFirstRunSetupByUser]);
 
-  // --- Refresh holdings sources ---
-  const refreshHoldingsSources = useCallback(() => {
-    setRefreshNonce((current) => current + 1);
-  }, []);
+  const updateWatchlistSymbol = useCallback(
+    (rawSymbol, options = {}) => {
+      const symbol = normalizeWatchSymbol(rawSymbol);
+      if (!symbol) return false;
+
+      const mode = options.mode || 'toggle';
+      const source = options.source === 'today' ? 'today' : 'custom';
+      const nowIso = new Date().toISOString();
+      let didAdd = false;
+      let didRemove = false;
+      let existed = false;
+
+      setWatchlist((current) => {
+        const list = Array.isArray(current)
+          ? current.map((item) => normalizeWatchSymbol(item)).filter(Boolean)
+          : [];
+        existed = list.includes(symbol);
+
+        if (mode === 'remove') {
+          didRemove = existed;
+          return existed ? list.filter((item) => item !== symbol) : list;
+        }
+
+        if (mode === 'add') {
+          didAdd = !existed;
+          return existed ? list : [...list, symbol];
+        }
+
+        if (existed) {
+          didRemove = true;
+          return list.filter((item) => item !== symbol);
+        }
+
+        didAdd = true;
+        return [...list, symbol];
+      });
+
+      setWatchlistMetaByUser((current) => {
+        const next = { ...(current || {}) };
+        const nextMeta = { ...(next[watchlistOwnerKey] || {}) };
+
+        if (didRemove) {
+          delete nextMeta[symbol];
+        } else if (didAdd || existed) {
+          nextMeta[symbol] = {
+            source,
+            addedAt: nextMeta[symbol]?.addedAt || nowIso,
+            updatedAt: nowIso,
+          };
+        }
+
+        next[watchlistOwnerKey] = nextMeta;
+        return next;
+      });
+
+      return didAdd || existed;
+    },
+    [setWatchlist, setWatchlistMetaByUser, watchlistOwnerKey],
+  );
+
+  useEffect(() => {
+    const allowedSymbols = new Set(
+      (watchlist || []).map((item) => normalizeWatchSymbol(item)).filter(Boolean),
+    );
+
+    setWatchlistMetaByUser((current) => {
+      const allUsers = current || {};
+      const existingMeta = allUsers[watchlistOwnerKey] || {};
+      let changed = false;
+      const cleanedMeta = {};
+
+      for (const [symbol, meta] of Object.entries(existingMeta)) {
+        if (!allowedSymbols.has(symbol)) {
+          changed = true;
+          continue;
+        }
+        cleanedMeta[symbol] = meta;
+      }
+
+      if (!changed) return current;
+
+      return {
+        ...allUsers,
+        [watchlistOwnerKey]: cleanedMeta,
+      };
+    });
+  }, [setWatchlistMetaByUser, watchlist, watchlistOwnerKey]);
 
   // --- Side effects ---
 
@@ -990,17 +1084,16 @@ export default function App() {
           onConfirmBoundary={markBoundaryKept}
           onOpenHoldings={() => {
             setActiveTab('my');
-            setMyStack(['portfolio']);
+            setMyStack(['watchlist']);
           }}
           onAskAi={askAi}
           onOpenWeekly={() => openMySection('weekly')}
           onOpenSignals={() => openMySection('signals')}
-          onToggleWatchlist={(symbol) =>
-            setWatchlist((current) =>
-              current.includes(symbol)
-                ? current.filter((item) => item !== symbol)
-                : [...current, symbol],
-            )
+          onToggleWatchlist={(symbol, options) =>
+            updateWatchlistSymbol(symbol, {
+              source: 'today',
+              ...(options || {}),
+            })
           }
           onPaperExecute={(signal) => recordExecution({ signal, mode: 'PAPER', action: 'EXECUTE' })}
           effectiveUserId={effectiveUserId}
@@ -1021,6 +1114,13 @@ export default function App() {
           userId={effectiveUserId}
           locale={locale}
           baseContext={baseContext}
+          watchlist={watchlist}
+          onToggleWatchlist={(symbol, options) =>
+            updateWatchlistSymbol(symbol, {
+              source: 'custom',
+              ...(options || {}),
+            })
+          }
           membershipPlan={membership.currentPlan}
           remainingAskNova={membership.remainingAskNova}
           onRequestAiAccess={requestAiAccessFromComposer}
@@ -1042,6 +1142,12 @@ export default function App() {
             signals={finalUiData?.signals || []}
             watchlist={watchlist}
             setWatchlist={setWatchlist}
+            onToggleWatchlist={(symbol, options) =>
+              updateWatchlistSymbol(symbol, {
+                source: 'custom',
+                ...(options || {}),
+              })
+            }
             topBarBackToken={browseBackToken}
             onTopBarStateChange={(nextState) =>
               setBrowseTopBarState((current) => {
@@ -1065,23 +1171,17 @@ export default function App() {
       );
     }
 
-    if (activeTab === 'my' && mySection === 'portfolio') {
+    if (activeTab === 'my' && mySection === 'watchlist') {
       return (
-        <HoldingsTab
-          holdings={finalEffectiveHoldings}
-          setHoldings={setHoldings}
-          holdingsReview={holdingsReview}
+        <WatchlistTab
           watchlist={watchlist}
+          watchlistMeta={watchlistMeta}
+          signals={finalUiData?.signals || []}
           marketInstruments={finalUiData?.layers?.data_layer?.instruments || []}
-          uiMode={uiMode}
-          t={t}
           locale={locale}
-          investorDemoEnabled={investorDemoEnabled}
-          holdingsSource={finalHoldingsSource}
-          manualHoldingsCount={finalHoldingsSource?.manual_count || 0}
-          canRefreshConnectedHoldings={Boolean(authSession?.userId) && !investorDemoEnabled}
-          onRefreshHoldings={refreshHoldingsSources}
-          onExplain={(message) => askAi(message)}
+          onAskAi={(message, context = {}) => askAi(message, context)}
+          onToggleWatchlist={updateWatchlistSymbol}
+          onOpenMenu={() => openMySection('menu')}
         />
       );
     }
@@ -1135,22 +1235,27 @@ export default function App() {
   const canGoBackInMyTopBar = activeTab === 'my' && myStack.length > 1;
   const canGoBackInBrowseTopBar = activeTab === 'browse' && browseTopBarState.canGoBack;
   const canGoBackInTopBar = canGoBackInMyTopBar || canGoBackInBrowseTopBar;
-  const showHoldingsMenuAction = activeTab === 'my' && mySection === 'portfolio';
+  const hideTopBarForWatchlist = activeTab === 'my' && mySection === 'watchlist';
+  const showHoldingsMenuAction = activeTab === 'my' && mySection === 'watchlist';
   const showCenterTopBarTitle = activeTab === 'browse' || activeTab === 'ai' || activeTab === 'my';
   const previousMySection = canGoBackInMyTopBar ? myStack[myStack.length - 2] : null;
   const topBarBackLabel = canGoBackInBrowseTopBar
     ? browseTopBarState.backLabel
-    : previousMySection && previousMySection !== 'portfolio'
+    : previousMySection && previousMySection !== 'watchlist'
       ? menuTitles[previousMySection] || tabMeta.my.label
-      : tabMeta.my.label;
+      : locale.startsWith('zh')
+        ? '观察列表'
+        : 'Watchlist';
   const topBarCenterTitle =
     activeTab === 'browse'
       ? browseTopBarState.title || tabMeta.browse.label
       : activeTab === 'ai'
         ? 'Ask Nova'
         : activeTab === 'my'
-          ? mySection === 'portfolio'
-            ? 'Holdings'
+          ? mySection === 'watchlist'
+            ? locale.startsWith('zh')
+              ? '观察列表'
+              : 'Watchlist'
             : mySection === 'menu'
               ? 'Menu'
               : menuTitles[mySection] || tabMeta.my.label
@@ -1224,64 +1329,66 @@ export default function App() {
           className={`device-shell device-shell-${displayMode} ui-tone-${appTone} ui-motion-${motionProfile} daily-check-${dailyCheckState}`}
           data-active-tab={activeTab}
         >
-          <header
-            className={`top-bar top-bar-${topBarMode} ${topBarCondensed ? 'is-condensed' : ''}`}
-          >
-            <div className="top-bar-leading">
-              {canGoBackInMyTopBar ? (
+          {hideTopBarForWatchlist ? null : (
+            <header
+              className={`top-bar top-bar-${topBarMode} ${topBarCondensed ? 'is-condensed' : ''}`}
+            >
+              <div className="top-bar-leading">
+                {canGoBackInMyTopBar ? (
+                  <button
+                    type="button"
+                    className="ios-nav-back top-bar-back"
+                    onClick={popMySection}
+                    aria-label={`Back to ${topBarBackLabel}`}
+                  >
+                    <span className="ios-back-chevron" aria-hidden="true">
+                      ‹
+                    </span>
+                    <span className="ios-back-label">{topBarBackLabel}</span>
+                  </button>
+                ) : canGoBackInBrowseTopBar ? (
+                  <button
+                    type="button"
+                    className="ios-nav-back top-bar-back"
+                    onClick={() => setBrowseBackToken((current) => current + 1)}
+                    aria-label={`Back to ${topBarBackLabel}`}
+                  >
+                    <span className="ios-back-chevron" aria-hidden="true">
+                      ‹
+                    </span>
+                    <span className="ios-back-label">{topBarBackLabel}</span>
+                  </button>
+                ) : null}
+              </div>
+              {showCenterTopBarTitle ? (
+                <div className="top-bar-center-title" aria-label={topBarCenterTitle}>
+                  {topBarCenterTitle}
+                </div>
+              ) : (
+                <div className="top-bar-logo-wrap" aria-label="Nova Quant">
+                  <img
+                    src={topBarCondensed ? novaLogoCompact : novaLogo}
+                    alt="Nova Quant"
+                    className={`top-bar-logo ${
+                      topBarCondensed ? 'top-bar-logo-compact is-visible' : 'top-bar-logo-expanded'
+                    }`}
+                  />
+                </div>
+              )}
+              {showHoldingsMenuAction ? (
                 <button
                   type="button"
-                  className="ios-nav-back top-bar-back"
-                  onClick={popMySection}
-                  aria-label={`Back to ${topBarBackLabel}`}
+                  className="top-bar-action-button"
+                  aria-label={locale === 'zh' ? '打开菜单' : 'Open menu'}
+                  onClick={() => openMySection('menu')}
                 >
-                  <span className="ios-back-chevron" aria-hidden="true">
-                    ‹
-                  </span>
-                  <span className="ios-back-label">{topBarBackLabel}</span>
+                  <TopBarMenuGlyph />
                 </button>
-              ) : canGoBackInBrowseTopBar ? (
-                <button
-                  type="button"
-                  className="ios-nav-back top-bar-back"
-                  onClick={() => setBrowseBackToken((current) => current + 1)}
-                  aria-label={`Back to ${topBarBackLabel}`}
-                >
-                  <span className="ios-back-chevron" aria-hidden="true">
-                    ‹
-                  </span>
-                  <span className="ios-back-label">{topBarBackLabel}</span>
-                </button>
+              ) : canGoBackInTopBar ? (
+                <div className="top-bar-spacer" aria-hidden="true" />
               ) : null}
-            </div>
-            {showCenterTopBarTitle ? (
-              <div className="top-bar-center-title" aria-label={topBarCenterTitle}>
-                {topBarCenterTitle}
-              </div>
-            ) : (
-              <div className="top-bar-logo-wrap" aria-label="Nova Quant">
-                <img
-                  src={topBarCondensed ? novaLogoCompact : novaLogo}
-                  alt="Nova Quant"
-                  className={`top-bar-logo ${
-                    topBarCondensed ? 'top-bar-logo-compact is-visible' : 'top-bar-logo-expanded'
-                  }`}
-                />
-              </div>
-            )}
-            {showHoldingsMenuAction ? (
-              <button
-                type="button"
-                className="top-bar-action-button"
-                aria-label={locale === 'zh' ? '打开菜单' : 'Open menu'}
-                onClick={() => openMySection('menu')}
-              >
-                <TopBarMenuGlyph />
-              </button>
-            ) : canGoBackInTopBar ? (
-              <div className="top-bar-spacer" aria-hidden="true" />
-            ) : null}
-          </header>
+            </header>
+          )}
 
           <main ref={mainContentRef} className={`main-content main-content-${activeTab}`}>
             <Suspense fallback={<Skeleton lines={6} />}>
@@ -1313,7 +1420,7 @@ export default function App() {
                     if (key !== 'my') {
                       resetMy();
                     } else {
-                      setMyStack(['portfolio']);
+                      setMyStack(['watchlist']);
                     }
                   }}
                 >

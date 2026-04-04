@@ -7,21 +7,21 @@ import { MENU_PARENTS } from '../config/appConstants';
  */
 export function useNavigation() {
   const [activeTab, setActiveTab] = useState('today');
-  const [myStack, setMyStack] = useState(['portfolio']);
+  const [myStack, setMyStack] = useState(['watchlist']);
   const [aiSeedRequest, setAiSeedRequest] = useState(null);
 
-  const mySection = myStack[myStack.length - 1] || 'portfolio';
+  const mySection = myStack[myStack.length - 1] || 'watchlist';
 
   const buildMyStack = useCallback((section) => {
-    if (!section || section === 'portfolio') return ['portfolio'];
-    if (section === 'menu') return ['portfolio', 'menu'];
-    if (section.startsWith('group:')) return ['portfolio', 'menu', section];
+    if (!section || section === 'watchlist') return ['watchlist'];
+    if (section === 'menu') return ['watchlist', 'menu'];
+    if (section.startsWith('group:')) return ['watchlist', 'menu', section];
     const parent = MENU_PARENTS[section];
-    return parent ? ['portfolio', 'menu', parent, section] : ['portfolio', 'menu', section];
+    return parent ? ['watchlist', 'menu', parent, section] : ['watchlist', 'menu', section];
   }, []);
 
   const resetMy = useCallback(() => {
-    setMyStack(['portfolio']);
+    setMyStack(['watchlist']);
   }, []);
 
   const openMySection = useCallback(
@@ -33,8 +33,8 @@ export function useNavigation() {
   );
 
   const pushMySection = useCallback((section) => {
-    if (!section || section === 'portfolio') {
-      setMyStack(['portfolio']);
+    if (!section || section === 'watchlist') {
+      setMyStack(['watchlist']);
       return;
     }
     setMyStack((current) => {
@@ -71,7 +71,7 @@ export function useNavigation() {
       if (!target) return;
       if (target === 'holdings') {
         setActiveTab('my');
-        setMyStack(['portfolio']);
+        setMyStack(['watchlist']);
         return;
       }
       if (target === 'more') {
@@ -84,7 +84,7 @@ export function useNavigation() {
         return;
       }
       setActiveTab(target);
-      if (target !== 'my') setMyStack(['portfolio']);
+      if (target !== 'my') setMyStack(['watchlist']);
     },
     [openMySection],
   );

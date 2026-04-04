@@ -26,7 +26,7 @@ function buildAiCopy(locale = 'en-US') {
             'What is this card really saying?',
           ],
     nextStep: {
-      holdings: lang === 'zh' ? '打开持仓' : 'Open Holdings',
+      holdings: lang === 'zh' ? '打开观察列表' : 'Open Watchlist',
       weekly: lang === 'zh' ? '打开周复盘' : 'Open Weekly Review',
       safety: lang === 'zh' ? '打开安全页' : 'Open Safety',
       today: lang === 'zh' ? '回到 Today' : 'Back to Today',
@@ -45,6 +45,8 @@ function buildAiCopy(locale = 'en-US') {
       evidence: lang === 'zh' ? '依据' : 'Evidence',
     },
     composerPlaceholder: lang === 'zh' ? '直接问我，越白话越好' : 'Ask in plain language',
+    addWatchlist: lang === 'zh' ? 'Add to Watchlist' : 'Add to Watchlist',
+    watchlistSaved: lang === 'zh' ? 'Saved to Watchlist' : 'Saved to Watchlist',
     emptyBadge: 'Nova',
     emptyHeading:
       lang === 'zh' ? '直接问我今天最重要的事。' : 'Ask the one thing that matters today.',
@@ -61,6 +63,60 @@ function buildAiCopy(locale = 'en-US') {
           : 'I hit a problem while preparing an answer.',
     },
   };
+}
+
+const TICKER_STOPWORDS = new Set([
+  'THE',
+  'AND',
+  'FOR',
+  'NOW',
+  'TODAY',
+  'RISK',
+  'PLAN',
+  'WHY',
+  'WITH',
+  'CARD',
+  'NOVA',
+  'HOLD',
+  'SELL',
+  'BUY',
+  'WAIT',
+  'SAFE',
+  'WHAT',
+  'THIS',
+  'THAT',
+]);
+
+function normalizeTicker(value) {
+  return String(value || '')
+    .replace(/^\$/, '')
+    .trim()
+    .toUpperCase();
+}
+
+function looksLikeTicker(value) {
+  const ticker = normalizeTicker(value);
+  return /^[A-Z]{1,5}$/.test(ticker) && !TICKER_STOPWORDS.has(ticker);
+}
+
+function extractTickerFromText(text) {
+  const matches = String(text || '').match(/\$?[A-Za-z]{1,5}\b/g) || [];
+  for (const match of matches) {
+    if (looksLikeTicker(match)) return normalizeTicker(match);
+  }
+  return null;
+}
+
+function resolveConversationTicker(linkedContext, messages = []) {
+  if (looksLikeTicker(linkedContext?.title)) {
+    return normalizeTicker(linkedContext.title);
+  }
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    if (messages[index]?.role !== 'user') continue;
+    const ticker = extractTickerFromText(messages[index]?.content);
+    if (ticker) return ticker;
+  }
+  return null;
 }
 
 function buildLinkedContext(seedRequest, locale = 'en-US') {
@@ -385,6 +441,8 @@ function AiConversationShell({
   onNavigate,
   locale,
   linkedContext,
+  watchlist = [],
+  onToggleWatchlist,
   membershipPlan,
   remainingAskNova,
 }) {
@@ -396,6 +454,18 @@ function AiConversationShell({
     () => buildAccessBadge(membershipPlan, remainingAskNova, locale),
     [locale, membershipPlan, remainingAskNova],
   );
+  const currentTicker = useMemo(
+    () => resolveConversationTicker(linkedContext, messages),
+    [linkedContext, messages],
+  );
+  const watchlistSymbols = useMemo(
+    () =>
+      Array.isArray(watchlist)
+        ? watchlist.map((item) => normalizeTicker(item)).filter(Boolean)
+        : [],
+    [watchlist],
+  );
+  const isTickerSaved = currentTicker ? watchlistSymbols.includes(currentTicker) : false;
 
   useEffect(() => {
     if (!listRef.current || !hasMessages) return undefined;
@@ -471,6 +541,24 @@ function AiConversationShell({
         </div>
       ) : null}
 
+      {currentTicker ? (
+        <div className="nova-ai-session-watch">
+          <button
+            type="button"
+            className={`nova-ai-session-watch-button ${isTickerSaved ? 'is-saved' : ''}`}
+            onClick={() =>
+              onToggleWatchlist?.(currentTicker, {
+                mode: 'add',
+                source: 'custom',
+              })
+            }
+          >
+            <span>{currentTicker}</span>
+            <span>{isTickerSaved ? copy.watchlistSaved : copy.addWatchlist}</span>
+          </button>
+        </div>
+      ) : null}
+
       <Composer
         input={input}
         setInput={setInput}
@@ -489,6 +577,8 @@ function LiveAiConversation({
   userId,
   baseContext,
   locale,
+  watchlist,
+  onToggleWatchlist,
   membershipPlan,
   remainingAskNova,
   onRequestAiAccess,
@@ -536,6 +626,8 @@ function LiveAiConversation({
       onNavigate={onNavigate}
       locale={locale}
       linkedContext={linkedContext}
+      watchlist={watchlist}
+      onToggleWatchlist={onToggleWatchlist}
       membershipPlan={membershipPlan}
       remainingAskNova={remainingAskNova}
     />
@@ -549,6 +641,8 @@ function DemoAiConversation({
   userId,
   baseContext,
   locale,
+  watchlist,
+  onToggleWatchlist,
   membershipPlan,
   remainingAskNova,
   onRequestAiAccess,
@@ -616,6 +710,8 @@ function DemoAiConversation({
       onNavigate={onNavigate}
       locale={locale}
       linkedContext={linkedContext}
+      watchlist={watchlist}
+      onToggleWatchlist={onToggleWatchlist}
       membershipPlan={membershipPlan}
       remainingAskNova={remainingAskNova}
     />
@@ -629,6 +725,8 @@ export default function AiPage({
   userId,
   baseContext,
   locale,
+  watchlist = [],
+  onToggleWatchlist,
   membershipPlan = 'free',
   remainingAskNova = 0,
   onRequestAiAccess,
@@ -644,6 +742,8 @@ export default function AiPage({
         userId={userId}
         baseContext={baseContext}
         locale={locale}
+        watchlist={watchlist}
+        onToggleWatchlist={onToggleWatchlist}
         membershipPlan={membershipPlan}
         remainingAskNova={remainingAskNova}
         onRequestAiAccess={onRequestAiAccess}
@@ -658,6 +758,8 @@ export default function AiPage({
       userId={userId}
       baseContext={baseContext}
       locale={locale}
+      watchlist={watchlist}
+      onToggleWatchlist={onToggleWatchlist}
       membershipPlan={membershipPlan}
       remainingAskNova={remainingAskNova}
       onRequestAiAccess={onRequestAiAccess}
