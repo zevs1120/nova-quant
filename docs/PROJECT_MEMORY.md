@@ -130,6 +130,7 @@ Canonical status vocabulary now used across runtime, evidence, connectors, and a
 - OOS realism over in-sample vanity.
 - Risk boundary clarity over aggressive signal density.
 - Product simplicity with evidence-backed reasoning.
+- **Workflow Integrity**: NEVER replace files on the remote EC2 instance or local workspace directly via shell/SSH tools without explicit user permission. Always follow the standard git-based deployment and commit workflow. Direct modification of production environments is strictly forbidden.
 - Every major implementation block must update project memory and logs per `docs/SESSION_HANDOFF_PROTOCOL.md`.
 
 ## 8) Archived Global Review Package (2026-03-08)
