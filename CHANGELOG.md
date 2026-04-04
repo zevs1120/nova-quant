@@ -4,6 +4,11 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+- **Feat(ui,browse,watchlist): 拆分旧 holdings 样式并收细 Browse 详情页与 Watchlist 顶栏。**
+  - **CSS Split：** 原先混在 `holdings.css` 里的 `Browse / Menu / Watchlist` 表层样式正式拆成 `browse.css`、`menu.css`、`watchlist.css`，三个页面改为各自按需引用；历史 `holdings.css` 文件删除，避免继续挂着旧命名和无关样式一起加载。
+  - **Browse Detail Polish：** 只调整 `Browse` 详情页的视觉层，不改功能和信息结构；强化 hero 字重和层级、图表卡与统计卡的材质、价格/涨跌信息的主次关系，以及详情页新闻卡的整体完成度，并同步压过移动端排版。
+  - **Watchlist Header：** `Watchlist` 右上角菜单按钮换成更极简的现成 icon 语言，去掉外框感，让页面顶部更干净。
+
 - **Feat(ai,prompts): Ask Nova 回复改成更适合新手阅读的白话风格。**
   - **Prompt Rules：** `Ask Nova` 默认把读者当成第一次接触交易的人，要求先用一句零术语的人话说清楚结论，优先用短句和日常词，不直接吐出内部字段名、数据库键名或枚举值。
   - **Signal Explain：** 在解释 action card 时，更强调“现在该做什么、为什么先别乱动、为什么只能小仓或先等”，减少模型名、策略名和量化黑话的优先级。

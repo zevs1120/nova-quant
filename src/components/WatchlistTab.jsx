@@ -1,4 +1,4 @@
-import '../styles/holdings.css';
+import '../styles/watchlist.css';
 import { useMemo } from 'react';
 
 function asSymbol(value) {
@@ -229,9 +229,11 @@ export default function WatchlistTab({
               onClick={() => onOpenMenu?.()}
               aria-label={locale?.startsWith('zh') ? '打开菜单' : 'Open menu'}
             >
-              <span />
-              <span />
-              <span />
+              <svg viewBox="0 0 24 24" aria-hidden="true" className="watchlist-menu-icon">
+                <path d="M4 6h16" />
+                <path d="M7 12h13" />
+                <path d="M10 18h10" />
+              </svg>
             </button>
           </div>
           <p className="watchlist-subtitle">

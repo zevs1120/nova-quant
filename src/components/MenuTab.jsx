@@ -1,4 +1,4 @@
-import '../styles/holdings.css';
+import '../styles/menu.css';
 import '../styles/membership.css';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { buildMembershipPlans, normalizeMembershipPlan } from '../utils/membership';

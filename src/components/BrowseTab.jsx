@@ -1,4 +1,4 @@
-import '../styles/holdings.css';
+import '../styles/browse.css';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { formatNumber } from '../utils/format';
 import { fetchApiJson } from '../utils/api';
@@ -190,7 +190,7 @@ function SectionHeader({ title, action, onAction }) {
         <h2>{title}</h2>
         <InfoDot />
       </div>
-      {action ? (
+      {action && typeof onAction === 'function' ? (
         <button type="button" className="browse-rh-section-action" onClick={onAction}>
           {action}
         </button>
@@ -203,8 +203,10 @@ function MarketCard({ item, locale, onOpen }) {
   return (
     <button type="button" className="browse-rh-market-card" onClick={() => onOpen(item)}>
       <div className="browse-rh-market-card-copy">
-        <p className="browse-rh-market-card-title">{item.title}</p>
-        <p className="browse-rh-market-card-subtitle">{item.subtitle}</p>
+        <p className="browse-rh-market-card-title">{displaySymbol(item.symbol, item.market)}</p>
+        <p className="browse-rh-market-card-subtitle">
+          {item.title || item.subtitle || item.symbol}
+        </p>
       </div>
       <div className="browse-rh-market-card-chart">
         <MiniChart values={item.values} tone={toneClass(item.change)} />
@@ -213,6 +215,52 @@ function MarketCard({ item, locale, onOpen }) {
       <p className={`browse-rh-market-card-change ${toneClass(item.change)}`}>
         {percentText(item.change, locale)}
       </p>
+    </button>
+  );
+}
+
+function FocusHeroCard({ item, locale, onOpen, kicker, ctaLabel }) {
+  if (!item) return null;
+  return (
+    <button type="button" className="browse-home-focus-card" onClick={() => onOpen(item)}>
+      <div className="browse-home-focus-copy">
+        <p className="browse-home-focus-kicker">{kicker}</p>
+        <div className="browse-home-focus-head">
+          <div>
+            <h2 className="browse-home-focus-title">{displaySymbol(item.symbol, item.market)}</h2>
+            <p className="browse-home-focus-subtitle">
+              {item.title || item.subtitle || item.symbol}
+            </p>
+          </div>
+          <span className="browse-home-focus-cta">{ctaLabel}</span>
+        </div>
+        <div className="browse-home-focus-quote">
+          <strong>{compactPrice(item.latest, locale)}</strong>
+          <span className={toneClass(item.change)}>{percentText(item.change, locale)}</span>
+        </div>
+      </div>
+      <div className="browse-home-focus-chart">
+        <MiniChart values={item.values} tone={toneClass(item.change)} width={320} height={108} />
+      </div>
+    </button>
+  );
+}
+
+function ExploreCard({ item, index, onOpen, kicker }) {
+  if (!item) return null;
+  const accentClass = index % 3 === 0 ? 'is-cyan' : index % 3 === 1 ? 'is-rose' : 'is-gold';
+  return (
+    <button
+      type="button"
+      className={`browse-home-explore-card ${accentClass}`}
+      onClick={() => onOpen(item)}
+    >
+      <p className="browse-home-explore-kicker">{kicker}</p>
+      <h3 className="browse-home-explore-title">{item.title}</h3>
+      <p className="browse-home-explore-copy">{item.subtitle}</p>
+      <span className="browse-home-explore-arrow" aria-hidden="true">
+        ↗
+      </span>
     </button>
   );
 }
@@ -473,12 +521,19 @@ export default function BrowseTab({
         CRYPTO: isZh ? '加密' : 'Crypto',
       },
       featured: isZh ? '精选标的' : 'Featured choices',
+      focus: isZh ? '今天先看这个' : 'Today’s focus',
+      openFocus: isZh ? '查看' : 'Open',
+      marketPulse: isZh ? '市场脉搏' : 'Market pulse',
       topMovers: isZh ? '涨跌榜' : 'Top movers',
+      radar: isZh ? '继续关注' : 'Keep watching',
       earnings: isZh ? '财报关注' : 'Earnings',
       showMore: isZh ? '查看更多' : 'Show more',
+      openAll: isZh ? '全部打开' : 'Open all',
       screeners: isZh ? '股票筛选器' : 'Stock screeners',
       create: isZh ? '创建' : 'Create',
       trending: isZh ? '趋势列表' : 'Trending lists',
+      ideas: isZh ? '值得点开的想法' : 'Ideas worth opening',
+      explore: isZh ? '点开看看' : 'Explore',
       results: isZh ? '搜索结果' : 'Results',
       searching: isZh ? '搜索中…' : 'Searching…',
       noResults: isZh ? '没有找到结果。' : 'No results.',
@@ -950,10 +1005,42 @@ export default function BrowseTab({
     });
   }
 
+  function openHomeList(type) {
+    const isTrending = type === 'trending';
+    const lists = isTrending
+      ? homeState.data?.trendingLists || []
+      : homeState.data?.screeners || [];
+    setActiveList({
+      type,
+      title: isTrending ? copy.trending : copy.screeners,
+      lists,
+    });
+  }
+
   function renderHome() {
     const data = homeState.data;
     const isCryptoCategory = category === 'CRYPTO';
     const moverItems = isCryptoCategory ? data?.cryptoMovers || [] : data?.topMovers || [];
+    const featuredItems = data?.futuresMarkets || [];
+    const [focusItem, ...marketPulseItems] = featuredItems;
+    const radarItems = !isCryptoCategory
+      ? [
+          ...(data?.earnings || []).slice(0, 3),
+          ...todaySignalSymbols.slice(0, 2).map((item) => ({
+            ...item,
+            note: item.title,
+            timing: isZh ? '今日信号' : 'Today signal',
+          })),
+        ].slice(0, 4)
+      : todaySignalSymbols.slice(0, 4).map((item) => ({
+          ...item,
+          note: item.title,
+          timing: isZh ? '值得观察' : 'Worth watching',
+        }));
+    const exploreItems = [
+      ...(data?.screeners || []).slice(0, 2),
+      ...(data?.trendingLists || []).slice(0, 2),
+    ];
     return (
       <section className="stack-gap browse-rh-screen">
         <section className="browse-rh-search-shell">
@@ -1025,23 +1112,32 @@ export default function BrowseTab({
             {data ? (
               <>
                 <section className="browse-rh-section">
-                  <SectionHeader title={copy.featured} />
-                  <div className="browse-rh-market-row">
-                    {(data.futuresMarkets || []).map((item) => (
-                      <MarketCard
-                        key={`${item.market}-${item.symbol}`}
-                        item={item}
-                        locale={locale}
-                        onOpen={openItem}
-                      />
-                    ))}
-                  </div>
+                  <SectionHeader title={copy.focus} />
+                  <FocusHeroCard
+                    item={focusItem}
+                    locale={locale}
+                    onOpen={openItem}
+                    kicker={copy.featured}
+                    ctaLabel={copy.openFocus}
+                  />
+                  {marketPulseItems.length ? (
+                    <div className="browse-home-market-strip">
+                      {marketPulseItems.slice(0, 3).map((item) => (
+                        <MarketCard
+                          key={`${item.market}-${item.symbol}`}
+                          item={item}
+                          locale={locale}
+                          onOpen={openItem}
+                        />
+                      ))}
+                    </div>
+                  ) : null}
                 </section>
 
                 <section className="browse-rh-section">
                   <SectionHeader title={copy.topMovers} />
                   <div className="browse-rh-chip-grid">
-                    {moverItems.map((item) => (
+                    {moverItems.slice(0, 6).map((item) => (
                       <MoverChip
                         key={`move-${item.symbol}`}
                         item={item}
@@ -1052,17 +1148,14 @@ export default function BrowseTab({
                   </div>
                 </section>
 
-                {!isCryptoCategory ? (
+                {radarItems.length ? (
                   <section className="browse-rh-section">
-                    <SectionHeader title={copy.earnings} />
+                    <SectionHeader title={copy.radar} />
                     <div className="browse-rh-list">
-                      {(data.earnings || []).map((item) => (
-                        <EarningsRow key={`earn-${item.symbol}`} item={item} onOpen={openItem} />
-                      ))}
-                      {todaySignalSymbols.map((item, idx) => (
+                      {radarItems.map((item, idx) => (
                         <EarningsRow
-                          key={`signal-${item.symbol}-${idx}`}
-                          item={{ ...item, note: item.title, timing: 'Today signal' }}
+                          key={`radar-${item.symbol}-${idx}`}
+                          item={item}
                           onOpen={openItem}
                         />
                       ))}
@@ -1070,53 +1163,103 @@ export default function BrowseTab({
                   </section>
                 ) : null}
 
-                <button
-                  type="button"
-                  className="browse-rh-expand"
-                  onClick={() =>
-                    setActiveList({
-                      type: 'screeners',
-                      title: copy.screeners,
-                      lists: data.screeners || [],
-                    })
-                  }
-                >
-                  <span>{copy.showMore}</span>
-                  <ChevronDown />
-                </button>
-
                 <section className="browse-rh-section">
-                  <SectionHeader title={copy.screeners} action={copy.create} />
-                  <div className="browse-rh-list">
-                    {(data.screeners || []).slice(0, 3).map((item, index) => (
-                      <ScreenerRow key={item.id} item={item} index={index} onOpen={setActiveList} />
+                  <SectionHeader
+                    title={copy.ideas}
+                    action={copy.openAll}
+                    onAction={() =>
+                      openHomeList(
+                        (data?.screeners || []).length >= (data?.trendingLists || []).length
+                          ? 'screeners'
+                          : 'trending',
+                      )
+                    }
+                  />
+                  <div className="browse-home-explore-grid">
+                    {exploreItems.map((item, index) => (
+                      <ExploreCard
+                        key={item.id}
+                        item={item}
+                        index={index}
+                        onOpen={setActiveList}
+                        kicker={copy.explore}
+                      />
                     ))}
                   </div>
                 </section>
 
-                <button
-                  type="button"
-                  className="browse-rh-expand"
-                  onClick={() =>
-                    setActiveList({
-                      type: 'trending',
-                      title: copy.trending,
-                      lists: data.trendingLists || [],
-                    })
-                  }
-                >
-                  <span>{copy.showMore}</span>
-                  <ChevronDown />
-                </button>
+                {(data?.trendingLists || []).length ? (
+                  <section className="browse-rh-section">
+                    <SectionHeader
+                      title={copy.trending}
+                      action={copy.showMore}
+                      onAction={() => openHomeList('trending')}
+                    />
+                    <div className="browse-rh-trend-grid">
+                      {(data.trendingLists || []).slice(0, 4).map((item) => (
+                        <TrendChip key={item.id} item={item} onOpen={setActiveList} />
+                      ))}
+                    </div>
+                  </section>
+                ) : null}
 
-                <section className="browse-rh-section">
-                  <SectionHeader title={copy.trending} />
-                  <div className="browse-rh-trend-grid">
-                    {(data.trendingLists || []).map((item) => (
-                      <TrendChip key={item.id} item={item} onOpen={setActiveList} />
-                    ))}
-                  </div>
-                </section>
+                {(data?.screeners || []).length > 2 ? (
+                  <section className="browse-rh-section">
+                    <SectionHeader
+                      title={copy.screeners}
+                      action={copy.showMore}
+                      onAction={() => openHomeList('screeners')}
+                    />
+                    <div className="browse-rh-list">
+                      {(data.screeners || []).slice(2, 4).map((item, index) => (
+                        <ScreenerRow
+                          key={item.id}
+                          item={item}
+                          index={index + 2}
+                          onOpen={setActiveList}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                ) : null}
+
+                {(data?.trendingLists || []).length > 4 ? (
+                  <section className="browse-rh-section">
+                    <button
+                      type="button"
+                      className="browse-rh-expand"
+                      onClick={() =>
+                        setActiveList({
+                          type: 'trending',
+                          title: copy.trending,
+                          lists: data.trendingLists || [],
+                        })
+                      }
+                    >
+                      <span>{copy.showMore}</span>
+                      <ChevronDown />
+                    </button>
+                  </section>
+                ) : null}
+
+                {(data?.screeners || []).length > 4 ? (
+                  <section className="browse-rh-section">
+                    <button
+                      type="button"
+                      className="browse-rh-expand"
+                      onClick={() =>
+                        setActiveList({
+                          type: 'screeners',
+                          title: copy.screeners,
+                          lists: data.screeners || [],
+                        })
+                      }
+                    >
+                      <span>{copy.showMore}</span>
+                      <ChevronDown />
+                    </button>
+                  </section>
+                ) : null}
               </>
             ) : null}
           </>
