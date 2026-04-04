@@ -2125,23 +2125,47 @@ export default function MenuTab({
                 ? '最常用的入口放在最上面。先从支持、会员和预测游戏开始。'
                 : 'The clearest paths are up top. Start with support, membership, or Prediction Games.'}
             </p>
+            <div className="menu-root-hero-meta">
+              {rootPrimaryActions.map((item) => (
+                <span key={`hero-${item.key}`} className="menu-root-hero-meta-pill">
+                  <span className="menu-root-hero-meta-label">{item.kicker}</span>
+                  <span className="menu-root-hero-meta-value">{item.badge}</span>
+                </span>
+              ))}
+            </div>
           </div>
-          <button
-            type="button"
-            className="points-pill menu-root-points-pill"
-            onClick={() => onSectionChange('points')}
-          >
-            <span className="points-pill-balance">
-              {manualAvailable ? formatPoints(points.balance, locale) : copy.pointsHub}
-            </span>
-            <span className="points-pill-hint">
-              {manualAvailable
-                ? pointsHint(points, locale)
-                : locale?.startsWith('zh')
-                  ? '查看积分'
-                  : 'Open points'}
-            </span>
-          </button>
+          <div className="menu-root-hero-side">
+            <button
+              type="button"
+              className="points-pill menu-root-points-pill"
+              onClick={() => onSectionChange('points')}
+            >
+              <span className="points-pill-balance">
+                {manualAvailable ? formatPoints(points.balance, locale) : copy.pointsHub}
+              </span>
+              <span className="points-pill-hint">
+                {manualAvailable
+                  ? pointsHint(points, locale)
+                  : locale?.startsWith('zh')
+                    ? '查看积分'
+                    : 'Open points'}
+              </span>
+            </button>
+            <div className="menu-root-hero-orbit" aria-hidden="true">
+              <span className="menu-root-orbit-core" />
+              <span className="menu-root-orbit-ring menu-root-orbit-ring-a" />
+              <span className="menu-root-orbit-ring menu-root-orbit-ring-b" />
+              <span className="menu-root-orbit-chip menu-root-orbit-chip-a">
+                {isZh ? '支持' : 'Support'}
+              </span>
+              <span className="menu-root-orbit-chip menu-root-orbit-chip-b">
+                {activeMembershipPlan?.name || 'Free'}
+              </span>
+              <span className="menu-root-orbit-chip menu-root-orbit-chip-c">
+                {isZh ? '每日预测' : 'Daily picks'}
+              </span>
+            </div>
+          </div>
         </div>
 
         <div className="menu-root-section">
@@ -2150,7 +2174,7 @@ export default function MenuTab({
             <span>{username}</span>
           </div>
           <div className="menu-root-primary-grid">
-            {rootPrimaryActions.map((item) => (
+            {rootPrimaryActions.map((item, index) => (
               <button
                 key={item.key}
                 type="button"
@@ -2163,6 +2187,12 @@ export default function MenuTab({
                 </span>
                 <span className="menu-root-primary-title">{item.title}</span>
                 <span className="menu-root-primary-copy">{item.desc}</span>
+                <span className="menu-root-primary-footer">
+                  <span className="menu-root-primary-index">
+                    {String(index + 1).padStart(2, '0')}
+                  </span>
+                  <span className="menu-root-primary-arrow">{isZh ? '进入 ↗' : 'Open ↗'}</span>
+                </span>
               </button>
             ))}
           </div>

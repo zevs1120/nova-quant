@@ -68,6 +68,16 @@ function percentText(value, locale) {
   return `${sign}${formatNumber(value * 100, 2, locale)}%`;
 }
 
+function compactMetricText(value, locale) {
+  if (!Number.isFinite(value)) return '--';
+  const abs = Math.abs(value);
+  if (abs >= 1_000_000_000) return `${formatNumber(value / 1_000_000_000, 2, locale)}B`;
+  if (abs >= 1_000_000) return `${formatNumber(value / 1_000_000, 2, locale)}M`;
+  if (abs >= 1_000) return `${formatNumber(value / 1_000, 1, locale)}K`;
+  if (abs >= 100) return formatNumber(value, 0, locale);
+  return formatNumber(value, 2, locale);
+}
+
 function formatAsOf(value, locale) {
   if (!value) return '--';
   const date = new Date(value);
@@ -132,6 +142,45 @@ function toneClass(value) {
   if (value > 0) return 'positive';
   if (value < 0) return 'negative';
   return 'neutral';
+}
+
+function newsToneCopy(value, isZh) {
+  switch (String(value || '').toUpperCase()) {
+    case 'POSITIVE':
+      return isZh ? '偏正向' : 'Positive';
+    case 'NEGATIVE':
+      return isZh ? '偏谨慎' : 'Negative';
+    case 'MIXED':
+      return isZh ? '分化' : 'Mixed';
+    case 'NEUTRAL':
+      return isZh ? '中性' : 'Neutral';
+    default:
+      return isZh ? '暂无' : 'Quiet';
+  }
+}
+
+function pulseSummary(value, isZh) {
+  if (!Number.isFinite(value))
+    return isZh ? '等待新报价刷新。' : 'Waiting for the next live refresh.';
+  if (value >= 0.03)
+    return isZh
+      ? '动能明显偏强，适合继续跟踪成交与新闻催化。'
+      : 'Momentum is strong and worth pairing with flow and news catalysts.';
+  if (value > 0)
+    return isZh
+      ? '价格仍在上沿，先盯回踩是否被承接。'
+      : 'Price is still leaning higher; watch whether pullbacks get bought.';
+  if (value <= -0.03)
+    return isZh
+      ? '波动偏大，先看是否进入事件驱动区间。'
+      : 'Volatility is elevated; check whether this is sliding into event-driven territory.';
+  if (value < 0)
+    return isZh
+      ? '价格回落中，优先确认是否跌破关键支撑。'
+      : 'Price is fading; confirm whether key support starts to give way.';
+  return isZh
+    ? '价格暂时横摆，更适合结合新闻与相关资产一起看。'
+    : 'Price is mostly flat, so use news and proxy assets for context.';
 }
 
 function chartPath(values, width = 228, height = 74) {
@@ -487,6 +536,42 @@ function DetailStat({ label, value, note }) {
   );
 }
 
+function DetailStoryCard({ eyebrow, title, value, body, tone = 'neutral' }) {
+  return (
+    <article className={`browse-rh-detail-story-card ${tone}`.trim()}>
+      <p className="browse-rh-detail-story-eyebrow">{eyebrow}</p>
+      <div className="browse-rh-detail-story-head">
+        <h3 className="browse-rh-detail-story-title">{title}</h3>
+        {value ? <p className="browse-rh-detail-story-value">{value}</p> : null}
+      </div>
+      {body ? <p className="browse-rh-detail-story-body">{body}</p> : null}
+    </article>
+  );
+}
+
+function DetailLineCard({ label, value, note }) {
+  return (
+    <article className="browse-rh-detail-line-card">
+      <p className="browse-rh-detail-line-label">{label}</p>
+      <p className="browse-rh-detail-line-value">{value}</p>
+      {note ? <p className="browse-rh-detail-line-note">{note}</p> : null}
+    </article>
+  );
+}
+
+function DetailProxyChip({ symbol, caption, onOpen }) {
+  return (
+    <button
+      type="button"
+      className="browse-rh-detail-proxy-chip"
+      onClick={() => onOpen({ symbol, market: 'US', name: symbol, title: symbol })}
+    >
+      <span className="browse-rh-detail-proxy-symbol">{symbol}</span>
+      <span className="browse-rh-detail-proxy-caption">{caption}</span>
+    </button>
+  );
+}
+
 function buildSelection(item) {
   if (!item) return null;
   return {
@@ -555,6 +640,20 @@ export default function BrowseTab({
       readStory: isZh ? '阅读原文' : 'Read story',
       addWatch: isZh ? '加入观察列表' : 'Add to watchlist',
       removeWatch: isZh ? '移出观察列表' : 'Remove from watchlist',
+      quickStats: isZh ? '关键数据' : 'Quick stats',
+      marketStory: isZh ? '研究摘要' : 'Research deck',
+      pricePulse: isZh ? '价格脉冲' : 'Price pulse',
+      tradingProfile: isZh ? '交易画像' : 'Trading profile',
+      eventWatch: isZh ? '事件观察' : 'Event watch',
+      newsPulse: isZh ? '新闻脉冲' : 'News pulse',
+      previousClose: isZh ? '昨收' : 'Prev close',
+      lookbackRange: isZh ? '回看区间' : 'Lookback range',
+      avgVolume: isZh ? '30日均量' : '30D avg volume',
+      latestVolume: isZh ? '最新成交量' : 'Latest volume',
+      coverage: isZh ? '覆盖样本' : 'Coverage',
+      schedule: isZh ? '交易时段' : 'Schedule',
+      proxyLabel: isZh ? '联动代理' : 'Proxy',
+      headlines: isZh ? '条头条' : 'headlines',
       latest: isZh ? '最新价' : 'Last',
       change: isZh ? '涨跌幅' : 'Change',
       range: isZh ? '区间' : 'Range',
@@ -1297,16 +1396,127 @@ export default function BrowseTab({
 
   function renderDetail() {
     const watched = watchedSymbols.includes(normalizeSymbol(selectedAsset?.symbol));
+    const tradingStats = detailOverview?.tradingStats || null;
+    const resolvedChange = Number.isFinite(detailState.change)
+      ? detailState.change
+      : toNumber(tradingStats?.changePct);
+    const resolvedLatest = Number.isFinite(detailState.latest)
+      ? detailState.latest
+      : toNumber(tradingStats?.latestClose);
+    const resolvedPreviousClose = toNumber(tradingStats?.previousClose);
+    const resolvedLow = Number.isFinite(detailState.low)
+      ? detailState.low
+      : toNumber(tradingStats?.rangeLow);
+    const resolvedHigh = Number.isFinite(detailState.high)
+      ? detailState.high
+      : toNumber(tradingStats?.rangeHigh);
+    const newsContext = detailOverview?.newsContext || null;
+    const heroBadges = [
+      detailOverview?.assetType,
+      detailOverview?.profile?.tradingVenue,
+      detailOverview?.profile?.quoteCurrency,
+    ].filter(Boolean);
+    const quickStats = [
+      {
+        label: copy.latest,
+        value: compactPrice(resolvedLatest, locale),
+        note: detailRange,
+      },
+      {
+        label: copy.change,
+        value: percentText(resolvedChange, locale),
+        note:
+          resolvedPreviousClose !== null
+            ? `${copy.previousClose} ${compactPrice(resolvedPreviousClose, locale)}`
+            : undefined,
+      },
+      {
+        label: copy.lookbackRange,
+        value:
+          Number.isFinite(resolvedLow) && Number.isFinite(resolvedHigh)
+            ? `${compactPrice(resolvedLow, locale)} - ${compactPrice(resolvedHigh, locale)}`
+            : '--',
+        note: detailRange === '1D' ? copy.range : undefined,
+      },
+      {
+        label: copy.avgVolume,
+        value: compactMetricText(toNumber(tradingStats?.avgVolume30d), locale),
+        note: copy.avgVolume,
+      },
+      {
+        label: copy.latestVolume,
+        value: compactMetricText(toNumber(tradingStats?.latestVolume), locale),
+        note: copy.latestVolume,
+      },
+      {
+        label: copy.coverage,
+        value: Number.isFinite(tradingStats?.barsAvailable)
+          ? formatNumber(tradingStats.barsAvailable, 0, locale)
+          : '--',
+        note: copy.points,
+      },
+    ];
+    const insightCards = [
+      {
+        eyebrow: copy.pricePulse,
+        title: compactPrice(resolvedLatest, locale),
+        value: percentText(resolvedChange, locale),
+        body: pulseSummary(resolvedChange, isZh),
+        tone: toneClass(resolvedChange),
+      },
+      {
+        eyebrow: copy.tradingProfile,
+        title: detailOverview?.assetType || selectedAsset.market,
+        value: detailOverview?.profile?.tradingVenue || '--',
+        body: detailOverview?.profile?.tradingSchedule || '--',
+        tone: 'neutral',
+      },
+      {
+        eyebrow: copy.eventWatch,
+        title: detailOverview?.earnings?.status || '--',
+        value: null,
+        body: detailOverview?.earnings?.note || '--',
+        tone: 'neutral',
+      },
+      {
+        eyebrow: copy.newsPulse,
+        title: newsToneCopy(newsContext?.tone, isZh),
+        value:
+          Number.isFinite(newsContext?.headline_count) && newsContext?.headline_count > 0
+            ? `${formatNumber(newsContext.headline_count, 0, locale)} ${copy.headlines}`
+            : null,
+        body:
+          newsContext?.top_headlines?.[0] ||
+          (isZh ? '还没有拿到可用新闻摘要。' : 'No usable headline summary yet.'),
+        tone:
+          String(newsContext?.tone || '').toUpperCase() === 'NEGATIVE'
+            ? 'negative'
+            : String(newsContext?.tone || '').toUpperCase() === 'POSITIVE'
+              ? 'positive'
+              : 'neutral',
+      },
+    ];
+
     return (
       <section className="stack-gap browse-rh-screen browse-rh-detail-screen">
         <section className="browse-rh-detail-hero">
           <div className="browse-rh-detail-head">
             <div>
+              <div className="browse-rh-detail-badge-row">
+                {heroBadges.map((item) => (
+                  <span key={item} className="browse-rh-detail-badge">
+                    {item}
+                  </span>
+                ))}
+              </div>
               <p className="browse-rh-detail-kicker">{selectedAsset.market}</p>
               <h1 className="browse-rh-detail-symbol">
                 {displaySymbol(selectedAsset.symbol, selectedAsset.market)}
               </h1>
               <p className="browse-rh-detail-name">{detailOverview?.name || selectedAsset.name}</p>
+              <p className="browse-rh-detail-subcopy">
+                {detailOverview?.profile?.tradingSchedule || `${copy.schedule}: --`}
+              </p>
             </div>
             <button
               type="button"
@@ -1339,25 +1549,38 @@ export default function BrowseTab({
               <>
                 <div className="browse-rh-detail-quote">
                   <div>
-                    <p className="browse-rh-detail-price">
-                      {compactPrice(detailState.latest, locale)}
-                    </p>
-                    <p className={`browse-rh-detail-change ${toneClass(detailState.change)}`}>
-                      {percentText(detailState.change, locale)}
+                    <div className="browse-rh-detail-price-row">
+                      <p className="browse-rh-detail-price">
+                        {compactPrice(resolvedLatest, locale)}
+                      </p>
+                      <p className={`browse-rh-detail-change ${toneClass(resolvedChange)}`}>
+                        {percentText(resolvedChange, locale)}
+                      </p>
+                    </div>
+                    <p className="browse-rh-detail-price-note">
+                      {resolvedPreviousClose !== null
+                        ? `${copy.previousClose}: ${compactPrice(resolvedPreviousClose, locale)}`
+                        : `${copy.previousClose}: --`}
                     </p>
                   </div>
-                  <div className="browse-rh-detail-meta">
-                    <span>
+                  <div className="browse-rh-detail-meta-chip-row">
+                    <span className="browse-rh-detail-meta-chip">
                       {copy.source}: {detailState.source || '--'}
                     </span>
-                    <span>
+                    <span className="browse-rh-detail-meta-chip">
                       {copy.updated}: {formatAsOf(detailState.asOf, locale)}
+                    </span>
+                    <span className="browse-rh-detail-meta-chip">
+                      {copy.coverage}:{' '}
+                      {Number.isFinite(tradingStats?.barsAvailable)
+                        ? formatNumber(tradingStats.barsAvailable, 0, locale)
+                        : '--'}
                     </span>
                   </div>
                 </div>
                 <MiniChart
                   values={detailState.values}
-                  tone={toneClass(detailState.change)}
+                  tone={toneClass(resolvedChange)}
                   width={320}
                   height={146}
                   className="browse-rh-detail-chart"
@@ -1368,23 +1591,27 @@ export default function BrowseTab({
         </section>
 
         <section className="browse-rh-section">
+          <SectionHeader title={copy.marketStory} />
+          <div className="browse-rh-detail-story-grid">
+            {insightCards.map((item) => (
+              <DetailStoryCard
+                key={item.eyebrow}
+                eyebrow={item.eyebrow}
+                title={item.title}
+                value={item.value}
+                body={item.body}
+                tone={item.tone}
+              />
+            ))}
+          </div>
+        </section>
+
+        <section className="browse-rh-section">
+          <SectionHeader title={copy.quickStats} />
           <div className="browse-rh-detail-grid">
-            <DetailStat label={copy.latest} value={compactPrice(detailState.latest, locale)} />
-            <DetailStat label={copy.change} value={percentText(detailState.change, locale)} />
-            <DetailStat
-              label={copy.range}
-              value={
-                Number.isFinite(detailState.low) && Number.isFinite(detailState.high)
-                  ? `${compactPrice(detailState.low, locale)} - ${compactPrice(detailState.high, locale)}`
-                  : '--'
-              }
-            />
-            <DetailStat label={copy.points} value={String(detailState.values.length || '--')} />
-            <DetailStat label={copy.venue} value={detailOverview?.profile?.tradingVenue || '--'} />
-            <DetailStat
-              label={copy.currency}
-              value={detailOverview?.profile?.quoteCurrency || '--'}
-            />
+            {quickStats.map((item) => (
+              <DetailStat key={item.label} label={item.label} value={item.value} note={item.note} />
+            ))}
           </div>
         </section>
 
@@ -1392,9 +1619,9 @@ export default function BrowseTab({
           <>
             <section className="browse-rh-section">
               <SectionHeader title={copy.fundamentals} />
-              <div className="browse-rh-detail-grid">
+              <div className="browse-rh-detail-line-grid">
                 {(detailOverview.fundamentals || []).map((item) => (
-                  <DetailStat
+                  <DetailLineCard
                     key={`${item.label}-${item.value}`}
                     label={item.label}
                     value={item.value || '--'}
@@ -1404,32 +1631,36 @@ export default function BrowseTab({
               </div>
             </section>
 
-            <section className="browse-rh-section">
-              <SectionHeader title={copy.relatedEtfs} />
-              <div className="browse-rh-chip-grid">
-                {(detailOverview.relatedEtfs || []).map((item) => (
-                  <MoverChip
-                    key={`etf-${item}`}
-                    item={{ symbol: item, market: 'US', change: null }}
-                    locale={locale}
-                    onOpen={openItem}
-                  />
-                ))}
-              </div>
-            </section>
+            {(detailOverview.relatedEtfs || []).length ? (
+              <section className="browse-rh-section">
+                <SectionHeader title={copy.relatedEtfs} />
+                <div className="browse-rh-detail-proxy-row">
+                  {(detailOverview.relatedEtfs || []).map((item) => (
+                    <DetailProxyChip
+                      key={`etf-${item}`}
+                      symbol={item}
+                      caption={copy.proxyLabel}
+                      onOpen={openItem}
+                    />
+                  ))}
+                </div>
+              </section>
+            ) : null}
 
-            <section className="browse-rh-section">
-              <SectionHeader title={copy.derivatives} />
-              <div className="browse-rh-detail-grid">
-                {(detailOverview.optionEntries || []).map((item) => (
-                  <DetailStat
-                    key={`${item.label}-${item.description}`}
-                    label={item.label}
-                    value={item.description}
-                  />
-                ))}
-              </div>
-            </section>
+            {(detailOverview.optionEntries || []).length ? (
+              <section className="browse-rh-section">
+                <SectionHeader title={copy.derivatives} />
+                <div className="browse-rh-detail-line-grid">
+                  {(detailOverview.optionEntries || []).map((item) => (
+                    <DetailLineCard
+                      key={`${item.label}-${item.description}`}
+                      label={item.label}
+                      value={item.description}
+                    />
+                  ))}
+                </div>
+              </section>
+            ) : null}
           </>
         ) : null}
 
