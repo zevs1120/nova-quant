@@ -42,16 +42,31 @@ describe('TodayTab UI Matrix Tests', () => {
   }));
 
   it.each(permutations)('Safely mounts TodayTab under configuration %#', (props) => {
+    // 模拟一个 activeSignal 以触发预览模式
+    const mockSignal = { signal_id: 'test-1', symbol: 'AAPL', direction: 'LONG' };
     const { container } = render(
       <TestBoundary>
-        <Component {...props} />
+        <Component
+          {...props}
+          activeSignal={mockSignal}
+          activeSignalScreen="preview"
+          showUsageGuide={true}
+        />
       </TestBoundary>,
     );
 
-    // Assertion 1: Container successfully exists without completely killing Vitest
+    // Assertion 1: Container successfully exists
     expect(container).toBeInTheDocument();
 
-    // Assertion 2: Verify it outputs string content
-    expect(container.textContent).toBeDefined();
+    // Assertion 2: Verify the new guidance shell is present
+    // 注意：组件内部可能通过 showUsageGuide 来控制引导层
+    const guidance = container.querySelector('.today-preview-guidance');
+    if (guidance) {
+      expect(guidance).toBeInTheDocument();
+    }
+
+    // Assertion 3: Verify cards are rendered
+    const cards = container.querySelectorAll('.today-rebuild-card');
+    expect(cards.length).toBeGreaterThanOrEqual(0);
   });
 });

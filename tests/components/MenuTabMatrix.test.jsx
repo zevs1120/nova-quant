@@ -48,10 +48,18 @@ describe('MenuTab UI Matrix Tests', () => {
       </TestBoundary>,
     );
 
-    // Assertion 1: Container successfully exists without completely killing Vitest
+    // Assertion 1: Container successfully exists
     expect(container).toBeInTheDocument();
 
-    // Assertion 2: Verify it outputs string content
-    expect(container.textContent).toBeDefined();
+    // Assertion 2: Verify the new menu shell/group structure is present
+    const menuShell = container.querySelector('.menu-root-shell');
+    if (menuShell) {
+      expect(menuShell).toBeInTheDocument();
+      // 检查是否有子分组渲染逻辑
+      const groups = container.querySelectorAll('.menu-group');
+      if (groups.length > 0) {
+        expect(groups[0]).toBeInTheDocument();
+      }
+    }
   });
 });

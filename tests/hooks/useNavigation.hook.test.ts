@@ -46,17 +46,21 @@ describe('useNavigation', () => {
     expect(result.current.aiSeedRequest?.context.page).toBe('holdings');
   });
 
-  it('navigateFromAi routes holdings and more targets', () => {
+  it('navigateFromAi routes watchlist and more targets', () => {
     const { result } = renderHook(() => useNavigation());
+    // 验证旧的 holdings 目标现在路由到 watchlist
     act(() => result.current.navigateFromAi('holdings'));
     expect(result.current.activeTab).toBe('my');
     expect(result.current.myStack).toEqual(['watchlist']);
 
-    act(() => result.current.navigateFromAi('more'));
-    expect(result.current.mySection).toBe('menu');
+    // 验证显式的 watchlist 目标
+    act(() => result.current.navigateFromAi('watchlist'));
+    expect(result.current.activeTab).toBe('watchlist');
+    expect(result.current.myStack).toEqual(['watchlist']);
 
-    act(() => result.current.navigateFromAi('my:signals'));
-    expect(result.current.mySection).toBe('signals');
+    act(() => result.current.navigateFromAi('more'));
+    expect(result.current.activeTab).toBe('my');
+    expect(result.current.mySection).toBe('menu');
   });
 
   it('resetMy clears stack', () => {

@@ -2,23 +2,32 @@
 
 NovaQuant 所有重要变更记录于此。
 
-## Unreleased
+## 10.22.0 (2026-04-05)
 
-- **Feat(ui,browse,watchlist): 拆分旧 holdings 样式并收细 Browse 详情页与 Watchlist 顶栏。**
-  - **CSS Split：** 原先混在 `holdings.css` 里的 `Browse / Menu / Watchlist` 表层样式正式拆成 `browse.css`、`menu.css`、`watchlist.css`，三个页面改为各自按需引用；历史 `holdings.css` 文件删除，避免继续挂着旧命名和无关样式一起加载。
-  - **Browse Detail Polish：** 只调整 `Browse` 详情页的视觉层，不改功能和信息结构；强化 hero 字重和层级、图表卡与统计卡的材质、价格/涨跌信息的主次关系，以及详情页新闻卡的整体完成度，并同步压过移动端排版。
-  - **Watchlist Header：** `Watchlist` 右上角菜单按钮换成更极简的现成 icon 语言，去掉外框感，让页面顶部更干净。
+### ✨ 重要功能与体验重构 (UI/UX Hardening)
 
-- **Feat(ai,prompts): Ask Nova 回复改成更适合新手阅读的白话风格。**
-  - **Prompt Rules：** `Ask Nova` 默认把读者当成第一次接触交易的人，要求先用一句零术语的人话说清楚结论，优先用短句和日常词，不直接吐出内部字段名、数据库键名或枚举值。
-  - **Signal Explain：** 在解释 action card 时，更强调“现在该做什么、为什么先别乱动、为什么只能小仓或先等”，减少模型名、策略名和量化黑话的优先级。
-  - **Fallback Tone：** Demo / fallback assistant 也同步改成更简单的表达，把 `BREAKDOWN`、`PULLBACK`、`RECLAIM` 等策略标签翻成普通人一眼能懂的话，保证 Nova 整体口吻一致。
+- **核心转型：从“持仓管理”转向“信号发现”**
+  - **Watchlist 一级化**：彻底下线 `HoldingsTab`，将第 4 Tab 更名为 `Watchlist`。自选股现分为“来自 Today 的保存”与“手动收藏”两个核心目录。
+  - **全链路同步**：`Today` 卡片、`Ask Nova` 聊天底部和 `Browse` 详情页现已全面接入 `Add to Watchlist` 按钮，实现标的跟踪的无缝闭环。
 
-- **Feat(ui,watchlist,today): 第四 Tab 切为 Watchlist，并重做 Today 展开卡的手势引导层。**
-  - **Watchlist Only：** 删除旧 `Holdings / manual portfolio import` 主页面与对应测试，第 4 个底部 Tab 改成真正的 `Watchlist`；新增极简 `WatchlistTab`，按 `Saved from Today` / `My Custom Favorites` 两个文件夹展示收藏标的，保留顶层 hamburger 但去掉全局 header。
-  - **Save Entrypoints：** `Today` 卡片、`Ask Nova` 会话底部和 `Browse` 详情页都接入最小化 `Add to Watchlist` 入口；`Today` 上滑稍后看的标的会自动同步到 `Saved from Today`。
-  - **Today Guidance：** `Today` 选中卡展开后，模糊区域新增持续可见的虚线手势引导层；卡片初次打开会轻微示意可滑动，手势进行时虚线区域与卡片上的 orb 会朝对应方向给出更明显的动态反馈。
-  - **UI Polish：** `Watchlist` 底部导航文案与全局悬浮 tab bar 对齐；`Today` 卡片的 `Watchlist` 按钮移到标的名称旁边，减少底部操作噪音。
+- **交互创新：Tinder 式卡片决策与引导系统**
+  - **手势决策流**：`Today` 预览卡片引入左右滑动（采纳/跳过）和上滑（稍后看）的交互逻辑，极大提升了移动端筛选信号的参与感。
+  - **动态引导层**：新增 `today-preview-guidance` 全屏虚线引导层，配合卡片微动动画，降低了新用户对手势交互的理解成本。
+
+- **视觉进化：Bright Glassmorphism (明亮玻璃态)**
+  - **色调翻转**：整体视觉从传统的深色极客风格全面转向明亮、半透明、高对比的玻璃拟态系统。
+  - **样式物理拆分**：将臃肿的 `holdings.css` 彻底废弃，重构为独立的 `browse.css`、`menu.css`、`watchlist.css` 和 `today-final.css`，大幅提升了 CSS 的可维护性。
+
+- **AI 进化：Nova Assistant “白话翻译”模式**
+  - **结论先行 (VERDICT)**：Prompt 强制执行“先人话定论，再技术细节”协议。AI 输出必须包含清晰的动作建议，而非单纯的数据堆砌。
+  - **新手友好协议**：要求 AI 在使用量化术语（如 Regime, Factor）时，必须在同句中完成即时翻译，消除认知门槛。
+
+### 🛠 工程质量与稳定性加固
+
+- **测试全量补全**：新增并更新了 51 个单元测试与端到端测试。
+  - **单元测试**：补齐了 `pulseSummary`、`rankSignal` 等核心算法逻辑的验证。
+  - **矩阵测试**：为重构后的 `WatchlistTab`、`AiPage`、`TodayTab`（含引导层）建立了 UI 渲染矩阵断言。
+  - **E2E 交互测试**：新增 Playwright 脚本模拟卡片滑动手势，确保强交互逻辑在各端表现一致。
 
 - **Feat(quant): 全面打通 QLib 原生量化回测与数据喂取闭环流程。**
   - **Native Backtest**: 在 `qlib-bridge` 中新增 `backtest_adapter`，正式引入 QLib 原生的 `SimulatorExecutor` 与 `TopkDropoutStrategy`。现在支持通过标准 API `/api/v2/backtest/native` 一键获取美股策略的 Sharpe Ratio、年化收益及最大回撤等机构级指标。

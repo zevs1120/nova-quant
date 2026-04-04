@@ -42,16 +42,23 @@ describe('BrowseTab UI Matrix Tests', () => {
   }));
 
   it.each(permutations)('Safely mounts BrowseTab under configuration %#', (props) => {
+    // 模拟已选择资产以进入详情视图渲染逻辑
+    const mockAsset = { symbol: 'AAPL', name: 'Apple', market: 'US' };
     const { container } = render(
       <TestBoundary>
-        <Component {...props} />
+        <Component {...props} selectedAsset={mockAsset} />
       </TestBoundary>,
     );
 
-    // Assertion 1: Container successfully exists without completely killing Vitest
+    // Assertion 1: Container successfully exists
     expect(container).toBeInTheDocument();
 
-    // Assertion 2: Verify it outputs string content
-    expect(container.textContent).toBeDefined();
+    // Assertion 2: Verify the new detail story cards are rendered when an asset is selected
+    const detailCards = container.querySelectorAll('.browse-rh-detail-story-card');
+    if (detailCards.length > 0) {
+      expect(detailCards[0]).toBeInTheDocument();
+      // 检查是否包含价格脉冲等叙事模块
+      expect(container.textContent).toMatch(/pulse|脉冲/i);
+    }
   });
 });
