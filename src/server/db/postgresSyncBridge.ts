@@ -35,7 +35,19 @@ type WorkerFailure = {
 
 type WorkerResponse = WorkerSuccess | WorkerFailure;
 
-const WAIT_BUFFER = new Int32Array(new SharedArrayBuffer(4));
+let waitBufferSingleton: Int32Array | null = null;
+function getWaitBuffer() {
+  if (waitBufferSingleton) return waitBufferSingleton;
+  try {
+    waitBufferSingleton = new Int32Array(new SharedArrayBuffer(4));
+    return waitBufferSingleton;
+  } catch (error) {
+    console.error('[postgres-sync-bridge] Failed to initialize SharedArrayBuffer:', error);
+    // Fallback to a regular array if SAB is not available, though sync waiting will fail
+    return new Int32Array(new ArrayBuffer(4));
+  }
+}
+
 const DEFAULT_TIMEOUT_MS = Math.max(
   2_000,
   Number(process.env.NOVA_DATA_PG_SYNC_TIMEOUT_MS || 20_000),
@@ -122,7 +134,7 @@ function waitForResponse(id: number, timeoutMs: number): WorkerResponse {
       | WorkerResponse
       | undefined;
     if (!message) {
-      Atomics.wait(WAIT_BUFFER, 0, 0, 10);
+      Atomics.wait(getWaitBuffer(), 0, 0, 10);
       continue;
     }
     if (message.id === id) return message;

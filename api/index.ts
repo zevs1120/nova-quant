@@ -551,11 +551,22 @@ async function handlePublicBrowseRoute(req: VercelRequest, res: VercelResponse, 
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const path = resolveApiPath(req);
-  if (await handlePublicBrowseRoute(req, res, path)) {
-    return;
+  try {
+    const path = resolveApiPath(req);
+    if (await handlePublicBrowseRoute(req, res, path)) {
+      return;
+    }
+    req.url = buildForwardUrl(req, path);
+    const app = await getCachedApiApp();
+    return app(req as any, res as any);
+  } catch (error) {
+    console.error('[api-entry] Global handler error:', error);
+    if (!res.headersSent) {
+      res.status(500).json({
+        error: 'INTERNAL_SERVER_ERROR',
+        message: error instanceof Error ? error.message : String(error),
+        path: req.url,
+      });
+    }
   }
-  req.url = buildForwardUrl(req, path);
-  const app = await getCachedApiApp();
-  return app(req as any, res as any);
 }

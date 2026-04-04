@@ -2,6 +2,14 @@
 
 NovaQuant 所有重要变更记录于此。
 
+## 10.22.1 (2026-04-04)
+
+### 🚀 基础设施与稳定性加固 (Infrastructure & Stability)
+
+- **Vercel Serverless 环境静默崩溃修复**
+  - **同步桥接懒加载**：重构了 `postgresSyncBridge.ts`，将 `SharedArrayBuffer` 的初始化改为懒加载模式。解决了在某些不支持 SAB 的 Serverless 节点上，模块加载阶段直接抛出 `ReferenceError` 导致 API 全线静默 500 的问题。
+  - **API 入口容错增强**：在 `api/index.ts` 顶层增加了全局 `try-catch` 捕获。现在当后端初始化失败时，会向浏览器返回具体的错误 JSON 信息并记录到 Vercel Runtime Logs，彻底终结了“有报错无日志”的调试困境。
+
 ## 10.22.0 (2026-04-05)
 
 ### 🚀 基础设施与依赖硬化 (Infrastructure & Deps Hardening)
@@ -1646,6 +1654,12 @@ NovaQuant 所有重要变更记录于此。
 - Updated release metadata, build number, About runtime source, and changelog entry.
 
 ## 10.21.1 (2026-04-01)
+
+- Release type: patch
+- Automated version bump via version-manager.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
+## 10.22.1 (2026-04-04)
 
 - Release type: patch
 - Automated version bump via version-manager.
