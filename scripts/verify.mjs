@@ -11,7 +11,7 @@ const steps = [
   [['test'], {}],
   [['run', 'build'], {}],
   [['run', 'build:landing'], {}],
-  [['run', 'build'], { cwd: 'admin' }],
+  [['run', 'build:admin'], {}],
 ];
 
 for (const [args, opts] of steps) {

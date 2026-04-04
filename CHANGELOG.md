@@ -8,7 +8,8 @@ NovaQuant 所有重要变更记录于此。
 
 - **Vite 8.0 & Vitest 4.1 全量升级**
   - **核心引擎升级**：从 Vite 5 跨代升级至 Vite 8 (Rolldown 核心)，显著提升了生产环境的构建并行度与冷启动响应速度。
-  - **测试套件升级**：同步升级 Vitest 与 @vitest/coverage-v8 至 4.1.2，解决了 GitHub Actions 中的 ERESOLVE 依赖冲突，修复了 CI 运行失败。
+  - **测试套件升级**：同步升级 Vitest 与 @vitest/coverage-v8 至 4.1.2，解决了 GitHub Actions 中的 ERESOLVE 依赖冲突。
+  - **CI 链路硬化**：修复了 `landing` 目录 `package-lock.json` 与 `package.json` 不一致导致的 `npm ci` 失败；更新了 CI 流程以包含 `admin` 模块的依赖安装与构建验证；并在根目录新增 `build:admin` 脚本。
   - **依赖全量同步**：完成了 `app`, `admin`, `landing` 三个子项目的依赖对齐，确保全量模块运行在同一技术底座。
 
 - **多包架构 (Monorepo) 兼容性优化**

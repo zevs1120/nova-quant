@@ -8,6 +8,7 @@
     "dev:web": "vite",
     "build": "vite build",
     "build:landing": "npm run build --prefix landing",
+    "build:admin": "npm run build --prefix admin",
     "preview": "vite preview",
     "clean": "node --no-webstorage scripts/clean-worktree.mjs",
     "lint": "node --no-webstorage scripts/check-repo-policy.mjs",
