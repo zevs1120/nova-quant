@@ -136,11 +136,12 @@ export function getSupabaseBrowserClient() {
   const clientKey = `${resolveSupabaseBrowserUrl()}::${resolveSupabaseBrowserAnonKey()}`;
   if (browserClient && browserClientKey === clientKey) return browserClient;
   browserClientKey = clientKey;
+  const isServer = typeof window === 'undefined';
   browserClient = createClient(resolveSupabaseBrowserUrl(), resolveSupabaseBrowserAnonKey(), {
     auth: {
-      autoRefreshToken: true,
-      persistSession: true,
-      detectSessionInUrl: true,
+      autoRefreshToken: !isServer,
+      persistSession: !isServer,
+      detectSessionInUrl: !isServer,
     },
   });
   return browserClient;
