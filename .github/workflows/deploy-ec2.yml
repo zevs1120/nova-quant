@@ -69,6 +69,13 @@ jobs:
               echo "  ⚠ No changes detected, deploying anyway."
             fi
 
+            # ── Upgrade Node.js ──
+            echo ""
+            echo "▸ Upgrading Node.js to v25..."
+            curl -fsSL https://deb.nodesource.com/setup_25.x | sudo -E bash -
+            sudo apt-get install -y nodejs
+            node -v
+
             # ── Install dependencies ──
             echo ""
             echo "▸ Installing dependencies..."

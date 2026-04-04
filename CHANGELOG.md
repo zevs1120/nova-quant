@@ -17,7 +17,7 @@ NovaQuant 所有重要变更记录于此。
   - **构建策略适配**：移除了 Vite 5 时代的静态 `manualChunks` 对象配置，适配 Rolldown 的新型分包算法，消除了构建时的 esbuild 不兼容警告。
 
 - **现代环境适配**
-  - **Node.js 25+ 兼容性修复**：同步升级 CI 环境至 Node.js 25 以支持 `--no-webstorage` 运行标志；针对原生 `localStorage` 导致的路径警告实施了全局抑制方案。通过在 `.env` 中设置 `NODE_OPTIONS="--no-webstorage"`、动态调整 Supabase 客户端逻辑、**硬化 `package.json` 脚本命令**以及**在 Vitest Setup 中彻底 Mock 全局存储对象**，确保了后端与 CI/CD 环境下的日志纯净度。
+  - **Node.js 25+ 兼容性修复**：同步升级 CI 与 **EC2 部署环境**至 Node.js 25 以支持 `--no-webstorage` 运行标志；针对原生 `localStorage` 导致的路径警告实施了全局抑制方案。通过在 `.env` 中设置 `NODE_OPTIONS="--no-webstorage"`、动态调整 Supabase 客户端逻辑、**硬化 `package.json` 脚本命令**以及**在 Vitest Setup 中彻底 Mock 全局存储对象**，确保了后端与 CI/CD 环境下的日志纯净度。
 
 ### ✨ 重要功能与体验重构 (UI/UX Hardening)
 
