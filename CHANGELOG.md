@@ -4,6 +4,20 @@ NovaQuant 所有重要变更记录于此。
 
 ## 10.22.0 (2026-04-05)
 
+### 🚀 基础设施与依赖硬化 (Infrastructure & Deps Hardening)
+
+- **Vite 8.0 & Vitest 4.1 全量升级**
+  - **核心引擎升级**：从 Vite 5 跨代升级至 Vite 8 (Rolldown 核心)，显著提升了生产环境的构建并行度与冷启动响应速度。
+  - **测试套件升级**：同步升级 Vitest 至 4.1.2，解决了 esbuild 弃用警告并增强了对现代 ESM 模块的解析支持。
+  - **依赖全量同步**：完成了 `app`, `admin`, `landing` 三个子项目的依赖对齐，确保全量模块运行在同一技术底座。
+
+- **多包架构 (Monorepo) 兼容性优化**
+  - **React 单例保障**：在全量 `vite.config.js` 中引入 `resolve.dedupe: ['react', 'react-dom']` 与硬路径 Alias。彻底根治了 Landing Page 与主应用共享组件时因双重 React 实例导致的 "Invalid hook call" 顽疾。
+  - **构建策略适配**：移除了 Vite 5 时代的静态 `manualChunks` 对象配置，适配 Rolldown 的新型分包算法，消除了构建时的 esbuild 不兼容警告。
+
+- **现代环境适配**
+  - **Node.js 25+ 兼容性调研**：针对 Node.js 现代版本中 `happy-dom` 触发的 `localStorage` 路径警告进行了深度排查，确认为上游依赖已知 Issue 并实施了健壮性验证。
+
 ### ✨ 重要功能与体验重构 (UI/UX Hardening)
 
 - **核心转型：从“持仓管理”转向“信号发现”**

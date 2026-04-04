@@ -1,5 +1,10 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const publicSupabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
 const publicSupabaseKey =
@@ -23,6 +28,14 @@ export default defineConfig({
     'globalThis.__NOVA_PUBLIC_SUPABASE_PUBLISHABLE_KEY__': JSON.stringify(publicSupabaseKey),
     'globalThis.__NOVA_PUBLIC_SUPABASE_REDIRECT_URL__': JSON.stringify(publicSupabaseRedirectUrl),
     'globalThis.__NOVA_PUBLIC_API_BASE_URL__': JSON.stringify(publicApiBase),
+  },
+  resolve: {
+    alias: {
+      // Ensure consistent React version across all tests (including landing components)
+      react: resolve(__dirname, 'node_modules/react'),
+      'react-dom': resolve(__dirname, 'node_modules/react-dom'),
+    },
+    dedupe: ['react', 'react-dom'],
   },
   test: {
     exclude: [
@@ -51,10 +64,12 @@ export default defineConfig({
     outDir: 'dist',
     rollupOptions: {
       output: {
-        manualChunks: {
-          // React runtime rarely changes between deploys; keeping it in a
-          // dedicated chunk lets browsers long-term-cache it across releases.
-          vendor: ['react', 'react-dom'],
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('react') || id.includes('react-dom')) {
+              return 'vendor';
+            }
+          }
         },
       },
     },

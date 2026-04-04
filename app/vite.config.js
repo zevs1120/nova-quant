@@ -20,6 +20,9 @@ const publicApiBase = process.env.VITE_API_BASE_URL || process.env.VITE_PUBLIC_A
 export default defineConfig({
   root: __dirname,
   plugins: [react()],
+  resolve: {
+    dedupe: ['react', 'react-dom'],
+  },
   define: {
     'globalThis.__NOVA_PUBLIC_SUPABASE_URL__': JSON.stringify(publicSupabaseUrl),
     'globalThis.__NOVA_PUBLIC_SUPABASE_PUBLISHABLE_KEY__': JSON.stringify(publicSupabaseKey),
