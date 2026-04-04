@@ -5,8 +5,9 @@ Python sidecar service that connects **Nova Quant** (TypeScript) to **Microsoft 
 ## What It Does
 
 - **Factor Computation**: Exposes Qlib's Alpha158/Alpha360 factor engines via REST API
+- **Native Backtest (v2)**: Runs Qlib's internal `SimulatorExecutor` to compute Sharpe, Returns, and Drawdown
 - **Model Inference**: Loads pre-trained ML models and returns ranked predictions
-- **Data Sync**: Converts Nova Quant's Supabase/Postgres OHLCV data into Qlib binary format
+- **Data Sync**: Converts Nova Quant's Supabase/Postgres OHLCV data into Qlib binary format (with automatic `change` calculation and `instruments/` generation)
 
 ## Architecture
 
@@ -42,15 +43,29 @@ uv run python -m bridge
 
 ## API Endpoints
 
-| Method | Path                   | Description                        |
-| ------ | ---------------------- | ---------------------------------- |
-| GET    | `/api/health`          | Health check                       |
-| GET    | `/api/status`          | Service status + Qlib readiness    |
-| GET    | `/api/factors/sets`    | List available factor sets         |
-| POST   | `/api/factors/compute` | Compute factors for symbols        |
-| GET    | `/api/models`          | List available pre-trained models  |
-| POST   | `/api/models/predict`  | Run model inference                |
-| POST   | `/api/data/sync`       | Sync Nova Quant data → Qlib format |
+| Method | Path                      | Description                        |
+| ------ | ------------------------- | ---------------------------------- |
+| GET    | `/api/health`             | Health check                       |
+| GET    | `/api/status`             | Service status + Qlib readiness    |
+| GET    | `/api/factors/sets`       | List available factor sets         |
+| POST   | `/api/factors/compute`    | Compute factors for symbols        |
+| GET    | `/api/models`             | List available pre-trained models  |
+| POST   | `/api/models/predict`     | Run model inference                |
+| POST   | `/api/v2/backtest/native` | Run native Qlib backtest pipeline  |
+| POST   | `/api/data/sync`          | Sync Nova Quant data → Qlib format |
+
+### Example: Native Backtest
+
+```bash
+curl -X POST http://localhost:8788/api/v2/backtest/native \
+  -H "Content-Type: application/json" \
+  -d '{
+    "symbols": ["AAPL", "MSFT", "NVDA"],
+    "start_date": "2024-01-01",
+    "end_date": "2024-03-31",
+    "benchmark": "spy"
+  }'
+```
 
 ### Example: Compute Factors
 

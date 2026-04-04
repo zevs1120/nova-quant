@@ -27,6 +27,11 @@ from bridge.model_adapter import (
     ModelPredictRequest,
 )
 from bridge.data_sync import run_sync, SyncRequest, SyncResult
+from bridge.backtest_adapter import (
+    run_native_backtest,
+    BacktestRequest,
+    BacktestResult,
+)
 
 # ── Qlib init ───────────────────────────────────────────────
 
@@ -158,3 +163,20 @@ async def sync_data(req: SyncRequest | None = None):
     except Exception as exc:
         traceback.print_exc()
         raise HTTPException(500, f"Data sync failed: {exc}")
+
+
+# ── Native Backtest (v2) ───────────────────────────────────
+
+
+@app.post("/api/v2/backtest/native", response_model=BacktestResult)
+async def native_backtest_endpoint(req: BacktestRequest):
+    """Run a Qlib native backtest using the Alpha158-to-Strategy pipeline."""
+    if not _qlib_ready:
+        raise HTTPException(503, "Qlib is not initialised — run data sync first")
+    try:
+        result = run_native_backtest(req)
+        return result
+    except Exception as exc:
+        traceback.print_exc()
+        raise HTTPException(500, f"Native backtest failed: {exc}")
+

@@ -4,6 +4,11 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+- **Feat(quant): 全面打通 QLib 原生量化回测与数据喂取闭环流程。**
+  - **Native Backtest**: 在 `qlib-bridge` 中新增 `backtest_adapter`，正式引入 QLib 原生的 `SimulatorExecutor` 与 `TopkDropoutStrategy`。现在支持通过标准 API `/api/v2/backtest/native` 一键获取美股策略的 Sharpe Ratio、年化收益及最大回撤等机构级指标。
+  - **Data Sync Hardening**: 重构 `data_sync.py`，增加了自动价格变动 (`change`) 计算逻辑，并支持在同步时自动生成 QLib 必需的基准索引文件（如 `spy.txt`, `all.txt`），彻底解决了此前美股回测中找不到 `SH000300` 指数的底层兼容性问题。
+  - **Bridge API**: 扩展 `server.py` 路由，将原生回测能力模块化暴露给 Node.js 决策引擎，为 AI 助手提供更高置信度的定量证据支持。
+
 - **Fix(ui): 移除 Support 页面冗余的 Prediction Games 入口。**
   - **Menu / Support**：因为主界面已在最外层增加了独立的 Prediction Games 大卡片快捷入口，因此移除了 `Support tools` 列表中的旧重复入口，并同步更新了 `Support` 的副标题文本，消除入口冗余。
 

@@ -79,7 +79,7 @@ def _read_ohlcv_from_postgres(
         with conn.cursor() as cursor:
             rows = cursor.execute(
                 """
-                SELECT
+                SELECT DISTINCT ON (a.symbol, o.ts_open)
                   a.symbol AS symbol,
                   o.ts_open AS date,
                   o.open AS open,
@@ -110,16 +110,22 @@ def _read_ohlcv_from_postgres(
         sym = str(row["symbol"]).upper()
         if sym not in grouped:
             grouped[sym] = []
+        
+        # Calculate change if previous row exists
+        prev_close = grouped[sym][-1]["close"] if grouped[sym] else None
+        curr_close = float(row["close"] or 0)
+        change = (curr_close / prev_close - 1) if prev_close and prev_close > 0 else 0.0
+
         grouped[sym].append(
             {
                 "date": _normalize_date(row["date"]),
                 "open": float(row["open"] or 0),
                 "high": float(row["high"] or 0),
                 "low": float(row["low"] or 0),
-                "close": float(row["close"] or 0),
+                "close": curr_close,
                 "volume": float(row["volume"] or 0),
-                "factor": 1.0,  # No adjustment factor available
-                "change": 0.0,
+                "factor": 1.0,  # No adjustment factor available in current schema
+                "change": float(change),
             }
         )
 
@@ -127,9 +133,15 @@ def _read_ohlcv_from_postgres(
 
 
 def _write_csvs(grouped: dict[str, list[dict[str, Any]]], staging_dir: Path) -> int:
-    """Write per-symbol CSV files in Qlib's expected format."""
+    """Write per-symbol CSV files and prepare instruments/ directory."""
     total_rows = 0
+    target_dir = _qlib_target_dir()
+    inst_dir = target_dir / "instruments"
+    inst_dir.mkdir(parents=True, exist_ok=True)
 
+    # Prepare all.txt (standard Qlib instrument list)
+    all_symbols = sorted(grouped.keys())
+    
     for symbol, rows in grouped.items():
         rows.sort(key=lambda r: r["date"])
         csv_path = staging_dir / f"{symbol}.csv"
@@ -151,6 +163,21 @@ def _write_csvs(grouped: dict[str, list[dict[str, Any]]], staging_dir: Path) -> 
             writer.writeheader()
             writer.writerows(rows)
             total_rows += len(rows)
+            
+        # Also create a benchmark file if it's SPY or QQQ
+        if symbol in ("SPY", "QQQ"):
+            bench_path = inst_dir / f"{symbol.lower()}.txt"
+            with open(bench_path, "w") as f:
+                # Format: SYMBOL START_DATE END_DATE
+                if rows:
+                    f.write(f"{symbol}\t{rows[0]['date']}\t{rows[-1]['date']}\n")
+
+    # Finalize all.txt
+    with open(inst_dir / "all.txt", "w") as f:
+        for symbol in all_symbols:
+            rows = grouped[symbol]
+            if rows:
+                f.write(f"{symbol}\t{rows[0]['date']}\t{rows[-1]['date']}\n")
 
     return total_rows
 
@@ -235,11 +262,11 @@ def run_sync(req: SyncRequest | None = None) -> SyncResult:
     total_rows = _write_csvs(grouped, staging_dir)
     notes.append(f"Exported {len(grouped)} symbols, {total_rows} rows to CSV staging")
 
-    # 3. Clean stale Qlib binary data before re-dump
+    # 3. Clean stale Qlib binary data (but KEEP instruments dir as we manage it manually)
     target_dir = _qlib_target_dir()
     import shutil
 
-    for subdir in ("features", "instruments", "calendars"):
+    for subdir in ("features", "calendars"):
         stale = target_dir / subdir
         if stale.exists():
             shutil.rmtree(stale)
