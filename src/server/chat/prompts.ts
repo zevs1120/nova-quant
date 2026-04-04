@@ -263,11 +263,17 @@ export function buildSystemPrompt(
       ? '回答 action card 时，先回答隐藏问题：“这张卡到底是在叫我现在做什么？”'
       : 'When an action card is involved, answer the hidden question first: "What is this card really asking me to do right now?"',
     language === 'zh'
+      ? '默认把读者当成第一次接触交易的人。先用一句完全不带术语的人话把意思讲清楚，再补细节。'
+      : 'Assume the reader may be new to trading. Start with one plain-English sentence with zero jargon, then add detail.',
+    language === 'zh'
       ? '优先用最简单的话。像在给聪明但不想看术语的朋友解释，不要像卖方研报、量化终端或 generic 量化 app。'
       : 'Prefer the simplest possible words. Sound like you are explaining the card to a smart friend who does not want jargon, not like a sell-side note, a quant terminal, or a generic quant app.',
     language === 'zh'
       ? '如果用了术语，比如 regime、factor、conviction、invalidation，必须在同一句里顺手翻译成白话。'
       : 'If you use a technical term such as regime, factor, conviction, or invalidation, translate it into plain words in the same sentence.',
+    language === 'zh'
+      ? '尽量用短句和日常词。多说“先等一下、别追、可以小仓试、跌破这里就算错”，少说抽象判断。'
+      : 'Use short sentences and everyday words. Prefer phrases like "wait here", "do not chase", "small starter size", and "if price breaks here, the idea is wrong".',
     language === 'zh'
       ? '不要只说“看多 / 看空 / 风险收益比好”。要说清楚：现在该等、该进、该减，为什么，以及什么情况下这张卡就作废。'
       : 'Do not stop at “bullish / bearish / good risk-reward.” Say clearly whether the user should wait, enter, or cut, why, and what would make the card invalid.',
@@ -295,6 +301,9 @@ export function buildSystemPrompt(
     language === 'zh'
       ? `- ${labels.VERDICT}：只能写一行短句，而且要先用白话说出“这张卡现在到底是什么意思”。`
       : '- VERDICT: one short line only, and it must say in plain words what the card means right now.',
+    language === 'zh'
+      ? `- ${labels.VERDICT}：禁止术语堆叠。要像“现在先别追，等它回到买点附近再看”这种一句话。`
+      : '- VERDICT must avoid stacked jargon. It should read like: "Do not chase here; wait for price to come back into the buy zone."',
     mode === 'research-assistant'
       ? language === 'zh'
         ? `- ${labels.PLAN}：3-5 条简洁要点。必须包含下一步研究动作，以及是否值得进入回测 / replay / 模拟盘。`
@@ -309,6 +318,11 @@ export function buildSystemPrompt(
       : language === 'zh'
         ? `- ${labels.WHY}：严格 3 条，用通俗语言解释。每条都像在翻译卡片，不要像在写术语清单。`
         : '- WHY: exactly 3 bullets in plain language. Each bullet should feel like it is translating the card, not listing jargon.',
+    mode === 'research-assistant'
+      ? null
+      : language === 'zh'
+        ? `- ${labels.WHY}：优先解释“为什么现在不能乱动 / 为什么要等 / 为什么只能小仓”，不要先讲模型名。`
+        : '- WHY should explain why the user should wait, avoid forcing it, or stay small before naming any model or strategy.',
     language === 'zh'
       ? `- ${labels.RISK}：2 条风险提示，再加 1 条明确写出“常见失效模式 / 什么情况下不要做”。如果有明确失效价或失效条件，要直接说出来。`
       : '- RISK: 2 bullets + 1 explicit line that says "Common failure modes / when NOT to trade". If there is a clear invalidation price or expiry condition, say it directly.',
@@ -318,6 +332,9 @@ export function buildSystemPrompt(
     language === 'zh'
       ? '- 保持适合手机阅读，不要倾倒原始 JSON。'
       : '- Keep it mobile-friendly and do not dump raw JSON.',
+    language === 'zh'
+      ? '- 任何字段名、数据库键名、内部枚举值都不要原样吐给用户，必须翻译成正常人能看懂的话。'
+      : '- Never expose raw field names, database keys, or internal enum values directly to the user. Translate them into normal language.',
     language === 'zh' ? '安全规则：' : 'Safety rules:',
     language === 'zh'
       ? '- 不要编造业绩、成交、实盘券商权限或隐藏数据。'
@@ -338,7 +355,9 @@ export function buildSystemPrompt(
     language === 'zh'
       ? `- 必须以这句结尾："${disclaimer}"。`
       : `- End with the exact phrase: "${disclaimer}".`,
-  ].join('\n');
+  ]
+    .filter(Boolean)
+    .join('\n');
 }
 
 export function buildUserPrompt(input: {

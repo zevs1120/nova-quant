@@ -95,6 +95,16 @@ function structured({ language = 'en', verdict, plan, why, risk, evidence }) {
   });
 }
 
+function simplifyStrategyLabel(value, language = 'en') {
+  const raw = String(value || '').trim();
+  if (!raw) return language === 'zh' ? '系统策略' : 'system strategy';
+  const upper = raw.toUpperCase();
+  if (upper.includes('BREAKDOWN')) return language === 'zh' ? '放量转弱策略' : 'breakdown setup';
+  if (upper.includes('PULLBACK')) return language === 'zh' ? '回踩买入策略' : 'pullback setup';
+  if (upper.includes('RECLAIM')) return language === 'zh' ? '重新站回关键位策略' : 'reclaim setup';
+  return raw;
+}
+
 export function buildDemoAssistantReply(question, state, context = {}) {
   const language = detectMessageLanguage(question, context?.locale || 'en');
   const zh = language === 'zh';
@@ -107,7 +117,10 @@ export function buildDemoAssistantReply(question, state, context = {}) {
       ? '这个 demo 里只允许新手级别的小仓位。'
       : 'Only small beginner-sized positions are allowed in this demo.');
   const primaryEvidence = buildEvidenceLine(signal, state, language);
-  const strategySource = signal?.strategy_source || 'AI quant strategy';
+  const strategySource = simplifyStrategyLabel(
+    signal?.strategy_source || 'AI quant strategy',
+    language,
+  );
   const positionPct = safeNumber(signal?.position_advice?.position_pct, null);
   const posture =
     state?.decision?.risk_state?.posture || state?.decision?.summary?.risk_posture || 'WAIT';
@@ -129,14 +142,14 @@ export function buildDemoAssistantReply(question, state, context = {}) {
       plan: biggest
         ? zh
           ? [
-              `如果 ${biggest.symbol || '最大仓位'} 仍然和系统方向一致，就继续持有。`,
-              '今天不要在同一主题里再叠加一笔大仓位。',
-              '如果你要降风险，就先减最拥挤的那只。',
+              `如果 ${biggest.symbol || '最大仓位'} 还没走坏，先别乱动。`,
+              '今天先不要在同一主题里继续加大仓位。',
+              '真要降风险，就先减掉最挤的那只。',
             ]
           : [
-              `Keep ${biggest.symbol || 'the largest position'} if it still matches the system direction.`,
+              `If ${biggest.symbol || 'the largest position'} is still behaving, leave it alone for now.`,
               'Do not add another big position in the same theme today.',
-              'If you want to reduce risk, trim the most crowded name first.',
+              'If you need to reduce risk, trim the most crowded one first.',
             ]
         : zh
           ? ['先加载 demo 持仓列表。', '总暴露保持中等。', '不要叠加太多相似仓位。']
@@ -172,12 +185,12 @@ export function buildDemoAssistantReply(question, state, context = {}) {
       verdict: safety,
       plan: zh
         ? [
-            `如果你要做这笔，仓位控制在 ${positionPct ? `${Math.round(positionPct)}%` : '小试探仓'}。`,
-            '止损按卡片写的执行，不要进场后再放宽。',
-            '如果价格已经跳离买入区间，就等，不要追。',
+            `如果你真要做，先用 ${positionPct ? `${Math.round(positionPct)}%` : '小试探仓'}。`,
+            '止损按卡片写的执行，不要进场后自己改宽。',
+            '如果价格已经跑离买点，就继续等，不要追。',
           ]
         : [
-            `If you trade this setup, keep it to ${positionPct ? `${Math.round(positionPct)}%` : 'a small starter size'}.`,
+            `If you take this trade, start with ${positionPct ? `${Math.round(positionPct)}%` : 'a small starter size'}.`,
             'Use the stop as written. Do not widen it after entry.',
             'If the price jumps away from the buy zone, wait instead of chasing.',
           ],
@@ -221,8 +234,8 @@ export function buildDemoAssistantReply(question, state, context = {}) {
       language,
       verdict: signal
         ? zh
-          ? `${voice.opener} 可以考虑，但前提是 ${signal.symbol} 还在计划入场区间内。`
-          : `${voice.opener} Yes, but only if ${signal.symbol} stays in the planned entry zone.`
+          ? `${voice.opener} 可以看，但只有 ${signal.symbol} 还在计划买点附近时才值得动。`
+          : `${voice.opener} You can consider it, but only if ${signal.symbol} is still near the planned entry zone.`
         : `${voice.no_action} ${noAction.completion}`,
       plan: zh
         ? [
@@ -304,23 +317,21 @@ export function buildDemoAssistantReply(question, state, context = {}) {
       language,
       verdict: signal
         ? zh
-          ? `${voice.opener} ${signal.symbol} 是当前 demo 里的主信号，因为它是现在最干净的一张行动卡。`
-          : `${voice.opener} ${signal.symbol} is the main demo signal because it is the cleanest action card available right now.`
+          ? `${voice.opener} 现在先看 ${signal.symbol}，因为这张卡最清楚、最不容易误解。`
+          : `${voice.opener} Focus on ${signal.symbol} first because this is the clearest card on the board.`
         : `${voice.no_action} ${noAction.notify}`,
       plan: zh
         ? [
-            signal
-              ? `先聚焦 ${signal.symbol}，不要同时分散注意力到太多名字。`
-              : '先等下一次足够干净的 setup。',
-            '把这张卡片当成完整计划：入场、目标、止损、仓位都看它。',
-            '如果你想看更多细节，再和下面最近的 demo 信号做对比。',
+            signal ? `先只看 ${signal.symbol}，不要同时盯很多票。` : '先等下一次够清楚的机会。',
+            '把这张卡当成完整计划：买点、止损、目标、仓位都在这里。',
+            '想再深看，再去点细节，不要先把信息看乱。',
           ]
         : [
             signal
-              ? `Focus on ${signal.symbol} instead of spreading attention across too many names.`
-              : 'Wait for the next clean setup.',
-            'Use the card as the full plan: entry, target, stop, and size.',
-            'If you want more detail, compare it with the recent demo signals underneath.',
+              ? `Focus on ${signal.symbol} instead of watching too many names at once.`
+              : 'Wait for the next setup that is clean enough.',
+            'Treat the card as the full plan: entry, stop, target, and size.',
+            'If you want more detail, open the detail view instead of adding more noise first.',
           ],
       why: zh
         ? [
@@ -356,14 +367,14 @@ export function buildDemoAssistantReply(question, state, context = {}) {
       : `${voice.no_action} ${noAction.completion}`,
     plan: zh
       ? [
-          '先从主行动卡开始看。',
-          '在做任何动作前先看风险框。',
-          '如果还不清楚，再用自然语言追问一句。',
+          '先看最上面的主行动卡。',
+          '动手前先看风险和失效条件。',
+          '如果还不清楚，就直接用一句人话追问。',
         ]
       : [
-          'Start from the main action card.',
-          'Check the risk box before doing anything.',
-          'If needed, ask one follow-up question in plain language.',
+          'Start with the main action card on top.',
+          'Check the risk and invalidation before doing anything.',
+          'If it is still not clear, ask one plain-language follow-up question.',
         ],
     why: zh
       ? [

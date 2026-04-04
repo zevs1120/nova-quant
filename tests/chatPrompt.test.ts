@@ -10,6 +10,9 @@ describe('chat prompts', () => {
     expect(prompt).toContain('Common failure modes / when NOT to trade');
     expect(prompt).toContain('translate an action card');
     expect(prompt).toContain('smart friend who does not want jargon');
+    expect(prompt).toContain('Assume the reader may be new to trading');
+    expect(prompt).toContain('Use short sentences and everyday words');
+    expect(prompt).toContain('Never expose raw field names');
     expect(prompt).toContain('educational, not financial advice');
   });
 
@@ -29,6 +32,8 @@ describe('chat prompts', () => {
     const prompt = buildSystemPrompt('general-coach', false, 'zh');
     expect(prompt).toContain('你是 Nova Quant 的 Nova Assistant');
     expect(prompt).toContain('把 action card 翻译成人能立刻听懂的话');
+    expect(prompt).toContain('默认把读者当成第一次接触交易的人');
+    expect(prompt).toContain('任何字段名、数据库键名、内部枚举值都不要原样吐给用户');
     expect(prompt).toContain('结论:');
     expect(prompt).toContain('行动:');
     expect(prompt).toContain('仅供教育参考，不构成投资建议');

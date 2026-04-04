@@ -4,6 +4,11 @@ NovaQuant 所有重要变更记录于此。
 
 ## Unreleased
 
+- **Feat(ai,prompts): Ask Nova 回复改成更适合新手阅读的白话风格。**
+  - **Prompt Rules：** `Ask Nova` 默认把读者当成第一次接触交易的人，要求先用一句零术语的人话说清楚结论，优先用短句和日常词，不直接吐出内部字段名、数据库键名或枚举值。
+  - **Signal Explain：** 在解释 action card 时，更强调“现在该做什么、为什么先别乱动、为什么只能小仓或先等”，减少模型名、策略名和量化黑话的优先级。
+  - **Fallback Tone：** Demo / fallback assistant 也同步改成更简单的表达，把 `BREAKDOWN`、`PULLBACK`、`RECLAIM` 等策略标签翻成普通人一眼能懂的话，保证 Nova 整体口吻一致。
+
 - **Feat(ui,watchlist,today): 第四 Tab 切为 Watchlist，并重做 Today 展开卡的手势引导层。**
   - **Watchlist Only：** 删除旧 `Holdings / manual portfolio import` 主页面与对应测试，第 4 个底部 Tab 改成真正的 `Watchlist`；新增极简 `WatchlistTab`，按 `Saved from Today` / `My Custom Favorites` 两个文件夹展示收藏标的，保留顶层 hamburger 但去掉全局 header。
   - **Save Entrypoints：** `Today` 卡片、`Ask Nova` 会话底部和 `Browse` 详情页都接入最小化 `Add to Watchlist` 入口；`Today` 上滑稍后看的标的会自动同步到 `Saved from Today`。
