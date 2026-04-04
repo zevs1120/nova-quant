@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     # ── qlib ────────────────────────────────────────────────
     qlib_provider_uri: str = str(Path.home() / ".qlib" / "qlib_data" / "us_data")
     qlib_region: str = "us"
+    default_benchmark: str = "spy"
 
     # ── nova quant data source ──────────────────────────────
     nova_quant_database_url: str = ""
