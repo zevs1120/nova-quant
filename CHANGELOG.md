@@ -2,7 +2,16 @@
 
 NovaQuant 所有重要变更记录于此。
 
-## 10.22.10 (2026-04-05)
+## 10.22.11 (2026-04-05)
+
+### 🛡️ P8 壳层与样式边界测试补强 (Shell & Style Boundary Guard Tests)
+
+- **边界约束进入测试门禁**
+  - 新增 `tests/pageStyleBoundary.test.ts`，要求 `Today / Nova / Browse / Menu / Watchlist` 这些重页面样式继续由各自 lazy 组件持有，不允许回流到全局入口。
+  - 新增 `tests/shellBoundaryPolicy.test.ts`，要求 secondary shell 继续通过 shared shell layout helper 暴露 surface / canvas key，且 `styles.css` 只承载 shell-level CSS。
+
+- **目标**
+  - 让“shared shell helper 必须存在”“页面级 CSS 不能回流全局”“screen registry 不能偷偷长成布局巨石”这几条长期规则直接进入 CI。
 
 ### 🗂️ P7 App Screen Registry 抽离 (App Screen Registry Extraction)
 
@@ -1838,4 +1847,10 @@ NovaQuant 所有重要变更记录于此。
 
 - Release type: patch
 - P7 extract App screen registry
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
+## 10.22.11 (2026-04-05)
+
+- Release type: patch
+- P8 add shell and style boundary guard tests
 - Updated release metadata, build number, About runtime source, and changelog entry.
