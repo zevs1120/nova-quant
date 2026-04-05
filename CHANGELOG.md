@@ -2,6 +2,19 @@
 
 NovaQuant 所有重要变更记录于此。
 
+## 10.22.18 (2026-04-05)
+
+### 🧱 P15 Query Slice 边界测试 (Query Slice Boundary Tests)
+
+- **`queries.ts` 组合根约束进入门禁**
+  - 新增 `tests/querySliceBoundaryPolicy.test.ts`，要求 `queries.ts` 持续通过 `todayReads`、`engagementReads`、`portfolioReads` 这些 slice factory 装配能力，而不是把已拆出的 handlers 再内联回去。
+
+- **维护 backlog 同步**
+  - `docs/MAINTAINABILITY_BACKLOG.md` 现在把“持续维护 slice 边界测试”写成长期规则，并把下一轮重点继续压到 `today-final.css`、`onboarding.css` 和 `TodayTab.jsx`。
+
+- **文档测试更新**
+  - `tests/maintainabilityBacklogDoc.test.ts` 已同步新的 backlog 约束，确保这条 query-slice 边界规则不会再从文档里消失。
+
 ## 10.22.17 (2026-04-05)
 
 ### 🧾 P14 Portfolio Read Slice 拆分 (Portfolio Read Slice Extraction)
@@ -1964,4 +1977,10 @@ NovaQuant 所有重要变更记录于此。
 
 - Release type: patch
 - P14 extract portfolio read slice
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
+## 10.22.18 (2026-04-05)
+
+- Release type: patch
+- P15 add query slice boundary tests
 - Updated release metadata, build number, About runtime source, and changelog entry.

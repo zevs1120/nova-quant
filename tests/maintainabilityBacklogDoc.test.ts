@@ -13,7 +13,7 @@ describe('maintainability backlog doc', () => {
     expect(backlogSource).toContain('src/styles/today-final.css');
     expect(backlogSource).toContain('src/styles/onboarding.css');
     expect(backlogSource).toContain('Split `src/styles/today-final.css`');
-    expect(backlogSource).toContain('Add more query-slice boundary tests');
+    expect(backlogSource).toContain('Keep boundary tests current');
   });
 
   it('keeps the README linked to the maintainability backlog', () => {

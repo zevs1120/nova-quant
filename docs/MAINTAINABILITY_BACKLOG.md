@@ -48,7 +48,7 @@ These areas are still maintainable only because contributors remember the rules.
 
 ## 4. Testing Gaps To Close
 
-- Add slice tests for the next extracted query domain after `portfolioReads`.
+- Keep static query-slice boundary tests current as new domains are extracted.
 - Add section-level tests around `TodayTab.jsx` once more rendering logic moves into subcomponents.
 - Add CSS ownership tests for onboarding and Today sub-surfaces if their stylesheets start splitting.
 - Add admin-domain boundary tests if `postgresBusinessRead.ts` is divided by dashboard family.
@@ -58,8 +58,8 @@ These areas are still maintainable only because contributors remember the rules.
 1. Split `src/styles/today-final.css` into shell, deck, and detail layers.
 2. Split `src/styles/onboarding.css` by flow step or page section.
 3. Continue shrinking `src/components/TodayTab.jsx` with section components and feature-local state helpers.
-4. Add more query-slice boundary tests as `queries.ts` keeps shrinking.
-5. Identify the next non-trivial query domain worth slicing out of `queries.ts`.
+4. Identify the next non-trivial query domain worth slicing out of `queries.ts`.
+5. Keep boundary tests current whenever a new slice is added.
 
 ## 6. Update Rule
 
