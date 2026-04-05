@@ -47,6 +47,7 @@ import { primeBrowseHomeBundle, primeBrowseUniverseBundle } from './utils/browse
 import { DEMO_ENTRY_ENABLED, isDemoRuntime as getIsDemoRuntime } from './demo/runtime';
 import { INVESTOR_DEMO_PERFORMANCE } from './demo/investorDemo';
 import { buildTabMeta, buildMenuTitles, MY_SECTION_LIST } from './config/appConstants';
+import { deriveShellLayout } from './app/shellLayout.js';
 import { deriveTopBarState, PRIMARY_TAB_KEYS } from './app/topBarState.js';
 
 async function fetchJson(url, options) {
@@ -1259,6 +1260,14 @@ export default function App() {
   const dailyCheckState = String(
     engagementState?.daily_check_state?.status || 'PENDING',
   ).toLowerCase();
+  const { isSecondaryShell, shellCanvasKey, shellSurface } = useMemo(
+    () =>
+      deriveShellLayout({
+        activeTab,
+        mySection,
+      }),
+    [activeTab, mySection],
+  );
   const [topBarCondensed, setTopBarCondensed] = useState(false);
   const mainContentRef = useRef(null);
 
@@ -1385,10 +1394,28 @@ export default function App() {
             </header>
           )}
 
-          <main ref={mainContentRef} className={`main-content main-content-${activeTab}`}>
+          <main
+            ref={mainContentRef}
+            className={`main-content main-content-${activeTab} ${
+              isSecondaryShell ? 'main-content-secondary' : ''
+            }`}
+            data-shell-surface={shellSurface}
+          >
             <Suspense fallback={<Skeleton lines={6} />}>
-              <div className="screen-transition" key={`${activeTab}-${mySection}-${uiMode}`}>
-                {renderScreen()}
+              <div
+                className={`screen-transition ${isSecondaryShell ? 'screen-transition-secondary' : ''}`}
+                key={`${activeTab}-${mySection}-${uiMode}`}
+              >
+                {isSecondaryShell ? (
+                  <div
+                    className={`secondary-page-canvas secondary-page-canvas-${shellCanvasKey}`}
+                    data-secondary-canvas={shellCanvasKey}
+                  >
+                    {renderScreen()}
+                  </div>
+                ) : (
+                  renderScreen()
+                )}
               </div>
             </Suspense>
           </main>

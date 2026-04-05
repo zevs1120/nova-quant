@@ -1,7 +1,7 @@
 # Nova Quant
 
 Nova Quant is an AI-native quantitative **decision** platform for US equities and crypto.
-Current app version: `10.22.7` (build `90`).
+Current app version: `10.22.8` (build `91`).
 Versioning policy: `package.json` is canonical, `src/config/version.js` is the generated runtime mirror, and release history lives in `CHANGELOG.md` / `docs/VERSIONING.md`.
 Auth is driven by **Supabase Native Auth** (`supabase.ts`) with Supabase/Postgres as the only supported deployed backend. Signup requires Supabase Auth `Confirm email`, and deployed `/api/auth/*` returns `AUTH_STORE_NOT_CONFIGURED` if the required Supabase settings are missing.
 Browse search can now merge external market results into `/api/assets/search`. By default it augments local assets with the SEC company ticker universe and CoinGecko crypto search; set `ALPHA_VANTAGE_API_KEY` for broader stock / ETF lookup and `COINGECKO_DEMO_API_KEY` (or `COINGECKO_API_KEY` / `COINGECKO_PRO_API_KEY`) for higher-volume crypto search.
@@ -71,7 +71,7 @@ Runtime boundary rules:
 
 Primary application layers:
 
-- `src/App.jsx`: thin orchestrator composing custom hooks (`useAuth`, `useAppData`, `useEngagement`, `useInvestorDemo`, `useNavigation`) and rendering the mobile shell — primary tabs **Today / Nova (Ask Nova) / Browse / My** via `React.lazy` + `Suspense`, edge-to-edge layout and a sliding tab bar; top bar uses WebP brand assets
+- `src/App.jsx`: thin orchestrator composing custom hooks (`useAuth`, `useAppData`, `useEngagement`, `useInvestorDemo`, `useNavigation`) and rendering the mobile shell — primary tabs **Today / Nova (Ask Nova) / Browse / My** via `React.lazy` + `Suspense`, edge-to-edge layout and a sliding tab bar; top bar uses WebP brand assets, while secondary tabs share a lighter canvas frame
 - `src/hooks/`: extracted state management — auth lifecycle, data loading, engagement, demo mode, navigation
 - `src/config/appConstants.js`: shared constants, locale builders, and default data shapes
 - `src/styles.css` → `src/styles/`: global first-paint CSS only (base → brand-reset, etc.); heavy surfaces such as Today, Ask Nova, holdings, and onboarding pull their own stylesheets inside lazy-loaded components so Vite can split CSS with the JS chunk

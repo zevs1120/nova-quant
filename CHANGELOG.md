@@ -2,7 +2,20 @@
 
 NovaQuant 所有重要变更记录于此。
 
-## 10.22.7 (2026-04-05)
+## 10.22.8 (2026-04-05)
+
+### 🎨 P5 二级页轻壳与样式边界收口 (Secondary Shell Canvas & Style Boundary Tightening)
+
+- **二级页统一 secondary canvas**
+  - 新增 `src/app/shellLayout.js`，把 `Browse / Nova / My / Menu` 的轻壳判定和 surface key 从 `App.jsx` 抽成纯函数 helper。
+  - `App.jsx` 现在会给非 Today 页面统一包一层 `secondary-page-canvas-*`，让二级页共用一套更轻的画布边界，而不是继续在主壳里散落条件式布局判断。
+
+- **样式边界继续收口**
+  - 新增 `src/styles/secondary-shell.css`，把 secondary canvas 的 glow、stroke 和 panel framing 收成单独样式层，避免继续把这些框架性表面散进 `browse.css`、`menu.css` 或 `ai-rebuild.css`。
+  - `styles.css` 继续只承接首屏壳层所需的公共样式，不把 `Today`、`Nova`、`Browse` 的重页面视觉再重新压回全局入口。
+
+- **回归护栏**
+  - 新增 `tests/shellLayout.test.ts` 与 `tests/appSecondaryShellMarkers.test.ts`，验证 secondary shell 的 surface 映射和 App 的共享 canvas 接线稳定存在。
 
 ### 🪟 P4 前端壳层与 Deck View Model 拆分 (Frontend Shell & Deck View Model Split)
 
@@ -1789,4 +1802,10 @@ NovaQuant 所有重要变更记录于此。
 - Release type: patch
 - P4 extract app shell and today deck view models
 - Add focused tests around top-bar and deck derivation helpers
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
+## 10.22.8 (2026-04-05)
+
+- Release type: patch
+- P5 secondary shell canvas and CSS frame cleanup
 - Updated release metadata, build number, About runtime source, and changelog entry.
