@@ -9,6 +9,7 @@ describe('TodayDeckSection.jsx markers', () => {
   );
 
   it('owns the stack list and empty state rendering', () => {
+    expect(source).toContain("import '../../styles/today-deck.css'");
     expect(source).toContain('today-stack-list');
     expect(source).toContain('today-rebuild-empty');
     expect(source).toContain('TodayDeckEmptyState');

@@ -2,6 +2,21 @@
 
 NovaQuant 所有重要变更记录于此。
 
+## 10.22.21 (2026-04-05)
+
+### 🎨 P18 Today Deck CSS 拆分 (Today Deck CSS Split)
+
+- **Deck 样式从 Today 总表中拆出**
+  - 新增 `src/styles/today-deck.css`，承接 `today-rebuild` 卡组、stack、empty state 与 usage guide 的视觉规则。
+  - `src/styles/today-final.css` 现在聚焦 climate/detail 与 preview 层，deck/stack 相关选择器不再继续堆在同一个文件里。
+
+- **样式入口与门禁同步**
+  - `src/components/today/TodayDeckSection.jsx` 显式引入 `today-deck.css`，保持 deck 样式仍由 Today 懒加载路径持有。
+  - 更新 `tests/pageStyleBoundary.test.ts`、`tests/cssResponsibilityLayers.test.ts`、`tests/todayDeckSectionMarkers.test.ts` 与 `tests/maintainabilityBacklogDoc.test.ts`，确保 deck 样式拆分和文档同步不会回退。
+
+- **维护 backlog 同步**
+  - `docs/MAINTAINABILITY_BACKLOG.md` 与 `README.md` 已同步 deck CSS 拆分后的边界说明和下一刀方向。
+
 ## 10.22.20 (2026-04-05)
 
 ### 🧩 P17 Today Deck Section 抽离 (Today Deck Section Extraction)
@@ -2023,4 +2038,10 @@ NovaQuant 所有重要变更记录于此。
 
 - Release type: patch
 - P17 extract today hero section
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
+## 10.22.21 (2026-04-05)
+
+- Release type: patch
+- P18 split today deck css
 - Updated release metadata, build number, About runtime source, and changelog entry.

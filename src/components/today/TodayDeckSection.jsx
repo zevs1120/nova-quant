@@ -1,3 +1,5 @@
+import '../../styles/today-deck.css';
+
 function TodayDeckCard({
   card,
   index,

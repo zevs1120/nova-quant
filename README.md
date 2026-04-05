@@ -1,7 +1,7 @@
 # Nova Quant
 
 Nova Quant is an AI-native quantitative **decision** platform for US equities and crypto.
-Current app version: `10.22.20` (build `103`).
+Current app version: `10.22.21` (build `104`).
 Versioning policy: `package.json` is canonical, `src/config/version.js` is the generated runtime mirror, and release history lives in `CHANGELOG.md` / `docs/VERSIONING.md`.
 Auth is driven by **Supabase Native Auth** (`supabase.ts`) with Supabase/Postgres as the only supported deployed backend. Signup requires Supabase Auth `Confirm email`, and deployed `/api/auth/*` returns `AUTH_STORE_NOT_CONFIGURED` if the required Supabase settings are missing.
 Browse search can now merge external market results into `/api/assets/search`. By default it augments local assets with the SEC company ticker universe and CoinGecko crypto search; set `ALPHA_VANTAGE_API_KEY` for broader stock / ETF lookup and `COINGECKO_DEMO_API_KEY` (or `COINGECKO_API_KEY` / `COINGECKO_PRO_API_KEY`) for higher-volume crypto search.
@@ -78,6 +78,7 @@ Primary application layers:
 - frontend/runtime code map: `docs/FRONTEND_RUNTIME_CODE_MAP.md`
 - maintainability backlog: `docs/MAINTAINABILITY_BACKLOG.md`
 - `src/styles/today-shell.css` now owns Today shell / hero / pace framing, while `src/styles/today-final.css` keeps deeper Today surfaces and detail-heavy styling
+- `src/styles/today-deck.css` now owns Today deck and stack visuals, keeping the remaining climate/detail styling in `src/styles/today-final.css`
 - `src/styles.css` → `src/styles/`: global first-paint CSS only (base → brand-reset, etc.); heavy surfaces such as Today, Ask Nova, holdings, and onboarding pull their own stylesheets inside lazy-loaded components so Vite can split CSS with the JS chunk
 - `src/server/api/app.ts`: canonical API surface for frontend + evidence + assistant (109 routes)
 - `src/server/auth/postgresStore.ts`: Postgres-backed auth store (users, sessions, roles, password resets, user state sync)

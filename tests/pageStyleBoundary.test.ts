@@ -13,6 +13,9 @@ describe('page style boundaries', () => {
     expect(read(path.join('components', 'TodayTab.jsx'))).toContain(
       "import '../styles/today-final.css'",
     );
+    expect(read(path.join('components', 'today', 'TodayDeckSection.jsx'))).toContain(
+      "import '../../styles/today-deck.css'",
+    );
     expect(read(path.join('components', 'AiPage.jsx'))).toMatch(
       /import\s+['"]\.\.\/styles\/ai-rebuild\.css['"]/,
     );
