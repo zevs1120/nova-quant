@@ -2,7 +2,16 @@
 
 NovaQuant 所有重要变更记录于此。
 
-## 10.22.5 (2026-04-05)
+## 10.22.6 (2026-04-05)
+
+### 🧱 P3 Runtime Read Slice 拆分 (Runtime Read Slice Extraction)
+
+- **runtime 组装逻辑独立成 slice**
+  - 新增 `src/server/api/queries/runtimeReads.ts`，承接 runtime snapshot 组装、fallback 判定、public decision 应用与 hydration helper。
+  - `queries.ts` 不再维护两份大块 runtime snapshot 拼装对象，改为调用 runtime slice 的纯函数做组装和 fallback 合并。
+
+- **热路径继续减压**
+  - 这次拆分没有改变 runtime / browse 对外接口，但把 `queries.ts` 从“既管缓存、又管路由读、又管 runtime 大对象拼装”的状态往下压了一层，方便后续继续把 today/runtime 读逻辑独立测试和独立观测。
 
 ### 🧩 P2 Today 主快照收口 (Today Primary Snapshot Tightening)
 
@@ -1753,4 +1762,11 @@ NovaQuant 所有重要变更记录于此。
 - Release type: patch
 - P2 tighten runtime-state primary snapshot hydration
 - Collapse deferred useAppData fill into a single idle merge
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
+## 10.22.6 (2026-04-05)
+
+- Release type: patch
+- P3 split runtime state helpers into a dedicated read slice
+- Reduce duplicate runtime snapshot assembly inside queries.ts
 - Updated release metadata, build number, About runtime source, and changelog entry.

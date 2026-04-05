@@ -72,6 +72,11 @@ import { generateNovaProductionStrategyPack } from '../nova/productionStrategyPa
 import { runNovaRobustnessTraining } from '../nova/robustnessTraining.js';
 import { buildEvidenceLineage } from '../evidence/lineage.js';
 import { getBrowseHomePayload, getReferenceSearchAssetCount } from './queries/browseReads.js';
+import {
+  applyPublicDecisionToRuntime,
+  buildRuntimeStateSnapshot,
+  shouldUsePublicDecisionFallback,
+} from './queries/runtimeReads.js';
 export {
   searchAssets,
   getSearchHealth,
@@ -81,6 +86,7 @@ export {
   getBrowseAssetOverview,
   getBrowseAssetDetailBundle,
 } from './queries/browseReads.js';
+export { shouldUsePublicDecisionFallback } from './queries/runtimeReads.js';
 import { getPublicTodayDecision } from '../public/todayDecisionService.js';
 import {
   createBrokerAdapter,
@@ -3838,132 +3844,23 @@ export function getRuntimeState(args: {
     signals: core.signals,
     sourceStatus: String(core.runtimeTransparency.source_status || RUNTIME_STATUS.MODEL_DERIVED),
   });
+  const componentStatus = withComponentStatus({
+    overallDataStatus: normalizeRuntimeStatus(
+      core.runtimeTransparency.data_status,
+      RUNTIME_STATUS.INSUFFICIENT_DATA,
+    ),
+    componentSourceStatus: RUNTIME_STATUS.MODEL_DERIVED,
+  });
 
-  return {
-    asof: core.runtimeTransparency.as_of,
-    source_status: core.runtimeTransparency.source_status,
-    data_status: core.runtimeTransparency.data_status,
-    data_transparency: core.runtimeTransparency,
-    data: {
-      signals: core.signals,
-      evidence,
-      performance: core.performance,
-      decision,
-      trades: listExecutions({ userId: core.userId, market: core.market, limit: 200 }).map(
-        (row) => ({
-          ...row,
-          time_in: new Date(row.created_at_ms).toISOString(),
-          time_out: new Date(row.created_at_ms).toISOString(),
-          entry: row.entry_price,
-          exit: row.tp_price ?? row.entry_price,
-        }),
-      ),
-      velocity: {
-        as_of: core.runtimeTransparency.as_of,
-        market: core.market,
-        volatility_percentile: core.avgVol,
-        temperature_percentile: core.avgTemp,
-        risk_off_score: core.avgRiskOff,
-        ...withComponentStatus({
-          overallDataStatus: normalizeRuntimeStatus(
-            core.runtimeTransparency.data_status,
-            RUNTIME_STATUS.INSUFFICIENT_DATA,
-          ),
-          componentSourceStatus: RUNTIME_STATUS.MODEL_DERIVED,
-        }),
-      },
-      config: {
-        last_updated: core.runtimeTransparency.as_of,
-        ...withComponentStatus({
-          overallDataStatus: normalizeRuntimeStatus(
-            core.runtimeTransparency.data_status,
-            RUNTIME_STATUS.INSUFFICIENT_DATA,
-          ),
-          componentSourceStatus: RUNTIME_STATUS.MODEL_DERIVED,
-        }),
-        risk_rules: {
-          per_trade_risk_pct: core.risk?.max_loss_per_trade ?? null,
-          daily_loss_pct: core.risk?.max_daily_loss ?? null,
-          max_dd_pct: core.risk?.max_drawdown ?? null,
-          exposure_cap_pct: core.risk?.exposure_cap ?? null,
-          vol_switch: true,
-        },
-        risk_status: {
-          current_risk_bucket: core.mode.toUpperCase(),
-          bucket_state: core.mode.toUpperCase(),
-          diagnostics: {
-            daily_pnl_pct: null,
-            max_dd_pct: null,
-          },
-        },
-        runtime: {
-          ...core.runtimeTransparency,
-          api_checks: apiChecks,
-          hydration: buildRuntimeHydrationPlan({
-            signalCount: apiChecks.signal_count,
-            includedSignals: core.signals.length,
-            connectivityIncluded: false,
-          }),
-        },
-      },
-      market_modules: core.modules,
-      analytics: {
-        source_status: core.runtimeTransparency.source_status,
-        runtime: core.runtimeTransparency,
-        status_flags: {
-          runtime_source: core.runtimeTransparency.source_status,
-          performance_source: core.performanceSource,
-          has_performance_sample: core.hasPerformanceSample,
-        },
-      },
-      research: {
-        ...withComponentStatus({
-          overallDataStatus: normalizeRuntimeStatus(
-            core.runtimeTransparency.data_status,
-            RUNTIME_STATUS.INSUFFICIENT_DATA,
-          ),
-          componentSourceStatus: RUNTIME_STATUS.MODEL_DERIVED,
-        }),
-        notes: [
-          core.runtimeTransparency.data_status === RUNTIME_STATUS.DB_BACKED
-            ? 'Runtime app state is DB-backed; advanced research modules remain experimental in this API path.'
-            : 'Runtime app state is currently insufficient for high-confidence research overlays.',
-        ],
-      },
-      today: core.today,
-      safety: core.safety,
-      insights: core.insights,
-      ai: {
-        source_transparency: core.runtimeTransparency,
-      },
-      layers: {
-        data_layer: {
-          instruments: core.marketState.map((row) => ({
-            ticker: row.symbol,
-            market: row.market,
-            latest_close: null,
-            sector: row.market === 'CRYPTO' ? 'Crypto' : 'US',
-          })),
-        },
-        portfolio_layer: {
-          candidates: core.active.slice(0, 12).map((row) => ({
-            ticker: row.symbol,
-            direction: row.direction,
-            grade: row.grade,
-            confidence: row.confidence,
-            risk_score: row.volatility_percentile,
-            entry_plan: {
-              entry_zone: row.entry_zone,
-            },
-          })),
-          filtered_out: core.signals
-            .filter((row) => !['NEW', 'TRIGGERED'].includes(String(row.status)))
-            .slice(0, 12)
-            .map((row) => ({ ticker: row.symbol, reason: row.status })),
-        },
-      },
-    },
-  };
+  return buildRuntimeStateSnapshot({
+    core,
+    decision,
+    evidence,
+    apiChecks,
+    trades: listExecutions({ userId: core.userId, market: core.market, limit: 200 }),
+    componentStatus,
+    connectivityIncluded: false,
+  });
 }
 
 async function getRuntimeStatePrimary(args: {
@@ -4003,184 +3900,23 @@ async function getRuntimeStatePrimary(args: {
     market: core.market,
     limit: RUNTIME_STATE_TRADE_LIMIT,
   });
+  const componentStatus = withComponentStatus({
+    overallDataStatus: normalizeRuntimeStatus(
+      core.runtimeTransparency.data_status,
+      RUNTIME_STATUS.INSUFFICIENT_DATA,
+    ),
+    componentSourceStatus: RUNTIME_STATUS.MODEL_DERIVED,
+  });
 
-  return {
-    asof: core.runtimeTransparency.as_of,
-    source_status: core.runtimeTransparency.source_status,
-    data_status: core.runtimeTransparency.data_status,
-    data_transparency: core.runtimeTransparency,
-    data: {
-      signals: core.signals,
-      evidence,
-      performance: core.performance,
-      decision,
-      trades: trades.map((row) => ({
-        ...row,
-        time_in: new Date(row.created_at_ms).toISOString(),
-        time_out: new Date(row.created_at_ms).toISOString(),
-        entry: row.entry_price,
-        exit: row.tp_price ?? row.entry_price,
-      })),
-      velocity: {
-        as_of: core.runtimeTransparency.as_of,
-        market: core.market,
-        volatility_percentile: core.avgVol,
-        temperature_percentile: core.avgTemp,
-        risk_off_score: core.avgRiskOff,
-        ...withComponentStatus({
-          overallDataStatus: normalizeRuntimeStatus(
-            core.runtimeTransparency.data_status,
-            RUNTIME_STATUS.INSUFFICIENT_DATA,
-          ),
-          componentSourceStatus: RUNTIME_STATUS.MODEL_DERIVED,
-        }),
-      },
-      config: {
-        last_updated: core.runtimeTransparency.as_of,
-        ...withComponentStatus({
-          overallDataStatus: normalizeRuntimeStatus(
-            core.runtimeTransparency.data_status,
-            RUNTIME_STATUS.INSUFFICIENT_DATA,
-          ),
-          componentSourceStatus: RUNTIME_STATUS.MODEL_DERIVED,
-        }),
-        risk_rules: {
-          per_trade_risk_pct: core.risk?.max_loss_per_trade ?? null,
-          daily_loss_pct: core.risk?.max_daily_loss ?? null,
-          max_dd_pct: core.risk?.max_drawdown ?? null,
-          exposure_cap_pct: core.risk?.exposure_cap ?? null,
-          vol_switch: true,
-        },
-        risk_status: {
-          current_risk_bucket: core.mode.toUpperCase(),
-          bucket_state: core.mode.toUpperCase(),
-          diagnostics: {
-            daily_pnl_pct: null,
-            max_dd_pct: null,
-          },
-        },
-        runtime: {
-          ...core.runtimeTransparency,
-          api_checks: apiChecks,
-        },
-      },
-      market_modules: core.modules,
-      analytics: {
-        source_status: core.runtimeTransparency.source_status,
-        runtime: core.runtimeTransparency,
-        status_flags: {
-          runtime_source: core.runtimeTransparency.source_status,
-          performance_source: core.performanceSource,
-          has_performance_sample: core.hasPerformanceSample,
-        },
-      },
-      research: {
-        ...withComponentStatus({
-          overallDataStatus: normalizeRuntimeStatus(
-            core.runtimeTransparency.data_status,
-            RUNTIME_STATUS.INSUFFICIENT_DATA,
-          ),
-          componentSourceStatus: RUNTIME_STATUS.MODEL_DERIVED,
-        }),
-        notes: [
-          core.runtimeTransparency.data_status === RUNTIME_STATUS.DB_BACKED
-            ? 'Runtime app state is DB-backed; advanced research modules remain experimental in this API path.'
-            : 'Runtime app state is currently insufficient for high-confidence research overlays.',
-        ],
-      },
-      today: core.today,
-      safety: core.safety,
-      insights: core.insights,
-      ai: {
-        source_transparency: core.runtimeTransparency,
-      },
-      layers: {
-        data_layer: {
-          instruments: core.marketState.map((row) => ({
-            ticker: row.symbol,
-            market: row.market,
-            latest_close: null,
-            sector: row.market === 'CRYPTO' ? 'Crypto' : 'US',
-          })),
-        },
-        portfolio_layer: {
-          candidates: core.active.slice(0, 12).map((row) => ({
-            ticker: row.symbol,
-            direction: row.direction,
-            grade: row.grade,
-            confidence: row.confidence,
-            risk_score: row.volatility_percentile,
-            entry_plan: {
-              entry_zone: row.entry_zone,
-            },
-          })),
-          filtered_out: core.signals
-            .filter((row) => !['NEW', 'TRIGGERED'].includes(String(row.status)))
-            .slice(0, 12)
-            .map((row) => ({ ticker: row.symbol, reason: row.status })),
-        },
-      },
-    },
-  };
-}
-
-export function shouldUsePublicDecisionFallback(args: {
-  sourceStatus?: string | null;
-  signalCount?: number;
-  decision?: Record<string, unknown> | null;
-  holdings?: UserHoldingInput[];
-}) {
-  if (String(process.env.NOVA_FORCE_PUBLIC_RUNTIME_FALLBACK || '') === '1') {
-    return true;
-  }
-  // When the user provides holdings, always use the personalized path so
-  // portfolio_context is populated — even on Vercel cold starts with an
-  // empty ephemeral runtime cache.
-  if (Array.isArray(args.holdings) && args.holdings.length) return false;
-  const runtimeStatus = normalizeRuntimeStatus(args.sourceStatus, RUNTIME_STATUS.INSUFFICIENT_DATA);
-  const signalCount = Number(args.signalCount || 0);
-  const decisionSignalCount = signalPayloadsFromDecision(args.decision).length;
-  const todayCall = asObject(asObject(args.decision).today_call);
-  const decisionCode = String(todayCall.code || '').toUpperCase();
-  const noDisplayableSignalCards = signalCount === 0 && decisionSignalCount === 0;
-  // When the DB is completely empty (no signals and not DB-backed) and there
-  // are no holdings, fall through to the public live-scan path.
-  // This prevents "System offline" on Vercel cold starts where the ephemeral
-  // runtime cache is empty.
-  if (
-    runtimeStatus !== RUNTIME_STATUS.DB_BACKED &&
-    noDisplayableSignalCards &&
-    (decisionCode === 'UNAVAILABLE' || !decisionCode)
-  ) {
-    return true;
-  }
-  if (noDisplayableSignalCards) {
-    return true;
-  }
-  return runtimeStatus !== RUNTIME_STATUS.DB_BACKED && signalCount === 0;
-}
-
-function signalPayloadsFromDecision(decision: Record<string, unknown> | null | undefined) {
-  return asArray(asObject(decision).ranked_action_cards)
-    .map((row) => asObject(row).signal_payload)
-    .filter((row) => row && typeof row === 'object');
-}
-
-function buildRuntimeHydrationPlan(args: {
-  signalCount: number;
-  includedSignals: number;
-  connectivityIncluded?: boolean;
-}) {
-  const signalCount = Math.max(0, Number(args.signalCount || 0));
-  const includedSignals = Math.max(0, Number(args.includedSignals || 0));
-  return {
-    primary_snapshot_version: 'today-runtime-v2',
-    evidence_included: true,
-    signals_included: includedSignals,
-    signal_count: signalCount,
-    signals_truncated: signalCount > includedSignals,
-    connectivity_included: Boolean(args.connectivityIncluded),
-  };
+  return buildRuntimeStateSnapshot({
+    core,
+    decision,
+    evidence,
+    apiChecks,
+    trades,
+    componentStatus,
+    connectivityIncluded: false,
+  });
 }
 
 export async function getRuntimeStateResponse(args: {
@@ -4199,9 +3935,11 @@ export async function getRuntimeStateResponse(args: {
       const runtime = await getRuntimeStatePrimary(args);
       if (
         !shouldUsePublicDecisionFallback({
+          forceFallback: String(process.env.NOVA_FORCE_PUBLIC_RUNTIME_FALLBACK || '') === '1',
           sourceStatus: String(runtime.source_status || ''),
           signalCount: Array.isArray(runtime?.data?.signals) ? runtime.data.signals.length : 0,
           decision: asObject(runtime?.data?.decision),
+          dbBackedStatus: RUNTIME_STATUS.DB_BACKED,
         })
       ) {
         return runtime;
@@ -4213,49 +3951,12 @@ export async function getRuntimeStateResponse(args: {
           market: args.market,
           assetClass: args.assetClass,
         });
-        const publicSignals = signalPayloadsFromDecision(publicDecision as Record<string, unknown>);
-        const nextSignals = publicSignals.length ? publicSignals : runtime.data.signals;
-        return {
-          ...runtime,
-          data: {
-            ...runtime.data,
-            signals: nextSignals,
-            evidence: publicSignals.length
-              ? buildRuntimeEvidencePreview({
-                  signals: publicSignals as Array<Record<string, unknown>>,
-                  sourceStatus: String(
-                    (publicDecision as Record<string, unknown>).source_status ||
-                      runtime.source_status ||
-                      RUNTIME_STATUS.MODEL_DERIVED,
-                  ),
-                })
-              : runtime.data.evidence,
-            decision: publicDecision,
-            config: {
-              ...(runtime.data.config || {}),
-              runtime: {
-                ...(runtime.data.config?.runtime || {}),
-                api_checks: {
-                  ...(runtime.data.config?.runtime?.api_checks || {}),
-                  signal_count: nextSignals.length,
-                },
-                hydration: buildRuntimeHydrationPlan({
-                  signalCount: nextSignals.length,
-                  includedSignals: nextSignals.length,
-                  connectivityIncluded: Boolean(
-                    (runtime.data.config?.runtime &&
-                      'hydration' in runtime.data.config.runtime &&
-                      runtime.data.config.runtime.hydration &&
-                      typeof runtime.data.config.runtime.hydration === 'object' &&
-                      'connectivity_included' in runtime.data.config.runtime.hydration &&
-                      runtime.data.config.runtime.hydration.connectivity_included) ||
-                    false,
-                  ),
-                }),
-              },
-            },
-          },
-        };
+        return applyPublicDecisionToRuntime({
+          runtime,
+          publicDecision: publicDecision as Record<string, unknown>,
+          modelDerivedStatus: RUNTIME_STATUS.MODEL_DERIVED,
+          buildRuntimeEvidencePreview,
+        });
       } catch {
         return runtime;
       }
