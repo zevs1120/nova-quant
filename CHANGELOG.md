@@ -2,7 +2,16 @@
 
 NovaQuant 所有重要变更记录于此。
 
-## 10.22.8 (2026-04-05)
+## 10.22.9 (2026-04-05)
+
+### 🧩 P6 Today Read Slice 拆分 (Today Read Slice Extraction)
+
+- **Today / Engagement 读逻辑从 `queries.ts` 拆出**
+  - 新增 `src/server/api/queries/todayReads.ts`，把 decision snapshot、engagement snapshot、ritual completion、notification preference 这些 Today 读职责收成独立 slice factory。
+  - `queries.ts` 现在只负责把 runtime / postgres / cache helper 注给 `createTodayReadApi()`，不再自己内联维护整大段 Today 决策与 engagement 拼装。
+
+- **回归护栏**
+  - 新增 `tests/todayReadsSlice.test.ts`，验证 `queries.ts` 继续从专门的 Today slice 装配这些导出，避免后续又把 Today 逻辑塞回巨石文件。
 
 ### 🎨 P5 二级页轻壳与样式边界收口 (Secondary Shell Canvas & Style Boundary Tightening)
 
@@ -1808,4 +1817,10 @@ NovaQuant 所有重要变更记录于此。
 
 - Release type: patch
 - P5 secondary shell canvas and CSS frame cleanup
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
+## 10.22.9 (2026-04-05)
+
+- Release type: patch
+- P6 extract today reads slice from queries
 - Updated release metadata, build number, About runtime source, and changelog entry.
