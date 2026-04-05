@@ -1,19 +1,11 @@
 import { getSupabaseAccessToken } from './supabaseAuth';
-import { runtimeApiBases, buildApiUrl, trimTrailingSlash, unique, isLocalHost } from './apiBase';
+import { runtimeApiBases, buildApiUrl, unique } from '../shared/http/apiBase.js';
+import { shouldRetryWithNextBase } from '../shared/http/apiRetry.js';
 
 let cachedApiBase = null;
 
 function resolveApiUrl(path) {
   return buildApiUrl(path, cachedApiBase ?? runtimeApiBases()[0] ?? '');
-}
-
-function shouldRetryWithNextBase(path, base, response) {
-  if (!String(path || '').startsWith('/api/')) return false;
-  if (typeof window === 'undefined') return false;
-  if (!isLocalHost(String(window.location?.hostname || ''))) return false;
-
-  const contentType = String(response?.headers?.get?.('content-type') || '').toLowerCase();
-  return response?.status === 404 || response?.status === 405 || contentType.includes('text/html');
 }
 
 async function withAuthHeaders(options = {}) {
@@ -45,7 +37,7 @@ export async function fetchApi(path, options = {}) {
         mode: cachedApiBase ? 'cors' : options.mode,
         credentials: options.credentials ?? 'include',
       });
-      if (shouldRetryWithNextBase(path, cachedApiBase, response)) {
+      if (shouldRetryWithNextBase(path, response)) {
         cachedApiBase = null;
       } else {
         return response;
@@ -68,7 +60,7 @@ export async function fetchApi(path, options = {}) {
         mode: base ? 'cors' : options.mode,
         credentials: options.credentials ?? 'include',
       });
-      if (shouldRetryWithNextBase(path, base, response)) {
+      if (shouldRetryWithNextBase(path, response)) {
         lastRetryableResponse = response;
         continue;
       }

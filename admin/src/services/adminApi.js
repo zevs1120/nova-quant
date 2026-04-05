@@ -1,31 +1,5 @@
-function detectDefaultApiBase() {
-  if (typeof window === 'undefined') return '';
-  const envBase = String(
-    import.meta.env.VITE_PUBLIC_API_BASE_URL ||
-      import.meta.env.VITE_ADMIN_API_BASE ||
-      import.meta.env.VITE_API_BASE_URL ||
-      '',
-  ).trim();
-  const { protocol, hostname } = window.location;
-  const normalizedEnvBase = envBase ? envBase.replace(/\/+$/, '') : '';
-  if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return normalizedEnvBase || 'http://127.0.0.1:8787';
-  }
-  if (hostname === 'api.novaquant.cloud') {
-    return '';
-  }
-  if (
-    hostname === 'admin.novaquant.cloud' ||
-    hostname === 'novaquant.cloud' ||
-    hostname.endsWith('.novaquant.cloud')
-  ) {
-    return normalizedEnvBase || 'https://api.novaquant.cloud';
-  }
-  if (normalizedEnvBase) return normalizedEnvBase;
-  return `${protocol}//api.novaquant.cloud`;
-}
-
-const API_BASE = detectDefaultApiBase();
+import { buildApiUrl, runtimeApiBases, unique } from '../../../src/shared/http/apiBase.js';
+import { shouldRetryWithNextBase } from '../../../src/shared/http/apiRetry.js';
 
 const DEFAULT_TIMEOUT_MS = 10_000;
 
@@ -38,36 +12,55 @@ async function parseJson(response) {
 }
 
 export async function adminRequest(path, init = {}) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
-  try {
-    const response = await fetch(`${API_BASE}${path}`, {
-      ...init,
-      credentials: 'include',
-      signal: controller.signal,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(init.headers || {}),
-      },
-    });
-    clearTimeout(timer);
-    const payload = await parseJson(response);
-    if (!response.ok) {
-      const error = payload?.error || `HTTP_${response.status}`;
-      throw new Error(String(error));
+  const candidates = unique(runtimeApiBases());
+  let lastError = null;
+  let lastPayload = null;
+  let lastStatus = 500;
+
+  for (const base of candidates) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
+    try {
+      const response = await fetch(buildApiUrl(path, base), {
+        ...init,
+        credentials: 'include',
+        mode: base ? 'cors' : init.mode,
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(init.headers || {}),
+        },
+      });
+      clearTimeout(timer);
+      if (shouldRetryWithNextBase(path, response)) {
+        continue;
+      }
+      const payload = await parseJson(response);
+      if (!response.ok) {
+        const error = payload?.error || `HTTP_${response.status}`;
+        throw new Error(String(error));
+      }
+      return payload;
+    } catch (err) {
+      clearTimeout(timer);
+      if (err instanceof Error && err.name === 'AbortError') {
+        lastError = new Error('ADMIN_REQUEST_TIMEOUT');
+        continue;
+      }
+      lastError = err instanceof Error ? err : new Error(String(err));
+      lastPayload = null;
+      lastStatus = 500;
     }
-    return payload;
-  } catch (err) {
-    clearTimeout(timer);
-    if (err instanceof Error && err.name === 'AbortError') {
-      throw new Error('ADMIN_REQUEST_TIMEOUT');
-    }
-    throw err;
   }
+
+  if (lastPayload?.error) {
+    throw new Error(String(lastPayload.error || `HTTP_${lastStatus}`));
+  }
+  throw lastError instanceof Error ? lastError : new Error('ADMIN_REQUEST_FAILED');
 }
 
 export function getAdminApiBase() {
-  return API_BASE;
+  return runtimeApiBases()[0] || '';
 }
 
 export function getAdminSession() {
