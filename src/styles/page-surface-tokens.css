@@ -1,0 +1,14 @@
+:where(.nova-ai-page, .browse-rh-screen, .menu-root-shell, .watchlist-root-shell) {
+  --page-surface-radius: 32px;
+  --page-surface-stroke: rgba(255, 255, 255, 0.1);
+  --page-surface-fill: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.06),
+    rgba(255, 255, 255, 0.02)
+  );
+  --page-surface-shadow: 0 24px 60px rgba(7, 10, 18, 0.18);
+}
+
+:where(.menu-root-shell, .watchlist-root-shell) {
+  --page-surface-radius: 34px;
+}

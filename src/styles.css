@@ -12,6 +12,7 @@
 @import './styles/interaction-system.css';
 @import './styles/consumer-layer.css';
 @import './styles/polish.css';
+@import './styles/shell-tokens.css';
 @import './styles/secondary-shell.css';
 @import './styles/corrections.css';
 @import './styles/brand-reset.css';

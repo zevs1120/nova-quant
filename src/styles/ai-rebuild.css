@@ -1,3 +1,5 @@
+@import './page-surface-tokens.css';
+
 .main-content-ai {
   padding-top: 0;
   padding-bottom: calc(var(--native-tabbar-reserve) + 112px);

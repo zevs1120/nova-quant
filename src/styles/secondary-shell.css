@@ -7,9 +7,6 @@
 }
 
 .secondary-page-canvas {
-  --secondary-shell-glow-a: rgba(255, 255, 255, 0.14);
-  --secondary-shell-glow-b: rgba(122, 92, 255, 0.12);
-  --secondary-shell-stroke: rgba(255, 255, 255, 0.08);
   position: relative;
   min-height: 100%;
   isolation: isolate;
@@ -32,10 +29,10 @@
 }
 
 .secondary-page-canvas::after {
-  inset: 12px 10px 18px;
-  border-radius: 32px;
+  inset: var(--secondary-shell-panel-inset);
+  border-radius: var(--secondary-shell-panel-radius);
   border: 1px solid var(--secondary-shell-stroke);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01));
+  background: var(--secondary-shell-panel-fill);
   opacity: 0.85;
 }
 
@@ -70,8 +67,4 @@
 }
 
 @media (max-width: 720px) {
-  .secondary-page-canvas::after {
-    inset: 10px 8px 14px;
-    border-radius: 26px;
-  }
 }

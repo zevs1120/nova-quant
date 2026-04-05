@@ -2,7 +2,19 @@
 
 NovaQuant 所有重要变更记录于此。
 
-## 10.22.11 (2026-04-05)
+## 10.22.12 (2026-04-05)
+
+### 🎛️ P9 CSS 责任边界分层 (CSS Responsibility Layering)
+
+- **shell tokens 和 page surface tokens 分层**
+  - 新增 `src/styles/shell-tokens.css`，把 secondary shell 的 panel inset、radius、fill 和基础 glow/stroke 收成真正的壳层 token。
+  - 新增 `src/styles/page-surface-tokens.css`，让 `ai-rebuild.css`、`browse.css`、`menu.css`、`watchlist.css` 这些重页面样式共享 page surface token，而不是继续把这些边界常量散落到各自文件里。
+
+- **secondary shell CSS 收口**
+  - `secondary-shell.css` 现在只消费 shell token，不再自己硬编码 panel inset / radius / fill 这类壳层常量。
+
+- **回归护栏**
+  - 新增 `tests/cssResponsibilityLayers.test.ts`，确保 shell token 只进全局入口，page surface token 只由页面级样式持有。
 
 ### 🛡️ P8 壳层与样式边界测试补强 (Shell & Style Boundary Guard Tests)
 
@@ -1853,4 +1865,10 @@ NovaQuant 所有重要变更记录于此。
 
 - Release type: patch
 - P8 add shell and style boundary guard tests
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
+## 10.22.12 (2026-04-05)
+
+- Release type: patch
+- P9 split shell and page surface CSS tokens
 - Updated release metadata, build number, About runtime source, and changelog entry.
