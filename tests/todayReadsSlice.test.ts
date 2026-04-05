@@ -20,15 +20,15 @@ describe('todayReads slice wiring', () => {
     expect(queriesSource).toContain(
       "import { createTodayReadApi } from './queries/todayReads.js';",
     );
-    expect(queriesSource).toContain('const {');
-    expect(queriesSource).toContain('} = createTodayReadApi({');
+    expect(queriesSource).toContain('buildDecisionSnapshotFromCore');
+    expect(queriesSource).toContain('createTodayReadApi({');
   });
 
-  it('keeps decision and engagement exports in the Today slice factory', () => {
+  it('keeps decision helpers in the Today slice factory', () => {
     expect(todayReadsSource).toContain('export function createTodayReadApi');
     expect(todayReadsSource).toContain('async function getDecisionSnapshot');
-    expect(todayReadsSource).toContain('async function getEngagementState');
-    expect(todayReadsSource).toContain('completeMorningCheck');
-    expect(todayReadsSource).toContain('completeWeeklyReview');
+    expect(todayReadsSource).toContain('buildDecisionSnapshotFromCore');
+    expect(todayReadsSource).not.toContain('async function getEngagementState');
+    expect(todayReadsSource).not.toContain('completeMorningCheck');
   });
 });

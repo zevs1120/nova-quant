@@ -6,18 +6,18 @@ This backlog tracks the highest-leverage maintainability work so refactors can b
 
 These files are currently the largest implementation surfaces in `src/` and should be treated as refactor candidates before they absorb more responsibilities.
 
-| File                                         | Approx. lines | Why it matters                                                                 | Recommended next cut                                                                       |
-| -------------------------------------------- | ------------: | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
-| `src/styles/onboarding.css`                  |          5723 | Very large page stylesheet with high visual coupling and difficult safe edits. | Split shell tokens, onboarding flow sections, and one-off utility clusters.                |
-| `src/styles/today-final.css`                 |          5635 | Today still concentrates most high-density UI styling in one file.             | Separate shell framing, deck layout, and Today detail treatments.                          |
-| `src/server/api/queries.ts`                  |          3909 | Still the central query composition monolith even after slice extraction.      | Extract `engagementReads` and `portfolioReads`, leave only wiring and shared cache policy. |
-| `src/server/db/repository.ts`                |          3830 | Broad persistence surface with many unrelated concerns in one module.          | Split by domain table groups or read/write families.                                       |
-| `src/server/nova/productionStrategyPack.ts`  |          3552 | Large strategy-pack generator with high cognitive load.                        | Break into pack assembly, validation, and export helpers.                                  |
-| `src/server/db/postgresRuntimeRepository.ts` |          3361 | Runtime DB access remains dense and hard to isolate in review.                 | Separate runtime reads from write and mirror helpers.                                      |
-| `src/server/admin/postgresBusinessRead.ts`   |          3181 | Admin read layer continues to accrete dashboard-specific branches.             | Slice by dashboard domain or report type.                                                  |
-| `src/components/TodayTab.jsx`                |          2772 | Today rendering is better than before but still a large ownership surface.     | Keep peeling out section-level components and view-model helpers.                          |
-| `src/server/public/browseService.ts`         |          2533 | Browse logic remains broad and easy to regress indirectly.                     | Split home feed, detail assembly, and search/read helpers.                                 |
-| `src/components/MenuTab.jsx`                 |          2263 | My/Menu UI still mixes large content sections with layout behavior.            | Extract section components and policy text blocks.                                         |
+| File                                         | Approx. lines | Why it matters                                                                 | Recommended next cut                                                        |
+| -------------------------------------------- | ------------: | ------------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
+| `src/styles/onboarding.css`                  |          5723 | Very large page stylesheet with high visual coupling and difficult safe edits. | Split shell tokens, onboarding flow sections, and one-off utility clusters. |
+| `src/styles/today-final.css`                 |          5635 | Today still concentrates most high-density UI styling in one file.             | Separate shell framing, deck layout, and Today detail treatments.           |
+| `src/server/api/queries.ts`                  |          3909 | Still the central query composition monolith even after slice extraction.      | Extract `portfolioReads`, leave only wiring and shared cache policy.        |
+| `src/server/db/repository.ts`                |          3830 | Broad persistence surface with many unrelated concerns in one module.          | Split by domain table groups or read/write families.                        |
+| `src/server/nova/productionStrategyPack.ts`  |          3552 | Large strategy-pack generator with high cognitive load.                        | Break into pack assembly, validation, and export helpers.                   |
+| `src/server/db/postgresRuntimeRepository.ts` |          3361 | Runtime DB access remains dense and hard to isolate in review.                 | Separate runtime reads from write and mirror helpers.                       |
+| `src/server/admin/postgresBusinessRead.ts`   |          3181 | Admin read layer continues to accrete dashboard-specific branches.             | Slice by dashboard domain or report type.                                   |
+| `src/components/TodayTab.jsx`                |          2772 | Today rendering is better than before but still a large ownership surface.     | Keep peeling out section-level components and view-model helpers.           |
+| `src/server/public/browseService.ts`         |          2533 | Browse logic remains broad and easy to regress indirectly.                     | Split home feed, detail assembly, and search/read helpers.                  |
+| `src/components/MenuTab.jsx`                 |          2263 | My/Menu UI still mixes large content sections with layout behavior.            | Extract section components and policy text blocks.                          |
 
 ## 2. Highest-Churn Files
 
@@ -48,18 +48,18 @@ These areas are still maintainable only because contributors remember the rules.
 
 ## 4. Testing Gaps To Close
 
-- Add slice tests when `engagementReads` or `portfolioReads` are extracted from `queries.ts`.
+- Add slice tests when `portfolioReads` is extracted from `queries.ts`.
 - Add section-level tests around `TodayTab.jsx` once more rendering logic moves into subcomponents.
 - Add CSS ownership tests for onboarding and Today sub-surfaces if their stylesheets start splitting.
 - Add admin-domain boundary tests if `postgresBusinessRead.ts` is divided by dashboard family.
 
 ## 5. Recommended Next Sequence
 
-1. Extract `engagementReads` from `src/server/api/queries.ts`.
-2. Extract `portfolioReads` from `src/server/api/queries.ts`.
-3. Split `src/styles/today-final.css` into shell, deck, and detail layers.
-4. Split `src/styles/onboarding.css` by flow step or page section.
-5. Continue shrinking `src/components/TodayTab.jsx` with section components and feature-local state helpers.
+1. Extract `portfolioReads` from `src/server/api/queries.ts`.
+2. Split `src/styles/today-final.css` into shell, deck, and detail layers.
+3. Split `src/styles/onboarding.css` by flow step or page section.
+4. Continue shrinking `src/components/TodayTab.jsx` with section components and feature-local state helpers.
+5. Add more query-slice boundary tests as `queries.ts` keeps shrinking.
 
 ## 6. Update Rule
 

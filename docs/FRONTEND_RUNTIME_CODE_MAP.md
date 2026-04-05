@@ -44,7 +44,9 @@ The primary frontend read path starts from `useAppData`.
 4. `src/server/api/queries/runtimeReads.ts`
    Owns runtime snapshot shaping, hydration metadata, and public fallback application.
 5. `src/server/api/queries/todayReads.ts`
-   Owns Today decision and engagement reads that were extracted from the monolith.
+   Owns Today decision snapshot reads.
+6. `src/server/api/queries/engagementReads.ts`
+   Owns engagement snapshots, ritual actions, widget summaries, and notification preview reads.
 
 Hydration boundary today:
 
@@ -61,6 +63,7 @@ Already extracted:
 - `src/server/api/queries/runtimeReads.ts`
 - `src/server/api/queries/browseReads.ts`
 - `src/server/api/queries/todayReads.ts`
+- `src/server/api/queries/engagementReads.ts`
 
 Still centered in `src/server/api/queries.ts`:
 
@@ -70,7 +73,6 @@ Still centered in `src/server/api/queries.ts`:
 
 Suggested next slices:
 
-- `engagementReads`
 - `portfolioReads`
 - any remaining high-churn runtime-adjacent read helpers
 
@@ -86,7 +88,7 @@ When touching Today loading:
 
 - start at `src/hooks/useAppData.js`
 - verify whether the change belongs in `runtime-state`
-- then follow into `runtimeReads.ts` or `todayReads.ts`
+- then follow into `runtimeReads.ts`, `todayReads.ts`, or `engagementReads.ts`
 
 When touching query maintainability:
 

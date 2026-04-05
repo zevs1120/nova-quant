@@ -12,8 +12,8 @@ describe('maintainability backlog doc', () => {
     expect(backlogSource).toContain('src/components/TodayTab.jsx');
     expect(backlogSource).toContain('src/styles/today-final.css');
     expect(backlogSource).toContain('src/styles/onboarding.css');
-    expect(backlogSource).toContain('Extract `engagementReads`');
     expect(backlogSource).toContain('Extract `portfolioReads`');
+    expect(backlogSource).toContain('Add more query-slice boundary tests');
   });
 
   it('keeps the README linked to the maintainability backlog', () => {

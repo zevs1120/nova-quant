@@ -77,6 +77,7 @@ import {
   buildRuntimeStateSnapshot,
   shouldUsePublicDecisionFallback,
 } from './queries/runtimeReads.js';
+import { createEngagementReadApi } from './queries/engagementReads.js';
 import { createTodayReadApi } from './queries/todayReads.js';
 export {
   searchAssets,
@@ -2701,30 +2702,6 @@ function snapshotDateKey(iso: string): string {
   return String(iso || '').slice(0, 10);
 }
 
-function todayDateKey(input = new Date()): string {
-  return String(input.toISOString()).slice(0, 10);
-}
-
-function localHourOrNow(hour?: number): number {
-  if (Number.isFinite(hour)) {
-    return Math.max(0, Math.min(23, Number(hour)));
-  }
-  return new Date().getHours();
-}
-
-function localDateOrToday(date?: string): string {
-  const value = String(date || '').trim();
-  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : todayDateKey();
-}
-
-function weekStartKey(dateKey: string): string {
-  const base = new Date(`${dateKey}T00:00:00`);
-  if (!Number.isFinite(base.getTime())) return dateKey;
-  const weekday = (base.getDay() + 6) % 7;
-  base.setDate(base.getDate() - weekday);
-  return todayDateKey(base);
-}
-
 function parseOptionalJson(text: string | null | undefined): Record<string, unknown> | null {
   if (!text) return null;
   try {
@@ -2735,10 +2712,21 @@ function parseOptionalJson(text: string | null | undefined): Record<string, unkn
   }
 }
 
+const { buildDecisionSnapshotFromCore, buildDecisionSnapshotFromCorePrimary, getDecisionSnapshot } =
+  createTodayReadApi({
+    getRepo,
+    listExecutions,
+    listExecutionsPrimary,
+    getLatestDecisionSnapshotPrimary,
+    loadRuntimeStateCorePrimary,
+    shouldUsePublicDecisionFallback,
+    shouldAvoidSyncHotPathFallback,
+    parseJsonObject,
+    parseJsonArray,
+    buildRuntimeSignalEvidenceFromSignals,
+  });
+
 const {
-  buildDecisionSnapshotFromCore,
-  buildDecisionSnapshotFromCorePrimary,
-  getDecisionSnapshot,
   getEngagementState,
   completeMorningCheck,
   confirmRiskBoundary,
@@ -2748,7 +2736,7 @@ const {
   getNotificationPreview,
   getNotificationPreferencesState,
   setNotificationPreferencesState,
-} = createTodayReadApi({
+} = createEngagementReadApi({
   getRepo,
   cachedFrontendRead,
   tryPrimaryPostgresRead,
@@ -2756,18 +2744,11 @@ const {
   readPostgresNotificationPreferences,
   readPostgresUserRitualEvents,
   readPostgresNotificationEvents,
-  listExecutions,
-  listExecutionsPrimary,
-  getLatestDecisionSnapshotPrimary,
   listDecisionSnapshotsPrimary,
-  loadRuntimeStateCorePrimary,
-  shouldUsePublicDecisionFallback,
-  shouldAvoidSyncHotPathFallback,
-  parseJsonObject,
   parseJsonArray,
-  buildRuntimeSignalEvidenceFromSignals,
   invalidateFrontendReadCacheForUser,
   wrapUpLanguageCache,
+  getDecisionSnapshot,
 });
 
 export {

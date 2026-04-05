@@ -2,6 +2,20 @@
 
 NovaQuant 所有重要变更记录于此。
 
+## 10.22.16 (2026-04-05)
+
+### 💬 P13 Engagement Read Slice 拆分 (Engagement Read Slice Extraction)
+
+- **Engagement / ritual / notification 读职责从 Today slice 继续拆出**
+  - 新增 `src/server/api/queries/engagementReads.ts`，把 engagement snapshot、ritual completion、widget summary、notification preview 和 notification preferences 这些读/轻写职责从 `todayReads.ts` 中拆出独立 slice。
+  - `src/server/api/queries/todayReads.ts` 现在只保留 decision snapshot 相关职责，`queries.ts` 则分别装配 today decision slice 和 engagement slice。
+
+- **维护文档同步**
+  - `README.md`、`docs/FRONTEND_RUNTIME_CODE_MAP.md`、`docs/MAINTAINABILITY_BACKLOG.md` 已同步这次 slice 拆分，并把 query 层下一刀收敛到 `portfolioReads`。
+
+- **回归护栏**
+  - 新增 `tests/engagementReadsSlice.test.ts`，并更新现有 slice / docs 测试，确保 engagement 逻辑继续留在独立 slice 内，而不是重新回流到 `todayReads.ts` 或 `queries.ts`。
+
 ## 10.22.15 (2026-04-05)
 
 ### 📋 P12 可维护性 Backlog 建档 (Maintainability Backlog)
@@ -1924,4 +1938,10 @@ NovaQuant 所有重要变更记录于此。
 
 - Release type: patch
 - P12 add maintainability backlog
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
+## 10.22.16 (2026-04-05)
+
+- Release type: patch
+- P13 extract engagement read slice
 - Updated release metadata, build number, About runtime source, and changelog entry.

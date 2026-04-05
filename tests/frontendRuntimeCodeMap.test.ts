@@ -16,6 +16,7 @@ describe('frontend runtime code map', () => {
     expect(mapSource).toContain('src/server/api/queries/runtimeReads.ts');
     expect(mapSource).toContain('src/server/api/queries/todayReads.ts');
     expect(mapSource).toContain('src/server/api/queries/browseReads.ts');
+    expect(mapSource).toContain('src/server/api/queries/engagementReads.ts');
   });
 
   it('keeps the README linked to the code map and extracted query slices', () => {
@@ -24,5 +25,6 @@ describe('frontend runtime code map', () => {
     expect(readmeSource).toContain('src/server/api/queries/runtimeReads.ts');
     expect(readmeSource).toContain('src/server/api/queries/todayReads.ts');
     expect(readmeSource).toContain('src/server/api/queries/browseReads.ts');
+    expect(readmeSource).toContain('src/server/api/queries/engagementReads.ts');
   });
 });
