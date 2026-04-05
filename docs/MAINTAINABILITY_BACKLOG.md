@@ -9,7 +9,7 @@ These files are currently the largest implementation surfaces in `src/` and shou
 | File                                         | Approx. lines | Why it matters                                                                 | Recommended next cut                                                               |
 | -------------------------------------------- | ------------: | ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
 | `src/styles/onboarding.css`                  |          5723 | Very large page stylesheet with high visual coupling and difficult safe edits. | Split shell tokens, onboarding flow sections, and one-off utility clusters.        |
-| `src/styles/today-final.css`                 |          5635 | Today still concentrates most high-density UI styling in one file.             | Separate shell framing, deck layout, and Today detail treatments.                  |
+| `src/styles/today-final.css`                 |          5603 | Today still concentrates most high-density UI styling in one file.             | Continue separating deck layout, climate/detail, and signal-detail treatments.     |
 | `src/server/api/queries.ts`                  |          3909 | Still the central query composition monolith even after slice extraction.      | Keep trimming remaining domain helpers until it is mostly wiring and cache policy. |
 | `src/server/db/repository.ts`                |          3830 | Broad persistence surface with many unrelated concerns in one module.          | Split by domain table groups or read/write families.                               |
 | `src/server/nova/productionStrategyPack.ts`  |          3552 | Large strategy-pack generator with high cognitive load.                        | Break into pack assembly, validation, and export helpers.                          |
@@ -44,22 +44,22 @@ These areas are still maintainable only because contributors remember the rules.
 - Query composition root versus domain-specific read logic
   - `queries.ts` still carries too much read and mutation context in one place.
 - CSS layer boundaries between shell frame, page surface, and feature detail
-  - token splits have started, but the biggest stylesheets still need section-level ownership.
+  - token splits have started, and Today shell framing now has its own stylesheet, but the biggest stylesheets still need section-level ownership.
 
 ## 4. Testing Gaps To Close
 
 - Keep static query-slice boundary tests current as new domains are extracted.
 - Add section-level tests around `TodayTab.jsx` once more rendering logic moves into subcomponents.
-- Add CSS ownership tests for onboarding and Today sub-surfaces if their stylesheets start splitting.
+- Add CSS ownership tests for onboarding and deeper Today sub-surfaces as their stylesheets continue splitting.
 - Add admin-domain boundary tests if `postgresBusinessRead.ts` is divided by dashboard family.
 
 ## 5. Recommended Next Sequence
 
-1. Split `src/styles/today-final.css` into shell, deck, and detail layers.
+1. Continue splitting `src/styles/today-final.css` now that `src/styles/today-shell.css` owns shell, hero, and pace framing.
 2. Split `src/styles/onboarding.css` by flow step or page section.
 3. Continue shrinking `src/components/TodayTab.jsx` with section components and feature-local state helpers.
 4. Identify the next non-trivial query domain worth slicing out of `queries.ts`.
-5. Keep boundary tests current whenever a new slice is added.
+5. Keep boundary tests current whenever a new slice or stylesheet layer is added.
 
 ## 6. Update Rule
 

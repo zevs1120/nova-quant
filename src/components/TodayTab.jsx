@@ -1,3 +1,4 @@
+import '../styles/today-shell.css';
 import '../styles/today-final.css';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import SignalDetail from './SignalDetail';

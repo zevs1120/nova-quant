@@ -18,7 +18,8 @@ describe('TodayTab.jsx shell markers', () => {
     expect(source).toContain('today-rebuild-stack');
   });
 
-  it('imports today-final for the rebuild card chrome', () => {
+  it('imports today-shell and today-final for layered chrome ownership', () => {
+    expect(source).toContain("import '../styles/today-shell.css'");
     expect(source).toContain("import '../styles/today-final.css'");
   });
 });

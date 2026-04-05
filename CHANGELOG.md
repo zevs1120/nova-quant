@@ -2,6 +2,20 @@
 
 NovaQuant 所有重要变更记录于此。
 
+## 10.22.19 (2026-04-05)
+
+### 🎨 P16 Today 壳层样式拆分 (Today Shell CSS Layer Split)
+
+- **Today shell / hero / pace 进入独立样式层**
+  - 新增 `src/styles/today-shell.css`，把 `top-bar`、Today summary、hero、pace module 以及对应移动端收口规则从 `today-final.css` 里抽出来，先把最稳定的一层壳样式独立出来。
+  - `src/components/TodayTab.jsx` 现在同时引入 `today-shell.css` 和 `today-final.css`，把壳层 framing 与更重的 card/detail/climate 样式分层持有。
+
+- **样式边界门禁同步**
+  - 更新 `tests/pageStyleBoundary.test.ts`、`tests/todayTabShellMarkers.test.ts`、`tests/cssResponsibilityLayers.test.ts`，要求 Today 持续显式引入 `today-shell.css`，并确保 `.today-hero-shell`、`.today-pace-module` 这些壳层选择器不再回流到 `today-final.css`。
+
+- **维护 backlog 同步**
+  - `docs/MAINTAINABILITY_BACKLOG.md` 现在记录 Today 已完成首层 CSS 拆分，并把下一刀明确收敛到 deck、climate/detail 与 onboarding 这些剩余高耦合样式面。
+
 ## 10.22.18 (2026-04-05)
 
 ### 🧱 P15 Query Slice 边界测试 (Query Slice Boundary Tests)
@@ -1983,4 +1997,10 @@ NovaQuant 所有重要变更记录于此。
 
 - Release type: patch
 - P15 add query slice boundary tests
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
+## 10.22.19 (2026-04-05)
+
+- Release type: patch
+- P16 split today shell css layer
 - Updated release metadata, build number, About runtime source, and changelog entry.

@@ -8,6 +8,9 @@ describe('page style boundaries', () => {
 
   it('keeps heavy page CSS inside the owning lazy components', () => {
     expect(read(path.join('components', 'TodayTab.jsx'))).toContain(
+      "import '../styles/today-shell.css'",
+    );
+    expect(read(path.join('components', 'TodayTab.jsx'))).toContain(
       "import '../styles/today-final.css'",
     );
     expect(read(path.join('components', 'AiPage.jsx'))).toMatch(

@@ -31,4 +31,15 @@ describe('CSS responsibility layers', () => {
     expect(shellCss).toContain('var(--secondary-shell-panel-radius)');
     expect(shellCss).toContain('var(--secondary-shell-panel-fill)');
   });
+
+  it('keeps Today shell chrome in a dedicated stylesheet ahead of deck/detail styles', () => {
+    const todayTabSource = read(path.join('components', 'TodayTab.jsx'));
+    const todayShellSource = read(path.join('styles', 'today-shell.css'));
+    const todayFinalSource = read(path.join('styles', 'today-final.css'));
+    expect(todayTabSource).toContain("import '../styles/today-shell.css'");
+    expect(todayShellSource).toContain('.today-hero-shell');
+    expect(todayShellSource).toContain('.today-pace-module');
+    expect(todayFinalSource).not.toContain('.today-hero-shell');
+    expect(todayFinalSource).not.toContain('.today-pace-module');
+  });
 });
