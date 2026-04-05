@@ -47,6 +47,7 @@ import { primeBrowseHomeBundle, primeBrowseUniverseBundle } from './utils/browse
 import { DEMO_ENTRY_ENABLED, isDemoRuntime as getIsDemoRuntime } from './demo/runtime';
 import { INVESTOR_DEMO_PERFORMANCE } from './demo/investorDemo';
 import { buildTabMeta, buildMenuTitles, MY_SECTION_LIST } from './config/appConstants';
+import { deriveTopBarState, PRIMARY_TAB_KEYS } from './app/topBarState.js';
 
 async function fetchJson(url, options) {
   const response = await fetchApi(url, {
@@ -68,7 +69,6 @@ function normalizeWatchSymbol(value) {
 }
 
 export default function App() {
-  const primaryTabKeys = ['today', 'ai', 'browse', 'my'];
   const [displayMode, setDisplayMode] = useState(() => detectDisplayMode());
   const [assetClass, setAssetClass] = useLocalStorage('nova-quant-asset-class', 'US_STOCK', {
     legacyKeys: ['quant-demo-asset-class'],
@@ -1232,35 +1232,30 @@ export default function App() {
   };
 
   // --- Top bar state ---
-  const canGoBackInMyTopBar = activeTab === 'my' && myStack.length > 1;
-  const canGoBackInBrowseTopBar = activeTab === 'browse' && browseTopBarState.canGoBack;
-  const canGoBackInTopBar = canGoBackInMyTopBar || canGoBackInBrowseTopBar;
-  const hideTopBarForWatchlist = activeTab === 'my' && mySection === 'watchlist';
-  const showHoldingsMenuAction = activeTab === 'my' && mySection === 'watchlist';
-  const showCenterTopBarTitle = activeTab === 'browse' || activeTab === 'ai' || activeTab === 'my';
-  const previousMySection = canGoBackInMyTopBar ? myStack[myStack.length - 2] : null;
-  const topBarBackLabel = canGoBackInBrowseTopBar
-    ? browseTopBarState.backLabel
-    : previousMySection && previousMySection !== 'watchlist'
-      ? menuTitles[previousMySection] || tabMeta.my.label
-      : locale.startsWith('zh')
-        ? '观察列表'
-        : 'Watchlist';
-  const topBarCenterTitle =
-    activeTab === 'browse'
-      ? browseTopBarState.title || tabMeta.browse.label
-      : activeTab === 'ai'
-        ? 'Ask Nova'
-        : activeTab === 'my'
-          ? mySection === 'watchlist'
-            ? locale.startsWith('zh')
-              ? '观察列表'
-              : 'Watchlist'
-            : mySection === 'menu'
-              ? 'Menu'
-              : menuTitles[mySection] || tabMeta.my.label
-          : '';
-  const topBarMode = canGoBackInTopBar ? 'detail' : 'root';
+  const {
+    canGoBackInMyTopBar,
+    canGoBackInBrowseTopBar,
+    canGoBackInTopBar,
+    hideTopBarForWatchlist,
+    showHoldingsMenuAction,
+    showCenterTopBarTitle,
+    previousMySection,
+    topBarBackLabel,
+    topBarCenterTitle,
+    topBarMode,
+  } = useMemo(
+    () =>
+      deriveTopBarState({
+        activeTab,
+        mySection,
+        myStack,
+        browseTopBarState,
+        menuTitles,
+        tabMeta,
+        locale,
+      }),
+    [activeTab, browseTopBarState, locale, menuTitles, mySection, myStack, tabMeta],
+  );
   const dailyCheckState = String(
     engagementState?.daily_check_state?.status || 'PENDING',
   ).toLowerCase();
@@ -1403,11 +1398,11 @@ export default function App() {
           <div
             className="native-tabbar-track"
             style={{
-              '--native-tabbar-active-index': `${Math.max(0, primaryTabKeys.indexOf(activeTab))}`,
+              '--native-tabbar-active-index': `${Math.max(0, PRIMARY_TAB_KEYS.indexOf(activeTab))}`,
             }}
           >
             <span className="native-tabbar-thumb" aria-hidden="true" />
-            {primaryTabKeys.map((key) => {
+            {PRIMARY_TAB_KEYS.map((key) => {
               const value = tabMeta[key];
               return (
                 <button

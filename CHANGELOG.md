@@ -2,7 +2,20 @@
 
 NovaQuant 所有重要变更记录于此。
 
-## 10.22.6 (2026-04-05)
+## 10.22.7 (2026-04-05)
+
+### 🪟 P4 前端壳层与 Deck View Model 拆分 (Frontend Shell & Deck View Model Split)
+
+- **App 顶栏派生逻辑外提**
+  - 新增 `src/app/topBarState.js`，把 App 顶栏的返回逻辑、标题逻辑和主 Tab 顺序从 `App.jsx` 抽成独立 view-model helper。
+  - App 现在只消费 `deriveTopBarState()` 和 `PRIMARY_TAB_KEYS`，减少主壳对导航细节的内联耦合。
+
+- **Today deck 组合逻辑外提**
+  - 新增 `src/components/today/todayDeckState.js`，把 Today 卡组的 `decision/fallback/demo` 组合规则、会员裁剪和 hidden count 计算收成独立 helper。
+  - `TodayTab.jsx` 继续保留交互和手势状态，但不再自己内联维护整段 deck 组合派生链。
+
+- **回归护栏**
+  - 新增 `tests/topBarState.test.ts` 与 `tests/todayDeckState.test.ts`，给这次抽出来的两个 view-model 补上最小稳定契约。
 
 ### 🧱 P3 Runtime Read Slice 拆分 (Runtime Read Slice Extraction)
 
@@ -1769,4 +1782,11 @@ NovaQuant 所有重要变更记录于此。
 - Release type: patch
 - P3 split runtime state helpers into a dedicated read slice
 - Reduce duplicate runtime snapshot assembly inside queries.ts
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
+## 10.22.7 (2026-04-05)
+
+- Release type: patch
+- P4 extract app shell and today deck view models
+- Add focused tests around top-bar and deck derivation helpers
 - Updated release metadata, build number, About runtime source, and changelog entry.

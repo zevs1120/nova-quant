@@ -8,7 +8,9 @@ import { describe, expect, it } from 'vitest';
  */
 describe('App.jsx lazy shell', () => {
   const appPath = path.join(__dirname, '..', 'src', 'App.jsx');
+  const topBarStatePath = path.join(__dirname, '..', 'src', 'app', 'topBarState.js');
   const source = fs.readFileSync(appPath, 'utf8');
+  const topBarStateSource = fs.readFileSync(topBarStatePath, 'utf8');
 
   function expectLazyComponent(relPath: string) {
     const escaped = relPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -40,7 +42,10 @@ describe('App.jsx lazy shell', () => {
 
   it('declares four primary tab keys in order', () => {
     expect(source).toMatch(
-      /const\s+primaryTabKeys\s*=\s*\[\s*['"]today['"]\s*,\s*['"]ai['"]\s*,\s*['"]browse['"]\s*,\s*['"]my['"]\s*\]/,
+      /import\s+\{\s*deriveTopBarState\s*,\s*PRIMARY_TAB_KEYS\s*\}\s+from\s+['"]\.\/app\/topBarState\.js['"]/,
+    );
+    expect(topBarStateSource).toMatch(
+      /export\s+const\s+PRIMARY_TAB_KEYS\s*=\s*\[\s*['"]today['"]\s*,\s*['"]ai['"]\s*,\s*['"]browse['"]\s*,\s*['"]my['"]\s*\]/,
     );
   });
 });

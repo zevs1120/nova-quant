@@ -15,6 +15,7 @@ import {
   hasSignalDetailPayload,
   mergeSignalDetail,
 } from '../utils/signalDetails';
+import { buildTodayDeckState } from './today/todayDeckState.js';
 
 const ACTIVE_SIGNAL_STATUS = new Set(['NEW', 'TRIGGERED']);
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -1198,32 +1199,43 @@ export default function TodayTab({
     [normalizedMembershipPlan],
   );
 
-  const bestSignal = useMemo(
-    () => pickBestSignal(signals, topSignalEvidence, assetClass, now),
-    [signals, topSignalEvidence, assetClass, now],
-  );
-  const decisionSignals = useMemo(
-    () => buildSignalsFromDecision(decision, signals, now),
-    [decision, signals, now],
-  );
-  const fallbackSignals = useMemo(
-    () => buildSignalRail(signals, topSignalEvidence, assetClass, now, desiredSignalCount),
-    [signals, topSignalEvidence, assetClass, now, desiredSignalCount],
-  );
-  const actionSignals = useMemo(() => {
-    if (decisionSignals.length) return decisionSignals;
-    if (fallbackSignals.length) return fallbackSignals.slice(0, desiredSignalCount);
-    return investorDemoEnabled ? [buildDemoFallbackSignal(assetClass, now)] : [];
-  }, [decisionSignals, fallbackSignals, desiredSignalCount, investorDemoEnabled, assetClass, now]);
-  const deckSignals = useMemo(() => sortSignalsForDisplay(actionSignals), [actionSignals]);
-  const visibleDeckSignals = useMemo(
-    () => (todayCardLimit === null ? deckSignals : deckSignals.slice(0, todayCardLimit)),
-    [deckSignals, todayCardLimit],
-  );
-  const hiddenDeckCount = Math.max(
-    0,
-    Number(decision?.membership_gate?.hidden_action_cards || 0) ||
-      deckSignals.length - visibleDeckSignals.length,
+  const {
+    bestSignal,
+    decisionSignals,
+    fallbackSignals,
+    actionSignals,
+    deckSignals,
+    visibleDeckSignals,
+    hiddenDeckCount,
+  } = useMemo(
+    () =>
+      buildTodayDeckState({
+        decision,
+        signals,
+        topSignalEvidence,
+        assetClass,
+        now,
+        desiredSignalCount,
+        investorDemoEnabled,
+        todayCardLimit,
+        helpers: {
+          pickBestSignal,
+          buildSignalsFromDecision,
+          buildSignalRail,
+          buildDemoFallbackSignal,
+          sortSignalsForDisplay,
+        },
+      }),
+    [
+      assetClass,
+      decision,
+      desiredSignalCount,
+      investorDemoEnabled,
+      now,
+      signals,
+      todayCardLimit,
+      topSignalEvidence,
+    ],
   );
 
   useEffect(() => {
