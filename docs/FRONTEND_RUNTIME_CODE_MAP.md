@@ -47,6 +47,8 @@ The primary frontend read path starts from `useAppData`.
    Owns Today decision snapshot reads.
 6. `src/server/api/queries/engagementReads.ts`
    Owns engagement snapshots, ritual actions, widget summaries, and notification preview reads.
+7. `src/server/api/queries/portfolioReads.ts`
+   Owns risk-profile and external-connection reads that support portfolio-facing setup surfaces.
 
 Hydration boundary today:
 
@@ -64,6 +66,7 @@ Already extracted:
 - `src/server/api/queries/browseReads.ts`
 - `src/server/api/queries/todayReads.ts`
 - `src/server/api/queries/engagementReads.ts`
+- `src/server/api/queries/portfolioReads.ts`
 
 Still centered in `src/server/api/queries.ts`:
 
@@ -73,7 +76,6 @@ Still centered in `src/server/api/queries.ts`:
 
 Suggested next slices:
 
-- `portfolioReads`
 - any remaining high-churn runtime-adjacent read helpers
 
 ## 5. How To Use This Map During Refactors

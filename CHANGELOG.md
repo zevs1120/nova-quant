@@ -2,6 +2,20 @@
 
 NovaQuant 所有重要变更记录于此。
 
+## 10.22.17 (2026-04-05)
+
+### 🧾 P14 Portfolio Read Slice 拆分 (Portfolio Read Slice Extraction)
+
+- **Portfolio 相邻读取从主查询文件抽出**
+  - 新增 `src/server/api/queries/portfolioReads.ts`，把 risk profile、risk profile hot read、external connection read 以及相关的 portfolio-facing user config 读取收进独立 slice。
+  - `queries.ts` 现在通过 `createPortfolioReadApi()` 装配这些能力，不再自己内联维护这一组 portfolio/user-config 读逻辑。
+
+- **维护文档同步**
+  - `README.md`、`docs/FRONTEND_RUNTIME_CODE_MAP.md`、`docs/MAINTAINABILITY_BACKLOG.md` 已同步 portfolio slice 的落点，并把下一轮重点推进到 Today / onboarding CSS 和 `TodayTab.jsx` 的继续收口。
+
+- **回归护栏**
+  - 新增 `tests/portfolioReadsSlice.test.ts`，并更新现有文档测试，确保 risk profile / external connection 这些读取继续留在专门的 portfolio slice 里。
+
 ## 10.22.16 (2026-04-05)
 
 ### 💬 P13 Engagement Read Slice 拆分 (Engagement Read Slice Extraction)
@@ -1944,4 +1958,10 @@ NovaQuant 所有重要变更记录于此。
 
 - Release type: patch
 - P13 extract engagement read slice
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
+## 10.22.17 (2026-04-05)
+
+- Release type: patch
+- P14 extract portfolio read slice
 - Updated release metadata, build number, About runtime source, and changelog entry.

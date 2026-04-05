@@ -78,6 +78,7 @@ import {
   shouldUsePublicDecisionFallback,
 } from './queries/runtimeReads.js';
 import { createEngagementReadApi } from './queries/engagementReads.js';
+import { createPortfolioReadApi } from './queries/portfolioReads.js';
 import { createTodayReadApi } from './queries/todayReads.js';
 export {
   searchAssets,
@@ -662,28 +663,6 @@ export async function listExecutionsPrimary(args: {
   );
 }
 
-export async function getRiskProfilePrimary(
-  userId = 'guest-default',
-  opts?: { skipSync?: boolean },
-) {
-  return cachedFrontendRead(
-    'risk_profile',
-    {
-      userId,
-      skipSync: Boolean(opts?.skipSync),
-    },
-    async () => {
-      const row = await tryPrimaryPostgresRead('risk_profile', async () =>
-        readPostgresRiskProfile(userId),
-      );
-      if (row) return row;
-      if (shouldAvoidSyncHotPathFallback()) return null;
-      return getRiskProfile(userId, opts);
-    },
-    30_000,
-  );
-}
-
 export async function getMarketStatePrimary(args: {
   userId?: string;
   market?: Market;
@@ -797,22 +776,6 @@ export async function listAssetsPrimary(market?: Market): Promise<Asset[]> {
     },
     60_000,
   );
-}
-
-export async function listExternalConnectionsPrimary(args: {
-  userId: string;
-  connectionType?: 'BROKER' | 'EXCHANGE';
-}) {
-  const rows = await tryPrimaryPostgresRead('external_connections', async () =>
-    readPostgresExternalConnections(args),
-  );
-  if (!rows) {
-    return listExternalConnections(args);
-  }
-  return rows.map((row) => ({
-    ...row,
-    meta: row.meta_json ? JSON.parse(row.meta_json) : null,
-  }));
 }
 
 export async function getNotificationPreferencesStatePrimary(userId = 'guest-default') {
@@ -1994,40 +1957,6 @@ export function getPerformanceSummary(args: { userId?: string; market?: Market; 
   };
 }
 
-export function getRiskProfile(userId = 'guest-default', opts?: { skipSync?: boolean }) {
-  const repo = getRepo();
-  const existing = repo.getUserRiskProfile(userId);
-  if (existing) return existing;
-  if (!opts?.skipSync) {
-    syncQuantState(userId);
-    return repo.getUserRiskProfile(userId);
-  }
-  syncQuantState(userId);
-  return repo.getUserRiskProfile(userId);
-}
-
-export function setRiskProfile(
-  userId: string,
-  profileKey: 'conservative' | 'balanced' | 'aggressive',
-) {
-  const repo = getRepo();
-  const preset = RISK_PROFILE_PRESETS[profileKey] || RISK_PROFILE_PRESETS.balanced;
-  repo.upsertUserRiskProfile({
-    user_id: userId,
-    profile_key: profileKey,
-    max_loss_per_trade: preset.max_loss_per_trade,
-    max_daily_loss: preset.max_daily_loss,
-    max_drawdown: preset.max_drawdown,
-    exposure_cap: preset.exposure_cap,
-    leverage_cap: preset.leverage_cap,
-    updated_at_ms: Date.now(),
-  });
-  // Invalidate per-user caches so the next read reflects the updated risk profile
-  // instead of serving stale data for the remainder of the TTL window.
-  invalidateFrontendReadCacheForUser(userId);
-  return repo.getUserRiskProfile(userId);
-}
-
 function hashApiKey(key: string): string {
   return createHash('sha256').update(key).digest('hex');
 }
@@ -2130,21 +2059,6 @@ export function upsertExternalConnection(args: {
     meta_json: args.meta ? JSON.stringify(args.meta) : null,
   });
   return { connection_id: id };
-}
-
-export function listExternalConnections(args: {
-  userId: string;
-  connectionType?: 'BROKER' | 'EXCHANGE';
-}) {
-  const repo = getRepo();
-  const rows = repo.listExternalConnections({
-    userId: args.userId,
-    connectionType: args.connectionType,
-  });
-  return rows.map((row) => ({
-    ...row,
-    meta: row.meta_json ? JSON.parse(row.meta_json) : null,
-  }));
 }
 
 function toUiSignal(signal: SignalContract): Record<string, unknown> {
@@ -2727,6 +2641,23 @@ const { buildDecisionSnapshotFromCore, buildDecisionSnapshotFromCorePrimary, get
   });
 
 const {
+  getRiskProfile,
+  getRiskProfilePrimary,
+  setRiskProfile,
+  listExternalConnections,
+  listExternalConnectionsPrimary,
+} = createPortfolioReadApi({
+  getRepo,
+  syncQuantState,
+  cachedFrontendRead,
+  tryPrimaryPostgresRead,
+  readPostgresRiskProfile: (userId) => readPostgresRiskProfile(userId),
+  readPostgresExternalConnections: (args) => readPostgresExternalConnections(args),
+  invalidateFrontendReadCacheForUser,
+  riskProfilePresets: RISK_PROFILE_PRESETS,
+});
+
+const {
   getEngagementState,
   completeMorningCheck,
   confirmRiskBoundary,
@@ -2753,6 +2684,11 @@ const {
 
 export {
   getDecisionSnapshot,
+  getRiskProfile,
+  getRiskProfilePrimary,
+  setRiskProfile,
+  listExternalConnections,
+  listExternalConnectionsPrimary,
   getEngagementState,
   completeMorningCheck,
   confirmRiskBoundary,
