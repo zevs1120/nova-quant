@@ -2,6 +2,20 @@
 
 NovaQuant 所有重要变更记录于此。
 
+## 10.22.20 (2026-04-05)
+
+### 🧩 P17 Today Deck Section 抽离 (Today Deck Section Extraction)
+
+- **Deck section 独立为子组件**
+  - 新增 `src/components/today/TodayDeckSection.jsx`，把 Today 卡组渲染、空状态与 tap 引导从 `TodayTab.jsx` 拆出，主壳只负责提供数据与交互回调。
+  - `TodayTab.jsx` 继续保留手势与 detail/preview 逻辑，但 deck section 已转为 feature 子组件，降低巨石入口复杂度。
+
+- **回归护栏补齐**
+  - 新增 `tests/todayDeckSectionMarkers.test.ts`，并更新 `tests/todayTabShellMarkers.test.ts` 与 `tests/maintainabilityBacklogDoc.test.ts`，确保 deck section 抽离和文档同步不会回退。
+
+- **维护 backlog 同步**
+  - `docs/MAINTAINABILITY_BACKLOG.md` 更新了 `TodayTab.jsx` 的体量与下一刀指向，并记录 deck section 已独立出来作为后续继续拆分的基线。
+
 ## 10.22.19 (2026-04-05)
 
 ### 🎨 P16 Today 壳层样式拆分 (Today Shell CSS Layer Split)
@@ -2003,4 +2017,10 @@ NovaQuant 所有重要变更记录于此。
 
 - Release type: patch
 - P16 split today shell css layer
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
+## 10.22.20 (2026-04-05)
+
+- Release type: patch
+- P17 extract today hero section
 - Updated release metadata, build number, About runtime source, and changelog entry.

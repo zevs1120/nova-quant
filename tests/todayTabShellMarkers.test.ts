@@ -9,13 +9,14 @@ describe('TodayTab.jsx shell markers', () => {
 
   it('embeds signal detail and fetch/merge helpers', () => {
     expect(source).toContain("import SignalDetail from './SignalDetail'");
+    expect(source).toContain("import TodayDeckSection from './today/TodayDeckSection.jsx'");
     expect(source).toContain('fetchSignalDetail');
     expect(source).toContain('mergeSignalDetail');
   });
 
   it('implements swipe gesture state for the card deck', () => {
     expect(source).toContain('swipeGestureRef');
-    expect(source).toContain('today-rebuild-stack');
+    expect(source).toContain('previewGestureRef');
   });
 
   it('imports today-shell and today-final for layered chrome ownership', () => {

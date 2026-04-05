@@ -10,6 +10,7 @@ describe('maintainability backlog doc', () => {
     const backlogSource = read('docs/MAINTAINABILITY_BACKLOG.md');
     expect(backlogSource).toContain('src/server/api/queries.ts');
     expect(backlogSource).toContain('src/components/TodayTab.jsx');
+    expect(backlogSource).toContain('TodayDeckSection.jsx');
     expect(backlogSource).toContain('src/styles/today-final.css');
     expect(backlogSource).toContain('src/styles/today-shell.css');
     expect(backlogSource).toContain('src/styles/onboarding.css');
