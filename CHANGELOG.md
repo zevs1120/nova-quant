@@ -2,6 +2,19 @@
 
 NovaQuant 所有重要变更记录于此。
 
+## 10.22.15 (2026-04-05)
+
+### 📋 P12 可维护性 Backlog 建档 (Maintainability Backlog)
+
+- **持续维护清单落地**
+  - 新增 `docs/MAINTAINABILITY_BACKLOG.md`，把当前 giant files、high-churn files、薄弱边界、测试缺口和推荐下一刀固定成可持续更新的 backlog。
+
+- **README 架构索引同步**
+  - `README.md` 现在把这份 backlog 作为一等维护入口挂到核心架构索引里，方便后续每轮 refactor 直接按清单推进。
+
+- **静态门禁补上**
+  - 新增 `tests/maintainabilityBacklogDoc.test.ts`，确保 backlog 继续覆盖 `queries.ts`、`TodayTab.jsx`、`today-final.css`、`onboarding.css` 这些当前热点，并保持 README 链接存在。
+
 ## 10.22.14 (2026-04-05)
 
 ### 🗺️ P11 前端与运行时代码地图 (Frontend And Runtime Code Map)
@@ -1905,4 +1918,10 @@ NovaQuant 所有重要变更记录于此。
 
 - Release type: patch
 - P11 add frontend and runtime code map
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
+## 10.22.15 (2026-04-05)
+
+- Release type: patch
+- P12 add maintainability backlog
 - Updated release metadata, build number, About runtime source, and changelog entry.
