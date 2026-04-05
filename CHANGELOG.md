@@ -2,6 +2,17 @@
 
 NovaQuant 所有重要变更记录于此。
 
+## 10.22.23 (2026-04-05)
+
+### 🧩 P20 Today Climate Header 抽离 (Today Climate Header Extraction)
+
+- **Climate header 独立为子组件**
+  - 新增 `src/components/today/TodayClimateHeader.jsx`，将 Today 头部气候标题与状态徽记从 `TodayTab.jsx` 抽离。
+  - `TodayTab.jsx` 继续保留预览与手势逻辑，但主壳已经少掉一段 header 结构。
+
+- **回归护栏补齐**
+  - 新增 `tests/todayClimateHeaderMarkers.test.ts`，并更新 `tests/todayTabShellMarkers.test.ts` 与 `tests/maintainabilityBacklogDoc.test.ts`，确保气候 header 抽离与文档同步不会回退。
+
 ## 10.22.22 (2026-04-05)
 
 ### 🧭 P19 Onboarding Shell CSS 拆分 (Onboarding Shell CSS Split)
@@ -2062,4 +2073,10 @@ NovaQuant 所有重要变更记录于此。
 
 - Release type: patch
 - P19 split onboarding shell css
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
+## 10.22.23 (2026-04-05)
+
+- Release type: patch
+- P20 extract today climate header
 - Updated release metadata, build number, About runtime source, and changelog entry.

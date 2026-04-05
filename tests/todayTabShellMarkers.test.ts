@@ -9,6 +9,7 @@ describe('TodayTab.jsx shell markers', () => {
 
   it('embeds signal detail and fetch/merge helpers', () => {
     expect(source).toContain("import SignalDetail from './SignalDetail'");
+    expect(source).toContain("import TodayClimateHeader from './today/TodayClimateHeader.jsx'");
     expect(source).toContain("import TodayDeckSection from './today/TodayDeckSection.jsx'");
     expect(source).toContain('fetchSignalDetail');
     expect(source).toContain('mergeSignalDetail');

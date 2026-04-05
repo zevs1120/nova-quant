@@ -15,7 +15,7 @@ These files are currently the largest implementation surfaces in `src/` and shou
 | `src/server/nova/productionStrategyPack.ts`  |          3552 | Large strategy-pack generator with high cognitive load.                        | Break into pack assembly, validation, and export helpers.                          |
 | `src/server/db/postgresRuntimeRepository.ts` |          3361 | Runtime DB access remains dense and hard to isolate in review.                 | Separate runtime reads from write and mirror helpers.                              |
 | `src/server/admin/postgresBusinessRead.ts`   |          3181 | Admin read layer continues to accrete dashboard-specific branches.             | Slice by dashboard domain or report type.                                          |
-| `src/components/TodayTab.jsx`                |          2594 | Today rendering is better than before but still a large ownership surface.     | Keep peeling out section-level components and view-model helpers.                  |
+| `src/components/TodayTab.jsx`                |          2586 | Today rendering is better than before but still a large ownership surface.     | Keep peeling out section-level components and view-model helpers.                  |
 | `src/server/public/browseService.ts`         |          2533 | Browse logic remains broad and easy to regress indirectly.                     | Split home feed, detail assembly, and search/read helpers.                         |
 | `src/components/MenuTab.jsx`                 |          2263 | My/Menu UI still mixes large content sections with layout behavior.            | Extract section components and policy text blocks.                                 |
 
@@ -52,6 +52,7 @@ These areas are still maintainable only because contributors remember the rules.
 - Keep static query-slice boundary tests current as new domains are extracted.
 - Add section-level tests around `TodayTab.jsx` once more rendering logic moves into subcomponents.
   - `TodayDeckSection.jsx` is now extracted; expand coverage as more sections split.
+  - `TodayClimateHeader.jsx` is now extracted; add more section guards as needed.
 - Add CSS ownership tests for onboarding and deeper Today sub-surfaces as their stylesheets continue splitting.
   - onboarding shell import is now guarded by `tests/onboardingCssSplit.test.ts`.
 - Add admin-domain boundary tests if `postgresBusinessRead.ts` is divided by dashboard family.
@@ -60,7 +61,7 @@ These areas are still maintainable only because contributors remember the rules.
 
 1. Continue splitting `src/styles/today-final.css` now that `src/styles/today-shell.css` and `src/styles/today-deck.css` own shell and deck framing.
 2. Split `src/styles/onboarding.css` by flow step or page section (shell now lives in `src/styles/onboarding-shell.css`).
-3. Continue shrinking `src/components/TodayTab.jsx` with section components and feature-local state helpers (deck section now lives in `src/components/today/TodayDeckSection.jsx`).
+3. Continue shrinking `src/components/TodayTab.jsx` with section components and feature-local state helpers (deck section now lives in `src/components/today/TodayDeckSection.jsx`, climate header in `src/components/today/TodayClimateHeader.jsx`).
 4. Identify the next non-trivial query domain worth slicing out of `queries.ts`.
 5. Keep boundary tests current whenever a new slice or stylesheet layer is added.
 

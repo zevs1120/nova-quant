@@ -11,6 +11,7 @@ describe('maintainability backlog doc', () => {
     expect(backlogSource).toContain('src/server/api/queries.ts');
     expect(backlogSource).toContain('src/components/TodayTab.jsx');
     expect(backlogSource).toContain('TodayDeckSection.jsx');
+    expect(backlogSource).toContain('TodayClimateHeader.jsx');
     expect(backlogSource).toContain('src/styles/today-final.css');
     expect(backlogSource).toContain('src/styles/today-shell.css');
     expect(backlogSource).toContain('src/styles/today-deck.css');
