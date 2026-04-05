@@ -2,6 +2,32 @@
 
 NovaQuant 所有重要变更记录于此。
 
+## 10.22.2 (2026-04-05)
+
+### ⚡ Runtime / Browse 读链路瘦身 (Runtime & Browse Read Slimming)
+
+- **Today 首轮读取链路收缩**
+  - **主快照补全**：`/api/runtime-state` 现在直接携带 `evidence.top_signals` 与更完整的 `config.runtime.api_checks`，主壳首轮不再依赖“先拿 runtime-state、再并发补一圈 summary 接口”的旧模式。
+  - **首屏请求扇出下降**：`useAppData` 不再在首轮偷偷追打 `/api/assets`、`/api/market-state`、`/api/performance`、`/api/market/modules`、`/api/risk-profile` 等 summary 读接口；broker / exchange 连接摘要与全量 signals 改为 idle 后再补，Today 首屏更接近真正的单主快照加载。
+  - **回退路径一致性**：当 `runtime-state` 退回到 public decision 数据时，`signals`、`evidence`、`signal_count` 仍保持一致结构，避免前端因 fallback 分支出现内容缺口。
+
+- **Browse Detail Bundle 合并读**
+  - **新组合接口**：新增 `/api/browse/detail-bundle`，把 detail 页高频需要的 `chart`、`overview`、`news` 合成一次主读取，降低详情页切换时的请求数和失败面。
+  - **前端预热改造**：`browseWarmup` 与 `BrowseTab` 改为优先消费 bundle 快照，1D 详情轮询也直接复用统一的 detail bundle，减少了前端自己拼接 `chart / overview / news` 的复杂度。
+  - **跨域白名单同步**：`app.ts` 的 public read allowlist 同步纳入新接口，确保本地与正式环境都沿用同一条可公开读取的 browse 详情路径。
+
+- **Browse Query Slice 正式拆出**
+  - **查询职责收口**：把 browse / search 热路径读取从超大 `src/server/api/queries.ts` 中正式迁移到新的 `src/server/api/queries/browseReads.ts`，包括资产搜索、search health、browse home、chart、news、overview、detail bundle。
+  - **巨石文件降压**：`queries.ts` 现在更接近聚合与兼容导出层，browse 领域的热路径可以独立测试、独立观察、独立继续拆分。
+
+### 🧪 回归与性能门禁 (Regression & Guardrails)
+
+- **Hooks / API / Browse 回归补强**
+  - 更新 `useAppData`、`apiRuntimeState`、`browseWarmup` 相关测试，覆盖 runtime-state 新快照、bundle 读取和本地缓存行为。
+  - 全量 `npm run verify` 继续作为 Phase P5 的提交门禁，确保这次瘦身不是以“减少代码”为代价换来隐性回归。
+- **系统瘦身路线图入库**
+  - 新增 `docs/system-speed-slimming-plan.md`，把“测量先行、首屏缩链、browse/runtime 热路径收束、巨石文件继续拆分、页面级 CSS 治理”的顺序正式落成文档，便于后续继续推进而不丢上下文。
+
 ## 10.22.1 (2026-04-04)
 
 ### 🧭 边界与部署职责定稿 (Boundary & Deployment Contracts)

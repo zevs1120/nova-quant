@@ -73,6 +73,7 @@ export function createApiApp() {
     '/api/assets',
     '/api/assets/search',
     '/api/browse/chart',
+    '/api/browse/detail-bundle',
     '/api/browse/home',
     '/api/browse/news',
     '/api/browse/overview',

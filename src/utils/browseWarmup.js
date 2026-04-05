@@ -215,25 +215,16 @@ export async function warmBrowseDetailSnapshot(selection, options = {}) {
   const cached = readMemory(detailCache, key, DETAIL_FRESH_MS);
   if (cached && !options.force) return cached.data;
   if (detailInflight.has(key)) return detailInflight.get(key);
-  const request = Promise.all([
-    fetchApiJson(
-      `/api/browse/chart?market=${selection.market}&symbol=${encodeURIComponent(selection.symbol)}`,
-      { cache: 'no-store' },
-    ).catch(() => null),
-    fetchApiJson(
-      `/api/browse/overview?market=${selection.market}&symbol=${encodeURIComponent(selection.symbol)}`,
-      { cache: 'no-store' },
-    ).catch(() => null),
-    fetchApiJson(
-      `/api/browse/news?market=${selection.market}&symbol=${encodeURIComponent(selection.symbol)}&limit=6`,
-      { cache: 'no-store' },
-    ).catch(() => null),
-  ])
-    .then(([chart, overview, news]) => {
+  const request = fetchApiJson(
+    `/api/browse/detail-bundle?market=${selection.market}&symbol=${encodeURIComponent(selection.symbol)}&limit=6`,
+    { cache: 'no-store' },
+  )
+    .catch(() => null)
+    .then((bundle) => {
       const payload = {
-        chart: chart || null,
-        overview: overview || null,
-        news: Array.isArray(news?.data) ? news.data : [],
+        chart: bundle?.chart || null,
+        overview: bundle?.overview || null,
+        news: Array.isArray(bundle?.news) ? bundle.news : [],
       };
       writeSnapshot(detailCache, detailStorageKey(key), key, payload);
       return payload;

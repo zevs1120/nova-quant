@@ -96,11 +96,15 @@ describe('browseWarmup', () => {
     expect(mod.readBrowseDetailSnapshot({ market: '', symbol: '' })).toBe(null);
   });
 
-  it('warmBrowseDetailSnapshot merges chart/overview/news and tolerates partial failures', async () => {
+  it('warmBrowseDetailSnapshot reads the detail bundle payload and normalizes it', async () => {
     fetchApiJson.mockImplementation((url: string) => {
-      if (String(url).includes('/chart')) return Promise.resolve({ series: [1] });
-      if (String(url).includes('/overview')) return Promise.reject(new Error('overview down'));
-      if (String(url).includes('/news')) return Promise.resolve({ data: [{ id: 1 }] });
+      if (String(url).includes('/detail-bundle')) {
+        return Promise.resolve({
+          chart: { series: [1] },
+          overview: null,
+          news: [{ id: 1 }],
+        });
+      }
       return Promise.resolve(null);
     });
     const mod = await import('../src/utils/browseWarmup.js');
@@ -108,11 +112,15 @@ describe('browseWarmup', () => {
     expect(payload.chart).toEqual({ series: [1] });
     expect(payload.overview).toBe(null);
     expect(payload.news).toEqual([{ id: 1 }]);
+    expect(fetchApiJson).toHaveBeenCalledWith(
+      '/api/browse/detail-bundle?market=US&symbol=SPY&limit=6',
+      { cache: 'no-store' },
+    );
   });
 
   it('primeBrowseDetailSelections ignores items missing symbol or market', async () => {
     fetchApiJson.mockImplementation(() =>
-      Promise.resolve({ chart: null, overview: null, data: [] }),
+      Promise.resolve({ chart: null, overview: null, news: [] }),
     );
     const mod = await import('../src/utils/browseWarmup.js');
     await mod.primeBrowseDetailSelections([

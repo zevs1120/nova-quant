@@ -198,6 +198,21 @@ function chartPath(values, width = 228, height = 74) {
     .join(' ');
 }
 
+function normalizeDetailBundlePayload(payload) {
+  if (!payload || typeof payload !== 'object') {
+    return {
+      chart: null,
+      overview: null,
+      news: [],
+    };
+  }
+  return {
+    chart: payload.chart || null,
+    overview: payload.overview || null,
+    news: Array.isArray(payload.news) ? payload.news : [],
+  };
+}
+
 function SearchIcon() {
   return (
     <svg viewBox="0 0 20 20" className="browse-rh-search-icon" aria-hidden="true">
@@ -930,11 +945,10 @@ export default function BrowseTab({
       }
       try {
         const chartPayload = config.live
-          ? await fetchApiJson(
-              `/api/browse/chart?market=${selectedAsset.market}&symbol=${encodeURIComponent(selectedAsset.symbol)}`,
-              {
-                cache: 'no-store',
-              },
+          ? normalizeDetailBundlePayload(
+              await warmBrowseDetailSnapshot(selectedAsset, {
+                force: true,
+              }).catch(() => null),
             )
           : await fetchApiJson(
               `/api/ohlcv?market=${selectedAsset.market}&symbol=${encodeURIComponent(selectedAsset.symbol)}&tf=${config.tf}&limit=${config.limit}`,
@@ -942,36 +956,40 @@ export default function BrowseTab({
             );
         if (cancelled) return;
         const values = config.live
-          ? (chartPayload?.points || [])
+          ? (chartPayload?.chart?.points || [])
               .map((point) => toNumber(point?.close))
               .filter((value) => Number.isFinite(value))
           : (chartPayload?.data || [])
               .map((row) => toNumber(row?.close))
               .filter((value) => Number.isFinite(value));
         const latest = config.live
-          ? toNumber(chartPayload?.latest)
+          ? toNumber(chartPayload?.chart?.latest)
           : (values[values.length - 1] ?? null);
         const base = values[0] ?? null;
+        if (config.live) {
+          setDetailOverview(chartPayload.overview || null);
+          setDetailNews(Array.isArray(chartPayload.news) ? chartPayload.news : []);
+        }
         setDetailState({
           loading: false,
           error: values.length ? '' : copy.detailError,
           values,
           latest,
           change: config.live
-            ? toNumber(chartPayload?.change)
+            ? toNumber(chartPayload?.chart?.change)
             : latest !== null && base
               ? (latest - base) / base
               : null,
           low: values.length ? Math.min(...values) : null,
           high: values.length ? Math.max(...values) : null,
           asOf: config.live
-            ? chartPayload?.asOf || null
+            ? chartPayload?.chart?.asOf || null
             : chartPayload?.data?.length
               ? new Date(
                   Number(chartPayload.data[chartPayload.data.length - 1]?.ts_open || Date.now()),
                 ).toISOString()
               : null,
-          source: config.live ? chartPayload?.source || null : 'Historical OHLCV',
+          source: config.live ? chartPayload?.chart?.source || null : 'Historical OHLCV',
         });
       } catch {
         if (cancelled) return;
@@ -1029,32 +1047,12 @@ export default function BrowseTab({
       if (inFlight) return;
       inFlight = true;
       try {
-        const seeded = await warmBrowseDetailSnapshot(selectedAsset, { force: false }).catch(
-          () => null,
+        const seeded = normalizeDetailBundlePayload(
+          await warmBrowseDetailSnapshot(selectedAsset, { force: false }).catch(() => null),
         );
-        const [overviewPayload, newsPayload] = await Promise.all([
-          fetchApiJson(
-            `/api/browse/overview?market=${selectedAsset.market}&symbol=${encodeURIComponent(selectedAsset.symbol)}`,
-            {
-              cache: 'no-store',
-            },
-          ).catch(() => null),
-          fetchApiJson(
-            `/api/browse/news?market=${selectedAsset.market}&symbol=${encodeURIComponent(selectedAsset.symbol)}&limit=6`,
-            {
-              cache: 'no-store',
-            },
-          ).catch(() => null),
-        ]);
         if (cancelled) return;
-        setDetailOverview(overviewPayload || seeded?.overview || null);
-        setDetailNews(
-          Array.isArray(newsPayload?.data)
-            ? newsPayload.data
-            : Array.isArray(seeded?.news)
-              ? seeded.news
-              : [],
-        );
+        setDetailOverview(seeded.overview || null);
+        setDetailNews(Array.isArray(seeded.news) ? seeded.news : []);
       } finally {
         inFlight = false;
       }

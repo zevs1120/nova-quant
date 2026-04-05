@@ -11,11 +11,23 @@ function buildFetchJson() {
         data: {
           signals: [{ id: 's1' }],
           decision: null,
-          evidence: null,
+          evidence: {
+            top_signals: [{ signal_id: 's1', symbol: 'AAPL', conviction: 0.71 }],
+            source_status: 'MODEL_DERIVED',
+            data_status: 'MODEL_DERIVED',
+            asof: '2024-01-01T00:00:00.000Z',
+          },
           market_modules: [],
           performance: initialData.performance,
           config: {
-            runtime: { api_checks: { signal_count: 1 } },
+            runtime: {
+              api_checks: {
+                signal_count: 1,
+                market_state_count: 0,
+                modules_count: 0,
+                performance_records: 0,
+              },
+            },
             risk_rules: {},
           },
         },
@@ -73,11 +85,23 @@ describe('useAppData', () => {
           data: {
             signals: [],
             decision: null,
-            evidence: null,
+            evidence: {
+              top_signals: [],
+              source_status: 'INSUFFICIENT_DATA',
+              data_status: 'INSUFFICIENT_DATA',
+              asof: '2024-01-01T00:00:00.000Z',
+            },
             market_modules: [],
             performance: initialData.performance,
             config: {
-              runtime: { api_checks: { signal_count: 0 } },
+              runtime: {
+                api_checks: {
+                  signal_count: 0,
+                  market_state_count: 0,
+                  modules_count: 0,
+                  performance_records: 0,
+                },
+              },
               risk_rules: {},
             },
           },
@@ -113,5 +137,33 @@ describe('useAppData', () => {
     );
     await waitFor(() => expect(result.current.hasLoaded).toBe(true));
     expect(result.current.data.signals?.[0]?.id).toBe('cached');
+  });
+
+  it('does not re-fetch runtime summary endpoints when runtime-state already carries them', async () => {
+    const fetchJson = buildFetchJson();
+    const { useAppData } = await import('../../src/hooks/useAppData.js');
+    const { result } = renderHook(() =>
+      useAppData({
+        fetchJson,
+        assetClass: 'US_STOCK',
+        market: 'US',
+        effectiveUserId: 'u1',
+        authSession: null,
+        riskProfileKey: 'balanced',
+        executions: [],
+        refreshNonce: 0,
+      }),
+    );
+
+    await waitFor(() => expect(result.current.hasLoaded).toBe(true));
+
+    const requested = fetchJson.mock.calls.map(([url]) => String(url));
+    expect(requested.some((url) => url.includes('/api/assets'))).toBe(false);
+    expect(requested.some((url) => url.includes('/api/market-state'))).toBe(false);
+    expect(requested.some((url) => url.includes('/api/performance'))).toBe(false);
+    expect(requested.some((url) => url.includes('/api/market/modules'))).toBe(false);
+    expect(requested.some((url) => url.includes('/api/risk-profile'))).toBe(false);
+    expect(requested.some((url) => url.includes('/api/evidence/signals/top'))).toBe(false);
+    expect(requested.some((url) => url.includes('/api/signals?'))).toBe(false);
   });
 });

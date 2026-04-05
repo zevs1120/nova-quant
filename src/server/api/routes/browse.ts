@@ -8,6 +8,7 @@ import {
   getBrowseAssetChart,
   getBrowseNewsFeed,
   getBrowseAssetOverview,
+  getBrowseAssetDetailBundle,
 } from '../queries.js';
 
 const router = Router();
@@ -51,6 +52,39 @@ router.get(
         query,
         resultCount: results.length,
       }),
+    });
+  }),
+);
+
+router.get(
+  '/api/browse/detail-bundle',
+  asyncRoute(async (req, res) => {
+    const market = parseMarket(req.query.market as string | undefined);
+    const symbol = (req.query.symbol as string | undefined)?.toUpperCase();
+    const limit = req.query.limit ? Number(req.query.limit) : 6;
+
+    if (!market || !symbol) {
+      res.status(400).json({ error: 'Required query params: market, symbol' });
+      return;
+    }
+
+    const data = await getBrowseAssetDetailBundle({
+      market,
+      symbol,
+      limit,
+    });
+
+    if (!data.chart && !data.overview && !data.news.length) {
+      res.status(404).json({ error: 'Browse detail bundle unavailable' });
+      return;
+    }
+
+    res.json({
+      market,
+      symbol,
+      chart: data.chart,
+      overview: data.overview,
+      news: data.news,
     });
   }),
 );

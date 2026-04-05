@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { initialData } from '../config/appConstants';
-import { mapExecutionToTrade, settledValue } from '../utils/appHelpers';
+import { mapExecutionToTrade, runWhenIdle } from '../utils/appHelpers';
 import { runQuantPipeline } from '../engines/pipeline';
 import { FORCE_DEMO_BUILD } from '../demo/runtime';
 
@@ -45,6 +45,35 @@ function writeAppDataSnapshot(cacheKey, snapshot) {
   } catch {}
 }
 
+function readRuntimeApiCheck(runtime, runtimeData, key) {
+  const explicitValue = runtimeData?.config?.runtime?.api_checks?.[key];
+  if (explicitValue !== undefined && explicitValue !== null) return explicitValue;
+
+  const freshnessSummary = runtime?.data_transparency?.freshness_summary || {};
+  const coverageSummary = runtime?.data_transparency?.coverage_summary || {};
+
+  if (key === 'signal_count') {
+    return freshnessSummary.signal_count ?? coverageSummary.generated_signals ?? null;
+  }
+  if (key === 'market_state_count') {
+    return freshnessSummary.market_state_count ?? coverageSummary.market_state_count ?? null;
+  }
+  if (key === 'modules_count') {
+    return Array.isArray(runtimeData?.market_modules) ? runtimeData.market_modules.length : null;
+  }
+  if (key === 'performance_records') {
+    if (Array.isArray(runtimeData?.performance?.records)) {
+      return runtimeData.performance.records.length;
+    }
+    return (
+      freshnessSummary.performance_snapshot_count ??
+      coverageSummary.performance_snapshot_count ??
+      null
+    );
+  }
+  return null;
+}
+
 /**
  * Handles primary data loading from the API, periodic refresh, and the
  * FORCE_DEMO_BUILD local-pipeline fallback.
@@ -67,6 +96,8 @@ export function useAppData({
   useEffect(() => {
     let mounted = true;
     let activeLoadId = 0;
+    let cancelDeferredHydration = () => {};
+    let cancelDeferredSignals = () => {};
     const cacheKey = buildAppDataCacheKey({
       userId: effectiveUserId,
       market,
@@ -84,6 +115,8 @@ export function useAppData({
     async function load({ silent = false } = {}) {
       const loadId = activeLoadId + 1;
       activeLoadId = loadId;
+      cancelDeferredHydration();
+      cancelDeferredSignals();
       if (!silent && !cachedSnapshot?.data) setLoading(true);
       try {
         if (FORCE_DEMO_BUILD) {
@@ -115,7 +148,18 @@ export function useAppData({
           const runtimeData = runtime.data || initialData;
           const runtimeSignals = Array.isArray(runtimeData.signals) ? runtimeData.signals : [];
           const runtimeSignalCount =
-            runtimeData?.config?.runtime?.api_checks?.signal_count ?? runtimeSignals.length ?? null;
+            readRuntimeApiCheck(runtime, runtimeData, 'signal_count') ?? runtimeSignals.length;
+          const runtimeMarketStateCount = readRuntimeApiCheck(
+            runtime,
+            runtimeData,
+            'market_state_count',
+          );
+          const runtimeModulesCount = readRuntimeApiCheck(runtime, runtimeData, 'modules_count');
+          const runtimePerformanceRecords = readRuntimeApiCheck(
+            runtime,
+            runtimeData,
+            'performance_records',
+          );
 
           setData((current) => {
             const currentSignals = Array.isArray(current?.signals) ? current.signals : [];
@@ -167,6 +211,18 @@ export function useAppData({
                       runtimeSignalCount ??
                       current?.config?.runtime?.api_checks?.signal_count ??
                       null,
+                    market_state_count:
+                      runtimeMarketStateCount ??
+                      current?.config?.runtime?.api_checks?.market_state_count ??
+                      null,
+                    modules_count:
+                      runtimeModulesCount ??
+                      current?.config?.runtime?.api_checks?.modules_count ??
+                      null,
+                    performance_records:
+                      runtimePerformanceRecords ??
+                      current?.config?.runtime?.api_checks?.performance_records ??
+                      null,
                   },
                 },
               },
@@ -185,162 +241,118 @@ export function useAppData({
 
         setHasLoaded(true);
 
-        const controlPlaneRequest = Promise.resolve(null);
+        if (runtime?.data) {
+          const runtimeData = runtime.data || initialData;
+          const runtimeSignals = Array.isArray(runtimeData.signals) ? runtimeData.signals : [];
+          const runtimeSignalCount =
+            readRuntimeApiCheck(runtime, runtimeData, 'signal_count') ?? runtimeSignals.length;
+          const hasRuntimeEvidence = Array.isArray(runtimeData?.evidence?.top_signals);
+          const shouldHydrateEvidence = !hasRuntimeEvidence;
+          const shouldHydrateConnectivity = Boolean(authSession);
+          const shouldRefreshSignals = Number(runtimeSignalCount || 0) > runtimeSignals.length;
 
-        void Promise.allSettled([
-          fetchJson(`/api/assets?market=${market}`),
-          fetchJson(`/api/evidence/signals/top?${query.toString()}&limit=3`).catch(() => null),
-          fetchJson(`/api/market-state?${query.toString()}`),
-          fetchJson(`/api/performance?${query.toString()}`),
-          fetchJson(`/api/market/modules?${query.toString()}`),
-          fetchJson(`/api/risk-profile?userId=${effectiveUserId}`),
-          controlPlaneRequest,
-          authSession
-            ? fetchJson(`/api/connect/broker?userId=${effectiveUserId}&provider=ALPACA`)
-            : Promise.resolve(null),
-          authSession
-            ? fetchJson(`/api/connect/exchange?userId=${effectiveUserId}&provider=BINANCE`)
-            : Promise.resolve(null),
-        ]).then(
-          ([
-            assetsResult,
-            evidenceTopSignalsResult,
-            marketStateResult,
-            performanceResult,
-            modulesResult,
-            riskProfileResult,
-            controlPlaneResult,
-            brokerConnectionResult,
-            exchangeConnectionResult,
-          ]) => {
-            if (!mounted || loadId !== activeLoadId) return;
+          if (shouldHydrateEvidence || shouldHydrateConnectivity) {
+            cancelDeferredHydration = runWhenIdle(() => {
+              void Promise.all([
+                shouldHydrateEvidence
+                  ? fetchJson(`/api/evidence/signals/top?${query.toString()}&limit=3`).catch(
+                      () => null,
+                    )
+                  : Promise.resolve(null),
+                shouldHydrateConnectivity
+                  ? fetchJson(
+                      `/api/connect/broker?userId=${effectiveUserId}&provider=ALPACA`,
+                    ).catch(() => null)
+                  : Promise.resolve(null),
+                shouldHydrateConnectivity
+                  ? fetchJson(
+                      `/api/connect/exchange?userId=${effectiveUserId}&provider=BINANCE`,
+                    ).catch(() => null)
+                  : Promise.resolve(null),
+              ]).then(([evidenceTopSignals, brokerConnection, exchangeConnection]) => {
+                if (!mounted || loadId !== activeLoadId) return;
+                const evidenceData = evidenceTopSignals
+                  ? {
+                      top_signals: Array.isArray(evidenceTopSignals?.records)
+                        ? evidenceTopSignals.records
+                        : [],
+                      source_status: evidenceTopSignals?.source_status || 'INSUFFICIENT_DATA',
+                      data_status: evidenceTopSignals?.data_status || 'INSUFFICIENT_DATA',
+                      asof: evidenceTopSignals?.asof || null,
+                      supporting_run_id: evidenceTopSignals?.supporting_run_id || null,
+                      dataset_version_id: evidenceTopSignals?.dataset_version_id || null,
+                      strategy_version_id: evidenceTopSignals?.strategy_version_id || null,
+                    }
+                  : null;
 
-            const assets = settledValue(assetsResult, null);
-            const evidenceTopSignals = settledValue(evidenceTopSignalsResult, null);
-            const marketState = settledValue(marketStateResult, null);
-            const performance = settledValue(performanceResult, null);
-            const modules = settledValue(modulesResult, null);
-            const riskProfile = settledValue(riskProfileResult, null);
-            const controlPlane = settledValue(controlPlaneResult, null);
-            const brokerConnection = settledValue(brokerConnectionResult, null);
-            const exchangeConnection = settledValue(exchangeConnectionResult, null);
-            const evidenceData = {
-              top_signals: Array.isArray(evidenceTopSignals?.records)
-                ? evidenceTopSignals.records
-                : [],
-              source_status: evidenceTopSignals?.source_status || 'INSUFFICIENT_DATA',
-              data_status: evidenceTopSignals?.data_status || 'INSUFFICIENT_DATA',
-              asof: evidenceTopSignals?.asof || null,
-              supporting_run_id: evidenceTopSignals?.supporting_run_id || null,
-              dataset_version_id: evidenceTopSignals?.dataset_version_id || null,
-              strategy_version_id: evidenceTopSignals?.strategy_version_id || null,
-            };
-
-            setData((current) => {
-              const nextData = {
-                ...current,
-                evidence: evidenceTopSignals ? evidenceData : current?.evidence || evidenceData,
-                market_modules: Array.isArray(modules?.data)
-                  ? modules.data
-                  : current?.market_modules || [],
-                performance: performance || current?.performance || initialData.performance,
-                control_plane: controlPlane || current?.control_plane || null,
-                config: {
-                  ...(current?.config || {}),
-                  runtime: {
-                    ...(current?.config?.runtime || {}),
-                    api_checks: {
-                      ...(current?.config?.runtime?.api_checks || {}),
-                      assets_count:
-                        assets?.count ?? current?.config?.runtime?.api_checks?.assets_count ?? null,
-                      signal_count: current?.config?.runtime?.api_checks?.signal_count ?? null,
-                      market_state_count:
-                        marketState?.count ??
-                        current?.config?.runtime?.api_checks?.market_state_count ??
-                        null,
-                      modules_count:
-                        modules?.count ??
-                        current?.config?.runtime?.api_checks?.modules_count ??
-                        null,
-                      performance_records:
-                        performance?.records?.length ??
-                        current?.config?.runtime?.api_checks?.performance_records ??
-                        null,
+                setData((current) => {
+                  const nextData = {
+                    ...current,
+                    evidence: evidenceData || current?.evidence || null,
+                    config: {
+                      ...(current?.config || {}),
+                      runtime: {
+                        ...(current?.config?.runtime || {}),
+                        connectivity: {
+                          ...(current?.config?.runtime?.connectivity || {}),
+                          broker:
+                            brokerConnection?.snapshot ||
+                            current?.config?.runtime?.connectivity?.broker ||
+                            null,
+                          exchange:
+                            exchangeConnection?.snapshot ||
+                            current?.config?.runtime?.connectivity?.exchange ||
+                            null,
+                        },
+                      },
                     },
-                    connectivity: {
-                      ...(current?.config?.runtime?.connectivity || {}),
-                      broker:
-                        brokerConnection?.snapshot ||
-                        current?.config?.runtime?.connectivity?.broker ||
-                        null,
-                      exchange:
-                        exchangeConnection?.snapshot ||
-                        current?.config?.runtime?.connectivity?.exchange ||
-                        null,
-                    },
-                    control_plane: controlPlane || current?.config?.runtime?.control_plane || null,
-                  },
-                  risk_rules: {
-                    ...(current?.config?.risk_rules || {}),
-                    per_trade_risk_pct:
-                      riskProfile?.data?.max_loss_per_trade ??
-                      current?.config?.risk_rules?.per_trade_risk_pct ??
-                      null,
-                    daily_loss_pct:
-                      riskProfile?.data?.max_daily_loss ??
-                      current?.config?.risk_rules?.daily_loss_pct ??
-                      null,
-                    max_dd_pct:
-                      riskProfile?.data?.max_drawdown ??
-                      current?.config?.risk_rules?.max_dd_pct ??
-                      null,
-                    exposure_cap_pct:
-                      riskProfile?.data?.exposure_cap ??
-                      current?.config?.risk_rules?.exposure_cap_pct ??
-                      null,
-                  },
-                },
-              };
-              writeAppDataSnapshot(cacheKey, {
-                data: nextData,
-                rawData: nextRawData,
+                  };
+                  writeAppDataSnapshot(cacheKey, {
+                    data: nextData,
+                    rawData: nextRawData,
+                  });
+                  return nextData;
+                });
               });
-              return nextData;
             });
-          },
-        );
+          }
 
-        void fetchJson(`/api/signals?${query.toString()}&limit=60`)
-          .catch(() => null)
-          .then((signals) => {
-            if (!mounted || loadId !== activeLoadId || !signals) return;
-            const apiSignals = Array.isArray(signals?.data) ? signals.data : null;
-            setData((current) => {
-              const currentSignals = Array.isArray(current?.signals) ? current.signals : [];
-              const nextSignals = apiSignals?.length ? apiSignals : currentSignals;
-              const nextSignalCount =
-                signals?.count ?? current?.config?.runtime?.api_checks?.signal_count ?? null;
-              const nextData = {
-                ...current,
-                signals: nextSignals,
-                config: {
-                  ...(current?.config || {}),
-                  runtime: {
-                    ...(current?.config?.runtime || {}),
-                    api_checks: {
-                      ...(current?.config?.runtime?.api_checks || {}),
-                      signal_count: nextSignalCount,
-                    },
-                  },
-                },
-              };
-              writeAppDataSnapshot(cacheKey, {
-                data: nextData,
-                rawData: nextRawData,
-              });
-              return nextData;
+          if (shouldRefreshSignals) {
+            cancelDeferredSignals = runWhenIdle(() => {
+              void fetchJson(`/api/signals?${query.toString()}&limit=60`)
+                .catch(() => null)
+                .then((signals) => {
+                  if (!mounted || loadId !== activeLoadId || !signals) return;
+                  const apiSignals = Array.isArray(signals?.data) ? signals.data : null;
+                  setData((current) => {
+                    const currentSignals = Array.isArray(current?.signals) ? current.signals : [];
+                    const nextSignals = apiSignals?.length ? apiSignals : currentSignals;
+                    const nextSignalCount =
+                      signals?.count ?? current?.config?.runtime?.api_checks?.signal_count ?? null;
+                    const nextData = {
+                      ...current,
+                      signals: nextSignals,
+                      config: {
+                        ...(current?.config || {}),
+                        runtime: {
+                          ...(current?.config?.runtime || {}),
+                          api_checks: {
+                            ...(current?.config?.runtime?.api_checks || {}),
+                            signal_count: nextSignalCount,
+                          },
+                        },
+                      },
+                    };
+                    writeAppDataSnapshot(cacheKey, {
+                      data: nextData,
+                      rawData: nextRawData,
+                    });
+                    return nextData;
+                  });
+                });
             });
-          });
+          }
+        }
       } catch {
         if (!mounted || loadId !== activeLoadId) return;
         if (!cachedSnapshot?.data) {
@@ -373,6 +385,8 @@ export function useAppData({
     return () => {
       mounted = false;
       activeLoadId += 1;
+      cancelDeferredHydration();
+      cancelDeferredSignals();
       clearInterval(refresh);
       if (typeof document !== 'undefined') {
         document.removeEventListener('visibilitychange', handleVisibilityChange);
