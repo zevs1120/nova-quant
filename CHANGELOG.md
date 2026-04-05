@@ -2,7 +2,18 @@
 
 NovaQuant 所有重要变更记录于此。
 
-## 10.22.12 (2026-04-05)
+## 10.22.13 (2026-04-05)
+
+### 🧭 P10 前端派生逻辑放置规则 (Frontend Derived-State Placement Rules)
+
+- **派生逻辑放置规则成文**
+  - 新增 `docs/FRONTEND_DERIVED_STATE_RULES.md`，明确 shell 级派生逻辑放 `src/app/`，feature 内局部 view-model 放 feature 目录下的 `*State.js`，组件自身优先只保留渲染、交互和 hook 订阅。
+
+- **静态门禁补上**
+  - 新增 `tests/frontendDerivedStatePolicy.test.ts`，要求 `App.jsx` 继续消费 `topBarState`、`shellLayout`、`screenRegistry` 这些 dedicated helper，而不是重新长出内联 `renderScreen` / `renderMenuSection` 巨石。
+
+- **README 同步**
+  - `README.md` 补充 `src/app/` 的职责说明，并把派生逻辑放置规则文档挂到壳层架构说明里。
 
 ### 🎛️ P9 CSS 责任边界分层 (CSS Responsibility Layering)
 
@@ -1871,4 +1882,10 @@ NovaQuant 所有重要变更记录于此。
 
 - Release type: patch
 - P9 split shell and page surface CSS tokens
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
+## 10.22.13 (2026-04-05)
+
+- Release type: patch
+- P10 codify frontend derived state placement rules
 - Updated release metadata, build number, About runtime source, and changelog entry.
