@@ -32,12 +32,13 @@ describe('deployment surface config', () => {
     const rootConfig = readJson('vercel.json');
 
     expect(rootConfig.rewrites).toContainEqual({
-      source: '/',
-      destination: '/api?route=healthz',
-    });
-    expect(rootConfig.rewrites).toContainEqual({
       source: '/api/:route*',
       destination: '/api?route=:route*',
+    });
+
+    expect(rootConfig.rewrites).toContainEqual({
+      source: '/(.*)',
+      destination: '/index.html',
     });
   });
 });

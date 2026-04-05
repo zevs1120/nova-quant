@@ -1,16 +1,12 @@
 {
   "rewrites": [
     {
-      "source": "/",
-      "destination": "/api?route=healthz"
-    },
-    {
-      "source": "/healthz",
-      "destination": "/api?route=healthz"
-    },
-    {
       "source": "/api/:route*",
       "destination": "/api?route=:route*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ],
   "functions": {
