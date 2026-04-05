@@ -2,7 +2,17 @@
 
 NovaQuant 所有重要变更记录于此。
 
-## 10.22.2 (2026-04-05)
+## 10.22.3 (2026-04-05)
+
+### 🪝 P0 提交门禁硬化 (Commit Gate Hardening)
+
+- **Husky 入口收束**
+  - `.husky/pre-commit` 不再直接串三条裸命令，统一改由 `scripts/run-precommit.mjs` 驱动，固定执行顺序为 `check-changelog` → `npm run verify` → `lint-staged`。
+  - `.husky/commit-msg` 补成标准 shell 入口，继续委托 `scripts/check-commit-msg.mjs` 校验 Conventional Commits 标题。
+  - hook 文件与脚本都补成可执行状态，避免“本地有文件但没有真正生效”的假门禁。
+
+- **测试文档同步**
+  - 更新 `docs/TESTING.md`，把 pre-commit 与 commit-msg 的职责、执行链路和提交流程写清楚，给后续 P1-P5 的逐阶段提交提供统一约束。
 
 ### ⚡ Runtime / Browse 读链路瘦身 (Runtime & Browse Read Slimming)
 
@@ -1701,4 +1711,11 @@ NovaQuant 所有重要变更记录于此。
 
 - Release type: patch
 - Automated version bump via version-manager.
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
+## 10.22.3 (2026-04-05)
+
+- Release type: patch
+- P0 tighten pre-commit and commit-msg hooks
+- Centralize local gate execution in scripts/run-precommit.mjs
 - Updated release metadata, build number, About runtime source, and changelog entry.

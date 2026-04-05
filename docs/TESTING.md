@@ -41,4 +41,6 @@
 
 ## Pre-commit
 
-`.husky/pre-commit`：`check-changelog` → `npm run verify` → `lint-staged`（Prettier）。提交前需同步更新并暂存 `CHANGELOG.md`（见 `scripts/check-changelog.mjs`）。
+`.husky/pre-commit` 现在统一通过 `scripts/run-precommit.mjs` 执行：`check-changelog` → `npm run verify` → `lint-staged`（Prettier）。提交前需同步更新并暂存 `CHANGELOG.md`（见 `scripts/check-changelog.mjs`）。
+
+`.husky/commit-msg` 会调用 `scripts/check-commit-msg.mjs`，强制 Conventional Commits 标题格式与长度约束。

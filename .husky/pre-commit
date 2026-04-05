@@ -1,3 +1,2 @@
-node scripts/check-changelog.mjs
-npm run verify
-npx lint-staged
+#!/usr/bin/env sh
+node scripts/run-precommit.mjs
