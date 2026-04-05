@@ -1,5 +1,6 @@
 import { reactions } from '../data/index.js';
 import { useViewportReveal } from '../hooks/useViewportMotion.js';
+import { resolveAppUrl } from '../../../src/shared/routes/publicUrls.js';
 
 export default function VoicesSection() {
   const { ref, isVisible } = useViewportReveal();
@@ -29,7 +30,7 @@ export default function VoicesSection() {
           </blockquote>
         ))}
 
-        <a className="voices-link" href="https://app.novaquant.cloud" id="enter">
+        <a className="voices-link" href={resolveAppUrl()} id="enter">
           Get Started
         </a>
       </div>

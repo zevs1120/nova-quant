@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { resolveAppUrl } from '../../../src/shared/routes/publicUrls.js';
 import {
   portalBacktestMetrics,
   portalBenchmarkComparison,
@@ -1502,7 +1503,7 @@ function PortalFabricSection() {
             </p>
 
             <div className="portal-fabric-actions">
-              <a className="portal-dark-cta" href="https://app.novaquant.cloud">
+              <a className="portal-dark-cta" href={resolveAppUrl()}>
                 Get Started
               </a>
               <a className="portal-ghost-link" href="/">

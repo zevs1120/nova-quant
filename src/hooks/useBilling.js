@@ -1,10 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { normalizeMembershipPlan } from '../utils/membership';
-
-function currentReturnUrl() {
-  if (typeof window === 'undefined') return '';
-  return `${window.location.origin}${window.location.pathname}`;
-}
+import { resolveBillingReturnUrl } from '../shared/routes/publicUrls.js';
 
 export function useBilling({ locale, authSession, fetchJson, onApplyPlan }) {
   const [billingState, setBillingState] = useState(null);
@@ -54,7 +50,7 @@ export function useBilling({ locale, authSession, fetchJson, onApplyPlan }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          returnUrl: currentReturnUrl(),
+          returnUrl: resolveBillingReturnUrl(),
         }),
       });
       if (payload?.state) {

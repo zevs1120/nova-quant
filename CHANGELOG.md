@@ -14,6 +14,7 @@ NovaQuant 所有重要变更记录于此。
   - **部署入口收口**：`app/` 不再 rewrite 到临时的 `nova-quant-api.vercel.app`，`landing/` 也补齐与 `app/`、`admin/` 一致的 `/api/* -> api.novaquant.cloud` 转发；root API 健康响应现在明确声明自己是 `api-only` 入口，避免被误解为主页。
   - **环境变量合同统一**：新增正式的 env contract 文档，并把 root / `app` / `admin` / `landing` 的 example 文件统一成“平台 URL / 前端公开变量 / 后端私密变量”三层结构；代码同时兼容新命名与历史变量，避免现网和本地配置瞬间失效。
   - **前端 API base 收口**：抽出 shared HTTP API base / retry 规则，`admin` 端不再维护一套独立 host 解析逻辑，本地开发时也能和主应用一样优先尝试本地 `/api` 与 8787 回退，再落到正式云端 API。
+  - **登录与支付跳转收口**：新增 shared public URL helper，`landing` CTA、数据门户入口、`Menu` 邀请链接、账单 portal return 与 app logout 回跳都不再硬编码各自域名，用户从 landing 进入、从 app 退出、支付回跳到 app 的路径现在统一由同一套规则生成。
 
 ### 🚀 基础设施与稳定性加固 (Infrastructure & Stability)
 

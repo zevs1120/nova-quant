@@ -1,3 +1,5 @@
+import { resolveAppUrl } from '../../../src/shared/routes/publicUrls.js';
+
 /**
  * Landing page content data.
  * All arrays are presentation-only — no runtime logic.
@@ -440,10 +442,10 @@ export const distributionCredits = [
 ];
 
 export const legalLinks = [
-  { label: 'Get Started', href: 'https://app.novaquant.cloud' },
+  { label: 'Get Started', href: resolveAppUrl() },
   { label: 'Guide', href: '#guide' },
   { label: 'Distribution', href: '#about' },
-  { label: 'app.novaquant.cloud', href: 'https://app.novaquant.cloud' },
+  { label: 'app.novaquant.cloud', href: resolveAppUrl() },
 ];
 
 export const legalParagraphs = [

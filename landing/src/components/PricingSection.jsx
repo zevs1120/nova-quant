@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { pricingPlans } from '../data/index.js';
 import { useMotionPreference, useViewportReveal } from '../hooks/useViewportMotion.js';
+import { resolveAppUrl } from '../../../src/shared/routes/publicUrls.js';
 
 export default function PricingSection() {
   const { ref, isVisible } = useViewportReveal();
@@ -82,7 +83,7 @@ export default function PricingSection() {
                 ))}
               </ul>
 
-              <a className="pricing-cta" href="https://app.novaquant.cloud">
+              <a className="pricing-cta" href={resolveAppUrl()}>
                 {plan.cta}
               </a>
             </article>

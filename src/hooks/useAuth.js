@@ -11,6 +11,7 @@ import {
 } from '../utils/supabaseAuth';
 import { fetchApi } from '../utils/api';
 import { DEFAULT_AUTH_WATCHLIST } from '../config/appConstants';
+import { resolveSiteUrl, shouldRedirectToSiteAfterLogout } from '../shared/routes/publicUrls.js';
 
 const RESILIENT_LOGIN_EMAILS = new Set(['zevs1120@gmail.com']);
 
@@ -698,6 +699,9 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
       }).catch(() => null),
     ]);
     resetLocalAuthState({ clearProfile: true });
+    if (typeof window !== 'undefined' && shouldRedirectToSiteAfterLogout()) {
+      window.location.assign(resolveSiteUrl());
+    }
   }, [resetLocalAuthState]);
 
   return {

@@ -1,3 +1,5 @@
+import { resolveAppUrl } from '../../../src/shared/routes/publicUrls.js';
+
 const homeNavItems = [
   { label: 'Features', href: '#features' },
   { label: 'Pricing', href: '#pricing' },
@@ -18,7 +20,7 @@ export default function Header({ page = 'home' }) {
   const isPortalPage = page === 'data-portal';
   const navItems = isPortalPage ? portalNavItems : homeNavItems;
   const brandHref = isPortalPage ? '/' : '#top';
-  const ctaHref = 'https://app.novaquant.cloud';
+  const ctaHref = resolveAppUrl();
   const ctaLabel = 'Get Started';
 
   return (

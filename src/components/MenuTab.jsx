@@ -1,6 +1,7 @@
 import '../styles/menu.css';
 import '../styles/membership.css';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { buildAppUrl } from '../shared/routes/publicUrls.js';
 import { buildMembershipPlans, normalizeMembershipPlan } from '../utils/membership';
 
 const MENU_GROUPS = [
@@ -152,7 +153,7 @@ function buildInviteLink(referrals, username) {
     .slice(0, 12)
     .toUpperCase();
   const code = String(referrals?.inviteCode || fallback || 'NQSTART').trim();
-  return `https://app.novaquant.cloud/invite?code=${encodeURIComponent(code)}`;
+  return buildAppUrl(`/invite?code=${encodeURIComponent(code)}`);
 }
 
 function itemCatalog(locale) {

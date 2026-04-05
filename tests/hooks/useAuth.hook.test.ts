@@ -114,6 +114,27 @@ describe('useAuth', () => {
     );
   });
 
+  it('redirects hosted app logout back to the public site', async () => {
+    const props = authWrapperProps();
+    const assign = vi.fn();
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: {
+        hostname: 'app.novaquant.cloud',
+        assign,
+      },
+    });
+
+    const { result } = renderHook(() => useAuth(props));
+    await waitFor(() => expect(result.current.authHydrated).toBe(true));
+
+    act(() => {
+      result.current.handleLogout();
+    });
+
+    expect(assign).toHaveBeenCalledWith('https://novaquant.cloud');
+  });
+
   it('handleResendSignupVerification validates email', async () => {
     const props = authWrapperProps();
     const { result } = renderHook(() => useAuth(props));

@@ -3,6 +3,7 @@ import {
   useScrollProgress,
   useViewportReveal,
 } from '../hooks/useViewportMotion.js';
+import { resolveAppUrl } from '../../../src/shared/routes/publicUrls.js';
 
 export default function HeroSection() {
   const useSoftMotion = useMotionPreference('(prefers-reduced-motion: reduce), (max-width: 760px)');
@@ -41,7 +42,7 @@ export default function HeroSection() {
           </p>
 
           <div className="hero-actions">
-            <a className="hero-cta" href="https://app.novaquant.cloud">
+            <a className="hero-cta" href={resolveAppUrl()}>
               Get Started
             </a>
             <a className="hero-cta hero-cta-secondary" href="/data-portal/">
