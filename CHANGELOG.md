@@ -2,7 +2,16 @@
 
 NovaQuant 所有重要变更记录于此。
 
-## 10.22.9 (2026-04-05)
+## 10.22.10 (2026-04-05)
+
+### 🗂️ P7 App Screen Registry 抽离 (App Screen Registry Extraction)
+
+- **主壳不再自己维护整段 screen 分发**
+  - 新增 `src/app/screenRegistry.jsx`，把 `renderMenuSection()` 与 `renderActiveScreen()` 从 `App.jsx` 中抽离成独立渲染 helper。
+  - `App.jsx` 现在只负责准备 screen context、lazy components 和少量 top-level state，再把它们交给 registry 做页面分发。
+
+- **回归护栏**
+  - 新增 `tests/appScreenRegistry.test.ts`，验证 `App.jsx` 持续通过 registry 渲染页面，而不是重新回到内联 `renderScreen` / `renderMenuSection` 的巨石模式。
 
 ### 🧩 P6 Today Read Slice 拆分 (Today Read Slice Extraction)
 
@@ -1823,4 +1832,10 @@ NovaQuant 所有重要变更记录于此。
 
 - Release type: patch
 - P6 extract today reads slice from queries
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
+## 10.22.10 (2026-04-05)
+
+- Release type: patch
+- P7 extract App screen registry
 - Updated release metadata, build number, About runtime source, and changelog entry.
