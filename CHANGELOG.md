@@ -2,7 +2,18 @@
 
 NovaQuant 所有重要变更记录于此。
 
-## 10.22.13 (2026-04-05)
+## 10.22.14 (2026-04-05)
+
+### 🗺️ P11 前端与运行时代码地图 (Frontend And Runtime Code Map)
+
+- **代码地图文档落地**
+  - 新增 `docs/FRONTEND_RUNTIME_CODE_MAP.md`，把 App shell 入口、Today 局部派生状态、`runtime-state` hydration 边界，以及 `queries.ts` 已拆/待拆 slices 收成一份维护地图。
+
+- **README 架构索引同步**
+  - `README.md` 现在会把维护者指向这份代码地图，并在 backend source-of-truth 段落里显式列出 `runtimeReads.ts`、`todayReads.ts`、`browseReads.ts` 这些已抽出的读切片。
+
+- **静态门禁补上**
+  - 新增 `tests/frontendRuntimeCodeMap.test.ts`，要求代码地图和 README 持续覆盖当前 shell / runtime 主入口，避免文档和代码边界再度漂移。
 
 ### 🧭 P10 前端派生逻辑放置规则 (Frontend Derived-State Placement Rules)
 
@@ -1888,4 +1899,10 @@ NovaQuant 所有重要变更记录于此。
 
 - Release type: patch
 - P10 codify frontend derived state placement rules
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
+## 10.22.14 (2026-04-05)
+
+- Release type: patch
+- P11 add frontend and runtime code map
 - Updated release metadata, build number, About runtime source, and changelog entry.
