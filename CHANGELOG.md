@@ -2,7 +2,18 @@
 
 NovaQuant 所有重要变更记录于此。
 
-## 10.22.4 (2026-04-05)
+## 10.22.5 (2026-04-05)
+
+### 🧩 P2 Today 主快照收口 (Today Primary Snapshot Tightening)
+
+- **runtime-state hydration plan 入参统一**
+  - `runtime-state` 现在显式返回 `config.runtime.hydration`，告诉前端当前主快照是否已经包含 evidence、signals 和 connectivity 摘要，而不是让前端继续靠散落的启发式猜测。
+  - public fallback 分支也会同步更新 hydration 元数据，避免 fallback 后前端又把已经完整的 signals 当成“还要补拉”的数据。
+
+- **useAppData 二级补充收成一次 idle 合并**
+  - `useAppData` 把 deferred evidence / connectivity / signals 拉取合并为一次 idle 任务和一次 state merge，减少首屏后的补丁式 `setData` 次数。
+  - 当前 runtime 快照已经完整时，登录态也不会再盲目补打 broker / exchange / signals 请求。
+  - 增补 Hook 回归，覆盖“主快照完整时不再触发 deferred hydration”的场景。
 
 ### 📈 P1 轻量热路径观测 (Lightweight Hot-Path Observability)
 
@@ -1735,4 +1746,11 @@ NovaQuant 所有重要变更记录于此。
 - Release type: patch
 - P1 add lightweight frontend read observability
 - Track runtime-state and browse route latency plus cache outcomes
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
+## 10.22.5 (2026-04-05)
+
+- Release type: patch
+- P2 tighten runtime-state primary snapshot hydration
+- Collapse deferred useAppData fill into a single idle merge
 - Updated release metadata, build number, About runtime source, and changelog entry.

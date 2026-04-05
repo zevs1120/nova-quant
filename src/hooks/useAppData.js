@@ -45,6 +45,17 @@ function writeAppDataSnapshot(cacheKey, snapshot) {
   } catch {}
 }
 
+function updateCachedAppData(cacheKey, rawData, updater) {
+  return (current) => {
+    const nextData = updater(current);
+    writeAppDataSnapshot(cacheKey, {
+      data: nextData,
+      rawData,
+    });
+    return nextData;
+  };
+}
+
 function readRuntimeApiCheck(runtime, runtimeData, key) {
   const explicitValue = runtimeData?.config?.runtime?.api_checks?.[key];
   if (explicitValue !== undefined && explicitValue !== null) return explicitValue;
@@ -74,6 +85,120 @@ function readRuntimeApiCheck(runtime, runtimeData, key) {
   return null;
 }
 
+function readRuntimeHydrationPlan(runtimeData) {
+  const hydration = runtimeData?.config?.runtime?.hydration;
+  return hydration && typeof hydration === 'object' ? hydration : {};
+}
+
+function buildDeferredRuntimePlan({ runtime, runtimeData, authSession }) {
+  const runtimeSignals = Array.isArray(runtimeData?.signals) ? runtimeData.signals : [];
+  const runtimeSignalCount =
+    readRuntimeApiCheck(runtime, runtimeData, 'signal_count') ?? runtimeSignals.length;
+  const hydration = readRuntimeHydrationPlan(runtimeData);
+  const connectivity = runtimeData?.config?.runtime?.connectivity || {};
+  const brokerReady = connectivity?.broker !== undefined && connectivity?.broker !== null;
+  const exchangeReady = connectivity?.exchange !== undefined && connectivity?.exchange !== null;
+
+  return {
+    hydrateEvidence:
+      hydration.evidence_included === false || !Array.isArray(runtimeData?.evidence?.top_signals),
+    hydrateConnectivity:
+      Boolean(authSession) &&
+      !Boolean(hydration.connectivity_included) &&
+      (!brokerReady || !exchangeReady),
+    refreshSignals:
+      hydration.signals_truncated === true ||
+      Number(runtimeSignalCount || 0) > runtimeSignals.length,
+  };
+}
+
+function normalizeEvidencePayload(payload) {
+  if (!payload) return null;
+  return {
+    top_signals: Array.isArray(payload?.records) ? payload.records : [],
+    source_status: payload?.source_status || 'INSUFFICIENT_DATA',
+    data_status: payload?.data_status || 'INSUFFICIENT_DATA',
+    asof: payload?.asof || null,
+    supporting_run_id: payload?.supporting_run_id || null,
+    dataset_version_id: payload?.dataset_version_id || null,
+    strategy_version_id: payload?.strategy_version_id || null,
+  };
+}
+
+function mergeRuntimeSnapshot(current, runtime, runtimeData) {
+  const runtimeSignals = Array.isArray(runtimeData.signals) ? runtimeData.signals : [];
+  const runtimeSignalCount =
+    readRuntimeApiCheck(runtime, runtimeData, 'signal_count') ?? runtimeSignals.length;
+  const runtimeMarketStateCount = readRuntimeApiCheck(runtime, runtimeData, 'market_state_count');
+  const runtimeModulesCount = readRuntimeApiCheck(runtime, runtimeData, 'modules_count');
+  const runtimePerformanceRecords = readRuntimeApiCheck(
+    runtime,
+    runtimeData,
+    'performance_records',
+  );
+  const currentSignals = Array.isArray(current?.signals) ? current.signals : [];
+
+  return {
+    ...runtimeData,
+    decision: runtimeData.decision || null,
+    signals: runtimeSignals.length ? runtimeSignals : currentSignals,
+    evidence: runtimeData.evidence || current?.evidence || null,
+    market_modules: runtimeData.market_modules || current?.market_modules || [],
+    performance: runtimeData.performance || current?.performance || initialData.performance,
+    control_plane: runtimeData.control_plane || current?.control_plane || null,
+    config: {
+      ...(runtimeData.config || {}),
+      last_updated:
+        runtime?.data_transparency?.as_of ||
+        runtime?.asof ||
+        runtimeData.config?.last_updated ||
+        current?.config?.last_updated ||
+        new Date().toISOString(),
+      source_label:
+        runtimeData.config?.source_label ||
+        runtime?.source_status ||
+        current?.config?.source_label ||
+        'INSUFFICIENT_DATA',
+      data_status:
+        runtimeData.config?.data_status ||
+        runtime?.data_status ||
+        current?.config?.data_status ||
+        'INSUFFICIENT_DATA',
+      runtime: {
+        ...(current?.config?.runtime || {}),
+        ...(runtimeData.config?.runtime || {}),
+        source_status: runtime?.source_status || 'INSUFFICIENT_DATA',
+        freshness_summary:
+          runtime?.data_transparency?.freshness_summary ||
+          runtimeData.config?.runtime?.freshness_summary ||
+          current?.config?.runtime?.freshness_summary ||
+          null,
+        coverage_summary:
+          runtime?.data_transparency?.coverage_summary ||
+          runtimeData.config?.runtime?.coverage_summary ||
+          current?.config?.runtime?.coverage_summary ||
+          null,
+        api_checks: {
+          ...(current?.config?.runtime?.api_checks || {}),
+          ...(runtimeData.config?.runtime?.api_checks || {}),
+          signal_count:
+            runtimeSignalCount ?? current?.config?.runtime?.api_checks?.signal_count ?? null,
+          market_state_count:
+            runtimeMarketStateCount ??
+            current?.config?.runtime?.api_checks?.market_state_count ??
+            null,
+          modules_count:
+            runtimeModulesCount ?? current?.config?.runtime?.api_checks?.modules_count ?? null,
+          performance_records:
+            runtimePerformanceRecords ??
+            current?.config?.runtime?.api_checks?.performance_records ??
+            null,
+        },
+      },
+    },
+  };
+}
+
 /**
  * Handles primary data loading from the API, periodic refresh, and the
  * FORCE_DEMO_BUILD local-pipeline fallback.
@@ -96,8 +221,7 @@ export function useAppData({
   useEffect(() => {
     let mounted = true;
     let activeLoadId = 0;
-    let cancelDeferredHydration = () => {};
-    let cancelDeferredSignals = () => {};
+    let cancelDeferredRuntimeFill = () => {};
     const cacheKey = buildAppDataCacheKey({
       userId: effectiveUserId,
       market,
@@ -115,8 +239,7 @@ export function useAppData({
     async function load({ silent = false } = {}) {
       const loadId = activeLoadId + 1;
       activeLoadId = loadId;
-      cancelDeferredHydration();
-      cancelDeferredSignals();
+      cancelDeferredRuntimeFill();
       if (!silent && !cachedSnapshot?.data) setLoading(true);
       try {
         if (FORCE_DEMO_BUILD) {
@@ -146,93 +269,11 @@ export function useAppData({
 
         if (runtime?.data) {
           const runtimeData = runtime.data || initialData;
-          const runtimeSignals = Array.isArray(runtimeData.signals) ? runtimeData.signals : [];
-          const runtimeSignalCount =
-            readRuntimeApiCheck(runtime, runtimeData, 'signal_count') ?? runtimeSignals.length;
-          const runtimeMarketStateCount = readRuntimeApiCheck(
-            runtime,
-            runtimeData,
-            'market_state_count',
+          setData(
+            updateCachedAppData(cacheKey, nextRawData, (current) =>
+              mergeRuntimeSnapshot(current, runtime, runtimeData),
+            ),
           );
-          const runtimeModulesCount = readRuntimeApiCheck(runtime, runtimeData, 'modules_count');
-          const runtimePerformanceRecords = readRuntimeApiCheck(
-            runtime,
-            runtimeData,
-            'performance_records',
-          );
-
-          setData((current) => {
-            const currentSignals = Array.isArray(current?.signals) ? current.signals : [];
-            const nextData = {
-              ...runtimeData,
-              decision: runtimeData.decision || null,
-              signals: runtimeSignals.length ? runtimeSignals : currentSignals,
-              evidence: runtimeData.evidence || current?.evidence || null,
-              market_modules: runtimeData.market_modules || current?.market_modules || [],
-              performance:
-                runtimeData.performance || current?.performance || initialData.performance,
-              control_plane: runtimeData.control_plane || current?.control_plane || null,
-              config: {
-                ...(runtimeData.config || {}),
-                last_updated:
-                  runtime?.data_transparency?.as_of ||
-                  runtime?.asof ||
-                  runtimeData.config?.last_updated ||
-                  current?.config?.last_updated ||
-                  new Date().toISOString(),
-                source_label:
-                  runtimeData.config?.source_label ||
-                  runtime?.source_status ||
-                  current?.config?.source_label ||
-                  'INSUFFICIENT_DATA',
-                data_status:
-                  runtimeData.config?.data_status ||
-                  runtime?.data_status ||
-                  current?.config?.data_status ||
-                  'INSUFFICIENT_DATA',
-                runtime: {
-                  ...(current?.config?.runtime || {}),
-                  ...(runtimeData.config?.runtime || {}),
-                  source_status: runtime?.source_status || 'INSUFFICIENT_DATA',
-                  freshness_summary:
-                    runtime?.data_transparency?.freshness_summary ||
-                    runtimeData.config?.runtime?.freshness_summary ||
-                    current?.config?.runtime?.freshness_summary ||
-                    null,
-                  coverage_summary:
-                    runtime?.data_transparency?.coverage_summary ||
-                    runtimeData.config?.runtime?.coverage_summary ||
-                    current?.config?.runtime?.coverage_summary ||
-                    null,
-                  api_checks: {
-                    ...(current?.config?.runtime?.api_checks || {}),
-                    ...(runtimeData.config?.runtime?.api_checks || {}),
-                    signal_count:
-                      runtimeSignalCount ??
-                      current?.config?.runtime?.api_checks?.signal_count ??
-                      null,
-                    market_state_count:
-                      runtimeMarketStateCount ??
-                      current?.config?.runtime?.api_checks?.market_state_count ??
-                      null,
-                    modules_count:
-                      runtimeModulesCount ??
-                      current?.config?.runtime?.api_checks?.modules_count ??
-                      null,
-                    performance_records:
-                      runtimePerformanceRecords ??
-                      current?.config?.runtime?.api_checks?.performance_records ??
-                      null,
-                  },
-                },
-              },
-            };
-            writeAppDataSnapshot(cacheKey, {
-              data: nextData,
-              rawData: nextRawData,
-            });
-            return nextData;
-          });
           setRawData(nextRawData);
         } else if (!cachedSnapshot?.data) {
           setData(initialData);
@@ -243,95 +284,52 @@ export function useAppData({
 
         if (runtime?.data) {
           const runtimeData = runtime.data || initialData;
-          const runtimeSignals = Array.isArray(runtimeData.signals) ? runtimeData.signals : [];
-          const runtimeSignalCount =
-            readRuntimeApiCheck(runtime, runtimeData, 'signal_count') ?? runtimeSignals.length;
-          const hasRuntimeEvidence = Array.isArray(runtimeData?.evidence?.top_signals);
-          const shouldHydrateEvidence = !hasRuntimeEvidence;
-          const shouldHydrateConnectivity = Boolean(authSession);
-          const shouldRefreshSignals = Number(runtimeSignalCount || 0) > runtimeSignals.length;
+          const deferredPlan = buildDeferredRuntimePlan({
+            runtime,
+            runtimeData,
+            authSession,
+          });
 
-          if (shouldHydrateEvidence || shouldHydrateConnectivity) {
-            cancelDeferredHydration = runWhenIdle(() => {
+          if (
+            deferredPlan.hydrateEvidence ||
+            deferredPlan.hydrateConnectivity ||
+            deferredPlan.refreshSignals
+          ) {
+            cancelDeferredRuntimeFill = runWhenIdle(() => {
               void Promise.all([
-                shouldHydrateEvidence
+                deferredPlan.hydrateEvidence
                   ? fetchJson(`/api/evidence/signals/top?${query.toString()}&limit=3`).catch(
                       () => null,
                     )
                   : Promise.resolve(null),
-                shouldHydrateConnectivity
+                deferredPlan.hydrateConnectivity
                   ? fetchJson(
                       `/api/connect/broker?userId=${effectiveUserId}&provider=ALPACA`,
                     ).catch(() => null)
                   : Promise.resolve(null),
-                shouldHydrateConnectivity
+                deferredPlan.hydrateConnectivity
                   ? fetchJson(
                       `/api/connect/exchange?userId=${effectiveUserId}&provider=BINANCE`,
                     ).catch(() => null)
                   : Promise.resolve(null),
-              ]).then(([evidenceTopSignals, brokerConnection, exchangeConnection]) => {
+                deferredPlan.refreshSignals
+                  ? fetchJson(`/api/signals?${query.toString()}&limit=60`).catch(() => null)
+                  : Promise.resolve(null),
+              ]).then(([evidenceTopSignals, brokerConnection, exchangeConnection, signals]) => {
                 if (!mounted || loadId !== activeLoadId) return;
-                const evidenceData = evidenceTopSignals
-                  ? {
-                      top_signals: Array.isArray(evidenceTopSignals?.records)
-                        ? evidenceTopSignals.records
-                        : [],
-                      source_status: evidenceTopSignals?.source_status || 'INSUFFICIENT_DATA',
-                      data_status: evidenceTopSignals?.data_status || 'INSUFFICIENT_DATA',
-                      asof: evidenceTopSignals?.asof || null,
-                      supporting_run_id: evidenceTopSignals?.supporting_run_id || null,
-                      dataset_version_id: evidenceTopSignals?.dataset_version_id || null,
-                      strategy_version_id: evidenceTopSignals?.strategy_version_id || null,
-                    }
-                  : null;
-
-                setData((current) => {
-                  const nextData = {
-                    ...current,
-                    evidence: evidenceData || current?.evidence || null,
-                    config: {
-                      ...(current?.config || {}),
-                      runtime: {
-                        ...(current?.config?.runtime || {}),
-                        connectivity: {
-                          ...(current?.config?.runtime?.connectivity || {}),
-                          broker:
-                            brokerConnection?.snapshot ||
-                            current?.config?.runtime?.connectivity?.broker ||
-                            null,
-                          exchange:
-                            exchangeConnection?.snapshot ||
-                            current?.config?.runtime?.connectivity?.exchange ||
-                            null,
-                        },
-                      },
-                    },
-                  };
-                  writeAppDataSnapshot(cacheKey, {
-                    data: nextData,
-                    rawData: nextRawData,
-                  });
-                  return nextData;
-                });
-              });
-            });
-          }
-
-          if (shouldRefreshSignals) {
-            cancelDeferredSignals = runWhenIdle(() => {
-              void fetchJson(`/api/signals?${query.toString()}&limit=60`)
-                .catch(() => null)
-                .then((signals) => {
-                  if (!mounted || loadId !== activeLoadId || !signals) return;
-                  const apiSignals = Array.isArray(signals?.data) ? signals.data : null;
-                  setData((current) => {
+                const evidenceData = normalizeEvidencePayload(evidenceTopSignals);
+                setData(
+                  updateCachedAppData(cacheKey, nextRawData, (current) => {
                     const currentSignals = Array.isArray(current?.signals) ? current.signals : [];
+                    const apiSignals = Array.isArray(signals?.data) ? signals.data : null;
                     const nextSignals = apiSignals?.length ? apiSignals : currentSignals;
                     const nextSignalCount =
                       signals?.count ?? current?.config?.runtime?.api_checks?.signal_count ?? null;
-                    const nextData = {
+
+                    return {
                       ...current,
-                      signals: nextSignals,
+                      evidence: evidenceData || current?.evidence || null,
+                      signals: deferredPlan.refreshSignals ? nextSignals : currentSignals,
                       config: {
                         ...(current?.config || {}),
                         runtime: {
@@ -340,16 +338,41 @@ export function useAppData({
                             ...(current?.config?.runtime?.api_checks || {}),
                             signal_count: nextSignalCount,
                           },
+                          connectivity: {
+                            ...(current?.config?.runtime?.connectivity || {}),
+                            broker:
+                              brokerConnection?.snapshot ||
+                              current?.config?.runtime?.connectivity?.broker ||
+                              null,
+                            exchange:
+                              exchangeConnection?.snapshot ||
+                              current?.config?.runtime?.connectivity?.exchange ||
+                              null,
+                          },
+                          hydration: {
+                            ...(current?.config?.runtime?.hydration || {}),
+                            evidence_included:
+                              evidenceData !== null ||
+                              current?.config?.runtime?.hydration?.evidence_included ||
+                              false,
+                            signals_included: deferredPlan.refreshSignals
+                              ? nextSignals.length
+                              : current?.config?.runtime?.hydration?.signals_included || 0,
+                            signal_count:
+                              nextSignalCount ??
+                              current?.config?.runtime?.hydration?.signal_count ??
+                              0,
+                            signals_truncated: false,
+                            connectivity_included:
+                              !deferredPlan.hydrateConnectivity ||
+                              Boolean(brokerConnection?.snapshot || exchangeConnection?.snapshot),
+                          },
                         },
                       },
                     };
-                    writeAppDataSnapshot(cacheKey, {
-                      data: nextData,
-                      rawData: nextRawData,
-                    });
-                    return nextData;
-                  });
-                });
+                  }),
+                );
+              });
             });
           }
         }
@@ -385,8 +408,7 @@ export function useAppData({
     return () => {
       mounted = false;
       activeLoadId += 1;
-      cancelDeferredHydration();
-      cancelDeferredSignals();
+      cancelDeferredRuntimeFill();
       clearInterval(refresh);
       if (typeof document !== 'undefined') {
         document.removeEventListener('visibilitychange', handleVisibilityChange);

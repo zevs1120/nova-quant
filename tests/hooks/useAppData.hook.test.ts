@@ -166,4 +166,75 @@ describe('useAppData', () => {
     expect(requested.some((url) => url.includes('/api/evidence/signals/top'))).toBe(false);
     expect(requested.some((url) => url.includes('/api/signals?'))).toBe(false);
   });
+
+  it('skips deferred hydration when runtime-state already advertises a complete primary snapshot', async () => {
+    const fetchJson = vi.fn(async (url: string) => {
+      const u = String(url);
+      if (u.includes('/api/runtime-state')) {
+        return {
+          data: {
+            signals: [{ id: 's1' }, { id: 's2' }],
+            decision: null,
+            evidence: {
+              top_signals: [{ signal_id: 's1', symbol: 'AAPL', conviction: 0.88 }],
+              source_status: 'MODEL_DERIVED',
+              data_status: 'MODEL_DERIVED',
+              asof: '2024-01-01T00:00:00.000Z',
+            },
+            market_modules: [],
+            performance: initialData.performance,
+            config: {
+              runtime: {
+                api_checks: {
+                  signal_count: 2,
+                  market_state_count: 0,
+                  modules_count: 0,
+                  performance_records: 0,
+                },
+                connectivity: {
+                  broker: { provider: 'ALPACA', connected: true },
+                  exchange: { provider: 'BINANCE', connected: true },
+                },
+                hydration: {
+                  evidence_included: true,
+                  signals_included: 2,
+                  signal_count: 2,
+                  signals_truncated: false,
+                  connectivity_included: true,
+                },
+              },
+              risk_rules: {},
+            },
+          },
+          asof: '2024-01-01T00:00:00.000Z',
+          source_status: 'DB_BACKED',
+          data_status: 'ok',
+        };
+      }
+      return {};
+    });
+    const authSession = { userId: 'u-auth' };
+    const { useAppData } = await import('../../src/hooks/useAppData.js');
+    const { result } = renderHook(() =>
+      useAppData({
+        fetchJson,
+        assetClass: 'US_STOCK',
+        market: 'US',
+        effectiveUserId: 'u-auth',
+        authSession,
+        riskProfileKey: 'balanced',
+        executions: [],
+        refreshNonce: 0,
+      }),
+    );
+
+    await waitFor(() => expect(result.current.hasLoaded).toBe(true));
+
+    const requested = fetchJson.mock.calls.map(([url]) => String(url));
+    expect(requested.every((url) => url.includes('/api/runtime-state'))).toBe(true);
+    expect(requested.some((url) => url.includes('/api/evidence/signals/top'))).toBe(false);
+    expect(requested.some((url) => url.includes('/api/connect/broker'))).toBe(false);
+    expect(requested.some((url) => url.includes('/api/connect/exchange'))).toBe(false);
+    expect(requested.some((url) => url.includes('/api/signals?'))).toBe(false);
+  });
 });

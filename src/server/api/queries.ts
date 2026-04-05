@@ -3899,6 +3899,11 @@ export function getRuntimeState(args: {
         runtime: {
           ...core.runtimeTransparency,
           api_checks: apiChecks,
+          hydration: buildRuntimeHydrationPlan({
+            signalCount: apiChecks.signal_count,
+            includedSignals: core.signals.length,
+            connectivityIncluded: false,
+          }),
         },
       },
       market_modules: core.modules,
@@ -4161,6 +4166,23 @@ function signalPayloadsFromDecision(decision: Record<string, unknown> | null | u
     .filter((row) => row && typeof row === 'object');
 }
 
+function buildRuntimeHydrationPlan(args: {
+  signalCount: number;
+  includedSignals: number;
+  connectivityIncluded?: boolean;
+}) {
+  const signalCount = Math.max(0, Number(args.signalCount || 0));
+  const includedSignals = Math.max(0, Number(args.includedSignals || 0));
+  return {
+    primary_snapshot_version: 'today-runtime-v2',
+    evidence_included: true,
+    signals_included: includedSignals,
+    signal_count: signalCount,
+    signals_truncated: signalCount > includedSignals,
+    connectivity_included: Boolean(args.connectivityIncluded),
+  };
+}
+
 export async function getRuntimeStateResponse(args: {
   userId?: string;
   market?: Market;
@@ -4217,6 +4239,19 @@ export async function getRuntimeStateResponse(args: {
                   ...(runtime.data.config?.runtime?.api_checks || {}),
                   signal_count: nextSignals.length,
                 },
+                hydration: buildRuntimeHydrationPlan({
+                  signalCount: nextSignals.length,
+                  includedSignals: nextSignals.length,
+                  connectivityIncluded: Boolean(
+                    (runtime.data.config?.runtime &&
+                      'hydration' in runtime.data.config.runtime &&
+                      runtime.data.config.runtime.hydration &&
+                      typeof runtime.data.config.runtime.hydration === 'object' &&
+                      'connectivity_included' in runtime.data.config.runtime.hydration &&
+                      runtime.data.config.runtime.hydration.connectivity_included) ||
+                    false,
+                  ),
+                }),
               },
             },
           },
