@@ -4,6 +4,14 @@ NovaQuant 所有重要变更记录于此。
 
 ## 10.22.1 (2026-04-04)
 
+### 🧭 边界与部署职责定稿 (Boundary & Deployment Contracts)
+
+- **前后端双层边界定稿**
+  - **职责收口**：根 `README`、`architecture.md` 与 `app/`、`admin/`、`api/` 子文档统一改成“前端层 + 后端层”的系统表述，不再把仓库描述成职责漂移的多套准 mono-repo。
+  - **域名合同**：文档正式固定 `novaquant.cloud`、`app.novaquant.cloud`、`admin.novaquant.cloud`、`api.novaquant.cloud` 的唯一责任，并明确 `api` 项目不得承担主页语义。
+  - **迁移蓝图**：新增正式的前后端边界迁移文档，写清目录允许/禁止事项、域名映射、环境变量分层与后续 Phase P1-P5 的执行顺序。
+  - **门禁兼容层**：新增 `scripts/run-node.mjs` 并接管根脚本的 Node 启动方式，让 `npm run verify`、`npm test`、`npm run build` 等命令在不支持 `--no-webstorage` 的本地 Node 版本上也能正常运行，同时保留对新版本 Node 的静默告警抑制能力。
+
 ### 🚀 基础设施与稳定性加固 (Infrastructure & Stability)
 
 - **Vercel Serverless 环境静默崩溃修复**

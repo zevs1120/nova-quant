@@ -1,7 +1,7 @@
 # Nova Quant — Architecture Overview
 
-> 自动扫描生成 · 最后更新: 2026-04-03
-> Version: 10.21.3 (build 82) — 与 `package.json` / `src/config/version.js` 保持一致
+> 自动扫描生成 · 最后更新: 2026-04-05
+> Version: 10.22.1 (build 84) — 与 `package.json` / `src/config/version.js` 保持一致
 
 ---
 
@@ -12,27 +12,42 @@ Nova Quant 是一个 **AI-native 量化决策平台**，面向美股与加密货
 
 ---
 
-## 2. Monorepo 部署拓扑
+## 2. 双层 / 四面部署拓扑
 
 ```
 nova-quant/
-├── landing/         → 品牌落地页 (Vercel)         → novaquant.cloud
-│   └── data-portal/ → 数据研究门户 (Vercel)     → novaquant.cloud/data-portal
-├── app/            → 用户端 H5 前端 (Vercel)     → app.novaquant.cloud
-├── admin/          → 内部管理后台 (Vercel)       → admin.novaquant.cloud
-├── api/            → Vercel Serverless Functions  → api.novaquant.cloud
-├── model/          → EC2 端模型边界 & 信号合约
-└── qlib-bridge/   → EC2 端 Python 微服务 (提供 Alpha158 因子与 ML 模型推理)
+├── landing/        → 公开前端 (Vercel)           → novaquant.cloud
+│   └── data-portal → 公共数据门户                → novaquant.cloud/data-portal
+├── app/            → 登录后用户前端 (Vercel)     → app.novaquant.cloud
+├── admin/          → 内部管理前端 (Vercel)       → admin.novaquant.cloud
+├── api/            → Serverless 入口             → api.novaquant.cloud
+├── model/          → EC2 模型边界 & 信号合约
+└── qlib-bridge/    → EC2 Python 侧车 (因子 / 推理)
 ```
+
+系统心智不是“4 个互相独立的 mono-repo”，而是“1 个仓库里的前后端双层系统”。
+
+- 前端层：`landing/`、`app/`、`admin/`
+- 后端层：repository root API、`qlib-bridge/`
 
 **运行时规则**:
 | 层 | 允许 | 禁止 |
 |----------|--------------------------|--------------------------|
-| `app/` | 仅调用 API | 直接读写数据库 |
-| `admin/` | 仅调用 API | 直接读写数据库 |
-| API 层 | 读写数据库、响应 API 请求 | — |
+| `landing/` | 公开内容、登录/注册入口、套餐展示 | 登录后主应用、管理员能力、直连数据库 |
+| `app/` | 登录后用户主应用，只调用 API | 营销主页、管理员页面、直连数据库 |
+| `admin/` | 内部运营与管理，只调用 API | 普通用户主流程、直连数据库 |
+| API 层 | 读写数据库、响应 API 请求、处理鉴权/支付/webhook | 渲染前端页面或承担主页入口 |
 | `model/` | 推送标准信号到 server | 触碰用户数据 |
 | `qlib-bridge/` | 接受 HTTP 请求，读 Supabase/Postgres 同步并算因子 | 触碰用户状态或主动写入 DB |
+
+**域名规则**:
+
+- `novaquant.cloud` 只服务 `landing/`
+- `app.novaquant.cloud` 只服务 `app/`
+- `admin.novaquant.cloud` 只服务 `admin/`
+- `api.novaquant.cloud` 只服务 API
+
+任何“API 也能进主页”的行为都应视为部署或 rewrite 配置错误。
 
 ---
 

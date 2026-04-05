@@ -9,28 +9,35 @@ Browse search can now merge external market results into `/api/assets/search`. B
 It is designed to help self-directed traders reduce emotional trading and execute with discipline.
 It is **not** a blind auto-trading bot and does **not** fabricate live performance.
 
-## Monorepo Deployment Layout
+## Deployment Surfaces
 
-This repository supports a five-part deployment layout:
+This repository is one product repo with two runtime layers:
 
-- `landing/`: brand landing page + data research portal on Vercel (`novaquant.cloud` + `novaquant.cloud/data-portal`)
-- `app/`: user-facing H5 frontend on Vercel
-- `admin/`: internal control dashboard on Vercel (includes System Health + Research Ops dashboards, prefers Supabase read mirror when available)
-- `qlib-bridge/`: Python sidecar for Alpha158 factor computation and ML model inference (EC2 only)
-- Repository root: main API + quant core on Vercel Serverless Functions (entry: `api/index.ts` → `src/server/api/app.ts`)
+- Frontend layer: `landing/`, `app/`, `admin/`
+- Backend layer: repository-root API + `qlib-bridge/`
 
-Production domains should be split as:
+The deployable surfaces are:
+
+- `landing/`: public marketing site and public data portal on Vercel (`novaquant.cloud`)
+- `app/`: logged-in user product on Vercel (`app.novaquant.cloud`)
+- `admin/`: internal operations dashboard on Vercel (`admin.novaquant.cloud`)
+- Repository root API: shared backend on Vercel Serverless Functions (`api.novaquant.cloud`)
+- `qlib-bridge/`: Python quant sidecar on EC2 for factor/model workloads only
+
+Production domains are fixed to one responsibility each:
 
 - `https://novaquant.cloud` -> `landing/`
 - `https://app.novaquant.cloud` -> `app/`
-- `https://api.novaquant.cloud` -> repository root (Vercel Serverless Functions, `api/index.ts`)
 - `https://admin.novaquant.cloud` -> `admin/`
+- `https://api.novaquant.cloud` -> repository-root API (`api/index.ts`)
 
-Runtime rules:
+Runtime boundary rules:
 
-- `app/` and `admin/` call API only
-- Repository root is the only layer allowed to read/write the database
-- `EC2` runs Marvix backend worker independently and does not touch user data directly
+- `landing/`, `app/`, and `admin/` are frontends and may call the API only
+- the repository-root API is the only surface allowed to read or write business/auth data
+- `qlib-bridge/` is a backend sidecar and must not become a browser-facing product entry
+- `api.novaquant.cloud` is API-only and must not be treated as a homepage or user shell
+- no production frontend should depend on `*.vercel.app` hosts for API traffic
 
 ## What This Repository Now Guarantees
 

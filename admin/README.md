@@ -2,7 +2,7 @@
 
 Last updated: 2026-03-23
 
-This directory is the dedicated control dashboard for `admin.novaquant.cloud`.
+This directory is the dedicated internal dashboard for `admin.novaquant.cloud`.
 
 ## Deployment model
 
@@ -19,6 +19,12 @@ This project is the internal dashboard surface. It provides:
 - a separate deployable Vite app (root directory **`admin/`** on Vercel)
 - implemented pages: **Overview**, **Users**, **Alpha Lab**, **Signals & Execution**, **System Health**
 - live **`/api/admin/*`** integration against the shared backend (`src/server/api/app.ts`)
+
+It is intentionally not part of the user-facing product flow:
+
+- no marketing content
+- no logged-in user shell
+- no direct database or sidecar access
 
 ## Admin API contracts (implemented)
 
