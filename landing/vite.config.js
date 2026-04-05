@@ -8,6 +8,14 @@ export default defineConfig({
   resolve: {
     dedupe: ['react', 'react-dom'],
   },
+  server: {
+    proxy: {
+      '/api': {
+        target: process.env.VITE_API_PROXY_TARGET || 'http://127.0.0.1:8787',
+        changeOrigin: true,
+      },
+    },
+  },
   build: {
     outDir: 'dist',
     emptyOutDir: true,
