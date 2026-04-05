@@ -10,8 +10,18 @@ import {
   getBrowseAssetOverview,
   getBrowseAssetDetailBundle,
 } from '../queries.js';
+import { recordFrontendRouteLatency } from '../../observability/spine.js';
 
 const router = Router();
+
+async function measureFrontendRead<T>(scope: string, read: () => Promise<T>): Promise<T> {
+  const startedAt = Date.now();
+  try {
+    return await read();
+  } finally {
+    recordFrontendRouteLatency(scope, Date.now() - startedAt);
+  }
+}
 
 router.get(
   '/api/assets',
@@ -68,11 +78,13 @@ router.get(
       return;
     }
 
-    const data = await getBrowseAssetDetailBundle({
-      market,
-      symbol,
-      limit,
-    });
+    const data = await measureFrontendRead('browse_detail_bundle', () =>
+      getBrowseAssetDetailBundle({
+        market,
+        symbol,
+        limit,
+      }),
+    );
 
     if (!data.chart && !data.overview && !data.news.length) {
       res.status(404).json({ error: 'Browse detail bundle unavailable' });
@@ -94,9 +106,11 @@ router.get(
   asyncRoute(async (req, res) => {
     const view = req.query.view as string | undefined;
     res.json(
-      await getBrowseHomePayload({
-        view,
-      }),
+      await measureFrontendRead('browse_home', () =>
+        getBrowseHomePayload({
+          view,
+        }),
+      ),
     );
   }),
 );
@@ -112,10 +126,12 @@ router.get(
       return;
     }
 
-    const data = await getBrowseAssetChart({
-      market,
-      symbol,
-    });
+    const data = await measureFrontendRead('browse_chart', () =>
+      getBrowseAssetChart({
+        market,
+        symbol,
+      }),
+    );
 
     if (!data) {
       res.status(404).json({ error: 'Browse chart unavailable' });
@@ -141,11 +157,13 @@ router.get(
     }
     const symbol = (req.query.symbol as string | undefined)?.toUpperCase();
     const limit = req.query.limit ? Number(req.query.limit) : 8;
-    const data = await getBrowseNewsFeed({
-      market,
-      symbol,
-      limit,
-    });
+    const data = await measureFrontendRead('browse_news', () =>
+      getBrowseNewsFeed({
+        market,
+        symbol,
+        limit,
+      }),
+    );
     res.json({
       market,
       symbol: symbol || null,
@@ -164,10 +182,12 @@ router.get(
       res.status(400).json({ error: 'Required query params: market, symbol' });
       return;
     }
-    const data = await getBrowseAssetOverview({
-      market,
-      symbol,
-    });
+    const data = await measureFrontendRead('browse_overview', () =>
+      getBrowseAssetOverview({
+        market,
+        symbol,
+      }),
+    );
     if (!data) {
       res.status(404).json({ error: 'Browse overview unavailable' });
       return;

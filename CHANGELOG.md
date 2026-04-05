@@ -2,7 +2,17 @@
 
 NovaQuant 所有重要变更记录于此。
 
-## 10.22.3 (2026-04-05)
+## 10.22.4 (2026-04-05)
+
+### 📈 P1 轻量热路径观测 (Lightweight Hot-Path Observability)
+
+- **frontend read 统计入骨架**
+  - `runtime-state`、`browse_home`、`browse_chart`、`browse_news`、`browse_overview`、`browse_detail_bundle` 现在会记录最近请求样本的 `p50/p95/latest` 延迟。
+  - `cachedFrontendRead` 现在会按 scope 记录 `hit / miss / inflight`，为后续 cache hit ratio 与热路径调参提供真实基线。
+  - `backbone` 的 `observability` 摘要新增 `frontend_reads` 视图，能直接看到热路径请求量、延迟分位和缓存命中情况。
+
+- **回归门禁补强**
+  - 新增 backbone 级测试，验证 runtime-state 与 browse 读链路的观测数据确实会沉淀到统一 observability summary 里，而不是只停留在内存 helper。
 
 ### 🪝 P0 提交门禁硬化 (Commit Gate Hardening)
 
@@ -1718,4 +1728,11 @@ NovaQuant 所有重要变更记录于此。
 - Release type: patch
 - P0 tighten pre-commit and commit-msg hooks
 - Centralize local gate execution in scripts/run-precommit.mjs
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
+## 10.22.4 (2026-04-05)
+
+- Release type: patch
+- P1 add lightweight frontend read observability
+- Track runtime-state and browse route latency plus cache outcomes
 - Updated release metadata, build number, About runtime source, and changelog entry.

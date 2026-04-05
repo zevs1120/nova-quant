@@ -42,7 +42,11 @@ import {
 import { buildDecisionSnapshot } from '../decision/engine.js';
 import { buildEngagementSnapshot, defaultNotificationPreferences } from '../engagement/engine.js';
 import { buildBackendBackboneSummary } from '../backbone/service.js';
-import { createTraceId, recordAuditEvent } from '../observability/spine.js';
+import {
+  createTraceId,
+  recordAuditEvent,
+  recordFrontendCacheOutcome,
+} from '../observability/spine.js';
 import {
   applyLocalNovaDecisionLanguage,
   applyLocalNovaWrapUpLanguage,
@@ -285,14 +289,17 @@ async function cachedFrontendRead<T>(
   const now = Date.now();
   const cached = frontendReadCache.get(key);
   if (cached && cached.expiresAt > now) {
+    recordFrontendCacheOutcome(scope, 'hit');
     return cached.value as T;
   }
 
   const inflight = frontendReadInflight.get(key);
   if (inflight) {
+    recordFrontendCacheOutcome(scope, 'inflight');
     return (await inflight) as T;
   }
 
+  recordFrontendCacheOutcome(scope, 'miss');
   const next = read()
     .then((value) => {
       frontendReadCache.set(key, {

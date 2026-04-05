@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createApiApp } from '../src/server/api/app.js';
+import { resetFrontendReadObservabilityForTesting } from '../src/server/observability/spine.js';
 import { requestLocalHttp } from './helpers/httpTestClient.js';
 
 describe('backend backbone api', () => {
@@ -10,6 +11,7 @@ describe('backend backbone api', () => {
     vi.stubEnv('KV_REST_API_TOKEN', '');
     vi.stubEnv('UPSTASH_REDIS_REST_URL', '');
     vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', '');
+    resetFrontendReadObservabilityForTesting();
   });
 
   afterEach(() => {
@@ -74,4 +76,50 @@ describe('backend backbone api', () => {
     ).toBe(true);
     expect(Array.isArray(res.body.durable_workflows.workflow_blueprints)).toBe(true);
   });
+
+  it('includes frontend read observability for runtime-state and browse routes', async () => {
+    const app = createApiApp();
+    const userId = `observability-${Date.now()}`;
+
+    await requestLocalHttp(app, {
+      path: '/api/runtime-state',
+      query: {
+        userId,
+        market: 'US',
+        assetClass: 'US_STOCK',
+      },
+    });
+    await requestLocalHttp(app, {
+      path: '/api/runtime-state',
+      query: {
+        userId,
+        market: 'US',
+        assetClass: 'US_STOCK',
+      },
+    });
+    await requestLocalHttp(app, {
+      path: '/api/browse/home',
+      query: {
+        view: 'STOCK',
+      },
+    });
+
+    const res = await requestLocalHttp(app, {
+      path: '/api/backbone/summary',
+      query: {
+        userId,
+        market: 'US',
+        assetClass: 'US_STOCK',
+      },
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body.observability.frontend_reads.route_latency.runtime_state.request_count).toBe(2);
+    expect(res.body.observability.frontend_reads.route_latency.runtime_state.p95_ms).not.toBeNull();
+    expect(res.body.observability.frontend_reads.route_latency.browse_home.request_count).toBe(1);
+    expect(res.body.observability.frontend_reads.cache.runtime_state.hit).toBeGreaterThanOrEqual(1);
+    expect(res.body.observability.frontend_reads.cache.runtime_state.miss).toBeGreaterThanOrEqual(
+      1,
+    );
+  }, 15_000);
 });

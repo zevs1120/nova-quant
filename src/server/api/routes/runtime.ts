@@ -12,8 +12,18 @@ import {
   applyMembershipAccessToRuntimeState,
   getMembershipState,
 } from '../../membership/service.js';
+import { recordFrontendRouteLatency } from '../../observability/spine.js';
 
 const router = Router();
+
+async function measureFrontendRead<T>(scope: string, read: () => Promise<T>): Promise<T> {
+  const startedAt = Date.now();
+  try {
+    return await read();
+  } finally {
+    recordFrontendRouteLatency(scope, Date.now() - startedAt);
+  }
+}
 
 router.get(
   '/api/runtime-state',
@@ -21,11 +31,13 @@ router.get(
     const market = parseMarket(req.query.market as string | undefined);
     const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
     const userId = getRequestScope(req).userId;
-    const runtime = await getRuntimeStateResponse({
-      userId,
-      market,
-      assetClass,
-    });
+    const runtime = await measureFrontendRead('runtime_state', () =>
+      getRuntimeStateResponse({
+        userId,
+        market,
+        assetClass,
+      }),
+    );
     const membership = getMembershipState({ userId });
     res.json(
       applyMembershipAccessToRuntimeState({
