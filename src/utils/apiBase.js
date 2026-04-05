@@ -48,9 +48,9 @@ export function runtimeApiBases() {
   if (protocol === 'file:' || isLocalHost(hostname)) {
     return unique([
       '',
-      ...envBases,
       'http://127.0.0.1:8787',
       'http://localhost:8787',
+      ...envBases,
       'https://api.novaquant.cloud',
     ]);
   }

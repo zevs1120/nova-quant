@@ -3,9 +3,9 @@ import { handleGetAuthProviderConfig } from '../src/server/api/authHandlers.js';
 
 describe('supabase provider config api', () => {
   beforeEach(() => {
-    vi.stubEnv('SUPABASE_URL', 'https://trsotsoanwzmigawxfii.supabase.co');
-    vi.stubEnv('SUPABASE_PUBLISHABLE_KEY', 'test-publishable-key');
-    vi.stubEnv('SUPABASE_AUTH_REDIRECT_URL', 'http://127.0.0.1:5173/');
+    vi.stubEnv('VITE_PUBLIC_SUPABASE_URL', 'https://trsotsoanwzmigawxfii.supabase.co');
+    vi.stubEnv('VITE_PUBLIC_SUPABASE_PUBLISHABLE_KEY', 'test-publishable-key');
+    vi.stubEnv('VITE_PUBLIC_SUPABASE_AUTH_REDIRECT_URL', 'http://127.0.0.1:5173/');
   });
 
   afterEach(() => {

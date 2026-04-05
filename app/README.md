@@ -12,10 +12,17 @@
 
 推荐公开环境变量：
 
-- `VITE_API_BASE_URL=https://api.novaquant.cloud`
-- `VITE_SUPABASE_URL=https://<project-ref>.supabase.co`
-- `VITE_SUPABASE_PUBLISHABLE_KEY=<supabase publishable key>`
-- `VITE_SUPABASE_AUTH_REDIRECT_URL=https://app.novaquant.cloud/`
+- `VITE_PUBLIC_API_BASE_URL=https://api.novaquant.cloud`
+- `VITE_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co`
+- `VITE_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<supabase publishable key>`
+- `VITE_PUBLIC_SUPABASE_AUTH_REDIRECT_URL=https://app.novaquant.cloud/`
+
+迁移期间仍兼容旧命名：
+
+- `VITE_API_BASE_URL`
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_PUBLISHABLE_KEY`
+- `VITE_SUPABASE_AUTH_REDIRECT_URL`
 
 如果前端不在 build 时注入这 3 个 Supabase 公共变量，运行时就必须依赖
 `https://api.novaquant.cloud/api/auth/provider-config` 返回同样的值；否则注册、登录、

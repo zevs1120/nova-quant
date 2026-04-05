@@ -13,6 +13,13 @@ describe('supabase signup isolation', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
+    vi.stubEnv('VITE_PUBLIC_SUPABASE_URL', '');
+    vi.stubEnv('VITE_PUBLIC_SUPABASE_PUBLISHABLE_KEY', '');
+    vi.stubEnv('VITE_PUBLIC_SUPABASE_AUTH_REDIRECT_URL', '');
+    vi.stubEnv('VITE_SUPABASE_URL', '');
+    vi.stubEnv('VITE_SUPABASE_PUBLISHABLE_KEY', '');
+    vi.stubEnv('VITE_SUPABASE_ANON_KEY', '');
+    vi.stubEnv('VITE_SUPABASE_AUTH_REDIRECT_URL', '');
     fetchMock = vi.fn(
       async () =>
         new Response(
@@ -43,6 +50,7 @@ describe('supabase signup isolation', () => {
   });
 
   afterEach(() => {
+    vi.unstubAllEnvs();
     vi.unstubAllGlobals();
     vi.resetModules();
   });

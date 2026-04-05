@@ -26,7 +26,11 @@ function resolveSupabaseProjectRefFromDatabaseUrl() {
 }
 
 export function resolveSupabaseAuthUrl() {
-  const configured = trim(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL);
+  const configured = trim(
+    process.env.VITE_PUBLIC_SUPABASE_URL ||
+      process.env.SUPABASE_URL ||
+      process.env.VITE_SUPABASE_URL,
+  );
   if (configured) return configured;
   const projectRef = resolveSupabaseProjectRefFromDatabaseUrl();
   return projectRef ? `https://${projectRef}.supabase.co` : '';
@@ -34,7 +38,8 @@ export function resolveSupabaseAuthUrl() {
 
 export function resolveSupabaseAnonKey() {
   return trim(
-    process.env.SUPABASE_PUBLISHABLE_KEY ||
+    process.env.VITE_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+      process.env.SUPABASE_PUBLISHABLE_KEY ||
       process.env.SUPABASE_ANON_KEY ||
       process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
       process.env.VITE_SUPABASE_ANON_KEY,
@@ -47,10 +52,12 @@ export function hasSupabaseAuthProvider() {
 
 export function resolveSupabaseAuthRedirectUrl() {
   const configured = trim(
-    process.env.SUPABASE_AUTH_REDIRECT_URL || process.env.VITE_SUPABASE_AUTH_REDIRECT_URL,
+    process.env.SUPABASE_AUTH_REDIRECT_URL ||
+      process.env.VITE_PUBLIC_SUPABASE_AUTH_REDIRECT_URL ||
+      process.env.VITE_SUPABASE_AUTH_REDIRECT_URL,
   );
   if (configured) return configured;
-  const appUrl = trim(process.env.NOVA_APP_URL);
+  const appUrl = trim(process.env.NOVA_PUBLIC_APP_URL || process.env.NOVA_APP_URL);
   if (appUrl) return appUrl;
   if (process.env.NODE_ENV !== 'production') {
     return 'http://127.0.0.1:5173/';

@@ -14,10 +14,13 @@ let runtimeConfigPromise = null;
 
 function readStaticSupabaseBrowserConfig() {
   const url = trim(
-    import.meta.env?.VITE_SUPABASE_URL || readDefinedGlobal('__NOVA_PUBLIC_SUPABASE_URL__'),
+    import.meta.env?.VITE_PUBLIC_SUPABASE_URL ||
+      import.meta.env?.VITE_SUPABASE_URL ||
+      readDefinedGlobal('__NOVA_PUBLIC_SUPABASE_URL__'),
   );
   const anonKey = trim(
-    import.meta.env?.VITE_SUPABASE_PUBLISHABLE_KEY ||
+    import.meta.env?.VITE_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+      import.meta.env?.VITE_SUPABASE_PUBLISHABLE_KEY ||
       import.meta.env?.VITE_SUPABASE_ANON_KEY ||
       readDefinedGlobal('__NOVA_PUBLIC_SUPABASE_PUBLISHABLE_KEY__'),
   );
@@ -27,7 +30,8 @@ function readStaticSupabaseBrowserConfig() {
     anonKey,
     redirectUrl:
       trim(
-        import.meta.env?.VITE_SUPABASE_AUTH_REDIRECT_URL ||
+        import.meta.env?.VITE_PUBLIC_SUPABASE_AUTH_REDIRECT_URL ||
+          import.meta.env?.VITE_SUPABASE_AUTH_REDIRECT_URL ||
           readDefinedGlobal('__NOVA_PUBLIC_SUPABASE_REDIRECT_URL__'),
       ) || null,
   };

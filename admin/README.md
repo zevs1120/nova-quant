@@ -61,4 +61,8 @@ Main project environment variables:
 
 Admin frontend environment variables:
 
+- `VITE_PUBLIC_API_BASE_URL=https://api.novaquant.cloud`
+
+Migration fallback:
+
 - `VITE_ADMIN_API_BASE=https://api.novaquant.cloud`

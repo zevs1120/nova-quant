@@ -8,6 +8,10 @@ describe('package source script', () => {
     const output = execFileSync('node', [path.join('scripts', 'package-source.mjs'), '--dry-run'], {
       cwd: root,
       encoding: 'utf8',
+      env: {
+        ...process.env,
+        NODE_OPTIONS: '',
+      },
     });
     const payload = JSON.parse(output) as { excludes: string[]; mode: string };
     expect(payload.mode).toBe('dry-run');

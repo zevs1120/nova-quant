@@ -12,6 +12,7 @@ NovaQuant 所有重要变更记录于此。
   - **迁移蓝图**：新增正式的前后端边界迁移文档，写清目录允许/禁止事项、域名映射、环境变量分层与后续 Phase P1-P5 的执行顺序。
   - **门禁兼容层**：新增 `scripts/run-node.mjs` 并接管根脚本的 Node 启动方式，让 `npm run verify`、`npm test`、`npm run build` 等命令在不支持 `--no-webstorage` 的本地 Node 版本上也能正常运行，同时保留对新版本 Node 的静默告警抑制能力。
   - **部署入口收口**：`app/` 不再 rewrite 到临时的 `nova-quant-api.vercel.app`，`landing/` 也补齐与 `app/`、`admin/` 一致的 `/api/* -> api.novaquant.cloud` 转发；root API 健康响应现在明确声明自己是 `api-only` 入口，避免被误解为主页。
+  - **环境变量合同统一**：新增正式的 env contract 文档，并把 root / `app` / `admin` / `landing` 的 example 文件统一成“平台 URL / 前端公开变量 / 后端私密变量”三层结构；代码同时兼容新命名与历史变量，避免现网和本地配置瞬间失效。
 
 ### 🚀 基础设施与稳定性加固 (Infrastructure & Stability)
 

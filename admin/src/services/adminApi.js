@@ -1,7 +1,10 @@
 function detectDefaultApiBase() {
   if (typeof window === 'undefined') return '';
   const envBase = String(
-    import.meta.env.VITE_ADMIN_API_BASE || import.meta.env.VITE_API_BASE_URL || '',
+    import.meta.env.VITE_PUBLIC_API_BASE_URL ||
+      import.meta.env.VITE_ADMIN_API_BASE ||
+      import.meta.env.VITE_API_BASE_URL ||
+      '',
   ).trim();
   const { protocol, hostname } = window.location;
   const normalizedEnvBase = envBase ? envBase.replace(/\/+$/, '') : '';

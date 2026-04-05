@@ -56,7 +56,9 @@ function normalizeStripePriceId(value: string) {
 }
 
 export function readBillingProviderConfig(): BillingProviderConfig {
-  const appUrl = normalizeAppUrl(process.env.NOVA_APP_URL || process.env.STRIPE_APP_URL || '');
+  const appUrl = normalizeAppUrl(
+    process.env.NOVA_PUBLIC_APP_URL || process.env.NOVA_APP_URL || process.env.STRIPE_APP_URL || '',
+  );
   const portalReturnUrl = normalizeAppUrl(
     process.env.STRIPE_PORTAL_RETURN_URL || process.env.STRIPE_CUSTOMER_PORTAL_RETURN_URL || appUrl,
   );

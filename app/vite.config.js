@@ -3,19 +3,30 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 const repoRoot = path.resolve(__dirname, '..');
-const publicSupabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
+const publicSupabaseUrl =
+  process.env.VITE_PUBLIC_SUPABASE_URL ||
+  process.env.VITE_SUPABASE_URL ||
+  process.env.SUPABASE_URL ||
+  '';
 const publicSupabaseKey =
+  process.env.VITE_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
   process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
   process.env.VITE_SUPABASE_ANON_KEY ||
   process.env.SUPABASE_PUBLISHABLE_KEY ||
   process.env.SUPABASE_ANON_KEY ||
   '';
 const publicSupabaseRedirectUrl =
+  process.env.VITE_PUBLIC_SUPABASE_AUTH_REDIRECT_URL ||
   process.env.VITE_SUPABASE_AUTH_REDIRECT_URL ||
+  process.env.NOVA_PUBLIC_APP_URL ||
   process.env.SUPABASE_AUTH_REDIRECT_URL ||
   process.env.NOVA_APP_URL ||
   '';
-const publicApiBase = process.env.VITE_API_BASE_URL || process.env.VITE_PUBLIC_API_BASE_URL || '';
+const publicApiBase =
+  process.env.VITE_PUBLIC_API_BASE_URL ||
+  process.env.VITE_API_BASE_URL ||
+  process.env.NOVA_PUBLIC_API_URL ||
+  '';
 
 export default defineConfig({
   root: __dirname,

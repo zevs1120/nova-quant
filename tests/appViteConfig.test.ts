@@ -3,7 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 describe('app vite config', () => {
   beforeEach(() => {
     vi.resetModules();
-    vi.stubEnv('VITE_API_BASE_URL', 'https://api.novaquant.cloud');
+    vi.stubEnv('VITE_PUBLIC_API_BASE_URL', 'https://api.novaquant.cloud');
+    vi.stubEnv('VITE_PUBLIC_SUPABASE_URL', 'https://project.supabase.co');
+    vi.stubEnv('VITE_PUBLIC_SUPABASE_PUBLISHABLE_KEY', 'sb_publishable_test');
+    vi.stubEnv('VITE_PUBLIC_SUPABASE_AUTH_REDIRECT_URL', 'https://app.novaquant.cloud/');
     vi.stubEnv('SUPABASE_URL', 'https://project.supabase.co');
     vi.stubEnv('SUPABASE_PUBLISHABLE_KEY', 'sb_publishable_test');
     vi.stubEnv('SUPABASE_AUTH_REDIRECT_URL', 'https://app.novaquant.cloud/');
