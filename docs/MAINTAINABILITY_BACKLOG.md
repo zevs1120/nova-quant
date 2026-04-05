@@ -8,7 +8,7 @@ These files are currently the largest implementation surfaces in `src/` and shou
 
 | File                                         | Approx. lines | Why it matters                                                                 | Recommended next cut                                                               |
 | -------------------------------------------- | ------------: | ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
-| `src/styles/onboarding.css`                  |          5723 | Very large page stylesheet with high visual coupling and difficult safe edits. | Split shell tokens, onboarding flow sections, and one-off utility clusters.        |
+| `src/styles/onboarding.css`                  |          5469 | Very large page stylesheet with high visual coupling and difficult safe edits. | Continue splitting now that `onboarding-shell.css` owns shell/poster framing.      |
 | `src/styles/today-final.css`                 |          4649 | Today still concentrates most high-density UI styling in one file.             | Continue separating climate/detail and preview treatments now that deck is split.  |
 | `src/server/api/queries.ts`                  |          3909 | Still the central query composition monolith even after slice extraction.      | Keep trimming remaining domain helpers until it is mostly wiring and cache policy. |
 | `src/server/db/repository.ts`                |          3830 | Broad persistence surface with many unrelated concerns in one module.          | Split by domain table groups or read/write families.                               |
@@ -45,6 +45,7 @@ These areas are still maintainable only because contributors remember the rules.
   - `queries.ts` still carries too much read and mutation context in one place.
 - CSS layer boundaries between shell frame, page surface, and feature detail
   - token splits have started, Today shell framing and deck now have their own stylesheets, but the biggest stylesheets still need section-level ownership.
+  - onboarding shell framing now lives in `src/styles/onboarding-shell.css`.
 
 ## 4. Testing Gaps To Close
 
@@ -52,12 +53,13 @@ These areas are still maintainable only because contributors remember the rules.
 - Add section-level tests around `TodayTab.jsx` once more rendering logic moves into subcomponents.
   - `TodayDeckSection.jsx` is now extracted; expand coverage as more sections split.
 - Add CSS ownership tests for onboarding and deeper Today sub-surfaces as their stylesheets continue splitting.
+  - onboarding shell import is now guarded by `tests/onboardingCssSplit.test.ts`.
 - Add admin-domain boundary tests if `postgresBusinessRead.ts` is divided by dashboard family.
 
 ## 5. Recommended Next Sequence
 
 1. Continue splitting `src/styles/today-final.css` now that `src/styles/today-shell.css` and `src/styles/today-deck.css` own shell and deck framing.
-2. Split `src/styles/onboarding.css` by flow step or page section.
+2. Split `src/styles/onboarding.css` by flow step or page section (shell now lives in `src/styles/onboarding-shell.css`).
 3. Continue shrinking `src/components/TodayTab.jsx` with section components and feature-local state helpers (deck section now lives in `src/components/today/TodayDeckSection.jsx`).
 4. Identify the next non-trivial query domain worth slicing out of `queries.ts`.
 5. Keep boundary tests current whenever a new slice or stylesheet layer is added.

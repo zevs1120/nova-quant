@@ -2,6 +2,18 @@
 
 NovaQuant 所有重要变更记录于此。
 
+## 10.22.22 (2026-04-05)
+
+### 🧭 P19 Onboarding Shell CSS 拆分 (Onboarding Shell CSS Split)
+
+- **Onboarding shell 样式独立**
+  - 新增 `src/styles/onboarding-shell.css`，承接 onboarding flow 的 shell、stage 与 poster framing，降低主表耦合。
+  - `src/styles/onboarding.css` 现在通过 `@import './onboarding-shell.css';` 引入 shell 层，后续按 flow section 继续拆分。
+
+- **回归护栏补齐**
+  - 新增 `tests/onboardingCssSplit.test.ts`，确保 onboarding shell 仍然通过专门样式层引入。
+  - `docs/MAINTAINABILITY_BACKLOG.md` 与 `README.md` 已同步 onboarding CSS 拆分的边界与下一刀方向。
+
 ## 10.22.21 (2026-04-05)
 
 ### 🎨 P18 Today Deck CSS 拆分 (Today Deck CSS Split)
@@ -2044,4 +2056,10 @@ NovaQuant 所有重要变更记录于此。
 
 - Release type: patch
 - P18 split today deck css
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
+## 10.22.22 (2026-04-05)
+
+- Release type: patch
+- P19 split onboarding shell css
 - Updated release metadata, build number, About runtime source, and changelog entry.

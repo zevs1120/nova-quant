@@ -1,7 +1,7 @@
 {
   "name": "nova-quant",
   "private": true,
-  "version": "10.22.21",
+  "version": "10.22.22",
   "type": "module",
   "scripts": {
     "dev": "node scripts/run-node.mjs scripts/dev-stack.mjs",

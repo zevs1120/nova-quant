@@ -15,6 +15,7 @@ describe('maintainability backlog doc', () => {
     expect(backlogSource).toContain('src/styles/today-shell.css');
     expect(backlogSource).toContain('src/styles/today-deck.css');
     expect(backlogSource).toContain('src/styles/onboarding.css');
+    expect(backlogSource).toContain('onboarding-shell.css');
     expect(backlogSource).toContain('Continue splitting `src/styles/today-final.css`');
     expect(backlogSource).toContain('Keep boundary tests current');
   });
