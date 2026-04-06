@@ -2,6 +2,22 @@
 
 NovaQuant 所有重要变更记录于此。
 
+## 10.22.24 (2026-04-05)
+
+### 🎨 P21 Menu Root Luxury Reframe (Menu 根页品牌重做)
+
+- **Menu 根页信息架构重做**
+  - 重写 `src/components/MenuTab.jsx` 的根页入口，把原来的“功能列表 + 彩色入口卡”改成更像私享账户空间的结构。
+  - 首页现在按 `For today`、`Account directory`、`Research & system`、`Service & system` 四层组织，核心入口收敛为 Membership、Points、Support，和 NovaQuant 当前产品主路径更一致。
+
+- **视觉语言收敛到品牌调性**
+  - 重写 `src/styles/menu.css` 的 root shell 视觉系统，撤掉旧的 orbit 装饰、多彩渐变卡和偏活动页的表现。
+  - 新版 Menu 改为更克制的暖白、石色、石墨和低饱和金属色，保留现有二级页 shell / surface 节奏，同时引入更安静的“private account salon”气质。
+
+- **保持与现有页面的连续性**
+  - 这次不是把 Menu 做成独立品牌页，而是沿用当前二级页 canvas、列表密度和交互方式，只提升信息秩序和材质感。
+  - `Membership`、`Points`、`Support` 的入口语气也改成更像礼宾与账户目录，而不是单纯设置页或活动页。
+
 ## 10.22.23 (2026-04-05)
 
 ### 🧩 P20 Today Climate Header 抽离 (Today Climate Header Extraction)

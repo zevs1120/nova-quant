@@ -2033,62 +2033,74 @@ export default function MenuTab({
     );
   }
 
-  const rootPrimaryActions = [
-    {
-      key: 'support',
-      kicker: isZh ? 'Start here' : 'Start here',
-      title: copy.supportRootTitle,
-      desc: isZh
-        ? '帮助中心、Support chats 和披露信息都从这里进。'
-        : 'Help center, support chats, and disclosures all live here.',
-      badge: isZh ? '24/7' : '24/7',
-      tone: 'support',
-    },
+  const rootFeaturedActions = [
     {
       key: 'membership',
-      kicker: isZh ? 'Plan' : 'Plan',
+      eyebrow: isZh ? 'Privileges' : 'Privileges',
       title: copy.membershipRootTitle,
       desc: isZh
-        ? '查看当前计划、剩余 Ask Nova 次数，以及升级入口。'
-        : 'See your current plan, remaining Ask Nova uses, and upgrade paths.',
-      badge: activeMembershipPlan?.name || 'Free',
+        ? '查看当前计划、Ask Nova 额度，以及你现在拥有的服务层级。'
+        : 'Review your plan, Ask Nova allowance, and the level of service attached to your account.',
+      meta: activeMembershipPlan?.name || 'Free',
+      cta: isZh ? '查看礼遇' : 'View privileges',
       tone: 'membership',
     },
     {
-      key: 'prediction-games',
-      kicker: isZh ? 'Play' : 'Play',
-      title: copy.predictionGames,
+      key: 'points',
+      eyebrow: copy.pointsHub,
+      title: isZh ? '积分与兑换' : 'Points & Redemptions',
       desc: isZh
-        ? '每天快速做判断，顺手拿积分和奖励。'
-        : 'Make a fast daily call and pick up points and rewards.',
-      badge: isZh ? 'Daily' : 'Daily',
-      tone: 'prediction',
+        ? '积分、VIP 兑换、奖励历史与邀请关系集中放在这里。'
+        : 'Points, VIP redemptions, rewards history, and referrals all live here.',
+      meta: manualAvailable ? formatPoints(points.balance, locale) : copy.pointsHub,
+      cta: isZh ? '打开账户' : 'Open account',
+      tone: 'points',
+    },
+    {
+      key: 'support',
+      eyebrow: isZh ? 'Concierge' : 'Concierge',
+      title: copy.supportRootTitle,
+      desc: isZh
+        ? '帮助中心、支持会话和披露说明，统一作为账户礼宾入口。'
+        : 'Help Center, active support chats, and disclosures in one concierge entry point.',
+      meta: isZh ? '24/7 服务' : '24/7 service',
+      cta: isZh ? '联系支持' : 'Contact support',
+      tone: 'support',
     },
   ];
 
   const rootAccountRows = [
     {
       key: 'rewards',
-      title: copy.rewards,
-      desc: isZh ? '邀请、奖励、VIP 兑换都在这里。' : 'Invites, rewards, and VIP redemption.',
+      title: isZh ? '邀请与奖励' : 'Invites & Rewards',
+      desc: isZh
+        ? '邀请码、奖励记录与分享入口。'
+        : 'Invite codes, reward history, and sharing access.',
     },
     {
       key: 'security-privacy',
-      title: copy.securityPrivacy,
+      title: isZh ? '账户安全与隐私' : 'Security & Privacy',
       desc: isZh
-        ? '密码、设备安全、隐私和数据控制。'
-        : 'Password, device safety, privacy, and data controls.',
+        ? '密码、设备、隐私偏好与数据控制。'
+        : 'Password, devices, privacy preferences, and data controls.',
     },
     {
       key: 'settings',
-      title: copy.settings,
+      title: isZh ? '偏好设置' : 'Preferences',
       desc: isZh
-        ? '通知、语言、模式和账户偏好。'
-        : 'Notifications, language, mode, and account preferences.',
+        ? '通知、语言、模式和日常使用偏好。'
+        : 'Notifications, language, mode, and everyday account preferences.',
     },
   ];
 
-  const rootToolRows = [
+  const rootResearchRows = [
+    {
+      key: 'prediction-games',
+      title: copy.predictionGames,
+      desc: isZh
+        ? '每日判断、积分玩法与轻量互动入口。'
+        : 'Daily calls, points play, and lightweight participation.',
+    },
     { key: 'group:review', title: copy.review, desc: copy.reviewDescription },
     { key: 'group:system', title: copy.system, desc: copy.systemDescription },
     { key: 'group:market', title: copy.marketNotes, desc: copy.marketDescription },
@@ -2103,6 +2115,9 @@ export default function MenuTab({
           },
         ]
       : []),
+  ];
+
+  const rootUtilityRows = [
     {
       key: 'about',
       title: copy.about,
@@ -2112,30 +2127,80 @@ export default function MenuTab({
     },
   ];
 
+  const rootHeroMetrics = [
+    {
+      label: isZh ? 'Membership' : 'Membership',
+      value: activeMembershipPlan?.name || 'Free',
+      hint: billingState?.subscription
+        ? isZh
+          ? '已连接计费'
+          : 'Billing connected'
+        : isZh
+          ? '可升级'
+          : 'Upgradeable',
+    },
+    {
+      label: isZh ? 'Ask Nova' : 'Ask Nova',
+      value:
+        remainingAskNova === null
+          ? isZh
+            ? '高额度'
+            : 'High limit'
+          : isZh
+            ? `${remainingAskNova} 次`
+            : `${remainingAskNova} left`,
+      hint: isZh ? '日常研究额度' : 'Daily research allowance',
+    },
+    {
+      label: copy.points,
+      value: manualAvailable ? formatPoints(points.balance, locale) : copy.pointsHub,
+      hint: manualAvailable
+        ? pointsHint(points, locale)
+        : isZh
+          ? '登录后可见'
+          : 'Visible after sign-in',
+    },
+  ];
+
   return (
     <section className="stack-gap menu-screen menu-root-screen">
       <div className="menu-root-shell">
-        <div className="menu-root-hero">
+        <div className="menu-root-hero menu-group">
           <div className="menu-root-hero-copy">
-            <p className="menu-root-kicker">{copy.menu}</p>
+            <p className="menu-root-kicker">{isZh ? 'Private account' : 'Private account'}</p>
             <h1 className="menu-root-title">
-              {isZh ? `${firstName}，先去哪里？` : `Where to next, ${firstName}?`}
+              {isZh ? `${firstName}，欢迎回来。` : `Welcome back, ${firstName}.`}
             </h1>
             <p className="menu-root-subtitle">
               {isZh
-                ? '最常用的入口放在最上面。先从支持、会员和预测游戏开始。'
-                : 'The clearest paths are up top. Start with support, membership, or Prediction Games.'}
+                ? '这里是你的账户会客厅。会员礼遇、积分账户、支持服务和系统入口，都以更安静的方式收在一起。'
+                : 'This is your private account salon. Membership, points, support, and system access are collected here in a quieter, more deliberate way.'}
             </p>
-            <div className="menu-root-hero-meta">
-              {rootPrimaryActions.map((item) => (
-                <span key={`hero-${item.key}`} className="menu-root-hero-meta-pill">
-                  <span className="menu-root-hero-meta-label">{item.kicker}</span>
-                  <span className="menu-root-hero-meta-value">{item.badge}</span>
-                </span>
-              ))}
+            <div className="menu-root-hero-note">
+              <span className="menu-root-hero-note-label">
+                {isZh ? 'Current focus' : 'Current focus'}
+              </span>
+              <p className="menu-root-hero-note-copy">
+                {isZh
+                  ? '如果你今天只打开一个入口，先看会员礼遇和积分账户，它们最接近这周的实际使用价值。'
+                  : 'If you open only one area today, start with privileges and points. They are closest to the value you can actually use this week.'}
+              </p>
             </div>
           </div>
           <div className="menu-root-hero-side">
+            <div className="menu-root-concierge-card">
+              <p className="menu-root-concierge-kicker">{isZh ? 'Service desk' : 'Service desk'}</p>
+              <p className="menu-root-concierge-title">
+                {isZh
+                  ? '账户、订阅与支持在同一条服务线上。'
+                  : 'Account, billing, and support on one service line.'}
+              </p>
+              <p className="menu-root-concierge-copy">
+                {isZh
+                  ? 'Menu 不再是功能清单，而是面向日常使用频率重新整理后的账户空间。'
+                  : 'Menu is no longer a tool list. It is an account space reorganized around daily use.'}
+              </p>
+            </div>
             <button
               type="button"
               className="points-pill menu-root-points-pill"
@@ -2152,59 +2217,55 @@ export default function MenuTab({
                     : 'Open points'}
               </span>
             </button>
-            <div className="menu-root-hero-orbit" aria-hidden="true">
-              <span className="menu-root-orbit-core" />
-              <span className="menu-root-orbit-ring menu-root-orbit-ring-a" />
-              <span className="menu-root-orbit-ring menu-root-orbit-ring-b" />
-              <span className="menu-root-orbit-chip menu-root-orbit-chip-a">
-                {isZh ? '支持' : 'Support'}
-              </span>
-              <span className="menu-root-orbit-chip menu-root-orbit-chip-b">
-                {activeMembershipPlan?.name || 'Free'}
-              </span>
-              <span className="menu-root-orbit-chip menu-root-orbit-chip-c">
-                {isZh ? '每日预测' : 'Daily picks'}
-              </span>
-            </div>
           </div>
         </div>
 
-        <div className="menu-root-section">
+        <div className="menu-root-stat-rail menu-group">
+          {rootHeroMetrics.map((item) => (
+            <article key={item.label} className="menu-root-stat-card">
+              <span className="menu-root-stat-label">{item.label}</span>
+              <strong className="menu-root-stat-value">{item.value}</strong>
+              <span className="menu-root-stat-hint">{item.hint}</span>
+            </article>
+          ))}
+        </div>
+
+        <div className="menu-root-section menu-group">
           <div className="menu-root-section-head">
-            <span>{isZh ? '常用入口' : 'Start here'}</span>
-            <span>{username}</span>
+            <span>{isZh ? '今日常用' : 'For today'}</span>
+            <span>{isZh ? '核心入口' : 'Core entries'}</span>
           </div>
-          <div className="menu-root-primary-grid">
-            {rootPrimaryActions.map((item, index) => (
+          <div className="menu-root-feature-grid">
+            {rootFeaturedActions.map((item) => (
               <button
                 key={item.key}
                 type="button"
-                className={`menu-root-primary-card menu-root-primary-card-${item.tone}`}
+                className={`menu-root-feature-card menu-root-feature-card-${item.tone}`}
                 onClick={() => onSectionChange(item.key)}
               >
-                <span className="menu-root-primary-topline">
-                  <span className="menu-root-primary-kicker">{item.kicker}</span>
-                  <span className="menu-root-primary-badge">{item.badge}</span>
+                <span className="menu-root-feature-topline">
+                  <span className="menu-root-feature-eyebrow">{item.eyebrow}</span>
+                  <span className="menu-root-feature-meta">{item.meta}</span>
                 </span>
-                <span className="menu-root-primary-title">{item.title}</span>
-                <span className="menu-root-primary-copy">{item.desc}</span>
-                <span className="menu-root-primary-footer">
-                  <span className="menu-root-primary-index">
-                    {String(index + 1).padStart(2, '0')}
+                <span className="menu-root-feature-title">{item.title}</span>
+                <span className="menu-root-feature-copy">{item.desc}</span>
+                <span className="menu-root-feature-footer">
+                  <span className="menu-root-feature-cta">{item.cta}</span>
+                  <span className="menu-root-feature-arrow" aria-hidden="true">
+                    ↗
                   </span>
-                  <span className="menu-root-primary-arrow">{isZh ? '进入 ↗' : 'Open ↗'}</span>
                 </span>
               </button>
             ))}
           </div>
         </div>
 
-        <div className="menu-root-section">
+        <div className="menu-root-section menu-group">
           <div className="menu-root-section-head">
-            <span>{isZh ? '账户与偏好' : 'Account'}</span>
-            <span>{isZh ? '基础设置' : 'Basics'}</span>
+            <span>{isZh ? '账户目录' : 'Account directory'}</span>
+            <span>{isZh ? '身份与偏好' : 'Identity & preferences'}</span>
           </div>
-          <div className="menu-group-list menu-root-list">
+          <div className="menu-group-list menu-root-directory">
             {rootAccountRows.map((item) => (
               <button
                 key={item.key}
@@ -2222,13 +2283,13 @@ export default function MenuTab({
           </div>
         </div>
 
-        <div className="menu-root-section">
+        <div className="menu-root-section menu-group">
           <div className="menu-root-section-head">
-            <span>{isZh ? '工具与系统' : 'Tools'}</span>
-            <span>{isZh ? '更多' : 'More'}</span>
+            <span>{isZh ? '研究与系统' : 'Research & system'}</span>
+            <span>{isZh ? '次级入口' : 'Secondary entries'}</span>
           </div>
-          <div className="menu-group-list menu-root-list">
-            {rootToolRows.map((item) => {
+          <div className="menu-group-list menu-root-directory">
+            {rootResearchRows.map((item) => {
               const onClick =
                 item.key === 'about'
                   ? onOpenAbout
@@ -2247,6 +2308,24 @@ export default function MenuTab({
                 </button>
               );
             })}
+          </div>
+        </div>
+
+        <div className="menu-root-section menu-group">
+          <div className="menu-root-section-head">
+            <span>{isZh ? '礼宾与系统信息' : 'Service & system'}</span>
+            <span>{username}</span>
+          </div>
+          <div className="menu-group-list menu-root-directory menu-root-directory-compact">
+            {rootUtilityRows.map((item) => (
+              <button key={item.key} type="button" className="menu-list-row" onClick={onOpenAbout}>
+                <span>
+                  <span className="menu-list-title">{item.title}</span>
+                  <span className="menu-list-desc">{item.desc}</span>
+                </span>
+                <span className="menu-list-arrow">›</span>
+              </button>
+            ))}
           </div>
         </div>
 
