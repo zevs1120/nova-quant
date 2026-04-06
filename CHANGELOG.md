@@ -2,6 +2,14 @@
 
 NovaQuant 所有重要变更记录于此。
 
+## 10.22.30 (2026-04-06)
+
+### 🐛 Postgres runtime：IDENTITY 列与 `ensureSequences` 兼容
+
+- **问题**：生产库在 `assets.asset_id` 等列上使用 `GENERATED … AS IDENTITY` 后，[src/server/db/postgresRuntimeRepository.ts](src/server/db/postgresRuntimeRepository.ts) 启动时的 `ensureSequences()` 仍尝试 `ALTER COLUMN … SET DEFAULT nextval(...)`，PostgreSQL 报错 _column is an identity column_，导致依赖 `PostgresRuntimeRepository` 的 API 大量 **500**（如 engagement、risk-profile、decision/today 等）。
+- **修复**：通过 `information_schema.columns.is_identity` 识别 IDENTITY 列；对这类列**跳过**自建序列与 `SET DEFAULT`，仅使用 `pg_get_serial_sequence` + `setval` 做序列对齐。
+- **测试**：[tests/runtimeRepository.test.ts](tests/runtimeRepository.test.ts) 中序列重置 SQL 的 mock 与 `assets` → `asset_id`、其余表 → `id` 的规则一致。
+
 ## 10.22.29 (2026-04-06)
 
 ### 🛠️ P34 Postgres Identity & Connection Hardening (Postgres 身份验证与连接加固)

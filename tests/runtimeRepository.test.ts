@@ -8,14 +8,17 @@ vi.mock('../src/server/db/postgresSyncBridge.js', () => ({
 }));
 
 vi.mock('../src/server/db/postgresRuntimeRepository.js', () => ({
-  __buildSequenceResetSqlForTesting: (table: string) => `
+  __buildSequenceResetSqlForTesting: (table: string) => {
+    const idCol = table === 'assets' ? '"asset_id"' : '"id"';
+    return `
         SELECT setval(
           '"novaquant_data"."${table}_id_seq"'::regclass,
           CASE WHEN seq.max_id IS NULL OR seq.max_id < 1 THEN 1 ELSE seq.max_id END,
           COALESCE(seq.max_id, 0) > 0
         )
-        FROM (SELECT MAX(id) AS max_id FROM "novaquant_data"."${table}") AS seq;
-      `,
+        FROM (SELECT MAX(${idCol}) AS max_id FROM "novaquant_data"."${table}") AS seq;
+      `;
+  },
   PostgresRuntimeRepository: class MockPostgresRuntimeRepository {
     constructor(...args: unknown[]) {
       constructorCalls.push(args);
@@ -77,5 +80,14 @@ describe('runtime repository', () => {
     expect(sql).toContain('COALESCE(seq.max_id, 0) > 0');
     expect(sql).toContain('"novaquant_data"."signal_deliveries"');
     expect(sql).toContain('"novaquant_data"."signal_deliveries_id_seq"');
+    expect(sql).toMatch(/MAX\("id"\)/);
+  });
+
+  it('uses asset_id for assets sequence reset SQL', async () => {
+    const { __buildSequenceResetSqlForTesting } =
+      await import('../src/server/db/postgresRuntimeRepository.js');
+    const sql = __buildSequenceResetSqlForTesting('assets');
+    expect(sql).toContain('MAX("asset_id")');
+    expect(sql).toContain('"novaquant_data"."assets_id_seq"');
   });
 });

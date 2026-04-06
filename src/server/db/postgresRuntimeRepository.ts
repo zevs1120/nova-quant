@@ -103,6 +103,23 @@ function getAutoIdColumnName(table: string): string {
   return table === 'assets' ? 'asset_id' : 'id';
 }
 
+function columnIsIdentitySync(table: string): boolean {
+  const schema = getPostgresBusinessSchema();
+  const columnName = getAutoIdColumnName(table);
+  const row = queryRowSync<{ is_identity: string }>(
+    `
+      SELECT is_identity::text AS is_identity
+      FROM information_schema.columns
+      WHERE table_catalog = current_database()
+        AND table_schema = $1
+        AND table_name = $2
+        AND column_name = $3
+    `,
+    [schema, table, columnName],
+  );
+  return row?.is_identity === 'YES';
+}
+
 let sequencesReady = false;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const PG_RETENTION_PRUNE_INTERVAL_MS = Math.max(
@@ -205,13 +222,14 @@ function maybePruneOhlcvSync(timeframe: Timeframe, now = Date.now()) {
 export function __buildSequenceResetSqlForTesting(table: (typeof AUTO_ID_TABLES)[number]) {
   const sequence = qualifySequence(table);
   const qualifiedTable = qualifyBusinessTable(table);
+  const idCol = quotePgIdentifier(getAutoIdColumnName(table));
   return `
         SELECT setval(
           '${sequence}'::regclass,
           CASE WHEN seq.max_id IS NULL OR seq.max_id < 1 THEN 1 ELSE seq.max_id END,
           COALESCE(seq.max_id, 0) > 0
         )
-        FROM (SELECT MAX(id) AS max_id FROM ${qualifiedTable}) AS seq;
+        FROM (SELECT MAX(${idCol}) AS max_id FROM ${qualifiedTable}) AS seq;
       `;
 }
 
@@ -227,6 +245,32 @@ function ensureSequences() {
     const sequence = qualifySequence(table);
     const qualifiedTable = qualifyBusinessTable(table);
     const idColumn = getAutoIdColumnName(table);
+    const schema = getPostgresBusinessSchema();
+
+    // GENERATED {BY DEFAULT | ALWAYS} AS IDENTITY forbids attaching a plain nextval() default.
+    if (columnIsIdentitySync(table)) {
+      beginTransactionSync();
+      try {
+        executeSync(`LOCK TABLE ${qualifiedTable} IN EXCLUSIVE MODE;`);
+        const fqRel = `${schema}.${table}`;
+        executeSync(
+          `
+            SELECT setval(
+              pg_get_serial_sequence($1::text, $2::text),
+              COALESCE((SELECT MAX(${quotePgIdentifier(idColumn)}) FROM ${qualifiedTable}), 0) + 1,
+              false
+            )
+          `,
+          [fqRel, idColumn],
+        );
+        commitTransactionSync();
+      } catch (error) {
+        rollbackTransactionSync();
+        throw error;
+      }
+      continue;
+    }
+
     beginTransactionSync();
     try {
       executeSync(`CREATE SEQUENCE IF NOT EXISTS ${sequence};`);
