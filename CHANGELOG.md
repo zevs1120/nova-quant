@@ -2,6 +2,25 @@
 
 NovaQuant 所有重要变更记录于此。
 
+## 10.22.29 (2026-04-06)
+
+### 🛠️ P34 Postgres Identity & Connection Hardening (Postgres 身份验证与连接加固)
+
+- **Postgres 自动身份列修复**
+  - [src/server/db/schema.ts](src/server/db/schema.ts) 新增 `getBootstrapSqlForPostgres` 助手，确保 `INTEGER PRIMARY KEY AUTOINCREMENT` 在 Postgres 下能自动映射为 `SERIAL PRIMARY KEY`。
+  - [src/server/db/postgresRuntimeRepository.ts](src/server/db/postgresRuntimeRepository.ts) 现在包含 `assets` 表的序列同步逻辑，并支持 `asset_id` 作为主键名。
+  - 运行时会自动检测并修复生产环境 Postgres 表中缺失的 `IDENTITY` 属性，解决 `asset_id` 触发非空约束导致的插入失败。
+
+- **增强数据库配置诊断**
+  - [src/server/db/postgresSql.ts](src/server/db/postgresSql.ts) 优化了 `resolvePostgresBusinessUrl` 的错误提示。
+  - 在生产环境下如果缺失关键数据库环境变量（`NOVA_DATA_DATABASE_URL` 等），会抛出明确的 `CRITICAL_ENV_MISSING` 异常，方便快速定位配置缺项。
+
+- **生产环境连接优化**
+  - 生产 EC2 环境已从 Supabase Pgbouncer (6543) 切换为 **直连模式 (5432)**，显著提升了 `Admin` 模块在大批量数据查询时的稳定性和响应速度。
+
+- **离线修复脚本补齐**
+  - 新增 [docs/sql/fix_postgres_identity.sql](docs/sql/fix_postgres_identity.sql)，提供手动修复现有 Postgres 表主键自增属性的 SQL 指令。
+
 ## 10.22.28 (2026-04-07)
 
 ### ⚡ P33 Browse Public Cache Tightening (Browse 公开接口公共缓存收口)

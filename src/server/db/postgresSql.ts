@@ -14,12 +14,30 @@ export function resolvePostgresBusinessUrl() {
       process.env.NOVA_AUTH_DATABASE_URL ||
       '',
   ).trim();
+
   if (url) return url;
+
   const isVitestRuntime =
     Boolean(process.env.VITEST || process.env.VITEST_WORKER_ID) ||
     process.env.NODE_ENV === 'test' ||
     process.argv.some((arg) => arg.toLowerCase().includes('vitest'));
-  return isVitestRuntime ? 'postgres://supabase-test-host/db' : '';
+
+  if (isVitestRuntime) return 'postgres://supabase-test-host/db';
+
+  // In production, we must have at least one of these defined
+  if (process.env.NODE_ENV === 'production') {
+    const missing = [
+      'NOVA_DATA_DATABASE_URL',
+      'SUPABASE_DB_URL',
+      'DATABASE_URL',
+      'NOVA_AUTH_DATABASE_URL',
+    ].join(', ');
+    throw new Error(
+      `CRITICAL_ENV_MISSING: At least one of the following business database variables is required: [${missing}]. Local database runtimes are removed in this architecture.`,
+    );
+  }
+
+  return '';
 }
 
 export function buildInsertSql(

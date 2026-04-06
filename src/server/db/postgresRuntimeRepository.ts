@@ -88,6 +88,7 @@ const UNSUPPORTED_DB = {
 } as unknown as LegacySyncDb;
 
 const AUTO_ID_TABLES = [
+  'assets',
   'ingest_anomalies',
   'chat_audit_logs',
   'chat_messages',
@@ -97,6 +98,10 @@ const AUTO_ID_TABLES = [
   'backtest_artifacts',
   'audit_events',
 ] as const;
+
+function getAutoIdColumnName(table: string): string {
+  return table === 'assets' ? 'asset_id' : 'id';
+}
 
 let sequencesReady = false;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -221,11 +226,12 @@ function ensureSequences() {
   for (const table of AUTO_ID_TABLES) {
     const sequence = qualifySequence(table);
     const qualifiedTable = qualifyBusinessTable(table);
+    const idColumn = getAutoIdColumnName(table);
     beginTransactionSync();
     try {
       executeSync(`CREATE SEQUENCE IF NOT EXISTS ${sequence};`);
       executeSync(
-        `ALTER TABLE ${qualifiedTable} ALTER COLUMN ${quotePgIdentifier('id')} SET DEFAULT nextval('${sequence}'::regclass);`,
+        `ALTER TABLE ${qualifiedTable} ALTER COLUMN ${quotePgIdentifier(idColumn)} SET DEFAULT nextval('${sequence}'::regclass);`,
       );
       executeSync(`LOCK TABLE ${qualifiedTable} IN EXCLUSIVE MODE;`);
       executeSync(__buildSequenceResetSqlForTesting(table));

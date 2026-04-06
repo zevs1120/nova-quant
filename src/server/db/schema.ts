@@ -1382,8 +1382,19 @@ export function manualGamificationSchemaPatchStatements(
   ];
 }
 
-export function ensureSchema(db: SyncDb): void {
+export function getBootstrapSqlForPostgres(sql: string): string {
+  return sql
+    .replace(/\bINTEGER PRIMARY KEY AUTOINCREMENT\b/gi, 'SERIAL PRIMARY KEY')
+    .replace(/\bBIGINT PRIMARY KEY AUTOINCREMENT\b/gi, 'BIGSERIAL PRIMARY KEY')
+    .replace(/\bDATETIME\b/gi, 'TIMESTAMP')
+    .replace(/\bBLOB\b/gi, 'BYTEA');
+}
+
+export function ensureSchema(db: SyncDb, isPostgres = false): void {
   db.ensureBootstrapped?.();
   if (db.ensureBootstrapped) return;
-  db.exec(BUSINESS_BOOTSTRAP_SQL);
+  const sql = isPostgres
+    ? getBootstrapSqlForPostgres(BUSINESS_BOOTSTRAP_SQL)
+    : BUSINESS_BOOTSTRAP_SQL;
+  db.exec(sql);
 }
