@@ -4,6 +4,20 @@ NovaQuant 所有重要变更记录于此。
 
 ## 10.22.24 (2026-04-05)
 
+### 🧪 P22 Pro-Env Playwright Suite (生产环境 Playwright 验证基建)
+
+- **新增 `tests/pro-env/` 真实环境 E2E 草稿套件**
+  - 新增 `auth-smoke`、`quant-research-loop`、`data-integrity` 三组 Playwright 场景，覆盖 App / Admin / API / Supabase / Qlib Bridge 的真实链路验证。
+  - 增加 `global-setup`、环境变量解析与 Supabase / API 辅助方法，便于复用登录态和跨层校验。
+
+- **Playwright 配置支持 `pro-env` 运行模式**
+  - `playwright.config.js` 新增生产/类生产模式分支，可切换 `tests/pro-env`、启用独立 `globalSetup`，并在这一路径下使用系统 Chrome 渠道。
+  - 便于以后直接执行 `npx playwright test tests/pro-env/ --project=chromium` 做真实环境巡检。
+
+- **修复测试门禁与缓存文件边界**
+  - 在 `vite.config.js` 中显式排除 `tests/pro-env/**`，避免 Vitest 把 Playwright 用例当单测执行。
+  - `.gitignore` 新增 `tests/pro-env/.auth/`，避免提交本地登录态缓存。
+
 ### 🎨 P21 Menu Root Luxury Reframe (Menu 根页品牌重做)
 
 - **Menu 根页信息架构重做**

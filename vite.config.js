@@ -45,6 +45,7 @@ export default defineConfig({
       'build/**',
       'coverage/**',
       'tests/e2e/**',
+      'tests/pro-env/**',
     ],
     setupFiles: ['tests/vitest.setup.ts'],
     // Default Vitest parallelism (file + worker pool) — serial mode was ~5× slower on 138 files.

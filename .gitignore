@@ -50,3 +50,4 @@ qlib-bridge/_csv_staging/
 # Playwright Test Output
 playwright-report/
 test-results/
+tests/pro-env/.auth/
