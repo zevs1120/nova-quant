@@ -7,6 +7,7 @@
     "dev": "node scripts/run-node.mjs scripts/dev-stack.mjs",
     "dev:web": "vite",
     "build": "vite build",
+    "build:api": "tsc --noEmit && echo 'API validated'",
     "build:landing": "npm run build --prefix landing",
     "build:admin": "npm run build --prefix admin",
     "preview": "vite preview",

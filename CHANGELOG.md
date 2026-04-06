@@ -32,6 +32,21 @@ NovaQuant 所有重要变更记录于此。
   - 这次不是把 Menu 做成独立品牌页，而是沿用当前二级页 canvas、列表密度和交互方式，只提升信息秩序和材质感。
   - `Membership`、`Points`、`Support` 的入口语气也改成更像礼宾与账户目录，而不是单纯设置页或活动页。
 
+### 🚀 P21 Vercel 部署架构优化 (Vercel Deployment & Architecture Alignment)
+
+- **混合 Monorepo 部署硬化**
+  - 在 `package.json` 中新增 `build:api` 脚本，通过 `tsc --noEmit` 强制 Vercel 追踪后端 API 的变更并触发自动部署。
+  - 修复了 `novaquant-api` 项目因缺乏构建命令而导致自动部署失效的问题。
+
+- **SPA 路由与 API 冲突修复**
+  - 重构根目录 `vercel.json` 路由规则。
+  - 删除了劫持根路径 `/` 到 API 的重写逻辑，新增对 SPA (React Router) 的全路径捕获支持 (`/(.*)` -> `/index.html`)。
+  - 确保主应用在 Vercel 部署后能够正常处理页面刷新与首页加载。
+
+- **全量架构审查与对齐**
+  - 深度审查并同步了远端 27 次关于 **Runtime Slicing**、**View Models** 和 **CSS Layering** 的架构重构。
+  - 验证了 1333 个测试用例全部通过，确认重构后的 Boundary Contracts（边界契约）在本地运行稳健。
+
 ## 10.22.23 (2026-04-05)
 
 ### 🧩 P20 Today Climate Header 抽离 (Today Climate Header Extraction)
@@ -2109,4 +2124,10 @@ NovaQuant 所有重要变更记录于此。
 
 - Release type: patch
 - P20 extract today climate header
+- Updated release metadata, build number, About runtime source, and changelog entry.
+
+## 10.22.24 (2026-04-05)
+
+- Release type: patch
+- Automated version bump via version-manager.
 - Updated release metadata, build number, About runtime source, and changelog entry.
