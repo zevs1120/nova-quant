@@ -12,6 +12,7 @@ import {
 } from '../../news/provider.js';
 import { fetchWithRetry } from '../../utils/http.js';
 import { getPublicBrowseHome } from '../../public/browseService.js';
+import { recordFrontendCacheOutcome } from '../../observability/spine.js';
 
 type AssetSearchResult = {
   symbol: string;
@@ -207,6 +208,9 @@ const relatedEtfMap: Record<string, string[]> = {
 const REMOTE_SEARCH_TTL_MS = 1000 * 60 * 8;
 const REMOTE_SEARCH_TIMEOUT_MS = 3200;
 const SEC_UNIVERSE_TTL_MS = 1000 * 60 * 60 * 24;
+const BROWSE_SERVER_CACHE_MIN_TTL_MS = 5_000;
+const browseServerReadCache = new Map<string, { expiresAt: number; value: unknown }>();
+const browseServerReadInflight = new Map<string, Promise<unknown>>();
 const remoteSearchCache = new Map<string, { expiresAt: number; results: SearchCandidate[] }>();
 let cachedReferenceSearchUniverse: SearchCandidate[] | null = null;
 let cachedSecUniverse: { expiresAt: number; results: SearchCandidate[] } | null = null;
@@ -220,6 +224,66 @@ function normalizeSearchText(value: unknown): string {
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9.]+/g, '');
+}
+
+function stableCacheValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((entry) => stableCacheValue(entry));
+  }
+  if (value && typeof value === 'object') {
+    return Object.keys(value as Record<string, unknown>)
+      .sort()
+      .reduce<Record<string, unknown>>((acc, key) => {
+        acc[key] = stableCacheValue((value as Record<string, unknown>)[key]);
+        return acc;
+      }, {});
+  }
+  return value;
+}
+
+function buildBrowseServerReadCacheKey(scope: string, args: unknown) {
+  return `${scope}:${JSON.stringify(stableCacheValue(args))}`;
+}
+
+async function cachedBrowseServerRead<T>(
+  scope: string,
+  args: unknown,
+  read: () => Promise<T>,
+  ttlMs: number,
+): Promise<T> {
+  const key = buildBrowseServerReadCacheKey(scope, args);
+  const now = Date.now();
+  const cached = browseServerReadCache.get(key);
+  if (cached && cached.expiresAt > now) {
+    recordFrontendCacheOutcome(scope, 'hit');
+    return cached.value as T;
+  }
+
+  const inflight = browseServerReadInflight.get(key);
+  if (inflight) {
+    recordFrontendCacheOutcome(scope, 'inflight');
+    return (await inflight) as T;
+  }
+
+  recordFrontendCacheOutcome(scope, 'miss');
+  const next = read()
+    .then((value) => {
+      browseServerReadCache.set(key, {
+        value,
+        expiresAt: Date.now() + Math.max(BROWSE_SERVER_CACHE_MIN_TTL_MS, ttlMs),
+      });
+      return value;
+    })
+    .finally(() => {
+      browseServerReadInflight.delete(key);
+    });
+  browseServerReadInflight.set(key, next as Promise<unknown>);
+  return await next;
+}
+
+export function __resetBrowseServerReadCacheForTesting() {
+  browseServerReadCache.clear();
+  browseServerReadInflight.clear();
 }
 
 function sentenceCase(value: string): string {
@@ -857,55 +921,68 @@ function toSearchResult(candidate: SearchCandidate, score: number): AssetSearchR
 }
 
 export async function searchAssets(args: { query: string; limit?: number; market?: Market }) {
-  const query = String(args.query || '').trim();
-  if (!query) return [];
+  return await cachedBrowseServerRead(
+    'browse_search',
+    {
+      query: String(args.query || '')
+        .trim()
+        .toUpperCase(),
+      limit: Number(args.limit || 24),
+      market: args.market || 'ALL',
+    },
+    async () => {
+      const query = String(args.query || '').trim();
+      if (!query) return [];
 
-  const limit = Math.max(1, Math.min(Number(args.limit || 24), 50));
-  const repo = getRepo();
-  const candidates = new Map<string, SearchCandidate>();
+      const limit = Math.max(1, Math.min(Number(args.limit || 24), 50));
+      const repo = getRepo();
+      const candidates = new Map<string, SearchCandidate>();
 
-  for (const asset of repo.listAssets(args.market)) {
-    const candidate = buildLiveAssetCandidate(asset);
-    candidates.set(`${candidate.market}:${candidate.symbol}`, candidate);
-  }
-
-  for (const candidate of buildHeuristicSearchCandidates(query, args.market)) {
-    candidates.set(`${candidate.market}:${candidate.symbol}`, candidate);
-  }
-
-  const remoteCandidates = await searchRemoteAssets(query, limit, args.market);
-  for (const candidate of remoteCandidates) {
-    const key = `${candidate.market}:${candidate.symbol}`;
-    const existing = candidates.get(key);
-    if (!existing || existing.source === 'reference') {
-      candidates.set(key, candidate);
-    }
-  }
-
-  for (const candidate of getReferenceSearchUniverse()) {
-    if (args.market && candidate.market !== args.market) continue;
-    const key = `${candidate.market}:${candidate.symbol}`;
-    if (!candidates.has(key)) {
-      candidates.set(key, candidate);
-    }
-  }
-
-  return Array.from(candidates.values())
-    .map((candidate) => ({
-      candidate,
-      score: scoreAssetCandidate(query, candidate),
-    }))
-    .filter((item) => item.score > 0)
-    .sort((a, b) => {
-      if (b.score !== a.score) return b.score - a.score;
-      if (a.candidate.source !== b.candidate.source) {
-        const rank = { live: 0, remote: 1, reference: 2 };
-        return rank[a.candidate.source] - rank[b.candidate.source];
+      for (const asset of repo.listAssets(args.market)) {
+        const candidate = buildLiveAssetCandidate(asset);
+        candidates.set(`${candidate.market}:${candidate.symbol}`, candidate);
       }
-      return a.candidate.symbol.localeCompare(b.candidate.symbol);
-    })
-    .slice(0, limit)
-    .map(({ candidate, score }) => toSearchResult(candidate, score));
+
+      for (const candidate of buildHeuristicSearchCandidates(query, args.market)) {
+        candidates.set(`${candidate.market}:${candidate.symbol}`, candidate);
+      }
+
+      const remoteCandidates = await searchRemoteAssets(query, limit, args.market);
+      for (const candidate of remoteCandidates) {
+        const key = `${candidate.market}:${candidate.symbol}`;
+        const existing = candidates.get(key);
+        if (!existing || existing.source === 'reference') {
+          candidates.set(key, candidate);
+        }
+      }
+
+      for (const candidate of getReferenceSearchUniverse()) {
+        if (args.market && candidate.market !== args.market) continue;
+        const key = `${candidate.market}:${candidate.symbol}`;
+        if (!candidates.has(key)) {
+          candidates.set(key, candidate);
+        }
+      }
+
+      return Array.from(candidates.values())
+        .map((candidate) => ({
+          candidate,
+          score: scoreAssetCandidate(query, candidate),
+        }))
+        .filter((item) => item.score > 0)
+        .sort((a, b) => {
+          if (b.score !== a.score) return b.score - a.score;
+          if (a.candidate.source !== b.candidate.source) {
+            const rank = { live: 0, remote: 1, reference: 2 };
+            return rank[a.candidate.source] - rank[b.candidate.source];
+          }
+          return a.candidate.symbol.localeCompare(b.candidate.symbol);
+        })
+        .slice(0, limit)
+        .map(({ candidate, score }) => toSearchResult(candidate, score));
+    },
+    30_000,
+  );
 }
 
 export function getSearchHealth(args?: { market?: Market; query?: string; resultCount?: number }) {
@@ -938,9 +1015,17 @@ export function getSearchHealth(args?: { market?: Market; query?: string; result
 }
 
 export async function getBrowseHomePayload(args?: { view?: string }) {
-  return await getPublicBrowseHome({
-    view: args?.view,
-  });
+  return await cachedBrowseServerRead(
+    'browse_home',
+    {
+      view: args?.view || 'NOW',
+    },
+    async () =>
+      await getPublicBrowseHome({
+        view: args?.view,
+      }),
+    30_000,
+  );
 }
 
 type NasdaqBrowseChartResponse = {
@@ -1201,17 +1286,31 @@ export async function getBrowseAssetChart(args: {
   market: Market;
   symbol: string;
 }): Promise<BrowseChartSnapshot | null> {
-  const market = args.market;
-  const symbol = String(args.symbol || '')
-    .trim()
-    .toUpperCase();
-  if (!symbol) return null;
+  return await cachedBrowseServerRead(
+    'browse_chart',
+    {
+      market: args.market,
+      symbol: String(args.symbol || '')
+        .trim()
+        .toUpperCase(),
+    },
+    async () => {
+      const market = args.market;
+      const symbol = String(args.symbol || '')
+        .trim()
+        .toUpperCase();
+      if (!symbol) return null;
 
-  if (market === 'US') {
-    return (await fetchNasdaqBrowseChart(symbol)) || buildLocalBrowseChart({ market, symbol });
-  }
+      if (market === 'US') {
+        return (await fetchNasdaqBrowseChart(symbol)) || buildLocalBrowseChart({ market, symbol });
+      }
 
-  return (await fetchGateCryptoBrowseChart(symbol)) || buildLocalBrowseChart({ market, symbol });
+      return (
+        (await fetchGateCryptoBrowseChart(symbol)) || buildLocalBrowseChart({ market, symbol })
+      );
+    },
+    20_000,
+  );
 }
 
 export async function getBrowseNewsFeed(args: {
@@ -1219,156 +1318,187 @@ export async function getBrowseNewsFeed(args: {
   symbol?: string;
   limit?: number;
 }) {
-  const repo = getRepo();
-  const symbol = String(args.symbol || '')
-    .trim()
-    .toUpperCase();
-  const market = args.market || 'ALL';
-  if (symbol && market !== 'ALL') {
-    await ensureFreshNewsForSymbol({
-      repo,
-      market,
-      symbol,
-    });
-  } else {
-    await ensureFreshNewsForUniverse({
-      repo,
-      market,
-    });
-  }
-  const rows = repo.listNewsItems({
-    market: market === 'ALL' ? undefined : market,
-    symbol: symbol || undefined,
-    limit: args.limit || 8,
-  });
-  return rows.map(normalizeBrowseNewsItem);
+  return await cachedBrowseServerRead(
+    'browse_news',
+    {
+      market: args.market || 'ALL',
+      symbol: String(args.symbol || '')
+        .trim()
+        .toUpperCase(),
+      limit: Number(args.limit || 8),
+    },
+    async () => {
+      const repo = getRepo();
+      const symbol = String(args.symbol || '')
+        .trim()
+        .toUpperCase();
+      const market = args.market || 'ALL';
+      if (symbol && market !== 'ALL') {
+        await ensureFreshNewsForSymbol({
+          repo,
+          market,
+          symbol,
+        });
+      } else {
+        await ensureFreshNewsForUniverse({
+          repo,
+          market,
+        });
+      }
+      const rows = repo.listNewsItems({
+        market: market === 'ALL' ? undefined : market,
+        symbol: symbol || undefined,
+        limit: args.limit || 8,
+      });
+      return rows.map(normalizeBrowseNewsItem);
+    },
+    30_000,
+  );
 }
 
 export async function getBrowseAssetOverview(args: {
   market: Market;
   symbol: string;
 }): Promise<BrowseAssetOverview | null> {
-  const repo = getRepo();
-  const symbol = String(args.symbol || '')
-    .trim()
-    .toUpperCase();
-  if (!symbol) return null;
-
-  const asset = repo.getAssetBySymbol(
-    args.market,
-    args.market === 'CRYPTO' ? parseCryptoLookupSymbol(symbol)?.resolvedSymbol || symbol : symbol,
-  );
-  if (!asset) return null;
-
-  const history = repo.getOhlcv({
-    assetId: asset.asset_id,
-    timeframe: '1d',
-    limit: args.market === 'CRYPTO' ? 180 : 260,
-  });
-  const closes = history
-    .map((row) => parseNumericValue(row.close))
-    .filter((value): value is number => Number.isFinite(value));
-  const highs = history
-    .map((row) => parseNumericValue(row.high))
-    .filter((value): value is number => Number.isFinite(value));
-  const lows = history
-    .map((row) => parseNumericValue(row.low))
-    .filter((value): value is number => Number.isFinite(value));
-  const volumes = history
-    .map((row) => parseNumericValue(row.volume))
-    .filter((value): value is number => Number.isFinite(value));
-  const latestClose = closes[closes.length - 1] ?? null;
-  const previousClose = closes.length >= 2 ? closes[closes.length - 2] : null;
-  const changePct =
-    latestClose !== null && previousClose !== null && previousClose
-      ? (latestClose - previousClose) / previousClose
-      : null;
-  const rangeHigh = highs.length ? Math.max(...highs) : null;
-  const rangeLow = lows.length ? Math.min(...lows) : null;
-  const latestVolume = volumes[volumes.length - 1] ?? null;
-  const avgVolume30d = volumes.length
-    ? volumes.slice(-30).reduce((sum, value) => sum + value, 0) /
-      Math.max(1, Math.min(30, volumes.length))
-    : null;
-  const assetType =
-    args.market === 'CRYPTO'
-      ? 'Crypto spot'
-      : knownEtfSymbols.has(asset.symbol)
-        ? 'ETF'
-        : 'US equity';
-  const quoteCurrency = asset.quote || (args.market === 'CRYPTO' ? 'USDT' : 'USD');
-  const newsRows = await getBrowseNewsFeed({
-    market: args.market,
-    symbol: asset.symbol,
-    limit: 6,
-  });
-  const newsContext = buildNewsContext(
-    repo.listNewsItems({
+  return await cachedBrowseServerRead(
+    'browse_overview',
+    {
       market: args.market,
-      symbol: asset.symbol,
-      limit: 6,
-    }),
-    asset.symbol,
+      symbol: String(args.symbol || '')
+        .trim()
+        .toUpperCase(),
+    },
+    async () => {
+      const repo = getRepo();
+      const symbol = String(args.symbol || '')
+        .trim()
+        .toUpperCase();
+      if (!symbol) return null;
+
+      const asset = repo.getAssetBySymbol(
+        args.market,
+        args.market === 'CRYPTO'
+          ? parseCryptoLookupSymbol(symbol)?.resolvedSymbol || symbol
+          : symbol,
+      );
+      if (!asset) return null;
+
+      const history = repo.getOhlcv({
+        assetId: asset.asset_id,
+        timeframe: '1d',
+        limit: args.market === 'CRYPTO' ? 180 : 260,
+      });
+      const closes = history
+        .map((row) => parseNumericValue(row.close))
+        .filter((value): value is number => Number.isFinite(value));
+      const highs = history
+        .map((row) => parseNumericValue(row.high))
+        .filter((value): value is number => Number.isFinite(value));
+      const lows = history
+        .map((row) => parseNumericValue(row.low))
+        .filter((value): value is number => Number.isFinite(value));
+      const volumes = history
+        .map((row) => parseNumericValue(row.volume))
+        .filter((value): value is number => Number.isFinite(value));
+      const latestClose = closes[closes.length - 1] ?? null;
+      const previousClose = closes.length >= 2 ? closes[closes.length - 2] : null;
+      const changePct =
+        latestClose !== null && previousClose !== null && previousClose
+          ? (latestClose - previousClose) / previousClose
+          : null;
+      const rangeHigh = highs.length ? Math.max(...highs) : null;
+      const rangeLow = lows.length ? Math.min(...lows) : null;
+      const latestVolume = volumes[volumes.length - 1] ?? null;
+      const avgVolume30d = volumes.length
+        ? volumes.slice(-30).reduce((sum, value) => sum + value, 0) /
+          Math.max(1, Math.min(30, volumes.length))
+        : null;
+      const assetType =
+        args.market === 'CRYPTO'
+          ? 'Crypto spot'
+          : knownEtfSymbols.has(asset.symbol)
+            ? 'ETF'
+            : 'US equity';
+      const quoteCurrency = asset.quote || (args.market === 'CRYPTO' ? 'USDT' : 'USD');
+      const newsRows = await getBrowseNewsFeed({
+        market: args.market,
+        symbol: asset.symbol,
+        limit: 6,
+      });
+      const newsContext = buildNewsContext(
+        repo.listNewsItems({
+          market: args.market,
+          symbol: asset.symbol,
+          limit: 6,
+        }),
+        asset.symbol,
+      );
+
+      const earnings =
+        args.market === 'US'
+          ? {
+              status: 'Watch',
+              note: knownEtfSymbols.has(asset.symbol)
+                ? 'ETF basket does not have a single earnings event; watch top-weight constituents instead.'
+                : 'No direct calendar feed is wired yet; use news and signal context around earnings windows.',
+            }
+          : {
+              status: '24/7',
+              note: 'Crypto does not follow quarterly earnings; monitor exchange, ETF-flow, and funding headlines instead.',
+            };
+
+      return {
+        symbol: asset.symbol,
+        market: args.market,
+        name:
+          args.market === 'CRYPTO'
+            ? `${asset.base || parseCryptoBaseQuote(asset.symbol)?.base || asset.symbol} / ${
+                asset.quote || parseCryptoBaseQuote(asset.symbol)?.quote || 'USDT'
+              }`
+            : asset.symbol,
+        venue: asset.venue,
+        currency: quoteCurrency,
+        assetType,
+        profile: {
+          tradingVenue: asset.venue,
+          quoteCurrency,
+          tradingSchedule:
+            args.market === 'CRYPTO' ? '24/7 continuous' : 'US session + pre/post market',
+          proxyType: assetType,
+        },
+        tradingStats: {
+          latestClose,
+          previousClose,
+          changePct,
+          rangeHigh,
+          rangeLow,
+          avgVolume30d,
+          latestVolume,
+          barsAvailable: history.length,
+        },
+        fundamentals: [
+          { label: 'Asset type', value: assetType, source: 'reference' },
+          {
+            label: '52W / lookback high',
+            value: formatCompactMetric(rangeHigh),
+            source: 'derived',
+          },
+          { label: '52W / lookback low', value: formatCompactMetric(rangeLow), source: 'derived' },
+          { label: '30D avg volume', value: formatCompactMetric(avgVolume30d), source: 'derived' },
+          { label: 'Latest volume', value: formatCompactMetric(latestVolume), source: 'derived' },
+        ],
+        earnings,
+        relatedEtfs: deriveRelatedEtfs(asset.symbol, args.market),
+        optionEntries: deriveOptionEntries({
+          market: args.market,
+          symbol: asset.symbol,
+        }),
+        newsContext,
+        topNews: newsRows,
+      };
+    },
+    30_000,
   );
-
-  const earnings =
-    args.market === 'US'
-      ? {
-          status: 'Watch',
-          note: knownEtfSymbols.has(asset.symbol)
-            ? 'ETF basket does not have a single earnings event; watch top-weight constituents instead.'
-            : 'No direct calendar feed is wired yet; use news and signal context around earnings windows.',
-        }
-      : {
-          status: '24/7',
-          note: 'Crypto does not follow quarterly earnings; monitor exchange, ETF-flow, and funding headlines instead.',
-        };
-
-  return {
-    symbol: asset.symbol,
-    market: args.market,
-    name:
-      args.market === 'CRYPTO'
-        ? `${asset.base || parseCryptoBaseQuote(asset.symbol)?.base || asset.symbol} / ${
-            asset.quote || parseCryptoBaseQuote(asset.symbol)?.quote || 'USDT'
-          }`
-        : asset.symbol,
-    venue: asset.venue,
-    currency: quoteCurrency,
-    assetType,
-    profile: {
-      tradingVenue: asset.venue,
-      quoteCurrency,
-      tradingSchedule:
-        args.market === 'CRYPTO' ? '24/7 continuous' : 'US session + pre/post market',
-      proxyType: assetType,
-    },
-    tradingStats: {
-      latestClose,
-      previousClose,
-      changePct,
-      rangeHigh,
-      rangeLow,
-      avgVolume30d,
-      latestVolume,
-      barsAvailable: history.length,
-    },
-    fundamentals: [
-      { label: 'Asset type', value: assetType, source: 'reference' },
-      { label: '52W / lookback high', value: formatCompactMetric(rangeHigh), source: 'derived' },
-      { label: '52W / lookback low', value: formatCompactMetric(rangeLow), source: 'derived' },
-      { label: '30D avg volume', value: formatCompactMetric(avgVolume30d), source: 'derived' },
-      { label: 'Latest volume', value: formatCompactMetric(latestVolume), source: 'derived' },
-    ],
-    earnings,
-    relatedEtfs: deriveRelatedEtfs(asset.symbol, args.market),
-    optionEntries: deriveOptionEntries({
-      market: args.market,
-      symbol: asset.symbol,
-    }),
-    newsContext,
-    topNews: newsRows,
-  };
 }
 
 export async function getBrowseAssetDetailBundle(args: {
@@ -1376,29 +1506,42 @@ export async function getBrowseAssetDetailBundle(args: {
   symbol: string;
   limit?: number;
 }): Promise<BrowseAssetDetailBundle> {
-  const [chart, overview] = await Promise.all([
-    getBrowseAssetChart({
+  return await cachedBrowseServerRead(
+    'browse_detail_bundle',
+    {
       market: args.market,
-      symbol: args.symbol,
-    }),
-    getBrowseAssetOverview({
-      market: args.market,
-      symbol: args.symbol,
-    }),
-  ]);
+      symbol: String(args.symbol || '')
+        .trim()
+        .toUpperCase(),
+      limit: Number(args.limit || 6),
+    },
+    async () => {
+      const [chart, overview] = await Promise.all([
+        getBrowseAssetChart({
+          market: args.market,
+          symbol: args.symbol,
+        }),
+        getBrowseAssetOverview({
+          market: args.market,
+          symbol: args.symbol,
+        }),
+      ]);
 
-  const newsLimit = Math.max(1, Math.min(Number(args.limit || 6), 12));
-  const news = Array.isArray(overview?.topNews)
-    ? overview.topNews.slice(0, newsLimit)
-    : await getBrowseNewsFeed({
-        market: args.market,
-        symbol: args.symbol,
-        limit: newsLimit,
-      });
+      const newsLimit = Math.max(1, Math.min(Number(args.limit || 6), 12));
+      const news = Array.isArray(overview?.topNews)
+        ? overview.topNews.slice(0, newsLimit)
+        : await getBrowseNewsFeed({
+            market: args.market,
+            symbol: args.symbol,
+            limit: newsLimit,
+          });
 
-  return {
-    chart,
-    overview,
-    news,
-  };
+      return {
+        chart,
+        overview,
+        news,
+      };
+    },
+    20_000,
+  );
 }

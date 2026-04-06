@@ -4,6 +4,19 @@ NovaQuant 所有重要变更记录于此。
 
 ## 10.22.24 (2026-04-05)
 
+### 🧠 P27 Browse 服务端短 TTL 复用 (Browse Server Read Caching)
+
+- **Browse 关键查询接入服务端短 TTL/inflight cache**
+  - `src/server/api/queries/browseReads.ts` 现在为 `searchAssets`、`getBrowseHomePayload`、`getBrowseAssetChart`、`getBrowseNewsFeed`、`getBrowseAssetOverview`、`getBrowseAssetDetailBundle` 增加服务端短 TTL 和并发去重。
+  - 即便没有命中 Vercel 边缘缓存，同一时间窗口内的重复 Browse 查询也不会在函数里重复跑相同读逻辑。
+
+- **观测层同步记录 Browse cache 命中**
+  - Browse 服务端短缓存复用了现有 frontend-read observability 维度，`backbone` 摘要里会继续显示 `hit / miss / inflight`。
+  - 这样后面看 Vercel 和 Supabase 用量时，有地方能直接验证 Browse 路径是不是在真正省量。
+
+- **回归测试同步**
+  - `tests/backboneApi.test.ts` 现在校验连续两次 `/api/browse/home` 后，Browse cache 统计会出现 `miss` 和 `hit`。
+
 ### 🌐 P26 Browse 公开读缓存头 (Browse Public Cache Headers)
 
 - **公开 Browse 读接口显式走公共短缓存**

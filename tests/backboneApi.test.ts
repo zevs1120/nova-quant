@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createApiApp } from '../src/server/api/app.js';
+import { __resetBrowseServerReadCacheForTesting } from '../src/server/api/queries/browseReads.js';
 import { resetFrontendReadObservabilityForTesting } from '../src/server/observability/spine.js';
 import { requestLocalHttp } from './helpers/httpTestClient.js';
 
@@ -11,6 +12,7 @@ describe('backend backbone api', () => {
     vi.stubEnv('KV_REST_API_TOKEN', '');
     vi.stubEnv('UPSTASH_REDIS_REST_URL', '');
     vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', '');
+    __resetBrowseServerReadCacheForTesting();
     resetFrontendReadObservabilityForTesting();
   });
 
@@ -103,6 +105,12 @@ describe('backend backbone api', () => {
         view: 'STOCK',
       },
     });
+    await requestLocalHttp(app, {
+      path: '/api/browse/home',
+      query: {
+        view: 'STOCK',
+      },
+    });
 
     const res = await requestLocalHttp(app, {
       path: '/api/backbone/summary',
@@ -116,10 +124,12 @@ describe('backend backbone api', () => {
     expect(res.status).toBe(200);
     expect(res.body.observability.frontend_reads.route_latency.runtime_state.request_count).toBe(2);
     expect(res.body.observability.frontend_reads.route_latency.runtime_state.p95_ms).not.toBeNull();
-    expect(res.body.observability.frontend_reads.route_latency.browse_home.request_count).toBe(1);
+    expect(res.body.observability.frontend_reads.route_latency.browse_home.request_count).toBe(2);
     expect(res.body.observability.frontend_reads.cache.runtime_state.hit).toBeGreaterThanOrEqual(1);
     expect(res.body.observability.frontend_reads.cache.runtime_state.miss).toBeGreaterThanOrEqual(
       1,
     );
+    expect(res.body.observability.frontend_reads.cache.browse_home.hit).toBeGreaterThanOrEqual(1);
+    expect(res.body.observability.frontend_reads.cache.browse_home.miss).toBeGreaterThanOrEqual(1);
   }, 15_000);
 });
