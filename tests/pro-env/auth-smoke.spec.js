@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { getProEnvConfig } from './env.js';
-import { jsonFromResponse } from './helpers.js';
+import { jsonFromResponse, unwrapRuntimeState } from './helpers.js';
 
 const config = getProEnvConfig({ strict: false });
 
@@ -29,10 +29,11 @@ test('app auth smoke reaches session and runtime state in real environment', asy
   );
 
   const runtimeState = await jsonFromResponse(await runtimePromise);
-  expect(Array.isArray(runtimeState?.signals)).toBe(true);
-  expect(runtimeState).toHaveProperty('decision');
-  expect(runtimeState).toHaveProperty('marketState');
-  expect(runtimeState).toHaveProperty('transparency');
+  const runtime = unwrapRuntimeState(runtimeState);
+  expect(Array.isArray(runtime.data?.signals)).toBe(true);
+  expect(runtime.data).toHaveProperty('decision');
+  expect(runtime.data).toHaveProperty('today');
+  expect(runtime.envelope).toHaveProperty('data_transparency');
 });
 
 test('landing page is reachable in the same production estate', async ({ page }) => {

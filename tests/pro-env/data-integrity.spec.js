@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { getProEnvConfig } from './env.js';
-import { maybeCreateServiceClient, readTableCounts } from './helpers.js';
+import { maybeCreateServiceClient, readTableCounts, unwrapRuntimeState } from './helpers.js';
 
 const config = getProEnvConfig({ strict: false });
 
@@ -44,15 +44,15 @@ test.describe('data integrity cross-checks', () => {
       await expect(appPage.locator('.native-tabbar')).toBeVisible({ timeout: 60_000 });
       const runtimeResponse = await runtimeResponsePromise;
       expect(runtimeResponse.status()).toBe(200);
-      const runtimeJson = await runtimeResponse.json();
-      expect(Array.isArray(runtimeJson?.signals)).toBe(true);
+      const runtimeJson = unwrapRuntimeState(await runtimeResponse.json());
+      expect(Array.isArray(runtimeJson.data?.signals)).toBe(true);
 
       const directApiRuntime = await request.get(`${runtimeConfig.apiUrl}/api/runtime-state`, {
         timeout: 60_000,
       });
       expect(directApiRuntime.ok()).toBe(true);
-      const directApiRuntimeJson = await directApiRuntime.json();
-      expect(Array.isArray(directApiRuntimeJson?.signals)).toBe(true);
+      const directApiRuntimeJson = unwrapRuntimeState(await directApiRuntime.json());
+      expect(Array.isArray(directApiRuntimeJson.data?.signals)).toBe(true);
 
       const serviceClient = maybeCreateServiceClient(runtimeConfig);
       if (serviceClient) {

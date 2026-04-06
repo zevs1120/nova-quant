@@ -4,6 +4,20 @@ NovaQuant 所有重要变更记录于此。
 
 ## 10.22.24 (2026-04-05)
 
+### 🛠️ P23 Pro-Env 真实跑测收口 (Pro-Env Live Validation Closure)
+
+- **修正生产登录与首次设置流**
+  - `tests/pro-env/helpers.js` 现在会正确穿过 App 的真实生产状态流：`intro -> login -> first-run -> app shell`。
+  - 修复了之前把瞬时页面态误判为登录失败或主壳已加载的问题。
+
+- **对齐生产 `runtime-state` 返回契约**
+  - `auth-smoke`、`data-integrity`、`quant-research-loop` 改为按正式 envelope 结构读取 `/api/runtime-state`。
+  - 不再假设 `signals`、`decision` 等字段位于顶层，而是从 `data` 与 `data_transparency` 读取。
+
+- **产出本次真实跑测报告**
+  - 新增 `docs/pro-env-e2e-report-2026-04-06.md`，记录本轮生产环境实跑结果。
+  - 当前结果为 `4` 个场景中 `3` 个通过，剩余 `1` 个失败点为环境级 `QLIB_BRIDGE_URL` 不可达（`127.0.0.1:8788` 拒绝连接）。
+
 ### 🧪 P22 Pro-Env Playwright Suite (生产环境 Playwright 验证基建)
 
 - **新增 `tests/pro-env/` 真实环境 E2E 草稿套件**

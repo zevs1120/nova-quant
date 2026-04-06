@@ -15,36 +15,117 @@ export async function ensureAuthDir() {
   return config;
 }
 
+async function waitForAppShell(page, timeout = 60_000) {
+  const tabbarButtons = page.locator('.native-tabbar .native-tabbar-button');
+  await expect(tabbarButtons.first()).toBeVisible({ timeout });
+  return tabbarButtons;
+}
+
+async function waitForAppSurface(page, timeout = 60_000) {
+  const tabbarButtons = page.locator('.native-tabbar .native-tabbar-button');
+  const firstRunFlow = page.locator('.first-run-flow');
+  const loginEntry = page.getByRole('button', { name: /log in|登录/i }).first();
+
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    if (await firstRunFlow.isVisible().catch(() => false)) return 'first-run';
+    if (await loginEntry.isVisible().catch(() => false)) return 'intro';
+    if (
+      await tabbarButtons
+        .first()
+        .isVisible()
+        .catch(() => false)
+    )
+      return 'shell';
+    await page.waitForTimeout(500);
+  }
+
+  return 'unknown';
+}
+
+async function waitForPostLoginSurface(page, timeout = 60_000) {
+  const tabbarButtons = page.locator('.native-tabbar .native-tabbar-button');
+  const firstRunFlow = page.locator('.first-run-flow');
+
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    if (await firstRunFlow.isVisible().catch(() => false)) return 'first-run';
+    if (
+      await tabbarButtons
+        .first()
+        .isVisible()
+        .catch(() => false)
+    )
+      return 'shell';
+    await page.waitForTimeout(500);
+  }
+
+  return 'unknown';
+}
+
+export async function completeFirstRunSetupIfNeeded(page) {
+  const firstRunFlow = page.locator('.first-run-flow');
+  if (!(await firstRunFlow.isVisible().catch(() => false))) return false;
+
+  const chooseEntry = page
+    .getByRole('button', {
+      name: /我准备开始交易|i am ready to trade|我已经有持仓|i already have positions|我先看看|i am just exploring/i,
+    })
+    .first();
+  await expect(chooseEntry).toBeVisible({ timeout: 30_000 });
+  await chooseEntry.click();
+
+  const continueButton = page.getByRole('button', { name: /^继续$|^next$/i }).last();
+  await expect(continueButton).toBeEnabled({ timeout: 30_000 });
+  await continueButton.click();
+
+  const finishButton = page.getByRole('button', { name: /^进入系统$|^enter nova$/i }).last();
+  await expect(finishButton).toBeEnabled({ timeout: 30_000 });
+  await finishButton.click();
+
+  await waitForAppShell(page, 60_000);
+  return true;
+}
+
 export async function loginApp(page, config = getProEnvConfig()) {
   await page.goto(config.appUrl, { waitUntil: 'domcontentloaded' });
 
-  const tabbar = page.locator('.native-tabbar');
-  const loginEntry = page.getByRole('button', { name: /log in|登录/i }).first();
-  const introVisible = await loginEntry.isVisible().catch(() => false);
-  if (!introVisible && (await tabbar.isVisible().catch(() => false))) {
-    await expect(tabbar).toBeVisible({ timeout: 30_000 });
+  let surface = await waitForAppSurface(page, 30_000);
+  if (surface === 'shell') {
+    await waitForAppShell(page, 30_000);
     return;
   }
 
+  if (surface === 'first-run') {
+    await completeFirstRunSetupIfNeeded(page);
+    return;
+  }
+
+  const loginEntry = page.getByRole('button', { name: /log in|登录/i }).first();
   await expect(loginEntry).toBeVisible({ timeout: 30_000 });
   await loginEntry.click();
 
   await page.getByPlaceholder(/enter email|输入邮箱/i).fill(config.testUserEmail);
   await page.getByPlaceholder(/enter your password|输入密码/i).fill(config.testUserPassword);
 
-  await Promise.all([
-    page.waitForResponse(
-      (response) =>
-        response.url().includes('/api/auth/session') && response.request().method() === 'GET',
-      { timeout: 60_000 },
-    ),
-    page
-      .getByRole('button', { name: /log in|登录/i })
-      .last()
-      .click(),
-  ]);
+  await page
+    .getByRole('button', { name: /log in|登录/i })
+    .last()
+    .click();
 
-  await expect(tabbar).toBeVisible({ timeout: 60_000 });
+  surface = await waitForPostLoginSurface(page, 60_000);
+  if (surface === 'first-run') {
+    await completeFirstRunSetupIfNeeded(page);
+    return;
+  }
+
+  if (surface === 'unknown') {
+    throw new Error(
+      'App login did not advance past the intro/login state with the provided test credentials.',
+    );
+  }
+
+  await waitForAppShell(page, 60_000);
 }
 
 export async function loginAdmin(page, config = getProEnvConfig()) {
@@ -78,6 +159,27 @@ export async function jsonFromResponse(response) {
   } catch {
     throw new Error(`Expected JSON response from ${response.url()}, got: ${text.slice(0, 200)}`);
   }
+}
+
+export function unwrapRuntimeState(payload) {
+  if (!payload || typeof payload !== 'object') {
+    return {
+      envelope: payload,
+      data: null,
+      transparency: null,
+    };
+  }
+
+  const envelope = payload;
+  const data = payload.data && typeof payload.data === 'object' ? payload.data : payload;
+  const transparency =
+    payload.data_transparency || payload.transparency || data?.transparency || null;
+
+  return {
+    envelope,
+    data,
+    transparency,
+  };
 }
 
 export async function fetchJsonInPage(page, url, init = {}) {

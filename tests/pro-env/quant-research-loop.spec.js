@@ -6,6 +6,7 @@ import {
   maybeCreateServiceClient,
   readRecentWorkflowRun,
   slugDate,
+  unwrapRuntimeState,
 } from './helpers.js';
 
 const config = getProEnvConfig({ strict: false });
@@ -27,8 +28,8 @@ test('strategy lab request completes through real API and Qlib bridge is reachab
       response.url().includes('/api/runtime-state') && response.request().method() === 'GET',
     { timeout: 60_000 },
   );
-  const runtimeState = await jsonFromResponse(runtimeResponse);
-  expect(Array.isArray(runtimeState?.signals)).toBe(true);
+  const runtimeState = unwrapRuntimeState(await jsonFromResponse(runtimeResponse));
+  expect(Array.isArray(runtimeState.data?.signals)).toBe(true);
 
   const strategyPayload = await fetchJsonInPage(page, '/api/nova/strategy/generate', {
     method: 'POST',
