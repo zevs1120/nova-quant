@@ -2,7 +2,7 @@ import { MarketRepository } from '../db/repository.js';
 import type { Timeframe } from '../types.js';
 import { logInfo, logWarn } from '../utils/log.js';
 import { timeframeToMs } from '../utils/time.js';
-import { detectGaps } from './normalize.js';
+import { detectGaps, inspectBarQuality } from './normalize.js';
 import { fetchBinanceKlines, isBinanceAccessBlockedError } from './binanceIncremental.js';
 
 export async function validateAndRepair(params: {
@@ -22,6 +22,43 @@ export async function validateAndRepair(params: {
       const start = latest - params.lookbackBars * step;
       const tsList = params.repo.listBarsRange(asset.asset_id, tf, start, latest);
       const gaps = detectGaps(tsList, tf);
+      const rows = params.repo.getOhlcv({
+        assetId: asset.asset_id,
+        timeframe: tf,
+        start,
+        end: latest,
+      });
+
+      for (const row of rows) {
+        const quality = inspectBarQuality(row);
+        if (quality.invalidPrice) {
+          params.repo.logAnomaly({
+            assetId: asset.asset_id,
+            timeframe: tf,
+            tsOpen: row.ts_open,
+            anomalyType: 'PRICE_ANOMALY',
+            detail: `Invalid OHLC price for ${asset.symbol} ${tf} at ${row.ts_open}`,
+          });
+        }
+        if (quality.envelopeAdjusted) {
+          params.repo.logAnomaly({
+            assetId: asset.asset_id,
+            timeframe: tf,
+            tsOpen: row.ts_open,
+            anomalyType: 'OHLC_ENVELOPE_ANOMALY',
+            detail: `OHLC envelope mismatch for ${asset.symbol} ${tf} at ${row.ts_open}`,
+          });
+        }
+        if (quality.zeroVolume) {
+          params.repo.logAnomaly({
+            assetId: asset.asset_id,
+            timeframe: tf,
+            tsOpen: row.ts_open,
+            anomalyType: 'ZERO_VOLUME_ANOMALY',
+            detail: `Zero volume bar for ${asset.symbol} ${tf} at ${row.ts_open}`,
+          });
+        }
+      }
 
       if (!gaps.length) continue;
 

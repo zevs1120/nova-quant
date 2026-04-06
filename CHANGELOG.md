@@ -4,6 +4,33 @@ NovaQuant 所有重要变更记录于此。
 
 ## 10.22.24 (2026-04-05)
 
+### 🧪 P29 Runtime Admission Gate (Runtime 数据准入门禁)
+
+- **运行时衍生前增加 bar 质量准入**
+  - `src/server/quant/runtimeDerivation.ts` 现在会在 `parseBars(...)` 阶段统计无效 bar、OHLC 包络修正次数和零成交量占比。
+  - 如果异常比例过高，对应资产会直接降级为 `INSUFFICIENT_DATA`，不再继续生成 runtime signal。
+
+- **freshness / event stats 带出 bar 质量信息**
+  - `freshnessSummary.rows` 和 `event_stats` 现在会附带 `quality_gate_reason`、`dropped_bars`、`envelope_repairs`、`zero_volume_bars`。
+  - 这样前后端都能看见“为什么这批数据被挡在决策链外”。
+
+- **回归测试同步**
+  - `tests/runtimeDerivation.test.ts` 新增脏 bar 比例过高时触发 runtime gate 的断言。
+
+### 🧹 P28 OHLCV Validation Anomalies (OHLCV 清洗与异常记录)
+
+- **OHLCV 清洗规则升级为显式质量诊断**
+  - `src/server/ingestion/normalize.ts` 新增 `inspectBarQuality(...)`，统一识别无效时间戳、无效价格、OHLC 包络异常、零成交量和负成交量。
+  - `normalizeBars(...)` 现在基于这套诊断做清洗，坏 bar 直接丢弃，包络异常做轻度修正保留。
+
+- **validation 层开始记录价格 / 包络 / 零量异常**
+  - `src/server/ingestion/validation.ts` 除了 `MISSING_BARS` 之外，现在还会写入 `PRICE_ANOMALY`、`OHLC_ENVELOPE_ANOMALY`、`ZERO_VOLUME_ANOMALY`。
+  - 这让数据质量问题不再只停留在 gap 检测。
+
+- **回归测试同步**
+  - `tests/parsers.test.ts` 增加 OHLC 包络与非法价格清洗断言。
+  - 新增 `tests/ingestionValidation.test.ts`，验证 anomaly 会被正确落表。
+
 ### 🧠 P27 Browse 服务端短 TTL 复用 (Browse Server Read Caching)
 
 - **Browse 关键查询接入服务端短 TTL/inflight cache**

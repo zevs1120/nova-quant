@@ -10,20 +10,100 @@ export function decimalToString(value: string | number): string {
   return value.toString();
 }
 
+function parseFiniteNumber(value: string | number): number | null {
+  const next =
+    typeof value === 'string'
+      ? Number(
+          String(value)
+            .trim()
+            .replace(/[$,\s]/g, ''),
+        )
+      : Number(value);
+  return Number.isFinite(next) ? next : null;
+}
+
+export type BarQualityInspection = {
+  invalidTimestamp: boolean;
+  invalidPrice: boolean;
+  envelopeAdjusted: boolean;
+  zeroVolume: boolean;
+  negativeVolume: boolean;
+  sanitized: NormalizedBar | null;
+};
+
+export function inspectBarQuality(row: NormalizedBar): BarQualityInspection {
+  const tsOpen = Number(row?.ts_open);
+  if (!Number.isFinite(tsOpen) || tsOpen <= 0) {
+    return {
+      invalidTimestamp: true,
+      invalidPrice: false,
+      envelopeAdjusted: false,
+      zeroVolume: false,
+      negativeVolume: false,
+      sanitized: null,
+    };
+  }
+
+  const open = parseFiniteNumber(row?.open);
+  const high = parseFiniteNumber(row?.high);
+  const low = parseFiniteNumber(row?.low);
+  const close = parseFiniteNumber(row?.close);
+  const volume = parseFiniteNumber(row?.volume);
+
+  if (
+    open === null ||
+    high === null ||
+    low === null ||
+    close === null ||
+    open <= 0 ||
+    high <= 0 ||
+    low <= 0 ||
+    close <= 0
+  ) {
+    return {
+      invalidTimestamp: false,
+      invalidPrice: true,
+      envelopeAdjusted: false,
+      zeroVolume: false,
+      negativeVolume: false,
+      sanitized: null,
+    };
+  }
+
+  const sanitizedHigh = Math.max(open, high, low, close);
+  const sanitizedLow = Math.min(open, high, low, close);
+  const negativeVolume = volume !== null && volume < 0;
+  const sanitizedVolume = volume === null ? 0 : Math.max(0, volume);
+
+  return {
+    invalidTimestamp: false,
+    invalidPrice: false,
+    envelopeAdjusted: sanitizedHigh !== high || sanitizedLow !== low,
+    zeroVolume: sanitizedVolume === 0,
+    negativeVolume,
+    sanitized: {
+      ts_open: tsOpen,
+      open: decimalToString(open),
+      high: decimalToString(sanitizedHigh),
+      low: decimalToString(sanitizedLow),
+      close: decimalToString(close),
+      volume: decimalToString(sanitizedVolume),
+    },
+  };
+}
+
+export function sanitizeBar(row: NormalizedBar): NormalizedBar | null {
+  return inspectBarQuality(row).sanitized;
+}
+
 export function normalizeBars(rows: NormalizedBar[]): NormalizedBar[] {
   if (!rows.length) return [];
 
   const dedup = new Map<number, NormalizedBar>();
   for (const row of rows) {
-    if (!Number.isFinite(row.ts_open)) continue;
-    dedup.set(row.ts_open, {
-      ts_open: row.ts_open,
-      open: decimalToString(row.open),
-      high: decimalToString(row.high),
-      low: decimalToString(row.low),
-      close: decimalToString(row.close),
-      volume: decimalToString(row.volume),
-    });
+    const sanitized = sanitizeBar(row);
+    if (!sanitized) continue;
+    dedup.set(sanitized.ts_open, sanitized);
   }
 
   return [...dedup.values()].sort((a, b) => a.ts_open - b.ts_open);

@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { parseBinanceKlineRow } from '../src/server/ingestion/binancePublic.js';
 import { parseStooqRecord } from '../src/server/ingestion/stooq.js';
-import { normalizeBars } from '../src/server/ingestion/normalize.js';
+import {
+  inspectBarQuality,
+  normalizeBars,
+  sanitizeBar,
+} from '../src/server/ingestion/normalize.js';
 
 describe('parsers', () => {
   it('parses Binance kline row', () => {
@@ -48,5 +52,62 @@ describe('parsers', () => {
     expect(bars).toHaveLength(2);
     expect(bars[0].ts_open).toBe(5);
     expect(bars[1].open).toBe('1.2');
+  });
+
+  it('sanitizes OHLC envelopes and clamps negative volume', () => {
+    const bar = sanitizeBar({
+      ts_open: 20,
+      open: '100',
+      high: '95',
+      low: '105',
+      close: '102',
+      volume: '-30',
+    });
+
+    expect(bar).toEqual({
+      ts_open: 20,
+      open: '100',
+      high: '105',
+      low: '95',
+      close: '102',
+      volume: '0',
+    });
+  });
+
+  it('drops bars with invalid timestamps or non-positive prices', () => {
+    const bars = normalizeBars([
+      { ts_open: 0, open: '1', high: '2', low: '1', close: '1.5', volume: '10' },
+      { ts_open: 10, open: '0', high: '2', low: '1', close: '1.5', volume: '10' },
+      { ts_open: 20, open: '1', high: '2', low: '1', close: '1.5', volume: '10' },
+      { ts_open: 30, open: '1', high: '2', low: '1', close: '-1', volume: '10' },
+      { ts_open: 40, open: 'bad', high: '2', low: '1', close: '1.5', volume: '10' },
+    ]);
+
+    expect(bars).toEqual([
+      { ts_open: 20, open: '1', high: '2', low: '1', close: '1.5', volume: '10' },
+    ]);
+  });
+
+  it('classifies envelope and zero-volume anomalies without dropping the bar', () => {
+    const inspection = inspectBarQuality({
+      ts_open: 50,
+      open: '10',
+      high: '8',
+      low: '12',
+      close: '11',
+      volume: '0',
+    });
+
+    expect(inspection.invalidPrice).toBe(false);
+    expect(inspection.envelopeAdjusted).toBe(true);
+    expect(inspection.zeroVolume).toBe(true);
+    expect(inspection.sanitized).toEqual({
+      ts_open: 50,
+      open: '10',
+      high: '12',
+      low: '8',
+      close: '11',
+      volume: '0',
+    });
   });
 });
