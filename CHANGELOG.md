@@ -7,38 +7,44 @@ NovaQuant 所有重要变更记录于此。
 ### ⚡ P33 Browse Public Cache Tightening (Browse 公开接口公共缓存收口)
 
 - **公开 Browse 缓存策略改成共享常量**
-  - 新增 [src/server/public/cachePolicy.ts](/Users/qiao/Downloads/nova-quant/src/server/public/cachePolicy.ts)，把 `assets / browse search / home / detail / news / overview / public ohlcv / public today` 的公共缓存策略统一收口。
-  - 这样 [api/index.ts](/Users/qiao/Downloads/nova-quant/api/index.ts) 和 [src/server/api/routes/browse.ts](/Users/qiao/Downloads/nova-quant/src/server/api/routes/browse.ts) 不会再各自维护一套容易漂移的缓存头。
+  - 新增 [src/server/public/cachePolicy.ts](src/server/public/cachePolicy.ts)，把 `assets / browse search / home / detail / news / overview / public ohlcv / public today` 的公共缓存策略统一收口。
+  - 这样 [api/index.ts](api/index.ts) 和 [src/server/api/routes/browse.ts](src/server/api/routes/browse.ts) 不会再各自维护一套容易漂移的缓存头。
 
 - **API-only 入口补齐 `browse/detail-bundle` 的公开缓存**
-  - [api/index.ts](/Users/qiao/Downloads/nova-quant/api/index.ts) 现在正式支持 `/api/browse/detail-bundle` 的 GET 路由与 `public, s-maxage` 缓存。
+  - [api/index.ts](api/index.ts) 现在正式支持 `/api/browse/detail-bundle` 的 GET 路由与 `public, s-maxage` 缓存。
   - 这让生产上的 API-only surface 也能对热门详情页请求做真正的公共边缘缓存，减少重复 Function Invocation 和 CPU。
 
 - **公开 Browse 路由缓存粒度更一致**
   - `browse/news`、`browse/overview`、`browse/detail-bundle`、`browse/chart` 等路由现在都按统一策略发缓存头，而不是一部分走 detail 默认值、一部分走 API-only 特判。
 
 - **回归测试同步**
-  - [tests/performanceOptimization.test.ts](/Users/qiao/Downloads/nova-quant/tests/performanceOptimization.test.ts) 增加 `browse/detail-bundle` 的缓存断言。
-  - 新增 [tests/publicBrowseApiCache.test.ts](/Users/qiao/Downloads/nova-quant/tests/publicBrowseApiCache.test.ts)，验证 API-only 入口的 detail bundle 路由和缓存头。
+  - [tests/performanceOptimization.test.ts](tests/performanceOptimization.test.ts) 增加 `browse/detail-bundle` 的缓存断言。
+  - 新增 [tests/publicBrowseApiCache.test.ts](tests/publicBrowseApiCache.test.ts)，验证 API-only 入口的 detail bundle 路由和缓存头。
+
+### 📄 Documentation alignment (文档与仓库现状对齐)
+
+- 同步 [architecture.md](architecture.md)、[README.md](README.md)、[docs/CURRENT_PRODUCT_DOCUMENT_ZH.md](docs/CURRENT_PRODUCT_DOCUMENT_ZH.md)、[docs/VERSIONING.md](docs/VERSIONING.md)、[CLAUDE.md](CLAUDE.md)、[AGENTS.md](AGENTS.md)、[.claude/skills/verify/SKILL.md](.claude/skills/verify/SKILL.md)：版本与 build 元数据、Vite 主版本、`npm run verify` 完整步骤、Vitest 体量口径。
+- [CHANGELOG.md](CHANGELOG.md) / [docs/VERCEL_API_DEPLOYMENT.md](docs/VERCEL_API_DEPLOYMENT.md) / [docs/system-speed-slimming-plan.md](docs/system-speed-slimming-plan.md) / [docs/commit-summary-since-3e82f1ae.md](docs/commit-summary-since-3e82f1ae.md) 中的文档链接统一为仓库相对路径。
+- [deployment/launchd/com.novaquant.auto-backend.plist](deployment/launchd/com.novaquant.auto-backend.plist) 与 [tests/autoBackendLaunchd.test.ts](tests/autoBackendLaunchd.test.ts) 改用占位路径，避免提交个人本机绝对目录；plist 模板顶部增加 XML 注释，提示**部署前将 `/path/to/nova-quant` 等占位符替换为真实路径**。
 
 ## 10.22.27 (2026-04-07)
 
 ### 🚀 P32 Vercel API Deployment Reset (Vercel API 部署模型重置)
 
 - **根部署正式收口为 API-only**
-  - [vercel.json](/Users/qiao/Downloads/nova-quant/vercel.json) 现在明确使用 `buildCommand: npm run build:api` 与 `outputDirectory: dist`。
+  - [vercel.json](vercel.json) 现在明确使用 `buildCommand: npm run build:api` 与 `outputDirectory: dist`。
   - 根路由不再假装自己是 SPA：`/` 直接回到 `/api`，`/healthz` 直接回到 API health，`/api/:route*` 继续统一进入 `api/index.ts`。
 
 - **`build:api` 变成稳定可交付的构建流程**
-  - 新增 [scripts/build-api.mjs](/Users/qiao/Downloads/nova-quant/scripts/build-api.mjs)，会先验证 `api/index.ts` 可加载，再稳定产出 `dist/api-only.txt` 与 `dist/index.html`。
+  - 新增 [scripts/build-api.mjs](scripts/build-api.mjs)，会先验证 `api/index.ts` 可加载，再稳定产出 `dist/api-only.txt` 与 `dist/index.html`。
   - 这样即便 Vercel 项目此前被按静态输出目录习惯配置，也不会再因为缺少 `dist` 而失败。
 
 - **部署边界测试补齐**
-  - [tests/deploymentSurfaceConfig.test.ts](/Users/qiao/Downloads/nova-quant/tests/deploymentSurfaceConfig.test.ts) 现在会守住 root deployment 的 `buildCommand / outputDirectory / api-only rewrites`。
-  - 新增 [tests/buildApiScript.test.ts](/Users/qiao/Downloads/nova-quant/tests/buildApiScript.test.ts)，验证 `build:api` 会稳定生成 API-only 的 `dist` 产物。
+  - [tests/deploymentSurfaceConfig.test.ts](tests/deploymentSurfaceConfig.test.ts) 现在会守住 root deployment 的 `buildCommand / outputDirectory / api-only rewrites`。
+  - 新增 [tests/buildApiScript.test.ts](tests/buildApiScript.test.ts)，验证 `build:api` 会稳定生成 API-only 的 `dist` 产物。
 
 - **部署文档同步**
-  - 新增 [docs/VERCEL_API_DEPLOYMENT.md](/Users/qiao/Downloads/nova-quant/docs/VERCEL_API_DEPLOYMENT.md)，把 `nova-quant-api` 的部署合同写清楚，避免以后再回到“前端站点 / API 项目”混用状态。
+  - 新增 [docs/VERCEL_API_DEPLOYMENT.md](docs/VERCEL_API_DEPLOYMENT.md)，把 `nova-quant-api` 的部署合同写清楚，避免以后再回到“前端站点 / API 项目”混用状态。
 
 ## 10.22.26 (2026-04-07)
 
@@ -1229,7 +1235,7 @@ NovaQuant 所有重要变更记录于此。
   - **新增 `check-changelog.mjs`**：强制每次提交包含 CHANGELOG.md 更新，校验 `package.json` version 与 CHANGELOG 最新版本号一致，`src/` 变更未伴随 `docs/` 更新时发出软警告。
   - **新增 `check-commit-msg.mjs`**：Conventional Commits 格式校验 —— type 白名单（8 类）、scope 白名单（60+ 模块）、标题必须英文（ASCII only，body 可用中文）、小写开头、≤72 字符、不以句号结尾、title/body 空行分隔。
   - **新增 `.husky/commit-msg` hook**：自动触发 commit message 校验。
-  - **更新 `.husky/pre-commit` hook**：执行顺序 changelog 检查 → `npm run verify`（lint → typecheck → test → build → build:landing）→ lint-staged（Prettier 格式化）。
+  - **更新 `.husky/pre-commit` hook**：执行顺序 changelog 检查 → `npm run verify`（lint → format:check → typecheck → test → build → build:landing → build:admin）→ lint-staged（Prettier 格式化）。
   - **新增 `npm run check:changelog`**：可独立运行 changelog 策略检查。
   - 绕过方式：`SKIP_CHANGELOG_CHECK=1` / `SKIP_COMMIT_MSG_CHECK=1`，用于纯基建提交。
 

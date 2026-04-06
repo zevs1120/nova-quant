@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- 部署前替换 /path/to/nova-quant（以及日志路径、EnvironmentVariables.HOME 中的 /path/to/home）为机器上的真实路径。 -->
 <plist version="1.0">
 <dict>
   <key>Label</key>
   <string>com.novaquant.auto-backend</string>
   <key>WorkingDirectory</key>
-  <string>/Users/qiao/Downloads/nova-quant</string>
+  <string>/path/to/nova-quant</string>
   <key>ProgramArguments</key>
   <array>
     <string>/bin/zsh</string>
@@ -19,15 +20,15 @@
   <key>ProcessType</key>
   <string>Background</string>
   <key>StandardOutPath</key>
-  <string>/Users/qiao/Downloads/nova-quant/logs/auto-backend/stdout.log</string>
+  <string>/path/to/nova-quant/logs/auto-backend/stdout.log</string>
   <key>StandardErrorPath</key>
-  <string>/Users/qiao/Downloads/nova-quant/logs/auto-backend/stderr.log</string>
+  <string>/path/to/nova-quant/logs/auto-backend/stderr.log</string>
   <key>EnvironmentVariables</key>
   <dict>
     <key>PATH</key>
     <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
     <key>HOME</key>
-    <string>/Users/qiao</string>
+    <string>/path/to/home</string>
   </dict>
 </dict>
 </plist>

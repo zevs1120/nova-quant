@@ -33,7 +33,7 @@
 `feat(onboarding): rebuild intro poster scenes`
 
 - 这一笔把 onboarding 的开场引导重做了。
-- 主要改了 [OnboardingFlow.jsx](/Users/qiao/Downloads/nova-quant/src/components/OnboardingFlow.jsx) 和 [onboarding.css](/Users/qiao/Downloads/nova-quant/src/styles/onboarding.css)。
+- 主要改了 [OnboardingFlow.jsx](src/components/OnboardingFlow.jsx) 和 [onboarding.css](src/styles/onboarding.css)。
 - 结果是首屏海报式引导、视觉层次和进入流程都更完整了。
 
 ## 5. `560eb44b4dc17f6a9a5c5e720323b97eb57377c8`

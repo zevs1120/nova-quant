@@ -1,6 +1,6 @@
 # NovaQuant Versioning
 
-Last updated: 2026-03-23
+Last updated: 2026-04-07
 
 Nova Quant (product; also styled **NovaQuant** in code and URLs) uses semantic versioning for product releases and a monotonically increasing build number for internal runtime tracking.
 

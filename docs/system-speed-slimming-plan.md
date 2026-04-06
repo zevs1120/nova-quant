@@ -16,11 +16,11 @@
 
 当前仓库已经做过一部分性能友好设计，比如：
 
-- `App` 主壳对核心 Tab 和常用浮层保持 `React.lazy`，见 [src/App.jsx](/Users/qiao/Downloads/nova-quant/src/App.jsx#L1)
-- `Browse` 已有预热与本地快照缓存，见 [src/utils/browseWarmup.js](/Users/qiao/Downloads/nova-quant/src/utils/browseWarmup.js#L1)
-- 服务端存在前端读缓存与 inflight 合并，见 [src/server/api/queries.ts](/Users/qiao/Downloads/nova-quant/src/server/api/queries.ts#L579)
-- `Today` 公共决策已有独立公共缓存，见 [src/server/public/todayDecisionService.ts](/Users/qiao/Downloads/nova-quant/src/server/public/todayDecisionService.ts#L674)
-- 仓库已经有性能回归测试，见 [tests/performanceOptimization.test.ts](/Users/qiao/Downloads/nova-quant/tests/performanceOptimization.test.ts#L1)
+- `App` 主壳对核心 Tab 和常用浮层保持 `React.lazy`，见 [src/App.jsx](src/App.jsx#L1)
+- `Browse` 已有预热与本地快照缓存，见 [src/utils/browseWarmup.js](src/utils/browseWarmup.js#L1)
+- 服务端存在前端读缓存与 inflight 合并，见 [src/server/api/queries.ts](src/server/api/queries.ts#L579)
+- `Today` 公共决策已有独立公共缓存，见 [src/server/public/todayDecisionService.ts](src/server/public/todayDecisionService.ts#L674)
+- 仓库已经有性能回归测试，见 [tests/performanceOptimization.test.ts](tests/performanceOptimization.test.ts#L1)
 
 但真正影响速度的几个问题仍然很明显：
 
@@ -33,7 +33,7 @@
 3. 登录态下再补 broker / exchange 连接状态
 4. 最后单独再打一轮 `/api/signals`
 
-对应代码见 [src/hooks/useAppData.js](/Users/qiao/Downloads/nova-quant/src/hooks/useAppData.js#L52)。
+对应代码见 [src/hooks/useAppData.js](src/hooks/useAppData.js#L52)。
 
 这意味着：
 
@@ -45,13 +45,13 @@
 
 目前几个明显热点：
 
-- [src/server/api/queries.ts](/Users/qiao/Downloads/nova-quant/src/server/api/queries.ts) 约 6249 行
-- [src/server/db/repository.ts](/Users/qiao/Downloads/nova-quant/src/server/db/repository.ts) 约 3830 行
-- [src/server/db/postgresRuntimeRepository.ts](/Users/qiao/Downloads/nova-quant/src/server/db/postgresRuntimeRepository.ts) 约 3361 行
-- [src/server/admin/postgresBusinessRead.ts](/Users/qiao/Downloads/nova-quant/src/server/admin/postgresBusinessRead.ts) 约 3181 行
-- [src/server/public/browseService.ts](/Users/qiao/Downloads/nova-quant/src/server/public/browseService.ts) 约 2533 行
-- [src/components/TodayTab.jsx](/Users/qiao/Downloads/nova-quant/src/components/TodayTab.jsx) 约 2760 行
-- [src/App.jsx](/Users/qiao/Downloads/nova-quant/src/App.jsx) 约 1479 行
+- [src/server/api/queries.ts](src/server/api/queries.ts) 约 6249 行
+- [src/server/db/repository.ts](src/server/db/repository.ts) 约 3830 行
+- [src/server/db/postgresRuntimeRepository.ts](src/server/db/postgresRuntimeRepository.ts) 约 3361 行
+- [src/server/admin/postgresBusinessRead.ts](src/server/admin/postgresBusinessRead.ts) 约 3181 行
+- [src/server/public/browseService.ts](src/server/public/browseService.ts) 约 2533 行
+- [src/components/TodayTab.jsx](src/components/TodayTab.jsx) 约 2760 行
+- [src/App.jsx](src/App.jsx) 约 1479 行
 
 这类文件会同时带来两类成本：
 
@@ -62,10 +62,10 @@
 
 样式文件里最明显的是：
 
-- [src/styles/onboarding.css](/Users/qiao/Downloads/nova-quant/src/styles/onboarding.css)
-- [src/styles/today-final.css](/Users/qiao/Downloads/nova-quant/src/styles/today-final.css)
-- [src/styles/browse.css](/Users/qiao/Downloads/nova-quant/src/styles/browse.css)
-- [src/styles/menu.css](/Users/qiao/Downloads/nova-quant/src/styles/menu.css)
+- [src/styles/onboarding.css](src/styles/onboarding.css)
+- [src/styles/today-final.css](src/styles/today-final.css)
+- [src/styles/browse.css](src/styles/browse.css)
+- [src/styles/menu.css](src/styles/menu.css)
 
 这并不一定意味着线上一定慢，但会明显增加：
 
@@ -75,7 +75,7 @@
 
 ### 4. `queries.ts` 现在承担了过多职责
 
-[src/server/api/queries.ts](/Users/qiao/Downloads/nova-quant/src/server/api/queries.ts#L1) 同时承载了：
+[src/server/api/queries.ts](src/server/api/queries.ts#L1) 同时承载了：
 
 - 前端读接口主逻辑
 - 公共 Today / Browse 转发
@@ -114,9 +114,9 @@
 
 ### 落地方式
 
-- 在 [src/server/observability/spine.ts](/Users/qiao/Downloads/nova-quant/src/server/observability/spine.ts) 补最基础的耗时与 cache hit 埋点
+- 在 [src/server/observability/spine.ts](src/server/observability/spine.ts) 补最基础的耗时与 cache hit 埋点
 - 在 `useAppData` 和 `browseWarmup` 上做开发态调试统计
-- 扩展 [tests/performanceOptimization.test.ts](/Users/qiao/Downloads/nova-quant/tests/performanceOptimization.test.ts#L1) 的断言，不只看 chunk 是否拆出，也看首屏接口是否被重新耦合
+- 扩展 [tests/performanceOptimization.test.ts](tests/performanceOptimization.test.ts#L1) 的断言，不只看 chunk 是否拆出，也看首屏接口是否被重新耦合
 
 ### 预期收益
 
@@ -129,7 +129,7 @@
 
 ### 2.1 把 `useAppData` 从“多接口补丁模式”改成“主快照 + 按需补充模式”
 
-当前 [src/hooks/useAppData.js](/Users/qiao/Downloads/nova-quant/src/hooks/useAppData.js#L103) 在 runtime 数据后还要并发补大量接口。
+当前 [src/hooks/useAppData.js](src/hooks/useAppData.js#L103) 在 runtime 数据后还要并发补大量接口。
 
 建议重构目标：
 
@@ -153,7 +153,7 @@
 
 ### 2.2 把“静默刷新”从整包刷新改成分层刷新
 
-现在 `useAppData` 会按固定周期整体静默 refresh，见 [src/hooks/useAppData.js](/Users/qiao/Downloads/nova-quant/src/hooks/useAppData.js#L353)。
+现在 `useAppData` 会按固定周期整体静默 refresh，见 [src/hooks/useAppData.js](src/hooks/useAppData.js#L353)。
 
 建议改成：
 
@@ -182,7 +182,7 @@
 
 ### 3.1 把 `queries.ts` 拆成按领域的 read slices
 
-建议优先拆 [src/server/api/queries.ts](/Users/qiao/Downloads/nova-quant/src/server/api/queries.ts)：
+建议优先拆 [src/server/api/queries.ts](src/server/api/queries.ts)：
 
 - `queries/runtimeReads.ts`
 - `queries/browseReads.ts`
@@ -206,7 +206,7 @@
 
 ### 3.2 让 runtime-state 真正成为唯一高频入口
 
-[src/server/api/queries.ts](/Users/qiao/Downloads/nova-quant/src/server/api/queries.ts#L5454) 现在已经对 `runtime_state` 做缓存，但前端仍然会追打多接口。
+[src/server/api/queries.ts](src/server/api/queries.ts#L5454) 现在已经对 `runtime_state` 做缓存，但前端仍然会追打多接口。
 
 建议目标：
 
@@ -222,7 +222,7 @@
 - `/api/browse/overview`
 - `/api/browse/news`
 
-对应代码见 [src/utils/browseWarmup.js](/Users/qiao/Downloads/nova-quant/src/utils/browseWarmup.js#L215)。
+对应代码见 [src/utils/browseWarmup.js](src/utils/browseWarmup.js#L215)。
 
 建议新增一个 detail bundle 接口，例如：
 
@@ -249,7 +249,7 @@
 - 公共静态近实时接口：中 TTL + 允许 stale-while-revalidate 语义
 - 用户强私有接口：短 TTL + 写后定向失效
 
-其中 [src/server/api/queries.ts](/Users/qiao/Downloads/nova-quant/src/server/api/queries.ts#L538) 已经有 `invalidateFrontendReadCacheForUser`，这条路值得继续强化。
+其中 [src/server/api/queries.ts](src/server/api/queries.ts#L538) 已经有 `invalidateFrontendReadCacheForUser`，这条路值得继续强化。
 
 ## Phase 4: 页面体积与渲染瘦身
 
@@ -257,8 +257,8 @@
 
 优先拆：
 
-- [src/components/TodayTab.jsx](/Users/qiao/Downloads/nova-quant/src/components/TodayTab.jsx)
-- [src/App.jsx](/Users/qiao/Downloads/nova-quant/src/App.jsx)
+- [src/components/TodayTab.jsx](src/components/TodayTab.jsx)
+- [src/App.jsx](src/App.jsx)
 
 建议拆法不是“按行数平均切”，而是按渲染责任拆：
 
@@ -291,10 +291,10 @@
 
 建议对以下文件做二轮治理：
 
-- [src/styles/today-final.css](/Users/qiao/Downloads/nova-quant/src/styles/today-final.css)
-- [src/styles/onboarding.css](/Users/qiao/Downloads/nova-quant/src/styles/onboarding.css)
-- [src/styles/browse.css](/Users/qiao/Downloads/nova-quant/src/styles/browse.css)
-- [src/styles/menu.css](/Users/qiao/Downloads/nova-quant/src/styles/menu.css)
+- [src/styles/today-final.css](src/styles/today-final.css)
+- [src/styles/onboarding.css](src/styles/onboarding.css)
+- [src/styles/browse.css](src/styles/browse.css)
+- [src/styles/menu.css](src/styles/menu.css)
 
 建议做法：
 
@@ -364,10 +364,10 @@
 
 如果只做最值得的五项，我会按这个顺序来：
 
-1. 把 [src/hooks/useAppData.js](/Users/qiao/Downloads/nova-quant/src/hooks/useAppData.js#L52) 改成真正的“单主快照首屏读取”
+1. 把 [src/hooks/useAppData.js](src/hooks/useAppData.js#L52) 改成真正的“单主快照首屏读取”
 2. 给 `Browse` 新增 detail bundle 接口，替代前端同时打 chart / overview / news
-3. 把 [src/server/api/queries.ts](/Users/qiao/Downloads/nova-quant/src/server/api/queries.ts) 先拆出 runtime reads 和 browse reads
-4. 把 [src/components/TodayTab.jsx](/Users/qiao/Downloads/nova-quant/src/components/TodayTab.jsx) 拆成按首屏责任划分的子模块
+3. 把 [src/server/api/queries.ts](src/server/api/queries.ts) 先拆出 runtime reads 和 browse reads
+4. 把 [src/components/TodayTab.jsx](src/components/TodayTab.jsx) 拆成按首屏责任划分的子模块
 5. 给性能回归测试新增“首轮请求扇出不能反弹”的门禁
 
 ## 不建议现在做的事

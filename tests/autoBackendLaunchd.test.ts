@@ -30,8 +30,8 @@ describe('auto-backend launchd helper', () => {
   it('renders a launchd plist with keepalive and repo-specific logs', () => {
     const plist = buildLaunchdPlist({
       label: 'com.novaquant.auto-backend',
-      repoDir: '/Users/qiao/Downloads/nova-quant',
-      logsDir: '/Users/qiao/Downloads/nova-quant/logs/auto-backend',
+      repoDir: '/tmp/nova-quant',
+      logsDir: '/tmp/nova-quant/logs/auto-backend',
       userId: 'guest-default',
       port: 8787,
       deriveIntervalSec: 300,
@@ -47,10 +47,8 @@ describe('auto-backend launchd helper', () => {
 
     expect(plist).toContain('<key>KeepAlive</key>');
     expect(plist).toContain('<true/>');
-    expect(plist).toContain('/Users/qiao/Downloads/nova-quant');
-    expect(plist).toContain(
-      path.join('/Users/qiao/Downloads/nova-quant/logs/auto-backend', 'stdout.log'),
-    );
+    expect(plist).toContain('/tmp/nova-quant');
+    expect(plist).toContain(path.join('/tmp/nova-quant/logs/auto-backend', 'stdout.log'));
     expect(plist).toContain('com.novaquant.auto-backend');
   });
 });

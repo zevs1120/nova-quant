@@ -14,7 +14,7 @@
 - `npm test`：运行全部 Vitest 测试。
 - `npm run typecheck`：执行严格 TypeScript 检查。
 - `npm run build`：构建前端产物。
-- `npm run verify`：串行执行 `lint`、`typecheck`、`test`、根目录 `build`、`build:landing`（`landing/` 独立站点），提交前保持通过。
+- `npm run verify`：串行执行 `lint`、`format:check`、`typecheck`、`test`、根目录 `build`、`build:landing`（`landing/`）、`build:admin`（`admin/`），提交前保持通过。
 
 ## 编码风格与命名约定
 

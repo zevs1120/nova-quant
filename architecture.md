@@ -1,7 +1,7 @@
 # Nova Quant — Architecture Overview
 
-> 自动扫描生成 · 最后更新: 2026-04-05
-> Version: 10.22.1 (build 84) — 与 `package.json` / `src/config/version.js` 保持一致
+> 自动扫描生成 · 最后更新: 2026-04-07
+> Version: 10.22.28 (build 111) — 与 `package.json` / `src/config/version.js` 保持一致
 
 ---
 
@@ -55,7 +55,7 @@ nova-quant/
 
 | 类别       | 选型                                                      |
 | ---------- | --------------------------------------------------------- |
-| 前端框架   | React 18 + Vite 5, JSX                                    |
+| 前端框架   | React 18 + Vite 8, JSX                                    |
 | 后端框架   | Express 5 (TypeScript)                                    |
 | 业务数据库 | Supabase Postgres — `NOVA_DATA_DATABASE_URL`              |
 | 认证数据库 | Supabase Postgres — `NOVA_AUTH_DATABASE_URL`              |
@@ -184,7 +184,7 @@ nova-quant/
 │   ├── signal.schema.json        # 信号合约 JSON Schema
 │   └── README.md
 │
-├── tests/                        # 约 160 个测试文件 (Vitest，按特性拆分)
+├── tests/                        # 约 220+ 个 Vitest 测试文件（全量见 `npm test` 摘要；含 hooks / admin / e2e 等）
 ├── scripts/                      # 约 37 个运维脚本 (mjs/ts/js)
 ├── config/                       # 摄取配置
 ├── docs/                         # 专题设计与运维文档（具体条目以目录为准）
@@ -406,7 +406,7 @@ alpha_promotion_guard/→ 晋升守卫 (Shadow → Canary → Prod)
 
 ### 7.1 技术选型
 
-- **框架**: React 18 + Vite 5 (SPA)
+- **框架**: React 18 + Vite 8 (SPA)
 - **样式**: `src/styles/` 领域 CSS；全局入口 `styles.css` 控制首屏 cascade，Today / Nova 等重页面在组件内 `import` 专用表（如 `today-final.css`、`ai-rebuild.css`）
 - **路由/状态**: App.jsx 编排 + 11 个 custom hooks (无第三方路由)；主导航为 **Today / Nova / Browse / My** 四 Tab
 - **代码分割**: `App.jsx` 对绝大多数 Tab 页面、`FirstRunSetupFlow`、`OnboardingFlow` 及常用弹层（如 `AboutModal`、会员/结账 Sheet）使用 `React.lazy` + `Suspense`，配套 CSS 随 chunk 加载；`src/styles.css` 仅聚合首屏必需的全局样式模块
@@ -614,7 +614,7 @@ src/research/
 ## 14. 测试体系
 
 - **框架**: Vitest 4 + Supertest
-- **测试文件**: 约 160 个 (均在 `tests/` 目录；含 `tests/hooks/`、`tests/admin/`)
+- **测试文件**: 约 220+ 个 (均在 `tests/` 目录；含 `tests/hooks/`、`tests/admin/`；不含默认 Vitest 排除的 `tests/pro-env/**`)
 - **覆盖率**: `@vitest/coverage-v8`
 - **策略与性能**: 默认并行执行；避免无故全局串行。详见 `docs/TESTING.md`（含前端 `src/utils` 工具链测试建议）。
 

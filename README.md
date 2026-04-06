@@ -81,7 +81,7 @@ Primary application layers:
 - `src/styles/today-deck.css` now owns Today deck and stack visuals, keeping the remaining climate/detail styling in `src/styles/today-final.css`
 - `src/styles/onboarding-shell.css` now owns onboarding shell/poster framing, while `src/styles/onboarding.css` continues the flow-specific surfaces
 - `src/styles.css` → `src/styles/`: global first-paint CSS only (base → brand-reset, etc.); heavy surfaces such as Today, Ask Nova, holdings, and onboarding pull their own stylesheets inside lazy-loaded components so Vite can split CSS with the JS chunk
-- `src/server/api/app.ts`: canonical API surface for frontend + evidence + assistant (109 routes)
+- `src/server/api/app.ts`: canonical API surface for frontend + evidence + assistant (`Express` 聚合 `src/server/api/routes/*` 下 18 个域路由与若干专用端点；具体方法数以路由模块为准)
 - `src/server/auth/postgresStore.ts`: Postgres-backed auth store (users, sessions, roles, password resets, user state sync)
 - `src/server/auth/service.ts`: authentication service with session-scoped middleware and RBAC
 - `src/server/decision/engine.ts`: decision engine for risk-adjudicated, portfolio-aware action cards

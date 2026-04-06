@@ -1,6 +1,6 @@
 ---
 name: verify
-description: Run the full verification gate (lint + typecheck + test + build). Use before marking work done or before commits.
+description: Run the full verification gate (lint + format check + typecheck + test + builds). Use before marking work done or before commits.
 ---
 
 Run the project's full verification pipeline:
@@ -9,7 +9,7 @@ Run the project's full verification pipeline:
 npm run verify
 ```
 
-This executes sequentially: `lint` -> `typecheck` -> `test` -> `build` -> `build:landing` (Vite app in `landing/`).
+This executes sequentially: `lint` -> `format:check` -> `typecheck` -> `test` -> `build` (repo root Vite) -> `build:landing` -> `build:admin`.
 
 If any step fails:
 
@@ -25,3 +25,5 @@ For faster iteration on a specific failure, run the individual command:
 - Tests: `npm test` (or `npx vitest run tests/<file>.test.ts` for a single test)
 - Build: `npm run build`
 - Landing: `npm run build:landing`
+- Admin: `npm run build:admin`
+- Format: `npm run format:check`
