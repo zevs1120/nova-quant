@@ -137,6 +137,7 @@ describe('useAppData', () => {
     );
     await waitFor(() => expect(result.current.hasLoaded).toBe(true));
     expect(result.current.data.signals?.[0]?.id).toBe('cached');
+    expect(fetchJson).not.toHaveBeenCalled();
   });
 
   it('does not re-fetch runtime summary endpoints when runtime-state already carries them', async () => {

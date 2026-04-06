@@ -4,9 +4,10 @@ import { mapExecutionToTrade, runWhenIdle } from '../utils/appHelpers';
 import { runQuantPipeline } from '../engines/pipeline';
 import { FORCE_DEMO_BUILD } from '../demo/runtime';
 
-const APP_DATA_CACHE_TTL_MS = 90_000;
+const APP_DATA_CACHE_TTL_MS = 600_000;
 const APP_DATA_CACHE_PREFIX = 'nova-app-data-cache:v2';
-const APP_DATA_REFRESH_MS = 300_000;
+const APP_DATA_BACKGROUND_REVALIDATE_MS = 300_000;
+const APP_DATA_REFRESH_MS = 600_000;
 const appDataMemoryCache = new Map();
 
 function buildAppDataCacheKey({ userId, market, assetClass }) {
@@ -43,6 +44,15 @@ function writeAppDataSnapshot(cacheKey, snapshot) {
   try {
     window.localStorage.setItem(`${APP_DATA_CACHE_PREFIX}:${cacheKey}`, JSON.stringify(payload));
   } catch {}
+}
+
+function getAppDataSnapshotAge(snapshot) {
+  if (!snapshot?.savedAt) return Number.POSITIVE_INFINITY;
+  return Math.max(0, Date.now() - snapshot.savedAt);
+}
+
+function shouldBackgroundRevalidate(snapshot) {
+  return getAppDataSnapshotAge(snapshot) >= APP_DATA_BACKGROUND_REVALIDATE_MS;
 }
 
 function updateCachedAppData(cacheKey, rawData, updater) {
@@ -228,6 +238,7 @@ export function useAppData({
       assetClass,
     });
     const cachedSnapshot = readAppDataSnapshot(cacheKey);
+    const readCurrentSnapshot = () => readAppDataSnapshot(cacheKey);
 
     if (cachedSnapshot?.data) {
       setData(cachedSnapshot.data);
@@ -388,17 +399,19 @@ export function useAppData({
       }
     }
 
-    if (cachedSnapshot?.data) {
-      void load({ silent: true });
-    } else {
+    if (!cachedSnapshot?.data) {
       void load();
+    } else if (refreshNonce > 0 || shouldBackgroundRevalidate(cachedSnapshot)) {
+      void load({ silent: true });
     }
     const handleVisibilityChange = () => {
       if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+      if (!shouldBackgroundRevalidate(readCurrentSnapshot())) return;
       void load({ silent: true });
     };
     const refresh = setInterval(() => {
       if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+      if (!shouldBackgroundRevalidate(readCurrentSnapshot())) return;
       void load({ silent: true });
     }, APP_DATA_REFRESH_MS);
     if (typeof document !== 'undefined') {

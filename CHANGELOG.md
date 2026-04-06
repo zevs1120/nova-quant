@@ -4,6 +4,20 @@ NovaQuant 所有重要变更记录于此。
 
 ## 10.22.24 (2026-04-05)
 
+### ⚡ P25 客户端读链路降耗 (Client Read Path Cost Reduction)
+
+- **`auth/session` 增加页内短 TTL 去重**
+  - `src/hooks/useAuth.js` 现在会对 `/api/auth/session` 做 60 秒页内缓存和并发请求去重。
+  - 同一页面生命周期里，多处认证 hydration 不会重复打同一条用户态会话接口；登录、登出和 Supabase 会话变化时仍会强制刷新，避免身份状态滞后。
+
+- **`runtime-state` 只在快照变旧后再后台重拉**
+  - `src/hooks/useAppData.js` 将本地快照 TTL 从 90 秒放宽到 10 分钟，并把后台静默重拉门槛设为快照超过 5 分钟。
+  - 这样有新鲜缓存时，App 首屏不会再无条件触发一次 `/api/runtime-state`，可见体验不变，但 Function Invocations 和 Fluid Active CPU 会显著下降。
+
+- **补齐 Hook 回归护栏**
+  - `tests/hooks/useAuth.hook.test.ts` 新增并发 hydration 去重校验。
+  - `tests/hooks/useAppData.hook.test.ts` 新增新鲜快照命中时不再立即重拉 runtime-state 的校验。
+
 ### 🔧 P24 API Build Validation 调整 (API Build Validation Alignment)
 
 - **`build:api` 改为 API 入口可加载校验**

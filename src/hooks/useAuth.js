@@ -14,6 +14,34 @@ import { DEFAULT_AUTH_WATCHLIST } from '../config/appConstants';
 import { resolveSiteUrl, shouldRedirectToSiteAfterLogout } from '../shared/routes/publicUrls.js';
 
 const RESILIENT_LOGIN_EMAILS = new Set(['zevs1120@gmail.com']);
+const SESSION_CACHE_TTL_MS = 60_000;
+let sessionPayloadCache = null;
+let sessionHydrationPromise = null;
+
+function readSessionPayloadCache() {
+  if (!sessionPayloadCache) return null;
+  if (sessionPayloadCache.savedAt + SESSION_CACHE_TTL_MS < Date.now()) {
+    sessionPayloadCache = null;
+    return null;
+  }
+  return sessionPayloadCache.payload;
+}
+
+function writeSessionPayloadCache(payload) {
+  sessionPayloadCache = {
+    savedAt: Date.now(),
+    payload,
+  };
+}
+
+function clearSessionPayloadCache() {
+  sessionPayloadCache = null;
+  sessionHydrationPromise = null;
+}
+
+export function __resetUseAuthSessionCacheForTests() {
+  clearSessionPayloadCache();
+}
 
 function classifySupabaseLoginError(error, locale) {
   const zh = locale?.startsWith('zh');
@@ -169,6 +197,7 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
 
   const resetLocalAuthState = useCallback(
     ({ clearProfile = false } = {}) => {
+      clearSessionPayloadCache();
       setHoldings([]);
       setWatchlist([]);
       setExecutions([]);
@@ -269,8 +298,27 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
   );
 
   const hydrateSessionFromApi = useCallback(
-    async ({ resetNavigation = false } = {}) => {
-      const payload = await fetchJson('/api/auth/session');
+    async ({ resetNavigation = false, force = false } = {}) => {
+      const cachedPayload = force ? null : readSessionPayloadCache();
+      const request =
+        cachedPayload !== null
+          ? Promise.resolve(cachedPayload)
+          : sessionHydrationPromise ||
+            Promise.resolve()
+              .then(() => fetchJson('/api/auth/session'))
+              .then((payload) => {
+                writeSessionPayloadCache(payload);
+                return payload;
+              })
+              .finally(() => {
+                sessionHydrationPromise = null;
+              });
+
+      if (!cachedPayload) {
+        sessionHydrationPromise = request;
+      }
+
+      const payload = await request;
       if (payload?.authenticated && payload?.user) {
         applyAuthenticatedProfile(payload.user, payload.state || null, {
           resetNavigation,
@@ -300,7 +348,11 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
         });
         const payload = await response.json().catch(() => null);
         if (response.ok && payload?.authenticated && payload?.user) {
-          const authenticated = await hydrateSessionFromApi({ resetNavigation: true });
+          clearSessionPayloadCache();
+          const authenticated = await hydrateSessionFromApi({
+            resetNavigation: true,
+            force: true,
+          });
           if (authenticated) {
             return { ok: true };
           }
@@ -383,7 +435,11 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
         } = await supabase.auth.getSession();
         if (cancelled) return;
         if (session?.access_token) {
-          const hydrated = await hydrateSessionFromApi({ resetNavigation: false });
+          clearSessionPayloadCache();
+          const hydrated = await hydrateSessionFromApi({
+            resetNavigation: false,
+            force: true,
+          });
           if (!hydrated) {
             await supabase.auth.signOut().catch(() => {});
           }
@@ -419,7 +475,11 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
           return;
         }
         if (session?.access_token) {
-          void hydrateSessionFromApi({ resetNavigation: event === 'SIGNED_IN' })
+          clearSessionPayloadCache();
+          void hydrateSessionFromApi({
+            resetNavigation: event === 'SIGNED_IN',
+            force: true,
+          })
             .then(async (hydrated) => {
               if (!hydrated) {
                 await supabase.auth.signOut().catch(() => {});
@@ -477,7 +537,11 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
               error: classifySupabaseLoginError(error, locale),
             };
           }
-          const authenticated = await hydrateSessionFromApi({ resetNavigation: true });
+          clearSessionPayloadCache();
+          const authenticated = await hydrateSessionFromApi({
+            resetNavigation: true,
+            force: true,
+          });
           if (!authenticated) {
             await supabase.auth.signOut().catch(() => {});
           }

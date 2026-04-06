@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useAuth } from '../../src/hooks/useAuth.js';
+import { __resetUseAuthSessionCacheForTests, useAuth } from '../../src/hooks/useAuth.js';
 
 const ensureSupabaseBrowserClientMock = vi.hoisted(() =>
   vi.fn<() => Promise<any>>(() => Promise.resolve(null)),
@@ -48,6 +48,7 @@ function authWrapperProps() {
 
 describe('useAuth', () => {
   beforeEach(() => {
+    __resetUseAuthSessionCacheForTests();
     fetchApi.mockClear();
     fetchApi.mockResolvedValue(
       new Response(JSON.stringify({ ok: true }), {
@@ -64,6 +65,23 @@ describe('useAuth', () => {
     const { result } = renderHook(() => useAuth(props));
     await waitFor(() => expect(result.current.authHydrated).toBe(true));
     expect(result.current.authSession).toBe(null);
+  });
+
+  it('dedupes session hydration across concurrent hooks', async () => {
+    const fetchJson = vi.fn().mockResolvedValue({ authenticated: false });
+    const props = {
+      ...authWrapperProps(),
+      fetchJson,
+    };
+
+    const first = renderHook(() => useAuth(props));
+    const second = renderHook(() => useAuth(props));
+
+    await waitFor(() => expect(first.result.current.authHydrated).toBe(true));
+    await waitFor(() => expect(second.result.current.authHydrated).toBe(true));
+
+    expect(fetchJson).toHaveBeenCalledTimes(1);
+    expect(fetchJson).toHaveBeenCalledWith('/api/auth/session');
   });
 
   it('applyAuthenticatedProfile sets session and admin flag', async () => {
