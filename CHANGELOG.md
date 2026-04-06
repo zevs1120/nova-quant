@@ -2,6 +2,25 @@
 
 NovaQuant 所有重要变更记录于此。
 
+## 10.22.27 (2026-04-07)
+
+### 🚀 P32 Vercel API Deployment Reset (Vercel API 部署模型重置)
+
+- **根部署正式收口为 API-only**
+  - [vercel.json](/Users/qiao/Downloads/nova-quant/vercel.json) 现在明确使用 `buildCommand: npm run build:api` 与 `outputDirectory: dist`。
+  - 根路由不再假装自己是 SPA：`/` 直接回到 `/api`，`/healthz` 直接回到 API health，`/api/:route*` 继续统一进入 `api/index.ts`。
+
+- **`build:api` 变成稳定可交付的构建流程**
+  - 新增 [scripts/build-api.mjs](/Users/qiao/Downloads/nova-quant/scripts/build-api.mjs)，会先验证 `api/index.ts` 可加载，再稳定产出 `dist/api-only.txt` 与 `dist/index.html`。
+  - 这样即便 Vercel 项目此前被按静态输出目录习惯配置，也不会再因为缺少 `dist` 而失败。
+
+- **部署边界测试补齐**
+  - [tests/deploymentSurfaceConfig.test.ts](/Users/qiao/Downloads/nova-quant/tests/deploymentSurfaceConfig.test.ts) 现在会守住 root deployment 的 `buildCommand / outputDirectory / api-only rewrites`。
+  - 新增 [tests/buildApiScript.test.ts](/Users/qiao/Downloads/nova-quant/tests/buildApiScript.test.ts)，验证 `build:api` 会稳定生成 API-only 的 `dist` 产物。
+
+- **部署文档同步**
+  - 新增 [docs/VERCEL_API_DEPLOYMENT.md](/Users/qiao/Downloads/nova-quant/docs/VERCEL_API_DEPLOYMENT.md)，把 `nova-quant-api` 的部署合同写清楚，避免以后再回到“前端站点 / API 项目”混用状态。
+
 ## 10.22.26 (2026-04-07)
 
 ### 🧹 P31 Provider Entry Quality Gate (Provider 入口预清洗与入库前拦截)

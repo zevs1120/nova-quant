@@ -31,14 +31,22 @@ describe('deployment surface config', () => {
   it('keeps the repository root deployment api-only', () => {
     const rootConfig = readJson('vercel.json');
 
+    expect(rootConfig.buildCommand).toBe('npm run build:api');
+    expect(rootConfig.outputDirectory).toBe('dist');
+
     expect(rootConfig.rewrites).toContainEqual({
       source: '/api/:route*',
       destination: '/api?route=:route*',
     });
 
     expect(rootConfig.rewrites).toContainEqual({
-      source: '/(.*)',
-      destination: '/index.html',
+      source: '/healthz',
+      destination: '/api?route=healthz',
+    });
+
+    expect(rootConfig.rewrites).toContainEqual({
+      source: '/',
+      destination: '/api',
     });
   });
 });

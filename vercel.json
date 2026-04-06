@@ -1,12 +1,18 @@
 {
+  "buildCommand": "npm run build:api",
+  "outputDirectory": "dist",
   "rewrites": [
     {
       "source": "/api/:route*",
       "destination": "/api?route=:route*"
     },
     {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "source": "/healthz",
+      "destination": "/api?route=healthz"
+    },
+    {
+      "source": "/",
+      "destination": "/api"
     }
   ],
   "functions": {
