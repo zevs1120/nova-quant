@@ -2,6 +2,26 @@
 
 NovaQuant 所有重要变更记录于此。
 
+## 10.22.25 (2026-04-07)
+
+### 🧾 P30 Ingest Anomaly Density Summary (异常聚合摘要与近期密度门禁)
+
+- **repository 新增 ingest anomaly 聚合摘要读取**
+  - `src/server/db/repository.ts` 和 `src/server/db/postgresRuntimeRepository.ts` 现在都支持按 `asset/timeframe/window` 聚合最近的 `ingest_anomalies`。
+  - 汇总结果会带出 `totalCount`、`distinctTsCount`、`latestTsOpen`、`latestCreatedAt` 和 `countsByType`，不再只能逐条翻 anomaly 明细。
+
+- **runtime 改为读取最近异常密度，而不是只看当前 bar 集合**
+  - `src/server/quant/runtimeDerivation.ts` 现在会把最近窗口内的 `PRICE_ANOMALY / OHLC_ENVELOPE_ANOMALY / ZERO_VOLUME_ANOMALY` 聚合成异常密度。
+  - 即便当前存量 bars 看起来干净，只要 provider 最近拦掉的坏 bar 太多，runtime 也会把对应资产降级为 `INSUFFICIENT_DATA`。
+
+- **freshness / event stats 带出 anomaly density**
+  - `freshnessSummary.rows` 和 `event_stats_json` 现在都会附带 `recent_anomaly_count`、`recent_anomaly_density`、`recent_price_anomaly_density` 和 `recent_ingest_anomalies`。
+  - 前后端因此能区分“当前 bars 本身脏”与“最近 provider 入口持续在拦坏数据”这两类问题。
+
+- **回归测试同步**
+  - `tests/ingestionValidation.test.ts` 现在会验证 anomaly summary 的聚合计数。
+  - `tests/runtimeDerivation.test.ts` 新增“当前 bars 干净但近期价格异常密度过高时仍触发 runtime gate”的断言。
+
 ## 10.22.24 (2026-04-05)
 
 ### 🧪 P29 Runtime Admission Gate (Runtime 数据准入门禁)

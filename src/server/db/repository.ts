@@ -65,6 +65,15 @@ function nowMs(): number {
   return Date.now();
 }
 
+export type IngestAnomalySummary = {
+  timeframe: Timeframe;
+  totalCount: number;
+  distinctTsCount: number;
+  latestTsOpen: number | null;
+  latestCreatedAt: number | null;
+  countsByType: Record<string, number>;
+};
+
 export class MarketRepository {
   constructor(private readonly db: SyncDb) {}
 
@@ -503,6 +512,78 @@ export class MarketRepository {
         args.detail,
         nowMs(),
       );
+  }
+
+  getIngestAnomalySummary(args: {
+    assetId: number;
+    timeframe: Timeframe;
+    startTsOpen?: number;
+    endTsOpen?: number;
+  }): IngestAnomalySummary {
+    const where: string[] = ['asset_id = @asset_id', 'timeframe = @timeframe'];
+    if (args.startTsOpen !== undefined) where.push('ts_open >= @start_ts_open');
+    if (args.endTsOpen !== undefined) where.push('ts_open <= @end_ts_open');
+    const whereSql = where.join(' AND ');
+
+    const grouped = this.db
+      .prepare(
+        `
+          SELECT anomaly_type, COUNT(*) AS count
+          FROM ingest_anomalies
+          WHERE ${whereSql}
+          GROUP BY anomaly_type
+        `,
+      )
+      .all({
+        asset_id: args.assetId,
+        timeframe: args.timeframe,
+        start_ts_open: args.startTsOpen,
+        end_ts_open: args.endTsOpen,
+      }) as Array<{ anomaly_type: string; count: number }>;
+
+    const aggregate = this.db
+      .prepare(
+        `
+          SELECT
+            COUNT(*) AS total_count,
+            COUNT(DISTINCT ts_open) AS distinct_ts_count,
+            MAX(ts_open) AS latest_ts_open,
+            MAX(created_at) AS latest_created_at
+          FROM ingest_anomalies
+          WHERE ${whereSql}
+        `,
+      )
+      .get({
+        asset_id: args.assetId,
+        timeframe: args.timeframe,
+        start_ts_open: args.startTsOpen,
+        end_ts_open: args.endTsOpen,
+      }) as
+      | {
+          total_count?: number;
+          distinct_ts_count?: number;
+          latest_ts_open?: number | null;
+          latest_created_at?: number | null;
+        }
+      | undefined;
+
+    return {
+      timeframe: args.timeframe,
+      totalCount: Number(aggregate?.total_count || 0),
+      distinctTsCount: Number(aggregate?.distinct_ts_count || 0),
+      latestTsOpen:
+        aggregate?.latest_ts_open === null || aggregate?.latest_ts_open === undefined
+          ? null
+          : Number(aggregate.latest_ts_open),
+      latestCreatedAt:
+        aggregate?.latest_created_at === null || aggregate?.latest_created_at === undefined
+          ? null
+          : Number(aggregate.latest_created_at),
+      countsByType: grouped.reduce<Record<string, number>>((acc, row) => {
+        acc[String(row.anomaly_type || '')] = Number(row.count || 0);
+        return acc;
+      }, {}),
+    };
   }
 
   upsertSignal(signal: SignalContract): void {

@@ -59,9 +59,20 @@ describe('ingestion validation anomalies', () => {
         'SELECT anomaly_type FROM ingest_anomalies WHERE asset_id = ? ORDER BY created_at ASC',
       )
       .all(asset.asset_id) as Array<{ anomaly_type: string }>;
+    const summary = repo.getIngestAnomalySummary({
+      assetId: asset.asset_id,
+      timeframe: '1d',
+      startTsOpen: now - 10 * 86_400_000,
+      endTsOpen: now,
+    });
 
     expect(anomalies.map((row) => row.anomaly_type)).toContain('OHLC_ENVELOPE_ANOMALY');
     expect(anomalies.map((row) => row.anomaly_type)).toContain('ZERO_VOLUME_ANOMALY');
     expect(anomalies.map((row) => row.anomaly_type)).toContain('PRICE_ANOMALY');
+    expect(summary.totalCount).toBe(3);
+    expect(summary.distinctTsCount).toBe(2);
+    expect(summary.countsByType.PRICE_ANOMALY).toBe(1);
+    expect(summary.countsByType.OHLC_ENVELOPE_ANOMALY).toBe(1);
+    expect(summary.countsByType.ZERO_VOLUME_ANOMALY).toBe(1);
   });
 });

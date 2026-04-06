@@ -274,4 +274,54 @@ describe('derive runtime state', () => {
     const freshnessRow = freshnessRows.find((row) => row.symbol === 'SPY');
     expect(freshnessRow?.quality_gate_reason).toBe('TOO_MANY_INVALID_BARS');
   });
+
+  it('gates runtime derivation when recent ingest anomaly density stays too high', () => {
+    const db = new Database(':memory:');
+    ensureSchema(db);
+    const repo = new MarketRepository(db);
+    const asset = repo.upsertAsset({
+      symbol: 'SPY',
+      market: 'US',
+      venue: 'STOOQ',
+    });
+    const now = Date.now();
+    const cleanBars = buildTrendBars(now - 120 * 86_400_000, 86_400_000, 450, 120);
+
+    repo.upsertOhlcvBars(asset.asset_id, '1d', cleanBars, 'TEST');
+
+    for (let index = 0; index < 40; index += 1) {
+      const tsOpen = cleanBars[cleanBars.length - 1 - index].ts_open;
+      repo.logAnomaly({
+        assetId: asset.asset_id,
+        timeframe: '1d',
+        tsOpen,
+        anomalyType: 'PRICE_ANOMALY',
+        detail: `Provider dropped bad SPY bar at ${tsOpen}`,
+      });
+    }
+
+    const runtime = deriveRuntimeState({
+      repo,
+      userId: 'anomaly-user',
+      riskProfile: {
+        user_id: 'anomaly-user',
+        profile_key: 'balanced',
+        max_loss_per_trade: 1,
+        max_daily_loss: 3,
+        max_drawdown: 12,
+        exposure_cap: 55,
+        leverage_cap: 2,
+        updated_at_ms: now,
+      },
+    });
+
+    expect(runtime.sourceStatus).toBe('INSUFFICIENT_DATA');
+    expect(runtime.marketState).toHaveLength(0);
+    const freshnessRows = Array.isArray((runtime.freshnessSummary as { rows?: unknown }).rows)
+      ? ((runtime.freshnessSummary as { rows?: unknown[] }).rows as Record<string, unknown>[])
+      : [];
+    const freshnessRow = freshnessRows.find((row) => row.symbol === 'SPY');
+    expect(freshnessRow?.quality_gate_reason).toBe('TOO_MANY_RECENT_PRICE_ANOMALIES');
+    expect(Number(freshnessRow?.recent_anomaly_count || 0)).toBe(40);
+  });
 });

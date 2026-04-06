@@ -60,7 +60,7 @@ import type {
   NovaTaskRunSlimRecord,
   NovaReviewLabelRecord,
 } from '../types.js';
-import { MarketRepository } from './repository.js';
+import { MarketRepository, type IngestAnomalySummary } from './repository.js';
 import {
   beginTransactionSync,
   commitTransactionSync,
@@ -801,6 +801,65 @@ export class PostgresRuntimeRepository extends MarketRepository {
         nowMs(),
       ],
     );
+  }
+
+  getIngestAnomalySummary(args: {
+    assetId: number;
+    timeframe: Timeframe;
+    startTsOpen?: number;
+    endTsOpen?: number;
+  }): IngestAnomalySummary {
+    const grouped = queryRowsSync<Array<{ anomaly_type: string; count: number }>[number]>(
+      `
+        SELECT anomaly_type, COUNT(*) AS count
+        FROM ${qualifyBusinessTable('ingest_anomalies')}
+        WHERE asset_id = $1
+          AND timeframe = $2
+          AND ($3::bigint IS NULL OR ts_open >= $3)
+          AND ($4::bigint IS NULL OR ts_open <= $4)
+        GROUP BY anomaly_type
+      `,
+      [args.assetId, args.timeframe, args.startTsOpen ?? null, args.endTsOpen ?? null],
+    );
+
+    const aggregate = queryRowSync<{
+      total_count?: number;
+      distinct_ts_count?: number;
+      latest_ts_open?: number | null;
+      latest_created_at?: number | null;
+    }>(
+      `
+        SELECT
+          COUNT(*) AS total_count,
+          COUNT(DISTINCT ts_open) AS distinct_ts_count,
+          MAX(ts_open) AS latest_ts_open,
+          MAX(created_at) AS latest_created_at
+        FROM ${qualifyBusinessTable('ingest_anomalies')}
+        WHERE asset_id = $1
+          AND timeframe = $2
+          AND ($3::bigint IS NULL OR ts_open >= $3)
+          AND ($4::bigint IS NULL OR ts_open <= $4)
+      `,
+      [args.assetId, args.timeframe, args.startTsOpen ?? null, args.endTsOpen ?? null],
+    );
+
+    return {
+      timeframe: args.timeframe,
+      totalCount: Number(aggregate?.total_count || 0),
+      distinctTsCount: Number(aggregate?.distinct_ts_count || 0),
+      latestTsOpen:
+        aggregate?.latest_ts_open === null || aggregate?.latest_ts_open === undefined
+          ? null
+          : Number(aggregate.latest_ts_open),
+      latestCreatedAt:
+        aggregate?.latest_created_at === null || aggregate?.latest_created_at === undefined
+          ? null
+          : Number(aggregate.latest_created_at),
+      countsByType: grouped.reduce<Record<string, number>>((acc, row) => {
+        acc[String(row.anomaly_type || '')] = Number(row.count || 0);
+        return acc;
+      }, {}),
+    };
   }
 
   upsertSignal(signal: SignalContract): void {

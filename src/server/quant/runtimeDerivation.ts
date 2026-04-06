@@ -11,6 +11,7 @@ import type {
   UserRiskProfileRecord,
 } from '../types.js';
 import { MarketRepository } from '../db/repository.js';
+import type { IngestAnomalySummary } from '../db/repository.js';
 import { RUNTIME_STATUS, type RuntimeStatus } from '../runtimeStatus.js';
 import {
   buildPandaAdaptiveDecision,
@@ -24,6 +25,7 @@ import { buildNewsContext } from '../news/provider.js';
 import { applyAlphaRuntimeOverlays } from '../alpha_shadow_runner/index.js';
 import type { NewsItemRecord } from '../types.js';
 import { inspectBarQuality } from '../ingestion/normalize.js';
+import { timeframeToMs } from '../utils/time.js';
 
 const MS_HOUR = 3600_000;
 
@@ -42,6 +44,17 @@ type BarRuntimeQuality = {
   droppedCount: number;
   envelopeAdjustedCount: number;
   zeroVolumeCount: number;
+  blocked: boolean;
+  reason: string | null;
+};
+
+type RecentAnomalyPressure = {
+  totalCount: number;
+  distinctTsCount: number;
+  totalDensity: number;
+  priceDensity: number;
+  envelopeDensity: number;
+  zeroVolumeDensity: number;
   blocked: boolean;
   reason: string | null;
 };
@@ -314,6 +327,43 @@ function parseBars(
       envelopeAdjustedCount,
       zeroVolumeCount,
     }),
+  };
+}
+
+function assessRecentAnomalyPressure(args: {
+  summary: IngestAnomalySummary;
+  quality: BarRuntimeQuality;
+}): RecentAnomalyPressure {
+  const counts = args.summary.countsByType || {};
+  const priceCount = Number(counts.PRICE_ANOMALY || 0);
+  const envelopeCount = Number(counts.OHLC_ENVELOPE_ANOMALY || 0);
+  const zeroVolumeCount = Number(counts.ZERO_VOLUME_ANOMALY || 0);
+  const totalCount = Number(args.summary.totalCount || 0);
+  const distinctTsCount = Number(args.summary.distinctTsCount || 0);
+
+  const denominator = Math.max(
+    1,
+    args.quality.rawCount + priceCount,
+    args.quality.validCount + priceCount,
+  );
+  const totalDensity = totalCount / denominator;
+  const priceDensity = priceCount / denominator;
+  const envelopeDensity = envelopeCount / denominator;
+  const zeroVolumeDensity = zeroVolumeCount / denominator;
+
+  let reason: string | null = null;
+  if (priceDensity > 0.2) reason = 'TOO_MANY_RECENT_PRICE_ANOMALIES';
+  else if (totalDensity > 0.45) reason = 'TOO_MANY_RECENT_INGEST_ANOMALIES';
+
+  return {
+    totalCount,
+    distinctTsCount,
+    totalDensity: round(totalDensity, 4),
+    priceDensity: round(priceDensity, 4),
+    envelopeDensity: round(envelopeDensity, 4),
+    zeroVolumeDensity: round(zeroVolumeDensity, 4),
+    blocked: reason !== null,
+    reason,
   };
 }
 
@@ -1454,7 +1504,24 @@ export function deriveRuntimeState(params: {
 
     const timeframe = timeframeForMarket(target.market);
     const { bars, quality } = parseBars(repo, asset.asset_id, timeframe, 320);
-    if (quality.blocked || bars.length < 80) {
+    const latestObservedTs =
+      bars.length > 0
+        ? bars[bars.length - 1].ts_open
+        : (repo.getLatestTsOpen(asset.asset_id, timeframe) ?? null);
+    const anomalyWindowStart =
+      latestObservedTs === null ? undefined : latestObservedTs - timeframeToMs(timeframe) * 320;
+    const anomalySummary = repo.getIngestAnomalySummary({
+      assetId: asset.asset_id,
+      timeframe,
+      startTsOpen: anomalyWindowStart,
+      endTsOpen: latestObservedTs === null ? undefined : latestObservedTs,
+    });
+    const anomalyPressure = assessRecentAnomalyPressure({
+      summary: anomalySummary,
+      quality,
+    });
+
+    if (quality.blocked || anomalyPressure.blocked || bars.length < 80) {
       freshnessRows.push({
         market: target.market,
         symbol: target.symbol,
@@ -1462,10 +1529,13 @@ export function deriveRuntimeState(params: {
         status: RUNTIME_STATUS.INSUFFICIENT_DATA,
         age_hours: null,
         bar_count: bars.length,
-        quality_gate_reason: quality.reason,
+        quality_gate_reason: quality.reason || anomalyPressure.reason,
         dropped_bars: quality.droppedCount,
         envelope_repairs: quality.envelopeAdjustedCount,
         zero_volume_bars: quality.zeroVolumeCount,
+        recent_anomaly_count: anomalySummary.totalCount,
+        recent_anomaly_density: anomalyPressure.totalDensity,
+        recent_price_anomaly_density: anomalyPressure.priceDensity,
       });
       continue;
     }
@@ -1488,6 +1558,9 @@ export function deriveRuntimeState(params: {
       dropped_bars: quality.droppedCount,
       envelope_repairs: quality.envelopeAdjustedCount,
       zero_volume_bars: quality.zeroVolumeCount,
+      recent_anomaly_count: anomalySummary.totalCount,
+      recent_anomaly_density: anomalyPressure.totalDensity,
+      recent_price_anomaly_density: anomalyPressure.priceDensity,
     });
 
     const baselineRule = selectRule(ctx);
@@ -1530,6 +1603,17 @@ export function deriveRuntimeState(params: {
         dropped_bars: quality.droppedCount,
         envelope_repairs: quality.envelopeAdjustedCount,
         zero_volume_bars: quality.zeroVolumeCount,
+      },
+      recent_ingest_anomalies: {
+        total_count: anomalySummary.totalCount,
+        distinct_ts_count: anomalySummary.distinctTsCount,
+        latest_ts_open: anomalySummary.latestTsOpen,
+        latest_created_at: anomalySummary.latestCreatedAt,
+        counts_by_type: anomalySummary.countsByType,
+        density: anomalyPressure.totalDensity,
+        price_density: anomalyPressure.priceDensity,
+        envelope_density: anomalyPressure.envelopeDensity,
+        zero_volume_density: anomalyPressure.zeroVolumeDensity,
       },
       panda: {
         active_model_id: activeModel.modelId,
