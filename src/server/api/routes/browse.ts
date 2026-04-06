@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type Response } from 'express';
 import { parseMarket, asyncRoute } from '../helpers.js';
 import {
   listAssetsPrimary,
@@ -13,6 +13,17 @@ import {
 import { recordFrontendRouteLatency } from '../../observability/spine.js';
 
 const router = Router();
+const PUBLIC_ASSETS_CACHE_CONTROL = 'public, max-age=60, s-maxage=300, stale-while-revalidate=600';
+const PUBLIC_BROWSE_HOME_CACHE_CONTROL =
+  'public, max-age=30, s-maxage=120, stale-while-revalidate=300';
+const PUBLIC_BROWSE_DETAIL_CACHE_CONTROL =
+  'public, max-age=15, s-maxage=60, stale-while-revalidate=180';
+const PUBLIC_BROWSE_SEARCH_CACHE_CONTROL =
+  'public, max-age=15, s-maxage=60, stale-while-revalidate=180';
+
+function setPublicBrowseCache(res: Response, value: string) {
+  res.setHeader('Cache-Control', value);
+}
 
 async function measureFrontendRead<T>(scope: string, read: () => Promise<T>): Promise<T> {
   const startedAt = Date.now();
@@ -33,6 +44,7 @@ router.get(
     }
 
     const assets = await listAssetsPrimary(market);
+    setPublicBrowseCache(res, PUBLIC_ASSETS_CACHE_CONTROL);
     res.json({ market: market ?? 'ALL', count: assets.length, data: assets });
   }),
 );
@@ -52,6 +64,7 @@ router.get(
       limit,
       market,
     });
+    setPublicBrowseCache(res, PUBLIC_BROWSE_SEARCH_CACHE_CONTROL);
     res.json({
       query,
       market: market ?? 'ALL',
@@ -91,6 +104,7 @@ router.get(
       return;
     }
 
+    setPublicBrowseCache(res, PUBLIC_BROWSE_DETAIL_CACHE_CONTROL);
     res.json({
       market,
       symbol,
@@ -105,6 +119,7 @@ router.get(
   '/api/browse/home',
   asyncRoute(async (req, res) => {
     const view = req.query.view as string | undefined;
+    setPublicBrowseCache(res, PUBLIC_BROWSE_HOME_CACHE_CONTROL);
     res.json(
       await measureFrontendRead('browse_home', () =>
         getBrowseHomePayload({
@@ -138,6 +153,7 @@ router.get(
       return;
     }
 
+    setPublicBrowseCache(res, PUBLIC_BROWSE_DETAIL_CACHE_CONTROL);
     res.json({
       market,
       symbol,
@@ -164,6 +180,7 @@ router.get(
         limit,
       }),
     );
+    setPublicBrowseCache(res, PUBLIC_BROWSE_DETAIL_CACHE_CONTROL);
     res.json({
       market,
       symbol: symbol || null,
@@ -192,6 +209,7 @@ router.get(
       res.status(404).json({ error: 'Browse overview unavailable' });
       return;
     }
+    setPublicBrowseCache(res, PUBLIC_BROWSE_DETAIL_CACHE_CONTROL);
     res.json({
       market,
       symbol,

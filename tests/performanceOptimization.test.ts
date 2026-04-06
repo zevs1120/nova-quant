@@ -24,7 +24,6 @@ describe('performance optimization regression', () => {
   // -------------------------------------------------------------------------
   describe('Cache-Control headers', () => {
     const privateEndpoints = [
-      '/api/assets',
       '/api/market-state',
       '/api/market/modules',
       '/api/outcomes/recent',
@@ -53,6 +52,28 @@ describe('performance optimization regression', () => {
       const app = createApiApp();
       const res = await requestLocalHttp(app, { path: '/healthz' });
       expect(res.headers['cache-control']).toBeUndefined();
+    });
+
+    it('sets public cache-control on browse public GET endpoints', async () => {
+      const app = createApiApp();
+
+      const assets = await requestLocalHttp(app, {
+        path: '/api/assets',
+        query: { market: 'US' },
+      });
+      expect(assets.status).toBe(200);
+      expect(assets.headers['cache-control']).toBe(
+        'public, max-age=60, s-maxage=300, stale-while-revalidate=600',
+      );
+
+      const home = await requestLocalHttp(app, {
+        path: '/api/browse/home',
+        query: { view: 'STOCK' },
+      });
+      expect(home.status).toBe(200);
+      expect(home.headers['cache-control']).toBe(
+        'public, max-age=30, s-maxage=120, stale-while-revalidate=300',
+      );
     });
   });
 

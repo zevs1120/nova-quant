@@ -4,6 +4,19 @@ NovaQuant 所有重要变更记录于此。
 
 ## 10.22.24 (2026-04-05)
 
+### 🌐 P26 Browse 公开读缓存头 (Browse Public Cache Headers)
+
+- **公开 Browse 读接口显式走公共短缓存**
+  - `src/server/api/routes/browse.ts` 现在为 `/api/assets`、`/api/assets/search`、`/api/browse/home`、`/api/browse/detail-bundle`、`/api/browse/chart`、`/api/browse/news`、`/api/browse/overview` 显式设置公共短 TTL 缓存头。
+  - 这样 Vercel 边缘层可以替公开市场数据读做短时间复用，直接降低 Function Invocations 和后端 CPU。
+
+- **移除 `/api/assets` 的用户态私有缓存标记**
+  - `src/server/api/app.ts` 不再把 `/api/assets` 视为 `private, no-store` 用户态读路径。
+  - 这个接口本身不依赖用户会话，因此改成公共缓存不会与昨天的私有边界治理冲突。
+
+- **回归测试同步**
+  - `tests/performanceOptimization.test.ts` 现在继续守住用户态接口的 `private, no-store`，同时新增 Browse 公开接口公共缓存头断言。
+
 ### ⚡ P25 客户端读链路降耗 (Client Read Path Cost Reduction)
 
 - **`auth/session` 增加页内短 TTL 去重**

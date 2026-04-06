@@ -141,7 +141,6 @@ export function createApiApp() {
   // but the current architecture binds all /api/* through session middleware,
   // so we default to private.
   const userScopedPaths = new Set([
-    '/api/assets',
     '/api/billing/state',
     '/api/manual/state',
     '/api/market-state',
