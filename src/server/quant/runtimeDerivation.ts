@@ -23,6 +23,7 @@ import { buildEvidenceLineage } from '../evidence/lineage.js';
 import { buildNewsContext } from '../news/provider.js';
 import { applyAlphaRuntimeOverlays } from '../alpha_shadow_runner/index.js';
 import type { NewsItemRecord } from '../types.js';
+import { inspectBarQuality } from '../ingestion/normalize.js';
 
 const MS_HOUR = 3600_000;
 
@@ -33,6 +34,16 @@ type NumericBar = {
   low: number;
   close: number;
   volume: number;
+};
+
+type BarRuntimeQuality = {
+  rawCount: number;
+  validCount: number;
+  droppedCount: number;
+  envelopeAdjustedCount: number;
+  zeroVolumeCount: number;
+  blocked: boolean;
+  reason: string | null;
 };
 
 type SignalNewsContext = {
@@ -220,23 +231,90 @@ function returns(values: number[]): number[] {
   return out;
 }
 
+function assessBarRuntimeQuality(args: {
+  rawCount: number;
+  validCount: number;
+  droppedCount: number;
+  envelopeAdjustedCount: number;
+  zeroVolumeCount: number;
+}): BarRuntimeQuality {
+  const rawCount = Math.max(0, Number(args.rawCount || 0));
+  const validCount = Math.max(0, Number(args.validCount || 0));
+  const droppedCount = Math.max(0, Number(args.droppedCount || 0));
+  const envelopeAdjustedCount = Math.max(0, Number(args.envelopeAdjustedCount || 0));
+  const zeroVolumeCount = Math.max(0, Number(args.zeroVolumeCount || 0));
+
+  if (rawCount === 0 || validCount === 0) {
+    return {
+      rawCount,
+      validCount,
+      droppedCount,
+      envelopeAdjustedCount,
+      zeroVolumeCount,
+      blocked: true,
+      reason: 'NO_VALID_BARS',
+    };
+  }
+
+  const droppedRatio = droppedCount / rawCount;
+  const envelopeRatio = envelopeAdjustedCount / rawCount;
+  const zeroVolumeRatio = zeroVolumeCount / validCount;
+
+  let reason: string | null = null;
+  if (droppedRatio > 0.2) reason = 'TOO_MANY_INVALID_BARS';
+  else if (envelopeRatio > 0.35) reason = 'TOO_MANY_ENVELOPE_REPAIRS';
+  else if (zeroVolumeRatio > 0.6) reason = 'TOO_MANY_ZERO_VOLUME_BARS';
+
+  return {
+    rawCount,
+    validCount,
+    droppedCount,
+    envelopeAdjustedCount,
+    zeroVolumeCount,
+    blocked: reason !== null,
+    reason,
+  };
+}
+
 function parseBars(
   repo: MarketRepository,
   assetId: number,
   timeframe: Timeframe,
   limit = 320,
-): NumericBar[] {
+): { bars: NumericBar[]; quality: BarRuntimeQuality } {
   const rows = repo.getOhlcv({ assetId, timeframe, limit });
-  return sortBars(
-    rows.map((row) => ({
-      ts_open: row.ts_open,
-      open: toNum(row.open),
-      high: toNum(row.high),
-      low: toNum(row.low),
-      close: toNum(row.close),
-      volume: toNum(row.volume),
-    })),
-  );
+  let droppedCount = 0;
+  let envelopeAdjustedCount = 0;
+  let zeroVolumeCount = 0;
+  const bars = rows.reduce<NumericBar[]>((acc, row) => {
+    const quality = inspectBarQuality(row);
+    if (quality.invalidTimestamp || quality.invalidPrice || !quality.sanitized) {
+      droppedCount += 1;
+      return acc;
+    }
+    if (quality.envelopeAdjusted) envelopeAdjustedCount += 1;
+    if (quality.zeroVolume) zeroVolumeCount += 1;
+    acc.push({
+      ts_open: quality.sanitized.ts_open,
+      open: toNum(quality.sanitized.open),
+      high: toNum(quality.sanitized.high),
+      low: toNum(quality.sanitized.low),
+      close: toNum(quality.sanitized.close),
+      volume: toNum(quality.sanitized.volume),
+    });
+    return acc;
+  }, []);
+
+  return {
+    bars: sortBars(bars),
+    quality: assessBarRuntimeQuality({
+      rawCount: rows.length,
+      validCount: bars.length,
+      droppedCount,
+      envelopeAdjustedCount,
+      zeroVolumeCount,
+    }),
+  };
 }
 
 function inferRegime(args: {
@@ -1375,8 +1453,8 @@ export function deriveRuntimeState(params: {
     }
 
     const timeframe = timeframeForMarket(target.market);
-    const bars = parseBars(repo, asset.asset_id, timeframe, 320);
-    if (bars.length < 80) {
+    const { bars, quality } = parseBars(repo, asset.asset_id, timeframe, 320);
+    if (quality.blocked || bars.length < 80) {
       freshnessRows.push({
         market: target.market,
         symbol: target.symbol,
@@ -1384,6 +1462,10 @@ export function deriveRuntimeState(params: {
         status: RUNTIME_STATUS.INSUFFICIENT_DATA,
         age_hours: null,
         bar_count: bars.length,
+        quality_gate_reason: quality.reason,
+        dropped_bars: quality.droppedCount,
+        envelope_repairs: quality.envelopeAdjustedCount,
+        zero_volume_bars: quality.zeroVolumeCount,
       });
       continue;
     }
@@ -1402,6 +1484,10 @@ export function deriveRuntimeState(params: {
       status: freshnessStatus,
       age_hours: round(ageHours, 2),
       bar_count: bars.length,
+      quality_gate_reason: quality.reason,
+      dropped_bars: quality.droppedCount,
+      envelope_repairs: quality.envelopeAdjustedCount,
+      zero_volume_bars: quality.zeroVolumeCount,
     });
 
     const baselineRule = selectRule(ctx);
@@ -1440,6 +1526,11 @@ export function deriveRuntimeState(params: {
       signal_candidate: ruleHit?.id || null,
       news_context: newsContext,
       crypto_microstructure: cryptoMicrostructure,
+      bar_quality: {
+        dropped_bars: quality.droppedCount,
+        envelope_repairs: quality.envelopeAdjustedCount,
+        zero_volume_bars: quality.zeroVolumeCount,
+      },
       panda: {
         active_model_id: activeModel.modelId,
         active_model_version: activeModel.semanticVersion,

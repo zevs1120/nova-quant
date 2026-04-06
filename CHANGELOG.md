@@ -16,6 +16,7 @@ NovaQuant 所有重要变更记录于此。
 
 - **回归测试同步**
   - `tests/runtimeDerivation.test.ts` 新增脏 bar 比例过高时触发 runtime gate 的断言。
+  - 这一步把“脏数据只记录、不拦截”的旧行为收口成真正的 runtime 准入门禁，避免异常 OHLCV 继续推高错误 signal。
 
 ### 🧹 P28 OHLCV Validation Anomalies (OHLCV 清洗与异常记录)
 

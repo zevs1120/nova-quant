@@ -228,4 +228,50 @@ describe('derive runtime state', () => {
       expect(signalWithNews?.news_context?.factor_tags).toContain('macro');
     }
   });
+
+  it('gates runtime derivation when too many invalid bars survive into storage', () => {
+    const db = new Database(':memory:');
+    ensureSchema(db);
+    const repo = new MarketRepository(db);
+    const asset = repo.upsertAsset({
+      symbol: 'SPY',
+      market: 'US',
+      venue: 'STOOQ',
+    });
+    const now = Date.now();
+
+    const dirtyBars: NormalizedBar[] = Array.from({ length: 120 }, (_, index) => ({
+      ts_open: now - (120 - index) * 86_400_000,
+      open: index % 3 === 0 ? '0' : '100',
+      high: '101',
+      low: '99',
+      close: '100.5',
+      volume: '10',
+    }));
+
+    repo.upsertOhlcvBars(asset.asset_id, '1d', dirtyBars, 'TEST');
+
+    const runtime = deriveRuntimeState({
+      repo,
+      userId: 'gate-user',
+      riskProfile: {
+        user_id: 'gate-user',
+        profile_key: 'balanced',
+        max_loss_per_trade: 1,
+        max_daily_loss: 3,
+        max_drawdown: 12,
+        exposure_cap: 55,
+        leverage_cap: 2,
+        updated_at_ms: now,
+      },
+    });
+
+    expect(runtime.sourceStatus).toBe('INSUFFICIENT_DATA');
+    expect(runtime.marketState).toHaveLength(0);
+    const freshnessRows = Array.isArray((runtime.freshnessSummary as { rows?: unknown }).rows)
+      ? ((runtime.freshnessSummary as { rows?: unknown[] }).rows as Record<string, unknown>[])
+      : [];
+    const freshnessRow = freshnessRows.find((row) => row.symbol === 'SPY');
+    expect(freshnessRow?.quality_gate_reason).toBe('TOO_MANY_INVALID_BARS');
+  });
 });
