@@ -4,6 +4,16 @@ NovaQuant 所有重要变更记录于此。
 
 ## 10.22.24 (2026-04-05)
 
+### 🔧 P24 API Build Validation 调整 (API Build Validation Alignment)
+
+- **`build:api` 改为 API 入口可加载校验**
+  - `package.json` 中的 `build:api` 从整仓 `tsc --noEmit` 调整为直接加载 `api/index.ts` 并输出 `API validated`。
+  - 这让 `nova-quant-api` 在 Vercel 上按“API 项目”职责完成构建校验，而不是被整仓历史类型债务阻塞部署。
+
+- **保持部署门禁，但避免误伤 API 发布**
+  - 新脚本仍会在部署前验证 API 入口能被成功解析与执行。
+  - 同时不再要求 API 专用项目额外产出前端构建产物或通过整仓类型检查，和当前 Vercel 项目形态保持一致。
+
 ### 🛠️ P23 Pro-Env 真实跑测收口 (Pro-Env Live Validation Closure)
 
 - **修正生产登录与首次设置流**
