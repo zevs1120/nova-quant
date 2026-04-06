@@ -22,7 +22,7 @@ import { MarketRepository } from '../db/repository.js';
 import type { Market, NormalizedBar, Timeframe } from '../types.js';
 import { logInfo, logWarn } from '../utils/log.js';
 import { sleep } from '../utils/time.js';
-import { normalizeBars } from './normalize.js';
+import { ingestProviderBars } from './providerGate.js';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -281,9 +281,19 @@ export async function backfillMassiveStocks(params: {
         });
 
         if (bars.length > 0) {
-          const normalized = normalizeBars(bars);
-          repo.upsertOhlcvBars(asset.asset_id, tf, normalized, source);
-          logInfo('Massive stocks ingested', { symbol, timeframe: tf, bars: normalized.length });
+          const summary = ingestProviderBars({
+            repo,
+            assetId: asset.asset_id,
+            timeframe: tf,
+            rows: bars,
+            source,
+            symbol,
+          });
+          logInfo('Massive stocks ingested', {
+            symbol,
+            timeframe: tf,
+            bars: summary.insertedCount,
+          });
         }
       } catch (error) {
         logWarn('Massive stocks backfill failed for symbol', {
@@ -368,13 +378,19 @@ export async function backfillMassiveCrypto(params: {
         });
 
         if (bars.length > 0) {
-          const normalized = normalizeBars(bars);
-          repo.upsertOhlcvBars(asset.asset_id, tf, normalized, source);
+          const summary = ingestProviderBars({
+            repo,
+            assetId: asset.asset_id,
+            timeframe: tf,
+            rows: bars,
+            source,
+            symbol,
+          });
           logInfo('Massive crypto ingested', {
             symbol,
             massiveTicker,
             timeframe: tf,
-            bars: normalized.length,
+            bars: summary.insertedCount,
           });
         }
       } catch (error) {

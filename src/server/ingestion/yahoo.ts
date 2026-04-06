@@ -3,7 +3,7 @@ import { MarketRepository } from '../db/repository.js';
 import type { NormalizedBar, Timeframe } from '../types.js';
 import { fetchWithRetry } from '../utils/http.js';
 import { logInfo } from '../utils/log.js';
-import { normalizeBars } from './normalize.js';
+import { ingestProviderBars } from './providerGate.js';
 
 type YahooChartResponse = {
   chart?: {
@@ -59,7 +59,7 @@ function toBarSeries(payload: YahooChartResponse): NormalizedBar[] {
       volume: Number.isFinite(Number(v)) ? String(v) : '0',
     });
   }
-  return normalizeBars(out);
+  return out;
 }
 
 async function fetchYahooBars(symbol: string, timeframe: Timeframe): Promise<NormalizedBar[]> {
@@ -120,19 +120,27 @@ export async function backfillYahooChart(params: {
       status: 'ACTIVE',
     });
     const bars = await fetchYahooBars(symbol, params.timeframe);
-    params.repo.upsertOhlcvBars(asset.asset_id, params.timeframe, bars, source);
+    const summary = ingestProviderBars({
+      repo: params.repo,
+      assetId: asset.asset_id,
+      timeframe: params.timeframe,
+      rows: bars,
+      source,
+      symbol,
+    });
     if (bars.length) {
+      const latestTs = params.repo.getLatestTsOpen(asset.asset_id, params.timeframe);
       params.repo.setCursor(
         asset.asset_id,
         params.timeframe,
-        bars[bars.length - 1].ts_open,
+        latestTs ?? bars[bars.length - 1].ts_open,
         source,
       );
     }
     logInfo('Yahoo chart backfill completed', {
       symbol,
       timeframe: params.timeframe,
-      inserted: bars.length,
+      inserted: summary.insertedCount,
     });
   }
 }

@@ -8,7 +8,7 @@ import type { NormalizedBar, Timeframe } from '../types.js';
 import { fetchWithRetry } from '../utils/http.js';
 import { dayRange, monthRange } from '../utils/time.js';
 import { logInfo, logWarn } from '../utils/log.js';
-import { normalizeBars } from './normalize.js';
+import { ingestProviderBars } from './providerGate.js';
 
 export function parseBinanceKlineRow(row: string[]): NormalizedBar | null {
   if (row.length < 6) return null;
@@ -76,13 +76,25 @@ async function ingestZipFileFromResponse(
       batch.push(bar);
 
       if (batch.length >= 2000) {
-        inserted += repo.upsertOhlcvBars(assetId, timeframe, normalizeBars(batch), source);
+        inserted += ingestProviderBars({
+          repo,
+          assetId,
+          timeframe,
+          rows: batch,
+          source,
+        }).insertedCount;
         batch.length = 0;
       }
     }
 
     if (batch.length) {
-      inserted += repo.upsertOhlcvBars(assetId, timeframe, normalizeBars(batch), source);
+      inserted += ingestProviderBars({
+        repo,
+        assetId,
+        timeframe,
+        rows: batch,
+        source,
+      }).insertedCount;
     }
   }
 

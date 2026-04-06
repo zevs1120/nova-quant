@@ -7,7 +7,7 @@ import { MarketRepository } from '../db/repository.js';
 import type { NormalizedBar, Timeframe } from '../types.js';
 import { fetchWithRetry } from '../utils/http.js';
 import { logInfo, logWarn } from '../utils/log.js';
-import { normalizeBars } from './normalize.js';
+import { ingestProviderBars } from './providerGate.js';
 
 function stooqPackUrl(timeframe: Timeframe): string | null {
   const config = getConfig();
@@ -156,15 +156,27 @@ async function ingestEntry(
     batch.push(bar);
 
     if (batch.length >= batchSize) {
-      const normalized = normalizeBars(batch);
-      repo.upsertOhlcvBars(asset.asset_id, timeframe, normalized, source);
+      ingestProviderBars({
+        repo,
+        assetId: asset.asset_id,
+        timeframe,
+        rows: batch,
+        source,
+        symbol,
+      });
       batch.length = 0;
     }
   }
 
   if (batch.length) {
-    const normalized = normalizeBars(batch);
-    repo.upsertOhlcvBars(asset.asset_id, timeframe, normalized, source);
+    ingestProviderBars({
+      repo,
+      assetId: asset.asset_id,
+      timeframe,
+      rows: batch,
+      source,
+      symbol,
+    });
   }
 }
 

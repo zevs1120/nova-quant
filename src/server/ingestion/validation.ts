@@ -4,6 +4,7 @@ import { logInfo, logWarn } from '../utils/log.js';
 import { timeframeToMs } from '../utils/time.js';
 import { detectGaps, inspectBarQuality } from './normalize.js';
 import { fetchBinanceKlines, isBinanceAccessBlockedError } from './binanceIncremental.js';
+import { ingestProviderBars } from './providerGate.js';
 
 export async function validateAndRepair(params: {
   repo: MarketRepository;
@@ -83,7 +84,14 @@ export async function validateAndRepair(params: {
               limit: Math.max(100, gap.missingBars + 10),
             });
             if (bars.length) {
-              params.repo.upsertOhlcvBars(asset.asset_id, tf, bars, 'BINANCE_REPAIR');
+              ingestProviderBars({
+                repo: params.repo,
+                assetId: asset.asset_id,
+                timeframe: tf,
+                rows: bars,
+                source: 'BINANCE_REPAIR',
+                symbol: asset.symbol,
+              });
               logInfo('Gap repaired from Binance REST', {
                 symbol: asset.symbol,
                 timeframe: tf,

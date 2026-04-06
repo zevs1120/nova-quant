@@ -3,7 +3,7 @@ import { MarketRepository } from '../db/repository.js';
 import type { NormalizedBar, Timeframe } from '../types.js';
 import { fetchWithRetry } from '../utils/http.js';
 import { logInfo } from '../utils/log.js';
-import { normalizeBars } from './normalize.js';
+import { ingestProviderBars } from './providerGate.js';
 
 type NasdaqHistoricalResponse = {
   data?: {
@@ -83,27 +83,25 @@ async function fetchNasdaqBars(symbol: string, timeframe: Timeframe): Promise<No
     if (pageRows.length < config.nasdaq.limit) break;
   }
 
-  return normalizeBars(
-    rows
-      .map((row: NasdaqHistoricalRow) => {
-        const ts_open = parseDateToMs(String(row?.date || ''));
-        const open = cleanNumberString(row?.open);
-        const high = cleanNumberString(row?.high);
-        const low = cleanNumberString(row?.low);
-        const close = cleanNumberString(row?.close);
-        const volume = cleanNumberString(row?.volume);
-        if (!Number.isFinite(ts_open) || !open || !high || !low || !close) return null;
-        return {
-          ts_open,
-          open,
-          high,
-          low,
-          close,
-          volume: volume || '0',
-        };
-      })
-      .filter((row: NormalizedBar | null): row is NormalizedBar => Boolean(row)),
-  );
+  return rows
+    .map((row: NasdaqHistoricalRow) => {
+      const ts_open = parseDateToMs(String(row?.date || ''));
+      const open = cleanNumberString(row?.open);
+      const high = cleanNumberString(row?.high);
+      const low = cleanNumberString(row?.low);
+      const close = cleanNumberString(row?.close);
+      const volume = cleanNumberString(row?.volume);
+      if (!Number.isFinite(ts_open) || !open || !high || !low || !close) return null;
+      return {
+        ts_open,
+        open,
+        high,
+        low,
+        close,
+        volume: volume || '0',
+      };
+    })
+    .filter((row: NormalizedBar | null): row is NormalizedBar => Boolean(row));
 }
 
 export async function backfillNasdaqHistorical(params: {
@@ -128,19 +126,27 @@ export async function backfillNasdaqHistorical(params: {
       status: 'ACTIVE',
     });
     const bars = await fetchNasdaqBars(symbol, params.timeframe);
-    params.repo.upsertOhlcvBars(asset.asset_id, params.timeframe, bars, source);
+    const summary = ingestProviderBars({
+      repo: params.repo,
+      assetId: asset.asset_id,
+      timeframe: params.timeframe,
+      rows: bars,
+      source,
+      symbol,
+    });
     if (bars.length) {
+      const latestTs = params.repo.getLatestTsOpen(asset.asset_id, params.timeframe);
       params.repo.setCursor(
         asset.asset_id,
         params.timeframe,
-        bars[bars.length - 1].ts_open,
+        latestTs ?? bars[bars.length - 1].ts_open,
         source,
       );
     }
     logInfo('Nasdaq historical backfill completed', {
       symbol,
       timeframe: params.timeframe,
-      inserted: bars.length,
+      inserted: summary.insertedCount,
     });
   }
 }

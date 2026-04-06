@@ -4,7 +4,7 @@ import type { NormalizedBar, Timeframe } from '../types.js';
 import { fetchWithRetry } from '../utils/http.js';
 import { logInfo, logWarn } from '../utils/log.js';
 import { sleep, timeframeToMs } from '../utils/time.js';
-import { normalizeBars } from './normalize.js';
+import { ingestProviderBars } from './providerGate.js';
 
 const BINANCE_BLOCK_COOLDOWN_MS = 1000 * 60 * 60 * 6;
 let binanceRestBlockedUntilMs = 0;
@@ -49,7 +49,7 @@ function parseKlinesPayload(payload: unknown): NormalizedBar[] {
     });
   }
 
-  return normalizeBars(rows);
+  return rows;
 }
 
 function buildKlineUrl(
@@ -145,7 +145,14 @@ export async function updateBinanceIncremental(params: {
         });
 
         if (bars.length) {
-          params.repo.upsertOhlcvBars(asset.asset_id, timeframe, bars, 'BINANCE_REST_INCREMENTAL');
+          ingestProviderBars({
+            repo: params.repo,
+            assetId: asset.asset_id,
+            timeframe,
+            rows: bars,
+            source: 'BINANCE_REST_INCREMENTAL',
+            symbol,
+          });
           params.repo.setCursor(
             asset.asset_id,
             timeframe,

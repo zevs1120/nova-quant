@@ -2,6 +2,25 @@
 
 NovaQuant 所有重要变更记录于此。
 
+## 10.22.26 (2026-04-07)
+
+### 🧹 P31 Provider Entry Quality Gate (Provider 入口预清洗与入库前拦截)
+
+- **新增统一的 provider gate**
+  - `src/server/ingestion/providerGate.ts` 现在会在 provider 数据准备入库前统一执行 `inspectBarQuality(...)`，并把结果拆成“可保留的 sanitized bars”和“需要立刻记录的 anomaly”。
+  - 坏 bar 不再先悄悄 `normalize` 再入库，而是会明确留下 `TIMESTAMP_ANOMALY / PRICE_ANOMALY / OHLC_ENVELOPE_ANOMALY / ZERO_VOLUME_ANOMALY`。
+
+- **多路行情 provider 接入入库前拦截**
+  - `Massive / Yahoo / Nasdaq / Stooq / Binance public / Binance incremental / BINANCE_REPAIR / Alpha Vantage` 现在都改为先走 provider gate，再写入 `ohlcv`。
+  - 这样异常 bar 会尽量在入库前被拦住，而不是等到 validation 或 runtime 阶段才被动发现。
+
+- **取消 provider 内部过早的 `normalizeBars(...)` 吞异常行为**
+  - `Yahoo / Nasdaq / Alpha Vantage / Binance incremental` 这些入口现在会先保留原始 provider bars，再交给统一 gate。
+  - 这保证 anomaly 记录不会在 provider 自己的 parsing 阶段提前丢失。
+
+- **回归测试同步**
+  - 新增 `tests/providerGate.test.ts`，验证 provider gate 会在入库前丢弃坏 bar、保留轻度修正 bar，并把 anomaly 立刻写入 `ingest_anomalies`。
+
 ## 10.22.25 (2026-04-07)
 
 ### 🧾 P30 Ingest Anomaly Density Summary (异常聚合摘要与近期密度门禁)

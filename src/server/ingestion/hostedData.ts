@@ -9,7 +9,7 @@ import type {
   Timeframe,
 } from '../types.js';
 import { fetchWithRetry } from '../utils/http.js';
-import { normalizeBars } from './normalize.js';
+import { ingestProviderBars } from './providerGate.js';
 
 type JsonObject = Record<string, unknown>;
 
@@ -146,7 +146,7 @@ export async function fetchAlphaVantageDailyBars(symbol: string): Promise<Normal
     .filter((row): row is NormalizedBar => Boolean(row))
     .sort((a, b) => a.ts_open - b.ts_open);
 
-  return normalizeBars(rows);
+  return rows;
 }
 
 export async function fetchAlphaVantageFundamentalSnapshot(
@@ -640,9 +640,23 @@ export async function backfillAlphaVantageDaily(params: {
       status: 'ACTIVE',
     });
     const bars = await fetchAlphaVantageDailyBars(symbol);
-    params.repo.upsertOhlcvBars(asset.asset_id, '1d', bars, source);
+    const summary = ingestProviderBars({
+      repo: params.repo,
+      assetId: asset.asset_id,
+      timeframe: '1d',
+      rows: bars,
+      source,
+      symbol,
+    });
     if (bars.length) {
-      params.repo.setCursor(asset.asset_id, '1d', bars[bars.length - 1].ts_open, source);
+      const latestTs = params.repo.getLatestTsOpen(asset.asset_id, '1d');
+      params.repo.setCursor(
+        asset.asset_id,
+        '1d',
+        latestTs ?? bars[bars.length - 1].ts_open,
+        source,
+      );
     }
+    void summary;
   }
 }
