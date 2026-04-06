@@ -1,14 +1,15 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import {
   getPublicBrowseAssetChart,
-  getPublicBrowseHome,
   getPublicBrowseAssetOverview,
   getPublicBrowseNewsFeed,
+  getPublicBrowseHome,
   listPublicAssets,
   queryPublicOhlcv,
   searchPublicAssets,
 } from '../src/server/public/browseService.js';
 import { getPublicTodayDecision } from '../src/server/public/todayDecisionService.js';
+import { PUBLIC_CACHE_POLICIES } from '../src/server/public/cachePolicy.js';
 import type { AssetClass, Market } from '../src/server/types.js';
 
 let cachedApiAppPromise: Promise<any> | null = null;
@@ -352,6 +353,7 @@ async function handlePublicBrowseRoute(req: VercelRequest, res: VercelResponse, 
     path === '/api/healthz' ||
     path === '/api/assets' ||
     path === '/api/assets/search' ||
+    path === '/api/browse/detail-bundle' ||
     path === '/api/signals' ||
     path === '/api/runtime-state' ||
     path === '/api/decision/today' ||
@@ -371,7 +373,7 @@ async function handlePublicBrowseRoute(req: VercelRequest, res: VercelResponse, 
   }
 
   if ((path === '/api' || path === '/api/healthz') && req.method === 'GET') {
-    applyPublicCache(res, { sMaxAge: 5, staleWhileRevalidate: 30 });
+    applyPublicCache(res, PUBLIC_CACHE_POLICIES.apiHealth);
     res.status(200).json({
       ok: true,
       service: 'novaquant-api',
@@ -384,7 +386,7 @@ async function handlePublicBrowseRoute(req: VercelRequest, res: VercelResponse, 
   }
 
   if (path === '/api/assets' && req.method === 'GET') {
-    applyPublicCache(res, { sMaxAge: 3600, staleWhileRevalidate: 86400 });
+    applyPublicCache(res, PUBLIC_CACHE_POLICIES.assets);
     const market = parseMarket(req.query.market as string | undefined);
     if (req.query.market && !market) {
       res.status(400).json({ error: 'Invalid market, use US or CRYPTO' });
@@ -396,7 +398,7 @@ async function handlePublicBrowseRoute(req: VercelRequest, res: VercelResponse, 
   }
 
   if (path === '/api/assets/search' && req.method === 'GET') {
-    applyPublicCache(res, { sMaxAge: 300, staleWhileRevalidate: 1800 });
+    applyPublicCache(res, PUBLIC_CACHE_POLICIES.browseSearch);
     const market = parseMarket(req.query.market as string | undefined);
     if (req.query.market && !market) {
       res.status(400).json({ error: 'Invalid market, use US or CRYPTO' });
@@ -410,7 +412,7 @@ async function handlePublicBrowseRoute(req: VercelRequest, res: VercelResponse, 
   }
 
   if (path === '/api/browse/chart' && req.method === 'GET') {
-    applyPublicCache(res, { sMaxAge: 15, staleWhileRevalidate: 60 });
+    applyPublicCache(res, PUBLIC_CACHE_POLICIES.browseDetail);
     const market = parseMarket(req.query.market as string | undefined);
     const symbol = String(req.query.symbol || '')
       .trim()
@@ -425,15 +427,45 @@ async function handlePublicBrowseRoute(req: VercelRequest, res: VercelResponse, 
   }
 
   if (path === '/api/browse/home' && req.method === 'GET') {
-    applyPublicCache(res, { sMaxAge: 30, staleWhileRevalidate: 180 });
+    applyPublicCache(res, PUBLIC_CACHE_POLICIES.browseHome);
     const view = String(req.query.view || 'NOW');
     const data = await getPublicBrowseHome({ view });
     res.status(200).json(data);
     return true;
   }
 
+  if (path === '/api/browse/detail-bundle' && req.method === 'GET') {
+    applyPublicCache(res, PUBLIC_CACHE_POLICIES.browseDetail);
+    const market = parseMarket(req.query.market as string | undefined);
+    const symbol = String(req.query.symbol || '')
+      .trim()
+      .toUpperCase();
+    if (!market || !symbol) {
+      res.status(400).json({ error: 'Required query params: market, symbol' });
+      return true;
+    }
+    const limit = req.query.limit ? Number(req.query.limit) : 6;
+    const [chart, overview, news] = await Promise.all([
+      getPublicBrowseAssetChart({ market, symbol }),
+      getPublicBrowseAssetOverview({ market, symbol }),
+      getPublicBrowseNewsFeed({ market, symbol, limit }),
+    ]);
+    if (!chart && !overview && !news.length) {
+      res.status(404).json({ error: 'Browse detail bundle unavailable' });
+      return true;
+    }
+    res.status(200).json({
+      market,
+      symbol,
+      chart,
+      overview,
+      news,
+    });
+    return true;
+  }
+
   if (path === '/api/browse/news' && req.method === 'GET') {
-    applyPublicCache(res, { sMaxAge: 120, staleWhileRevalidate: 600 });
+    applyPublicCache(res, PUBLIC_CACHE_POLICIES.browseNews);
     const market = parseMarket(req.query.market as string | undefined);
     if (!market) {
       res.status(400).json({ error: 'Required query param: market' });
@@ -450,7 +482,7 @@ async function handlePublicBrowseRoute(req: VercelRequest, res: VercelResponse, 
   }
 
   if (path === '/api/browse/overview' && req.method === 'GET') {
-    applyPublicCache(res, { sMaxAge: 300, staleWhileRevalidate: 900 });
+    applyPublicCache(res, PUBLIC_CACHE_POLICIES.browseOverview);
     const market = parseMarket(req.query.market as string | undefined);
     const symbol = String(req.query.symbol || '')
       .trim()
@@ -469,7 +501,7 @@ async function handlePublicBrowseRoute(req: VercelRequest, res: VercelResponse, 
   }
 
   if (path === '/api/ohlcv' && req.method === 'GET') {
-    applyPublicCache(res, { sMaxAge: 300, staleWhileRevalidate: 900 });
+    applyPublicCache(res, PUBLIC_CACHE_POLICIES.publicOhlcv);
     const market = parseMarket(req.query.market as string | undefined);
     const symbol = String(req.query.symbol || '')
       .trim()
@@ -497,7 +529,7 @@ async function handlePublicBrowseRoute(req: VercelRequest, res: VercelResponse, 
   }
 
   if (path === '/api/signals' && req.method === 'GET') {
-    applyPublicCache(res, { sMaxAge: 15, staleWhileRevalidate: 45 });
+    applyPublicCache(res, PUBLIC_CACHE_POLICIES.publicToday);
     const market = parseMarket(req.query.market as string | undefined) || 'US';
     const assetClass =
       parseAssetClass(req.query.assetClass as string | undefined) ||
@@ -514,7 +546,7 @@ async function handlePublicBrowseRoute(req: VercelRequest, res: VercelResponse, 
   }
 
   if (path === '/api/runtime-state' && req.method === 'GET') {
-    applyPublicCache(res, { sMaxAge: 15, staleWhileRevalidate: 45 });
+    applyPublicCache(res, PUBLIC_CACHE_POLICIES.publicToday);
     const market = parseMarket(req.query.market as string | undefined) || 'US';
     const assetClass =
       parseAssetClass(req.query.assetClass as string | undefined) ||
@@ -541,7 +573,7 @@ async function handlePublicBrowseRoute(req: VercelRequest, res: VercelResponse, 
     const userId = String(body.userId || req.query.userId || 'guest-default');
     const locale = typeof body.locale === 'string' ? body.locale : undefined;
     if (!holdings.length) {
-      applyPublicCache(res, { sMaxAge: 15, staleWhileRevalidate: 45 });
+      applyPublicCache(res, PUBLIC_CACHE_POLICIES.publicToday);
       const decision = await getPublicTodayDecision({ market, assetClass, userId, locale });
       res.status(200).json(decision);
       return true;

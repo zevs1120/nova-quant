@@ -74,6 +74,15 @@ describe('performance optimization regression', () => {
       expect(home.headers['cache-control']).toBe(
         'public, max-age=30, s-maxage=120, stale-while-revalidate=300',
       );
+
+      const detailBundle = await requestLocalHttp(app, {
+        path: '/api/browse/detail-bundle',
+        query: { market: 'US', symbol: 'SPY', limit: 6 },
+      });
+      expect(detailBundle.status).toBe(200);
+      expect(detailBundle.headers['cache-control']).toBe(
+        'public, max-age=15, s-maxage=60, stale-while-revalidate=180',
+      );
     });
   });
 

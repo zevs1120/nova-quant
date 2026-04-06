@@ -2,6 +2,25 @@
 
 NovaQuant 所有重要变更记录于此。
 
+## 10.22.28 (2026-04-07)
+
+### ⚡ P33 Browse Public Cache Tightening (Browse 公开接口公共缓存收口)
+
+- **公开 Browse 缓存策略改成共享常量**
+  - 新增 [src/server/public/cachePolicy.ts](/Users/qiao/Downloads/nova-quant/src/server/public/cachePolicy.ts)，把 `assets / browse search / home / detail / news / overview / public ohlcv / public today` 的公共缓存策略统一收口。
+  - 这样 [api/index.ts](/Users/qiao/Downloads/nova-quant/api/index.ts) 和 [src/server/api/routes/browse.ts](/Users/qiao/Downloads/nova-quant/src/server/api/routes/browse.ts) 不会再各自维护一套容易漂移的缓存头。
+
+- **API-only 入口补齐 `browse/detail-bundle` 的公开缓存**
+  - [api/index.ts](/Users/qiao/Downloads/nova-quant/api/index.ts) 现在正式支持 `/api/browse/detail-bundle` 的 GET 路由与 `public, s-maxage` 缓存。
+  - 这让生产上的 API-only surface 也能对热门详情页请求做真正的公共边缘缓存，减少重复 Function Invocation 和 CPU。
+
+- **公开 Browse 路由缓存粒度更一致**
+  - `browse/news`、`browse/overview`、`browse/detail-bundle`、`browse/chart` 等路由现在都按统一策略发缓存头，而不是一部分走 detail 默认值、一部分走 API-only 特判。
+
+- **回归测试同步**
+  - [tests/performanceOptimization.test.ts](/Users/qiao/Downloads/nova-quant/tests/performanceOptimization.test.ts) 增加 `browse/detail-bundle` 的缓存断言。
+  - 新增 [tests/publicBrowseApiCache.test.ts](/Users/qiao/Downloads/nova-quant/tests/publicBrowseApiCache.test.ts)，验证 API-only 入口的 detail bundle 路由和缓存头。
+
 ## 10.22.27 (2026-04-07)
 
 ### 🚀 P32 Vercel API Deployment Reset (Vercel API 部署模型重置)
