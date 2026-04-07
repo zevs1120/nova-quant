@@ -1823,6 +1823,21 @@ export class MarketRepository {
     return row ?? null;
   }
 
+  getLatestChatThread(userId: string): ChatThreadRecord | null {
+    const row = this.db
+      .prepare(
+        `
+          SELECT id, user_id, title, last_context_json, last_message_preview, created_at_ms, updated_at_ms
+          FROM chat_threads
+          WHERE user_id = ?
+          ORDER BY updated_at_ms DESC
+          LIMIT 1
+        `,
+      )
+      .get(userId) as ChatThreadRecord | undefined;
+    return row ?? null;
+  }
+
   listChatThreads(userId: string, limit = 20): ChatThreadRecord[] {
     return this.db
       .prepare(

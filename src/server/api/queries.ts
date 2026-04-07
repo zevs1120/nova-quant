@@ -42,6 +42,7 @@ import {
 import { buildDecisionSnapshot } from '../decision/engine.js';
 import { buildEngagementSnapshot, defaultNotificationPreferences } from '../engagement/engine.js';
 import { buildBackendBackboneSummary } from '../backbone/service.js';
+import { getOutcomeSummaryStats } from '../outcome/resolver.js';
 import {
   createTraceId,
   recordAuditEvent,
@@ -156,6 +157,7 @@ const FRONTEND_READ_CACHE_TTL_MS = Math.max(
   5_000,
   Number(process.env.NOVA_FRONTEND_READ_CACHE_TTL_MS || 20_000),
 );
+const RECENT_OUTCOME_SUMMARY_CACHE_TTL_MS = Math.max(FRONTEND_READ_CACHE_TTL_MS, 60_000);
 const RUNTIME_STATE_SIGNAL_LIMIT = Math.max(
   8,
   Number(process.env.NOVA_RUNTIME_STATE_SIGNAL_LIMIT || 24),
@@ -3722,6 +3724,21 @@ export async function getControlPlaneStatus(args?: { userId?: string }) {
     });
   controlPlaneStatusInflight.set(cacheKey, next);
   return await next;
+}
+
+export async function getRecentOutcomeSummary(args?: { userId?: string; limit?: number }) {
+  const requestedUserId = args?.userId || 'guest-default';
+  const effectiveUserId = isGuestScopedUserId(requestedUserId) ? 'guest-default' : requestedUserId;
+  const limit = Math.min(Math.max(1, Number(args?.limit) || 100), 200);
+  return await cachedFrontendRead(
+    'outcomes.recent',
+    {
+      userId: effectiveUserId,
+      limit,
+    },
+    async () => getOutcomeSummaryStats(getRepo(), effectiveUserId, limit),
+    RECENT_OUTCOME_SUMMARY_CACHE_TTL_MS,
+  );
 }
 
 export function getBackendBackbone(args: {

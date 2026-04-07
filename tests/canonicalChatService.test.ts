@@ -74,6 +74,25 @@ describe('canonical chat service', () => {
     expect(threadListRes.body.count).toBeGreaterThan(0);
     expect(threadListRes.body.data[0].id).toBe(meta?.threadId);
 
+    const hydratedListRes = await requestLocalHttp(app, {
+      path: '/api/chat/threads',
+      query: { userId, limit: 1, hydrate: 'latest-messages', messageLimit: 20 },
+    });
+    expect(hydratedListRes.status).toBe(200);
+    expect(hydratedListRes.body.data[0].id).toBe(meta?.threadId);
+    expect(hydratedListRes.body.restored?.thread?.id).toBe(meta?.threadId);
+    expect(Array.isArray(hydratedListRes.body.restored?.messages)).toBe(true);
+    expect(hydratedListRes.body.restored.messages.length).toBeGreaterThanOrEqual(2);
+
+    const restoreRes = await requestLocalHttp(app, {
+      path: '/api/chat/restore-latest',
+      query: { userId, messageLimit: 3 },
+    });
+    expect(restoreRes.status).toBe(200);
+    expect(restoreRes.body.restored?.thread?.id).toBe(meta?.threadId);
+    expect(Array.isArray(restoreRes.body.restored?.messages)).toBe(true);
+    expect(restoreRes.body.restored.messages.length).toBeLessThanOrEqual(3);
+
     const threadRes = await requestLocalHttp(app, {
       path: `/api/chat/threads/${meta?.threadId}`,
       query: { userId, limit: 20 },

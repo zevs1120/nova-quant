@@ -1,13 +1,11 @@
 import { fetchApiJson } from './api';
 
-const HOME_VIEWS = ['STOCK', 'CRYPTO'];
-const MARKETS = ['US', 'CRYPTO'];
 const HOME_STORAGE_TTL_MS = 1000 * 60 * 5;
-const HOME_FRESH_MS = 1000 * 60;
+const HOME_FRESH_MS = 1000 * 60 * 2;
 const UNIVERSE_STORAGE_TTL_MS = 1000 * 60 * 60 * 12;
 const UNIVERSE_FRESH_MS = 1000 * 60 * 30;
 const DETAIL_STORAGE_TTL_MS = 1000 * 60 * 3;
-const DETAIL_FRESH_MS = 1000 * 60 * 2;
+const DETAIL_FRESH_MS = 1000 * 60;
 
 const homeCache = new Map();
 const homeInflight = new Map();
@@ -104,9 +102,6 @@ export async function warmBrowseHomeSnapshot(view, options = {}) {
   const request = fetchApiJson(`/api/browse/home?view=${view}`, { cache: 'no-store' })
     .then((payload) => {
       writeSnapshot(homeCache, homeStorageKey(view), view, payload || null);
-      if (payload) {
-        void primeBrowseDetailSelections((payload.futuresMarkets || []).slice(0, 4));
-      }
       return payload || null;
     })
     .finally(() => {
@@ -114,12 +109,6 @@ export async function warmBrowseHomeSnapshot(view, options = {}) {
     });
   homeInflight.set(view, request);
   return request;
-}
-
-export function primeBrowseHomeBundle() {
-  HOME_VIEWS.forEach((view) => {
-    void warmBrowseHomeSnapshot(view);
-  });
 }
 
 export function readBrowseUniverseSnapshot(market) {
@@ -143,12 +132,6 @@ export async function warmBrowseUniverseSnapshot(market, options = {}) {
     });
   universeInflight.set(market, request);
   return request;
-}
-
-export function primeBrowseUniverseBundle() {
-  MARKETS.forEach((market) => {
-    void warmBrowseUniverseSnapshot(market);
-  });
 }
 
 function normalizeText(value) {

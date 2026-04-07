@@ -261,6 +261,39 @@ function inferQuestionIntent(message: string) {
   };
 }
 
+function shouldPreferGroundedDeterministicReply(args: {
+  input: ChatRequestInput;
+  mode: ChatMode;
+  contextBundle: Awaited<ReturnType<typeof buildContextBundle>>;
+}) {
+  if (args.mode === 'research-assistant') return false;
+  const message = String(args.input.message || '').trim();
+  if (!message || message.length > 220) return false;
+
+  const hasGrounding = Boolean(
+    args.contextBundle.hasExactSignalData ||
+    args.contextBundle.selectedEvidence.length ||
+    args.contextBundle.signalCards.length ||
+    args.contextBundle.marketTemperature ||
+    args.contextBundle.requestedSymbol,
+  );
+  if (!hasGrounding) return false;
+
+  const lower = message.toLowerCase();
+  const quickPrompt =
+    /what should i do today|what do i do today|is it safe to try anything|why are we waiting|what is this card really saying|我今天该怎么做|现在适合出手吗|为什么我们还在等|这张卡到底在说什么/.test(
+      lower,
+    );
+  const intent = inferQuestionIntent(message);
+  return (
+    quickPrompt ||
+    intent.asksEntry ||
+    intent.asksHoldDecision ||
+    intent.asksRisk ||
+    intent.asksWhyWait
+  );
+}
+
 function buildGroundedDeterministicReply(args: {
   input: ChatRequestInput;
   mode: ChatMode;
@@ -498,6 +531,18 @@ async function runProviderChain(args: {
     history: args.history,
   });
 
+  if (shouldPreferGroundedDeterministicReply(args)) {
+    return {
+      provider: 'deterministic',
+      text: buildGroundedDeterministicReply({
+        input: args.input,
+        mode: args.mode,
+        contextBundle: args.contextBundle,
+      }),
+      mode: args.mode,
+    };
+  }
+
   if (!providerOrder.length) {
     const deterministic =
       buildGroundedDeterministicReply({
@@ -600,10 +645,47 @@ export function listChatThreads(userId: string, limit = 12) {
 export function getChatThreadMessages(userId: string, threadId: string, limit = 40) {
   const repo = getRepo();
   const thread = repo.getChatThread(threadId, userId);
-  if (!thread) return { thread: null, messages: [] as ChatMessageRecord[] };
+  if (!thread) return { thread: null, messages: [] as ChatMessageRecord[], hasMore: false };
+  const safeLimit = Math.max(1, Number(limit) || 40);
+  const rows = repo.listChatMessages(threadId, safeLimit + 1);
+  const hasMore = rows.length > safeLimit;
   return {
     thread,
-    messages: repo.listChatMessages(threadId, limit),
+    messages: hasMore ? rows.slice(1) : rows,
+    hasMore,
+  };
+}
+
+export function getLatestChatThreadRestore(
+  userId: string,
+  args?: { threadLimit?: number; messageLimit?: number },
+) {
+  const threadLimit = Math.max(1, Number(args?.threadLimit) || 1);
+  const messageLimit = Math.max(1, Number(args?.messageLimit) || 40);
+  const data = listChatThreads(userId, threadLimit);
+  const latestThread = data[0] || null;
+  if (!latestThread) {
+    return {
+      data,
+      restored: null as ReturnType<typeof getChatThreadMessages> | null,
+    };
+  }
+  return {
+    data,
+    restored: getChatThreadMessages(userId, latestThread.id, messageLimit),
+  };
+}
+
+export function restoreLatestChatThread(userId: string, messageLimit = 40) {
+  const repo = getRepo();
+  const latestThread = repo.getLatestChatThread(userId);
+  if (!latestThread) {
+    return {
+      restored: null as ReturnType<typeof getChatThreadMessages> | null,
+    };
+  }
+  return {
+    restored: getChatThreadMessages(userId, latestThread.id, messageLimit),
   };
 }
 

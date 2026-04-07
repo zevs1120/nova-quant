@@ -46,11 +46,9 @@ import {
   hasSyncedRiskProfile,
   markAuthProfileSynced,
   markRiskProfileSynced,
-  runWhenIdle,
   shouldAttemptPendingOnboardingBonusRetry,
 } from './utils/appHelpers';
 import { resolveFirstRunTarget } from './utils/firstRunRouting.js';
-import { primeBrowseHomeBundle, primeBrowseUniverseBundle } from './utils/browseWarmup';
 import { DEMO_ENTRY_ENABLED, isDemoRuntime as getIsDemoRuntime } from './demo/runtime';
 import { INVESTOR_DEMO_PERFORMANCE } from './demo/investorDemo';
 import { buildTabMeta, buildMenuTitles, MY_SECTION_LIST } from './config/appConstants';
@@ -68,8 +66,6 @@ async function fetchJson(url, options) {
   }
   return response.json();
 }
-
-const BROWSE_WARMUP_REFRESH_MS = 10 * 60 * 1000;
 
 function normalizeWatchSymbol(value) {
   return String(value || '')
@@ -933,31 +929,6 @@ export default function App() {
     document.body.classList.toggle('is-standalone', standalone);
     return () => document.body.classList.remove('is-standalone');
   }, [displayMode]);
-
-  // Browse warmup — only activates when Browse tab is shown
-  useEffect(() => {
-    if (typeof window === 'undefined' || activeTab !== 'browse') return undefined;
-    const warmBrowse = () => {
-      primeBrowseHomeBundle();
-      primeBrowseUniverseBundle();
-    };
-    warmBrowse();
-    const cancelIdle = runWhenIdle(warmBrowse);
-    const intervalId = window.setInterval(() => {
-      if (document.visibilityState !== 'visible') return;
-      warmBrowse();
-    }, BROWSE_WARMUP_REFRESH_MS);
-    const handleVisibility = () => {
-      if (document.visibilityState !== 'visible') return;
-      warmBrowse();
-    };
-    document.addEventListener('visibilitychange', handleVisibility);
-    return () => {
-      cancelIdle();
-      window.clearInterval(intervalId);
-      document.removeEventListener('visibilitychange', handleVisibility);
-    };
-  }, [activeTab]);
 
   // Browse top bar reset
   useEffect(() => {

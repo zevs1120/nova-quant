@@ -62,6 +62,10 @@ function buildAiCopy(locale = 'en-US') {
           ? '我在准备回答时遇到了一点问题。'
           : 'I hit a problem while preparing an answer.',
     },
+    history: {
+      loadMore: lang === 'zh' ? '加载更早的对话' : 'Load earlier messages',
+      loading: lang === 'zh' ? '正在加载更早内容…' : 'Loading earlier messages…',
+    },
   };
 }
 
@@ -438,6 +442,9 @@ function AiConversationShell({
   streaming,
   error,
   sendMessage,
+  hasOlderMessages,
+  loadingHistory,
+  loadOlderMessages,
   onNavigate,
   locale,
   linkedContext,
@@ -516,6 +523,18 @@ function AiConversationShell({
       <div className="nova-ai-scroll" ref={listRef}>
         {hasMessages ? (
           <div className="nova-ai-thread">
+            {hasOlderMessages ? (
+              <div className="nova-ai-history-bar">
+                <button
+                  type="button"
+                  className="nova-ai-history-button"
+                  onClick={() => void loadOlderMessages?.()}
+                  disabled={loadingHistory}
+                >
+                  {loadingHistory ? copy.history.loading : copy.history.loadMore}
+                </button>
+              </div>
+            ) : null}
             {messages.map((item) =>
               item.role === 'assistant' ? (
                 <AssistantMessage

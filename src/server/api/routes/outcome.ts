@@ -1,11 +1,8 @@
 import { Router } from 'express';
-import { asyncRoute, parseMarket, parseAssetClass } from '../helpers.js';
+import { asyncRoute } from '../helpers.js';
 import { getRuntimeRepo } from '../../db/runtimeRepository.js';
-import {
-  getOutcomeSummaryStats,
-  resolveOutcomesForDate,
-  resolveRecentOutcomes,
-} from '../../outcome/resolver.js';
+import { getRecentOutcomeSummary, invalidateFrontendReadCacheForUser } from '../queries.js';
+import { resolveOutcomesForDate, resolveRecentOutcomes } from '../../outcome/resolver.js';
 
 const router = Router();
 
@@ -14,12 +11,7 @@ router.get(
   asyncRoute(async (req, res) => {
     const userId = (req.query.userId as string | undefined) || 'guest-default';
     const limit = req.query.limit ? Math.min(Number(req.query.limit), 200) : 100;
-
-    const repo = getRuntimeRepo();
-
-    const { outcomes, stats } = getOutcomeSummaryStats(repo, userId, limit);
-
-    res.json({ outcomes, stats });
+    res.json(await getRecentOutcomeSummary({ userId, limit }));
   }),
 );
 
@@ -37,12 +29,14 @@ router.post(
 
     if (body.date) {
       const entries = resolveOutcomesForDate(repo, body.date, userId);
+      invalidateFrontendReadCacheForUser(userId);
       res.json({ date: body.date, resolved: entries.length, entries });
       return;
     }
 
     const lookbackDays = Math.min(Math.max(1, Number(body.lookbackDays) || 14), 30);
     const result = resolveRecentOutcomes(repo, userId, lookbackDays);
+    invalidateFrontendReadCacheForUser(userId);
     res.json(result);
   }),
 );

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   CategoryScale,
   Chart as ChartJS,
@@ -16,6 +16,7 @@ import Skeleton from './Skeleton';
 import { formatDateTime, formatNumber, formatPercent } from '../utils/format';
 import { describeEvidenceMode } from '../utils/provenance';
 import { fetchApiJson } from '../utils/api';
+import { useRecentOutcomes } from '../hooks/useRecentOutcomes';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, Filler);
 
@@ -88,25 +89,11 @@ export default function ProofTab({
   effectiveUserId,
 }) {
   const [sourceTab, setSourceTab] = useState('backtest');
-  const [outcomeData, setOutcomeData] = useState({ outcomes: [], stats: null });
-
-  // Fetch recent outcomes
-  useEffect(() => {
-    let cancelled = false;
-    const qs = effectiveUserId
-      ? `?userId=${encodeURIComponent(effectiveUserId)}&limit=50`
-      : '?limit=50';
-    fetchApiJson(`/api/outcomes/recent${qs}`)
-      .then((data) => {
-        if (!cancelled && data) {
-          setOutcomeData({ outcomes: data.outcomes || [], stats: data.stats || null });
-        }
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [effectiveUserId]);
+  const { outcomeData } = useRecentOutcomes({
+    effectiveUserId,
+    fetchJson: fetchApiJson,
+    limit: 50,
+  });
 
   const proof = performance?.proof || { datasets: {} };
   const researchBacktest = research?.champion?.backtest;

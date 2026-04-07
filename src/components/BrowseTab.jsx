@@ -3,18 +3,16 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { formatNumber } from '../utils/format';
 import { fetchApiJson } from '../utils/api';
 import {
-  primeBrowseDetailSelections,
   readBrowseDetailSnapshot,
   readBrowseHomeSnapshot,
   searchBrowseUniverseLocal,
   warmBrowseDetailSnapshot,
   warmBrowseHomeSnapshot,
-  warmBrowseUniverseSnapshot,
 } from '../utils/browseWarmup';
 
 const CATEGORY_KEYS = ['STOCK', 'CRYPTO'];
 const DETAIL_RANGES = ['1D', '1W', '1M', '3M'];
-const HOME_POLL_MS = 60_000;
+const HOME_POLL_MS = 180_000;
 const DETAIL_POLL_MS = 30_000;
 const DETAIL_META_POLL_MS = 300_000;
 const DETAIL_RANGE_CONFIG = {
@@ -781,14 +779,8 @@ export default function BrowseTab({
       }
       const request = (async () => {
         try {
-          const payload = await warmBrowseHomeSnapshot(view, { force: !initial });
+          const payload = await warmBrowseHomeSnapshot(view, { force: false });
           if (cancelled) return;
-          if (payload) {
-            primeBrowseDetailSelections([
-              ...(payload.futuresMarkets || []),
-              ...((view === 'CRYPTO' ? payload.cryptoMovers : payload.topMovers) || []),
-            ]);
-          }
           setHomeStateByCategory((current) => ({
             ...current,
             [view]: {
@@ -816,14 +808,7 @@ export default function BrowseTab({
       return request;
     };
 
-    void loadHome(category, true).then(() => {
-      const inactiveViews = CATEGORY_KEYS.filter(
-        (view) => view !== category && !readBrowseHomeSnapshot(view),
-      );
-      inactiveViews.forEach((view) => {
-        void loadHome(view, false);
-      });
-    });
+    void loadHome(category, true);
     const intervalId = window.setInterval(() => {
       if (!isPageVisible()) return;
       void loadHome(category, false);
@@ -860,8 +845,6 @@ export default function BrowseTab({
     }
     const timer = window.setTimeout(async () => {
       try {
-        void warmBrowseUniverseSnapshot('US');
-        void warmBrowseUniverseSnapshot('CRYPTO');
         const payload = await fetchApiJson(
           `/api/assets/search?q=${encodeURIComponent(trimmed)}&limit=18`,
           { cache: 'no-store' },
@@ -947,7 +930,7 @@ export default function BrowseTab({
         const chartPayload = config.live
           ? normalizeDetailBundlePayload(
               await warmBrowseDetailSnapshot(selectedAsset, {
-                force: true,
+                force: false,
               }).catch(() => null),
             )
           : await fetchApiJson(

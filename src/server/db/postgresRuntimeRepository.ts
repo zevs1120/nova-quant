@@ -1969,6 +1969,21 @@ export class PostgresRuntimeRepository extends MarketRepository {
     );
   }
 
+  getLatestChatThread(userId: string): ChatThreadRecord | null {
+    return (
+      queryRowSync<ChatThreadRecord>(
+        `
+          SELECT id, user_id, title, last_context_json, last_message_preview, created_at_ms, updated_at_ms
+          FROM ${qualifyBusinessTable('chat_threads')}
+          WHERE user_id = $1
+          ORDER BY updated_at_ms DESC
+          LIMIT 1
+        `,
+        [userId],
+      ) || null
+    );
+  }
+
   listChatThreads(userId: string, limit = 20): ChatThreadRecord[] {
     return queryRowsSync<ChatThreadRecord>(
       `

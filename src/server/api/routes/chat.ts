@@ -1,7 +1,13 @@
 import express, { Router } from 'express';
 import type { AssetClass, Market } from '../../types.js';
 import { checkRateLimit } from '../../chat/rateLimit.js';
-import { getChatThreadMessages, listChatThreads, streamChat } from '../../chat/service.js';
+import {
+  getChatThreadMessages,
+  getLatestChatThreadRestore,
+  listChatThreads,
+  restoreLatestChatThread,
+  streamChat,
+} from '../../chat/service.js';
 import { logChatAudit } from '../../chat/audit.js';
 import { consumeAskNovaAccess } from '../../membership/service.js';
 import { recordNovaAssistantRun } from '../queries.js';
@@ -217,9 +223,35 @@ async function handleChat(req: express.Request, res: express.Response) {
 router.post('/api/chat', handleChat);
 router.post('/api/ai-chat', handleChat);
 
+router.get('/api/chat/restore-latest', (req, res) => {
+  const userId = String((req.query.userId as string | undefined) || '').trim() || 'guest-default';
+  const messageLimit = req.query.messageLimit ? Number(req.query.messageLimit) : 40;
+  res.json({
+    userId,
+    ...restoreLatestChatThread(userId, messageLimit),
+  });
+});
+
 router.get('/api/chat/threads', (req, res) => {
   const userId = String((req.query.userId as string | undefined) || '').trim() || 'guest-default';
   const limit = req.query.limit ? Number(req.query.limit) : 12;
+  const hydrate = String((req.query.hydrate as string | undefined) || '')
+    .trim()
+    .toLowerCase();
+  if (hydrate === 'latest-messages') {
+    const messageLimit = req.query.messageLimit ? Number(req.query.messageLimit) : 40;
+    const payload = getLatestChatThreadRestore(userId, {
+      threadLimit: limit,
+      messageLimit,
+    });
+    res.json({
+      userId,
+      count: payload.data.length,
+      data: payload.data,
+      restored: payload.restored && payload.restored.thread ? payload.restored : null,
+    });
+    return;
+  }
   const data = listChatThreads(userId, limit);
   res.json({
     userId,

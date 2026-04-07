@@ -57,6 +57,19 @@ describe('browseWarmup', () => {
     expect(fetchApiJson).toHaveBeenCalledTimes(1);
   });
 
+  it('warmBrowseHomeSnapshot does not auto-prime detail bundles', async () => {
+    fetchApiJson.mockResolvedValue({
+      futuresMarkets: [{ market: 'US', symbol: 'SPY' }],
+      topMovers: [{ market: 'US', symbol: 'QQQ' }],
+    });
+    const mod = await import('../src/utils/browseWarmup.js');
+    await mod.warmBrowseHomeSnapshot('STOCK');
+    expect(fetchApiJson).toHaveBeenCalledTimes(1);
+    expect(fetchApiJson).toHaveBeenCalledWith('/api/browse/home?view=STOCK', {
+      cache: 'no-store',
+    });
+  });
+
   it('warmBrowseHomeSnapshot respects force to bypass short fresh window', async () => {
     fetchApiJson.mockResolvedValue({ ok: 1 });
     const mod = await import('../src/utils/browseWarmup.js');

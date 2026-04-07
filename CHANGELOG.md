@@ -4,6 +4,15 @@ NovaQuant 所有重要变更记录于此。
 
 ## 10.22.33 (2026-04-07)
 
+### ⚡ Browse / Proof / Chat 用量继续收紧
+
+- **perf(chat,app): 继续压缩前端恢复扇出与 AI 成本。**
+- `Browse` 去掉了 App 层全局预热、首页自动 detail 预热、非当前分类后台拉取与搜索时顺手拉全量 universe 的附带请求；默认恢复更依赖短 TTL 缓存，减少无感知 Edge / Function 开销。
+- `control-plane` 与 `recent outcomes` 增加了前端短 TTL 缓存和 in-flight 合并；`recent outcomes` 服务端也加了短 TTL 聚合读缓存，并在 resolve 写入后主动失效，进一步压掉重复 invocation 与 fluid CPU。
+- AI / Chat 恢复链路改成专用轻接口：默认只恢复最近 `3` 条消息，按需展开到 `10` 条；带 `seedRequest` 进入 AI 时直接跳过 restore GET。
+- 对常见低熵快问新增 grounded deterministic fast-path：已有信号、风险和市场证据足够时直接生成回答，不再优先调外部 provider，降低模型调用成本。
+- 新增回归覆盖 `tests/hooks/useRecentOutcomes.hook.test.ts`、`tests/recentOutcomeSummaryCache.test.ts`、`tests/chatDeterministicFastPath.test.ts`，并扩充 chat / browse / control-plane hooks 用例。
+
 ### ⚡ Edge / Function 请求收敛
 
 - **perf(app,api): 收紧首屏请求扇出。**
