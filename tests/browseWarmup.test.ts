@@ -103,6 +103,37 @@ describe('browseWarmup', () => {
     expect(hits[0].symbol).toBe('MELI');
   });
 
+  it('warmBrowseSearchSnapshot coalesces inflight requests and caches the response', async () => {
+    let resolveFn!: (value: unknown) => void;
+    const slow = new Promise((resolve) => {
+      resolveFn = resolve;
+    });
+    fetchApiJson.mockReturnValueOnce(slow);
+    const mod = await import('../src/utils/browseWarmup.js');
+    const a = mod.warmBrowseSearchSnapshot('spy', { limit: 8 });
+    const b = mod.warmBrowseSearchSnapshot('spy', { limit: 8 });
+    resolveFn!({ data: [{ symbol: 'SPY', market: 'US' }], health: { ok: true } });
+    const [ra, rb] = await Promise.all([a, b]);
+    expect(ra).toEqual({
+      data: [{ symbol: 'SPY', market: 'US' }],
+      health: { ok: true },
+    });
+    expect(rb).toEqual(ra);
+    expect(fetchApiJson).toHaveBeenCalledTimes(1);
+
+    fetchApiJson.mockClear();
+    const cached = await mod.warmBrowseSearchSnapshot('spy', { limit: 8 });
+    expect(cached).toEqual(ra);
+    expect(fetchApiJson).not.toHaveBeenCalled();
+  });
+
+  it('warmBrowseSearchSnapshot skips remote fetches for very short queries', async () => {
+    const mod = await import('../src/utils/browseWarmup.js');
+    const payload = await mod.warmBrowseSearchSnapshot('s', { limit: 8 });
+    expect(payload).toEqual({ data: [], health: null });
+    expect(fetchApiJson).not.toHaveBeenCalled();
+  });
+
   it('readBrowseDetailSnapshot returns null for empty selection', async () => {
     const mod = await import('../src/utils/browseWarmup.js');
     expect(mod.readBrowseDetailSnapshot({})).toBe(null);

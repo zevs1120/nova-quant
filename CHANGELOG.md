@@ -4,6 +4,14 @@ NovaQuant 所有重要变更记录于此。
 
 ## 10.22.33 (2026-04-07)
 
+### ⚡ Search / Runtime / Chat 再降一轮常驻消耗
+
+- **perf(app,chat): 继续收紧搜索出网、后台 revalidate 与无效 chat 写入。**
+- Browse 搜索新增短 TTL 结果缓存和 in-flight 合并；短 query 不再远端搜索，且本地 universe 已经给出强匹配时不再重复打 `/api/assets/search`。
+- `useAppData` 的 `/api/runtime-state` 后台刷新增加跨重入合并，页面回前台、silent revalidate 与组件重挂载撞在一起时不再并发打多条同路径请求。
+- `Ask Nova` 被会员/权限门槛拦下且根本没生成回答时，不再额外写入 `nova_task_runs`；训练与复盘仍保留真正生成过回答的 run 记录。
+- 新增回归 `tests/novaAssistantRunWritePath.test.ts`，并扩充 `tests/browseWarmup.test.ts`、`tests/hooks/useAppData.hook.test.ts`，守住这些降载路径。
+
 ### ⚡ Chat / Browse 后台读写继续瘦身
 
 - **perf(chat,browse): 继续压缩 AI 会话恢复、写入体积与 Browse 重复轮询。**

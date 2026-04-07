@@ -9,6 +9,7 @@ const APP_DATA_CACHE_PREFIX = 'nova-app-data-cache:v2';
 const APP_DATA_BACKGROUND_REVALIDATE_MS = 300_000;
 const APP_DATA_REFRESH_MS = 600_000;
 const appDataMemoryCache = new Map();
+const appDataRuntimeInflight = new Map();
 
 function buildAppDataCacheKey({ userId, market, assetClass }) {
   return `${userId || 'guest-default'}:${market || 'US'}:${assetClass || 'US_STOCK'}`;
@@ -93,6 +94,19 @@ function readRuntimeApiCheck(runtime, runtimeData, key) {
     );
   }
   return null;
+}
+
+function fetchRuntimeStateOnce(fetchJson, path) {
+  if (appDataRuntimeInflight.has(path)) {
+    return appDataRuntimeInflight.get(path);
+  }
+  const request = Promise.resolve()
+    .then(() => fetchJson(path))
+    .finally(() => {
+      appDataRuntimeInflight.delete(path);
+    });
+  appDataRuntimeInflight.set(path, request);
+  return request;
 }
 
 function readRuntimeHydrationPlan(runtimeData) {
@@ -269,8 +283,9 @@ export function useAppData({
           market,
           assetClass,
         });
+        const runtimePath = `/api/runtime-state?${query.toString()}`;
 
-        const runtime = await fetchJson(`/api/runtime-state?${query.toString()}`).catch(() => null);
+        const runtime = await fetchRuntimeStateOnce(fetchJson, runtimePath).catch(() => null);
 
         if (!mounted || loadId !== activeLoadId) return;
 

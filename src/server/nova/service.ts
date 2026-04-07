@@ -80,6 +80,18 @@ function persistNovaTaskRun(repo: MarketRepository, input: NovaTaskRunRecord) {
   repo.upsertNovaTaskRun(input);
 }
 
+function shouldPersistAssistantAnswerRun(args: {
+  provider: string;
+  status: 'SUCCEEDED' | 'FAILED';
+  responseText: string;
+}) {
+  return !(
+    args.status === 'FAILED' &&
+    args.provider === 'none' &&
+    !String(args.responseText || '').trim()
+  );
+}
+
 export async function runLoggedNovaTextTask(args: {
   repo: MarketRepository;
   userId?: string | null;
@@ -482,6 +494,15 @@ export async function logNovaAssistantAnswer(args: {
   status: 'SUCCEEDED' | 'FAILED';
   error?: string;
 }) {
+  if (
+    !shouldPersistAssistantAnswerRun({
+      provider: args.provider,
+      status: args.status,
+      responseText: args.responseText,
+    })
+  ) {
+    return;
+  }
   const route = resolveBusinessTask('assistant_answer');
   const runId = `nova-run-${randomUUID()}`;
   const traceId = args.traceId || createTraceId('nova-chat');

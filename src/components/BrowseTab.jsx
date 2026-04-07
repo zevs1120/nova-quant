@@ -8,6 +8,7 @@ import {
   searchBrowseUniverseLocal,
   warmBrowseDetailSnapshot,
   warmBrowseHomeSnapshot,
+  warmBrowseSearchSnapshot,
 } from '../utils/browseWarmup';
 
 const CATEGORY_KEYS = ['STOCK', 'CRYPTO'];
@@ -44,6 +45,25 @@ function normalizeSymbol(value) {
     .trim()
     .toUpperCase()
     .replace(/[^A-Z0-9.]/g, '');
+}
+
+function normalizeSearchText(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9.]+/g, '');
+}
+
+function shouldSkipRemoteSearch(query, localResults, limit = 18) {
+  if (!Array.isArray(localResults) || !localResults.length) return false;
+  if (localResults.length >= limit) return true;
+  const normalizedQuery = normalizeSearchText(query);
+  if (!normalizedQuery) return false;
+  return localResults.some((item) => {
+    const symbol = normalizeSearchText(item?.symbol);
+    const name = normalizeSearchText(item?.name);
+    return symbol === normalizedQuery || name === normalizedQuery;
+  });
 }
 
 function displaySymbol(symbol, market) {
@@ -843,12 +863,20 @@ export default function BrowseTab({
     } else {
       setSearchState('loading');
     }
+    if (normalizeSearchText(trimmed).length < 2) {
+      if (!localResults.length) {
+        setSearchState('ready');
+        setSearchResults([]);
+        setSearchHealth(null);
+      }
+      return undefined;
+    }
+    if (shouldSkipRemoteSearch(trimmed, localResults, 18)) {
+      return undefined;
+    }
     const timer = window.setTimeout(async () => {
       try {
-        const payload = await fetchApiJson(
-          `/api/assets/search?q=${encodeURIComponent(trimmed)}&limit=18`,
-          { cache: 'no-store' },
-        );
+        const payload = await warmBrowseSearchSnapshot(trimmed, { limit: 18 });
         if (cancelled) return;
         setSearchResults(Array.isArray(payload?.data) ? payload.data : []);
         setSearchHealth(payload?.health || null);

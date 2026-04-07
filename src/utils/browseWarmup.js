@@ -4,13 +4,18 @@ const HOME_STORAGE_TTL_MS = 1000 * 60 * 5;
 const HOME_FRESH_MS = 1000 * 60 * 2;
 const UNIVERSE_STORAGE_TTL_MS = 1000 * 60 * 60 * 12;
 const UNIVERSE_FRESH_MS = 1000 * 60 * 30;
+const SEARCH_STORAGE_TTL_MS = 1000 * 60 * 15;
+const SEARCH_FRESH_MS = 1000 * 60 * 3;
 const DETAIL_STORAGE_TTL_MS = 1000 * 60 * 3;
 const DETAIL_FRESH_MS = 1000 * 60;
+const MARKETS = ['US', 'CRYPTO'];
 
 const homeCache = new Map();
 const homeInflight = new Map();
 const universeCache = new Map();
 const universeInflight = new Map();
+const searchCache = new Map();
+const searchInflight = new Map();
 const detailCache = new Map();
 const detailInflight = new Map();
 
@@ -89,6 +94,10 @@ function universeStorageKey(market) {
 
 function detailStorageKey(key) {
   return `nq:browse:detail:${key}`;
+}
+
+function searchStorageKey(key) {
+  return `nq:browse:search:${key}`;
 }
 
 export function readBrowseHomeSnapshot(view) {
@@ -180,6 +189,46 @@ export function searchBrowseUniverseLocal(query, options = {}) {
           : item.venue || item.assetClass || 'US',
       latest: null,
     }));
+}
+
+function normalizeSearchKey(query, limit) {
+  return `${normalizeText(query)}:${Math.max(1, Math.min(Number(limit || 18), 50))}`;
+}
+
+export function readBrowseSearchSnapshot(query, options = {}) {
+  const key = normalizeSearchKey(query, options.limit);
+  if (!key || key.startsWith(':')) return null;
+  return readSnapshot(searchCache, searchStorageKey(key), key, SEARCH_STORAGE_TTL_MS);
+}
+
+export async function warmBrowseSearchSnapshot(query, options = {}) {
+  const trimmed = String(query || '').trim();
+  const limit = Math.max(1, Math.min(Number(options.limit || 18), 50));
+  const key = normalizeSearchKey(trimmed, limit);
+  const normalizedQuery = normalizeText(trimmed);
+  if (normalizedQuery.length < 2) {
+    return { data: [], health: null };
+  }
+  const cached = readMemory(searchCache, key, SEARCH_FRESH_MS);
+  if (cached && !options.force) return cached.data;
+  if (searchInflight.has(key)) return searchInflight.get(key);
+  const request = fetchApiJson(
+    `/api/assets/search?q=${encodeURIComponent(trimmed)}&limit=${limit}`,
+    { cache: 'no-store' },
+  )
+    .then((payload) => {
+      const result = {
+        data: Array.isArray(payload?.data) ? payload.data : [],
+        health: payload?.health || null,
+      };
+      writeSnapshot(searchCache, searchStorageKey(key), key, result);
+      return result;
+    })
+    .finally(() => {
+      searchInflight.delete(key);
+    });
+  searchInflight.set(key, request);
+  return request;
 }
 
 function selectionKey(selection) {

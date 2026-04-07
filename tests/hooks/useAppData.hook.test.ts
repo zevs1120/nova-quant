@@ -269,4 +269,63 @@ describe('useAppData', () => {
     expect(requested.some((url) => url.includes('/api/connect/exchange'))).toBe(false);
     expect(requested.some((url) => url.includes('/api/signals?'))).toBe(false);
   });
+
+  it('coalesces in-flight runtime-state revalidation across visibility pings', async () => {
+    let resolveRuntime!: (value: unknown) => void;
+    const runtimePromise = new Promise((resolve) => {
+      resolveRuntime = resolve;
+    });
+    const fetchJson = vi.fn(async (url: string) => {
+      if (String(url).includes('/api/runtime-state')) {
+        return runtimePromise;
+      }
+      return {};
+    });
+
+    const { useAppData } = await import('../../src/hooks/useAppData.js');
+    const { result } = renderHook(() =>
+      useAppData({
+        fetchJson,
+        assetClass: 'US_STOCK',
+        market: 'US',
+        effectiveUserId: 'u1',
+        authSession: null,
+        riskProfileKey: 'balanced',
+        executions: [],
+        refreshNonce: 0,
+      }),
+    );
+
+    await waitFor(() => expect(fetchJson).toHaveBeenCalledTimes(1));
+    document.dispatchEvent(new Event('visibilitychange'));
+    await Promise.resolve();
+    expect(fetchJson).toHaveBeenCalledTimes(1);
+
+    resolveRuntime({
+      data: {
+        ...initialData,
+        signals: [],
+        decision: null,
+        evidence: null,
+        market_modules: [],
+        performance: initialData.performance,
+        config: {
+          runtime: {
+            api_checks: {
+              signal_count: 0,
+              market_state_count: 0,
+              modules_count: 0,
+              performance_records: 0,
+            },
+          },
+          risk_rules: {},
+        },
+      },
+      asof: '2024-01-01T00:00:00.000Z',
+      source_status: 'DB_BACKED',
+      data_status: 'ok',
+    });
+
+    await waitFor(() => expect(result.current.hasLoaded).toBe(true));
+  });
 });
