@@ -413,7 +413,7 @@ Nova Quant 现阶段最有价值的地方，不是单个页面或单个模型能
 
 以下事实来自当前仓库快照：
 
-- 当前版本：`10.22.28`（与根目录 `package.json` 一致）
+- 当前版本：`10.22.31`（与根目录 `package.json` 一致）
 - API 域路由挂载：`18` 个（见 `src/server/api/app.ts` 中 `app.use(*Router)`）
 - 管理后台核心页面：`6` 个（定性；以 `admin/src` 为准）
 - 顶层 `*Tab.jsx` 用户功能页面：`17` 个（定性；以 `src/components` 为准）

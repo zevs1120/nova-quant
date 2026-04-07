@@ -28,3 +28,8 @@ This document locks the root deployment to the second model.
 - Visiting `/healthz` rewrites into the API health route.
 - Visiting `/` also lands on the API JSON surface instead of a frontend shell.
 - Frontend deployments continue to live under [app/vercel.json](app/vercel.json), [admin/vercel.json](admin/vercel.json), and [landing/vercel.json](landing/vercel.json).
+
+## H5 app (`app/`) API rewrites and client governance
+
+- [app/vercel.json](app/vercel.json) rewrites `/api/:path*` to the production API host. **Each browser call to same-origin `/api/*` still counts as an Edge request on the `app` project** before the origin fetch runs.
+- The main shell’s [src/utils/api.js](src/utils/api.js) wraps all product `fetchApi` traffic with [src/shared/http/apiGovernance.js](src/shared/http/apiGovernance.js): in-flight dedupe, per-route minimum spacing, failure backoff, and a short global pause when Vercel returns `402` + `X-Vercel-Error: DEPLOYMENT_DISABLED`. Keep this layer in mind when diagnosing Edge request volume.

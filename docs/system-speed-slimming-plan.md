@@ -21,6 +21,7 @@
 - 服务端存在前端读缓存与 inflight 合并，见 [src/server/api/queries.ts](src/server/api/queries.ts#L579)
 - `Today` 公共决策已有独立公共缓存，见 [src/server/public/todayDecisionService.ts](src/server/public/todayDecisionService.ts#L674)
 - 仓库已经有性能回归测试，见 [tests/performanceOptimization.test.ts](tests/performanceOptimization.test.ts#L1)
+- 浏览器侧 `fetchApi` 已接入 [src/shared/http/apiGovernance.js](src/shared/http/apiGovernance.js)（并发合并、热点路径最小间隔、失败退避、Vercel 部署禁用短冷却），降低 **H5 经 `app/` rewrite 打 Edge** 时的无效扇出与故障雪崩重试；单测见 [tests/apiGovernance.test.ts](tests/apiGovernance.test.ts)。
 
 但真正影响速度的几个问题仍然很明显：
 

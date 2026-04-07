@@ -230,6 +230,23 @@ export default function App() {
   const canUseInvestorDemo = Boolean(DEMO_ENTRY_ENABLED && authSession?.isAdmin);
 
   const isDemoRuntime = getIsDemoRuntime(investorDemoEnabled);
+
+  // Stable clock for engagement (avoid `new Date()` each render — it recreated
+  // loadEngagementState every render and retriggered POST /api/engagement/state).
+  const [engagementClock, setEngagementClock] = useState(() => new Date());
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const tick = () => setEngagementClock(new Date());
+    const id = window.setInterval(tick, 60_000);
+    const onVis = () => {
+      if (document.visibilityState === 'visible') tick();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener('visibilitychange', onVis);
+    };
+  }, []);
   const onboardingRetrySessionKey = useMemo(
     () => buildOnboardingRetrySessionKey(authSession),
     [authSession?.loggedInAt, authSession?.userId],
@@ -323,7 +340,7 @@ export default function App() {
     hasLoaded,
     decisionSnapshot,
     setRefreshNonce,
-    now: new Date(),
+    now: engagementClock,
     disciplineLog,
     setDisciplineLog,
     executions,

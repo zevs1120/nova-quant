@@ -2,6 +2,25 @@
 
 NovaQuant 所有重要变更记录于此。
 
+## 10.22.31 (2026-04-07)
+
+### 🛡️ 前端 API 请求治理与 Engagement 渲染风暴修复
+
+- **根因**：`App.jsx` 向 `useEngagement` 传入 `now: new Date()`，每次父组件重渲染都会改变 `loadEngagementState` 的引用，进而反复触发 `POST /api/engagement/state`，在 Vercel Edge 上放大用量。
+- **修复**：使用 `engagementClock`（约每 60s 前进、回到前台时校准），保证 `now` 引用稳定。
+- **系统性治理**：新增 [src/shared/http/apiGovernance.js](src/shared/http/apiGovernance.js)，由 [src/utils/api.js](src/utils/api.js) 的 `fetchApi` 统一接入——支持同请求并发合并（带 `response.clone()` 防锁）、热点路径最小间隔、连续 `5xx`/`429` 指数退避（含 jitter 防 thundering herd）、`402`+Vercel 部署禁用全局短冷却。
+- **治理增强**：修复并发请求合并时的 Body 锁定问题，并支持对 Object Body 进行精确去重；`makeDedupeKey` 规范化 query 参数顺序，消除参数排列不同导致的去重失效。
+- **治理覆盖率**：修复 `ProofTab` 组件直接调用 `fetch()` 绕过治理层的问题，改为走 `fetchApiJson`。
+- **鉴权**：Supabase `TOKEN_REFRESHED` / `USER_UPDATED` 对 `hydrateSessionFromApi` **600ms 防抖**，减少 session 扇出。
+- **测试**：[tests/apiGovernance.test.ts](tests/apiGovernance.test.ts) 覆盖合并、Vercel 暂停、退避 jitter 范围与 query 参数规范化。
+- **深度加固（审查驱动）**：
+  - `loadEngagementState` / `buildEngagementBody` 中 `now` 从 `useCallback` 依赖数组移除，改用 `useRef` 惰性读取，彻底消除 60s 自动 POST 残留；`todayKey` 保留（仅午夜变化，正确触发日切重载）。
+  - **半开断路器**：bucket 退避窗口过期后仅放行一个探针请求；探针成功则恢复全开，失败则立即重新退避，避免故障恢复期的请求涌入。
+  - **间隔串行化**：`waitRequestSpacing` 通过 Promise 链串行化，消除理论上的并发时间戳竞态。
+  - **Body 去重健壮性**：`makeDedupeKey` 新增 `FormData`（确定性序列化）、`Blob`（size+type）、`ArrayBuffer` / `TypedArray`（byteLength）支持，防止非 JSON body 请求被错误合并为 `[object FormData]`。
+  - **HMR 安全**：通过 `import.meta.hot.dispose` 在 Vite 热更新时自动重置治理状态，防止开发期间状态泄漏。
+  - **测试扩展**（8 → 14）：新增半开断路器探针成功/失败/并发阻塞、FormData/Blob/ArrayBuffer/TypedArray 去重、probe 恢复与重退避等用例。
+
 ## 10.22.30 (2026-04-06)
 
 ### 🐛 Postgres runtime：IDENTITY 列与 `ensureSequences` 兼容

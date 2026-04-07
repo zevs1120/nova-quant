@@ -1,6 +1,15 @@
 import { getSupabaseAccessToken } from './supabaseAuth';
 import { runtimeApiBases, buildApiUrl, unique } from '../shared/http/apiBase.js';
 import { shouldRetryWithNextBase } from '../shared/http/apiRetry.js';
+import {
+  finalizeGovernedRequest,
+  governanceBucket,
+  makeDedupeKey,
+  runCoalescedFetch,
+  syntheticIfBucketBackoff,
+  syntheticIfGlobalPaused,
+  waitRequestSpacing,
+} from '../shared/http/apiGovernance.js';
 
 let cachedApiBase = null;
 
@@ -26,16 +35,20 @@ async function withAuthHeaders(options = {}) {
   };
 }
 
-export async function fetchApi(path, options = {}) {
-  const requestOptions = await withAuthHeaders(options);
-  // Fast path: use cached base without computing fallback candidates
+/**
+ * Core fetch without governance (fallback chain + base cache).
+ * @param {string} path
+ * @param {RequestInit} requestOptions
+ * @param {RequestInit} originalOptions
+ */
+async function executeFetchApi(path, requestOptions, originalOptions) {
   if (cachedApiBase !== null) {
     const url = buildApiUrl(path, cachedApiBase);
     try {
       const response = await fetch(url, {
         ...requestOptions,
-        mode: cachedApiBase ? 'cors' : options.mode,
-        credentials: options.credentials ?? 'include',
+        mode: cachedApiBase ? 'cors' : originalOptions.mode,
+        credentials: originalOptions.credentials ?? 'include',
       });
       if (shouldRetryWithNextBase(path, response)) {
         cachedApiBase = null;
@@ -43,7 +56,6 @@ export async function fetchApi(path, options = {}) {
         return response;
       }
     } catch {
-      // Cached base failed — fall through to full candidate list
       cachedApiBase = null;
     }
   }
@@ -57,8 +69,8 @@ export async function fetchApi(path, options = {}) {
     try {
       const response = await fetch(url, {
         ...requestOptions,
-        mode: base ? 'cors' : options.mode,
-        credentials: options.credentials ?? 'include',
+        mode: base ? 'cors' : originalOptions.mode,
+        credentials: originalOptions.credentials ?? 'include',
       });
       if (shouldRetryWithNextBase(path, response)) {
         lastRetryableResponse = response;
@@ -74,6 +86,33 @@ export async function fetchApi(path, options = {}) {
   if (lastError) throw lastError;
   if (lastRetryableResponse) return lastRetryableResponse;
   throw new Error(`Unable to reach API for ${path}`);
+}
+
+export async function fetchApi(path, options = {}) {
+  const method = String(options.method || 'GET').toUpperCase();
+  const body = options.body;
+
+  const paused = syntheticIfGlobalPaused();
+  if (paused) return paused;
+
+  const bucket = governanceBucket(path, method);
+  const backoff = syntheticIfBucketBackoff(bucket);
+  if (backoff) return backoff;
+
+  const dedupeKey = makeDedupeKey(method, path, body);
+
+  return runCoalescedFetch(dedupeKey, async () => {
+    await waitRequestSpacing(bucket);
+    const requestOptions = await withAuthHeaders(options);
+    try {
+      const response = await executeFetchApi(path, requestOptions, options);
+      finalizeGovernedRequest(bucket, response, null);
+      return response;
+    } catch (error) {
+      finalizeGovernedRequest(bucket, null, error);
+      throw error;
+    }
+  });
 }
 
 export async function fetchApiJson(path, options = {}) {

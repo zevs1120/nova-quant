@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DEMO_MANUAL_STATE } from '../config/appConstants';
 import { localDateKey, weekStartKey, addUniqueKey, calcStreak } from '../utils/date';
 import { fetchApi } from '../utils/api';
@@ -48,6 +48,12 @@ export function useEngagement({
 
   const todayKey = localDateKey(now);
   const currentWeekKey = weekStartKey(now);
+
+  // Ref for `now` to avoid unstable Date references in useCallback deps.
+  // `todayKey` (string) is stable within a day; `now.getHours()` via ref avoids
+  // loadEngagementState / buildEngagementBody re-creation every engagementClock tick.
+  const nowRef = useRef(now);
+  nowRef.current = now;
 
   // Load manual state
   useEffect(() => {
@@ -110,7 +116,7 @@ export function useEngagement({
           market,
           assetClass,
           localDate: todayKey,
-          localHour: now.getHours(),
+          localHour: nowRef.current.getHours(),
           locale: lang,
           holdings: effectiveHoldings,
         }),
@@ -129,10 +135,9 @@ export function useEngagement({
     isDemoRuntime,
     lang,
     market,
-    now,
     todayKey,
     fetchJson,
-  ]);
+  ]); // `now` accessed via nowRef to avoid 60s churn
 
   // Load engagement after decision snapshot
   useEffect(() => {
@@ -189,12 +194,12 @@ export function useEngagement({
       market,
       assetClass,
       localDate: todayKey,
-      localHour: now.getHours(),
+      localHour: nowRef.current.getHours(),
       locale: lang,
       holdings: effectiveHoldings,
     }),
-    [assetClass, effectiveUserId, effectiveHoldings, lang, market, now, todayKey],
-  );
+    [assetClass, effectiveUserId, effectiveHoldings, lang, market, todayKey],
+  ); // `now` accessed via nowRef to avoid 60s churn
 
   const markDailyCheckin = useCallback(async () => {
     syncLocalDisciplineLog((current) => ({

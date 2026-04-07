@@ -15,6 +15,7 @@ import KpiCard from './KpiCard';
 import Skeleton from './Skeleton';
 import { formatDateTime, formatNumber, formatPercent } from '../utils/format';
 import { describeEvidenceMode } from '../utils/provenance';
+import { fetchApiJson } from '../utils/api';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, Filler);
 
@@ -95,8 +96,7 @@ export default function ProofTab({
     const qs = effectiveUserId
       ? `?userId=${encodeURIComponent(effectiveUserId)}&limit=50`
       : '?limit=50';
-    fetch(`/api/outcomes/recent${qs}`)
-      .then((res) => (res.ok ? res.json() : null))
+    fetchApiJson(`/api/outcomes/recent${qs}`)
       .then((data) => {
         if (!cancelled && data) {
           setOutcomeData({ outcomes: data.outcomes || [], stats: data.stats || null });

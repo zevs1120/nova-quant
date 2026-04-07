@@ -171,6 +171,7 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
 
   const effectiveUserId = authSession?.userId || chatUserId;
   const signupInProgressRef = useRef(false);
+  const hydrateDebounceRef = useRef(null);
 
   const normalizeRoles = useCallback(
     (roles) =>
@@ -476,20 +477,37 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
         }
         if (session?.access_token) {
           clearSessionPayloadCache();
-          void hydrateSessionFromApi({
-            resetNavigation: event === 'SIGNED_IN',
-            force: true,
-          })
-            .then(async (hydrated) => {
-              if (!hydrated) {
-                await supabase.auth.signOut().catch(() => {});
-              }
+          const debounceMs = 600;
+          const useDebouncedHydrate = event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED';
+
+          const runHydrate = () => {
+            void hydrateSessionFromApi({
+              resetNavigation: event === 'SIGNED_IN',
+              force: true,
             })
-            .finally(() => {
-              if (!cancelled) {
-                setAuthHydrated(true);
-              }
-            });
+              .then(async (hydrated) => {
+                if (!hydrated) {
+                  await supabase.auth.signOut().catch(() => {});
+                }
+              })
+              .finally(() => {
+                if (!cancelled) {
+                  setAuthHydrated(true);
+                }
+              });
+          };
+
+          if (!useDebouncedHydrate) {
+            clearTimeout(hydrateDebounceRef.current);
+            hydrateDebounceRef.current = null;
+            runHydrate();
+          } else {
+            clearTimeout(hydrateDebounceRef.current);
+            hydrateDebounceRef.current = setTimeout(() => {
+              hydrateDebounceRef.current = null;
+              if (!cancelled) runHydrate();
+            }, debounceMs);
+          }
           return;
         }
         setAuthSession(null);
@@ -500,6 +518,8 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
 
     return () => {
       cancelled = true;
+      clearTimeout(hydrateDebounceRef.current);
+      hydrateDebounceRef.current = null;
       subscription?.unsubscribe();
     };
   }, [

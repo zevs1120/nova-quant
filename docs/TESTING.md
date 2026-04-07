@@ -21,6 +21,7 @@
 
 - **后端**：API、鉴权、Postgres 内存桩、决策/证据/参与引擎等以 `tests/*.test.ts` 为主；新增逻辑应带回归与边界用例。
 - **前端**：主壳组件为 JSX 且未进 `tsc`。除 `src/utils/*` 工具链外，补充了 **`src/hooks/*.js` 的 `renderHook` 用例**、`browseWarmup` / `signalDetails` 缓存语义、**`admin/src/components` 的轻量组件测试**（`tests/admin/*.jsx`）。Vite 在 Vitest 下启用 **React 插件** 以编译 JSX 测试与 admin 引用。
+- **浏览器 API 治理**：`fetchApi` 经 `src/shared/http/apiGovernance.js` 做并发合并、路径级最小间隔与失败退避；回归见 `tests/apiGovernance.test.ts`（`NODE_ENV=test` 时不启用最小间隔，避免拖慢单测）。
 
 ### 主壳 / Today / Nova 相关（关键链路，非 UI 快照）
 
@@ -37,6 +38,7 @@
 | Menu 分区路由    | `tests/menuTabSectionCatalog.test.ts`、`tests/menuSupportPredictionShortcut.test.ts`                               | Support / Prediction Games 等 section 不丢                                                                       |
 | 首启样式入口     | `tests/firstRunSetupCssMarker.test.ts`                                                                             | `FirstRunSetupFlow` 顶层 `onboarding.css`                                                                        |
 | Onboarding 重试  | `tests/appHelpers.test.ts`（节选）                                                                                 | `buildOnboardingRetrySessionKey`、`shouldAttemptPendingOnboardingBonusRetry`、`detectDisplayMode`、`runWhenIdle` |
+| fetchApi 治理    | `tests/apiGovernance.test.ts`                                                                                      | 并发合并、`402`/Vercel 部署禁用全局冷却、`5xx` 退避（与 `src/utils/api.js` 集成）                                |
 | JSX 结构锚点     | `tests/todayTabShellMarkers.test.ts`、`tests/aiPageShellMarkers.test.ts`、`tests/signalDetailShellMarkers.test.ts` | 轻量字符串契约，防大改版静默破坏                                                                                 |
 
 ## Pre-commit
