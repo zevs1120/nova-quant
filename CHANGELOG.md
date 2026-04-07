@@ -4,6 +4,13 @@ NovaQuant 所有重要变更记录于此。
 
 ## 10.22.33 (2026-04-07)
 
+### 🎨 iPhone App 端显示精修
+
+- **feat(app,ui): 针对 iPhone 手持设备收紧主壳与四个主页面的显示节奏。**
+- `main.jsx` 现在会标记 `is-ios`、`is-ios-handset`、`is-iphone-compact`、`is-iphone-short`、`is-iphone-tall` 等设备类，便于只在 iPhone 范围内做精细化显示优化。
+- 新增 `src/styles/iphone-polish.css` 作为最终精修层，统一提升 iPhone 上的 shell 圆角、顶部栏磨砂、底部 tab 厚度与 safe-area 留白，让浏览器和 PWA 模式都更接近原生 App 观感。
+- Today / Nova / Browse / My 四个主页面的关键卡片、输入区和列表间距同步做了 iPhone 化调整，减少拥挤感，提升首屏层次、触达面积与滚动时的呼吸感。
+
 ### ⚡ Search / Runtime / Chat 再降一轮常驻消耗
 
 - **perf(app,chat): 继续收紧搜索出网、后台 revalidate 与无效 chat 写入。**

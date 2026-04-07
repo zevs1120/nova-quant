@@ -1,0 +1,460 @@
+/* iPhone-only shell and spacing refinement */
+body.is-ios-handset {
+  --shell-max-width: 430px;
+  --shell-padding-x: clamp(14px, 4.4vw, 18px);
+  --native-tabbar-height: 54px;
+  --native-tabbar-bottom-pad: clamp(4px, var(--safe-bottom), 12px);
+  --native-tabbar-reserve: calc(var(--native-tabbar-height) + var(--native-tabbar-bottom-pad));
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body.is-ios-handset.is-iphone-compact {
+  --shell-padding-x: 14px;
+}
+
+body.is-ios-handset.is-iphone-short {
+  --native-tabbar-height: 52px;
+}
+
+body.is-ios-handset.is-iphone-tall {
+  --native-tabbar-bottom-pad: clamp(6px, var(--safe-bottom), 14px);
+}
+
+body.is-ios-handset .app-bg {
+  background:
+    radial-gradient(circle at 14% 0%, rgba(106, 164, 255, 0.16), transparent 30%),
+    radial-gradient(circle at 88% 4%, rgba(255, 118, 184, 0.16), transparent 26%),
+    radial-gradient(circle at 50% 112%, rgba(131, 226, 206, 0.14), transparent 28%),
+    linear-gradient(180deg, #fcfbff 0%, #f3f1fb 54%, #eeedf8 100%);
+}
+
+body.is-ios-handset .device-shell {
+  border-radius: clamp(30px, 8vw, 38px);
+  border-color: rgba(255, 255, 255, 0.82);
+  background:
+    radial-gradient(circle at top left, rgba(112, 154, 255, 0.12), transparent 26%),
+    radial-gradient(circle at top right, rgba(255, 112, 184, 0.1), transparent 24%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(245, 243, 253, 0.98));
+  box-shadow:
+    0 34px 80px rgba(68, 72, 124, 0.16),
+    0 10px 26px rgba(68, 72, 124, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.86);
+}
+
+body.is-ios-handset .device-shell::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.3), transparent 18%),
+    radial-gradient(circle at 50% -8%, rgba(255, 255, 255, 0.34), transparent 30%);
+  opacity: 0.9;
+}
+
+body.is-ios-handset.is-standalone .app-bg {
+  background: linear-gradient(180deg, #fcfbff 0%, #f2f0f9 100%);
+}
+
+body.is-ios-handset.is-standalone .device-shell {
+  width: 100%;
+  max-width: none;
+  border-radius: 0;
+  border-inline: 0;
+  box-shadow: none;
+}
+
+body.is-ios-handset .top-bar {
+  min-height: calc(var(--safe-top) + 58px);
+  padding: calc(var(--safe-top) + 12px) var(--shell-padding-x) 10px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(246, 243, 252, 0.8)),
+    rgba(255, 255, 255, 0.78);
+  border-bottom-color: rgba(97, 101, 160, 0.08);
+  backdrop-filter: blur(32px) saturate(1.18);
+  -webkit-backdrop-filter: blur(32px) saturate(1.18);
+}
+
+body.is-ios-handset .top-bar::after {
+  content: '';
+  position: absolute;
+  left: var(--shell-padding-x);
+  right: var(--shell-padding-x);
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.92), transparent);
+  pointer-events: none;
+}
+
+body.is-ios-handset .top-bar-leading {
+  left: calc(var(--shell-padding-x) - 2px);
+}
+
+body.is-ios-handset .top-bar-center-title {
+  min-height: 38px;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+body.is-ios-handset.is-iphone-compact .top-bar-center-title {
+  font-size: 18px;
+}
+
+body.is-ios-handset .top-bar-logo-wrap {
+  min-height: 38px;
+  width: min(50vw, 160px);
+  max-width: min(50vw, 160px);
+}
+
+body.is-ios-handset .top-bar-logo {
+  height: 36px;
+}
+
+body.is-ios-handset .ios-nav-back {
+  min-height: 36px;
+  gap: 4px;
+}
+
+body.is-ios-handset .ios-back-chevron {
+  font-size: 28px;
+}
+
+body.is-ios-handset .ios-back-label {
+  font-size: 17px;
+  letter-spacing: -0.02em;
+}
+
+body.is-ios-handset .top-bar-action-button {
+  right: calc(var(--shell-padding-x) - 2px);
+  width: 40px;
+  height: 40px;
+  border-radius: 14px !important;
+  background: rgba(255, 255, 255, 0.82) !important;
+}
+
+body.is-ios-handset .top-bar-spacer {
+  right: calc(var(--shell-padding-x) - 2px);
+  width: 40px;
+  height: 40px;
+}
+
+body.is-ios-handset .main-content {
+  padding-top: 12px;
+}
+
+body.is-ios-handset .system-status-bar,
+body.is-ios-handset .ai-status-bar {
+  padding-left: var(--shell-padding-x);
+  padding-right: var(--shell-padding-x);
+}
+
+body.is-ios-handset .native-tabbar {
+  padding-inline: 12px !important;
+}
+
+body.is-ios-handset .native-tabbar-track {
+  gap: 6px;
+  padding: 6px 7px calc(var(--native-tabbar-bottom-pad) + 1px);
+  border-radius: 30px;
+  border-color: rgba(18, 21, 34, 0.1);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(238, 242, 255, 0.44)),
+    rgba(255, 255, 255, 0.28);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.78),
+    0 22px 38px rgba(18, 21, 34, 0.14),
+    0 0 0 1px rgba(255, 255, 255, 0.46);
+  backdrop-filter: blur(32px) saturate(1.24);
+  -webkit-backdrop-filter: blur(32px) saturate(1.24);
+}
+
+body.is-ios-handset .native-tabbar-thumb {
+  left: 7px;
+  top: 6px;
+  width: calc((100% - 14px) / 4);
+  border-radius: 22px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.26),
+    0 14px 28px rgba(29, 26, 60, 0.28);
+}
+
+body.is-ios-handset .native-tabbar-button {
+  min-height: calc(var(--native-tabbar-height) - 2px) !important;
+  gap: 4px;
+  padding-top: 1px;
+}
+
+body.is-ios-handset .native-tabbar-icon-wrap {
+  width: 28px;
+  height: 28px;
+}
+
+body.is-ios-handset .native-tabbar-icon-svg {
+  width: 21px;
+  height: 21px;
+}
+
+body.is-ios-handset .native-tabbar-label {
+  font-size: 11px;
+  font-weight: 760;
+  letter-spacing: -0.015em;
+}
+
+body.is-ios-handset .today-screen-native,
+body.is-ios-handset .today-screen-native .today-screen-flow {
+  gap: 14px;
+}
+
+body.is-ios-handset .today-screen-native .today-summary-header {
+  gap: 14px;
+  padding-inline: 4px;
+}
+
+body.is-ios-handset .today-screen-native .today-summary-title {
+  font-size: clamp(30px, 8.8vw, 38px);
+  letter-spacing: -0.055em;
+}
+
+body.is-ios-handset .today-screen-native .today-provenance-strip,
+body.is-ios-handset .today-screen-native .today-climate-strip,
+body.is-ios-handset .today-screen-native .today-summary-card,
+body.is-ios-handset .today-screen-native .today-action-card {
+  box-shadow:
+    0 18px 36px rgba(60, 66, 110, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92);
+}
+
+body.is-ios-handset .today-screen-native .today-provenance-strip,
+body.is-ios-handset .today-screen-native .today-climate-strip {
+  padding: 13px 16px;
+  border-radius: 24px;
+}
+
+body.is-ios-handset .today-screen-native .today-summary-grid {
+  gap: 12px;
+}
+
+body.is-ios-handset .today-screen-native .today-summary-card {
+  min-height: 112px;
+  padding: 18px 16px;
+  border-radius: 24px;
+}
+
+body.is-ios-handset .today-screen-native .today-action-card {
+  padding: 20px 18px 18px;
+  border-radius: 30px;
+  gap: 12px;
+}
+
+body.is-ios-handset .today-screen-redesign .today-action-card-stack-top {
+  left: calc(var(--stack-index, 0) * 4px);
+  right: calc(var(--stack-index, 0) * 4px);
+  padding: 20px 18px 18px !important;
+  border-radius: 30px;
+  box-shadow:
+    0 28px 56px rgba(4, 5, 10, calc(0.24 + var(--gesture-progress, 0) * 0.1)),
+    0 0 0 1px rgba(255, 255, 255, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+body.is-ios-handset .today-screen-redesign .today-action-card-stack-top .today-action-symbol {
+  font-size: clamp(58px, 17vw, 92px);
+}
+
+body.is-ios-handset.is-iphone-short .today-screen-redesign .today-action-card-stack-top {
+  padding: 18px 16px 16px !important;
+}
+
+body.is-ios-handset.is-iphone-short
+  .today-screen-redesign
+  .today-action-card-stack-top
+  .today-action-symbol {
+  font-size: clamp(52px, 15.4vw, 84px);
+}
+
+body.is-ios-handset .device-shell[data-active-tab='ai'] .main-content-ai {
+  padding-bottom: calc(var(--native-tabbar-reserve) + 122px);
+}
+
+body.is-ios-handset .nova-ai-page {
+  padding: 10px var(--shell-padding-x) calc(var(--native-tabbar-reserve) + 10px);
+}
+
+body.is-ios-handset .nova-ai-page .nova-ai-top,
+body.is-ios-handset .nova-ai-page .nova-ai-thread {
+  gap: 16px;
+}
+
+body.is-ios-handset .nova-ai-page .nova-ai-context,
+body.is-ios-handset .nova-ai-page .nova-ai-hero,
+body.is-ios-handset .nova-ai-page .nova-ai-message-card {
+  border-radius: 24px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.84),
+    0 18px 34px rgba(18, 21, 34, 0.08);
+}
+
+body.is-ios-handset .nova-ai-page .nova-ai-context,
+body.is-ios-handset .nova-ai-page .nova-ai-hero {
+  padding: 14px 16px;
+}
+
+body.is-ios-handset .nova-ai-page .nova-ai-message-card {
+  padding: 15px 16px 14px;
+}
+
+body.is-ios-handset .nova-ai-page .nova-ai-user-card {
+  padding: 12px 15px 13px;
+  border-radius: 24px 24px 10px 24px;
+}
+
+body.is-ios-handset .nova-ai-page .nova-ai-dock {
+  bottom: calc(var(--native-tabbar-reserve) + 10px);
+  width: min(calc(100% - 20px), calc(var(--shell-max-width) - 16px));
+  padding-top: 12px;
+}
+
+body.is-ios-handset .nova-ai-page .nova-ai-suggestions {
+  gap: 10px;
+  padding-bottom: 12px;
+}
+
+body.is-ios-handset .nova-ai-page .nova-ai-composer {
+  padding-bottom: calc(var(--safe-bottom) + 6px);
+}
+
+body.is-ios-handset .nova-ai-page .nova-ai-composer-field {
+  min-height: 60px;
+  padding: 12px 56px 12px 16px;
+  border-radius: 22px;
+}
+
+body.is-ios-handset .nova-ai-page .nova-ai-send {
+  right: 11px;
+  bottom: 11px;
+  width: 36px;
+  height: 36px;
+}
+
+body.is-ios-handset .browse-screen {
+  padding-inline: var(--shell-padding-x);
+  padding-bottom: calc(var(--native-tabbar-reserve) + 18px);
+}
+
+body.is-ios-handset .browse-screen .browse-search-shell {
+  min-height: 54px;
+  padding: 0 17px;
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(234, 240, 249, 0.8));
+  box-shadow:
+    inset 0 0 0 1px rgba(18, 26, 39, 0.04),
+    0 10px 24px rgba(20, 24, 33, 0.04);
+}
+
+body.is-ios-handset .browse-screen .browse-search-shell.active,
+body.is-ios-handset .browse-screen .browse-hero-card,
+body.is-ios-handset .browse-screen .browse-home-focus-card,
+body.is-ios-handset .browse-screen .browse-result-row,
+body.is-ios-handset .browse-screen .browse-search-empty,
+body.is-ios-handset .browse-screen .browse-pulse-card,
+body.is-ios-handset .browse-screen .browse-collection-card,
+body.is-ios-handset .browse-screen .browse-signal-card {
+  box-shadow:
+    inset 0 0 0 1px rgba(18, 26, 39, 0.05),
+    0 16px 30px rgba(20, 24, 33, 0.06);
+}
+
+body.is-ios-handset .browse-screen .browse-hero-card,
+body.is-ios-handset .browse-screen .browse-home-focus-card {
+  padding: 22px 20px 20px;
+  border-radius: 30px;
+}
+
+body.is-ios-handset .browse-screen .browse-home-market-strip {
+  gap: 14px;
+  padding-bottom: 6px;
+  scroll-padding-inline: var(--shell-padding-x);
+}
+
+body.is-ios-handset .browse-screen .browse-home-explore-grid,
+body.is-ios-handset .browse-screen .browse-pulse-grid,
+body.is-ios-handset .browse-screen .browse-results-list {
+  gap: 14px;
+}
+
+body.is-ios-handset .browse-screen .browse-home-explore-card {
+  min-height: 160px;
+  padding: 20px 18px;
+  border-radius: 26px;
+}
+
+body.is-ios-handset .browse-screen .browse-result-row {
+  padding: 16px 17px;
+  border-radius: 22px;
+}
+
+body.is-ios-handset .browse-screen .browse-search-empty {
+  padding: 19px 18px;
+  border-radius: 22px;
+}
+
+body.is-ios-handset .menu-screen {
+  padding-inline: var(--shell-padding-x);
+  padding-bottom: calc(var(--native-tabbar-reserve) + 18px);
+}
+
+body.is-ios-handset .menu-screen .menu-root-shell {
+  gap: 20px;
+  padding-bottom: 16px;
+}
+
+body.is-ios-handset .menu-screen .menu-root-hero {
+  gap: 18px;
+  padding: 24px 20px;
+  border-radius: 32px;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.76),
+    0 24px 46px rgba(20, 24, 33, 0.08);
+}
+
+body.is-ios-handset .menu-screen .menu-root-hero-note,
+body.is-ios-handset .menu-screen .menu-root-concierge-card,
+body.is-ios-handset .menu-screen .menu-root-stat-card,
+body.is-ios-handset .menu-screen .menu-root-directory,
+body.is-ios-handset .menu-screen .menu-root-feature-card {
+  box-shadow:
+    inset 0 0 0 1px rgba(23, 28, 36, 0.05),
+    0 16px 30px rgba(20, 24, 33, 0.06);
+}
+
+body.is-ios-handset .menu-screen .menu-root-hero-note,
+body.is-ios-handset .menu-screen .menu-root-concierge-card {
+  border-radius: 26px;
+  padding: 16px 18px;
+}
+
+body.is-ios-handset .menu-screen .menu-root-points-pill,
+body.is-ios-handset .menu-screen .menu-root-stat-card {
+  border-radius: 28px;
+}
+
+body.is-ios-handset .menu-screen .menu-root-feature-grid,
+body.is-ios-handset .menu-screen .menu-root-stat-rail {
+  gap: 14px;
+}
+
+body.is-ios-handset .menu-screen .menu-root-feature-card {
+  min-height: 160px;
+  padding: 20px 19px 18px;
+  border-radius: 32px;
+}
+
+body.is-ios-handset .menu-screen .menu-root-directory {
+  border-radius: 32px;
+}
+
+body.is-ios-handset.is-iphone-short .menu-screen .menu-root-hero {
+  padding: 22px 18px;
+}
