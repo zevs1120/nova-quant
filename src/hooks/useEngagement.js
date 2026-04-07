@@ -34,6 +34,7 @@ export function useEngagement({
   lang,
   effectiveHoldings,
   isDemoRuntime,
+  authHydrated = true,
   hasLoaded,
   decisionSnapshot,
   setRefreshNonce,
@@ -63,6 +64,7 @@ export function useEngagement({
       setManualState(DEMO_MANUAL_STATE);
       return undefined;
     }
+    if (!authHydrated) return undefined;
     let cancelled = false;
     void fetchJson('/api/manual/state')
       .then((payload) => {
@@ -105,7 +107,7 @@ export function useEngagement({
     return () => {
       cancelled = true;
     };
-  }, [effectiveUserId, isDemoRuntime, fetchJson]);
+  }, [authHydrated, effectiveUserId, isDemoRuntime, fetchJson]);
 
   const loadEngagementState = useCallback(async () => {
     if (isDemoRuntime || !hasLoaded) return null;
@@ -145,9 +147,10 @@ export function useEngagement({
   // hour/day boundary changes. This keeps hour-sensitive server state
   // truthful without reintroducing render-driven POST storms.
   useEffect(() => {
-    if (!decisionSnapshot || isDemoRuntime || !hasLoaded) return;
+    if (!authHydrated || !decisionSnapshot || isDemoRuntime || !hasLoaded) return;
     void loadEngagementState();
   }, [
+    authHydrated,
     decisionSnapshot?.audit_snapshot_id,
     engagementRefreshKey,
     isDemoRuntime,

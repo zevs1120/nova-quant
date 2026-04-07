@@ -80,6 +80,22 @@ describe('useEngagement', () => {
     );
   });
 
+  it('waits for auth hydration before loading manual state', async () => {
+    const fetchJson = vi.fn().mockResolvedValue({ mode: 'REAL', available: true });
+    const { rerender } = renderHook(
+      ({ authHydrated }: { authHydrated: boolean }) =>
+        useEngagement(buildArgs({ fetchJson, authHydrated })),
+      {
+        initialProps: { authHydrated: false },
+      },
+    );
+
+    expect(fetchJson).not.toHaveBeenCalled();
+
+    rerender({ authHydrated: true });
+    await waitFor(() => expect(fetchJson).toHaveBeenCalledWith('/api/manual/state'));
+  });
+
   it('reloads engagement on hour rollover but ignores same-hour clock churn', async () => {
     const fetchJson = vi.fn((path: string) => {
       if (path === '/api/engagement/state') {

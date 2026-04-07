@@ -4,6 +4,14 @@ NovaQuant 所有重要变更记录于此。
 
 ## 10.22.33 (2026-04-07)
 
+### ⚡ Edge / Function 请求收敛
+
+- **perf(app,api): 收紧首屏请求扇出。**
+- `App.jsx` 现在等 `authHydrated` 完成后再拉主运行时与 engagement/manual 数据，避免已登录用户先按 guest 身份打一轮 `/api/*`。
+- `Today` 优先复用 `runtime-state` 已返回的 decision；只有存在个性化持仓上下文时才额外请求 `/api/decision/today`，减少重复 Function Invocation。
+- 风险画像同步新增本地签名缓存：相同用户 + 相同 `riskProfileKey` 不再每次启动都重复 `POST /api/risk-profile`，也减少由此触发的后续 runtime refresh。
+- `useAppData` / `useEngagement` 新增 gated 加载路径，对应单测补到 `tests/hooks/useAppData.hook.test.ts`、`tests/hooks/useEngagement.hook.test.ts`、`tests/appHelpers.test.ts`。
+
 ### 📝 文档与变更日志维护
 
 - **日常维护**：更新了 `CHANGELOG.md` 以记录最近的代码库状态。

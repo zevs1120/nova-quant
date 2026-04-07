@@ -72,6 +72,33 @@ export function buildOnboardingRetrySessionKey(authSession) {
   return `${userId}:${loggedInAt}`;
 }
 
+const RISK_PROFILE_SYNC_STORAGE_KEY = 'nova-quant-risk-profile-sync:v1';
+
+export function buildRiskProfileSyncKey(args) {
+  const userId = String(args?.userId || '').trim();
+  const riskProfileKey = String(args?.riskProfileKey || '').trim();
+  if (!userId || !riskProfileKey) return null;
+  return `${userId}:${riskProfileKey}`;
+}
+
+export function hasSyncedRiskProfile(syncKey) {
+  if (typeof window === 'undefined' || !syncKey) return false;
+  try {
+    return window.localStorage.getItem(RISK_PROFILE_SYNC_STORAGE_KEY) === String(syncKey);
+  } catch {
+    return false;
+  }
+}
+
+export function markRiskProfileSynced(syncKey) {
+  if (typeof window === 'undefined' || !syncKey) return;
+  try {
+    window.localStorage.setItem(RISK_PROFILE_SYNC_STORAGE_KEY, String(syncKey));
+  } catch {
+    // Ignore storage quota or privacy-mode failures.
+  }
+}
+
 export function shouldAttemptPendingOnboardingBonusRetry(args) {
   const retrySessionKey = String(args?.retrySessionKey || '').trim();
   const effectiveUserId = String(args?.effectiveUserId || '').trim();

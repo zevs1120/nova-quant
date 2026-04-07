@@ -38,7 +38,10 @@ import { buildHoldingsReview } from './research/holdingsAnalyzer';
 import { fetchApi } from './utils/api';
 import {
   buildOnboardingRetrySessionKey,
+  buildRiskProfileSyncKey,
   detectDisplayMode,
+  hasSyncedRiskProfile,
+  markRiskProfileSynced,
   runWhenIdle,
   shouldAttemptPendingOnboardingBonusRetry,
 } from './utils/appHelpers';
@@ -198,6 +201,7 @@ export default function App() {
     riskProfileKey,
     executions,
     refreshNonce,
+    enabled: authHydrated,
   });
 
   // --- Investor Demo hook (uses real data) ---
@@ -230,6 +234,18 @@ export default function App() {
   const canUseInvestorDemo = Boolean(DEMO_ENTRY_ENABLED && authSession?.isAdmin);
 
   const isDemoRuntime = getIsDemoRuntime(investorDemoEnabled);
+  const hasPersonalizedHoldingsContext = Array.isArray(finalEffectiveHoldings)
+    ? finalEffectiveHoldings.length > 0
+    : false;
+  const runtimeDecisionSnapshot = hasPersonalizedHoldingsContext
+    ? null
+    : finalUiData.decision || null;
+  const activeDecisionSnapshot = decisionSnapshot || runtimeDecisionSnapshot;
+  const hasRuntimeDecisionSnapshot = Boolean(runtimeDecisionSnapshot);
+
+  useEffect(() => {
+    setDecisionSnapshot(null);
+  }, [effectiveUserId, market, assetClass, lang]);
 
   // Stable clock for engagement (avoid `new Date()` each render — it recreated
   // loadEngagementState every render and retriggered POST /api/engagement/state).
@@ -269,6 +285,7 @@ export default function App() {
   // Lives here (not in useAuth) because it needs the canonical investorDemoEnabled
   // from useInvestorDemo — the single source of truth for demo state.
   const lastProfileSyncRef = useRef('');
+  const lastRiskProfileSyncKeyRef = useRef('');
   useEffect(() => {
     if (!authSession?.userId) return undefined;
     // Never sync demo data to the real user profile
@@ -337,8 +354,9 @@ export default function App() {
     lang,
     effectiveHoldings: finalEffectiveHoldings,
     isDemoRuntime,
+    authHydrated,
     hasLoaded,
-    decisionSnapshot,
+    decisionSnapshot: activeDecisionSnapshot,
     setRefreshNonce,
     now: engagementClock,
     disciplineLog,
@@ -357,7 +375,7 @@ export default function App() {
   const aiState = useMemo(
     () => ({
       ...finalUiData,
-      decision: decisionSnapshot || finalUiData.decision || null,
+      decision: activeDecisionSnapshot,
       user_context: {
         user_id: effectiveUserId,
         ui_mode: uiMode,
@@ -367,7 +385,7 @@ export default function App() {
     }),
     [
       finalUiData,
-      decisionSnapshot,
+      activeDecisionSnapshot,
       effectiveUserId,
       uiMode,
       finalEffectiveHoldings,
@@ -385,26 +403,28 @@ export default function App() {
       uiMode,
       decisionSummary: {
         today_call:
-          decisionSnapshot?.summary?.today_call?.headline ||
-          decisionSnapshot?.summary?.today_call ||
+          activeDecisionSnapshot?.summary?.today_call?.headline ||
+          activeDecisionSnapshot?.summary?.today_call ||
           null,
         risk_posture:
-          decisionSnapshot?.summary?.risk_posture || decisionSnapshot?.risk_state?.posture || null,
-        top_action_id: decisionSnapshot?.top_action_id || null,
+          activeDecisionSnapshot?.summary?.risk_posture ||
+          activeDecisionSnapshot?.risk_state?.posture ||
+          null,
+        top_action_id: activeDecisionSnapshot?.top_action_id || null,
         top_action_symbol:
-          decisionSnapshot?.summary?.top_action_symbol ||
-          decisionSnapshot?.ranked_action_cards?.[0]?.symbol ||
+          activeDecisionSnapshot?.summary?.top_action_symbol ||
+          activeDecisionSnapshot?.ranked_action_cards?.[0]?.symbol ||
           null,
         top_action_label:
-          decisionSnapshot?.summary?.top_action_label ||
-          decisionSnapshot?.ranked_action_cards?.[0]?.action_label ||
+          activeDecisionSnapshot?.summary?.top_action_label ||
+          activeDecisionSnapshot?.ranked_action_cards?.[0]?.action_label ||
           null,
         source_status:
-          decisionSnapshot?.source_status ||
+          activeDecisionSnapshot?.source_status ||
           finalUiData?.config?.runtime?.source_status ||
           'INSUFFICIENT_DATA',
         data_status:
-          decisionSnapshot?.data_status ||
+          activeDecisionSnapshot?.data_status ||
           finalUiData?.config?.runtime?.data_status ||
           'INSUFFICIENT_DATA',
       },
@@ -451,7 +471,7 @@ export default function App() {
       assetClass,
       riskProfileKey,
       uiMode,
-      decisionSnapshot,
+      activeDecisionSnapshot,
       finalUiData?.config?.runtime?.source_status,
       finalUiData?.config?.runtime?.data_status,
       holdingsReview,
@@ -781,7 +801,19 @@ export default function App() {
 
   // Risk profile sync
   useEffect(() => {
-    if (isDemoRuntime) return;
+    if (isDemoRuntime || !authHydrated) return;
+    const syncKey = buildRiskProfileSyncKey({
+      userId: effectiveUserId,
+      riskProfileKey,
+    });
+    if (!syncKey) return;
+    if (lastRiskProfileSyncKeyRef.current === syncKey) return;
+    if (hasSyncedRiskProfile(syncKey)) {
+      lastRiskProfileSyncKeyRef.current = syncKey;
+      return;
+    }
+
+    lastRiskProfileSyncKeyRef.current = syncKey;
     void fetchJson('/api/risk-profile', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -790,13 +822,24 @@ export default function App() {
         profileKey: riskProfileKey,
       }),
     })
-      .then(() => setRefreshNonce((current) => current + 1))
-      .catch(() => {});
-  }, [riskProfileKey, effectiveUserId, isDemoRuntime]);
+      .then(() => {
+        markRiskProfileSynced(syncKey);
+        setRefreshNonce((current) => current + 1);
+      })
+      .catch(() => {
+        if (lastRiskProfileSyncKeyRef.current === syncKey) {
+          lastRiskProfileSyncKeyRef.current = '';
+        }
+      });
+  }, [authHydrated, riskProfileKey, effectiveUserId, isDemoRuntime, fetchJson]);
 
   // Decision snapshot
   useEffect(() => {
-    if (isDemoRuntime) return undefined;
+    if (!authHydrated || isDemoRuntime || !hasLoaded) return undefined;
+    if (!hasPersonalizedHoldingsContext && hasRuntimeDecisionSnapshot) {
+      setDecisionSnapshot((current) => (current === null ? current : null));
+      return undefined;
+    }
     let cancelled = false;
 
     void fetchJson('/api/decision/today', {
@@ -814,22 +857,24 @@ export default function App() {
         if (!cancelled) setDecisionSnapshot(payload || null);
       })
       .catch(() => {
-        if (!cancelled) {
-          setDecisionSnapshot((current) => current || finalUiData.decision || null);
-        }
+        if (!cancelled) setDecisionSnapshot(null);
       });
 
     return () => {
       cancelled = true;
     };
   }, [
+    authHydrated,
+    hasLoaded,
     isDemoRuntime,
     effectiveUserId,
     market,
     assetClass,
+    hasPersonalizedHoldingsContext,
+    hasRuntimeDecisionSnapshot,
     finalEffectiveHoldings,
     lang,
-    finalUiData.decision,
+    fetchJson,
   ]);
 
   // Display mode detection
@@ -939,7 +984,7 @@ export default function App() {
     locale,
     assetClass,
     finalUiData,
-    decisionSnapshot,
+    decisionSnapshot: activeDecisionSnapshot,
     watchlist,
     watchlistMeta,
     holdingsReview,

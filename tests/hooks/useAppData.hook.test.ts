@@ -75,6 +75,37 @@ describe('useAppData', () => {
     expect(Array.isArray(result.current.data.signals)).toBe(true);
   });
 
+  it('waits for the enabled gate before fetching runtime-state', async () => {
+    const fetchJson = buildFetchJson();
+    const { useAppData } = await import('../../src/hooks/useAppData.js');
+    const { result, rerender } = renderHook(
+      ({ enabled }: { enabled: boolean }) =>
+        useAppData({
+          fetchJson,
+          assetClass: 'US_STOCK',
+          market: 'US',
+          effectiveUserId: 'u1',
+          authSession: null,
+          riskProfileKey: 'balanced',
+          executions: [],
+          refreshNonce: 0,
+          enabled,
+        }),
+      {
+        initialProps: { enabled: false },
+      },
+    );
+
+    expect(fetchJson).not.toHaveBeenCalled();
+    expect(result.current.hasLoaded).toBe(false);
+
+    rerender({ enabled: true });
+    await waitFor(() => expect(result.current.hasLoaded).toBe(true));
+    expect(fetchJson.mock.calls.some(([url]) => String(url).includes('/api/runtime-state'))).toBe(
+      true,
+    );
+  });
+
   it('reads warm cache from localStorage when fresh', async () => {
     const fetchJson = buildFetchJson();
     const inner = fetchJson.getMockImplementation()!;

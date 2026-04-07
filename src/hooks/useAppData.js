@@ -222,6 +222,7 @@ export function useAppData({
   riskProfileKey,
   executions,
   refreshNonce,
+  enabled = true,
 }) {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(initialData);
@@ -229,6 +230,8 @@ export function useAppData({
   const [hasLoaded, setHasLoaded] = useState(false);
 
   useEffect(() => {
+    if (!enabled) return undefined;
+
     let mounted = true;
     let activeLoadId = 0;
     let cancelDeferredRuntimeFill = () => {};
@@ -427,7 +430,7 @@ export function useAppData({
         document.removeEventListener('visibilitychange', handleVisibilityChange);
       }
     };
-  }, [assetClass, market, effectiveUserId, refreshNonce, authSession, fetchJson]);
+  }, [assetClass, market, effectiveUserId, refreshNonce, authSession, fetchJson, enabled]);
 
   // FORCE_DEMO_BUILD local pipeline
   useEffect(() => {

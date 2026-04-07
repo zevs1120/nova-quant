@@ -1,8 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   buildOnboardingRetrySessionKey,
+  buildRiskProfileSyncKey,
   classifyAuthError,
   detectDisplayMode,
+  hasSyncedRiskProfile,
+  markRiskProfileSynced,
   mapExecutionToTrade,
   normalizeEmail,
   runWhenIdle,
@@ -202,6 +205,45 @@ describe('appHelpers', () => {
         isDemoRuntime: false,
       }),
     ).toBe(false);
+  });
+
+  it('buildRiskProfileSyncKey trims inputs and rejects blanks', () => {
+    expect(buildRiskProfileSyncKey({ userId: ' guest-1 ', riskProfileKey: ' aggressive ' })).toBe(
+      'guest-1:aggressive',
+    );
+    expect(buildRiskProfileSyncKey({ userId: '', riskProfileKey: 'balanced' })).toBeNull();
+    expect(buildRiskProfileSyncKey({ userId: 'u1', riskProfileKey: '' })).toBeNull();
+  });
+
+  it('marks and reads synced risk profiles from localStorage', () => {
+    const storage: {
+      value: string | null;
+      getItem: ReturnType<typeof vi.fn>;
+      setItem: ReturnType<typeof vi.fn>;
+    } = {
+      value: null,
+      getItem: vi.fn((key: string) =>
+        key === 'nova-quant-risk-profile-sync:v1' ? storage.value : null,
+      ),
+      setItem: vi.fn((key: string, value: string) => {
+        if (key === 'nova-quant-risk-profile-sync:v1') storage.value = value;
+      }),
+    };
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: {
+        localStorage: storage,
+      },
+    });
+
+    expect(hasSyncedRiskProfile('guest-1:balanced')).toBe(false);
+    markRiskProfileSynced('guest-1:balanced');
+    expect(storage.setItem).toHaveBeenCalledWith(
+      'nova-quant-risk-profile-sync:v1',
+      'guest-1:balanced',
+    );
+    expect(hasSyncedRiskProfile('guest-1:balanced')).toBe(true);
+    expect(hasSyncedRiskProfile('guest-1:aggressive')).toBe(false);
   });
 });
 
