@@ -22,6 +22,70 @@ describe('useMembership', () => {
     expect(fetchJson).toHaveBeenCalledWith('/api/membership/state');
   });
 
+  it('reuses hydrated runtime membership state without an extra fetch', async () => {
+    const fetchJson = vi.fn();
+    const { result } = renderHook(() =>
+      useMembership({
+        locale: 'en',
+        authSession: { userId: 'u1' },
+        fetchJson,
+        initialState: {
+          currentPlan: 'pro',
+          usage: { day: '2024-01-01', askNovaUsed: 2 },
+          limits: {},
+          remainingAskNova: null,
+        },
+      }),
+    );
+
+    await waitFor(() => expect(result.current.currentPlan).toBe('pro'));
+    expect(fetchJson).not.toHaveBeenCalled();
+  });
+
+  it('waits for runtime bootstrap before deciding to fetch membership state', async () => {
+    const fetchJson = vi.fn();
+    const { result, rerender } = renderHook(
+      ({
+        bootstrapPending,
+        initialState,
+      }: {
+        bootstrapPending: boolean;
+        initialState: Record<string, unknown> | null;
+      }) =>
+        useMembership({
+          locale: 'en',
+          authSession: { userId: 'u1' },
+          fetchJson,
+          initialState,
+          bootstrapPending,
+        }),
+      {
+        initialProps: {
+          bootstrapPending: true,
+          initialState: null,
+        } as {
+          bootstrapPending: boolean;
+          initialState: Record<string, unknown> | null;
+        },
+      },
+    );
+
+    expect(fetchJson).not.toHaveBeenCalled();
+
+    rerender({
+      bootstrapPending: false,
+      initialState: {
+        currentPlan: 'lite',
+        usage: { day: '2024-01-01', askNovaUsed: 1 },
+        limits: {},
+        remainingAskNova: 4,
+      },
+    });
+
+    await waitFor(() => expect(result.current.currentPlan).toBe('lite'));
+    expect(fetchJson).not.toHaveBeenCalled();
+  });
+
   it('openPrompt accepts prebuilt prompt object', () => {
     const fetchJson = vi.fn();
     const { result } = renderHook(() =>

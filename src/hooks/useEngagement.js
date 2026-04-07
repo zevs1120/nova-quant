@@ -22,6 +22,47 @@ async function postManualJson(path, body) {
   return { ok: true, payload };
 }
 
+function isGuestUserId(userId) {
+  const normalized = String(userId || '').trim();
+  return !normalized || normalized === 'guest-default' || normalized.startsWith('guest-');
+}
+
+function buildUnavailableManualState(reason = null) {
+  return {
+    ...DEMO_MANUAL_STATE,
+    available: false,
+    mode: 'REAL',
+    reason,
+    summary: {
+      balance: 0,
+      expiringSoon: 0,
+      vipDays: 0,
+      vipDaysRedeemed: 0,
+      checkinStreak: 0,
+      lastCheckinDay: null,
+      mainPredictionsToday: 0,
+    },
+    referrals: {
+      inviteCode: null,
+      referredByCode: null,
+      total: 0,
+      rewarded: 0,
+    },
+    ledger: [],
+    rewards: [
+      {
+        id: 'vip-1d',
+        kind: 'vip_day',
+        title: 'Redeem 1 VIP day',
+        description: '1000 points unlocks one more VIP day.',
+        costPoints: 1000,
+        enabled: false,
+      },
+    ],
+    predictions: [],
+  };
+}
+
 /**
  * Handles engagement state loading, daily check-in, boundary, wrap-up, weekly review,
  * execution recording, manual state, VIP redemption, and discipline tracking.
@@ -37,6 +78,8 @@ export function useEngagement({
   authHydrated = true,
   hasLoaded,
   decisionSnapshot,
+  initialManualState = null,
+  manualEnabled = true,
   setRefreshNonce,
   now,
   disciplineLog,
@@ -45,7 +88,13 @@ export function useEngagement({
   setExecutions,
 }) {
   const [engagementState, setEngagementState] = useState(null);
-  const [manualState, setManualState] = useState(DEMO_MANUAL_STATE);
+  const initialManualOwnerRef = useRef(null);
+  const [manualState, setManualState] = useState(() =>
+    isDemoRuntime
+      ? DEMO_MANUAL_STATE
+      : initialManualState ||
+        buildUnavailableManualState(isGuestUserId(effectiveUserId) ? 'AUTH_REQUIRED' : null),
+  );
 
   const todayKey = localDateKey(now);
   const currentWeekKey = weekStartKey(now);
@@ -58,13 +107,29 @@ export function useEngagement({
   const nowRef = useRef(now);
   nowRef.current = now;
 
+  useEffect(() => {
+    const ownerKey = String(effectiveUserId || 'guest-default').trim() || 'guest-default';
+    const bootstrapKey = `${ownerKey}:${initialManualState ? 'bootstrap' : 'none'}`;
+    if (isDemoRuntime) {
+      setManualState(DEMO_MANUAL_STATE);
+      initialManualOwnerRef.current = bootstrapKey;
+      return;
+    }
+    if (initialManualOwnerRef.current === bootstrapKey) return;
+    setManualState(
+      initialManualState ||
+        buildUnavailableManualState(isGuestUserId(effectiveUserId) ? 'AUTH_REQUIRED' : null),
+    );
+    initialManualOwnerRef.current = bootstrapKey;
+  }, [effectiveUserId, initialManualState, isDemoRuntime]);
+
   // Load manual state
   useEffect(() => {
     if (isDemoRuntime) {
       setManualState(DEMO_MANUAL_STATE);
       return undefined;
     }
-    if (!authHydrated) return undefined;
+    if (!authHydrated || !hasLoaded || !manualEnabled || initialManualState) return undefined;
     let cancelled = false;
     void fetchJson('/api/manual/state')
       .then((payload) => {
@@ -72,42 +137,21 @@ export function useEngagement({
       })
       .catch(() => {
         if (!cancelled) {
-          setManualState({
-            ...DEMO_MANUAL_STATE,
-            available: false,
-            mode: 'REAL',
-            reason: 'MANUAL_UNAVAILABLE',
-            summary: {
-              balance: 0,
-              expiringSoon: 0,
-              vipDays: 0,
-              vipDaysRedeemed: 0,
-            },
-            referrals: {
-              inviteCode: null,
-              referredByCode: null,
-              total: 0,
-              rewarded: 0,
-            },
-            ledger: [],
-            rewards: [
-              {
-                id: 'vip-1d',
-                kind: 'vip_day',
-                title: 'Redeem 1 VIP day',
-                description: '1000 points unlocks one more VIP day.',
-                costPoints: 1000,
-                enabled: false,
-              },
-            ],
-            predictions: [],
-          });
+          setManualState(buildUnavailableManualState('MANUAL_UNAVAILABLE'));
         }
       });
     return () => {
       cancelled = true;
     };
-  }, [authHydrated, effectiveUserId, isDemoRuntime, fetchJson]);
+  }, [
+    authHydrated,
+    effectiveUserId,
+    hasLoaded,
+    initialManualState,
+    isDemoRuntime,
+    manualEnabled,
+    fetchJson,
+  ]);
 
   const loadEngagementState = useCallback(async () => {
     if (isDemoRuntime || !hasLoaded) return null;

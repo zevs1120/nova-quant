@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocalStorage } from './useLocalStorage';
 import {
   getMembershipLimits,
@@ -91,7 +91,13 @@ function normalizeRemoteMembershipState(value, fallbackDay) {
   };
 }
 
-export function useMembership({ locale, authSession, fetchJson }) {
+export function useMembership({
+  locale,
+  authSession,
+  fetchJson,
+  initialState = null,
+  bootstrapPending = false,
+}) {
   const today = membershipUsageDay();
   const [plan, setPlan] = useLocalStorage('nova-quant-membership-plan', 'free');
   const [usageState, setUsageState] = useLocalStorage('nova-quant-membership-usage', {
@@ -99,7 +105,12 @@ export function useMembership({ locale, authSession, fetchJson }) {
     askNovaUsed: 0,
   });
   const [prompt, setPrompt] = useState(null);
-  const [remoteState, setRemoteState] = useState(null);
+  const initialRemoteOwnerRef = useRef(null);
+  const normalizedInitialState = useMemo(
+    () => (authSession?.userId ? normalizeRemoteMembershipState(initialState, today) : null),
+    [authSession?.userId, initialState, today],
+  );
+  const [remoteState, setRemoteState] = useState(() => normalizedInitialState);
 
   const currentPlan = normalizeMembershipPlan(remoteState?.currentPlan || plan);
   const localUsage = useMemo(
@@ -130,6 +141,14 @@ export function useMembership({ locale, authSession, fetchJson }) {
     setUsageState((current) => normalizeMembershipUsage(current, today));
   }, [today, setUsageState]);
 
+  useEffect(() => {
+    const ownerKey = String(authSession?.userId || '').trim() || 'guest';
+    const bootstrapKey = `${ownerKey}:${normalizedInitialState ? 'bootstrap' : 'none'}`;
+    if (initialRemoteOwnerRef.current === bootstrapKey) return;
+    setRemoteState(normalizedInitialState);
+    initialRemoteOwnerRef.current = bootstrapKey;
+  }, [authSession?.userId, normalizedInitialState]);
+
   const syncMembershipState = useCallback(async () => {
     if (!authSession?.userId || !fetchJson) {
       setRemoteState(null);
@@ -149,12 +168,20 @@ export function useMembership({ locale, authSession, fetchJson }) {
   }, [authSession?.userId, fetchJson, setPlan, today]);
 
   useEffect(() => {
+    if (bootstrapPending) return;
     if (!authSession?.userId || !fetchJson) {
       setRemoteState(null);
       return;
     }
+    if (normalizedInitialState) return;
     void syncMembershipState();
-  }, [authSession?.userId, fetchJson, syncMembershipState]);
+  }, [
+    authSession?.userId,
+    bootstrapPending,
+    fetchJson,
+    normalizedInitialState,
+    syncMembershipState,
+  ]);
 
   const openPrompt = useCallback(
     (reasonOrPrompt, extras = {}) => {

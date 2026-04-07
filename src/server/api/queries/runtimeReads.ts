@@ -76,6 +76,8 @@ export function buildRuntimeStateSnapshot(args: {
   apiChecks: Record<string, unknown>;
   trades: Array<Record<string, any>>;
   componentStatus: Record<string, unknown>;
+  membership?: unknown;
+  manual?: unknown;
   connectivityIncluded?: boolean;
 }): any {
   const { core } = args;
@@ -153,6 +155,8 @@ export function buildRuntimeStateSnapshot(args: {
       today: core.today,
       safety: core.safety,
       insights: core.insights,
+      membership: args.membership ?? null,
+      manual: args.manual ?? null,
       ai: {
         source_transparency: core.runtimeTransparency,
       },

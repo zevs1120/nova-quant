@@ -99,6 +99,8 @@ import {
 import { buildPrivateMarvixOpsReport } from '../ops/privateMarvixOps.js';
 import { buildLocalAdminAlphaSnapshot } from '../admin/liveAlpha.js';
 import { buildLocalAdminResearchOpsSnapshot } from '../admin/liveOps.js';
+import { getManualDashboard } from '../manual/service.js';
+import { getMembershipState } from '../membership/service.js';
 import {
   hasPostgresBusinessMirror,
   readPostgresApiKeyByHash,
@@ -2946,6 +2948,7 @@ export function getRuntimeState(args: {
   assetClass?: AssetClass;
 }) {
   const core = loadRuntimeStateCore(args);
+  const membership = getMembershipState({ userId: core.userId });
   const decision = buildDecisionSnapshotFromCore({
     core,
   });
@@ -2961,6 +2964,12 @@ export function getRuntimeState(args: {
     ),
     componentSourceStatus: RUNTIME_STATUS.MODEL_DERIVED,
   });
+  let manual = null;
+  try {
+    manual = getManualDashboard(core.userId);
+  } catch {
+    manual = null;
+  }
 
   return buildRuntimeStateSnapshot({
     core,
@@ -2969,6 +2978,8 @@ export function getRuntimeState(args: {
     apiChecks,
     trades: listExecutions({ userId: core.userId, market: core.market, limit: 200 }),
     componentStatus,
+    membership,
+    manual,
     connectivityIncluded: false,
   });
 }
@@ -2979,6 +2990,7 @@ async function getRuntimeStatePrimary(args: {
   assetClass?: AssetClass;
 }) {
   const core = await loadRuntimeStateCorePrimary(args);
+  const membership = getMembershipState({ userId: core.userId });
   let decision:
     | Awaited<ReturnType<typeof buildDecisionSnapshotFromCorePrimary>>
     | Awaited<ReturnType<typeof getPublicTodayDecision>>;
@@ -3017,6 +3029,12 @@ async function getRuntimeStatePrimary(args: {
     ),
     componentSourceStatus: RUNTIME_STATUS.MODEL_DERIVED,
   });
+  let manual = null;
+  try {
+    manual = getManualDashboard(core.userId);
+  } catch {
+    manual = null;
+  }
 
   return buildRuntimeStateSnapshot({
     core,
@@ -3025,6 +3043,8 @@ async function getRuntimeStatePrimary(args: {
     apiChecks,
     trades,
     componentStatus,
+    membership,
+    manual,
     connectivityIncluded: false,
   });
 }

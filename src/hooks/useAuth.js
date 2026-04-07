@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocalStorage } from './useLocalStorage';
-import { normalizeEmail, classifyAuthError } from '../utils/appHelpers';
+import {
+  buildAuthProfileSyncPayload,
+  buildAuthProfileSyncSignature,
+  classifyAuthError,
+  markAuthProfileSynced,
+  normalizeEmail,
+} from '../utils/appHelpers';
 import {
   ensureSupabaseBrowserClient,
   getSupabaseAuthRedirectUrl,
@@ -241,6 +247,40 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
         active: 'standard',
         deep: 'advanced',
       };
+      const nextUiMode = syncedState?.uiMode || tradeModeMap[account.tradeMode] || 'standard';
+      const nextRiskProfileKey =
+        syncedState?.riskProfileKey ||
+        (account.tradeMode === 'deep'
+          ? 'aggressive'
+          : account.tradeMode === 'starter'
+            ? 'conservative'
+            : 'balanced');
+      const nextWatchlist = Array.isArray(syncedState?.watchlist)
+        ? syncedState.watchlist
+        : DEFAULT_AUTH_WATCHLIST;
+      const nextHoldings = Array.isArray(syncedState?.holdings) ? syncedState.holdings : [];
+      const nextExecutions = Array.isArray(syncedState?.executions) ? syncedState.executions : [];
+      const nextDisciplineLog = syncedState?.disciplineLog || {
+        checkins: [],
+        boundary_kept: [],
+        weekly_reviews: [],
+      };
+      const nextAssetClass = syncedState?.assetClass || 'US_STOCK';
+      const nextMarket = syncedState?.market || 'US';
+      const syncSignature = buildAuthProfileSyncSignature({
+        userId: account.userId,
+        payload: buildAuthProfileSyncPayload({
+          assetClass: nextAssetClass,
+          market: nextMarket,
+          uiMode: nextUiMode,
+          riskProfileKey: nextRiskProfileKey,
+          watchlist: nextWatchlist,
+          holdings: nextHoldings,
+          executions: nextExecutions,
+          disciplineLog: nextDisciplineLog,
+        }),
+      });
+      markAuthProfileSynced(syncSignature);
       setUserProfile({
         email: account.email,
         name: account.name,
@@ -257,23 +297,14 @@ export function useAuth({ fetchJson, setAssetClass, setMarket, setActiveTab, set
         roles: normalizedRoles,
         isAdmin: normalizedRoles.includes('ADMIN'),
       });
-      setUiMode(syncedState?.uiMode || tradeModeMap[account.tradeMode] || 'standard');
-      setRiskProfileKey(
-        syncedState?.riskProfileKey ||
-          (account.tradeMode === 'deep'
-            ? 'aggressive'
-            : account.tradeMode === 'starter'
-              ? 'conservative'
-              : 'balanced'),
-      );
-      setWatchlist(
-        Array.isArray(syncedState?.watchlist) ? syncedState.watchlist : DEFAULT_AUTH_WATCHLIST,
-      );
-      setHoldings(Array.isArray(syncedState?.holdings) ? syncedState.holdings : []);
-      setExecutions(Array.isArray(syncedState?.executions) ? syncedState.executions : []);
-      if (syncedState?.disciplineLog) setDisciplineLog(syncedState.disciplineLog);
-      setAssetClass(syncedState?.assetClass || 'US_STOCK');
-      setMarket(syncedState?.market || 'US');
+      setUiMode(nextUiMode);
+      setRiskProfileKey(nextRiskProfileKey);
+      setWatchlist(nextWatchlist);
+      setHoldings(nextHoldings);
+      setExecutions(nextExecutions);
+      setDisciplineLog(nextDisciplineLog);
+      setAssetClass(nextAssetClass);
+      setMarket(nextMarket);
       setOnboardingDone(true);
       if (resetNavigation) {
         setActiveTab('today');

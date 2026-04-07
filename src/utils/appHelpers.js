@@ -72,7 +72,72 @@ export function buildOnboardingRetrySessionKey(authSession) {
   return `${userId}:${loggedInAt}`;
 }
 
+function normalizeDisciplineLog(value) {
+  const base =
+    value && typeof value === 'object'
+      ? value
+      : { checkins: [], boundary_kept: [], weekly_reviews: [] };
+  return {
+    checkins: Array.isArray(base.checkins) ? base.checkins : [],
+    boundary_kept: Array.isArray(base.boundary_kept) ? base.boundary_kept : [],
+    weekly_reviews: Array.isArray(base.weekly_reviews) ? base.weekly_reviews : [],
+  };
+}
+
+function hashString(value) {
+  let hash = 2166136261;
+  const input = String(value || '');
+  for (let index = 0; index < input.length; index += 1) {
+    hash ^= input.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(16);
+}
+
 const RISK_PROFILE_SYNC_STORAGE_KEY = 'nova-quant-risk-profile-sync:v1';
+const AUTH_PROFILE_SYNC_STORAGE_KEY = 'nova-quant-auth-profile-sync:v1';
+
+export function buildAuthProfileSyncPayload(args) {
+  return {
+    assetClass: String(args?.assetClass || 'US_STOCK'),
+    market: String(args?.market || 'US'),
+    uiMode: String(args?.uiMode || 'standard'),
+    riskProfileKey: String(args?.riskProfileKey || 'balanced'),
+    watchlist: Array.isArray(args?.watchlist) ? args.watchlist : [],
+    holdings: Array.isArray(args?.holdings) ? args.holdings : [],
+    executions: Array.isArray(args?.executions) ? args.executions : [],
+    disciplineLog: normalizeDisciplineLog(args?.disciplineLog),
+  };
+}
+
+export function buildAuthProfileSyncSignature(args) {
+  const userId = String(args?.userId || '').trim();
+  if (!userId) return null;
+  const payload =
+    typeof args?.payload === 'string'
+      ? args.payload
+      : JSON.stringify(buildAuthProfileSyncPayload(args?.payload || {}));
+  if (!payload) return null;
+  return `${userId}:${hashString(payload)}`;
+}
+
+export function hasSyncedAuthProfile(syncSignature) {
+  if (typeof window === 'undefined' || !syncSignature) return false;
+  try {
+    return window.localStorage.getItem(AUTH_PROFILE_SYNC_STORAGE_KEY) === String(syncSignature);
+  } catch {
+    return false;
+  }
+}
+
+export function markAuthProfileSynced(syncSignature) {
+  if (typeof window === 'undefined' || !syncSignature) return;
+  try {
+    window.localStorage.setItem(AUTH_PROFILE_SYNC_STORAGE_KEY, String(syncSignature));
+  } catch {
+    // Ignore storage quota or privacy-mode failures.
+  }
+}
 
 export function buildRiskProfileSyncKey(args) {
   const userId = String(args?.userId || '').trim();

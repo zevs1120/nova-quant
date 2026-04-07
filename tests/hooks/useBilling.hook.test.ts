@@ -36,6 +36,33 @@ describe('useBilling', () => {
     expect(result.current.checkoutState?.mode).toBe('auth_required');
   });
 
+  it('does not auto-fetch billing state until enabled', async () => {
+    const fetchJson = vi.fn().mockResolvedValue({
+      currentPlan: 'lite',
+      providerMode: 'stripe',
+      subscription: null,
+      latestCheckout: null,
+    });
+    const { rerender } = renderHook(
+      ({ enabled }: { enabled: boolean }) =>
+        useBilling({
+          locale: 'en',
+          authSession: { userId: 'u1' },
+          fetchJson,
+          onApplyPlan: vi.fn(),
+          enabled,
+        }),
+      {
+        initialProps: { enabled: false },
+      },
+    );
+
+    expect(fetchJson).not.toHaveBeenCalled();
+
+    rerender({ enabled: true });
+    await waitFor(() => expect(fetchJson).toHaveBeenCalledWith('/api/billing/state'));
+  });
+
   it('openCheckout then submitCheckout assigns stripe checkout url', async () => {
     const fetchJson = vi.fn().mockResolvedValue({
       state: { currentPlan: 'lite', providerMode: 'stripe' },

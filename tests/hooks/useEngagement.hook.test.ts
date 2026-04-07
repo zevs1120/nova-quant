@@ -96,6 +96,44 @@ describe('useEngagement', () => {
     await waitFor(() => expect(fetchJson).toHaveBeenCalledWith('/api/manual/state'));
   });
 
+  it('reuses hydrated manual state without fetching again', async () => {
+    const fetchJson = vi.fn();
+    const { result } = renderHook(() =>
+      useEngagement(
+        buildArgs({
+          fetchJson,
+          initialManualState: {
+            available: true,
+            mode: 'REAL',
+            reason: null,
+            summary: {
+              balance: 1200,
+              expiringSoon: 0,
+              vipDays: 1,
+              vipDaysRedeemed: 1,
+              checkinStreak: 3,
+              lastCheckinDay: '2024-06-15',
+              mainPredictionsToday: 0,
+            },
+            referrals: {
+              inviteCode: 'NQ123',
+              referredByCode: null,
+              total: 1,
+              rewarded: 1,
+            },
+            ledger: [],
+            rewards: [],
+            predictions: [],
+            rules: {},
+          },
+        }),
+      ),
+    );
+
+    await waitFor(() => expect(result.current.manualState?.summary?.balance).toBe(1200));
+    expect(fetchJson).not.toHaveBeenCalledWith('/api/manual/state');
+  });
+
   it('reloads engagement on hour rollover but ignores same-hour clock churn', async () => {
     const fetchJson = vi.fn((path: string) => {
       if (path === '/api/engagement/state') {

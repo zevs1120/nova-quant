@@ -1,10 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  buildAuthProfileSyncPayload,
+  buildAuthProfileSyncSignature,
   buildOnboardingRetrySessionKey,
   buildRiskProfileSyncKey,
   classifyAuthError,
   detectDisplayMode,
+  hasSyncedAuthProfile,
   hasSyncedRiskProfile,
+  markAuthProfileSynced,
   markRiskProfileSynced,
   mapExecutionToTrade,
   normalizeEmail,
@@ -244,6 +248,64 @@ describe('appHelpers', () => {
     );
     expect(hasSyncedRiskProfile('guest-1:balanced')).toBe(true);
     expect(hasSyncedRiskProfile('guest-1:aggressive')).toBe(false);
+  });
+
+  it('builds a stable auth profile payload and sync signature', () => {
+    const payload = buildAuthProfileSyncPayload({
+      assetClass: 'US_STOCK',
+      market: 'US',
+      uiMode: 'standard',
+      riskProfileKey: 'balanced',
+      watchlist: ['SPY'],
+      holdings: [],
+      executions: [],
+      disciplineLog: null,
+    });
+
+    expect(payload).toEqual({
+      assetClass: 'US_STOCK',
+      market: 'US',
+      uiMode: 'standard',
+      riskProfileKey: 'balanced',
+      watchlist: ['SPY'],
+      holdings: [],
+      executions: [],
+      disciplineLog: {
+        checkins: [],
+        boundary_kept: [],
+        weekly_reviews: [],
+      },
+    });
+
+    const storage: {
+      value: string | null;
+      getItem: ReturnType<typeof vi.fn>;
+      setItem: ReturnType<typeof vi.fn>;
+    } = {
+      value: null,
+      getItem: vi.fn((key: string) =>
+        key === 'nova-quant-auth-profile-sync:v1' ? storage.value : null,
+      ),
+      setItem: vi.fn((key: string, value: string) => {
+        if (key === 'nova-quant-auth-profile-sync:v1') storage.value = value;
+      }),
+    };
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: {
+        localStorage: storage,
+      },
+    });
+
+    const syncSignature = buildAuthProfileSyncSignature({
+      userId: 'u-auth',
+      payload,
+    });
+    expect(syncSignature).toMatch(/^u-auth:[0-9a-f]+$/);
+    expect(hasSyncedAuthProfile(syncSignature)).toBe(false);
+    markAuthProfileSynced(syncSignature);
+    expect(storage.setItem).toHaveBeenCalledWith('nova-quant-auth-profile-sync:v1', syncSignature);
+    expect(hasSyncedAuthProfile(syncSignature)).toBe(true);
   });
 });
 

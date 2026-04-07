@@ -12,6 +12,15 @@ NovaQuant 所有重要变更记录于此。
 - 风险画像同步新增本地签名缓存：相同用户 + 相同 `riskProfileKey` 不再每次启动都重复 `POST /api/risk-profile`，也减少由此触发的后续 runtime refresh。
 - `useAppData` / `useEngagement` 新增 gated 加载路径，对应单测补到 `tests/hooks/useAppData.hook.test.ts`、`tests/hooks/useEngagement.hook.test.ts`、`tests/appHelpers.test.ts`。
 
+### ⚡ 首屏 Bootstrap 再收口
+
+- **perf(app,runtime): 继续压缩启动期 API 请求。**
+- `runtime-state` 现在直接携带 `membership` 与 `manual` bootstrap 数据；前端首屏优先复用这份 payload，不再默认补打一轮 `/api/membership/state` 与 `/api/manual/state`。
+- `useMembership` 增加 runtime bootstrap 等待逻辑：先等首屏 `runtime-state` 返回，再决定是否需要单独同步会员态，避免和主运行时请求并发重复拉同一份信息。
+- `useBilling` 改为按需加载；未进入 `My` 页时不再默认请求 `/api/billing/state`，但进入会员管理或发起结账时仍可正常拿到最新账单状态。
+- `useEngagement` 的积分/邀请面板改成优先复用 runtime 注水，仅在真正需要时再刷新 `manual/state`；对应补了 hooks 回归，守住 bootstrap 命中后“不再二次请求”的行为。
+- `auth/profile` 同步新增轻量签名缓存，并在 `useAuth` 应用服务端资料时预先标记已同步状态，避免每次打开应用都把完全相同的账户偏好再 `POST` 一次。
+
 ### 📝 文档与变更日志维护
 
 - **日常维护**：更新了 `CHANGELOG.md` 以记录最近的代码库状态。

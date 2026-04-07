@@ -38,11 +38,14 @@ router.get(
         assetClass,
       }),
     );
-    const membership = getMembershipState({ userId });
+    const currentPlan =
+      typeof (runtime as Record<string, any>)?.data?.membership?.currentPlan === 'string'
+        ? String((runtime as Record<string, any>).data.membership.currentPlan)
+        : getMembershipState({ userId }).currentPlan;
     res.json(
       applyMembershipAccessToRuntimeState({
         runtime: runtime as Record<string, unknown>,
-        currentPlan: membership.currentPlan,
+        currentPlan,
       }),
     );
   }),

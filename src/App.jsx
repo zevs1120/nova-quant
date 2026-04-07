@@ -37,10 +37,14 @@ import { createTranslator, getDefaultLang, getLocale } from './i18n';
 import { buildHoldingsReview } from './research/holdingsAnalyzer';
 import { fetchApi } from './utils/api';
 import {
+  buildAuthProfileSyncPayload,
+  buildAuthProfileSyncSignature,
   buildOnboardingRetrySessionKey,
   buildRiskProfileSyncKey,
   detectDisplayMode,
+  hasSyncedAuthProfile,
   hasSyncedRiskProfile,
+  markAuthProfileSynced,
   markRiskProfileSynced,
   runWhenIdle,
   shouldAttemptPendingOnboardingBonusRetry,
@@ -177,20 +181,6 @@ export default function App() {
     [authSession, authHydrated, userProfile, effectiveUserId, handleLogout],
   );
 
-  const membership = useMembership({
-    locale,
-    authSession,
-    fetchJson,
-  });
-
-  const billing = useBilling({
-    locale,
-    authSession,
-    userProfile,
-    fetchJson,
-    onApplyPlan: membership.setMembershipPlan,
-  });
-
   // --- Data loading hook (runs first, no demo dependency) ---
   const { loading, data, hasLoaded } = useAppData({
     fetchJson,
@@ -202,6 +192,23 @@ export default function App() {
     executions,
     refreshNonce,
     enabled: authHydrated,
+  });
+
+  const membership = useMembership({
+    locale,
+    authSession,
+    fetchJson,
+    initialState: data?.membership || null,
+    bootstrapPending: !hasLoaded,
+  });
+
+  const billing = useBilling({
+    locale,
+    authSession,
+    userProfile,
+    fetchJson,
+    onApplyPlan: membership.setMembershipPlan,
+    enabled: activeTab === 'my',
   });
 
   // --- Investor Demo hook (uses real data) ---
@@ -291,7 +298,7 @@ export default function App() {
     // Never sync demo data to the real user profile
     if (investorDemoEnabled) return undefined;
 
-    const payload = {
+    const payload = buildAuthProfileSyncPayload({
       assetClass,
       market,
       uiMode,
@@ -300,19 +307,34 @@ export default function App() {
       holdings,
       executions,
       disciplineLog,
-    };
+    });
     const serialized = JSON.stringify(payload);
-    if (lastProfileSyncRef.current === serialized) return undefined;
+    const syncSignature = buildAuthProfileSyncSignature({
+      userId: authSession.userId,
+      payload: serialized,
+    });
+    if (!syncSignature) return undefined;
+    if (lastProfileSyncRef.current === syncSignature) return undefined;
+    if (hasSyncedAuthProfile(syncSignature)) {
+      lastProfileSyncRef.current = syncSignature;
+      return undefined;
+    }
 
     const timer = window.setTimeout(() => {
-      lastProfileSyncRef.current = serialized;
+      lastProfileSyncRef.current = syncSignature;
       void fetchJson('/api/auth/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: serialized,
-      }).catch(() => {
-        lastProfileSyncRef.current = '';
-      });
+      })
+        .then(() => {
+          markAuthProfileSynced(syncSignature);
+        })
+        .catch(() => {
+          if (lastProfileSyncRef.current === syncSignature) {
+            lastProfileSyncRef.current = '';
+          }
+        });
     }, 350);
 
     return () => window.clearTimeout(timer);
@@ -357,6 +379,8 @@ export default function App() {
     authHydrated,
     hasLoaded,
     decisionSnapshot: activeDecisionSnapshot,
+    initialManualState: data?.manual || null,
+    manualEnabled: activeTab === 'my',
     setRefreshNonce,
     now: engagementClock,
     disciplineLog,

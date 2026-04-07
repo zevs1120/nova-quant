@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { normalizeMembershipPlan } from '../utils/membership';
 import { resolveBillingReturnUrl } from '../shared/routes/publicUrls.js';
 
-export function useBilling({ locale, authSession, fetchJson, onApplyPlan }) {
+export function useBilling({ locale, authSession, fetchJson, onApplyPlan, enabled = true }) {
   const [billingState, setBillingState] = useState(null);
   const [checkoutState, setCheckoutState] = useState(null);
 
@@ -17,27 +17,33 @@ export function useBilling({ locale, authSession, fetchJson, onApplyPlan }) {
     [onApplyPlan],
   );
 
-  const syncBillingState = useCallback(async () => {
+  const loadBillingState = useCallback(async () => {
     if (!authSession?.userId) {
       setBillingState(null);
-      return false;
+      return null;
     }
     try {
       const payload = await fetchJson('/api/billing/state');
       applyRemoteState(payload);
-      return true;
+      return payload || null;
     } catch {
-      return false;
+      return null;
     }
   }, [applyRemoteState, authSession?.userId, fetchJson]);
+
+  const syncBillingState = useCallback(
+    async () => Boolean(await loadBillingState()),
+    [loadBillingState],
+  );
 
   useEffect(() => {
     if (!authSession?.userId) {
       setBillingState(null);
       return;
     }
+    if (!enabled) return;
     void syncBillingState();
-  }, [authSession?.userId, syncBillingState]);
+  }, [authSession?.userId, enabled, syncBillingState]);
 
   const closeCheckout = useCallback(() => {
     setCheckoutState(null);
@@ -79,9 +85,14 @@ export function useBilling({ locale, authSession, fetchJson, onApplyPlan }) {
     async ({ planKey, source = 'membership' }) => {
       const normalizedPlan = normalizeMembershipPlan(planKey);
       const billingCycle = 'weekly';
-      const activeSubscription = billingState?.subscription || null;
+      const resolvedBillingState =
+        normalizedPlan === 'free' && authSession?.userId && !billingState
+          ? ((await loadBillingState()) ?? billingState)
+          : billingState;
+      const activeSubscription = resolvedBillingState?.subscription || null;
       const stripeManaged =
-        billingState?.providerMode === 'stripe' && activeSubscription?.provider === 'stripe';
+        resolvedBillingState?.providerMode === 'stripe' &&
+        activeSubscription?.provider === 'stripe';
 
       if (normalizedPlan === 'free') {
         if (!authSession?.userId) {
@@ -110,7 +121,7 @@ export function useBilling({ locale, authSession, fetchJson, onApplyPlan }) {
             planKey: normalizedPlan,
             billingCycle,
             source,
-            session: billingState?.latestCheckout || null,
+            session: resolvedBillingState?.latestCheckout || null,
             loading: false,
             submitting: false,
             error: '',
@@ -218,7 +229,7 @@ export function useBilling({ locale, authSession, fetchJson, onApplyPlan }) {
         });
       }
     },
-    [applyRemoteState, authSession?.userId, billingState, fetchJson, locale],
+    [applyRemoteState, authSession?.userId, billingState, fetchJson, loadBillingState, locale],
   );
 
   const submitCheckout = useCallback(

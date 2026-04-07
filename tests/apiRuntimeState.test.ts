@@ -27,6 +27,8 @@ describe('api runtime state', () => {
     expect(res.data).toHaveProperty('evidence');
     expect(res.data).toHaveProperty('performance');
     expect(res.data).toHaveProperty('decision');
+    expect(res.data).toHaveProperty('membership');
+    expect(res.data).toHaveProperty('manual');
     expect(Array.isArray(res.data.evidence?.top_signals)).toBe(true);
     expect(typeof res.data.config?.runtime?.api_checks?.signal_count).toBe('number');
     expect(res.data.decision).toHaveProperty('ranked_action_cards');
