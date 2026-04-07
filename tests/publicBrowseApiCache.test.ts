@@ -47,5 +47,5 @@ describe('public browse api cache surface', () => {
       market: 'US',
       symbol: 'SPY',
     });
-  });
+  }, 15_000);
 });

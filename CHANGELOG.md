@@ -4,6 +4,15 @@ NovaQuant 所有重要变更记录于此。
 
 ## 10.22.33 (2026-04-07)
 
+### ⚡ Chat / Browse 后台读写继续瘦身
+
+- **perf(chat,browse): 继续压缩 AI 会话恢复、写入体积与 Browse 重复轮询。**
+- Chat thread list 与 latest restore 的默认返回进一步收紧到更小 payload；`restore-latest` 与 thread list 的无参默认值不再顺手放大历史读取。
+- `buildContextBundle` 不再对同一 asset scope 重复读取 signal cards；泛问题也不会再无条件扫描整张 asset registry，减少 AI 每次提问前的函数读放大与 CPU。
+- Chat 上下文持久化改成压缩版，只保留恢复和审计真正需要的字段；成功回答不再把长 message / preview / context 原样写进审计日志，减少 `chat_messages`、`chat_threads`、`chat_audit_logs`、`nova_task_runs` 的数据库写入字节。
+- `Browse` 详情页在 `1D` live 场景下不再并行启动第二条 overview/news 轮询，避免同一资产 detail bundle 被重复刷新。
+- 新增回归 `tests/chatToolsOptimization.test.ts`，并扩充 `tests/chatAudit.test.ts`、`tests/canonicalChatService.test.ts`，守住 chat 工具链降载后的行为。
+
 ### ⚡ Browse / Proof / Chat 用量继续收紧
 
 - **perf(chat,app): 继续压缩前端恢复扇出与 AI 成本。**

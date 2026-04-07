@@ -7,6 +7,7 @@ const providerStream = vi.fn(async function* () {
 const repoState = {
   thread: null as any,
   messages: [] as any[],
+  upsertThreadCalls: [] as any[],
 };
 
 vi.mock('../src/server/chat/providers/index.js', () => ({
@@ -53,6 +54,7 @@ vi.mock('../src/server/db/runtimeRepository.js', () => ({
     getLatestChatThread: vi.fn(() => repoState.thread),
     upsertChatThread: vi.fn((thread: any) => {
       repoState.thread = thread;
+      repoState.upsertThreadCalls.push(thread);
     }),
     appendChatMessage: vi.fn((message: any) => {
       repoState.messages.push({
@@ -71,6 +73,7 @@ describe('chat deterministic fast path', () => {
   beforeEach(() => {
     repoState.thread = null;
     repoState.messages = [];
+    repoState.upsertThreadCalls = [];
     providerStream.mockClear();
   });
 
@@ -103,5 +106,6 @@ describe('chat deterministic fast path', () => {
     expect(providerStream).not.toHaveBeenCalled();
     const assistantMessage = repoState.messages.find((row) => row.role === 'assistant');
     expect(String(assistantMessage?.content || '')).toContain('SPY');
+    expect(repoState.upsertThreadCalls).toHaveLength(2);
   });
 });

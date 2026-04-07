@@ -95,6 +95,50 @@ const ASSET_ALIASES: Array<{
   },
 ];
 
+const LOOKUP_STOPWORDS = new Set([
+  'A',
+  'AI',
+  'AND',
+  'ANY',
+  'ARE',
+  'ASK',
+  'BUY',
+  'CARD',
+  'DO',
+  'DOES',
+  'ENGLISH',
+  'EXPLAIN',
+  'FOR',
+  'HOLD',
+  'HOW',
+  'I',
+  'IS',
+  'IT',
+  'LOOK',
+  'MORE',
+  'NOVA',
+  'NOW',
+  'PLAN',
+  'PLAIN',
+  'RISK',
+  'SAFE',
+  'SELL',
+  'SETUP',
+  'SHOULD',
+  'SIGNAL',
+  'TELL',
+  'THAT',
+  'THE',
+  'THIS',
+  'TODAY',
+  'TRY',
+  'WAIT',
+  'WE',
+  'WHAT',
+  'WHY',
+  'WITH',
+]);
+
 function normalizeLookup(value: unknown): string {
   return String(value || '')
     .trim()
@@ -107,6 +151,50 @@ function normalizeCandidateSymbol(symbol: unknown, market?: Market): string {
   if (market === 'CRYPTO' && upper.endsWith('USDT')) return upper.slice(0, -4);
   if (market === 'CRYPTO' && upper.endsWith('USD')) return upper.slice(0, -3);
   return upper;
+}
+
+function extractLookupTokens(message: string): string[] {
+  const upper = String(message || '').toUpperCase();
+  return [...new Set(upper.match(/\b[A-Z]{1,8}\b/g) || [])]
+    .map((token) => normalizeLookup(token))
+    .filter((token) => token && !LOOKUP_STOPWORDS.has(token));
+}
+
+function findBestRequestedAssetCandidate(args: {
+  candidates: Array<{
+    symbol: string;
+    market: Market;
+    assetClass: AssetClass;
+    aliases: string[];
+  }>;
+  tokenMatches: string[];
+  normalizedMessage: string;
+  contextMarket?: Market;
+}): { symbol: string; market: Market; assetClass: AssetClass; score: number } | null {
+  let best: { symbol: string; market: Market; assetClass: AssetClass; score: number } | null = null;
+
+  for (const candidate of args.candidates) {
+    const aliases = [...candidate.aliases, candidate.symbol]
+      .map((item) => normalizeLookup(item))
+      .filter(Boolean);
+    let score = 0;
+    for (const alias of aliases) {
+      if (!alias) continue;
+      if (args.tokenMatches.includes(alias)) score = Math.max(score, 100);
+      if (args.normalizedMessage.includes(alias)) score = Math.max(score, 80);
+    }
+    if (score > 0 && args.contextMarket && candidate.market === args.contextMarket) score += 8;
+    if (score > 0 && (!best || score > best.score)) {
+      best = {
+        symbol: candidate.symbol,
+        market: candidate.market,
+        assetClass: candidate.assetClass,
+        score,
+      };
+    }
+  }
+
+  return best;
 }
 
 function inferRequestedAsset(args: {
@@ -136,7 +224,7 @@ function inferRequestedAsset(args: {
     };
   }
 
-  const allCandidates = [
+  const baseCandidates = [
     ...ASSET_ALIASES,
     ...(args.signalCards || [])
       .filter((row): row is Record<string, unknown> => Boolean(row && typeof row === 'object'))
@@ -155,42 +243,42 @@ function inferRequestedAsset(args: {
             : ('US_STOCK' as const),
         aliases: [String(row.symbol || '')],
       })),
-    ...listAssets().map((asset) => ({
+  ];
+  const normalizedMessage = normalizeLookup(message);
+  const tokenMatches = extractLookupTokens(message);
+  const baseMatch = findBestRequestedAssetCandidate({
+    candidates: baseCandidates,
+    tokenMatches,
+    normalizedMessage,
+    contextMarket,
+  });
+  if (baseMatch) {
+    return {
+      symbol: baseMatch.symbol,
+      market: baseMatch.market,
+      assetClass: baseMatch.assetClass,
+    };
+  }
+
+  if (!tokenMatches.length) {
+    return {
+      symbol: null,
+      market: contextMarket || null,
+      assetClass: contextAssetClass || null,
+    };
+  }
+
+  const best = findBestRequestedAssetCandidate({
+    candidates: listAssets().map((asset) => ({
       symbol: normalizeCandidateSymbol(asset.symbol, asset.market === 'CRYPTO' ? 'CRYPTO' : 'US'),
       market: asset.market === 'CRYPTO' ? ('CRYPTO' as const) : ('US' as const),
       assetClass: asset.market === 'CRYPTO' ? ('CRYPTO' as const) : ('US_STOCK' as const),
       aliases: [asset.symbol, asset.base || '', asset.symbol?.replace('USDT', '') || ''],
     })),
-  ];
-
-  const normalizedMessage = normalizeLookup(message);
-  const tokenMatches: string[] = upper.match(/\b[A-Z]{2,8}\b/g) || [];
-  let best: { symbol: string; market: Market; assetClass: AssetClass; score: number } | null = null;
-
-  for (const candidate of allCandidates) {
-    const aliases = [...candidate.aliases, candidate.symbol]
-      .map((item) => normalizeLookup(item))
-      .filter(Boolean);
-    let score = 0;
-    for (const alias of aliases) {
-      if (!alias) continue;
-      if (tokenMatches.includes(alias)) score = Math.max(score, 100);
-      if (normalizedMessage.includes(alias)) score = Math.max(score, 80);
-    }
-    if (contextMarket && candidate.market === contextMarket) score += 8;
-    if (!best || score > best.score) {
-      best =
-        score > 0
-          ? {
-              symbol: candidate.symbol,
-              market: candidate.market,
-              assetClass: candidate.assetClass,
-              score,
-            }
-          : best;
-    }
-  }
-
+    tokenMatches,
+    normalizedMessage,
+    contextMarket,
+  });
   if (!best) {
     return {
       symbol: null,
@@ -619,10 +707,9 @@ export async function buildContextBundle(args: {
   message?: string;
 }): Promise<ToolContextBundle> {
   const { userId, context } = args;
-  const seedSignalCards = pickRelevantSignals(
-    await getSignalCards(userId, inferAssetClass(context)),
-    context,
-  );
+  const initialAssetClass = inferAssetClass(context);
+  const initialSignalRows = await getSignalCards(userId, initialAssetClass);
+  const seedSignalCards = pickRelevantSignals(initialSignalRows, context);
   const inferredAsset = inferRequestedAsset({
     message: args.message,
     context,
@@ -639,7 +726,11 @@ export async function buildContextBundle(args: {
     assetClass,
   });
 
-  const signalCards = pickRelevantSignals(await getSignalCards(userId, assetClass), {
+  const signalRows =
+    assetClass && assetClass !== initialAssetClass
+      ? await getSignalCards(userId, assetClass)
+      : initialSignalRows;
+  const signalCards = pickRelevantSignals(signalRows, {
     ...(context || {}),
     symbol: requestedSymbol || context?.symbol,
   });

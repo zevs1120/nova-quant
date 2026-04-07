@@ -9,6 +9,7 @@ import {
 } from './client.js';
 import { resolveBusinessTask, type NovaBusinessTask } from './router.js';
 import { getNovaRuntimeMode, isLocalNovaEnabled } from '../ai/llmOps.js';
+import { stringifyCompactChatContext } from '../chat/persistence.js';
 
 type JsonObject = Record<string, unknown>;
 
@@ -500,7 +501,7 @@ export async function logNovaAssistantAnswer(args: {
       user_message: args.message,
       provider: args.provider,
     }),
-    context_json: JSON.stringify(args.context),
+    context_json: stringifyCompactChatContext(args.context),
     output_json: JSON.stringify({
       text: args.responseText,
     }),

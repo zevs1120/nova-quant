@@ -9,6 +9,7 @@ import type {
   ProviderMessage,
   StreamEvent,
 } from './types.js';
+import { stringifyCompactChatContext } from './persistence.js';
 import { buildContextBundle } from './tools.js';
 import { buildSystemPrompt, buildUserPrompt } from './prompts.js';
 import { createProvider, getProviderOrder, isProviderConfigured } from './providers/index.js';
@@ -26,6 +27,8 @@ import {
 } from '../../utils/assistantLanguage.js';
 
 const MAX_HISTORY_TURNS = 4;
+const DEFAULT_THREAD_LIST_LIMIT = 3;
+const DEFAULT_RESTORE_MESSAGE_LIMIT = 3;
 const PROVIDER_TIMEOUT_MS = Number(process.env.AI_PROVIDER_TIMEOUT_MS || 18_000);
 
 function getRepo(): MarketRepository {
@@ -93,14 +96,6 @@ function historyToProviderMessages(history: ChatHistoryMessage[]): ProviderMessa
   }));
 }
 
-function stringifyContext(context: ChatRequestInput['context']): string {
-  try {
-    return JSON.stringify(context ?? {});
-  } catch {
-    return '{}';
-  }
-}
-
 async function* withTimeout(
   stream: AsyncGenerator<string>,
   timeoutMs: number,
@@ -132,7 +127,7 @@ function ensureThread(repo: MarketRepository, input: ChatRequestInput): ChatThre
     id: input.threadId || `thread_${randomUUID()}`,
     user_id: input.userId,
     title: createThreadTitle(input.message),
-    last_context_json: stringifyContext(input.context),
+    last_context_json: stringifyCompactChatContext(input.context),
     last_message_preview: input.message.slice(0, 160),
     created_at_ms: now,
     updated_at_ms: now,
@@ -148,7 +143,7 @@ function touchThread(
 ): void {
   repo.upsertChatThread({
     ...thread,
-    last_context_json: stringifyContext(args.context),
+    last_context_json: stringifyCompactChatContext(args.context),
     last_message_preview: args.preview.slice(0, 160),
     updated_at_ms: Date.now(),
   });
@@ -168,7 +163,7 @@ function appendUserMessage(
     user_id: input.userId,
     role: 'user',
     content: input.message,
-    context_json: stringifyContext(input.context),
+    context_json: stringifyCompactChatContext(input.context),
     provider: null,
     status: 'READY',
     created_at_ms: Date.now(),
@@ -191,7 +186,7 @@ function appendAssistantMessage(
     user_id: args.userId,
     role: 'assistant',
     content: args.content,
-    context_json: stringifyContext(args.context),
+    context_json: stringifyCompactChatContext(args.context),
     provider: args.provider,
     status: args.status,
     created_at_ms: Date.now(),
@@ -637,7 +632,7 @@ async function runProviderChain(args: {
   throw new Error(`Failed to generate response: ${providerErrors.join(' | ')}`);
 }
 
-export function listChatThreads(userId: string, limit = 12) {
+export function listChatThreads(userId: string, limit = DEFAULT_THREAD_LIST_LIMIT) {
   const repo = getRepo();
   return repo.listChatThreads(userId, limit);
 }
@@ -676,7 +671,10 @@ export function getLatestChatThreadRestore(
   };
 }
 
-export function restoreLatestChatThread(userId: string, messageLimit = 40) {
+export function restoreLatestChatThread(
+  userId: string,
+  messageLimit = DEFAULT_RESTORE_MESSAGE_LIMIT,
+) {
   const repo = getRepo();
   const latestThread = repo.getLatestChatThread(userId);
   if (!latestThread) {
@@ -702,10 +700,6 @@ export async function* streamChat(input: ChatRequestInput): AsyncGenerator<Strea
   });
 
   appendUserMessage(repo, thread, input);
-  touchThread(repo, thread, {
-    context: input.context,
-    preview: input.message,
-  });
 
   yield { type: 'meta', mode, provider: 'preparing', threadId: thread.id };
 

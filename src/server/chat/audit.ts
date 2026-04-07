@@ -2,6 +2,11 @@ import { executeSync, qualifyBusinessTable } from '../db/postgresSyncBridge.js';
 import { getRuntimeRepo } from '../db/runtimeRepository.js';
 import type { ChatAuditRecord } from './types.js';
 import { createTraceId } from '../observability/spine.js';
+import { stringifyCompactChatContext, truncateChatText } from './persistence.js';
+
+function shouldMirrorChatAuditEvent(record: ChatAuditRecord) {
+  return record.status !== 'ok';
+}
 
 export function logChatAudit(record: ChatAuditRecord): void {
   try {
@@ -25,26 +30,28 @@ export function logChatAudit(record: ChatAuditRecord): void {
         record.threadId ?? null,
         record.mode,
         record.provider,
-        record.message,
-        record.contextJson,
+        truncateChatText(record.message, 280),
+        stringifyCompactChatContext(record.context),
         record.status,
-        record.error ?? null,
-        record.responsePreview ?? null,
+        record.error ? truncateChatText(record.error, 180) : null,
+        record.responsePreview ? truncateChatText(record.responsePreview, 420) : null,
         record.durationMs,
         now,
       ],
     );
 
-    getRuntimeRepo().insertAuditEvent({
-      trace_id: createTraceId('chat'),
-      scope: 'nova_assistant',
-      event_type: 'chat_response_recorded',
-      user_id: record.userId,
-      entity_type: 'chat_thread',
-      entity_id: record.threadId ?? null,
-      payload_json: auditPayload,
-      created_at_ms: now,
-    });
+    if (shouldMirrorChatAuditEvent(record)) {
+      getRuntimeRepo().insertAuditEvent({
+        trace_id: createTraceId('chat'),
+        scope: 'nova_assistant',
+        event_type: 'chat_response_recorded',
+        user_id: record.userId,
+        entity_type: 'chat_thread',
+        entity_id: record.threadId ?? null,
+        payload_json: auditPayload,
+        created_at_ms: now,
+      });
+    }
   } catch {
     // best-effort audit logging
   }

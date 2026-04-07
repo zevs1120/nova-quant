@@ -1023,6 +1023,9 @@ export default function BrowseTab({
       setDetailNews([]);
       return undefined;
     }
+    if (DETAIL_RANGE_CONFIG[detailRange]?.live) {
+      return undefined;
+    }
 
     let cancelled = false;
     let inFlight = false;
@@ -1056,7 +1059,7 @@ export default function BrowseTab({
       window.clearInterval(intervalId);
       document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, [selectedAsset, selectedKey]);
+  }, [detailRange, selectedAsset, selectedKey]);
 
   function openItem(item) {
     const next = buildSelection(item);

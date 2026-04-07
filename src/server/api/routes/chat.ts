@@ -103,7 +103,7 @@ async function handleChat(req: express.Request, res: express.Response) {
       mode: context ? 'context-aware' : 'general-coach',
       provider: 'none',
       message,
-      contextJson: JSON.stringify(context ?? {}),
+      context,
       status: 'rate_limited',
       durationMs: Date.now() - startedAt,
     });
@@ -130,7 +130,7 @@ async function handleChat(req: express.Request, res: express.Response) {
       mode: context ? 'context-aware' : 'general-coach',
       provider: 'none',
       message,
-      contextJson: JSON.stringify(context ?? {}),
+      context,
       status: 'error',
       error: membershipAccess.error,
       durationMs: Date.now() - startedAt,
@@ -200,7 +200,7 @@ async function handleChat(req: express.Request, res: express.Response) {
       provider,
       threadId: resolvedThreadId,
       message,
-      contextJson: JSON.stringify(context ?? {}),
+      context,
       status,
       error: errorText || undefined,
       responsePreview: responseText.slice(0, 1200),
@@ -225,7 +225,7 @@ router.post('/api/ai-chat', handleChat);
 
 router.get('/api/chat/restore-latest', (req, res) => {
   const userId = String((req.query.userId as string | undefined) || '').trim() || 'guest-default';
-  const messageLimit = req.query.messageLimit ? Number(req.query.messageLimit) : 40;
+  const messageLimit = req.query.messageLimit ? Number(req.query.messageLimit) : 3;
   res.json({
     userId,
     ...restoreLatestChatThread(userId, messageLimit),
@@ -234,12 +234,12 @@ router.get('/api/chat/restore-latest', (req, res) => {
 
 router.get('/api/chat/threads', (req, res) => {
   const userId = String((req.query.userId as string | undefined) || '').trim() || 'guest-default';
-  const limit = req.query.limit ? Number(req.query.limit) : 12;
+  const limit = req.query.limit ? Number(req.query.limit) : 3;
   const hydrate = String((req.query.hydrate as string | undefined) || '')
     .trim()
     .toLowerCase();
   if (hydrate === 'latest-messages') {
-    const messageLimit = req.query.messageLimit ? Number(req.query.messageLimit) : 40;
+    const messageLimit = req.query.messageLimit ? Number(req.query.messageLimit) : 3;
     const payload = getLatestChatThreadRestore(userId, {
       threadLimit: limit,
       messageLimit,

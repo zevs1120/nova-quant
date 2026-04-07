@@ -130,7 +130,7 @@ export interface ChatAuditRecord {
   provider: string;
   threadId?: string;
   message: string;
-  contextJson: string;
+  context?: ChatContextInput | Record<string, unknown> | null;
   status: 'ok' | 'error' | 'rate_limited';
   error?: string;
   responsePreview?: string;

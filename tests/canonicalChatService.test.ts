@@ -86,7 +86,7 @@ describe('canonical chat service', () => {
 
     const restoreRes = await requestLocalHttp(app, {
       path: '/api/chat/restore-latest',
-      query: { userId, messageLimit: 3 },
+      query: { userId },
     });
     expect(restoreRes.status).toBe(200);
     expect(restoreRes.body.restored?.thread?.id).toBe(meta?.threadId);
