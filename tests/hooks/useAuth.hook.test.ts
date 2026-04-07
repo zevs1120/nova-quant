@@ -1,15 +1,17 @@
 // @vitest-environment happy-dom
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { __resetUseAuthSessionCacheForTests, useAuth } from '../../src/hooks/useAuth.js';
 
+const loadSupabaseBrowserConfigMock = vi.hoisted(() => vi.fn(() => Promise.resolve()));
+const hasSupabaseAuthBrowserConfigMock = vi.hoisted(() => vi.fn(() => false));
 const ensureSupabaseBrowserClientMock = vi.hoisted(() =>
   vi.fn<() => Promise<any>>(() => Promise.resolve(null)),
 );
 
 vi.mock('../../src/utils/supabaseAuth.js', () => ({
-  loadSupabaseBrowserConfig: vi.fn(() => Promise.resolve()),
-  hasSupabaseAuthBrowserConfig: vi.fn(() => false),
+  loadSupabaseBrowserConfig: loadSupabaseBrowserConfigMock,
+  hasSupabaseAuthBrowserConfig: hasSupabaseAuthBrowserConfigMock,
   ensureSupabaseBrowserClient: ensureSupabaseBrowserClientMock,
   signUpWithSupabaseEmailVerification: vi.fn(async () => ({
     data: { user: { email_confirmed_at: null }, session: null },
@@ -49,6 +51,10 @@ function authWrapperProps() {
 describe('useAuth', () => {
   beforeEach(() => {
     __resetUseAuthSessionCacheForTests();
+    loadSupabaseBrowserConfigMock.mockReset();
+    loadSupabaseBrowserConfigMock.mockResolvedValue(undefined);
+    hasSupabaseAuthBrowserConfigMock.mockReset();
+    hasSupabaseAuthBrowserConfigMock.mockReturnValue(false);
     fetchApi.mockClear();
     fetchApi.mockResolvedValue(
       new Response(JSON.stringify({ ok: true }), {
@@ -58,6 +64,10 @@ describe('useAuth', () => {
     );
     ensureSupabaseBrowserClientMock.mockReset();
     ensureSupabaseBrowserClientMock.mockResolvedValue(null);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('hydrates unauthenticated when API reports guest', async () => {
@@ -219,5 +229,71 @@ describe('useAuth', () => {
       expect.objectContaining({ method: 'POST' }),
     );
     expect(result.current.authSession?.isAdmin).toBe(true);
+  });
+
+  it('debounces Supabase refresh and user update hydration fan-out', async () => {
+    let authStateChangeHandler: ((event: string, session: any) => void) | null = null;
+    const onAuthStateChangeMock = vi.fn((handler) => {
+      authStateChangeHandler = handler;
+      return {
+        data: {
+          subscription: {
+            unsubscribe: vi.fn(),
+          },
+        },
+      };
+    });
+
+    hasSupabaseAuthBrowserConfigMock.mockReturnValue(true);
+    ensureSupabaseBrowserClientMock.mockResolvedValue({
+      auth: {
+        getSession: vi.fn().mockResolvedValue({
+          data: {
+            session: null,
+          },
+        }),
+        onAuthStateChange: onAuthStateChangeMock,
+      },
+    });
+
+    const props = authWrapperProps();
+    props.fetchJson.mockResolvedValue({
+      authenticated: true,
+      user: {
+        userId: 'u-auth',
+        email: 'auth@example.com',
+        name: 'Auth User',
+        tradeMode: 'active',
+        broker: 'IB',
+      },
+      state: null,
+      roles: [],
+    });
+
+    const { result } = renderHook(() => useAuth(props));
+    await waitFor(() => expect(result.current.authHydrated).toBe(true));
+    await waitFor(() => expect(onAuthStateChangeMock).toHaveBeenCalledTimes(1));
+    expect(authStateChangeHandler).toBeTypeOf('function');
+
+    vi.useFakeTimers();
+    props.fetchJson.mockClear();
+
+    act(() => {
+      authStateChangeHandler?.('TOKEN_REFRESHED', { access_token: 'token-1' });
+      authStateChangeHandler?.('USER_UPDATED', { access_token: 'token-1' });
+      authStateChangeHandler?.('TOKEN_REFRESHED', { access_token: 'token-1' });
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(599);
+    });
+    expect(props.fetchJson).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
+
+    expect(props.fetchJson).toHaveBeenCalledTimes(1);
+    expect(props.fetchJson).toHaveBeenCalledWith('/api/auth/session');
   });
 });

@@ -1,7 +1,7 @@
 # Nova Quant — Architecture Overview
 
 > 自动扫描生成 · 最后更新: 2026-04-07
-> Version: 10.22.31 (build 112) — 与 `package.json` / `src/config/version.js` 保持一致
+> Version: 10.22.32 (build 113) — 与 `package.json` / `src/config/version.js` 保持一致
 
 ---
 

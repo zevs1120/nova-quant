@@ -6,6 +6,7 @@ import {
   governanceBucket,
   makeDedupeKey,
   runCoalescedFetch,
+  shouldCoalesceRequest,
   syntheticIfBucketBackoff,
   syntheticIfGlobalPaused,
   waitRequestSpacing,
@@ -99,9 +100,7 @@ export async function fetchApi(path, options = {}) {
   const backoff = syntheticIfBucketBackoff(bucket);
   if (backoff) return backoff;
 
-  const dedupeKey = makeDedupeKey(method, path, body);
-
-  return runCoalescedFetch(dedupeKey, async () => {
+  const runRequest = async () => {
     await waitRequestSpacing(bucket);
     const requestOptions = await withAuthHeaders(options);
     try {
@@ -112,7 +111,14 @@ export async function fetchApi(path, options = {}) {
       finalizeGovernedRequest(bucket, null, error);
       throw error;
     }
-  });
+  };
+
+  if (!shouldCoalesceRequest(path, method)) {
+    return runRequest();
+  }
+
+  const dedupeKey = makeDedupeKey(method, path, body);
+  return runCoalescedFetch(dedupeKey, runRequest);
 }
 
 export async function fetchApiJson(path, options = {}) {

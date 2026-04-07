@@ -5,14 +5,51 @@ import {
   makeDedupeKey,
   resetApiGovernanceForTests,
   runCoalescedFetch,
+  shouldCoalesceRequest,
   syntheticIfBucketBackoff,
   syntheticIfGlobalPaused,
   waitRequestSpacing,
 } from '../src/shared/http/apiGovernance.js';
 
+const originalLocalStorage = globalThis.localStorage;
+
+class MemoryStorage {
+  store = new Map<string, string>();
+
+  get length() {
+    return this.store.size;
+  }
+
+  clear() {
+    this.store.clear();
+  }
+
+  getItem(key: string) {
+    return this.store.has(key) ? this.store.get(key) || null : null;
+  }
+
+  key(index: number) {
+    return Array.from(this.store.keys())[index] || null;
+  }
+
+  removeItem(key: string) {
+    this.store.delete(key);
+  }
+
+  setItem(key: string, value: string) {
+    this.store.set(String(key), String(value));
+  }
+}
+
 afterEach(() => {
   resetApiGovernanceForTests();
   vi.useRealTimers();
+  if (originalLocalStorage === undefined) {
+    // @ts-expect-error test cleanup for environments without localStorage
+    delete globalThis.localStorage;
+  } else {
+    globalThis.localStorage = originalLocalStorage;
+  }
 });
 
 describe('apiGovernance', () => {
@@ -21,6 +58,13 @@ describe('apiGovernance', () => {
     expect(governanceBucket('/api/auth/session', 'GET')).toBe('get:auth-session');
     expect(governanceBucket('/api/billing/state', 'GET')).toBe('billing');
     expect(governanceBucket('/api/membership/state', 'GET')).toBe('membership');
+  });
+
+  it('only coalesces safe reads and explicit idempotent post reads', () => {
+    expect(shouldCoalesceRequest('/api/auth/session', 'GET')).toBe(true);
+    expect(shouldCoalesceRequest('/api/engagement/state', 'POST')).toBe(true);
+    expect(shouldCoalesceRequest('/api/chat', 'POST')).toBe(false);
+    expect(shouldCoalesceRequest('/api/manual/predictions/entry', 'POST')).toBe(false);
   });
 
   it('builds dedupe keys from method, path, and body (including objects)', () => {
@@ -69,12 +113,38 @@ describe('apiGovernance', () => {
     expect(syn?.status).toBe(503);
   });
 
+  it('reads shared global pause state from localStorage for other tabs', () => {
+    globalThis.localStorage = new MemoryStorage() as unknown as Storage;
+    globalThis.localStorage.setItem(
+      'nova-quant:api-governance:global-pause',
+      JSON.stringify({ ms: Date.now() + 30_000 }),
+    );
+    const syn = syntheticIfGlobalPaused();
+    expect(syn).not.toBeNull();
+    expect(syn?.status).toBe(503);
+  });
+
   it('applies bucket backoff after repeated 5xx', () => {
     const bucket = 'billing';
     finalizeGovernedRequest(bucket, new Response('e', { status: 503 }), null);
     finalizeGovernedRequest(bucket, new Response('e', { status: 503 }), null);
     finalizeGovernedRequest(bucket, new Response('e', { status: 503 }), null);
     const syn = syntheticIfBucketBackoff(bucket);
+    expect(syn).not.toBeNull();
+    expect(syn?.status).toBe(503);
+  });
+
+  it('reads shared bucket backoff state from localStorage for other tabs', () => {
+    globalThis.localStorage = new MemoryStorage() as unknown as Storage;
+    globalThis.localStorage.setItem(
+      'nova-quant:api-governance:bucket:billing',
+      JSON.stringify({
+        failStreak: 3,
+        backoffUntil: Date.now() + 30_000,
+        lastRequestStart: 0,
+      }),
+    );
+    const syn = syntheticIfBucketBackoff('billing');
     expect(syn).not.toBeNull();
     expect(syn?.status).toBe(503);
   });

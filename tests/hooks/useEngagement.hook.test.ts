@@ -80,6 +80,47 @@ describe('useEngagement', () => {
     );
   });
 
+  it('reloads engagement on hour rollover but ignores same-hour clock churn', async () => {
+    const fetchJson = vi.fn((path: string) => {
+      if (path === '/api/engagement/state') {
+        return Promise.resolve({ habit_state: { checkedToday: false } });
+      }
+      if (path === '/api/manual/state') {
+        return Promise.resolve({ mode: 'REAL', available: true });
+      }
+      return Promise.resolve({});
+    });
+
+    const countEngagementCalls = () =>
+      fetchJson.mock.calls.filter(([path]) => path === '/api/engagement/state').length;
+
+    const stableArgs = buildArgs({
+      fetchJson,
+      effectiveHoldings: [],
+      decisionSnapshot: { audit_snapshot_id: 'same-audit-id' },
+    });
+
+    const { rerender } = renderHook(
+      ({ now }: { now: Date }) =>
+        useEngagement({
+          ...stableArgs,
+          now,
+        }),
+      {
+        initialProps: { now: new Date('2024-06-15T10:00:00.000Z') },
+      },
+    );
+
+    await waitFor(() => expect(countEngagementCalls()).toBe(1));
+
+    rerender({ now: new Date('2024-06-15T10:45:00.000Z') });
+    await act(async () => {});
+    expect(countEngagementCalls()).toBe(1);
+
+    rerender({ now: new Date('2024-06-15T11:00:00.000Z') });
+    await waitFor(() => expect(countEngagementCalls()).toBe(2));
+  });
+
   it('recordExecution appends in demo runtime', async () => {
     const setExecutions = vi.fn();
     const { result } = renderHook(() =>

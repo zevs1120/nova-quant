@@ -48,6 +48,8 @@ export function useEngagement({
 
   const todayKey = localDateKey(now);
   const currentWeekKey = weekStartKey(now);
+  const currentHour = now.getHours();
+  const engagementRefreshKey = `${todayKey}:${currentHour}`;
 
   // Ref for `now` to avoid unstable Date references in useCallback deps.
   // `todayKey` (string) is stable within a day; `now.getHours()` via ref avoids
@@ -139,11 +141,19 @@ export function useEngagement({
     fetchJson,
   ]); // `now` accessed via nowRef to avoid 60s churn
 
-  // Load engagement after decision snapshot
+  // Load engagement after the decision snapshot arrives and when the local
+  // hour/day boundary changes. This keeps hour-sensitive server state
+  // truthful without reintroducing render-driven POST storms.
   useEffect(() => {
     if (!decisionSnapshot || isDemoRuntime || !hasLoaded) return;
     void loadEngagementState();
-  }, [decisionSnapshot?.audit_snapshot_id, isDemoRuntime, hasLoaded, loadEngagementState]);
+  }, [
+    decisionSnapshot?.audit_snapshot_id,
+    engagementRefreshKey,
+    isDemoRuntime,
+    hasLoaded,
+    loadEngagementState,
+  ]);
 
   const syncLocalDisciplineLog = useCallback(
     (updater) => {

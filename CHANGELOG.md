@@ -2,6 +2,16 @@
 
 NovaQuant 所有重要变更记录于此。
 
+## 10.22.32 (2026-04-07)
+
+### 🔧 API 治理边界修正与 Engagement 小时级刷新补齐
+
+- **Engagement 语义修正**：`useEngagement` 现在按 `localDate + localHour` 自动重载 `/api/engagement/state`。同一小时内的时钟抖动与父组件重渲染不再重复 POST，但 18:00 后的 wrap-up ready、quiet hours 等按小时变化的服务端状态会正常更新。
+- **请求合并收口**：`fetchApi` 的 in-flight coalescing 不再对所有 POST 默认生效，现仅覆盖 **GET / HEAD** 与显式幂等的 `POST /api/engagement/state`。`/api/chat`、`/api/executions`、手工积分/预测等写请求恢复一请求一动作语义。
+- **同源多标签共享治理**：全局 pause、bucket backoff 与热点路径 spacing 状态会写入共享存储，同浏览器多标签页不再各自从零开始冲击 `/api/*`。
+- **测试补齐**：`tests/apiGovernance.test.ts` 新增“仅安全读请求允许合并”的回归；`tests/hooks/useEngagement.hook.test.ts` 覆盖“同小时不重打、跨小时自动刷新”；`tests/hooks/useAuth.hook.test.ts` 覆盖 Supabase `TOKEN_REFRESHED / USER_UPDATED` 的 600ms 防抖扇出收敛。
+- **版本**：版本更新到 `10.22.32`（build `113`）。
+
 ## 10.22.31 (2026-04-07)
 
 ### 🛡️ 前端 API 请求治理与 Engagement 渲染风暴修复
