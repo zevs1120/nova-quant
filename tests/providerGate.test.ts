@@ -270,4 +270,99 @@ describe('provider gate', () => {
     expect(state?.status).toBe('SUSPECT');
     expect(state?.reason).toBe('PROVIDER_SOURCE_CONFLICT');
   });
+
+  it('flags likely adjusted-vs-unadjusted provider drift across overlapping history', () => {
+    const db = new Database(':memory:');
+    ensureSchema(db);
+    const repo = new MarketRepository(db);
+    const asset = repo.upsertAsset({
+      symbol: 'TSLA',
+      market: 'US',
+      venue: 'STOOQ',
+    });
+
+    ingestProviderBars({
+      repo,
+      assetId: asset.asset_id,
+      timeframe: '1d',
+      source: 'MASSIVE_REST',
+      symbol: 'TSLA',
+      rows: [
+        {
+          ts_open: 1_700_000_000_000,
+          open: '100',
+          high: '101',
+          low: '99',
+          close: '100',
+          volume: '1000',
+        },
+        {
+          ts_open: 1_700_086_400_000,
+          open: '102',
+          high: '103',
+          low: '101',
+          close: '102',
+          volume: '1000',
+        },
+        {
+          ts_open: 1_700_172_800_000,
+          open: '104',
+          high: '105',
+          low: '103',
+          close: '104',
+          volume: '1000',
+        },
+      ],
+    });
+
+    const summary = ingestProviderBars({
+      repo,
+      assetId: asset.asset_id,
+      timeframe: '1d',
+      source: 'YAHOO_CHART',
+      symbol: 'TSLA',
+      rows: [
+        {
+          ts_open: 1_700_000_000_000,
+          open: '50',
+          high: '50.5',
+          low: '49.5',
+          close: '50',
+          volume: '1000',
+        },
+        {
+          ts_open: 1_700_086_400_000,
+          open: '51',
+          high: '51.5',
+          low: '50.5',
+          close: '51',
+          volume: '1000',
+        },
+        {
+          ts_open: 1_700_172_800_000,
+          open: '52',
+          high: '52.5',
+          low: '51.5',
+          close: '52',
+          volume: '1000',
+        },
+      ],
+    });
+
+    const state = repo.getOhlcvQualityState({
+      assetId: asset.asset_id,
+      timeframe: '1d',
+    });
+    const anomalies = db
+      .prepare(
+        'SELECT anomaly_type FROM ingest_anomalies WHERE asset_id = ? ORDER BY created_at ASC',
+      )
+      .all(asset.asset_id) as Array<{ anomaly_type: string }>;
+
+    expect(summary.adjustmentDriftCount).toBe(1);
+    expect(summary.insertedCount).toBe(0);
+    expect(state?.status).toBe('SUSPECT');
+    expect(state?.reason).toBe('PROVIDER_ADJUSTMENT_DRIFT');
+    expect(anomalies.map((row) => row.anomaly_type)).toContain('ADJUSTMENT_DRIFT_ANOMALY');
+  });
 });

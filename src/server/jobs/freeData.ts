@@ -4,6 +4,7 @@ import type { Market } from '../types.js';
 import { MarketRepository } from '../db/repository.js';
 import { syncBinanceDerivatives } from '../ingestion/binanceDerivatives.js';
 import { ensureFreshNewsForUniverse } from '../news/provider.js';
+import { refreshGovernanceData } from './governanceData.js';
 import { refreshTrainingReferenceData } from './referenceData.js';
 import { createTraceId, recordAuditEvent } from '../observability/spine.js';
 
@@ -15,6 +16,7 @@ export async function runFreeDataFlywheel(args: {
   refreshNews?: boolean;
   refreshCryptoStructure?: boolean;
   refreshFundamentals?: boolean;
+  refreshGovernanceData?: boolean;
   refreshOptions?: boolean;
   cryptoSymbols?: string[];
 }) {
@@ -35,6 +37,7 @@ export async function runFreeDataFlywheel(args: {
       refresh_news: args.refreshNews !== false,
       refresh_crypto_structure: args.refreshCryptoStructure !== false,
       refresh_fundamentals: args.refreshFundamentals !== false,
+      refresh_governance_data: args.refreshGovernanceData !== false,
       refresh_options: args.refreshOptions !== false,
       crypto_symbols: args.cryptoSymbols || null,
     }),
@@ -72,6 +75,14 @@ export async function runFreeDataFlywheel(args: {
         args.refreshFundamentals === false || market === 'CRYPTO'
           ? { skipped: true }
           : referenceData?.fundamentals || { skipped: true },
+      governance:
+        args.refreshGovernanceData === false || market === 'CRYPTO'
+          ? { skipped: true }
+          : await refreshGovernanceData({
+              repo: args.repo,
+              market,
+              usSymbols: cfg.markets.US.symbols,
+            }),
       options:
         args.refreshOptions === false || market === 'CRYPTO'
           ? { skipped: true }
@@ -97,6 +108,7 @@ export async function runFreeDataFlywheel(args: {
         refresh_news: args.refreshNews !== false,
         refresh_crypto_structure: args.refreshCryptoStructure !== false,
         refresh_fundamentals: args.refreshFundamentals !== false,
+        refresh_governance_data: args.refreshGovernanceData !== false,
         refresh_options: args.refreshOptions !== false,
         crypto_symbols: args.cryptoSymbols || null,
       }),
@@ -131,6 +143,7 @@ export async function runFreeDataFlywheel(args: {
         refresh_news: args.refreshNews !== false,
         refresh_crypto_structure: args.refreshCryptoStructure !== false,
         refresh_fundamentals: args.refreshFundamentals !== false,
+        refresh_governance_data: args.refreshGovernanceData !== false,
         refresh_options: args.refreshOptions !== false,
         crypto_symbols: args.cryptoSymbols || null,
       }),

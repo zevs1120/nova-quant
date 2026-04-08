@@ -598,6 +598,7 @@ export async function runAutoBackendMaintenanceCycle(args: {
         cycle: args.cycle,
         news: freeData.news,
         fundamentals: freeData.fundamentals,
+        governance: (freeData as Record<string, unknown>).governance || null,
         options: freeData.options,
         crypto_structure: freeData.crypto_structure,
       });

@@ -15,6 +15,7 @@ export type ProviderGateSummary = {
   flatRunCount: number;
   zeroVolumeRunCount: number;
   sourceConflictCount: number;
+  adjustmentDriftCount: number;
   priorityRetainedCount: number;
   priorityOverrideCount: number;
   anomalyCount: number;
@@ -78,6 +79,53 @@ function computeConflictPct(existing: NormalizedBar, incoming: NormalizedBar): n
   }, 0);
 }
 
+function detectAdjustmentDrift(args: {
+  existingRows: Array<{
+    ts_open: number;
+    open: string;
+    high: string;
+    low: string;
+    close: string;
+    volume: string;
+    source: string;
+  }>;
+  incomingRows: NormalizedBar[];
+}): { detected: boolean; overlapCount: number; medianRatio: number | null; maxDeviationPct: number } {
+  const incomingByTs = new Map(args.incomingRows.map((row) => [row.ts_open, row] as const));
+  const ratios = args.existingRows
+    .map((existing) => {
+      const incoming = incomingByTs.get(existing.ts_open);
+      if (!incoming) return null;
+      const existingClose = parseBarNumber(existing.close);
+      const incomingClose = parseBarNumber(incoming.close);
+      if (existingClose <= 0 || incomingClose <= 0) return null;
+      return existingClose / incomingClose;
+    })
+    .filter((value): value is number => Number.isFinite(value) && value > 0)
+    .sort((a, b) => a - b);
+
+  if (ratios.length < 3) {
+    return { detected: false, overlapCount: ratios.length, medianRatio: null, maxDeviationPct: 0 };
+  }
+
+  const medianRatio = ratios[Math.floor(ratios.length / 2)] || null;
+  if (!medianRatio) {
+    return { detected: false, overlapCount: ratios.length, medianRatio: null, maxDeviationPct: 0 };
+  }
+
+  const normalizedRatio = Math.max(medianRatio, 1 / medianRatio);
+  const maxDeviationPct = ratios.reduce((max, ratio) => {
+    return Math.max(max, Math.abs(ratio / medianRatio - 1));
+  }, 0);
+  const detected = normalizedRatio >= 1.25 && maxDeviationPct <= 0.08;
+  return {
+    detected,
+    overlapCount: ratios.length,
+    medianRatio,
+    maxDeviationPct,
+  };
+}
+
 function deriveQualityState(summary: ProviderGateSummary): {
   status: 'TRUSTED' | 'SUSPECT' | 'QUARANTINED';
   reason: string | null;
@@ -96,12 +144,15 @@ function deriveQualityState(summary: ProviderGateSummary): {
     summary.zeroVolumeRunCount > 0 ||
     summary.extremeMoveCount > 0 ||
     summary.envelopeAdjustedCount > 0 ||
+    summary.adjustmentDriftCount > 0 ||
     conflictRatio > 0.1
   ) {
     return {
       status: 'SUSPECT',
       reason:
-        summary.sourceConflictCount > 0
+        summary.adjustmentDriftCount > 0
+          ? 'PROVIDER_ADJUSTMENT_DRIFT'
+          : summary.sourceConflictCount > 0
           ? 'PROVIDER_SOURCE_CONFLICT'
           : summary.flatRunCount > 0
             ? 'SEQUENCE_FLAT_RUN'
@@ -231,6 +282,7 @@ export function prepareProviderBars(args: {
       flatRunCount: sequence.flatRunCount,
       zeroVolumeRunCount: sequence.zeroVolumeRunCount,
       sourceConflictCount: 0,
+      adjustmentDriftCount: 0,
       priorityRetainedCount: 0,
       priorityOverrideCount: 0,
       anomalyCount: anomalies.length,
@@ -271,12 +323,35 @@ export function ingestProviderBars(args: {
   const existingByTs = new Map(existingRows.map((row) => [row.ts_open, row] as const));
   const acceptedBars: NormalizedBar[] = [];
   let sourceConflictCount = 0;
+  let adjustmentDriftCount = 0;
   let priorityRetainedCount = 0;
   let priorityOverrideCount = 0;
+  const adjustmentDrift = detectAdjustmentDrift({
+    existingRows,
+    incomingRows: prepared.bars,
+  });
+  if (adjustmentDrift.detected) {
+    adjustmentDriftCount = 1;
+    prepared.anomalies.push({
+      tsOpen: prepared.bars[0]?.ts_open ?? null,
+      anomalyType: 'ADJUSTMENT_DRIFT_ANOMALY',
+      detail: buildAnomalyDetail({
+        source: args.source,
+        symbol: args.symbol,
+        timeframe: args.timeframe,
+        tsOpen: prepared.bars[0]?.ts_open ?? null,
+        message: `shows likely adjusted-vs-unadjusted drift vs existing source around ratio ${Math.round((adjustmentDrift.medianRatio || 0) * 1000) / 1000}`,
+      }),
+    });
+  }
   for (const row of prepared.bars) {
     const existing = existingByTs.get(row.ts_open);
     if (!existing || String(existing.source || '') === String(args.source || '')) {
       acceptedBars.push(row);
+      continue;
+    }
+    if (adjustmentDrift.detected) {
+      priorityRetainedCount += 1;
       continue;
     }
     const existingPriority = sourcePriority(existing.source);
@@ -320,6 +395,7 @@ export function ingestProviderBars(args: {
     ...prepared.summary,
     insertedCount: acceptedBars.length,
     sourceConflictCount,
+    adjustmentDriftCount,
     priorityRetainedCount,
     priorityOverrideCount,
     anomalyCount: prepared.anomalies.length,
