@@ -62,7 +62,10 @@ function toBarSeries(payload: YahooChartResponse): NormalizedBar[] {
   return out;
 }
 
-async function fetchYahooBars(symbol: string, timeframe: Timeframe): Promise<NormalizedBar[]> {
+export async function fetchYahooChartBars(
+  symbol: string,
+  timeframe: Timeframe,
+): Promise<NormalizedBar[]> {
   const config = getConfig();
   const interval = intervalForTimeframe(timeframe);
   if (!interval) {
@@ -119,7 +122,7 @@ export async function backfillYahooChart(params: {
       quote: 'USD',
       status: 'ACTIVE',
     });
-    const bars = await fetchYahooBars(symbol, params.timeframe);
+    const bars = await fetchYahooChartBars(symbol, params.timeframe);
     const summary = ingestProviderBars({
       repo: params.repo,
       assetId: asset.asset_id,

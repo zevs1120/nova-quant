@@ -2,6 +2,7 @@ import { InMemorySyncDb as Database } from '../src/server/db/inMemorySyncDb.js';
 import { describe, expect, it } from 'vitest';
 import { ensureSchema } from '../src/server/db/schema.js';
 import { MarketRepository } from '../src/server/db/repository.js';
+import { detectGaps } from '../src/server/ingestion/normalize.js';
 import { validateAndRepair } from '../src/server/ingestion/validation.js';
 
 describe('ingestion validation anomalies', () => {
@@ -140,5 +141,21 @@ describe('ingestion validation anomalies', () => {
     expect(summary.countsByType.FLAT_RUN_ANOMALY).toBe(1);
     expect(summary.countsByType.ZERO_VOLUME_RUN_ANOMALY).toBe(1);
     expect(summary.countsByType.EXTREME_MOVE_ANOMALY).toBe(1);
+  });
+
+  it('ignores normal weekend spacing for US daily bars while still catching weekday holes', () => {
+    const friday = Date.UTC(2026, 3, 3);
+    const monday = Date.UTC(2026, 3, 6);
+    const tuesday = Date.UTC(2026, 3, 7);
+    const thursday = Date.UTC(2026, 3, 9);
+
+    expect(detectGaps([friday, monday], '1d', { market: 'US' })).toEqual([]);
+    expect(detectGaps([tuesday, thursday], '1d', { market: 'US' })).toEqual([
+      {
+        from: tuesday + 86_400_000,
+        to: thursday - 86_400_000,
+        missingBars: 1,
+      },
+    ]);
   });
 });

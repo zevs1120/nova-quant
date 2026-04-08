@@ -256,21 +256,49 @@ export function normalizeBars(rows: NormalizedBar[]): NormalizedBar[] {
   return [...dedup.values()].sort((a, b) => a.ts_open - b.ts_open);
 }
 
+function toUtcDayStart(ts: number): number {
+  const date = new Date(ts);
+  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+}
+
+function countWeekdaysBetween(startTs: number, endTs: number): number {
+  let count = 0;
+  let cursor = toUtcDayStart(startTs);
+  const end = toUtcDayStart(endTs);
+  while (cursor < end) {
+    cursor += 86_400_000;
+    const day = new Date(cursor).getUTCDay();
+    if (day !== 0 && day !== 6) count += 1;
+  }
+  return count;
+}
+
 export function detectGaps(
   tsList: number[],
   timeframe: Timeframe,
+  options?: { market?: string | null },
 ): Array<{ from: number; to: number; missingBars: number }> {
   if (tsList.length < 2) return [];
 
   const step = timeframeToMs(timeframe);
   const gaps: Array<{ from: number; to: number; missingBars: number }> = [];
+  const market = String(options?.market || '').trim().toUpperCase();
 
   for (let i = 1; i < tsList.length; i += 1) {
     const prev = tsList[i - 1];
     const curr = tsList[i];
-    const delta = curr - prev;
-    if (delta > step) {
-      const missingBars = Math.max(1, Math.round(delta / step) - 1);
+    let missingBars = 0;
+
+    if (timeframe === '1d' && market === 'US') {
+      missingBars = Math.max(0, countWeekdaysBetween(prev, curr) - 1);
+    } else {
+      const delta = curr - prev;
+      if (delta > step) {
+        missingBars = Math.max(1, Math.round(delta / step) - 1);
+      }
+    }
+
+    if (missingBars > 0) {
       gaps.push({ from: prev + step, to: curr - step, missingBars });
     }
   }
