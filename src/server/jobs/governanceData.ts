@@ -1,6 +1,7 @@
 import pLimit from 'p-limit';
 import type { Market } from '../types.js';
 import type { MarketRepository } from '../db/repository.js';
+import { fetchAlphaVantageCorporateActions } from '../ingestion/hostedData.js';
 import { fetchYahooChartSnapshot } from '../ingestion/yahoo.js';
 import { buildUsTradingCalendarSeeds } from '../ingestion/tradingCalendar.js';
 import { logWarn } from '../utils/log.js';
@@ -11,6 +12,17 @@ function normalizeSymbol(symbol: string): string {
   return String(symbol || '')
     .trim()
     .toUpperCase();
+}
+
+function parseMetricsJson(value: string | null | undefined): Record<string, unknown> {
+  if (!value) return {};
+  try {
+    const parsed = JSON.parse(value);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed as Record<string, unknown>;
+    }
+  } catch {}
+  return {};
 }
 
 export async function syncCorporateActionsForSymbol(args: {
@@ -40,7 +52,10 @@ export async function syncCorporateActionsForSymbol(args: {
   });
 
   try {
-    const snapshot = await fetchYahooChartSnapshot(symbol, '1d');
+    const [snapshot, alphaActions] = await Promise.all([
+      fetchYahooChartSnapshot(symbol, '1d'),
+      fetchAlphaVantageCorporateActions(symbol).catch(() => []),
+    ]);
     for (const action of snapshot.corporateActions) {
       args.repo.upsertCorporateAction({
         assetId: asset.asset_id,
@@ -52,12 +67,28 @@ export async function syncCorporateActionsForSymbol(args: {
         notes: action.notes ?? null,
       });
     }
+    for (const action of alphaActions) {
+      args.repo.upsertCorporateAction({
+        assetId: asset.asset_id,
+        effectiveTs: action.effectiveTs,
+        actionType: action.actionType,
+        splitRatio: action.splitRatio ?? null,
+        cashAmount: action.cashAmount ?? null,
+        source: action.source,
+        notes: action.notes ?? null,
+      });
+    }
+    const validation = validateCorporateActionConsensus({
+      repo: args.repo,
+      assetId: asset.asset_id,
+    });
     return {
       market: 'US' as const,
       symbol,
       fetched: true,
       skipped: false,
-      actions_upserted: snapshot.corporateActions.length,
+      actions_upserted: snapshot.corporateActions.length + alphaActions.length,
+      validation,
       error: null,
     };
   } catch (error) {
@@ -71,9 +102,107 @@ export async function syncCorporateActionsForSymbol(args: {
       fetched: false,
       skipped: false,
       actions_upserted: 0,
+      validation: null,
       error: error instanceof Error ? error.message : String(error),
     };
   }
+}
+
+function normalizeConsensusKey(args: { effectiveTs: number; actionType: string }) {
+  return `${new Date(args.effectiveTs).toISOString().slice(0, 10)}:${args.actionType}`;
+}
+
+function parseNotesNumber(notes: string | null | undefined): number | null {
+  const match = String(notes || '').match(/(-?\d+(?:\.\d+)?)/);
+  if (!match) return null;
+  const value = Number(match[1]);
+  return Number.isFinite(value) ? value : null;
+}
+
+function actionComparableValue(action: {
+  action_type: string;
+  split_ratio?: number | null;
+  cash_amount?: number | null;
+  notes?: string | null;
+}) {
+  if (action.action_type === 'SPLIT') {
+    return Number(action.split_ratio);
+  }
+  if (action.action_type === 'DIVIDEND') {
+    const raw = Number(action.cash_amount);
+    if (Number.isFinite(raw)) return raw;
+    return parseNotesNumber(action.notes);
+  }
+  return null;
+}
+
+export function validateCorporateActionConsensus(args: {
+  repo: MarketRepository;
+  assetId: number;
+}) {
+  const actions = args.repo.listCorporateActions({
+    assetId: args.assetId,
+  });
+  const grouped = new Map<string, typeof actions>();
+  for (const action of actions) {
+    const key = normalizeConsensusKey({
+      effectiveTs: action.effective_ts,
+      actionType: action.action_type,
+    });
+    const bucket = grouped.get(key) || [];
+    bucket.push(action);
+    grouped.set(key, bucket);
+  }
+
+  let mismatchCount = 0;
+  let confirmedCount = 0;
+  for (const [key, bucket] of grouped.entries()) {
+    const providerCount = new Set(bucket.map((row) => row.source)).size;
+    if (providerCount < 2) continue;
+    const comparable = bucket
+      .map((row) => actionComparableValue(row))
+      .filter((value): value is number => Number.isFinite(value));
+    if (comparable.length < 2) continue;
+    const baseline = comparable[0];
+    const mismatch = comparable.some((value) => Math.abs(value / baseline - 1) > 0.08);
+    if (mismatch) {
+      mismatchCount += 1;
+      args.repo.logAnomaly({
+        assetId: args.assetId,
+        timeframe: '1d',
+        tsOpen: Date.parse(`${key.split(':')[0]}T00:00:00.000Z`),
+        anomalyType: 'CORPORATE_ACTION_SOURCE_CONFLICT',
+        detail: `Corporate action mismatch across providers for ${key}`,
+      });
+    } else {
+      confirmedCount += 1;
+    }
+  }
+
+  if (mismatchCount > 0) {
+    const existingState = args.repo.getOhlcvQualityState({
+      assetId: args.assetId,
+      timeframe: '1d',
+    });
+    args.repo.upsertOhlcvQualityState({
+      assetId: args.assetId,
+      timeframe: '1d',
+      status: 'SUSPECT',
+      reason: 'CORPORATE_ACTION_SOURCE_CONFLICT',
+      metricsJson: JSON.stringify({
+        ...parseMetricsJson(existingState?.metrics_json),
+        corporate_action_validation: {
+          mismatch_count: mismatchCount,
+          confirmed_count: confirmedCount,
+        },
+      }),
+    });
+  }
+
+  return {
+    mismatch_count: mismatchCount,
+    confirmed_count: confirmedCount,
+  };
 }
 
 export async function syncTradingCalendar(args: {
@@ -149,6 +278,7 @@ export async function refreshGovernanceData(args: {
       refreshed_symbols: corporateResults.filter((row) => row.fetched).length,
       skipped_symbols: corporateResults.filter((row) => row.skipped).length,
       rows_upserted: corporateResults.reduce((acc, row) => acc + row.actions_upserted, 0),
+      mismatch_symbols: corporateResults.filter((row) => row.validation?.mismatch_count > 0).length,
       errors: corporateResults
         .filter((row) => row.error)
         .map((row) => ({ symbol: row.symbol, error: row.error })),

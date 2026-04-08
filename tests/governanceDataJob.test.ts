@@ -5,15 +5,21 @@ import { MarketRepository } from '../src/server/db/repository.js';
 import { buildUsTradingCalendarSeeds } from '../src/server/ingestion/tradingCalendar.js';
 
 const fetchYahooChartSnapshotMock = vi.fn();
+const fetchAlphaVantageCorporateActionsMock = vi.fn();
 
 vi.mock('../src/server/ingestion/yahoo.js', () => ({
   fetchYahooChartSnapshot: fetchYahooChartSnapshotMock,
+}));
+
+vi.mock('../src/server/ingestion/hostedData.js', () => ({
+  fetchAlphaVantageCorporateActions: fetchAlphaVantageCorporateActionsMock,
 }));
 
 describe('governance data jobs', () => {
   beforeEach(() => {
     vi.resetModules();
     fetchYahooChartSnapshotMock.mockReset();
+    fetchAlphaVantageCorporateActionsMock.mockReset();
   });
 
   it('builds core US trading calendar holidays and half-days', () => {
@@ -42,6 +48,15 @@ describe('governance data jobs', () => {
         },
       ],
     });
+    fetchAlphaVantageCorporateActionsMock.mockResolvedValue([
+      {
+        effectiveTs: Date.UTC(2026, 5, 10),
+        actionType: 'SPLIT',
+        splitRatio: 10,
+        notes: 'Alpha source agrees',
+        source: 'ALPHA_VANTAGE_CORP_ACTIONS',
+      },
+    ]);
 
     const result = await refreshGovernanceData({
       repo,
@@ -59,9 +74,57 @@ describe('governance data jobs', () => {
       endDayKey: '2026-12-31',
     });
 
-    expect(result.corporate_actions.rows_upserted).toBe(1);
-    expect(actions).toHaveLength(1);
+    expect(result.corporate_actions.rows_upserted).toBe(2);
+    expect(actions).toHaveLength(2);
     expect(actions[0]?.action_type).toBe('SPLIT');
     expect(calendarRows.length).toBeGreaterThan(5);
+    expect(result.corporate_actions.mismatch_symbols).toBe(0);
+  });
+
+  it('marks corporate action mismatches when providers disagree on the same event', async () => {
+    const { refreshGovernanceData } = await import('../src/server/jobs/governanceData.js');
+    const db = new Database(':memory:');
+    ensureSchema(db);
+    const repo = new MarketRepository(db);
+
+    fetchYahooChartSnapshotMock.mockResolvedValue({
+      bars: [],
+      corporateActions: [
+        {
+          effectiveTs: Date.UTC(2026, 5, 10),
+          actionType: 'SPLIT',
+          splitRatio: 10,
+          notes: 'Yahoo says 10-for-1',
+        },
+      ],
+    });
+    fetchAlphaVantageCorporateActionsMock.mockResolvedValue([
+      {
+        effectiveTs: Date.UTC(2026, 5, 10),
+        actionType: 'SPLIT',
+        splitRatio: 4,
+        notes: 'Alpha says 4-for-1',
+        source: 'ALPHA_VANTAGE_CORP_ACTIONS',
+      },
+    ]);
+
+    const result = await refreshGovernanceData({
+      repo,
+      market: 'US',
+      usSymbols: ['AAPL'],
+    });
+
+    const asset = repo.getAssetBySymbol('US', 'AAPL');
+    const qualityState = repo.getOhlcvQualityState({
+      assetId: asset!.asset_id,
+      timeframe: '1d',
+    });
+    const anomalies = db
+      .prepare('SELECT anomaly_type FROM ingest_anomalies WHERE asset_id = ?')
+      .all(asset!.asset_id) as Array<{ anomaly_type: string }>;
+
+    expect(result.corporate_actions.mismatch_symbols).toBe(1);
+    expect(qualityState?.reason).toBe('CORPORATE_ACTION_SOURCE_CONFLICT');
+    expect(anomalies.map((row) => row.anomaly_type)).toContain('CORPORATE_ACTION_SOURCE_CONFLICT');
   });
 });

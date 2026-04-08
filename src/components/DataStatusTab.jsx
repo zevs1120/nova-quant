@@ -9,6 +9,12 @@ export default function DataStatusTab({ data, fetchJson, effectiveUserId }) {
   });
   const freshnessRows = runtime?.freshness_summary?.rows || [];
   const coverage = runtime?.coverage_summary || {};
+  const adjustmentDriftRows = freshnessRows.filter(
+    (row) => row?.quality_state_reason === 'PROVIDER_ADJUSTMENT_DRIFT',
+  );
+  const corporateConflictRows = freshnessRows.filter(
+    (row) => row?.quality_state_reason === 'CORPORATE_ACTION_SOURCE_CONFLICT',
+  );
   const topIssues = [];
   if (runtime?.source_status !== 'DB_BACKED') {
     topIssues.push('当前运行时并非完整 DB_BACKED，部分对象会降级为 unavailable。');
@@ -29,6 +35,12 @@ export default function DataStatusTab({ data, fetchJson, effectiveUserId }) {
     controlPlane.runtime.every((row) => Number(row?.active_signal_count || 0) === 0)
   ) {
     topIssues.push('两个市场当前都没有 active signals，所以 Today 会退回等待态。');
+  }
+  if (adjustmentDriftRows.length > 0) {
+    topIssues.push(`发现 ${adjustmentDriftRows.length} 个资产存在复权漂移风险。`);
+  }
+  if (corporateConflictRows.length > 0) {
+    topIssues.push(`发现 ${corporateConflictRows.length} 个资产存在公司行为源不一致。`);
   }
 
   return (
@@ -125,6 +137,23 @@ export default function DataStatusTab({ data, fetchJson, effectiveUserId }) {
 
       <article className="glass-card">
         <h3 className="card-title">Source Freshness</h3>
+        <div className="status-grid-3" style={{ marginBottom: 12 }}>
+          <div className="status-box">
+            <p className="muted">Adjustment Drift</p>
+            <h2>{adjustmentDriftRows.length}</h2>
+            <p className="muted status-line">Detected cross-source adjusted drift</p>
+          </div>
+          <div className="status-box">
+            <p className="muted">Corp Action Conflicts</p>
+            <h2>{corporateConflictRows.length}</h2>
+            <p className="muted status-line">Provider mismatch on splits/dividends</p>
+          </div>
+          <div className="status-box">
+            <p className="muted">Quality States</p>
+            <h2>{freshnessRows.filter((row) => row?.quality_state_status).length}</h2>
+            <p className="muted status-line">Rows with persisted quality verdicts</p>
+          </div>
+        </div>
         <div className="table-wrap">
           <table>
             <thead>
@@ -133,7 +162,8 @@ export default function DataStatusTab({ data, fetchJson, effectiveUserId }) {
                 <th>Market</th>
                 <th>Status</th>
                 <th>Age(H)</th>
-                <th>Stale</th>
+                <th>Quality</th>
+                <th>Reason</th>
               </tr>
             </thead>
             <tbody>
@@ -143,7 +173,8 @@ export default function DataStatusTab({ data, fetchJson, effectiveUserId }) {
                   <td>{row.market}</td>
                   <td>{row.status}</td>
                   <td>{row.age_hours ?? '--'}</td>
-                  <td>{row.status === 'DB_BACKED' ? 'No' : 'Yes'}</td>
+                  <td>{row.quality_state_status || '--'}</td>
+                  <td>{row.quality_state_reason || row.quality_gate_reason || '--'}</td>
                 </tr>
               ))}
             </tbody>

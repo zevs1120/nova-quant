@@ -13,6 +13,15 @@ import { ingestProviderBars } from './providerGate.js';
 
 type JsonObject = Record<string, unknown>;
 
+export type HostedCorporateAction = {
+  effectiveTs: number;
+  actionType: 'SPLIT' | 'DIVIDEND';
+  splitRatio?: number | null;
+  cashAmount?: number | null;
+  notes?: string | null;
+  source: string;
+};
+
 const ALPHA_VANTAGE_BASE_URL = 'https://www.alphavantage.co/query';
 const FINNHUB_BASE_URL = 'https://finnhub.io/api/v1';
 const NEWSAPI_BASE_URL = 'https://newsapi.org/v2';
@@ -116,11 +125,15 @@ async function fetchFinnhub(path: string, params: Record<string, string>): Promi
   });
 }
 
-export async function fetchAlphaVantageDailyBars(symbol: string): Promise<NormalizedBar[]> {
-  const payload = (await fetchAlphaVantage('TIME_SERIES_DAILY_ADJUSTED', {
+async function fetchAlphaVantageDailyAdjustedPayload(symbol: string): Promise<JsonObject> {
+  return (await fetchAlphaVantage('TIME_SERIES_DAILY_ADJUSTED', {
     symbol,
     outputsize: 'full',
   })) as JsonObject;
+}
+
+export async function fetchAlphaVantageDailyBars(symbol: string): Promise<NormalizedBar[]> {
+  const payload = await fetchAlphaVantageDailyAdjustedPayload(symbol);
   const series = payload['Time Series (Daily)'];
   if (!series || typeof series !== 'object') return [];
 
@@ -147,6 +160,47 @@ export async function fetchAlphaVantageDailyBars(symbol: string): Promise<Normal
     .sort((a, b) => a.ts_open - b.ts_open);
 
   return rows;
+}
+
+export async function fetchAlphaVantageCorporateActions(
+  symbol: string,
+): Promise<HostedCorporateAction[]> {
+  const payload = await fetchAlphaVantageDailyAdjustedPayload(symbol);
+  const series = payload['Time Series (Daily)'];
+  if (!series || typeof series !== 'object') return [];
+
+  return Object.entries(series as Record<string, JsonObject>)
+    .flatMap(([date, raw]) => {
+      const ts = Date.parse(`${date}T00:00:00.000Z`);
+      if (!Number.isFinite(ts)) return [];
+      const out: HostedCorporateAction[] = [];
+      const dividend = safeNumber(raw['7. dividend amount']);
+      const splitCoefficient = safeNumber(raw['8. split coefficient']);
+      if (Number.isFinite(dividend) && Math.abs(dividend) > 0) {
+        out.push({
+          effectiveTs: ts,
+          actionType: 'DIVIDEND',
+          cashAmount: dividend,
+          notes: `Alpha Vantage dividend ${dividend}`,
+          source: 'ALPHA_VANTAGE_CORP_ACTIONS',
+        });
+      }
+      if (
+        Number.isFinite(splitCoefficient) &&
+        splitCoefficient > 0 &&
+        Math.abs(splitCoefficient - 1) > 0.0001
+      ) {
+        out.push({
+          effectiveTs: ts,
+          actionType: 'SPLIT',
+          splitRatio: splitCoefficient,
+          notes: `Alpha Vantage split coefficient ${splitCoefficient}`,
+          source: 'ALPHA_VANTAGE_CORP_ACTIONS',
+        });
+      }
+      return out;
+    })
+    .sort((a, b) => a.effectiveTs - b.effectiveTs);
 }
 
 export async function fetchAlphaVantageFundamentalSnapshot(
