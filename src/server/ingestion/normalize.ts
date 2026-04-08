@@ -48,6 +48,12 @@ export type BarSequenceInspection = {
   }>;
 };
 
+export type CorporateActionContext = {
+  effectiveTs: number;
+  actionType: 'SPLIT' | 'DIVIDEND' | 'HALT' | 'RESUME';
+  splitRatio?: number | null;
+};
+
 function sequenceMoveThreshold(timeframe: Timeframe): number {
   if (timeframe === '1d') return 0.45;
   if (timeframe === '1h') return 0.22;
@@ -133,10 +139,15 @@ export function inspectBarSequenceQuality(args: {
   timeframe: Timeframe;
   source?: string;
   symbol?: string;
+  corporateActions?: CorporateActionContext[];
 }): BarSequenceInspection {
   const rows = [...(args.rows || [])].sort((a, b) => a.ts_open - b.ts_open);
   const anomalies: BarSequenceInspection['anomalies'] = [];
   const moveThreshold = sequenceMoveThreshold(args.timeframe);
+  const step = timeframeToMs(args.timeframe);
+  const corporateActions = [...(args.corporateActions || [])].sort(
+    (a, b) => a.effectiveTs - b.effectiveTs,
+  );
   let extremeMoveCount = 0;
   let flatRunCount = 0;
   let zeroVolumeRunCount = 0;
@@ -213,7 +224,19 @@ export function inspectBarSequenceQuality(args: {
     if (prevClose !== null && prevClose > 0) {
       const movePct = Math.abs(close / prevClose - 1);
       maxMovePct = Math.max(maxMovePct, movePct);
-      if (movePct > moveThreshold) {
+      const explainedByCorporateAction = corporateActions.some((action) => {
+        if (action.actionType !== 'SPLIT') return false;
+        const splitRatio = Number(action.splitRatio);
+        if (!Number.isFinite(splitRatio) || splitRatio <= 0) return false;
+        if (action.effectiveTs < current.ts_open - step || action.effectiveTs > current.ts_open + step) {
+          return false;
+        }
+        const observedRatio = Math.max(close, prevClose) / Math.max(1e-9, Math.min(close, prevClose));
+        const expectedRatio = Math.max(splitRatio, 1 / splitRatio);
+        const ratioDeviation = Math.abs(observedRatio / expectedRatio - 1);
+        return ratioDeviation <= 0.25;
+      });
+      if (movePct > moveThreshold && !explainedByCorporateAction) {
         extremeMoveCount += 1;
         anomalies.push({
           tsOpen: current.ts_open,
@@ -261,6 +284,10 @@ function toUtcDayStart(ts: number): number {
   return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
 }
 
+export function toUtcDayKey(ts: number): string {
+  return new Date(toUtcDayStart(ts)).toISOString().slice(0, 10);
+}
+
 function countWeekdaysBetween(startTs: number, endTs: number): number {
   let count = 0;
   let cursor = toUtcDayStart(startTs);
@@ -276,13 +303,14 @@ function countWeekdaysBetween(startTs: number, endTs: number): number {
 export function detectGaps(
   tsList: number[],
   timeframe: Timeframe,
-  options?: { market?: string | null },
+  options?: { market?: string | null; closedDayKeys?: string[] },
 ): Array<{ from: number; to: number; missingBars: number }> {
   if (tsList.length < 2) return [];
 
   const step = timeframeToMs(timeframe);
   const gaps: Array<{ from: number; to: number; missingBars: number }> = [];
   const market = String(options?.market || '').trim().toUpperCase();
+  const closedDayKeys = new Set((options?.closedDayKeys || []).map((value) => String(value || '')));
 
   for (let i = 1; i < tsList.length; i += 1) {
     const prev = tsList[i - 1];
@@ -290,7 +318,15 @@ export function detectGaps(
     let missingBars = 0;
 
     if (timeframe === '1d' && market === 'US') {
-      missingBars = Math.max(0, countWeekdaysBetween(prev, curr) - 1);
+      missingBars = Math.max(
+        0,
+        countWeekdaysBetween(prev, curr) -
+          [...closedDayKeys].filter((dayKey) => {
+            const ts = Date.parse(`${dayKey}T00:00:00.000Z`);
+            return Number.isFinite(ts) && ts > toUtcDayStart(prev) && ts <= toUtcDayStart(curr);
+          }).length -
+          1,
+      );
     } else {
       const delta = curr - prev;
       if (delta > step) {

@@ -62,9 +62,13 @@ import type {
 } from '../types.js';
 import {
   MarketRepository,
+  type CorporateActionRecord,
+  type CorporateActionType,
   type IngestAnomalySummary,
   type OhlcvQualityStateRecord,
   type OhlcvQualityStatus,
+  type TradingCalendarExceptionRecord,
+  type TradingCalendarExceptionStatus,
 } from './repository.js';
 import {
   beginTransactionSync,
@@ -982,6 +986,111 @@ export class PostgresRuntimeRepository extends MarketRepository {
       [args.assetId, args.timeframe],
     );
     return row ?? null;
+  }
+
+  upsertCorporateAction(args: {
+    assetId: number;
+    effectiveTs: number;
+    actionType: CorporateActionType;
+    splitRatio?: number | null;
+    cashAmount?: number | null;
+    source: string;
+    notes?: string | null;
+  }): void {
+    const ts = nowMs();
+    executeSync(
+      `
+        INSERT INTO ${qualifyBusinessTable('corporate_actions')}(
+          asset_id, effective_ts, action_type, split_ratio, cash_amount, source, notes, created_at, updated_at
+        ) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        ON CONFLICT(asset_id, effective_ts, action_type, source) DO UPDATE SET
+          split_ratio = excluded.split_ratio,
+          cash_amount = excluded.cash_amount,
+          notes = excluded.notes,
+          updated_at = excluded.updated_at
+      `,
+      [
+        args.assetId,
+        args.effectiveTs,
+        args.actionType,
+        args.splitRatio ?? null,
+        args.cashAmount ?? null,
+        args.source,
+        args.notes ?? null,
+        ts,
+        ts,
+      ],
+    );
+  }
+
+  listCorporateActions(args: {
+    assetId: number;
+    startTs?: number;
+    endTs?: number;
+  }): CorporateActionRecord[] {
+    return queryRowsSync<CorporateActionRecord>(
+      `
+        SELECT id, asset_id, effective_ts, action_type, split_ratio, cash_amount, source, notes, created_at, updated_at
+        FROM ${qualifyBusinessTable('corporate_actions')}
+        WHERE asset_id = $1
+          AND ($2::bigint IS NULL OR effective_ts >= $2)
+          AND ($3::bigint IS NULL OR effective_ts <= $3)
+        ORDER BY effective_ts ASC, id ASC
+      `,
+      [args.assetId, args.startTs ?? null, args.endTs ?? null],
+    );
+  }
+
+  upsertTradingCalendarException(args: {
+    market: Market;
+    assetId?: number | null;
+    dayKey: string;
+    status: TradingCalendarExceptionStatus;
+    reason?: string | null;
+    source: string;
+  }): void {
+    executeSync(
+      `
+        INSERT INTO ${qualifyBusinessTable('trading_calendar_exceptions')}(
+          market, asset_id, day_key, status, reason, source, updated_at
+        ) VALUES($1, $2, $3, $4, $5, $6, $7)
+        ON CONFLICT(market, asset_id, day_key, status, source) DO UPDATE SET
+          reason = excluded.reason,
+          updated_at = excluded.updated_at
+      `,
+      [
+        args.market,
+        args.assetId ?? 0,
+        args.dayKey,
+        args.status,
+        args.reason ?? null,
+        args.source,
+        nowMs(),
+      ],
+    );
+  }
+
+  listTradingCalendarExceptions(args: {
+    market: Market;
+    assetId?: number | null;
+    startDayKey?: string;
+    endDayKey?: string;
+  }): TradingCalendarExceptionRecord[] {
+    return queryRowsSync<TradingCalendarExceptionRecord>(
+      `
+        SELECT id, market, asset_id, day_key, status, reason, source, updated_at
+        FROM ${qualifyBusinessTable('trading_calendar_exceptions')}
+        WHERE market = $1
+          AND ($2::bigint IS NULL OR asset_id = 0 OR asset_id = $2)
+          AND ($3::text IS NULL OR day_key >= $3)
+          AND ($4::text IS NULL OR day_key <= $4)
+        ORDER BY day_key ASC, asset_id ASC, id ASC
+      `,
+      [args.market, args.assetId ?? null, args.startDayKey ?? null, args.endDayKey ?? null],
+    ).map((row) => ({
+      ...row,
+      asset_id: Number(row.asset_id || 0) > 0 ? Number(row.asset_id) : null,
+    }));
   }
 
   upsertSignal(signal: SignalContract): void {

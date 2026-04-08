@@ -158,4 +158,17 @@ describe('ingestion validation anomalies', () => {
       },
     ]);
   });
+
+  it('ignores market holidays and asset halts in US daily gap detection', () => {
+    const tuesday = Date.UTC(2026, 3, 14);
+    const thursday = Date.UTC(2026, 3, 16);
+    const wednesdayKey = '2026-04-15';
+
+    expect(
+      detectGaps([tuesday, thursday], '1d', {
+        market: 'US',
+        closedDayKeys: [wednesdayKey],
+      }),
+    ).toEqual([]);
+  });
 });

@@ -169,6 +169,44 @@ describe('provider gate', () => {
     expect(prepared.anomalies.map((row) => row.anomalyType)).toContain('EXTREME_MOVE_ANOMALY');
   });
 
+  it('does not flag split-driven price jumps as extreme move anomalies', () => {
+    const prepared = prepareProviderBars({
+      source: 'TEST_PROVIDER',
+      timeframe: '1d',
+      symbol: 'NVDA',
+      corporateActions: [
+        {
+          effectiveTs: 1_700_086_400_000,
+          actionType: 'SPLIT',
+          splitRatio: 10,
+        },
+      ],
+      rows: [
+        {
+          ts_open: 1_700_000_000_000,
+          open: '1000',
+          high: '1010',
+          low: '995',
+          close: '1000',
+          volume: '1000',
+        },
+        {
+          ts_open: 1_700_086_400_000,
+          open: '101',
+          high: '102',
+          low: '99',
+          close: '100',
+          volume: '1200',
+        },
+      ],
+    });
+
+    expect(prepared.summary.extremeMoveCount).toBe(0);
+    expect(prepared.anomalies.map((row) => row.anomalyType)).not.toContain(
+      'EXTREME_MOVE_ANOMALY',
+    );
+  });
+
   it('keeps the higher-priority provider bar when the same timestamp conflicts materially', () => {
     const db = new Database(':memory:');
     ensureSchema(db);

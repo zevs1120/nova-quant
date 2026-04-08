@@ -120,6 +120,11 @@ export function prepareProviderBars(args: {
   source: string;
   timeframe: Timeframe;
   symbol?: string;
+  corporateActions?: Array<{
+    effectiveTs: number;
+    actionType: 'SPLIT' | 'DIVIDEND' | 'HALT' | 'RESUME';
+    splitRatio?: number | null;
+  }>;
 }): PreparedProviderBars {
   const deduped = new Map<number, NormalizedBar>();
   const anomalies: PreparedProviderBars['anomalies'] = [];
@@ -207,6 +212,7 @@ export function prepareProviderBars(args: {
     timeframe: args.timeframe,
     source: args.source,
     symbol: args.symbol,
+    corporateActions: args.corporateActions,
   });
   anomalies.push(...sequence.anomalies);
   return {
@@ -240,7 +246,23 @@ export function ingestProviderBars(args: {
   source: string;
   symbol?: string;
 }): ProviderGateSummary {
-  const prepared = prepareProviderBars(args);
+  const tsOpenList = args.rows
+    .map((row) => Number(row.ts_open))
+    .filter((value) => Number.isFinite(value));
+  const prepared = prepareProviderBars({
+    ...args,
+    corporateActions: tsOpenList.length
+      ? args.repo.listCorporateActions({
+          assetId: args.assetId,
+          startTs: Math.min(...tsOpenList) - 2 * 86_400_000,
+          endTs: Math.max(...tsOpenList) + 2 * 86_400_000,
+        }).map((action) => ({
+          effectiveTs: action.effective_ts,
+          actionType: action.action_type,
+          splitRatio: action.split_ratio,
+        }))
+      : [],
+  });
   const existingRows = args.repo.getOhlcvByTsOpen(
     args.assetId,
     args.timeframe,

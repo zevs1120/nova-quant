@@ -85,6 +85,34 @@ export type OhlcvQualityStateRecord = {
   updated_at: number;
 };
 
+export type CorporateActionType = 'SPLIT' | 'DIVIDEND' | 'HALT' | 'RESUME';
+
+export type CorporateActionRecord = {
+  id: number;
+  asset_id: number;
+  effective_ts: number;
+  action_type: CorporateActionType;
+  split_ratio: number | null;
+  cash_amount: number | null;
+  source: string;
+  notes: string | null;
+  created_at: number;
+  updated_at: number;
+};
+
+export type TradingCalendarExceptionStatus = 'CLOSED' | 'HALTED' | 'HALF_DAY';
+
+export type TradingCalendarExceptionRecord = {
+  id: number;
+  market: Market;
+  asset_id: number | null;
+  day_key: string;
+  status: TradingCalendarExceptionStatus;
+  reason: string | null;
+  source: string;
+  updated_at: number;
+};
+
 export class MarketRepository {
   constructor(private readonly db: SyncDb) {}
 
@@ -676,6 +704,136 @@ export class MarketRepository {
       )
       .get(args.assetId, args.timeframe) as OhlcvQualityStateRecord | undefined;
     return row ?? null;
+  }
+
+  upsertCorporateAction(args: {
+    assetId: number;
+    effectiveTs: number;
+    actionType: CorporateActionType;
+    splitRatio?: number | null;
+    cashAmount?: number | null;
+    source: string;
+    notes?: string | null;
+  }): void {
+    const ts = nowMs();
+    this.db
+      .prepare(
+        `
+          INSERT INTO corporate_actions(
+            asset_id, effective_ts, action_type, split_ratio, cash_amount, source, notes, created_at, updated_at
+          ) VALUES(
+            @asset_id, @effective_ts, @action_type, @split_ratio, @cash_amount, @source, @notes, @created_at, @updated_at
+          )
+          ON CONFLICT(asset_id, effective_ts, action_type, source) DO UPDATE SET
+            split_ratio = excluded.split_ratio,
+            cash_amount = excluded.cash_amount,
+            notes = excluded.notes,
+            updated_at = excluded.updated_at
+        `,
+      )
+      .run({
+        asset_id: args.assetId,
+        effective_ts: args.effectiveTs,
+        action_type: args.actionType,
+        split_ratio: args.splitRatio ?? null,
+        cash_amount: args.cashAmount ?? null,
+        source: args.source,
+        notes: args.notes ?? null,
+        created_at: ts,
+        updated_at: ts,
+      });
+  }
+
+  listCorporateActions(args: {
+    assetId: number;
+    startTs?: number;
+    endTs?: number;
+  }): CorporateActionRecord[] {
+    const where: string[] = ['asset_id = @asset_id'];
+    if (args.startTs !== undefined) where.push('effective_ts >= @start_ts');
+    if (args.endTs !== undefined) where.push('effective_ts <= @end_ts');
+    return this.db
+      .prepare(
+        `
+          SELECT
+            id, asset_id, effective_ts, action_type, split_ratio, cash_amount, source, notes, created_at, updated_at
+          FROM corporate_actions
+          WHERE ${where.join(' AND ')}
+          ORDER BY effective_ts ASC, id ASC
+        `,
+      )
+      .all({
+        asset_id: args.assetId,
+        start_ts: args.startTs,
+        end_ts: args.endTs,
+      }) as CorporateActionRecord[];
+  }
+
+  upsertTradingCalendarException(args: {
+    market: Market;
+    assetId?: number | null;
+    dayKey: string;
+    status: TradingCalendarExceptionStatus;
+    reason?: string | null;
+    source: string;
+  }): void {
+    this.db
+      .prepare(
+        `
+          INSERT INTO trading_calendar_exceptions(
+            market, asset_id, day_key, status, reason, source, updated_at
+          ) VALUES(
+            @market, @asset_id, @day_key, @status, @reason, @source, @updated_at
+          )
+          ON CONFLICT(market, asset_id, day_key, status, source) DO UPDATE SET
+            reason = excluded.reason,
+            updated_at = excluded.updated_at
+        `,
+      )
+      .run({
+        market: args.market,
+        asset_id: args.assetId ?? 0,
+        day_key: args.dayKey,
+        status: args.status,
+        reason: args.reason ?? null,
+        source: args.source,
+        updated_at: nowMs(),
+      });
+  }
+
+  listTradingCalendarExceptions(args: {
+    market: Market;
+    assetId?: number | null;
+    startDayKey?: string;
+    endDayKey?: string;
+  }): TradingCalendarExceptionRecord[] {
+    const where: string[] = ['market = @market'];
+    if (args.assetId !== undefined && args.assetId !== null) {
+      where.push('(asset_id = 0 OR asset_id = @asset_id)');
+    } else {
+      where.push('asset_id = 0');
+    }
+    if (args.startDayKey) where.push('day_key >= @start_day_key');
+    if (args.endDayKey) where.push('day_key <= @end_day_key');
+    return this.db
+      .prepare(
+        `
+          SELECT id, market, asset_id, day_key, status, reason, source, updated_at
+          FROM trading_calendar_exceptions
+          WHERE ${where.join(' AND ')}
+          ORDER BY day_key ASC, asset_id ASC, id ASC
+        `,
+      )
+      .all({
+        market: args.market,
+        asset_id: args.assetId ?? 0,
+        start_day_key: args.startDayKey,
+        end_day_key: args.endDayKey,
+      })
+      .map((row) => ({
+        ...row,
+        asset_id: Number(row.asset_id || 0) > 0 ? Number(row.asset_id) : null,
+      })) as TradingCalendarExceptionRecord[];
   }
 
   upsertSignal(signal: SignalContract): void {

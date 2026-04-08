@@ -65,6 +65,37 @@ CREATE TABLE IF NOT EXISTS ohlcv_quality_state (
 
 CREATE INDEX IF NOT EXISTS idx_ohlcv_quality_state_status ON ohlcv_quality_state(status, updated_at DESC);
 
+CREATE TABLE IF NOT EXISTS corporate_actions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  asset_id INTEGER NOT NULL,
+  effective_ts INTEGER NOT NULL,
+  action_type TEXT NOT NULL CHECK (action_type IN ('SPLIT', 'DIVIDEND', 'HALT', 'RESUME')),
+  split_ratio REAL,
+  cash_amount REAL,
+  source TEXT NOT NULL,
+  notes TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  UNIQUE(asset_id, effective_ts, action_type, source),
+  FOREIGN KEY(asset_id) REFERENCES assets(asset_id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_corporate_actions_lookup ON corporate_actions(asset_id, effective_ts DESC);
+
+CREATE TABLE IF NOT EXISTS trading_calendar_exceptions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  market TEXT NOT NULL CHECK (market IN ('US', 'CRYPTO')),
+  asset_id INTEGER NOT NULL DEFAULT 0,
+  day_key TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('CLOSED', 'HALTED', 'HALF_DAY')),
+  reason TEXT,
+  source TEXT NOT NULL,
+  updated_at INTEGER NOT NULL,
+  UNIQUE(market, asset_id, day_key, status, source)
+);
+
+CREATE INDEX IF NOT EXISTS idx_trading_calendar_exceptions_lookup ON trading_calendar_exceptions(market, day_key DESC, asset_id);
+
 CREATE TABLE IF NOT EXISTS funding_rates (
   asset_id INTEGER NOT NULL,
   ts_open INTEGER NOT NULL,

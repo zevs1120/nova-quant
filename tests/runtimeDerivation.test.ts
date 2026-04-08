@@ -375,6 +375,75 @@ describe('derive runtime state', () => {
     expect(Number(freshnessRow?.extreme_move_bars || 0)).toBeGreaterThan(50);
   });
 
+  it('does not gate runtime derivation for split-driven price jumps when a corporate action is recorded', () => {
+    const db = new Database(':memory:');
+    ensureSchema(db);
+    const repo = new MarketRepository(db);
+    const asset = repo.upsertAsset({
+      symbol: 'NVDA',
+      market: 'US',
+      venue: 'STOOQ',
+    });
+    const now = Date.now();
+
+    const bars: NormalizedBar[] = [];
+    for (let index = 0; index < 120; index += 1) {
+      const tsOpen = now - (120 - index) * 86_400_000;
+      if (index === 60) {
+        bars.push({
+          ts_open: tsOpen,
+          open: '101',
+          high: '102',
+          low: '99',
+          close: '100',
+          volume: '12',
+        });
+        repo.upsertCorporateAction({
+          assetId: asset.asset_id,
+          effectiveTs: tsOpen,
+          actionType: 'SPLIT',
+          splitRatio: 10,
+          source: 'TEST',
+          notes: '10-for-1 split',
+        });
+        continue;
+      }
+      const base = index < 60 ? 1000 + index : 100 + (index - 60) * 0.5;
+      bars.push({
+        ts_open: tsOpen,
+        open: base.toFixed(2),
+        high: (base + 1).toFixed(2),
+        low: (base - 1).toFixed(2),
+        close: base.toFixed(2),
+        volume: '12',
+      });
+    }
+
+    repo.upsertOhlcvBars(asset.asset_id, '1d', bars, 'TEST');
+
+    const runtime = deriveRuntimeState({
+      repo,
+      userId: 'split-user',
+      riskProfile: {
+        user_id: 'split-user',
+        profile_key: 'balanced',
+        max_loss_per_trade: 1,
+        max_daily_loss: 3,
+        max_drawdown: 12,
+        exposure_cap: 55,
+        leverage_cap: 2,
+        updated_at_ms: now,
+      },
+    });
+
+    expect(runtime.sourceStatus).not.toBe('INSUFFICIENT_DATA');
+    const freshnessRows = Array.isArray((runtime.freshnessSummary as { rows?: unknown }).rows)
+      ? ((runtime.freshnessSummary as { rows?: unknown[] }).rows as Record<string, unknown>[])
+      : [];
+    const freshnessRow = freshnessRows.find((row) => row.symbol === 'NVDA');
+    expect(freshnessRow?.quality_gate_reason).not.toBe('TOO_MANY_EXTREME_MOVE_BARS');
+  });
+
   it('surfaces persisted quality state alongside runtime freshness rows', () => {
     const db = new Database(':memory:');
     ensureSchema(db);

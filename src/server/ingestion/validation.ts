@@ -2,11 +2,11 @@ import { MarketRepository } from '../db/repository.js';
 import type { Timeframe } from '../types.js';
 import { logInfo, logWarn } from '../utils/log.js';
 import { timeframeToMs } from '../utils/time.js';
-import { detectGaps, inspectBarQuality, inspectBarSequenceQuality } from './normalize.js';
+import { detectGaps, inspectBarQuality, inspectBarSequenceQuality, toUtcDayKey } from './normalize.js';
 import { fetchBinanceKlines, isBinanceAccessBlockedError } from './binanceIncremental.js';
 import { fetchAlphaVantageDailyBars } from './hostedData.js';
 import { ingestProviderBars } from './providerGate.js';
-import { fetchYahooChartBars } from './yahoo.js';
+import { fetchYahooChartSnapshot } from './yahoo.js';
 
 function parseMetricsJson(value: string | null | undefined): Record<string, unknown> {
   if (!value) return {};
@@ -54,7 +54,16 @@ function detectAssetGaps(args: {
   end: number;
 }) {
   const tsList = args.repo.listBarsRange(args.assetId, args.timeframe, args.start, args.end);
-  return detectGaps(tsList, args.timeframe, { market: args.market });
+  const closedDayKeys = args.repo
+    .listTradingCalendarExceptions({
+      market: args.market as 'US' | 'CRYPTO',
+      assetId: args.assetId,
+      startDayKey: toUtcDayKey(args.start - 2 * 86_400_000),
+      endDayKey: toUtcDayKey(args.end + 2 * 86_400_000),
+    })
+    .filter((row) => row.status === 'CLOSED' || row.status === 'HALTED')
+    .map((row) => row.day_key);
+  return detectGaps(tsList, args.timeframe, { market: args.market, closedDayKeys });
 }
 
 function buildRepairWindow(args: { from: number; to: number; step: number }) {
@@ -85,8 +94,20 @@ async function repairUsDailyGap(args: {
   });
 
   try {
+    const yahooSnapshot = await fetchYahooChartSnapshot(args.symbol, args.timeframe);
+    for (const action of yahooSnapshot.corporateActions) {
+      args.repo.upsertCorporateAction({
+        assetId: args.assetId,
+        effectiveTs: action.effectiveTs,
+        actionType: action.actionType,
+        splitRatio: action.splitRatio ?? null,
+        cashAmount: action.cashAmount ?? null,
+        source: 'YAHOO_REPAIR',
+        notes: action.notes ?? null,
+      });
+    }
     const yahooBars = filterBarsForWindow(
-      await fetchYahooChartBars(args.symbol, args.timeframe),
+      yahooSnapshot.bars,
       window.start,
       window.end,
     );
@@ -205,11 +226,23 @@ export async function validateAndRepair(params: {
       const sanitizedRows = rows
         .map((row) => inspectBarQuality(row).sanitized)
         .filter((row): row is NonNullable<typeof row> => Boolean(row));
+      const corporateActions = rows.length
+        ? params.repo.listCorporateActions({
+            assetId: asset.asset_id,
+            startTs: rows[0].ts_open - 2 * step,
+            endTs: rows[rows.length - 1].ts_open + 2 * step,
+          })
+        : [];
       const sequence = inspectBarSequenceQuality({
         rows: sanitizedRows,
         timeframe: tf,
         source: asset.venue,
         symbol: asset.symbol,
+        corporateActions: corporateActions.map((action) => ({
+          effectiveTs: action.effective_ts,
+          actionType: action.action_type,
+          splitRatio: action.split_ratio,
+        })),
       });
       for (const anomaly of sequence.anomalies) {
         params.repo.logAnomaly({

@@ -343,10 +343,22 @@ function parseBars(
     sanitizedRows.push(quality.sanitized);
     return acc;
   }, []);
+  const corporateActions = rows.length
+    ? repo.listCorporateActions({
+        assetId,
+        startTs: rows[0].ts_open - 2 * timeframeToMs(timeframe),
+        endTs: rows[rows.length - 1].ts_open + 2 * timeframeToMs(timeframe),
+      })
+    : [];
   const sequence = inspectBarSequenceQuality({
     rows: sanitizedRows,
     timeframe,
     source: 'RUNTIME',
+    corporateActions: corporateActions.map((action) => ({
+      effectiveTs: action.effective_ts,
+      actionType: action.action_type,
+      splitRatio: action.split_ratio,
+    })),
   });
 
   return {

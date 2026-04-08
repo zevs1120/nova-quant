@@ -4,7 +4,7 @@ import { ensureSchema } from '../src/server/db/schema.js';
 import { MarketRepository } from '../src/server/db/repository.js';
 
 const fetchBinanceKlinesMock = vi.fn();
-const fetchYahooChartBarsMock = vi.fn();
+const fetchYahooChartSnapshotMock = vi.fn();
 const fetchAlphaVantageDailyBarsMock = vi.fn();
 
 vi.mock('../src/server/ingestion/binanceIncremental.js', () => ({
@@ -14,7 +14,7 @@ vi.mock('../src/server/ingestion/binanceIncremental.js', () => ({
 }));
 
 vi.mock('../src/server/ingestion/yahoo.js', () => ({
-  fetchYahooChartBars: fetchYahooChartBarsMock,
+  fetchYahooChartSnapshot: fetchYahooChartSnapshotMock,
 }));
 
 vi.mock('../src/server/ingestion/hostedData.js', () => ({
@@ -25,7 +25,7 @@ describe('ingestion gap repair', () => {
   beforeEach(() => {
     vi.resetModules();
     fetchBinanceKlinesMock.mockReset();
-    fetchYahooChartBarsMock.mockReset();
+    fetchYahooChartSnapshotMock.mockReset();
     fetchAlphaVantageDailyBarsMock.mockReset();
   });
 
@@ -72,24 +72,27 @@ describe('ingestion gap repair', () => {
       'STOOQ_BULK',
     );
 
-    fetchYahooChartBarsMock.mockResolvedValue([
-      {
-        ts_open: wednesday,
-        open: '100.8',
-        high: '102',
-        low: '100.4',
-        close: '101.8',
-        volume: '11',
-      },
-      {
-        ts_open: thursday,
-        open: '102',
-        high: '103',
-        low: '101',
-        close: '102.6',
-        volume: '12',
-      },
-    ]);
+    fetchYahooChartSnapshotMock.mockResolvedValue({
+      bars: [
+        {
+          ts_open: wednesday,
+          open: '100.8',
+          high: '102',
+          low: '100.4',
+          close: '101.8',
+          volume: '11',
+        },
+        {
+          ts_open: thursday,
+          open: '102',
+          high: '103',
+          low: '101',
+          close: '102.6',
+          volume: '12',
+        },
+      ],
+      corporateActions: [],
+    });
     fetchAlphaVantageDailyBarsMock.mockResolvedValue([]);
 
     await validateAndRepair({
@@ -157,7 +160,7 @@ describe('ingestion gap repair', () => {
       'STOOQ_BULK',
     );
 
-    fetchYahooChartBarsMock.mockRejectedValue(new Error('Yahoo unavailable'));
+    fetchYahooChartSnapshotMock.mockRejectedValue(new Error('Yahoo unavailable'));
     fetchAlphaVantageDailyBarsMock.mockResolvedValue([
       {
         ts_open: wednesday,
@@ -187,9 +190,85 @@ describe('ingestion gap repair', () => {
     });
 
     expect(repairedRow).toHaveLength(1);
-    expect(fetchYahooChartBarsMock).toHaveBeenCalledOnce();
+    expect(fetchYahooChartSnapshotMock).toHaveBeenCalledOnce();
     expect(fetchAlphaVantageDailyBarsMock).toHaveBeenCalledOnce();
     expect(qualityState?.status).toBe('REPAIRED');
     expect(qualityState?.reason).toBe('GAP_REPAIRED_ALPHA_VANTAGE_REPAIR');
+  });
+
+  it('stores Yahoo split events so future sequence checks can explain split-driven jumps', async () => {
+    const { validateAndRepair } = await import('../src/server/ingestion/validation.js');
+    const db = new Database(':memory:');
+    ensureSchema(db);
+    const repo = new MarketRepository(db);
+    const asset = repo.upsertAsset({
+      symbol: 'NVDA',
+      market: 'US',
+      venue: 'STOOQ',
+    });
+
+    const tuesday = Date.UTC(2026, 5, 9);
+    const wednesday = Date.UTC(2026, 5, 10);
+    const thursday = Date.UTC(2026, 5, 11);
+
+    repo.upsertOhlcvBars(
+      asset.asset_id,
+      '1d',
+      [
+        {
+          ts_open: tuesday,
+          open: '1000',
+          high: '1012',
+          low: '995',
+          close: '1000',
+          volume: '20',
+        },
+        {
+          ts_open: thursday,
+          open: '102',
+          high: '103',
+          low: '99',
+          close: '100',
+          volume: '25',
+        },
+      ],
+      'STOOQ_BULK',
+    );
+
+    fetchYahooChartSnapshotMock.mockResolvedValue({
+      bars: [
+        {
+          ts_open: wednesday,
+          open: '101',
+          high: '102',
+          low: '99',
+          close: '100',
+          volume: '23',
+        },
+      ],
+      corporateActions: [
+        {
+          effectiveTs: wednesday,
+          actionType: 'SPLIT',
+          splitRatio: 10,
+          notes: '10-for-1 split',
+        },
+      ],
+    });
+    fetchAlphaVantageDailyBarsMock.mockResolvedValue([]);
+
+    await validateAndRepair({
+      repo,
+      timeframes: ['1d'],
+      lookbackBars: 10,
+    });
+
+    const actions = repo.listCorporateActions({
+      assetId: asset.asset_id,
+    });
+
+    expect(actions).toHaveLength(1);
+    expect(actions[0]?.action_type).toBe('SPLIT');
+    expect(actions[0]?.split_ratio).toBe(10);
   });
 });

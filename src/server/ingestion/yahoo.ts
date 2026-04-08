@@ -9,6 +9,24 @@ type YahooChartResponse = {
   chart?: {
     result?: Array<{
       timestamp?: number[];
+      events?: {
+        splits?: Record<
+          string,
+          {
+            date?: number;
+            numerator?: number;
+            denominator?: number;
+            splitRatio?: string;
+          }
+        >;
+        dividends?: Record<
+          string,
+          {
+            date?: number;
+            amount?: number;
+          }
+        >;
+      };
       indicators?: {
         quote?: Array<{
           open?: Array<number | null>;
@@ -24,6 +42,17 @@ type YahooChartResponse = {
       description?: string;
     } | null;
   };
+};
+
+export type YahooChartSnapshot = {
+  bars: NormalizedBar[];
+  corporateActions: Array<{
+    effectiveTs: number;
+    actionType: 'SPLIT' | 'DIVIDEND';
+    splitRatio?: number | null;
+    cashAmount?: number | null;
+    notes?: string | null;
+  }>;
 };
 
 function intervalForTimeframe(timeframe: Timeframe): string | null {
@@ -62,10 +91,50 @@ function toBarSeries(payload: YahooChartResponse): NormalizedBar[] {
   return out;
 }
 
-export async function fetchYahooChartBars(
+function toCorporateActions(payload: YahooChartResponse): YahooChartSnapshot['corporateActions'] {
+  const result = payload.chart?.result?.[0];
+  const events = result?.events;
+  const actions: YahooChartSnapshot['corporateActions'] = [];
+
+  for (const splitEvent of Object.values(events?.splits || {})) {
+    const date = Number(splitEvent?.date);
+    if (!Number.isFinite(date)) continue;
+    const numerator = Number(splitEvent?.numerator);
+    const denominator = Number(splitEvent?.denominator);
+    const parsedRatio = Number(splitEvent?.splitRatio);
+    const splitRatio =
+      Number.isFinite(numerator) && Number.isFinite(denominator) && denominator > 0
+        ? numerator / denominator
+        : Number.isFinite(parsedRatio)
+          ? parsedRatio
+          : null;
+    actions.push({
+      effectiveTs: date * 1000,
+      actionType: 'SPLIT',
+      splitRatio,
+      notes: splitRatio ? `Yahoo split ratio ${splitRatio}` : 'Yahoo split event',
+    });
+  }
+
+  for (const dividendEvent of Object.values(events?.dividends || {})) {
+    const date = Number(dividendEvent?.date);
+    const amount = Number(dividendEvent?.amount);
+    if (!Number.isFinite(date)) continue;
+    actions.push({
+      effectiveTs: date * 1000,
+      actionType: 'DIVIDEND',
+      cashAmount: Number.isFinite(amount) ? amount : null,
+      notes: Number.isFinite(amount) ? `Yahoo dividend ${amount}` : 'Yahoo dividend event',
+    });
+  }
+
+  return actions.sort((a, b) => a.effectiveTs - b.effectiveTs);
+}
+
+export async function fetchYahooChartSnapshot(
   symbol: string,
   timeframe: Timeframe,
-): Promise<NormalizedBar[]> {
+): Promise<YahooChartSnapshot> {
   const config = getConfig();
   const interval = intervalForTimeframe(timeframe);
   if (!interval) {
@@ -98,7 +167,17 @@ export async function fetchYahooChartBars(
       `Yahoo chart error for ${symbol}: ${json.chart.error.code || 'UNKNOWN'} ${json.chart.error.description || ''}`.trim(),
     );
   }
-  return toBarSeries(json);
+  return {
+    bars: toBarSeries(json),
+    corporateActions: toCorporateActions(json),
+  };
+}
+
+export async function fetchYahooChartBars(
+  symbol: string,
+  timeframe: Timeframe,
+): Promise<NormalizedBar[]> {
+  return (await fetchYahooChartSnapshot(symbol, timeframe)).bars;
 }
 
 export async function backfillYahooChart(params: {
@@ -122,7 +201,8 @@ export async function backfillYahooChart(params: {
       quote: 'USD',
       status: 'ACTIVE',
     });
-    const bars = await fetchYahooChartBars(symbol, params.timeframe);
+    const snapshot = await fetchYahooChartSnapshot(symbol, params.timeframe);
+    const bars = snapshot.bars;
     const summary = ingestProviderBars({
       repo: params.repo,
       assetId: asset.asset_id,
@@ -131,6 +211,17 @@ export async function backfillYahooChart(params: {
       source,
       symbol,
     });
+    for (const action of snapshot.corporateActions) {
+      params.repo.upsertCorporateAction({
+        assetId: asset.asset_id,
+        effectiveTs: action.effectiveTs,
+        actionType: action.actionType,
+        splitRatio: action.splitRatio ?? null,
+        cashAmount: action.cashAmount ?? null,
+        source,
+        notes: action.notes ?? null,
+      });
+    }
     if (bars.length) {
       const latestTs = params.repo.getLatestTsOpen(asset.asset_id, params.timeframe);
       params.repo.setCursor(
