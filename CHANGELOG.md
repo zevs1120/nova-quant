@@ -10,6 +10,12 @@ NovaQuant 所有重要变更记录于此。
 - Today 首屏头部不再只显示抽象的 `Climate` 标签，而是直接展示运行时生成的 headline / subtitle，让用户一眼看到今天是可动作、先观察还是先防守。
 - 保留原有布局骨架，仅补充小标签、主结论和一句原因说明，避免改动现有 Today 的主交互节奏。
 
+### 🪪 Today Action Card 正面文案改成 why-now + risk-note
+
+- **feat(today): Today 卡片正面优先展示动作理由与风险提醒。**
+- 卡面正文不再默认用 `Buy setup · 81%` 这类内部信号语气做主文案，而是优先展示 `brief_why_now` / `thesis`，让用户先看到“为什么现在值得看”。
+- 卡面次文案同步改为优先展示 `risk_note` / `implementation caveat`，让 Action Card 更像可执行建议，而不是内部信号摘要。
+
 ### 🎨 iPhone App 端显示精修
 
 - **feat(app,ui): 针对 iPhone 手持设备收紧主壳与四个主页面的显示节奏。**

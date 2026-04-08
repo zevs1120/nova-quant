@@ -350,6 +350,57 @@ function actionCardPickLabel(position, locale) {
   return locale === 'zh' ? `Today 卡片 ${numeric}` : `Today pick ${numeric}`;
 }
 
+function actionCardWhyNowText(signal, locale) {
+  const directWhy = String(signal?.brief_why_now || '').trim();
+  if (directWhy) return directWhy;
+
+  const thesis = String(signal?.evidence_bundle?.thesis || '').trim();
+  if (thesis) return thesis;
+
+  const firstExplainBullet = Array.isArray(signal?.explain_bullets)
+    ? String(signal.explain_bullets[0] || '').trim()
+    : '';
+  if (firstExplainBullet) return firstExplainBullet;
+
+  if (!signal || !signal._actionable) {
+    return locale === 'zh'
+      ? '当前条件还不够干净，先放进观察队列。'
+      : 'Conditions are not clean enough yet, so this stays on watch.';
+  }
+  if (String(signal?.direction || '').toUpperCase() === 'SHORT') {
+    return locale === 'zh'
+      ? '市场压力偏大，这张卡片更偏向风险收缩。'
+      : 'Market pressure is elevated, so this card leans toward risk reduction.';
+  }
+  return locale === 'zh'
+    ? '条件允许选择性动作，但仍然只适合轻仓执行。'
+    : 'Conditions allow selective action, but execution should still stay small.';
+}
+
+function actionCardRiskNoteText(signal, locale) {
+  const directRiskNote = String(signal?.risk_note || '').trim();
+  if (directRiskNote) return directRiskNote;
+
+  const caveat = Array.isArray(signal?.evidence_bundle?.implementation_caveats)
+    ? String(signal.evidence_bundle.implementation_caveats[0] || '').trim()
+    : '';
+  if (caveat) return caveat;
+
+  if (!signal || !signal._actionable) {
+    return locale === 'zh'
+      ? '先看，不追单，也不要主动扩大风险。'
+      : 'Stay on watch, avoid chasing, and do not expand risk yet.';
+  }
+  if (String(signal?.direction || '').toUpperCase() === 'SHORT') {
+    return locale === 'zh'
+      ? '只把它当成风险收缩动作，不要把它当高确信度进攻单。'
+      : 'Treat this as a risk-reduction move, not as a high-conviction attack trade.';
+  }
+  return locale === 'zh'
+    ? '严格按止损执行，单笔仓位保持克制。'
+    : 'Respect the stop strictly and keep single-position size restrained.';
+}
+
 function mergeEvidenceSignals(allSignals, evidenceSignals) {
   if (!Array.isArray(evidenceSignals) || !evidenceSignals.length) return allSignals || [];
   const signalById = new Map((allSignals || []).map((row) => [row.signal_id, row]));
@@ -1506,8 +1557,6 @@ export default function TodayTab({
           1,
           deckSignals.findIndex((item) => signalCardId(item) === signalId) + 1,
         );
-        const directionLabel = actionCardDecisionLabel(signal, locale);
-        const convictionLabel = confidenceText(signal);
         return {
           id: signalId,
           signal,
@@ -1517,9 +1566,8 @@ export default function TodayTab({
           kicker: actionCardPickLabel(position, locale),
           chipLabel: actionCardTagLabel(signal, locale),
           tone: signalDecisionTone(signal),
-          subtitle:
-            convictionLabel !== '--' ? `${directionLabel} · ${convictionLabel}` : directionLabel,
-          note: buildSignalInvalidationNote(signal, locale),
+          subtitle: actionCardWhyNowText(signal, locale),
+          note: actionCardRiskNoteText(signal, locale),
         };
       }),
     [deckSignals, locale, queuedSignals],
