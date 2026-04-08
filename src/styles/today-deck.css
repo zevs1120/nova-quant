@@ -24,14 +24,15 @@
 }
 
 .today-stack-list {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  min-height: 100%;
+  display: grid;
+  grid-auto-rows: max-content;
+  align-content: start;
+  min-height: 0;
   height: 100%;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 4px 0 calc(var(--native-tabbar-reserve) + 20px);
+  padding: 0 0 calc(var(--native-tabbar-reserve) + 20px);
+  gap: 12px;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
@@ -43,6 +44,7 @@
 
 .today-stack-card {
   flex: 0 0 auto;
+  min-width: 0;
   position: relative;
   z-index: var(--stack-z, 1);
   animation: today-stack-card-settle 340ms cubic-bezier(0.2, 0.9, 0.22, 1) both;
@@ -56,10 +58,6 @@
   animation:
     today-stack-card-settle 340ms cubic-bezier(0.2, 0.9, 0.22, 1) both,
     today-usage-guide-pulse 2.2s ease-in-out infinite 360ms;
-}
-
-.today-stack-card + .today-stack-card {
-  margin-top: calc(var(--today-rebuild-stack-overlap) * -1);
 }
 
 .today-stack-card-lock {
@@ -78,9 +76,10 @@
   --today-card-orb-shadow: rgba(71, 143, 255, 0.52);
   position: relative;
   width: 100%;
-  min-height: var(--today-rebuild-card-h);
-  height: var(--today-rebuild-card-h);
-  padding: 18px 16px;
+  max-width: 100%;
+  min-height: clamp(204px, 28svh, 300px);
+  height: auto;
+  padding: 18px clamp(14px, 3.6vw, 18px);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 22px;
   background:
@@ -100,12 +99,6 @@
   justify-content: space-between;
   cursor: pointer;
   user-select: none;
-}
-
-.today-rebuild-card + .today-rebuild-card,
-.today-rebuild-card + .today-rebuild-card-lock,
-.today-rebuild-card-lock + .today-rebuild-card {
-  margin-top: calc(var(--today-rebuild-stack-overlap) * -1);
 }
 
 .today-rebuild-card-lock {
@@ -168,9 +161,9 @@
 .today-rebuild-card-head {
   position: relative;
   z-index: 1;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
   gap: 12px;
 }
 
@@ -183,8 +176,9 @@
 .today-rebuild-card-title-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 8px 10px;
 }
 
 .today-rebuild-card-kicker {
@@ -200,22 +194,28 @@
 .today-rebuild-empty-title {
   margin: 0;
   color: var(--today-card-text);
-  font-size: clamp(32px, 8.4vw, 42px);
+  max-width: 100%;
+  font-size: clamp(28px, 8.4vw, 42px);
   line-height: 0.9;
   font-weight: 820;
   letter-spacing: -0.07em;
   text-shadow: 0 12px 26px rgba(0, 0, 0, 0.14);
+  overflow-wrap: anywhere;
+  text-wrap: balance;
 }
 
 .today-rebuild-card-pills {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
+  min-width: min(42%, 154px);
+  max-width: 170px;
+  display: grid;
+  justify-items: stretch;
   gap: 6px;
 }
 
 .today-rebuild-card-chip {
   min-height: 30px;
+  width: 100%;
+  max-width: 100%;
   padding: 0 12px;
   border-radius: 14px;
   display: inline-flex;
@@ -241,16 +241,21 @@
 
 .today-rebuild-card .today-validity-pill {
   min-height: 32px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   padding: 6px 10px;
   border-radius: 14px;
   display: inline-flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   color: rgba(255, 255, 255, 0.96);
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  text-align: left;
+  white-space: normal;
   background: rgba(255, 255, 255, 0.12);
   border: 1px solid rgba(255, 255, 255, 0.14);
   box-shadow: none;
@@ -258,6 +263,7 @@
 
 .today-rebuild-card .today-validity-pill-subtitle {
   color: var(--today-card-muted);
+  line-height: 1.18;
 }
 
 .today-rebuild-art {
@@ -403,9 +409,9 @@
 }
 
 .today-rebuild-card-footer {
-  max-width: 64%;
+  max-width: min(100%, 22rem);
   display: grid;
-  gap: 8px;
+  gap: 10px;
   margin-top: auto;
 }
 
@@ -419,6 +425,7 @@
 
 .today-rebuild-watchlist-button {
   min-height: 30px;
+  max-width: 100%;
   padding: 0 10px;
   border: 0;
   border-radius: 12px;
@@ -445,7 +452,8 @@
   font-size: 15px;
   font-weight: 760;
   letter-spacing: -0.02em;
-  line-height: 1.18;
+  line-height: 1.24;
+  overflow-wrap: anywhere;
 }
 
 .today-rebuild-card-note,
@@ -483,14 +491,101 @@
   font-weight: 760;
   letter-spacing: -0.02em;
   line-height: 1.12;
+  overflow-wrap: anywhere;
 }
 
 .today-rebuild-empty {
   display: grid;
   align-content: end;
   gap: 10px;
-  min-height: min(320px, var(--today-rebuild-card-h));
+  min-height: clamp(196px, 24svh, 260px);
   height: auto;
+}
+
+@media (max-width: 640px) {
+  .today-stack-list {
+    gap: 10px;
+  }
+
+  :is(.today-rebuild-card, .today-rebuild-empty) {
+    min-height: clamp(188px, 24svh, 248px);
+    padding: 16px 14px;
+    border-radius: 20px;
+  }
+
+  .today-rebuild-card-head {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .today-rebuild-card-pills {
+    min-width: 0;
+    max-width: none;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+  }
+
+  .today-rebuild-card-footer {
+    max-width: 100%;
+  }
+
+  .today-rebuild-card-title,
+  .today-rebuild-empty-title {
+    font-size: clamp(24px, 10vw, 36px);
+  }
+
+  .today-rebuild-card-subtitle {
+    font-size: 14px;
+  }
+
+  .today-rebuild-card-note,
+  .today-rebuild-empty-copy {
+    font-size: 11px;
+  }
+
+  .today-rebuild-art-ring {
+    top: 18px;
+    width: 152px;
+    height: 152px;
+  }
+
+  .today-rebuild-art-orb {
+    bottom: -56px;
+    width: 148px;
+    height: 148px;
+  }
+
+  .today-rebuild-art-trace {
+    right: 20px;
+    bottom: 28px;
+    width: 104px;
+    height: 68px;
+  }
+}
+
+@media (max-width: 400px) {
+  .today-rebuild-card-kicker {
+    font-size: 9px;
+  }
+
+  .today-rebuild-watchlist-button {
+    min-height: 28px;
+    padding: 0 9px;
+    font-size: 10px;
+  }
+
+  .today-rebuild-card-pills {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .today-rebuild-card-metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .today-rebuild-card-metric-value {
+    font-size: 12px;
+  }
 }
 
 .today-rebuild-empty-actions {

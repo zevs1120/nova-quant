@@ -3702,21 +3702,19 @@
 
 /* Today rebuild: isolated homepage shell */
 .today-rebuild-shell {
-  --today-rebuild-height: calc(var(--app-height) - var(--viewport-offset-top, 0px));
-  --today-rebuild-pad-x: clamp(12px, 2vw, 20px);
+  --today-rebuild-pad-left: max(12px, calc(var(--safe-left) + 12px));
+  --today-rebuild-pad-right: max(12px, calc(var(--safe-right) + 12px));
   --today-rebuild-pad-top: clamp(8px, 1.4dvh, 16px);
-  --today-rebuild-pad-bottom: clamp(8px, 1.4dvh, 18px);
-  --today-rebuild-header-h: clamp(58px, 8dvh, 84px);
-  --today-rebuild-card-h: clamp(248px, 34dvh, 336px);
-  --today-rebuild-stack-overlap: clamp(142px, 18dvh, 188px);
+  --today-rebuild-header-h: auto;
   position: relative;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  gap: 10px;
+  gap: 12px;
   width: 100%;
-  min-height: var(--today-rebuild-height);
-  height: var(--today-rebuild-height);
-  padding: var(--today-rebuild-pad-top) var(--today-rebuild-pad-x) var(--today-rebuild-pad-bottom);
+  min-height: 100%;
+  height: 100%;
+  padding: var(--today-rebuild-pad-top) var(--today-rebuild-pad-right) 0
+    var(--today-rebuild-pad-left);
   overflow: hidden;
   background:
     radial-gradient(circle at 18% 0%, rgba(76, 140, 255, 0.12), transparent 24%),
@@ -3740,14 +3738,13 @@
 }
 
 .today-rebuild-header {
-  min-height: var(--today-rebuild-header-h);
   display: grid;
   align-content: start;
 }
 
 .today-rebuild-climate {
   display: grid;
-  gap: 4px;
+  gap: 8px;
 }
 
 .today-rebuild-caption {
@@ -3759,16 +3756,17 @@
   text-transform: uppercase;
 }
 
-.today-rebuild-title-row {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
+.today-rebuild-heading {
+  display: flex;
+  align-items: flex-start;
   justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .today-rebuild-title-copy {
   min-width: 0;
+  flex: 1 1 220px;
   display: grid;
   gap: 4px;
 }
@@ -3785,63 +3783,94 @@
 .today-rebuild-title {
   margin: 0;
   color: #121522;
-  font-size: clamp(34px, 8vw, 44px);
+  font-size: clamp(32px, 7.8vw, 44px);
   line-height: 0.94;
   font-weight: 820;
   letter-spacing: -0.07em;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
 }
 
 .today-rebuild-subtitle {
   margin: 0;
-  max-width: 32ch;
+  max-width: 38ch;
   color: rgba(18, 21, 34, 0.66);
   font-size: 14px;
   font-weight: 600;
-  line-height: 1.28;
+  line-height: 1.32;
 }
 
-.today-rebuild-dot {
-  width: 12px;
-  height: 12px;
+.today-rebuild-status {
+  flex: 0 0 auto;
+  min-height: 30px;
+  max-width: 100%;
+  padding: 0 12px;
   border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(18, 21, 34, 0.08);
+  background: rgba(255, 255, 255, 0.78);
   box-shadow:
-    0 0 0 6px rgba(255, 255, 255, 0.56),
-    0 0 0 1px rgba(18, 21, 34, 0.1),
-    0 8px 18px rgba(18, 21, 34, 0.12);
+    inset 0 1px 0 rgba(255, 255, 255, 0.84),
+    0 10px 22px rgba(18, 21, 34, 0.06);
+  color: rgba(18, 21, 34, 0.72);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
-.today-rebuild-dot-safe {
-  background: #4c86ff;
+.today-rebuild-status-safe {
+  background: rgba(76, 134, 255, 0.1);
+  color: #356dff;
+  border-color: rgba(76, 134, 255, 0.14);
 }
 
-.today-rebuild-dot-medium {
-  background: #f1c24d;
+.today-rebuild-status-medium {
+  background: rgba(241, 194, 77, 0.14);
+  color: #9c7510;
+  border-color: rgba(201, 150, 34, 0.16);
 }
 
-.today-rebuild-dot-danger {
-  background: #ef6a5b;
+.today-rebuild-status-danger {
+  background: rgba(239, 106, 91, 0.12);
+  color: #c4584b;
+  border-color: rgba(239, 106, 91, 0.14);
 }
 
 @media (min-width: 768px) {
   .today-rebuild-shell {
-    --today-rebuild-pad-x: clamp(14px, 1.6vw, 24px);
+    --today-rebuild-pad-left: clamp(14px, 1.6vw, 24px);
+    --today-rebuild-pad-right: clamp(14px, 1.6vw, 24px);
     --today-rebuild-pad-top: clamp(10px, 1.6dvh, 18px);
-    --today-rebuild-pad-bottom: clamp(6px, 1.2dvh, 12px);
-    --today-rebuild-header-h: clamp(60px, 8dvh, 90px);
-    --today-rebuild-card-h: clamp(280px, 32dvh, 420px);
-    --today-rebuild-stack-overlap: clamp(152px, 18dvh, 244px);
   }
 }
 
 @media (max-width: 640px) {
   .today-rebuild-shell {
-    --today-rebuild-pad-x: 12px;
     --today-rebuild-pad-top: 8px;
-    --today-rebuild-pad-bottom: 8px;
-    --today-rebuild-header-h: 64px;
-    --today-rebuild-card-h: clamp(248px, 31dvh, 314px);
-    --today-rebuild-stack-overlap: clamp(148px, 18dvh, 184px);
-    gap: 8px;
+    gap: 10px;
+  }
+
+  .today-rebuild-heading {
+    gap: 10px;
+  }
+
+  .today-rebuild-title {
+    font-size: clamp(26px, 9.6vw, 38px);
+  }
+
+  .today-rebuild-subtitle {
+    max-width: none;
+    font-size: 13px;
+  }
+
+  .today-rebuild-status {
+    min-height: 28px;
+    padding: 0 10px;
+    font-size: 10px;
   }
 }
 
