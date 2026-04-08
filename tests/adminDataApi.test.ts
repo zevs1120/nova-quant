@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { handleAdminLogin } from '../src/server/api/authHandlers.js';
 import {
   handleAdminAlphas,
+  handleAdminDataQuality,
   handleAdminOverview,
   handleAdminOverviewHeadline,
   handleAdminSignals,
@@ -47,12 +48,13 @@ function createMockResponse(): MockResponse {
 
 async function callHandler(
   handler: (req: Record<string, unknown>, res: MockResponse) => Promise<void>,
-  args: { body?: unknown; cookie?: string },
+  args: { body?: unknown; cookie?: string; query?: Record<string, unknown> },
 ) {
   const res = createMockResponse();
   await handler(
     {
       body: args.body,
+      query: args.query,
       headers: args.cookie ? { cookie: args.cookie } : {},
       header(name: string) {
         if (name.toLowerCase() === 'cookie') return args.cookie || '';
@@ -613,4 +615,113 @@ describe('admin data api', () => {
     const secondTs = (second.body as { data: { generated_at: string } }).data.generated_at;
     expect(secondTs).toBe(firstTs);
   }, 15_000);
+
+  it('returns data quality summary and symbol drill-down for authorized admins', async () => {
+    process.env.NOVA_ADMIN_EMAILS = email;
+    await seedAuthUser(email, 'Data Quality Tester');
+
+    const login = await callHandler(handleAdminLogin, {
+      body: { email, password: 'StrongPass123' },
+    });
+    expect(login.statusCode).toBe(200);
+    const cookie = login.headers['Set-Cookie'];
+    expect(typeof cookie).toBe('string');
+
+    const repo = getRuntimeRepo();
+    const asset = repo.upsertAsset({
+      market: 'US',
+      symbol: 'TSLA',
+      venue: 'NASDAQ',
+      quote: 'USD',
+      status: 'ACTIVE',
+    });
+
+    repo.upsertOhlcvQualityState({
+      assetId: asset.asset_id,
+      timeframe: '1d',
+      status: 'SUSPECT',
+      reason: 'PROVIDER_ADJUSTMENT_DRIFT',
+      metricsJson: JSON.stringify({
+        adjustment_drift: {
+          overlap_count: 24,
+          median_ratio: 4.1,
+          incoming_source: 'YAHOO',
+          existing_sources: ['MASSIVE'],
+        },
+      }),
+    });
+    repo.upsertCorporateAction({
+      assetId: asset.asset_id,
+      effectiveTs: Date.UTC(2026, 3, 8),
+      actionType: 'SPLIT',
+      splitRatio: 3,
+      source: 'YAHOO_CHART_SYNC',
+      notes: '3-for-1 split',
+    });
+    repo.upsertTradingCalendarException({
+      market: 'US',
+      assetId: asset.asset_id,
+      dayKey: '2026-04-08',
+      status: 'HALTED',
+      reason: 'Exchange halt',
+      source: 'MANUAL_TRADING_HALT_IMPORT',
+    });
+    repo.upsertWorkflowRun({
+      id: 'admin-data-quality-run-1',
+      workflow_key: 'free_data_flywheel',
+      workflow_version: 'test.v1',
+      trigger_type: 'manual',
+      status: 'SUCCEEDED',
+      trace_id: 'admin-data-quality-trace-1',
+      input_json: '{}',
+      output_json: JSON.stringify({
+        governance: {
+          corporate_actions: {
+            rows_upserted: 2,
+            refreshed_symbols: 1,
+            mismatch_symbols: 1,
+            errors: [],
+            symbols: ['TSLA'],
+          },
+          trading_calendar: {
+            rows_upserted: 16,
+          },
+        },
+      }),
+      attempt_count: 1,
+      started_at_ms: Date.now() - 10_000,
+      updated_at_ms: Date.now() - 5_000,
+      completed_at_ms: Date.now() - 4_000,
+    });
+
+    const summaryRes = await callHandler(handleAdminDataQuality, { cookie });
+    expect(summaryRes.statusCode).toBe(200);
+    const summaryBody = summaryRes.body as {
+      data: {
+        summary: { adjustment_drift_count: number };
+        rows: Array<{ symbol: string }>;
+      };
+    };
+    expect(summaryBody.data.summary.adjustment_drift_count).toBeGreaterThanOrEqual(1);
+    expect(summaryBody.data.rows.some((row) => row.symbol === 'TSLA')).toBe(true);
+
+    const detailRes = await callHandler(handleAdminDataQuality, {
+      cookie,
+      query: { symbol: 'TSLA', market: 'US' },
+    });
+    expect(detailRes.statusCode).toBe(200);
+    const detailBody = detailRes.body as {
+      data: {
+        detail: {
+          symbol: string;
+          timeline: Array<{ type: string }>;
+          recent_governance_runs: Array<{ governance_summary: { mismatch_symbols: number } }>;
+        };
+      };
+    };
+    expect(detailBody.data.detail.symbol).toBe('TSLA');
+    expect(detailBody.data.detail.timeline.some((row) => row.type === 'SPLIT')).toBe(true);
+    expect(detailBody.data.detail.timeline.some((row) => row.type === 'HALTED')).toBe(true);
+    expect(detailBody.data.detail.recent_governance_runs[0]?.governance_summary.mismatch_symbols).toBe(1);
+  });
 });

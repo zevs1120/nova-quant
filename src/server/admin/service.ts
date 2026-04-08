@@ -241,6 +241,28 @@ function round(value: number, digits = 4) {
   return Math.round(value * factor) / factor;
 }
 
+function parseMetricsObject(value: string | null | undefined): Record<string, unknown> {
+  if (!value) return {};
+  try {
+    const parsed = JSON.parse(value);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed as Record<string, unknown>;
+    }
+  } catch {
+    // ignore malformed metrics payloads
+  }
+  return {};
+}
+
+function qualityRank(args: { status?: string | null; reason?: string | null }) {
+  if (args.status === 'QUARANTINED') return 0;
+  if (args.reason === 'PROVIDER_ADJUSTMENT_DRIFT') return 1;
+  if (args.reason === 'CORPORATE_ACTION_SOURCE_CONFLICT') return 2;
+  if (args.status === 'SUSPECT') return 3;
+  if (args.status === 'REPAIRED') return 4;
+  return 5;
+}
+
 function countBy<T>(rows: T[], keyFn: (row: T) => string | null | undefined) {
   const map = new Map<string, number>();
   rows.forEach((row) => {
@@ -688,6 +710,167 @@ export async function buildAdminSystemSnapshot() {
     recent_nova_runs: ops.recent_nova_runs,
     daily_ops: ops.daily_ops,
     qlib_bridge: qlibBridge,
+  };
+}
+
+export async function buildAdminDataQualitySnapshot(args?: {
+  symbol?: string;
+  market?: 'US' | 'CRYPTO';
+}) {
+  const repo = getRuntimeRepo();
+  const symbol = String(args?.symbol || '')
+    .trim()
+    .toUpperCase();
+  const market = args?.market;
+  const assets = repo
+    .listAssets(market)
+    .filter((asset) => (!symbol ? true : asset.symbol === symbol))
+    .slice(0, symbol ? 8 : 200);
+
+  const rows = assets.map((asset) => {
+    const timeframe = asset.market === 'CRYPTO' ? '1h' : '1d';
+    const quality = repo.getOhlcvQualityState({
+      assetId: asset.asset_id,
+      timeframe,
+    });
+    const anomalies = repo.getIngestAnomalySummary({
+      assetId: asset.asset_id,
+      timeframe,
+    });
+    return {
+      asset_id: asset.asset_id,
+      market: asset.market,
+      symbol: asset.symbol,
+      venue: asset.venue,
+      timeframe,
+      quality_state_status: quality?.status || null,
+      quality_state_reason: quality?.reason || null,
+      quality_state_metrics: parseMetricsObject(quality?.metrics_json),
+      quality_state_updated_at: quality?.updated_at || null,
+      anomaly_total_count: anomalies.totalCount,
+    };
+  });
+
+  const summary = {
+    total_assets: rows.length,
+    suspect_count: rows.filter((row) => row.quality_state_status === 'SUSPECT').length,
+    repaired_count: rows.filter((row) => row.quality_state_status === 'REPAIRED').length,
+    quarantined_count: rows.filter((row) => row.quality_state_status === 'QUARANTINED').length,
+    adjustment_drift_count: rows.filter(
+      (row) => row.quality_state_reason === 'PROVIDER_ADJUSTMENT_DRIFT',
+    ).length,
+    corporate_action_conflict_count: rows.filter(
+      (row) => row.quality_state_reason === 'CORPORATE_ACTION_SOURCE_CONFLICT',
+    ).length,
+  };
+
+  if (!symbol || rows.length === 0) {
+    return {
+      generated_at: new Date().toISOString(),
+      summary,
+      rows: rows
+        .sort((a, b) => {
+          const aRank = qualityRank({
+            status: a.quality_state_status,
+            reason: a.quality_state_reason,
+          });
+          const bRank = qualityRank({
+            status: b.quality_state_status,
+            reason: b.quality_state_reason,
+          });
+          return aRank - bRank || a.symbol.localeCompare(b.symbol);
+        })
+        .slice(0, 50),
+    };
+  }
+
+  const asset = assets[0];
+  const timeframe = asset.market === 'CRYPTO' ? '1h' : '1d';
+  const quality = repo.getOhlcvQualityState({
+    assetId: asset.asset_id,
+    timeframe,
+  });
+  const qualityMetrics = parseMetricsObject(quality?.metrics_json);
+  const corporateActions = repo.listCorporateActions({
+    assetId: asset.asset_id,
+  });
+  const calendarExceptions = repo.listTradingCalendarExceptions({
+    market: asset.market,
+    assetId: asset.asset_id,
+  });
+  const anomalies = repo
+    .listAuditEvents({ entityType: 'workflow_run', limit: 20 })
+    .filter((row) => String(row.payload_json || '').includes(asset.symbol))
+    .slice(0, 8);
+  const governanceRuns = repo
+    .listWorkflowRuns({
+      workflowKey: 'free_data_flywheel',
+      limit: 12,
+    })
+    .filter((row) => String(row.output_json || '').includes(asset.symbol))
+    .slice(0, 6)
+    .map((row) => {
+      const output = parseJson<JsonObject>(row.output_json, {});
+      const governance = parseJson<JsonObject>(output.governance, {});
+      const corporate = parseJson<JsonObject>(governance.corporate_actions, {});
+      const calendar = parseJson<JsonObject>(governance.trading_calendar, {});
+      return {
+        id: row.id,
+        workflow_key: row.workflow_key,
+        status: row.status,
+        trigger_type: row.trigger_type,
+        updated_at: toIso(row.updated_at_ms),
+        completed_at: toIso(row.completed_at_ms),
+        governance_summary: {
+          mismatch_symbols: Number(corporate.mismatch_symbols || 0),
+          rows_upserted: Number(corporate.rows_upserted || 0),
+          refreshed_symbols: Number(corporate.refreshed_symbols || 0),
+          calendar_rows_upserted: Number(calendar.rows_upserted || 0),
+          error_count: Array.isArray(corporate.errors) ? corporate.errors.length : 0,
+        },
+      };
+    });
+
+  const timeline = [
+    ...corporateActions.map((row) => ({
+      ts: row.effective_ts,
+      type: row.action_type,
+      label: row.notes || row.action_type,
+      source: row.source,
+      payload: row,
+    })),
+    ...calendarExceptions.map((row) => ({
+      ts: Date.parse(`${row.day_key}T00:00:00.000Z`),
+      type: row.status,
+      label: row.reason || row.status,
+      source: row.source,
+      payload: row,
+    })),
+  ].sort((a, b) => b.ts - a.ts);
+
+  return {
+    generated_at: new Date().toISOString(),
+    summary,
+    detail: {
+      asset_id: asset.asset_id,
+      market: asset.market,
+      symbol: asset.symbol,
+      venue: asset.venue,
+      timeframe,
+      quality_state_status: quality?.status || null,
+      quality_state_reason: quality?.reason || null,
+      quality_state_metrics: qualityMetrics,
+      quality_state_updated_at: quality?.updated_at || null,
+      anomaly_total_count: repo.getIngestAnomalySummary({
+        assetId: asset.asset_id,
+        timeframe,
+      }).totalCount,
+      corporate_actions: corporateActions,
+      calendar_exceptions: calendarExceptions,
+      recent_governance_runs: governanceRuns,
+      timeline,
+      related_audit_events: anomalies,
+    },
   };
 }
 

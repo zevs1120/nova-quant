@@ -290,9 +290,13 @@ export async function refreshGovernanceData(args: {
     corporate_actions: {
       targets: targets.length,
       refreshed_symbols: corporateResults.filter((row) => row.fetched).length,
+      refreshed_symbol_list: corporateResults.filter((row) => row.fetched).map((row) => row.symbol),
       skipped_symbols: corporateResults.filter((row) => row.skipped).length,
       rows_upserted: corporateResults.reduce((acc, row) => acc + row.actions_upserted, 0),
       mismatch_symbols: corporateResults.filter((row) => row.validation?.mismatch_count > 0).length,
+      mismatch_symbol_list: corporateResults
+        .filter((row) => row.validation?.mismatch_count > 0)
+        .map((row) => row.symbol),
       errors: corporateResults
         .filter((row) => row.error)
         .map((row) => ({ symbol: row.symbol, error: row.error })),

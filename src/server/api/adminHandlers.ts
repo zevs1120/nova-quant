@@ -5,6 +5,7 @@ import {
   buildAdminOverviewHeadlineFast,
   buildAdminSignalsSnapshot,
   buildAdminSystemSnapshot,
+  buildAdminDataQualitySnapshot,
   buildAdminTodayOpsSnapshot,
   buildAdminUsersSnapshot,
 } from '../admin/service.js';
@@ -173,6 +174,32 @@ export async function handleAdminSystem(req: BasicRequest, res: BasicResponse) {
     });
   } catch (error) {
     respondAdminError(res, 'ADMIN_SYSTEM_FAILED', error);
+  }
+}
+
+export async function handleAdminDataQuality(req: BasicRequest, res: BasicResponse) {
+  const session = await authorizeAdmin(req, res);
+  if (!session) return;
+  try {
+    const symbol = typeof req.query?.symbol === 'string' ? req.query.symbol : undefined;
+    const market =
+      typeof req.query?.market === 'string' &&
+      (req.query.market === 'US' || req.query.market === 'CRYPTO')
+        ? req.query.market
+        : undefined;
+    res.json({
+      ok: true,
+      session: {
+        user: session.user,
+        roles: session.roles,
+      },
+      data: await buildAdminDataQualitySnapshot({
+        symbol,
+        market,
+      }),
+    });
+  } catch (error) {
+    respondAdminError(res, 'ADMIN_DATA_QUALITY_FAILED', error);
   }
 }
 

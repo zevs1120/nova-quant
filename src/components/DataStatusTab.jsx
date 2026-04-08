@@ -12,6 +12,16 @@ function formatDetailValue(value) {
   }
 }
 
+function formatDetailTimestamp(value) {
+  if (value === null || value === undefined || value === '') return '--';
+  if (typeof value === 'number') return new Date(value).toISOString();
+  try {
+    return new Date(value).toISOString();
+  } catch {
+    return String(value);
+  }
+}
+
 function qualitySeverity(row) {
   const status = String(row?.quality_state_status || '').toUpperCase();
   const reason = String(row?.quality_state_reason || row?.quality_gate_reason || '').toUpperCase();
@@ -26,6 +36,7 @@ function qualitySeverity(row) {
 
 export default function DataStatusTab({ data, fetchJson, effectiveUserId }) {
   const [expandedRowKey, setExpandedRowKey] = useState(null);
+  const [detailByRowKey, setDetailByRowKey] = useState({});
   const runtime = data?.config?.runtime || {};
   const { controlPlane, loading: controlPlaneLoading } = useControlPlaneStatus({
     data,
@@ -73,6 +84,48 @@ export default function DataStatusTab({ data, fetchJson, effectiveUserId }) {
     topIssues.push(`发现 ${corporateConflictRows.length} 个资产存在公司行为源不一致。`);
   }
 
+  async function toggleRow(row) {
+    const rowKey = `${row.market}-${row.symbol}`;
+    if (expandedRowKey === rowKey) {
+      setExpandedRowKey(null);
+      return;
+    }
+    setExpandedRowKey(rowKey);
+    if (!fetchJson || detailByRowKey[rowKey]?.data || detailByRowKey[rowKey]?.loading) return;
+
+    setDetailByRowKey((current) => ({
+      ...current,
+      [rowKey]: {
+        loading: true,
+        error: null,
+        data: null,
+      },
+    }));
+
+    try {
+      const payload = await fetchJson(
+        `/api/admin/data-quality?symbol=${encodeURIComponent(row.symbol)}&market=${encodeURIComponent(row.market)}`,
+      );
+      setDetailByRowKey((current) => ({
+        ...current,
+        [rowKey]: {
+          loading: false,
+          error: null,
+          data: payload || null,
+        },
+      }));
+    } catch (error) {
+      setDetailByRowKey((current) => ({
+        ...current,
+        [rowKey]: {
+          loading: false,
+          error: error instanceof Error ? error.message : 'DETAIL_FETCH_FAILED',
+          data: null,
+        },
+      }));
+    }
+  }
+
   return (
     <section className="stack-gap">
       <article className="glass-card">
@@ -102,12 +155,18 @@ export default function DataStatusTab({ data, fetchJson, effectiveUserId }) {
           </div>
           <div className="status-box">
             <p className="muted">Repaired</p>
-            <h2>{qualitySummary?.repaired_count ?? freshnessRows.filter((row) => row?.quality_state_status === 'REPAIRED').length}</h2>
+            <h2>
+              {qualitySummary?.repaired_count ??
+                freshnessRows.filter((row) => row?.quality_state_status === 'REPAIRED').length}
+            </h2>
             <p className="muted status-line">Series repaired by validation workflows</p>
           </div>
           <div className="status-box">
             <p className="muted">Quarantined</p>
-            <h2>{qualitySummary?.quarantined_count ?? freshnessRows.filter((row) => row?.quality_state_status === 'QUARANTINED').length}</h2>
+            <h2>
+              {qualitySummary?.quarantined_count ??
+                freshnessRows.filter((row) => row?.quality_state_status === 'QUARANTINED').length}
+            </h2>
             <p className="muted status-line">Rows blocked from trusted runtime usage</p>
           </div>
         </div>
@@ -192,7 +251,9 @@ export default function DataStatusTab({ data, fetchJson, effectiveUserId }) {
           </div>
           <div className="status-box">
             <p className="muted">Corp Action Conflicts</p>
-            <h2>{qualitySummary?.corporate_action_conflict_count ?? corporateConflictRows.length}</h2>
+            <h2>
+              {qualitySummary?.corporate_action_conflict_count ?? corporateConflictRows.length}
+            </h2>
             <p className="muted status-line">Provider mismatch on splits/dividends</p>
           </div>
           <div className="status-box">
@@ -218,10 +279,16 @@ export default function DataStatusTab({ data, fetchJson, effectiveUserId }) {
               {freshnessRows.map((row) => {
                 const rowKey = `${row.market}-${row.symbol}`;
                 const isExpanded = expandedRowKey === rowKey;
-                const metrics = row?.quality_state_metrics || {};
+                const detailState = detailByRowKey[rowKey] || null;
+                const detail = detailState?.data?.data?.detail || detailState?.data?.detail || null;
+                const metrics = detail?.quality_state_metrics || row?.quality_state_metrics || {};
+                const timeline = detail?.timeline || [];
+                const governanceRuns = detail?.recent_governance_runs || [];
+                const history = detail?.quality_history || [];
+
                 return (
                   <Fragment key={rowKey}>
-                    <tr key={rowKey}>
+                    <tr>
                       <td>{row.symbol}</td>
                       <td>{row.market}</td>
                       <td>{row.status}</td>
@@ -232,7 +299,7 @@ export default function DataStatusTab({ data, fetchJson, effectiveUserId }) {
                         <button
                           type="button"
                           className="secondary-button"
-                          onClick={() => setExpandedRowKey(isExpanded ? null : rowKey)}
+                          onClick={() => void toggleRow(row)}
                         >
                           {isExpanded ? 'Hide' : 'Inspect'}
                         </button>
@@ -241,28 +308,164 @@ export default function DataStatusTab({ data, fetchJson, effectiveUserId }) {
                     {isExpanded ? (
                       <tr>
                         <td colSpan={7}>
+                          {detailState?.loading ? (
+                            <p className="muted status-line" style={{ marginTop: 8 }}>
+                              Loading symbol drill-down...
+                            </p>
+                          ) : null}
+                          {detailState?.error ? (
+                            <p className="muted status-line" style={{ marginTop: 8 }}>
+                              Detail load failed: {detailState.error}
+                            </p>
+                          ) : null}
+
                           <div className="status-grid-3" style={{ marginTop: 8 }}>
                             <div className="status-box">
                               <p className="muted">Updated</p>
-                              <p>{row.quality_state_updated_at ? new Date(row.quality_state_updated_at).toISOString() : '--'}</p>
+                              <p>
+                                {formatDetailTimestamp(
+                                  detail?.quality_state_updated_at || row.quality_state_updated_at,
+                                )}
+                              </p>
                             </div>
                             <div className="status-box">
-                              <p className="muted">Corp Actions (1y)</p>
-                              <p>{row.recent_corporate_action_count ?? '--'}</p>
+                              <p className="muted">Corp Actions</p>
+                              <p>
+                                {detail?.corporate_actions?.length ??
+                                  row.recent_corporate_action_count ??
+                                  '--'}
+                              </p>
                             </div>
                             <div className="status-box">
-                              <p className="muted">Calendar Exceptions (1y)</p>
-                              <p>{row.recent_calendar_exception_count ?? '--'}</p>
+                              <p className="muted">Calendar Exceptions</p>
+                              <p>
+                                {detail?.calendar_exceptions?.length ??
+                                  row.recent_calendar_exception_count ??
+                                  '--'}
+                              </p>
                             </div>
                           </div>
+
                           <div className="status-grid-3" style={{ marginTop: 8 }}>
-                            {Object.entries(metrics).slice(0, 9).map(([key, value]) => (
-                              <div className="status-box" key={key}>
-                                <p className="muted">{key}</p>
-                                <p>{formatDetailValue(value)}</p>
-                              </div>
-                            ))}
+                            <div className="status-box">
+                              <p className="muted">Anomalies</p>
+                              <p>{detail?.anomaly_total_count ?? row?.anomaly_total_count ?? '--'}</p>
+                            </div>
+                            {Object.entries(metrics)
+                              .slice(0, 8)
+                              .map(([key, value]) => (
+                                <div className="status-box" key={key}>
+                                  <p className="muted">{key}</p>
+                                  <p>{formatDetailValue(value)}</p>
+                                </div>
+                              ))}
                           </div>
+
+                          {governanceRuns.length ? (
+                            <div className="table-wrap" style={{ marginTop: 12 }}>
+                              <p className="muted status-line">Recent Governance Runs</p>
+                              <table>
+                                <thead>
+                                  <tr>
+                                    <th>Status</th>
+                                    <th>Updated</th>
+                                    <th>Corp Rows</th>
+                                    <th>Mismatches</th>
+                                    <th>Calendar Rows</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {governanceRuns.map((run) => (
+                                    <tr key={run.id}>
+                                      <td>{run.status}</td>
+                                      <td>
+                                        {formatDetailTimestamp(run.completed_at || run.updated_at)}
+                                      </td>
+                                      <td>{run.governance_summary?.rows_upserted ?? '--'}</td>
+                                      <td>{run.governance_summary?.mismatch_symbols ?? '--'}</td>
+                                      <td>
+                                        {run.governance_summary?.calendar_rows_upserted ?? '--'}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          ) : null}
+
+                          {timeline.length ? (
+                            <div className="table-wrap" style={{ marginTop: 12 }}>
+                              <p className="muted status-line">Timeline</p>
+                              <table>
+                                <thead>
+                                  <tr>
+                                    <th>When</th>
+                                    <th>Type</th>
+                                    <th>Label</th>
+                                    <th>Source</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {timeline.slice(0, 8).map((event) => (
+                                    <tr key={`${event.type}-${event.ts}-${event.source || 'NA'}`}>
+                                      <td>{formatDetailTimestamp(event.ts)}</td>
+                                      <td>{event.type}</td>
+                                      <td>{event.label || '--'}</td>
+                                      <td>{event.source || '--'}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          ) : null}
+
+                          {history.length ? (
+                            <div className="table-wrap" style={{ marginTop: 12 }}>
+                              <p className="muted status-line">Quality Lifecycle</p>
+                              <table>
+                                <thead>
+                                  <tr>
+                                    <th>When</th>
+                                    <th>Status</th>
+                                    <th>Reason</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {history.slice(0, 8).map((event) => (
+                                    <tr key={event.id}>
+                                      <td>{formatDetailTimestamp(event.created_at)}</td>
+                                      <td>{event.status}</td>
+                                      <td>{event.reason || '--'}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          ) : null}
+
+                          {detail?.related_audit_events?.length ? (
+                            <div className="table-wrap" style={{ marginTop: 12 }}>
+                              <p className="muted status-line">Related Workflow Audit Events</p>
+                              <table>
+                                <thead>
+                                  <tr>
+                                    <th>Event</th>
+                                    <th>When</th>
+                                    <th>Entity</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {detail.related_audit_events.slice(0, 5).map((event) => (
+                                    <tr key={event.event_id}>
+                                      <td>{event.event_type}</td>
+                                      <td>{formatDetailTimestamp(event.created_at)}</td>
+                                      <td>{event.entity_id || '--'}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          ) : null}
                         </td>
                       </tr>
                     ) : null}

@@ -33,6 +33,7 @@
     "worker:binance": "node scripts/run-node.mjs node_modules/.bin/tsx scripts/update-binance.ts",
     "data:free": "node scripts/run-node.mjs node_modules/.bin/tsx scripts/run-free-data-flywheel.ts",
     "data:governance": "node scripts/run-node.mjs node_modules/.bin/tsx scripts/sync-governance-data.ts",
+    "data:halt": "node scripts/run-node.mjs node_modules/.bin/tsx scripts/import-trading-halts.ts",
     "validate:data": "node scripts/run-node.mjs node_modules/.bin/tsx scripts/validate-data.ts",
     "derive:runtime": "node scripts/run-node.mjs node_modules/.bin/tsx scripts/derive-runtime-state.ts --user guest-default --force",
     "evolution:cycle": "node scripts/run-node.mjs --import tsx ./scripts/run-evolution-cycle.ts",

@@ -7,6 +7,7 @@ import {
   handleAdminAlphas,
   handleAdminSignals,
   handleAdminSystem,
+  handleAdminDataQuality,
   handleAdminResearchOps,
   handleAdminManualPredictionSettle,
 } from '../adminHandlers.js';
@@ -23,6 +24,7 @@ router.get('/api/admin/users', handleAdminUsers);
 router.get('/api/admin/alphas', handleAdminAlphas);
 router.get('/api/admin/signals', handleAdminSignals);
 router.get('/api/admin/system', handleAdminSystem);
+router.get('/api/admin/data-quality', handleAdminDataQuality);
 router.get('/api/admin/research-ops', handleAdminResearchOps);
 router.post('/api/admin/manual/predictions/settle', handleAdminManualPredictionSettle);
 

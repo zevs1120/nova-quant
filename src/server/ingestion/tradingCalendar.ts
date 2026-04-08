@@ -5,6 +5,69 @@ export type TradingCalendarSeed = {
   source: string;
 };
 
+const US_EXCEPTIONAL_CLOSURE_SEEDS: TradingCalendarSeed[] = [
+  {
+    dayKey: '2001-09-11',
+    status: 'CLOSED',
+    reason: 'NYSE/Nasdaq closed after September 11 attacks',
+    source: 'STATIC_US_TRADING_CALENDAR_EXCEPTION',
+  },
+  {
+    dayKey: '2001-09-12',
+    status: 'CLOSED',
+    reason: 'NYSE/Nasdaq closed after September 11 attacks',
+    source: 'STATIC_US_TRADING_CALENDAR_EXCEPTION',
+  },
+  {
+    dayKey: '2001-09-13',
+    status: 'CLOSED',
+    reason: 'NYSE/Nasdaq closed after September 11 attacks',
+    source: 'STATIC_US_TRADING_CALENDAR_EXCEPTION',
+  },
+  {
+    dayKey: '2001-09-14',
+    status: 'CLOSED',
+    reason: 'NYSE/Nasdaq closed after September 11 attacks',
+    source: 'STATIC_US_TRADING_CALENDAR_EXCEPTION',
+  },
+  {
+    dayKey: '2004-06-11',
+    status: 'CLOSED',
+    reason: 'National Day of Mourning for President Reagan',
+    source: 'STATIC_US_TRADING_CALENDAR_EXCEPTION',
+  },
+  {
+    dayKey: '2007-01-02',
+    status: 'CLOSED',
+    reason: 'National Day of Mourning for President Ford',
+    source: 'STATIC_US_TRADING_CALENDAR_EXCEPTION',
+  },
+  {
+    dayKey: '2012-10-29',
+    status: 'CLOSED',
+    reason: 'NYSE/Nasdaq closed due to Hurricane Sandy',
+    source: 'STATIC_US_TRADING_CALENDAR_EXCEPTION',
+  },
+  {
+    dayKey: '2012-10-30',
+    status: 'CLOSED',
+    reason: 'NYSE/Nasdaq closed due to Hurricane Sandy',
+    source: 'STATIC_US_TRADING_CALENDAR_EXCEPTION',
+  },
+  {
+    dayKey: '2018-12-05',
+    status: 'CLOSED',
+    reason: 'National Day of Mourning for President George H. W. Bush',
+    source: 'STATIC_US_TRADING_CALENDAR_EXCEPTION',
+  },
+  {
+    dayKey: '2025-01-09',
+    status: 'CLOSED',
+    reason: 'National Day of Mourning for President Jimmy Carter',
+    source: 'STATIC_US_TRADING_CALENDAR_EXCEPTION',
+  },
+];
+
 function toDayKey(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
@@ -153,6 +216,12 @@ export function buildUsTradingCalendarSeeds(years: number[]): TradingCalendarSee
         source: 'STATIC_US_TRADING_CALENDAR',
       });
     }
+  }
+
+  const yearSet = new Set(years);
+  for (const seed of US_EXCEPTIONAL_CLOSURE_SEEDS) {
+    const year = Number(seed.dayKey.slice(0, 4));
+    if (yearSet.has(year)) push(seed);
   }
 
   return [...rows.values()].sort((a, b) => a.dayKey.localeCompare(b.dayKey));
