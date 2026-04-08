@@ -75,4 +75,70 @@ describe('ingestion validation anomalies', () => {
     expect(summary.countsByType.OHLC_ENVELOPE_ANOMALY).toBe(1);
     expect(summary.countsByType.ZERO_VOLUME_ANOMALY).toBe(1);
   });
+
+  it('records sequence-level anomalies from stored bars during validation', async () => {
+    const db = new Database(':memory:');
+    ensureSchema(db);
+    const repo = new MarketRepository(db);
+    const asset = repo.upsertAsset({
+      symbol: 'MSFT',
+      market: 'US',
+      venue: 'TEST_PROVIDER',
+    });
+
+    repo.upsertOhlcvBars(
+      asset.asset_id,
+      '1d',
+      [
+        {
+          ts_open: 1_700_000_000_000,
+          open: '100',
+          high: '100',
+          low: '100',
+          close: '100',
+          volume: '0',
+        },
+        {
+          ts_open: 1_700_086_400_000,
+          open: '100',
+          high: '100',
+          low: '100',
+          close: '100',
+          volume: '0',
+        },
+        {
+          ts_open: 1_700_172_800_000,
+          open: '100',
+          high: '100',
+          low: '100',
+          close: '100',
+          volume: '0',
+        },
+        {
+          ts_open: 1_700_259_200_000,
+          open: '190',
+          high: '190',
+          low: '190',
+          close: '190',
+          volume: '0',
+        },
+      ],
+      'TEST_PROVIDER',
+    );
+
+    await validateAndRepair({
+      repo,
+      timeframes: ['1d'],
+      lookbackBars: 10,
+    });
+
+    const summary = repo.getIngestAnomalySummary({
+      assetId: asset.asset_id,
+      timeframe: '1d',
+    });
+
+    expect(summary.countsByType.FLAT_RUN_ANOMALY).toBe(1);
+    expect(summary.countsByType.ZERO_VOLUME_RUN_ANOMALY).toBe(1);
+    expect(summary.countsByType.EXTREME_MOVE_ANOMALY).toBe(1);
+  });
 });

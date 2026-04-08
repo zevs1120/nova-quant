@@ -324,4 +324,53 @@ describe('derive runtime state', () => {
     expect(freshnessRow?.quality_gate_reason).toBe('TOO_MANY_RECENT_PRICE_ANOMALIES');
     expect(Number(freshnessRow?.recent_anomaly_count || 0)).toBe(40);
   });
+
+  it('gates runtime derivation when sequence-level extreme moves dominate the bar history', () => {
+    const db = new Database(':memory:');
+    ensureSchema(db);
+    const repo = new MarketRepository(db);
+    const asset = repo.upsertAsset({
+      symbol: 'SPY',
+      market: 'US',
+      venue: 'STOOQ',
+    });
+    const now = Date.now();
+
+    const bars: NormalizedBar[] = Array.from({ length: 120 }, (_, index) => {
+      const close = index % 2 === 0 ? 100 : 190;
+      return {
+        ts_open: now - (120 - index) * 86_400_000,
+        open: String(close),
+        high: String(close),
+        low: String(close),
+        close: String(close),
+        volume: '10',
+      };
+    });
+
+    repo.upsertOhlcvBars(asset.asset_id, '1d', bars, 'TEST');
+
+    const runtime = deriveRuntimeState({
+      repo,
+      userId: 'sequence-user',
+      riskProfile: {
+        user_id: 'sequence-user',
+        profile_key: 'balanced',
+        max_loss_per_trade: 1,
+        max_daily_loss: 3,
+        max_drawdown: 12,
+        exposure_cap: 55,
+        leverage_cap: 2,
+        updated_at_ms: now,
+      },
+    });
+
+    expect(runtime.sourceStatus).toBe('INSUFFICIENT_DATA');
+    const freshnessRows = Array.isArray((runtime.freshnessSummary as { rows?: unknown }).rows)
+      ? ((runtime.freshnessSummary as { rows?: unknown[] }).rows as Record<string, unknown>[])
+      : [];
+    const freshnessRow = freshnessRows.find((row) => row.symbol === 'SPY');
+    expect(freshnessRow?.quality_gate_reason).toBe('TOO_MANY_EXTREME_MOVE_BARS');
+    expect(Number(freshnessRow?.extreme_move_bars || 0)).toBeGreaterThan(50);
+  });
 });

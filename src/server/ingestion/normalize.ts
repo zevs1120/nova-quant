@@ -31,6 +31,42 @@ export type BarQualityInspection = {
   sanitized: NormalizedBar | null;
 };
 
+export type SequenceAnomalyType =
+  | 'EXTREME_MOVE_ANOMALY'
+  | 'FLAT_RUN_ANOMALY'
+  | 'ZERO_VOLUME_RUN_ANOMALY';
+
+export type BarSequenceInspection = {
+  extremeMoveCount: number;
+  flatRunCount: number;
+  zeroVolumeRunCount: number;
+  maxMovePct: number;
+  anomalies: Array<{
+    tsOpen: number;
+    anomalyType: SequenceAnomalyType;
+    detail: string;
+  }>;
+};
+
+function sequenceMoveThreshold(timeframe: Timeframe): number {
+  if (timeframe === '1d') return 0.45;
+  if (timeframe === '1h') return 0.22;
+  if (timeframe === '15m') return 0.14;
+  return 0.1;
+}
+
+function sequenceContextLabel(args: {
+  source?: string;
+  symbol?: string;
+  timeframe: Timeframe;
+  tsOpen: number;
+  message: string;
+}): string {
+  const source = String(args.source || 'SERIES').trim();
+  const symbol = String(args.symbol || '').trim();
+  return `${source}${symbol ? ` ${symbol}` : ''} ${args.timeframe} ${args.message} at ${args.tsOpen}`.trim();
+}
+
 export function inspectBarQuality(row: NormalizedBar): BarQualityInspection {
   const tsOpen = Number(row?.ts_open);
   if (!Number.isFinite(tsOpen) || tsOpen <= 0) {
@@ -89,6 +125,117 @@ export function inspectBarQuality(row: NormalizedBar): BarQualityInspection {
       close: decimalToString(close),
       volume: decimalToString(sanitizedVolume),
     },
+  };
+}
+
+export function inspectBarSequenceQuality(args: {
+  rows: NormalizedBar[];
+  timeframe: Timeframe;
+  source?: string;
+  symbol?: string;
+}): BarSequenceInspection {
+  const rows = [...(args.rows || [])].sort((a, b) => a.ts_open - b.ts_open);
+  const anomalies: BarSequenceInspection['anomalies'] = [];
+  const moveThreshold = sequenceMoveThreshold(args.timeframe);
+  let extremeMoveCount = 0;
+  let flatRunCount = 0;
+  let zeroVolumeRunCount = 0;
+  let maxMovePct = 0;
+  let flatStreak = 0;
+  let zeroVolumeStreak = 0;
+
+  for (let index = 0; index < rows.length; index += 1) {
+    const current = rows[index];
+    const previous = rows[index - 1] || null;
+    const open = parseFiniteNumber(current.open);
+    const high = parseFiniteNumber(current.high);
+    const low = parseFiniteNumber(current.low);
+    const close = parseFiniteNumber(current.close);
+    const volume = parseFiniteNumber(current.volume);
+    if (
+      open === null ||
+      high === null ||
+      low === null ||
+      close === null ||
+      volume === null
+    ) {
+      flatStreak = 0;
+      zeroVolumeStreak = 0;
+      continue;
+    }
+
+    const isFlatBar = open === high && high === low && low === close;
+    const prevClose = previous ? parseFiniteNumber(previous.close) : null;
+    const prevVolume = previous ? parseFiniteNumber(previous.volume) : null;
+    const sameCloseAsPrevious = prevClose !== null && prevClose === close;
+    const sameVolumeAsPrevious = prevVolume !== null && prevVolume === volume;
+
+    if (isFlatBar && sameCloseAsPrevious && sameVolumeAsPrevious) {
+      flatStreak += 1;
+    } else {
+      flatStreak = 0;
+    }
+    if (flatStreak === 2) {
+      flatRunCount += 1;
+      anomalies.push({
+        tsOpen: current.ts_open,
+        anomalyType: 'FLAT_RUN_ANOMALY',
+        detail: sequenceContextLabel({
+          source: args.source,
+          symbol: args.symbol,
+          timeframe: args.timeframe,
+          tsOpen: current.ts_open,
+          message: 'detected repeated flat bars',
+        }),
+      });
+    }
+
+    if (volume === 0) {
+      zeroVolumeStreak += 1;
+    } else {
+      zeroVolumeStreak = 0;
+    }
+    if (zeroVolumeStreak === 3) {
+      zeroVolumeRunCount += 1;
+      anomalies.push({
+        tsOpen: current.ts_open,
+        anomalyType: 'ZERO_VOLUME_RUN_ANOMALY',
+        detail: sequenceContextLabel({
+          source: args.source,
+          symbol: args.symbol,
+          timeframe: args.timeframe,
+          tsOpen: current.ts_open,
+          message: 'detected repeated zero-volume bars',
+        }),
+      });
+    }
+
+    if (prevClose !== null && prevClose > 0) {
+      const movePct = Math.abs(close / prevClose - 1);
+      maxMovePct = Math.max(maxMovePct, movePct);
+      if (movePct > moveThreshold) {
+        extremeMoveCount += 1;
+        anomalies.push({
+          tsOpen: current.ts_open,
+          anomalyType: 'EXTREME_MOVE_ANOMALY',
+          detail: sequenceContextLabel({
+            source: args.source,
+            symbol: args.symbol,
+            timeframe: args.timeframe,
+            tsOpen: current.ts_open,
+            message: `detected extreme move ${Math.round(movePct * 10000) / 100}%`,
+          }),
+        });
+      }
+    }
+  }
+
+  return {
+    extremeMoveCount,
+    flatRunCount,
+    zeroVolumeRunCount,
+    maxMovePct,
+    anomalies,
   };
 }
 

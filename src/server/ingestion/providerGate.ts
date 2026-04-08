@@ -1,6 +1,6 @@
 import { MarketRepository } from '../db/repository.js';
 import type { NormalizedBar, Timeframe } from '../types.js';
-import { inspectBarQuality } from './normalize.js';
+import { inspectBarQuality, inspectBarSequenceQuality } from './normalize.js';
 
 export type ProviderGateSummary = {
   rawCount: number;
@@ -11,6 +11,9 @@ export type ProviderGateSummary = {
   envelopeAdjustedCount: number;
   zeroVolumeCount: number;
   negativeVolumeCount: number;
+  extremeMoveCount: number;
+  flatRunCount: number;
+  zeroVolumeRunCount: number;
   anomalyCount: number;
 };
 
@@ -119,6 +122,13 @@ export function prepareProviderBars(args: {
   }
 
   const bars = [...deduped.values()].sort((a, b) => a.ts_open - b.ts_open);
+  const sequence = inspectBarSequenceQuality({
+    rows: bars,
+    timeframe: args.timeframe,
+    source: args.source,
+    symbol: args.symbol,
+  });
+  anomalies.push(...sequence.anomalies);
   return {
     bars,
     anomalies,
@@ -131,6 +141,9 @@ export function prepareProviderBars(args: {
       envelopeAdjustedCount,
       zeroVolumeCount,
       negativeVolumeCount,
+      extremeMoveCount: sequence.extremeMoveCount,
+      flatRunCount: sequence.flatRunCount,
+      zeroVolumeRunCount: sequence.zeroVolumeRunCount,
       anomalyCount: anomalies.length,
     },
   };

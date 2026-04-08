@@ -116,4 +116,56 @@ describe('provider gate', () => {
     );
     expect(anomalies.some((row) => row.detail.includes('before storage'))).toBe(true);
   });
+
+  it('records sequence-level anomalies for repeated flat runs, zero-volume runs, and extreme moves', () => {
+    const prepared = prepareProviderBars({
+      source: 'TEST_PROVIDER',
+      timeframe: '1d',
+      symbol: 'MSFT',
+      rows: [
+        {
+          ts_open: 1_700_000_000_000,
+          open: '100',
+          high: '100',
+          low: '100',
+          close: '100',
+          volume: '0',
+        },
+        {
+          ts_open: 1_700_086_400_000,
+          open: '100',
+          high: '100',
+          low: '100',
+          close: '100',
+          volume: '0',
+        },
+        {
+          ts_open: 1_700_172_800_000,
+          open: '100',
+          high: '100',
+          low: '100',
+          close: '100',
+          volume: '0',
+        },
+        {
+          ts_open: 1_700_259_200_000,
+          open: '190',
+          high: '190',
+          low: '190',
+          close: '190',
+          volume: '0',
+        },
+      ],
+    });
+
+    expect(prepared.summary.insertedCount).toBe(4);
+    expect(prepared.summary.flatRunCount).toBe(1);
+    expect(prepared.summary.zeroVolumeRunCount).toBe(1);
+    expect(prepared.summary.extremeMoveCount).toBe(1);
+    expect(prepared.anomalies.map((row) => row.anomalyType)).toContain('FLAT_RUN_ANOMALY');
+    expect(prepared.anomalies.map((row) => row.anomalyType)).toContain(
+      'ZERO_VOLUME_RUN_ANOMALY',
+    );
+    expect(prepared.anomalies.map((row) => row.anomalyType)).toContain('EXTREME_MOVE_ANOMALY');
+  });
 });

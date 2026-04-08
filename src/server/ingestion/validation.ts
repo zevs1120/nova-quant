@@ -2,7 +2,7 @@ import { MarketRepository } from '../db/repository.js';
 import type { Timeframe } from '../types.js';
 import { logInfo, logWarn } from '../utils/log.js';
 import { timeframeToMs } from '../utils/time.js';
-import { detectGaps, inspectBarQuality } from './normalize.js';
+import { detectGaps, inspectBarQuality, inspectBarSequenceQuality } from './normalize.js';
 import { fetchBinanceKlines, isBinanceAccessBlockedError } from './binanceIncremental.js';
 import { ingestProviderBars } from './providerGate.js';
 
@@ -59,6 +59,25 @@ export async function validateAndRepair(params: {
             detail: `Zero volume bar for ${asset.symbol} ${tf} at ${row.ts_open}`,
           });
         }
+      }
+
+      const sanitizedRows = rows
+        .map((row) => inspectBarQuality(row).sanitized)
+        .filter((row): row is NonNullable<typeof row> => Boolean(row));
+      const sequence = inspectBarSequenceQuality({
+        rows: sanitizedRows,
+        timeframe: tf,
+        source: asset.venue,
+        symbol: asset.symbol,
+      });
+      for (const anomaly of sequence.anomalies) {
+        params.repo.logAnomaly({
+          assetId: asset.asset_id,
+          timeframe: tf,
+          tsOpen: anomaly.tsOpen,
+          anomalyType: anomaly.anomalyType,
+          detail: anomaly.detail,
+        });
       }
 
       if (!gaps.length) continue;

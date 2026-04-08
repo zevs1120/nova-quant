@@ -24,7 +24,7 @@ import { buildEvidenceLineage } from '../evidence/lineage.js';
 import { buildNewsContext } from '../news/provider.js';
 import { applyAlphaRuntimeOverlays } from '../alpha_shadow_runner/index.js';
 import type { NewsItemRecord } from '../types.js';
-import { inspectBarQuality } from '../ingestion/normalize.js';
+import { inspectBarQuality, inspectBarSequenceQuality } from '../ingestion/normalize.js';
 import { timeframeToMs } from '../utils/time.js';
 
 const MS_HOUR = 3600_000;
@@ -44,6 +44,10 @@ type BarRuntimeQuality = {
   droppedCount: number;
   envelopeAdjustedCount: number;
   zeroVolumeCount: number;
+  extremeMoveCount: number;
+  flatRunCount: number;
+  zeroVolumeRunCount: number;
+  maxMovePct: number;
   blocked: boolean;
   reason: string | null;
 };
@@ -250,12 +254,20 @@ function assessBarRuntimeQuality(args: {
   droppedCount: number;
   envelopeAdjustedCount: number;
   zeroVolumeCount: number;
+  extremeMoveCount: number;
+  flatRunCount: number;
+  zeroVolumeRunCount: number;
+  maxMovePct: number;
 }): BarRuntimeQuality {
   const rawCount = Math.max(0, Number(args.rawCount || 0));
   const validCount = Math.max(0, Number(args.validCount || 0));
   const droppedCount = Math.max(0, Number(args.droppedCount || 0));
   const envelopeAdjustedCount = Math.max(0, Number(args.envelopeAdjustedCount || 0));
   const zeroVolumeCount = Math.max(0, Number(args.zeroVolumeCount || 0));
+  const extremeMoveCount = Math.max(0, Number(args.extremeMoveCount || 0));
+  const flatRunCount = Math.max(0, Number(args.flatRunCount || 0));
+  const zeroVolumeRunCount = Math.max(0, Number(args.zeroVolumeRunCount || 0));
+  const maxMovePct = Math.max(0, Number(args.maxMovePct || 0));
 
   if (rawCount === 0 || validCount === 0) {
     return {
@@ -264,6 +276,10 @@ function assessBarRuntimeQuality(args: {
       droppedCount,
       envelopeAdjustedCount,
       zeroVolumeCount,
+      extremeMoveCount,
+      flatRunCount,
+      zeroVolumeRunCount,
+      maxMovePct,
       blocked: true,
       reason: 'NO_VALID_BARS',
     };
@@ -272,11 +288,15 @@ function assessBarRuntimeQuality(args: {
   const droppedRatio = droppedCount / rawCount;
   const envelopeRatio = envelopeAdjustedCount / rawCount;
   const zeroVolumeRatio = zeroVolumeCount / validCount;
+  const extremeMoveRatio = extremeMoveCount / Math.max(1, validCount - 1);
 
   let reason: string | null = null;
   if (droppedRatio > 0.2) reason = 'TOO_MANY_INVALID_BARS';
   else if (envelopeRatio > 0.35) reason = 'TOO_MANY_ENVELOPE_REPAIRS';
   else if (zeroVolumeRatio > 0.6) reason = 'TOO_MANY_ZERO_VOLUME_BARS';
+  else if (flatRunCount >= 2) reason = 'TOO_MANY_FLAT_RUNS';
+  else if (zeroVolumeRunCount >= 2) reason = 'TOO_MANY_ZERO_VOLUME_RUNS';
+  else if (extremeMoveRatio > 0.12) reason = 'TOO_MANY_EXTREME_MOVE_BARS';
 
   return {
     rawCount,
@@ -284,6 +304,10 @@ function assessBarRuntimeQuality(args: {
     droppedCount,
     envelopeAdjustedCount,
     zeroVolumeCount,
+    extremeMoveCount,
+    flatRunCount,
+    zeroVolumeRunCount,
+    maxMovePct,
     blocked: reason !== null,
     reason,
   };
@@ -299,6 +323,7 @@ function parseBars(
   let droppedCount = 0;
   let envelopeAdjustedCount = 0;
   let zeroVolumeCount = 0;
+  const sanitizedRows: NormalizedBar[] = [];
   const bars = rows.reduce<NumericBar[]>((acc, row) => {
     const quality = inspectBarQuality(row);
     if (quality.invalidTimestamp || quality.invalidPrice || !quality.sanitized) {
@@ -315,8 +340,14 @@ function parseBars(
       close: toNum(quality.sanitized.close),
       volume: toNum(quality.sanitized.volume),
     });
+    sanitizedRows.push(quality.sanitized);
     return acc;
   }, []);
+  const sequence = inspectBarSequenceQuality({
+    rows: sanitizedRows,
+    timeframe,
+    source: 'RUNTIME',
+  });
 
   return {
     bars: sortBars(bars),
@@ -326,6 +357,10 @@ function parseBars(
       droppedCount,
       envelopeAdjustedCount,
       zeroVolumeCount,
+      extremeMoveCount: sequence.extremeMoveCount,
+      flatRunCount: sequence.flatRunCount,
+      zeroVolumeRunCount: sequence.zeroVolumeRunCount,
+      maxMovePct: sequence.maxMovePct,
     }),
   };
 }
@@ -1533,6 +1568,10 @@ export function deriveRuntimeState(params: {
         dropped_bars: quality.droppedCount,
         envelope_repairs: quality.envelopeAdjustedCount,
         zero_volume_bars: quality.zeroVolumeCount,
+        extreme_move_bars: quality.extremeMoveCount,
+        flat_run_count: quality.flatRunCount,
+        zero_volume_run_count: quality.zeroVolumeRunCount,
+        max_move_pct: round(quality.maxMovePct, 4),
         recent_anomaly_count: anomalySummary.totalCount,
         recent_anomaly_density: anomalyPressure.totalDensity,
         recent_price_anomaly_density: anomalyPressure.priceDensity,
@@ -1558,6 +1597,10 @@ export function deriveRuntimeState(params: {
       dropped_bars: quality.droppedCount,
       envelope_repairs: quality.envelopeAdjustedCount,
       zero_volume_bars: quality.zeroVolumeCount,
+      extreme_move_bars: quality.extremeMoveCount,
+      flat_run_count: quality.flatRunCount,
+      zero_volume_run_count: quality.zeroVolumeRunCount,
+      max_move_pct: round(quality.maxMovePct, 4),
       recent_anomaly_count: anomalySummary.totalCount,
       recent_anomaly_density: anomalyPressure.totalDensity,
       recent_price_anomaly_density: anomalyPressure.priceDensity,
@@ -1603,6 +1646,10 @@ export function deriveRuntimeState(params: {
         dropped_bars: quality.droppedCount,
         envelope_repairs: quality.envelopeAdjustedCount,
         zero_volume_bars: quality.zeroVolumeCount,
+        extreme_move_bars: quality.extremeMoveCount,
+        flat_run_count: quality.flatRunCount,
+        zero_volume_run_count: quality.zeroVolumeRunCount,
+        max_move_pct: round(quality.maxMovePct, 4),
       },
       recent_ingest_anomalies: {
         total_count: anomalySummary.totalCount,
