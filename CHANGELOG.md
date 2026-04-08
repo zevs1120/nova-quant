@@ -11,7 +11,7 @@ NovaQuant 所有重要变更记录于此。
 - 新增 `src/styles/iphone-polish.css` 作为最终精修层，统一提升 iPhone 上的 shell 圆角、顶部栏磨砂、底部 tab 厚度与 safe-area 留白，让浏览器和 PWA 模式都更接近原生 App 观感。
 - Today / Nova / Browse / My 四个主页面的关键卡片、输入区和列表间距同步做了 iPhone 化调整，减少拥挤感，提升首屏层次、触达面积与滚动时的呼吸感。
 - 第二轮继续补齐了触控反馈、横向滚动 snap 节奏、页面级氛围背景与 iPhone landscape 紧凑规则，让卡片点击、切换和短屏横屏场景也保持精致感。
-- 第三轮继续强化了 Today rebuild / preview 的舞台感，以及 Browse detail 的 hero、chart、stats / story 卡片层级，让 iPhone 上的重点场景更有视觉戏剧性和金融产品质感。
+- 第三轮继续强化了 Browse detail 的 hero、chart、stats / story 卡片层级，让 iPhone 上的重点场景更有金融产品质感。
 
 ### ⚡ Search / Runtime / Chat 再降一轮常驻消耗
 
