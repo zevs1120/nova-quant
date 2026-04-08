@@ -457,6 +457,34 @@
   line-height: 1.28;
 }
 
+.today-rebuild-card-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.today-rebuild-card-metric {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.today-rebuild-card-metric-label {
+  color: var(--today-card-muted);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.today-rebuild-card-metric-value {
+  color: rgba(255, 255, 255, 0.98);
+  font-size: 13px;
+  font-weight: 760;
+  letter-spacing: -0.02em;
+  line-height: 1.12;
+}
+
 .today-rebuild-empty {
   display: grid;
   align-content: end;

@@ -401,6 +401,25 @@ function actionCardRiskNoteText(signal, locale) {
     : 'Respect the stop strictly and keep single-position size restrained.';
 }
 
+function buildActionExecutionItems(signal, locale) {
+  const items = [
+    {
+      label: locale === 'zh' ? '入场' : 'Entry',
+      value: entryRangeText(signal),
+    },
+    {
+      label: locale === 'zh' ? '止损' : 'Stop',
+      value: stopLossText(signal),
+    },
+    {
+      label: locale === 'zh' ? '仓位' : 'Size',
+      value: suggestedPositionText(signal),
+    },
+  ].filter((item) => item.value && item.value !== '--');
+
+  return items.slice(0, 3);
+}
+
 function mergeEvidenceSignals(allSignals, evidenceSignals) {
   if (!Array.isArray(evidenceSignals) || !evidenceSignals.length) return allSignals || [];
   const signalById = new Map((allSignals || []).map((row) => [row.signal_id, row]));
@@ -1567,6 +1586,7 @@ export default function TodayTab({
           chipLabel: actionCardTagLabel(signal, locale),
           tone: signalDecisionTone(signal),
           subtitle: actionCardWhyNowText(signal, locale),
+          executionItems: buildActionExecutionItems(signal, locale),
           note: actionCardRiskNoteText(signal, locale),
         };
       }),

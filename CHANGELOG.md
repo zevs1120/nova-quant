@@ -16,6 +16,12 @@ NovaQuant 所有重要变更记录于此。
 - 卡面正文不再默认用 `Buy setup · 81%` 这类内部信号语气做主文案，而是优先展示 `brief_why_now` / `thesis`，让用户先看到“为什么现在值得看”。
 - 卡面次文案同步改为优先展示 `risk_note` / `implementation caveat`，让 Action Card 更像可执行建议，而不是内部信号摘要。
 
+### 📍 Today Action Card 补充 Entry / Stop / Size 执行行
+
+- **feat(today): Today 卡片正面新增执行三件套。**
+- 在不改 deck 结构和交互的前提下，卡面新增一行 `Entry / Stop / Size` 关键信息，让用户不用先点开详情就能判断这张卡是否足够接近可下单状态。
+- 执行行优先复用已有的 entry range、stop loss 和建议仓位逻辑，不额外引入新的前台决策口径。
+
 ### 🎨 iPhone App 端显示精修
 
 - **feat(app,ui): 针对 iPhone 手持设备收紧主壳与四个主页面的显示节奏。**

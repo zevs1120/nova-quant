@@ -108,6 +108,16 @@ function TodayDeckCard({
 
           <div className="today-rebuild-card-footer">
             <p className="today-rebuild-card-subtitle">{card.subtitle}</p>
+            {Array.isArray(card.executionItems) && card.executionItems.length ? (
+              <div className="today-rebuild-card-metrics" aria-label="Execution summary">
+                {card.executionItems.map((item) => (
+                  <div key={item.label} className="today-rebuild-card-metric">
+                    <span className="today-rebuild-card-metric-label">{item.label}</span>
+                    <span className="today-rebuild-card-metric-value">{item.value}</span>
+                  </div>
+                ))}
+              </div>
+            ) : null}
             {card.note ? <p className="today-rebuild-card-note">{card.note}</p> : null}
           </div>
         </>
