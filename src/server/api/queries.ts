@@ -3564,6 +3564,38 @@ function summarizeControlPlaneDecision(core: RuntimeStateCore) {
   };
 }
 
+function summarizeRuntimeQuality(runtimeRows: Array<Record<string, any>>) {
+  const freshnessRows = runtimeRows.flatMap((row) =>
+    Array.isArray(row?.freshness?.rows) ? row.freshness.rows : [],
+  );
+  const suspectRows = freshnessRows.filter((row) => String(row?.quality_state_status || '') === 'SUSPECT');
+  const adjustmentDriftRows = freshnessRows.filter(
+    (row) => String(row?.quality_state_reason || '') === 'PROVIDER_ADJUSTMENT_DRIFT',
+  );
+  const corporateConflictRows = freshnessRows.filter(
+    (row) => String(row?.quality_state_reason || '') === 'CORPORATE_ACTION_SOURCE_CONFLICT',
+  );
+  const repairedRows = freshnessRows.filter((row) => String(row?.quality_state_status || '') === 'REPAIRED');
+  const quarantinedRows = freshnessRows.filter(
+    (row) => String(row?.quality_state_status || '') === 'QUARANTINED',
+  );
+
+  return {
+    total_rows: freshnessRows.length,
+    suspect_count: suspectRows.length,
+    repaired_count: repairedRows.length,
+    quarantined_count: quarantinedRows.length,
+    adjustment_drift_count: adjustmentDriftRows.length,
+    corporate_action_conflict_count: corporateConflictRows.length,
+    suspect_symbols_top: suspectRows.slice(0, 8).map((row) => ({
+      market: row.market,
+      symbol: row.symbol,
+      reason: row.quality_state_reason || row.quality_gate_reason || null,
+      status: row.quality_state_status || null,
+    })),
+  };
+}
+
 export async function getFlywheelStatus(_args?: { userId?: string }) {
   if (!shouldPreferPostgresPrimaryReads()) {
     return buildFlywheelStatus(getRepo());
@@ -3678,6 +3710,7 @@ async function getControlPlaneStatusUncached(args?: { userId?: string }) {
       browse_home_movers_count: browseHome?.topMovers?.length || 0,
     },
     runtime,
+    quality_summary: summarizeRuntimeQuality(runtime as Array<Record<string, any>>),
     strategy_factory: {
       latest_run_at: latestStrategyLabRun
         ? new Date(latestStrategyLabRun.updated_at_ms).toISOString()

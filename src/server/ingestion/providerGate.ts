@@ -409,6 +409,15 @@ export function ingestProviderBars(args: {
     metricsJson: JSON.stringify({
       source: args.source,
       summary,
+      adjustment_drift: adjustmentDrift.detected
+        ? {
+            overlap_count: adjustmentDrift.overlapCount,
+            median_ratio: adjustmentDrift.medianRatio,
+            max_deviation_pct: adjustmentDrift.maxDeviationPct,
+            incoming_source: args.source,
+            existing_sources: [...new Set(existingRows.map((row) => row.source))],
+          }
+        : null,
     }),
   });
   return summary;

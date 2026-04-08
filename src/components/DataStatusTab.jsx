@@ -1,14 +1,44 @@
+import { Fragment, useState } from 'react';
 import { useControlPlaneStatus } from '../hooks/useControlPlaneStatus';
 
+function formatDetailValue(value) {
+  if (value === null || value === undefined || value === '') return '--';
+  if (typeof value === 'number') return Number.isFinite(value) ? String(value) : '--';
+  if (typeof value === 'string') return value;
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function qualitySeverity(row) {
+  const status = String(row?.quality_state_status || '').toUpperCase();
+  const reason = String(row?.quality_state_reason || row?.quality_gate_reason || '').toUpperCase();
+  if (status === 'QUARANTINED') return 0;
+  if (reason === 'PROVIDER_ADJUSTMENT_DRIFT') return 1;
+  if (reason === 'CORPORATE_ACTION_SOURCE_CONFLICT') return 2;
+  if (status === 'SUSPECT') return 3;
+  if (status === 'REPAIRED') return 4;
+  if (String(row?.status || '').toUpperCase() !== 'DB_BACKED') return 5;
+  return 6;
+}
+
 export default function DataStatusTab({ data, fetchJson, effectiveUserId }) {
+  const [expandedRowKey, setExpandedRowKey] = useState(null);
   const runtime = data?.config?.runtime || {};
   const { controlPlane, loading: controlPlaneLoading } = useControlPlaneStatus({
     data,
     fetchJson,
     effectiveUserId,
   });
-  const freshnessRows = runtime?.freshness_summary?.rows || [];
+  const freshnessRows = [...(runtime?.freshness_summary?.rows || [])].sort((a, b) => {
+    const severityDiff = qualitySeverity(a) - qualitySeverity(b);
+    if (severityDiff !== 0) return severityDiff;
+    return String(a?.symbol || '').localeCompare(String(b?.symbol || ''));
+  });
   const coverage = runtime?.coverage_summary || {};
+  const qualitySummary = controlPlane?.quality_summary || {};
   const adjustmentDriftRows = freshnessRows.filter(
     (row) => row?.quality_state_reason === 'PROVIDER_ADJUSTMENT_DRIFT',
   );
@@ -62,6 +92,23 @@ export default function DataStatusTab({ data, fetchJson, effectiveUserId }) {
           <div className="status-box">
             <p className="muted">Signals Generated</p>
             <h2>{coverage?.generated_signals ?? '--'}</h2>
+          </div>
+        </div>
+        <div className="status-grid-3" style={{ marginTop: 12 }}>
+          <div className="status-box">
+            <p className="muted">Suspect</p>
+            <h2>{qualitySummary?.suspect_count ?? suspectRowsCount(freshnessRows)}</h2>
+            <p className="muted status-line">Rows carrying persisted suspect verdicts</p>
+          </div>
+          <div className="status-box">
+            <p className="muted">Repaired</p>
+            <h2>{qualitySummary?.repaired_count ?? freshnessRows.filter((row) => row?.quality_state_status === 'REPAIRED').length}</h2>
+            <p className="muted status-line">Series repaired by validation workflows</p>
+          </div>
+          <div className="status-box">
+            <p className="muted">Quarantined</p>
+            <h2>{qualitySummary?.quarantined_count ?? freshnessRows.filter((row) => row?.quality_state_status === 'QUARANTINED').length}</h2>
+            <p className="muted status-line">Rows blocked from trusted runtime usage</p>
           </div>
         </div>
         <ul className="bullet-list">
@@ -140,12 +187,12 @@ export default function DataStatusTab({ data, fetchJson, effectiveUserId }) {
         <div className="status-grid-3" style={{ marginBottom: 12 }}>
           <div className="status-box">
             <p className="muted">Adjustment Drift</p>
-            <h2>{adjustmentDriftRows.length}</h2>
+            <h2>{qualitySummary?.adjustment_drift_count ?? adjustmentDriftRows.length}</h2>
             <p className="muted status-line">Detected cross-source adjusted drift</p>
           </div>
           <div className="status-box">
             <p className="muted">Corp Action Conflicts</p>
-            <h2>{corporateConflictRows.length}</h2>
+            <h2>{qualitySummary?.corporate_action_conflict_count ?? corporateConflictRows.length}</h2>
             <p className="muted status-line">Provider mismatch on splits/dividends</p>
           </div>
           <div className="status-box">
@@ -164,23 +211,72 @@ export default function DataStatusTab({ data, fetchJson, effectiveUserId }) {
                 <th>Age(H)</th>
                 <th>Quality</th>
                 <th>Reason</th>
+                <th>Detail</th>
               </tr>
             </thead>
             <tbody>
-              {freshnessRows.map((row) => (
-                <tr key={`${row.market}-${row.symbol}`}>
-                  <td>{row.symbol}</td>
-                  <td>{row.market}</td>
-                  <td>{row.status}</td>
-                  <td>{row.age_hours ?? '--'}</td>
-                  <td>{row.quality_state_status || '--'}</td>
-                  <td>{row.quality_state_reason || row.quality_gate_reason || '--'}</td>
-                </tr>
-              ))}
+              {freshnessRows.map((row) => {
+                const rowKey = `${row.market}-${row.symbol}`;
+                const isExpanded = expandedRowKey === rowKey;
+                const metrics = row?.quality_state_metrics || {};
+                return (
+                  <Fragment key={rowKey}>
+                    <tr key={rowKey}>
+                      <td>{row.symbol}</td>
+                      <td>{row.market}</td>
+                      <td>{row.status}</td>
+                      <td>{row.age_hours ?? '--'}</td>
+                      <td>{row.quality_state_status || '--'}</td>
+                      <td>{row.quality_state_reason || row.quality_gate_reason || '--'}</td>
+                      <td>
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          onClick={() => setExpandedRowKey(isExpanded ? null : rowKey)}
+                        >
+                          {isExpanded ? 'Hide' : 'Inspect'}
+                        </button>
+                      </td>
+                    </tr>
+                    {isExpanded ? (
+                      <tr>
+                        <td colSpan={7}>
+                          <div className="status-grid-3" style={{ marginTop: 8 }}>
+                            <div className="status-box">
+                              <p className="muted">Updated</p>
+                              <p>{row.quality_state_updated_at ? new Date(row.quality_state_updated_at).toISOString() : '--'}</p>
+                            </div>
+                            <div className="status-box">
+                              <p className="muted">Corp Actions (1y)</p>
+                              <p>{row.recent_corporate_action_count ?? '--'}</p>
+                            </div>
+                            <div className="status-box">
+                              <p className="muted">Calendar Exceptions (1y)</p>
+                              <p>{row.recent_calendar_exception_count ?? '--'}</p>
+                            </div>
+                          </div>
+                          <div className="status-grid-3" style={{ marginTop: 8 }}>
+                            {Object.entries(metrics).slice(0, 9).map(([key, value]) => (
+                              <div className="status-box" key={key}>
+                                <p className="muted">{key}</p>
+                                <p>{formatDetailValue(value)}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </td>
+                      </tr>
+                    ) : null}
+                  </Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>
       </article>
     </section>
   );
+}
+
+function suspectRowsCount(rows) {
+  return rows.filter((row) => String(row?.quality_state_status || '') === 'SUSPECT').length;
 }

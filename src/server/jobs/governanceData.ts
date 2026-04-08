@@ -156,6 +156,10 @@ export function validateCorporateActionConsensus(args: {
 
   let mismatchCount = 0;
   let confirmedCount = 0;
+  const mismatches: Array<{
+    event_key: string;
+    values: Array<{ source: string; value: number | null; notes: string | null }>;
+  }> = [];
   for (const [key, bucket] of grouped.entries()) {
     const providerCount = new Set(bucket.map((row) => row.source)).size;
     if (providerCount < 2) continue;
@@ -167,6 +171,14 @@ export function validateCorporateActionConsensus(args: {
     const mismatch = comparable.some((value) => Math.abs(value / baseline - 1) > 0.08);
     if (mismatch) {
       mismatchCount += 1;
+      mismatches.push({
+        event_key: key,
+        values: bucket.map((row) => ({
+          source: row.source,
+          value: actionComparableValue(row),
+          notes: row.notes,
+        })),
+      });
       args.repo.logAnomaly({
         assetId: args.assetId,
         timeframe: '1d',
@@ -194,6 +206,7 @@ export function validateCorporateActionConsensus(args: {
         corporate_action_validation: {
           mismatch_count: mismatchCount,
           confirmed_count: confirmedCount,
+          mismatches,
         },
       }),
     });
@@ -202,6 +215,7 @@ export function validateCorporateActionConsensus(args: {
   return {
     mismatch_count: mismatchCount,
     confirmed_count: confirmedCount,
+    mismatches,
   };
 }
 

@@ -1567,6 +1567,24 @@ export function deriveRuntimeState(params: {
       assetId: asset.asset_id,
       timeframe,
     });
+    const qualityMetrics = parseJsonObject(persistedQualityState?.metrics_json);
+    const lookbackYearStart =
+      latestObservedTs === null ? undefined : latestObservedTs - timeframeToMs(timeframe) * 365;
+    const corporateActions = repo.listCorporateActions({
+      assetId: asset.asset_id,
+      startTs: lookbackYearStart,
+      endTs: latestObservedTs === null ? undefined : latestObservedTs,
+    });
+    const calendarExceptions = repo.listTradingCalendarExceptions({
+      market: target.market,
+      assetId: asset.asset_id,
+      startDayKey:
+        lookbackYearStart === undefined
+          ? undefined
+          : new Date(lookbackYearStart).toISOString().slice(0, 10),
+      endDayKey:
+        latestObservedTs === null ? undefined : new Date(latestObservedTs).toISOString().slice(0, 10),
+    });
     const anomalyPressure = assessRecentAnomalyPressure({
       summary: anomalySummary,
       quality,
@@ -1593,6 +1611,10 @@ export function deriveRuntimeState(params: {
         recent_price_anomaly_density: anomalyPressure.priceDensity,
         quality_state_status: persistedQualityState?.status || null,
         quality_state_reason: persistedQualityState?.reason || null,
+        quality_state_metrics: qualityMetrics,
+        quality_state_updated_at: persistedQualityState?.updated_at || null,
+        recent_corporate_action_count: corporateActions.length,
+        recent_calendar_exception_count: calendarExceptions.length,
       });
       continue;
     }
@@ -1624,6 +1646,10 @@ export function deriveRuntimeState(params: {
       recent_price_anomaly_density: anomalyPressure.priceDensity,
       quality_state_status: persistedQualityState?.status || null,
       quality_state_reason: persistedQualityState?.reason || null,
+      quality_state_metrics: qualityMetrics,
+      quality_state_updated_at: persistedQualityState?.updated_at || null,
+      recent_corporate_action_count: corporateActions.length,
+      recent_calendar_exception_count: calendarExceptions.length,
     });
 
     const baselineRule = selectRule(ctx);
