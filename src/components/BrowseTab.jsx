@@ -1,5 +1,5 @@
 import '../styles/browse.css';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { formatNumber } from '../utils/format';
 import { fetchApiJson } from '../utils/api';
 import {
@@ -237,6 +237,50 @@ function SearchIcon() {
       <circle cx="8.5" cy="8.5" r="5.25" />
       <path d="M12.5 12.5L16.25 16.25" />
     </svg>
+  );
+}
+
+function BrowseSkeletonBlock({ className = '' }) {
+  return <div className={`browse-rh-skeleton-block ${className}`.trim()} aria-hidden="true" />;
+}
+
+function BrowseHomeSkeleton() {
+  return (
+    <div className="browse-rh-skeleton-stack" aria-hidden="true">
+      <BrowseSkeletonBlock className="browse-rh-skeleton-hero" />
+      <div className="browse-rh-skeleton-chip-grid">
+        <BrowseSkeletonBlock className="browse-rh-skeleton-chip" />
+        <BrowseSkeletonBlock className="browse-rh-skeleton-chip" />
+        <BrowseSkeletonBlock className="browse-rh-skeleton-chip" />
+      </div>
+      <div className="browse-rh-skeleton-market-row">
+        <BrowseSkeletonBlock className="browse-rh-skeleton-market-card" />
+        <BrowseSkeletonBlock className="browse-rh-skeleton-market-card" />
+      </div>
+      <BrowseSkeletonBlock className="browse-rh-skeleton-list-card" />
+      <BrowseSkeletonBlock className="browse-rh-skeleton-list-card" />
+    </div>
+  );
+}
+
+function BrowseDetailSkeleton() {
+  return (
+    <div className="browse-rh-skeleton-stack browse-rh-skeleton-detail" aria-hidden="true">
+      <div className="browse-rh-skeleton-detail-head">
+        <div className="browse-rh-skeleton-detail-copy">
+          <BrowseSkeletonBlock className="browse-rh-skeleton-pill" />
+          <BrowseSkeletonBlock className="browse-rh-skeleton-symbol" />
+          <BrowseSkeletonBlock className="browse-rh-skeleton-line-wide" />
+        </div>
+        <BrowseSkeletonBlock className="browse-rh-skeleton-button" />
+      </div>
+      <BrowseSkeletonBlock className="browse-rh-skeleton-chart" />
+      <div className="browse-rh-skeleton-market-row">
+        <BrowseSkeletonBlock className="browse-rh-skeleton-market-card" />
+        <BrowseSkeletonBlock className="browse-rh-skeleton-market-card" />
+      </div>
+      <BrowseSkeletonBlock className="browse-rh-skeleton-list-card" />
+    </div>
   );
 }
 
@@ -626,6 +670,7 @@ export default function BrowseTab({
   watchlist = [],
   setWatchlist,
   onToggleWatchlist,
+  onActionFeedback,
   topBarBackToken = 0,
   onTopBarStateChange,
 }) {
@@ -638,6 +683,7 @@ export default function BrowseTab({
         STOCK: isZh ? '股票' : 'Stock',
         CRYPTO: isZh ? '加密' : 'Crypto',
       },
+      market: isZh ? '市场' : 'Market',
       featured: isZh ? '精选标的' : 'Featured choices',
       focus: isZh ? '今天先看这个' : 'Today’s focus',
       openFocus: isZh ? '查看' : 'Open',
@@ -664,6 +710,7 @@ export default function BrowseTab({
         : 'The asset universe is available, but this query did not match anything.',
       back: isZh ? '返回' : 'Back',
       loading: isZh ? '加载中…' : 'Loading…',
+      refreshing: isZh ? '正在静默刷新…' : 'Refreshing quietly…',
       detailError: isZh ? '详情暂时不可用。' : 'Detail is unavailable.',
       relatedEtfs: isZh ? '相关 ETF' : 'Related ETFs',
       derivatives: isZh ? '期权 / 衍生品' : 'Options / derivatives',
@@ -702,6 +749,7 @@ export default function BrowseTab({
   const [category, setCategory] = useState('STOCK');
   const [homeStateByCategory, setHomeStateByCategory] = useState(() => buildInitialHomeState());
   const [query, setQuery] = useState('');
+  const deferredQuery = useDeferredValue(query);
   const [searchState, setSearchState] = useState('idle');
   const [searchResults, setSearchResults] = useState([]);
   const [searchHealth, setSearchHealth] = useState(null);
@@ -760,6 +808,12 @@ export default function BrowseTab({
   }, [activeList, copy.title, onTopBarStateChange, selectedAsset]);
 
   const homeState = homeStateByCategory[category] || { loading: true, error: '', data: null };
+  const hasHomeData = Boolean(homeState.data);
+  const showHomeSkeleton = homeState.loading && !hasHomeData;
+  const showHomeRefreshing = homeState.loading && hasHomeData;
+  const hasDetailValues = detailState.values.length > 0;
+  const showDetailSkeleton = detailState.loading && !hasDetailValues;
+  const showDetailRefreshing = detailState.loading && hasDetailValues;
 
   useEffect(() => {
     if (!topBarBackToken) {
@@ -790,7 +844,7 @@ export default function BrowseTab({
           return {
             ...current,
             [view]: {
-              loading: !next.data,
+              loading: true,
               error: '',
               data: next.data,
             },
@@ -846,7 +900,7 @@ export default function BrowseTab({
   }, [activeList, category, copy.detailError, query, selectedKey, selectedAsset]);
 
   useEffect(() => {
-    const trimmed = query.trim();
+    const trimmed = deferredQuery.trim();
     if (!trimmed) {
       setSearchState('idle');
       setSearchResults([]);
@@ -893,7 +947,7 @@ export default function BrowseTab({
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [query]);
+  }, [deferredQuery]);
 
   useEffect(() => {
     if (!selectedAsset) {
@@ -938,22 +992,30 @@ export default function BrowseTab({
     let cancelled = false;
     let inFlight = false;
     const config = DETAIL_RANGE_CONFIG[detailRange];
-    const loadChart = async (initial = false) => {
-      if (inFlight) return;
-      inFlight = true;
-      if (initial) {
-        setDetailState({
-          loading: true,
-          error: '',
-          values: [],
-          latest: null,
-          change: null,
-          low: null,
-          high: null,
-          asOf: null,
-          source: null,
-        });
-      }
+      const loadChart = async (initial = false) => {
+        if (inFlight) return;
+        inFlight = true;
+        if (initial) {
+          setDetailState((current) =>
+            current.values.length
+              ? {
+                  ...current,
+                  loading: true,
+                  error: '',
+                }
+              : {
+                  loading: true,
+                  error: '',
+                  values: [],
+                  latest: null,
+                  change: null,
+                  low: null,
+                  high: null,
+                  asOf: null,
+                  source: null,
+                },
+          );
+        }
       try {
         const chartPayload = config.live
           ? normalizeDetailBundlePayload(
@@ -1100,10 +1162,22 @@ export default function BrowseTab({
   function toggleWatch() {
     if (!selectedAsset) return;
     const symbol = normalizeSymbol(selectedAsset.symbol);
+    const removing = watchedSymbols.includes(symbol);
     if (typeof onToggleWatchlist === 'function') {
       onToggleWatchlist(symbol, {
-        mode: watchedSymbols.includes(symbol) ? 'remove' : 'add',
+        mode: removing ? 'remove' : 'add',
         source: 'custom',
+      });
+      onActionFeedback?.({
+        message: isZh
+          ? removing
+            ? `${symbol} 已移出观察列表。`
+            : `${symbol} 已加入观察列表。`
+          : removing
+            ? `${symbol} removed from watchlist.`
+            : `${symbol} added to watchlist.`,
+        tone: 'success',
+        haptic: removing ? 'soft' : 'confirm',
       });
       return;
     }
@@ -1113,6 +1187,17 @@ export default function BrowseTab({
         ? current.map((item) => normalizeSymbol(item)).filter(Boolean)
         : [];
       return list.includes(symbol) ? list.filter((item) => item !== symbol) : [...list, symbol];
+    });
+    onActionFeedback?.({
+      message: isZh
+        ? removing
+          ? `${symbol} 已移出观察列表。`
+          : `${symbol} 已加入观察列表。`
+        : removing
+          ? `${symbol} removed from watchlist.`
+          : `${symbol} added to watchlist.`,
+      tone: 'success',
+      haptic: removing ? 'soft' : 'confirm',
     });
   }
 
@@ -1133,7 +1218,7 @@ export default function BrowseTab({
     const isCryptoCategory = category === 'CRYPTO';
     const moverItems = isCryptoCategory ? data?.cryptoMovers || [] : data?.topMovers || [];
     const featuredItems = data?.futuresMarkets || [];
-    const [focusItem, ...marketPulseItems] = featuredItems;
+    const marketItems = featuredItems.slice(0, 4);
     const radarItems = !isCryptoCategory
       ? [
           ...(data?.earnings || []).slice(0, 3),
@@ -1215,25 +1300,21 @@ export default function BrowseTab({
               ))}
             </div>
 
-            {homeState.loading ? <div className="browse-rh-empty">{copy.loading}</div> : null}
+            {showHomeSkeleton ? <BrowseHomeSkeleton /> : null}
+            {showHomeRefreshing ? (
+              <p className="browse-rh-refreshing">{copy.refreshing}</p>
+            ) : null}
             {!homeState.loading && homeState.error ? (
               <div className="browse-rh-empty">{homeState.error}</div>
             ) : null}
 
-            {data ? (
+            {data && !showHomeSkeleton ? (
               <>
-                <section className="browse-rh-section">
-                  <SectionHeader title={copy.focus} />
-                  <FocusHeroCard
-                    item={focusItem}
-                    locale={locale}
-                    onOpen={openItem}
-                    kicker={copy.featured}
-                    ctaLabel={copy.openFocus}
-                  />
-                  {marketPulseItems.length ? (
+                {marketItems.length ? (
+                  <section className="browse-rh-section">
+                    <SectionHeader title={copy.market} />
                     <div className="browse-home-market-strip">
-                      {marketPulseItems.slice(0, 3).map((item) => (
+                      {marketItems.map((item) => (
                         <MarketCard
                           key={`${item.market}-${item.symbol}`}
                           item={item}
@@ -1242,26 +1323,28 @@ export default function BrowseTab({
                         />
                       ))}
                     </div>
-                  ) : null}
-                </section>
+                  </section>
+                ) : null}
 
-                <section className="browse-rh-section">
-                  <SectionHeader title={copy.topMovers} />
-                  <div className="browse-rh-chip-grid">
-                    {moverItems.slice(0, 6).map((item) => (
-                      <MoverChip
-                        key={`move-${item.symbol}`}
-                        item={item}
-                        locale={locale}
-                        onOpen={openItem}
-                      />
-                    ))}
-                  </div>
-                </section>
+                {moverItems.length ? (
+                  <section className="browse-rh-section">
+                    <SectionHeader title={copy.topMovers} />
+                    <div className="browse-rh-chip-grid">
+                      {moverItems.slice(0, 6).map((item) => (
+                        <MoverChip
+                          key={`move-${item.symbol}`}
+                          item={item}
+                          locale={locale}
+                          onOpen={openItem}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                ) : null}
 
                 {radarItems.length ? (
                   <section className="browse-rh-section">
-                    <SectionHeader title={copy.radar} />
+                    <SectionHeader title={isCryptoCategory ? copy.radar : copy.earnings} />
                     <div className="browse-rh-list">
                       {radarItems.map((item, idx) => (
                         <EarningsRow
@@ -1274,101 +1357,29 @@ export default function BrowseTab({
                   </section>
                 ) : null}
 
-                <section className="browse-rh-section">
-                  <SectionHeader
-                    title={copy.ideas}
-                    action={copy.openAll}
-                    onAction={() =>
-                      openHomeList(
-                        (data?.screeners || []).length >= (data?.trendingLists || []).length
-                          ? 'screeners'
-                          : 'trending',
-                      )
-                    }
-                  />
-                  <div className="browse-home-explore-grid">
-                    {exploreItems.map((item, index) => (
-                      <ExploreCard
-                        key={item.id}
-                        item={item}
-                        index={index}
-                        onOpen={setActiveList}
-                        kicker={copy.explore}
-                      />
-                    ))}
-                  </div>
-                </section>
-
-                {(data?.trendingLists || []).length ? (
+                {exploreItems.length ? (
                   <section className="browse-rh-section">
                     <SectionHeader
-                      title={copy.trending}
+                      title={copy.ideas}
                       action={copy.showMore}
-                      onAction={() => openHomeList('trending')}
-                    />
-                    <div className="browse-rh-trend-grid">
-                      {(data.trendingLists || []).slice(0, 4).map((item) => (
-                        <TrendChip key={item.id} item={item} onOpen={setActiveList} />
-                      ))}
-                    </div>
-                  </section>
-                ) : null}
-
-                {(data?.screeners || []).length > 2 ? (
-                  <section className="browse-rh-section">
-                    <SectionHeader
-                      title={copy.screeners}
-                      action={copy.showMore}
-                      onAction={() => openHomeList('screeners')}
+                      onAction={() =>
+                        openHomeList(
+                          (data?.screeners || []).length >= (data?.trendingLists || []).length
+                            ? 'screeners'
+                            : 'trending',
+                        )
+                      }
                     />
                     <div className="browse-rh-list">
-                      {(data.screeners || []).slice(2, 4).map((item, index) => (
+                      {exploreItems.map((item, index) => (
                         <ScreenerRow
                           key={item.id}
                           item={item}
-                          index={index + 2}
+                          index={index}
                           onOpen={setActiveList}
                         />
                       ))}
                     </div>
-                  </section>
-                ) : null}
-
-                {(data?.trendingLists || []).length > 4 ? (
-                  <section className="browse-rh-section">
-                    <button
-                      type="button"
-                      className="browse-rh-expand"
-                      onClick={() =>
-                        setActiveList({
-                          type: 'trending',
-                          title: copy.trending,
-                          lists: data.trendingLists || [],
-                        })
-                      }
-                    >
-                      <span>{copy.showMore}</span>
-                      <ChevronDown />
-                    </button>
-                  </section>
-                ) : null}
-
-                {(data?.screeners || []).length > 4 ? (
-                  <section className="browse-rh-section">
-                    <button
-                      type="button"
-                      className="browse-rh-expand"
-                      onClick={() =>
-                        setActiveList({
-                          type: 'screeners',
-                          title: copy.screeners,
-                          lists: data.screeners || [],
-                        })
-                      }
-                    >
-                      <span>{copy.showMore}</span>
-                      <ChevronDown />
-                    </button>
                   </section>
                 ) : null}
               </>
@@ -1427,7 +1438,9 @@ export default function BrowseTab({
       detailOverview?.assetType,
       detailOverview?.profile?.tradingVenue,
       detailOverview?.profile?.quoteCurrency,
-    ].filter(Boolean);
+    ]
+      .filter(Boolean)
+      .slice(0, 2);
     const quickStats = [
       {
         label: copy.latest,
@@ -1553,12 +1566,17 @@ export default function BrowseTab({
           </div>
 
           <div className="browse-rh-detail-chart-shell">
-            {detailState.loading ? <div className="browse-rh-empty">{copy.loading}</div> : null}
+            {showDetailSkeleton ? <BrowseDetailSkeleton /> : null}
             {!detailState.loading && detailState.error ? (
               <div className="browse-rh-empty">{detailState.error}</div>
             ) : null}
-            {!detailState.loading && detailState.values.length ? (
+            {hasDetailValues ? (
               <>
+                {showDetailRefreshing ? (
+                  <p className="browse-rh-refreshing browse-rh-refreshing-inline">
+                    {copy.refreshing}
+                  </p>
+                ) : null}
                 <div className="browse-rh-detail-quote">
                   <div>
                     <div className="browse-rh-detail-price-row">
