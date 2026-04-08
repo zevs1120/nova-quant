@@ -4,6 +4,12 @@ NovaQuant 所有重要变更记录于此。
 
 ## 10.22.33 (2026-04-07)
 
+### 🧭 Today Climate Header 对齐真实结论
+
+- **feat(today): 顶部 Climate 头部改为直接显示当天结论与原因。**
+- Today 首屏头部不再只显示抽象的 `Climate` 标签，而是直接展示运行时生成的 headline / subtitle，让用户一眼看到今天是可动作、先观察还是先防守。
+- 保留原有布局骨架，仅补充小标签、主结论和一句原因说明，避免改动现有 Today 的主交互节奏。
+
 ### 🎨 iPhone App 端显示精修
 
 - **feat(app,ui): 针对 iPhone 手持设备收紧主壳与四个主页面的显示节奏。**

@@ -3763,7 +3763,23 @@
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  width: fit-content;
+  width: 100%;
+  justify-content: space-between;
+}
+
+.today-rebuild-title-copy {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.today-rebuild-kicker {
+  margin: 0;
+  color: rgba(18, 21, 34, 0.44);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .today-rebuild-title {
@@ -3773,6 +3789,15 @@
   line-height: 0.94;
   font-weight: 820;
   letter-spacing: -0.07em;
+}
+
+.today-rebuild-subtitle {
+  margin: 0;
+  max-width: 32ch;
+  color: rgba(18, 21, 34, 0.66);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.28;
 }
 
 .today-rebuild-dot {

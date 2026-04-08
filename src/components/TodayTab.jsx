@@ -2275,6 +2275,9 @@ export default function TodayTab({
         climateVisualTone={climateVisualTone}
         climateStatusLabel={climateStatusLabel}
         todayDateLabel={todayDateLabel}
+        climateEyebrowLabel={locale === 'zh' ? 'Climate' : 'Climate'}
+        climateHeadline={overall?.headline || (locale === 'zh' ? '今天先观察' : 'Wait today')}
+        climateSubtitle={overall?.subtitle || risk?.explanation || null}
       />
 
       <TodayDeckSection
