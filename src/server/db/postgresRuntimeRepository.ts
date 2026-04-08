@@ -60,7 +60,12 @@ import type {
   NovaTaskRunSlimRecord,
   NovaReviewLabelRecord,
 } from '../types.js';
-import { MarketRepository, type IngestAnomalySummary } from './repository.js';
+import {
+  MarketRepository,
+  type IngestAnomalySummary,
+  type OhlcvQualityStateRecord,
+  type OhlcvQualityStatus,
+} from './repository.js';
 import {
   beginTransactionSync,
   commitTransactionSync,
@@ -829,6 +834,35 @@ export class PostgresRuntimeRepository extends MarketRepository {
     ).map((row) => row.ts_open);
   }
 
+  getOhlcvByTsOpen(assetId: number, timeframe: Timeframe, tsOpenList: number[]): Array<{
+    ts_open: number;
+    open: string;
+    high: string;
+    low: string;
+    close: string;
+    volume: string;
+    source: string;
+  }> {
+    if (!tsOpenList.length) return [];
+    return queryRowsSync<{
+      ts_open: number;
+      open: string;
+      high: string;
+      low: string;
+      close: string;
+      volume: string;
+      source: string;
+    }>(
+      `
+        SELECT ts_open, open, high, low, close, volume, source
+        FROM ${qualifyBusinessTable('ohlcv')}
+        WHERE asset_id = $1 AND timeframe = $2 AND ts_open = ANY($3::bigint[])
+        ORDER BY ts_open ASC
+      `,
+      [assetId, timeframe, tsOpenList],
+    );
+  }
+
   logAnomaly(args: {
     assetId?: number | null;
     timeframe: Timeframe;
@@ -910,6 +944,44 @@ export class PostgresRuntimeRepository extends MarketRepository {
         return acc;
       }, {}),
     };
+  }
+
+  upsertOhlcvQualityState(args: {
+    assetId: number;
+    timeframe: Timeframe;
+    status: OhlcvQualityStatus;
+    reason?: string | null;
+    metricsJson: string;
+  }): void {
+    executeSync(
+      `
+        INSERT INTO ${qualifyBusinessTable('ohlcv_quality_state')}(
+          asset_id, timeframe, status, reason, metrics_json, updated_at
+        ) VALUES($1, $2, $3, $4, $5, $6)
+        ON CONFLICT(asset_id, timeframe) DO UPDATE SET
+          status = excluded.status,
+          reason = excluded.reason,
+          metrics_json = excluded.metrics_json,
+          updated_at = excluded.updated_at
+      `,
+      [args.assetId, args.timeframe, args.status, args.reason ?? null, args.metricsJson, nowMs()],
+    );
+  }
+
+  getOhlcvQualityState(args: {
+    assetId: number;
+    timeframe: Timeframe;
+  }): OhlcvQualityStateRecord | null {
+    const row = queryRowSync<OhlcvQualityStateRecord>(
+      `
+        SELECT asset_id, timeframe, status, reason, metrics_json, updated_at
+        FROM ${qualifyBusinessTable('ohlcv_quality_state')}
+        WHERE asset_id = $1 AND timeframe = $2
+        LIMIT 1
+      `,
+      [args.assetId, args.timeframe],
+    );
+    return row ?? null;
   }
 
   upsertSignal(signal: SignalContract): void {

@@ -14,6 +14,9 @@ export type ProviderGateSummary = {
   extremeMoveCount: number;
   flatRunCount: number;
   zeroVolumeRunCount: number;
+  sourceConflictCount: number;
+  priorityRetainedCount: number;
+  priorityOverrideCount: number;
   anomalyCount: number;
 };
 
@@ -33,6 +36,83 @@ function buildAnomalyDetail(args: {
   const symbolLabel = args.symbol ? `${args.symbol} ` : '';
   const tsLabel = args.tsOpen === null ? 'unknown-ts' : String(args.tsOpen);
   return `${args.source} ${symbolLabel}${args.timeframe} ${args.message} at ${tsLabel}`.trim();
+}
+
+function sourcePriority(source: string): number {
+  const normalized = String(source || '').trim().toUpperCase();
+  if (!normalized) return 50;
+  if (normalized.includes('BINANCE_REPAIR')) return 100;
+  if (normalized.includes('MASSIVE')) return 95;
+  if (normalized.includes('NASDAQ')) return 90;
+  if (normalized.includes('YAHOO_REPAIR')) return 85;
+  if (normalized.includes('YAHOO')) return 75;
+  if (normalized.includes('ALPHA_VANTAGE_REPAIR')) return 72;
+  if (normalized.includes('ALPHA_VANTAGE')) return 65;
+  if (normalized.includes('STOOQ')) return 60;
+  if (normalized.includes('BINANCE')) return 80;
+  return 50;
+}
+
+function parseBarNumber(value: string): number {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : 0;
+}
+
+function computeConflictPct(existing: NormalizedBar, incoming: NormalizedBar): number {
+  const existingNumbers = [
+    parseBarNumber(existing.open),
+    parseBarNumber(existing.high),
+    parseBarNumber(existing.low),
+    parseBarNumber(existing.close),
+  ];
+  const incomingNumbers = [
+    parseBarNumber(incoming.open),
+    parseBarNumber(incoming.high),
+    parseBarNumber(incoming.low),
+    parseBarNumber(incoming.close),
+  ];
+  return existingNumbers.reduce((maxDiff, existingValue, index) => {
+    const incomingValue = incomingNumbers[index];
+    const denominator = Math.max(Math.abs(existingValue), Math.abs(incomingValue), 1);
+    return Math.max(maxDiff, Math.abs(existingValue - incomingValue) / denominator);
+  }, 0);
+}
+
+function deriveQualityState(summary: ProviderGateSummary): {
+  status: 'TRUSTED' | 'SUSPECT' | 'QUARANTINED';
+  reason: string | null;
+} {
+  const droppedRatio = summary.rawCount > 0 ? summary.droppedCount / summary.rawCount : 0;
+  const conflictRatio = summary.rawCount > 0 ? summary.sourceConflictCount / summary.rawCount : 0;
+
+  if (summary.insertedCount === 0 && summary.priorityRetainedCount === 0) {
+    return { status: 'QUARANTINED', reason: 'NO_ACCEPTED_PROVIDER_BARS' };
+  }
+  if (droppedRatio > 0.2) {
+    return { status: 'QUARANTINED', reason: 'INVALID_PROVIDER_BAR_RATIO' };
+  }
+  if (
+    summary.flatRunCount > 0 ||
+    summary.zeroVolumeRunCount > 0 ||
+    summary.extremeMoveCount > 0 ||
+    summary.envelopeAdjustedCount > 0 ||
+    conflictRatio > 0.1
+  ) {
+    return {
+      status: 'SUSPECT',
+      reason:
+        summary.sourceConflictCount > 0
+          ? 'PROVIDER_SOURCE_CONFLICT'
+          : summary.flatRunCount > 0
+            ? 'SEQUENCE_FLAT_RUN'
+            : summary.zeroVolumeRunCount > 0
+              ? 'SEQUENCE_ZERO_VOLUME_RUN'
+              : summary.extremeMoveCount > 0
+                ? 'SEQUENCE_EXTREME_MOVE'
+                : 'ENVELOPE_OR_VOLUME_ANOMALY',
+    };
+  }
+  return { status: 'TRUSTED', reason: null };
 }
 
 export function prepareProviderBars(args: {
@@ -144,6 +224,9 @@ export function prepareProviderBars(args: {
       extremeMoveCount: sequence.extremeMoveCount,
       flatRunCount: sequence.flatRunCount,
       zeroVolumeRunCount: sequence.zeroVolumeRunCount,
+      sourceConflictCount: 0,
+      priorityRetainedCount: 0,
+      priorityOverrideCount: 0,
       anomalyCount: anomalies.length,
     },
   };
@@ -158,6 +241,47 @@ export function ingestProviderBars(args: {
   symbol?: string;
 }): ProviderGateSummary {
   const prepared = prepareProviderBars(args);
+  const existingRows = args.repo.getOhlcvByTsOpen(
+    args.assetId,
+    args.timeframe,
+    prepared.bars.map((row) => row.ts_open),
+  );
+  const existingByTs = new Map(existingRows.map((row) => [row.ts_open, row] as const));
+  const acceptedBars: NormalizedBar[] = [];
+  let sourceConflictCount = 0;
+  let priorityRetainedCount = 0;
+  let priorityOverrideCount = 0;
+  for (const row of prepared.bars) {
+    const existing = existingByTs.get(row.ts_open);
+    if (!existing || String(existing.source || '') === String(args.source || '')) {
+      acceptedBars.push(row);
+      continue;
+    }
+    const existingPriority = sourcePriority(existing.source);
+    const incomingPriority = sourcePriority(args.source);
+    const conflictPct = computeConflictPct(existing, row);
+    if (conflictPct > 0.03) {
+      sourceConflictCount += 1;
+      prepared.anomalies.push({
+        tsOpen: row.ts_open,
+        anomalyType: 'SOURCE_CONFLICT_ANOMALY',
+        detail: buildAnomalyDetail({
+          source: args.source,
+          symbol: args.symbol,
+          timeframe: args.timeframe,
+          tsOpen: row.ts_open,
+          message: `conflicted with ${existing.source} by ${Math.round(conflictPct * 10000) / 100}%`,
+        }),
+      });
+    }
+    if (incomingPriority > existingPriority) {
+      priorityOverrideCount += 1;
+      acceptedBars.push(row);
+      continue;
+    }
+    priorityRetainedCount += 1;
+  }
+
   for (const anomaly of prepared.anomalies) {
     args.repo.logAnomaly({
       assetId: args.assetId,
@@ -167,8 +291,27 @@ export function ingestProviderBars(args: {
       detail: anomaly.detail,
     });
   }
-  if (prepared.bars.length > 0) {
-    args.repo.upsertOhlcvBars(args.assetId, args.timeframe, prepared.bars, args.source);
+  if (acceptedBars.length > 0) {
+    args.repo.upsertOhlcvBars(args.assetId, args.timeframe, acceptedBars, args.source);
   }
-  return prepared.summary;
+  const summary: ProviderGateSummary = {
+    ...prepared.summary,
+    insertedCount: acceptedBars.length,
+    sourceConflictCount,
+    priorityRetainedCount,
+    priorityOverrideCount,
+    anomalyCount: prepared.anomalies.length,
+  };
+  const qualityState = deriveQualityState(summary);
+  args.repo.upsertOhlcvQualityState({
+    assetId: args.assetId,
+    timeframe: args.timeframe,
+    status: qualityState.status,
+    reason: qualityState.reason,
+    metricsJson: JSON.stringify({
+      source: args.source,
+      summary,
+    }),
+  });
+  return summary;
 }

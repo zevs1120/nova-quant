@@ -52,6 +52,19 @@ CREATE TABLE IF NOT EXISTS ingest_anomalies (
   FOREIGN KEY(asset_id) REFERENCES assets(asset_id) ON DELETE SET NULL
 );
 
+CREATE TABLE IF NOT EXISTS ohlcv_quality_state (
+  asset_id INTEGER NOT NULL,
+  timeframe TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('TRUSTED', 'SUSPECT', 'REPAIRED', 'QUARANTINED')),
+  reason TEXT,
+  metrics_json TEXT NOT NULL,
+  updated_at INTEGER NOT NULL,
+  PRIMARY KEY(asset_id, timeframe),
+  FOREIGN KEY(asset_id) REFERENCES assets(asset_id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_ohlcv_quality_state_status ON ohlcv_quality_state(status, updated_at DESC);
+
 CREATE TABLE IF NOT EXISTS funding_rates (
   asset_id INTEGER NOT NULL,
   ts_open INTEGER NOT NULL,

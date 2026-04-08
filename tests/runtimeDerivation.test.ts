@@ -2,6 +2,7 @@ import { InMemorySyncDb as Database } from '../src/server/db/inMemorySyncDb.js';
 import { describe, expect, it } from 'vitest';
 import { ensureSchema } from '../src/server/db/schema.js';
 import { MarketRepository } from '../src/server/db/repository.js';
+import { ingestProviderBars } from '../src/server/ingestion/providerGate.js';
 import { deriveRuntimeState } from '../src/server/quant/runtimeDerivation.js';
 import type { NormalizedBar } from '../src/server/types.js';
 
@@ -372,5 +373,48 @@ describe('derive runtime state', () => {
     const freshnessRow = freshnessRows.find((row) => row.symbol === 'SPY');
     expect(freshnessRow?.quality_gate_reason).toBe('TOO_MANY_EXTREME_MOVE_BARS');
     expect(Number(freshnessRow?.extreme_move_bars || 0)).toBeGreaterThan(50);
+  });
+
+  it('surfaces persisted quality state alongside runtime freshness rows', () => {
+    const db = new Database(':memory:');
+    ensureSchema(db);
+    const repo = new MarketRepository(db);
+    const asset = repo.upsertAsset({
+      symbol: 'SPY',
+      market: 'US',
+      venue: 'MASSIVE',
+    });
+    const now = Date.now();
+
+    ingestProviderBars({
+      repo,
+      assetId: asset.asset_id,
+      timeframe: '1d',
+      source: 'MASSIVE_REST',
+      symbol: 'SPY',
+      rows: buildTrendBars(now - 120 * 86_400_000, 86_400_000, 450, 120),
+    });
+
+    const runtime = deriveRuntimeState({
+      repo,
+      userId: 'quality-state-user',
+      riskProfile: {
+        user_id: 'quality-state-user',
+        profile_key: 'balanced',
+        max_loss_per_trade: 1,
+        max_daily_loss: 3,
+        max_drawdown: 12,
+        exposure_cap: 55,
+        leverage_cap: 2,
+        updated_at_ms: now,
+      },
+    });
+
+    const freshnessRows = Array.isArray((runtime.freshnessSummary as { rows?: unknown }).rows)
+      ? ((runtime.freshnessSummary as { rows?: unknown[] }).rows as Record<string, unknown>[])
+      : [];
+    const freshnessRow = freshnessRows.find((row) => row.symbol === 'SPY');
+    expect(freshnessRow?.quality_state_status).toBe('TRUSTED');
+    expect(freshnessRow?.quality_state_reason).toBe(null);
   });
 });

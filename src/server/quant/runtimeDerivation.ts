@@ -1551,6 +1551,10 @@ export function deriveRuntimeState(params: {
       startTsOpen: anomalyWindowStart,
       endTsOpen: latestObservedTs === null ? undefined : latestObservedTs,
     });
+    const persistedQualityState = repo.getOhlcvQualityState({
+      assetId: asset.asset_id,
+      timeframe,
+    });
     const anomalyPressure = assessRecentAnomalyPressure({
       summary: anomalySummary,
       quality,
@@ -1575,6 +1579,8 @@ export function deriveRuntimeState(params: {
         recent_anomaly_count: anomalySummary.totalCount,
         recent_anomaly_density: anomalyPressure.totalDensity,
         recent_price_anomaly_density: anomalyPressure.priceDensity,
+        quality_state_status: persistedQualityState?.status || null,
+        quality_state_reason: persistedQualityState?.reason || null,
       });
       continue;
     }
@@ -1604,6 +1610,8 @@ export function deriveRuntimeState(params: {
       recent_anomaly_count: anomalySummary.totalCount,
       recent_anomaly_density: anomalyPressure.totalDensity,
       recent_price_anomaly_density: anomalyPressure.priceDensity,
+      quality_state_status: persistedQualityState?.status || null,
+      quality_state_reason: persistedQualityState?.reason || null,
     });
 
     const baselineRule = selectRule(ctx);
@@ -1662,6 +1670,13 @@ export function deriveRuntimeState(params: {
         envelope_density: anomalyPressure.envelopeDensity,
         zero_volume_density: anomalyPressure.zeroVolumeDensity,
       },
+      persisted_quality_state: persistedQualityState
+        ? {
+            status: persistedQualityState.status,
+            reason: persistedQualityState.reason,
+            updated_at: persistedQualityState.updated_at,
+          }
+        : null,
       panda: {
         active_model_id: activeModel.modelId,
         active_model_version: activeModel.semanticVersion,

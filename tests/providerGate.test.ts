@@ -168,4 +168,68 @@ describe('provider gate', () => {
     );
     expect(prepared.anomalies.map((row) => row.anomalyType)).toContain('EXTREME_MOVE_ANOMALY');
   });
+
+  it('keeps the higher-priority provider bar when the same timestamp conflicts materially', () => {
+    const db = new Database(':memory:');
+    ensureSchema(db);
+    const repo = new MarketRepository(db);
+    const asset = repo.upsertAsset({
+      symbol: 'AAPL',
+      market: 'US',
+      venue: 'MASSIVE',
+    });
+
+    ingestProviderBars({
+      repo,
+      assetId: asset.asset_id,
+      timeframe: '1d',
+      source: 'MASSIVE_REST',
+      symbol: 'AAPL',
+      rows: [
+        {
+          ts_open: 1_700_000_000_000,
+          open: '100',
+          high: '101',
+          low: '99',
+          close: '100.5',
+          volume: '1000',
+        },
+      ],
+    });
+
+    const summary = ingestProviderBars({
+      repo,
+      assetId: asset.asset_id,
+      timeframe: '1d',
+      source: 'STOOQ_BULK',
+      symbol: 'AAPL',
+      rows: [
+        {
+          ts_open: 1_700_000_000_000,
+          open: '92',
+          high: '93',
+          low: '90',
+          close: '91',
+          volume: '800',
+        },
+      ],
+    });
+
+    const stored = repo.getOhlcv({
+      assetId: asset.asset_id,
+      timeframe: '1d',
+    });
+    const state = repo.getOhlcvQualityState({
+      assetId: asset.asset_id,
+      timeframe: '1d',
+    });
+
+    expect(summary.insertedCount).toBe(0);
+    expect(summary.sourceConflictCount).toBe(1);
+    expect(summary.priorityRetainedCount).toBe(1);
+    expect(stored[0]?.source).toBe('MASSIVE_REST');
+    expect(stored[0]?.close).toBe('100.5');
+    expect(state?.status).toBe('SUSPECT');
+    expect(state?.reason).toBe('PROVIDER_SOURCE_CONFLICT');
+  });
 });

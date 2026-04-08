@@ -74,6 +74,17 @@ export type IngestAnomalySummary = {
   countsByType: Record<string, number>;
 };
 
+export type OhlcvQualityStatus = 'TRUSTED' | 'SUSPECT' | 'REPAIRED' | 'QUARANTINED';
+
+export type OhlcvQualityStateRecord = {
+  asset_id: number;
+  timeframe: Timeframe;
+  status: OhlcvQualityStatus;
+  reason: string | null;
+  metrics_json: string;
+  updated_at: number;
+};
+
 export class MarketRepository {
   constructor(private readonly db: SyncDb) {}
 
@@ -404,6 +415,41 @@ export class MarketRepository {
     }>;
   }
 
+  getOhlcvByTsOpen(
+    assetId: number,
+    timeframe: Timeframe,
+    tsOpenList: number[],
+  ): Array<{
+    ts_open: number;
+    open: string;
+    high: string;
+    low: string;
+    close: string;
+    volume: string;
+    source: string;
+  }> {
+    if (!tsOpenList.length) return [];
+    const placeholders = tsOpenList.map(() => '?').join(', ');
+    return this.db
+      .prepare(
+        `
+          SELECT ts_open, open, high, low, close, volume, source
+          FROM ohlcv
+          WHERE asset_id = ? AND timeframe = ? AND ts_open IN (${placeholders})
+          ORDER BY ts_open ASC
+        `,
+      )
+      .all(assetId, timeframe, ...tsOpenList) as Array<{
+      ts_open: number;
+      open: string;
+      high: string;
+      low: string;
+      close: string;
+      volume: string;
+      source: string;
+    }>;
+  }
+
   getLatestTsOpen(assetId: number, timeframe: Timeframe): number | null {
     const row = this.db
       .prepare(
@@ -584,6 +630,52 @@ export class MarketRepository {
         return acc;
       }, {}),
     };
+  }
+
+  upsertOhlcvQualityState(args: {
+    assetId: number;
+    timeframe: Timeframe;
+    status: OhlcvQualityStatus;
+    reason?: string | null;
+    metricsJson: string;
+  }): void {
+    this.db
+      .prepare(
+        `
+          INSERT INTO ohlcv_quality_state(asset_id, timeframe, status, reason, metrics_json, updated_at)
+          VALUES(@asset_id, @timeframe, @status, @reason, @metrics_json, @updated_at)
+          ON CONFLICT(asset_id, timeframe) DO UPDATE SET
+            status = excluded.status,
+            reason = excluded.reason,
+            metrics_json = excluded.metrics_json,
+            updated_at = excluded.updated_at
+        `,
+      )
+      .run({
+        asset_id: args.assetId,
+        timeframe: args.timeframe,
+        status: args.status,
+        reason: args.reason ?? null,
+        metrics_json: args.metricsJson,
+        updated_at: nowMs(),
+      });
+  }
+
+  getOhlcvQualityState(args: {
+    assetId: number;
+    timeframe: Timeframe;
+  }): OhlcvQualityStateRecord | null {
+    const row = this.db
+      .prepare(
+        `
+          SELECT asset_id, timeframe, status, reason, metrics_json, updated_at
+          FROM ohlcv_quality_state
+          WHERE asset_id = ? AND timeframe = ?
+          LIMIT 1
+        `,
+      )
+      .get(args.assetId, args.timeframe) as OhlcvQualityStateRecord | undefined;
+    return row ?? null;
   }
 
   upsertSignal(signal: SignalContract): void {
