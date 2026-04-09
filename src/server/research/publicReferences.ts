@@ -92,6 +92,56 @@ const PUBLIC_RESEARCH_REFERENCES: ResearchReference[] = [
     coverage: ['factors', 'strategies'],
   },
   {
+    ref_id: 'moskowitz_ooi_pedersen_tsmom',
+    title: 'Time Series Momentum',
+    publisher: 'AQR / academic manuscript',
+    kind: 'paper',
+    url: 'https://research-api.cbs.dk/ws/portalfiles/portal/58851003/time_series_momentum_lasse_heje.pdf',
+    summary:
+      'Public time-series momentum reference covering trend persistence across equity index, currency, commodity and bond futures.',
+    coverage: ['factors', 'strategies'],
+  },
+  {
+    ref_id: 'nber_volatility_managed_portfolios',
+    title: 'Volatility-Managed Portfolios',
+    publisher: 'NBER',
+    kind: 'paper',
+    url: 'https://www.nber.org/papers/w22208',
+    summary:
+      'Shows that scaling factor exposure down after high realized volatility can improve risk-adjusted returns for momentum, value, profitability and related factors.',
+    coverage: ['factors', 'strategies'],
+  },
+  {
+    ref_id: 'george_hwang_52_week_high',
+    title: 'The 52-Week High and Momentum Investing',
+    publisher: 'George and Hwang public paper',
+    kind: 'paper',
+    url: 'https://www.bauer.uh.edu/TGeorge/papers/gh4-paper.pdf',
+    summary:
+      'Public 52-week-high anchor momentum reference: proximity to the one-year high is used as a compact momentum ranking variable.',
+    coverage: ['factors', 'strategies'],
+  },
+  {
+    ref_id: 'blitz_residual_momentum',
+    title: 'Residual Momentum',
+    publisher: 'EUR Research Information Portal',
+    kind: 'paper',
+    url: 'https://pure.eur.nl/ws/files/46882404/ResidualMomentum-2011.pdf',
+    summary:
+      'Ranks stocks on momentum left after controlling for common factor exposure, seeking a cleaner idiosyncratic continuation signal.',
+    coverage: ['factors', 'strategies'],
+  },
+  {
+    ref_id: 'daniel_moskowitz_momentum_crashes',
+    title: 'Momentum Crashes',
+    publisher: 'Author-hosted public manuscript',
+    kind: 'paper',
+    url: 'https://www.kentdaniel.net/papers/published/daniel_moskowitz_momentum_crashes.pdf',
+    summary:
+      'Documents momentum crash states and motivates dynamic momentum exposure when market drawdown, rebound risk and momentum volatility are elevated.',
+    coverage: ['factors', 'strategies'],
+  },
+  {
     ref_id: 'nber_pairs_trading',
     title: 'Pairs Trading: Performance of a Relative Value Arbitrage Rule',
     publisher: 'NBER',

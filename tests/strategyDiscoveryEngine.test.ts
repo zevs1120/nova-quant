@@ -123,4 +123,46 @@ describe('strategy discovery engine', () => {
       highAnchor?.candidate_source_metadata?.template_source?.public_reference_urls || [],
     ).toContain('https://www.bauer.uh.edu/TGeorge/papers/gh4-paper.pdf');
   });
+
+  it('can generate residual/crash-aware/low-vol public alpha templates', () => {
+    const constrained = runQuantPipeline({
+      as_of: '2026-03-08T00:00:00.000Z',
+      config: {
+        risk_profile: 'balanced',
+        discovery: {
+          generation: {
+            market: 'US',
+            asset_class: 'US_STOCK',
+            discovery_batch_size: 140,
+            max_hypotheses: 32,
+            max_templates_per_hypothesis: 6,
+          },
+        },
+      },
+    });
+    const candidates =
+      constrained?.research?.research_core?.strategy_discovery_engine?.candidate_generation
+        ?.candidates || [];
+
+    const residual = candidates.find((row: any) => row.hypothesis_id === 'HYP-PUBLIC-RESMOM-001');
+    const crashAware = candidates.find(
+      (row: any) => row.hypothesis_id === 'HYP-PUBLIC-MOM-CRASH-AWARE-001',
+    );
+    const lowVol = candidates.find((row: any) => row.hypothesis_id === 'HYP-PUBLIC-LOWVOL-RS-001');
+
+    expect(residual?.template_id).toBe('TPL-PUBLIC-RESMOM-01');
+    expect(residual?.supporting_features).toContain('residual_return_20d');
+    expect(
+      residual?.candidate_source_metadata?.template_source?.public_reference_ids || [],
+    ).toContain('blitz_residual_momentum');
+
+    expect(crashAware?.template_id).toBe('TPL-PUBLIC-MOM-CRASH-AWARE-01');
+    expect(crashAware?.supporting_features).toContain('market_drawdown_60d');
+    expect(
+      crashAware?.candidate_source_metadata?.template_source?.public_reference_ids || [],
+    ).toContain('daniel_moskowitz_momentum_crashes');
+
+    expect(lowVol?.template_id).toBe('TPL-PUBLIC-LOWVOL-RS-01');
+    expect(lowVol?.supporting_features).toContain('realized_volatility_rank');
+  });
 });

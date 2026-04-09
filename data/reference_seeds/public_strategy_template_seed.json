@@ -1,7 +1,7 @@
 {
   "seed_id": "public_strategy_template_seed_v1",
   "generated_at": "2026-03-21T00:00:00.000Z",
-  "total_templates": 13,
+  "total_templates": 17,
   "families": [
     "time series momentum",
     "post earnings announcement drift",
@@ -13,6 +13,10 @@
     "funding carry capture",
     "crypto attention momentum",
     "volatility managed momentum",
+    "residual momentum",
+    "momentum crash aware trend",
+    "low volatility relative strength",
+    "gap survival post earnings drift",
     "52-week high anchor momentum",
     "funding-confirmed crypto momentum",
     "bitcoin-anchor crypto relative value"
@@ -87,6 +91,157 @@
       "public_reference_urls": [
         "https://research-api.cbs.dk/ws/portalfiles/portal/58851003/time_series_momentum_lasse_heje.pdf",
         "https://www.nber.org/papers/w22208"
+      ]
+    },
+    {
+      "template_id": "TPL-PUBLIC-RESMOM-01",
+      "family": "time series momentum",
+      "purpose": "Rank beta-adjusted residual momentum so the candidate is less dependent on broad market continuation.",
+      "entry_logic_structure": "Enter long when residual 20/60-bar returns are positive, market beta is estimated, and idiosyncratic volatility remains below the candidate cap.",
+      "exit_logic_structure": "Exit when residual return flips, market beta shock dominates the symbol, or realized volatility breaches the de-risk threshold.",
+      "stop_logic_structure": "ATR stop plus residual-momentum decay stop; do not average down residual losers.",
+      "sizing_logic_hints": "Scale by residual-momentum rank and penalize high idiosyncratic volatility.",
+      "compatible_features": [
+        "residual_return_20d",
+        "residual_return_60d",
+        "market_beta",
+        "idiosyncratic_volatility",
+        "realized_volatility"
+      ],
+      "compatible_regimes": [
+        "trend",
+        "uptrend_normal",
+        "risk_recovery",
+        "range_normal"
+      ],
+      "expected_trade_density": "low_medium",
+      "expected_holding_horizon": "5-25 bars",
+      "risk_profile": "residual_momentum",
+      "parameter_ranges": {
+        "residual_fast_lookback": { "min": 15, "max": 80, "step": 5 },
+        "residual_slow_lookback": { "min": 50, "max": 180, "step": 10 },
+        "idiosyncratic_vol_cap": { "min": 0.45, "max": 0.95, "step": 0.05 },
+        "beta_abs_cap": { "min": 0.6, "max": 2.2, "step": 0.1 }
+      },
+      "template_key_aliases": [
+        "residual_momentum_rank"
+      ],
+      "public_reference_ids": [
+        "blitz_residual_momentum",
+        "aqr_vme"
+      ]
+    },
+    {
+      "template_id": "TPL-PUBLIC-MOM-CRASH-AWARE-01",
+      "family": "volatility managed momentum",
+      "purpose": "Generate momentum candidates that can explicitly stand down during market-drawdown / fast-rebound crash windows.",
+      "entry_logic_structure": "Enter trend only when 20/60-bar momentum is positive and the market-drawdown plus market-rebound crash score is below the candidate threshold.",
+      "exit_logic_structure": "Exit or halve exposure when market rebound accelerates out of a drawdown or momentum-volatility crosses the crash-risk cap.",
+      "stop_logic_structure": "Hard symbol stop plus sleeve-level crash kill-switch based on market drawdown/rebound state.",
+      "sizing_logic_hints": "Use inverse volatility sizing and multiply exposure by the crash-aware risk-on fraction.",
+      "compatible_features": [
+        "ret_20d",
+        "ret_60d",
+        "market_drawdown_60d",
+        "market_rebound_5d",
+        "momentum_volatility",
+        "realized_volatility"
+      ],
+      "compatible_regimes": [
+        "trend",
+        "transition",
+        "risk_recovery",
+        "high_volatility"
+      ],
+      "expected_trade_density": "low_medium",
+      "expected_holding_horizon": "3-20 bars",
+      "risk_profile": "crash_aware_momentum",
+      "parameter_ranges": {
+        "market_drawdown_trigger": { "min": 0.04, "max": 0.3, "step": 0.02 },
+        "market_rebound_cap_5d": { "min": 0.02, "max": 0.18, "step": 0.01 },
+        "momentum_vol_cap": { "min": 0.35, "max": 0.95, "step": 0.05 },
+        "risk_on_fraction": { "min": 0.15, "max": 1, "step": 0.05 }
+      },
+      "template_key_aliases": [
+        "momentum_crash_aware_trend"
+      ],
+      "public_reference_ids": [
+        "daniel_moskowitz_momentum_crashes",
+        "nber_volatility_managed_portfolios"
+      ]
+    },
+    {
+      "template_id": "TPL-PUBLIC-LOWVOL-RS-01",
+      "family": "betting against beta defensive",
+      "purpose": "Rank relative-strength winners that also sit in lower-volatility / lower-beta cohorts.",
+      "entry_logic_structure": "Enter top relative-strength names only when realized-volatility rank, beta rank, drawdown rank and liquidity score pass the candidate filter.",
+      "exit_logic_structure": "Rebalance when relative-strength rank falls or volatility/beta rank migrates into the fragile cohort.",
+      "stop_logic_structure": "Portfolio-level drawdown cap plus symbol volatility migration stop.",
+      "sizing_logic_hints": "Weight by relative-strength rank divided by realized-volatility rank; keep sector/basket concentration low.",
+      "compatible_features": [
+        "relative_strength",
+        "realized_volatility_rank",
+        "beta_rank",
+        "drawdown_rank",
+        "liquidity_score"
+      ],
+      "compatible_regimes": [
+        "trend",
+        "range_normal",
+        "risk_recovery",
+        "high_volatility"
+      ],
+      "expected_trade_density": "low_medium",
+      "expected_holding_horizon": "5-25 bars",
+      "risk_profile": "low_volatility_relative_strength",
+      "parameter_ranges": {
+        "relative_strength_cutoff": { "min": 0.55, "max": 0.95, "step": 0.05 },
+        "realized_vol_rank_cap": { "min": 0.35, "max": 0.85, "step": 0.05 },
+        "beta_rank_cap": { "min": 0.35, "max": 0.9, "step": 0.05 },
+        "rebalance_days": { "min": 5, "max": 30, "step": 5 }
+      },
+      "template_key_aliases": [
+        "low_volatility_relative_strength"
+      ],
+      "public_reference_ids": [
+        "aqr_bab",
+        "aqr_vme"
+      ]
+    },
+    {
+      "template_id": "TPL-PUBLIC-PEAD-GAP-SURVIVAL-01",
+      "family": "post earnings announcement drift",
+      "purpose": "Separate continuation after a survived event gap from raw gap chasing.",
+      "entry_logic_structure": "Enter only when event gap strength is large, gap_survival remains true after the first post-event bar, post-event volume confirms, and realized volatility is not in stress.",
+      "exit_logic_structure": "Exit on gap-midpoint loss, relative-strength break, volume confirmation failure, or the drift timeout.",
+      "stop_logic_structure": "Stop just beyond the failed-gap threshold; skip if the first tradable open already violates that threshold.",
+      "sizing_logic_hints": "Start with small event-risk size and only scale if gap survival plus relative strength persist.",
+      "compatible_features": [
+        "event_gap_strength",
+        "gap_survival",
+        "post_event_volume",
+        "relative_strength",
+        "realized_volatility"
+      ],
+      "compatible_regimes": [
+        "trend",
+        "risk_recovery",
+        "range_normal"
+      ],
+      "expected_trade_density": "low",
+      "expected_holding_horizon": "2-12 bars",
+      "risk_profile": "gap_survival_event_drift",
+      "parameter_ranges": {
+        "event_gap_min_pct": { "min": 2, "max": 15, "step": 1 },
+        "gap_survival_fraction": { "min": 0.4, "max": 0.9, "step": 0.05 },
+        "post_event_volume_min": { "min": 1.1, "max": 4, "step": 0.1 },
+        "drift_timeout_bars": { "min": 2, "max": 15, "step": 1 }
+      },
+      "template_key_aliases": [
+        "gap_survival_event_drift"
+      ],
+      "public_reference_ids": [
+        "nber_pead"
       ]
     },
     {

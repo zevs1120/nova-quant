@@ -28,6 +28,46 @@ const FEATURE_SUPPORT = Object.freeze({
     asset_classes: ['US_STOCK', 'CRYPTO'],
     note: 'Covered by the current momentum measurement pipeline.',
   },
+  residual_return_20d: {
+    status: 'adapter_ready',
+    asset_classes: ['US_STOCK', 'CRYPTO'],
+    note: 'Derivable by subtracting market-proxy beta return from symbol return over synchronized OHLCV bars.',
+  },
+  residual_return_60d: {
+    status: 'adapter_ready',
+    asset_classes: ['US_STOCK', 'CRYPTO'],
+    note: 'Derivable by subtracting market-proxy beta return from symbol return over synchronized OHLCV bars.',
+  },
+  market_beta: {
+    status: 'adapter_ready',
+    asset_classes: ['US_STOCK', 'CRYPTO'],
+    note: 'Derivable from covariance versus a market proxy using persisted OHLCV bars.',
+  },
+  market_drawdown_60d: {
+    status: 'adapter_ready',
+    asset_classes: ['US_STOCK', 'CRYPTO'],
+    note: 'Derivable from the current market proxy OHLCV panel.',
+  },
+  market_rebound_5d: {
+    status: 'adapter_ready',
+    asset_classes: ['US_STOCK', 'CRYPTO'],
+    note: 'Derivable from five-bar returns of the market proxy after a drawdown window.',
+  },
+  momentum_volatility: {
+    status: 'adapter_ready',
+    asset_classes: ['US_STOCK', 'CRYPTO'],
+    note: 'Derivable as realized volatility of a symbol or momentum sleeve over persisted return history.',
+  },
+  idiosyncratic_volatility: {
+    status: 'adapter_ready',
+    asset_classes: ['US_STOCK', 'CRYPTO'],
+    note: 'Derivable from residual returns versus a market proxy using synchronized OHLCV bars.',
+  },
+  gap_survival: {
+    status: 'adapter_ready',
+    asset_classes: ['US_STOCK'],
+    note: 'Derivable by checking whether the post-event open/close keeps trading beyond the event gap midpoint.',
+  },
   distance_to_52w_high: {
     status: 'adapter_ready',
     asset_classes: ['US_STOCK', 'CRYPTO'],
@@ -274,6 +314,11 @@ const FEATURE_ALIASES = Object.freeze({
   ma_alignment: 'trend_strength',
   trend_age: 'trend_strength',
   multi_day_return: 'ret_20d',
+  beta_adjusted_momentum: 'residual_return_20d',
+  idiosyncratic_momentum: 'residual_return_20d',
+  market_drawdown: 'market_drawdown_60d',
+  market_snapback: 'market_rebound_5d',
+  post_gap_hold: 'gap_survival',
   price_to_52w_high: 'distance_to_52w_high',
   fifty_two_week_high_distance: 'distance_to_52w_high',
   rolling_return_sharpe: 'rolling_sharpe',

@@ -19,5 +19,21 @@ describe('public alpha supply layer', () => {
     const pead = supply.rows.find((row: any) => row.hypothesis_id === 'HYP-PUBLIC-PEAD-001');
     expect(pead?.deployment_stage).toBe('blocked_missing_data');
     expect((pead?.blocking_features || []).length).toBeGreaterThan(0);
+
+    const residual = supply.rows.find((row: any) => row.hypothesis_id === 'HYP-PUBLIC-RESMOM-001');
+    expect(residual?.deployment_stage).toBe('adapter_quick_win');
+    const residualOwnTemplate = supply.rows.find(
+      (row: any) =>
+        row.hypothesis_id === 'HYP-PUBLIC-RESMOM-001' && row.template_id === 'TPL-PUBLIC-RESMOM-01',
+    );
+    expect(residualOwnTemplate?.supporting_features).toContain('residual_return_20d');
+
+    const crashAware = supply.rows.find(
+      (row: any) =>
+        row.hypothesis_id === 'HYP-PUBLIC-MOM-CRASH-AWARE-001' &&
+        row.template_id === 'TPL-PUBLIC-MOM-CRASH-AWARE-01',
+    );
+    expect(crashAware?.deployment_stage).toBe('adapter_quick_win');
+    expect(crashAware?.supporting_features).toContain('market_drawdown_60d');
   });
 });

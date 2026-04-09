@@ -1,7 +1,7 @@
 {
   "seed_id": "public_hypothesis_registry_seed_v1",
   "generated_at": "2026-03-21T00:00:00.000Z",
-  "total_hypotheses": 13,
+  "total_hypotheses": 17,
   "families": [
     "time series momentum",
     "post earnings announcement drift",
@@ -13,6 +13,10 @@
     "funding carry capture",
     "crypto attention momentum",
     "volatility managed momentum",
+    "residual momentum",
+    "momentum crash aware trend",
+    "low volatility relative strength",
+    "gap survival post earnings drift",
     "52-week high anchor momentum",
     "funding-confirmed crypto momentum",
     "bitcoin-anchor crypto relative value"
@@ -73,6 +77,106 @@
       "public_reference_urls": [
         "https://research-api.cbs.dk/ws/portalfiles/portal/58851003/time_series_momentum_lasse_heje.pdf",
         "https://www.nber.org/papers/w22208"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-PUBLIC-RESMOM-001",
+      "title": "Beta-adjusted residual winners continue more cleanly than raw winners",
+      "description": "Symbols whose own return remains strong after subtracting market-proxy beta can continue with less market crash exposure than raw momentum ranks.",
+      "economic_intuition": "Common market and sector swings inflate raw momentum; residual momentum focuses the selector on idiosyncratic underreaction and cleaner continuation.",
+      "family": "residual momentum",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "trend uptrend_normal risk_recovery range_normal",
+      "expected_holding_horizon": "5-25 bars",
+      "suggested_strategy_family": "Momentum / Trend Following",
+      "suggested_template_candidates": [
+        "residual_momentum_rank"
+      ],
+      "required_feature_hints": [
+        "residual_return_20d",
+        "residual_return_60d",
+        "market_beta",
+        "idiosyncratic_volatility",
+        "realized_volatility"
+      ],
+      "public_reference_ids": [
+        "blitz_residual_momentum",
+        "aqr_vme"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-PUBLIC-MOM-CRASH-AWARE-001",
+      "title": "Momentum sleeve should de-risk after market drawdown plus snapback pressure",
+      "description": "Raw trend and momentum entries are lower quality when market drawdown is deep, rebound is fast, and momentum-volatility is elevated.",
+      "economic_intuition": "Momentum crashes concentrate after stressed market declines and violent rebounds; a trend alpha factory should generate crash-aware variants, not just winner-chasing variants.",
+      "family": "momentum crash aware trend",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "trend high_volatility transition risk_recovery",
+      "expected_holding_horizon": "3-20 bars",
+      "suggested_strategy_family": "Momentum / Trend Following",
+      "suggested_template_candidates": [
+        "momentum_crash_aware_trend"
+      ],
+      "required_feature_hints": [
+        "ret_20d",
+        "ret_60d",
+        "market_drawdown_60d",
+        "market_rebound_5d",
+        "momentum_volatility",
+        "realized_volatility"
+      ],
+      "public_reference_ids": [
+        "daniel_moskowitz_momentum_crashes",
+        "nber_volatility_managed_portfolios"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-PUBLIC-LOWVOL-RS-001",
+      "title": "Relative strength is higher quality when realized volatility and beta are both controlled",
+      "description": "Cross-sectional winners with contained realized volatility, lower beta, and shallow drawdown can produce cleaner risk-adjusted continuation than high-octane winners.",
+      "economic_intuition": "Leverage constraints and crash risk make high-beta winners fragile; combining relative strength with low beta / low realized volatility targets a steadier alpha sleeve.",
+      "family": "low volatility relative strength",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "trend range_normal risk_recovery high_volatility",
+      "expected_holding_horizon": "5-25 bars",
+      "suggested_strategy_family": "Relative Strength / Cross-Sectional",
+      "suggested_template_candidates": [
+        "low_volatility_relative_strength"
+      ],
+      "required_feature_hints": [
+        "relative_strength",
+        "realized_volatility_rank",
+        "beta_rank",
+        "drawdown_rank",
+        "liquidity_score"
+      ],
+      "public_reference_ids": [
+        "aqr_bab",
+        "aqr_vme"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-PUBLIC-PEAD-GAP-SURVIVAL-001",
+      "title": "Post-event drift is better when the first gap survives rather than fully reverses",
+      "description": "Earnings / event gaps should only become continuation candidates when post-gap volume confirms and price does not immediately lose the gap midpoint.",
+      "economic_intuition": "Underreaction can persist after news, but failed gaps are a different alpha; separating gap survival from raw gap size should improve drift candidate quality.",
+      "family": "gap survival post earnings drift",
+      "expected_market": "US_EQUITY",
+      "expected_regime": "trend risk_recovery range_normal",
+      "expected_holding_horizon": "2-12 bars",
+      "suggested_strategy_family": "Momentum / Trend Following",
+      "suggested_template_candidates": [
+        "gap_survival_event_drift"
+      ],
+      "required_feature_hints": [
+        "event_gap_strength",
+        "gap_survival",
+        "post_event_volume",
+        "relative_strength",
+        "realized_volatility"
+      ],
+      "public_reference_ids": [
+        "nber_pead"
       ]
     },
     {
