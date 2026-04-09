@@ -47,5 +47,20 @@
     }
   },
   "ignoreFiles": ["src/copy/novaCopySystem.d.ts"],
-  "ignoreBinaries": ["zip", "husky"]
+  "ignoreBinaries": ["zip", "husky"],
+  "ignoreIssues": {
+    "src/research/**/*.js": ["exports"],
+    "src/server/**/*.ts": ["exports", "types"],
+    "scripts/**/*.ts": ["exports", "types"],
+    "tests/helpers/**": ["exports", "types"],
+    "src/utils/**/*.js": ["exports"],
+    "src/shared/**/*.js": ["exports"],
+    "src/config/**/*.js": ["exports"],
+    "src/contexts/**/*.jsx": ["exports"],
+    "src/app/**/*.jsx": ["exports"],
+    "src/copy/**/*.js": ["exports"],
+    "src/engines/**/*.js": ["exports"],
+    "src/normalizers/**/*.js": ["exports"],
+    "src/quant/**/*.js": ["exports"]
+  }
 }
