@@ -45,6 +45,10 @@ const STRATEGY_FAMILY_MAP = Object.freeze({
   'factor momentum overlay': 'Relative Strength / Cross-Sectional',
   'funding carry capture': 'Crypto-Native Families',
   'crypto attention momentum': 'Crypto-Native Families',
+  'volatility managed momentum': 'Momentum / Trend Following',
+  '52 week high anchor momentum': 'Momentum / Trend Following',
+  'funding confirmed crypto momentum': 'Crypto-Native Families',
+  'bitcoin anchor crypto relative value': 'Mean Reversion',
 });
 
 const REGIME_ALIAS = Object.freeze({
@@ -271,6 +275,7 @@ function normalizeHypothesis(seedRow = {}, index = 0, seedId = 'unknown') {
         ? 'data/reference_seeds/public_hypothesis_registry_seed.json'
         : 'data/reference_seeds/hypothesis_registry_seed.json',
       public_reference_ids: asArray(seedRow.public_reference_ids).map(String),
+      public_reference_urls: asArray(seedRow.public_reference_urls).map(String),
     },
   };
 }
@@ -366,6 +371,7 @@ function normalizeTemplate(seedRow = {}, index = 0, seedId = 'unknown') {
         ? 'data/reference_seeds/public_strategy_template_seed.json'
         : 'data/reference_seeds/strategy_template_seed.json',
       public_reference_ids: asArray(seedRow.public_reference_ids).map(String),
+      public_reference_urls: asArray(seedRow.public_reference_urls).map(String),
     },
   };
 }

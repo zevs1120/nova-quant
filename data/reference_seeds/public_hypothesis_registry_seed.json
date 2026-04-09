@@ -1,7 +1,7 @@
 {
   "seed_id": "public_hypothesis_registry_seed_v1",
   "generated_at": "2026-03-21T00:00:00.000Z",
-  "total_hypotheses": 9,
+  "total_hypotheses": 13,
   "families": [
     "time series momentum",
     "post earnings announcement drift",
@@ -11,7 +11,11 @@
     "betting against beta defensive",
     "factor momentum overlay",
     "funding carry capture",
-    "crypto attention momentum"
+    "crypto attention momentum",
+    "volatility managed momentum",
+    "52-week high anchor momentum",
+    "funding-confirmed crypto momentum",
+    "bitcoin-anchor crypto relative value"
   ],
   "hypotheses": [
     {
@@ -38,6 +42,63 @@
         "aqr_trend_following",
         "aqr_vme",
         "ff_data_library"
+      ],
+      "public_reference_urls": [
+        "https://research-api.cbs.dk/ws/portalfiles/portal/58851003/time_series_momentum_lasse_heje.pdf"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-PUBLIC-VOLMAN-TSMOM-001",
+      "title": "Trend alpha should be sized down when realized volatility spikes",
+      "description": "Medium-horizon winners are more usable when the entry requires positive own trend and position/risk is scaled against recent realized volatility.",
+      "economic_intuition": "Trend premia can persist, but volatility clustering and leverage constraints make an unscaled trend sleeve give back too much during stress.",
+      "family": "volatility managed momentum",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "trend risk_recovery uptrend_normal",
+      "expected_holding_horizon": "5-25 bars",
+      "suggested_strategy_family": "Momentum / Trend Following",
+      "suggested_template_candidates": [
+        "volatility_managed_time_series_momentum"
+      ],
+      "required_feature_hints": [
+        "ret_20d",
+        "ret_60d",
+        "realized_volatility",
+        "volatility_filter"
+      ],
+      "public_reference_ids": [
+        "moskowitz_ooi_pedersen_tsmom",
+        "nber_volatility_managed_portfolios"
+      ],
+      "public_reference_urls": [
+        "https://research-api.cbs.dk/ws/portalfiles/portal/58851003/time_series_momentum_lasse_heje.pdf",
+        "https://www.nber.org/papers/w22208"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-PUBLIC-52WH-001",
+      "title": "Distance from the 52-week high anchors continuation",
+      "description": "Names trading close to their rolling one-year high can continue when medium-horizon returns and cross-sectional strength agree.",
+      "economic_intuition": "Investors anchor on the old high; slow adjustment to new information makes proximity to the high a compact trend-continuation state variable.",
+      "family": "52-week high anchor momentum",
+      "expected_market": "US_EQUITY_AND_CRYPTO",
+      "expected_regime": "trend uptrend_normal risk_recovery",
+      "expected_holding_horizon": "5-30 bars",
+      "suggested_strategy_family": "Momentum / Trend Following",
+      "suggested_template_candidates": [
+        "fifty_two_week_high_anchor"
+      ],
+      "required_feature_hints": [
+        "ret_20d",
+        "ret_60d",
+        "distance_to_52w_high",
+        "relative_strength"
+      ],
+      "public_reference_ids": [
+        "george_hwang_52_week_high"
+      ],
+      "public_reference_urls": [
+        "https://www.bauer.uh.edu/TGeorge/papers/gh4-paper.pdf"
       ]
     },
     {
@@ -206,6 +267,59 @@
       ],
       "public_reference_ids": [
         "aqr_vme"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-PUBLIC-CRYPTO-FUND-MOM-001",
+      "title": "Crypto trend is higher quality when funding confirms without becoming extreme",
+      "description": "Liquid crypto trends are more tradable when return momentum, funding, and basis point the same way, but funding z-score has not reached squeeze territory.",
+      "economic_intuition": "Perp funding and futures basis reveal leveraged demand; moderate confirmation can support continuation, while extreme funding marks crowded trend risk.",
+      "family": "funding-confirmed crypto momentum",
+      "expected_market": "CRYPTO",
+      "expected_regime": "trend risk_recovery uptrend_normal",
+      "expected_holding_horizon": "4-18 bars",
+      "suggested_strategy_family": "Crypto-Native Families",
+      "suggested_template_candidates": [
+        "funding_confirmed_crypto_momentum"
+      ],
+      "required_feature_hints": [
+        "ret_20d",
+        "funding_rate",
+        "funding_zscore",
+        "basis_annualized",
+        "realized_volatility"
+      ],
+      "public_reference_ids": [
+        "crypto_perpetual_funding_research"
+      ],
+      "public_reference_urls": [
+        "https://arxiv.org/abs/1912.03270"
+      ]
+    },
+    {
+      "hypothesis_id": "HYP-PUBLIC-CRYPTO-BTC-ANCHOR-001",
+      "title": "Altcoin dislocations mean revert against a Bitcoin anchor after volatility filtering",
+      "description": "Liquid alts with a large short-horizon spread shock versus Bitcoin can revert when the spread z-score is extreme and realized volatility is not in a liquidation regime.",
+      "economic_intuition": "Crypto majors share a common risk factor; temporary exchange flow can move one asset too far away from the Bitcoin anchor before common-factor pressure reasserts.",
+      "family": "bitcoin-anchor crypto relative value",
+      "expected_market": "CRYPTO",
+      "expected_regime": "range range_normal transition",
+      "expected_holding_horizon": "1-8 bars",
+      "suggested_strategy_family": "Mean Reversion",
+      "suggested_template_candidates": [
+        "btc_anchor_spread_reversion"
+      ],
+      "required_feature_hints": [
+        "spread_zscore",
+        "relative_strength",
+        "ret_5d",
+        "realized_volatility"
+      ],
+      "public_reference_ids": [
+        "autoquant_crypto_strategy_validation"
+      ],
+      "public_reference_urls": [
+        "https://arxiv.org/abs/2512.22476"
       ]
     },
     {

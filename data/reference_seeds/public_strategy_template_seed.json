@@ -1,7 +1,7 @@
 {
   "seed_id": "public_strategy_template_seed_v1",
   "generated_at": "2026-03-21T00:00:00.000Z",
-  "total_templates": 9,
+  "total_templates": 13,
   "families": [
     "time series momentum",
     "post earnings announcement drift",
@@ -11,7 +11,11 @@
     "betting against beta defensive",
     "factor momentum overlay",
     "funding carry capture",
-    "crypto attention momentum"
+    "crypto attention momentum",
+    "volatility managed momentum",
+    "52-week high anchor momentum",
+    "funding-confirmed crypto momentum",
+    "bitcoin-anchor crypto relative value"
   ],
   "templates": [
     {
@@ -40,6 +44,87 @@
         "aqr_trend_following",
         "aqr_vme",
         "ff_data_library"
+      ],
+      "public_reference_urls": [
+        "https://research-api.cbs.dk/ws/portalfiles/portal/58851003/time_series_momentum_lasse_heje.pdf"
+      ]
+    },
+    {
+      "template_id": "TPL-PUBLIC-VOLMAN-TSMOM-01",
+      "family": "volatility managed momentum",
+      "purpose": "Trade own-return trend only when volatility-normalized momentum remains positive enough to pay for stress exits.",
+      "entry_logic_structure": "Enter with aligned 20/60-bar returns, positive trend slope, and realized volatility below the candidate's volatility cap.",
+      "exit_logic_structure": "Exit when the slow return flips, volatility jumps above cap, or rolling Sharpe falls below the momentum floor.",
+      "stop_logic_structure": "ATR stop plus volatility kill-switch; avoid widening the stop just because realized volatility has jumped.",
+      "sizing_logic_hints": "Scale exposure inversely to recent realized volatility and cap gross exposure during high-volatility drawdowns.",
+      "compatible_features": [
+        "ret_20d",
+        "ret_60d",
+        "realized_volatility",
+        "volatility_filter"
+      ],
+      "compatible_regimes": [
+        "trend",
+        "uptrend_normal",
+        "risk_recovery"
+      ],
+      "expected_trade_density": "low_medium",
+      "expected_holding_horizon": "5-25 bars",
+      "risk_profile": "volatility_scaled_trend",
+      "parameter_ranges": {
+        "lookback_fast_bars": { "min": 15, "max": 60, "step": 5 },
+        "lookback_slow_bars": { "min": 50, "max": 160, "step": 10 },
+        "volatility_filter_cap": { "min": 0.45, "max": 0.9, "step": 0.05 },
+        "volatility_target_fraction": { "min": 0.25, "max": 1, "step": 0.05 }
+      },
+      "template_key_aliases": [
+        "volatility_managed_time_series_momentum"
+      ],
+      "public_reference_ids": [
+        "moskowitz_ooi_pedersen_tsmom",
+        "nber_volatility_managed_portfolios"
+      ],
+      "public_reference_urls": [
+        "https://research-api.cbs.dk/ws/portalfiles/portal/58851003/time_series_momentum_lasse_heje.pdf",
+        "https://www.nber.org/papers/w22208"
+      ]
+    },
+    {
+      "template_id": "TPL-PUBLIC-52WH-01",
+      "family": "52-week high anchor momentum",
+      "purpose": "Promote continuation candidates whose price is near a one-year high and still supported by medium-horizon relative strength.",
+      "entry_logic_structure": "Enter long only when price is within the 52-week-high distance band, 20/60-bar returns are positive, and relative strength is top-ranked.",
+      "exit_logic_structure": "Exit when price loses the anchor band, relative strength rank breaks, or medium trend rolls over.",
+      "stop_logic_structure": "Initial stop under the most recent swing low; trail only after a fresh high is printed.",
+      "sizing_logic_hints": "Use smaller size when distance to the anchor is too tight after a vertical extension.",
+      "compatible_features": [
+        "ret_20d",
+        "ret_60d",
+        "distance_to_52w_high",
+        "relative_strength"
+      ],
+      "compatible_regimes": [
+        "trend",
+        "uptrend_normal",
+        "risk_recovery"
+      ],
+      "expected_trade_density": "low_medium",
+      "expected_holding_horizon": "5-30 bars",
+      "risk_profile": "anchor_momentum",
+      "parameter_ranges": {
+        "anchor_distance_max_pct": { "min": 1, "max": 12, "step": 1 },
+        "momentum_lookback_bars": { "min": 20, "max": 120, "step": 10 },
+        "relative_strength_cutoff": { "min": 0.55, "max": 0.9, "step": 0.05 },
+        "max_hold_bars": { "min": 6, "max": 30, "step": 2 }
+      },
+      "template_key_aliases": [
+        "fifty_two_week_high_anchor"
+      ],
+      "public_reference_ids": [
+        "george_hwang_52_week_high"
+      ],
+      "public_reference_urls": [
+        "https://www.bauer.uh.edu/TGeorge/papers/gh4-paper.pdf"
       ]
     },
     {
@@ -224,6 +309,83 @@
       "risk_profile": "systematic_carry",
       "public_reference_ids": [
         "aqr_vme"
+      ]
+    },
+    {
+      "template_id": "TPL-PUBLIC-CRYPTO-FUND-MOM-01",
+      "family": "funding-confirmed crypto momentum",
+      "purpose": "Follow crypto trend only when moderate funding/basis confirmation improves the quality of the directional move.",
+      "entry_logic_structure": "Enter with positive return momentum, supportive funding/basis, and funding z-score inside the non-squeeze confirmation band.",
+      "exit_logic_structure": "Exit on trend decay, basis compression, funding z-score squeeze, or realized-volatility stress.",
+      "stop_logic_structure": "Use directional ATR stop plus immediate de-risk when funding flips against the trade.",
+      "sizing_logic_hints": "Scale down as funding z-score approaches crowding cap; do not let carry confirmation increase leverage by itself.",
+      "compatible_features": [
+        "ret_20d",
+        "funding_rate",
+        "funding_zscore",
+        "basis_annualized",
+        "realized_volatility"
+      ],
+      "compatible_regimes": [
+        "trend",
+        "risk_recovery",
+        "uptrend_normal"
+      ],
+      "expected_trade_density": "low_medium",
+      "expected_holding_horizon": "4-18 bars",
+      "risk_profile": "funding_confirmed_trend",
+      "parameter_ranges": {
+        "momentum_lookback_bars": { "min": 12, "max": 72, "step": 6 },
+        "funding_z_confirm_min": { "min": 0.2, "max": 1.4, "step": 0.2 },
+        "funding_z_crowding_cap": { "min": 1.6, "max": 4, "step": 0.2 },
+        "basis_confirm_min_bps": { "min": 2, "max": 80, "step": 2 }
+      },
+      "template_key_aliases": [
+        "funding_confirmed_crypto_momentum"
+      ],
+      "public_reference_ids": [
+        "crypto_perpetual_funding_research"
+      ],
+      "public_reference_urls": [
+        "https://arxiv.org/abs/1912.03270"
+      ]
+    },
+    {
+      "template_id": "TPL-PUBLIC-BTC-ANCHOR-REV-01",
+      "family": "bitcoin-anchor crypto relative value",
+      "purpose": "Fade large altcoin spread shocks versus a Bitcoin anchor after a volatility and liquidity screen.",
+      "entry_logic_structure": "Enter the lagged reversion leg when spread z-score is extreme, relative-strength shock is not news-confirmed, and realized volatility remains below stress cap.",
+      "exit_logic_structure": "Exit at spread z-score normalization, volatility shock, or short timeout.",
+      "stop_logic_structure": "Stop if the spread keeps widening or Bitcoin anchor regime transitions into a high-volatility breakout.",
+      "sizing_logic_hints": "Keep market-beta small and reduce size when the alt leg has inferior liquidity.",
+      "compatible_features": [
+        "spread_zscore",
+        "relative_strength",
+        "ret_5d",
+        "realized_volatility"
+      ],
+      "compatible_regimes": [
+        "range",
+        "range_normal",
+        "transition"
+      ],
+      "expected_trade_density": "medium",
+      "expected_holding_horizon": "1-8 bars",
+      "risk_profile": "crypto_relative_value_reversion",
+      "parameter_ranges": {
+        "spread_entry_z": { "min": 1.2, "max": 3.5, "step": 0.1 },
+        "spread_exit_z": { "min": 0.1, "max": 1.2, "step": 0.1 },
+        "volatility_stress_cap": { "min": 0.5, "max": 0.95, "step": 0.05 },
+        "max_pair_hold_bars": { "min": 1, "max": 10, "step": 1 }
+      },
+      "template_key_aliases": [
+        "btc_anchor_spread_reversion"
+      ],
+      "public_reference_ids": [
+        "autoquant_crypto_strategy_validation"
+      ],
+      "public_reference_urls": [
+        "https://arxiv.org/abs/2512.22476"
       ]
     },
     {

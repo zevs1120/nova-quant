@@ -66,6 +66,15 @@ export type AlphaEvaluationMetrics = {
     symbols_with_trades: number;
     sample_trades: Array<Record<string, unknown>>;
   };
+  research_evidence?: {
+    hypothesis_id: string;
+    template_id: string;
+    public_reference_ids: string[];
+    public_reference_urls: string[];
+    hypothesis_title: string | null;
+    template_name: string | null;
+    evidence_path: string;
+  };
 };
 
 function round(value: number, digits = 6): number {

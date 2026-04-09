@@ -28,6 +28,26 @@ const FEATURE_SUPPORT = Object.freeze({
     asset_classes: ['US_STOCK', 'CRYPTO'],
     note: 'Covered by the current momentum measurement pipeline.',
   },
+  distance_to_52w_high: {
+    status: 'adapter_ready',
+    asset_classes: ['US_STOCK', 'CRYPTO'],
+    note: 'Derivable from rolling 252-bar highs in persisted OHLCV history.',
+  },
+  rolling_high_252d: {
+    status: 'adapter_ready',
+    asset_classes: ['US_STOCK', 'CRYPTO'],
+    note: 'Derivable from persisted OHLCV bars and reusable by 52-week-high anchor signals.',
+  },
+  rolling_sharpe: {
+    status: 'adapter_ready',
+    asset_classes: ['US_STOCK', 'CRYPTO'],
+    note: 'Derivable from rolling bar returns and volatility over the current OHLCV store.',
+  },
+  realized_volatility_rank: {
+    status: 'adapter_ready',
+    asset_classes: ['US_STOCK', 'CRYPTO'],
+    note: 'Derivable by ranking realized volatility across the current bar panel.',
+  },
   funding_rate: {
     status: 'measured',
     asset_classes: ['CRYPTO'],
@@ -254,6 +274,9 @@ const FEATURE_ALIASES = Object.freeze({
   ma_alignment: 'trend_strength',
   trend_age: 'trend_strength',
   multi_day_return: 'ret_20d',
+  price_to_52w_high: 'distance_to_52w_high',
+  fifty_two_week_high_distance: 'distance_to_52w_high',
+  rolling_return_sharpe: 'rolling_sharpe',
   atr_14: 'realized_volatility',
   iv_hv_spread: 'realized_volatility',
   range_expansion: 'range_breakout',

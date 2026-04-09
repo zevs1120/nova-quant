@@ -232,7 +232,31 @@ describe('alpha discovery loop', () => {
     });
     repo.upsertOhlcvBars(asset.asset_id, '1d', buildBreakoutReplayBars(now, 180), 'TEST');
 
-    const candidate = buildCandidate('alpha-bar-replay-eval');
+    const candidate = {
+      ...buildCandidate('alpha-bar-replay-eval'),
+      formula: {
+        hypothesis_id: 'HYP-PUBLIC-VOLMAN-TSMOM-001',
+        template_id: 'TPL-PUBLIC-VOLMAN-TSMOM-01',
+      },
+      strategy_candidate: {
+        hypothesis_id: 'HYP-PUBLIC-VOLMAN-TSMOM-001',
+        hypothesis_description: 'Volatility managed momentum test hypothesis',
+        template_id: 'TPL-PUBLIC-VOLMAN-TSMOM-01',
+        template_name: 'Volatility Managed Momentum',
+        candidate_source_metadata: {
+          hypothesis_source: {
+            public_reference_ids: ['nber_volatility_managed_portfolios'],
+            public_reference_urls: ['https://www.nber.org/papers/w22208'],
+          },
+          template_source: {
+            public_reference_ids: ['moskowitz_ooi_pedersen_tsmom'],
+            public_reference_urls: [
+              'https://research-api.cbs.dk/ws/portalfiles/portal/58851003/time_series_momentum_lasse_heje.pdf',
+            ],
+          },
+        },
+      },
+    };
     persistAlphaCandidate(repo, {
       candidate,
       status: 'DRAFT',
@@ -254,6 +278,20 @@ describe('alpha discovery loop', () => {
     expect(metrics?.bar_replay.closed_trades).toBeGreaterThanOrEqual(6);
     expect(metrics?.bar_replay.source).toBe('ohlcv_candidate_replay');
     expect(metrics?.backtest_proxy.note).toContain('bar replay');
+    expect(metrics?.research_evidence?.hypothesis_id).toBe('HYP-PUBLIC-VOLMAN-TSMOM-001');
+    expect(metrics?.research_evidence?.public_reference_urls).toContain(
+      'https://www.nber.org/papers/w22208',
+    );
+
+    const artifacts = repo.listBacktestArtifacts(
+      String(result.evaluated[0]?.evaluation.backtest_run_id),
+    );
+    const evidenceArtifact = artifacts.find(
+      (row) => row.artifact_type === 'alpha_discovery_research_evidence',
+    );
+    const evidencePayload = JSON.parse(String(evidenceArtifact?.path_or_payload || '{}'));
+    expect(evidencePayload.template_id).toBe('TPL-PUBLIC-VOLMAN-TSMOM-01');
+    expect(evidencePayload.public_reference_ids).toContain('moskowitz_ooi_pedersen_tsmom');
   });
 
   it('summarizes alpha yield by hypothesis and template lineage', () => {

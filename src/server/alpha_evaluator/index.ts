@@ -445,6 +445,63 @@ function buildAlphaMetrics(
         ? (quick.metrics.candidate_replay_symbol_summaries as Array<Record<string, unknown>>)
         : [],
     },
+    research_evidence: buildResearchEvidence(candidate),
+  };
+}
+
+function uniqueStrings(values: unknown[]) {
+  return [...new Set(values.map((value) => String(value || '').trim()).filter(Boolean))];
+}
+
+function sourceMetadataRefs(source: unknown) {
+  const row = source && typeof source === 'object' ? (source as Record<string, unknown>) : {};
+  return {
+    ids: Array.isArray(row.public_reference_ids) ? row.public_reference_ids : [],
+    urls: Array.isArray(row.public_reference_urls) ? row.public_reference_urls : [],
+  };
+}
+
+function buildResearchEvidence(candidate: AutonomousAlphaCandidate) {
+  const strategyCandidate =
+    candidate.strategy_candidate && typeof candidate.strategy_candidate === 'object'
+      ? candidate.strategy_candidate
+      : {};
+  const sourceMetadata =
+    strategyCandidate.candidate_source_metadata &&
+    typeof strategyCandidate.candidate_source_metadata === 'object'
+      ? (strategyCandidate.candidate_source_metadata as Record<string, unknown>)
+      : {};
+  const hypothesisSourceRefs = sourceMetadataRefs(sourceMetadata.hypothesis_source);
+  const templateSourceRefs = sourceMetadataRefs(sourceMetadata.template_source);
+  return {
+    hypothesis_id: String(
+      candidate.formula?.hypothesis_id || strategyCandidate.hypothesis_id || 'unknown',
+    ),
+    template_id: String(
+      candidate.formula?.template_id || strategyCandidate.template_id || 'unknown',
+    ),
+    public_reference_ids: uniqueStrings([
+      ...hypothesisSourceRefs.ids,
+      ...templateSourceRefs.ids,
+      ...(candidate.notes
+        ?.filter((note) => note.startsWith('public_reference:'))
+        .map((note) => note.replace(/^public_reference:/, '')) || []),
+    ]),
+    public_reference_urls: uniqueStrings([
+      ...hypothesisSourceRefs.urls,
+      ...templateSourceRefs.urls,
+      ...(candidate.notes
+        ?.filter((note) => note.startsWith('public_reference_url:'))
+        .map((note) => note.replace(/^public_reference_url:/, '')) || []),
+    ]),
+    hypothesis_title:
+      typeof strategyCandidate.hypothesis_description === 'string'
+        ? strategyCandidate.hypothesis_description
+        : null,
+    template_name:
+      typeof strategyCandidate.template_name === 'string' ? strategyCandidate.template_name : null,
+    evidence_path:
+      'candidate.strategy_candidate.candidate_source_metadata -> alpha_evaluation.metrics_json.research_evidence',
   };
 }
 
@@ -675,6 +732,12 @@ function persistBacktestProxy(
       backtest_run_id: runId,
       artifact_type: 'alpha_discovery_rejection_reasons',
       path_or_payload: JSON.stringify(rejectionReasons),
+      created_at_ms: now,
+    },
+    {
+      backtest_run_id: runId,
+      artifact_type: 'alpha_discovery_research_evidence',
+      path_or_payload: JSON.stringify(metrics.research_evidence || null),
       created_at_ms: now,
     },
   ]);

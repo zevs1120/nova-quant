@@ -93,4 +93,34 @@ describe('strategy discovery engine', () => {
       ).toHaveLength(0);
     }
   });
+
+  it('can generate newly sourced public-research families with auditable urls', () => {
+    const constrained = runQuantPipeline({
+      as_of: '2026-03-08T00:00:00.000Z',
+      config: {
+        risk_profile: 'balanced',
+        discovery: {
+          generation: {
+            family: 'Momentum / Trend Following',
+            discovery_batch_size: 80,
+          },
+        },
+      },
+    });
+    const candidates =
+      constrained?.research?.research_core?.strategy_discovery_engine?.candidates || [];
+    const volManaged = candidates.find(
+      (row: any) => row.hypothesis_id === 'HYP-PUBLIC-VOLMAN-TSMOM-001',
+    );
+    const highAnchor = candidates.find((row: any) => row.hypothesis_id === 'HYP-PUBLIC-52WH-001');
+
+    expect(volManaged?.template_id).toBe('TPL-PUBLIC-VOLMAN-TSMOM-01');
+    expect(highAnchor?.supporting_features).toContain('distance_to_52w_high');
+    expect(
+      volManaged?.candidate_source_metadata?.hypothesis_source?.public_reference_urls || [],
+    ).toContain('https://www.nber.org/papers/w22208');
+    expect(
+      highAnchor?.candidate_source_metadata?.template_source?.public_reference_urls || [],
+    ).toContain('https://www.bauer.uh.edu/TGeorge/papers/gh4-paper.pdf');
+  });
 });
