@@ -11,6 +11,8 @@ type ReplayOptions = {
   symbols: string[];
   sinceMs: number;
   untilMs: number;
+  entryMode: 'entry-zone' | 'next-open';
+  maxEntryWaitBars: number;
   maxHoldBars: number;
   limit: number;
 };
@@ -28,6 +30,31 @@ type ReplayTrade = {
   exit: number;
   return_pct: number;
   exit_reason: 'STOP' | 'TP1' | 'TIME_EXIT';
+};
+
+type ReplaySkip = {
+  signal_id: string;
+  symbol: string;
+  strategy_family: string;
+  strategy_id: string;
+  reason:
+    | 'NO_ENTRY_BAR'
+    | 'NO_ENTRY_ZONE'
+    | 'ENTRY_NOT_FILLED'
+    | 'MALFORMED_SIGNAL_BOUNDS'
+    | 'GAP_THROUGH_STOP'
+    | 'GAP_THROUGH_TARGET'
+    | 'BAD_PRICE';
+  signal_created_at: string;
+};
+
+type ReplayOutcome = { trade: ReplayTrade; skip: null } | { trade: null; skip: ReplaySkip };
+
+type ReplayQualityGate = {
+  status: 'PASS' | 'WATCH' | 'REJECT';
+  reasons: string[];
+  fill_rate: number;
+  min_sample_target: number;
 };
 
 type ReplayBar = {
@@ -88,6 +115,8 @@ Options:
   --symbols <AAPL,NVDA,SPY>     optional symbol filter
   --since <YYYY-MM-DD>          signal creation lower bound, default 30 days ago
   --until <YYYY-MM-DD>          signal creation upper bound, default now
+  --entry-mode <mode>           entry-zone (default) or next-open
+  --max-entry-wait-bars <n>     bars allowed to touch entry zone, default 3
   --max-hold-bars <n>           daily bars to hold, default 8
   --limit <n>                   signals fetched before filtering, default 2000
   --help                        show this message`);
@@ -134,6 +163,8 @@ export function parseSignalReplayCliArgs(argv: string[]): ReplayOptions {
     symbols: [],
     sinceMs: now - 30 * 24 * 3600 * 1000,
     untilMs: now,
+    entryMode: 'entry-zone',
+    maxEntryWaitBars: 3,
     maxHoldBars: 8,
     limit: 2000,
   };
@@ -155,6 +186,11 @@ export function parseSignalReplayCliArgs(argv: string[]): ReplayOptions {
     if (key === 'symbols' && next) out.symbols = parseCsv(String(next));
     if (key === 'since' && next) out.sinceMs = parseDay(String(next), out.sinceMs);
     if (key === 'until' && next) out.untilMs = parseDay(String(next), out.untilMs);
+    if (key === 'entry-mode' && next)
+      out.entryMode =
+        String(next).trim().toLowerCase() === 'next-open' ? 'next-open' : 'entry-zone';
+    if (key === 'max-entry-wait-bars' && next)
+      out.maxEntryWaitBars = parseNumber(String(next), out.maxEntryWaitBars);
     if (key === 'max-hold-bars' && next)
       out.maxHoldBars = parseNumber(String(next), out.maxHoldBars);
     if (key === 'limit' && next) out.limit = parseNumber(String(next), out.limit);
@@ -165,24 +201,156 @@ export function parseSignalReplayCliArgs(argv: string[]): ReplayOptions {
   return out;
 }
 
-function replaySignalBars(
+function signalSkip(signal: SignalRecord, reason: ReplaySkip['reason']): ReplaySkip {
+  return {
+    signal_id: signal.signal_id,
+    symbol: signal.symbol,
+    strategy_family: signal.strategy_family,
+    strategy_id: signal.strategy_id,
+    reason,
+    signal_created_at: new Date(signal.created_at_ms).toISOString(),
+  };
+}
+
+function signalEntryZone(signal: SignalRecord): { low: number; high: number } | null {
+  const low = Number(signal.entry_low);
+  const high = Number(signal.entry_high);
+  if (!Number.isFinite(low) || !Number.isFinite(high) || low <= 0 || high <= 0) return null;
+  return low <= high ? { low, high } : { low: high, high: low };
+}
+
+function setupBoundsAreValid(args: {
+  direction: string;
+  signalEntry: number;
+  stop: number;
+  tp1: number;
+}) {
+  const { direction, signalEntry, stop, tp1 } = args;
+  if (!Number.isFinite(signalEntry) || signalEntry <= 0) return false;
+  if (direction === 'SHORT') {
+    return stop > signalEntry && (!tp1 || tp1 < signalEntry);
+  }
+  return stop > 0 && stop < signalEntry && (!tp1 || tp1 > signalEntry);
+}
+
+function gapInvalidatesEntry(args: {
+  direction: string;
+  open: number;
+  stop: number;
+  tp1: number;
+}): ReplaySkip['reason'] | null {
+  const { direction, open, stop, tp1 } = args;
+  if (!Number.isFinite(open) || open <= 0) return 'BAD_PRICE';
+  if (direction === 'SHORT') {
+    if (stop > 0 && open >= stop) return 'GAP_THROUGH_STOP';
+    if (tp1 > 0 && open <= tp1) return 'GAP_THROUGH_TARGET';
+    return null;
+  }
+  if (stop > 0 && open <= stop) return 'GAP_THROUGH_STOP';
+  if (tp1 > 0 && open >= tp1) return 'GAP_THROUGH_TARGET';
+  return null;
+}
+
+function priceInZone(price: number, zone: { low: number; high: number }) {
+  return price >= zone.low && price <= zone.high;
+}
+
+function entryFillPrice(bar: ReplayBar, zone: { low: number; high: number }): number | null {
+  const open = Number(bar.open);
+  const high = Number(bar.high);
+  const low = Number(bar.low);
+  if (!Number.isFinite(open) || !Number.isFinite(high) || !Number.isFinite(low)) return null;
+  if (priceInZone(open, zone)) return open;
+  const overlaps = low <= zone.high && high >= zone.low;
+  if (!overlaps) return null;
+  if (open > zone.high) return zone.high;
+  if (open < zone.low) return zone.low;
+  return Math.min(zone.high, Math.max(zone.low, open));
+}
+
+function selectEntry(args: {
+  signal: SignalRecord;
+  bars: ReplayBar[];
+  direction: string;
+  stop: number;
+  tp1: number;
+  options: Pick<ReplayOptions, 'entryMode' | 'maxEntryWaitBars'>;
+}): { bar: ReplayBar; index: number; entry: number } | ReplaySkip {
+  const firstTradableIndex = args.bars.findIndex((bar) => bar.ts_open > args.signal.created_at_ms);
+  if (firstTradableIndex < 0) return signalSkip(args.signal, 'NO_ENTRY_BAR');
+
+  if (args.options.entryMode === 'next-open') {
+    const bar = args.bars[firstTradableIndex];
+    return {
+      bar,
+      index: firstTradableIndex,
+      entry: Number(bar.open),
+    };
+  }
+
+  const zone = signalEntryZone(args.signal);
+  if (!zone) return signalSkip(args.signal, 'NO_ENTRY_ZONE');
+  const signalEntry = (zone.low + zone.high) / 2;
+  if (
+    !setupBoundsAreValid({
+      direction: args.direction,
+      signalEntry,
+      stop: args.stop,
+      tp1: args.tp1,
+    })
+  ) {
+    return signalSkip(args.signal, 'MALFORMED_SIGNAL_BOUNDS');
+  }
+
+  const entryDeadline = Math.min(
+    args.bars.length,
+    firstTradableIndex + Math.max(1, args.options.maxEntryWaitBars),
+  );
+  for (let index = firstTradableIndex; index < entryDeadline; index += 1) {
+    const bar = args.bars[index];
+    const openInvalidation = gapInvalidatesEntry({
+      direction: args.direction,
+      open: Number(bar.open),
+      stop: args.stop,
+      tp1: args.tp1,
+    });
+    if (openInvalidation) return signalSkip(args.signal, openInvalidation);
+    const entry = entryFillPrice(bar, zone);
+    if (entry !== null) {
+      return { bar, index, entry };
+    }
+  }
+
+  return signalSkip(args.signal, 'ENTRY_NOT_FILLED');
+}
+
+export function replaySignalOutcome(
   signal: SignalRecord,
   bars: ReplayBar[],
-  maxHoldBars: number,
-): ReplayTrade | null {
-  const entryIndex = bars.findIndex((bar) => bar.ts_open > signal.created_at_ms);
-  if (entryIndex < 0) return null;
-  const entryBar = bars[entryIndex];
-  const entry = Number(entryBar.open);
+  options: Pick<ReplayOptions, 'entryMode' | 'maxEntryWaitBars' | 'maxHoldBars'>,
+): ReplayOutcome {
   const direction = String(signal.direction || '').toUpperCase();
   const side = direction === 'SHORT' ? -1 : 1;
   const stop = Number(signal.stop_price || signal.invalidation_level || 0);
   const tp1 = Number(signal.tp1_price || 0);
+  const entrySelection = selectEntry({
+    signal,
+    bars,
+    direction,
+    stop,
+    tp1,
+    options,
+  });
+  if ('reason' in entrySelection) return { trade: null, skip: entrySelection };
+
+  const entryBar = entrySelection.bar;
+  const entryIndex = entrySelection.index;
+  const entry = entrySelection.entry;
 
   let exitBar = entryBar;
   let exit = Number(entryBar.close);
   let exitReason: ReplayTrade['exit_reason'] = 'TIME_EXIT';
-  const path = bars.slice(entryIndex, entryIndex + maxHoldBars);
+  const path = bars.slice(entryIndex, entryIndex + options.maxHoldBars);
   for (const bar of path) {
     const high = Number(bar.high);
     const low = Number(bar.low);
@@ -209,33 +377,51 @@ function replaySignalBars(
     exit = Number(bar.close);
   }
 
-  if (!Number.isFinite(entry) || entry <= 0 || !Number.isFinite(exit) || exit <= 0) return null;
+  if (!Number.isFinite(entry) || entry <= 0 || !Number.isFinite(exit) || exit <= 0) {
+    return { trade: null, skip: signalSkip(signal, 'BAD_PRICE') };
+  }
   return {
-    signal_id: signal.signal_id,
-    symbol: signal.symbol,
-    strategy_family: signal.strategy_family,
-    strategy_id: signal.strategy_id,
-    direction,
-    signal_created_at: new Date(signal.created_at_ms).toISOString(),
-    entry_at: new Date(entryBar.ts_open).toISOString(),
-    exit_at: new Date(exitBar.ts_open).toISOString(),
-    entry: round(entry, 4),
-    exit: round(exit, 4),
-    return_pct: round(((exit - entry) / entry) * side, 6),
-    exit_reason: exitReason,
-  } satisfies ReplayTrade;
+    trade: {
+      signal_id: signal.signal_id,
+      symbol: signal.symbol,
+      strategy_family: signal.strategy_family,
+      strategy_id: signal.strategy_id,
+      direction,
+      signal_created_at: new Date(signal.created_at_ms).toISOString(),
+      entry_at: new Date(entryBar.ts_open).toISOString(),
+      exit_at: new Date(exitBar.ts_open).toISOString(),
+      entry: round(entry, 4),
+      exit: round(exit, 4),
+      return_pct: round(((exit - entry) / entry) * side, 6),
+      exit_reason: exitReason,
+    } satisfies ReplayTrade,
+    skip: null,
+  };
 }
 
-function replaySignal(repo: MarketRepository, signal: SignalRecord, maxHoldBars: number) {
+export function replaySignalBars(
+  signal: SignalRecord,
+  bars: ReplayBar[],
+  options: Pick<ReplayOptions, 'entryMode' | 'maxEntryWaitBars' | 'maxHoldBars'>,
+): ReplayTrade | null {
+  return replaySignalOutcome(signal, bars, options).trade;
+}
+
+function replaySignalOutcomeFromRepo(
+  repo: MarketRepository,
+  signal: SignalRecord,
+  options: Pick<ReplayOptions, 'entryMode' | 'maxEntryWaitBars' | 'maxHoldBars'>,
+) {
   const asset = repo.getAssetBySymbol(signal.market, signal.symbol);
-  if (!asset) return null;
+  if (!asset)
+    return { trade: null, skip: signalSkip(signal, 'NO_ENTRY_BAR') } satisfies ReplayOutcome;
   const bars = repo.getOhlcv({
     assetId: asset.asset_id,
     timeframe: '1d',
     start: signal.created_at_ms - 5 * 24 * 3600 * 1000,
-    limit: Math.max(40, maxHoldBars + 10),
+    limit: Math.max(40, options.maxHoldBars + options.maxEntryWaitBars + 10),
   });
-  return replaySignalBars(signal, bars, maxHoldBars);
+  return replaySignalOutcome(signal, bars, options);
 }
 
 function summarizeTrades(trades: ReplayTrade[]) {
@@ -272,6 +458,51 @@ function summarizeGroup(
   );
 }
 
+function summarizeSkips(skips: ReplaySkip[]) {
+  const counts: Record<string, number> = {};
+  for (const skip of skips) {
+    counts[skip.reason] = (counts[skip.reason] || 0) + 1;
+  }
+  return counts;
+}
+
+function evaluateQualityGate(args: {
+  signalsLoaded: number;
+  trades: ReplayTrade[];
+  aggregate: ReturnType<typeof summarizeTrades>;
+}): ReplayQualityGate {
+  const minSampleTarget = 20;
+  const fillRate = round(args.trades.length / Math.max(1, args.signalsLoaded), 4);
+  const reasons: string[] = [];
+  if (!args.signalsLoaded) reasons.push('no_signals_loaded');
+  if (args.trades.length < 8) reasons.push('executable_trade_sample_too_small');
+  if (args.trades.length < minSampleTarget) reasons.push('below_research_sample_target');
+  if (fillRate < 0.35) reasons.push('entry_discipline_rejects_most_signals');
+  if (args.aggregate.avg_return <= 0) reasons.push('negative_executable_expectancy');
+  if (args.aggregate.total_compounded <= 0) reasons.push('negative_executable_compounded_return');
+  if (args.aggregate.sharpe_proxy < 0.25) reasons.push('sharpe_proxy_below_floor');
+  if (args.aggregate.worst <= -0.08) reasons.push('single_trade_tail_loss_too_large');
+
+  const rejectReasons = new Set([
+    'negative_executable_expectancy',
+    'negative_executable_compounded_return',
+    'sharpe_proxy_below_floor',
+    'single_trade_tail_loss_too_large',
+  ]);
+  const status = reasons.some((reason) => rejectReasons.has(reason))
+    ? 'REJECT'
+    : args.trades.length >= minSampleTarget && args.aggregate.sharpe_proxy >= 0.6
+      ? 'PASS'
+      : 'WATCH';
+
+  return {
+    status,
+    reasons,
+    fill_rate: fillRate,
+    min_sample_target: minSampleTarget,
+  };
+}
+
 export function runSignalReplay(repo: MarketRepository, options: ReplayOptions) {
   const symbolSet = new Set(options.symbols);
   const familyNeedle = String(options.family || '').toLowerCase();
@@ -284,9 +515,14 @@ export function runSignalReplay(repo: MarketRepository, options: ReplayOptions) 
       (signal) => !familyNeedle || signal.strategy_family.toLowerCase().includes(familyNeedle),
     )
     .sort((a, b) => a.created_at_ms - b.created_at_ms);
-  const trades = signals
-    .map((signal) => replaySignal(repo, signal, options.maxHoldBars))
+  const outcomes = signals.map((signal) => replaySignalOutcomeFromRepo(repo, signal, options));
+  const trades = outcomes
+    .map((outcome) => outcome.trade)
     .filter((trade): trade is ReplayTrade => Boolean(trade));
+  const skips = outcomes
+    .map((outcome) => outcome.skip)
+    .filter((skip): skip is ReplaySkip => Boolean(skip));
+  const aggregate = summarizeTrades(trades);
   return {
     meta: {
       market: options.market,
@@ -294,13 +530,19 @@ export function runSignalReplay(repo: MarketRepository, options: ReplayOptions) 
       symbols: options.symbols,
       since: new Date(options.sinceMs).toISOString(),
       until: new Date(options.untilMs).toISOString(),
+      entry_mode: options.entryMode,
+      max_entry_wait_bars: options.maxEntryWaitBars,
       max_hold_bars: options.maxHoldBars,
       signals_loaded: signals.length,
       trades_closed_or_marked: trades.length,
+      signals_skipped: skips.length,
     },
-    aggregate: summarizeTrades(trades),
+    quality_gate: evaluateQualityGate({ signalsLoaded: signals.length, trades, aggregate }),
+    aggregate,
     by_family: summarizeGroup(trades, 'strategy_family'),
     by_exit_reason: summarizeGroup(trades, 'exit_reason'),
+    skip_summary: summarizeSkips(skips),
+    skipped_signal_sample: skips.slice(0, 10),
     worst_trades: [...trades].sort((a, b) => a.return_pct - b.return_pct).slice(0, 10),
     best_trades: [...trades].sort((a, b) => b.return_pct - a.return_pct).slice(0, 10),
   };
@@ -344,6 +586,8 @@ async function fetchSignalsFromPostgres(
     created_at_ms: Number(row.created_at_ms),
     stop_price: Number(row.stop_price || 0),
     invalidation_level: Number(row.invalidation_level || 0),
+    entry_low: Number(row.entry_low || 0),
+    entry_high: Number(row.entry_high || 0),
     tp1_price: row.tp1_price === null ? null : Number(row.tp1_price || 0),
   })) as unknown as SignalRecord[];
 }
@@ -351,7 +595,7 @@ async function fetchSignalsFromPostgres(
 async function fetchBarsFromPostgres(
   pool: Pool,
   signal: SignalRecord,
-  maxHoldBars: number,
+  options: Pick<ReplayOptions, 'maxEntryWaitBars' | 'maxHoldBars'>,
 ): Promise<ReplayBar[]> {
   const schema = postgresSchema();
   const ohlcvTable = qualifyPgTable(schema, 'ohlcv');
@@ -373,7 +617,7 @@ async function fetchBarsFromPostgres(
       signal.market,
       signal.symbol,
       signal.created_at_ms - 5 * 24 * 3600 * 1000,
-      Math.max(40, maxHoldBars + 10),
+      Math.max(40, options.maxHoldBars + options.maxEntryWaitBars + 10),
     ],
   );
   return rows.map((row) => ({
@@ -386,17 +630,18 @@ export async function runSignalReplayFromPostgres(options: ReplayOptions) {
   const pool = createReadOnlyPool();
   try {
     const signals = await fetchSignalsFromPostgres(pool, options);
-    const trades = (
-      await Promise.all(
-        signals.map(async (signal) =>
-          replaySignalBars(
-            signal,
-            await fetchBarsFromPostgres(pool, signal, options.maxHoldBars),
-            options.maxHoldBars,
-          ),
-        ),
-      )
-    ).filter((trade): trade is ReplayTrade => Boolean(trade));
+    const outcomes = await Promise.all(
+      signals.map(async (signal) =>
+        replaySignalOutcome(signal, await fetchBarsFromPostgres(pool, signal, options), options),
+      ),
+    );
+    const trades = outcomes
+      .map((outcome) => outcome.trade)
+      .filter((trade): trade is ReplayTrade => Boolean(trade));
+    const skips = outcomes
+      .map((outcome) => outcome.skip)
+      .filter((skip): skip is ReplaySkip => Boolean(skip));
+    const aggregate = summarizeTrades(trades);
     return {
       meta: {
         market: options.market,
@@ -404,14 +649,20 @@ export async function runSignalReplayFromPostgres(options: ReplayOptions) {
         symbols: options.symbols,
         since: new Date(options.sinceMs).toISOString(),
         until: new Date(options.untilMs).toISOString(),
+        entry_mode: options.entryMode,
+        max_entry_wait_bars: options.maxEntryWaitBars,
         max_hold_bars: options.maxHoldBars,
         signals_loaded: signals.length,
         trades_closed_or_marked: trades.length,
+        signals_skipped: skips.length,
         data_path: 'postgres_readonly',
       },
-      aggregate: summarizeTrades(trades),
+      quality_gate: evaluateQualityGate({ signalsLoaded: signals.length, trades, aggregate }),
+      aggregate,
       by_family: summarizeGroup(trades, 'strategy_family'),
       by_exit_reason: summarizeGroup(trades, 'exit_reason'),
+      skip_summary: summarizeSkips(skips),
+      skipped_signal_sample: skips.slice(0, 10),
       worst_trades: [...trades].sort((a, b) => a.return_pct - b.return_pct).slice(0, 10),
       best_trades: [...trades].sort((a, b) => b.return_pct - a.return_pct).slice(0, 10),
     };

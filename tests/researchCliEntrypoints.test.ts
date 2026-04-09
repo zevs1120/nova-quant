@@ -45,6 +45,10 @@ describe('research CLI entrypoints', () => {
       '2026-04-08',
       '--max-hold-bars',
       '5',
+      '--entry-mode',
+      'next-open',
+      '--max-entry-wait-bars',
+      '2',
       '--limit',
       '400',
     ]);
@@ -54,6 +58,8 @@ describe('research CLI entrypoints', () => {
     expect(out.symbols).toEqual(['GOOGL', 'META']);
     expect(new Date(out.sinceMs).toISOString()).toBe('2026-03-20T00:00:00.000Z');
     expect(new Date(out.untilMs).toISOString()).toBe('2026-04-08T00:00:00.000Z');
+    expect(out.entryMode).toBe('next-open');
+    expect(out.maxEntryWaitBars).toBe(2);
     expect(out.maxHoldBars).toBe(5);
     expect(out.limit).toBe(400);
   });
