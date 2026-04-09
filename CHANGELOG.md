@@ -6,6 +6,7 @@ NovaQuant 所有重要变更记录于此。
 
 ### 🔬 Alpha / 策略发现能力增强
 
+- **feat(research): 增加行动卡 quarantine、手动 Qlib factory 与云端 signal replay。** 决策层会在行动卡排名前隔离 DEBUG、未命名 legacy、MODEL_PUSH 直推与极端 forward replay loss 信号，并在 audit 暴露 quarantine 样本；新增 `scripts/run-qlib-research-factory.ts` 作为 Qlib 研究生产线手动入口；新增 `scripts/backtest-signal-replay.ts` 从云端 Postgres 只读 replay 信号，支持按策略族（如 Regime Transition）切片复盘。
 - **feat(research): 把 Qlib 接成 alpha / strategy factory 生产线。** 新增 Qlib research factory 服务与 `/api/research/qlib-factory/run` 入口；一次运行会拉 Qlib factor / 可选 model prediction / 可选 native backtest，注册 Nova alpha candidate，送入 alpha evaluator，并把 factory request、factor snapshot、model prediction、candidate lineage 写入 backtest artifacts。
 - **feat(research): 让 Qlib factory 进入自动研究循环。** factory 现在会把评估结果交给已有 alpha promotion guard，符合门禁的 Qlib-born alpha 会先进入 SHADOW；新增 scheduled job 从云端 repository daily bars 选择 universe，并接入 `auto-backend` 的 discovery 周期，桥未启用时会结构化跳过而不是拖垮后端循环。
 - **feat(qlib,evidence): 新增 Qlib native backtest 证据落库通道。** TypeScript 侧新增 `/api/evidence/qlib-native/run` 与 Qlib `/api/v2/backtest/native` client；运行后会把 Qlib native request / response / metrics 写入 `backtest_runs`、`backtest_metrics`、`backtest_artifacts`，让 Alpha158 / Alpha360 / TopkDropout native replay 不再只停在 sidecar，而是进入 Nova 的统一 evidence/backtest 查询面。

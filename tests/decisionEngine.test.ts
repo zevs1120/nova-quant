@@ -150,4 +150,65 @@ describe('decision engine', () => {
     expect(out.ranked_action_cards.some((row) => row.symbol === 'MSFT')).toBe(false);
     expect(out.ranked_action_cards[0].publication_status).toBe('ACTIONABLE');
   });
+
+  it('quarantines debug, legacy, model-push and broken replay signals before action ranking', () => {
+    const out = buildDecisionSnapshot({
+      userId: 'decision-user',
+      market: 'US',
+      assetClass: 'US_STOCK',
+      asOf: new Date().toISOString(),
+      runtimeSourceStatus: 'DB_BACKED',
+      riskProfile: riskProfile('balanced'),
+      signals: [
+        signal({ signal_id: 'SIG-REAL-1', symbol: 'AAPL' }),
+        signal({
+          signal_id: 'SIG-DEBUG-1774081231813',
+          symbol: 'SPY',
+          confidence: 0.99,
+          score: 99,
+        }),
+        signal({
+          signal_id: 'SIG-1774187798761',
+          symbol: 'TSLA',
+          confidence: 0.99,
+          score: 98,
+        }),
+        signal({
+          signal_id: 'mdl-bf69f9',
+          symbol: 'NVDA',
+          strategy_id: 'MODEL_PUSH',
+          strategy_family: 'MODEL_PUSH',
+          confidence: 0.99,
+          score: 97,
+        }),
+        signal({
+          signal_id: 'SIG-BROKEN-REPLAY',
+          symbol: 'MSFT',
+          confidence: 0.99,
+          score: 96,
+          replay_summary: { net_return: -0.18 },
+        }),
+      ],
+      evidenceSignals: [],
+      marketState: [
+        marketState(),
+        marketState({ symbol: 'SPY' }),
+        marketState({ symbol: 'TSLA' }),
+        marketState({ symbol: 'NVDA' }),
+        marketState({ symbol: 'MSFT' }),
+      ],
+      holdings: [],
+    });
+
+    expect(out.audit.raw_candidate_count).toBe(5);
+    expect(out.audit.candidate_count).toBe(1);
+    expect(out.audit.quarantined_count).toBe(4);
+    expect(out.ranked_action_cards.map((row) => row.signal_id)).toContain('SIG-REAL-1');
+    expect(out.ranked_action_cards.some((row) => row.signal_id === 'SIG-DEBUG-1774081231813')).toBe(
+      false,
+    );
+    expect(out.ranked_action_cards.some((row) => row.symbol === 'TSLA')).toBe(false);
+    expect(out.ranked_action_cards.some((row) => row.symbol === 'NVDA')).toBe(false);
+    expect(out.ranked_action_cards.some((row) => row.symbol === 'MSFT')).toBe(false);
+  });
 });

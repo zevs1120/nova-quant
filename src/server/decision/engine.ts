@@ -203,12 +203,84 @@ function isPublicationReadyStatus(status: string, sourceStatus?: string): boolea
   );
 }
 
+function nestedNumber(row: UiSignal, path: string[]): number | null {
+  let cursor: unknown = row;
+  for (const key of path) {
+    if (!cursor || typeof cursor !== 'object') return null;
+    cursor = (cursor as Record<string, unknown>)[key];
+  }
+  return toNumber(cursor, null);
+}
+
+function signalQuarantineReason(row: UiSignal): string | null {
+  const signalId = String(row.signal_id || row.id || '').trim();
+  const signalIdUpper = signalId.toUpperCase();
+  const strategyIdUpper = String(row.strategy_id || '').toUpperCase();
+  const strategyFamilyUpper = String(row.strategy_family || '').toUpperCase();
+  const sourceUpper = String(row.source || row.source_label || '').toUpperCase();
+  const qualityFlags = asArray<unknown>(row.quality_flags)
+    .map((flag) => String(flag).toLowerCase())
+    .filter(Boolean);
+
+  if (signalIdUpper.startsWith('SIG-DEBUG')) {
+    return 'debug_signal_quarantined';
+  }
+
+  if (/^SIG-\d{8,}(?:-|$)/.test(signalIdUpper)) {
+    return 'legacy_unscoped_signal_id_quarantined';
+  }
+
+  if (
+    signalIdUpper.startsWith('MDL-') ||
+    strategyIdUpper === 'MODEL_PUSH' ||
+    strategyFamilyUpper === 'MODEL_PUSH' ||
+    sourceUpper === 'MODEL_PUSH'
+  ) {
+    return 'model_push_signal_quarantined';
+  }
+
+  if (qualityFlags.some((flag) => flag.includes('quarantine'))) {
+    return 'upstream_quality_quarantine';
+  }
+
+  const replayNetReturn =
+    toNumber(row.forward_replay_net_return, null) ??
+    toNumber(row.replay_net_return, null) ??
+    nestedNumber(row, ['forward_replay', 'net_return']) ??
+    nestedNumber(row, ['replay_summary', 'net_return']) ??
+    nestedNumber(row, ['expected_metrics', 'forward_replay_net_return']);
+  const replayLossPct =
+    toNumber(row.forward_replay_loss_pct, null) ??
+    toNumber(row.replay_loss_pct, null) ??
+    nestedNumber(row, ['forward_replay', 'loss_pct']) ??
+    nestedNumber(row, ['replay_summary', 'loss_pct']);
+
+  if (
+    (replayNetReturn !== null && replayNetReturn <= -0.12) ||
+    (replayLossPct !== null && replayLossPct <= -12)
+  ) {
+    return 'forward_replay_extreme_loss_quarantined';
+  }
+
+  return null;
+}
+
 function evaluatePublicationGate(args: {
   signal: UiSignal;
   intent: ReturnType<typeof buildActionIntent>;
   governor: RiskGovernorOutcome;
   strategySource: string;
 }) {
+  const quarantineReason = signalQuarantineReason(args.signal);
+  if (quarantineReason) {
+    return {
+      strategyBacked: false,
+      publishable: false,
+      status: 'REJECTED' as const,
+      reason: quarantineReason,
+    };
+  }
+
   const strategyBacked = isStrategyBackedSource(args.strategySource);
   if (!strategyBacked) {
     return {
@@ -1187,11 +1259,24 @@ export function buildDecisionSnapshot(input: DecisionEngineInput) {
     input.runtimeSourceStatus,
     RUNTIME_STATUS.INSUFFICIENT_DATA,
   );
-  const mergedSignals = mergeSignals(
+  const rawMergedSignals = mergeSignals(
     input.signals || [],
     input.evidenceSignals || [],
     overallStatus,
   );
+  const quarantinedSignals = rawMergedSignals
+    .map((row) => {
+      const reason = signalQuarantineReason(row);
+      return reason
+        ? {
+            signal_id: String(row.signal_id || row.id || ''),
+            symbol: String(row.symbol || ''),
+            reason,
+          }
+        : null;
+    })
+    .filter((row): row is { signal_id: string; symbol: string; reason: string } => Boolean(row));
+  const mergedSignals = rawMergedSignals.filter((row) => !signalQuarantineReason(row));
   const actionableSignals = mergedSignals.filter(isActionable);
   const riskState = deriveRiskState({
     marketState: input.marketState || [],
@@ -1474,6 +1559,9 @@ export function buildDecisionSnapshot(input: DecisionEngineInput) {
     },
     audit: {
       candidate_count: mergedSignals.length,
+      raw_candidate_count: rawMergedSignals.length,
+      quarantined_count: quarantinedSignals.length,
+      quarantined_signal_sample: quarantinedSignals.slice(0, 5),
       actionable_count: actionableSignals.length,
       strategy_backed_count: ranked.filter((row) => row.strategy_backed).length,
       publishable_count: ranked.filter((row) => row.publication_status === 'ACTIONABLE').length,
