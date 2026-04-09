@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { buildCandidateScoring } from '../../research/discovery/candidateScoring.js';
+import { runCandidateBarReplay } from '../../research/discovery/candidateReplay.js';
 import { buildCandidateValidationPipeline } from '../../research/discovery/candidateValidation.js';
 import { getConfig } from '../config.js';
 import type {
@@ -147,6 +148,8 @@ function toLegacyDiscoveryCandidate(candidate: AutonomousAlphaCandidate) {
   };
 }
 
+type LegacyDiscoveryCandidate = ReturnType<typeof toLegacyDiscoveryCandidate>;
+
 function buildReplayBenchmarks(repo: MarketRepository) {
   return repo
     .listPerformanceSnapshots({ segmentType: 'OVERALL' })
@@ -167,7 +170,97 @@ function buildReplayBenchmarks(repo: MarketRepository) {
     .filter((row) => row.closed_trades > 0);
 }
 
-function buildValidationContext(repo: MarketRepository) {
+function parseNumericBars(
+  repo: MarketRepository,
+  market: Market,
+  symbol: string,
+  timeframe: '1d' | '1h',
+) {
+  const asset = repo.getAssetBySymbol(market, symbol);
+  if (!asset) return [];
+  return repo
+    .getOhlcv({
+      assetId: asset.asset_id,
+      timeframe,
+      limit: 420,
+    })
+    .map((row) => ({
+      ts_open: row.ts_open,
+      open: safeNumber(row.open, Number.NaN),
+      high: safeNumber(row.high, Number.NaN),
+      low: safeNumber(row.low, Number.NaN),
+      close: safeNumber(row.close, Number.NaN),
+      volume: safeNumber(row.volume, 0),
+    }))
+    .filter(
+      (row) =>
+        Number.isFinite(row.ts_open) &&
+        Number.isFinite(row.open) &&
+        Number.isFinite(row.high) &&
+        Number.isFinite(row.low) &&
+        Number.isFinite(row.close),
+    );
+}
+
+function loadReplayBarSets(repo: MarketRepository, candidates: AutonomousAlphaCandidate[]) {
+  const markets = new Set<Market>(candidates.flatMap((candidate) => candidate.compatible_markets));
+  const barSets: Array<{
+    market: Market;
+    symbol: string;
+    bars: ReturnType<typeof parseNumericBars>;
+  }> = [];
+
+  for (const market of markets) {
+    const assets = repo
+      .listAssets(market)
+      .filter((asset) => asset.status === 'ACTIVE')
+      .slice(0, 28);
+    for (const asset of assets) {
+      const bars = parseNumericBars(repo, market, asset.symbol, '1d');
+      if (bars.length >= 80) {
+        barSets.push({
+          market,
+          symbol: asset.symbol,
+          bars,
+        });
+      }
+    }
+  }
+
+  return barSets;
+}
+
+function buildCandidateReplayResults(args: {
+  repo: MarketRepository;
+  candidates: LegacyDiscoveryCandidate[];
+  sourceCandidates: AutonomousAlphaCandidate[];
+}) {
+  const barSets = loadReplayBarSets(args.repo, args.sourceCandidates);
+  if (!barSets.length) return [];
+
+  return args.candidates
+    .map((candidate) => {
+      const candidateSets = barSets.filter((set) =>
+        (candidate.supported_asset_classes || []).includes(
+          set.market === 'CRYPTO' ? 'CRYPTO' : 'US_STOCK',
+        ),
+      );
+      return runCandidateBarReplay({
+        candidate,
+        barSets: candidateSets,
+        config: {
+          cost_bps_round_trip: candidate.supported_asset_classes.includes('CRYPTO') ? 24 : 16,
+        },
+      }) as Record<string, unknown>;
+    })
+    .filter((row) => Number(row.closed_trades || 0) > 0);
+}
+
+function buildValidationContext(
+  repo: MarketRepository,
+  legacyCandidates: LegacyDiscoveryCandidate[],
+  sourceCandidates: AutonomousAlphaCandidate[],
+) {
   const activeStrategies = repo.listStrategyVersions({ limit: 60 }).map((row) => ({
     family: row.family,
     current_stage:
@@ -190,6 +283,13 @@ function buildValidationContext(repo: MarketRepository) {
       replay_validation: {
         market_replay_benchmarks: buildReplayBenchmarks(repo),
       },
+    },
+    candidate_replay: {
+      results: buildCandidateReplayResults({
+        repo,
+        candidates: legacyCandidates,
+        sourceCandidates,
+      }),
     },
   };
 }
@@ -329,9 +429,22 @@ function buildAlphaMetrics(
     backtest_proxy: {
       gross_return: round(grossReturn, 6),
       net_return: round(netReturn, 6),
-      note: 'Discovery candidate validation proxy, not a broker-grade event simulation.',
+      note:
+        quick?.metrics?.replay_result_source === 'ohlcv_candidate_replay'
+          ? 'Candidate-level bar replay over repository OHLCV with a conservative generic entry/exit interpreter.'
+          : 'Discovery candidate validation proxy, not a broker-grade event simulation.',
     },
-    proxy_only: true,
+    proxy_only: quick?.metrics?.replay_result_source !== 'ohlcv_candidate_replay',
+    bar_replay: {
+      source: quick?.metrics?.replay_result_source
+        ? String(quick.metrics.replay_result_source)
+        : null,
+      closed_trades: safeNumber(quick?.metrics?.candidate_replay_closed_trades, 0),
+      symbols_with_trades: safeNumber(quick?.metrics?.candidate_replay_symbols_with_trades, 0),
+      sample_trades: Array.isArray(quick?.metrics?.candidate_replay_symbol_summaries)
+        ? (quick.metrics.candidate_replay_symbol_summaries as Array<Record<string, unknown>>)
+        : [],
+    },
   };
 }
 
@@ -570,6 +683,7 @@ function persistBacktestProxy(
 
 function stageSampleSizeCandidate(metrics: AlphaEvaluationMetrics) {
   return Math.max(
+    metrics.bar_replay.closed_trades,
     metrics.performance_by_subperiod.length * 5,
     metrics.performance_by_regime.length * 4,
     Math.round((metrics.turnover ?? 0.3) * 20),
@@ -585,7 +699,7 @@ export function evaluateAlphaCandidates(args: {
   const legacyCandidates = args.candidates.map(toLegacyDiscoveryCandidate);
   const validation = buildCandidateValidationPipeline({
     candidates: legacyCandidates,
-    context: buildValidationContext(args.repo),
+    context: buildValidationContext(args.repo, legacyCandidates, args.candidates),
     config: {
       stage_2: {
         execution_realism_profile: {

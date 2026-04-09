@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import type {
   AlphaCandidateRecord,
+  AlphaEvaluationRecord,
   AlphaIntegrationPath,
   AlphaLifecycleEventRecord,
   AlphaLifecycleState,
@@ -59,6 +60,12 @@ export type AlphaEvaluationMetrics = {
     note: string;
   };
   proxy_only: boolean;
+  bar_replay: {
+    source: string | null;
+    closed_trades: number;
+    symbols_with_trades: number;
+    sample_trades: Array<Record<string, unknown>>;
+  };
 };
 
 function round(value: number, digits = 6): number {
@@ -160,6 +167,20 @@ export function buildAlphaCandidateRecord(args: {
     }),
     created_at_ms: createdAtMs,
     updated_at_ms: updatedAtMs,
+  };
+}
+
+function alphaLineage(record: AlphaCandidateRecord) {
+  const formula = parseJson<JsonObject>(record.formula_json, {});
+  const metadata = parseJson<{
+    strategy_candidate?: Record<string, unknown> | null;
+  }>(record.metadata_json, {});
+  const strategyCandidate = metadata.strategy_candidate || {};
+  return {
+    hypothesis_id:
+      String(formula.hypothesis_id || strategyCandidate.hypothesis_id || '').trim() || 'unknown',
+    template_id:
+      String(formula.template_id || strategyCandidate.template_id || '').trim() || 'unknown',
   };
 }
 
@@ -289,6 +310,140 @@ function shadowStatsFromPnl(pnlSeries: number[]) {
   };
 }
 
+function buildHypothesisYieldBoard(args: {
+  candidates: AlphaCandidateRecord[];
+  evalMap: Map<string, AlphaEvaluationRecord>;
+  shadowMap: Map<
+    string,
+    {
+      total_observations: number;
+      realized_sample_size: number;
+      pnl_values: number[];
+    }
+  >;
+}) {
+  type Bucket = {
+    hypothesis_id: string;
+    template_id: string;
+    family: string;
+    candidates_generated: number;
+    evaluated: number;
+    pass: number;
+    watch: number;
+    reject: number;
+    promoted_or_live: number;
+    replay_evaluated: number;
+    shadow_observations: number;
+    realized_sample_size: number;
+    alpha_ids: string[];
+    acceptance_scores: number[];
+    shadow_pnl: number[];
+  };
+
+  const buckets = new Map<string, Bucket>();
+
+  for (const candidate of args.candidates) {
+    const lineage = alphaLineage(candidate);
+    const key = `${lineage.hypothesis_id}::${lineage.template_id}::${candidate.family}`;
+    let bucket = buckets.get(key);
+    if (!bucket) {
+      bucket = {
+        hypothesis_id: lineage.hypothesis_id,
+        template_id: lineage.template_id,
+        family: candidate.family,
+        candidates_generated: 0,
+        evaluated: 0,
+        pass: 0,
+        watch: 0,
+        reject: 0,
+        promoted_or_live: 0,
+        replay_evaluated: 0,
+        shadow_observations: 0,
+        realized_sample_size: 0,
+        alpha_ids: [],
+        acceptance_scores: [],
+        shadow_pnl: [],
+      };
+      buckets.set(key, bucket);
+    }
+
+    bucket.candidates_generated += 1;
+    bucket.alpha_ids.push(candidate.id);
+    if (['BACKTEST_PASS', 'SHADOW', 'CANARY', 'PROD'].includes(candidate.status)) {
+      bucket.promoted_or_live += 1;
+    }
+    if (candidate.acceptance_score !== null)
+      bucket.acceptance_scores.push(candidate.acceptance_score);
+
+    const latestEval = args.evalMap.get(candidate.id);
+    if (latestEval) {
+      bucket.evaluated += 1;
+      bucket.acceptance_scores.push(latestEval.acceptance_score);
+      if (latestEval.evaluation_status === 'PASS') bucket.pass += 1;
+      if (latestEval.evaluation_status === 'WATCH') bucket.watch += 1;
+      if (latestEval.evaluation_status === 'REJECT') bucket.reject += 1;
+      const metrics = parseJson<AlphaEvaluationMetrics & JsonObject>(
+        latestEval.metrics_json,
+        {} as AlphaEvaluationMetrics & JsonObject,
+      );
+      if (metrics.proxy_only === false) bucket.replay_evaluated += 1;
+    }
+
+    const shadow = args.shadowMap.get(candidate.id);
+    if (shadow) {
+      bucket.shadow_observations += shadow.total_observations;
+      bucket.realized_sample_size += shadow.realized_sample_size;
+      bucket.shadow_pnl.push(...shadow.pnl_values);
+    }
+  }
+
+  return [...buckets.values()]
+    .map((bucket) => {
+      const acceptance = bucket.acceptance_scores.length
+        ? bucket.acceptance_scores.reduce((sum, value) => sum + value, 0) /
+          bucket.acceptance_scores.length
+        : null;
+      const shadow = shadowStatsFromPnl(bucket.shadow_pnl);
+      const passRate = bucket.evaluated ? bucket.pass / bucket.evaluated : 0;
+      const promotionRate = bucket.candidates_generated
+        ? bucket.promoted_or_live / bucket.candidates_generated
+        : 0;
+      const replayRate = bucket.evaluated ? bucket.replay_evaluated / bucket.evaluated : 0;
+      const shadowEdge = Math.max(-0.25, Math.min(0.25, Number(shadow.expectancy || 0) / 8));
+      const yieldScore =
+        passRate * 0.32 +
+        promotionRate * 0.24 +
+        replayRate * 0.12 +
+        Math.max(0, Number(acceptance || 0)) * 0.2 +
+        (0.12 + shadowEdge);
+
+      return {
+        hypothesis_id: bucket.hypothesis_id,
+        template_id: bucket.template_id,
+        family: bucket.family,
+        candidates_generated: bucket.candidates_generated,
+        evaluated: bucket.evaluated,
+        pass: bucket.pass,
+        watch: bucket.watch,
+        reject: bucket.reject,
+        promoted_or_live: bucket.promoted_or_live,
+        replay_evaluated: bucket.replay_evaluated,
+        shadow_observations: bucket.shadow_observations,
+        realized_sample_size: bucket.realized_sample_size,
+        mean_acceptance_score: acceptance === null ? null : round(acceptance, 4),
+        shadow_expectancy_pct: shadow.expectancy,
+        shadow_sharpe: shadow.sharpe,
+        pass_rate: round(passRate, 4),
+        promotion_rate: round(promotionRate, 4),
+        replay_evaluation_rate: round(replayRate, 4),
+        yield_score: round(Math.max(0, yieldScore), 4),
+        top_alpha_ids: bucket.alpha_ids.slice(0, 6),
+      };
+    })
+    .sort((a, b) => b.yield_score - a.yield_score)
+    .slice(0, 40);
+}
+
 export function buildAlphaRegistrySummary(repo: MarketRepository) {
   const candidates = repo.listAlphaCandidates({ limit: 200 });
   const candidateIds = candidates.map((c) => c.id);
@@ -358,6 +513,11 @@ export function buildAlphaRegistrySummary(repo: MarketRepository) {
     acc[candidate.status] = (acc[candidate.status] || 0) + 1;
     return acc;
   }, {});
+  const hypothesisYieldBoard = buildHypothesisYieldBoard({
+    candidates,
+    evalMap,
+    shadowMap,
+  });
 
   return {
     counts: statusCounts,
@@ -372,5 +532,6 @@ export function buildAlphaRegistrySummary(repo: MarketRepository) {
       reason: row.reason,
       created_at: new Date(row.created_at_ms).toISOString(),
     })),
+    hypothesis_yield_board: hypothesisYieldBoard,
   };
 }

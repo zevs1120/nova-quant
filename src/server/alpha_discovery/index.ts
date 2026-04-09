@@ -5,11 +5,12 @@ import type { MarketRepository } from '../db/repository.js';
 import {
   buildStableAlphaId,
   buildAlphaRegistrySummary,
+  parseAlphaCandidateRecord,
   persistAlphaCandidate,
   type AutonomousAlphaCandidate,
 } from '../alpha_registry/index.js';
 import { evaluateAlphaCandidates } from '../alpha_evaluator/index.js';
-import { buildAlphaMutations } from '../alpha_mutation/index.js';
+import { buildAlphaMutations, buildShadowFeedbackMutations } from '../alpha_mutation/index.js';
 import {
   reviewAlphaBacktestOutcomes,
   runAlphaShadowMonitoringCycle,
@@ -397,6 +398,122 @@ function activeLifecycleState(status: AlphaLifecycleState) {
   return status === 'DRAFT' || status === 'BACKTEST_PASS';
 }
 
+function summarizeShadowActions(repo: MarketRepository, alphaCandidateId: string) {
+  const rows = repo.listAlphaShadowObservations({
+    alphaCandidateId,
+    limit: 120,
+  });
+  const actionable = rows.filter((row) => row.shadow_action !== 'WATCH');
+  const approvals = actionable.filter(
+    (row) => row.shadow_action === 'APPROVE' || row.shadow_action === 'BOOST',
+  );
+  return {
+    total: rows.length,
+    actionable: actionable.length,
+    approval_rate: actionable.length ? round(approvals.length / actionable.length, 4) : null,
+  };
+}
+
+function shadowFeedbackReason(
+  row: ReturnType<typeof buildAlphaRegistrySummary>['records'][number],
+) {
+  const shadow = row.shadow;
+  if (Number(shadow.max_drawdown || 0) >= 0.14) return 'drawdown' as const;
+  if (Number(shadow.expectancy || 0) < 0) return 'negative_expectancy' as const;
+  return 'mixed_decay' as const;
+}
+
+function runShadowFeedbackRetestCycle(args: {
+  repo: MarketRepository;
+  workflowId: string;
+  config: AlphaDiscoveryConfig;
+  thresholds: Parameters<typeof reviewAlphaBacktestOutcomes>[0]['thresholds'];
+}) {
+  const registry = buildAlphaRegistrySummary(args.repo);
+  const candidatesForFeedback = registry.records
+    .filter((row) => ['SHADOW', 'CANARY', 'RETIRED'].includes(row.status))
+    .filter((row) => Number(row.shadow.realized_sample_size || 0) >= 4)
+    .filter(
+      (row) =>
+        Number(row.shadow.expectancy || 0) < args.config.retirementThresholds.minExpectancy ||
+        Number(row.shadow.max_drawdown || 0) >= args.config.retirementThresholds.maxDrawdown * 0.6,
+    )
+    .sort((a, b) => Number(a.shadow.expectancy || 0) - Number(b.shadow.expectancy || 0))
+    .slice(0, 4);
+
+  const retestCandidates: AutonomousAlphaCandidate[] = [];
+  for (const row of candidatesForFeedback) {
+    const record = args.repo.getAlphaCandidate(row.id);
+    if (!record) continue;
+    const parent = parseAlphaCandidateRecord(record);
+    const actionSummary = summarizeShadowActions(args.repo, row.id);
+    const feedback = {
+      expectancy: row.shadow.expectancy,
+      maxDrawdown: row.shadow.max_drawdown,
+      approvalRate: actionSummary.approval_rate,
+      sampleSize: Number(row.shadow.realized_sample_size || 0),
+      reason:
+        actionSummary.approval_rate !== null && actionSummary.approval_rate < 0.35
+          ? ('low_approval' as const)
+          : shadowFeedbackReason(row),
+    };
+    retestCandidates.push(
+      ...buildShadowFeedbackMutations(parent, feedback, {
+        maxMutations: 2,
+        simplicityBias: args.config.simplicityBias,
+      }),
+    );
+  }
+
+  const registered: string[] = [];
+  for (const candidate of retestCandidates) {
+    if (args.repo.getAlphaCandidate(candidate.id)) continue;
+    const persisted = persistAlphaCandidate(args.repo, {
+      candidate,
+      status: 'DRAFT',
+      promotionReason: 'queued for retest from shadow feedback',
+    });
+    registered.push(persisted.id);
+  }
+
+  const freshRetests = retestCandidates.filter((candidate) => registered.includes(candidate.id));
+  if (!freshRetests.length) {
+    return {
+      parents_reviewed: candidatesForFeedback.map((row) => row.id),
+      registered: [],
+      evaluated: 0,
+      accepted: [],
+      rejected: [],
+      watchlist: [],
+    };
+  }
+
+  const evaluation = evaluateAlphaCandidates({
+    repo: args.repo,
+    candidates: freshRetests,
+    workflowRunId: args.workflowId,
+    config: {
+      minAcceptanceScore: Math.max(0.5, args.config.minAcceptanceScore - 0.06),
+      correlationRejectThreshold: args.config.maxCorrelationToActive,
+      maxComplexityScore: 1.8,
+    },
+  });
+  const review = reviewAlphaBacktestOutcomes({
+    repo: args.repo,
+    evaluated: evaluation.evaluated,
+    thresholds: args.thresholds,
+  });
+
+  return {
+    parents_reviewed: candidatesForFeedback.map((row) => row.id),
+    registered,
+    evaluated: evaluation.evaluated.length,
+    accepted: review.accepted,
+    rejected: review.rejected,
+    watchlist: review.watchlist,
+  };
+}
+
 export function readAlphaDiscoveryConfig(config = getConfig()): AlphaDiscoveryConfig {
   const fileConfig = config.alphaDiscovery || {};
   const admissionConfig = fileConfig.shadowAdmissionThresholds || {};
@@ -633,30 +750,30 @@ export async function runAlphaDiscoveryCycle(args: {
         maxComplexityScore: 1.8,
       },
     });
+    const thresholds = {
+      minAcceptanceScore: config.minAcceptanceScore,
+      maxCorrelationToActive: config.maxCorrelationToActive,
+      shadowAdmission: config.shadowAdmissionThresholds,
+      shadowPromotion: config.shadowPromotionThresholds,
+      retirement: config.retirementThresholds,
+      allowProdPromotion: config.allowProdPromotion,
+    };
     const review = reviewAlphaBacktestOutcomes({
       repo: args.repo,
       evaluated: evaluation.evaluated,
-      thresholds: {
-        minAcceptanceScore: config.minAcceptanceScore,
-        maxCorrelationToActive: config.maxCorrelationToActive,
-        shadowAdmission: config.shadowAdmissionThresholds,
-        shadowPromotion: config.shadowPromotionThresholds,
-        retirement: config.retirementThresholds,
-        allowProdPromotion: config.allowProdPromotion,
-      },
+      thresholds,
+    });
+    const feedbackRetest = runShadowFeedbackRetestCycle({
+      repo: args.repo,
+      workflowId,
+      config,
+      thresholds,
     });
     const shadowMonitoring = await runAlphaShadowMonitoringCycle({
       repo: args.repo,
       userId: args.userId,
       triggerType: 'shadow',
-      thresholds: {
-        minAcceptanceScore: config.minAcceptanceScore,
-        maxCorrelationToActive: config.maxCorrelationToActive,
-        shadowAdmission: config.shadowAdmissionThresholds,
-        shadowPromotion: config.shadowPromotionThresholds,
-        retirement: config.retirementThresholds,
-        allowProdPromotion: config.allowProdPromotion,
-      },
+      thresholds,
     });
     const registry = buildAlphaRegistrySummary(args.repo);
     const acceptedSummaries = evaluation.evaluated
@@ -702,11 +819,13 @@ export async function runAlphaDiscoveryCycle(args: {
       accepted_candidates: acceptedSummaries,
       rejected_candidates: rejectedSummaries.slice(0, 10),
       shadow_monitoring: shadowMonitoring,
+      shadow_feedback_retest: feedbackRetest,
       alpha_registry: {
         counts: registry.counts,
         top_candidates: registry.top_candidates.slice(0, 5),
         decaying_candidates: registry.decaying_candidates.slice(0, 5),
         correlation_map: registry.correlation_map.slice(0, 8),
+        hypothesis_yield_board: registry.hypothesis_yield_board.slice(0, 8),
       },
     };
 

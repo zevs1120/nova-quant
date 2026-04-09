@@ -5,6 +5,14 @@ type MutationBudget = {
   simplicityBias: number;
 };
 
+type ShadowFeedback = {
+  expectancy: number | null;
+  maxDrawdown: number | null;
+  approvalRate?: number | null;
+  sampleSize: number;
+  reason: 'negative_expectancy' | 'drawdown' | 'low_approval' | 'mixed_decay';
+};
+
 const FEATURE_SUBSTITUTIONS: Record<string, string[]> = {
   trend_strength: ['breakout_distance', 'volume_expansion'],
   breakout_distance: ['trend_strength', 'range_breakout'],
@@ -158,4 +166,113 @@ export function buildAlphaMutations(
   }
 
   return mutations.slice(0, budget.maxMutations);
+}
+
+function feedbackNote(feedback: ShadowFeedback) {
+  return `shadow_feedback:${feedback.reason}:sample_${feedback.sampleSize}`;
+}
+
+export function buildShadowFeedbackMutations(
+  candidate: AutonomousAlphaCandidate,
+  feedback: ShadowFeedback,
+  budget: MutationBudget,
+): AutonomousAlphaCandidate[] {
+  if (budget.maxMutations <= 0 || feedback.sampleSize <= 0) return [];
+
+  const mutations: AutonomousAlphaCandidate[] = [];
+  if (feedback.reason === 'drawdown' || Number(feedback.maxDrawdown || 0) >= 0.12) {
+    const params = mutateParams(candidate.params, 'tighter');
+    mutations.push({
+      ...candidate,
+      id: buildStableAlphaId({
+        parent: candidate.id,
+        type: 'shadow_feedback_drawdown_tighten',
+        params,
+      }),
+      thesis: `${candidate.thesis} [shadow-drawdown-retest]`,
+      params,
+      complexity_score: round(Math.max(0.8, candidate.complexity_score - 0.18), 4),
+      parent_alpha_id: candidate.id,
+      notes: [
+        ...(candidate.notes || []),
+        feedbackNote(feedback),
+        'retest:tighter_thresholds_after_shadow_drawdown',
+      ],
+    });
+  }
+
+  if (
+    mutations.length < budget.maxMutations &&
+    (feedback.reason === 'negative_expectancy' || Number(feedback.expectancy || 0) < 0)
+  ) {
+    const features = substituteFeatures(candidate.feature_dependencies);
+    mutations.push({
+      ...candidate,
+      id: buildStableAlphaId({
+        parent: candidate.id,
+        type: 'shadow_feedback_negative_expectancy_feature_swap',
+        features,
+      }),
+      thesis: `${candidate.thesis} [shadow-expectancy-retest]`,
+      feature_dependencies: features,
+      required_inputs: pruneRedundantFeatures([...candidate.required_inputs, ...features]),
+      complexity_score: round(Math.max(0.85, candidate.complexity_score - 0.1), 4),
+      parent_alpha_id: candidate.id,
+      notes: [
+        ...(candidate.notes || []),
+        feedbackNote(feedback),
+        'retest:feature_substitution_after_negative_shadow_expectancy',
+      ],
+    });
+  }
+
+  if (
+    mutations.length < budget.maxMutations &&
+    feedback.reason === 'low_approval' &&
+    candidate.regime_constraints.length > 1
+  ) {
+    const regimes = candidate.regime_constraints.slice(0, 1);
+    mutations.push({
+      ...candidate,
+      id: buildStableAlphaId({
+        parent: candidate.id,
+        type: 'shadow_feedback_low_approval_regime_narrow',
+        regimes,
+      }),
+      thesis: `${candidate.thesis} [shadow-regime-retest]`,
+      regime_constraints: regimes,
+      complexity_score: round(Math.max(0.8, candidate.complexity_score - 0.12), 4),
+      parent_alpha_id: candidate.id,
+      notes: [
+        ...(candidate.notes || []),
+        feedbackNote(feedback),
+        'retest:narrow_regime_after_low_shadow_approval',
+      ],
+    });
+  }
+
+  if (mutations.length < budget.maxMutations) {
+    mutations.push(
+      ...buildAlphaMutations(candidate, {
+        maxMutations: budget.maxMutations - mutations.length,
+        simplicityBias: Math.max(budget.simplicityBias, 1.2),
+      }).map((mutation) => ({
+        ...mutation,
+        notes: [
+          ...(mutation.notes || []),
+          feedbackNote(feedback),
+          'retest:generic_shadow_feedback',
+        ],
+      })),
+    );
+  }
+
+  const seen = new Set<string>();
+  return mutations
+    .filter((mutation) => {
+      if (mutation.id === candidate.id || seen.has(mutation.id)) return false;
+      seen.add(mutation.id);
+      return true;
+    })
+    .slice(0, budget.maxMutations);
 }

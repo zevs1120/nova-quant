@@ -110,6 +110,17 @@ function replayBenchmark(candidate = {}, context = {}) {
   return rows.find((row) => String(row.market || '').toUpperCase() === market) || null;
 }
 
+function candidateReplayResult(candidate = {}, context = {}) {
+  const rows =
+    context?.candidate_replay?.results ||
+    context?.walkForward?.replay_validation?.candidate_replay_results ||
+    [];
+  return (
+    rows.find((row) => String(row.candidate_id || '') === String(candidate.candidate_id || '')) ||
+    null
+  );
+}
+
 function costSensitivityLevel(candidate) {
   const text = String(candidate.cost_sensitivity_assumption || '').toLowerCase();
   if (text.includes('hard-capped defensive') || text.includes('high')) return 'high';
@@ -171,37 +182,53 @@ function quickBacktestStage(candidate, cfg = {}, context = {}) {
   const replayReturn = safeNumber(replay?.avg_trade_return_post_cost, NaN);
   const replayDrawdown = Math.abs(safeNumber(replay?.avg_drawdown_abs, NaN));
   const replayWinRate = safeNumber(replay?.win_rate, NaN);
+  const candidateReplay = candidateReplayResult(candidate, context);
+  const minReplayTrades = safeNumber(cfg.min_candidate_replay_trades, 6);
+  const hasCandidateReplay =
+    candidateReplay &&
+    String(candidateReplay.source || '') === 'ohlcv_candidate_replay' &&
+    safeNumber(candidateReplay.closed_trades, 0) >= minReplayTrades;
 
-  const grossReturn = Number.isFinite(replayReturn)
-    ? clamp(
-        replayReturn * (0.9 + prior * 0.5) +
-          0.012 +
-          prior * 0.085 +
-          noise * 0.025 -
-          turnover * 0.03,
-        -0.3,
-        0.45,
-      )
-    : clamp(0.02 + prior * 0.18 + noise * 0.04 - turnover * 0.04, -0.3, 0.45);
+  const grossReturn = hasCandidateReplay
+    ? clamp(safeNumber(candidateReplay.gross_return, 0), -0.45, 0.65)
+    : Number.isFinite(replayReturn)
+      ? clamp(
+          replayReturn * (0.9 + prior * 0.5) +
+            0.012 +
+            prior * 0.085 +
+            noise * 0.025 -
+            turnover * 0.03,
+          -0.3,
+          0.45,
+        )
+      : clamp(0.02 + prior * 0.18 + noise * 0.04 - turnover * 0.04, -0.3, 0.45);
   const costDrag = estimateCostDragPct({
     assumption: baselineAssumption,
     turnover,
     holdingDays: horizon,
     includeFunding: true,
   });
-  const postCostReturn = grossReturn - costDrag;
-  const drawdown = Number.isFinite(replayDrawdown)
-    ? clamp(
-        replayDrawdown * (0.85 + (1 - prior) * 0.4) + Math.abs(noise) * 0.04 + turnover * 0.08,
-        0.03,
-        0.65,
-      )
-    : clamp(0.06 + (1 - prior) * 0.22 + Math.abs(noise) * 0.1 + turnover * 0.12, 0.03, 0.65);
+  const postCostReturn = hasCandidateReplay
+    ? clamp(safeNumber(candidateReplay.net_return, 0), -0.5, 0.7)
+    : grossReturn - costDrag;
+  const drawdown = hasCandidateReplay
+    ? clamp(Math.abs(safeNumber(candidateReplay.max_drawdown, 0.18)), 0.01, 0.7)
+    : Number.isFinite(replayDrawdown)
+      ? clamp(
+          replayDrawdown * (0.85 + (1 - prior) * 0.4) + Math.abs(noise) * 0.04 + turnover * 0.08,
+          0.03,
+          0.65,
+        )
+      : clamp(0.06 + (1 - prior) * 0.22 + Math.abs(noise) * 0.1 + turnover * 0.12, 0.03, 0.65);
   const volProxy = clamp(0.08 + turnover * 0.22 + Math.abs(noise) * 0.05, 0.06, 0.5);
-  const sharpeProxy = round(postCostReturn / Math.max(0.06, volProxy), 4);
-  const hitRate = Number.isFinite(replayWinRate)
-    ? clamp(replayWinRate * 0.62 + 0.24 + prior * 0.16 - turnover * 0.03 + noise * 0.02, 0.2, 0.9)
-    : clamp(0.42 + prior * 0.28 - turnover * 0.08 + noise * 0.04, 0.2, 0.9);
+  const sharpeProxy = hasCandidateReplay
+    ? round(safeNumber(candidateReplay.sharpe_proxy, 0), 4)
+    : round(postCostReturn / Math.max(0.06, volProxy), 4);
+  const hitRate = hasCandidateReplay
+    ? clamp(safeNumber(candidateReplay.win_rate, 0), 0, 1)
+    : Number.isFinite(replayWinRate)
+      ? clamp(replayWinRate * 0.62 + 0.24 + prior * 0.16 - turnover * 0.03 + noise * 0.02, 0.2, 0.9)
+      : clamp(0.42 + prior * 0.28 - turnover * 0.08 + noise * 0.04, 0.2, 0.9);
 
   const minReturn = safeNumber(cfg.min_post_cost_return, -0.005);
   const maxDrawdown = safeNumber(cfg.max_drawdown, 0.34);
@@ -238,6 +265,21 @@ function quickBacktestStage(candidate, cfg = {}, context = {}) {
       replay_anchor_used: Boolean(replay),
       replay_anchor_market: replay?.market || null,
       replay_anchor_sample_trades: Number(replay?.closed_trades || 0),
+      replay_result_source: hasCandidateReplay
+        ? candidateReplay.source
+        : replay
+          ? 'market_replay_benchmark'
+          : 'proxy_model',
+      candidate_replay_closed_trades: hasCandidateReplay
+        ? Number(candidateReplay.closed_trades || 0)
+        : 0,
+      candidate_replay_symbols_with_trades: hasCandidateReplay
+        ? Number(candidateReplay.symbols_with_trades || 0)
+        : 0,
+      candidate_replay_windows: hasCandidateReplay ? candidateReplay.windows || [] : [],
+      candidate_replay_symbol_summaries: hasCandidateReplay
+        ? candidateReplay.symbol_summaries || []
+        : [],
     },
   };
 }

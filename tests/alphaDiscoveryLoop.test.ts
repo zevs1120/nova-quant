@@ -4,7 +4,9 @@ import { ensureSchema } from '../src/server/db/schema.js';
 import { MarketRepository } from '../src/server/db/repository.js';
 import type { SignalContract } from '../src/server/types.js';
 import { runAlphaDiscoveryCycle } from '../src/server/alpha_discovery/index.js';
+import { evaluateAlphaCandidates } from '../src/server/alpha_evaluator/index.js';
 import {
+  buildAlphaRegistrySummary,
   persistAlphaCandidate,
   type AutonomousAlphaCandidate,
 } from '../src/server/alpha_registry/index.js';
@@ -144,6 +146,27 @@ function buildBars(startMs: number, count: number, startPrice = 100) {
   });
 }
 
+function buildBreakoutReplayBars(startMs: number, count: number) {
+  let price = 100;
+  return Array.from({ length: count }).map((_, index) => {
+    const breakout = index > 35 && index % 12 === 0;
+    const drift = breakout ? 4.2 : index % 12 <= 4 ? 0.55 : -0.18;
+    const open = price;
+    price = Math.max(20, price + drift);
+    const close = price;
+    const high = Math.max(open, close) + (breakout ? 2.4 : 0.8);
+    const low = Math.min(open, close) - 0.8;
+    return {
+      ts_open: startMs + index * 86_400_000,
+      open: open.toFixed(2),
+      high: high.toFixed(2),
+      low: low.toFixed(2),
+      close: close.toFixed(2),
+      volume: String(breakout ? 3_200_000 : 1_000_000 + index * 2000),
+    };
+  });
+}
+
 describe('alpha discovery loop', () => {
   afterEach(() => {
     vi.unstubAllEnvs();
@@ -192,6 +215,192 @@ describe('alpha discovery loop', () => {
     expect(
       candidates.some(
         (row) => row.status === 'SHADOW' || row.status === 'REJECTED' || row.status === 'DRAFT',
+      ),
+    ).toBe(true);
+  });
+
+  it('uses candidate-level OHLCV replay when bars are available for alpha evaluation', () => {
+    const db = new Database(':memory:');
+    ensureSchema(db);
+    const repo = new MarketRepository(db);
+    const now = Date.UTC(2026, 0, 1);
+    const asset = repo.upsertAsset({
+      symbol: 'AAPL',
+      market: 'US',
+      venue: 'TEST',
+      status: 'ACTIVE',
+    });
+    repo.upsertOhlcvBars(asset.asset_id, '1d', buildBreakoutReplayBars(now, 180), 'TEST');
+
+    const candidate = buildCandidate('alpha-bar-replay-eval');
+    persistAlphaCandidate(repo, {
+      candidate,
+      status: 'DRAFT',
+    });
+    const result = evaluateAlphaCandidates({
+      repo,
+      candidates: [candidate],
+      workflowRunId: 'workflow-alpha-replay-eval',
+      config: {
+        minAcceptanceScore: 0.3,
+        correlationRejectThreshold: 0.98,
+        maxComplexityScore: 3,
+      },
+    });
+
+    expect(result.evaluated).toHaveLength(1);
+    const metrics = result.evaluated[0]?.metrics;
+    expect(metrics?.proxy_only).toBe(false);
+    expect(metrics?.bar_replay.closed_trades).toBeGreaterThanOrEqual(6);
+    expect(metrics?.bar_replay.source).toBe('ohlcv_candidate_replay');
+    expect(metrics?.backtest_proxy.note).toContain('bar replay');
+  });
+
+  it('summarizes alpha yield by hypothesis and template lineage', () => {
+    const db = new Database(':memory:');
+    ensureSchema(db);
+    const repo = new MarketRepository(db);
+    const candidate = {
+      ...buildCandidate('alpha-yield-board'),
+      formula: {
+        hypothesis_id: 'HYP-MOM-TEST',
+        template_id: 'TMP-BREAKOUT-TEST',
+      },
+      strategy_candidate: {
+        hypothesis_id: 'HYP-MOM-TEST',
+        template_id: 'TMP-BREAKOUT-TEST',
+      },
+    };
+
+    persistAlphaCandidate(repo, {
+      candidate,
+      status: 'SHADOW',
+      acceptanceScore: 0.74,
+    });
+    repo.insertAlphaEvaluation({
+      id: 'alpha-eval-yield-board',
+      alpha_candidate_id: candidate.id,
+      workflow_run_id: 'workflow-alpha-yield-board',
+      backtest_run_id: 'alpha-backtest-yield-board',
+      evaluation_status: 'PASS',
+      acceptance_score: 0.74,
+      metrics_json: JSON.stringify({
+        proxy_only: false,
+        net_pnl: 0.04,
+        bar_replay: {
+          closed_trades: 12,
+        },
+      }),
+      rejection_reasons_json: JSON.stringify([]),
+      notes: 'test',
+      created_at_ms: Date.now(),
+    });
+    repo.upsertSignal(buildSignal('signal-yield-board', 'AAPL'));
+    repo.upsertAlphaShadowObservations([
+      {
+        id: 'alpha-shadow-yield-board',
+        alpha_candidate_id: candidate.id,
+        workflow_run_id: 'workflow-alpha-yield-board',
+        signal_id: 'signal-yield-board',
+        market: 'US',
+        symbol: 'AAPL',
+        shadow_action: 'APPROVE',
+        alignment_score: 0.82,
+        adjusted_confidence: 0.72,
+        suggested_weight_multiplier: 1,
+        realized_pnl_pct: 0.8,
+        realized_source: 'paper',
+        payload_json: JSON.stringify({}),
+        created_at_ms: Date.now(),
+        updated_at_ms: Date.now(),
+      },
+    ]);
+
+    const summary = buildAlphaRegistrySummary(repo);
+    const row = summary.hypothesis_yield_board.find(
+      (item) => item.hypothesis_id === 'HYP-MOM-TEST',
+    );
+
+    expect(row).toBeTruthy();
+    expect(row?.template_id).toBe('TMP-BREAKOUT-TEST');
+    expect(row?.pass).toBe(1);
+    expect(row?.promoted_or_live).toBe(1);
+    expect(row?.replay_evaluated).toBe(1);
+    expect(row?.realized_sample_size).toBe(1);
+    expect(row?.yield_score).toBeGreaterThan(0.5);
+  });
+
+  it('queues and evaluates retest mutations from weak shadow outcomes during discovery', async () => {
+    vi.stubEnv('NOVA_ALPHA_DISCOVERY_ENABLED', '1');
+    vi.stubEnv('NOVA_ALPHA_DISCOVERY_MAX_CANDIDATES', '4');
+    vi.stubEnv('NOVA_ALPHA_DISCOVERY_SEARCH_BUDGET', '1');
+    vi.stubEnv('NOVA_ALPHA_DISCOVERY_MIN_ACCEPTANCE_SCORE', '0.95');
+
+    const db = new Database(':memory:');
+    ensureSchema(db);
+    const repo = new MarketRepository(db);
+    const parent = buildCandidate('alpha-shadow-feedback-parent');
+    persistAlphaCandidate(repo, {
+      candidate: parent,
+      status: 'SHADOW',
+      acceptanceScore: 0.8,
+    });
+    repo.insertAlphaEvaluation({
+      id: 'alpha-eval-shadow-feedback-parent',
+      alpha_candidate_id: parent.id,
+      workflow_run_id: 'workflow-alpha-feedback-seed',
+      backtest_run_id: 'alpha-backtest-feedback-seed',
+      evaluation_status: 'PASS',
+      acceptance_score: 0.8,
+      metrics_json: JSON.stringify({
+        correlation_to_active: 0.2,
+        sharpe: 0.7,
+        net_pnl: 0.05,
+      }),
+      rejection_reasons_json: JSON.stringify([]),
+      notes: 'seed',
+      created_at_ms: Date.now(),
+    });
+    repo.upsertSignals(
+      Array.from({ length: 6 }).map((_, index) => buildSignal(`signal-feedback-${index}`, 'AAPL')),
+    );
+    repo.upsertAlphaShadowObservations(
+      Array.from({ length: 6 }).map((_, index) => ({
+        id: `shadow-feedback-${index}`,
+        alpha_candidate_id: parent.id,
+        workflow_run_id: 'workflow-alpha-feedback-seed',
+        signal_id: `signal-feedback-${index}`,
+        market: 'US',
+        symbol: 'AAPL',
+        shadow_action: 'APPROVE',
+        alignment_score: 0.74,
+        adjusted_confidence: 0.7,
+        suggested_weight_multiplier: 1,
+        realized_pnl_pct: -0.15,
+        realized_source: 'paper',
+        payload_json: JSON.stringify({}),
+        created_at_ms: Date.now() + index,
+        updated_at_ms: Date.now() + index,
+      })),
+    );
+
+    const result = await runAlphaDiscoveryCycle({
+      repo,
+      userId: 'alpha-feedback-user',
+      triggerType: 'manual',
+      force: true,
+    });
+    const output = result as Record<string, any>;
+    const children = repo
+      .listAlphaCandidates({ limit: 120 })
+      .filter((row) => row.parent_alpha_id === parent.id);
+
+    expect(output.shadow_feedback_retest.registered.length).toBeGreaterThan(0);
+    expect(output.shadow_feedback_retest.evaluated).toBeGreaterThan(0);
+    expect(children.length).toBeGreaterThan(0);
+    expect(
+      children.some((row) =>
+        String(row.metadata_json).includes('shadow_feedback:negative_expectancy'),
       ),
     ).toBe(true);
   });
