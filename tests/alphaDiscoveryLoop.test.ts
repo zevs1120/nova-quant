@@ -277,6 +277,7 @@ describe('alpha discovery loop', () => {
     expect(metrics?.proxy_only).toBe(false);
     expect(metrics?.bar_replay.closed_trades).toBeGreaterThanOrEqual(6);
     expect(metrics?.bar_replay.source).toBe('ohlcv_candidate_replay');
+    expect(metrics?.bar_replay.replay_family).toBe('volatility_managed_momentum');
     expect(metrics?.backtest_proxy.note).toContain('bar replay');
     expect(metrics?.research_evidence?.hypothesis_id).toBe('HYP-PUBLIC-VOLMAN-TSMOM-001');
     expect(metrics?.research_evidence?.public_reference_urls).toContain(

@@ -64,6 +64,7 @@ export type AlphaEvaluationMetrics = {
     source: string | null;
     closed_trades: number;
     symbols_with_trades: number;
+    replay_family?: string | null;
     sample_trades: Array<Record<string, unknown>>;
   };
   research_evidence?: {

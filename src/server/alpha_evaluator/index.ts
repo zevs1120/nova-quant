@@ -96,6 +96,25 @@ function holdingPeriodToTimeframe(holdingPeriod: string): string {
 
 function toLegacyDiscoveryCandidate(candidate: AutonomousAlphaCandidate) {
   const primaryMarket = candidate.compatible_markets[0] || 'US';
+  const strategyCandidate =
+    candidate.strategy_candidate && typeof candidate.strategy_candidate === 'object'
+      ? (candidate.strategy_candidate as Record<string, unknown>)
+      : {};
+  const templateId = String(
+    candidate.formula?.template_id ||
+      strategyCandidate.template_id ||
+      `${candidate.family}-template`,
+  );
+  const hypothesisId = String(
+    candidate.formula?.hypothesis_id ||
+      strategyCandidate.hypothesis_id ||
+      `${candidate.family}-autonomous`,
+  );
+  const templateName = String(strategyCandidate.template_name || candidate.family);
+  const hypothesisDescription =
+    typeof strategyCandidate.hypothesis_description === 'string'
+      ? strategyCandidate.hypothesis_description
+      : candidate.thesis;
   const supportedAssetClasses = candidate.compatible_markets.includes('CRYPTO')
     ? candidate.compatible_markets.includes('US')
       ? ['US_STOCK', 'CRYPTO']
@@ -104,9 +123,10 @@ function toLegacyDiscoveryCandidate(candidate: AutonomousAlphaCandidate) {
   return {
     candidate_id: candidate.id,
     strategy_id: `auto-${candidate.id}`,
-    hypothesis_id: `${candidate.family}-autonomous`,
-    template_id: `${candidate.family}-template`,
-    template_name: candidate.family,
+    hypothesis_id: hypothesisId,
+    template_id: templateId,
+    template_name: templateName,
+    hypothesis_description: hypothesisDescription,
     strategy_family: candidate.family,
     supported_asset_classes: supportedAssetClasses,
     compatible_regimes: candidate.regime_constraints,
@@ -441,6 +461,10 @@ function buildAlphaMetrics(
         : null,
       closed_trades: safeNumber(quick?.metrics?.candidate_replay_closed_trades, 0),
       symbols_with_trades: safeNumber(quick?.metrics?.candidate_replay_symbols_with_trades, 0),
+      replay_family:
+        typeof quick?.metrics?.candidate_replay_family === 'string'
+          ? quick.metrics.candidate_replay_family
+          : null,
       sample_trades: Array.isArray(quick?.metrics?.candidate_replay_symbol_summaries)
         ? (quick.metrics.candidate_replay_symbol_summaries as Array<Record<string, unknown>>)
         : [],

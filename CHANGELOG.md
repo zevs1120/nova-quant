@@ -6,6 +6,7 @@ NovaQuant 所有重要变更记录于此。
 
 ### 🔬 Alpha / 策略发现能力增强
 
+- **feat(alpha): 候选级 bar replay 改为 public-template-aware。** alpha evaluator 现在把 autonomous candidate 的真实 hypothesis/template/description 传入 replay，不再在兼容层重命名成 family-template；candidate replay 新增 volatility-managed momentum、residual momentum、crash-aware momentum、low-vol relative strength、gap-survival event 的专用触发解释器，并在 evaluation metrics 暴露 replay_family，让公开研究模板可以按自己的交易假设接受 bar replay。
 - **feat(alpha): 扩充公开研究驱动的 alpha / strategy supply。** public seed runtime 新增 residual momentum、momentum-crash-aware trend、low-volatility relative strength、gap-survival PEAD 四组假设/模板；runtime feature support 补齐 residual return、market beta、market drawdown/rebound、momentum volatility、idiosyncratic volatility、gap survival 等可派生特征，并补充公开研究 reference，让 discovery engine 可以实际生成这些新模板的候选。
 - **fix(backtest): signal replay 默认改为可执行 entry-zone 回放并输出研究门禁。** `scripts/backtest-signal-replay.ts` 不再默认把信号后一根 open 当作无条件成交；现在会等待 action card 的 entry zone、跳过 gap-through-stop / gap-through-target / malformed bounds / not-filled 信号，并输出 `quality_gate`、fill rate、skip summary。保留 `--entry-mode next-open` 作为粗口径对照，避免不可执行交易把 Sharpe / 复利虚高。
 - **feat(research): 增加行动卡 quarantine、手动 Qlib factory 与云端 signal replay。** 决策层会在行动卡排名前隔离 DEBUG、未命名 legacy、MODEL_PUSH 直推与极端 forward replay loss 信号，并在 audit 暴露 quarantine 样本；新增 `scripts/run-qlib-research-factory.ts` 作为 Qlib 研究生产线手动入口；新增 `scripts/backtest-signal-replay.ts` 从云端 Postgres 只读 replay 信号，支持按策略族（如 Regime Transition）切片复盘。

@@ -47,8 +47,8 @@ function windowSlice(rows, endExclusive, size, getter) {
     .filter((value) => Number.isFinite(value));
 }
 
-function classifyCandidate(candidate = {}) {
-  const text = [
+function candidateText(candidate = {}) {
+  return [
     candidate.strategy_family,
     candidate.template_id,
     candidate.template_name,
@@ -57,8 +57,40 @@ function classifyCandidate(candidate = {}) {
   ]
     .join(' ')
     .toLowerCase();
+}
+
+function candidateParam(candidate = {}, key, fallback) {
+  return safeNumber(candidate.parameter_set?.[key], fallback);
+}
+
+function classifyCandidate(candidate = {}) {
+  const text = candidateText(candidate);
   const shortBias = text.includes('overbought') || text.includes('fade') || text.includes('short');
 
+  if (text.includes('residual') || text.includes('idiosyncratic')) {
+    return { family: 'residual_momentum', direction: 1 };
+  }
+  if (text.includes('crash') || text.includes('market_drawdown') || text.includes('snapback')) {
+    return { family: 'crash_aware_momentum', direction: 1 };
+  }
+  if (
+    text.includes('volatility managed') ||
+    text.includes('volatility-managed') ||
+    text.includes('volman') ||
+    text.includes('time_series_momentum')
+  ) {
+    return { family: 'volatility_managed_momentum', direction: 1 };
+  }
+  if (
+    text.includes('low-vol') ||
+    text.includes('low_vol') ||
+    text.includes('idiosyncratic_volatility')
+  ) {
+    return { family: 'low_vol_relative_strength', direction: 1 };
+  }
+  if (text.includes('gap_survival') || text.includes('post_gap') || text.includes('pead')) {
+    return { family: 'gap_survival_event', direction: 1 };
+  }
   if (text.includes('mean') || text.includes('reversion') || text.includes('oversold')) {
     return { family: 'mean_reversion', direction: shortBias ? -1 : 1 };
   }
@@ -82,6 +114,7 @@ function replayTrigger({ bars, index, candidate }) {
 
   const closes20 = windowSlice(bars, index, 20, (row) => row.close);
   const closes10 = windowSlice(bars, index, 10, (row) => row.close);
+  const closes60 = windowSlice(bars, index, 60, (row) => row.close);
   const volumes20 = windowSlice(bars, index, 20, (row) => row.volume);
   const returns20 = closes20
     .slice(1)
@@ -93,12 +126,56 @@ function replayTrigger({ bars, index, candidate }) {
   const sma10 = mean(closes10);
   const prevMax20 = Math.max(...closes20);
   const prevMin20 = Math.min(...closes20);
+  const prevMax60 = closes60.length ? Math.max(...closes60) : prevMax20;
   const avgVolume20 = mean(volumes20);
   const dayReturn = close / prevClose - 1;
   const ret5 = close / (bars[index - 5]?.close || close) - 1;
+  const ret20 = close / (bars[index - 20]?.close || close) - 1;
+  const ret60 = close / (bars[index - 60]?.close || close) - 1;
+  const gapReturn = safeNumber(bars[index].open, close) / prevClose - 1;
+  const localDrawdown60 = prevMax60 > 0 ? close / prevMax60 - 1 : 0;
   const vol20 = Math.max(0.006, std(returns20));
+  const priorVol20 = std(
+    windowSlice(bars, index - 20, 20, (row) => row.close)
+      .slice(1)
+      .map((value, idx, rows) => value / rows[idx] - 1)
+      .filter((value) => Number.isFinite(value)),
+  );
   const volumeRatio = avgVolume20 > 0 ? bars[index].volume / avgVolume20 : 1;
 
+  if (family === 'residual_momentum') {
+    const residualProxy = ret20 - ret60 / 3 - Math.sign(ret5) * Math.min(Math.abs(ret5), vol20);
+    const minScore = candidateParam(candidate, 'min_residual_return', vol20 * 1.2);
+    if (close > sma20 && residualProxy > minScore && Math.abs(dayReturn) < vol20 * 2.4) return 1;
+    return null;
+  }
+  if (family === 'crash_aware_momentum') {
+    const drawdownTrigger = -Math.abs(candidateParam(candidate, 'market_drawdown_trigger', 0.12));
+    const reboundCap = Math.abs(candidateParam(candidate, 'max_rebound_5d', 0.08));
+    const crashProxyActive = localDrawdown60 <= drawdownTrigger && ret5 > reboundCap;
+    if (crashProxyActive) return null;
+    if (close > prevMax20 * 0.998 && close > sma20 && ret20 > vol20 * 2 && volumeRatio >= 0.8) {
+      return 1;
+    }
+    return null;
+  }
+  if (family === 'low_vol_relative_strength') {
+    const volCap = candidateParam(candidate, 'max_realized_volatility', 0.026);
+    const relativeVolCap = Math.max(volCap, priorVol20 > 0 ? priorVol20 * 0.9 : volCap);
+    if (close > sma20 && sma10 >= sma20 && ret20 > vol20 * 2 && vol20 <= relativeVolCap) return 1;
+    return null;
+  }
+  if (family === 'gap_survival_event') {
+    const minGap = candidateParam(candidate, 'min_gap_pct', 0.012);
+    const gapMidpoint = prevClose * (1 + gapReturn / 2);
+    if (gapReturn >= minGap && close >= gapMidpoint && volumeRatio >= 0.9) return 1;
+    return null;
+  }
+  if (family === 'volatility_managed_momentum') {
+    const volOk = priorVol20 <= 0 || vol20 <= Math.max(0.035, priorVol20 * 1.7);
+    if (volOk && close > sma20 && ret20 > vol20 * 1.8 && volumeRatio >= 0.75) return 1;
+    return null;
+  }
   if (family === 'mean_reversion') {
     if (direction < 0 && close > prevMax20 * 0.998 && dayReturn > vol20 * 0.95) return -1;
     if (close < prevMin20 * 1.002 || dayReturn < -vol20 * 1.05) return 1;
@@ -192,6 +269,7 @@ export function runCandidateBarReplay({ candidate, barSets = [], config = {} } =
     candidate?.expected_holding_horizon || candidate?.holding_period,
   );
   const costPct = safeNumber(config.cost_bps_round_trip, 18) / 10000;
+  const replayFamily = classifyCandidate(candidate).family;
   const allTrades = [];
   const symbolSummaries = [];
 
@@ -246,6 +324,7 @@ export function runCandidateBarReplay({ candidate, barSets = [], config = {} } =
   return {
     candidate_id: candidate?.candidate_id || candidate?.id || null,
     source: 'ohlcv_candidate_replay',
+    replay_family: replayFamily,
     closed_trades: allTrades.length,
     symbols_tested: barSets.length,
     symbols_with_trades: symbolSummaries.length,

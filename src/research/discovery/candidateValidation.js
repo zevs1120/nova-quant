@@ -276,6 +276,7 @@ function quickBacktestStage(candidate, cfg = {}, context = {}) {
       candidate_replay_symbols_with_trades: hasCandidateReplay
         ? Number(candidateReplay.symbols_with_trades || 0)
         : 0,
+      candidate_replay_family: hasCandidateReplay ? candidateReplay.replay_family || null : null,
       candidate_replay_windows: hasCandidateReplay ? candidateReplay.windows || [] : [],
       candidate_replay_symbol_summaries: hasCandidateReplay
         ? candidateReplay.symbol_summaries || []
