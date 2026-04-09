@@ -4,6 +4,11 @@ NovaQuant 所有重要变更记录于此。
 
 ## 未发布
 
+### 🔍 Knip 静态分析
+
+- **chore(deps):** 接入 Knip，新增 `knip.json`（根工作区 + `admin` / `landing` / `app`），配置 Vite 入口、API、Vitest、Playwright、研究桶与 `tests/pro-env` 等；根工作区对 coverage / lint-staged / react-scan 等做依赖忽略，`app` 工作区忽略与根壳重复的 React 依赖声明。
+- **chore(deps):** `package.json` 增加 `npm run knip` 与 `npm run knip:ci`（仅未使用文件与依赖）；`knip:ci` 当前仍会报告 `noopRepo.ts` 与 `public/vercel.ts`，待后续清理后可通过。
+
 ### 🧹 格式化与测试契约
 
 - **chore:** 对多处 TS/JSX、ingestion、runtime 与相关 Vitest 文件运行 Prettier，恢复 `npm run format:check` 全绿。

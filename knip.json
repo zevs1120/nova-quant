@@ -1,0 +1,51 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "workspaces": {
+    ".": {
+      "entry": [
+        "index.html",
+        "api/index.ts",
+        "src/server/apiServer.ts",
+        "scripts/**/*.{ts,mjs,js}",
+        "vite.config.js",
+        "playwright.config.js",
+        "tests/vitest.setup.ts",
+        "tests/**/*.test.ts",
+        "backtest/index.js",
+        "copilot/index.js",
+        "diagnostics/index.js",
+        "portfolio_simulation/index.js",
+        "regime/index.js",
+        "research/copilot/index.js",
+        "research/evidence/index.js",
+        "research/weekly_cycle/index.js",
+        "risk/index.js",
+        "strategies/index.js",
+        "src/portfolio_simulation/index.js",
+        "src/research/copilot/index.js",
+        "src/research/evidence/index.js",
+        "src/research/reliability/index.js",
+        "src/research/weekly_cycle/index.js",
+        "tests/pro-env/global-setup.js",
+        "tests/pro-env/**/*.js"
+      ],
+      "project": ["{src,scripts,tests,api}/**/*.{js,jsx,ts,tsx,mjs}", "tests/**/*.d.ts"],
+      "ignoreDependencies": ["@vitest/coverage-v8", "lint-staged", "react-scan"]
+    },
+    "admin": {
+      "entry": ["admin/index.html", "admin/vite.config.js"],
+      "project": ["admin/src/**/*.{js,jsx,ts,tsx}"]
+    },
+    "landing": {
+      "entry": ["landing/index.html", "landing/data-portal/index.html", "landing/vite.config.js"],
+      "project": ["landing/src/**/*.{js,jsx,ts,tsx}"]
+    },
+    "app": {
+      "entry": ["app/index.html", "app/vite.config.js"],
+      "project": ["app/src/**/*.{js,jsx,ts,tsx}"],
+      "ignoreDependencies": ["chart.js", "react", "react-chartjs-2", "react-dom"]
+    }
+  },
+  "ignoreFiles": ["src/copy/novaCopySystem.d.ts"],
+  "ignoreBinaries": ["zip", "husky"]
+}
