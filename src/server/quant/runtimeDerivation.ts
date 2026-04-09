@@ -117,6 +117,32 @@ function round(value: number, digits = 4): number {
   return Math.round(value * p) / p;
 }
 
+function buildQualityFlags(args: {
+  status?: string | null;
+  reason?: string | null;
+  metrics?: Record<string, unknown>;
+}) {
+  const metrics = args.metrics || {};
+  const driftMetrics =
+    metrics.adjustment_drift && typeof metrics.adjustment_drift === 'object'
+      ? (metrics.adjustment_drift as Record<string, unknown>)
+      : null;
+  const corpValidation =
+    metrics.corporate_action_validation && typeof metrics.corporate_action_validation === 'object'
+      ? (metrics.corporate_action_validation as Record<string, unknown>)
+      : null;
+
+  return {
+    suspect: args.status === 'SUSPECT',
+    repaired: args.status === 'REPAIRED',
+    quarantined: args.status === 'QUARANTINED',
+    adjustment_drift: args.reason === 'PROVIDER_ADJUSTMENT_DRIFT',
+    corporate_action_conflict: args.reason === 'CORPORATE_ACTION_SOURCE_CONFLICT',
+    overlap_count: Number(driftMetrics?.overlap_count || 0),
+    mismatch_count: Number(corpValidation?.mismatch_count || 0),
+  };
+}
+
 function toNum(value: unknown): number {
   const n = Number(value);
   return Number.isFinite(n) ? n : 0;
@@ -1568,6 +1594,11 @@ export function deriveRuntimeState(params: {
       timeframe,
     });
     const qualityMetrics = parseJsonObject(persistedQualityState?.metrics_json);
+    const qualityFlags = buildQualityFlags({
+      status: persistedQualityState?.status,
+      reason: persistedQualityState?.reason,
+      metrics: qualityMetrics,
+    });
     const lookbackYearStart =
       latestObservedTs === null ? undefined : latestObservedTs - timeframeToMs(timeframe) * 365;
     const corporateActions = repo.listCorporateActions({
@@ -1612,6 +1643,7 @@ export function deriveRuntimeState(params: {
         quality_state_status: persistedQualityState?.status || null,
         quality_state_reason: persistedQualityState?.reason || null,
         quality_state_metrics: qualityMetrics,
+        quality_flags: qualityFlags,
         quality_state_updated_at: persistedQualityState?.updated_at || null,
         recent_corporate_action_count: corporateActions.length,
         recent_calendar_exception_count: calendarExceptions.length,
@@ -1647,6 +1679,7 @@ export function deriveRuntimeState(params: {
       quality_state_status: persistedQualityState?.status || null,
       quality_state_reason: persistedQualityState?.reason || null,
       quality_state_metrics: qualityMetrics,
+      quality_flags: qualityFlags,
       quality_state_updated_at: persistedQualityState?.updated_at || null,
       recent_corporate_action_count: corporateActions.length,
       recent_calendar_exception_count: calendarExceptions.length,
@@ -1715,6 +1748,7 @@ export function deriveRuntimeState(params: {
             updated_at: persistedQualityState.updated_at,
           }
         : null,
+      quality_flags: qualityFlags,
       panda: {
         active_model_id: activeModel.modelId,
         active_model_version: activeModel.semanticVersion,

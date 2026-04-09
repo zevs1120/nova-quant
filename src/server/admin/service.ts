@@ -791,6 +791,11 @@ export async function buildAdminDataQualitySnapshot(args?: {
     timeframe,
   });
   const qualityMetrics = parseMetricsObject(quality?.metrics_json);
+  const qualityHistory = repo.listOhlcvQualityStateEvents({
+    assetId: asset.asset_id,
+    timeframe,
+    limit: 12,
+  });
   const corporateActions = repo.listCorporateActions({
     assetId: asset.asset_id,
   });
@@ -861,6 +866,13 @@ export async function buildAdminDataQualitySnapshot(args?: {
       quality_state_reason: quality?.reason || null,
       quality_state_metrics: qualityMetrics,
       quality_state_updated_at: quality?.updated_at || null,
+      quality_history: qualityHistory.map((event) => ({
+        id: event.id,
+        status: event.status,
+        reason: event.reason,
+        created_at: toIso(event.created_at),
+        metrics: parseMetricsObject(event.metrics_json),
+      })),
       anomaly_total_count: repo.getIngestAnomalySummary({
         assetId: asset.asset_id,
         timeframe,

@@ -85,6 +85,16 @@ export type OhlcvQualityStateRecord = {
   updated_at: number;
 };
 
+export type OhlcvQualityStateEventRecord = {
+  id: number;
+  asset_id: number;
+  timeframe: Timeframe;
+  status: OhlcvQualityStatus;
+  reason: string | null;
+  metrics_json: string;
+  created_at: number;
+};
+
 export type CorporateActionType = 'SPLIT' | 'DIVIDEND' | 'HALT' | 'RESUME';
 
 export type CorporateActionRecord = {
@@ -667,6 +677,17 @@ export class MarketRepository {
     reason?: string | null;
     metricsJson: string;
   }): void {
+    const previous = this.getOhlcvQualityState({
+      assetId: args.assetId,
+      timeframe: args.timeframe,
+    });
+    const changed =
+      !previous ||
+      previous.status !== args.status ||
+      String(previous.reason || '') !== String(args.reason || '') ||
+      String(previous.metrics_json || '') !== String(args.metricsJson || '');
+    const updatedAt = nowMs();
+
     this.db
       .prepare(
         `
@@ -685,8 +706,27 @@ export class MarketRepository {
         status: args.status,
         reason: args.reason ?? null,
         metrics_json: args.metricsJson,
-        updated_at: nowMs(),
+        updated_at: updatedAt,
       });
+
+    if (changed) {
+      this.db
+        .prepare(
+          `
+            INSERT INTO ohlcv_quality_state_events(
+              asset_id, timeframe, status, reason, metrics_json, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?)
+          `,
+        )
+        .run(
+          args.assetId,
+          args.timeframe,
+          args.status,
+          args.reason ?? null,
+          args.metricsJson,
+          updatedAt,
+        );
+    }
   }
 
   getOhlcvQualityState(args: {
@@ -704,6 +744,24 @@ export class MarketRepository {
       )
       .get(args.assetId, args.timeframe) as OhlcvQualityStateRecord | undefined;
     return row ?? null;
+  }
+
+  listOhlcvQualityStateEvents(args: {
+    assetId: number;
+    timeframe: Timeframe;
+    limit?: number;
+  }): OhlcvQualityStateEventRecord[] {
+    return this.db
+      .prepare(
+        `
+          SELECT id, asset_id, timeframe, status, reason, metrics_json, created_at
+          FROM ohlcv_quality_state_events
+          WHERE asset_id = ? AND timeframe = ?
+          ORDER BY created_at DESC, id DESC
+          LIMIT ?
+        `,
+      )
+      .all(args.assetId, args.timeframe, args.limit ?? 20) as OhlcvQualityStateEventRecord[];
   }
 
   upsertCorporateAction(args: {

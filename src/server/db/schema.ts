@@ -65,6 +65,19 @@ CREATE TABLE IF NOT EXISTS ohlcv_quality_state (
 
 CREATE INDEX IF NOT EXISTS idx_ohlcv_quality_state_status ON ohlcv_quality_state(status, updated_at DESC);
 
+CREATE TABLE IF NOT EXISTS ohlcv_quality_state_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  asset_id INTEGER NOT NULL,
+  timeframe TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('TRUSTED', 'SUSPECT', 'REPAIRED', 'QUARANTINED')),
+  reason TEXT,
+  metrics_json TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  FOREIGN KEY(asset_id) REFERENCES assets(asset_id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_ohlcv_quality_state_events_lookup ON ohlcv_quality_state_events(asset_id, timeframe, created_at DESC);
+
 CREATE TABLE IF NOT EXISTS corporate_actions (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   asset_id INTEGER NOT NULL,

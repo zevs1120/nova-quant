@@ -65,6 +65,7 @@ import {
   type CorporateActionRecord,
   type CorporateActionType,
   type IngestAnomalySummary,
+  type OhlcvQualityStateEventRecord,
   type OhlcvQualityStateRecord,
   type OhlcvQualityStatus,
   type TradingCalendarExceptionRecord,
@@ -957,6 +958,17 @@ export class PostgresRuntimeRepository extends MarketRepository {
     reason?: string | null;
     metricsJson: string;
   }): void {
+    const previous = this.getOhlcvQualityState({
+      assetId: args.assetId,
+      timeframe: args.timeframe,
+    });
+    const changed =
+      !previous ||
+      previous.status !== args.status ||
+      String(previous.reason || '') !== String(args.reason || '') ||
+      String(previous.metrics_json || '') !== String(args.metricsJson || '');
+    const updatedAt = nowMs();
+
     executeSync(
       `
         INSERT INTO ${qualifyBusinessTable('ohlcv_quality_state')}(
@@ -966,10 +978,21 @@ export class PostgresRuntimeRepository extends MarketRepository {
           status = excluded.status,
           reason = excluded.reason,
           metrics_json = excluded.metrics_json,
-          updated_at = excluded.updated_at
+        updated_at = excluded.updated_at
       `,
-      [args.assetId, args.timeframe, args.status, args.reason ?? null, args.metricsJson, nowMs()],
+      [args.assetId, args.timeframe, args.status, args.reason ?? null, args.metricsJson, updatedAt],
     );
+
+    if (changed) {
+      executeSync(
+        `
+          INSERT INTO ${qualifyBusinessTable('ohlcv_quality_state_events')}(
+            asset_id, timeframe, status, reason, metrics_json, created_at
+          ) VALUES($1, $2, $3, $4, $5, $6)
+        `,
+        [args.assetId, args.timeframe, args.status, args.reason ?? null, args.metricsJson, updatedAt],
+      );
+    }
   }
 
   getOhlcvQualityState(args: {
@@ -986,6 +1009,23 @@ export class PostgresRuntimeRepository extends MarketRepository {
       [args.assetId, args.timeframe],
     );
     return row ?? null;
+  }
+
+  listOhlcvQualityStateEvents(args: {
+    assetId: number;
+    timeframe: Timeframe;
+    limit?: number;
+  }): OhlcvQualityStateEventRecord[] {
+    return queryRowsSync<OhlcvQualityStateEventRecord>(
+      `
+        SELECT id, asset_id, timeframe, status, reason, metrics_json, created_at
+        FROM ${qualifyBusinessTable('ohlcv_quality_state_events')}
+        WHERE asset_id = $1 AND timeframe = $2
+        ORDER BY created_at DESC, id DESC
+        LIMIT $3
+      `,
+      [args.assetId, args.timeframe, args.limit ?? 20],
+    );
   }
 
   upsertCorporateAction(args: {

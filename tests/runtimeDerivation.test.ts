@@ -485,5 +485,12 @@ describe('derive runtime state', () => {
     const freshnessRow = freshnessRows.find((row) => row.symbol === 'SPY');
     expect(freshnessRow?.quality_state_status).toBe('TRUSTED');
     expect(freshnessRow?.quality_state_reason).toBe(null);
+    expect(freshnessRow?.quality_flags).toMatchObject({
+      suspect: false,
+      repaired: false,
+      quarantined: false,
+      adjustment_drift: false,
+      corporate_action_conflict: false,
+    });
   });
 });
