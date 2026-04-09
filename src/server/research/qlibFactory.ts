@@ -18,6 +18,8 @@ import {
   type QlibNativeBacktestRequest,
 } from '../nova/qlibClient.js';
 import { createTraceId, recordAuditEvent } from '../observability/spine.js';
+import { readAlphaDiscoveryConfig } from '../alpha_discovery/index.js';
+import { reviewAlphaBacktestOutcomes } from '../alpha_promotion_guard/index.js';
 import type { AssetClass, Market } from '../types.js';
 
 type JsonObject = Record<string, unknown>;
@@ -36,6 +38,7 @@ export type QlibResearchFactoryInput = {
   nDrop?: number;
   runNativeBacktest?: boolean;
   evaluateCandidates?: boolean;
+  reviewPromotion?: boolean;
   triggerType?: 'scheduled' | 'manual';
   userId?: string | null;
 };
@@ -452,6 +455,7 @@ export async function runQlibResearchFactory(
     factorSet: input.factorSet || 'Alpha158',
     runNativeBacktest: input.runNativeBacktest ?? true,
     evaluateCandidates: input.evaluateCandidates ?? true,
+    reviewPromotion: input.reviewPromotion ?? true,
     userId: input.userId || null,
   };
   const workflowId = `workflow-qlib-factory-${hashJson({ normalizedInput, ts: nowMs() }).slice(
@@ -525,6 +529,7 @@ export async function runQlibResearchFactory(
     }
 
     let evaluation: ReturnType<typeof evaluateAlphaCandidates> | null = null;
+    let promotionReview: ReturnType<typeof reviewAlphaBacktestOutcomes> | null = null;
     if (normalizedInput.evaluateCandidates && candidates.length) {
       evaluation = evaluateAlphaCandidates({
         repo,
@@ -546,6 +551,21 @@ export async function runQlibResearchFactory(
         workflowId,
         inputHash,
       });
+      if (normalizedInput.reviewPromotion) {
+        const discoveryConfig = readAlphaDiscoveryConfig();
+        promotionReview = reviewAlphaBacktestOutcomes({
+          repo,
+          evaluated: evaluation.evaluated,
+          thresholds: {
+            minAcceptanceScore: discoveryConfig.minAcceptanceScore,
+            maxCorrelationToActive: discoveryConfig.maxCorrelationToActive,
+            shadowAdmission: discoveryConfig.shadowAdmissionThresholds,
+            shadowPromotion: discoveryConfig.shadowPromotionThresholds,
+            retirement: discoveryConfig.retirementThresholds,
+            allowProdPromotion: discoveryConfig.allowProdPromotion,
+          },
+        });
+      }
     }
 
     let nativeBacktest: Awaited<ReturnType<typeof runQlibNativeBacktestEvidence>> | null = null;
@@ -606,6 +626,7 @@ export async function runQlibResearchFactory(
           (item) => item.evaluation.evaluation_status === 'REJECT',
         ).length,
       },
+      promotion_review: promotionReview,
       native_backtest: nativeBacktest
         ? {
             run_id: nativeBacktest.run_id,

@@ -6,6 +6,7 @@ import { getConfig } from '../src/server/config.js';
 import { flushRuntimeRepoMirror, getRuntimeRepo } from '../src/server/db/runtimeRepository.js';
 import { runBackfillCli } from '../src/server/jobs/backfill.js';
 import { runFreeDataFlywheel } from '../src/server/jobs/freeData.js';
+import { runQlibResearchFactoryJob } from '../src/server/jobs/qlibResearchFactory.js';
 import { runNovaTrainingFlywheel, type NovaTrainerKind } from '../src/server/nova/flywheel.js';
 import { runValidationCli } from '../src/server/jobs/validate.js';
 import {
@@ -36,6 +37,7 @@ type AutoBackendOptions = {
   skipWorker: boolean;
   skipTraining: boolean;
   skipDiscovery: boolean;
+  skipQlibFactory: boolean;
   once: boolean;
 };
 
@@ -83,6 +85,7 @@ const DEFAULTS: AutoBackendOptions = {
   skipWorker: false,
   skipTraining: parseBooleanEnv('NOVA_AUTO_BACKEND_SKIP_TRAINING', false),
   skipDiscovery: parseBooleanEnv('NOVA_AUTO_BACKEND_SKIP_DISCOVERY', false),
+  skipQlibFactory: parseBooleanEnv('NOVA_AUTO_BACKEND_SKIP_QLIB_FACTORY', false),
   once: false,
 };
 
@@ -124,6 +127,7 @@ export function parseAutoBackendArgs(argv: string[]): AutoBackendOptions {
     if (key === 'skip-worker') out.skipWorker = true;
     if (key === 'skip-training') out.skipTraining = true;
     if (key === 'skip-discovery') out.skipDiscovery = true;
+    if (key === 'skip-qlib-factory') out.skipQlibFactory = true;
     if (key === 'once') out.once = true;
 
     if (consumeNext) i += 1;
@@ -554,6 +558,26 @@ export async function runAutoBackendInitialization(options: AutoBackendOptions) 
         });
       }
     }
+    if (!options.skipQlibFactory) {
+      try {
+        const qlib = await runQlibResearchFactoryJob({
+          repo,
+          userId: options.userId,
+          triggerType: 'manual',
+        });
+        log('qlib research factory finished', {
+          workflow_id: qlib.workflow_id,
+          skipped: (qlib as Record<string, unknown>).skipped || false,
+          candidates_registered: qlib.generation_summary.candidates_registered,
+          evaluated: qlib.evaluation_summary.evaluated,
+          promotion_review: (qlib as Record<string, unknown>).promotion_review || null,
+        });
+      } catch (error) {
+        warn('qlib research factory failed during initialization', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
   } finally {
     await flushRuntimeRepoMirror();
   }
@@ -571,6 +595,7 @@ export async function runAutoBackendMaintenanceCycle(args: {
   executeTraining: boolean;
   skipTraining: boolean;
   skipDiscovery: boolean;
+  skipQlibFactory: boolean;
 }) {
   const repo = getRuntimeRepo();
 
@@ -717,6 +742,28 @@ export async function runAutoBackendMaintenanceCycle(args: {
           error: error instanceof Error ? error.message : String(error),
         });
       }
+      if (!args.skipQlibFactory) {
+        try {
+          const qlib = await runQlibResearchFactoryJob({
+            repo,
+            userId: args.userId,
+            triggerType: 'scheduled',
+          });
+          log('scheduled qlib research factory finished', {
+            cycle: args.cycle,
+            workflow_id: qlib.workflow_id,
+            skipped: (qlib as Record<string, unknown>).skipped || false,
+            candidates_registered: qlib.generation_summary.candidates_registered,
+            evaluated: qlib.evaluation_summary.evaluated,
+            promotion_review: (qlib as Record<string, unknown>).promotion_review || null,
+          });
+        } catch (error) {
+          warn('scheduled qlib research factory failed', {
+            cycle: args.cycle,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
       return;
     }
 
@@ -791,6 +838,9 @@ export async function runAutoBackend(argv = process.argv.slice(2)) {
   if (options.skipDiscovery) {
     log('alpha discovery loop skipped by flag');
   }
+  if (options.skipQlibFactory) {
+    log('qlib research factory skipped by flag');
+  }
 
   await ensureManagedProcesses(options, managed);
 
@@ -859,6 +909,7 @@ export async function runAutoBackend(argv = process.argv.slice(2)) {
           executeTraining: options.executeTraining,
           skipTraining: options.skipTraining,
           skipDiscovery: options.skipDiscovery,
+          skipQlibFactory: options.skipQlibFactory,
         });
       } else {
         const repo = getRuntimeRepo();

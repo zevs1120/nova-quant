@@ -4,8 +4,24 @@ import { ensureSchema } from '../src/server/db/schema.js';
 import { MarketRepository } from '../src/server/db/repository.js';
 import { createApiApp } from '../src/server/api/app.js';
 import { resetConfigCache } from '../src/server/config.js';
+import { runQlibResearchFactoryJob } from '../src/server/jobs/qlibResearchFactory.js';
 import { runQlibResearchFactory } from '../src/server/research/qlibFactory.js';
 import { requestLocalHttp } from './helpers/httpTestClient.js';
+
+function buildBars(symbolOffset = 0) {
+  const start = Date.parse('2024-09-01T00:00:00.000Z');
+  return Array.from({ length: 95 }, (_, index) => {
+    const close = 100 + symbolOffset + index * 0.2;
+    return {
+      ts_open: start + index * 86_400_000,
+      open: (close - 0.1).toFixed(4),
+      high: (close + 0.5).toFixed(4),
+      low: (close - 0.7).toFixed(4),
+      close: close.toFixed(4),
+      volume: String(1_000_000 + index * 1000),
+    };
+  });
+}
 
 function buildFactorResult() {
   return {
@@ -147,6 +163,13 @@ describe('qlib research factory', () => {
     expect(out.model_pull?.prediction_count).toBe(2);
     expect(out.generation_summary.candidates_registered).toBe(3);
     expect(out.evaluation_summary.evaluated).toBe(3);
+    expect(out.promotion_review).toEqual(
+      expect.objectContaining({
+        accepted: expect.any(Array),
+        rejected: expect.any(Array),
+        watchlist: expect.any(Array),
+      }),
+    );
     expect(out.native_backtest?.run_id).toBe('qlib-native-test-run');
 
     const workflow = repo.listWorkflowRuns({ workflowKey: 'qlib_research_factory', limit: 1 })[0];
@@ -241,6 +264,80 @@ describe('qlib research factory', () => {
     expect(fetchMock).toHaveBeenCalledWith(
       'http://qlib.test/api/v2/backtest/native',
       expect.objectContaining({ method: 'POST' }),
+    );
+  });
+
+  it('runs as a scheduled job against the repository-backed universe', async () => {
+    vi.stubEnv('QLIB_BRIDGE_ENABLED', 'true');
+    vi.stubEnv('QLIB_BRIDGE_URL', 'http://qlib.test');
+    resetConfigCache();
+
+    const db = new Database(':memory:');
+    ensureSchema(db);
+    const repo = new MarketRepository(db);
+    const aapl = repo.upsertAsset({
+      symbol: 'AAPL',
+      market: 'US',
+      venue: 'TEST',
+      status: 'ACTIVE',
+    });
+    const msft = repo.upsertAsset({
+      symbol: 'MSFT',
+      market: 'US',
+      venue: 'TEST',
+      status: 'ACTIVE',
+    });
+    repo.upsertOhlcvBars(aapl.asset_id, '1d', buildBars(0), 'TEST');
+    repo.upsertOhlcvBars(msft.asset_id, '1d', buildBars(10), 'TEST');
+
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      if (String(input).endsWith('/api/factors/compute')) {
+        return {
+          ok: true,
+          async json() {
+            return buildFactorResult();
+          },
+        };
+      }
+      if (String(input).endsWith('/api/v2/backtest/native')) {
+        return {
+          ok: true,
+          async json() {
+            return buildNativeEvidence().result;
+          },
+        };
+      }
+      throw new Error(`Unexpected fetch: ${String(input)}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const out = await runQlibResearchFactoryJob({
+      repo,
+      triggerType: 'scheduled',
+      userId: 'job-user',
+      runNativeBacktest: true,
+      maxSymbols: 8,
+    });
+
+    expect('skipped' in out ? out.skipped : false).toBe(false);
+    expect(out.workflow_id).toContain('workflow-qlib-factory-');
+    if ('skipped' in out) throw new Error(`job unexpectedly skipped: ${out.reason}`);
+    expect(out.job_context.universe_source).toBe('repository_daily_bars');
+    expect(out.job_context.symbols).toEqual(['AAPL', 'MSFT']);
+    expect(out.generation_summary.candidates_registered).toBe(2);
+    expect(out.promotion_review).toEqual(
+      expect.objectContaining({
+        accepted: expect.any(Array),
+        rejected: expect.any(Array),
+        watchlist: expect.any(Array),
+      }),
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://qlib.test/api/factors/compute',
+      expect.objectContaining({
+        method: 'POST',
+        body: expect.stringContaining('"symbols":["AAPL","MSFT"]'),
+      }),
     );
   });
 });
