@@ -34,6 +34,10 @@ import {
 } from '../evidence/engine.js';
 import { runQlibNativeBacktestEvidence } from '../evidence/qlibNative.js';
 import type { QlibNativeBacktestRequest } from '../nova/qlibClient.js';
+import {
+  runQlibResearchFactory as runQlibResearchFactoryService,
+  type QlibResearchFactoryInput,
+} from '../research/qlibFactory.js';
 import { getConfig } from '../config.js';
 import {
   RUNTIME_STATUS,
@@ -3913,4 +3917,9 @@ export async function runQlibNativeEvidence(args: {
     market: args.market,
     assetClass: args.assetClass,
   });
+}
+
+export async function runQlibResearchFactory(input: QlibResearchFactoryInput) {
+  const repo = getRepo();
+  return runQlibResearchFactoryService(repo, input);
 }
