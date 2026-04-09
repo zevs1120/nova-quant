@@ -4,6 +4,7 @@ import type {
   AssetClass,
   Market,
   MarketStateRecord,
+  NormalizedBar,
   PerformanceSnapshotRecord,
   SignalPayload,
   SignalContract,
@@ -1614,7 +1615,9 @@ export function deriveRuntimeState(params: {
           ? undefined
           : new Date(lookbackYearStart).toISOString().slice(0, 10),
       endDayKey:
-        latestObservedTs === null ? undefined : new Date(latestObservedTs).toISOString().slice(0, 10),
+        latestObservedTs === null
+          ? undefined
+          : new Date(latestObservedTs).toISOString().slice(0, 10),
     });
     const anomalyPressure = assessRecentAnomalyPressure({
       summary: anomalySummary,

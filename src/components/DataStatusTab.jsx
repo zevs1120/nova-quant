@@ -349,7 +349,9 @@ export default function DataStatusTab({ data, fetchJson, effectiveUserId }) {
                           <div className="status-grid-3" style={{ marginTop: 8 }}>
                             <div className="status-box">
                               <p className="muted">Anomalies</p>
-                              <p>{detail?.anomaly_total_count ?? row?.anomaly_total_count ?? '--'}</p>
+                              <p>
+                                {detail?.anomaly_total_count ?? row?.anomaly_total_count ?? '--'}
+                              </p>
                             </div>
                             {Object.entries(metrics)
                               .slice(0, 8)

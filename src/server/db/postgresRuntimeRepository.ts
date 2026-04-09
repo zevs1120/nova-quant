@@ -839,7 +839,11 @@ export class PostgresRuntimeRepository extends MarketRepository {
     ).map((row) => row.ts_open);
   }
 
-  getOhlcvByTsOpen(assetId: number, timeframe: Timeframe, tsOpenList: number[]): Array<{
+  getOhlcvByTsOpen(
+    assetId: number,
+    timeframe: Timeframe,
+    tsOpenList: number[],
+  ): Array<{
     ts_open: number;
     open: string;
     high: string;
@@ -990,7 +994,14 @@ export class PostgresRuntimeRepository extends MarketRepository {
             asset_id, timeframe, status, reason, metrics_json, created_at
           ) VALUES($1, $2, $3, $4, $5, $6)
         `,
-        [args.assetId, args.timeframe, args.status, args.reason ?? null, args.metricsJson, updatedAt],
+        [
+          args.assetId,
+          args.timeframe,
+          args.status,
+          args.reason ?? null,
+          args.metricsJson,
+          updatedAt,
+        ],
       );
     }
   }

@@ -26,7 +26,7 @@ describe('governance data jobs', () => {
     const rows = buildUsTradingCalendarSeeds([2025, 2026]);
     const keys = rows.map((row) => `${row.dayKey}:${row.status}:${row.reason}`);
 
-    expect(keys).toContain('2026-01-01:CLOSED:New Year\'s Day');
+    expect(keys).toContain("2026-01-01:CLOSED:New Year's Day");
     expect(keys).toContain('2026-11-26:CLOSED:Thanksgiving');
     expect(keys.some((row) => row.includes('HALF_DAY:Black Friday early close'))).toBe(true);
     expect(keys).toContain('2025-01-09:CLOSED:National Day of Mourning for President Jimmy Carter');

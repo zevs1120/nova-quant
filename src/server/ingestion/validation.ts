@@ -2,7 +2,12 @@ import { MarketRepository } from '../db/repository.js';
 import type { Timeframe } from '../types.js';
 import { logInfo, logWarn } from '../utils/log.js';
 import { timeframeToMs } from '../utils/time.js';
-import { detectGaps, inspectBarQuality, inspectBarSequenceQuality, toUtcDayKey } from './normalize.js';
+import {
+  detectGaps,
+  inspectBarQuality,
+  inspectBarSequenceQuality,
+  toUtcDayKey,
+} from './normalize.js';
 import { fetchBinanceKlines, isBinanceAccessBlockedError } from './binanceIncremental.js';
 import { fetchAlphaVantageDailyBars } from './hostedData.js';
 import { ingestProviderBars } from './providerGate.js';
@@ -73,7 +78,11 @@ function buildRepairWindow(args: { from: number; to: number; step: number }) {
   };
 }
 
-function filterBarsForWindow<T extends { ts_open: number }>(rows: T[], start: number, end: number): T[] {
+function filterBarsForWindow<T extends { ts_open: number }>(
+  rows: T[],
+  start: number,
+  end: number,
+): T[] {
   return rows.filter((row) => row.ts_open >= start && row.ts_open <= end);
 }
 
@@ -106,11 +115,7 @@ async function repairUsDailyGap(args: {
         notes: action.notes ?? null,
       });
     }
-    const yahooBars = filterBarsForWindow(
-      yahooSnapshot.bars,
-      window.start,
-      window.end,
-    );
+    const yahooBars = filterBarsForWindow(yahooSnapshot.bars, window.start, window.end);
     if (yahooBars.length) {
       const summary = ingestProviderBars({
         repo: args.repo,

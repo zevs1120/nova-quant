@@ -163,9 +163,7 @@ describe('provider gate', () => {
     expect(prepared.summary.zeroVolumeRunCount).toBe(1);
     expect(prepared.summary.extremeMoveCount).toBe(1);
     expect(prepared.anomalies.map((row) => row.anomalyType)).toContain('FLAT_RUN_ANOMALY');
-    expect(prepared.anomalies.map((row) => row.anomalyType)).toContain(
-      'ZERO_VOLUME_RUN_ANOMALY',
-    );
+    expect(prepared.anomalies.map((row) => row.anomalyType)).toContain('ZERO_VOLUME_RUN_ANOMALY');
     expect(prepared.anomalies.map((row) => row.anomalyType)).toContain('EXTREME_MOVE_ANOMALY');
   });
 
@@ -202,9 +200,7 @@ describe('provider gate', () => {
     });
 
     expect(prepared.summary.extremeMoveCount).toBe(0);
-    expect(prepared.anomalies.map((row) => row.anomalyType)).not.toContain(
-      'EXTREME_MOVE_ANOMALY',
-    );
+    expect(prepared.anomalies.map((row) => row.anomalyType)).not.toContain('EXTREME_MOVE_ANOMALY');
   });
 
   it('keeps the higher-priority provider bar when the same timestamp conflicts materially', () => {

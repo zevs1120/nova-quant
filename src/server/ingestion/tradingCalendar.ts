@@ -72,7 +72,12 @@ function toDayKey(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
-function nthWeekdayOfMonth(year: number, monthZeroBased: number, weekday: number, nth: number): Date {
+function nthWeekdayOfMonth(
+  year: number,
+  monthZeroBased: number,
+  weekday: number,
+  nth: number,
+): Date {
   const date = new Date(Date.UTC(year, monthZeroBased, 1));
   while (date.getUTCDay() !== weekday) {
     date.setUTCDate(date.getUTCDate() + 1);

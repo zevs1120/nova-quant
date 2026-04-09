@@ -4,6 +4,13 @@ NovaQuant 所有重要变更记录于此。
 
 ## 未发布
 
+### 🧹 格式化与测试契约
+
+- **chore:** 对多处 TS/JSX、ingestion、runtime 与相关 Vitest 文件运行 Prettier，恢复 `npm run format:check` 全绿。
+- **test(today):** `tests/todayClimateHeaderMarkers.test.ts` 与 `TodayClimateHeader.jsx` 当前 class 对齐（`today-rebuild-status` 替代已移除的 `today-rebuild-dot`）。
+- **fix(ts):** `providerGate` 在比例过滤中显式排除 `null`；`governanceData` 对 `mismatch_count` 使用 `?? 0` 再比较；`runtimeDerivation` 从 `types` 补全 `NormalizedBar` 导入，保证 `npm run typecheck` 通过。
+- **test:** `performanceOptimization` 的 Cache-Control 子套件在 `beforeEach` 中清空 `GEMINI_API_KEY`，避免本机 `.env` 带密钥时 browse 新闻刷新误调 `runNovaChatCompletion` 拖死单测。
+
 ### 🔬 Alpha / 策略发现能力增强
 
 - **feat(alpha): 候选 replay 增加横截面 alpha 视野。** public-template-aware replay 现在会在同一 timestamp 构造 panel rank，支持 relative-strength percentile、realized-volatility percentile、low-vol percentile 与 52-week / 长窗口高点锚定；新增 time-series momentum、52-week-high anchor、cross-sectional low-vol relative strength 的专用 replay 语义，让研究模板不再只能按单标的 breakout 粗略解释。

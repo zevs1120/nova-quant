@@ -163,13 +163,7 @@ export function inspectBarSequenceQuality(args: {
     const low = parseFiniteNumber(current.low);
     const close = parseFiniteNumber(current.close);
     const volume = parseFiniteNumber(current.volume);
-    if (
-      open === null ||
-      high === null ||
-      low === null ||
-      close === null ||
-      volume === null
-    ) {
+    if (open === null || high === null || low === null || close === null || volume === null) {
       flatStreak = 0;
       zeroVolumeStreak = 0;
       continue;
@@ -228,10 +222,14 @@ export function inspectBarSequenceQuality(args: {
         if (action.actionType !== 'SPLIT') return false;
         const splitRatio = Number(action.splitRatio);
         if (!Number.isFinite(splitRatio) || splitRatio <= 0) return false;
-        if (action.effectiveTs < current.ts_open - step || action.effectiveTs > current.ts_open + step) {
+        if (
+          action.effectiveTs < current.ts_open - step ||
+          action.effectiveTs > current.ts_open + step
+        ) {
           return false;
         }
-        const observedRatio = Math.max(close, prevClose) / Math.max(1e-9, Math.min(close, prevClose));
+        const observedRatio =
+          Math.max(close, prevClose) / Math.max(1e-9, Math.min(close, prevClose));
         const expectedRatio = Math.max(splitRatio, 1 / splitRatio);
         const ratioDeviation = Math.abs(observedRatio / expectedRatio - 1);
         return ratioDeviation <= 0.25;
@@ -309,7 +307,9 @@ export function detectGaps(
 
   const step = timeframeToMs(timeframe);
   const gaps: Array<{ from: number; to: number; missingBars: number }> = [];
-  const market = String(options?.market || '').trim().toUpperCase();
+  const market = String(options?.market || '')
+    .trim()
+    .toUpperCase();
   const closedDayKeys = new Set((options?.closedDayKeys || []).map((value) => String(value || '')));
 
   for (let i = 1; i < tsList.length; i += 1) {

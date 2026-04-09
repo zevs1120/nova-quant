@@ -992,30 +992,30 @@ export default function BrowseTab({
     let cancelled = false;
     let inFlight = false;
     const config = DETAIL_RANGE_CONFIG[detailRange];
-      const loadChart = async (initial = false) => {
-        if (inFlight) return;
-        inFlight = true;
-        if (initial) {
-          setDetailState((current) =>
-            current.values.length
-              ? {
-                  ...current,
-                  loading: true,
-                  error: '',
-                }
-              : {
-                  loading: true,
-                  error: '',
-                  values: [],
-                  latest: null,
-                  change: null,
-                  low: null,
-                  high: null,
-                  asOf: null,
-                  source: null,
-                },
-          );
-        }
+    const loadChart = async (initial = false) => {
+      if (inFlight) return;
+      inFlight = true;
+      if (initial) {
+        setDetailState((current) =>
+          current.values.length
+            ? {
+                ...current,
+                loading: true,
+                error: '',
+              }
+            : {
+                loading: true,
+                error: '',
+                values: [],
+                latest: null,
+                change: null,
+                low: null,
+                high: null,
+                asOf: null,
+                source: null,
+              },
+        );
+      }
       try {
         const chartPayload = config.live
           ? normalizeDetailBundlePayload(
@@ -1301,9 +1301,7 @@ export default function BrowseTab({
             </div>
 
             {showHomeSkeleton ? <BrowseHomeSkeleton /> : null}
-            {showHomeRefreshing ? (
-              <p className="browse-rh-refreshing">{copy.refreshing}</p>
-            ) : null}
+            {showHomeRefreshing ? <p className="browse-rh-refreshing">{copy.refreshing}</p> : null}
             {!homeState.loading && homeState.error ? (
               <div className="browse-rh-empty">{homeState.error}</div>
             ) : null}

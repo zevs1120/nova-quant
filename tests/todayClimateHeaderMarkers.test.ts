@@ -11,6 +11,6 @@ describe('TodayClimateHeader.jsx markers', () => {
   it('owns the climate header chrome', () => {
     expect(source).toContain('today-rebuild-header');
     expect(source).toContain('today-rebuild-climate');
-    expect(source).toContain('today-rebuild-dot');
+    expect(source).toContain('today-rebuild-status');
   });
 });

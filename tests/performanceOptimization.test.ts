@@ -23,6 +23,12 @@ describe('performance optimization regression', () => {
   // 1. Cache-Control: user-scoped endpoints MUST be private, no-store
   // -------------------------------------------------------------------------
   describe('Cache-Control headers', () => {
+    beforeEach(() => {
+      // Local `.env` may define GEMINI_API_KEY; browse news refresh would otherwise call
+      // `runNovaChatCompletion` and hang CI on network. Cache-Control assertions do not need LLM.
+      vi.stubEnv('GEMINI_API_KEY', '');
+    });
+
     const privateEndpoints = [
       '/api/market-state',
       '/api/market/modules',
@@ -83,7 +89,7 @@ describe('performance optimization regression', () => {
       expect(detailBundle.headers['cache-control']).toBe(
         'public, max-age=15, s-maxage=60, stale-while-revalidate=180',
       );
-    }, 15000);
+    });
   });
 
   // -------------------------------------------------------------------------

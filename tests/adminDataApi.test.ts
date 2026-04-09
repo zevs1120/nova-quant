@@ -736,6 +736,8 @@ describe('admin data api', () => {
     expect(detailBody.data.detail.timeline.some((row) => row.type === 'HALTED')).toBe(true);
     expect(detailBody.data.detail.quality_history.length).toBeGreaterThanOrEqual(2);
     expect(detailBody.data.detail.quality_history[0]?.status).toBe('REPAIRED');
-    expect(detailBody.data.detail.recent_governance_runs[0]?.governance_summary.mismatch_symbols).toBe(1);
+    expect(
+      detailBody.data.detail.recent_governance_runs[0]?.governance_summary.mismatch_symbols,
+    ).toBe(1);
   });
 });

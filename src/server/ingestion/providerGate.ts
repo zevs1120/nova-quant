@@ -40,7 +40,9 @@ function buildAnomalyDetail(args: {
 }
 
 function sourcePriority(source: string): number {
-  const normalized = String(source || '').trim().toUpperCase();
+  const normalized = String(source || '')
+    .trim()
+    .toUpperCase();
   if (!normalized) return 50;
   if (normalized.includes('BINANCE_REPAIR')) return 100;
   if (normalized.includes('MASSIVE')) return 95;
@@ -90,7 +92,12 @@ function detectAdjustmentDrift(args: {
     source: string;
   }>;
   incomingRows: NormalizedBar[];
-}): { detected: boolean; overlapCount: number; medianRatio: number | null; maxDeviationPct: number } {
+}): {
+  detected: boolean;
+  overlapCount: number;
+  medianRatio: number | null;
+  maxDeviationPct: number;
+} {
   const incomingByTs = new Map(args.incomingRows.map((row) => [row.ts_open, row] as const));
   const ratios = args.existingRows
     .map((existing) => {
@@ -101,7 +108,7 @@ function detectAdjustmentDrift(args: {
       if (existingClose <= 0 || incomingClose <= 0) return null;
       return existingClose / incomingClose;
     })
-    .filter((value): value is number => Number.isFinite(value) && value > 0)
+    .filter((value): value is number => value != null && Number.isFinite(value) && value > 0)
     .sort((a, b) => a - b);
 
   if (ratios.length < 3) {
@@ -153,14 +160,14 @@ function deriveQualityState(summary: ProviderGateSummary): {
         summary.adjustmentDriftCount > 0
           ? 'PROVIDER_ADJUSTMENT_DRIFT'
           : summary.sourceConflictCount > 0
-          ? 'PROVIDER_SOURCE_CONFLICT'
-          : summary.flatRunCount > 0
-            ? 'SEQUENCE_FLAT_RUN'
-            : summary.zeroVolumeRunCount > 0
-              ? 'SEQUENCE_ZERO_VOLUME_RUN'
-              : summary.extremeMoveCount > 0
-                ? 'SEQUENCE_EXTREME_MOVE'
-                : 'ENVELOPE_OR_VOLUME_ANOMALY',
+            ? 'PROVIDER_SOURCE_CONFLICT'
+            : summary.flatRunCount > 0
+              ? 'SEQUENCE_FLAT_RUN'
+              : summary.zeroVolumeRunCount > 0
+                ? 'SEQUENCE_ZERO_VOLUME_RUN'
+                : summary.extremeMoveCount > 0
+                  ? 'SEQUENCE_EXTREME_MOVE'
+                  : 'ENVELOPE_OR_VOLUME_ANOMALY',
     };
   }
   return { status: 'TRUSTED', reason: null };
@@ -304,15 +311,17 @@ export function ingestProviderBars(args: {
   const prepared = prepareProviderBars({
     ...args,
     corporateActions: tsOpenList.length
-      ? args.repo.listCorporateActions({
-          assetId: args.assetId,
-          startTs: Math.min(...tsOpenList) - 2 * 86_400_000,
-          endTs: Math.max(...tsOpenList) + 2 * 86_400_000,
-        }).map((action) => ({
-          effectiveTs: action.effective_ts,
-          actionType: action.action_type,
-          splitRatio: action.split_ratio,
-        }))
+      ? args.repo
+          .listCorporateActions({
+            assetId: args.assetId,
+            startTs: Math.min(...tsOpenList) - 2 * 86_400_000,
+            endTs: Math.max(...tsOpenList) + 2 * 86_400_000,
+          })
+          .map((action) => ({
+            effectiveTs: action.effective_ts,
+            actionType: action.action_type,
+            splitRatio: action.split_ratio,
+          }))
       : [],
   });
   const existingRows = args.repo.getOhlcvByTsOpen(

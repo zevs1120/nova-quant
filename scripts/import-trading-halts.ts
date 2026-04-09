@@ -22,7 +22,9 @@ function readFlag(argv: string[], name: string) {
 }
 
 function parseArgs(argv: string[]): HaltImportArgs {
-  const market = String(readFlag(argv, 'market') || 'US').trim().toUpperCase() as Market;
+  const market = String(readFlag(argv, 'market') || 'US')
+    .trim()
+    .toUpperCase() as Market;
   const symbol = String(readFlag(argv, 'symbol') || '')
     .trim()
     .toUpperCase();
