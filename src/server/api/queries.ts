@@ -32,6 +32,8 @@ import {
   listReconciliationEvidence,
   runEvidenceEngine,
 } from '../evidence/engine.js';
+import { runQlibNativeBacktestEvidence } from '../evidence/qlibNative.js';
+import type { QlibNativeBacktestRequest } from '../nova/qlibClient.js';
 import { getConfig } from '../config.js';
 import {
   RUNTIME_STATUS,
@@ -3568,14 +3570,18 @@ function summarizeRuntimeQuality(runtimeRows: Array<Record<string, any>>) {
   const freshnessRows = runtimeRows.flatMap((row) =>
     Array.isArray(row?.freshness?.rows) ? row.freshness.rows : [],
   );
-  const suspectRows = freshnessRows.filter((row) => String(row?.quality_state_status || '') === 'SUSPECT');
+  const suspectRows = freshnessRows.filter(
+    (row) => String(row?.quality_state_status || '') === 'SUSPECT',
+  );
   const adjustmentDriftRows = freshnessRows.filter(
     (row) => String(row?.quality_state_reason || '') === 'PROVIDER_ADJUSTMENT_DRIFT',
   );
   const corporateConflictRows = freshnessRows.filter(
     (row) => String(row?.quality_state_reason || '') === 'CORPORATE_ACTION_SOURCE_CONFLICT',
   );
-  const repairedRows = freshnessRows.filter((row) => String(row?.quality_state_status || '') === 'REPAIRED');
+  const repairedRows = freshnessRows.filter(
+    (row) => String(row?.quality_state_status || '') === 'REPAIRED',
+  );
   const quarantinedRows = freshnessRows.filter(
     (row) => String(row?.quality_state_status || '') === 'QUARANTINED',
   );
@@ -3893,4 +3899,18 @@ export function listEvidenceReconciliation(args?: {
 export function getEvidenceChampionStrategies() {
   const repo = getRepo();
   return getChampionStrategies(repo);
+}
+
+export async function runQlibNativeEvidence(args: {
+  request: QlibNativeBacktestRequest;
+  market?: Market | 'ALL';
+  assetClass?: AssetClass | 'ALL';
+}) {
+  const repo = getRepo();
+  return runQlibNativeBacktestEvidence({
+    repo,
+    request: args.request,
+    market: args.market,
+    assetClass: args.assetClass,
+  });
 }

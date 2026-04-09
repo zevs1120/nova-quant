@@ -61,6 +61,31 @@ export interface QlibModelResult {
   predictions: QlibPredictionRow[];
 }
 
+export interface QlibNativeBacktestRequest {
+  symbols: string[];
+  start_date: string;
+  end_date: string;
+  factor_set?: 'Alpha158' | 'Alpha360';
+  benchmark?: string | null;
+  topk?: number;
+  n_drop?: number;
+}
+
+export interface QlibNativeBacktestMetrics {
+  sharpe: number;
+  annualized_return: number | null;
+  max_drawdown: number;
+  avg_daily_return: number | null;
+  trading_days: number;
+}
+
+export interface QlibNativeBacktestResult {
+  status: string;
+  metrics: QlibNativeBacktestMetrics | null;
+  elapsed_ms: number;
+  notes: string[];
+}
+
 function getBridgeConfig() {
   const config = getConfig();
   if (!config.qlibBridge) {
@@ -184,6 +209,40 @@ export async function predictQlibModel(req: QlibModelRequest): Promise<QlibModel
   } catch (error) {
     throw new Error(
       `Failed to predict Qlib model: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  } finally {
+    clear();
+  }
+}
+
+export async function runQlibNativeBacktest(
+  req: QlibNativeBacktestRequest,
+): Promise<QlibNativeBacktestResult> {
+  const { enabled, baseUrl, timeoutMs } = getBridgeConfig();
+  if (!enabled) throw new Error('Qlib Bridge is disabled in configuration.');
+
+  const endpoint = `${baseUrl}/api/v2/backtest/native`;
+  const { init, clear } = withTimeoutInit(
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req),
+    },
+    Math.max(timeoutMs, 60_000),
+  );
+
+  try {
+    const res = await fetch(endpoint, init);
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(`Qlib native backtest failed (${res.status}): ${text}`);
+    }
+    return (await res.json()) as QlibNativeBacktestResult;
+  } catch (error) {
+    throw new Error(
+      `Failed to run Qlib native backtest: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
     );
   } finally {
     clear();

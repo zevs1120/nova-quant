@@ -8,6 +8,7 @@ import {
   getEvidenceBacktestDetail,
   listEvidenceReconciliation,
   getEvidenceChampionStrategies,
+  runQlibNativeEvidence,
 } from '../queries.js';
 
 const router = Router();
@@ -33,6 +34,65 @@ router.post('/api/evidence/run', (req, res) => {
   });
   res.json(out);
 });
+
+router.post(
+  '/api/evidence/qlib-native/run',
+  asyncRoute(async (req, res) => {
+    const body = req.body as {
+      symbols?: string[];
+      startDate?: string;
+      endDate?: string;
+      start_date?: string;
+      end_date?: string;
+      factorSet?: 'Alpha158' | 'Alpha360';
+      factor_set?: 'Alpha158' | 'Alpha360';
+      benchmark?: string | null;
+      topk?: number;
+      n_drop?: number;
+      nDrop?: number;
+      market?: string;
+      assetClass?: string;
+    };
+    const symbols = Array.isArray(body.symbols)
+      ? body.symbols
+          .map((symbol) =>
+            String(symbol || '')
+              .trim()
+              .toUpperCase(),
+          )
+          .filter(Boolean)
+      : [];
+    const startDate = body.start_date || body.startDate || '';
+    const endDate = body.end_date || body.endDate || '';
+    if (
+      !symbols.length ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(startDate) ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(endDate)
+    ) {
+      res.status(400).json({
+        error: 'symbols, start_date/startDate and end_date/endDate are required',
+      });
+      return;
+    }
+    const market = body.market === 'ALL' ? 'ALL' : parseMarket(body.market);
+    const parsedAssetClass = parseAssetClass(body.assetClass);
+    const assetClass = body.assetClass === 'ALL' ? 'ALL' : parsedAssetClass;
+    const out = await runQlibNativeEvidence({
+      market,
+      assetClass,
+      request: {
+        symbols,
+        start_date: startDate,
+        end_date: endDate,
+        factor_set: body.factor_set || body.factorSet || 'Alpha158',
+        benchmark: body.benchmark || null,
+        topk: body.topk,
+        n_drop: body.n_drop ?? body.nDrop,
+      },
+    });
+    res.json(out);
+  }),
+);
 
 router.get(
   '/api/evidence/signals/top',

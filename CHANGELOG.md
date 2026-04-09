@@ -6,6 +6,7 @@ NovaQuant 所有重要变更记录于此。
 
 ### 🔬 Alpha / 策略发现能力增强
 
+- **feat(qlib,evidence): 新增 Qlib native backtest 证据落库通道。** TypeScript 侧新增 `/api/evidence/qlib-native/run` 与 Qlib `/api/v2/backtest/native` client；运行后会把 Qlib native request / response / metrics 写入 `backtest_runs`、`backtest_metrics`、`backtest_artifacts`，让 Alpha158 / Alpha360 / TopkDropout native replay 不再只停在 sidecar，而是进入 Nova 的统一 evidence/backtest 查询面。
 - **feat(alpha): 把公开研究线索接入 alpha discovery 证据链。** 新增 volatility-managed TSMOM、52-week high anchor、funding-confirmed crypto momentum、BTC-anchor crypto reversion 四组 public seed；seed runtime 会保留 public reference URL，alpha evaluator 会把 hypothesis/template/source URL 写入 evaluation metrics 与 `alpha_discovery_research_evidence` artifact，便于从论文线索一路追到候选、bar replay 与晋升判断。
 - **feat(alpha): 接入候选级 OHLCV bar replay。** alpha evaluator 现在会在 repository 有历史 bars 时，对 autonomous candidate 运行候选级 replay，并把 replay source、成交样本和 symbol 摘要写入 evaluation metrics；无可用 bars 时仍保留原 discovery proxy fallback。
 - **feat(alpha): 新增 hypothesis yield board。** alpha registry summary 现在按 hypothesis / template / family 汇总生成数、通过数、晋升/在影子中数量、bar replay 覆盖率、shadow realized 样本和 yield score，方便发现哪些研究假设真正产出 alpha。
