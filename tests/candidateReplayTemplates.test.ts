@@ -45,6 +45,41 @@ function buildCrashReboundBars(count = 108) {
   return rows;
 }
 
+function buildPanelTrendBars(args: {
+  count?: number;
+  drift: number;
+  shockEvery?: number;
+  shock?: number;
+}) {
+  const rows = [];
+  let price = 100;
+  const count = args.count || 150;
+  for (let idx = 0; idx < count; idx += 1) {
+    const prev = price;
+    const shock = args.shockEvery && idx > 35 && idx % args.shockEvery === 0 ? args.shock || 0 : 0;
+    price *= 1 + args.drift + shock;
+    rows.push(toBar(idx, price, prev));
+  }
+  return rows;
+}
+
+function buildAnchorBars(count = 290) {
+  const rows = [];
+  let price = 100;
+  for (let idx = 0; idx < count; idx += 1) {
+    const prev = price;
+    if (idx < 180) {
+      price *= 1.0006;
+    } else if (idx < 230) {
+      price *= 0.998;
+    } else {
+      price *= 1.004;
+    }
+    rows.push(toBar(idx, price, prev));
+  }
+  return rows;
+}
+
 describe('candidate OHLCV replay public-template interpreters', () => {
   it('uses residual-momentum semantics instead of erasing the template into generic momentum', () => {
     const result = runCandidateBarReplay({
@@ -101,5 +136,60 @@ describe('candidate OHLCV replay public-template interpreters', () => {
     expect(generic.replay_family).toBe('momentum');
     expect(crashAware.replay_family).toBe('crash_aware_momentum');
     expect(crashAware.closed_trades).toBeLessThan(generic.closed_trades);
+  });
+
+  it('uses cross-sectional rank for low-volatility relative-strength candidates', () => {
+    const lowVolWinner = buildPanelTrendBars({ drift: 0.002, shockEvery: 23, shock: -0.001 });
+    const highVolWinner = buildPanelTrendBars({ drift: 0.0023, shockEvery: 6, shock: -0.022 });
+    const loser = buildPanelTrendBars({ drift: -0.0003, shockEvery: 17, shock: 0.003 });
+
+    const result = runCandidateBarReplay({
+      candidate: {
+        candidate_id: 'low-vol-rs',
+        hypothesis_id: 'HYP-PUBLIC-LOWVOL-RS-001',
+        template_id: 'TPL-PUBLIC-LOWVOL-RS-01',
+        template_name: 'Low-volatility relative strength',
+        supporting_features: ['relative_strength', 'realized_volatility_rank'],
+        parameter_set: {
+          relative_strength_cutoff: 0.55,
+          realized_vol_rank_cap: 0.45,
+        },
+        expected_holding_horizon: '5-12 bars',
+      },
+      barSets: [
+        { market: 'US', symbol: 'LOWVOL_WINNER', bars: lowVolWinner },
+        { market: 'US', symbol: 'HIGHVOL_WINNER', bars: highVolWinner },
+        { market: 'US', symbol: 'LOSER', bars: loser },
+      ],
+      config: { cost_bps_round_trip: 16 },
+    });
+
+    expect(result.replay_family).toBe('low_vol_relative_strength');
+    expect(result.closed_trades).toBeGreaterThan(2);
+    expect(result.symbol_summaries.map((row: any) => row.symbol)).toContain('LOWVOL_WINNER');
+    expect(result.symbol_summaries.map((row: any) => row.symbol)).not.toContain('LOSER');
+  });
+
+  it('replays 52-week-high anchor candidates as anchor continuation rather than generic breakout', () => {
+    const result = runCandidateBarReplay({
+      candidate: {
+        candidate_id: 'high-anchor',
+        hypothesis_id: 'HYP-PUBLIC-52WH-001',
+        template_id: 'TPL-PUBLIC-52WH-01',
+        template_name: '52-week high anchor momentum',
+        supporting_features: ['distance_to_52w_high', 'relative_strength'],
+        parameter_set: {
+          anchor_distance_max_pct: 12,
+          relative_strength_cutoff: 0.55,
+        },
+        expected_holding_horizon: '8-16 bars',
+      },
+      barSets: [{ market: 'US', symbol: 'ANCHOR', bars: buildAnchorBars() }],
+      config: { cost_bps_round_trip: 16 },
+    });
+
+    expect(result.replay_family).toBe('high_anchor_momentum');
+    expect(result.closed_trades).toBeGreaterThan(1);
+    expect(result.sample_trades.every((trade: any) => trade.direction === 'LONG')).toBe(true);
   });
 });

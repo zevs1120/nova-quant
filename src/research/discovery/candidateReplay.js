@@ -47,6 +47,69 @@ function windowSlice(rows, endExclusive, size, getter) {
     .filter((value) => Number.isFinite(value));
 }
 
+function rankPercentile(sortedValues, value, highIsGood = true) {
+  if (!Number.isFinite(value) || !sortedValues.length) return null;
+  const firstIndex = sortedValues.findIndex((item) => item >= value);
+  const index = firstIndex >= 0 ? firstIndex : sortedValues.length - 1;
+  const pct = sortedValues.length > 1 ? index / (sortedValues.length - 1) : 1;
+  return round(highIsGood ? pct : 1 - pct, 4);
+}
+
+function localStats(bars, index) {
+  const close = bars[index]?.close;
+  const prevClose = bars[index - 1]?.close;
+  if (!Number.isFinite(close) || !Number.isFinite(prevClose) || prevClose <= 0) return null;
+  const closes20 = windowSlice(bars, index, 20, (row) => row.close);
+  const closes252 = windowSlice(bars, index, 252, (row) => row.close);
+  const returns20 = closes20
+    .slice(1)
+    .map((value, idx) => value / closes20[idx] - 1)
+    .filter((value) => Number.isFinite(value));
+  const maxAnchor = closes252.length ? Math.max(...closes252) : Math.max(...closes20, close);
+  return {
+    ret20: close / (bars[index - 20]?.close || close) - 1,
+    ret60: close / (bars[index - 60]?.close || close) - 1,
+    ret5: close / (bars[index - 5]?.close || close) - 1,
+    vol20: std(returns20),
+    distance_to_high_anchor: maxAnchor > 0 ? close / maxAnchor - 1 : 0,
+  };
+}
+
+function buildPanelByTimestamp(replaySets) {
+  const rowsByTs = new Map();
+  for (const set of replaySets) {
+    set.bars.forEach((_, index) => {
+      if (index < 30) return;
+      const stats = localStats(set.bars, index);
+      if (!stats) return;
+      const ts = set.bars[index].ts_open;
+      const rows = rowsByTs.get(ts) || [];
+      rows.push({ key: `${set.market}:${set.symbol}`, ...stats });
+      rowsByTs.set(ts, rows);
+    });
+  }
+
+  const panelByTs = new Map();
+  for (const [ts, rows] of rowsByTs.entries()) {
+    const ret20Values = rows.map((row) => row.ret20).sort((a, b) => a - b);
+    const ret60Values = rows.map((row) => row.ret60).sort((a, b) => a - b);
+    const vol20Values = rows.map((row) => row.vol20).sort((a, b) => a - b);
+    const anchorValues = rows.map((row) => row.distance_to_high_anchor).sort((a, b) => a - b);
+    const panel = new Map();
+    for (const row of rows) {
+      panel.set(row.key, {
+        ret20_percentile: rankPercentile(ret20Values, row.ret20, true),
+        ret60_percentile: rankPercentile(ret60Values, row.ret60, true),
+        vol20_percentile: rankPercentile(vol20Values, row.vol20, true),
+        low_vol_percentile: rankPercentile(vol20Values, row.vol20, false),
+        anchor_percentile: rankPercentile(anchorValues, row.distance_to_high_anchor, true),
+      });
+    }
+    panelByTs.set(ts, panel);
+  }
+  return panelByTs;
+}
+
 function candidateText(candidate = {}) {
   return [
     candidate.strategy_family,
@@ -82,6 +145,17 @@ function classifyCandidate(candidate = {}) {
     return { family: 'volatility_managed_momentum', direction: 1 };
   }
   if (
+    text.includes('52-week') ||
+    text.includes('52 week') ||
+    text.includes('fifty_two') ||
+    text.includes('distance_to_52w_high')
+  ) {
+    return { family: 'high_anchor_momentum', direction: 1 };
+  }
+  if (text.includes('time series momentum') || text.includes('tsmom')) {
+    return { family: 'time_series_momentum', direction: 1 };
+  }
+  if (
     text.includes('low-vol') ||
     text.includes('low_vol') ||
     text.includes('idiosyncratic_volatility')
@@ -106,7 +180,7 @@ function classifyCandidate(candidate = {}) {
   return { family: 'momentum', direction: shortBias ? -1 : 1 };
 }
 
-function replayTrigger({ bars, index, candidate }) {
+function replayTrigger({ bars, index, candidate, panel }) {
   const { family, direction } = classifyCandidate(candidate);
   const close = bars[index].close;
   const prevClose = bars[index - 1]?.close;
@@ -115,6 +189,7 @@ function replayTrigger({ bars, index, candidate }) {
   const closes20 = windowSlice(bars, index, 20, (row) => row.close);
   const closes10 = windowSlice(bars, index, 10, (row) => row.close);
   const closes60 = windowSlice(bars, index, 60, (row) => row.close);
+  const closes252 = windowSlice(bars, index, 252, (row) => row.close);
   const volumes20 = windowSlice(bars, index, 20, (row) => row.volume);
   const returns20 = closes20
     .slice(1)
@@ -127,6 +202,7 @@ function replayTrigger({ bars, index, candidate }) {
   const prevMax20 = Math.max(...closes20);
   const prevMin20 = Math.min(...closes20);
   const prevMax60 = closes60.length ? Math.max(...closes60) : prevMax20;
+  const prevMax252 = closes252.length ? Math.max(...closes252) : prevMax60;
   const avgVolume20 = mean(volumes20);
   const dayReturn = close / prevClose - 1;
   const ret5 = close / (bars[index - 5]?.close || close) - 1;
@@ -134,6 +210,7 @@ function replayTrigger({ bars, index, candidate }) {
   const ret60 = close / (bars[index - 60]?.close || close) - 1;
   const gapReturn = safeNumber(bars[index].open, close) / prevClose - 1;
   const localDrawdown60 = prevMax60 > 0 ? close / prevMax60 - 1 : 0;
+  const distanceToAnchorHigh = prevMax252 > 0 ? close / prevMax252 - 1 : 0;
   const vol20 = Math.max(0.006, std(returns20));
   const priorVol20 = std(
     windowSlice(bars, index - 20, 20, (row) => row.close)
@@ -143,6 +220,23 @@ function replayTrigger({ bars, index, candidate }) {
   );
   const volumeRatio = avgVolume20 > 0 ? bars[index].volume / avgVolume20 : 1;
 
+  if (family === 'time_series_momentum') {
+    const minRet20 = candidateParam(candidate, 'min_ret_20d', vol20 * 1.6);
+    const trendOk = ret20 > minRet20 && ret60 > 0 && close > sma20 && sma10 > sma20 * 0.998;
+    const rankOk = panel?.ret20_percentile == null || panel.ret20_percentile >= 0.5;
+    if (trendOk && rankOk && volumeRatio >= 0.7) return 1;
+    return null;
+  }
+  if (family === 'high_anchor_momentum') {
+    const maxDistance = Math.abs(candidateParam(candidate, 'anchor_distance_max_pct', 8)) / 100;
+    const minRs = candidateParam(candidate, 'relative_strength_cutoff', 0.6);
+    const anchorOk = distanceToAnchorHigh >= -maxDistance;
+    const rankOk =
+      panel?.ret20_percentile == null || panel.ret20_percentile >= Math.max(0.45, minRs - 0.1);
+    const notTooVertical = Math.abs(ret5) < Math.max(0.09, vol20 * 8);
+    if (anchorOk && rankOk && notTooVertical && ret20 > vol20 * 1.3 && ret60 > 0) return 1;
+    return null;
+  }
   if (family === 'residual_momentum') {
     const residualProxy = ret20 - ret60 / 3 - Math.sign(ret5) * Math.min(Math.abs(ret5), vol20);
     const minScore = candidateParam(candidate, 'min_residual_return', vol20 * 1.2);
@@ -160,9 +254,14 @@ function replayTrigger({ bars, index, candidate }) {
     return null;
   }
   if (family === 'low_vol_relative_strength') {
+    const rsCutoff = candidateParam(candidate, 'relative_strength_cutoff', 0.6);
+    const volRankCap = candidateParam(candidate, 'realized_vol_rank_cap', 0.65);
     const volCap = candidateParam(candidate, 'max_realized_volatility', 0.026);
     const relativeVolCap = Math.max(volCap, priorVol20 > 0 ? priorVol20 * 0.9 : volCap);
-    if (close > sma20 && sma10 >= sma20 && ret20 > vol20 * 2 && vol20 <= relativeVolCap) return 1;
+    const panelOk = panel
+      ? panel.ret20_percentile >= rsCutoff && panel.vol20_percentile <= volRankCap
+      : vol20 <= relativeVolCap;
+    if (panelOk && close > sma20 && sma10 >= sma20 && ret20 > vol20 * 1.4) return 1;
     return null;
   }
   if (family === 'gap_survival_event') {
@@ -189,7 +288,8 @@ function replayTrigger({ bars, index, candidate }) {
     return null;
   }
   if (family === 'relative_strength') {
-    return close > sma20 && sma10 >= sma20 * 0.995 && ret5 > vol20 * 0.9 ? 1 : null;
+    const panelOk = panel?.ret20_percentile == null || panel.ret20_percentile >= 0.58;
+    return panelOk && close > sma20 && sma10 >= sma20 * 0.995 && ret5 > vol20 * 0.9 ? 1 : null;
   }
   if (family === 'liquidity_volume') {
     if (volumeRatio >= 1.08 && Math.abs(dayReturn) >= vol20 * 0.55 && close > sma20 * 0.985) {
@@ -270,25 +370,34 @@ export function runCandidateBarReplay({ candidate, barSets = [], config = {} } =
   );
   const costPct = safeNumber(config.cost_bps_round_trip, 18) / 10000;
   const replayFamily = classifyCandidate(candidate).family;
+  const replaySets = barSets
+    .map((set) => ({
+      market: set.market,
+      symbol: set.symbol,
+      bars: (set.bars || [])
+        .map((row) => ({
+          ts_open: safeNumber(row.ts_open),
+          open: safeNumber(row.open, Number.NaN),
+          high: safeNumber(row.high, Number.NaN),
+          low: safeNumber(row.low, Number.NaN),
+          close: safeNumber(row.close, Number.NaN),
+          volume: safeNumber(row.volume, 0),
+        }))
+        .filter(
+          (row) => Number.isFinite(row.ts_open) && Number.isFinite(row.close) && row.close > 0,
+        ),
+    }))
+    .filter((set) => set.bars.length >= 60);
+  const panelByTs = buildPanelByTimestamp(replaySets);
   const allTrades = [];
   const symbolSummaries = [];
 
-  for (const set of barSets) {
-    const bars = (set.bars || [])
-      .map((row) => ({
-        ts_open: safeNumber(row.ts_open),
-        open: safeNumber(row.open, Number.NaN),
-        high: safeNumber(row.high, Number.NaN),
-        low: safeNumber(row.low, Number.NaN),
-        close: safeNumber(row.close, Number.NaN),
-        volume: safeNumber(row.volume, 0),
-      }))
-      .filter((row) => Number.isFinite(row.ts_open) && Number.isFinite(row.close) && row.close > 0);
-    if (bars.length < 60) continue;
-
+  for (const set of replaySets) {
+    const bars = set.bars;
     const symbolTrades = [];
     for (let index = 30; index < bars.length - horizonBars; index += 1) {
-      const direction = replayTrigger({ bars, index, candidate });
+      const panel = panelByTs.get(bars[index].ts_open)?.get(`${set.market}:${set.symbol}`);
+      const direction = replayTrigger({ bars, index, candidate, panel });
       if (!direction) continue;
       const trade = replayTrade({ bars, entryIndex: index, direction, horizonBars, costPct });
       if (!trade) continue;
@@ -326,7 +435,7 @@ export function runCandidateBarReplay({ candidate, barSets = [], config = {} } =
     source: 'ohlcv_candidate_replay',
     replay_family: replayFamily,
     closed_trades: allTrades.length,
-    symbols_tested: barSets.length,
+    symbols_tested: replaySets.length,
     symbols_with_trades: symbolSummaries.length,
     gross_return: round(
       grossReturns.reduce((sum, ret) => sum + ret, 0),
@@ -343,7 +452,7 @@ export function runCandidateBarReplay({ candidate, barSets = [], config = {} } =
     max_drawdown: round(maxDrawdown(netReturns), 6),
     sharpe_proxy: round(sharpe, 4),
     average_holding_time: round(mean(allTrades.map((trade) => trade.holding_bars)), 4),
-    turnover: barSets.length ? round(allTrades.length / barSets.length / 60, 4) : 0,
+    turnover: replaySets.length ? round(allTrades.length / replaySets.length / 60, 4) : 0,
     cost_bps_round_trip: round(costPct * 10000, 4),
     symbol_summaries: symbolSummaries.sort((a, b) => b.net_return - a.net_return).slice(0, 12),
     windows: splitWindows(allTrades),
