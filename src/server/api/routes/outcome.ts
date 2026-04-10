@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { asyncRoute } from '../helpers.js';
+import { asyncRoute, queryUserIdOrGuest } from '../helpers.js';
 import { getRuntimeRepo } from '../../db/runtimeRepository.js';
 import { getRecentOutcomeSummary, invalidateFrontendReadCacheForUser } from '../queries.js';
 import { resolveOutcomesForDate, resolveRecentOutcomes } from '../../outcome/resolver.js';
@@ -9,7 +9,7 @@ const router = Router();
 router.get(
   '/api/outcomes/recent',
   asyncRoute(async (req, res) => {
-    const userId = (req.query.userId as string | undefined) || 'guest-default';
+    const userId = queryUserIdOrGuest(req);
     const limit = req.query.limit ? Math.min(Number(req.query.limit), 200) : 100;
     res.json(await getRecentOutcomeSummary({ userId, limit }));
   }),

@@ -111,6 +111,11 @@ export function readRequestedUserId(req: express.Request) {
   return normalizeUserId(bodyValue || queryValue);
 }
 
+/** Query `userId` with the same guest fallback used across public GET routes. */
+export function queryUserIdOrGuest(req: express.Request): string {
+  return (req.query.userId as string | undefined) || 'guest-default';
+}
+
 export function writeResolvedUserId(req: express.Request, userId: string) {
   if (req.query && typeof req.query === 'object') {
     (req.query as Record<string, unknown>).userId = userId;

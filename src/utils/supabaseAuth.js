@@ -1,11 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
-import {
-  trim,
-  readDefinedGlobal,
-  trimTrailingSlash,
-  runtimeApiBases,
-  buildApiUrl,
-} from './apiBase';
+import { trim, readDefinedGlobal, trimTrailingSlash } from './apiBase';
+import { fetchJsonAcrossApiBases } from '../shared/http/fetchAcrossApiBases.js';
 
 let browserClient = null;
 let browserClientKey = '';
@@ -38,35 +33,24 @@ function readStaticSupabaseBrowserConfig() {
 }
 
 async function fetchRuntimeSupabaseBrowserConfig() {
-  const candidates = runtimeApiBases();
-  let lastError = null;
-
-  for (const base of candidates) {
-    try {
-      const response = await fetch(buildApiUrl('/api/auth/provider-config', base), {
-        credentials: 'omit',
-        mode: base ? 'cors' : undefined,
-        cache: 'no-store',
-      });
-      if (!response.ok) continue;
-      const payload = await response.json().catch(() => null);
-      if (!payload?.configured || !payload?.url || !payload?.anonKey) {
-        continue;
-      }
-      return {
-        url: trim(payload.url),
-        anonKey: trim(payload.anonKey),
-        redirectUrl: trim(payload.redirectUrl) || null,
-      };
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
-    }
-  }
-
-  if (lastError) {
+  const payload = await fetchJsonAcrossApiBases(
+    '/api/auth/provider-config',
+    { cache: 'no-store' },
+    {
+      credentials: 'omit',
+      useLocalhostBaseRetry: false,
+      isValidPayload: (p) =>
+        Boolean(p && typeof p === 'object' && p.configured && p.url && p.anonKey),
+    },
+  );
+  if (!payload || typeof payload !== 'object') {
     return null;
   }
-  return null;
+  return {
+    url: trim(payload.url),
+    anonKey: trim(payload.anonKey),
+    redirectUrl: trim(payload.redirectUrl) || null,
+  };
 }
 
 const SESSION_STORAGE_KEY = 'novaquant-supabase-browser-config';

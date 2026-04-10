@@ -1,5 +1,11 @@
 import { Router } from 'express';
-import { parseMarket, parseAssetClass, parseTimeframe, asyncRoute } from '../helpers.js';
+import {
+  parseMarket,
+  parseAssetClass,
+  parseTimeframe,
+  asyncRoute,
+  queryUserIdOrGuest,
+} from '../helpers.js';
 import { isoToMs } from '../../utils/time.js';
 import {
   getMarketModulesPrimary,
@@ -35,7 +41,7 @@ router.get(
     const market = parseMarket(req.query.market as string | undefined);
     const symbol = (req.query.symbol as string | undefined)?.toUpperCase();
     const timeframe = req.query.tf as string | undefined;
-    const userId = (req.query.userId as string | undefined) || 'guest-default';
+    const userId = queryUserIdOrGuest(req);
     const data = await getMarketStatePrimary({
       userId,
       market,
@@ -92,7 +98,7 @@ router.get(
   asyncRoute(async (req, res) => {
     const market = parseMarket(req.query.market as string | undefined);
     const range = (req.query.range as string | undefined) || undefined;
-    const userId = (req.query.userId as string | undefined) || 'guest-default';
+    const userId = queryUserIdOrGuest(req);
     const data = await getPerformanceSummaryPrimary({ userId, market, range });
     res.json(data);
   }),
@@ -101,7 +107,7 @@ router.get(
 router.get(
   '/api/risk-profile',
   asyncRoute(async (req, res) => {
-    const userId = (req.query.userId as string | undefined) || 'guest-default';
+    const userId = queryUserIdOrGuest(req);
     const data = await getRiskProfilePrimary(userId, { skipSync: true });
     res.json({ data });
   }),

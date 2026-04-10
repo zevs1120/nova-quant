@@ -71,3 +71,66 @@ export async function fetchAcrossApiBases(path, init = {}, options = {}) {
   if (lastRetryableResponse) return lastRetryableResponse;
   throw new Error(`Unable to reach API for ${path}`);
 }
+
+/**
+ * Try each API base until JSON body passes `isValidPayload` (e.g. provider-config probe).
+ * On !ok or invalid JSON/payload, continues to the next base. Returns null if exhausted.
+ *
+ * @param {string} path
+ * @param {RequestInit} [init]
+ * @param {{
+ *   credentials?: RequestCredentials;
+ *   timeoutMs?: number | null;
+ *   useLocalhostBaseRetry?: boolean;
+ *   isValidPayload?: (payload: unknown) => boolean;
+ * }} [options]
+ * @returns {Promise<unknown | null>}
+ */
+export async function fetchJsonAcrossApiBases(path, init = {}, options = {}) {
+  const credentials = options.credentials ?? init.credentials ?? 'omit';
+  const timeoutMs = options.timeoutMs ?? null;
+  const useLocalhostBaseRetry = options.useLocalhostBaseRetry !== false;
+  const isValidPayload =
+    typeof options.isValidPayload === 'function' ? options.isValidPayload : () => true;
+
+  const candidates = unique(runtimeApiBases());
+  let lastError = null;
+
+  for (const base of candidates) {
+    const url = buildApiUrl(path, base);
+    const controller = timeoutMs ? new AbortController() : null;
+    const timer =
+      controller && timeoutMs
+        ? setTimeout(() => {
+            controller.abort();
+          }, timeoutMs)
+        : null;
+    try {
+      const response = await fetch(url, {
+        ...init,
+        credentials,
+        mode: base ? 'cors' : init.mode,
+        signal: mergeAbortSignals(init.signal, controller?.signal),
+      });
+      if (timer) clearTimeout(timer);
+      if (useLocalhostBaseRetry && shouldRetryWithNextBase(path, response)) {
+        continue;
+      }
+      if (!response.ok) {
+        continue;
+      }
+      const payload = await response.json().catch(() => null);
+      if (isValidPayload(payload)) {
+        return payload;
+      }
+    } catch (error) {
+      if (timer) clearTimeout(timer);
+      lastError = error instanceof Error ? error : new Error(String(error));
+    }
+  }
+
+  if (lastError) {
+    return null;
+  }
+  return null;
+}

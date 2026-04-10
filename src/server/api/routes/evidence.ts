@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { parseMarket, parseAssetClass, asyncRoute } from '../helpers.js';
+import { parseMarket, parseAssetClass, asyncRoute, queryUserIdOrGuest } from '../helpers.js';
 import {
   runEvidence,
   getEvidenceTopSignalsPrimary,
@@ -97,7 +97,7 @@ router.post(
 router.get(
   '/api/evidence/signals/top',
   asyncRoute(async (req, res) => {
-    const userId = (req.query.userId as string | undefined) || 'guest-default';
+    const userId = queryUserIdOrGuest(req);
     const market = parseMarket(req.query.market as string | undefined);
     const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
     const limit = req.query.limit ? Number(req.query.limit) : 3;
@@ -113,7 +113,7 @@ router.get(
 
 router.get('/api/evidence/signals/:id', (req, res) => {
   const signalId = String(req.params.id || '');
-  const userId = (req.query.userId as string | undefined) || 'guest-default';
+  const userId = queryUserIdOrGuest(req);
   const out = getEvidenceSignalDetail({
     signalId,
     userId,

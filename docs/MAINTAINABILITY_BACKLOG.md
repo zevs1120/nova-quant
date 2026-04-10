@@ -47,6 +47,8 @@ These areas are still maintainable only because contributors remember the rules.
   - `src/server/api/httpAllowlists.ts` now centralizes `CROSS_ORIGIN_READ_PATHS`, `USER_SCOPED_CACHE_PATHS`, and `VERCEL_PUBLIC_BROWSER_PATH_SET` (runtime-state excluded from Vercel inline). New public GET surfaces that need browser CORS still require updating this module and verifying both entrypoints.
 - Research HTTP surface versus Qlib factory body parsing
   - `src/server/api/routes/research.ts` is a thin `Router.use` facade. Add factor- and qlib-related endpoints in `routes/research/researchFactorsRoute.ts`; add doctrine / diagnostics / registry / explain handlers in `routes/research/researchReportsRoute.ts`; share Qlib POST parsers via `routes/research/researchParsers.ts`.
+- Guest query `userId` pattern
+  - Prefer `queryUserIdOrGuest(req)` from `src/server/api/helpers.ts` for the common `|| 'guest-default'` query convention; `chat.ts` still uses explicit `String(...).trim()` where needed.
 - CSS layer boundaries between shell frame, page surface, and feature detail
   - token splits have started, Today shell framing and deck now have their own stylesheets, but the biggest stylesheets still need section-level ownership.
   - onboarding shell framing now lives in `src/styles/onboarding-shell.css`.

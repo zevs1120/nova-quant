@@ -1,5 +1,11 @@
 import { Router } from 'express';
-import { parseMarket, parseAssetClass, asyncRoute, getRequestScope } from '../helpers.js';
+import {
+  parseMarket,
+  parseAssetClass,
+  asyncRoute,
+  getRequestScope,
+  queryUserIdOrGuest,
+} from '../helpers.js';
 import { getDecisionSnapshot, listDecisionAudit } from '../queries.js';
 import { applyMembershipAccessToDecision, getMembershipState } from '../../membership/service.js';
 
@@ -38,7 +44,7 @@ router.post(
 router.get('/api/decision/audit', (req, res) => {
   const market = parseMarket(req.query.market as string | undefined);
   const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
-  const userId = (req.query.userId as string | undefined) || 'guest-default';
+  const userId = queryUserIdOrGuest(req);
   const limit = req.query.limit ? Number(req.query.limit) : 20;
   res.json(
     listDecisionAudit({

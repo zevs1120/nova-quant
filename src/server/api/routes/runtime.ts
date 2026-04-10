@@ -1,5 +1,11 @@
 import { Router } from 'express';
-import { parseMarket, parseAssetClass, asyncRoute, getRequestScope } from '../helpers.js';
+import {
+  parseMarket,
+  parseAssetClass,
+  asyncRoute,
+  getRequestScope,
+  queryUserIdOrGuest,
+} from '../helpers.js';
 import {
   getRuntimeStateResponse,
   getControlPlaneStatus,
@@ -54,7 +60,7 @@ router.get(
 router.get(
   '/api/control-plane/status',
   asyncRoute(async (req, res) => {
-    const userId = (req.query.userId as string | undefined) || 'guest-default';
+    const userId = queryUserIdOrGuest(req);
     res.json(
       await getControlPlaneStatus({
         userId,
@@ -66,7 +72,7 @@ router.get(
 router.get(
   '/api/control-plane/flywheel',
   asyncRoute(async (req, res) => {
-    const userId = (req.query.userId as string | undefined) || 'guest-default';
+    const userId = queryUserIdOrGuest(req);
     res.json(
       await getFlywheelStatus({
         userId,
@@ -112,7 +118,7 @@ router.get(
 router.get('/api/backbone/summary', (req, res) => {
   const market = parseMarket(req.query.market as string | undefined);
   const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
-  const userId = (req.query.userId as string | undefined) || 'guest-default';
+  const userId = queryUserIdOrGuest(req);
   res.json(
     getBackendBackbone({
       userId,

@@ -1,5 +1,10 @@
 import { Router } from 'express';
-import { parseMarket, asyncRoute, requireAuthenticatedScope } from '../helpers.js';
+import {
+  parseMarket,
+  asyncRoute,
+  queryUserIdOrGuest,
+  requireAuthenticatedScope,
+} from '../helpers.js';
 import { requireBrokerHandoffAccess } from '../../membership/service.js';
 import {
   listExecutionsPrimary,
@@ -16,7 +21,7 @@ const router = Router();
 router.get(
   '/api/executions',
   asyncRoute(async (req, res) => {
-    const userId = (req.query.userId as string | undefined) || 'guest-default';
+    const userId = queryUserIdOrGuest(req);
     const market = parseMarket(req.query.market as string | undefined);
     const mode =
       req.query.mode === 'LIVE' ? 'LIVE' : req.query.mode === 'PAPER' ? 'PAPER' : undefined;

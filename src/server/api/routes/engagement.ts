@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { parseMarket, parseAssetClass, asyncRoute } from '../helpers.js';
+import { parseMarket, parseAssetClass, asyncRoute, queryUserIdOrGuest } from '../helpers.js';
 import {
   getEngagementState,
   completeMorningCheck,
@@ -152,7 +152,7 @@ router.get(
   asyncRoute(async (req, res) => {
     const market = parseMarket(req.query.market as string | undefined);
     const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
-    const userId = (req.query.userId as string | undefined) || 'guest-default';
+    const userId = queryUserIdOrGuest(req);
     const localDate = req.query.localDate as string | undefined;
     const localHour = req.query.localHour ? Number(req.query.localHour) : undefined;
     const locale = req.query.locale as string | undefined;
@@ -174,7 +174,7 @@ router.get(
   asyncRoute(async (req, res) => {
     const market = parseMarket(req.query.market as string | undefined);
     const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
-    const userId = (req.query.userId as string | undefined) || 'guest-default';
+    const userId = queryUserIdOrGuest(req);
     const localDate = req.query.localDate as string | undefined;
     const localHour = req.query.localHour ? Number(req.query.localHour) : undefined;
     const locale = req.query.locale as string | undefined;
@@ -194,7 +194,7 @@ router.get(
 router.get(
   '/api/notification-preferences',
   asyncRoute(async (req, res) => {
-    const userId = (req.query.userId as string | undefined) || 'guest-default';
+    const userId = queryUserIdOrGuest(req);
     res.json(await getNotificationPreferencesStatePrimary(userId));
   }),
 );

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { parseMarket, parseAssetClass, asyncRoute } from '../../helpers.js';
+import { parseMarket, parseAssetClass, asyncRoute, queryUserIdOrGuest } from '../../helpers.js';
 import { runQlibResearchFactory } from '../../queries.js';
 import {
   compareFactorPerformanceByRegimeTool,
@@ -94,7 +94,7 @@ router.get('/api/research/factors/:id/measured', (req, res) => {
 });
 
 router.get('/api/research/factors/:id/by-regime', (req, res) => {
-  const userId = (req.query.userId as string | undefined) || 'guest-default';
+  const userId = queryUserIdOrGuest(req);
   const market = parseMarket(req.query.market as string | undefined);
   const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
   const runId = (req.query.runId as string | undefined) || undefined;

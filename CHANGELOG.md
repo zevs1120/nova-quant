@@ -16,6 +16,12 @@ NovaQuant 所有重要变更记录于此。
 
 - **refactor(research,api):** `src/server/api/routes/research.ts` 改为薄门面，挂载 `routes/research/researchFactorsRoute.ts`（因子目录、`POST /api/research/qlib-factory/run`、公开 alpha 供给）与 `researchReportsRoute.ts`（教义、诊断、实验注册、workflow/topic、explain 等）；QLib 请求体解析抽到 `researchParsers.ts`。
 
+### 🧰 API 路由样板与前端 provider-config 拉取
+
+- **refactor(api):** `helpers.ts` 新增 `queryUserIdOrGuest(req)`，十余处 `GET` 路由用其替代 `(req.query.userId as ...) || 'guest-default'` 重复写法。
+- **refactor(frontend):** `src/shared/http/fetchAcrossApiBases.js` 新增 `fetchJsonAcrossApiBases`（按 base 尝试 JSON，直到 `isValidPayload` 通过）；`supabaseAuth.js` 拉 `/api/auth/provider-config` 时复用该逻辑。
+- **test:** 新增 `tests/fetchJsonAcrossApiBases.test.ts`、`tests/queryUserIdOrGuest.test.ts`。
+
 ### 🔍 Knip 静态分析
 
 - **chore(deps):** 接入 Knip，新增 `knip.json`（根工作区 + `admin` / `landing` / `app`），配置 Vite 入口、API、Vitest、Playwright、研究桶与 `tests/pro-env` 等；根工作区对 coverage / lint-staged / react-scan 等做依赖忽略，`app` 工作区忽略与根壳重复的 React 依赖声明。
