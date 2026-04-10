@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 import { MarketRepository } from '../db/repository.js';
 import { getRuntimeRepo, resetRuntimeRepoSingleton } from '../db/runtimeRepository.js';
 import type {
@@ -96,6 +95,21 @@ import {
   buildRuntimeSignalEvidenceFromContracts,
   buildRuntimeSignalEvidenceFromSignals,
 } from './queries/runtimeSignalProjection.js';
+import {
+  deriveSignalNotional,
+  inferExecutionProvider,
+  parseLiveExecutionNote,
+  signalEntryMid,
+  signalExecutionSide,
+  stringifyLiveExecutionNote,
+  stringifyShadowExecutionNote,
+} from './queries/executionLiveNotes.js';
+import {
+  buildExecutionGovernance as buildExecutionGovernanceCore,
+  executionGovernanceThresholds,
+  type LiveOrderStatusResult,
+} from './queries/executionGovernanceCore.js';
+import { createPublicSignalsApiKeyHandlers } from './queries/publicSignalsApiKey.js';
 
 export {
   invalidateFrontendReadCacheForUser,
@@ -215,16 +229,21 @@ function createLazyMarketRepository(): MarketRepository {
   });
 }
 
-function midpoint(low?: number | null, high?: number | null) {
-  if (Number.isFinite(low) && Number.isFinite(high)) return (Number(low) + Number(high)) / 2;
-  if (Number.isFinite(low)) return Number(low);
-  if (Number.isFinite(high)) return Number(high);
-  return null;
-}
+const {
+  ensureDefaultPublicSignalsApiKey,
+  verifyPublicSignalsApiKey,
+  verifyPublicSignalsApiKeyPrimary,
+} = createPublicSignalsApiKeyHandlers({
+  getRepo,
+  tryPrimaryPostgresRead,
+  readPostgresApiKeyByHash,
+});
 
-function signalEntryMid(signal: SignalContract): number | null {
-  return midpoint(signal.entry_zone?.low, signal.entry_zone?.high);
-}
+export {
+  ensureDefaultPublicSignalsApiKey,
+  verifyPublicSignalsApiKey,
+  verifyPublicSignalsApiKeyPrimary,
+};
 
 export async function listSignalContractsPrimary(args: {
   userId?: string;
@@ -502,235 +521,6 @@ async function listDecisionSnapshotsPrimary(args: {
   return rows;
 }
 
-function inferExecutionProvider(signal: SignalContract, provider?: string | null) {
-  if (provider) return String(provider).trim().toUpperCase();
-  return signal.market === 'CRYPTO' ? 'BINANCE' : 'ALPACA';
-}
-
-function signalExecutionSide(signal: SignalContract): 'BUY' | 'SELL' {
-  if (signal.direction === 'LONG') return 'BUY';
-  if (signal.direction === 'SHORT') return 'SELL';
-  throw new Error('Signal direction is FLAT and cannot be routed as an order.');
-}
-
-type StoredLiveExecutionNote = {
-  type: 'live_execution';
-  provider: string;
-  order_id: string;
-  client_order_id: string | null;
-  status: string;
-  qty: number | null;
-  notional: number | null;
-  limit_price: number | null;
-  filled_qty: number | null;
-  filled_avg_price: number | null;
-  submitted_at: string | null;
-  expected_entry_price: number | null;
-  expected_notional: number | null;
-  strategy_id: string;
-  strategy_family: string;
-  signal_score: number;
-  entry_method: string;
-  routing: {
-    route_key: string;
-    champion_mode: 'LIVE';
-    challenger_mode: 'PAPER';
-    shadow_execution_id: string | null;
-  };
-  execution_guard?: Record<string, unknown> | null;
-  user_note?: string | null;
-};
-
-type StoredShadowExecutionNote = {
-  type: 'shadow_execution';
-  shadow_role: 'CHALLENGER';
-  provider: string;
-  paired_live_execution_id: string | null;
-  order_id: string;
-  client_order_id: string | null;
-  expected_entry_price: number | null;
-  strategy_id: string;
-  strategy_family: string;
-  route_key: string;
-  user_note?: string | null;
-};
-
-function parseExecutionNoteObject(note: string | null | undefined): Record<string, unknown> | null {
-  if (!note) return null;
-  try {
-    const parsed = JSON.parse(note) as Record<string, unknown>;
-    return parsed && typeof parsed === 'object' ? parsed : null;
-  } catch {
-    return null;
-  }
-}
-
-function parseLiveExecutionNote(note: string | null | undefined): StoredLiveExecutionNote | null {
-  const parsed = parseExecutionNoteObject(note);
-  if (!parsed || parsed.type !== 'live_execution') return null;
-  return {
-    type: 'live_execution',
-    provider: String(parsed.provider || '').toUpperCase(),
-    order_id: String(parsed.order_id || ''),
-    client_order_id: parsed.client_order_id ? String(parsed.client_order_id) : null,
-    status: String(parsed.status || 'UNKNOWN'),
-    qty: Number.isFinite(Number(parsed.qty)) ? Number(parsed.qty) : null,
-    notional: Number.isFinite(Number(parsed.notional)) ? Number(parsed.notional) : null,
-    limit_price: Number.isFinite(Number(parsed.limit_price)) ? Number(parsed.limit_price) : null,
-    filled_qty: Number.isFinite(Number(parsed.filled_qty)) ? Number(parsed.filled_qty) : null,
-    filled_avg_price: Number.isFinite(Number(parsed.filled_avg_price))
-      ? Number(parsed.filled_avg_price)
-      : null,
-    submitted_at: parsed.submitted_at ? String(parsed.submitted_at) : null,
-    expected_entry_price: Number.isFinite(Number(parsed.expected_entry_price))
-      ? Number(parsed.expected_entry_price)
-      : null,
-    expected_notional: Number.isFinite(Number(parsed.expected_notional))
-      ? Number(parsed.expected_notional)
-      : null,
-    strategy_id: String(parsed.strategy_id || ''),
-    strategy_family: String(parsed.strategy_family || ''),
-    signal_score: Number.isFinite(Number(parsed.signal_score)) ? Number(parsed.signal_score) : 0,
-    entry_method: String(parsed.entry_method || ''),
-    routing:
-      parsed.routing && typeof parsed.routing === 'object'
-        ? {
-            route_key: String(
-              (parsed.routing as Record<string, unknown>).route_key ||
-                'live_champion_paper_challenger',
-            ),
-            champion_mode: 'LIVE',
-            challenger_mode: 'PAPER',
-            shadow_execution_id: (parsed.routing as Record<string, unknown>).shadow_execution_id
-              ? String((parsed.routing as Record<string, unknown>).shadow_execution_id)
-              : null,
-          }
-        : {
-            route_key: 'live_champion_paper_challenger',
-            champion_mode: 'LIVE',
-            challenger_mode: 'PAPER',
-            shadow_execution_id: null,
-          },
-    execution_guard:
-      parsed.execution_guard && typeof parsed.execution_guard === 'object'
-        ? (parsed.execution_guard as Record<string, unknown>)
-        : null,
-    user_note: parsed.user_note ? String(parsed.user_note) : null,
-  };
-}
-
-function parseShadowExecutionNote(
-  note: string | null | undefined,
-): StoredShadowExecutionNote | null {
-  const parsed = parseExecutionNoteObject(note);
-  if (!parsed || parsed.type !== 'shadow_execution') return null;
-  return {
-    type: 'shadow_execution',
-    shadow_role: 'CHALLENGER',
-    provider: String(parsed.provider || '').toUpperCase(),
-    paired_live_execution_id: parsed.paired_live_execution_id
-      ? String(parsed.paired_live_execution_id)
-      : null,
-    order_id: String(parsed.order_id || ''),
-    client_order_id: parsed.client_order_id ? String(parsed.client_order_id) : null,
-    expected_entry_price: Number.isFinite(Number(parsed.expected_entry_price))
-      ? Number(parsed.expected_entry_price)
-      : null,
-    strategy_id: String(parsed.strategy_id || ''),
-    strategy_family: String(parsed.strategy_family || ''),
-    route_key: String(parsed.route_key || 'live_champion_paper_challenger'),
-    user_note: parsed.user_note ? String(parsed.user_note) : null,
-  };
-}
-
-async function deriveSignalNotional(
-  signal: SignalContract,
-  provider: string,
-): Promise<number | null> {
-  const targetPct = Number(signal.position_advice?.position_pct || 0);
-  if (!Number.isFinite(targetPct) || targetPct <= 0) return null;
-
-  if (provider === 'ALPACA') {
-    const adapter = createBrokerAdapter(provider);
-    const snapshot = await adapter.fetchSnapshot();
-    const capital = snapshot.buying_power ?? snapshot.cash;
-    return Number.isFinite(Number(capital)) ? Number(capital) * (targetPct / 100) : null;
-  }
-
-  if (provider === 'BINANCE') {
-    const adapter = createExchangeAdapter(provider);
-    const snapshot = await adapter.fetchSnapshot();
-    const quote = snapshot.balances.find((row) =>
-      ['USDT', 'USDC', 'BUSD', 'FDUSD', 'USD'].includes(String(row.asset || '').toUpperCase()),
-    );
-    const capital = quote?.free ?? quote?.total ?? null;
-    return Number.isFinite(Number(capital)) ? Number(capital) * (targetPct / 100) : null;
-  }
-
-  return null;
-}
-
-function stringifyLiveExecutionNote(args: {
-  provider: string;
-  order: OrderStatusSnapshot;
-  signal: SignalContract;
-  expectedEntryPrice?: number | null;
-  expectedNotional?: number | null;
-  shadowExecutionId?: string | null;
-  executionGuard?: Record<string, unknown> | null;
-  userNote?: string;
-}) {
-  return JSON.stringify({
-    type: 'live_execution',
-    provider: args.provider,
-    order_id: args.order.order_id,
-    client_order_id: args.order.client_order_id,
-    status: args.order.status,
-    qty: args.order.qty,
-    notional: args.order.notional,
-    limit_price: args.order.limit_price,
-    filled_qty: args.order.filled_qty,
-    filled_avg_price: args.order.filled_avg_price,
-    submitted_at: args.order.submitted_at,
-    expected_entry_price: args.expectedEntryPrice ?? null,
-    expected_notional: args.expectedNotional ?? null,
-    strategy_id: args.signal.strategy_id,
-    strategy_family: args.signal.strategy_family,
-    signal_score: args.signal.score,
-    entry_method: args.signal.entry_zone?.method || 'LIMIT',
-    routing: {
-      route_key: 'live_champion_paper_challenger',
-      champion_mode: 'LIVE',
-      challenger_mode: 'PAPER',
-      shadow_execution_id: args.shadowExecutionId ?? null,
-    },
-    execution_guard: args.executionGuard || null,
-    user_note: args.userNote || null,
-  });
-}
-
-function stringifyShadowExecutionNote(args: {
-  provider: string;
-  signal: SignalContract;
-  order: OrderStatusSnapshot;
-  liveExecutionId?: string | null;
-  userNote?: string;
-}) {
-  return JSON.stringify({
-    type: 'shadow_execution',
-    shadow_role: 'CHALLENGER',
-    provider: args.provider,
-    paired_live_execution_id: args.liveExecutionId ?? null,
-    order_id: args.order.order_id,
-    client_order_id: args.order.client_order_id,
-    expected_entry_price: signalEntryMid(args.signal),
-    strategy_id: args.signal.strategy_id,
-    strategy_family: args.signal.strategy_family,
-    route_key: 'live_champion_paper_challenger',
-    user_note: args.userNote || null,
-  });
-}
-
 type RuntimeSyncContext = {
   riskProfileKey?: RiskProfileKey;
   market?: Market;
@@ -867,318 +657,13 @@ export function getSignalContract(
   return decodeSignalContract(row);
 }
 
-function executionGovernanceThresholds() {
-  const maxDriftBps = Number(process.env.NOVA_EXECUTION_KILL_SWITCH_MAX_DRIFT_BPS || 125);
-  const maxDriftBreaches = Number(process.env.NOVA_EXECUTION_KILL_SWITCH_MAX_DRIFT_BREACHES || 2);
-  const maxLookupFailures = Number(process.env.NOVA_EXECUTION_KILL_SWITCH_MAX_LOOKUP_FAILURES || 3);
-  const maxUnreconciled = Number(process.env.NOVA_EXECUTION_KILL_SWITCH_MAX_UNRECONCILED || 3);
-  return {
-    max_drift_bps: Number.isFinite(maxDriftBps) && maxDriftBps > 0 ? maxDriftBps : 125,
-    max_drift_breaches:
-      Number.isFinite(maxDriftBreaches) && maxDriftBreaches > 0 ? maxDriftBreaches : 2,
-    max_lookup_failures:
-      Number.isFinite(maxLookupFailures) && maxLookupFailures > 0 ? maxLookupFailures : 3,
-    max_unreconciled: Number.isFinite(maxUnreconciled) && maxUnreconciled > 0 ? maxUnreconciled : 3,
-  };
-}
-
-function orderEffectivePrice(args: {
-  filledAvgPrice?: number | null;
-  limitPrice?: number | null;
-  notional?: number | null;
-  qty?: number | null;
-}) {
-  if (Number.isFinite(Number(args.filledAvgPrice)) && Number(args.filledAvgPrice) > 0) {
-    return Number(args.filledAvgPrice);
-  }
-  if (
-    Number.isFinite(Number(args.notional)) &&
-    Number(args.notional) > 0 &&
-    Number.isFinite(Number(args.qty)) &&
-    Number(args.qty) > 0
-  ) {
-    return Number(args.notional) / Number(args.qty);
-  }
-  if (Number.isFinite(Number(args.limitPrice)) && Number(args.limitPrice) > 0) {
-    return Number(args.limitPrice);
-  }
-  return null;
-}
-
-function liveOrderState(status: string) {
-  const normalized = String(status || '')
-    .trim()
-    .toUpperCase();
-  if (
-    [
-      'NEW',
-      'ACCEPTED',
-      'ACCEPTED_FOR_BIDDING',
-      'PARTIALLY_FILLED',
-      'PENDING_NEW',
-      'PENDING_REPLACE',
-    ].includes(normalized)
-  ) {
-    return 'PENDING';
-  }
-  if (['FILLED', 'DONE', 'CLOSED'].includes(normalized)) return 'FILLED';
-  if (['CANCELED', 'CANCELLED', 'EXPIRED', 'REJECTED'].includes(normalized)) return 'CANCELLED';
-  return 'UNKNOWN';
-}
-
-function readManualExecutionKillSwitch(repo: MarketRepository, provider?: string) {
-  const runs = repo.listWorkflowRuns({
-    workflowKey: 'execution_kill_switch',
-    limit: 40,
+async function runExecutionGovernance(
+  args: Omit<Parameters<typeof buildExecutionGovernanceCore>[0], 'getLiveOrderStatus'>,
+) {
+  return buildExecutionGovernanceCore({
+    ...args,
+    getLiveOrderStatus: (params) => getLiveOrderStatus(params) as Promise<LiveOrderStatusResult>,
   });
-  const normalizedProvider = provider ? String(provider).toUpperCase() : null;
-  const applicable = runs
-    .map((run) => ({
-      run,
-      output: asObject(parseJsonValue(run.output_json)),
-    }))
-    .filter(({ output }) => {
-      const scopeProvider = output.provider ? String(output.provider).toUpperCase() : null;
-      if (!normalizedProvider) return scopeProvider === null;
-      return scopeProvider === null || scopeProvider === normalizedProvider;
-    })[0];
-
-  if (!applicable) {
-    return {
-      enabled: false,
-      provider: normalizedProvider,
-      reason: null as string | null,
-      updated_at: null as string | null,
-    };
-  }
-
-  return {
-    enabled: Boolean(applicable.output.enabled),
-    provider: applicable.output.provider ? String(applicable.output.provider).toUpperCase() : null,
-    reason: applicable.output.reason ? String(applicable.output.reason) : null,
-    updated_at: toIso(applicable.run.updated_at_ms),
-  };
-}
-
-async function buildExecutionReconciliation(args: {
-  repo: MarketRepository;
-  userId: string;
-  provider?: string;
-  limit?: number;
-  refreshOrders?: boolean;
-}) {
-  const thresholds = executionGovernanceThresholds();
-  const normalizedProvider = args.provider ? String(args.provider).toUpperCase() : null;
-  const liveExecutions = args.repo
-    .listExecutions({
-      userId: args.userId,
-      mode: 'LIVE',
-      limit: Math.max(1, Math.min(30, args.limit || 12)),
-    })
-    .filter((row) => {
-      const note = parseLiveExecutionNote(row.note);
-      if (!note) return false;
-      if (!normalizedProvider) return true;
-      return note.provider === normalizedProvider;
-    });
-  const paperExecutions = args.repo
-    .listExecutions({
-      userId: args.userId,
-      mode: 'PAPER',
-      limit: 200,
-    })
-    .filter((row) => parseShadowExecutionNote(row.note));
-  const shadowByLiveExecutionId = new Map(
-    paperExecutions
-      .map((row) => {
-        const note = parseShadowExecutionNote(row.note);
-        return note?.paired_live_execution_id
-          ? ([note.paired_live_execution_id, row] as const)
-          : null;
-      })
-      .filter((row): row is readonly [string, (typeof paperExecutions)[number]] => Boolean(row)),
-  );
-
-  const rows = [] as Array<Record<string, unknown>>;
-  for (const execution of liveExecutions) {
-    const storedNote = parseLiveExecutionNote(execution.note);
-    if (!storedNote) continue;
-    const shadow = shadowByLiveExecutionId.get(execution.execution_id) || null;
-    const shadowNote = parseShadowExecutionNote(shadow?.note);
-    const statusLookup =
-      args.refreshOrders && storedNote.order_id
-        ? await getLiveOrderStatus({
-            provider: storedNote.provider,
-            orderId: storedNote.order_id,
-            clientOrderId: storedNote.client_order_id || undefined,
-            symbol: execution.symbol,
-          })
-        : { ok: true as const, order: null as OrderStatusSnapshot | null };
-    const liveOrder = statusLookup.ok ? statusLookup.order : null;
-    const effectiveStatus = liveOrder?.status || storedNote.status || 'UNKNOWN';
-    const effectivePrice = orderEffectivePrice({
-      filledAvgPrice: liveOrder?.filled_avg_price ?? storedNote.filled_avg_price,
-      limitPrice: liveOrder?.limit_price ?? storedNote.limit_price,
-      notional: liveOrder?.notional ?? storedNote.notional,
-      qty: liveOrder?.filled_qty ?? liveOrder?.qty ?? storedNote.filled_qty ?? storedNote.qty,
-    });
-    const expectedEntryPrice = storedNote.expected_entry_price ?? execution.entry_price ?? null;
-    const paperEntryPrice = shadow?.entry_price ?? shadowNote?.expected_entry_price ?? null;
-    const entryGapBps =
-      effectivePrice !== null && expectedEntryPrice !== null && expectedEntryPrice > 0
-        ? ((effectivePrice - expectedEntryPrice) / expectedEntryPrice) * 10_000
-        : null;
-    const championVsChallengerGapBps =
-      effectivePrice !== null && paperEntryPrice !== null && paperEntryPrice > 0
-        ? ((effectivePrice - paperEntryPrice) / paperEntryPrice) * 10_000
-        : null;
-
-    let reconciliationStatus = 'RECONCILED';
-    if (!statusLookup.ok) {
-      reconciliationStatus = 'LOOKUP_FAILED';
-    } else if (liveOrderState(effectiveStatus) === 'PENDING') {
-      reconciliationStatus = 'PENDING';
-    } else if (liveOrderState(effectiveStatus) === 'CANCELLED') {
-      reconciliationStatus = 'CANCELLED';
-    } else if (!shadow) {
-      reconciliationStatus = 'NO_CHALLENGER';
-    } else if (
-      (entryGapBps !== null && Math.abs(entryGapBps) > thresholds.max_drift_bps) ||
-      (championVsChallengerGapBps !== null &&
-        Math.abs(championVsChallengerGapBps) > thresholds.max_drift_bps)
-    ) {
-      reconciliationStatus = 'DRIFT';
-    }
-
-    rows.push({
-      execution_id: execution.execution_id,
-      signal_id: execution.signal_id,
-      symbol: execution.symbol,
-      market: execution.market,
-      provider: storedNote.provider,
-      route_key: storedNote.routing.route_key,
-      champion_mode: storedNote.routing.champion_mode,
-      challenger_mode: storedNote.routing.challenger_mode,
-      shadow_execution_id: shadow?.execution_id || storedNote.routing.shadow_execution_id || null,
-      order_id: storedNote.order_id,
-      client_order_id: storedNote.client_order_id,
-      live_status: effectiveStatus,
-      reconciliation_status: reconciliationStatus,
-      lookup_error: !statusLookup.ok ? statusLookup.error : null,
-      expected_entry_price: expectedEntryPrice,
-      live_effective_price: effectivePrice,
-      paper_entry_price: paperEntryPrice,
-      entry_gap_bps: entryGapBps !== null ? Number(entryGapBps.toFixed(2)) : null,
-      challenger_gap_bps:
-        championVsChallengerGapBps !== null ? Number(championVsChallengerGapBps.toFixed(2)) : null,
-      strategy_id: storedNote.strategy_id,
-      strategy_family: storedNote.strategy_family,
-      signal_score: storedNote.signal_score,
-      submitted_at:
-        liveOrder?.submitted_at ||
-        storedNote.submitted_at ||
-        new Date(execution.created_at_ms).toISOString(),
-      execution_guard: storedNote.execution_guard || null,
-    });
-  }
-
-  const avg = (field: 'entry_gap_bps' | 'challenger_gap_bps') => {
-    const values = rows.map((row) => Number(row[field])).filter((value) => Number.isFinite(value));
-    if (!values.length) return null;
-    return Number((values.reduce((sum, value) => sum + value, 0) / values.length).toFixed(2));
-  };
-
-  return {
-    rows,
-    shadow_count: paperExecutions.length,
-    paired_count: rows.filter((row) => row.shadow_execution_id).length,
-    summary: {
-      total: rows.length,
-      reconciled: rows.filter((row) => row.reconciliation_status === 'RECONCILED').length,
-      pending: rows.filter((row) => row.reconciliation_status === 'PENDING').length,
-      drift: rows.filter((row) => row.reconciliation_status === 'DRIFT').length,
-      lookup_failed: rows.filter((row) => row.reconciliation_status === 'LOOKUP_FAILED').length,
-      no_challenger: rows.filter((row) => row.reconciliation_status === 'NO_CHALLENGER').length,
-      cancelled: rows.filter((row) => row.reconciliation_status === 'CANCELLED').length,
-      avg_entry_gap_bps: avg('entry_gap_bps'),
-      avg_challenger_gap_bps: avg('challenger_gap_bps'),
-    },
-  };
-}
-
-async function buildExecutionGovernance(args: {
-  repo: MarketRepository;
-  userId: string;
-  provider?: string;
-  limit?: number;
-  refreshOrders?: boolean;
-}) {
-  const thresholds = executionGovernanceThresholds();
-  const manual = readManualExecutionKillSwitch(args.repo, args.provider);
-  const reconciliation = await buildExecutionReconciliation(args);
-  const unreconciledCount =
-    reconciliation.summary.pending +
-    reconciliation.summary.lookup_failed +
-    reconciliation.summary.no_challenger +
-    reconciliation.summary.drift;
-  const autoReasons: string[] = [];
-
-  if (reconciliation.summary.drift >= thresholds.max_drift_breaches) {
-    autoReasons.push(
-      `Execution drift breached ${reconciliation.summary.drift}/${thresholds.max_drift_breaches} recent live orders.`,
-    );
-  }
-  if (reconciliation.summary.lookup_failed >= thresholds.max_lookup_failures) {
-    autoReasons.push(
-      `Order-status lookup failed ${reconciliation.summary.lookup_failed}/${thresholds.max_lookup_failures} times.`,
-    );
-  }
-  if (unreconciledCount >= thresholds.max_unreconciled) {
-    autoReasons.push(
-      `Unreconciled live orders reached ${unreconciledCount}/${thresholds.max_unreconciled}.`,
-    );
-  }
-
-  const automaticEnabled = autoReasons.length > 0;
-  const killSwitchActive = manual.enabled || automaticEnabled;
-
-  return {
-    as_of: new Date().toISOString(),
-    provider_filter: args.provider ? String(args.provider).toUpperCase() : 'ALL',
-    champion_challenger: {
-      route_key: 'live_champion_paper_challenger',
-      champion_mode: 'LIVE',
-      challenger_mode: 'PAPER',
-      live_count: reconciliation.summary.total,
-      shadow_count: reconciliation.shadow_count,
-      paired_count: reconciliation.paired_count,
-      recent_pairs: reconciliation.rows.slice(0, 6).map((row) => ({
-        execution_id: row.execution_id,
-        signal_id: row.signal_id,
-        symbol: row.symbol,
-        provider: row.provider,
-        shadow_execution_id: row.shadow_execution_id,
-        strategy_id: row.strategy_id,
-        strategy_family: row.strategy_family,
-        reconciliation_status: row.reconciliation_status,
-      })),
-    },
-    reconciliation: {
-      refreshed: Boolean(args.refreshOrders),
-      ...reconciliation,
-    },
-    kill_switch: {
-      active: killSwitchActive,
-      mode: manual.enabled ? 'MANUAL' : automaticEnabled ? 'AUTO' : 'OFF',
-      manual_enabled: manual.enabled,
-      automatic_enabled: automaticEnabled,
-      reasons: [...(manual.enabled && manual.reason ? [manual.reason] : []), ...autoReasons],
-      thresholds,
-      last_manual_update_at: manual.updated_at,
-      last_manual_reason: manual.reason,
-      provider_scope: manual.provider || null,
-    },
-  };
 }
 
 export function upsertExecution(args: {
@@ -1246,7 +731,7 @@ export async function submitExecution(args: {
 
   try {
     const provider = inferExecutionProvider(signal, args.provider);
-    const governance = await buildExecutionGovernance({
+    const governance = await runExecutionGovernance({
       repo,
       userId: args.userId,
       provider,
@@ -1398,7 +883,7 @@ export async function getExecutionGovernance(args?: {
   refreshOrders?: boolean;
 }) {
   const repo = getRepo();
-  return buildExecutionGovernance({
+  return runExecutionGovernance({
     repo,
     userId: args?.userId || 'guest-default',
     provider: args?.provider,
@@ -1632,86 +1117,12 @@ export function getPerformanceSummary(args: { userId?: string; market?: Market; 
   };
 }
 
-function hashApiKey(key: string): string {
-  return createHash('sha256').update(key).digest('hex');
-}
-
-export function ensureDefaultPublicSignalsApiKey(): string {
-  const repo = getRepo();
-  const plainKey = String(process.env.PUBLIC_SIGNALS_API_KEY || 'nova-public-default-key');
-  repo.upsertApiKey({
-    key_id: 'public-signals-default',
-    key_hash: hashApiKey(plainKey),
-    label: 'Default Public Signals Key',
-    scope: 'signals:read',
-    status: 'ACTIVE',
-  });
-  return plainKey;
-}
-
-export function verifyPublicSignalsApiKey(rawKey?: string): boolean {
-  if (!rawKey) return false;
-  ensureDefaultPublicSignalsApiKey();
-  const repo = getRepo();
-  const row = repo.getApiKeyByHash(hashApiKey(rawKey));
-  return Boolean(row && row.status === 'ACTIVE');
-}
-
-export async function verifyPublicSignalsApiKeyPrimary(rawKey?: string): Promise<boolean> {
-  if (!rawKey) return false;
-  const row = await tryPrimaryPostgresRead('public_api_key', async () =>
-    readPostgresApiKeyByHash(hashApiKey(rawKey)),
-  );
-  if (row) {
-    return row.status === 'ACTIVE';
-  }
-  return verifyPublicSignalsApiKey(rawKey);
-}
-
 export function getMarketModules(args?: { market?: Market; assetClass?: AssetClass }) {
   const repo = getRepo();
   const rows = repo.listMarketState({
     market: args?.market,
   });
-
-  const scoped = rows.filter((row) => {
-    if (!args?.assetClass) return true;
-    if (args.assetClass === 'CRYPTO') return row.market === 'CRYPTO';
-    return row.market === 'US';
-  });
-
-  const bySymbol = new Map<string, (typeof scoped)[number]>();
-  for (const row of scoped) {
-    const existing = bySymbol.get(row.symbol);
-    if (!existing || row.updated_at_ms > existing.updated_at_ms) bySymbol.set(row.symbol, row);
-  }
-
-  return Array.from(bySymbol.values())
-    .slice(0, 36)
-    .map((row, index) => {
-      const event = row.event_stats_json
-        ? (JSON.parse(row.event_stats_json) as Record<string, unknown>)
-        : {};
-      const moduleStatus = withComponentStatus({
-        overallDataStatus: normalizeRuntimeStatus(event.data_status, RUNTIME_STATUS.MODEL_DERIVED),
-        componentSourceStatus: normalizeRuntimeStatus(
-          event.source_status,
-          RUNTIME_STATUS.DB_BACKED,
-        ),
-      });
-      return {
-        id: `module-${row.market}-${row.symbol}-${index + 1}`,
-        market: row.market,
-        asset_class: row.market === 'CRYPTO' ? 'CRYPTO' : 'US_STOCK',
-        title: `${row.symbol} ${row.regime_id}`,
-        summary: row.stance,
-        metric: `Trend ${Number(row.trend_strength || 0).toFixed(2)} · Vol ${Number(row.volatility_percentile || 0).toFixed(1)}p`,
-        source_status: moduleStatus.source_status,
-        data_status: moduleStatus.data_status,
-        source_label: moduleStatus.source_label,
-        as_of: new Date(row.updated_at_ms).toISOString(),
-      };
-    });
+  return buildMarketModulesFromRows(rows, args);
 }
 
 export function upsertExternalConnection(args: {
@@ -3293,7 +2704,7 @@ async function getControlPlaneStatusUncached(args?: { userId?: string }) {
     getFlywheelStatus({ userId }),
     avoidSyncFallback
       ? Promise.resolve(buildDefaultExecutionGovernance())
-      : buildExecutionGovernance({
+      : runExecutionGovernance({
           repo,
           userId,
           limit: 8,
