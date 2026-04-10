@@ -127,7 +127,7 @@ nova-quant/
 │       │       ├── membership.ts
 │       │       ├── nova.ts
 │       │       ├── outcome.ts
-│       │       ├── research.ts
+│       │       ├── research.ts   # 组合 research/*.ts（factors+qlib vs reports）
 │       │       ├── runtime.ts
 │       │       └── signals.ts
 │       ├── auth/                 # 认证 (Supabase Native / Postgres store)
