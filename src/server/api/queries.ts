@@ -1,10 +1,6 @@
 import { createHash } from 'node:crypto';
 import { MarketRepository } from '../db/repository.js';
-import {
-  flushRuntimeRepoMirror,
-  getRuntimeRepo,
-  resetRuntimeRepoSingleton,
-} from '../db/runtimeRepository.js';
+import { getRuntimeRepo, resetRuntimeRepoSingleton } from '../db/runtimeRepository.js';
 import type {
   Asset,
   AssetClass,
@@ -49,11 +45,7 @@ import { buildDecisionSnapshot } from '../decision/engine.js';
 import { buildEngagementSnapshot, defaultNotificationPreferences } from '../engagement/engine.js';
 import { buildBackendBackboneSummary } from '../backbone/service.js';
 import { getOutcomeSummaryStats } from '../outcome/resolver.js';
-import {
-  createTraceId,
-  recordAuditEvent,
-  recordFrontendCacheOutcome,
-} from '../observability/spine.js';
+import { createTraceId, recordAuditEvent } from '../observability/spine.js';
 import { applyLocalNovaDecisionLanguage, applyLocalNovaWrapUpLanguage } from '../nova/service.js';
 import { resolveEffectiveTextRoute } from '../nova/client.js';
 import { buildMlxLmTrainingDataset } from '../nova/training.js';
@@ -83,6 +75,21 @@ import {
 import { createEngagementReadApi } from './queries/engagementReads.js';
 import { createPortfolioReadApi } from './queries/portfolioReads.js';
 import { createTodayReadApi } from './queries/todayReads.js';
+import {
+  FRONTEND_READ_CACHE_TTL_MS,
+  cachedFrontendRead,
+  tryPrimaryPostgresRead,
+  shouldPreferPostgresPrimaryReads,
+  shouldAvoidSyncHotPathFallback,
+  invalidateFrontendReadCacheForUser,
+} from './queries/frontendReadCache.js';
+
+export {
+  invalidateFrontendReadCacheForUser,
+  __resetFrontendReadCacheForTesting,
+  __resetPgPrimaryReadFailureCooldownForTesting,
+} from './queries/frontendReadCache.js';
+
 export {
   searchAssets,
   getSearchHealth,
@@ -104,7 +111,6 @@ import { buildLocalAdminResearchOpsSnapshot } from '../admin/liveOps.js';
 import { getManualDashboard } from '../manual/service.js';
 import { getMembershipState } from '../membership/service.js';
 import {
-  hasPostgresBusinessMirror,
   readPostgresApiKeyByHash,
   readPostgresAssets,
   readPostgresDecisionSnapshots,
@@ -154,10 +160,6 @@ const RISK_PROFILE_PRESETS = {
   },
 } as const;
 
-const FRONTEND_READ_CACHE_TTL_MS = Math.max(
-  5_000,
-  Number(process.env.NOVA_FRONTEND_READ_CACHE_TTL_MS || 20_000),
-);
 const RECENT_OUTCOME_SUMMARY_CACHE_TTL_MS = Math.max(FRONTEND_READ_CACHE_TTL_MS, 60_000);
 const RUNTIME_STATE_SIGNAL_LIMIT = Math.max(
   8,
@@ -171,9 +173,7 @@ const RUNTIME_STATE_TRADE_LIMIT = Math.max(
   20,
   Number(process.env.NOVA_RUNTIME_STATE_TRADE_LIMIT || 60),
 );
-const frontendReadCache = new Map<string, { expiresAt: number; value: unknown }>();
 const wrapUpLanguageCache = new Map<string, { ts: number; patch: Record<string, unknown> }>();
-const frontendReadInflight = new Map<string, Promise<unknown>>();
 
 function getRepo(): MarketRepository {
   return getRuntimeRepo();
@@ -182,10 +182,6 @@ function getRepo(): MarketRepository {
 /** Must be called alongside closeDb() to avoid stale-handle usage. */
 export function resetRepoSingleton(): void {
   resetRuntimeRepoSingleton();
-}
-
-async function flushRepoMirror(): Promise<void> {
-  await flushRuntimeRepoMirror();
 }
 
 function createLazyMarketRepository(): MarketRepository {
@@ -215,137 +211,9 @@ function signalEntryMid(signal: SignalContract): number | null {
   return midpoint(signal.entry_zone?.low, signal.entry_zone?.high);
 }
 
-function shouldPreferPostgresPrimaryReads() {
-  if (
-    process.env.NODE_ENV === 'test' &&
-    String(process.env.NOVA_ENABLE_PG_PRIMARY_READS_TEST || '') !== '1'
-  ) {
-    return false;
-  }
-  if (String(process.env.NOVA_DISABLE_PG_PRIMARY_READS || '') === '1') {
-    return false;
-  }
-  return hasPostgresBusinessMirror();
-}
-
-function shouldAvoidSyncHotPathFallback() {
-  const allowSyncFallback = String(process.env.NOVA_ALLOW_SYNC_HOT_PATH_FALLBACK || '').trim();
-  if (process.env.NODE_ENV === 'test' && !allowSyncFallback) {
-    return false;
-  }
-  return shouldPreferPostgresPrimaryReads() && allowSyncFallback !== '1';
-}
-
-const PG_PRIMARY_READ_FAILURE_COOLDOWN_MS = Math.max(
-  5_000,
-  Number(process.env.NOVA_PG_PRIMARY_READ_FAILURE_COOLDOWN_MS || 60_000),
-);
-let pgPrimaryReadCooldownUntilMs = 0;
-
-export function __resetPgPrimaryReadFailureCooldownForTesting() {
-  pgPrimaryReadCooldownUntilMs = 0;
-}
-
-export function __resetFrontendReadCacheForTesting() {
-  frontendReadCache.clear();
-  frontendReadInflight.clear();
-}
-
-/**
- * Evict all cached frontend-read entries that are scoped to a specific user.
- * Must be called after any write operation that alters per-user data so that
- * the next read reflects the update without waiting for the TTL to expire.
- */
-export function invalidateFrontendReadCacheForUser(userId: string) {
-  if (!userId) return;
-  // Cache keys are built as `scope:JSON({...userId...})` — evict any entry
-  // that contains the user's id string to cover all scope variants.
-  const userMarker = JSON.stringify(userId);
-  for (const key of frontendReadCache.keys()) {
-    if (key.includes(userMarker)) {
-      frontendReadCache.delete(key);
-      frontendReadInflight.delete(key);
-    }
-  }
-}
-
 export function __resetControlPlaneStatusCacheForTesting() {
   controlPlaneStatusCache.clear();
   controlPlaneStatusInflight.clear();
-}
-
-function stableCacheValue(value: unknown): unknown {
-  if (Array.isArray(value)) {
-    return value.map((entry) => stableCacheValue(entry));
-  }
-  if (value && typeof value === 'object') {
-    return Object.keys(value as Record<string, unknown>)
-      .sort()
-      .reduce<Record<string, unknown>>((acc, key) => {
-        acc[key] = stableCacheValue((value as Record<string, unknown>)[key]);
-        return acc;
-      }, {});
-  }
-  return value;
-}
-
-function buildFrontendReadCacheKey(scope: string, args: unknown) {
-  return `${scope}:${JSON.stringify(stableCacheValue(args))}`;
-}
-
-async function cachedFrontendRead<T>(
-  scope: string,
-  args: unknown,
-  read: () => Promise<T>,
-  ttlMs = FRONTEND_READ_CACHE_TTL_MS,
-): Promise<T> {
-  const key = buildFrontendReadCacheKey(scope, args);
-  const now = Date.now();
-  const cached = frontendReadCache.get(key);
-  if (cached && cached.expiresAt > now) {
-    recordFrontendCacheOutcome(scope, 'hit');
-    return cached.value as T;
-  }
-
-  const inflight = frontendReadInflight.get(key);
-  if (inflight) {
-    recordFrontendCacheOutcome(scope, 'inflight');
-    return (await inflight) as T;
-  }
-
-  recordFrontendCacheOutcome(scope, 'miss');
-  const next = read()
-    .then((value) => {
-      frontendReadCache.set(key, {
-        value,
-        expiresAt: Date.now() + Math.max(1_000, ttlMs),
-      });
-      return value;
-    })
-    .finally(() => {
-      frontendReadInflight.delete(key);
-    });
-  frontendReadInflight.set(key, next as Promise<unknown>);
-  return await next;
-}
-
-async function tryPrimaryPostgresRead<T>(label: string, read: () => Promise<T>): Promise<T | null> {
-  if (!shouldPreferPostgresPrimaryReads()) return null;
-  if (Date.now() < pgPrimaryReadCooldownUntilMs) {
-    return null;
-  }
-  try {
-    await flushRepoMirror();
-    return await read();
-  } catch (error) {
-    pgPrimaryReadCooldownUntilMs = Date.now() + PG_PRIMARY_READ_FAILURE_COOLDOWN_MS;
-    console.warn('[pg-primary-read] primary read unavailable, keeping sync bridge path', {
-      label,
-      error: String((error as Error)?.message || error || 'unknown_error'),
-      cooldown_ms: PG_PRIMARY_READ_FAILURE_COOLDOWN_MS,
-    });
-    return null;
-  }
 }
 
 function buildPerformanceSummaryFromRows(args: {
