@@ -10,7 +10,6 @@ import type {
   Market,
   NovaTaskType,
   RiskProfileKey,
-  SignalDirection,
   SignalContract,
   Timeframe,
   UserHoldingInput,
@@ -83,12 +82,28 @@ import {
   shouldAvoidSyncHotPathFallback,
   invalidateFrontendReadCacheForUser,
 } from './queries/frontendReadCache.js';
+import {
+  resolveControlPlaneScope,
+  runCachedControlPlaneRead,
+} from './queries/controlPlaneStatusCache.js';
+import {
+  buildPerformanceSummaryFromRows,
+  buildPerformanceSummaryFromRowsOrEmpty,
+  buildMarketModulesFromRows,
+} from './queries/marketPerformanceProjection.js';
+import {
+  toUiSignal,
+  buildRuntimeSignalEvidenceFromContracts,
+  buildRuntimeSignalEvidenceFromSignals,
+} from './queries/runtimeSignalProjection.js';
 
 export {
   invalidateFrontendReadCacheForUser,
   __resetFrontendReadCacheForTesting,
   __resetPgPrimaryReadFailureCooldownForTesting,
 } from './queries/frontendReadCache.js';
+
+export { __resetControlPlaneStatusCacheForTesting } from './queries/controlPlaneStatusCache.js';
 
 export {
   searchAssets,
@@ -209,219 +224,6 @@ function midpoint(low?: number | null, high?: number | null) {
 
 function signalEntryMid(signal: SignalContract): number | null {
   return midpoint(signal.entry_zone?.low, signal.entry_zone?.high);
-}
-
-export function __resetControlPlaneStatusCacheForTesting() {
-  controlPlaneStatusCache.clear();
-  controlPlaneStatusInflight.clear();
-}
-
-function buildPerformanceSummaryFromRows(args: {
-  rows: ReturnType<MarketRepository['listPerformanceSnapshots']>;
-  asofIso: string;
-  sourceStatus: string;
-}) {
-  const grouped = args.rows.reduce<Record<string, Record<string, unknown>>>((acc, row) => {
-    const key = `${row.market}:${row.range}`;
-    if (!acc[key]) {
-      acc[key] = {
-        market: row.market,
-        range: row.range,
-        overall: null,
-        by_strategy: [],
-        by_regime: [],
-        deviation: null,
-      };
-    }
-    const payload = JSON.parse(row.payload_json) as Record<string, unknown>;
-    if (row.segment_type === 'OVERALL') acc[key].overall = payload;
-    if (row.segment_type === 'STRATEGY')
-      (acc[key].by_strategy as Record<string, unknown>[]).push(payload);
-    if (row.segment_type === 'REGIME')
-      (acc[key].by_regime as Record<string, unknown>[]).push(payload);
-    if (row.segment_type === 'DEVIATION') acc[key].deviation = payload;
-    return acc;
-  }, {});
-
-  return {
-    asof: args.asofIso,
-    source_status: normalizeRuntimeStatus(args.sourceStatus, RUNTIME_STATUS.INSUFFICIENT_DATA),
-    records: Object.values(grouped),
-  };
-}
-
-function buildPerformanceSummaryFromRowsOrEmpty(args: {
-  rows?: ReturnType<MarketRepository['listPerformanceSnapshots']> | null;
-  asofIso: string;
-  sourceStatus: string;
-}) {
-  return buildPerformanceSummaryFromRows({
-    rows: args.rows || [],
-    asofIso: args.asofIso,
-    sourceStatus: args.sourceStatus,
-  });
-}
-
-function evidenceFreshnessLabel(createdAtIso: string | null | undefined) {
-  const createdAtMs = Date.parse(String(createdAtIso || ''));
-  if (!Number.isFinite(createdAtMs)) return '--';
-  const freshnessMinutes = Math.max(0, Math.round((Date.now() - createdAtMs) / 60000));
-  if (freshnessMinutes < 1) return 'just now';
-  if (freshnessMinutes < 60) return `${freshnessMinutes}m ago`;
-  return `${Math.floor(freshnessMinutes / 60)}h ago`;
-}
-
-function runtimeStatusToEvidenceStatus(status: string) {
-  const normalized = normalizeRuntimeStatus(status, RUNTIME_STATUS.INSUFFICIENT_DATA);
-  if (normalized === RUNTIME_STATUS.WITHHELD) return 'WITHHELD' as const;
-  if (normalized === RUNTIME_STATUS.INSUFFICIENT_DATA) return 'INSUFFICIENT_DATA' as const;
-  if (normalized === RUNTIME_STATUS.EXPERIMENTAL) return 'EXPERIMENTAL' as const;
-  return 'PARTIAL_DATA' as const;
-}
-
-function buildRuntimeSignalEvidenceFromContracts(
-  signals: SignalContract[],
-  limit = 3,
-  _sourceStatus: string = RUNTIME_STATUS.MODEL_DERIVED,
-) {
-  return buildRuntimeSignalEvidenceFromSignals(
-    signals.map((signal) => toUiSignal(signal)),
-    limit,
-    _sourceStatus,
-  );
-}
-
-function buildRuntimeSignalEvidenceFromSignals(
-  signals: Array<Record<string, unknown>>,
-  limit = 3,
-  _sourceStatus: string = RUNTIME_STATUS.MODEL_DERIVED,
-) {
-  const records = signals
-    .map((signal) => {
-      const createdAtText = String(signal.created_at || signal.generated_at || '');
-      const createdAtMs = Date.parse(createdAtText);
-      const freshnessMinutes = Number.isFinite(createdAtMs)
-        ? Math.max(0, Math.round((Date.now() - createdAtMs) / 60000))
-        : 0;
-      const signalDataStatus = normalizeRuntimeStatus(
-        String(signal.data_status || signal.source_label || signal.source_status || ''),
-        RUNTIME_STATUS.MODEL_DERIVED,
-      );
-      const evidenceStatus = runtimeStatusToEvidenceStatus(signalDataStatus);
-      const actionable =
-        ['NEW', 'TRIGGERED'].includes(String(signal.status || '').toUpperCase()) &&
-        signalDataStatus !== RUNTIME_STATUS.WITHHELD &&
-        signalDataStatus !== RUNTIME_STATUS.INSUFFICIENT_DATA;
-      const entryZone =
-        signal.entry_zone && typeof signal.entry_zone === 'object'
-          ? (signal.entry_zone as Record<string, unknown>)
-          : null;
-      const stopLoss =
-        signal.stop_loss && typeof signal.stop_loss === 'object'
-          ? (signal.stop_loss as Record<string, unknown>)
-          : null;
-      const explainBullets = Array.isArray(signal.explain_bullets)
-        ? signal.explain_bullets
-        : Array.isArray(signal.rationale)
-          ? signal.rationale
-          : [];
-      const invalidationValue = Number(stopLoss?.price ?? signal.invalidation_level);
-      return {
-        signal_id: String(signal.signal_id || signal.id || ''),
-        symbol: String(signal.symbol || ''),
-        market: (String(signal.market || 'US').toUpperCase() === 'CRYPTO'
-          ? 'CRYPTO'
-          : 'US') as Market,
-        asset_class: (String(signal.asset_class || 'US_STOCK').toUpperCase() === 'CRYPTO'
-          ? 'CRYPTO'
-          : 'US_STOCK') as AssetClass,
-        timeframe: String(signal.timeframe || ''),
-        direction: (String(signal.direction || 'LONG').toUpperCase() === 'SHORT'
-          ? 'SHORT'
-          : String(signal.direction || 'LONG').toUpperCase() === 'FLAT'
-            ? 'FLAT'
-            : 'LONG') as SignalDirection,
-        conviction: Number(signal.confidence || signal.conviction || 0),
-        regime_id: String(signal.regime_id || '--'),
-        thesis: String(explainBullets[0] || entryZone?.notes || signal.summary || '--'),
-        entry_zone: signal.entry_zone || null,
-        invalidation: Number.isFinite(invalidationValue) ? invalidationValue : null,
-        source_transparency: {
-          source_status: RUNTIME_STATUS.MODEL_DERIVED,
-          data_status: RUNTIME_STATUS.MODEL_DERIVED,
-          source_label: RUNTIME_STATUS.MODEL_DERIVED,
-          evidence_mode: 'RUNTIME_SIGNAL_FALLBACK',
-          validation_mode: 'REPLAY_PENDING',
-        },
-        evidence_status: evidenceStatus,
-        freshness_minutes: freshnessMinutes,
-        freshness_label: evidenceFreshnessLabel(createdAtText),
-        actionable,
-        created_at: createdAtText || null,
-        supporting_run_id: null,
-        strategy_version_id: signal.strategy_version || null,
-        dataset_version_id: null,
-        reconciliation_status: 'REPLAY_DATA_UNAVAILABLE',
-        replay_paper_evidence_available: false,
-      };
-    })
-    .sort((a, b) => Number(b.conviction || 0) - Number(a.conviction || 0))
-    .slice(0, Math.max(1, Math.min(8, limit)));
-
-  return {
-    asof: new Date().toISOString(),
-    source_status: records.length ? RUNTIME_STATUS.MODEL_DERIVED : RUNTIME_STATUS.INSUFFICIENT_DATA,
-    data_status: records.length ? RUNTIME_STATUS.MODEL_DERIVED : RUNTIME_STATUS.INSUFFICIENT_DATA,
-    supporting_run_id: null,
-    dataset_version_id: null,
-    strategy_version_id: records[0]?.strategy_version_id || null,
-    records,
-  };
-}
-
-function buildMarketModulesFromRows(
-  rows: ReturnType<MarketRepository['listMarketState']>,
-  args?: { market?: Market; assetClass?: AssetClass },
-) {
-  const scoped = rows.filter((row) => {
-    if (args?.market && row.market !== args.market) return false;
-    if (!args?.assetClass) return true;
-    if (args.assetClass === 'CRYPTO') return row.market === 'CRYPTO';
-    return row.market === 'US';
-  });
-
-  const bySymbol = new Map<string, (typeof scoped)[number]>();
-  for (const row of scoped) {
-    const existing = bySymbol.get(row.symbol);
-    if (!existing || row.updated_at_ms > existing.updated_at_ms) bySymbol.set(row.symbol, row);
-  }
-
-  return Array.from(bySymbol.values())
-    .slice(0, 36)
-    .map((row, index) => {
-      const event = row.event_stats_json
-        ? (JSON.parse(row.event_stats_json) as Record<string, unknown>)
-        : {};
-      const moduleStatus = withComponentStatus({
-        overallDataStatus: normalizeRuntimeStatus(event.data_status, RUNTIME_STATUS.MODEL_DERIVED),
-        componentSourceStatus: normalizeRuntimeStatus(
-          event.source_status,
-          RUNTIME_STATUS.DB_BACKED,
-        ),
-      });
-      return {
-        id: `module-${row.market}-${row.symbol}-${index + 1}`,
-        market: row.market,
-        asset_class: row.market === 'CRYPTO' ? 'CRYPTO' : 'US_STOCK',
-        title: `${row.symbol} ${row.regime_id}`,
-        summary: row.stance,
-        metric: `Trend ${Number(row.trend_strength || 0).toFixed(2)} · Vol ${Number(row.volatility_percentile || 0).toFixed(1)}p`,
-        source_status: moduleStatus.source_status,
-        data_status: moduleStatus.data_status,
-        source_label: moduleStatus.source_label,
-        as_of: new Date(row.updated_at_ms).toISOString(),
-      };
-    });
 }
 
 export async function listSignalContractsPrimary(args: {
@@ -1934,28 +1736,6 @@ export function upsertExternalConnection(args: {
   return { connection_id: id };
 }
 
-function toUiSignal(signal: SignalContract): Record<string, unknown> {
-  const grade = signal.score >= 75 ? 'A' : signal.score >= 63 ? 'B' : 'C';
-  const statusTag =
-    signal.tags.find((tag) => String(tag).startsWith('status:'))?.split(':')[1] ||
-    RUNTIME_STATUS.MODEL_DERIVED;
-  const sourceTag =
-    signal.tags.find((tag) => String(tag).startsWith('source:'))?.split(':')[1] ||
-    RUNTIME_STATUS.DB_BACKED;
-  const status = withComponentStatus({
-    overallDataStatus: normalizeRuntimeStatus(statusTag, RUNTIME_STATUS.MODEL_DERIVED),
-    componentSourceStatus: normalizeRuntimeStatus(sourceTag, RUNTIME_STATUS.DB_BACKED),
-  });
-  return {
-    ...signal,
-    signal_id: signal.id,
-    grade,
-    source_status: status.source_status,
-    source_label: status.source_label,
-    data_status: status.data_status,
-  };
-}
-
 function modeFromRiskProfile(profile?: { profile_key?: string | null }): string {
   const key = String(profile?.profile_key || 'balanced').toLowerCase();
   if (key === 'conservative') return 'do not trade';
@@ -3326,30 +3106,6 @@ async function buildFlywheelStatusPrimary() {
   });
 }
 
-const CONTROL_PLANE_STATUS_CACHE_TTL_MS = 60_000;
-const controlPlaneStatusCache = new Map<
-  string,
-  { expiresAt: number; value: Awaited<ReturnType<typeof getControlPlaneStatusUncached>> }
->();
-const controlPlaneStatusInflight = new Map<
-  string,
-  Promise<Awaited<ReturnType<typeof getControlPlaneStatusUncached>>>
->();
-
-function resolveControlPlaneScope(userId?: string) {
-  const requestedUserId = userId || 'guest-default';
-  if (isGuestScopedUserId(requestedUserId)) {
-    return {
-      cacheKey: 'guest-public',
-      effectiveUserId: 'guest-default',
-    };
-  }
-  return {
-    cacheKey: requestedUserId,
-    effectiveUserId: requestedUserId,
-  };
-}
-
 function buildDefaultExecutionGovernance(provider?: string) {
   const thresholds = executionGovernanceThresholds();
   return {
@@ -3580,28 +3336,9 @@ async function getControlPlaneStatusUncached(args?: { userId?: string }) {
 
 export async function getControlPlaneStatus(args?: { userId?: string }) {
   const { cacheKey, effectiveUserId } = resolveControlPlaneScope(args?.userId);
-  const now = Date.now();
-  const cached = controlPlaneStatusCache.get(cacheKey);
-  if (cached && cached.expiresAt > now) {
-    return cached.value;
-  }
-  const inflight = controlPlaneStatusInflight.get(cacheKey);
-  if (inflight) {
-    return await inflight;
-  }
-  const next = getControlPlaneStatusUncached({ userId: effectiveUserId })
-    .then((value) => {
-      controlPlaneStatusCache.set(cacheKey, {
-        expiresAt: Date.now() + CONTROL_PLANE_STATUS_CACHE_TTL_MS,
-        value,
-      });
-      return value;
-    })
-    .finally(() => {
-      controlPlaneStatusInflight.delete(cacheKey);
-    });
-  controlPlaneStatusInflight.set(cacheKey, next);
-  return await next;
+  return runCachedControlPlaneRead(cacheKey, () =>
+    getControlPlaneStatusUncached({ userId: effectiveUserId }),
+  );
 }
 
 export async function getRecentOutcomeSummary(args?: { userId?: string; limit?: number }) {

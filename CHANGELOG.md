@@ -19,6 +19,7 @@ NovaQuant 所有重要变更记录于此。
 ### 🧰 API 路由样板与前端 provider-config 拉取
 
 - **refactor(api):** `helpers.ts` 新增 `queryUserIdOrGuest(req)`，十余处 `GET` 路由用其替代 `(req.query.userId as ...) || 'guest-default'` 重复写法。
+- **refactor(api,queries):** 将业绩/市场模块行投影（`buildPerformanceSummaryFromRows*`、`buildMarketModulesFromRows`）抽到 `queries/marketPerformanceProjection.ts`；将 `toUiSignal` 与 runtime 证据预览构造（`buildRuntimeSignalEvidenceFrom*`）抽到 `queries/runtimeSignalProjection.ts`；将控制平面状态 60s 内存缓存抽到 `queries/controlPlaneStatusCache.ts`（`getControlPlaneStatus` 仍组装 uncached 负载）。新增 `tests/queriesProjectionModules.test.ts` 做纯函数回归。
 - **refactor(api,queries):** 将前端读内存缓存、`cachedFrontendRead`、`tryPrimaryPostgresRead` 与 PG 主读冷却逻辑抽到 `src/server/api/queries/frontendReadCache.ts`；`queries.ts` 仅组合业务读路径并继续 re-export `invalidateFrontendReadCacheForUser` 与测试用 reset（行为与 env 语义不变）。
 - **refactor(api):** `helpers.ts` 新增 `parseMarketAndAssetFromQuery(req)`，多处 `GET` 路由统一从 `req.query` 解析 `market` / `assetClass`（`browse` 等保留 `ALL` 等特殊语义，不塞进 helper）。
 - **refactor(chat,api):** Nova 助手运行落库抽到 `src/server/chat/recordNovaAssistantRun.ts`，`chat` 路由不再经由 `queries.ts` 调用 `logNovaAssistantAnswer`。
