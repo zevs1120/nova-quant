@@ -105,6 +105,8 @@ nova-quant/
 │       ├── api/                  # API 路由 & 查询层
 │       │   ├── app.ts           # Express 应用入口
 │       │   ├── queries.ts       # Runtime 查询编排封装
+│       │   ├── httpAllowlists.ts # 跨域读 / user-scoped Cache-Control / Vercel 内联路径（单一来源）
+│       │   ├── privateMarvixOpsReport.ts # loopback Marvix ops JSON（避免 app 静态拉全量 queries）
 │       │   ├── helpers.ts      # 辅助函数
 │       │   ├── authHandlers.ts  # 认证路由处理
 │       │   ├── adminHandlers.ts # 管理端路由处理
@@ -579,6 +581,9 @@ src/research/
 | 前端  | `vite build → dist/` | SPA 静态              |
 | API   | `api/index.ts`       | `/api/:route*` → 代理 |
 | Admin | `admin/` (独立 Vite) | —                     |
+
+- **`api/index.ts` 双轨**：部分公开 browse / assets / signals 等路径在内联 handler 中直接响应并带 `Cache-Control`；其余请求动态 `import` `createApiApp()` 走完整 Express。内联路径集合与 Express 的跨域读白名单共享 `src/server/api/httpAllowlists.ts` 中的常量，避免两处手抄漂移。
+- **`/api/runtime-state`**：不在 Vercel 内联集合中，统一经 Express（`routes/runtime.ts`），与 EC2/本地 `start:api` 行为一致（会话 + 会员裁剪）；不再使用已删除的「公开合成 runtime」快路径。
 
 ### 13.2 EC2 / VPS 部署
 

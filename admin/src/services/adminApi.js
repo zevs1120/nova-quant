@@ -1,5 +1,5 @@
-import { buildApiUrl, runtimeApiBases, unique } from '../../../src/shared/http/apiBase.js';
-import { shouldRetryWithNextBase } from '../../../src/shared/http/apiRetry.js';
+import { runtimeApiBases } from '../../../src/shared/http/apiBase.js';
+import { fetchAcrossApiBases } from '../../../src/shared/http/fetchAcrossApiBases.js';
 
 const DEFAULT_TIMEOUT_MS = 10_000;
 
@@ -12,51 +12,33 @@ async function parseJson(response) {
 }
 
 export async function adminRequest(path, init = {}) {
-  const candidates = unique(runtimeApiBases());
-  let lastError = null;
-  let lastPayload = null;
-  let lastStatus = 500;
-
-  for (const base of candidates) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
-    try {
-      const response = await fetch(buildApiUrl(path, base), {
+  try {
+    const response = await fetchAcrossApiBases(
+      path,
+      {
         ...init,
-        credentials: 'include',
-        mode: base ? 'cors' : init.mode,
-        signal: controller.signal,
         headers: {
           'Content-Type': 'application/json',
           ...(init.headers || {}),
         },
-      });
-      clearTimeout(timer);
-      if (shouldRetryWithNextBase(path, response)) {
-        continue;
-      }
-      const payload = await parseJson(response);
-      if (!response.ok) {
-        const error = payload?.error || `HTTP_${response.status}`;
-        throw new Error(String(error));
-      }
-      return payload;
-    } catch (err) {
-      clearTimeout(timer);
-      if (err instanceof Error && err.name === 'AbortError') {
-        lastError = new Error('ADMIN_REQUEST_TIMEOUT');
-        continue;
-      }
-      lastError = err instanceof Error ? err : new Error(String(err));
-      lastPayload = null;
-      lastStatus = 500;
+      },
+      {
+        credentials: 'include',
+        timeoutMs: DEFAULT_TIMEOUT_MS,
+      },
+    );
+    const payload = await parseJson(response);
+    if (!response.ok) {
+      const error = payload?.error || `HTTP_${response.status}`;
+      throw new Error(String(error));
     }
+    return payload;
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error('ADMIN_REQUEST_TIMEOUT');
+    }
+    throw err instanceof Error ? err : new Error(String(err));
   }
-
-  if (lastPayload?.error) {
-    throw new Error(String(lastPayload.error || `HTTP_${lastStatus}`));
-  }
-  throw lastError instanceof Error ? lastError : new Error('ADMIN_REQUEST_FAILED');
 }
 
 export function getAdminApiBase() {

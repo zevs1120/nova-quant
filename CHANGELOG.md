@@ -4,6 +4,14 @@ NovaQuant 所有重要变更记录于此。
 
 ## 未发布
 
+### 🧩 API 入口与跨域白名单收敛
+
+- **refactor(api):** 新增 `src/server/api/httpAllowlists.ts`，集中维护 `CROSS_ORIGIN_READ_PATHS`、`USER_SCOPED_CACHE_PATHS` 与 Vercel 内联公开路径集合；`api/index.ts` 与 `app.ts` 共用同一份路径源，减少手写枚举漂移。
+- **refactor(api):** `GET /api/runtime-state` 不再由 `api/index.ts` 返回公开合成 runtime；Vercel 上与本地一致落入 Express，走 `getRuntimeStateResponse` 与会话解析、`applyMembershipAccessToRuntimeState`（同 URL 双实现已移除；该路径失去边缘 `s-maxage` 公开缓存）。
+- **refactor(api):** `getPrivateMarvixOps` 迁至 `src/server/api/privateMarvixOpsReport.ts`，`app.ts` 不再为 loopback ops 静态 `import ./queries.js`；全局 `express.json` 去掉每请求 `rawBody` UTF-8 拷贝，Stripe 仍用 `routes/billing.ts` 的 `express.raw()`。
+- **refactor(admin):** `admin/src/services/adminApi.js` 的 `adminRequest` 复用 `src/shared/http/fetchAcrossApiBases.js`（多 base、10s 超时、localhost 下 `shouldRetryWithNextBase`）。
+- **test:** 新增 `tests/httpAllowlists.test.ts`，断言 Vercel 内联集合不含 `/api/runtime-state` 且 Express 跨域读仍包含该路径。
+
 ### 🔍 Knip 静态分析
 
 - **chore(deps):** 接入 Knip，新增 `knip.json`（根工作区 + `admin` / `landing` / `app`），配置 Vite 入口、API、Vitest、Playwright、研究桶与 `tests/pro-env` 等；根工作区对 coverage / lint-staged / react-scan 等做依赖忽略，`app` 工作区忽略与根壳重复的 React 依赖声明。

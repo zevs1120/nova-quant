@@ -43,12 +43,15 @@ These areas are still maintainable only because contributors remember the rules.
   - `useAppData` is much better now, but every new first-screen field should be evaluated for `runtime-state` inclusion before adding more client fan-out.
 - Query composition root versus domain-specific read logic
   - `queries.ts` still carries too much read and mutation context in one place.
+- Cross-origin path allowlists versus Vercel inline public routes
+  - `src/server/api/httpAllowlists.ts` now centralizes `CROSS_ORIGIN_READ_PATHS`, `USER_SCOPED_CACHE_PATHS`, and `VERCEL_PUBLIC_BROWSER_PATH_SET` (runtime-state excluded from Vercel inline). New public GET surfaces that need browser CORS still require updating this module and verifying both entrypoints.
 - CSS layer boundaries between shell frame, page surface, and feature detail
   - token splits have started, Today shell framing and deck now have their own stylesheets, but the biggest stylesheets still need section-level ownership.
   - onboarding shell framing now lives in `src/styles/onboarding-shell.css`.
 
 ## 4. Testing Gaps To Close
 
+- Keep `tests/httpAllowlists.test.ts` aligned when adding or removing Vercel inline public paths or cross-origin read paths.
 - Keep static query-slice boundary tests current as new domains are extracted.
 - Add section-level tests around `TodayTab.jsx` once more rendering logic moves into subcomponents.
   - `TodayDeckSection.jsx` is now extracted; expand coverage as more sections split.

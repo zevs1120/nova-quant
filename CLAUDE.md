@@ -43,7 +43,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Layout
 
-Five-part deploy (see root `README.md` / `architecture.md`): `landing/` (brand site + data portal paths), `app/` (user H5 on Vercel), `admin/` (ops dashboard on Vercel), `qlib-bridge/` (Python sidecar on EC2 — factors / ML inference; no user-state writes), and repository root (main web shell + Express API packaged as Vercel Serverless via `api/index.ts` → `src/server/api/app.ts`). `landing/`, `app/`, and `admin/` each ship with their own `vercel.json`.
+Five-part deploy (see root `README.md` / `architecture.md`): `landing/` (brand site + data portal paths), `app/` (user H5 on Vercel), `admin/` (ops dashboard on Vercel), `qlib-bridge/` (Python sidecar on EC2 — factors / ML inference; no user-state writes), and repository root (main web shell + Express API packaged as Vercel Serverless via `api/index.ts` → `src/server/api/app.ts`). `landing/`, `app/`, and `admin/` each ship with their own `vercel.json`. Vercel inline public paths and Express cross-origin read allowlists share `src/server/api/httpAllowlists.ts` (see `architecture.md` §13.1).
 
 Core source in `src/`: `server/` (Express 5 TypeScript backend — on the order of **41** top-level domain folders under `src/server/`), `components/` + `App.jsx` (React), `engines/` (JS quant engines), `quant/` (legacy front-end quant helpers + retrieval), `research/` (research governance and pipelines), `training/` (e.g. multi-asset training service). Business and auth data live in Supabase/Postgres via `NOVA_DATA_DATABASE_URL` and `NOVA_AUTH_DATABASE_URL`.
 

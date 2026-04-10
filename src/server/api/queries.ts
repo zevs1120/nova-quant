@@ -103,7 +103,6 @@ import {
   createExchangeAdapter,
   type OrderStatusSnapshot,
 } from '../connect/adapters.js';
-import { buildPrivateMarvixOpsReport } from '../ops/privateMarvixOps.js';
 import { buildLocalAdminAlphaSnapshot } from '../admin/liveAlpha.js';
 import { buildLocalAdminResearchOpsSnapshot } from '../admin/liveOps.js';
 import { getManualDashboard } from '../manual/service.js';
@@ -2734,10 +2733,6 @@ export function getNovaRuntimeState() {
     mode,
     availability_reason: getNovaRuntimeAvailabilityReason(mode),
   };
-}
-
-export function getPrivateMarvixOps() {
-  return buildPrivateMarvixOpsReport(getRepo());
 }
 
 export async function getResearchOpsStatus(args?: { timeZone?: string; localDate?: string }) {

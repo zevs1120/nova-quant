@@ -1,8 +1,9 @@
 import express from 'express';
 import { getAuthSession, getAuthSessionFromAccessToken } from '../auth/service.js';
 import { readSupabaseBrowserRuntimeConfig } from '../auth/supabase.js';
-import { getPrivateMarvixOps } from './queries.js';
+import { getPrivateMarvixOps } from './privateMarvixOpsReport.js';
 import { isLoopbackAddress } from '../ops/privateMarvixOps.js';
+import { CROSS_ORIGIN_READ_PATHS, USER_SCOPED_CACHE_PATHS } from './httpAllowlists.js';
 import {
   asyncRoute,
   resolveApiRequestPath,
@@ -36,14 +37,9 @@ import signalsRouter from './routes/signals.js';
 
 export function createApiApp() {
   const app = express();
-  app.use(
-    express.json({
-      limit: '8mb',
-      verify: (req, _res, buf) => {
-        (req as RequestWithNovaScope & { rawBody?: string }).rawBody = buf.toString('utf8');
-      },
-    }),
-  );
+  // Billing webhooks use route-level `express.raw()` for byte-stable Stripe signatures;
+  // avoid copying every JSON body to a string on the hot path.
+  app.use(express.json({ limit: '8mb' }));
 
   // ---------------------------------------------------------------------------
   // CORS origins
@@ -67,32 +63,7 @@ export function createApiApp() {
       .filter(Boolean),
   );
   const firstPartyOrigins = new Set([...appAllowedOrigins, ...adminAllowedOrigins]);
-  const crossOriginReadPaths = new Set([
-    '/api/auth/provider-config',
-    '/api/auth/session',
-    '/api/assets',
-    '/api/assets/search',
-    '/api/browse/chart',
-    '/api/browse/detail-bundle',
-    '/api/browse/home',
-    '/api/browse/news',
-    '/api/browse/overview',
-    '/api/ohlcv',
-    '/api/runtime-state',
-    '/api/signals',
-    '/api/evidence/signals/top',
-    '/api/market-state',
-    '/api/performance',
-    '/api/market/modules',
-    '/api/risk-profile',
-    '/api/control-plane/status',
-    '/api/control-plane/flywheel',
-    '/api/control-plane/research-ops',
-    '/api/control-plane/alphas',
-    '/api/outcomes/recent',
-    '/api/connect/broker',
-    '/api/connect/exchange',
-  ]);
+  const crossOriginReadPaths = new Set<string>([...CROSS_ORIGIN_READ_PATHS]);
 
   // ---------------------------------------------------------------------------
   // CORS middleware
@@ -140,18 +111,7 @@ export function createApiApp() {
   // Only truly public (no-session) read paths could safely use public caching,
   // but the current architecture binds all /api/* through session middleware,
   // so we default to private.
-  const userScopedPaths = new Set([
-    '/api/billing/state',
-    '/api/manual/state',
-    '/api/market-state',
-    '/api/market/modules',
-    '/api/membership/state',
-    '/api/performance',
-    '/api/risk-profile',
-    '/api/runtime-state',
-    '/api/signals',
-    '/api/outcomes/recent',
-  ]);
+  const userScopedPaths = new Set<string>([...USER_SCOPED_CACHE_PATHS]);
   app.use((req, res, next) => {
     if (req.method !== 'GET') {
       next();
