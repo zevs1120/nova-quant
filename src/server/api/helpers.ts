@@ -22,6 +22,17 @@ export function parseAssetClass(value?: string): AssetClass | undefined {
   return undefined;
 }
 
+/** `market` + `assetClass` from `req.query` using the same rules as `parseMarket` / `parseAssetClass`. */
+export function parseMarketAndAssetFromQuery(req: express.Request): {
+  market: Market | undefined;
+  assetClass: AssetClass | undefined;
+} {
+  return {
+    market: parseMarket(req.query.market as string | undefined),
+    assetClass: parseAssetClass(req.query.assetClass as string | undefined),
+  };
+}
+
 export function parseSignalStatus(
   value?: string,
 ): 'ALL' | 'NEW' | 'TRIGGERED' | 'EXPIRED' | 'INVALIDATED' | 'CLOSED' | undefined {

@@ -10,7 +10,7 @@ import {
 } from '../../chat/service.js';
 import { logChatAudit } from '../../chat/audit.js';
 import { consumeAskNovaAccess } from '../../membership/service.js';
-import { recordNovaAssistantRun } from '../queries.js';
+import { recordNovaAssistantRun } from '../../chat/recordNovaAssistantRun.js';
 import { getRequestScope } from '../helpers.js';
 
 const router = Router();

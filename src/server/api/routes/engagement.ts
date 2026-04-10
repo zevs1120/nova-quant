@@ -1,5 +1,11 @@
 import { Router } from 'express';
-import { parseMarket, parseAssetClass, asyncRoute, queryUserIdOrGuest } from '../helpers.js';
+import {
+  parseMarket,
+  parseAssetClass,
+  asyncRoute,
+  parseMarketAndAssetFromQuery,
+  queryUserIdOrGuest,
+} from '../helpers.js';
 import {
   getEngagementState,
   completeMorningCheck,
@@ -150,8 +156,7 @@ router.post(
 router.get(
   '/api/widgets/summary',
   asyncRoute(async (req, res) => {
-    const market = parseMarket(req.query.market as string | undefined);
-    const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
+    const { market, assetClass } = parseMarketAndAssetFromQuery(req);
     const userId = queryUserIdOrGuest(req);
     const localDate = req.query.localDate as string | undefined;
     const localHour = req.query.localHour ? Number(req.query.localHour) : undefined;
@@ -172,8 +177,7 @@ router.get(
 router.get(
   '/api/notifications/preview',
   asyncRoute(async (req, res) => {
-    const market = parseMarket(req.query.market as string | undefined);
-    const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
+    const { market, assetClass } = parseMarketAndAssetFromQuery(req);
     const userId = queryUserIdOrGuest(req);
     const localDate = req.query.localDate as string | undefined;
     const localHour = req.query.localHour ? Number(req.query.localHour) : undefined;

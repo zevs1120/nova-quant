@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { parseMarket, parseAssetClass, queryUserIdOrGuest } from '../../helpers.js';
+import { parseMarketAndAssetFromQuery, queryUserIdOrGuest } from '../../helpers.js';
 import {
   explainWhyNoSignalTool,
   explainWhySignalExistsTool,
@@ -35,16 +35,14 @@ router.get('/api/research/regimes', (_req, res) => {
 
 router.get('/api/research/diagnostics/regime', (req, res) => {
   const userId = queryUserIdOrGuest(req);
-  const market = parseMarket(req.query.market as string | undefined);
-  const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
+  const { market, assetClass } = parseMarketAndAssetFromQuery(req);
   const symbol = (req.query.symbol as string | undefined)?.toUpperCase();
   res.json(getRegimeDiagnosticsTool({ userId, market, assetClass, symbol }));
 });
 
 router.get('/api/research/diagnostics/factor', (req, res) => {
   const userId = queryUserIdOrGuest(req);
-  const market = parseMarket(req.query.market as string | undefined);
-  const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
+  const { market, assetClass } = parseMarketAndAssetFromQuery(req);
   const signalId = (req.query.signalId as string | undefined) || undefined;
   const symbol = (req.query.symbol as string | undefined)?.toUpperCase() || undefined;
   const factorId = (req.query.factorId as string | undefined) || undefined;
@@ -67,15 +65,13 @@ router.get('/api/research/backtest-integrity', (req, res) => {
 
 router.get('/api/research/evaluation/strategy', (req, res) => {
   const runId = (req.query.runId as string | undefined) || undefined;
-  const market = parseMarket(req.query.market as string | undefined);
-  const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
+  const { market, assetClass } = parseMarketAndAssetFromQuery(req);
   res.json(getStrategyEvaluationReportTool({ runId, market, assetClass }));
 });
 
 router.get('/api/research/validation-report', (req, res) => {
   const runId = (req.query.runId as string | undefined) || undefined;
-  const market = parseMarket(req.query.market as string | undefined);
-  const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
+  const { market, assetClass } = parseMarketAndAssetFromQuery(req);
   res.json(getValidationReportTool({ runId, market, assetClass }));
 });
 
@@ -99,8 +95,7 @@ router.get('/api/research/memory', (_req, res) => {
 router.get('/api/research/workflow', (req, res) => {
   const topic = String((req.query.topic as string | undefined) || '');
   const factorId = (req.query.factorId as string | undefined) || undefined;
-  const market = parseMarket(req.query.market as string | undefined);
-  const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
+  const { market, assetClass } = parseMarketAndAssetFromQuery(req);
   res.json(getResearchWorkflowPlanTool({ topic, factorId, market, assetClass }));
 });
 
@@ -111,8 +106,7 @@ router.get('/api/research/topic', (req, res) => {
 
 router.get('/api/research/explain-signal', (req, res) => {
   const userId = queryUserIdOrGuest(req);
-  const market = parseMarket(req.query.market as string | undefined);
-  const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
+  const { market, assetClass } = parseMarketAndAssetFromQuery(req);
   const signalId = (req.query.signalId as string | undefined) || undefined;
   const symbol = (req.query.symbol as string | undefined)?.toUpperCase() || undefined;
   res.json(
@@ -128,8 +122,7 @@ router.get('/api/research/explain-signal', (req, res) => {
 
 router.get('/api/research/explain-no-signal', (req, res) => {
   const userId = queryUserIdOrGuest(req);
-  const market = parseMarket(req.query.market as string | undefined);
-  const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
+  const { market, assetClass } = parseMarketAndAssetFromQuery(req);
   res.json(explainWhyNoSignalTool({ userId, market, assetClass }));
 });
 

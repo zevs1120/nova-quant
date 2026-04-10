@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import {
-  parseMarket,
-  parseAssetClass,
+  parseMarketAndAssetFromQuery,
   asyncRoute,
   getRequestScope,
   queryUserIdOrGuest,
@@ -34,8 +33,7 @@ async function measureFrontendRead<T>(scope: string, read: () => Promise<T>): Pr
 router.get(
   '/api/runtime-state',
   asyncRoute(async (req, res) => {
-    const market = parseMarket(req.query.market as string | undefined);
-    const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
+    const { market, assetClass } = parseMarketAndAssetFromQuery(req);
     const userId = getRequestScope(req).userId;
     const runtime = await measureFrontendRead('runtime_state', () =>
       getRuntimeStateResponse({
@@ -116,8 +114,7 @@ router.get(
 );
 
 router.get('/api/backbone/summary', (req, res) => {
-  const market = parseMarket(req.query.market as string | undefined);
-  const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
+  const { market, assetClass } = parseMarketAndAssetFromQuery(req);
   const userId = queryUserIdOrGuest(req);
   res.json(
     getBackendBackbone({

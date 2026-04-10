@@ -19,8 +19,10 @@ NovaQuant 所有重要变更记录于此。
 ### 🧰 API 路由样板与前端 provider-config 拉取
 
 - **refactor(api):** `helpers.ts` 新增 `queryUserIdOrGuest(req)`，十余处 `GET` 路由用其替代 `(req.query.userId as ...) || 'guest-default'` 重复写法。
+- **refactor(api):** `helpers.ts` 新增 `parseMarketAndAssetFromQuery(req)`，多处 `GET` 路由统一从 `req.query` 解析 `market` / `assetClass`（`browse` 等保留 `ALL` 等特殊语义，不塞进 helper）。
+- **refactor(chat,api):** Nova 助手运行落库抽到 `src/server/chat/recordNovaAssistantRun.ts`，`chat` 路由不再经由 `queries.ts` 调用 `logNovaAssistantAnswer`。
 - **refactor(frontend):** `src/shared/http/fetchAcrossApiBases.js` 新增 `fetchJsonAcrossApiBases`（按 base 尝试 JSON，直到 `isValidPayload` 通过）；`supabaseAuth.js` 拉 `/api/auth/provider-config` 时复用该逻辑。
-- **test:** 新增 `tests/fetchJsonAcrossApiBases.test.ts`、`tests/queryUserIdOrGuest.test.ts`。
+- **test:** 新增 `tests/fetchJsonAcrossApiBases.test.ts`、`tests/queryUserIdOrGuest.test.ts`、`tests/parseMarketAndAssetFromQuery.test.ts`。
 
 ### 🔍 Knip 静态分析
 

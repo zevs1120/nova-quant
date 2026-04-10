@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import {
-  parseMarket,
-  parseAssetClass,
+  parseMarketAndAssetFromQuery,
   parseSignalStatus,
   asyncRoute,
   queryUserIdOrGuest,
@@ -19,8 +18,7 @@ const router = Router();
 router.get(
   '/api/signals',
   asyncRoute(async (req, res) => {
-    const market = parseMarket(req.query.market as string | undefined);
-    const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
+    const { market, assetClass } = parseMarketAndAssetFromQuery(req);
     const status = parseSignalStatus(req.query.status as string | undefined) || 'ALL';
     const symbol = (req.query.symbol as string | undefined)?.toUpperCase();
     const limit = req.query.limit ? Number(req.query.limit) : 40;
@@ -53,8 +51,7 @@ router.get(
       res.status(401).json({ error: 'Invalid API key' });
       return;
     }
-    const market = parseMarket(req.query.market as string | undefined);
-    const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
+    const { market, assetClass } = parseMarketAndAssetFromQuery(req);
     const status = parseSignalStatus(req.query.status as string | undefined) || 'ALL';
     const symbol = (req.query.symbol as string | undefined)?.toUpperCase();
     const limit = req.query.limit ? Number(req.query.limit) : 50;

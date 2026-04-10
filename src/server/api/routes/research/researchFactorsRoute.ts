@@ -1,5 +1,11 @@
 import { Router } from 'express';
-import { parseMarket, parseAssetClass, asyncRoute, queryUserIdOrGuest } from '../../helpers.js';
+import {
+  parseMarket,
+  parseAssetClass,
+  asyncRoute,
+  parseMarketAndAssetFromQuery,
+  queryUserIdOrGuest,
+} from '../../helpers.js';
 import { runQlibResearchFactory } from '../../queries.js';
 import {
   compareFactorPerformanceByRegimeTool,
@@ -19,8 +25,7 @@ router.get('/api/research/factors', (_req, res) => {
 });
 
 router.get('/api/research/public-alpha-supply', (req, res) => {
-  const market = parseMarket(req.query.market as string | undefined);
-  const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
+  const { market, assetClass } = parseMarketAndAssetFromQuery(req);
   res.json(getPublicAlphaSupplyTool({ market, assetClass }));
 });
 
@@ -82,8 +87,7 @@ router.get('/api/research/factors/:id/interactions', (req, res) => {
 });
 
 router.get('/api/research/factors/:id/measured', (req, res) => {
-  const market = parseMarket(req.query.market as string | undefined);
-  const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
+  const { market, assetClass } = parseMarketAndAssetFromQuery(req);
   res.json(
     getFactorMeasuredReportTool({
       factorId: String(req.params.id || ''),
@@ -95,8 +99,7 @@ router.get('/api/research/factors/:id/measured', (req, res) => {
 
 router.get('/api/research/factors/:id/by-regime', (req, res) => {
   const userId = queryUserIdOrGuest(req);
-  const market = parseMarket(req.query.market as string | undefined);
-  const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
+  const { market, assetClass } = parseMarketAndAssetFromQuery(req);
   const runId = (req.query.runId as string | undefined) || undefined;
   res.json(
     compareFactorPerformanceByRegimeTool({
@@ -110,8 +113,7 @@ router.get('/api/research/factors/:id/by-regime', (req, res) => {
 });
 
 router.get('/api/research/factors/:id/snapshot', (req, res) => {
-  const market = parseMarket(req.query.market as string | undefined);
-  const assetClass = parseAssetClass(req.query.assetClass as string | undefined);
+  const { market, assetClass } = parseMarketAndAssetFromQuery(req);
   const runId = (req.query.runId as string | undefined) || undefined;
   res.json(
     getFactorResearchSnapshotTool({

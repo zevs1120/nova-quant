@@ -54,11 +54,7 @@ import {
   recordAuditEvent,
   recordFrontendCacheOutcome,
 } from '../observability/spine.js';
-import {
-  applyLocalNovaDecisionLanguage,
-  applyLocalNovaWrapUpLanguage,
-  logNovaAssistantAnswer,
-} from '../nova/service.js';
+import { applyLocalNovaDecisionLanguage, applyLocalNovaWrapUpLanguage } from '../nova/service.js';
 import { resolveEffectiveTextRoute } from '../nova/client.js';
 import { buildMlxLmTrainingDataset } from '../nova/training.js';
 import {
@@ -2879,30 +2875,6 @@ export async function runNovaRobustnessTrainingNow(args: {
     taskLimit: args.taskLimit,
     seed: args.seed,
     riskProfiles: args.riskProfiles,
-  });
-}
-
-export async function recordNovaAssistantRun(args: {
-  userId: string;
-  threadId?: string;
-  context?: Record<string, unknown>;
-  message: string;
-  responseText: string;
-  provider: string;
-  status: 'SUCCEEDED' | 'FAILED';
-  error?: string;
-}) {
-  const repo = getRepo();
-  await logNovaAssistantAnswer({
-    repo,
-    userId: args.userId,
-    threadId: args.threadId,
-    context: args.context || {},
-    message: args.message,
-    responseText: args.responseText,
-    provider: args.provider,
-    status: args.status,
-    error: args.error,
   });
 }
 
