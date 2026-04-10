@@ -35,7 +35,7 @@ export function buildPrivateMarvixOpsReport(repo: MarketRepository) {
     'alpha_shadow_runner',
   ]);
   const newsRows = repo.listNewsItems({ limit: 24, sinceMs: now - 1000 * 60 * 60 * 72 });
-  const recentNewsFactors = newsRows
+  const recentNewsFactorsMapped = newsRows
     .map((row) => {
       const payload = parseJson(row.payload_json);
       const geminiAnalysis =
@@ -70,8 +70,21 @@ export function buildPrivateMarvixOpsReport(repo: MarketRepository) {
         earnings_impact_score: batch?.earnings_impact_score ?? null,
       };
     })
-    .filter((row): row is NonNullable<typeof row> => Boolean(row))
-    .slice(0, 10);
+    .filter((row): row is NonNullable<typeof row> => Boolean(row));
+
+  const recentNewsFactors: typeof recentNewsFactorsMapped = [];
+  const dedupeKeys = new Set<string>();
+  for (const row of recentNewsFactorsMapped) {
+    const key = `${String(row.symbol || '').toUpperCase()}|${String(row.source || '')}|${String(
+      row.headline || '',
+    )
+      .trim()
+      .slice(0, 160)}`;
+    if (dedupeKeys.has(key)) continue;
+    dedupeKeys.add(key);
+    recentNewsFactors.push(row);
+    if (recentNewsFactors.length >= 10) break;
+  }
 
   const topSignals = repo.listSignals({ status: 'NEW', limit: 6 }).map((row) => {
     const signal = decodeSignalContract(row);

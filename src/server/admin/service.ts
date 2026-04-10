@@ -501,32 +501,34 @@ export function buildAdminSignalsSnapshot() {
     else executionsBySignal.set(key, [exec]);
   }
 
-  const signals = signalRows
-    .map((row) => {
-      const signal = decodeSignalContract(row);
-      const executions = executionsBySignal.get(row.signal_id) || [];
-      return {
-        signal_id: row.signal_id,
-        market: row.market,
-        asset_class: row.asset_class,
-        symbol: row.symbol,
-        strategy_id: row.strategy_id,
-        direction: row.direction,
-        status: row.status,
-        score: row.score,
-        confidence: row.confidence,
-        created_at: toIso(row.created_at_ms),
-        explain: signal?.explain_bullets?.[0] || null,
-        factor_tags: signal?.news_context?.factor_tags || [],
-        tone: signal?.news_context?.tone || null,
-        execution_count: executions.length,
-        live_execution_count: executions.filter((item) => item.mode === 'LIVE').length,
-        paper_execution_count: executions.filter((item) => item.mode === 'PAPER').length,
-      };
-    })
-    .slice(0, 40);
+  const allRowsMapped = signalRows.map((row) => {
+    const signal = decodeSignalContract(row);
+    const executions = executionsBySignal.get(row.signal_id) || [];
+    return {
+      signal_id: row.signal_id,
+      market: row.market,
+      asset_class: row.asset_class,
+      symbol: row.symbol,
+      strategy_id: row.strategy_id,
+      direction: row.direction,
+      status: row.status,
+      score: row.score,
+      confidence: row.confidence,
+      created_at: toIso(row.created_at_ms),
+      explain: signal?.explain_bullets?.[0] || null,
+      factor_tags: signal?.news_context?.factor_tags || [],
+      tone: signal?.news_context?.tone || null,
+      execution_count: executions.length,
+      live_execution_count: executions.filter((item) => item.mode === 'LIVE').length,
+      paper_execution_count: executions.filter((item) => item.mode === 'PAPER').length,
+    };
+  });
 
-  const activeSignals = signals.filter((row) => row.status === 'NEW' || row.status === 'TRIGGERED');
+  const signals = allRowsMapped.slice(0, 40);
+
+  const activeSignals = allRowsMapped.filter(
+    (row) => row.status === 'NEW' || row.status === 'TRIGGERED',
+  );
   const topSymbols = countBy(activeSignals, (row) => row.symbol).slice(0, 8);
   const directionMix = countBy(activeSignals, (row) => row.direction);
   const marketMix = countBy(activeSignals, (row) => row.market);

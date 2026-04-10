@@ -243,6 +243,48 @@ export function __buildSequenceResetSqlForTesting(table: (typeof AUTO_ID_TABLES)
       `;
 }
 
+let corporateActionsDdlEnsured = false;
+
+/**
+ * Production Supabase schemas created before `corporate_actions` existed can miss this table,
+ * which breaks governance refresh inside `free_data_flywheel`. Idempotent CREATE IF NOT EXISTS.
+ */
+function ensureCorporateActionsTablePostgres() {
+  if (corporateActionsDdlEnsured) return;
+  corporateActionsDdlEnsured = true;
+  const connectionString = resolvePostgresBusinessUrl();
+  if (!connectionString || isInMemoryPostgresUrl(connectionString)) {
+    return;
+  }
+  const table = qualifyBusinessTable('corporate_actions');
+  const assetsTable = qualifyBusinessTable('assets');
+  try {
+    executeSync(`
+      CREATE TABLE IF NOT EXISTS ${table} (
+        id SERIAL PRIMARY KEY,
+        asset_id INTEGER NOT NULL,
+        effective_ts BIGINT NOT NULL,
+        action_type TEXT NOT NULL CHECK (action_type IN ('SPLIT', 'DIVIDEND', 'HALT', 'RESUME')),
+        split_ratio DOUBLE PRECISION,
+        cash_amount DOUBLE PRECISION,
+        source TEXT NOT NULL,
+        notes TEXT,
+        created_at BIGINT NOT NULL,
+        updated_at BIGINT NOT NULL,
+        UNIQUE(asset_id, effective_ts, action_type, source),
+        FOREIGN KEY(asset_id) REFERENCES ${assetsTable}(asset_id) ON DELETE CASCADE
+      )
+    `);
+    executeSync(
+      `CREATE INDEX IF NOT EXISTS idx_corporate_actions_lookup ON ${table}(asset_id, effective_ts DESC)`,
+    );
+  } catch (error) {
+    console.warn('[pg-runtime] ensure corporate_actions DDL failed', {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
 function ensureSequences() {
   if (sequencesReady) return;
   const connectionString = resolvePostgresBusinessUrl();
@@ -403,6 +445,7 @@ export class PostgresRuntimeRepository extends MarketRepository {
   constructor() {
     super(UNSUPPORTED_DB);
     ensureSequences();
+    ensureCorporateActionsTablePostgres();
   }
 
   upsertAsset(input: AssetInput): Asset {

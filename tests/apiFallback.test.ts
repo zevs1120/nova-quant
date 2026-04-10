@@ -41,6 +41,20 @@ afterEach(() => {
 });
 
 describe('local API fallback', () => {
+  it('uses only same-origin API bases on production admin host (cookie auth)', async () => {
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: {
+        location: {
+          hostname: 'admin.novaquant.cloud',
+          protocol: 'https:',
+        },
+      },
+    });
+    const { runtimeApiBases } = await import('../src/utils/apiBase.js');
+    expect(runtimeApiBases()).toEqual(['']);
+  });
+
   it('keeps the cloud API in the candidate list during localhost development', async () => {
     setLocalWindow();
     const { runtimeApiBases } = await import('../src/utils/apiBase.js');

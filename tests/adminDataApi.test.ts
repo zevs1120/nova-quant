@@ -17,7 +17,10 @@ import {
 import { signupAuthUser } from '../src/server/auth/service.js';
 import { pgGetUserByEmail, pgUpsertUserState } from '../src/server/auth/postgresStore.js';
 import type { SignalContract } from '../src/server/types.js';
-import { _resetAdminCachesForTesting } from '../src/server/admin/service.js';
+import {
+  _resetAdminCachesForTesting,
+  buildAdminSignalsSnapshot,
+} from '../src/server/admin/service.js';
 
 type MockResponse = {
   statusCode: number;
@@ -740,4 +743,38 @@ describe('admin data api', () => {
       detailBody.data.detail.recent_governance_runs[0]?.governance_summary.mismatch_symbols,
     ).toBe(1);
   });
+
+  it('admin signals snapshot counts active signals outside the first 40 display rows', async () => {
+    process.env.NOVA_ADMIN_EMAILS = email;
+    await seedAuthUser(email, 'Signals Window Tester');
+    const login = await callHandler(handleAdminLogin, {
+      body: { email, password: 'StrongPass123' },
+    });
+    expect(login.statusCode).toBe(200);
+    const cookie = login.headers['Set-Cookie'];
+    expect(typeof cookie).toBe('string');
+
+    const repo = getRuntimeRepo();
+    const template = buildSignal('admin-window-template', 'QQQ');
+    for (let i = 0; i < 45; i++) {
+      repo.upsertSignal({
+        ...template,
+        id: `admin-window-closed-${i}`,
+        status: 'CLOSED',
+        score: 900 - i,
+      });
+    }
+    repo.upsertSignal({
+      ...template,
+      id: 'admin-window-active',
+      symbol: 'ZZZZ',
+      status: 'NEW',
+      score: 1,
+    });
+
+    _resetAdminCachesForTesting();
+    const snap = buildAdminSignalsSnapshot();
+    expect(snap.summary.active_signals).toBeGreaterThanOrEqual(1);
+    expect(snap.signals.length).toBeLessThanOrEqual(40);
+  }, 20_000);
 });

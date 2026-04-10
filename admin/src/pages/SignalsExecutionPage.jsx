@@ -114,6 +114,11 @@ export default function SignalsExecutionPage() {
           <StatCard key={item.label} {...item} />
         ))}
       </div>
+      <p className="panel-copy" style={{ marginTop: '-0.5rem', marginBottom: '1rem' }}>
+        「活跃信号」只统计 NEW /
+        TRIGGERED；下方执行带展示最近记录，含已过期/已平仓相关执行，因此可能与上方 KPI
+        不一致。平均盈亏仅在存在 `pnl_pct` 的执行上计算。
+      </p>
 
       <section className="page-grid two-up">
         <article className="panel">

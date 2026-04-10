@@ -180,9 +180,9 @@ export default function AlphaLabPage() {
   ];
   const stats = [
     {
-      label: 'Alpha 候选总量',
+      label: 'Alpha 候选总量（全状态）',
       value: `${totalCandidates} 个`,
-      detail: `当前 SHADOW ${inventory.SHADOW || 0} 个，DRAFT ${inventory.DRAFT || 0} 个。`,
+      detail: `SHADOW ${inventory.SHADOW || 0}，DRAFT ${inventory.DRAFT || 0}，REJECTED ${inventory.REJECTED || 0}，RETIRED ${inventory.RETIRED || 0}；数字为按 status 聚合的合计。`,
       tone: 'blue',
     },
     {

@@ -4,6 +4,15 @@ NovaQuant 所有重要变更记录于此。
 
 ## 未发布
 
+### 🛠️ 管理后台与数据飞轮稳定性
+
+- **fix(db):** `PostgresRuntimeRepository` 启动时对真实 Postgres 执行 `CREATE TABLE IF NOT EXISTS`（`corporate_actions` + 索引），修复历史 Supabase 库缺表导致 `free_data_flywheel` / 治理同步报错；新增 `docs/sql/corporate_actions_novaquant_data.sql` 供手工对齐。
+- **fix(admin):** `runtimeApiBases()` 在 `admin.novaquant.cloud` 仅返回同域 `''`，避免带 Cookie 请求直连 `api` 子域产生误导性 401。
+- **fix(admin):** `buildAdminSignalsSnapshot` 在完整 `listSignals` 结果上统计 NEW/TRIGGERED，列表展示仍截断 40 条。
+- **fix(admin):** Postgres 与 loopback ops 的「最近结构化因子」按 `symbol|source|headline` 去重；策略工厂 / Alpha 实验室库存卡片注明全状态口径；信号执行页补充 KPI 与执行带差异说明。
+- **chore(docs):** `.env.example` 补充 Binance 在美区可能返回 451 的说明。
+- **test:** `tests/apiFallback.test.ts`、`tests/adminDataApi.test.ts` 覆盖 admin 基座与活跃信号统计。
+
 ### 🧩 API 入口与跨域白名单收敛
 
 - **refactor(api):** 新增 `src/server/api/httpAllowlists.ts`，集中维护 `CROSS_ORIGIN_READ_PATHS`、`USER_SCOPED_CACHE_PATHS` 与 Vercel 内联公开路径集合；`api/index.ts` 与 `app.ts` 共用同一份路径源，减少手写枚举漂移。

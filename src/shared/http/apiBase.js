@@ -52,10 +52,15 @@ export function runtimeApiBases() {
     return unique(['', ...envBases]);
   }
 
+  // Admin session cookies are host-only for `admin.*`; never call `api.*` with credentials from
+  // the admin SPA — that always 401s and pollutes DevTools. Vercel rewrites `/api/*` on admin.
+  if (hostname === 'admin.novaquant.cloud') {
+    return unique(['']);
+  }
+
   if (
     hostname === 'novaquant.cloud' ||
     hostname === 'app.novaquant.cloud' ||
-    hostname === 'admin.novaquant.cloud' ||
     hostname.endsWith('.novaquant.cloud')
   ) {
     return unique(['', ...envBases, 'https://api.novaquant.cloud']);

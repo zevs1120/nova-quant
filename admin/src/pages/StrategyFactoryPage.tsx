@@ -273,11 +273,24 @@ export default function StrategyFactoryPage() {
   const unifiedEvents = buildUnifiedEvents(alphaData, researchData);
   const candidateQueue = buildCandidateQueue(alphaData);
 
+  const draftN = Number(inventory.DRAFT || 0);
+  const backtestPassN = Number(inventory.BACKTEST_PASS || 0);
+  const rejectedN = Number(inventory.REJECTED || 0);
+  const retiredN = Number(inventory.RETIRED || 0);
+  const otherStatesNote = [
+    draftN ? `DRAFT ${draftN}` : '',
+    backtestPassN ? `BACKTEST_PASS ${backtestPassN}` : '',
+    rejectedN ? `REJECTED ${rejectedN}` : '',
+    retiredN ? `RETIRED ${retiredN}` : '',
+  ]
+    .filter(Boolean)
+    .join('，');
+
   const stats = [
     {
-      label: '候选库存',
+      label: '候选库存（全状态）',
       value: `${formatNumber(totalCandidates)} 个`,
-      detail: `Shadow ${formatNumber(inventory.SHADOW || 0)}，Canary ${formatNumber(inventory.CANARY || 0)}，Prod ${formatNumber(inventory.PROD || 0)}。`,
+      detail: `在线链路 Shadow ${formatNumber(inventory.SHADOW || 0)} / Canary ${formatNumber(inventory.CANARY || 0)} / Prod ${formatNumber(inventory.PROD || 0)}；合计含所有生命周期状态${otherStatesNote ? `（${otherStatesNote}）` : ''}。`,
       tone: 'blue',
     },
     {
