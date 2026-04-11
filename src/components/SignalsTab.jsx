@@ -123,6 +123,7 @@ export default function SignalsTab({
   uiMode = 'standard',
   t,
   locale,
+  onActionFeedback,
 }) {
   const [gradeFilter, setGradeFilter] = useState('ALL');
   const [sortBy, setSortBy] = useState('score');
@@ -199,9 +200,27 @@ export default function SignalsTab({
   const summary = decisionLabel(todayPlan, safety);
 
   const toggleWatch = (symbol) => {
+    const normalized = String(symbol || '')
+      .trim()
+      .toUpperCase();
+    if (!normalized) return;
+    const isWatched = watchlist.includes(normalized);
     setWatchlist((current) =>
-      current.includes(symbol) ? current.filter((item) => item !== symbol) : [...current, symbol],
+      current.includes(normalized)
+        ? current.filter((item) => item !== normalized)
+        : [...current, normalized],
     );
+    onActionFeedback?.({
+      message: locale?.startsWith('zh')
+        ? isWatched
+          ? `${normalized} 已从观察列表移除。`
+          : `${normalized} 已加入观察列表。`
+        : isWatched
+          ? `${normalized} removed from watchlist.`
+          : `${normalized} added to watchlist.`,
+      tone: 'success',
+      haptic: isWatched ? 'soft' : 'confirm',
+    });
   };
 
   const eligibilityChecks = useMemo(() => {
@@ -416,7 +435,9 @@ export default function SignalsTab({
                         <button
                           type="button"
                           className="quick-ask-btn"
-                          onClick={() => onPaperExecute?.(signal)}
+                          onClick={() => {
+                            onPaperExecute?.(signal);
+                          }}
                         >
                           Paper Execute
                         </button>
@@ -594,8 +615,6 @@ export default function SignalsTab({
                       onToggleWatch={toggleWatch}
                       onQuickAsk={onQuickAsk}
                       onEligibilityCheck={setEligibilitySignal}
-                      onExecute={onPaperExecute}
-                      onMarkDone={onMarkDone}
                       t={t}
                       locale={locale}
                     />

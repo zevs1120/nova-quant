@@ -1,4 +1,6 @@
-export default function SegmentedControl({ label, options, value, onChange, compact = false }) {
+import { memo } from 'react';
+
+function SegmentedControl({ label, options, value, onChange, compact = false }) {
   return (
     <div className={`segment-wrap ${compact ? 'segment-wrap-compact' : ''}`}>
       {label ? <div className="segment-label">{label}</div> : null}
@@ -17,3 +19,5 @@ export default function SegmentedControl({ label, options, value, onChange, comp
     </div>
   );
 }
+
+export default memo(SegmentedControl);

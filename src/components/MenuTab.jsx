@@ -278,6 +278,7 @@ export default function MenuTab({
   billingState,
   onSelectMembershipPlan,
   onOpenBillingPortal,
+  onActionFeedback,
 }) {
   const copy = localeCopy(locale);
   const catalog = itemCatalog(locale);
@@ -349,6 +350,7 @@ export default function MenuTab({
     const trimmed = String(inviteCodeDraft || '').trim();
     if (!trimmed) {
       setReferralMessage(copy.errInviteRequired);
+      onActionFeedback?.({ message: copy.errInviteRequired, tone: 'danger', haptic: 'soft' });
       return;
     }
     if (!onClaimReferral) return;
@@ -359,15 +361,19 @@ export default function MenuTab({
       if (result?.ok) {
         setInviteCodeDraft('');
         setReferralMessage(copy.referralClaimOk);
+        onActionFeedback?.({ message: copy.referralClaimOk, tone: 'success' });
       } else {
-        setReferralMessage(mapManualMutationError(result?.error, copy));
+        const message = mapManualMutationError(result?.error, copy);
+        setReferralMessage(message);
+        onActionFeedback?.({ message, tone: 'danger', haptic: 'soft' });
       }
     } catch {
       setReferralMessage(copy.errGeneric);
+      onActionFeedback?.({ message: copy.errGeneric, tone: 'danger', haptic: 'soft' });
     } finally {
       setReferralBusy(false);
     }
-  }, [copy, inviteCodeDraft, onClaimReferral]);
+  }, [copy, inviteCodeDraft, onActionFeedback, onClaimReferral]);
 
   const handleSubmitPrediction = useCallback(
     async (item) => {
@@ -375,6 +381,7 @@ export default function MenuTab({
       const selected = predictionPickById[item.id];
       if (!selected) {
         setPredictionMessage(copy.errPredictionOption);
+        onActionFeedback?.({ message: copy.errPredictionOption, tone: 'danger', haptic: 'soft' });
         return;
       }
       const stake = stakeForPredictionMarket(item, rules);
@@ -394,16 +401,23 @@ export default function MenuTab({
             delete next[item.id];
             return next;
           });
+          onActionFeedback?.({
+            message: isZh ? '预测已提交。' : 'Prediction submitted.',
+            tone: 'success',
+          });
         } else {
-          setPredictionMessage(mapManualMutationError(result?.error, copy));
+          const message = mapManualMutationError(result?.error, copy);
+          setPredictionMessage(message);
+          onActionFeedback?.({ message, tone: 'danger', haptic: 'soft' });
         }
       } catch {
         setPredictionMessage(copy.errGeneric);
+        onActionFeedback?.({ message: copy.errGeneric, tone: 'danger', haptic: 'soft' });
       } finally {
         setPredictionBusyId(null);
       }
     },
-    [copy, onSubmitPrediction, predictionPickById, rules],
+    [copy, isZh, onActionFeedback, onSubmitPrediction, predictionPickById, rules],
   );
   const securityRows = [
     { key: 'create-passkey', title: isZh ? '创建通行密钥' : 'Create passkey' },
@@ -1220,8 +1234,8 @@ export default function MenuTab({
           </span>
           <p>
             {isZh
-              ? '需要帮助处理账户、邀请奖励、数据导出或交易问题？先看帮助中心，或者直接联系 NovaQuant Support。'
-              : 'Need help with your account, invite rewards, data exports, or trading questions? Start in the Help Center or contact NovaQuant Support directly.'}
+              ? '需要帮助处理账户、付款、邀请奖励、数据导出或产品故障？先看帮助中心，或者通过 support@novaquant.cloud 联系 NovaQuant Support。我们不是券商客服或紧急交易热线。'
+              : 'Need help with your account, billing, invite rewards, data exports, or a product issue? Start in the Help Center or contact NovaQuant Support at support@novaquant.cloud. We are not broker support or an emergency trading desk.'}
           </p>
         </div>
 
@@ -1279,6 +1293,11 @@ export default function MenuTab({
         </div>
 
         <p className="menu-version-line">{buildVersionLabel(appMeta)}</p>
+        <p className="menu-version-line">
+          {isZh
+            ? '支持邮箱：support@novaquant.cloud · 账单取消在 Stripe / Billing Portal 内完成。'
+            : 'Support email: support@novaquant.cloud · Subscription cancellation is handled in Stripe / Billing Portal.'}
+        </p>
 
         <button
           type="button"
@@ -1302,14 +1321,26 @@ export default function MenuTab({
     const topics = isZh
       ? [
           { title: '账户与登录', desc: '登录失败、设备切换、账号绑定与身份信息问题。' },
+          { title: '付款与取消', desc: 'Stripe 付款、Lite / Pro 权益同步、取消后降级与收据问题。' },
           { title: '邀请与积分', desc: '邀请奖励、邀请码、积分到账与 VIP 兑换。' },
           { title: 'Browse / Nova', desc: '搜索不到标的、新闻加载慢、Nova 回答不准。' },
-          { title: '数据与回测', desc: '行情延迟、回测口径、演示数据与真实数据差异。' },
+          {
+            title: '数据与 action cards',
+            desc: '行情延迟、卡片入场/止损/止盈口径、演示数据与真实数据差异。',
+          },
+          {
+            title: '交易边界',
+            desc: 'NovaQuant 不替你连接人工交易员、不替你紧急平仓，也不保证券商一定成交。',
+          },
         ]
       : [
           {
             title: 'Account & login',
             desc: 'Sign-in issues, device changes, account linking, and identity questions.',
+          },
+          {
+            title: 'Billing & cancellation',
+            desc: 'Stripe payments, Lite / Pro entitlement sync, downgrade after cancellation, and receipts.',
           },
           {
             title: 'Invites & points',
@@ -1320,8 +1351,12 @@ export default function MenuTab({
             desc: 'Missing symbols, slow news loading, or low-quality Nova answers.',
           },
           {
-            title: 'Data & backtests',
-            desc: 'Market data delays, backtest methodology, and demo-vs-live differences.',
+            title: 'Data & action cards',
+            desc: 'Market data delays, card entry / stop / take-profit methodology, and demo-vs-live differences.',
+          },
+          {
+            title: 'Trading boundary',
+            desc: 'NovaQuant does not connect you to a human trading desk, emergency liquidation desk, or guaranteed broker fill.',
           },
         ];
     return (
@@ -1355,15 +1390,15 @@ export default function MenuTab({
           <h1>{isZh ? '你的支持会话' : 'Your support chats'}</h1>
           <p>
             {isZh
-              ? '当前没有未完成的支持会话。新请求会通过邮件与你同步。'
-              : 'There are no open support chats right now. New requests will sync to your email.'}
+              ? '当前没有应用内支持会话。新请求请发邮件；我们会通过邮箱与你同步。'
+              : 'There are no in-app support chats right now. Please send a support email; we will follow up in your inbox.'}
           </p>
         </div>
         <div className="menu-empty-surface">
           <p>
             {isZh
-              ? '需要帮助时，直接使用页面底部的 Contact Support。'
-              : 'If you need help, use the Contact Support button on the main support page.'}
+              ? '需要帮助时，直接使用支持首页底部的 Contact Support，或发邮件到 support@novaquant.cloud。'
+              : 'If you need help, use the Contact Support button on the main support page or email support@novaquant.cloud.'}
           </p>
         </div>
       </section>
@@ -1404,11 +1439,20 @@ export default function MenuTab({
             isZh
               ? {
                   title: '执行与券商',
-                  desc: '交易票据、纸面执行和券商跳转已经支持，但并非所有券商都开放 API 直连下单。',
+                  desc: '交易票据、纸面执行和券商跳转已经支持；NovaQuant 不是券商，不保证成交，也不会替你自动下单。',
                 }
               : {
                   title: 'Execution & brokers',
-                  desc: 'Trade tickets, paper execution, and broker handoff are supported, but not every broker has direct order API connectivity.',
+                  desc: 'Trade tickets, paper execution, and broker handoff are supported; NovaQuant is not a broker, does not guarantee fills, and does not auto-place orders for you.',
+                },
+            isZh
+              ? {
+                  title: '市场情报，不是个人投顾',
+                  desc: 'Action card 是模型生成的交易计划与风险边界。你仍需自行核对价格、流动性、税务、规则和自身适合度。',
+                }
+              : {
+                  title: 'Market intelligence, not individualized advice',
+                  desc: 'Action cards are model-generated trade plans and risk boundaries. You remain responsible for verifying price, liquidity, taxes, rules, and suitability.',
                 },
           ].map((item) => (
             <div key={item.title} className="menu-list-row static">

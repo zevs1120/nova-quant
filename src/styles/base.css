@@ -32,6 +32,12 @@
   --radius-card: 22px;
   --radius-btn: 16px;
   --radius-chip: 14px;
+  --btn-min-height: 48px;
+  --btn-padding-y: 12px;
+  --btn-padding-x: 16px;
+  --btn-font-size: 14px;
+  --btn-font-weight: 700;
+  --btn-letter-spacing: 0;
   --shadow: 0 2px 10px rgba(58, 52, 107, 0.04), 0 18px 44px rgba(58, 52, 107, 0.08);
   --shadow-soft: 0 14px 30px rgba(58, 52, 107, 0.06);
   --shadow-card-press: 0 10px 22px rgba(58, 52, 107, 0.08);
@@ -562,6 +568,51 @@ select {
   border-color: rgba(239, 68, 68, 0.2);
 }
 
+.action-toast-shell {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: calc(var(--tabbar-total-height) + 16px);
+  z-index: 40;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.action-toast {
+  width: min(100%, 420px);
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 14px 36px rgba(15, 23, 42, 0.14);
+  backdrop-filter: blur(18px);
+}
+
+.action-toast-neutral {
+  color: var(--text-primary);
+}
+
+.action-toast-success {
+  border-color: rgba(34, 197, 94, 0.18);
+  background: rgba(240, 253, 244, 0.96);
+  color: var(--success-text);
+}
+
+.action-toast-danger {
+  border-color: rgba(239, 68, 68, 0.16);
+  background: rgba(254, 242, 242, 0.96);
+  color: var(--danger-text);
+}
+
+.action-toast-message {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: center;
+}
+
 .mini-stat {
   background: rgba(0, 0, 0, 0.03);
   border: 1px solid rgba(0, 0, 0, 0.05);
@@ -994,6 +1045,15 @@ select {
   flex-wrap: wrap;
 }
 
+.panel-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.panel-grid-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .pill-btn,
 .primary-btn,
 .secondary-btn,
@@ -1040,6 +1100,12 @@ select {
   color: var(--text-secondary);
   margin: 0;
   font-size: 14px;
+}
+
+@media (max-width: 720px) {
+  .panel-grid-2 {
+    grid-template-columns: 1fr;
+  }
 }
 
 .empty-card {
@@ -1689,11 +1755,20 @@ td {
   padding: 10px;
 }
 
+.skeleton-screen {
+  display: grid;
+  gap: 14px;
+}
+
+.skeleton-screen-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.skeleton-block,
 .skeleton-line {
   width: 100%;
-  height: 12px;
-  margin-bottom: 10px;
-  border-radius: 6px;
   background: linear-gradient(
     90deg,
     rgba(0, 0, 0, 0.05) 25%,
@@ -1702,6 +1777,34 @@ td {
   );
   background-size: 260px 12px;
   animation: shimmer 1.2s linear infinite;
+}
+
+.skeleton-line {
+  height: 12px;
+  margin-bottom: 10px;
+  border-radius: 6px;
+}
+
+.skeleton-block {
+  border-radius: 22px;
+}
+
+.skeleton-screen-hero {
+  height: 132px;
+  border-radius: 28px;
+}
+
+.skeleton-screen-card {
+  height: 108px;
+}
+
+.skeleton-screen-band {
+  height: 54px;
+  border-radius: 18px;
+}
+
+.skeleton-screen-list {
+  height: 92px;
 }
 
 .bottom-nav {

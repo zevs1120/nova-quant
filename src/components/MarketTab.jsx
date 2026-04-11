@@ -1,5 +1,6 @@
 import SegmentedControl from './SegmentedControl';
 import GlassCard from './GlassCard';
+import KpiCard from './KpiCard';
 
 function pct(value, digits = 1) {
   if (!Number.isFinite(Number(value))) return '--';
@@ -11,7 +12,6 @@ export default function MarketTab({
   setMarket,
   assetClass,
   setAssetClass,
-  velocity,
   modules,
   insights,
   uiMode = 'standard',
@@ -42,41 +42,34 @@ export default function MarketTab({
         }}
       />
 
-      <GlassCard className="velocity-hero">
-        <p className="muted">Environment Summary</p>
-        <h1 className="velocity-value">{insights?.regime?.tag || '--'}</h1>
-        <p className="muted status-line">
-          {insights?.short_commentary || insights?.regime?.description || '--'}
-        </p>
-        <div className="status-grid-3">
-          <div className="status-box">
-            <p className="muted">Breadth</p>
-            <h2>{pct(insights?.breadth?.ratio)}</h2>
+      <div className="panel-grid panel-grid-2">
+        <GlassCard className="velocity-hero">
+          <p className="muted">Environment Summary</p>
+          <h1 className="velocity-value">{insights?.regime?.tag || '--'}</h1>
+          <p className="muted status-line">
+            {insights?.short_commentary || insights?.regime?.description || '--'}
+          </p>
+          <div className="strategy-kpi-row signal-summary-kpis">
+            <KpiCard label="Breadth" value={pct(insights?.breadth?.ratio)} />
+            <KpiCard label="Volatility" value={insights?.volatility?.label || '--'} />
+            <KpiCard label="Risk Bias" value={insights?.risk_on_off?.state || '--'} />
           </div>
-          <div className="status-box">
-            <p className="muted">Volatility</p>
-            <h2>{insights?.volatility?.label || '--'}</h2>
+          <div className="action-row">
+            <button type="button" className="secondary-btn" onClick={onExplainRisk}>
+              Why this market stance?
+            </button>
           </div>
-          <div className="status-box">
-            <p className="muted">Risk Bias</p>
-            <h2>{insights?.risk_on_off?.state || '--'}</h2>
-          </div>
-        </div>
-        <div className="action-row">
-          <button type="button" className="secondary-btn" onClick={onExplainRisk}>
-            Why this market stance?
-          </button>
-        </div>
-      </GlassCard>
+        </GlassCard>
 
-      <GlassCard>
-        <h3 className="card-title">What This Means For Today</h3>
-        <ul className="bullet-list">
-          <li>If breadth is weak and volatility rises, reduce size first.</li>
-          <li>If risk-on improves, prioritize only your best setups.</li>
-          <li>Treat this page as evidence for Today, not as a trading terminal.</li>
-        </ul>
-      </GlassCard>
+        <GlassCard>
+          <h3 className="card-title">What This Means For Today</h3>
+          <ul className="bullet-list">
+            <li>If breadth is weak and volatility rises, reduce size first.</li>
+            <li>If risk-on improves, prioritize only your best setups.</li>
+            <li>Treat this page as evidence for Today, not as a trading terminal.</li>
+          </ul>
+        </GlassCard>
+      </div>
 
       {uiMode !== 'beginner' ? (
         <GlassCard>

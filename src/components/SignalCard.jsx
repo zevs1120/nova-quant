@@ -6,23 +6,6 @@ function normalizeConfidenceLevel(signal) {
   return Number(signal.confidence || 3);
 }
 
-function buildOrderText(signal) {
-  const tp = signal.take_profit_levels?.[0]?.price ?? signal.take_profit;
-  return [
-    `symbol: ${signal.symbol}`,
-    `asset_class: ${signal.asset_class || (signal.market === 'CRYPTO' ? 'CRYPTO' : 'US_STOCK')}`,
-    `market: ${signal.market}`,
-    `side: ${signal.direction}`,
-    `entry: ${signal.entry_zone?.low ?? signal.entry_min} - ${signal.entry_zone?.high ?? signal.entry_max}`,
-    `stop: ${signal.stop_loss?.price ?? signal.stop_loss_value ?? signal.stop_loss}`,
-    `tp1: ${tp}`,
-    `size: ${signal.position_advice?.position_pct ?? signal.position_size_pct}%`,
-    `horizon_days: ${signal.holding_horizon_days ?? '--'}`,
-    `status: ${signal.status}`,
-    `signal_id: ${signal.signal_id}`,
-  ].join('\n');
-}
-
 function toRiskTag(signal, t) {
   const riskScore = Number(signal.risk_score ?? 50);
   if (riskScore >= 68)
@@ -77,8 +60,6 @@ export default function SignalCard({
   onToggleWatch,
   onQuickAsk,
   onEligibilityCheck,
-  onExecute,
-  onMarkDone,
   t,
   locale,
 }) {
@@ -192,7 +173,7 @@ export default function SignalCard({
       <div className="signal-quick-row signal-gate-row">
         <button
           type="button"
-          className="quick-ask-btn gate-btn"
+          className="primary-btn gate-btn"
           onClick={(event) => {
             event.stopPropagation();
             onEligibilityCheck?.(signal);
@@ -200,12 +181,9 @@ export default function SignalCard({
         >
           {t('signals.canITrade')}
         </button>
-      </div>
-
-      <div className="signal-quick-row">
         <button
           type="button"
-          className="quick-ask-btn"
+          className="secondary-btn"
           onClick={(event) => {
             event.stopPropagation();
             onQuickAsk?.('explain', signal);
@@ -213,54 +191,13 @@ export default function SignalCard({
         >
           {t('chat.quick.explain')}
         </button>
-        <button
-          type="button"
-          className="quick-ask-btn"
-          onClick={(event) => {
-            event.stopPropagation();
-            onQuickAsk?.('execute', signal);
-          }}
-        >
-          {t('chat.quick.execute')}
-        </button>
-        <button
-          type="button"
-          className="quick-ask-btn"
-          onClick={async (event) => {
-            event.stopPropagation();
-            try {
-              await navigator.clipboard.writeText(buildOrderText(signal));
-            } catch {
-              // no-op
-            }
-          }}
-        >
-          {t('signals.copyParams')}
-        </button>
-        <button
-          type="button"
-          className="quick-ask-btn"
-          onClick={(event) => {
-            event.stopPropagation();
-            onExecute?.(signal);
-          }}
-        >
-          {t('signals.paperExecute')}
-        </button>
       </div>
 
-      <div className="signal-quick-row signal-secondary-row">
-        <button
-          type="button"
-          className="quick-ask-btn"
-          onClick={(event) => {
-            event.stopPropagation();
-            onMarkDone?.(signal);
-          }}
-        >
-          {t('signals.markDone')}
-        </button>
-      </div>
+      <p className="muted status-line">
+        {locale?.startsWith('zh')
+          ? '点开卡片可查看完整计划、复制参数和记录纸面执行。'
+          : 'Open the card for the full plan, sharing, and paper logging.'}
+      </p>
     </article>
   );
 }

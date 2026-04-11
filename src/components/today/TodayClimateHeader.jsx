@@ -16,6 +16,7 @@ export default function TodayClimateHeader({
             <h1 className="today-rebuild-title">{climateHeadline}</h1>
           </div>
           <span className={`today-rebuild-status today-rebuild-status-${climateVisualTone}`}>
+            <span className="today-rebuild-dot" aria-hidden="true" />
             {climateStatusLabel}
           </span>
         </div>

@@ -17,6 +17,10 @@ function TodayDeckCard({
     .trim()
     .toUpperCase();
   const isSaved = cardSymbol ? watchlistSymbols.includes(cardSymbol) : false;
+  const disclosure =
+    locale === 'zh'
+      ? '模型生成的市场情报；不是券商订单。行动前请核对价格、流动性、风险和自身适合度。'
+      : 'Model-generated market intelligence; not a broker order. Verify price, liquidity, risk, and suitability before acting.';
 
   return (
     <article
@@ -119,6 +123,7 @@ function TodayDeckCard({
               </div>
             ) : null}
             {card.note ? <p className="today-rebuild-card-note">{card.note}</p> : null}
+            <p className="today-rebuild-card-disclosure">{disclosure}</p>
           </div>
         </>
       )}

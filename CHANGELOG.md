@@ -4,6 +4,12 @@ NovaQuant 所有重要变更记录于此。
 
 ## 未发布
 
+### ✨ 安全恢复预拉取前的产品打磨
+
+- **feat(app,ui):** 恢复 `ActionToast` 与设备振动反馈，`Settings` / `Signals` / `Menu` 的关键动作现在会给出即时成功或失败提示；`SignalCard` 收敛为更清晰的卡面 CTA，`MarketTab` 用 KPI 卡重排环境摘要，Today 卡片补回状态点与风险披露文案。
+- **feat(ui):** `GlassCard`、`KpiCard`、`SegmentedControl` 加入 `memo` 包装，`Skeleton` 新增 `screen` 变体，并补齐 `panel-grid`、toast、Today disclosure 等样式收口。
+- **feat(ops,docs):** 恢复 `check-launch-readiness` 脚本、launch contract / 量化术语文档，以及 API rate-limit helper 与对应回归测试；`performanceOptimization` 的 public browse cache-control 断言延长超时以匹配当前线上读取时延。
+
 ### 🛠️ 管理后台与数据飞轮稳定性
 
 - **fix(db):** `PostgresRuntimeRepository` 启动时对真实 Postgres 执行 `CREATE TABLE IF NOT EXISTS`（`corporate_actions` + 索引），修复历史 Supabase 库缺表导致 `free_data_flywheel` / 治理同步报错；新增 `docs/sql/corporate_actions_novaquant_data.sql` 供手工对齐。

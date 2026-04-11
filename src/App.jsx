@@ -17,6 +17,7 @@ const ProofTab = lazy(() => import('./components/ProofTab'));
 const ResearchTab = lazy(() => import('./components/ResearchTab'));
 const RiskTab = lazy(() => import('./components/RiskTab'));
 const SettingsTab = lazy(() => import('./components/SettingsTab'));
+import ActionToast from './components/ActionToast';
 import Skeleton from './components/Skeleton';
 const SignalsTab = lazy(() => import('./components/SignalsTab'));
 const TodayTab = lazy(() => import('./components/TodayTab'));
@@ -36,6 +37,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { createTranslator, getDefaultLang, getLocale } from './i18n';
 import { buildHoldingsReview } from './research/holdingsAnalyzer';
 import { fetchApi } from './utils/api';
+import { triggerDeviceFeedback } from './utils/feedback.js';
 import {
   buildAuthProfileSyncPayload,
   buildAuthProfileSyncSignature,
@@ -106,6 +108,8 @@ export default function App() {
     backLabel: 'Browse',
   });
   const [browseBackToken, setBrowseBackToken] = useState(0);
+  const [actionToast, setActionToast] = useState(null);
+  const actionToastTimerRef = useRef(null);
 
   const t = useMemo(() => createTranslator(lang), [lang]);
   const locale = useMemo(() => getLocale(lang), [lang]);
@@ -760,6 +764,35 @@ export default function App() {
     [setWatchlist, setWatchlistMetaByUser, watchlistOwnerKey],
   );
 
+  const showActionFeedback = useCallback((input) => {
+    const payload =
+      typeof input === 'string'
+        ? {
+            message: input,
+          }
+        : input || {};
+    const message = String(payload.message || '').trim();
+    if (!message) return;
+    if (payload.haptic !== 'none') {
+      triggerDeviceFeedback(payload.haptic || (payload.tone === 'danger' ? 'soft' : 'confirm'));
+    }
+    setActionToast({
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      message,
+      tone: payload.tone || 'neutral',
+      durationMs: Number(payload.durationMs) > 0 ? Number(payload.durationMs) : 2200,
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!actionToast?.id) return undefined;
+    window.clearTimeout(actionToastTimerRef.current);
+    actionToastTimerRef.current = window.setTimeout(() => {
+      setActionToast((current) => (current?.id === actionToast.id ? null : current));
+    }, actionToast.durationMs || 2200);
+    return () => window.clearTimeout(actionToastTimerRef.current);
+  }, [actionToast]);
+
   useEffect(() => {
     const allowedSymbols = new Set(
       (watchlist || []).map((item) => normalizeWatchSymbol(item)).filter(Boolean),
@@ -1071,6 +1104,7 @@ export default function App() {
       setAboutOpen,
       loadEngagementState,
       setEngagementState,
+      onActionFeedback: showActionFeedback,
     },
   });
 
@@ -1243,7 +1277,7 @@ export default function App() {
             }`}
             data-shell-surface={shellSurface}
           >
-            <Suspense fallback={<Skeleton lines={6} />}>
+            <Suspense fallback={<Skeleton variant="screen" lines={6} />}>
               <div
                 className={`screen-transition ${isSecondaryShell ? 'screen-transition-secondary' : ''}`}
                 key={`${activeTab}-${mySection}-${uiMode}`}
@@ -1297,6 +1331,8 @@ export default function App() {
             })}
           </div>
         </nav>
+
+        <ActionToast toast={actionToast} />
 
         {aboutOpen ? (
           <Suspense fallback={null}>

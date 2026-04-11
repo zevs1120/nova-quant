@@ -89,7 +89,7 @@ describe('performance optimization regression', () => {
       expect(detailBundle.headers['cache-control']).toBe(
         'public, max-age=15, s-maxage=60, stale-while-revalidate=180',
       );
-    });
+    }, 15_000);
   });
 
   // -------------------------------------------------------------------------

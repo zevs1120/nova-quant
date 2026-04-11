@@ -49,7 +49,23 @@ export function renderMenuSection(args) {
     setAboutOpen,
     loadEngagementState,
     setEngagementState,
+    onActionFeedback,
   } = args;
+
+  const signalActionMessage = (signal, kind) => {
+    const symbol =
+      String(signal?.symbol || '')
+        .trim()
+        .toUpperCase() || '--';
+    const zh = String(locale || '').startsWith('zh');
+    if (kind === 'paper_execute') {
+      return zh ? `${symbol} 已记录为纸面执行。` : `${symbol} saved as a paper execution.`;
+    }
+    if (kind === 'done') {
+      return zh ? `${symbol} 已标记为完成。` : `${symbol} marked done.`;
+    }
+    return zh ? '已保存。' : 'Saved.';
+  };
 
   if (section === 'signals') {
     return !hasLoaded && loading ? (
@@ -69,8 +85,21 @@ export function renderMenuSection(args) {
         onQuickAsk={(_intent, signal) =>
           askAi(`请解释 ${signal?.symbol || '该信号'} 的执行逻辑和风险边界。`)
         }
-        onPaperExecute={(signal) => recordExecution({ signal, mode: 'PAPER', action: 'EXECUTE' })}
-        onMarkDone={(signal) => recordExecution({ signal, mode: 'PAPER', action: 'DONE' })}
+        onPaperExecute={(signal) => {
+          recordExecution({ signal, mode: 'PAPER', action: 'EXECUTE' });
+          onActionFeedback?.({
+            message: signalActionMessage(signal, 'paper_execute'),
+            tone: 'success',
+          });
+        }}
+        onMarkDone={(signal) => {
+          recordExecution({ signal, mode: 'PAPER', action: 'DONE' });
+          onActionFeedback?.({
+            message: signalActionMessage(signal, 'done'),
+            tone: 'success',
+            haptic: 'soft',
+          });
+        }}
         riskRules={finalUiData.config?.risk_rules || {}}
         riskStatus={finalUiData.config?.risk_status || {}}
         todayPlan={finalUiData.today || {}}
@@ -80,6 +109,7 @@ export function renderMenuSection(args) {
         uiMode={uiMode}
         t={t}
         locale={locale}
+        onActionFeedback={onActionFeedback}
       />
     );
   }
@@ -212,6 +242,7 @@ export function renderMenuSection(args) {
         loadEngagementState={loadEngagementState}
         setEngagementState={setEngagementState}
         fetchJson={fetchJson}
+        onActionFeedback={onActionFeedback}
       />
     );
   }
@@ -282,6 +313,7 @@ export function renderActiveScreen(args) {
     openCheckoutFromMembershipCenter,
     marketInstruments,
     renderMenuSectionArgs,
+    onActionFeedback,
   } = args;
 
   if (activeTab === 'today') {
@@ -433,6 +465,7 @@ export function renderActiveScreen(args) {
         billingState={billing.billingState}
         onSelectMembershipPlan={openCheckoutFromMembershipCenter}
         onOpenBillingPortal={billing.openPortal}
+        onActionFeedback={onActionFeedback}
       />
     );
   }

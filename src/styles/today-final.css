@@ -3822,6 +3822,16 @@
   white-space: nowrap;
 }
 
+.today-rebuild-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  margin-right: 6px;
+  background: currentColor;
+  opacity: 0.85;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.32);
+}
+
 .today-rebuild-status-safe {
   background: rgba(76, 134, 255, 0.1);
   color: #356dff;
